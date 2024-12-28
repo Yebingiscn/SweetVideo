@@ -1,0 +1,48 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "module description"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "流心视频"
+    },
+    {
+      "name": "sure",
+      "value": "Sure"
+    },
+    {
+      "name": "cancel",
+      "value": "Cancel"
+    },
+    {
+      "name": "rename",
+      "value": "Rename"
+    },
+    {
+      "name": "search",
+      "value": "Search"
+    },
+    {
+      "name": "set_passwd",
+      "value": "Set password"
+    },
+    {
+      "name": "entered_privacy_space",
+      "value": "Entered privacy space"
+    },
+    {
+      "name": "set_passwd_tip",
+      "value": "Password has been changed! Enter the password in the search box to enter the privacy space"
+    },
+    {
+      "name": "nothing",
+      "value": "Nothing."
+    }
+  ]
+}

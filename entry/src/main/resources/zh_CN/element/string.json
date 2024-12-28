@@ -1,0 +1,48 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "模块描述"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "流心视频"
+    },
+    {
+      "name": "sure",
+      "value": "确定"
+    },
+    {
+      "name": "cancel",
+      "value": "取消"
+    },
+    {
+      "name": "rename",
+      "value": "重命名"
+    },
+    {
+      "name": "search",
+      "value": "搜索"
+    },
+    {
+      "name": "set_passwd",
+      "value": "设置密码"
+    },
+    {
+      "name": "entered_privacy_space",
+      "value": "已进入隐私空间"
+    },
+    {
+      "name": "set_passwd_tip",
+      "value": "密码已更改！在搜索框输入密码即可进入隐私空间"
+    },
+    {
+      "name": "nothing",
+      "value": "空空如也"
+    }
+  ]
+}
