@@ -43,6 +43,14 @@
     {
       "name": "nothing",
       "value": "Nothing."
+    },
+    {
+      "name": "reason",
+      "value": "用于应用播放本地视频功能"
+    },
+    {
+      "name": "add_video_first",
+      "value": "请先添加视频"
     }
   ]
 }

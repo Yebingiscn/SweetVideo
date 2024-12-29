@@ -42,7 +42,15 @@
     },
     {
       "name": "nothing",
-      "value": "Nothing."
+      "value": "Nothing"
+    },
+    {
+      "name": "reason",
+      "value": "used on app get local video"
+    },
+    {
+      "name": "add_video_first",
+      "value": "add video first"
     }
   ]
 }

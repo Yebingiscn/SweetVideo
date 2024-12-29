@@ -9,6 +9,7 @@ import DataSyncUtil from '../utils/DataSyncUtil';
 import PermissionUtil from '../utils/PermissionUtil';
 import DataUtil from '../utils/DataUtil';
 import ToolsUtil from '../utils/ToolsUtil';
+import { hilog } from '@kit.PerformanceAnalysisKit';
 
 
 interface VideoMetadata {
@@ -67,6 +68,7 @@ async function persistPermission(uri: string): Promise<boolean> {
     let policies: Array<fileShare.PolicyInfo> = [policyInfo];
     fileShare.persistPermission(policies).then(() => {
     }).catch((err: BusinessError<Array<fileShare.PolicyErrorResult>>) => {
+      hilog.info(0xFF00, "testTag", String(err));
     });
     let fd = await fs.open(uri);
     await fs.close(fd);
@@ -117,8 +119,8 @@ struct Index {
         }
         this.show_list =
           this.encryption ? this.video_metadata_encryption.map(i => i.date) : this.video_metadata.map(i => i.date)
-        PreferencesUtil.putPreferencesValue('sweetvideo', 'video_metadata', this.video_metadata)
-        PreferencesUtil.putPreferencesValue('sweetvideo', 'video_metadata_encryption', this.video_metadata_encryption)
+        PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata', this.video_metadata)
+        PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata_encryption', this.video_metadata_encryption)
       },
     }),
     cornerRadius: 20,
@@ -130,14 +132,14 @@ struct Index {
     }
   })
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
-    builder: editPasswdaDialog({
+    builder: editPasswordDialog({
       confirm: (passwd: string | undefined) => {
         if (!passwd || passwd == '') {
           return
         }
         this.passwd = passwd
         this.encryption = false
-        PreferencesUtil.putPreferencesValue('sweetvideo', 'passwd', passwd)
+        PreferencesUtil.putPreferencesValue('sweet_video', 'passwd', passwd)
         ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.set_passwd_tip')))
       },
     }),
@@ -177,10 +179,10 @@ struct Index {
   async aboutToAppear(): Promise<void> {
     reqPermissionsFromUser(permissions, context);
     this.video_metadata =
-      await PreferencesUtil.getPreferencesValue('sweetvideo', 'video_metadata', []) as VideoMetadata[]
+      await PreferencesUtil.getPreferencesValue('sweet_video', 'video_metadata', []) as VideoMetadata[]
     this.video_metadata_encryption =
-      await PreferencesUtil.getPreferencesValue('sweetvideo', 'video_metadata_encryption', []) as VideoMetadata[]
-    this.passwd = await PreferencesUtil.getPreferencesValue('sweetvideo', 'passwd', '') as string
+      await PreferencesUtil.getPreferencesValue('sweet_video', 'video_metadata_encryption', []) as VideoMetadata[]
+    this.passwd = await PreferencesUtil.getPreferencesValue('sweet_video', 'passwd', '') as string
     this.show_list = this.video_metadata.map(i => i.date)
     this.activePermission()
     await (await this.windowClass).setWindowLayoutFullScreen(true)
@@ -231,15 +233,16 @@ struct Index {
       if (this.encryption) {
         this.video_metadata_encryption[this.video_metadata_encryption.findIndex(i => i.date ==
           this.now_playing?.date)].last_play = DataSyncUtil.last_time
-        PreferencesUtil.putPreferencesValue('sweetvideo', 'video_metadata_encryption', this.video_metadata_encryption)
+        PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata_encryption', this.video_metadata_encryption)
       } else {
         this.video_metadata[this.video_metadata.findIndex(i => i.date == this.now_playing?.date)].last_play =
           DataSyncUtil.last_time
-        PreferencesUtil.putPreferencesValue('sweetvideo', 'video_metadata', this.video_metadata)
+        PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata', this.video_metadata)
       }
     }
   }
 
+  // 持久化视频存储
   async toMetadata(list: string[]) {
     for (let uri of list) {
       persistPermission(uri)
@@ -269,7 +272,7 @@ struct Index {
             this.loading = true
             fs.copyFile(file1.fd, file2.fd).then(() => {
               this.video_metadata_encryption.push(tmp)
-              PreferencesUtil.putPreferencesValue('sweetvideo', 'video_metadata_encryption',
+              PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata_encryption',
                 this.video_metadata_encryption)
               fs.closeSync(file1)
               fs.closeSync(file2)
@@ -279,7 +282,7 @@ struct Index {
             })
           } else {
             this.video_metadata.push(tmp)
-            PreferencesUtil.putPreferencesValue('sweetvideo', 'video_metadata', this.video_metadata)
+            PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata', this.video_metadata)
           }
         }
       });
@@ -317,6 +320,7 @@ struct Index {
         ForEach(this.list_empty_item, (item: string) => {
           ListItem().height(this.topSafeHeight + 55)
         })
+        // 加载视频列表
         LazyForEach(this.lazy_show_list, (item: string) => {
           ListItem() {
             Column() {
@@ -342,6 +346,7 @@ struct Index {
                     .opacity(0.8)
                 }.alignItems(HorizontalAlign.Start)
               }.width('100%')
+
             }.padding(10).backgroundColor($r('app.color.list_item_background')).borderRadius(10)
           }
           .padding({
@@ -369,6 +374,7 @@ struct Index {
                 this.video_metadata.find(i => i.date == item))
               }
             }, router.RouterMode.Standard, (err) => {
+              hilog.info(0xFF00, "testTag", String(err));
             });
           })
         })
@@ -376,6 +382,8 @@ struct Index {
           ListItem().height(50)
         })
       }
+      .edgeEffect(EdgeEffect.Spring) // 边缘效果设置为Spring
+      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
       .lanes(this.list_line)
       .animation({ duration: 300, curve: Curve.Smooth })
       .scrollBar(BarState.Off)
@@ -384,14 +392,13 @@ struct Index {
       .onTouch(() => {
         this.searchController.stopEditing()
       })
-
+      //顶栏
       Row() {
         Text($r('app.string.nothing')).fontSize(30).fontWeight(FontWeight.Bold)
       }
       .height('100%')
       .visibility(this.show_list.length == 0 ? Visibility.Visible : Visibility.Hidden)
       .animation({ duration: 150, curve: Curve.Ease })
-
       Column() {
         Row({ space: 15 }) {
           Button({ type: ButtonType.Circle, stateEffect: true }) {
@@ -433,8 +440,8 @@ struct Index {
             offsetX: 0,
             offsetY: 0
           })
-
-          Search({ value: '', controller: this.searchController })//搜索框
+          //搜索框
+          Search({ value: '', controller: this.searchController })
             .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
             .backgroundColor($r('app.color.start_window_background_blur'))
             .backdropBlur(150)
@@ -449,14 +456,14 @@ struct Index {
             .width(this.passwd == '' || this.encryption ? '45%' : '60%')
             .animation({ duration: 300, curve: Curve.Ease })
             .onChange((value: string) => {
-              if (value == '') {
+              if (value == '' && this.video_metadata) {
                 this.show_list =
                   this.encryption ? this.video_metadata_encryption.map(i => i.date) :
                   this.video_metadata.map(i => i.date)
               }
             })
             .onSubmit((value: string) => {
-              if (value == '') {
+              if (value == '' && this.video_metadata) {
                 this.show_list = this.encryption ? this.video_metadata_encryption.map(i => i.date) :
                 this.video_metadata.map(i => i.date)
                 this.searchController.stopEditing()
@@ -467,13 +474,23 @@ struct Index {
                 ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.entered_privacy_space')))
                 return
               }
-              this.show_list =
-                this.encryption ? this.video_metadata_encryption.filter(i => i.title.includes(value)).map(i => i.date) :
-                this.video_metadata.filter(i => i.title.includes(value)).map(i => i.date)
+              try {
+                if (this.video_metadata || this.video_metadata_encryption) {
+                  this.show_list =
+                    this.encryption ?
+                    this.video_metadata_encryption.filter(i => i.title.includes(value)).map(i => i.date) :
+                    this.video_metadata.filter(i => i.title.includes(value)).map(i => i.date)
+                } else {
+                  ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.add_video_first')))
+                  return
+                }
+              } catch (err) {
+                hilog.error(0xFF00, "testTag", "search fail:" + err)
+              }
             })
             .height(40)
-
-          Button({ type: ButtonType.Circle, stateEffect: true }) { //加密按钮
+          //加密按钮
+          Button({ type: ButtonType.Circle, stateEffect: true }) {
             SymbolGlyph($r('sys.symbol.lock'))
               .fontSize(25)
               .fontColor([$r('app.color.text_color')])
@@ -501,10 +518,8 @@ struct Index {
             offsetX: 0,
             offsetY: 0
           })
-
         }
       }.padding({ top: this.topSafeHeight }).width('100%')
-
       Stack() {
         LoadingProgress().width(100).height(100)
       }
@@ -514,13 +529,15 @@ struct Index {
       .animation({ duration: 150, curve: Curve.Sharp })
     }
     .backgroundColor($r('app.color.start_window_background'))
-    .onAreaChange((oldValue: Area, newValue: Area) => {
+    .onAreaChange((newValue: Area) => {
       this.list_line = Math.floor(new Number(newValue.width).valueOf() / 500 + 1)
       this.list_empty_item = []
       for (let i = 1; i <= this.list_line; i++) {
         this.list_empty_item.push(i.toString())
       }
     })
+    // 拓展安全区
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP,SafeAreaEdge.BOTTOM])
   }
 
   @Builder
@@ -538,7 +555,7 @@ struct Index {
             if (fs.accessSync(sandbox_video + item.date)) {
               fs.unlinkSync(sandbox_video + item.date)
             }
-            PreferencesUtil.putPreferencesValue('sweetvideo', 'video_metadata_encryption',
+            PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata_encryption',
               this.video_metadata_encryption)
           } else {
             this.video_metadata = this.video_metadata.filter(i => i.date != item.date)
@@ -547,7 +564,7 @@ struct Index {
           if (fs.accessSync(sandbox_path + item.date)) {
             fs.unlinkSync(sandbox_path + item.date)
           }
-          PreferencesUtil.putPreferencesValue('sweetvideo', 'video_metadata', this.video_metadata)
+          PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata', this.video_metadata)
         })
       Stack().width(10)
       SymbolGlyph($r('sys.symbol.rename'))
@@ -646,7 +663,7 @@ struct editMetadataDialog { //编辑元数据弹窗
 }
 
 @CustomDialog
-struct editPasswdaDialog { //编辑元数据弹窗
+struct editPasswordDialog { //编辑元数据弹窗
   confirm?: (name: string | undefined) => void
   controller?: CustomDialogController
   passwd: string | undefined = undefined
