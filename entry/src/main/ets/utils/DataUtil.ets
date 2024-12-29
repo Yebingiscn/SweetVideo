@@ -1,20 +1,20 @@
 export default class DataUtil<T> implements IDataSource {
-  private datas: T[] = []
+  private sources: T[] = []
   //数据源
   private listeners: DataChangeListener[] = []
 
   //数据监听
   // 数据源构造器
-  constructor(datas: T[]) {
-    this.datas = datas;
+  constructor(sources: T[]) {
+    this.sources = sources;
   }
 
   totalCount(): number { //数据源中数据个数
-    return this.datas.length
+    return this.sources.length
   }
 
   getData(index: number) { //获取下标对应的数据
-    return this.datas[index]
+    return this.sources[index]
   }
 
   registerDataChangeListener(listener: DataChangeListener): void { //注册监听器
@@ -34,35 +34,35 @@ export default class DataUtil<T> implements IDataSource {
   //_______________________________数据源操作方法 新增数据、插入数据、删除数据、更新数据________________________
 
   addData(item: T) { //尾部增加元素
-    this.datas.push(item)
+    this.sources.push(item)
     this.listeners.forEach((listener: DataChangeListener) => {
-      listener.onDataAdd(this.datas.length - 1)
+      listener.onDataAdd(this.sources.length - 1)
     })
   }
 
   addData1(index: number, item: T) { //某个位置添加元素
-    this.datas.splice(index, 0, item)
+    this.sources.splice(index, 0, item)
     this.listeners.forEach((listener: DataChangeListener) => {
       listener.onDataAdd(index)
     })
   }
 
   delData() { //末尾移除元素
-    this.datas.pop()
+    this.sources.pop()
     this.listeners.forEach((listener: DataChangeListener) => {
-      listener.onDataDelete(this.datas.length - 1)
+      listener.onDataDelete(this.sources.length - 1)
     })
   }
 
   clearData() { //末尾移除元素
-    this.datas.pop()
+    this.sources.pop()
     this.listeners.forEach((listener: DataChangeListener) => {
       listener.onDataDelete(0)
     })
   }
 
   delData1(index: number) { //移除某个下标对应的元素
-    this.datas.splice(index, 1)
+    this.sources.splice(index, 1)
     this.listeners.forEach((listener: DataChangeListener) => {
       listener.onDataDelete(index)
 
@@ -70,7 +70,7 @@ export default class DataUtil<T> implements IDataSource {
   }
 
   updData(index: number, Data: T) { //更新某个下标的元素
-    this.datas.splice(index, 1, Data)
+    this.sources.splice(index, 1, Data)
     this.listeners.forEach((listener: DataChangeListener) => {
       listener.onDataChange(index)
     })

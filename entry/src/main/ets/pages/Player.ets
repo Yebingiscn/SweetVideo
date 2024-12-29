@@ -259,6 +259,7 @@ struct Player {
       }
       .height('100%')
       .width('100%')
+      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM]) // 图片组件的绘制区域扩展至状态栏和导航条。
 
       Stack() {
         Flex({
@@ -283,7 +284,7 @@ struct Player {
                 { value: '3.0x' }])
                 .value(this.speed.toFixed(1) + 'x')
                 .font({ size: 18, weight: FontWeight.Medium })
-                .fontColor('f0f0f0')
+                .fontColor('#ffffff')
                 .onSelect((index: number, text?: string | undefined) => {
                   this.avPlayer?.setSpeed(parseFloat(text?.replace('x', '') || '1'))
                 })
@@ -433,7 +434,7 @@ struct Player {
       this.setRotation()
     })
     .backgroundColor('#000000')
-
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 
   @Builder

@@ -10,6 +10,7 @@ import PermissionUtil from '../utils/PermissionUtil';
 import DataUtil from '../utils/DataUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { photoAccessHelper } from '@kit.MediaLibraryKit';
 
 
 interface VideoMetadata {
@@ -83,7 +84,6 @@ async function persistPermission(uri: string): Promise<boolean> {
 @Component
 struct Index {
   windowClass = window.getLastWindow(context)
-  @State message: string = 'Hello World';
   @State topSafeHeight: number = 0;
   @State bottomSafeHeight: number = 0;
   sandbox_path = getContext().filesDir + '/';
@@ -210,11 +210,10 @@ struct Index {
   }
 
   async selectVideo() {
-    const photoSelectOptions = new picker.PhotoSelectOptions
-    photoSelectOptions.MIMEType = picker.PhotoViewMIMETypes.VIDEO_TYPE
-    let context = getContext(this) as common.Context
-    const photoViewPicker = new picker.PhotoViewPicker(context);
-    photoViewPicker.select(photoSelectOptions).then((photoSelectResult: picker.PhotoSelectResult) => {
+    const photoSelectOptions = new photoAccessHelper.PhotoSelectOptions
+    photoSelectOptions.MIMEType = photoAccessHelper.PhotoViewMIMETypes.VIDEO_TYPE
+    const photoViewPicker = new photoAccessHelper.PhotoViewPicker();
+    photoViewPicker.select(photoSelectOptions).then((photoSelectResult: photoAccessHelper.PhotoSelectResult) => {
       if (photoSelectResult.photoUris.length > 0) {
         this.toMetadata(photoSelectResult.photoUris)
       }
@@ -251,44 +250,60 @@ struct Index {
       avMetadataExtractor.fdSrc = file
       avMetadataExtractor.fetchMetadata((error: BusinessError, metadata: media.AVMetadata) => {
         let date = new Date().getTime().toString()
-        if ((!this.encryption && !this.video_metadata.some(item => item.title === file.name)) ||
-          (this.encryption && !this.video_metadata_encryption.some(item => item.title === file.name))) {
-          let tmp: VideoMetadata = {
-            uri: this.encryption ? sandbox_video + date : uri,
-            title: file.name,
-            date: date,
-            size: [parseInt((metadata.videoOrientation == '90' || metadata.videoOrientation == '270' ?
-            metadata.videoHeight : metadata.videoWidth) || '0'),
-              parseInt((metadata.videoOrientation == '90' || metadata.videoOrientation == '270' ? metadata.videoWidth :
-              metadata.videoHeight) || '0')],
-            time: parseInt(metadata.duration || '0'),
-            last_play: 0,
-            format: file.name.split('.')[file.name.split('.').length - 1]
+        if (this.video_metadata || this.video_metadata_encryption) {
+          if ((!this.encryption && !this.video_metadata.some(item => item.title === file.name)) ||
+            (this.encryption && !this.video_metadata_encryption.some(item => item.title === file.name))) {
+            let tmp = this.setVideoInfo(date, uri, file.name, metadata)
+            if (this.encryption) {
+              let file1 = fs.openSync(uri, fs.OpenMode.READ_ONLY)
+              let file2 = fs.openSync(sandbox_video + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
+              this.loading = true
+              fs.copyFile(file1.fd, file2.fd).then(() => {
+                this.video_metadata_encryption.push(tmp)
+                PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata_encryption',
+                  this.video_metadata_encryption)
+                fs.closeSync(file1)
+                fs.closeSync(file2)
+                this.show_list =
+                  this.encryption ? this.video_metadata_encryption.map(i => i.date) :
+                  this.video_metadata.map(i => i.date)
+                this.loading = false
+              })
+            } else {
+              this.video_metadata.push(tmp)
+              PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata', this.video_metadata)
+            }
           }
-          this.testFetchFrameByTime(uri, tmp.size, date)
-          if (this.encryption) {
-            let file1 = fs.openSync(uri, fs.OpenMode.READ_ONLY)
-            let file2 = fs.openSync(sandbox_video + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
-            this.loading = true
-            fs.copyFile(file1.fd, file2.fd).then(() => {
-              this.video_metadata_encryption.push(tmp)
-              PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata_encryption',
-                this.video_metadata_encryption)
-              fs.closeSync(file1)
-              fs.closeSync(file2)
-              this.show_list =
-                this.encryption ? this.video_metadata_encryption.map(i => i.date) : this.video_metadata.map(i => i.date)
-              this.loading = false
-            })
-          } else {
-            this.video_metadata.push(tmp)
-            PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata', this.video_metadata)
-          }
+        } else {
+          let tmp = this.setVideoInfo(date, uri, file.name, metadata)
+          //初始化video_metadata 和 video_metadata_encryption
+          this.video_metadata = []
+          this.video_metadata_encryption = []
+          this.video_metadata.push(tmp)
+          PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata', this.video_metadata)
         }
       });
     }
     setTimeout(() => this.show_list =
       this.encryption ? this.video_metadata_encryption.map(i => i.date) : this.video_metadata.map(i => i.date), 500)
+  }
+
+  // 设置存储的视频信息
+  setVideoInfo(date: string, uri: string, file_name: string, metadata: media.AVMetadata) {
+    let tmp: VideoMetadata = {
+      uri: this.encryption ? sandbox_video + date : uri,
+      title: file_name,
+      date: date,
+      size: [parseInt((metadata.videoOrientation == '90' || metadata.videoOrientation == '270' ?
+      metadata.videoHeight : metadata.videoWidth) || '0'),
+        parseInt((metadata.videoOrientation == '90' || metadata.videoOrientation == '270' ? metadata.videoWidth :
+        metadata.videoHeight) || '0')],
+      time: parseInt(metadata.duration || '0'),
+      last_play: 0,
+      format: file_name.split('.')[file_name.split('.').length - 1]
+    }
+    this.testFetchFrameByTime(uri, tmp.size, date)
+    return tmp
   }
 
   async testFetchFrameByTime(uri: string, size: number[], date: string) {
@@ -392,6 +407,7 @@ struct Index {
       .onTouch(() => {
         this.searchController.stopEditing()
       })
+
       //顶栏
       Row() {
         Text($r('app.string.nothing')).fontSize(30).fontWeight(FontWeight.Bold)
@@ -537,7 +553,7 @@ struct Index {
       }
     })
     // 拓展安全区
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP,SafeAreaEdge.BOTTOM])
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 
   @Builder

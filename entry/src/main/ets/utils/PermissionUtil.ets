@@ -1,7 +1,6 @@
 import { fileShare, fileUri, fileIo as fs, hash, picker } from '@kit.CoreFileKit';
 import { common, WantAgent, wantAgent } from '@kit.AbilityKit';
 import { backgroundTaskManager } from '@kit.BackgroundTasksKit';
-import { BusinessError } from '@kit.BasicServicesKit';
 
 const context = getContext() as common.UIAbilityContext
 
