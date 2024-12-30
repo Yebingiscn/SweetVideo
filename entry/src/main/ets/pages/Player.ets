@@ -7,6 +7,8 @@ import { common } from '@kit.AbilityKit';
 import { router, window } from '@kit.ArkUI';
 import { avSession as avSessionManager } from '@kit.AVSessionKit';
 import AVSessionUtil from '../utils/AVSessionUtil';
+import ToolsUtil from '../utils/ToolsUtil';
+import { hilog } from '@kit.PerformanceAnalysisKit';
 
 interface VideoMetadata {
   uri: string
@@ -42,7 +44,7 @@ struct Player {
   avSession: avSessionManager.AVSession | undefined = undefined;
   now_playing: VideoMetadata | undefined = undefined
   @State playing: boolean = false
-  @State speed: number = 1
+  @State speed: number = 1.0
   @State last_speed: number = 1
   @State play_time: number = 0
   @State last_play_time: number = 0
@@ -177,7 +179,17 @@ struct Player {
     })
 
     this.avPlayer?.on('speedDone', (speed) => {
-      this.speed = speed
+      if (parseFloat(speed.toFixed(2)) == 5) {
+        this.speed == 0.5
+      } else if (parseFloat(speed.toFixed(2)) == 0) {
+        this.speed == 0.75
+      } else if (parseFloat(speed.toFixed(2)) == 2 && this.speed != 2) {
+        this.speed == 1.25
+      } else if (parseFloat(speed.toFixed(2)) == 6) {
+        this.speed == 1.5
+      } else {
+        this.speed = parseFloat(speed.toFixed(2))
+      }
     })
 
     this.avPlayer?.on('stateChange', async (state) => {
@@ -242,9 +254,7 @@ struct Player {
   }
 
   build() {
-
     Stack() {
-
       Stack() { //播放器
         Stack() {
           XComponent({ type: XComponentType.SURFACE, controller: this.xComponentController })
@@ -259,7 +269,8 @@ struct Player {
       }
       .height('100%')
       .width('100%')
-      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM]) // 图片组件的绘制区域扩展至状态栏和导航条。
+      // 图片组件的绘制区域扩展至状态栏和导航条。
+      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
 
       Stack() {
         Flex({
@@ -267,55 +278,75 @@ struct Player {
           alignItems: ItemAlign.Center,
           direction: FlexDirection.Column
         }) {
-          Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) { //顶栏
-            Text(this.now_playing?.title)
-              .fontSize(20)
-              .fontWeight(FontWeight.Medium)
-              .width('70%')
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .fontColor('#ffffff')
+          //顶栏
+          Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
             Row() {
+              SymbolGlyph($r('sys.symbol.return_down_left'))
+                .fontSize(23)
+                .fontColor(['#f0f0f0'])
+                .onClick(() => {
+                  this.avPlayer?.reset()
+                  router.back()
+                })
+              Text((String(this.now_playing?.title).split('.')[0]))
+                .fontSize(20)
+                .fontWeight(FontWeight.Medium)
+                .width('65%')
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+                .fontColor($r('sys.color.white'))
               Select([//倍速
+                { value: '0.5x' },
+                { value: '0.75x' },
                 { value: '1.0x' },
-                { value: '1.2x' },
+                { value: '1.25x' },
                 { value: '1.5x' },
                 { value: '2.0x' },
                 { value: '3.0x' }])
-                .value(this.speed.toFixed(1) + 'x')
                 .font({ size: 18, weight: FontWeight.Medium })
                 .fontColor('#ffffff')
+                .value(this.speed.toFixed(1) + 'x')
                 .onSelect((index: number, text?: string | undefined) => {
-                  this.avPlayer?.setSpeed(parseFloat(text?.replace('x', '') || '1'))
+                  if (parseFloat(text?.replace('x', '') || '1') == 0.5) { // 5
+                    this.avPlayer?.setSpeed(media.PlaybackSpeed.SPEED_FORWARD_0_50_X)
+                  } else if (parseFloat(text?.replace('x', '') || '1') == 0.75) {
+                    this.avPlayer?.setSpeed(media.PlaybackSpeed.SPEED_FORWARD_0_75_X) // 0
+                  } else if (parseFloat(text?.replace('x', '') || '1') == 1.25) { //2
+                    this.avPlayer?.setSpeed(media.PlaybackSpeed.SPEED_FORWARD_1_25_X)
+                  } else if (parseFloat(text?.replace('x', '') || '1') == 1.5) { //6
+                    this.avPlayer?.setSpeed(media.PlaybackSpeed.SPEED_FORWARD_1_50_X)
+                  } else {
+                    this.avPlayer?.setSpeed(parseFloat(text?.replace('x', '') || '1'))
+                  }
                 })
                 .backgroundColor('#00000000')
-
-              Button({ type: ButtonType.Circle, stateEffect: true }) { // 旋转锁定
-                SymbolGlyph(this.lock_rotation ? $r('sys.symbol.lock_fill') : $r('sys.symbol.rotate_left'))
-                  .fontSize(23)
-                  .fontColor(['#f0f0f0'])
-                  .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.lock_rotation))
-              }
-              .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-              .height(40)
-              .width(40)
-              .backgroundColor('#00000000')
-              .onClick(async () => {
-                this.lock_rotation = !this.lock_rotation
-                if (this.lock_rotation) {
-                  if (this.screen_width >
-                  this.screen_height) {
-                    (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED);
-                  } else {
-                    (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED);
-                  }
-                } else {
-                  (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
-                }
-              })
             }
+
+            Button({ type: ButtonType.Circle, stateEffect: true }) { // 旋转锁定
+              SymbolGlyph(this.lock_rotation ? $r('sys.symbol.lock_fill') : $r('sys.symbol.rotate_left'))
+                .fontSize(23)
+                .fontColor(['#f0f0f0'])
+                .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.lock_rotation))
+            }
+            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+            .height(40)
+            .width(40)
+            .backgroundColor('#00000000')
+            .onClick(async () => {
+              this.lock_rotation = !this.lock_rotation
+              if (this.lock_rotation) {
+                if (this.screen_width >
+                this.screen_height) {
+                  (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED)
+                } else {
+                  (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
+                }
+              } else {
+                (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
+              }
+            })
+
           }
-          .backdropBlur(100)
           .width('100%')
           .padding({
             left: (this.screen_height > this.screen_width ? 20 : 35),
@@ -323,8 +354,7 @@ struct Player {
             top: DataSyncUtil.topSafeHeight,
             bottom: 10
           })
-          .backgroundColor('#20000000')
-
+          .backgroundColor('#1d000000')
 
           Stack() { //底栏
             if (this.screen_height > this.screen_width) {
@@ -338,22 +368,19 @@ struct Player {
                 this.VideoButtons()
               }
             }
-          }.backdropBlur(100).width('100%').padding(20).backgroundColor('#20000000')
-
+          }
+          .height('15%')
+          .width('100%')
+          .padding(1)
+          .backgroundColor('#1d000000')
+          .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
         }.height('100%').width('100%')
-
-
-        Stack() {
-
-
-        }.width('100%')
       }
       .visibility(this.ShowControl ? Visibility.Visible : Visibility.Hidden)
-      .animation({ duration: 300, curve: Curve.Smooth })
-
+      .animation({ duration: 500, curve: Curve.Smooth })
 
       Stack() { //快进提示
-        Text('3.0x').fontColor('#ffffff').fontSize(25).fontWeight(FontWeight.Bold)
+        Text('3.0x').fontColor($r('sys.color.white')).fontSize(25).fontWeight(FontWeight.Bold)
       }
       .padding({
         left: 25,
@@ -366,7 +393,6 @@ struct Player {
       .backdropBlur(100)
       .visibility(this.LongPress ? Visibility.Visible : Visibility.Hidden)
       .animation({ duration: 300, curve: Curve.Smooth })
-
 
       Stack() { //快进提示
         Text((this.play_time - this.last_play_time > 0 ? '+' : '') +
@@ -440,7 +466,8 @@ struct Player {
   @Builder
   VideoSlider() {
     Row({ space: 10 }) {
-      Text(getTime(Math.min(Math.max(this.play_time, 0), (this.now_playing?.time || 0))))
+      Text(getTime(Math.min(Math.max(this.play_time, 0), (this.now_playing?.time || 0))) + '/' +
+      getTime(this.now_playing?.time || 0))
         .fontWeight(FontWeight.Medium)
         .fontSize(16)
         .fontColor('#ffffff')
@@ -454,7 +481,7 @@ struct Player {
           this.play_time = value
           this.avPlayer?.seek(value)
         })
-        .width(this.screen_width > this.screen_height ? '60%' : '65%')
+        .width(this.screen_width > this.screen_height ? '50%' : '55%')// '60%' : '65%
         .animation({ duration: 100, curve: Curve.Smooth })
         .selectedColor('#e0e0e0')
       Text(getTime(Math.min(Math.max((this.now_playing?.time || 0) - this.play_time, 0),
@@ -465,7 +492,7 @@ struct Player {
   @Builder
   VideoButtons() {
     Row({ space: 15 }) {
-      Button({ type: ButtonType.Circle, stateEffect: true }) { // 播放按钮
+      Button({ type: ButtonType.Circle, stateEffect: true }) { // 后退按钮
         SymbolGlyph($r('sys.symbol.gobackward_15'))
           .fontSize(23)
           .fontColor(['#f0f0f0'])
@@ -476,6 +503,19 @@ struct Player {
       .backgroundColor('#50000000')
       .onClick(() => {
         this.avPlayer?.seek(this.play_time - 15000)
+      })
+
+      Button({ type: ButtonType.Circle, stateEffect: true }) { // 快进按钮
+        SymbolGlyph($r('sys.symbol.goforward_15'))
+          .fontSize(23)
+          .fontColor(['#f0f0f0'])
+      }
+      .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+      .height(40)
+      .width(40)
+      .backgroundColor('#50000000')
+      .onClick(() => {
+        this.avPlayer?.seek(this.play_time + 15000)
       })
 
       Button({ type: ButtonType.Circle, stateEffect: true }) { // 播放按钮
@@ -496,8 +536,9 @@ struct Player {
         }
       })
 
-      Button({ type: ButtonType.Circle, stateEffect: true }) { // 播放按钮
-        SymbolGlyph($r('sys.symbol.goforward_15'))
+
+      Button({ type: ButtonType.Circle, stateEffect: true }) { // 全屏按钮
+        SymbolGlyph($r('sys.symbol.fullscreen'))
           .fontSize(23)
           .fontColor(['#f0f0f0'])
       }
@@ -505,8 +546,12 @@ struct Player {
       .height(40)
       .width(40)
       .backgroundColor('#50000000')
-      .onClick(() => {
-        this.avPlayer?.seek(this.play_time + 15000)
+      .onClick(async () => {
+        if (this.screen_height > this.screen_width) {
+          (await (this.windowClass)).setPreferredOrientation(window.Orientation.USER_ROTATION_LANDSCAPE)
+        } else {
+          (await (this.windowClass)).setPreferredOrientation(window.Orientation.USER_ROTATION_PORTRAIT)
+        }
       })
     }
   }

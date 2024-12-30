@@ -87,8 +87,8 @@ struct Index {
   @State topSafeHeight: number = 0;
   @State bottomSafeHeight: number = 0;
   sandbox_path = getContext().filesDir + '/';
-  @State video_metadata: VideoMetadata[] = []
-  @State video_metadata_encryption: VideoMetadata[] = []
+  @State video_meta_data: VideoMetadata[] = []
+  @State video_meta_data_encryption: VideoMetadata[] = []
   @State now_playing: VideoMetadata | undefined = undefined
   @State @Watch('updateShowList') show_list: string[] = []
   @State lazy_show_list: DataUtil<string> = new DataUtil<string>(this.show_list)
@@ -104,23 +104,24 @@ struct Index {
           return
         }
         let tmp = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata
-        let index = this.encryption ? this.video_metadata_encryption.findIndex(i => i.title == tmp.title) :
-        this.video_metadata.findIndex(i => i.title == tmp.title)
+        let index = this.encryption ? this.video_meta_data_encryption.findIndex(i => i.title == tmp.title) :
+        this.video_meta_data.findIndex(i => i.title == tmp.title)
         if (this.encryption) {
-          if (this.video_metadata_encryption.map(i => i.title).includes(title)) {
+          if (this.video_meta_data_encryption.map(i => i.title).includes(title)) {
             return
           }
-          this.video_metadata_encryption[index].title = title
+          this.video_meta_data_encryption[index].title = title
         } else {
-          if (this.video_metadata.map(i => i.title).includes(title)) {
+          if (this.video_meta_data.map(i => i.title).includes(title)) {
             return
           }
-          this.video_metadata[index].title = title
+          this.video_meta_data[index].title = title
         }
         this.show_list =
-          this.encryption ? this.video_metadata_encryption.map(i => i.date) : this.video_metadata.map(i => i.date)
-        PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata', this.video_metadata)
-        PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata_encryption', this.video_metadata_encryption)
+          this.encryption ? this.video_meta_data_encryption.map(i => i.date) : this.video_meta_data.map(i => i.date)
+        PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data)
+        PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
+          this.video_meta_data_encryption)
       },
     }),
     cornerRadius: 20,
@@ -169,21 +170,21 @@ struct Index {
   updateList() {
     this.show_list = []
     if (this.encryption) {
-      this.show_list = this.video_metadata_encryption.map(i => i.date)
+      this.show_list = this.video_meta_data_encryption.map(i => i.date)
     } else {
       this.show_list =
-        this.video_metadata.map(i => i.date)
+        this.video_meta_data.map(i => i.date)
     }
   }
 
   async aboutToAppear(): Promise<void> {
     reqPermissionsFromUser(permissions, context);
-    this.video_metadata =
-      await PreferencesUtil.getPreferencesValue('sweet_video', 'video_metadata', []) as VideoMetadata[]
-    this.video_metadata_encryption =
-      await PreferencesUtil.getPreferencesValue('sweet_video', 'video_metadata_encryption', []) as VideoMetadata[]
+    this.video_meta_data =
+      await PreferencesUtil.getPreferencesValue('sweet_video', 'video_meta_data', []) as VideoMetadata[]
+    this.video_meta_data_encryption =
+      await PreferencesUtil.getPreferencesValue('sweet_video', 'video_meta_data_encryption', []) as VideoMetadata[]
     this.passwd = await PreferencesUtil.getPreferencesValue('sweet_video', 'passwd', '') as string
-    this.show_list = this.video_metadata.map(i => i.date)
+    this.show_list = this.video_meta_data.map(i => i.date)
     this.activePermission()
     await (await this.windowClass).setWindowLayoutFullScreen(true)
     this.topSafeHeight = px2vp((await this.windowClass).getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
@@ -221,22 +222,25 @@ struct Index {
   }
 
   activePermission() {
-    let tmp = this.video_metadata.map(i => i.uri)
+    let tmp = this.video_meta_data.map(i => i.uri)
     for (let uri of tmp) {
       PermissionUtil.activatePermission(uri)
     }
+    ToolsUtil.showToast('permission active')
   }
 
   async onPageShow() {
     if (this.now_playing) {
       if (this.encryption) {
-        this.video_metadata_encryption[this.video_metadata_encryption.findIndex(i => i.date ==
+        this.video_meta_data_encryption[this.video_meta_data_encryption.findIndex(i => i.date ==
           this.now_playing?.date)].last_play = DataSyncUtil.last_time
-        PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata_encryption', this.video_metadata_encryption)
+        PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
+          this.video_meta_data_encryption)
+
       } else {
-        this.video_metadata[this.video_metadata.findIndex(i => i.date == this.now_playing?.date)].last_play =
+        this.video_meta_data[this.video_meta_data.findIndex(i => i.date == this.now_playing?.date)].last_play =
           DataSyncUtil.last_time
-        PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata', this.video_metadata)
+        PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data)
       }
     }
   }
@@ -248,44 +252,42 @@ struct Index {
       let avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor()
       let file = fs.openSync(uri)
       avMetadataExtractor.fdSrc = file
-      avMetadataExtractor.fetchMetadata((error: BusinessError, metadata: media.AVMetadata) => {
+      avMetadataExtractor.fetchMetadata(async (_error: BusinessError, metadata: media.AVMetadata) => {
         let date = new Date().getTime().toString()
-        if (this.video_metadata || this.video_metadata_encryption) {
-          if ((!this.encryption && !this.video_metadata.some(item => item.title === file.name)) ||
-            (this.encryption && !this.video_metadata_encryption.some(item => item.title === file.name))) {
-            let tmp = this.setVideoInfo(date, uri, file.name, metadata)
+        if (this.video_meta_data || this.video_meta_data_encryption) {
+          if ((!this.encryption && !this.video_meta_data.some(item => item.title === file.name)) ||
+            (this.encryption && !this.video_meta_data_encryption.some(item => item.title === file.name))) {
             if (this.encryption) {
               let file1 = fs.openSync(uri, fs.OpenMode.READ_ONLY)
               let file2 = fs.openSync(sandbox_video + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
               this.loading = true
               fs.copyFile(file1.fd, file2.fd).then(() => {
-                this.video_metadata_encryption.push(tmp)
-                PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata_encryption',
-                  this.video_metadata_encryption)
+                this.video_meta_data_encryption.push(this.setVideoInfo(date, uri, file.name, metadata))
+                PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
+                  this.video_meta_data_encryption)
                 fs.closeSync(file1)
                 fs.closeSync(file2)
                 this.show_list =
-                  this.encryption ? this.video_metadata_encryption.map(i => i.date) :
-                  this.video_metadata.map(i => i.date)
+                  this.encryption ? this.video_meta_data_encryption.map(i => i.date) :
+                  this.video_meta_data.map(i => i.date)
                 this.loading = false
               })
             } else {
-              this.video_metadata.push(tmp)
-              PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata', this.video_metadata)
+              this.video_meta_data.push(this.setVideoInfo(date, uri, file.name, metadata))
+              PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data)
             }
           }
         } else {
-          let tmp = this.setVideoInfo(date, uri, file.name, metadata)
-          //初始化video_metadata 和 video_metadata_encryption
-          this.video_metadata = []
-          this.video_metadata_encryption = []
-          this.video_metadata.push(tmp)
-          PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata', this.video_metadata)
+          //初始化video_meta_data 和 video_meta_data_encryption
+          this.video_meta_data = []
+          this.video_meta_data_encryption = []
+          this.video_meta_data.push(this.setVideoInfo(date, uri, file.name, metadata))
+          PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data)
         }
       });
     }
     setTimeout(() => this.show_list =
-      this.encryption ? this.video_metadata_encryption.map(i => i.date) : this.video_metadata.map(i => i.date), 500)
+      this.encryption ? this.video_meta_data_encryption.map(i => i.date) : this.video_meta_data.map(i => i.date), 500)
   }
 
   // 设置存储的视频信息
@@ -329,6 +331,18 @@ struct Index {
     })
   }
 
+  videoSizeFormat(size: string) {
+    if (size == '1920,1080' || size == '1080,1920') {
+      return "1080P FHD"
+    } else if (size == '2160,3840' || size == '3840,2160') {
+      return "4K Ultra HD"
+    } else if (size == '1920,720' || size == '720,1920') {
+      return "720P HD"
+    } else {
+      return size.split(',')[0] + ' x ' + size.split(',')[1]
+    }
+  }
+
   build() {
     Stack({ alignContent: Alignment.Top }) {
       List({ scroller: this.listScroller }) {
@@ -346,22 +360,41 @@ struct Index {
                   .backgroundImageSize(ImageSize.Cover)
                   .borderRadius(5)
                 Column({ space: 5 }) {
-                  Text(this.encryption ? this.video_metadata_encryption.find(i => i.date == item)?.title :
-                    this.video_metadata.find(i => i.date == item)?.title)
+                  Text((String(this.encryption ?
+                    this.video_meta_data_encryption.find(i => i.date == item)?.title :
+                    this.video_meta_data.find(i => i.date == item)?.title)).split('.')[0])
                     .fontSize(20)
                     .fontWeight(FontWeight.Medium)
                     .maxLines(1)
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
-                    .width('80%')
-                  Text(convertMsToMMSS(this.encryption ?
-                    this.video_metadata_encryption.find(i => i.date == item)?.time :
-                    this.video_metadata.find(i => i.date == item)?.time))
-                    .fontSize(15)
-                    .fontWeight(FontWeight.Normal)
-                    .opacity(0.8)
+                    .width('100%')
+                  Row() {
+                    if (this.videoSizeFormat(String(this.video_meta_data.find(i => i.date == item)?.size))
+                      .includes('HD')) {
+                      Text(this.videoSizeFormat(String(this.video_meta_data.find(i => i.date == item)?.size)))
+                        .fontSize(15)
+                        .fontWeight(FontWeight.Bold)
+                        .opacity(0.8)
+                        .fontColor($r('sys.color.ohos_dialog_text_alert'))
+                        .backgroundColor('#E4BF3E')
+                        .padding(5)
+                        .borderRadius(5)
+                    } else {
+                      Text(this.videoSizeFormat(String(this.video_meta_data.find(i => i.date == item)?.size)))
+                        .fontSize(15)
+                        .fontWeight(FontWeight.Normal)
+                        .opacity(0.8)
+                    }
+                    Text(" | " + String(this.video_meta_data.find(i => i.date == item)?.format) + " | " +
+                    convertMsToMMSS(this.encryption ?
+                      this.video_meta_data_encryption.find(i => i.date == item)?.time :
+                      this.video_meta_data.find(i => i.date == item)?.time))
+                      .fontSize(15)
+                      .fontWeight(FontWeight.Normal)
+                      .opacity(0.8)
+                  }
                 }.alignItems(HorizontalAlign.Start)
-              }.width('100%')
-
+              }
             }.padding(10).backgroundColor($r('app.color.list_item_background')).borderRadius(10)
           }
           .padding({
@@ -374,19 +407,19 @@ struct Index {
           .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
           .width('100%')
           .swipeAction({
-            end: this.itemEnd(this.encryption ? this.video_metadata_encryption.find(i => i.date == item) :
-            this.video_metadata.find(i => i.date == item)),
+            end: this.itemEnd(this.encryption ? this.video_meta_data_encryption.find(i => i.date == item) :
+            this.video_meta_data.find(i => i.date == item)),
             edgeEffect: SwipeEdgeEffect.Spring
           })
           .onClick(() => {
             this.listScroller.closeAllSwipeActions()
-            this.now_playing = this.encryption ? this.video_metadata_encryption.find(i => i.date == item) :
-            this.video_metadata.find(i => i.date == item)
+            this.now_playing = this.encryption ? this.video_meta_data_encryption.find(i => i.date == item) :
+            this.video_meta_data.find(i => i.date == item)
             router.pushUrl({
               url: 'pages/Player',
               params: {
-                metadata: JSON.stringify(this.encryption ? this.video_metadata_encryption.find(i => i.date == item) :
-                this.video_metadata.find(i => i.date == item))
+                metadata: JSON.stringify(this.encryption ? this.video_meta_data_encryption.find(i => i.date == item) :
+                this.video_meta_data.find(i => i.date == item))
               }
             }, router.RouterMode.Standard, (err) => {
               hilog.info(0xFF00, "testTag", String(err));
@@ -398,10 +431,9 @@ struct Index {
         })
       }
       .edgeEffect(EdgeEffect.Spring) // 边缘效果设置为Spring
-      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
       .lanes(this.list_line)
       .animation({ duration: 300, curve: Curve.Smooth })
-      .scrollBar(BarState.Off)
+      .scrollBar(BarState.Auto)
       .chainAnimation(true)
       .width('100%')
       .onTouch(() => {
@@ -415,6 +447,7 @@ struct Index {
       .height('100%')
       .visibility(this.show_list.length == 0 ? Visibility.Visible : Visibility.Hidden)
       .animation({ duration: 150, curve: Curve.Ease })
+
       Column() {
         Row({ space: 15 }) {
           Button({ type: ButtonType.Circle, stateEffect: true }) {
@@ -456,6 +489,7 @@ struct Index {
             offsetX: 0,
             offsetY: 0
           })
+
           //搜索框
           Search({ value: '', controller: this.searchController })
             .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
@@ -472,16 +506,16 @@ struct Index {
             .width(this.passwd == '' || this.encryption ? '45%' : '60%')
             .animation({ duration: 300, curve: Curve.Ease })
             .onChange((value: string) => {
-              if (value == '' && this.video_metadata) {
+              if (value == '' && this.video_meta_data) {
                 this.show_list =
-                  this.encryption ? this.video_metadata_encryption.map(i => i.date) :
-                  this.video_metadata.map(i => i.date)
+                  this.encryption ? this.video_meta_data_encryption.map(i => i.date) :
+                  this.video_meta_data.map(i => i.date)
               }
             })
             .onSubmit((value: string) => {
-              if (value == '' && this.video_metadata) {
-                this.show_list = this.encryption ? this.video_metadata_encryption.map(i => i.date) :
-                this.video_metadata.map(i => i.date)
+              if (value == '' && this.video_meta_data) {
+                this.show_list = this.encryption ? this.video_meta_data_encryption.map(i => i.date) :
+                this.video_meta_data.map(i => i.date)
                 this.searchController.stopEditing()
                 return
               }
@@ -491,11 +525,11 @@ struct Index {
                 return
               }
               try {
-                if (this.video_metadata || this.video_metadata_encryption) {
+                if (this.video_meta_data || this.video_meta_data_encryption) {
                   this.show_list =
                     this.encryption ?
-                    this.video_metadata_encryption.filter(i => i.title.includes(value)).map(i => i.date) :
-                    this.video_metadata.filter(i => i.title.includes(value)).map(i => i.date)
+                    this.video_meta_data_encryption.filter(i => i.title.includes(value)).map(i => i.date) :
+                    this.video_meta_data.filter(i => i.title.includes(value)).map(i => i.date)
                 } else {
                   ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.add_video_first')))
                   return
@@ -536,6 +570,7 @@ struct Index {
           })
         }
       }.padding({ top: this.topSafeHeight }).width('100%')
+
       Stack() {
         LoadingProgress().width(100).height(100)
       }
@@ -567,20 +602,20 @@ struct Index {
         .height(40)
         .onClick(() => {
           if (this.encryption) {
-            this.video_metadata_encryption = this.video_metadata_encryption.filter(i => i.date != item.date)
+            this.video_meta_data_encryption = this.video_meta_data_encryption.filter(i => i.date != item.date)
             if (fs.accessSync(sandbox_video + item.date)) {
               fs.unlinkSync(sandbox_video + item.date)
             }
-            PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata_encryption',
-              this.video_metadata_encryption)
+            PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
+              this.video_meta_data_encryption)
           } else {
-            this.video_metadata = this.video_metadata.filter(i => i.date != item.date)
+            this.video_meta_data = this.video_meta_data.filter(i => i.date != item.date)
           }
           this.show_list = this.show_list.filter(i => i != item.date)
           if (fs.accessSync(sandbox_path + item.date)) {
             fs.unlinkSync(sandbox_path + item.date)
           }
-          PreferencesUtil.putPreferencesValue('sweet_video', 'video_metadata', this.video_metadata)
+          PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data)
         })
       Stack().width(10)
       SymbolGlyph($r('sys.symbol.rename'))
@@ -638,9 +673,9 @@ struct editMetadataDialog { //编辑元数据弹窗
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)
         .margin({ top: 10 })
-      TextInput({ text: this.name })
+      TextInput({ text: this.name?.split('.')[0] })
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .onChange((input: string) => this.name = input)
+        .onChange((input: string) => this.name = input + "." + this.name?.split('.')[1])
       Flex({ justifyContent: FlexAlign.SpaceAround }) {
         Button({ type: ButtonType.Normal, stateEffect: true }) {
           Row({ space: 5 }) {
