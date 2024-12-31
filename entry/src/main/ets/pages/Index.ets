@@ -368,6 +368,7 @@ struct Index {
                     .maxLines(2)
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
                     .width('100%')
+                    //.textAlign(TextAlign)
                   Row() {
                     if (this.videoSizeFormat(String(this.video_meta_data.find(i => i.date == item)?.size))
                       .includes('HD')) {
