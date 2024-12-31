@@ -346,33 +346,33 @@ struct Index {
   build() {
     Stack({ alignContent: Alignment.Top }) {
       List({ scroller: this.listScroller }) {
-        ForEach(this.list_empty_item, (item: string) => {
+        ForEach(this.list_empty_item, () => {
           ListItem().height(this.topSafeHeight + 55)
         })
         // 加载视频列表
         LazyForEach(this.lazy_show_list, (item: string) => {
           ListItem() {
             Column() {
-              Row({ space: 10 }) {
+              Row() {
                 Image(fileUri.getUriFromPath(sandbox_path + item))
                   .width(50)
                   .height(50)
                   .backgroundImageSize(ImageSize.Cover)
                   .borderRadius(5)
-                Column({ space: 5 }) {
+                Column() {
                   Text((String(this.encryption ?
                     this.video_meta_data_encryption.find(i => i.date == item)?.title :
                     this.video_meta_data.find(i => i.date == item)?.title)).split('.')[0])
                     .fontSize(20)
                     .fontWeight(FontWeight.Medium)
-                    .maxLines(1)
+                    .maxLines(2)
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
                     .width('100%')
                   Row() {
                     if (this.videoSizeFormat(String(this.video_meta_data.find(i => i.date == item)?.size))
                       .includes('HD')) {
                       Text(this.videoSizeFormat(String(this.video_meta_data.find(i => i.date == item)?.size)))
-                        .fontSize(15)
+                        .fontSize(10)
                         .fontWeight(FontWeight.Bold)
                         .opacity(0.8)
                         .fontColor($r('sys.color.ohos_dialog_text_alert'))
@@ -393,8 +393,8 @@ struct Index {
                       .fontWeight(FontWeight.Normal)
                       .opacity(0.8)
                   }
-                }.alignItems(HorizontalAlign.Start)
-              }
+                }.alignItems(HorizontalAlign.Start).padding(10).width('93%')
+              }.justifyContent(FlexAlign.SpaceEvenly)
             }.padding(10).backgroundColor($r('app.color.list_item_background')).borderRadius(10)
           }
           .padding({
@@ -426,7 +426,7 @@ struct Index {
             });
           })
         })
-        ForEach(this.list_empty_item, (item: string) => {
+        ForEach(this.list_empty_item, () => {
           ListItem().height(50)
         })
       }

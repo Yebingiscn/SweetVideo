@@ -45,12 +45,16 @@
       "value": "Nothing."
     },
     {
-      "name": "reason",
-      "value": "用于应用播放本地视频功能"
+      "name": "add_video_first",
+      "value": "add video first"
     },
     {
-      "name": "add_video_first",
-      "value": "请先添加视频"
+      "name": "open_rotation_lock",
+      "value": "rotation lock opened"
+    },
+    {
+      "name": "close_rotation_lock",
+      "value": "rotation lock closed"
     }
   ]
 }

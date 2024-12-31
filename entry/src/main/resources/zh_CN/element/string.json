@@ -42,15 +42,19 @@
     },
     {
       "name": "nothing",
-      "value": "空空如也"
-    },
-    {
-      "name": "reason",
-      "value": "用于应用播放本地视频功能"
+      "value": "空山不见人，但闻人语响"
     },
     {
       "name": "add_video_first",
       "value": "请先添加视频"
+    },
+    {
+      "name": "close_rotation_lock",
+      "value": "旋转锁定已关闭"
+    },
+    {
+      "name": "open_rotation_lock",
+      "value": "旋转锁定已开启"
     }
   ]
 }

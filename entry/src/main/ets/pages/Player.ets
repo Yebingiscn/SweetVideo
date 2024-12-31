@@ -9,6 +9,7 @@ import { avSession as avSessionManager } from '@kit.AVSessionKit';
 import AVSessionUtil from '../utils/AVSessionUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import VideoSpeedUtil from '../utils/VideoSpeedUtil';
 
 interface VideoMetadata {
   uri: string
@@ -179,16 +180,10 @@ struct Player {
     })
 
     this.avPlayer?.on('speedDone', (speed) => {
-      if (parseFloat(speed.toFixed(2)) == 5) {
-        this.speed == 0.5
-      } else if (parseFloat(speed.toFixed(2)) == 0) {
-        this.speed == 0.75
-      } else if (parseFloat(speed.toFixed(2)) == 2 && this.speed != 2) {
-        this.speed == 1.25
-      } else if (parseFloat(speed.toFixed(2)) == 6) {
-        this.speed == 1.5
-      } else {
-        this.speed = parseFloat(speed.toFixed(2))
+      try {
+        this.speed = VideoSpeedUtil.getVideoSpeed(parseFloat(speed.toFixed(2)))
+      } catch (e) {
+        hilog.error(777,'testFlag','speed return undefined')
       }
     })
 
@@ -305,19 +300,9 @@ struct Player {
                 { value: '3.0x' }])
                 .font({ size: 18, weight: FontWeight.Medium })
                 .fontColor('#ffffff')
-                .value(this.speed.toFixed(1) + 'x')
+                .value(this.speed.toFixed(2) + 'x')
                 .onSelect((index: number, text?: string | undefined) => {
-                  if (parseFloat(text?.replace('x', '') || '1') == 0.5) { // 5
-                    this.avPlayer?.setSpeed(media.PlaybackSpeed.SPEED_FORWARD_0_50_X)
-                  } else if (parseFloat(text?.replace('x', '') || '1') == 0.75) {
-                    this.avPlayer?.setSpeed(media.PlaybackSpeed.SPEED_FORWARD_0_75_X) // 0
-                  } else if (parseFloat(text?.replace('x', '') || '1') == 1.25) { //2
-                    this.avPlayer?.setSpeed(media.PlaybackSpeed.SPEED_FORWARD_1_25_X)
-                  } else if (parseFloat(text?.replace('x', '') || '1') == 1.5) { //6
-                    this.avPlayer?.setSpeed(media.PlaybackSpeed.SPEED_FORWARD_1_50_X)
-                  } else {
-                    this.avPlayer?.setSpeed(parseFloat(text?.replace('x', '') || '1'))
-                  }
+                  this.avPlayer?.setSpeed(VideoSpeedUtil.getVideoSpeed(parseFloat(text?.replace('x', '') || '1')))
                 })
                 .backgroundColor('#00000000')
             }
@@ -343,6 +328,12 @@ struct Player {
                 }
               } else {
                 (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
+              }
+              if (this.lock_rotation) {
+                ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.open_rotation_lock')))
+              }
+              else {
+                ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.close_rotation_lock')))
               }
             })
 
@@ -377,7 +368,7 @@ struct Player {
         }.height('100%').width('100%')
       }
       .visibility(this.ShowControl ? Visibility.Visible : Visibility.Hidden)
-      .animation({ duration: 500, curve: Curve.Smooth })
+      .animation({ duration: 300, curve: Curve.Smooth })
 
       Stack() { //快进提示
         Text('3.0x').fontColor($r('sys.color.white')).fontSize(25).fontWeight(FontWeight.Bold)
