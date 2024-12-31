@@ -183,7 +183,7 @@ struct Player {
       try {
         this.speed = VideoSpeedUtil.getVideoSpeed(parseFloat(speed.toFixed(2)))
       } catch (e) {
-        hilog.error(777,'testFlag','speed return undefined')
+        hilog.error(777,'testFlag','speed return undefined: ' + e)
       }
     })
 
