@@ -35,7 +35,7 @@ class Permission {
     let wantAgentInfo: wantAgent.WantAgentInfo = {
       wants: [
         ({
-          bundleName: "com.salmon.sweetvideo",
+          bundleName: "com.example.sweetvideo",
           abilityName: "EntryAbility"
         })
       ],

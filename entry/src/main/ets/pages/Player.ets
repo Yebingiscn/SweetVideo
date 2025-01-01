@@ -9,7 +9,7 @@ import { avSession as avSessionManager } from '@kit.AVSessionKit';
 import AVSessionUtil from '../utils/AVSessionUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import VideoSpeedUtil from '../utils/VideoSpeedUtil';
+import VideoSpeedUtil from '../utils/VideoComponentUtil';
 
 interface VideoMetadata {
   uri: string

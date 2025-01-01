@@ -11,6 +11,7 @@ import DataUtil from '../utils/DataUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
+import VideoComponentUtil from '../utils/VideoComponentUtil';
 
 
 interface VideoMetadata {
@@ -283,6 +284,7 @@ struct Index {
           this.video_meta_data_encryption = []
           this.video_meta_data.push(this.setVideoInfo(date, uri, file.name, metadata))
           PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data)
+          hilog.error(777,'testFlag','wuguan')
         }
       });
     }
@@ -331,18 +333,6 @@ struct Index {
     })
   }
 
-  videoSizeFormat(size: string) {
-    if (size == '1920,1080' || size == '1080,1920') {
-      return "1080P FHD"
-    } else if (size == '2160,3840' || size == '3840,2160') {
-      return "4K Ultra HD"
-    } else if (size == '1920,720' || size == '720,1920') {
-      return "720P HD"
-    } else {
-      return size.split(',')[0] + ' x ' + size.split(',')[1]
-    }
-  }
-
   build() {
     Stack({ alignContent: Alignment.Top }) {
       List({ scroller: this.listScroller }) {
@@ -368,11 +358,12 @@ struct Index {
                     .maxLines(2)
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
                     .width('100%')
-                    //.textAlign(TextAlign)
+                  //.textAlign(TextAlign)
                   Row() {
-                    if (this.videoSizeFormat(String(this.video_meta_data.find(i => i.date == item)?.size))
+                    if (VideoComponentUtil.videoSizeFormat(String(this.video_meta_data.find(i => i.date == item)?.size))
                       .includes('HD')) {
-                      Text(this.videoSizeFormat(String(this.video_meta_data.find(i => i.date == item)?.size)))
+                      Text(VideoComponentUtil.videoSizeFormat(String(this.video_meta_data.find(i => i.date ==
+                        item)?.size)))
                         .fontSize(10)
                         .fontWeight(FontWeight.Bold)
                         .opacity(0.8)
@@ -381,7 +372,8 @@ struct Index {
                         .padding(5)
                         .borderRadius(5)
                     } else {
-                      Text(this.videoSizeFormat(String(this.video_meta_data.find(i => i.date == item)?.size)))
+                      Text(VideoComponentUtil.videoSizeFormat(String(this.video_meta_data.find(i => i.date ==
+                        item)?.size)))
                         .fontSize(15)
                         .fontWeight(FontWeight.Normal)
                         .opacity(0.8)
@@ -396,8 +388,12 @@ struct Index {
                   }
                 }.alignItems(HorizontalAlign.Start).padding(10).width('93%')
               }.justifyContent(FlexAlign.SpaceEvenly)
-            }.padding(10).backgroundColor($r('app.color.list_item_background')).borderRadius(10)
+            }.padding(10)
+            //.backgroundColor($r('app.color.list_item_background'))
+            .backgroundColor('red')
+            .borderRadius(10)
           }
+          .backgroundColor('green')
           .padding({
             left: 10,
             right: 10,
@@ -431,6 +427,7 @@ struct Index {
           ListItem().height(50)
         })
       }
+      .layoutWeight('100%')
       .edgeEffect(EdgeEffect.Spring) // 边缘效果设置为Spring
       .lanes(this.list_line)
       .animation({ duration: 300, curve: Curve.Smooth })
@@ -514,6 +511,7 @@ struct Index {
               }
             })
             .onSubmit((value: string) => {
+              hilog.error(777, 'testFlag', 'video_meta_data' + String(this.video_meta_data))
               if (value == '' && this.video_meta_data) {
                 this.show_list = this.encryption ? this.video_meta_data_encryption.map(i => i.date) :
                 this.video_meta_data.map(i => i.date)
@@ -526,6 +524,7 @@ struct Index {
                 return
               }
               try {
+                hilog.error(777, 'testFlag', 'video_meta_data' + String(this.video_meta_data))
                 if (this.video_meta_data || this.video_meta_data_encryption) {
                   this.show_list =
                     this.encryption ?
@@ -719,6 +718,7 @@ struct editPasswordDialog { //编辑元数据弹窗
   confirm?: (name: string | undefined) => void
   controller?: CustomDialogController
   passwd: string | undefined = undefined
+  @State passwordState: boolean = false
 
   build() {
     Column({ space: 25 }) {
@@ -730,6 +730,13 @@ struct editPasswordDialog { //编辑元数据弹窗
       TextInput()
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .onChange((input: string) => this.passwd = input)
+        .showPassword(this.passwordState)
+        .type(InputType.Password)
+        .showPasswordIcon(true)
+        .onSecurityStateChange((isShowPassword: boolean) => {
+          this.passwordState = isShowPassword
+        })
+
       Flex({ justifyContent: FlexAlign.SpaceAround }) {
         Button({ type: ButtonType.Normal, stateEffect: true }) {
           Row({ space: 5 }) {
