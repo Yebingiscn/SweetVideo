@@ -11,8 +11,8 @@ import DataUtil from '../utils/DataUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
-import VideoComponentUtil from '../utils/VideoComponentUtil';
-
+import VideoUtil from '../utils/VideoUtil';
+import TimeUtil from '../utils/TimeUtil';
 
 interface VideoMetadata {
   uri: string
@@ -23,23 +23,6 @@ interface VideoMetadata {
   last_play: number
   format: string
 }
-
-function convertMsToMMSS(ms: number | undefined): string {
-  if (!ms) {
-    return '00:00'
-  }
-  // 计算分钟数和秒数
-  const minutes = Math.floor(ms / 60000); // 1分钟 = 60000毫秒
-  const seconds = Math.floor((ms % 60000) / 1000); // 剩余的秒数
-
-  // 格式化为两位数的字符串，确保单个位数前加零
-  const mm = minutes.toString().padStart(2, '0');
-  const ss = seconds.toString().padStart(2, '0');
-
-  // 返回格式化的时间字符串
-  return `${mm}:${ss}`;
-}
-
 
 const permissions: Permissions[] = ['ohos.permission.FILE_ACCESS_PERSIST', 'ohos.permission.VIBRATE'];
 const context = getContext() as common.UIAbilityContext;
@@ -80,7 +63,6 @@ async function persistPermission(uri: string): Promise<boolean> {
   return false
 }
 
-
 @Entry
 @Component
 struct Index {
@@ -98,6 +80,7 @@ struct Index {
   @State list_line: number = 1
   @State list_empty_item: string[] = ['']
   @State loading: boolean = false
+  @State search_input: string = ''
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: editMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -227,7 +210,6 @@ struct Index {
     for (let uri of tmp) {
       PermissionUtil.activatePermission(uri)
     }
-    ToolsUtil.showToast('permission active')
   }
 
   async onPageShow() {
@@ -284,7 +266,6 @@ struct Index {
           this.video_meta_data_encryption = []
           this.video_meta_data.push(this.setVideoInfo(date, uri, file.name, metadata))
           PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data)
-          hilog.error(777,'testFlag','wuguan')
         }
       });
     }
@@ -349,6 +330,10 @@ struct Index {
                   .height(50)
                   .backgroundImageSize(ImageSize.Cover)
                   .borderRadius(5)
+                  .sourceSize({
+                    width: 50,
+                    height: 50
+                  })
                 Column() {
                   Text((String(this.encryption ?
                     this.video_meta_data_encryption.find(i => i.date == item)?.title :
@@ -357,12 +342,12 @@ struct Index {
                     .fontWeight(FontWeight.Medium)
                     .maxLines(2)
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
-                    .width('100%')
+                    .width('95%')
                   //.textAlign(TextAlign)
                   Row() {
-                    if (VideoComponentUtil.videoSizeFormat(String(this.video_meta_data.find(i => i.date == item)?.size))
+                    if (VideoUtil.videoSizeFormat(String(this.video_meta_data.find(i => i.date == item)?.size))
                       .includes('HD')) {
-                      Text(VideoComponentUtil.videoSizeFormat(String(this.video_meta_data.find(i => i.date ==
+                      Text(VideoUtil.videoSizeFormat(String(this.video_meta_data.find(i => i.date ==
                         item)?.size)))
                         .fontSize(10)
                         .fontWeight(FontWeight.Bold)
@@ -372,27 +357,31 @@ struct Index {
                         .padding(5)
                         .borderRadius(5)
                     } else {
-                      Text(VideoComponentUtil.videoSizeFormat(String(this.video_meta_data.find(i => i.date ==
+                      Text(VideoUtil.videoSizeFormat(String(this.video_meta_data.find(i => i.date ==
                         item)?.size)))
                         .fontSize(15)
                         .fontWeight(FontWeight.Normal)
                         .opacity(0.8)
                     }
                     Text(" | " + String(this.video_meta_data.find(i => i.date == item)?.format) + " | " +
-                    convertMsToMMSS(this.encryption ?
+                    TimeUtil.convertMsToMMSS(this.encryption ?
                       this.video_meta_data_encryption.find(i => i.date == item)?.time :
                       this.video_meta_data.find(i => i.date == item)?.time))
                       .fontSize(15)
                       .fontWeight(FontWeight.Normal)
                       .opacity(0.8)
-                  }
+                  }.justifyContent(FlexAlign.Center).padding({
+                    top: 10,
+                  })
                 }.alignItems(HorizontalAlign.Start).padding(10).width('93%')
-              }.justifyContent(FlexAlign.SpaceEvenly)
+              }.justifyContent(FlexAlign.Center)
             }.padding(10)
             //.backgroundColor($r('app.color.list_item_background'))
             .backgroundColor('red')
             .borderRadius(10)
+            .justifyContent(FlexAlign.SpaceEvenly)
           }
+          .width('100%')
           .backgroundColor('green')
           .padding({
             left: 10,
@@ -489,7 +478,7 @@ struct Index {
           })
 
           //搜索框
-          Search({ value: '', controller: this.searchController })
+          Search({ value: $$this.search_input, controller: this.searchController })
             .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
             .backgroundColor($r('app.color.start_window_background_blur'))
             .backdropBlur(150)
@@ -501,7 +490,7 @@ struct Index {
               offsetX: 0,
               offsetY: 0
             })
-            .width(this.passwd == '' || this.encryption ? '45%' : '60%')
+            .width(this.passwd == '' || this.encryption ? '55%' : '70%')
             .animation({ duration: 300, curve: Curve.Ease })
             .onChange((value: string) => {
               if (value == '' && this.video_meta_data) {
@@ -511,10 +500,13 @@ struct Index {
               }
             })
             .onSubmit((value: string) => {
-              hilog.error(777, 'testFlag', 'video_meta_data' + String(this.video_meta_data))
               if (value == '' && this.video_meta_data) {
                 this.show_list = this.encryption ? this.video_meta_data_encryption.map(i => i.date) :
                 this.video_meta_data.map(i => i.date)
+                if (this.show_list.length == 0) {
+                  ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.add_video_first')))
+                  return
+                }
                 this.searchController.stopEditing()
                 return
               }
@@ -524,15 +516,12 @@ struct Index {
                 return
               }
               try {
-                hilog.error(777, 'testFlag', 'video_meta_data' + String(this.video_meta_data))
-                if (this.video_meta_data || this.video_meta_data_encryption) {
-                  this.show_list =
-                    this.encryption ?
-                    this.video_meta_data_encryption.filter(i => i.title.includes(value)).map(i => i.date) :
-                    this.video_meta_data.filter(i => i.title.includes(value)).map(i => i.date)
-                } else {
-                  ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.add_video_first')))
-                  return
+                this.show_list =
+                  this.encryption ?
+                  this.video_meta_data_encryption.filter(i => i.title.includes(value)).map(i => i.date) :
+                  this.video_meta_data.filter(i => i.title.includes(value)).map(i => i.date)
+                if (this.show_list.length == 0) {
+                  ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.no_search_result')))
                 }
               } catch (err) {
                 hilog.error(0xFF00, "testTag", "search fail:" + err)

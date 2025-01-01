@@ -55,6 +55,10 @@
     {
       "name": "close_rotation_lock",
       "value": "rotation lock closed"
+    },
+    {
+      "name": "no_search_result",
+      "value": "no search result"
     }
   ]
 }

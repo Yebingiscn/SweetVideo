@@ -1,7 +1,7 @@
-import { media } from '@kit.MediaKit'
-import AVPlayerUtil from '../utils/AVPlayerUtil'
-import DataSyncUtil from '../utils/DataSyncUtil'
-import { fileIo as fs, picker } from '@kit.CoreFileKit';
+import { media } from '@kit.MediaKit';
+import AVPlayerUtil from '../utils/AVPlayerUtil';
+import DataSyncUtil from '../utils/DataSyncUtil';
+import { fileIo as fs } from '@kit.CoreFileKit';
 import PermissionUtil from '../utils/PermissionUtil';
 import { common } from '@kit.AbilityKit';
 import { router, window } from '@kit.ArkUI';
@@ -9,7 +9,7 @@ import { avSession as avSessionManager } from '@kit.AVSessionKit';
 import AVSessionUtil from '../utils/AVSessionUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import VideoSpeedUtil from '../utils/VideoComponentUtil';
+import VideoSpeedUtil from '../utils/VideoUtil';
 
 interface VideoMetadata {
   uri: string
@@ -183,7 +183,7 @@ struct Player {
       try {
         this.speed = VideoSpeedUtil.getVideoSpeed(parseFloat(speed.toFixed(2)))
       } catch (e) {
-        hilog.error(777,'testFlag','speed return undefined: ' + e)
+        hilog.error(777, 'testFlag', 'speed return undefined: ' + e)
       }
     })
 
@@ -275,20 +275,23 @@ struct Player {
         }) {
           //顶栏
           Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
+            SymbolGlyph($r('sys.symbol.chevron_left'))
+              .fontSize(40)
+              .fontColor(['#f0f0f0'])
+              .onClick(() => {
+                this.avPlayer?.reset()
+                router.back()
+              })
+              .padding({
+                right: 10
+              })
             Row() {
-              SymbolGlyph($r('sys.symbol.return_down_left'))
-                .fontSize(23)
-                .fontColor(['#f0f0f0'])
-                .onClick(() => {
-                  this.avPlayer?.reset()
-                  router.back()
-                })
               Text((String(this.now_playing?.title).split('.')[0]))
                 .fontSize(20)
                 .fontWeight(FontWeight.Medium)
-                .width('65%')
+                .width('77%')
                 .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
+                .textOverflow({ overflow: TextOverflow.MARQUEE })
                 .fontColor($r('sys.color.white'))
               Select([//倍速
                 { value: '0.5x' },
@@ -299,7 +302,8 @@ struct Player {
                 { value: '2.0x' },
                 { value: '3.0x' }])
                 .font({ size: 18, weight: FontWeight.Medium })
-                .fontColor('#ffffff')
+                .fontColor($r('sys.color.white'))
+                .width('70%')
                 .value(this.speed.toFixed(2) + 'x')
                 .onSelect((index: number, text?: string | undefined) => {
                   this.avPlayer?.setSpeed(VideoSpeedUtil.getVideoSpeed(parseFloat(text?.replace('x', '') || '1')))
@@ -315,7 +319,7 @@ struct Player {
             }
             .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
             .height(40)
-            .width(40)
+            .width(35)
             .backgroundColor('#00000000')
             .onClick(async () => {
               this.lock_rotation = !this.lock_rotation
@@ -331,21 +335,19 @@ struct Player {
               }
               if (this.lock_rotation) {
                 ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.open_rotation_lock')))
-              }
-              else {
+              } else {
                 ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.close_rotation_lock')))
               }
             })
-
           }
           .width('100%')
           .padding({
             left: (this.screen_height > this.screen_width ? 20 : 35),
             right: 20,
-            top: DataSyncUtil.topSafeHeight,
+            top: (this.screen_height > this.screen_width ? DataSyncUtil.topSafeHeight : 5),
             bottom: 10
           })
-          .backgroundColor('#1d000000')
+          .backgroundColor('#48000000')
 
           Stack() { //底栏
             if (this.screen_height > this.screen_width) {
@@ -360,10 +362,10 @@ struct Player {
               }
             }
           }
-          .height('15%')
+          .height(this.screen_height > this.screen_width ? '25%' : '15%')
           .width('100%')
           .padding(1)
-          .backgroundColor('#1d000000')
+          .backgroundColor('#48000000')
           .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
         }.height('100%').width('100%')
       }
@@ -472,7 +474,7 @@ struct Player {
           this.play_time = value
           this.avPlayer?.seek(value)
         })
-        .width(this.screen_width > this.screen_height ? '50%' : '55%')// '60%' : '65%
+        .width(this.screen_width > this.screen_height ? '50%' : '55%')
         .animation({ duration: 100, curve: Curve.Smooth })
         .selectedColor('#e0e0e0')
       Text(getTime(Math.min(Math.max((this.now_playing?.time || 0) - this.play_time, 0),
@@ -529,7 +531,7 @@ struct Player {
 
 
       Button({ type: ButtonType.Circle, stateEffect: true }) { // 全屏按钮
-        SymbolGlyph($r('sys.symbol.fullscreen'))
+        SymbolGlyph($r('sys.symbol.screen_rotation'))
           .fontSize(23)
           .fontColor(['#f0f0f0'])
       }

@@ -55,6 +55,10 @@
     {
       "name": "open_rotation_lock",
       "value": "旋转锁定已开启"
+    },
+    {
+      "name": "no_search_result",
+      "value": "无搜索结果"
     }
   ]
 }

@@ -25,11 +25,11 @@ class VideoUtil {
 
   // 视频分辨率格式化
   videoSizeFormat(size: string) {
-    if (size == '1920,1080' || size == '1080,1920') {
+    if (size.includes('1080')) {
       return "1080P FHD"
-    } else if (size == '2160,3840' || size == '3840,2160') {
+    } else if (size.includes('2160')) {
       return "4K Ultra HD"
-    } else if (size == '1920,720' || size == '720,1920') {
+    } else if (size.includes('720')) {
       return "720P HD"
     } else {
       return size.split(',')[0] + ' x ' + size.split(',')[1]
@@ -37,6 +37,6 @@ class VideoUtil {
   }
 }
 
-const VideoComponentUtil = new VideoUtil()
+const videoUtil = new VideoUtil()
 
-export default VideoComponentUtil
+export default videoUtil as VideoUtil
