@@ -22,6 +22,7 @@ interface VideoMetadata {
   time: number
   last_play: number
   format: string
+  video_size: string
 }
 
 const permissions: Permissions[] = ['ohos.permission.FILE_ACCESS_PERSIST', 'ohos.permission.VIBRATE'];
@@ -244,8 +245,8 @@ struct Index {
               let file1 = fs.openSync(uri, fs.OpenMode.READ_ONLY)
               let file2 = fs.openSync(sandbox_video + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
               this.loading = true
-              fs.copyFile(file1.fd, file2.fd).then(() => {
-                this.video_meta_data_encryption.push(this.setVideoInfo(date, uri, file.name, metadata))
+              fs.copyFile(file1.fd, file2.fd).then(async () => {
+                this.video_meta_data_encryption.push(await this.setVideoInfo(date, uri, file.name, metadata))
                 PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
                   this.video_meta_data_encryption)
                 fs.closeSync(file1)
@@ -256,7 +257,7 @@ struct Index {
                 this.loading = false
               })
             } else {
-              this.video_meta_data.push(this.setVideoInfo(date, uri, file.name, metadata))
+              this.video_meta_data.push(await this.setVideoInfo(date, uri, file.name, metadata))
               PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data)
             }
           }
@@ -264,7 +265,7 @@ struct Index {
           //初始化video_meta_data 和 video_meta_data_encryption
           this.video_meta_data = []
           this.video_meta_data_encryption = []
-          this.video_meta_data.push(this.setVideoInfo(date, uri, file.name, metadata))
+          this.video_meta_data.push(await this.setVideoInfo(date, uri, file.name, metadata))
           PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data)
         }
       });
@@ -274,7 +275,7 @@ struct Index {
   }
 
   // 设置存储的视频信息
-  setVideoInfo(date: string, uri: string, file_name: string, metadata: media.AVMetadata) {
+  async setVideoInfo(date: string, uri: string, file_name: string, metadata: media.AVMetadata) {
     let tmp: VideoMetadata = {
       uri: this.encryption ? sandbox_video + date : uri,
       title: file_name,
@@ -285,7 +286,8 @@ struct Index {
         metadata.videoHeight) || '0')],
       time: parseInt(metadata.duration || '0'),
       last_play: 0,
-      format: file_name.split('.')[file_name.split('.').length - 1]
+      format: file_name.split('.')[file_name.split('.').length - 1],
+      video_size:await VideoUtil.getVideoSize(this.encryption ? sandbox_video + date : uri)
     }
     this.testFetchFrameByTime(uri, tmp.size, date)
     return tmp
@@ -293,7 +295,6 @@ struct Index {
 
   async testFetchFrameByTime(uri: string, size: number[], date: string) {
     let avImageGenerator: media.AVImageGenerator = await media.createAVImageGenerator()
-
     let file = fs.openSync(uri, fs.OpenMode.READ_ONLY);
     let avFileDescriptor: media.AVFileDescriptor = { fd: file.fd };
     avImageGenerator.fdSrc = avFileDescriptor;
@@ -326,13 +327,13 @@ struct Index {
             Column() {
               Row() {
                 Image(fileUri.getUriFromPath(sandbox_path + item))
-                  .width(50)
-                  .height(50)
+                  .width(70)
+                  .height(70)
                   .backgroundImageSize(ImageSize.Cover)
                   .borderRadius(5)
                   .sourceSize({
-                    width: 50,
-                    height: 50
+                    width: 70,
+                    height: 70
                   })
                 Column() {
                   Text((String(this.encryption ?
@@ -342,13 +343,16 @@ struct Index {
                     .fontWeight(FontWeight.Medium)
                     .maxLines(2)
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
-                    .width('95%')
+                    .width('90%')
                   //.textAlign(TextAlign)
                   Row() {
-                    if (VideoUtil.videoSizeFormat(String(this.video_meta_data.find(i => i.date == item)?.size))
+                    if (VideoUtil.videoSizeFormat(String(this.encryption ?
+                      this.video_meta_data_encryption.find(i => i.date == item)?.size :
+                      this.video_meta_data.find(i => i.date == item)?.size))
                       .includes('HD')) {
-                      Text(VideoUtil.videoSizeFormat(String(this.video_meta_data.find(i => i.date ==
-                        item)?.size)))
+                      Text(VideoUtil.videoSizeFormat(String(this.encryption ?
+                        this.video_meta_data_encryption.find(i => i.date == item)?.size :
+                        this.video_meta_data.find(i => i.date == item)?.size)))
                         .fontSize(10)
                         .fontWeight(FontWeight.Bold)
                         .opacity(0.8)
@@ -357,32 +361,40 @@ struct Index {
                         .padding(5)
                         .borderRadius(5)
                     } else {
-                      Text(VideoUtil.videoSizeFormat(String(this.video_meta_data.find(i => i.date ==
-                        item)?.size)))
+                      Text(VideoUtil.videoSizeFormat(String(this.encryption ?
+                        this.video_meta_data_encryption.find(i => i.date == item)?.size :
+                        this.video_meta_data.find(i => i.date == item)?.size)))
                         .fontSize(15)
                         .fontWeight(FontWeight.Normal)
                         .opacity(0.8)
                     }
-                    Text(" | " + String(this.video_meta_data.find(i => i.date == item)?.format) + " | " +
+                    Text(" | " + String(this.encryption ?
+                      this.video_meta_data_encryption.find(i => i.date == item)?.format :
+                      this.video_meta_data.find(i => i.date == item)?.format) + " | " +
                     TimeUtil.convertMsToMMSS(this.encryption ?
                       this.video_meta_data_encryption.find(i => i.date == item)?.time :
-                      this.video_meta_data.find(i => i.date == item)?.time))
+                      this.video_meta_data.find(i => i.date == item)?.time) + " | " +
+                    String(this.encryption ?
+                      this.video_meta_data_encryption.find(i => i.date == item)?.video_size :
+                      this.video_meta_data.find(i => i.date == item)?.video_size))
                       .fontSize(15)
                       .fontWeight(FontWeight.Normal)
                       .opacity(0.8)
                   }.justifyContent(FlexAlign.Center).padding({
-                    top: 10,
+                    top: 5,
                   })
-                }.alignItems(HorizontalAlign.Start).padding(10).width('93%')
+                }.alignItems(HorizontalAlign.Start).padding(10).width('92%')
               }.justifyContent(FlexAlign.Center)
-            }.padding(10)
-            //.backgroundColor($r('app.color.list_item_background'))
-            .backgroundColor('red')
+            }
+            .padding({
+              left: 10
+            })
+            .height(100)
+            .backgroundColor($r('app.color.list_item_background'))
             .borderRadius(10)
             .justifyContent(FlexAlign.SpaceEvenly)
           }
           .width('100%')
-          .backgroundColor('green')
           .padding({
             left: 10,
             right: 10,
@@ -569,7 +581,7 @@ struct Index {
       .animation({ duration: 150, curve: Curve.Sharp })
     }
     .backgroundColor($r('app.color.start_window_background'))
-    .onAreaChange((newValue: Area) => {
+    .onAreaChange((_oldValue: Area, newValue: Area) => {
       this.list_line = Math.floor(new Number(newValue.width).valueOf() / 500 + 1)
       this.list_empty_item = []
       for (let i = 1; i <= this.list_line; i++) {

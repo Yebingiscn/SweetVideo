@@ -387,10 +387,11 @@ struct Player {
       .visibility(this.LongPress ? Visibility.Visible : Visibility.Hidden)
       .animation({ duration: 300, curve: Curve.Smooth })
 
-      Stack() { //快进提示
+      //快进提示
+      Stack() {
         Text((this.play_time - this.last_play_time > 0 ? '+' : '') +
         Math.floor((this.play_time - this.last_play_time) / 1000) + 's')
-          .fontColor('#ffffff')
+          .fontColor($r('sys.color.white'))
           .fontSize(25)
           .fontWeight(FontWeight.Bold)
       }
@@ -406,12 +407,14 @@ struct Player {
       .visibility(this.onSwiping ? Visibility.Visible : Visibility.Hidden)
       .animation({ duration: 300, curve: Curve.Smooth })
 
-
       Column()
         .width('100%')
         .height('50%')//触控区域
         .onTouch((event: TouchEvent) => {
           if (event.type == TouchType.Down) {
+            if (this.speed > 1) {
+              return
+            }
             this.last_play_time = this.play_time
             this.SwipeStartX = Math.floor(event.touches[0].x)
           }
@@ -419,13 +422,13 @@ struct Player {
             if (this.speed > 1) {
               return
             }
-            this.SwipeMovingX = Math.floor(event.touches[0].x)
+            this.SwipeMovingX = Math.floor(event.touches[0].x) + 10
             if (Math.abs(this.SwipeStartX - this.SwipeMovingX) > 10) {
               this.onSwiping = true
               this.ShowControl = true
               this.play_time = this.last_play_time + (this.SwipeMovingX - this.SwipeStartX) *
                 (Math.abs(this.SwipeStartX - this.SwipeMovingX) > 150 ?
-                  20 * (Math.abs(this.SwipeStartX - this.SwipeMovingX)) / 100 : 30)
+                  40 * (Math.abs(this.SwipeStartX - this.SwipeMovingX)) / 100 : 30)
             }
           }
           if (event.type == TouchType.Up) {
@@ -444,15 +447,22 @@ struct Player {
           this.last_speed = this.speed
           this.avPlayer?.setSpeed(3)
         }))
-        .onClick(() => this.ShowControl = !this.ShowControl)
-
-
-    }.onAreaChange(async (oldValue: Area, newValue: Area) => {
+        .gesture(GestureGroup(GestureMode.Exclusive,
+          TapGesture({ count: 2 })
+            .onAction(() => {
+              this.playing ? this.avPlayer?.pause() : this.avPlayer?.play()
+            }),
+          TapGesture({ count: 1 })
+            .onAction(() => {
+              this.ShowControl = !this.ShowControl
+            })
+        ))
+    }.onAreaChange(async (_oldValue: Area, newValue: Area) => {
       this.screen_width = Math.floor(new Number(newValue.width).valueOf())
       this.screen_height = Math.floor(new Number(newValue.height).valueOf())
       this.setRotation()
     })
-    .backgroundColor('#000000')
+    .backgroundColor($r('sys.color.black'))
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 

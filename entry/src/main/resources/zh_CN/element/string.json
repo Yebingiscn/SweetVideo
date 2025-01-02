@@ -59,6 +59,10 @@
     {
       "name": "no_search_result",
       "value": "无搜索结果"
+    },
+    {
+      "name": "unknown_size",
+      "value": "未知大小"
     }
   ]
 }
