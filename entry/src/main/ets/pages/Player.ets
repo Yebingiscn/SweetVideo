@@ -10,6 +10,7 @@ import AVSessionUtil from '../utils/AVSessionUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import VideoSpeedUtil from '../utils/VideoUtil';
+import TimeUtil from '../utils/TimeUtil';
 
 interface VideoMetadata {
   uri: string
@@ -23,17 +24,6 @@ interface VideoMetadata {
 interface avSessionState {
   playing: boolean
   duration: number
-}
-
-
-function getTime(milliseconds: number): string {
-
-  const totalSeconds = Math.floor(milliseconds / 1000); // 转换为总秒数
-  const minutes = Math.floor(totalSeconds / 60); // 计算分钟数
-  const seconds = totalSeconds % 60; // 计算秒数
-
-  // 格式化为 mm:ss，确保两位数字显示
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
 const context = getContext() as common.UIAbilityContext;
@@ -305,10 +295,11 @@ struct Player {
                 .fontColor($r('sys.color.white'))
                 .width('70%')
                 .value(this.speed.toFixed(2) + 'x')
-                .onSelect((index: number, text?: string | undefined) => {
+                .onSelect((_index: number, text?: string | undefined) => {
                   this.avPlayer?.setSpeed(VideoSpeedUtil.getVideoSpeed(parseFloat(text?.replace('x', '') || '1')))
                 })
                 .backgroundColor('#00000000')
+                .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
             }
 
             Button({ type: ButtonType.Circle, stateEffect: true }) { // 旋转锁定
@@ -347,7 +338,7 @@ struct Player {
             top: (this.screen_height > this.screen_width ? DataSyncUtil.topSafeHeight : 5),
             bottom: 10
           })
-          .backgroundColor('#48000000')
+          .backgroundColor('#61000000')
 
           Stack() { //底栏
             if (this.screen_height > this.screen_width) {
@@ -365,7 +356,7 @@ struct Player {
           .height(this.screen_height > this.screen_width ? '25%' : '15%')
           .width('100%')
           .padding(1)
-          .backgroundColor('#48000000')
+          .backgroundColor('#61000000')
           .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
         }.height('100%').width('100%')
       }
@@ -469,11 +460,11 @@ struct Player {
   @Builder
   VideoSlider() {
     Row({ space: 10 }) {
-      Text(getTime(Math.min(Math.max(this.play_time, 0), (this.now_playing?.time || 0))) + '/' +
-      getTime(this.now_playing?.time || 0))
+      Text(TimeUtil.convertMsToMMSS(Math.min(Math.max(this.play_time, 0), (this.now_playing?.time || 0))) + '/' +
+      TimeUtil.convertMsToMMSS(this.now_playing?.time || 0))
         .fontWeight(FontWeight.Medium)
         .fontSize(16)
-        .fontColor('#ffffff')
+        .fontColor($r('sys.color.white'))
       Slider({
         value: this.play_time,
         min: 0,
@@ -484,11 +475,13 @@ struct Player {
           this.play_time = value
           this.avPlayer?.seek(value)
         })
-        .width(this.screen_width > this.screen_height ? '50%' : '55%')
+        .width(this.screen_width > this.screen_height ? '45%' : '50%')
         .animation({ duration: 100, curve: Curve.Smooth })
         .selectedColor('#e0e0e0')
-      Text(getTime(Math.min(Math.max((this.now_playing?.time || 0) - this.play_time, 0),
-        (this.now_playing?.time || 0)))).fontWeight(FontWeight.Medium).fontSize(16).fontColor('#ffffff')
+      Text(TimeUtil.convertMsToMMSS(Math.min(Math.max((this.now_playing?.time || 0) - this.play_time, 0),
+        (this.now_playing?.time || 0))))
+        .fontWeight(FontWeight.Medium).fontSize(15)
+        .fontColor($r('sys.color.white'))
     }
   }
 

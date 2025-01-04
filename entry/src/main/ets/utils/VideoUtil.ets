@@ -32,15 +32,16 @@ class VideoUtil {
   videoSizeFormat(size: string) {
     if (size.includes('1080')) {
       return "1080P FHD"
-    } else if (size.includes('2160')) {
-      return "4K Ultra HD"
     } else if (size.includes('720')) {
       return "720P HD"
+    } else if (size.includes('2160') || size.includes('4096')) {
+      return "4K Ultra HD"
     } else {
       return size.split(',')[0] + ' x ' + size.split(',')[1]
     }
   }
 
+  // 获取视频大小
   async getVideoSize(uri: string): Promise<string> {
     return new Promise((resolve, reject) => {
       let file = fs.openSync(uri, fs.OpenMode.READ_ONLY);
@@ -53,7 +54,6 @@ class VideoUtil {
           const size = stat.size > this.GB ?
             (stat.size / this.GB).toFixed(2) + ' GB' :
             (stat.size / this.MB).toFixed(2) + ' MB';
-          hilog.error(777, 'testFlag', 'size: ' + size);
           resolve(size); // Resolving the promise with the size
         }
       });

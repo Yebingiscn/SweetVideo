@@ -23,6 +23,7 @@ interface VideoMetadata {
   last_play: number
   format: string
   video_size: string
+  hdr_type: string
 }
 
 const permissions: Permissions[] = ['ohos.permission.FILE_ACCESS_PERSIST', 'ohos.permission.VIBRATE'];
@@ -185,7 +186,7 @@ struct Index {
 
   async selectFiles() {
     const documentSelectOptions = new picker.DocumentSelectOptions();
-    documentSelectOptions.fileSuffixFilters = ['mp4', 'flv'];
+    documentSelectOptions.fileSuffixFilters = ['mp4', 'flv', 'mkv', 'ts', 'mov'];
     let context = getContext(this) as common.Context;
     const documentViewPicker = new picker.DocumentViewPicker(context);
     documentViewPicker.select(documentSelectOptions).then(async (documentSelectResult: Array<string>) => {
@@ -287,7 +288,8 @@ struct Index {
       time: parseInt(metadata.duration || '0'),
       last_play: 0,
       format: file_name.split('.')[file_name.split('.').length - 1],
-      video_size:await VideoUtil.getVideoSize(this.encryption ? sandbox_video + date : uri)
+      video_size: await VideoUtil.getVideoSize(this.encryption ? sandbox_video + date : uri),
+      hdr_type: metadata.hdrType ? 'HDR Vivid' : ''
     }
     this.testFetchFrameByTime(uri, tmp.size, date)
     return tmp
@@ -344,9 +346,16 @@ struct Index {
                     .maxLines(2)
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
                     .width('90%')
-                  //.textAlign(TextAlign)
                   Row() {
-                    if (VideoUtil.videoSizeFormat(String(this.encryption ?
+                    if (String(this.encryption ?
+                      this.video_meta_data_encryption.find(i => i.date == item)?.hdr_type :
+                      this.video_meta_data.find(i => i.date == item)?.hdr_type) != '') {
+                      Image($r("app.media.hdr_vivid_icon"))
+                        .backgroundImageSize(ImageSize.Cover)
+                        .borderRadius(5)
+                        .width('20%')
+                        .height('35%')
+                    } else if (VideoUtil.videoSizeFormat(String(this.encryption ?
                       this.video_meta_data_encryption.find(i => i.date == item)?.size :
                       this.video_meta_data.find(i => i.date == item)?.size))
                       .includes('HD')) {
@@ -368,7 +377,7 @@ struct Index {
                         .fontWeight(FontWeight.Normal)
                         .opacity(0.8)
                     }
-                    Text(" | " + String(this.encryption ?
+                    Text(' | ' + String(this.encryption ?
                       this.video_meta_data_encryption.find(i => i.date == item)?.format :
                       this.video_meta_data.find(i => i.date == item)?.format) + " | " +
                     TimeUtil.convertMsToMMSS(this.encryption ?
@@ -383,7 +392,7 @@ struct Index {
                   }.justifyContent(FlexAlign.Center).padding({
                     top: 5,
                   })
-                }.alignItems(HorizontalAlign.Start).padding(10).width('92%')
+                }.alignItems(HorizontalAlign.Start).padding(10).width('90%')
               }.justifyContent(FlexAlign.Center)
             }
             .padding({
