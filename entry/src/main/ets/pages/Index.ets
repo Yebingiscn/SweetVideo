@@ -746,6 +746,10 @@ struct editPasswordDialog { //编辑元数据弹窗
         .onSecurityStateChange((isShowPassword: boolean) => {
           this.passwordState = isShowPassword
         })
+        .id('input_pwd')
+        .onAppear(() => {
+          focusControl.requestFocus('input_pwd')
+        })
 
       Flex({ justifyContent: FlexAlign.SpaceAround }) {
         Button({ type: ButtonType.Normal, stateEffect: true }) {
