@@ -118,6 +118,38 @@ struct Index {
       offsetY: 0
     }
   })
+  delConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: delConfirmDialog({
+      confirm: (confirm_del: boolean | undefined) => {
+        if (!confirm_del) {
+          return
+        }
+        let tmp = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata
+        if (this.encryption) {
+          this.video_meta_data_encryption = this.video_meta_data_encryption.filter(i => i.date != tmp.date)
+          if (fs.accessSync(sandbox_video + tmp.date)) {
+            fs.unlinkSync(sandbox_video + tmp.date)
+          }
+          PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
+            this.video_meta_data_encryption)
+        } else {
+          this.video_meta_data = this.video_meta_data.filter(i => i.date != tmp.date)
+        }
+        this.show_list = this.show_list.filter(i => i != tmp.date)
+        if (fs.accessSync(sandbox_path + tmp.date)) {
+          fs.unlinkSync(sandbox_path + tmp.date)
+        }
+        PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data)
+      }
+    }),
+    cornerRadius: 20,
+    shadow: {
+      radius: 20,
+      color: $r('app.color.shadow_color'),
+      offsetX: 0,
+      offsetY: 0
+    }
+  })
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
     builder: editPasswordDialog({
       confirm: (passwd: string | undefined) => {
@@ -450,7 +482,7 @@ struct Index {
 
       //顶栏
       Row() {
-        Text($r('app.string.nothing')).fontSize(30).fontWeight(FontWeight.Bold)
+        Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
       }
       .height('100%')
       .visibility(this.show_list.length == 0 ? Visibility.Visible : Visibility.Hidden)
@@ -611,21 +643,9 @@ struct Index {
         .width(40)
         .height(40)
         .onClick(() => {
-          if (this.encryption) {
-            this.video_meta_data_encryption = this.video_meta_data_encryption.filter(i => i.date != item.date)
-            if (fs.accessSync(sandbox_video + item.date)) {
-              fs.unlinkSync(sandbox_video + item.date)
-            }
-            PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
-              this.video_meta_data_encryption)
-          } else {
-            this.video_meta_data = this.video_meta_data.filter(i => i.date != item.date)
-          }
-          this.show_list = this.show_list.filter(i => i != item.date)
-          if (fs.accessSync(sandbox_path + item.date)) {
-            fs.unlinkSync(sandbox_path + item.date)
-          }
-          PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data)
+          this.listScroller.closeAllSwipeActions()
+          DataSyncUtil.editing_video = JSON.stringify(item)
+          this.delConfirmDialog.open()
         })
       Stack().width(10)
       SymbolGlyph($r('sys.symbol.rename'))
@@ -714,8 +734,10 @@ struct editMetadataDialog { //编辑元数据弹窗
         .height(40)
         .onClick(() => {
           this.controller?.close()
-          if (this.confirm) {
+          if (this.confirm && ToolsUtil.hasMultipleDots(this.name)) {
             this.confirm(this.name)
+          } else {
+            ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.illegal_input')))
           }
         })
       }.margin({ bottom: 10 })
@@ -781,6 +803,56 @@ struct editPasswordDialog { //编辑元数据弹窗
           this.controller?.close()
           if (this.confirm) {
             this.confirm(this.passwd)
+          }
+        })
+      }.margin({ bottom: 10 })
+    }.padding(20)
+  }
+}
+
+@CustomDialog
+struct delConfirmDialog { //删除确认弹窗
+  confirm?: (confirm_del: boolean | undefined) => void
+  controller?: CustomDialogController
+
+  build() {
+    Column({ space: 25 }) {
+      Text($r('app.string.del_confirm'))
+        .fontSize(25)
+        .fontColor($r('app.color.text_color'))
+        .fontWeight(FontWeight.Bold)
+        .margin({ top: 10 })
+
+      Flex({ justifyContent: FlexAlign.SpaceAround }) {
+        Button({ type: ButtonType.Normal, stateEffect: true }) {
+          Row({ space: 5 }) {
+            SymbolGlyph($r('sys.symbol.xmark')).fontSize(18).fontColor([$r('app.color.text_color')])
+            Text($r('app.string.cancel'))
+              .fontSize(18)
+              .fontColor($r('app.color.text_color'))
+              .fontWeight(FontWeight.Medium)
+          }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
+        }
+        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+        .backgroundColor('#00000000')
+        .borderRadius(8)
+        .height(40)
+        .onClick(() => this.controller?.close())
+
+        Button({ type: ButtonType.Normal, stateEffect: true }) {
+          Row({ space: 5 }) {
+            SymbolGlyph($r('sys.symbol.checkmark')).fontSize(18).fontColor([$r('app.color.text_color')])
+            Text($r('app.string.sure')).fontSize(18).fontColor($r('app.color.text_color')).fontWeight(FontWeight.Medium)
+          }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
+        }
+        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+        .backgroundColor('#00000000')
+        .borderRadius(8)
+        .height(40)
+        .onClick(() => {
+          this.controller?.close()
+          if (this.confirm) {
+            this.confirm(true)
           }
         })
       }.margin({ bottom: 10 })

@@ -30,15 +30,22 @@ class VideoUtil {
 
   // 视频分辨率格式化
   videoSizeFormat(size: string) {
-    if (size.includes('1080')) {
-      return "1080P FHD"
-    } else if (size.includes('720')) {
-      return "720P HD"
-    } else if (size.includes('2160') || size.includes('4096')) {
-      return "4K Ultra HD"
-    } else {
-      return size.split(',')[0] + ' x ' + size.split(',')[1]
+    const videoSizeMap: Record<string, string> = {
+      '1080': '1080P FHD',
+      '720': '720P HD',
+      '2160': '4K Ultra HD',
+      '4096': '4K Ultra HD',
+      '1440': '2K QHD',
+      '1600': 'UW QHD',
+      '7680': '8K Ultra HD',
+      '4320': '8K Ultra HD'
+    };
+    for (const key of Object.entries(videoSizeMap)) {
+      if (size.includes(key[0])) {
+        return key[1];
+      }
     }
+    return size.split(',')[0] + ' x ' + size.split(',')[1]
   }
 
   // 获取视频大小

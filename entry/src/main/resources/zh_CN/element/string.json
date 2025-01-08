@@ -63,6 +63,14 @@
     {
       "name": "unknown_size",
       "value": "未知大小"
+    },
+    {
+      "name": "illegal_input",
+      "value": "重命名失败：重命名不能使用“.“"
+    },
+    {
+      "name": "del_confirm",
+      "value": "是否删除视频？"
     }
   ]
 }
