@@ -150,7 +150,6 @@ struct Player {
           this.play_area_width = this.play_area_height * (this.now_playing?.size[0] / this.now_playing?.size[1])
         }
       }
-
     }
   }
 
@@ -224,7 +223,7 @@ struct Player {
   async getData() {
     if (this.avPlayer) {
       this.setAVPlayerCallback()
-      await PermissionUtil.activatePermission(this.now_playing?.uri || '')
+        await PermissionUtil.activatePermission(this.now_playing?.uri || '')
       this.avPlayer.fdSrc = fs.openSync(this.now_playing?.uri);
       this.setRotation()
     }
@@ -240,7 +239,8 @@ struct Player {
 
   build() {
     Stack() {
-      Stack() { //播放器
+      Stack() {
+        //播放器
         Stack() {
           XComponent({ type: XComponentType.SURFACE, controller: this.xComponentController })
             .onLoad(() => {
@@ -315,18 +315,14 @@ struct Player {
             .onClick(async () => {
               this.lock_rotation = !this.lock_rotation
               if (this.lock_rotation) {
-                if (this.screen_width >
-                this.screen_height) {
+                ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.open_rotation_lock')))
+                if (this.screen_width > this.screen_height) {
                   (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED)
                 } else {
                   (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
                 }
               } else {
                 (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
-              }
-              if (this.lock_rotation) {
-                ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.open_rotation_lock')))
-              } else {
                 ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.close_rotation_lock')))
               }
             })
@@ -363,7 +359,7 @@ struct Player {
       .visibility(this.ShowControl ? Visibility.Visible : Visibility.Hidden)
       .animation({ duration: 300, curve: Curve.Smooth })
 
-      Stack() { //快进提示
+      Stack({ alignContent: Alignment.BottomEnd }) { //快进提示
         Text('3.0x').fontColor($r('sys.color.white')).fontSize(25).fontWeight(FontWeight.Bold)
       }
       .padding({
@@ -531,7 +527,6 @@ struct Player {
           this.avPlayer?.play()
         }
       })
-
 
       Button({ type: ButtonType.Circle, stateEffect: true }) { // 全屏按钮
         SymbolGlyph($r('sys.symbol.screen_rotation'))

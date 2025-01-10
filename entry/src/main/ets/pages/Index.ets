@@ -1,5 +1,5 @@
 import { fileShare, fileUri, fileIo as fs, picker } from '@kit.CoreFileKit';
-import { abilityAccessCtrl, common, Permissions } from '@kit.AbilityKit';
+import { common, Permissions } from '@kit.AbilityKit';
 import { router, window } from '@kit.ArkUI';
 import { media } from '@kit.MediaKit';
 import { BusinessError } from '@kit.BasicServicesKit';
@@ -13,6 +13,10 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
 import VideoUtil from '../utils/VideoUtil';
 import TimeUtil from '../utils/TimeUtil';
+import { delConfirmDialog } from '../component/DelConfirmDialog';
+import { editPasswordDialog } from '../component/EditPasswordDialog';
+import { editMetadataDialog } from '../component/EditMetadataDialog';
+import ReqPermission from '../utils/ReqPermission';
 
 interface VideoMetadata {
   uri: string
@@ -23,7 +27,7 @@ interface VideoMetadata {
   last_play: number
   format: string
   video_size: string
-  hdr_type: string
+  hdr_type: number
 }
 
 const permissions: Permissions[] = ['ohos.permission.FILE_ACCESS_PERSIST', 'ohos.permission.VIBRATE'];
@@ -31,20 +35,6 @@ const context = getContext() as common.UIAbilityContext;
 const sandbox_path = getContext().filesDir + '/'
 const sandbox_video = getContext().filesDir + '/video/'
 
-// 重新
-function reqPermissionsFromUser(permissions: Permissions[], context: common.UIAbilityContext): void {
-  let atManager: abilityAccessCtrl.AtManager = abilityAccessCtrl.createAtManager();
-  atManager.requestPermissionsFromUser(context, permissions).then((data) => {
-    let grantStatus: number[] = data.authResults;
-    let length: number = grantStatus.length;
-    for (let i = 0; i < length; i++) {
-      if (grantStatus[i] === 0) {
-      } else {
-        return;
-      }
-    }
-  })
-}
 
 async function persistPermission(uri: string): Promise<boolean> {
   try {
@@ -83,6 +73,34 @@ struct Index {
   @State list_empty_item: string[] = ['']
   @State loading: boolean = false
   @State search_input: string = ''
+
+  @Builder
+  MenuBuilder(item: VideoMetadata | undefined) {
+    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
+      Text($r('app.string.Edit'))
+        .fontSize(20)
+        .width(100)
+        .height(50)
+        .textAlign(TextAlign.Start)
+        .padding(10)
+        .onClick(() => {
+          DataSyncUtil.editing_video = JSON.stringify(item)
+          this.editMetadataDialogController.open()
+        })
+      Divider().height(10)
+      Text($r('app.string.Delete'))
+        .fontSize(20)
+        .width(100)
+        .height(50)
+        .textAlign(TextAlign.Start)
+        .padding(10)
+        .onClick(() => {
+          DataSyncUtil.editing_video = JSON.stringify(item)
+          this.delConfirmDialog.open()
+        })
+    }.width(100)
+  }
+
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: editMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -196,7 +214,7 @@ struct Index {
   }
 
   async aboutToAppear(): Promise<void> {
-    reqPermissionsFromUser(permissions, context);
+    ReqPermission.reqPermissionsFromUser(permissions, context);
     this.video_meta_data =
       await PreferencesUtil.getPreferencesValue('sweet_video', 'video_meta_data', []) as VideoMetadata[]
     this.video_meta_data_encryption =
@@ -321,7 +339,7 @@ struct Index {
       last_play: 0,
       format: file_name.split('.')[file_name.split('.').length - 1],
       video_size: await VideoUtil.getVideoSize(this.encryption ? sandbox_video + date : uri),
-      hdr_type: metadata.hdrType ? 'HDR Vivid' : ''
+      hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE
     }
     this.testFetchFrameByTime(uri, tmp.size, date)
     return tmp
@@ -379,9 +397,9 @@ struct Index {
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
                     .width('90%')
                   Row() {
-                    if (String(this.encryption ?
+                    if ((this.encryption ?
                       this.video_meta_data_encryption.find(i => i.date == item)?.hdr_type :
-                      this.video_meta_data.find(i => i.date == item)?.hdr_type) != '') {
+                      this.video_meta_data.find(i => i.date == item)?.hdr_type) === media.HdrType.AV_HDR_TYPE_VIVID) {
                       Image($r("app.media.hdr_vivid_icon"))
                         .backgroundImageSize(ImageSize.Cover)
                         .borderRadius(5)
@@ -445,6 +463,8 @@ struct Index {
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
           .width('100%')
+          .bindContextMenu(this.MenuBuilder(this.encryption ? this.video_meta_data_encryption.find(i => i.date == item) :
+          this.video_meta_data.find(i => i.date == item)), ResponseType.LongPress)
           .swipeAction({
             end: this.itemEnd(this.encryption ? this.video_meta_data_encryption.find(i => i.date == item) :
             this.video_meta_data.find(i => i.date == item)),
@@ -487,9 +507,10 @@ struct Index {
       .height('100%')
       .visibility(this.show_list.length == 0 ? Visibility.Visible : Visibility.Hidden)
       .animation({ duration: 150, curve: Curve.Ease })
-
+     // SideBarContainerExample()
       Column() {
         Row({ space: 15 }) {
+          //SideBarContainerExample()
           Button({ type: ButtonType.Circle, stateEffect: true }) {
             SymbolGlyph($r('sys.symbol.folder'))
               .fontSize(25)
@@ -682,180 +703,5 @@ struct Index {
         })
         .visibility(this.encryption ? Visibility.Visible : Visibility.None)
     }.padding(10).justifyContent(FlexAlign.SpaceEvenly)
-  }
-}
-
-@CustomDialog
-struct editMetadataDialog { //编辑元数据弹窗
-  confirm?: (name: string | undefined) => void
-  controller?: CustomDialogController
-  name: string | undefined = undefined
-
-  aboutToAppear(): void {
-    let tmp = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata
-    this.name = tmp.title
-  }
-
-  build() {
-    Column({ space: 25 }) {
-      Text($r('app.string.rename'))
-        .fontSize(25)
-        .fontColor($r('app.color.text_color'))
-        .fontWeight(FontWeight.Bold)
-        .margin({ top: 10 })
-      TextInput({ text: this.name?.split('.')[0] })
-        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .onChange((input: string) => this.name = input + "." + this.name?.split('.')[1])
-      Flex({ justifyContent: FlexAlign.SpaceAround }) {
-        Button({ type: ButtonType.Normal, stateEffect: true }) {
-          Row({ space: 5 }) {
-            SymbolGlyph($r('sys.symbol.xmark')).fontSize(18).fontColor([$r('app.color.text_color')])
-            Text($r('app.string.cancel'))
-              .fontSize(18)
-              .fontColor($r('app.color.text_color'))
-              .fontWeight(FontWeight.Medium)
-          }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
-        }
-        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .backgroundColor('#00000000')
-        .borderRadius(8)
-        .height(40)
-        .onClick(() => this.controller?.close())
-
-        Button({ type: ButtonType.Normal, stateEffect: true }) {
-          Row({ space: 5 }) {
-            SymbolGlyph($r('sys.symbol.checkmark')).fontSize(18).fontColor([$r('app.color.text_color')])
-            Text($r('app.string.sure')).fontSize(18).fontColor($r('app.color.text_color')).fontWeight(FontWeight.Medium)
-          }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
-        }
-        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .backgroundColor('#00000000')
-        .borderRadius(8)
-        .height(40)
-        .onClick(() => {
-          this.controller?.close()
-          if (this.confirm && ToolsUtil.hasMultipleDots(this.name)) {
-            this.confirm(this.name)
-          } else {
-            ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.illegal_input')))
-          }
-        })
-      }.margin({ bottom: 10 })
-    }.padding(20)
-  }
-}
-
-@CustomDialog
-struct editPasswordDialog { //编辑元数据弹窗
-  confirm?: (name: string | undefined) => void
-  controller?: CustomDialogController
-  passwd: string | undefined = undefined
-  @State passwordState: boolean = false
-
-  build() {
-    Column({ space: 25 }) {
-      Text($r('app.string.set_passwd'))
-        .fontSize(25)
-        .fontColor($r('app.color.text_color'))
-        .fontWeight(FontWeight.Bold)
-        .margin({ top: 10 })
-      TextInput()
-        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .onChange((input: string) => this.passwd = input)
-        .showPassword(this.passwordState)
-        .type(InputType.Password)
-        .showPasswordIcon(true)
-        .onSecurityStateChange((isShowPassword: boolean) => {
-          this.passwordState = isShowPassword
-        })
-        .id('input_pwd')
-        .onAppear(() => {
-          focusControl.requestFocus('input_pwd')
-        })
-
-      Flex({ justifyContent: FlexAlign.SpaceAround }) {
-        Button({ type: ButtonType.Normal, stateEffect: true }) {
-          Row({ space: 5 }) {
-            SymbolGlyph($r('sys.symbol.xmark')).fontSize(18).fontColor([$r('app.color.text_color')])
-            Text($r('app.string.cancel'))
-              .fontSize(18)
-              .fontColor($r('app.color.text_color'))
-              .fontWeight(FontWeight.Medium)
-          }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
-        }
-        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .backgroundColor('#00000000')
-        .borderRadius(8)
-        .height(40)
-        .onClick(() => this.controller?.close())
-
-        Button({ type: ButtonType.Normal, stateEffect: true }) {
-          Row({ space: 5 }) {
-            SymbolGlyph($r('sys.symbol.checkmark')).fontSize(18).fontColor([$r('app.color.text_color')])
-            Text($r('app.string.sure')).fontSize(18).fontColor($r('app.color.text_color')).fontWeight(FontWeight.Medium)
-          }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
-        }
-        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .backgroundColor('#00000000')
-        .borderRadius(8)
-        .height(40)
-        .onClick(() => {
-          this.controller?.close()
-          if (this.confirm) {
-            this.confirm(this.passwd)
-          }
-        })
-      }.margin({ bottom: 10 })
-    }.padding(20)
-  }
-}
-
-@CustomDialog
-struct delConfirmDialog { //删除确认弹窗
-  confirm?: (confirm_del: boolean | undefined) => void
-  controller?: CustomDialogController
-
-  build() {
-    Column({ space: 25 }) {
-      Text($r('app.string.del_confirm'))
-        .fontSize(25)
-        .fontColor($r('app.color.text_color'))
-        .fontWeight(FontWeight.Bold)
-        .margin({ top: 10 })
-
-      Flex({ justifyContent: FlexAlign.SpaceAround }) {
-        Button({ type: ButtonType.Normal, stateEffect: true }) {
-          Row({ space: 5 }) {
-            SymbolGlyph($r('sys.symbol.xmark')).fontSize(18).fontColor([$r('app.color.text_color')])
-            Text($r('app.string.cancel'))
-              .fontSize(18)
-              .fontColor($r('app.color.text_color'))
-              .fontWeight(FontWeight.Medium)
-          }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
-        }
-        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .backgroundColor('#00000000')
-        .borderRadius(8)
-        .height(40)
-        .onClick(() => this.controller?.close())
-
-        Button({ type: ButtonType.Normal, stateEffect: true }) {
-          Row({ space: 5 }) {
-            SymbolGlyph($r('sys.symbol.checkmark')).fontSize(18).fontColor([$r('app.color.text_color')])
-            Text($r('app.string.sure')).fontSize(18).fontColor($r('app.color.text_color')).fontWeight(FontWeight.Medium)
-          }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
-        }
-        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .backgroundColor('#00000000')
-        .borderRadius(8)
-        .height(40)
-        .onClick(() => {
-          this.controller?.close()
-          if (this.confirm) {
-            this.confirm(true)
-          }
-        })
-      }.margin({ bottom: 10 })
-    }.padding(20)
   }
 }

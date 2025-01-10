@@ -66,11 +66,19 @@
     },
     {
       "name": "illegal_input",
-      "value": "重命名失败：重命名不能使用“.“"
+      "value": "重命名失败：重命名不能包含“ . ”"
     },
     {
       "name": "del_confirm",
       "value": "是否删除视频？"
+    },
+    {
+      "name": "Edit",
+      "value": "编辑"
+    },
+    {
+      "name": "Delete",
+      "value": "删除"
     }
   ]
 }

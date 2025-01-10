@@ -66,11 +66,19 @@
     },
     {
       "name": "illegal_input",
-      "value": "Fail: Renaming can not contain '.'"
+      "value": "Fail: Renaming can not contain \" . \""
     },
     {
       "name": "del_confirm",
       "value": "Do you want to delete the video?"
+    },
+    {
+      "name": "Edit",
+      "value": "Edit"
+    },
+    {
+      "name": "Delete",
+      "value": "Delete"
     }
   ]
 }
