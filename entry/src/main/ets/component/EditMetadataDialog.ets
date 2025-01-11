@@ -1,5 +1,4 @@
 import DataSyncUtil from '../utils/DataSyncUtil'
-import ToolsUtil from '../utils/ToolsUtil'
 
 @CustomDialog
 export struct editMetadataDialog { //编辑元数据弹窗
@@ -31,10 +30,10 @@ export struct editMetadataDialog { //编辑元数据弹窗
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)
         .margin({ top: 10 })
-      TextInput({ text: this.name?.split('.')[0] })
+      TextInput({ text: this.name?.slice(0, this.name?.lastIndexOf('.')) })
         .id('change_name')
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .onChange((input: string) => this.name = input + "." + this.name?.split('.')[1])
+        .onChange((input: string) => this.name = input + "." + this.name?.split('.')[this.name?.split('.').length - 1])
         .onAppear(() => {
           focusControl.requestFocus('change_name')
         })
@@ -66,10 +65,8 @@ export struct editMetadataDialog { //编辑元数据弹窗
         .height(40)
         .onClick(() => {
           this.controller?.close()
-          if (this.confirm && ToolsUtil.hasMultipleDots(this.name)) {
+          if (this.confirm) {
             this.confirm(this.name)
-          } else {
-            ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.illegal_input')))
           }
         })
       }.margin({ bottom: 10 })

@@ -23,14 +23,24 @@
         "startWindowIcon": "$media:layered_image",
         "startWindowBackground": "$color:start_window_background",
         "exported": true,
-        "orientation": "auto_rotation", // 随传感器旋转
+        "orientation": "auto_rotation",
+        // 随传感器旋转
         "skills": [
           {
             "entities": [
               "entity.system.home"
             ],
             "actions": [
-              "action.system.home"
+              "action.system.home",
+              "ohos.want.action.sendData"
+            ],
+            "uris": [
+              {
+                "scheme": "file",
+                "type": "video/*",
+                "linkFeature": "FileOpen",
+                "maxFileSupported": 1
+              },
             ]
           }
         ]
@@ -51,8 +61,15 @@
       }
     ],
     "requestPermissions": [
-      {"name" : "ohos.permission.FILE_ACCESS_PERSIST"},
-      {"name" : "ohos.permission.KEEP_BACKGROUND_RUNNING"},
+      {
+        "name": "ohos.permission.FILE_ACCESS_PERSIST"
+      },
+      {
+        "name": "ohos.permission.KEEP_BACKGROUND_RUNNING"
+      },
+      {
+        "name": "ohos.permission.VIBRATE"
+      }
     ]
   }
 }

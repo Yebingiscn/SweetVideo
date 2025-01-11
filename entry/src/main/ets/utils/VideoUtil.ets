@@ -31,12 +31,15 @@ class VideoUtil {
   // 视频分辨率格式化
   videoSizeFormat(size: string) {
     const videoSizeMap: Record<string, string> = {
-      '1080': '1080P FHD',
       '720': '720P HD',
-      '2160': '4K Ultra HD',
-      '4096': '4K Ultra HD',
+      '900': '900P HD+',
+      '1080': '1080P FHD',
       '1440': '2K QHD',
       '1600': 'UW QHD',
+      '1666': 'Quad HD+',
+      '1800': 'QHD+',
+      '2160': '4K Ultra HD',
+      '4096': '4K Ultra HD',
       '7680': '8K Ultra HD',
       '4320': '8K Ultra HD'
     };

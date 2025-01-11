@@ -223,7 +223,7 @@ struct Player {
   async getData() {
     if (this.avPlayer) {
       this.setAVPlayerCallback()
-        await PermissionUtil.activatePermission(this.now_playing?.uri || '')
+      await PermissionUtil.activatePermission(this.now_playing?.uri || '')
       this.avPlayer.fdSrc = fs.openSync(this.now_playing?.uri);
       this.setRotation()
     }
@@ -276,7 +276,7 @@ struct Player {
                 right: 10
               })
             Row() {
-              Text((String(this.now_playing?.title).split('.')[0]))
+              Text((String(this.now_playing?.title).slice(0, this.now_playing?.title.lastIndexOf('.'))))
                 .fontSize(20)
                 .fontWeight(FontWeight.Medium)
                 .width('77%')

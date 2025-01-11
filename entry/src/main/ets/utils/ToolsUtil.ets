@@ -1,4 +1,6 @@
 import promptAction from '@ohos.promptAction';
+import { vibrator } from '@kit.SensorServiceKit';
+import { BusinessError } from '@kit.BasicServicesKit';
 
 class Tools {
   showToast(text: string) {
@@ -9,13 +11,19 @@ class Tools {
     });
   }
 
-  hasMultipleDots(input: string | undefined): boolean {
-    if (input === undefined) {
-      return false;
-    }
-    // 使用正则表达式匹配点的数量
-    const dotCount = (input.match(/\./g) || []).length;
-    return dotCount === 1;
+  startVibration() {
+    vibrator.startVibration({
+      type: 'preset',
+      effectId: 'haptic.effect.soft',
+      count: 1,
+      intensity: 100,
+    }, {
+      usage: 'unknown'
+    }, (error: BusinessError) => {
+      if (error) {
+        console.error(`Failed to start vibration. Code: ${error.code}, message: ${error.message}`);
+      }
+    })
   }
 }
 

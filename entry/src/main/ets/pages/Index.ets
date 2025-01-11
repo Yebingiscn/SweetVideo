@@ -17,8 +17,9 @@ import { delConfirmDialog } from '../component/DelConfirmDialog';
 import { editPasswordDialog } from '../component/EditPasswordDialog';
 import { editMetadataDialog } from '../component/EditMetadataDialog';
 import ReqPermission from '../utils/ReqPermission';
+import WantProcess from '../utils/WantProcess';
 
-interface VideoMetadata {
+export interface VideoMetadata {
   uri: string
   title: string
   date: string
@@ -34,7 +35,6 @@ const permissions: Permissions[] = ['ohos.permission.FILE_ACCESS_PERSIST', 'ohos
 const context = getContext() as common.UIAbilityContext;
 const sandbox_path = getContext().filesDir + '/'
 const sandbox_video = getContext().filesDir + '/video/'
-
 
 async function persistPermission(uri: string): Promise<boolean> {
   try {
@@ -98,7 +98,9 @@ struct Index {
           DataSyncUtil.editing_video = JSON.stringify(item)
           this.delConfirmDialog.open()
         })
-    }.width(100)
+    }.width(100).onAppear(() => {
+      ToolsUtil.startVibration()
+    })
   }
 
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
@@ -231,6 +233,9 @@ struct Index {
         .bottomRect.height)
     if (!fs.accessSync(sandbox_video)) {
       fs.mkdirSync(sandbox_video)
+    }
+    if (WantProcess.want_uri != '') {
+      WantProcess.hasWant()
     }
   }
 
@@ -390,7 +395,10 @@ struct Index {
                 Column() {
                   Text((String(this.encryption ?
                     this.video_meta_data_encryption.find(i => i.date == item)?.title :
-                    this.video_meta_data.find(i => i.date == item)?.title)).split('.')[0])
+                    this.video_meta_data.find(i => i.date == item)?.title)
+                  ).slice(0, String(this.encryption ?
+                    this.video_meta_data_encryption.find(i => i.date == item)?.title :
+                    this.video_meta_data.find(i => i.date == item)?.title).lastIndexOf('.')))
                     .fontSize(20)
                     .fontWeight(FontWeight.Medium)
                     .maxLines(2)
@@ -463,7 +471,8 @@ struct Index {
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
           .width('100%')
-          .bindContextMenu(this.MenuBuilder(this.encryption ? this.video_meta_data_encryption.find(i => i.date == item) :
+          .bindContextMenu(this.MenuBuilder(this.encryption ?
+          this.video_meta_data_encryption.find(i => i.date == item) :
           this.video_meta_data.find(i => i.date == item)), ResponseType.LongPress)
           .swipeAction({
             end: this.itemEnd(this.encryption ? this.video_meta_data_encryption.find(i => i.date == item) :
