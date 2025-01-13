@@ -1,9 +1,8 @@
 import { ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { router, window } from '@kit.ArkUI';
+import { window } from '@kit.ArkUI';
 import PreferencesUtil from '../utils/PreferencesUtil';
-import { VideoMetadata } from '../pages/Index';
-import WantProcess from '../utils/WantProcess';
+import WantProcess from '../utils/WantProcessUtil';
 
 export default class EntryAbility extends UIAbility {
 

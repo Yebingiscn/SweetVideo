@@ -10,7 +10,7 @@
     },
     {
       "name": "EntryAbility_label",
-      "value": "sweet video"
+      "value": "Sweet Video"
     },
     {
       "name": "sure",
@@ -46,39 +46,47 @@
     },
     {
       "name": "add_video_first",
-      "value": "add video first"
+      "value": "Add video first"
     },
     {
       "name": "close_rotation_lock",
-      "value": "rotation lock closed"
+      "value": "Rotation lock closed"
     },
     {
       "name": "open_rotation_lock",
-      "value": "rotation lock opened"
+      "value": "Rotation lock opened"
     },
     {
       "name": "no_search_result",
-      "value": "no search result"
+      "value": "No search result"
     },
     {
       "name": "unknown_size",
-      "value": "unknown size"
-    },
-    {
-      "name": "illegal_input",
-      "value": "Fail: Renaming can not contain \" . \""
+      "value": "Unknown size"
     },
     {
       "name": "del_confirm",
       "value": "Do you want to delete the video?"
     },
     {
-      "name": "Edit",
+      "name": "edit",
       "value": "Edit"
     },
     {
-      "name": "Delete",
+      "name": "delete",
       "value": "Delete"
+    },
+    {
+      "name": "import_from_files",
+      "value": "Import from files"
+    },
+    {
+      "name": "import_from_album",
+      "value": "Import from albums"
+    },
+    {
+      "name": "open_side_bar_tip",
+      "value": "Swipe left or click the button in the top left corner to add the first video!"
     }
   ]
 }

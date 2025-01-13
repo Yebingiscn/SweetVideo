@@ -65,20 +65,28 @@
       "value": "未知大小"
     },
     {
-      "name": "illegal_input",
-      "value": "重命名失败：重命名不能包含“ . ”"
-    },
-    {
       "name": "del_confirm",
       "value": "是否删除视频？"
     },
     {
-      "name": "Edit",
+      "name": "edit",
       "value": "编辑"
     },
     {
-      "name": "Delete",
+      "name": "delete",
       "value": "删除"
+    },
+    {
+      "name": "import_from_files",
+      "value": "从文件管理器导入"
+    },
+    {
+      "name": "import_from_album",
+      "value": "从相册导入"
+    },
+    {
+      "name": "open_side_bar_tip",
+      "value": "左滑屏幕或者点击左上角按钮来添加第一个视频吧！"
     }
   ]
 }

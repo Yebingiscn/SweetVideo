@@ -1,5 +1,5 @@
-import { fileShare, fileUri, fileIo as fs, picker } from '@kit.CoreFileKit';
-import { common, Permissions } from '@kit.AbilityKit';
+import { fileUri, fileIo as fs, picker } from '@kit.CoreFileKit';
+import { common } from '@kit.AbilityKit';
 import { router, window } from '@kit.ArkUI';
 import { media } from '@kit.MediaKit';
 import { BusinessError } from '@kit.BasicServicesKit';
@@ -10,50 +10,18 @@ import PermissionUtil from '../utils/PermissionUtil';
 import DataUtil from '../utils/DataUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { photoAccessHelper } from '@kit.MediaLibraryKit';
-import VideoUtil from '../utils/VideoUtil';
+import VideoUtil, { VideoMetadata } from '../utils/VideoUtil';
 import TimeUtil from '../utils/TimeUtil';
 import { delConfirmDialog } from '../component/DelConfirmDialog';
 import { editPasswordDialog } from '../component/EditPasswordDialog';
 import { editMetadataDialog } from '../component/EditMetadataDialog';
-import ReqPermission from '../utils/ReqPermission';
-import WantProcess from '../utils/WantProcess';
+import ReqPermission from '../utils/ReqPermissionUtil';
+import WantProcess from '../utils/WantProcessUtil';
+import SelectFileUtil from '../utils/SelectFileUtil';
 
-export interface VideoMetadata {
-  uri: string
-  title: string
-  date: string
-  size: number[]
-  time: number
-  last_play: number
-  format: string
-  video_size: string
-  hdr_type: number
-}
-
-const permissions: Permissions[] = ['ohos.permission.FILE_ACCESS_PERSIST', 'ohos.permission.VIBRATE'];
 const context = getContext() as common.UIAbilityContext;
 const sandbox_path = getContext().filesDir + '/'
 const sandbox_video = getContext().filesDir + '/video/'
-
-async function persistPermission(uri: string): Promise<boolean> {
-  try {
-    let policyInfo: fileShare.PolicyInfo = {
-      uri: uri,
-      operationMode: fileShare.OperationMode.READ_MODE | fileShare.OperationMode.WRITE_MODE,
-    };
-    let policies: Array<fileShare.PolicyInfo> = [policyInfo];
-    fileShare.persistPermission(policies).then(() => {
-    }).catch((err: BusinessError<Array<fileShare.PolicyErrorResult>>) => {
-      hilog.info(0xFF00, "testTag", String(err));
-    });
-    let fd = await fs.open(uri);
-    await fs.close(fd);
-  } catch (error) {
-    return true
-  }
-  return false
-}
 
 @Entry
 @Component
@@ -73,31 +41,45 @@ struct Index {
   @State list_empty_item: string[] = ['']
   @State loading: boolean = false
   @State search_input: string = ''
+  @State sideBarStatus: boolean = false
+  @State sideBarStatusTmp: Visibility = Visibility.Hidden
 
   @Builder
   MenuBuilder(item: VideoMetadata | undefined) {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      Text($r('app.string.Edit'))
-        .fontSize(20)
-        .width(100)
-        .height(50)
-        .textAlign(TextAlign.Start)
-        .padding(10)
-        .onClick(() => {
-          DataSyncUtil.editing_video = JSON.stringify(item)
-          this.editMetadataDialogController.open()
-        })
+      Row() {
+        SymbolGlyph($r('sys.symbol.trash_fill'))
+          .fontSize(20)
+          .fontColor([$r('app.color.text_color')])
+          .width(25)
+          .height(40)
+        Text($r('app.string.delete'))
+          .fontSize(20)
+          .width(100)
+          .height(50)
+      }
+      .padding(10)
+      .onClick(() => {
+        DataSyncUtil.editing_video = JSON.stringify(item)
+        this.delConfirmDialog.open()
+      })
+
       Divider().height(10)
-      Text($r('app.string.Delete'))
-        .fontSize(20)
-        .width(100)
-        .height(50)
-        .textAlign(TextAlign.Start)
-        .padding(10)
-        .onClick(() => {
-          DataSyncUtil.editing_video = JSON.stringify(item)
-          this.delConfirmDialog.open()
-        })
+      Row() {
+        SymbolGlyph($r('sys.symbol.rename'))
+          .fontSize(20)
+          .fontColor([$r('app.color.text_color')])
+          .width(25)
+          .height(40)
+        Text($r('app.string.edit'))
+          .fontSize(20)
+          .width(100)
+          .height(50)
+      }.padding(10)
+      .onClick(() => {
+        DataSyncUtil.editing_video = JSON.stringify(item)
+        this.editMetadataDialogController.open()
+      })
     }.width(100).onAppear(() => {
       ToolsUtil.startVibration()
     })
@@ -210,13 +192,15 @@ struct Index {
     if (this.encryption) {
       this.show_list = this.video_meta_data_encryption.map(i => i.date)
     } else {
-      this.show_list =
-        this.video_meta_data.map(i => i.date)
+      this.show_list = this.video_meta_data.map(i => i.date)
     }
   }
 
   async aboutToAppear(): Promise<void> {
-    ReqPermission.reqPermissionsFromUser(permissions, context);
+    if (WantProcess.want_uri != '') {
+      WantProcess.hasWant()
+    }
+    ReqPermission.reqPermissionsFromUser(ReqPermission.permissions, context);
     this.video_meta_data =
       await PreferencesUtil.getPreferencesValue('sweet_video', 'video_meta_data', []) as VideoMetadata[]
     this.video_meta_data_encryption =
@@ -234,32 +218,16 @@ struct Index {
     if (!fs.accessSync(sandbox_video)) {
       fs.mkdirSync(sandbox_video)
     }
-    if (WantProcess.want_uri != '') {
-      WantProcess.hasWant()
-    }
   }
 
   async selectFiles() {
-    const documentSelectOptions = new picker.DocumentSelectOptions();
-    documentSelectOptions.fileSuffixFilters = ['mp4', 'flv', 'mkv', 'ts', 'mov'];
-    let context = getContext(this) as common.Context;
-    const documentViewPicker = new picker.DocumentViewPicker(context);
-    documentViewPicker.select(documentSelectOptions).then(async (documentSelectResult: Array<string>) => {
-      if (documentSelectResult.length > 0) {
-        this.toMetadata(documentSelectResult)
-      }
-    });
+    const selectedFiles: string[] = await SelectFileUtil.selectFiles();
+    await this.toMetaData(selectedFiles);
   }
 
   async selectVideo() {
-    const photoSelectOptions = new photoAccessHelper.PhotoSelectOptions
-    photoSelectOptions.MIMEType = photoAccessHelper.PhotoViewMIMETypes.VIDEO_TYPE
-    const photoViewPicker = new photoAccessHelper.PhotoViewPicker();
-    photoViewPicker.select(photoSelectOptions).then((photoSelectResult: photoAccessHelper.PhotoSelectResult) => {
-      if (photoSelectResult.photoUris.length > 0) {
-        this.toMetadata(photoSelectResult.photoUris)
-      }
-    });
+    const selectedVideos: string[] = await SelectFileUtil.selectVideo();
+    await this.toMetaData(selectedVideos);
   }
 
   activePermission() {
@@ -286,43 +254,35 @@ struct Index {
   }
 
   // 持久化视频存储
-  async toMetadata(list: string[]) {
+  async toMetaData(list: string[]) {
     for (let uri of list) {
-      persistPermission(uri)
+      ReqPermission.persistPermission(uri)
       let avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor()
       let file = fs.openSync(uri)
       avMetadataExtractor.fdSrc = file
       avMetadataExtractor.fetchMetadata(async (_error: BusinessError, metadata: media.AVMetadata) => {
         let date = new Date().getTime().toString()
-        if (this.video_meta_data || this.video_meta_data_encryption) {
-          if ((!this.encryption && !this.video_meta_data.some(item => item.title === file.name)) ||
-            (this.encryption && !this.video_meta_data_encryption.some(item => item.title === file.name))) {
-            if (this.encryption) {
-              let file1 = fs.openSync(uri, fs.OpenMode.READ_ONLY)
-              let file2 = fs.openSync(sandbox_video + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
-              this.loading = true
-              fs.copyFile(file1.fd, file2.fd).then(async () => {
-                this.video_meta_data_encryption.push(await this.setVideoInfo(date, uri, file.name, metadata))
-                PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
-                  this.video_meta_data_encryption)
-                fs.closeSync(file1)
-                fs.closeSync(file2)
-                this.show_list =
-                  this.encryption ? this.video_meta_data_encryption.map(i => i.date) :
-                  this.video_meta_data.map(i => i.date)
-                this.loading = false
-              })
-            } else {
-              this.video_meta_data.push(await this.setVideoInfo(date, uri, file.name, metadata))
-              PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data)
-            }
+        if ((!this.encryption && !this.video_meta_data.some(item => item.title === file.name)) ||
+          (this.encryption && !this.video_meta_data_encryption.some(item => item.title === file.name))) {
+          if (this.encryption) {
+            let file1 = fs.openSync(uri, fs.OpenMode.READ_ONLY)
+            let file2 = fs.openSync(sandbox_video + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
+            this.loading = true
+            fs.copyFile(file1.fd, file2.fd).then(async () => {
+              this.video_meta_data_encryption.push(await this.setVideoInfo(date, uri, file.name, metadata))
+              PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
+                this.video_meta_data_encryption)
+              fs.closeSync(file1)
+              fs.closeSync(file2)
+              this.show_list =
+                this.encryption ? this.video_meta_data_encryption.map(i => i.date) :
+                this.video_meta_data.map(i => i.date)
+              this.loading = false
+            })
+          } else {
+            this.video_meta_data.push(await this.setVideoInfo(date, uri, file.name, metadata))
+            PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data)
           }
-        } else {
-          //初始化video_meta_data 和 video_meta_data_encryption
-          this.video_meta_data = []
-          this.video_meta_data_encryption = []
-          this.video_meta_data.push(await this.setVideoInfo(date, uri, file.name, metadata))
-          PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data)
         }
       });
     }
@@ -342,7 +302,7 @@ struct Index {
         metadata.videoHeight) || '0')],
       time: parseInt(metadata.duration || '0'),
       last_play: 0,
-      format: file_name.split('.')[file_name.split('.').length - 1],
+      format: file_name.split('.')[file_name.split('.').length-1],
       video_size: await VideoUtil.getVideoSize(this.encryption ? sandbox_video + date : uri),
       hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE
     }
@@ -373,294 +333,435 @@ struct Index {
   }
 
   build() {
-    Stack({ alignContent: Alignment.Top }) {
-      List({ scroller: this.listScroller }) {
-        ForEach(this.list_empty_item, () => {
-          ListItem().height(this.topSafeHeight + 55)
-        })
-        // 加载视频列表
-        LazyForEach(this.lazy_show_list, (item: string) => {
-          ListItem() {
-            Column() {
-              Row() {
-                Image(fileUri.getUriFromPath(sandbox_path + item))
-                  .width(70)
-                  .height(70)
-                  .backgroundImageSize(ImageSize.Cover)
-                  .borderRadius(5)
-                  .sourceSize({
-                    width: 70,
-                    height: 70
-                  })
-                Column() {
-                  Text((String(this.encryption ?
-                    this.video_meta_data_encryption.find(i => i.date == item)?.title :
-                    this.video_meta_data.find(i => i.date == item)?.title)
-                  ).slice(0, String(this.encryption ?
-                    this.video_meta_data_encryption.find(i => i.date == item)?.title :
-                    this.video_meta_data.find(i => i.date == item)?.title).lastIndexOf('.')))
-                    .fontSize(20)
-                    .fontWeight(FontWeight.Medium)
-                    .maxLines(2)
-                    .textOverflow({ overflow: TextOverflow.Ellipsis })
-                    .width('90%')
-                  Row() {
-                    if ((this.encryption ?
-                      this.video_meta_data_encryption.find(i => i.date == item)?.hdr_type :
-                      this.video_meta_data.find(i => i.date == item)?.hdr_type) === media.HdrType.AV_HDR_TYPE_VIVID) {
-                      Image($r("app.media.hdr_vivid_icon"))
-                        .backgroundImageSize(ImageSize.Cover)
-                        .borderRadius(5)
-                        .width('20%')
-                        .height('35%')
-                    } else if (VideoUtil.videoSizeFormat(String(this.encryption ?
-                      this.video_meta_data_encryption.find(i => i.date == item)?.size :
-                      this.video_meta_data.find(i => i.date == item)?.size))
-                      .includes('HD')) {
-                      Text(VideoUtil.videoSizeFormat(String(this.encryption ?
+    SideBarContainer(SideBarContainerType.Overlay) {
+      Column() {
+        Row() {
+          Button({ type: ButtonType.Circle, stateEffect: true }) {
+            SymbolGlyph($r('sys.symbol.open_sidebar'))
+              .fontSize(20)
+              .fontColor([$r('app.color.text_color')])
+          }
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+          .height(40)
+          .width(80)
+          .backgroundColor($r('app.color.start_window_background_blur'))
+          .backdropBlur(150)
+          .onClick(() => {
+            this.sideBarStatusTmp = Visibility.Hidden
+            setTimeout(() => {
+              this.sideBarStatus = false
+            }, 500)
+          })
+          .shadow({
+            radius: 15,
+            color: $r('app.color.shadow_color'),
+            offsetX: 0,
+            offsetY: 0
+          })
+        }.justifyContent(FlexAlign.Start)
+
+        Column() {
+          Stack() {
+            Image($r("app.media.background"))
+              .backgroundImageSize(ImageSize.Cover)
+              .borderRadius(10)
+              .width('100%')
+              .height(100)
+              .zIndex(1)
+            Row() {
+              Image($r("app.media.foreground"))
+                .backgroundImageSize(ImageSize.Cover)
+                .width(40)
+                .height(40)
+              Text($r('app.string.EntryAbility_label'))
+                .fontSize(20)
+                .fontColor($r('app.color.text_color'))
+                .margin({ left: 5, right: 12 })
+            }.width('100%')
+            .justifyContent(FlexAlign.Center)
+            .zIndex(2)
+          }
+        }.margin({ top: '18vp' })
+
+        Row() {
+          Button({ type: ButtonType.Normal, stateEffect: true }) {
+            Row() {
+              SymbolGlyph($r('sys.symbol.folder')).fontSize(25).fontColor([$r('app.color.text_color')])
+              Text($r('app.string.import_from_files'))
+                .fontSize(15)
+                .fontColor($r('app.color.text_color'))
+                .margin({ left: 10, right: 12 })
+            }
+          }
+          .align(Alignment.Start)
+          .padding(10)
+          .borderRadius(10)
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+          .height(75)
+          .width('100%')
+          .backgroundColor($r('app.color.start_window_background_blur'))
+          .backdropBlur(150)
+          .transition(TransitionEffect.OPACITY.animation({ duration: 500 })
+            .combine(TransitionEffect.translate({ x: 100 })))
+          .onClick(() => {
+            this.sideBarStatus = false
+            this.sideBarStatusTmp = Visibility.Hidden
+            this.selectFiles()
+          })
+        }.width('100%')
+        .justifyContent(FlexAlign.Start)
+        .margin({ top: '36vp' })
+
+        Row() {
+          Button({ type: ButtonType.Normal, stateEffect: true }) {
+            Row() {
+              SymbolGlyph($r('sys.symbol.video'))
+                .fontSize(25)
+                .fontColor([$r('app.color.text_color')])
+              Text($r('app.string.import_from_album'))
+                .fontSize(15)
+                .fontColor($r('app.color.text_color'))
+                .margin({ left: 10, right: 12 })
+            }
+          }
+          .backgroundColor($r('app.color.start_window_background_blur'))
+          .align(Alignment.Start)
+          .padding(10)
+          .borderRadius(10)
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+          .height(75)
+          .width('100%')
+          .backdropBlur(150)
+          .onClick(() => {
+            this.sideBarStatus = false
+            this.sideBarStatusTmp = Visibility.Hidden
+            this.selectVideo()
+          })
+        }.width('100%')
+        .justifyContent(FlexAlign.Start)
+        .margin({ top: '18vp' })
+      }
+      .width('100%')
+      .justifyContent(FlexAlign.Start)
+      .backgroundColor($r('app.color.start_window_background'))
+      .padding({ top: 50, left: 20, right: 20 })
+      .transition(TransitionEffect.OPACITY.animation({ duration: 500 })
+        .combine(TransitionEffect.translate({ x: -100 })))
+      .visibility(this.sideBarStatusTmp)
+      .gesture(
+        SwipeGesture({ direction: SwipeDirection.Horizontal })
+          .onAction((event: GestureEvent) => {
+            if (event) {
+              this.sideBarStatusTmp = Visibility.Hidden
+              setTimeout(() => {
+                this.sideBarStatus = false
+              }, 500)
+            }
+          }))
+
+      // 内容区
+      Stack({ alignContent: Alignment.Top }) {
+        // 遮罩
+        Column()
+          .height('100%')
+          .width('100%')
+          .backgroundBlurStyle(BlurStyle.BACKGROUND_REGULAR)
+          .zIndex(1)
+          .visibility(this.sideBarStatus ? Visibility.Visible : Visibility.Hidden)
+          .onClick(() => {
+            this.sideBarStatusTmp = Visibility.Hidden
+            setTimeout(() => {
+              this.sideBarStatus = false
+            }, 500)
+          })
+        List({ scroller: this.listScroller }) {
+          ForEach(this.list_empty_item, () => {
+            ListItem().height(this.topSafeHeight + 55)
+          })
+          // 加载视频列表
+          LazyForEach(this.lazy_show_list, (item: string) => {
+            ListItem() {
+              Column() {
+                Row() {
+                  Image(fileUri.getUriFromPath(sandbox_path + item))
+                    .width(70)
+                    .height(70)
+                    .backgroundImageSize(ImageSize.Cover)
+                    .borderRadius(5)
+                    .sourceSize({
+                      width: 70,
+                      height: 70
+                    })
+                  Column() {
+                    Text((String(this.encryption ?
+                      this.video_meta_data_encryption.find(i => i.date == item)?.title :
+                      this.video_meta_data.find(i => i.date == item)?.title)
+                    ).slice(0, String(this.encryption ?
+                      this.video_meta_data_encryption.find(i => i.date == item)?.title :
+                      this.video_meta_data.find(i => i.date == item)?.title).lastIndexOf('.')))
+                      .fontSize(20)
+                      .fontWeight(FontWeight.Medium)
+                      .maxLines(2)
+                      .textOverflow({ overflow: TextOverflow.Ellipsis })
+                      .width('90%')
+                    Row() {
+                      if ((this.encryption ?
+                        this.video_meta_data_encryption.find(i => i.date == item)?.hdr_type :
+                        this.video_meta_data.find(i => i.date == item)?.hdr_type) ===
+                      media.HdrType.AV_HDR_TYPE_VIVID) {
+                        Image($r("app.media.hdr_vivid_icon"))
+                          .backgroundImageSize(ImageSize.Cover)
+                          .borderRadius(5)
+                          .width('20%')
+                          .height('35%')
+                      } else if (VideoUtil.videoSizeFormat(String(this.encryption ?
                         this.video_meta_data_encryption.find(i => i.date == item)?.size :
-                        this.video_meta_data.find(i => i.date == item)?.size)))
-                        .fontSize(10)
-                        .fontWeight(FontWeight.Bold)
-                        .opacity(0.8)
-                        .fontColor($r('sys.color.ohos_dialog_text_alert'))
-                        .backgroundColor('#E4BF3E')
-                        .padding(5)
-                        .borderRadius(5)
-                    } else {
-                      Text(VideoUtil.videoSizeFormat(String(this.encryption ?
-                        this.video_meta_data_encryption.find(i => i.date == item)?.size :
-                        this.video_meta_data.find(i => i.date == item)?.size)))
+                        this.video_meta_data.find(i => i.date == item)?.size))
+                        .includes('HD')) {
+                        Text(VideoUtil.videoSizeFormat(String(this.encryption ?
+                          this.video_meta_data_encryption.find(i => i.date == item)?.size :
+                          this.video_meta_data.find(i => i.date == item)?.size)))
+                          .fontSize(10)
+                          .fontWeight(FontWeight.Bold)
+                          .opacity(0.8)
+                          .fontColor($r('sys.color.ohos_dialog_text_alert'))
+                          .backgroundColor('#E4BF3E')
+                          .padding(5)
+                          .borderRadius(5)
+                      } else {
+                        Text(VideoUtil.videoSizeFormat(String(this.encryption ?
+                          this.video_meta_data_encryption.find(i => i.date == item)?.size :
+                          this.video_meta_data.find(i => i.date == item)?.size)))
+                          .fontSize(15)
+                          .fontWeight(FontWeight.Normal)
+                          .opacity(0.8)
+                      }
+                      Text(' | ' + String(this.encryption ?
+                        this.video_meta_data_encryption.find(i => i.date == item)?.format :
+                        this.video_meta_data.find(i => i.date == item)?.format) + " | " +
+                      TimeUtil.convertMsToMMSS(this.encryption ?
+                        this.video_meta_data_encryption.find(i => i.date == item)?.time :
+                        this.video_meta_data.find(i => i.date == item)?.time) + " | " +
+                      String(this.encryption ?
+                        this.video_meta_data_encryption.find(i => i.date == item)?.video_size :
+                        this.video_meta_data.find(i => i.date == item)?.video_size))
                         .fontSize(15)
                         .fontWeight(FontWeight.Normal)
                         .opacity(0.8)
-                    }
-                    Text(' | ' + String(this.encryption ?
-                      this.video_meta_data_encryption.find(i => i.date == item)?.format :
-                      this.video_meta_data.find(i => i.date == item)?.format) + " | " +
-                    TimeUtil.convertMsToMMSS(this.encryption ?
-                      this.video_meta_data_encryption.find(i => i.date == item)?.time :
-                      this.video_meta_data.find(i => i.date == item)?.time) + " | " +
-                    String(this.encryption ?
-                      this.video_meta_data_encryption.find(i => i.date == item)?.video_size :
-                      this.video_meta_data.find(i => i.date == item)?.video_size))
-                      .fontSize(15)
-                      .fontWeight(FontWeight.Normal)
-                      .opacity(0.8)
-                  }.justifyContent(FlexAlign.Center).padding({
-                    top: 5,
-                  })
-                }.alignItems(HorizontalAlign.Start).padding(10).width('90%')
-              }.justifyContent(FlexAlign.Center)
-            }
-            .padding({
-              left: 10
-            })
-            .height(100)
-            .backgroundColor($r('app.color.list_item_background'))
-            .borderRadius(10)
-            .justifyContent(FlexAlign.SpaceEvenly)
-          }
-          .width('100%')
-          .padding({
-            left: 10,
-            right: 10,
-            top: 5,
-            bottom: 5
-          })
-          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-          .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
-          .width('100%')
-          .bindContextMenu(this.MenuBuilder(this.encryption ?
-          this.video_meta_data_encryption.find(i => i.date == item) :
-          this.video_meta_data.find(i => i.date == item)), ResponseType.LongPress)
-          .swipeAction({
-            end: this.itemEnd(this.encryption ? this.video_meta_data_encryption.find(i => i.date == item) :
-            this.video_meta_data.find(i => i.date == item)),
-            edgeEffect: SwipeEdgeEffect.Spring
-          })
-          .onClick(() => {
-            this.listScroller.closeAllSwipeActions()
-            this.now_playing = this.encryption ? this.video_meta_data_encryption.find(i => i.date == item) :
-            this.video_meta_data.find(i => i.date == item)
-            router.pushUrl({
-              url: 'pages/Player',
-              params: {
-                metadata: JSON.stringify(this.encryption ? this.video_meta_data_encryption.find(i => i.date == item) :
-                this.video_meta_data.find(i => i.date == item))
+                    }.justifyContent(FlexAlign.Center).padding({
+                      top: 5,
+                    })
+                  }.alignItems(HorizontalAlign.Start).padding(10).width('90%')
+                }.justifyContent(FlexAlign.Center)
               }
-            }, router.RouterMode.Standard, (err) => {
-              hilog.info(0xFF00, "testTag", String(err));
-            });
-          })
-        })
-        ForEach(this.list_empty_item, () => {
-          ListItem().height(50)
-        })
-      }
-      .layoutWeight('100%')
-      .edgeEffect(EdgeEffect.Spring) // 边缘效果设置为Spring
-      .lanes(this.list_line)
-      .animation({ duration: 300, curve: Curve.Smooth })
-      .scrollBar(BarState.Auto)
-      .chainAnimation(true)
-      .width('100%')
-      .onTouch(() => {
-        this.searchController.stopEditing()
-      })
-
-      //顶栏
-      Row() {
-        Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
-      }
-      .height('100%')
-      .visibility(this.show_list.length == 0 ? Visibility.Visible : Visibility.Hidden)
-      .animation({ duration: 150, curve: Curve.Ease })
-     // SideBarContainerExample()
-      Column() {
-        Row({ space: 15 }) {
-          //SideBarContainerExample()
-          Button({ type: ButtonType.Circle, stateEffect: true }) {
-            SymbolGlyph($r('sys.symbol.folder'))
-              .fontSize(25)
-              .fontColor([$r('app.color.text_color')])
-          }
-          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-          .height(40)
-          .width(40)
-          .backgroundColor($r('app.color.start_window_background_blur'))
-          .backdropBlur(150)
-          .onClick(() => {
-            this.selectFiles()
-          })
-          .shadow({
-            radius: 15,
-            color: $r('app.color.shadow_color'),
-            offsetX: 0,
-            offsetY: 0
-          })
-
-          Button({ type: ButtonType.Circle, stateEffect: true }) {
-            SymbolGlyph($r('sys.symbol.video'))
-              .fontSize(25)
-              .fontColor([$r('app.color.text_color')])
-          }
-          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-          .height(40)
-          .width(40)
-          .backgroundColor($r('app.color.start_window_background_blur'))
-          .backdropBlur(150)
-          .onClick(() => {
-            this.selectVideo()
-          })
-          .shadow({
-            radius: 15,
-            color: $r('app.color.shadow_color'),
-            offsetX: 0,
-            offsetY: 0
-          })
-
-          //搜索框
-          Search({ value: $$this.search_input, controller: this.searchController })
+              .padding({
+                left: 10
+              })
+              .height(100)
+              .backgroundColor($r('app.color.list_item_background'))
+              .borderRadius(10)
+              .justifyContent(FlexAlign.SpaceEvenly)
+            }
+            .width('100%')
+            .padding({
+              left: 10,
+              right: 10,
+              top: 5,
+              bottom: 5
+            })
             .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+            .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
+            .width('100%')
+            .bindContextMenu(this.MenuBuilder(this.encryption ?
+            this.video_meta_data_encryption.find(i => i.date == item) :
+            this.video_meta_data.find(i => i.date == item)), ResponseType.LongPress)
+            .swipeAction({
+              end: this.itemEnd(this.encryption ? this.video_meta_data_encryption.find(i => i.date == item) :
+              this.video_meta_data.find(i => i.date == item)),
+              edgeEffect: SwipeEdgeEffect.Spring
+            })
+            .onClick(() => {
+              this.listScroller.closeAllSwipeActions()
+              this.now_playing = this.encryption ? this.video_meta_data_encryption.find(i => i.date == item) :
+              this.video_meta_data.find(i => i.date == item)
+              router.pushUrl({
+                url: 'pages/Player',
+                params: {
+                  metadata: JSON.stringify(this.encryption ?
+                  this.video_meta_data_encryption.find(i => i.date == item) :
+                  this.video_meta_data.find(i => i.date == item))
+                }
+              }, router.RouterMode.Standard, (err) => {
+                hilog.info(0xFF00, "testTag", String(err));
+              });
+            })
+          })
+          ForEach(this.list_empty_item, () => {
+            ListItem().height(50)
+          })
+        }
+        .layoutWeight('100%')
+        .edgeEffect(EdgeEffect.Spring) // 边缘效果设置为Spring
+        .lanes(this.list_line)
+        .animation({ duration: 300, curve: Curve.Smooth })
+        .scrollBar(BarState.Auto)
+        .chainAnimation(true)
+        .width('100%')
+        .onTouch(() => {
+          this.searchController.stopEditing()
+        })
+
+        //顶栏
+        Row() {
+          Column() {
+            Text($r('app.string.nothing')).fontSize(30).fontWeight(FontWeight.Bold)
+            Text($r('app.string.open_side_bar_tip')).fontSize(15).fontWeight(FontWeight.Lighter).margin({ top: 20 })
+          }
+        }
+        .height('100%')
+        .visibility(this.show_list.length == 0 ? Visibility.Visible : Visibility.Hidden)
+        .animation({ duration: 150, curve: Curve.Ease })
+
+        Column() {
+          Row({ space: 15 }) {
+            Button({ type: ButtonType.Circle, stateEffect: true }) {
+              SymbolGlyph($r('sys.symbol.close_sidebar'))
+                .fontSize(25)
+                .fontColor([$r('app.color.text_color')])
+            }
+            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+            .height(40)
+            .width(40)
             .backgroundColor($r('app.color.start_window_background_blur'))
             .backdropBlur(150)
-            .searchButton(getContext(this).resourceManager.getStringSync($r('app.string.search')),
-              { fontSize: '16fp', fontColor: $r('app.color.main_color') })
+            .onClick(() => {
+              this.sideBarStatusTmp = Visibility.Visible
+              this.sideBarStatus = true
+            })
             .shadow({
               radius: 15,
               color: $r('app.color.shadow_color'),
               offsetX: 0,
               offsetY: 0
             })
-            .width(this.passwd == '' || this.encryption ? '55%' : '70%')
-            .animation({ duration: 300, curve: Curve.Ease })
-            .onChange((value: string) => {
-              if (value == '' && this.video_meta_data) {
-                this.show_list =
-                  this.encryption ? this.video_meta_data_encryption.map(i => i.date) :
+
+            //搜索框
+            Search({ value: $$this.search_input, controller: this.searchController })
+              .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+              .backgroundColor($r('app.color.start_window_background_blur'))
+              .backdropBlur(150)
+              .searchButton(getContext(this).resourceManager.getStringSync($r('app.string.search')),
+                { fontSize: '16fp', fontColor: $r('app.color.main_color') })
+              .shadow({
+                radius: 15,
+                color: $r('app.color.shadow_color'),
+                offsetX: 0,
+                offsetY: 0
+              })
+              .width(this.passwd == '' || this.encryption ? '55%' : '70%')
+              .animation({ duration: 300, curve: Curve.Ease })
+              .onChange((value: string) => {
+                if (value == '' && this.video_meta_data) {
+                  this.show_list =
+                    this.encryption ? this.video_meta_data_encryption.map(i => i.date) :
+                    this.video_meta_data.map(i => i.date)
+                }
+              })
+              .onSubmit((value: string) => {
+                if (value == '' && this.video_meta_data) {
+                  this.show_list = this.encryption ? this.video_meta_data_encryption.map(i => i.date) :
                   this.video_meta_data.map(i => i.date)
-              }
-            })
-            .onSubmit((value: string) => {
-              if (value == '' && this.video_meta_data) {
-                this.show_list = this.encryption ? this.video_meta_data_encryption.map(i => i.date) :
-                this.video_meta_data.map(i => i.date)
-                if (this.show_list.length == 0) {
-                  ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.add_video_first')))
+                  if (this.show_list.length == 0) {
+                    ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.add_video_first')))
+                    return
+                  }
+                  this.searchController.stopEditing()
                   return
                 }
-                this.searchController.stopEditing()
-                return
-              }
-              if (value == this.passwd && !this.encryption) {
-                this.encryption = true
-                ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.entered_privacy_space')))
-                return
-              }
-              try {
-                this.show_list =
-                  this.encryption ?
-                  this.video_meta_data_encryption.filter(i => i.title.includes(value)).map(i => i.date) :
-                  this.video_meta_data.filter(i => i.title.includes(value)).map(i => i.date)
-                if (this.show_list.length == 0) {
-                  ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.no_search_result')))
+                if (value == this.passwd && !this.encryption) {
+                  this.encryption = true
+                  ToolsUtil.showToast(getContext()
+                    .resourceManager
+                    .getStringSync($r('app.string.entered_privacy_space')))
+                  return
                 }
-              } catch (err) {
-                hilog.error(0xFF00, "testTag", "search fail:" + err)
-              }
-            })
-            .height(40)
-          //加密按钮
-          Button({ type: ButtonType.Circle, stateEffect: true }) {
-            SymbolGlyph($r('sys.symbol.lock'))
-              .fontSize(25)
-              .fontColor([$r('app.color.text_color')])
-          }
-          .visibility(this.passwd == '' || this.encryption ? Visibility.Visible : Visibility.None)
-          .animation({ duration: 300, curve: Curve.Ease })
-          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-          .height(40)
-          .width(40)
-          .backgroundColor($r('app.color.start_window_background_blur'))
-          .backdropBlur(150)
-          .onClick(() => {
-            if (this.passwd == '') {
-              this.editPasswdDialogController.open()
-              return
+                try {
+                  this.show_list =
+                    this.encryption ?
+                    this.video_meta_data_encryption.filter(i => i.title.includes(value)).map(i => i.date) :
+                    this.video_meta_data.filter(i => i.title.includes(value)).map(i => i.date)
+                  if (this.show_list.length == 0) {
+                    ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.no_search_result')))
+                  }
+                } catch (err) {
+                  hilog.error(0xFF00, "testTag", "search fail:" + err)
+                }
+              })
+              .height(40)
+            //加密按钮
+            Button({ type: ButtonType.Circle, stateEffect: true }) {
+              SymbolGlyph($r('sys.symbol.lock'))
+                .fontSize(25)
+                .fontColor([$r('app.color.text_color')])
             }
-            this.encryption = false
-          })
-          .gesture(LongPressGesture().onAction(() => {
-            this.editPasswdDialogController.open()
-          }))
-          .shadow({
-            radius: 15,
-            color: $r('app.color.shadow_color'),
-            offsetX: 0,
-            offsetY: 0
-          })
-        }
-      }.padding({ top: this.topSafeHeight }).width('100%')
+            .visibility(this.passwd == '' || this.encryption ? Visibility.Visible : Visibility.None)
+            .animation({ duration: 300, curve: Curve.Ease })
+            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+            .height(40)
+            .width(40)
+            .backgroundColor($r('app.color.start_window_background_blur'))
+            .backdropBlur(150)
+            .onClick(() => {
+              if (this.passwd == '') {
+                this.editPasswdDialogController.open()
+                return
+              }
+              this.encryption = false
+            })
+            .gesture(LongPressGesture().onAction(() => {
+              this.editPasswdDialogController.open()
+            }))
+            .shadow({
+              radius: 15,
+              color: $r('app.color.shadow_color'),
+              offsetX: 0,
+              offsetY: 0
+            })
+          }
+        }.padding({ top: this.topSafeHeight }).width('100%')
 
-      Stack() {
-        LoadingProgress().width(100).height(100)
+        Stack() {
+          LoadingProgress().width(100).height(100)
+        }
+        .width('100%')
+        .height('100%')
+        .visibility(this.loading ? Visibility.Visible : Visibility.Hidden)
+        .animation({ duration: 150, curve: Curve.Sharp })
       }
-      .width('100%')
-      .height('100%')
-      .visibility(this.loading ? Visibility.Visible : Visibility.Hidden)
-      .animation({ duration: 150, curve: Curve.Sharp })
+      .backgroundColor($r('app.color.start_window_background'))
+      .onAreaChange((_oldValue: Area, newValue: Area) => {
+        this.list_line = Math.floor(new Number(newValue.width).valueOf() / 500 + 1)
+        this.list_empty_item = []
+        for (let i = 1; i <= this.list_line; i++) {
+          this.list_empty_item.push(i.toString())
+        }
+      })
+      .gesture(
+        SwipeGesture({ direction: SwipeDirection.Horizontal })
+          .onAction((event: GestureEvent) => {
+            if (event) {
+              this.sideBarStatusTmp = Visibility.Visible
+              this.sideBarStatus = true
+            }
+          }))
     }
-    .backgroundColor($r('app.color.start_window_background'))
-    .onAreaChange((_oldValue: Area, newValue: Area) => {
-      this.list_line = Math.floor(new Number(newValue.width).valueOf() / 500 + 1)
-      this.list_empty_item = []
-      for (let i = 1; i <= this.list_line; i++) {
-        this.list_empty_item.push(i.toString())
-      }
-    })
-    // 拓展安全区
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+    .onChange((value: boolean) => {
+      this.sideBarStatus = value;
+    })
+    .showSideBar(this.sideBarStatus)
+    .showControlButton(false)
+    .sideBarWidth(230)
   }
 
   @Builder

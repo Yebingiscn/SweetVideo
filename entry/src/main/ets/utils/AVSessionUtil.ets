@@ -32,7 +32,7 @@ class AVSession {
 
   async createSession() {
     let type: avSessionManager.AVSessionType = 'video';
-    this.avSession = await avSessionManager.createAVSession(this.context, 'sweetvideo', type);
+    this.avSession = await avSessionManager.createAVSession(this.context, 'sweet_video', type);
     this.avSession.activate()
   }
 

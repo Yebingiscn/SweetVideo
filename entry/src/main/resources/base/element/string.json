@@ -65,20 +65,28 @@
       "value": "unknown size"
     },
     {
-      "name": "illegal_input",
-      "value": "Fail: Renaming can not contain \" . \""
-    },
-    {
       "name": "del_confirm",
       "value": "Do you want to delete the video?"
     },
     {
-      "name": "Edit",
+      "name": "edit",
       "value": "Edit"
     },
     {
-      "name": "Delete",
+      "name": "delete",
       "value": "Delete"
+    },
+    {
+      "name": "import_from_files",
+      "value": "Import from files"
+    },
+    {
+      "name": "import_from_album",
+      "value": "Import from albums"
+    },
+    {
+      "name": "open_side_bar_tip",
+      "value": "Swipe left or click the button in the top left corner to add the first video!"
     }
   ]
 }

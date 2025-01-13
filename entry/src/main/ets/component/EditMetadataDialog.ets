@@ -1,4 +1,5 @@
 import DataSyncUtil from '../utils/DataSyncUtil'
+import { VideoMetadata } from '../utils/VideoUtil';
 
 @CustomDialog
 export struct editMetadataDialog { //编辑元数据弹窗
@@ -7,18 +8,6 @@ export struct editMetadataDialog { //编辑元数据弹窗
   name: string | undefined = undefined
 
   aboutToAppear(): void {
-    interface VideoMetadata {
-      uri: string
-      title: string
-      date: string
-      size: number[]
-      time: number
-      last_play: number
-      format: string
-      video_size: string
-      hdr_type: number
-    }
-
     let tmp = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata
     this.name = tmp.title
   }
