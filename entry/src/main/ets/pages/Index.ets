@@ -375,7 +375,7 @@ struct Index {
                 .height(40)
               Text($r('app.string.EntryAbility_label'))
                 .fontSize(20)
-                .fontColor($r('app.color.text_color'))
+                .fontColor('#ffff')
                 .margin({ left: 5, right: 12 })
             }.width('100%')
             .justifyContent(FlexAlign.Center)
@@ -383,6 +383,7 @@ struct Index {
           }
         }.margin({ top: '18vp' })
 
+        Divider().height(10).margin({ top: '18vp' })
         Row() {
           Button({ type: ButtonType.Normal, stateEffect: true }) {
             Row() {
@@ -410,7 +411,7 @@ struct Index {
           })
         }.width('100%')
         .justifyContent(FlexAlign.Start)
-        .margin({ top: '36vp' })
+        .margin({ top: '18vp' })
 
         Row() {
           Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -762,6 +763,7 @@ struct Index {
     .showSideBar(this.sideBarStatus)
     .showControlButton(false)
     .sideBarWidth(230)
+    .divider({ strokeWidth: 0 })
   }
 
   @Builder

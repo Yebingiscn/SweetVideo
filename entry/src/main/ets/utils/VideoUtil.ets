@@ -44,16 +44,17 @@ class VideoUtil {
   videoSizeFormat(size: string) {
     const videoSizeMap: Record<string, string> = {
       '720': '720P HD',
-      '900': '900P HD+',
+      '900': 'HD+',
       '1080': '1080P FHD',
       '1440': '2K QHD',
       '1600': 'UW QHD',
       '1666': 'Quad HD+',
       '1800': 'QHD+',
-      '2160': '4K Ultra HD',
+      '1960': '1080P FHD',
+      '2560': '2K QHD',
+      '3840': '4K Ultra HD',
       '4096': '4K Ultra HD',
-      '7680': '8K Ultra HD',
-      '4320': '8K Ultra HD'
+      '7680': '8K Ultra HD'
     };
     for (const key of Object.entries(videoSizeMap)) {
       if (size.includes(key[0])) {
