@@ -87,6 +87,14 @@
     {
       "name": "open_side_bar_tip",
       "value": "左滑屏幕或者点击左上角按钮来添加第一个视频吧！"
+    },
+    {
+      "name": "unknown_resolution",
+      "value": "未知分辨率"
+    },
+    {
+      "name": "video_error",
+      "value": "视频异常，可能无法正常播放"
     }
   ]
 }

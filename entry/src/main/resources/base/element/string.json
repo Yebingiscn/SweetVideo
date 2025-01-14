@@ -87,6 +87,14 @@
     {
       "name": "open_side_bar_tip",
       "value": "Swipe left or click the button in the top left corner to add the first video!"
+    },
+    {
+      "name": "unknown_resolution",
+      "value": "Unknown resolution"
+    },
+    {
+      "name": "video_error",
+      "value": "Video Error! May not play properly"
     }
   ]
 }
