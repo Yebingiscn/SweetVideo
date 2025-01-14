@@ -529,6 +529,17 @@ struct Index {
                           .backgroundColor('#E4BF3E')
                           .padding(5)
                           .borderRadius(5)
+                      } else if (VideoUtil.videoSizeFormat(String(this.encryption ?
+                        this.video_meta_data_encryption.find(i => i.date == item)?.size :
+                        this.video_meta_data.find(i => i.date == item)?.size)) === '0 x 0') {
+                        Text($r('app.string.unknown_resolution'))
+                          .fontSize(10)
+                          .fontWeight(FontWeight.Bold)
+                          .opacity(0.8)
+                          .fontColor($r('sys.color.ohos_dialog_text_alert'))
+                          .backgroundColor('#F86044')
+                          .padding(5)
+                          .borderRadius(5)
                       } else {
                         Text(VideoUtil.videoSizeFormat(String(this.encryption ?
                           this.video_meta_data_encryption.find(i => i.date == item)?.size :
@@ -585,6 +596,11 @@ struct Index {
               this.listScroller.closeAllSwipeActions()
               this.now_playing = this.encryption ? this.video_meta_data_encryption.find(i => i.date == item) :
               this.video_meta_data.find(i => i.date == item)
+              if (VideoUtil.videoSizeFormat(String(this.encryption ?
+                this.video_meta_data_encryption.find(i => i.date == item)?.size :
+                this.video_meta_data.find(i => i.date == item)?.size)) === '0 x 0') {
+                ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
+              }
               router.pushUrl({
                 url: 'pages/Player',
                 params: {
@@ -689,8 +705,10 @@ struct Index {
                 try {
                   this.show_list =
                     this.encryption ?
-                    this.video_meta_data_encryption.filter(i => i.title.includes(value)).map(i => i.date) :
-                    this.video_meta_data.filter(i => i.title.includes(value)).map(i => i.date)
+                    this.video_meta_data_encryption.filter(i => i.title.toLowerCase().includes(value.toLowerCase()))
+                      .map(i => i.date) :
+                    this.video_meta_data.filter(i => i.title.toLowerCase().includes(value.toLowerCase()))
+                      .map(i => i.date)
                   if (this.show_list.length == 0) {
                     ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.no_search_result')))
                   }
