@@ -2,6 +2,7 @@ import { media } from '@kit.MediaKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { image } from '@kit.ImageKit';
 
 export interface VideoMetadata {
   uri: string
@@ -23,7 +24,54 @@ class VideoUtil {
     new Map([[0.125, media.PlaybackSpeed.SPEED_FORWARD_0_125_X], [0.5, media.PlaybackSpeed.SPEED_FORWARD_0_50_X],
       [0.75, media.PlaybackSpeed.SPEED_FORWARD_0_75_X], [1.25, media.PlaybackSpeed.SPEED_FORWARD_1_25_X],
       [1.5, media.PlaybackSpeed.SPEED_FORWARD_1_50_X], [1.75, media.PlaybackSpeed.SPEED_FORWARD_1_75_X]])
-  public support_video_format = ['mp4', 'flv', 'mkv', 'ts', 'mov']
+  public support_video_format = ['mp4', 'flv', 'mkv', 'ts', 'mov', 'rmvb']
+
+  // 设置存储的视频信息
+  async setVideoInfo(date: string, uri: string, file_name: string, metadata: media.AVMetadata, encryption: boolean,
+    sandbox_video: string, sandbox_path: string) {
+    let tmp: VideoMetadata = {
+      uri: encryption ? sandbox_video + date : uri,
+      title: file_name,
+      date: date,
+      size: this.getVideoWidthAndHeight(metadata),
+      time: parseInt(metadata.duration || '0'),
+      last_play: 0,
+      format: file_name.split('.')[file_name.split('.').length-1],
+      video_size: await this.getVideoSize(encryption ? sandbox_video + date : uri),
+      hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE
+    }
+    this.testFetchFrameByTime(uri, tmp.size, date, sandbox_path)
+    return tmp
+  }
+
+  async testFetchFrameByTime(uri: string, size: number[], date: string, sandbox_path: string) {
+    let avImageGenerator: media.AVImageGenerator = await media.createAVImageGenerator()
+    let file = fs.openSync(uri, fs.OpenMode.READ_ONLY);
+    let avFileDescriptor: media.AVFileDescriptor = { fd: file.fd };
+    avImageGenerator.fdSrc = avFileDescriptor;
+    let timeUs = 0
+    let queryOption = media.AVImageQueryOptions.AV_IMAGE_QUERY_NEXT_SYNC
+    let param: media.PixelMapParams = {
+      width: size[0],
+      height: size[1],
+    }
+    avImageGenerator.fetchFrameByTime(timeUs, queryOption, param).then((pixelMap: PixelMap) => {
+      let packer = image.createImagePacker()
+      let file1 = fs.openSync(sandbox_path + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
+      packer.packToFile(pixelMap, file1.fd, { format: 'image/jpeg', quality: 100 }).then(() => {
+        fs.closeSync(file1)
+      }).catch()
+      avImageGenerator.release()
+      fs.closeSync(file);
+    })
+  }
+
+  getVideoWidthAndHeight(metadata: media.AVMetadata) {
+    const isPortrait = metadata.videoOrientation === '90' || metadata.videoOrientation === '270';
+    const width = parseInt(String(isPortrait ? metadata.videoHeight : metadata.videoWidth)) || 0;
+    const height = parseInt(String(isPortrait ? metadata.videoWidth : metadata.videoHeight)) || 0;
+    return [width, height]
+  }
 
   // 绑定系统播放倍速库，获取实际倍速
   getVideoSpeed(videoSpeed: number) {
@@ -44,7 +92,7 @@ class VideoUtil {
   videoSizeFormat(size: string) {
     const videoSizeMap: Record<string, string> = {
       '720': '720P HD',
-      '900': 'HD+',
+      '900': '900P HD+',
       '1080': '1080P FHD',
       '1440': '2K QHD',
       '1600': 'UW QHD',

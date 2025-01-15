@@ -3,7 +3,6 @@ import { common } from '@kit.AbilityKit';
 import { router, window } from '@kit.ArkUI';
 import { media } from '@kit.MediaKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { image } from '@kit.ImageKit';
 import PreferencesUtil from '../utils/PreferencesUtil';
 import DataSyncUtil from '../utils/DataSyncUtil';
 import PermissionUtil from '../utils/PermissionUtil';
@@ -255,81 +254,63 @@ struct Index {
 
   // 持久化视频存储
   async toMetaData(list: string[]) {
-    for (let uri of list) {
-      ReqPermission.persistPermission(uri)
-      let avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor()
-      let file = fs.openSync(uri)
-      avMetadataExtractor.fdSrc = file
-      avMetadataExtractor.fetchMetadata(async (_error: BusinessError, metadata: media.AVMetadata) => {
-        let date = new Date().getTime().toString()
-        if ((!this.encryption && !this.video_meta_data.some(item => item.title === file.name)) ||
-          (this.encryption && !this.video_meta_data_encryption.some(item => item.title === file.name))) {
-          if (this.encryption) {
-            let file1 = fs.openSync(uri, fs.OpenMode.READ_ONLY)
-            let file2 = fs.openSync(sandbox_video + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
-            this.loading = true
-            fs.copyFile(file1.fd, file2.fd).then(async () => {
-              this.video_meta_data_encryption.push(await this.setVideoInfo(date, uri, file.name, metadata))
-              PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
-                this.video_meta_data_encryption)
-              fs.closeSync(file1)
-              fs.closeSync(file2)
-              this.show_list =
-                this.encryption ? this.video_meta_data_encryption.map(i => i.date) :
-                this.video_meta_data.map(i => i.date)
-              this.loading = false
-            })
+    const CONCURRENT_LIMIT = 3; // 最大并发数
+    let index = 0; // 当前处理的文件索引
+    this.loading = true;
+    if (list.length != 0) {
+      ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.add_time_info')))
+    }
+    const processFile = async (uri: string) => {
+      ReqPermission.persistPermission(uri);
+      const avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor();
+      const file = fs.openSync(uri);
+      avMetadataExtractor.fdSrc = file;
+      const metadata = await new Promise<media.AVMetadata>((resolve, reject) => {
+        avMetadataExtractor.fetchMetadata((error: BusinessError, metadata: media.AVMetadata) => {
+          if (error) {
+            reject(error);
           } else {
-            this.video_meta_data.push(await this.setVideoInfo(date, uri, file.name, metadata))
-            PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data)
+            resolve(metadata);
           }
-        }
+        });
       });
+      const date = new Date().getTime().toString();
+      if ((!this.encryption && !this.video_meta_data.some(item => item.title === file.name)) ||
+        (this.encryption && !this.video_meta_data_encryption.some(item => item.title === file.name))) {
+        if (this.encryption) {
+          const file1 = fs.openSync(uri, fs.OpenMode.READ_ONLY);
+          const file2 = fs.openSync(sandbox_video + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
+          fs.copyFile(file1.fd, file2.fd, async () => {
+            this.video_meta_data_encryption.push(await VideoUtil.setVideoInfo(date, uri, file.name, metadata,
+              this.encryption, sandbox_video, sandbox_path)); // Go ahead and change this to await
+            PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
+              this.video_meta_data_encryption);
+            fs.closeSync(file1);
+            fs.closeSync(file2);
+            this.show_list = this.video_meta_data_encryption.map(i => i.date);
+          });
+        } else {
+          this.video_meta_data.push(await VideoUtil.setVideoInfo(date, uri, file.name, metadata, this.encryption,
+            sandbox_video, sandbox_path)); // Use await here
+          PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data);
+        }
+      }
+    };
+    const processNext = async () => {
+      while (index < list.length) {
+        const uri = list[index++];
+        await processFile(uri);
+      }
+    };
+    // 启动并发处理
+    const promises: Promise<void>[] = [];
+    for (let i = 0; i < CONCURRENT_LIMIT; i++) {
+      promises.push(processNext());
     }
-    setTimeout(() => this.show_list =
-      this.encryption ? this.video_meta_data_encryption.map(i => i.date) : this.video_meta_data.map(i => i.date), 500)
-  }
-
-  // 设置存储的视频信息
-  async setVideoInfo(date: string, uri: string, file_name: string, metadata: media.AVMetadata) {
-    let tmp: VideoMetadata = {
-      uri: this.encryption ? sandbox_video + date : uri,
-      title: file_name,
-      date: date,
-      size: [parseInt((metadata.videoOrientation == '90' || metadata.videoOrientation == '270' ?
-      metadata.videoHeight : metadata.videoWidth) || '0'),
-        parseInt((metadata.videoOrientation == '90' || metadata.videoOrientation == '270' ? metadata.videoWidth :
-        metadata.videoHeight) || '0')],
-      time: parseInt(metadata.duration || '0'),
-      last_play: 0,
-      format: file_name.split('.')[file_name.split('.').length-1],
-      video_size: await VideoUtil.getVideoSize(this.encryption ? sandbox_video + date : uri),
-      hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE
-    }
-    this.testFetchFrameByTime(uri, tmp.size, date)
-    return tmp
-  }
-
-  async testFetchFrameByTime(uri: string, size: number[], date: string) {
-    let avImageGenerator: media.AVImageGenerator = await media.createAVImageGenerator()
-    let file = fs.openSync(uri, fs.OpenMode.READ_ONLY);
-    let avFileDescriptor: media.AVFileDescriptor = { fd: file.fd };
-    avImageGenerator.fdSrc = avFileDescriptor;
-    let timeUs = 0
-    let queryOption = media.AVImageQueryOptions.AV_IMAGE_QUERY_NEXT_SYNC
-    let param: media.PixelMapParams = {
-      width: size[0],
-      height: size[1],
-    }
-    avImageGenerator.fetchFrameByTime(timeUs, queryOption, param).then((pixelMap: PixelMap) => {
-      let packer = image.createImagePacker()
-      let file1 = fs.openSync(sandbox_path + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
-      packer.packToFile(pixelMap, file1.fd, { format: 'image/jpeg', quality: 100 }).then(() => {
-        fs.closeSync(file1)
-      }).catch()
-      avImageGenerator.release()
-      fs.closeSync(file);
-    })
+    await Promise.all(promises);
+    this.show_list =
+      this.encryption ? this.video_meta_data_encryption.map(i => i.date) : this.video_meta_data.map(i => i.date);
+    this.loading = false;
   }
 
   build() {
@@ -366,7 +347,7 @@ struct Index {
               .backgroundImageSize(ImageSize.Cover)
               .borderRadius(10)
               .width('100%')
-              .height(100)
+              .height('17%')
               .zIndex(1)
             Row() {
               Image($r("app.media.foreground"))
@@ -381,9 +362,9 @@ struct Index {
             .justifyContent(FlexAlign.Center)
             .zIndex(2)
           }
-        }.margin({ top: '18vp' })
+        }.margin({ top: '4%' })
 
-        Divider().height(10).margin({ top: '18vp' })
+        Divider().height(10).margin({ top: '5%' })
         Row() {
           Button({ type: ButtonType.Normal, stateEffect: true }) {
             Row() {
@@ -398,7 +379,7 @@ struct Index {
           .padding(10)
           .borderRadius(10)
           .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-          .height(75)
+          .height('11%')
           .width('100%')
           .backgroundColor($r('app.color.start_window_background_blur'))
           .backdropBlur(150)
@@ -411,7 +392,7 @@ struct Index {
           })
         }.width('100%')
         .justifyContent(FlexAlign.Start)
-        .margin({ top: '18vp' })
+        .margin({ top: '6%' })
 
         Row() {
           Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -430,7 +411,7 @@ struct Index {
           .padding(10)
           .borderRadius(10)
           .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-          .height(75)
+          .height('11%')
           .width('100%')
           .backdropBlur(150)
           .onClick(() => {
@@ -440,7 +421,7 @@ struct Index {
           })
         }.width('100%')
         .justifyContent(FlexAlign.Start)
-        .margin({ top: '18vp' })
+        .margin({ top: '4%' })
       }
       .width('100%')
       .justifyContent(FlexAlign.Start)
@@ -459,6 +440,13 @@ struct Index {
               }, 500)
             }
           }))
+      .borderRadius(20)
+      .shadow({
+        radius: 15,
+        color: $r('app.color.shadow_color'),
+        offsetX: 0,
+        offsetY: 0
+      })
 
       // 内容区
       Stack({ alignContent: Alignment.Top }) {
@@ -466,7 +454,7 @@ struct Index {
         Column()
           .height('100%')
           .width('100%')
-          .backgroundBlurStyle(BlurStyle.BACKGROUND_REGULAR)
+          .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
           .zIndex(1)
           .visibility(this.sideBarStatus ? Visibility.Visible : Visibility.Hidden)
           .onClick(() => {
@@ -534,10 +522,9 @@ struct Index {
                         this.video_meta_data.find(i => i.date == item)?.size)) === '0 x 0') {
                         Text($r('app.string.unknown_resolution'))
                           .fontSize(10)
-                          .fontWeight(FontWeight.Bold)
+                          .fontWeight(FontWeight.Normal)
                           .opacity(0.8)
-                          .fontColor($r('sys.color.ohos_dialog_text_alert'))
-                          .backgroundColor('#F86044')
+                          .backgroundColor('#808080')
                           .padding(5)
                           .borderRadius(5)
                       } else {
@@ -633,7 +620,7 @@ struct Index {
           Column() {
             Text($r('app.string.nothing')).fontSize(30).fontWeight(FontWeight.Bold)
             Text($r('app.string.open_side_bar_tip')).fontSize(15).fontWeight(FontWeight.Lighter).margin({ top: 20 })
-          }
+          }.visibility(this.loading ? Visibility.Hidden : Visibility.Visible)
         }
         .height('100%')
         .visibility(this.show_list.length == 0 ? Visibility.Visible : Visibility.Hidden)
@@ -675,7 +662,7 @@ struct Index {
                 offsetX: 0,
                 offsetY: 0
               })
-              .width(this.passwd == '' || this.encryption ? '55%' : '70%')
+              .width(this.passwd == '' || this.encryption ? '60%' : '75%')
               .animation({ duration: 300, curve: Curve.Ease })
               .onChange((value: string) => {
                 if (value == '' && this.video_meta_data) {
@@ -750,7 +737,7 @@ struct Index {
         }.padding({ top: this.topSafeHeight }).width('100%')
 
         Stack() {
-          LoadingProgress().width(100).height(100)
+          LoadingProgress().width(85).height(85)
         }
         .width('100%')
         .height('100%')
@@ -780,7 +767,6 @@ struct Index {
     })
     .showSideBar(this.sideBarStatus)
     .showControlButton(false)
-    .sideBarWidth(230)
     .divider({ strokeWidth: 0 })
   }
 

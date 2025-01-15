@@ -30,7 +30,7 @@
     },
     {
       "name": "set_passwd",
-      "value": "设置密码"
+      "value": "设置密码 (/▽＼)"
     },
     {
       "name": "entered_privacy_space",
@@ -46,7 +46,7 @@
     },
     {
       "name": "add_video_first",
-      "value": "请先添加视频"
+      "value": "请先添加视频 ;)"
     },
     {
       "name": "close_rotation_lock",
@@ -58,7 +58,7 @@
     },
     {
       "name": "no_search_result",
-      "value": "无搜索结果"
+      "value": "无搜索结果 ╯︿╰"
     },
     {
       "name": "unknown_size",
@@ -86,7 +86,7 @@
     },
     {
       "name": "open_side_bar_tip",
-      "value": "左滑屏幕或者点击左上角按钮来添加第一个视频吧！"
+      "value": "左滑屏幕来添加第一个视频吧！ヾ(•ω•`)o"
     },
     {
       "name": "unknown_resolution",
@@ -94,7 +94,11 @@
     },
     {
       "name": "video_error",
-      "value": "视频异常，可能无法正常播放"
+      "value": "视频异常，可能无法正常播放 (T_T)"
+    },
+    {
+      "name": "add_time_info",
+      "value": "导入需要一些时间，请坐和放宽 （*＾-＾*）"
     }
   ]
 }

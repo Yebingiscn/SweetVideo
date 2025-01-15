@@ -90,11 +90,15 @@
     },
     {
       "name": "unknown_resolution",
-      "value": "Unknown resolution"
+      "value": "Unknown"
     },
     {
       "name": "video_error",
       "value": "Video Error! May not play properly"
+    },
+    {
+      "name": "add_time_info",
+      "value": "Adding videos, please wait ~"
     }
   ]
 }
