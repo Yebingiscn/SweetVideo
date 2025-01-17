@@ -99,6 +99,22 @@
     {
       "name": "add_time_info",
       "value": "Adding videos, please wait ~"
+    },
+    {
+      "name": "privacy_space",
+      "value": "privacy space"
+    },
+    {
+      "name": "search_placeholder",
+      "value": "Search Title..."
+    },
+    {
+      "name": "sort_by_name",
+      "value": "By name"
+    },
+    {
+      "name": "sort_by_time",
+      "value": "By add time"
     }
   ]
 }

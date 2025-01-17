@@ -86,7 +86,7 @@
     },
     {
       "name": "open_side_bar_tip",
-      "value": "左滑屏幕来添加第一个视频吧！ヾ(•ω•`)o"
+      "value": "右滑屏幕来添加第一个视频吧！ヾ(•ω•`)o"
     },
     {
       "name": "unknown_resolution",
@@ -99,6 +99,22 @@
     {
       "name": "add_time_info",
       "value": "导入需要一些时间，请坐和放宽 （*＾-＾*）"
+    },
+    {
+      "name": "privacy_space",
+      "value": "隐私空间"
+    },
+    {
+      "name": "search_placeholder",
+      "value": "搜索标题 ^_^"
+    },
+    {
+      "name": "sort_by_name",
+      "value": "按名称"
+    },
+    {
+      "name": "sort_by_time",
+      "value": "按添加时间"
     }
   ]
 }

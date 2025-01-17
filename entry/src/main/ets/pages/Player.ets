@@ -11,6 +11,8 @@ import ToolsUtil from '../utils/ToolsUtil';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import VideoSpeedUtil from '../utils/VideoUtil';
 import TimeUtil from '../utils/TimeUtil';
+import { audio, AVVolumePanel } from '@kit.AudioKit';
+import { BusinessError, settings } from '@kit.BasicServicesKit';
 
 interface VideoMetadata {
   uri: string
@@ -54,6 +56,109 @@ struct Player {
   @State play_area_height: number = 0
   @State play_area_width: number = 0
   @State onSwiping: boolean = false
+  @State volume: number = 0
+  @State max_volume: number = 0
+  @State min_volume: number = 0
+  @State screenBrightness: number = 0
+  @State screenBrightnessAtFirst: number = 0
+  @State windowClassTmp: window.Window | undefined = undefined;
+  private windowStage: window.WindowStage = AppStorage.get('windowStage') as window.WindowStage;
+  private mainWin: window.Window = this.windowStage.getMainWindowSync();
+
+  @Builder
+  VolumeBuilder() {
+    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
+      Row() {
+        AVVolumePanel({
+          volumeLevel: this.volume,
+        })
+      }.visibility(Visibility.Hidden).width(0).height(0)
+
+      Row() {
+        Slider({
+          value: this.volume,
+          min: this.min_volume,
+          max: this.max_volume,
+          step: 0.1,
+          style: SliderStyle.NONE,
+          direction: Axis.Vertical,
+          reverse: true
+        })
+          .width(40)
+          .height(160)
+          .selectedColor(Color.White)
+          .trackColor(Color.Black)
+          .trackThickness(40)
+          .onChange((value) => {
+            this.volume = value
+          })
+      }
+
+    }.width(40)
+  }
+
+  @Builder
+  BrightnessBuilder() {
+    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
+      Stack() {
+        Column() {
+          Button({ type: ButtonType.Circle, stateEffect: true }) {
+            SymbolGlyph($r('sys.symbol.undo'))
+              .fontSize(20)
+              .fontColor([$r('app.color.text_color')])
+          }
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+          .height(40)
+          .width(80)
+          .backgroundColor($r('app.color.start_window_background_blur'))
+          .backdropBlur(150)
+          .onClick(() => {
+            this.screenBrightness = this.screenBrightnessAtFirst
+            try {
+              this.mainWin.setWindowBrightness(this.screenBrightness, (err) => {
+                if (err) {
+                  hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness. Cause: ${JSON.stringify(err)}`);
+                  return;
+                }
+                hilog.info(0x0000, 'AVPlayer', `Succeeded in setting the brightness.`);
+              });
+            } catch (exception) {
+              hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness.`);
+            }
+          })
+
+          Slider({
+            value: this.screenBrightness,
+            min: 0,
+            max: 1,
+            step: 0.1,
+            style: SliderStyle.NONE,
+            direction: Axis.Vertical,
+            reverse: true
+          })
+            .width(40)
+            .height(160)
+            .selectedColor(Color.White)
+            .trackColor(Color.Black)
+            .trackThickness(40)
+            .onChange((value) => {
+              this.screenBrightness = value
+              try {
+                this.mainWin.setWindowBrightness(this.screenBrightness, (err) => {
+                  if (err) {
+                    hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness. Cause: ${JSON.stringify(err)}`);
+                    return;
+                  }
+                  hilog.info(0x0000, 'AVPlayer', `Succeeded in setting the brightness.`);
+                });
+              } catch (exception) {
+                hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness.`);
+              }
+            })
+        }
+      }.width(40)
+    }
+  }
 
   onBackPress(): boolean | void {
     if (this.ShowControl) {
@@ -99,9 +204,67 @@ struct Player {
     this.avPlayer = await AVPlayerUtil.getAVPlayer()
     await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
     await (await this.windowClass).setWindowKeepScreenOn(true)
+    let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
+    let audioManager = audio.getAudioManager();
+    let audioVolumeManger: audio.AudioVolumeManager = audioManager.getVolumeManager();
+
+    audioVolumeManger.getVolumeGroupManager(groupId, (err: BusinessError, value: audio.AudioVolumeGroupManager) => {
+      if (err) {
+        hilog.error(0x0000, 'AVPlayer', `Failed to obtain the colume group infos list. ${err}`);
+        return;
+      }
+      let audioVolumeGroupManager = value;
+      hilog.info(0x0000, 'AVPlayer', `Callback invoked to indicate that the volume group infos list is obtained.`);
+
+      audioVolumeGroupManager.getVolume(audio.AudioVolumeType.MEDIA, (err: BusinessError, value: number) => {
+        if (err) {
+          hilog.error(0x0000, 'AVPlayer', `Failed to obtain the volume. ${err}`);
+          return;
+        }
+        this.volume = value;
+        hilog.info(0x0000, 'AVPlayer', `Callback invoked to indicate that the volume is obtained. ${value}`);
+      });
+
+      audioVolumeGroupManager.getMaxVolume(audio.AudioVolumeType.MEDIA, (err: BusinessError, value: number) => {
+        if (err) {
+          hilog.error(0x0000, 'AVPlayer', `Failed to obtain the maximum volume. ${err}`);
+          return;
+        }
+        this.max_volume = value
+        hilog.info(0x0000, 'AVPlayer', `Callback invoked to indicate that the maximum volume is obtained. ${value}`);
+      });
+
+      audioVolumeGroupManager.getMinVolume(audio.AudioVolumeType.MEDIA, (err: BusinessError, value: number) => {
+        if (err) {
+          hilog.error(0x0000, 'AVPlayer', `Failed to obtain the minimum volume. ${err}`);
+          return;
+        }
+        this.min_volume = value
+        hilog.info(0x0000, 'AVPlayer', `Callback invoked to indicate that the minimum volume is obtained. ${value}`);
+      });
+    });
+    settings.getValue(context, settings.display.SCREEN_BRIGHTNESS_STATUS, settings.domainName.DEVICE_SHARED)
+      .then((value) => {
+        hilog.info(0x0000, 'AVPlayer', `Promise:value -> ${JSON.stringify(value)}`);
+        this.screenBrightness = Number(value) / 255;
+        this.screenBrightnessAtFirst = this.screenBrightness
+      })
   }
 
   async aboutToDisappear(): Promise<void> {
+    if (this.screenBrightness != this.screenBrightnessAtFirst) {
+      try {
+        this.mainWin.setWindowBrightness(this.screenBrightnessAtFirst, (err) => {
+          if (err) {
+            hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness. Cause: ${JSON.stringify(err)}`);
+            return;
+          }
+          hilog.info(0x0000, 'AVPlayer', `Succeeded in setting the brightness.`);
+        });
+      } catch (exception) {
+        hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness.`);
+      }
+    }
     AVSessionUtil.destroySession()
     PermissionUtil.stopContinuousTask()
     await (await this.windowClass).setWindowKeepScreenOn(false)
@@ -344,12 +507,14 @@ struct Player {
               }
             } else {
               Row({ space: 15 }) {
-                this.VideoSlider()
-                this.VideoButtons()
+                Column() {
+                  this.VideoSlider()
+                  this.VideoButtons()
+                }
               }
             }
           }
-          .height(this.screen_height > this.screen_width ? '25%' : '15%')
+          .height(this.screen_height > this.screen_width ? '20%' : '25%')
           .width('100%')
           .padding(1)
           .backgroundColor('#61000000')
@@ -471,7 +636,7 @@ struct Player {
           this.play_time = value
           this.avPlayer?.seek(value)
         })
-        .width(this.screen_width > this.screen_height ? '45%' : '50%')
+        .width(this.screen_width > this.screen_height ? '75%' : '50%')
         .animation({ duration: 100, curve: Curve.Smooth })
         .selectedColor('#e0e0e0')
       Text(TimeUtil.convertMsToMMSS(Math.min(Math.max((this.now_playing?.time || 0) - this.play_time, 0),
@@ -483,67 +648,105 @@ struct Player {
 
   @Builder
   VideoButtons() {
-    Row({ space: 15 }) {
-      Button({ type: ButtonType.Circle, stateEffect: true }) { // 后退按钮
-        SymbolGlyph($r('sys.symbol.gobackward_15'))
-          .fontSize(23)
-          .fontColor(['#f0f0f0'])
-      }
-      .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-      .height(40)
-      .width(40)
-      .backgroundColor('#50000000')
-      .onClick(() => {
-        this.avPlayer?.seek(this.play_time - 15000)
-      })
+    Row() {
+      Row() {
+        Row() {
+          Button({ type: ButtonType.Circle, stateEffect: true }) { // 播放按钮
+            SymbolGlyph(this.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill'))
+              .fontSize(30)
+              .fontColor(['#f0f0f0'])
+              .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.playing))
+          }
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+          .height(50)
+          .width(50)
+          .backgroundColor('#50000000')
+          .onClick(() => {
+            ToolsUtil.startVibration()
+            if (this.playing) {
+              this.avPlayer?.pause()
+            } else {
+              this.avPlayer?.play()
+            }
+          })
+        }.width('30%')
 
-      Button({ type: ButtonType.Circle, stateEffect: true }) { // 快进按钮
-        SymbolGlyph($r('sys.symbol.goforward_15'))
-          .fontSize(23)
-          .fontColor(['#f0f0f0'])
-      }
-      .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-      .height(40)
-      .width(40)
-      .backgroundColor('#50000000')
-      .onClick(() => {
-        this.avPlayer?.seek(this.play_time + 15000)
-      })
+        Row() {
+          Button({ type: ButtonType.Circle, stateEffect: true }) { // 后退按钮
+            SymbolGlyph($r('sys.symbol.gobackward_15'))
+              .fontSize(23)
+              .fontColor(['#f0f0f0'])
+          }
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+          .height(40)
+          .width(40)
+          .backgroundColor('#50000000')
+          .onClick(() => {
+            this.avPlayer?.seek(this.play_time - 15000)
+          })
+        }.width('20%')
 
-      Button({ type: ButtonType.Circle, stateEffect: true }) { // 播放按钮
-        SymbolGlyph(this.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill'))
-          .fontSize(30)
-          .fontColor(['#f0f0f0'])
-          .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.playing))
-      }
-      .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-      .height(50)
-      .width(50)
-      .backgroundColor('#50000000')
-      .onClick(() => {
-        if (this.playing) {
-          this.avPlayer?.pause()
-        } else {
-          this.avPlayer?.play()
-        }
-      })
+        Row() {
+          Button({ type: ButtonType.Circle, stateEffect: true }) { // 快进按钮
+            SymbolGlyph($r('sys.symbol.goforward_15'))
+              .fontSize(23)
+              .fontColor(['#f0f0f0'])
+          }
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+          .height(40)
+          .width(40)
+          .backgroundColor('#50000000')
+          .onClick(() => {
+            this.avPlayer?.seek(this.play_time + 15000)
+          })
+        }.width('20%')
+      }.width('60%')
+      Row() {
+        Row() {
+          Button({ type: ButtonType.Circle, stateEffect: true }) { // 亮度按钮
+            SymbolGlyph($r('sys.symbol.sun_max'))
+              .fontSize(23)
+              .fontColor(['#f0f0f0'])
+          }
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+          .height(40)
+          .width(40)
+          .backgroundColor('#50000000')
+          .bindMenu(this.BrightnessBuilder())
+        }.width('35%')
 
-      Button({ type: ButtonType.Circle, stateEffect: true }) { // 全屏按钮
-        SymbolGlyph($r('sys.symbol.screen_rotation'))
-          .fontSize(23)
-          .fontColor(['#f0f0f0'])
-      }
-      .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-      .height(40)
-      .width(40)
-      .backgroundColor('#50000000')
-      .onClick(async () => {
-        if (this.screen_height > this.screen_width) {
-          (await (this.windowClass)).setPreferredOrientation(window.Orientation.USER_ROTATION_LANDSCAPE)
-        } else {
-          (await (this.windowClass)).setPreferredOrientation(window.Orientation.USER_ROTATION_PORTRAIT)
-        }
-      })
-    }
+        Row() {
+          Button({ type: ButtonType.Circle, stateEffect: true }) {
+            SymbolGlyph($r('sys.symbol.speaker_wave_1'))
+              .fontSize(23)
+              .fontColor(['#f0f0f0'])
+          }
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+          .height(40)
+          .width(40)
+          .backgroundColor('#50000000')
+          .bindMenu(this.VolumeBuilder())
+        }.width('35%')
+
+        Row() {
+          Button({ type: ButtonType.Circle, stateEffect: true }) { // 全屏按钮
+            SymbolGlyph($r('sys.symbol.screen_rotation'))
+              .fontSize(23)
+              .fontColor(['#f0f0f0'])
+          }
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+          .height(40)
+          .width(40)
+          .backgroundColor('#50000000')
+          .onClick(async () => {
+            if (this.screen_height > this.screen_width) {
+              (await (this.windowClass)).setPreferredOrientation(window.Orientation.USER_ROTATION_LANDSCAPE)
+            } else {
+              (await (this.windowClass)).setPreferredOrientation(window.Orientation.USER_ROTATION_PORTRAIT)
+            }
+          })
+        }.width('55%')
+      }.width('40%')
+    }.width('95%')
   }
 }

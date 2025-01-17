@@ -3,6 +3,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import PreferencesUtil from '../utils/PreferencesUtil';
 import WantProcess from '../utils/WantProcessUtil';
+import { WindowUtil } from '../utils/WindowUtil';
 
 export default class EntryAbility extends UIAbility {
 
@@ -38,6 +39,8 @@ export default class EntryAbility extends UIAbility {
         hilog.error(0x0000, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err) ?? '');
         return;
       }
+      WindowUtil.getInstance().setWindowStage(windowStage);
+      AppStorage.setOrCreate('windowStage', windowStage);
       windowStage.getMainWindowSync().setWindowBackgroundColor('#DCDCDC'); // 配置窗口整体底色
       hilog.info(0x0000, 'testTag', 'Succeeded in loading the content.');
     });

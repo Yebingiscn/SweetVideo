@@ -84,6 +84,50 @@ struct Index {
     })
   }
 
+  @Builder
+  SortMenuBuilder() {
+    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
+      Row() {
+        SymbolGlyph($r('sys.symbol.textformat'))
+          .fontSize(20)
+          .fontColor([$r('app.color.text_color')])
+          .width(25)
+          .height(40)
+        Text($r('app.string.sort_by_name'))
+          .fontSize(20)
+          .width(100)
+          .height(50)
+      }
+      .padding(10)
+      .onClick(() => {
+        this.show_list =ToolsUtil.compareName(this.show_list,this.encryption,this.video_meta_data_encryption, this.video_meta_data)
+        PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data);
+        PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
+          this.video_meta_data_encryption)
+      })
+      Divider().height(10)
+      Row() {
+        SymbolGlyph($r('sys.symbol.clock'))
+          .fontSize(20)
+          .fontColor([$r('app.color.text_color')])
+          .width(25)
+          .height(40)
+        Text($r('app.string.sort_by_time'))
+          .fontSize(20)
+          .width(100)
+          .height(50)
+      }.padding(10)
+      .onClick(() => {
+        this.show_list = this.encryption
+          ? this.video_meta_data_encryption.sort((a, b) => a.date.localeCompare(b.date)).map(i => i.date)
+          : this.video_meta_data.sort((a, b) => a.date.localeCompare(b.date)).map(i => i.date);
+        PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data);
+        PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
+          this.video_meta_data_encryption)
+      })
+    }.width(150)
+  }
+
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: editMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -243,7 +287,6 @@ struct Index {
           this.now_playing?.date)].last_play = DataSyncUtil.last_time
         PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
           this.video_meta_data_encryption)
-
       } else {
         this.video_meta_data[this.video_meta_data.findIndex(i => i.date == this.now_playing?.date)].last_play =
           DataSyncUtil.last_time
@@ -419,6 +462,45 @@ struct Index {
             this.sideBarStatusTmp = Visibility.Hidden
             this.selectVideo()
           })
+        }.width('100%')
+        .justifyContent(FlexAlign.Start)
+        .margin({ top: '4%' })
+
+        Row() {
+          Button({ type: ButtonType.Normal, stateEffect: true }) {
+            Row() {
+              SymbolGlyph($r('sys.symbol.lock'))
+                .fontSize(25)
+                .fontColor([$r('app.color.text_color')])
+              Text($r('app.string.privacy_space'))
+                .fontSize(15)
+                .fontColor($r('app.color.text_color'))
+                .margin({ left: 10, right: 12 })
+            }
+          }
+          .visibility(this.passwd == '' || this.encryption ? Visibility.Visible : Visibility.None)
+          .backgroundColor($r('app.color.start_window_background_blur'))
+          .align(Alignment.Start)
+          .padding(10)
+          .borderRadius(10)
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+          .height('11%')
+          .width('100%')
+          .backdropBlur(150)
+          .onClick(() => {
+            this.sideBarStatus = false
+            this.sideBarStatusTmp = Visibility.Hidden
+            if (this.passwd == '') {
+              this.editPasswdDialogController.open()
+              return
+            }
+            this.encryption = false
+          })
+          .gesture(LongPressGesture().onAction(() => {
+            this.sideBarStatus = false
+            this.sideBarStatusTmp = Visibility.Hidden
+            this.editPasswdDialogController.open()
+          }))
         }.width('100%')
         .justifyContent(FlexAlign.Start)
         .margin({ top: '4%' })
@@ -650,19 +732,24 @@ struct Index {
             })
 
             //搜索框
-            Search({ value: $$this.search_input, controller: this.searchController })
+            Search({
+              value: $$this.search_input,
+              controller: this.searchController,
+              placeholder: $r('app.string.search_placeholder')
+            })
               .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
               .backgroundColor($r('app.color.start_window_background_blur'))
               .backdropBlur(150)
               .searchButton(getContext(this).resourceManager.getStringSync($r('app.string.search')),
                 { fontSize: '16fp', fontColor: $r('app.color.main_color') })
+
               .shadow({
                 radius: 15,
                 color: $r('app.color.shadow_color'),
                 offsetX: 0,
                 offsetY: 0
               })
-              .width(this.passwd == '' || this.encryption ? '60%' : '75%')
+              .width('60%')
               .animation({ duration: 300, curve: Curve.Ease })
               .onChange((value: string) => {
                 if (value == '' && this.video_meta_data) {
@@ -704,29 +791,18 @@ struct Index {
                 }
               })
               .height(40)
-            //加密按钮
             Button({ type: ButtonType.Circle, stateEffect: true }) {
-              SymbolGlyph($r('sys.symbol.lock'))
+              SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
                 .fontSize(25)
                 .fontColor([$r('app.color.text_color')])
             }
-            .visibility(this.passwd == '' || this.encryption ? Visibility.Visible : Visibility.None)
             .animation({ duration: 300, curve: Curve.Ease })
             .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
             .height(40)
             .width(40)
             .backgroundColor($r('app.color.start_window_background_blur'))
             .backdropBlur(150)
-            .onClick(() => {
-              if (this.passwd == '') {
-                this.editPasswdDialogController.open()
-                return
-              }
-              this.encryption = false
-            })
-            .gesture(LongPressGesture().onAction(() => {
-              this.editPasswdDialogController.open()
-            }))
+            .bindMenu(this.SortMenuBuilder)
             .shadow({
               radius: 15,
               color: $r('app.color.shadow_color'),
