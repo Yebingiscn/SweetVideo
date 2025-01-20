@@ -8,3 +8,4 @@
 - 图标、头图等素材：科蓝kl 
 ## 流心视频由以下开源项目提供支持
 - pinyin4js https://ohpm.openharmony.cn/#/cn/detail/@ohos%2Fpinyin4js
+- ohos_ijkplayer https://gitee.com/openharmony-sig/ohos_ijkplayer/tree/master

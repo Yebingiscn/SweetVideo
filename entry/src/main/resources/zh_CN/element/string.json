@@ -86,7 +86,7 @@
     },
     {
       "name": "open_side_bar_tip",
-      "value": "右滑屏幕来添加第一个视频吧！ヾ(•ω•`)o"
+      "value": "右滑屏幕来添加视频吧！ヾ(•ω•`)o"
     },
     {
       "name": "unknown_resolution",
@@ -115,6 +115,18 @@
     {
       "name": "sort_by_time",
       "value": "按添加时间"
+    },
+    {
+      "name": "multiple_choice",
+      "value": "多选"
+    },
+    {
+      "name": "select_all",
+      "value": "全选"
+    },
+    {
+      "name": "delete_selected",
+      "value": "删除所选"
     }
   ]
 }

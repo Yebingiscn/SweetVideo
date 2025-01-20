@@ -21,7 +21,6 @@ export class WindowUtil {
         return;
       }
       const properties = windowClass.getWindowProperties();
-      // Get status bar height.
       let area: window.AvoidArea = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
       let naviBarArea: window.AvoidArea =
         windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR);
@@ -31,5 +30,4 @@ export class WindowUtil {
       AppStorage.setOrCreate('navBarHeight', px2vp(naviBarArea.bottomRect.height));
     });
   }
-
 }

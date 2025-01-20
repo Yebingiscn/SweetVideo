@@ -86,7 +86,7 @@
     },
     {
       "name": "open_side_bar_tip",
-      "value": "Swipe left or click the button in the top left corner to add the first video!"
+      "value": "Swipe left to add the video ヾ(•ω•`)o"
     },
     {
       "name": "unknown_resolution",
@@ -115,6 +115,18 @@
     {
       "name": "sort_by_time",
       "value": "By add time"
+    },
+    {
+      "name": "multiple_choice",
+      "value": "Multiple choice"
+    },
+    {
+      "name": "select_all",
+      "value": "Select All"
+    },
+    {
+      "name": "delete_selected",
+      "value": "Delete Selected"
     }
   ]
 }

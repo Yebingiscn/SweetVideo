@@ -3,10 +3,16 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { media } from '@kit.MediaKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
-import VideoUtil, { VideoMetadata } from './VideoUtil';
+import VideoUtil, { VideoMetadata } from './VideoInfoUtil';
 
 class WantProcess {
   public want_uri: string = ''
+
+  checkWant() {
+    if (this.want_uri != '') {
+      this.hasWant()
+    }
+  }
 
   async hasWant() {
     let avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor()

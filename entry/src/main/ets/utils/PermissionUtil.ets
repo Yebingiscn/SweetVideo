@@ -70,6 +70,12 @@ class Permission {
     }
     return false
   }
+
+  activePermission(tmp: string[]) {
+    for (let uri of tmp) {
+      PermissionUtil.activatePermission(uri)
+    }
+  }
 }
 
 const PermissionUtil = new Permission();

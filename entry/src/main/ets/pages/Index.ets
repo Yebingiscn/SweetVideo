@@ -9,7 +9,7 @@ import PermissionUtil from '../utils/PermissionUtil';
 import DataUtil from '../utils/DataUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import VideoUtil, { VideoMetadata } from '../utils/VideoUtil';
+import VideoUtil, { VideoMetadata } from '../utils/VideoInfoUtil';
 import TimeUtil from '../utils/TimeUtil';
 import { delConfirmDialog } from '../component/DelConfirmDialog';
 import { editPasswordDialog } from '../component/EditPasswordDialog';
@@ -42,6 +42,10 @@ struct Index {
   @State search_input: string = ''
   @State sideBarStatus: boolean = false
   @State sideBarStatusTmp: Visibility = Visibility.Hidden
+  @State itemMultipleChoose: boolean = false
+  @State itemMultipleChooseState: Visibility = Visibility.None
+  @State MenuBuilderState: boolean = false
+  @State delMultipleList: VideoMetadata[] = []
 
   @Builder
   MenuBuilder(item: VideoMetadata | undefined) {
@@ -79,8 +83,26 @@ struct Index {
         DataSyncUtil.editing_video = JSON.stringify(item)
         this.editMetadataDialogController.open()
       })
+
+      Divider().height(10)
+      Row() {
+        SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
+          .fontSize(20)
+          .fontColor([$r('app.color.text_color')])
+          .width(25)
+          .height(40)
+        Text($r('app.string.multiple_choice'))
+          .fontSize(20)
+          .width(100)
+          .height(50)
+      }.onClick(() => {
+        this.itemMultipleChooseState =
+          this.itemMultipleChooseState == Visibility.None ? Visibility.Visible : Visibility.None;
+        this.delMultipleList.length = 0
+      })
     }.width(100).onAppear(() => {
       ToolsUtil.startVibration()
+      this.MenuBuilderState = true
     })
   }
 
@@ -100,11 +122,13 @@ struct Index {
       }
       .padding(10)
       .onClick(() => {
-        this.show_list =ToolsUtil.compareName(this.show_list,this.encryption,this.video_meta_data_encryption, this.video_meta_data)
+        this.show_list =
+          ToolsUtil.compareName(this.show_list, this.encryption, this.video_meta_data_encryption, this.video_meta_data)
         PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data);
         PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
           this.video_meta_data_encryption)
       })
+
       Divider().height(10)
       Row() {
         SymbolGlyph($r('sys.symbol.clock'))
@@ -124,6 +148,68 @@ struct Index {
         PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data);
         PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
           this.video_meta_data_encryption)
+      })
+    }.width(150)
+  }
+
+  @Builder
+  SelectItemMenuBuilder() {
+    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
+      Row() {
+        SymbolGlyph($r('sys.symbol.xmark'))
+          .fontSize(20)
+          .fontColor([$r('app.color.text_color')])
+          .width(25)
+          .height(40)
+        Text($r('app.string.cancel'))
+          .fontSize(20)
+          .width(100)
+          .height(50)
+      }
+      .padding(10)
+      .onClick(() => {
+        this.itemMultipleChoose = false
+        this.itemMultipleChooseState = Visibility.None
+        this.delMultipleList.length = 0
+      })
+
+      Divider().height(10)
+      Row() {
+        SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
+          .fontSize(20)
+          .fontColor([$r('app.color.text_color')])
+          .width(25)
+          .height(40)
+        Text($r('app.string.select_all'))
+          .fontSize(20)
+          .width(100)
+          .height(50)
+      }.padding(10)
+      .onClick(() => {
+        this.itemMultipleChoose = !this.itemMultipleChoose
+      })
+
+      Divider().height(10)
+      Row() {
+        SymbolGlyph($r('sys.symbol.trash_fill'))
+          .fontSize(20)
+          .fontColor([$r('app.color.text_color')])
+          .width(25)
+          .height(40)
+        Text($r('app.string.delete_selected'))
+          .fontSize(20)
+          .width(100)
+          .height(50)
+      }.padding(10)
+      .onClick(() => {
+        this.itemMultipleChoose = false;
+        this.itemMultipleChooseState = Visibility.None;
+        if (this.delMultipleList.length > 0) {
+          this.delMultipleList.forEach(item => {
+            DataSyncUtil.editing_video = JSON.stringify(item)
+            this.deleteItem()
+          });
+        }
       })
     }.width(150)
   }
@@ -169,22 +255,7 @@ struct Index {
         if (!confirm_del) {
           return
         }
-        let tmp = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata
-        if (this.encryption) {
-          this.video_meta_data_encryption = this.video_meta_data_encryption.filter(i => i.date != tmp.date)
-          if (fs.accessSync(sandbox_video + tmp.date)) {
-            fs.unlinkSync(sandbox_video + tmp.date)
-          }
-          PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
-            this.video_meta_data_encryption)
-        } else {
-          this.video_meta_data = this.video_meta_data.filter(i => i.date != tmp.date)
-        }
-        this.show_list = this.show_list.filter(i => i != tmp.date)
-        if (fs.accessSync(sandbox_path + tmp.date)) {
-          fs.unlinkSync(sandbox_path + tmp.date)
-        }
-        PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data)
+        this.deleteItem()
       }
     }),
     cornerRadius: 20,
@@ -203,8 +274,7 @@ struct Index {
         }
         this.passwd = passwd
         this.encryption = false
-        PreferencesUtil.putPreferencesValue('sweet_video', 'passwd', passwd)
-        ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.set_passwd_tip')))
+        ToolsUtil.savePwd(passwd)
       },
     }),
     cornerRadius: 20,
@@ -217,6 +287,25 @@ struct Index {
   })
   listScroller: ListScroller = new ListScroller()
   searchController: SearchController = new SearchController()
+
+  deleteItem() {
+    let tmp = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata
+    if (this.encryption) {
+      this.video_meta_data_encryption = this.video_meta_data_encryption.filter(i => i.date != tmp.date)
+      if (fs.accessSync(sandbox_video + tmp.date)) {
+        fs.unlinkSync(sandbox_video + tmp.date)
+      }
+      PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
+        this.video_meta_data_encryption)
+    } else {
+      this.video_meta_data = this.video_meta_data.filter(i => i.date != tmp.date)
+    }
+    this.show_list = this.show_list.filter(i => i != tmp.date)
+    if (fs.accessSync(sandbox_path + tmp.date)) {
+      fs.unlinkSync(sandbox_path + tmp.date)
+    }
+    PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data)
+  }
 
   updateShowList() {
     let total = this.lazy_show_list.totalCount()
@@ -232,17 +321,12 @@ struct Index {
 
   updateList() {
     this.show_list = []
-    if (this.encryption) {
-      this.show_list = this.video_meta_data_encryption.map(i => i.date)
-    } else {
+    this.encryption ? this.show_list = this.video_meta_data_encryption.map(i => i.date) :
       this.show_list = this.video_meta_data.map(i => i.date)
-    }
   }
 
   async aboutToAppear(): Promise<void> {
-    if (WantProcess.want_uri != '') {
-      WantProcess.hasWant()
-    }
+    WantProcess.checkWant()
     ReqPermission.reqPermissionsFromUser(ReqPermission.permissions, context);
     this.video_meta_data =
       await PreferencesUtil.getPreferencesValue('sweet_video', 'video_meta_data', []) as VideoMetadata[]
@@ -275,9 +359,7 @@ struct Index {
 
   activePermission() {
     let tmp = this.video_meta_data.map(i => i.uri)
-    for (let uri of tmp) {
-      PermissionUtil.activatePermission(uri)
-    }
+    PermissionUtil.activePermission(tmp)
   }
 
   async onPageShow() {
@@ -295,13 +377,14 @@ struct Index {
     }
   }
 
-  // 持久化视频存储
-  async toMetaData(list: string[]) {
+  async toMetaData(list: string[]) { // 持久化视频存储
     const CONCURRENT_LIMIT = 3; // 最大并发数
     let index = 0; // 当前处理的文件索引
-    this.loading = true;
     if (list.length != 0) {
       ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.add_time_info')))
+      this.loading = true;
+    } else {
+      return
     }
     const processFile = async (uri: string) => {
       ReqPermission.persistPermission(uri);
@@ -310,28 +393,16 @@ struct Index {
       avMetadataExtractor.fdSrc = file;
       const metadata = await new Promise<media.AVMetadata>((resolve, reject) => {
         avMetadataExtractor.fetchMetadata((error: BusinessError, metadata: media.AVMetadata) => {
-          if (error) {
-            reject(error);
-          } else {
-            resolve(metadata);
-          }
+          error ? reject(error) : resolve(metadata)
         });
       });
       const date = new Date().getTime().toString();
       if ((!this.encryption && !this.video_meta_data.some(item => item.title === file.name)) ||
         (this.encryption && !this.video_meta_data_encryption.some(item => item.title === file.name))) {
         if (this.encryption) {
-          const file1 = fs.openSync(uri, fs.OpenMode.READ_ONLY);
-          const file2 = fs.openSync(sandbox_video + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
-          fs.copyFile(file1.fd, file2.fd, async () => {
-            this.video_meta_data_encryption.push(await VideoUtil.setVideoInfo(date, uri, file.name, metadata,
-              this.encryption, sandbox_video, sandbox_path)); // Go ahead and change this to await
-            PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
-              this.video_meta_data_encryption);
-            fs.closeSync(file1);
-            fs.closeSync(file2);
-            this.show_list = this.video_meta_data_encryption.map(i => i.date);
-          });
+          this.show_list =
+            await ToolsUtil.copyFileToPrivacySpace(this.video_meta_data_encryption, uri, sandbox_video, this.encryption,
+              sandbox_path, date, metadata, file)
         } else {
           this.video_meta_data.push(await VideoUtil.setVideoInfo(date, uri, file.name, metadata, this.encryption,
             sandbox_video, sandbox_path)); // Use await here
@@ -345,7 +416,6 @@ struct Index {
         await processFile(uri);
       }
     };
-    // 启动并发处理
     const promises: Promise<void>[] = [];
     for (let i = 0; i < CONCURRENT_LIMIT; i++) {
       promises.push(processNext());
@@ -354,6 +424,18 @@ struct Index {
     this.show_list =
       this.encryption ? this.video_meta_data_encryption.map(i => i.date) : this.video_meta_data.map(i => i.date);
     this.loading = false;
+  }
+
+  closeSideBar(isPlayAnimation: boolean) {
+    this.sideBarStatusTmp = Visibility.Hidden
+    isPlayAnimation ? setTimeout(() => {
+      this.sideBarStatus = false
+    }, 400) : this.sideBarStatus = false
+  }
+
+  openSideBar() {
+    this.sideBarStatusTmp = Visibility.Visible
+    this.sideBarStatus = true
   }
 
   build() {
@@ -369,12 +451,8 @@ struct Index {
           .height(40)
           .width(80)
           .backgroundColor($r('app.color.start_window_background_blur'))
-          .backdropBlur(150)
           .onClick(() => {
-            this.sideBarStatusTmp = Visibility.Hidden
-            setTimeout(() => {
-              this.sideBarStatus = false
-            }, 500)
+            this.closeSideBar(true)
           })
           .shadow({
             radius: 15,
@@ -425,12 +503,10 @@ struct Index {
           .height('11%')
           .width('100%')
           .backgroundColor($r('app.color.start_window_background_blur'))
-          .backdropBlur(150)
           .transition(TransitionEffect.OPACITY.animation({ duration: 500 })
             .combine(TransitionEffect.translate({ x: 100 })))
           .onClick(() => {
-            this.sideBarStatus = false
-            this.sideBarStatusTmp = Visibility.Hidden
+            this.closeSideBar(false)
             this.selectFiles()
           })
         }.width('100%')
@@ -456,10 +532,8 @@ struct Index {
           .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
           .height('11%')
           .width('100%')
-          .backdropBlur(150)
           .onClick(() => {
-            this.sideBarStatus = false
-            this.sideBarStatusTmp = Visibility.Hidden
+            this.closeSideBar(false)
             this.selectVideo()
           })
         }.width('100%')
@@ -486,10 +560,8 @@ struct Index {
           .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
           .height('11%')
           .width('100%')
-          .backdropBlur(150)
           .onClick(() => {
-            this.sideBarStatus = false
-            this.sideBarStatusTmp = Visibility.Hidden
+            this.closeSideBar(false)
             if (this.passwd == '') {
               this.editPasswdDialogController.open()
               return
@@ -497,8 +569,7 @@ struct Index {
             this.encryption = false
           })
           .gesture(LongPressGesture().onAction(() => {
-            this.sideBarStatus = false
-            this.sideBarStatusTmp = Visibility.Hidden
+            this.closeSideBar(false)
             this.editPasswdDialogController.open()
           }))
         }.width('100%')
@@ -512,16 +583,11 @@ struct Index {
       .transition(TransitionEffect.OPACITY.animation({ duration: 500 })
         .combine(TransitionEffect.translate({ x: -100 })))
       .visibility(this.sideBarStatusTmp)
-      .gesture(
-        SwipeGesture({ direction: SwipeDirection.Horizontal })
-          .onAction((event: GestureEvent) => {
-            if (event) {
-              this.sideBarStatusTmp = Visibility.Hidden
-              setTimeout(() => {
-                this.sideBarStatus = false
-              }, 500)
-            }
-          }))
+      .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
+        if (event) {
+          this.closeSideBar(true)
+        }
+      }))
       .borderRadius(20)
       .shadow({
         radius: 15,
@@ -530,61 +596,77 @@ struct Index {
         offsetY: 0
       })
 
-      // 内容区
-      Stack({ alignContent: Alignment.Top }) {
-        // 遮罩
-        Column()
+      Stack({ alignContent: Alignment.Top }) { // 内容区
+        Column()// 遮罩
           .height('100%')
           .width('100%')
           .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
           .zIndex(1)
           .visibility(this.sideBarStatus ? Visibility.Visible : Visibility.Hidden)
           .onClick(() => {
-            this.sideBarStatusTmp = Visibility.Hidden
-            setTimeout(() => {
-              this.sideBarStatus = false
-            }, 500)
+            this.closeSideBar(true)
           })
         List({ scroller: this.listScroller }) {
           ForEach(this.list_empty_item, () => {
             ListItem().height(this.topSafeHeight + 55)
           })
-          // 加载视频列表
-          LazyForEach(this.lazy_show_list, (item: string) => {
+          LazyForEach(this.lazy_show_list, (item: string) => { // 加载视频列表
             ListItem() {
               Column() {
                 Row() {
                   Image(fileUri.getUriFromPath(sandbox_path + item))
-                    .width(70)
-                    .height(70)
+                    .width(75)
+                    .height(75)
                     .backgroundImageSize(ImageSize.Cover)
                     .borderRadius(5)
                     .sourceSize({
-                      width: 70,
-                      height: 70
+                      width: 75,
+                      height: 75
                     })
                   Column() {
-                    Text((String(this.encryption ?
-                      this.video_meta_data_encryption.find(i => i.date == item)?.title :
-                      this.video_meta_data.find(i => i.date == item)?.title)
-                    ).slice(0, String(this.encryption ?
-                      this.video_meta_data_encryption.find(i => i.date == item)?.title :
-                      this.video_meta_data.find(i => i.date == item)?.title).lastIndexOf('.')))
-                      .fontSize(20)
-                      .fontWeight(FontWeight.Medium)
-                      .maxLines(2)
-                      .textOverflow({ overflow: TextOverflow.Ellipsis })
-                      .width('90%')
+                    Row() {
+                      Text((String(this.encryption ?
+                        this.video_meta_data_encryption.find(i => i.date == item)?.title :
+                        this.video_meta_data.find(i => i.date == item)?.title)
+                      ).slice(0, String(this.encryption ?
+                        this.video_meta_data_encryption.find(i => i.date == item)?.title :
+                        this.video_meta_data.find(i => i.date == item)?.title).lastIndexOf('.')))
+                        .fontSize(20)
+                        .fontWeight(FontWeight.Medium)
+                        .maxLines(3)
+                        .textOverflow({ overflow: TextOverflow.Ellipsis })
+                        .width('82%')
+                      Checkbox({
+                        name: item, group: 'checkboxGroup'
+                      })
+                        .width(30)
+                        .height(30)
+                        .select(this.itemMultipleChoose)
+                        .selectedColor($r('app.color.main_color'))
+                        .shape(CheckBoxShape.CIRCLE)
+                        .visibility(this.itemMultipleChooseState)
+                        .onChange(() => {
+                          const foundMetadata = this.encryption
+                            ? this.video_meta_data_encryption.find(i => i.date === item)
+                            : this.video_meta_data.find(i => i.date === item);
+                          if (foundMetadata && !this.delMultipleList.includes(foundMetadata)) {
+                            this.delMultipleList.push(foundMetadata)
+                          } else {
+                            this.delMultipleList =
+                              this.delMultipleList.filter(i => i !== foundMetadata)
+                          }
+                        })
+                    }
+
                     Row() {
                       if ((this.encryption ?
                         this.video_meta_data_encryption.find(i => i.date == item)?.hdr_type :
-                        this.video_meta_data.find(i => i.date == item)?.hdr_type) ===
-                      media.HdrType.AV_HDR_TYPE_VIVID) {
+                        this.video_meta_data.find(i => i.date == item)?.hdr_type) === media.HdrType.AV_HDR_TYPE_VIVID) {
                         Image($r("app.media.hdr_vivid_icon"))
                           .backgroundImageSize(ImageSize.Cover)
                           .borderRadius(5)
-                          .width('20%')
-                          .height('35%')
+                          .width(65)
+                          .height(25)
                       } else if (VideoUtil.videoSizeFormat(String(this.encryption ?
                         this.video_meta_data_encryption.find(i => i.date == item)?.size :
                         this.video_meta_data.find(i => i.date == item)?.size))
@@ -638,7 +720,7 @@ struct Index {
               .padding({
                 left: 10
               })
-              .height(100)
+              .height(120)
               .backgroundColor($r('app.color.list_item_background'))
               .borderRadius(10)
               .justifyContent(FlexAlign.SpaceEvenly)
@@ -662,6 +744,10 @@ struct Index {
               edgeEffect: SwipeEdgeEffect.Spring
             })
             .onClick(() => {
+              if (this.MenuBuilderState || this.itemMultipleChooseState != Visibility.None) {
+                this.MenuBuilderState = false
+                return
+              }
               this.listScroller.closeAllSwipeActions()
               this.now_playing = this.encryption ? this.video_meta_data_encryption.find(i => i.date == item) :
               this.video_meta_data.find(i => i.date == item)
@@ -697,8 +783,7 @@ struct Index {
           this.searchController.stopEditing()
         })
 
-        //顶栏
-        Row() {
+        Row() { //顶栏
           Column() {
             Text($r('app.string.nothing')).fontSize(30).fontWeight(FontWeight.Bold)
             Text($r('app.string.open_side_bar_tip')).fontSize(15).fontWeight(FontWeight.Lighter).margin({ top: 20 })
@@ -721,8 +806,7 @@ struct Index {
             .backgroundColor($r('app.color.start_window_background_blur'))
             .backdropBlur(150)
             .onClick(() => {
-              this.sideBarStatusTmp = Visibility.Visible
-              this.sideBarStatus = true
+              this.openSideBar()
             })
             .shadow({
               radius: 15,
@@ -731,9 +815,8 @@ struct Index {
               offsetY: 0
             })
 
-            //搜索框
             Search({
-              value: $$this.search_input,
+              value: $$this.search_input, //搜索框
               controller: this.searchController,
               placeholder: $r('app.string.search_placeholder')
             })
@@ -742,14 +825,13 @@ struct Index {
               .backdropBlur(150)
               .searchButton(getContext(this).resourceManager.getStringSync($r('app.string.search')),
                 { fontSize: '16fp', fontColor: $r('app.color.main_color') })
-
               .shadow({
                 radius: 15,
                 color: $r('app.color.shadow_color'),
                 offsetX: 0,
                 offsetY: 0
               })
-              .width('60%')
+              .width(this.itemMultipleChooseState == Visibility.None ? '60%' : '55%')
               .animation({ duration: 300, curve: Curve.Ease })
               .onChange((value: string) => {
                 if (value == '' && this.video_meta_data) {
@@ -771,18 +853,16 @@ struct Index {
                 }
                 if (value == this.passwd && !this.encryption) {
                   this.encryption = true
-                  ToolsUtil.showToast(getContext()
-                    .resourceManager
+                  ToolsUtil.showToast(getContext().resourceManager
                     .getStringSync($r('app.string.entered_privacy_space')))
                   return
                 }
                 try {
-                  this.show_list =
-                    this.encryption ?
-                    this.video_meta_data_encryption.filter(i => i.title.toLowerCase().includes(value.toLowerCase()))
-                      .map(i => i.date) :
-                    this.video_meta_data.filter(i => i.title.toLowerCase().includes(value.toLowerCase()))
-                      .map(i => i.date)
+                  this.show_list = this.encryption ?
+                  this.video_meta_data_encryption.filter(i => i.title.toLowerCase().includes(value.toLowerCase()))
+                    .map(i => i.date) :
+                  this.video_meta_data.filter(i => i.title.toLowerCase().includes(value.toLowerCase()))
+                    .map(i => i.date)
                   if (this.show_list.length == 0) {
                     ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.no_search_result')))
                   }
@@ -796,13 +876,33 @@ struct Index {
                 .fontSize(25)
                 .fontColor([$r('app.color.text_color')])
             }
+            .backdropBlur(150)
             .animation({ duration: 300, curve: Curve.Ease })
             .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
             .height(40)
             .width(40)
             .backgroundColor($r('app.color.start_window_background_blur'))
-            .backdropBlur(150)
             .bindMenu(this.SortMenuBuilder)
+            .shadow({
+              radius: 15,
+              color: $r('app.color.shadow_color'),
+              offsetX: 0,
+              offsetY: 0
+            })
+
+            Button({ type: ButtonType.Circle, stateEffect: true }) {
+              SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
+                .fontSize(25)
+                .fontColor([$r('app.color.text_color')])
+            }
+            .backdropBlur(150)
+            .visibility(this.itemMultipleChooseState)
+            .animation({ duration: 300, curve: Curve.Ease })
+            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+            .height(40)
+            .width(40)
+            .backgroundColor($r('app.color.start_window_background_blur'))
+            .bindMenu(this.SelectItemMenuBuilder)
             .shadow({
               radius: 15,
               color: $r('app.color.shadow_color'),
@@ -828,14 +928,11 @@ struct Index {
           this.list_empty_item.push(i.toString())
         }
       })
-      .gesture(
-        SwipeGesture({ direction: SwipeDirection.Horizontal })
-          .onAction((event: GestureEvent) => {
-            if (event) {
-              this.sideBarStatusTmp = Visibility.Visible
-              this.sideBarStatus = true
-            }
-          }))
+      .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
+        if (event) {
+          this.openSideBar()
+        }
+      }))
     }
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     .onChange((value: boolean) => {
@@ -871,6 +968,19 @@ struct Index {
           DataSyncUtil.editing_video = JSON.stringify(item)
           this.editMetadataDialogController.open()
         })
+      Stack().width(10)
+      SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
+        .fontSize(28)
+        .fontColor([$r('app.color.text_color')])
+        .width(40)
+        .height(40)
+        .onClick(() => {
+          this.itemMultipleChooseState =
+            this.itemMultipleChooseState == Visibility.None ? Visibility.Visible : Visibility.None
+          this.itemMultipleChoose = false
+          this.listScroller.closeAllSwipeActions()
+          this.delMultipleList.length = 0
+        })
       Stack().width(10).visibility(this.encryption ? Visibility.Visible : Visibility.None)
       SymbolGlyph($r('sys.symbol.arrow_right_folder_circle'))
         .fontSize(28)
@@ -884,14 +994,7 @@ struct Index {
             [item.title.split('.')[item.title.split('.').length - 1] == item.format ? item.title :
               item.title + '.' + item.format]
           let saver = new picker.DocumentViewPicker(context)
-          saver.save(saverOption, (err: BusinessError, documentSaveResult: string[]) => {
-            if (!err) {
-              let file1 = fs.openSync(documentSaveResult[0], fs.OpenMode.READ_WRITE)
-              fs.copyFileSync(file.fd, file1.fd)
-              fs.close(file.fd)
-              fs.close(file1.fd)
-            }
-          })
+          SelectFileUtil.copyFile(saver, saverOption, file)
         })
         .visibility(this.encryption ? Visibility.Visible : Visibility.None)
     }.padding(10).justifyContent(FlexAlign.SpaceEvenly)

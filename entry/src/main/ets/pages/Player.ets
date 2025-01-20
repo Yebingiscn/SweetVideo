@@ -9,7 +9,7 @@ import { avSession as avSessionManager } from '@kit.AVSessionKit';
 import AVSessionUtil from '../utils/AVSessionUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import VideoSpeedUtil from '../utils/VideoUtil';
+import VideoSpeedUtil from '../utils/VideoInfoUtil';
 import TimeUtil from '../utils/TimeUtil';
 import { audio, AVVolumePanel } from '@kit.AudioKit';
 import { BusinessError, settings } from '@kit.BasicServicesKit';
@@ -44,6 +44,8 @@ struct Player {
   surfaceID: string = ''
   @State SwipeStartX: number = 0
   @State SwipeMovingX: number = 0
+  @State SwipeStartY: number = 0
+  @State SwipeMovingY: number = 0
   seek_time: number | undefined = undefined
   @State LongPress: boolean = false
   @State played: boolean = false
@@ -56,6 +58,10 @@ struct Player {
   @State play_area_height: number = 0
   @State play_area_width: number = 0
   @State onSwiping: boolean = false
+  @State onSwipingVoice: boolean = false
+  @State onSwipingBrightness: boolean = false
+  @State isLeftSideSwipe: boolean = false
+  @State isRightSideSwipe: boolean = false
   @State volume: number = 0
   @State max_volume: number = 0
   @State min_volume: number = 0
@@ -72,7 +78,7 @@ struct Player {
         AVVolumePanel({
           volumeLevel: this.volume,
         })
-      }.visibility(Visibility.Hidden).width(0).height(0)
+      }.visibility(Visibility.None)
 
       Row() {
         Slider({
@@ -214,38 +220,30 @@ struct Player {
         return;
       }
       let audioVolumeGroupManager = value;
-      hilog.info(0x0000, 'AVPlayer', `Callback invoked to indicate that the volume group infos list is obtained.`);
-
       audioVolumeGroupManager.getVolume(audio.AudioVolumeType.MEDIA, (err: BusinessError, value: number) => {
         if (err) {
           hilog.error(0x0000, 'AVPlayer', `Failed to obtain the volume. ${err}`);
           return;
         }
         this.volume = value;
-        hilog.info(0x0000, 'AVPlayer', `Callback invoked to indicate that the volume is obtained. ${value}`);
       });
-
       audioVolumeGroupManager.getMaxVolume(audio.AudioVolumeType.MEDIA, (err: BusinessError, value: number) => {
         if (err) {
           hilog.error(0x0000, 'AVPlayer', `Failed to obtain the maximum volume. ${err}`);
           return;
         }
         this.max_volume = value
-        hilog.info(0x0000, 'AVPlayer', `Callback invoked to indicate that the maximum volume is obtained. ${value}`);
       });
-
       audioVolumeGroupManager.getMinVolume(audio.AudioVolumeType.MEDIA, (err: BusinessError, value: number) => {
         if (err) {
           hilog.error(0x0000, 'AVPlayer', `Failed to obtain the minimum volume. ${err}`);
           return;
         }
         this.min_volume = value
-        hilog.info(0x0000, 'AVPlayer', `Callback invoked to indicate that the minimum volume is obtained. ${value}`);
       });
     });
     settings.getValue(context, settings.display.SCREEN_BRIGHTNESS_STATUS, settings.domainName.DEVICE_SHARED)
       .then((value) => {
-        hilog.info(0x0000, 'AVPlayer', `Promise:value -> ${JSON.stringify(value)}`);
         this.screenBrightness = Number(value) / 255;
         this.screenBrightnessAtFirst = this.screenBrightness
       })
@@ -259,7 +257,6 @@ struct Player {
             hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness. Cause: ${JSON.stringify(err)}`);
             return;
           }
-          hilog.info(0x0000, 'AVPlayer', `Succeeded in setting the brightness.`);
         });
       } catch (exception) {
         hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness.`);
@@ -277,42 +274,16 @@ struct Player {
     if (!this.now_playing) {
       return
     }
-    if (this.now_playing.size[0] > this.now_playing.size[1]) {
-      if (this.screen_width > this.screen_height) {
-        if (this.now_playing.size[0] / this.now_playing.size[1] > this.screen_width / this.screen_height) {
-          this.play_area_width = this.screen_width
-          this.play_area_height = this.play_area_width * (this.now_playing?.size[1] / this.now_playing?.size[0])
-        } else {
-          this.play_area_height = this.screen_height
-          this.play_area_width = this.play_area_height * (this.now_playing?.size[0] / this.now_playing?.size[1])
-        }
-      } else {
-        if (this.now_playing.size[0] / this.now_playing.size[1] > this.screen_width / this.screen_height) {
-          this.play_area_width = this.screen_width
-          this.play_area_height = this.play_area_width * (this.now_playing?.size[1] / this.now_playing?.size[0])
-        } else {
-          this.play_area_height = this.screen_height
-          this.play_area_width = this.play_area_height * (this.now_playing?.size[0] / this.now_playing?.size[1])
-        }
-      }
+    const nowWidth = this.now_playing.size[0];
+    const nowHeight = this.now_playing.size[1];
+    const aspectRatioNow = nowWidth / nowHeight;
+    const screenAspectRatio = this.screen_width / this.screen_height;
+    if (aspectRatioNow > screenAspectRatio) {
+      this.play_area_width = this.screen_width;
+      this.play_area_height = this.play_area_width * (nowHeight / nowWidth);
     } else {
-      if (this.screen_width > this.screen_height) {
-        if (this.now_playing.size[0] / this.now_playing.size[1] > this.screen_width / this.screen_height) {
-          this.play_area_width = this.screen_width
-          this.play_area_height = this.play_area_width * (this.now_playing?.size[1] / this.now_playing?.size[0])
-        } else {
-          this.play_area_height = this.screen_height
-          this.play_area_width = this.play_area_height * (this.now_playing?.size[0] / this.now_playing?.size[1])
-        }
-      } else {
-        if (this.now_playing.size[0] / this.now_playing.size[1] > this.screen_width / this.screen_height) {
-          this.play_area_width = this.screen_width
-          this.play_area_height = this.play_area_width * (this.now_playing?.size[1] / this.now_playing?.size[0])
-        } else {
-          this.play_area_height = this.screen_height
-          this.play_area_width = this.play_area_height * (this.now_playing?.size[0] / this.now_playing?.size[1])
-        }
-      }
+      this.play_area_height = this.screen_height;
+      this.play_area_width = this.play_area_height * (nowWidth / nowHeight);
     }
   }
 
@@ -417,7 +388,6 @@ struct Player {
       }
       .height('100%')
       .width('100%')
-      // 图片组件的绘制区域扩展至状态栏和导航条。
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
 
       Stack() {
@@ -539,8 +509,7 @@ struct Player {
       .visibility(this.LongPress ? Visibility.Visible : Visibility.Hidden)
       .animation({ duration: 300, curve: Curve.Smooth })
 
-      //快进提示
-      Stack() {
+      Stack() { //快进提示
         Text((this.play_time - this.last_play_time > 0 ? '+' : '') +
         Math.floor((this.play_time - this.last_play_time) / 1000) + 's')
           .fontColor($r('sys.color.white'))
@@ -559,38 +528,163 @@ struct Player {
       .visibility(this.onSwiping ? Visibility.Visible : Visibility.Hidden)
       .animation({ duration: 300, curve: Curve.Smooth })
 
+      Stack() { //音量提示
+        Column() {
+          AVVolumePanel({
+            volumeLevel: this.volume,
+          }).visibility(Visibility.None)
+          SymbolGlyph($r('sys.symbol.speaker_wave_1'))
+            .fontSize(23)
+            .fontColor(['#f0f0f0'])
+          Slider({
+            value: this.volume,
+            min: this.min_volume,
+            max: this.max_volume,
+            step: 0.1,
+            style: SliderStyle.NONE,
+            direction: Axis.Horizontal,
+            reverse: false
+          })
+            .width(60)
+            .height(30)
+            .selectedColor(Color.White)
+            .trackColor(Color.Black)
+            .trackThickness(40)
+            .onChange((value) => {
+              this.volume = value
+            })
+        }
+      }
+      .padding({
+        left: 25,
+        right: 25,
+        top: 10,
+        bottom: 10
+      })
+      .borderRadius(1000)
+      .backgroundColor('#30000000')
+      .backdropBlur(100)
+      .visibility(this.onSwipingVoice ? Visibility.Visible : Visibility.Hidden)
+      .animation({ duration: 300, curve: Curve.Smooth })
+
+      Stack() { //亮度提示
+        Column() {
+          SymbolGlyph($r('sys.symbol.sun_max'))
+            .fontSize(23)
+            .fontColor(['#f0f0f0'])
+          Slider({
+            value: this.screenBrightness,
+            min: 0,
+            max: 1,
+            step: 0.1,
+            style: SliderStyle.NONE,
+            direction: Axis.Horizontal,
+            reverse: false
+          })
+            .width(60)
+            .height(30)
+            .selectedColor(Color.White)
+            .trackColor(Color.Black)
+            .trackThickness(40)
+            .onChange((value) => {
+              this.screenBrightness = value
+              try {
+                this.mainWin.setWindowBrightness(this.screenBrightness, (err) => {
+                  if (err) {
+                    hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness. Cause: ${JSON.stringify(err)}`);
+                    return;
+                  }
+                  hilog.info(0x0000, 'AVPlayer', `Succeeded in setting the brightness.`);
+                });
+              } catch (exception) {
+                hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness.`);
+              }
+            })
+        }
+      }
+      .padding({
+        left: 25,
+        right: 25,
+        top: 10,
+        bottom: 10
+      })
+      .borderRadius(1000)
+      .backgroundColor('#30000000')
+      .backdropBlur(100)
+      .visibility(this.onSwipingBrightness ? Visibility.Visible : Visibility.Hidden)
+      .animation({ duration: 300, curve: Curve.Smooth })
+
       Column()
         .width('100%')
         .height('50%')//触控区域
         .onTouch((event: TouchEvent) => {
           if (event.type == TouchType.Down) {
-            if (this.speed > 1) {
-              return
+            this.last_play_time = this.play_time;
+            this.SwipeStartX = Math.floor(event.touches[0].x);
+            this.SwipeStartY = Math.floor(event.touches[0].y);
+            if (this.SwipeStartX < this.screen_width / 2) {
+              this.isLeftSideSwipe = true; // 左边竖滑
+              this.isRightSideSwipe = false;
+            } else {
+              this.isLeftSideSwipe = false;
+              this.isRightSideSwipe = true; // 右边竖滑
             }
-            this.last_play_time = this.play_time
-            this.SwipeStartX = Math.floor(event.touches[0].x)
           }
           if (event.type == TouchType.Move) {
-            if (this.speed > 1) {
-              return
-            }
-            this.SwipeMovingX = Math.floor(event.touches[0].x) + 10
-            if (Math.abs(this.SwipeStartX - this.SwipeMovingX) > 10) {
-              this.onSwiping = true
-              this.ShowControl = true
+            this.SwipeMovingX = Math.floor(event.touches[0].x);
+            this.SwipeMovingY = Math.floor(event.touches[0].y);
+            if (Math.abs(this.SwipeStartX - this.SwipeMovingX) > 10 &&
+              Math.abs(this.SwipeStartY - this.SwipeMovingY) < 10) {
+              if (this.speed > 1) {
+                return;
+              }
+              this.onSwiping = true;
+              this.ShowControl = true;
               this.play_time = this.last_play_time + (this.SwipeMovingX - this.SwipeStartX) *
                 (Math.abs(this.SwipeStartX - this.SwipeMovingX) > 150 ?
-                  40 * (Math.abs(this.SwipeStartX - this.SwipeMovingX)) / 100 : 30)
+                  40 * (Math.abs(this.SwipeStartX - this.SwipeMovingX)) / 100 : 100);
+            } else if (Math.abs(this.SwipeStartY - this.SwipeMovingY) > 10 &&
+              Math.abs(this.SwipeStartX - this.SwipeMovingX) < 10) { // 处理竖滑
+              let offsetY = this.SwipeMovingY - this.SwipeStartY
+              if (this.isLeftSideSwipe) {
+                this.onSwipingVoice = true
+                let curVolume = this.volume - (vp2px(offsetY) / vp2px(this.screen_height))
+                curVolume = curVolume >= 15.0 ? 15.0 : curVolume;
+                curVolume = curVolume <= 0.0 ? 0.0 : curVolume;
+                this.volume = curVolume;
+              } else if (this.isRightSideSwipe) {
+                this.onSwipingBrightness = true
+                let curBrightness = this.screenBrightness - vp2px(offsetY) / vp2px(this.screen_height) / 10;
+                curBrightness = curBrightness >= 1.0 ? 1.0 : curBrightness;
+                curBrightness = curBrightness <= 0.0 ? 0.0 : curBrightness;
+                this.screenBrightness = curBrightness;
+                try {
+                  this.mainWin.setWindowBrightness(this.screenBrightness, (err) => {
+                    if (err) {
+                      hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness. Cause: ${JSON.stringify(err)}`);
+                      return;
+                    }
+                    hilog.info(0x0000, 'AVPlayer', `Succeeded in setting the brightness.`);
+                  });
+                } catch (exception) {
+                  hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness.`);
+                }
+              }
             }
           }
           if (event.type == TouchType.Up) {
-            if (Math.abs(this.SwipeStartX - this.SwipeMovingX) > 10) {
-              this.avPlayer?.seek(this.play_time)
+            if (Math.abs(this.SwipeStartX - this.SwipeMovingX) > 10 &&
+              Math.abs(this.SwipeStartY - this.SwipeMovingY) < 10) {
+              this.avPlayer?.seek(this.play_time);
             }
-            this.onSwiping = false
+            this.onSwiping = false;
+            if (Math.abs(this.SwipeStartY - this.SwipeMovingY) > 10) { // 处理竖滑结束
+              this.onSwipingVoice = false
+              this.onSwipingBrightness = false
+            }
             if (this.LongPress) {
-              this.LongPress = false
-              this.avPlayer?.setSpeed(this.last_speed)
+              this.LongPress = false;
+              this.avPlayer?.setSpeed(this.last_speed);
             }
           }
         })
@@ -701,6 +795,7 @@ struct Player {
           })
         }.width('20%')
       }.width('60%')
+
       Row() {
         Row() {
           Button({ type: ButtonType.Circle, stateEffect: true }) { // 亮度按钮

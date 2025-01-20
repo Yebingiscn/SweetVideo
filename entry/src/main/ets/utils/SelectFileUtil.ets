@@ -1,7 +1,10 @@
 import { common } from '@kit.AbilityKit';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
-import { picker } from '@kit.CoreFileKit';
-import VideoUtil from '../utils/VideoUtil';
+import { fileIo as fs, picker } from '@kit.CoreFileKit';
+import VideoUtil, { VideoMetadata } from './VideoInfoUtil';
+import { BusinessError } from '@kit.BasicServicesKit';
+import DataSyncUtil from './DataSyncUtil';
+import PreferencesUtil from './PreferencesUtil';
 
 class SelectFileUtil {
   async selectFiles(): Promise<string[]> {
@@ -29,6 +32,17 @@ class SelectFileUtil {
       console.error("Error selecting videos:", error);
       return []; // 捕获错误并返回空数组
     }
+  }
+
+  copyFile(saver: picker.DocumentViewPicker, saverOption: picker.DocumentSaveOptions, file: fs.File) {
+    saver.save(saverOption, (err: BusinessError, documentSaveResult: string[]) => {
+      if (!err) {
+        let file1 = fs.openSync(documentSaveResult[0], fs.OpenMode.READ_WRITE)
+        fs.copyFileSync(file.fd, file1.fd)
+        fs.close(file.fd)
+        fs.close(file1.fd)
+      }
+    })
   }
 }
 

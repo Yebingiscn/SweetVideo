@@ -1,5 +1,5 @@
 import DataSyncUtil from '../utils/DataSyncUtil'
-import { VideoMetadata } from '../utils/VideoUtil';
+import { VideoMetadata } from '../utils/VideoInfoUtil';
 
 @CustomDialog
 export struct editMetadataDialog { //编辑元数据弹窗

@@ -115,6 +115,18 @@
     {
       "name": "sort_by_time",
       "value": "Sort by add time"
+    },
+    {
+      "name": "multiple_choice",
+      "value": "Multiple choice"
+    },
+    {
+      "name": "select_all",
+      "value": "Select All"
+    },
+    {
+      "name": "delete_selected",
+      "value": "Delete Selected"
     }
   ]
 }
