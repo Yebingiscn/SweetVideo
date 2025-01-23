@@ -1,6 +1,7 @@
 {
   "src": [
     "pages/Index",
-    "pages/Player"
+    "pages/Player",
+    "pages/FFmpegPlayer"
   ]
 }

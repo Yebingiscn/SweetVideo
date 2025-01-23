@@ -127,6 +127,10 @@
     {
       "name": "delete_selected",
       "value": "删除所选"
+    },
+    {
+      "name": "FFmpeg_Player",
+      "value": "FFmpeg 播放器"
     }
   ]
 }

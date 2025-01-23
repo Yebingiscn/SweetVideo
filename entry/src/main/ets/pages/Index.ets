@@ -51,6 +51,31 @@ struct Index {
   MenuBuilder(item: VideoMetadata | undefined) {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
       Row() {
+        Image($r("app.media.ffmpeg"))
+          .backgroundImageSize(ImageSize.Cover)
+          .borderRadius(10)
+          .width(25)
+          .height(25)
+          .sourceSize({ width: 25, height: 25 })
+        Text($r('app.string.FFmpeg_Player'))
+          .fontSize(20)
+          .width(180)
+          .height(40)
+      }.padding(10).onClick(() => {
+        router.pushUrl({
+          url: 'pages/FFmpegPlayer',
+          params: {
+            metadata: JSON.stringify(this.encryption ?
+            this.video_meta_data_encryption.find(i => i.date === item?.date) :
+            this.video_meta_data.find(i => i.date === item?.date))
+          }
+        }, router.RouterMode.Standard, (err) => {
+          hilog.info(0xFF00, "testTag", String(err));
+        });
+      })
+
+      Divider().height(2)
+      Row() {
         SymbolGlyph($r('sys.symbol.trash_fill'))
           .fontSize(20)
           .fontColor([$r('app.color.text_color')])
@@ -58,16 +83,14 @@ struct Index {
           .height(40)
         Text($r('app.string.delete'))
           .fontSize(20)
-          .width(100)
-          .height(50)
-      }
-      .padding(10)
-      .onClick(() => {
+          .width(180)
+          .height(40)
+      }.padding(10).onClick(() => {
         DataSyncUtil.editing_video = JSON.stringify(item)
         this.delConfirmDialog.open()
       })
 
-      Divider().height(10)
+      Divider().height(2)
       Row() {
         SymbolGlyph($r('sys.symbol.rename'))
           .fontSize(20)
@@ -76,15 +99,14 @@ struct Index {
           .height(40)
         Text($r('app.string.edit'))
           .fontSize(20)
-          .width(100)
-          .height(50)
-      }.padding(10)
-      .onClick(() => {
+          .width(180)
+          .height(40)
+      }.padding(10).onClick(() => {
         DataSyncUtil.editing_video = JSON.stringify(item)
         this.editMetadataDialogController.open()
       })
 
-      Divider().height(10)
+      Divider().height(2)
       Row() {
         SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
           .fontSize(20)
@@ -93,14 +115,14 @@ struct Index {
           .height(40)
         Text($r('app.string.multiple_choice'))
           .fontSize(20)
-          .width(100)
-          .height(50)
-      }.onClick(() => {
+          .width(180)
+          .height(40)
+      }.padding(10).onClick(() => {
         this.itemMultipleChooseState =
           this.itemMultipleChooseState == Visibility.None ? Visibility.Visible : Visibility.None;
         this.delMultipleList.length = 0
       })
-    }.width(100).onAppear(() => {
+    }.width(180).onAppear(() => {
       ToolsUtil.startVibration()
       this.MenuBuilderState = true
     })
@@ -119,9 +141,7 @@ struct Index {
           .fontSize(20)
           .width(100)
           .height(50)
-      }
-      .padding(10)
-      .onClick(() => {
+      }.padding(10).onClick(() => {
         this.show_list =
           ToolsUtil.compareName(this.show_list, this.encryption, this.video_meta_data_encryption, this.video_meta_data)
         PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data);
@@ -140,8 +160,7 @@ struct Index {
           .fontSize(20)
           .width(100)
           .height(50)
-      }.padding(10)
-      .onClick(() => {
+      }.padding(10).onClick(() => {
         this.show_list = this.encryption
           ? this.video_meta_data_encryption.sort((a, b) => a.date.localeCompare(b.date)).map(i => i.date)
           : this.video_meta_data.sort((a, b) => a.date.localeCompare(b.date)).map(i => i.date);
@@ -165,9 +184,7 @@ struct Index {
           .fontSize(20)
           .width(100)
           .height(50)
-      }
-      .padding(10)
-      .onClick(() => {
+      }.padding(10).onClick(() => {
         this.itemMultipleChoose = false
         this.itemMultipleChooseState = Visibility.None
         this.delMultipleList.length = 0
@@ -184,8 +201,7 @@ struct Index {
           .fontSize(20)
           .width(100)
           .height(50)
-      }.padding(10)
-      .onClick(() => {
+      }.padding(10).onClick(() => {
         this.itemMultipleChoose = !this.itemMultipleChoose
       })
 
@@ -200,8 +216,7 @@ struct Index {
           .fontSize(20)
           .width(100)
           .height(50)
-      }.padding(10)
-      .onClick(() => {
+      }.padding(10).onClick(() => {
         this.itemMultipleChoose = false;
         this.itemMultipleChooseState = Visibility.None;
         if (this.delMultipleList.length > 0) {
@@ -464,14 +479,14 @@ struct Index {
 
         Column() {
           Stack() {
-            Image($r("app.media.background"))
+            Image($r("app.media.Background"))
               .backgroundImageSize(ImageSize.Cover)
               .borderRadius(10)
               .width('100%')
               .height('17%')
               .zIndex(1)
             Row() {
-              Image($r("app.media.foreground"))
+              Image($r("app.media.Foreground"))
                 .backgroundImageSize(ImageSize.Cover)
                 .width(40)
                 .height(40)
@@ -619,10 +634,7 @@ struct Index {
                     .height(75)
                     .backgroundImageSize(ImageSize.Cover)
                     .borderRadius(5)
-                    .sourceSize({
-                      width: 75,
-                      height: 75
-                    })
+                    .sourceSize({ width: 75, height: 75 })
                   Column() {
                     Row() {
                       Text((String(this.encryption ?
@@ -636,9 +648,7 @@ struct Index {
                         .maxLines(3)
                         .textOverflow({ overflow: TextOverflow.Ellipsis })
                         .width('82%')
-                      Checkbox({
-                        name: item, group: 'checkboxGroup'
-                      })
+                      Checkbox({ name: item, group: 'checkboxGroup' })
                         .width(30)
                         .height(30)
                         .select(this.itemMultipleChoose)
@@ -649,12 +659,9 @@ struct Index {
                           const foundMetadata = this.encryption
                             ? this.video_meta_data_encryption.find(i => i.date === item)
                             : this.video_meta_data.find(i => i.date === item);
-                          if (foundMetadata && !this.delMultipleList.includes(foundMetadata)) {
-                            this.delMultipleList.push(foundMetadata)
-                          } else {
-                            this.delMultipleList =
-                              this.delMultipleList.filter(i => i !== foundMetadata)
-                          }
+                          foundMetadata && !this.delMultipleList.includes(foundMetadata) ?
+                          this.delMultipleList.push(foundMetadata) : this.delMultipleList =
+                            this.delMultipleList.filter(i => i !== foundMetadata)
                         })
                     }
 
@@ -669,8 +676,7 @@ struct Index {
                           .height(25)
                       } else if (VideoUtil.videoSizeFormat(String(this.encryption ?
                         this.video_meta_data_encryption.find(i => i.date == item)?.size :
-                        this.video_meta_data.find(i => i.date == item)?.size))
-                        .includes('HD')) {
+                        this.video_meta_data.find(i => i.date == item)?.size)).includes('HD')) {
                         Text(VideoUtil.videoSizeFormat(String(this.encryption ?
                           this.video_meta_data_encryption.find(i => i.date == item)?.size :
                           this.video_meta_data.find(i => i.date == item)?.size)))
@@ -711,15 +717,11 @@ struct Index {
                         .fontSize(15)
                         .fontWeight(FontWeight.Normal)
                         .opacity(0.8)
-                    }.justifyContent(FlexAlign.Center).padding({
-                      top: 5,
-                    })
+                    }.justifyContent(FlexAlign.Center).padding({ top: 5, })
                   }.alignItems(HorizontalAlign.Start).padding(10).width('90%')
                 }.justifyContent(FlexAlign.Center)
               }
-              .padding({
-                left: 10
-              })
+              .padding({ left: 10 })
               .height(120)
               .backgroundColor($r('app.color.list_item_background'))
               .borderRadius(10)
@@ -772,11 +774,9 @@ struct Index {
             ListItem().height(50)
           })
         }
-        .layoutWeight('100%')
-        .edgeEffect(EdgeEffect.Spring) // 边缘效果设置为Spring
         .lanes(this.list_line)
         .animation({ duration: 300, curve: Curve.Smooth })
-        .scrollBar(BarState.Auto)
+        .scrollBar(BarState.Off)
         .chainAnimation(true)
         .width('100%')
         .onTouch(() => {
@@ -788,8 +788,7 @@ struct Index {
             Text($r('app.string.nothing')).fontSize(30).fontWeight(FontWeight.Bold)
             Text($r('app.string.open_side_bar_tip')).fontSize(15).fontWeight(FontWeight.Lighter).margin({ top: 20 })
           }.visibility(this.loading ? Visibility.Hidden : Visibility.Visible)
-        }
-        .height('100%')
+        }.height('100%')
         .visibility(this.show_list.length == 0 ? Visibility.Visible : Visibility.Hidden)
         .animation({ duration: 150, curve: Curve.Ease })
 
@@ -857,17 +856,13 @@ struct Index {
                     .getStringSync($r('app.string.entered_privacy_space')))
                   return
                 }
-                try {
-                  this.show_list = this.encryption ?
-                  this.video_meta_data_encryption.filter(i => i.title.toLowerCase().includes(value.toLowerCase()))
-                    .map(i => i.date) :
-                  this.video_meta_data.filter(i => i.title.toLowerCase().includes(value.toLowerCase()))
-                    .map(i => i.date)
-                  if (this.show_list.length == 0) {
-                    ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.no_search_result')))
-                  }
-                } catch (err) {
-                  hilog.error(0xFF00, "testTag", "search fail:" + err)
+                this.show_list = this.encryption ?
+                this.video_meta_data_encryption.filter(i => i.title.toLowerCase().includes(value.toLowerCase()))
+                  .map(i => i.date) :
+                this.video_meta_data.filter(i => i.title.toLowerCase().includes(value.toLowerCase()))
+                  .map(i => i.date)
+                if (this.show_list.length == 0) {
+                  ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.no_search_result')))
                 }
               })
               .height(40)
@@ -914,13 +909,11 @@ struct Index {
 
         Stack() {
           LoadingProgress().width(85).height(85)
-        }
-        .width('100%')
+        }.width('100%')
         .height('100%')
         .visibility(this.loading ? Visibility.Visible : Visibility.Hidden)
         .animation({ duration: 150, curve: Curve.Sharp })
-      }
-      .backgroundColor($r('app.color.start_window_background'))
+      }.backgroundColor($r('app.color.start_window_background'))
       .onAreaChange((_oldValue: Area, newValue: Area) => {
         this.list_line = Math.floor(new Number(newValue.width).valueOf() / 500 + 1)
         this.list_empty_item = []

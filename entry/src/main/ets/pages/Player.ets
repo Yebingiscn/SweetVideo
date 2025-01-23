@@ -374,8 +374,7 @@ struct Player {
   build() {
     Stack() {
       Stack() {
-        //播放器
-        Stack() {
+        Stack() { //播放器
           XComponent({ type: XComponentType.SURFACE, controller: this.xComponentController })
             .onLoad(() => {
               this.surfaceID = this.xComponentController.getXComponentSurfaceId()
@@ -388,15 +387,13 @@ struct Player {
       }
       .height('100%')
       .width('100%')
-      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
 
       Stack() {
         Flex({
           justifyContent: FlexAlign.SpaceBetween,
           alignItems: ItemAlign.Center,
           direction: FlexDirection.Column
-        }) {
-          //顶栏
+        }) { //顶栏
           Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
             SymbolGlyph($r('sys.symbol.chevron_left'))
               .fontSize(40)
@@ -405,11 +402,9 @@ struct Player {
                 this.avPlayer?.reset()
                 router.back()
               })
-              .padding({
-                right: 10
-              })
+              .padding({ right: 10 })
             Row() {
-              Text((String(this.now_playing?.title).slice(0, this.now_playing?.title.lastIndexOf('.'))))
+              Text(String(this.now_playing?.title).slice(0, this.now_playing?.title.lastIndexOf('.')))
                 .fontSize(20)
                 .fontWeight(FontWeight.Medium)
                 .width('77%')
@@ -488,7 +483,6 @@ struct Player {
           .width('100%')
           .padding(1)
           .backgroundColor('#61000000')
-          .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
         }.height('100%').width('100%')
       }
       .visibility(this.ShowControl ? Visibility.Visible : Visibility.Hidden)
@@ -586,20 +580,6 @@ struct Player {
             .selectedColor(Color.White)
             .trackColor(Color.Black)
             .trackThickness(40)
-            .onChange((value) => {
-              this.screenBrightness = value
-              try {
-                this.mainWin.setWindowBrightness(this.screenBrightness, (err) => {
-                  if (err) {
-                    hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness. Cause: ${JSON.stringify(err)}`);
-                    return;
-                  }
-                  hilog.info(0x0000, 'AVPlayer', `Succeeded in setting the brightness.`);
-                });
-              } catch (exception) {
-                hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness.`);
-              }
-            })
         }
       }
       .padding({
@@ -707,8 +687,7 @@ struct Player {
       this.screen_width = Math.floor(new Number(newValue.width).valueOf())
       this.screen_height = Math.floor(new Number(newValue.height).valueOf())
       this.setRotation()
-    })
-    .backgroundColor($r('sys.color.black'))
+    }).backgroundColor($r('sys.color.black'))
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 

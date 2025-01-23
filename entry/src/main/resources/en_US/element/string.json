@@ -127,6 +127,10 @@
     {
       "name": "delete_selected",
       "value": "Delete Selected"
+    },
+    {
+      "name": "FFmpeg_Player",
+      "value": "FFmpeg  Player"
     }
   ]
 }
