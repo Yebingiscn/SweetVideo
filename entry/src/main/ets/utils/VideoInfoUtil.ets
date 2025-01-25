@@ -32,7 +32,7 @@ class VideoInfoUtil {
     new Map([[0.125, media.PlaybackSpeed.SPEED_FORWARD_0_125_X], [0.5, media.PlaybackSpeed.SPEED_FORWARD_0_50_X],
       [0.75, media.PlaybackSpeed.SPEED_FORWARD_0_75_X], [1.25, media.PlaybackSpeed.SPEED_FORWARD_1_25_X],
       [1.5, media.PlaybackSpeed.SPEED_FORWARD_1_50_X], [1.75, media.PlaybackSpeed.SPEED_FORWARD_1_75_X]])
-  public support_video_format = ['mp4', 'flv', 'mkv', 'ts', 'mov'] // rmvb wmv
+  public support_video_format = ['mp4', 'flv', 'mkv', 'ts', 'mov', 'rmvb'] // rmvb wmv
 
   // 设置存储的视频信息
   async setVideoInfo(date: string, uri: string, file_name: string, metadata: media.AVMetadata, encryption: boolean,

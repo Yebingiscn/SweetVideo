@@ -47,9 +47,8 @@ const context = getContext() as common.UIAbilityContext;
 @Component
 struct EnhancePlayer {
   avSession: avSessionManager.AVSession | undefined = undefined;
-  @State play_area_height: number = 0
-  @State play_area_width: number = 0
-  @State played: boolean = false
+  @State play_area_height: number = 1
+  @State play_area_width: number = 1
   @State screen_width: number = 0
   @State screen_height: number = 0
   @State play_time: number = 0
@@ -64,14 +63,13 @@ struct EnhancePlayer {
   @State replayVisible: Visibility = Visibility.None;
   @State volume: number = 1.0;
   @State playSpeed: string = '1f';
-  @State initAspectRatio: number = 1;
-  @State videoParentAspectRatio: number = this.initAspectRatio;
   now_playing: VideoMetadata | undefined = undefined
   @State oldSeconds: number = 0;
-  @State player_control: Visibility = Visibility.Visible
   @State video_url: string = ''
+  @State total_time: number = 0
   windowClass = window.getLastWindow(context)
   xComponentController: XComponentController = new XComponentController()
+  @State @Watch('setScreen') ShowControl: boolean = false
 
   build() {
     Stack() {
@@ -89,16 +87,12 @@ struct EnhancePlayer {
                 await PermissionUtil.activatePermission(this.now_playing?.uri || '')
                 const file = fs.openSync(this.now_playing?.uri)
                 this.video_url = file.path
-                this.setRotation()
               }
             })
-            .width(this.play_area_width)
-            .height(this.play_area_height)
-            .animation({ duration: this.played ? 300 : 0, curve: Curve.Ease })
-            .id('xcomponentId')
         }
-        .height('100%')
-        .width('100%')
+        .width(this.play_area_width)
+        .height(this.play_area_height)
+        .animation({ duration: this.play_time > 300 ? 300 : 0, curve: Curve.Ease })
       }
 
       Stack() {
@@ -152,7 +146,7 @@ struct EnhancePlayer {
           .backgroundColor('#61000000')
         }.height('100%').width('100%')
       }
-      .visibility(this.player_control)
+      .visibility(this.ShowControl ? Visibility.Visible : Visibility.Hidden)
       .animation({ duration: 300, curve: Curve.Smooth })
 
       Column()
@@ -171,14 +165,14 @@ struct EnhancePlayer {
             }),
           TapGesture({ count: 1 })
             .onAction(() => {
-              this.player_control = this.player_control == Visibility.Visible ? Visibility.Hidden : Visibility.Visible
+              this.ShowControl = !this.ShowControl
             })
         ))
     }
     .onAreaChange(async (_oldValue: Area, newValue: Area) => {
       this.screen_width = Math.floor(new Number(newValue.width).valueOf())
       this.screen_height = Math.floor(new Number(newValue.height).valueOf())
-      this.setRotation()
+      this.getVideoSize()
     })
     .backgroundColor($r('sys.color.black'))
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
@@ -187,15 +181,15 @@ struct EnhancePlayer {
   @Builder
   VideoSlider() {
     Row({ space: 10 }) {
-      Text(TimeUtil.convertMsToMMSS(Math.min(Math.max(this.play_time, 0), (this.now_playing?.time || 0))) + '/' +
-      TimeUtil.convertMsToMMSS(this.now_playing?.time || 0))
+      Text(TimeUtil.convertMsToMMSS(Math.min(Math.max(this.play_time, 0), (this.total_time || 0))) + '/' +
+      TimeUtil.convertMsToMMSS(this.total_time || 0))
         .fontWeight(FontWeight.Medium)
         .fontSize(16)
         .fontColor($r('sys.color.white'))
       Slider({
         value: this.play_time,
         min: 0,
-        max: this.now_playing?.time,
+        max: this.total_time,
         style: SliderStyle.InSet
       })
         .onChange((value: number) => {
@@ -210,8 +204,8 @@ struct EnhancePlayer {
         .width(this.screen_width > this.screen_height ? '75%' : '50%')
         .animation({ duration: 100, curve: Curve.Smooth })
         .selectedColor('#e0e0e0')
-      Text(TimeUtil.convertMsToMMSS(Math.min(Math.max((this.now_playing?.time || 0) - this.play_time, 0),
-        (this.now_playing?.time || 0))))
+      Text(TimeUtil.convertMsToMMSS(Math.min(Math.max((this.total_time || 0) - this.play_time, 0),
+        (this.total_time || 0))))
         .fontWeight(FontWeight.Medium).fontSize(15)
         .fontColor($r('sys.color.white'))
     }
@@ -244,6 +238,24 @@ struct EnhancePlayer {
           })
         }.width('30%')
 
+        Row() {
+          Button({ type: ButtonType.Circle, stateEffect: true }) { // 全屏按钮
+            SymbolGlyph($r('sys.symbol.screen_rotation'))
+              .fontSize(23)
+              .fontColor(['#f0f0f0'])
+          }
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+          .height(40)
+          .width(40)
+          .backgroundColor('#50000000')
+          .onClick(async () => {
+            if (this.screen_height > this.screen_width) {
+              (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE)
+            } else {
+              (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_PORTRAIT)
+            }
+          })
+        }.width('55%')
       }.width('40%')
     }.width('95%')
   }
@@ -290,16 +302,22 @@ struct EnhancePlayer {
     clearInterval(this.updateProgressTimer);
   }
 
+  async setScreen() {
+    await (await this.windowClass).setSpecificSystemBarEnabled('status', this.ShowControl)
+    await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', this.ShowControl)
+  }
+
   private setProgress() { //设置进度条
     let position = this.mIjkMediaPlayer.getCurrentPosition();
     let duration = this.mIjkMediaPlayer.getDuration();
     let pos = 0;
+    this.total_time = duration
     if (duration > 0) {
       this.slideEnable = true;
       let curPercent = position / duration;
       pos = curPercent * 100;
-      if (pos > (this.now_playing?.time || 0)) {
-        this.play_time = this.now_playing?.time || 0
+      if (pos > (this.total_time || 0)) {
+        this.play_time = this.total_time || 0
       } else {
         this.play_time = pos;
       }
@@ -328,17 +346,18 @@ struct EnhancePlayer {
     }
     this.CONTROL_PlayStatus = PlayStatus.PLAY;
     //设置debug模式
-    this.mIjkMediaPlayer.setDebug(false);
+    this.mIjkMediaPlayer.setDebug(true);
     //初始化配置
     this.mIjkMediaPlayer.native_setup();
     // 初始化配置后需要重新设置音频流音量，否则音量为默认值1.0
-    this.mIjkMediaPlayer.setVolume(this.volume.toString(), this.volume.toString());
+    this.mIjkMediaPlayer.setVolume((this.volume / 15).toString(), (this.volume / 15).toString());
     //设置视频源
     this.mIjkMediaPlayer.setDataSource(this.video_url);
     //使用精确寻帧 例如，拖动播放后，会寻找最近的关键帧进行播放，很有可能关键帧的位置不是拖动后的位置，而是较前的位置.可以设置这个参数来解决问题
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "enable-accurate-seek", "1");
     //预读数据的缓冲区大小
-    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", "204800");
+    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size",
+      "943718400"); // 204800 943718400
     //停止预读的最小帧数
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "min-frames", "120");
     //启动预加载
@@ -347,10 +366,16 @@ struct EnhancePlayer {
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "packet-buffering", "1");
     //跳帧处理,放CPU处理较慢时，进行跳帧处理，保证播放流程，画面和声音同步
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "framedrop", "5");
-    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-av1", "1");
+    // this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-all-videos", "1");
+    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-hevc", "1");
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-sync", "1");
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-auto-rotate", "1");
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-handle-resolution-change", "1");
+    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "skip_loop_filter", "48L");
+    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzeduration", "100");
+    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzemaxduration", '100L');
+    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "lush_packets", '1L');
+
     // 屏幕常亮
     this.mIjkMediaPlayer.setScreenOnWhilePlaying(true);
     // 变速播放
@@ -364,13 +389,15 @@ struct EnhancePlayer {
         if (height === 0) {
           return;
         }
-        const va = width / height;
-        const vpa = that.videoParentAspectRatio;
-        // if (vpa > va) {
-        //   this.play_area_width = (width / (height * vpa)) * 100;
-        // } else {
-        //   this.play_area_width = width;
-        // }
+        const aspectRatioNow = width / height;
+        const screenAspectRatio = this.screen_width / this.screen_height;
+        if (aspectRatioNow > screenAspectRatio) {
+          this.play_area_width = this.screen_width;
+          this.play_area_height = this.play_area_width * (height / width);
+        } else {
+          this.play_area_height = this.screen_height;
+          this.play_area_width = this.play_area_height * (width / height);
+        }
         that.getVideoSize();
       }
     }
@@ -474,7 +501,7 @@ struct EnhancePlayer {
     }
   }
 
-  aboutToAppear() {
+  async aboutToAppear() {
     LogUtils.getInstance().LOGI("aboutToAppear");
     let record = router.getParams() as Record<string, string>
     if (record) {
@@ -484,6 +511,7 @@ struct EnhancePlayer {
     let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
     let audioManager = audio.getAudioManager();
     let audioVolumeManger: audio.AudioVolumeManager = audioManager.getVolumeManager();
+    this.setScreen()
     audioVolumeManger.getVolumeGroupManager(groupId, (err: BusinessError, value: audio.AudioVolumeGroupManager) => {
       if (err) {
         hilog.error(0x0000, 'AVPlayer', `Failed to obtain the colume group infos list. ${err}`);
@@ -498,6 +526,8 @@ struct EnhancePlayer {
         this.volume = value;
       });
     })
+    await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
+    await (await this.windowClass).setWindowKeepScreenOn(true)
     let event: Callback<InterruptEvent> = (event) => {
       LogUtils.getInstance().LOGI(`event: ${JSON.stringify(event)}`);
       if (event.hintType === InterruptHintType.INTERRUPT_HINT_PAUSE) {
@@ -555,27 +585,20 @@ struct EnhancePlayer {
     })
   }
 
-  async setRotation() {
-    if (!this.now_playing) {
-      return
-    }
-    const nowWidth = this.now_playing.size[0];
-    const nowHeight = this.now_playing.size[1];
-    const aspectRatioNow = nowWidth / nowHeight;
-    const screenAspectRatio = this.screen_width / this.screen_height;
-    if (aspectRatioNow > screenAspectRatio) {
-      this.play_area_width = this.screen_width;
-      this.play_area_height = this.play_area_width * (nowHeight / nowWidth);
-    } else {
-      this.play_area_height = this.screen_height;
-      this.play_area_width = this.play_area_height * (nowWidth / nowHeight);
-    }
-  }
-
   private getVideoSize() {
     let VideoWidth = this.mIjkMediaPlayer.getVideoWidth();
     LogUtils.getInstance().LOGI("getVideoWidth---" + VideoWidth);
     let VideoHeight = this.mIjkMediaPlayer.getVideoHeight();
     LogUtils.getInstance().LOGI("getVideoHeight---" + VideoHeight);
+    hilog.error(777, 'test', VideoWidth + 'wid' + VideoHeight)
+    const aspectRatioNow = VideoWidth / VideoHeight;
+    const screenAspectRatio = this.screen_width / this.screen_height;
+    if (aspectRatioNow > screenAspectRatio) {
+      this.play_area_width = this.screen_width;
+      this.play_area_height = this.play_area_width * (VideoHeight / VideoWidth);
+    } else {
+      this.play_area_height = this.screen_height;
+      this.play_area_width = this.play_area_height * (VideoWidth / VideoHeight);
+    }
   }
 }

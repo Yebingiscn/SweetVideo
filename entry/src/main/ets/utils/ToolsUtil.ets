@@ -74,6 +74,11 @@ class Tools {
     PreferencesUtil.putPreferencesValue('sweet_video', 'passwd', passwd)
     ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.set_passwd_tip')))
   }
+
+  calculateDelta(offset: number, stepSize: number, stepValue: number, directionSign: number) {
+    const steps = Math.floor(Math.abs(offset) / stepSize);
+    return steps > 0 ? steps * stepValue * directionSign : 0;
+  }
 }
 
 const ToolsUtil = new Tools()

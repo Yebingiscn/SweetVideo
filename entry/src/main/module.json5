@@ -23,7 +23,7 @@
         "startWindowIcon": "$media:layered_image",
         "startWindowBackground": "$color:start_window_background",
         "exported": true,
-        "orientation": "auto_rotation",
+        "orientation": "auto_rotation_restricted",
         // 随传感器旋转
         "skills": [
           {

@@ -421,14 +421,14 @@ struct Player {
                 { value: '3.0x' }])
                 .font({ size: 18, weight: FontWeight.Medium })
                 .fontColor($r('sys.color.white'))
-                .width('70%')
+                .width('35%')
                 .value(this.speed.toFixed(2) + 'x')
                 .onSelect((_index: number, text?: string | undefined) => {
                   this.avPlayer?.setSpeed(VideoSpeedUtil.getVideoSpeed(parseFloat(text?.replace('x', '') || '1')))
                 })
                 .backgroundColor('#00000000')
                 .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
-            }
+            }.height(this.screen_height > this.screen_width ? '5%' : '20%')
 
             Button({ type: ButtonType.Circle, stateEffect: true }) { // 旋转锁定
               SymbolGlyph(this.lock_rotation ? $r('sys.symbol.lock_fill') : $r('sys.symbol.rotate_left'))
@@ -614,7 +614,7 @@ struct Player {
             this.SwipeMovingX = Math.floor(event.touches[0].x);
             this.SwipeMovingY = Math.floor(event.touches[0].y);
             if (Math.abs(this.SwipeStartX - this.SwipeMovingX) > 10 &&
-              Math.abs(this.SwipeStartY - this.SwipeMovingY) < 10) {
+              Math.abs(this.SwipeStartY - this.SwipeMovingY) < 5) {
               if (this.speed > 1) {
                 return;
               }
@@ -626,18 +626,16 @@ struct Player {
             } else if (Math.abs(this.SwipeStartY - this.SwipeMovingY) > 10 &&
               Math.abs(this.SwipeStartX - this.SwipeMovingX) < 10) { // 处理竖滑
               let offsetY = this.SwipeMovingY - this.SwipeStartY
+              const step_area = this.screen_width > this.screen_height ? 10 : 50
+              const step = this.screen_width > this.screen_height ? 0.01 : 0.05
               if (this.isLeftSideSwipe) {
-                this.onSwipingVoice = true
-                let curVolume = this.volume - (vp2px(offsetY) / vp2px(this.screen_height))
-                curVolume = curVolume >= 15.0 ? 15.0 : curVolume;
-                curVolume = curVolume <= 0.0 ? 0.0 : curVolume;
-                this.volume = curVolume;
+                this.onSwipingVoice = true;
+                const delta = ToolsUtil.calculateDelta(offsetY, step_area, step, offsetY < 0 ? 1 : -1);
+                this.volume = Math.min(Math.max(this.volume + delta, 0.0), 15.0);
               } else if (this.isRightSideSwipe) {
-                this.onSwipingBrightness = true
-                let curBrightness = this.screenBrightness - vp2px(offsetY) / vp2px(this.screen_height) / 10;
-                curBrightness = curBrightness >= 1.0 ? 1.0 : curBrightness;
-                curBrightness = curBrightness <= 0.0 ? 0.0 : curBrightness;
-                this.screenBrightness = curBrightness;
+                this.onSwipingBrightness = true;
+                const delta = ToolsUtil.calculateDelta(offsetY, step_area, step / 10, offsetY < 0 ? 1 : -1);
+                this.screenBrightness = Math.min(Math.max(this.screenBrightness + delta, 0.0), 1.0);
                 try {
                   this.mainWin.setWindowBrightness(this.screenBrightness, (err) => {
                     if (err) {
@@ -814,9 +812,9 @@ struct Player {
           .backgroundColor('#50000000')
           .onClick(async () => {
             if (this.screen_height > this.screen_width) {
-              (await (this.windowClass)).setPreferredOrientation(window.Orientation.USER_ROTATION_LANDSCAPE)
+              (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE)
             } else {
-              (await (this.windowClass)).setPreferredOrientation(window.Orientation.USER_ROTATION_PORTRAIT)
+              (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_PORTRAIT)
             }
           })
         }.width('55%')
