@@ -94,7 +94,7 @@
     },
     {
       "name": "video_error",
-      "value": "Video Error! May not play properly"
+      "value": "Video exception, try to play using FFMpeg player"
     },
     {
       "name": "add_time_info",
@@ -131,6 +131,18 @@
     {
       "name": "FFmpeg_Player",
       "value": "FFmpeg  Player"
+    },
+    {
+      "name": "re_import_info",
+      "value": "Please re-import if it has been invalidated"
+    },
+    {
+      "name": "exist_privacy_space",
+      "value": "Exist privacy space"
+    },
+    {
+      "name": "privacy_space_info",
+      "value": "Long press the privacy space button to reset the password, and enter the password in the input box to access the privacy space."
     }
   ]
 }

@@ -6,12 +6,15 @@ import VideoInfoUtil, { VideoMetadata } from './VideoInfoUtil';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import PreferencesUtil from './PreferencesUtil';
 import { media } from '@kit.MediaKit';
+import { router } from '@kit.ArkUI';
+import { JSON } from '@kit.ArkTS';
+import { hilog } from '@kit.PerformanceAnalysisKit';
 
 class Tools {
   showToast(text: string) {
     promptAction.showToast({
       message: text,
-      duration: 2000,
+      duration: 3500,
       backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THICK,
     });
   }
@@ -78,6 +81,33 @@ class Tools {
   calculateDelta(offset: number, stepSize: number, stepValue: number, directionSign: number) {
     const steps = Math.floor(Math.abs(offset) / stepSize);
     return steps > 0 ? steps * stepValue * directionSign : 0;
+  }
+
+  isFileExist(item: VideoMetadata | undefined) {
+    try {
+      fs.openSync(String(item?.uri))
+      return true
+    } catch (e) {
+      hilog.error(777, 'testFlag', 'file error' + e)
+      return false
+    }
+  }
+
+  routerWhere(uri: string, item: string | undefined, encryption: boolean,
+    video_meta_data_encryption: VideoMetadata[], video_meta_data: VideoMetadata[]) {
+    router.pushUrl({
+      url: uri,
+      params: {
+        metadata: JSON.stringify(encryption ?
+        video_meta_data_encryption.find(i => i.date === item) :
+        video_meta_data.find(i => i.date === item)),
+        metadata_list: JSON.stringify(encryption ?
+        video_meta_data_encryption.find(i => i.date) :
+        video_meta_data.find(i => i.date))
+      }
+    }, router.RouterMode.Standard, (err) => {
+      hilog.info(0xFF00, "testTag", String(err));
+    });
   }
 }
 

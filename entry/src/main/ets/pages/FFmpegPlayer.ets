@@ -195,11 +195,9 @@ struct EnhancePlayer {
         .onChange((value: number) => {
           this.play_time = value
           this.mDestroyPage = false;
-          LogUtils.getInstance().LOGI("slider-->seekValue start:" + value);
           let seekValue = value
           this.seekTo(seekValue + "");
           this.setProgress()
-          LogUtils.getInstance().LOGI("slider-->seekValue end:" + seekValue);
         })
         .width(this.screen_width > this.screen_height ? '75%' : '50%')
         .animation({ duration: 100, curve: Curve.Smooth })
