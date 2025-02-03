@@ -3,10 +3,10 @@ import { photoAccessHelper } from '@kit.MediaLibraryKit';
 import { fileIo as fs, picker } from '@kit.CoreFileKit';
 import VideoUtil, { VideoMetadata } from './VideoInfoUtil';
 import { BusinessError } from '@kit.BasicServicesKit';
-import DataSyncUtil from './DataSyncUtil';
 import PreferencesUtil from './PreferencesUtil';
 
 class SelectFileUtil {
+  private queryCache = new Map<string, VideoMetadata>();
   async selectFiles(): Promise<string[]> {
     const documentSelectOptions = new picker.DocumentSelectOptions();
     documentSelectOptions.fileSuffixFilters = VideoUtil.support_video_format;
@@ -43,6 +43,54 @@ class SelectFileUtil {
         fs.close(file1.fd)
       }
     })
+  }
+
+  copyFileReName(item: VideoMetadata) {
+    return [item.title.split('.')[item.title.split('.').length - 1]
+      == item.format ? item.title : item.title + '.' + item.format]
+  }
+
+  async getVideMetaData() {
+    return await PreferencesUtil.getPreferencesValue('sweet_video', 'video_meta_data', []) as VideoMetadata[]
+  }
+
+  async getVideoMetaDataEncryption() {
+    return await PreferencesUtil.getPreferencesValue('sweet_video', 'video_meta_data_encryption', []) as VideoMetadata[]
+  }
+
+  async getPassword() {
+    return await PreferencesUtil.getPreferencesValue('sweet_video', 'passwd', '') as string
+  }
+
+  saveVideoMetaData(video_meta_data: VideoMetadata[]) {
+    PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', video_meta_data);
+  }
+
+  saveVideoMetaDataEncryption(video_meta_data_encryption: VideoMetadata[]) {
+    PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption', video_meta_data_encryption);
+  }
+
+  getItem(list: VideoMetadata[], item: string) {
+    if (this.queryCache.has(item)) {
+      return this.queryCache.get(item);
+    }
+    const foundItem = list.find(i => i.date == item);
+    if (foundItem) {
+      this.queryCache.set(item, foundItem);
+    }
+    return foundItem;
+  }
+
+  getAllItem(list: VideoMetadata[]) {
+    return list.map(i => i.date)
+  }
+
+  getSearchItem(list: VideoMetadata[], value: string) {
+    return list.filter(i => i.title.toLowerCase().includes(value.toLowerCase())).map(i => i.date)
+  }
+
+  getItemIndex(list: VideoMetadata[], tmp: VideoMetadata) {
+    return list.findIndex(i => i.title == tmp.title)
   }
 }
 

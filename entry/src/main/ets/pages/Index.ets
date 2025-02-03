@@ -3,7 +3,6 @@ import { common } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import { media } from '@kit.MediaKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import PreferencesUtil from '../utils/PreferencesUtil';
 import DataSyncUtil from '../utils/DataSyncUtil';
 import PermissionUtil from '../utils/PermissionUtil';
 import DataUtil from '../utils/DataUtil';
@@ -28,7 +27,6 @@ struct Index {
   windowClass = window.getLastWindow(context)
   @State topSafeHeight: number = 0;
   @State bottomSafeHeight: number = 0;
-  sandbox_path = getContext().filesDir + '/';
   @State video_meta_data: VideoMetadata[] = []
   @State video_meta_data_encryption: VideoMetadata[] = []
   @State now_playing: VideoMetadata | undefined = undefined
@@ -65,8 +63,8 @@ struct Index {
         let item_encryption = this.video_meta_data_encryption.find(i => i.date == item?.date)
         let item_unencrypted = this.video_meta_data.find(i => i.date == item?.date)
         ToolsUtil.isFileExist(this.encryption ? item_encryption : item_unencrypted) ?
-        ToolsUtil.routerWhere('pages/FFmpegPlayer', item?.date, this.encryption, this.video_meta_data_encryption,
-          this.video_meta_data) : this.deleteUnExistFile(this.encryption ? item_encryption : item_unencrypted)
+        ToolsUtil.routerWhere('pages/FFmpegPlayer', item?.date, this.encryption ? this.video_meta_data_encryption
+          : this.video_meta_data) : this.deleteUnExistFile(this.encryption ? item_encryption : item_unencrypted)
       })
 
       Divider().height(2)
@@ -137,11 +135,10 @@ struct Index {
           .width(100)
           .height(50)
       }.padding(10).onClick(() => {
-        this.show_list =
-          ToolsUtil.compareName(this.show_list, this.encryption, this.video_meta_data_encryption, this.video_meta_data)
-        PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data);
-        PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
-          this.video_meta_data_encryption)
+        this.show_list = ToolsUtil.compareByName(this.show_list,
+          this.encryption ? this.video_meta_data_encryption : this.video_meta_data)
+        this.encryption ? SelectFileUtil.saveVideoMetaDataEncryption(this.video_meta_data_encryption) :
+        SelectFileUtil.saveVideoMetaData(this.video_meta_data)
       })
 
       Divider().height(10)
@@ -156,12 +153,10 @@ struct Index {
           .width(100)
           .height(50)
       }.padding(10).onClick(() => {
-        this.show_list = this.encryption
-          ? this.video_meta_data_encryption.sort((a, b) => a.date.localeCompare(b.date)).map(i => i.date)
-          : this.video_meta_data.sort((a, b) => a.date.localeCompare(b.date)).map(i => i.date);
-        PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data);
-        PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
-          this.video_meta_data_encryption)
+        this.show_list = ToolsUtil.compareByTime(this.show_list,
+          this.encryption ? this.video_meta_data_encryption : this.video_meta_data)
+        this.encryption ? SelectFileUtil.saveVideoMetaDataEncryption(this.video_meta_data_encryption) :
+        SelectFileUtil.saveVideoMetaData(this.video_meta_data)
       })
     }.width(150)
   }
@@ -240,8 +235,8 @@ struct Index {
           return
         }
         let tmp = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata
-        let index = this.encryption ? this.video_meta_data_encryption.findIndex(i => i.title == tmp.title) :
-        this.video_meta_data.findIndex(i => i.title == tmp.title)
+        let index =
+          SelectFileUtil.getItemIndex(this.encryption ? this.video_meta_data_encryption : this.video_meta_data, tmp)
         if (this.encryption) {
           if (this.video_meta_data_encryption.map(i => i.title).includes(title)) {
             return
@@ -254,10 +249,9 @@ struct Index {
           this.video_meta_data[index].title = title
         }
         this.show_list =
-          this.encryption ? this.video_meta_data_encryption.map(i => i.date) : this.video_meta_data.map(i => i.date)
-        PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data)
-        PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
-          this.video_meta_data_encryption)
+          SelectFileUtil.getAllItem(this.encryption ? this.video_meta_data_encryption : this.video_meta_data)
+        SelectFileUtil.saveVideoMetaData(this.video_meta_data)
+        SelectFileUtil.saveVideoMetaDataEncryption(this.video_meta_data_encryption)
       },
     }),
     cornerRadius: 20,
@@ -320,8 +314,7 @@ struct Index {
               reject(new Error(`Error deleting file from sandbox_video: ${unlinkErr.message}`));
               return;
             }
-            PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
-              this.video_meta_data_encryption);
+            SelectFileUtil.saveVideoMetaDataEncryption(this.video_meta_data_encryption)
           });
         } else {
           resolve(); // 如果文件访问失败，直接 resolve
@@ -338,7 +331,7 @@ struct Index {
             reject(new Error(`Error deleting file from sandbox_path: ${unlinkErr.message}`));
             return;
           }
-          PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data);
+          SelectFileUtil.saveVideoMetaData(this.video_meta_data)
           resolve(); // 在所有操作完成后调用 resolve
         });
       } else {
@@ -368,11 +361,9 @@ struct Index {
   async aboutToAppear(): Promise<void> {
     WantProcess.checkWant()
     ReqPermission.reqPermissionsFromUser(ReqPermission.permissions, context);
-    this.video_meta_data =
-      await PreferencesUtil.getPreferencesValue('sweet_video', 'video_meta_data', []) as VideoMetadata[]
-    this.video_meta_data_encryption =
-      await PreferencesUtil.getPreferencesValue('sweet_video', 'video_meta_data_encryption', []) as VideoMetadata[]
-    this.passwd = await PreferencesUtil.getPreferencesValue('sweet_video', 'passwd', '') as string
+    this.video_meta_data = await SelectFileUtil.getVideMetaData()
+    this.video_meta_data_encryption = await SelectFileUtil.getVideoMetaDataEncryption()
+    this.passwd = await SelectFileUtil.getPassword()
     this.show_list = this.video_meta_data.map(i => i.date)
     this.activePermission()
     await (await this.windowClass).setWindowLayoutFullScreen(true)
@@ -407,12 +398,11 @@ struct Index {
       if (this.encryption) {
         this.video_meta_data_encryption[this.video_meta_data_encryption.findIndex(i => i.date ==
           this.now_playing?.date)].last_play = DataSyncUtil.last_time
-        PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption',
-          this.video_meta_data_encryption)
+        SelectFileUtil.saveVideoMetaDataEncryption(this.video_meta_data_encryption)
       } else {
         this.video_meta_data[this.video_meta_data.findIndex(i => i.date == this.now_playing?.date)].last_play =
           DataSyncUtil.last_time
-        PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data)
+        SelectFileUtil.saveVideoMetaData(this.video_meta_data)
       }
     }
   }
@@ -420,12 +410,11 @@ struct Index {
   async toMetaData(list: string[]) { // 持久化视频存储
     const CONCURRENT_LIMIT = 3; // 最大并发数
     let index = 0; // 当前处理的文件索引
-    if (list.length != 0) {
-      ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.add_time_info')))
-      this.loading = true;
-    } else {
+    if (list.length == 0) {
       return
     }
+    ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.add_time_info')))
+    this.loading = true;
     const processFile = async (uri: string) => {
       ReqPermission.persistPermission(uri);
       const avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor();
@@ -436,17 +425,17 @@ struct Index {
           error ? reject(error) : resolve(metadata)
         });
       });
-      const date = new Date().getTime().toString();
       if ((!this.encryption && !this.video_meta_data.some(item => item.title === file.name)) ||
         (this.encryption && !this.video_meta_data_encryption.some(item => item.title === file.name))) {
         if (this.encryption) {
           this.show_list =
             await ToolsUtil.copyFileToPrivacySpace(this.video_meta_data_encryption, uri, sandbox_video, this.encryption,
-              sandbox_path, date, metadata, file)
+              sandbox_path, new Date().getTime().toString(), metadata, file)
         } else {
-          this.video_meta_data.push(await VideoUtil.setVideoInfo(date, uri, file.name, metadata, this.encryption,
+          this.video_meta_data.push(await VideoUtil.setVideoInfo(new Date().getTime().toString(), uri, file.name,
+            metadata, this.encryption,
             sandbox_video, sandbox_path)); // Use await here
-          PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', this.video_meta_data);
+          SelectFileUtil.saveVideoMetaData(this.video_meta_data)
         }
       }
     };
@@ -461,8 +450,7 @@ struct Index {
       promises.push(processNext());
     }
     await Promise.all(promises);
-    this.show_list =
-      this.encryption ? this.video_meta_data_encryption.map(i => i.date) : this.video_meta_data.map(i => i.date);
+    this.show_list = SelectFileUtil.getAllItem(this.encryption ? this.video_meta_data_encryption : this.video_meta_data)
     this.loading = false;
   }
 
@@ -659,7 +647,7 @@ struct Index {
           ForEach(this.list_empty_item, () => {
             ListItem().height(this.topSafeHeight + 55)
           })
-          LazyForEach(this.lazy_show_list, (item: string) => { // 加载视频列表
+          LazyForEach(this.lazy_show_list, (item: string, index: number) => { // 加载视频列表
             ListItem() {
               Column() {
                 Row() {
@@ -671,18 +659,16 @@ struct Index {
                     .sourceSize({ width: 75, height: 75 })
                   Column() {
                     Row() {
-                      Text((String(this.encryption ?
-                        this.video_meta_data_encryption.find(i => i.date == item)?.title :
-                        this.video_meta_data.find(i => i.date == item)?.title)
-                      ).slice(0, String(this.encryption ?
-                        this.video_meta_data_encryption.find(i => i.date == item)?.title :
-                        this.video_meta_data.find(i => i.date == item)?.title).lastIndexOf('.')))
+                      Text((String(SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
+                      this.video_meta_data, item)?.title)).slice(0,
+                        String(SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
+                        this.video_meta_data, item)?.title).lastIndexOf('.')))
                         .fontSize(20)
                         .fontWeight(FontWeight.Medium)
                         .maxLines(3)
                         .textOverflow({ overflow: TextOverflow.Ellipsis })
                         .width('82%')
-                      Checkbox({ name: item, group: 'checkboxGroup' })
+                      Checkbox({ name: 'check_box: ' + index, group: 'checkboxGroup' })
                         .width(30)
                         .height(30)
                         .select(this.itemMultipleChoose)
@@ -691,11 +677,10 @@ struct Index {
                         .visibility(this.itemMultipleChooseState)
                         .onChange((value: boolean) => {
                           if (!this.itemMultipleChoose || !value) {
-                            const foundMetadata = this.encryption
-                              ? this.video_meta_data_encryption.find(i => i.date === item)
-                              : this.video_meta_data.find(i => i.date === item);
+                            const foundMetadata = SelectFileUtil.getItem(this.encryption ?
+                            this.video_meta_data_encryption : this.video_meta_data, item)
                             if (foundMetadata) {
-                              const delSet = new Set(this.delMultipleList as VideoMetadata[]); // 显式类型断言
+                              const delSet = new Set(this.delMultipleList as VideoMetadata[]);
                               value ? delSet.add(foundMetadata) : delSet.delete(foundMetadata);
                               this.delMultipleList = Array.from(delSet);
                             }
@@ -704,20 +689,17 @@ struct Index {
                     }
 
                     Row() {
-                      if ((this.encryption ?
-                        this.video_meta_data_encryption.find(i => i.date == item)?.hdr_type :
-                        this.video_meta_data.find(i => i.date == item)?.hdr_type) === media.HdrType.AV_HDR_TYPE_VIVID) {
+                      if ((SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
+                      this.video_meta_data, item)?.hdr_type) === media.HdrType.AV_HDR_TYPE_VIVID) {
                         Image($r("app.media.hdr_vivid_icon"))
                           .backgroundImageSize(ImageSize.Cover)
                           .borderRadius(5)
                           .width(65)
                           .height(25)
-                      } else if (VideoUtil.videoSizeFormat(String(this.encryption ?
-                        this.video_meta_data_encryption.find(i => i.date == item)?.size :
-                        this.video_meta_data.find(i => i.date == item)?.size)).includes('HD')) {
-                        Text(VideoUtil.videoSizeFormat(String(this.encryption ?
-                          this.video_meta_data_encryption.find(i => i.date == item)?.size :
-                          this.video_meta_data.find(i => i.date == item)?.size)))
+                      } else if (VideoUtil.videoSizeFormat(String(SelectFileUtil.getItem(this.encryption ?
+                      this.video_meta_data_encryption : this.video_meta_data, item)?.size)).includes('HD')) {
+                        Text(VideoUtil.videoSizeFormat(String(SelectFileUtil.getItem(this.encryption ?
+                        this.video_meta_data_encryption : this.video_meta_data, item)?.size)))
                           .fontSize(10)
                           .fontWeight(FontWeight.Bold)
                           .opacity(0.8)
@@ -725,9 +707,8 @@ struct Index {
                           .backgroundColor('#E4BF3E')
                           .padding(5)
                           .borderRadius(5)
-                      } else if (VideoUtil.videoSizeFormat(String(this.encryption ?
-                        this.video_meta_data_encryption.find(i => i.date == item)?.size :
-                        this.video_meta_data.find(i => i.date == item)?.size)) === '0 x 0') {
+                      } else if (VideoUtil.videoSizeFormat(String(SelectFileUtil.getItem(this.encryption ?
+                      this.video_meta_data_encryption : this.video_meta_data, item)?.size)) === '0 x 0') {
                         Text($r('app.string.unknown_resolution'))
                           .fontSize(10)
                           .fontWeight(FontWeight.Normal)
@@ -736,22 +717,18 @@ struct Index {
                           .padding(5)
                           .borderRadius(5)
                       } else {
-                        Text(VideoUtil.videoSizeFormat(String(this.encryption ?
-                          this.video_meta_data_encryption.find(i => i.date == item)?.size :
-                          this.video_meta_data.find(i => i.date == item)?.size)))
+                        Text(VideoUtil.videoSizeFormat(String(SelectFileUtil.getItem(this.encryption ?
+                        this.video_meta_data_encryption : this.video_meta_data, item)?.size)))
                           .fontSize(15)
                           .fontWeight(FontWeight.Normal)
                           .opacity(0.8)
                       }
-                      Text(' | ' + String(this.encryption ?
-                        this.video_meta_data_encryption.find(i => i.date == item)?.format :
-                        this.video_meta_data.find(i => i.date == item)?.format) + " | " +
-                      TimeUtil.convertMsToMMSS(this.encryption ?
-                        this.video_meta_data_encryption.find(i => i.date == item)?.time :
-                        this.video_meta_data.find(i => i.date == item)?.time) + " | " +
-                      String(this.encryption ?
-                        this.video_meta_data_encryption.find(i => i.date == item)?.video_size :
-                        this.video_meta_data.find(i => i.date == item)?.video_size))
+                      Text(' | ' + String(SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
+                      this.video_meta_data, item)?.format) + " | " +
+                      TimeUtil.convertMsToMMSS(SelectFileUtil.getItem(this.encryption ?
+                      this.video_meta_data_encryption : this.video_meta_data, item)?.time) + " | " +
+                      String(SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
+                      this.video_meta_data, item)?.video_size))
                         .fontSize(15)
                         .fontWeight(FontWeight.Normal)
                         .opacity(0.8)
@@ -775,35 +752,32 @@ struct Index {
             .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
             .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
             .width('100%')
-            .bindContextMenu(this.MenuBuilder(this.encryption ?
-            this.video_meta_data_encryption.find(i => i.date == item) :
-            this.video_meta_data.find(i => i.date == item)), ResponseType.LongPress)
+            .bindContextMenu(this.MenuBuilder(SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
+            this.video_meta_data, item)), ResponseType.LongPress)
             .swipeAction({
-              end: this.itemEnd(this.encryption ? this.video_meta_data_encryption.find(i => i.date == item) :
-              this.video_meta_data.find(i => i.date == item)),
+              end: this.itemEnd(SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
+              this.video_meta_data, item)),
               edgeEffect: SwipeEdgeEffect.Spring
             })
             .onClick(() => {
-              let item_encryption = this.video_meta_data_encryption.find(i => i.date == item)
-              let item_unencrypted = this.video_meta_data.find(i => i.date == item)
+              let item_list = SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
+              this.video_meta_data, item)
               if (this.MenuBuilderState || this.itemMultipleChooseState != Visibility.None) {
                 this.MenuBuilderState = false
                 return
               }
               this.listScroller.closeAllSwipeActions()
-              this.now_playing = this.encryption ? item_encryption : item_unencrypted
-              if (VideoUtil.videoSizeFormat(String(this.encryption ?
-                item_encryption?.size : item_unencrypted?.size)) === '0 x 0') {
+              this.now_playing = item_list
+              if (VideoUtil.videoSizeFormat(String(item_list?.size)) === '0 x 0') {
                 ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
-                ToolsUtil.isFileExist(this.encryption ? item_encryption : item_unencrypted) ?
-                ToolsUtil.routerWhere('pages/FFmpegPlayer', item, this.encryption, this.video_meta_data_encryption,
-                  this.video_meta_data) : this.deleteUnExistFile(this.encryption ? item_encryption : item_unencrypted)
+                ToolsUtil.isFileExist(item_list) ?
+                ToolsUtil.routerWhere('pages/FFmpegPlayer', item, this.encryption ? this.video_meta_data_encryption
+                  : this.video_meta_data) : this.deleteUnExistFile(item_list)
                 return
               }
-              ToolsUtil.isFileExist(this.encryption ? item_encryption : item_unencrypted) ?
-              ToolsUtil.routerWhere('pages/Player', item, this.encryption, this.video_meta_data_encryption,
-                this.video_meta_data) : this.deleteUnExistFile(this.encryption ? item_encryption : item_unencrypted)
-              return
+              ToolsUtil.isFileExist(item_list) ?
+              ToolsUtil.routerWhere('pages/Player', item, this.encryption ? this.video_meta_data_encryption
+                : this.video_meta_data) : this.deleteUnExistFile(item_list)
             })
           })
           ForEach(this.list_empty_item, () => {
@@ -873,15 +847,13 @@ struct Index {
               .animation({ duration: 300, curve: Curve.Ease })
               .onChange((value: string) => {
                 if (value == '' && this.video_meta_data) {
-                  this.show_list =
-                    this.encryption ? this.video_meta_data_encryption.map(i => i.date) :
-                    this.video_meta_data.map(i => i.date)
+                  SelectFileUtil.getAllItem(this.encryption ? this.video_meta_data_encryption : this.video_meta_data)
                 }
               })
               .onSubmit((value: string) => {
+                const currentMeta = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
                 if (value == '' && this.video_meta_data) {
-                  this.show_list = this.encryption ? this.video_meta_data_encryption.map(i => i.date) :
-                  this.video_meta_data.map(i => i.date)
+                  this.show_list = SelectFileUtil.getAllItem(currentMeta)
                   if (this.show_list.length == 0) {
                     ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.add_video_first')))
                     return
@@ -895,11 +867,7 @@ struct Index {
                     .getStringSync($r('app.string.entered_privacy_space')))
                   return
                 }
-                this.show_list = this.encryption ?
-                this.video_meta_data_encryption.filter(i => i.title.toLowerCase().includes(value.toLowerCase()))
-                  .map(i => i.date) :
-                this.video_meta_data.filter(i => i.title.toLowerCase().includes(value.toLowerCase()))
-                  .map(i => i.date)
+                this.show_list = SelectFileUtil.getSearchItem(currentMeta, value)
                 if (this.show_list.length == 0) {
                   ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.no_search_result')))
                 }
@@ -1022,9 +990,7 @@ struct Index {
         .onClick(() => {
           let file = fs.openSync(item.uri)
           let saverOption = new picker.DocumentSaveOptions()
-          saverOption.newFileNames =
-            [item.title.split('.')[item.title.split('.').length - 1] == item.format ? item.title :
-              item.title + '.' + item.format]
+          saverOption.newFileNames = SelectFileUtil.copyFileReName(item)
           let saver = new picker.DocumentViewPicker(context)
           SelectFileUtil.copyFile(saver, saverOption, file)
         })

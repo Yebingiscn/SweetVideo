@@ -9,6 +9,7 @@ import { media } from '@kit.MediaKit';
 import { router } from '@kit.ArkUI';
 import { JSON } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import SelectFileUtil from './SelectFileUtil';
 
 class Tools {
   showToast(text: string) {
@@ -34,18 +35,16 @@ class Tools {
     })
   }
 
-  compareName(show_list: string[], encryption: boolean, video_meta_data_encryption: VideoMetadata[],
-    video_meta_data: VideoMetadata[]): string[] {
-    if (encryption) {
-      show_list = video_meta_data_encryption
-        .sort((a: VideoMetadata, b: VideoMetadata) => String(pinyin4js.getShortPinyin(a.title))
-          .localeCompare(String(pinyin4js.getShortPinyin(b.title)))).map(i => i.date);
-    } else {
-      show_list = video_meta_data
-        .sort((a: VideoMetadata, b: VideoMetadata) => String(pinyin4js.getShortPinyin(a.title))
-          .localeCompare(String(pinyin4js.getShortPinyin(b.title)))).map(i => i.date);
-    }
-    return show_list;
+  compareByName(show_list: string[], list: VideoMetadata[]): string[] {
+    show_list = list
+      .sort((a: VideoMetadata, b: VideoMetadata) => String(pinyin4js.getShortPinyin(a.title))
+        .localeCompare(String(pinyin4js.getShortPinyin(b.title)))).map(i => i.date);
+    return show_list
+  }
+
+  compareByTime(show_list: string[], list: VideoMetadata[]): string[] {
+    show_list = list.sort((a, b) => a.date.localeCompare(b.date)).map(i => i.date)
+    return show_list
   }
 
   async copyFileToPrivacySpace(video_meta_data_encryption: VideoMetadata[], uri: string, sandbox_video: string,
@@ -63,7 +62,7 @@ class Tools {
           video_meta_data_encryption.push(await VideoInfoUtil.setVideoInfo(date, uri, file.name, metadata,
             encryption, sandbox_video, sandbox_path));
           // 存储更新后的视频元数据
-          PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption', video_meta_data_encryption);
+          SelectFileUtil.saveVideoMetaDataEncryption(video_meta_data_encryption)
           // 关闭文件描述符
           fs.closeSync(file1);
           fs.closeSync(file2);
@@ -93,17 +92,12 @@ class Tools {
     }
   }
 
-  routerWhere(uri: string, item: string | undefined, encryption: boolean,
-    video_meta_data_encryption: VideoMetadata[], video_meta_data: VideoMetadata[]) {
+  routerWhere(uri: string, item: string | undefined, list: VideoMetadata []) {
     router.pushUrl({
       url: uri,
       params: {
-        metadata: JSON.stringify(encryption ?
-        video_meta_data_encryption.find(i => i.date === item) :
-        video_meta_data.find(i => i.date === item)),
-        metadata_list: JSON.stringify(encryption ?
-        video_meta_data_encryption.find(i => i.date) :
-        video_meta_data.find(i => i.date))
+        metadata: JSON.stringify(list.find(i => i.date === item)),
+        metadata_list: JSON.stringify(list.find(i => i.date))
       }
     }, router.RouterMode.Standard, (err) => {
       hilog.info(0xFF00, "testTag", String(err));
