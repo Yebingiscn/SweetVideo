@@ -12,7 +12,8 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import VideoSpeedUtil from '../utils/VideoInfoUtil';
 import TimeUtil from '../utils/TimeUtil';
 import { audio, AVVolumePanel } from '@kit.AudioKit';
-import { BusinessError, settings } from '@kit.BasicServicesKit';
+import { settings } from '@kit.BasicServicesKit';
+import VideoOperateUtil from '../utils/VideoOperateUtil';
 
 interface VideoMetadata {
   uri: string
@@ -119,18 +120,7 @@ struct Player {
           .backgroundColor($r('app.color.start_window_background_blur'))
           .backdropBlur(150)
           .onClick(() => {
-            this.screenBrightness = this.screenBrightnessAtFirst
-            try {
-              this.mainWin.setWindowBrightness(this.screenBrightness, (err) => {
-                if (err) {
-                  hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness. Cause: ${JSON.stringify(err)}`);
-                  return;
-                }
-                hilog.info(0x0000, 'AVPlayer', `Succeeded in setting the brightness.`);
-              });
-            } catch (exception) {
-              hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness.`);
-            }
+            VideoOperateUtil.setBrightness(this.screenBrightnessAtFirst)
           })
 
           Slider({
@@ -148,18 +138,7 @@ struct Player {
             .trackColor(Color.Black)
             .trackThickness(40)
             .onChange((value) => {
-              this.screenBrightness = value
-              try {
-                this.mainWin.setWindowBrightness(this.screenBrightness, (err) => {
-                  if (err) {
-                    hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness. Cause: ${JSON.stringify(err)}`);
-                    return;
-                  }
-                  hilog.info(0x0000, 'AVPlayer', `Succeeded in setting the brightness.`);
-                });
-              } catch (exception) {
-                hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness.`);
-              }
+              VideoOperateUtil.setBrightness(value)
             })
         }
       }.width(40)
@@ -213,35 +192,10 @@ struct Player {
     let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
     let audioManager = audio.getAudioManager();
     let audioVolumeManger: audio.AudioVolumeManager = audioManager.getVolumeManager();
-
-    audioVolumeManger.getVolumeGroupManager(groupId, (err: BusinessError, value: audio.AudioVolumeGroupManager) => {
-      if (err) {
-        hilog.error(0x0000, 'AVPlayer', `Failed to obtain the colume group infos list. ${err}`);
-        return;
-      }
-      let audioVolumeGroupManager = value;
-      audioVolumeGroupManager.getVolume(audio.AudioVolumeType.MEDIA, (err: BusinessError, value: number) => {
-        if (err) {
-          hilog.error(0x0000, 'AVPlayer', `Failed to obtain the volume. ${err}`);
-          return;
-        }
-        this.volume = value;
-      });
-      audioVolumeGroupManager.getMaxVolume(audio.AudioVolumeType.MEDIA, (err: BusinessError, value: number) => {
-        if (err) {
-          hilog.error(0x0000, 'AVPlayer', `Failed to obtain the maximum volume. ${err}`);
-          return;
-        }
-        this.max_volume = value
-      });
-      audioVolumeGroupManager.getMinVolume(audio.AudioVolumeType.MEDIA, (err: BusinessError, value: number) => {
-        if (err) {
-          hilog.error(0x0000, 'AVPlayer', `Failed to obtain the minimum volume. ${err}`);
-          return;
-        }
-        this.min_volume = value
-      });
-    });
+    let volume_list = await VideoOperateUtil.getVolume(audioVolumeManger, groupId)
+    this.volume = volume_list.get('volume')!
+    this.max_volume = volume_list.get('max_volume')!
+    this.min_volume = volume_list.get('min_volume')!
     settings.getValue(context, settings.display.SCREEN_BRIGHTNESS_STATUS, settings.domainName.DEVICE_SHARED)
       .then((value) => {
         this.screenBrightness = Number(value) / 255;
@@ -251,16 +205,7 @@ struct Player {
 
   async aboutToDisappear(): Promise<void> {
     if (this.screenBrightness != this.screenBrightnessAtFirst) {
-      try {
-        this.mainWin.setWindowBrightness(this.screenBrightnessAtFirst, (err) => {
-          if (err) {
-            hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness. Cause: ${JSON.stringify(err)}`);
-            return;
-          }
-        });
-      } catch (exception) {
-        hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness.`);
-      }
+      VideoOperateUtil.setBrightness(this.screenBrightnessAtFirst)
     }
     AVSessionUtil.destroySession()
     PermissionUtil.stopContinuousTask()
@@ -628,25 +573,14 @@ struct Player {
               let offsetY = this.SwipeMovingY - this.SwipeStartY
               const step_area = this.screen_width > this.screen_height ? 10 : 50
               const step = this.screen_width > this.screen_height ? 0.01 : 0.05
-              if (this.isLeftSideSwipe) {
+              if (this.isRightSideSwipe) {
                 this.onSwipingVoice = true;
                 const delta = ToolsUtil.calculateDelta(offsetY, step_area, step, offsetY < 0 ? 1 : -1);
                 this.volume = Math.min(Math.max(this.volume + delta, 0.0), 15.0);
-              } else if (this.isRightSideSwipe) {
+              } else if (this.isLeftSideSwipe) {
                 this.onSwipingBrightness = true;
                 const delta = ToolsUtil.calculateDelta(offsetY, step_area, step / 10, offsetY < 0 ? 1 : -1);
-                this.screenBrightness = Math.min(Math.max(this.screenBrightness + delta, 0.0), 1.0);
-                try {
-                  this.mainWin.setWindowBrightness(this.screenBrightness, (err) => {
-                    if (err) {
-                      hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness. Cause: ${JSON.stringify(err)}`);
-                      return;
-                    }
-                    hilog.info(0x0000, 'AVPlayer', `Succeeded in setting the brightness.`);
-                  });
-                } catch (exception) {
-                  hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness.`);
-                }
+                VideoOperateUtil.setBrightness(Math.min(Math.max(this.screenBrightness + delta, 0.0), 1.0))
               }
             }
           }

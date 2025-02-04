@@ -667,7 +667,7 @@ struct Index {
                         .fontWeight(FontWeight.Medium)
                         .maxLines(3)
                         .textOverflow({ overflow: TextOverflow.Ellipsis })
-                        .width('82%')
+                        .width(this.itemMultipleChooseState === Visibility.None ? '88%' : '75%')
                       Checkbox({ name: 'check_box: ' + index, group: 'checkboxGroup' })
                         .width(30)
                         .height(30)
@@ -847,7 +847,9 @@ struct Index {
               .animation({ duration: 300, curve: Curve.Ease })
               .onChange((value: string) => {
                 if (value == '' && this.video_meta_data) {
-                  SelectFileUtil.getAllItem(this.encryption ? this.video_meta_data_encryption : this.video_meta_data)
+                  this.show_list =
+                    SelectFileUtil.getAllItem(this.encryption ? this.video_meta_data_encryption : this.video_meta_data)
+                  this.searchController.stopEditing()
                 }
               })
               .onSubmit((value: string) => {

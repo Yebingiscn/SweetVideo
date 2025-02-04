@@ -24,6 +24,9 @@
         "startWindowBackground": "$color:start_window_background",
         "exported": true,
         "orientation": "auto_rotation_restricted",
+        "backgroundModes": [
+          "audioPlayback"
+        ],
         // 随传感器旋转
         "skills": [
           {
