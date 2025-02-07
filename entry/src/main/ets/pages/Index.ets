@@ -1,4 +1,4 @@
-import { fileUri, fileIo as fs, picker } from '@kit.CoreFileKit';
+import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
 import { common } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import { media } from '@kit.MediaKit';
@@ -520,6 +520,30 @@ struct Index {
             .justifyContent(FlexAlign.Center)
             .zIndex(2)
           }
+
+          Row() {
+            Button({ type: ButtonType.Normal, stateEffect: true }) {
+              Row() {
+                SymbolGlyph($r('sys.symbol.info_circle')).fontSize(25).fontColor([$r('app.color.text_color')])
+                Text('关于应用')
+                  .fontSize(15)
+                  .fontColor($r('app.color.text_color'))
+                  .margin({ left: 10, right: 12 })
+              }
+            }
+            .align(Alignment.Start)
+            .padding(10)
+            .borderRadius(10)
+            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+            .height('8%')
+            .width('100%')
+            .backgroundColor($r('app.color.start_window_background_blur'))
+            .transition(TransitionEffect.OPACITY.animation({ duration: 500 })
+              .combine(TransitionEffect.translate({ x: 100 })))
+            .onClick(() => {
+              ToolsUtil.routerWhereOnlyUri('pages/AboutApp')
+            })
+          }.margin({ top: '4%' })
         }.margin({ top: '4%' })
 
         Divider().height(10).margin({ top: '5%' })
@@ -656,7 +680,6 @@ struct Index {
                     .height(75)
                     .backgroundImageSize(ImageSize.Cover)
                     .borderRadius(5)
-                    .sourceSize({ width: 75, height: 75 })
                   Column() {
                     Row() {
                       Text((String(SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
@@ -990,11 +1013,7 @@ struct Index {
         .width(40)
         .height(40)
         .onClick(() => {
-          let file = fs.openSync(item.uri)
-          let saverOption = new picker.DocumentSaveOptions()
-          saverOption.newFileNames = SelectFileUtil.copyFileReName(item)
-          let saver = new picker.DocumentViewPicker(context)
-          SelectFileUtil.copyFile(saver, saverOption, file)
+          SelectFileUtil.copyFile(item, context)
         })
         .visibility(this.encryption ? Visibility.Visible : Visibility.None)
     }.padding(10).justifyContent(FlexAlign.SpaceEvenly)

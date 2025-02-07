@@ -32,7 +32,32 @@ class VideoInfoUtil {
     new Map([[0.125, media.PlaybackSpeed.SPEED_FORWARD_0_125_X], [0.5, media.PlaybackSpeed.SPEED_FORWARD_0_50_X],
       [0.75, media.PlaybackSpeed.SPEED_FORWARD_0_75_X], [1.25, media.PlaybackSpeed.SPEED_FORWARD_1_25_X],
       [1.5, media.PlaybackSpeed.SPEED_FORWARD_1_50_X], [1.75, media.PlaybackSpeed.SPEED_FORWARD_1_75_X]])
-  public support_video_format = ['mp4', 'flv', 'mkv', 'ts', 'mov', 'rmvb'] // rmvb wmv
+  public support_video_format = ['mp4', 'flv', 'mkv', 'ts', 'mov', 'rmvb', 'wmv']
+  private speedIndexMap: Record<number, number> = {
+    0.5: 0,
+    0.75: 1,
+    1: 2,
+    1.25: 3,
+    1.5: 4,
+    2: 5,
+    3: 6
+  };
+  private videoSizeMap: Record<string, string> = {
+    '720': '720P HD',
+    '800': 'HD+',
+    '900': '900P HD+',
+    '960': 'HD+',
+    '1080': '1080P FHD',
+    '1440': '2K QHD',
+    '1600': 'UW QHD',
+    '1666': 'Quad HD+',
+    '1800': 'QHD+',
+    '1960': '1080P FHD',
+    '2560': '2K QHD',
+    '3840': '4K Ultra HD',
+    '4096': '4K Ultra HD',
+    '7680': '8K Ultra HD'
+  };
 
   // 设置存储的视频信息
   async setVideoInfo(date: string, uri: string, file_name: string, metadata: media.AVMetadata, encryption: boolean,
@@ -96,25 +121,13 @@ class VideoInfoUtil {
     }
   }
 
+  getVideoSpeedShow(speed: number) {
+    return this.speedIndexMap[speed]
+  }
+
   // 视频分辨率格式化
   videoSizeFormat(size: string) {
-    const videoSizeMap: Record<string, string> = {
-      '720': '720P HD',
-      '800': 'HD+',
-      '900': '900P HD+',
-      '960': 'HD+',
-      '1080': '1080P FHD',
-      '1440': '2K QHD',
-      '1600': 'UW QHD',
-      '1666': 'Quad HD+',
-      '1800': 'QHD+',
-      '1960': '1080P FHD',
-      '2560': '2K QHD',
-      '3840': '4K Ultra HD',
-      '4096': '4K Ultra HD',
-      '7680': '8K Ultra HD'
-    };
-    for (const key of Object.entries(videoSizeMap)) {
+    for (const key of Object.entries(this.videoSizeMap)) {
       if (size.includes(key[0])) {
         return key[1];
       }

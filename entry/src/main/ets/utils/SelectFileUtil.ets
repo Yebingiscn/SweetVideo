@@ -7,6 +7,7 @@ import PreferencesUtil from './PreferencesUtil';
 
 class SelectFileUtil {
   private queryCache = new Map<string, VideoMetadata>();
+
   async selectFiles(): Promise<string[]> {
     const documentSelectOptions = new picker.DocumentSelectOptions();
     documentSelectOptions.fileSuffixFilters = VideoUtil.support_video_format;
@@ -34,7 +35,11 @@ class SelectFileUtil {
     }
   }
 
-  copyFile(saver: picker.DocumentViewPicker, saverOption: picker.DocumentSaveOptions, file: fs.File) {
+  copyFile(item: VideoMetadata, context: common.UIAbilityContext) {
+    let file = fs.openSync(item.uri)
+    let saverOption = new picker.DocumentSaveOptions()
+    saverOption.newFileNames = this.copyFileReName(item)
+    let saver = new picker.DocumentViewPicker(context)
     saver.save(saverOption, (err: BusinessError, documentSaveResult: string[]) => {
       if (!err) {
         let file1 = fs.openSync(documentSaveResult[0], fs.OpenMode.READ_WRITE)
@@ -79,6 +84,12 @@ class SelectFileUtil {
       this.queryCache.set(item, foundItem);
     }
     return foundItem;
+  }
+
+  getNextItem(list: VideoMetadata[], item: string) {
+    const currentIndex = list.findIndex(i => i.date === item);
+    const nextIndex = (currentIndex + 1) % list.length; // 如果是最后一个，则返回 0
+    return list[nextIndex];
   }
 
   getAllItem(list: VideoMetadata[]) {

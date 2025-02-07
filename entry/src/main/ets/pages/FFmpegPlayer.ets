@@ -576,7 +576,6 @@ struct EnhancePlayer {
     LogUtils.getInstance().LOGI("getVideoWidth---" + VideoWidth);
     let VideoHeight = this.mIjkMediaPlayer.getVideoHeight();
     LogUtils.getInstance().LOGI("getVideoHeight---" + VideoHeight);
-    hilog.error(777, 'test', VideoWidth + 'wid' + VideoHeight)
     const aspectRatioNow = VideoWidth / VideoHeight;
     const screenAspectRatio = this.screen_width / this.screen_height;
     if (aspectRatioNow > screenAspectRatio) {

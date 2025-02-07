@@ -10,6 +10,7 @@ import { router } from '@kit.ArkUI';
 import { JSON } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import SelectFileUtil from './SelectFileUtil';
+import { bundleManager } from '@kit.AbilityKit';
 
 class Tools {
   showToast(text: string) {
@@ -92,16 +93,35 @@ class Tools {
     }
   }
 
+  routerWhereOnlyUri(uri: string) {
+    router.pushUrl({
+      url: uri,
+    }, router.RouterMode.Standard, (err) => {
+      hilog.info(0xFF00, "testTag", String(err));
+    });
+  }
+
   routerWhere(uri: string, item: string | undefined, list: VideoMetadata []) {
     router.pushUrl({
       url: uri,
       params: {
         metadata: JSON.stringify(list.find(i => i.date === item)),
-        metadata_list: JSON.stringify(list.find(i => i.date))
+        metadata_list: JSON.stringify(list)
       }
     }, router.RouterMode.Standard, (err) => {
       hilog.info(0xFF00, "testTag", String(err));
     });
+  }
+
+  async getVersionCode() {
+    try {
+      const bundleInfo =
+        await bundleManager.getBundleInfoForSelf(bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION);
+      return bundleInfo.versionName; // 应用版本号
+    } catch (error) {
+      hilog.error(777, 'testFlag', "get bundleInfo failed, error is " + error);
+      return ''; // 或者返回你希望的其他字符串，例如 'unknown'
+    }
   }
 }
 

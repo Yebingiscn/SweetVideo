@@ -2,6 +2,8 @@
   "src": [
     "pages/Index",
     "pages/Player",
-    "pages/FFmpegPlayer"
+    "pages/FFmpegPlayer",
+    "pages/AboutApp",
+    "pages/privacyInfo"
   ]
 }
