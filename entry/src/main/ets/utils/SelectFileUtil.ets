@@ -1,12 +1,13 @@
 import { common } from '@kit.AbilityKit';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
-import { fileIo as fs, picker } from '@kit.CoreFileKit';
+import { fileUri, fileIo as fs, picker } from '@kit.CoreFileKit';
 import VideoUtil, { VideoMetadata } from './VideoInfoUtil';
 import { BusinessError } from '@kit.BasicServicesKit';
 import PreferencesUtil from './PreferencesUtil';
 
 class SelectFileUtil {
   private queryCache = new Map<string, VideoMetadata>();
+  public file_folder_uri = ''
 
   async selectFiles(): Promise<string[]> {
     const documentSelectOptions = new picker.DocumentSelectOptions();
@@ -33,6 +34,23 @@ class SelectFileUtil {
       console.error("Error selecting videos:", error);
       return []; // 捕获错误并返回空数组
     }
+  }
+
+  async getDownloadUri() {
+    const documentViewPicker = new picker.DocumentViewPicker()
+    let documentSaveResult = await documentViewPicker.save({ pickerMode: picker.DocumentPickerMode.DOWNLOAD })
+    const uri = new fileUri.FileUri(documentSaveResult[0])
+    this.file_folder_uri = uri.path
+  }
+
+  getDownloadFilesUri() {
+    let fileList: string[] = fs.listFileSync(this.file_folder_uri);
+    let resultList: string[] = []; // 用于存储结果
+    fileList.forEach((file) => {
+      const fullPath = this.file_folder_uri + '/' + file;
+      resultList.push(fullPath); // 添加到新数组中
+    });
+    return resultList; // 返回新的结果数组
   }
 
   copyFile(item: VideoMetadata, context: common.UIAbilityContext) {

@@ -2,6 +2,7 @@ import { window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { audio } from '@kit.AudioKit';
 import { BusinessError } from '@kit.BasicServicesKit';
+import { media } from '@kit.MediaKit';
 
 class VideoOperateUtil {
   private windowStage: window.WindowStage = AppStorage.get('windowStage') as window.WindowStage;
@@ -69,6 +70,36 @@ class VideoOperateUtil {
         });
     });
   }
+
+  async getAudioTrack(avPlayer: media.AVPlayer) {
+    const getTrackDescription = (): Promise<Object> => {
+      return new Promise((resolve, reject) => {
+        let audioTrackIndex: Object = 0;
+        avPlayer.getTrackDescription((error: BusinessError, arrList: Array<media.MediaDescription>) => {
+          if (arrList != null) {
+            for (let i = 0; i < arrList.length; i++) {
+              if (i != 0) {
+                hilog.error(777, 'testFlag', 'audio test' + arrList[i][media.MediaDescriptionKey.MD_KEY_TRACK_INDEX])
+                audioTrackIndex = arrList[i][media.MediaDescriptionKey.MD_KEY_TRACK_INDEX];
+              }
+            }
+            resolve(audioTrackIndex); // 成功时 resolve Promise
+          } else {
+            console.error(`Failed to get TrackDescription, error:${error}`);
+            reject(error); // 失败时 reject Promise
+          }
+        });
+      });
+    };
+    try {
+      let audioTrackIndex = await getTrackDescription();
+      return audioTrackIndex; // 返回获取到的 audioTrackIndex
+    } catch (error) {
+      console.error("获取 audioTrackIndex 失败:", error);
+      return null; // 可以返回一个默认值或者抛出异常
+    }
+  }
+
 }
 
 const videoOperateUtil = new VideoOperateUtil()

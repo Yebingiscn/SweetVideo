@@ -78,6 +78,7 @@ struct Player {
   @State select_video: Visibility = Visibility.None
   @State speed_show: number = 2
   @State circle_play: boolean = false
+  @State audio_track: Object = 0
 
   @Builder
   VolumeBuilder() {
@@ -273,6 +274,8 @@ struct Player {
           }
           break;
         case 'prepared':
+          this.audio_track = await VideoOperateUtil.getAudioTrack(this.avPlayer!) as Object
+          this.avPlayer!.selectTrack(parseInt(this.audio_track.toString()));
           this.avPlayer?.play();
           break;
         case 'completed':
@@ -746,7 +749,7 @@ struct Player {
           this.play_time = value
           this.avPlayer?.seek(value)
         })
-        .width(this.screen_width > this.screen_height ? '75%' : '50%')
+        .width(this.screen_width > this.screen_height ? '72%' : '50%')
         .animation({ duration: 100, curve: Curve.Smooth })
         .selectedColor('#e0e0e0')
       Text(TimeUtil.convertMsToMMSS(Math.min(Math.max((this.now_playing?.time || 0) - this.play_time, 0),
@@ -783,8 +786,8 @@ struct Player {
             .fontColor(['#f0f0f0'])
         }
         .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .height(50)
-        .width(50)
+        .height(40)
+        .width(40)
         .backgroundColor('#50000000')
         .onClick(() => {
           this.playNextVideo()

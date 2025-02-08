@@ -359,6 +359,7 @@ struct Index {
   }
 
   async aboutToAppear(): Promise<void> {
+    SelectFileUtil.getDownloadUri()
     WantProcess.checkWant()
     ReqPermission.reqPermissionsFromUser(ReqPermission.permissions, context);
     this.video_meta_data = await SelectFileUtil.getVideMetaData()
@@ -569,6 +570,33 @@ struct Index {
           .onClick(() => {
             this.closeSideBar(false)
             this.selectFiles()
+          })
+        }.width('100%')
+        .justifyContent(FlexAlign.Start)
+        .margin({ top: '6%' })
+
+        Row() {
+          Button({ type: ButtonType.Normal, stateEffect: true }) {
+            Row() {
+              SymbolGlyph($r('sys.symbol.folder')).fontSize(25).fontColor([$r('app.color.text_color')])
+              Text('从下载文件夹导入')
+                .fontSize(15)
+                .fontColor($r('app.color.text_color'))
+                .margin({ left: 10, right: 12 })
+            }
+          }
+          .align(Alignment.Start)
+          .padding(10)
+          .borderRadius(10)
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+          .height('11%')
+          .width('100%')
+          .backgroundColor($r('app.color.start_window_background_blur'))
+          .transition(TransitionEffect.OPACITY.animation({ duration: 500 })
+            .combine(TransitionEffect.translate({ x: 100 })))
+          .onClick(async () => {
+            this.closeSideBar(false)
+            await this.toMetaData(SelectFileUtil.getDownloadFilesUri());
           })
         }.width('100%')
         .justifyContent(FlexAlign.Start)
