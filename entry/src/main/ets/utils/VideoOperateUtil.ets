@@ -71,35 +71,30 @@ class VideoOperateUtil {
     });
   }
 
-  async getAudioTrack(avPlayer: media.AVPlayer) {
-    const getTrackDescription = (): Promise<Object> => {
+  async getAudioTracks(avPlayer: media.AVPlayer): Promise<number[]> {
+    const getTrackDescriptions = (): Promise<number[]> => {
       return new Promise((resolve, reject) => {
-        let audioTrackIndex: Object = 0;
         avPlayer.getTrackDescription((error: BusinessError, arrList: Array<media.MediaDescription>) => {
-          if (arrList != null) {
-            for (let i = 0; i < arrList.length; i++) {
-              if (i != 0) {
-                hilog.error(777, 'testFlag', 'audio test' + arrList[i][media.MediaDescriptionKey.MD_KEY_TRACK_INDEX])
-                audioTrackIndex = arrList[i][media.MediaDescriptionKey.MD_KEY_TRACK_INDEX];
-              }
-            }
-            resolve(audioTrackIndex); // 成功时 resolve Promise
-          } else {
-            console.error(`Failed to get TrackDescription, error:${error}`);
-            reject(error); // 失败时 reject Promise
+          if (error || !arrList || arrList.length === 0) {
+            console.error(`Failed to get TrackDescription, error: ${error}`);
+            return reject(error || new Error("No audio tracks available"));
           }
+          // 收集所有音轨的索引，确保类型正确
+          const audioTrackIndexes: number[] = arrList.map((description) =>
+          description[media.MediaDescriptionKey.MD_KEY_TRACK_INDEX] as number
+          );
+          resolve(audioTrackIndexes);
         });
       });
     };
     try {
-      let audioTrackIndex = await getTrackDescription();
-      return audioTrackIndex; // 返回获取到的 audioTrackIndex
+      const audioTrackIndexes = await getTrackDescriptions();
+      return audioTrackIndexes; // 返回所有音轨索引
     } catch (error) {
-      console.error("获取 audioTrackIndex 失败:", error);
-      return null; // 可以返回一个默认值或者抛出异常
+      console.error("获取 audioTrackIndexes 失败:", error);
+      return []; // 返回空数组表示没有获取到音轨索引
     }
   }
-
 }
 
 const videoOperateUtil = new VideoOperateUtil()

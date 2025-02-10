@@ -78,7 +78,38 @@ struct Player {
   @State select_video: Visibility = Visibility.None
   @State speed_show: number = 2
   @State circle_play: boolean = false
-  @State audio_track: Object = 0
+  @State audio_track: number[] = []
+  @State AudioTrackMenuBuilderState: boolean = false
+  @State audio_track_select: number = 0
+
+  @Builder
+  AudioTrackMenuBuilder() {
+    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
+      ForEach(this.audio_track, (index: number) => {
+        if (index !== 0) {
+          Row() {
+            Text('音轨：' + index)
+              .fontSize(20)
+              .width(150)
+              .height(40)
+              .fontColor(this.audio_track_select === index ? $r('app.color.main_color') : $r('sys.color.white'))
+          }
+          .padding(10)
+          .onClick(() => {
+            this.AudioTrackMenuBuilderState = false
+            this.avPlayer!.selectTrack(this.audio_track[this.audio_track.indexOf(index)]);
+            this.audio_track_select = index
+          })
+          if (this.audio_track.indexOf(index) !== this.audio_track.length - 1) {
+            Divider().height(2)
+          }
+        }
+      })
+    }.width(150).onAppear(() => {
+      ToolsUtil.startVibration()
+      this.audio_track.length <= 1 ? ToolsUtil.showToast('视频未识别到音轨') : this.AudioTrackMenuBuilderState = true
+    })
+  }
 
   @Builder
   VolumeBuilder() {
@@ -274,8 +305,9 @@ struct Player {
           }
           break;
         case 'prepared':
-          this.audio_track = await VideoOperateUtil.getAudioTrack(this.avPlayer!) as Object
-          this.avPlayer!.selectTrack(parseInt(this.audio_track.toString()));
+          this.audio_track = await VideoOperateUtil.getAudioTracks(this.avPlayer!) as number[]
+          this.avPlayer!.selectTrack(this.audio_track[this.audio_track.length - 1]);
+          this.audio_track_select = this.audio_track[this.audio_track.length - 1]
           this.avPlayer?.play();
           break;
         case 'completed':
@@ -362,7 +394,7 @@ struct Player {
                     String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title).lastIndexOf('.')))
                     .fontSize(20)
                     .fontColor(this.now_playing?.date === SelectFileUtil.getItem(this.video_meta_data, item?.date)?.date
-                      ? '#ff008bf3' : $r('sys.color.white'))
+                      ? $r('app.color.main_color') : $r('sys.color.white'))
                     .fontWeight(FontWeight.Medium)
                     .maxLines(4)
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -422,10 +454,17 @@ struct Player {
                 Text(String(this.now_playing?.title).slice(0, this.now_playing?.title.lastIndexOf('.')))
                   .fontSize(20)
                   .fontWeight(FontWeight.Medium)
-                  .width('65%')
+                  .width(this.screen_width > this.screen_height ? '60%' : '65%')
                   .maxLines(1)
                   .textOverflow({ overflow: TextOverflow.MARQUEE })
                   .fontColor($r('sys.color.white'))
+                Text('选择音轨')
+                  .fontSize(18)
+                  .fontColor($r('sys.color.white'))
+                  .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+                  .width('10%')
+                  .bindMenu(this.AudioTrackMenuBuilder)
+                  .visibility(this.screen_width > this.screen_height ? Visibility.Visible : Visibility.None)
                 Select([//屏幕扩展
                   { value: '原始比例' },
                   { value: '填满屏幕' }])
@@ -749,13 +788,14 @@ struct Player {
           this.play_time = value
           this.avPlayer?.seek(value)
         })
-        .width(this.screen_width > this.screen_height ? '72%' : '50%')
+        .width(this.screen_width > this.screen_height ? '72%' : '70%')
         .animation({ duration: 100, curve: Curve.Smooth })
         .selectedColor('#e0e0e0')
       Text(TimeUtil.convertMsToMMSS(Math.min(Math.max((this.now_playing?.time || 0) - this.play_time, 0),
         (this.now_playing?.time || 0))))
         .fontWeight(FontWeight.Medium).fontSize(15)
         .fontColor($r('sys.color.white'))
+        .visibility(this.screen_width > this.screen_height ? Visibility.Visible : Visibility.None)
     }
   }
 
