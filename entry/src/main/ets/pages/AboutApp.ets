@@ -1,6 +1,7 @@
 import ToolsUtil from '../utils/ToolsUtil';
 import { common } from '@kit.AbilityKit';
 import WantProcessUtil from '../utils/WantProcessUtil';
+import VideoInfoUtil from '../utils/VideoInfoUtil';
 
 
 @Entry
@@ -102,10 +103,11 @@ struct AboutApp {
             Button({ type: ButtonType.Normal, stateEffect: true }) {
               Row() {
                 SymbolGlyph($r('sys.symbol.person_shield')).fontSize(25).fontColor([$r('app.color.text_color')])
-                Text('用户协议')
+                Text('流心视频的使用条款与隐私声明')
                   .fontSize(15)
                   .fontColor($r('app.color.text_color'))
                   .margin({ left: 10, right: 12 })
+                  .width('80%')
               }
             }
             .margin({ left: 10 })
@@ -120,7 +122,7 @@ struct AboutApp {
               .combine(TransitionEffect.translate({ x: 100 })))
             .onClick(() => {
               let context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
-              let link: string =  WantProcessUtil.PRIVACY_LINK
+              let link: string = WantProcessUtil.PRIVACY_LINK
               WantProcessUtil.linkToWeb(context, link)
             })
           }
@@ -130,27 +132,27 @@ struct AboutApp {
       ListItem() {
         Column({ space: 20 }) {
           Row() {
-            Text('播放器支持格式')
+            Text('播放器支持格式和注意事项')
               .fontSize(20)
               .fontColor($r('app.color.text_color'))
           }.margin({ top: 15 })
 
           Row() {
             Column() {
-              Text('mp4, flv, mkv, ts, mov, rmvb*, wmv*')
+              Text(VideoInfoUtil.support_video_format.toString())
                 .fontSize(18)
-                .fontColor($r('app.color.text_color'))
-              Text('带*格式仅能使用 FFMpeg 播放器，其余格式若系统播放器无法播放或者没有声音，请首页长按视频选择 FFMpeg 播放器播放')
+                .fontColor($r('app.color.text_color')).margin({ bottom: 5 })
+              Text('1. rmvb, wmv, avi格式仅能使用 FFMpeg 播放器，其余格式若系统播放器无法播放或者没有声音，请首页长按视频选择 FFMpeg 播放器播放')
                 .fontSize(15)
-                .fontColor($r('app.color.text_color'))
-              Text('FFMpeg 播放器目前不支持 HDR 映射，不支持 HDR Vivid，不支持“高效视频格式”，不适合播放高码率视频')
+                .fontColor($r('app.color.text_color')).width('90%')
+              Text('2. FFMpeg 播放器目前不支持 HDR 映射，不支持 HDR Vivid，不支持“高效视频格式”，不适合播放高码率视频')
                 .fontSize(15)
-                .fontColor($r('app.color.text_color'))
+                .fontColor($r('app.color.text_color')).width('90%')
             }
           }.margin({ left: 2, right: 10 })
         }
         .borderRadius(10)
-        .height('25%')
+        .height('30%')
         .width('100%')
         .backgroundColor($r('app.color.start_window_background_blur'))
       }.width('90%').margin({ top: 20, left: 20, right: 20 })
@@ -167,17 +169,18 @@ struct AboutApp {
             Column() {
               Text('一款运行在 HarmonyOS Next 上的精致、简约的本地视频播放器，使用 ArkTS 语言开发，具有美观的设计和优雅的动画。')
                 .fontSize(15)
-                .fontColor($r('app.color.text_color'))
+                .fontColor($r('app.color.text_color')).width('90%')
               Text('基于开源项目流心视频，本应用根据原作者授权并基于 MIT 协议二次开发而来。')
                 .fontSize(15)
-                .fontColor($r('app.color.text_color'))
-            }.margin({ left: 2, right: 10 })
+                .fontColor($r('app.color.text_color')).width('90%')
+            }.margin({ left: 5, right: 10 })
           }
         }
         .borderRadius(10)
         .height('20%')
+        .width('100%')
         .backgroundColor($r('app.color.start_window_background_blur'))
-      }.margin({ top: 20, left: 20, right: 20 })
+      }.margin({ top: 20, left: 20, right: 20 }).width('90%')
 
 
       ListItem() {

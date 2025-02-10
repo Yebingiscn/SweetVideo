@@ -14,4 +14,4 @@
 ## 欢迎加入流心视频测试组
 > 可以从华为应用商店收到内测提醒和更新
 
-https://appgallery.huawei.com/link/invite-test-wap?taskId=f15bd71ed7e880d3a11dd5793aa03c51&invitationCode=2DNOnW6khEQ
+https://appgallery.huawei.com/link/invite-test-wap?taskId=fe627dee91a37502d3050639aac6f265&invitationCode=11vCxJOe6eE

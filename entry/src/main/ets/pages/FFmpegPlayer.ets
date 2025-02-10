@@ -18,7 +18,6 @@ import TimeUtil from '../utils/TimeUtil'
 import ToolsUtil from '../utils/ToolsUtil'
 import { router, window } from '@kit.ArkUI'
 import { audio } from '@kit.AudioKit'
-import { hilog } from '@kit.PerformanceAnalysisKit'
 import PermissionUtil from '../utils/PermissionUtil'
 import { common } from '@kit.AbilityKit'
 import AVSessionUtil from '../utils/AVSessionUtil'
@@ -248,9 +247,9 @@ struct EnhancePlayer {
           .backgroundColor('#50000000')
           .onClick(async () => {
             if (this.screen_height > this.screen_width) {
-              (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE)
+              (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED)
             } else {
-              (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_PORTRAIT)
+              (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
             }
           })
         }.width('55%')
@@ -344,7 +343,7 @@ struct EnhancePlayer {
     }
     this.CONTROL_PlayStatus = PlayStatus.PLAY;
     //设置debug模式
-    this.mIjkMediaPlayer.setDebug(true);
+    this.mIjkMediaPlayer.setDebug(false);
     //初始化配置
     this.mIjkMediaPlayer.native_setup();
     // 初始化配置后需要重新设置音频流音量，否则音量为默认值1.0
@@ -519,7 +518,6 @@ struct EnhancePlayer {
       if (event.hintType === InterruptHintType.INTERRUPT_HINT_PAUSE) {
         this.pause();
       } else if (event.hintType === InterruptHintType.INTERRUPT_HINT_RESUME) {
-        hilog.error(777, 'testFlag', '66:startPlay')
         this.startPlayOrResumePlay();
       } else if (event.hintType === InterruptHintType.INTERRUPT_HINT_STOP) {
         this.stop();

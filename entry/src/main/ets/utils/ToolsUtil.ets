@@ -117,10 +117,10 @@ class Tools {
     try {
       const bundleInfo =
         await bundleManager.getBundleInfoForSelf(bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION);
-      return bundleInfo.versionName; // 应用版本号
+      return bundleInfo.versionName;
     } catch (error) {
       hilog.error(777, 'testFlag', "get bundleInfo failed, error is " + error);
-      return ''; // 或者返回你希望的其他字符串，例如 'unknown'
+      return '';
     }
   }
 }

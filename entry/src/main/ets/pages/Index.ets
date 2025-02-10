@@ -60,11 +60,14 @@ struct Index {
           .width(180)
           .height(40)
       }.padding(10).onClick(() => {
-        let item_encryption = this.video_meta_data_encryption.find(i => i.date == item?.date)
-        let item_unencrypted = this.video_meta_data.find(i => i.date == item?.date)
-        ToolsUtil.isFileExist(this.encryption ? item_encryption : item_unencrypted) ?
-        ToolsUtil.routerWhere('pages/FFmpegPlayer', item?.date, this.encryption ? this.video_meta_data_encryption
-          : this.video_meta_data) : this.deleteUnExistFile(this.encryption ? item_encryption : item_unencrypted)
+        this.MenuBuilderState = false
+        setTimeout(() => {
+          let item_list = SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
+          this.video_meta_data, item?.date!)
+          ToolsUtil.isFileExist(item_list) ? ToolsUtil.routerWhere('pages/FFmpegPlayer', item?.date,
+            this.encryption ? this.video_meta_data_encryption : this.video_meta_data) :
+          this.deleteUnExistFile(item_list)
+        }, 200)
       })
 
       Divider().height(2)
@@ -434,8 +437,7 @@ struct Index {
               sandbox_path, new Date().getTime().toString(), metadata, file)
         } else {
           this.video_meta_data.push(await VideoUtil.setVideoInfo(new Date().getTime().toString(), uri, file.name,
-            metadata, this.encryption,
-            sandbox_video, sandbox_path)); // Use await here
+            metadata, this.encryption, sandbox_video, sandbox_path)); // Use await here
           SelectFileUtil.saveVideoMetaData(this.video_meta_data)
         }
       }
@@ -600,7 +602,7 @@ struct Index {
           })
         }.width('100%')
         .justifyContent(FlexAlign.Start)
-        .margin({ top: '6%' })
+        .margin({ top: '6%' }).visibility(this.encryption ? Visibility.None : Visibility.Visible)
 
         Row() {
           Button({ type: ButtonType.Normal, stateEffect: true }) {
