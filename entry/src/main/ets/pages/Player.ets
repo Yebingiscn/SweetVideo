@@ -92,7 +92,7 @@ struct Player {
               .fontSize(20)
               .width(150)
               .height(40)
-              .fontColor(this.audio_track_select === index ? $r('app.color.main_color') : $r('sys.color.white'))
+              .fontColor(this.audio_track_select === index ? $r('app.color.main_color') : $r('app.color.text_color'))
           }
           .padding(10)
           .onClick(() => {
@@ -388,7 +388,7 @@ struct Player {
           ListItem() {
             Column() {
               Row() {
-                if (VideoInfoUtil.videoSizeFormat(String(SelectFileUtil.getItem(this.video_meta_data,
+                if (VideoInfoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.video_meta_data,
                   item?.date)?.size)) !== '0 x 0') {
                   Text((String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title)).slice(0,
                     String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title).lastIndexOf('.')))
@@ -788,7 +788,7 @@ struct Player {
           this.play_time = value
           this.avPlayer?.seek(value)
         })
-        .width(this.screen_width > this.screen_height ? '72%' : '70%')
+        .width(this.screen_width > this.screen_height ? '72%' : '55%')
         .animation({ duration: 100, curve: Curve.Smooth })
         .selectedColor('#e0e0e0')
       Text(TimeUtil.convertMsToMMSS(Math.min(Math.max((this.now_playing?.time || 0) - this.play_time, 0),

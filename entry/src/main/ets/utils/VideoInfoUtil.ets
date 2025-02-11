@@ -28,12 +28,13 @@ class VideoInfoUtil {
   private GB = 1024 * 1024 * 1024 // 1GB in bytes
   private MB = 1024 * 1024 // 1MB in bytes
   private VIDEO_SPEED = 1
-  private videoSpeedMap =
+  private video_speed_map =
     new Map([[0.125, media.PlaybackSpeed.SPEED_FORWARD_0_125_X], [0.5, media.PlaybackSpeed.SPEED_FORWARD_0_50_X],
       [0.75, media.PlaybackSpeed.SPEED_FORWARD_0_75_X], [1.25, media.PlaybackSpeed.SPEED_FORWARD_1_25_X],
       [1.5, media.PlaybackSpeed.SPEED_FORWARD_1_50_X], [1.75, media.PlaybackSpeed.SPEED_FORWARD_1_75_X]])
   public support_video_format = ['mp4', 'flv', 'mkv', 'ts', 'mov', 'rmvb', 'wmv', 'avi']
-  private speedIndexMap: Record<number, number> = { //倍速 select 索引
+  private speed_index_map: Record<number, number> = {
+    //倍速 select 索引
     0.5: 0,
     0.75: 1,
     1: 2,
@@ -42,7 +43,7 @@ class VideoInfoUtil {
     2: 5,
     3: 6
   };
-  private videoSizeMap: Record<string, string> = {
+  private video_size_map: Record<string, string> = {
     '720': '720P HD',
     '800': 'HD+',
     '900': '900P HD+',
@@ -79,9 +80,9 @@ class VideoInfoUtil {
 
   async testFetchFrameByTime(uri: string, size: number[], date: string, sandbox_path: string) {
     let avImageGenerator: media.AVImageGenerator = await media.createAVImageGenerator()
-    let file = fs.openSync(uri, fs.OpenMode.READ_ONLY);
+    let file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
     let avFileDescriptor: media.AVFileDescriptor = { fd: file.fd };
-    avImageGenerator.fdSrc = avFileDescriptor;
+    avImageGenerator.fdSrc = avFileDescriptor
     let timeUs = 0
     let queryOption = media.AVImageQueryOptions.AV_IMAGE_QUERY_NEXT_SYNC
     let param: media.PixelMapParams = {
@@ -95,39 +96,38 @@ class VideoInfoUtil {
         fs.closeSync(file1)
       }).catch()
       avImageGenerator.release()
-      fs.closeSync(file);
+      fs.closeSync(file)
     })
   }
 
   getVideoWidthAndHeight(metadata: media.AVMetadata) {
-    const isPortrait = metadata.videoOrientation === '90' || metadata.videoOrientation === '270';
-    const width = parseInt(String(isPortrait ? metadata.videoHeight : metadata.videoWidth)) || 0;
-    const height = parseInt(String(isPortrait ? metadata.videoWidth : metadata.videoHeight)) || 0;
+    const isPortrait = metadata.videoOrientation === '90' || metadata.videoOrientation === '270'
+    const width = parseInt(String(isPortrait ? metadata.videoHeight : metadata.videoWidth)) || 0
+    const height = parseInt(String(isPortrait ? metadata.videoWidth : metadata.videoHeight)) || 0
     return [width, height]
   }
 
   // 绑定系统播放倍速库，获取实际倍速
-  getVideoSpeed(videoSpeed: number) {
-    if (!Number.isInteger(videoSpeed)) {
-      this.VIDEO_SPEED = videoSpeed
-      return this.videoSpeedMap.get(videoSpeed)!
-    } else if (videoSpeed !== this.VIDEO_SPEED && this.VIDEO_SPEED !== 1) {
+  getVideoSpeed(video_speed: number) {
+    if (!Number.isInteger(video_speed)) {
+      this.VIDEO_SPEED = video_speed
+      return this.video_speed_map.get(video_speed)!
+    } else if (video_speed !== this.VIDEO_SPEED && this.VIDEO_SPEED !== 1) {
       const PRE_VIDEO_SPEED = this.VIDEO_SPEED
       this.VIDEO_SPEED = 1
-      return videoSpeed === 1 ? videoSpeed : PRE_VIDEO_SPEED
+      return video_speed === 1 ? video_speed : PRE_VIDEO_SPEED
     } else {
-      this.VIDEO_SPEED = videoSpeed
-      return videoSpeed
+      this.VIDEO_SPEED = video_speed
+      return video_speed
     }
   }
 
   getVideoSpeedShow(speed: number) {
-    return this.speedIndexMap[speed]
+    return this.speed_index_map[speed]
   }
 
-  // 视频分辨率格式化
-  videoSizeFormat(size: string) {
-    for (const key of Object.entries(this.videoSizeMap)) {
+  videoWidthAndHeightFormat(size: string) {
+    for (const key of Object.entries(this.video_size_map)) {
       if (size.includes(key[0])) {
         return key[1];
       }
@@ -135,18 +135,17 @@ class VideoInfoUtil {
     return size.split(',')[0] + ' x ' + size.split(',')[1]
   }
 
-  // 获取视频大小
   async getVideoSize(uri: string): Promise<string> {
     return new Promise((resolve, reject) => {
-      let file = fs.openSync(uri, fs.OpenMode.READ_ONLY);
+      let file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
       fs.stat(file.fd, (err: BusinessError, stat: fs.Stat) => {
         if (err) {
-          reject('app.string.unknown_size'); // Rejecting the promise
+          reject('app.string.unknown_size')
         } else {
           const size = stat.size > this.GB ?
             (stat.size / this.GB).toFixed(2) + ' GB' :
-            (stat.size / this.MB).toFixed(2) + ' MB';
-          resolve(size); // Resolving the promise with the size
+            (stat.size / this.MB).toFixed(2) + ' MB'
+          resolve(size)
         }
       });
     });

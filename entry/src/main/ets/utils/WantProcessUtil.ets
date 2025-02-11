@@ -4,7 +4,7 @@ import { media } from '@kit.MediaKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import VideoUtil, { VideoMetadata } from './VideoInfoUtil';
-import { common, OpenLinkOptions, Want } from '@kit.AbilityKit';
+import { common, OpenLinkOptions } from '@kit.AbilityKit';
 
 class WantProcess {
   public want_uri: string = ''
@@ -27,10 +27,7 @@ class WantProcess {
         uri: this.want_uri,
         title: this.want_uri.split('/')[this.want_uri.split('/').length-1],
         date: '',
-        size: [parseInt((metadata.videoOrientation == '90' || metadata.videoOrientation == '270' ?
-        metadata.videoHeight : metadata.videoWidth) || '0'),
-          parseInt((metadata.videoOrientation == '90' || metadata.videoOrientation == '270' ? metadata.videoWidth :
-          metadata.videoHeight) || '0')],
+        size: VideoUtil.getVideoWidthAndHeight(metadata),
         time: parseInt(metadata.duration || '0'),
         last_play: 0,
         format: this.want_uri.split('.')[this.want_uri.split('.').length-1],

@@ -6,7 +6,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import PreferencesUtil from './PreferencesUtil';
 
 class SelectFileUtil {
-  private queryCache = new Map<string, VideoMetadata>();
+  private query_cache = new Map<string, VideoMetadata>();
   public file_folder_uri = ''
 
   async selectFiles(): Promise<string[]> {
@@ -47,10 +47,10 @@ class SelectFileUtil {
     let fileList: string[] = fs.listFileSync(this.file_folder_uri);
     let resultList: string[] = []; // 用于存储结果
     fileList.forEach((file) => {
-      const fullPath = this.file_folder_uri + '/' + file;
+      const fullPath = this.file_folder_uri + '/' + file
       resultList.push(fullPath); // 添加到新数组中
     });
-    return resultList; // 返回新的结果数组
+    return resultList // 返回新的结果数组
   }
 
   copyFile(item: VideoMetadata, context: common.UIAbilityContext) {
@@ -94,20 +94,20 @@ class SelectFileUtil {
   }
 
   getItem(list: VideoMetadata[], item: string) {
-    if (this.queryCache.has(item)) {
-      return this.queryCache.get(item);
+    if (this.query_cache.has(item)) {
+      return this.query_cache.get(item)
     }
-    const foundItem = list.find(i => i.date == item);
+    const foundItem = list.find(i => i.date == item)
     if (foundItem) {
-      this.queryCache.set(item, foundItem);
+      this.query_cache.set(item, foundItem)
     }
-    return foundItem;
+    return foundItem
   }
 
   getNextItem(list: VideoMetadata[], item: string) {
-    const currentIndex = list.findIndex(i => i.date === item);
-    const nextIndex = (currentIndex + 1) % list.length; // 如果是最后一个，则返回 0
-    return list[nextIndex];
+    const currentIndex = list.findIndex(i => i.date === item)
+    const nextIndex = (currentIndex + 1) % list.length // 如果是最后一个，则返回 0
+    return list[nextIndex]
   }
 
   getAllItem(list: VideoMetadata[]) {

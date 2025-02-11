@@ -53,21 +53,17 @@ class Tools {
     file: fs.File): Promise<string[]> {
     const file1 = fs.openSync(uri, fs.OpenMode.READ_ONLY);
     const file2 = fs.openSync(sandbox_video + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
-    // 使用 Promise 封装 fs.copyFile
     return new Promise<string[]>((resolve, reject) => {
       fs.copyFile(file1.fd, file2.fd, async (error) => {
         if (error) {
-          reject(error); // 处理错误
+          reject(error) // 处理错误
         } else {
-          // 更新视频元数据
           video_meta_data_encryption.push(await VideoInfoUtil.setVideoInfo(date, uri, file.name, metadata,
             encryption, sandbox_video, sandbox_path));
-          // 存储更新后的视频元数据
           SelectFileUtil.saveVideoMetaDataEncryption(video_meta_data_encryption)
-          // 关闭文件描述符
-          fs.closeSync(file1);
-          fs.closeSync(file2);
-          resolve(video_meta_data_encryption.map(i => i.date)); // 返回结果
+          fs.closeSync(file1)
+          fs.closeSync(file2)
+          resolve(video_meta_data_encryption.map(i => i.date)) // 返回结果
         }
       });
     });
@@ -119,8 +115,8 @@ class Tools {
         await bundleManager.getBundleInfoForSelf(bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION);
       return bundleInfo.versionName;
     } catch (error) {
-      hilog.error(777, 'testFlag', "get bundleInfo failed, error is " + error);
-      return '';
+      hilog.error(777, 'testFlag', "get bundleInfo failed, error is " + error)
+      return ''
     }
   }
 }

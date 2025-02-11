@@ -115,7 +115,7 @@ struct Index {
           .height(40)
       }.padding(10).onClick(() => {
         this.itemMultipleChooseState =
-          this.itemMultipleChooseState == Visibility.None ? Visibility.Visible : Visibility.None;
+          this.itemMultipleChooseState == Visibility.None ? Visibility.Visible : Visibility.None
         this.delMultipleList.length = 0
       })
     }.width(180).onAppear(() => {
@@ -749,9 +749,9 @@ struct Index {
                           .borderRadius(5)
                           .width(65)
                           .height(25)
-                      } else if (VideoUtil.videoSizeFormat(String(SelectFileUtil.getItem(this.encryption ?
+                      } else if (VideoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.encryption ?
                       this.video_meta_data_encryption : this.video_meta_data, item)?.size)).includes('HD')) {
-                        Text(VideoUtil.videoSizeFormat(String(SelectFileUtil.getItem(this.encryption ?
+                        Text(VideoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.encryption ?
                         this.video_meta_data_encryption : this.video_meta_data, item)?.size)))
                           .fontSize(10)
                           .fontWeight(FontWeight.Bold)
@@ -760,7 +760,7 @@ struct Index {
                           .backgroundColor('#E4BF3E')
                           .padding(5)
                           .borderRadius(5)
-                      } else if (VideoUtil.videoSizeFormat(String(SelectFileUtil.getItem(this.encryption ?
+                      } else if (VideoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.encryption ?
                       this.video_meta_data_encryption : this.video_meta_data, item)?.size)) === '0 x 0') {
                         Text($r('app.string.unknown_resolution'))
                           .fontSize(10)
@@ -770,7 +770,7 @@ struct Index {
                           .padding(5)
                           .borderRadius(5)
                       } else {
-                        Text(VideoUtil.videoSizeFormat(String(SelectFileUtil.getItem(this.encryption ?
+                        Text(VideoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.encryption ?
                         this.video_meta_data_encryption : this.video_meta_data, item)?.size)))
                           .fontSize(15)
                           .fontWeight(FontWeight.Normal)
@@ -821,7 +821,7 @@ struct Index {
               }
               this.listScroller.closeAllSwipeActions()
               this.now_playing = item_list
-              if (VideoUtil.videoSizeFormat(String(item_list?.size)) === '0 x 0') {
+              if (VideoUtil.videoWidthAndHeightFormat(String(item_list?.size)) === '0 x 0') {
                 ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
                 ToolsUtil.isFileExist(item_list) ?
                 ToolsUtil.routerWhere('pages/FFmpegPlayer', item, this.encryption ? this.video_meta_data_encryption
@@ -885,6 +885,7 @@ struct Index {
               controller: this.searchController,
               placeholder: $r('app.string.search_placeholder')
             })
+              .height(40)
               .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
               .backgroundColor($r('app.color.start_window_background_blur'))
               .backdropBlur(150)
@@ -927,7 +928,6 @@ struct Index {
                   ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.no_search_result')))
                 }
               })
-              .height(40)
             Button({ type: ButtonType.Circle, stateEffect: true }) {
               SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
                 .fontSize(25)
