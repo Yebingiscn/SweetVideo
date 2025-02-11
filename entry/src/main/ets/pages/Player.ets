@@ -574,6 +574,7 @@ struct Player {
           top: 10,
           bottom: 10
         })
+        .offset({ x: 0, y: -150 })
         .borderRadius(1000)
         .backgroundColor('#30000000')
         .backdropBlur(100)
@@ -866,6 +867,32 @@ struct Player {
       }.width(this.screen_height > this.screen_width ? '13%' : '10%')
 
       Row() {
+        Button({ type: ButtonType.Circle, stateEffect: true }) { // 亮度按钮
+          SymbolGlyph($r('sys.symbol.sun_max'))
+            .fontSize(23)
+            .fontColor(['#f0f0f0'])
+        }
+        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+        .height(40)
+        .width(40)
+        .backgroundColor('#50000000')
+        .bindMenu(this.BrightnessBuilder())
+      }.width(this.screen_height > this.screen_width ? '13%' : '10%')
+
+      Row() {
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph($r('sys.symbol.speaker_wave_1'))
+            .fontSize(23)
+            .fontColor(['#f0f0f0'])
+        }
+        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+        .height(40)
+        .width(40)
+        .backgroundColor('#50000000')
+        .bindMenu(this.VolumeBuilder())
+      }.width(this.screen_height > this.screen_width ? '13%' : '10%')
+
+      Row() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 快进按钮
           SymbolGlyph($r('sys.symbol.goforward_15'))
             .fontSize(23)
@@ -894,33 +921,6 @@ struct Player {
           this.avPlayer?.seek(this.play_time + 30000)
         })
       }.width('10%').visibility(this.screen_height > this.screen_width ? Visibility.None : Visibility.Visible)
-
-
-      Row() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) { // 亮度按钮
-          SymbolGlyph($r('sys.symbol.sun_max'))
-            .fontSize(23)
-            .fontColor(['#f0f0f0'])
-        }
-        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .height(40)
-        .width(40)
-        .backgroundColor('#50000000')
-        .bindMenu(this.BrightnessBuilder())
-      }.width(this.screen_height > this.screen_width ? '13%' : '10%')
-
-      Row() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph($r('sys.symbol.speaker_wave_1'))
-            .fontSize(23)
-            .fontColor(['#f0f0f0'])
-        }
-        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .height(40)
-        .width(40)
-        .backgroundColor('#50000000')
-        .bindMenu(this.VolumeBuilder())
-      }.width(this.screen_height > this.screen_width ? '13%' : '10%')
 
       Row() {
         Button({ type: ButtonType.Circle, stateEffect: true }) {

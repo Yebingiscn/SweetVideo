@@ -56,7 +56,7 @@ struct Index {
           .height(25)
           .sourceSize({ width: 25, height: 25 })
         Text($r('app.string.FFmpeg_Player'))
-          .fontSize(20)
+          .fontSize(15)
           .width(180)
           .height(40)
       }.padding(10).onClick(() => {
@@ -78,7 +78,7 @@ struct Index {
           .width(25)
           .height(40)
         Text($r('app.string.delete'))
-          .fontSize(20)
+          .fontSize(15)
           .width(180)
           .height(40)
       }.padding(10).onClick(() => {
@@ -94,7 +94,7 @@ struct Index {
           .width(25)
           .height(40)
         Text($r('app.string.edit'))
-          .fontSize(20)
+          .fontSize(15)
           .width(180)
           .height(40)
       }.padding(10).onClick(() => {
@@ -110,7 +110,7 @@ struct Index {
           .width(25)
           .height(40)
         Text($r('app.string.multiple_choice'))
-          .fontSize(20)
+          .fontSize(15)
           .width(180)
           .height(40)
       }.padding(10).onClick(() => {
@@ -134,7 +134,7 @@ struct Index {
           .width(25)
           .height(40)
         Text($r('app.string.sort_by_name'))
-          .fontSize(20)
+          .fontSize(15)
           .width(100)
           .height(50)
       }.padding(10).onClick(() => {
@@ -152,7 +152,7 @@ struct Index {
           .width(25)
           .height(40)
         Text($r('app.string.sort_by_time'))
-          .fontSize(20)
+          .fontSize(15)
           .width(100)
           .height(50)
       }.padding(10).onClick(() => {
@@ -174,7 +174,7 @@ struct Index {
           .width(25)
           .height(40)
         Text($r('app.string.cancel'))
-          .fontSize(20)
+          .fontSize(15)
           .width(100)
           .height(50)
       }.padding(10).onClick(() => {
@@ -191,7 +191,7 @@ struct Index {
           .width(25)
           .height(40)
         Text($r('app.string.select_all'))
-          .fontSize(20)
+          .fontSize(15)
           .width(100)
           .height(50)
       }.padding(10).onClick(() => {
@@ -212,7 +212,7 @@ struct Index {
           .width(25)
           .height(40)
         Text($r('app.string.delete_selected'))
-          .fontSize(20)
+          .fontSize(15)
           .width(100)
           .height(50)
       }.padding(10).onClick(async () => {
@@ -370,13 +370,7 @@ struct Index {
     this.passwd = await SelectFileUtil.getPassword()
     this.show_list = this.video_meta_data.map(i => i.date)
     this.activePermission()
-    await (await this.windowClass).setWindowLayoutFullScreen(true)
-    this.topSafeHeight = px2vp((await this.windowClass).getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-      .topRect.height)
-    DataSyncUtil.topSafeHeight = this.topSafeHeight
-    this.bottomSafeHeight =
-      px2vp((await this.windowClass).getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR)
-        .bottomRect.height)
+    this.getSafeHeightAndButton()
     if (!fs.accessSync(sandbox_video)) {
       fs.mkdirSync(sandbox_video)
     }
@@ -476,6 +470,15 @@ struct Index {
     });
     ToolsUtil.showToast(String(item?.title) +
     getContext().resourceManager.getStringSync($r('app.string.re_import_info')))
+  }
+
+  async getSafeHeightAndButton() {
+    await (await this.windowClass).setWindowLayoutFullScreen(true)
+    this.topSafeHeight = px2vp((await this.windowClass).getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
+      .topRect.height)
+    DataSyncUtil.topSafeHeight = this.topSafeHeight
+    this.bottomSafeHeight = px2vp((await this.windowClass)
+      .getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR).bottomRect.height)
   }
 
   build() {
@@ -706,8 +709,8 @@ struct Index {
               Column() {
                 Row() {
                   Image(fileUri.getUriFromPath(sandbox_path + item))
-                    .width(75)
-                    .height(75)
+                    .width(55)
+                    .height(55)
                     .backgroundImageSize(ImageSize.Cover)
                     .borderRadius(5)
                   Column() {
@@ -716,7 +719,7 @@ struct Index {
                       this.video_meta_data, item)?.title)).slice(0,
                         String(SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
                         this.video_meta_data, item)?.title).lastIndexOf('.')))
-                        .fontSize(20)
+                        .fontSize(15)
                         .fontWeight(FontWeight.Medium)
                         .maxLines(3)
                         .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -790,7 +793,7 @@ struct Index {
                 }.justifyContent(FlexAlign.Center)
               }
               .padding({ left: 10 })
-              .height(120)
+              .height(100)
               .backgroundColor($r('app.color.list_item_background'))
               .borderRadius(10)
               .justifyContent(FlexAlign.SpaceEvenly)
@@ -903,7 +906,6 @@ struct Index {
                 if (value == '' && this.video_meta_data) {
                   this.show_list =
                     SelectFileUtil.getAllItem(this.encryption ? this.video_meta_data_encryption : this.video_meta_data)
-                  this.searchController.stopEditing()
                 }
               })
               .onSubmit((value: string) => {
@@ -976,7 +978,8 @@ struct Index {
         .visibility(this.loading ? Visibility.Visible : Visibility.Hidden)
         .animation({ duration: 150, curve: Curve.Sharp })
       }.backgroundColor($r('app.color.start_window_background'))
-      .onAreaChange((_oldValue: Area, newValue: Area) => {
+      .onAreaChange(async (_oldValue: Area, newValue: Area) => {
+        this.getSafeHeightAndButton()
         this.list_line = Math.floor(new Number(newValue.width).valueOf() / 500 + 1)
         this.list_empty_item = []
         for (let i = 1; i <= this.list_line; i++) {
