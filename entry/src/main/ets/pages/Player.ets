@@ -1,7 +1,7 @@
 import { media } from '@kit.MediaKit';
 import AVPlayerUtil from '../utils/AVPlayerUtil';
 import DataSyncUtil from '../utils/DataSyncUtil';
-import { fileIo as fs } from '@kit.CoreFileKit';
+import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
 import PermissionUtil from '../utils/PermissionUtil';
 import { common } from '@kit.AbilityKit';
 import { router, window } from '@kit.ArkUI';
@@ -32,6 +32,7 @@ interface avSessionState {
 }
 
 const context = getContext() as common.UIAbilityContext;
+const sandbox_path = getContext().filesDir + '/'
 
 @Entry
 @Component
@@ -71,8 +72,6 @@ struct Player {
   @State screenBrightness: number = 0
   @State screenBrightnessAtFirst: number = 0
   @State windowClassTmp: window.Window | undefined = undefined;
-  @StorageLink('sideBarWidth') sideBarWidth: number = 0
-  @StorageLink('isShow') isShow: boolean = false
   @State video_meta_data: VideoMetadata[] = []
   @State select_text: string | undefined = '原始比例'
   @State select_video: Visibility = Visibility.None
@@ -81,6 +80,8 @@ struct Player {
   @State audio_track: number[] = []
   @State AudioTrackMenuBuilderState: boolean = false
   @State audio_track_select: number = 0
+  @State sideBarStatusTmp: Visibility = Visibility.Hidden
+  @State sideBarStatus: boolean = false
 
   @Builder
   AudioTrackMenuBuilder() {
@@ -100,13 +101,13 @@ struct Player {
             this.avPlayer!.selectTrack(this.audio_track[this.audio_track.indexOf(index)]);
             this.audio_track_select = index
           })
+
           if (this.audio_track.indexOf(index) !== this.audio_track.length - 1) {
             Divider().height(2)
           }
         }
       })
     }.width(150).onAppear(() => {
-      ToolsUtil.startVibration()
       this.audio_track.length <= 1 ? ToolsUtil.showToast('视频未识别到音轨') : this.AudioTrackMenuBuilderState = true
     })
   }
@@ -381,6 +382,18 @@ struct Player {
     this.playChooseVideo(next_item)
   }
 
+  closeSideBar(isPlayAnimation: boolean) {
+    this.sideBarStatusTmp = Visibility.Hidden
+    isPlayAnimation ? setTimeout(() => {
+      this.sideBarStatus = false
+    }, 400) : this.sideBarStatus = false
+  }
+
+  openSideBar() {
+    this.sideBarStatusTmp = Visibility.Visible
+    this.sideBarStatus = true
+  }
+
   build() {
     SideBarContainer(SideBarContainerType.Overlay) {
       List() {
@@ -388,36 +401,57 @@ struct Player {
           ListItem() {
             Column() {
               Row() {
+                Image(fileUri.getUriFromPath(sandbox_path + item.date))
+                  .width(55)
+                  .height(55)
+                  .backgroundImageSize(ImageSize.Cover)
+                  .borderRadius(10)
+                  .margin({ left: 5 })
                 if (VideoInfoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.video_meta_data,
                   item?.date)?.size)) !== '0 x 0') {
                   Text((String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title)).slice(0,
                     String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title).lastIndexOf('.')))
-                    .fontSize(20)
+                    .fontSize(15)
                     .fontColor(this.now_playing?.date === SelectFileUtil.getItem(this.video_meta_data, item?.date)?.date
                       ? $r('app.color.main_color') : $r('sys.color.white'))
                     .fontWeight(FontWeight.Medium)
                     .maxLines(4)
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
                     .textAlign(TextAlign.Center)
-                    .backgroundColor('#80393737')
-                    .width('100%')
-                    .height('25%')
-                    .borderRadius(5)
-                    .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
-                    .shadow({
-                      radius: 5,
-                      color: '#ffffffff',
-                      offsetX: 0,
-                      offsetY: 0
-                    })
+                    .width('75%')
+                    .margin({ left: 5 })
                 }
-              }.onClick(async () => {
+              }
+              .onClick(async () => {
                 this.playChooseVideo(item)
               })
-            }
+              .margin({ top: 10 })
+              .backgroundColor($r('app.color.list_item_background'))
+              .width('100%')
+              .height(this.screen_height > this.screen_width ? '15%' : '30%')
+              .borderRadius(10)
+              .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
+            }.gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
+              if (event) {
+                this.closeSideBar(true)
+              }
+            }))
           }
         })
       }
+      .visibility(this.sideBarStatusTmp)
+      .width('100%')
+      .backgroundColor($r('app.color.start_window_background'))
+      .padding({ top: 50, left: 20, right: 20 })
+      .transition(TransitionEffect.translate({ x: -200 })
+        .animation({ duration: 500 }))
+      .borderRadius(20)
+      .shadow({
+        radius: 15,
+        color: $r('app.color.shadow_color'),
+        offsetX: 0,
+        offsetY: 0
+      })
 
       Stack() {
         Stack() {
@@ -745,7 +779,7 @@ struct Player {
               }),
             TapGesture({ count: 1 })
               .onAction(() => {
-                this.isShow ? this.isShow = false : this.ShowControl = !this.ShowControl
+                this.sideBarStatus ? this.closeSideBar(true) : this.ShowControl = !this.ShowControl
               })
           ))
       }.onAreaChange(async (_oldValue: Area, newValue: Area) => {
@@ -755,19 +789,13 @@ struct Player {
       }).backgroundColor($r('sys.color.black'))
     }
     .showControlButton(false)
-    .sideBarWidth(200)
-    .minSideBarWidth(150)
-    .maxSideBarWidth(200)
-    .showSideBar(this.isShow)
-    .divider({
-      strokeWidth: '1vp',
-      color: Color.Gray,
-      startMargin: '4vp',
-      endMargin: '4vp'
-    })
+    .divider({ strokeWidth: 0 })
     .onChange((value: boolean) => {
-      value ? this.sideBarWidth = 200 : this.sideBarWidth = 0
+      this.sideBarStatus = value;
     })
+    .sideBarWidth(300)
+    .showSideBar(this.sideBarStatus)
+    .divider({ strokeWidth: 0 })
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 
@@ -811,8 +839,8 @@ struct Player {
             .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.playing))
         }
         .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .height(50)
-        .width(50)
+        .height(this.screen_height > this.screen_width ? 40 : 50)
+        .width(this.screen_height > this.screen_width ? 40 : 50)
         .backgroundColor('#50000000')
         .onClick(() => {
           ToolsUtil.startVibration()
@@ -933,7 +961,7 @@ struct Player {
         .width(40)
         .backgroundColor('#50000000')
         .onClick(() => {
-          this.isShow = !this.isShow
+          this.sideBarStatus ? this.closeSideBar(true) : this.openSideBar()
         })
       }.width(this.screen_height > this.screen_width ? '13%' : '10%')
 

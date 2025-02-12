@@ -674,8 +674,8 @@ struct Index {
       .justifyContent(FlexAlign.Start)
       .backgroundColor($r('app.color.start_window_background'))
       .padding({ top: 50, left: 20, right: 20 })
-      .transition(TransitionEffect.OPACITY.animation({ duration: 500 })
-        .combine(TransitionEffect.translate({ x: -100 })))
+      .transition(TransitionEffect.translate({ x: -300 })
+        .animation({ duration: 500 }))
       .visibility(this.sideBarStatusTmp)
       .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
         if (event) {
