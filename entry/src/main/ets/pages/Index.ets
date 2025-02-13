@@ -41,7 +41,7 @@ struct Index {
   @State sideBarStatus: boolean = false
   @State sideBarStatusTmp: Visibility = Visibility.Hidden
   @State itemMultipleChoose: boolean = false
-  @State itemMultipleChooseState: Visibility = Visibility.None
+  @State multipleChooseState: Visibility = Visibility.None
   @State MenuBuilderState: boolean = false
   @State delMultipleList: VideoMetadata[] = []
 
@@ -62,11 +62,11 @@ struct Index {
       }.padding(10).onClick(() => {
         this.MenuBuilderState = false
         setTimeout(() => {
-          let item_list = SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
+          let item_selected = SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
           this.video_meta_data, item?.date!)
-          ToolsUtil.isFileExist(item_list) ? ToolsUtil.routerWhere('pages/FFmpegPlayer', item?.date,
+          ToolsUtil.isFileExist(item_selected) ? ToolsUtil.routerWhere('pages/FFmpegPlayer', item?.date,
             this.encryption ? this.video_meta_data_encryption : this.video_meta_data) :
-          this.deleteUnExistFile(item_list)
+          this.deleteUnExistFile(item_selected)
         }, 200)
       })
 
@@ -114,8 +114,7 @@ struct Index {
           .width(180)
           .height(40)
       }.padding(10).onClick(() => {
-        this.itemMultipleChooseState =
-          this.itemMultipleChooseState == Visibility.None ? Visibility.Visible : Visibility.None
+        this.multipleChooseState = this.multipleChooseState == Visibility.None ? Visibility.Visible : Visibility.None
         this.delMultipleList.length = 0
       })
     }.width(180).onAppear(() => {
@@ -179,7 +178,7 @@ struct Index {
           .height(50)
       }.padding(10).onClick(() => {
         this.itemMultipleChoose = false
-        this.itemMultipleChooseState = Visibility.None
+        this.multipleChooseState = Visibility.None
         this.delMultipleList.length = 0
       })
 
@@ -217,7 +216,7 @@ struct Index {
           .height(50)
       }.padding(10).onClick(async () => {
         this.itemMultipleChoose = false;
-        this.itemMultipleChooseState = Visibility.None;
+        this.multipleChooseState = Visibility.None;
         if (this.delMultipleList.length > 0) {
           const deletePromises = this.delMultipleList.map(item => {
             return new Promise<void>((resolve, reject) => {
@@ -723,14 +722,14 @@ struct Index {
                         .fontWeight(FontWeight.Medium)
                         .maxLines(3)
                         .textOverflow({ overflow: TextOverflow.Ellipsis })
-                        .width(this.itemMultipleChooseState === Visibility.None ? '88%' : '75%')
+                        .width(this.multipleChooseState === Visibility.None ? '88%' : '75%')
                       Checkbox({ name: 'check_box: ' + index, group: 'checkboxGroup' })
                         .width(30)
                         .height(30)
                         .select(this.itemMultipleChoose)
                         .selectedColor($r('app.color.main_color'))
                         .shape(CheckBoxShape.CIRCLE)
-                        .visibility(this.itemMultipleChooseState)
+                        .visibility(this.multipleChooseState)
                         .onChange((value: boolean) => {
                           if (!this.itemMultipleChoose || !value) {
                             const foundMetadata = SelectFileUtil.getItem(this.encryption ?
@@ -818,7 +817,7 @@ struct Index {
             .onClick(() => {
               let item_list = SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
               this.video_meta_data, item)
-              if (this.MenuBuilderState || this.itemMultipleChooseState != Visibility.None) {
+              if (this.MenuBuilderState || this.multipleChooseState != Visibility.None) {
                 this.MenuBuilderState = false
                 return
               }
@@ -900,7 +899,7 @@ struct Index {
                 offsetX: 0,
                 offsetY: 0
               })
-              .width(this.itemMultipleChooseState == Visibility.None ? '60%' : '55%')
+              .width(this.multipleChooseState == Visibility.None ? '60%' : '55%')
               .animation({ duration: 300, curve: Curve.Ease })
               .onChange((value: string) => {
                 if (value == '' && this.video_meta_data) {
@@ -921,8 +920,7 @@ struct Index {
                 }
                 if (value == this.passwd && !this.encryption) {
                   this.encryption = true
-                  ToolsUtil.showToast(getContext().resourceManager
-                    .getStringSync($r('app.string.entered_privacy_space')))
+                  ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.enter_privacy_space')))
                   return
                 }
                 this.show_list = SelectFileUtil.getSearchItem(currentMeta, value)
@@ -955,7 +953,7 @@ struct Index {
                 .fontColor([$r('app.color.text_color')])
             }
             .backdropBlur(150)
-            .visibility(this.itemMultipleChooseState)
+            .visibility(this.multipleChooseState)
             .animation({ duration: 300, curve: Curve.Ease })
             .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
             .height(40)
@@ -1033,8 +1031,7 @@ struct Index {
         .width(40)
         .height(40)
         .onClick(() => {
-          this.itemMultipleChooseState =
-            this.itemMultipleChooseState == Visibility.None ? Visibility.Visible : Visibility.None
+          this.multipleChooseState = this.multipleChooseState == Visibility.None ? Visibility.Visible : Visibility.None
           this.itemMultipleChoose = false
           this.listScroller.closeAllSwipeActions()
           this.delMultipleList.length = 0

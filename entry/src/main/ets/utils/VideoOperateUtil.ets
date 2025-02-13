@@ -80,9 +80,13 @@ class VideoOperateUtil {
             return reject(error || new Error("No audio tracks available"));
           }
           // 收集所有音轨的索引，确保类型正确
-          const audioTrackIndexes: number[] = arrList.map((description) =>
-          description[media.MediaDescriptionKey.MD_KEY_TRACK_INDEX] as number
-          );
+          const audioTrackIndexes: number[] = arrList
+            .filter((description) =>
+            description[media.MediaDescriptionKey.MD_KEY_TRACK_TYPE] !== media.MediaType.MEDIA_TYPE_SUBTITLE
+            )
+            .map((description) =>
+            description[media.MediaDescriptionKey.MD_KEY_TRACK_INDEX] as number
+            );
           resolve(audioTrackIndexes);
         });
       });

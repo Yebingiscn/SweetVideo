@@ -108,7 +108,8 @@ struct Player {
         }
       })
     }.width(150).onAppear(() => {
-      this.audio_track.length <= 1 ? ToolsUtil.showToast('视频未识别到音轨') : this.AudioTrackMenuBuilderState = true
+      this.audio_track.length <= 1 ? ToolsUtil.showToast('糟糕！未识别到音轨，若播放没有声音请首页长按视频改用FFMpeg播放')
+        : this.AudioTrackMenuBuilderState = true
     })
   }
 
@@ -307,6 +308,9 @@ struct Player {
           break;
         case 'prepared':
           this.audio_track = await VideoOperateUtil.getAudioTracks(this.avPlayer!) as number[]
+          if (this.audio_track.length <= 1) {
+            ToolsUtil.showToast('糟糕！未识别到音轨，若播放没有声音请首页长按视频改用FFMpeg播放')
+          }
           this.avPlayer!.selectTrack(this.audio_track[this.audio_track.length - 1]);
           this.audio_track_select = this.audio_track[this.audio_track.length - 1]
           this.avPlayer?.play();
@@ -399,21 +403,21 @@ struct Player {
       List() {
         ForEach(this.video_meta_data, (item: VideoMetadata) => {
           ListItem() {
-            Column() {
-              Row() {
-                Image(fileUri.getUriFromPath(sandbox_path + item.date))
-                  .width(55)
-                  .height(55)
-                  .backgroundImageSize(ImageSize.Cover)
-                  .borderRadius(10)
-                  .margin({ left: 5 })
-                if (VideoInfoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.video_meta_data,
-                  item?.date)?.size)) !== '0 x 0') {
+            if (VideoInfoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.video_meta_data,
+              item?.date)?.size)) !== '0 x 0') {
+              Column() {
+                Row() {
+                  Image(fileUri.getUriFromPath(sandbox_path + item.date))
+                    .width(55)
+                    .height(55)
+                    .backgroundImageSize(ImageSize.Cover)
+                    .borderRadius(10)
+                    .margin({ left: 5 })
                   Text((String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title)).slice(0,
                     String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title).lastIndexOf('.')))
                     .fontSize(15)
                     .fontColor(this.now_playing?.date === SelectFileUtil.getItem(this.video_meta_data, item?.date)?.date
-                      ? $r('app.color.main_color') : $r('sys.color.white'))
+                      ? $r('app.color.main_color') : $r('app.color.text_color'))
                     .fontWeight(FontWeight.Medium)
                     .maxLines(4)
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -421,24 +425,25 @@ struct Player {
                     .width('75%')
                     .margin({ left: 5 })
                 }
+                .onClick(async () => {
+                  this.playChooseVideo(item)
+                })
+                .margin({ top: 10 })
+                .backgroundColor($r('app.color.list_item_background'))
+                .width('100%')
+                .height(this.screen_height > this.screen_width ? '15%' : '30%')
+                .borderRadius(10)
+                .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
               }
-              .onClick(async () => {
-                this.playChooseVideo(item)
-              })
-              .margin({ top: 10 })
-              .backgroundColor($r('app.color.list_item_background'))
-              .width('100%')
-              .height(this.screen_height > this.screen_width ? '15%' : '30%')
-              .borderRadius(10)
-              .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
-            }.gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
-              if (event) {
-                this.closeSideBar(true)
-              }
-            }))
+            }
           }
         })
       }
+      .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
+        if (event) {
+          this.closeSideBar(true)
+        }
+      }))
       .visibility(this.sideBarStatusTmp)
       .width('100%')
       .backgroundColor($r('app.color.start_window_background'))
