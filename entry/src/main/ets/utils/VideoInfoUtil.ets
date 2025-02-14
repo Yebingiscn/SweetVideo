@@ -74,16 +74,16 @@ class VideoInfoUtil {
       video_size: await this.getVideoSize(encryption ? sandbox_video + date : uri),
       hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE
     }
-    this.testFetchFrameByTime(uri, tmp.size, date, sandbox_path)
+    this.getVideoImage(uri, tmp.size, date, sandbox_path, parseInt(metadata.duration || '0'))
     return tmp
   }
 
-  async testFetchFrameByTime(uri: string, size: number[], date: string, sandbox_path: string) {
+  async getVideoImage(uri: string, size: number[], date: string, sandbox_path: string, time: number) {
     let avImageGenerator: media.AVImageGenerator = await media.createAVImageGenerator()
     let file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
     let avFileDescriptor: media.AVFileDescriptor = { fd: file.fd };
     avImageGenerator.fdSrc = avFileDescriptor
-    let timeUs = 0
+    let timeUs = (time > 0) ? time * 100 : 0
     let queryOption = media.AVImageQueryOptions.AV_IMAGE_QUERY_NEXT_SYNC
     let param: media.PixelMapParams = {
       width: size[0],
@@ -149,6 +149,35 @@ class VideoInfoUtil {
         }
       });
     });
+  }
+
+  async getAudioTracks(avPlayer: media.AVPlayer): Promise<number[]> {
+    const getTrackDescriptions = (): Promise<number[]> => {
+      return new Promise((resolve, reject) => {
+        avPlayer.getTrackDescription((error: BusinessError, arrList: Array<media.MediaDescription>) => {
+          if (error || !arrList || arrList.length === 0) {
+            console.error(`Failed to get TrackDescription, error: ${error}`);
+            return reject(error || new Error("No audio tracks available"));
+          }
+          // 收集所有音轨的索引，确保类型正确
+          const audioTrackIndexes: number[] = arrList
+            .filter((description) =>
+            description[media.MediaDescriptionKey.MD_KEY_TRACK_TYPE] !== media.MediaType.MEDIA_TYPE_SUBTITLE
+            )
+            .map((description) =>
+            description[media.MediaDescriptionKey.MD_KEY_TRACK_INDEX] as number
+            );
+          resolve(audioTrackIndexes);
+        });
+      });
+    };
+    try {
+      const audioTrackIndexes = await getTrackDescriptions();
+      return audioTrackIndexes; // 返回所有音轨索引
+    } catch (error) {
+      console.error("获取 audioTrackIndexes 失败:", error);
+      return []; // 返回空数组表示没有获取到音轨索引
+    }
   }
 }
 

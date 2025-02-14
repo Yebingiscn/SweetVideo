@@ -8,8 +8,6 @@ import { router, window } from '@kit.ArkUI';
 import { avSession as avSessionManager } from '@kit.AVSessionKit';
 import AVSessionUtil from '../utils/AVSessionUtil';
 import ToolsUtil from '../utils/ToolsUtil';
-import { hilog } from '@kit.PerformanceAnalysisKit';
-import VideoSpeedUtil from '../utils/VideoInfoUtil';
 import VideoInfoUtil, { VideoMetadata } from '../utils/VideoInfoUtil';
 import TimeUtil from '../utils/TimeUtil';
 import { audio, AVVolumePanel } from '@kit.AudioKit';
@@ -46,14 +44,14 @@ struct Player {
   @State play_time: number = 0
   @State last_play_time: number = 0
   surfaceID: string = ''
-  @State SwipeStartX: number = 0
+  @State swipe_start_x: number = 0
   @State SwipeMovingX: number = 0
-  @State SwipeStartY: number = 0
+  @State swipe_start_y: number = 0
   @State SwipeMovingY: number = 0
   seek_time: number | undefined = undefined
-  @State LongPress: boolean = false
+  @State long_press: boolean = false
   @State played: boolean = false
-  @State @Watch('setScreen') ShowControl: boolean = false
+  @State @Watch('setScreen') showControl: boolean = false
   @State lock_rotation: boolean = false
   xComponentController: XComponentController = new XComponentController()
   windowClass = window.getLastWindow(context)
@@ -82,113 +80,13 @@ struct Player {
   @State audio_track_select: number = 0
   @State sideBarStatusTmp: Visibility = Visibility.Hidden
   @State sideBarStatus: boolean = false
-
-  @Builder
-  AudioTrackMenuBuilder() {
-    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      ForEach(this.audio_track, (index: number) => {
-        if (index !== 0) {
-          Row() {
-            Text('音轨：' + index)
-              .fontSize(20)
-              .width(150)
-              .height(40)
-              .fontColor(this.audio_track_select === index ? $r('app.color.main_color') : $r('app.color.text_color'))
-          }
-          .padding(10)
-          .onClick(() => {
-            this.AudioTrackMenuBuilderState = false
-            this.avPlayer!.selectTrack(this.audio_track[this.audio_track.indexOf(index)]);
-            this.audio_track_select = index
-          })
-
-          if (this.audio_track.indexOf(index) !== this.audio_track.length - 1) {
-            Divider().height(2)
-          }
-        }
-      })
-    }.width(150).onAppear(() => {
-      this.audio_track.length <= 1 ? ToolsUtil.showToast('糟糕！未识别到音轨，若播放没有声音请首页长按视频改用FFMpeg播放')
-        : this.AudioTrackMenuBuilderState = true
-    })
-  }
-
-  @Builder
-  VolumeBuilder() {
-    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      Row() {
-        AVVolumePanel({
-          volumeLevel: this.volume,
-        })
-      }.visibility(Visibility.None)
-
-      Row() {
-        Slider({
-          value: this.volume,
-          min: this.min_volume,
-          max: this.max_volume,
-          step: 0.1,
-          style: SliderStyle.NONE,
-          direction: Axis.Vertical,
-          reverse: true
-        })
-          .width(40)
-          .height(160)
-          .selectedColor(Color.White)
-          .trackColor(Color.Black)
-          .trackThickness(40)
-          .onChange((value) => {
-            this.volume = value
-          })
-      }
-
-    }.width(40)
-  }
-
-  @Builder
-  BrightnessBuilder() {
-    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      Stack() {
-        Column() {
-          Button({ type: ButtonType.Circle, stateEffect: true }) {
-            SymbolGlyph($r('sys.symbol.undo'))
-              .fontSize(20)
-              .fontColor([$r('app.color.text_color')])
-          }
-          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-          .height(40)
-          .width(80)
-          .backgroundColor($r('app.color.start_window_background_blur'))
-          .backdropBlur(150)
-          .onClick(() => {
-            VideoOperateUtil.setBrightness(this.screenBrightnessAtFirst)
-          })
-
-          Slider({
-            value: this.screenBrightness,
-            min: 0,
-            max: 1,
-            step: 0.1,
-            style: SliderStyle.NONE,
-            direction: Axis.Vertical,
-            reverse: true
-          })
-            .width(40)
-            .height(160)
-            .selectedColor(Color.White)
-            .trackColor(Color.Black)
-            .trackThickness(40)
-            .onChange((value) => {
-              VideoOperateUtil.setBrightness(value)
-            })
-        }
-      }.width(40)
-    }
-  }
+  @State isLock: boolean = false
+  @State lockVisibility: boolean = false
 
   onBackPress(): boolean | void {
-    if (this.ShowControl) {
-      this.ShowControl = false
+    if (this.showControl) {
+      this.showControl = false
+      this.lockVisibility = false
       return true
     } else {
       this.avPlayer?.reset()
@@ -215,8 +113,8 @@ struct Player {
   }
 
   async setScreen() {
-    await (await this.windowClass).setSpecificSystemBarEnabled('status', this.ShowControl)
-    await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', this.ShowControl)
+    await (await this.windowClass).setSpecificSystemBarEnabled('status', this.showControl)
+    await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', this.showControl)
   }
 
   async aboutToAppear(): Promise<void> {
@@ -274,6 +172,15 @@ struct Player {
     }
   }
 
+  async getAudioTrack() {
+    this.audio_track = await VideoInfoUtil.getAudioTracks(this.avPlayer!) as number[]
+    if (this.audio_track.length <= 1) {
+      ToolsUtil.showToast('完蛋！未识别到音轨，若播放没有声音请首页长按视频改用FFMpeg播放 (＃°Д°)')
+    }
+    this.avPlayer!.selectTrack(this.audio_track[this.audio_track.length - 1]);
+    this.audio_track_select = this.audio_track[this.audio_track.length - 1]
+  }
+
   async setAVPlayerCallback() {
     this.avPlayer?.on('timeUpdate', (duration) => {
       if (!this.onSwiping) {
@@ -290,12 +197,8 @@ struct Player {
     })
 
     this.avPlayer?.on('speedDone', (speed) => {
-      try {
-        this.speed = VideoSpeedUtil.getVideoSpeed(parseFloat(speed.toFixed(2)))
-        this.speed_show = VideoSpeedUtil.getVideoSpeedShow(this.speed)
-      } catch (e) {
-        hilog.error(777, 'testFlag', 'speed return undefined: ' + e)
-      }
+      this.speed = VideoInfoUtil.getVideoSpeed(parseFloat(speed.toFixed(2)))
+      this.speed_show = VideoInfoUtil.getVideoSpeedShow(this.speed)
     })
 
     this.avPlayer?.on('stateChange', async (state) => {
@@ -307,12 +210,7 @@ struct Player {
           }
           break;
         case 'prepared':
-          this.audio_track = await VideoOperateUtil.getAudioTracks(this.avPlayer!) as number[]
-          if (this.audio_track.length <= 1) {
-            ToolsUtil.showToast('糟糕！未识别到音轨，若播放没有声音请首页长按视频改用FFMpeg播放')
-          }
-          this.avPlayer!.selectTrack(this.audio_track[this.audio_track.length - 1]);
-          this.audio_track_select = this.audio_track[this.audio_track.length - 1]
+          await this.getAudioTrack()
           this.avPlayer?.play();
           break;
         case 'completed':
@@ -403,39 +301,37 @@ struct Player {
       List() {
         ForEach(this.video_meta_data, (item: VideoMetadata) => {
           ListItem() {
-            if (VideoInfoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.video_meta_data,
-              item?.date)?.size)) !== '0 x 0') {
-              Column() {
-                Row() {
-                  Image(fileUri.getUriFromPath(sandbox_path + item.date))
-                    .width(55)
-                    .height(55)
-                    .backgroundImageSize(ImageSize.Cover)
-                    .borderRadius(10)
-                    .margin({ left: 5 })
-                  Text((String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title)).slice(0,
-                    String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title).lastIndexOf('.')))
-                    .fontSize(15)
-                    .fontColor(this.now_playing?.date === SelectFileUtil.getItem(this.video_meta_data, item?.date)?.date
-                      ? $r('app.color.main_color') : $r('app.color.text_color'))
-                    .fontWeight(FontWeight.Medium)
-                    .maxLines(4)
-                    .textOverflow({ overflow: TextOverflow.Ellipsis })
-                    .textAlign(TextAlign.Center)
-                    .width('75%')
-                    .margin({ left: 5 })
-                }
-                .onClick(async () => {
-                  this.playChooseVideo(item)
-                })
-                .margin({ top: 10 })
-                .backgroundColor($r('app.color.list_item_background'))
-                .width('100%')
-                .height(this.screen_height > this.screen_width ? '15%' : '30%')
-                .borderRadius(10)
-                .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
+            Column() {
+              Row() {
+                Image(fileUri.getUriFromPath(sandbox_path + item.date))
+                  .width(55)
+                  .height(55)
+                  .backgroundImageSize(ImageSize.Cover)
+                  .borderRadius(10)
+                  .margin({ left: 5 })
+                Text((String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title)).slice(0,
+                  String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title).lastIndexOf('.')))
+                  .fontSize(15)
+                  .fontColor(this.now_playing?.date === SelectFileUtil.getItem(this.video_meta_data, item?.date)?.date
+                    ? $r('app.color.main_color') : $r('app.color.text_color'))
+                  .fontWeight(FontWeight.Medium)
+                  .maxLines(4)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+                  .textAlign(TextAlign.Center)
+                  .width('75%')
+                  .margin({ left: 5 })
               }
-            }
+              .onClick(async () => {
+                this.playChooseVideo(item)
+              })
+              .margin({ top: 10 })
+              .backgroundColor($r('app.color.list_item_background'))
+              .width('100%')
+              .height(this.screen_height > this.screen_width ? '15%' : '30%')
+              .borderRadius(10)
+              .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
+            }.visibility(VideoInfoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.video_meta_data,
+              item?.date)?.size)) !== '0 x 0' ? Visibility.Visible : Visibility.None)
           }
         })
       }
@@ -481,95 +377,7 @@ struct Player {
             direction: FlexDirection.Column
           }) { //顶栏
             Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
-              SymbolGlyph($r('sys.symbol.chevron_left'))
-                .fontSize(40)
-                .fontColor(['#f0f0f0'])
-                .onClick(() => {
-                  this.avPlayer?.reset()
-                  router.back()
-                })
-                .padding({ right: 10 })
-              Row() {
-                Text(String(this.now_playing?.title).slice(0, this.now_playing?.title.lastIndexOf('.')))
-                  .fontSize(20)
-                  .fontWeight(FontWeight.Medium)
-                  .width(this.screen_width > this.screen_height ? '60%' : '65%')
-                  .maxLines(1)
-                  .textOverflow({ overflow: TextOverflow.MARQUEE })
-                  .fontColor($r('sys.color.white'))
-                Text('选择音轨')
-                  .fontSize(18)
-                  .fontColor($r('sys.color.white'))
-                  .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-                  .width('10%')
-                  .bindMenu(this.AudioTrackMenuBuilder)
-                  .visibility(this.screen_width > this.screen_height ? Visibility.Visible : Visibility.None)
-                Select([//屏幕扩展
-                  { value: '原始比例' },
-                  { value: '填满屏幕' }])
-                  .font({ size: 18, weight: FontWeight.Medium })
-                  .value(this.select_text)
-                  .selected(this.select_text == '填满屏幕' ? 1 : 0)
-                  .fontColor($r('sys.color.white'))
-                  .width('18%')
-                  .onSelect((_index: number, text?: string | undefined) => {
-                    this.select_text = text
-                    if (text === '填满屏幕') {
-                      this.play_area_height = this.screen_height
-                      this.play_area_width = this.screen_width
-                    } else {
-                      this.setRotation()
-                    }
-                  })
-                  .backgroundColor('#00000000')
-                  .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
-                  .visibility(this.select_video =
-                    this.screen_width > this.screen_height ? Visibility.Visible : Visibility.None)
-
-                Select([//倍速
-                  { value: '0.5x' },
-                  { value: '0.75x' },
-                  { value: '1.0x' },
-                  { value: '1.25x' },
-                  { value: '1.5x' },
-                  { value: '2.0x' },
-                  { value: '3.0x' }])
-                  .font({ size: 18, weight: FontWeight.Medium })
-                  .fontColor($r('sys.color.white'))
-                  .width(this.screen_height > this.screen_width ? '35%' : '18%')
-                  .selected(this.speed_show)
-                  .value(this.speed.toFixed(2) + 'x')
-                  .onSelect((_index: number, text?: string | undefined) => {
-                    this.avPlayer?.setSpeed(VideoSpeedUtil.getVideoSpeed(parseFloat(text?.replace('x', '') || '1')))
-                  })
-                  .backgroundColor('#00000000')
-                  .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
-              }.height(this.screen_height > this.screen_width ? '5%' : '20%')
-
-              Button({ type: ButtonType.Circle, stateEffect: true }) { // 旋转锁定
-                SymbolGlyph(this.lock_rotation ? $r('sys.symbol.lock_fill') : $r('sys.symbol.rotate_left'))
-                  .fontSize(23)
-                  .fontColor(['#f0f0f0'])
-                  .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.lock_rotation))
-              }
-              .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-              .height(40)
-              .width(35)
-              .backgroundColor('#00000000')
-              .onClick(async () => {
-                this.lock_rotation = !this.lock_rotation
-                if (this.lock_rotation) {
-                  ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.open_rotation_lock')))
-                  if (this.screen_width > this.screen_height) {
-                    (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED)
-                  } else {
-                    (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
-                  }
-                } else {
-                  (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
-                  ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.close_rotation_lock')))
-                }
-              })
+              this.VideoTop()
             }
             .width('100%')
             .padding({
@@ -601,11 +409,11 @@ struct Player {
             .backgroundColor('#61000000')
           }.height('100%').width('100%')
         }
-        .visibility(this.ShowControl ? Visibility.Visible : Visibility.Hidden)
+        .visibility(this.showControl && !this.isLock ? Visibility.Visible : Visibility.Hidden)
         .animation({ duration: 300, curve: Curve.Smooth })
 
         Stack({ alignContent: Alignment.BottomEnd }) { //快进提示
-          Text('3.0x').fontColor($r('sys.color.white')).fontSize(25).fontWeight(FontWeight.Bold)
+          Text('3.0x ⏩').fontColor($r('sys.color.white')).fontSize(15).fontWeight(FontWeight.Bold)
         }
         .padding({
           left: 25,
@@ -613,11 +421,11 @@ struct Player {
           top: 10,
           bottom: 10
         })
-        .offset({ x: 0, y: -150 })
+        .offset({ x: 0, y: 0 - this.play_area_height / 2 + 20 })
         .borderRadius(1000)
         .backgroundColor('#30000000')
         .backdropBlur(100)
-        .visibility(this.LongPress ? Visibility.Visible : Visibility.Hidden)
+        .visibility(this.long_press ? Visibility.Visible : Visibility.Hidden)
         .animation({ duration: 300, curve: Curve.Smooth })
 
         Stack() { //快进提示
@@ -711,80 +519,104 @@ struct Player {
         .visibility(this.onSwipingBrightness ? Visibility.Visible : Visibility.Hidden)
         .animation({ duration: 300, curve: Curve.Smooth })
 
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph(this.isLock ? $r('sys.symbol.lock_fill') : $r('sys.symbol.lock_open_fill'))
+            .fontWeight(FontWeight.Bold)
+            .fontSize(30)
+            .fontColor(['#f0f0f0'])
+        }
+        .zIndex(100)
+        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+        .aspectRatio(1)
+        .backgroundColor('#50000000')
+        .width(40)
+        .visibility(this.lockVisibility ? Visibility.Visible : Visibility.Hidden)
+        .onClick(() => {
+          this.isLock = !this.isLock
+        })
+        .position({ bottom: 150, left: 40 })
+
         Column()
           .width('100%')
           .height('50%')//触控区域
           .onTouch((event: TouchEvent) => {
-            if (event.type == TouchType.Down) {
-              this.last_play_time = this.play_time;
-              this.SwipeStartX = Math.floor(event.touches[0].x);
-              this.SwipeStartY = Math.floor(event.touches[0].y);
-              if (this.SwipeStartX < this.screen_width / 2) {
-                this.isLeftSideSwipe = true; // 左边竖滑
-                this.isRightSideSwipe = false;
-              } else {
-                this.isLeftSideSwipe = false;
-                this.isRightSideSwipe = true; // 右边竖滑
-              }
-            }
-            if (event.type == TouchType.Move) {
-              this.SwipeMovingX = Math.floor(event.touches[0].x);
-              this.SwipeMovingY = Math.floor(event.touches[0].y);
-              if (Math.abs(this.SwipeStartX - this.SwipeMovingX) > 10 &&
-                Math.abs(this.SwipeStartY - this.SwipeMovingY) < 5) {
-                if (this.speed > 1) {
-                  return;
-                }
-                this.onSwiping = true;
-                this.ShowControl = true;
-                this.play_time = this.last_play_time + (this.SwipeMovingX - this.SwipeStartX) *
-                  (Math.abs(this.SwipeStartX - this.SwipeMovingX) > 150 ?
-                    40 * (Math.abs(this.SwipeStartX - this.SwipeMovingX)) / 100 : 100);
-              } else if (Math.abs(this.SwipeStartY - this.SwipeMovingY) > 10 &&
-                Math.abs(this.SwipeStartX - this.SwipeMovingX) < 10) { // 处理竖滑
-                let offsetY = this.SwipeMovingY - this.SwipeStartY
-                const step_area = this.screen_width > this.screen_height ? 10 : 50
-                const step = this.screen_width > this.screen_height ? 0.01 : 0.05
-                if (this.isRightSideSwipe) {
-                  this.onSwipingVoice = true;
-                  const delta = ToolsUtil.calculateDelta(offsetY, step_area, step, offsetY < 0 ? 1 : -1);
-                  this.volume = Math.min(Math.max(this.volume + delta, 0.0), 15.0);
-                } else if (this.isLeftSideSwipe) {
-                  this.onSwipingBrightness = true;
-                  const delta = ToolsUtil.calculateDelta(offsetY, step_area, step / 10, offsetY < 0 ? 1 : -1);
-                  VideoOperateUtil.setBrightness(Math.min(Math.max(this.screenBrightness + delta, 0.0), 1.0))
+            if (!this.isLock) {
+              if (event.type == TouchType.Down) {
+                this.last_play_time = this.play_time;
+                this.swipe_start_x = Math.floor(event.touches[0].x);
+                this.swipe_start_y = Math.floor(event.touches[0].y);
+                if (this.swipe_start_x < this.screen_width / 2) {
+                  this.isLeftSideSwipe = true; // 左边竖滑
+                  this.isRightSideSwipe = false;
+                } else {
+                  this.isLeftSideSwipe = false;
+                  this.isRightSideSwipe = true; // 右边竖滑
                 }
               }
-            }
-            if (event.type == TouchType.Up) {
-              if (Math.abs(this.SwipeStartX - this.SwipeMovingX) > 10 &&
-                Math.abs(this.SwipeStartY - this.SwipeMovingY) < 10) {
-                this.avPlayer?.seek(this.play_time);
+              if (event.type == TouchType.Move) {
+                this.SwipeMovingX = Math.floor(event.touches[0].x);
+                this.SwipeMovingY = Math.floor(event.touches[0].y);
+                if (Math.abs(this.swipe_start_x - this.SwipeMovingX) > 10 &&
+                  Math.abs(this.swipe_start_y - this.SwipeMovingY) < 5) {
+                  if (this.speed > 1) {
+                    return;
+                  }
+                  this.onSwiping = true;
+                  this.play_time = this.last_play_time + (this.SwipeMovingX - this.swipe_start_x) *
+                    (Math.abs(this.swipe_start_x - this.SwipeMovingX) > 150 ?
+                      40 * (Math.abs(this.swipe_start_x - this.SwipeMovingX)) / 100 : 100);
+                } else if (Math.abs(this.swipe_start_y - this.SwipeMovingY) > 10 &&
+                  Math.abs(this.swipe_start_x - this.SwipeMovingX) < 10) { // 处理竖滑
+                  let offsetY = this.SwipeMovingY - this.swipe_start_y
+                  const step_area = this.screen_width > this.screen_height ? 10 : 50
+                  const step = this.screen_width > this.screen_height ? 0.01 : 0.05
+                  if (this.isRightSideSwipe) {
+                    this.onSwipingVoice = true;
+                    const delta = ToolsUtil.calculateDelta(offsetY, step_area, step, offsetY < 0 ? 1 : -1);
+                    this.volume = Math.min(Math.max(this.volume + delta, 0.0), 15.0);
+                  } else if (this.isLeftSideSwipe) {
+                    this.onSwipingBrightness = true;
+                    const delta = ToolsUtil.calculateDelta(offsetY, step_area, step / 10, offsetY < 0 ? 1 : -1);
+                    VideoOperateUtil.setBrightness(Math.min(Math.max(this.screenBrightness + delta, 0.0), 1.0))
+                  }
+                }
               }
-              this.onSwiping = false;
-              if (Math.abs(this.SwipeStartY - this.SwipeMovingY) > 10) { // 处理竖滑结束
-                this.onSwipingVoice = false
-                this.onSwipingBrightness = false
-              }
-              if (this.LongPress) {
-                this.LongPress = false;
-                this.avPlayer?.setSpeed(this.last_speed);
+              if (event.type == TouchType.Up) {
+                if (Math.abs(this.swipe_start_x - this.SwipeMovingX) > 10) {
+                  this.avPlayer?.seek(this.play_time);
+                } else if (this.long_press) {
+                  this.long_press = false;
+                  this.avPlayer?.setSpeed(VideoInfoUtil.getVideoSpeed(this.last_speed));
+                } else {
+                  this.onSwipingVoice = false
+                  this.onSwipingBrightness = false
+                }
+                this.onSwiping = false;
               }
             }
           })
           .gesture(LongPressGesture().onAction(() => {
-            this.LongPress = true
-            this.last_speed = this.speed
-            this.avPlayer?.setSpeed(3)
+            if (!this.isLock) {
+              this.long_press = true
+              this.last_speed = this.speed
+              this.avPlayer?.setSpeed(3)
+            }
           }))
           .gesture(GestureGroup(GestureMode.Exclusive,
             TapGesture({ count: 2 })
               .onAction(() => {
-                this.playing ? this.avPlayer?.pause() : this.avPlayer?.play()
+                if (!this.isLock) {
+                  this.playing ? this.avPlayer?.pause() : this.avPlayer?.play()
+                }
               }),
             TapGesture({ count: 1 })
               .onAction(() => {
-                this.sideBarStatus ? this.closeSideBar(true) : this.ShowControl = !this.ShowControl
+                if (this.sideBarStatus) {
+                  this.closeSideBar(true)
+                } else {
+                  this.lockVisibility = !this.lockVisibility;
+                  this.showControl = !this.showControl
+                }
               })
           ))
       }.onAreaChange(async (_oldValue: Area, newValue: Area) => {
@@ -802,6 +634,98 @@ struct Player {
     .showSideBar(this.sideBarStatus)
     .divider({ strokeWidth: 0 })
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+  }
+
+  @Builder
+  VideoTop() {
+    SymbolGlyph($r('sys.symbol.chevron_left'))
+      .fontSize(40)
+      .fontColor(['#f0f0f0'])
+      .onClick(() => {
+        this.avPlayer?.reset()
+        router.back()
+      })
+      .padding({ right: 10 })
+    Row() {
+      Text(String(this.now_playing?.title).slice(0, this.now_playing?.title.lastIndexOf('.')))
+        .fontSize(20)
+        .fontWeight(FontWeight.Medium)
+        .width(this.screen_width > this.screen_height ? '60%' : '65%')
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.MARQUEE })
+        .fontColor($r('sys.color.white'))
+      Text('选择音轨')
+        .fontSize(18)
+        .fontColor($r('sys.color.white'))
+        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+        .width('10%')
+        .bindMenu(this.AudioTrackMenuBuilder)
+        .visibility(this.screen_width > this.screen_height ? Visibility.Visible : Visibility.None)
+      Select([//屏幕扩展
+        { value: '原始比例' },
+        { value: '填满屏幕' }])
+        .font({ size: 18, weight: FontWeight.Medium })
+        .value(this.select_text)
+        .selected(this.select_text == '填满屏幕' ? 1 : 0)
+        .fontColor($r('sys.color.white'))
+        .width('18%')
+        .onSelect((_index: number, text?: string | undefined) => {
+          this.select_text = text
+          if (text === '填满屏幕') {
+            this.play_area_height = this.screen_height
+            this.play_area_width = this.screen_width
+          } else {
+            this.setRotation()
+          }
+        })
+        .backgroundColor('#00000000')
+        .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
+        .visibility(this.select_video =
+          this.screen_width > this.screen_height ? Visibility.Visible : Visibility.None)
+
+      Select([//倍速
+        { value: '0.5x' },
+        { value: '0.75x' },
+        { value: '1.0x' },
+        { value: '1.25x' },
+        { value: '1.5x' },
+        { value: '2.0x' },
+        { value: '3.0x' }])
+        .font({ size: 18, weight: FontWeight.Medium })
+        .fontColor($r('sys.color.white'))
+        .width(this.screen_height > this.screen_width ? '35%' : '14%')
+        .selected(this.speed_show)
+        .value(this.speed.toFixed(2) + 'x')
+        .onSelect((_index: number, text?: string | undefined) => {
+          this.avPlayer?.setSpeed(VideoInfoUtil.getVideoSpeed(parseFloat(text?.replace('x', '') || '1')))
+        })
+        .backgroundColor('#00000000')
+        .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
+    }.height(this.screen_height > this.screen_width ? '5%' : '20%')
+
+    Button({ type: ButtonType.Circle, stateEffect: true }) { // 旋转锁定
+      SymbolGlyph(this.lock_rotation ? $r('sys.symbol.lock_fill') : $r('sys.symbol.rotate_left'))
+        .fontSize(23)
+        .fontColor(['#f0f0f0'])
+        .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.lock_rotation))
+    }
+    .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+    .height(40)
+    .width(35)
+    .backgroundColor('#00000000')
+    .onClick(async () => {
+      this.lock_rotation = !this.lock_rotation
+      const windowInstance = await this.windowClass
+      const orientation = this.lock_rotation ?
+        (this.screen_width > this.screen_height ? window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED
+          : window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
+        : window.Orientation.AUTO_ROTATION_RESTRICTED
+      await windowInstance.setPreferredOrientation(orientation)
+      const toastMessage = this.lock_rotation
+        ? getContext().resourceManager.getStringSync($r('app.string.open_rotation_lock'))
+        : getContext().resourceManager.getStringSync($r('app.string.close_rotation_lock'))
+      ToolsUtil.showToast(toastMessage);
+    })
   }
 
   @Builder
@@ -987,5 +911,109 @@ struct Player {
         })
       }.width(this.screen_height > this.screen_width ? '13%' : '10%')
     }.width('95%')
+  }
+
+  @Builder
+  AudioTrackMenuBuilder() {
+    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
+      ForEach(this.audio_track, (index: number) => {
+        if (index !== 0) {
+          Row() {
+            Text('音轨：' + index)
+              .fontSize(20)
+              .width(150)
+              .height(40)
+              .fontColor(this.audio_track_select === index ? $r('app.color.main_color') : $r('app.color.text_color'))
+          }
+          .padding(10)
+          .onClick(() => {
+            this.AudioTrackMenuBuilderState = false
+            this.avPlayer!.selectTrack(this.audio_track[this.audio_track.indexOf(index)]);
+            this.audio_track_select = index
+          })
+
+          if (this.audio_track.indexOf(index) !== this.audio_track.length - 1) {
+            Divider().height(2)
+          }
+        }
+      })
+    }.width(150).onAppear(() => {
+      this.audio_track.length <= 1 ?
+      ToolsUtil.showToast('完蛋！未识别到音轨，若播放没有声音请首页长按视频改用FFMpeg播放 (＃°Д°)')
+        : this.AudioTrackMenuBuilderState = true
+    })
+  }
+
+  @Builder
+  VolumeBuilder() {
+    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
+      Row() {
+        AVVolumePanel({
+          volumeLevel: this.volume,
+        })
+      }.visibility(Visibility.None)
+
+      Row() {
+        Slider({
+          value: this.volume,
+          min: this.min_volume,
+          max: this.max_volume,
+          step: 0.1,
+          style: SliderStyle.NONE,
+          direction: Axis.Vertical,
+          reverse: true
+        })
+          .width(40)
+          .height(160)
+          .selectedColor(Color.White)
+          .trackColor(Color.Black)
+          .trackThickness(40)
+          .onChange((value) => {
+            this.volume = value
+          })
+      }
+
+    }.width(40)
+  }
+
+  @Builder
+  BrightnessBuilder() {
+    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
+      Stack() {
+        Column() {
+          Button({ type: ButtonType.Circle, stateEffect: true }) {
+            SymbolGlyph($r('sys.symbol.undo'))
+              .fontSize(20)
+              .fontColor([$r('app.color.text_color')])
+          }
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+          .height(40)
+          .width(80)
+          .backgroundColor($r('app.color.start_window_background_blur'))
+          .backdropBlur(150)
+          .onClick(() => {
+            VideoOperateUtil.setBrightness(this.screenBrightnessAtFirst)
+          })
+
+          Slider({
+            value: this.screenBrightness,
+            min: 0,
+            max: 1,
+            step: 0.1,
+            style: SliderStyle.NONE,
+            direction: Axis.Vertical,
+            reverse: true
+          })
+            .width(40)
+            .height(160)
+            .selectedColor(Color.White)
+            .trackColor(Color.Black)
+            .trackThickness(40)
+            .onChange((value) => {
+              VideoOperateUtil.setBrightness(value)
+            })
+        }
+      }.width(40)
+    }
   }
 }

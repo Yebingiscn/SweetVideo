@@ -2,7 +2,6 @@ import { window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { audio } from '@kit.AudioKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { media } from '@kit.MediaKit';
 
 class VideoOperateUtil {
   private windowStage: window.WindowStage = AppStorage.get('windowStage') as window.WindowStage;
@@ -69,35 +68,6 @@ class VideoOperateUtil {
             .catch(reject); // 如果有任何一个 Promise 失败，拒绝整个 Promise
         });
     });
-  }
-
-  async getAudioTracks(avPlayer: media.AVPlayer): Promise<number[]> {
-    const getTrackDescriptions = (): Promise<number[]> => {
-      return new Promise((resolve, reject) => {
-        avPlayer.getTrackDescription((error: BusinessError, arrList: Array<media.MediaDescription>) => {
-          if (error || !arrList || arrList.length === 0) {
-            console.error(`Failed to get TrackDescription, error: ${error}`);
-            return reject(error || new Error("No audio tracks available"));
-          }
-          // 收集所有音轨的索引，确保类型正确
-          const audioTrackIndexes: number[] = arrList
-            .filter((description) =>
-            description[media.MediaDescriptionKey.MD_KEY_TRACK_TYPE] !== media.MediaType.MEDIA_TYPE_SUBTITLE
-            )
-            .map((description) =>
-            description[media.MediaDescriptionKey.MD_KEY_TRACK_INDEX] as number
-            );
-          resolve(audioTrackIndexes);
-        });
-      });
-    };
-    try {
-      const audioTrackIndexes = await getTrackDescriptions();
-      return audioTrackIndexes; // 返回所有音轨索引
-    } catch (error) {
-      console.error("获取 audioTrackIndexes 失败:", error);
-      return []; // 返回空数组表示没有获取到音轨索引
-    }
   }
 }
 
