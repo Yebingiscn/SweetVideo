@@ -1,4 +1,7 @@
-# 流心视频
+<p align="center"><img src="./entry/src/main/resources/base/media/sweet_video_icon.png" style="width: 128px; height: 128px;"  alt="logo"></p>
+<h1 align="center">流心视频</h1>
+<p align="center">一款运行在 HarmonyOS Next 上的精致、简约的本地视频播放器</p>
+
 ## 欢迎加入流心视频测试组
 > 可以从华为应用商店收到内测提醒和更新
 

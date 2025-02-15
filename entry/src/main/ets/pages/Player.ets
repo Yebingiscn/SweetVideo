@@ -6,27 +6,21 @@ import PermissionUtil from '../utils/PermissionUtil';
 import { common } from '@kit.AbilityKit';
 import { router, window } from '@kit.ArkUI';
 import { avSession as avSessionManager } from '@kit.AVSessionKit';
-import AVSessionUtil from '../utils/AVSessionUtil';
+import AVSessionUtil, { avSessionState } from '../utils/AVSessionUtil';
 import ToolsUtil from '../utils/ToolsUtil';
-import VideoInfoUtil, { VideoMetadata } from '../utils/VideoInfoUtil';
+import VideoInfoUtil, { VideoMetadata, VideoMetadataFromPlayer } from '../utils/VideoInfoUtil';
 import TimeUtil from '../utils/TimeUtil';
 import { audio, AVVolumePanel } from '@kit.AudioKit';
 import { settings } from '@kit.BasicServicesKit';
 import VideoOperateUtil from '../utils/VideoOperateUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 
-interface VideoMetadataPlayer {
-  uri: string
-  title: string
-  date: string,
-  size: number[]
-  time: number
-  last_play: number
-}
-
-interface avSessionState {
-  playing: boolean
-  duration: number
+@Extend(Button)
+function buttonFancy(width: number | string, height: number | string) {
+  .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+  .height(width)
+  .width(height)
+  .backgroundColor('#50000000')
 }
 
 const context = getContext() as common.UIAbilityContext;
@@ -37,7 +31,7 @@ const sandbox_path = getContext().filesDir + '/'
 struct Player {
   avPlayer: media.AVPlayer | undefined = undefined
   avSession: avSessionManager.AVSession | undefined = undefined;
-  @State now_playing: VideoMetadataPlayer | undefined = undefined
+  @State now_playing: VideoMetadataFromPlayer | undefined = undefined
   @State playing: boolean = false
   @State speed: number = 1.0
   @State last_speed: number = 1
@@ -82,6 +76,7 @@ struct Player {
   @State sideBarStatus: boolean = false
   @State isLock: boolean = false
   @State lockVisibility: boolean = false
+  private listScroller: Scroller = new Scroller();
 
   onBackPress(): boolean | void {
     if (this.showControl) {
@@ -174,9 +169,7 @@ struct Player {
 
   async getAudioTrack() {
     this.audio_track = await VideoInfoUtil.getAudioTracks(this.avPlayer!) as number[]
-    if (this.audio_track.length <= 1) {
-      ToolsUtil.showToast('完蛋！未识别到音轨，若播放没有声音请首页长按视频改用FFMpeg播放 (＃°Д°)')
-    }
+    VideoOperateUtil.audioTrackErrorExecute(this.audio_track)
     this.avPlayer!.selectTrack(this.audio_track[this.audio_track.length - 1]);
     this.audio_track_select = this.audio_track[this.audio_track.length - 1]
   }
@@ -246,6 +239,9 @@ struct Player {
           break
         case 'idle':
           break;
+        case 'error':
+          VideoOperateUtil.playErrorExecute(this.video_meta_data, this.now_playing?.date!)
+          break;
       }
     })
   }
@@ -270,7 +266,7 @@ struct Player {
   async playChooseVideo(item: VideoMetadata) {
     await this.avPlayer?.reset()
     this.avPlayer = await AVPlayerUtil.getAVPlayer()
-    this.now_playing = JSON.parse(JSON.stringify(item)) as VideoMetadataPlayer
+    this.now_playing = JSON.parse(JSON.stringify(item)) as VideoMetadataFromPlayer
     this.getData()
     this.avSession = await AVSessionUtil.getAVSession()
     await this.setSessionListener()
@@ -298,7 +294,7 @@ struct Player {
 
   build() {
     SideBarContainer(SideBarContainerType.Overlay) {
-      List() {
+      List({ scroller: this.listScroller, space: 10 }) {
         ForEach(this.video_meta_data, (item: VideoMetadata) => {
           ListItem() {
             Column() {
@@ -335,6 +331,10 @@ struct Player {
           }
         })
       }
+      .onAppear(() => {
+        this.listScroller.scrollToIndex(this.video_meta_data.findIndex(item =>
+        this.now_playing?.date === SelectFileUtil.getItem(this.video_meta_data, item?.date)?.date))!
+      })
       .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
         if (event) {
           this.closeSideBar(true)
@@ -526,10 +526,8 @@ struct Player {
             .fontColor(['#f0f0f0'])
         }
         .zIndex(100)
-        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+        .buttonFancy(40, 40)
         .aspectRatio(1)
-        .backgroundColor('#50000000')
-        .width(40)
         .visibility(this.lockVisibility ? Visibility.Visible : Visibility.Hidden)
         .onClick(() => {
           this.isLock = !this.isLock
@@ -599,7 +597,7 @@ struct Player {
             if (!this.isLock) {
               this.long_press = true
               this.last_speed = this.speed
-              this.avPlayer?.setSpeed(3)
+              this.avPlayer?.setSpeed(VideoInfoUtil.getVideoSpeed(3))
             }
           }))
           .gesture(GestureGroup(GestureMode.Exclusive,
@@ -689,6 +687,7 @@ struct Player {
         { value: '1.0x' },
         { value: '1.25x' },
         { value: '1.5x' },
+        { value: '1.75x' },
         { value: '2.0x' },
         { value: '3.0x' }])
         .font({ size: 18, weight: FontWeight.Medium })
@@ -709,10 +708,7 @@ struct Player {
         .fontColor(['#f0f0f0'])
         .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.lock_rotation))
     }
-    .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-    .height(40)
-    .width(35)
-    .backgroundColor('#00000000')
+    .buttonFancy(35, 40)
     .onClick(async () => {
       this.lock_rotation = !this.lock_rotation
       const windowInstance = await this.windowClass
@@ -767,10 +763,7 @@ struct Player {
             .fontColor(['#f0f0f0'])
             .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.playing))
         }
-        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .height(this.screen_height > this.screen_width ? 40 : 50)
-        .width(this.screen_height > this.screen_width ? 40 : 50)
-        .backgroundColor('#50000000')
+        .buttonFancy(this.screen_height > this.screen_width ? 40 : 50, this.screen_height > this.screen_width ? 40 : 50)
         .onClick(() => {
           ToolsUtil.startVibration()
           this.playing ? this.avPlayer?.pause() : this.avPlayer?.play()
@@ -783,10 +776,7 @@ struct Player {
             .fontSize(30)
             .fontColor(['#f0f0f0'])
         }
-        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .height(40)
-        .width(40)
-        .backgroundColor('#50000000')
+        .buttonFancy(40, 40)
         .onClick(() => {
           this.playNextVideo()
         })
@@ -798,10 +788,7 @@ struct Player {
             .fontSize(23)
             .fontColor(['#f0f0f0'])
         }
-        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .height(40)
-        .width(40)
-        .backgroundColor('#50000000')
+        .buttonFancy(40, 40)
         .onClick(() => {
           this.circle_play = !this.circle_play
         })
@@ -814,10 +801,7 @@ struct Player {
             .fontSize(23)
             .fontColor(['#f0f0f0'])
         }
-        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .height(40)
-        .width(40)
-        .backgroundColor('#50000000')
+        .buttonFancy(40, 40)
         .onClick(() => {
           this.avPlayer?.seek(this.play_time - 15000)
         })
@@ -829,10 +813,7 @@ struct Player {
             .fontSize(23)
             .fontColor(['#f0f0f0'])
         }
-        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .height(40)
-        .width(40)
-        .backgroundColor('#50000000')
+        .buttonFancy(40, 40)
         .bindMenu(this.BrightnessBuilder())
       }.width(this.screen_height > this.screen_width ? '13%' : '10%')
 
@@ -842,10 +823,7 @@ struct Player {
             .fontSize(23)
             .fontColor(['#f0f0f0'])
         }
-        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .height(40)
-        .width(40)
-        .backgroundColor('#50000000')
+        .buttonFancy(40, 40)
         .bindMenu(this.VolumeBuilder())
       }.width(this.screen_height > this.screen_width ? '13%' : '10%')
 
@@ -855,10 +833,7 @@ struct Player {
             .fontSize(23)
             .fontColor(['#f0f0f0'])
         }
-        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .height(40)
-        .width(40)
-        .backgroundColor('#50000000')
+        .buttonFancy(40, 40)
         .onClick(() => {
           this.avPlayer?.seek(this.play_time + 15000)
         })
@@ -870,10 +845,7 @@ struct Player {
             .fontSize(23)
             .fontColor(['#f0f0f0'])
         }
-        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .height(40)
-        .width(40)
-        .backgroundColor('#50000000')
+        .buttonFancy(40, 40)
         .onClick(() => {
           this.avPlayer?.seek(this.play_time + 30000)
         })
@@ -885,10 +857,7 @@ struct Player {
             .fontSize(15)
             .fontColor($r('sys.color.white'))
         }
-        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .height(40)
-        .width(40)
-        .backgroundColor('#50000000')
+        .buttonFancy(40, 40)
         .onClick(() => {
           this.sideBarStatus ? this.closeSideBar(true) : this.openSideBar()
         })
@@ -900,10 +869,7 @@ struct Player {
             .fontSize(23)
             .fontColor(['#f0f0f0'])
         }
-        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .height(40)
-        .width(40)
-        .backgroundColor('#50000000')
+        .buttonFancy(40, 40)
         .onClick(async () => {
           this.screen_height > this.screen_width ?
           (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE)
@@ -938,9 +904,7 @@ struct Player {
         }
       })
     }.width(150).onAppear(() => {
-      this.audio_track.length <= 1 ?
-      ToolsUtil.showToast('完蛋！未识别到音轨，若播放没有声音请首页长按视频改用FFMpeg播放 (＃°Д°)')
-        : this.AudioTrackMenuBuilderState = true
+      VideoOperateUtil.audioTrackErrorExecute(this.audio_track)
     })
   }
 
@@ -986,10 +950,7 @@ struct Player {
               .fontSize(20)
               .fontColor([$r('app.color.text_color')])
           }
-          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-          .height(40)
-          .width(80)
-          .backgroundColor($r('app.color.start_window_background_blur'))
+          .buttonFancy(80, 40)
           .backdropBlur(150)
           .onClick(() => {
             VideoOperateUtil.setBrightness(this.screenBrightnessAtFirst)

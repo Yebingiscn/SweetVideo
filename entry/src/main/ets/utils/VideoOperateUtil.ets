@@ -1,7 +1,10 @@
-import { window } from '@kit.ArkUI';
+import { router, window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { audio } from '@kit.AudioKit';
 import { BusinessError } from '@kit.BasicServicesKit';
+import { VideoMetadata } from './VideoInfoUtil';
+import ToolsUtil from './ToolsUtil';
+import SelectFileUtil from './SelectFileUtil';
 
 class VideoOperateUtil {
   private windowStage: window.WindowStage = AppStorage.get('windowStage') as window.WindowStage;
@@ -68,6 +71,29 @@ class VideoOperateUtil {
             .catch(reject); // 如果有任何一个 Promise 失败，拒绝整个 Promise
         });
     });
+  }
+
+  playErrorExecute(video_meta_data: VideoMetadata[], date: string) {
+    ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
+    const now_play_item = video_meta_data.find(item => {
+      const target_item = SelectFileUtil.getItem(video_meta_data, item?.date)?.date;
+      return date === target_item;
+    });
+    router.replaceUrl({
+      url: 'pages/FFmpegPlayer',
+      params: {
+        metadata: JSON.stringify(now_play_item),
+        metadata_list: JSON.stringify(video_meta_data)
+      }
+    }, router.RouterMode.Standard)
+  }
+
+  audioTrackErrorExecute(audio_track: number[]) {
+    if (audio_track.length <= 1) {
+      audio_track[0] === 0 && audio_track.length === 1 ?
+      ToolsUtil.showToast('完蛋！未识别到音轨，若播放没有声音请首页长按视频改用FFMpeg播放 (＃°Д°)') :
+      ToolsUtil.showToast('完蛋，未识别到视频轨，只有声音没有画面 (＃°Д°)')
+    }
   }
 }
 

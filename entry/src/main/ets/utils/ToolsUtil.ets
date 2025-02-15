@@ -2,7 +2,7 @@ import promptAction from '@ohos.promptAction';
 import { vibrator } from '@kit.SensorServiceKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { pinyin4js } from '@ohos/pinyin4js';
-import VideoInfoUtil, { VideoMetadata } from './VideoInfoUtil';
+import VideoInfoUtil, { VideoMetadata, VideoMetadataFromPlayer } from './VideoInfoUtil';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import PreferencesUtil from './PreferencesUtil';
 import { media } from '@kit.MediaKit';

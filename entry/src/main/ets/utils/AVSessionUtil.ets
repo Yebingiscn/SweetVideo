@@ -1,18 +1,8 @@
 import { avSession as avSessionManager } from '@kit.AVSessionKit';
 import { image } from '@kit.ImageKit';
+import { VideoMetadataFromPlayer } from './VideoInfoUtil';
 
-
-interface VideoMetadata {
-  uri: string
-  title: string
-  date: string,
-  size: number[]
-  time: number
-  last_play: number
-}
-
-
-interface avSessionState {
+export interface avSessionState {
   playing: boolean
   duration: number
 }
@@ -37,7 +27,7 @@ class AVSession {
   }
 
   async setSessionInfo(metadata_json: string) {
-    let metadata: VideoMetadata = JSON.parse(metadata_json)
+    let metadata: VideoMetadataFromPlayer = JSON.parse(metadata_json)
     const imageSource = image.createImageSource(this.sandbox_path + metadata.date);
     const pixelMap = await imageSource.createPixelMap();
     let session_metadata: avSessionManager.AVMetadata = {

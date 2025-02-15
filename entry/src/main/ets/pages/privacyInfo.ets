@@ -74,7 +74,7 @@ struct SplashPage {
   initSdk() {
     //init();
     this.privacyDialogController?.close()
-    router.replaceUrl({ url: 'pages/Index', }, router.RouterMode.Single)
+    router.replaceUrl({ url: 'pages/Index' }, router.RouterMode.Single)
   }
 
   build() {

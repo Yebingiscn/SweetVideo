@@ -21,6 +21,38 @@ const context = getContext() as common.UIAbilityContext;
 const sandbox_path = getContext().filesDir + '/'
 const sandbox_video = getContext().filesDir + '/video/'
 
+@Extend(Image)
+function imageFancy(borderRadius: number, width: number | string, height: number | string) {
+  .backgroundImageSize(ImageSize.Cover)
+  .borderRadius(borderRadius)
+  .width(width)
+  .height(height)
+}
+
+@Extend(SymbolGlyph)
+function symbolGlyphFancy(fontSize: number) {
+  .fontSize(fontSize)
+  .fontColor([$r('app.color.text_color')])
+}
+
+@Extend(Button)
+function buttonFancy(width: number | string, height: number | string) {
+  .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+  .width(width)
+  .height(height)
+  .backgroundColor($r('app.color.start_window_background_blur'))
+}
+
+@Styles
+function shadowFancy() {
+  .shadow({
+    radius: 15,
+    color: $r('app.color.shadow_color'),
+    offsetX: 0,
+    offsetY: 0
+  })
+}
+
 @Entry
 @Component
 struct Index {
@@ -50,11 +82,7 @@ struct Index {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
       Row() {
         Image($r("app.media.ffmpeg"))
-          .backgroundImageSize(ImageSize.Cover)
-          .borderRadius(10)
-          .width(25)
-          .height(25)
-          .sourceSize({ width: 25, height: 25 })
+          .imageFancy(10, 25, 25)
         Text($r('app.string.FFmpeg_Player'))
           .fontSize(15)
           .width(180)
@@ -73,8 +101,7 @@ struct Index {
       Divider().height(2)
       Row() {
         SymbolGlyph($r('sys.symbol.trash_fill'))
-          .fontSize(20)
-          .fontColor([$r('app.color.text_color')])
+          .symbolGlyphFancy(20)
           .width(25)
           .height(40)
         Text($r('app.string.delete'))
@@ -89,8 +116,7 @@ struct Index {
       Divider().height(2)
       Row() {
         SymbolGlyph($r('sys.symbol.rename'))
-          .fontSize(20)
-          .fontColor([$r('app.color.text_color')])
+          .symbolGlyphFancy(20)
           .width(25)
           .height(40)
         Text($r('app.string.edit'))
@@ -105,8 +131,7 @@ struct Index {
       Divider().height(2)
       Row() {
         SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
-          .fontSize(20)
-          .fontColor([$r('app.color.text_color')])
+          .symbolGlyphFancy(20)
           .width(25)
           .height(40)
         Text($r('app.string.multiple_choice'))
@@ -128,8 +153,7 @@ struct Index {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
       Row() {
         SymbolGlyph($r('sys.symbol.textformat'))
-          .fontSize(20)
-          .fontColor([$r('app.color.text_color')])
+          .symbolGlyphFancy(20)
           .width(25)
           .height(40)
         Text($r('app.string.sort_by_name'))
@@ -146,8 +170,7 @@ struct Index {
       Divider().height(10)
       Row() {
         SymbolGlyph($r('sys.symbol.clock'))
-          .fontSize(20)
-          .fontColor([$r('app.color.text_color')])
+          .symbolGlyphFancy(20)
           .width(25)
           .height(40)
         Text($r('app.string.sort_by_time'))
@@ -168,8 +191,7 @@ struct Index {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
       Row() {
         SymbolGlyph($r('sys.symbol.xmark'))
-          .fontSize(20)
-          .fontColor([$r('app.color.text_color')])
+          .symbolGlyphFancy(20)
           .width(25)
           .height(40)
         Text($r('app.string.cancel'))
@@ -185,8 +207,7 @@ struct Index {
       Divider().height(10)
       Row() {
         SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
-          .fontSize(20)
-          .fontColor([$r('app.color.text_color')])
+          .symbolGlyphFancy(20)
           .width(25)
           .height(40)
         Text($r('app.string.select_all'))
@@ -206,8 +227,7 @@ struct Index {
       Divider().height(10)
       Row() {
         SymbolGlyph($r('sys.symbol.trash_fill'))
-          .fontSize(20)
-          .fontColor([$r('app.color.text_color')])
+          .symbolGlyphFancy(20)
           .width(25)
           .height(40)
         Text($r('app.string.delete_selected'))
@@ -486,31 +506,19 @@ struct Index {
         Row() {
           Button({ type: ButtonType.Circle, stateEffect: true }) {
             SymbolGlyph($r('sys.symbol.open_sidebar'))
-              .fontSize(20)
-              .fontColor([$r('app.color.text_color')])
+              .symbolGlyphFancy(20)
           }
-          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-          .height(40)
-          .width(80)
-          .backgroundColor($r('app.color.start_window_background_blur'))
+          .buttonFancy(80, 40)
           .onClick(() => {
             this.closeSideBar(true)
           })
-          .shadow({
-            radius: 15,
-            color: $r('app.color.shadow_color'),
-            offsetX: 0,
-            offsetY: 0
-          })
+          .shadowFancy()
         }.justifyContent(FlexAlign.Start)
 
         Column() {
           Stack() {
             Image($r("app.media.Background"))
-              .backgroundImageSize(ImageSize.Cover)
-              .borderRadius(10)
-              .width('100%')
-              .height('17%')
+              .imageFancy(10, '100%', '17%')
               .zIndex(1)
             Row() {
               Image($r("app.media.Foreground"))
@@ -529,7 +537,7 @@ struct Index {
           Row() {
             Button({ type: ButtonType.Normal, stateEffect: true }) {
               Row() {
-                SymbolGlyph($r('sys.symbol.info_circle')).fontSize(25).fontColor([$r('app.color.text_color')])
+                SymbolGlyph($r('sys.symbol.info_circle')).symbolGlyphFancy(25)
                 Text('关于应用')
                   .fontSize(15)
                   .fontColor($r('app.color.text_color'))
@@ -538,13 +546,8 @@ struct Index {
             }
             .align(Alignment.Start)
             .padding(10)
+            .buttonFancy('100%', '8%')
             .borderRadius(10)
-            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-            .height('8%')
-            .width('100%')
-            .backgroundColor($r('app.color.start_window_background_blur'))
-            .transition(TransitionEffect.OPACITY.animation({ duration: 500 })
-              .combine(TransitionEffect.translate({ x: 100 })))
             .onClick(() => {
               ToolsUtil.routerWhereOnlyUri('pages/AboutApp')
             })
@@ -555,7 +558,7 @@ struct Index {
         Row() {
           Button({ type: ButtonType.Normal, stateEffect: true }) {
             Row() {
-              SymbolGlyph($r('sys.symbol.folder')).fontSize(25).fontColor([$r('app.color.text_color')])
+              SymbolGlyph($r('sys.symbol.folder')).symbolGlyphFancy(25)
               Text($r('app.string.import_from_files'))
                 .fontSize(15)
                 .fontColor($r('app.color.text_color'))
@@ -565,12 +568,7 @@ struct Index {
           .align(Alignment.Start)
           .padding(10)
           .borderRadius(10)
-          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-          .height('11%')
-          .width('100%')
-          .backgroundColor($r('app.color.start_window_background_blur'))
-          .transition(TransitionEffect.OPACITY.animation({ duration: 500 })
-            .combine(TransitionEffect.translate({ x: 100 })))
+          .buttonFancy('100%', '11%')
           .onClick(() => {
             this.closeSideBar(false)
             this.selectFiles()
@@ -582,7 +580,7 @@ struct Index {
         Row() {
           Button({ type: ButtonType.Normal, stateEffect: true }) {
             Row() {
-              SymbolGlyph($r('sys.symbol.folder')).fontSize(25).fontColor([$r('app.color.text_color')])
+              SymbolGlyph($r('sys.symbol.folder')).symbolGlyphFancy(25)
               Text('从下载文件夹导入')
                 .fontSize(15)
                 .fontColor($r('app.color.text_color'))
@@ -592,12 +590,7 @@ struct Index {
           .align(Alignment.Start)
           .padding(10)
           .borderRadius(10)
-          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-          .height('11%')
-          .width('100%')
-          .backgroundColor($r('app.color.start_window_background_blur'))
-          .transition(TransitionEffect.OPACITY.animation({ duration: 500 })
-            .combine(TransitionEffect.translate({ x: 100 })))
+          .buttonFancy('100%', '11%')
           .onClick(async () => {
             this.closeSideBar(false)
             await this.toMetaData(SelectFileUtil.getDownloadFilesUri());
@@ -610,21 +603,17 @@ struct Index {
           Button({ type: ButtonType.Normal, stateEffect: true }) {
             Row() {
               SymbolGlyph($r('sys.symbol.video'))
-                .fontSize(25)
-                .fontColor([$r('app.color.text_color')])
+                .symbolGlyphFancy(25)
               Text($r('app.string.import_from_album'))
                 .fontSize(15)
                 .fontColor($r('app.color.text_color'))
                 .margin({ left: 10, right: 12 })
             }
           }
-          .backgroundColor($r('app.color.start_window_background_blur'))
           .align(Alignment.Start)
           .padding(10)
           .borderRadius(10)
-          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-          .height('11%')
-          .width('100%')
+          .buttonFancy('100%', '11%')
           .onClick(() => {
             this.closeSideBar(false)
             this.selectVideo()
@@ -637,8 +626,7 @@ struct Index {
           Button({ type: ButtonType.Normal, stateEffect: true }) {
             Row() {
               SymbolGlyph($r('sys.symbol.lock'))
-                .fontSize(25)
-                .fontColor([$r('app.color.text_color')])
+                .symbolGlyphFancy(25)
               Text(this.encryption ? $r('app.string.exist_privacy_space') : $r('app.string.privacy_space'))
                 .fontSize(15)
                 .fontColor($r('app.color.text_color'))
@@ -646,13 +634,10 @@ struct Index {
             }
           }
           .visibility(this.passwd == '' || this.encryption ? Visibility.Visible : Visibility.None)
-          .backgroundColor($r('app.color.start_window_background_blur'))
           .align(Alignment.Start)
           .padding(10)
           .borderRadius(10)
-          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-          .height('11%')
-          .width('100%')
+          .buttonFancy('100%', '11%')
           .onClick(() => {
             this.closeSideBar(false)
             if (this.passwd == '') {
@@ -682,12 +667,7 @@ struct Index {
         }
       }))
       .borderRadius(20)
-      .shadow({
-        radius: 15,
-        color: $r('app.color.shadow_color'),
-        offsetX: 0,
-        offsetY: 0
-      })
+      .shadowFancy()
 
       Stack({ alignContent: Alignment.Top }) { // 内容区
         Column()// 遮罩
@@ -708,10 +688,7 @@ struct Index {
               Column() {
                 Row() {
                   Image(fileUri.getUriFromPath(sandbox_path + item))
-                    .width(55)
-                    .height(55)
-                    .backgroundImageSize(ImageSize.Cover)
-                    .borderRadius(5)
+                    .imageFancy(5, 55, 55)
                   Column() {
                     Row() {
                       Text((String(SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
@@ -722,7 +699,8 @@ struct Index {
                         .fontWeight(FontWeight.Medium)
                         .maxLines(3)
                         .textOverflow({ overflow: TextOverflow.Ellipsis })
-                        .width(this.multipleChooseState === Visibility.None ? '88%' : '75%')
+                        .width(this.multipleChooseState === Visibility.None ? '90%' : '75%')
+                        .wordBreak(WordBreak.BREAK_ALL)
                       Checkbox({ name: 'check_box: ' + index, group: 'checkboxGroup' })
                         .width(30)
                         .height(30)
@@ -747,10 +725,7 @@ struct Index {
                       if ((SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
                       this.video_meta_data, item)?.hdr_type) === media.HdrType.AV_HDR_TYPE_VIVID) {
                         Image($r("app.media.hdr_vivid_icon"))
-                          .backgroundImageSize(ImageSize.Cover)
-                          .borderRadius(5)
-                          .width(65)
-                          .height(25)
+                          .imageFancy(5, 65, 25)
                       } else if (VideoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.encryption ?
                       this.video_meta_data_encryption : this.video_meta_data, item)?.size)).includes('HD')) {
                         Text(VideoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.encryption ?
@@ -864,23 +839,14 @@ struct Index {
           Row({ space: 15 }) {
             Button({ type: ButtonType.Circle, stateEffect: true }) {
               SymbolGlyph($r('sys.symbol.close_sidebar'))
-                .fontSize(25)
-                .fontColor([$r('app.color.text_color')])
+                .symbolGlyphFancy(25)
             }
-            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-            .height(40)
-            .width(40)
-            .backgroundColor($r('app.color.start_window_background_blur'))
+            .buttonFancy(40, 40)
             .backdropBlur(150)
             .onClick(() => {
               this.openSideBar()
             })
-            .shadow({
-              radius: 15,
-              color: $r('app.color.shadow_color'),
-              offsetX: 0,
-              offsetY: 0
-            })
+            .shadowFancy()
 
             Search({
               value: $$this.search_input, //搜索框
@@ -893,12 +859,7 @@ struct Index {
               .backdropBlur(150)
               .searchButton(getContext(this).resourceManager.getStringSync($r('app.string.search')),
                 { fontSize: '16fp', fontColor: $r('app.color.main_color') })
-              .shadow({
-                radius: 15,
-                color: $r('app.color.shadow_color'),
-                offsetX: 0,
-                offsetY: 0
-              })
+              .shadowFancy()
               .width(this.multipleChooseState == Visibility.None ? '60%' : '55%')
               .animation({ duration: 300, curve: Curve.Ease })
               .onChange((value: string) => {
@@ -930,42 +891,24 @@ struct Index {
               })
             Button({ type: ButtonType.Circle, stateEffect: true }) {
               SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
-                .fontSize(25)
-                .fontColor([$r('app.color.text_color')])
+                .symbolGlyphFancy(25)
             }
             .backdropBlur(150)
             .animation({ duration: 300, curve: Curve.Ease })
-            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-            .height(40)
-            .width(40)
-            .backgroundColor($r('app.color.start_window_background_blur'))
+            .buttonFancy(40, 40)
             .bindMenu(this.SortMenuBuilder)
-            .shadow({
-              radius: 15,
-              color: $r('app.color.shadow_color'),
-              offsetX: 0,
-              offsetY: 0
-            })
+            .shadowFancy()
 
             Button({ type: ButtonType.Circle, stateEffect: true }) {
               SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
-                .fontSize(25)
-                .fontColor([$r('app.color.text_color')])
+                .symbolGlyphFancy(25)
             }
             .backdropBlur(150)
             .visibility(this.multipleChooseState)
+            .buttonFancy(40,40)
             .animation({ duration: 300, curve: Curve.Ease })
-            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-            .height(40)
-            .width(40)
-            .backgroundColor($r('app.color.start_window_background_blur'))
             .bindMenu(this.SelectItemMenuBuilder)
-            .shadow({
-              radius: 15,
-              color: $r('app.color.shadow_color'),
-              offsetX: 0,
-              offsetY: 0
-            })
+            .shadowFancy()
           }
         }.padding({ top: this.topSafeHeight }).width('100%')
 
@@ -1004,8 +947,7 @@ struct Index {
     Row({ space: 10 }) {
       Stack().width(10)
       SymbolGlyph($r('sys.symbol.trash_fill'))
-        .fontSize(28)
-        .fontColor([$r('app.color.text_color')])
+        .symbolGlyphFancy(28)
         .width(40)
         .height(40)
         .onClick(() => {
@@ -1015,8 +957,7 @@ struct Index {
         })
       Stack().width(10)
       SymbolGlyph($r('sys.symbol.rename'))
-        .fontSize(28)
-        .fontColor([$r('app.color.text_color')])
+        .symbolGlyphFancy(28)
         .width(40)
         .height(40)
         .onClick(() => {
@@ -1026,8 +967,7 @@ struct Index {
         })
       Stack().width(10)
       SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
-        .fontSize(28)
-        .fontColor([$r('app.color.text_color')])
+        .symbolGlyphFancy(28)
         .width(40)
         .height(40)
         .onClick(() => {
@@ -1038,8 +978,7 @@ struct Index {
         })
       Stack().width(10).visibility(this.encryption ? Visibility.Visible : Visibility.None)
       SymbolGlyph($r('sys.symbol.arrow_right_folder_circle'))
-        .fontSize(28)
-        .fontColor([$r('app.color.text_color')])
+        .symbolGlyphFancy(28)
         .width(40)
         .height(40)
         .onClick(() => {

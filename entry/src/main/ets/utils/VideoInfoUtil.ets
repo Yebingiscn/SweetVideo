@@ -30,8 +30,10 @@ class VideoInfoUtil {
   private VIDEO_SPEED = 1
   private video_speed_map =
     new Map([[0.125, media.PlaybackSpeed.SPEED_FORWARD_0_125_X], [0.5, media.PlaybackSpeed.SPEED_FORWARD_0_50_X],
-      [0.75, media.PlaybackSpeed.SPEED_FORWARD_0_75_X], [1.25, media.PlaybackSpeed.SPEED_FORWARD_1_25_X],
-      [1.5, media.PlaybackSpeed.SPEED_FORWARD_1_50_X], [1.75, media.PlaybackSpeed.SPEED_FORWARD_1_75_X]])
+      [0.75, media.PlaybackSpeed.SPEED_FORWARD_0_75_X], [1.00, media.PlaybackSpeed.SPEED_FORWARD_1_00_X],
+      [1.25, media.PlaybackSpeed.SPEED_FORWARD_1_25_X], [1.5, media.PlaybackSpeed.SPEED_FORWARD_1_50_X],
+      [1.75, media.PlaybackSpeed.SPEED_FORWARD_1_75_X], [2.00, media.PlaybackSpeed.SPEED_FORWARD_2_00_X],
+      [3.00, media.PlaybackSpeed.SPEED_FORWARD_3_00_X]])
   public support_video_format = ['mp4', 'flv', 'mkv', 'ts', 'mov', 'rmvb', 'wmv', 'avi']
   private speed_index_map: Record<number, number> = {
     //倍速 select 索引
@@ -40,8 +42,9 @@ class VideoInfoUtil {
     1: 2,
     1.25: 3,
     1.5: 4,
-    2: 5,
-    3: 6
+    1.75: 5,
+    2: 6,
+    3: 7
   };
   private video_size_map: Record<string, string> = {
     '720': '720P HD',
@@ -109,16 +112,13 @@ class VideoInfoUtil {
 
   // 绑定系统播放倍速库，获取实际倍速
   getVideoSpeed(video_speed: number) {
-    if (!Number.isInteger(video_speed)) {
+    if (this.VIDEO_SPEED === 1) {
       this.VIDEO_SPEED = video_speed
       return this.video_speed_map.get(video_speed)!
-    } else if (video_speed !== this.VIDEO_SPEED && this.VIDEO_SPEED !== 1) {
-      const PRE_VIDEO_SPEED = this.VIDEO_SPEED
-      this.VIDEO_SPEED = 1
-      return video_speed === 1 ? video_speed : PRE_VIDEO_SPEED
     } else {
-      this.VIDEO_SPEED = video_speed
-      return video_speed
+      let pre_speed = this.VIDEO_SPEED
+      this.VIDEO_SPEED = 1
+      return pre_speed
     }
   }
 
