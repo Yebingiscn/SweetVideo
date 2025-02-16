@@ -523,8 +523,8 @@ struct Index {
             Row() {
               Image($r("app.media.Foreground"))
                 .backgroundImageSize(ImageSize.Cover)
-                .width(40)
-                .height(40)
+                .width(50)
+                .height(50)
               Text($r('app.string.EntryAbility_label'))
                 .fontSize(20)
                 .fontColor('#ffff')
@@ -688,7 +688,7 @@ struct Index {
               Column() {
                 Row() {
                   Image(fileUri.getUriFromPath(sandbox_path + item))
-                    .imageFancy(5, 55, 55)
+                    .imageFancy(5, 60, 90)
                   Column() {
                     Row() {
                       Text((String(SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
@@ -905,7 +905,7 @@ struct Index {
             }
             .backdropBlur(150)
             .visibility(this.multipleChooseState)
-            .buttonFancy(40,40)
+            .buttonFancy(40, 40)
             .animation({ duration: 300, curve: Curve.Ease })
             .bindMenu(this.SelectItemMenuBuilder)
             .shadowFancy()

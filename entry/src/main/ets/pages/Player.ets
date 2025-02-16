@@ -76,6 +76,9 @@ struct Player {
   @State sideBarStatus: boolean = false
   @State isLock: boolean = false
   @State lockVisibility: boolean = false
+  @State sub_title: string = ''
+  @State sub_title_visibility: Visibility = Visibility.Visible
+  private clearSubtitleTimer: number | null = null;
   private listScroller: Scroller = new Scroller();
 
   onBackPress(): boolean | void {
@@ -193,6 +196,32 @@ struct Player {
       this.speed = VideoInfoUtil.getVideoSpeed(parseFloat(speed.toFixed(2)))
       this.speed_show = VideoInfoUtil.getVideoSpeedShow(this.speed)
     })
+
+    this.avPlayer?.on('audioOutputDeviceChangeWithInfo', (data: audio.AudioStreamDeviceChangeInfo) => {
+      if (data.changeReason === audio.AudioStreamDeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) {
+        this.avPlayer?.pause()
+      }
+    });
+
+    this.avPlayer?.on('subtitleUpdate', async (info: media.SubtitleInfo) => {
+      if (this.clearSubtitleTimer !== null) {
+        clearTimeout(this.clearSubtitleTimer);
+        this.clearSubtitleTimer = null;
+      }
+      if (info) {
+        const text = info.text ?? '';
+        const duration = info.duration ?? 0;
+        this.sub_title = text;
+        if (duration > 0) {
+          this.clearSubtitleTimer = setTimeout(() => {
+            this.sub_title = '';
+          }, duration) as number;
+        }
+      } else {
+        this.sub_title = '';
+        console.info('subtitleUpdate info is null');
+      }
+    });
 
     this.avPlayer?.on('stateChange', async (state) => {
       switch (state) {
@@ -410,6 +439,19 @@ struct Player {
           }.height('100%').width('100%')
         }
         .visibility(this.showControl && !this.isLock ? Visibility.Visible : Visibility.Hidden)
+        .animation({ duration: 300, curve: Curve.Smooth })
+
+        Stack({ alignContent: Alignment.BottomEnd }) { //字幕
+          Text(this.sub_title)
+            .fontColor($r('sys.color.white'))
+            .fontSize(this.screen_width > this.screen_height ? 25 : 20)
+            .fontWeight(FontWeight.Medium)
+            .textAlign(TextAlign.Center)
+        }
+        .visibility(this.sub_title_visibility)
+        .align(Alignment.Center)
+        .width(this.play_area_width)
+        .offset({ x: 0, y: this.play_area_height / 2 - 40 })
         .animation({ duration: 300, curve: Curve.Smooth })
 
         Stack({ alignContent: Alignment.BottomEnd }) { //快进提示
@@ -648,10 +690,20 @@ struct Player {
       Text(String(this.now_playing?.title).slice(0, this.now_playing?.title.lastIndexOf('.')))
         .fontSize(20)
         .fontWeight(FontWeight.Medium)
-        .width(this.screen_width > this.screen_height ? '60%' : '65%')
+        .width(this.screen_width > this.screen_height ? '55%' : '60%')
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.MARQUEE })
         .fontColor($r('sys.color.white'))
+      Text(this.sub_title_visibility === Visibility.Visible ? '字幕开' : '字幕关')
+        .fontSize(18)
+        .fontColor(this.sub_title_visibility === Visibility.Visible ? $r('app.color.main_color') :
+        $r('sys.color.white'))
+        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+        .width('9%')
+        .onClick(() => {
+          this.sub_title_visibility === Visibility.Visible ? this.sub_title_visibility = Visibility.None :
+            this.sub_title_visibility = Visibility.Visible
+        })
       Text('选择音轨')
         .fontSize(18)
         .fontColor($r('sys.color.white'))

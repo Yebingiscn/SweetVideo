@@ -91,8 +91,8 @@ class VideoOperateUtil {
   audioTrackErrorExecute(audio_track: number[]) {
     if (audio_track.length <= 1) {
       audio_track[0] === 0 && audio_track.length === 1 ?
-      ToolsUtil.showToast('完蛋！未识别到音轨，若播放没有声音请首页长按视频改用FFMpeg播放 (＃°Д°)') :
-      ToolsUtil.showToast('完蛋，未识别到视频轨，只有声音没有画面 (＃°Д°)')
+      ToolsUtil.showToast('完蛋！未识别到音轨，若真没有声音请首页长按视频改用FFMpeg播放 (＃°Д°)') :
+      ToolsUtil.showToast('完蛋！未识别到视频轨，只有声音没有画面 (＃°Д°)')
     }
   }
 }

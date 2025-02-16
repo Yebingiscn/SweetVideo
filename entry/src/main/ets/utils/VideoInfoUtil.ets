@@ -2,6 +2,7 @@ import { media } from '@kit.MediaKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { image } from '@kit.ImageKit';
+import ReqPermission from '../utils/ReqPermissionUtil';
 
 export interface VideoMetadata {
   uri: string
@@ -75,10 +76,23 @@ class VideoInfoUtil {
       last_play: 0,
       format: file_name.split('.')[file_name.split('.').length-1],
       video_size: await this.getVideoSize(encryption ? sandbox_video + date : uri),
-      hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE
+      hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
     }
-    this.getVideoImage(uri, tmp.size, date, sandbox_path, parseInt(metadata.duration || '0'))
+    this.getVideoCover(sandbox_path, date, uri, tmp.size, parseInt(metadata.duration || '0'))
     return tmp
+  }
+
+  async getVideoCover(sandbox_path: string, date: string, uri: string, size: number[], time: number) {
+    ReqPermission.persistPermission(uri);
+    const avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor();
+    const file = fs.openSync(uri);
+    avMetadataExtractor.fdSrc = file;
+    avMetadataExtractor.fetchAlbumCover().then((pixelMap: image.PixelMap) => {
+      this.saveVideoImg(sandbox_path, date, pixelMap)
+    }).catch((error: BusinessError) => {
+      console.error(`Failed to fetch AlbumCover, error message:${error.message}`);
+      this.getVideoImage(uri, size, date, sandbox_path, time)
+    });
   }
 
   async getVideoImage(uri: string, size: number[], date: string, sandbox_path: string, time: number) {
@@ -93,14 +107,18 @@ class VideoInfoUtil {
       height: size[1],
     }
     avImageGenerator.fetchFrameByTime(timeUs, queryOption, param).then((pixelMap: PixelMap) => {
-      let packer = image.createImagePacker()
-      let file1 = fs.openSync(sandbox_path + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
-      packer.packToFile(pixelMap, file1.fd, { format: 'image/jpeg', quality: 100 }).then(() => {
-        fs.closeSync(file1)
-      }).catch()
+      this.saveVideoImg(sandbox_path, date, pixelMap)
       avImageGenerator.release()
       fs.closeSync(file)
     })
+  }
+
+  saveVideoImg(sandbox_path: string, date: string, pixelMap: image.PixelMap) {
+    let packer = image.createImagePacker()
+    let file1 = fs.openSync(sandbox_path + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
+    packer.packToFile(pixelMap, file1.fd, { format: 'image/jpeg', quality: 100 }).then(() => {
+      fs.closeSync(file1)
+    }).catch()
   }
 
   getVideoWidthAndHeight(metadata: media.AVMetadata) {
@@ -159,7 +177,6 @@ class VideoInfoUtil {
             console.error(`Failed to get TrackDescription, error: ${error}`);
             return reject(error || new Error("No audio tracks available"));
           }
-          // 收集所有音轨的索引，确保类型正确
           const audioTrackIndexes: number[] = arrList
             .filter((description) =>
             description[media.MediaDescriptionKey.MD_KEY_TRACK_TYPE] !== media.MediaType.MEDIA_TYPE_SUBTITLE
@@ -173,7 +190,7 @@ class VideoInfoUtil {
     };
     try {
       const audioTrackIndexes = await getTrackDescriptions();
-      return audioTrackIndexes; // 返回所有音轨索引
+      return audioTrackIndexes; // 返回所有音轨以及视频轨索引
     } catch (error) {
       console.error("获取 audioTrackIndexes 失败:", error);
       return []; // 返回空数组表示没有获取到音轨索引
