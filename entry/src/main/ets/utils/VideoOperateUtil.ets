@@ -2,7 +2,7 @@ import { router, window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { audio } from '@kit.AudioKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { VideoMetadata } from './VideoInfoUtil';
+import { AudioTrack, VideoMetadata } from './VideoInfoUtil';
 import ToolsUtil from './ToolsUtil';
 import SelectFileUtil from './SelectFileUtil';
 export interface VolConfigLandscape {
@@ -106,11 +106,9 @@ class VideoOperateUtil {
     }, router.RouterMode.Standard)
   }
 
-  audioTrackErrorExecute(audio_track: number[]) {
-    if (audio_track.length <= 1) {
-      audio_track[0] === 0 && audio_track.length === 1 ?
-      ToolsUtil.showToast('完蛋！未识别到音轨，若真没有声音请首页长按视频改用FFMpeg播放 (＃°Д°)') :
-      ToolsUtil.showToast('完蛋！未识别到视频轨，只有声音没有画面 (＃°Д°)')
+  audioTrackErrorExecute(audio_track: AudioTrack[]) {
+    if (audio_track.length === 0) {
+      ToolsUtil.showToast('完蛋！未识别到音轨，若真没有声音请首页长按视频改用FFMpeg播放 (＃°Д°)')
     }
   }
 }

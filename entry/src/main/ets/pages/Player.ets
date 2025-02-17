@@ -8,7 +8,7 @@ import { router, window } from '@kit.ArkUI';
 import { avSession as avSessionManager } from '@kit.AVSessionKit';
 import AVSessionUtil, { avSessionState } from '../utils/AVSessionUtil';
 import ToolsUtil from '../utils/ToolsUtil';
-import VideoInfoUtil, { VideoMetadata, VideoMetadataFromPlayer } from '../utils/VideoInfoUtil';
+import VideoInfoUtil, { AudioTrack, VideoMetadata, VideoMetadataFromPlayer } from '../utils/VideoInfoUtil';
 import TimeUtil from '../utils/TimeUtil';
 import { audio, AVVolumePanel } from '@kit.AudioKit';
 import { settings } from '@kit.BasicServicesKit';
@@ -73,7 +73,7 @@ struct Player {
   @State select_video: Visibility = Visibility.None
   @State speed_show: number = 2
   @State circle_play: boolean = false
-  @State audio_track: number[] = []
+  @State audio_track: AudioTrack[] = []
   @State AudioTrackMenuBuilderState: boolean = false
   @State audio_track_select: number = 0
   @State sideBarStatusTmp: Visibility = Visibility.Hidden
@@ -110,7 +110,8 @@ struct Player {
       this.avPlayer?.seek(position)
     })
     this.avSession?.on('fastForward', () => {
-      this.avPlayer?.seek(this.play_time + 15000)
+      this.avPlayer?.seek(this.play_time + 15000, media.SeekMode.SEEK_CLOSEST)
+      //this.avPlayer?.seek(Math.min(this.max, this.currentPosition + 10 * 1000), media.SeekMode.SEEK_CLOSEST)
     })
     this.avSession?.on('rewind', () => {
       this.avPlayer?.seek(this.play_time - 15000)
@@ -178,10 +179,10 @@ struct Player {
   }
 
   async getAudioTrack() {
-    this.audio_track = await VideoInfoUtil.getAudioTracks(this.avPlayer!) as number[]
+    this.audio_track = await VideoInfoUtil.getAudioTracks(this.avPlayer!)
     VideoOperateUtil.audioTrackErrorExecute(this.audio_track)
-    this.avPlayer!.selectTrack(this.audio_track[this.audio_track.length - 1]);
-    this.audio_track_select = this.audio_track[this.audio_track.length - 1]
+    console.error('test' + this.audio_track.length + this.audio_track)
+    this.avPlayer!.selectTrack(this.audio_track[0].index);
   }
 
   async setAVPlayerCallback() {
@@ -946,7 +947,7 @@ struct Player {
         }
         .buttonFancy(40, 40)
         .onClick(() => {
-          this.avPlayer?.seek(this.play_time + 15000)
+          this.avPlayer?.seek(this.play_time + 15000, media.SeekMode.SEEK_CLOSEST)
         })
       }.width(this.screen_height > this.screen_width ? '13%' : '10%')
 
@@ -958,7 +959,7 @@ struct Player {
         }
         .buttonFancy(40, 40)
         .onClick(() => {
-          this.avPlayer?.seek(this.play_time + 30000)
+          this.avPlayer?.seek(this.play_time + 30000, media.SeekMode.SEEK_CLOSEST)
         })
       }.width('10%').visibility(this.screen_height > this.screen_width ? Visibility.None : Visibility.Visible)
 
@@ -993,25 +994,22 @@ struct Player {
   @Builder
   AudioTrackMenuBuilder() {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      ForEach(this.audio_track, (index: number) => {
-        if (index !== 0) {
-          Row() {
-            Text('音轨：' + index)
-              .fontSize(20)
-              .width(150)
-              .height(40)
-              .fontColor(this.audio_track_select === index ? $r('app.color.main_color') : $r('app.color.text_color'))
-          }
-          .padding(10)
-          .onClick(() => {
-            this.AudioTrackMenuBuilderState = false
-            this.avPlayer!.selectTrack(this.audio_track[this.audio_track.indexOf(index)]);
-            this.audio_track_select = index
-          })
-
-          if (this.audio_track.indexOf(index) !== this.audio_track.length - 1) {
-            Divider().height(2)
-          }
+      ForEach(this.audio_track, (item: AudioTrack, index: number) => {
+        Row() {
+          Text(`${item.index} : ${item.name}(${item.language})`)
+            .fontSize(20)
+            .width(150)
+            .height(40)
+            .fontColor(this.audio_track_select === index ? $r('app.color.main_color') : $r('app.color.text_color'))
+        }
+        .padding(10)
+        .onClick(() => {
+          this.AudioTrackMenuBuilderState = false;
+          this.avPlayer!.selectTrack(item.index);
+          this.audio_track_select = index;
+        })
+        if (index !== this.audio_track.length - 1) {
+          Divider().height(2)
         }
       })
     }.width(150).onAppear(() => {

@@ -48,7 +48,9 @@ class SelectFileUtil {
     let resultList: string[] = []; // 用于存储结果
     fileList.forEach((file) => {
       const fullPath = this.file_folder_uri + '/' + file
-      resultList.push(fullPath); // 添加到新数组中
+      if (fs.statSync(fullPath).isFile()) {
+        resultList.push(fullPath); // 添加到新数组中
+      }
     });
     return resultList // 返回新的结果数组
   }

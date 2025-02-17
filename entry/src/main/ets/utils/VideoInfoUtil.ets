@@ -25,6 +25,12 @@ export interface VideoMetadataFromPlayer {
   last_play: number
 }
 
+export interface AudioTrack {
+  index: number;
+  language: string;
+  name: string;
+}
+
 class VideoInfoUtil {
   private GB = 1024 * 1024 * 1024 // 1GB in bytes
   private MB = 1024 * 1024 // 1MB in bytes
@@ -169,31 +175,36 @@ class VideoInfoUtil {
     });
   }
 
-  async getAudioTracks(avPlayer: media.AVPlayer): Promise<number[]> {
-    const getTrackDescriptions = (): Promise<number[]> => {
+  async getAudioTracks(avPlayer: media.AVPlayer): Promise<AudioTrack[]> {
+    const getTrackDescriptions = (): Promise<AudioTrack[]> => {
       return new Promise((resolve, reject) => {
         avPlayer.getTrackDescription((error: BusinessError, arrList: Array<media.MediaDescription>) => {
           if (error || !arrList || arrList.length === 0) {
             console.error(`Failed to get TrackDescription, error: ${error}`);
             return reject(error || new Error("No audio tracks available"));
           }
-          const audioTrackIndexes: number[] = arrList
-            .filter((description) =>
-            description[media.MediaDescriptionKey.MD_KEY_TRACK_TYPE] !== media.MediaType.MEDIA_TYPE_SUBTITLE
+          const audioTracks: AudioTrack[] = arrList
+            .filter(description =>
+            description[media.MediaDescriptionKey.MD_KEY_TRACK_TYPE] === media.MediaType.MEDIA_TYPE_AUD
             )
-            .map((description) =>
-            description[media.MediaDescriptionKey.MD_KEY_TRACK_INDEX] as number
-            );
-          resolve(audioTrackIndexes);
+            .map((description): AudioTrack => {
+              return {
+                index: description[media.MediaDescriptionKey.MD_KEY_TRACK_INDEX] as number,
+                language: description[media.MediaDescriptionKey.MD_KEY_LANGUAGE] as string,
+                name: description[media.MediaDescriptionKey.MD_KEY_TRACK_NAME] as string,
+              };
+            });
+          resolve(audioTracks);
         });
       });
     };
+
     try {
-      const audioTrackIndexes = await getTrackDescriptions();
-      return audioTrackIndexes; // 返回所有音轨以及视频轨索引
+      const audioTracks = await getTrackDescriptions();
+      return audioTracks; // 返回包含音轨索引、语言和名称的对象数组
     } catch (error) {
-      console.error("获取 audioTrackIndexes 失败:", error);
-      return []; // 返回空数组表示没有获取到音轨索引
+      console.error("获取 audioTracks 失败:", error);
+      return []; // 返回空数组表示没有获取到音轨
     }
   }
 }

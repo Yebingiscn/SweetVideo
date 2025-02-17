@@ -30,9 +30,11 @@ function imageFancy(borderRadius: number, width: number | string, height: number
 }
 
 @Extend(SymbolGlyph)
-function symbolGlyphFancy(fontSize: number) {
+function symbolGlyphFancy(fontSize: number, width: number | string, height: number | string) {
   .fontSize(fontSize)
   .fontColor([$r('app.color.text_color')])
+  .width(width)
+  .height(height)
 }
 
 @Extend(Button)
@@ -41,6 +43,7 @@ function buttonFancy(width: number | string, height: number | string) {
   .width(width)
   .height(height)
   .backgroundColor($r('app.color.start_window_background_blur'))
+  .animation({ duration: 300, curve: Curve.Ease })
 }
 
 @Styles
@@ -86,7 +89,7 @@ struct Index {
         Text($r('app.string.FFmpeg_Player'))
           .fontSize(15)
           .width(180)
-          .height(40)
+          .height(30)
       }.padding(10).onClick(() => {
         this.MenuBuilderState = false
         setTimeout(() => {
@@ -101,13 +104,11 @@ struct Index {
       Divider().height(2)
       Row() {
         SymbolGlyph($r('sys.symbol.trash_fill'))
-          .symbolGlyphFancy(20)
-          .width(25)
-          .height(40)
+          .symbolGlyphFancy(20, 25, 40)
         Text($r('app.string.delete'))
           .fontSize(15)
           .width(180)
-          .height(40)
+          .height(30)
       }.padding(10).onClick(() => {
         DataSyncUtil.editing_video = JSON.stringify(item)
         this.delConfirmDialog.open()
@@ -116,13 +117,13 @@ struct Index {
       Divider().height(2)
       Row() {
         SymbolGlyph($r('sys.symbol.rename'))
-          .symbolGlyphFancy(20)
+          .symbolGlyphFancy(20, 25, 40)
           .width(25)
           .height(40)
         Text($r('app.string.edit'))
           .fontSize(15)
           .width(180)
-          .height(40)
+          .height(30)
       }.padding(10).onClick(() => {
         DataSyncUtil.editing_video = JSON.stringify(item)
         this.editMetadataDialogController.open()
@@ -131,18 +132,18 @@ struct Index {
       Divider().height(2)
       Row() {
         SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
-          .symbolGlyphFancy(20)
+          .symbolGlyphFancy(20, 25, 40)
           .width(25)
           .height(40)
         Text($r('app.string.multiple_choice'))
           .fontSize(15)
           .width(180)
-          .height(40)
+          .height(30)
       }.padding(10).onClick(() => {
         this.multipleChooseState = this.multipleChooseState == Visibility.None ? Visibility.Visible : Visibility.None
         this.delMultipleList.length = 0
       })
-    }.width(180).onAppear(() => {
+    }.width(150).onAppear(() => {
       ToolsUtil.startVibration()
       this.MenuBuilderState = true
     })
@@ -153,13 +154,11 @@ struct Index {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
       Row() {
         SymbolGlyph($r('sys.symbol.textformat'))
-          .symbolGlyphFancy(20)
-          .width(25)
-          .height(40)
+          .symbolGlyphFancy(20, 25, 40)
         Text($r('app.string.sort_by_name'))
           .fontSize(15)
           .width(100)
-          .height(50)
+          .height(30)
       }.padding(10).onClick(() => {
         this.show_list = ToolsUtil.compareByName(this.show_list,
           this.encryption ? this.video_meta_data_encryption : this.video_meta_data)
@@ -170,13 +169,11 @@ struct Index {
       Divider().height(10)
       Row() {
         SymbolGlyph($r('sys.symbol.clock'))
-          .symbolGlyphFancy(20)
-          .width(25)
-          .height(40)
+          .symbolGlyphFancy(20, 25, 40)
         Text($r('app.string.sort_by_time'))
           .fontSize(15)
           .width(100)
-          .height(50)
+          .height(30)
       }.padding(10).onClick(() => {
         this.show_list = ToolsUtil.compareByTime(this.show_list,
           this.encryption ? this.video_meta_data_encryption : this.video_meta_data)
@@ -191,29 +188,24 @@ struct Index {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
       Row() {
         SymbolGlyph($r('sys.symbol.xmark'))
-          .symbolGlyphFancy(20)
-          .width(25)
-          .height(40)
+          .symbolGlyphFancy(20, 25, 40)
         Text($r('app.string.cancel'))
           .fontSize(15)
           .width(100)
-          .height(50)
+          .height(30)
       }.padding(10).onClick(() => {
-        this.itemMultipleChoose = false
-        this.multipleChooseState = Visibility.None
+        this.closeMultipleChoose()
         this.delMultipleList.length = 0
       })
 
       Divider().height(10)
       Row() {
         SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
-          .symbolGlyphFancy(20)
-          .width(25)
-          .height(40)
+          .symbolGlyphFancy(20, 25, 40)
         Text($r('app.string.select_all'))
           .fontSize(15)
           .width(100)
-          .height(50)
+          .height(30)
       }.padding(10).onClick(() => {
         this.itemMultipleChoose = !this.itemMultipleChoose
         this.delMultipleList.length = 0
@@ -227,15 +219,13 @@ struct Index {
       Divider().height(10)
       Row() {
         SymbolGlyph($r('sys.symbol.trash_fill'))
-          .symbolGlyphFancy(20)
-          .width(25)
-          .height(40)
+          .symbolGlyphFancy(20, 25, 40)
         Text($r('app.string.delete_selected'))
           .fontSize(15)
           .width(100)
-          .height(50)
+          .height(30)
       }.padding(10).onClick(async () => {
-        this.itemMultipleChoose = false;
+        this.closeMultipleChoose()
         this.multipleChooseState = Visibility.None;
         if (this.delMultipleList.length > 0) {
           const deletePromises = this.delMultipleList.map(item => {
@@ -380,6 +370,13 @@ struct Index {
       this.show_list = this.video_meta_data.map(i => i.date)
   }
 
+  onBackPress(): boolean | void {
+    if (this.multipleChooseState === Visibility.Visible) {
+      this.closeMultipleChoose()
+      return true
+    }
+  }
+
   async aboutToAppear(): Promise<void> {
     SelectFileUtil.getDownloadUri()
     WantProcess.checkWant()
@@ -482,6 +479,11 @@ struct Index {
     this.sideBarStatus = true
   }
 
+  closeMultipleChoose() {
+    this.itemMultipleChoose = false;
+    this.multipleChooseState = Visibility.None;
+  }
+
   deleteUnExistFile(item: VideoMetadata | undefined) {
     DataSyncUtil.editing_video = JSON.stringify(item)
     new Promise<void>((resolve, reject) => {
@@ -506,7 +508,7 @@ struct Index {
         Row() {
           Button({ type: ButtonType.Circle, stateEffect: true }) {
             SymbolGlyph($r('sys.symbol.open_sidebar'))
-              .symbolGlyphFancy(20)
+              .symbolGlyphFancy(20, '', '')
           }
           .buttonFancy(80, 40)
           .onClick(() => {
@@ -518,7 +520,7 @@ struct Index {
         Column() {
           Stack() {
             Image($r("app.media.Background"))
-              .imageFancy(10, '100%', '17%')
+              .imageFancy(10, '100%', 120)
               .zIndex(1)
             Row() {
               Image($r("app.media.Foreground"))
@@ -537,7 +539,7 @@ struct Index {
           Row() {
             Button({ type: ButtonType.Normal, stateEffect: true }) {
               Row() {
-                SymbolGlyph($r('sys.symbol.info_circle')).symbolGlyphFancy(25)
+                SymbolGlyph($r('sys.symbol.info_circle')).symbolGlyphFancy(25, '', '')
                 Text('关于应用')
                   .fontSize(15)
                   .fontColor($r('app.color.text_color'))
@@ -546,7 +548,7 @@ struct Index {
             }
             .align(Alignment.Start)
             .padding(10)
-            .buttonFancy('100%', '8%')
+            .buttonFancy('100%', 60)
             .borderRadius(10)
             .onClick(() => {
               ToolsUtil.routerWhereOnlyUri('pages/AboutApp')
@@ -558,7 +560,7 @@ struct Index {
         Row() {
           Button({ type: ButtonType.Normal, stateEffect: true }) {
             Row() {
-              SymbolGlyph($r('sys.symbol.folder')).symbolGlyphFancy(25)
+              SymbolGlyph($r('sys.symbol.folder')).symbolGlyphFancy(25, '', '')
               Text($r('app.string.import_from_files'))
                 .fontSize(15)
                 .fontColor($r('app.color.text_color'))
@@ -568,7 +570,7 @@ struct Index {
           .align(Alignment.Start)
           .padding(10)
           .borderRadius(10)
-          .buttonFancy('100%', '11%')
+          .buttonFancy('100%', 60)
           .onClick(() => {
             this.closeSideBar(false)
             this.selectFiles()
@@ -580,7 +582,7 @@ struct Index {
         Row() {
           Button({ type: ButtonType.Normal, stateEffect: true }) {
             Row() {
-              SymbolGlyph($r('sys.symbol.folder')).symbolGlyphFancy(25)
+              SymbolGlyph($r('sys.symbol.folder')).symbolGlyphFancy(25, '', '')
               Text('从下载文件夹导入')
                 .fontSize(15)
                 .fontColor($r('app.color.text_color'))
@@ -590,7 +592,7 @@ struct Index {
           .align(Alignment.Start)
           .padding(10)
           .borderRadius(10)
-          .buttonFancy('100%', '11%')
+          .buttonFancy('100%', 60)
           .onClick(async () => {
             this.closeSideBar(false)
             await this.toMetaData(SelectFileUtil.getDownloadFilesUri());
@@ -603,7 +605,7 @@ struct Index {
           Button({ type: ButtonType.Normal, stateEffect: true }) {
             Row() {
               SymbolGlyph($r('sys.symbol.video'))
-                .symbolGlyphFancy(25)
+                .symbolGlyphFancy(25, '', '')
               Text($r('app.string.import_from_album'))
                 .fontSize(15)
                 .fontColor($r('app.color.text_color'))
@@ -613,7 +615,7 @@ struct Index {
           .align(Alignment.Start)
           .padding(10)
           .borderRadius(10)
-          .buttonFancy('100%', '11%')
+          .buttonFancy('100%', 60)
           .onClick(() => {
             this.closeSideBar(false)
             this.selectVideo()
@@ -626,7 +628,7 @@ struct Index {
           Button({ type: ButtonType.Normal, stateEffect: true }) {
             Row() {
               SymbolGlyph($r('sys.symbol.lock'))
-                .symbolGlyphFancy(25)
+                .symbolGlyphFancy(25, '', '')
               Text(this.encryption ? $r('app.string.exist_privacy_space') : $r('app.string.privacy_space'))
                 .fontSize(15)
                 .fontColor($r('app.color.text_color'))
@@ -637,7 +639,7 @@ struct Index {
           .align(Alignment.Start)
           .padding(10)
           .borderRadius(10)
-          .buttonFancy('100%', '11%')
+          .buttonFancy('100%', 60)
           .onClick(() => {
             this.closeSideBar(false)
             if (this.passwd == '') {
@@ -661,11 +663,6 @@ struct Index {
       .transition(TransitionEffect.translate({ x: -300 })
         .animation({ duration: 500 }))
       .visibility(this.sideBarStatusTmp)
-      .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
-        if (event) {
-          this.closeSideBar(true)
-        }
-      }))
       .borderRadius(20)
       .shadowFancy()
 
@@ -789,6 +786,11 @@ struct Index {
               this.video_meta_data, item)),
               edgeEffect: SwipeEdgeEffect.Spring
             })
+            .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
+              if (event) {
+                this.openSideBar()
+              }
+            }))
             .onClick(() => {
               let item_list = SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
               this.video_meta_data, item)
@@ -839,7 +841,7 @@ struct Index {
           Row({ space: 15 }) {
             Button({ type: ButtonType.Circle, stateEffect: true }) {
               SymbolGlyph($r('sys.symbol.close_sidebar'))
-                .symbolGlyphFancy(25)
+                .symbolGlyphFancy(25, '', '')
             }
             .buttonFancy(40, 40)
             .backdropBlur(150)
@@ -853,6 +855,7 @@ struct Index {
               controller: this.searchController,
               placeholder: $r('app.string.search_placeholder')
             })
+              .layoutWeight(1)
               .height(40)
               .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
               .backgroundColor($r('app.color.start_window_background_blur'))
@@ -891,26 +894,24 @@ struct Index {
               })
             Button({ type: ButtonType.Circle, stateEffect: true }) {
               SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
-                .symbolGlyphFancy(25)
+                .symbolGlyphFancy(25, '', '')
             }
             .backdropBlur(150)
-            .animation({ duration: 300, curve: Curve.Ease })
             .buttonFancy(40, 40)
             .bindMenu(this.SortMenuBuilder)
             .shadowFancy()
 
             Button({ type: ButtonType.Circle, stateEffect: true }) {
               SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
-                .symbolGlyphFancy(25)
+                .symbolGlyphFancy(25, '', '')
             }
             .backdropBlur(150)
             .visibility(this.multipleChooseState)
             .buttonFancy(40, 40)
-            .animation({ duration: 300, curve: Curve.Ease })
             .bindMenu(this.SelectItemMenuBuilder)
             .shadowFancy()
           }
-        }.padding({ top: this.topSafeHeight }).width('100%')
+        }.padding({ top: this.topSafeHeight }).width('90%')
 
         Stack() {
           LoadingProgress().width(85).height(85)
@@ -947,9 +948,7 @@ struct Index {
     Row({ space: 10 }) {
       Stack().width(10)
       SymbolGlyph($r('sys.symbol.trash_fill'))
-        .symbolGlyphFancy(28)
-        .width(40)
-        .height(40)
+        .symbolGlyphFancy(28, 40, 40)
         .onClick(() => {
           this.listScroller.closeAllSwipeActions()
           DataSyncUtil.editing_video = JSON.stringify(item)
@@ -957,9 +956,7 @@ struct Index {
         })
       Stack().width(10)
       SymbolGlyph($r('sys.symbol.rename'))
-        .symbolGlyphFancy(28)
-        .width(40)
-        .height(40)
+        .symbolGlyphFancy(28, 40, 40)
         .onClick(() => {
           this.listScroller.closeAllSwipeActions()
           DataSyncUtil.editing_video = JSON.stringify(item)
@@ -967,9 +964,7 @@ struct Index {
         })
       Stack().width(10)
       SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
-        .symbolGlyphFancy(28)
-        .width(40)
-        .height(40)
+        .symbolGlyphFancy(28, 40, 40)
         .onClick(() => {
           this.multipleChooseState = this.multipleChooseState == Visibility.None ? Visibility.Visible : Visibility.None
           this.itemMultipleChoose = false
@@ -978,9 +973,7 @@ struct Index {
         })
       Stack().width(10).visibility(this.encryption ? Visibility.Visible : Visibility.None)
       SymbolGlyph($r('sys.symbol.arrow_right_folder_circle'))
-        .symbolGlyphFancy(28)
-        .width(40)
-        .height(40)
+        .symbolGlyphFancy(28, 40, 40)
         .onClick(() => {
           SelectFileUtil.copyFile(item, context)
         })
