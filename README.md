@@ -2,10 +2,14 @@
 <h1 align="center">流心视频</h1>
 <p align="center">一款运行在 HarmonyOS Next 上的精致、简约的本地视频播放器</p>
 
+## 流心视频测试群
+QQ群：973792610
+
 ## 欢迎加入流心视频测试组
 > 可以从华为应用商店收到内测提醒和更新
 
 https://appgallery.huawei.com/link/invite-test-wap?taskId=dd659f203b490163731b9953f52e2f66&invitationCode=11vCxJOe6eE
+
 ## 简介
 - 一款运行在 HarmonyOS Next 上的精致、简约的本地视频播放器，使用 ArkTS 语言开发，具有美观的设计和优雅的动画。
 - 基于流心视频 https://gitee.com/lqsxy/sweetvideo/tree/master 

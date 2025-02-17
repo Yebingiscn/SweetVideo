@@ -12,7 +12,12 @@ import VideoInfoUtil, { VideoMetadata, VideoMetadataFromPlayer } from '../utils/
 import TimeUtil from '../utils/TimeUtil';
 import { audio, AVVolumePanel } from '@kit.AudioKit';
 import { settings } from '@kit.BasicServicesKit';
-import VideoOperateUtil from '../utils/VideoOperateUtil';
+import VideoOperateUtil, {
+  BrightnessLandscape,
+  BrightnessVertical,
+  VolConfigLandscape,
+  VolConfigVertical
+} from '../utils/VideoOperateUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 
 @Extend(Button)
@@ -39,7 +44,6 @@ struct Player {
   @State last_play_time: number = 0
   surfaceID: string = ''
   @State swipe_start_x: number = 0
-  @State SwipeMovingX: number = 0
   @State swipe_start_y: number = 0
   @State SwipeMovingY: number = 0
   seek_time: number | undefined = undefined
@@ -78,6 +82,9 @@ struct Player {
   @State lockVisibility: boolean = false
   @State sub_title: string = ''
   @State sub_title_visibility: Visibility = Visibility.Visible
+  @State isHorizontalSwiping: boolean = false
+  @State isVerticalSwiping: boolean = false
+  @State shouldPreventTap: boolean = false
   private clearSubtitleTimer: number | null = null;
   private listScroller: Scroller = new Scroller();
 
@@ -329,10 +336,10 @@ struct Player {
             Column() {
               Row() {
                 Image(fileUri.getUriFromPath(sandbox_path + item.date))
-                  .width(55)
-                  .height(55)
+                  .width(60)
+                  .height(90)
                   .backgroundImageSize(ImageSize.Cover)
-                  .borderRadius(10)
+                  .borderRadius(5)
                   .margin({ left: 5 })
                 Text((String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title)).slice(0,
                   String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title).lastIndexOf('.')))
@@ -342,9 +349,9 @@ struct Player {
                   .fontWeight(FontWeight.Medium)
                   .maxLines(4)
                   .textOverflow({ overflow: TextOverflow.Ellipsis })
-                  .textAlign(TextAlign.Center)
-                  .width('75%')
+                  .width('65%')
                   .margin({ left: 5 })
+                  .wordBreak(WordBreak.BREAK_ALL)
               }
               .onClick(async () => {
                 this.playChooseVideo(item)
@@ -508,7 +515,7 @@ struct Player {
             })
               .width(60)
               .height(30)
-              .selectedColor(Color.White)
+              .selectedColor($r('app.color.main_color'))
               .trackColor(Color.Black)
               .trackThickness(40)
               .onChange((value) => {
@@ -544,7 +551,7 @@ struct Player {
             })
               .width(60)
               .height(30)
-              .selectedColor(Color.White)
+              .selectedColor($r('app.color.main_color'))
               .trackColor(Color.Black)
               .trackThickness(40)
           }
@@ -582,59 +589,110 @@ struct Player {
           .onTouch((event: TouchEvent) => {
             if (!this.isLock) {
               if (event.type == TouchType.Down) {
-                this.last_play_time = this.play_time;
+                this.last_play_time = this.play_time; // 初始化触摸数据
                 this.swipe_start_x = Math.floor(event.touches[0].x);
                 this.swipe_start_y = Math.floor(event.touches[0].y);
-                if (this.swipe_start_x < this.screen_width / 2) {
-                  this.isLeftSideSwipe = true; // 左边竖滑
-                  this.isRightSideSwipe = false;
-                } else {
-                  this.isLeftSideSwipe = false;
-                  this.isRightSideSwipe = true; // 右边竖滑
-                }
+                this.isHorizontalSwiping = false;
+                this.isVerticalSwiping = false;
+                this.isLeftSideSwipe = this.swipe_start_x < this.screen_width / 2; // 判断触摸区域
+                this.isRightSideSwipe = !this.isLeftSideSwipe;
+                this.shouldPreventTap = false; // 重置点击阻止标志
               }
               if (event.type == TouchType.Move) {
-                this.SwipeMovingX = Math.floor(event.touches[0].x);
-                this.SwipeMovingY = Math.floor(event.touches[0].y);
-                if (Math.abs(this.swipe_start_x - this.SwipeMovingX) > 10 &&
-                  Math.abs(this.swipe_start_y - this.SwipeMovingY) < 5) {
+                const currentX = Math.floor(event.touches[0].x);
+                const currentY = Math.floor(event.touches[0].y);
+                const deltaX = Math.abs(currentX - this.swipe_start_x);
+                const deltaY = Math.abs(currentY - this.swipe_start_y);
+                if (!this.isHorizontalSwiping && deltaY > 10 && deltaX < 30) { // 优先处理垂直滑动
+                  this.isVerticalSwiping = true;
+                  this.shouldPreventTap = true;
+                  const offsetY = currentY - this.swipe_start_y;
+                  const isLandscape = this.screen_width > this.screen_height;
+                  const volConfig = isLandscape ? ({ area: 20, step: 0.005 } as VolConfigLandscape) :
+                    ({ area: 30, step: 0.01 } as VolConfigVertical);
+                  const brightConfig = isLandscape ? ({ area: 15, step: 0.001 } as BrightnessLandscape) :
+                    ({ area: 40, step: 0.001 } as BrightnessVertical);
+                  if (this.isRightSideSwipe) {
+                    const delta = ToolsUtil.calculateDelta(
+                      offsetY,
+                      volConfig.area,
+                      volConfig.step,
+                      offsetY < 0 ? 1 : -1
+                    );
+                    this.volume = Math.min(Math.max(this.volume + delta, 0.0), 15.0);
+                    this.onSwipingVoice = true;
+                  } else {
+                    const delta = ToolsUtil.calculateDelta(// 亮度调节（保持较大步长）
+                      offsetY,
+                      brightConfig.area,
+                      brightConfig.step,
+                      offsetY < 0 ? 1 : -1
+                    );
+                    VideoOperateUtil.setBrightness(
+                      this.screenBrightness = Math.min(Math.max(this.screenBrightness + delta, 0.0), 1.0)
+                    );
+                    this.onSwipingBrightness = true;
+                  }
+                  return;
+                }
+                if (!this.isVerticalSwiping && deltaX > 10 && deltaY < 5) { // 处理水平滑动
                   if (this.speed > 1) {
                     return;
                   }
+                  this.isHorizontalSwiping = true;
+                  this.shouldPreventTap = true;
+                  const distance = currentX - this.swipe_start_x;
+                  const sensitivity = this.screen_width / 150; // 动态灵敏度
+                  const baseMultiplier = deltaX > 150 ? 100 : 70; // 提升基础倍率
+                  this.play_time = this.last_play_time + (distance * baseMultiplier * sensitivity);
                   this.onSwiping = true;
-                  this.play_time = this.last_play_time + (this.SwipeMovingX - this.swipe_start_x) *
-                    (Math.abs(this.swipe_start_x - this.SwipeMovingX) > 150 ?
-                      40 * (Math.abs(this.swipe_start_x - this.SwipeMovingX)) / 100 : 100);
-                } else if (Math.abs(this.swipe_start_y - this.SwipeMovingY) > 10 &&
-                  Math.abs(this.swipe_start_x - this.SwipeMovingX) < 10) { // 处理竖滑
-                  let offsetY = this.SwipeMovingY - this.swipe_start_y
-                  const step_area = this.screen_width > this.screen_height ? 10 : 50
-                  const step = this.screen_width > this.screen_height ? 0.01 : 0.05
-                  if (this.isRightSideSwipe) {
-                    this.onSwipingVoice = true;
-                    const delta = ToolsUtil.calculateDelta(offsetY, step_area, step, offsetY < 0 ? 1 : -1);
-                    this.volume = Math.min(Math.max(this.volume + delta, 0.0), 15.0);
-                  } else if (this.isLeftSideSwipe) {
-                    this.onSwipingBrightness = true;
-                    const delta = ToolsUtil.calculateDelta(offsetY, step_area, step / 10, offsetY < 0 ? 1 : -1);
-                    VideoOperateUtil.setBrightness(Math.min(Math.max(this.screenBrightness + delta, 0.0), 1.0))
-                  }
                 }
               }
-              if (event.type == TouchType.Up) {
-                if (Math.abs(this.swipe_start_x - this.SwipeMovingX) > 10) {
+              if (event.type == TouchType.Up) { // 处理滑动结束
+                if (this.isHorizontalSwiping) {
                   this.avPlayer?.seek(this.play_time);
                 } else if (this.long_press) {
                   this.long_press = false;
                   this.avPlayer?.setSpeed(VideoInfoUtil.getVideoSpeed(this.last_speed));
-                } else {
-                  this.onSwipingVoice = false
-                  this.onSwipingBrightness = false
                 }
+                this.isHorizontalSwiping = false; // 重置所有滑动状态
+                this.isVerticalSwiping = false;
                 this.onSwiping = false;
+                this.onSwipingVoice = false;
+                this.onSwipingBrightness = false;
+                setTimeout(() => { // 延迟重置点击阻止标志
+                  this.shouldPreventTap = false;
+                }, 300);
               }
             }
           })
+          .gesture(LongPressGesture().onAction(() => {
+            if (!this.isLock && !this.shouldPreventTap) {
+              this.long_press = true;
+              this.last_speed = this.speed;
+              this.avPlayer?.setSpeed(VideoInfoUtil.getVideoSpeed(3));
+            }
+          }))
+          .gesture(GestureGroup(GestureMode.Exclusive,
+            TapGesture({ count: 2 })
+              .onAction(() => {
+                if (!this.isLock && !this.shouldPreventTap) {
+                  this.playing ? this.avPlayer?.pause() : this.avPlayer?.play();
+                }
+              }),
+            TapGesture({ count: 1 })
+              .onAction(() => {
+                if (this.shouldPreventTap) {
+                  return;
+                }
+                if (this.sideBarStatus) {
+                  this.closeSideBar(true);
+                } else {
+                  this.lockVisibility = !this.lockVisibility;
+                  this.showControl = !this.showControl;
+                }
+              })
+          ))
           .gesture(LongPressGesture().onAction(() => {
             if (!this.isLock) {
               this.long_press = true
@@ -670,7 +728,7 @@ struct Player {
     .onChange((value: boolean) => {
       this.sideBarStatus = value;
     })
-    .sideBarWidth(300)
+    .sideBarWidth(250)
     .showSideBar(this.sideBarStatus)
     .divider({ strokeWidth: 0 })
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
@@ -690,7 +748,7 @@ struct Player {
       Text(String(this.now_playing?.title).slice(0, this.now_playing?.title.lastIndexOf('.')))
         .fontSize(20)
         .fontWeight(FontWeight.Medium)
-        .width(this.screen_width > this.screen_height ? '55%' : '60%')
+        .width(this.screen_width > this.screen_height ? '50%' : '60%')
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.MARQUEE })
         .fontColor($r('sys.color.white'))
@@ -700,6 +758,7 @@ struct Player {
         $r('sys.color.white'))
         .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
         .width('9%')
+        .visibility(this.screen_width > this.screen_height ? Visibility.Visible : Visibility.None)
         .onClick(() => {
           this.sub_title_visibility === Visibility.Visible ? this.sub_title_visibility = Visibility.None :
             this.sub_title_visibility = Visibility.Visible
@@ -981,14 +1040,13 @@ struct Player {
         })
           .width(40)
           .height(160)
-          .selectedColor(Color.White)
+          .selectedColor($r('app.color.main_color'))
           .trackColor(Color.Black)
           .trackThickness(40)
           .onChange((value) => {
             this.volume = value
           })
       }
-
     }.width(40)
   }
 
@@ -1019,7 +1077,7 @@ struct Player {
           })
             .width(40)
             .height(160)
-            .selectedColor(Color.White)
+            .selectedColor($r('app.color.main_color'))
             .trackColor(Color.Black)
             .trackThickness(40)
             .onChange((value) => {

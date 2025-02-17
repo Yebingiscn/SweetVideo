@@ -94,7 +94,7 @@
     },
     {
       "name": "video_error",
-      "value": "视频异常，尝试使用FFMpeg播放器播放＞﹏＜"
+      "value": "不支持的格式！尝试使用FFMpeg播放器播放＞﹏＜"
     },
     {
       "name": "add_time_info",
