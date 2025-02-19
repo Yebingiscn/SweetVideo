@@ -61,7 +61,6 @@ function shadowFancy() {
 struct Index {
   windowClass = window.getLastWindow(context)
   @State topSafeHeight: number = 0;
-  @State bottomSafeHeight: number = 0;
   @State video_meta_data: VideoMetadata[] = []
   @State video_meta_data_encryption: VideoMetadata[] = []
   @State now_playing: VideoMetadata | undefined = undefined
@@ -353,8 +352,7 @@ struct Index {
   }
 
   updateShowList() {
-    let total = this.lazy_show_list.totalCount()
-    for (let i = 0; i <= total; i++) {
+    for (let i = 0; i <= this.lazy_show_list.totalCount(); i++) {
       this.lazy_show_list.delData()
     }
     let a = 0
@@ -386,7 +384,7 @@ struct Index {
     this.passwd = await SelectFileUtil.getPassword()
     this.show_list = this.video_meta_data.map(i => i.date)
     this.activePermission()
-    this.getSafeHeightAndButton()
+    await this.getSafeHeightAndButton()
     if (!fs.accessSync(sandbox_video)) {
       fs.mkdirSync(sandbox_video)
     }
@@ -497,8 +495,8 @@ struct Index {
     await (await this.windowClass).setWindowLayoutFullScreen(true)
     this.topSafeHeight = px2vp((await this.windowClass).getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
       .topRect.height)
-    DataSyncUtil.topSafeHeight = this.topSafeHeight
-    this.bottomSafeHeight = px2vp((await this.windowClass)
+    DataSyncUtil.setTopSafeHeight(this.topSafeHeight)
+    DataSyncUtil.bottomSafeHeight = px2vp((await this.windowClass)
       .getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR).bottomRect.height)
   }
 
@@ -921,7 +919,7 @@ struct Index {
         .animation({ duration: 150, curve: Curve.Sharp })
       }.backgroundColor($r('app.color.start_window_background'))
       .onAreaChange(async (_oldValue: Area, newValue: Area) => {
-        this.getSafeHeightAndButton()
+        await this.getSafeHeightAndButton()
         this.list_line = Math.floor(new Number(newValue.width).valueOf() / 500 + 1)
         this.list_empty_item = []
         for (let i = 1; i <= this.list_line; i++) {

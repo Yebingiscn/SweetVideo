@@ -19,6 +19,7 @@ import VideoOperateUtil, {
   VolConfigVertical
 } from '../utils/VideoOperateUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
+import { VideoDataSource } from '../utils/DataUtil';
 
 @Extend(Button)
 function buttonFancy(width: number | string, height: number | string) {
@@ -70,7 +71,6 @@ struct Player {
   @State windowClassTmp: window.Window | undefined = undefined;
   @State video_meta_data: VideoMetadata[] = []
   @State select_text: string | undefined = '原始比例'
-  @State select_video: Visibility = Visibility.None
   @State speed_show: number = 2
   @State circle_play: boolean = false
   @State audio_track: AudioTrack[] = []
@@ -85,6 +85,7 @@ struct Player {
   @State isHorizontalSwiping: boolean = false
   @State isVerticalSwiping: boolean = false
   @State shouldPreventTap: boolean = false
+  @State videoDataSource: IDataSource = new VideoDataSource([])
   private clearSubtitleTimer: number | null = null;
   private listScroller: Scroller = new Scroller();
 
@@ -111,7 +112,6 @@ struct Player {
     })
     this.avSession?.on('fastForward', () => {
       this.avPlayer?.seek(this.play_time + 15000, media.SeekMode.SEEK_CLOSEST)
-      //this.avPlayer?.seek(Math.min(this.max, this.currentPosition + 10 * 1000), media.SeekMode.SEEK_CLOSEST)
     })
     this.avSession?.on('rewind', () => {
       this.avPlayer?.seek(this.play_time - 15000)
@@ -130,6 +130,7 @@ struct Player {
       this.video_meta_data = JSON.parse(record['metadata_list']) as VideoMetadata[];
     }
     this.seek_time = this.now_playing?.last_play
+    this.videoDataSource = new VideoDataSource(this.video_meta_data);
     PermissionUtil.startContinuousTask()
     this.setScreen()
     this.avPlayer = await AVPlayerUtil.getAVPlayer()
@@ -181,7 +182,6 @@ struct Player {
   async getAudioTrack() {
     this.audio_track = await VideoInfoUtil.getAudioTracks(this.avPlayer!)
     VideoOperateUtil.audioTrackErrorExecute(this.audio_track)
-    console.error('test' + this.audio_track.length + this.audio_track)
     this.avPlayer!.selectTrack(this.audio_track[0].index);
   }
 
@@ -332,7 +332,7 @@ struct Player {
   build() {
     SideBarContainer(SideBarContainerType.Overlay) {
       List({ scroller: this.listScroller, space: 10 }) {
-        ForEach(this.video_meta_data, (item: VideoMetadata) => {
+        LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
           ListItem() {
             Column() {
               Row() {
@@ -366,7 +366,7 @@ struct Player {
             }.visibility(VideoInfoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.video_meta_data,
               item?.date)?.size)) !== '0 x 0' ? Visibility.Visible : Visibility.None)
           }
-        })
+        }, (item: VideoMetadata) => item.date)
       }
       .onAppear(() => {
         this.listScroller.scrollToIndex(this.video_meta_data.findIndex(item =>
@@ -420,7 +420,7 @@ struct Player {
             .padding({
               left: (this.screen_height > this.screen_width ? 20 : 35),
               right: 20,
-              top: (this.screen_height > this.screen_width ? DataSyncUtil.topSafeHeight : 5),
+              top: (this.screen_height > this.screen_width ? DataSyncUtil.getActuallyTopSafeHeight() : 5),
               bottom: 10
             })
             .backgroundColor('#61000000')
@@ -443,6 +443,7 @@ struct Player {
             .height(this.screen_height > this.screen_width ? '20%' : '25%')
             .width('100%')
             .padding(1)
+            .margin({bottom: this.screen_height > this.screen_width ? 0 : DataSyncUtil.bottomSafeHeight})
             .backgroundColor('#61000000')
           }.height('100%').width('100%')
         }
@@ -582,7 +583,7 @@ struct Player {
         .onClick(() => {
           this.isLock = !this.isLock
         })
-        .position({ bottom: 150, left: 40 })
+        .position({ bottom: this.screen_height / 2, left: 30 })
 
         Column()
           .width('100%')
@@ -651,7 +652,7 @@ struct Player {
               }
               if (event.type == TouchType.Up) { // 处理滑动结束
                 if (this.isHorizontalSwiping) {
-                  this.avPlayer?.seek(this.play_time);
+                  this.avPlayer?.seek(this.play_time, media.SeekMode.SEEK_CLOSEST);
                 } else if (this.long_press) {
                   this.long_press = false;
                   this.avPlayer?.setSpeed(VideoInfoUtil.getVideoSpeed(this.last_speed));
@@ -790,8 +791,7 @@ struct Player {
         })
         .backgroundColor('#00000000')
         .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
-        .visibility(this.select_video =
-          this.screen_width > this.screen_height ? Visibility.Visible : Visibility.None)
+        .visibility(this.screen_width > this.screen_height ? Visibility.Visible : Visibility.None)
 
       Select([//倍速
         { value: '0.5x' },

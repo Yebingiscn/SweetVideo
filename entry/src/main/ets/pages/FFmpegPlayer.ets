@@ -1,4 +1,5 @@
 import {
+  DeviceChangeReason,
   IjkMediaPlayer,
   InterruptEvent,
   InterruptHintType,
@@ -20,25 +21,11 @@ import { router, window } from '@kit.ArkUI'
 import { audio } from '@kit.AudioKit'
 import PermissionUtil from '../utils/PermissionUtil'
 import { common } from '@kit.AbilityKit'
-import AVSessionUtil from '../utils/AVSessionUtil'
+import AVSessionUtil, { avSessionState } from '../utils/AVSessionUtil'
 import { avSession as avSessionManager } from '@kit.AVSessionKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
-
-
-interface VideoMetadata {
-  uri: string
-  title: string
-  date: string,
-  size: number[]
-  time: number
-  last_play: number
-}
-
-interface avSessionState {
-  playing: boolean
-  duration: number
-}
+import { VideoMetadataFromPlayer } from '../utils/VideoInfoUtil'
 
 const context = getContext() as common.UIAbilityContext;
 
@@ -62,7 +49,7 @@ struct EnhancePlayer {
   @State replayVisible: Visibility = Visibility.None;
   @State volume: number = 1.0;
   @State playSpeed: string = '1f';
-  now_playing: VideoMetadata | undefined = undefined
+  now_playing: VideoMetadataFromPlayer | undefined = undefined
   @State oldSeconds: number = 0;
   @State video_url: string = ''
   @State total_time: number = 0
@@ -120,7 +107,7 @@ struct EnhancePlayer {
           .padding({
             left: (this.screen_height > this.screen_width ? 5 : 5),
             right: 20,
-            top: (this.screen_height > this.screen_width ? DataSyncUtil.topSafeHeight : 5),
+            top: (this.screen_height > this.screen_width ? DataSyncUtil.getActuallyTopSafeHeight() : 5),
             bottom: 10
           }).backgroundColor('#61000000')
 
@@ -142,6 +129,7 @@ struct EnhancePlayer {
           .height(this.screen_height > this.screen_width ? '20%' : '25%')
           .width('100%')
           .padding(1)
+          .margin({bottom: this.screen_height > this.screen_width ? 0 : DataSyncUtil.bottomSafeHeight})
           .backgroundColor('#61000000')
         }.height('100%').width('100%')
       }
@@ -373,7 +361,6 @@ struct EnhancePlayer {
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzeduration", "100");
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzemaxduration", '100L');
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "lush_packets", '1L');
-
     // 屏幕常亮
     this.mIjkMediaPlayer.setScreenOnWhilePlaying(true);
     // 变速播放
@@ -525,6 +512,13 @@ struct EnhancePlayer {
       }
     }
     this.mIjkMediaPlayer.on('audioInterrupt', event);
+    let deviceChangeEvent: Callback<InterruptEvent> = (event) => {
+      LogUtils.getInstance().LOGI(`deviceChange event: ${JSON.stringify(event)}`);
+    if (event.reason === DeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) { // 音频设备断开连接
+        this.pause();
+      }
+    }
+    this.mIjkMediaPlayer.on('deviceChange', deviceChangeEvent);
   }
 
   async aboutToDisappear() {
