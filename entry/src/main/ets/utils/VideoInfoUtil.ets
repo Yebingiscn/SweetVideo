@@ -32,6 +32,7 @@ export interface AudioTrack {
 }
 
 class VideoInfoUtil {
+  public support_video_format = ['mp4', 'flv', 'mkv', 'ts', 'mov', 'rmvb', 'wmv', 'avi']
   private GB = 1024 * 1024 * 1024 // 1GB in bytes
   private MB = 1024 * 1024 // 1MB in bytes
   private VIDEO_SPEED = 1
@@ -41,7 +42,6 @@ class VideoInfoUtil {
       [1.25, media.PlaybackSpeed.SPEED_FORWARD_1_25_X], [1.5, media.PlaybackSpeed.SPEED_FORWARD_1_50_X],
       [1.75, media.PlaybackSpeed.SPEED_FORWARD_1_75_X], [2.00, media.PlaybackSpeed.SPEED_FORWARD_2_00_X],
       [3.00, media.PlaybackSpeed.SPEED_FORWARD_3_00_X]])
-  public support_video_format = ['mp4', 'flv', 'mkv', 'ts', 'mov', 'rmvb', 'wmv', 'avi']
   private speed_index_map: Record<number, number> = {
     //倍速 select 索引
     0.5: 0,

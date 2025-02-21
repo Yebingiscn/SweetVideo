@@ -443,7 +443,7 @@ struct Player {
             .height(this.screen_height > this.screen_width ? '20%' : '25%')
             .width('100%')
             .padding(1)
-            .margin({bottom: this.screen_height > this.screen_width ? 0 : DataSyncUtil.bottomSafeHeight})
+            .margin({ bottom: this.screen_height > this.screen_width ? 0 : DataSyncUtil.bottomSafeHeight })
             .backgroundColor('#61000000')
           }.height('100%').width('100%')
         }
@@ -1008,6 +1008,7 @@ struct Player {
           this.avPlayer!.selectTrack(item.index);
           this.audio_track_select = index;
         })
+
         if (index !== this.audio_track.length - 1) {
           Divider().height(2)
         }

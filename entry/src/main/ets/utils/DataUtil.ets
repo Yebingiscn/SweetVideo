@@ -1,81 +1,120 @@
-import { VideoMetadata } from "./VideoInfoUtil";
+import { VideoMetadata } from './VideoInfoUtil';
 
 export default class DataUtil<T> implements IDataSource {
-  private sources: T[] = []
-  //数据源
-  private listeners: DataChangeListener[] = []
+  private sources: T[] = [];
+  private listeners: DataChangeListener[] = [];
 
-  //数据监听
-  // 数据源构造器
   constructor(sources: T[]) {
-    this.sources = sources;
+    this.sources = [...sources]; // 防御性拷贝
   }
 
-  totalCount(): number { //数据源中数据个数
-    return this.sources.length
+  totalCount(): number {
+    return this.sources.length;
   }
 
-  getData(index: number) { //获取下标对应的数据
-    return this.sources[index]
+  getData(index: number): T | undefined {
+    if (index < 0 || index >= this.sources.length) {
+      console.error(`Index ${index} out of bounds`);
+      return undefined;
+    }
+    return this.sources[index];
   }
 
-  registerDataChangeListener(listener: DataChangeListener): void { //注册监听器
-    if (this.listeners.indexOf(listener) < 0) { //当前监听器数组中没有数据
-      this.listeners.push(listener) //增加该监听
+  registerDataChangeListener(listener: DataChangeListener): void {
+    if (!this.listeners.includes(listener)) {
+      this.listeners.push(listener);
     }
   }
 
   unregisterDataChangeListener(listener: DataChangeListener): void {
-    let pos = this.listeners.indexOf(listener)
-    if (pos > 0) //当前监听器数组中有数据
-    {
-      this.listeners.splice(pos, 1) //移除该监听
+    const pos = this.listeners.indexOf(listener);
+    if (pos >= 0) {
+      this.listeners.splice(pos, 1);
     }
   }
 
-  //_______________________________数据源操作方法 新增数据、插入数据、删除数据、更新数据________________________
-
-  addData(item: T) { //尾部增加元素
-    this.sources.push(item)
-    this.listeners.forEach((listener: DataChangeListener) => {
-      listener.onDataAdd(this.sources.length - 1)
-    })
+  //--------------- 数据操作方法 ---------------
+  appendData(item: T): void {
+    this.sources.push(item);
+    const index = this.sources.length - 1;
+    this.listeners.forEach(listener => {
+      listener.onDataAdd(index);
+    });
   }
 
-  addData1(index: number, item: T) { //某个位置添加元素
-    this.sources.splice(index, 0, item)
-    this.listeners.forEach((listener: DataChangeListener) => {
-      listener.onDataAdd(index)
-    })
+  insertData(index: number, item: T): void {
+    if (index < 0 || index > this.sources.length) {
+      console.error(`Invalid insert index: ${index}`);
+      return;
+    }
+    this.sources.splice(index, 0, item);
+    this.listeners.forEach(listener => {
+      listener.onDataAdd(index);
+    });
   }
 
-  delData() { //末尾移除元素
-    this.sources.pop()
-    this.listeners.forEach((listener: DataChangeListener) => {
-      listener.onDataDelete(this.sources.length - 1)
-    })
+  removeLastData(): void {
+    if (this.sources.length === 0) return;
+    const lastIndex = this.sources.length - 1;
+    this.sources.pop();
+    this.listeners.forEach(listener => {
+      listener.onDataDelete(lastIndex);
+    });
   }
 
-  clearData() { //末尾移除元素
-    this.sources.pop()
-    this.listeners.forEach((listener: DataChangeListener) => {
-      listener.onDataDelete(0)
-    })
+  removeDataAt(index: number): void {
+    if (index < 0 || index >= this.sources.length) {
+      console.error(`Invalid delete index: ${index}`);
+      return;
+    }
+    this.sources.splice(index, 1);
+    this.listeners.forEach(listener => {
+      listener.onDataDelete(index);
+    });
   }
 
-  delData1(index: number) { //移除某个下标对应的元素
-    this.sources.splice(index, 1)
-    this.listeners.forEach((listener: DataChangeListener) => {
-      listener.onDataDelete(index)
-
-    })
+  clearAllData(): void {
+    const length = this.sources.length;
+    this.sources = [];
+    this.listeners.forEach(listener => {
+      // 根据实际需求选择触发方式
+      for (let i = 0; i < length; i++) {
+        listener.onDataDelete(i);
+      }
+      // 或 listener.onDataReload();
+    });
   }
 
-  updData(index: number, Data: T) { //更新某个下标的元素
-    this.sources.splice(index, 1, Data)
-    this.listeners.forEach((listener: DataChangeListener) => {
-      listener.onDataChange(index)
-    })
+  updateData(index: number, newData: T): void {
+    if (index < 0 || index >= this.sources.length) {
+      console.error(`Invalid update index: ${index}`);
+      return;
+    }
+    this.sources.splice(index, 1, newData);
+    this.listeners.forEach(listener => {
+      listener.onDataChange(index);
+    });
+  }
+
+  reloadAllData(newData: T[]): void {
+    const oldLength = this.sources.length;
+
+    // 1. 触发旧数据删除事件
+    this.listeners.forEach(listener => {
+      for (let i = oldLength - 1; i >= 0; i--) {
+        listener.onDataDelete(i);
+      }
+    });
+
+    // 2. 更新数据源
+    this.sources = [...newData]; // 防御性拷贝
+
+    // 3. 触发新数据添加事件
+    this.listeners.forEach(listener => {
+      for (let i = 0; i < this.sources.length; i++) {
+        listener.onDataAdd(i);
+      }
+    });
   }
 }
 

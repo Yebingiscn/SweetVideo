@@ -69,7 +69,8 @@ class Permission {
         operationMode: fileShare.OperationMode.READ_MODE | fileShare.OperationMode.WRITE_MODE,
       };
       let policies: Array<fileShare.PolicyInfo> = [policyInfo];
-      fileShare.persistPermission(policies).then(() => {})
+      fileShare.persistPermission(policies).then(() => {
+      })
       let fd = await fs.open(uri);
       await fs.close(fd);
     } catch (error) {

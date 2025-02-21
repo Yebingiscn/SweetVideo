@@ -85,8 +85,10 @@ struct SplashPage {
 @Component
 struct PrivacyPolicyDialog {
   controller?: CustomDialogController
-  cancel: () => void = () => {}; // 初始化为空函数
-  confirm: () => void = () => {}; // 初始化为空函数
+  cancel: () => void = () => {
+  }; // 初始化为空函数
+  confirm: () => void = () => {
+  }; // 初始化为空函数
 
   build() {
     Stack() {

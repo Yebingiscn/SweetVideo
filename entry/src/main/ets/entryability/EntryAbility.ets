@@ -6,7 +6,6 @@ import WantProcess from '../utils/WantProcessUtil';
 import { WindowUtil } from '../utils/WindowUtil';
 
 export default class EntryAbility extends UIAbility {
-
   onCreate(want: Want): void {
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     PreferencesUtil.localPreferences(this.context, 'sweet_video')

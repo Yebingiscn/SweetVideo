@@ -6,8 +6,8 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import PreferencesUtil from './PreferencesUtil';
 
 class SelectFileUtil {
-  private query_cache = new Map<string, VideoMetadata>();
   public file_folder_uri = ''
+  private query_cache = new Map<string, VideoMetadata>();
 
   async selectFiles(): Promise<string[]> {
     const documentSelectOptions = new picker.DocumentSelectOptions();
@@ -43,16 +43,66 @@ class SelectFileUtil {
     this.file_folder_uri = uri.path
   }
 
-  getDownloadFilesUri() {
-    let fileList: string[] = fs.listFileSync(this.file_folder_uri);
-    let resultList: string[] = []; // 用于存储结果
-    fileList.forEach((file) => {
-      const fullPath = this.file_folder_uri + '/' + file
-      if (fs.statSync(fullPath).isFile()) {
-        resultList.push(fullPath); // 添加到新数组中
+  async getDownloadFilesUri(): Promise<string[]> {
+    const VIDEO_EXTENSIONS = new Set(VideoUtil.support_video_format);
+    const MAX_CONCURRENCY = 5; // 控制最大并发数
+    class ConcurrencyController {
+      private queue: (() => Promise<void>)[] = [];
+      private activeCount = 0;
+      async run<T>(task: () => Promise<T>): Promise<T> {
+        return new Promise((resolve, reject) => {
+          const execute = async () => {
+            this.activeCount++;
+            try {
+              const result = await task();
+              resolve(result);
+            } catch (error) {
+              reject(error);
+            } finally {
+              this.activeCount--;
+              this.next();
+            }
+          };
+          this.queue.push(execute);
+          this.next();
+        });
       }
-    });
-    return resultList // 返回新的结果数组
+      private next() {
+        while (this.queue.length > 0 && this.activeCount < MAX_CONCURRENCY) {
+          const task = this.queue.shift();
+          task!();
+        }
+      }
+    }
+    const isVideoFile = (filePath: string): boolean => {
+      const lastDotIndex = filePath.lastIndexOf('.');
+      if (lastDotIndex === -1) return false;
+      const ext = filePath.slice(lastDotIndex + 1).toLowerCase();
+      return VIDEO_EXTENSIONS.has(ext);
+    };
+    const controller = new ConcurrencyController();
+    const collectFiles = async (directory: string): Promise<string[]> => {
+      try {
+        const entries = await fs.listFile(directory);
+        const tasks = entries.map(entry =>
+        controller.run(async () => {
+          const fullPath = `${directory}/${entry}`;
+          const stat = await fs.stat(fullPath);
+          if (stat.isFile()) {
+            return isVideoFile(fullPath) ? [fullPath] : [];
+          } else if (stat.isDirectory()) {
+            return collectFiles(fullPath);
+          }
+          return [];
+        }));
+        const nestedResults = await Promise.all(tasks);
+        return nestedResults.flat();
+      } catch (error) {
+        console.error(`处理目录 ${directory} 失败:`, error);
+        return [];
+      }
+    };
+    return collectFiles(this.file_folder_uri);
   }
 
   copyFile(item: VideoMetadata, context: common.UIAbilityContext) {

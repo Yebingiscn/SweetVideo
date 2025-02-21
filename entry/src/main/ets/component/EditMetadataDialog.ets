@@ -1,4 +1,4 @@
-import DataSyncUtil from '../utils/DataSyncUtil'
+import DataSyncUtil from '../utils/DataSyncUtil';
 import { VideoMetadata } from '../utils/VideoInfoUtil';
 
 @CustomDialog

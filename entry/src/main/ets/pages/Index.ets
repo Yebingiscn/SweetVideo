@@ -78,6 +78,80 @@ struct Index {
   @State multipleChooseState: Visibility = Visibility.None
   @State MenuBuilderState: boolean = false
   @State delMultipleList: VideoMetadata[] = []
+  editMetadataDialogController: CustomDialogController = new CustomDialogController({
+    builder: editMetadataDialog({
+      confirm: (title: string | undefined) => {
+        if (!title || title == '') {
+          return
+        }
+        let tmp = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata
+        let index =
+          SelectFileUtil.getItemIndex(this.encryption ? this.video_meta_data_encryption : this.video_meta_data, tmp)
+        if (this.encryption) {
+          if (this.video_meta_data_encryption.map(i => i.title).includes(title)) {
+            return
+          }
+          this.video_meta_data_encryption[index].title = title
+        } else {
+          if (this.video_meta_data.map(i => i.title).includes(title)) {
+            return
+          }
+          this.video_meta_data[index].title = title
+        }
+        this.show_list =
+          SelectFileUtil.getAllItem(this.encryption ? this.video_meta_data_encryption : this.video_meta_data)
+        SelectFileUtil.saveVideoMetaData(this.video_meta_data)
+        SelectFileUtil.saveVideoMetaDataEncryption(this.video_meta_data_encryption)
+      },
+    }),
+    cornerRadius: 20,
+    shadow: {
+      radius: 20,
+      color: $r('app.color.shadow_color'),
+      offsetX: 0,
+      offsetY: 0
+    }
+  })
+  delConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: delConfirmDialog({
+      confirm: (confirm_del: boolean | undefined) => {
+        if (!confirm_del) {
+          return
+        }
+        return new Promise<void>((resolve, reject) => {
+          this.deleteItem(resolve, reject);
+        });
+      }
+    }),
+    cornerRadius: 20,
+    shadow: {
+      radius: 20,
+      color: $r('app.color.shadow_color'),
+      offsetX: 0,
+      offsetY: 0
+    }
+  })
+  editPasswdDialogController: CustomDialogController = new CustomDialogController({
+    builder: editPasswordDialog({
+      confirm: (passwd: string | undefined) => {
+        if (!passwd || passwd == '') {
+          return
+        }
+        this.passwd = passwd
+        this.encryption = false
+        ToolsUtil.savePwd(passwd)
+      },
+    }),
+    cornerRadius: 20,
+    shadow: {
+      radius: 20,
+      color: $r('app.color.shadow_color'),
+      offsetX: 0,
+      offsetY: 0
+    }
+  })
+  listScroller: ListScroller = new ListScroller()
+  searchController: SearchController = new SearchController()
 
   @Builder
   MenuBuilder(item: VideoMetadata | undefined) {
@@ -239,81 +313,6 @@ struct Index {
     }.width(150)
   }
 
-  editMetadataDialogController: CustomDialogController = new CustomDialogController({
-    builder: editMetadataDialog({
-      confirm: (title: string | undefined) => {
-        if (!title || title == '') {
-          return
-        }
-        let tmp = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata
-        let index =
-          SelectFileUtil.getItemIndex(this.encryption ? this.video_meta_data_encryption : this.video_meta_data, tmp)
-        if (this.encryption) {
-          if (this.video_meta_data_encryption.map(i => i.title).includes(title)) {
-            return
-          }
-          this.video_meta_data_encryption[index].title = title
-        } else {
-          if (this.video_meta_data.map(i => i.title).includes(title)) {
-            return
-          }
-          this.video_meta_data[index].title = title
-        }
-        this.show_list =
-          SelectFileUtil.getAllItem(this.encryption ? this.video_meta_data_encryption : this.video_meta_data)
-        SelectFileUtil.saveVideoMetaData(this.video_meta_data)
-        SelectFileUtil.saveVideoMetaDataEncryption(this.video_meta_data_encryption)
-      },
-    }),
-    cornerRadius: 20,
-    shadow: {
-      radius: 20,
-      color: $r('app.color.shadow_color'),
-      offsetX: 0,
-      offsetY: 0
-    }
-  })
-  delConfirmDialog: CustomDialogController = new CustomDialogController({
-    builder: delConfirmDialog({
-      confirm: (confirm_del: boolean | undefined) => {
-        if (!confirm_del) {
-          return
-        }
-        return new Promise<void>((resolve, reject) => {
-          this.deleteItem(resolve, reject);
-        });
-      }
-    }),
-    cornerRadius: 20,
-    shadow: {
-      radius: 20,
-      color: $r('app.color.shadow_color'),
-      offsetX: 0,
-      offsetY: 0
-    }
-  })
-  editPasswdDialogController: CustomDialogController = new CustomDialogController({
-    builder: editPasswordDialog({
-      confirm: (passwd: string | undefined) => {
-        if (!passwd || passwd == '') {
-          return
-        }
-        this.passwd = passwd
-        this.encryption = false
-        ToolsUtil.savePwd(passwd)
-      },
-    }),
-    cornerRadius: 20,
-    shadow: {
-      radius: 20,
-      color: $r('app.color.shadow_color'),
-      offsetX: 0,
-      offsetY: 0
-    }
-  })
-  listScroller: ListScroller = new ListScroller()
-  searchController: SearchController = new SearchController()
-
   deleteItem(resolve: () => void, reject: (reason?: Error) => void) {
     let tmp = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata;
     if (this.encryption) {
@@ -352,14 +351,9 @@ struct Index {
   }
 
   updateShowList() {
-    for (let i = 0; i <= this.lazy_show_list.totalCount(); i++) {
-      this.lazy_show_list.delData()
-    }
-    let a = 0
-    for (let item of this.show_list) {
-      this.lazy_show_list.addData1(a, item)
-      a++
-    }
+    this.lazy_show_list.clearAllData();
+    const safeData = [...this.show_list];
+    this.lazy_show_list.reloadAllData(safeData);
   }
 
   updateList() {
@@ -593,7 +587,7 @@ struct Index {
           .buttonFancy('100%', 60)
           .onClick(async () => {
             this.closeSideBar(false)
-            await this.toMetaData(SelectFileUtil.getDownloadFilesUri());
+            await this.toMetaData(await SelectFileUtil.getDownloadFilesUri());
           })
         }.width('100%')
         .justifyContent(FlexAlign.Start)

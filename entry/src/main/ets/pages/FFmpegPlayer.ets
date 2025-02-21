@@ -40,10 +40,8 @@ struct EnhancePlayer {
   @State play_time: number = 0
   @State playing: boolean = false
   @State mContext: object | undefined = undefined;
-  private CONTROL_PlayStatus = PlayStatus.INIT;
   @State updateProgressTimer: number = 0;
   @State mDestroyPage: boolean = false;
-  private mIjkMediaPlayer = IjkMediaPlayer.getInstance();
   @State slideEnable: boolean = false;
   @State loadingVisible: Visibility = Visibility.None;
   @State replayVisible: Visibility = Visibility.None;
@@ -56,6 +54,8 @@ struct EnhancePlayer {
   windowClass = window.getLastWindow(context)
   xComponentController: XComponentController = new XComponentController()
   @State @Watch('setScreen') ShowControl: boolean = false
+  private CONTROL_PlayStatus = PlayStatus.INIT;
+  private mIjkMediaPlayer = IjkMediaPlayer.getInstance();
 
   build() {
     Stack() {
@@ -129,7 +129,7 @@ struct EnhancePlayer {
           .height(this.screen_height > this.screen_width ? '20%' : '25%')
           .width('100%')
           .padding(1)
-          .margin({bottom: this.screen_height > this.screen_width ? 0 : DataSyncUtil.bottomSafeHeight})
+          .margin({ bottom: this.screen_height > this.screen_width ? 0 : DataSyncUtil.bottomSafeHeight })
           .backgroundColor('#61000000')
         }.height('100%').width('100%')
       }
@@ -245,6 +245,95 @@ struct EnhancePlayer {
     }.width('95%')
   }
 
+  async setScreen() {
+    await (await this.windowClass).setSpecificSystemBarEnabled('status', this.ShowControl)
+    await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', this.ShowControl)
+  }
+
+  onPageShow() {
+    if (this.mContext && !this.playing) {
+      this.startPlayOrResumePlay();
+    }
+  }
+
+  async aboutToAppear() {
+    LogUtils.getInstance().LOGI("aboutToAppear");
+    let record = router.getParams() as Record<string, string>
+    if (record) {
+      this.now_playing = JSON.parse(record['metadata'])
+    }
+    PermissionUtil.startContinuousTask()
+    let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
+    let audioManager = audio.getAudioManager();
+    let audioVolumeManger: audio.AudioVolumeManager = audioManager.getVolumeManager();
+    this.setScreen()
+    let volumeList = await VideoOperateUtil.getVolume(audioVolumeManger, groupId)
+    this.volume = volumeList.get('volume')!
+    await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
+    await (await this.windowClass).setWindowKeepScreenOn(true)
+    let event: Callback<InterruptEvent> = (event) => {
+      LogUtils.getInstance().LOGI(`event: ${JSON.stringify(event)}`);
+      if (event.hintType === InterruptHintType.INTERRUPT_HINT_PAUSE) {
+        this.pause();
+      } else if (event.hintType === InterruptHintType.INTERRUPT_HINT_RESUME) {
+        this.startPlayOrResumePlay();
+      } else if (event.hintType === InterruptHintType.INTERRUPT_HINT_STOP) {
+        this.stop();
+      }
+    }
+    this.mIjkMediaPlayer.on('audioInterrupt', event);
+    let deviceChangeEvent: Callback<InterruptEvent> = (event) => {
+      LogUtils.getInstance().LOGI(`deviceChange event: ${JSON.stringify(event)}`);
+      if (event.reason === DeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) { // 音频设备断开连接
+        this.pause();
+      }
+    }
+    this.mIjkMediaPlayer.on('deviceChange', deviceChangeEvent);
+  }
+
+  async aboutToDisappear() {
+    LogUtils.getInstance().LOGI("aboutToDisappear");
+    this.mDestroyPage = true;
+    this.mIjkMediaPlayer.setScreenOnWhilePlaying(false);
+    if (this.CONTROL_PlayStatus != PlayStatus.INIT) {
+      this.stop();
+    }
+    this.mIjkMediaPlayer.off('audioInterrupt');
+    AVSessionUtil.destroySession()
+    PermissionUtil.stopContinuousTask()
+    await (await this.windowClass).setWindowKeepScreenOn(false)
+    await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
+    await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
+    await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
+  }
+
+  updateSession() {
+    let data: avSessionState = {
+      playing: this.playing,
+      duration: this.play_time
+    }
+    AVSessionUtil.updateSession(JSON.stringify(data))
+  }
+
+  async setSessionListener() {
+    this.avSession?.on('play', () => {
+      this.startPlayOrResumePlay();
+      this.playing = !this.playing
+    });
+    this.avSession?.on('pause', () => {
+      this.pause()
+      this.playing = !this.playing
+    });
+    this.avSession?.on('seek', (position: number) => {
+      this.mDestroyPage = false;
+      LogUtils.getInstance().LOGI("slider-->seekValue start:" + position);
+      let seekValue = position;
+      this.seekTo(seekValue + "");
+      this.setProgress()
+      LogUtils.getInstance().LOGI("slider-->seekValue end:" + seekValue);
+    })
+  }
+
   private initDelayPlay(context: object) {
     this.mContext = context;
     let that = this;
@@ -285,11 +374,6 @@ struct EnhancePlayer {
 
   private stopProgressTask() {
     clearInterval(this.updateProgressTimer);
-  }
-
-  async setScreen() {
-    await (await this.windowClass).setSpecificSystemBarEnabled('status', this.ShowControl)
-    await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', this.ShowControl)
   }
 
   private setProgress() { //设置进度条
@@ -478,90 +562,6 @@ struct EnhancePlayer {
 
   private seekTo(value: string) {
     this.mIjkMediaPlayer.seekTo(value);
-  }
-
-  onPageShow() {
-    if (this.mContext && !this.playing) {
-      this.startPlayOrResumePlay();
-    }
-  }
-
-  async aboutToAppear() {
-    LogUtils.getInstance().LOGI("aboutToAppear");
-    let record = router.getParams() as Record<string, string>
-    if (record) {
-      this.now_playing = JSON.parse(record['metadata'])
-    }
-    PermissionUtil.startContinuousTask()
-    let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
-    let audioManager = audio.getAudioManager();
-    let audioVolumeManger: audio.AudioVolumeManager = audioManager.getVolumeManager();
-    this.setScreen()
-    let volumeList = await VideoOperateUtil.getVolume(audioVolumeManger, groupId)
-    this.volume = volumeList.get('volume')!
-    await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
-    await (await this.windowClass).setWindowKeepScreenOn(true)
-    let event: Callback<InterruptEvent> = (event) => {
-      LogUtils.getInstance().LOGI(`event: ${JSON.stringify(event)}`);
-      if (event.hintType === InterruptHintType.INTERRUPT_HINT_PAUSE) {
-        this.pause();
-      } else if (event.hintType === InterruptHintType.INTERRUPT_HINT_RESUME) {
-        this.startPlayOrResumePlay();
-      } else if (event.hintType === InterruptHintType.INTERRUPT_HINT_STOP) {
-        this.stop();
-      }
-    }
-    this.mIjkMediaPlayer.on('audioInterrupt', event);
-    let deviceChangeEvent: Callback<InterruptEvent> = (event) => {
-      LogUtils.getInstance().LOGI(`deviceChange event: ${JSON.stringify(event)}`);
-    if (event.reason === DeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) { // 音频设备断开连接
-        this.pause();
-      }
-    }
-    this.mIjkMediaPlayer.on('deviceChange', deviceChangeEvent);
-  }
-
-  async aboutToDisappear() {
-    LogUtils.getInstance().LOGI("aboutToDisappear");
-    this.mDestroyPage = true;
-    this.mIjkMediaPlayer.setScreenOnWhilePlaying(false);
-    if (this.CONTROL_PlayStatus != PlayStatus.INIT) {
-      this.stop();
-    }
-    this.mIjkMediaPlayer.off('audioInterrupt');
-    AVSessionUtil.destroySession()
-    PermissionUtil.stopContinuousTask()
-    await (await this.windowClass).setWindowKeepScreenOn(false)
-    await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
-    await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
-    await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
-  }
-
-  updateSession() {
-    let data: avSessionState = {
-      playing: this.playing,
-      duration: this.play_time
-    }
-    AVSessionUtil.updateSession(JSON.stringify(data))
-  }
-
-  async setSessionListener() {
-    this.avSession?.on('play', () => {
-      this.startPlayOrResumePlay();
-      this.playing = !this.playing
-    });
-    this.avSession?.on('pause', () => {
-      this.pause()
-      this.playing = !this.playing
-    });
-    this.avSession?.on('seek', (position: number) => {
-      this.mDestroyPage = false;
-      LogUtils.getInstance().LOGI("slider-->seekValue start:" + position);
-      let seekValue = position;
-      this.seekTo(seekValue + "");
-      this.setProgress()
-      LogUtils.getInstance().LOGI("slider-->seekValue end:" + seekValue);
-    })
   }
 
   private getVideoSize() {
