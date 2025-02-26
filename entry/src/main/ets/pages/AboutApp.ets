@@ -2,7 +2,7 @@ import ToolsUtil from '../utils/ToolsUtil';
 import { common } from '@kit.AbilityKit';
 import WantProcessUtil from '../utils/WantProcessUtil';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
-
+import router from '@ohos.router';
 
 @Entry
 @Component
@@ -24,7 +24,7 @@ struct AboutApp {
             .width(80)
             .backgroundColor($r('app.color.start_window_background_blur'))
             .onClick(() => {
-              ToolsUtil.routerWhereOnlyUri('pages/Index')
+              router.back()
             })
             .margin(Alignment.Start)
 

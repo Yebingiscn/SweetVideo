@@ -5,6 +5,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import VideoUtil, { VideoMetadata } from './VideoInfoUtil';
 import { common, OpenLinkOptions } from '@kit.AbilityKit';
+import PreferencesUtil from './PreferencesUtil';
 
 class WantProcess {
   public want_uri: string = ''
@@ -34,12 +35,20 @@ class WantProcess {
         video_size: await VideoUtil.getVideoSize(this.want_uri),
         hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
       }
+      const defaultPlayer =
+        await PreferencesUtil.getPreferencesValue("sweet_video", "defaultPlayer", 'FFMpeg播放器') as string
+      let url = ''
+      if (defaultPlayer === '系统播放器') {
+        url = 'pages/Player'
+      } else {
+        url = 'pages/FFMpegPlayer'
+      }
       router.pushUrl({
-        url: 'pages/FFmpegPlayer',
+        url: url,
         params: {
-          metadata: JSON.stringify(tmp)
+          metadata: JSON.stringify(tmp),
         }
-      }, router.RouterMode.Standard, (err) => {
+      }, router.RouterMode.Single, (err) => {
         hilog.info(0xFF00, "testTag", String(err));
       });
     })

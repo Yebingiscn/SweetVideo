@@ -32,7 +32,8 @@ export interface AudioTrack {
 }
 
 class VideoInfoUtil {
-  public support_video_format = ['mp4', 'flv', 'mkv', 'ts', 'mov', 'rmvb', 'wmv', 'avi']
+  public support_video_format = ['mp4', 'flv', 'mkv', 'ts', 'mov', 'rmvb', 'wmv', 'avi', 'm4v']
+  public support_subtitle_format = ['srt']
   private GB = 1024 * 1024 * 1024 // 1GB in bytes
   private MB = 1024 * 1024 // 1MB in bytes
   private VIDEO_SPEED = 1

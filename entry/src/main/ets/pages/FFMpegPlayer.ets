@@ -26,6 +26,7 @@ import { avSession as avSessionManager } from '@kit.AVSessionKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
 import { VideoMetadataFromPlayer } from '../utils/VideoInfoUtil'
+import PreferencesUtil from '../utils/PreferencesUtil'
 
 const context = getContext() as common.UIAbilityContext;
 
@@ -54,6 +55,7 @@ struct EnhancePlayer {
   windowClass = window.getLastWindow(context)
   xComponentController: XComponentController = new XComponentController()
   @State @Watch('setScreen') ShowControl: boolean = false
+  @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
   private CONTROL_PlayStatus = PlayStatus.INIT;
   private mIjkMediaPlayer = IjkMediaPlayer.getInstance();
 
@@ -109,7 +111,7 @@ struct EnhancePlayer {
             right: 20,
             top: (this.screen_height > this.screen_width ? DataSyncUtil.getActuallyTopSafeHeight() : 5),
             bottom: 10
-          }).backgroundColor('#61000000')
+          })
 
           Stack() { //底栏
             if (this.screen_height > this.screen_width) {
@@ -130,7 +132,6 @@ struct EnhancePlayer {
           .width('100%')
           .padding(1)
           .margin({ bottom: this.screen_height > this.screen_width ? 0 : DataSyncUtil.bottomSafeHeight })
-          .backgroundColor('#61000000')
         }.height('100%').width('100%')
       }
       .visibility(this.ShowControl ? Visibility.Visible : Visibility.Hidden)
@@ -198,50 +199,48 @@ struct EnhancePlayer {
 
   @Builder
   VideoButtons() {
-    Row() {
-      Row() {
-        Row() {
-          Button({ type: ButtonType.Circle, stateEffect: true }) { // 播放按钮
-            SymbolGlyph(this.playing ? $r('sys.symbol.play_fill') : $r('sys.symbol.pause_fill'))
-              .fontSize(30)
-              .fontColor(['#f0f0f0'])
-              .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.playing))
+    GridRow({ columns: 14, gutter: 5 }) {
+      GridCol() {
+        Button({ type: ButtonType.Circle, stateEffect: true }) { // 播放按钮
+          SymbolGlyph(this.playing ? $r('sys.symbol.play_fill') : $r('sys.symbol.pause_fill'))
+            .fontSize(30)
+            .fontColor(['#f0f0f0'])
+            .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.playing))
+        }
+        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+        .height(50)
+        .width(50)
+        .backgroundColor('#50000000')
+        .onClick(() => {
+          ToolsUtil.startVibration()
+          if (!this.playing) {
+            this.pause()
+            this.playing = !this.playing
+          } else {
+            this.startPlayOrResumePlay();
+            this.playing = !this.playing
           }
-          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-          .height(50)
-          .width(50)
-          .backgroundColor('#50000000')
-          .onClick(() => {
-            ToolsUtil.startVibration()
-            if (!this.playing) {
-              this.pause()
-              this.playing = !this.playing
-            } else {
-              this.startPlayOrResumePlay();
-              this.playing = !this.playing
-            }
-          })
-        }.width('30%')
+        })
+      }.span({ xs: 2, sm: 2, md: 2 })
 
-        Row() {
-          Button({ type: ButtonType.Circle, stateEffect: true }) { // 全屏按钮
-            SymbolGlyph($r('sys.symbol.screen_rotation'))
-              .fontSize(23)
-              .fontColor(['#f0f0f0'])
+      GridCol() {
+        Button({ type: ButtonType.Circle, stateEffect: true }) { // 全屏按钮
+          SymbolGlyph($r('sys.symbol.screen_rotation'))
+            .fontSize(23)
+            .fontColor(['#f0f0f0'])
+        }
+        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+        .height(40)
+        .width(40)
+        .backgroundColor('#50000000')
+        .onClick(async () => {
+          if (this.screen_height > this.screen_width) {
+            (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED)
+          } else {
+            (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
           }
-          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-          .height(40)
-          .width(40)
-          .backgroundColor('#50000000')
-          .onClick(async () => {
-            if (this.screen_height > this.screen_width) {
-              (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED)
-            } else {
-              (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
-            }
-          })
-        }.width('55%')
-      }.width('40%')
+        })
+      }.span({ xs: 2, sm: 2, md: 2 })
     }.width('95%')
   }
 
@@ -262,7 +261,11 @@ struct EnhancePlayer {
     if (record) {
       this.now_playing = JSON.parse(record['metadata'])
     }
-    PermissionUtil.startContinuousTask()
+    this.allowBackgroundPlay =
+      await PreferencesUtil.getPreferencesValue("sweet_video", "allowBackgroundPlay", true) as boolean
+    if (this.allowBackgroundPlay) {
+      PermissionUtil.startContinuousTask()
+    }
     let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
     let audioManager = audio.getAudioManager();
     let audioVolumeManger: audio.AudioVolumeManager = audioManager.getVolumeManager();
@@ -354,7 +357,7 @@ struct EnhancePlayer {
       this.mIjkMediaPlayer.start();
       this.setProgress()
     }
-    if (!this.avSession) {
+    if (!this.avSession && this.allowBackgroundPlay) {
       this.avSession = await AVSessionUtil.getAVSession()
       await this.setSessionListener()
       AVSessionUtil.setSessionInfo(JSON.stringify(this.now_playing))
@@ -419,13 +422,13 @@ struct EnhancePlayer {
     //初始化配置
     this.mIjkMediaPlayer.native_setup();
     // 初始化配置后需要重新设置音频流音量，否则音量为默认值1.0
-    this.mIjkMediaPlayer.setVolume((this.volume / 15).toString(), (this.volume / 15).toString());
+    this.mIjkMediaPlayer.setVolume((this.volume).toString(), (this.volume).toString());
     //设置视频源
     this.mIjkMediaPlayer.setDataSource(this.video_url);
     //使用精确寻帧 例如，拖动播放后，会寻找最近的关键帧进行播放，很有可能关键帧的位置不是拖动后的位置，而是较前的位置.可以设置这个参数来解决问题
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "enable-accurate-seek", "1");
     //预读数据的缓冲区大小
-    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", "102400");
+    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", "943718400");
     // 204800 943718400
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "overlay-format", "SDL_FCC_RV32")
     //停止预读的最小帧数

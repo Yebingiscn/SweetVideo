@@ -2,14 +2,12 @@ import promptAction from '@ohos.promptAction';
 import { vibrator } from '@kit.SensorServiceKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { pinyin4js } from '@ohos/pinyin4js';
-import VideoInfoUtil, { VideoMetadata } from './VideoInfoUtil';
+import { VideoMetadata } from './VideoInfoUtil';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import PreferencesUtil from './PreferencesUtil';
-import { media } from '@kit.MediaKit';
 import { router } from '@kit.ArkUI';
 import { JSON } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import SelectFileUtil from './SelectFileUtil';
 import { bundleManager } from '@kit.AbilityKit';
 
 class Tools {
@@ -48,27 +46,6 @@ class Tools {
     return show_list
   }
 
-  async copyFileToPrivacySpace(video_meta_data_encryption: VideoMetadata[], uri: string, sandbox_video: string,
-    encryption: boolean, sandbox_path: string, date: string, metadata: media.AVMetadata,
-    file: fs.File): Promise<string[]> {
-    const file1 = fs.openSync(uri, fs.OpenMode.READ_ONLY);
-    const file2 = fs.openSync(sandbox_video + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
-    return new Promise<string[]>((resolve, reject) => {
-      fs.copyFile(file1.fd, file2.fd, async (error) => {
-        if (error) {
-          reject(error) // 处理错误
-        } else {
-          video_meta_data_encryption.push(await VideoInfoUtil.setVideoInfo(date, uri, file.name, metadata,
-            encryption, sandbox_video, sandbox_path));
-          SelectFileUtil.saveVideoMetaDataEncryption(video_meta_data_encryption)
-          fs.closeSync(file1)
-          fs.closeSync(file2)
-          resolve(video_meta_data_encryption.map(i => i.date)) // 返回结果
-        }
-      });
-    });
-  }
-
   savePwd(passwd: string) {
     PreferencesUtil.putPreferencesValue('sweet_video', 'passwd', passwd)
     ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.set_passwd_tip')))
@@ -92,7 +69,7 @@ class Tools {
   routerWhereOnlyUri(uri: string) {
     router.pushUrl({
       url: uri,
-    }, router.RouterMode.Standard, (err) => {
+    }, router.RouterMode.Single, (err) => {
       hilog.info(0xFF00, "testTag", String(err));
     });
   }
@@ -104,7 +81,7 @@ class Tools {
         metadata: JSON.stringify(list.find(i => i.date === item)),
         metadata_list: JSON.stringify(list)
       }
-    }, router.RouterMode.Standard, (err) => {
+    }, router.RouterMode.Single, (err) => {
       hilog.info(0xFF00, "testTag", String(err));
     });
   }
@@ -117,6 +94,15 @@ class Tools {
     } catch (error) {
       hilog.error(777, 'testFlag', "get bundleInfo failed, error is " + error)
       return ''
+    }
+  }
+
+  isFileFolderExist(sandbox_video: string, sandbox_subtitle: string) {
+    if (!fs.accessSync(sandbox_video)) {
+      fs.mkdirSync(sandbox_video)
+    }
+    if (!fs.accessSync(sandbox_subtitle)) {
+      fs.mkdirSync(sandbox_subtitle)
     }
   }
 }

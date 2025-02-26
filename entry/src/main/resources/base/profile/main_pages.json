@@ -2,8 +2,9 @@
   "src": [
     "pages/Index",
     "pages/Player",
-    "pages/FFmpegPlayer",
+    "pages/FFMpegPlayer",
     "pages/AboutApp",
-    "pages/privacyInfo"
+    "pages/PrivacyInfo",
+    "pages/Setting"
   ]
 }

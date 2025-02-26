@@ -100,7 +100,7 @@ class VideoOperateUtil {
       return date === target_item;
     });
     router.replaceUrl({
-      url: 'pages/FFmpegPlayer',
+      url: 'pages/FFMpegPlayer',
       params: {
         metadata: JSON.stringify(now_play_item),
         metadata_list: JSON.stringify(video_meta_data)
@@ -111,7 +111,9 @@ class VideoOperateUtil {
   audioTrackErrorExecute(audio_track: AudioTrack[]) {
     if (audio_track.length === 0) {
       ToolsUtil.showToast('完蛋！未识别到音轨，若真没有声音请首页长按视频改用FFMpeg播放 (＃°Д°)')
+      return false
     }
+    return true
   }
 }
 

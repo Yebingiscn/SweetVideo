@@ -16,13 +16,16 @@ import ReqPermission from '../utils/ReqPermissionUtil';
 import WantProcess from '../utils/WantProcessUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { JSON } from '@kit.ArkTS';
+import { VideoDetailDialog } from '../component/VideoDetailDialog';
 
 const context = getContext() as common.UIAbilityContext;
 const sandbox_path = getContext().filesDir + '/'
 const sandbox_video = getContext().filesDir + '/video/'
+const sandbox_subtitle = getContext().filesDir + '/subtitle/'
 
 @Extend(Image)
 function imageFancy(borderRadius: number, width: number | string, height: number | string) {
+  .alt($r('app.media.Background'))
   .backgroundImageSize(ImageSize.Cover)
   .borderRadius(borderRadius)
   .width(width)
@@ -103,8 +106,7 @@ struct Index {
         SelectFileUtil.saveVideoMetaData(this.video_meta_data)
         SelectFileUtil.saveVideoMetaDataEncryption(this.video_meta_data_encryption)
       },
-    }),
-    cornerRadius: 20,
+    }), cornerRadius: 20,
     shadow: {
       radius: 20,
       color: $r('app.color.shadow_color'),
@@ -122,8 +124,7 @@ struct Index {
           this.deleteItem(resolve, reject);
         });
       }
-    }),
-    cornerRadius: 20,
+    }), cornerRadius: 20,
     shadow: {
       radius: 20,
       color: $r('app.color.shadow_color'),
@@ -141,8 +142,16 @@ struct Index {
         this.encryption = false
         ToolsUtil.savePwd(passwd)
       },
-    }),
-    cornerRadius: 20,
+    }), cornerRadius: 20,
+    shadow: {
+      radius: 20,
+      color: $r('app.color.shadow_color'),
+      offsetX: 0,
+      offsetY: 0
+    }
+  })
+  VideoDetailDialog: CustomDialogController = new CustomDialogController({
+    builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: {
       radius: 20,
       color: $r('app.color.shadow_color'),
@@ -168,11 +177,38 @@ struct Index {
         setTimeout(() => {
           let item_selected = SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
           this.video_meta_data, item?.date!)
-          ToolsUtil.isFileExist(item_selected) ? ToolsUtil.routerWhere('pages/FFmpegPlayer', item?.date,
+          ToolsUtil.isFileExist(item_selected) ? ToolsUtil.routerWhere('pages/FFMpegPlayer', item?.date,
             this.encryption ? this.video_meta_data_encryption : this.video_meta_data) :
           this.deleteUnExistFile(item_selected)
         }, 200)
       })
+
+      Divider().height(2)
+      Row() {
+        SymbolGlyph($r('sys.symbol.info_circle'))
+          .symbolGlyphFancy(20, 25, 40)
+        Text('详情')
+          .fontSize(15)
+          .width(180)
+          .height(30)
+      }.padding(10).onClick(() => {
+        DataSyncUtil.editing_video = JSON.stringify(item)
+        this.VideoDetailDialog.open()
+      })
+
+      Divider().height(2).visibility(this.encryption ? Visibility.None : Visibility.Visible)
+      Row() {
+        SymbolGlyph($r('sys.symbol.textformat_size_square'))
+          .symbolGlyphFancy(20, 25, 40)
+        Text('导入或删除字幕')
+          .fontSize(15)
+          .width(180)
+          .height(30)
+      }.padding(10).onClick(async () => {
+        await SelectFileUtil.isSubtitleExist(sandbox_subtitle, item?.date!) ?
+        SelectFileUtil.deleteSubtitle(sandbox_subtitle, item?.date!) :
+        SelectFileUtil.selectExternalSubtitles(sandbox_subtitle, item?.date!)
+      }).visibility(this.encryption ? Visibility.None : Visibility.Visible)
 
       Divider().height(2)
       Row() {
@@ -191,8 +227,6 @@ struct Index {
       Row() {
         SymbolGlyph($r('sys.symbol.rename'))
           .symbolGlyphFancy(20, 25, 40)
-          .width(25)
-          .height(40)
         Text($r('app.string.edit'))
           .fontSize(15)
           .width(180)
@@ -206,8 +240,6 @@ struct Index {
       Row() {
         SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
           .symbolGlyphFancy(20, 25, 40)
-          .width(25)
-          .height(40)
         Text($r('app.string.multiple_choice'))
           .fontSize(15)
           .width(180)
@@ -313,12 +345,15 @@ struct Index {
     }.width(150)
   }
 
-  deleteItem(resolve: () => void, reject: (reason?: Error) => void) {
+  async deleteItem(resolve: () => void, reject: (reason?: Error) => void) {
     let tmp = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata;
+    if (await SelectFileUtil.isSubtitleExist(sandbox_subtitle, tmp.date!)) {
+      SelectFileUtil.deleteSubtitle(sandbox_subtitle, tmp.date!)
+    }
     if (this.encryption) {
       this.video_meta_data_encryption = this.video_meta_data_encryption.filter(i => i.date != tmp.date);
-      fs.access(sandbox_video + tmp.date, (err) => {
-        if (!err) { // 文件存在
+      fs.access(sandbox_video + tmp.date).then((res: boolean) => {
+        if (res) {
           fs.unlink(sandbox_video + tmp.date, (unlinkErr) => {
             if (unlinkErr) {
               reject(new Error(`Error deleting file from sandbox_video: ${unlinkErr.message}`));
@@ -327,8 +362,11 @@ struct Index {
             SelectFileUtil.saveVideoMetaDataEncryption(this.video_meta_data_encryption)
           });
         } else {
-          resolve(); // 如果文件访问失败，直接 resolve
+          resolve();
         }
+      }).catch((err: BusinessError) => {
+        console.error("access failed with error message: " + err.message + ", error code: " + err.code);
+        resolve();
       });
     } else {
       this.video_meta_data = this.video_meta_data.filter(i => i.date != tmp.date);
@@ -379,9 +417,7 @@ struct Index {
     this.show_list = this.video_meta_data.map(i => i.date)
     this.activePermission()
     await this.getSafeHeightAndButton()
-    if (!fs.accessSync(sandbox_video)) {
-      fs.mkdirSync(sandbox_video)
-    }
+    ToolsUtil.isFileFolderExist(sandbox_video, sandbox_subtitle)
   }
 
   async selectFiles() {
@@ -435,7 +471,8 @@ struct Index {
         (this.encryption && !this.video_meta_data_encryption.some(item => item.title === file.name))) {
         if (this.encryption) {
           this.show_list =
-            await ToolsUtil.copyFileToPrivacySpace(this.video_meta_data_encryption, uri, sandbox_video, this.encryption,
+            await SelectFileUtil.copyFileToPrivacySpace(this.video_meta_data_encryption, uri, sandbox_video,
+              this.encryption,
               sandbox_path, new Date().getTime().toString(), metadata, file)
         } else {
           this.video_meta_data.push(await VideoUtil.setVideoInfo(new Date().getTime().toString(), uri, file.name,
@@ -531,8 +568,8 @@ struct Index {
           Row() {
             Button({ type: ButtonType.Normal, stateEffect: true }) {
               Row() {
-                SymbolGlyph($r('sys.symbol.info_circle')).symbolGlyphFancy(25, '', '')
-                Text('关于应用')
+                SymbolGlyph($r('sys.symbol.gearshape')).symbolGlyphFancy(25, '', '')
+                Text('设置')
                   .fontSize(15)
                   .fontColor($r('app.color.text_color'))
                   .margin({ left: 10, right: 12 })
@@ -543,7 +580,7 @@ struct Index {
             .buttonFancy('100%', 60)
             .borderRadius(10)
             .onClick(() => {
-              ToolsUtil.routerWhereOnlyUri('pages/AboutApp')
+              ToolsUtil.routerWhereOnlyUri('pages/Setting')
             })
           }.margin({ top: '4%' })
         }.margin({ top: '4%' })
@@ -745,9 +782,7 @@ struct Index {
                       Text(' | ' + String(SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
                       this.video_meta_data, item)?.format) + " | " +
                       TimeUtil.convertMsToMMSS(SelectFileUtil.getItem(this.encryption ?
-                      this.video_meta_data_encryption : this.video_meta_data, item)?.time) + " | " +
-                      String(SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
-                      this.video_meta_data, item)?.video_size))
+                      this.video_meta_data_encryption : this.video_meta_data, item)?.time))
                         .fontSize(15)
                         .fontWeight(FontWeight.Normal)
                         .opacity(0.8)
@@ -795,7 +830,7 @@ struct Index {
               if (VideoUtil.videoWidthAndHeightFormat(String(item_list?.size)) === '0 x 0') {
                 ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
                 ToolsUtil.isFileExist(item_list) ?
-                ToolsUtil.routerWhere('pages/FFmpegPlayer', item, this.encryption ? this.video_meta_data_encryption
+                ToolsUtil.routerWhere('pages/FFMpegPlayer', item, this.encryption ? this.video_meta_data_encryption
                   : this.video_meta_data) : this.deleteUnExistFile(item_list)
                 return
               }

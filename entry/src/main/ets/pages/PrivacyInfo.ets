@@ -38,7 +38,7 @@ struct SplashPage {
     (getContext(this) as common.UIAbilityContext)?.terminateSelf()
   }
 
-  onAgree(): void { //同意隐私政策
+  async onAgree(): Promise<void> { //同意隐私政策
     if (this.privacyDialogController != undefined) {
       this.privacyDialogController.close()
     }
@@ -46,6 +46,17 @@ struct SplashPage {
     //init(); // 在用户同意隐私政策后再调用此方法
     PreferencesUtil.putPreferencesValue("sweet_video", "IsPrivacy", true)
     this.initSdk()
+  }
+
+  async initSetting() {
+    const isInitSetting = await PreferencesUtil.getPreferencesValue("sweet_video", "isInitSetting", false) as boolean
+    if (!isInitSetting) {
+      PreferencesUtil.putPreferencesValue("sweet_video", "allowBackgroundPlay", true)
+      PreferencesUtil.putPreferencesValue("sweet_video", "fastForwardTime", '15')
+      PreferencesUtil.putPreferencesValue("sweet_video", "defaultPlayer", 'FFMpeg播放器')
+      PreferencesUtil.putPreferencesValue("sweet_video", "subTitleSize", '22')
+      PreferencesUtil.putPreferencesValue("sweet_video", "isInitSetting", true)
+    }
   }
 
   async aboutToAppear(): Promise<void> {
@@ -71,9 +82,10 @@ struct SplashPage {
     }
   }
 
-  initSdk() {
+  async initSdk() {
     //init();
     this.privacyDialogController?.close()
+    await this.initSetting()
     router.replaceUrl({ url: 'pages/Index' }, router.RouterMode.Single)
   }
 

@@ -54,7 +54,9 @@ export default class DataUtil<T> implements IDataSource {
   }
 
   removeLastData(): void {
-    if (this.sources.length === 0) return;
+    if (this.sources.length === 0) {
+      return;
+    }
     const lastIndex = this.sources.length - 1;
     this.sources.pop();
     this.listeners.forEach(listener => {
