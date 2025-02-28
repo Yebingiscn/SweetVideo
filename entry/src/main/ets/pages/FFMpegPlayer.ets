@@ -56,6 +56,8 @@ struct EnhancePlayer {
   xComponentController: XComponentController = new XComponentController()
   @State @Watch('setScreen') ShowControl: boolean = false
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
+  @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
+  @State onSwiping: boolean = false
   private CONTROL_PlayStatus = PlayStatus.INIT;
   private mIjkMediaPlayer = IjkMediaPlayer.getInstance();
 
@@ -81,6 +83,24 @@ struct EnhancePlayer {
         .width(this.play_area_width)
         .height(this.play_area_height)
         .animation({ duration: this.play_time > 300 ? 300 : 0, curve: Curve.Ease })
+
+        Stack() {
+          Text(TimeUtil.convertMsToMMSS(this.play_time) + '/' + TimeUtil.convertMsToMMSS(this.now_playing?.time))
+            .fontColor($r('sys.color.white'))
+            .fontSize(25)
+            .fontWeight(FontWeight.Bold)
+        }
+        .padding({
+          left: 25,
+          right: 25,
+          top: 10,
+          bottom: 10
+        })
+        .borderRadius(1000)
+        .backgroundColor('#30000000')
+        .backdropBlur(100)
+        .visibility(this.onSwiping ? Visibility.Visible : Visibility.Hidden)
+        .animation({ duration: 300, curve: Curve.Smooth })
       }
 
       Stack() {
@@ -181,12 +201,19 @@ struct EnhancePlayer {
         style: SliderStyle.InSet
       })
         .onChange((value: number) => {
+          this.onSwiping = true
           this.play_time = value
           this.mDestroyPage = false;
-          let seekValue = value
-          this.seekTo(seekValue + "");
-          this.setProgress()
         })
+        .onTouch((event) => {
+          if (event.type == TouchType.Up) {
+            let seekValue = this.play_time
+            this.seekTo(seekValue + "");
+            this.setProgress()
+            this.onSwiping = false
+          }
+        })
+        .layoutWeight(1)
         .width(this.screen_width > this.screen_height ? '72%' : '50%')
         .animation({ duration: 100, curve: Curve.Smooth })
         .selectedColor('#e0e0e0')
@@ -242,6 +269,13 @@ struct EnhancePlayer {
         })
       }.span({ xs: 2, sm: 2, md: 2 })
     }.width('95%')
+  }
+
+  onBackPress(): boolean | void {
+    if (this.ShowControl && !this.allowPlayBackExist) {
+      this.ShowControl = false
+      return true
+    }
   }
 
   async setScreen() {

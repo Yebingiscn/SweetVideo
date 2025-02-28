@@ -116,13 +116,25 @@ struct Index {
   })
   delConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: delConfirmDialog({
-      confirm: (confirm_del: boolean | undefined) => {
+      confirm: async (confirm_del: boolean | undefined) => {
         if (!confirm_del) {
           return
         }
-        return new Promise<void>((resolve, reject) => {
+        await new Promise<void>((resolve, reject) => {
           this.deleteItem(resolve, reject);
         });
+        if (this.delMultipleList.length > 0) {
+          const deletePromises = this.delMultipleList.map(item => {
+            return new Promise<void>((resolve, reject) => {
+              DataSyncUtil.editing_video = JSON.stringify(item);
+              this.deleteItem(resolve, reject);
+              this.closeMultipleChoose()
+            });
+          });
+          await Promise.all(deletePromises);
+        } else {
+          this.closeMultipleChoose()
+        }
       }
     }), cornerRadius: 20,
     shadow: {
@@ -405,6 +417,10 @@ struct Index {
       this.closeMultipleChoose()
       return true
     }
+    if (this.sideBarStatusTmp === Visibility.Visible) {
+      this.closeSideBar(true)
+      return true
+    }
   }
 
   async aboutToAppear(): Promise<void> {
@@ -524,28 +540,17 @@ struct Index {
 
   async getSafeHeightAndButton() {
     await (await this.windowClass).setWindowLayoutFullScreen(true)
-    this.topSafeHeight = px2vp((await this.windowClass).getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-      .topRect.height)
+    const areas = await Promise.all([
+      (await this.windowClass).getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM).topRect.height,
+      (await this.windowClass).getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR).bottomRect.height]);
+    this.topSafeHeight = px2vp(areas[0]);
     DataSyncUtil.setTopSafeHeight(this.topSafeHeight)
-    DataSyncUtil.bottomSafeHeight = px2vp((await this.windowClass)
-      .getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR).bottomRect.height)
+    DataSyncUtil.bottomSafeHeight = px2vp(areas[1])
   }
 
   build() {
     SideBarContainer(SideBarContainerType.Overlay) {
       Column() {
-        Row() {
-          Button({ type: ButtonType.Circle, stateEffect: true }) {
-            SymbolGlyph($r('sys.symbol.open_sidebar'))
-              .symbolGlyphFancy(20, '', '')
-          }
-          .buttonFancy(80, 40)
-          .onClick(() => {
-            this.closeSideBar(true)
-          })
-          .shadowFancy()
-        }.justifyContent(FlexAlign.Start)
-
         Column() {
           Stack() {
             Image($r("app.media.Background"))
@@ -813,11 +818,6 @@ struct Index {
               this.video_meta_data, item)),
               edgeEffect: SwipeEdgeEffect.Spring
             })
-            .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
-              if (event) {
-                this.openSideBar()
-              }
-            }))
             .onClick(() => {
               let item_list = SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
               this.video_meta_data, item)
@@ -857,6 +857,7 @@ struct Index {
             Text($r('app.string.nothing')).fontSize(30).fontWeight(FontWeight.Bold)
             Text(this.encryption ? $r('app.string.privacy_space_info') : $r('app.string.open_side_bar_tip'))
               .fontSize(15)
+              .textAlign(TextAlign.Center)
               .fontWeight(FontWeight.Lighter)
               .margin({ top: 20 })
           }.visibility(this.loading ? Visibility.Hidden : Visibility.Visible)
@@ -957,7 +958,8 @@ struct Index {
       })
       .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
         if (event) {
-          this.openSideBar()
+          this.sideBarStatusTmp === Visibility.Visible ?
+          this.closeSideBar(true) : this.openSideBar()
         }
       }))
     }
@@ -968,6 +970,11 @@ struct Index {
     .showSideBar(this.sideBarStatus)
     .showControlButton(false)
     .divider({ strokeWidth: 0 })
+    .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
+      if (event) {
+        this.closeSideBar(true)
+      }
+    }))
   }
 
   @Builder

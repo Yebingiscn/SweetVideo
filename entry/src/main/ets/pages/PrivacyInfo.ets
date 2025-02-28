@@ -6,6 +6,11 @@ import WantProcessUtil from '../utils/WantProcessUtil';
 @Entry
 @Component
 struct SplashPage {
+  @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
+  @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
+  @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
+  @StorageLink('defaultPlayer') defaultPlayer: string = 'FFMpeg播放器'
+  @StorageLink('subtitleSize') subtitleSize: string = '22'
   privacyDialogController: CustomDialogController | null = new CustomDialogController({
     builder: PrivacyPolicyDialog({
       confirm: () => {
@@ -51,11 +56,24 @@ struct SplashPage {
   async initSetting() {
     const isInitSetting = await PreferencesUtil.getPreferencesValue("sweet_video", "isInitSetting", false) as boolean
     if (!isInitSetting) {
-      PreferencesUtil.putPreferencesValue("sweet_video", "allowBackgroundPlay", true)
-      PreferencesUtil.putPreferencesValue("sweet_video", "fastForwardTime", '15')
-      PreferencesUtil.putPreferencesValue("sweet_video", "defaultPlayer", 'FFMpeg播放器')
-      PreferencesUtil.putPreferencesValue("sweet_video", "subTitleSize", '22')
+      PreferencesUtil.putPreferencesValue("sweet_video", "allowBackgroundPlay", this.allowBackgroundPlay)
+      PreferencesUtil.putPreferencesValue("sweet_video", "fastForwardTime", this.fastForwardSeconds)
+      PreferencesUtil.putPreferencesValue("sweet_video", "defaultPlayer", this.defaultPlayer)
+      PreferencesUtil.putPreferencesValue("sweet_video", "subTitleSize", this.subtitleSize)
+      PreferencesUtil.putPreferencesValue("sweet_video", "allowPlayBackExist", this.allowPlayBackExist)
       PreferencesUtil.putPreferencesValue("sweet_video", "isInitSetting", true)
+    } else {
+      this.allowBackgroundPlay =
+        await PreferencesUtil.getPreferencesValue("sweet_video", "allowBackgroundPlay",
+          this.allowBackgroundPlay) as boolean
+      this.allowPlayBackExist = await PreferencesUtil.getPreferencesValue("sweet_video", "allowPlayBackExist",
+        this.allowPlayBackExist) as boolean
+      this.fastForwardSeconds =
+        await PreferencesUtil.getPreferencesValue("sweet_video", "fastForwardTime", this.fastForwardSeconds) as string
+      this.defaultPlayer =
+        await PreferencesUtil.getPreferencesValue("sweet_video", "defaultPlayer", this.defaultPlayer) as string
+      this.subtitleSize =
+        await PreferencesUtil.getPreferencesValue("sweet_video", "subTitleSize", this.subtitleSize) as string
     }
   }
 

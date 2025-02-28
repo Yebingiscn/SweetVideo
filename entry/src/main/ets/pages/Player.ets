@@ -12,15 +12,9 @@ import VideoInfoUtil, { AudioTrack, VideoMetadata, VideoMetadataFromPlayer } fro
 import TimeUtil from '../utils/TimeUtil';
 import { audio, AVVolumePanel } from '@kit.AudioKit';
 import { settings } from '@kit.BasicServicesKit';
-import VideoOperateUtil, {
-  BrightnessLandscape,
-  BrightnessVertical,
-  VolConfigLandscape,
-  VolConfigVertical
-} from '../utils/VideoOperateUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { VideoDataSource } from '../utils/DataUtil';
-import PreferencesUtil from '../utils/PreferencesUtil';
+import VideoOperateUtil from '../utils/VideoOperateUtil';
 
 @Extend(Button)
 function buttonFancy(width: number | string, height: number | string) {
@@ -66,8 +60,6 @@ struct Player {
   @State isLeftSideSwipe: boolean = false
   @State isRightSideSwipe: boolean = false
   @State volume: number = 0
-  @State max_volume: number = 0
-  @State min_volume: number = 0
   @State screenBrightness: number = 0
   @State screenBrightnessAtFirst: number = 0
   @State windowClassTmp: window.Window | undefined = undefined;
@@ -85,21 +77,22 @@ struct Player {
   @State sub_title_visibility: Visibility = Visibility.Visible
   @State isHorizontalSwiping: boolean = false
   @State isVerticalSwiping: boolean = false
-  @State shouldPreventTap: boolean = false
+  @State isSliderPlayTimeChange: boolean = false
   @State videoDataSource: IDataSource = new VideoDataSource([])
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
   @StorageLink('subtitleSize') subtitleSize: string = '22'
+  @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
   private clearSubtitleTimer: number | null = null;
   private listScroller: Scroller = new Scroller();
 
   onBackPress(): boolean | void {
-    if (this.showControl) {
+    if (this.showControl && !this.allowPlayBackExist) {
       this.showControl = false
       this.lockVisibility = false
       return true
     } else {
-      this.avPlayer?.reset()
+      this.avPlayer?.release()
       return false
     }
   }
@@ -131,7 +124,7 @@ struct Player {
     let record = router.getParams() as Record<string, string>
     if (record) {
       try {
-        this.now_playing = JSON.parse(record['metadata'])
+        this.now_playing = JSON.parse(record['metadata']) as VideoMetadataFromPlayer
         this.video_meta_data = JSON.parse(record['metadata_list']) as VideoMetadata[];
       } catch (e) {
         console.error(e)
@@ -139,16 +132,10 @@ struct Player {
     }
     this.seek_time = this.now_playing?.last_play
     this.videoDataSource = new VideoDataSource(this.video_meta_data);
-    this.allowBackgroundPlay =
-      await PreferencesUtil.getPreferencesValue("sweet_video", "allowBackgroundPlay", true) as boolean
-    this.fastForwardSeconds =
-      await PreferencesUtil.getPreferencesValue("sweet_video", "fastForwardTime", '15') as string
-    this.subtitleSize = await PreferencesUtil.getPreferencesValue("sweet_video", "subTitleSize", '22') as string
     if (this.allowBackgroundPlay) {
       PermissionUtil.startContinuousTask()
     }
     this.setScreen()
-    this.avPlayer = await AVPlayerUtil.getAVPlayer()
     await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
     await (await this.windowClass).setWindowKeepScreenOn(true)
     let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
@@ -156,8 +143,6 @@ struct Player {
     let audioVolumeManger: audio.AudioVolumeManager = audioManager.getVolumeManager();
     let volume_list = await VideoOperateUtil.getVolume(audioVolumeManger, groupId)
     this.volume = volume_list.get('volume')!
-    this.max_volume = volume_list.get('max_volume')!
-    this.min_volume = volume_list.get('min_volume')!
     settings.getValue(context, settings.display.SCREEN_BRIGHTNESS_STATUS, settings.domainName.DEVICE_SHARED)
       .then((value) => {
         this.screenBrightness = Number(value) / 255;
@@ -169,8 +154,10 @@ struct Player {
     if (this.screenBrightness != this.screenBrightnessAtFirst) {
       VideoOperateUtil.setBrightness(this.screenBrightnessAtFirst)
     }
-    AVSessionUtil.destroySession()
-    PermissionUtil.stopContinuousTask()
+    if (this.allowBackgroundPlay) {
+      AVSessionUtil.destroySession()
+      PermissionUtil.stopContinuousTask()
+    }
     await (await this.windowClass).setWindowKeepScreenOn(false)
     await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
     await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
@@ -192,6 +179,8 @@ struct Player {
       this.play_area_height = this.screen_height;
       this.play_area_width = this.play_area_height * (nowWidth / nowHeight);
     }
+    VideoInfoUtil.play_area_width = this.play_area_width
+    VideoInfoUtil.play_area_height = this.play_area_height
   }
 
   async getAudioTrack() {
@@ -258,6 +247,7 @@ struct Player {
           this.avPlayer?.play();
           this.avPlayer?.setSpeed(VideoInfoUtil.getVideoSpeed(this.speed))
           this.showControl = false
+          this.lockVisibility = false
           break;
         case 'completed':
           if (this.circle_play) {
@@ -291,9 +281,11 @@ struct Player {
           this.updateSession()
           break
         case 'idle':
+          this.avPlayer?.release()
           break;
         case 'error':
           VideoOperateUtil.playErrorExecute(this.video_meta_data, this.now_playing?.date!)
+          this.avPlayer?.release()
           break;
       }
     })
@@ -308,6 +300,7 @@ struct Player {
   }
 
   async getData() {
+    this.avPlayer = await AVPlayerUtil.getAVPlayer()
     if (this.avPlayer) {
       this.setAVPlayerCallback()
       await PermissionUtil.activatePermission(this.now_playing?.uri || '')
@@ -327,7 +320,6 @@ struct Player {
 
   async playChooseVideo(item: VideoMetadata) {
     await this.avPlayer?.reset()
-    this.avPlayer = await AVPlayerUtil.getAVPlayer()
     this.now_playing = JSON.parse(JSON.stringify(item)) as VideoMetadataFromPlayer
     this.getData()
     this.avSession = await AVSessionUtil.getAVSession()
@@ -340,7 +332,7 @@ struct Player {
     if (this.video_meta_data.length > 0) {
       let item = SelectFileUtil.getItem(this.video_meta_data, this.now_playing?.date || '') as VideoMetadata
       let next_item = SelectFileUtil.getNextItem(this.video_meta_data, item.date)
-      this.playChooseVideo(next_item)
+      this.playChooseVideo(next_item!)
     }
   }
 
@@ -388,7 +380,7 @@ struct Player {
               .margin({ top: 10 })
               .backgroundColor($r('app.color.list_item_background'))
               .width('100%')
-              .height(this.screen_height > this.screen_width ? '15%' : '30%')
+              .height(120)
               .borderRadius(10)
               .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
             }.visibility(VideoInfoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.video_meta_data,
@@ -507,9 +499,12 @@ struct Player {
         .visibility(this.long_press ? Visibility.Visible : Visibility.Hidden)
         .animation({ duration: 300, curve: Curve.Smooth })
 
-        Stack() { //快进提示
-          Text((this.play_time - this.last_play_time > 0 ? '+' : '') +
-          Math.floor((this.play_time - this.last_play_time) / 1000) + 's')
+        Stack() {
+          Text(this.isSliderPlayTimeChange ?
+            TimeUtil.convertMsToMMSS(this.play_time) + '/' + TimeUtil.convertMsToMMSS(this.now_playing?.time) :
+            (this.play_time - this.last_play_time > 0 ? '+' : '') +
+            Math.floor((this.play_time - this.last_play_time) / 1000) + 's : ' +
+            TimeUtil.convertMsToMMSS(this.play_time) + '/' + TimeUtil.convertMsToMMSS(this.now_playing?.time))
             .fontColor($r('sys.color.white'))
             .fontSize(25)
             .fontWeight(FontWeight.Bold)
@@ -536,8 +531,8 @@ struct Player {
               .fontColor(['#f0f0f0'])
             Slider({
               value: this.volume,
-              min: this.min_volume,
-              max: this.max_volume,
+              min: VideoOperateUtil.min_volume,
+              max: VideoOperateUtil.max_volume,
               step: 0.1,
               style: SliderStyle.NONE,
               direction: Axis.Horizontal,
@@ -626,52 +621,34 @@ struct Player {
                 this.isVerticalSwiping = false;
                 this.isLeftSideSwipe = this.swipe_start_x < this.screen_width / 2; // 判断触摸区域
                 this.isRightSideSwipe = !this.isLeftSideSwipe;
-                this.shouldPreventTap = false; // 重置点击阻止标志
               }
               if (event.type == TouchType.Move) {
                 const currentX = Math.floor(event.touches[0].x);
                 const currentY = Math.floor(event.touches[0].y);
                 const deltaX = Math.abs(currentX - this.swipe_start_x);
                 const deltaY = Math.abs(currentY - this.swipe_start_y);
-                if (!this.isHorizontalSwiping && deltaY > 10 && deltaX < 30) { // 优先处理垂直滑动
+                if (!this.isHorizontalSwiping && deltaY > 10 && deltaX < 40) { // 优先处理垂直滑动
                   this.isVerticalSwiping = true;
-                  this.shouldPreventTap = true;
                   const offsetY = currentY - this.swipe_start_y;
-                  const isLandscape = this.screen_width > this.screen_height;
-                  const volConfig = isLandscape ? ({ area: 30, step: 0.005 } as VolConfigLandscape) :
-                    ({ area: 60, step: 0.01 } as VolConfigVertical);
-                  const brightConfig = isLandscape ? ({ area: 40, step: 0.001 } as BrightnessLandscape) :
-                    ({ area: 80, step: 0.001 } as BrightnessVertical);
+                  const volumeStep = 0.0001; // 每像素音量变化量
+                  const brightnessStep = 0.00001; // 每像素亮度变化量
                   if (this.isRightSideSwipe) {
-                    const delta = ToolsUtil.calculateDelta(
-                      offsetY,
-                      volConfig.area,
-                      volConfig.step,
-                      offsetY < 0 ? 1 : -1
-                    );
-                    this.volume = Math.min(Math.max(this.volume + delta, 0.0), this.max_volume);
+                    const newVolume = this.volume - (offsetY * volumeStep);
+                    this.volume =
+                      Math.min(Math.max(newVolume, VideoOperateUtil.min_volume), VideoOperateUtil.max_volume);
                     this.onSwipingVoice = true;
                   } else {
-                    const delta = ToolsUtil.calculateDelta(// 亮度调节（保持较大步长）
-                      offsetY,
-                      brightConfig.area,
-                      brightConfig.step,
-                      offsetY < 0 ? 1 : -1
-                    );
-                    VideoOperateUtil.setBrightness(
-                      this.screenBrightness = Math.min(Math.max(this.screenBrightness + delta, 0.0), 1.0)
-                    );
+                    const newBrightness = this.screenBrightness - (offsetY * brightnessStep);
+                    VideoOperateUtil.setBrightness(this.screenBrightness = Math.min(Math.max(newBrightness, 0), 1));
                     this.onSwipingBrightness = true;
                   }
                   return;
                 }
-                if (!this.isVerticalSwiping && deltaX > 10 && deltaY < 5) { // 处理水平滑动
+                if (!this.isVerticalSwiping && deltaX > 10 && deltaY < 15) {
                   this.isHorizontalSwiping = true;
-                  this.shouldPreventTap = true;
                   const distance = currentX - this.swipe_start_x;
-                  const sensitivity = this.screen_width / 150; // 动态灵敏度
-                  const baseMultiplier = deltaX > 150 ? 100 : 70; // 提升基础倍率
-                  this.play_time = this.last_play_time + (distance * baseMultiplier * sensitivity);
+                  const timePerPixel = 150; // 1像素=150ms
+                  this.play_time = this.last_play_time + (distance * timePerPixel);
                   this.onSwiping = true;
                 }
               }
@@ -687,14 +664,11 @@ struct Player {
                 this.onSwiping = false;
                 this.onSwipingVoice = false;
                 this.onSwipingBrightness = false;
-                setTimeout(() => { // 延迟重置点击阻止标志
-                  this.shouldPreventTap = false;
-                }, 300);
               }
             }
           })
           .gesture(LongPressGesture().onAction(() => {
-            if (!this.isLock && !this.shouldPreventTap) {
+            if (!this.isLock) {
               this.long_press = true;
               this.last_speed = this.speed;
               this.avPlayer?.setSpeed(VideoInfoUtil.getVideoSpeed(3));
@@ -703,7 +677,7 @@ struct Player {
           .gesture(GestureGroup(GestureMode.Exclusive,
             TapGesture({ count: 2 })
               .onAction((event: GestureEvent) => {
-                if (!this.isLock && !this.shouldPreventTap) {
+                if (!this.isLock) {
                   const tapX = event.fingerList[0].localX;
                   const thirdWidth = this.screen_width / 3;
                   if (tapX < thirdWidth) { // 左侧1/3区域
@@ -719,9 +693,6 @@ struct Player {
               }),
             TapGesture({ count: 1 })
               .onAction(() => {
-                if (this.shouldPreventTap) {
-                  return;
-                }
                 if (this.sideBarStatus) {
                   this.closeSideBar(true);
                 } else {
@@ -765,7 +736,6 @@ struct Player {
     .onChange((value: boolean) => {
       this.sideBarStatus = value;
     })
-    .sideBarWidth(250)
     .showSideBar(this.sideBarStatus)
     .divider({ strokeWidth: 0 })
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
@@ -808,18 +778,33 @@ struct Player {
             .visibility(this.screen_width > this.screen_height ? Visibility.Visible : Visibility.None)
           Select([//屏幕扩展
             { value: '原始比例' },
-            { value: '填满屏幕' }])
+            { value: '填满屏幕' },
+            { value: '等比放大 110%' },
+            { value: '等比放大 120%' },
+            { value: '等比放大 130%' },
+            { value: '等比放大 140%' }])
             .font({ size: 18, weight: FontWeight.Medium })
             .value(this.select_text)
-            .selected(this.select_text == '填满屏幕' ? 1 : 0)
+            .selected(VideoInfoUtil.screen_extend_map.indexOf(this.select_text!))
             .fontColor($r('sys.color.white'))
             .onSelect((_index: number, text?: string | undefined) => {
               this.select_text = text
-              if (text === '填满屏幕') {
-                this.play_area_height = this.screen_height
-                this.play_area_width = this.screen_width
-              } else {
-                this.setRotation()
+              switch (text) {
+                case '填满屏幕':
+                  this.play_area_height = this.screen_height;
+                  this.play_area_width = this.screen_width;
+                  break;
+                case '原始比例':
+                  this.play_area_height = VideoInfoUtil.play_area_height
+                  this.play_area_width = VideoInfoUtil.play_area_width
+                  break;
+                default:
+                  const scale = text ? VideoInfoUtil.scale_factors.get(text) : undefined;
+                  if (scale) {
+                    this.play_area_height = scale * VideoInfoUtil.play_area_height;
+                    this.play_area_width = scale * VideoInfoUtil.play_area_width;
+                  }
+                  break;
               }
             })
             .backgroundColor('#00000000')
@@ -856,12 +841,15 @@ struct Player {
   @Builder
   VideoSlider() {
     Row({ space: 10 }) {
-      Text(TimeUtil.convertMsToMMSS(Math.min(Math.max(this.play_time, 0), (this.now_playing?.time || 0))) + '/' +
-      TimeUtil.convertMsToMMSS(this.now_playing?.time || 0))
-        .fontWeight(FontWeight.Medium)
-        .fontSize(16)
-        .fontColor($r('sys.color.white'))
-        .textAlign(TextAlign.Start)
+      Row() {
+        Text(TimeUtil.convertMsToMMSS(Math.min(Math.max(this.play_time, 0), (this.now_playing?.time || 0))) + '/' +
+        TimeUtil.convertMsToMMSS(this.now_playing?.time || 0))
+          .fontWeight(FontWeight.Medium)
+          .fontSize(16)
+          .fontColor($r('sys.color.white'))
+          .textAlign(TextAlign.Start)
+      }.backgroundColor('#50000000').padding(5).borderRadius(10).margin({ left: 5 })
+
       Slider({
         value: this.play_time,
         min: 0,
@@ -869,19 +857,29 @@ struct Player {
         style: SliderStyle.InSet
       })
         .onChange((value) => {
+          this.onSwiping = true
+          this.isSliderPlayTimeChange = true
           this.play_time = value
-          this.avPlayer?.seek(value, media.SeekMode.SEEK_CLOSEST)
+        })
+        .onTouch((event) => {
+          if (event.type == TouchType.Up) {
+            this.avPlayer?.seek(this.play_time, media.SeekMode.SEEK_CLOSEST)
+            this.isSliderPlayTimeChange = false
+            this.onSwiping = false
+          }
         })
         .layoutWeight(1)
         .animation({ duration: 100, curve: Curve.Smooth })
         .selectedColor('#e0e0e0')
-      Text(TimeUtil.convertMsToMMSS(Math.min(Math.max((this.now_playing?.time || 0) - this.play_time, 0),
-        (this.now_playing?.time || 0))))
-        .fontWeight(FontWeight.Medium)
-        .fontSize(15)
-        .fontColor($r('sys.color.white'))
-        .textAlign(TextAlign.End)
-        .visibility(this.screen_width > this.screen_height ? Visibility.Visible : Visibility.None)
+      Row() {
+        Text(TimeUtil.convertMsToMMSS(Math.min(Math.max((this.now_playing?.time || 0) - this.play_time, 0),
+          (this.now_playing?.time || 0))))
+          .fontWeight(FontWeight.Medium)
+          .fontSize(15)
+          .fontColor($r('sys.color.white'))
+          .textAlign(TextAlign.End)
+          .visibility(this.screen_width > this.screen_height ? Visibility.Visible : Visibility.None)
+      }.backgroundColor('#50000000').padding(5).borderRadius(10).margin({ right: 5 })
     }
   }
 
@@ -971,7 +969,7 @@ struct Player {
           { value: '3.0x' }])
           .font({ size: this.screen_height > this.screen_width ? 13 : 15, weight: FontWeight.Medium })
           .fontColor($r('sys.color.white'))
-          .selected(VideoInfoUtil.getVideoSpeedShow(this.speed))
+          .selected(VideoInfoUtil.speed_index_map.indexOf(this.speed))
           .value(this.speed.toFixed(2) + 'x')
           .onSelect((_index: number, text?: string | undefined) => {
             this.avPlayer?.setSpeed(VideoInfoUtil.getVideoSpeed(parseFloat(text?.replace('x', '') || '1')))
@@ -1036,8 +1034,8 @@ struct Player {
       Row() {
         Slider({
           value: this.volume,
-          min: this.min_volume,
-          max: this.max_volume,
+          min: VideoOperateUtil.min_volume,
+          max: VideoOperateUtil.max_volume,
           step: 0.1,
           style: SliderStyle.NONE,
           direction: Axis.Vertical,
@@ -1086,6 +1084,7 @@ struct Player {
             .trackColor(Color.Black)
             .trackThickness(40)
             .onChange((value) => {
+              this.screenBrightness = value
               VideoOperateUtil.setBrightness(value)
             })
         }

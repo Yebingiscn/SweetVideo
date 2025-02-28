@@ -172,9 +172,18 @@ class SelectFileUtil {
   }
 
   getNextItem(list: VideoMetadata[], item: string) {
-    const currentIndex = list.findIndex(i => i.date === item)
-    const nextIndex = (currentIndex + 1) % list.length // 如果是最后一个，则返回 0
-    return list[nextIndex]
+    const currentIndex = list.findIndex(i => i.date === item);
+    if (currentIndex === -1) {
+      return null;
+    } // 如果没有找到当前项，返回 null
+    let nextIndex = (currentIndex + 1) % list.length;
+    for (let i = 0; i < list.length; i++) {
+      if (VideoInfoUtil.videoWidthAndHeightFormat(String(list[nextIndex].size)) !== '0 x 0') {
+        return list[nextIndex];
+      }
+      nextIndex = (nextIndex + 1) % list.length; // 移动到下一个索引
+    }
+    return list[(currentIndex + 1) % list.length]; // 如果没有找到有效项，返回下一个项
   }
 
   getAllItem(list: VideoMetadata[]) {

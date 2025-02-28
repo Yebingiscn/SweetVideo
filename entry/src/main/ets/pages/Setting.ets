@@ -1,26 +1,18 @@
 import ToolsUtil from '../utils/ToolsUtil'
 import router from '@ohos.router'
 import PreferencesUtil from '../utils/PreferencesUtil'
+import DataSyncUtil from '../utils/DataSyncUtil'
 
 @Entry
 @Component
 struct SettingsPage {
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
+  @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
   @StorageLink('defaultPlayer') defaultPlayer: string = 'FFMpeg播放器'
   @StorageLink('subtitleSize') subtitleSize: string = '22'
   fastForwardSecondsList = ['15', '30', '60', '120']
   subtitleSizeList = ['19', '20', '21', '22', '23', '24', '25', '26']
-
-  async aboutToAppear() {
-    this.allowBackgroundPlay =
-      await PreferencesUtil.getPreferencesValue("sweet_video", "allowBackgroundPlay", true) as boolean
-    this.fastForwardSeconds =
-      await PreferencesUtil.getPreferencesValue("sweet_video", "fastForwardTime", '15') as string
-    this.defaultPlayer =
-      await PreferencesUtil.getPreferencesValue("sweet_video", "defaultPlayer", 'FFMpeg播放器') as string
-    this.subtitleSize = await PreferencesUtil.getPreferencesValue("sweet_video", "subTitleSize", '22') as string
-  }
 
   build() {
     Column() {
@@ -41,7 +33,7 @@ struct SettingsPage {
         Text('设置')
           .fontSize(24)
           .fontWeight(FontWeight.Bold)
-      }.margin({ top: 40 })
+      }.margin({ top: DataSyncUtil.getActuallyTopSafeHeight() })
       .width('100%')
       .padding({
         left: 16,
@@ -79,7 +71,6 @@ struct SettingsPage {
         .borderRadius(10)
         .margin({ top: 12 })
 
-        // 后台播放设置
         Row() {
           Text('允许后台播放')
             .fontSize(18)
@@ -89,6 +80,24 @@ struct SettingsPage {
               this.allowBackgroundPlay = value
               PreferencesUtil.putPreferencesValue("sweet_video", "allowBackgroundPlay", this.allowBackgroundPlay)
             })
+            .selectedColor($r('app.color.main_color'))
+        }
+        .padding(16)
+        .width('100%')
+        .backgroundColor($r('app.color.start_window_background_blur'))
+        .borderRadius(10)
+        .margin({ top: 12 })
+
+        Row() {
+          Text('播放器使用返回手势直接退出播放器')
+            .fontSize(18)
+            .flexGrow(1)
+          Toggle({ type: ToggleType.Switch, isOn: this.allowPlayBackExist })
+            .onChange((value: boolean) => {
+              this.allowPlayBackExist = value
+              PreferencesUtil.putPreferencesValue("sweet_video", "allowPlayBackExist", this.allowPlayBackExist)
+            })
+            .selectedColor($r('app.color.main_color'))
         }
         .padding(16)
         .width('100%')

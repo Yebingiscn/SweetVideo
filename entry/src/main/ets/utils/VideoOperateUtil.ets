@@ -6,27 +6,9 @@ import { AudioTrack, VideoMetadata } from './VideoInfoUtil';
 import ToolsUtil from './ToolsUtil';
 import SelectFileUtil from './SelectFileUtil';
 
-export interface VolConfigLandscape {
-  area: number;
-  step: number;
-}
-
-export interface VolConfigVertical {
-  area: number;
-  step: number;
-}
-
-export interface BrightnessLandscape {
-  area: number;
-  step: number;
-}
-
-export interface BrightnessVertical {
-  area: number;
-  step: number;
-}
-
 class VideoOperateUtil {
+  public max_volume: number = 0
+  public min_volume: number = 0
   private windowStage: window.WindowStage = AppStorage.get('windowStage') as window.WindowStage;
   private mainWin: window.Window = this.windowStage.getMainWindowSync();
 
@@ -72,6 +54,7 @@ class VideoOperateUtil {
                   return rejectMax(err);
                 }
                 volume_list.set('max_volume', maxVolume);
+                this.max_volume = maxVolume
                 resolveMax();
               });
           }));
@@ -83,6 +66,7 @@ class VideoOperateUtil {
                   return rejectMin(err);
                 }
                 volume_list.set('min_volume', minVolume);
+                this.min_volume = minVolume
                 resolveMin();
               });
           }));

@@ -34,6 +34,17 @@ export interface AudioTrack {
 class VideoInfoUtil {
   public support_video_format = ['mp4', 'flv', 'mkv', 'ts', 'mov', 'rmvb', 'wmv', 'avi', 'm4v']
   public support_subtitle_format = ['srt']
+  public speed_index_map: number[] = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3]
+  public scale_factors = new Map<string, number>([
+    ['等比放大 110%', 1.1],
+    ['等比放大 120%', 1.2],
+    ['等比放大 130%', 1.3],
+    ['等比放大 140%', 1.4]
+  ]);
+  public screen_extend_map: string[] =
+    ['原始比例', '填满屏幕', '等比放大 110%', '等比放大 120%', '等比放大 130%', '等比放大 140%']
+  public play_area_width: number = 0
+  public play_area_height: number = 0
   private GB = 1024 * 1024 * 1024 // 1GB in bytes
   private MB = 1024 * 1024 // 1MB in bytes
   private VIDEO_SPEED = 1
@@ -43,17 +54,6 @@ class VideoInfoUtil {
       [1.25, media.PlaybackSpeed.SPEED_FORWARD_1_25_X], [1.5, media.PlaybackSpeed.SPEED_FORWARD_1_50_X],
       [1.75, media.PlaybackSpeed.SPEED_FORWARD_1_75_X], [2.00, media.PlaybackSpeed.SPEED_FORWARD_2_00_X],
       [3.00, media.PlaybackSpeed.SPEED_FORWARD_3_00_X]])
-  private speed_index_map: Record<number, number> = {
-    //倍速 select 索引
-    0.5: 0,
-    0.75: 1,
-    1: 2,
-    1.25: 3,
-    1.5: 4,
-    1.75: 5,
-    2: 6,
-    3: 7
-  };
   private video_size_map: Record<string, string> = {
     '720': '720P HD',
     '800': 'HD+',
@@ -145,10 +145,6 @@ class VideoInfoUtil {
       this.VIDEO_SPEED = 1
       return pre_speed
     }
-  }
-
-  getVideoSpeedShow(speed: number) {
-    return this.speed_index_map[speed]
   }
 
   videoWidthAndHeightFormat(size: string) {

@@ -3,6 +3,7 @@ import { common } from '@kit.AbilityKit';
 import WantProcessUtil from '../utils/WantProcessUtil';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
 import router from '@ohos.router';
+import DataSyncUtil from '../utils/DataSyncUtil';
 
 @Entry
 @Component
@@ -35,7 +36,7 @@ struct AboutApp {
               .margin(Alignment.Center)
           }
         }
-      }.margin({ top: 40, left: 20 })
+      }.margin({ top: DataSyncUtil.getActuallyTopSafeHeight(), left: 20 })
 
       ListItem() {
         Column({ space: 20 }) {
