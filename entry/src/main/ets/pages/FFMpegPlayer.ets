@@ -116,7 +116,7 @@ struct EnhancePlayer {
                 .fontColor(['#f0f0f0'])
                 .onClick(() => {
                   router.back()
-                }).padding({ right: 10 })
+                }).padding({ right: 10 }).margin({left: 15})
               Text(String(this.now_playing?.title).slice(0, this.now_playing?.title.lastIndexOf('.')))
                 .fontSize(20)
                 .fontWeight(FontWeight.Medium)
@@ -126,6 +126,7 @@ struct EnhancePlayer {
                 .fontColor($r('sys.color.white'))
             }
           }.width('100%')
+          .backgroundColor('#61000000')
           .padding({
             left: (this.screen_height > this.screen_width ? 5 : 5),
             right: 20,
@@ -148,6 +149,7 @@ struct EnhancePlayer {
               }
             }
           }
+          .backgroundColor('#61000000')
           .height(this.screen_height > this.screen_width ? '20%' : '25%')
           .width('100%')
           .padding(1)

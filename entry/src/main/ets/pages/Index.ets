@@ -25,7 +25,7 @@ const sandbox_subtitle = getContext().filesDir + '/subtitle/'
 
 @Extend(Image)
 function imageFancy(borderRadius: number, width: number | string, height: number | string) {
-  .alt($r('app.media.Background'))
+  .alt($r('app.media.sweet_video_src'))
   .backgroundImageSize(ImageSize.Cover)
   .borderRadius(borderRadius)
   .width(width)

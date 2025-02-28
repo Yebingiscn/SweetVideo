@@ -85,6 +85,7 @@ struct Player {
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
   private clearSubtitleTimer: number | null = null;
   private listScroller: Scroller = new Scroller();
+  private initPinchDistance: number = 0;
 
   onBackPress(): boolean | void {
     if (this.showControl && !this.allowPlayBackExist) {
@@ -348,6 +349,12 @@ struct Player {
     this.sideBarStatus = true
   }
 
+  calcFingerDistance(f1: FingerInfo, f2: FingerInfo): number {
+    const dx = f2.localX - f1.localX;
+    const dy = f2.localY - f1.localY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
   build() {
     SideBarContainer(SideBarContainerType.Overlay) {
       List({ scroller: this.listScroller, space: 10 }) {
@@ -358,7 +365,7 @@ struct Player {
                 Image(fileUri.getUriFromPath(sandbox_path + item.date))
                   .width(60)
                   .height(90)
-                  .alt($r('app.media.Background'))
+                  .alt($r('app.media.sweet_video_src'))
                   .backgroundImageSize(ImageSize.Cover)
                   .borderRadius(5)
                   .margin({ left: 5 })
@@ -612,69 +619,6 @@ struct Player {
         Column()
           .width('100%')
           .height(this.showControl ? '50%' : '80%')//触控区域
-          .onTouch((event: TouchEvent) => {
-            if (!this.isLock) {
-              if (event.type == TouchType.Down) {
-                this.last_play_time = this.play_time; // 初始化触摸数据
-                this.swipe_start_x = Math.floor(event.touches[0].x);
-                this.swipe_start_y = Math.floor(event.touches[0].y);
-                this.isHorizontalSwiping = false;
-                this.isVerticalSwiping = false;
-                this.isLeftSideSwipe = this.swipe_start_x < this.screen_width / 2; // 判断触摸区域
-                this.isRightSideSwipe = !this.isLeftSideSwipe;
-              }
-              if (event.type == TouchType.Move) {
-                const currentX = Math.floor(event.touches[0].x);
-                const currentY = Math.floor(event.touches[0].y);
-                const deltaX = Math.abs(currentX - this.swipe_start_x);
-                const deltaY = Math.abs(currentY - this.swipe_start_y);
-                if (!this.isHorizontalSwiping && deltaY > 10 && deltaX < 40) { // 优先处理垂直滑动
-                  this.isVerticalSwiping = true;
-                  const offsetY = currentY - this.swipe_start_y;
-                  const volumeStep = 0.0001; // 每像素音量变化量
-                  const brightnessStep = 0.00001; // 每像素亮度变化量
-                  if (this.isRightSideSwipe) {
-                    const newVolume = this.volume - (offsetY * volumeStep);
-                    this.volume =
-                      Math.min(Math.max(newVolume, VideoOperateUtil.min_volume), VideoOperateUtil.max_volume);
-                    this.onSwipingVoice = true;
-                  } else {
-                    const newBrightness = this.screenBrightness - (offsetY * brightnessStep);
-                    VideoOperateUtil.setBrightness(this.screenBrightness = Math.min(Math.max(newBrightness, 0), 1));
-                    this.onSwipingBrightness = true;
-                  }
-                  return;
-                }
-                if (!this.isVerticalSwiping && deltaX > 10 && deltaY < 15) {
-                  this.isHorizontalSwiping = true;
-                  const distance = currentX - this.swipe_start_x;
-                  const timePerPixel = 150; // 1像素=150ms
-                  this.play_time = this.last_play_time + (distance * timePerPixel);
-                  this.onSwiping = true;
-                }
-              }
-              if (event.type == TouchType.Up) { // 处理滑动结束
-                if (this.isHorizontalSwiping) {
-                  this.avPlayer?.seek(this.play_time, media.SeekMode.SEEK_CLOSEST);
-                } else if (this.long_press) {
-                  this.long_press = false;
-                  this.avPlayer?.setSpeed(VideoInfoUtil.getVideoSpeed(this.last_speed));
-                }
-                this.isHorizontalSwiping = false; // 重置所有滑动状态
-                this.isVerticalSwiping = false;
-                this.onSwiping = false;
-                this.onSwipingVoice = false;
-                this.onSwipingBrightness = false;
-              }
-            }
-          })
-          .gesture(LongPressGesture().onAction(() => {
-            if (!this.isLock) {
-              this.long_press = true;
-              this.last_speed = this.speed;
-              this.avPlayer?.setSpeed(VideoInfoUtil.getVideoSpeed(3));
-            }
-          }))
           .gesture(GestureGroup(GestureMode.Exclusive,
             TapGesture({ count: 2 })
               .onAction((event: GestureEvent) => {
@@ -692,6 +636,63 @@ struct Player {
                   }
                 }
               }),
+            PanGesture()
+              .onActionStart((event: GestureEvent) => {
+                if (!this.isLock) {
+                  const firstTouch = event.fingerList[0];
+                  this.swipe_start_x = firstTouch.localX;
+                  this.swipe_start_y = firstTouch.localY;
+                  this.last_play_time = this.play_time;
+                  this.isLeftSideSwipe = firstTouch.localX < this.screen_width / 2;
+                }
+              })
+              .onActionUpdate((event: GestureEvent) => {
+                if (!this.isLock && event.fingerList.length === 1) {
+                  const currentX = event.fingerList[0].localX;
+                  const currentY = event.fingerList[0].localY;
+                  // 方向判断阈值
+                  const deltaX = currentX - this.swipe_start_x;
+                  const deltaY = currentY - this.swipe_start_y;
+                  // 初始化滑动方向
+                  if (Math.abs(deltaY) > 10 && Math.abs(deltaX) < 10) {
+                    this.isVerticalSwiping = true;
+                  } else if (Math.abs(deltaX) > 10 && Math.abs(deltaY) < 10) {
+                    this.isHorizontalSwiping = true;
+                    this.onSwiping = true
+                  }
+                  // 垂直滑动处理
+                  if (this.isVerticalSwiping) {
+                    const volumeStep = 0.0001; // 每像素音量变化量
+                    const brightnessStep = 0.00001; // 每像素亮度变化量
+                    if (this.isLeftSideSwipe) {
+                      this.onSwipingBrightness = true
+                      const newBrightness = this.screenBrightness - (deltaY * brightnessStep);
+                      this.screenBrightness = Math.min(Math.max(newBrightness, 0), 1)
+                      VideoOperateUtil.setBrightness(this.screenBrightness);
+                    } else {
+                      this.onSwipingVoice = true
+                      const newVolume = this.volume - (deltaY * volumeStep);
+                      this.volume =
+                        Math.min(Math.max(newVolume, VideoOperateUtil.min_volume), VideoOperateUtil.max_volume);
+                    }
+                  }
+                  // 水平滑动处理
+                  if (this.isHorizontalSwiping) {
+                    const timePerPixel = 150; // 灵敏度控制
+                    this.play_time = this.last_play_time + (deltaX * timePerPixel);
+                  }
+                }
+              })
+              .onActionEnd(() => {
+                if (this.isHorizontalSwiping) {
+                  this.avPlayer?.seek(this.play_time, media.SeekMode.SEEK_CLOSEST);
+                }
+                this.isHorizontalSwiping = false; // 重置所有滑动状态
+                this.isVerticalSwiping = false;
+                this.onSwiping = false;
+                this.onSwipingVoice = false;
+                this.onSwipingBrightness = false;
+              }),
             TapGesture({ count: 1 })
               .onAction(() => {
                 if (this.sideBarStatus) {
@@ -700,29 +701,39 @@ struct Player {
                   this.lockVisibility = !this.lockVisibility;
                   this.showControl = !this.showControl;
                 }
-              })
-          ))
-          .gesture(LongPressGesture().onAction(() => {
-            if (!this.isLock) {
-              this.long_press = true
-              this.last_speed = this.speed
-              this.avPlayer?.setSpeed(VideoInfoUtil.getVideoSpeed(3))
-            }
-          }))
-          .gesture(GestureGroup(GestureMode.Exclusive,
-            TapGesture({ count: 2 })
+              }),
+            LongPressGesture()
               .onAction(() => {
                 if (!this.isLock) {
-                  this.playing ? this.avPlayer?.pause() : this.avPlayer?.play()
+                  this.long_press = true
+                  this.last_speed = this.speed
+                  this.avPlayer?.setSpeed(VideoInfoUtil.getVideoSpeed(3))
                 }
+              })
+              .onActionEnd(() => {
+                this.long_press = false
+                this.avPlayer?.setSpeed(VideoInfoUtil.getVideoSpeed(this.last_speed));
               }),
-            TapGesture({ count: 1 })
-              .onAction(() => {
-                if (this.sideBarStatus) {
-                  this.closeSideBar(true)
-                } else {
-                  this.lockVisibility = !this.lockVisibility;
-                  this.showControl = !this.showControl
+            PinchGesture({ fingers: 2, distance: 2 })
+              .onActionStart((event: GestureEvent) => {
+                const finger1 = event.fingerList[0];
+                const finger2 = event.fingerList[1];
+                this.initPinchDistance = this.calcFingerDistance(finger1, finger2);
+              })
+              .onActionUpdate((event: GestureEvent) => {
+                if (!this.isLock) {
+                  const finger1 = event.fingerList[0];
+                  const finger2 = event.fingerList[1];
+                  const currentDistance = this.calcFingerDistance(finger1, finger2);
+                  const rawScale = currentDistance / this.initPinchDistance;
+                  const adjustedScale = 1 + (rawScale - 1) * 0.005;
+                  const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0);
+                  this.play_area_width = Math.max(this.play_area_width * clampedScale, 0.5);
+                  this.play_area_height = Math.max(this.play_area_height * clampedScale, 0.5);
+                  animateTo({ duration: 100 }, () => {
+                    this.play_area_width = this.play_area_width;
+                    this.play_area_height = this.play_area_height;
+                  });
                 }
               })
           ))
@@ -905,7 +916,7 @@ struct Player {
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 下一首按钮
           SymbolGlyph($r('sys.symbol.forward_end_fill'))
-            .fontSize(30)
+            .fontSize(23)
             .fontColor(['#f0f0f0'])
         }
         .buttonFancy(40, 40)
@@ -960,18 +971,19 @@ struct Player {
 
       GridCol() {
         Select([//倍速
+          { value: '0.25x'},
           { value: '0.5x' },
           { value: '0.75x' },
-          { value: '1.0x' },
+          { value: '1x' },
           { value: '1.25x' },
           { value: '1.5x' },
           { value: '1.75x' },
-          { value: '2.0x' },
-          { value: '3.0x' }])
+          { value: '2x' },
+          { value: '3x' }])
           .font({ size: this.screen_height > this.screen_width ? 13 : 15, weight: FontWeight.Medium })
           .fontColor($r('sys.color.white'))
           .selected(VideoInfoUtil.speed_index_map.indexOf(this.speed))
-          .value(this.speed.toFixed(2) + 'x')
+          .value(VideoInfoUtil.optimizedFormat(this.speed))
           .onSelect((_index: number, text?: string | undefined) => {
             this.avPlayer?.setSpeed(VideoInfoUtil.getVideoSpeed(parseFloat(text?.replace('x', '') || '1')))
           })
