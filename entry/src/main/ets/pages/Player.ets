@@ -432,12 +432,13 @@ struct Player {
             Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
               this.VideoTop()
             }
+            .backgroundColor('#61000000')
             .width('100%')
             .padding({
               left: (this.screen_height > this.screen_width ? 20 : 35),
               right: 20,
               top: (this.screen_height > this.screen_width ? DataSyncUtil.getActuallyTopSafeHeight() : 5),
-              bottom: 10
+              bottom: 5
             })
 
             Stack() { //底栏
@@ -455,10 +456,10 @@ struct Player {
                 }
               }
             }
-            .height(this.screen_height > this.screen_width ? '20%' : '35%')
+            .backgroundColor('#61000000')
+            .height(this.screen_height > this.screen_width ? '20%' : '30%')
             .width('100%')
             .padding(1)
-            .margin({ bottom: 5 })
           }.height('100%').width('100%')
         }
         .visibility(this.showControl && !this.isLock ? Visibility.Visible : Visibility.Hidden)
@@ -480,7 +481,7 @@ struct Player {
         .visibility(this.sub_title_visibility)
         .align(Alignment.Center)
         .width(this.play_area_width)
-        .offset({ x: 0, y: this.play_area_height / 2 - 40 })
+        .offset({ x: 0, y: VideoInfoUtil.play_area_height / 2 - 40 })
         .animation({ duration: 300, curve: Curve.Smooth })
 
         Stack({ alignContent: Alignment.BottomEnd }) { //快进提示
@@ -492,7 +493,7 @@ struct Player {
           top: 10,
           bottom: 10
         })
-        .offset({ x: 0, y: 0 - this.play_area_height / 2 + 20 })
+        .offset({ x: 0, y: 0 - VideoInfoUtil.play_area_height / 2 + 20 })
         .borderRadius(1000)
         .backgroundColor('#30000000')
         .backdropBlur(100)
