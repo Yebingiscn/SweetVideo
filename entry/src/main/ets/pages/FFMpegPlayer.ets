@@ -84,23 +84,24 @@ struct EnhancePlayer {
         .height(this.play_area_height)
         .animation({ duration: this.play_time > 300 ? 300 : 0, curve: Curve.Ease })
 
-        Stack() {
-          Text(TimeUtil.convertMsToMMSS(this.play_time) + '/' + TimeUtil.convertMsToMMSS(this.now_playing?.time))
-            .fontColor($r('sys.color.white'))
-            .fontSize(25)
-            .fontWeight(FontWeight.Bold)
+        if (this.onSwiping) {
+          Stack() {
+            Text(TimeUtil.convertMsToMMSS(this.play_time) + '/' + TimeUtil.convertMsToMMSS(this.now_playing?.time))
+              .fontColor($r('sys.color.white'))
+              .fontSize(25)
+              .fontWeight(FontWeight.Bold)
+          }
+          .padding({
+            left: 25,
+            right: 25,
+            top: 10,
+            bottom: 10
+          })
+          .borderRadius(1000)
+          .backgroundColor('#30000000')
+          .backdropBlur(100)
+          .animation({ duration: 300, curve: Curve.Smooth })
         }
-        .padding({
-          left: 25,
-          right: 25,
-          top: 10,
-          bottom: 10
-        })
-        .borderRadius(1000)
-        .backgroundColor('#30000000')
-        .backdropBlur(100)
-        .visibility(this.onSwiping ? Visibility.Visible : Visibility.Hidden)
-        .animation({ duration: 300, curve: Curve.Smooth })
       }
 
       Stack() {
@@ -116,7 +117,9 @@ struct EnhancePlayer {
                 .fontColor(['#f0f0f0'])
                 .onClick(() => {
                   router.back()
-                }).padding({ right: 10 }).margin({left: 15})
+                })
+                .padding({ right: 10 })
+                .margin({ left: 15 })
               Text(String(this.now_playing?.title).slice(0, this.now_playing?.title.lastIndexOf('.')))
                 .fontSize(20)
                 .fontWeight(FontWeight.Medium)
@@ -153,7 +156,6 @@ struct EnhancePlayer {
           .height(this.screen_height > this.screen_width ? '20%' : '25%')
           .width('100%')
           .padding(1)
-          .margin({ bottom: this.screen_height > this.screen_width ? 0 : DataSyncUtil.bottomSafeHeight })
         }.height('100%').width('100%')
       }
       .visibility(this.ShowControl ? Visibility.Visible : Visibility.Hidden)

@@ -34,7 +34,7 @@ export interface AudioTrack {
 class VideoInfoUtil {
   public support_video_format = ['mp4', 'flv', 'mkv', 'ts', 'mov', 'rmvb', 'wmv', 'avi', 'm4v']
   public support_subtitle_format = ['srt']
-  public speed_index_map: number[] = [0.25,0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3]
+  public speed_index_map: number[] = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3]
   public scale_factors = new Map<string, number>([
     ['等比放大 110%', 1.1],
     ['等比放大 120%', 1.2],
@@ -108,7 +108,9 @@ class VideoInfoUtil {
     let end = str.length;
     while (end > 0 && (str[end - 1] === '0' || str[end - 1] === '.')) {
       end--;
-      if (str[end] === '.') break;
+      if (str[end] === '.') {
+        break;
+      }
     }
     return str.slice(0, end || 1) + 'x';
   }

@@ -18,12 +18,17 @@ export struct VideoDetailDialog { // 修改类名
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)
         .margin({ top: 10 })
+
       Column({ space: 15 }) {
-        this.buildDetailItem('视频路径：', this.metadata?.uri)
+        this.buildDetailItem('视频格式：', String(this.metadata?.format))
       }.width('100%')
 
       Column({ space: 15 }) {
         this.buildDetailItem('视频大小：', String(this.metadata?.video_size))
+      }.width('100%')
+
+      Column({ space: 15 }) {
+        this.buildDetailItem('视频路径：', this.metadata?.uri)
       }.width('100%')
 
       Button({ type: ButtonType.Normal, stateEffect: true }) {

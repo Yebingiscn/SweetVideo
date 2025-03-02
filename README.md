@@ -1,5 +1,27 @@
 <p align="center"><img src="./entry/src/main/resources/base/media/sweet_video.png" style="width: 128px; height: 128px;"  alt="logo"></p>
-<h1 align="center">流心视频</h1>
+<div align="center">
+    <h1>流心视频</h1>
+    <p>
+        <a href="https://github.com/Yebingiscn/SweetVideo/releases/latest" style="text-decoration:none">
+            <img src="https://img.shields.io/github/v/release/Yebingiscn/SweetVideo?display_name=release" alt="GitHub release (latest by date)"/>
+        </a>
+        <a href="https://img.shields.io/github/stars/Yebingiscn/SweetVideo?style=flat" style="text-decoration:none" >
+            <img src="https://img.shields.io/github/stars/Yebingiscn/SweetVideo?style=flat" alt="GitHub all downloads"/>
+        </a>
+        <a href="https://img.shields.io/badge/OS-HarmonyOS Next-103fb6" style="text-decoration:none" >
+            <img src="https://img.shields.io/badge/OS-HarmonyOS Next-103fb6" alt="HarmonyOS Version"/>
+        </a>
+        <a href="https://img.shields.io/badge/API-14-lightgreen" style="text-decoration:none" >
+            <img src="https://img.shields.io/badge/API-14-lightgreen" alt="API Version"/>
+        </a>
+        <a href="https://img.shields.io/badge/QQ-973792610-red" style="text-decoration:none" >
+            <img src="https://img.shields.io/badge/QQ群-973792610-red" alt="QQ Group"/>
+        </a>
+        <a href="LICENSE" style="text-decoration:none" >
+            <img src="https://img.shields.io/github/license/Yebingiscn/SweetVideo" alt="GitHub license"/>
+        </a>
+    </p>
+</div>
 <p align="center">一款运行在 HarmonyOS Next 上的精致、简约的本地视频播放器</p>
 
 ## 流心视频测试群
@@ -10,7 +32,7 @@ QQ群：973792610
 
 > 可以从华为应用商店收到内测提醒和更新
 
-https://appgallery.huawei.com/link/invite-test-wap?taskId=dd659f203b490163731b9953f52e2f66&invitationCode=11vCxJOe6eE
+**目前测试组已经满员，欢迎加群等待测试组空位或者进行侧载安装**
 
 ## 简介
 

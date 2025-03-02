@@ -89,7 +89,7 @@ struct SettingsPage {
         .margin({ top: 12 })
 
         Row() {
-          Text('播放器使用返回手势直接退出播放器')
+          Text('播放器使用返回手势直接退出')
             .fontSize(18)
             .flexGrow(1)
           Toggle({ type: ToggleType.Switch, isOn: this.allowPlayBackExist })

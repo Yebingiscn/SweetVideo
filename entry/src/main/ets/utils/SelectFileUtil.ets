@@ -10,8 +10,8 @@ import ToolsUtil from './ToolsUtil';
 import { media } from '@kit.MediaKit';
 
 class SelectFileUtil {
+  private static queryCache = new WeakMap<VideoMetadata[], Map<string, VideoMetadata>>();
   public file_folder_uri = ''
-  private query_cache = new Map<string, VideoMetadata>();
 
   async selectFiles(): Promise<string[]> {
     const documentSelectOptions = new picker.DocumentSelectOptions();
@@ -116,23 +116,28 @@ class SelectFileUtil {
 
   async copyFileToPrivacySpace(video_meta_data_encryption: VideoMetadata[], uri: string, sandbox_video: string,
     encryption: boolean, sandbox_path: string, date: string, metadata: media.AVMetadata,
-    file: fs.File): Promise<string[]> {
+    file: fs.File): Promise<VideoMetadata> {
     const file1 = fs.openSync(uri, fs.OpenMode.READ_ONLY);
-    const file2 = fs.openSync(sandbox_video + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
-    return new Promise<string[]>((resolve, reject) => {
-      fs.copyFile(file1.fd, file2.fd, async (error) => {
-        if (error) {
-          reject(error) // 处理错误
-        } else {
-          video_meta_data_encryption.push(await VideoInfoUtil.setVideoInfo(date, uri, file.name, metadata,
-            encryption, sandbox_video, sandbox_path));
-          this.saveVideoMetaDataEncryption(video_meta_data_encryption)
-          fs.closeSync(file1)
-          fs.closeSync(file2)
-          resolve(video_meta_data_encryption.map(i => i.date)) // 返回结果
-        }
+    const targetPath = `${sandbox_video}${date}`;
+    const file2 = fs.openSync(targetPath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        fs.copyFile(file1.fd, file2.fd, (error) => {
+          error ? reject(error) : resolve();
+        });
       });
-    });
+      const videoInfo =
+        await VideoInfoUtil.setVideoInfo(date, targetPath, file.name, metadata, encryption, sandbox_video, sandbox_path)
+      video_meta_data_encryption.push(videoInfo);
+      await this.saveVideoMetaDataEncryption(video_meta_data_encryption);
+      return videoInfo; // 返回新创建的元数据对象
+    } catch (error) {
+      console.error(`文件复制失败: ${uri}`, error);
+      throw new Error(`隐私空间复制失败: ${error.message}`);
+    } finally {
+      fs.closeSync(file1);
+      fs.closeSync(file2);
+    }
   }
 
   copyFileReName(item: VideoMetadata) {
@@ -152,23 +157,40 @@ class SelectFileUtil {
     return await PreferencesUtil.getPreferencesValue('sweet_video', 'passwd', '') as string
   }
 
-  saveVideoMetaData(video_meta_data: VideoMetadata[]) {
-    PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', video_meta_data);
+  async saveVideoMetaData(video_meta_data: VideoMetadata[]) {
+    await PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', video_meta_data);
   }
 
-  saveVideoMetaDataEncryption(video_meta_data_encryption: VideoMetadata[]) {
-    PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption', video_meta_data_encryption);
+  async saveVideoMetaDataEncryption(video_meta_data_encryption: VideoMetadata[]) {
+    await PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption', video_meta_data_encryption);
   }
 
-  getItem(list: VideoMetadata[], item: string) {
-    if (this.query_cache.has(item)) {
-      return this.query_cache.get(item)
+  getItem(list: VideoMetadata[], item: string): VideoMetadata | undefined {
+    if (!list || !item) {
+      return undefined;
     }
-    const foundItem = list.find(i => i.date == item)
+    if (!SelectFileUtil.queryCache.has(list)) {
+      SelectFileUtil.queryCache.set(list, new Map());
+    }
+    const listCache = SelectFileUtil.queryCache.get(list)!;
+    if (listCache.has(item)) {
+      return listCache.get(item);
+    }
+    const dateMap = new Map(list.map(i => [i.date, i]));
+    const foundItem = dateMap.get(item);
     if (foundItem) {
-      this.query_cache.set(item, foundItem)
+      const typedListCache: Map<string, VideoMetadata> = listCache;
+      typedListCache.set(item, foundItem);
+      if (typedListCache.size > (list.length >= 100 ? 100 : list.length * 0.5)) {
+        const iterator: IterableIterator<string> = typedListCache.keys();
+        const oldestEntry: IteratorResult<string, undefined> = iterator.next();
+        if (!oldestEntry.done) {
+          const oldestKey: string = oldestEntry.value;
+          typedListCache.delete(oldestKey);
+        }
+      }
     }
-    return foundItem
+    return foundItem;
   }
 
   getNextItem(list: VideoMetadata[], item: string) {
@@ -190,8 +212,15 @@ class SelectFileUtil {
     return list.map(i => i.date)
   }
 
-  getSearchItem(list: VideoMetadata[], value: string) {
-    return list.filter(i => i.title.toLowerCase().includes(value.toLowerCase())).map(i => i.date)
+  getSearchItem(list: VideoMetadata[], value: string): string[] {
+    const lowerValue = value.toLowerCase();
+    const results: string[] = [];
+    for (const item of list) {
+      if (item.title.toLowerCase().includes(lowerValue)) {
+        results.push(item.date);
+      }
+    }
+    return results;
   }
 
   getItemIndex(list: VideoMetadata[], tmp: VideoMetadata) {
@@ -200,70 +229,92 @@ class SelectFileUtil {
 
   async getDownloadFilesUri(): Promise<string[]> {
     const VIDEO_EXTENSIONS = new Set(VideoUtil.support_video_format);
-    const MAX_CONCURRENCY = 5; // 控制最大并发数
+    const EXT_REGEX = /\.([a-z0-9]+)$/i; // 预编译正则提升性能
 
-    class ConcurrencyController {
-      private queue: (() => Promise<void>)[] = [];
-      private activeCount = 0;
+    class ConcurrencyPool {
+      private active = new Set<Promise<void>>();
+      private pendingQueue: Array<() => void> = [];
+      private concurrency: number;
+
+      constructor(concurrency: number) {
+        this.concurrency = concurrency;
+      }
 
       async run<T>(task: () => Promise<T>): Promise<T> {
-        return new Promise((resolve, reject) => {
-          const execute = async () => {
-            this.activeCount++;
-            try {
-              const result = await task();
-              resolve(result);
-            } catch (error) {
-              reject(error);
-            } finally {
-              this.activeCount--;
-              this.next();
-            }
+        return new Promise<T>((resolve, reject) => {
+          const wrapper = async () => {
+            const promise = task()
+              .then(resolve)
+              .catch(reject)
+              .finally(() => {
+                this.active.delete(promise as Promise<void>);
+                this.processQueue(); // 立即唤醒新任务
+              });
+            this.active.add(promise as Promise<void>);
           };
-          this.queue.push(execute);
-          this.next();
+          this.pendingQueue.push(wrapper);
+          this.processQueue();
         });
       }
 
-      private next() {
-        while (this.queue.length > 0 && this.activeCount < MAX_CONCURRENCY) {
-          const task = this.queue.shift();
-          task!();
+      async drain() {
+        while (this.active.size > 0 || this.pendingQueue.length > 0) {
+          await Promise.allSettled(Array.from(this.active));
+          this.processQueue(); // 确保处理剩余任务
+        }
+      }
+
+      private processQueue() {
+        while (this.active.size < this.concurrency && this.pendingQueue.length > 0) {
+          const task = this.pendingQueue.shift()!;
+          task();
         }
       }
     }
 
     const isVideoFile = (filePath: string): boolean => {
-      const lastDotIndex = filePath.lastIndexOf('.');
-      if (lastDotIndex === -1) {
-        return false;
-      }
-      const ext = filePath.slice(lastDotIndex + 1).toLowerCase();
+      const ext = filePath.match(EXT_REGEX)?.[1]?.toLowerCase() || '';
       return VIDEO_EXTENSIONS.has(ext);
     };
-    const controller = new ConcurrencyController();
+    const filePool = new ConcurrencyPool(8); // 文件处理：高并发
+    const dirPool = new ConcurrencyPool(16); // 目录遍历：更高并发
     const collectFiles = async (directory: string): Promise<string[]> => {
       try {
-        const entries = await fs.listFile(directory);
-        const tasks = entries.map(entry =>
-        controller.run(async () => {
-          const fullPath = `${directory}/${entry}`;
-          const stat = await fs.stat(fullPath);
-          if (stat.isFile()) {
-            return isVideoFile(fullPath) ? [fullPath] : [];
-          } else if (stat.isDirectory()) {
-            return collectFiles(fullPath);
-          }
-          return [];
-        }));
-        const nestedResults = await Promise.all(tasks);
-        return nestedResults.flat();
+        const entries: string[] = await fs.listFile(directory);
+        const tasks: Promise<string[]>[] = entries.map((entry: string) => {
+          const fullPath: string = `${directory}/${entry}`;
+          const handler = async (): Promise<string[]> => {
+            const stat = await fs.stat(fullPath);
+            if (stat.isFile()) {
+              return filePool.run<string[]>(async () =>
+              isVideoFile(fullPath) ? [fullPath] : []
+              );
+            } else if (stat.isDirectory()) {
+              return dirPool.run<string[]>(() => collectFiles(fullPath));
+            }
+            return [];
+          };
+          return handler();
+        });
+        const results: PromiseSettledResult<string[]>[] = await Promise.allSettled(tasks);
+        return results.flatMap((result: PromiseSettledResult<string[]>) => {
+          return result.status === 'fulfilled' ? result.value : [];
+        });
       } catch (error) {
-        console.error(`处理目录 ${directory} 失败:`, error);
+        console.error(`Directory ${directory} error:`,
+          error instanceof Error ? error.message : 'Unknown error');
         return [];
       }
     };
-    return collectFiles(this.file_folder_uri);
+    try {
+      const result = await collectFiles(this.file_folder_uri);
+      await dirPool.drain(); // 确保目录任务完成
+      await filePool.drain(); // 确保文件任务完成
+      return result
+    } catch (error) {
+      console.error('Root processing failed:', error);
+      return [];
+    }
   }
 }
 
