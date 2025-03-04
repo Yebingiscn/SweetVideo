@@ -6,7 +6,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const context = getContext() as common.UIAbilityContext
 
-class Permission {
+class PermissionUtil {
   async activatePermission(uri: string): Promise<boolean> {
     try {
       let policyInfo: fileShare.PolicyInfo = {
@@ -81,11 +81,9 @@ class Permission {
 
   activePermission(tmp: string[]) {
     for (let uri of tmp) {
-      PermissionUtil.activatePermission(uri)
+      this.activatePermission(uri)
     }
   }
 }
 
-const PermissionUtil = new Permission();
-
-export default PermissionUtil;
+export default new PermissionUtil();

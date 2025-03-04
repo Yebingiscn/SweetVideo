@@ -41,6 +41,4 @@ class ReqPermission {
   }
 }
 
-const reqPermission = new ReqPermission()
-
-export default reqPermission as ReqPermission
+export default new ReqPermission()

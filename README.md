@@ -5,14 +5,14 @@
         <a href="https://github.com/Yebingiscn/SweetVideo/releases/latest" style="text-decoration:none">
             <img src="https://img.shields.io/github/v/release/Yebingiscn/SweetVideo?display_name=release" alt="GitHub release (latest by date)"/>
         </a>
-        <a href="https://img.shields.io/github/stars/Yebingiscn/SweetVideo?style=flat" style="text-decoration:none" >
-            <img src="https://img.shields.io/github/stars/Yebingiscn/SweetVideo?style=flat" alt="GitHub all downloads"/>
-        </a>
         <a href="https://img.shields.io/badge/OS-HarmonyOS Next-103fb6" style="text-decoration:none" >
-            <img src="https://img.shields.io/badge/OS-HarmonyOS Next-103fb6" alt="HarmonyOS Version"/>
+            <img src="https://img.shields.io/badge/HarmonyOS-Next-103fb6" alt="HarmonyOS Version"/>
         </a>
         <a href="https://img.shields.io/badge/API-14-lightgreen" style="text-decoration:none" >
             <img src="https://img.shields.io/badge/API-14-lightgreen" alt="API Version"/>
+        </a>
+        <a href="https://img.shields.io/github/stars/Yebingiscn/SweetVideo?style=flat" style="text-decoration:none" >
+            <img src="https://img.shields.io/github/stars/Yebingiscn/SweetVideo?style=flat" alt="GitHub all stars"/>
         </a>
         <a href="https://img.shields.io/badge/QQ-973792610-red" style="text-decoration:none" >
             <img src="https://img.shields.io/badge/QQ群-973792610-red" alt="QQ Group"/>

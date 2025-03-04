@@ -31,9 +31,23 @@ export interface AudioTrack {
   name: string;
 }
 
+interface shadowFancyInterface {
+  radius: number;
+  color: Resource;
+  offsetX: number;
+  offsetY: number;
+}
+
+export const DEFAULT_DIALOG_SHADOW: shadowFancyInterface = {
+  radius: 26,
+  color: $r('app.color.shadow_color'), // 确保颜色资源路径正确
+  offsetX: 0,
+  offsetY: 0
+};
+
 class VideoInfoUtil {
   public support_video_format = ['mp4', 'flv', 'mkv', 'ts', 'mov', 'rmvb', 'wmv', 'avi', 'm4v']
-  public support_subtitle_format = ['srt']
+  public support_subtitle_format = ['srt', 'vtt']
   public speed_index_map: number[] = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3]
   public scale_factors = new Map<string, number>([
     ['等比放大 110%', 1.1],
@@ -69,7 +83,9 @@ class VideoInfoUtil {
     '2560': '2K QHD',
     '3840': '4K Ultra HD',
     '4096': '4K Ultra HD',
-    '7680': '8K Ultra HD'
+    '7680': '8K Ultra HD',
+    '2720x1530': 'FHD+',
+    '1216x2160': 'FHD+',
   };
 
   // 设置存储的视频信息
@@ -116,7 +132,7 @@ class VideoInfoUtil {
   }
 
   async getVideoImage(uri: string, size: number[], date: string, sandbox_path: string, time: number) {
-    let avImageGenerator: media.AVImageGenerator = await media.createAVImageGenerator()
+    let avImageGenerator: media.AVImageGenerator = await media.createAVImageGenerator();
     let file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
     let avFileDescriptor: media.AVFileDescriptor = { fd: file.fd };
     avImageGenerator.fdSrc = avFileDescriptor
@@ -136,9 +152,12 @@ class VideoInfoUtil {
   saveVideoImg(sandbox_path: string, date: string, pixelMap: image.PixelMap) {
     let packer = image.createImagePacker()
     let file1 = fs.openSync(sandbox_path + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
-    packer.packToFile(pixelMap, file1.fd, { format: 'image/jpeg', quality: 100 }).then(() => {
+    packer.packToFile(pixelMap, file1.fd, { format: 'image/jpeg', quality: 85 }).then(() => {
       fs.closeSync(file1)
-    }).catch()
+    }).catch((error: BusinessError) => {
+      console.error(`Failed to pack the image to file.code ${error.code},message is ${error.message}`);
+      fs.closeSync(file1)
+    })
   }
 
   getVideoWidthAndHeight(metadata: media.AVMetadata) {
@@ -161,12 +180,15 @@ class VideoInfoUtil {
   }
 
   videoWidthAndHeightFormat(size: string) {
-    for (const key of Object.entries(this.video_size_map)) {
-      if (size.includes(key[0])) {
-        return key[1];
-      }
-    }
-    return size.split(',')[0] + ' x ' + size.split(',')[1]
+    const sizeArray = size.split(',');
+    const width = sizeArray[0];
+    const height = sizeArray[1];
+    const sizeKey = `${width}x${height}`;
+    // 匹配优先级
+    return this.video_size_map[sizeKey] || // 1. 精确匹配宽高
+    this.video_size_map[height] || // 2. 标准高度命名
+    this.video_size_map[width] || // 3. 特殊宽度标准
+      `${width} x ${height}`; // 4. 默认格式
   }
 
   async getVideoSize(uri: string): Promise<string> {
@@ -219,6 +241,4 @@ class VideoInfoUtil {
   }
 }
 
-const videoInfoUtil = new VideoInfoUtil()
-
-export default videoInfoUtil as VideoInfoUtil
+export default new VideoInfoUtil()

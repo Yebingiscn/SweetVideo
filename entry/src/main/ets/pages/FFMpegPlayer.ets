@@ -39,6 +39,7 @@ struct EnhancePlayer {
   @State screen_width: number = 0
   @State screen_height: number = 0
   @State play_time: number = 0
+  @State last_play_time: number = 0
   @State playing: boolean = false
   @State mContext: object | undefined = undefined;
   @State updateProgressTimer: number = 0;
@@ -58,6 +59,11 @@ struct EnhancePlayer {
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
   @State onSwiping: boolean = false
+  @State long_press: boolean = false
+  @State last_speed: string = '1f'
+  @State swipe_start_x: number = 0
+  @State isHorizontalSwiping: boolean = false
+  @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
   private CONTROL_PlayStatus = PlayStatus.INIT;
   private mIjkMediaPlayer = IjkMediaPlayer.getInstance();
 
@@ -166,10 +172,18 @@ struct EnhancePlayer {
         .height('50%')//触控区域
         .gesture(GestureGroup(GestureMode.Exclusive,
           TapGesture({ count: 2 })
-            .onAction(() => {
+            .onAction((event: GestureEvent) => {
               if (!this.playing) {
-                this.pause()
-                this.playing = !this.playing
+                const tapX = event.fingerList[0].localX;
+                const adjustWidth = this.screen_width / 5; // 计算五分之一宽度
+                if (tapX < adjustWidth) { // 左侧1/5区域
+                  this.mIjkMediaPlayer?.seekTo(String(this.play_time - Number(this.fastForwardSeconds) * 1000));
+                } else if (tapX > adjustWidth * 4) { // 右侧1/5区域
+                  this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(this.fastForwardSeconds) * 1000));
+                } else { // 中间3/5区域
+                  this.pause()
+                  this.playing = !this.playing
+                }
               } else {
                 this.startPlayOrResumePlay();
                 this.playing = !this.playing
@@ -178,6 +192,42 @@ struct EnhancePlayer {
           TapGesture({ count: 1 })
             .onAction(() => {
               this.ShowControl = !this.ShowControl
+            }),
+          LongPressGesture()
+            .onAction(() => {
+              this.long_press = true
+              this.last_speed = this.playSpeed
+              this.mIjkMediaPlayer?.setSpeed('3f')
+            })
+            .onActionEnd(() => {
+              this.long_press = false
+              this.mIjkMediaPlayer?.setSpeed('1f');
+            }),
+          PanGesture().onActionStart((event: GestureEvent) => {
+            const firstTouch = event.fingerList[0];
+            this.swipe_start_x = firstTouch.localX;
+            this.last_play_time = this.play_time;
+          })
+            .onActionUpdate((event: GestureEvent) => {
+              if (event.fingerList.length === 1) {
+                const currentX = event.fingerList[0].localX;
+                const deltaX = currentX - this.swipe_start_x;
+                if (Math.abs(deltaX) > 10) {
+                  this.isHorizontalSwiping = true;
+                  this.onSwiping = true
+                }
+                if (this.isHorizontalSwiping) {
+                  const timePerPixel = 150; // 灵敏度控制
+                  this.play_time = this.last_play_time + (deltaX * timePerPixel);
+                }
+              }
+            })
+            .onActionEnd(() => {
+              if (this.isHorizontalSwiping) {
+                this.mIjkMediaPlayer?.seekTo(String(this.play_time));
+              }
+              this.isHorizontalSwiping = false; // 重置所有滑动状态
+              this.onSwiping = false;
             })
         ))
     }

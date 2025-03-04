@@ -1,13 +1,13 @@
 import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
 import { common } from '@kit.AbilityKit';
-import { window } from '@kit.ArkUI';
+import { curves, window } from '@kit.ArkUI';
 import { media } from '@kit.MediaKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import DataSyncUtil from '../utils/DataSyncUtil';
 import PermissionUtil from '../utils/PermissionUtil';
 import DataUtil from '../utils/DataUtil';
 import ToolsUtil from '../utils/ToolsUtil';
-import VideoUtil, { VideoMetadata } from '../utils/VideoInfoUtil';
+import VideoUtil, { DEFAULT_DIALOG_SHADOW, VideoMetadata } from '../utils/VideoInfoUtil';
 import TimeUtil from '../utils/TimeUtil';
 import { delConfirmDialog } from '../component/DelConfirmDialog';
 import { editPasswordDialog } from '../component/EditPasswordDialog';
@@ -25,7 +25,7 @@ const sandbox_subtitle = getContext().filesDir + '/subtitle/'
 
 @Extend(Image)
 function imageFancy(borderRadius: number, width: number | string, height: number | string) {
-  .alt($r('app.media.sweet_video_src'))
+  .alt($r("app.media.sweet_video_alt"))
   .backgroundImageSize(ImageSize.Cover)
   .borderRadius(borderRadius)
   .width(width)
@@ -88,35 +88,27 @@ struct Index {
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: editMetadataDialog({
       confirm: async (title: string | undefined) => {
-        if (!title || title == '') {
-          return
+        if (!title?.trim()) {
+          return;
+        } // 更严格的空值判断
+        const currentData = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
+        const editingVideo = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata;
+        const targetIndex = SelectFileUtil.getItemIndex(currentData, editingVideo);
+        if (targetIndex === -1) {
+          console.error('Target video not found');
+          return;
         }
-        let tmp = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata
-        let index =
-          SelectFileUtil.getItemIndex(this.encryption ? this.video_meta_data_encryption : this.video_meta_data, tmp)
-        if (this.encryption) {
-          if (this.video_meta_data_encryption.map(i => i.title).includes(title)) {
-            return
-          }
-          this.video_meta_data_encryption[index].title = title
-        } else {
-          if (this.video_meta_data.map(i => i.title).includes(title)) {
-            return
-          }
-          this.video_meta_data[index].title = title
+        const titleSet = new Set(currentData.map(v => v.title));
+        if (titleSet.has(title)) {
+          return;
         }
-        this.show_list =
-          SelectFileUtil.getAllItem(this.encryption ? this.video_meta_data_encryption : this.video_meta_data)
-        await SelectFileUtil.saveVideoMetaData(this.video_meta_data)
-        await SelectFileUtil.saveVideoMetaDataEncryption(this.video_meta_data_encryption)
+        currentData[targetIndex].title = title.trim();
+        this.show_list = SelectFileUtil.getAllItem(currentData);
+        const saveAction =
+          this.encryption ? SelectFileUtil.saveVideoMetaDataEncryption : SelectFileUtil.saveVideoMetaData;
+        await saveAction(currentData)
       },
-    }), cornerRadius: 20,
-    shadow: {
-      radius: 20,
-      color: $r('app.color.shadow_color'),
-      offsetX: 0,
-      offsetY: 0
-    }
+    }), cornerRadius: 20, shadow: DEFAULT_DIALOG_SHADOW
   })
   delConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: delConfirmDialog({
@@ -140,13 +132,7 @@ struct Index {
           this.closeMultipleChoose()
         }
       }
-    }), cornerRadius: 20,
-    shadow: {
-      radius: 20,
-      color: $r('app.color.shadow_color'),
-      offsetX: 0,
-      offsetY: 0
-    }
+    }), cornerRadius: 20, shadow: DEFAULT_DIALOG_SHADOW
   })
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
     builder: editPasswordDialog({
@@ -158,22 +144,11 @@ struct Index {
         this.encryption = false
         ToolsUtil.savePwd(passwd)
       },
-    }), cornerRadius: 20,
-    shadow: {
-      radius: 20,
-      color: $r('app.color.shadow_color'),
-      offsetX: 0,
-      offsetY: 0
-    }
+    }), cornerRadius: 20, shadow: DEFAULT_DIALOG_SHADOW
   })
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
-    shadow: {
-      radius: 20,
-      color: $r('app.color.shadow_color'),
-      offsetX: 0,
-      offsetY: 0
-    }
+    shadow: DEFAULT_DIALOG_SHADOW
   })
   listScroller: ListScroller = new ListScroller()
   searchController: SearchController = new SearchController()
@@ -184,7 +159,7 @@ struct Index {
       Row() {
         Image($r("app.media.ffmpeg"))
           .imageFancy(10, 25, 25)
-        Text($r('app.string.FFmpeg_Player'))
+        Text($r('app.string.FFMpeg_Player'))
           .fontSize(15)
           .width(180)
           .height(30)
@@ -199,7 +174,8 @@ struct Index {
               SelectFileUtil.getAllItem(targetData);
             return
           }
-          ToolsUtil.isFileExist(item_selected) ? ToolsUtil.routerWhere('pages/FFMpegPlayer', item?.date, targetData) :
+          ToolsUtil.isFileExist(item_selected) ?
+          ToolsUtil.routerWhere('pages/FFMpegPlayer', item?.date, targetData, this.encryption) :
           this.deleteUnExistFile(item_selected)
         }, 200)
       })
@@ -564,8 +540,6 @@ struct Index {
     new Promise<void>((resolve, reject) => {
       this.deleteItem(resolve, reject);
     });
-    ToolsUtil.showToast(String(item?.title) +
-    getContext().resourceManager.getStringSync($r('app.string.re_import_info')))
   }
 
   async getSafeHeightAndButton() {
@@ -581,168 +555,203 @@ struct Index {
   build() {
     SideBarContainer(SideBarContainerType.Overlay) {
       Column() {
-        Column() {
-          Stack() {
-            Image($r("app.media.Background"))
-              .imageFancy(10, '100%', 120)
-              .zIndex(1)
+        Scroll() {
+          Column() {
+            Column() {
+              Stack() {
+                Image($r("app.media.Background"))
+                  .imageFancy(10, '100%', 120)
+                  .zIndex(1)
+                Row() {
+                  Image($r("app.media.Foreground"))
+                    .autoResize(true)
+                    .interpolation(ImageInterpolation.Low)
+                    .backgroundImageSize(ImageSize.Cover)
+                    .width(50)
+                    .height(50)
+                  Text($r('app.string.EntryAbility_label'))
+                    .fontSize(20)
+                    .fontColor('#ffff')
+                    .margin({ left: 5, right: 12 })
+                }.width('100%')
+                .justifyContent(FlexAlign.Center)
+                .zIndex(2)
+              }
+
+              Row() {
+                Button({ type: ButtonType.Normal, stateEffect: true }) {
+                  Row() {
+                    SymbolGlyph($r('sys.symbol.gearshape')).symbolGlyphFancy(25, '', '')
+                    Text('设置')
+                      .fontSize(15)
+                      .fontColor($r('app.color.text_color'))
+                      .margin({ left: 10, right: 12 })
+                  }
+                }
+                .align(Alignment.Start)
+                .padding(10)
+                .buttonFancy('100%', 60)
+                .borderRadius(10)
+                .onClick(() => {
+                  ToolsUtil.routerWhereOnlyUri('pages/Setting')
+                })
+              }.margin({ top: '4%' })
+            }
+
+            Divider().height(10).margin({ top: '5%' })
             Row() {
-              Image($r("app.media.Foreground"))
-                .backgroundImageSize(ImageSize.Cover)
-                .width(50)
-                .height(50)
-              Text($r('app.string.EntryAbility_label'))
-                .fontSize(20)
-                .fontColor('#ffff')
-                .margin({ left: 5, right: 12 })
+              Button({ type: ButtonType.Normal, stateEffect: true }) {
+                Row() {
+                  SymbolGlyph($r('sys.symbol.folder')).symbolGlyphFancy(25, '', '')
+                  Text($r('app.string.import_from_files'))
+                    .fontSize(15)
+                    .fontColor($r('app.color.text_color'))
+                    .margin({ left: 10, right: 12 })
+                }
+              }
+              .align(Alignment.Start)
+              .padding(10)
+              .borderRadius(10)
+              .buttonFancy('100%', 60)
+              .onClick(() => {
+                this.closeSideBar(false)
+                this.selectFiles()
+              })
             }.width('100%')
-            .justifyContent(FlexAlign.Center)
-            .zIndex(2)
-          }
+            .justifyContent(FlexAlign.Start)
+            .margin({ top: '6%' })
 
-          Row() {
-            Button({ type: ButtonType.Normal, stateEffect: true }) {
-              Row() {
-                SymbolGlyph($r('sys.symbol.gearshape')).symbolGlyphFancy(25, '', '')
-                Text('设置')
-                  .fontSize(15)
-                  .fontColor($r('app.color.text_color'))
-                  .margin({ left: 10, right: 12 })
-              }
-            }
-            .align(Alignment.Start)
-            .padding(10)
-            .buttonFancy('100%', 60)
-            .borderRadius(10)
-            .onClick(() => {
-              ToolsUtil.routerWhereOnlyUri('pages/Setting')
-            })
-          }.margin({ top: '4%' })
-        }.margin({ top: '4%' })
-
-        Divider().height(10).margin({ top: '5%' })
-        Row() {
-          Button({ type: ButtonType.Normal, stateEffect: true }) {
             Row() {
-              SymbolGlyph($r('sys.symbol.folder')).symbolGlyphFancy(25, '', '')
-              Text($r('app.string.import_from_files'))
-                .fontSize(15)
-                .fontColor($r('app.color.text_color'))
-                .margin({ left: 10, right: 12 })
-            }
-          }
-          .align(Alignment.Start)
-          .padding(10)
-          .borderRadius(10)
-          .buttonFancy('100%', 60)
-          .onClick(() => {
-            this.closeSideBar(false)
-            this.selectFiles()
-          })
-        }.width('100%')
-        .justifyContent(FlexAlign.Start)
-        .margin({ top: '6%' })
-
-        if (!this.encryption) {
-          Row() {
-            Button({ type: ButtonType.Normal, stateEffect: true }) {
-              Row() {
-                SymbolGlyph($r('sys.symbol.folder')).symbolGlyphFancy(25, '', '')
-                Text('从下载文件夹导入')
-                  .fontSize(15)
-                  .fontColor($r('app.color.text_color'))
-                  .margin({ left: 10, right: 12 })
+              Button({ type: ButtonType.Normal, stateEffect: true }) {
+                Row() {
+                  SymbolGlyph($r('sys.symbol.video'))
+                    .symbolGlyphFancy(25, '', '')
+                  Text($r('app.string.import_from_album'))
+                    .fontSize(15)
+                    .fontColor($r('app.color.text_color'))
+                    .margin({ left: 10, right: 12 })
+                }
               }
+              .align(Alignment.Start)
+              .padding(10)
+              .borderRadius(10)
+              .buttonFancy('100%', 60)
+              .onClick(() => {
+                this.closeSideBar(false)
+                this.selectVideo()
+              })
+            }.width('100%')
+            .justifyContent(FlexAlign.Start)
+            .margin({ top: '4%' })
+
+            if (!this.encryption) {
+              Row() {
+                Button({ type: ButtonType.Normal, stateEffect: true }) {
+                  Row() {
+                    SymbolGlyph($r('sys.symbol.folder')).symbolGlyphFancy(25, '', '')
+                    Text('从下载文件夹导入')
+                      .fontSize(15)
+                      .fontColor($r('app.color.text_color'))
+                      .margin({ left: 10, right: 12 })
+                  }
+                }
+                .align(Alignment.Start)
+                .padding(10)
+                .borderRadius(10)
+                .buttonFancy('100%', 60)
+                .onClick(async () => {
+                  this.closeSideBar(false)
+                  await this.toMetaData(await SelectFileUtil.getDownloadFilesUri());
+                })
+              }.width('100%')
+              .justifyContent(FlexAlign.Start)
+              .margin({ top: '6%' })
+
+              Row() {
+                Button({ type: ButtonType.Normal, stateEffect: true }) {
+                  Row() {
+                    SymbolGlyph($r('sys.symbol.clock')).symbolGlyphFancy(25, '', '')
+                    Text('最近播放')
+                      .fontSize(15)
+                      .fontColor($r('app.color.text_color'))
+                      .margin({ left: 10, right: 12 })
+                  }
+                }
+                .align(Alignment.Start)
+                .padding(10)
+                .borderRadius(10)
+                .buttonFancy('100%', 60)
+                .onClick(async () => {
+                  this.closeSideBar(false)
+                  ToolsUtil.routerWhereOnlyUri('pages/RecentPlay')
+                })
+              }.width('100%')
+              .justifyContent(FlexAlign.Start)
+              .margin({ top: '6%' })
             }
-            .align(Alignment.Start)
-            .padding(10)
-            .borderRadius(10)
-            .buttonFancy('100%', 60)
-            .onClick(async () => {
-              this.closeSideBar(false)
-              await this.toMetaData(await SelectFileUtil.getDownloadFilesUri());
-            })
-          }.width('100%')
-          .justifyContent(FlexAlign.Start)
-          .margin({ top: '6%' })
+
+            Row() {
+              if (this.passwd == '' || this.encryption) {
+                Button({ type: ButtonType.Normal, stateEffect: true }) {
+                  Row() {
+                    SymbolGlyph($r('sys.symbol.lock'))
+                      .symbolGlyphFancy(25, '', '')
+                    Text(this.encryption ? $r('app.string.exist_privacy_space') : $r('app.string.privacy_space'))
+                      .fontSize(15)
+                      .fontColor($r('app.color.text_color'))
+                      .margin({ left: 10, right: 12 })
+                  }
+                }
+                .align(Alignment.Start)
+                .padding(10)
+                .borderRadius(10)
+                .buttonFancy('100%', 60)
+                .onClick(() => {
+                  this.closeSideBar(false)
+                  if (this.passwd == '') {
+                    this.editPasswdDialogController.open()
+                    return
+                  }
+                  this.encryption = false
+                })
+                .gesture(LongPressGesture().onAction(() => {
+                  this.closeSideBar(false)
+                  this.editPasswdDialogController.open()
+                }))
+              }
+            }.width('100%')
+            .justifyContent(FlexAlign.Start)
+            .margin({ top: '4%' })
+          }.width('100%').padding({ left: 20, right: 20, top: 50 })
         }
-
-        Row() {
-          Button({ type: ButtonType.Normal, stateEffect: true }) {
-            Row() {
-              SymbolGlyph($r('sys.symbol.video'))
-                .symbolGlyphFancy(25, '', '')
-              Text($r('app.string.import_from_album'))
-                .fontSize(15)
-                .fontColor($r('app.color.text_color'))
-                .margin({ left: 10, right: 12 })
-            }
-          }
-          .align(Alignment.Start)
-          .padding(10)
-          .borderRadius(10)
-          .buttonFancy('100%', 60)
-          .onClick(() => {
-            this.closeSideBar(false)
-            this.selectVideo()
-          })
-        }.width('100%')
-        .justifyContent(FlexAlign.Start)
-        .margin({ top: '4%' })
-
-        Row() {
-          if (this.passwd == '' || this.encryption) {
-            Button({ type: ButtonType.Normal, stateEffect: true }) {
-              Row() {
-                SymbolGlyph($r('sys.symbol.lock'))
-                  .symbolGlyphFancy(25, '', '')
-                Text(this.encryption ? $r('app.string.exist_privacy_space') : $r('app.string.privacy_space'))
-                  .fontSize(15)
-                  .fontColor($r('app.color.text_color'))
-                  .margin({ left: 10, right: 12 })
-              }
-            }
-            .align(Alignment.Start)
-            .padding(10)
-            .borderRadius(10)
-            .buttonFancy('100%', 60)
-            .onClick(() => {
-              this.closeSideBar(false)
-              if (this.passwd == '') {
-                this.editPasswdDialogController.open()
-                return
-              }
-              this.encryption = false
-            })
-            .gesture(LongPressGesture().onAction(() => {
-              this.closeSideBar(false)
-              this.editPasswdDialogController.open()
-            }))
-          }
-        }.width('100%')
-        .justifyContent(FlexAlign.Start)
-        .margin({ top: '4%' })
+        .layoutWeight(1)
+        .align(Alignment.Top)
+        .scrollBar(BarState.Off)
+        .scrollable(ScrollDirection.Vertical) // 启用垂直滚动
+        .edgeEffect(EdgeEffect.Spring) // 滚动边缘效果
+        .width('100%')
+        .height('100%')
       }
       .width('100%')
       .justifyContent(FlexAlign.Start)
       .backgroundColor($r('app.color.start_window_background'))
-      .padding({ top: 50, left: 20, right: 20 })
-      .transition(TransitionEffect.translate({ x: -300 })
-        .animation({ duration: 500 }))
+      .transition(TransitionEffect.translate({ x: -300 }).animation({ duration: 500, curve: Curve.Smooth }))
       .visibility(this.sideBarStatusTmp)
       .borderRadius(20)
       .shadowFancy()
 
       Stack({ alignContent: Alignment.Top }) { // 内容区
-        Column()// 遮罩
-          .height('100%')
-          .width('100%')
-          .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
-          .zIndex(1)
-          .visibility(this.sideBarStatus ? Visibility.Visible : Visibility.Hidden)
-          .onClick(() => {
-            this.closeSideBar(true)
-          })
+        if (this.sideBarStatus) {
+          Column()// 遮罩
+            .height('100%')
+            .width('100%')
+            .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+            .transition(TransitionEffect.OPACITY.animation({ curve: curves.springMotion(0, 1) }))
+            .zIndex(1)
+            .onClick(() => {
+              this.closeSideBar(true)
+            })
+        }
 
         List({ scroller: this.listScroller }) {
           ForEach(this.list_empty_item, () => {
@@ -795,6 +804,7 @@ struct Index {
                       this.video_meta_data_encryption : this.video_meta_data, item)?.size)).includes('HD')) {
                         Text(VideoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.encryption ?
                         this.video_meta_data_encryption : this.video_meta_data, item)?.size)))
+                          .fontWeight(FontWeight.Bold)
                           .fontSize(10)
                           .opacity(0.8)
                           .fontColor($r('sys.color.ohos_dialog_text_alert'))
@@ -864,11 +874,13 @@ struct Index {
               if (VideoUtil.videoWidthAndHeightFormat(String(item_list?.size)) === '0 x 0') {
                 ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
                 ToolsUtil.isFileExist(item_list) ?
-                ToolsUtil.routerWhere('pages/FFMpegPlayer', item, targetData) : this.deleteUnExistFile(item_list)
+                ToolsUtil.routerWhere('pages/FFMpegPlayer', item, targetData, this.encryption) :
+                this.deleteUnExistFile(item_list)
                 return
               }
               ToolsUtil.isFileExist(item_list) ?
-              ToolsUtil.routerWhere('pages/Player', item, targetData) : this.deleteUnExistFile(item_list)
+              ToolsUtil.routerWhere('pages/Player', item, targetData, this.encryption) :
+              this.deleteUnExistFile(item_list)
             })
           })
           ForEach(this.list_empty_item, () => {
@@ -878,8 +890,10 @@ struct Index {
         .lanes(this.list_line)
         .animation({ duration: 300, curve: Curve.Smooth })
         .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
         .chainAnimation(true)
         .width('100%')
+        .height('100%') // 新增高度设置
         .onTouch(() => {
           this.searchController.stopEditing()
         })
@@ -959,7 +973,6 @@ struct Index {
               })
               .onEditChange((isEditing: boolean) => {
                 this.is_edit = isEditing
-                console.error('test1' + this.is_edit)
               })
 
             if (!this.is_edit) {

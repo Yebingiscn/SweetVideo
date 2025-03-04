@@ -129,12 +129,12 @@
       "value": "删除所选"
     },
     {
-      "name": "FFmpeg_Player",
-      "value": "FFmpeg 播放器"
+      "name": "FFMpeg_Player",
+      "value": "FFMpeg 播放器"
     },
     {
       "name": "re_import_info",
-      "value": "已失效请重新导入"
+      "value": "已失效（源视频可能已经被移动或者改名），请重新导入"
     },
     {
       "name": "exist_privacy_space",

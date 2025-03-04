@@ -20,6 +20,4 @@ class TimeUtil {
   }
 }
 
-const timeUtil = new TimeUtil()
-
-export default timeUtil as TimeUtil
+export default new TimeUtil()

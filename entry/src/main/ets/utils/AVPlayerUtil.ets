@@ -1,6 +1,6 @@
 import { media } from '@kit.MediaKit'
 
-class AVPlayer {
+class AVPlayerUtil {
   avPlayer: media.AVPlayer | undefined = undefined
 
   async getAVPlayer() {
@@ -9,6 +9,4 @@ class AVPlayer {
   }
 }
 
-const AVPlayerUtil = new AVPlayer()
-
-export default AVPlayerUtil
+export default new AVPlayerUtil()

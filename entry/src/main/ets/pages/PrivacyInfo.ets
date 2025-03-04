@@ -168,10 +168,8 @@ struct PrivacyPolicyDialog {
                 top: 15, bottom: 21
               })
               .borderRadius(24)
-          }.margin({
-            top: 30, bottom: 50
-          })
-        }
+          }
+        }.scrollBar(BarState.Off).layoutWeight(1)
       }
     }.backgroundColor($r('app.color.start_window_background')).borderRadius(13)
   }

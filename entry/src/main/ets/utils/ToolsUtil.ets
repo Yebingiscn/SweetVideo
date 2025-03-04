@@ -9,8 +9,9 @@ import { router } from '@kit.ArkUI';
 import { JSON } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { bundleManager } from '@kit.AbilityKit';
+import RecentPlayUtil from './RecentPlayUtil';
 
-class Tools {
+class ToolsUtil {
   showToast(text: string) {
     promptAction.showToast({
       message: text,
@@ -42,13 +43,15 @@ class Tools {
   }
 
   compareByTime(show_list: string[], list: VideoMetadata[]): string[] {
-    show_list = list.sort((a, b) => a.date.localeCompare(b.date)).map(i => i.date)
-    return show_list
+    show_list = list
+      .sort((a, b) => b.date.localeCompare(a.date))// 调换a和b的位置
+      .map(i => i.date);
+    return show_list;
   }
 
   savePwd(passwd: string) {
     PreferencesUtil.putPreferencesValue('sweet_video', 'passwd', passwd)
-    ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.set_passwd_tip')))
+    this.showToast(getContext().resourceManager.getStringSync($r('app.string.set_passwd_tip')))
   }
 
   calculateDelta(offset: number, stepSize: number, stepValue: number, directionSign: number) {
@@ -62,6 +65,7 @@ class Tools {
       return true
     } catch (e) {
       hilog.error(777, 'testFlag', 'file error' + e)
+      this.showToast(String(item?.title) + getContext().resourceManager.getStringSync($r('app.string.re_import_info')))
       return false
     }
   }
@@ -74,7 +78,10 @@ class Tools {
     });
   }
 
-  routerWhere(uri: string, item: string | undefined, list: VideoMetadata []) {
+  routerWhere(uri: string, item: string | undefined, list: VideoMetadata [], encryption: boolean) {
+    if (!encryption) {
+      RecentPlayUtil.addPlayback(list.find(i => i.date === item)!)
+    }
     router.pushUrl({
       url: uri,
       params: {
@@ -107,6 +114,4 @@ class Tools {
   }
 }
 
-const ToolsUtil = new Tools()
-
-export default ToolsUtil
+export default new ToolsUtil()

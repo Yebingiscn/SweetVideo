@@ -8,7 +8,7 @@ export interface avSessionState {
 }
 
 
-class AVSession {
+class AVSessionUtil {
   avSession: avSessionManager.AVSession | undefined = undefined;
   context: Context = getContext()
   sandbox_path: string = this.context.filesDir + '/'
@@ -58,6 +58,4 @@ class AVSession {
   }
 }
 
-const AVSessionUtil = new AVSession();
-
-export default AVSessionUtil;
+export default new AVSessionUtil();

@@ -276,8 +276,8 @@ class SelectFileUtil {
       const ext = filePath.match(EXT_REGEX)?.[1]?.toLowerCase() || '';
       return VIDEO_EXTENSIONS.has(ext);
     };
-    const filePool = new ConcurrencyPool(8); // 文件处理：高并发
-    const dirPool = new ConcurrencyPool(16); // 目录遍历：更高并发
+    const filePool = new ConcurrencyPool(12); // 文件处理：高并发
+    const dirPool = new ConcurrencyPool(24); // 目录遍历：更高并发
     const collectFiles = async (directory: string): Promise<string[]> => {
       try {
         const entries: string[] = await fs.listFile(directory);
@@ -318,6 +318,4 @@ class SelectFileUtil {
   }
 }
 
-const selectFileUtil = new SelectFileUtil()
-
-export default selectFileUtil as SelectFileUtil
+export default new SelectFileUtil()

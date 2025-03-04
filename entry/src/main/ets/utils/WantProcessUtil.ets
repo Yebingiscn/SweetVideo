@@ -66,6 +66,4 @@ class WantProcess {
   }
 }
 
-const wantProcess = new WantProcess()
-
-export default wantProcess as WantProcess
+export default new WantProcess()

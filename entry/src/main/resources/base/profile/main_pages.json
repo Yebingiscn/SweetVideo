@@ -5,6 +5,7 @@
     "pages/FFMpegPlayer",
     "pages/AboutApp",
     "pages/PrivacyInfo",
-    "pages/Setting"
+    "pages/Setting",
+    "pages/RecentPlay"
   ]
 }

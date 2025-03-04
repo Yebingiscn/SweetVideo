@@ -101,6 +101,4 @@ class VideoOperateUtil {
   }
 }
 
-const videoOperateUtil = new VideoOperateUtil()
-
-export default videoOperateUtil as VideoOperateUtil
+export default new VideoOperateUtil()

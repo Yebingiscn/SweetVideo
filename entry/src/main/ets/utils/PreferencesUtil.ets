@@ -30,6 +30,4 @@ class PreferencesUtil {
   }
 }
 
-const preferencesUtil = new PreferencesUtil()
-
-export default preferencesUtil as PreferencesUtil
+export default new PreferencesUtil()

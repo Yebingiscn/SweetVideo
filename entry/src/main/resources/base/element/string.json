@@ -129,8 +129,8 @@
       "value": "Delete Selected"
     },
     {
-      "name": "FFmpeg_Player",
-      "value": "FFmpeg  Player"
+      "name": "FFMpeg_Player",
+      "value": "FFMpeg  Player"
     },
     {
       "name": "re_import_info",
@@ -138,7 +138,7 @@
     },
     {
       "name": "exist_privacy_space",
-      "value": "Exist privcay space"
+      "value": "Exist privacy space"
     },
     {
       "name": "privacy_space_info",
