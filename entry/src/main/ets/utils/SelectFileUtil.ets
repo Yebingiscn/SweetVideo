@@ -208,12 +208,12 @@ class SelectFileUtil {
     return list[(currentIndex + 1) % list.length]; // 如果没有找到有效项，返回下一个项
   }
 
-  getAllItem(list: VideoMetadata[]) {
+  getAllItems(list: VideoMetadata[]) {
     return list.map(i => i.date)
   }
 
-  getSearchItem(list: VideoMetadata[], value: string): string[] {
-    const lowerValue = value.toLowerCase();
+  getItemFromSearch(list: VideoMetadata[], value: string): string[] {
+    const lowerValue = value.toLowerCase().trim();
     const results: string[] = [];
     for (const item of list) {
       if (item.title.toLowerCase().includes(lowerValue)) {

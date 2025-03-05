@@ -103,7 +103,7 @@ struct Index {
           return;
         }
         currentData[targetIndex].title = title.trim();
-        this.show_list = SelectFileUtil.getAllItem(currentData);
+        this.show_list = SelectFileUtil.getAllItems(currentData);
         const saveAction =
           this.encryption ? SelectFileUtil.saveVideoMetaDataEncryption : SelectFileUtil.saveVideoMetaData;
         await saveAction(currentData)
@@ -171,7 +171,7 @@ struct Index {
           if (!targetData.find(i => i.date == item?.date!)) {
             ToolsUtil.showToast('数据正在加载中，请重试')
             this.show_list =
-              SelectFileUtil.getAllItem(targetData);
+              SelectFileUtil.getAllItems(targetData);
             return
           }
           ToolsUtil.isFileExist(item_selected) ?
@@ -504,7 +504,7 @@ struct Index {
         })());
       }
       await Promise.all(workers);
-      this.show_list = SelectFileUtil.getAllItem(
+      this.show_list = SelectFileUtil.getAllItems(
         this.encryption ? this.video_meta_data_encryption : this.video_meta_data
       );
       ToolsUtil.showToast(`${getContext().resourceManager
@@ -593,6 +593,7 @@ struct Index {
                 .buttonFancy('100%', 60)
                 .borderRadius(10)
                 .onClick(() => {
+                  this.closeSideBar(false)
                   ToolsUtil.routerWhereOnlyUri('pages/Setting')
                 })
               }.margin({ top: '4%' })
@@ -862,7 +863,7 @@ struct Index {
               if (!targetData.some(i => i.date == item_list?.date!)) {
                 ToolsUtil.showToast('数据正在加载中，请重试')
                 this.show_list =
-                  SelectFileUtil.getAllItem(targetData);
+                  SelectFileUtil.getAllItems(targetData);
                 return
               }
               if (this.MenuBuilderState || this.multipleChooseState != Visibility.None) {
@@ -942,18 +943,14 @@ struct Index {
               .animation({ duration: 300, curve: Curve.Ease })
               .shadowFancy()
               .onChange((value: string) => {
-                if (value == '' && this.video_meta_data) {
-                  this.show_list =
-                    SelectFileUtil.getAllItem(this.encryption ? this.video_meta_data_encryption : this.video_meta_data)
-                } else {
-                  this.show_list = SelectFileUtil.getSearchItem(this.encryption ? this.video_meta_data_encryption :
-                  this.video_meta_data, value)
-                }
+                const item = this.encryption ? this.video_meta_data_encryption : this.video_meta_data
+                value === '' ? this.show_list = SelectFileUtil.getAllItems(item)
+                  : this.show_list = SelectFileUtil.getItemFromSearch(item, value)
               })
               .onSubmit((value: string) => {
                 const currentMeta = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
-                if (value == '' && this.video_meta_data) {
-                  this.show_list = SelectFileUtil.getAllItem(currentMeta)
+                if (value == '') {
+                  this.show_list = SelectFileUtil.getAllItems(currentMeta)
                   if (this.show_list.length == 0) {
                     ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.add_video_first')))
                     return
@@ -966,7 +963,7 @@ struct Index {
                   ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.enter_privacy_space')))
                   return
                 }
-                this.show_list = SelectFileUtil.getSearchItem(currentMeta, value)
+                this.show_list = SelectFileUtil.getItemFromSearch(currentMeta, value)
                 if (this.show_list.length == 0) {
                   ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.no_search_result')))
                 }

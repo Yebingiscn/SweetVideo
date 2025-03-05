@@ -59,6 +59,7 @@ struct SettingsPage {
             .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
             .backgroundColor($r('app.color.start_window_background_blur'))
             .animation({ duration: 300, curve: Curve.Ease })
+            .height(80)
             .width('100%')
             .borderRadius(10)
             .onClick(() => {
