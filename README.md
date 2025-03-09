@@ -31,8 +31,11 @@ QQ群：973792610
 ## 欢迎加入流心视频测试组
 
 > 可以从华为应用商店收到内测提醒和更新
+> 
 
-**目前测试组已经满员，欢迎加群等待测试组空位或者进行侧载安装**
+https://appgallery.huawei.com/link/invite-test-wap?taskId=fb4f8f416af8cb8363b22f15aead7801&invitationCode=A2K32mLgkzv
+
+**如果提示测试人数以达到上限，就换个时间试试，一般早上，下午3点左右或者晚上10点半以后上限会恢复正常**
 
 ## 简介
 
