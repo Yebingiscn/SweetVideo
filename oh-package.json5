@@ -3,7 +3,7 @@
   "description": "Please describe the basic information.",
   "dependencies": {
     "@ohos/pinyin4js": "^2.0.0",
-    "@ohos/ijkplayer": "2.0.6-rc.6"
+    "@ohos/ijkplayer": "^2.0.6"
   },
   "devDependencies": {
     "@ohos/hypium": "1.0.19",

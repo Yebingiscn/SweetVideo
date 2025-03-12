@@ -56,6 +56,7 @@ struct Player {
   @State screen_height: number = 0
   @State play_area_height: number = 0
   @State play_area_width: number = 0
+  @State screen_arco: number = 0
   @State onSwiping: boolean = false
   @State onSwipingVoice: boolean = false
   @State onSwipingBrightness: boolean = false
@@ -171,6 +172,7 @@ struct Player {
   }
 
   async setRotation() {
+    this.screen_arco = this.screen_height / this.screen_width
     if (!this.now_playing) {
       return
     }
@@ -477,7 +479,7 @@ struct Player {
               })
 
               Stack() { //底栏
-                if (this.screen_height > this.screen_width) {
+                if (this.screen_arco > 1.4) {
                   Column({ space: 15 }) {
                     this.VideoButtons()
                     this.VideoSlider()
@@ -915,16 +917,15 @@ struct Player {
 
   @Builder
   VideoButtons() {
-    GridRow({ columns: this.screen_height > this.screen_width ? 8 : 16, gutter: 5 }) {
+    GridRow({ columns: this.screen_arco > 1.4 ? 8 : 16, gutter: 5 }) {
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 播放按钮
           SymbolGlyph(this.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill'))
-            .fontSize(30)
+            .fontSize(27)
             .fontColor(['#f0f0f0'])
             .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.playing))
         }
-        .buttonFancy(this.screen_height > this.screen_width ? 40 : 50,
-          this.screen_height > this.screen_width ? 40 : 50)
+        .buttonFancy(40, 40)
         .onClick(() => {
           ToolsUtil.startVibration()
           this.playing ? this.avPlayer?.pause() : this.avPlayer?.play()

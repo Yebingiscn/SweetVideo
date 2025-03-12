@@ -145,7 +145,7 @@ class SelectFileUtil {
       == item.format ? item.title : item.title + '.' + item.format]
   }
 
-  async getVideMetaData() {
+  async getVideoMetaData() {
     return await PreferencesUtil.getPreferencesValue('sweet_video', 'video_meta_data', []) as VideoMetadata[]
   }
 

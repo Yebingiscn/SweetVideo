@@ -92,7 +92,7 @@ struct EnhancePlayer {
 
         if (this.onSwiping) {
           Stack() {
-            Text(TimeUtil.convertMsToMMSS(this.play_time) + '/' + TimeUtil.convertMsToMMSS(this.now_playing?.time))
+            Text(TimeUtil.convertMsToMMSS(this.play_time) + '/' + TimeUtil.convertMsToMMSS(this.total_time))
               .fontColor($r('sys.color.white'))
               .fontSize(25)
               .fontWeight(FontWeight.Bold)
@@ -243,11 +243,14 @@ struct EnhancePlayer {
   @Builder
   VideoSlider() {
     Row({ space: 10 }) {
-      Text(TimeUtil.convertMsToMMSS(Math.min(Math.max(this.play_time, 0), (this.total_time || 0))) + '/' +
-      TimeUtil.convertMsToMMSS(this.total_time || 0))
-        .fontWeight(FontWeight.Medium)
-        .fontSize(16)
-        .fontColor($r('sys.color.white'))
+      Row() {
+        Text(TimeUtil.convertMsToMMSS(Math.min(Math.max(this.play_time, 0), (this.total_time || 0))) + '/' +
+        TimeUtil.convertMsToMMSS(this.total_time || 0))
+          .fontWeight(FontWeight.Medium)
+          .fontSize(16)
+          .fontColor($r('sys.color.white'))
+          .textAlign(TextAlign.Start)
+      }.backgroundColor('#50000000').padding(5).borderRadius(10).margin({ left: 5 })
       Slider({
         value: this.play_time,
         min: 0,
@@ -268,13 +271,14 @@ struct EnhancePlayer {
           }
         })
         .layoutWeight(1)
-        .width(this.screen_width > this.screen_height ? '72%' : '50%')
         .animation({ duration: 100, curve: Curve.Smooth })
         .selectedColor('#e0e0e0')
-      Text(TimeUtil.convertMsToMMSS(Math.min(Math.max((this.total_time || 0) - this.play_time, 0),
-        (this.total_time || 0))))
-        .fontWeight(FontWeight.Medium).fontSize(15)
-        .fontColor($r('sys.color.white'))
+      Row() {
+        Text(TimeUtil.convertMsToMMSS(Math.min(Math.max((this.total_time || 0) - this.play_time, 0),
+          (this.total_time || 0))))
+          .fontWeight(FontWeight.Medium).fontSize(15)
+          .fontColor($r('sys.color.white'))
+      }.backgroundColor('#50000000').padding(5).borderRadius(10).margin({ right: 5 })
     }
   }
 
@@ -284,13 +288,13 @@ struct EnhancePlayer {
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 播放按钮
           SymbolGlyph(this.playing ? $r('sys.symbol.play_fill') : $r('sys.symbol.pause_fill'))
-            .fontSize(30)
+            .fontSize(27)
             .fontColor(['#f0f0f0'])
             .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.playing))
         }
         .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .height(50)
-        .width(50)
+        .height(40)
+        .width(40)
         .backgroundColor('#50000000')
         .onClick(() => {
           ToolsUtil.startVibration()

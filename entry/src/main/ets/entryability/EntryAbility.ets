@@ -4,6 +4,8 @@ import { window } from '@kit.ArkUI';
 import PreferencesUtil from '../utils/PreferencesUtil';
 import WantProcess from '../utils/WantProcessUtil';
 import { WindowUtil } from '../utils/WindowUtil';
+import { systemShare } from '@kit.ShareKit';
+import { BusinessError } from '@kit.BasicServicesKit';
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want): void {

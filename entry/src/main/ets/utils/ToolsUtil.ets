@@ -10,6 +10,7 @@ import { JSON } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { bundleManager } from '@kit.AbilityKit';
 import RecentPlayUtil from './RecentPlayUtil';
+import SelectFileUtil from './SelectFileUtil';
 
 class ToolsUtil {
   showToast(text: string) {
@@ -35,18 +36,18 @@ class ToolsUtil {
     })
   }
 
-  compareByName(show_list: string[], list: VideoMetadata[]): string[] {
-    show_list = list
-      .sort((a: VideoMetadata, b: VideoMetadata) => String(pinyin4js.getShortPinyin(a.title))
+  async compareByName(list: VideoMetadata[], encryption: boolean) {
+    list.sort((a: VideoMetadata, b: VideoMetadata) => String(pinyin4js.getShortPinyin(a.title))
         .localeCompare(String(pinyin4js.getShortPinyin(b.title)))).map(i => i.date);
-    return show_list
+    encryption ? await SelectFileUtil.saveVideoMetaDataEncryption(list) :
+      await SelectFileUtil.saveVideoMetaData(list)
   }
 
-  compareByTime(show_list: string[], list: VideoMetadata[]): string[] {
-    show_list = list
-      .sort((a, b) => b.date.localeCompare(a.date))// 调换a和b的位置
+  async compareByTime(list: VideoMetadata[], encryption: boolean) {
+    list.sort((a, b) => b.date.localeCompare(a.date))// 调换a和b的位置
       .map(i => i.date);
-    return show_list;
+    encryption ? await SelectFileUtil.saveVideoMetaDataEncryption(list) :
+      await SelectFileUtil.saveVideoMetaData(list)
   }
 
   savePwd(passwd: string) {

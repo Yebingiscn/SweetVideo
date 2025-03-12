@@ -166,16 +166,16 @@ struct Index {
       }.padding(10).onClick(() => {
         this.MenuBuilderState = false
         setTimeout(() => {
-          const targetData = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
-          let item_selected = SelectFileUtil.getItem(targetData, item?.date!)
-          if (!targetData.find(i => i.date == item?.date!)) {
+          const target_data = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
+          let item_selected = SelectFileUtil.getItem(target_data, item?.date!)
+          if (!target_data.find(i => i.date == item?.date!)) {
             ToolsUtil.showToast('数据正在加载中，请重试')
             this.show_list =
-              SelectFileUtil.getAllItems(targetData);
+              SelectFileUtil.getAllItems(target_data);
             return
           }
           ToolsUtil.isFileExist(item_selected) ?
-          ToolsUtil.routerWhere('pages/FFMpegPlayer', item?.date, targetData, this.encryption) :
+          ToolsUtil.routerWhere('pages/FFMpegPlayer', item?.date, target_data, this.encryption) :
           this.deleteUnExistFile(item_selected)
         }, 200)
       })
@@ -264,10 +264,9 @@ struct Index {
           .width(100)
           .height(30)
       }.padding(10).onClick(async () => {
-        this.show_list = ToolsUtil.compareByName(this.show_list,
-          this.encryption ? this.video_meta_data_encryption : this.video_meta_data)
-        this.encryption ? await SelectFileUtil.saveVideoMetaDataEncryption(this.video_meta_data_encryption) :
-          await SelectFileUtil.saveVideoMetaData(this.video_meta_data)
+        const target_data = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
+        await ToolsUtil.compareByName(target_data, this.encryption)
+        this.show_list = SelectFileUtil.getAllItems(target_data);
       })
 
       Divider().height(10)
@@ -279,10 +278,9 @@ struct Index {
           .width(100)
           .height(30)
       }.padding(10).onClick(async () => {
-        this.show_list = ToolsUtil.compareByTime(this.show_list,
-          this.encryption ? this.video_meta_data_encryption : this.video_meta_data)
-        this.encryption ? await SelectFileUtil.saveVideoMetaDataEncryption(this.video_meta_data_encryption) :
-          await SelectFileUtil.saveVideoMetaData(this.video_meta_data)
+        const target_data = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
+        await ToolsUtil.compareByTime(target_data, this.encryption)
+        this.show_list = SelectFileUtil.getAllItems(target_data);
       })
     }.width(150)
   }
@@ -394,9 +392,8 @@ struct Index {
   }
 
   updateList() {
-    this.show_list = []
-    this.encryption ? this.show_list = this.video_meta_data_encryption.map(i => i.date) :
-      this.show_list = this.video_meta_data.map(i => i.date)
+    const source = this.encryption ? this.video_meta_data_encryption : this.video_meta_data
+    this.show_list = source.map(i => i.date)
   }
 
   onBackPress(): boolean | void {
@@ -414,7 +411,7 @@ struct Index {
     SelectFileUtil.getDownloadUri()
     WantProcess.checkWant()
     ReqPermission.reqPermissionsFromUser(ReqPermission.permissions, context);
-    this.video_meta_data = await SelectFileUtil.getVideMetaData()
+    this.video_meta_data = await SelectFileUtil.getVideoMetaData()
     this.video_meta_data_encryption = await SelectFileUtil.getVideoMetaDataEncryption()
     this.passwd = await SelectFileUtil.getPassword()
     this.show_list = this.video_meta_data.map(i => i.date)
@@ -505,8 +502,7 @@ struct Index {
       }
       await Promise.all(workers);
       this.show_list = SelectFileUtil.getAllItems(
-        this.encryption ? this.video_meta_data_encryption : this.video_meta_data
-      );
+        this.encryption ? this.video_meta_data_encryption : this.video_meta_data);
       ToolsUtil.showToast(`${getContext().resourceManager
         .getStringSync($r('app.string.add_time_info'))}${this.import_sum}`);
     } catch (error) {
@@ -839,6 +835,7 @@ struct Index {
               .height(100)
               .justifyContent(FlexAlign.SpaceEvenly)
             }
+            .key(item)
             .width('100%')
             .padding({
               left: 10,
@@ -858,12 +855,12 @@ struct Index {
               edgeEffect: SwipeEdgeEffect.Spring
             })
             .onClick(() => {
-              const targetData = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
-              let item_list = SelectFileUtil.getItem(targetData, item)
-              if (!targetData.some(i => i.date == item_list?.date!)) {
+              const target_data = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
+              let item_list = SelectFileUtil.getItem(target_data, item)
+              if (!target_data.some(i => i.date == item_list?.date!)) {
                 ToolsUtil.showToast('数据正在加载中，请重试')
                 this.show_list =
-                  SelectFileUtil.getAllItems(targetData);
+                  SelectFileUtil.getAllItems(target_data);
                 return
               }
               if (this.MenuBuilderState || this.multipleChooseState != Visibility.None) {
@@ -875,12 +872,12 @@ struct Index {
               if (VideoUtil.videoWidthAndHeightFormat(String(item_list?.size)) === '0 x 0') {
                 ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
                 ToolsUtil.isFileExist(item_list) ?
-                ToolsUtil.routerWhere('pages/FFMpegPlayer', item, targetData, this.encryption) :
+                ToolsUtil.routerWhere('pages/FFMpegPlayer', item, target_data, this.encryption) :
                 this.deleteUnExistFile(item_list)
                 return
               }
               ToolsUtil.isFileExist(item_list) ?
-              ToolsUtil.routerWhere('pages/Player', item, targetData, this.encryption) :
+              ToolsUtil.routerWhere('pages/Player', item, target_data, this.encryption) :
               this.deleteUnExistFile(item_list)
             })
           })

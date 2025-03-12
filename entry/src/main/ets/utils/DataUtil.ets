@@ -79,11 +79,9 @@ export default class DataUtil<T> implements IDataSource {
     const length = this.sources.length;
     this.sources = [];
     this.listeners.forEach(listener => {
-      // 根据实际需求选择触发方式
       for (let i = 0; i < length; i++) {
         listener.onDataDelete(i);
       }
-      // 或 listener.onDataReload();
     });
   }
 
@@ -100,17 +98,14 @@ export default class DataUtil<T> implements IDataSource {
 
   reloadAllData(newData: T[]): void {
     const oldLength = this.sources.length;
-
     // 1. 触发旧数据删除事件
     this.listeners.forEach(listener => {
       for (let i = oldLength - 1; i >= 0; i--) {
         listener.onDataDelete(i);
       }
     });
-
     // 2. 更新数据源
     this.sources = [...newData]; // 防御性拷贝
-
     // 3. 触发新数据添加事件
     this.listeners.forEach(listener => {
       for (let i = 0; i < this.sources.length; i++) {
