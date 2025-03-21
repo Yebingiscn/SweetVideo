@@ -142,8 +142,10 @@ struct AboutApp {
 
             Row() {
               Column() {
-                Text(VideoInfoUtil.support_video_format.toString())
+                Text(VideoInfoUtil.support_video_format.concat(VideoInfoUtil.support_audio_format).toString())
                   .fontSize(18)
+                  .width('80%')
+                  .maxLines(3)
                   .fontColor($r('app.color.text_color')).margin({ bottom: 5 })
                 Text('1. rmvb, wmv, avi格式仅能使用 FFMpeg 播放器，其余格式若系统播放器无法播放或者没有声音，请首页长按视频选择 FFMpeg 播放器播放')
                   .fontSize(15)
@@ -202,6 +204,9 @@ struct AboutApp {
                   .fontSize(15)
                   .fontColor($r('app.color.text_color'))
                 Text('测试视频提供：萧十一狼')
+                  .fontSize(15)
+                  .fontColor($r('app.color.text_color'))
+                Text('折叠屏适配：微车游')
                   .fontSize(15)
                   .fontColor($r('app.color.text_color'))
               }

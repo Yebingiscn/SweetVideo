@@ -94,7 +94,7 @@ class VideoOperateUtil {
 
   audioTrackErrorExecute(audio_track: AudioTrack[]) {
     if (audio_track.length === 0) {
-      ToolsUtil.showToast('完蛋！未识别到音轨，若真没有声音请首页长按视频改用FFMpeg播放 (＃°Д°)')
+      ToolsUtil.showToast('未识别到音轨，已开启实验性解码，可能会导致闪退、发热、耗电以及音画不同步')
       return false
     }
     return true

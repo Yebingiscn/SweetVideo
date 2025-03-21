@@ -15,7 +15,7 @@ class SelectFileUtil {
 
   async selectFiles(): Promise<string[]> {
     const documentSelectOptions = new picker.DocumentSelectOptions();
-    documentSelectOptions.fileSuffixFilters = VideoUtil.support_video_format;
+    documentSelectOptions.fileSuffixFilters = VideoUtil.support_video_format.concat(VideoUtil.support_audio_format)
     let context = getContext(this) as common.Context;
     const documentViewPicker = new picker.DocumentViewPicker(context);
     try {
@@ -228,7 +228,7 @@ class SelectFileUtil {
   }
 
   async getDownloadFilesUri(): Promise<string[]> {
-    const VIDEO_EXTENSIONS = new Set(VideoUtil.support_video_format);
+    const VIDEO_EXTENSIONS = new Set(VideoUtil.support_video_format.concat(VideoInfoUtil.support_audio_format));
     const EXT_REGEX = /\.([a-z0-9]+)$/i; // 预编译正则提升性能
 
     class ConcurrencyPool {

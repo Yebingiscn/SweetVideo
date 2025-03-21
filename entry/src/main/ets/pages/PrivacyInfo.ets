@@ -98,6 +98,7 @@ struct SplashPage {
     } else {
       this.initSdk()
     }
+    WantProcessUtil.checkWant()
   }
 
   async initSdk() {

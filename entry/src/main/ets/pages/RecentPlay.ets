@@ -9,6 +9,14 @@ import ToolsUtil from '../utils/ToolsUtil';
 
 const sandbox_path = getContext().filesDir + '/'
 
+@Extend(SymbolGlyph)
+function symbolGlyphFancy(fontSize: number, width: number | string, height: number | string) {
+  .fontSize(fontSize)
+  .fontColor([$r('app.color.text_color')])
+  .width(width)
+  .height(height)
+}
+
 @Entry
 @Component
 struct RecentPlay {
@@ -40,6 +48,18 @@ struct RecentPlay {
       }.padding(10).onClick(() => {
         this.MenuBuilderState = false
         ToolsUtil.routerWhere('pages/FFMpegPlayer', item?.date, this.video_meta_data, false)
+      })
+
+      Divider().height(2)
+      Row() {
+        SymbolGlyph($r('sys.symbol.trash_fill'))
+          .symbolGlyphFancy(20, 25, 40)
+        Text($r('app.string.delete'))
+          .fontSize(15)
+          .width(180)
+          .height(30)
+      }.padding(10).onClick(() => {
+
       })
     }.onAppear(() => {
       ToolsUtil.startVibration()

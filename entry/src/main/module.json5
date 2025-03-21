@@ -46,6 +46,18 @@
                 "maxFileSupported": 1
               },
               {
+                "scheme": "file",
+                "type": "audio/*",
+                "linkFeature": "FileOpen",
+                "maxFileSupported": 1
+              },
+              {
+                "scheme": "file",
+                "utd": "general.audio",
+                "linkFeature": "FileOpen",
+                "maxFileSupported": 1
+              },
+              {
                 "scheme": "https",
                 "host": "https://github.com/Yebingiscn/SweetVideo"
               },

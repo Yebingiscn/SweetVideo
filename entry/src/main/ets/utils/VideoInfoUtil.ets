@@ -29,6 +29,7 @@ export interface AudioTrack {
   index: number;
   language: string;
   name: string;
+  mime: string
 }
 
 interface shadowFancyInterface {
@@ -46,7 +47,12 @@ export const DEFAULT_DIALOG_SHADOW: shadowFancyInterface = {
 };
 
 class VideoInfoUtil {
-  public support_video_format = ['mp4', 'flv', 'mkv', 'ts', 'mov', 'rmvb', 'wmv', 'avi', 'm4v']
+  public support_video_format = [
+    'mp4', 'flv', 'mkv', 'ts', 'mov', 'rmvb', 'wmv', 'avi', 'm4v'
+  ];
+  public support_audio_format = [
+    'wav', 'mp3', 'flac', 'dsf', 'dsd', 'dff', 'm4a', 'ape', 'aac', 'ogg', 'amr', 'aif', 'aiff', 'dts', 'wma'
+  ];
   public support_subtitle_format = ['srt', 'vtt']
   public speed_index_map: number[] = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3]
   public scale_factors = new Map<string, number>([
@@ -65,10 +71,10 @@ class VideoInfoUtil {
   private video_speed_map =
     new Map([[0.125, media.PlaybackSpeed.SPEED_FORWARD_0_125_X], [0.25, media.PlaybackSpeed.SPEED_FORWARD_0_25_X],
       [0.5, media.PlaybackSpeed.SPEED_FORWARD_0_50_X],
-      [0.75, media.PlaybackSpeed.SPEED_FORWARD_0_75_X], [1.00, media.PlaybackSpeed.SPEED_FORWARD_1_00_X],
+      [0.75, media.PlaybackSpeed.SPEED_FORWARD_0_75_X], [1, media.PlaybackSpeed.SPEED_FORWARD_1_00_X],
       [1.25, media.PlaybackSpeed.SPEED_FORWARD_1_25_X], [1.5, media.PlaybackSpeed.SPEED_FORWARD_1_50_X],
-      [1.75, media.PlaybackSpeed.SPEED_FORWARD_1_75_X], [2.00, media.PlaybackSpeed.SPEED_FORWARD_2_00_X],
-      [3.00, media.PlaybackSpeed.SPEED_FORWARD_3_00_X]])
+      [1.75, media.PlaybackSpeed.SPEED_FORWARD_1_75_X], [2, media.PlaybackSpeed.SPEED_FORWARD_2_00_X],
+      [3, media.PlaybackSpeed.SPEED_FORWARD_3_00_X]])
   private video_size_map: Record<string, string> = {
     '720': '720P HD',
     '800': 'HD+',
@@ -87,6 +93,9 @@ class VideoInfoUtil {
     '2720x1530': 'FHD+',
     '1216x2160': 'FHD+',
   };
+  private MAX_CONCURRENT = 3;
+  private pendingQueue: Array<() => Promise<void>> = [];
+  private activeCount = 0;
 
   // 设置存储的视频信息
   async setVideoInfo(date: string, uri: string, file_name: string, metadata: media.AVMetadata, encryption: boolean,
@@ -106,16 +115,52 @@ class VideoInfoUtil {
     return tmp
   }
 
+  // 并发控制核心方法
+  private async enqueue<T>(task: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const wrappedTask = async () => {
+        try {
+          const result = await task();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        } finally {
+          this.activeCount--;
+          this.processNext();
+        }
+      };
+
+      this.pendingQueue.push(wrappedTask);
+      this.processNext();
+    });
+  }
+
+  private processNext() {
+    if (this.activeCount < this.MAX_CONCURRENT && this.pendingQueue.length > 0) {
+      this.activeCount++;
+      const task = this.pendingQueue.shift()!;
+      task();
+    }
+  }
+
   async getVideoCover(sandbox_path: string, date: string, uri: string, size: number[], time: number) {
-    ReqPermission.persistPermission(uri);
-    const avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor();
-    const file = fs.openSync(uri);
-    avMetadataExtractor.fdSrc = file;
-    avMetadataExtractor.fetchAlbumCover().then((pixelMap: image.PixelMap) => {
-      this.saveVideoImg(sandbox_path, date, pixelMap)
-    }).catch((error: BusinessError) => {
-      console.error(`Failed to fetch AlbumCover, error message:${error.message}`);
-      this.getVideoImage(uri, size, date, sandbox_path, time)
+    return this.enqueue(async () => {
+      await ReqPermission.persistPermission(uri);
+
+      const avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor();
+      const file = fs.openSync(uri);
+
+      try {
+        avMetadataExtractor.fdSrc = file;
+        const pixelMap = await avMetadataExtractor.fetchAlbumCover();
+        await this.saveVideoImg(sandbox_path, date, pixelMap);
+      } catch (error) {
+        console.error(`AlbumCover failed: ${error.message}`);
+        await this.getVideoImage(uri, size, date, sandbox_path, time);
+      } finally {
+        fs.closeSync(file)
+        avMetadataExtractor.release();
+      }
     });
   }
 
@@ -224,6 +269,7 @@ class VideoInfoUtil {
                 index: description[media.MediaDescriptionKey.MD_KEY_TRACK_INDEX] as number,
                 language: description[media.MediaDescriptionKey.MD_KEY_LANGUAGE] as string,
                 name: description[media.MediaDescriptionKey.MD_KEY_TRACK_NAME] as string,
+                mime: description[media.MediaDescriptionKey.MD_KEY_CODEC_MIME] as string
               };
             });
           resolve(audioTracks);

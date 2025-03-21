@@ -13,10 +13,11 @@ import { delConfirmDialog } from '../component/DelConfirmDialog';
 import { editPasswordDialog } from '../component/EditPasswordDialog';
 import { editMetadataDialog } from '../component/EditMetadataDialog';
 import ReqPermission from '../utils/ReqPermissionUtil';
-import WantProcess from '../utils/WantProcessUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { JSON } from '@kit.ArkTS';
 import { VideoDetailDialog } from '../component/VideoDetailDialog';
+import WantProcessUtil from '../utils/WantProcessUtil';
+import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData';
 
 const context = getContext() as common.UIAbilityContext;
 const sandbox_path = getContext().filesDir + '/'
@@ -409,7 +410,6 @@ struct Index {
 
   async aboutToAppear(): Promise<void> {
     SelectFileUtil.getDownloadUri()
-    WantProcess.checkWant()
     ReqPermission.reqPermissionsFromUser(ReqPermission.permissions, context);
     this.video_meta_data = await SelectFileUtil.getVideoMetaData()
     this.video_meta_data_encryption = await SelectFileUtil.getVideoMetaDataEncryption()
@@ -1024,6 +1024,13 @@ struct Index {
         }
       }))
     }
+    .allowDrop([uniformTypeDescriptor.UniformDataType.PLAIN_TEXT,uniformTypeDescriptor.UniformDataType.VIDEO])
+    .onDrop((dragEvent: DragEvent) => {
+      let records: Array<unifiedDataChannel.UnifiedRecord> = dragEvent.getData().getRecords();
+      let video: unifiedDataChannel.Video = records[0] as unifiedDataChannel.Video;
+      WantProcessUtil.want_uri = video.uri
+      WantProcessUtil.hasWant()
+    })
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     .onChange((value: boolean) => {
       this.sideBarStatus = value;

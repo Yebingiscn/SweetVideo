@@ -34,7 +34,7 @@ class AVSessionUtil {
       assetId: metadata.date,
       title: metadata.title,
       mediaImage: pixelMap,
-      duration: metadata.time
+      duration: metadata.time,
     };
     this.avSession?.setAVMetadata(session_metadata)
   }

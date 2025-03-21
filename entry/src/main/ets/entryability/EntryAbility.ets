@@ -3,6 +3,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import PreferencesUtil from '../utils/PreferencesUtil';
 import WantProcess from '../utils/WantProcessUtil';
+import WantProcessUtil from '../utils/WantProcessUtil';
 import { WindowUtil } from '../utils/WindowUtil';
 import { systemShare } from '@kit.ShareKit';
 import { BusinessError } from '@kit.BasicServicesKit';
@@ -17,12 +18,32 @@ export default class EntryAbility extends UIAbility {
     if (want.uri) {
       WantProcess.want_uri = want.uri
     }
+    this.handleParam(want, false)
+  }
+
+  handleParam(want: Want, isNewWant: boolean) {
+    systemShare.getSharedData(want)
+      .then((data: systemShare.SharedData) => {
+        console.error('test12')
+        data.getRecords().forEach((record: systemShare.SharedRecord) => {
+          WantProcess.want_uri = record.uri!
+          WantProcess.isSystemShare = true
+          if (isNewWant) {
+            WantProcessUtil.checkWant()
+          }
+          return
+        });
+      })
+      .catch((error: BusinessError) => {
+        console.error(`Failed to getSharedData. Code: ${error.code}, message: ${error.message}`);
+      })
   }
 
   onNewWant(want: Want) {
+    this.handleParam(want, true)
     if (want.uri) {
       WantProcess.want_uri = want.uri
-      WantProcess.hasWant()
+      WantProcessUtil.checkWant()
     }
     console.log(`onNewWant, want: ${want.abilityName}`);
   }

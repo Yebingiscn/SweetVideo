@@ -25,7 +25,7 @@ import AVSessionUtil, { avSessionState } from '../utils/AVSessionUtil'
 import { avSession as avSessionManager } from '@kit.AVSessionKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
-import { VideoMetadataFromPlayer } from '../utils/VideoInfoUtil'
+import VideoInfoUtil, { VideoMetadataFromPlayer } from '../utils/VideoInfoUtil'
 import PreferencesUtil from '../utils/PreferencesUtil'
 
 const context = getContext() as common.UIAbilityContext;
@@ -167,26 +167,36 @@ struct EnhancePlayer {
       .visibility(this.ShowControl ? Visibility.Visible : Visibility.Hidden)
       .animation({ duration: 300, curve: Curve.Smooth })
 
+      if (this.long_press) {
+        Stack({ alignContent: Alignment.BottomEnd }) { //快进提示
+          Text('3.0x ⏩').fontColor($r('sys.color.white')).fontSize(15).fontWeight(FontWeight.Bold)
+        }
+        .padding({
+          left: 25,
+          right: 25,
+          top: 10,
+          bottom: 10
+        })
+        .offset({ x: 0, y: 0 - this.play_area_height / 2 + 20 })
+        .borderRadius(1000)
+        .backgroundColor('#30000000')
+        .backdropBlur(100)
+        .animation({ duration: 300, curve: Curve.Smooth })
+      }
       Column()
         .width('100%')
         .height('50%')//触控区域
         .gesture(GestureGroup(GestureMode.Exclusive,
           TapGesture({ count: 2 })
             .onAction((event: GestureEvent) => {
-              if (!this.playing) {
-                const tapX = event.fingerList[0].localX;
-                const adjustWidth = this.screen_width / 5; // 计算五分之一宽度
-                if (tapX < adjustWidth) { // 左侧1/5区域
-                  this.mIjkMediaPlayer?.seekTo(String(this.play_time - Number(this.fastForwardSeconds) * 1000));
-                } else if (tapX > adjustWidth * 4) { // 右侧1/5区域
-                  this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(this.fastForwardSeconds) * 1000));
-                } else { // 中间3/5区域
-                  this.pause()
-                  this.playing = !this.playing
-                }
-              } else {
-                this.startPlayOrResumePlay();
-                this.playing = !this.playing
+              const tapX = event.fingerList[0].localX;
+              const adjustWidth = this.screen_width / 5; // 计算五分之一宽度
+              if (tapX < adjustWidth) { // 左侧1/5区域
+                this.seekTo(String(this.play_time - Number(this.fastForwardSeconds) * 1000));
+              } else if (tapX > adjustWidth * 4) { // 右侧1/5区域
+                this.seekTo(String(this.play_time + Number(this.fastForwardSeconds) * 1000));
+              } else { // 中间3/5区域
+                this.playing ? this.pause() : this.startPlayOrResumePlay()
               }
             }),
           TapGesture({ count: 1 })
@@ -201,7 +211,7 @@ struct EnhancePlayer {
             })
             .onActionEnd(() => {
               this.long_press = false
-              this.mIjkMediaPlayer?.setSpeed('1f');
+              this.mIjkMediaPlayer?.setSpeed(this.last_speed);
             }),
           PanGesture().onActionStart((event: GestureEvent) => {
             const firstTouch = event.fingerList[0];
@@ -224,7 +234,7 @@ struct EnhancePlayer {
             })
             .onActionEnd(() => {
               if (this.isHorizontalSwiping) {
-                this.mIjkMediaPlayer?.seekTo(String(this.play_time));
+                this.seekTo(String(this.play_time));
               }
               this.isHorizontalSwiping = false; // 重置所有滑动状态
               this.onSwiping = false;
@@ -251,6 +261,7 @@ struct EnhancePlayer {
           .fontColor($r('sys.color.white'))
           .textAlign(TextAlign.Start)
       }.backgroundColor('#50000000').padding(5).borderRadius(10).margin({ left: 5 })
+
       Slider({
         value: this.play_time,
         min: 0,
@@ -287,7 +298,7 @@ struct EnhancePlayer {
     GridRow({ columns: 14, gutter: 5 }) {
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 播放按钮
-          SymbolGlyph(this.playing ? $r('sys.symbol.play_fill') : $r('sys.symbol.pause_fill'))
+          SymbolGlyph(this.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill'))
             .fontSize(27)
             .fontColor(['#f0f0f0'])
             .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.playing))
@@ -298,13 +309,7 @@ struct EnhancePlayer {
         .backgroundColor('#50000000')
         .onClick(() => {
           ToolsUtil.startVibration()
-          if (!this.playing) {
-            this.pause()
-            this.playing = !this.playing
-          } else {
-            this.startPlayOrResumePlay();
-            this.playing = !this.playing
-          }
+          this.playing ? this.pause() : this.startPlayOrResumePlay()
         })
       }.span({ xs: 2, sm: 2, md: 2 })
 
@@ -348,7 +353,7 @@ struct EnhancePlayer {
   }
 
   async aboutToAppear() {
-    LogUtils.getInstance().LOGI("aboutToAppear");
+    //  LogUtils.getInstance().LOGI("aboutToAppear");
     let record = router.getParams() as Record<string, string>
     if (record) {
       this.now_playing = JSON.parse(record['metadata'])
@@ -367,7 +372,7 @@ struct EnhancePlayer {
     await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
     await (await this.windowClass).setWindowKeepScreenOn(true)
     let event: Callback<InterruptEvent> = (event) => {
-      LogUtils.getInstance().LOGI(`event: ${JSON.stringify(event)}`);
+      //  LogUtils.getInstance().LOGI(`event: ${JSON.stringify(event)}`);
       if (event.hintType === InterruptHintType.INTERRUPT_HINT_PAUSE) {
         this.pause();
       } else if (event.hintType === InterruptHintType.INTERRUPT_HINT_RESUME) {
@@ -378,7 +383,7 @@ struct EnhancePlayer {
     }
     this.mIjkMediaPlayer.on('audioInterrupt', event);
     let deviceChangeEvent: Callback<InterruptEvent> = (event) => {
-      LogUtils.getInstance().LOGI(`deviceChange event: ${JSON.stringify(event)}`);
+      //  LogUtils.getInstance().LOGI(`deviceChange event: ${JSON.stringify(event)}`);
       if (event.reason === DeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) { // 音频设备断开连接
         this.pause();
       }
@@ -387,7 +392,7 @@ struct EnhancePlayer {
   }
 
   async aboutToDisappear() {
-    LogUtils.getInstance().LOGI("aboutToDisappear");
+    //    LogUtils.getInstance().LOGI("aboutToDisappear");
     this.mDestroyPage = true;
     this.mIjkMediaPlayer.setScreenOnWhilePlaying(false);
     if (this.CONTROL_PlayStatus != PlayStatus.INIT) {
@@ -413,19 +418,17 @@ struct EnhancePlayer {
   async setSessionListener() {
     this.avSession?.on('play', () => {
       this.startPlayOrResumePlay();
-      this.playing = !this.playing
     });
     this.avSession?.on('pause', () => {
       this.pause()
-      this.playing = !this.playing
     });
     this.avSession?.on('seek', (position: number) => {
       this.mDestroyPage = false;
-      LogUtils.getInstance().LOGI("slider-->seekValue start:" + position);
+      //  LogUtils.getInstance().LOGI("slider-->seekValue start:" + position);
       let seekValue = position;
       this.seekTo(seekValue + "");
       this.setProgress()
-      LogUtils.getInstance().LOGI("slider-->seekValue end:" + seekValue);
+      // LogUtils.getInstance().LOGI("slider-->seekValue end:" + seekValue);
     })
   }
 
@@ -434,11 +437,11 @@ struct EnhancePlayer {
     let that = this;
     setTimeout(() => {
       that.startPlayOrResumePlay();
-      that.playing = false;
-    }, 300)
+    }, 150)
   }
 
   private async startPlayOrResumePlay() {
+    this.playing = true
     this.mDestroyPage = false;
     if (this.CONTROL_PlayStatus == PlayStatus.INIT) {
       this.stopProgressTask();
@@ -486,8 +489,8 @@ struct EnhancePlayer {
         this.play_time = pos;
       }
     }
-    LogUtils.getInstance()
-      .LOGI("setProgress position:" + position + ",duration:" + duration + ",progressValue:" + pos);
+    // LogUtils.getInstance()
+    //   .LOGI("setProgress position:" + position + ",duration:" + duration + ",progressValue:" + pos);
     if (position > duration) {
       position = duration;
     }
@@ -514,13 +517,16 @@ struct EnhancePlayer {
     //初始化配置
     this.mIjkMediaPlayer.native_setup();
     // 初始化配置后需要重新设置音频流音量，否则音量为默认值1.0
-    this.mIjkMediaPlayer.setVolume((this.volume).toString(), (this.volume).toString());
+    this.mIjkMediaPlayer.setVolume('1.0', '1.0');
     //设置视频源
     this.mIjkMediaPlayer.setDataSource(this.video_url);
     //使用精确寻帧 例如，拖动播放后，会寻找最近的关键帧进行播放，很有可能关键帧的位置不是拖动后的位置，而是较前的位置.可以设置这个参数来解决问题
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "enable-accurate-seek", "1");
     //预读数据的缓冲区大小
-    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", "943718400");
+    const buffer_area =
+      VideoInfoUtil.support_audio_format.includes(this.now_playing?.title.split('.').pop()!.toLowerCase()!)
+        ? '524288' : '943718400'
+    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", buffer_area);
     // 204800 943718400
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "overlay-format", "SDL_FCC_RV32")
     //停止预读的最小帧数
@@ -528,7 +534,9 @@ struct EnhancePlayer {
     //启动预加载
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "start-on-prepared", "1");
     // 设置缓冲，这是播放器的缓冲区
-    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "packet-buffering", "1");
+    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "videotoolbox", "1"); // 用硬件解码
+
+    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "packet-buffering", "5");
     //跳帧处理,放CPU处理较慢时，进行跳帧处理，保证播放流程，画面和声音同步
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "framedrop", "5");
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-all-videos", "1");
@@ -536,10 +544,11 @@ struct EnhancePlayer {
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-sync", "1");
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-auto-rotate", "1");
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-handle-resolution-change", "1");
-    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "skip_loop_filter", "48L");
+    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "skip_loop_filter", "48");
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzeduration", "100");
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzemaxduration", '100L');
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "lush_packets", '1L');
+    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "subtitle", '1');
     // 屏幕常亮
     this.mIjkMediaPlayer.setScreenOnWhilePlaying(true);
     // 变速播放
@@ -590,28 +599,28 @@ struct EnhancePlayer {
 
     let mOnBufferingUpdateListener: OnBufferingUpdateListener = {
       onBufferingUpdate: (percent: number) => {
-        LogUtils.getInstance().LOGI("OnBufferingUpdateListener-->go:" + percent);
-        let MediaInfo = this.mIjkMediaPlayer.getMediaInfo()
-        LogUtils.getInstance().LOGI('getMediaInfo---' + MediaInfo);
-        let VideoWidth = this.mIjkMediaPlayer.getVideoWidth()
-        LogUtils.getInstance().LOGI('getVideoWidth---' + VideoWidth);
-        let VideoHeight = this.mIjkMediaPlayer.getVideoHeight()
-        LogUtils.getInstance().LOGI('getVideoHeight---' + VideoHeight);
-        let VideoSarNum = this.mIjkMediaPlayer.getVideoSarNum()
-        LogUtils.getInstance().LOGI('getVideoSarNum---' + VideoSarNum);
-        let VideoSarDen = this.mIjkMediaPlayer.getVideoSarDen()
-        LogUtils.getInstance().LOGI('getVideoSarDen---' + VideoSarDen);
-        let AudioSessionId = this.mIjkMediaPlayer.getAudioSessionId()
-        LogUtils.getInstance().LOGI('getAudioSessionId---' + AudioSessionId);
-        let Looping = this.mIjkMediaPlayer.isLooping()
-        LogUtils.getInstance().LOGI('isLooping---' + Looping);
+        // LogUtils.getInstance().LOGI("OnBufferingUpdateListener-->go:" + percent);
+        // let MediaInfo = this.mIjkMediaPlayer.getMediaInfo()
+        // LogUtils.getInstance().LOGI('getMediaInfo---' + MediaInfo);
+        // let VideoWidth = this.mIjkMediaPlayer.getVideoWidth()
+        // LogUtils.getInstance().LOGI('getVideoWidth---' + VideoWidth);
+        // let VideoHeight = this.mIjkMediaPlayer.getVideoHeight()
+        // LogUtils.getInstance().LOGI('getVideoHeight---' + VideoHeight);
+        // let VideoSarNum = this.mIjkMediaPlayer.getVideoSarNum()
+        // LogUtils.getInstance().LOGI('getVideoSarNum---' + VideoSarNum);
+        // let VideoSarDen = this.mIjkMediaPlayer.getVideoSarDen()
+        // LogUtils.getInstance().LOGI('getVideoSarDen---' + VideoSarDen);
+        // let AudioSessionId = this.mIjkMediaPlayer.getAudioSessionId()
+        // LogUtils.getInstance().LOGI('getAudioSessionId---' + AudioSessionId);
+        // let Looping = this.mIjkMediaPlayer.isLooping()
+        // LogUtils.getInstance().LOGI('isLooping---' + Looping);
       }
     }
     this.mIjkMediaPlayer.setOnBufferingUpdateListener(mOnBufferingUpdateListener);
 
     let mOnSeekCompleteListener: OnSeekCompleteListener = {
       onSeekComplete: () => {
-        LogUtils.getInstance().LOGI("OnSeekCompleteListener-->go");
+        //  LogUtils.getInstance().LOGI("OnSeekCompleteListener-->go");
         that.startPlayOrResumePlay();
       }
     }
@@ -627,7 +636,7 @@ struct EnhancePlayer {
     let mOnErrorListener: OnErrorListener = {
       onError: (what: number, extra: number) => {
         this.stopProgressTask();
-        LogUtils.getInstance().LOGI("OnErrorListener-->go:" + what + "===" + extra)
+        //  LogUtils.getInstance().LOGI("OnErrorListener-->go:" + what + "===" + extra)
       }
     }
 
@@ -638,13 +647,12 @@ struct EnhancePlayer {
   }
 
   private pause() {
-    if (this.mIjkMediaPlayer.isPlaying()) {
-      this.mIjkMediaPlayer.pause();
-      this.setProgress();
-      this.mDestroyPage = true;
-      this.CONTROL_PlayStatus = PlayStatus.PAUSE;
-      this.updateSession()
-    }
+    this.playing = false
+    this.mIjkMediaPlayer.pause();
+    this.setProgress();
+    this.mDestroyPage = true;
+    this.CONTROL_PlayStatus = PlayStatus.PAUSE;
+    this.updateSession()
   }
 
   private stop() {
@@ -661,9 +669,9 @@ struct EnhancePlayer {
 
   private getVideoSize() {
     let VideoWidth = this.mIjkMediaPlayer.getVideoWidth();
-    LogUtils.getInstance().LOGI("getVideoWidth---" + VideoWidth);
+    //  LogUtils.getInstance().LOGI("getVideoWidth---" + VideoWidth);
     let VideoHeight = this.mIjkMediaPlayer.getVideoHeight();
-    LogUtils.getInstance().LOGI("getVideoHeight---" + VideoHeight);
+    //  LogUtils.getInstance().LOGI("getVideoHeight---" + VideoHeight);
     const aspectRatioNow = VideoWidth / VideoHeight;
     const screenAspectRatio = this.screen_width / this.screen_height;
     if (aspectRatioNow > screenAspectRatio) {
