@@ -9,6 +9,7 @@ struct SettingsPage {
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
+  @StorageLink('recentPlay') recentPlay: boolean = true
   @StorageLink('defaultPlayer') defaultPlayer: string = 'FFMpeg播放器'
   @StorageLink('subtitleSize') subtitleSize: string = '22'
   fastForwardSecondsList = ['15', '30', '60', '120']
@@ -72,7 +73,7 @@ struct SettingsPage {
           .borderRadius(10)
 
           Row() {
-            Text('允许后台播放')
+            Text('后台播放')
               .fontSize(18)
               .flexGrow(1)
             Toggle({ type: ToggleType.Switch, isOn: this.allowBackgroundPlay })
@@ -96,6 +97,26 @@ struct SettingsPage {
               .onChange((value: boolean) => {
                 this.allowPlayBackExist = value
                 PreferencesUtil.putPreferencesValue("sweet_video", "allowPlayBackExist", this.allowPlayBackExist)
+              })
+              .selectedColor($r('app.color.main_color'))
+          }
+          .padding(16)
+          .width('100%')
+          .backgroundColor($r('app.color.start_window_background_blur'))
+          .borderRadius(10)
+          .margin({ top: 12 })
+
+          Row() {
+            Text('开启历史记录')
+              .fontSize(18)
+              .flexGrow(1)
+            Toggle({ type: ToggleType.Switch, isOn: this.recentPlay })
+              .onChange(async (value: boolean) => {
+                this.recentPlay = value
+                if (!this.recentPlay) {
+                  await PreferencesUtil.putPreferencesValue('sweet_video', 'recent_play', []);
+                }
+                PreferencesUtil.putPreferencesValue("sweet_video", "recentPlay", this.recentPlay)
               })
               .selectedColor($r('app.color.main_color'))
           }

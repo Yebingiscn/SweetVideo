@@ -25,8 +25,9 @@ import AVSessionUtil, { avSessionState } from '../utils/AVSessionUtil'
 import { avSession as avSessionManager } from '@kit.AVSessionKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
-import VideoInfoUtil, { VideoMetadataFromPlayer } from '../utils/VideoInfoUtil'
+import VideoInfoUtil, { VideoMetadata, VideoMetadataFromPlayer } from '../utils/VideoInfoUtil'
 import PreferencesUtil from '../utils/PreferencesUtil'
+import SelectFileUtil from '../utils/SelectFileUtil'
 
 const context = getContext() as common.UIAbilityContext;
 
@@ -48,11 +49,13 @@ struct EnhancePlayer {
   @State loadingVisible: Visibility = Visibility.None;
   @State replayVisible: Visibility = Visibility.None;
   @State volume: number = 1.0;
-  @State playSpeed: string = '1f';
+  @State playSpeed: string = '1';
   now_playing: VideoMetadataFromPlayer | undefined = undefined
   @State oldSeconds: number = 0;
   @State video_url: string = ''
   @State total_time: number = 0
+  @State currentSpeedIndex: number = 0
+  @State longPressStartX: number = 0
   windowClass = window.getLastWindow(context)
   xComponentController: XComponentController = new XComponentController()
   @State @Watch('setScreen') ShowControl: boolean = false
@@ -60,9 +63,10 @@ struct EnhancePlayer {
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
   @State onSwiping: boolean = false
   @State long_press: boolean = false
-  @State last_speed: string = '1f'
+  @State last_speed: string = '1'
   @State swipe_start_x: number = 0
   @State isHorizontalSwiping: boolean = false
+  @State video_meta_data: VideoMetadata[] = []
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
   private CONTROL_PlayStatus = PlayStatus.INIT;
   private mIjkMediaPlayer = IjkMediaPlayer.getInstance();
@@ -140,7 +144,7 @@ struct EnhancePlayer {
             left: (this.screen_height > this.screen_width ? 5 : 5),
             right: 20,
             top: (this.screen_height > this.screen_width ? DataSyncUtil.getActuallyTopSafeHeight() : 5),
-            bottom: 10
+            bottom: 5
           })
 
           Stack() { //底栏
@@ -159,7 +163,7 @@ struct EnhancePlayer {
             }
           }
           .backgroundColor('#61000000')
-          .height(this.screen_height > this.screen_width ? '20%' : '25%')
+          .height(this.screen_height > this.screen_width ? 180 : 110)
           .width('100%')
           .padding(1)
         }.height('100%').width('100%')
@@ -169,7 +173,7 @@ struct EnhancePlayer {
 
       if (this.long_press) {
         Stack({ alignContent: Alignment.BottomEnd }) { //快进提示
-          Text('3.0x ⏩').fontColor($r('sys.color.white')).fontSize(15).fontWeight(FontWeight.Bold)
+          Text(this.playSpeed + 'x ⏩').fontColor($r('sys.color.white')).fontSize(15).fontWeight(FontWeight.Bold)
         }
         .padding({
           left: 25,
@@ -186,7 +190,7 @@ struct EnhancePlayer {
       Column()
         .width('100%')
         .height('50%')//触控区域
-        .gesture(GestureGroup(GestureMode.Exclusive,
+        .gesture(GestureGroup(GestureMode.Parallel,
           TapGesture({ count: 2 })
             .onAction((event: GestureEvent) => {
               const tapX = event.fingerList[0].localX;
@@ -207,18 +211,37 @@ struct EnhancePlayer {
             .onAction(() => {
               this.long_press = true
               this.last_speed = this.playSpeed
-              this.mIjkMediaPlayer?.setSpeed('3f')
+              this.playSpeed = '3'
+              this.mIjkMediaPlayer?.setSpeed(this.playSpeed)
+              this.currentSpeedIndex = VideoInfoUtil.speed_index_map.indexOf(3);
             })
             .onActionEnd(() => {
               this.long_press = false
               this.mIjkMediaPlayer?.setSpeed(this.last_speed);
             }),
           PanGesture().onActionStart((event: GestureEvent) => {
-            const firstTouch = event.fingerList[0];
-            this.swipe_start_x = firstTouch.localX;
-            this.last_play_time = this.play_time;
+            if (this.long_press) { // 初始化长按滑动参数
+              this.longPressStartX = event.fingerList[0].localX;
+            } else {
+              const firstTouch = event.fingerList[0];
+              this.swipe_start_x = firstTouch.localX;
+              this.last_play_time = this.play_time;
+            }
           })
             .onActionUpdate((event: GestureEvent) => {
+              if (this.long_press) { // 长按状态下的滑动处理
+                const deltaX = event.fingerList[0].localX - this.longPressStartX;
+                const SWIPE_THRESHOLD = 30;
+                if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
+                  const direction = deltaX > 0 ? 1 : -1;
+                  const arrayLength = VideoInfoUtil.speed_index_map.length;
+                  this.currentSpeedIndex = (this.currentSpeedIndex + direction + arrayLength) % arrayLength;
+                  this.playSpeed = VideoInfoUtil.speed_index_map[this.currentSpeedIndex].toString()
+                  this.mIjkMediaPlayer?.setSpeed(this.playSpeed);
+                  this.longPressStartX = event.fingerList[0].localX; // 重置起始点（实现分档切换效果）
+                }
+                return
+              }
               if (event.fingerList.length === 1) {
                 const currentX = event.fingerList[0].localX;
                 const deltaX = currentX - this.swipe_start_x;
@@ -228,7 +251,8 @@ struct EnhancePlayer {
                 }
                 if (this.isHorizontalSwiping) {
                   const timePerPixel = 150; // 灵敏度控制
-                  this.play_time = this.last_play_time + (deltaX * timePerPixel);
+                  this.play_time =
+                    Math.max(0, Math.min(this.last_play_time + (deltaX * timePerPixel), this.total_time));
                 }
               }
             })
@@ -356,7 +380,12 @@ struct EnhancePlayer {
     //  LogUtils.getInstance().LOGI("aboutToAppear");
     let record = router.getParams() as Record<string, string>
     if (record) {
-      this.now_playing = JSON.parse(record['metadata'])
+      try {
+        this.now_playing = JSON.parse(record['metadata']) as VideoMetadataFromPlayer
+        this.video_meta_data = JSON.parse(record['metadata_list']) as VideoMetadata[];
+      } catch (e) {
+        console.error(e)
+      }
     }
     this.allowBackgroundPlay =
       await PreferencesUtil.getPreferencesValue("sweet_video", "allowBackgroundPlay", true) as boolean
@@ -405,6 +434,11 @@ struct EnhancePlayer {
     await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
     await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
     await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
+    if (this.video_meta_data.length > 0) {
+      this.video_meta_data[this.video_meta_data.findIndex(i => i.date == this.now_playing?.date)].last_play =
+        this.play_time
+      await SelectFileUtil.saveData(this.video_meta_data, this.now_playing!)
+    }
   }
 
   updateSession() {
@@ -447,6 +481,10 @@ struct EnhancePlayer {
       this.stopProgressTask();
       this.startProgressTask();
       this.play();
+      setTimeout(() => {
+        console.error('test seek' + this.now_playing?.last_play)
+        this.seekTo(this.now_playing?.last_play.toString()!)
+      }, 150)
     }
     if (this.CONTROL_PlayStatus == PlayStatus.PAUSE) {
       this.mIjkMediaPlayer.start();
@@ -513,7 +551,7 @@ struct EnhancePlayer {
     }
     this.CONTROL_PlayStatus = PlayStatus.PLAY;
     //设置debug模式
-    this.mIjkMediaPlayer.setDebug(false);
+    this.mIjkMediaPlayer.setDebug(true);
     //初始化配置
     this.mIjkMediaPlayer.native_setup();
     // 初始化配置后需要重新设置音频流音量，否则音量为默认值1.0
@@ -527,24 +565,17 @@ struct EnhancePlayer {
       VideoInfoUtil.support_audio_format.includes(this.now_playing?.title.split('.').pop()!.toLowerCase()!)
         ? '524288' : '943718400'
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", buffer_area);
-    // 204800 943718400
-    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "overlay-format", "SDL_FCC_RV32")
-    //停止预读的最小帧数
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "min-frames", "120");
-    //启动预加载
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "start-on-prepared", "1");
-    // 设置缓冲，这是播放器的缓冲区
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "videotoolbox", "1"); // 用硬件解码
-
-    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "packet-buffering", "5");
-    //跳帧处理,放CPU处理较慢时，进行跳帧处理，保证播放流程，画面和声音同步
+    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "packet-buffering", "1");
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "framedrop", "5");
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-all-videos", "1");
-    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-hevc", "1");
+    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-hevc", "0");
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-sync", "1");
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-auto-rotate", "1");
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-handle-resolution-change", "1");
-    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "skip_loop_filter", "48");
+    this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "skip_loop_filter", "48L");
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzeduration", "100");
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzemaxduration", '100L');
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "lush_packets", '1L');
@@ -596,7 +627,6 @@ struct EnhancePlayer {
       }
     }
     this.mIjkMediaPlayer.setOnCompletionListener(mOnCompletionListener);
-
     let mOnBufferingUpdateListener: OnBufferingUpdateListener = {
       onBufferingUpdate: (percent: number) => {
         // LogUtils.getInstance().LOGI("OnBufferingUpdateListener-->go:" + percent);
@@ -617,7 +647,6 @@ struct EnhancePlayer {
       }
     }
     this.mIjkMediaPlayer.setOnBufferingUpdateListener(mOnBufferingUpdateListener);
-
     let mOnSeekCompleteListener: OnSeekCompleteListener = {
       onSeekComplete: () => {
         //  LogUtils.getInstance().LOGI("OnSeekCompleteListener-->go");
@@ -660,6 +689,7 @@ struct EnhancePlayer {
     this.CONTROL_PlayStatus = PlayStatus.INIT;
     this.mIjkMediaPlayer.stop();
     this.mIjkMediaPlayer.release();
+    console.error('release')
     this.stopProgressTask();
   }
 

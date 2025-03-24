@@ -2,8 +2,8 @@ import PreferencesUtil from './PreferencesUtil';
 import { VideoMetadata } from './VideoInfoUtil';
 
 class RecentPlayUtil {
+  public deque: VideoMetadata[] = [];
   private readonly MAX_SIZE = 30;
-  private deque: VideoMetadata[] = [];
   private videoIdMap: Map<string, number> = new Map(); // ID -> Index in deque
 
   constructor() {
@@ -25,6 +25,13 @@ class RecentPlayUtil {
 
   async getRecentPlaybacks(): Promise<VideoMetadata[]> {
     return [...this.deque];
+  }
+
+  public async delData(item: VideoMetadata) {
+    if (this.deque.findIndex(i => i.date === item.date) !== -1) {
+      this.deque = this.deque.filter(i => i.date != item?.date)
+      await PreferencesUtil.putPreferencesValue('sweet_video', 'recent_play', this.deque);
+    }
   }
 
   private async init() {

@@ -20,14 +20,14 @@ function symbolGlyphFancy(fontSize: number, width: number | string, height: numb
 @Entry
 @Component
 struct RecentPlay {
-  @State videoDataSource: IDataSource = new RecentVideoDataSource([])
-  @State video_meta_data: VideoMetadata[] = []
+  @State videoDataSource: RecentVideoDataSource = new RecentVideoDataSource([])
+  @State recent_video_meta_data: VideoMetadata[] = []
   @State MenuBuilderState: boolean = false
   private listScroller: Scroller = new Scroller();
 
   async aboutToAppear(): Promise<void> {
-    this.video_meta_data = await RecentPlayUtil.getRecentPlaybacks()
-    this.videoDataSource = new RecentVideoDataSource(this.video_meta_data);
+    this.recent_video_meta_data = await RecentPlayUtil.getRecentPlaybacks()
+    this.videoDataSource = new RecentVideoDataSource(this.recent_video_meta_data);
   }
 
   @Builder
@@ -47,7 +47,8 @@ struct RecentPlay {
           .height(30)
       }.padding(10).onClick(() => {
         this.MenuBuilderState = false
-        ToolsUtil.routerWhere('pages/FFMpegPlayer', item?.date, this.video_meta_data, false)
+        ToolsUtil.isFileExist(item) ?
+        ToolsUtil.routerWhere('pages/FFMpegPlayer', item?.date, false) : this.delData(item!)
       })
 
       Divider().height(2)
@@ -59,12 +60,17 @@ struct RecentPlay {
           .width(180)
           .height(30)
       }.padding(10).onClick(() => {
-
+        this.delData(item!)
       })
-    }.onAppear(() => {
+    }.width(150).onAppear(() => {
       ToolsUtil.startVibration()
       this.MenuBuilderState = true
     })
+  }
+
+  delData(item: VideoMetadata) {
+    RecentPlayUtil.delData(item)
+    this.videoDataSource.deleteData(this.videoDataSource.getAllData().indexOf(item))
   }
 
   build() {
@@ -96,7 +102,7 @@ struct RecentPlay {
       })
       .justifyContent(FlexAlign.Start)
 
-      if (this.video_meta_data.length === 0) {
+      if (this.recent_video_meta_data.length === 0) {
         Text('无最近播放记录')
           .fontSize(25)
           .fontWeight(FontWeight.Medium)
@@ -120,8 +126,8 @@ struct RecentPlay {
                   .margin({ left: 5 })
                   .autoResize(true)
                   .interpolation(ImageInterpolation.Low)
-                Text((String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title)).slice(0,
-                  String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title).lastIndexOf('.')))
+                Text((String(SelectFileUtil.getItem(this.recent_video_meta_data, item?.date)?.title)).slice(0,
+                  String(SelectFileUtil.getItem(this.recent_video_meta_data, item?.date)?.title).lastIndexOf('.')))
                   .fontSize(15)
                   .fontWeight(FontWeight.Medium)
                   .maxLines(4)
@@ -131,13 +137,11 @@ struct RecentPlay {
                   .wordBreak(WordBreak.BREAK_ALL)
               }
               .onClick(async () => {
-                ToolsUtil.routerWhere('pages/Player', item.date, this.video_meta_data, false)
+                ToolsUtil.isFileExist(item) ?
+                ToolsUtil.routerWhere('pages/Player', item.date, false) : this.delData(item)
               })
-              .margin({ top: 10 })
-              .backgroundColor($r('app.color.list_item_background'))
               .width('100%')
-              .height(120)
-              .borderRadius(10)
+              .height(100)
               .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
             }
           }.bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)

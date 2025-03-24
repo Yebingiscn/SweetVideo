@@ -2,7 +2,7 @@ import { common } from '@kit.AbilityKit';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
 import { fileUri, fileIo as fs, picker } from '@kit.CoreFileKit';
 import VideoUtil from './VideoInfoUtil';
-import VideoInfoUtil, { VideoMetadata } from './VideoInfoUtil';
+import VideoInfoUtil, { VideoMetadata, VideoMetadataFromPlayer } from './VideoInfoUtil';
 import { BusinessError } from '@kit.BasicServicesKit';
 import PreferencesUtil from './PreferencesUtil';
 import { hilog } from '@kit.PerformanceAnalysisKit';
@@ -146,7 +146,7 @@ class SelectFileUtil {
   }
 
   async getVideoMetaData() {
-    return await PreferencesUtil.getPreferencesValue('sweet_video', 'video_meta_data', []) as VideoMetadata[]
+    return await PreferencesUtil.getPreferencesValue('sweet_video', 'recent_video_meta_data', []) as VideoMetadata[]
   }
 
   async getVideoMetaDataEncryption() {
@@ -157,8 +157,15 @@ class SelectFileUtil {
     return await PreferencesUtil.getPreferencesValue('sweet_video', 'passwd', '') as string
   }
 
+  async saveData(show_list: VideoMetadata[], target_data: VideoMetadataFromPlayer) {
+    const tmp_meta_data = await this.getVideoMetaData()
+    tmp_meta_data.findIndex(item => item.date === target_data.date) !== -1
+      ? await this.saveVideoMetaData(show_list) :
+      await this.saveVideoMetaDataEncryption(show_list)
+  }
+
   async saveVideoMetaData(video_meta_data: VideoMetadata[]) {
-    await PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data', video_meta_data);
+    await PreferencesUtil.putPreferencesValue('sweet_video', 'recent_video_meta_data', video_meta_data);
   }
 
   async saveVideoMetaDataEncryption(video_meta_data_encryption: VideoMetadata[]) {

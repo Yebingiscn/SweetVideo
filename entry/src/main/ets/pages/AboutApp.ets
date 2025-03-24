@@ -146,7 +146,8 @@ struct AboutApp {
                   .fontSize(18)
                   .width('80%')
                   .maxLines(3)
-                  .fontColor($r('app.color.text_color')).margin({ bottom: 5 })
+                  .fontColor($r('app.color.text_color'))
+                  .margin({ bottom: 5 })
                 Text('1. rmvb, wmv, avi格式仅能使用 FFMpeg 播放器，其余格式若系统播放器无法播放或者没有声音，请首页长按视频选择 FFMpeg 播放器播放')
                   .fontSize(15)
                   .fontColor($r('app.color.text_color')).width('90%')
@@ -160,7 +161,6 @@ struct AboutApp {
           .borderRadius(10)
           .width('100%')
           .backgroundColor($r('app.color.start_window_background_blur'))
-
 
           Column() {
             Row() {

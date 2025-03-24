@@ -36,18 +36,23 @@ class ToolsUtil {
     })
   }
 
-  async compareByName(list: VideoMetadata[], encryption: boolean) {
-    list.sort((a: VideoMetadata, b: VideoMetadata) => String(pinyin4js.getShortPinyin(a.title))
-        .localeCompare(String(pinyin4js.getShortPinyin(b.title)))).map(i => i.date);
-    encryption ? await SelectFileUtil.saveVideoMetaDataEncryption(list) :
-      await SelectFileUtil.saveVideoMetaData(list)
+  async sortByName(list: VideoMetadata[], encryption: boolean) {
+    const sortedList = [...list].sort((a, b) =>
+    String(pinyin4js.getShortPinyin(a.title))
+      .localeCompare(String(pinyin4js.getShortPinyin(b.title)))
+    );
+    await (encryption ? SelectFileUtil.saveVideoMetaDataEncryption(sortedList)
+      : SelectFileUtil.saveVideoMetaData(sortedList));
+    return sortedList // 返回处理后的数据
   }
 
-  async compareByTime(list: VideoMetadata[], encryption: boolean) {
-    list.sort((a, b) => b.date.localeCompare(a.date))// 调换a和b的位置
-      .map(i => i.date);
-    encryption ? await SelectFileUtil.saveVideoMetaDataEncryption(list) :
-      await SelectFileUtil.saveVideoMetaData(list)
+  async sortByTime(list: VideoMetadata[], encryption: boolean) {
+    const sortedList = [...list].sort((a, b) => b.date.localeCompare(a.date));
+    await (encryption ? SelectFileUtil.saveVideoMetaDataEncryption(sortedList)
+      : SelectFileUtil.saveVideoMetaData(sortedList));
+    const latestData = encryption ? await SelectFileUtil.getVideoMetaDataEncryption()
+      : await SelectFileUtil.getVideoMetaData();
+    return latestData
   }
 
   savePwd(passwd: string) {
@@ -79,8 +84,12 @@ class ToolsUtil {
     });
   }
 
-  routerWhere(uri: string, item: string | undefined, list: VideoMetadata [], encryption: boolean) {
-    if (!encryption) {
+  async routerWhere(uri: string, item: string | undefined, encryption: boolean) {
+    let list: VideoMetadata [] = []
+    encryption ? list = await SelectFileUtil.getVideoMetaDataEncryption() :
+      list = await SelectFileUtil.getVideoMetaData()
+    const recentPlay = await PreferencesUtil.getPreferencesValue("sweet_video", "recentPlay", true) as boolean
+    if (!encryption && recentPlay) {
       RecentPlayUtil.addPlayback(list.find(i => i.date === item)!)
     }
     router.pushUrl({

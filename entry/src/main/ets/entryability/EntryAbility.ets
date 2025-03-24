@@ -24,7 +24,6 @@ export default class EntryAbility extends UIAbility {
   handleParam(want: Want, isNewWant: boolean) {
     systemShare.getSharedData(want)
       .then((data: systemShare.SharedData) => {
-        console.error('test12')
         data.getRecords().forEach((record: systemShare.SharedRecord) => {
           WantProcess.want_uri = record.uri!
           WantProcess.isSystemShare = true

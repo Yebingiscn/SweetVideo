@@ -11,6 +11,7 @@ struct SplashPage {
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
   @StorageLink('defaultPlayer') defaultPlayer: string = 'FFMpeg播放器'
   @StorageLink('subtitleSize') subtitleSize: string = '22'
+  @StorageLink('recentPlay') recentPlay: boolean = true
   privacyDialogController: CustomDialogController | null = new CustomDialogController({
     builder: PrivacyPolicyDialog({
       confirm: () => {
@@ -60,6 +61,7 @@ struct SplashPage {
       PreferencesUtil.putPreferencesValue("sweet_video", "fastForwardTime", this.fastForwardSeconds)
       PreferencesUtil.putPreferencesValue("sweet_video", "defaultPlayer", this.defaultPlayer)
       PreferencesUtil.putPreferencesValue("sweet_video", "subTitleSize", this.subtitleSize)
+      PreferencesUtil.putPreferencesValue("sweet_video", "recentPlay", this.recentPlay)
       PreferencesUtil.putPreferencesValue("sweet_video", "allowPlayBackExist", this.allowPlayBackExist)
       PreferencesUtil.putPreferencesValue("sweet_video", "isInitSetting", true)
     } else {
@@ -70,6 +72,7 @@ struct SplashPage {
         this.allowPlayBackExist) as boolean
       this.fastForwardSeconds =
         await PreferencesUtil.getPreferencesValue("sweet_video", "fastForwardTime", this.fastForwardSeconds) as string
+      this.recentPlay = await PreferencesUtil.getPreferencesValue("sweet_video", "recentPlay", true) as boolean
       this.defaultPlayer =
         await PreferencesUtil.getPreferencesValue("sweet_video", "defaultPlayer", this.defaultPlayer) as string
       this.subtitleSize =

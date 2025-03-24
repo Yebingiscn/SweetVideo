@@ -37,7 +37,7 @@ export default class DataUtil<T> implements IDataSource {
   appendData(item: T): void {
     this.sources.push(item);
     const index = this.sources.length - 1;
-    this.listeners.forEach(listener => {
+    this.listeners.forEach((listener: DataChangeListener) => {
       listener.onDataAdd(index);
     });
   }
@@ -48,7 +48,7 @@ export default class DataUtil<T> implements IDataSource {
       return;
     }
     this.sources.splice(index, 0, item);
-    this.listeners.forEach(listener => {
+    this.listeners.forEach((listener: DataChangeListener) => {
       listener.onDataAdd(index);
     });
   }
@@ -59,7 +59,7 @@ export default class DataUtil<T> implements IDataSource {
     }
     const lastIndex = this.sources.length - 1;
     this.sources.pop();
-    this.listeners.forEach(listener => {
+    this.listeners.forEach((listener: DataChangeListener) => {
       listener.onDataDelete(lastIndex);
     });
   }
@@ -78,7 +78,7 @@ export default class DataUtil<T> implements IDataSource {
   clearAllData(): void {
     const length = this.sources.length;
     this.sources = [];
-    this.listeners.forEach(listener => {
+    this.listeners.forEach((listener: DataChangeListener) => {
       for (let i = 0; i < length; i++) {
         listener.onDataDelete(i);
       }
@@ -196,5 +196,20 @@ export class RecentVideoDataSource implements IDataSource {
 
   getKey(index: number): string {
     return this.data[index].date; // 确保date是唯一标识
+  }
+
+  notifyDataDelete(index: number): void {
+    this.listeners.forEach(listener => {
+      listener.onDataDelete(index);
+    })
+  }
+
+  public deleteData(index: number): void {
+    this.data.splice(index, 1);
+    this.notifyDataDelete(index);
+  }
+
+  public getAllData(): VideoMetadata[] {
+    return this.data;
   }
 }
