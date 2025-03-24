@@ -217,6 +217,7 @@ struct EnhancePlayer {
             })
             .onActionEnd(() => {
               this.long_press = false
+              this.playSpeed = this.last_speed
               this.mIjkMediaPlayer?.setSpeed(this.last_speed);
             }),
           PanGesture().onActionStart((event: GestureEvent) => {
@@ -482,7 +483,6 @@ struct EnhancePlayer {
       this.startProgressTask();
       this.play();
       setTimeout(() => {
-        console.error('test seek' + this.now_playing?.last_play)
         this.seekTo(this.now_playing?.last_play.toString()!)
       }, 150)
     }
@@ -551,7 +551,7 @@ struct EnhancePlayer {
     }
     this.CONTROL_PlayStatus = PlayStatus.PLAY;
     //设置debug模式
-    this.mIjkMediaPlayer.setDebug(true);
+    this.mIjkMediaPlayer.setDebug(false);
     //初始化配置
     this.mIjkMediaPlayer.native_setup();
     // 初始化配置后需要重新设置音频流音量，否则音量为默认值1.0

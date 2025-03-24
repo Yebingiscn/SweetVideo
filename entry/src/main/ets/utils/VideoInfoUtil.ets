@@ -115,34 +115,6 @@ class VideoInfoUtil {
     return tmp
   }
 
-  // 并发控制核心方法
-  private async enqueue<T>(task: () => Promise<T>): Promise<T> {
-    return new Promise((resolve, reject) => {
-      const wrappedTask = async () => {
-        try {
-          const result = await task();
-          resolve(result);
-        } catch (error) {
-          reject(error);
-        } finally {
-          this.activeCount--;
-          this.processNext();
-        }
-      };
-
-      this.pendingQueue.push(wrappedTask);
-      this.processNext();
-    });
-  }
-
-  private processNext() {
-    if (this.activeCount < this.MAX_CONCURRENT && this.pendingQueue.length > 0) {
-      this.activeCount++;
-      const task = this.pendingQueue.shift()!;
-      task();
-    }
-  }
-
   async getVideoCover(sandbox_path: string, date: string, uri: string, size: number[], time: number) {
     return this.enqueue(async () => {
       await ReqPermission.persistPermission(uri);
@@ -283,6 +255,34 @@ class VideoInfoUtil {
     } catch (error) {
       console.error("获取 audioTracks 失败:", error);
       return []; // 返回空数组表示没有获取到音轨
+    }
+  }
+
+  // 并发控制核心方法
+  private async enqueue<T>(task: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const wrappedTask = async () => {
+        try {
+          const result = await task();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        } finally {
+          this.activeCount--;
+          this.processNext();
+        }
+      };
+
+      this.pendingQueue.push(wrappedTask);
+      this.processNext();
+    });
+  }
+
+  private processNext() {
+    if (this.activeCount < this.MAX_CONCURRENT && this.pendingQueue.length > 0) {
+      this.activeCount++;
+      const task = this.pendingQueue.shift()!;
+      task();
     }
   }
 }
