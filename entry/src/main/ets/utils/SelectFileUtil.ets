@@ -114,7 +114,7 @@ class SelectFileUtil {
     })
   }
 
-  async copyFileToPrivacySpace(video_meta_data_encryption: VideoMetadata[], uri: string, sandbox_video: string,
+  async copyFileToPrivacySpace(context: Context, video_meta_data_encryption: VideoMetadata[], uri: string, sandbox_video: string,
     encryption: boolean, sandbox_path: string, date: string, metadata: media.AVMetadata,
     file: fs.File): Promise<VideoMetadata> {
     const file1 = fs.openSync(uri, fs.OpenMode.READ_ONLY);
@@ -129,7 +129,7 @@ class SelectFileUtil {
       const videoInfo =
         await VideoInfoUtil.setVideoInfo(date, targetPath, file.name, metadata, encryption, sandbox_video, sandbox_path)
       video_meta_data_encryption.push(videoInfo);
-      await this.saveVideoMetaDataEncryption(video_meta_data_encryption);
+      await this.saveVideoMetaDataEncryption(context, video_meta_data_encryption);
       return videoInfo; // 返回新创建的元数据对象
     } catch (error) {
       console.error(`文件复制失败: ${uri}`, error);
@@ -145,31 +145,31 @@ class SelectFileUtil {
       == item.format ? item.title : item.title + '.' + item.format]
   }
 
-  async getVideoMetaData() {
-    return await PreferencesUtil.getPreferencesValue('sweet_video', 'recent_video_meta_data', []) as VideoMetadata[]
+  async getVideoMetaData(context: Context) {
+    return await PreferencesUtil.getPreferencesValue(context,'sweet_video', 'recent_video_meta_data', []) as VideoMetadata[]
   }
 
-  async getVideoMetaDataEncryption() {
-    return await PreferencesUtil.getPreferencesValue('sweet_video', 'video_meta_data_encryption', []) as VideoMetadata[]
+  async getVideoMetaDataEncryption(context:Context) {
+    return await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'video_meta_data_encryption', []) as VideoMetadata[]
   }
 
-  async getPassword() {
-    return await PreferencesUtil.getPreferencesValue('sweet_video', 'passwd', '') as string
+  async getPassword(context:Context) {
+    return await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'passwd', '') as string
   }
 
-  async saveData(show_list: VideoMetadata[], target_data: VideoMetadataFromPlayer) {
-    const tmp_meta_data = await this.getVideoMetaData()
+  async saveData(context:Context, show_list: VideoMetadata[], target_data: VideoMetadataFromPlayer) {
+    const tmp_meta_data = await this.getVideoMetaData(context)
     tmp_meta_data.findIndex(item => item.date === target_data.date) !== -1
-      ? await this.saveVideoMetaData(show_list) :
-      await this.saveVideoMetaDataEncryption(show_list)
+      ? await this.saveVideoMetaData(context, show_list) :
+      await this.saveVideoMetaDataEncryption(context, show_list)
   }
 
-  async saveVideoMetaData(video_meta_data: VideoMetadata[]) {
-    await PreferencesUtil.putPreferencesValue('sweet_video', 'recent_video_meta_data', video_meta_data);
+  async saveVideoMetaData(context:Context, video_meta_data: VideoMetadata[]) {
+    await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_video_meta_data', video_meta_data);
   }
 
-  async saveVideoMetaDataEncryption(video_meta_data_encryption: VideoMetadata[]) {
-    await PreferencesUtil.putPreferencesValue('sweet_video', 'video_meta_data_encryption', video_meta_data_encryption);
+  async saveVideoMetaDataEncryption(context:Context, video_meta_data_encryption: VideoMetadata[]) {
+    await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'video_meta_data_encryption', video_meta_data_encryption);
   }
 
   getItem(list: VideoMetadata[], item: string): VideoMetadata | undefined {

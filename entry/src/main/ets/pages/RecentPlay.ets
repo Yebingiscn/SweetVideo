@@ -6,8 +6,10 @@ import SelectFileUtil from '../utils/SelectFileUtil';
 import { fileUri } from '@kit.CoreFileKit';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
 import ToolsUtil from '../utils/ToolsUtil';
+import { common } from '@kit.AbilityKit';
 
 const sandbox_path = getContext().filesDir + '/'
+const context = getContext() as common.UIAbilityContext;
 
 @Extend(SymbolGlyph)
 function symbolGlyphFancy(fontSize: number, width: number | string, height: number | string) {
@@ -48,7 +50,7 @@ struct RecentPlay {
       }.padding(10).onClick(() => {
         this.MenuBuilderState = false
         ToolsUtil.isFileExist(item) ?
-        ToolsUtil.routerWhere('pages/FFMpegPlayer', item?.date, false) : this.delData(item!)
+        ToolsUtil.routerWhere(context, 'pages/FFMpegPlayer', item?.date, false) : this.delData(context, item!)
       })
 
       Divider().height(2)
@@ -60,7 +62,7 @@ struct RecentPlay {
           .width(180)
           .height(30)
       }.padding(10).onClick(() => {
-        this.delData(item!)
+        this.delData(context, item!)
       })
     }.width(150).onAppear(() => {
       ToolsUtil.startVibration()
@@ -68,8 +70,8 @@ struct RecentPlay {
     })
   }
 
-  delData(item: VideoMetadata) {
-    RecentPlayUtil.delData(item)
+  delData(context: Context, item: VideoMetadata) {
+    RecentPlayUtil.delData(context, item)
     this.videoDataSource.deleteData(this.videoDataSource.getAllData().indexOf(item))
   }
 
@@ -103,8 +105,8 @@ struct RecentPlay {
       .justifyContent(FlexAlign.Start)
 
       if (this.recent_video_meta_data.length === 0) {
-        Text('无最近播放记录')
-          .fontSize(25)
+        Text('此时无声胜有声 <(￣ c￣)y▂ξ')
+          .fontSize(24)
           .fontWeight(FontWeight.Medium)
           .textAlign(TextAlign.Center)
           .align(Alignment.Center)
@@ -138,7 +140,7 @@ struct RecentPlay {
               }
               .onClick(async () => {
                 ToolsUtil.isFileExist(item) ?
-                ToolsUtil.routerWhere('pages/Player', item.date, false) : this.delData(item)
+                ToolsUtil.routerWhere(context, 'pages/Player', item.date, false) : this.delData(context, item)
               })
               .width('100%')
               .height(100)

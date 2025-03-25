@@ -1,16 +1,18 @@
 import PreferencesUtil from './PreferencesUtil';
 import { VideoMetadata } from './VideoInfoUtil';
+import { common, Context } from '@kit.AbilityKit';
 
 class RecentPlayUtil {
   public deque: VideoMetadata[] = [];
   private readonly MAX_SIZE = 30;
   private videoIdMap: Map<string, number> = new Map(); // ID -> Index in deque
+  private context = getContext() as common.UIAbilityContext;
 
   constructor() {
-    this.init();
+    this.init(this.context);
   }
 
-  async addPlayback(item: VideoMetadata): Promise<void> {
+  async addPlayback(context: Context, item: VideoMetadata): Promise<void> {
     if (this.videoIdMap.has(item.date)) {
       const existingIndex = this.videoIdMap.get(item.date)!;
       this.deque.splice(existingIndex, 1);
@@ -20,22 +22,22 @@ class RecentPlayUtil {
       this.deque.pop();
     }
     this.updateMapIndices();
-    await this.persistData();
+    await this.persistData(context);
   }
 
   async getRecentPlaybacks(): Promise<VideoMetadata[]> {
     return [...this.deque];
   }
 
-  public async delData(item: VideoMetadata) {
+  public async delData(context: Context, item: VideoMetadata) {
     if (this.deque.findIndex(i => i.date === item.date) !== -1) {
       this.deque = this.deque.filter(i => i.date != item?.date)
-      await PreferencesUtil.putPreferencesValue('sweet_video', 'recent_play', this.deque);
+      await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_play', this.deque);
     }
   }
 
-  private async init() {
-    await this.loadData();
+  private async init(context: Context) {
+    await this.loadData(context);
   }
 
   private updateMapIndices() {
@@ -45,12 +47,12 @@ class RecentPlayUtil {
     });
   }
 
-  private async persistData() {
-    await PreferencesUtil.putPreferencesValue('sweet_video', 'recent_play', this.deque);
+  private async persistData(context: Context) {
+    await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_play', this.deque);
   }
 
-  private async loadData() {
-    this.deque = await PreferencesUtil.getPreferencesValue('sweet_video', 'recent_play', []) as VideoMetadata[]
+  private async loadData(context: Context) {
+    this.deque = await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'recent_play', []) as VideoMetadata[]
     this.updateMapIndices();
   }
 }

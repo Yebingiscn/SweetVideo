@@ -18,7 +18,7 @@ import DataSyncUtil from '../utils/DataSyncUtil'
 import TimeUtil from '../utils/TimeUtil'
 import ToolsUtil from '../utils/ToolsUtil'
 import { router, window } from '@kit.ArkUI'
-import { audio } from '@kit.AudioKit'
+import { audio, AVVolumePanel } from '@kit.AudioKit'
 import PermissionUtil from '../utils/PermissionUtil'
 import { common } from '@kit.AbilityKit'
 import AVSessionUtil, { avSessionState } from '../utils/AVSessionUtil'
@@ -28,6 +28,7 @@ import VideoOperateUtil from '../utils/VideoOperateUtil'
 import VideoInfoUtil, { VideoMetadata, VideoMetadataFromPlayer } from '../utils/VideoInfoUtil'
 import PreferencesUtil from '../utils/PreferencesUtil'
 import SelectFileUtil from '../utils/SelectFileUtil'
+import { settings } from '@kit.BasicServicesKit'
 
 const context = getContext() as common.UIAbilityContext;
 
@@ -56,6 +57,16 @@ struct EnhancePlayer {
   @State total_time: number = 0
   @State currentSpeedIndex: number = 0
   @State longPressStartX: number = 0
+  @State isLeftSideSwipe: boolean = false
+  @State isRightSideSwipe: boolean = false
+  @State isVerticalSwiping: boolean = false
+  @State screenBrightnessAtFirst: number = 0
+  @State swipe_start_y: number = 0
+  @State SwipeMovingY: number = 0
+  @State onSwipingVoice: boolean = false
+  @State onSwipingBrightness: boolean = false
+  @State screenBrightness: number = 0
+  @State isSliderPlayTimeChange: boolean = false
   windowClass = window.getLastWindow(context)
   xComponentController: XComponentController = new XComponentController()
   @State @Watch('setScreen') ShowControl: boolean = false
@@ -67,6 +78,7 @@ struct EnhancePlayer {
   @State swipe_start_x: number = 0
   @State isHorizontalSwiping: boolean = false
   @State video_meta_data: VideoMetadata[] = []
+  private initPinchDistance: number = 0;
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
   private CONTROL_PlayStatus = PlayStatus.INIT;
   private mIjkMediaPlayer = IjkMediaPlayer.getInstance();
@@ -96,7 +108,11 @@ struct EnhancePlayer {
 
         if (this.onSwiping) {
           Stack() {
-            Text(TimeUtil.convertMsToMMSS(this.play_time) + '/' + TimeUtil.convertMsToMMSS(this.total_time))
+            Text(this.isSliderPlayTimeChange ?
+              TimeUtil.convertMsToMMSS(this.play_time) + '/' + TimeUtil.convertMsToMMSS(this.total_time) :
+              (this.play_time - this.last_play_time > 0 ? '+' : '') +
+              Math.floor((this.play_time - this.last_play_time) / 1000) + 's : ' +
+              TimeUtil.convertMsToMMSS(this.play_time) + '/' + TimeUtil.convertMsToMMSS(this.total_time))
               .fontColor($r('sys.color.white'))
               .fontSize(25)
               .fontWeight(FontWeight.Bold)
@@ -138,12 +154,13 @@ struct EnhancePlayer {
                 .textOverflow({ overflow: TextOverflow.MARQUEE })
                 .fontColor($r('sys.color.white'))
             }
-          }.width('100%')
+          }.height(85)
+          .width('100%')
           .backgroundColor('#61000000')
           .padding({
             left: (this.screen_height > this.screen_width ? 5 : 5),
             right: 20,
-            top: (this.screen_height > this.screen_width ? DataSyncUtil.getActuallyTopSafeHeight() : 5),
+            top: (this.screen_height > this.screen_width ? DataSyncUtil.getActuallyTopSafeHeight() : 0),
             bottom: 5
           })
 
@@ -170,6 +187,86 @@ struct EnhancePlayer {
       }
       .visibility(this.ShowControl ? Visibility.Visible : Visibility.Hidden)
       .animation({ duration: 300, curve: Curve.Smooth })
+
+      if (this.onSwipingVoice) {
+        Stack() { //音量提示
+          Column() {
+            AVVolumePanel({
+              volumeLevel: this.volume,
+              volumeParameter: {
+                position: {
+                  x: 10000,
+                  y: 20000
+                }
+              }
+            }).visibility(Visibility.None)
+            SymbolGlyph($r('sys.symbol.speaker_wave_1'))
+              .fontSize(23)
+              .fontColor(['#f0f0f0'])
+            Slider({
+              value: this.volume,
+              min: VideoOperateUtil.min_volume,
+              max: VideoOperateUtil.max_volume,
+              step: 0.1,
+              style: SliderStyle.NONE,
+              direction: Axis.Horizontal,
+              reverse: false
+            })
+              .width(60)
+              .height(30)
+              .selectedColor('#e0e0e0')
+              .trackColor(Color.Black)
+              .trackThickness(40)
+              .onChange((value) => {
+                this.volume = value
+              })
+          }
+        }
+        .padding({
+          left: 25,
+          right: 25,
+          top: 10,
+          bottom: 10
+        })
+        .borderRadius(1000)
+        .backgroundColor('#30000000')
+        .backdropBlur(100)
+        .animation({ duration: 300, curve: Curve.Smooth })
+      }
+
+      if (this.onSwipingBrightness) {
+        Stack() { //亮度提示
+          Column() {
+            SymbolGlyph($r('sys.symbol.sun_max'))
+              .fontSize(23)
+              .fontColor(['#f0f0f0'])
+            Slider({
+              value: this.screenBrightness,
+              min: 0,
+              max: 1,
+              step: 0.1,
+              style: SliderStyle.NONE,
+              direction: Axis.Horizontal,
+              reverse: false
+            })
+              .width(60)
+              .height(30)
+              .selectedColor($r('app.color.main_color'))
+              .trackColor(Color.Black)
+              .trackThickness(40)
+          }
+        }
+        .padding({
+          left: 25,
+          right: 25,
+          top: 10,
+          bottom: 10
+        })
+        .borderRadius(1000)
+        .backgroundColor('#30000000')
+        .backdropBlur(100)
+        .animation({ duration: 300, curve: Curve.Smooth })
+      }
 
       if (this.long_press) {
         Stack({ alignContent: Alignment.BottomEnd }) { //快进提示
@@ -227,6 +324,8 @@ struct EnhancePlayer {
               const firstTouch = event.fingerList[0];
               this.swipe_start_x = firstTouch.localX;
               this.last_play_time = this.play_time;
+              this.swipe_start_y = firstTouch.localY;
+              this.isLeftSideSwipe = firstTouch.localX < this.screen_width / 2;
             }
           })
             .onActionUpdate((event: GestureEvent) => {
@@ -245,10 +344,35 @@ struct EnhancePlayer {
               }
               if (event.fingerList.length === 1) {
                 const currentX = event.fingerList[0].localX;
+                const currentY = event.fingerList[0].localY; // 方向判断阈值
                 const deltaX = currentX - this.swipe_start_x;
-                if (Math.abs(deltaX) > 10) {
-                  this.isHorizontalSwiping = true;
-                  this.onSwiping = true
+                const deltaY = currentY - this.swipe_start_y; // 初始化滑动方向
+                if (Math.abs(deltaX) > Math.abs(deltaY)) { // 水平为主
+                  if (Math.abs(deltaX) > 10 && !this.isVerticalSwiping) {
+                    this.onSwiping = true
+                    this.isHorizontalSwiping = true;
+                    this.isVerticalSwiping = false; // 明确清除对立状态
+                  }
+                } else { // 垂直为主
+                  if (Math.abs(deltaY) > 10 && !this.isHorizontalSwiping) {
+                    this.isVerticalSwiping = true;
+                    this.isHorizontalSwiping = false; // 明确清除对立状态
+                  }
+                }
+                if (this.isVerticalSwiping) {
+                  const volumeStep = 0.0006; // 每像素音量变化量
+                  const brightnessStep = 0.00003; // 每像素亮度变化量
+                  if (this.isLeftSideSwipe) {
+                    this.onSwipingBrightness = true
+                    const newBrightness = this.screenBrightness - (deltaY * brightnessStep);
+                    this.screenBrightness = Math.min(Math.max(newBrightness, 0), 1)
+                    VideoOperateUtil.setBrightness(this.screenBrightness);
+                  } else {
+                    this.onSwipingVoice = true
+                    const newVolume = this.volume - (deltaY * volumeStep);
+                    this.volume =
+                      Math.min(Math.max(newVolume, VideoOperateUtil.min_volume), VideoOperateUtil.max_volume);
+                  }
                 }
                 if (this.isHorizontalSwiping) {
                   const timePerPixel = 150; // 灵敏度控制
@@ -262,8 +386,31 @@ struct EnhancePlayer {
                 this.seekTo(String(this.play_time));
               }
               this.isHorizontalSwiping = false; // 重置所有滑动状态
+              this.isVerticalSwiping = false;
               this.onSwiping = false;
-            })
+              this.onSwipingVoice = false;
+              this.onSwipingBrightness = false;
+            }),
+      PinchGesture({ fingers: 2, distance: 2 })//手势缩放
+        .onActionStart((event: GestureEvent) => {
+          const finger1 = event.fingerList[0];
+          const finger2 = event.fingerList[1];
+          this.initPinchDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
+        })
+        .onActionUpdate((event: GestureEvent) => {
+            const finger1 = event.fingerList[0];
+            const finger2 = event.fingerList[1];
+            const currentDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
+            const rawScale = currentDistance / this.initPinchDistance;
+            const adjustedScale = 1 + (rawScale - 1) * 0.007;
+            const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0);
+            this.play_area_width = Math.max(this.play_area_width * clampedScale, 0.5);
+            this.play_area_height = Math.max(this.play_area_height * clampedScale, 0.5);
+            animateTo({ duration: 100 }, () => {
+              this.play_area_width = this.play_area_width;
+              this.play_area_height = this.play_area_height;
+            });
+        })
         ))
     }
     .onAreaChange(async (_oldValue: Area, newValue: Area) => {
@@ -294,6 +441,7 @@ struct EnhancePlayer {
         style: SliderStyle.InSet
       })
         .onChange((value: number) => {
+          this.isSliderPlayTimeChange = true
           this.onSwiping = true
           this.play_time = value
           this.mDestroyPage = false;
@@ -304,6 +452,7 @@ struct EnhancePlayer {
             this.seekTo(seekValue + "");
             this.setProgress()
             this.onSwiping = false
+            this.isSliderPlayTimeChange = false
           }
         })
         .layoutWeight(1)
@@ -389,7 +538,7 @@ struct EnhancePlayer {
       }
     }
     this.allowBackgroundPlay =
-      await PreferencesUtil.getPreferencesValue("sweet_video", "allowBackgroundPlay", true) as boolean
+      await PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowBackgroundPlay", true) as boolean
     if (this.allowBackgroundPlay) {
       PermissionUtil.startContinuousTask()
     }
@@ -419,10 +568,18 @@ struct EnhancePlayer {
       }
     }
     this.mIjkMediaPlayer.on('deviceChange', deviceChangeEvent);
+    settings.getValue(context, settings.display.SCREEN_BRIGHTNESS_STATUS, settings.domainName.DEVICE_SHARED)
+      .then((value) => {
+        this.screenBrightness = Number(value) / 255;
+        this.screenBrightnessAtFirst = this.screenBrightness
+      })
   }
 
   async aboutToDisappear() {
     //    LogUtils.getInstance().LOGI("aboutToDisappear");
+    if (this.screenBrightness != this.screenBrightnessAtFirst) {
+      VideoOperateUtil.setBrightness(this.screenBrightnessAtFirst)
+    }
     this.mDestroyPage = true;
     this.mIjkMediaPlayer.setScreenOnWhilePlaying(false);
     if (this.CONTROL_PlayStatus != PlayStatus.INIT) {
@@ -436,9 +593,9 @@ struct EnhancePlayer {
     await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
     await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
     if (this.video_meta_data.length > 0) {
-      this.video_meta_data[this.video_meta_data.findIndex(i => i.date == this.now_playing?.date)].last_play =
-        this.play_time
-      await SelectFileUtil.saveData(this.video_meta_data, this.now_playing!)
+      const save_time = this.play_time < this.now_playing?.time! * 0.9 ? this.play_time : 0
+      this.video_meta_data[this.video_meta_data.findIndex(i => i.date == this.now_playing?.date)].last_play = save_time
+      await SelectFileUtil.saveData(context,this.video_meta_data, this.now_playing!)
     }
   }
 
@@ -483,7 +640,9 @@ struct EnhancePlayer {
       this.startProgressTask();
       this.play();
       setTimeout(() => {
-        this.seekTo(this.now_playing?.last_play.toString()!)
+        if (this.now_playing?.last_play! < this.total_time * 0.9 && this.now_playing?.last_play != 0) {
+          this.seekTo(this.now_playing?.last_play.toString()!)
+        }
       }, 150)
     }
     if (this.CONTROL_PlayStatus == PlayStatus.PAUSE) {

@@ -88,6 +88,8 @@ struct Index {
   @State multipleChooseState: Visibility = Visibility.None
   @State MenuBuilderState: boolean = false
   @State delMultipleList: VideoMetadata[] = []
+  @State screen_width: number = 0
+  @State screen_height: number = 0
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: editMetadataDialog({
       confirm: async (title: string | undefined) => {
@@ -109,7 +111,7 @@ struct Index {
         this.show_list = SelectFileUtil.getAllItems(currentData);
         const saveAction =
           this.encryption ? SelectFileUtil.saveVideoMetaDataEncryption : SelectFileUtil.saveVideoMetaData;
-        await saveAction(currentData)
+        await saveAction(context,currentData)
       },
     }), cornerRadius: 20, shadow: DEFAULT_DIALOG_SHADOW
   })
@@ -145,7 +147,7 @@ struct Index {
         }
         this.passwd = passwd
         this.encryption = false
-        ToolsUtil.savePwd(passwd)
+        ToolsUtil.savePwd(context,passwd)
       },
     }), cornerRadius: 20, shadow: DEFAULT_DIALOG_SHADOW
   })
@@ -177,7 +179,7 @@ struct Index {
             return
           }
           ToolsUtil.isFileExist(target_item) ?
-          ToolsUtil.routerWhere('pages/FFMpegPlayer', item?.date, this.encryption) :
+          ToolsUtil.routerWhere(context,'pages/FFMpegPlayer', item?.date, this.encryption) :
           this.deleteUnExistFile(target_item)
         }, 200)
       })
@@ -267,7 +269,7 @@ struct Index {
           .height(30)
       }.padding(10).onClick(async () => {
         const targetDataSource = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
-        const sortedData = await ToolsUtil.sortByName(targetDataSource, this.encryption);
+        const sortedData = await ToolsUtil.sortByName(context,targetDataSource, this.encryption);
         this.encryption ? this.video_meta_data_encryption = sortedData : this.video_meta_data = sortedData
         this.show_list = SelectFileUtil.getAllItems(sortedData);
       })
@@ -282,7 +284,7 @@ struct Index {
           .height(30)
       }.padding(10).onClick(async () => {
         const targetDataSource = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
-        const sortedData = await ToolsUtil.sortByTime(targetDataSource, this.encryption)
+        const sortedData = await ToolsUtil.sortByTime(context,targetDataSource, this.encryption)
         this.encryption ? this.video_meta_data_encryption = sortedData : this.video_meta_data = sortedData
         this.show_list = SelectFileUtil.getAllItems(sortedData);
       })
@@ -360,7 +362,7 @@ struct Index {
               reject(new Error(`Error deleting file from sandbox_video: ${unlinkErr.message}`));
               return;
             }
-            await SelectFileUtil.saveVideoMetaDataEncryption(this.video_meta_data_encryption)
+            await SelectFileUtil.saveVideoMetaDataEncryption(context,this.video_meta_data_encryption)
           });
         } else {
           resolve();
@@ -373,7 +375,7 @@ struct Index {
       this.video_meta_data = this.video_meta_data.filter(i => i.date != tmp.date);
     }
     this.show_list = this.show_list.filter(i => i != tmp.date);
-    RecentPlayUtil.delData(tmp)
+    RecentPlayUtil.delData(context, tmp)
     fs.access(sandbox_path + tmp.date, (err) => {
       if (!err) { // 文件存在
         fs.unlink(sandbox_path + tmp.date, (unlinkErr) => {
@@ -381,7 +383,7 @@ struct Index {
             reject(new Error(`Error deleting file from sandbox_path: ${unlinkErr.message}`));
             return;
           }
-          SelectFileUtil.saveVideoMetaData(this.video_meta_data)
+          SelectFileUtil.saveVideoMetaData(context,this.video_meta_data)
           resolve(); // 在所有操作完成后调用 resolve
         });
       } else {
@@ -396,7 +398,7 @@ struct Index {
 
   async updateList() {
     const source =
-      this.encryption ? await SelectFileUtil.getVideoMetaDataEncryption() : await SelectFileUtil.getVideoMetaData()
+      this.encryption ? await SelectFileUtil.getVideoMetaDataEncryption(context) : await SelectFileUtil.getVideoMetaData(context)
     this.show_list = source.map(i => i.date)
   }
 
@@ -414,12 +416,11 @@ struct Index {
   async aboutToAppear(): Promise<void> {
     SelectFileUtil.getDownloadUri()
     ReqPermission.reqPermissionsFromUser(ReqPermission.permissions, context);
-    this.video_meta_data = await SelectFileUtil.getVideoMetaData()
-    this.video_meta_data_encryption = await SelectFileUtil.getVideoMetaDataEncryption()
-    this.passwd = await SelectFileUtil.getPassword()
+    this.video_meta_data = await SelectFileUtil.getVideoMetaData(context)
+    this.video_meta_data_encryption = await SelectFileUtil.getVideoMetaDataEncryption(context)
+    this.passwd = await SelectFileUtil.getPassword(context)
     this.show_list = this.video_meta_data.map(i => i.date)
     this.activePermission()
-    await this.getSafeHeightAndButton()
     ToolsUtil.isFileFolderExist(sandbox_video, sandbox_subtitle)
   }
 
@@ -463,13 +464,13 @@ struct Index {
             : this.video_meta_data.some(item => item.title === file.name);
           if (!isDuplicate) {
             if (this.encryption) {
-              await SelectFileUtil.copyFileToPrivacySpace(this.video_meta_data_encryption, uri, sandbox_video,
+              await SelectFileUtil.copyFileToPrivacySpace(context,this.video_meta_data_encryption, uri, sandbox_video,
                 this.encryption, sandbox_path, new Date().getTime().toString(), metadata, file)
             } else {
               const videoInfo = await VideoUtil.setVideoInfo(new Date().getTime().toString(), uri, file.name, metadata,
                 this.encryption, sandbox_video, sandbox_path);
               this.video_meta_data.push(videoInfo);
-              await SelectFileUtil.saveVideoMetaData(this.video_meta_data);
+              await SelectFileUtil.saveVideoMetaData(context,this.video_meta_data);
             }
           }
         } finally {
@@ -491,7 +492,7 @@ struct Index {
       }
       await Promise.all(workers);
       this.show_list = SelectFileUtil.getAllItems(
-        this.encryption ? await SelectFileUtil.getVideoMetaDataEncryption() : await SelectFileUtil.getVideoMetaData());
+        this.encryption ? await SelectFileUtil.getVideoMetaDataEncryption(context) : await SelectFileUtil.getVideoMetaData(context));
       ToolsUtil.showToast(`${getContext().resourceManager
         .getStringSync($r('app.string.add_time_info'))}${this.import_sum}`);
     } catch (error) {
@@ -534,7 +535,9 @@ struct Index {
       (await this.windowClass).getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR).bottomRect.height]);
     this.topSafeHeight = px2vp(areas[0]);
     DataSyncUtil.setTopSafeHeight(this.topSafeHeight)
-    DataSyncUtil.bottomSafeHeight = px2vp(areas[1])
+    if (this.screen_height > this.screen_width && this.topSafeHeight === 0) {
+      this.topSafeHeight = DataSyncUtil.getActuallyTopSafeHeight()!
+    }
   }
 
   build() {
@@ -858,12 +861,12 @@ struct Index {
               if (VideoUtil.videoWidthAndHeightFormat(String(target_item?.size)) === '0 x 0') {
                 ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
                 ToolsUtil.isFileExist(target_item) ?
-                ToolsUtil.routerWhere('pages/FFMpegPlayer', item, this.encryption) :
+                ToolsUtil.routerWhere(context,'pages/FFMpegPlayer', item, this.encryption) :
                 this.deleteUnExistFile(target_item)
                 return
               }
               ToolsUtil.isFileExist(target_item) ?
-              ToolsUtil.routerWhere('pages/Player', item, this.encryption) :
+              ToolsUtil.routerWhere(context, 'pages/Player', item, this.encryption) :
               this.deleteUnExistFile(target_item)
             })
           })
@@ -996,6 +999,8 @@ struct Index {
         .animation({ duration: 150, curve: Curve.Sharp })
       }.backgroundColor($r('app.color.start_window_background'))
       .onAreaChange(async (_oldValue: Area, newValue: Area) => {
+        this.screen_width = Math.floor(new Number(newValue.width).valueOf())
+        this.screen_height = Math.floor(new Number(newValue.height).valueOf())
         await this.getSafeHeightAndButton()
         this.list_line = Math.floor(new Number(newValue.width).valueOf() / 500 + 1)
         this.list_empty_item = []
@@ -1015,7 +1020,7 @@ struct Index {
       let records: Array<unifiedDataChannel.UnifiedRecord> = dragEvent.getData().getRecords();
       let video: unifiedDataChannel.Video = records[0] as unifiedDataChannel.Video;
       WantProcessUtil.want_uri = video.uri
-      WantProcessUtil.hasWant()
+      WantProcessUtil.hasWant(context)
     })
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     .onChange((value: boolean) => {

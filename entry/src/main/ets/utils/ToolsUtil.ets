@@ -36,27 +36,27 @@ class ToolsUtil {
     })
   }
 
-  async sortByName(list: VideoMetadata[], encryption: boolean) {
+  async sortByName(context: Context, list: VideoMetadata[], encryption: boolean) {
     const sortedList = [...list].sort((a, b) =>
     String(pinyin4js.getShortPinyin(a.title))
       .localeCompare(String(pinyin4js.getShortPinyin(b.title)))
     );
-    await (encryption ? SelectFileUtil.saveVideoMetaDataEncryption(sortedList)
-      : SelectFileUtil.saveVideoMetaData(sortedList));
+    await (encryption ? SelectFileUtil.saveVideoMetaDataEncryption(context, sortedList)
+      : SelectFileUtil.saveVideoMetaData(context,sortedList));
     return sortedList // 返回处理后的数据
   }
 
-  async sortByTime(list: VideoMetadata[], encryption: boolean) {
+  async sortByTime(context: Context,list: VideoMetadata[], encryption: boolean) {
     const sortedList = [...list].sort((a, b) => b.date.localeCompare(a.date));
-    await (encryption ? SelectFileUtil.saveVideoMetaDataEncryption(sortedList)
-      : SelectFileUtil.saveVideoMetaData(sortedList));
-    const latestData = encryption ? await SelectFileUtil.getVideoMetaDataEncryption()
-      : await SelectFileUtil.getVideoMetaData();
+    await (encryption ? SelectFileUtil.saveVideoMetaDataEncryption(context,sortedList)
+      : SelectFileUtil.saveVideoMetaData(context,sortedList));
+    const latestData = encryption ? await SelectFileUtil.getVideoMetaDataEncryption(context)
+      : await SelectFileUtil.getVideoMetaData(context);
     return latestData
   }
 
-  savePwd(passwd: string) {
-    PreferencesUtil.putPreferencesValue('sweet_video', 'passwd', passwd)
+  savePwd(context: Context,passwd: string) {
+    PreferencesUtil.putPreferencesValue(context,'sweet_video', 'passwd', passwd)
     this.showToast(getContext().resourceManager.getStringSync($r('app.string.set_passwd_tip')))
   }
 
@@ -84,13 +84,13 @@ class ToolsUtil {
     });
   }
 
-  async routerWhere(uri: string, item: string | undefined, encryption: boolean) {
+  async routerWhere(context: Context,uri: string, item: string | undefined, encryption: boolean) {
     let list: VideoMetadata [] = []
-    encryption ? list = await SelectFileUtil.getVideoMetaDataEncryption() :
-      list = await SelectFileUtil.getVideoMetaData()
-    const recentPlay = await PreferencesUtil.getPreferencesValue("sweet_video", "recentPlay", true) as boolean
+    encryption ? list = await SelectFileUtil.getVideoMetaDataEncryption(context) :
+      list = await SelectFileUtil.getVideoMetaData(context)
+    const recentPlay = await PreferencesUtil.getPreferencesValue(context, "sweet_video", "recentPlay", true) as boolean
     if (!encryption && recentPlay) {
-      RecentPlayUtil.addPlayback(list.find(i => i.date === item)!)
+      RecentPlayUtil.addPlayback(context, list.find(i => i.date === item)!)
     }
     router.pushUrl({
       url: uri,

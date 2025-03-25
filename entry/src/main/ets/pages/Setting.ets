@@ -2,6 +2,8 @@ import ToolsUtil from '../utils/ToolsUtil'
 import router from '@ohos.router'
 import PreferencesUtil from '../utils/PreferencesUtil'
 import DataSyncUtil from '../utils/DataSyncUtil'
+import { common } from '@kit.AbilityKit'
+const context = getContext() as common.UIAbilityContext;
 
 @Entry
 @Component
@@ -47,9 +49,10 @@ struct SettingsPage {
       Scroll() {
         Column() {
           Row() {
-            Button({ type: ButtonType.Normal, stateEffect: true }) {
+            Button({ type: ButtonType.Normal, stateEffect: false }) {
               Row() {
                 SymbolGlyph($r('sys.symbol.info_circle')).fontSize(25)
+                  .fontColor([$r('app.color.text_color')])
                 Text('关于应用')
                   .fontSize(18)
                   .fontColor($r('app.color.text_color'))
@@ -57,16 +60,16 @@ struct SettingsPage {
               }
             }
             .align(Alignment.Center)
-            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
             .backgroundColor($r('app.color.start_window_background_blur'))
-            .animation({ duration: 300, curve: Curve.Ease })
             .height(80)
             .width('100%')
             .borderRadius(10)
-            .onClick(() => {
-              ToolsUtil.routerWhereOnlyUri('pages/AboutApp')
-            })
           }
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+          .animation({ duration: 300, curve: Curve.Ease })
+          .onClick(() => {
+            ToolsUtil.routerWhereOnlyUri('pages/AboutApp')
+          })
           .padding(16)
           .width('100%')
           .backgroundColor($r('app.color.start_window_background_blur'))
@@ -74,12 +77,12 @@ struct SettingsPage {
 
           Row() {
             Text('后台播放')
-              .fontSize(18)
+              .fontSize(15)
               .flexGrow(1)
             Toggle({ type: ToggleType.Switch, isOn: this.allowBackgroundPlay })
               .onChange((value: boolean) => {
                 this.allowBackgroundPlay = value
-                PreferencesUtil.putPreferencesValue("sweet_video", "allowBackgroundPlay", this.allowBackgroundPlay)
+                PreferencesUtil.putPreferencesValue(context, "sweet_video", "allowBackgroundPlay", this.allowBackgroundPlay)
               })
               .selectedColor($r('app.color.main_color'))
           }
@@ -91,12 +94,12 @@ struct SettingsPage {
 
           Row() {
             Text('播放器使用返回手势直接退出')
-              .fontSize(18)
+              .fontSize(15)
               .flexGrow(1)
             Toggle({ type: ToggleType.Switch, isOn: this.allowPlayBackExist })
               .onChange((value: boolean) => {
                 this.allowPlayBackExist = value
-                PreferencesUtil.putPreferencesValue("sweet_video", "allowPlayBackExist", this.allowPlayBackExist)
+                PreferencesUtil.putPreferencesValue(context, "sweet_video", "allowPlayBackExist", this.allowPlayBackExist)
               })
               .selectedColor($r('app.color.main_color'))
           }
@@ -108,15 +111,15 @@ struct SettingsPage {
 
           Row() {
             Text('开启历史记录')
-              .fontSize(18)
+              .fontSize(15)
               .flexGrow(1)
             Toggle({ type: ToggleType.Switch, isOn: this.recentPlay })
               .onChange(async (value: boolean) => {
                 this.recentPlay = value
                 if (!this.recentPlay) {
-                  await PreferencesUtil.putPreferencesValue('sweet_video', 'recent_play', []);
+                  await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_play', []);
                 }
-                PreferencesUtil.putPreferencesValue("sweet_video", "recentPlay", this.recentPlay)
+                PreferencesUtil.putPreferencesValue(context, "sweet_video", "recentPlay", this.recentPlay)
               })
               .selectedColor($r('app.color.main_color'))
           }
@@ -128,7 +131,7 @@ struct SettingsPage {
 
           Row() {
             Text('快进（后退）时长（秒）')
-              .fontSize(18)
+              .fontSize(15)
               .flexGrow(1)
             Select([
               { value: '15' },
@@ -141,7 +144,7 @@ struct SettingsPage {
               .selected(this.fastForwardSecondsList.indexOf(this.fastForwardSeconds))
               .onSelect((_index: number, text?: string | undefined) => {
                 this.fastForwardSeconds = text!
-                PreferencesUtil.putPreferencesValue("sweet_video", "fastForwardTime", this.fastForwardSeconds)
+                PreferencesUtil.putPreferencesValue(context, "sweet_video", "fastForwardTime", this.fastForwardSeconds)
               })
           }
           .padding(16)
@@ -152,7 +155,7 @@ struct SettingsPage {
 
           Row() {
             Text('外链默认播放器')
-              .fontSize(18)
+              .fontSize(15)
               .flexGrow(1)
             Select([
               { value: '系统播放器' },
@@ -163,7 +166,7 @@ struct SettingsPage {
               .fontColor($r('app.color.text_color'))
               .onSelect((_index: number, text?: string | undefined) => {
                 this.defaultPlayer = text!
-                PreferencesUtil.putPreferencesValue("sweet_video", "defaultPlayer", this.defaultPlayer)
+                PreferencesUtil.putPreferencesValue(context, "sweet_video", "defaultPlayer", this.defaultPlayer)
               })
           }
           .padding(16)
@@ -174,7 +177,7 @@ struct SettingsPage {
 
           Row() {
             Text('字幕字体大小')
-              .fontSize(18)
+              .fontSize(15)
               .flexGrow(1)
             Select([
               { value: '19' },
@@ -191,7 +194,7 @@ struct SettingsPage {
               .fontColor($r('app.color.text_color'))
               .onSelect((_index: number, text?: string | undefined) => {
                 this.subtitleSize = text!
-                PreferencesUtil.putPreferencesValue("sweet_video", "subTitleSize", this.subtitleSize)
+                PreferencesUtil.putPreferencesValue(context, "sweet_video", "subTitleSize", this.subtitleSize)
               })
           }
           .padding(16)

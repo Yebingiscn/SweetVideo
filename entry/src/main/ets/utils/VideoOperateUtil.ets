@@ -99,6 +99,12 @@ class VideoOperateUtil {
     }
     return true
   }
+
+  calcFingerDistance(f1: FingerInfo, f2: FingerInfo): number {
+    const dx = f2.localX - f1.localX;
+    const dy = f2.localY - f1.localY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
 }
 
 export default new VideoOperateUtil()

@@ -1,33 +1,36 @@
 import preferences from '@ohos.data.preferences'
-import { Context } from '@kit.AbilityKit'
 
-class PreferencesUtil {
-  // 创建一个Map类型用来存储pref的name,和pref
-  prefMap: Map<string, preferences.Preferences> = new Map()
-
-  // 加载Preferences
-  async localPreferences(context: Context, name: string) {
-    // 获取pref，返回的是一个Promise
-    let pref = await preferences.getPreferences(context, name)
-    // 将Pref填入PrefMap中
-    this.prefMap.set(name, pref)
+export default class PreferencesUtil {
+  static async  putPreferencesValue(context: Context, name: string, key: string, value: preferences.ValueType) {
+    try {
+      let pref = preferences.getPreferencesSync(context, {
+        name: name
+      })
+      pref.putSync(key, value)
+      pref.flush()
+    } catch {
+    }
   }
 
-  // 放Preferences数据
-  async putPreferencesValue(name: string, key: string, value: preferences.ValueType) {
-    // 从Map中获取pref
-    let pref = this.prefMap.get(name)
-    // 在pref中添加
-    await pref?.put(key, value)
-    // 将pref输入磁盘中
-    await pref?.flush()
+  static async getPreferencesValue(context: Context, name: string, key: string, defaultValue: preferences.ValueType) {
+    try {
+      let pref = preferences.getPreferencesSync(context, {
+        name: name
+      })
+      return pref.getSync(key, defaultValue)
+    } catch (e) {
+      return defaultValue
+    }
   }
 
-  // 读Preferences数据
-  async getPreferencesValue(name: string, key: string, defaultValue: preferences.ValueType) {
-    let pref = this.prefMap.get(name)
-    return await pref?.get(key, defaultValue)
+  static async delPreferencesValue(context: Context, name: string, key: string) {
+    try {
+      let pref = preferences.getPreferencesSync(context, {
+        name: name
+      })
+      pref.delete(key)
+      pref.flush()
+    } catch (e) {
+    }
   }
 }
-
-export default new PreferencesUtil()

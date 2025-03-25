@@ -137,15 +137,18 @@ class VideoInfoUtil {
   }
 
   public optimizedFormat(speed: number): string {
-    const str = speed.toFixed(2);
-    let end = str.length;
-    while (end > 0 && (str[end - 1] === '0' || str[end - 1] === '.')) {
-      end--;
-      if (str[end] === '.') {
-        break;
+    if (speed) {
+      const str = speed.toFixed(2);
+      let end = str.length;
+      while (end > 0 && (str[end - 1] === '0' || str[end - 1] === '.')) {
+        end--;
+        if (str[end] === '.') {
+          break;
+        }
       }
+      return str.slice(0, end || 1) + 'x';
     }
-    return str.slice(0, end || 1) + 'x';
+    return '1x'
   }
 
   async getVideoImage(uri: string, size: number[], date: string, sandbox_path: string, time: number) {
@@ -197,6 +200,7 @@ class VideoInfoUtil {
   }
 
   videoWidthAndHeightFormat(size: string) {
+
     const sizeArray = size.split(',');
     const width = sizeArray[0];
     const height = sizeArray[1];

@@ -164,8 +164,8 @@ struct Player {
         this.screenBrightness = Number(value) / 255;
         this.screenBrightnessAtFirst = this.screenBrightness
       })
-    this.circle_play = await PreferencesUtil.getPreferencesValue('sweet_video', 'circle_play', false) as boolean
-    const video_speed = await PreferencesUtil.getPreferencesValue('sweet_video', 'video_speed', '1x') as string
+    this.circle_play = await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'circle_play', false) as boolean
+    const video_speed = await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'video_speed', '1x') as string
     this.speed = parseFloat(video_speed?.replace('x', '') || '1')
   }
 
@@ -182,12 +182,12 @@ struct Player {
     await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
     await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
     await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
-    if (this.video_meta_data.length > 0) {
-      this.video_meta_data[this.video_meta_data.findIndex(i => i.date == this.now_playing?.date)].last_play =
-        this.play_time
-      await SelectFileUtil.saveData(this.video_meta_data, this.now_playing!)
+    if (this.video_meta_data.length > 0){
+      const save_time = this.play_time < this.now_playing?.time! * 0.9 ? this.play_time : 0
+      this.video_meta_data[this.video_meta_data.findIndex(i => i.date == this.now_playing?.date)].last_play = save_time
+      await SelectFileUtil.saveData(context,this.video_meta_data, this.now_playing!)
     }
-    await PreferencesUtil.putPreferencesValue('sweet_video', 'video_speed', this.speed + 'x');
+    await PreferencesUtil.putPreferencesValue(context,'sweet_video', 'video_speed', this.speed + 'x');
   }
 
   async setRotation() {
@@ -326,7 +326,7 @@ struct Player {
         case 'prepared':
           await this.getAudioTrack()
           this.avPlayer?.play();
-          this.updatePlaybackSpeed(VideoInfoUtil.getVideoSpeed(this.speed))
+          this.updatePlaybackSpeed(this.speed)
           this.showControl = false
           this.lockVisibility = false
           this.isSliderPlayTimeChange = false
@@ -347,7 +347,7 @@ struct Player {
         case 'playing':
           this.played = true
           this.playing = true
-          if (this.now_playing?.last_play !== 0) {
+          if (this.now_playing?.last_play !== 0 && this.now_playing?.last_play! < this.now_playing?.time! * 0.9) {
             this.avPlayer?.seek(this.now_playing?.last_play, media.SeekMode.SEEK_CLOSEST)
             if (this.mIjkMediaPlayerActive) {
               this.mIjkMediaPlayer.seekTo(this.now_playing?.last_play.toString())
@@ -422,9 +422,11 @@ struct Player {
   }
 
   async playChooseVideo(item: VideoMetadata) {
-    RecentPlayUtil.addPlayback(item)
+    RecentPlayUtil.addPlayback(context, item)
     await this.avPlayer?.reset()
-    await this.ijkPlayerStop()
+    if (this.mIjkMediaPlayerActive) {
+      await this.ijkPlayerStop()
+    }
     this.now_playing = JSON.parse(JSON.stringify(item)) as VideoMetadataFromPlayer
     this.getData()
     this.avSession = await AVSessionUtil.getAVSession()
@@ -435,9 +437,9 @@ struct Player {
 
   async playNextVideo() {
     if (this.video_meta_data.length > 0) {
-      this.video_meta_data[this.video_meta_data.findIndex(i => i.date == this.now_playing?.date)].last_play =
-        this.play_time
-      await SelectFileUtil.saveData(this.video_meta_data, this.now_playing!)
+      const save_time = this.play_time < this.now_playing?.time! * 0.9 ? this.play_time : 0
+      this.video_meta_data[this.video_meta_data.findIndex(i => i.date == this.now_playing?.date)].last_play = save_time
+      await SelectFileUtil.saveData(context,this.video_meta_data, this.now_playing!)
       let item = SelectFileUtil.getItem(this.video_meta_data, this.now_playing?.date || '') as VideoMetadata
       let next_item = SelectFileUtil.getNextItem(this.video_meta_data, item.date)
       this.playChooseVideo(next_item!)
@@ -456,21 +458,15 @@ struct Player {
     this.sideBarStatus = true
   }
 
-  calcFingerDistance(f1: FingerInfo, f2: FingerInfo): number {
-    const dx = f2.localX - f1.localX;
-    const dy = f2.localY - f1.localY;
-    return Math.sqrt(dx * dx + dy * dy);
-  }
-
   screenExtend(text: string) {
     switch (text) {
       case VideoInfoUtil.screen_extend_map[0]:
-        this.play_area_height = this.screen_height;
-        this.play_area_width = this.screen_width;
-        break;
-      case VideoInfoUtil.screen_extend_map[1]:
         this.play_area_height = VideoInfoUtil.play_area_height
         this.play_area_width = VideoInfoUtil.play_area_width
+        break;
+      case VideoInfoUtil.screen_extend_map[1]:
+        this.play_area_height = this.screen_height;
+        this.play_area_width = this.screen_width;
         break;
       default:
         const scale = text ? VideoInfoUtil.scale_factors.get(text) : undefined;
@@ -565,7 +561,7 @@ struct Player {
               Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
                 this.VideoTop()
               }
-              .height(70)
+              .height(85)
               .backgroundColor('#61000000')
               .width('100%')
               .padding({
@@ -813,12 +809,13 @@ struct Player {
                 const deltaX = currentX - this.swipe_start_x;
                 const deltaY = currentY - this.swipe_start_y; // 初始化滑动方向
                 if (Math.abs(deltaX) > Math.abs(deltaY)) { // 水平为主
-                  if (Math.abs(deltaX) > 10) {
+                  if (Math.abs(deltaX) > 10 && !this.isVerticalSwiping) {
+                    this.onSwiping = true
                     this.isHorizontalSwiping = true;
                     this.isVerticalSwiping = false; // 明确清除对立状态
                   }
                 } else { // 垂直为主
-                  if (Math.abs(deltaY) > 10) {
+                  if (Math.abs(deltaY) > 10 && !this.isHorizontalSwiping) {
                     this.isVerticalSwiping = true;
                     this.isHorizontalSwiping = false; // 明确清除对立状态
                   }
@@ -885,13 +882,13 @@ struct Player {
               .onActionStart((event: GestureEvent) => {
                 const finger1 = event.fingerList[0];
                 const finger2 = event.fingerList[1];
-                this.initPinchDistance = this.calcFingerDistance(finger1, finger2);
+                this.initPinchDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
               })
               .onActionUpdate((event: GestureEvent) => {
                 if (!this.isLock) {
                   const finger1 = event.fingerList[0];
                   const finger2 = event.fingerList[1];
-                  const currentDistance = this.calcFingerDistance(finger1, finger2);
+                    const currentDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
                   const rawScale = currentDistance / this.initPinchDistance;
                   const adjustedScale = 1 + (rawScale - 1) * 0.007;
                   const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0);
@@ -1094,7 +1091,7 @@ struct Player {
         .buttonFancy(40, 40)
         .onClick(() => {
           this.circle_play = !this.circle_play
-          PreferencesUtil.putPreferencesValue('sweet_video', 'circle_play', this.circle_play)
+          PreferencesUtil.putPreferencesValue(context,'sweet_video', 'circle_play', this.circle_play)
         })
       }.span({ xs: 2, sm: 2, md: 2 })
 
@@ -1146,12 +1143,11 @@ struct Player {
           .selected(VideoInfoUtil.speed_index_map.indexOf(this.speed))
           .value(VideoInfoUtil.optimizedFormat(this.speed))
           .onSelect(async (_index: number, text?: string | undefined) => {
-            this.updatePlaybackSpeed(VideoInfoUtil.getVideoSpeed(parseFloat(text?.replace('x', '') || '1')))
+            this.updatePlaybackSpeed(parseFloat(text?.replace('x', '') || '1'))
           })
           .backgroundColor('#00000000')
           .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
       }.span({ xs: 2, sm: 2, md: 2 })
-
 
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 全屏按钮
