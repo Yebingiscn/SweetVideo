@@ -39,7 +39,10 @@ class ToolsUtil {
   async sortByName(context: Context, list: VideoMetadata[], encryption: boolean) {
     const sortedList = [...list].sort((a, b) =>
     String(pinyin4js.getShortPinyin(a.title))
-      .localeCompare(String(pinyin4js.getShortPinyin(b.title)))
+      .localeCompare(String(pinyin4js.getShortPinyin(b.title)),"zh-CN", {
+        numeric: true,
+        sensitivity: "base"
+      })
     );
     await (encryption ? SelectFileUtil.saveVideoMetaDataEncryption(context, sortedList)
       : SelectFileUtil.saveVideoMetaData(context,sortedList));
