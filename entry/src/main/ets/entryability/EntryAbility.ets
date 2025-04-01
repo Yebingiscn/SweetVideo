@@ -1,18 +1,18 @@
 import { common, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
-import PreferencesUtil from '../utils/PreferencesUtil';
 import WantProcess from '../utils/WantProcessUtil';
 import WantProcessUtil from '../utils/WantProcessUtil';
 import { WindowUtil } from '../utils/WindowUtil';
 import { systemShare } from '@kit.ShareKit';
 import { BusinessError } from '@kit.BasicServicesKit';
+
 const context = getContext() as common.UIAbilityContext;
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want): void {
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
-  //  PreferencesUtil.localPreferences(this.context, 'sweet_video')
+    //  PreferencesUtil.localPreferences(this.context, 'sweet_video')
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onCreate');
     AppStorage.setOrCreate('context', this.context)
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onCreate');

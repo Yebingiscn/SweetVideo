@@ -1,6 +1,6 @@
 import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
 import { common } from '@kit.AbilityKit';
-import { curves, window } from '@kit.ArkUI';
+import { curves, SymbolGlyphModifier, window } from '@kit.ArkUI';
 import { media } from '@kit.MediaKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import DataSyncUtil from '../utils/DataSyncUtil';
@@ -19,6 +19,8 @@ import { VideoDetailDialog } from '../component/VideoDetailDialog';
 import WantProcessUtil from '../utils/WantProcessUtil';
 import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
+import { addFileFolderNameDialog } from '../component/AddFileFolderNameDialog';
+import FileFolderUtil, { FileFolder } from '../utils/FileFolderUtil';
 
 const context = getContext() as common.UIAbilityContext;
 const sandbox_path = getContext().filesDir + '/'
@@ -46,6 +48,7 @@ function symbolGlyphFancy(fontSize: number, width: number | string, height: numb
 
 @Extend(Button)
 function buttonFancy(width: number | string, height: number | string) {
+  .borderRadius(16)
   .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
   .width(width)
   .height(height)
@@ -71,7 +74,6 @@ struct Index {
   @State topSafeHeight: number = 0;
   @State video_meta_data: VideoMetadata[] = []
   @State video_meta_data_encryption: VideoMetadata[] = []
-  @State now_playing: VideoMetadata | undefined = undefined
   @State @Watch('updateShowList') show_list: string[] = []
   @State lazy_show_list: DataUtil<string> = new DataUtil<string>(this.show_list)
   @State @Watch('updateList') encryption: boolean = false
@@ -88,6 +90,7 @@ struct Index {
   @State multipleChooseState: Visibility = Visibility.None
   @State MenuBuilderState: boolean = false
   @State delMultipleList: VideoMetadata[] = []
+  @State file_folder_list: FileFolder[] = []
   @State screen_width: number = 0
   @State screen_height: number = 0
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
@@ -111,7 +114,7 @@ struct Index {
         this.show_list = SelectFileUtil.getAllItems(currentData);
         const saveAction =
           this.encryption ? SelectFileUtil.saveVideoMetaDataEncryption : SelectFileUtil.saveVideoMetaData;
-        await saveAction(context,currentData)
+        await saveAction(context, currentData)
       },
     }), cornerRadius: 20, shadow: DEFAULT_DIALOG_SHADOW
   })
@@ -147,7 +150,17 @@ struct Index {
         }
         this.passwd = passwd
         this.encryption = false
-        ToolsUtil.savePwd(context,passwd)
+        ToolsUtil.savePwd(context, passwd)
+      },
+    }), cornerRadius: 20, shadow: DEFAULT_DIALOG_SHADOW
+  })
+  addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
+    builder: addFileFolderNameDialog({
+      confirm: async (file_folder: string | undefined) => {
+        if (!file_folder || file_folder == '') {
+          return
+        }
+        this.file_folder_list = await FileFolderUtil.createNewFolder(context, file_folder)
       },
     }), cornerRadius: 20, shadow: DEFAULT_DIALOG_SHADOW
   })
@@ -159,99 +172,109 @@ struct Index {
   searchController: SearchController = new SearchController()
 
   @Builder
+  FileFolderMenu(video_item: VideoMetadata | undefined) {
+    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
+      Menu() {
+        ForEach(this.file_folder_list, (item: FileFolder, index: number) => {
+          MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.folder")), content: item.name })
+            .onClick(async () => {
+              this.file_folder_list = await FileFolderUtil.addVideoInFileFolder(context, video_item!, item.date)
+              this.video_meta_data = this.video_meta_data.filter(i => i.date !== video_item?.date)
+              this.show_list = this.show_list.filter(i => i !== video_item?.date);
+              await SelectFileUtil.saveVideoMetaData(context, this.video_meta_data)
+            })
+        })
+      }.font({ size: 15, weight: FontWeight.Normal })
+    }.width(150)
+  }
+
+  @Builder
+  FileFolderSelectMenu(file_folder: FileFolder) {
+    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
+      Menu() {
+        MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.trash_fill")), content: '删除' })
+          .onClick(async () => {
+            this.delMultipleList = Array.from(file_folder.video_list);
+            const deletePromises = this.delMultipleList.map(item => {
+              return new Promise<void>((resolve, reject) => {
+                DataSyncUtil.editing_video = JSON.stringify(item);
+                this.deleteItem(resolve, reject);
+                this.closeMultipleChoose()
+              });
+            });
+            await Promise.all(deletePromises);
+            this.file_folder_list = await FileFolderUtil.deleteFileFolder(context, file_folder, this.file_folder_list)
+          })
+      }.font({ size: 15, weight: FontWeight.Normal })
+    }.onAppear(() => {
+      ToolsUtil.startVibration()
+    })
+  }
+
+  @Builder
   MenuBuilder(item: VideoMetadata | undefined) {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      Row() {
-        Image($r("app.media.ffmpeg"))
-          .imageFancy(10, 25, 25)
-        Text($r('app.string.FFMpeg_Player'))
-          .fontSize(15)
-          .width(180)
-          .height(30)
-      }.padding(10).onClick(() => {
-        this.MenuBuilderState = false
-        setTimeout(() => {
-          const target_data = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
-          let target_item = SelectFileUtil.getItem(target_data, item?.date!)
-          if (!target_data.find(i => i.date == item?.date!)) {
-            ToolsUtil.showToast('数据正在加载中，请重试')
-            this.show_list = SelectFileUtil.getAllItems(target_data);
-            return
-          }
-          ToolsUtil.isFileExist(target_item) ?
-          ToolsUtil.routerWhere(context,'pages/FFMpegPlayer', item?.date, this.encryption) :
-          this.deleteUnExistFile(target_item)
-        }, 200)
-      })
-
-      Divider().height(2)
-      Row() {
-        SymbolGlyph($r('sys.symbol.info_circle'))
-          .symbolGlyphFancy(20, 25, 40)
-        Text('详情')
-          .fontSize(15)
-          .width(180)
-          .height(30)
-      }.padding(10).onClick(() => {
-        DataSyncUtil.editing_video = JSON.stringify(item)
-        this.VideoDetailDialog.open()
-      })
-
-      if (!this.encryption) {
-        Divider().height(2)
-        Row() {
-          SymbolGlyph($r('sys.symbol.textformat_size_square'))
-            .symbolGlyphFancy(20, 25, 40)
-          Text('导入或删除字幕')
-            .fontSize(15)
-            .width(180)
-            .height(30)
-        }.padding(10).onClick(async () => {
-          await SelectFileUtil.isSubtitleExist(sandbox_subtitle, item?.date!) ?
-          SelectFileUtil.deleteSubtitle(sandbox_subtitle, item?.date!) :
-          SelectFileUtil.selectExternalSubtitles(sandbox_subtitle, item?.date!)
+      Menu() {
+        MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(() => {
+          this.MenuBuilderState = false
+          setTimeout(() => {
+            const target_data = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
+            let target_item = SelectFileUtil.getItem(target_data, item?.date!)
+            if (!target_data.find(i => i.date == item?.date!)) {
+              ToolsUtil.showToast('数据正在加载中，请重试')
+              this.show_list = SelectFileUtil.getAllItems(target_data);
+              return
+            }
+            ToolsUtil.isFileExist(target_item) ?
+            ToolsUtil.routerWhere(context, 'pages/FFMpegPlayer', item?.date!, this.encryption) :
+            this.deleteUnExistFile(target_item)
+          }, 200)
         })
-      }
-
-      Divider().height(2)
-      Row() {
-        SymbolGlyph($r('sys.symbol.trash_fill'))
-          .symbolGlyphFancy(20, 25, 40)
-        Text($r('app.string.delete'))
-          .fontSize(15)
-          .width(180)
-          .height(30)
-      }.padding(10).onClick(() => {
-        DataSyncUtil.editing_video = JSON.stringify(item)
-        this.delConfirmDialog.open()
-      })
-
-      Divider().height(2)
-      Row() {
-        SymbolGlyph($r('sys.symbol.rename'))
-          .symbolGlyphFancy(20, 25, 40)
-        Text($r('app.string.edit'))
-          .fontSize(15)
-          .width(180)
-          .height(30)
-      }.padding(10).onClick(() => {
-        DataSyncUtil.editing_video = JSON.stringify(item)
-        this.editMetadataDialogController.open()
-      })
-
-      Divider().height(2)
-      Row() {
-        SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
-          .symbolGlyphFancy(20, 25, 40)
-        Text($r('app.string.multiple_choice'))
-          .fontSize(15)
-          .width(180)
-          .height(30)
-      }.padding(10).onClick(() => {
-        this.multipleChooseState = this.multipleChooseState == Visibility.None ? Visibility.Visible : Visibility.None
-        this.delMultipleList.length = 0
-      })
-    }.width(150).onAppear(() => {
+        MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
+          .onClick(() => {
+            DataSyncUtil.editing_video = JSON.stringify(item)
+            this.VideoDetailDialog.open()
+          })
+        if (!this.encryption) {
+          MenuItem({
+            symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
+            content: "添加到文件夹",
+            builder: (): void => this.FileFolderMenu(item)
+          })
+          MenuItem({
+            symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat_size_square')), content: '导入或删除字幕'
+          })
+            .onClick(async () => {
+              await SelectFileUtil.isSubtitleExist(sandbox_subtitle, item?.date!) ?
+              SelectFileUtil.deleteSubtitle(sandbox_subtitle, item?.date!) :
+              SelectFileUtil.selectExternalSubtitles(sandbox_subtitle, item?.date!)
+            })
+        }
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
+        })
+          .onClick(() => {
+            DataSyncUtil.editing_video = JSON.stringify(item)
+            this.delConfirmDialog.open()
+          })
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')), content: $r('app.string.edit')
+        })
+          .onClick(() => {
+            DataSyncUtil.editing_video = JSON.stringify(item)
+            this.editMetadataDialogController.open()
+          })
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.checkmark_square_on_square')),
+          content: $r('app.string.multiple_choice')
+        })
+          .onClick(() => {
+            this.multipleChooseState =
+              this.multipleChooseState == Visibility.None ? Visibility.Visible : Visibility.None
+            this.delMultipleList.length = 0
+          })
+      }.font({ size: 15, weight: FontWeight.Normal })
+    }.width(180).onAppear(() => {
       ToolsUtil.startVibration()
       this.MenuBuilderState = true
     })
@@ -260,91 +283,108 @@ struct Index {
   @Builder
   SortMenuBuilder() {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      Row() {
-        SymbolGlyph($r('sys.symbol.textformat'))
-          .symbolGlyphFancy(20, 25, 40)
-        Text($r('app.string.sort_by_name'))
-          .fontSize(15)
-          .width(100)
-          .height(30)
-      }.padding(10).onClick(async () => {
-        const targetDataSource = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
-        const sortedData = await ToolsUtil.sortByName(context,targetDataSource, this.encryption);
-        this.encryption ? this.video_meta_data_encryption = sortedData : this.video_meta_data = sortedData
-        this.show_list = SelectFileUtil.getAllItems(sortedData);
-      })
-
-      Divider().height(10)
-      Row() {
-        SymbolGlyph($r('sys.symbol.clock'))
-          .symbolGlyphFancy(20, 25, 40)
-        Text($r('app.string.sort_by_time'))
-          .fontSize(15)
-          .width(100)
-          .height(30)
-      }.padding(10).onClick(async () => {
-        const targetDataSource = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
-        const sortedData = await ToolsUtil.sortByTime(context,targetDataSource, this.encryption)
-        this.encryption ? this.video_meta_data_encryption = sortedData : this.video_meta_data = sortedData
-        this.show_list = SelectFileUtil.getAllItems(sortedData);
-      })
+      Menu() {
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat')),
+          content: $r('app.string.sort_by_name')
+        })
+          .onClick(async () => {
+            const targetDataSource = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
+            const sortedData = await ToolsUtil.sortByName(context, targetDataSource, this.encryption);
+            this.encryption ? this.video_meta_data_encryption = sortedData : this.video_meta_data = sortedData
+            this.show_list = SelectFileUtil.getAllItems(sortedData);
+          })
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
+          content: $r('app.string.sort_by_time')
+        })
+          .onClick(async () => {
+            const targetDataSource = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
+            const sortedData = await ToolsUtil.sortByTime(context, targetDataSource, this.encryption)
+            this.encryption ? this.video_meta_data_encryption = sortedData : this.video_meta_data = sortedData
+            this.show_list = SelectFileUtil.getAllItems(sortedData);
+          })
+      }.font({ size: 15, weight: FontWeight.Normal })
     }.width(150)
+  }
+
+  @Builder
+  selectFileMenuBuilder() {
+    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
+      Menu() {
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder')),
+          content: $r('app.string.import_from_files')
+        })
+          .onClick(async () => {
+            this.closeSideBar(false)
+            await this.selectFiles()
+          })
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.picture')),
+          content: $r('app.string.import_from_album')
+        })
+          .onClick(async () => {
+            this.closeSideBar(false)
+            await this.selectVideo()
+          })
+        if (!this.encryption) {
+          MenuItem({
+            symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder_badge_eye')),
+            content: '从下载文件夹导入（路径：Download/流心视频）'
+          })
+            .onClick(async () => {
+              this.closeSideBar(false)
+              await this.toMetaData(await SelectFileUtil.getDownloadFilesUri());
+            })
+        }
+      }.font({ size: 15, weight: FontWeight.Normal })
+    }.width(200)
   }
 
   @Builder
   SelectItemMenuBuilder() {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      Row() {
-        SymbolGlyph($r('sys.symbol.xmark'))
-          .symbolGlyphFancy(20, 25, 40)
-        Text($r('app.string.cancel'))
-          .fontSize(15)
-          .width(100)
-          .height(30)
-      }.padding(10).onClick(() => {
-        this.closeMultipleChoose()
-        this.delMultipleList.length = 0
-      })
-
-      Divider().height(10)
-      Row() {
-        SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
-          .symbolGlyphFancy(20, 25, 40)
-        Text($r('app.string.select_all'))
-          .fontSize(15)
-          .width(100)
-          .height(30)
-      }.padding(10).onClick(() => {
-        this.itemMultipleChoose = !this.itemMultipleChoose
-        this.delMultipleList.length = 0
-        for (let index = 0; index < this.show_list.length; index++) {
-          this.delMultipleList.push((this.encryption ?
-          this.video_meta_data_encryption.find(i => i.date === this.show_list[index])
-            : this.video_meta_data.find(i => i.date === this.show_list[index]))!)
-        }
-      })
-
-      Divider().height(10)
-      Row() {
-        SymbolGlyph($r('sys.symbol.trash_fill'))
-          .symbolGlyphFancy(20, 25, 40)
-        Text($r('app.string.delete_selected'))
-          .fontSize(15)
-          .width(100)
-          .height(30)
-      }.padding(10).onClick(async () => {
-        this.closeMultipleChoose()
-        this.multipleChooseState = Visibility.None;
-        if (this.delMultipleList.length > 0) {
-          const deletePromises = this.delMultipleList.map(item => {
-            return new Promise<void>((resolve, reject) => {
-              DataSyncUtil.editing_video = JSON.stringify(item);
-              this.deleteItem(resolve, reject);
-            });
-          });
-          await Promise.all(deletePromises);
-        }
-      })
+      Menu() {
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.xmark')),
+          content: $r('app.string.cancel')
+        })
+          .onClick(() => {
+            this.closeMultipleChoose()
+            this.delMultipleList.length = 0
+          })
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.checkmark_square_on_square')),
+          content: $r('app.string.select_all')
+        })
+          .onClick(() => {
+            this.itemMultipleChoose = !this.itemMultipleChoose
+            this.delMultipleList.length = 0
+            for (let index = 0; index < this.show_list.length; index++) {
+              this.delMultipleList.push((this.encryption ?
+              this.video_meta_data_encryption.find(i => i.date === this.show_list[index])
+                : this.video_meta_data.find(i => i.date === this.show_list[index]))!)
+            }
+          })
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')),
+          content: $r('app.string.delete_selected')
+        })
+          .onClick(async () => {
+            this.closeMultipleChoose()
+            this.multipleChooseState = Visibility.None;
+            if (this.delMultipleList.length > 0) {
+              const deletePromises = this.delMultipleList.map(item => {
+                return new Promise<void>((resolve, reject) => {
+                  DataSyncUtil.editing_video = JSON.stringify(item);
+                  this.deleteItem(resolve, reject);
+                });
+              });
+              await Promise.all(deletePromises);
+            }
+          })
+      }.font({ size: 15, weight: FontWeight.Normal })
     }.width(150)
   }
 
@@ -362,7 +402,7 @@ struct Index {
               reject(new Error(`Error deleting file from sandbox_video: ${unlinkErr.message}`));
               return;
             }
-            await SelectFileUtil.saveVideoMetaDataEncryption(context,this.video_meta_data_encryption)
+            await SelectFileUtil.saveVideoMetaDataEncryption(context, this.video_meta_data_encryption)
           });
         } else {
           resolve();
@@ -383,7 +423,7 @@ struct Index {
             reject(new Error(`Error deleting file from sandbox_path: ${unlinkErr.message}`));
             return;
           }
-          SelectFileUtil.saveVideoMetaData(context,this.video_meta_data)
+          SelectFileUtil.saveVideoMetaData(context, this.video_meta_data)
           resolve(); // 在所有操作完成后调用 resolve
         });
       } else {
@@ -393,12 +433,12 @@ struct Index {
   }
 
   updateShowList() {
-    this.lazy_show_list.reloadAllData([...this.show_list]);
+    this.lazy_show_list.reloadAllData(this.show_list);
   }
 
   async updateList() {
-    const source =
-      this.encryption ? await SelectFileUtil.getVideoMetaDataEncryption(context) : await SelectFileUtil.getVideoMetaData(context)
+    const source = this.encryption ? await SelectFileUtil.getVideoMetaDataEncryption(context) :
+      await SelectFileUtil.getVideoMetaData(context)
     this.show_list = source.map(i => i.date)
   }
 
@@ -418,6 +458,7 @@ struct Index {
     ReqPermission.reqPermissionsFromUser(ReqPermission.permissions, context);
     this.video_meta_data = await SelectFileUtil.getVideoMetaData(context)
     this.video_meta_data_encryption = await SelectFileUtil.getVideoMetaDataEncryption(context)
+    this.file_folder_list = await SelectFileUtil.getFileFolder(context)
     this.passwd = await SelectFileUtil.getPassword(context)
     this.show_list = this.video_meta_data.map(i => i.date)
     this.activePermission()
@@ -464,13 +505,13 @@ struct Index {
             : this.video_meta_data.some(item => item.title === file.name);
           if (!isDuplicate) {
             if (this.encryption) {
-              await SelectFileUtil.copyFileToPrivacySpace(context,this.video_meta_data_encryption, uri, sandbox_video,
+              await SelectFileUtil.copyFileToPrivacySpace(context, this.video_meta_data_encryption, uri, sandbox_video,
                 this.encryption, sandbox_path, new Date().getTime().toString(), metadata, file)
             } else {
               const videoInfo = await VideoUtil.setVideoInfo(new Date().getTime().toString(), uri, file.name, metadata,
                 this.encryption, sandbox_video, sandbox_path);
               this.video_meta_data.push(videoInfo);
-              await SelectFileUtil.saveVideoMetaData(context,this.video_meta_data);
+              await SelectFileUtil.saveVideoMetaData(context, this.video_meta_data);
             }
           }
         } finally {
@@ -492,7 +533,8 @@ struct Index {
       }
       await Promise.all(workers);
       this.show_list = SelectFileUtil.getAllItems(
-        this.encryption ? await SelectFileUtil.getVideoMetaDataEncryption(context) : await SelectFileUtil.getVideoMetaData(context));
+        this.encryption ? await SelectFileUtil.getVideoMetaDataEncryption(context) :
+          await SelectFileUtil.getVideoMetaData(context));
       ToolsUtil.showToast(`${getContext().resourceManager
         .getStringSync($r('app.string.add_time_info'))}${this.import_sum}`);
     } catch (error) {
@@ -548,7 +590,7 @@ struct Index {
             Column() {
               Stack() {
                 Image($r("app.media.Background"))
-                  .imageFancy(10, '100%', 120)
+                  .imageFancy(16, '100%', 120)
                   .zIndex(1)
                 Row() {
                   Image($r("app.media.Foreground"))
@@ -572,111 +614,17 @@ struct Index {
                     SymbolGlyph($r('sys.symbol.gearshape')).symbolGlyphFancy(25, '', '')
                     Text('设置')
                       .fontSize(15)
-                      .fontColor($r('app.color.text_color'))
                       .margin({ left: 10, right: 12 })
                   }
                 }
                 .align(Alignment.Start)
                 .padding(10)
                 .buttonFancy('100%', 60)
-                .borderRadius(10)
                 .onClick(() => {
                   this.closeSideBar(false)
                   ToolsUtil.routerWhereOnlyUri('pages/Setting')
                 })
-              }.margin({ top: '4%' })
-            }
-
-            Divider().height(10).margin({ top: '5%' })
-            Row() {
-              Button({ type: ButtonType.Normal, stateEffect: true }) {
-                Row() {
-                  SymbolGlyph($r('sys.symbol.folder')).symbolGlyphFancy(25, '', '')
-                  Text($r('app.string.import_from_files'))
-                    .fontSize(15)
-                    .fontColor($r('app.color.text_color'))
-                    .margin({ left: 10, right: 12 })
-                }
-              }
-              .align(Alignment.Start)
-              .padding(10)
-              .borderRadius(10)
-              .buttonFancy('100%', 60)
-              .onClick(() => {
-                this.closeSideBar(false)
-                this.selectFiles()
-              })
-            }.width('100%')
-            .justifyContent(FlexAlign.Start)
-            .margin({ top: '6%' })
-
-            Row() {
-              Button({ type: ButtonType.Normal, stateEffect: true }) {
-                Row() {
-                  SymbolGlyph($r('sys.symbol.video'))
-                    .symbolGlyphFancy(25, '', '')
-                  Text($r('app.string.import_from_album'))
-                    .fontSize(15)
-                    .fontColor($r('app.color.text_color'))
-                    .margin({ left: 10, right: 12 })
-                }
-              }
-              .align(Alignment.Start)
-              .padding(10)
-              .borderRadius(10)
-              .buttonFancy('100%', 60)
-              .onClick(() => {
-                this.closeSideBar(false)
-                this.selectVideo()
-              })
-            }.width('100%')
-            .justifyContent(FlexAlign.Start)
-            .margin({ top: '4%' })
-
-            if (!this.encryption) {
-              Row() {
-                Button({ type: ButtonType.Normal, stateEffect: true }) {
-                  Row() {
-                    SymbolGlyph($r('sys.symbol.folder')).symbolGlyphFancy(25, '', '')
-                    Text('从下载文件夹导入')
-                      .fontSize(15)
-                      .fontColor($r('app.color.text_color'))
-                      .margin({ left: 10, right: 12 })
-                  }
-                }
-                .align(Alignment.Start)
-                .padding(10)
-                .borderRadius(10)
-                .buttonFancy('100%', 60)
-                .onClick(async () => {
-                  this.closeSideBar(false)
-                  await this.toMetaData(await SelectFileUtil.getDownloadFilesUri());
-                })
-              }.width('100%')
-              .justifyContent(FlexAlign.Start)
-              .margin({ top: '6%' })
-
-              Row() {
-                Button({ type: ButtonType.Normal, stateEffect: true }) {
-                  Row() {
-                    SymbolGlyph($r('sys.symbol.clock')).symbolGlyphFancy(25, '', '')
-                    Text('最近播放')
-                      .fontSize(15)
-                      .fontColor($r('app.color.text_color'))
-                      .margin({ left: 10, right: 12 })
-                  }
-                }
-                .align(Alignment.Start)
-                .padding(10)
-                .borderRadius(10)
-                .buttonFancy('100%', 60)
-                .onClick(async () => {
-                  this.closeSideBar(false)
-                  ToolsUtil.routerWhereOnlyUri('pages/RecentPlay')
-                })
-              }.width('100%')
-              .justifyContent(FlexAlign.Start)
-              .margin({ top: '6%' })
+              }.margin({ top: 10 })
             }
 
             Row() {
@@ -687,13 +635,11 @@ struct Index {
                       .symbolGlyphFancy(25, '', '')
                     Text(this.encryption ? $r('app.string.exist_privacy_space') : $r('app.string.privacy_space'))
                       .fontSize(15)
-                      .fontColor($r('app.color.text_color'))
                       .margin({ left: 10, right: 12 })
                   }
                 }
                 .align(Alignment.Start)
                 .padding(10)
-                .borderRadius(10)
                 .buttonFancy('100%', 60)
                 .onClick(() => {
                   this.closeSideBar(false)
@@ -710,7 +656,100 @@ struct Index {
               }
             }.width('100%')
             .justifyContent(FlexAlign.Start)
-            .margin({ top: '4%' })
+            .margin({ top: 10 })
+
+            if (!this.encryption) {
+              Row() {
+                Button({ type: ButtonType.Normal, stateEffect: true }) {
+                  Row() {
+                    SymbolGlyph($r('sys.symbol.clock')).symbolGlyphFancy(25, '', '')
+                    Text('最近播放')
+                      .fontSize(15)
+                      .fontColor($r('app.color.text_color'))
+                      .margin({ left: 10, right: 12 })
+                  }
+                }
+                .align(Alignment.Start)
+                .padding(10)
+                .buttonFancy('100%', 60)
+                .onClick(async () => {
+                  this.closeSideBar(false)
+                  ToolsUtil.routerWhereOnlyUri('pages/RecentPlay')
+                })
+              }.width('100%')
+              .justifyContent(FlexAlign.Start)
+              .margin({ top: this.passwd == '' || this.encryption ? 10 : 0 })
+            }
+            Column() {
+              Row() {
+                Button({ type: ButtonType.Normal, stateEffect: true }) {
+                  Row() {
+                    SymbolGlyph($r('sys.symbol.plus_square')).symbolGlyphFancy(25, '', '')
+                    Text('导入视频')
+                      .fontSize(15)
+                      .margin({ left: 10, right: 12 })
+                  }
+                }
+                .align(Alignment.Start)
+                .padding(10)
+                .buttonFancy('100%', 60)
+                .bindMenu(this.selectFileMenuBuilder)
+              }.width('100%')
+              .justifyContent(FlexAlign.Start)
+
+              if (!this.encryption) {
+                Row() {
+                  Button({ type: ButtonType.Normal, stateEffect: true }) {
+                    Row() {
+                      SymbolGlyph($r('sys.symbol.folder_badge_plus')).symbolGlyphFancy(25, '', '')
+                      Text('添加文件夹')
+                        .fontSize(15)
+                        .margin({ left: 10, right: 12 })
+                    }
+                  }
+                  .align(Alignment.Start)
+                  .padding(10)
+                  .buttonFancy('100%', 60)
+                  .onClick(() => {
+                    this.addFileFolderNameDialogController.open()
+                  })
+                }.width('100%')
+                .justifyContent(FlexAlign.Start)
+              }
+            }
+            .margin({ top: 10 })
+            .justifyContent(FlexAlign.Start)
+            .backgroundColor($r('app.color.start_window_background_blur'))
+            .borderRadius(16)
+
+            if (!this.encryption) {
+              List() {
+                ForEach(this.file_folder_list, (item: FileFolder, index: number) => {
+                  ListItem() {
+                    Row() {
+                      SymbolGlyph($r('sys.symbol.folder')).symbolGlyphFancy(25, '', '')
+                      Text(item.name)
+                        .fontSize(15)
+                        .margin({ left: 10, right: 12 })
+                    }.width('100%')
+                  }
+                  .onClick(() => {
+                    ToolsUtil.routerToFileFolder(item)
+                  })
+                  .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+                  .bindContextMenu(this.FileFolderSelectMenu(item), ResponseType.LongPress)
+                  .height(60)
+                  .align(Alignment.Start)
+                  .padding(10)
+                })
+              }
+              .borderRadius(16)
+              .width('100%')
+              .height('auto')
+              .align(Alignment.Start)
+              .margin({ top: 10 })
+              .backgroundColor($r('app.color.start_window_background_blur'))
+            }
           }.width('100%').padding({ left: 20, right: 20, top: 50 })
         }
         .layoutWeight(1)
@@ -726,7 +765,7 @@ struct Index {
       .backgroundColor($r('app.color.start_window_background'))
       .transition(TransitionEffect.translate({ x: -300 }).animation({ duration: 500, curve: Curve.Friction }))
       .visibility(this.sideBarStatusTmp)
-      .borderRadius(20)
+      .borderRadius(16)
 
       Stack({ alignContent: Alignment.Top }) { // 内容区
         if (this.sideBarStatus) {
@@ -817,7 +856,7 @@ struct Index {
                         .fontSize(15)
                         .fontWeight(FontWeight.Normal)
                         .opacity(0.8)
-                    }.justifyContent(FlexAlign.Center).padding({ top: 5, })
+                    }.justifyContent(FlexAlign.Center).padding({ top: 5 })
                   }.alignItems(HorizontalAlign.Start).padding(10).width('90%')
                 }.justifyContent(FlexAlign.Center)
               }
@@ -857,14 +896,6 @@ struct Index {
                 return
               }
               this.listScroller.closeAllSwipeActions()
-              this.now_playing = target_item
-              if (VideoUtil.videoWidthAndHeightFormat(String(target_item?.size)) === '0 x 0') {
-                ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
-                ToolsUtil.isFileExist(target_item) ?
-                ToolsUtil.routerWhere(context,'pages/FFMpegPlayer', item, this.encryption) :
-                this.deleteUnExistFile(target_item)
-                return
-              }
               ToolsUtil.isFileExist(target_item) ?
               ToolsUtil.routerWhere(context, 'pages/Player', item, this.encryption) :
               this.deleteUnExistFile(target_item)

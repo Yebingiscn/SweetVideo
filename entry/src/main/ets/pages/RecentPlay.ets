@@ -50,7 +50,7 @@ struct RecentPlay {
       }.padding(10).onClick(() => {
         this.MenuBuilderState = false
         ToolsUtil.isFileExist(item) ?
-        ToolsUtil.routerWhere(context, 'pages/FFMpegPlayer', item?.date, false) : this.delData(context, item!)
+        ToolsUtil.routerWhere(context, 'pages/FFMpegPlayer', item?.date!, false) : this.delData(context, item!)
       })
 
       Divider().height(2)
@@ -93,7 +93,7 @@ struct RecentPlay {
 
         Text('最近播放')
           .fontSize(24)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(FontWeight.Medium)
       }.margin({ top: DataSyncUtil.getActuallyTopSafeHeight() })
       .width('100%')
       .padding({

@@ -52,20 +52,21 @@ struct SplashPage {
     }
     this.isCheckPrivacy = true;
     //init(); // 在用户同意隐私政策后再调用此方法
-    PreferencesUtil.putPreferencesValue(context,"sweet_video", "IsPrivacy", true)
+    PreferencesUtil.putPreferencesValue(context, "sweet_video", "IsPrivacy", true)
     this.initSdk()
   }
 
   async initSetting() {
-    const isInitSetting = await PreferencesUtil.getPreferencesValue(context,"sweet_video", "isInitSetting", false) as boolean
+    const isInitSetting =
+      await PreferencesUtil.getPreferencesValue(context, "sweet_video", "isInitSetting", false) as boolean
     if (!isInitSetting) {
-      PreferencesUtil.putPreferencesValue(context,"sweet_video", "allowBackgroundPlay", this.allowBackgroundPlay)
-      PreferencesUtil.putPreferencesValue(context,"sweet_video", "fastForwardTime", this.fastForwardSeconds)
-      PreferencesUtil.putPreferencesValue(context,"sweet_video", "defaultPlayer", this.defaultPlayer)
-      PreferencesUtil.putPreferencesValue(context,"sweet_video", "subTitleSize", this.subtitleSize)
-      PreferencesUtil.putPreferencesValue(context,"sweet_video", "recentPlay", this.recentPlay)
-      PreferencesUtil.putPreferencesValue(context,"sweet_video", "allowPlayBackExist", this.allowPlayBackExist)
-      PreferencesUtil.putPreferencesValue(context,"sweet_video", "isInitSetting", true)
+      PreferencesUtil.putPreferencesValue(context, "sweet_video", "allowBackgroundPlay", this.allowBackgroundPlay)
+      PreferencesUtil.putPreferencesValue(context, "sweet_video", "fastForwardTime", this.fastForwardSeconds)
+      PreferencesUtil.putPreferencesValue(context, "sweet_video", "defaultPlayer", this.defaultPlayer)
+      PreferencesUtil.putPreferencesValue(context, "sweet_video", "subTitleSize", this.subtitleSize)
+      PreferencesUtil.putPreferencesValue(context, "sweet_video", "recentPlay", this.recentPlay)
+      PreferencesUtil.putPreferencesValue(context, "sweet_video", "allowPlayBackExist", this.allowPlayBackExist)
+      PreferencesUtil.putPreferencesValue(context, "sweet_video", "isInitSetting", true)
     } else {
       this.allowBackgroundPlay =
         await PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowBackgroundPlay",
@@ -73,12 +74,13 @@ struct SplashPage {
       this.allowPlayBackExist = await PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowPlayBackExist",
         this.allowPlayBackExist) as boolean
       this.fastForwardSeconds =
-        await PreferencesUtil.getPreferencesValue(context,"sweet_video", "fastForwardTime", this.fastForwardSeconds) as string
-      this.recentPlay = await PreferencesUtil.getPreferencesValue(context,"sweet_video", "recentPlay", true) as boolean
+        await PreferencesUtil.getPreferencesValue(context, "sweet_video", "fastForwardTime",
+          this.fastForwardSeconds) as string
+      this.recentPlay = await PreferencesUtil.getPreferencesValue(context, "sweet_video", "recentPlay", true) as boolean
       this.defaultPlayer =
-        await PreferencesUtil.getPreferencesValue(context,"sweet_video", "defaultPlayer", this.defaultPlayer) as string
+        await PreferencesUtil.getPreferencesValue(context, "sweet_video", "defaultPlayer", this.defaultPlayer) as string
       this.subtitleSize =
-        await PreferencesUtil.getPreferencesValue(context,"sweet_video", "subTitleSize", this.subtitleSize) as string
+        await PreferencesUtil.getPreferencesValue(context, "sweet_video", "subTitleSize", this.subtitleSize) as string
     }
   }
 
@@ -95,7 +97,8 @@ struct SplashPage {
   }
 
   async check() {
-    this.isCheckPrivacy = await PreferencesUtil.getPreferencesValue(context, "sweet_video", "IsPrivacy", false) as boolean
+    this.isCheckPrivacy =
+      await PreferencesUtil.getPreferencesValue(context, "sweet_video", "IsPrivacy", false) as boolean
     if (!this.isCheckPrivacy) {
       if (this.privacyDialogController != null) {
         this.privacyDialogController.open()

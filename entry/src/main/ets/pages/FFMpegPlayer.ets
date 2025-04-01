@@ -21,13 +21,12 @@ import { router, window } from '@kit.ArkUI'
 import { audio, AVVolumePanel } from '@kit.AudioKit'
 import PermissionUtil from '../utils/PermissionUtil'
 import { common } from '@kit.AbilityKit'
-import AVSessionUtil, { avSessionState } from '../utils/AVSessionUtil'
+import AVSessionUtil from '../utils/AVSessionUtil'
 import { avSession as avSessionManager } from '@kit.AVSessionKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
 import VideoInfoUtil, { VideoMetadata, VideoMetadataFromPlayer } from '../utils/VideoInfoUtil'
 import PreferencesUtil from '../utils/PreferencesUtil'
-import SelectFileUtil from '../utils/SelectFileUtil'
 import { settings } from '@kit.BasicServicesKit'
 
 const context = getContext() as common.UIAbilityContext;
@@ -78,8 +77,8 @@ struct EnhancePlayer {
   @State swipe_start_x: number = 0
   @State isHorizontalSwiping: boolean = false
   @State video_meta_data: VideoMetadata[] = []
-  private initPinchDistance: number = 0;
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
+  private initPinchDistance: number = 0;
   private CONTROL_PlayStatus = PlayStatus.INIT;
   private mIjkMediaPlayer = IjkMediaPlayer.getInstance();
 
@@ -293,9 +292,9 @@ struct EnhancePlayer {
               const tapX = event.fingerList[0].localX;
               const adjustWidth = this.screen_width / 5; // 计算五分之一宽度
               if (tapX < adjustWidth) { // 左侧1/5区域
-                this.seekTo(String(this.play_time - Number(this.fastForwardSeconds) * 1000));
+                this.mIjkMediaPlayer.seekTo(String(this.play_time - Number(this.fastForwardSeconds) * 1000));
               } else if (tapX > adjustWidth * 4) { // 右侧1/5区域
-                this.seekTo(String(this.play_time + Number(this.fastForwardSeconds) * 1000));
+                this.mIjkMediaPlayer.seekTo(String(this.play_time + Number(this.fastForwardSeconds) * 1000));
               } else { // 中间3/5区域
                 this.playing ? this.pause() : this.startPlayOrResumePlay()
               }
@@ -383,7 +382,7 @@ struct EnhancePlayer {
             })
             .onActionEnd(() => {
               if (this.isHorizontalSwiping) {
-                this.seekTo(String(this.play_time));
+                this.mIjkMediaPlayer.seekTo(String(this.play_time));
               }
               this.isHorizontalSwiping = false; // 重置所有滑动状态
               this.isVerticalSwiping = false;
@@ -391,26 +390,26 @@ struct EnhancePlayer {
               this.onSwipingVoice = false;
               this.onSwipingBrightness = false;
             }),
-      PinchGesture({ fingers: 2, distance: 2 })//手势缩放
-        .onActionStart((event: GestureEvent) => {
-          const finger1 = event.fingerList[0];
-          const finger2 = event.fingerList[1];
-          this.initPinchDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
-        })
-        .onActionUpdate((event: GestureEvent) => {
-            const finger1 = event.fingerList[0];
-            const finger2 = event.fingerList[1];
-            const currentDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
-            const rawScale = currentDistance / this.initPinchDistance;
-            const adjustedScale = 1 + (rawScale - 1) * 0.007;
-            const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0);
-            this.play_area_width = Math.max(this.play_area_width * clampedScale, 0.5);
-            this.play_area_height = Math.max(this.play_area_height * clampedScale, 0.5);
-            animateTo({ duration: 100 }, () => {
-              this.play_area_width = this.play_area_width;
-              this.play_area_height = this.play_area_height;
-            });
-        })
+          PinchGesture({ fingers: 2, distance: 2 })//手势缩放
+            .onActionStart((event: GestureEvent) => {
+              const finger1 = event.fingerList[0];
+              const finger2 = event.fingerList[1];
+              this.initPinchDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
+            })
+            .onActionUpdate((event: GestureEvent) => {
+              const finger1 = event.fingerList[0];
+              const finger2 = event.fingerList[1];
+              const currentDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
+              const rawScale = currentDistance / this.initPinchDistance;
+              const adjustedScale = 1 + (rawScale - 1) * 0.007;
+              const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0);
+              this.play_area_width = Math.max(this.play_area_width * clampedScale, 0.5);
+              this.play_area_height = Math.max(this.play_area_height * clampedScale, 0.5);
+              animateTo({ duration: 100 }, () => {
+                this.play_area_width = this.play_area_width;
+                this.play_area_height = this.play_area_height;
+              });
+            })
         ))
     }
     .onAreaChange(async (_oldValue: Area, newValue: Area) => {
@@ -449,7 +448,7 @@ struct EnhancePlayer {
         .onTouch((event) => {
           if (event.type == TouchType.Up) {
             let seekValue = this.play_time
-            this.seekTo(seekValue + "");
+            this.mIjkMediaPlayer.seekTo(seekValue + "");
             this.setProgress()
             this.onSwiping = false
             this.isSliderPlayTimeChange = false
@@ -593,18 +592,8 @@ struct EnhancePlayer {
     await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
     await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
     if (this.video_meta_data.length > 0) {
-      const save_time = this.play_time < this.now_playing?.time! * 0.9 ? this.play_time : 0
-      this.video_meta_data[this.video_meta_data.findIndex(i => i.date == this.now_playing?.date)].last_play = save_time
-      await SelectFileUtil.saveData(context,this.video_meta_data, this.now_playing!)
+      VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data, context)
     }
-  }
-
-  updateSession() {
-    let data: avSessionState = {
-      playing: this.playing,
-      duration: this.play_time
-    }
-    AVSessionUtil.updateSession(JSON.stringify(data))
   }
 
   async setSessionListener() {
@@ -618,7 +607,7 @@ struct EnhancePlayer {
       this.mDestroyPage = false;
       //  LogUtils.getInstance().LOGI("slider-->seekValue start:" + position);
       let seekValue = position;
-      this.seekTo(seekValue + "");
+      this.mIjkMediaPlayer.seekTo(seekValue + "");
       this.setProgress()
       // LogUtils.getInstance().LOGI("slider-->seekValue end:" + seekValue);
     })
@@ -641,7 +630,7 @@ struct EnhancePlayer {
       this.play();
       setTimeout(() => {
         if (this.now_playing?.last_play! < this.total_time * 0.9 && this.now_playing?.last_play != 0) {
-          this.seekTo(this.now_playing?.last_play.toString()!)
+          this.mIjkMediaPlayer.seekTo(this.now_playing?.last_play.toString()!)
         }
       }, 150)
     }
@@ -653,9 +642,9 @@ struct EnhancePlayer {
       this.avSession = await AVSessionUtil.getAVSession()
       await this.setSessionListener()
       AVSessionUtil.setSessionInfo(JSON.stringify(this.now_playing))
-      this.updateSession()
+      VideoOperateUtil.updateSession(this.playing, this.play_time)
     }
-    this.updateSession()
+    VideoOperateUtil.updateSession(this.playing, this.play_time)
   }
 
   private startProgressTask() {
@@ -840,20 +829,16 @@ struct EnhancePlayer {
     this.setProgress();
     this.mDestroyPage = true;
     this.CONTROL_PlayStatus = PlayStatus.PAUSE;
-    this.updateSession()
+    VideoOperateUtil.updateSession(this.playing, this.play_time)
   }
 
   private stop() {
-    this.updateSession()
+    VideoOperateUtil.updateSession(this.playing, this.play_time)
     this.CONTROL_PlayStatus = PlayStatus.INIT;
     this.mIjkMediaPlayer.stop();
     this.mIjkMediaPlayer.release();
     console.error('release')
     this.stopProgressTask();
-  }
-
-  private seekTo(value: string) {
-    this.mIjkMediaPlayer.seekTo(value);
   }
 
   private getVideoSize() {

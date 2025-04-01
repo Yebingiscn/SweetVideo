@@ -2,13 +2,28 @@ import { router, window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { audio } from '@kit.AudioKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { AudioTrack, VideoMetadata } from './VideoInfoUtil';
+import { VideoMetadata, VideoMetadataFromPlayer } from './VideoInfoUtil';
 import ToolsUtil from './ToolsUtil';
 import SelectFileUtil from './SelectFileUtil';
+import { media } from '@kit.MediaKit';
+import AVSessionUtil, { avSessionState } from './AVSessionUtil';
+
+export interface AudioTrack {
+  index: number;
+  language: string;
+  name: string;
+  mime: string
+}
 
 class VideoOperateUtil {
   public max_volume: number = 0
   public min_volume: number = 0
+  public lastSyncTime: number = 0;
+  public syncCoolDown: number = 1000; // 同步冷却时间1秒
+  public driftHistory: number[] = []; // 差异记录用于趋势分析
+  public initPinchDistance: number = 0;
+  public clearSubtitleTimer: number | null = null;
+  public mIjkMediaPlayerActive: boolean = false
   private windowStage: window.WindowStage = AppStorage.get('windowStage') as window.WindowStage;
   private mainWin: window.Window = this.windowStage.getMainWindowSync();
 
@@ -104,6 +119,55 @@ class VideoOperateUtil {
     const dx = f2.localX - f1.localX;
     const dy = f2.localY - f1.localY;
     return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  async getAudioTracks(avPlayer: media.AVPlayer): Promise<AudioTrack[]> {
+    const getTrackDescriptions = (): Promise<AudioTrack[]> => {
+      return new Promise((resolve, reject) => {
+        avPlayer.getTrackDescription((error: BusinessError, arrList: Array<media.MediaDescription>) => {
+          if (error || !arrList || arrList.length === 0) {
+            console.error(`Failed to get TrackDescription, error: ${error}`);
+            return reject(error || new Error("No audio tracks available"));
+          }
+          const audioTracks: AudioTrack[] = arrList
+            .filter(description =>
+            description[media.MediaDescriptionKey.MD_KEY_TRACK_TYPE] === media.MediaType.MEDIA_TYPE_AUD
+            )
+            .map((description): AudioTrack => {
+              return {
+                index: description[media.MediaDescriptionKey.MD_KEY_TRACK_INDEX] as number,
+                language: description[media.MediaDescriptionKey.MD_KEY_LANGUAGE] as string,
+                name: description[media.MediaDescriptionKey.MD_KEY_TRACK_NAME] as string,
+                mime: description[media.MediaDescriptionKey.MD_KEY_CODEC_MIME] as string
+              };
+            });
+          resolve(audioTracks);
+        });
+      });
+    };
+
+    try {
+      const audioTracks = await getTrackDescriptions();
+      return audioTracks; // 返回包含音轨索引、语言和名称的对象数组
+    } catch (error) {
+      console.error("获取 audioTracks 失败:", error);
+      return []; // 返回空数组表示没有获取到音轨
+    }
+  }
+
+  async saveVideoTime(play_time: number, now_playing: VideoMetadataFromPlayer,
+    video_meta_data: VideoMetadata[], context: Context) {
+    const save_time = play_time < now_playing?.time! * 0.9 ? play_time : 0
+    video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)].last_play = save_time
+    await SelectFileUtil.saveData(context, video_meta_data, now_playing!)
+  }
+
+  updateSession(playing: boolean, play_time: number) {
+    let data: avSessionState = {
+      playing: playing,
+      duration: play_time
+    }
+    AVSessionUtil.updateSession(JSON.stringify(data))
   }
 }
 

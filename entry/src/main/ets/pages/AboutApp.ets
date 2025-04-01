@@ -28,7 +28,7 @@ struct AboutApp {
 
         Text('关于应用')
           .fontSize(24)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(FontWeight.Medium)
       }.margin({ top: DataSyncUtil.getActuallyTopSafeHeight() })
       .width('100%')
       .padding({

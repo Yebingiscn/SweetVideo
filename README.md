@@ -8,8 +8,8 @@
         <a href="https://img.shields.io/badge/OS-HarmonyOS Next-103fb6" style="text-decoration:none" >
             <img src="https://img.shields.io/badge/HarmonyOS-Next-103fb6" alt="HarmonyOS Version"/>
         </a>
-        <a href="https://img.shields.io/badge/API-14-lightgreen" style="text-decoration:none" >
-            <img src="https://img.shields.io/badge/API-14-lightgreen" alt="API Version"/>
+        <a href="https://img.shields.io/badge/API-15-lightgreen" style="text-decoration:none" >
+            <img src="https://img.shields.io/badge/API-15-lightgreen" alt="API Version"/>
         </a>
         <a href="https://img.shields.io/github/stars/Yebingiscn/SweetVideo?style=flat" style="text-decoration:none" >
             <img src="https://img.shields.io/github/stars/Yebingiscn/SweetVideo?style=flat" alt="GitHub all stars"/>
@@ -34,7 +34,7 @@ QQ群：973792610
 > 可以从华为应用商店收到内测提醒和更新
 >
 
-https://appgallery.huawei.com/link/invite-test-wap?taskId=fb4f8f416af8cb8363b22f15aead7801&invitationCode=A2K32mLgkzv
+https://appgallery.huawei.com/link/invite-test-wap?taskId=1b90ab5f3327fc0891420025de1eef02&invitationCode=A2K32mLgkzv
 
 **如果提示测试人数已达到上限，就换个时间试试，一般早上，下午3点左右或者晚上10点半以后上限会恢复正常**
 

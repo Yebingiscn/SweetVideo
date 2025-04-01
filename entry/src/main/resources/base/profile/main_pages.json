@@ -6,6 +6,7 @@
     "pages/AboutApp",
     "pages/PrivacyInfo",
     "pages/Setting",
-    "pages/RecentPlay"
+    "pages/RecentPlay",
+    "pages/FileFolderContent"
   ]
 }

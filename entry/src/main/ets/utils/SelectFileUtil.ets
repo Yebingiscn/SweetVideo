@@ -8,6 +8,7 @@ import PreferencesUtil from './PreferencesUtil';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import ToolsUtil from './ToolsUtil';
 import { media } from '@kit.MediaKit';
+import { FileFolder } from './FileFolderUtil';
 
 class SelectFileUtil {
   private static queryCache = new WeakMap<VideoMetadata[], Map<string, VideoMetadata>>();
@@ -114,7 +115,8 @@ class SelectFileUtil {
     })
   }
 
-  async copyFileToPrivacySpace(context: Context, video_meta_data_encryption: VideoMetadata[], uri: string, sandbox_video: string,
+  async copyFileToPrivacySpace(context: Context, video_meta_data_encryption: VideoMetadata[], uri: string,
+    sandbox_video: string,
     encryption: boolean, sandbox_path: string, date: string, metadata: media.AVMetadata,
     file: fs.File): Promise<VideoMetadata> {
     const file1 = fs.openSync(uri, fs.OpenMode.READ_ONLY);
@@ -146,30 +148,41 @@ class SelectFileUtil {
   }
 
   async getVideoMetaData(context: Context) {
-    return await PreferencesUtil.getPreferencesValue(context,'sweet_video', 'recent_video_meta_data', []) as VideoMetadata[]
+    return await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'recent_video_meta_data',
+      []) as VideoMetadata[]
   }
 
-  async getVideoMetaDataEncryption(context:Context) {
-    return await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'video_meta_data_encryption', []) as VideoMetadata[]
+  async getVideoMetaDataEncryption(context: Context) {
+    return await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'video_meta_data_encryption',
+      []) as VideoMetadata[]
   }
 
-  async getPassword(context:Context) {
+  async getFileFolder(context: Context) {
+    return await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'file_folder', []) as FileFolder[]
+  }
+
+  async getPassword(context: Context) {
     return await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'passwd', '') as string
   }
 
-  async saveData(context:Context, show_list: VideoMetadata[], target_data: VideoMetadataFromPlayer) {
+  async saveData(context: Context, show_list: VideoMetadata[], target_data: VideoMetadataFromPlayer) {
     const tmp_meta_data = await this.getVideoMetaData(context)
     tmp_meta_data.findIndex(item => item.date === target_data.date) !== -1
       ? await this.saveVideoMetaData(context, show_list) :
       await this.saveVideoMetaDataEncryption(context, show_list)
   }
 
-  async saveVideoMetaData(context:Context, video_meta_data: VideoMetadata[]) {
+  async saveVideoMetaData(context: Context, video_meta_data: VideoMetadata[]) {
     await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_video_meta_data', video_meta_data);
   }
 
-  async saveVideoMetaDataEncryption(context:Context, video_meta_data_encryption: VideoMetadata[]) {
-    await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'video_meta_data_encryption', video_meta_data_encryption);
+  async saveVideoMetaDataEncryption(context: Context, video_meta_data_encryption: VideoMetadata[]) {
+    await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'video_meta_data_encryption',
+      video_meta_data_encryption);
+  }
+
+  async saveFileFolder(context: Context, file_folder: FileFolder[]) {
+    await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'file_folder', file_folder);
   }
 
   getItem(list: VideoMetadata[], item: string): VideoMetadata | undefined {

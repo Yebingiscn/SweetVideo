@@ -6,18 +6,29 @@ import PermissionUtil from '../utils/PermissionUtil';
 import { common } from '@kit.AbilityKit';
 import { router, window } from '@kit.ArkUI';
 import { avSession as avSessionManager } from '@kit.AVSessionKit';
-import AVSessionUtil, { avSessionState } from '../utils/AVSessionUtil';
+import AVSessionUtil from '../utils/AVSessionUtil';
 import ToolsUtil from '../utils/ToolsUtil';
-import VideoInfoUtil, { AudioTrack, VideoMetadata, VideoMetadataFromPlayer } from '../utils/VideoInfoUtil';
+import VideoInfoUtil, { VideoMetadata, VideoMetadataFromPlayer } from '../utils/VideoInfoUtil';
 import TimeUtil from '../utils/TimeUtil';
 import { audio, AVVolumePanel } from '@kit.AudioKit';
 import { settings } from '@kit.BasicServicesKit';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { VideoDataSource } from '../utils/DataUtil';
-import VideoOperateUtil from '../utils/VideoOperateUtil';
+import VideoOperateUtil, { AudioTrack } from '../utils/VideoOperateUtil';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
 import PreferencesUtil from '../utils/PreferencesUtil';
 import { IjkMediaPlayer } from '@ohos/ijkplayer';
+
+@Extend(Image)
+function imageFancy(borderRadius: number, width: number | string, height: number | string) {
+  .alt($r("app.media.sweet_video_alt"))
+  .backgroundImageSize(ImageSize.Cover)
+  .borderRadius(borderRadius)
+  .width(width)
+  .height(height)
+  .autoResize(true)
+  .interpolation(ImageInterpolation.Low)
+}
 
 @Extend(Button)
 function buttonFancy(width: number | string, height: number | string) {
@@ -25,6 +36,13 @@ function buttonFancy(width: number | string, height: number | string) {
   .height(width)
   .width(height)
   .backgroundColor('#50000000')
+}
+
+@Extend(SymbolGlyph)
+function symbolGlyphFancy(fontSize: number) {
+  .fontSize(fontSize)
+  .fontColor(['#f0f0f0'])
+  .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
 }
 
 const context = getContext() as common.UIAbilityContext;
@@ -88,14 +106,8 @@ struct Player {
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
   @StorageLink('subtitleSize') subtitleSize: string = '22'
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
-  private clearSubtitleTimer: number | null = null;
   private listScroller: Scroller = new Scroller();
-  private initPinchDistance: number = 0;
   private mIjkMediaPlayer = IjkMediaPlayer.getInstance();
-  private mIjkMediaPlayerActive: boolean = false
-  private lastSyncTime: number = 0;
-  private syncCoolDown: number = 1000; // 同步冷却时间1秒
-  private driftHistory: number[] = []; // 差异记录用于趋势分析
 
   onBackPress(): boolean | void {
     if (this.showControl && !this.allowPlayBackExist) {
@@ -110,13 +122,13 @@ struct Player {
 
   async setSessionListener() {
     this.avSession?.on('play', () => {
-      if (this.mIjkMediaPlayerActive) {
+      if (VideoOperateUtil.mIjkMediaPlayerActive) {
         this.mIjkMediaPlayer.start()
       }
       this.avPlayer?.play()
     });
     this.avSession?.on('pause', () => {
-      if (this.mIjkMediaPlayerActive && this.mIjkMediaPlayer.isPlaying()) {
+      if (VideoOperateUtil.mIjkMediaPlayerActive && this.mIjkMediaPlayer.isPlaying()) {
         this.mIjkMediaPlayer.pause()
       }
       this.avPlayer?.pause()
@@ -164,13 +176,13 @@ struct Player {
         this.screenBrightness = Number(value) / 255;
         this.screenBrightnessAtFirst = this.screenBrightness
       })
-    this.circle_play = await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'circle_play', false) as boolean
+    this.circle_play =
+      await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'circle_play', false) as boolean
     const video_speed = await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'video_speed', '1x') as string
     this.speed = parseFloat(video_speed?.replace('x', '') || '1')
   }
 
   async aboutToDisappear(): Promise<void> {
-    await this.ijkPlayerStop()
     if (this.screenBrightness != this.screenBrightnessAtFirst) {
       VideoOperateUtil.setBrightness(this.screenBrightnessAtFirst)
     }
@@ -182,12 +194,10 @@ struct Player {
     await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
     await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
     await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
-    if (this.video_meta_data.length > 0){
-      const save_time = this.play_time < this.now_playing?.time! * 0.9 ? this.play_time : 0
-      this.video_meta_data[this.video_meta_data.findIndex(i => i.date == this.now_playing?.date)].last_play = save_time
-      await SelectFileUtil.saveData(context,this.video_meta_data, this.now_playing!)
+    if (this.video_meta_data.length > 0) {
+      VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data, context)
     }
-    await PreferencesUtil.putPreferencesValue(context,'sweet_video', 'video_speed', this.speed + 'x');
+    await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'video_speed', this.speed + 'x');
   }
 
   async setRotation() {
@@ -211,11 +221,11 @@ struct Player {
   }
 
   async getAudioTrack() {
-    this.audio_track = await VideoInfoUtil.getAudioTracks(this.avPlayer!)
+    this.audio_track = await VideoOperateUtil.getAudioTracks(this.avPlayer!)
     if (VideoOperateUtil.audioTrackErrorExecute(this.audio_track)) {
       this.avPlayer!.selectTrack(this.audio_track[0].index);
     } else {
-      this.mIjkMediaPlayerActive = true
+      VideoOperateUtil.mIjkMediaPlayerActive = true
       const video_url = fs.openSync(this.now_playing?.uri).path
       this.mIjkMediaPlayer.reset();
       this.mIjkMediaPlayer.setAudioId(this.surfaceID)
@@ -253,26 +263,26 @@ struct Player {
         animateTo({ duration: 300, curve: Curve.Ease }, () => {
           this.play_time = duration;
         });
-        if (this.mIjkMediaPlayerActive) {
+        if (VideoOperateUtil.mIjkMediaPlayerActive) {
           const currentTime = Date.now(); // 冷却时间检查
-          if (currentTime - this.lastSyncTime < this.syncCoolDown) {
+          if (currentTime - VideoOperateUtil.lastSyncTime < VideoOperateUtil.syncCoolDown) {
             return;
           }
           const audioPosition = Number(this.mIjkMediaPlayer.getCurrentPosition());
           const drift = duration - audioPosition; // 记录最近5次差异
-          this.driftHistory.push(drift);
-          if (this.driftHistory.length > 5) {
-            this.driftHistory.shift();
+          VideoOperateUtil.driftHistory.push(drift);
+          if (VideoOperateUtil.driftHistory.length > 5) {
+            VideoOperateUtil.driftHistory.shift();
           } // 动态阈值计算
           const buffer = this.mIjkMediaPlayer.getAsyncStatisticBufCapacity();
           const dynamicThreshold = Math.min(1000, 300 + buffer * 0.5); // 趋势分析（最近3次差异是否持续扩大）
-          const isGrowing = this.driftHistory.slice(-3).every((v, i, arr) =>
+          const isGrowing = VideoOperateUtil.driftHistory.slice(-3).every((v, i, arr) =>
           i === 0 || Math.abs(v) > Math.abs(arr[i-1])
           ); // 触发条件：差异超过阈值或存在持续扩大趋势
           if (Math.abs(drift) > dynamicThreshold || (isGrowing && Math.abs(drift) > 300)) {
             this.handleIntelligentSync(duration, audioPosition);
-            this.lastSyncTime = currentTime; // 自适应调整冷却时间
-            this.syncCoolDown = Math.max(500, 1000 - buffer * 2);
+            VideoOperateUtil.lastSyncTime = currentTime; // 自适应调整冷却时间
+            VideoOperateUtil.syncCoolDown = Math.max(500, 1000 - buffer * 2);
           }
         }
       }
@@ -280,7 +290,7 @@ struct Player {
 
     this.avPlayer?.on('seekDone', (percent) => {
       this.play_time = percent
-      this.updateSession()
+      VideoOperateUtil.updateSession(this.playing, this.play_time)
     })
 
     this.avPlayer?.on('speedDone', (speed) => {
@@ -289,7 +299,7 @@ struct Player {
 
     this.avPlayer?.on('audioOutputDeviceChangeWithInfo', (data: audio.AudioStreamDeviceChangeInfo) => {
       if (data.changeReason === audio.AudioStreamDeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) {
-        if (this.mIjkMediaPlayerActive) {
+        if (VideoOperateUtil.mIjkMediaPlayerActive) {
           this.mIjkMediaPlayer.pause()
         }
         this.avPlayer?.pause()
@@ -297,16 +307,16 @@ struct Player {
     });
 
     this.avPlayer?.on('subtitleUpdate', async (info: media.SubtitleInfo) => {
-      if (this.clearSubtitleTimer !== null) {
-        clearTimeout(this.clearSubtitleTimer);
-        this.clearSubtitleTimer = null;
+      if (VideoOperateUtil.clearSubtitleTimer !== null) {
+        clearTimeout(VideoOperateUtil.clearSubtitleTimer);
+        VideoOperateUtil.clearSubtitleTimer = null;
       }
       if (info) {
         const text = info.text ?? '';
         const duration = info.duration ?? 0;
         this.sub_title = text;
         if (duration > 0) {
-          this.clearSubtitleTimer = setTimeout(() => {
+          VideoOperateUtil.clearSubtitleTimer = setTimeout(() => {
             this.sub_title = '';
           }, duration) as number;
         }
@@ -331,10 +341,16 @@ struct Player {
           this.lockVisibility = false
           this.isSliderPlayTimeChange = false
           this.onSwiping = false
+          if (this.now_playing?.last_play !== 0 && this.now_playing?.last_play! < this.now_playing?.time! * 0.9) {
+            this.avPlayer?.seek(this.now_playing?.last_play, media.SeekMode.SEEK_CLOSEST)
+            if (VideoOperateUtil.mIjkMediaPlayerActive) {
+              this.mIjkMediaPlayer.seekTo(this.now_playing?.last_play.toString())
+            }
+          }
           break;
         case 'completed':
           if (this.circle_play) {
-            if (this.mIjkMediaPlayerActive) {
+            if (VideoOperateUtil.mIjkMediaPlayerActive) {
               this.mIjkMediaPlayer.seekTo('0')
               this.mIjkMediaPlayer.start()
             }
@@ -347,31 +363,25 @@ struct Player {
         case 'playing':
           this.played = true
           this.playing = true
-          if (this.now_playing?.last_play !== 0 && this.now_playing?.last_play! < this.now_playing?.time! * 0.9) {
-            this.avPlayer?.seek(this.now_playing?.last_play, media.SeekMode.SEEK_CLOSEST)
-            if (this.mIjkMediaPlayerActive) {
-              this.mIjkMediaPlayer.seekTo(this.now_playing?.last_play.toString())
-            }
-          }
           if (!this.avSession && this.allowBackgroundPlay) {
             this.avSession = await AVSessionUtil.getAVSession()
             await this.setSessionListener()
             AVSessionUtil.setSessionInfo(JSON.stringify(this.now_playing))
-            this.updateSession()
+            VideoOperateUtil.updateSession(this.playing, this.play_time)
           }
-          this.updateSession()
+          VideoOperateUtil.updateSession(this.playing, this.play_time)
           break
         case 'paused':
-          if (this.mIjkMediaPlayerActive) {
+          if (VideoOperateUtil.mIjkMediaPlayerActive) {
             this.mIjkMediaPlayer.pause()
           }
           this.playing = false
-          this.updateSession()
+          VideoOperateUtil.updateSession(this.playing, this.play_time)
           break
         case 'released':
           await this.ijkPlayerStop()
           this.playing = false
-          this.updateSession()
+          VideoOperateUtil.updateSession(this.playing, this.play_time)
           break
         case 'idle':
           await this.ijkPlayerStop()
@@ -387,10 +397,12 @@ struct Player {
   }
 
   async ijkPlayerStop() {
-    if (this.mIjkMediaPlayerActive) {
+    if (VideoOperateUtil.mIjkMediaPlayerActive) {
+      this.mIjkMediaPlayer.pause(); // 先暂停再停止
+      this.mIjkMediaPlayer.reset();
       this.mIjkMediaPlayer.stop()
       this.mIjkMediaPlayer.release()
-      this.mIjkMediaPlayerActive = false
+      VideoOperateUtil.mIjkMediaPlayerActive = false
     }
   }
 
@@ -413,18 +425,10 @@ struct Player {
     }
   }
 
-  updateSession() {
-    let data: avSessionState = {
-      playing: this.playing,
-      duration: this.play_time
-    }
-    AVSessionUtil.updateSession(JSON.stringify(data))
-  }
-
   async playChooseVideo(item: VideoMetadata) {
     RecentPlayUtil.addPlayback(context, item)
     await this.avPlayer?.reset()
-    if (this.mIjkMediaPlayerActive) {
+    if (VideoOperateUtil.mIjkMediaPlayerActive) {
       await this.ijkPlayerStop()
     }
     this.now_playing = JSON.parse(JSON.stringify(item)) as VideoMetadataFromPlayer
@@ -432,14 +436,12 @@ struct Player {
     this.avSession = await AVSessionUtil.getAVSession()
     await this.setSessionListener()
     AVSessionUtil.setSessionInfo(JSON.stringify(this.now_playing))
-    this.updateSession()
+    VideoOperateUtil.updateSession(this.playing, this.play_time)
   }
 
   async playNextVideo() {
     if (this.video_meta_data.length > 0) {
-      const save_time = this.play_time < this.now_playing?.time! * 0.9 ? this.play_time : 0
-      this.video_meta_data[this.video_meta_data.findIndex(i => i.date == this.now_playing?.date)].last_play = save_time
-      await SelectFileUtil.saveData(context,this.video_meta_data, this.now_playing!)
+      VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data, context)
       let item = SelectFileUtil.getItem(this.video_meta_data, this.now_playing?.date || '') as VideoMetadata
       let next_item = SelectFileUtil.getNextItem(this.video_meta_data, item.date)
       this.playChooseVideo(next_item!)
@@ -488,14 +490,8 @@ struct Player {
               Column() {
                 Row() {
                   Image(fileUri.getUriFromPath(sandbox_path + item.date))
-                    .width(60)
-                    .height(90)
-                    .alt($r("app.media.sweet_video_alt"))
-                    .backgroundImageSize(ImageSize.Cover)
-                    .borderRadius(10)
+                    .imageFancy(10, 60, 90)
                     .margin({ left: 5 })
-                    .autoResize(true)
-                    .interpolation(ImageInterpolation.Low)
                   Text((String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title)).slice(0,
                     String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title).lastIndexOf('.')))
                     .fontSize(15)
@@ -551,48 +547,47 @@ struct Player {
         .height(this.play_area_height)
         .animation({ duration: this.played ? 300 : 0, curve: Curve.Ease })
 
-        if (this.showControl && !this.isLock) {
-          Stack() {
-            Flex({
-              justifyContent: FlexAlign.SpaceBetween,
-              alignItems: ItemAlign.Center,
-              direction: FlexDirection.Column
-            }) { //顶栏
-              Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
-                this.VideoTop()
-              }
-              .height(85)
-              .backgroundColor('#61000000')
-              .width('100%')
-              .padding({
-                left: (this.screen_height > this.screen_width ? 20 : 35),
-                right: 20,
-                top: (this.screen_height > this.screen_width ? DataSyncUtil.getActuallyTopSafeHeight() : 0),
-                bottom: 5
-              })
+        Stack() {
+          Flex({
+            justifyContent: FlexAlign.SpaceBetween,
+            alignItems: ItemAlign.Center,
+            direction: FlexDirection.Column
+          }) { //顶栏
+            Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
+              this.VideoTop()
+            }
+            .height(85)
+            .backgroundColor('#61000000')
+            .width('100%')
+            .padding({
+              left: (this.screen_height > this.screen_width ? 20 : 35),
+              right: 20,
+              top: (this.screen_height > this.screen_width ? DataSyncUtil.getActuallyTopSafeHeight() : 0),
+              bottom: 5
+            })
 
-              Stack() { //底栏
-                if (this.screen_arco > 1.4) {
-                  Column({ space: 15 }) {
-                    this.VideoButtons()
+            Stack() { //底栏
+              if (this.screen_arco > 1.4) {
+                Column({ space: 15 }) {
+                  this.VideoButtons()
+                  this.VideoSlider()
+                }
+              } else {
+                Row({ space: 15 }) {
+                  Column() {
                     this.VideoSlider()
-                  }
-                } else {
-                  Row({ space: 15 }) {
-                    Column() {
-                      this.VideoSlider()
-                      this.VideoButtons()
-                    }
+                    this.VideoButtons()
                   }
                 }
               }
-              .backgroundColor('#61000000')
-              .height(this.screen_height > this.screen_width ? 180 : 110)
-              .width('100%')
-            }.height('100%').width('100%')
-          }
-          .animation({ duration: 300, curve: Curve.Smooth })
+            }
+            .backgroundColor('#61000000')
+            .height(this.screen_height > this.screen_width ? 180 : 110)
+            .width('100%')
+          }.height('100%').width('100%')
         }
+        .visibility((this.showControl && !this.isLock ? Visibility.Visible : Visibility.Hidden))
+        .animation({ duration: 300, curve: Curve.Smooth })
 
         Stack({ alignContent: Alignment.BottomEnd }) { //字幕
           Text(this.sub_title)
@@ -666,8 +661,7 @@ struct Player {
                 }
               }).visibility(Visibility.None)
               SymbolGlyph($r('sys.symbol.speaker_wave_1'))
-                .fontSize(23)
-                .fontColor(['#f0f0f0'])
+                .symbolGlyphFancy(23)
               Slider({
                 value: this.volume,
                 min: VideoOperateUtil.min_volume,
@@ -703,8 +697,7 @@ struct Player {
           Stack() { //亮度提示
             Column() {
               SymbolGlyph($r('sys.symbol.sun_max'))
-                .fontSize(23)
-                .fontColor(['#f0f0f0'])
+                .symbolGlyphFancy(23)
               Slider({
                 value: this.screenBrightness,
                 min: 0,
@@ -716,7 +709,7 @@ struct Player {
               })
                 .width(60)
                 .height(30)
-                .selectedColor($r('app.color.main_color'))
+                .selectedColor('#e0e0e0')
                 .trackColor(Color.Black)
                 .trackThickness(40)
             }
@@ -737,8 +730,7 @@ struct Player {
           Button({ type: ButtonType.Circle, stateEffect: true }) { //锁定播放栏
             SymbolGlyph(this.isLock ? $r('sys.symbol.lock_fill') : $r('sys.symbol.lock_open_fill'))
               .fontWeight(FontWeight.Bold)
-              .fontSize(30)
-              .fontColor(['#f0f0f0'])
+              .symbolGlyphFancy(30)
           }
           .zIndex(100)
           .buttonFancy(40, 40)
@@ -761,18 +753,18 @@ struct Player {
                   if (tapX < adjustWidth) { // 左侧1/5区域
                     this.avPlayer?.seek(this.play_time - Number(this.fastForwardSeconds) * 1000,
                       media.SeekMode.SEEK_CLOSEST);
-                    if (this.mIjkMediaPlayerActive) {
+                    if (VideoOperateUtil.mIjkMediaPlayerActive) {
                       this.mIjkMediaPlayer.seekTo((this.play_time - Number(this.fastForwardSeconds) * 1000).toString())
                     }
                   } else if (tapX > adjustWidth * 4) { // 右侧1/5区域
                     this.avPlayer?.seek(this.play_time + Number(this.fastForwardSeconds) * 1000,
                       media.SeekMode.SEEK_CLOSEST);
-                    if (this.mIjkMediaPlayerActive) {
+                    if (VideoOperateUtil.mIjkMediaPlayerActive) {
                       this.mIjkMediaPlayer.seekTo((this.play_time + Number(this.fastForwardSeconds) * 1000).toString())
                     }
                   } else { // 中间3/5区域
                     this.playing ? this.avPlayer?.pause() : this.avPlayer?.play();
-                    if (this.mIjkMediaPlayerActive) {
+                    if (VideoOperateUtil.mIjkMediaPlayerActive) {
                       this.playing ? this.mIjkMediaPlayer.start() : this.mIjkMediaPlayer.pause()
                     }
                   }
@@ -845,7 +837,7 @@ struct Player {
               .onActionEnd(() => {
                 if (this.isHorizontalSwiping) {
                   this.avPlayer?.seek(this.play_time, media.SeekMode.SEEK_CLOSEST);
-                  if (this.mIjkMediaPlayerActive) {
+                  if (VideoOperateUtil.mIjkMediaPlayerActive) {
                     this.mIjkMediaPlayer.seekTo(this.play_time.toString())
                   }
                 }
@@ -882,14 +874,14 @@ struct Player {
               .onActionStart((event: GestureEvent) => {
                 const finger1 = event.fingerList[0];
                 const finger2 = event.fingerList[1];
-                this.initPinchDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
+                VideoOperateUtil.initPinchDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
               })
               .onActionUpdate((event: GestureEvent) => {
                 if (!this.isLock) {
                   const finger1 = event.fingerList[0];
                   const finger2 = event.fingerList[1];
-                    const currentDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
-                  const rawScale = currentDistance / this.initPinchDistance;
+                  const currentDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
+                  const rawScale = currentDistance / VideoOperateUtil.initPinchDistance;
                   const adjustedScale = 1 + (rawScale - 1) * 0.007;
                   const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0);
                   this.play_area_width = Math.max(this.play_area_width * clampedScale, 0.5);
@@ -922,8 +914,7 @@ struct Player {
   VideoTop() {
     Row({ space: 8 }) {
       SymbolGlyph($r('sys.symbol.chevron_left'))
-        .fontSize(40)
-        .fontColor(['#f0f0f0'])
+        .symbolGlyphFancy(40)
         .onClick(() => {
           this.avPlayer?.reset()
           router.back()
@@ -940,18 +931,14 @@ struct Player {
         Row({ space: 12 }) {
           SymbolGlyph(this.sub_title_visibility === Visibility.Visible ?
           $r('sys.symbol.textformat_size_square_fill') : $r('sys.symbol.textformat_size_square'))
-            .fontSize(30)
-            .fontColor(['#f0f0f0'])
-            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+            .symbolGlyphFancy(30)
             .onClick(() => {
               this.sub_title_visibility === Visibility.Visible ? this.sub_title_visibility = Visibility.None :
                 this.sub_title_visibility = Visibility.Visible
             })
           if (this.screen_width > this.screen_height) {
             SymbolGlyph($r('sys.symbol.opticaldisc'))
-              .fontSize(30)
-              .fontColor(['#f0f0f0'])
-              .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+              .symbolGlyphFancy(30)
               .bindMenu(this.AudioTrackMenuBuilder)
           }
           if (this.screen_width > this.screen_height) {
@@ -970,7 +957,6 @@ struct Player {
                 this.select_text = text
                 this.screenExtend(text!)
               })
-              .backgroundColor('#00000000')
               .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
           }
         }.alignItems(VerticalAlign.Center)
@@ -978,8 +964,7 @@ struct Player {
 
       Button({ type: ButtonType.Circle, stateEffect: true }) { // 旋转锁定
         SymbolGlyph(this.lock_rotation ? $r('sys.symbol.lock_fill') : $r('sys.symbol.rotate_left'))
-          .fontSize(23)
-          .fontColor(['#f0f0f0'])
+          .symbolGlyphFancy(23)
           .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.lock_rotation))
       }
       .margin({ top: this.screen_height > this.screen_width ? 10 : 0 })
@@ -1028,7 +1013,7 @@ struct Player {
         .onTouch((event) => {
           if (event.type == TouchType.Up) {
             this.avPlayer?.seek(this.play_time, media.SeekMode.SEEK_CLOSEST)
-            if (this.mIjkMediaPlayerActive) {
+            if (VideoOperateUtil.mIjkMediaPlayerActive) {
               this.mIjkMediaPlayer.seekTo(this.play_time.toString())
             }
             this.isSliderPlayTimeChange = false
@@ -1056,15 +1041,14 @@ struct Player {
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 播放按钮
           SymbolGlyph(this.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill'))
-            .fontSize(27)
-            .fontColor(['#f0f0f0'])
+            .symbolGlyphFancy(27)
             .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.playing))
         }
         .buttonFancy(40, 40)
         .onClick(() => {
           ToolsUtil.startVibration()
           this.playing ? this.avPlayer?.pause() : this.avPlayer?.play()
-          if (this.mIjkMediaPlayerActive) {
+          if (VideoOperateUtil.mIjkMediaPlayerActive) {
             this.playing ? this.mIjkMediaPlayer.pause() : this.mIjkMediaPlayer.start()
           }
         })
@@ -1073,8 +1057,7 @@ struct Player {
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 下一首按钮
           SymbolGlyph($r('sys.symbol.forward_end_fill'))
-            .fontSize(23)
-            .fontColor(['#f0f0f0'])
+            .symbolGlyphFancy(23)
         }
         .buttonFancy(40, 40)
         .onClick(() => {
@@ -1085,21 +1068,19 @@ struct Player {
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 循环按钮
           SymbolGlyph(this.circle_play ? $r('sys.symbol.repeat') : $r('sys.symbol.order_play'))
-            .fontSize(23)
-            .fontColor(['#f0f0f0'])
+            .symbolGlyphFancy(23)
         }
         .buttonFancy(40, 40)
         .onClick(() => {
           this.circle_play = !this.circle_play
-          PreferencesUtil.putPreferencesValue(context,'sweet_video', 'circle_play', this.circle_play)
+          PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'circle_play', this.circle_play)
         })
       }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 亮度按钮
           SymbolGlyph($r('sys.symbol.sun_max'))
-            .fontSize(23)
-            .fontColor(['#f0f0f0'])
+            .symbolGlyphFancy(23)
         }
         .buttonFancy(40, 40)
         .bindMenu(this.BrightnessBuilder())
@@ -1108,8 +1089,7 @@ struct Player {
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 音量
           SymbolGlyph($r('sys.symbol.speaker_wave_1'))
-            .fontSize(23)
-            .fontColor(['#f0f0f0'])
+            .symbolGlyphFancy(23)
         }
         .buttonFancy(40, 40)
         .bindMenu(this.VolumeBuilder())
@@ -1118,8 +1098,7 @@ struct Player {
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { //选集
           SymbolGlyph($r('sys.symbol.music_note_list'))
-            .fontSize(23)
-            .fontColor(['#f0f0f0'])
+            .symbolGlyphFancy(23)
         }
         .buttonFancy(40, 40)
         .onClick(() => {
@@ -1145,15 +1124,13 @@ struct Player {
           .onSelect(async (_index: number, text?: string | undefined) => {
             this.updatePlaybackSpeed(parseFloat(text?.replace('x', '') || '1'))
           })
-          .backgroundColor('#00000000')
           .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
       }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 全屏按钮
           SymbolGlyph($r('sys.symbol.screen_rotation'))
-            .fontSize(23)
-            .fontColor(['#f0f0f0'])
+            .symbolGlyphFancy(23)
         }
         .buttonFancy(40, 40)
         .onClick(async () => {
@@ -1172,12 +1149,7 @@ struct Player {
         Row() { // 音轨
           if (item.mime.split('/')[1] === 'av3a') {
             Image($r('app.media.audio_vivid_icon'))
-              .width(85)
-              .height(30)
-              .backgroundImageSize(ImageSize.Cover)
-              .borderRadius(10)
-              .autoResize(true)
-              .interpolation(ImageInterpolation.Low)
+              .imageFancy(10, 85, 30)
           }
           Text(`${item.index} : ${item.name}(${item.language})`)
             .fontSize(18)
@@ -1192,10 +1164,6 @@ struct Player {
           this.avPlayer!.selectTrack(item.index);
           this.audio_track_select = index;
         })
-
-        if (index !== this.audio_track.length - 1) {
-          Divider().height(2)
-        }
       })
     }.width(200).onAppear(() => {
       VideoOperateUtil.audioTrackErrorExecute(this.audio_track)
@@ -1246,8 +1214,7 @@ struct Player {
         Column() {
           Button({ type: ButtonType.Circle, stateEffect: true }) {
             SymbolGlyph($r('sys.symbol.undo'))
-              .fontSize(20)
-              .fontColor([$r('app.color.text_color')])
+              .symbolGlyphFancy(23)
           }
           .buttonFancy(80, 40)
           .backdropBlur(150)
@@ -1293,9 +1260,9 @@ struct Player {
     } catch (error) {
       console.error('同步失败:', error);
     }
-  } // 严重不同步处理
+  }
 
-  private async fullResetSync(position: number) {
+  private async fullResetSync(position: number) { // 严重不同步处理
     this.avPlayer?.pause();
     this.mIjkMediaPlayer.pause();
     await Promise.all([
@@ -1305,16 +1272,16 @@ struct Player {
     await new Promise<void>(resolve => setTimeout(resolve, 50));
     this.avPlayer?.play();
     this.mIjkMediaPlayer.start();
-  } // 中度不同步处理
+  }
 
-  private async doubleSeekSync(position: number) {
+  private async doubleSeekSync(position: number) { // 中度不同步处理
     const prePos = Math.max(0, position - 500);
     this.mIjkMediaPlayer.seekTo(prePos.toString());
     await new Promise<void>(resolve => setTimeout(resolve, 30));
     this.mIjkMediaPlayer.seekTo(position.toString());
-  } // 轻度不同步处理
+  }
 
-  private async speedAdjustSync(drift: number) {
+  private async speedAdjustSync(drift: number) { // 轻度不同步处理
     const speed = Math.min(1.1, Math.max(0.9, 1 + drift / 2000));
     this.mIjkMediaPlayer.setSpeed(speed.toFixed(2.0)); // 30秒后恢复或差异小于310ms时恢复
     const restore = () => {
@@ -1329,7 +1296,7 @@ struct Player {
 
   private updatePlaybackSpeed(speed: number): void {
     this.avPlayer?.setSpeed(VideoInfoUtil.getVideoSpeed(speed));
-    if (this.mIjkMediaPlayerActive) {
+    if (VideoOperateUtil.mIjkMediaPlayerActive) {
       this.mIjkMediaPlayer.setSpeed(speed.toString());
     }
   }

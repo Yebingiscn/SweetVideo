@@ -3,6 +3,7 @@ import router from '@ohos.router'
 import PreferencesUtil from '../utils/PreferencesUtil'
 import DataSyncUtil from '../utils/DataSyncUtil'
 import { common } from '@kit.AbilityKit'
+
 const context = getContext() as common.UIAbilityContext;
 
 @Entry
@@ -35,7 +36,7 @@ struct SettingsPage {
 
         Text('设置')
           .fontSize(24)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(FontWeight.Medium)
       }.margin({ top: DataSyncUtil.getActuallyTopSafeHeight() })
       .width('100%')
       .padding({
@@ -82,7 +83,8 @@ struct SettingsPage {
             Toggle({ type: ToggleType.Switch, isOn: this.allowBackgroundPlay })
               .onChange((value: boolean) => {
                 this.allowBackgroundPlay = value
-                PreferencesUtil.putPreferencesValue(context, "sweet_video", "allowBackgroundPlay", this.allowBackgroundPlay)
+                PreferencesUtil.putPreferencesValue(context, "sweet_video", "allowBackgroundPlay",
+                  this.allowBackgroundPlay)
               })
               .selectedColor($r('app.color.main_color'))
           }
@@ -99,7 +101,8 @@ struct SettingsPage {
             Toggle({ type: ToggleType.Switch, isOn: this.allowPlayBackExist })
               .onChange((value: boolean) => {
                 this.allowPlayBackExist = value
-                PreferencesUtil.putPreferencesValue(context, "sweet_video", "allowPlayBackExist", this.allowPlayBackExist)
+                PreferencesUtil.putPreferencesValue(context, "sweet_video", "allowPlayBackExist",
+                  this.allowPlayBackExist)
               })
               .selectedColor($r('app.color.main_color'))
           }

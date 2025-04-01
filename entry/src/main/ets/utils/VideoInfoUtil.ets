@@ -25,13 +25,6 @@ export interface VideoMetadataFromPlayer {
   last_play: number
 }
 
-export interface AudioTrack {
-  index: number;
-  language: string;
-  name: string;
-  mime: string
-}
-
 interface shadowFancyInterface {
   radius: number;
   color: Resource;
@@ -41,7 +34,7 @@ interface shadowFancyInterface {
 
 export const DEFAULT_DIALOG_SHADOW: shadowFancyInterface = {
   radius: 26,
-  color: $r('app.color.shadow_color'), // 确保颜色资源路径正确
+  color: $r('app.color.shadow_color'),
   offsetX: 0,
   offsetY: 0
 };
@@ -118,10 +111,8 @@ class VideoInfoUtil {
   async getVideoCover(sandbox_path: string, date: string, uri: string, size: number[], time: number) {
     return this.enqueue(async () => {
       await ReqPermission.persistPermission(uri);
-
       const avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor();
       const file = fs.openSync(uri);
-
       try {
         avMetadataExtractor.fdSrc = file;
         const pixelMap = await avMetadataExtractor.fetchAlbumCover();
@@ -226,40 +217,6 @@ class VideoInfoUtil {
         }
       });
     });
-  }
-
-  async getAudioTracks(avPlayer: media.AVPlayer): Promise<AudioTrack[]> {
-    const getTrackDescriptions = (): Promise<AudioTrack[]> => {
-      return new Promise((resolve, reject) => {
-        avPlayer.getTrackDescription((error: BusinessError, arrList: Array<media.MediaDescription>) => {
-          if (error || !arrList || arrList.length === 0) {
-            console.error(`Failed to get TrackDescription, error: ${error}`);
-            return reject(error || new Error("No audio tracks available"));
-          }
-          const audioTracks: AudioTrack[] = arrList
-            .filter(description =>
-            description[media.MediaDescriptionKey.MD_KEY_TRACK_TYPE] === media.MediaType.MEDIA_TYPE_AUD
-            )
-            .map((description): AudioTrack => {
-              return {
-                index: description[media.MediaDescriptionKey.MD_KEY_TRACK_INDEX] as number,
-                language: description[media.MediaDescriptionKey.MD_KEY_LANGUAGE] as string,
-                name: description[media.MediaDescriptionKey.MD_KEY_TRACK_NAME] as string,
-                mime: description[media.MediaDescriptionKey.MD_KEY_CODEC_MIME] as string
-              };
-            });
-          resolve(audioTracks);
-        });
-      });
-    };
-
-    try {
-      const audioTracks = await getTrackDescriptions();
-      return audioTracks; // 返回包含音轨索引、语言和名称的对象数组
-    } catch (error) {
-      console.error("获取 audioTracks 失败:", error);
-      return []; // 返回空数组表示没有获取到音轨
-    }
   }
 
   // 并发控制核心方法

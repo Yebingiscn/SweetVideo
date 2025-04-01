@@ -1,7 +1,7 @@
 import preferences from '@ohos.data.preferences'
 
 export default class PreferencesUtil {
-  static async  putPreferencesValue(context: Context, name: string, key: string, value: preferences.ValueType) {
+  static async putPreferencesValue(context: Context, name: string, key: string, value: preferences.ValueType) {
     try {
       let pref = preferences.getPreferencesSync(context, {
         name: name

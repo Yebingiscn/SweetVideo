@@ -2,8 +2,8 @@
   "modelVersion": "5.0.1",
   "description": "Please describe the basic information.",
   "dependencies": {
-    "@ohos/pinyin4js": "^2.0.0",
-    "@ohos/ijkplayer": "^2.0.6"
+    "@ohos/ijkplayer": "^2.0.6",
+    "@ohos/pinyin4js": "^2.0.1"
   },
   "devDependencies": {
     "@ohos/hypium": "1.0.19",
