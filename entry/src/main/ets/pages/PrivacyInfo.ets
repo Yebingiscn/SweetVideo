@@ -2,6 +2,7 @@ import { router } from '@kit.ArkUI';
 import PreferencesUtil from '../utils/PreferencesUtil';
 import { common } from '@kit.AbilityKit';
 import WantProcessUtil from '../utils/WantProcessUtil';
+import ReqPermissionUtil from '../utils/ReqPermissionUtil';
 
 const context = getContext() as common.UIAbilityContext;
 
@@ -82,6 +83,7 @@ struct SplashPage {
       this.subtitleSize =
         await PreferencesUtil.getPreferencesValue(context, "sweet_video", "subTitleSize", this.subtitleSize) as string
     }
+    ReqPermissionUtil.reqPermissionsFromUser(ReqPermissionUtil.permissions, context);
   }
 
   async aboutToAppear(): Promise<void> {

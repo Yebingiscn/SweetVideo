@@ -632,7 +632,7 @@ struct EnhancePlayer {
         if (this.now_playing?.last_play! < this.total_time * 0.9 && this.now_playing?.last_play != 0) {
           this.mIjkMediaPlayer.seekTo(this.now_playing?.last_play.toString()!)
         }
-      }, 150)
+      }, 500)
     }
     if (this.CONTROL_PlayStatus == PlayStatus.PAUSE) {
       this.mIjkMediaPlayer.start();

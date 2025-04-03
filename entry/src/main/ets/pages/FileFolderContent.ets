@@ -10,7 +10,8 @@ import { FileFolderContentDataSource } from '../utils/DataUtil';
 import { media } from '@kit.MediaKit';
 import TimeUtil from '../utils/TimeUtil';
 import { VideoDetailDialog } from '../component/VideoDetailDialog';
-import { FileFolder } from '../utils/FileFolderUtil';
+import FileFolderUtil, { FileFolder } from '../utils/FileFolderUtil';
+import PermissionUtil from '../utils/PermissionUtil';
 
 const sandbox_subtitle = getContext().filesDir + '/subtitle/'
 const sandbox_path = getContext().filesDir + '/'
@@ -35,16 +36,28 @@ function imageFancy(borderRadius: number, width: number | string, height: number
   .interpolation(ImageInterpolation.Low)
 }
 
+@Extend(Button)
+function buttonFancy(width: number | string, height: number | string) {
+  .backgroundColor($r('app.color.start_window_background_blur'))
+  .borderRadius(16)
+  .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+  .width(width)
+  .height(height)
+  .animation({ duration: 300, curve: Curve.Ease })
+}
+
 @Entry
 @Component
 struct FileFolderContent {
   @State videoDataSource: FileFolderContentDataSource = new FileFolderContentDataSource([])
   @State MenuBuilderState: boolean = false
   @State file_folder: FileFolder | undefined = undefined
+  @State file_folder_list: FileFolder[] = []
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DEFAULT_DIALOG_SHADOW
   })
+  searchController: SearchController = new SearchController()
   private listScroller: Scroller = new Scroller();
 
   async aboutToAppear(): Promise<void> {
@@ -53,17 +66,67 @@ struct FileFolderContent {
       this.file_folder = JSON.parse(record['file_folder']) as FileFolder
     }
     this.videoDataSource = new FileFolderContentDataSource(this.file_folder?.video_list!);
+    this.file_folder_list = await SelectFileUtil.getFileFolder(context)
+  }
+
+  @Builder
+  FileFolderMenu(video_item: VideoMetadata | undefined) {
+    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
+      Menu() {
+        MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.plus_square")), content: '添加到首页' })
+          .onClick(async () => {
+            let video_meta_data = await SelectFileUtil.getVideoMetaData(context)
+            video_meta_data.push(video_item!)
+            await SelectFileUtil.saveVideoMetaData(context, video_meta_data)
+            await this.delData(context, video_item!, true)
+          })
+        ForEach(this.file_folder_list, (item: FileFolder) => {
+          if (item.name !== this.file_folder?.name) {
+            MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.folder")), content: item.name })
+              .onClick(async () => {
+                this.file_folder_list = await FileFolderUtil.addVideoInFileFolder(context, video_item!, item.date)
+                await this.delData(context, video_item!, true)
+              })
+          }
+        })
+      }.font({ size: 15, weight: FontWeight.Normal })
+    }.width(150)
+  }
+
+  @Builder
+  SortMenuBuilder() {
+    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
+      Menu() {
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat')),
+          content: $r('app.string.sort_by_name')
+        })
+          .onClick(async () => {
+            this.file_folder = await FileFolderUtil.sortByNameFromFileFolder(context, this.file_folder!)
+            this.videoDataSource.updateData(this.file_folder.video_list)
+          })
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
+          content: $r('app.string.sort_by_time')
+        })
+          .onClick(async () => {
+            this.file_folder = await FileFolderUtil.sortByTimeFromFileFolder(context, this.file_folder!)
+            this.videoDataSource.updateData(this.file_folder.video_list)
+          })
+      }.font({ size: 15, weight: FontWeight.Normal })
+    }.width(150)
   }
 
   @Builder
   MenuBuilder(item: VideoMetadata | undefined) {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
       Menu() {
-        MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(() => {
+        MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(async () => {
           this.MenuBuilderState = false
+          await PermissionUtil.activatePermission(item?.uri || '')
           ToolsUtil.isFileExist(item) ?
           ToolsUtil.routerToVideoFromFileFolder(context, 'pages/FFMpegPlayer', item!, this.file_folder?.video_list!) :
-          this.delData(context, item!)
+            await this.delData(context, item!, false)
         })
         MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
           .onClick(() => {
@@ -73,9 +136,14 @@ struct FileFolderContent {
         MenuItem({
           symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
         })
-          .onClick(() => {
-            this.delData(context, item!)
+          .onClick(async () => {
+            await this.delData(context, item!, false)
           })
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
+          content: "添加到其他文件夹",
+          builder: (): void => this.FileFolderMenu(item!)
+        })
       }.font({ size: 15, weight: FontWeight.Normal })
     }.width(180).onAppear(() => {
       ToolsUtil.startVibration()
@@ -83,25 +151,27 @@ struct FileFolderContent {
     })
   }
 
-  async delData(context: Context, item: VideoMetadata) {
+  async delData(context: Context, item: VideoMetadata, move_to_other_file_folder: boolean) {
     this.file_folder!.video_list = this.file_folder!.video_list.filter(i => i.date !== item.date);
     let file_folder_list = await SelectFileUtil.getFileFolder(context)
     file_folder_list = file_folder_list.filter(i => i.date !== this.file_folder?.date)
     file_folder_list.push(this.file_folder!)
     await SelectFileUtil.saveFileFolder(context, file_folder_list)
     this.videoDataSource.deleteData(this.videoDataSource.getAllData().indexOf(item))
-    if (await SelectFileUtil.isSubtitleExist(sandbox_subtitle, item.date!)) {
-      SelectFileUtil.deleteSubtitle(sandbox_subtitle, item.date!)
-    }
-    fs.access(sandbox_path + item.date, (err) => {
-      if (!err) { // 文件存在
-        fs.unlink(sandbox_path + item.date, (unlinkErr) => {
-          if (unlinkErr) {
-            return;
-          }
-        });
+    if (!move_to_other_file_folder) {
+      if (await SelectFileUtil.isSubtitleExist(sandbox_subtitle, item.date!)) {
+        SelectFileUtil.deleteSubtitle(sandbox_subtitle, item.date!)
       }
-    })
+      fs.access(sandbox_path + item.date, (err) => {
+        if (!err) { // 文件存在
+          fs.unlink(sandbox_path + item.date, (unlinkErr) => {
+            if (unlinkErr) {
+              return;
+            }
+          });
+        }
+      })
+    }
   }
 
   build() {
@@ -112,10 +182,7 @@ struct FileFolderContent {
             .fontSize(20)
             .fontColor([$r('app.color.text_color')])
         }
-        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .height(40)
-        .width(80)
-        .backgroundColor($r('app.color.start_window_background_blur'))
+        .buttonFancy(80, 40)
         .onClick(() => {
           router.back()
         })
@@ -123,6 +190,13 @@ struct FileFolderContent {
         Text(this.file_folder?.name)
           .fontSize(24)
           .fontWeight(FontWeight.Medium)
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
+            .symbolGlyphFancy(25, '', '')
+        }
+        .backdropBlur(150)
+        .buttonFancy(40, 40)
+        .bindMenu(this.SortMenuBuilder)
       }.margin({ top: DataSyncUtil.getActuallyTopSafeHeight() })
       .width('100%')
       .padding({
@@ -203,9 +277,10 @@ struct FileFolderContent {
                 }.margin({ left: 10 })
               }
               .onClick(async () => {
+                await PermissionUtil.activatePermission(item?.uri || '')
                 ToolsUtil.isFileExist(item) ?
                 ToolsUtil.routerToVideoFromFileFolder(context, 'pages/Player', item, this.file_folder?.video_list!) :
-                this.delData(context, item)
+                  await this.delData(context, item, false)
               })
               .width('100%')
               .height(100)

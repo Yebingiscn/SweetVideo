@@ -86,7 +86,7 @@ class VideoInfoUtil {
     '2720x1530': 'FHD+',
     '1216x2160': 'FHD+',
   };
-  private MAX_CONCURRENT = 3;
+  public MAX_CONCURRENT = 3;
   private pendingQueue: Array<() => Promise<void>> = [];
   private activeCount = 0;
 

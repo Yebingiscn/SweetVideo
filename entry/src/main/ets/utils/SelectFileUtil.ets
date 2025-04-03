@@ -229,7 +229,13 @@ class SelectFileUtil {
   }
 
   getAllItems(list: VideoMetadata[]) {
-    return list.map(i => i.date)
+    if (!list || list.length === 0) {
+      return [];
+    } else {
+      return list
+        .filter(i => i !== null && i !== undefined)// Filter out null or undefined items
+        .map(i => i.date);
+    }
   }
 
   getItemFromSearch(list: VideoMetadata[], value: string): string[] {

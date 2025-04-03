@@ -4,7 +4,6 @@ import { curves, SymbolGlyphModifier, window } from '@kit.ArkUI';
 import { media } from '@kit.MediaKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import DataSyncUtil from '../utils/DataSyncUtil';
-import PermissionUtil from '../utils/PermissionUtil';
 import DataUtil from '../utils/DataUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import VideoUtil, { DEFAULT_DIALOG_SHADOW, VideoMetadata } from '../utils/VideoInfoUtil';
@@ -21,6 +20,7 @@ import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
 import { addFileFolderNameDialog } from '../component/AddFileFolderNameDialog';
 import FileFolderUtil, { FileFolder } from '../utils/FileFolderUtil';
+import { editFileFolderNameDialog } from '../component/EditFileFolderNameDialog';
 
 const context = getContext() as common.UIAbilityContext;
 const sandbox_path = getContext().filesDir + '/'
@@ -164,6 +164,18 @@ struct Index {
       },
     }), cornerRadius: 20, shadow: DEFAULT_DIALOG_SHADOW
   })
+  editFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
+    builder: editFileFolderNameDialog({
+      confirm: async (file_folder: string | undefined) => {
+        if (!file_folder || file_folder == '') {
+          return
+        }
+        this.file_folder_list =
+          await FileFolderUtil.changeFileFolderName(context, JSON.parse(DataSyncUtil.editing_video) as FileFolder,
+            file_folder, this.file_folder_list)
+      }
+    }), cornerRadius: 20, shadow: DEFAULT_DIALOG_SHADOW
+  })
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DEFAULT_DIALOG_SHADOW
@@ -175,17 +187,31 @@ struct Index {
   FileFolderMenu(video_item: VideoMetadata | undefined) {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
       Menu() {
-        ForEach(this.file_folder_list, (item: FileFolder, index: number) => {
+        ForEach(this.file_folder_list, (item: FileFolder) => {
           MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.folder")), content: item.name })
             .onClick(async () => {
-              this.file_folder_list = await FileFolderUtil.addVideoInFileFolder(context, video_item!, item.date)
-              this.video_meta_data = this.video_meta_data.filter(i => i.date !== video_item?.date)
-              this.show_list = this.show_list.filter(i => i !== video_item?.date);
-              await SelectFileUtil.saveVideoMetaData(context, this.video_meta_data)
+              if (this.delMultipleList.length > 0) {
+                for (let i = 0; i < this.delMultipleList.length; i++) {
+                  await this.addVideoToFileFolder(this.delMultipleList[i]!, item)
+                  console.error('test')
+                }
+                this.delMultipleList = []
+                this.closeMultipleChoose()
+              } else if (this.multipleChooseState === Visibility.None) {
+                await this.addVideoToFileFolder(video_item!, item)
+                console.error('test1')
+              }
             })
         })
       }.font({ size: 15, weight: FontWeight.Normal })
     }.width(150)
+  }
+
+  async addVideoToFileFolder(video_item: VideoMetadata, item: FileFolder) {
+    this.file_folder_list = await FileFolderUtil.addVideoInFileFolder(context, video_item!, item.date)
+    this.video_meta_data = this.video_meta_data.filter(i => i.date !== video_item?.date)
+    this.show_list = this.show_list.filter(i => i !== video_item?.date);
+    await SelectFileUtil.saveVideoMetaData(context, this.video_meta_data)
   }
 
   @Builder
@@ -205,6 +231,12 @@ struct Index {
             await Promise.all(deletePromises);
             this.file_folder_list = await FileFolderUtil.deleteFileFolder(context, file_folder, this.file_folder_list)
           })
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')), content: $r('app.string.edit')
+        }).onClick(() => {
+          DataSyncUtil.editing_video = JSON.stringify(file_folder);
+          this.editFileFolderNameDialogController.open()
+        })
       }.font({ size: 15, weight: FontWeight.Normal })
     }.onAppear(() => {
       ToolsUtil.startVibration()
@@ -384,6 +416,11 @@ struct Index {
               await Promise.all(deletePromises);
             }
           })
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
+          content: "添加到文件夹",
+          builder: (): void => this.FileFolderMenu(undefined)
+        })
       }.font({ size: 15, weight: FontWeight.Normal })
     }.width(150)
   }
@@ -455,33 +492,26 @@ struct Index {
 
   async aboutToAppear(): Promise<void> {
     SelectFileUtil.getDownloadUri()
-    ReqPermission.reqPermissionsFromUser(ReqPermission.permissions, context);
-    this.video_meta_data = await SelectFileUtil.getVideoMetaData(context)
-    this.video_meta_data_encryption = await SelectFileUtil.getVideoMetaDataEncryption(context)
-    this.file_folder_list = await SelectFileUtil.getFileFolder(context)
     this.passwd = await SelectFileUtil.getPassword(context)
-    this.show_list = this.video_meta_data.map(i => i.date)
-    this.activePermission()
     ToolsUtil.isFileFolderExist(sandbox_video, sandbox_subtitle)
   }
 
+  async onPageShow(): Promise<void> {
+    this.video_meta_data = await SelectFileUtil.getVideoMetaData(context)
+    this.video_meta_data_encryption = await SelectFileUtil.getVideoMetaDataEncryption(context)
+    this.show_list = this.video_meta_data.map(i => i.date)
+    this.file_folder_list = await SelectFileUtil.getFileFolder(context)
+  }
+
   async selectFiles() {
-    const selectedFiles: string[] = await SelectFileUtil.selectFiles();
-    await this.toMetaData(selectedFiles);
+    await this.toMetaData(await SelectFileUtil.selectFiles());
   }
 
   async selectVideo() {
-    const selectedVideos: string[] = await SelectFileUtil.selectVideo();
-    await this.toMetaData(selectedVideos);
-  }
-
-  activePermission() {
-    let tmp = this.video_meta_data.map(i => i.uri)
-    PermissionUtil.activePermission(tmp)
+    await this.toMetaData(await SelectFileUtil.selectVideo());
   }
 
   async toMetaData(list: string[]) {
-    const CONCURRENT_LIMIT = 3;
     if (list.length === 0) {
       ToolsUtil.showToast('没有任何文件被导入哦~');
       return;
@@ -518,9 +548,9 @@ struct Index {
           fs.closeSync(file);
         }
       };
-      const chunkSize = Math.ceil(list.length / CONCURRENT_LIMIT);
+      const chunkSize = Math.ceil(list.length / VideoUtil.MAX_CONCURRENT);
       const workers: Promise<void>[] = [];
-      for (let i = 0; i < CONCURRENT_LIMIT; i++) {
+      for (let i = 0; i < VideoUtil.MAX_CONCURRENT; i++) {
         const start = i * chunkSize;
         const end = Math.min(start + chunkSize, list.length);
         const chunk = list.slice(start, end);
@@ -538,7 +568,6 @@ struct Index {
       ToolsUtil.showToast(`${getContext().resourceManager
         .getStringSync($r('app.string.add_time_info'))}${this.import_sum}`);
     } catch (error) {
-      console.error('元数据处理流程错误:', error);
       ToolsUtil.showToast('处理过程中发生意外错误');
     } finally {
       this.loading = false;
@@ -587,45 +616,43 @@ struct Index {
       Column() {
         Scroll() {
           Column() {
-            Column() {
-              Stack() {
-                Image($r("app.media.Background"))
-                  .imageFancy(16, '100%', 120)
-                  .zIndex(1)
-                Row() {
-                  Image($r("app.media.Foreground"))
-                    .autoResize(true)
-                    .interpolation(ImageInterpolation.Low)
-                    .backgroundImageSize(ImageSize.Cover)
-                    .width(50)
-                    .height(50)
-                  Text($r('app.string.EntryAbility_label'))
-                    .fontSize(20)
-                    .fontColor('#ffff')
-                    .margin({ left: 5, right: 12 })
-                }.width('100%')
-                .justifyContent(FlexAlign.Center)
-                .zIndex(2)
-              }
-
+            Stack() {
+              Image($r("app.media.Background"))
+                .imageFancy(16, '100%', 120)
+                .zIndex(1)
               Row() {
-                Button({ type: ButtonType.Normal, stateEffect: true }) {
-                  Row() {
-                    SymbolGlyph($r('sys.symbol.gearshape')).symbolGlyphFancy(25, '', '')
-                    Text('设置')
-                      .fontSize(15)
-                      .margin({ left: 10, right: 12 })
-                  }
-                }
-                .align(Alignment.Start)
-                .padding(10)
-                .buttonFancy('100%', 60)
-                .onClick(() => {
-                  this.closeSideBar(false)
-                  ToolsUtil.routerWhereOnlyUri('pages/Setting')
-                })
-              }.margin({ top: 10 })
+                Image($r("app.media.Foreground"))
+                  .autoResize(true)
+                  .interpolation(ImageInterpolation.Low)
+                  .backgroundImageSize(ImageSize.Cover)
+                  .width(50)
+                  .height(50)
+                Text($r('app.string.EntryAbility_label'))
+                  .fontSize(20)
+                  .fontColor('#ffff')
+                  .margin({ left: 5, right: 12 })
+              }.width('100%')
+              .justifyContent(FlexAlign.Center)
+              .zIndex(2)
             }
+
+            Row() {
+              Button({ type: ButtonType.Normal, stateEffect: true }) {
+                Row() {
+                  SymbolGlyph($r('sys.symbol.gearshape')).symbolGlyphFancy(25, '', '')
+                  Text('设置')
+                    .fontSize(15)
+                    .margin({ left: 10, right: 12 })
+                }
+              }
+              .align(Alignment.Start)
+              .padding(10)
+              .buttonFancy('100%', 60)
+              .onClick(() => {
+                this.closeSideBar(false)
+                ToolsUtil.routerWhereOnlyUri('pages/Setting')
+              })
+            }.margin({ top: 10 })
 
             Row() {
               if (this.passwd == '' || this.encryption) {
@@ -724,7 +751,7 @@ struct Index {
 
             if (!this.encryption) {
               List() {
-                ForEach(this.file_folder_list, (item: FileFolder, index: number) => {
+                ForEach(this.file_folder_list, (item: FileFolder) => {
                   ListItem() {
                     Row() {
                       SymbolGlyph($r('sys.symbol.folder')).symbolGlyphFancy(25, '', '')
@@ -750,8 +777,9 @@ struct Index {
               .margin({ top: 10 })
               .backgroundColor($r('app.color.start_window_background_blur'))
             }
-          }.width('100%').padding({ left: 20, right: 20, top: 50 })
+          }.width('100%')
         }
+        .padding({ left: 20, right: 20, top: 50 })
         .layoutWeight(1)
         .align(Alignment.Top)
         .scrollBar(BarState.Off)
@@ -999,15 +1027,16 @@ struct Index {
               .bindMenu(this.SortMenuBuilder)
               .shadowFancy()
 
-              Button({ type: ButtonType.Circle, stateEffect: true }) {
-                SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
-                  .symbolGlyphFancy(25, '', '')
+              if (this.multipleChooseState === Visibility.Visible) {
+                Button({ type: ButtonType.Circle, stateEffect: true }) {
+                  SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
+                    .symbolGlyphFancy(25, '', '')
+                }
+                .backdropBlur(150)
+                .buttonFancy(40, 40)
+                .bindMenu(this.SelectItemMenuBuilder)
+                .shadowFancy()
               }
-              .backdropBlur(150)
-              .visibility(this.multipleChooseState)
-              .buttonFancy(40, 40)
-              .bindMenu(this.SelectItemMenuBuilder)
-              .shadowFancy()
             }
           }
         }.padding({ top: this.topSafeHeight }).width('90%')

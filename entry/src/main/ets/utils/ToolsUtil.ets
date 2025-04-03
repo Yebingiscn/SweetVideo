@@ -13,6 +13,7 @@ import SelectFileUtil from './SelectFileUtil';
 import { intl } from '@kit.LocalizationKit';
 import { pinyin4js } from '@ohos/pinyin4js';
 import { FileFolder } from './FileFolderUtil';
+import PermissionUtil from './PermissionUtil';
 
 
 class ToolsUtil {
@@ -41,7 +42,7 @@ class ToolsUtil {
     })
   }
 
-  async sortByName(context: Context, list: VideoMetadata[], encryption: boolean) {
+  sortByNameProcess(list: VideoMetadata[]) {
     let options: intl.CollatorOptions = {
       localeMatcher: "look up",
       usage: "sort",
@@ -55,6 +56,11 @@ class ToolsUtil {
     const sorted_list = [...list].sort((a, b) => {
       return collator.compare(pinyin4js.getShortPinyin(a.title), pinyin4js.getShortPinyin(b.title));
     })
+    return sorted_list
+  }
+
+  async sortByName(context: Context, list: VideoMetadata[], encryption: boolean) {
+    const sorted_list = this.sortByNameProcess(list)
     await (encryption ? SelectFileUtil.saveVideoMetaDataEncryption(context, sorted_list)
       : SelectFileUtil.saveVideoMetaData(context, sorted_list));
     return sorted_list // 返回处理后的数据
@@ -80,6 +86,7 @@ class ToolsUtil {
   }
 
   isFileExist(item: VideoMetadata | undefined) {
+    PermissionUtil.activatePermission(item?.uri!)
     try {
       fs.openSync(String(item?.uri))
       return true
@@ -111,6 +118,7 @@ class ToolsUtil {
 
   async routerToVideoFromFileFolder(context: Context, uri: string, item: VideoMetadata,
     video_meta_data: VideoMetadata[]) {
+    PermissionUtil.activatePermission(item?.uri!)
     if (VideoInfoUtil.videoWidthAndHeightFormat(String(item?.size)) === '0 x 0') {
       this.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
       uri = 'pages/FFMpegPlayer'
@@ -131,6 +139,7 @@ class ToolsUtil {
   }
 
   async routerWhere(context: Context, uri: string, item: string, encryption: boolean) {
+    PermissionUtil.activatePermission(item)
     let list: VideoMetadata [] = []
     encryption ? list = await SelectFileUtil.getVideoMetaDataEncryption(context) :
       list = await SelectFileUtil.getVideoMetaData(context)
