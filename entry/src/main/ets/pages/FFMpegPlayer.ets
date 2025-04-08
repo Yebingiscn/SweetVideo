@@ -136,23 +136,22 @@ struct EnhancePlayer {
           direction: FlexDirection.Column
         }) { //顶栏
           Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
-            Row() {
-              SymbolGlyph($r('sys.symbol.chevron_left'))// 返回图标
-                .fontSize(40)
-                .fontColor(['#f0f0f0'])
-                .onClick(() => {
-                  router.back()
-                })
-                .padding({ right: 10 })
-                .margin({ left: 15 })
-              Text(String(this.now_playing?.title).slice(0, this.now_playing?.title.lastIndexOf('.')))
-                .fontSize(20)
-                .fontWeight(FontWeight.Medium)
+            Column() {
+              if (this.screen_width > this.screen_height) {
+                Row() {
+                  Text(ToolsUtil.getTime())
+                    .fontWeight(FontWeight.Medium)
+                    .fontSize(16)
+                    .fontColor($r('sys.color.white'))
+                    .textAlign(TextAlign.Center)
+                    .align(Alignment.Center)
+                }
                 .width('100%')
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.MARQUEE })
-                .fontColor($r('sys.color.white'))
-            }
+                .height(5)
+                .justifyContent(FlexAlign.Center)
+              }
+              this.VideoTop()
+            }.width('100%')
           }.height(85)
           .width('100%')
           .backgroundColor('#61000000')
@@ -160,7 +159,7 @@ struct EnhancePlayer {
             left: (this.screen_height > this.screen_width ? 5 : 5),
             right: 20,
             top: (this.screen_height > this.screen_width ? DataSyncUtil.getActuallyTopSafeHeight() : 0),
-            bottom: 5
+            bottom: 0
           })
 
           Stack() { //底栏
@@ -422,6 +421,27 @@ struct EnhancePlayer {
   }
 
   @Builder
+  VideoTop() {
+    Row() {
+      SymbolGlyph($r('sys.symbol.chevron_left'))// 返回图标
+        .fontSize(40)
+        .fontColor(['#f0f0f0'])
+        .onClick(() => {
+          router.back()
+        })
+        .padding({ right: 10 })
+        .margin({ left: 15 })
+      Text(String(this.now_playing?.title).slice(0, this.now_playing?.title.lastIndexOf('.')))
+        .fontSize(20)
+        .fontWeight(FontWeight.Medium)
+        .width('100%')
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.MARQUEE })
+        .fontColor($r('sys.color.white'))
+    }
+  }
+
+  @Builder
   VideoSlider() {
     Row({ space: 10 }) {
       Row() {
@@ -497,11 +517,9 @@ struct EnhancePlayer {
         .width(40)
         .backgroundColor('#50000000')
         .onClick(async () => {
-          if (this.screen_height > this.screen_width) {
-            (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED)
-          } else {
-            (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
-          }
+          this.screen_height > this.screen_width ?
+          (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE)
+            : (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_PORTRAIT)
         })
       }.span({ xs: 2, sm: 2, md: 2 })
     }.width('95%')

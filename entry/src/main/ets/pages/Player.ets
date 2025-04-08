@@ -547,47 +547,63 @@ struct Player {
         .height(this.play_area_height)
         .animation({ duration: this.played ? 300 : 0, curve: Curve.Ease })
 
-        Stack() {
-          Flex({
-            justifyContent: FlexAlign.SpaceBetween,
-            alignItems: ItemAlign.Center,
-            direction: FlexDirection.Column
-          }) { //顶栏
-            Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
-              this.VideoTop()
-            }
-            .height(85)
-            .backgroundColor('#61000000')
-            .width('100%')
-            .padding({
-              left: (this.screen_height > this.screen_width ? 20 : 35),
-              right: 20,
-              top: (this.screen_height > this.screen_width ? DataSyncUtil.getActuallyTopSafeHeight() : 0),
-              bottom: 5
-            })
+        if ((this.showControl && !this.isLock)) {
+          Stack() {
+            Flex({
+              justifyContent: FlexAlign.SpaceBetween,
+              alignItems: ItemAlign.Center,
+              direction: FlexDirection.Column
+            }) { //顶栏
+              Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
+                Column() {
+                  if (this.screen_width > this.screen_height) {
+                    Row() {
+                      Text(ToolsUtil.getTime())
+                        .fontWeight(FontWeight.Medium)
+                        .fontSize(16)
+                        .fontColor($r('sys.color.white'))
+                        .textAlign(TextAlign.Center)
+                        .align(Alignment.Center)
+                    }
+                    .width('100%')
+                    .height(5)
+                    .justifyContent(FlexAlign.Center)
+                  }
+                  this.VideoTop()
+                }.width('100%')
+              }
+              .height(this.screen_height > this.screen_width ? 85 : 75)
+              .backgroundColor('#61000000')
+              .width('100%')
+              .padding({
+                left: (this.screen_height > this.screen_width ? 20 : 35),
+                right: 20,
+                top: (this.screen_height > this.screen_width ? DataSyncUtil.getActuallyTopSafeHeight() : 0),
+                bottom: 0
+              })
 
-            Stack() { //底栏
-              if (this.screen_arco > 1.4) {
-                Column({ space: 15 }) {
-                  this.VideoButtons()
-                  this.VideoSlider()
-                }
-              } else {
-                Row({ space: 15 }) {
-                  Column() {
-                    this.VideoSlider()
+              Stack() { //底栏
+                if (this.screen_arco > 1.4) {
+                  Column({ space: 15 }) {
                     this.VideoButtons()
+                    this.VideoSlider()
+                  }
+                } else {
+                  Row({ space: 15 }) {
+                    Column() {
+                      this.VideoSlider()
+                      this.VideoButtons()
+                    }
                   }
                 }
               }
-            }
-            .backgroundColor('#61000000')
-            .height(this.screen_height > this.screen_width ? 180 : 110)
-            .width('100%')
-          }.height('100%').width('100%')
+              .backgroundColor('#61000000')
+              .height(this.screen_height > this.screen_width ? 180 : 110)
+              .width('100%')
+            }.height('100%').width('100%')
+          }
+          .animation({ duration: 300, curve: Curve.Smooth })
         }
-        .visibility((this.showControl && !this.isLock ? Visibility.Visible : Visibility.Hidden))
-        .animation({ duration: 300, curve: Curve.Smooth })
 
         Stack({ alignContent: Alignment.BottomEnd }) { //字幕
           Text(this.sub_title)
@@ -884,6 +900,10 @@ struct Player {
                   const rawScale = currentDistance / VideoOperateUtil.initPinchDistance;
                   const adjustedScale = 1 + (rawScale - 1) * 0.007;
                   const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0);
+                  if (Math.max(this.play_area_width * clampedScale, 0.5) > VideoInfoUtil.play_area_width * 3.0 ||
+                    Math.max(this.play_area_width * clampedScale, 0.5) < VideoInfoUtil.play_area_width * 0.5) {
+                    return
+                  }
                   this.play_area_width = Math.max(this.play_area_width * clampedScale, 0.5);
                   this.play_area_height = Math.max(this.play_area_height * clampedScale, 0.5);
                   animateTo({ duration: 100 }, () => {

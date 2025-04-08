@@ -1,6 +1,6 @@
 import promptAction from '@ohos.promptAction';
 import { vibrator } from '@kit.SensorServiceKit';
-import { BusinessError } from '@kit.BasicServicesKit';
+import { BusinessError, systemDateTime } from '@kit.BasicServicesKit';
 import VideoInfoUtil, { VideoMetadata } from './VideoInfoUtil';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import PreferencesUtil from './PreferencesUtil';
@@ -10,14 +10,14 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { bundleManager } from '@kit.AbilityKit';
 import RecentPlayUtil from './RecentPlayUtil';
 import SelectFileUtil from './SelectFileUtil';
-import { intl } from '@kit.LocalizationKit';
 import { pinyin4js } from '@ohos/pinyin4js';
 import { FileFolder } from './FileFolderUtil';
 import PermissionUtil from './PermissionUtil';
 
 
 class ToolsUtil {
-  private static cache = new Map<string, string>();
+  private splitRegex = /(\d+\.?\d*)/; // 分离数字和文字
+  private pinyinCache = new WeakMap<VideoMetadata, string>();
 
   showToast(text: string) {
     promptAction.showToast({
@@ -43,20 +43,42 @@ class ToolsUtil {
   }
 
   sortByNameProcess(list: VideoMetadata[]) {
-    let options: intl.CollatorOptions = {
-      localeMatcher: "look up",
-      usage: "sort",
-      sensitivity: "base",
+    const collator = new Intl.Collator("zh-CN", {
+      sensitivity: "variant",
       numeric: true,
-      ignorePunctuation: true,
-      caseFirst: "false",
-      collation: "pinyin"
+      ignorePunctuation: false,
+      caseFirst: "upper"
+    });
+    const naturalCompare = (a: string, b: string) => { // 自然排序逻辑
+      const aParts = a.split(this.splitRegex);
+      const bParts = b.split(this.splitRegex);
+      for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
+        const aVal = aParts[i], bVal = bParts[i];
+        if (i % 2 === 0) { // 文本部分
+          const cmp = collator.compare(aVal, bVal);
+          if (cmp !== 0) {
+            return cmp;
+          }
+        } else { // 数字部分
+          const numA = parseFloat(aVal);
+          const numB = parseFloat(bVal);
+          if (numA !== numB) {
+            return numA - numB;
+          }
+        }
+      }
+      return aParts.length - bParts.length;
     };
-    let collator = new intl.Collator("zh-CN", options);
-    const sorted_list = [...list].sort((a, b) => {
-      return collator.compare(pinyin4js.getShortPinyin(a.title), pinyin4js.getShortPinyin(b.title));
-    })
-    return sorted_list
+    const sortedList = [...list].sort((a, b): number => { // 缓存读取逻辑
+      const getCachedPinyin = (item: VideoMetadata) => {
+        if (!this.pinyinCache.has(item)) {
+          this.pinyinCache.set(item, pinyin4js.getShortPinyin(item.title || ""));
+        }
+        return this.pinyinCache.get(item)!;
+      };
+      return naturalCompare(getCachedPinyin(a), getCachedPinyin(b));
+    });
+    return sortedList;
   }
 
   async sortByName(context: Context, list: VideoMetadata[], encryption: boolean) {
@@ -181,6 +203,15 @@ class ToolsUtil {
     if (!fs.accessSync(sandbox_subtitle)) {
       fs.mkdirSync(sandbox_subtitle)
     }
+  }
+
+  getTime() {
+    let timestamp = systemDateTime.getTime(false)
+    const date = new Date(timestamp);
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const timeString = `${hours}:${minutes}`;
+    return timeString
   }
 }
 
