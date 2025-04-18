@@ -107,8 +107,8 @@ class ToolsUtil {
     return steps > 0 ? steps * stepValue * directionSign : 0;
   }
 
-  isFileExist(item: VideoMetadata | undefined) {
-    PermissionUtil.activatePermission(item?.uri!)
+  async isFileExist(item: VideoMetadata | undefined) {
+    await PermissionUtil.activatePermission(item?.uri!)
     try {
       fs.openSync(String(item?.uri))
       return true
@@ -139,8 +139,7 @@ class ToolsUtil {
   }
 
   async routerToVideoFromFileFolder(context: Context, uri: string, item: VideoMetadata,
-    video_meta_data: VideoMetadata[]) {
-    PermissionUtil.activatePermission(item?.uri!)
+    file_folder: FileFolder) {
     if (VideoInfoUtil.videoWidthAndHeightFormat(String(item?.size)) === '0 x 0') {
       this.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
       uri = 'pages/FFMpegPlayer'
@@ -153,7 +152,8 @@ class ToolsUtil {
       url: uri,
       params: {
         metadata: JSON.stringify(item),
-        metadata_list: JSON.stringify(video_meta_data)
+        metadata_list: JSON.stringify(file_folder.video_list),
+        file_folder: JSON.stringify(file_folder)
       }
     }, router.RouterMode.Single, (err) => {
       hilog.info(0xFF00, "testTag", String(err));
@@ -161,7 +161,6 @@ class ToolsUtil {
   }
 
   async routerWhere(context: Context, uri: string, item: string, encryption: boolean) {
-    PermissionUtil.activatePermission(item)
     let list: VideoMetadata [] = []
     encryption ? list = await SelectFileUtil.getVideoMetaDataEncryption(context) :
       list = await SelectFileUtil.getVideoMetaData(context)

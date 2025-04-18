@@ -17,7 +17,6 @@ class FileFolderUtil {
     }
     const file_folder_list = await SelectFileUtil.getFileFolder(context) as FileFolder[]
     if (!file_folder_list.some(i => i.name === new_folder.name)) {
-      console.error('test1')
       file_folder_list.push(new_folder)
       await SelectFileUtil.saveFileFolder(context, file_folder_list)
       return file_folder_list

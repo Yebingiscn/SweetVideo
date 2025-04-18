@@ -7,30 +7,39 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 const context = getContext() as common.UIAbilityContext
 
 class PermissionUtil {
-  async activatePermission(uri: string): Promise<boolean> {
-    try {
-      let policyInfo: fileShare.PolicyInfo = {
-        uri: uri,
-        operationMode: fileShare.OperationMode.READ_MODE | fileShare.OperationMode.WRITE_MODE,
-      };
-      let policies: Array<fileShare.PolicyInfo> = [policyInfo];
-      let results = await fileShare.checkPersistentPermission(policies);
-      for (let i = 0; i < results.length; i++) {
-        if (results[i]) {
-          let info: fileShare.PolicyInfo = {
-            uri: policies[i].uri,
-            operationMode: policies[i].operationMode,
-          };
-          let policy: Array<fileShare.PolicyInfo> = [info];
-          await fileShare.activatePermission(policy);
-        }
-      }
-      let fd = await fs.open(uri);
-      await fs.close(fd);
-    } catch (error) {
+  async activatePermission(uri: string | undefined): Promise<boolean> {
+    if (!uri) {
       return false
     }
-    return true;
+    try {
+      let fd = fs.openSync(uri);
+      fs.closeSync(fd);
+      return true
+    } catch {
+      try {
+        let policyInfo: fileShare.PolicyInfo = {
+          uri: uri,
+          operationMode: fileShare.OperationMode.READ_MODE | fileShare.OperationMode.WRITE_MODE,
+        };
+        let policies: Array<fileShare.PolicyInfo> = [policyInfo];
+        let results = await fileShare.checkPersistentPermission(policies);
+        for (let i = 0; i < results.length; i++) {
+          if (results[i]) {
+            let info: fileShare.PolicyInfo = {
+              uri: policies[i].uri,
+              operationMode: policies[i].operationMode,
+            };
+            let policy: Array<fileShare.PolicyInfo> = [info];
+            await fileShare.activatePermission(policy);
+          }
+        }
+        let fd = fs.openSync(uri);
+        fs.closeSync(fd);
+        return true
+      } catch (error) {
+        return false
+      }
+    }
   }
 
   startContinuousTask() {
@@ -77,12 +86,6 @@ class PermissionUtil {
       return true
     }
     return false
-  }
-
-  activePermission(tmp: string[]) {
-    for (let uri of tmp) {
-      this.activatePermission(uri)
-    }
   }
 }
 

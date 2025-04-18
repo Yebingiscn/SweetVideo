@@ -28,12 +28,18 @@ import VideoOperateUtil from '../utils/VideoOperateUtil'
 import VideoInfoUtil, { VideoMetadata, VideoMetadataFromPlayer } from '../utils/VideoInfoUtil'
 import PreferencesUtil from '../utils/PreferencesUtil'
 import { settings } from '@kit.BasicServicesKit'
+import { FileFolder } from '../utils/FileFolderUtil'
+
+@Builder
+export function FFMpegPlayerBuilder() {
+  FFMpegPlayer()
+}
 
 const context = getContext() as common.UIAbilityContext;
 
 @Entry
 @Component
-struct EnhancePlayer {
+struct FFMpegPlayer {
   avSession: avSessionManager.AVSession | undefined = undefined;
   @State play_area_height: number = 1
   @State play_area_width: number = 1
@@ -78,43 +84,155 @@ struct EnhancePlayer {
   @State isHorizontalSwiping: boolean = false
   @State video_meta_data: VideoMetadata[] = []
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
+  @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
+  pathStack: NavPathStack = new NavPathStack()
   private initPinchDistance: number = 0;
   private CONTROL_PlayStatus = PlayStatus.INIT;
   private mIjkMediaPlayer = IjkMediaPlayer.getInstance();
+  private file_folder: FileFolder = {
+    name: '',
+    date: '',
+    video_list: []
+  }
 
   build() {
-    Stack() {
+    NavDestination() {
       Stack() {
-        Stack() { //播放器
-          XComponent({
-            type: XComponentType.SURFACE,
-            controller: this.xComponentController,
-            id: 'xcomponentId',
-            libraryname: 'ijkplayer_napi'
-          })
-            .onLoad(async (event?: object) => {
-              if (!!event) {
-                this.initDelayPlay(event);
-                await PermissionUtil.activatePermission(this.now_playing?.uri || '')
-                const file = fs.openSync(this.now_playing?.uri)
-                this.video_url = file.path
-              }
+        Stack() {
+          Stack() { //播放器
+            XComponent({
+              type: XComponentType.SURFACE,
+              controller: this.xComponentController,
+              id: 'xcomponentId',
+              libraryname: 'ijkplayer_napi'
             })
-        }
-        .width(this.play_area_width)
-        .height(this.play_area_height)
-        .animation({ duration: this.play_time > 300 ? 300 : 0, curve: Curve.Ease })
+              .onLoad(async (event?: object) => {
+                if (!!event) {
+                  this.initDelayPlay(event);
+                  await PermissionUtil.activatePermission(this.now_playing?.uri || '')
+                  const file = fs.openSync(this.now_playing?.uri)
+                  this.video_url = file.path
+                }
+              })
+          }
+          .width(this.play_area_width)
+          .height(this.play_area_height)
+          .animation({ duration: this.play_time > 300 ? 300 : 0, curve: Curve.Ease })
 
-        if (this.onSwiping) {
-          Stack() {
-            Text(this.isSliderPlayTimeChange ?
-              TimeUtil.convertMsToMMSS(this.play_time) + '/' + TimeUtil.convertMsToMMSS(this.total_time) :
-              (this.play_time - this.last_play_time > 0 ? '+' : '') +
-              Math.floor((this.play_time - this.last_play_time) / 1000) + 's : ' +
-              TimeUtil.convertMsToMMSS(this.play_time) + '/' + TimeUtil.convertMsToMMSS(this.total_time))
-              .fontColor($r('sys.color.white'))
-              .fontSize(25)
-              .fontWeight(FontWeight.Bold)
+          if (this.onSwiping) {
+            Stack() {
+              Text(this.isSliderPlayTimeChange ?
+                TimeUtil.convertMsToMMSS(this.play_time) + '/' + TimeUtil.convertMsToMMSS(this.total_time) :
+                (this.play_time - this.last_play_time > 0 ? '+' : '') +
+                Math.floor((this.play_time - this.last_play_time) / 1000) + 's : ' +
+                TimeUtil.convertMsToMMSS(this.play_time) + '/' + TimeUtil.convertMsToMMSS(this.total_time))
+                .fontColor($r('sys.color.white'))
+                .fontSize(25)
+                .fontWeight(FontWeight.Bold)
+            }
+            .padding({
+              left: 25,
+              right: 25,
+              top: 10,
+              bottom: 10
+            })
+            .borderRadius(1000)
+            .backgroundColor('#30000000')
+            .backdropBlur(100)
+            .animation({ duration: 300, curve: Curve.Smooth })
+          }
+        }
+
+        Stack() {
+          Flex({
+            justifyContent: FlexAlign.SpaceBetween,
+            alignItems: ItemAlign.Center,
+            direction: FlexDirection.Column
+          }) { //顶栏
+            Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
+              Column() {
+                if (this.screen_width > this.screen_height) {
+                  Row() {
+                    Text(ToolsUtil.getTime())
+                      .fontWeight(FontWeight.Medium)
+                      .fontSize(16)
+                      .fontColor($r('sys.color.white'))
+                      .textAlign(TextAlign.Center)
+                      .align(Alignment.Center)
+                  }
+                  .width('100%')
+                  .height(5)
+                  .justifyContent(FlexAlign.Center)
+                }
+                this.VideoTop()
+              }.width('100%')
+            }.height(85)
+            .width('100%')
+            .backgroundColor('#61000000')
+            .padding({
+              left: (this.screen_height > this.screen_width ? 5 : 5),
+              right: 20,
+              top: (this.screen_height > this.screen_width ? DataSyncUtil.getActuallyTopSafeHeight() : 0),
+              bottom: 0
+            })
+
+            Stack() { //底栏
+              if (this.screen_height > this.screen_width) {
+                Column({ space: 15 }) {
+                  this.VideoButtons()
+                  this.VideoSlider()
+                }
+              } else {
+                Row({ space: 15 }) {
+                  Column() {
+                    this.VideoSlider()
+                    this.VideoButtons()
+                  }
+                }
+              }
+            }
+            .backgroundColor('#61000000')
+            .height(this.screen_height > this.screen_width ? 180 : 110)
+            .width('100%')
+            .padding(1)
+          }.height('100%').width('100%')
+        }
+        .visibility(this.ShowControl ? Visibility.Visible : Visibility.Hidden)
+        .animation({ duration: 300, curve: Curve.Smooth })
+
+        if (this.onSwipingVoice) {
+          Stack() { //音量提示
+            Column() {
+              AVVolumePanel({
+                volumeLevel: this.volume,
+                volumeParameter: {
+                  position: {
+                    x: 10000,
+                    y: 20000
+                  }
+                }
+              }).visibility(Visibility.None)
+              SymbolGlyph($r('sys.symbol.speaker_wave_1'))
+                .fontSize(23)
+                .fontColor(['#f0f0f0'])
+              Slider({
+                value: this.volume,
+                min: VideoOperateUtil.min_volume,
+                max: VideoOperateUtil.max_volume,
+                step: 0.1,
+                style: SliderStyle.NONE,
+                direction: Axis.Horizontal,
+                reverse: false
+              })
+                .width(60)
+                .height(30)
+                .selectedColor('#e0e0e0')
+                .trackColor(Color.Black)
+                .trackThickness(40)
+                .onChange((value) => {
+                  this.volume = value
+                })
+            }
           }
           .padding({
             left: 25,
@@ -127,297 +245,199 @@ struct EnhancePlayer {
           .backdropBlur(100)
           .animation({ duration: 300, curve: Curve.Smooth })
         }
-      }
 
-      Stack() {
-        Flex({
-          justifyContent: FlexAlign.SpaceBetween,
-          alignItems: ItemAlign.Center,
-          direction: FlexDirection.Column
-        }) { //顶栏
-          Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
+        if (this.onSwipingBrightness) {
+          Stack() { //亮度提示
             Column() {
-              if (this.screen_width > this.screen_height) {
-                Row() {
-                  Text(ToolsUtil.getTime())
-                    .fontWeight(FontWeight.Medium)
-                    .fontSize(16)
-                    .fontColor($r('sys.color.white'))
-                    .textAlign(TextAlign.Center)
-                    .align(Alignment.Center)
-                }
-                .width('100%')
-                .height(5)
-                .justifyContent(FlexAlign.Center)
-              }
-              this.VideoTop()
-            }.width('100%')
-          }.height(85)
-          .width('100%')
-          .backgroundColor('#61000000')
-          .padding({
-            left: (this.screen_height > this.screen_width ? 5 : 5),
-            right: 20,
-            top: (this.screen_height > this.screen_width ? DataSyncUtil.getActuallyTopSafeHeight() : 0),
-            bottom: 0
-          })
-
-          Stack() { //底栏
-            if (this.screen_height > this.screen_width) {
-              Column({ space: 15 }) {
-                this.VideoButtons()
-                this.VideoSlider()
-              }
-            } else {
-              Row({ space: 15 }) {
-                Column() {
-                  this.VideoSlider()
-                  this.VideoButtons()
-                }
-              }
-            }
-          }
-          .backgroundColor('#61000000')
-          .height(this.screen_height > this.screen_width ? 180 : 110)
-          .width('100%')
-          .padding(1)
-        }.height('100%').width('100%')
-      }
-      .visibility(this.ShowControl ? Visibility.Visible : Visibility.Hidden)
-      .animation({ duration: 300, curve: Curve.Smooth })
-
-      if (this.onSwipingVoice) {
-        Stack() { //音量提示
-          Column() {
-            AVVolumePanel({
-              volumeLevel: this.volume,
-              volumeParameter: {
-                position: {
-                  x: 10000,
-                  y: 20000
-                }
-              }
-            }).visibility(Visibility.None)
-            SymbolGlyph($r('sys.symbol.speaker_wave_1'))
-              .fontSize(23)
-              .fontColor(['#f0f0f0'])
-            Slider({
-              value: this.volume,
-              min: VideoOperateUtil.min_volume,
-              max: VideoOperateUtil.max_volume,
-              step: 0.1,
-              style: SliderStyle.NONE,
-              direction: Axis.Horizontal,
-              reverse: false
-            })
-              .width(60)
-              .height(30)
-              .selectedColor('#e0e0e0')
-              .trackColor(Color.Black)
-              .trackThickness(40)
-              .onChange((value) => {
-                this.volume = value
+              SymbolGlyph($r('sys.symbol.sun_max'))
+                .fontSize(23)
+                .fontColor(['#f0f0f0'])
+              Slider({
+                value: this.screenBrightness,
+                min: 0,
+                max: 1,
+                step: 0.1,
+                style: SliderStyle.NONE,
+                direction: Axis.Horizontal,
+                reverse: false
               })
-          }
-        }
-        .padding({
-          left: 25,
-          right: 25,
-          top: 10,
-          bottom: 10
-        })
-        .borderRadius(1000)
-        .backgroundColor('#30000000')
-        .backdropBlur(100)
-        .animation({ duration: 300, curve: Curve.Smooth })
-      }
-
-      if (this.onSwipingBrightness) {
-        Stack() { //亮度提示
-          Column() {
-            SymbolGlyph($r('sys.symbol.sun_max'))
-              .fontSize(23)
-              .fontColor(['#f0f0f0'])
-            Slider({
-              value: this.screenBrightness,
-              min: 0,
-              max: 1,
-              step: 0.1,
-              style: SliderStyle.NONE,
-              direction: Axis.Horizontal,
-              reverse: false
-            })
-              .width(60)
-              .height(30)
-              .selectedColor($r('app.color.main_color'))
-              .trackColor(Color.Black)
-              .trackThickness(40)
-          }
-        }
-        .padding({
-          left: 25,
-          right: 25,
-          top: 10,
-          bottom: 10
-        })
-        .borderRadius(1000)
-        .backgroundColor('#30000000')
-        .backdropBlur(100)
-        .animation({ duration: 300, curve: Curve.Smooth })
-      }
-
-      if (this.long_press) {
-        Stack({ alignContent: Alignment.BottomEnd }) { //快进提示
-          Text(this.playSpeed + 'x ⏩').fontColor($r('sys.color.white')).fontSize(15).fontWeight(FontWeight.Bold)
-        }
-        .padding({
-          left: 25,
-          right: 25,
-          top: 10,
-          bottom: 10
-        })
-        .offset({ x: 0, y: 0 - this.play_area_height / 2 + 20 })
-        .borderRadius(1000)
-        .backgroundColor('#30000000')
-        .backdropBlur(100)
-        .animation({ duration: 300, curve: Curve.Smooth })
-      }
-      Column()
-        .width('100%')
-        .height('50%')//触控区域
-        .gesture(GestureGroup(GestureMode.Parallel,
-          TapGesture({ count: 2 })
-            .onAction((event: GestureEvent) => {
-              const tapX = event.fingerList[0].localX;
-              const adjustWidth = this.screen_width / 5; // 计算五分之一宽度
-              if (tapX < adjustWidth) { // 左侧1/5区域
-                this.mIjkMediaPlayer.seekTo(String(this.play_time - Number(this.fastForwardSeconds) * 1000));
-              } else if (tapX > adjustWidth * 4) { // 右侧1/5区域
-                this.mIjkMediaPlayer.seekTo(String(this.play_time + Number(this.fastForwardSeconds) * 1000));
-              } else { // 中间3/5区域
-                this.playing ? this.pause() : this.startPlayOrResumePlay()
-              }
-            }),
-          TapGesture({ count: 1 })
-            .onAction(() => {
-              this.ShowControl = !this.ShowControl
-            }),
-          LongPressGesture()
-            .onAction(() => {
-              this.long_press = true
-              this.last_speed = this.playSpeed
-              this.playSpeed = '3'
-              this.mIjkMediaPlayer?.setSpeed(this.playSpeed)
-              this.currentSpeedIndex = VideoInfoUtil.speed_index_map.indexOf(3);
-            })
-            .onActionEnd(() => {
-              this.long_press = false
-              this.playSpeed = this.last_speed
-              this.mIjkMediaPlayer?.setSpeed(this.last_speed);
-            }),
-          PanGesture().onActionStart((event: GestureEvent) => {
-            if (this.long_press) { // 初始化长按滑动参数
-              this.longPressStartX = event.fingerList[0].localX;
-            } else {
-              const firstTouch = event.fingerList[0];
-              this.swipe_start_x = firstTouch.localX;
-              this.last_play_time = this.play_time;
-              this.swipe_start_y = firstTouch.localY;
-              this.isLeftSideSwipe = firstTouch.localX < this.screen_width / 2;
+                .width(60)
+                .height(30)
+                .selectedColor($r('app.color.main_color'))
+                .trackColor(Color.Black)
+                .trackThickness(40)
             }
+          }
+          .padding({
+            left: 25,
+            right: 25,
+            top: 10,
+            bottom: 10
           })
-            .onActionUpdate((event: GestureEvent) => {
-              if (this.long_press) { // 长按状态下的滑动处理
-                const deltaX = event.fingerList[0].localX - this.longPressStartX;
-                const SWIPE_THRESHOLD = 30;
-                if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
-                  const direction = deltaX > 0 ? 1 : -1;
-                  const arrayLength = VideoInfoUtil.speed_index_map.length;
-                  this.currentSpeedIndex = (this.currentSpeedIndex + direction + arrayLength) % arrayLength;
-                  this.playSpeed = VideoInfoUtil.speed_index_map[this.currentSpeedIndex].toString()
-                  this.mIjkMediaPlayer?.setSpeed(this.playSpeed);
-                  this.longPressStartX = event.fingerList[0].localX; // 重置起始点（实现分档切换效果）
+          .borderRadius(1000)
+          .backgroundColor('#30000000')
+          .backdropBlur(100)
+          .animation({ duration: 300, curve: Curve.Smooth })
+        }
+
+        if (this.long_press) {
+          Stack({ alignContent: Alignment.BottomEnd }) { //快进提示
+            Text(this.playSpeed + 'x ⏩').fontColor($r('sys.color.white')).fontSize(15).fontWeight(FontWeight.Bold)
+          }
+          .padding({
+            left: 25,
+            right: 25,
+            top: 10,
+            bottom: 10
+          })
+          .offset({ x: 0, y: 0 - this.play_area_height / 2 + 20 })
+          .borderRadius(1000)
+          .backgroundColor('#30000000')
+          .backdropBlur(100)
+          .animation({ duration: 300, curve: Curve.Smooth })
+        }
+        Column()
+          .width('100%')
+          .height('50%')//触控区域
+          .gesture(GestureGroup(GestureMode.Parallel,
+            TapGesture({ count: 2 })
+              .onAction((event: GestureEvent) => {
+                if (this.allowDoubleFastForward) {
+                  const tapX = event.fingerList[0].localX;
+                  const adjustWidth = this.screen_width / 5; // 计算五分之一宽度
+                  if (tapX < adjustWidth) { // 左侧1/5区域
+                    this.mIjkMediaPlayer.seekTo(String(this.play_time - Number(this.fastForwardSeconds) * 1000));
+                  } else if (tapX > adjustWidth * 4) { // 右侧1/5区域
+                    this.mIjkMediaPlayer.seekTo(String(this.play_time + Number(this.fastForwardSeconds) * 1000));
+                  } else { // 中间3/5区域
+                    this.playing ? this.pause() : this.startPlayOrResumePlay()
+                  }
+                } else {
+                  this.playing ? this.pause() : this.startPlayOrResumePlay()
                 }
-                return
+              }),
+            TapGesture({ count: 1 })
+              .onAction(() => {
+                this.ShowControl = !this.ShowControl
+              }),
+            LongPressGesture()
+              .onAction(() => {
+                this.long_press = true
+                this.last_speed = this.playSpeed
+                this.playSpeed = '3'
+                this.mIjkMediaPlayer?.setSpeed(this.playSpeed)
+                this.currentSpeedIndex = VideoInfoUtil.speed_index_map.indexOf(3);
+              })
+              .onActionEnd(() => {
+                this.long_press = false
+                this.playSpeed = this.last_speed
+                this.mIjkMediaPlayer?.setSpeed(this.last_speed);
+              }),
+            PanGesture().onActionStart((event: GestureEvent) => {
+              if (this.long_press) { // 初始化长按滑动参数
+                this.longPressStartX = event.fingerList[0].localX;
+              } else {
+                const firstTouch = event.fingerList[0];
+                this.swipe_start_x = firstTouch.localX;
+                this.last_play_time = this.play_time;
+                this.swipe_start_y = firstTouch.localY;
+                this.isLeftSideSwipe = firstTouch.localX < this.screen_width / 2;
               }
-              if (event.fingerList.length === 1) {
-                const currentX = event.fingerList[0].localX;
-                const currentY = event.fingerList[0].localY; // 方向判断阈值
-                const deltaX = currentX - this.swipe_start_x;
-                const deltaY = currentY - this.swipe_start_y; // 初始化滑动方向
-                if (Math.abs(deltaX) > Math.abs(deltaY)) { // 水平为主
-                  if (Math.abs(deltaX) > 10 && !this.isVerticalSwiping) {
-                    this.onSwiping = true
-                    this.isHorizontalSwiping = true;
-                    this.isVerticalSwiping = false; // 明确清除对立状态
+            })
+              .onActionUpdate((event: GestureEvent) => {
+                if (this.long_press) { // 长按状态下的滑动处理
+                  const deltaX = event.fingerList[0].localX - this.longPressStartX;
+                  const SWIPE_THRESHOLD = 30;
+                  if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
+                    const direction = deltaX > 0 ? 1 : -1;
+                    const arrayLength = VideoInfoUtil.speed_index_map.length;
+                    this.currentSpeedIndex = (this.currentSpeedIndex + direction + arrayLength) % arrayLength;
+                    this.playSpeed = VideoInfoUtil.speed_index_map[this.currentSpeedIndex].toString()
+                    this.mIjkMediaPlayer?.setSpeed(this.playSpeed);
+                    this.longPressStartX = event.fingerList[0].localX; // 重置起始点（实现分档切换效果）
                   }
-                } else { // 垂直为主
-                  if (Math.abs(deltaY) > 10 && !this.isHorizontalSwiping) {
-                    this.isVerticalSwiping = true;
-                    this.isHorizontalSwiping = false; // 明确清除对立状态
+                  return
+                }
+                if (event.fingerList.length === 1) {
+                  const currentX = event.fingerList[0].localX;
+                  const currentY = event.fingerList[0].localY; // 方向判断阈值
+                  const deltaX = currentX - this.swipe_start_x;
+                  const deltaY = currentY - this.swipe_start_y; // 初始化滑动方向
+                  if (Math.abs(deltaX) > Math.abs(deltaY)) { // 水平为主
+                    if (Math.abs(deltaX) > 10 && !this.isVerticalSwiping) {
+                      this.onSwiping = true
+                      this.isHorizontalSwiping = true;
+                      this.isVerticalSwiping = false; // 明确清除对立状态
+                    }
+                  } else { // 垂直为主
+                    if (Math.abs(deltaY) > 10 && !this.isHorizontalSwiping) {
+                      this.isVerticalSwiping = true;
+                      this.isHorizontalSwiping = false; // 明确清除对立状态
+                    }
+                  }
+                  if (this.isVerticalSwiping) {
+                    const volumeStep = 0.0006; // 每像素音量变化量
+                    const brightnessStep = 0.00003; // 每像素亮度变化量
+                    if (this.isLeftSideSwipe) {
+                      this.onSwipingBrightness = true
+                      const newBrightness = this.screenBrightness - (deltaY * brightnessStep);
+                      this.screenBrightness = Math.min(Math.max(newBrightness, 0), 1)
+                      VideoOperateUtil.setBrightness(this.screenBrightness);
+                    } else {
+                      this.onSwipingVoice = true
+                      const newVolume = this.volume - (deltaY * volumeStep);
+                      this.volume =
+                        Math.min(Math.max(newVolume, VideoOperateUtil.min_volume), VideoOperateUtil.max_volume);
+                    }
+                  }
+                  if (this.isHorizontalSwiping) {
+                    const timePerPixel = 150; // 灵敏度控制
+                    this.play_time =
+                      Math.max(0, Math.min(this.last_play_time + (deltaX * timePerPixel), this.total_time));
                   }
                 }
-                if (this.isVerticalSwiping) {
-                  const volumeStep = 0.0006; // 每像素音量变化量
-                  const brightnessStep = 0.00003; // 每像素亮度变化量
-                  if (this.isLeftSideSwipe) {
-                    this.onSwipingBrightness = true
-                    const newBrightness = this.screenBrightness - (deltaY * brightnessStep);
-                    this.screenBrightness = Math.min(Math.max(newBrightness, 0), 1)
-                    VideoOperateUtil.setBrightness(this.screenBrightness);
-                  } else {
-                    this.onSwipingVoice = true
-                    const newVolume = this.volume - (deltaY * volumeStep);
-                    this.volume =
-                      Math.min(Math.max(newVolume, VideoOperateUtil.min_volume), VideoOperateUtil.max_volume);
-                  }
-                }
+              })
+              .onActionEnd(() => {
                 if (this.isHorizontalSwiping) {
-                  const timePerPixel = 150; // 灵敏度控制
-                  this.play_time =
-                    Math.max(0, Math.min(this.last_play_time + (deltaX * timePerPixel), this.total_time));
+                  this.mIjkMediaPlayer.seekTo(String(this.play_time));
                 }
-              }
-            })
-            .onActionEnd(() => {
-              if (this.isHorizontalSwiping) {
-                this.mIjkMediaPlayer.seekTo(String(this.play_time));
-              }
-              this.isHorizontalSwiping = false; // 重置所有滑动状态
-              this.isVerticalSwiping = false;
-              this.onSwiping = false;
-              this.onSwipingVoice = false;
-              this.onSwipingBrightness = false;
-            }),
-          PinchGesture({ fingers: 2, distance: 2 })//手势缩放
-            .onActionStart((event: GestureEvent) => {
-              const finger1 = event.fingerList[0];
-              const finger2 = event.fingerList[1];
-              this.initPinchDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
-            })
-            .onActionUpdate((event: GestureEvent) => {
-              const finger1 = event.fingerList[0];
-              const finger2 = event.fingerList[1];
-              const currentDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
-              const rawScale = currentDistance / this.initPinchDistance;
-              const adjustedScale = 1 + (rawScale - 1) * 0.007;
-              const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0);
-              this.play_area_width = Math.max(this.play_area_width * clampedScale, 0.5);
-              this.play_area_height = Math.max(this.play_area_height * clampedScale, 0.5);
-              animateTo({ duration: 100 }, () => {
-                this.play_area_width = this.play_area_width;
-                this.play_area_height = this.play_area_height;
-              });
-            })
-        ))
-    }
-    .onAreaChange(async (_oldValue: Area, newValue: Area) => {
-      this.screen_width = Math.floor(new Number(newValue.width).valueOf())
-      this.screen_height = Math.floor(new Number(newValue.height).valueOf())
-      this.getVideoSize()
+                this.isHorizontalSwiping = false; // 重置所有滑动状态
+                this.isVerticalSwiping = false;
+                this.onSwiping = false;
+                this.onSwipingVoice = false;
+                this.onSwipingBrightness = false;
+              }),
+            PinchGesture({ fingers: 2, distance: 2 })//手势缩放
+              .onActionStart((event: GestureEvent) => {
+                const finger1 = event.fingerList[0];
+                const finger2 = event.fingerList[1];
+                this.initPinchDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
+              })
+              .onActionUpdate((event: GestureEvent) => {
+                const finger1 = event.fingerList[0];
+                const finger2 = event.fingerList[1];
+                const currentDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
+                const rawScale = currentDistance / this.initPinchDistance;
+                const adjustedScale = 1 + (rawScale - 1) * 0.007;
+                const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0);
+                this.play_area_width = Math.max(this.play_area_width * clampedScale, 0.5);
+                this.play_area_height = Math.max(this.play_area_height * clampedScale, 0.5);
+                animateTo({ duration: 100 }, () => {
+                  this.play_area_width = this.play_area_width;
+                  this.play_area_height = this.play_area_height;
+                });
+              })
+          ))
+      }
+      .onAreaChange(async (_oldValue: Area, newValue: Area) => {
+        this.screen_width = Math.floor(new Number(newValue.width).valueOf())
+        this.screen_height = Math.floor(new Number(newValue.height).valueOf())
+        this.getVideoSize()
+      })
+      .backgroundColor($r('sys.color.black'))
+    }.onReady((context: NavDestinationContext) => {
+      this.pathStack = context.pathStack
     })
-    .backgroundColor($r('sys.color.black'))
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 
   @Builder
@@ -427,7 +447,7 @@ struct EnhancePlayer {
         .fontSize(40)
         .fontColor(['#f0f0f0'])
         .onClick(() => {
-          router.back()
+          this.pathStack.clear()
         })
         .padding({ right: 10 })
         .margin({ left: 15 })
@@ -550,6 +570,7 @@ struct EnhancePlayer {
       try {
         this.now_playing = JSON.parse(record['metadata']) as VideoMetadataFromPlayer
         this.video_meta_data = JSON.parse(record['metadata_list']) as VideoMetadata[];
+        this.file_folder = JSON.parse(record['file_folder']) as FileFolder
       } catch (e) {
         console.error(e)
       }
@@ -565,7 +586,7 @@ struct EnhancePlayer {
     this.setScreen()
     let volumeList = await VideoOperateUtil.getVolume(audioVolumeManger, groupId)
     this.volume = volumeList.get('volume')!
-    await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
+    await (await this.windowClass).setPreferredOrientation(window.Orientation.FOLLOW_DESKTOP);
     await (await this.windowClass).setWindowKeepScreenOn(true)
     let event: Callback<InterruptEvent> = (event) => {
       //  LogUtils.getInstance().LOGI(`event: ${JSON.stringify(event)}`);
@@ -592,6 +613,13 @@ struct EnhancePlayer {
       })
   }
 
+  async onPageHide(): Promise<void> {
+    if (this.video_meta_data.length > 0) {
+      await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data, context,
+        this.file_folder)
+    }
+  }
+
   async aboutToDisappear() {
     //    LogUtils.getInstance().LOGI("aboutToDisappear");
     if (this.screenBrightness != this.screenBrightnessAtFirst) {
@@ -608,10 +636,7 @@ struct EnhancePlayer {
     await (await this.windowClass).setWindowKeepScreenOn(false)
     await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
     await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
-    await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
-    if (this.video_meta_data.length > 0) {
-      VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data, context)
-    }
+    await (await this.windowClass).setPreferredOrientation(window.Orientation.FOLLOW_DESKTOP);
   }
 
   async setSessionListener() {
@@ -855,7 +880,6 @@ struct EnhancePlayer {
     this.CONTROL_PlayStatus = PlayStatus.INIT;
     this.mIjkMediaPlayer.stop();
     this.mIjkMediaPlayer.release();
-    console.error('release')
     this.stopProgressTask();
   }
 
@@ -864,6 +888,11 @@ struct EnhancePlayer {
     //  LogUtils.getInstance().LOGI("getVideoWidth---" + VideoWidth);
     let VideoHeight = this.mIjkMediaPlayer.getVideoHeight();
     //  LogUtils.getInstance().LOGI("getVideoHeight---" + VideoHeight);
+    if (this.now_playing?.size[0] === 0 && VideoWidth !== 0) {
+      this.now_playing.size[0] = VideoWidth
+      this.now_playing.size[1] = VideoHeight
+      VideoOperateUtil.saveVideoWeightAndHeight(this.now_playing, this.video_meta_data, context, this.file_folder)
+    }
     const aspectRatioNow = VideoWidth / VideoHeight;
     const screenAspectRatio = this.screen_width / this.screen_height;
     if (aspectRatioNow > screenAspectRatio) {

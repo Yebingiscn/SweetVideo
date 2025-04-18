@@ -237,10 +237,19 @@ export class FileFolderContentDataSource implements IDataSource {
 
   // 数据更新时需要触发的逻辑
   updateData(newData: VideoMetadata[]) {
-    this.data = newData;
+    this.data = JSON.parse(JSON.stringify(newData));
     this.listeners.forEach(listener => {
-      listener.onDataReloaded(); // 通知所有监听器数据已更新
+      for (let index = 0; index < this.data.length; index++) {
+        listener.onDataChange(index);
+      }
     });
+    this.notifyDataReload()
+  }
+
+  notifyDataReload(): void {
+    this.listeners.forEach(listener => {
+      listener.onDataReloaded();
+    })
   }
 
   totalCount(): number {

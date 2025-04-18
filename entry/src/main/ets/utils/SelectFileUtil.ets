@@ -28,6 +28,19 @@ class SelectFileUtil {
     }
   }
 
+  async selectVideo(): Promise<string[]> { // 确保返回类型是 Promise<string[]>
+    const photoSelectOptions = new photoAccessHelper.PhotoSelectOptions();
+    photoSelectOptions.MIMEType = photoAccessHelper.PhotoViewMIMETypes.VIDEO_TYPE;
+    const photoViewPicker = new photoAccessHelper.PhotoViewPicker();
+    try {
+      const photoSelectResult: photoAccessHelper.PhotoSelectResult = await photoViewPicker.select(photoSelectOptions);
+      return photoSelectResult.photoUris.length > 0 ? photoSelectResult.photoUris : [];
+    } catch (error) {
+      console.error("Error selecting videos:", error);
+      return []; // 捕获错误并返回空数组
+    }
+  }
+
   async selectExternalSubtitles(sandbox_subtitle: string, date: string) {
     const documentSelectOptions = new picker.DocumentSelectOptions();
     documentSelectOptions.fileSuffixFilters = VideoUtil.support_subtitle_format;
@@ -78,19 +91,6 @@ class SelectFileUtil {
         })
       }
     })
-  }
-
-  async selectVideo(): Promise<string[]> { // 确保返回类型是 Promise<string[]>
-    const photoSelectOptions = new photoAccessHelper.PhotoSelectOptions();
-    photoSelectOptions.MIMEType = photoAccessHelper.PhotoViewMIMETypes.VIDEO_TYPE;
-    const photoViewPicker = new photoAccessHelper.PhotoViewPicker();
-    try {
-      const photoSelectResult: photoAccessHelper.PhotoSelectResult = await photoViewPicker.select(photoSelectOptions);
-      return photoSelectResult.photoUris.length > 0 ? photoSelectResult.photoUris : [];
-    } catch (error) {
-      console.error("Error selecting videos:", error);
-      return []; // 捕获错误并返回空数组
-    }
   }
 
   async getDownloadUri() {

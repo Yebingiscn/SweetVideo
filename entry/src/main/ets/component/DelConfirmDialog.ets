@@ -22,7 +22,7 @@ export struct delConfirmDialog { //删除确认弹窗
           }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
         }
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .backgroundColor('#00000000')
+        .backgroundColor($r('sys.color.button_background_color_transparent'))
         .borderRadius(8)
         .height(40)
         .onClick(() => this.controller?.close())
@@ -34,7 +34,7 @@ export struct delConfirmDialog { //删除确认弹窗
           }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
         }
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .backgroundColor('#00000000')
+        .backgroundColor($r('sys.color.button_background_color_transparent'))
         .borderRadius(8)
         .height(40)
         .onClick(() => {
