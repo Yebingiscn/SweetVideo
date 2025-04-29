@@ -4,8 +4,6 @@ import { BusinessError, systemDateTime } from '@kit.BasicServicesKit';
 import VideoInfoUtil, { VideoMetadata } from './VideoInfoUtil';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import PreferencesUtil from './PreferencesUtil';
-import { router } from '@kit.ArkUI';
-import { JSON } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { bundleManager } from '@kit.AbilityKit';
 import RecentPlayUtil from './RecentPlayUtil';
@@ -13,7 +11,7 @@ import SelectFileUtil from './SelectFileUtil';
 import { pinyin4js } from '@ohos/pinyin4js';
 import { FileFolder } from './FileFolderUtil';
 import PermissionUtil from './PermissionUtil';
-
+import { PlayerParams } from './PlayerParams';
 
 class ToolsUtil {
   private splitRegex = /(\d+\.?\d*)/; // 分离数字和文字
@@ -119,48 +117,25 @@ class ToolsUtil {
     }
   }
 
-  routerWhereOnlyUri(uri: string) {
-    router.pushUrl({
-      url: uri,
-    }, router.RouterMode.Single, (err) => {
-      hilog.info(0xFF00, "testTag", String(err));
-    });
+  async routerToFileFolder(pathStack: NavPathStack, file_folder: FileFolder) {
+    pathStack.pushPathByName('FileFolderContent', file_folder, false)
   }
 
-  async routerToFileFolder(file_folder: FileFolder) {
-    router.pushUrl({
-      url: 'pages/FileFolderContent',
-      params: {
-        file_folder: JSON.stringify(file_folder)
-      }
-    }, router.RouterMode.Single, (err) => {
-      hilog.info(0xFF00, "testTag", String(err));
-    });
-  }
-
-  async routerToVideoFromFileFolder(context: Context, uri: string, item: VideoMetadata,
+  async routerToVideoFromFileFolder(pathStack: NavPathStack, context: Context, uri: string, item: VideoMetadata,
     file_folder: FileFolder) {
     if (VideoInfoUtil.videoWidthAndHeightFormat(String(item?.size)) === '0 x 0') {
       this.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
-      uri = 'pages/FFMpegPlayer'
+      uri = 'FFMpegPlayer'
     }
     const recentPlay = await PreferencesUtil.getPreferencesValue(context, "sweet_video", "recentPlay", true) as boolean
     if (recentPlay) {
       RecentPlayUtil.addPlayback(context, item)
     }
-    router.pushUrl({
-      url: uri,
-      params: {
-        metadata: JSON.stringify(item),
-        metadata_list: JSON.stringify(file_folder.video_list),
-        file_folder: JSON.stringify(file_folder)
-      }
-    }, router.RouterMode.Single, (err) => {
-      hilog.info(0xFF00, "testTag", String(err));
-    });
+    const playerParams = new PlayerParams(item, file_folder.video_list, file_folder)
+    pathStack.pushPathByName(uri, playerParams, false)
   }
 
-  async routerWhere(context: Context, uri: string, item: string, encryption: boolean) {
+  async routerWhere(pathStack: NavPathStack, context: Context, uri: string, item: string, encryption: boolean) {
     let list: VideoMetadata [] = []
     encryption ? list = await SelectFileUtil.getVideoMetaDataEncryption(context) :
       list = await SelectFileUtil.getVideoMetaData(context)
@@ -171,17 +146,10 @@ class ToolsUtil {
     let target_item = SelectFileUtil.getItem(list, item!)
     if (VideoInfoUtil.videoWidthAndHeightFormat(String(target_item?.size)) === '0 x 0') {
       this.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
-      uri = 'pages/FFMpegPlayer'
+      uri = 'FFMpegPlayer'
     }
-    router.pushUrl({
-      url: uri,
-      params: {
-        metadata: JSON.stringify(list.find(i => i.date === item)),
-        metadata_list: JSON.stringify(list)
-      }
-    }, router.RouterMode.Single, (err) => {
-      hilog.info(0xFF00, "testTag", String(err));
-    });
+    const playerParams = new PlayerParams(list.find(i => i.date === item) as VideoMetadata, list, undefined)
+    pathStack.pushPathByName(uri, playerParams, false)
   }
 
   async getVersionCode() {
@@ -195,7 +163,10 @@ class ToolsUtil {
     }
   }
 
-  isFileFolderExist(sandbox_video: string, sandbox_subtitle: string) {
+  isFileFolderExist(sandbox_video:
+    string, sandbox_subtitle:
+    string
+  ) {
     if (!fs.accessSync(sandbox_video)) {
       fs.mkdirSync(sandbox_video)
     }
@@ -214,4 +185,6 @@ class ToolsUtil {
   }
 }
 
-export default new ToolsUtil()
+export default new
+
+ToolsUtil()

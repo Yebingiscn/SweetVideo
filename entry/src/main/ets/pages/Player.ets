@@ -4,7 +4,7 @@ import DataSyncUtil from '../utils/DataSyncUtil';
 import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
 import PermissionUtil from '../utils/PermissionUtil';
 import { common } from '@kit.AbilityKit';
-import { router, window } from '@kit.ArkUI';
+import { window } from '@kit.ArkUI';
 import { avSession as avSessionManager } from '@kit.AVSessionKit';
 import AVSessionUtil from '../utils/AVSessionUtil';
 import ToolsUtil from '../utils/ToolsUtil';
@@ -20,6 +20,8 @@ import PreferencesUtil from '../utils/PreferencesUtil';
 import { IjkMediaPlayer } from '@ohos/ijkplayer';
 import { FileFolder } from '../utils/FileFolderUtil';
 import { KeyCode } from '@kit.InputKit';
+import { PlayerParams } from '../utils/PlayerParams'
+
 
 @Extend(Image)
 function imageFancy(borderRadius: number, width: number | string, height: number | string) {
@@ -164,17 +166,6 @@ struct Player {
   }
 
   async aboutToAppear(): Promise<void> {
-    let record = router.getParams() as Record<string, string>
-    if (record) {
-      try {
-        this.now_playing = JSON.parse(record['metadata']) as VideoMetadataFromPlayer
-        this.video_meta_data = JSON.parse(record['metadata_list']) as VideoMetadata[]
-        this.file_folder = JSON.parse(record['file_folder']) as FileFolder
-      } catch (e) {
-        console.error(e)
-      }
-    }
-    this.videoDataSource = new VideoDataSource(this.video_meta_data);
     if (this.allowBackgroundPlay) {
       PermissionUtil.startContinuousTask()
     }
@@ -408,7 +399,7 @@ struct Player {
           break;
         case 'error':
           await this.ijkPlayerStop()
-          VideoOperateUtil.playErrorExecute(this.video_meta_data, this.now_playing?.date!)
+          VideoOperateUtil.playErrorExecute(this.pathStack, this.video_meta_data, this.now_playing?.date!)
           this.avPlayer?.release()
           break;
       }
@@ -970,7 +961,16 @@ struct Player {
       .divider({ strokeWidth: 0 })
     }.onReady((context: NavDestinationContext) => {
       this.pathStack = context.pathStack
-    })
+      const playerParams: PlayerParams = this.pathStack.getParamByName('Player')[0] as PlayerParams
+      try {
+        this.now_playing = playerParams.metadata as VideoMetadataFromPlayer
+        this.video_meta_data = playerParams.metadata_list as VideoMetadata[]
+        this.videoDataSource = new VideoDataSource(this.video_meta_data);
+        this.file_folder =playerParams.file_folder as FileFolder
+      } catch (e) {
+        console.error(e)
+      }
+    }).hideTitleBar(true)
   }
 
   @Builder
@@ -1025,7 +1025,7 @@ struct Player {
         }.alignItems(VerticalAlign.Center)
       }.margin({ top: this.screen_height > this.screen_width ? 10 : 0 }).height('100%').layoutWeight(1)
 
-      Button({ type: ButtonType.Circle, stateEffect: true }) { // 旋转锁定
+      Button({ type: ButtonType.Circle, stateEffect: true }) { // 旋转锁定 TODO KIMMG
         SymbolGlyph(this.lock_rotation ? $r('sys.symbol.lock_fill') : $r('sys.symbol.rotate_left'))
           .symbolGlyphFancy(23)
           .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.lock_rotation))

@@ -264,7 +264,7 @@ struct Index {
               return
             }
             await ToolsUtil.isFileExist(target_item) ?
-            ToolsUtil.routerWhere(context, 'pages/FFMpegPlayer', item?.date!, this.encryption) :
+            ToolsUtil.routerWhere(this.pathStack, context, 'FFMpegPlayer', item?.date!, this.encryption) :
             this.deleteUnExistFile(target_item)
           }, 200)
         })
@@ -768,7 +768,7 @@ struct Index {
                       }.width('100%')
                     }
                     .onClick(() => {
-                      ToolsUtil.routerToFileFolder(item)
+                      ToolsUtil.routerToFileFolder(this.pathStack, item)
                     })
                     .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
                     .bindContextMenu(this.FileFolderSelectMenu(item), ResponseType.LongPress)
@@ -933,7 +933,7 @@ struct Index {
                 }
                 this.listScroller.closeAllSwipeActions()
                 await ToolsUtil.isFileExist(target_item) ?
-                ToolsUtil.routerWhere(context, 'pages/Player', item, this.encryption) :
+                ToolsUtil.routerWhere(this.pathStack, context, 'Player', item, this.encryption) :
                 this.deleteUnExistFile(target_item)
               })
             }, (item: string) => item)
