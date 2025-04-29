@@ -29,6 +29,8 @@ import VideoInfoUtil, { VideoMetadata, VideoMetadataFromPlayer } from '../utils/
 import PreferencesUtil from '../utils/PreferencesUtil'
 import { settings } from '@kit.BasicServicesKit'
 import { FileFolder } from '../utils/FileFolderUtil'
+import { PlayerParams } from '../utils/PlayerParams'
+
 
 @Builder
 export function FFMpegPlayerBuilder() {
@@ -437,7 +439,15 @@ struct FFMpegPlayer {
       .backgroundColor($r('sys.color.black'))
     }.onReady((context: NavDestinationContext) => {
       this.pathStack = context.pathStack
-    })
+      const playerParams: PlayerParams = this.pathStack.getParamByName('FFMpegPlayer')[0] as PlayerParams
+      try {
+        this.now_playing = playerParams.metadata as VideoMetadataFromPlayer
+        this.video_meta_data = playerParams.metadata_list as VideoMetadata[];
+        this.file_folder = playerParams.file_folder as FileFolder
+      } catch (e) {
+        console.error(e)
+      }
+    }).hideTitleBar(true)
   }
 
   @Builder
@@ -565,16 +575,6 @@ struct FFMpegPlayer {
 
   async aboutToAppear() {
     //  LogUtils.getInstance().LOGI("aboutToAppear");
-    let record = router.getParams() as Record<string, string>
-    if (record) {
-      try {
-        this.now_playing = JSON.parse(record['metadata']) as VideoMetadataFromPlayer
-        this.video_meta_data = JSON.parse(record['metadata_list']) as VideoMetadata[];
-        this.file_folder = JSON.parse(record['file_folder']) as FileFolder
-      } catch (e) {
-        console.error(e)
-      }
-    }
     this.allowBackgroundPlay =
       await PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowBackgroundPlay", true) as boolean
     if (this.allowBackgroundPlay) {

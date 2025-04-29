@@ -66,14 +66,6 @@ struct FileFolderContent {
   pathStack: NavPathStack = new NavPathStack()
   private listScroller: Scroller = new Scroller();
 
-  async aboutToAppear(): Promise<void> {
-    let record = router.getParams() as Record<string, string>
-    if (record) {
-      this.file_folder = JSON.parse(record['file_folder']) as FileFolder
-    }
-    this.videoDataSource = new FileFolderContentDataSource(this.file_folder?.video_list!);
-  }
-
   async onPageShow(): Promise<void> {
     this.file_folder_list = await SelectFileUtil.getFileFolder(context)
     this.file_folder = this.file_folder_list.find(i => i.date === this.file_folder?.date)
@@ -135,7 +127,7 @@ struct FileFolderContent {
         MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(async () => {
           this.MenuBuilderState = false
           await ToolsUtil.isFileExist(item) ?
-          ToolsUtil.routerToVideoFromFileFolder(context, 'pages/FFMpegPlayer', item!, this.file_folder!) :
+          ToolsUtil.routerToVideoFromFileFolder(this.pathStack, context, 'FFMpegPlayer', item!, this.file_folder!) :
             await this.delData(context, item!, false)
         })
         MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
@@ -289,7 +281,7 @@ struct FileFolderContent {
                 }
                 .onClick(async () => {
                   await ToolsUtil.isFileExist(item) ?
-                  ToolsUtil.routerToVideoFromFileFolder(context, 'pages/Player', item, this.file_folder!) :
+                  ToolsUtil.routerToVideoFromFileFolder(this.pathStack, context, 'Player', item, this.file_folder!) :
                     await this.delData(context, item, false)
                 })
                 .width('100%')
@@ -314,6 +306,9 @@ struct FileFolderContent {
       .backgroundColor($r('app.color.start_window_background'))
     }.onReady((context: NavDestinationContext) => {
       this.pathStack = context.pathStack
-    })
+      const file_folder: FileFolder = this.pathStack.getParamByName('FileFolderContent')[0] as FileFolder
+      this.file_folder = file_folder
+      this.videoDataSource = new FileFolderContentDataSource(this.file_folder?.video_list!);
+    }).hideTitleBar(true)
   }
 }

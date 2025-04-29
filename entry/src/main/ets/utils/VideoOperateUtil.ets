@@ -8,6 +8,7 @@ import SelectFileUtil from './SelectFileUtil';
 import { media } from '@kit.MediaKit';
 import AVSessionUtil, { avSessionState } from './AVSessionUtil';
 import { FileFolder } from './FileFolderUtil';
+import { PlayerParams } from './PlayerParams';
 
 export interface AudioTrack {
   index: number;
@@ -93,19 +94,14 @@ class VideoOperateUtil {
     });
   }
 
-  playErrorExecute(video_meta_data: VideoMetadata[], date: string) {
+  playErrorExecute(pathStack: NavPathStack,video_meta_data: VideoMetadata[], date: string) {
     ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
     const now_play_item = video_meta_data.find(item => {
       const target_item = SelectFileUtil.getItem(video_meta_data, item?.date)?.date;
       return date === target_item;
     });
-    router.replaceUrl({
-      url: 'pages/FFMpegPlayer',
-      params: {
-        metadata: JSON.stringify(now_play_item),
-        metadata_list: JSON.stringify(video_meta_data)
-      }
-    }, router.RouterMode.Standard)
+    const playerParams = new PlayerParams(now_play_item, video_meta_data, undefined)
+    pathStack.pushPathByName('FFMpegPlayer', playerParams, false)
   }
 
   audioTrackErrorExecute(audio_track: AudioTrack[]) {

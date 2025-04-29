@@ -55,7 +55,7 @@ struct RecentPlay {
       }.padding(10).onClick(async () => {
         this.MenuBuilderState = false
         await ToolsUtil.isFileExist(item) ?
-        ToolsUtil.routerWhere(context, 'pages/FFMpegPlayer', item?.date!, false) : this.delData(context, item!)
+        ToolsUtil.routerWhere(this.pathStack, context, 'FFMpegPlayer', item?.date!, false) : this.delData(context, item!)
       })
 
       Divider().height(2)
@@ -146,7 +146,7 @@ struct RecentPlay {
                 }
                 .onClick(async () => {
                   await ToolsUtil.isFileExist(item) ?
-                  ToolsUtil.routerWhere(context, 'pages/Player', item.date, false) : this.delData(context, item)
+                  ToolsUtil.routerWhere(this.pathStack, context, 'Player', item.date, false) : this.delData(context, item)
                 })
                 .width('100%')
                 .height(100)

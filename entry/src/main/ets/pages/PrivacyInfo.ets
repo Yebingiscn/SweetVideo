@@ -121,7 +121,8 @@ struct SplashPage {
     //init();
     this.privacyDialogController?.close()
     await this.initSetting()
-    //  this.pathStack.replacePathByName('Index', null)
+    // this.pathStack.pushPath({name: 'Index'})
+     // this.pathStack.replacePathByName('Index', null)
     router.replaceUrl({ url: 'pages/Index' }, router.RouterMode.Single)
   }
 
