@@ -20,7 +20,7 @@ import PreferencesUtil from '../utils/PreferencesUtil';
 import { IjkMediaPlayer } from '@ohos/ijkplayer';
 import { FileFolder } from '../utils/FileFolderUtil';
 import { KeyCode } from '@kit.InputKit';
-import { PlayerParams } from '../utils/PlayerParams'
+import { PlayerParams } from '../common/PlayerParams';
 
 
 @Extend(Image)
@@ -60,7 +60,7 @@ const sandbox_subtitle = getContext().filesDir + '/subtitle/'
 
 @Entry
 @Component
-struct Player {
+struct Player { // 播放页
   avPlayer: media.AVPlayer | undefined = undefined
   avSession: avSessionManager.AVSession | undefined = undefined;
   @State now_playing: VideoMetadataFromPlayer | undefined = undefined
@@ -125,17 +125,6 @@ struct Player {
   private listScroller: Scroller = new Scroller();
   private mIjkMediaPlayer = IjkMediaPlayer.getInstance();
 
-  onBackPress(): boolean | void {
-    if (this.showControl && !this.allowPlayBackExist) {
-      this.showControl = false
-      this.lockVisibility = false
-      return true
-    } else {
-      this.avPlayer?.release()
-      return false
-    }
-  }
-
   async setSessionListener() {
     this.avSession?.on('play', () => {
       if (VideoOperateUtil.mIjkMediaPlayerActive) {
@@ -188,14 +177,8 @@ struct Player {
     this.speed = parseFloat(video_speed?.replace('x', '') || '1')
   }
 
-  async onPageHide(): Promise<void> {
-    if (this.video_meta_data.length > 0) {
-      await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data, context,
-        this.file_folder)
-    }
-  }
-
   async aboutToDisappear(): Promise<void> {
+    console.error('test disappear')
     if (this.screenBrightness != this.screenBrightnessAtFirst) {
       VideoOperateUtil.setBrightness(this.screenBrightnessAtFirst)
     }
@@ -970,7 +953,24 @@ struct Player {
       } catch (e) {
         console.error(e)
       }
-    }).hideTitleBar(true)
+    })
+    .onBackPressed(() => {
+      if (this.showControl && !this.allowPlayBackExist) {
+        this.showControl = false
+        this.lockVisibility = false
+        return true
+      } else {
+        this.avPlayer?.release()
+        return false
+      }
+    })
+    .onWillDisappear(async () => {
+      if (this.video_meta_data.length > 0) {
+        await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data, context,
+          this.file_folder)
+      }
+    })
+    .hideTitleBar(true)
   }
 
   @Builder

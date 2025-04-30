@@ -1,5 +1,6 @@
 import { media } from '@kit.MediaKit'
 
+// 系统播放器类
 class AVPlayerUtil {
   avPlayer: media.AVPlayer | undefined = undefined
 

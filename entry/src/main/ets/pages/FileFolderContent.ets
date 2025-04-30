@@ -1,7 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import ToolsUtil from '../utils/ToolsUtil';
 import VideoInfoUtil, { DEFAULT_DIALOG_SHADOW, VideoMetadata } from '../utils/VideoInfoUtil';
-import { router, SymbolGlyphModifier } from '@kit.ArkUI';
+import { SymbolGlyphModifier } from '@kit.ArkUI';
 import DataSyncUtil from '../utils/DataSyncUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { JSON } from '@kit.ArkTS';
@@ -52,7 +52,7 @@ export function FileFolderContentBuilder() {
 
 @Entry
 @Component
-struct FileFolderContent {
+struct FileFolderContent { // 文件夹页，不同文件夹公用一个页
   @State videoDataSource: FileFolderContentDataSource = new FileFolderContentDataSource([])
   @State MenuBuilderState: boolean = false
   @State file_folder: FileFolder | undefined = undefined

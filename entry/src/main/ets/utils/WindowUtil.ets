@@ -1,6 +1,7 @@
 import { window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
+// 用于设置窗口状态
 export class WindowUtil {
   private static instance: WindowUtil;
   private windowStage?: window.WindowStage;

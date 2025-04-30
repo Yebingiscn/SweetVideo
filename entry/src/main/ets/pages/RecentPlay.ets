@@ -25,7 +25,7 @@ export function RecentPlayBuilder() {
 
 @Entry
 @Component
-struct RecentPlay {
+struct RecentPlay { // 最近播放页
   @State videoDataSource: RecentVideoDataSource = new RecentVideoDataSource([])
   @State recent_video_meta_data: VideoMetadata[] = []
   @State MenuBuilderState: boolean = false

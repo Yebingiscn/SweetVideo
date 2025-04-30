@@ -3,17 +3,18 @@ import PreferencesUtil from '../utils/PreferencesUtil';
 import { common } from '@kit.AbilityKit';
 import WantProcessUtil from '../utils/WantProcessUtil';
 import ReqPermissionUtil from '../utils/ReqPermissionUtil';
+import ToolsUtil from '../utils/ToolsUtil';
 
 const context = getContext() as common.UIAbilityContext;
 
 @Builder
-export function PrivacyPolicyDialogBuilder() {
-  PrivacyPolicyDialog()
+export function PrivacyInfoBuilder() {
+  PrivacyInfo()
 }
 
 @Entry
 @Component
-struct SplashPage {
+struct PrivacyInfo {
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
@@ -114,19 +115,22 @@ struct SplashPage {
     } else {
       this.initSdk()
     }
-    WantProcessUtil.checkWant(context)
   }
 
   async initSdk() {
     //init();
     this.privacyDialogController?.close()
     await this.initSetting()
-    // this.pathStack.pushPath({name: 'Index'})
-     // this.pathStack.replacePathByName('Index', null)
+    // this.pathStack.replacePathByName('Index', null);
     router.replaceUrl({ url: 'pages/Index' }, router.RouterMode.Single)
   }
 
   build() {
+    NavDestination() {
+
+    }.onReady((context: NavDestinationContext) => {
+      this.pathStack = context.pathStack
+    })
   }
 }
 
@@ -134,12 +138,9 @@ struct SplashPage {
 @Component
 struct PrivacyPolicyDialog {
   controller?: CustomDialogController
-  pathStack: NavPathStack = new NavPathStack()
   @State isPresent: boolean = false;
-
   cancel: () => void = () => {
   }; // 初始化为空函数
-
   confirm: () => void = () => {
   }; // 初始化为空函数
 
@@ -179,9 +180,11 @@ struct PrivacyPolicyDialog {
           }).fontColor('#999999').fontSize(15).backgroundColor(Color.Transparent)
           Button('同意')
             .onClick(() => {
+              ToolsUtil.startVibration()
               this.confirm();
               this.isPresent = !this.isPresent;
             })
+            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
             .fontColor($r('sys.color.white'))
             .fontSize(17)
             .linearGradient({
@@ -198,22 +201,18 @@ struct PrivacyPolicyDialog {
   }
 
   build() {
-    NavDestination() {
-      Stack() {
-      }.bindSheet($$this.isPresent, this.privacyInfoBuilder(), {
-        enableOutsideInteractive: false, showClose: false, onWillDismiss: ((DismissSheetAction: DismissSheetAction) => {
-          if (DismissSheetAction.reason == DismissReason.SLIDE_DOWN ||
-            DismissSheetAction.reason == DismissReason.PRESS_BACK ||
-            DismissSheetAction.reason == DismissReason.TOUCH_OUTSIDE) {
-            (getContext(this) as common.UIAbilityContext)?.terminateSelf()
-          }
-        }),
-      })
-      .onAppear(() => {
-        this.isPresent = !this.isPresent;
-      })
-    }.onReady((context: NavDestinationContext) => {
-      this.pathStack = context.pathStack
+    Stack() {
+    }.bindSheet($$this.isPresent, this.privacyInfoBuilder(), {
+      enableOutsideInteractive: false, showClose: false, onWillDismiss: ((DismissSheetAction: DismissSheetAction) => {
+        if (DismissSheetAction.reason == DismissReason.SLIDE_DOWN ||
+          DismissSheetAction.reason == DismissReason.PRESS_BACK ||
+          DismissSheetAction.reason == DismissReason.TOUCH_OUTSIDE) {
+          (getContext(this) as common.UIAbilityContext)?.terminateSelf()
+        }
+      }),
+    })
+    .onAppear(() => {
+      this.isPresent = !this.isPresent;
     })
   }
 

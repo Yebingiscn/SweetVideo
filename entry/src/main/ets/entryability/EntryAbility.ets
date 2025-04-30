@@ -16,12 +16,15 @@ export default class EntryAbility extends UIAbility {
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onCreate');
     AppStorage.setOrCreate('context', this.context)
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onCreate');
+    // 检测是否应用未启动时外部应用拉起，检测相应链接，适用于文件管理器
     if (want.uri) {
       WantProcess.want_uri = want.uri
     }
+    // 检测是否应用未启动时通过华为分享拉起，检测相应链接，适用于相册
     this.handleParam(want, false)
   }
 
+  // 华为分享拉起接收
   handleParam(want: Want, isNewWant: boolean) {
     systemShare.getSharedData(want)
       .then((data: systemShare.SharedData) => {
@@ -39,11 +42,11 @@ export default class EntryAbility extends UIAbility {
       })
   }
 
+  // 应用在后台，接收外部应用拉起或者华为分享拉起
   onNewWant(want: Want) {
     this.handleParam(want, true)
     if (want.uri) {
       WantProcess.want_uri = want.uri
-      WantProcessUtil.checkWant(context)
     }
     console.log(`onNewWant, want: ${want.abilityName}`);
   }
@@ -55,6 +58,7 @@ export default class EntryAbility extends UIAbility {
   onWindowStageCreate(windowStage: window.WindowStage): void {
     // Main window is created, set main page for this ability
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
+    // 进入启动页
     windowStage.loadContent('pages/PrivacyInfo', (err) => {
       if (err.code) {
         hilog.error(0x0000, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err) ?? '');

@@ -215,11 +215,16 @@ struct AboutApp {
                   Text('折叠屏适配：微车游')
                     .fontSize(15)
                     .fontColor($r('app.color.text_color'))
+                  Text('kimufly')
+                    .fontSize(15)
+                    .fontColor($r('app.color.text_color'))
                 }
               }
             }
             .margin({ top: 12 })
             .borderRadius(10)
+
+
             .width('100%')
             .backgroundColor($r('app.color.start_window_background_blur'))
 

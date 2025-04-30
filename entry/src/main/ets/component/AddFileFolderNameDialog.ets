@@ -1,3 +1,4 @@
+// 添加文件夹弹窗
 @CustomDialog
 export struct addFileFolderNameDialog { //编辑元数据弹窗
   confirm?: (name: string | undefined) => void

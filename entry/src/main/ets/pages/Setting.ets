@@ -1,6 +1,6 @@
-import PreferencesUtil from '../utils/PreferencesUtil'
-import DataSyncUtil from '../utils/DataSyncUtil'
-import { common } from '@kit.AbilityKit'
+import PreferencesUtil from '../utils/PreferencesUtil';
+import DataSyncUtil from '../utils/DataSyncUtil';
+import { common } from '@kit.AbilityKit';
 
 const context = getContext() as common.UIAbilityContext;
 
@@ -11,7 +11,7 @@ export function SettingsPageBuilder() {
 
 @Entry
 @Component
-struct SettingsPage {
+struct SettingsPage { //设置页
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
   @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true

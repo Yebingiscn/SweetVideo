@@ -11,12 +11,14 @@ import SelectFileUtil from './SelectFileUtil';
 import { pinyin4js } from '@ohos/pinyin4js';
 import { FileFolder } from './FileFolderUtil';
 import PermissionUtil from './PermissionUtil';
-import { PlayerParams } from './PlayerParams';
+import { PlayerParams } from '../common/PlayerParams';
 
+// 工具类
 class ToolsUtil {
-  private splitRegex = /(\d+\.?\d*)/; // 分离数字和文字
-  private pinyinCache = new WeakMap<VideoMetadata, string>();
+  private splitRegex = /(\d+\.?\d*)/; // 分离数字和文字，排序使用
+  private pinyinCache = new WeakMap<VideoMetadata, string>(); // 缓存排序列表
 
+  // Toast设置
   showToast(text: string) {
     promptAction.showToast({
       message: text,
@@ -25,6 +27,7 @@ class ToolsUtil {
     });
   }
 
+  // 震动设置
   startVibration() {
     vibrator.startVibration({
       type: 'preset',
@@ -40,6 +43,7 @@ class ToolsUtil {
     })
   }
 
+  // 名称排序处理
   sortByNameProcess(list: VideoMetadata[]) {
     const collator = new Intl.Collator("zh-CN", {
       sensitivity: "variant",
@@ -79,6 +83,7 @@ class ToolsUtil {
     return sortedList;
   }
 
+  // 名称排序
   async sortByName(context: Context, list: VideoMetadata[], encryption: boolean) {
     const sorted_list = this.sortByNameProcess(list)
     await (encryption ? SelectFileUtil.saveVideoMetaDataEncryption(context, sorted_list)
@@ -86,6 +91,7 @@ class ToolsUtil {
     return sorted_list // 返回处理后的数据
   }
 
+  //时间排序，从近到久
   async sortByTime(context: Context, list: VideoMetadata[], encryption: boolean) {
     const sortedList = [...list].sort((a, b) => b.date.localeCompare(a.date));
     await (encryption ? SelectFileUtil.saveVideoMetaDataEncryption(context, sortedList)
@@ -95,16 +101,13 @@ class ToolsUtil {
     return latestData
   }
 
+  // 保存密码
   savePwd(context: Context, passwd: string) {
     PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'passwd', passwd)
     this.showToast(getContext().resourceManager.getStringSync($r('app.string.set_passwd_tip')))
   }
 
-  calculateDelta(offset: number, stepSize: number, stepValue: number, directionSign: number) {
-    const steps = Math.floor(Math.abs(offset) / stepSize);
-    return steps > 0 ? steps * stepValue * directionSign : 0;
-  }
-
+  // 检查文件是否存在
   async isFileExist(item: VideoMetadata | undefined) {
     await PermissionUtil.activatePermission(item?.uri!)
     try {
@@ -117,10 +120,12 @@ class ToolsUtil {
     }
   }
 
+  // 跳转到文件夹
   async routerToFileFolder(pathStack: NavPathStack, file_folder: FileFolder) {
-    pathStack.pushPathByName('FileFolderContent', file_folder, false)
+    pathStack.pushPathByName('FileFolderContent', file_folder, true)
   }
 
+  //从文件夹点击视频进入视频播放器
   async routerToVideoFromFileFolder(pathStack: NavPathStack, context: Context, uri: string, item: VideoMetadata,
     file_folder: FileFolder) {
     if (VideoInfoUtil.videoWidthAndHeightFormat(String(item?.size)) === '0 x 0') {
@@ -132,9 +137,10 @@ class ToolsUtil {
       RecentPlayUtil.addPlayback(context, item)
     }
     const playerParams = new PlayerParams(item, file_folder.video_list, file_folder)
-    pathStack.pushPathByName(uri, playerParams, false)
+    pathStack.pushPathByName(uri, playerParams, true)
   }
 
+  // 点击视频跳转到播放器
   async routerWhere(pathStack: NavPathStack, context: Context, uri: string, item: string, encryption: boolean) {
     let list: VideoMetadata [] = []
     encryption ? list = await SelectFileUtil.getVideoMetaDataEncryption(context) :
@@ -144,14 +150,16 @@ class ToolsUtil {
       RecentPlayUtil.addPlayback(context, list.find(i => i.date === item)!)
     }
     let target_item = SelectFileUtil.getItem(list, item!)
+    // 没有长宽的视频/音频系统播放器播不了
     if (VideoInfoUtil.videoWidthAndHeightFormat(String(target_item?.size)) === '0 x 0') {
       this.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
       uri = 'FFMpegPlayer'
     }
     const playerParams = new PlayerParams(list.find(i => i.date === item) as VideoMetadata, list, undefined)
-    pathStack.pushPathByName(uri, playerParams, false)
+    pathStack.pushPathByName(uri, playerParams, true)
   }
 
+  // 获取版本号
   async getVersionCode() {
     try {
       const bundleInfo =
@@ -163,10 +171,8 @@ class ToolsUtil {
     }
   }
 
-  isFileFolderExist(sandbox_video:
-    string, sandbox_subtitle:
-    string
-  ) {
+  // 检查字幕文件夹是否存在
+  isSubtitleFileFolderExist(sandbox_video: string, sandbox_subtitle: string) {
     if (!fs.accessSync(sandbox_video)) {
       fs.mkdirSync(sandbox_video)
     }
@@ -175,6 +181,7 @@ class ToolsUtil {
     }
   }
 
+  // 获取当前时间
   getTime() {
     let timestamp = systemDateTime.getTime(false)
     const date = new Date(timestamp);
@@ -185,6 +192,4 @@ class ToolsUtil {
   }
 }
 
-export default new
-
-ToolsUtil()
+export default new ToolsUtil()

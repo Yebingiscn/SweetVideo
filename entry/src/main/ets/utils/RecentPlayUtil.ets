@@ -2,6 +2,7 @@ import PreferencesUtil from './PreferencesUtil';
 import { VideoMetadata } from './VideoInfoUtil';
 import { common, Context } from '@kit.AbilityKit';
 
+// 最近播放类
 class RecentPlayUtil {
   public deque: VideoMetadata[] = [];
   private readonly MAX_SIZE = 30;

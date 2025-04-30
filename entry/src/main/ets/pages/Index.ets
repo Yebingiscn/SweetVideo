@@ -499,7 +499,7 @@ struct Index {
   async aboutToAppear(): Promise<void> {
     SelectFileUtil.getDownloadUri()
     this.passwd = await SelectFileUtil.getPassword(context)
-    ToolsUtil.isFileFolderExist(sandbox_video, sandbox_subtitle)
+    ToolsUtil.isSubtitleFileFolderExist(sandbox_video, sandbox_subtitle)
   }
 
   async onPageShow(): Promise<void> {

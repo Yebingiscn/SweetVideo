@@ -7,7 +7,7 @@ export interface avSessionState {
   duration: number
 }
 
-
+// 播控中心设置类
 class AVSessionUtil {
   avSession: avSessionManager.AVSession | undefined = undefined;
   context: Context = getContext()

@@ -4,6 +4,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { image } from '@kit.ImageKit';
 import ReqPermission from '../utils/ReqPermissionUtil';
 
+// 视频数据枚举
 export interface VideoMetadata {
   uri: string
   title: string
@@ -16,6 +17,7 @@ export interface VideoMetadata {
   hdr_type: number
 }
 
+// 播放器枚举
 export interface VideoMetadataFromPlayer {
   uri: string
   title: string
@@ -25,6 +27,7 @@ export interface VideoMetadataFromPlayer {
   last_play: number
 }
 
+// 阴影枚举
 interface shadowFancyInterface {
   radius: number;
   color: Resource;
@@ -32,6 +35,7 @@ interface shadowFancyInterface {
   offsetY: number;
 }
 
+// 弹窗阴影
 export const DEFAULT_DIALOG_SHADOW: shadowFancyInterface = {
   radius: 26,
   color: $r('app.color.shadow_color'),
@@ -39,29 +43,40 @@ export const DEFAULT_DIALOG_SHADOW: shadowFancyInterface = {
   offsetY: 0
 };
 
+// 视频信息类
 class VideoInfoUtil {
+  // 视频格式支持列表
   public support_video_format = [
     'mp4', 'flv', 'mkv', 'ts', 'mov', 'rmvb', 'wmv', 'avi', 'm4v'
   ];
+  // 音频格式支持列表
   public support_audio_format = [
     'wav', 'mp3', 'flac', 'dsf', 'dsd', 'dff', 'm4a', 'ape', 'aac', 'ogg', 'amr', 'aif', 'aiff', 'dts', 'wma', 'av3a'
   ];
+  // 字幕格式支持列表
   public support_subtitle_format = ['srt', 'vtt']
+  // 倍数格式支持列表
   public speed_index_map: number[] = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3]
+  // 屏幕比例放大列表
   public scale_factors = new Map<string, number>([
     ['等比放大 110%', 1.1],
     ['等比放大 120%', 1.2],
     ['等比放大 130%', 1.3],
     ['等比放大 140%', 1.4]
   ]);
+  // 屏幕比例放大列表
   public screen_extend_map: string[] =
     ['原始比例', '填满屏幕', '等比放大 110%', '等比放大 120%', '等比放大 130%', '等比放大 140%']
+  // 播放器视频宽度
   public play_area_width: number = 0
+  // 播放器视频高度
   public play_area_height: number = 0
+  // 获取视频封面最大并发数
   public MAX_CONCURRENT = 3;
   private GB = 1024 * 1024 * 1024 // 1GB in bytes
   private MB = 1024 * 1024 // 1MB in bytes
   private VIDEO_SPEED = 1
+  // 倍速枚举，绑定系统倍速
   private video_speed_map =
     new Map([[0.125, media.PlaybackSpeed.SPEED_FORWARD_0_125_X], [0.25, media.PlaybackSpeed.SPEED_FORWARD_0_25_X],
       [0.5, media.PlaybackSpeed.SPEED_FORWARD_0_50_X],
@@ -69,6 +84,7 @@ class VideoInfoUtil {
       [1.25, media.PlaybackSpeed.SPEED_FORWARD_1_25_X], [1.5, media.PlaybackSpeed.SPEED_FORWARD_1_50_X],
       [1.75, media.PlaybackSpeed.SPEED_FORWARD_1_75_X], [2, media.PlaybackSpeed.SPEED_FORWARD_2_00_X],
       [3, media.PlaybackSpeed.SPEED_FORWARD_3_00_X]])
+  // 视频标签格式化
   private video_size_map: Record<string, string> = {
     '720': '720P HD',
     '800': 'HD+',
@@ -108,6 +124,7 @@ class VideoInfoUtil {
     return tmp
   }
 
+  // 获取视频封面，需要控制并发，不然获取不了
   async getVideoCover(sandbox_path: string, date: string, uri: string, size: number[], time: number) {
     return this.enqueue(async () => {
       await ReqPermission.persistPermission(uri);
@@ -143,6 +160,7 @@ class VideoInfoUtil {
     }
   }
 
+  // 视频没有封面设置获取指定时间的截图作为视频封面
   async getVideoImage(uri: string, size: number[], date: string, sandbox_path: string, time: number) {
     let avImageGenerator: media.AVImageGenerator = await media.createAVImageGenerator();
     let file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
@@ -161,9 +179,11 @@ class VideoInfoUtil {
     })
   }
 
+  // 保存封面，封面获取后复制到应用私有目录下
   saveVideoImg(sandbox_path: string, date: string, pixelMap: image.PixelMap) {
     let packer = image.createImagePacker()
     let file1 = fs.openSync(sandbox_path + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
+    // 设置为85平衡内存、导入速度以及图片质量
     packer.packToFile(pixelMap, file1.fd, { format: 'image/jpeg', quality: 85 }).then(() => {
       fs.closeSync(file1)
     }).catch((error: BusinessError) => {
@@ -172,6 +192,7 @@ class VideoInfoUtil {
     })
   }
 
+  // 获取视频长宽
   getVideoWidthAndHeight(metadata: media.AVMetadata) {
     const isPortrait = metadata.videoOrientation === '90' || metadata.videoOrientation === '270'
     const width = parseInt(String(isPortrait ? metadata.videoHeight : metadata.videoWidth)) || 0
@@ -191,6 +212,7 @@ class VideoInfoUtil {
     }
   }
 
+  // 获取视频标签格式化
   videoWidthAndHeightFormat(size: string) {
     const sizeArray = size.split(',');
     const width = sizeArray[0];
@@ -203,6 +225,7 @@ class VideoInfoUtil {
       `${width} x ${height}`; // 4. 默认格式
   }
 
+  // 获取视频大小
   async getVideoSize(uri: string): Promise<string> {
     return new Promise((resolve, reject) => {
       let file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
@@ -219,6 +242,7 @@ class VideoInfoUtil {
     });
   }
 
+  // 保存视频初始长宽，变更后视频长宽后使用
   saveVideoWidthAndHeight(play_area_width: number, play_area_height: number) {
     this.play_area_width = play_area_width
     this.play_area_height = play_area_height

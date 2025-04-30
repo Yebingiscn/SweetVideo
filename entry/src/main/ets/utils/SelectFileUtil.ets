@@ -10,10 +10,12 @@ import ToolsUtil from './ToolsUtil';
 import { media } from '@kit.MediaKit';
 import { FileFolder } from './FileFolderUtil';
 
+// 获取视频类
 class SelectFileUtil {
   private static queryCache = new WeakMap<VideoMetadata[], Map<string, VideoMetadata>>();
   public file_folder_uri = ''
 
+  // 从文件管理器获取视频
   async selectFiles(): Promise<string[]> {
     const documentSelectOptions = new picker.DocumentSelectOptions();
     documentSelectOptions.fileSuffixFilters = VideoUtil.support_video_format.concat(VideoUtil.support_audio_format)
@@ -28,6 +30,7 @@ class SelectFileUtil {
     }
   }
 
+  // 从图库获取视频
   async selectVideo(): Promise<string[]> { // 确保返回类型是 Promise<string[]>
     const photoSelectOptions = new photoAccessHelper.PhotoSelectOptions();
     photoSelectOptions.MIMEType = photoAccessHelper.PhotoViewMIMETypes.VIDEO_TYPE;
@@ -41,6 +44,7 @@ class SelectFileUtil {
     }
   }
 
+  // 获取外挂字幕
   async selectExternalSubtitles(sandbox_subtitle: string, date: string) {
     const documentSelectOptions = new picker.DocumentSelectOptions();
     documentSelectOptions.fileSuffixFilters = VideoUtil.support_subtitle_format;
@@ -64,6 +68,7 @@ class SelectFileUtil {
     })
   }
 
+  // 检查字幕是否存在
   async isSubtitleExist(sandbox_subtitle: string, date: string): Promise<boolean> {
     return new Promise((resolve) => {
       fs.access(sandbox_subtitle + date).then((res: boolean) => {
@@ -79,6 +84,7 @@ class SelectFileUtil {
     })
   }
 
+  // 删除字幕
   async deleteSubtitle(sandbox_subtitle: string, date: string) {
     fs.access(sandbox_subtitle + date, (err) => {
       if (!err) { // 文件存在
@@ -93,6 +99,7 @@ class SelectFileUtil {
     })
   }
 
+  // 获取下载文件夹路径
   async getDownloadUri() {
     const documentViewPicker = new picker.DocumentViewPicker()
     let documentSaveResult = await documentViewPicker.save({ pickerMode: picker.DocumentPickerMode.DOWNLOAD })
@@ -100,6 +107,7 @@ class SelectFileUtil {
     this.file_folder_uri = uri.path
   }
 
+  // 复制视频文件
   copyFile(item: VideoMetadata, context: common.UIAbilityContext) {
     let file = fs.openSync(item.uri)
     let saverOption = new picker.DocumentSaveOptions()
@@ -115,6 +123,7 @@ class SelectFileUtil {
     })
   }
 
+  //复制视频进入隐私空间
   async copyFileToPrivacySpace(context: Context, video_meta_data_encryption: VideoMetadata[], uri: string,
     sandbox_video: string,
     encryption: boolean, sandbox_path: string, date: string, metadata: media.AVMetadata,
@@ -213,6 +222,7 @@ class SelectFileUtil {
     return foundItem;
   }
 
+  // 获取下一个视频
   getNextItem(list: VideoMetadata[], item: string) {
     const currentIndex = list.findIndex(i => i.date === item);
     if (currentIndex === -1) {
@@ -228,6 +238,7 @@ class SelectFileUtil {
     return list[(currentIndex + 1) % list.length]; // 如果没有找到有效项，返回下一个项
   }
 
+  // 获取所有的视频
   getAllItems(list: VideoMetadata[]) {
     if (!list || list.length === 0) {
       return [];
@@ -238,6 +249,7 @@ class SelectFileUtil {
     }
   }
 
+  // 获取视频搜索
   getItemFromSearch(list: VideoMetadata[], value: string): string[] {
     const lowerValue = value.toLowerCase().trim();
     const results: string[] = [];
@@ -253,6 +265,7 @@ class SelectFileUtil {
     return list.findIndex(i => i.title == tmp.title)
   }
 
+  // 从下载文件夹获取视频，视频和文件夹太多
   async getDownloadFilesUri(): Promise<string[]> {
     const VIDEO_EXTENSIONS = new Set(VideoUtil.support_video_format.concat(VideoInfoUtil.support_audio_format));
     const EXT_REGEX = /\.([a-z0-9]+)$/i; // 预编译正则提升性能

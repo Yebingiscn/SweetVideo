@@ -1,3 +1,4 @@
+// 数据类
 class DataSyncUtil {
   public topSafeHeight: number = 0;
   public last_time: number = 0;

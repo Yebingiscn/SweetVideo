@@ -8,6 +8,7 @@ export interface FileFolder {
   video_list: VideoMetadata[]
 }
 
+// 文件夹类
 class FileFolderUtil {
   async createNewFolder(context: Context, folder_name: string): Promise<FileFolder[]> {
     const new_folder: FileFolder = {

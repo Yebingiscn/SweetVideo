@@ -1,4 +1,4 @@
-import { router, window } from '@kit.ArkUI';
+import { window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { audio } from '@kit.AudioKit';
 import { BusinessError } from '@kit.BasicServicesKit';
@@ -8,8 +8,9 @@ import SelectFileUtil from './SelectFileUtil';
 import { media } from '@kit.MediaKit';
 import AVSessionUtil, { avSessionState } from './AVSessionUtil';
 import { FileFolder } from './FileFolderUtil';
-import { PlayerParams } from './PlayerParams';
+import { PlayerParams } from '../common/PlayerParams';
 
+// 音频枚举
 export interface AudioTrack {
   index: number;
   language: string;
@@ -17,18 +18,20 @@ export interface AudioTrack {
   mime: string
 }
 
+// 视频操作类
 class VideoOperateUtil {
-  public max_volume: number = 0
-  public min_volume: number = 0
-  public lastSyncTime: number = 0;
+  public max_volume: number = 0 // 最大音量
+  public min_volume: number = 0 // 最小音量
+  public lastSyncTime: number = 0; //最小同步时间
   public syncCoolDown: number = 1000; // 同步冷却时间1秒
   public driftHistory: number[] = []; // 差异记录用于趋势分析
-  public initPinchDistance: number = 0;
-  public clearSubtitleTimer: number | null = null;
-  public mIjkMediaPlayerActive: boolean = false
+  public initPinchDistance: number = 0; // 初始双指距离
+  public clearSubtitleTimer: number | null = null; // 清除字幕时间
+  public mIjkMediaPlayerActive: boolean = false // 激活增强型解码
   private windowStage: window.WindowStage = AppStorage.get('windowStage') as window.WindowStage;
   private mainWin: window.Window = this.windowStage.getMainWindowSync();
 
+  // 设置亮度
   setBrightness(screenBrightness: number) {
     try {
       this.mainWin.setWindowBrightness(screenBrightness, (err) => {
@@ -43,6 +46,7 @@ class VideoOperateUtil {
     }
   }
 
+  // 获取系统音量
   async getVolume(audioVolumeManager: audio.AudioVolumeManager, groupId: number): Promise<Map<string, number>> {
     let volume_list: Map<string, number> = new Map();
     return new Promise((resolve, reject) => {
@@ -94,6 +98,7 @@ class VideoOperateUtil {
     });
   }
 
+  // 系统播放器播放失败处理
   playErrorExecute(pathStack: NavPathStack,video_meta_data: VideoMetadata[], date: string) {
     ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
     const now_play_item = video_meta_data.find(item => {
@@ -104,6 +109,7 @@ class VideoOperateUtil {
     pathStack.pushPathByName('FFMpegPlayer', playerParams, false)
   }
 
+  // 未识别到音轨处理
   audioTrackErrorExecute(audio_track: AudioTrack[]) {
     if (audio_track.length === 0) {
       ToolsUtil.showToast('未识别到音轨，已开启实验性解码，可能会导致闪退、发热、耗电以及音画不同步')
@@ -112,12 +118,14 @@ class VideoOperateUtil {
     return true
   }
 
+  // 计算手指移动距离
   calcFingerDistance(f1: FingerInfo, f2: FingerInfo): number {
     const dx = f2.localX - f1.localX;
     const dy = f2.localY - f1.localY;
     return Math.sqrt(dx * dx + dy * dy);
   }
 
+  // 获取音轨
   async getAudioTracks(avPlayer: media.AVPlayer): Promise<AudioTrack[]> {
     const getTrackDescriptions = (): Promise<AudioTrack[]> => {
       return new Promise((resolve, reject) => {
@@ -152,21 +160,25 @@ class VideoOperateUtil {
     }
   }
 
+  // 保存视频播放进度
   async saveVideoTime(play_time: number, now_playing: VideoMetadataFromPlayer,
     video_meta_data: VideoMetadata[], context: Context, file_folder: FileFolder) {
     const save_time = play_time < now_playing?.time! * 0.9 ? play_time : 0
     video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)].last_play = save_time
-    if (file_folder.name.length !== 0) {
+    if (file_folder) {
+      console.error('test2')
       file_folder.video_list = video_meta_data
       let file_folder_list = await SelectFileUtil.getFileFolder(context)
       file_folder_list = file_folder_list.filter(i => i.date !== file_folder?.date)
       file_folder_list.push(file_folder!)
       await SelectFileUtil.saveFileFolder(context, file_folder_list)
     } else {
+      console.error('test3')
       await SelectFileUtil.saveData(context, video_meta_data, now_playing!)
     }
   }
 
+  // 保存视频长宽
   async saveVideoWeightAndHeight(now_playing: VideoMetadataFromPlayer,
     video_meta_data: VideoMetadata[], context: Context, file_folder: FileFolder) {
     video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)].size = now_playing.size
@@ -181,6 +193,7 @@ class VideoOperateUtil {
     }
   }
 
+  // 更新播控中心状态
   updateSession(playing: boolean, play_time: number) {
     let data: avSessionState = {
       playing: playing,

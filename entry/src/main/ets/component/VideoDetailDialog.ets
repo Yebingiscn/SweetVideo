@@ -2,8 +2,9 @@ import DataSyncUtil from '../utils/DataSyncUtil';
 import TimeUtil from '../utils/TimeUtil';
 import { VideoMetadata } from '../utils/VideoInfoUtil';
 
+// 视频详情弹窗
 @CustomDialog
-export struct VideoDetailDialog { // 修改类名
+export struct VideoDetailDialog {
   controller?: CustomDialogController
   private metadata?: VideoMetadata
 

@@ -1,5 +1,6 @@
+// 重设密码弹窗
 @CustomDialog
-export struct editPasswordDialog { //编辑元数据弹窗
+export struct editPasswordDialog {
   confirm?: (name: string | undefined) => void
   controller?: CustomDialogController
   passwd: string | undefined = undefined

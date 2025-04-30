@@ -6,6 +6,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const context = getContext() as common.UIAbilityContext
 
+//权限类
 class PermissionUtil {
   async activatePermission(uri: string | undefined): Promise<boolean> {
     if (!uri) {

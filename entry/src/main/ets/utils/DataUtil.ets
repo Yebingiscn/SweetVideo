@@ -1,5 +1,6 @@
 import { VideoMetadata } from './VideoInfoUtil';
 
+// LazyForEach 设置类
 export default class DataUtil<T> implements IDataSource {
   private sources: T[] = [];
   private listeners: DataChangeListener[] = [];

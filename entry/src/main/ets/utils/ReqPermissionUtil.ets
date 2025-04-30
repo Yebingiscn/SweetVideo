@@ -3,6 +3,7 @@ import { fileShare, fileIo as fs } from '@kit.CoreFileKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 
+// 重新设置权限类，用于每次启动重新设置权限
 class ReqPermission {
   public permissions: Permissions[] = ['ohos.permission.FILE_ACCESS_PERSIST', 'ohos.permission.VIBRATE'];
 

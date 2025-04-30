@@ -16,9 +16,9 @@
       "buildFunction": "SettingsPageBuilder"
     },
     {
-      "name": "PrivacyPolicyDialog",
+      "name": "PrivacyInfo",
       "pageSourceFile": "src/main/ets/pages/PrivacyInfo.ets",
-      "buildFunction": "PrivacyPolicyDialogBuilder"
+      "buildFunction": "PrivacyInfoBuilder"
     },
     {
       "name": "FileFolderContent",

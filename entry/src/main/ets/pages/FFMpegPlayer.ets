@@ -17,7 +17,7 @@ import { PlayStatus } from '../common/PlayStatus'
 import DataSyncUtil from '../utils/DataSyncUtil'
 import TimeUtil from '../utils/TimeUtil'
 import ToolsUtil from '../utils/ToolsUtil'
-import { router, window } from '@kit.ArkUI'
+import { window } from '@kit.ArkUI'
 import { audio, AVVolumePanel } from '@kit.AudioKit'
 import PermissionUtil from '../utils/PermissionUtil'
 import { common } from '@kit.AbilityKit'
@@ -29,7 +29,7 @@ import VideoInfoUtil, { VideoMetadata, VideoMetadataFromPlayer } from '../utils/
 import PreferencesUtil from '../utils/PreferencesUtil'
 import { settings } from '@kit.BasicServicesKit'
 import { FileFolder } from '../utils/FileFolderUtil'
-import { PlayerParams } from '../utils/PlayerParams'
+import { PlayerParams } from '../common/PlayerParams'
 
 
 @Builder
@@ -41,7 +41,7 @@ const context = getContext() as common.UIAbilityContext;
 
 @Entry
 @Component
-struct FFMpegPlayer {
+struct FFMpegPlayer { // FFMpeg播放器页
   avSession: avSessionManager.AVSession | undefined = undefined;
   @State play_area_height: number = 1
   @State play_area_width: number = 1
@@ -447,6 +447,24 @@ struct FFMpegPlayer {
       } catch (e) {
         console.error(e)
       }
+    }).onBackPressed(() => {
+      if (this.ShowControl && !this.allowPlayBackExist) {
+        this.ShowControl = false
+        return true
+      } else {
+        return false
+      }
+    }).onWillDisappear(async () => {
+      if (this.video_meta_data.length > 0) {
+        await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data, context,
+          this.file_folder)
+      }
+      this.mDestroyPage = true;
+      this.mIjkMediaPlayer.setScreenOnWhilePlaying(false);
+      if (this.CONTROL_PlayStatus != PlayStatus.INIT) {
+        this.stop();
+      }
+      this.mIjkMediaPlayer.off('audioInterrupt');
     }).hideTitleBar(true)
   }
 
@@ -555,13 +573,6 @@ struct FFMpegPlayer {
     }.width('95%')
   }
 
-  onBackPress(): boolean | void {
-    if (this.ShowControl && !this.allowPlayBackExist) {
-      this.ShowControl = false
-      return true
-    }
-  }
-
   async setScreen() {
     await (await this.windowClass).setSpecificSystemBarEnabled('status', this.ShowControl)
     await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', this.ShowControl)
@@ -613,24 +624,11 @@ struct FFMpegPlayer {
       })
   }
 
-  async onPageHide(): Promise<void> {
-    if (this.video_meta_data.length > 0) {
-      await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data, context,
-        this.file_folder)
-    }
-  }
-
   async aboutToDisappear() {
     //    LogUtils.getInstance().LOGI("aboutToDisappear");
     if (this.screenBrightness != this.screenBrightnessAtFirst) {
       VideoOperateUtil.setBrightness(this.screenBrightnessAtFirst)
     }
-    this.mDestroyPage = true;
-    this.mIjkMediaPlayer.setScreenOnWhilePlaying(false);
-    if (this.CONTROL_PlayStatus != PlayStatus.INIT) {
-      this.stop();
-    }
-    this.mIjkMediaPlayer.off('audioInterrupt');
     AVSessionUtil.destroySession()
     PermissionUtil.stopContinuousTask()
     await (await this.windowClass).setWindowKeepScreenOn(false)

@@ -1,8 +1,9 @@
 import DataSyncUtil from '../utils/DataSyncUtil';
 import { VideoMetadata } from '../utils/VideoInfoUtil';
 
+// 重命名视频弹窗
 @CustomDialog
-export struct editMetadataDialog { //编辑元数据弹窗
+export struct editMetadataDialog {
   confirm?: (name: string | undefined) => void
   controller?: CustomDialogController
   name: string | undefined = undefined

@@ -1,5 +1,6 @@
 import preferences from '@ohos.data.preferences'
 
+// 存储类
 export default class PreferencesUtil {
   static async putPreferencesValue(context: Context, name: string, key: string, value: preferences.ValueType) {
     try {
