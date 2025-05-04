@@ -190,7 +190,7 @@ struct FileFolderContent { // 文件夹页，不同文件夹公用一个页
           }
           .buttonFancy(80, 40)
           .onClick(() => {
-            this.pathStack.clear()
+            this.pathStack.pop()
           })
 
           Text(this.file_folder?.name)

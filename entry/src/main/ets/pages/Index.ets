@@ -1103,6 +1103,13 @@ struct Index {
         this.closeSideBar(true)
         return true
       }
+      // 如果是隐私空间首页，则退出隐私空间
+      if (this.encryption) {
+        this.encryption = false
+        return true
+      }
+      // 首页响应系统返回手势，退出app
+      context.terminateSelf()
       return false
     })
   }
