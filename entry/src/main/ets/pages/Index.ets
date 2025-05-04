@@ -652,7 +652,7 @@ struct Index {
                     Row() {
                       SymbolGlyph($r('sys.symbol.lock'))
                         .symbolGlyphFancy(25, '', '')
-                      Text(this.encryption ? $r('app.string.exist_privacy_space') : $r('app.string.privacy_space'))
+                      Text(this.encryption ? $r('app.string.exit_privacy_space') : $r('app.string.privacy_space'))
                         .fontSize(15)
                         .margin({ left: 10, right: 12 })
                     }
