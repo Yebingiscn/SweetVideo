@@ -3,7 +3,7 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { image } from '@kit.ImageKit';
 import ReqPermission from '../utils/ReqPermissionUtil';
-import { VideoMetadata } from '../interfaces/VideoMetadata';
+import { VideoMetadataInterface } from '../interfaces/VideoMetadataInterface';
 
 // 视频信息类
 class VideoInfoUtil {
@@ -71,7 +71,7 @@ class VideoInfoUtil {
   // 设置存储的视频信息
   async setVideoInfo(date: string, uri: string, file_name: string, metadata: media.AVMetadata, encryption: boolean,
     sandbox_video: string, sandbox_path: string) {
-    let tmp: VideoMetadata = {
+    let tmp: VideoMetadataInterface = {
       uri: encryption ? sandbox_video + date : uri,
       title: file_name,
       date: date,

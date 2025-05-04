@@ -6,12 +6,12 @@ import ToolsUtil from './ToolsUtil';
 import { media } from '@kit.MediaKit';
 import AVSessionUtil from './AVSessionUtil';
 import { PlayerParams } from '../common/PlayerParams';
-import { VideoMetadata } from '../interfaces/VideoMetadata';
-import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayer';
+import { VideoMetadataInterface } from '../interfaces/VideoMetadataInterface';
+import { VideoMetadataFromPlayerInterface } from '../interfaces/VideoMetadataFromPlayerInterface';
 import SelectFileUtil from './SelectFileUtil';
-import { AudioTrack } from '../interfaces/AudioTrack';
-import { FileFolder } from '../interfaces/FileFolder';
-import { AvSessionState } from '../interfaces/AvSessionState';
+import { AudioTrackInterface } from '../interfaces/AudioTrackInterface';
+import { FileFolder } from '../interfaces/FileFolderInterface';
+import { AvSessionStateInterface } from '../interfaces/AvSessionStateInterface';
 
 // 视频操作类
 class VideoOperateUtil {
@@ -94,7 +94,7 @@ class VideoOperateUtil {
   }
 
   // 系统播放器播放失败处理
-  playErrorExecute(pathStack: NavPathStack,video_meta_data: VideoMetadata[], date: string) {
+  playErrorExecute(pathStack: NavPathStack, video_meta_data: VideoMetadataInterface[], date: string) {
     ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
     const now_play_item = video_meta_data.find(item => {
       const target_item = SelectFileUtil.getItem(video_meta_data, item?.date)?.date;
@@ -105,7 +105,7 @@ class VideoOperateUtil {
   }
 
   // 未识别到音轨处理
-  audioTrackErrorExecute(audio_track: AudioTrack[]) {
+  audioTrackErrorExecute(audio_track: AudioTrackInterface[]) {
     if (audio_track.length === 0) {
       ToolsUtil.showToast('未识别到音轨，已开启实验性解码，可能会导致闪退、发热、耗电以及音画不同步')
       return false
@@ -121,19 +121,19 @@ class VideoOperateUtil {
   }
 
   // 获取音轨
-  async getAudioTracks(avPlayer: media.AVPlayer): Promise<AudioTrack[]> {
-    const getTrackDescriptions = (): Promise<AudioTrack[]> => {
+  async getAudioTracks(avPlayer: media.AVPlayer): Promise<AudioTrackInterface[]> {
+    const getTrackDescriptions = (): Promise<AudioTrackInterface[]> => {
       return new Promise((resolve, reject) => {
         avPlayer.getTrackDescription((error: BusinessError, arrList: Array<media.MediaDescription>) => {
           if (error || !arrList || arrList.length === 0) {
             console.error(`Failed to get TrackDescription, error: ${error}`);
             return reject(error || new Error("No audio tracks available"));
           }
-          const audioTracks: AudioTrack[] = arrList
+          const audioTracks: AudioTrackInterface[] = arrList
             .filter(description =>
             description[media.MediaDescriptionKey.MD_KEY_TRACK_TYPE] === media.MediaType.MEDIA_TYPE_AUD
             )
-            .map((description): AudioTrack => {
+            .map((description): AudioTrackInterface => {
               return {
                 index: description[media.MediaDescriptionKey.MD_KEY_TRACK_INDEX] as number,
                 language: description[media.MediaDescriptionKey.MD_KEY_LANGUAGE] as string,
@@ -156,8 +156,8 @@ class VideoOperateUtil {
   }
 
   // 保存视频播放进度
-  async saveVideoTime(play_time: number, now_playing: VideoMetadataFromPlayer,
-    video_meta_data: VideoMetadata[], context: Context, file_folder: FileFolder) {
+  async saveVideoTime(play_time: number, now_playing: VideoMetadataFromPlayerInterface,
+    video_meta_data: VideoMetadataInterface[], context: Context, file_folder: FileFolder) {
     const save_time = play_time < now_playing?.time! * 0.9 ? play_time : 0
     video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)].last_play = save_time
     if (file_folder) {
@@ -174,8 +174,8 @@ class VideoOperateUtil {
   }
 
   // 保存视频长宽
-  async saveVideoWeightAndHeight(now_playing: VideoMetadataFromPlayer,
-    video_meta_data: VideoMetadata[], context: Context, file_folder: FileFolder) {
+  async saveVideoWeightAndHeight(now_playing: VideoMetadataFromPlayerInterface,
+    video_meta_data: VideoMetadataInterface[], context: Context, file_folder: FileFolder) {
     video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)].size = now_playing.size
     if (file_folder.name.length !== 0) {
       file_folder.video_list = video_meta_data
@@ -190,7 +190,7 @@ class VideoOperateUtil {
 
   // 更新播控中心状态
   updateSession(playing: boolean, play_time: number) {
-    let data: AvSessionState = {
+    let data: AvSessionStateInterface = {
       playing: playing,
       duration: play_time
     }

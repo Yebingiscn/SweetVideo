@@ -5,7 +5,7 @@ import { fileUri } from '@kit.CoreFileKit';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import { common } from '@kit.AbilityKit';
-import { VideoMetadata } from '../interfaces/VideoMetadata';
+import { VideoMetadataInterface } from '../interfaces/VideoMetadataInterface';
 
 const sandbox_path = getContext().filesDir + '/'
 const context = getContext() as common.UIAbilityContext;
@@ -27,7 +27,7 @@ export function RecentPlayBuilder() {
 @Component
 struct RecentPlay { // 最近播放页
   @State videoDataSource: RecentVideoDataSource = new RecentVideoDataSource([])
-  @State recent_video_meta_data: VideoMetadata[] = []
+  @State recent_video_meta_data: VideoMetadataInterface[] = []
   @State MenuBuilderState: boolean = false
   pathStack: NavPathStack = new NavPathStack()
   private listScroller: Scroller = new Scroller();
@@ -38,7 +38,7 @@ struct RecentPlay { // 最近播放页
   }
 
   @Builder
-  MenuBuilder(item: VideoMetadata | undefined) {
+  MenuBuilder(item: VideoMetadataInterface | undefined) {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
       Row() {
         Image($r("app.media.ffmpeg"))
@@ -55,7 +55,8 @@ struct RecentPlay { // 最近播放页
       }.padding(10).onClick(async () => {
         this.MenuBuilderState = false
         await ToolsUtil.isFileExist(item) ?
-        ToolsUtil.routerWhere(this.pathStack, context, 'FFMpegPlayer', item?.date!, false) : this.delData(context, item!)
+        ToolsUtil.routerWhere(this.pathStack, context, 'FFMpegPlayer', item?.date!, false) :
+        this.delData(context, item!)
       })
 
       Divider().height(2)
@@ -75,7 +76,7 @@ struct RecentPlay { // 最近播放页
     })
   }
 
-  delData(context: Context, item: VideoMetadata) {
+  delData(context: Context, item: VideoMetadataInterface) {
     RecentPlayUtil.delData(context, item)
     this.videoDataSource.deleteData(this.videoDataSource.getAllData().indexOf(item))
   }
@@ -121,7 +122,7 @@ struct RecentPlay { // 最近播放页
         }
 
         List({ scroller: this.listScroller, space: 10 }) {
-          LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
+          LazyForEach(this.videoDataSource, (item: VideoMetadataInterface) => {
             ListItem() {
               Column() {
                 Row() {
@@ -146,14 +147,15 @@ struct RecentPlay { // 最近播放页
                 }
                 .onClick(async () => {
                   await ToolsUtil.isFileExist(item) ?
-                  ToolsUtil.routerWhere(this.pathStack, context, 'Player', item.date, false) : this.delData(context, item)
+                  ToolsUtil.routerWhere(this.pathStack, context, 'Player', item.date, false) :
+                  this.delData(context, item)
                 })
                 .width('100%')
                 .height(100)
                 .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
               }
             }.bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
-          }, (item: VideoMetadata) => item.date)
+          }, (item: VideoMetadataInterface) => item.date)
         }
         .layoutWeight(1)
         .padding({ left: 20, right: 20 })

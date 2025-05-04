@@ -1,10 +1,10 @@
 import PreferencesUtil from './PreferencesUtil';
 import { common, Context } from '@kit.AbilityKit';
-import { VideoMetadata } from '../interfaces/VideoMetadata';
+import { VideoMetadataInterface } from '../interfaces/VideoMetadataInterface';
 
 // 最近播放类
 class RecentPlayUtil {
-  public deque: VideoMetadata[] = [];
+  public deque: VideoMetadataInterface[] = [];
   private readonly MAX_SIZE = 30;
   private videoIdMap: Map<string, number> = new Map(); // ID -> Index in deque
   private context = getContext() as common.UIAbilityContext;
@@ -13,7 +13,7 @@ class RecentPlayUtil {
     this.init(this.context);
   }
 
-  async addPlayback(context: Context, item: VideoMetadata): Promise<void> {
+  async addPlayback(context: Context, item: VideoMetadataInterface): Promise<void> {
     if (this.videoIdMap.has(item.date)) {
       const existingIndex = this.videoIdMap.get(item.date)!;
       this.deque.splice(existingIndex, 1);
@@ -26,11 +26,11 @@ class RecentPlayUtil {
     await this.persistData(context);
   }
 
-  async getRecentPlaybacks(): Promise<VideoMetadata[]> {
+  async getRecentPlaybacks(): Promise<VideoMetadataInterface[]> {
     return [...this.deque];
   }
 
-  public async delData(context: Context, item: VideoMetadata) {
+  public async delData(context: Context, item: VideoMetadataInterface) {
     if (this.deque.findIndex(i => i.date === item.date) !== -1) {
       this.deque = this.deque.filter(i => i.date != item?.date)
       await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_play', this.deque);
@@ -53,7 +53,8 @@ class RecentPlayUtil {
   }
 
   private async loadData(context: Context) {
-    this.deque = await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'recent_play', []) as VideoMetadata[]
+    this.deque =
+      await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'recent_play', []) as VideoMetadataInterface[]
     this.updateMapIndices();
   }
 }

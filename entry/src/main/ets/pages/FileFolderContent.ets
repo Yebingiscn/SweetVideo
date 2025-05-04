@@ -11,9 +11,9 @@ import { media } from '@kit.MediaKit';
 import TimeUtil from '../utils/TimeUtil';
 import { VideoDetailDialog } from '../component/VideoDetailDialog';
 import FileFolderUtil from '../utils/FileFolderUtil';
-import { FileFolder } from '../interfaces/FileFolder';
+import { FileFolder } from '../interfaces/FileFolderInterface';
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
-import { VideoMetadata } from '../interfaces/VideoMetadata';
+import { VideoMetadataInterface } from '../interfaces/VideoMetadataInterface';
 
 const sandbox_subtitle = getContext().filesDir + '/subtitle/'
 const sandbox_path = getContext().filesDir + '/'
@@ -76,7 +76,7 @@ struct FileFolderContent { // 文件夹页，不同文件夹公用一个页
   }
 
   @Builder
-  FileFolderMenu(video_item: VideoMetadata | undefined) {
+  FileFolderMenu(video_item: VideoMetadataInterface | undefined) {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
       Menu() {
         MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.plus_square")), content: '添加到首页' })
@@ -124,7 +124,7 @@ struct FileFolderContent { // 文件夹页，不同文件夹公用一个页
   }
 
   @Builder
-  MenuBuilder(item: VideoMetadata | undefined) {
+  MenuBuilder(item: VideoMetadataInterface | undefined) {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
       Menu() {
         MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(async () => {
@@ -156,7 +156,7 @@ struct FileFolderContent { // 文件夹页，不同文件夹公用一个页
     })
   }
 
-  async delData(context: Context, item: VideoMetadata, move_to_other_file_folder: boolean) {
+  async delData(context: Context, item: VideoMetadataInterface, move_to_other_file_folder: boolean) {
     this.file_folder!.video_list = this.file_folder!.video_list.filter(i => i.date !== item.date);
     let file_folder_list = await SelectFileUtil.getFileFolder(context)
     file_folder_list = file_folder_list.filter(i => i.date !== this.file_folder?.date)
@@ -224,7 +224,7 @@ struct FileFolderContent { // 文件夹页，不同文件夹公用一个页
         }
 
         List({ scroller: this.listScroller, space: 10 }) {
-          LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
+          LazyForEach(this.videoDataSource, (item: VideoMetadataInterface) => {
             ListItem() {
               Column() {
                 Row() {
@@ -292,7 +292,7 @@ struct FileFolderContent { // 文件夹页，不同文件夹公用一个页
                 .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
               }
             }.bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
-          }, (item: VideoMetadata) => JSON.stringify(item))
+          }, (item: VideoMetadataInterface) => JSON.stringify(item))
         }
         .lanes(this.list_line)
         .layoutWeight(1)

@@ -1,5 +1,5 @@
-import { FileFolder } from '../interfaces/FileFolder'
-import { VideoMetadata } from '../interfaces/VideoMetadata'
+import { FileFolder } from '../interfaces/FileFolderInterface'
+import { VideoMetadataInterface } from '../interfaces/VideoMetadataInterface'
 import SelectFileUtil from './SelectFileUtil'
 import ToolsUtil from './ToolsUtil'
 
@@ -22,7 +22,7 @@ class FileFolderUtil {
     }
   }
 
-  async addVideoInFileFolder(context: Context, video_meta_data: VideoMetadata, file_folder_date: string) {
+  async addVideoInFileFolder(context: Context, video_meta_data: VideoMetadataInterface, file_folder_date: string) {
     let file_folder_list = await SelectFileUtil.getFileFolder(context) as FileFolder[]
     let file_folder = file_folder_list.find(i => i.date === file_folder_date)
     file_folder?.video_list.push(video_meta_data)

@@ -1,7 +1,7 @@
 import { avSession as avSessionManager } from '@kit.AVSessionKit';
 import { image } from '@kit.ImageKit';
-import { AvSessionState } from '../interfaces/AvSessionState';
-import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayer';
+import { AvSessionStateInterface } from '../interfaces/AvSessionStateInterface';
+import { VideoMetadataFromPlayerInterface } from '../interfaces/VideoMetadataFromPlayerInterface';
 
 // 播控中心设置类
 class AVSessionUtil {
@@ -23,7 +23,7 @@ class AVSessionUtil {
   }
 
   async setSessionInfo(metadata_json: string) {
-    let metadata: VideoMetadataFromPlayer = JSON.parse(metadata_json)
+    let metadata: VideoMetadataFromPlayerInterface = JSON.parse(metadata_json)
     const imageSource = image.createImageSource(this.sandbox_path + metadata.date);
     const pixelMap = await imageSource.createPixelMap();
     let session_metadata: avSessionManager.AVMetadata = {
@@ -36,7 +36,7 @@ class AVSessionUtil {
   }
 
   updateSession(state: string) {
-    let avSessionState: AvSessionState = JSON.parse(state);
+    let avSessionState: AvSessionStateInterface = JSON.parse(state);
     let playbackState: avSessionManager.AVPlaybackState = {
       state: avSessionState.playing ? avSessionManager.PlaybackState.PLAYBACK_STATE_PLAY :
       avSessionManager.PlaybackState.PLAYBACK_STATE_PAUSE,

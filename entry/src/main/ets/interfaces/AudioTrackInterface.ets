@@ -1,5 +1,5 @@
 // 音频枚举
-export interface AudioTrack {
+export interface AudioTrackInterface {
   index: number;
   language: string;
   name: string;

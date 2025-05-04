@@ -1,4 +1,4 @@
-import { VideoMetadata } from '../interfaces/VideoMetadata';
+import { VideoMetadataInterface } from '../interfaces/VideoMetadataInterface';
 import DataSyncUtil from '../utils/DataSyncUtil';
 
 // 重命名视频弹窗
@@ -9,7 +9,7 @@ export struct editMetadataDialog {
   name: string | undefined = undefined
 
   aboutToAppear(): void {
-    let tmp = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata
+    let tmp = JSON.parse(DataSyncUtil.editing_video) as VideoMetadataInterface
     this.name = tmp.title
   }
 

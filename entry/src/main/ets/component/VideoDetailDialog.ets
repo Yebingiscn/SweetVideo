@@ -1,4 +1,4 @@
-import { VideoMetadata } from '../interfaces/VideoMetadata';
+import { VideoMetadataInterface } from '../interfaces/VideoMetadataInterface';
 import DataSyncUtil from '../utils/DataSyncUtil';
 import TimeUtil from '../utils/TimeUtil';
 
@@ -6,10 +6,10 @@ import TimeUtil from '../utils/TimeUtil';
 @CustomDialog
 export struct VideoDetailDialog {
   controller?: CustomDialogController
-  private metadata?: VideoMetadata
+  private metadata?: VideoMetadataInterface
 
   aboutToAppear(): void {
-    const metadata = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata
+    const metadata = JSON.parse(DataSyncUtil.editing_video) as VideoMetadataInterface
     this.metadata = metadata
   }
 

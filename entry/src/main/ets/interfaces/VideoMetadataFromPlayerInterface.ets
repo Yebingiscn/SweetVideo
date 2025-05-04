@@ -1,5 +1,5 @@
 // 播放器数据结构枚举
-export interface VideoMetadataFromPlayer {
+export interface VideoMetadataFromPlayerInterface {
   uri: string
   title: string
   date: string,

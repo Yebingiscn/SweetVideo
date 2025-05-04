@@ -21,8 +21,8 @@ import RecentPlayUtil from '../utils/RecentPlayUtil';
 import { addFileFolderNameDialog } from '../component/AddFileFolderNameDialog';
 import FileFolderUtil from '../utils/FileFolderUtil';
 import { editFileFolderNameDialog } from '../component/EditFileFolderNameDialog';
-import { VideoMetadata } from '../interfaces/VideoMetadata';
-import { FileFolder } from '../interfaces/FileFolder';
+import { VideoMetadataInterface } from '../interfaces/VideoMetadataInterface';
+import { FileFolder } from '../interfaces/FileFolderInterface';
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 
 const context = getContext() as common.UIAbilityContext;
@@ -80,8 +80,8 @@ export function IndexBuilder() {
 struct Index {
   windowClass = window.getLastWindow(context)
   @State topSafeHeight: number = 0;
-  @State video_meta_data: VideoMetadata[] = []
-  @State video_meta_data_encryption: VideoMetadata[] = []
+  @State video_meta_data: VideoMetadataInterface[] = []
+  @State video_meta_data_encryption: VideoMetadataInterface[] = []
   @State @Watch('updateShowList') show_list: string[] = []
   @State lazy_show_list: DataUtil<string> = new DataUtil<string>(this.show_list)
   @State @Watch('updateList') encryption: boolean = false
@@ -97,7 +97,7 @@ struct Index {
   @State itemMultipleChoose: boolean = false
   @State multipleChooseState: Visibility = Visibility.None
   @State MenuBuilderState: boolean = false
-  @State delMultipleList: VideoMetadata[] = []
+  @State delMultipleList: VideoMetadataInterface[] = []
   @State file_folder_list: FileFolder[] = []
   @State screen_width: number = 0
   @State screen_height: number = 0
@@ -109,7 +109,7 @@ struct Index {
           return;
         } // 更严格的空值判断
         const currentData = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
-        const editingVideo = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata;
+        const editingVideo = JSON.parse(DataSyncUtil.editing_video) as VideoMetadataInterface;
         const targetIndex = SelectFileUtil.getItemIndex(currentData, editingVideo);
         if (targetIndex === -1) {
           console.error('Target video not found');
@@ -193,7 +193,7 @@ struct Index {
   searchController: SearchController = new SearchController()
 
   @Builder
-  FileFolderMenu(video_item: VideoMetadata | undefined) {
+  FileFolderMenu(video_item: VideoMetadataInterface | undefined) {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
       Menu() {
         ForEach(this.file_folder_list, (item: FileFolder) => {
@@ -214,7 +214,7 @@ struct Index {
     }.width(150)
   }
 
-  async addVideoToFileFolder(video_item: VideoMetadata, item: FileFolder) {
+  async addVideoToFileFolder(video_item: VideoMetadataInterface, item: FileFolder) {
     if (!item.video_list.some(v => v.title === video_item.title)) {
       this.file_folder_list = await FileFolderUtil.addVideoInFileFolder(context, video_item!, item.date)
       this.video_meta_data = this.video_meta_data.filter(i => i.date !== video_item?.date)
@@ -253,7 +253,7 @@ struct Index {
   }
 
   @Builder
-  MenuBuilder(item: VideoMetadata | undefined) {
+  MenuBuilder(item: VideoMetadataInterface | undefined) {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
       Menu() {
         MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(() => {
@@ -435,7 +435,7 @@ struct Index {
   }
 
   async deleteItem(resolve: () => void, reject: (reason?: Error) => void) {
-    let tmp = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata;
+    let tmp = JSON.parse(DataSyncUtil.editing_video) as VideoMetadataInterface;
     if (await SelectFileUtil.isSubtitleExist(sandbox_subtitle, tmp.date!)) {
       SelectFileUtil.deleteSubtitle(sandbox_subtitle, tmp.date!)
     }
@@ -583,7 +583,7 @@ struct Index {
     this.multipleChooseState = Visibility.None;
   }
 
-  deleteUnExistFile(item: VideoMetadata | undefined) {
+  deleteUnExistFile(item: VideoMetadataInterface | undefined) {
     DataSyncUtil.editing_video = JSON.stringify(item)
     new Promise<void>((resolve, reject) => {
       this.deleteItem(resolve, reject);
@@ -834,7 +834,7 @@ struct Index {
                               const foundMetadata = SelectFileUtil.getItem(this.encryption ?
                               this.video_meta_data_encryption : this.video_meta_data, item)
                               if (foundMetadata) {
-                                const delSet = new Set(this.delMultipleList as VideoMetadata[]);
+                                const delSet = new Set(this.delMultipleList as VideoMetadataInterface[]);
                                 value ? delSet.add(foundMetadata) : delSet.delete(foundMetadata);
                                 this.delMultipleList = Array.from(delSet);
                               }
@@ -1120,7 +1120,7 @@ struct Index {
   }
 
   @Builder
-  itemEnd(item: VideoMetadata) {
+  itemEnd(item: VideoMetadataInterface) {
     Row({ space: 10 }) {
       Stack().width(10)
       SymbolGlyph($r('sys.symbol.trash_fill'))

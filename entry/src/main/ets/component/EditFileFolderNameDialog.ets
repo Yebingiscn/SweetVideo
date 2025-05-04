@@ -1,4 +1,4 @@
-import { FileFolder } from '../interfaces/FileFolder'
+import { FileFolder } from '../interfaces/FileFolderInterface'
 import DataSyncUtil from '../utils/DataSyncUtil'
 
 // 重命名文件夹弹窗
