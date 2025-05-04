@@ -20,10 +20,10 @@ import PreferencesUtil from '../utils/PreferencesUtil';
 import { IjkMediaPlayer } from '@ohos/ijkplayer';
 import { KeyCode } from '@kit.InputKit';
 import { PlayerParams } from '../common/PlayerParams';
-import { VideoMetadataFromPlayerInterface } from '../interfaces/VideoMetadataFromPlayerInterface';
-import { VideoMetadataInterface } from '../interfaces/VideoMetadataInterface';
+import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { FileFolder } from '../interfaces/FileFolderInterface';
-import { AudioTrackInterface } from '../interfaces/AudioTrackInterface';
+import { AudioTrack } from '../interfaces/AudioTrackInterface';
 
 
 @Extend(Image)
@@ -66,7 +66,7 @@ const sandbox_subtitle = getContext().filesDir + '/subtitle/'
 struct Player { // 播放页
   avPlayer: media.AVPlayer | undefined = undefined
   avSession: avSessionManager.AVSession | undefined = undefined;
-  @State now_playing: VideoMetadataFromPlayerInterface | undefined = undefined
+  @State now_playing: VideoMetadataFromPlayer | undefined = undefined
   @State playing: boolean = false
   @State speed: number = 1.0
   @State last_speed: number = 1
@@ -96,10 +96,10 @@ struct Player { // 播放页
   @State screenBrightness: number = 0
   @State screenBrightnessAtFirst: number = 0
   @State windowClassTmp: window.Window | undefined = undefined;
-  @State video_meta_data: VideoMetadataInterface[] = []
+  @State video_meta_data: VideoMetadata[] = []
   @State select_text: string | undefined = '原始比例'
   @State circle_play: boolean = false
-  @State audio_track: AudioTrackInterface[] = []
+  @State audio_track: AudioTrack[] = []
   @State AudioTrackMenuBuilderState: boolean = false
   @State audio_track_select: number = 0
   @State sideBarStatusTmp: Visibility = Visibility.Hidden
@@ -402,7 +402,7 @@ struct Player { // 播放页
     }
   }
 
-  async setExternalSubtitle(now_playing: VideoMetadataFromPlayerInterface) {
+  async setExternalSubtitle(now_playing: VideoMetadataFromPlayer) {
     if (await SelectFileUtil.isSubtitleExist(sandbox_subtitle, now_playing.date!)) {
       let file1 = fs.openSync(sandbox_subtitle + now_playing.date, fs.OpenMode.READ_ONLY)
       const size = fs.statSync(sandbox_subtitle + now_playing.date);
@@ -421,13 +421,13 @@ struct Player { // 播放页
     }
   }
 
-  async playChooseVideo(item: VideoMetadataInterface) {
+  async playChooseVideo(item: VideoMetadata) {
     RecentPlayUtil.addPlayback(context, item)
     await this.avPlayer?.reset()
     if (VideoOperateUtil.mIjkMediaPlayerActive) {
       await this.ijkPlayerStop()
     }
-    this.now_playing = JSON.parse(JSON.stringify(item)) as VideoMetadataFromPlayerInterface
+    this.now_playing = JSON.parse(JSON.stringify(item)) as VideoMetadataFromPlayer
     this.getData()
     this.avSession = await AVSessionUtil.getAVSession()
     await this.setSessionListener()
@@ -439,7 +439,7 @@ struct Player { // 播放页
     if (this.video_meta_data.length > 0) {
       await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data, context,
         this.file_folder)
-      let item = SelectFileUtil.getItem(this.video_meta_data, this.now_playing?.date || '') as VideoMetadataInterface
+      let item = SelectFileUtil.getItem(this.video_meta_data, this.now_playing?.date || '') as VideoMetadata
       let next_item = SelectFileUtil.getNextItem(this.video_meta_data, item.date)
       this.playChooseVideo(next_item!)
     }
@@ -505,7 +505,7 @@ struct Player { // 播放页
     NavDestination() {
       SideBarContainer(SideBarContainerType.Overlay) {
         List({ scroller: this.listScroller, space: 10 }) {
-          LazyForEach(this.videoDataSource, (item: VideoMetadataInterface) => {
+          LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
             ListItem() {
               if (VideoInfoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.video_meta_data,
                 item?.date)?.size)) !== '0 x 0') {
@@ -536,7 +536,7 @@ struct Player { // 播放页
                 }
               }
             }
-          }, (item: VideoMetadataInterface) => item.date)
+          }, (item: VideoMetadata) => item.date)
         }
         .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
         .chainAnimation(true)
@@ -949,8 +949,8 @@ struct Player { // 播放页
       this.pathStack = context.pathStack
       const playerParams: PlayerParams = this.pathStack.getParamByName('Player')[0] as PlayerParams
       try {
-        this.now_playing = playerParams.metadata as VideoMetadataFromPlayerInterface
-        this.video_meta_data = playerParams.metadata_list as VideoMetadataInterface[]
+        this.now_playing = playerParams.metadata as VideoMetadataFromPlayer
+        this.video_meta_data = playerParams.metadata_list as VideoMetadata[]
         this.videoDataSource = new VideoDataSource(this.video_meta_data);
         this.file_folder = playerParams.file_folder as FileFolder
       } catch (e) {
@@ -1222,7 +1222,7 @@ struct Player { // 播放页
   @Builder
   AudioTrackMenuBuilder() {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      ForEach(this.audio_track, (item: AudioTrackInterface, index: number) => {
+      ForEach(this.audio_track, (item: AudioTrack, index: number) => {
         Row() { // 音轨
           if (item.mime.split('/')[1] === 'av3a') {
             Image($r('app.media.audio_vivid_icon'))

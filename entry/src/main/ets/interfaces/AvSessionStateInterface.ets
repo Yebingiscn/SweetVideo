@@ -1,4 +1,4 @@
-export interface AvSessionStateInterface {
+export interface AvSessionState {
   playing: boolean
   duration: number
 }

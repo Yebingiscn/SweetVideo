@@ -5,7 +5,7 @@ import { fileUri } from '@kit.CoreFileKit';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import { common } from '@kit.AbilityKit';
-import { VideoMetadataInterface } from '../interfaces/VideoMetadataInterface';
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 
 const sandbox_path = getContext().filesDir + '/'
 const context = getContext() as common.UIAbilityContext;
@@ -27,7 +27,7 @@ export function RecentPlayBuilder() {
 @Component
 struct RecentPlay { // 最近播放页
   @State videoDataSource: RecentVideoDataSource = new RecentVideoDataSource([])
-  @State recent_video_meta_data: VideoMetadataInterface[] = []
+  @State recent_video_meta_data: VideoMetadata[] = []
   @State MenuBuilderState: boolean = false
   pathStack: NavPathStack = new NavPathStack()
   private listScroller: Scroller = new Scroller();
@@ -38,7 +38,7 @@ struct RecentPlay { // 最近播放页
   }
 
   @Builder
-  MenuBuilder(item: VideoMetadataInterface | undefined) {
+  MenuBuilder(item: VideoMetadata | undefined) {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
       Row() {
         Image($r("app.media.ffmpeg"))
@@ -76,7 +76,7 @@ struct RecentPlay { // 最近播放页
     })
   }
 
-  delData(context: Context, item: VideoMetadataInterface) {
+  delData(context: Context, item: VideoMetadata) {
     RecentPlayUtil.delData(context, item)
     this.videoDataSource.deleteData(this.videoDataSource.getAllData().indexOf(item))
   }
@@ -122,7 +122,7 @@ struct RecentPlay { // 最近播放页
         }
 
         List({ scroller: this.listScroller, space: 10 }) {
-          LazyForEach(this.videoDataSource, (item: VideoMetadataInterface) => {
+          LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
             ListItem() {
               Column() {
                 Row() {
@@ -155,7 +155,7 @@ struct RecentPlay { // 最近播放页
                 .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
               }
             }.bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
-          }, (item: VideoMetadataInterface) => item.date)
+          }, (item: VideoMetadata) => item.date)
         }
         .layoutWeight(1)
         .padding({ left: 20, right: 20 })

@@ -5,7 +5,7 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 import VideoUtil from './VideoInfoUtil';
 import { common, OpenLinkOptions } from '@kit.AbilityKit';
 import PreferencesUtil from './PreferencesUtil';
-import { VideoMetadataInterface } from '../interfaces/VideoMetadataInterface';
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { PlayerParams } from '../common/PlayerParams';
 
 // 处理拉起应用传来的视频链接
@@ -33,7 +33,7 @@ class WantProcess {
     avMetadataExtractor.fdSrc = file
     const format = this.want_uri.split('.')[this.want_uri.split('.').length-1]
     avMetadataExtractor.fetchMetadata(async (_error: BusinessError, metadata: media.AVMetadata) => {
-      let tmp: VideoMetadataInterface = {
+      let tmp: VideoMetadata = {
         uri: this.want_uri,
         title: this.want_uri.split('/')[this.want_uri.split('/').length-1],
         date: '',
@@ -54,7 +54,7 @@ class WantProcess {
       } else {
         url = 'FFMpegPlayer'
       }
-      const playerParams = new PlayerParams(tmp as VideoMetadataInterface, [], undefined)
+      const playerParams = new PlayerParams(tmp as VideoMetadata, [], undefined)
       pathStack.pushPathByName(url, playerParams, true)
     })
   }

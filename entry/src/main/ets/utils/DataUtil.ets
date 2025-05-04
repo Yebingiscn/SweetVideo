@@ -1,4 +1,4 @@
-import { VideoMetadataInterface } from '../interfaces/VideoMetadataInterface';
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 
 // LazyForEach 设置类
 export default class DataUtil<T> implements IDataSource {
@@ -118,9 +118,9 @@ export default class DataUtil<T> implements IDataSource {
 
 export class VideoDataSource implements IDataSource {
   private listeners: DataChangeListener[] = []; // 存储监听器
-  private data: VideoMetadataInterface[] = [];
+  private data: VideoMetadata[] = [];
 
-  constructor(data: VideoMetadataInterface[]) {
+  constructor(data: VideoMetadata[]) {
     this.data = data;
   }
 
@@ -138,7 +138,7 @@ export class VideoDataSource implements IDataSource {
   }
 
   // 数据更新时需要触发的逻辑
-  updateData(newData: VideoMetadataInterface[]) {
+  updateData(newData: VideoMetadata[]) {
     this.data = newData;
     this.listeners.forEach(listener => {
       listener.onDataReloaded(); // 通知所有监听器数据已更新
@@ -149,7 +149,7 @@ export class VideoDataSource implements IDataSource {
     return this.data.length;
   }
 
-  getData(index: number): VideoMetadataInterface {
+  getData(index: number): VideoMetadata {
     return this.data[index];
   }
 
@@ -160,9 +160,9 @@ export class VideoDataSource implements IDataSource {
 
 export class RecentVideoDataSource implements IDataSource {
   private listeners: DataChangeListener[] = []; // 存储监听器
-  private data: VideoMetadataInterface[] = [];
+  private data: VideoMetadata[] = [];
 
-  constructor(data: VideoMetadataInterface[]) {
+  constructor(data: VideoMetadata[]) {
     this.data = data;
   }
 
@@ -180,7 +180,7 @@ export class RecentVideoDataSource implements IDataSource {
   }
 
   // 数据更新时需要触发的逻辑
-  updateData(newData: VideoMetadataInterface[]) {
+  updateData(newData: VideoMetadata[]) {
     this.data = newData;
     this.listeners.forEach(listener => {
       listener.onDataReloaded(); // 通知所有监听器数据已更新
@@ -191,7 +191,7 @@ export class RecentVideoDataSource implements IDataSource {
     return this.data.length;
   }
 
-  getData(index: number): VideoMetadataInterface {
+  getData(index: number): VideoMetadata {
     return this.data[index];
   }
 
@@ -210,16 +210,16 @@ export class RecentVideoDataSource implements IDataSource {
     this.notifyDataDelete(index);
   }
 
-  public getAllData(): VideoMetadataInterface[] {
+  public getAllData(): VideoMetadata[] {
     return this.data;
   }
 }
 
 export class FileFolderContentDataSource implements IDataSource {
   private listeners: DataChangeListener[] = []; // 存储监听器
-  private data: VideoMetadataInterface[] = [];
+  private data: VideoMetadata[] = [];
 
-  constructor(data: VideoMetadataInterface[]) {
+  constructor(data: VideoMetadata[]) {
     this.data = data;
   }
 
@@ -237,7 +237,7 @@ export class FileFolderContentDataSource implements IDataSource {
   }
 
   // 数据更新时需要触发的逻辑
-  updateData(newData: VideoMetadataInterface[]) {
+  updateData(newData: VideoMetadata[]) {
     this.data = JSON.parse(JSON.stringify(newData));
     this.listeners.forEach(listener => {
       for (let index = 0; index < this.data.length; index++) {
@@ -257,7 +257,7 @@ export class FileFolderContentDataSource implements IDataSource {
     return this.data.length;
   }
 
-  getData(index: number): VideoMetadataInterface {
+  getData(index: number): VideoMetadata {
     return this.data[index];
   }
 
@@ -276,7 +276,7 @@ export class FileFolderContentDataSource implements IDataSource {
     this.notifyDataDelete(index);
   }
 
-  public getAllData(): VideoMetadataInterface[] {
+  public getAllData(): VideoMetadata[] {
     return this.data;
   }
 }

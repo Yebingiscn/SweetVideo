@@ -8,13 +8,13 @@ import PreferencesUtil from './PreferencesUtil';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import ToolsUtil from './ToolsUtil';
 import { media } from '@kit.MediaKit';
-import { VideoMetadataFromPlayerInterface } from '../interfaces/VideoMetadataFromPlayerInterface';
+import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
 import { FileFolder } from '../interfaces/FileFolderInterface';
-import { VideoMetadataInterface } from '../interfaces/VideoMetadataInterface';
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 
 // 获取视频类
 class SelectFileUtil {
-  private static queryCache = new WeakMap<VideoMetadataInterface[], Map<string, VideoMetadataInterface>>();
+  private static queryCache = new WeakMap<VideoMetadata[], Map<string, VideoMetadata>>();
   public file_folder_uri = ''
 
   // 从文件管理器获取视频
@@ -110,7 +110,7 @@ class SelectFileUtil {
   }
 
   // 复制视频文件
-  copyFile(item: VideoMetadataInterface, context: common.UIAbilityContext) {
+  copyFile(item: VideoMetadata, context: common.UIAbilityContext) {
     let file = fs.openSync(item.uri)
     let saverOption = new picker.DocumentSaveOptions()
     saverOption.newFileNames = this.copyFileReName(item)
@@ -126,10 +126,10 @@ class SelectFileUtil {
   }
 
   //复制视频进入隐私空间
-  async copyFileToPrivacySpace(context: Context, video_meta_data_encryption: VideoMetadataInterface[], uri: string,
+  async copyFileToPrivacySpace(context: Context, video_meta_data_encryption: VideoMetadata[], uri: string,
     sandbox_video: string,
     encryption: boolean, sandbox_path: string, date: string, metadata: media.AVMetadata,
-    file: fs.File): Promise<VideoMetadataInterface> {
+    file: fs.File): Promise<VideoMetadata> {
     const file1 = fs.openSync(uri, fs.OpenMode.READ_ONLY);
     const targetPath = `${sandbox_video}${date}`;
     const file2 = fs.openSync(targetPath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
@@ -153,19 +153,19 @@ class SelectFileUtil {
     }
   }
 
-  copyFileReName(item: VideoMetadataInterface) {
+  copyFileReName(item: VideoMetadata) {
     return [item.title.split('.')[item.title.split('.').length - 1]
       == item.format ? item.title : item.title + '.' + item.format]
   }
 
   async getVideoMetaData(context: Context) {
     return await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'recent_video_meta_data',
-      []) as VideoMetadataInterface[]
+      []) as VideoMetadata[]
   }
 
   async getVideoMetaDataEncryption(context: Context) {
     return await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'video_meta_data_encryption',
-      []) as VideoMetadataInterface[]
+      []) as VideoMetadata[]
   }
 
   async getFileFolder(context: Context) {
@@ -176,18 +176,18 @@ class SelectFileUtil {
     return await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'passwd', '') as string
   }
 
-  async saveData(context: Context, show_list: VideoMetadataInterface[], target_data: VideoMetadataFromPlayerInterface) {
+  async saveData(context: Context, show_list: VideoMetadata[], target_data: VideoMetadataFromPlayer) {
     const tmp_meta_data = await this.getVideoMetaData(context)
     tmp_meta_data.findIndex(item => item.date === target_data.date) !== -1
       ? await this.saveVideoMetaData(context, show_list) :
       await this.saveVideoMetaDataEncryption(context, show_list)
   }
 
-  async saveVideoMetaData(context: Context, video_meta_data: VideoMetadataInterface[]) {
+  async saveVideoMetaData(context: Context, video_meta_data: VideoMetadata[]) {
     await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_video_meta_data', video_meta_data);
   }
 
-  async saveVideoMetaDataEncryption(context: Context, video_meta_data_encryption: VideoMetadataInterface[]) {
+  async saveVideoMetaDataEncryption(context: Context, video_meta_data_encryption: VideoMetadata[]) {
     await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'video_meta_data_encryption',
       video_meta_data_encryption);
   }
@@ -196,7 +196,7 @@ class SelectFileUtil {
     await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'file_folder', file_folder);
   }
 
-  getItem(list: VideoMetadataInterface[], item: string): VideoMetadataInterface | undefined {
+  getItem(list: VideoMetadata[], item: string): VideoMetadata | undefined {
     if (!list || !item) {
       return undefined;
     }
@@ -210,7 +210,7 @@ class SelectFileUtil {
     const dateMap = new Map(list.map(i => [i.date, i]));
     const foundItem = dateMap.get(item);
     if (foundItem) {
-      const typedListCache: Map<string, VideoMetadataInterface> = listCache;
+      const typedListCache: Map<string, VideoMetadata> = listCache;
       typedListCache.set(item, foundItem);
       if (typedListCache.size > (list.length >= 100 ? 100 : list.length * 0.5)) {
         const iterator: IterableIterator<string> = typedListCache.keys();
@@ -225,7 +225,7 @@ class SelectFileUtil {
   }
 
   // 获取下一个视频
-  getNextItem(list: VideoMetadataInterface[], item: string) {
+  getNextItem(list: VideoMetadata[], item: string) {
     const currentIndex = list.findIndex(i => i.date === item);
     if (currentIndex === -1) {
       return null;
@@ -241,7 +241,7 @@ class SelectFileUtil {
   }
 
   // 获取所有的视频
-  getAllItems(list: VideoMetadataInterface[]) {
+  getAllItems(list: VideoMetadata[]) {
     if (!list || list.length === 0) {
       return [];
     } else {
@@ -252,7 +252,7 @@ class SelectFileUtil {
   }
 
   // 获取视频搜索
-  getItemFromSearch(list: VideoMetadataInterface[], value: string): string[] {
+  getItemFromSearch(list: VideoMetadata[], value: string): string[] {
     const lowerValue = value.toLowerCase().trim();
     const results: string[] = [];
     for (const item of list) {
@@ -263,7 +263,7 @@ class SelectFileUtil {
     return results;
   }
 
-  getItemIndex(list: VideoMetadataInterface[], tmp: VideoMetadataInterface) {
+  getItemIndex(list: VideoMetadata[], tmp: VideoMetadata) {
     return list.findIndex(i => i.title == tmp.title)
   }
 

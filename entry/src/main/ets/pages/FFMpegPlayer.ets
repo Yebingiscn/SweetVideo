@@ -27,8 +27,8 @@ import VideoOperateUtil from '../utils/VideoOperateUtil'
 import PreferencesUtil from '../utils/PreferencesUtil'
 import { settings } from '@kit.BasicServicesKit'
 import { PlayerParams } from '../common/PlayerParams'
-import { VideoMetadataFromPlayerInterface } from '../interfaces/VideoMetadataFromPlayerInterface'
-import { VideoMetadataInterface } from '../interfaces/VideoMetadataInterface'
+import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface'
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { PlayStatus } from '../common/enum/PlayStatus'
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import VideoInfoUtil from '../utils/VideoInfoUtil'
@@ -60,7 +60,7 @@ struct FFMpegPlayer { // FFMpeg播放器页
   @State replayVisible: Visibility = Visibility.None;
   @State volume: number = 1.0;
   @State playSpeed: string = '1';
-  now_playing: VideoMetadataFromPlayerInterface | undefined = undefined
+  now_playing: VideoMetadataFromPlayer | undefined = undefined
   @State oldSeconds: number = 0;
   @State video_url: string = ''
   @State total_time: number = 0
@@ -86,7 +86,7 @@ struct FFMpegPlayer { // FFMpeg播放器页
   @State last_speed: string = '1'
   @State swipe_start_x: number = 0
   @State isHorizontalSwiping: boolean = false
-  @State video_meta_data: VideoMetadataInterface[] = []
+  @State video_meta_data: VideoMetadata[] = []
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
   @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
   pathStack: NavPathStack = new NavPathStack()
@@ -443,8 +443,8 @@ struct FFMpegPlayer { // FFMpeg播放器页
       this.pathStack = context.pathStack
       const playerParams: PlayerParams = this.pathStack.getParamByName('FFMpegPlayer')[0] as PlayerParams
       try {
-        this.now_playing = playerParams.metadata as VideoMetadataFromPlayerInterface
-        this.video_meta_data = playerParams.metadata_list as VideoMetadataInterface[];
+        this.now_playing = playerParams.metadata as VideoMetadataFromPlayer
+        this.video_meta_data = playerParams.metadata_list as VideoMetadata[];
         this.file_folder = playerParams.file_folder as FileFolder
       } catch (e) {
         console.error(e)

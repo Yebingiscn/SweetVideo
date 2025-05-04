@@ -11,13 +11,13 @@ import SelectFileUtil from './SelectFileUtil';
 import { pinyin4js } from '@ohos/pinyin4js';
 import PermissionUtil from './PermissionUtil';
 import { PlayerParams } from '../common/PlayerParams';
-import { VideoMetadataInterface } from '../interfaces/VideoMetadataInterface';
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { FileFolder } from '../interfaces/FileFolderInterface';
 
 // 工具类
 class ToolsUtil {
   private splitRegex = /(\d+\.?\d*)/; // 分离数字和文字，排序使用
-  private pinyinCache = new WeakMap<VideoMetadataInterface, string>(); // 缓存排序列表
+  private pinyinCache = new WeakMap<VideoMetadata, string>(); // 缓存排序列表
 
   // Toast设置
   showToast(text: string) {
@@ -45,7 +45,7 @@ class ToolsUtil {
   }
 
   // 名称排序处理
-  sortByNameProcess(list: VideoMetadataInterface[]) {
+  sortByNameProcess(list: VideoMetadata[]) {
     const collator = new Intl.Collator("zh-CN", {
       sensitivity: "variant",
       numeric: true,
@@ -73,7 +73,7 @@ class ToolsUtil {
       return aParts.length - bParts.length;
     };
     const sortedList = [...list].sort((a, b): number => { // 缓存读取逻辑
-      const getCachedPinyin = (item: VideoMetadataInterface) => {
+      const getCachedPinyin = (item: VideoMetadata) => {
         if (!this.pinyinCache.has(item)) {
           this.pinyinCache.set(item, pinyin4js.getShortPinyin(item.title || ""));
         }
@@ -85,7 +85,7 @@ class ToolsUtil {
   }
 
   // 名称排序
-  async sortByName(context: Context, list: VideoMetadataInterface[], encryption: boolean) {
+  async sortByName(context: Context, list: VideoMetadata[], encryption: boolean) {
     const sorted_list = this.sortByNameProcess(list)
     await (encryption ? SelectFileUtil.saveVideoMetaDataEncryption(context, sorted_list)
       : SelectFileUtil.saveVideoMetaData(context, sorted_list));
@@ -93,7 +93,7 @@ class ToolsUtil {
   }
 
   //时间排序，从近到久
-  async sortByTime(context: Context, list: VideoMetadataInterface[], encryption: boolean) {
+  async sortByTime(context: Context, list: VideoMetadata[], encryption: boolean) {
     const sortedList = [...list].sort((a, b) => b.date.localeCompare(a.date));
     await (encryption ? SelectFileUtil.saveVideoMetaDataEncryption(context, sortedList)
       : SelectFileUtil.saveVideoMetaData(context, sortedList));
@@ -109,7 +109,7 @@ class ToolsUtil {
   }
 
   // 检查文件是否存在
-  async isFileExist(item: VideoMetadataInterface | undefined) {
+  async isFileExist(item: VideoMetadata | undefined) {
     await PermissionUtil.activatePermission(item?.uri!)
     try {
       fs.openSync(String(item?.uri))
@@ -128,7 +128,7 @@ class ToolsUtil {
 
   //从文件夹点击视频进入视频播放器
   async routerToVideoFromFileFolder(pathStack: NavPathStack, context: Context, uri: string,
-    item: VideoMetadataInterface,
+    item: VideoMetadata,
     file_folder: FileFolder) {
     if (VideoInfoUtil.videoWidthAndHeightFormat(String(item?.size)) === '0 x 0') {
       this.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
@@ -144,7 +144,7 @@ class ToolsUtil {
 
   // 点击视频跳转到播放器
   async routerWhere(pathStack: NavPathStack, context: Context, uri: string, item: string, encryption: boolean) {
-    let list: VideoMetadataInterface [] = []
+    let list: VideoMetadata [] = []
     encryption ? list = await SelectFileUtil.getVideoMetaDataEncryption(context) :
       list = await SelectFileUtil.getVideoMetaData(context)
     const recentPlay = await PreferencesUtil.getPreferencesValue(context, "sweet_video", "recentPlay", true) as boolean
@@ -157,7 +157,7 @@ class ToolsUtil {
       this.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
       uri = 'FFMpegPlayer'
     }
-    const playerParams = new PlayerParams(list.find(i => i.date === item) as VideoMetadataInterface, list, undefined)
+    const playerParams = new PlayerParams(list.find(i => i.date === item) as VideoMetadata, list, undefined)
     pathStack.pushPathByName(uri, playerParams, true)
   }
 

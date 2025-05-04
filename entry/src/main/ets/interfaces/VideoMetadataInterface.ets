@@ -1,5 +1,5 @@
 // 视频数据枚举
-export interface VideoMetadataInterface {
+export interface VideoMetadata {
   uri: string
   title: string
   date: string

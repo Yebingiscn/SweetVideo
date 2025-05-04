@@ -1,7 +1,7 @@
-import { VideoMetadataInterface } from './VideoMetadataInterface';
+import { VideoMetadata } from './VideoMetadataInterface';
 
-export interface FileFolderInterface {
+export interface FileFolder {
   name: string,
   date: string,
-  video_list: VideoMetadataInterface[]
+  video_list: VideoMetadata[]
 }
