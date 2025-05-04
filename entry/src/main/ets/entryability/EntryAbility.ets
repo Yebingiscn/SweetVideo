@@ -32,7 +32,7 @@ export default class EntryAbility extends UIAbility {
           WantProcess.want_uri = record.uri!
           WantProcess.isSystemShare = true
           if (isNewWant) {
-            WantProcessUtil.checkWant(context)
+            WantProcessUtil.isNewWant = true
           }
           return
         });

@@ -1,5 +1,5 @@
+import { FileFolder } from '../interfaces/FileFolder'
 import DataSyncUtil from '../utils/DataSyncUtil'
-import { FileFolder } from '../utils/FileFolderUtil'
 
 // 重命名文件夹弹窗
 @CustomDialog

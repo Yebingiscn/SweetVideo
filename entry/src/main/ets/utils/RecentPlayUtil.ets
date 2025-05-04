@@ -1,6 +1,6 @@
 import PreferencesUtil from './PreferencesUtil';
-import { VideoMetadata } from './VideoInfoUtil';
 import { common, Context } from '@kit.AbilityKit';
+import { VideoMetadata } from '../interfaces/VideoMetadata';
 
 // 最近播放类
 class RecentPlayUtil {

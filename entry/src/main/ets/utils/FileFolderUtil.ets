@@ -1,12 +1,7 @@
+import { FileFolder } from '../interfaces/FileFolder'
+import { VideoMetadata } from '../interfaces/VideoMetadata'
 import SelectFileUtil from './SelectFileUtil'
 import ToolsUtil from './ToolsUtil'
-import { VideoMetadata } from './VideoInfoUtil'
-
-export interface FileFolder {
-  name: string,
-  date: string,
-  video_list: VideoMetadata[]
-}
 
 // 文件夹类
 class FileFolderUtil {

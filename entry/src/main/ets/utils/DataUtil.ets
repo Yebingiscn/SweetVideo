@@ -1,4 +1,4 @@
-import { VideoMetadata } from './VideoInfoUtil';
+import { VideoMetadata } from '../interfaces/VideoMetadata';
 
 // LazyForEach 设置类
 export default class DataUtil<T> implements IDataSource {

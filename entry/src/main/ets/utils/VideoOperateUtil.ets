@@ -2,21 +2,16 @@ import { window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { audio } from '@kit.AudioKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { VideoMetadata, VideoMetadataFromPlayer } from './VideoInfoUtil';
 import ToolsUtil from './ToolsUtil';
-import SelectFileUtil from './SelectFileUtil';
 import { media } from '@kit.MediaKit';
-import AVSessionUtil, { avSessionState } from './AVSessionUtil';
-import { FileFolder } from './FileFolderUtil';
+import AVSessionUtil from './AVSessionUtil';
 import { PlayerParams } from '../common/PlayerParams';
-
-// 音频枚举
-export interface AudioTrack {
-  index: number;
-  language: string;
-  name: string;
-  mime: string
-}
+import { VideoMetadata } from '../interfaces/VideoMetadata';
+import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayer';
+import SelectFileUtil from './SelectFileUtil';
+import { AudioTrack } from '../interfaces/AudioTrack';
+import { FileFolder } from '../interfaces/FileFolder';
+import { AvSessionState } from '../interfaces/AvSessionState';
 
 // 视频操作类
 class VideoOperateUtil {
@@ -195,7 +190,7 @@ class VideoOperateUtil {
 
   // 更新播控中心状态
   updateSession(playing: boolean, play_time: number) {
-    let data: avSessionState = {
+    let data: AvSessionState = {
       playing: playing,
       duration: play_time
     }

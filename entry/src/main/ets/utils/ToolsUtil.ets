@@ -1,7 +1,7 @@
 import promptAction from '@ohos.promptAction';
 import { vibrator } from '@kit.SensorServiceKit';
 import { BusinessError, systemDateTime } from '@kit.BasicServicesKit';
-import VideoInfoUtil, { VideoMetadata } from './VideoInfoUtil';
+import VideoInfoUtil from './VideoInfoUtil';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import PreferencesUtil from './PreferencesUtil';
 import { hilog } from '@kit.PerformanceAnalysisKit';
@@ -9,9 +9,10 @@ import { bundleManager } from '@kit.AbilityKit';
 import RecentPlayUtil from './RecentPlayUtil';
 import SelectFileUtil from './SelectFileUtil';
 import { pinyin4js } from '@ohos/pinyin4js';
-import { FileFolder } from './FileFolderUtil';
 import PermissionUtil from './PermissionUtil';
 import { PlayerParams } from '../common/PlayerParams';
+import { VideoMetadata } from '../interfaces/VideoMetadata';
+import { FileFolder } from '../interfaces/FileFolder';
 
 // 工具类
 class ToolsUtil {

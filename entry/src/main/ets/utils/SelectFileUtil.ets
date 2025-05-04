@@ -2,13 +2,15 @@ import { common } from '@kit.AbilityKit';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
 import { fileUri, fileIo as fs, picker } from '@kit.CoreFileKit';
 import VideoUtil from './VideoInfoUtil';
-import VideoInfoUtil, { VideoMetadata, VideoMetadataFromPlayer } from './VideoInfoUtil';
+import VideoInfoUtil from './VideoInfoUtil';
 import { BusinessError } from '@kit.BasicServicesKit';
 import PreferencesUtil from './PreferencesUtil';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import ToolsUtil from './ToolsUtil';
 import { media } from '@kit.MediaKit';
-import { FileFolder } from './FileFolderUtil';
+import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayer';
+import { FileFolder } from '../interfaces/FileFolder';
+import { VideoMetadata } from '../interfaces/VideoMetadata';
 
 // 获取视频类
 class SelectFileUtil {

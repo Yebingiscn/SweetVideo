@@ -1,4 +1,3 @@
-import { router } from '@kit.ArkUI';
 import PreferencesUtil from '../utils/PreferencesUtil';
 import { common } from '@kit.AbilityKit';
 import WantProcessUtil from '../utils/WantProcessUtil';
@@ -120,17 +119,18 @@ struct PrivacyInfo {
   async initSdk() {
     //init();
     this.privacyDialogController?.close()
+    if (WantProcessUtil.isNewWant) {
+      WantProcessUtil.checkWant(context, this.pathStack)
+    }
     await this.initSetting()
-    // this.pathStack.replacePathByName('Index', null);
-    router.replaceUrl({ url: 'pages/Index' }, router.RouterMode.Single)
+    this.pathStack.replacePathByName('Index', null, true)
+    // router.replaceUrl({ url: 'pages/Index' }, router.RouterMode.Single)
   }
 
   build() {
-    NavDestination() {
+    Navigation(this.pathStack) {
 
-    }.onReady((context: NavDestinationContext) => {
-      this.pathStack = context.pathStack
-    })
+    }.mode(NavigationMode.Stack).hideToolBar(true).hideTitleBar(true)
   }
 }
 

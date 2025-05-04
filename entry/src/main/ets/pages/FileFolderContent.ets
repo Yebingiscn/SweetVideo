@@ -1,6 +1,6 @@
 import { common } from '@kit.AbilityKit';
 import ToolsUtil from '../utils/ToolsUtil';
-import VideoInfoUtil, { DEFAULT_DIALOG_SHADOW, VideoMetadata } from '../utils/VideoInfoUtil';
+import VideoInfoUtil from '../utils/VideoInfoUtil';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 import DataSyncUtil from '../utils/DataSyncUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
@@ -10,7 +10,10 @@ import { FileFolderContentDataSource } from '../utils/DataUtil';
 import { media } from '@kit.MediaKit';
 import TimeUtil from '../utils/TimeUtil';
 import { VideoDetailDialog } from '../component/VideoDetailDialog';
-import FileFolderUtil, { FileFolder } from '../utils/FileFolderUtil';
+import FileFolderUtil from '../utils/FileFolderUtil';
+import { FileFolder } from '../interfaces/FileFolder';
+import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
+import { VideoMetadata } from '../interfaces/VideoMetadata';
 
 const sandbox_subtitle = getContext().filesDir + '/subtitle/'
 const sandbox_path = getContext().filesDir + '/'
@@ -60,7 +63,7 @@ struct FileFolderContent { // 文件夹页，不同文件夹公用一个页
   @State list_line: number = 1
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
-    shadow: DEFAULT_DIALOG_SHADOW
+    shadow: DefaultDialogShadow
   })
   searchController: SearchController = new SearchController()
   pathStack: NavPathStack = new NavPathStack()

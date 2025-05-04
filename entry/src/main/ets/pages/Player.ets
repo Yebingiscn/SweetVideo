@@ -8,19 +8,22 @@ import { window } from '@kit.ArkUI';
 import { avSession as avSessionManager } from '@kit.AVSessionKit';
 import AVSessionUtil from '../utils/AVSessionUtil';
 import ToolsUtil from '../utils/ToolsUtil';
-import VideoInfoUtil, { VideoMetadata, VideoMetadataFromPlayer } from '../utils/VideoInfoUtil';
+import VideoInfoUtil from '../utils/VideoInfoUtil';
 import TimeUtil from '../utils/TimeUtil';
 import { audio, AVVolumePanel } from '@kit.AudioKit';
 import { settings } from '@kit.BasicServicesKit';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { VideoDataSource } from '../utils/DataUtil';
-import VideoOperateUtil, { AudioTrack } from '../utils/VideoOperateUtil';
+import VideoOperateUtil from '../utils/VideoOperateUtil';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
 import PreferencesUtil from '../utils/PreferencesUtil';
 import { IjkMediaPlayer } from '@ohos/ijkplayer';
-import { FileFolder } from '../utils/FileFolderUtil';
 import { KeyCode } from '@kit.InputKit';
 import { PlayerParams } from '../common/PlayerParams';
+import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayer';
+import { VideoMetadata } from '../interfaces/VideoMetadata';
+import { FileFolder } from '../interfaces/FileFolder';
+import { AudioTrack } from '../interfaces/AudioTrack';
 
 
 @Extend(Image)

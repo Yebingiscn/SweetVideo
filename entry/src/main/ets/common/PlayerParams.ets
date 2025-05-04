@@ -1,5 +1,5 @@
-import { FileFolder } from '../utils/FileFolderUtil'
-import { VideoMetadata } from '../utils/VideoInfoUtil'
+import { FileFolder } from '../interfaces/FileFolder'
+import { VideoMetadata } from '../interfaces/VideoMetadata'
 
 // Navigation 传参设置
 export class PlayerParams {

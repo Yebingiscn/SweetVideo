@@ -1,11 +1,7 @@
 import { avSession as avSessionManager } from '@kit.AVSessionKit';
 import { image } from '@kit.ImageKit';
-import { VideoMetadataFromPlayer } from './VideoInfoUtil';
-
-export interface avSessionState {
-  playing: boolean
-  duration: number
-}
+import { AvSessionState } from '../interfaces/AvSessionState';
+import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayer';
 
 // 播控中心设置类
 class AVSessionUtil {
@@ -40,7 +36,7 @@ class AVSessionUtil {
   }
 
   updateSession(state: string) {
-    let avSessionState: avSessionState = JSON.parse(state);
+    let avSessionState: AvSessionState = JSON.parse(state);
     let playbackState: avSessionManager.AVPlaybackState = {
       state: avSessionState.playing ? avSessionManager.PlaybackState.PLAYBACK_STATE_PLAY :
       avSessionManager.PlaybackState.PLAYBACK_STATE_PAUSE,

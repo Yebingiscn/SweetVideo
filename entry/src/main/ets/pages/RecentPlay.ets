@@ -1,11 +1,11 @@
 import DataSyncUtil from '../utils/DataSyncUtil';
-import { VideoMetadata } from '../utils/VideoInfoUtil';
 import { RecentVideoDataSource } from '../utils/DataUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { fileUri } from '@kit.CoreFileKit';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import { common } from '@kit.AbilityKit';
+import { VideoMetadata } from '../interfaces/VideoMetadata';
 
 const sandbox_path = getContext().filesDir + '/'
 const context = getContext() as common.UIAbilityContext;

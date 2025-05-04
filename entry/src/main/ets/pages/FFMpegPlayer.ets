@@ -13,7 +13,6 @@ import {
   OnTimedTextListener,
   OnVideoSizeChangedListener
 } from '@ohos/ijkplayer'
-import { PlayStatus } from '../common/PlayStatus'
 import DataSyncUtil from '../utils/DataSyncUtil'
 import TimeUtil from '../utils/TimeUtil'
 import ToolsUtil from '../utils/ToolsUtil'
@@ -25,11 +24,14 @@ import AVSessionUtil from '../utils/AVSessionUtil'
 import { avSession as avSessionManager } from '@kit.AVSessionKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
-import VideoInfoUtil, { VideoMetadata, VideoMetadataFromPlayer } from '../utils/VideoInfoUtil'
 import PreferencesUtil from '../utils/PreferencesUtil'
 import { settings } from '@kit.BasicServicesKit'
-import { FileFolder } from '../utils/FileFolderUtil'
 import { PlayerParams } from '../common/PlayerParams'
+import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayer'
+import { VideoMetadata } from '../interfaces/VideoMetadata'
+import { PlayStatus } from '../common/enum/PlayStatus'
+import { FileFolder } from '../interfaces/FileFolder'
+import VideoInfoUtil from '../utils/VideoInfoUtil'
 
 
 @Builder

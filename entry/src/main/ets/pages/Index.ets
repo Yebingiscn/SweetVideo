@@ -6,7 +6,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import DataSyncUtil from '../utils/DataSyncUtil';
 import DataUtil from '../utils/DataUtil';
 import ToolsUtil from '../utils/ToolsUtil';
-import VideoUtil, { DEFAULT_DIALOG_SHADOW, VideoMetadata } from '../utils/VideoInfoUtil';
+import VideoUtil from '../utils/VideoInfoUtil';
 import TimeUtil from '../utils/TimeUtil';
 import { delConfirmDialog } from '../component/DelConfirmDialog';
 import { editPasswordDialog } from '../component/EditPasswordDialog';
@@ -19,8 +19,11 @@ import WantProcessUtil from '../utils/WantProcessUtil';
 import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
 import { addFileFolderNameDialog } from '../component/AddFileFolderNameDialog';
-import FileFolderUtil, { FileFolder } from '../utils/FileFolderUtil';
+import FileFolderUtil from '../utils/FileFolderUtil';
 import { editFileFolderNameDialog } from '../component/EditFileFolderNameDialog';
+import { VideoMetadata } from '../interfaces/VideoMetadata';
+import { FileFolder } from '../interfaces/FileFolder';
+import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 
 const context = getContext() as common.UIAbilityContext;
 const sandbox_path = getContext().filesDir + '/'
@@ -122,7 +125,7 @@ struct Index {
           this.encryption ? SelectFileUtil.saveVideoMetaDataEncryption : SelectFileUtil.saveVideoMetaData;
         await saveAction(context, currentData)
       },
-    }), cornerRadius: 20, shadow: DEFAULT_DIALOG_SHADOW
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   delConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: delConfirmDialog({
@@ -146,7 +149,7 @@ struct Index {
           this.closeMultipleChoose()
         }
       }
-    }), cornerRadius: 20, shadow: DEFAULT_DIALOG_SHADOW
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
     builder: editPasswordDialog({
@@ -158,7 +161,7 @@ struct Index {
         this.encryption = false
         ToolsUtil.savePwd(context, passwd)
       },
-    }), cornerRadius: 20, shadow: DEFAULT_DIALOG_SHADOW
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: addFileFolderNameDialog({
@@ -168,7 +171,7 @@ struct Index {
         }
         this.file_folder_list = await FileFolderUtil.createNewFolder(context, file_folder)
       },
-    }), cornerRadius: 20, shadow: DEFAULT_DIALOG_SHADOW
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   editFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: editFileFolderNameDialog({
@@ -180,11 +183,11 @@ struct Index {
           await FileFolderUtil.changeFileFolderName(context, JSON.parse(DataSyncUtil.editing_video) as FileFolder,
             file_folder, this.file_folder_list)
       }
-    }), cornerRadius: 20, shadow: DEFAULT_DIALOG_SHADOW
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
-    shadow: DEFAULT_DIALOG_SHADOW
+    shadow: DefaultDialogShadow
   })
   listScroller: ListScroller = new ListScroller()
   searchController: SearchController = new SearchController()
@@ -485,28 +488,10 @@ struct Index {
     this.show_list = source.map(i => i.date)
   }
 
-  onBackPress(): boolean | void {
-    if (this.multipleChooseState === Visibility.Visible) {
-      this.closeMultipleChoose()
-      return true
-    }
-    if (this.sideBarStatusTmp === Visibility.Visible) {
-      this.closeSideBar(true)
-      return true
-    }
-  }
-
   async aboutToAppear(): Promise<void> {
     SelectFileUtil.getDownloadUri()
     this.passwd = await SelectFileUtil.getPassword(context)
     ToolsUtil.isSubtitleFileFolderExist(sandbox_video, sandbox_subtitle)
-  }
-
-  async onPageShow(): Promise<void> {
-    this.video_meta_data = await SelectFileUtil.getVideoMetaData(context)
-    this.video_meta_data_encryption = await SelectFileUtil.getVideoMetaDataEncryption(context)
-    this.show_list = this.video_meta_data.map(i => i.date)
-    this.file_folder_list = await SelectFileUtil.getFileFolder(context)
   }
 
   async selectFiles() {
@@ -618,7 +603,7 @@ struct Index {
   }
 
   build() {
-    Navigation(this.pathStack) {
+    NavDestination() {
       SideBarContainer(SideBarContainerType.Overlay) {
         Column() {
           Scroll() {
@@ -1090,7 +1075,7 @@ struct Index {
         let records: Array<unifiedDataChannel.UnifiedRecord> = dragEvent.getData().getRecords();
         let video: unifiedDataChannel.Video = records[0] as unifiedDataChannel.Video;
         WantProcessUtil.want_uri = video.uri
-        WantProcessUtil.hasWant(context)
+        WantProcessUtil.hasWant(context, this.pathStack)
       })
       .onChange((value: boolean) => {
         this.sideBarStatus = value;
@@ -1103,7 +1088,23 @@ struct Index {
           this.closeSideBar(true)
         }
       }))
-    }.mode(NavigationMode.Stack).hideToolBar(true).hideTitleBar(true)
+    }.onReady(async (navigation_context: NavDestinationContext) => {
+      this.pathStack = navigation_context.pathStack
+      this.video_meta_data = await SelectFileUtil.getVideoMetaData(context)
+      this.video_meta_data_encryption = await SelectFileUtil.getVideoMetaDataEncryption(context)
+      this.show_list = this.video_meta_data.map(i => i.date)
+      this.file_folder_list = await SelectFileUtil.getFileFolder(context)
+    }).hideTitleBar(true).onBackPressed(() => {
+      if (this.multipleChooseState === Visibility.Visible) {
+        this.closeMultipleChoose()
+        return true
+      }
+      if (this.sideBarStatusTmp === Visibility.Visible) {
+        this.closeSideBar(true)
+        return true
+      }
+      return false
+    })
   }
 
   @Builder

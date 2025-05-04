@@ -3,45 +3,7 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { image } from '@kit.ImageKit';
 import ReqPermission from '../utils/ReqPermissionUtil';
-
-// 视频数据枚举
-export interface VideoMetadata {
-  uri: string
-  title: string
-  date: string
-  size: number[]
-  time: number
-  last_play: number
-  format: string
-  video_size: string
-  hdr_type: number
-}
-
-// 播放器枚举
-export interface VideoMetadataFromPlayer {
-  uri: string
-  title: string
-  date: string,
-  size: number[]
-  time: number
-  last_play: number
-}
-
-// 阴影枚举
-interface shadowFancyInterface {
-  radius: number;
-  color: Resource;
-  offsetX: number;
-  offsetY: number;
-}
-
-// 弹窗阴影
-export const DEFAULT_DIALOG_SHADOW: shadowFancyInterface = {
-  radius: 26,
-  color: $r('app.color.shadow_color'),
-  offsetX: 0,
-  offsetY: 0
-};
+import { VideoMetadata } from '../interfaces/VideoMetadata';
 
 // 视频信息类
 class VideoInfoUtil {
