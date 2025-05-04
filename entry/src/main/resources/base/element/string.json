@@ -137,8 +137,8 @@
       "value": "Please re-import if it has been invalidated"
     },
     {
-      "name": "exist_privacy_space",
-      "value": "Exist privacy space"
+      "name": "exit_privacy_space",
+      "value": "Exit privacy space"
     },
     {
       "name": "privacy_space_info",

@@ -101,6 +101,7 @@ struct Index {
   @State file_folder_list: FileFolder[] = []
   @State screen_width: number = 0
   @State screen_height: number = 0
+  @State searchValue: string = ''
   pathStack: NavPathStack = new NavPathStack()
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: editMetadataDialog({
@@ -652,7 +653,7 @@ struct Index {
                     Row() {
                       SymbolGlyph($r('sys.symbol.lock'))
                         .symbolGlyphFancy(25, '', '')
-                      Text(this.encryption ? $r('app.string.exist_privacy_space') : $r('app.string.privacy_space'))
+                      Text(this.encryption ? $r('app.string.exit_privacy_space') : $r('app.string.privacy_space'))
                         .fontSize(15)
                         .margin({ left: 10, right: 12 })
                     }
@@ -969,7 +970,8 @@ struct Index {
 
               Search({
                 controller: this.searchController,
-                placeholder: $r('app.string.search_placeholder')
+                placeholder: $r('app.string.search_placeholder'),
+                value: this.searchValue,
               })
                 .layoutWeight(1)
                 .height(40)
@@ -980,10 +982,10 @@ struct Index {
                   { fontSize: '16fp', fontColor: $r('app.color.main_color') })
                 .animation({ duration: 300, curve: Curve.Ease })
                 .shadowFancy()
-                .onChange((value: string) => {
+                .onChange(() => {
                   const item = this.encryption ? this.video_meta_data_encryption : this.video_meta_data
-                  value === '' ? this.show_list = SelectFileUtil.getAllItems(item)
-                    : this.show_list = SelectFileUtil.getItemFromSearch(item, value)
+                  this.searchValue === '' ? this.show_list = SelectFileUtil.getAllItems(item)
+                    : this.show_list = SelectFileUtil.getItemFromSearch(item, this.searchValue)
                 })
                 .onSubmit((value: string) => {
                   const currentMeta = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
@@ -1103,6 +1105,15 @@ struct Index {
         this.closeSideBar(true)
         return true
       }
+      // 如果是隐私空间首页，则退出隐私空间
+      if (this.encryption) {
+        this.encryption = false
+        // 退出隐私空间时清空密码
+        this.searchValue = ''
+        return true
+      }
+      // 首页响应系统返回手势，退出app
+      context.terminateSelf()
       return false
     })
   }

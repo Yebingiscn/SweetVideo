@@ -983,7 +983,7 @@ struct Player { // 播放页
         .symbolGlyphFancy(40)
         .onClick(() => {
           this.avPlayer?.reset()
-          this.pathStack.clear()
+          this.pathStack.pop()
         })
         .padding({ right: 5 })
       Row() {

@@ -477,7 +477,7 @@ struct FFMpegPlayer { // FFMpeg播放器页
         .fontSize(40)
         .fontColor(['#f0f0f0'])
         .onClick(() => {
-          this.pathStack.clear()
+          this.pathStack.pop()
         })
         .padding({ right: 10 })
         .margin({ left: 15 })

@@ -29,7 +29,7 @@ struct AboutApp {
           .width(80)
           .backgroundColor($r('app.color.start_window_background_blur'))
           .onClick(() => {
-            this.pathStack.clear()
+            this.pathStack.pop()
           })
 
           Text('关于应用')
