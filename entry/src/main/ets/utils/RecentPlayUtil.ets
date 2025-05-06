@@ -1,6 +1,6 @@
-import PreferencesUtil from './PreferencesUtil';
 import { common, Context } from '@kit.AbilityKit';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
+import SelectFileUtil from './SelectFileUtil';
 
 // 最近播放类
 class RecentPlayUtil {
@@ -33,7 +33,7 @@ class RecentPlayUtil {
   public async delData(context: Context, item: VideoMetadata) {
     if (this.deque.findIndex(i => i.date === item.date) !== -1) {
       this.deque = this.deque.filter(i => i.date != item?.date)
-      await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_play', this.deque);
+      await SelectFileUtil.saveRecentPlay(context, this.deque)
     }
   }
 
@@ -49,12 +49,11 @@ class RecentPlayUtil {
   }
 
   private async persistData(context: Context) {
-    await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_play', this.deque);
+    await SelectFileUtil.saveRecentPlay(context, this.deque)
   }
 
   private async loadData(context: Context) {
-    this.deque =
-      await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'recent_play', []) as VideoMetadata[]
+    this.deque = await SelectFileUtil.getRecentPlay(context)
     this.updateMapIndices();
   }
 }

@@ -268,7 +268,8 @@ struct Index {
               return
             }
             await ToolsUtil.isFileExist(target_item) ?
-            ToolsUtil.routerWhere(this.pathStack, context, 'FFMpegPlayer', item?.date!, this.encryption) :
+            ToolsUtil.routerWhere(this.pathStack, context, 'FFMpegPlayer', item?.date!,
+              this.encryption ? this.video_meta_data_encryption : this.video_meta_data, this.encryption) :
             this.deleteUnExistFile(target_item)
           }, 200)
         })
@@ -449,6 +450,7 @@ struct Index {
               reject(new Error(`Error deleting file from sandbox_video: ${unlinkErr.message}`));
               return;
             }
+            console.error('test success4')
             await SelectFileUtil.saveVideoMetaDataEncryption(context, this.video_meta_data_encryption)
           });
         } else {
@@ -919,7 +921,8 @@ struct Index {
                 }
                 this.listScroller.closeAllSwipeActions()
                 await ToolsUtil.isFileExist(target_item) ?
-                ToolsUtil.routerWhere(this.pathStack, context, 'Player', item, this.encryption) :
+                ToolsUtil.routerWhere(this.pathStack, context, 'Player', item,
+                  this.encryption ? this.video_meta_data_encryption : this.video_meta_data, this.encryption) :
                 this.deleteUnExistFile(target_item)
               })
             }, (item: string) => item)
@@ -971,7 +974,7 @@ struct Index {
               Search({
                 controller: this.searchController,
                 placeholder: $r('app.string.search_placeholder'),
-                value: this.searchValue,
+                value: $$this.searchValue,
               })
                 .layoutWeight(1)
                 .height(40)
@@ -1000,9 +1003,9 @@ struct Index {
                   }
                   if (value == this.passwd && !this.encryption) {
                     this.encryption = true
-                    ToolsUtil.showToast(getContext()
-                      .resourceManager
+                    ToolsUtil.showToast(getContext().resourceManager
                       .getStringSync($r('app.string.enter_privacy_space')))
+                    this.searchValue = ''
                     return
                   }
                   this.show_list = SelectFileUtil.getItemFromSearch(currentMeta, value)
@@ -1108,13 +1111,13 @@ struct Index {
       // 如果是隐私空间首页，则退出隐私空间
       if (this.encryption) {
         this.encryption = false
-        // 退出隐私空间时清空密码
-        this.searchValue = ''
+        this.searchValue = '' // 退出隐私空间时清空密码
+        ToolsUtil.showToast('隐私空间已退出') // 提示隐私空间已退出，防止不够明显用户意识不到
         return true
       }
       // 首页响应系统返回手势，退出app
       context.terminateSelf()
-      return false
+      return true // 拦截返回手势，退出 APP 时不会播放返回根目录动画
     })
   }
 

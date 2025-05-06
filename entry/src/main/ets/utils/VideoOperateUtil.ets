@@ -171,7 +171,7 @@ class VideoOperateUtil {
     }
   }
 
-  // 保存视频长宽
+  // 保存音视频宽高信息
   async saveVideoWeightAndHeight(now_playing: VideoMetadataFromPlayer,
     video_meta_data: VideoMetadata[], context: Context, file_folder: FileFolder) {
     video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)].size = now_playing.size

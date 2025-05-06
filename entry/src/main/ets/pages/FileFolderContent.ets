@@ -14,6 +14,7 @@ import FileFolderUtil from '../utils/FileFolderUtil';
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
+import RecentPlayUtil from '../utils/RecentPlayUtil';
 
 const sandbox_subtitle = getContext().filesDir + '/subtitle/'
 const sandbox_path = getContext().filesDir + '/'
@@ -163,6 +164,7 @@ struct FileFolderContent { // 文件夹页，不同文件夹公用一个页
     file_folder_list.push(this.file_folder!)
     await SelectFileUtil.saveFileFolder(context, file_folder_list)
     this.videoDataSource.deleteData(this.videoDataSource.getAllData().indexOf(item))
+    await RecentPlayUtil.delData(context, item)
     if (!move_to_other_file_folder) {
       if (await SelectFileUtil.isSubtitleExist(sandbox_subtitle, item.date!)) {
         SelectFileUtil.deleteSubtitle(sandbox_subtitle, item.date!)

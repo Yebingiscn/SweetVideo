@@ -181,7 +181,6 @@ struct Player { // 播放页
   }
 
   async aboutToDisappear(): Promise<void> {
-    console.error('test disappear')
     if (this.screenBrightness != this.screenBrightnessAtFirst) {
       VideoOperateUtil.setBrightness(this.screenBrightnessAtFirst)
     }

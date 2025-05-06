@@ -4,7 +4,6 @@ export struct editPasswordDialog {
   confirm?: (name: string | undefined) => void
   controller?: CustomDialogController
   passwd: string | undefined = undefined
-  @State passwordState: boolean = false
 
   build() {
     Column({ space: 25 }) {
@@ -16,12 +15,7 @@ export struct editPasswordDialog {
       TextInput()
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .onChange((input: string) => this.passwd = input)
-        .showPassword(this.passwordState)
-        .type(InputType.Password)
-        .showPasswordIcon(true)
-        .onSecurityStateChange((isShowPassword: boolean) => {
-          this.passwordState = isShowPassword
-        })
+        .type(InputType.NEW_PASSWORD)
         .id('input_pwd')
         .onAppear(() => {
           focusControl.requestFocus('input_pwd')
