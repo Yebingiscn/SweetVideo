@@ -1,4 +1,4 @@
-import { common } from '@kit.AbilityKit';
+import { common, Context } from '@kit.AbilityKit';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
 import { fileUri, fileIo as fs, picker } from '@kit.CoreFileKit';
 import VideoUtil from './VideoInfoUtil';
@@ -142,6 +142,7 @@ class SelectFileUtil {
       const videoInfo =
         await VideoInfoUtil.setVideoInfo(date, targetPath, file.name, metadata, encryption, sandbox_video, sandbox_path)
       video_meta_data_encryption.push(videoInfo);
+      console.error('test success3')
       await this.saveVideoMetaDataEncryption(context, video_meta_data_encryption);
       return videoInfo; // 返回新创建的元数据对象
     } catch (error) {
@@ -176,11 +177,28 @@ class SelectFileUtil {
     return await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'passwd', '') as string
   }
 
-  async saveData(context: Context, show_list: VideoMetadata[], target_data: VideoMetadataFromPlayer) {
-    const tmp_meta_data = await this.getVideoMetaData(context)
-    tmp_meta_data.findIndex(item => item.date === target_data.date) !== -1
-      ? await this.saveVideoMetaData(context, show_list) :
-      await this.saveVideoMetaDataEncryption(context, show_list)
+  async getRecentPlay(context: Context) {
+    return await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'recent_play', []) as VideoMetadata[]
+  }
+
+  async saveData(context: Context, update_list: VideoMetadata[], target_data: VideoMetadataFromPlayer) {
+    const results = await Promise.all([
+      this.getVideoMetaData(context),
+      this.getVideoMetaDataEncryption(context),
+      this.getRecentPlay(context)
+    ]);
+    const tmp_meta_data = results[0];
+    const tmp_meta_data_encryption = results[1];
+    const recent_play_deque = results[2];
+    if (tmp_meta_data.some(item => item.date === target_data.date)) {
+      await this.saveVideoMetaData(context, update_list)
+    }
+    if (tmp_meta_data_encryption.some(item => item.date === target_data.date)) {
+      await this.saveVideoMetaDataEncryption(context, update_list)
+    }
+    if (recent_play_deque.some(item => item.date === target_data.date)) {
+      await this.saveRecentPlay(context, update_list)
+    }
   }
 
   async saveVideoMetaData(context: Context, video_meta_data: VideoMetadata[]) {
@@ -188,12 +206,17 @@ class SelectFileUtil {
   }
 
   async saveVideoMetaDataEncryption(context: Context, video_meta_data_encryption: VideoMetadata[]) {
+    console.error('test success save encryption data')
     await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'video_meta_data_encryption',
       video_meta_data_encryption);
   }
 
   async saveFileFolder(context: Context, file_folder: FileFolder[]) {
     await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'file_folder', file_folder);
+  }
+
+  async saveRecentPlay(context: Context, recent_play_deque: VideoMetadata[]) {
+    await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_play', recent_play_deque);
   }
 
   getItem(list: VideoMetadata[], item: string): VideoMetadata | undefined {

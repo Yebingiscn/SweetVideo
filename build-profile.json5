@@ -1,21 +1,7 @@
-// pwd: Aa12345678
-// alias: sweet_video
+
 {
   "app": {
     "signingConfigs": [
-      {
-        "name": "default",
-        "type": "HarmonyOS",
-        "material": {
-          "certpath": "C:\\Users\\Salmon\\.ohos\\config\\default_SweetVideo_7gM-IZzVY3c9Tp246khxlwNKhIjvjVSLbfbaasOT3pE=.cer",
-          "keyAlias": "debugKey",
-          "keyPassword": "0000001B01067BC5B58C629D438211D7D3C69B94A77252AD9CEEBD6DC3500BBE18A877FE8F7A5D99255999",
-          "profile": "C:\\Users\\Salmon\\.ohos\\config\\default_SweetVideo_7gM-IZzVY3c9Tp246khxlwNKhIjvjVSLbfbaasOT3pE=.p7b",
-          "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\Salmon\\.ohos\\config\\default_SweetVideo_7gM-IZzVY3c9Tp246khxlwNKhIjvjVSLbfbaasOT3pE=.p12",
-          "storePassword": "0000001BCCDC33DD04ADEE959AF34DD62F39B69A4F8FF203BB17A703CFB83DD32196D74D7774A9B0A33D3E"
-        }
-      }
     ],
     "products": [
       {
