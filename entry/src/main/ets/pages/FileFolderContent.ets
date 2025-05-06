@@ -48,14 +48,8 @@ function buttonFancy(width: number | string, height: number | string) {
   .animation({ duration: 300, curve: Curve.Ease })
 }
 
-@Builder
-export function FileFolderContentBuilder() {
-  FileFolderContent()
-}
-
-@Entry
 @Component
-struct FileFolderContent { // 文件夹页，不同文件夹公用一个页
+export struct FileFolderContent { // 文件夹页，不同文件夹公用一个页
   @State videoDataSource: FileFolderContentDataSource = new FileFolderContentDataSource([])
   @State MenuBuilderState: boolean = false
   @State file_folder: FileFolder | undefined = undefined
@@ -66,8 +60,11 @@ struct FileFolderContent { // 文件夹页，不同文件夹公用一个页
     shadow: DefaultDialogShadow
   })
   searchController: SearchController = new SearchController()
-  pathStack: NavPathStack = new NavPathStack()
+  @Consume('pathStack') pathStack: NavPathStack
   private listScroller: Scroller = new Scroller();
+
+  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
+  @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
 
   async onPageShow(): Promise<void> {
     this.file_folder_list = await SelectFileUtil.getFileFolder(context)
@@ -182,36 +179,6 @@ struct FileFolderContent { // 文件夹页，不同文件夹公用一个页
   build() {
     NavDestination() {
       Column() {
-        Row({ space: 12 }) {
-          Button({ type: ButtonType.Circle, stateEffect: true }) {
-            SymbolGlyph($r('sys.symbol.arrow_left'))
-              .fontSize(20)
-              .fontColor([$r('app.color.text_color')])
-          }
-          .buttonFancy(80, 40)
-          .onClick(() => {
-            this.pathStack.pop()
-          })
-
-          Text(this.file_folder?.name)
-            .fontSize(24)
-            .fontWeight(FontWeight.Medium)
-          Button({ type: ButtonType.Circle, stateEffect: true }) {
-            SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
-              .symbolGlyphFancy(25, '', '')
-          }
-          .backdropBlur(150)
-          .buttonFancy(40, 40)
-          .bindMenu(this.SortMenuBuilder)
-        }.margin({ top: DataSyncUtil.getActuallyTopSafeHeight() })
-        .width('100%')
-        .padding({
-          left: 16,
-          right: 16,
-          top: 12,
-          bottom: 12
-        })
-        .justifyContent(FlexAlign.Start)
 
         if (this.file_folder?.video_list.length === 0) {
           Text('还没有任何视频哦~')
@@ -308,10 +275,9 @@ struct FileFolderContent { // 文件夹页，不同文件夹公用一个页
       })
       .backgroundColor($r('app.color.start_window_background'))
     }.onReady((context: NavDestinationContext) => {
-      this.pathStack = context.pathStack
       const file_folder: FileFolder = this.pathStack.getParamByName('FileFolderContent')[0] as FileFolder
       this.file_folder = file_folder
       this.videoDataSource = new FileFolderContentDataSource(this.file_folder?.video_list!);
-    }).hideTitleBar(true)
+    }).title(this.file_folder?.name || '文件夹').padding({top: this.topSafeHeight, bottom: this.bottomSafeHeight}).backgroundColor($r('app.color.start_window_background'))
   }
 }

@@ -52,18 +52,13 @@ function symbolGlyphFancy(fontSize: number) {
   .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
 }
 
-@Builder
-export function PlayerBuilder() {
-  Player()
-}
-
 const context = getContext() as common.UIAbilityContext;
 const sandbox_path = getContext().filesDir + '/'
 const sandbox_subtitle = getContext().filesDir + '/subtitle/'
 
-@Entry
+
 @Component
-struct Player { // 播放页
+export struct Player { // 播放页
   avPlayer: media.AVPlayer | undefined = undefined
   avSession: avSessionManager.AVSession | undefined = undefined;
   @State now_playing: VideoMetadataFromPlayer | undefined = undefined
@@ -119,7 +114,7 @@ struct Player { // 播放页
   @StorageLink('subtitleSize') subtitleSize: string = '22'
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
   @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
-  pathStack: NavPathStack = new NavPathStack()
+  @Consume('pathStack') pathStack: NavPathStack
   private file_folder: FileFolder = {
     name: '',
     date: '',
@@ -946,7 +941,6 @@ struct Player { // 播放页
       .sideBarPosition(SideBarPosition.End)
       .divider({ strokeWidth: 0 })
     }.onReady((context: NavDestinationContext) => {
-      this.pathStack = context.pathStack
       const playerParams: PlayerParams = this.pathStack.getParamByName('Player')[0] as PlayerParams
       try {
         this.now_playing = playerParams.metadata as VideoMetadataFromPlayer

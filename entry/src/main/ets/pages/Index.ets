@@ -3,7 +3,7 @@ import { common } from '@kit.AbilityKit';
 import { curves, SymbolGlyphModifier, window } from '@kit.ArkUI';
 import { media } from '@kit.MediaKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import DataSyncUtil from '../utils/DataSyncUtil';
+import DataSyncUtil, { oobeVersion } from '../utils/DataSyncUtil';
 import DataUtil from '../utils/DataUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import VideoUtil from '../utils/VideoInfoUtil';
@@ -24,6 +24,16 @@ import { editFileFolderNameDialog } from '../component/EditFileFolderNameDialog'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
+import ScreenUtil from '../utils/ScreenUtil';
+import { SettingsPage } from './Setting';
+import { AboutApp } from './AboutApp';
+import { FileFolderContent } from './FileFolderContent';
+import { FFMpegPlayer } from './FFMpegPlayer';
+import { Player } from './Player';
+import { RecentPlay } from './RecentPlay';
+import PreferencesUtil from '../utils/PreferencesUtil';
+import ReqPermissionUtil from '../utils/ReqPermissionUtil';
+import { PrivacyPolicyDialog } from './PrivacyInfo';
 
 const context = getContext() as common.UIAbilityContext;
 const sandbox_path = getContext().filesDir + '/'
@@ -76,8 +86,7 @@ export function IndexBuilder() {
 @Entry
 @Component
 struct Index {
-  windowClass = window.getLastWindow(context)
-  @State topSafeHeight: number = 0;
+  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @State video_meta_data: VideoMetadata[] = []
   @State video_meta_data_encryption: VideoMetadata[] = []
   @State @Watch('updateShowList') show_list: string[] = []
@@ -97,10 +106,11 @@ struct Index {
   @State MenuBuilderState: boolean = false
   @State delMultipleList: VideoMetadata[] = []
   @State file_folder_list: FileFolder[] = []
-  @State screen_width: number = 0
-  @State screen_height: number = 0
+  @StorageProp('screen_width')  screen_width: number = 0
+  @StorageProp('screen_height') screen_height: number = 0
   @State searchValue: string = ''
-  pathStack: NavPathStack = new NavPathStack()
+  @Provide('pathStack') pathStack: NavPathStack = new NavPathStack()
+
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: editMetadataDialog({
       confirm: async (title: string | undefined) => {
@@ -190,6 +200,17 @@ struct Index {
   })
   listScroller: ListScroller = new ListScroller()
   searchController: SearchController = new SearchController()
+
+  async initSetting() {
+    AppStorage.setOrCreate('allowBackgroundPlay', PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowBackgroundPlay", false) as boolean)
+    AppStorage.setOrCreate('allowPlayBackExist', PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowPlayBackExist", false) as boolean)
+    AppStorage.setOrCreate('fastForwardSeconds', PreferencesUtil.getPreferencesValue(context, "sweet_video", "fastForwardSeconds", '15') as string)
+    AppStorage.setOrCreate('recentPlay', PreferencesUtil.getPreferencesValue(context, "sweet_video", "recentPlay", true) as boolean)
+    AppStorage.setOrCreate('defaultPlayer', PreferencesUtil.getPreferencesValue(context, "sweet_video", "defaultPlayer", 'FFMpeg播放器') as string)
+    AppStorage.setOrCreate('subtitleSize', PreferencesUtil.getPreferencesValue(context, "sweet_video", "subtitleSize", '22') as string)
+    AppStorage.setOrCreate('allowDoubleFastForward', PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowDoubleFastForward", false) as boolean)
+    ReqPermissionUtil.reqPermissionsFromUser(ReqPermissionUtil.permissions, context);
+  }
 
   @Builder
   FileFolderMenu(video_item: VideoMetadata | undefined) {
@@ -489,8 +510,32 @@ struct Index {
 
   async aboutToAppear(): Promise<void> {
     SelectFileUtil.getDownloadUri()
+    ScreenUtil.init(context)
+    this.initSetting()
     this.passwd = await SelectFileUtil.getPassword(context)
     ToolsUtil.isSubtitleFileFolderExist(sandbox_video, sandbox_subtitle)
+    this.video_meta_data = await SelectFileUtil.getVideoMetaData(context)
+    this.video_meta_data_encryption = await SelectFileUtil.getVideoMetaDataEncryption(context)
+    this.show_list = this.video_meta_data.map(i => i.date)
+    this.file_folder_list = await SelectFileUtil.getFileFolder(context)
+    if(await PreferencesUtil.getPreferencesValue(context, "sweet_video", "oobeVersion", -1) as number < oobeVersion){
+      let controller = new CustomDialogController({
+        builder: PrivacyPolicyDialog({
+          cancel: ()=>{context.terminateSelf()},
+          confirm: async ()=>{
+            await PreferencesUtil.putPreferencesValue(context, "sweet_video", "oobeVersion", oobeVersion)
+            controller.close()
+          }
+        }),
+        autoCancel: false,
+        onWillDismiss: async () =>{
+          if(await PreferencesUtil.getPreferencesValue(context, "sweet_video", "oobeVersion", -1) as number < oobeVersion) context.terminateSelf()
+        }
+      })
+      setTimeout(()=>{
+        controller.open()
+      }, 1000)
+    }
   }
 
   async selectFiles() {
@@ -589,20 +634,9 @@ struct Index {
     });
   }
 
-  async getSafeHeightAndButton() {
-    await (await this.windowClass).setWindowLayoutFullScreen(true)
-    const areas = await Promise.all([
-      (await this.windowClass).getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM).topRect.height,
-      (await this.windowClass).getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR).bottomRect.height]);
-    this.topSafeHeight = px2vp(areas[0]);
-    DataSyncUtil.setTopSafeHeight(this.topSafeHeight)
-    if (this.screen_height > this.screen_width && this.topSafeHeight === 0) {
-      this.topSafeHeight = DataSyncUtil.getActuallyTopSafeHeight()!
-    }
-  }
 
   build() {
-    NavDestination() {
+    Navigation(this.pathStack) {
       SideBarContainer(SideBarContainerType.Overlay) {
         Column() {
           Scroll() {
@@ -637,7 +671,7 @@ struct Index {
                   }
                 }
                 .align(Alignment.Start)
-                .padding(10)
+                .padding({ left: 15, right: 15 })
                 .buttonFancy('100%', 60)
                 .onClick(() => {
                   this.closeSideBar(false)
@@ -657,7 +691,7 @@ struct Index {
                     }
                   }
                   .align(Alignment.Start)
-                  .padding(10)
+                  .padding({ left: 15, right: 15 })
                   .buttonFancy('100%', 60)
                   .onClick(() => {
                     this.closeSideBar(false)
@@ -688,11 +722,11 @@ struct Index {
                     }
                   }
                   .align(Alignment.Start)
-                  .padding(10)
+                  .padding({ left: 15, right: 15 })
                   .buttonFancy('100%', 60)
                   .onClick(async () => {
                     this.closeSideBar(false)
-                    this.pathStack.pushPathByName('RecentPlay', null)
+                    this.pathStack.pushPathByName('RecentPlay', true)
                   })
                 }.width('100%')
                 .justifyContent(FlexAlign.Start)
@@ -709,7 +743,7 @@ struct Index {
                     }
                   }
                   .align(Alignment.Start)
-                  .padding(10)
+                  .padding({ left: 15, right: 15 })
                   .buttonFancy('100%', 60)
                   .bindMenu(this.selectFileMenuBuilder)
                 }.width('100%')
@@ -726,7 +760,7 @@ struct Index {
                       }
                     }
                     .align(Alignment.Start)
-                    .padding(10)
+                    .padding({ left: 15, right: 15 })
                     .buttonFancy('100%', 60)
                     .onClick(() => {
                       this.addFileFolderNameDialogController.open()
@@ -758,7 +792,7 @@ struct Index {
                     .bindContextMenu(this.FileFolderSelectMenu(item), ResponseType.LongPress)
                     .height(60)
                     .align(Alignment.Start)
-                    .padding(10)
+                    .padding({ left: 15, right: 15 })
                   })
                 }
                 .borderRadius(16)
@@ -876,7 +910,7 @@ struct Index {
                           .fontWeight(FontWeight.Normal)
                           .opacity(0.8)
                       }.justifyContent(FlexAlign.Center).padding({ top: 5 })
-                    }.alignItems(HorizontalAlign.Start).padding(10).width('90%')
+                    }.alignItems(HorizontalAlign.Start).padding({ left: 15, right: 15 }).width('90%')
                   }.justifyContent(FlexAlign.Center)
                 }
                 .padding({ left: 10 })
@@ -964,6 +998,7 @@ struct Index {
                   this.openSideBar()
                 })
                 .shadowFancy()
+                .zIndex(0)
               }
 
               Search({
@@ -1009,8 +1044,11 @@ struct Index {
                   }
                 })
                 .onEditChange((isEditing: boolean) => {
-                  this.is_edit = isEditing
+                  animateToImmediately({duration: 300, curve: Curve.Ease}, ()=>{
+                    this.is_edit = isEditing
+                  })
                 })
+                .zIndex(1)
 
               if (!this.is_edit) {
                 Button({ type: ButtonType.Circle, stateEffect: true }) {
@@ -1021,6 +1059,7 @@ struct Index {
                 .buttonFancy(40, 40)
                 .bindMenu(this.SortMenuBuilder)
                 .shadowFancy()
+                .zIndex(0)
 
                 if (this.multipleChooseState === Visibility.Visible) {
                   Button({ type: ButtonType.Circle, stateEffect: true }) {
@@ -1031,6 +1070,7 @@ struct Index {
                   .buttonFancy(40, 40)
                   .bindMenu(this.SelectItemMenuBuilder)
                   .shadowFancy()
+                  .zIndex(0)
                 }
               }
             }
@@ -1054,9 +1094,6 @@ struct Index {
           .animation({ duration: 150, curve: Curve.Sharp })
         }.backgroundColor($r('app.color.start_window_background'))
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
-          this.screen_width = Math.floor(new Number(newValue.width).valueOf())
-          this.screen_height = Math.floor(new Number(newValue.height).valueOf())
-          await this.getSafeHeightAndButton()
           this.list_line = Math.floor(new Number(newValue.width).valueOf() / 500 + 1)
           this.list_empty_item = []
           for (let i = 1; i <= this.list_line; i++) {
@@ -1088,32 +1125,45 @@ struct Index {
           this.closeSideBar(true)
         }
       }))
-    }.onReady(async (navigation_context: NavDestinationContext) => {
-      this.pathStack = navigation_context.pathStack
-      this.video_meta_data = await SelectFileUtil.getVideoMetaData(context)
-      this.video_meta_data_encryption = await SelectFileUtil.getVideoMetaDataEncryption(context)
-      this.show_list = this.video_meta_data.map(i => i.date)
-      this.file_folder_list = await SelectFileUtil.getFileFolder(context)
-    }).hideTitleBar(true).onBackPressed(() => {
-      if (this.multipleChooseState === Visibility.Visible) {
-        this.closeMultipleChoose()
-        return true
-      }
-      if (this.sideBarStatusTmp === Visibility.Visible) {
-        this.closeSideBar(true)
-        return true
-      }
-      // 如果是隐私空间首页，则退出隐私空间
-      if (this.encryption) {
-        this.encryption = false
-        // 退出隐私空间时清空密码
-        this.searchValue = ''
-        return true
-      }
-      // 首页响应系统返回手势，退出app
-      context.terminateSelf()
-      return false
-    })
+    }.hideTitleBar(true).mode(NavigationMode.Stack).navDestination(this.Pages)
+  }
+
+  @Builder
+  Pages(name: string){
+    if(name == 'SettingsPage'){
+      SettingsPage()
+    }else if(name == 'AboutPage'){
+      AboutApp()
+    }else if(name == 'FileFolderContent'){
+      FileFolderContent()
+    }else if(name == 'Player'){
+      Player()
+    }else if(name == 'FFMpegPlayer'){
+      FFMpegPlayer()
+    }else if(name == 'RecentPlay'){
+      RecentPlay()
+    }
+  }
+
+  onBackPress(): boolean | void {
+    if (this.multipleChooseState === Visibility.Visible) {
+      this.closeMultipleChoose()
+      return true
+    }
+    if (this.sideBarStatusTmp === Visibility.Visible) {
+      this.closeSideBar(true)
+      return true
+    }
+    // 如果是隐私空间首页，则退出隐私空间
+    if (this.encryption) {
+      this.encryption = false
+      // 退出隐私空间时清空密码
+      this.searchValue = ''
+      return true
+    }
+    // 首页响应系统返回手势，退出app
+    context.terminateSelf()
+    return false
   }
 
   @Builder
@@ -1164,6 +1214,6 @@ struct Index {
             SelectFileUtil.copyFile(item, context)
           })
       }
-    }.padding(10).justifyContent(FlexAlign.SpaceEvenly)
+    }.padding({ left: 15, right: 15 }).justifyContent(FlexAlign.SpaceEvenly)
   }
 }

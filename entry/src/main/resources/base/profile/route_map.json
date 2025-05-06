@@ -4,41 +4,6 @@
       "name": "Index",
       "pageSourceFile": "src/main/ets/pages/Index.ets",
       "buildFunction": "IndexBuilder"
-    },
-    {
-      "name": "AboutApp",
-      "pageSourceFile": "src/main/ets/pages/AboutApp.ets",
-      "buildFunction": "AboutAppBuilder"
-    },
-    {
-      "name": "SettingsPage",
-      "pageSourceFile": "src/main/ets/pages/Setting.ets",
-      "buildFunction": "SettingsPageBuilder"
-    },
-    {
-      "name": "PrivacyInfo",
-      "pageSourceFile": "src/main/ets/pages/PrivacyInfo.ets",
-      "buildFunction": "PrivacyInfoBuilder"
-    },
-    {
-      "name": "FileFolderContent",
-      "pageSourceFile": "src/main/ets/pages/FileFolderContent.ets",
-      "buildFunction": "FileFolderContentBuilder"
-    },
-    {
-      "name": "RecentPlay",
-      "pageSourceFile": "src/main/ets/pages/RecentPlay.ets",
-      "buildFunction": "RecentPlayBuilder"
-    },
-    {
-      "name": "Player",
-      "pageSourceFile": "src/main/ets/pages/Player.ets",
-      "buildFunction": "PlayerBuilder"
-    },
-    {
-      "name": "FFMpegPlayer",
-      "pageSourceFile": "src/main/ets/pages/FFMpegPlayer.ets",
-      "buildFunction": "FFMpegPlayerBuilder"
     }
   ]
 }

@@ -58,12 +58,11 @@ export default class EntryAbility extends UIAbility {
     // Main window is created, set main page for this ability
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
     // 进入启动页
-    windowStage.loadContent('pages/PrivacyInfo', (err) => {
+    windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
         hilog.error(0x0000, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err) ?? '');
         return;
       }
-      WindowUtil.getInstance().setWindowStage(windowStage);
       AppStorage.setOrCreate('windowStage', windowStage);
       windowStage.getMainWindowSync().setWindowBackgroundColor('#DCDCDC'); // 配置窗口整体底色
       hilog.info(0x0000, 'testTag', 'Succeeded in loading the content.');

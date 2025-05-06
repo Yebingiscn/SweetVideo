@@ -34,16 +34,11 @@ import { FileFolder } from '../interfaces/FileFolderInterface'
 import VideoInfoUtil from '../utils/VideoInfoUtil'
 
 
-@Builder
-export function FFMpegPlayerBuilder() {
-  FFMpegPlayer()
-}
-
 const context = getContext() as common.UIAbilityContext;
 
-@Entry
+
 @Component
-struct FFMpegPlayer { // FFMpeg播放器页
+export struct FFMpegPlayer { // FFMpeg播放器页
   avSession: avSessionManager.AVSession | undefined = undefined;
   @State play_area_height: number = 1
   @State play_area_width: number = 1
@@ -89,7 +84,7 @@ struct FFMpegPlayer { // FFMpeg播放器页
   @State video_meta_data: VideoMetadata[] = []
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
   @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
-  pathStack: NavPathStack = new NavPathStack()
+  @Consume('pathStack') pathStack: NavPathStack
   private initPinchDistance: number = 0;
   private CONTROL_PlayStatus = PlayStatus.INIT;
   private mIjkMediaPlayer = IjkMediaPlayer.getInstance();
@@ -440,7 +435,6 @@ struct FFMpegPlayer { // FFMpeg播放器页
       })
       .backgroundColor($r('sys.color.black'))
     }.onReady((context: NavDestinationContext) => {
-      this.pathStack = context.pathStack
       const playerParams: PlayerParams = this.pathStack.getParamByName('FFMpegPlayer')[0] as PlayerParams
       try {
         this.now_playing = playerParams.metadata as VideoMetadataFromPlayer
