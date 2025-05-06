@@ -1,0 +1,148 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "模块描述"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "流心视频"
+    },
+    {
+      "name": "sure",
+      "value": "确定"
+    },
+    {
+      "name": "cancel",
+      "value": "取消"
+    },
+    {
+      "name": "rename",
+      "value": "重命名"
+    },
+    {
+      "name": "search",
+      "value": "搜索"
+    },
+    {
+      "name": "set_passwd",
+      "value": "设置密码 (/▽＼)"
+    },
+    {
+      "name": "enter_privacy_space",
+      "value": "已进入隐私空间"
+    },
+    {
+      "name": "set_passwd_tip",
+      "value": "密码已更改！在搜索框输入密码即可进入隐私空间"
+    },
+    {
+      "name": "nothing",
+      "value": "还没有视频捏 (～￣▽￣)～"
+    },
+    {
+      "name": "add_video_first",
+      "value": "请先添加视频 ;)"
+    },
+    {
+      "name": "close_rotation_lock",
+      "value": "旋转锁定已关闭"
+    },
+    {
+      "name": "open_rotation_lock",
+      "value": "旋转锁定已开启"
+    },
+    {
+      "name": "no_search_result",
+      "value": "无搜索结果 ╯︿╰"
+    },
+    {
+      "name": "unknown_size",
+      "value": "未知大小"
+    },
+    {
+      "name": "del_confirm",
+      "value": "是否删除视频？"
+    },
+    {
+      "name": "edit",
+      "value": "编辑"
+    },
+    {
+      "name": "delete",
+      "value": "删除"
+    },
+    {
+      "name": "import_from_files",
+      "value": "从文件管理器导入"
+    },
+    {
+      "name": "import_from_album",
+      "value": "从相册导入"
+    },
+    {
+      "name": "open_side_bar_tip",
+      "value": "右滑屏幕来添加视频吧！ヾ(•ω•`)o"
+    },
+    {
+      "name": "unknown_resolution",
+      "value": "未知分辨率"
+    },
+    {
+      "name": "video_error",
+      "value": "尝试使用FFMpeg播放器播放＞﹏＜"
+    },
+    {
+      "name": "add_time_info",
+      "value": "视频已经导入进来了！导入视频数："
+    },
+    {
+      "name": "privacy_space",
+      "value": "隐私空间"
+    },
+    {
+      "name": "search_placeholder",
+      "value": "搜索标题..."
+    },
+    {
+      "name": "sort_by_name",
+      "value": "按名称"
+    },
+    {
+      "name": "sort_by_time",
+      "value": "按添加时间"
+    },
+    {
+      "name": "multiple_choice",
+      "value": "多选"
+    },
+    {
+      "name": "select_all",
+      "value": "全选"
+    },
+    {
+      "name": "delete_selected",
+      "value": "删除所选"
+    },
+    {
+      "name": "FFMpeg_Player",
+      "value": "FFMpeg 播放器"
+    },
+    {
+      "name": "re_import_info",
+      "value": "已失效（源视频可能已经被移动或者改名），请重新导入"
+    },
+    {
+      "name": "exit_privacy_space",
+      "value": "退出隐私空间"
+    },
+    {
+      "name": "privacy_space_info",
+      "value": "长按隐私空间按钮即可重新设置密码 \n 从输入框输入密码即可进入隐私空间 \n 这里导入视频会被复制应用私有目录下"
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "color": [
+    {
+      "name": "start_window_background",
+      "value": "#f0f0f0"
+    },
+    {
+      "name": "start_window_background_blur",
+      "value": "#c0ffffff"
+    },
+    {
+      "name": "shadow_color",
+      "value": "#33000000"
+    },
+    {
+      "name": "sidebar_background_color",
+      "value": "#f0f0f0"
+    },
+    {
+      "name": "text_color",
+      "value": "#202020"
+    },
+    {
+      "name": "list_item_background",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "custom_dialog_background_blur",
+      "value": "#30ffffff"
+    },
+    {
+      "name": "main_color",
+      "value": "#103fb6"
+    }
+  ]
+}

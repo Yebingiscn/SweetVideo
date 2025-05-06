@@ -1,0 +1,148 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "module description"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "流心视频"
+    },
+    {
+      "name": "sure",
+      "value": "Sure"
+    },
+    {
+      "name": "cancel",
+      "value": "Cancel"
+    },
+    {
+      "name": "rename",
+      "value": "Rename"
+    },
+    {
+      "name": "search",
+      "value": "Search"
+    },
+    {
+      "name": "set_passwd",
+      "value": "Set password"
+    },
+    {
+      "name": "enter_privacy_space",
+      "value": "Entered privacy space"
+    },
+    {
+      "name": "set_passwd_tip",
+      "value": "Password has been changed! Enter the password in the search box to enter the privacy space"
+    },
+    {
+      "name": "nothing",
+      "value": "Nothing."
+    },
+    {
+      "name": "add_video_first",
+      "value": "add video first"
+    },
+    {
+      "name": "open_rotation_lock",
+      "value": "rotation lock opened"
+    },
+    {
+      "name": "close_rotation_lock",
+      "value": "rotation lock closed"
+    },
+    {
+      "name": "no_search_result",
+      "value": "no search result"
+    },
+    {
+      "name": "unknown_size",
+      "value": "unknown size"
+    },
+    {
+      "name": "del_confirm",
+      "value": "Do you want to delete the video?"
+    },
+    {
+      "name": "edit",
+      "value": "Edit"
+    },
+    {
+      "name": "delete",
+      "value": "Delete"
+    },
+    {
+      "name": "import_from_files",
+      "value": "Import from files"
+    },
+    {
+      "name": "import_from_album",
+      "value": "Import from albums"
+    },
+    {
+      "name": "open_side_bar_tip",
+      "value": "Swipe left or click the button in the top left corner to add the first video!"
+    },
+    {
+      "name": "unknown_resolution",
+      "value": "Unknown"
+    },
+    {
+      "name": "video_error",
+      "value": "Video exception, try to play using FFMpeg player"
+    },
+    {
+      "name": "add_time_info",
+      "value": "Adding videos, please wait ~"
+    },
+    {
+      "name": "privacy_space",
+      "value": "privacy space"
+    },
+    {
+      "name": "search_placeholder",
+      "value": "Search Title..."
+    },
+    {
+      "name": "sort_by_name",
+      "value": "Sort by name"
+    },
+    {
+      "name": "sort_by_time",
+      "value": "Sort by add time"
+    },
+    {
+      "name": "multiple_choice",
+      "value": "Multiple choice"
+    },
+    {
+      "name": "select_all",
+      "value": "Select All"
+    },
+    {
+      "name": "delete_selected",
+      "value": "Delete Selected"
+    },
+    {
+      "name": "FFMpeg_Player",
+      "value": "FFMpeg  Player"
+    },
+    {
+      "name": "re_import_info",
+      "value": "Please re-import if it has been invalidated"
+    },
+    {
+      "name": "exit_privacy_space",
+      "value": "Exit privacy space"
+    },
+    {
+      "name": "privacy_space_info",
+      "value": "Long press the privacy space button to reset the password \n and enter the password in the input box to access the privacy space."
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "src": [
+    "pages/Index",
+    "pages/Player",
+    "pages/FFMpegPlayer",
+    "pages/AboutApp",
+    "pages/PrivacyInfo",
+    "pages/Setting",
+    "pages/RecentPlay",
+    "pages/FileFolderContent"
+  ]
+}
