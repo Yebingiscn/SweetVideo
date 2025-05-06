@@ -52,7 +52,7 @@ export struct RecentPlay { // 最近播放页
       }.padding(10).onClick(async () => {
         this.MenuBuilderState = false
         await ToolsUtil.isFileExist(item) ?
-        ToolsUtil.routerWhere(this.pathStack, context, 'FFMpegPlayer', item?.date!, false) :
+        ToolsUtil.routerWhere(this.pathStack, context, 'FFMpegPlayer', item?.date!, this.recent_video_meta_data, false) :
         this.delData(context, item!)
       })
 
@@ -118,7 +118,7 @@ export struct RecentPlay { // 最近播放页
                   }
                   .onClick(async () => {
                     await ToolsUtil.isFileExist(item) ?
-                    ToolsUtil.routerWhere(this.pathStack, context, 'Player', item.date, false) :
+                    ToolsUtil.routerWhere(this.pathStack, context, 'Player', item.date, this.recent_video_meta_data, false) :
                     this.delData(context, item)
                   })
                   .width('100%')

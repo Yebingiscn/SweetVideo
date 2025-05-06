@@ -145,7 +145,7 @@ class ToolsUtil {
   // 点击视频跳转到播放器
   async routerWhere(pathStack: NavPathStack, context: Context, uri: string, item: string, list: VideoMetadata[],
     encryption: boolean) {
-    const recentPlay = await PreferencesUtil.getPreferencesValue(context, "sweet_video", "recentPlay", true) as boolean
+    const recentPlay = PreferencesUtil.getPreferencesValue(context, "sweet_video", "recentPlay", true) as boolean
     if (!encryption && recentPlay) {
       RecentPlayUtil.addPlayback(context, list.find(i => i.date === item)!)
     }
