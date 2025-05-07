@@ -3,11 +3,12 @@ import { Context } from '@kit.AbilityKit'
 import { settings } from '@kit.BasicServicesKit'
 
 class Screen {
-
   isInit: boolean = false
 
   init(context: Context) {
-    if(this.isInit) return
+    if (this.isInit) {
+      return
+    }
     window.getLastWindow(context).then((windowClass) => {
       this.isInit = true
       windowClass.setWindowLayoutFullScreen(true)
@@ -36,10 +37,12 @@ class Screen {
   async updateAvoidArea(windowClass: window.Window) {
     animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
       AppStorage.setOrCreate('topSafeHeight',
-        px2vp(Math.max(windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR).topRect.height , windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM).topRect.height) +
+        px2vp(Math.max(windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR).topRect.height,
+          windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM).topRect.height) +
           (AppStorage.get('pcMode') as boolean | undefined ? windowClass.getWindowDecorHeight() * 1.2 : 0)))
       AppStorage.setOrCreate('bottomSafeHeight',
-        px2vp(Math.max(windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR).bottomRect.height, windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM).bottomRect.height * 1.2)))
+        px2vp(Math.max(windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR).bottomRect.height,
+          windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM).bottomRect.height * 1.2)))
       AppStorage.setOrCreate('leftSafeHeight',
         px2vp(windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_CUTOUT).leftRect.width * 1.2))
       AppStorage.setOrCreate('rightSafeHeight',
@@ -83,14 +86,16 @@ class Screen {
 
   updateListEmpty(maxColumns: number) {
     let list_empty_item: number[] = []
-    let list_line = Math.max(Math.min(Math.floor((AppStorage.get('screen_width') as number | undefined || 0) / 230), maxColumns + 1), AppStorage.get('force_list_style')? 2: 1)
+    let list_line =
+      Math.max(Math.min(Math.floor((AppStorage.get('screen_width') as number | undefined || 0) / 230), maxColumns + 1),
+        AppStorage.get('force_list_style') ? 2 : 1)
     for (let i = 0; i < list_line; i++) {
       list_empty_item.push(i)
     }
-    setTimeout(()=>{
+    setTimeout(() => {
       AppStorage.setOrCreate('list_line', list_line)
       AppStorage.setOrCreate('list_empty_item', list_empty_item)
-    },100)
+    }, 100)
 
   }
 }

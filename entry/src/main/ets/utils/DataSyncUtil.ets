@@ -20,4 +20,4 @@ class DataSyncUtil {
 
 export default new DataSyncUtil();
 
-export const oobeVersion = 0
+export const OOBEVersion = 0

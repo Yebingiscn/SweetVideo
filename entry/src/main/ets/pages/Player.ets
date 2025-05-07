@@ -326,18 +326,18 @@ export struct Player { // 播放页
           break;
         case 'prepared':
           await this.getAudioTrack()
-          this.avPlayer?.play();
-          this.updatePlaybackSpeed(this.speed)
-          this.showControl = false
-          this.lockVisibility = false
-          this.isSliderPlayTimeChange = false
-          this.onSwiping = false
           if (this.now_playing?.last_play !== 0 && this.now_playing?.last_play! < this.now_playing?.time! * 0.9) {
             this.avPlayer?.seek(this.now_playing?.last_play, media.SeekMode.SEEK_CLOSEST)
             if (VideoOperateUtil.mIjkMediaPlayerActive) {
               this.mIjkMediaPlayer.seekTo(this.now_playing?.last_play.toString())
             }
           }
+          this.avPlayer?.play();
+          this.updatePlaybackSpeed(this.speed)
+          this.showControl = false
+          this.lockVisibility = false
+          this.isSliderPlayTimeChange = false
+          this.onSwiping = false
           break;
         case 'completed':
           if (this.circle_play) {

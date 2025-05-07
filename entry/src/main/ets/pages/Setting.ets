@@ -1,6 +1,6 @@
 import PreferencesUtil from '../utils/PreferencesUtil';
-import DataSyncUtil from '../utils/DataSyncUtil';
 import { common } from '@kit.AbilityKit';
+import SelectFileUtil from '../utils/SelectFileUtil';
 
 const context = getContext() as common.UIAbilityContext;
 
@@ -25,123 +25,123 @@ export struct SettingsPage { //设置页
 
   build() {
     NavDestination() {
-
-        List() {
-          ListItem(){
-            SettingsClickItem({
-              symbol: $r('sys.symbol.info_circle'),
-              message: '关于此应用',
-              onPress: ()=>{
-                this.pathStack.pushPathByName('AboutPage', true)
-              }
-            })
-          }
-
-          ListItem(){
-            SettingsToggleItem({
-              symbol: $r('sys.symbol.play'),
-              message: '后台播放',
-              enable: this.allowBackgroundPlay,
-              onChange: (checked: boolean)=>{
-                this.allowBackgroundPlay = checked
-                PreferencesUtil.putPreferencesValue(context, "sweet_video", "allowBackgroundPlay",
-                  this.allowBackgroundPlay)
-              }
-            })
-          }
-
-          ListItem(){
-            SettingsToggleItem({
-              symbol: $r('sys.symbol.arrow_left'),
-              message: '播放器使用返回手势直接退出',
-              enable: this.allowPlayBackExist,
-              onChange: (checked: boolean)=>{
-                this.allowPlayBackExist = checked
-                PreferencesUtil.putPreferencesValue(context, "sweet_video", "allowPlayBackExist",
-                  this.allowPlayBackExist)
-              }
-            })
-          }
-
-          ListItem(){
-            SettingsToggleItem({
-              symbol: $r('sys.symbol.hand_draw'),
-              message: '启用双击屏幕两边快进（后退）',
-              enable: this.allowDoubleFastForward,
-              onChange: (checked: boolean)=>{
-                this.allowDoubleFastForward = checked
-                PreferencesUtil.putPreferencesValue(context, "sweet_video", "allowDoubleFastForward",
-                  this.allowDoubleFastForward)
-              }
-            })
-          }
-
-          ListItem(){
-            SettingsToggleItem({
-              symbol: $r('sys.symbol.doc_text_badge_clock'),
-              message: '开启历史记录',
-              enable: this.recentPlay,
-              onChange: async (checked: boolean)=>{
-                this.recentPlay = checked
-                if (!this.recentPlay) {
-                  await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_play', []);
-                }
-                PreferencesUtil.putPreferencesValue(context, "sweet_video", "recentPlay", this.recentPlay)
-              }
-            })
-          }
-
-          ListItem(){
-            SettingsMenuItem({
-              symbol: $r('sys.symbol.fast_forward'),
-              message: '快进快退时长',
-              list: ['15秒', '30秒', '60秒', '120秒'],
-              selected: ['15', '30', '60', '120'].findIndex(i => i == this.fastForwardSeconds),
-              onChange: (index: number)=>{
-                this.fastForwardSeconds = ['15', '30', '60', '120'][index]
-                PreferencesUtil.putPreferencesValue(context, "sweet_video", "fastForwardSeconds",
-                  this.fastForwardSeconds)
-              }
-            })
-          }
-
-          ListItem(){
-            SettingsMenuItem({
-              symbol: $r('sys.symbol.play_round_rectangle'),
-              message: '外链默认播放器',
-              list: ['系统播放器', 'FFMpeg播放器'],
-              selected: ['系统播放器', 'FFMpeg播放器'].findIndex(i => i == this.defaultPlayer),
-              onChange: (index: number)=>{
-                this.defaultPlayer = ['系统播放器', 'FFMpeg播放器'][index]
-                PreferencesUtil.putPreferencesValue(context, "sweet_video", "defaultPlayer", this.defaultPlayer)
-              }
-            })
-          }
-
-          ListItem(){
-            SettingsMenuItem({
-              symbol: $r('sys.symbol.textformat_size_square'),
-              message: '字幕字体大小',
-              list: this.subtitleSizeList,
-              selected: this.subtitleSizeList.findIndex(i => i == this.subtitleSize),
-              onChange: (index: number)=>{
-                this.subtitleSize = this.subtitleSizeList[index]
-                PreferencesUtil.putPreferencesValue(context, "sweet_video", "subtitleSize", this.subtitleSize)
-              }
-            })
-          }
-
+      List() {
+        ListItem() {
+          SettingsClickItem({
+            symbol: $r('sys.symbol.info_circle'),
+            message: '关于此应用',
+            onPress: () => {
+              this.pathStack.pushPathByName('AboutPage', true)
+            }
+          })
         }
-        .align(Alignment.Top)
-        .borderRadius(20)
-        .margin({left: 16, right: 16})
-        .clip(true)
-        .scrollBar(BarState.Off)
-        .height('100%')
-        .layoutWeight(1)
+
+        ListItem() {
+          SettingsToggleItem({
+            symbol: $r('sys.symbol.play'),
+            message: '后台播放',
+            enable: this.allowBackgroundPlay,
+            onChange: (checked: boolean) => {
+              this.allowBackgroundPlay = checked
+              PreferencesUtil.putPreferencesValue(context, "sweet_video", "allowBackgroundPlay",
+                this.allowBackgroundPlay)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsToggleItem({
+            symbol: $r('sys.symbol.arrow_left'),
+            message: '播放器使用返回手势直接退出',
+            enable: this.allowPlayBackExist,
+            onChange: (checked: boolean) => {
+              this.allowPlayBackExist = checked
+              PreferencesUtil.putPreferencesValue(context, "sweet_video", "allowPlayBackExist",
+                this.allowPlayBackExist)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsToggleItem({
+            symbol: $r('sys.symbol.hand_draw'),
+            message: '启用双击屏幕两边快进（后退）',
+            enable: this.allowDoubleFastForward,
+            onChange: (checked: boolean) => {
+              this.allowDoubleFastForward = checked
+              PreferencesUtil.putPreferencesValue(context, "sweet_video", "allowDoubleFastForward",
+                this.allowDoubleFastForward)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsToggleItem({
+            symbol: $r('sys.symbol.doc_text_badge_clock'),
+            message: '开启历史记录',
+            enable: this.recentPlay,
+            onChange: async (checked: boolean) => {
+              this.recentPlay = checked
+              if (!this.recentPlay) {
+                await SelectFileUtil.saveRecentPlay(context, [])
+              }
+              PreferencesUtil.putPreferencesValue(context, "sweet_video", "recentPlay", this.recentPlay)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsMenuItem({
+            symbol: $r('sys.symbol.fast_forward'),
+            message: '快进快退时长',
+            list: ['15秒', '30秒', '60秒', '120秒'],
+            selected: ['15', '30', '60', '120'].findIndex(i => i == this.fastForwardSeconds),
+            onChange: (index: number) => {
+              this.fastForwardSeconds = ['15', '30', '60', '120'][index]
+              PreferencesUtil.putPreferencesValue(context, "sweet_video", "fastForwardSeconds",
+                this.fastForwardSeconds)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsMenuItem({
+            symbol: $r('sys.symbol.play_round_rectangle'),
+            message: '外链默认播放器',
+            list: ['系统播放器', 'FFMpeg播放器'],
+            selected: ['系统播放器', 'FFMpeg播放器'].findIndex(i => i == this.defaultPlayer),
+            onChange: (index: number) => {
+              this.defaultPlayer = ['系统播放器', 'FFMpeg播放器'][index]
+              PreferencesUtil.putPreferencesValue(context, "sweet_video", "defaultPlayer", this.defaultPlayer)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsMenuItem({
+            symbol: $r('sys.symbol.textformat_size_square'),
+            message: '字幕字体大小',
+            list: this.subtitleSizeList,
+            selected: this.subtitleSizeList.findIndex(i => i == this.subtitleSize),
+            onChange: (index: number) => {
+              this.subtitleSize = this.subtitleSizeList[index]
+              PreferencesUtil.putPreferencesValue(context, "sweet_video", "subtitleSize", this.subtitleSize)
+            }
+          })
+        }
+
+      }
+      .align(Alignment.Top)
+      .borderRadius(20)
+      .margin({ left: 16, right: 16 })
+      .clip(true)
+      .scrollBar(BarState.Off)
+      .height('100%')
+      .width('95%')
+      .layoutWeight(1)
     }.hideToolBar(true).title('设置')
     .backgroundColor($r('app.color.start_window_background'))
-    .padding({top: this.topSafeHeight, bottom: this.bottomSafeHeight})
+    .padding({ top: this.topSafeHeight, bottom: this.bottomSafeHeight })
   }
 }
 
@@ -152,12 +152,13 @@ export struct SettingsClickItem {
   @StorageProp('disable_blur') disable_blur: boolean = false
   @Prop showArrow: boolean = true
   @StorageProp('vipState') vipState: boolean = false
-  onPress = () => {}
-
-  onLongPress = () => {}
+  onPress = () => {
+  }
+  onLongPress = () => {
+  }
 
   build() {
-    Button({type: ButtonType.Normal, stateEffect: true}) {
+    Button({ type: ButtonType.Normal, stateEffect: true }) {
 
       Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
         Row({ space: 10 }) {
@@ -177,7 +178,7 @@ export struct SettingsClickItem {
             .layoutWeight(1)
         }.layoutWeight(1)
 
-        if(this.showArrow){
+        if (this.showArrow) {
           SymbolGlyph($r('sys.symbol.chevron_right'))
             .fontSize(22)
             .fontColor([$r('app.color.text_color')])
@@ -192,7 +193,7 @@ export struct SettingsClickItem {
     .onClick(() => {
       this.onPress()
     })
-    .gesture(LongPressGesture().onAction(()=>{
+    .gesture(LongPressGesture().onAction(() => {
       this.onLongPress()
     }))
     .backgroundColor($r('app.color.start_window_background_blur'))
@@ -215,8 +216,8 @@ export struct SettingsToggleItem {
   @State message: ResourceStr = ''
   @StorageProp('disable_blur') disable_blur: boolean = false
   @Prop enable: boolean = false
-
   onChange = (checked: boolean) => {
+    console.log(checked + '') // 无实际作用，只是消除未使用警告
   }
 
   build() {
@@ -268,6 +269,7 @@ export struct SettingsMenuItem {
   @State list: string[] = []
   @State private select: SelectOption[] = []
   onChange = (index: number) => {
+    console.log(index.toString()); // 无实际作用，只是消除未使用警告
   }
 
   aboutToAppear(): void {
@@ -298,8 +300,8 @@ export struct SettingsMenuItem {
           .value(this.list[this.selected])
           .selectedOptionFont({ weight: FontWeight.Medium })
           .selectedOptionFontColor($r('app.color.main_color'))
-          .selectedOptionBgColor('#00000000')
-          .onSelect((index: number, value: string) => {
+          .selectedOptionBgColor($r('sys.color.button_background_color_transparent'))
+          .onSelect((index: number) => {
             this.selected = index
             this.onChange(index)
           })

@@ -1,10 +1,7 @@
-import PreferencesUtil from '../utils/PreferencesUtil';
 import { common } from '@kit.AbilityKit';
 import WantProcessUtil from '../utils/WantProcessUtil';
-import ReqPermissionUtil from '../utils/ReqPermissionUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 
-const context = getContext() as common.UIAbilityContext;
 
 @CustomDialog
 @Component

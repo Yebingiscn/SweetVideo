@@ -1,9 +1,9 @@
 import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
 import { common } from '@kit.AbilityKit';
-import { curves, SymbolGlyphModifier, window } from '@kit.ArkUI';
+import { curves, SymbolGlyphModifier } from '@kit.ArkUI';
 import { media } from '@kit.MediaKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import DataSyncUtil, { oobeVersion } from '../utils/DataSyncUtil';
+import DataSyncUtil, { OOBEVersion } from '../utils/DataSyncUtil';
 import DataUtil from '../utils/DataUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import VideoUtil from '../utils/VideoInfoUtil';
@@ -12,6 +12,7 @@ import { delConfirmDialog } from '../component/DelConfirmDialog';
 import { editPasswordDialog } from '../component/EditPasswordDialog';
 import { editMetadataDialog } from '../component/EditMetadataDialog';
 import ReqPermission from '../utils/ReqPermissionUtil';
+import ReqPermissionUtil from '../utils/ReqPermissionUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { JSON } from '@kit.ArkTS';
 import { VideoDetailDialog } from '../component/VideoDetailDialog';
@@ -32,7 +33,6 @@ import { FFMpegPlayer } from './FFMpegPlayer';
 import { Player } from './Player';
 import { RecentPlay } from './RecentPlay';
 import PreferencesUtil from '../utils/PreferencesUtil';
-import ReqPermissionUtil from '../utils/ReqPermissionUtil';
 import { PrivacyPolicyDialog } from './PrivacyInfo';
 
 const context = getContext() as common.UIAbilityContext;
@@ -106,11 +106,10 @@ struct Index {
   @State MenuBuilderState: boolean = false
   @State delMultipleList: VideoMetadata[] = []
   @State file_folder_list: FileFolder[] = []
-  @StorageProp('screen_width')  screen_width: number = 0
+  @StorageProp('screen_width') screen_width: number = 0
   @StorageProp('screen_height') screen_height: number = 0
   @State searchValue: string = ''
   @Provide('pathStack') pathStack: NavPathStack = new NavPathStack()
-
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: editMetadataDialog({
       confirm: async (title: string | undefined) => {
@@ -202,13 +201,20 @@ struct Index {
   searchController: SearchController = new SearchController()
 
   async initSetting() {
-    AppStorage.setOrCreate('allowBackgroundPlay', PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowBackgroundPlay", false) as boolean)
-    AppStorage.setOrCreate('allowPlayBackExist', PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowPlayBackExist", false) as boolean)
-    AppStorage.setOrCreate('fastForwardSeconds', PreferencesUtil.getPreferencesValue(context, "sweet_video", "fastForwardSeconds", '15') as string)
-    AppStorage.setOrCreate('recentPlay', PreferencesUtil.getPreferencesValue(context, "sweet_video", "recentPlay", true) as boolean)
-    AppStorage.setOrCreate('defaultPlayer', PreferencesUtil.getPreferencesValue(context, "sweet_video", "defaultPlayer", 'FFMpeg播放器') as string)
-    AppStorage.setOrCreate('subtitleSize', PreferencesUtil.getPreferencesValue(context, "sweet_video", "subtitleSize", '22') as string)
-    AppStorage.setOrCreate('allowDoubleFastForward', PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowDoubleFastForward", false) as boolean)
+    AppStorage.setOrCreate('allowBackgroundPlay',
+      PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowBackgroundPlay", false) as boolean)
+    AppStorage.setOrCreate('allowPlayBackExist',
+      PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowPlayBackExist", false) as boolean)
+    AppStorage.setOrCreate('fastForwardSeconds',
+      PreferencesUtil.getPreferencesValue(context, "sweet_video", "fastForwardSeconds", '15') as string)
+    AppStorage.setOrCreate('recentPlay',
+      PreferencesUtil.getPreferencesValue(context, "sweet_video", "recentPlay", true) as boolean)
+    AppStorage.setOrCreate('defaultPlayer',
+      PreferencesUtil.getPreferencesValue(context, "sweet_video", "defaultPlayer", 'FFMpeg播放器') as string)
+    AppStorage.setOrCreate('subtitleSize',
+      PreferencesUtil.getPreferencesValue(context, "sweet_video", "subtitleSize", '22') as string)
+    AppStorage.setOrCreate('allowDoubleFastForward',
+      PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowDoubleFastForward", false) as boolean)
     ReqPermissionUtil.reqPermissionsFromUser(ReqPermissionUtil.permissions, context);
   }
 
@@ -287,7 +293,8 @@ struct Index {
               return
             }
             await ToolsUtil.isFileExist(target_item) ?
-            ToolsUtil.routerWhere(this.pathStack, context, 'FFMpegPlayer', item?.date!, this.encryption ? this.video_meta_data_encryption : this.video_meta_data, this.encryption) :
+            ToolsUtil.routerWhere(this.pathStack, context, 'FFMpegPlayer', item?.date!,
+              this.encryption ? this.video_meta_data_encryption : this.video_meta_data, this.encryption) :
             this.deleteUnExistFile(target_item)
           }, 200)
         })
@@ -518,21 +525,26 @@ struct Index {
     this.video_meta_data_encryption = await SelectFileUtil.getVideoMetaDataEncryption(context)
     this.show_list = this.video_meta_data.map(i => i.date)
     this.file_folder_list = await SelectFileUtil.getFileFolder(context)
-    if(await PreferencesUtil.getPreferencesValue(context, "sweet_video", "oobeVersion", -1) as number < oobeVersion){
+    if (PreferencesUtil.getPreferencesValue(context, "sweet_video", "OOBEVersion", -1) as number < OOBEVersion) {
       let controller = new CustomDialogController({
         builder: PrivacyPolicyDialog({
-          cancel: ()=>{context.terminateSelf()},
-          confirm: async ()=>{
-            await PreferencesUtil.putPreferencesValue(context, "sweet_video", "oobeVersion", oobeVersion)
+          cancel: () => {
+            context.terminateSelf()
+          },
+          confirm: async () => {
+            PreferencesUtil.putPreferencesValue(context, "sweet_video", "OOBEVersion", OOBEVersion)
             controller.close()
           }
         }),
         autoCancel: false,
-        onWillDismiss: async () =>{
-          if(await PreferencesUtil.getPreferencesValue(context, "sweet_video", "oobeVersion", -1) as number < oobeVersion) context.terminateSelf()
+        onWillDismiss: async () => {
+          if (PreferencesUtil.getPreferencesValue(context, "sweet_video", "OOBEVersion", -1) as number <
+            OOBEVersion) {
+            context.terminateSelf()
+          }
         }
       })
-      setTimeout(()=>{
+      setTimeout(() => {
         controller.open()
       }, 1000)
     }
@@ -633,7 +645,6 @@ struct Index {
       this.deleteItem(resolve, reject);
     });
   }
-
 
   build() {
     Navigation(this.pathStack) {
@@ -951,7 +962,8 @@ struct Index {
                 }
                 this.listScroller.closeAllSwipeActions()
                 await ToolsUtil.isFileExist(target_item) ?
-                ToolsUtil.routerWhere(this.pathStack, context, 'Player', item, this.encryption ? this.video_meta_data_encryption : this.video_meta_data, this.encryption) :
+                ToolsUtil.routerWhere(this.pathStack, context, 'Player', item,
+                  this.encryption ? this.video_meta_data_encryption : this.video_meta_data, this.encryption) :
                 this.deleteUnExistFile(target_item)
               })
             }, (item: string) => item)
@@ -1044,7 +1056,7 @@ struct Index {
                   }
                 })
                 .onEditChange((isEditing: boolean) => {
-                  animateToImmediately({duration: 300, curve: Curve.Ease}, ()=>{
+                  animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
                     this.is_edit = isEditing
                   })
                 })
@@ -1129,18 +1141,18 @@ struct Index {
   }
 
   @Builder
-  Pages(name: string){
-    if(name == 'SettingsPage'){
+  Pages(name: string) {
+    if (name == 'SettingsPage') {
       SettingsPage()
-    }else if(name == 'AboutPage'){
+    } else if (name == 'AboutPage') {
       AboutApp()
-    }else if(name == 'FileFolderContent'){
+    } else if (name == 'FileFolderContent') {
       FileFolderContent()
-    }else if(name == 'Player'){
+    } else if (name == 'Player') {
       Player()
-    }else if(name == 'FFMpegPlayer'){
+    } else if (name == 'FFMpegPlayer') {
       FFMpegPlayer()
-    }else if(name == 'RecentPlay'){
+    } else if (name == 'RecentPlay') {
       RecentPlay()
     }
   }

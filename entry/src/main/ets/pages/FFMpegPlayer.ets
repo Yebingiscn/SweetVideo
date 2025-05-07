@@ -434,7 +434,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         this.getVideoSize()
       })
       .backgroundColor($r('sys.color.black'))
-    }.onReady((context: NavDestinationContext) => {
+    }.onReady(() => {
       const playerParams: PlayerParams = this.pathStack.getParamByName('FFMpegPlayer')[0] as PlayerParams
       try {
         this.now_playing = playerParams.metadata as VideoMetadataFromPlayer

@@ -19,14 +19,6 @@ const sandbox_subtitle = getContext().filesDir + '/subtitle/'
 const sandbox_path = getContext().filesDir + '/'
 const context = getContext() as common.UIAbilityContext;
 
-@Extend(SymbolGlyph)
-function symbolGlyphFancy(fontSize: number, width: number | string, height: number | string) {
-  .fontSize(fontSize)
-  .fontColor([$r('app.color.text_color')])
-  .width(width)
-  .height(height)
-}
-
 @Extend(Image)
 function imageFancy(borderRadius: number, width: number | string, height: number | string) {
   .alt($r("app.media.sweet_video_alt"))
@@ -36,16 +28,6 @@ function imageFancy(borderRadius: number, width: number | string, height: number
   .height(height)
   .autoResize(true)
   .interpolation(ImageInterpolation.Low)
-}
-
-@Extend(Button)
-function buttonFancy(width: number | string, height: number | string) {
-  .backgroundColor($r('app.color.start_window_background_blur'))
-  .borderRadius(16)
-  .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-  .width(width)
-  .height(height)
-  .animation({ duration: 300, curve: Curve.Ease })
 }
 
 @Component
@@ -61,10 +43,9 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
   })
   searchController: SearchController = new SearchController()
   @Consume('pathStack') pathStack: NavPathStack
-  private listScroller: Scroller = new Scroller();
-
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
+  private listScroller: Scroller = new Scroller();
 
   async onPageShow(): Promise<void> {
     this.file_folder_list = await SelectFileUtil.getFileFolder(context)
@@ -274,10 +255,14 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
         this.list_line = Math.floor(new Number(newValue.width).valueOf() / 500 + 1)
       })
       .backgroundColor($r('app.color.start_window_background'))
-    }.onReady((context: NavDestinationContext) => {
+    }
+    .onReady(() => {
       const file_folder: FileFolder = this.pathStack.getParamByName('FileFolderContent')[0] as FileFolder
       this.file_folder = file_folder
       this.videoDataSource = new FileFolderContentDataSource(this.file_folder?.video_list!);
-    }).title(this.file_folder?.name || '文件夹').padding({top: this.topSafeHeight, bottom: this.bottomSafeHeight}).backgroundColor($r('app.color.start_window_background'))
+    })
+    .title(this.file_folder?.name || '文件夹')
+    .padding({ top: this.topSafeHeight, bottom: this.bottomSafeHeight })
+    .backgroundColor($r('app.color.start_window_background'))
   }
 }
