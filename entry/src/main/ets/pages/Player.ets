@@ -778,7 +778,7 @@ export struct Player { // 播放页
           Column()
             .width('100%')
             .height(this.showControl ? '50%' : '80%')//触控区域
-            .gesture(GestureGroup(GestureMode.Parallel,
+            .gesture(GestureGroup(GestureMode.Exclusive, // 需要互斥事件
               TapGesture({ count: 2 })
                 .onAction((event: GestureEvent) => {
                   if (!this.isLock) {
@@ -795,6 +795,15 @@ export struct Player { // 播放页
                     } else {
                       this.doublePause()
                     }
+                  }
+                }),
+              TapGesture({ count: 1 })
+                .onAction(() => { //单击屏幕
+                  if (this.sideBarStatus) {
+                    this.closeSideBar(true);
+                  } else {
+                    this.lockVisibility = !this.lockVisibility;
+                    this.showControl = !this.showControl;
                   }
                 }),
               PanGesture().onActionStart((event: GestureEvent) => { // 滑动屏幕
@@ -874,16 +883,6 @@ export struct Player { // 播放页
                   this.onSwipingVoice = false;
                   this.onSwipingBrightness = false;
                 }),
-              TapGesture({ count: 1 })
-                .onAction(() => { //单击屏幕
-                  if (this.sideBarStatus) {
-                    this.closeSideBar(true);
-                  } else {
-                    this.lockVisibility = !this.lockVisibility;
-                    this.showControl = !this.showControl;
-                  }
-                }),
-
               LongPressGesture()
                 .onAction(() => { //长按
                   if (!this.isLock) {
