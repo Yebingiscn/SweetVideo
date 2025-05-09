@@ -157,7 +157,7 @@ export struct Player { // 播放页
       PermissionUtil.startContinuousTask()
     }
     this.setScreen()
-    await (await this.windowClass).setPreferredOrientation(window.Orientation.FOLLOW_DESKTOP);
+    await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
     await (await this.windowClass).setWindowKeepScreenOn(true)
     let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
     let audioManager = audio.getAudioManager();
