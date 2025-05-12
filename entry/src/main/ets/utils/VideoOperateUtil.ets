@@ -12,6 +12,9 @@ import SelectFileUtil from './SelectFileUtil';
 import { AudioTrack } from '../interfaces/AudioTrackInterface';
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import { AvSessionState } from '../interfaces/AvSessionStateInterface';
+import PreferencesUtil from './PreferencesUtil';
+import ReqPermissionUtil from './ReqPermissionUtil';
+import { common } from '@kit.AbilityKit';
 
 // 视频操作类
 class VideoOperateUtil {
@@ -193,6 +196,24 @@ class VideoOperateUtil {
       duration: play_time
     }
     AVSessionUtil.updateSession(JSON.stringify(data))
+  }
+
+  async initSetting(context: common.UIAbilityContext) {
+    AppStorage.setOrCreate('allowBackgroundPlay',
+      PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowBackgroundPlay", false) as boolean)
+    AppStorage.setOrCreate('allowPlayBackExist',
+      PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowPlayBackExist", false) as boolean)
+    AppStorage.setOrCreate('fastForwardSeconds',
+      PreferencesUtil.getPreferencesValue(context, "sweet_video", "fastForwardSeconds", '15') as string)
+    AppStorage.setOrCreate('recentPlay',
+      PreferencesUtil.getPreferencesValue(context, "sweet_video", "recentPlay", true) as boolean)
+    AppStorage.setOrCreate('defaultPlayer',
+      PreferencesUtil.getPreferencesValue(context, "sweet_video", "defaultPlayer", 'FFMpeg播放器') as string)
+    AppStorage.setOrCreate('subtitleSize',
+      PreferencesUtil.getPreferencesValue(context, "sweet_video", "subtitleSize", '22') as string)
+    AppStorage.setOrCreate('allowDoubleFastForward',
+      PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowDoubleFastForward", false) as boolean)
+    ReqPermissionUtil.reqPermissionsFromUser(ReqPermissionUtil.permissions, context);
   }
 }
 

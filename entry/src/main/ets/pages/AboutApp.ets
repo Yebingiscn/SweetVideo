@@ -12,7 +12,6 @@ export struct AboutApp {
 
   build() {
     NavDestination() {
-
       Scroll() {
         Column({ space: 10 }) {
           Column() {

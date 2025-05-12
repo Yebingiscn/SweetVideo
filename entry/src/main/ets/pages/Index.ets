@@ -12,7 +12,6 @@ import { delConfirmDialog } from '../component/DelConfirmDialog';
 import { editPasswordDialog } from '../component/EditPasswordDialog';
 import { editMetadataDialog } from '../component/EditMetadataDialog';
 import ReqPermission from '../utils/ReqPermissionUtil';
-import ReqPermissionUtil from '../utils/ReqPermissionUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { JSON } from '@kit.ArkTS';
 import { VideoDetailDialog } from '../component/VideoDetailDialog';
@@ -34,6 +33,7 @@ import { Player } from './Player';
 import { RecentPlay } from './RecentPlay';
 import PreferencesUtil from '../utils/PreferencesUtil';
 import { PrivacyPolicyDialog } from './PrivacyInfo';
+import VideoOperateUtil from '../utils/VideoOperateUtil';
 
 const context = getContext() as common.UIAbilityContext;
 const sandbox_path = getContext().filesDir + '/'
@@ -199,24 +199,6 @@ struct Index {
   })
   listScroller: ListScroller = new ListScroller()
   searchController: SearchController = new SearchController()
-
-  async initSetting() {
-    AppStorage.setOrCreate('allowBackgroundPlay',
-      PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowBackgroundPlay", false) as boolean)
-    AppStorage.setOrCreate('allowPlayBackExist',
-      PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowPlayBackExist", false) as boolean)
-    AppStorage.setOrCreate('fastForwardSeconds',
-      PreferencesUtil.getPreferencesValue(context, "sweet_video", "fastForwardSeconds", '15') as string)
-    AppStorage.setOrCreate('recentPlay',
-      PreferencesUtil.getPreferencesValue(context, "sweet_video", "recentPlay", true) as boolean)
-    AppStorage.setOrCreate('defaultPlayer',
-      PreferencesUtil.getPreferencesValue(context, "sweet_video", "defaultPlayer", 'FFMpeg播放器') as string)
-    AppStorage.setOrCreate('subtitleSize',
-      PreferencesUtil.getPreferencesValue(context, "sweet_video", "subtitleSize", '22') as string)
-    AppStorage.setOrCreate('allowDoubleFastForward',
-      PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowDoubleFastForward", false) as boolean)
-    ReqPermissionUtil.reqPermissionsFromUser(ReqPermissionUtil.permissions, context);
-  }
 
   @Builder
   FileFolderMenu(video_item: VideoMetadata | undefined) {
@@ -515,10 +497,17 @@ struct Index {
     this.show_list = source.map(i => i.date)
   }
 
+  onPageShow(): void {
+    console.error('test index page show 检查 want：' + WantProcessUtil.has_new_want)
+    if (WantProcessUtil.has_new_want) {
+      WantProcessUtil.checkWant(context, this.pathStack)
+    }
+  }
+
   async aboutToAppear(): Promise<void> {
     SelectFileUtil.getDownloadUri()
     ScreenUtil.init(context)
-    this.initSetting()
+    await VideoOperateUtil.initSetting(context)
     this.passwd = await SelectFileUtil.getPassword(context)
     ToolsUtil.isSubtitleFileFolderExist(sandbox_video, sandbox_subtitle)
     this.video_meta_data = await SelectFileUtil.getVideoMetaData(context)
@@ -1137,7 +1126,8 @@ struct Index {
           this.closeSideBar(true)
         }
       }))
-    }.hideTitleBar(true).mode(NavigationMode.Stack).navDestination(this.Pages)
+    }
+    .hideTitleBar(true).mode(NavigationMode.Stack).navDestination(this.Pages)
   }
 
   @Builder

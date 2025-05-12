@@ -10,7 +10,7 @@ import { PlayerParams } from '../common/PlayerParams';
 
 // 处理拉起应用传来的视频链接
 class WantProcess {
-  public new_want = false //是否接收到拉起
+  public has_new_want = false //是否接收到拉起
   public want_uri: string = '' //接收到的uri
   public isSystemShare: boolean = false // 是否系统分享
   public GITHUB_HOME_LINK: string = "https://github.com/Yebingiscn/SweetVideo" // 项目主页
@@ -22,6 +22,7 @@ class WantProcess {
   checkWant(context: Context, pathStack: NavPathStack) {
     if (this.want_uri != '') {
       this.isNewWant = false
+      this.has_new_want = false
       this.hasWant(context, pathStack)
     }
   }
@@ -46,7 +47,7 @@ class WantProcess {
       }
       // 获取默认播放器
       const defaultPlayer =
-        await PreferencesUtil.getPreferencesValue(context, "sweet_video", "defaultPlayer", 'FFMpeg播放器') as string
+        PreferencesUtil.getPreferencesValue(context, "sweet_video", "defaultPlayer", 'FFMpeg播放器') as string
       let url = ''
       // 如果是系统分享（一般都是从图库分享，图库的视频如果使用了）或者是 HDR VIVID 使用系统播放器才能播
       if (defaultPlayer === '系统播放器' || this.isSystemShare || tmp.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID) {
@@ -55,6 +56,7 @@ class WantProcess {
         url = 'FFMpegPlayer'
       }
       const playerParams = new PlayerParams(tmp as VideoMetadata, [], undefined)
+      this.want_uri = ''
       pathStack.pushPathByName(url, playerParams, true)
     })
   }

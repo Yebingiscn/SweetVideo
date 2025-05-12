@@ -160,25 +160,25 @@ class SelectFileUtil {
   }
 
   async getVideoMetaData(context: Context) {
-    return await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'recent_video_meta_data',
+    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'recent_video_meta_data',
       []) as VideoMetadata[]
   }
 
   async getVideoMetaDataEncryption(context: Context) {
-    return await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'video_meta_data_encryption',
+    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'video_meta_data_encryption',
       []) as VideoMetadata[]
   }
 
   async getFileFolder(context: Context) {
-    return await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'file_folder', []) as FileFolder[]
+    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'file_folder', []) as FileFolder[]
   }
 
   async getPassword(context: Context) {
-    return await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'passwd', '') as string
+    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'passwd', '') as string
   }
 
   async getRecentPlay(context: Context) {
-    return await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'recent_play', []) as VideoMetadata[]
+    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'recent_play', []) as VideoMetadata[]
   }
 
   async saveData(context: Context, update_list: VideoMetadata[], target_data: VideoMetadataFromPlayer) {
@@ -202,21 +202,20 @@ class SelectFileUtil {
   }
 
   async saveVideoMetaData(context: Context, video_meta_data: VideoMetadata[]) {
-    await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_video_meta_data', video_meta_data);
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_video_meta_data', video_meta_data);
   }
 
   async saveVideoMetaDataEncryption(context: Context, video_meta_data_encryption: VideoMetadata[]) {
-    console.error('test success save encryption data')
-    await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'video_meta_data_encryption',
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'video_meta_data_encryption',
       video_meta_data_encryption);
   }
 
   async saveFileFolder(context: Context, file_folder: FileFolder[]) {
-    await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'file_folder', file_folder);
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'file_folder', file_folder);
   }
 
   async saveRecentPlay(context: Context, recent_play_deque: VideoMetadata[]) {
-    await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_play', recent_play_deque);
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_play', recent_play_deque);
   }
 
   getItem(list: VideoMetadata[], item: string): VideoMetadata | undefined {
