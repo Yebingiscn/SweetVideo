@@ -1,6 +1,5 @@
-import PreferencesUtil from '../utils/PreferencesUtil';
 import { common } from '@kit.AbilityKit';
-import SelectFileUtil from '../utils/SelectFileUtil';
+import Preferences from '../database/Preferences';
 
 const context = getContext() as common.UIAbilityContext;
 
@@ -18,10 +17,6 @@ export struct SettingsPage { //设置页
   fastForwardSecondsList = ['15', '30', '60', '120']
   subtitleSizeList = ['19', '20', '21', '22', '23', '24', '25', '26']
   @Consume('pathStack') pathStack: NavPathStack
-
-  aboutToAppear(): void {
-    console.log('testTAG', this.defaultPlayer, this.subtitleSize, this.fastForwardSeconds)
-  }
 
   build() {
     NavDestination() {
@@ -43,8 +38,7 @@ export struct SettingsPage { //设置页
             enable: this.allowBackgroundPlay,
             onChange: (checked: boolean) => {
               this.allowBackgroundPlay = checked
-              PreferencesUtil.putPreferencesValue(context, "sweet_video", "allowBackgroundPlay",
-                this.allowBackgroundPlay)
+              Preferences.saveAllowBackgroundPlayState(context, this.allowBackgroundPlay)
             }
           })
         }
@@ -56,8 +50,7 @@ export struct SettingsPage { //设置页
             enable: this.allowPlayBackExist,
             onChange: (checked: boolean) => {
               this.allowPlayBackExist = checked
-              PreferencesUtil.putPreferencesValue(context, "sweet_video", "allowPlayBackExist",
-                this.allowPlayBackExist)
+              Preferences.saveAllowPlayBackExistState(context, this.allowPlayBackExist)
             }
           })
         }
@@ -69,8 +62,7 @@ export struct SettingsPage { //设置页
             enable: this.allowDoubleFastForward,
             onChange: (checked: boolean) => {
               this.allowDoubleFastForward = checked
-              PreferencesUtil.putPreferencesValue(context, "sweet_video", "allowDoubleFastForward",
-                this.allowDoubleFastForward)
+              Preferences.saveAllowDoubleFastForwardState(context, this.allowDoubleFastForward)
             }
           })
         }
@@ -83,9 +75,9 @@ export struct SettingsPage { //设置页
             onChange: async (checked: boolean) => {
               this.recentPlay = checked
               if (!this.recentPlay) {
-                await SelectFileUtil.saveRecentPlay(context, [])
+                Preferences.saveRecentPlay(context, [])
               }
-              PreferencesUtil.putPreferencesValue(context, "sweet_video", "recentPlay", this.recentPlay)
+              Preferences.saveRecentPlayState(context, this.recentPlay)
             }
           })
         }
@@ -98,8 +90,7 @@ export struct SettingsPage { //设置页
             selected: ['15', '30', '60', '120'].findIndex(i => i == this.fastForwardSeconds),
             onChange: (index: number) => {
               this.fastForwardSeconds = ['15', '30', '60', '120'][index]
-              PreferencesUtil.putPreferencesValue(context, "sweet_video", "fastForwardSeconds",
-                this.fastForwardSeconds)
+              Preferences.saveFastForwardSeconds(context, this.fastForwardSeconds)
             }
           })
         }
@@ -112,7 +103,7 @@ export struct SettingsPage { //设置页
             selected: ['系统播放器', 'FFMpeg播放器'].findIndex(i => i == this.defaultPlayer),
             onChange: (index: number) => {
               this.defaultPlayer = ['系统播放器', 'FFMpeg播放器'][index]
-              PreferencesUtil.putPreferencesValue(context, "sweet_video", "defaultPlayer", this.defaultPlayer)
+              Preferences.saveDefaultPlayer(context, this.defaultPlayer)
             }
           })
         }
@@ -125,7 +116,7 @@ export struct SettingsPage { //设置页
             selected: this.subtitleSizeList.findIndex(i => i == this.subtitleSize),
             onChange: (index: number) => {
               this.subtitleSize = this.subtitleSizeList[index]
-              PreferencesUtil.putPreferencesValue(context, "sweet_video", "subtitleSize", this.subtitleSize)
+              Preferences.saveSubtitleSize(context, this.subtitleSize)
             }
           })
         }

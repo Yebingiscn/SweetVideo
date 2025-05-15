@@ -1,4 +1,4 @@
-// 音频枚举
+// 音频数据
 export interface AudioTrack {
   index: number;
   language: string;

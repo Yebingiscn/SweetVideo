@@ -24,7 +24,6 @@ import AVSessionUtil from '../utils/AVSessionUtil'
 import { avSession as avSessionManager } from '@kit.AVSessionKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
-import PreferencesUtil from '../utils/PreferencesUtil'
 import { settings } from '@kit.BasicServicesKit'
 import { PlayerParams } from '../common/PlayerParams'
 import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface'
@@ -582,8 +581,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
 
   async aboutToAppear() {
     //  LogUtils.getInstance().LOGI("aboutToAppear");
-    this.allowBackgroundPlay =
-      await PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowBackgroundPlay", true) as boolean
     if (this.allowBackgroundPlay) {
       PermissionUtil.startContinuousTask()
     }
@@ -712,8 +709,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         this.play_time = pos;
       }
     }
-    // LogUtils.getInstance()
-    //   .LOGI("setProgress position:" + position + ",duration:" + duration + ",progressValue:" + pos);
     if (position > duration) {
       position = duration;
     }
@@ -770,7 +765,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     // 变速播放
     this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "soundtouch", "1");
     this.mIjkMediaPlayer.setSpeed(this.playSpeed);
-    let Speed = this.mIjkMediaPlayer.getSpeed()
     //是否开启循环播放
     this.mIjkMediaPlayer.setLoopCount(true);
     let mOnVideoSizeChangedListener: OnVideoSizeChangedListener = {

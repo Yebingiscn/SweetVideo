@@ -49,7 +49,7 @@ export struct PrivacyPolicyDialog {
             }
             .fontSize(15)
             .fontColor($r('app.color.text_color'))
-          }.height('100%')
+          }.height('75%')
           .width('100%')
 
           // 调整按钮布局
@@ -61,7 +61,7 @@ export struct PrivacyPolicyDialog {
               .fontColor('#999999')
               .fontSize(15)
               .backgroundColor(Color.Transparent)
-              .margin({ right: 20 })
+              .align(Alignment.Center)
 
             Button('同意')
               .onClick(() => {
@@ -87,7 +87,7 @@ export struct PrivacyPolicyDialog {
         .height('100%')
         .width('100%')
       }
-      .margin({ left: 25, right: 25 })
+      .padding({ left: 15, right: 15 })
       // 添加滚动行为配置
       .layoutWeight(1)
       .scrollBar(BarState.Off)
@@ -104,7 +104,10 @@ export struct PrivacyPolicyDialog {
   build() {
     Stack() {
     }.bindSheet($$this.isPresent, this.privacyInfoBuilder(), {
-      enableOutsideInteractive: false, showClose: false, onWillDismiss: ((DismissSheetAction: DismissSheetAction) => {
+      preferType: SheetType.CENTER,
+      enableOutsideInteractive: false,
+      showClose: false,
+      onWillDismiss: ((DismissSheetAction: DismissSheetAction) => {
         if (DismissSheetAction.reason == DismissReason.SLIDE_DOWN ||
           DismissSheetAction.reason == DismissReason.PRESS_BACK ||
           DismissSheetAction.reason == DismissReason.TOUCH_OUTSIDE) {

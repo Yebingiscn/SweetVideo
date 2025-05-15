@@ -16,7 +16,6 @@ import SelectFileUtil from '../utils/SelectFileUtil';
 import { VideoDataSource } from '../utils/DataUtil';
 import VideoOperateUtil from '../utils/VideoOperateUtil';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
-import PreferencesUtil from '../utils/PreferencesUtil';
 import { IjkMediaPlayer } from '@ohos/ijkplayer';
 import { KeyCode } from '@kit.InputKit';
 import { PlayerParams } from '../common/PlayerParams';
@@ -24,6 +23,8 @@ import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerIn
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import { AudioTrack } from '../interfaces/AudioTrackInterface';
+import Preferences from '../database/Preferences';
+import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
 
 
 @Extend(Image)
@@ -169,9 +170,8 @@ export struct Player { // 播放页
         this.screenBrightness = Number(value) / 255;
         this.screenBrightnessAtFirst = this.screenBrightness
       })
-    this.circle_play =
-      await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'circle_play', false) as boolean
-    const video_speed = await PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'video_speed', '1x') as string
+    this.circle_play = Preferences.getCirclePlayState(context)
+    const video_speed = Preferences.getVideoSpeed(context)
     this.speed = parseFloat(video_speed?.replace('x', '') || '1')
   }
 
@@ -187,8 +187,8 @@ export struct Player { // 播放页
     await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
     await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
     await (await this.windowClass).setPreferredOrientation(window.Orientation.FOLLOW_DESKTOP);
-    await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'video_speed', this.speed + 'x');
-    await PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'circle_play', this.circle_play)
+    Preferences.saveVideoSpeed(context, this.speed + 'x')
+    Preferences.saveCirclePlayState(context, this.circle_play)
   }
 
   async setRotation() {
@@ -416,7 +416,9 @@ export struct Player { // 播放页
   }
 
   async playChooseVideo(item: VideoMetadata) {
-    RecentPlayUtil.addPlayback(context, item)
+    if (!PrivacySpaceUtil.getPrivacyMode()) {
+      RecentPlayUtil.addPlayback(context, item)
+    }
     await this.avPlayer?.reset()
     if (VideoOperateUtil.mIjkMediaPlayerActive) {
       await this.ijkPlayerStop()
@@ -938,7 +940,7 @@ export struct Player { // 播放页
       .showSideBar(this.sideBarStatus)
       .sideBarPosition(SideBarPosition.End)
       .divider({ strokeWidth: 0 })
-    }.onReady((context: NavDestinationContext) => {
+    }.onReady(() => {
       const playerParams: PlayerParams = this.pathStack.getParamByName('Player')[0] as PlayerParams
       try {
         this.now_playing = playerParams.metadata as VideoMetadataFromPlayer

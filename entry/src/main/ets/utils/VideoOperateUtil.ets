@@ -12,9 +12,9 @@ import SelectFileUtil from './SelectFileUtil';
 import { AudioTrack } from '../interfaces/AudioTrackInterface';
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import { AvSessionState } from '../interfaces/AvSessionStateInterface';
-import PreferencesUtil from './PreferencesUtil';
 import ReqPermissionUtil from './ReqPermissionUtil';
 import { common } from '@kit.AbilityKit';
+import Preferences from '../database/Preferences';
 
 // 视频操作类
 class VideoOperateUtil {
@@ -165,10 +165,10 @@ class VideoOperateUtil {
     video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)].last_play = save_time
     if (file_folder) {
       file_folder.video_list = video_meta_data
-      let file_folder_list = await SelectFileUtil.getFileFolder(context)
+      let file_folder_list = Preferences.getFileFolder(context)
       file_folder_list = file_folder_list.filter(i => i.date !== file_folder?.date)
       file_folder_list.push(file_folder!)
-      await SelectFileUtil.saveFileFolder(context, file_folder_list)
+      Preferences.saveFileFolder(context, file_folder_list)
     } else {
       await SelectFileUtil.saveData(context, video_meta_data, now_playing!)
     }
@@ -180,10 +180,10 @@ class VideoOperateUtil {
     video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)].size = now_playing.size
     if (file_folder.name.length !== 0) {
       file_folder.video_list = video_meta_data
-      let file_folder_list = await SelectFileUtil.getFileFolder(context)
+      let file_folder_list = Preferences.getFileFolder(context)
       file_folder_list = file_folder_list.filter(i => i.date !== file_folder?.date)
       file_folder_list.push(file_folder!)
-      await SelectFileUtil.saveFileFolder(context, file_folder_list)
+      Preferences.saveFileFolder(context, file_folder_list)
     } else {
       await SelectFileUtil.saveData(context, video_meta_data, now_playing!)
     }
@@ -198,21 +198,15 @@ class VideoOperateUtil {
     AVSessionUtil.updateSession(JSON.stringify(data))
   }
 
+  // 启动时初始化已保存的设置项
   async initSetting(context: common.UIAbilityContext) {
-    AppStorage.setOrCreate('allowBackgroundPlay',
-      PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowBackgroundPlay", false) as boolean)
-    AppStorage.setOrCreate('allowPlayBackExist',
-      PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowPlayBackExist", false) as boolean)
-    AppStorage.setOrCreate('fastForwardSeconds',
-      PreferencesUtil.getPreferencesValue(context, "sweet_video", "fastForwardSeconds", '15') as string)
-    AppStorage.setOrCreate('recentPlay',
-      PreferencesUtil.getPreferencesValue(context, "sweet_video", "recentPlay", true) as boolean)
-    AppStorage.setOrCreate('defaultPlayer',
-      PreferencesUtil.getPreferencesValue(context, "sweet_video", "defaultPlayer", 'FFMpeg播放器') as string)
-    AppStorage.setOrCreate('subtitleSize',
-      PreferencesUtil.getPreferencesValue(context, "sweet_video", "subtitleSize", '22') as string)
-    AppStorage.setOrCreate('allowDoubleFastForward',
-      PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowDoubleFastForward", false) as boolean)
+    AppStorage.setOrCreate('allowBackgroundPlay', Preferences.getAllowBackgroundPlayState(context))
+    AppStorage.setOrCreate('allowPlayBackExist', Preferences.getAllowPlayBackExistState(context))
+    AppStorage.setOrCreate('fastForwardSeconds', Preferences.getFastForwardSeconds(context))
+    AppStorage.setOrCreate('recentPlay', Preferences.getRecentPlayState(context))
+    AppStorage.setOrCreate('defaultPlayer', Preferences.getDefaultPlayer(context))
+    AppStorage.setOrCreate('subtitleSize', Preferences.getSubtitleSize(context))
+    AppStorage.setOrCreate('allowDoubleFastForward', Preferences.getAllowDoubleFastForwardState(context))
     ReqPermissionUtil.reqPermissionsFromUser(ReqPermissionUtil.permissions, context);
   }
 }

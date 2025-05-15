@@ -31,9 +31,11 @@ import { FileFolderContent } from './FileFolderContent';
 import { FFMpegPlayer } from './FFMpegPlayer';
 import { Player } from './Player';
 import { RecentPlay } from './RecentPlay';
-import PreferencesUtil from '../utils/PreferencesUtil';
 import { PrivacyPolicyDialog } from './PrivacyInfo';
 import VideoOperateUtil from '../utils/VideoOperateUtil';
+import { PrivacySpace } from './PrivacySpace';
+import Preferences from '../database/Preferences';
+import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
 
 const context = getContext() as common.UIAbilityContext;
 const sandbox_path = getContext().filesDir + '/'
@@ -130,8 +132,8 @@ struct Index {
         currentData[targetIndex].title = title.trim();
         this.show_list = SelectFileUtil.getAllItems(currentData);
         const saveAction =
-          this.encryption ? SelectFileUtil.saveVideoMetaDataEncryption : SelectFileUtil.saveVideoMetaData;
-        await saveAction(context, currentData)
+          this.encryption ? Preferences.saveVideoMetaDataEncryption : Preferences.saveVideoMetaData;
+        saveAction(context, currentData)
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -227,7 +229,7 @@ struct Index {
       this.file_folder_list = await FileFolderUtil.addVideoInFileFolder(context, video_item!, item.date)
       this.video_meta_data = this.video_meta_data.filter(i => i.date !== video_item?.date)
       this.show_list = this.show_list.filter(i => i !== video_item?.date);
-      await SelectFileUtil.saveVideoMetaData(context, this.video_meta_data)
+      Preferences.saveVideoMetaData(context, this.video_meta_data)
     }
   }
 
@@ -457,7 +459,7 @@ struct Index {
               reject(new Error(`Error deleting file from sandbox_video: ${unlinkErr.message}`));
               return;
             }
-            await SelectFileUtil.saveVideoMetaDataEncryption(context, this.video_meta_data_encryption)
+            Preferences.saveVideoMetaDataEncryption(context, this.video_meta_data_encryption)
           });
         } else {
           resolve();
@@ -478,7 +480,7 @@ struct Index {
             reject(new Error(`Error deleting file from sandbox_path: ${unlinkErr.message}`));
             return;
           }
-          SelectFileUtil.saveVideoMetaData(context, this.video_meta_data)
+          Preferences.saveVideoMetaData(context, this.video_meta_data)
           resolve(); // 在所有操作完成后调用 resolve
         });
       } else {
@@ -492,43 +494,43 @@ struct Index {
   }
 
   async updateList() {
-    const source = this.encryption ? await SelectFileUtil.getVideoMetaDataEncryption(context) :
-      await SelectFileUtil.getVideoMetaData(context)
+    const source =
+      this.encryption ? Preferences.getVideoMetaDataEncryption(context) : Preferences.getVideoMetaData(context)
     this.show_list = source.map(i => i.date)
   }
 
   onPageShow(): void {
-    console.error('test index page show 检查 want：' + WantProcessUtil.has_new_want)
-    if (WantProcessUtil.has_new_want) {
-      WantProcessUtil.checkWant(context, this.pathStack)
-    }
+    setTimeout(() => { // 临时解决 system share 获取 want 没有 onPageShow 跑的快的问题
+      if (WantProcessUtil.has_new_want) {
+        WantProcessUtil.checkWant(context, this.pathStack)
+      }
+    }, 0.1)
   }
 
   async aboutToAppear(): Promise<void> {
     SelectFileUtil.getDownloadUri()
     ScreenUtil.init(context)
     await VideoOperateUtil.initSetting(context)
-    this.passwd = await SelectFileUtil.getPassword(context)
+    this.passwd = Preferences.getPassword(context)
     ToolsUtil.isSubtitleFileFolderExist(sandbox_video, sandbox_subtitle)
-    this.video_meta_data = await SelectFileUtil.getVideoMetaData(context)
-    this.video_meta_data_encryption = await SelectFileUtil.getVideoMetaDataEncryption(context)
+    this.video_meta_data = Preferences.getVideoMetaData(context)
+    this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(context)
     this.show_list = this.video_meta_data.map(i => i.date)
-    this.file_folder_list = await SelectFileUtil.getFileFolder(context)
-    if (PreferencesUtil.getPreferencesValue(context, "sweet_video", "OOBEVersion", -1) as number < OOBEVersion) {
+    this.file_folder_list = Preferences.getFileFolder(context)
+    if (Preferences.getOOBEVersion(context) < OOBEVersion) {
       let controller = new CustomDialogController({
         builder: PrivacyPolicyDialog({
           cancel: () => {
             context.terminateSelf()
           },
           confirm: async () => {
-            PreferencesUtil.putPreferencesValue(context, "sweet_video", "OOBEVersion", OOBEVersion)
+            Preferences.saveOOBEVersion(context, OOBEVersion)
             controller.close()
           }
         }),
         autoCancel: false,
         onWillDismiss: async () => {
-          if (PreferencesUtil.getPreferencesValue(context, "sweet_video", "OOBEVersion", -1) as number <
-            OOBEVersion) {
+          if (Preferences.getOOBEVersion(context) < OOBEVersion) {
             context.terminateSelf()
           }
         }
@@ -577,7 +579,7 @@ struct Index {
               const videoInfo = await VideoUtil.setVideoInfo(new Date().getTime().toString(), uri, file.name, metadata,
                 this.encryption, sandbox_video, sandbox_path);
               this.video_meta_data.push(videoInfo);
-              await SelectFileUtil.saveVideoMetaData(context, this.video_meta_data);
+              Preferences.saveVideoMetaData(context, this.video_meta_data);
             }
           }
         } finally {
@@ -599,8 +601,8 @@ struct Index {
       }
       await Promise.all(workers);
       this.show_list = SelectFileUtil.getAllItems(
-        this.encryption ? await SelectFileUtil.getVideoMetaDataEncryption(context) :
-          await SelectFileUtil.getVideoMetaData(context));
+        this.encryption ? Preferences.getVideoMetaDataEncryption(context) :
+        Preferences.getVideoMetaData(context));
       ToolsUtil.showToast(`${getContext().resourceManager
         .getStringSync($r('app.string.add_time_info'))}${this.import_sum}`);
     } catch (error) {
@@ -699,6 +701,7 @@ struct Index {
                       this.editPasswdDialogController.open()
                       return
                     }
+                    PrivacySpaceUtil.setPrivacyMode(false)
                     this.encryption = false
                   })
                   .gesture(LongPressGesture().onAction(() => {
@@ -918,7 +921,6 @@ struct Index {
                 .justifyContent(FlexAlign.SpaceEvenly)
               }
               .key(item)
-              .width('100%')
               .padding({
                 left: 10,
                 right: 10,
@@ -1005,15 +1007,13 @@ struct Index {
               Search({
                 controller: this.searchController,
                 placeholder: $r('app.string.search_placeholder'),
-                value: this.searchValue,
+                value: $$this.searchValue, // $$使得 searchValue 可以动态变化，清空搜索框依赖这个
               })
                 .layoutWeight(1)
                 .height(40)
                 .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
                 .backgroundColor($r('app.color.start_window_background_blur'))
                 .backdropBlur(150)
-                .searchButton(getContext(this).resourceManager.getStringSync($r('app.string.search')),
-                  { fontSize: '16fp', fontColor: $r('app.color.main_color') })
                 .animation({ duration: 300, curve: Curve.Ease })
                 .shadowFancy()
                 .onChange(() => {
@@ -1033,10 +1033,12 @@ struct Index {
                     return
                   }
                   if (value == this.passwd && !this.encryption) {
-                    this.encryption = true
                     ToolsUtil.showToast(getContext()
-                      .resourceManager
-                      .getStringSync($r('app.string.enter_privacy_space')))
+                      .resourceManager.getStringSync($r('app.string.enter_privacy_space')))
+                    PrivacySpaceUtil.setPrivacyMode(true)
+                    // this.pathStack.pushPathByName('PrivacySpace', null)
+                    this.searchValue = ''
+                    this.encryption = true
                     return
                   }
                   this.show_list = SelectFileUtil.getItemFromSearch(currentMeta, value)
@@ -1144,6 +1146,8 @@ struct Index {
       FFMpegPlayer()
     } else if (name == 'RecentPlay') {
       RecentPlay()
+    } else if (name == 'PrivacySpace') {
+      PrivacySpace()
     }
   }
 
@@ -1161,6 +1165,7 @@ struct Index {
       this.encryption = false
       // 退出隐私空间时清空密码
       this.searchValue = ''
+      PrivacySpaceUtil.setPrivacyMode(false)
       return true
     }
     // 首页响应系统返回手势，退出app

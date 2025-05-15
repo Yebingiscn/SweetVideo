@@ -1,4 +1,4 @@
-// 阴影枚举
+// 阴影数据
 export interface ShadowFancy {
   radius: number;
   color: Resource;

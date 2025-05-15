@@ -1,4 +1,4 @@
-// 播放器数据结构枚举
+// 播放器数据结构
 export interface VideoMetadataFromPlayer {
   uri: string
   title: string

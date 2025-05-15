@@ -4,13 +4,12 @@ import { fileUri, fileIo as fs, picker } from '@kit.CoreFileKit';
 import VideoUtil from './VideoInfoUtil';
 import VideoInfoUtil from './VideoInfoUtil';
 import { BusinessError } from '@kit.BasicServicesKit';
-import PreferencesUtil from './PreferencesUtil';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import ToolsUtil from './ToolsUtil';
 import { media } from '@kit.MediaKit';
 import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
-import { FileFolder } from '../interfaces/FileFolderInterface';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
+import Preferences from '../database/Preferences';
 
 // 获取视频类
 class SelectFileUtil {
@@ -142,8 +141,7 @@ class SelectFileUtil {
       const videoInfo =
         await VideoInfoUtil.setVideoInfo(date, targetPath, file.name, metadata, encryption, sandbox_video, sandbox_path)
       video_meta_data_encryption.push(videoInfo);
-      console.error('test success3')
-      await this.saveVideoMetaDataEncryption(context, video_meta_data_encryption);
+      Preferences.saveVideoMetaDataEncryption(context, video_meta_data_encryption);
       return videoInfo; // 返回新创建的元数据对象
     } catch (error) {
       console.error(`文件复制失败: ${uri}`, error);
@@ -159,63 +157,24 @@ class SelectFileUtil {
       == item.format ? item.title : item.title + '.' + item.format]
   }
 
-  async getVideoMetaData(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'recent_video_meta_data',
-      []) as VideoMetadata[]
-  }
-
-  async getVideoMetaDataEncryption(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'video_meta_data_encryption',
-      []) as VideoMetadata[]
-  }
-
-  async getFileFolder(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'file_folder', []) as FileFolder[]
-  }
-
-  async getPassword(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'passwd', '') as string
-  }
-
-  async getRecentPlay(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'recent_play', []) as VideoMetadata[]
-  }
-
   async saveData(context: Context, update_list: VideoMetadata[], target_data: VideoMetadataFromPlayer) {
     const results = await Promise.all([
-      this.getVideoMetaData(context),
-      this.getVideoMetaDataEncryption(context),
-      this.getRecentPlay(context)
+      Preferences.getVideoMetaData(context),
+      Preferences.getVideoMetaDataEncryption(context),
+      Preferences.getRecentPlay(context)
     ]);
     const tmp_meta_data = results[0];
     const tmp_meta_data_encryption = results[1];
     const recent_play_deque = results[2];
     if (tmp_meta_data.some(item => item.date === target_data.date)) {
-      await this.saveVideoMetaData(context, update_list)
+      Preferences.saveVideoMetaData(context, update_list)
     }
     if (tmp_meta_data_encryption.some(item => item.date === target_data.date)) {
-      await this.saveVideoMetaDataEncryption(context, update_list)
+      Preferences.saveVideoMetaDataEncryption(context, update_list)
     }
     if (recent_play_deque.some(item => item.date === target_data.date)) {
-      await this.saveRecentPlay(context, update_list)
+      Preferences.saveRecentPlay(context, update_list)
     }
-  }
-
-  async saveVideoMetaData(context: Context, video_meta_data: VideoMetadata[]) {
-    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_video_meta_data', video_meta_data);
-  }
-
-  async saveVideoMetaDataEncryption(context: Context, video_meta_data_encryption: VideoMetadata[]) {
-    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'video_meta_data_encryption',
-      video_meta_data_encryption);
-  }
-
-  async saveFileFolder(context: Context, file_folder: FileFolder[]) {
-    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'file_folder', file_folder);
-  }
-
-  async saveRecentPlay(context: Context, recent_play_deque: VideoMetadata[]) {
-    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_play', recent_play_deque);
   }
 
   getItem(list: VideoMetadata[], item: string): VideoMetadata | undefined {

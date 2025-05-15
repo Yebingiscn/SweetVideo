@@ -1,4 +1,4 @@
-// 视频数据枚举
+// 视频数据
 export interface VideoMetadata {
   uri: string
   title: string

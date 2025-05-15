@@ -4,9 +4,9 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import VideoUtil from './VideoInfoUtil';
 import { common, OpenLinkOptions } from '@kit.AbilityKit';
-import PreferencesUtil from './PreferencesUtil';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { PlayerParams } from '../common/PlayerParams';
+import Preferences from '../database/Preferences';
 
 // 处理拉起应用传来的视频链接
 class WantProcess {
@@ -46,10 +46,9 @@ class WantProcess {
         hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
       }
       // 获取默认播放器
-      const defaultPlayer =
-        PreferencesUtil.getPreferencesValue(context, "sweet_video", "defaultPlayer", 'FFMpeg播放器') as string
+      const defaultPlayer = Preferences.getDefaultPlayer(context)
       let url = ''
-      // 如果是系统分享（一般都是从图库分享，图库的视频如果使用了）或者是 HDR VIVID 使用系统播放器才能播
+      // 如果是系统分享（一般都是从图库分享，图库的视频如果使用了高效视频格式或者是 HDR VIVID 需要使用系统播放器才能播
       if (defaultPlayer === '系统播放器' || this.isSystemShare || tmp.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID) {
         url = 'Player'
       } else {

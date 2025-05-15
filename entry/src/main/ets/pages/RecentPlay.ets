@@ -17,7 +17,6 @@ function symbolGlyphFancy(fontSize: number, width: number | string, height: numb
   .height(height)
 }
 
-
 @Component
 export struct RecentPlay { // 最近播放页
   @State videoDataSource: RecentVideoDataSource = new RecentVideoDataSource([])
@@ -81,7 +80,6 @@ export struct RecentPlay { // 最近播放页
   build() {
     NavDestination() {
       Column() {
-
         if (this.recent_video_meta_data.length === 0) {
           Text('此时无声胜有声 <(￣ c￣)y▂ξ')
             .fontSize(24)

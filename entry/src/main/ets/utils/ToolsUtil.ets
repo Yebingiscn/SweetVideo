@@ -3,7 +3,6 @@ import { vibrator } from '@kit.SensorServiceKit';
 import { BusinessError, systemDateTime } from '@kit.BasicServicesKit';
 import VideoInfoUtil from './VideoInfoUtil';
 import { fileIo as fs } from '@kit.CoreFileKit';
-import PreferencesUtil from './PreferencesUtil';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { bundleManager } from '@kit.AbilityKit';
 import RecentPlayUtil from './RecentPlayUtil';
@@ -13,6 +12,7 @@ import PermissionUtil from './PermissionUtil';
 import { PlayerParams } from '../common/PlayerParams';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { FileFolder } from '../interfaces/FileFolderInterface';
+import Preferences from '../database/Preferences';
 
 // 工具类
 class ToolsUtil {
@@ -87,24 +87,24 @@ class ToolsUtil {
   // 名称排序
   async sortByName(context: Context, list: VideoMetadata[], encryption: boolean) {
     const sorted_list = this.sortByNameProcess(list)
-    await (encryption ? SelectFileUtil.saveVideoMetaDataEncryption(context, sorted_list)
-      : SelectFileUtil.saveVideoMetaData(context, sorted_list));
+    encryption ? Preferences.saveVideoMetaDataEncryption(context, sorted_list)
+      : Preferences.saveVideoMetaData(context, sorted_list);
     return sorted_list // 返回处理后的数据
   }
 
   //时间排序，从近到久
   async sortByTime(context: Context, list: VideoMetadata[], encryption: boolean) {
     const sortedList = [...list].sort((a, b) => b.date.localeCompare(a.date));
-    await (encryption ? SelectFileUtil.saveVideoMetaDataEncryption(context, sortedList)
-      : SelectFileUtil.saveVideoMetaData(context, sortedList));
-    const latestData = encryption ? await SelectFileUtil.getVideoMetaDataEncryption(context)
-      : await SelectFileUtil.getVideoMetaData(context);
+    encryption ? Preferences.saveVideoMetaDataEncryption(context, sortedList)
+      : Preferences.saveVideoMetaData(context, sortedList)
+    const latestData = encryption ? Preferences.getVideoMetaDataEncryption(context)
+      : Preferences.getVideoMetaData(context);
     return latestData
   }
 
   // 保存密码
   savePwd(context: Context, passwd: string) {
-    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'passwd', passwd)
+    Preferences.savePassword(context, passwd)
     this.showToast(getContext().resourceManager.getStringSync($r('app.string.set_passwd_tip')))
   }
 
@@ -134,7 +134,7 @@ class ToolsUtil {
       this.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
       uri = 'FFMpegPlayer'
     }
-    const recentPlay = await PreferencesUtil.getPreferencesValue(context, "sweet_video", "recentPlay", true) as boolean
+    const recentPlay = Preferences.getRecentPlayState(context)
     if (recentPlay) {
       RecentPlayUtil.addPlayback(context, item)
     }
@@ -145,7 +145,7 @@ class ToolsUtil {
   // 点击视频跳转到播放器
   async routerWhere(pathStack: NavPathStack, context: Context, uri: string, item: string, list: VideoMetadata[],
     encryption: boolean) {
-    const recentPlay = PreferencesUtil.getPreferencesValue(context, "sweet_video", "recentPlay", true) as boolean
+    const recentPlay = Preferences.getRecentPlayState(context)
     if (!encryption && recentPlay) {
       RecentPlayUtil.addPlayback(context, list.find(i => i.date === item)!)
     }

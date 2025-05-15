@@ -14,6 +14,7 @@ import FileFolderUtil from '../utils/FileFolderUtil';
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
+import Preferences from '../database/Preferences';
 
 const sandbox_subtitle = getContext().filesDir + '/subtitle/'
 const sandbox_path = getContext().filesDir + '/'
@@ -28,6 +29,24 @@ function imageFancy(borderRadius: number, width: number | string, height: number
   .height(height)
   .autoResize(true)
   .interpolation(ImageInterpolation.Low)
+}
+
+@Extend(SymbolGlyph)
+function symbolGlyphFancy(fontSize: number, width: number | string, height: number | string) {
+  .fontSize(fontSize)
+  .fontColor([$r('app.color.text_color')])
+  .width(width)
+  .height(height)
+}
+
+@Extend(Button)
+function buttonFancy(width: number | string, height: number | string) {
+  .borderRadius(16)
+  .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+  .width(width)
+  .height(height)
+  .backgroundColor($r('app.color.start_window_background_blur'))
+  .animation({ duration: 300, curve: Curve.Ease })
 }
 
 @Component
@@ -47,10 +66,9 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   private listScroller: Scroller = new Scroller();
 
-  async onPageShow(): Promise<void> {
-    this.file_folder_list = await SelectFileUtil.getFileFolder(context)
-    this.file_folder = this.file_folder_list.find(i => i.date === this.file_folder?.date)
-    this.videoDataSource.updateData(this.file_folder?.video_list!)
+  aboutToAppear(): void {
+    this.file_folder = this.pathStack.getParamByName('FileFolderContent')[0] as FileFolder
+    this.videoDataSource = new FileFolderContentDataSource(this.file_folder?.video_list!);
   }
 
   @Builder
@@ -59,9 +77,9 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
       Menu() {
         MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.plus_square")), content: '添加到首页' })
           .onClick(async () => {
-            let video_meta_data = await SelectFileUtil.getVideoMetaData(context)
+            let video_meta_data = Preferences.getVideoMetaData(context)
             video_meta_data.push(video_item!)
-            await SelectFileUtil.saveVideoMetaData(context, video_meta_data)
+            Preferences.saveVideoMetaData(context, video_meta_data)
             await this.delData(context, video_item!, true)
           })
         ForEach(this.file_folder_list, (item: FileFolder) => {
@@ -134,12 +152,26 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
     })
   }
 
+  @Builder
+  NavigationMenus() {
+    Row() {
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
+          .symbolGlyphFancy(25, '', '')
+      }
+      .backdropBlur(150)
+      .buttonFancy(40, 40)
+      .bindMenu(this.SortMenuBuilder)
+      .backgroundColor('rgba(0, 0, 0, 0.05)')
+    }.margin({ right: 24, top: 10 })
+  }
+
   async delData(context: Context, item: VideoMetadata, move_to_other_file_folder: boolean) {
     this.file_folder!.video_list = this.file_folder!.video_list.filter(i => i.date !== item.date);
-    let file_folder_list = await SelectFileUtil.getFileFolder(context)
+    let file_folder_list = Preferences.getFileFolder(context)
     file_folder_list = file_folder_list.filter(i => i.date !== this.file_folder?.date)
     file_folder_list.push(this.file_folder!)
-    await SelectFileUtil.saveFileFolder(context, file_folder_list)
+    Preferences.saveFileFolder(context, file_folder_list)
     this.videoDataSource.deleteData(this.videoDataSource.getAllData().indexOf(item))
     if (!move_to_other_file_folder) {
       if (await SelectFileUtil.isSubtitleExist(sandbox_subtitle, item.date!)) {
@@ -160,7 +192,6 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
   build() {
     NavDestination() {
       Column() {
-
         if (this.file_folder?.video_list.length === 0) {
           Text('还没有任何视频哦~')
             .fontSize(24)
@@ -170,7 +201,6 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
             .height('100%')
             .width('100%')
         }
-
         List({ scroller: this.listScroller, space: 10 }) {
           LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
             ListItem() {
@@ -256,12 +286,17 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
       })
       .backgroundColor($r('app.color.start_window_background'))
     }
-    .onReady(() => {
-      const file_folder: FileFolder = this.pathStack.getParamByName('FileFolderContent')[0] as FileFolder
-      this.file_folder = file_folder
-      this.videoDataSource = new FileFolderContentDataSource(this.file_folder?.video_list!);
+    .onShown(async () => {
+      this.file_folder_list = Preferences.getFileFolder(context)
+      this.file_folder = this.file_folder_list.find(i => i.date === this.file_folder?.date)
+      this.videoDataSource.updateData(this.file_folder?.video_list!)
+    })
+    .onWillDisappear(() => {
+      this.file_folder = undefined
+      this.file_folder_list = []
     })
     .title(this.file_folder?.name || '文件夹')
+    .menus(this.NavigationMenus)
     .padding({ top: this.topSafeHeight, bottom: this.bottomSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
   }
