@@ -1163,14 +1163,11 @@ struct Index {
     // 如果是隐私空间首页，则退出隐私空间
     if (this.encryption) {
       this.encryption = false
-      // 退出隐私空间时清空密码
+      // 退出隐私空间时清空输入框
       this.searchValue = ''
       PrivacySpaceUtil.setPrivacyMode(false)
       return true
     }
-    // 首页响应系统返回手势，退出app
-    context.terminateSelf()
-    return false
   }
 
   @Builder

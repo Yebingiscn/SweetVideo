@@ -56,7 +56,7 @@ class Preferences {
   }
 
   getAllowDoubleFastForwardState(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowDoubleFastForward", false) as boolean
+    return PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowDoubleFastForward", true) as boolean
   }
 
   getVideoSpeed(context: Context) {
@@ -65,6 +65,14 @@ class Preferences {
 
   getCirclePlayState(context: Context) {
     return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'circle_play', false) as boolean
+  }
+
+  getSkipIntroTime(context: Context) {
+    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'skipIntroTime', '0') as string
+  }
+
+  saveSkipIntroTime(context: Context, skipIntroTime: string) {
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'skipIntroTime', skipIntroTime);
   }
 
   saveVideoSpeed(context: Context, video_speed: string) {

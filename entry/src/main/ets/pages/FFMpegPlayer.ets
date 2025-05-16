@@ -31,10 +31,9 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { PlayStatus } from '../common/enum/PlayStatus'
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import VideoInfoUtil from '../utils/VideoInfoUtil'
-
+import { KeyCode } from '@kit.InputKit'
 
 const context = getContext() as common.UIAbilityContext;
-
 
 @Component
 export struct FFMpegPlayer { // FFMpeg播放器页
@@ -83,6 +82,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @State video_meta_data: VideoMetadata[] = []
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
   @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
+  @StorageLink('skipIntroTime') skipIntroTime: string = '0'
   @Consume('pathStack') pathStack: NavPathStack
   private initPinchDistance: number = 0;
   private CONTROL_PlayStatus = PlayStatus.INIT;
@@ -543,6 +543,14 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         .height(40)
         .width(40)
         .backgroundColor('#50000000')
+        .defaultFocus(true)
+        .onKeyEvent((event?: KeyEvent) => {
+          if (event) {
+            if (event.type === KeyType.Down && event.keyCode === KeyCode.KEYCODE_SPACE) { // 空格键按下触发
+              this.playing ? this.pause() : this.startPlayOrResumePlay()
+            }
+          }
+        })
         .onClick(() => {
           ToolsUtil.startVibration()
           this.playing ? this.pause() : this.startPlayOrResumePlay()
@@ -664,7 +672,9 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       this.play();
       setTimeout(() => {
         if (this.now_playing?.last_play! < this.total_time * 0.9 && this.now_playing?.last_play != 0) {
-          this.mIjkMediaPlayer.seekTo(this.now_playing?.last_play.toString()!)
+          this.mIjkMediaPlayer.seekTo(String(this.now_playing?.last_play!))
+        } else if (this.skipIntroTime !== '0' && Number(this.skipIntroTime) * 1000 < this.now_playing?.time!) {
+          this.mIjkMediaPlayer.seekTo(String(this.play_time + Number(this.skipIntroTime) * 1000))
         }
       }, 500)
     }

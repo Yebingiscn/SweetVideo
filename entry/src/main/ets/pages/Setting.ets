@@ -11,6 +11,7 @@ export struct SettingsPage { //设置页
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
   @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
+  @StorageLink('skipIntroTime') skipIntroTime: string = '0'
   @StorageLink('recentPlay') recentPlay: boolean = true
   @StorageLink('defaultPlayer') defaultPlayer: string = 'FFMpeg播放器'
   @StorageLink('subtitleSize') subtitleSize: string = '22'
@@ -46,7 +47,7 @@ export struct SettingsPage { //设置页
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.arrow_left'),
-            message: '播放器使用返回手势直接退出',
+            message: '播放器使用返回手势时直接退出',
             enable: this.allowPlayBackExist,
             onChange: (checked: boolean) => {
               this.allowPlayBackExist = checked
@@ -91,6 +92,19 @@ export struct SettingsPage { //设置页
             onChange: (index: number) => {
               this.fastForwardSeconds = ['15', '30', '60', '120'][index]
               Preferences.saveFastForwardSeconds(context, this.fastForwardSeconds)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsMenuItem({
+            symbol: $r('sys.symbol.forward_end_fill'),
+            message: '跳过片头（秒）',
+            list: ['不跳过', '15秒', '30秒', '45秒', '60秒', '90秒', '120秒'],
+            selected: ['0', '15', '30', '45', '60', '90', '120'].findIndex(i => i == this.skipIntroTime),
+            onChange: (index: number) => {
+              this.skipIntroTime = ['0', '15', '30', '45', '60', '90', '120'][index]
+              Preferences.saveSkipIntroTime(context, this.skipIntroTime)
             }
           })
         }

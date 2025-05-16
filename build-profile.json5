@@ -1,7 +1,21 @@
-
+// pwd: Aa12345678
+// alias: sweet_video
 {
   "app": {
     "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\叶滨\\.ohos\\config\\default_SweetVideo_AysOsTtpHBt7U0PSgDnkQwnAC3A5F-TtcaKVhmSuGow=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001BF90D8E70DF0CBB012564434291288E4193B8C7B877C6C295EF834B4253F057CCA2855C8DBB93C7",
+          "profile": "C:\\Users\\叶滨\\.ohos\\config\\default_SweetVideo_AysOsTtpHBt7U0PSgDnkQwnAC3A5F-TtcaKVhmSuGow=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\叶滨\\.ohos\\config\\default_SweetVideo_AysOsTtpHBt7U0PSgDnkQwnAC3A5F-TtcaKVhmSuGow=.p12",
+          "storePassword": "0000001B62BF78A6DF173D37B89D50AA0985DE33E3E9C6F7F4F5648F1529885E590E7F30FE82268B4885DC"
+        }
+      }
     ],
     "products": [
       {

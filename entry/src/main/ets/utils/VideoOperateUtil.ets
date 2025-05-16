@@ -207,6 +207,7 @@ class VideoOperateUtil {
     AppStorage.setOrCreate('defaultPlayer', Preferences.getDefaultPlayer(context))
     AppStorage.setOrCreate('subtitleSize', Preferences.getSubtitleSize(context))
     AppStorage.setOrCreate('allowDoubleFastForward', Preferences.getAllowDoubleFastForwardState(context))
+    AppStorage.setOrCreate('skipIntroTime', Preferences.getSkipIntroTime(context))
     ReqPermissionUtil.reqPermissionsFromUser(ReqPermissionUtil.permissions, context);
   }
 }
