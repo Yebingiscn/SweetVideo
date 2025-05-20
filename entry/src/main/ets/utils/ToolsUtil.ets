@@ -128,8 +128,7 @@ class ToolsUtil {
 
   //从文件夹点击视频进入视频播放器
   async routerToVideoFromFileFolder(pathStack: NavPathStack, context: Context, uri: string,
-    item: VideoMetadata,
-    file_folder: FileFolder) {
+    item: VideoMetadata, file_folder: FileFolder) {
     if (VideoInfoUtil.videoWidthAndHeightFormat(String(item?.size)) === '0 x 0') {
       this.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
       uri = 'FFMpegPlayer'

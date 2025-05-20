@@ -180,10 +180,6 @@ export struct Player { // 播放页
     if (this.screenBrightness != this.screenBrightnessAtFirst) {
       VideoOperateUtil.setBrightness(this.screenBrightnessAtFirst)
     }
-    if (this.allowBackgroundPlay) {
-      AVSessionUtil.destroySession()
-      PermissionUtil.stopContinuousTask()
-    }
     await (await this.windowClass).setWindowKeepScreenOn(false)
     await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
     await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
@@ -385,7 +381,8 @@ export struct Player { // 播放页
           break;
         case 'error':
           await this.ijkPlayerStop()
-          VideoOperateUtil.playErrorExecute(this.pathStack, this.video_meta_data, this.now_playing?.date!)
+          VideoOperateUtil.playErrorExecute(this.pathStack, this.video_meta_data, this.now_playing?.date!,
+            this.file_folder)
           this.avPlayer?.release()
           break;
       }
@@ -438,7 +435,7 @@ export struct Player { // 播放页
   }
 
   async playNextVideo() {
-    if (this.video_meta_data.length > 0) {
+    if (this.video_meta_data.length > 0 && this.play_time > 0) {
       await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data, context,
         this.file_folder)
       let item = SelectFileUtil.getItem(this.video_meta_data, this.now_playing?.date || '') as VideoMetadata
@@ -972,9 +969,13 @@ export struct Player { // 播放页
       }
     })
     .onWillDisappear(async () => {
-      if (this.video_meta_data.length > 0) {
+      if (this.video_meta_data.length > 0 && this.play_time > 0) {
         await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data, context,
           this.file_folder)
+      }
+      if (this.allowBackgroundPlay) { //若发生错误跳转FFMpeg播放器，确保提前关闭申请防止两个播放器重复申请导致失败
+        AVSessionUtil.destroySession()
+        PermissionUtil.stopContinuousTask()
       }
     })
     .hideTitleBar(true)

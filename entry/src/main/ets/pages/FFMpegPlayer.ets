@@ -450,7 +450,10 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         return false
       }
     }).onWillDisappear(async () => {
-      if (this.video_meta_data.length > 0) {
+      if (this.now_playing?.time === 0) {
+        this.now_playing.time = this.total_time; // 若系统无法识别视频时长，则由 FFMpeg API 提供以保存记忆时间
+      }
+      if (this.video_meta_data.length > 0 && this.play_time > 0) {
         await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data, context,
           this.file_folder)
       }

@@ -97,14 +97,14 @@ class VideoOperateUtil {
   }
 
   // 系统播放器播放失败处理
-  playErrorExecute(pathStack: NavPathStack, video_meta_data: VideoMetadata[], date: string) {
+  playErrorExecute(pathStack: NavPathStack, video_meta_data: VideoMetadata[], date: string, file_folder: FileFolder) {
     ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
     const now_play_item = video_meta_data.find(item => {
       const target_item = SelectFileUtil.getItem(video_meta_data, item?.date)?.date;
       return date === target_item;
     });
-    const playerParams = new PlayerParams(now_play_item, video_meta_data, undefined)
-    pathStack.pushPathByName('FFMpegPlayer', playerParams, false)
+    const playerParams = new PlayerParams(now_play_item, video_meta_data, file_folder ? file_folder : undefined)
+    pathStack.replacePathByName('FFMpegPlayer', playerParams, true)
   }
 
   // 未识别到音轨处理
