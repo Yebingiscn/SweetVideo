@@ -5,7 +5,6 @@ import VideoInfoUtil from './VideoInfoUtil';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { bundleManager } from '@kit.AbilityKit';
-import RecentPlayUtil from './RecentPlayUtil';
 import SelectFileUtil from './SelectFileUtil';
 import { pinyin4js } from '@ohos/pinyin4js';
 import PermissionUtil from './PermissionUtil';
@@ -127,27 +126,18 @@ class ToolsUtil {
   }
 
   //从文件夹点击视频进入视频播放器
-  async routerToVideoFromFileFolder(pathStack: NavPathStack, context: Context, uri: string,
+  async routerToVideoFromFileFolder(pathStack: NavPathStack, uri: string,
     item: VideoMetadata, file_folder: FileFolder) {
     if (VideoInfoUtil.videoWidthAndHeightFormat(String(item?.size)) === '0 x 0') {
       this.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
       uri = 'FFMpegPlayer'
-    }
-    const recentPlay = Preferences.getRecentPlayState(context)
-    if (recentPlay) {
-      RecentPlayUtil.addPlayback(context, item)
     }
     const playerParams = new PlayerParams(item, file_folder.video_list, file_folder)
     pathStack.pushPathByName(uri, playerParams, true)
   }
 
   // 点击视频跳转到播放器
-  async routerWhere(pathStack: NavPathStack, context: Context, uri: string, item: string, list: VideoMetadata[],
-    encryption: boolean) {
-    const recentPlay = Preferences.getRecentPlayState(context)
-    if (!encryption && recentPlay) {
-      RecentPlayUtil.addPlayback(context, list.find(i => i.date === item)!)
-    }
+  async routerWhere(pathStack: NavPathStack, uri: string, item: string, list: VideoMetadata[]) {
     let target_item = SelectFileUtil.getItem(list, item!)
     // 没有长宽的视频/音频系统播放器播不了
     if (VideoInfoUtil.videoWidthAndHeightFormat(String(target_item?.size)) === '0 x 0') {

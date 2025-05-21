@@ -52,9 +52,11 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
       Menu() {
         MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(async () => {
           this.MenuBuilderState = false
-          await ToolsUtil.isFileExist(item) ?
-          ToolsUtil.routerWhere(this.pathStack, context, 'Player', item?.date!, this.video_meta_data_encryption, true) :
-            await this.delData(context, item!)
+          setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
+            await ToolsUtil.isFileExist(item) ?
+            ToolsUtil.routerWhere(this.pathStack, 'Player', item?.date!, this.video_meta_data_encryption) :
+              await this.delData(context, item!)
+          }, 200)
         })
         MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
           .onClick(() => {
@@ -172,8 +174,7 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
                 }
                 .onClick(async () => {
                   await ToolsUtil.isFileExist(item) ?
-                  ToolsUtil.routerWhere(this.pathStack, context, 'Player', item.date, this.video_meta_data_encryption,
-                    true) :
+                  ToolsUtil.routerWhere(this.pathStack, 'Player', item.date, this.video_meta_data_encryption) :
                     await this.delData(context, item)
                 })
                 .width('100%')

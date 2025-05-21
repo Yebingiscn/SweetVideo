@@ -2,6 +2,7 @@ import { avSession as avSessionManager } from '@kit.AVSessionKit';
 import { image } from '@kit.ImageKit';
 import { AvSessionState } from '../interfaces/AvSessionStateInterface';
 import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
+import { Context } from '@kit.AbilityKit';
 
 // 播控中心设置类
 class AVSessionUtil {
@@ -17,31 +18,21 @@ class AVSessionUtil {
   }
 
   async createSession() {
-    let type: avSessionManager.AVSessionType = 'video';
+    let type: avSessionManager.AVSessionType = 'audio';
     this.avSession = await avSessionManager.createAVSession(this.context, 'sweet_video', type);
     this.avSession.activate()
-    console.error('test active success')
   }
 
   async setSessionInfo(metadata_json: string) {
     let metadata: VideoMetadataFromPlayer = JSON.parse(metadata_json)
-    const imageSource = image.createImageSource(this.sandbox_path + metadata.date);
     let pixelMap: image.PixelMap | undefined;
     try {
+      const imageSource = image.createImageSource(this.sandbox_path + metadata.date);
       pixelMap = imageSource.createPixelMapSync();
-    } catch (e) {
-      //要想接入播控中心，必须传入图片，这里对于无法获取封面的视频，传入默认图/片
-      const resourceMgr = this.context.resourceManager;
-      // error报错: fail to get arraybufferinfo
-      const resource = resourceMgr.getMediaContentSync($r('app.media.Foreground').id)
-      // error报错 CreateImageSourceExec error
-      const defaultImageSource = image.createImageSource(resource);
-      try {
-        pixelMap = defaultImageSource.createPixelMapSync();
-        console.error('test4' + pixelMap)
-      } catch (e) {
-        console.error('test error' + e)
-      }
+    } catch (e) { //视频没有封面时加载默认封面
+      const resourceMgr = this.context.resourceManager.getMediaContentSync($r('app.media.sweet_video').id)
+      const defaultImageSource = image.createImageSource(resourceMgr.buffer);
+      pixelMap = defaultImageSource.createPixelMapSync();
     }
     let session_metadata: avSessionManager.AVMetadata = {
       assetId: metadata.date,

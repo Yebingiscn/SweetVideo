@@ -268,7 +268,7 @@ struct Index {
       Menu() {
         MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(() => {
           this.MenuBuilderState = false
-          setTimeout(async () => {
+          setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
             const target_data = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
             let target_item = SelectFileUtil.getItem(target_data, item?.date!)
             if (!target_data.find(i => i.date == item?.date!)) {
@@ -277,8 +277,8 @@ struct Index {
               return
             }
             await ToolsUtil.isFileExist(target_item) ?
-            ToolsUtil.routerWhere(this.pathStack, context, 'FFMpegPlayer', item?.date!,
-              this.encryption ? this.video_meta_data_encryption : this.video_meta_data, this.encryption) :
+            ToolsUtil.routerWhere(this.pathStack, 'FFMpegPlayer', item?.date!,
+              this.encryption ? this.video_meta_data_encryption : this.video_meta_data) :
             this.deleteUnExistFile(target_item)
           }, 200)
         })
@@ -953,8 +953,8 @@ struct Index {
                 }
                 this.listScroller.closeAllSwipeActions()
                 await ToolsUtil.isFileExist(target_item) ?
-                ToolsUtil.routerWhere(this.pathStack, context, 'Player', item,
-                  this.encryption ? this.video_meta_data_encryption : this.video_meta_data, this.encryption) :
+                ToolsUtil.routerWhere(this.pathStack, 'Player', item,
+                  this.encryption ? this.video_meta_data_encryption : this.video_meta_data) :
                 this.deleteUnExistFile(target_item)
               })
             }, (item: string) => item)

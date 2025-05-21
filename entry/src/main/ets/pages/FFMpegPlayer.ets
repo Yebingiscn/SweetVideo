@@ -13,7 +13,6 @@ import {
   OnTimedTextListener,
   OnVideoSizeChangedListener
 } from '@ohos/ijkplayer'
-import DataSyncUtil from '../utils/DataSyncUtil'
 import TimeUtil from '../utils/TimeUtil'
 import ToolsUtil from '../utils/ToolsUtil'
 import { window } from '@kit.ArkUI'
@@ -84,6 +83,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
   @StorageLink('skipIntroTime') skipIntroTime: string = '0'
   @Consume('pathStack') pathStack: NavPathStack
+  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   private initPinchDistance: number = 0;
   private CONTROL_PlayStatus = PlayStatus.INIT;
   private mIjkMediaPlayer = IjkMediaPlayer.getInstance();
@@ -170,7 +170,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             .padding({
               left: (this.screen_height > this.screen_width ? 5 : 5),
               right: 20,
-              top: (this.screen_height > this.screen_width ? DataSyncUtil.getActuallyTopSafeHeight() : 0),
+              top: (this.screen_height > this.screen_width ? this.topSafeHeight : 0),
               bottom: 0
             })
 
@@ -598,10 +598,10 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
     let audioManager = audio.getAudioManager();
     let audioVolumeManger: audio.AudioVolumeManager = audioManager.getVolumeManager();
-    this.setScreen()
+    await this.setScreen()
     let volumeList = await VideoOperateUtil.getVolume(audioVolumeManger, groupId)
     this.volume = volumeList.get('volume')!
-    await (await this.windowClass).setPreferredOrientation(window.Orientation.FOLLOW_DESKTOP);
+    await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
     await (await this.windowClass).setWindowKeepScreenOn(true)
     let event: Callback<InterruptEvent> = (event) => {
       //  LogUtils.getInstance().LOGI(`event: ${JSON.stringify(event)}`);
@@ -676,7 +676,9 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       setTimeout(() => {
         if (this.now_playing?.last_play! < this.total_time * 0.9 && this.now_playing?.last_play != 0) {
           this.mIjkMediaPlayer.seekTo(String(this.now_playing?.last_play!))
-        } else if (this.skipIntroTime !== '0' && Number(this.skipIntroTime) * 1000 < this.now_playing?.time!) {
+        } else if (this.skipIntroTime !== '0' && Number(this.skipIntroTime) * 1000 < this.now_playing?.time! &&
+          !VideoInfoUtil.support_audio_format.includes(this.now_playing?.title.split('.')[this.now_playing?.title.split('.')
+            .length-1].toLowerCase()!)) {
           this.mIjkMediaPlayer.seekTo(String(this.play_time + Number(this.skipIntroTime) * 1000))
         }
       }, 500)

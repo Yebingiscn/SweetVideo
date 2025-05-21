@@ -15,6 +15,8 @@ import { AvSessionState } from '../interfaces/AvSessionStateInterface';
 import ReqPermissionUtil from './ReqPermissionUtil';
 import { common } from '@kit.AbilityKit';
 import Preferences from '../database/Preferences';
+import RecentPlayUtil from './RecentPlayUtil';
+import PrivacySpaceUtil from './PrivacySpaceUtil';
 
 // 视频操作类
 class VideoOperateUtil {
@@ -171,6 +173,10 @@ class VideoOperateUtil {
       Preferences.saveFileFolder(context, file_folder_list)
     } else {
       await SelectFileUtil.saveData(context, video_meta_data, now_playing!)
+    }
+    const recentPlay = Preferences.getRecentPlayState(context) // 添加到最近播放
+    if (recentPlay && !PrivacySpaceUtil.getPrivacyMode()) {
+      RecentPlayUtil.addPlayback(context, video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)])
     }
   }
 

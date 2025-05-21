@@ -1,6 +1,5 @@
 import { media } from '@kit.MediaKit';
 import AVPlayerUtil from '../utils/AVPlayerUtil';
-import DataSyncUtil from '../utils/DataSyncUtil';
 import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
 import PermissionUtil from '../utils/PermissionUtil';
 import { common } from '@kit.AbilityKit';
@@ -91,7 +90,6 @@ export struct Player { // 播放页
   @State volume: number = 0
   @State screenBrightness: number = 0
   @State screenBrightnessAtFirst: number = 0
-  @State windowClassTmp: window.Window | undefined = undefined;
   @State video_meta_data: VideoMetadata[] = []
   @State select_text: string | undefined = '原始比例'
   @State circle_play: boolean = false
@@ -116,6 +114,7 @@ export struct Player { // 播放页
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
   @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
   @StorageLink('skipIntroTime') skipIntroTime: string = '0'
+  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @Consume('pathStack') pathStack: NavPathStack
   private file_folder: FileFolder = {
     name: '',
@@ -150,8 +149,8 @@ export struct Player { // 播放页
   }
 
   async setScreen() {
-    await (await this.windowClass).setSpecificSystemBarEnabled('status', this.showControl)
-    await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', this.showControl)
+    await (await this.windowClass).setSpecificSystemBarEnabled('status', this.showControl, true)
+    await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', this.showControl, true)
   }
 
   async aboutToAppear(): Promise<void> {
@@ -327,7 +326,10 @@ export struct Player { // 播放页
             if (VideoOperateUtil.mIjkMediaPlayerActive) {
               this.mIjkMediaPlayer.seekTo(String(this.now_playing?.last_play))
             }
-          } else if (this.skipIntroTime !== '0' && Number(this.skipIntroTime) * 1000 < this.now_playing?.time!) {
+          } else if (this.skipIntroTime !== '0' && Number(this.skipIntroTime) * 1000 < this.now_playing?.time! &&
+            !VideoInfoUtil.support_audio_format.includes(this.now_playing?.title.split('.')[this.now_playing?.title.split('.')
+              .length-1].toLowerCase()!)
+          ) {
             this.avPlayer?.seek(this.play_time + Number(this.skipIntroTime) * 1000, media.SeekMode.SEEK_CLOSEST)
             if (VideoOperateUtil.mIjkMediaPlayerActive) {
               this.mIjkMediaPlayer.seekTo(String(this.play_time + Number(this.skipIntroTime) * 1000))
@@ -604,7 +606,7 @@ export struct Player { // 播放页
                 .padding({
                   left: (this.screen_height > this.screen_width ? 20 : 35),
                   right: 20,
-                  top: (this.screen_height > this.screen_width ? DataSyncUtil.getActuallyTopSafeHeight() : 0),
+                  top: (this.screen_height > this.screen_width ? this.topSafeHeight : 0),
                   bottom: 0
                 })
 

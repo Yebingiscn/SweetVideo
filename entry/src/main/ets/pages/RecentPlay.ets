@@ -25,11 +25,14 @@ export struct RecentPlay { // 最近播放页
   @Consume('pathStack') pathStack: NavPathStack
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
+  @StorageLink('recentPlay') recentPlay: boolean = true
   private listScroller: Scroller = new Scroller();
 
   async aboutToAppear(): Promise<void> {
-    this.recent_video_meta_data = await RecentPlayUtil.getRecentPlaybacks()
-    this.videoDataSource = new RecentVideoDataSource(this.recent_video_meta_data);
+    if (this.recentPlay) {
+      this.recent_video_meta_data = await RecentPlayUtil.getRecentPlaybacks()
+      this.videoDataSource = new RecentVideoDataSource(this.recent_video_meta_data);
+    }
   }
 
   @Builder
@@ -49,10 +52,11 @@ export struct RecentPlay { // 最近播放页
           .height(30)
       }.padding(10).onClick(async () => {
         this.MenuBuilderState = false
-        await ToolsUtil.isFileExist(item) ?
-        ToolsUtil.routerWhere(this.pathStack, context, 'FFMpegPlayer', item?.date!, this.recent_video_meta_data,
-          false) :
-        this.delData(context, item!)
+        setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
+          await ToolsUtil.isFileExist(item) ?
+          ToolsUtil.routerWhere(this.pathStack, 'FFMpegPlayer', item?.date!, this.recent_video_meta_data) :
+          this.delData(context, item!)
+        }, 200)
       })
 
       Divider().height(2)
@@ -116,8 +120,7 @@ export struct RecentPlay { // 最近播放页
                 }
                 .onClick(async () => {
                   await ToolsUtil.isFileExist(item) ?
-                  ToolsUtil.routerWhere(this.pathStack, context, 'Player', item.date, this.recent_video_meta_data,
-                    false) :
+                  ToolsUtil.routerWhere(this.pathStack, 'Player', item.date, this.recent_video_meta_data) :
                   this.delData(context, item)
                 })
                 .width('100%')
@@ -135,7 +138,12 @@ export struct RecentPlay { // 最近播放页
         .chainAnimation(true)
         .scrollBar(BarState.Off)
       }
-    }
+    }.onShown(async () => {
+      if (this.recentPlay) {
+        this.recent_video_meta_data = await RecentPlayUtil.getRecentPlaybacks()
+        this.videoDataSource.updateData(this.recent_video_meta_data)
+      }
+    })
     .title('最近播放')
     .padding({ top: this.topSafeHeight, bottom: this.bottomSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
