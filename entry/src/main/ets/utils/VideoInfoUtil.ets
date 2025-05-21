@@ -18,7 +18,7 @@ class VideoInfoUtil {
   // 字幕格式支持列表
   public support_subtitle_format = ['srt', 'vtt']
   // 倍数格式支持列表
-  public speed_index_map: number[] = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3]
+  public video_speed_list: number[] = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3]
   // 屏幕比例放大列表
   public scale_factors = new Map<string, number>([
     ['等比放大 110%', 1.1],

@@ -183,7 +183,7 @@ export struct Player { // 播放页
     await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
     await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
     await (await this.windowClass).setPreferredOrientation(window.Orientation.FOLLOW_DESKTOP);
-    Preferences.saveVideoSpeed(context, this.speed + 'x')
+    Preferences.saveVideoSpeed(context, (VideoInfoUtil.video_speed_list.includes(this.speed) ? this.speed : 1) + 'x')
     Preferences.saveCirclePlayState(context, this.circle_play)
   }
 
@@ -654,7 +654,10 @@ export struct Player { // 播放页
 
           if (this.long_press) {
             Stack({ alignContent: Alignment.BottomEnd }) { //快进提示
-              Text(this.speed + 'x ⏩').fontColor($r('sys.color.white')).fontSize(15).fontWeight(FontWeight.Bold)
+              Text(VideoInfoUtil.optimizedFormat(this.speed) + ' ⏩')
+                .fontColor($r('sys.color.white'))
+                .fontSize(15)
+                .fontWeight(FontWeight.Bold)
             }
             .padding({
               left: 25,
@@ -788,7 +791,7 @@ export struct Player { // 播放页
           Column()
             .width('100%')
             .height(this.showControl ? '50%' : '80%')//触控区域
-            .gesture(GestureGroup(GestureMode.Exclusive, // 需要互斥事件
+            .gesture(GestureGroup(GestureMode.Parallel, // 不用互斥事件，会导致左右滑动调节倍速的功能失效
               TapGesture({ count: 2 })
                 .onAction((event: GestureEvent) => {
                   if (!this.isLock) {
@@ -834,10 +837,21 @@ export struct Player { // 播放页
                     const deltaX = event.fingerList[0].localX - this.longPressStartX;
                     const SWIPE_THRESHOLD = 30;
                     if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
+                      if (typeof this.currentSpeedIndex === 'undefined') {
+                        this.currentSpeedIndex = VideoInfoUtil.video_speed_list.indexOf(this.speed);
+                        if (this.currentSpeedIndex === -1) {
+                          this.currentSpeedIndex = 0;
+                        }
+                      }
+                      // 确认滑动方向（根据实际需求调整方向）
                       const direction = deltaX > 0 ? 1 : -1;
-                      const arrayLength = VideoInfoUtil.speed_index_map.length;
-                      this.currentSpeedIndex = (this.currentSpeedIndex + direction + arrayLength) % arrayLength;
-                      this.updatePlaybackSpeed(VideoInfoUtil.speed_index_map[this.currentSpeedIndex]);
+                      // 计算新索引（带边界限制）
+                      const newIndex = this.currentSpeedIndex + direction;
+                      const clampedIndex = Math.max(0, Math.min(newIndex, VideoInfoUtil.video_speed_list.length - 1));
+                      if (clampedIndex !== this.currentSpeedIndex) {
+                        this.currentSpeedIndex = clampedIndex;
+                        this.updatePlaybackSpeed(VideoInfoUtil.video_speed_list[this.currentSpeedIndex]);
+                      }
                       this.longPressStartX = event.fingerList[0].localX; // 重置起始点（实现分档切换效果）
                     }
                     return
@@ -899,7 +913,7 @@ export struct Player { // 播放页
                     this.long_press = true
                     this.last_speed = this.speed
                     this.updatePlaybackSpeed(3);
-                    this.currentSpeedIndex = VideoInfoUtil.speed_index_map.indexOf(3);
+                    this.currentSpeedIndex = VideoInfoUtil.video_speed_list.indexOf(3);
                   }
                 })
                 .onActionEnd(() => {
@@ -1195,10 +1209,14 @@ export struct Player { // 播放页
           { value: '3x' }])
           .font({ size: this.screen_height > this.screen_width ? 13 : 15, weight: FontWeight.Medium })
           .fontColor($r('sys.color.white'))
-          .selected(VideoInfoUtil.speed_index_map.indexOf(this.speed))
+          .selected(VideoInfoUtil.video_speed_list.indexOf(this.speed))
           .value(VideoInfoUtil.optimizedFormat(this.speed))
           .onSelect(async (_index: number, text?: string | undefined) => {
-            this.updatePlaybackSpeed(parseFloat(text?.replace('x', '') || '1'))
+            let speed = parseFloat(text?.replace('x', '') || '1');
+            if (!VideoInfoUtil.video_speed_list.includes(speed)) {
+              speed = 1;
+            }
+            this.updatePlaybackSpeed(speed);
           })
           .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
       }.span({ xs: 2, sm: 2, md: 2 })
@@ -1325,10 +1343,8 @@ export struct Player { // 播放页
     const drift = videoPos - audioPos;
     try { // 分级处理策略
       if (Math.abs(drift) > 1000) { // 严重不同步：完全重置
-        ToolsUtil.showToast('正在音画同步中，如果一直出现该提示可以先暂停一会减轻压力，不然很大可能会闪退')
         await this.fullResetSync(videoPos);
       } else if (Math.abs(drift) > 700) { // 中度不同步：双重seek
-        ToolsUtil.showToast('正在音画同步中...')
         await this.doubleSeekSync(videoPos);
       } else { // 轻度不同步：加速追赶
         await this.speedAdjustSync(drift);
@@ -1368,6 +1384,9 @@ export struct Player { // 播放页
   }
 
   private updatePlaybackSpeed(speed: number): void {
+    if (!VideoInfoUtil.video_speed_list.includes(speed)) {
+      speed = 1;
+    }
     this.avPlayer?.setSpeed(VideoInfoUtil.getVideoSpeed(speed));
     if (VideoOperateUtil.mIjkMediaPlayerActive) {
       this.mIjkMediaPlayer.setSpeed(String(speed));

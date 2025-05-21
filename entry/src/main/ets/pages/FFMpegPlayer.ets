@@ -324,7 +324,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
                 this.last_speed = this.playSpeed
                 this.playSpeed = '3'
                 this.mIjkMediaPlayer?.setSpeed(this.playSpeed)
-                this.currentSpeedIndex = VideoInfoUtil.speed_index_map.indexOf(3);
+                this.currentSpeedIndex = VideoInfoUtil.video_speed_list.indexOf(3);
               })
               .onActionEnd(() => {
                 this.long_press = false
@@ -348,9 +348,9 @@ export struct FFMpegPlayer { // FFMpeg播放器页
                   const SWIPE_THRESHOLD = 30;
                   if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
                     const direction = deltaX > 0 ? 1 : -1;
-                    const arrayLength = VideoInfoUtil.speed_index_map.length;
+                    const arrayLength = VideoInfoUtil.video_speed_list.length;
                     this.currentSpeedIndex = (this.currentSpeedIndex + direction + arrayLength) % arrayLength;
-                    this.playSpeed = VideoInfoUtil.speed_index_map[this.currentSpeedIndex].toString()
+                    this.playSpeed = VideoInfoUtil.video_speed_list[this.currentSpeedIndex].toString()
                     this.mIjkMediaPlayer?.setSpeed(this.playSpeed);
                     this.longPressStartX = event.fingerList[0].localX; // 重置起始点（实现分档切换效果）
                   }
