@@ -51,6 +51,8 @@ class WantProcess {
       // 如果是系统分享（一般都是从图库分享，图库的视频如果使用了高效视频格式或者是 HDR VIVID 需要使用系统播放器才能播
       if (defaultPlayer === '系统播放器' || this.isSystemShare || tmp.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID) {
         url = 'Player'
+      } else if (defaultPlayer === '红薯播放器') {
+        url = 'RedPlayer'
       } else {
         url = 'FFMpegPlayer'
       }

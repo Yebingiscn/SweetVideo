@@ -8,8 +8,8 @@
         <a href="https://img.shields.io/badge/OS-HarmonyOS Next-103fb6" style="text-decoration:none" >
             <img src="https://img.shields.io/badge/HarmonyOS-Next-103fb6" alt="HarmonyOS Version"/>
         </a>
-        <a href="https://img.shields.io/badge/API-15-lightgreen" style="text-decoration:none" >
-            <img src="https://img.shields.io/badge/API-16-lightgreen" alt="API Version"/>
+        <a href="https://img.shields.io/badge/API-17-lightgreen" style="text-decoration:none" >
+            <img src="https://img.shields.io/badge/API-17-lightgreen" alt="API Version"/>
         </a>
         <a href="https://img.shields.io/github/stars/Yebingiscn/SweetVideo?style=flat" style="text-decoration:none" >
             <img src="https://img.shields.io/github/stars/Yebingiscn/SweetVideo?style=flat" alt="GitHub all stars"/>
@@ -88,5 +88,8 @@ QQ群：973792610
 
 ## 流心视频由以下开源项目提供支持
 
+- 播放器R
+- 流心视频 https://gitee.com/lqsxy/sweetvideo/tree/master
 - pinyin4js https://ohpm.openharmony.cn/#/cn/detail/@ohos%2Fpinyin4js
 - ohos_ijkplayer https://gitee.com/openharmony-sig/ohos_ijkplayer/tree/master
+- REDPlayer https://github.com/RTE-Dev/REDPlayer

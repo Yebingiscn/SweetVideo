@@ -131,6 +131,14 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
               await this.delData(context, item!, false)
           }, 200)
         })
+        MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
+          this.MenuBuilderState = false
+          setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
+            await ToolsUtil.isFileExist(item) ?
+            ToolsUtil.routerToVideoFromFileFolder(this.pathStack, 'RedPlayer', item!, this.file_folder!) :
+              await this.delData(context, item!, false)
+          }, 200)
+        })
         MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
           .onClick(() => {
             DataSyncUtil.editing_video = JSON.stringify(item!)

@@ -117,86 +117,72 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           .height(this.play_area_height)
           .animation({ duration: this.play_time > 300 ? 300 : 0, curve: Curve.Ease })
 
-          if (this.onSwiping) {
-            Stack() {
-              Text(this.isSliderPlayTimeChange ?
-                TimeUtil.convertMsToMMSS(this.play_time) + '/' + TimeUtil.convertMsToMMSS(this.total_time) :
-                (this.play_time - this.last_play_time > 0 ? '+' : '') +
-                Math.floor((this.play_time - this.last_play_time) / 1000) + 's : ' +
-                TimeUtil.convertMsToMMSS(this.play_time) + '/' + TimeUtil.convertMsToMMSS(this.total_time))
-                .fontColor($r('sys.color.white'))
-                .fontSize(25)
-                .fontWeight(FontWeight.Bold)
-            }
-            .padding({
-              left: 25,
-              right: 25,
-              top: 10,
-              bottom: 10
-            })
-            .borderRadius(1000)
-            .backgroundColor('#30000000')
-            .backdropBlur(100)
-            .animation({ duration: 300, curve: Curve.Smooth })
-          }
-        }
+          Stack() {
+            Flex({
+              justifyContent: FlexAlign.SpaceBetween,
+              alignItems: ItemAlign.Center,
+              direction: FlexDirection.Column
+            }) { //顶栏
+              Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
+                Column() {
+                  this.VideoTop()
+                }.width('100%')
+              }.height(85)
+              .width('100%')
+              .backgroundColor('#61000000')
+              .padding({
+                left: (this.screen_height > this.screen_width ? 5 : 5),
+                right: 20,
+                top: (this.screen_height > this.screen_width ? this.topSafeHeight : 0),
+                bottom: 0
+              })
 
-        Stack() {
-          Flex({
-            justifyContent: FlexAlign.SpaceBetween,
-            alignItems: ItemAlign.Center,
-            direction: FlexDirection.Column
-          }) { //顶栏
-            Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
-              Column() {
-                if (this.screen_width > this.screen_height) {
-                  Row() {
-                    Text(ToolsUtil.getTime())
-                      .fontWeight(FontWeight.Medium)
-                      .fontSize(16)
-                      .fontColor($r('sys.color.white'))
-                      .textAlign(TextAlign.Center)
-                      .align(Alignment.Center)
-                  }
-                  .width('100%')
-                  .height(5)
-                  .justifyContent(FlexAlign.Center)
-                }
-                this.VideoTop()
-              }.width('100%')
-            }.height(85)
-            .width('100%')
-            .backgroundColor('#61000000')
-            .padding({
-              left: (this.screen_height > this.screen_width ? 5 : 5),
-              right: 20,
-              top: (this.screen_height > this.screen_width ? this.topSafeHeight : 0),
-              bottom: 0
-            })
-
-            Stack() { //底栏
-              if (this.screen_height > this.screen_width) {
-                Column({ space: 15 }) {
-                  this.VideoButtons()
-                  this.VideoSlider()
-                }
-              } else {
-                Row({ space: 15 }) {
-                  Column() {
-                    this.VideoSlider()
+              Stack() { //底栏
+                if (this.screen_height > this.screen_width) {
+                  Column({ space: 15 }) {
                     this.VideoButtons()
+                    this.VideoSlider()
+                  }
+                } else {
+                  Row({ space: 15 }) {
+                    Column() {
+                      this.VideoSlider()
+                      this.VideoButtons()
+                    }
                   }
                 }
               }
-            }
-            .backgroundColor('#61000000')
-            .height(this.screen_height > this.screen_width ? 180 : 110)
-            .width('100%')
-            .padding(1)
-          }.height('100%').width('100%')
+              .backgroundColor('#61000000')
+              .height(this.screen_height > this.screen_width ? 180 : 110)
+              .width('100%')
+              .padding(1)
+            }.height('100%').width('100%')
+          }.visibility(this.ShowControl ? Visibility.Visible : Visibility.Hidden)
+          .animation({ duration: 300, curve: Curve.Smooth })
         }
-        .visibility(this.ShowControl ? Visibility.Visible : Visibility.Hidden)
-        .animation({ duration: 300, curve: Curve.Smooth })
+
+        if (this.onSwiping) {
+          Stack() {
+            Text(this.isSliderPlayTimeChange ?
+              TimeUtil.convertMsToMMSS(this.play_time) + '/' + TimeUtil.convertMsToMMSS(this.total_time) :
+              (this.play_time - this.last_play_time > 0 ? '+' : '') +
+              Math.floor((this.play_time - this.last_play_time) / 1000) + 's : ' +
+              TimeUtil.convertMsToMMSS(this.play_time) + '/' + TimeUtil.convertMsToMMSS(this.total_time))
+              .fontColor($r('sys.color.white'))
+              .fontSize(25)
+              .fontWeight(FontWeight.Bold)
+          }
+          .padding({
+            left: 25,
+            right: 25,
+            top: 10,
+            bottom: 10
+          })
+          .borderRadius(1000)
+          .backgroundColor('#30000000')
+          .backdropBlur(100)
+          .animation({ duration: 300, curve: Curve.Smooth })
+        }
 
         if (this.onSwipingVoice) {
           Stack() { //音量提示
@@ -348,10 +334,12 @@ export struct FFMpegPlayer { // FFMpeg播放器页
                   const SWIPE_THRESHOLD = 30;
                   if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
                     const direction = deltaX > 0 ? 1 : -1;
-                    const arrayLength = VideoInfoUtil.video_speed_list.length;
-                    this.currentSpeedIndex = (this.currentSpeedIndex + direction + arrayLength) % arrayLength;
-                    this.playSpeed = VideoInfoUtil.video_speed_list[this.currentSpeedIndex].toString()
-                    this.mIjkMediaPlayer?.setSpeed(this.playSpeed);
+                    const newIndex = this.currentSpeedIndex + direction;
+                    const clampedIndex = Math.max(0, Math.min(newIndex, VideoInfoUtil.video_speed_list.length - 1));
+                    if (clampedIndex !== this.currentSpeedIndex) {
+                      this.playSpeed = clampedIndex + '';
+                      this.mIjkMediaPlayer?.setSpeed(this.playSpeed);
+                    }
                     this.longPressStartX = event.fingerList[0].localX; // 重置起始点（实现分档切换效果）
                   }
                   return

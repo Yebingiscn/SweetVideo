@@ -9,14 +9,6 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 const sandbox_path = getContext().filesDir + '/'
 const context = getContext() as common.UIAbilityContext;
 
-@Extend(SymbolGlyph)
-function symbolGlyphFancy(fontSize: number, width: number | string, height: number | string) {
-  .fontSize(fontSize)
-  .fontColor([$r('app.color.text_color')])
-  .width(width)
-  .height(height)
-}
-
 @Component
 export struct RecentPlay { // 最近播放页
   @State videoDataSource: RecentVideoDataSource = new RecentVideoDataSource([])
@@ -38,36 +30,27 @@ export struct RecentPlay { // 最近播放页
   @Builder
   MenuBuilder(item: VideoMetadata | undefined) {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      Row() {
-        Image($r("app.media.ffmpeg"))
-          .width(25)
-          .height(25)
-          .borderRadius(10)
-          .backgroundImageSize(ImageSize.Cover)
-          .autoResize(true)
-          .interpolation(ImageInterpolation.Low)
-        Text($r('app.string.FFMpeg_Player'))
-          .fontSize(15)
-          .width(180)
-          .height(30)
-      }.padding(10).onClick(async () => {
+      Menu() {
+        MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(async () => {
+          this.MenuBuilderState = false
+          setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
+            await ToolsUtil.isFileExist(item) ?
+            ToolsUtil.routerWhere(this.pathStack, 'FFMpegPlayer', item?.date!, this.recent_video_meta_data) :
+            this.delData(context, item!)
+          }, 200)
+        })
+      }.font({ size: 15, weight: FontWeight.Normal })
+
+      MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
         this.MenuBuilderState = false
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           await ToolsUtil.isFileExist(item) ?
-          ToolsUtil.routerWhere(this.pathStack, 'FFMpegPlayer', item?.date!, this.recent_video_meta_data) :
+          ToolsUtil.routerWhere(this.pathStack, 'RedPlayer', item?.date!, this.recent_video_meta_data) :
           this.delData(context, item!)
         }, 200)
       })
-
-      Divider().height(2)
-      Row() {
-        SymbolGlyph($r('sys.symbol.trash_fill'))
-          .symbolGlyphFancy(20, 25, 40)
-        Text($r('app.string.delete'))
-          .fontSize(15)
-          .width(180)
-          .height(30)
-      }.padding(10).onClick(() => {
+      MenuItem({ startIcon: $r('sys.symbol.trash_fill'), content: $r('app.string.delete') }).onClick(() => {
+        this.MenuBuilderState = false
         this.delData(context, item!)
       })
     }.width(150).onAppear(() => {

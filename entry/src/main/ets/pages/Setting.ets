@@ -113,10 +113,10 @@ export struct SettingsPage { //设置页
           SettingsMenuItem({
             symbol: $r('sys.symbol.play_round_rectangle'),
             message: '外链默认播放器',
-            list: ['系统播放器', 'FFMpeg播放器'],
-            selected: ['系统播放器', 'FFMpeg播放器'].findIndex(i => i == this.defaultPlayer),
+            list: ['系统播放器', 'FFMpeg播放器', '红薯播放器'],
+            selected: ['系统播放器', 'FFMpeg播放器', '红薯播放器'].findIndex(i => i == this.defaultPlayer),
             onChange: (index: number) => {
-              this.defaultPlayer = ['系统播放器', 'FFMpeg播放器'][index]
+              this.defaultPlayer = ['系统播放器', 'FFMpeg播放器', '红薯播放器'][index]
               Preferences.saveDefaultPlayer(context, this.defaultPlayer)
             }
           })

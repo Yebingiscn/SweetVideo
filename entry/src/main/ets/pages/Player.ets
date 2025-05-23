@@ -244,7 +244,12 @@ export struct Player { // 播放页
   }
 
   async setAVPlayerCallback() {
-    this.avPlayer?.on('timeUpdate', (duration) => {
+    this.avPlayer?.on('timeUpdate', async (duration) => {
+      const isDestroy = AppStorage.get('destroy_signal') as boolean // 监听播放器是否将被杀掉，杀掉的话就保存记录
+      if (isDestroy) {
+        await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data, context,
+          this.file_folder)
+      }
       if (!this.onSwiping) {
         animateTo({ duration: 300, curve: Curve.Ease }, () => {
           this.play_time = duration;
@@ -956,7 +961,6 @@ export struct Player { // 播放页
         }).backgroundColor($r('sys.color.black'))
       }
       .showControlButton(false)
-      .divider({ strokeWidth: 0 })
       .onChange((value: boolean) => {
         this.sideBarStatus = value;
       })
@@ -1047,7 +1051,7 @@ export struct Player { // 播放页
               .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
           }
         }.alignItems(VerticalAlign.Center)
-      }.margin({ top: this.screen_height > this.screen_width ? 10 : 0 }).height('100%').layoutWeight(1)
+      }.height('100%').layoutWeight(1)
 
       Button({ type: ButtonType.Circle, stateEffect: true }) { // 旋转锁定 TODO KIMMG
         SymbolGlyph(this.lock_rotation ? $r('sys.symbol.lock_fill') : $r('sys.symbol.rotate_left'))

@@ -36,6 +36,7 @@ import VideoOperateUtil from '../utils/VideoOperateUtil';
 import { PrivacySpace } from './PrivacySpace';
 import Preferences from '../database/Preferences';
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
+import { RedPlayer } from './RedPlayer';
 
 const context = getContext() as common.UIAbilityContext;
 const sandbox_path = getContext().filesDir + '/'
@@ -278,6 +279,22 @@ struct Index {
             }
             await ToolsUtil.isFileExist(target_item) ?
             ToolsUtil.routerWhere(this.pathStack, 'FFMpegPlayer', item?.date!,
+              this.encryption ? this.video_meta_data_encryption : this.video_meta_data) :
+            this.deleteUnExistFile(target_item)
+          }, 200)
+        })
+        MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
+          this.MenuBuilderState = false
+          setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
+            const target_data = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
+            let target_item = SelectFileUtil.getItem(target_data, item?.date!)
+            if (!target_data.find(i => i.date == item?.date!)) {
+              ToolsUtil.showToast('数据正在加载中，请重试')
+              this.show_list = SelectFileUtil.getAllItems(target_data);
+              return
+            }
+            await ToolsUtil.isFileExist(target_item) ?
+            ToolsUtil.routerWhere(this.pathStack, 'RedPlayer', item?.date!,
               this.encryption ? this.video_meta_data_encryption : this.video_meta_data) :
             this.deleteUnExistFile(target_item)
           }, 200)
@@ -1148,6 +1165,8 @@ struct Index {
       RecentPlay()
     } else if (name == 'PrivacySpace') {
       PrivacySpace()
+    } else if (name == 'RedPlayer') {
+      RedPlayer()
     }
   }
 
