@@ -796,164 +796,169 @@ export struct Player { // 播放页
           Column()
             .width('100%')
             .height(this.showControl ? '50%' : '80%')//触控区域
-            .gesture(GestureGroup(GestureMode.Parallel, // 不用互斥事件，会导致左右滑动调节倍速的功能失效
-              TapGesture({ count: 2 })
-                .onAction((event: GestureEvent) => {
-                  if (!this.isLock) {
-                    if (this.allowDoubleFastForward) {
-                      const tapX = event.fingerList[0].localX;
-                      const adjustWidth = this.screen_width / 5; // 计算五分之一宽度
-                      if (tapX < adjustWidth) { // 左侧1/5区域
-                        this.backForward()
-                      } else if (tapX > adjustWidth * 4) { // 右侧1/5区域
-                        this.fastForward()
-                      } else { // 中间3/5区域
+            .gesture(
+              GestureGroup(GestureMode.Exclusive, // 将触摸事件跟滑动、长按分成两个手势组解绑互斥
+                GestureGroup(GestureMode.Exclusive, TapGesture({ count: 2 })// 触摸事件手势组为互斥事件
+                  .onAction((event: GestureEvent) => {
+                    if (!this.isLock) {
+                      if (this.allowDoubleFastForward) {
+                        const tapX = event.fingerList[0].localX;
+                        const adjustWidth = this.screen_width / 5; // 计算五分之一宽度
+                        if (tapX < adjustWidth) { // 左侧1/5区域
+                          this.backForward()
+                        } else if (tapX > adjustWidth * 4) { // 右侧1/5区域
+                          this.fastForward()
+                        } else { // 中间3/5区域
+                          this.doublePause()
+                        }
+                      } else {
                         this.doublePause()
                       }
-                    } else {
-                      this.doublePause()
                     }
-                  }
-                }),
-              TapGesture({ count: 1 })
-                .onAction(() => { //单击屏幕
-                  if (this.sideBarStatus) {
-                    this.closeSideBar(true);
-                  } else {
-                    this.lockVisibility = !this.lockVisibility;
-                    this.showControl = !this.showControl;
-                  }
-                }),
-              PanGesture().onActionStart((event: GestureEvent) => { // 滑动屏幕
-                if (!this.isLock) {
-                  if (this.long_press) { // 初始化长按滑动参数
-                    this.longPressStartX = event.fingerList[0].localX;
-                  } else {
-                    const firstTouch = event.fingerList[0];
-                    this.swipe_start_x = firstTouch.localX;
-                    this.swipe_start_y = firstTouch.localY;
-                    this.last_play_time = this.play_time;
-                    this.isLeftSideSwipe = firstTouch.localX < this.screen_width / 2;
-                  }
-                }
-              }).onActionUpdate((event: GestureEvent) => {
-                if (!this.isLock && event.fingerList.length === 1) {
-                  if (this.long_press && !this.isLock) { // 长按状态下的滑动处理
-                    const deltaX = event.fingerList[0].localX - this.longPressStartX;
-                    const SWIPE_THRESHOLD = 30;
-                    if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
-                      if (typeof this.currentSpeedIndex === 'undefined') {
-                        this.currentSpeedIndex = VideoInfoUtil.video_speed_list.indexOf(this.speed);
-                        if (this.currentSpeedIndex === -1) {
-                          this.currentSpeedIndex = 0;
+                  }),
+                  TapGesture({ count: 1 })
+                    .onAction(() => { //单击屏幕
+                      if (this.sideBarStatus) {
+                        this.closeSideBar(true);
+                      } else {
+                        this.lockVisibility = !this.lockVisibility;
+                        this.showControl = !this.showControl;
+                      }
+                    }),),
+                GestureGroup(GestureMode.Parallel, // 不用互斥事件，会导致左右滑动调节倍速的功能失效
+                  PanGesture().onActionStart((event: GestureEvent) => { // 滑动屏幕
+                    if (!this.isLock) {
+                      if (this.long_press) { // 初始化长按滑动参数
+                        this.longPressStartX = event.fingerList[0].localX;
+                      } else {
+                        const firstTouch = event.fingerList[0];
+                        this.swipe_start_x = firstTouch.localX;
+                        this.swipe_start_y = firstTouch.localY;
+                        this.last_play_time = this.play_time;
+                        this.isLeftSideSwipe = firstTouch.localX < this.screen_width / 2;
+                      }
+                    }
+                  }).onActionUpdate((event: GestureEvent) => {
+                    if (!this.isLock && event.fingerList.length === 1) {
+                      if (this.long_press && !this.isLock) { // 长按状态下的滑动处理
+                        const deltaX = event.fingerList[0].localX - this.longPressStartX;
+                        const SWIPE_THRESHOLD = 30;
+                        if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
+                          if (typeof this.currentSpeedIndex === 'undefined') {
+                            this.currentSpeedIndex = VideoInfoUtil.video_speed_list.indexOf(this.speed);
+                            if (this.currentSpeedIndex === -1) {
+                              this.currentSpeedIndex = 0;
+                            }
+                          }
+                          // 确认滑动方向（根据实际需求调整方向）
+                          const direction = deltaX > 0 ? 1 : -1;
+                          // 计算新索引（带边界限制）
+                          const newIndex = this.currentSpeedIndex + direction;
+                          const clampedIndex =
+                            Math.max(0, Math.min(newIndex, VideoInfoUtil.video_speed_list.length - 1));
+                          if (clampedIndex !== this.currentSpeedIndex) {
+                            this.currentSpeedIndex = clampedIndex;
+                            this.updatePlaybackSpeed(VideoInfoUtil.video_speed_list[this.currentSpeedIndex]);
+                          }
+                          this.longPressStartX = event.fingerList[0].localX; // 重置起始点（实现分档切换效果）
                         }
-                      }
-                      // 确认滑动方向（根据实际需求调整方向）
-                      const direction = deltaX > 0 ? 1 : -1;
-                      // 计算新索引（带边界限制）
-                      const newIndex = this.currentSpeedIndex + direction;
-                      const clampedIndex = Math.max(0, Math.min(newIndex, VideoInfoUtil.video_speed_list.length - 1));
-                      if (clampedIndex !== this.currentSpeedIndex) {
-                        this.currentSpeedIndex = clampedIndex;
-                        this.updatePlaybackSpeed(VideoInfoUtil.video_speed_list[this.currentSpeedIndex]);
-                      }
-                      this.longPressStartX = event.fingerList[0].localX; // 重置起始点（实现分档切换效果）
-                    }
-                    return
-                  }
-                  const currentX = event.fingerList[0].localX;
-                  const currentY = event.fingerList[0].localY; // 方向判断阈值
-                  const deltaX = currentX - this.swipe_start_x;
-                  const deltaY = currentY - this.swipe_start_y; // 初始化滑动方向
-                  if (Math.abs(deltaX) > Math.abs(deltaY)) { // 水平为主
-                    if (Math.abs(deltaX) > 10 && !this.isVerticalSwiping) {
-                      this.onSwiping = true
-                      this.isHorizontalSwiping = true;
-                      this.isVerticalSwiping = false; // 明确清除对立状态
-                    }
-                  } else { // 垂直为主
-                    if (Math.abs(deltaY) > 10 && !this.isHorizontalSwiping) {
-                      this.isVerticalSwiping = true;
-                      this.isHorizontalSwiping = false; // 明确清除对立状态
-                    }
-                  }
-                  if (this.isVerticalSwiping) {
-                    const volumeStep = 0.0006; // 每像素音量变化量
-                    const brightnessStep = 0.00003; // 每像素亮度变化量
-                    if (this.isLeftSideSwipe) {
-                      this.onSwipingBrightness = true
-                      const newBrightness = this.screenBrightness - (deltaY * brightnessStep);
-                      this.screenBrightness = Math.min(Math.max(newBrightness, 0), 1)
-                      VideoOperateUtil.setBrightness(this.screenBrightness);
-                    } else {
-                      this.onSwipingVoice = true
-                      const newVolume = this.volume - (deltaY * volumeStep);
-                      this.volume =
-                        Math.min(Math.max(newVolume, VideoOperateUtil.min_volume), VideoOperateUtil.max_volume);
-                    }
-                  }
-                  if (this.isHorizontalSwiping) {
-                    const timePerPixel = 150; // 灵敏度控制
-                    this.play_time =
-                      Math.max(0, Math.min(this.last_play_time + (deltaX * timePerPixel), this.now_playing?.time));
-                  }
-                }
-              })
-                .onActionEnd(() => {
-                  if (this.isHorizontalSwiping) {
-                    this.avPlayer?.seek(this.play_time, media.SeekMode.SEEK_CLOSEST);
-                    if (VideoOperateUtil.mIjkMediaPlayerActive) {
-                      this.mIjkMediaPlayer.seekTo(String(this.play_time))
-                    }
-                  }
-                  this.isHorizontalSwiping = false; // 重置所有滑动状态
-                  this.isVerticalSwiping = false;
-                  this.onSwiping = false;
-                  this.onSwipingVoice = false;
-                  this.onSwipingBrightness = false;
-                }),
-              LongPressGesture()
-                .onAction(() => { //长按
-                  if (!this.isLock) {
-                    this.long_press = true
-                    this.last_speed = this.speed
-                    this.updatePlaybackSpeed(3);
-                    this.currentSpeedIndex = VideoInfoUtil.video_speed_list.indexOf(3);
-                  }
-                })
-                .onActionEnd(() => {
-                  this.long_press = false
-                  this.updatePlaybackSpeed(this.last_speed);
-                }),
-              PinchGesture({ fingers: 2, distance: 2 })//手势缩放
-                .onActionStart((event: GestureEvent) => {
-                  const finger1 = event.fingerList[0];
-                  const finger2 = event.fingerList[1];
-                  VideoOperateUtil.initPinchDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
-                })
-                .onActionUpdate((event: GestureEvent) => {
-                  if (!this.isLock) {
-                    const finger1 = event.fingerList[0];
-                    const finger2 = event.fingerList[1];
-                    if (finger1 && finger2) {
-                      const currentDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
-                      const rawScale = currentDistance / VideoOperateUtil.initPinchDistance;
-                      const adjustedScale = 1 + (rawScale - 1) * 0.007;
-                      const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0);
-                      if (Math.max(this.play_area_width * clampedScale, 0.5) > VideoInfoUtil.play_area_width * 3.0 ||
-                        Math.max(this.play_area_width * clampedScale, 0.5) < VideoInfoUtil.play_area_width * 0.5) {
                         return
                       }
-                      this.play_area_width = Math.max(this.play_area_width * clampedScale, 0.5);
-                      this.play_area_height = Math.max(this.play_area_height * clampedScale, 0.5);
-                      animateTo({ duration: 100 }, () => {
-                        this.play_area_width = this.play_area_width;
-                        this.play_area_height = this.play_area_height;
-                      });
+                      const currentX = event.fingerList[0].localX;
+                      const currentY = event.fingerList[0].localY; // 方向判断阈值
+                      const deltaX = currentX - this.swipe_start_x;
+                      const deltaY = currentY - this.swipe_start_y; // 初始化滑动方向
+                      if (Math.abs(deltaX) > Math.abs(deltaY)) { // 水平为主
+                        if (Math.abs(deltaX) > 10 && !this.isVerticalSwiping) {
+                          this.onSwiping = true
+                          this.isHorizontalSwiping = true;
+                          this.isVerticalSwiping = false; // 明确清除对立状态
+                        }
+                      } else { // 垂直为主
+                        if (Math.abs(deltaY) > 10 && !this.isHorizontalSwiping) {
+                          this.isVerticalSwiping = true;
+                          this.isHorizontalSwiping = false; // 明确清除对立状态
+                        }
+                      }
+                      if (this.isVerticalSwiping) {
+                        const volumeStep = 0.0006; // 每像素音量变化量
+                        const brightnessStep = 0.00003; // 每像素亮度变化量
+                        if (this.isLeftSideSwipe) {
+                          this.onSwipingBrightness = true
+                          const newBrightness = this.screenBrightness - (deltaY * brightnessStep);
+                          this.screenBrightness = Math.min(Math.max(newBrightness, 0), 1)
+                          VideoOperateUtil.setBrightness(this.screenBrightness);
+                        } else {
+                          this.onSwipingVoice = true
+                          const newVolume = this.volume - (deltaY * volumeStep);
+                          this.volume =
+                            Math.min(Math.max(newVolume, VideoOperateUtil.min_volume), VideoOperateUtil.max_volume);
+                        }
+                      }
+                      if (this.isHorizontalSwiping) {
+                        const timePerPixel = 150; // 灵敏度控制
+                        this.play_time =
+                          Math.max(0, Math.min(this.last_play_time + (deltaX * timePerPixel), this.now_playing?.time));
+                      }
                     }
-                  }
-                })
-            ))
+                  })
+                    .onActionEnd(() => {
+                      if (this.isHorizontalSwiping) {
+                        this.avPlayer?.seek(this.play_time, media.SeekMode.SEEK_CLOSEST);
+                        if (VideoOperateUtil.mIjkMediaPlayerActive) {
+                          this.mIjkMediaPlayer.seekTo(String(this.play_time))
+                        }
+                      }
+                      this.isHorizontalSwiping = false; // 重置所有滑动状态
+                      this.isVerticalSwiping = false;
+                      this.onSwiping = false;
+                      this.onSwipingVoice = false;
+                      this.onSwipingBrightness = false;
+                    }),
+                  LongPressGesture()
+                    .onAction(() => { //长按
+                      if (!this.isLock) {
+                        this.long_press = true
+                        this.last_speed = this.speed
+                        this.updatePlaybackSpeed(3);
+                        this.currentSpeedIndex = VideoInfoUtil.video_speed_list.indexOf(3);
+                      }
+                    })
+                    .onActionEnd(() => {
+                      this.long_press = false
+                      this.updatePlaybackSpeed(this.last_speed);
+                    }),
+                  PinchGesture({ fingers: 2, distance: 2 })//手势缩放
+                    .onActionStart((event: GestureEvent) => {
+                      const finger1 = event.fingerList[0];
+                      const finger2 = event.fingerList[1];
+                      VideoOperateUtil.initPinchDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
+                    })
+                    .onActionUpdate((event: GestureEvent) => {
+                      if (!this.isLock) {
+                        const finger1 = event.fingerList[0];
+                        const finger2 = event.fingerList[1];
+                        if (finger1 && finger2) {
+                          const currentDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
+                          const rawScale = currentDistance / VideoOperateUtil.initPinchDistance;
+                          const adjustedScale = 1 + (rawScale - 1) * 0.007;
+                          const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0);
+                          if (Math.max(this.play_area_width * clampedScale, 0.5) >
+                            VideoInfoUtil.play_area_width * 3.0 ||
+                            Math.max(this.play_area_width * clampedScale, 0.5) < VideoInfoUtil.play_area_width * 0.5) {
+                            return
+                          }
+                          this.play_area_width = Math.max(this.play_area_width * clampedScale, 0.5);
+                          this.play_area_height = Math.max(this.play_area_height * clampedScale, 0.5);
+                          animateTo({ duration: 100 }, () => {
+                            this.play_area_width = this.play_area_width;
+                            this.play_area_height = this.play_area_height;
+                          });
+                        }
+                      }
+                    })
+                ))
+            )
         }.onAreaChange(async (_oldValue: Area, newValue: Area) => {
           this.screen_width = Math.floor(new Number(newValue.width).valueOf())
           this.screen_height = Math.floor(new Number(newValue.height).valueOf())
