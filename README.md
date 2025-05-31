@@ -17,12 +17,16 @@
         <a href="https://img.shields.io/badge/QQ-973792610-red" style="text-decoration:none" >
             <img src="https://img.shields.io/badge/QQ群-973792610-red" alt="QQ Group"/>
         </a>
-        <a href="LICENSE" style="text-decoration:none" >
+
+ <a href="LICENSE" style="text-decoration:none" >
             <img src="https://img.shields.io/github/license/Yebingiscn/SweetVideo" alt="GitHub license"/>
+        </a>
+        <a href="https://img.shields.io/github/forks/Yebingiscn/SweetVideo" style="text-decoration:none" >
+            <img src="https://img.shields.io/github/forks/Yebingiscn/SweetVideo" alt="GitHub fork"/>
         </a>
     </p>
 </div>
-<p align="center">一款运行在 HarmonyOS Next 上的精致、简约的视频播放器</p>
+<p align="center">一款运行在 HarmonyOS Next 上的精致、简约的原生视频播放器</p>
 <p align="center">A slick, minimalist video player that runs on HarmonyOS Next</p>
 
 ## 流心视频交流群
@@ -46,7 +50,7 @@ QQ群：973792610
 - [ ] 投播
 - [ ] 屏幕镜像
 - [ ] 完全的字幕功能支持(ASS、SRT)
-- [ ] 视频标签（点击标签即可跳转该视频对于时间）
+- [ ] 视频标签（点击标签即可跳转该视频对应时间）
 
 ### 远期支持
 
@@ -57,7 +61,7 @@ QQ群：973792610
 
 ## 简介
 
-- 一款运行在 HarmonyOS Next 上精致、简约的视频（音乐）播放器，使用 ArkTS 语言开发，具有美观的设计和优雅的动画。
+- 一款运行在 HarmonyOS Next 上精致、简约的视频（音乐）原生播放器，使用 ArkTS 语言开发，具有美观的设计和优雅的动画。
 - 基于开源项目`流心视频` https://gitee.com/lqsxy/sweetvideo/tree/master
 - 本应用根据原作者授权并基于 MIT 协议二次开发而来。
 

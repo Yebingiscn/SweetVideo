@@ -2,6 +2,7 @@ import Preferences from '../database/Preferences'
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import ToolsUtil from './ToolsUtil'
+import { Context } from '@kit.AbilityKit'
 
 // 文件夹类
 class FileFolderUtil {

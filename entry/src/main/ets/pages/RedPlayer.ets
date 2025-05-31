@@ -75,6 +75,7 @@ export struct RedPlayer { // 红薯播放器页
                   })?.then(async () => {
                     this.playerController.setSurfaceId(this.xComponentController.getSurfaceId())
                     this.playerController.prepare()?.then(() => {
+                      this.playerController.setVolume(1.0)
                       if (this.now_playing?.last_play! < this.redPlayerStateHolder.videoDuration * 0.9 &&
                         this.now_playing?.last_play != 0) {
                         this.playerController.seek(this.now_playing?.last_play!)

@@ -10,6 +10,8 @@ import { media } from '@kit.MediaKit';
 import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import Preferences from '../database/Preferences';
+import PrivacySpaceUtil from './PrivacySpaceUtil';
+import ReqPermissionUtil from './ReqPermissionUtil';
 
 // 获取视频类
 class SelectFileUtil {
@@ -126,8 +128,7 @@ class SelectFileUtil {
 
   //复制视频进入隐私空间
   async copyFileToPrivacySpace(context: Context, video_meta_data_encryption: VideoMetadata[], uri: string,
-    sandbox_video: string,
-    encryption: boolean, sandbox_path: string, date: string, metadata: media.AVMetadata,
+    sandbox_video: string, sandbox_path: string, date: string, metadata: media.AVMetadata,
     file: fs.File): Promise<VideoMetadata> {
     const file1 = fs.openSync(uri, fs.OpenMode.READ_ONLY);
     const targetPath = `${sandbox_video}${date}`;
@@ -139,7 +140,7 @@ class SelectFileUtil {
         });
       });
       const videoInfo =
-        await VideoInfoUtil.setVideoInfo(date, targetPath, file.name, metadata, encryption, sandbox_video, sandbox_path)
+        await VideoInfoUtil.setVideoInfo(date, targetPath, file.name, metadata, sandbox_video, sandbox_path)
       video_meta_data_encryption.push(videoInfo);
       Preferences.saveVideoMetaDataEncryption(context, video_meta_data_encryption);
       return videoInfo; // 返回新创建的元数据对象
@@ -336,6 +337,35 @@ class SelectFileUtil {
     } catch (error) {
       console.error('Root processing failed:', error);
       return [];
+    }
+  }
+
+  async addFile(context: Context, sandbox_video: string, sandbox_path: string, uri: string,
+    video_meta_data: VideoMetadata[]) {
+    await ReqPermissionUtil.persistPermission(uri);
+    const avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor();
+    const file = fs.openSync(uri);
+    try {
+      avMetadataExtractor.fdSrc = file;
+      const metadata = await new Promise<media.AVMetadata>((resolve, reject) => {
+        avMetadataExtractor.fetchMetadata((error: BusinessError, metadata: media.AVMetadata) => {
+          error ? reject(error) : resolve(metadata);
+        });
+      });
+      const isDuplicate = video_meta_data.some(item => item.title === file.name)
+      if (!isDuplicate) {
+        if (PrivacySpaceUtil.getPrivacyMode()!) {
+          await this.copyFileToPrivacySpace(context, video_meta_data, uri, sandbox_video,
+            sandbox_path, new Date().getTime().toString(), metadata, file)
+        } else {
+          const videoInfo = await VideoUtil.setVideoInfo(new Date().getTime().toString(), uri, file.name, metadata,
+            sandbox_video, sandbox_path);
+          video_meta_data.push(videoInfo);
+          Preferences.saveVideoMetaData(context, video_meta_data);
+        }
+      }
+    } finally {
+      fs.closeSync(file);
     }
   }
 }

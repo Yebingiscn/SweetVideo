@@ -4,6 +4,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { image } from '@kit.ImageKit';
 import ReqPermission from '../utils/ReqPermissionUtil';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
+import PrivacySpaceUtil from './PrivacySpaceUtil';
 
 // 视频信息类
 class VideoInfoUtil {
@@ -69,17 +70,17 @@ class VideoInfoUtil {
   private activeCount = 0;
 
   // 设置存储的视频信息
-  async setVideoInfo(date: string, uri: string, file_name: string, metadata: media.AVMetadata, encryption: boolean,
+  async setVideoInfo(date: string, uri: string, file_name: string, metadata: media.AVMetadata,
     sandbox_video: string, sandbox_path: string) {
     let tmp: VideoMetadata = {
-      uri: encryption ? sandbox_video + date : uri,
+      uri: PrivacySpaceUtil.getPrivacyMode()! ? sandbox_video + date : uri,
       title: file_name,
       date: date,
       size: this.getVideoWidthAndHeight(metadata),
       time: parseInt(metadata.duration || '0'),
       last_play: 0,
       format: file_name.split('.')[file_name.split('.').length-1],
-      video_size: await this.getVideoSize(encryption ? sandbox_video + date : uri),
+      video_size: await this.getVideoSize(PrivacySpaceUtil.getPrivacyMode()! ? sandbox_video + date : uri),
       hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
     }
     this.getVideoCover(sandbox_path, date, uri, tmp.size, parseInt(metadata.duration || '0'))

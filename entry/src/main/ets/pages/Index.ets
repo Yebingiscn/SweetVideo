@@ -11,7 +11,6 @@ import TimeUtil from '../utils/TimeUtil';
 import { delConfirmDialog } from '../component/DelConfirmDialog';
 import { editPasswordDialog } from '../component/EditPasswordDialog';
 import { editMetadataDialog } from '../component/EditMetadataDialog';
-import ReqPermission from '../utils/ReqPermissionUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { JSON } from '@kit.ArkTS';
 import { VideoDetailDialog } from '../component/VideoDetailDialog';
@@ -378,7 +377,7 @@ struct Index {
   }
 
   @Builder
-  selectFileMenuBuilder() {
+  SelectFileMenuBuilder() {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
       Menu() {
         MenuItem({
@@ -534,6 +533,7 @@ struct Index {
     this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(context)
     this.show_list = this.video_meta_data.map(i => i.date)
     this.file_folder_list = Preferences.getFileFolder(context)
+    PrivacySpaceUtil.setPrivacyMode(false)
     if (Preferences.getOOBEVersion(context) < OOBEVersion) {
       let controller = new CustomDialogController({
         builder: PrivacyPolicyDialog({
@@ -574,34 +574,8 @@ struct Index {
     this.loading = true;
     this.import_sum = list.length
     try {
-      const processFile = async (uri: string) => {
-        await ReqPermission.persistPermission(uri);
-        const avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor();
-        const file = fs.openSync(uri);
-        try {
-          avMetadataExtractor.fdSrc = file;
-          const metadata = await new Promise<media.AVMetadata>((resolve, reject) => {
-            avMetadataExtractor.fetchMetadata((error: BusinessError, metadata: media.AVMetadata) => {
-              error ? reject(error) : resolve(metadata);
-            });
-          });
-          const isDuplicate = this.encryption
-            ? this.video_meta_data_encryption.some(item => item.title === file.name)
-            : this.video_meta_data.some(item => item.title === file.name);
-          if (!isDuplicate) {
-            if (this.encryption) {
-              await SelectFileUtil.copyFileToPrivacySpace(context, this.video_meta_data_encryption, uri, sandbox_video,
-                this.encryption, sandbox_path, new Date().getTime().toString(), metadata, file)
-            } else {
-              const videoInfo = await VideoUtil.setVideoInfo(new Date().getTime().toString(), uri, file.name, metadata,
-                this.encryption, sandbox_video, sandbox_path);
-              this.video_meta_data.push(videoInfo);
-              Preferences.saveVideoMetaData(context, this.video_meta_data);
-            }
-          }
-        } finally {
-          fs.closeSync(file);
-        }
+      const processFile = async (uri: string, video_meta_data: VideoMetadata[]) => {
+        await SelectFileUtil.addFile(context, sandbox_video, sandbox_path, uri, video_meta_data)
       };
       const chunkSize = Math.ceil(list.length / VideoUtil.MAX_CONCURRENT);
       const workers: Promise<void>[] = [];
@@ -611,19 +585,20 @@ struct Index {
         const chunk = list.slice(start, end);
         workers.push((async () => {
           for (const uri of chunk) {
-            await processFile(uri);
+            await processFile(uri,
+              PrivacySpaceUtil.getPrivacyMode()! ? this.video_meta_data_encryption : this.video_meta_data);
             this.current_iport++; // 安全地更新进度
           }
         })());
       }
       await Promise.all(workers);
       this.show_list = SelectFileUtil.getAllItems(
-        this.encryption ? Preferences.getVideoMetaDataEncryption(context) :
+        PrivacySpaceUtil.getPrivacyMode() ? Preferences.getVideoMetaDataEncryption(context) :
         Preferences.getVideoMetaData(context));
       ToolsUtil.showToast(`${getContext().resourceManager
         .getStringSync($r('app.string.add_time_info'))}${this.import_sum}`);
     } catch (error) {
-      ToolsUtil.showToast('处理过程中发生意外错误');
+      ToolsUtil.showToast('处理过程中发生意外错误:' + error);
     } finally {
       this.loading = false;
       this.current_iport = 0
@@ -765,7 +740,7 @@ struct Index {
                   .align(Alignment.Start)
                   .padding({ left: 15, right: 15 })
                   .buttonFancy('100%', 60)
-                  .bindMenu(this.selectFileMenuBuilder)
+                  .bindMenu(this.SelectFileMenuBuilder)
                 }.width('100%')
                 .justifyContent(FlexAlign.Start)
 
@@ -1096,22 +1071,23 @@ struct Index {
             }
           }.padding({ top: this.topSafeHeight }).width('90%')
 
-          Stack() {
-            Column() {
-              Progress({ value: this.current_iport, total: this.import_sum, type: ProgressType.Ring })
-                .width(100)
-                .height(100)
-                .color($r('app.color.main_color'))
-                .style({ strokeWidth: 15 })
-                .margin({ bottom: 8 }) // 添加底部间距分隔文字
-              Text(this.current_iport + '/' + this.import_sum)
-                .fontSize(16)
-                .fontColor($r('app.color.main_color'))
-            }
-          }.width('100%')
-          .height('100%')
-          .visibility(this.loading ? Visibility.Visible : Visibility.Hidden)
-          .animation({ duration: 150, curve: Curve.Sharp })
+          if (this.loading) {
+            Stack() {
+              Column() {
+                Progress({ value: this.current_iport, total: this.import_sum, type: ProgressType.Ring })
+                  .width(100)
+                  .height(100)
+                  .color($r('app.color.main_color'))
+                  .style({ strokeWidth: 15 })
+                  .margin({ bottom: 8 }) // 添加底部间距分隔文字
+                Text(this.current_iport + '/' + this.import_sum)
+                  .fontSize(16)
+                  .fontColor($r('app.color.main_color'))
+              }
+            }.width('100%')
+            .height('100%')
+            .animation({ duration: 150, curve: Curve.Sharp })
+          }
         }.backgroundColor($r('app.color.start_window_background'))
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
           this.list_line = Math.floor(new Number(newValue.width).valueOf() / 500 + 1)

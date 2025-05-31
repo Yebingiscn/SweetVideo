@@ -31,6 +31,24 @@ function imageFancy(borderRadius: number, width: number | string, height: number
   .interpolation(ImageInterpolation.Low)
 }
 
+@Extend(SymbolGlyph)
+function symbolGlyphFancy(fontSize: number, width: number | string, height: number | string) {
+  .fontSize(fontSize)
+  .fontColor([$r('app.color.text_color')])
+  .width(width)
+  .height(height)
+}
+
+@Extend(Button)
+function buttonFancy(width: number | string, height: number | string) {
+  .borderRadius(16)
+  .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+  .width(width)
+  .height(height)
+  .backgroundColor($r('app.color.start_window_background_blur'))
+  .animation({ duration: 300, curve: Curve.Ease })
+}
+
 @Component
 export struct PrivacySpace { // 隐私空间页，施工未完成
   @State videoDataSource: PrivacySpaceDataSource = new PrivacySpaceDataSource([])
@@ -45,6 +63,73 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
     shadow: DefaultDialogShadow
   })
   private listScroller: Scroller = new Scroller();
+
+  @Builder
+  NavigationMenus() {
+    Row() {
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph($r('sys.symbol.plus'))
+          .symbolGlyphFancy(25, '', '')
+      }
+      .backdropBlur(150)
+      .buttonFancy(40, 40)
+      .bindMenu(this.SelectFileMenuBuilder)
+      .backgroundColor('rgba(0, 0, 0, 0.05)')
+
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
+          .symbolGlyphFancy(25, '', '')
+      }
+      .backdropBlur(150)
+      .buttonFancy(40, 40)
+      .bindMenu(this.SortMenuBuilder)
+      .backgroundColor('rgba(0, 0, 0, 0.05)')
+    }.margin({ right: 24, top: 10 })
+  }
+
+  @Builder
+  SelectFileMenuBuilder() {
+    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
+      Menu() {
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder')),
+          content: $r('app.string.import_from_files')
+        })
+          .onClick(async () => {
+            // await this.toMetaData(await SelectFileUtil.selectFiles());
+          })
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.picture')),
+          content: $r('app.string.import_from_album')
+        })
+          .onClick(async () => {
+            // await this.toMetaData(await SelectFileUtil.selectVideo());
+          })
+      }.font({ size: 15, weight: FontWeight.Normal })
+    }.width(150)
+  }
+
+  @Builder
+  SortMenuBuilder() {
+    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
+      Menu() {
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat')),
+          content: $r('app.string.sort_by_name')
+        })
+          .onClick(async () => {
+
+          })
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
+          content: $r('app.string.sort_by_time')
+        })
+          .onClick(async () => {
+
+          })
+      }.font({ size: 15, weight: FontWeight.Normal })
+    }.width(150)
+  }
 
   @Builder
   MenuBuilder(item: VideoMetadata | undefined) {
@@ -79,6 +164,7 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
   async aboutToAppear(): Promise<void> {
     this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(context)
     this.videoDataSource = new PrivacySpaceDataSource(this.video_meta_data_encryption)
+    PrivacySpaceUtil.setPrivacyMode(true)
   }
 
   async delData(context: Context, item: VideoMetadata) {
