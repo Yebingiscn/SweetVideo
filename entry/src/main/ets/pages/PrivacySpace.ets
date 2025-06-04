@@ -14,40 +14,13 @@ import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 import { BusinessError } from '@kit.BasicServicesKit';
 import Preferences from '../database/Preferences';
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
+import { FileFolder } from '../interfaces/FileFolderInterface';
+import { ButtonFancyModifier, ImageFancyModifier, SymbolGlyphFancyModifier } from '../utils/AttributeModifierUtil';
 
 const sandbox_subtitle = getContext().filesDir + '/subtitle/'
 const sandbox_path = getContext().filesDir + '/'
 const sandbox_video = getContext().filesDir + '/video/'
 const context = getContext() as common.UIAbilityContext;
-
-@Extend(Image)
-function imageFancy(borderRadius: number, width: number | string, height: number | string) {
-  .alt($r("app.media.sweet_video_alt"))
-  .backgroundImageSize(ImageSize.Cover)
-  .borderRadius(borderRadius)
-  .width(width)
-  .height(height)
-  .autoResize(true)
-  .interpolation(ImageInterpolation.Low)
-}
-
-@Extend(SymbolGlyph)
-function symbolGlyphFancy(fontSize: number, width: number | string, height: number | string) {
-  .fontSize(fontSize)
-  .fontColor([$r('app.color.text_color')])
-  .width(width)
-  .height(height)
-}
-
-@Extend(Button)
-function buttonFancy(width: number | string, height: number | string) {
-  .borderRadius(16)
-  .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-  .width(width)
-  .height(height)
-  .backgroundColor($r('app.color.start_window_background_blur'))
-  .animation({ duration: 300, curve: Curve.Ease })
-}
 
 @Component
 export struct PrivacySpace { // 隐私空间页，施工未完成
@@ -58,6 +31,9 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @State MenuBuilderState: boolean = false
+  @State import_sum: number = 0
+  @State current_iport: number = 0
+  @State loading: boolean = false
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
@@ -69,19 +45,21 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
     Row() {
       Button({ type: ButtonType.Circle, stateEffect: true }) {
         SymbolGlyph($r('sys.symbol.plus'))
-          .symbolGlyphFancy(25, '', '')
+          .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
       }
       .backdropBlur(150)
-      .buttonFancy(40, 40)
+      .attributeModifier(new ButtonFancyModifier(40, 40))
+      .animation({ duration: 300, curve: Curve.Ease })
       .bindMenu(this.SelectFileMenuBuilder)
       .backgroundColor('rgba(0, 0, 0, 0.05)')
 
       Button({ type: ButtonType.Circle, stateEffect: true }) {
         SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
-          .symbolGlyphFancy(25, '', '')
+          .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
       }
       .backdropBlur(150)
-      .buttonFancy(40, 40)
+      .attributeModifier(new ButtonFancyModifier(40, 40))
+      .animation({ duration: 300, curve: Curve.Ease })
       .bindMenu(this.SortMenuBuilder)
       .backgroundColor('rgba(0, 0, 0, 0.05)')
     }.margin({ right: 24, top: 10 })
@@ -161,6 +139,43 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
     })
   }
 
+  async toMetaData(list: string[], file_folder: FileFolder | undefined) {
+    if (list.length === 0) {
+      ToolsUtil.showToast('没有任何文件被导入哦~');
+      return;
+    }
+    this.loading = true;
+    this.import_sum = list.length
+    try {
+      const processFile = async (uri: string, video_meta_data: VideoMetadata[]) => {
+        await SelectFileUtil.addFile(context, sandbox_video, sandbox_path, uri, video_meta_data, file_folder)
+      };
+      const chunkSize = Math.ceil(list.length / VideoInfoUtil.MAX_CONCURRENT);
+      const workers: Promise<void>[] = [];
+      for (let i = 0; i < VideoInfoUtil.MAX_CONCURRENT; i++) {
+        const start = i * chunkSize;
+        const end = Math.min(start + chunkSize, list.length);
+        const chunk = list.slice(start, end);
+        workers.push((async () => {
+          for (const uri of chunk) {
+            await processFile(uri, this.video_meta_data_encryption);
+            this.current_iport++; // 安全地更新进度
+          }
+        })());
+      }
+      await Promise.all(workers);
+      this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(context)
+      this.videoDataSource = new PrivacySpaceDataSource(this.video_meta_data_encryption)
+      ToolsUtil.showToast(`${getContext().resourceManager
+        .getStringSync($r('app.string.add_time_info'))}${this.import_sum}`);
+    } catch (error) {
+      ToolsUtil.showToast('处理过程中发生意外错误:' + error);
+    } finally {
+      this.loading = false;
+      this.current_iport = 0
+    }
+  }
+
   async aboutToAppear(): Promise<void> {
     this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(context)
     this.videoDataSource = new PrivacySpaceDataSource(this.video_meta_data_encryption)
@@ -230,7 +245,7 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
                     Row() {
                       if (item.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID) {
                         Image($r("app.media.hdr_vivid_icon"))
-                          .imageFancy(10, 65, 25)
+                          .attributeModifier(new ImageFancyModifier(10, 65, 25))
                       } else if (VideoInfoUtil.videoWidthAndHeightFormat(item.size.toString()).includes('HD')) {
                         Text(VideoInfoUtil.videoWidthAndHeightFormat(item.size.toString()))
                           .fontWeight(FontWeight.Bold)
@@ -279,6 +294,38 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
         .chainAnimation(true)
         .scrollBar(BarState.Off)
 
+        if (this.video_meta_data_encryption.length == 0) {
+          Row() { //顶栏
+            if (!this.loading) {
+              Column() {
+                Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
+                Text($r('app.string.privacy_space_info'))
+                  .fontSize(15)
+                  .textAlign(TextAlign.Center)
+                  .fontWeight(FontWeight.Lighter)
+                  .margin({ top: 20 })
+              }
+            }
+          }.height('100%')
+          .animation({ duration: 150, curve: Curve.Ease })
+        }
+        if (this.loading) {
+          Stack() {
+            Column() {
+              Progress({ value: this.current_iport, total: this.import_sum, type: ProgressType.Ring })
+                .width(100)
+                .height(100)
+                .color($r('app.color.main_color'))
+                .style({ strokeWidth: 15 })
+                .margin({ bottom: 8 }) // 添加底部间距分隔文字
+              Text(this.current_iport + '/' + this.import_sum)
+                .fontSize(16)
+                .fontColor($r('app.color.main_color'))
+            }
+          }.width('100%')
+          .height('100%')
+          .animation({ duration: 150, curve: Curve.Sharp })
+        }
       }.width('100%').height('100%')
       .onAreaChange(async (_oldValue: Area, newValue: Area) => {
         this.list_line = Math.floor(new Number(newValue.width).valueOf() / 500 + 1)

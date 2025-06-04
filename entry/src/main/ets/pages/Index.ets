@@ -36,49 +36,17 @@ import { PrivacySpace } from './PrivacySpace';
 import Preferences from '../database/Preferences';
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
 import { RedPlayer } from './RedPlayer';
+import {
+  ButtonFancyModifier,
+  ImageFancyModifier,
+  ShadowModifier,
+  SymbolGlyphFancyModifier
+} from '../utils/AttributeModifierUtil';
 
 const context = getContext() as common.UIAbilityContext;
 const sandbox_path = getContext().filesDir + '/'
 const sandbox_video = getContext().filesDir + '/video/'
 const sandbox_subtitle = getContext().filesDir + '/subtitle/'
-
-@Extend(Image)
-function imageFancy(borderRadius: number, width: number | string, height: number | string) {
-  .alt($r("app.media.sweet_video_alt"))
-  .backgroundImageSize(ImageSize.Cover)
-  .borderRadius(borderRadius)
-  .width(width)
-  .height(height)
-  .autoResize(true)
-  .interpolation(ImageInterpolation.Low)
-}
-
-@Extend(SymbolGlyph)
-function symbolGlyphFancy(fontSize: number, width: number | string, height: number | string) {
-  .fontSize(fontSize)
-  .fontColor([$r('app.color.text_color')])
-  .width(width)
-  .height(height)
-}
-
-@Extend(Button)
-function buttonFancy(width: number | string, height: number | string) {
-  .borderRadius(16)
-  .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-  .width(width)
-  .height(height)
-  .backgroundColor($r('app.color.start_window_background_blur'))
-  .animation({ duration: 300, curve: Curve.Ease })
-}
-
-@Styles
-function shadowFancy() {
-  .backgroundColor('rgba(0, 0, 0, 0.05)')
-  .shadow({
-    radius: 26,
-    color: $r('app.color.shadow_color'),
-  })
-}
 
 @Builder
 export function IndexBuilder() {
@@ -403,7 +371,7 @@ struct Index {
           })
             .onClick(async () => {
               this.closeSideBar(false)
-              await this.toMetaData(await SelectFileUtil.getDownloadFilesUri());
+              await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), undefined);
             })
         }
       }.font({ size: 15, weight: FontWeight.Normal })
@@ -559,14 +527,14 @@ struct Index {
   }
 
   async selectFiles() {
-    await this.toMetaData(await SelectFileUtil.selectFiles());
+    await this.toMetaData(await SelectFileUtil.selectFiles(), undefined);
   }
 
   async selectVideo() {
-    await this.toMetaData(await SelectFileUtil.selectVideo());
+    await this.toMetaData(await SelectFileUtil.selectVideo(), undefined);
   }
 
-  async toMetaData(list: string[]) {
+  async toMetaData(list: string[], file_folder: FileFolder | undefined) {
     if (list.length === 0) {
       ToolsUtil.showToast('没有任何文件被导入哦~');
       return;
@@ -575,7 +543,7 @@ struct Index {
     this.import_sum = list.length
     try {
       const processFile = async (uri: string, video_meta_data: VideoMetadata[]) => {
-        await SelectFileUtil.addFile(context, sandbox_video, sandbox_path, uri, video_meta_data)
+        await SelectFileUtil.addFile(context, sandbox_video, sandbox_path, uri, video_meta_data, file_folder)
       };
       const chunkSize = Math.ceil(list.length / VideoUtil.MAX_CONCURRENT);
       const workers: Promise<void>[] = [];
@@ -637,7 +605,7 @@ struct Index {
             Column() {
               Stack() {
                 Image($r("app.media.Background"))
-                  .imageFancy(16, '100%', 120)
+                  .attributeModifier(new ImageFancyModifier(16, '100%', 120))
                   .zIndex(1)
                 Row() {
                   Image($r("app.media.Foreground"))
@@ -658,7 +626,8 @@ struct Index {
               Row() {
                 Button({ type: ButtonType.Normal, stateEffect: true }) {
                   Row() {
-                    SymbolGlyph($r('sys.symbol.gearshape')).symbolGlyphFancy(25, '', '')
+                    SymbolGlyph($r('sys.symbol.gearshape'))
+                      .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
                     Text('设置')
                       .fontSize(15)
                       .margin({ left: 10, right: 12 })
@@ -666,7 +635,8 @@ struct Index {
                 }
                 .align(Alignment.Start)
                 .padding({ left: 15, right: 15 })
-                .buttonFancy('100%', 60)
+                .attributeModifier(new ButtonFancyModifier('100%', 60))
+                .animation({ duration: 300, curve: Curve.Ease })
                 .onClick(() => {
                   this.closeSideBar(false)
                   this.pathStack.pushPathByName('SettingsPage', null)
@@ -678,7 +648,7 @@ struct Index {
                   Button({ type: ButtonType.Normal, stateEffect: true }) {
                     Row() {
                       SymbolGlyph($r('sys.symbol.lock'))
-                        .symbolGlyphFancy(25, '', '')
+                        .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
                       Text(this.encryption ? $r('app.string.exit_privacy_space') : $r('app.string.privacy_space'))
                         .fontSize(15)
                         .margin({ left: 10, right: 12 })
@@ -686,7 +656,8 @@ struct Index {
                   }
                   .align(Alignment.Start)
                   .padding({ left: 15, right: 15 })
-                  .buttonFancy('100%', 60)
+                  .attributeModifier(new ButtonFancyModifier('100%', 60))
+                  .animation({ duration: 300, curve: Curve.Ease })
                   .onClick(() => {
                     this.closeSideBar(false)
                     if (this.passwd == '') {
@@ -709,7 +680,7 @@ struct Index {
                 Row() {
                   Button({ type: ButtonType.Normal, stateEffect: true }) {
                     Row() {
-                      SymbolGlyph($r('sys.symbol.clock')).symbolGlyphFancy(25, '', '')
+                      SymbolGlyph($r('sys.symbol.clock')).attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
                       Text('最近播放')
                         .fontSize(15)
                         .fontColor($r('app.color.text_color'))
@@ -718,7 +689,8 @@ struct Index {
                   }
                   .align(Alignment.Start)
                   .padding({ left: 15, right: 15 })
-                  .buttonFancy('100%', 60)
+                  .attributeModifier(new ButtonFancyModifier('100%', 60))
+                  .animation({ duration: 300, curve: Curve.Ease })
                   .onClick(async () => {
                     this.closeSideBar(false)
                     this.pathStack.pushPathByName('RecentPlay', true)
@@ -731,7 +703,8 @@ struct Index {
                 Row() {
                   Button({ type: ButtonType.Normal, stateEffect: true }) {
                     Row() {
-                      SymbolGlyph($r('sys.symbol.plus_square')).symbolGlyphFancy(25, '', '')
+                      SymbolGlyph($r('sys.symbol.plus_square'))
+                        .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
                       Text('导入视频')
                         .fontSize(15)
                         .margin({ left: 10, right: 12 })
@@ -739,7 +712,8 @@ struct Index {
                   }
                   .align(Alignment.Start)
                   .padding({ left: 15, right: 15 })
-                  .buttonFancy('100%', 60)
+                  .attributeModifier(new ButtonFancyModifier('100%', 60))
+                  .animation({ duration: 300, curve: Curve.Ease })
                   .bindMenu(this.SelectFileMenuBuilder)
                 }.width('100%')
                 .justifyContent(FlexAlign.Start)
@@ -748,7 +722,8 @@ struct Index {
                   Row() {
                     Button({ type: ButtonType.Normal, stateEffect: true }) {
                       Row() {
-                        SymbolGlyph($r('sys.symbol.folder_badge_plus')).symbolGlyphFancy(25, '', '')
+                        SymbolGlyph($r('sys.symbol.folder_badge_plus'))
+                          .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
                         Text('添加文件夹')
                           .fontSize(15)
                           .margin({ left: 10, right: 12 })
@@ -756,7 +731,8 @@ struct Index {
                     }
                     .align(Alignment.Start)
                     .padding({ left: 15, right: 15 })
-                    .buttonFancy('100%', 60)
+                    .attributeModifier(new ButtonFancyModifier('100%', 60))
+                    .animation({ duration: 300, curve: Curve.Ease })
                     .onClick(() => {
                       this.addFileFolderNameDialogController.open()
                     })
@@ -774,7 +750,8 @@ struct Index {
                   ForEach(this.file_folder_list, (item: FileFolder) => {
                     ListItem() {
                       Row() {
-                        SymbolGlyph($r('sys.symbol.folder')).symbolGlyphFancy(25, '', '')
+                        SymbolGlyph($r('sys.symbol.folder'))
+                          .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
                         Text(item.name)
                           .fontSize(15)
                           .margin({ left: 10, right: 12 })
@@ -837,7 +814,7 @@ struct Index {
                 Column() {
                   Row() {
                     Image(fileUri.getUriFromPath(sandbox_path + item))
-                      .imageFancy(10, 60, 90)
+                      .attributeModifier(new ImageFancyModifier(10, 60, 90))
                     Column() {
                       Row() {
                         Text((String(SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
@@ -874,7 +851,7 @@ struct Index {
                         if ((SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
                         this.video_meta_data, item)?.hdr_type) === media.HdrType.AV_HDR_TYPE_VIVID) {
                           Image($r("app.media.hdr_vivid_icon"))
-                            .imageFancy(10, 65, 25)
+                            .attributeModifier(new ImageFancyModifier(10, 65, 25))
                         } else if (VideoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.encryption ?
                         this.video_meta_data_encryption : this.video_meta_data, item)?.size)).includes('HD')) {
                           Text(VideoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.encryption ?
@@ -965,34 +942,36 @@ struct Index {
             this.searchController.stopEditing()
           })
 
-          Row() { //顶栏
-            if (!this.loading) {
-              Column() {
-                Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
-                Text(this.encryption ? $r('app.string.privacy_space_info') : $r('app.string.open_side_bar_tip'))
-                  .fontSize(15)
-                  .textAlign(TextAlign.Center)
-                  .fontWeight(FontWeight.Lighter)
-                  .margin({ top: 20 })
+          if (this.show_list.length == 0) {
+            Row() { //顶栏
+              if (!this.loading) {
+                Column() {
+                  Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
+                  Text(this.encryption ? $r('app.string.privacy_space_info') : $r('app.string.open_side_bar_tip'))
+                    .fontSize(15)
+                    .textAlign(TextAlign.Center)
+                    .fontWeight(FontWeight.Lighter)
+                    .margin({ top: 20 })
+                }
               }
-            }
-          }.height('100%')
-          .visibility(this.show_list.length == 0 ? Visibility.Visible : Visibility.Hidden)
-          .animation({ duration: 150, curve: Curve.Ease })
+            }.height('100%')
+            .animation({ duration: 150, curve: Curve.Ease })
+          }
 
           Column() {
             Row({ space: 15 }) {
               if (!this.is_edit) {
                 Button({ type: ButtonType.Circle, stateEffect: true }) {
                   SymbolGlyph($r('sys.symbol.close_sidebar'))
-                    .symbolGlyphFancy(25, '', '')
+                    .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
                 }
-                .buttonFancy(40, 40)
+                .attributeModifier(new ButtonFancyModifier(40, 40))
+                .animation({ duration: 300, curve: Curve.Ease })
                 .backdropBlur(150)
                 .onClick(() => {
                   this.openSideBar()
                 })
-                .shadowFancy()
+                .attributeModifier(new ShadowModifier())
                 .zIndex(0)
               }
 
@@ -1007,11 +986,11 @@ struct Index {
                 .backgroundColor($r('app.color.start_window_background_blur'))
                 .backdropBlur(150)
                 .animation({ duration: 300, curve: Curve.Ease })
-                .shadowFancy()
+                .attributeModifier(new ShadowModifier())
                 .onChange(() => {
                   const item = this.encryption ? this.video_meta_data_encryption : this.video_meta_data
                   this.searchValue === '' ? this.show_list = SelectFileUtil.getAllItems(item)
-                    : this.show_list = SelectFileUtil.getItemFromSearch(item, this.searchValue)
+                    : this.show_list = SelectFileUtil.getItemFromSearch(item, this.searchValue, true)
                 })
                 .onSubmit((value: string) => {
                   const currentMeta = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
@@ -1033,7 +1012,7 @@ struct Index {
                     this.encryption = true
                     return
                   }
-                  this.show_list = SelectFileUtil.getItemFromSearch(currentMeta, value)
+                  this.show_list = SelectFileUtil.getItemFromSearch(currentMeta, value, true)
                   if (this.show_list.length == 0) {
                     ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.no_search_result')))
                   }
@@ -1048,23 +1027,25 @@ struct Index {
               if (!this.is_edit) {
                 Button({ type: ButtonType.Circle, stateEffect: true }) {
                   SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
-                    .symbolGlyphFancy(25, '', '')
+                    .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
                 }
                 .backdropBlur(150)
-                .buttonFancy(40, 40)
+                .attributeModifier(new ButtonFancyModifier(40, 40))
+                .animation({ duration: 300, curve: Curve.Ease })
                 .bindMenu(this.SortMenuBuilder)
-                .shadowFancy()
+                .attributeModifier(new ShadowModifier())
                 .zIndex(0)
 
                 if (this.multipleChooseState === Visibility.Visible) {
                   Button({ type: ButtonType.Circle, stateEffect: true }) {
                     SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
-                      .symbolGlyphFancy(25, '', '')
+                      .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
                   }
                   .backdropBlur(150)
-                  .buttonFancy(40, 40)
+                  .attributeModifier(new ButtonFancyModifier(40, 40))
+                  .animation({ duration: 300, curve: Curve.Ease })
                   .bindMenu(this.SelectItemMenuBuilder)
-                  .shadowFancy()
+                  .attributeModifier(new ShadowModifier())
                   .zIndex(0)
                 }
               }
@@ -1179,40 +1160,15 @@ struct Index {
 
   @Builder
   itemEnd(item: VideoMetadata) {
-    Row({ space: 10 }) {
-      Stack().width(10)
-      SymbolGlyph($r('sys.symbol.trash_fill'))
-        .symbolGlyphFancy(28, 40, 40)
-        .onClick(() => {
-          this.listScroller.closeAllSwipeActions()
-          DataSyncUtil.editing_video = JSON.stringify(item)
-          this.delConfirmDialog.open()
-        })
-      Stack().width(10)
-      SymbolGlyph($r('sys.symbol.rename'))
-        .symbolGlyphFancy(28, 40, 40)
-        .onClick(() => {
-          this.listScroller.closeAllSwipeActions()
-          DataSyncUtil.editing_video = JSON.stringify(item)
-          this.editMetadataDialogController.open()
-        })
-      Stack().width(10)
-      SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
-        .symbolGlyphFancy(28, 40, 40)
-        .onClick(() => {
-          this.multipleChooseState = this.multipleChooseState == Visibility.None ? Visibility.Visible : Visibility.None
-          this.itemMultipleChoose = false
-          this.listScroller.closeAllSwipeActions()
-          this.delMultipleList.length = 0
-        })
-      if (this.encryption) {
+    if (this.encryption) {
+      Row({ space: 10 }) {
         Stack().width(10)
         SymbolGlyph($r('sys.symbol.arrow_right_folder_circle'))
-          .symbolGlyphFancy(28, 40, 40)
+          .attributeModifier(new SymbolGlyphFancyModifier(28, 40, 40))
           .onClick(() => {
-            SelectFileUtil.copyFile(item, context)
+            SelectFileUtil.exportFile(item, context)
           })
-      }
-    }.padding({ left: 15, right: 15 }).justifyContent(FlexAlign.SpaceEvenly)
+      }.padding({ left: 15, right: 15 }).justifyContent(FlexAlign.SpaceEvenly)
+    }
   }
 }

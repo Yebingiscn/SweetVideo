@@ -1,7 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import ToolsUtil from '../utils/ToolsUtil';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
-import { SymbolGlyphModifier } from '@kit.ArkUI';
+import { ImageModifier, SymbolGlyphModifier } from '@kit.ArkUI';
 import DataSyncUtil from '../utils/DataSyncUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { JSON } from '@kit.ArkTS';
@@ -15,39 +15,16 @@ import { FileFolder } from '../interfaces/FileFolderInterface';
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import Preferences from '../database/Preferences';
+import {
+  ButtonFancyModifier,
+  ImageFancyModifier,
+  ShadowModifier,
+  SymbolGlyphFancyModifier
+} from '../utils/AttributeModifierUtil';
 
 const sandbox_subtitle = getContext().filesDir + '/subtitle/'
 const sandbox_path = getContext().filesDir + '/'
 const context = getContext() as common.UIAbilityContext;
-
-@Extend(Image)
-function imageFancy(borderRadius: number, width: number | string, height: number | string) {
-  .alt($r("app.media.sweet_video_alt"))
-  .backgroundImageSize(ImageSize.Cover)
-  .borderRadius(borderRadius)
-  .width(width)
-  .height(height)
-  .autoResize(true)
-  .interpolation(ImageInterpolation.Low)
-}
-
-@Extend(SymbolGlyph)
-function symbolGlyphFancy(fontSize: number, width: number | string, height: number | string) {
-  .fontSize(fontSize)
-  .fontColor([$r('app.color.text_color')])
-  .width(width)
-  .height(height)
-}
-
-@Extend(Button)
-function buttonFancy(width: number | string, height: number | string) {
-  .borderRadius(16)
-  .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-  .width(width)
-  .height(height)
-  .backgroundColor($r('app.color.start_window_background_blur'))
-  .animation({ duration: 300, curve: Curve.Ease })
-}
 
 @Component
 export struct FileFolderContent { // 文件夹页，不同文件夹公用一个页
@@ -56,6 +33,9 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
   @State file_folder: FileFolder | undefined = undefined
   @State file_folder_list: FileFolder[] = []
   @State list_line: number = 1
+  @State searchValue: string = ''
+  @State is_edit: boolean = false
+  @State image_modifier: ImageModifier = new ImageModifier();
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
@@ -164,16 +144,17 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
 
   @Builder
   NavigationMenus() {
-    Row() {
+    Row({ space: 15 }) {
       Button({ type: ButtonType.Circle, stateEffect: true }) {
         SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
-          .symbolGlyphFancy(25, '', '')
+          .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
       }
       .backdropBlur(150)
-      .buttonFancy(40, 40)
+      .attributeModifier(new ButtonFancyModifier(40, 40))
+      .animation({ duration: 300, curve: Curve.Ease })
       .bindMenu(this.SortMenuBuilder)
       .backgroundColor('rgba(0, 0, 0, 0.05)')
-    }.margin({ right: 24, top: 10 })
+    }.margin({ right: 24, top: 10, left: 50 })
   }
 
   async delData(context: Context, item: VideoMetadata, move_to_other_file_folder: boolean) {
@@ -202,6 +183,37 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
   build() {
     NavDestination() {
       Column() {
+        Search({
+          controller: this.searchController,
+          placeholder: $r('app.string.search_placeholder'),
+          value: $$this.searchValue, // $$使得 searchValue 可以动态变化，清空搜索框依赖这个
+        })
+          .height(40)
+          .width('90%')
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+          .backgroundColor($r('app.color.start_window_background_blur'))
+          .backdropBlur(150)
+          .attributeModifier(new ShadowModifier())
+          .animation({ duration: 300, curve: Curve.Ease })
+          .onChange(() => {
+            const newVideoList = SelectFileUtil.getItemFromSearch(
+              this.file_folder?.video_list || [],
+              this.searchValue,
+              false
+            );
+            if (this.file_folder) {
+              this.searchValue === '' ?
+                this.file_folder.video_list =
+                  Preferences.getFileFolder(context).find(i => i.date === this.file_folder?.date)?.video_list! :
+                this.file_folder.video_list = newVideoList
+              this.videoDataSource.updateData(this.file_folder.video_list)
+            }
+          })
+          .onEditChange((isEditing: boolean) => {
+            animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
+              this.is_edit = isEditing
+            })
+          })
         if (this.file_folder?.video_list.length === 0) {
           Text('还没有任何视频哦~')
             .fontSize(24)
@@ -242,7 +254,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
                     Row() {
                       if (item.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID) {
                         Image($r("app.media.hdr_vivid_icon"))
-                          .imageFancy(10, 65, 25)
+                          .attributeModifier(new ImageFancyModifier(10, 65, 25))
                       } else if (VideoInfoUtil.videoWidthAndHeightFormat(item.size.toString()).includes('HD')) {
                         Text(VideoInfoUtil.videoWidthAndHeightFormat(item.size.toString()))
                           .fontWeight(FontWeight.Bold)
@@ -309,5 +321,13 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
     .menus(this.NavigationMenus)
     .padding({ top: this.topSafeHeight, bottom: this.bottomSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
+    .onBackPressed(() => {
+      if (this.searchValue.length > 0) {
+        this.searchValue = ''
+        return true
+      } else {
+        return false
+      }
+    })
   }
 }

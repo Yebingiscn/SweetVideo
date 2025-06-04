@@ -5,6 +5,7 @@ import RecentPlayUtil from '../utils/RecentPlayUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import { common } from '@kit.AbilityKit';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
+import { ImageFancyModifier } from '../utils/AttributeModifierUtil';
 
 const sandbox_path = getContext().filesDir + '/'
 const context = getContext() as common.UIAbilityContext;
@@ -83,14 +84,7 @@ export struct RecentPlay { // 最近播放页
               Column() {
                 Row() {
                   Image(fileUri.getUriFromPath(sandbox_path + item.date))
-                    .width(60)
-                    .height(90)
-                    .alt($r("app.media.sweet_video_alt"))
-                    .backgroundImageSize(ImageSize.Cover)
-                    .borderRadius(10)
-                    .margin({ left: 5 })
-                    .autoResize(true)
-                    .interpolation(ImageInterpolation.Low)
+                    .attributeModifier(new ImageFancyModifier(10, 60, 90))
                   Text((String(SelectFileUtil.getItem(this.recent_video_meta_data, item?.date)?.title)).slice(0,
                     String(SelectFileUtil.getItem(this.recent_video_meta_data, item?.date)?.title).lastIndexOf('.')))
                     .fontSize(15)

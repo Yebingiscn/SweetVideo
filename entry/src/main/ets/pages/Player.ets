@@ -24,38 +24,11 @@ import { FileFolder } from '../interfaces/FileFolderInterface';
 import { AudioTrack } from '../interfaces/AudioTrackInterface';
 import Preferences from '../database/Preferences';
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
-
-
-@Extend(Image)
-function imageFancy(borderRadius: number, width: number | string, height: number | string) {
-  .alt($r("app.media.sweet_video_alt"))
-  .backgroundImageSize(ImageSize.Cover)
-  .borderRadius(borderRadius)
-  .width(width)
-  .height(height)
-  .autoResize(true)
-  .interpolation(ImageInterpolation.Low)
-}
-
-@Extend(Button)
-function buttonFancy(width: number | string, height: number | string) {
-  .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-  .height(width)
-  .width(height)
-  .backgroundColor('#50000000')
-}
-
-@Extend(SymbolGlyph)
-function symbolGlyphFancy(fontSize: number) {
-  .fontSize(fontSize)
-  .fontColor(['#f0f0f0'])
-  .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-}
+import { ButtonFancyModifier, ImageFancyModifier, SymbolGlyphFancyModifier } from '../utils/AttributeModifierUtil';
 
 const context = getContext() as common.UIAbilityContext;
 const sandbox_path = getContext().filesDir + '/'
 const sandbox_subtitle = getContext().filesDir + '/subtitle/'
-
 
 @Component
 export struct Player { // 播放页
@@ -522,7 +495,7 @@ export struct Player { // 播放页
                 Column() {
                   Row() {
                     Image(fileUri.getUriFromPath(sandbox_path + item.date))
-                      .imageFancy(10, 60, 90)
+                      .attributeModifier(new ImageFancyModifier(10, 60, 90))
                       .margin({ left: 5 })
                     Text((String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title)).slice(0,
                       String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title).lastIndexOf('.')))
@@ -713,7 +686,7 @@ export struct Player { // 播放页
                   }
                 }).visibility(Visibility.None)
                 SymbolGlyph($r('sys.symbol.speaker_wave_1'))
-                  .symbolGlyphFancy(23)
+                  .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
                 Slider({
                   value: this.volume,
                   min: VideoOperateUtil.min_volume,
@@ -749,7 +722,7 @@ export struct Player { // 播放页
             Stack() { //亮度提示
               Column() {
                 SymbolGlyph($r('sys.symbol.sun_max'))
-                  .symbolGlyphFancy(23)
+                  .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
                 Slider({
                   value: this.screenBrightness,
                   min: 0,
@@ -782,10 +755,10 @@ export struct Player { // 播放页
             Button({ type: ButtonType.Circle, stateEffect: true }) { //锁定播放栏
               SymbolGlyph(this.isLock ? $r('sys.symbol.lock_fill') : $r('sys.symbol.lock_open_fill'))
                 .fontWeight(FontWeight.Bold)
-                .symbolGlyphFancy(30)
+                .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
             }
             .zIndex(100)
-            .buttonFancy(40, 40)
+            .attributeModifier(new ButtonFancyModifier(40, 40))
             .aspectRatio(1)
             .onClick(() => {
               this.isLock = !this.isLock
@@ -1010,7 +983,7 @@ export struct Player { // 播放页
   VideoTop() {
     Row({ space: 8 }) {
       SymbolGlyph($r('sys.symbol.chevron_left'))
-        .symbolGlyphFancy(40)
+        .attributeModifier(new SymbolGlyphFancyModifier(40, '', ''))
         .onClick(() => {
           this.avPlayer?.reset()
           this.pathStack.pop()
@@ -1027,14 +1000,14 @@ export struct Player { // 播放页
         Row({ space: 12 }) {
           SymbolGlyph(this.sub_title_visibility === Visibility.Visible ?
           $r('sys.symbol.textformat_size_square_fill') : $r('sys.symbol.textformat_size_square'))
-            .symbolGlyphFancy(30)
+            .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
             .onClick(() => {
               this.sub_title_visibility === Visibility.Visible ? this.sub_title_visibility = Visibility.None :
                 this.sub_title_visibility = Visibility.Visible
             })
           if (this.screen_width > this.screen_height) {
             SymbolGlyph($r('sys.symbol.opticaldisc'))
-              .symbolGlyphFancy(30)
+              .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
               .bindMenu(this.AudioTrackMenuBuilder)
           }
           if (this.screen_width > this.screen_height) {
@@ -1060,11 +1033,11 @@ export struct Player { // 播放页
 
       Button({ type: ButtonType.Circle, stateEffect: true }) { // 旋转锁定 TODO KIMMG
         SymbolGlyph(this.lock_rotation ? $r('sys.symbol.lock_fill') : $r('sys.symbol.rotate_left'))
-          .symbolGlyphFancy(23)
+          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
           .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.lock_rotation))
       }
       .margin({ top: this.screen_height > this.screen_width ? 10 : 0 })
-      .buttonFancy(35, 40)
+      .attributeModifier(new ButtonFancyModifier(35, 40))
       .onClick(async () => {
         this.lock_rotation = !this.lock_rotation
         const windowInstance = await this.windowClass
@@ -1137,7 +1110,7 @@ export struct Player { // 播放页
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 播放按钮
           SymbolGlyph(this.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill'))
-            .symbolGlyphFancy(27)
+            .attributeModifier(new SymbolGlyphFancyModifier(27, '', ''))
             .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.playing))
             .defaultFocus(true) // 自动获取键盘焦点
         }.onKeyEvent((event?: KeyEvent) => {
@@ -1147,7 +1120,7 @@ export struct Player { // 播放页
             }
           }
         })
-        .buttonFancy(40, 40)
+        .attributeModifier(new ButtonFancyModifier(40, 40))
         .onClick(() => {
           ToolsUtil.startVibration()
           this.togglePlayback()
@@ -1157,9 +1130,9 @@ export struct Player { // 播放页
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 下一首按钮
           SymbolGlyph($r('sys.symbol.forward_end_fill'))
-            .symbolGlyphFancy(23)
+            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
         }
-        .buttonFancy(40, 40)
+        .attributeModifier(new ButtonFancyModifier(40, 40))
         .onClick(() => {
           this.playNextVideo()
         })
@@ -1168,9 +1141,9 @@ export struct Player { // 播放页
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 循环按钮
           SymbolGlyph(this.circle_play ? $r('sys.symbol.repeat') : $r('sys.symbol.order_play'))
-            .symbolGlyphFancy(23)
+            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
         }
-        .buttonFancy(40, 40)
+        .attributeModifier(new ButtonFancyModifier(40, 40))
         .onClick(() => {
           this.circle_play = !this.circle_play
         })
@@ -1179,27 +1152,27 @@ export struct Player { // 播放页
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 亮度按钮
           SymbolGlyph($r('sys.symbol.sun_max'))
-            .symbolGlyphFancy(23)
+            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
         }
-        .buttonFancy(40, 40)
+        .attributeModifier(new ButtonFancyModifier(40, 40))
         .bindMenu(this.BrightnessBuilder())
       }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 音量
           SymbolGlyph($r('sys.symbol.speaker_wave_1'))
-            .symbolGlyphFancy(23)
+            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
         }
-        .buttonFancy(40, 40)
+        .attributeModifier(new ButtonFancyModifier(40, 40))
         .bindMenu(this.VolumeBuilder())
       }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { //选集
           SymbolGlyph($r('sys.symbol.music_note_list'))
-            .symbolGlyphFancy(23)
+            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
         }
-        .buttonFancy(40, 40)
+        .attributeModifier(new ButtonFancyModifier(40, 40))
         .onClick(() => {
           this.sideBarStatus ? this.closeSideBar(true) : this.openSideBar()
         })
@@ -1233,9 +1206,9 @@ export struct Player { // 播放页
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 全屏按钮
           SymbolGlyph($r('sys.symbol.screen_rotation'))
-            .symbolGlyphFancy(23)
+            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
         }
-        .buttonFancy(40, 40)
+        .attributeModifier(new ButtonFancyModifier(40, 40))
         .onClick(async () => {
           this.screen_height > this.screen_width ?
           (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE)
@@ -1252,7 +1225,7 @@ export struct Player { // 播放页
         Row() { // 音轨
           if (item.mime.split('/')[1] === 'av3a') {
             Image($r('app.media.audio_vivid_icon'))
-              .imageFancy(10, 85, 30)
+              .attributeModifier(new ImageFancyModifier(10, 85, 30))
           }
           Text(`${item.index} : ${item.name}(${item.language})`)
             .fontSize(18)
@@ -1317,9 +1290,9 @@ export struct Player { // 播放页
         Column() {
           Button({ type: ButtonType.Circle, stateEffect: true }) {
             SymbolGlyph($r('sys.symbol.undo'))
-              .symbolGlyphFancy(23)
+              .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
           }
-          .buttonFancy(80, 40)
+          .attributeModifier(new ButtonFancyModifier(80, 40))
           .backdropBlur(150)
           .onClick(() => {
             VideoOperateUtil.setBrightness(this.screenBrightnessAtFirst)

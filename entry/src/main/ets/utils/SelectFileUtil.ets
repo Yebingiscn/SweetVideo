@@ -12,6 +12,7 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import Preferences from '../database/Preferences';
 import PrivacySpaceUtil from './PrivacySpaceUtil';
 import ReqPermissionUtil from './ReqPermissionUtil';
+import { FileFolder } from '../interfaces/FileFolderInterface';
 
 // 获取视频类
 class SelectFileUtil {
@@ -110,8 +111,8 @@ class SelectFileUtil {
     this.file_folder_uri = uri.path
   }
 
-  // 复制视频文件
-  copyFile(item: VideoMetadata, context: common.UIAbilityContext) {
+  // 导出视频文件
+  exportFile(item: VideoMetadata, context: common.UIAbilityContext) {
     let file = fs.openSync(item.uri)
     let saverOption = new picker.DocumentSaveOptions()
     saverOption.newFileNames = this.copyFileReName(item)
@@ -233,13 +234,25 @@ class SelectFileUtil {
     }
   }
 
-  // 获取视频搜索
-  getItemFromSearch(list: VideoMetadata[], value: string): string[] {
+  // 函数重载声明
+  getItemFromSearch(list: VideoMetadata[], value: string, isReturnString: true): string[];
+  getItemFromSearch(list: VideoMetadata[], value: string, isReturnString: false): VideoMetadata[];
+  getItemFromSearch(list: VideoMetadata[], value: string, isReturnString: boolean): string[] | VideoMetadata[];
+
+  // 函数实现
+  getItemFromSearch(list: VideoMetadata[], value: string, isReturnString: boolean): string[] | VideoMetadata[] {
     const lowerValue = value.toLowerCase().trim();
-    const results: string[] = [];
+    // 根据返回类型初始化结果数组
+    const results: string[] | VideoMetadata[] = isReturnString ? [] : [];
     for (const item of list) {
       if (item.title.toLowerCase().includes(lowerValue)) {
-        results.push(item.date);
+        if (isReturnString) {
+          // 返回日期字符串数组
+          (results as string[]).push(item.date);
+        } else {
+          // 返回完整VideoMetadata对象数组
+          (results as VideoMetadata[]).push(item);
+        }
       }
     }
     return results;
@@ -341,7 +354,7 @@ class SelectFileUtil {
   }
 
   async addFile(context: Context, sandbox_video: string, sandbox_path: string, uri: string,
-    video_meta_data: VideoMetadata[]) {
+    video_meta_data: VideoMetadata[], file_folder: FileFolder | undefined) {
     await ReqPermissionUtil.persistPermission(uri);
     const avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor();
     const file = fs.openSync(uri);
@@ -352,7 +365,10 @@ class SelectFileUtil {
           error ? reject(error) : resolve(metadata);
         });
       });
-      const isDuplicate = video_meta_data.some(item => item.title === file.name)
+      let isDuplicate = video_meta_data.some(item => item.title === file.name)
+      if (file_folder) {
+        isDuplicate = file_folder.video_list.some(item => item.title === file.name)
+      }
       if (!isDuplicate) {
         if (PrivacySpaceUtil.getPrivacyMode()!) {
           await this.copyFileToPrivacySpace(context, video_meta_data, uri, sandbox_video,
@@ -360,8 +376,16 @@ class SelectFileUtil {
         } else {
           const videoInfo = await VideoUtil.setVideoInfo(new Date().getTime().toString(), uri, file.name, metadata,
             sandbox_video, sandbox_path);
-          video_meta_data.push(videoInfo);
-          Preferences.saveVideoMetaData(context, video_meta_data);
+          if (file_folder) {
+            file_folder.video_list.push(videoInfo)
+            let file_folder_list = Preferences.getFileFolder(context)
+            file_folder_list = file_folder_list.filter(i => i.date !== file_folder?.date)
+            file_folder_list.push(file_folder!)
+            Preferences.saveFileFolder(context, file_folder_list)
+          } else {
+            video_meta_data.push(videoInfo);
+            Preferences.saveVideoMetaData(context, video_meta_data);
+          }
         }
       }
     } finally {
