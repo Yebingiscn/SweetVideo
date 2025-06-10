@@ -9,7 +9,7 @@ import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
 import { FileFolderContentDataSource } from '../utils/DataUtil';
 import { media } from '@kit.MediaKit';
 import TimeUtil from '../utils/TimeUtil';
-import { VideoDetailDialog } from '../component/VideoDetailDialog';
+import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog';
 import FileFolderUtil from '../utils/FileFolderUtil';
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
@@ -84,7 +84,8 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
           content: $r('app.string.sort_by_name')
         })
           .onClick(async () => {
-            this.file_folder = await FileFolderUtil.sortByNameFromFileFolder(context, this.file_folder!) as FileFolder
+            this.file_folder =
+              await ToolsUtil.sortByName(context, this.file_folder?.video_list!, this.file_folder!) as FileFolder
             this.videoDataSource.updateData(this.file_folder.video_list)
           })
         MenuItem({
@@ -92,7 +93,8 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
           content: $r('app.string.sort_by_time')
         })
           .onClick(async () => {
-            this.file_folder = await FileFolderUtil.sortByTimeFromFileFolder(context, this.file_folder!) as FileFolder
+            this.file_folder =
+              await ToolsUtil.sortByTime(context, this.file_folder?.video_list!, this.file_folder!) as FileFolder
             this.videoDataSource.updateData(this.file_folder.video_list)
           })
       }.font({ size: 15, weight: FontWeight.Normal })
@@ -159,10 +161,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
 
   async delData(context: Context, item: VideoMetadata, move_to_other_file_folder: boolean) {
     this.file_folder!.video_list = this.file_folder!.video_list.filter(i => i.date !== item.date);
-    let file_folder_list = Preferences.getFileFolder(context)
-    file_folder_list = file_folder_list.filter(i => i.date !== this.file_folder?.date)
-    file_folder_list.push(this.file_folder!)
-    Preferences.saveFileFolder(context, file_folder_list)
+    FileFolderUtil.updateFileFolderList(context, this.file_folder!)
     this.videoDataSource.deleteData(this.videoDataSource.getAllData().indexOf(item))
     if (!move_to_other_file_folder) {
       if (await SelectFileUtil.isSubtitleExist(sandbox_subtitle, item.date!)) {
@@ -199,7 +198,6 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
             const newVideoList = SelectFileUtil.getItemFromSearch(
               this.file_folder?.video_list || [],
               this.searchValue,
-              false
             );
             if (this.file_folder) {
               this.searchValue === '' ?
@@ -319,7 +317,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
     })
     .title(this.file_folder?.name || '文件夹')
     .menus(this.NavigationMenus)
-    .padding({ top: this.topSafeHeight, bottom: this.bottomSafeHeight })
+    .padding({ top: this.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
     .onBackPressed(() => {
       if (this.searchValue.length > 0) {

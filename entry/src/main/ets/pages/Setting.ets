@@ -1,5 +1,8 @@
 import { common } from '@kit.AbilityKit';
+import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
+import { editPasswordDialog } from '../component/Dialog/EditPasswordDialog';
 import Preferences from '../database/Preferences';
+import ToolsUtil from '../utils/ToolsUtil';
 
 const context = getContext() as common.UIAbilityContext;
 
@@ -15,10 +18,22 @@ export struct SettingsPage { //设置页
   @StorageLink('recentPlay') recentPlay: boolean = true
   @StorageLink('defaultPlayer') defaultPlayer: string = 'FFMpeg播放器'
   @StorageLink('subtitleSize') subtitleSize: string = '22'
+  @State passwd: string = 'passwd'
   fastForwardSecondsList = ['15', '30', '60', '120']
   subtitleSizeList = ['19', '20', '21', '22', '23', '24', '25', '26']
   @Consume('pathStack') pathStack: NavPathStack
-
+  editPasswdDialogController: CustomDialogController = new CustomDialogController({
+    builder: editPasswordDialog({
+      confirm: (passwd: string | undefined) => {
+        if (!passwd || passwd.trim() == '') {
+          return
+        }
+        this.passwd = passwd
+        ToolsUtil.savePwd(context, passwd)
+        ToolsUtil.showToast($r('app.string.set_passwd_tip') + '')
+      },
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
   build() {
     NavDestination() {
       List() {
@@ -28,6 +43,17 @@ export struct SettingsPage { //设置页
             message: '关于此应用',
             onPress: () => {
               this.pathStack.pushPathByName('AboutPage', true)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsClickItem({
+            symbol: $r('sys.symbol.lock'),
+            message: $r('app.string.privacy_space'),
+            onPress: () => {
+              this.passwd = Preferences.getPassword(context)
+              this.editPasswdDialogController.open()
             }
           })
         }
@@ -146,7 +172,7 @@ export struct SettingsPage { //设置页
       .layoutWeight(1)
     }.hideToolBar(true).title('设置')
     .backgroundColor($r('app.color.start_window_background'))
-    .padding({ top: this.topSafeHeight, bottom: this.bottomSafeHeight })
+    .padding({ top: this.topSafeHeight })
   }
 }
 

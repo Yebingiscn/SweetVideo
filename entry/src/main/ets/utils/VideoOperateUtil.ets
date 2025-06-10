@@ -17,6 +17,7 @@ import { common } from '@kit.AbilityKit';
 import Preferences from '../database/Preferences';
 import RecentPlayUtil from './RecentPlayUtil';
 import PrivacySpaceUtil from './PrivacySpaceUtil';
+import FileFolderUtil from './FileFolderUtil';
 
 // 视频操作类
 class VideoOperateUtil {
@@ -165,15 +166,8 @@ class VideoOperateUtil {
     video_meta_data: VideoMetadata[], context: Context, file_folder: FileFolder) {
     const save_time = play_time < now_playing?.time! * 0.9 ? play_time : 0
     video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)].last_play = save_time
-    if (file_folder) {
-      file_folder.video_list = video_meta_data
-      let file_folder_list = Preferences.getFileFolder(context)
-      file_folder_list = file_folder_list.filter(i => i.date !== file_folder?.date)
-      file_folder_list.push(file_folder!)
-      Preferences.saveFileFolder(context, file_folder_list)
-    } else {
+    file_folder ? FileFolderUtil.updateFileFolder(context, file_folder, video_meta_data) :
       await SelectFileUtil.saveData(context, video_meta_data, now_playing!)
-    }
     const recentPlay = Preferences.getRecentPlayState(context) // 添加到最近播放
     if (recentPlay && !PrivacySpaceUtil.getPrivacyMode()) {
       RecentPlayUtil.addPlayback(context, video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)])
@@ -184,15 +178,8 @@ class VideoOperateUtil {
   async saveVideoWeightAndHeight(now_playing: VideoMetadataFromPlayer,
     video_meta_data: VideoMetadata[], context: Context, file_folder: FileFolder) {
     video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)].size = now_playing.size
-    if (file_folder.name.length !== 0) {
-      file_folder.video_list = video_meta_data
-      let file_folder_list = Preferences.getFileFolder(context)
-      file_folder_list = file_folder_list.filter(i => i.date !== file_folder?.date)
-      file_folder_list.push(file_folder!)
-      Preferences.saveFileFolder(context, file_folder_list)
-    } else {
+    file_folder.name.length !== 0 ? FileFolderUtil.updateFileFolder(context, file_folder, video_meta_data) :
       await SelectFileUtil.saveData(context, video_meta_data, now_playing!)
-    }
   }
 
   // 更新播控中心状态

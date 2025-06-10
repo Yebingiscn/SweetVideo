@@ -2,24 +2,22 @@ import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
 import { common } from '@kit.AbilityKit';
 import { curves, SymbolGlyphModifier } from '@kit.ArkUI';
 import { media } from '@kit.MediaKit';
-import { BusinessError } from '@kit.BasicServicesKit';
 import DataSyncUtil, { OOBEVersion } from '../utils/DataSyncUtil';
-import DataUtil from '../utils/DataUtil';
+import { IndexDataSource } from '../utils/DataUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import VideoUtil from '../utils/VideoInfoUtil';
 import TimeUtil from '../utils/TimeUtil';
-import { delConfirmDialog } from '../component/DelConfirmDialog';
-import { editPasswordDialog } from '../component/EditPasswordDialog';
-import { editMetadataDialog } from '../component/EditMetadataDialog';
+import { delConfirmDialog } from '../component/Dialog/DelConfirmDialog';
+import { editMetadataDialog } from '../component/Dialog//EditMetadataDialog';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { JSON } from '@kit.ArkTS';
-import { VideoDetailDialog } from '../component/VideoDetailDialog';
+import { VideoDetailDialog } from '../component/Dialog//VideoDetailDialog';
 import WantProcessUtil from '../utils/WantProcessUtil';
 import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
-import { addFileFolderNameDialog } from '../component/AddFileFolderNameDialog';
+import { addFileFolderNameDialog } from '../component/Dialog/AddFileFolderNameDialog';
 import FileFolderUtil from '../utils/FileFolderUtil';
-import { editFileFolderNameDialog } from '../component/EditFileFolderNameDialog';
+import { editFileFolderNameDialog } from '../component/Dialog/EditFileFolderNameDialog';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
@@ -42,6 +40,8 @@ import {
   ShadowModifier,
   SymbolGlyphFancyModifier
 } from '../utils/AttributeModifierUtil';
+import { ImportProgress } from '../component/ImportProgress';
+import { FileProcessorUtil } from '../utils/FileProcessorUtil';
 
 const context = getContext() as common.UIAbilityContext;
 const sandbox_path = getContext().filesDir + '/'
@@ -58,16 +58,13 @@ export function IndexBuilder() {
 struct Index {
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @State video_meta_data: VideoMetadata[] = []
-  @State video_meta_data_encryption: VideoMetadata[] = []
-  @State @Watch('updateShowList') show_list: string[] = []
-  @State lazy_show_list: DataUtil<string> = new DataUtil<string>(this.show_list)
-  @State @Watch('updateList') encryption: boolean = false
+  @State videoDataSource: IndexDataSource = new IndexDataSource([])
   @State passwd: string = 'passwd'
   @State list_line: number = 1
   @State list_empty_item: string[] = ['']
   @State loading: boolean = false
   @State sideBarStatus: boolean = false
-  @State current_iport: number = 0
+  @State current_import: number = 0
   @State is_edit: boolean = false
   @State import_sum: number = 0
   @State sideBarStatusTmp: Visibility = Visibility.Hidden
@@ -86,22 +83,19 @@ struct Index {
         if (!title?.trim()) {
           return;
         } // 更严格的空值判断
-        const currentData = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
         const editingVideo = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata;
-        const targetIndex = SelectFileUtil.getItemIndex(currentData, editingVideo);
+        const targetIndex = SelectFileUtil.getItemIndex(this.video_meta_data, editingVideo);
         if (targetIndex === -1) {
           console.error('Target video not found');
           return;
         }
-        const titleSet = new Set(currentData.map(v => v.title));
+        const titleSet = new Set(this.video_meta_data.map(v => v.title));
         if (titleSet.has(title)) {
           return;
         }
-        currentData[targetIndex].title = title.trim();
-        this.show_list = SelectFileUtil.getAllItems(currentData);
-        const saveAction =
-          this.encryption ? Preferences.saveVideoMetaDataEncryption : Preferences.saveVideoMetaData;
-        saveAction(context, currentData)
+        this.video_meta_data[targetIndex].title = title.trim();
+        this.videoDataSource.updateData(this.video_meta_data)
+        Preferences.saveVideoMetaData(context, this.video_meta_data)
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -127,18 +121,6 @@ struct Index {
           this.closeMultipleChoose()
         }
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
-  editPasswdDialogController: CustomDialogController = new CustomDialogController({
-    builder: editPasswordDialog({
-      confirm: (passwd: string | undefined) => {
-        if (!passwd || passwd.trim() == '') {
-          return
-        }
-        this.passwd = passwd
-        this.encryption = false
-        ToolsUtil.savePwd(context, passwd)
-      },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
@@ -195,8 +177,8 @@ struct Index {
   async addVideoToFileFolder(video_item: VideoMetadata, item: FileFolder) {
     if (!item.video_list.some(v => v.title === video_item.title)) {
       this.file_folder_list = await FileFolderUtil.addVideoInFileFolder(context, video_item!, item.date)
+      this.videoDataSource.deleteData(this.video_meta_data.findIndex(i => i.date === video_item.date))
       this.video_meta_data = this.video_meta_data.filter(i => i.date !== video_item?.date)
-      this.show_list = this.show_list.filter(i => i !== video_item?.date);
       Preferences.saveVideoMetaData(context, this.video_meta_data)
     }
   }
@@ -237,32 +219,28 @@ struct Index {
         MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(() => {
           this.MenuBuilderState = false
           setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-            const target_data = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
-            let target_item = SelectFileUtil.getItem(target_data, item?.date!)
-            if (!target_data.find(i => i.date == item?.date!)) {
+            let target_item = SelectFileUtil.getItem(this.video_meta_data, item?.date!)
+            if (!this.video_meta_data.find(i => i.date == item?.date!)) {
               ToolsUtil.showToast('数据正在加载中，请重试')
-              this.show_list = SelectFileUtil.getAllItems(target_data);
+              this.videoDataSource.updateData(this.video_meta_data)
               return
             }
             await ToolsUtil.isFileExist(target_item) ?
-            ToolsUtil.routerWhere(this.pathStack, 'FFMpegPlayer', item?.date!,
-              this.encryption ? this.video_meta_data_encryption : this.video_meta_data) :
+            ToolsUtil.routerWhere(this.pathStack, 'FFMpegPlayer', item!, this.video_meta_data) :
             this.deleteUnExistFile(target_item)
           }, 200)
         })
         MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
           this.MenuBuilderState = false
           setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-            const target_data = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
-            let target_item = SelectFileUtil.getItem(target_data, item?.date!)
-            if (!target_data.find(i => i.date == item?.date!)) {
+            let target_item = SelectFileUtil.getItem(this.video_meta_data, item?.date!)
+            if (!this.video_meta_data.find(i => i.date == item?.date!)) {
               ToolsUtil.showToast('数据正在加载中，请重试')
-              this.show_list = SelectFileUtil.getAllItems(target_data);
+              this.videoDataSource.updateData(this.video_meta_data)
               return
             }
             await ToolsUtil.isFileExist(target_item) ?
-            ToolsUtil.routerWhere(this.pathStack, 'RedPlayer', item?.date!,
-              this.encryption ? this.video_meta_data_encryption : this.video_meta_data) :
+            ToolsUtil.routerWhere(this.pathStack, 'RedPlayer', item!, this.video_meta_data) :
             this.deleteUnExistFile(target_item)
           }, 200)
         })
@@ -271,21 +249,19 @@ struct Index {
             DataSyncUtil.editing_video = JSON.stringify(item)
             this.VideoDetailDialog.open()
           })
-        if (!this.encryption) {
-          MenuItem({
-            symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
-            content: "添加到文件夹",
-            builder: (): void => this.FileFolderMenu(item)
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
+          content: "添加到文件夹",
+          builder: (): void => this.FileFolderMenu(item)
+        })
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat_size_square')), content: '导入或删除字幕'
+        })
+          .onClick(async () => {
+            await SelectFileUtil.isSubtitleExist(sandbox_subtitle, item?.date!) ?
+            SelectFileUtil.deleteSubtitle(sandbox_subtitle, item?.date!) :
+            SelectFileUtil.selectExternalSubtitles(sandbox_subtitle, item?.date!)
           })
-          MenuItem({
-            symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat_size_square')), content: '导入或删除字幕'
-          })
-            .onClick(async () => {
-              await SelectFileUtil.isSubtitleExist(sandbox_subtitle, item?.date!) ?
-              SelectFileUtil.deleteSubtitle(sandbox_subtitle, item?.date!) :
-              SelectFileUtil.selectExternalSubtitles(sandbox_subtitle, item?.date!)
-            })
-        }
         MenuItem({
           symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
         })
@@ -325,20 +301,18 @@ struct Index {
           content: $r('app.string.sort_by_name')
         })
           .onClick(async () => {
-            const targetDataSource = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
-            const sortedData = await ToolsUtil.sortByName(context, targetDataSource, this.encryption);
-            this.encryption ? this.video_meta_data_encryption = sortedData : this.video_meta_data = sortedData
-            this.show_list = SelectFileUtil.getAllItems(sortedData);
+            this.video_meta_data =
+              await ToolsUtil.sortByName(context, this.video_meta_data, undefined) as VideoMetadata[]
+            this.videoDataSource.updateData(this.video_meta_data)
           })
         MenuItem({
           symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
           content: $r('app.string.sort_by_time')
         })
           .onClick(async () => {
-            const targetDataSource = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
-            const sortedData = await ToolsUtil.sortByTime(context, targetDataSource, this.encryption)
-            this.encryption ? this.video_meta_data_encryption = sortedData : this.video_meta_data = sortedData
-            this.show_list = SelectFileUtil.getAllItems(sortedData);
+            this.video_meta_data =
+              await ToolsUtil.sortByTime(context, this.video_meta_data, undefined) as VideoMetadata[]
+            this.videoDataSource.updateData(this.video_meta_data)
           })
       }.font({ size: 15, weight: FontWeight.Normal })
     }.width(150)
@@ -364,16 +338,14 @@ struct Index {
             this.closeSideBar(false)
             await this.selectVideo()
           })
-        if (!this.encryption) {
-          MenuItem({
-            symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder_badge_eye')),
-            content: '从下载文件夹导入（路径：Download/流心视频）'
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder_badge_eye')),
+          content: '从下载文件夹导入（路径：Download/流心视频）'
+        })
+          .onClick(async () => {
+            this.closeSideBar(false)
+            await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), undefined);
           })
-            .onClick(async () => {
-              this.closeSideBar(false)
-              await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), undefined);
-            })
-        }
       }.font({ size: 15, weight: FontWeight.Normal })
     }.width(200)
   }
@@ -397,11 +369,7 @@ struct Index {
           .onClick(() => {
             this.itemMultipleChoose = !this.itemMultipleChoose
             this.delMultipleList.length = 0
-            for (let index = 0; index < this.show_list.length; index++) {
-              this.delMultipleList.push((this.encryption ?
-              this.video_meta_data_encryption.find(i => i.date === this.show_list[index])
-                : this.video_meta_data.find(i => i.date === this.show_list[index]))!)
-            }
+            this.delMultipleList = [...this.video_meta_data]
           })
         MenuItem({
           symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')),
@@ -434,28 +402,8 @@ struct Index {
     if (await SelectFileUtil.isSubtitleExist(sandbox_subtitle, tmp.date!)) {
       SelectFileUtil.deleteSubtitle(sandbox_subtitle, tmp.date!)
     }
-    if (this.encryption) {
-      this.video_meta_data_encryption = this.video_meta_data_encryption.filter(i => i.date != tmp.date);
-      fs.access(sandbox_video + tmp.date).then((res: boolean) => {
-        if (res) {
-          fs.unlink(sandbox_video + tmp.date, async (unlinkErr) => {
-            if (unlinkErr) {
-              reject(new Error(`Error deleting file from sandbox_video: ${unlinkErr.message}`));
-              return;
-            }
-            Preferences.saveVideoMetaDataEncryption(context, this.video_meta_data_encryption)
-          });
-        } else {
-          resolve();
-        }
-      }).catch((err: BusinessError) => {
-        console.error("access failed with error message: " + err.message + ", error code: " + err.code);
-        resolve();
-      });
-    } else {
-      this.video_meta_data = this.video_meta_data.filter(i => i.date != tmp.date);
-    }
-    this.show_list = this.show_list.filter(i => i != tmp.date);
+    this.videoDataSource.deleteData(this.video_meta_data.findIndex(i => i.date === tmp.date))
+    this.video_meta_data = this.video_meta_data.filter(i => i.date != tmp.date);
     RecentPlayUtil.delData(context, tmp)
     fs.access(sandbox_path + tmp.date, (err) => {
       if (!err) { // 文件存在
@@ -473,17 +421,9 @@ struct Index {
     });
   }
 
-  updateShowList() {
-    this.lazy_show_list.reloadAllData(this.show_list);
-  }
-
-  async updateList() {
-    const source =
-      this.encryption ? Preferences.getVideoMetaDataEncryption(context) : Preferences.getVideoMetaData(context)
-    this.show_list = source.map(i => i.date)
-  }
-
   onPageShow(): void {
+    this.video_meta_data = Preferences.getVideoMetaData(context)
+    this.videoDataSource.updateData(this.video_meta_data)
     setTimeout(() => { // 临时解决 system share 获取 want 没有 onPageShow 跑的快的问题
       if (WantProcessUtil.has_new_want) {
         WantProcessUtil.checkWant(context, this.pathStack)
@@ -498,10 +438,8 @@ struct Index {
     this.passwd = Preferences.getPassword(context)
     ToolsUtil.isSubtitleFileFolderExist(sandbox_video, sandbox_subtitle)
     this.video_meta_data = Preferences.getVideoMetaData(context)
-    this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(context)
-    this.show_list = this.video_meta_data.map(i => i.date)
+    this.videoDataSource = new IndexDataSource(this.video_meta_data)
     this.file_folder_list = Preferences.getFileFolder(context)
-    PrivacySpaceUtil.setPrivacyMode(false)
     if (Preferences.getOOBEVersion(context) < OOBEVersion) {
       let controller = new CustomDialogController({
         builder: PrivacyPolicyDialog({
@@ -534,42 +472,31 @@ struct Index {
     await this.toMetaData(await SelectFileUtil.selectVideo(), undefined);
   }
 
-  async toMetaData(list: string[], file_folder: FileFolder | undefined) {
-    if (list.length === 0) {
+  async toMetaData(fileList: string[], fileFolder?: FileFolder) {
+    if (fileList.length === 0) {
       ToolsUtil.showToast('没有任何文件被导入哦~');
       return;
     }
     this.loading = true;
-    this.import_sum = list.length
+    this.import_sum = fileList.length;
+    this.current_import = 0;
     try {
-      const processFile = async (uri: string, video_meta_data: VideoMetadata[]) => {
-        await SelectFileUtil.addFile(context, sandbox_video, sandbox_path, uri, video_meta_data, file_folder)
-      };
-      const chunkSize = Math.ceil(list.length / VideoUtil.MAX_CONCURRENT);
-      const workers: Promise<void>[] = [];
-      for (let i = 0; i < VideoUtil.MAX_CONCURRENT; i++) {
-        const start = i * chunkSize;
-        const end = Math.min(start + chunkSize, list.length);
-        const chunk = list.slice(start, end);
-        workers.push((async () => {
-          for (const uri of chunk) {
-            await processFile(uri,
-              PrivacySpaceUtil.getPrivacyMode()! ? this.video_meta_data_encryption : this.video_meta_data);
-            this.current_iport++; // 安全地更新进度
-          }
-        })());
-      }
-      await Promise.all(workers);
-      this.show_list = SelectFileUtil.getAllItems(
-        PrivacySpaceUtil.getPrivacyMode() ? Preferences.getVideoMetaDataEncryption(context) :
-        Preferences.getVideoMetaData(context));
-      ToolsUtil.showToast(`${getContext().resourceManager
-        .getStringSync($r('app.string.add_time_info'))}${this.import_sum}`);
+      await FileProcessorUtil.processFilesConcurrently(
+        fileList, context, sandbox_video, sandbox_path, this.video_meta_data,
+        (increment: number) => {
+          this.current_import += increment;
+        },
+        fileFolder
+      );
+      this.video_meta_data = Preferences.getVideoMetaData(context);
+      this.videoDataSource.updateData(this.video_meta_data)
+      ToolsUtil.showToast(
+        `${context.resourceManager.getStringSync($r('app.string.add_time_info'))}${this.import_sum}`
+      );
     } catch (error) {
       ToolsUtil.showToast('处理过程中发生意外错误:' + error);
     } finally {
       this.loading = false;
-      this.current_iport = 0
     }
   }
 
@@ -609,11 +536,7 @@ struct Index {
                   .zIndex(1)
                 Row() {
                   Image($r("app.media.Foreground"))
-                    .autoResize(true)
-                    .interpolation(ImageInterpolation.Low)
-                    .backgroundImageSize(ImageSize.Cover)
-                    .width(50)
-                    .height(50)
+                    .attributeModifier(new ImageFancyModifier(0, 50, 50))
                   Text($r('app.string.EntryAbility_label'))
                     .fontSize(20)
                     .fontColor('#ffff')
@@ -644,61 +567,26 @@ struct Index {
               }.margin({ top: 10 })
 
               Row() {
-                if (this.passwd == '' || this.encryption) {
-                  Button({ type: ButtonType.Normal, stateEffect: true }) {
-                    Row() {
-                      SymbolGlyph($r('sys.symbol.lock'))
-                        .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                      Text(this.encryption ? $r('app.string.exit_privacy_space') : $r('app.string.privacy_space'))
-                        .fontSize(15)
-                        .margin({ left: 10, right: 12 })
-                    }
+                Button({ type: ButtonType.Normal, stateEffect: true }) {
+                  Row() {
+                    SymbolGlyph($r('sys.symbol.clock')).attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                    Text('最近播放')
+                      .fontSize(15)
+                      .fontColor($r('app.color.text_color'))
+                      .margin({ left: 10, right: 12 })
                   }
-                  .align(Alignment.Start)
-                  .padding({ left: 15, right: 15 })
-                  .attributeModifier(new ButtonFancyModifier('100%', 60))
-                  .animation({ duration: 300, curve: Curve.Ease })
-                  .onClick(() => {
-                    this.closeSideBar(false)
-                    if (this.passwd == '') {
-                      this.editPasswdDialogController.open()
-                      return
-                    }
-                    PrivacySpaceUtil.setPrivacyMode(false)
-                    this.encryption = false
-                  })
-                  .gesture(LongPressGesture().onAction(() => {
-                    this.closeSideBar(false)
-                    this.editPasswdDialogController.open()
-                  }))
                 }
-              }.width('100%')
+                .align(Alignment.Start)
+                .padding({ left: 15, right: 15 })
+                .attributeModifier(new ButtonFancyModifier('100%', 60))
+                .animation({ duration: 300, curve: Curve.Ease })
+                .onClick(async () => {
+                  this.closeSideBar(false)
+                  this.pathStack.pushPathByName('RecentPlay', true)
+                })
+              }.width('100%').margin({ top: 10 })
               .justifyContent(FlexAlign.Start)
-              .margin({ top: 10 })
 
-              if (!this.encryption) {
-                Row() {
-                  Button({ type: ButtonType.Normal, stateEffect: true }) {
-                    Row() {
-                      SymbolGlyph($r('sys.symbol.clock')).attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                      Text('最近播放')
-                        .fontSize(15)
-                        .fontColor($r('app.color.text_color'))
-                        .margin({ left: 10, right: 12 })
-                    }
-                  }
-                  .align(Alignment.Start)
-                  .padding({ left: 15, right: 15 })
-                  .attributeModifier(new ButtonFancyModifier('100%', 60))
-                  .animation({ duration: 300, curve: Curve.Ease })
-                  .onClick(async () => {
-                    this.closeSideBar(false)
-                    this.pathStack.pushPathByName('RecentPlay', true)
-                  })
-                }.width('100%')
-                .justifyContent(FlexAlign.Start)
-                .margin({ top: this.passwd == '' || this.encryption ? 10 : 0 })
-              }
               Column() {
                 Row() {
                   Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -718,62 +606,58 @@ struct Index {
                 }.width('100%')
                 .justifyContent(FlexAlign.Start)
 
-                if (!this.encryption) {
-                  Row() {
-                    Button({ type: ButtonType.Normal, stateEffect: true }) {
-                      Row() {
-                        SymbolGlyph($r('sys.symbol.folder_badge_plus'))
-                          .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                        Text('添加文件夹')
-                          .fontSize(15)
-                          .margin({ left: 10, right: 12 })
-                      }
+                Row() {
+                  Button({ type: ButtonType.Normal, stateEffect: true }) {
+                    Row() {
+                      SymbolGlyph($r('sys.symbol.folder_badge_plus'))
+                        .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                      Text('添加文件夹')
+                        .fontSize(15)
+                        .margin({ left: 10, right: 12 })
                     }
-                    .align(Alignment.Start)
-                    .padding({ left: 15, right: 15 })
-                    .attributeModifier(new ButtonFancyModifier('100%', 60))
-                    .animation({ duration: 300, curve: Curve.Ease })
-                    .onClick(() => {
-                      this.addFileFolderNameDialogController.open()
-                    })
-                  }.width('100%')
-                  .justifyContent(FlexAlign.Start)
-                }
+                  }
+                  .align(Alignment.Start)
+                  .padding({ left: 15, right: 15 })
+                  .attributeModifier(new ButtonFancyModifier('100%', 60))
+                  .animation({ duration: 300, curve: Curve.Ease })
+                  .onClick(() => {
+                    this.addFileFolderNameDialogController.open()
+                  })
+                }.width('100%')
+                .justifyContent(FlexAlign.Start)
               }
               .margin({ top: 10 })
               .justifyContent(FlexAlign.Start)
               .backgroundColor($r('app.color.start_window_background_blur'))
               .borderRadius(16)
 
-              if (!this.encryption) {
-                List() {
-                  ForEach(this.file_folder_list, (item: FileFolder) => {
-                    ListItem() {
-                      Row() {
-                        SymbolGlyph($r('sys.symbol.folder'))
-                          .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                        Text(item.name)
-                          .fontSize(15)
-                          .margin({ left: 10, right: 12 })
-                      }.width('100%')
-                    }
-                    .onClick(() => {
-                      ToolsUtil.routerToFileFolder(this.pathStack, item)
-                    })
-                    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-                    .bindContextMenu(this.FileFolderSelectMenu(item), ResponseType.LongPress)
-                    .height(60)
-                    .align(Alignment.Start)
-                    .padding({ left: 15, right: 15 })
+              List() {
+                ForEach(this.file_folder_list, (item: FileFolder) => {
+                  ListItem() {
+                    Row() {
+                      SymbolGlyph($r('sys.symbol.folder'))
+                        .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                      Text(item.name)
+                        .fontSize(15)
+                        .margin({ left: 10, right: 12 })
+                    }.width('100%')
+                  }
+                  .onClick(() => {
+                    ToolsUtil.routerToFileFolder(this.pathStack, item)
                   })
-                }
-                .borderRadius(16)
-                .width('100%')
-                .height('auto')
-                .align(Alignment.Start)
-                .margin({ top: 10 })
-                .backgroundColor($r('app.color.start_window_background_blur'))
+                  .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+                  .bindContextMenu(this.FileFolderSelectMenu(item), ResponseType.LongPress)
+                  .height(60)
+                  .align(Alignment.Start)
+                  .padding({ left: 15, right: 15 })
+                })
               }
+              .borderRadius(16)
+              .width('100%')
+              .height('auto')
+              .align(Alignment.Start)
+              .margin({ top: 10 })
+              .backgroundColor($r('app.color.start_window_background_blur'))
             }.width('100%')
           }
           .padding({ left: 20, right: 20, top: 50 })
@@ -809,18 +693,17 @@ struct Index {
             ForEach(this.list_empty_item, () => {
               ListItem().height(this.topSafeHeight + 55)
             })
-            LazyForEach(this.lazy_show_list, (item: string, index: number) => { // 加载视频列表
+            LazyForEach(this.videoDataSource, (item: VideoMetadata, index: number) => { // 加载视频列表
               ListItem() {
                 Column() {
                   Row() {
-                    Image(fileUri.getUriFromPath(sandbox_path + item))
+                    Image(fileUri.getUriFromPath(sandbox_path + item.date))
                       .attributeModifier(new ImageFancyModifier(10, 60, 90))
                     Column() {
                       Row() {
-                        Text((String(SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
-                        this.video_meta_data, item)?.title)).slice(0,
-                          String(SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
-                          this.video_meta_data, item)?.title).lastIndexOf('.')))
+                        Text((String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title)).slice(0,
+                          String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title)
+                            .lastIndexOf('.')))
                           .fontSize(15)
                           .fontWeight(FontWeight.Medium)
                           .maxLines(3)
@@ -836,11 +719,9 @@ struct Index {
                           .visibility(this.multipleChooseState)
                           .onChange((value: boolean) => {
                             if (!this.itemMultipleChoose || !value) {
-                              const foundMetadata = SelectFileUtil.getItem(this.encryption ?
-                              this.video_meta_data_encryption : this.video_meta_data, item)
-                              if (foundMetadata) {
+                              if (item) {
                                 const delSet = new Set(this.delMultipleList as VideoMetadata[]);
-                                value ? delSet.add(foundMetadata) : delSet.delete(foundMetadata);
+                                value ? delSet.add(item) : delSet.delete(item);
                                 this.delMultipleList = Array.from(delSet);
                               }
                             }
@@ -848,22 +729,18 @@ struct Index {
                       }
 
                       Row() {
-                        if ((SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
-                        this.video_meta_data, item)?.hdr_type) === media.HdrType.AV_HDR_TYPE_VIVID) {
+                        if ((item.hdr_type) === media.HdrType.AV_HDR_TYPE_VIVID) {
                           Image($r("app.media.hdr_vivid_icon"))
                             .attributeModifier(new ImageFancyModifier(10, 65, 25))
-                        } else if (VideoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.encryption ?
-                        this.video_meta_data_encryption : this.video_meta_data, item)?.size)).includes('HD')) {
-                          Text(VideoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.encryption ?
-                          this.video_meta_data_encryption : this.video_meta_data, item)?.size)))
+                        } else if (VideoUtil.videoWidthAndHeightFormat(item.size.toString()).includes('HD')) {
+                          Text(VideoUtil.videoWidthAndHeightFormat(item?.size.toString()))
                             .fontWeight(FontWeight.Bold)
                             .fontSize(10)
                             .opacity(0.8)
                             .backgroundColor('rgba(255, 189, 0, 0.4)')
                             .padding(5)
                             .borderRadius(10)
-                        } else if (VideoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.encryption ?
-                        this.video_meta_data_encryption : this.video_meta_data, item)?.size)) === '0 x 0') {
+                        } else if (VideoUtil.videoWidthAndHeightFormat(item?.size.toString()) === '0 x 0') {
                           Text($r('app.string.unknown_resolution'))
                             .fontSize(10)
                             .opacity(0.8)
@@ -871,13 +748,11 @@ struct Index {
                             .padding(5)
                             .borderRadius(10)
                         } else {
-                          Text(VideoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.encryption ?
-                          this.video_meta_data_encryption : this.video_meta_data, item)?.size)))
+                          Text(VideoUtil.videoWidthAndHeightFormat(item.size.toString()))
                             .fontSize(15)
                             .opacity(0.8)
                         }
-                        Text("  " + TimeUtil.convertMsToMMSS(SelectFileUtil.getItem(this.encryption ?
-                        this.video_meta_data_encryption : this.video_meta_data, item)?.time))
+                        Text("  " + TimeUtil.convertMsToMMSS(item.time))
                           .fontSize(15)
                           .fontWeight(FontWeight.Normal)
                           .opacity(0.8)
@@ -889,7 +764,6 @@ struct Index {
                 .height(100)
                 .justifyContent(FlexAlign.SpaceEvenly)
               }
-              .key(item)
               .padding({
                 left: 10,
                 right: 10,
@@ -899,21 +773,15 @@ struct Index {
               .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
               .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
               .width('100%')
-              .bindContextMenu(this.MenuBuilder(SelectFileUtil.getItem(this.encryption ?
-              this.video_meta_data_encryption :
-              this.video_meta_data, item)), ResponseType.LongPress)
+              .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
               .swipeAction({
                 start: this.itemStart(),
-                end: this.itemEnd(SelectFileUtil.getItem(this.encryption ? this.video_meta_data_encryption :
-                this.video_meta_data, item)),
                 edgeEffect: SwipeEdgeEffect.Spring
               })
               .onClick(async () => {
-                const list_data = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
-                let target_item = SelectFileUtil.getItem(list_data, item)
-                if (!list_data.some(i => i.date == target_item?.date!)) {
+                if (!this.video_meta_data.some(i => i.date == item?.date!)) {
                   ToolsUtil.showToast('数据正在加载中，请重试')
-                  this.show_list = SelectFileUtil.getAllItems(list_data);
+                  this.videoDataSource.updateData(this.video_meta_data)
                   return
                 }
                 if (this.MenuBuilderState || this.multipleChooseState != Visibility.None) {
@@ -921,12 +789,11 @@ struct Index {
                   return
                 }
                 this.listScroller.closeAllSwipeActions()
-                await ToolsUtil.isFileExist(target_item) ?
-                ToolsUtil.routerWhere(this.pathStack, 'Player', item,
-                  this.encryption ? this.video_meta_data_encryption : this.video_meta_data) :
-                this.deleteUnExistFile(target_item)
+                await ToolsUtil.isFileExist(item) ?
+                ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.video_meta_data) :
+                this.deleteUnExistFile(item)
               })
-            }, (item: string) => item)
+            }, (item: VideoMetadata) => JSON.stringify(item))
             ForEach(this.list_empty_item, () => {
               ListItem().height(50)
             })
@@ -942,12 +809,12 @@ struct Index {
             this.searchController.stopEditing()
           })
 
-          if (this.show_list.length == 0) {
+          if (this.video_meta_data.length == 0) {
             Row() { //顶栏
               if (!this.loading) {
                 Column() {
                   Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
-                  Text(this.encryption ? $r('app.string.privacy_space_info') : $r('app.string.open_side_bar_tip'))
+                  Text($r('app.string.open_side_bar_tip'))
                     .fontSize(15)
                     .textAlign(TextAlign.Center)
                     .fontWeight(FontWeight.Lighter)
@@ -988,32 +855,29 @@ struct Index {
                 .animation({ duration: 300, curve: Curve.Ease })
                 .attributeModifier(new ShadowModifier())
                 .onChange(() => {
-                  const item = this.encryption ? this.video_meta_data_encryption : this.video_meta_data
-                  this.searchValue === '' ? this.show_list = SelectFileUtil.getAllItems(item)
-                    : this.show_list = SelectFileUtil.getItemFromSearch(item, this.searchValue, true)
+                  this.searchValue === '' ? this.videoDataSource.updateData(Preferences.getVideoMetaData(context))
+                    : this.videoDataSource.updateData(SelectFileUtil.getItemFromSearch(this.video_meta_data,
+                    this.searchValue))
                 })
                 .onSubmit((value: string) => {
-                  const currentMeta = this.encryption ? this.video_meta_data_encryption : this.video_meta_data;
                   if (value == '') {
-                    this.show_list = SelectFileUtil.getAllItems(currentMeta)
-                    if (this.show_list.length == 0) {
+                    if (this.video_meta_data.length == 0) {
                       ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.add_video_first')))
                       return
                     }
                     this.searchController.stopEditing()
                     return
                   }
-                  if (value == this.passwd && !this.encryption) {
+                  if (value == this.passwd) {
                     ToolsUtil.showToast(getContext()
                       .resourceManager.getStringSync($r('app.string.enter_privacy_space')))
                     PrivacySpaceUtil.setPrivacyMode(true)
-                    // this.pathStack.pushPathByName('PrivacySpace', null)
+                    this.pathStack.pushPathByName('PrivacySpace', null)
                     this.searchValue = ''
-                    this.encryption = true
                     return
                   }
-                  this.show_list = SelectFileUtil.getItemFromSearch(currentMeta, value, true)
-                  if (this.show_list.length == 0) {
+                  this.videoDataSource.updateData(SelectFileUtil.getItemFromSearch(this.video_meta_data, value))
+                  if (this.video_meta_data.length == 0) {
                     ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.no_search_result')))
                   }
                 })
@@ -1054,17 +918,10 @@ struct Index {
 
           if (this.loading) {
             Stack() {
-              Column() {
-                Progress({ value: this.current_iport, total: this.import_sum, type: ProgressType.Ring })
-                  .width(100)
-                  .height(100)
-                  .color($r('app.color.main_color'))
-                  .style({ strokeWidth: 15 })
-                  .margin({ bottom: 8 }) // 添加底部间距分隔文字
-                Text(this.current_iport + '/' + this.import_sum)
-                  .fontSize(16)
-                  .fontColor($r('app.color.main_color'))
-              }
+              ImportProgress({
+                current_import: this.current_import,
+                import_sum: this.import_sum
+              })
             }.width('100%')
             .height('100%')
             .animation({ duration: 150, curve: Curve.Sharp })
@@ -1136,14 +993,11 @@ struct Index {
       this.closeSideBar(true)
       return true
     }
-    // 如果是隐私空间首页，则退出隐私空间
-    if (this.encryption) {
-      this.encryption = false
-      // 退出隐私空间时清空输入框
+    if (this.searchValue.length > 0) {
       this.searchValue = ''
-      PrivacySpaceUtil.setPrivacyMode(false)
       return true
     }
+    return false
   }
 
   @Builder
@@ -1156,19 +1010,5 @@ struct Index {
         setTimeout(() => this.listScroller.closeAllSwipeActions(), 100)
       }
     }).width(50).height(1)
-  }
-
-  @Builder
-  itemEnd(item: VideoMetadata) {
-    if (this.encryption) {
-      Row({ space: 10 }) {
-        Stack().width(10)
-        SymbolGlyph($r('sys.symbol.arrow_right_folder_circle'))
-          .attributeModifier(new SymbolGlyphFancyModifier(28, 40, 40))
-          .onClick(() => {
-            SelectFileUtil.exportFile(item, context)
-          })
-      }.padding({ left: 15, right: 15 }).justifyContent(FlexAlign.SpaceEvenly)
-    }
   }
 }

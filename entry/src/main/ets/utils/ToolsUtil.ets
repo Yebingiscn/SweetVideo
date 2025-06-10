@@ -12,6 +12,8 @@ import { PlayerParams } from '../common/PlayerParams';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import Preferences from '../database/Preferences';
+import PrivacySpaceUtil from './PrivacySpaceUtil';
+import FileFolderUtil from './FileFolderUtil';
 
 // 工具类
 class ToolsUtil {
@@ -83,22 +85,37 @@ class ToolsUtil {
     return sortedList;
   }
 
+  sortByTimeProcess(list: VideoMetadata[]) {
+    const sortedList = [...list].sort((a, b) => b.date.localeCompare(a.date));
+    return sortedList
+  }
+
   // 名称排序
-  async sortByName(context: Context, list: VideoMetadata[], encryption: boolean) {
+  async sortByName(context: Context, list: VideoMetadata[], file_folder: FileFolder | undefined) {
     const sorted_list = this.sortByNameProcess(list)
-    encryption ? Preferences.saveVideoMetaDataEncryption(context, sorted_list)
-      : Preferences.saveVideoMetaData(context, sorted_list);
-    return sorted_list // 返回处理后的数据
+    if (file_folder) {
+      FileFolderUtil.updateFileFolder(context, file_folder, sorted_list)
+      return file_folder
+    } else {
+      PrivacySpaceUtil.getPrivacyMode() ? Preferences.saveVideoMetaDataEncryption(context, sorted_list)
+        : Preferences.saveVideoMetaData(context, sorted_list);
+      return sorted_list // 返回处理后的数据
+    }
   }
 
   //时间排序，从近到久
-  async sortByTime(context: Context, list: VideoMetadata[], encryption: boolean) {
-    const sortedList = [...list].sort((a, b) => b.date.localeCompare(a.date));
-    encryption ? Preferences.saveVideoMetaDataEncryption(context, sortedList)
-      : Preferences.saveVideoMetaData(context, sortedList)
-    const latestData = encryption ? Preferences.getVideoMetaDataEncryption(context)
-      : Preferences.getVideoMetaData(context);
-    return latestData
+  async sortByTime(context: Context, list: VideoMetadata[], file_folder: FileFolder | undefined) {
+    const sorted_list = this.sortByTimeProcess(list)
+    if (file_folder) {
+      FileFolderUtil.updateFileFolder(context, file_folder, sorted_list)
+      return file_folder
+    } else {
+      PrivacySpaceUtil.getPrivacyMode() ? Preferences.saveVideoMetaDataEncryption(context, sorted_list)
+        : Preferences.saveVideoMetaData(context, sorted_list)
+      const latestData = PrivacySpaceUtil.getPrivacyMode() ? Preferences.getVideoMetaDataEncryption(context)
+        : Preferences.getVideoMetaData(context);
+      return latestData
+    }
   }
 
   // 保存密码
@@ -137,14 +154,14 @@ class ToolsUtil {
   }
 
   // 点击视频跳转到播放器
-  async routerWhere(pathStack: NavPathStack, uri: string, item: string, list: VideoMetadata[]) {
-    let target_item = SelectFileUtil.getItem(list, item!)
+  async routerWhere(pathStack: NavPathStack, uri: string, item: VideoMetadata, list: VideoMetadata[]) {
+    let target_item = SelectFileUtil.getItem(list, item.date!)
     // 没有长宽的视频/音频系统播放器播不了
     if (VideoInfoUtil.videoWidthAndHeightFormat(String(target_item?.size)) === '0 x 0') {
       this.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
       uri = 'FFMpegPlayer'
     }
-    const playerParams = new PlayerParams(list.find(i => i.date === item) as VideoMetadata, list, undefined)
+    const playerParams = new PlayerParams(list.find(i => i.date === item.date) as VideoMetadata, list, undefined)
     pathStack.pushPathByName(uri, playerParams, true)
   }
 

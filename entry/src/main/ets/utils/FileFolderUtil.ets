@@ -46,22 +46,16 @@ class FileFolderUtil {
     return file_folder_list
   }
 
-  async sortByNameFromFileFolder(context: Context, file_folder: FileFolder) {
-    let file_folder_list = Preferences.getFileFolder(context)
-    file_folder.video_list = ToolsUtil.sortByNameProcess(file_folder.video_list)
-    file_folder_list = file_folder_list.filter(i => i.date !== file_folder.date)
-    file_folder_list.push(file_folder)
-    Preferences.saveFileFolder(context, file_folder_list)
-    return file_folder
+  async updateFileFolder(context: Context, file_folder: FileFolder, new_video_meta_data_list: VideoMetadata[]) {
+    file_folder.video_list = new_video_meta_data_list
+    this.updateFileFolderList(context, file_folder)
   }
 
-  async sortByTimeFromFileFolder(context: Context, file_folder: FileFolder) {
+  async updateFileFolderList(context: Context, file_folder: FileFolder) {
     let file_folder_list = Preferences.getFileFolder(context)
-    file_folder.video_list = [...file_folder.video_list].sort((a, b) => b.date.localeCompare(a.date));
-    file_folder_list = file_folder_list.filter(i => i.date !== file_folder.date)
+    file_folder_list = file_folder_list.filter(i => i.date !== file_folder?.date)
     file_folder_list.push(file_folder)
     Preferences.saveFileFolder(context, file_folder_list)
-    return file_folder
   }
 }
 

@@ -1,24 +1,31 @@
-// 重设密码弹窗
+import { FileFolder } from '../../interfaces/FileFolderInterface'
+import DataSyncUtil from '../../utils/DataSyncUtil'
+
+// 重命名文件夹弹窗
 @CustomDialog
-export struct editPasswordDialog {
+export struct editFileFolderNameDialog {
   confirm?: (name: string | undefined) => void
   controller?: CustomDialogController
-  passwd: string | undefined = undefined
+  file_folder_name: string | undefined = undefined
+
+  aboutToAppear(): void {
+    let tmp = JSON.parse(DataSyncUtil.editing_video) as FileFolder
+    this.file_folder_name = tmp.name
+  }
 
   build() {
     Column({ space: 25 }) {
-      Text($r('app.string.set_passwd'))
+      Text('修改新文件夹名')
         .fontSize(25)
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)
         .margin({ top: 10 })
-      TextInput()
+      TextInput({ text: this.file_folder_name })
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .onChange((input: string) => this.passwd = input)
-        .type(InputType.NEW_PASSWORD)
-        .id('input_pwd')
+        .onChange((input: string) => this.file_folder_name = input)
+        .id('input_name')
         .onAppear(() => {
-          focusControl.requestFocus('input_pwd')
+          focusControl.requestFocus('input_name')
         })
 
       Flex({ justifyContent: FlexAlign.SpaceAround }) {
@@ -50,7 +57,7 @@ export struct editPasswordDialog {
         .onClick(() => {
           this.controller?.close()
           if (this.confirm) {
-            this.confirm(this.passwd)
+            this.confirm(this.file_folder_name)
           }
         })
       }.margin({ bottom: 10 })

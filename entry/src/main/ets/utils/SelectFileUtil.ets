@@ -13,6 +13,7 @@ import Preferences from '../database/Preferences';
 import PrivacySpaceUtil from './PrivacySpaceUtil';
 import ReqPermissionUtil from './ReqPermissionUtil';
 import { FileFolder } from '../interfaces/FileFolderInterface';
+import FileFolderUtil from './FileFolderUtil';
 
 // 获取视频类
 class SelectFileUtil {
@@ -223,36 +224,12 @@ class SelectFileUtil {
     return list[(currentIndex + 1) % list.length]; // 如果没有找到有效项，返回下一个项
   }
 
-  // 获取所有的视频
-  getAllItems(list: VideoMetadata[]) {
-    if (!list || list.length === 0) {
-      return [];
-    } else {
-      return list
-        .filter(i => i !== null && i !== undefined)// Filter out null or undefined items
-        .map(i => i.date);
-    }
-  }
-
-  // 函数重载声明
-  getItemFromSearch(list: VideoMetadata[], value: string, isReturnString: true): string[];
-  getItemFromSearch(list: VideoMetadata[], value: string, isReturnString: false): VideoMetadata[];
-  getItemFromSearch(list: VideoMetadata[], value: string, isReturnString: boolean): string[] | VideoMetadata[];
-
-  // 函数实现
-  getItemFromSearch(list: VideoMetadata[], value: string, isReturnString: boolean): string[] | VideoMetadata[] {
+  getItemFromSearch(list: VideoMetadata[], value: string): VideoMetadata[] {
     const lowerValue = value.toLowerCase().trim();
-    // 根据返回类型初始化结果数组
-    const results: string[] | VideoMetadata[] = isReturnString ? [] : [];
+    const results: VideoMetadata[] = [];
     for (const item of list) {
       if (item.title.toLowerCase().includes(lowerValue)) {
-        if (isReturnString) {
-          // 返回日期字符串数组
-          (results as string[]).push(item.date);
-        } else {
-          // 返回完整VideoMetadata对象数组
-          (results as VideoMetadata[]).push(item);
-        }
+        (results as VideoMetadata[]).push(item);
       }
     }
     return results;
@@ -378,10 +355,7 @@ class SelectFileUtil {
             sandbox_video, sandbox_path);
           if (file_folder) {
             file_folder.video_list.push(videoInfo)
-            let file_folder_list = Preferences.getFileFolder(context)
-            file_folder_list = file_folder_list.filter(i => i.date !== file_folder?.date)
-            file_folder_list.push(file_folder!)
-            Preferences.saveFileFolder(context, file_folder_list)
+            FileFolderUtil.updateFileFolder(context, file_folder, file_folder.video_list)
           } else {
             video_meta_data.push(videoInfo);
             Preferences.saveVideoMetaData(context, video_meta_data);
@@ -391,6 +365,40 @@ class SelectFileUtil {
     } finally {
       fs.closeSync(file);
     }
+  }
+
+  // 计算分块大小
+  calculateChunkSize(totalItems: number): number {
+    return Math.ceil(totalItems / VideoUtil.MAX_CONCURRENT);
+  }
+
+  // 将列表拆分为多个块
+  splitListIntoChunks(list: string[], chunkSize: number): string[][] {
+    const chunks: string[][] = [];
+
+    for (let i = 0; i < VideoUtil.MAX_CONCURRENT; i++) {
+      const start = i * chunkSize;
+      if (start >= list.length) {
+        break;
+      } // 防止空分块
+
+      const end = Math.min(start + chunkSize, list.length);
+      chunks.push(list.slice(start, end));
+    }
+
+    return chunks;
+  }
+
+  async processSingleFile(uri: string, context: Context, sandbox_video: string, sandbox_path: string,
+    video_meta_data: VideoMetadata[], fileFolder?: FileFolder): Promise<void> {
+    await this.addFile(
+      context,
+      sandbox_video,
+      sandbox_path,
+      uri,
+      video_meta_data,
+      fileFolder
+    );
   }
 }
 

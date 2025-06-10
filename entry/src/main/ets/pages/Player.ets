@@ -16,7 +16,6 @@ import { VideoDataSource } from '../utils/DataUtil';
 import VideoOperateUtil from '../utils/VideoOperateUtil';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
 import { IjkMediaPlayer } from '@ohos/ijkplayer';
-import { KeyCode } from '@kit.InputKit';
 import { PlayerParams } from '../common/PlayerParams';
 import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
@@ -1113,13 +1112,7 @@ export struct Player { // 播放页
             .attributeModifier(new SymbolGlyphFancyModifier(27, '', ''))
             .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.playing))
             .defaultFocus(true) // 自动获取键盘焦点
-        }.onKeyEvent((event?: KeyEvent) => {
-          if (event) {
-            if (event.type === KeyType.Down && event.keyCode === KeyCode.KEYCODE_SPACE) { // 空格键按下触发
-              this.togglePlayback()
-            }
-          }
-        })
+        }
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .onClick(() => {
           ToolsUtil.startVibration()

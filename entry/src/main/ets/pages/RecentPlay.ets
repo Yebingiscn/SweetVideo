@@ -36,7 +36,7 @@ export struct RecentPlay { // 最近播放页
           this.MenuBuilderState = false
           setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
             await ToolsUtil.isFileExist(item) ?
-            ToolsUtil.routerWhere(this.pathStack, 'FFMpegPlayer', item?.date!, this.recent_video_meta_data) :
+            ToolsUtil.routerWhere(this.pathStack, 'FFMpegPlayer', item!, this.recent_video_meta_data) :
             this.delData(context, item!)
           }, 200)
         })
@@ -46,7 +46,7 @@ export struct RecentPlay { // 最近播放页
         this.MenuBuilderState = false
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           await ToolsUtil.isFileExist(item) ?
-          ToolsUtil.routerWhere(this.pathStack, 'RedPlayer', item?.date!, this.recent_video_meta_data) :
+          ToolsUtil.routerWhere(this.pathStack, 'RedPlayer', item!, this.recent_video_meta_data) :
           this.delData(context, item!)
         }, 200)
       })
@@ -97,7 +97,7 @@ export struct RecentPlay { // 最近播放页
                 }
                 .onClick(async () => {
                   await ToolsUtil.isFileExist(item) ?
-                  ToolsUtil.routerWhere(this.pathStack, 'Player', item.date, this.recent_video_meta_data) :
+                  ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.recent_video_meta_data) :
                   this.delData(context, item)
                 })
                 .width('100%')
@@ -122,7 +122,7 @@ export struct RecentPlay { // 最近播放页
       }
     })
     .title('最近播放')
-    .padding({ top: this.topSafeHeight, bottom: this.bottomSafeHeight })
+    .padding({ top: this.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
   }
 }

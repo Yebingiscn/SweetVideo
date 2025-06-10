@@ -199,7 +199,7 @@ export struct AboutApp {
       .edgeEffect(EdgeEffect.Spring) // 滚动边缘效果
     }
     .hideToolBar(true)
-    .padding({ top: this.topSafeHeight, bottom: this.bottomSafeHeight })
+    .padding({ top: this.topSafeHeight })
     .title('关于此应用')
     .backgroundColor($r('app.color.start_window_background'))
   }
