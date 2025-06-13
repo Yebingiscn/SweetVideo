@@ -1,14 +1,11 @@
 import { common } from '@kit.AbilityKit';
 import ToolsUtil from '../utils/ToolsUtil';
-import VideoInfoUtil from '../utils/VideoInfoUtil';
 import { ImageModifier, SymbolGlyphModifier } from '@kit.ArkUI';
 import DataSyncUtil from '../utils/DataSyncUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { JSON } from '@kit.ArkTS';
 import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
 import { FileFolderContentDataSource } from '../utils/DataUtil';
-import { media } from '@kit.MediaKit';
-import TimeUtil from '../utils/TimeUtil';
 import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog';
 import FileFolderUtil from '../utils/FileFolderUtil';
 import { FileFolder } from '../interfaces/FileFolderInterface';
@@ -21,6 +18,8 @@ import {
   ShadowModifier,
   SymbolGlyphFancyModifier
 } from '../utils/AttributeModifierUtil';
+import { VideoInfoView } from '../component/VideoInfoView';
+import VideoInfoUtil from '../utils/VideoInfoUtil';
 
 const sandbox_subtitle = getContext().filesDir + '/subtitle/'
 const sandbox_path = getContext().filesDir + '/'
@@ -35,6 +34,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
   @State list_line: number = 1
   @State searchValue: string = ''
   @State is_edit: boolean = false
+  @StorageLink('is_list_display') is_list_display: boolean = false
   @State image_modifier: ImageModifier = new ImageModifier();
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
@@ -224,17 +224,53 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
         List({ scroller: this.listScroller, space: 10 }) {
           LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
             ListItem() {
-              Column() {
-                Row() {
+              if (this.is_list_display) {
+                Column() {
+                  Row() {
+                    Image(fileUri.getUriFromPath(sandbox_path + item.date))
+                      .width(60)
+                      .height(90)
+                      .alt($r("app.media.sweet_video_alt"))
+                      .backgroundImageSize(ImageSize.Cover)
+                      .borderRadius(10)
+                      .margin({ left: 5 })
+                      .autoResize(true)
+                      .interpolation(ImageInterpolation.Low)
+                    Column() {
+                      Row() {
+                        Text(VideoInfoUtil.getVideoTitle(this.file_folder?.video_list!, item))
+                          .fontSize(15)
+                          .fontWeight(FontWeight.Medium)
+                          .maxLines(4)
+                          .textOverflow({ overflow: TextOverflow.Ellipsis })
+                          .width('85%')
+                          .margin({ left: 5 })
+                          .wordBreak(WordBreak.BREAK_ALL)
+                      }.width('100%')
+
+                      VideoInfoView({ item })
+                    }.margin({ left: 10 })
+                  }
+                  .onClick(async () => {
+                    await ToolsUtil.isFileExist(item) ?
+                    ToolsUtil.routerToVideoFromFileFolder(this.pathStack, 'Player', item, this.file_folder!) :
+                      await this.delData(context, item, false)
+                  })
+                  .width('100%')
+                  .height(100)
+                  .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
+                }
+              } else {
+                Column() {
                   Image(fileUri.getUriFromPath(sandbox_path + item.date))
-                    .width(60)
-                    .height(90)
-                    .alt($r("app.media.sweet_video_alt"))
-                    .backgroundImageSize(ImageSize.Cover)
-                    .borderRadius(10)
-                    .margin({ left: 5 })
-                    .autoResize(true)
-                    .interpolation(ImageInterpolation.Low)
+                    .attributeModifier(new ImageFancyModifier({
+                      topLeft: 10,
+                      topRight: 10,
+                      bottomLeft: 0,
+                      bottomRight: 0
+                    }, 60, 220))
+                    .width('100%')
+                    .objectFit(ImageFit.Cover)
                   Column() {
                     Row() {
                       Text((String(SelectFileUtil.getItem(this.file_folder?.video_list!, item?.date)?.title)).slice(0,
@@ -242,52 +278,23 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
                           .lastIndexOf('.')))
                         .fontSize(15)
                         .fontWeight(FontWeight.Medium)
-                        .maxLines(4)
+                        .maxLines(2)// 减少行数以适应卡片布局
+                        .textAlign(TextAlign.Center)
                         .textOverflow({ overflow: TextOverflow.Ellipsis })
-                        .width('85%')
-                        .margin({ left: 5 })
+                        .layoutWeight(1)// 占据剩余空间
                         .wordBreak(WordBreak.BREAK_ALL)
-                    }.width('100%')
+                    }
+                    .width('100%')
+                    .padding({ top: 5 })
 
-                    Row() {
-                      if (item.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID) {
-                        Image($r("app.media.hdr_vivid_icon"))
-                          .attributeModifier(new ImageFancyModifier(10, 65, 25))
-                      } else if (VideoInfoUtil.videoWidthAndHeightFormat(item.size.toString()).includes('HD')) {
-                        Text(VideoInfoUtil.videoWidthAndHeightFormat(item.size.toString()))
-                          .fontWeight(FontWeight.Bold)
-                          .fontSize(10)
-                          .opacity(0.8)
-                          .backgroundColor('rgba(255, 189, 0, 0.4)')
-                          .padding(5)
-                          .borderRadius(10)
-                      } else if (VideoInfoUtil.videoWidthAndHeightFormat(item.size.toString()) === '0 x 0') {
-                        Text($r('app.string.unknown_resolution'))
-                          .fontSize(10)
-                          .opacity(0.8)
-                          .backgroundColor('#808080')
-                          .padding(5)
-                          .borderRadius(10)
-                      } else {
-                        Text(VideoInfoUtil.videoWidthAndHeightFormat(item.size.toString()))
-                          .fontSize(15)
-                          .opacity(0.8)
-                      }
-                      Text("  " + TimeUtil.convertMsToMMSS(item.time))
-                        .fontSize(15)
-                        .fontWeight(FontWeight.Normal)
-                        .opacity(0.8)
-                    }.padding({ top: 10 }).width('100%')
-                  }.margin({ left: 10 })
+                    VideoInfoView({ item })
+                  }.padding({ left: 5, right: 5, bottom: 5 })
+                  .width('100%')
                 }
-                .onClick(async () => {
-                  await ToolsUtil.isFileExist(item) ?
-                  ToolsUtil.routerToVideoFromFileFolder(this.pathStack, 'Player', item, this.file_folder!) :
-                    await this.delData(context, item, false)
-                })
-                .width('100%')
-                .height(100)
-                .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
+                .width('95%')
+                .height('auto')
+                .backgroundColor($r('app.color.start_window_background_blur'))
+                .borderRadius(10)
               }
             }.bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
           }, (item: VideoMetadata) => JSON.stringify(item))
@@ -302,7 +309,11 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
         .scrollBar(BarState.Off)
       }.width('100%').height('100%')
       .onAreaChange(async (_oldValue: Area, newValue: Area) => {
-        this.list_line = Math.floor(new Number(newValue.width).valueOf() / 500 + 1)
+        const width = Number(newValue.width);
+        const base = Math.floor(width / 500);
+        this.list_line = this.is_list_display
+          ? base + 1
+          : base + 2;
       })
       .backgroundColor($r('app.color.start_window_background'))
     }

@@ -4,7 +4,7 @@ import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
 import PermissionUtil from '../utils/PermissionUtil';
 import { common } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
-import { avSession as avSessionManager } from '@kit.AVSessionKit';
+import { AVCastPicker, AVCastPickerColorMode, avSession as avSessionManager } from '@kit.AVSessionKit';
 import AVSessionUtil from '../utils/AVSessionUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
@@ -24,6 +24,7 @@ import { AudioTrack } from '../interfaces/AudioTrackInterface';
 import Preferences from '../database/Preferences';
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
 import { ButtonFancyModifier, ImageFancyModifier, SymbolGlyphFancyModifier } from '../utils/AttributeModifierUtil';
+import { KeyCode } from '@kit.InputKit';
 
 const context = getContext() as common.UIAbilityContext;
 const sandbox_path = getContext().filesDir + '/'
@@ -79,6 +80,7 @@ export struct Player { // 播放页
   @State isSliderPlayTimeChange: boolean = false
   @State longPressStartX: number = 0
   @State currentSpeedIndex: number = 0
+  @State clock_time: string = ''
   @State videoDataSource: IDataSource = new VideoDataSource([])
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
@@ -129,6 +131,7 @@ export struct Player { // 播放页
     if (this.allowBackgroundPlay) {
       PermissionUtil.startContinuousTask()
     }
+    this.clock_time = ToolsUtil.getTime()
     this.setScreen()
     await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
     await (await this.windowClass).setWindowKeepScreenOn(true)
@@ -217,6 +220,7 @@ export struct Player { // 播放页
 
   async setAVPlayerCallback() {
     this.avPlayer?.on('timeUpdate', async (duration) => {
+      this.clock_time = ToolsUtil.getTime()
       const isDestroy = AppStorage.get('destroy_signal') as boolean // 监听播放器是否将被杀掉，杀掉的话就保存记录
       if (isDestroy) {
         await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data, context,
@@ -563,7 +567,7 @@ export struct Player { // 播放页
                   Column() {
                     if (this.screen_width > this.screen_height) {
                       Row() {
-                        Text(ToolsUtil.getTime())
+                        Text(this.clock_time)
                           .fontWeight(FontWeight.Medium)
                           .fontSize(16)
                           .fontColor($r('sys.color.white'))
@@ -686,6 +690,7 @@ export struct Player { // 播放页
                 }).visibility(Visibility.None)
                 SymbolGlyph($r('sys.symbol.speaker_wave_1'))
                   .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+                  .fontColor(['#f0f0f0'])
                 Slider({
                   value: this.volume,
                   min: VideoOperateUtil.min_volume,
@@ -722,6 +727,7 @@ export struct Player { // 播放页
               Column() {
                 SymbolGlyph($r('sys.symbol.sun_max'))
                   .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+                  .fontColor(['#f0f0f0'])
                 Slider({
                   value: this.screenBrightness,
                   min: 0,
@@ -755,9 +761,11 @@ export struct Player { // 播放页
               SymbolGlyph(this.isLock ? $r('sys.symbol.lock_fill') : $r('sys.symbol.lock_open_fill'))
                 .fontWeight(FontWeight.Bold)
                 .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
+                .fontColor(['#f0f0f0'])
             }
             .zIndex(100)
             .attributeModifier(new ButtonFancyModifier(40, 40))
+            .backgroundColor('#50000000')
             .aspectRatio(1)
             .onClick(() => {
               this.isLock = !this.isLock
@@ -974,6 +982,7 @@ export struct Player { // 播放页
         AVSessionUtil.destroySession()
         PermissionUtil.stopContinuousTask()
       }
+      await this.avSession?.stopCasting();
     })
     .hideTitleBar(true)
   }
@@ -983,6 +992,7 @@ export struct Player { // 播放页
     Row({ space: 8 }) {
       SymbolGlyph($r('sys.symbol.chevron_left'))
         .attributeModifier(new SymbolGlyphFancyModifier(40, '', ''))
+        .fontColor(['#f0f0f0'])
         .onClick(() => {
           this.avPlayer?.reset()
           this.pathStack.pop()
@@ -1000,6 +1010,7 @@ export struct Player { // 播放页
           SymbolGlyph(this.sub_title_visibility === Visibility.Visible ?
           $r('sys.symbol.textformat_size_square_fill') : $r('sys.symbol.textformat_size_square'))
             .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
+            .fontColor(['#f0f0f0'])
             .onClick(() => {
               this.sub_title_visibility === Visibility.Visible ? this.sub_title_visibility = Visibility.None :
                 this.sub_title_visibility = Visibility.Visible
@@ -1007,6 +1018,7 @@ export struct Player { // 播放页
           if (this.screen_width > this.screen_height) {
             SymbolGlyph($r('sys.symbol.opticaldisc'))
               .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
+              .fontColor(['#f0f0f0'])
               .bindMenu(this.AudioTrackMenuBuilder)
           }
           if (this.screen_width > this.screen_height) {
@@ -1033,10 +1045,12 @@ export struct Player { // 播放页
       Button({ type: ButtonType.Circle, stateEffect: true }) { // 旋转锁定 TODO KIMMG
         SymbolGlyph(this.lock_rotation ? $r('sys.symbol.lock_fill') : $r('sys.symbol.rotate_left'))
           .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+          .fontColor(['#f0f0f0'])
           .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.lock_rotation))
       }
       .margin({ top: this.screen_height > this.screen_width ? 10 : 0 })
       .attributeModifier(new ButtonFancyModifier(35, 40))
+      .backgroundColor('#50000000')
       .onClick(async () => {
         this.lock_rotation = !this.lock_rotation
         const windowInstance = await this.windowClass
@@ -1050,9 +1064,18 @@ export struct Player { // 播放页
           : getContext().resourceManager.getStringSync($r('app.string.close_rotation_lock'))
         ToolsUtil.showToast(toastMessage);
       })
-    }.padding({ left: 8, right: 8 })
+    }
+    .padding({ left: 8, right: 8 })
     .width('100%')
     .alignItems(VerticalAlign.Center)
+    .focusable(true)
+    .onKeyEvent((event: KeyEvent) => {
+      if (event.keyCode === KeyCode.KEYCODE_ESCAPE &&
+        event.type === KeyType.Down) {
+        this.avPlayer?.reset();
+        this.pathStack.pop();
+      }
+    })
   }
 
   @Builder
@@ -1110,22 +1133,29 @@ export struct Player { // 播放页
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 播放按钮
           SymbolGlyph(this.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill'))
             .attributeModifier(new SymbolGlyphFancyModifier(27, '', ''))
+            .fontColor(['#f0f0f0'])
             .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.playing))
-            .defaultFocus(true) // 自动获取键盘焦点
         }
         .attributeModifier(new ButtonFancyModifier(40, 40))
+        .backgroundColor('#50000000')
         .onClick(() => {
           ToolsUtil.startVibration()
           this.togglePlayback()
         })
-      }.span({ xs: 2, sm: 2, md: 2 })
+      }.span({ xs: 2, sm: 2, md: 2 }).defaultFocus(true).onKeyEvent((event: KeyEvent) => {
+        if ((event.keyCode === KeyCode.KEYCODE_SPACE && event.type === KeyType.Down)) {
+          this.togglePlayback()
+        }
+      }) // 自动获取键盘焦点
 
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 下一首按钮
           SymbolGlyph($r('sys.symbol.forward_end_fill'))
             .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+            .fontColor(['#f0f0f0'])
         }
         .attributeModifier(new ButtonFancyModifier(40, 40))
+        .backgroundColor('#50000000')
         .onClick(() => {
           this.playNextVideo()
         })
@@ -1135,28 +1165,34 @@ export struct Player { // 播放页
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 循环按钮
           SymbolGlyph(this.circle_play ? $r('sys.symbol.repeat') : $r('sys.symbol.order_play'))
             .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+            .fontColor(['#f0f0f0'])
         }
         .attributeModifier(new ButtonFancyModifier(40, 40))
+        .backgroundColor('#50000000')
         .onClick(() => {
           this.circle_play = !this.circle_play
         })
       }.span({ xs: 2, sm: 2, md: 2 })
 
-      GridCol() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) { // 亮度按钮
-          SymbolGlyph($r('sys.symbol.sun_max'))
-            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-        }
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .bindMenu(this.BrightnessBuilder())
+      GridCol() { // 投播
+        AVCastPicker({
+          normalColor: Color.White,
+          onStateChange: VideoOperateUtil.castOnStateChange,
+          colorMode: AVCastPickerColorMode.AUTO
+        })
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+          .width(23)
+          .height(23)
       }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 音量
           SymbolGlyph($r('sys.symbol.speaker_wave_1'))
             .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+            .fontColor(['#f0f0f0'])
         }
         .attributeModifier(new ButtonFancyModifier(40, 40))
+        .backgroundColor('#50000000')
         .bindMenu(this.VolumeBuilder())
       }.span({ xs: 2, sm: 2, md: 2 })
 
@@ -1164,8 +1200,10 @@ export struct Player { // 播放页
         Button({ type: ButtonType.Circle, stateEffect: true }) { //选集
           SymbolGlyph($r('sys.symbol.music_note_list'))
             .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+            .fontColor(['#f0f0f0'])
         }
         .attributeModifier(new ButtonFancyModifier(40, 40))
+        .backgroundColor('#50000000')
         .onClick(() => {
           this.sideBarStatus ? this.closeSideBar(true) : this.openSideBar()
         })
@@ -1200,15 +1238,17 @@ export struct Player { // 播放页
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 全屏按钮
           SymbolGlyph($r('sys.symbol.screen_rotation'))
             .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+            .fontColor(['#f0f0f0'])
         }
         .attributeModifier(new ButtonFancyModifier(40, 40))
+        .backgroundColor('#50000000')
         .onClick(async () => {
           this.screen_height > this.screen_width ?
           (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE)
             : (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_PORTRAIT)
         })
       }.span({ xs: 2, sm: 2, md: 2 })
-    }.width('95%')
+    }.width('95%').focusable(true)
   }
 
   @Builder
@@ -1284,8 +1324,10 @@ export struct Player { // 播放页
           Button({ type: ButtonType.Circle, stateEffect: true }) {
             SymbolGlyph($r('sys.symbol.undo'))
               .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+              .fontColor(['#f0f0f0'])
           }
           .attributeModifier(new ButtonFancyModifier(80, 40))
+          .backgroundColor('#50000000')
           .backdropBlur(150)
           .onClick(() => {
             VideoOperateUtil.setBrightness(this.screenBrightnessAtFirst)

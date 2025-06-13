@@ -178,6 +178,8 @@ export struct AboutApp {
                 .fontSize(14)
               Text('ohos_ijkplayer')
                 .fontSize(14)
+              Text('RedPlayer')
+                .fontSize(14)
             }.alignItems(HorizontalAlign.Start)
           }
           .backgroundColor($r('app.color.start_window_background_blur'))

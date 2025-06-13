@@ -42,7 +42,7 @@ class WantProcess {
         time: parseInt(metadata.duration || '0'),
         last_play: 0,
         format: format,
-        video_size: await VideoUtil.getVideoSize(this.want_uri),
+        video_size: await VideoUtil.getVideoSize(this.want_uri, true) as string,
         hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
       }
       // 获取默认播放器

@@ -18,6 +18,7 @@ export struct SettingsPage { //设置页
   @StorageLink('recentPlay') recentPlay: boolean = true
   @StorageLink('defaultPlayer') defaultPlayer: string = 'FFMpeg播放器'
   @StorageLink('subtitleSize') subtitleSize: string = '22'
+  @StorageLink('is_list_display') is_list_display: boolean = true
   @State passwd: string = 'passwd'
   fastForwardSecondsList = ['15', '30', '60', '120']
   subtitleSizeList = ['19', '20', '21', '22', '23', '24', '25', '26']
@@ -54,6 +55,18 @@ export struct SettingsPage { //设置页
             onPress: () => {
               this.passwd = Preferences.getPassword(context)
               this.editPasswdDialogController.open()
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsToggleItem({
+            symbol: $r('sys.symbol.list_square'),
+            message: '列表样式（关闭为卡片样式）',
+            enable: this.is_list_display,
+            onChange: (checked: boolean) => {
+              this.is_list_display = checked
+              Preferences.saveListDisplayMode(context, this.is_list_display)
             }
           })
         }

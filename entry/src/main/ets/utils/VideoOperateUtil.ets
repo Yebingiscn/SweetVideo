@@ -18,6 +18,7 @@ import Preferences from '../database/Preferences';
 import RecentPlayUtil from './RecentPlayUtil';
 import PrivacySpaceUtil from './PrivacySpaceUtil';
 import FileFolderUtil from './FileFolderUtil';
+import { AVCastPickerState, avSession, avSession as avSessionManager } from '@kit.AVSessionKit';
 
 // 视频操作类
 class VideoOperateUtil {
@@ -201,7 +202,27 @@ class VideoOperateUtil {
     AppStorage.setOrCreate('subtitleSize', Preferences.getSubtitleSize(context))
     AppStorage.setOrCreate('allowDoubleFastForward', Preferences.getAllowDoubleFastForwardState(context))
     AppStorage.setOrCreate('skipIntroTime', Preferences.getSkipIntroTime(context))
+    AppStorage.setOrCreate('is_list_display', Preferences.getListDisplayMode(context))
     ReqPermissionUtil.reqPermissionsFromUser(ReqPermissionUtil.permissions, context);
+  }
+
+  async checkOtherCast(avSession: avSessionManager.AVSession) {
+    try {
+      let currentOutputDevice: avSession.OutputDeviceInfo = avSession.getOutputDeviceSync();
+      return currentOutputDevice
+    } catch (err) {
+      let error = err as BusinessError;
+      console.error(`getOutputDeviceSync error, error code: ${error.code}, error message: ${error.message}`);
+      return null
+    }
+  }
+
+  castOnStateChange(state: AVCastPickerState) {
+    if (state == AVCastPickerState.STATE_APPEARING) {
+      console.log('The picker starts showing.');
+    } else if (state == AVCastPickerState.STATE_DISAPPEARING) {
+      console.log('The picker finishes presenting.');
+    }
   }
 }
 

@@ -11,11 +11,12 @@ export class ShadowModifier extends CommonModifier {
 }
 
 export class ImageFancyModifier implements AttributeModifier<ImageAttribute> {
-  private borderRadius: number;
+  private borderRadius: Length | BorderRadiuses | LocalizedBorderRadiuses;
   private width: number | string;
   private height: number | string;
 
-  constructor(borderRadius: number, width: number | string, height: number | string) {
+  constructor(borderRadius: Length | BorderRadiuses | LocalizedBorderRadiuses, width: number | string,
+    height: number | string) {
     this.borderRadius = borderRadius;
     this.width = width;
     this.height = height;

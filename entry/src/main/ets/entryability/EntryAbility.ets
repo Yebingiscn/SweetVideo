@@ -81,7 +81,10 @@ export default class EntryAbility extends UIAbility {
         return;
       }
       AppStorage.setOrCreate('windowStage', windowStage);
-      windowStage.getMainWindowSync().setWindowBackgroundColor('#DCDCDC'); // 配置窗口整体底色
+      this.context.resourceManager.getStringValue($r('app.color.start_window_background_blur').id)
+        .then(colorValue => {
+          windowStage.getMainWindowSync().setWindowBackgroundColor(colorValue);
+        });
       hilog.info(0x0000, 'testTag', 'Succeeded in loading the content.');
     });
   }

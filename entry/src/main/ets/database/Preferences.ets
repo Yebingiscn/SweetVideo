@@ -71,6 +71,10 @@ class Preferences {
     return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'skipIntroTime', '0') as string
   }
 
+  getListDisplayMode(context: Context) {
+    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'is_list_display', true) as boolean
+  }
+
   saveSkipIntroTime(context: Context, skipIntroTime: string) {
     PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'skipIntroTime', skipIntroTime);
   }
@@ -134,6 +138,10 @@ class Preferences {
 
   saveRecentPlay(context: Context, recent_play_deque: VideoMetadata[]) {
     PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_play', recent_play_deque);
+  }
+
+  saveListDisplayMode(context: Context, is_list_display: boolean) {
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'is_list_display', is_list_display);
   }
 }
 

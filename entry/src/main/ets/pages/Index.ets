@@ -1,12 +1,9 @@
 import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
 import { common } from '@kit.AbilityKit';
 import { curves, SymbolGlyphModifier } from '@kit.ArkUI';
-import { media } from '@kit.MediaKit';
 import DataSyncUtil, { OOBEVersion } from '../utils/DataSyncUtil';
 import { IndexDataSource } from '../utils/DataUtil';
 import ToolsUtil from '../utils/ToolsUtil';
-import VideoUtil from '../utils/VideoInfoUtil';
-import TimeUtil from '../utils/TimeUtil';
 import { delConfirmDialog } from '../component/Dialog/DelConfirmDialog';
 import { editMetadataDialog } from '../component/Dialog//EditMetadataDialog';
 import SelectFileUtil from '../utils/SelectFileUtil';
@@ -42,6 +39,8 @@ import {
 } from '../utils/AttributeModifierUtil';
 import { ImportProgress } from '../component/ImportProgress';
 import { FileProcessorUtil } from '../utils/FileProcessorUtil';
+import { VideoInfoView } from '../component/VideoInfoView';
+import VideoInfoUtil from '../utils/VideoInfoUtil';
 
 const context = getContext() as common.UIAbilityContext;
 const sandbox_path = getContext().filesDir + '/'
@@ -73,6 +72,10 @@ struct Index {
   @State MenuBuilderState: boolean = false
   @State delMultipleList: VideoMetadata[] = []
   @State file_folder_list: FileFolder[] = []
+  @State side_bar_mode: SideBarContainerType = SideBarContainerType.AUTO
+  @StorageLink('is_list_display') is_list_display: boolean = false
+  private minSideBarWidth: number = 100; // 最小侧边栏宽度
+  private minContentWidth: number = 380; // 最小内容区宽度
   @StorageProp('screen_width') screen_width: number = 0
   @StorageProp('screen_height') screen_height: number = 0
   @State searchValue: string = ''
@@ -422,8 +425,6 @@ struct Index {
   }
 
   onPageShow(): void {
-    this.video_meta_data = Preferences.getVideoMetaData(context)
-    this.videoDataSource.updateData(this.video_meta_data)
     setTimeout(() => { // 临时解决 system share 获取 want 没有 onPageShow 跑的快的问题
       if (WantProcessUtil.has_new_want) {
         WantProcessUtil.checkWant(context, this.pathStack)
@@ -501,15 +502,19 @@ struct Index {
   }
 
   closeSideBar(isPlayAnimation: boolean) {
-    this.sideBarStatusTmp = Visibility.Hidden
-    isPlayAnimation ? setTimeout(() => {
-      this.sideBarStatus = false
-    }, 400) : this.sideBarStatus = false
+    if (this.side_bar_mode === SideBarContainerType.Overlay) {
+      this.sideBarStatusTmp = Visibility.Hidden
+      isPlayAnimation ? setTimeout(() => {
+        this.sideBarStatus = false
+      }, 400) : this.sideBarStatus = false
+    }
   }
 
   openSideBar() {
-    this.sideBarStatusTmp = Visibility.Visible
-    this.sideBarStatus = true
+    if (this.side_bar_mode === SideBarContainerType.Overlay) {
+      this.sideBarStatusTmp = Visibility.Visible
+      this.sideBarStatus = true
+    }
   }
 
   closeMultipleChoose() {
@@ -526,7 +531,7 @@ struct Index {
 
   build() {
     Navigation(this.pathStack) {
-      SideBarContainer(SideBarContainerType.Overlay) {
+      SideBarContainer(this.side_bar_mode) {
         Column() {
           Scroll() {
             Column() {
@@ -674,10 +679,10 @@ struct Index {
         .backgroundColor($r('app.color.start_window_background'))
         .transition(TransitionEffect.translate({ x: -300 }).animation({ duration: 500, curve: Curve.Friction }))
         .visibility(this.sideBarStatusTmp)
-        .borderRadius(16)
+        .borderRadius(this.side_bar_mode === SideBarContainerType.Overlay ? 16 : 0)
 
         Stack({ alignContent: Alignment.Top }) { // 内容区
-          if (this.sideBarStatus) {
+          if (this.sideBarStatus && this.side_bar_mode === SideBarContainerType.Overlay) {
             Column()// 遮罩
               .height('100%')
               .width('100%')
@@ -695,10 +700,56 @@ struct Index {
             })
             LazyForEach(this.videoDataSource, (item: VideoMetadata, index: number) => { // 加载视频列表
               ListItem() {
-                Column() {
-                  Row() {
+                if (this.is_list_display) {
+                  Column() {
+                    Row() {
+                      Image(fileUri.getUriFromPath(sandbox_path + item.date))
+                        .attributeModifier(new ImageFancyModifier(10, 60, 90))
+                      Column() {
+                        Row() {
+                          Text(VideoInfoUtil.getVideoTitle(this.video_meta_data, item))
+                            .fontSize(15)
+                            .fontWeight(FontWeight.Medium)
+                            .maxLines(3)
+                            .textOverflow({ overflow: TextOverflow.Ellipsis })
+                            .width(this.multipleChooseState === Visibility.None ? '90%' : '75%')
+                            .wordBreak(WordBreak.BREAK_ALL)
+                          Checkbox({ name: 'check_box: ' + index, group: 'checkboxGroup' })
+                            .width(30)
+                            .height(30)
+                            .select(this.itemMultipleChoose)
+                            .selectedColor($r('app.color.main_color'))
+                            .shape(CheckBoxShape.CIRCLE)
+                            .visibility(this.multipleChooseState)
+                            .onChange((value: boolean) => {
+                              if (!this.itemMultipleChoose || !value) {
+                                if (item) {
+                                  const delSet = new Set(this.delMultipleList as VideoMetadata[]);
+                                  value ? delSet.add(item) : delSet.delete(item);
+                                  this.delMultipleList = Array.from(delSet);
+                                }
+                              }
+                            })
+                        }
+
+                        VideoInfoView({ item })
+                      }.alignItems(HorizontalAlign.Start).padding({ left: 15, right: 15 }).width('90%')
+                    }.justifyContent(FlexAlign.Center)
+                  }
+                  .padding({ left: 10 })
+                  .height(100)
+                  .justifyContent(FlexAlign.SpaceEvenly)
+                } else {
+                  Column() {
                     Image(fileUri.getUriFromPath(sandbox_path + item.date))
-                      .attributeModifier(new ImageFancyModifier(10, 60, 90))
+                      .attributeModifier(new ImageFancyModifier({
+                        topLeft: 10,
+                        topRight: 10,
+                        bottomLeft: 0,
+                        bottomRight: 0
+                      }, 60, 200))
+                      .width('100%')
+                      .objectFit(ImageFit.Cover)
                     Column() {
                       Row() {
                         Text((String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title)).slice(0,
@@ -706,9 +757,10 @@ struct Index {
                             .lastIndexOf('.')))
                           .fontSize(15)
                           .fontWeight(FontWeight.Medium)
-                          .maxLines(3)
+                          .maxLines(2)// 减少行数以适应卡片布局
+                          .textAlign(TextAlign.Center)
                           .textOverflow({ overflow: TextOverflow.Ellipsis })
-                          .width(this.multipleChooseState === Visibility.None ? '90%' : '75%')
+                          .layoutWeight(1)// 占据剩余空间
                           .wordBreak(WordBreak.BREAK_ALL)
                         Checkbox({ name: 'check_box: ' + index, group: 'checkboxGroup' })
                           .width(30)
@@ -727,42 +779,18 @@ struct Index {
                             }
                           })
                       }
+                      .width('100%')
+                      .padding({ top: 5 })
 
-                      Row() {
-                        if ((item.hdr_type) === media.HdrType.AV_HDR_TYPE_VIVID) {
-                          Image($r("app.media.hdr_vivid_icon"))
-                            .attributeModifier(new ImageFancyModifier(10, 65, 25))
-                        } else if (VideoUtil.videoWidthAndHeightFormat(item.size.toString()).includes('HD')) {
-                          Text(VideoUtil.videoWidthAndHeightFormat(item?.size.toString()))
-                            .fontWeight(FontWeight.Bold)
-                            .fontSize(10)
-                            .opacity(0.8)
-                            .backgroundColor('rgba(255, 189, 0, 0.4)')
-                            .padding(5)
-                            .borderRadius(10)
-                        } else if (VideoUtil.videoWidthAndHeightFormat(item?.size.toString()) === '0 x 0') {
-                          Text($r('app.string.unknown_resolution'))
-                            .fontSize(10)
-                            .opacity(0.8)
-                            .backgroundColor('#808080')
-                            .padding(5)
-                            .borderRadius(10)
-                        } else {
-                          Text(VideoUtil.videoWidthAndHeightFormat(item.size.toString()))
-                            .fontSize(15)
-                            .opacity(0.8)
-                        }
-                        Text("  " + TimeUtil.convertMsToMMSS(item.time))
-                          .fontSize(15)
-                          .fontWeight(FontWeight.Normal)
-                          .opacity(0.8)
-                      }.justifyContent(FlexAlign.Center).padding({ top: 5 })
-                    }.alignItems(HorizontalAlign.Start).padding({ left: 15, right: 15 }).width('90%')
-                  }.justifyContent(FlexAlign.Center)
+                      VideoInfoView({ item }) // 复用组件
+                    }.padding({ left: 5, right: 5, bottom: 5 })
+                    .width('100%')
+                  }
+                  .width('100%')
+                  .height('auto')
+                  .backgroundColor($r('app.color.start_window_background_blur'))
+                  .borderRadius(10)
                 }
-                .padding({ left: 10 })
-                .height(100)
-                .justifyContent(FlexAlign.SpaceEvenly)
               }
               .padding({
                 left: 10,
@@ -804,7 +832,7 @@ struct Index {
           .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
           .chainAnimation(true)
           .width('100%')
-          .height('100%') // 新增高度设置
+          .height('auto') // 新增高度设置
           .onTouch(() => {
             this.searchController.stopEditing()
           })
@@ -827,7 +855,7 @@ struct Index {
 
           Column() {
             Row({ space: 15 }) {
-              if (!this.is_edit) {
+              if (!this.is_edit && this.side_bar_mode == SideBarContainerType.Overlay) {
                 Button({ type: ButtonType.Circle, stateEffect: true }) {
                   SymbolGlyph($r('sys.symbol.close_sidebar'))
                     .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
@@ -928,7 +956,11 @@ struct Index {
           }
         }.backgroundColor($r('app.color.start_window_background'))
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
-          this.list_line = Math.floor(new Number(newValue.width).valueOf() / 500 + 1)
+          const width = Number(newValue.width);
+          const base = Math.floor(width / 500);
+          this.list_line = this.is_list_display
+            ? base + 1
+            : base + 2;
           this.list_empty_item = []
           for (let i = 1; i <= this.list_line; i++) {
             this.list_empty_item.push(i.toString())
@@ -941,7 +973,22 @@ struct Index {
           }
         }))
       }
+      .minSideBarWidth(this.minSideBarWidth) // 设置侧边栏最小宽度
+      .minContentWidth(this.minContentWidth) // 设置内容区最小宽度
       .allowDrop([uniformTypeDescriptor.UniformDataType.PLAIN_TEXT, uniformTypeDescriptor.UniformDataType.VIDEO])
+      .onSizeChange((_oldValue: SizeResult, newValue: SizeResult) => {
+        console.error('test' + this.side_bar_mode + (newValue.width >= this.minSideBarWidth + this.minContentWidth))
+        if (newValue.width >= this.minSideBarWidth + this.minContentWidth) {
+          this.side_bar_mode = SideBarContainerType.Embed
+          this.sideBarStatusTmp = Visibility.Visible
+          this.sideBarStatus = true
+        } else {
+          this.side_bar_mode = SideBarContainerType.Overlay
+          this.sideBarStatusTmp = Visibility.Hidden
+          this.sideBarStatus = false
+        }
+        console.error('test' + this.sideBarStatusTmp)
+      })
       .onDrop((dragEvent: DragEvent) => {
         let records: Array<unifiedDataChannel.UnifiedRecord> = dragEvent.getData().getRecords();
         let video: unifiedDataChannel.Video = records[0] as unifiedDataChannel.Video;
@@ -961,6 +1008,20 @@ struct Index {
       }))
     }
     .hideTitleBar(true).mode(NavigationMode.Stack).navDestination(this.Pages)
+    .onNavBarStateChange((isVisible: boolean) => {
+      if (isVisible) {
+        this.video_meta_data = Preferences.getVideoMetaData(context)
+        this.videoDataSource.updateData(this.video_meta_data)
+        if ((this.is_list_display && this.list_line === 2) ||
+          (!this.is_list_display && this.list_line === 1)) { // 切换九宫格和列表后能正常响应
+          this.list_line = this.is_list_display ? 1 : 2;
+          this.list_empty_item = []
+          for (let i = 1; i <= this.list_line; i++) {
+            this.list_empty_item.push(i.toString())
+          }
+        }
+      }
+    })
   }
 
   @Builder
@@ -989,7 +1050,7 @@ struct Index {
       this.closeMultipleChoose()
       return true
     }
-    if (this.sideBarStatusTmp === Visibility.Visible) {
+    if (this.sideBarStatusTmp === Visibility.Visible && this.side_bar_mode === SideBarContainerType.Overlay) {
       this.closeSideBar(true)
       return true
     }

@@ -5,6 +5,7 @@ import { image } from '@kit.ImageKit';
 import ReqPermission from '../utils/ReqPermissionUtil';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import PrivacySpaceUtil from './PrivacySpaceUtil';
+import SelectFileUtil from './SelectFileUtil';
 
 // 视频信息类
 class VideoInfoUtil {
@@ -80,7 +81,8 @@ class VideoInfoUtil {
       time: parseInt(metadata.duration || '0'),
       last_play: 0,
       format: file_name.split('.')[file_name.split('.').length-1],
-      video_size: await this.getVideoSize(PrivacySpaceUtil.getPrivacyMode()! ? sandbox_video + date : uri),
+      video_size: await this.getVideoSize(PrivacySpaceUtil.getPrivacyMode()! ? sandbox_video + date : uri,
+        false) as string,
       hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
     }
     this.getVideoCover(sandbox_path, date, uri, tmp.size, parseInt(metadata.duration || '0'))
@@ -121,6 +123,12 @@ class VideoInfoUtil {
     } else {
       return '1x'
     }
+  }
+
+  getVideoTitle(video_meta_data: VideoMetadata[], item: VideoMetadata) {
+    return (String(SelectFileUtil.getItem(video_meta_data, item?.date)?.title)).slice(0,
+      String(SelectFileUtil.getItem(video_meta_data, item?.date)?.title)
+        .lastIndexOf('.'))
   }
 
   // 视频没有封面设置获取指定时间的截图作为视频封面
@@ -189,17 +197,19 @@ class VideoInfoUtil {
   }
 
   // 获取视频大小
-  async getVideoSize(uri: string): Promise<string> {
+  async getVideoSize(uri: string, return_string: boolean): Promise<string | number> {
     return new Promise((resolve, reject) => {
       let file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
       fs.stat(file.fd, (err: BusinessError, stat: fs.Stat) => {
         if (err) {
           reject('app.string.unknown_size')
-        } else {
+        } else if (return_string) {
           const size = stat.size > this.GB ?
             (stat.size / this.GB).toFixed(2) + ' GB' :
             (stat.size / this.MB).toFixed(2) + ' MB'
           resolve(size)
+        } else {
+          resolve(stat.size)
         }
       });
     });
