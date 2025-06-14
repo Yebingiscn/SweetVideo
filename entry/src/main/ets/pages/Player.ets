@@ -297,6 +297,9 @@ export struct Player { // 播放页
         case 'initialized':
           if (this.avPlayer) {
             this.avPlayer.surfaceId = this.surfaceID
+            let playStrategy: media.PlaybackStrategy =
+              { showFirstFrameOnPrepare: true, preferredAudioLanguage: 'chi', preferredSubtitleLanguage: 'chi' }
+            this.avPlayer.setPlaybackStrategy(playStrategy);
             this.avPlayer.prepare();
           }
           break;
@@ -1178,7 +1181,8 @@ export struct Player { // 播放页
         AVCastPicker({
           normalColor: Color.White,
           onStateChange: VideoOperateUtil.castOnStateChange,
-          colorMode: AVCastPickerColorMode.AUTO
+          colorMode: AVCastPickerColorMode.AUTO,
+          sessionType: 'video'
         })
           .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
           .width(23)

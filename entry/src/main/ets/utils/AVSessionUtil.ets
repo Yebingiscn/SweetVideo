@@ -28,9 +28,6 @@ class AVSessionUtil {
     let type: avSessionManager.AVSessionType = 'audio';
     this.avSession = await avSessionManager.createAVSession(this.context, 'sweet_video', type);
     this.avSession.activate()
-    await this.avSession.setExtras({
-      requireAbilityList: ['url-cast']
-    })
   }
 
   async setSessionInfo(metadata_json: string) {
@@ -52,7 +49,7 @@ class AVSessionUtil {
       filter: avSession.ProtocolType.TYPE_CAST_PLUS_STREAM | avSession.ProtocolType.TYPE_DLNA,
     };
     this.avSession?.setAVMetadata(session_metadata)
-    this.getAVCastController(metadata)
+    await this.getAVCastController(metadata)
   }
 
   updateSession(state: string) {
@@ -73,23 +70,26 @@ class AVSessionUtil {
     this.avSession = undefined
   }
 
-  getAVCastController(now_playing: VideoMetadataFromPlayer) {
+  async getAVCastController(now_playing: VideoMetadataFromPlayer) {
     // 如支持投播，可使用下面接口监听设备连接状态的变化
+    await this.avSession?.setExtras({
+      requireAbilityList: ['url-cast']
+    })
     this.avSession?.on('outputDeviceChange', async (connectState: avSession.ConnectionState,
       device: avSession.OutputDeviceInfo) => {
       // 可以通过当前设备及设备连接状态来更新应用内播放界面的显示
       let currentDevice: avSession.DeviceInfo = device?.devices?.[0];
       if (currentDevice.castCategory === avSession.AVCastCategory.CATEGORY_REMOTE &&
         connectState === avSession.ConnectionState.STATE_CONNECTED) { // 设备连接成功
-        console.info(`Device connected: ${device}`);
-        //   this.castController = await this.avSession?.getAVCastController();
-        console.info('Succeeded in getting a cast controller');
+        console.error(`Device connected: ${device}`);
+        console.error('Succeeded in getting a cast controller');
         // 查询当前播放的状态
+        this.castController = await this.avSession?.getAVCastController();
         let avPlaybackState = await this.castController?.getAVPlaybackState();
-        console.info(`Succeeded in AVPlaybackState resource obtained: ${avPlaybackState}`);
+        console.error(`Succeeded in AVPlaybackState resource obtained: ${avPlaybackState}`);
         // 监听播放状态的变化
         this.castController?.on('playbackStateChange', 'all', (state: avSession.AVPlaybackState) => {
-          console.info(`Succeeded in Playback state changed: ${state}`);
+          console.error(`Succeeded in Playback state changed: ${state}`);
         });
         if (currentDevice.supportedProtocols === avSession.ProtocolType.TYPE_CAST_PLUS_STREAM) {
           this.playItem(now_playing)

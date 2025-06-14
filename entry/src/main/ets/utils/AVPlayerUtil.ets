@@ -6,9 +6,6 @@ class AVPlayerUtil {
 
   async getAVPlayer() {
     this.avPlayer = await media.createAVPlayer()
-    let playStrategy: media.PlaybackStrategy =
-      { showFirstFrameOnPrepare: true, preferredAudioLanguage: 'chi', preferredSubtitleLanguage: 'chi' }
-    this.avPlayer.setPlaybackStrategy(playStrategy);
     return this.avPlayer
   }
 }

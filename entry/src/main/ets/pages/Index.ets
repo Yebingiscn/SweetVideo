@@ -977,7 +977,6 @@ struct Index {
       .minContentWidth(this.minContentWidth) // 设置内容区最小宽度
       .allowDrop([uniformTypeDescriptor.UniformDataType.PLAIN_TEXT, uniformTypeDescriptor.UniformDataType.VIDEO])
       .onSizeChange((_oldValue: SizeResult, newValue: SizeResult) => {
-        console.error('test' + this.side_bar_mode + (newValue.width >= this.minSideBarWidth + this.minContentWidth))
         if (newValue.width >= this.minSideBarWidth + this.minContentWidth) {
           this.side_bar_mode = SideBarContainerType.Embed
           this.sideBarStatusTmp = Visibility.Visible
@@ -987,7 +986,6 @@ struct Index {
           this.sideBarStatusTmp = Visibility.Hidden
           this.sideBarStatus = false
         }
-        console.error('test' + this.sideBarStatusTmp)
       })
       .onDrop((dragEvent: DragEvent) => {
         let records: Array<unifiedDataChannel.UnifiedRecord> = dragEvent.getData().getRecords();
