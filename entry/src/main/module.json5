@@ -88,13 +88,16 @@
     ],
     "requestPermissions": [
       {
-        "name": "ohos.permission.FILE_ACCESS_PERSIST"
+        "name": "ohos.permission.FILE_ACCESS_PERSIST",
+        "reason": "$string:FILE_ACCESS_PERSIST_REASON"
       },
       {
-        "name": "ohos.permission.KEEP_BACKGROUND_RUNNING"
+        "name": "ohos.permission.KEEP_BACKGROUND_RUNNING",
+        "reason": "$string:KEEP_BACKGROUND_RUNNING_REASON"
       },
       {
-        "name": "ohos.permission.VIBRATE"
+        "name": "ohos.permission.VIBRATE",
+        "reason": "$string:VIBRATE_REASON"
       }
     ]
   }

@@ -43,7 +43,7 @@ class PermissionUtil {
     }
   }
 
-  startContinuousTask() {
+  async startContinuousTask() {
     let wantAgentInfo: wantAgent.WantAgentInfo = {
       wants: [
         ({

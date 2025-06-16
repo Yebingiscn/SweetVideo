@@ -14,9 +14,11 @@ import { PlayerParams } from '../common/PlayerParams';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import AVSessionUtil from '../utils/AVSessionUtil';
-import { avSession as avSessionManager } from '@kit.AVSessionKit';
+import { AVCastPicker, AVCastPickerColorMode, avSession as avSessionManager } from '@kit.AVSessionKit';
 import VideoOperateUtil from '../utils/VideoOperateUtil';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
+import { audio, AVVolumePanel } from '@kit.AudioKit';
+import { settings } from '@kit.BasicServicesKit';
 
 const context = getContext() as common.UIAbilityContext;
 
@@ -24,19 +26,35 @@ const context = getContext() as common.UIAbilityContext;
 export struct RedPlayer { // 红薯播放器页
   @Consume('pathStack') pathStack: NavPathStack
   windowClass = window.getLastWindow(context)
-  coreType: PlayerCoreType =
-    RedPlayerSettingsConfig.useSystemPlayer ? PlayerCoreType.TYPE_AV_PLAYER : PlayerCoreType.TYPE_RED_PLAYER
-  xComponentController: RedPlayerXComponentController = new RedPlayerXComponentController(this.coreType)
+  xComponentController: RedPlayerXComponentController =
+    new RedPlayerXComponentController(PlayerCoreType.TYPE_RED_PLAYER)
   avSession: avSessionManager.AVSession | undefined = undefined;
   @State @Watch('setScreen') ShowControl: boolean = false
   @State screen_width: number = 0
   @State screen_height: number = 0
+  @State play_time: number = 0
   @State last_play_time: number = 0
   @State played: boolean = false
   @State now_playing: VideoMetadataFromPlayer | undefined = undefined
   @State redPlayerStateHolder: RedPlayerStateHolder = new RedPlayerStateHolder()
   @State onSwiping: boolean = false
   @State isSliderPlayTimeChange: boolean = false
+  @State play_speed: number = 1
+  @State last_speed: number = 1
+  @State currentSpeedIndex: number = 0
+  @State long_press: boolean = false
+  @State longPressStartX: number = 0
+  @State isLeftSideSwipe: boolean = false
+  @State isRightSideSwipe: boolean = false
+  @State isVerticalSwiping: boolean = false
+  @State swipe_start_y: number = 0
+  @State onSwipingVoice: boolean = false
+  @State onSwipingBrightness: boolean = false
+  @State screenBrightnessAtFirst: number = 0
+  @State swipe_start_x: number = 0
+  @State isHorizontalSwiping: boolean = false
+  @State volume: number = 1.0
+  @State screenBrightness: number = 0
   playerController = new RedPlayerControllerUtil(this.redPlayerStateHolder)
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
@@ -62,7 +80,7 @@ export struct RedPlayer { // 红薯播放器页
               controller: this.xComponentController
             })
               .onLoad(() => {
-                this.playerController.createMediaPlayer(this.coreType).then(async () => {
+                this.playerController.createMediaPlayer(PlayerCoreType.TYPE_RED_PLAYER).then(async () => {
                   await PermissionUtil.activatePermission(this.now_playing?.uri || '')
                   const file = fs.openSync(this.now_playing?.uri)
                   this.playerController.setDataSource({
@@ -79,12 +97,14 @@ export struct RedPlayer { // 红薯播放器页
                       if (this.now_playing?.last_play! < this.redPlayerStateHolder.videoDuration * 0.9 &&
                         this.now_playing?.last_play != 0) {
                         this.playerController.seek(this.now_playing?.last_play!)
+                        this.redPlayerStateHolder.videoPosition = this.now_playing?.last_play!
                       } else if (this.skipIntroTime !== '0' &&
                         Number(this.skipIntroTime) * 1000 < this.now_playing?.time! &&
                         !VideoInfoUtil.support_audio_format.includes(this.now_playing?.title.split('.')[this.now_playing?.title.split('.')
                           .length-1].toLowerCase()!)) {
-                        this.playerController.seek(this.redPlayerStateHolder.videoDuration +
+                        this.playerController.seek(this.play_time +
                           Number(this.skipIntroTime) * 1000)
+                        this.redPlayerStateHolder.videoPosition = this.play_time + Number(this.skipIntroTime) * 1000
                       }
                       this.playerController.start()
                     })
@@ -111,19 +131,6 @@ export struct RedPlayer { // 红薯播放器页
             }) { //顶栏
               Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
                 Column() {
-                  if (this.screen_width > this.screen_height) {
-                    Row() {
-                      Text(ToolsUtil.getTime())
-                        .fontWeight(FontWeight.Medium)
-                        .fontSize(16)
-                        .fontColor($r('sys.color.white'))
-                        .textAlign(TextAlign.Center)
-                        .align(Alignment.Center)
-                    }
-                    .width('100%')
-                    .height(5)
-                    .justifyContent(FlexAlign.Center)
-                  }
                   this.VideoTop()
                 }.width('100%')
               }.height(85)
@@ -163,11 +170,11 @@ export struct RedPlayer { // 红薯播放器页
         if (this.onSwiping) {
           Stack() {
             Text(this.isSliderPlayTimeChange ?
-              TimeUtil.convertMsToMMSS(this.redPlayerStateHolder.videoPosition) + '/' +
+              TimeUtil.convertMsToMMSS(this.play_time) + '/' +
               TimeUtil.convertMsToMMSS(this.redPlayerStateHolder.videoDuration) :
-              (this.redPlayerStateHolder.videoPosition - this.last_play_time > 0 ? '+' : '') +
-              Math.floor((this.redPlayerStateHolder.videoPosition - this.last_play_time) / 1000) + 's : ' +
-              TimeUtil.convertMsToMMSS(this.redPlayerStateHolder.videoPosition) + '/' +
+              (this.play_time - this.last_play_time > 0 ? '+' : '') +
+              Math.floor((this.play_time - this.last_play_time) / 1000) + 's : ' +
+              TimeUtil.convertMsToMMSS(this.play_time) + '/' +
               TimeUtil.convertMsToMMSS(this.redPlayerStateHolder.videoDuration))
               .fontColor($r('sys.color.white'))
               .fontSize(25)
@@ -185,21 +192,122 @@ export struct RedPlayer { // 红薯播放器页
           .animation({ duration: 300, curve: Curve.Smooth })
         }
 
+        if (this.onSwipingVoice) {
+          Stack() { //音量提示
+            Column() {
+              AVVolumePanel({
+                volumeLevel: this.volume,
+                volumeParameter: {
+                  position: {
+                    x: 10000,
+                    y: 20000
+                  }
+                }
+              }).visibility(Visibility.None)
+              SymbolGlyph($r('sys.symbol.speaker_wave_1'))
+                .fontSize(23)
+                .fontColor(['#f0f0f0'])
+              Slider({
+                value: this.volume,
+                min: VideoOperateUtil.min_volume,
+                max: VideoOperateUtil.max_volume,
+                step: 0.1,
+                style: SliderStyle.NONE,
+                direction: Axis.Horizontal,
+                reverse: false
+              })
+                .width(60)
+                .height(30)
+                .selectedColor('#e0e0e0')
+                .trackColor(Color.Black)
+                .trackThickness(40)
+                .onChange((value) => {
+                  this.volume = value
+                })
+            }
+          }
+          .padding({
+            left: 25,
+            right: 25,
+            top: 10,
+            bottom: 10
+          })
+          .borderRadius(1000)
+          .backgroundColor('#30000000')
+          .backdropBlur(100)
+          .animation({ duration: 300, curve: Curve.Smooth })
+        }
+
+        if (this.onSwipingBrightness) {
+          Stack() { //亮度提示
+            Column() {
+              SymbolGlyph($r('sys.symbol.sun_max'))
+                .fontSize(23)
+                .fontColor(['#f0f0f0'])
+              Slider({
+                value: this.screenBrightness,
+                min: 0,
+                max: 1,
+                step: 0.1,
+                style: SliderStyle.NONE,
+                direction: Axis.Horizontal,
+                reverse: false
+              })
+                .width(60)
+                .height(30)
+                .selectedColor($r('app.color.main_color'))
+                .trackColor(Color.Black)
+                .trackThickness(40)
+            }
+          }
+          .padding({
+            left: 25,
+            right: 25,
+            top: 10,
+            bottom: 10
+          })
+          .borderRadius(1000)
+          .backgroundColor('#30000000')
+          .backdropBlur(100)
+          .animation({ duration: 300, curve: Curve.Smooth })
+        }
+
+        if (this.long_press) {
+          Stack({ alignContent: Alignment.BottomEnd }) { //快进提示
+            Text(this.play_speed + 'x ⏩').fontColor($r('sys.color.white')).fontSize(15).fontWeight(FontWeight.Bold)
+          }
+          .padding({
+            left: 25,
+            right: 25,
+            top: 10,
+            bottom: 10
+          })
+          .offset({ x: 0, y: this.screen_width > this.screen_height ? -160 : -80 })
+          .borderRadius(1000)
+          .backgroundColor('#30000000')
+          .backdropBlur(100)
+          .animation({ duration: 300, curve: Curve.Smooth })
+        }
+
         Column()
           .width('100%')
           .height(this.ShowControl ? '50%' : '80%')//触控区域
-          .gesture(GestureGroup(GestureMode.Parallel,
-            TapGesture({ count: 2 })
+          .gesture(GestureGroup(GestureMode.Exclusive, // 将触摸事件跟滑动、长按分成两个手势组解绑互斥
+            GestureGroup(GestureMode.Exclusive, TapGesture({ count: 2 })
               .onAction((event: GestureEvent) => {
                 if (this.allowDoubleFastForward) {
                   const tapX = event.fingerList[0].localX;
                   const adjustWidth = this.screen_width / 5; // 计算五分之一宽度
                   if (tapX < adjustWidth) { // 左侧1/5区域
-                    this.playerController.seek(this.redPlayerStateHolder.videoPosition -
+                    this.playerController.seek(this.play_time -
                       Number(this.fastForwardSeconds) * 1000);
+                    this.redPlayerStateHolder.videoPosition = this.play_time -
+                      Number(this.fastForwardSeconds) * 1000
                   } else if (tapX > adjustWidth * 4) { // 右侧1/5区域
-                    this.playerController.seek(this.redPlayerStateHolder.videoPosition +
+                    this.playerController.seek(this.play_time +
                       Number(this.fastForwardSeconds) * 1000);
+                    this.redPlayerStateHolder.videoPosition = this.play_time +
+                      Number(this.fastForwardSeconds) * 1000
                   } else { // 中间3/5区域
                     this.redPlayerStateHolder.isStart ? this.playerController.pause() : this.playerController.start()
                   }
@@ -208,11 +316,105 @@ export struct RedPlayer { // 红薯播放器页
 
                 }
               }),
-            TapGesture({ count: 1 })
-              .onAction(() => { //单击屏幕
-                this.ShowControl = !this.ShowControl
-              }))
-          )
+              TapGesture({ count: 1 })
+                .onAction(() => { //单击屏幕
+                  this.ShowControl = !this.ShowControl
+                })),
+            GestureGroup(GestureMode.Parallel,
+              PanGesture().onActionStart((event: GestureEvent) => {
+                if (this.long_press) { // 初始化长按滑动参数
+                  this.longPressStartX = event.fingerList[0].localX;
+                } else {
+                  console.error('test')
+                  const firstTouch = event.fingerList[0];
+                  this.swipe_start_x = firstTouch.localX;
+                  this.play_time = this.redPlayerStateHolder.videoPosition;
+                  this.last_play_time = this.redPlayerStateHolder.videoPosition;
+                  this.swipe_start_y = firstTouch.localY;
+                  this.isLeftSideSwipe = firstTouch.localX < this.screen_width / 2;
+                }
+              })
+                .onActionUpdate((event: GestureEvent) => {
+                  if (this.long_press) { // 长按状态下的滑动处理
+                    const deltaX = event.fingerList[0].localX - this.longPressStartX;
+                    const SWIPE_THRESHOLD = 30;
+                    if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
+                      const direction = deltaX > 0 ? 1 : -1;
+                      const newIndex = this.currentSpeedIndex + direction;
+                      const clampedIndex = Math.max(0, Math.min(newIndex, VideoInfoUtil.video_speed_list.length - 1));
+                      if (clampedIndex !== this.currentSpeedIndex && clampedIndex >= 0.5 && clampedIndex <= 2) {
+                        this.play_speed = clampedIndex;
+                        this.playerController.setSpeed(this.play_speed)
+                      }
+                      this.longPressStartX = event.fingerList[0].localX; // 重置起始点（实现分档切换效果）
+                    }
+                    return
+                  }
+                  if (event.fingerList.length === 1) {
+                    const currentX = event.fingerList[0].localX;
+                    const currentY = event.fingerList[0].localY; // 方向判断阈值
+                    const deltaX = currentX - this.swipe_start_x;
+                    const deltaY = currentY - this.swipe_start_y; // 初始化滑动方向
+                    if (Math.abs(deltaX) > Math.abs(deltaY)) { // 水平为主
+                      if (Math.abs(deltaX) > 10 && !this.isVerticalSwiping) {
+                        this.onSwiping = true
+                        this.isHorizontalSwiping = true;
+                        this.isVerticalSwiping = false; // 明确清除对立状态
+                      }
+                    } else { // 垂直为主
+                      if (Math.abs(deltaY) > 10 && !this.isHorizontalSwiping) {
+                        this.isVerticalSwiping = true;
+                        this.isHorizontalSwiping = false; // 明确清除对立状态
+                      }
+                    }
+                    if (this.isVerticalSwiping) {
+                      const volumeStep = 0.0006; // 每像素音量变化量
+                      const brightnessStep = 0.00003; // 每像素亮度变化量
+                      if (this.isLeftSideSwipe) {
+                        this.onSwipingBrightness = true
+                        const newBrightness = this.screenBrightness - (deltaY * brightnessStep);
+                        this.screenBrightness = Math.min(Math.max(newBrightness, 0), 1)
+                        VideoOperateUtil.setBrightness(this.screenBrightness);
+                      } else {
+                        this.onSwipingVoice = true
+                        const newVolume = this.volume - (deltaY * volumeStep);
+                        this.volume =
+                          Math.min(Math.max(newVolume, VideoOperateUtil.min_volume), VideoOperateUtil.max_volume);
+                      }
+                    }
+                    if (this.isHorizontalSwiping) {
+                      const timePerPixel = 1200; // 灵敏度控制
+                      this.play_time = Math.max(0,
+                        Math.min(this.last_play_time + (deltaX * timePerPixel),
+                          this.redPlayerStateHolder.videoDuration));
+                    }
+                  }
+                })
+                .onActionEnd(() => {
+                  if (this.isHorizontalSwiping) {
+                    this.playerController.seek(this.play_time);
+                    this.redPlayerStateHolder.videoPosition = this.play_time
+                  }
+                  this.isHorizontalSwiping = false; // 重置所有滑动状态
+                  this.isVerticalSwiping = false;
+                  this.onSwiping = false;
+                  this.onSwipingVoice = false;
+                  this.onSwipingBrightness = false;
+                }),
+              LongPressGesture()
+                .onAction(() => {
+                  this.long_press = true
+                  this.last_speed = this.play_speed
+                  this.play_speed = 2
+                  this.playerController.setSpeed(this.play_speed)
+                  this.currentSpeedIndex = VideoInfoUtil.video_speed_list.indexOf(2);
+                })
+                .onActionEnd(() => {
+                  this.long_press = false
+                  this.play_speed = this.last_speed
+                  this.playerController.setSpeed(this.last_speed)
+                }),
+            )))
       }
       .onAreaChange(async (_oldValue: Area, newValue: Area) => {
         this.screen_width = Math.floor(new Number(newValue.width).valueOf())
@@ -262,9 +464,19 @@ export struct RedPlayer { // 红薯播放器页
     await this.setScreen()
     await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
     await (await this.windowClass).setWindowKeepScreenOn(true)
+    let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
+    let audioManager = audio.getAudioManager();
+    let audioVolumeManger: audio.AudioVolumeManager = audioManager.getVolumeManager();
+    let volume_list = await VideoOperateUtil.getVolume(audioVolumeManger, groupId)
+    this.volume = volume_list.get('volume')!
+    settings.getValue(context, settings.display.SCREEN_BRIGHTNESS_STATUS, settings.domainName.DEVICE_SHARED)
+      .then((value) => {
+        this.screenBrightness = Number(value) / 255;
+      })
   }
 
   async aboutToDisappear() {
+    VideoOperateUtil.setBrightness(-1)
     await (await this.windowClass).setWindowKeepScreenOn(false)
     await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
     await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
@@ -281,6 +493,7 @@ export struct RedPlayer { // 红薯播放器页
     this.avSession?.on('seek', (position: number) => {
       let seekValue = position;
       this.playerController.seek(seekValue)
+      this.redPlayerStateHolder.videoPosition = seekValue
     })
   }
 
@@ -325,15 +538,24 @@ export struct RedPlayer { // 红薯播放器页
         style: SliderStyle.InSet
       })
         .onChange((value: number) => {
-          this.redPlayerStateHolder.videoPosition = value
-          this.isSliderPlayTimeChange = true
-          this.onSwiping = true
-          this.onSwiping = true
+          this.play_time = value
+          if (this.redPlayerStateHolder.videoPosition >= this.redPlayerStateHolder.videoDuration ||
+            this.play_time >= this.redPlayerStateHolder.videoDuration) {
+            this.playerController.seek(0)
+            this.redPlayerStateHolder.videoPosition = 0
+            this.onSwiping = false
+          } else {
+            this.isSliderPlayTimeChange = true
+            this.onSwiping = true
+          }
         })
         .onTouch((event) => {
+          if (event.type == TouchType.Down) {
+            this.play_time = this.redPlayerStateHolder.videoPosition
+          }
           if (event.type == TouchType.Up) {
-            let seekValue = this.redPlayerStateHolder.videoPosition
-            this.playerController.seek(seekValue)
+            this.playerController.seek(this.play_time)
+            this.redPlayerStateHolder.videoPosition = this.play_time
             this.onSwiping = false
             this.isSliderPlayTimeChange = false
           }
@@ -341,13 +563,15 @@ export struct RedPlayer { // 红薯播放器页
         .layoutWeight(1)
         .animation({ duration: 100, curve: Curve.Smooth })
         .selectedColor('#e0e0e0')
-      Row() {
-        Text(TimeUtil.convertMsToMMSS(Math.min(Math.max((this.redPlayerStateHolder.videoDuration || 0) -
-        this.redPlayerStateHolder.videoPosition, 0),
-          (this.redPlayerStateHolder.videoDuration || 0))))
-          .fontWeight(FontWeight.Medium).fontSize(15)
-          .fontColor($r('sys.color.white'))
-      }.backgroundColor('#50000000').padding(5).borderRadius(10).margin({ right: 5 })
+      if (this.screen_width > this.screen_height) {
+        Row() {
+          Text(TimeUtil.convertMsToMMSS(Math.min(Math.max((this.redPlayerStateHolder.videoDuration || 0) -
+          this.redPlayerStateHolder.videoPosition, 0),
+            (this.redPlayerStateHolder.videoDuration || 0))))
+            .fontWeight(FontWeight.Medium).fontSize(15)
+            .fontColor($r('sys.color.white'))
+        }.backgroundColor('#50000000').padding(5).borderRadius(10).margin({ right: 5 })
+      }
     }
   }
 
@@ -394,6 +618,18 @@ export struct RedPlayer { // 红薯播放器页
           (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE)
             : (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_PORTRAIT)
         })
+      }.span({ xs: 2, sm: 2, md: 2 })
+
+      GridCol() { // 投播
+        AVCastPicker({
+          normalColor: Color.White,
+          onStateChange: VideoOperateUtil.castOnStateChange,
+          colorMode: AVCastPickerColorMode.AUTO,
+          sessionType: 'video'
+        })
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+          .width(23)
+          .height(23)
       }.span({ xs: 2, sm: 2, md: 2 })
     }.width('95%')
   }

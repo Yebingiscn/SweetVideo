@@ -143,6 +143,18 @@
     {
       "name": "privacy_space_info",
       "value": "Long press the privacy space button to reset the password \n and enter the password in the input box to access the privacy space."
+    },
+    {
+      "name": "FILE_ACCESS_PERSIST_REASON",
+      "value": "Save the file selected by the user to avoid repeated operations"
+    },
+    {
+      "name": "KEEP_BACKGROUND_RUNNING_REASON",
+      "value": "Continues playing audio when the user exits to the background"
+    },
+    {
+      "name": "VIBRATE_REASON",
+      "value": "Adding tactile feedback to improve user experience"
     }
   ]
 }

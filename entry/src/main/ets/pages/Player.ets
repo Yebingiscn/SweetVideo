@@ -43,7 +43,6 @@ export struct Player { // 播放页
   surfaceID: string = ''
   @State swipe_start_x: number = 0
   @State swipe_start_y: number = 0
-  @State SwipeMovingY: number = 0
   @State long_press: boolean = false
   @State played: boolean = false
   @State @Watch('setScreen') showControl: boolean = false
@@ -62,7 +61,6 @@ export struct Player { // 播放页
   @State isRightSideSwipe: boolean = false
   @State volume: number = 0
   @State screenBrightness: number = 0
-  @State screenBrightnessAtFirst: number = 0
   @State video_meta_data: VideoMetadata[] = []
   @State select_text: string | undefined = '原始比例'
   @State circle_play: boolean = false
@@ -96,18 +94,18 @@ export struct Player { // 播放页
     video_list: []
   }
   private listScroller: Scroller = new Scroller();
-  private mIjkMediaPlayer = IjkMediaPlayer.getInstance();
+  private mIjkMediaPlayer: IjkMediaPlayer | null = null;
 
   async setSessionListener() {
     this.avSession?.on('play', () => {
       if (VideoOperateUtil.mIjkMediaPlayerActive) {
-        this.mIjkMediaPlayer.start()
+        this.mIjkMediaPlayer?.start()
       }
       this.avPlayer?.play()
     });
     this.avSession?.on('pause', () => {
-      if (VideoOperateUtil.mIjkMediaPlayerActive && this.mIjkMediaPlayer.isPlaying()) {
-        this.mIjkMediaPlayer.pause()
+      if (VideoOperateUtil.mIjkMediaPlayerActive && this.mIjkMediaPlayer?.isPlaying()) {
+        this.mIjkMediaPlayer?.pause()
       }
       this.avPlayer?.pause()
     });
@@ -143,7 +141,6 @@ export struct Player { // 播放页
     settings.getValue(context, settings.display.SCREEN_BRIGHTNESS_STATUS, settings.domainName.DEVICE_SHARED)
       .then((value) => {
         this.screenBrightness = Number(value) / 255;
-        this.screenBrightnessAtFirst = this.screenBrightness
       })
     this.circle_play = Preferences.getCirclePlayState(context)
     const video_speed = Preferences.getVideoSpeed(context)
@@ -151,9 +148,7 @@ export struct Player { // 播放页
   }
 
   async aboutToDisappear(): Promise<void> {
-    if (this.screenBrightness != this.screenBrightnessAtFirst) {
-      VideoOperateUtil.setBrightness(this.screenBrightnessAtFirst)
-    }
+    VideoOperateUtil.setBrightness(-1)
     await (await this.windowClass).setWindowKeepScreenOn(false)
     await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
     await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
@@ -186,6 +181,7 @@ export struct Player { // 播放页
     if (VideoOperateUtil.audioTrackErrorExecute(this.audio_track)) {
       this.avPlayer!.selectTrack(this.audio_track[0].index);
     } else {
+      this.mIjkMediaPlayer = IjkMediaPlayer.getInstance();
       VideoOperateUtil.mIjkMediaPlayerActive = true
       const video_url = fs.openSync(this.now_playing?.uri).path
       this.mIjkMediaPlayer.reset();
@@ -227,21 +223,19 @@ export struct Player { // 播放页
           this.file_folder)
       }
       if (!this.onSwiping) {
-        animateTo({ duration: 300, curve: Curve.Ease }, () => {
-          this.play_time = duration;
-        });
+        this.play_time = duration;
         if (VideoOperateUtil.mIjkMediaPlayerActive) {
           const currentTime = Date.now(); // 冷却时间检查
           if (currentTime - VideoOperateUtil.lastSyncTime < VideoOperateUtil.syncCoolDown) {
             return;
           }
-          const audioPosition = Number(this.mIjkMediaPlayer.getCurrentPosition());
+          const audioPosition = Number(this.mIjkMediaPlayer?.getCurrentPosition());
           const drift = duration - audioPosition; // 记录最近5次差异
           VideoOperateUtil.driftHistory.push(drift);
           if (VideoOperateUtil.driftHistory.length > 5) {
             VideoOperateUtil.driftHistory.shift();
           } // 动态阈值计算
-          const buffer = this.mIjkMediaPlayer.getAsyncStatisticBufCapacity();
+          const buffer = this.mIjkMediaPlayer?.getAsyncStatisticBufCapacity()!;
           const dynamicThreshold = Math.min(1000, 300 + buffer * 0.5); // 趋势分析（最近3次差异是否持续扩大）
           const isGrowing = VideoOperateUtil.driftHistory.slice(-3).every((v, i, arr) =>
           i === 0 || Math.abs(v) > Math.abs(arr[i-1])
@@ -267,7 +261,7 @@ export struct Player { // 播放页
     this.avPlayer?.on('audioOutputDeviceChangeWithInfo', (data: audio.AudioStreamDeviceChangeInfo) => {
       if (data.changeReason === audio.AudioStreamDeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) {
         if (VideoOperateUtil.mIjkMediaPlayerActive) {
-          this.mIjkMediaPlayer.pause()
+          this.mIjkMediaPlayer?.pause()
         }
         this.avPlayer?.pause()
       }
@@ -308,7 +302,7 @@ export struct Player { // 播放页
           if (this.now_playing?.last_play !== 0 && this.now_playing?.last_play! < this.now_playing?.time! * 0.9) {
             this.avPlayer?.seek(this.now_playing?.last_play, media.SeekMode.SEEK_CLOSEST)
             if (VideoOperateUtil.mIjkMediaPlayerActive) {
-              this.mIjkMediaPlayer.seekTo(String(this.now_playing?.last_play))
+              this.mIjkMediaPlayer?.seekTo(String(this.now_playing?.last_play))
             }
           } else if (this.skipIntroTime !== '0' && Number(this.skipIntroTime) * 1000 < this.now_playing?.time! &&
             !VideoInfoUtil.support_audio_format.includes(this.now_playing?.title.split('.')[this.now_playing?.title.split('.')
@@ -316,7 +310,7 @@ export struct Player { // 播放页
           ) {
             this.avPlayer?.seek(this.play_time + Number(this.skipIntroTime) * 1000, media.SeekMode.SEEK_CLOSEST)
             if (VideoOperateUtil.mIjkMediaPlayerActive) {
-              this.mIjkMediaPlayer.seekTo(String(this.play_time + Number(this.skipIntroTime) * 1000))
+              this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(this.skipIntroTime) * 1000))
             }
           }
           this.avPlayer?.play();
@@ -329,8 +323,8 @@ export struct Player { // 播放页
         case 'completed':
           if (this.circle_play) {
             if (VideoOperateUtil.mIjkMediaPlayerActive) {
-              this.mIjkMediaPlayer.seekTo('0')
-              this.mIjkMediaPlayer.start()
+              this.mIjkMediaPlayer?.seekTo('0')
+              this.mIjkMediaPlayer?.start()
             }
             this.avPlayer?.play()
             this.avPlayer?.seek(0, media.SeekMode.SEEK_CLOSEST)
@@ -351,7 +345,7 @@ export struct Player { // 播放页
           break
         case 'paused':
           if (VideoOperateUtil.mIjkMediaPlayerActive) {
-            this.mIjkMediaPlayer.pause()
+            this.mIjkMediaPlayer?.pause()
           }
           this.playing = false
           VideoOperateUtil.updateSession(this.playing, this.play_time)
@@ -377,10 +371,11 @@ export struct Player { // 播放页
 
   async ijkPlayerStop() {
     if (VideoOperateUtil.mIjkMediaPlayerActive) {
-      this.mIjkMediaPlayer.pause(); // 先暂停再停止
-      this.mIjkMediaPlayer.reset();
-      this.mIjkMediaPlayer.stop()
-      this.mIjkMediaPlayer.release()
+      this.mIjkMediaPlayer?.pause(); // 先暂停再停止
+      this.mIjkMediaPlayer?.reset();
+      this.mIjkMediaPlayer?.stop()
+      this.mIjkMediaPlayer?.release()
+      this.mIjkMediaPlayer = null
       VideoOperateUtil.mIjkMediaPlayerActive = false
     }
   }
@@ -470,7 +465,7 @@ export struct Player { // 播放页
     this.avPlayer?.seek(this.play_time - Number(this.fastForwardSeconds) * 1000,
       media.SeekMode.SEEK_CLOSEST);
     if (VideoOperateUtil.mIjkMediaPlayerActive) {
-      this.mIjkMediaPlayer.seekTo(String(this.play_time -
+      this.mIjkMediaPlayer?.seekTo(String(this.play_time -
         Number(this.fastForwardSeconds) * 1000))
     }
   }
@@ -479,14 +474,14 @@ export struct Player { // 播放页
     this.avPlayer?.seek(this.play_time + Number(this.fastForwardSeconds) * 1000,
       media.SeekMode.SEEK_CLOSEST);
     if (VideoOperateUtil.mIjkMediaPlayerActive) {
-      this.mIjkMediaPlayer.seekTo(String(this.play_time + Number(this.fastForwardSeconds) * 1000))
+      this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(this.fastForwardSeconds) * 1000))
     }
   }
 
   togglePlayback() {
     this.playing ? this.avPlayer?.pause() : this.avPlayer?.play()
     if (VideoOperateUtil.mIjkMediaPlayerActive) {
-      this.playing ? this.mIjkMediaPlayer.pause() : this.mIjkMediaPlayer.start()
+      this.playing ? this.mIjkMediaPlayer?.pause() : this.mIjkMediaPlayer?.start()
     }
   }
 
@@ -889,7 +884,7 @@ export struct Player { // 播放页
                       if (this.isHorizontalSwiping) {
                         this.avPlayer?.seek(this.play_time, media.SeekMode.SEEK_CLOSEST);
                         if (VideoOperateUtil.mIjkMediaPlayerActive) {
-                          this.mIjkMediaPlayer.seekTo(String(this.play_time))
+                          this.mIjkMediaPlayer?.seekTo(String(this.play_time))
                         }
                       }
                       this.isHorizontalSwiping = false; // 重置所有滑动状态
@@ -1108,7 +1103,7 @@ export struct Player { // 播放页
           if (event.type == TouchType.Up) {
             this.avPlayer?.seek(this.play_time, media.SeekMode.SEEK_CLOSEST)
             if (VideoOperateUtil.mIjkMediaPlayerActive) {
-              this.mIjkMediaPlayer.seekTo(String(this.play_time))
+              this.mIjkMediaPlayer?.seekTo(String(this.play_time))
             }
             this.isSliderPlayTimeChange = false
             this.onSwiping = false
@@ -1117,15 +1112,16 @@ export struct Player { // 播放页
         .layoutWeight(1)
         .animation({ duration: 100, curve: Curve.Smooth })
         .selectedColor('#e0e0e0')
-      Row() { //剩余时间
-        Text(TimeUtil.convertMsToMMSS(Math.min(Math.max((this.now_playing?.time || 0) - this.play_time, 0),
-          (this.now_playing?.time || 0))))
-          .fontWeight(FontWeight.Medium)
-          .fontSize(15)
-          .fontColor($r('sys.color.white'))
-          .textAlign(TextAlign.End)
-          .visibility(this.screen_width > this.screen_height ? Visibility.Visible : Visibility.None)
-      }.backgroundColor('#50000000').padding(5).borderRadius(10).margin({ right: 5 })
+      if (this.screen_width > this.screen_height) {
+        Row() { //剩余时间
+          Text(TimeUtil.convertMsToMMSS(Math.min(Math.max((this.now_playing?.time || 0) - this.play_time, 0),
+            (this.now_playing?.time || 0))))
+            .fontWeight(FontWeight.Medium)
+            .fontSize(15)
+            .fontColor($r('sys.color.white'))
+            .textAlign(TextAlign.End)
+        }.backgroundColor('#50000000').padding(5).borderRadius(10).margin({ right: 5 })
+      }
     }
   }
 
@@ -1145,11 +1141,13 @@ export struct Player { // 播放页
           ToolsUtil.startVibration()
           this.togglePlayback()
         })
-      }.span({ xs: 2, sm: 2, md: 2 }).defaultFocus(true).onKeyEvent((event: KeyEvent) => {
-        if ((event.keyCode === KeyCode.KEYCODE_SPACE && event.type === KeyType.Down)) {
-          this.togglePlayback()
-        }
-      }) // 自动获取键盘焦点
+        .onKeyEvent((event: KeyEvent) => {
+          if ((event.keyCode === KeyCode.KEYCODE_SPACE && event.type === KeyType.Down)) {
+            this.togglePlayback()
+          }
+        })
+        .defaultFocus(true) // 自动获取键盘焦点
+      }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 下一首按钮
@@ -1252,7 +1250,7 @@ export struct Player { // 播放页
             : (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_PORTRAIT)
         })
       }.span({ xs: 2, sm: 2, md: 2 })
-    }.width('95%').focusable(true)
+    }.width('95%')
   }
 
   @Builder
@@ -1334,7 +1332,7 @@ export struct Player { // 播放页
           .backgroundColor('#50000000')
           .backdropBlur(150)
           .onClick(() => {
-            VideoOperateUtil.setBrightness(this.screenBrightnessAtFirst)
+            VideoOperateUtil.setBrightness(-1)
           })
 
           Slider({
@@ -1377,26 +1375,26 @@ export struct Player { // 播放页
 
   private async fullResetSync(position: number) { // 严重不同步处理
     this.avPlayer?.pause();
-    this.mIjkMediaPlayer.pause();
-    this.mIjkMediaPlayer.seekTo(String(position))
+    this.mIjkMediaPlayer?.pause();
+    this.mIjkMediaPlayer?.seekTo(String(position))
     await new Promise<void>(resolve => setTimeout(resolve, 50));
     this.avPlayer?.play();
-    this.mIjkMediaPlayer.start();
+    this.mIjkMediaPlayer?.start();
   }
 
   private async doubleSeekSync(position: number) { // 中度不同步处理
     const prePos = Math.max(0, position - 500);
-    this.mIjkMediaPlayer.seekTo(String(prePos));
+    this.mIjkMediaPlayer?.seekTo(String(prePos));
     await new Promise<void>(resolve => setTimeout(resolve, 30));
-    this.mIjkMediaPlayer.seekTo(String(position));
+    this.mIjkMediaPlayer?.seekTo(String(position));
   }
 
   private async speedAdjustSync(drift: number) { // 轻度不同步处理
     const speed = Math.min(1.1, Math.max(0.9, 1 + drift / 2000));
-    this.mIjkMediaPlayer.setSpeed(speed.toFixed(1.5)); // 30秒后恢复或差异小于310ms时恢复
+    this.mIjkMediaPlayer?.setSpeed(speed.toFixed(1.5)); // 30秒后恢复或差异小于310ms时恢复
     const restore = () => {
-      if (Math.abs(this.play_time - Number(this.mIjkMediaPlayer.getCurrentPosition())) < 310) {
-        this.mIjkMediaPlayer.setSpeed(String(this.speed));
+      if (Math.abs(this.play_time - Number(this.mIjkMediaPlayer?.getCurrentPosition())) < 310) {
+        this.mIjkMediaPlayer?.setSpeed(String(this.speed));
       } else {
         setTimeout(restore, 1000);
       }
@@ -1410,7 +1408,7 @@ export struct Player { // 播放页
     }
     this.avPlayer?.setSpeed(VideoInfoUtil.getVideoSpeed(speed));
     if (VideoOperateUtil.mIjkMediaPlayerActive) {
-      this.mIjkMediaPlayer.setSpeed(String(speed));
+      this.mIjkMediaPlayer?.setSpeed(String(speed));
     }
   }
 }

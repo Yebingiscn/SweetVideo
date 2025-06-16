@@ -264,23 +264,17 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
                           .fontWeight(FontWeight.Medium)
                           .maxLines(4)
                           .textOverflow({ overflow: TextOverflow.Ellipsis })
-                          .width('85%')
+                          .width('80%')
                           .margin({ left: 5 })
                           .wordBreak(WordBreak.BREAK_ALL)
                       }.width('100%')
 
                       VideoInfoView({ item })
-                    }.margin({ left: 10 })
+                    }.margin({ left: 10 }).alignItems(HorizontalAlign.Start)
                   }
-                  .onClick(async () => {
-                    await ToolsUtil.isFileExist(item) ?
-                    ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.video_meta_data_encryption) :
-                      await this.delData(context, item)
-                  })
                   .width('100%')
                   .height(100)
-                  .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
-                }
+                }.justifyContent(FlexAlign.SpaceEvenly)
               } else {
                 Column() {
                   Image(fileUri.getUriFromPath(sandbox_path + item.date))
@@ -290,6 +284,7 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
                       bottomLeft: 0,
                       bottomRight: 0
                     }, 60, 200))
+                    .draggable(false)
                     .width('100%')
                     .objectFit(ImageFit.Cover)
                   Column() {
@@ -317,7 +312,15 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
                 .backgroundColor($r('app.color.start_window_background_blur'))
                 .borderRadius(10)
               }
-            }.bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
+            }
+            .onClick(async () => {
+              await ToolsUtil.isFileExist(item) ?
+              ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.video_meta_data_encryption) :
+                await this.delData(context, item)
+            })
+            .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
+            .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+            .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
             .swipeAction({
               end: this.itemEnd(item),
               edgeEffect: SwipeEdgeEffect.Spring

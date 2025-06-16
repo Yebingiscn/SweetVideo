@@ -75,7 +75,7 @@ struct Index {
   @State side_bar_mode: SideBarContainerType = SideBarContainerType.AUTO
   @StorageLink('is_list_display') is_list_display: boolean = false
   private minSideBarWidth: number = 100; // 最小侧边栏宽度
-  private minContentWidth: number = 380; // 最小内容区宽度
+  private minContentWidth: number = 360; // 最小内容区宽度
   @StorageProp('screen_width') screen_width: number = 0
   @StorageProp('screen_height') screen_height: number = 0
   @State searchValue: string = ''
@@ -731,7 +731,6 @@ struct Index {
                               }
                             })
                         }
-
                         VideoInfoView({ item })
                       }.alignItems(HorizontalAlign.Start).padding({ left: 15, right: 15 }).width('90%')
                     }.justifyContent(FlexAlign.Center)
@@ -748,6 +747,7 @@ struct Index {
                         bottomLeft: 0,
                         bottomRight: 0
                       }, 60, 200))
+                      .draggable(false)
                       .width('100%')
                       .objectFit(ImageFit.Cover)
                     Column() {
@@ -781,7 +781,6 @@ struct Index {
                       }
                       .width('100%')
                       .padding({ top: 5 })
-
                       VideoInfoView({ item }) // 复用组件
                     }.padding({ left: 5, right: 5, bottom: 5 })
                     .width('100%')
@@ -1010,6 +1009,7 @@ struct Index {
       if (isVisible) {
         this.video_meta_data = Preferences.getVideoMetaData(context)
         this.videoDataSource.updateData(this.video_meta_data)
+        this.passwd = Preferences.getPassword(context)
         if ((this.is_list_display && this.list_line === 2) ||
           (!this.is_list_display && this.list_line === 1)) { // 切换九宫格和列表后能正常响应
           this.list_line = this.is_list_display ? 1 : 2;

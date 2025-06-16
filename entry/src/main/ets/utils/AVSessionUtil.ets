@@ -120,11 +120,11 @@ class AVSessionUtil {
         //startPosition为投播当前进度，设置该字段可将本机播放进度同步到远端
         startPosition: now_playing.last_play,
         // 投播资源播放时长，设置该字段可将本机播放时长同步到远端显示
-        duration: 100000,
+        duration: now_playing.time,
         albumCoverUri: this.sandbox_path + now_playing.date,
         albumTitle: '',
         fdSrc: avFileDescriptor,
-        appName: '流心视频',
+        appName: this.context.resourceManager.getStringSync($r('app.string.app_name').id),
       }
     };
     // 准备播放，这个不会触发真正的播放，会进行加载和缓冲

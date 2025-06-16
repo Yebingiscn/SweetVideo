@@ -228,38 +228,24 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
                 Column() {
                   Row() {
                     Image(fileUri.getUriFromPath(sandbox_path + item.date))
-                      .width(60)
-                      .height(90)
-                      .alt($r("app.media.sweet_video_alt"))
-                      .backgroundImageSize(ImageSize.Cover)
-                      .borderRadius(10)
-                      .margin({ left: 5 })
-                      .autoResize(true)
-                      .interpolation(ImageInterpolation.Low)
+                      .attributeModifier(new ImageFancyModifier(10, 60, 90))
                     Column() {
                       Row() {
                         Text(VideoInfoUtil.getVideoTitle(this.file_folder?.video_list!, item))
                           .fontSize(15)
                           .fontWeight(FontWeight.Medium)
-                          .maxLines(4)
+                          .maxLines(3)
                           .textOverflow({ overflow: TextOverflow.Ellipsis })
-                          .width('85%')
-                          .margin({ left: 5 })
+                          .width('80%')
                           .wordBreak(WordBreak.BREAK_ALL)
                       }.width('100%')
 
                       VideoInfoView({ item })
-                    }.margin({ left: 10 })
+                    }.margin({ left: 10 }).alignItems(HorizontalAlign.Start)
                   }
-                  .onClick(async () => {
-                    await ToolsUtil.isFileExist(item) ?
-                    ToolsUtil.routerToVideoFromFileFolder(this.pathStack, 'Player', item, this.file_folder!) :
-                      await this.delData(context, item, false)
-                  })
                   .width('100%')
                   .height(100)
-                  .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
-                }
+                }.justifyContent(FlexAlign.SpaceEvenly)
               } else {
                 Column() {
                   Image(fileUri.getUriFromPath(sandbox_path + item.date))
@@ -268,9 +254,10 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
                       topRight: 10,
                       bottomLeft: 0,
                       bottomRight: 0
-                    }, 60, 220))
+                    }, 60, 200))
+                    .draggable(false)
                     .width('100%')
-                    .objectFit(ImageFit.Cover)
+                    .objectFit(ImageFit.Cover) // 完整显示图片
                   Column() {
                     Row() {
                       Text((String(SelectFileUtil.getItem(this.file_folder?.video_list!, item?.date)?.title)).slice(0,
@@ -296,7 +283,13 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
                 .backgroundColor($r('app.color.start_window_background_blur'))
                 .borderRadius(10)
               }
-            }.bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
+            }.onClick(async () => {
+              await ToolsUtil.isFileExist(item) ?
+              ToolsUtil.routerToVideoFromFileFolder(this.pathStack, 'Player', item, this.file_folder!) :
+                await this.delData(context, item, false)
+            }).bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
+            .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+            .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
           }, (item: VideoMetadata) => JSON.stringify(item))
         }
         .lanes(this.list_line)

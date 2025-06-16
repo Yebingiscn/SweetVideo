@@ -31,7 +31,7 @@ export struct SettingsPage { //设置页
         }
         this.passwd = passwd
         ToolsUtil.savePwd(context, passwd)
-        ToolsUtil.showToast($r('app.string.set_passwd_tip') + '')
+        ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.set_passwd_tip')))
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
