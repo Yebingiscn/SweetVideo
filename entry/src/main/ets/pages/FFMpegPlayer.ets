@@ -341,11 +341,14 @@ export struct FFMpegPlayer { // FFMpeg播放器页
                   }),
                 PanGesture({ fingers: 1, direction: PanDirection.Horizontal })//水平滑动
                   .onActionStart((event: GestureEvent) => {
-                    const firstTouch = event.fingerList[0];
-                    this.swipe_start_x = firstTouch.localX;
-                    this.last_play_time = this.play_time;
-                    this.swipe_start_y = firstTouch.localY;
-                    this.isLeftSideSwipe = firstTouch.localX < this.screen_width / 2;
+                    if(!this.isLock) {
+                      const firstTouch = event.fingerList[0];
+                      this.swipe_start_x = firstTouch.localX;
+                      this.last_play_time = this.play_time;
+                      this.swipe_start_y = firstTouch.localY;
+                      this.isLeftSideSwipe = firstTouch.localX < this.screen_width / 2;
+                      this.onSwiping = true
+                    }
                   })
                   .onActionUpdate((event: GestureEvent) => {
                     const currentX = event.fingerList[0].localX;
@@ -357,8 +360,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
                   .onActionEnd(() => {
                     this.mIjkMediaPlayer?.seekTo(String(this.play_time));
                     this.onSwiping = false;
-                    this.onSwipingVoice = false;
-                    this.onSwipingBrightness = false;
                   }),
                 PinchGesture({ fingers: 2, distance: 2 })//手势缩放
                   .onActionStart((event: GestureEvent) => {

@@ -362,15 +362,17 @@ export struct RedPlayer { // 红薯播放器页
                   }),
                 PanGesture({ fingers: 1, direction: PanDirection.Horizontal })
                   .onActionStart((event: GestureEvent) => {
-                    const firstTouch = event.fingerList[0];
-                    this.swipe_start_x = firstTouch.localX;
-                    this.swipe_start_y = firstTouch.localY;
-                    this.play_time = this.redPlayerStateHolder.videoPosition;
-                    this.last_play_time = this.redPlayerStateHolder.videoPosition;
+                    if(!this.isLock) {
+                      const firstTouch = event.fingerList[0];
+                      this.swipe_start_x = firstTouch.localX;
+                      this.swipe_start_y = firstTouch.localY;
+                      this.play_time = this.redPlayerStateHolder.videoPosition;
+                      this.last_play_time = this.redPlayerStateHolder.videoPosition;
+                      this.onSwiping = true
+                    }
                   })
                   .onActionUpdate((event: GestureEvent) => {
                     const currentX = event.fingerList[0].localX;
-                    const currentY = event.fingerList[0].localY; // 方向判断阈值
                     const deltaX = currentX - this.swipe_start_x;
                     const timePerPixel = 1200; // 灵敏度控制
                     this.play_time = Math.max(0,
@@ -381,8 +383,6 @@ export struct RedPlayer { // 红薯播放器页
                     this.playerController.seek(this.play_time);
                     this.redPlayerStateHolder.videoPosition = this.play_time
                     this.onSwiping = false;
-                    this.onSwipingVoice = false;
-                    this.onSwipingBrightness = false;
                   }),
               ),
               GestureGroup(GestureMode.Parallel,

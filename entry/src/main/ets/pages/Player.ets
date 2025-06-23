@@ -846,6 +846,7 @@ export struct Player { // 播放页
                         const firstTouch = event.fingerList[0];
                         this.swipe_start_x = firstTouch.localX;
                         this.last_play_time = this.play_time;
+                        this.onSwiping = true
                       }
                     })
                     .onActionUpdate((event: GestureEvent) => {
