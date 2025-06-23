@@ -75,7 +75,7 @@ struct Index {
   @State side_bar_mode: SideBarContainerType = SideBarContainerType.AUTO
   @StorageLink('is_list_display') is_list_display: boolean = false
   private minSideBarWidth: number = 100; // 最小侧边栏宽度
-  private minContentWidth: number = 360; // 最小内容区宽度
+  private minContentWidth: number = 345; // 最小内容区宽度
   @StorageProp('screen_width') screen_width: number = 0
   @StorageProp('screen_height') screen_height: number = 0
   @State searchValue: string = ''
