@@ -27,7 +27,6 @@ import { ButtonFancyModifier, ImageFancyModifier, SymbolGlyphFancyModifier } fro
 import { KeyCode } from '@kit.InputKit';
 
 
-
 const context = getContext() as common.UIAbilityContext;
 const sandbox_path = getContext().filesDir + '/'
 const sandbox_subtitle = getContext().filesDir + '/subtitle/'
@@ -820,11 +819,10 @@ export struct Player { // 播放页
                     })
                     .onActionUpdate((event: GestureEvent) => {
                       if (!this.isLock && event.fingerList.length === 1) {
-                        const currentY = event.fingerList[0].localY; // 方向判断阈值
-                        const deltaY = currentY - this.swipe_start_y; // 初始化滑动方向
+                        const currentY = event.fingerList[0].localY; // 拖动后当前的位置
+                        const deltaY = currentY - this.swipe_start_y; // 拖动后的垂直距离
+                        const deltaYScale = deltaY / this.screen_height * 2.5 // 滑动像素占屏幕高度比例
 
-                        // 滑动像素站屏幕高度比例
-                        const deltaYScale = deltaY / this.screen_height * 2.5
                         if (this.isLeftSideSwipe) {
                           this.onSwipingBrightness = true
                           const newBrightness = this.screenBrightnessTmp - deltaYScale
@@ -846,18 +844,18 @@ export struct Player { // 播放页
                 ),
                 GestureGroup(GestureMode.Parallel, // 不用互斥事件，会导致左右滑动调节倍速的功能失效
                   LongPressGesture()
-                  .onAction(() => { //长按
-                    if (!this.isLock) {
-                      this.long_press = true
-                      this.last_speed = this.speed
-                      this.updatePlaybackSpeed(3);
-                      this.currentSpeedIndex = VideoInfoUtil.video_speed_list.indexOf(3);
-                    }
-                  })
-                  .onActionEnd(() => {
-                    this.long_press = false
-                    this.updatePlaybackSpeed(this.last_speed);
-                  }),
+                    .onAction(() => { //长按
+                      if (!this.isLock) {
+                        this.long_press = true
+                        this.last_speed = this.speed
+                        this.updatePlaybackSpeed(3);
+                        this.currentSpeedIndex = VideoInfoUtil.video_speed_list.indexOf(3);
+                      }
+                    })
+                    .onActionEnd(() => {
+                      this.long_press = false
+                      this.updatePlaybackSpeed(this.last_speed);
+                    }),
                   PanGesture({
                     fingers: 1,
                     direction: PanDirection.Horizontal,
@@ -904,11 +902,9 @@ export struct Player { // 播放页
                   })//水平滑动事件 长按加速滑动调整倍速、水平滑动调整进度
                     .onActionStart((event: GestureEvent) => { // 长按且滑动屏幕
                       if (!this.isLock) {
-                          const firstTouch = event.fingerList[0];
-                          this.swipe_start_x = firstTouch.localX;
-                          this.swipe_start_y = firstTouch.localY;
-                          this.last_play_time = this.play_time;
-                          this.isLeftSideSwipe = firstTouch.localX < this.screen_width / 2;
+                        const firstTouch = event.fingerList[0];
+                        this.swipe_start_x = firstTouch.localX;
+                        this.last_play_time = this.play_time;
                       }
                     })
                     .onActionUpdate((event: GestureEvent) => {
@@ -921,10 +917,10 @@ export struct Player { // 播放页
                       }
                     })
                     .onActionEnd(() => {
-                        this.avPlayer?.seek(this.play_time, media.SeekMode.SEEK_CLOSEST);
-                        if (VideoOperateUtil.mIjkMediaPlayerActive) {
-                          this.mIjkMediaPlayer?.seekTo(String(this.play_time))
-                        }
+                      this.avPlayer?.seek(this.play_time, media.SeekMode.SEEK_CLOSEST);
+                      if (VideoOperateUtil.mIjkMediaPlayerActive) {
+                        this.mIjkMediaPlayer?.seekTo(String(this.play_time))
+                      }
                       this.onSwiping = false;
                     }),
 
