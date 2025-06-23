@@ -37,12 +37,12 @@ class VideoOperateUtil {
   setBrightness(screenBrightness: number) {
     try {
       this.mainWin.setWindowBrightness(screenBrightness, (err) => {
-        if (err) {
+        if (err && err.code !== 0) {
           console.error(`Failed to obtain the main window. Cause code: ${err.code}, message: ${err.message}`);
           hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness. Cause: ${JSON.stringify(err)}`);
           return;
         }
-        hilog.info(0x0000, 'AVPlayer', `Succeeded in setting the brightness.`);
+        // hilog.info(0x0000, 'AVPlayer', `Succeeded in setting the brightness.`);
       });
     } catch (exception) {
       hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness.`);
