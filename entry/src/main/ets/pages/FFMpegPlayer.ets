@@ -344,9 +344,8 @@ export struct FFMpegPlayer { // FFMpeg播放器页
                     if(!this.isLock) {
                       const firstTouch = event.fingerList[0];
                       this.swipe_start_x = firstTouch.localX;
-                      this.last_play_time = this.play_time;
                       this.swipe_start_y = firstTouch.localY;
-                      this.isLeftSideSwipe = firstTouch.localX < this.screen_width / 2;
+                      this.last_play_time = this.play_time;
                       this.onSwiping = true
                     }
                   })
