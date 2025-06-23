@@ -778,7 +778,7 @@ export struct Player { // 播放页
             .gesture(
               GestureGroup(GestureMode.Exclusive, // 将触摸事件跟滑动、长按分成两个手势组解绑互斥,触摸事件手势组为互斥事件
                 GestureGroup(GestureMode.Exclusive, //双击事件组和单击事件组互斥独立
-                  TapGesture({ count: 2 })
+                  TapGesture({ count: 2 })// 双击事件
                     .onAction((event: GestureEvent) => {
                       if (!this.isLock) {
                         if (this.allowDoubleFastForward) {
@@ -796,7 +796,7 @@ export struct Player { // 播放页
                         }
                       }
                     }),
-                  TapGesture({ count: 1 })
+                  TapGesture({ count: 1 })// 单击事件
                     .onAction(() => { //单击屏幕
                       if (this.sideBarStatus) {
                         this.closeSideBar(true);
@@ -804,9 +804,8 @@ export struct Player { // 播放页
                         this.lockVisibility = !this.lockVisibility;
                         this.showControl = !this.showControl;
                       }
-                    }),),
-                GestureGroup(GestureMode.Exclusive,
-                  PanGesture({ fingers: 1, direction: PanDirection.Vertical, distance: 100 })// 垂直滑动
+                    }),
+                  PanGesture({ fingers: 1, direction: PanDirection.Vertical })// 垂直滑动
                     .onActionStart((event: GestureEvent) => { // 滑动屏幕
                       if (!this.isLock) {
                         const firstTouch = event.fingerList[0];
@@ -841,65 +840,7 @@ export struct Player { // 播放页
                       this.onSwipingVoice = false;
                       this.onSwipingBrightness = false;
                     }),
-                ),
-                GestureGroup(GestureMode.Parallel, // 不用互斥事件，会导致左右滑动调节倍速的功能失效
-                  LongPressGesture()
-                    .onAction(() => { //长按
-                      if (!this.isLock) {
-                        this.long_press = true
-                        this.last_speed = this.speed
-                        this.updatePlaybackSpeed(3);
-                        this.currentSpeedIndex = VideoInfoUtil.video_speed_list.indexOf(3);
-                      }
-                    })
-                    .onActionEnd(() => {
-                      this.long_press = false
-                      this.updatePlaybackSpeed(this.last_speed);
-                    }),
-                  PanGesture({
-                    fingers: 1,
-                    direction: PanDirection.Horizontal,
-                    distance: 100
-                  })//水平滑动事件 长按加速滑动调整倍速、水平滑动调整进度
-                    .onActionStart((event: GestureEvent) => { // 长按且滑动屏幕
-                      if (!this.isLock) {
-                        this.longPressStartX = event.fingerList[0].localX;
-                      }
-                    })
-                    .onActionUpdate((event: GestureEvent) => {
-                      if (!this.isLock) {
-                        if (this.long_press && !this.isLock) { // 长按状态下的滑动处理
-                          const deltaX = event.fingerList[0].localX - this.longPressStartX;
-                          const SWIPE_THRESHOLD = 30;
-                          if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
-                            if (typeof this.currentSpeedIndex === 'undefined') {
-                              this.currentSpeedIndex = VideoInfoUtil.video_speed_list.indexOf(this.speed);
-                              if (this.currentSpeedIndex === -1) {
-                                this.currentSpeedIndex = 0;
-                              }
-                            }
-                            // 确认滑动方向（根据实际需求调整方向）
-                            const direction = deltaX > 0 ? 1 : -1;
-                            // 计算新索引（带边界限制）
-                            const newIndex = this.currentSpeedIndex + direction;
-                            const clampedIndex =
-                              Math.max(0, Math.min(newIndex, VideoInfoUtil.video_speed_list.length - 1));
-                            if (clampedIndex !== this.currentSpeedIndex) {
-                              this.currentSpeedIndex = clampedIndex;
-                              this.updatePlaybackSpeed(VideoInfoUtil.video_speed_list[this.currentSpeedIndex]);
-                            }
-                            this.longPressStartX = event.fingerList[0].localX; // 重置起始点（实现分档切换效果）
-                          }
-                          return
-                        }
-                      }
-                    })
-                ),
-                GestureGroup(GestureMode.Exclusive,
-                  PanGesture({
-                    fingers: 1,
-                    direction: PanDirection.Horizontal,
-                  })//水平滑动事件 长按加速滑动调整倍速、水平滑动调整进度
+                  PanGesture({ fingers: 1, direction: PanDirection.Horizontal })// 水平滑动事件滑动调整进度
                     .onActionStart((event: GestureEvent) => { // 长按且滑动屏幕
                       if (!this.isLock) {
                         const firstTouch = event.fingerList[0];
@@ -923,7 +864,6 @@ export struct Player { // 播放页
                       }
                       this.onSwiping = false;
                     }),
-
                   PinchGesture({ fingers: 2, distance: 2 })//手势缩放
                     .onActionStart((event: GestureEvent) => {
                       const finger1 = event.fingerList[0];
@@ -953,8 +893,58 @@ export struct Player { // 播放页
                         }
                       }
                     })
-                ))
-            )
+                ),
+                GestureGroup(GestureMode.Parallel, // 不用互斥事件，会导致左右滑动调节倍速的功能失效
+                  LongPressGesture()// 长按手势
+                    .onAction(() => { //长按
+                      if (!this.isLock) {
+                        this.long_press = true
+                        this.last_speed = this.speed
+                        this.updatePlaybackSpeed(3);
+                        this.currentSpeedIndex = VideoInfoUtil.video_speed_list.indexOf(3);
+                      }
+                    })
+                    .onActionEnd(() => {
+                      this.long_press = false
+                      this.updatePlaybackSpeed(this.last_speed);
+                    }),
+                  PanGesture({
+                    fingers: 1,
+                    direction: PanDirection.Horizontal,
+                    distance: 100
+                  })//水平滑动事件 长按加速滑动调整倍速
+                    .onActionStart((event: GestureEvent) => { // 长按且滑动屏幕
+                      if (!this.isLock) {
+                        this.longPressStartX = event.fingerList[0].localX;
+                      }
+                    })
+                    .onActionUpdate((event: GestureEvent) => {
+                      if (!this.isLock && this.long_press) { // 长按状态下的滑动处理
+                        const deltaX = event.fingerList[0].localX - this.longPressStartX;
+                        const SWIPE_THRESHOLD = 30;
+                        if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
+                          if (typeof this.currentSpeedIndex === 'undefined') {
+                            this.currentSpeedIndex = VideoInfoUtil.video_speed_list.indexOf(this.speed);
+                            if (this.currentSpeedIndex === -1) {
+                              this.currentSpeedIndex = 0;
+                            }
+                          }
+                          // 确认滑动方向（根据实际需求调整方向）
+                          const direction = deltaX > 0 ? 1 : -1;
+                          // 计算新索引（带边界限制）
+                          const newIndex = this.currentSpeedIndex + direction;
+                          const clampedIndex =
+                            Math.max(0, Math.min(newIndex, VideoInfoUtil.video_speed_list.length - 1));
+                          if (clampedIndex !== this.currentSpeedIndex) {
+                            this.currentSpeedIndex = clampedIndex;
+                            this.updatePlaybackSpeed(VideoInfoUtil.video_speed_list[this.currentSpeedIndex]);
+                          }
+                          this.longPressStartX = event.fingerList[0].localX; // 重置起始点（实现分档切换效果）
+                        }
+                        return
+                      }
+                    })
+                )))
         }.onAreaChange(async (_oldValue: Area, newValue: Area) => {
           this.screen_width = Math.floor(new Number(newValue.width).valueOf())
           this.screen_height = Math.floor(new Number(newValue.height).valueOf())
