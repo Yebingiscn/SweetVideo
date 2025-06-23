@@ -374,7 +374,7 @@ export struct RedPlayer { // 红薯播放器页
                   .onActionUpdate((event: GestureEvent) => {
                     const currentX = event.fingerList[0].localX;
                     const deltaX = currentX - this.swipe_start_x;
-                    const timePerPixel = 1200; // 灵敏度控制
+                    const timePerPixel = 150; // 灵敏度控制
                     this.play_time = Math.max(0,
                       Math.min(this.last_play_time + (deltaX * timePerPixel),
                         this.redPlayerStateHolder.videoDuration));
