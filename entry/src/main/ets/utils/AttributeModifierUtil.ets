@@ -1,4 +1,5 @@
 import { CommonModifier } from '@kit.ArkUI';
+import { attributionManager } from '@kit.StoreKit';
 
 export class ShadowModifier extends CommonModifier {
   constructor() {
@@ -69,5 +70,46 @@ export class ButtonFancyModifier implements AttributeModifier<ButtonAttribute> {
       .width(this.width)
       .height(this.height)
       .backgroundColor($r('app.color.start_window_background_blur'))
+  }
+}
+
+export class SelectItemTextFancyModifier implements AttributeModifier<TextAttribute> {
+  private selected: boolean;
+
+  constructor(selected: boolean) {
+    this.selected = selected
+  }
+
+  applyNormalAttribute(attr: TextAttribute): void {
+    if (this.selected) {
+      attr
+        .fontColor($r('sys.color.ohos_id_color_text_primary_activated'))
+        .fontSize($r('sys.float.ohos_id_text_size_body1'))
+        .fontWeight(FontWeight.Regular)
+    } else {
+      attr
+        .fontSize($r('sys.float.ohos_id_text_size_body1'))
+        .fontWeight(FontWeight.Regular)
+    }
+    attr.margin({ left: 20, right: 20 })
+  }
+}
+
+export class SelectItemFancyModifier implements AttributeModifier<ColumnAttribute> {
+  private selected: boolean;
+
+  constructor(selected: boolean) {
+    this.selected = selected
+  }
+
+  applyNormalAttribute(attr: ColumnAttribute): void {
+    if (this.selected) {
+      attr
+        .backgroundColor($r('sys.color.ohos_id_color_component_activated'))
+        .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
+        .borderRadius(10)
+    } else {
+      attr.backgroundColor(Color.Transparent)
+    }
   }
 }

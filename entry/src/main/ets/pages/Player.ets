@@ -23,7 +23,13 @@ import { FileFolder } from '../interfaces/FileFolderInterface';
 import { AudioTrack } from '../interfaces/AudioTrackInterface';
 import Preferences from '../database/Preferences';
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
-import { ButtonFancyModifier, ImageFancyModifier, SymbolGlyphFancyModifier } from '../utils/AttributeModifierUtil';
+import {
+  ButtonFancyModifier,
+  ImageFancyModifier,
+  SymbolGlyphFancyModifier,
+  SelectItemTextFancyModifier,
+  SelectItemFancyModifier
+} from '../utils/AttributeModifierUtil';
 import { KeyCode } from '@kit.InputKit';
 
 
@@ -759,7 +765,7 @@ export struct Player { // 播放页
             Button({ type: ButtonType.Circle, stateEffect: true }) { //锁定播放栏
               SymbolGlyph(this.isLock ? $r('sys.symbol.lock_fill') : $r('sys.symbol.lock_open_fill'))
                 .fontWeight(FontWeight.Bold)
-                .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
+                .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
                 .fontColor(['#f0f0f0'])
             }
             .zIndex(100)
@@ -1054,7 +1060,6 @@ export struct Player { // 播放页
           .fontColor(['#f0f0f0'])
           .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.lock_rotation))
       }
-      .margin({ top: this.screen_height > this.screen_width ? 10 : 0 })
       .attributeModifier(new ButtonFancyModifier(35, 40))
       .backgroundColor('#50000000')
       .onClick(async () => {
@@ -1139,7 +1144,7 @@ export struct Player { // 播放页
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 播放按钮
           SymbolGlyph(this.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill'))
-            .attributeModifier(new SymbolGlyphFancyModifier(27, '', ''))
+            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
             .fontColor(['#f0f0f0'])
             .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.playing))
         }
@@ -1184,15 +1189,19 @@ export struct Player { // 播放页
       }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() { // 投播
-        AVCastPicker({
-          normalColor: Color.White,
-          onStateChange: VideoOperateUtil.castOnStateChange,
-          colorMode: AVCastPickerColorMode.AUTO,
-          sessionType: 'video'
-        })
-          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-          .width(23)
-          .height(23)
+        Button({ type: ButtonType.Circle, stateEffect: true }) { // 循环按钮
+          AVCastPicker({
+            normalColor: Color.White,
+            onStateChange: VideoOperateUtil.castOnStateChange,
+            colorMode: AVCastPickerColorMode.AUTO,
+            sessionType: 'video'
+          })
+            .width(23)
+            .height(23)
+            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+        }
+        .attributeModifier(new ButtonFancyModifier(40, 40))
+        .backgroundColor('#50000000')
       }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() {
@@ -1220,28 +1229,21 @@ export struct Player { // 播放页
       }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() {
-        Select([//倍速
-          { value: '0.25x' },
-          { value: '0.5x' },
-          { value: '0.75x' },
-          { value: '1x' },
-          { value: '1.25x' },
-          { value: '1.5x' },
-          { value: '1.75x' },
-          { value: '2x' },
-          { value: '3x' }])
-          .font({ size: this.screen_height > this.screen_width ? 13 : 15, weight: FontWeight.Medium })
-          .fontColor($r('sys.color.white'))
-          .selected(VideoInfoUtil.video_speed_list.indexOf(this.speed))
-          .value(VideoInfoUtil.optimizedFormat(this.speed))
-          .onSelect(async (_index: number, text?: string | undefined) => {
-            let speed = parseFloat(text?.replace('x', '') || '1');
-            if (!VideoInfoUtil.video_speed_list.includes(speed)) {
-              speed = 1;
-            }
-            this.updatePlaybackSpeed(speed);
-          })
-          .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
+        Button({ type: ButtonType.Circle, stateEffect: true }) { // 倍速调整按钮
+          Text(`${this.speed}x`)
+            .fontSize(18)
+            .fontColor('#f0f0f0')
+            .minFontSize(8)
+            .maxFontSize(18)
+            .maxLines(1)
+            .padding(5)
+        }
+        .attributeModifier(new ButtonFancyModifier(40, 40))
+        .backgroundColor('#50000000')
+        .bindMenu(this.PlaybackSpeedMenu, {
+          backgroundColor: Color.Transparent,
+          backgroundBlurStyle: BlurStyle.Thin,
+        })
       }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() {
@@ -1418,5 +1420,28 @@ export struct Player { // 播放页
     if (VideoOperateUtil.mIjkMediaPlayerActive) {
       this.mIjkMediaPlayer?.setSpeed(String(speed));
     }
+  }
+
+  @Builder
+  PlaybackSpeedMenu() {
+    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
+      ForEach(VideoInfoUtil.video_speed_list, (speed: number, index) => {
+        Column() {
+          Row() {
+            Text(`${speed}x`)
+              .attributeModifier(new SelectItemTextFancyModifier(this.speed == speed))
+          }
+          .width('100%')
+          .height(40)
+          .justifyContent(FlexAlign.Start)
+          .align(Alignment.Center)
+          .onClick(() => {
+            this.updatePlaybackSpeed(speed)
+          })
+        }
+        .attributeModifier(new SelectItemFancyModifier(this.speed == speed))
+      })
+    }
+    .width(100)
   }
 }
