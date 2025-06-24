@@ -401,8 +401,7 @@ export struct RedPlayer { // 红薯播放器页
                   }),
                 PanGesture({
                   fingers: 1,
-                  direction: PanDirection.Horizontal,
-                  distance: 100
+                  direction: PanDirection.Horizontal
                 })//水平滑动事件 长按加速滑动调整倍速
                   .onActionStart((event: GestureEvent) => { // 长按且滑动屏幕
                     if (!this.isLock) {

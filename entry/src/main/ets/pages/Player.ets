@@ -912,7 +912,6 @@ export struct Player { // 播放页
                   PanGesture({
                     fingers: 1,
                     direction: PanDirection.Horizontal,
-                    distance: 100
                   })//水平滑动事件 长按加速滑动调整倍速
                     .onActionStart((event: GestureEvent) => { // 长按且滑动屏幕
                       if (!this.isLock) {

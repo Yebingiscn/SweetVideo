@@ -395,7 +395,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
                     this.play_speed = this.last_speed
                     this.mIjkMediaPlayer?.setSpeed(this.last_speed);
                   }),
-                PanGesture({ fingers: 1, distance: PanDirection.Horizontal })
+                PanGesture({ fingers: 1, direction: PanDirection.Horizontal })
                   .onActionStart((event: GestureEvent) => {
                     this.longPressStartX = event.fingerList[0].localX;
                   })
