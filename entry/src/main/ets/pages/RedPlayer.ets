@@ -19,6 +19,7 @@ import VideoOperateUtil from '../utils/VideoOperateUtil';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
 import { audio, AVVolumePanel } from '@kit.AudioKit';
 import { settings } from '@kit.BasicServicesKit';
+import { ButtonFancyModifier } from '../utils/AttributeModifierUtil';
 
 const context = getContext() as common.UIAbilityContext;
 
@@ -634,16 +635,21 @@ export struct RedPlayer { // 红薯播放器页
         })
       }.span({ xs: 2, sm: 2, md: 2 })
 
+
       GridCol() { // 投播
-        AVCastPicker({
-          normalColor: Color.White,
-          onStateChange: VideoOperateUtil.castOnStateChange,
-          colorMode: AVCastPickerColorMode.AUTO,
-          sessionType: 'video'
-        })
-          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-          .width(23)
-          .height(23)
+        Button({ type: ButtonType.Circle, stateEffect: true }) { // 循环按钮
+          AVCastPicker({
+            normalColor: Color.White,
+            onStateChange: VideoOperateUtil.castOnStateChange,
+            colorMode: AVCastPickerColorMode.AUTO,
+            sessionType: 'video'
+          })
+            .width(23)
+            .height(23)
+            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+        }
+        .attributeModifier(new ButtonFancyModifier(40, 40))
+        .backgroundColor('#50000000')
       }.span({ xs: 2, sm: 2, md: 2 })
     }.width('95%')
   }

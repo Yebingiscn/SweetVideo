@@ -105,7 +105,7 @@ export class SelectItemFancyModifier implements AttributeModifier<ColumnAttribut
   applyNormalAttribute(attr: ColumnAttribute): void {
     if (this.selected) {
       attr
-        .backgroundColor($r('sys.color.ohos_id_color_component_activated'))
+        .backgroundColor($r('app.color.main_color'))
         .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
         .borderRadius(10)
     } else {
