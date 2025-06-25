@@ -1152,6 +1152,11 @@ export struct Player { // 播放页
   }
 
   @Builder
+  AVCastPickerBuilderBridge() { // 桥接AVCastPickerBuilder避免crash
+    AVCastPickerBuilder()
+  }
+
+  @Builder
   VideoButtons() {
     GridRow({ columns: this.screen_arco > 1.4 ? 8 : 16, gutter: 5 }) {
       GridCol() {
@@ -1205,7 +1210,7 @@ export struct Player { // 播放页
         AVCastPicker({
           normalColor: Color.White,
           onStateChange: VideoOperateUtil.castOnStateChange,
-          customPicker: () => AVCastPickerBuilder()
+          customPicker: () => this.AVCastPickerBuilderBridge()
         })
           .width(23)
           .height(23)
