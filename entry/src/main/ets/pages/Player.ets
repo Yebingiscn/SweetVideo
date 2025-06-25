@@ -1189,19 +1189,17 @@ export struct Player { // 播放页
       }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() { // 投播
-        Button({ type: ButtonType.Circle, stateEffect: true }) { // 循环按钮
           AVCastPicker({
             normalColor: Color.White,
             onStateChange: VideoOperateUtil.castOnStateChange,
             colorMode: AVCastPickerColorMode.AUTO,
-            sessionType: 'video'
+            sessionType: 'video',
+            customPicker: () => this.customPickerBuilder()
           })
             .width(23)
             .height(23)
             .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        }
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundColor('#50000000')
+
       }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() {
@@ -1289,6 +1287,18 @@ export struct Player { // 播放页
     }.width(200).onAppear(() => {
       VideoOperateUtil.audioTrackErrorExecute(this.audio_track)
     })
+  }
+
+
+  @Builder
+  customPickerBuilder(): void {
+    Button({ type: ButtonType.Circle, stateEffect: true }) { //选集
+      SymbolGlyph($r('sys.symbol.dot_radiowaves_left_and_right'))
+        .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+        .fontColor(['#f0f0f0'])
+    }
+    .attributeModifier(new ButtonFancyModifier(40, 40))
+    .backgroundColor('#50000000')
   }
 
   @Builder
