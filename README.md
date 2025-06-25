@@ -1,6 +1,6 @@
 <p align="center"><img src="./entry/src/main/resources/base/media/sweet_video.png" style="width: 128px; height: 128px;"  alt="logo"></p>
 <div align="center">
-    <h1>流心视频（BlackQ播放器）</h1>
+    <h1>流心视频（枪獭播放器）</h1>
     <p>
         <a href="https://github.com/Yebingiscn/SweetVideo/releases/latest" style="text-decoration:none">
             <img src="https://img.shields.io/github/v/release/Yebingiscn/SweetVideo?display_name=release" alt="GitHub release (latest by date)"/>
@@ -29,11 +29,11 @@
 <p align="center">一款运行在 HarmonyOS Next 上的精致、简约的原生视频播放器</p>
 <p align="center">A slick, minimalist video player that runs on HarmonyOS Next</p>
 
-## 流心视频（BlackQ播放器）交流群
+## 流心视频（枪獭播放器）交流群
 
 QQ群：973792610
 
-## 欢迎加入流心视频（BlackQ播放器）测试组
+## 欢迎加入流心视频（枪獭播放器）测试组
 
 > 可以从华为应用商店收到内测提醒和更新
 
@@ -84,7 +84,7 @@ QQ群：973792610
 
 ## 特别鸣谢 && 欢迎参与共建及须知
 
-> 欢迎提交 PR，一起共同建设流心视频 \
+> 欢迎提交 PR，一起共同建设流心视频（枪獭播放器） \
 > 提交 PR 请遵照以往提交格式，如`[fix]`是修复内容 `[update]`是优化内容 `[new]`是新增内容 \
 > 如果提交中有没有解决的地方请注明
 
@@ -96,7 +96,7 @@ QQ群：973792610
 - AloePlayer 作者：Aloereed
 - kimufly
 
-## 流心视频（BlackQ播放器）由以下开源项目提供支持
+## 流心视频（枪獭播放器）由以下开源项目提供支持
 
 - 播放器R
 - 流心视频 https://gitee.com/lqsxy/sweetvideo/tree/master

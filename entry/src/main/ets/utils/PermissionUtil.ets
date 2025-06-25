@@ -1,10 +1,9 @@
 import { fileShare, fileIo as fs } from '@kit.CoreFileKit';
-import { common, wantAgent } from '@kit.AbilityKit';
+import { wantAgent } from '@kit.AbilityKit';
 import { backgroundTaskManager } from '@kit.BackgroundTasksKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-
-const context = getContext() as common.UIAbilityContext
+import { PathUtils } from './PathUtils';
 
 //权限类
 class PermissionUtil {
@@ -47,7 +46,7 @@ class PermissionUtil {
     let wantAgentInfo: wantAgent.WantAgentInfo = {
       wants: [
         ({
-          bundleName: context.abilityInfo.bundleName,
+          bundleName: PathUtils.appContext!.abilityInfo.bundleName,
           abilityName: "EntryAbility"
         })
       ],
@@ -57,7 +56,7 @@ class PermissionUtil {
     };
     wantAgent.getWantAgent(wantAgentInfo).then((wantAgentObj: Object) => {
       try {
-        backgroundTaskManager.startBackgroundRunning(context,
+        backgroundTaskManager.startBackgroundRunning(PathUtils.appContext!,
           backgroundTaskManager.BackgroundMode.AUDIO_PLAYBACK, wantAgentObj).then(() => {
         }).catch((error: BusinessError) => {
           hilog.error(777, 'testFlag', 'background play failed BusinessError: ' + JSON.stringify(error))
@@ -69,7 +68,7 @@ class PermissionUtil {
   }
 
   stopContinuousTask() {
-    backgroundTaskManager.stopBackgroundRunning(context)
+    backgroundTaskManager.stopBackgroundRunning(PathUtils.appContext!)
   }
 
   async persistPermission(uri: string): Promise<boolean> {

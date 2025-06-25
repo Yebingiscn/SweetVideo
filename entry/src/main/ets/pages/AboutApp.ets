@@ -1,7 +1,7 @@
 import ToolsUtil from '../utils/ToolsUtil';
-import { common } from '@kit.AbilityKit';
 import WantProcessUtil from '../utils/WantProcessUtil';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
+import { PathUtils } from '../utils/PathUtils';
 
 @Component
 export struct AboutApp {
@@ -71,15 +71,15 @@ export struct AboutApp {
               .width('48%')
               .backgroundColor($r('app.color.start_window_background_blur'))
               .onClick(() => {
-                let context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
                 let link: string = WantProcessUtil.GITHUB_HOME_LINK;
-                WantProcessUtil.linkToWeb(context, link)
+                WantProcessUtil.linkToWeb(PathUtils.appContext!, link)
               })
 
               Button({ type: ButtonType.Normal, stateEffect: true }) {
                 Row() {
                   SymbolGlyph($r('sys.symbol.person_shield')).fontSize(25).fontColor([$r('app.color.text_color')])
-                  Text('流心视频的使用条款与隐私声明')
+                  Text(getContext(this).resourceManager.getStringSync($r('app.string.EntryAbility_label').id) +
+                    '的使用条款与隐私声明')
                     .fontSize(15)
                     .fontColor($r('app.color.text_color'))
                     .margin({ left: 10, right: 12 })
@@ -94,9 +94,7 @@ export struct AboutApp {
               .width('48%')
               .backgroundColor($r('app.color.start_window_background_blur'))
               .onClick(() => {
-                let context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
-                let link: string = WantProcessUtil.PRIVACY_LINK
-                WantProcessUtil.linkToWeb(context, link)
+                WantProcessUtil.linkToWeb(PathUtils.appContext!, WantProcessUtil.PRIVACY_LINK)
               })
             }
           }.width('100%')
@@ -169,7 +167,8 @@ export struct AboutApp {
           .backgroundColor($r('app.color.start_window_background_blur'))
 
           Column({ space: 8 }) {
-            Text('流心视频由以下开源项目提供支持')
+            Text(getContext(this).resourceManager.getStringSync($r('app.string.EntryAbility_label').id) +
+              '由以下开源项目提供支持')
               .fontSize(20)
               .fontWeight(FontWeight.Medium)
 
@@ -179,6 +178,8 @@ export struct AboutApp {
               Text('ohos_ijkplayer')
                 .fontSize(14)
               Text('RedPlayer')
+                .fontSize(14)
+              Text('subtitles')
                 .fontSize(14)
             }.alignItems(HorizontalAlign.Start)
           }

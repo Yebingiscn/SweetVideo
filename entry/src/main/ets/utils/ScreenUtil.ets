@@ -35,18 +35,18 @@ class Screen {
   }
 
   async updateAvoidArea(windowClass: window.Window) {
+    let cutOut = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_CUTOUT)
+    let system = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
+    let nav = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR)
     animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
       AppStorage.setOrCreate('topSafeHeight',
-        px2vp(Math.max(windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR).topRect.height,
-          windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM).topRect.height) +
-          (AppStorage.get('pcMode') as boolean | undefined ? windowClass.getWindowDecorHeight() * 1.2 : 0)))
+        px2vp(Math.max(cutOut.topRect.height * 1.4, system.topRect.height, windowClass.getWindowDecorHeight())))
       AppStorage.setOrCreate('bottomSafeHeight',
-        px2vp(Math.max(windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR).bottomRect.height,
-          windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM).bottomRect.height * 1.2)))
+        px2vp(Math.max(nav.bottomRect.height, system.bottomRect.height * 1.4, cutOut.bottomRect.height * 1.4)))
       AppStorage.setOrCreate('leftSafeHeight',
-        px2vp(windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_CUTOUT).leftRect.width * 1.2))
+        px2vp(Math.max(cutOut.leftRect.width * 1.4, system.leftRect.width * 1.4)))
       AppStorage.setOrCreate('rightSafeHeight',
-        px2vp(windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_CUTOUT).rightRect.width * 1.2))
+        px2vp(Math.max(cutOut.rightRect.width * 1.4, system.rightRect.width * 1.4)))
     })
   }
 

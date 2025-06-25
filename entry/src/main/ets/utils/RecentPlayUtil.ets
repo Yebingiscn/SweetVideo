@@ -1,16 +1,16 @@
-import { common, Context } from '@kit.AbilityKit';
+import { Context } from '@kit.AbilityKit';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import Preferences from '../database/Preferences';
+import { PathUtils } from './PathUtils';
 
 // 最近播放类
 class RecentPlayUtil {
   public deque: VideoMetadata[] = [];
   private readonly MAX_SIZE = 30;
   private videoIdMap: Map<string, number> = new Map(); // ID -> Index in deque
-  private context = getContext() as common.UIAbilityContext;
 
   constructor() {
-    this.init(this.context);
+    this.init(PathUtils.appContext!);
   }
 
   async addPlayback(context: Context, item: VideoMetadata): Promise<void> {

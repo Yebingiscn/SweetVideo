@@ -18,9 +18,8 @@ import ToolsUtil from '../utils/ToolsUtil'
 import { window } from '@kit.ArkUI'
 import { audio, AVVolumePanel } from '@kit.AudioKit'
 import PermissionUtil from '../utils/PermissionUtil'
-import { common } from '@kit.AbilityKit'
 import AVSessionUtil from '../utils/AVSessionUtil'
-import { AVCastPicker, AVCastPickerColorMode, avSession as avSessionManager } from '@kit.AVSessionKit'
+import { AVCastPicker, avSession as avSessionManager } from '@kit.AVSessionKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
 import { settings } from '@kit.BasicServicesKit'
@@ -31,9 +30,9 @@ import { PlayStatus } from '../common/enum/PlayStatus'
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import VideoInfoUtil from '../utils/VideoInfoUtil'
 import { KeyCode } from '@kit.InputKit'
-import { ButtonFancyModifier } from '../utils/AttributeModifierUtil';
-
-const context = getContext() as common.UIAbilityContext;
+import { PathUtils } from '../utils/PathUtils'
+import { AVCastPickerBuilder } from '../component/AVCastPickerBuilder'
+import { ButtonFancyModifier } from '../utils/AttributeModifierUtil'
 
 @Component
 export struct FFMpegPlayer { // FFMpeg播放器页
@@ -69,7 +68,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @State volumeTmp: number = 0
   @State isLock: boolean = false
   @State isSliderPlayTimeChange: boolean = false
-  windowClass = window.getLastWindow(context)
+  windowClass = window.getLastWindow(PathUtils.appContext!)
   xComponentController: XComponentController = new XComponentController()
   @State @Watch('setScreen') ShowControl: boolean = false
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
@@ -342,7 +341,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
                   }),
                 PanGesture({ fingers: 1, direction: PanDirection.Horizontal })//水平滑动
                   .onActionStart((event: GestureEvent) => {
-                    if(!this.isLock) {
+                    if (!this.isLock) {
                       const firstTouch = event.fingerList[0];
                       this.swipe_start_x = firstTouch.localX;
                       this.swipe_start_y = firstTouch.localY;
@@ -351,11 +350,14 @@ export struct FFMpegPlayer { // FFMpeg播放器页
                     }
                   })
                   .onActionUpdate((event: GestureEvent) => {
-                    const currentX = event.fingerList[0].localX;
-                    const deltaX = currentX - this.swipe_start_x;
-                    const timePerPixel = 150; // 灵敏度控制
-                    this.play_time =
-                      Math.max(0, Math.min(this.last_play_time + (deltaX * timePerPixel), this.total_time));
+                    if (event?.fingerList?.[0]?.localX !== undefined &&
+                      typeof event.fingerList[0].localX === 'number') {
+                      const currentX = event.fingerList[0].localX;
+                      const deltaX = currentX - this.swipe_start_x;
+                      this.play_time = Math.max(0,
+                        Math.min(this.last_play_time + (deltaX * VideoOperateUtil.timePerPixel),
+                          this.now_playing?.time));
+                    }
                   })
                   .onActionEnd(() => {
                     this.mIjkMediaPlayer?.seekTo(String(this.play_time));
@@ -443,7 +445,8 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         this.now_playing.time = this.total_time; // 若系统无法识别视频时长，则由 FFMpeg API 提供以保存记忆时间
       }
       if (this.video_meta_data.length > 0 && this.play_time > 0) {
-        await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data, context,
+        await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
+          PathUtils.appContext!,
           this.file_folder)
       }
       this.mDestroyPage = true;
@@ -452,6 +455,10 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         this.stop();
       }
       this.mIjkMediaPlayer?.off('audioInterrupt');
+      if (this.allowBackgroundPlay) {
+        AVSessionUtil.destroySession()
+        PermissionUtil.stopContinuousTask()
+      }
     }).hideTitleBar(true)
   }
 
@@ -533,9 +540,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             .fontColor(['#f0f0f0'])
             .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.playing))
         }
-        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .height(40)
-        .width(40)
+        .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .defaultFocus(true)
         .onKeyEvent((event?: KeyEvent) => {
@@ -557,9 +562,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             .fontSize(23)
             .fontColor(['#f0f0f0'])
         }
-        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .height(40)
-        .width(40)
+        .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .onClick(async () => {
           this.screen_height > this.screen_width ?
@@ -569,21 +572,21 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() { // 投播
-        Button({ type: ButtonType.Circle, stateEffect: true }) { // 循环按钮
-          AVCastPicker({
-            normalColor: Color.White,
-            onStateChange: VideoOperateUtil.castOnStateChange,
-            colorMode: AVCastPickerColorMode.AUTO,
-            sessionType: 'video'
-          })
-            .width(23)
-            .height(23)
-            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        }
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundColor('#50000000')
+        AVCastPicker({
+          normalColor: Color.White,
+          onStateChange: VideoOperateUtil.castOnStateChange,
+          customPicker: () => this.AVCastPickerBuilderBridge()
+        })
+          .width(23)
+          .height(23)
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
       }.span({ xs: 2, sm: 2, md: 2 })
     }.width('95%')
+  }
+
+  @Builder
+  AVCastPickerBuilderBridge() { // 桥接AVCastPickerBuilder避免crash
+    AVCastPickerBuilder()
   }
 
   async setScreen() {
@@ -602,10 +605,10 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     if (this.allowBackgroundPlay) {
       PermissionUtil.startContinuousTask()
     }
+    await this.setScreen()
     let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
     let audioManager = audio.getAudioManager();
     let audioVolumeManger: audio.AudioVolumeManager = audioManager.getVolumeManager();
-    await this.setScreen()
     let volumeList = await VideoOperateUtil.getVolume(audioVolumeManger, groupId)
     this.volume = volumeList.get('volume')!
     await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
@@ -617,7 +620,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       } else if (event.hintType === InterruptHintType.INTERRUPT_HINT_RESUME) {
         this.startPlayOrResumePlay();
       } else if (event.hintType === InterruptHintType.INTERRUPT_HINT_STOP) {
-        this.stop();
+        this.pause();
       }
     }
     this.mIjkMediaPlayer?.on('audioInterrupt', event);
@@ -628,7 +631,8 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       }
     }
     this.mIjkMediaPlayer?.on('deviceChange', deviceChangeEvent);
-    settings.getValue(context, settings.display.SCREEN_BRIGHTNESS_STATUS, settings.domainName.DEVICE_SHARED)
+    settings.getValue(PathUtils.appContext!, settings.display.SCREEN_BRIGHTNESS_STATUS,
+      settings.domainName.DEVICE_SHARED)
       .then((value) => {
         this.screenBrightness = Number(value) / 255;
       })
@@ -638,8 +642,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     //    LogUtils.getInstance().LOGI("aboutToDisappear");
     this.mIjkMediaPlayer = null
     VideoOperateUtil.setBrightness(-1)
-    AVSessionUtil.destroySession()
-    PermissionUtil.stopContinuousTask()
     await (await this.windowClass).setWindowKeepScreenOn(false)
     await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
     await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
@@ -686,7 +688,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             .length-1].toLowerCase()!)) {
           this.mIjkMediaPlayer?.seekTo(this.play_time + Number(this.skipIntroTime) * 1000 + '')
         }
-      }, 1200)
+      }, 600)
     }
     if (this.CONTROL_PlayStatus == PlayStatus.PAUSE) {
       this.mIjkMediaPlayer?.start();
@@ -764,7 +766,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     const buffer_area =
       VideoInfoUtil.support_audio_format.includes(this.now_playing?.title.split('.').pop()!.toLowerCase()!)
         ? '524288' : '943718400'
-    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", buffer_area);
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", '943718400');
     this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "min-frames", "120");
     this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "start-on-prepared", "1");
     this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "videotoolbox", "1"); // 用硬件解码
@@ -779,7 +781,10 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzeduration", "100");
     this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzemaxduration", '100L');
     this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "lush_packets", '1L');
-    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "subtitle", '1');
+    // 重置错误状态
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "skip_clear", "0");
+    // 使用相对安全模式
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "seek-at-start", "1");
     // 屏幕常亮
     this.mIjkMediaPlayer?.setScreenOnWhilePlaying(true);
     // 变速播放
@@ -900,7 +905,8 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     if (this.now_playing?.size[0] === 0 && VideoWidth !== 0) {
       this.now_playing.size[0] = VideoWidth
       this.now_playing.size[1] = VideoHeight
-      VideoOperateUtil.saveVideoWeightAndHeight(this.now_playing, this.video_meta_data, context, this.file_folder)
+      VideoOperateUtil.saveVideoWeightAndHeight(this.now_playing, this.video_meta_data, PathUtils.appContext!,
+        this.file_folder)
     }
     const aspectRatioNow = VideoWidth / VideoHeight;
     const screenAspectRatio = this.screen_width / this.screen_height;

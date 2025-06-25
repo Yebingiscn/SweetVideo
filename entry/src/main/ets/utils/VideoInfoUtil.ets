@@ -18,7 +18,7 @@ class VideoInfoUtil {
     'wav', 'mp3', 'flac', 'dsf', 'dsd', 'dff', 'm4a', 'ape', 'aac', 'ogg', 'amr', 'aif', 'aiff', 'dts', 'wma', 'av3a'
   ];
   // 字幕格式支持列表
-  public support_subtitle_format = ['srt', 'vtt']
+  public support_subtitle_format = ['srt', 'vtt', 'ass']
   // 倍数格式支持列表
   public video_speed_list: number[] = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3]
   // 屏幕比例放大列表
@@ -82,7 +82,7 @@ class VideoInfoUtil {
       last_play: 0,
       format: file_name.split('.')[file_name.split('.').length-1],
       video_size: await this.getVideoSize(PrivacySpaceUtil.getPrivacyMode()! ? sandbox_video + date : uri,
-        false) as string,
+        true) as string,
       hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
     }
     this.getVideoCover(sandbox_path, date, uri, tmp.size, parseInt(metadata.duration || '0'))
@@ -155,7 +155,7 @@ class VideoInfoUtil {
     let packer = image.createImagePacker()
     let file1 = fs.openSync(sandbox_path + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
     // 设置为85平衡内存、导入速度以及图片质量
-    packer.packToFile(pixelMap, file1.fd, { format: 'image/jpeg', quality: 85 }).then(() => {
+    packer.packToFile(pixelMap, file1.fd, { format: 'image/webp', quality: 85 }).then(() => {
       fs.closeSync(file1)
     }).catch((error: BusinessError) => {
       console.error(`Failed to pack the image to file.code ${error.code},message is ${error.message}`);

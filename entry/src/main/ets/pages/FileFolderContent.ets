@@ -1,4 +1,3 @@
-import { common } from '@kit.AbilityKit';
 import ToolsUtil from '../utils/ToolsUtil';
 import { ImageModifier, SymbolGlyphModifier } from '@kit.ArkUI';
 import DataSyncUtil from '../utils/DataSyncUtil';
@@ -20,10 +19,9 @@ import {
 } from '../utils/AttributeModifierUtil';
 import { VideoInfoView } from '../component/VideoInfoView';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
-
-const sandbox_subtitle = getContext().filesDir + '/subtitle/'
-const sandbox_path = getContext().filesDir + '/'
-const context = getContext() as common.UIAbilityContext;
+import RecentPlayUtil from '../utils/RecentPlayUtil';
+import SubtitleUtil from '../utils/SubtitleUtil';
+import { PathUtils } from '../utils/PathUtils';
 
 @Component
 export struct FileFolderContent { // 文件夹页，不同文件夹公用一个页
@@ -57,17 +55,18 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
       Menu() {
         MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.plus_square")), content: '添加到首页' })
           .onClick(async () => {
-            let video_meta_data = Preferences.getVideoMetaData(context)
+            let video_meta_data = Preferences.getVideoMetaData(PathUtils.appContext!)
             video_meta_data.push(video_item!)
-            Preferences.saveVideoMetaData(context, video_meta_data)
-            await this.delData(context, video_item!, true)
+            Preferences.saveVideoMetaData(PathUtils.appContext!, video_meta_data)
+            await this.delData(PathUtils.appContext!, video_item!, true)
           })
         ForEach(this.file_folder_list, (item: FileFolder) => {
           if (item.name !== this.file_folder?.name) {
             MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.folder")), content: item.name })
               .onClick(async () => {
-                this.file_folder_list = await FileFolderUtil.addVideoInFileFolder(context, video_item!, item.date)
-                await this.delData(context, video_item!, true)
+                this.file_folder_list =
+                  await FileFolderUtil.addVideoInFileFolder(PathUtils.appContext!, video_item!, item.date)
+                await this.delData(PathUtils.appContext!, video_item!, true)
               })
           }
         })
@@ -85,7 +84,8 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
         })
           .onClick(async () => {
             this.file_folder =
-              await ToolsUtil.sortByName(context, this.file_folder?.video_list!, this.file_folder!) as FileFolder
+              await ToolsUtil.sortByName(PathUtils.appContext!, this.file_folder?.video_list!,
+                this.file_folder!) as FileFolder
             this.videoDataSource.updateData(this.file_folder.video_list)
           })
         MenuItem({
@@ -94,7 +94,8 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
         })
           .onClick(async () => {
             this.file_folder =
-              await ToolsUtil.sortByTime(context, this.file_folder?.video_list!, this.file_folder!) as FileFolder
+              await ToolsUtil.sortByTime(PathUtils.appContext!, this.file_folder?.video_list!,
+                this.file_folder!) as FileFolder
             this.videoDataSource.updateData(this.file_folder.video_list)
           })
       }.font({ size: 15, weight: FontWeight.Normal })
@@ -110,7 +111,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
           setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
             await ToolsUtil.isFileExist(item) ?
             ToolsUtil.routerToVideoFromFileFolder(this.pathStack, 'FFMpegPlayer', item!, this.file_folder!) :
-              await this.delData(context, item!, false)
+              await this.delData(PathUtils.appContext!, item!, false)
           }, 200)
         })
         MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
@@ -118,7 +119,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
           setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
             await ToolsUtil.isFileExist(item) ?
             ToolsUtil.routerToVideoFromFileFolder(this.pathStack, 'RedPlayer', item!, this.file_folder!) :
-              await this.delData(context, item!, false)
+              await this.delData(PathUtils.appContext!, item!, false)
           }, 200)
         })
         MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
@@ -130,7 +131,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
           symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
         })
           .onClick(async () => {
-            await this.delData(context, item!, false)
+            await this.delData(PathUtils.appContext!, item!, false)
           })
         MenuItem({
           symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
@@ -163,13 +164,12 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
     this.file_folder!.video_list = this.file_folder!.video_list.filter(i => i.date !== item.date);
     FileFolderUtil.updateFileFolderList(context, this.file_folder!)
     this.videoDataSource.deleteData(this.videoDataSource.getAllData().indexOf(item))
+    RecentPlayUtil.delData(context, item)
     if (!move_to_other_file_folder) {
-      if (await SelectFileUtil.isSubtitleExist(sandbox_subtitle, item.date!)) {
-        SelectFileUtil.deleteSubtitle(sandbox_subtitle, item.date!)
-      }
-      fs.access(sandbox_path + item.date, (err) => {
+      SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date!)
+      fs.access(PathUtils.coverPath + item.date, (err) => {
         if (!err) { // 文件存在
-          fs.unlink(sandbox_path + item.date, (unlinkErr) => {
+          fs.unlink(PathUtils.coverPath + item.date, (unlinkErr) => {
             if (unlinkErr) {
               return;
             }
@@ -202,7 +202,8 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
             if (this.file_folder) {
               this.searchValue === '' ?
                 this.file_folder.video_list =
-                  Preferences.getFileFolder(context).find(i => i.date === this.file_folder?.date)?.video_list! :
+                  Preferences.getFileFolder(PathUtils.appContext!)
+                    .find(i => i.date === this.file_folder?.date)?.video_list! :
                 this.file_folder.video_list = newVideoList
               this.videoDataSource.updateData(this.file_folder.video_list)
             }
@@ -227,7 +228,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
               if (this.is_list_display) {
                 Column() {
                   Row() {
-                    Image(fileUri.getUriFromPath(sandbox_path + item.date))
+                    Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
                       .attributeModifier(new ImageFancyModifier(10, 60, 90))
                     Column() {
                       Row() {
@@ -248,7 +249,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
                 }.justifyContent(FlexAlign.SpaceEvenly)
               } else {
                 Column() {
-                  Image(fileUri.getUriFromPath(sandbox_path + item.date))
+                  Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
                     .attributeModifier(new ImageFancyModifier({
                       topLeft: 10,
                       topRight: 10,
@@ -260,9 +261,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
                     .objectFit(ImageFit.Cover) // 完整显示图片
                   Column() {
                     Row() {
-                      Text((String(SelectFileUtil.getItem(this.file_folder?.video_list!, item?.date)?.title)).slice(0,
-                        String(SelectFileUtil.getItem(this.file_folder?.video_list!, item?.date)?.title)
-                          .lastIndexOf('.')))
+                      Text(VideoInfoUtil.getVideoTitle(this.file_folder?.video_list!, item))
                         .fontSize(15)
                         .fontWeight(FontWeight.Medium)
                         .maxLines(2)// 减少行数以适应卡片布局
@@ -286,7 +285,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
             }.onClick(async () => {
               await ToolsUtil.isFileExist(item) ?
               ToolsUtil.routerToVideoFromFileFolder(this.pathStack, 'Player', item, this.file_folder!) :
-                await this.delData(context, item, false)
+                await this.delData(PathUtils.appContext!, item, false)
             }).bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
             .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
             .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
@@ -311,7 +310,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
       .backgroundColor($r('app.color.start_window_background'))
     }
     .onShown(async () => {
-      this.file_folder_list = Preferences.getFileFolder(context)
+      this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
       this.file_folder = this.file_folder_list.find(i => i.date === this.file_folder?.date)
       this.videoDataSource.updateData(this.file_folder?.video_list!)
     })

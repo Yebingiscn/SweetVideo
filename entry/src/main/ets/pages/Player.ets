@@ -2,9 +2,8 @@ import { media } from '@kit.MediaKit';
 import AVPlayerUtil from '../utils/AVPlayerUtil';
 import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
 import PermissionUtil from '../utils/PermissionUtil';
-import { common } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
-import { AVCastPicker, AVCastPickerColorMode, avSession as avSessionManager } from '@kit.AVSessionKit';
+import { AVCastPicker, avSession as avSessionManager } from '@kit.AVSessionKit';
 import AVSessionUtil from '../utils/AVSessionUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
@@ -26,16 +25,14 @@ import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
 import {
   ButtonFancyModifier,
   ImageFancyModifier,
-  SymbolGlyphFancyModifier,
+  SelectItemFancyModifier,
   SelectItemTextFancyModifier,
-  SelectItemFancyModifier
+  SymbolGlyphFancyModifier
 } from '../utils/AttributeModifierUtil';
 import { KeyCode } from '@kit.InputKit';
-
-
-const context = getContext() as common.UIAbilityContext;
-const sandbox_path = getContext().filesDir + '/'
-const sandbox_subtitle = getContext().filesDir + '/subtitle/'
+import SubtitleUtil from '../utils/SubtitleUtil';
+import { PathUtils } from '../utils/PathUtils';
+import { AVCastPickerBuilder } from '../component/AVCastPickerBuilder';
 
 @Component
 export struct Player { // 播放页
@@ -55,7 +52,7 @@ export struct Player { // 播放页
   @State @Watch('setScreen') showControl: boolean = false
   @State lock_rotation: boolean = false
   xComponentController: XComponentController = new XComponentController()
-  windowClass = window.getLastWindow(context)
+  windowClass = window.getLastWindow(PathUtils.appContext!)
   @State screen_width: number = 0
   @State screen_height: number = 0
   @State play_area_height: number = 0
@@ -127,6 +124,19 @@ export struct Player { // 播放页
     })
   }
 
+  async initVolumeAndBrightness() {
+    let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
+    let audioManager = audio.getAudioManager();
+    let audioVolumeManger: audio.AudioVolumeManager = audioManager.getVolumeManager();
+    let volume_list = await VideoOperateUtil.getVolume(audioVolumeManger, groupId)
+    this.volume = volume_list.get('volume')!
+    settings.getValue(PathUtils.appContext!, settings.display.SCREEN_BRIGHTNESS_STATUS,
+      settings.domainName.DEVICE_SHARED)
+      .then((value) => {
+        this.screenBrightness = Number(value) / 255;
+      })
+  }
+
   async setScreen() {
     await (await this.windowClass).setSpecificSystemBarEnabled('status', this.showControl, true)
     await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', this.showControl, true)
@@ -140,17 +150,8 @@ export struct Player { // 播放页
     this.setScreen()
     await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
     await (await this.windowClass).setWindowKeepScreenOn(true)
-    let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
-    let audioManager = audio.getAudioManager();
-    let audioVolumeManger: audio.AudioVolumeManager = audioManager.getVolumeManager();
-    let volume_list = await VideoOperateUtil.getVolume(audioVolumeManger, groupId)
-    this.volume = volume_list.get('volume')!
-    settings.getValue(context, settings.display.SCREEN_BRIGHTNESS_STATUS, settings.domainName.DEVICE_SHARED)
-      .then((value) => {
-        this.screenBrightness = Number(value) / 255;
-      })
-    this.circle_play = Preferences.getCirclePlayState(context)
-    const video_speed = Preferences.getVideoSpeed(context)
+    this.circle_play = Preferences.getCirclePlayState(PathUtils.appContext!)
+    const video_speed = Preferences.getVideoSpeed(PathUtils.appContext!)
     this.speed = parseFloat(video_speed?.replace('x', '') || '1')
   }
 
@@ -160,8 +161,9 @@ export struct Player { // 播放页
     await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
     await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
     await (await this.windowClass).setPreferredOrientation(window.Orientation.FOLLOW_DESKTOP);
-    Preferences.saveVideoSpeed(context, (VideoInfoUtil.video_speed_list.includes(this.speed) ? this.speed : 1) + 'x')
-    Preferences.saveCirclePlayState(context, this.circle_play)
+    Preferences.saveVideoSpeed(PathUtils.appContext!,
+      (VideoInfoUtil.video_speed_list.includes(this.speed) ? this.speed : 1) + 'x')
+    Preferences.saveCirclePlayState(PathUtils.appContext!, this.circle_play)
   }
 
   async setRotation() {
@@ -213,6 +215,8 @@ export struct Player { // 播放页
       this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "sync-av-start", "1");
       this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "infbuf", "0");
       this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "soundtouch", "1");
+      this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "skip_clear", "0");
+      this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "seek-at-start", "1");
       this.mIjkMediaPlayer.setSpeed('1f');
       this.mIjkMediaPlayer.setLoopCount(false);
       this.mIjkMediaPlayer.setMessageListener();
@@ -226,7 +230,8 @@ export struct Player { // 播放页
       this.clock_time = ToolsUtil.getTime()
       const isDestroy = AppStorage.get('destroy_signal') as boolean // 监听播放器是否将被杀掉，杀掉的话就保存记录
       if (isDestroy) {
-        await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data, context,
+        await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
+          PathUtils.appContext!,
           this.file_folder)
       }
       if (!this.onSwiping) {
@@ -321,6 +326,7 @@ export struct Player { // 播放页
             }
           }
           this.avPlayer?.play();
+          await this.initVolumeAndBrightness()
           this.updatePlaybackSpeed(this.speed)
           this.showControl = false
           this.lockVisibility = false
@@ -388,9 +394,9 @@ export struct Player { // 播放页
   }
 
   async setExternalSubtitle(now_playing: VideoMetadataFromPlayer) {
-    if (await SelectFileUtil.isSubtitleExist(sandbox_subtitle, now_playing.date!)) {
-      let file1 = fs.openSync(sandbox_subtitle + now_playing.date, fs.OpenMode.READ_ONLY)
-      const size = fs.statSync(sandbox_subtitle + now_playing.date);
+    if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, now_playing.date!)) {
+      let file1 = fs.openSync(PathUtils.subtitlePath! + now_playing.date, fs.OpenMode.READ_ONLY)
+      const size = fs.statSync(PathUtils.subtitlePath! + now_playing.date);
       this.avPlayer?.addSubtitleFromFd(file1.fd, 0, size.size);
     }
   }
@@ -408,7 +414,7 @@ export struct Player { // 播放页
 
   async playChooseVideo(item: VideoMetadata) {
     if (!PrivacySpaceUtil.getPrivacyMode()) {
-      RecentPlayUtil.addPlayback(context, item)
+      RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
     }
     await this.avPlayer?.reset()
     if (VideoOperateUtil.mIjkMediaPlayerActive) {
@@ -423,8 +429,10 @@ export struct Player { // 播放页
   }
 
   async playNextVideo() {
+    this.ijkPlayerStop()
     if (this.video_meta_data.length > 0 && this.play_time > 0) {
-      await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data, context,
+      await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
+        PathUtils.appContext!,
         this.file_folder)
       let item = SelectFileUtil.getItem(this.video_meta_data, this.now_playing?.date || '') as VideoMetadata
       let next_item = SelectFileUtil.getNextItem(this.video_meta_data, item.date)
@@ -502,7 +510,7 @@ export struct Player { // 播放页
                 item?.date)?.size)) !== '0 x 0') {
                 Column() {
                   Row() {
-                    Image(fileUri.getUriFromPath(sandbox_path + item.date))
+                    Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
                       .attributeModifier(new ImageFancyModifier(10, 60, 90))
                       .margin({ left: 5 })
                     Text((String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title)).slice(0,
@@ -857,11 +865,14 @@ export struct Player { // 播放页
                     })
                     .onActionUpdate((event: GestureEvent) => {
                       if (!this.isLock) {
-                        const currentX = event.fingerList[0].localX;
-                        const deltaX = currentX - this.swipe_start_x;
-                        const timePerPixel = 150; // 灵敏度控制
-                        this.play_time =
-                          Math.max(0, Math.min(this.last_play_time + (deltaX * timePerPixel), this.now_playing?.time));
+                        if (event?.fingerList?.[0]?.localX !== undefined &&
+                          typeof event.fingerList[0].localX === 'number') {
+                          const currentX = event.fingerList[0].localX;
+                          const deltaX = currentX - this.swipe_start_x;
+                          this.play_time = Math.max(0,
+                            Math.min(this.last_play_time + (deltaX * VideoOperateUtil.timePerPixel),
+                              this.now_playing?.time));
+                        }
                       }
                     })
                     .onActionEnd(() => {
@@ -986,8 +997,10 @@ export struct Player { // 播放页
       }
     })
     .onWillDisappear(async () => {
+      this.avPlayer?.off('subtitleUpdate');
       if (this.video_meta_data.length > 0 && this.play_time > 0) {
-        await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data, context,
+        await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
+          PathUtils.appContext!,
           this.file_folder)
       }
       if (this.allowBackgroundPlay) { //若发生错误跳转FFMpeg播放器，确保提前关闭申请防止两个播放器重复申请导致失败
@@ -1054,7 +1067,7 @@ export struct Player { // 播放页
         }.alignItems(VerticalAlign.Center)
       }.height('100%').layoutWeight(1)
 
-      Button({ type: ButtonType.Circle, stateEffect: true }) { // 旋转锁定 TODO KIMMG
+      Button({ type: ButtonType.Circle, stateEffect: true }) { // 旋转锁定
         SymbolGlyph(this.lock_rotation ? $r('sys.symbol.lock_fill') : $r('sys.symbol.rotate_left'))
           .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
           .fontColor(['#f0f0f0'])
@@ -1071,8 +1084,8 @@ export struct Player { // 播放页
           : window.Orientation.AUTO_ROTATION_RESTRICTED
         await windowInstance.setPreferredOrientation(orientation)
         const toastMessage = this.lock_rotation
-          ? getContext().resourceManager.getStringSync($r('app.string.open_rotation_lock'))
-          : getContext().resourceManager.getStringSync($r('app.string.close_rotation_lock'))
+          ? PathUtils.appContext!.resourceManager.getStringSync($r('app.string.open_rotation_lock'))
+          : PathUtils.appContext!.resourceManager.getStringSync($r('app.string.close_rotation_lock'))
         ToolsUtil.showToast(toastMessage);
       })
     }
@@ -1189,17 +1202,14 @@ export struct Player { // 播放页
       }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() { // 投播
-          AVCastPicker({
-            normalColor: Color.White,
-            onStateChange: VideoOperateUtil.castOnStateChange,
-            colorMode: AVCastPickerColorMode.AUTO,
-            sessionType: 'video',
-            customPicker: () => this.customPickerBuilder()
-          })
-            .width(23)
-            .height(23)
-            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-
+        AVCastPicker({
+          normalColor: Color.White,
+          onStateChange: VideoOperateUtil.castOnStateChange,
+          customPicker: () => AVCastPickerBuilder()
+        })
+          .width(23)
+          .height(23)
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
       }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() {
@@ -1230,7 +1240,7 @@ export struct Player { // 播放页
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 倍速调整按钮
           Text(`${this.speed}x`)
             .fontSize(18)
-            .fontColor('#f0f0f0')
+            .fontColor($r('sys.color.white'))
             .minFontSize(8)
             .maxFontSize(18)
             .maxLines(1)
@@ -1266,39 +1276,31 @@ export struct Player { // 播放页
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
       ForEach(this.audio_track, (item: AudioTrack, index: number) => {
         Row() { // 音轨
+          Text(`${item.index} : ${item.name}(${VideoOperateUtil.getLanguageName(item.language)})`)
+            .fontSize(18)
+            .height(40)
+            .flexGrow(1)
+            .flexShrink(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .fontColor(this.audio_track_select === index ? $r('app.color.main_color') : $r('app.color.text_color'))
+            .margin({ left: 5 })
           if (item.mime.split('/')[1] === 'av3a') {
             Image($r('app.media.audio_vivid_icon'))
               .attributeModifier(new ImageFancyModifier(10, 85, 30))
+              .width(95)
           }
-          Text(`${item.index} : ${item.name}(${item.language})`)
-            .fontSize(18)
-            .width(250)
-            .height(40)
-            .fontColor(this.audio_track_select === index ? $r('app.color.main_color') : $r('app.color.text_color'))
-            .margin({ left: 3 })
         }
-        .padding(5)
+        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+        .width('100%')
         .onClick(() => {
           this.AudioTrackMenuBuilderState = false;
           this.avPlayer!.selectTrack(item.index);
           this.audio_track_select = index;
         })
       })
-    }.width(200).onAppear(() => {
+    }.width(235).onAppear(() => {
       VideoOperateUtil.audioTrackErrorExecute(this.audio_track)
     })
-  }
-
-
-  @Builder
-  customPickerBuilder(): void {
-    Button({ type: ButtonType.Circle, stateEffect: true }) { //选集
-      SymbolGlyph($r('sys.symbol.dot_radiowaves_left_and_right'))
-        .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-        .fontColor(['#f0f0f0'])
-    }
-    .attributeModifier(new ButtonFancyModifier(40, 40))
-    .backgroundColor('#50000000')
   }
 
   @Builder
@@ -1378,6 +1380,29 @@ export struct Player { // 播放页
     }
   }
 
+  @Builder
+  PlaybackSpeedMenu() {
+    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
+      ForEach(VideoInfoUtil.video_speed_list, (speed: number) => {
+        Column() {
+          Row() {
+            Text(`${speed}x`)
+              .attributeModifier(new SelectItemTextFancyModifier(this.speed == speed))
+          }
+          .width('100%')
+          .height(40)
+          .justifyContent(FlexAlign.Start)
+          .align(Alignment.Center)
+          .onClick(() => {
+            this.updatePlaybackSpeed(speed)
+          })
+        }
+        .attributeModifier(new SelectItemFancyModifier(this.speed == speed))
+      })
+    }
+    .width(100)
+  }
+
   private async handleIntelligentSync(videoPos: number, audioPos: number) {
     const drift = videoPos - audioPos;
     try { // 分级处理策略
@@ -1430,28 +1455,5 @@ export struct Player { // 播放页
     if (VideoOperateUtil.mIjkMediaPlayerActive) {
       this.mIjkMediaPlayer?.setSpeed(String(speed));
     }
-  }
-
-  @Builder
-  PlaybackSpeedMenu() {
-    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      ForEach(VideoInfoUtil.video_speed_list, (speed: number, index) => {
-        Column() {
-          Row() {
-            Text(`${speed}x`)
-              .attributeModifier(new SelectItemTextFancyModifier(this.speed == speed))
-          }
-          .width('100%')
-          .height(40)
-          .justifyContent(FlexAlign.Start)
-          .align(Alignment.Center)
-          .onClick(() => {
-            this.updatePlaybackSpeed(speed)
-          })
-        }
-        .attributeModifier(new SelectItemFancyModifier(this.speed == speed))
-      })
-    }
-    .width(100)
   }
 }

@@ -4,8 +4,6 @@ import { fileUri, fileIo as fs, picker } from '@kit.CoreFileKit';
 import VideoUtil from './VideoInfoUtil';
 import VideoInfoUtil from './VideoInfoUtil';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { hilog } from '@kit.PerformanceAnalysisKit';
-import ToolsUtil from './ToolsUtil';
 import { media } from '@kit.MediaKit';
 import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
@@ -14,6 +12,7 @@ import PrivacySpaceUtil from './PrivacySpaceUtil';
 import ReqPermissionUtil from './ReqPermissionUtil';
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import FileFolderUtil from './FileFolderUtil';
+import { PathUtils } from './PathUtils';
 
 // 获取视频类
 class SelectFileUtil {
@@ -24,8 +23,7 @@ class SelectFileUtil {
   async selectFiles(): Promise<string[]> {
     const documentSelectOptions = new picker.DocumentSelectOptions();
     documentSelectOptions.fileSuffixFilters = VideoUtil.support_video_format.concat(VideoUtil.support_audio_format)
-    let context = getContext(this) as common.Context;
-    const documentViewPicker = new picker.DocumentViewPicker(context);
+    const documentViewPicker = new picker.DocumentViewPicker(PathUtils.appContext!);
     try {
       const documentSelectResult: string[] = await documentViewPicker.select(documentSelectOptions);
       return documentSelectResult.length > 0 ? documentSelectResult : []; // 返回结果或空数组
@@ -47,61 +45,6 @@ class SelectFileUtil {
       console.error("Error selecting videos:", error);
       return []; // 捕获错误并返回空数组
     }
-  }
-
-  // 获取外挂字幕
-  async selectExternalSubtitles(sandbox_subtitle: string, date: string) {
-    const documentSelectOptions = new picker.DocumentSelectOptions();
-    documentSelectOptions.fileSuffixFilters = VideoUtil.support_subtitle_format;
-    documentSelectOptions.maxSelectNumber = 1
-    let context = getContext(this) as common.Context;
-    const documentViewPicker = new picker.DocumentViewPicker(context);
-    documentViewPicker.select(documentSelectOptions).then((uris) => {
-      if (uris.length > 0) {
-        try {
-          let file1 = fs.openSync(uris[0], fs.OpenMode.READ_ONLY)
-          let file2 = fs.openSync(sandbox_subtitle + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
-          fs.copyFileSync(file1.fd, file2.fd)
-          fs.closeSync(file1.fd)
-          fs.closeSync(file2.fd)
-          ToolsUtil.showToast('导入成功')
-        } catch (err) {
-          hilog.error(777, 'testFlag', 'err' + err)
-          ToolsUtil.showToast('导入失败')
-        }
-      }
-    })
-  }
-
-  // 检查字幕是否存在
-  async isSubtitleExist(sandbox_subtitle: string, date: string): Promise<boolean> {
-    return new Promise((resolve) => {
-      fs.access(sandbox_subtitle + date).then((res: boolean) => {
-        if (res) {
-          resolve(true);
-        } else {
-          resolve(false);
-        }
-      }).catch((err: BusinessError) => {
-        console.error("access failed with error message: " + err.message + ", error code: " + err.code);
-        resolve(false);
-      });
-    })
-  }
-
-  // 删除字幕
-  async deleteSubtitle(sandbox_subtitle: string, date: string) {
-    fs.access(sandbox_subtitle + date, (err) => {
-      if (!err) { // 文件存在
-        fs.unlink(sandbox_subtitle + date, (unlinkErr) => {
-          if (unlinkErr) {
-            ToolsUtil.showToast('删除失败')
-          } else {
-            ToolsUtil.showToast('删除成功')
-          }
-        })
-      }
-    })
   }
 
   // 获取下载文件夹路径
@@ -160,15 +103,10 @@ class SelectFileUtil {
       == item.format ? item.title : item.title + '.' + item.format]
   }
 
-  async saveData(context: Context, update_list: VideoMetadata[], target_data: VideoMetadataFromPlayer) {
-    const results = await Promise.all([
-      Preferences.getVideoMetaData(context),
-      Preferences.getVideoMetaDataEncryption(context),
-      Preferences.getRecentPlay(context)
-    ]);
-    const tmp_meta_data = results[0];
-    const tmp_meta_data_encryption = results[1];
-    const recent_play_deque = results[2];
+  saveData(context: Context, update_list: VideoMetadata[], target_data: VideoMetadataFromPlayer) {
+    const tmp_meta_data = Preferences.getVideoMetaData(context);
+    const tmp_meta_data_encryption = Preferences.getVideoMetaDataEncryption(context);
+    const recent_play_deque = Preferences.getRecentPlay(context);
     if (tmp_meta_data.some(item => item.date === target_data.date)) {
       Preferences.saveVideoMetaData(context, update_list)
     }
@@ -237,6 +175,77 @@ class SelectFileUtil {
 
   getItemIndex(list: VideoMetadata[], tmp: VideoMetadata) {
     return list.findIndex(i => i.title == tmp.title)
+  }
+
+  async addFile(context: Context, sandbox_video: string, sandbox_path: string, uri: string,
+    video_meta_data: VideoMetadata[], file_folder: FileFolder | undefined) {
+    await ReqPermissionUtil.persistPermission(uri);
+    const avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor();
+    const file = fs.openSync(uri);
+    try {
+      avMetadataExtractor.fdSrc = file;
+      const metadata = await new Promise<media.AVMetadata>((resolve, reject) => {
+        avMetadataExtractor.fetchMetadata((error: BusinessError, metadata: media.AVMetadata) => {
+          error ? reject(error) : resolve(metadata);
+        });
+      });
+      let isDuplicate = video_meta_data.some(item => item.title === file.name)
+      if (file_folder) {
+        isDuplicate = file_folder.video_list.some(item => item.title === file.name)
+      }
+      if (!isDuplicate) {
+        if (PrivacySpaceUtil.getPrivacyMode()!) {
+          await this.copyFileToPrivacySpace(context, video_meta_data, uri, sandbox_video,
+            sandbox_path, new Date().getTime().toString(), metadata, file)
+        } else {
+          const videoInfo = await VideoUtil.setVideoInfo(new Date().getTime().toString(), uri, file.name, metadata,
+            sandbox_video, sandbox_path);
+          if (file_folder) {
+            file_folder.video_list.push(videoInfo)
+            FileFolderUtil.updateFileFolder(context, file_folder, file_folder.video_list)
+          } else {
+            video_meta_data.push(videoInfo);
+            Preferences.saveVideoMetaData(context, video_meta_data);
+          }
+        }
+      }
+    } finally {
+      fs.closeSync(file);
+    }
+  }
+
+  // 计算分块大小
+  calculateChunkSize(totalItems: number): number {
+    return Math.ceil(totalItems / VideoUtil.MAX_CONCURRENT);
+  }
+
+  // 将列表拆分为多个块
+  splitListIntoChunks(list: string[], chunkSize: number): string[][] {
+    const chunks: string[][] = [];
+
+    for (let i = 0; i < VideoUtil.MAX_CONCURRENT; i++) {
+      const start = i * chunkSize;
+      if (start >= list.length) {
+        break;
+      } // 防止空分块
+
+      const end = Math.min(start + chunkSize, list.length);
+      chunks.push(list.slice(start, end));
+    }
+
+    return chunks;
+  }
+
+  async processSingleFile(uri: string, context: Context, sandbox_video: string, sandbox_path: string,
+    video_meta_data: VideoMetadata[], fileFolder?: FileFolder): Promise<void> {
+    await this.addFile(
+      context,
+      sandbox_video,
+      sandbox_path,
+      uri,
+      video_meta_data,
+      fileFolder
+    );
   }
 
   // 从下载文件夹获取视频，视频和文件夹太多
@@ -328,77 +337,6 @@ class SelectFileUtil {
       console.error('Root processing failed:', error);
       return [];
     }
-  }
-
-  async addFile(context: Context, sandbox_video: string, sandbox_path: string, uri: string,
-    video_meta_data: VideoMetadata[], file_folder: FileFolder | undefined) {
-    await ReqPermissionUtil.persistPermission(uri);
-    const avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor();
-    const file = fs.openSync(uri);
-    try {
-      avMetadataExtractor.fdSrc = file;
-      const metadata = await new Promise<media.AVMetadata>((resolve, reject) => {
-        avMetadataExtractor.fetchMetadata((error: BusinessError, metadata: media.AVMetadata) => {
-          error ? reject(error) : resolve(metadata);
-        });
-      });
-      let isDuplicate = video_meta_data.some(item => item.title === file.name)
-      if (file_folder) {
-        isDuplicate = file_folder.video_list.some(item => item.title === file.name)
-      }
-      if (!isDuplicate) {
-        if (PrivacySpaceUtil.getPrivacyMode()!) {
-          await this.copyFileToPrivacySpace(context, video_meta_data, uri, sandbox_video,
-            sandbox_path, new Date().getTime().toString(), metadata, file)
-        } else {
-          const videoInfo = await VideoUtil.setVideoInfo(new Date().getTime().toString(), uri, file.name, metadata,
-            sandbox_video, sandbox_path);
-          if (file_folder) {
-            file_folder.video_list.push(videoInfo)
-            FileFolderUtil.updateFileFolder(context, file_folder, file_folder.video_list)
-          } else {
-            video_meta_data.push(videoInfo);
-            Preferences.saveVideoMetaData(context, video_meta_data);
-          }
-        }
-      }
-    } finally {
-      fs.closeSync(file);
-    }
-  }
-
-  // 计算分块大小
-  calculateChunkSize(totalItems: number): number {
-    return Math.ceil(totalItems / VideoUtil.MAX_CONCURRENT);
-  }
-
-  // 将列表拆分为多个块
-  splitListIntoChunks(list: string[], chunkSize: number): string[][] {
-    const chunks: string[][] = [];
-
-    for (let i = 0; i < VideoUtil.MAX_CONCURRENT; i++) {
-      const start = i * chunkSize;
-      if (start >= list.length) {
-        break;
-      } // 防止空分块
-
-      const end = Math.min(start + chunkSize, list.length);
-      chunks.push(list.slice(start, end));
-    }
-
-    return chunks;
-  }
-
-  async processSingleFile(uri: string, context: Context, sandbox_video: string, sandbox_path: string,
-    video_meta_data: VideoMetadata[], fileFolder?: FileFolder): Promise<void> {
-    await this.addFile(
-      context,
-      sandbox_video,
-      sandbox_path,
-      uri,
-      video_meta_data,
-      fileFolder
-    );
   }
 }
 

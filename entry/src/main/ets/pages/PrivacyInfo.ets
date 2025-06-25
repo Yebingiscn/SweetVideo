@@ -1,6 +1,6 @@
-import { common } from '@kit.AbilityKit';
 import WantProcessUtil from '../utils/WantProcessUtil';
 import ToolsUtil from '../utils/ToolsUtil';
+import { PathUtils } from '../utils/PathUtils';
 
 @CustomDialog
 @Component
@@ -23,12 +23,14 @@ export struct PrivacyPolicyDialog {
         Column() {
           Column() {
             Text() {
-              Span('《流心视频的使用条款与隐私声明》')
+              Span('《' + getContext(this).resourceManager.getStringSync($r('app.string.EntryAbility_label').id) +
+                '的使用条款与隐私声明》')
                 .fontColor($r('app.color.main_color'))
                 .onClick(() => {
                   this.openWebUrl();
                 })
-              Span('\n流心视频（以下简称“本软件”）是由 叶滨 （以下简称“我们”）开发，供您（以下称“用户”）免费使用的本地音乐播放软件。\n' +
+              Span('\n' + getContext(this).resourceManager.getStringSync($r('app.string.EntryAbility_label').id) +
+                '（以下简称“本软件”）是由 叶滨 （以下简称“我们”）开发，供您（以下称“用户”）免费使用的本地音乐播放软件。\n' +
                 '\n' +
                 '一、服务与内容\n' +
                 '1. 本软件为本地的单机应用程序，不依赖于任何在线服务，亦不会通过网络提供功能支持。\n' +
@@ -111,7 +113,7 @@ export struct PrivacyPolicyDialog {
         if (DismissSheetAction.reason == DismissReason.SLIDE_DOWN ||
           DismissSheetAction.reason == DismissReason.PRESS_BACK ||
           DismissSheetAction.reason == DismissReason.TOUCH_OUTSIDE) {
-          (getContext(this) as common.UIAbilityContext)?.terminateSelf()
+          PathUtils.appContext?.terminateSelf()
         }
       }),
     })
@@ -121,8 +123,7 @@ export struct PrivacyPolicyDialog {
   }
 
   openWebUrl() {
-    let context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
     let link: string = WantProcessUtil.PRIVACY_LINK
-    WantProcessUtil.linkToWeb(context, link)
+    WantProcessUtil.linkToWeb(PathUtils.appContext!, link)
   }
 }

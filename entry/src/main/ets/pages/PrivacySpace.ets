@@ -1,6 +1,5 @@
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import SelectFileUtil from '../utils/SelectFileUtil';
-import { common } from '@kit.AbilityKit';
 import { PrivacySpaceDataSource } from '../utils/DataUtil';
 import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
 import ToolsUtil from '../utils/ToolsUtil';
@@ -22,14 +21,11 @@ import { ImportProgress } from '../component/ImportProgress';
 import { FileProcessorUtil } from '../utils/FileProcessorUtil';
 import { VideoInfoView } from '../component/VideoInfoView';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
-
-const sandbox_subtitle = getContext().filesDir + '/subtitle/'
-const sandbox_path = getContext().filesDir + '/'
-const sandbox_video = getContext().filesDir + '/video/'
-const context = getContext() as common.UIAbilityContext;
+import SubtitleUtil from '../utils/SubtitleUtil';
+import { PathUtils } from '../utils/PathUtils';
 
 @Component
-export struct PrivacySpace { // 隐私空间页，施工未完成
+export struct PrivacySpace { // 隐私空间页
   @State videoDataSource: PrivacySpaceDataSource = new PrivacySpaceDataSource([])
   @State video_meta_data_encryption: VideoMetadata[] = []
   @State list_line: number = 1
@@ -108,7 +104,8 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
         })
           .onClick(async () => {
             this.video_meta_data_encryption =
-              await ToolsUtil.sortByName(context, this.video_meta_data_encryption, undefined) as VideoMetadata[]
+              await ToolsUtil.sortByName(PathUtils.appContext!, this.video_meta_data_encryption,
+                undefined) as VideoMetadata[]
             this.videoDataSource.updateData(this.video_meta_data_encryption)
           })
         MenuItem({
@@ -117,7 +114,8 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
         })
           .onClick(async () => {
             this.video_meta_data_encryption =
-              await ToolsUtil.sortByTime(context, this.video_meta_data_encryption, undefined) as VideoMetadata[]
+              await ToolsUtil.sortByTime(PathUtils.appContext!, this.video_meta_data_encryption,
+                undefined) as VideoMetadata[]
             this.videoDataSource.updateData(this.video_meta_data_encryption)
           })
       }.font({ size: 15, weight: FontWeight.Normal })
@@ -133,7 +131,7 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
           setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
             await ToolsUtil.isFileExist(item) ?
             ToolsUtil.routerWhere(this.pathStack, 'Player', item!, this.video_meta_data_encryption) :
-              await this.delData(context, item!)
+              await this.delData(PathUtils.appContext!, item!)
           }, 200)
         })
         MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
@@ -145,7 +143,7 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
           symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
         })
           .onClick(async () => {
-            await this.delData(context, item!)
+            await this.delData(PathUtils.appContext!, item!)
           })
       }.font({ size: 15, weight: FontWeight.Normal })
     }.width(180).onAppear(() => {
@@ -164,16 +162,16 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
     this.current_import = 0;
     try {
       await FileProcessorUtil.processFilesConcurrently(
-        fileList, context, sandbox_video, sandbox_path, this.video_meta_data_encryption,
+        fileList, PathUtils.appContext!, PathUtils.videoPath, PathUtils.coverPath, this.video_meta_data_encryption,
         (increment: number) => {
           this.current_import += increment;
         },
         fileFolder
       );
-      this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(context);
+      this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!);
       this.videoDataSource.updateData(this.video_meta_data_encryption)
       ToolsUtil.showToast(
-        `${context.resourceManager.getStringSync($r('app.string.add_time_info'))}${this.import_sum}`
+        `${PathUtils.appContext!.resourceManager.getStringSync($r('app.string.add_time_info'))}${this.import_sum}`
       );
     } catch (error) {
       ToolsUtil.showToast('处理过程中发生意外错误:' + error);
@@ -183,20 +181,18 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
   }
 
   async aboutToAppear(): Promise<void> {
-    this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(context)
+    this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
     this.videoDataSource = new PrivacySpaceDataSource(this.video_meta_data_encryption)
     PrivacySpaceUtil.setPrivacyMode(true)
   }
 
   async delData(context: Context, item: VideoMetadata) {
-    if (await SelectFileUtil.isSubtitleExist(sandbox_subtitle, item.date!)) {
-      SelectFileUtil.deleteSubtitle(sandbox_subtitle, item.date!)
-    }
+    SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date!)
     this.videoDataSource.deleteData(this.video_meta_data_encryption.findIndex(i => i.date == item.date))
     this.video_meta_data_encryption = this.video_meta_data_encryption.filter(i => i.date != item.date);
-    fs.access(sandbox_video + item.date).then((res: boolean) => {
+    fs.access(PathUtils.videoPath + item.date).then((res: boolean) => {
       if (res) {
-        fs.unlink(sandbox_video + item.date, async (unlinkErr) => {
+        fs.unlink(PathUtils.videoPath + item.date, async (unlinkErr) => {
           if (unlinkErr) {
             ToolsUtil.showToast('删除视频失败：' + item.title + '原因是：' + unlinkErr.message)
           }
@@ -230,7 +226,7 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
             );
             if (this.video_meta_data_encryption) {
               this.searchValue === '' ?
-                this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(context)
+                this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
                 : this.video_meta_data_encryption = newVideoList
               this.videoDataSource.updateData(this.video_meta_data_encryption)
             }
@@ -255,7 +251,7 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
               if (this.is_list_display) {
                 Column() {
                   Row() {
-                    Image(fileUri.getUriFromPath(sandbox_path + item.date))
+                    Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
                       .attributeModifier(new ImageFancyModifier(10, 60, 90))
                     Column() {
                       Row() {
@@ -277,7 +273,7 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
                 }.justifyContent(FlexAlign.SpaceEvenly)
               } else {
                 Column() {
-                  Image(fileUri.getUriFromPath(sandbox_path + item.date))
+                  Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
                     .attributeModifier(new ImageFancyModifier({
                       topLeft: 10,
                       topRight: 10,
@@ -289,9 +285,7 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
                     .objectFit(ImageFit.Cover)
                   Column() {
                     Row() {
-                      Text((String(SelectFileUtil.getItem(this.video_meta_data_encryption, item?.date)?.title)).slice(0,
-                        String(SelectFileUtil.getItem(this.video_meta_data_encryption, item?.date)?.title)
-                          .lastIndexOf('.')))
+                      Text(VideoInfoUtil.getVideoTitle(this.video_meta_data_encryption, item))
                         .fontSize(15)
                         .fontWeight(FontWeight.Medium)
                         .maxLines(2)// 减少行数以适应卡片布局
@@ -316,7 +310,7 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
             .onClick(async () => {
               await ToolsUtil.isFileExist(item) ?
               ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.video_meta_data_encryption) :
-                await this.delData(context, item)
+                await this.delData(PathUtils.appContext!, item)
             })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
             .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
@@ -375,7 +369,7 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
       PrivacySpaceUtil.setPrivacyMode(false)
     })
     .onShown(() => {
-      this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(context)
+      this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
       this.videoDataSource.updateData(this.video_meta_data_encryption)
     })
     .title($r('app.string.privacy_space'))
@@ -399,7 +393,7 @@ export struct PrivacySpace { // 隐私空间页，施工未完成
       SymbolGlyph($r('sys.symbol.arrow_right_folder_circle'))
         .attributeModifier(new SymbolGlyphFancyModifier(28, 40, 40))
         .onClick(() => {
-          SelectFileUtil.exportFile(item, context)
+          SelectFileUtil.exportFile(item, PathUtils.appContext!)
         })
     }.padding({ left: 15, right: 15 }).justifyContent(FlexAlign.SpaceEvenly)
   }

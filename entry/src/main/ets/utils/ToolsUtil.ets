@@ -14,6 +14,7 @@ import { FileFolder } from '../interfaces/FileFolderInterface';
 import Preferences from '../database/Preferences';
 import PrivacySpaceUtil from './PrivacySpaceUtil';
 import FileFolderUtil from './FileFolderUtil';
+import { PathUtils } from './PathUtils';
 
 // 工具类
 class ToolsUtil {
@@ -86,8 +87,8 @@ class ToolsUtil {
   }
 
   sortByTimeProcess(list: VideoMetadata[]) {
-    const sortedList = [...list].sort((a, b) => b.date.localeCompare(a.date));
-    return sortedList
+    return [...list].sort((a, b) => Number(b.date) - Number(a.date)
+    );
   }
 
   // 名称排序
@@ -121,7 +122,7 @@ class ToolsUtil {
   // 保存密码
   savePwd(context: Context, passwd: string) {
     Preferences.savePassword(context, passwd)
-    this.showToast(getContext().resourceManager.getStringSync($r('app.string.set_passwd_tip')))
+    this.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.set_passwd_tip')))
   }
 
   // 检查文件是否存在
@@ -132,7 +133,8 @@ class ToolsUtil {
       return true
     } catch (e) {
       hilog.error(777, 'testFlag', 'file error' + e)
-      this.showToast(String(item?.title) + getContext().resourceManager.getStringSync($r('app.string.re_import_info')))
+      this.showToast(String(item?.title) +
+      PathUtils.appContext!.resourceManager.getStringSync($r('app.string.re_import_info')))
       return false
     }
   }
@@ -146,7 +148,7 @@ class ToolsUtil {
   async routerToVideoFromFileFolder(pathStack: NavPathStack, uri: string,
     item: VideoMetadata, file_folder: FileFolder) {
     if (VideoInfoUtil.videoWidthAndHeightFormat(String(item?.size)) === '0 x 0') {
-      this.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
+      this.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.video_error')))
       uri = 'FFMpegPlayer'
     }
     const playerParams = new PlayerParams(item, file_folder.video_list, file_folder)
@@ -158,7 +160,7 @@ class ToolsUtil {
     let target_item = SelectFileUtil.getItem(list, item.date!)
     // 没有长宽的视频/音频系统播放器播不了
     if (VideoInfoUtil.videoWidthAndHeightFormat(String(target_item?.size)) === '0 x 0') {
-      this.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
+      this.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.video_error')))
       uri = 'FFMpegPlayer'
     }
     const playerParams = new PlayerParams(list.find(i => i.date === item.date) as VideoMetadata, list, undefined)

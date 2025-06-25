@@ -1,4 +1,3 @@
-import { common } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import { PlayerCoreType, RedPlayerXComponentController, SourceType } from '@rte-xhs/redplayer';
 import RedPlayerSettingsConfig from '../global/RedPlayerSettingsConfig';
@@ -14,19 +13,19 @@ import { PlayerParams } from '../common/PlayerParams';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import AVSessionUtil from '../utils/AVSessionUtil';
-import { AVCastPicker, AVCastPickerColorMode, avSession as avSessionManager } from '@kit.AVSessionKit';
+import { AVCastPicker, avSession as avSessionManager } from '@kit.AVSessionKit';
 import VideoOperateUtil from '../utils/VideoOperateUtil';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
 import { audio, AVVolumePanel } from '@kit.AudioKit';
 import { settings } from '@kit.BasicServicesKit';
 import { ButtonFancyModifier } from '../utils/AttributeModifierUtil';
-
-const context = getContext() as common.UIAbilityContext;
+import { PathUtils } from '../utils/PathUtils';
+import { AVCastPickerBuilder } from '../component/AVCastPickerBuilder';
 
 @Component
 export struct RedPlayer { // 红薯播放器页
   @Consume('pathStack') pathStack: NavPathStack
-  windowClass = window.getLastWindow(context)
+  windowClass = window.getLastWindow(PathUtils.appContext!)
   xComponentController: RedPlayerXComponentController =
     new RedPlayerXComponentController(PlayerCoreType.TYPE_RED_PLAYER)
   avSession: avSessionManager.AVSession | undefined = undefined;
@@ -54,11 +53,11 @@ export struct RedPlayer { // 红薯播放器页
   @State screenBrightnessAtFirst: number = 0
   @State swipe_start_x: number = 0
   @State isHorizontalSwiping: boolean = false
+  @State screenBrightnessTmp: number = 0
+  @State volumeTmp: number = 0
+  @State isLock: boolean = false
   @State volume: number = 1.0
   @State screenBrightness: number = 0
-  @State screenBrightnessTmp: number = 0
-  @State volumeTmp: number = 1.0
-  @State isLock: boolean = false
   playerController = new RedPlayerControllerUtil(this.redPlayerStateHolder)
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
@@ -363,7 +362,7 @@ export struct RedPlayer { // 红薯播放器页
                   }),
                 PanGesture({ fingers: 1, direction: PanDirection.Horizontal })
                   .onActionStart((event: GestureEvent) => {
-                    if(!this.isLock) {
+                    if (!this.isLock) {
                       const firstTouch = event.fingerList[0];
                       this.swipe_start_x = firstTouch.localX;
                       this.swipe_start_y = firstTouch.localY;
@@ -373,12 +372,14 @@ export struct RedPlayer { // 红薯播放器页
                     }
                   })
                   .onActionUpdate((event: GestureEvent) => {
-                    const currentX = event.fingerList[0].localX;
-                    const deltaX = currentX - this.swipe_start_x;
-                    const timePerPixel = 150; // 灵敏度控制
-                    this.play_time = Math.max(0,
-                      Math.min(this.last_play_time + (deltaX * timePerPixel),
-                        this.redPlayerStateHolder.videoDuration));
+                    if (event?.fingerList?.[0]?.localX !== undefined &&
+                      typeof event.fingerList[0].localX === 'number') {
+                      const currentX = event.fingerList[0].localX;
+                      const deltaX = currentX - this.swipe_start_x;
+                      this.play_time = Math.max(0,
+                        Math.min(this.last_play_time + (deltaX * VideoOperateUtil.timePerPixel),
+                          this.now_playing?.time));
+                    }
                   })
                   .onActionEnd(() => {
                     this.playerController.seek(this.play_time);
@@ -457,7 +458,7 @@ export struct RedPlayer { // 红薯播放器页
     }).onWillDisappear(async () => {
       if (this.video_meta_data.length > 0 && this.redPlayerStateHolder.videoPosition > 0) {
         await VideoOperateUtil.saveVideoTime(this.redPlayerStateHolder.videoPosition, this.now_playing!,
-          this.video_meta_data, context,
+          this.video_meta_data, PathUtils.appContext!,
           this.file_folder)
       }
       if (this.allowBackgroundPlay) {
@@ -484,7 +485,8 @@ export struct RedPlayer { // 红薯播放器页
     let audioVolumeManger: audio.AudioVolumeManager = audioManager.getVolumeManager();
     let volume_list = await VideoOperateUtil.getVolume(audioVolumeManger, groupId)
     this.volume = volume_list.get('volume')!
-    settings.getValue(context, settings.display.SCREEN_BRIGHTNESS_STATUS, settings.domainName.DEVICE_SHARED)
+    settings.getValue(PathUtils.appContext!, settings.display.SCREEN_BRIGHTNESS_STATUS,
+      settings.domainName.DEVICE_SHARED)
       .then((value) => {
         this.screenBrightness = Number(value) / 255;
       })
@@ -600,9 +602,7 @@ export struct RedPlayer { // 红薯播放器页
             .fontColor(['#f0f0f0'])
             .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.redPlayerStateHolder.isStart))
         }
-        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .height(40)
-        .width(40)
+        .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .defaultFocus(true)
         .onKeyEvent((event?: KeyEvent) => {
@@ -624,9 +624,7 @@ export struct RedPlayer { // 红薯播放器页
             .fontSize(23)
             .fontColor(['#f0f0f0'])
         }
-        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .height(40)
-        .width(40)
+        .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .onClick(async () => {
           this.screen_height > this.screen_width ?
@@ -635,22 +633,21 @@ export struct RedPlayer { // 红薯播放器页
         })
       }.span({ xs: 2, sm: 2, md: 2 })
 
-
       GridCol() { // 投播
-        Button({ type: ButtonType.Circle, stateEffect: true }) { // 循环按钮
-          AVCastPicker({
-            normalColor: Color.White,
-            onStateChange: VideoOperateUtil.castOnStateChange,
-            colorMode: AVCastPickerColorMode.AUTO,
-            sessionType: 'video'
-          })
-            .width(23)
-            .height(23)
-            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        }
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundColor('#50000000')
+        AVCastPicker({
+          normalColor: Color.White,
+          onStateChange: VideoOperateUtil.castOnStateChange,
+          customPicker: () => this.AVCastPickerBuilderBridge()
+        })
+          .width(23)
+          .height(23)
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
       }.span({ xs: 2, sm: 2, md: 2 })
     }.width('95%')
+  }
+
+  @Builder
+  AVCastPickerBuilderBridge() { // 桥接AVCastPickerBuilder避免crash
+    AVCastPickerBuilder()
   }
 }

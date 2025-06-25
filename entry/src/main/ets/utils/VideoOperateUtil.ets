@@ -19,6 +19,8 @@ import RecentPlayUtil from './RecentPlayUtil';
 import PrivacySpaceUtil from './PrivacySpaceUtil';
 import FileFolderUtil from './FileFolderUtil';
 import { AVCastPickerState, avSession, avSession as avSessionManager } from '@kit.AVSessionKit';
+import { PathUtils } from './PathUtils';
+import { LanguageConfig } from '../common/LanguageConfig';
 
 // 视频操作类
 class VideoOperateUtil {
@@ -30,6 +32,7 @@ class VideoOperateUtil {
   public initPinchDistance: number = 0; // 初始双指距离
   public clearSubtitleTimer: number | null = null; // 清除字幕时间
   public mIjkMediaPlayerActive: boolean = false // 激活增强型解码
+  public timePerPixel: number = 300 // 时间调节灵敏度
   private windowStage: window.WindowStage = AppStorage.get('windowStage') as window.WindowStage;
   private mainWin: window.Window = this.windowStage.getMainWindowSync();
 
@@ -103,7 +106,7 @@ class VideoOperateUtil {
 
   // 系统播放器播放失败处理
   playErrorExecute(pathStack: NavPathStack, video_meta_data: VideoMetadata[], date: string, file_folder: FileFolder) {
-    ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.video_error')))
+    ToolsUtil.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.video_error')))
     const now_play_item = video_meta_data.find(item => {
       const target_item = SelectFileUtil.getItem(video_meta_data, item?.date)?.date;
       return date === target_item;
@@ -169,7 +172,7 @@ class VideoOperateUtil {
     const save_time = play_time < now_playing?.time! * 0.9 ? play_time : 0
     video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)].last_play = save_time
     file_folder ? FileFolderUtil.updateFileFolder(context, file_folder, video_meta_data) :
-      await SelectFileUtil.saveData(context, video_meta_data, now_playing!)
+    SelectFileUtil.saveData(context, video_meta_data, now_playing!)
     const recentPlay = Preferences.getRecentPlayState(context) // 添加到最近播放
     if (recentPlay && !PrivacySpaceUtil.getPrivacyMode()) {
       RecentPlayUtil.addPlayback(context, video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)])
@@ -181,7 +184,7 @@ class VideoOperateUtil {
     video_meta_data: VideoMetadata[], context: Context, file_folder: FileFolder) {
     video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)].size = now_playing.size
     file_folder.name.length !== 0 ? FileFolderUtil.updateFileFolder(context, file_folder, video_meta_data) :
-      await SelectFileUtil.saveData(context, video_meta_data, now_playing!)
+    SelectFileUtil.saveData(context, video_meta_data, now_playing!)
   }
 
   // 更新播控中心状态
@@ -224,6 +227,14 @@ class VideoOperateUtil {
     } else if (state == AVCastPickerState.STATE_DISAPPEARING) {
       console.log('The picker finishes presenting.');
     }
+  }
+
+  getLanguageName(code: string): string {
+    if (!code) {
+      return code;
+    }
+    const lowerCode = code.toLowerCase();
+    return LanguageConfig.languageMap[lowerCode] || code;
   }
 }
 

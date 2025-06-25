@@ -1,5 +1,4 @@
 import { CommonModifier } from '@kit.ArkUI';
-import { attributionManager } from '@kit.StoreKit';
 
 export class ShadowModifier extends CommonModifier {
   constructor() {
@@ -30,7 +29,8 @@ export class ImageFancyModifier implements AttributeModifier<ImageAttribute> {
       .borderRadius(this.borderRadius)
       .width(this.width)
       .height(this.height)
-      .interpolation(ImageInterpolation.Low);
+      .interpolation(ImageInterpolation.Low)
+      .draggable(false)
   }
 }
 

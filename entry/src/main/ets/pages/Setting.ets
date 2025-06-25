@@ -1,10 +1,8 @@
-import { common } from '@kit.AbilityKit';
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 import { editPasswordDialog } from '../component/Dialog/EditPasswordDialog';
 import Preferences from '../database/Preferences';
+import { PathUtils } from '../utils/PathUtils';
 import ToolsUtil from '../utils/ToolsUtil';
-
-const context = getContext() as common.UIAbilityContext;
 
 @Component
 export struct SettingsPage { //设置页
@@ -30,11 +28,12 @@ export struct SettingsPage { //设置页
           return
         }
         this.passwd = passwd
-        ToolsUtil.savePwd(context, passwd)
-        ToolsUtil.showToast(getContext().resourceManager.getStringSync($r('app.string.set_passwd_tip')))
+        ToolsUtil.savePwd(PathUtils.appContext!, passwd)
+        ToolsUtil.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.set_passwd_tip')))
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+
   build() {
     NavDestination() {
       List() {
@@ -53,7 +52,7 @@ export struct SettingsPage { //设置页
             symbol: $r('sys.symbol.lock'),
             message: $r('app.string.privacy_space'),
             onPress: () => {
-              this.passwd = Preferences.getPassword(context)
+              this.passwd = Preferences.getPassword(PathUtils.appContext!)
               this.editPasswdDialogController.open()
             }
           })
@@ -66,7 +65,7 @@ export struct SettingsPage { //设置页
             enable: this.is_list_display,
             onChange: (checked: boolean) => {
               this.is_list_display = checked
-              Preferences.saveListDisplayMode(context, this.is_list_display)
+              Preferences.saveListDisplayMode(PathUtils.appContext!, this.is_list_display)
             }
           })
         }
@@ -78,7 +77,7 @@ export struct SettingsPage { //设置页
             enable: this.allowBackgroundPlay,
             onChange: (checked: boolean) => {
               this.allowBackgroundPlay = checked
-              Preferences.saveAllowBackgroundPlayState(context, this.allowBackgroundPlay)
+              Preferences.saveAllowBackgroundPlayState(PathUtils.appContext!, this.allowBackgroundPlay)
             }
           })
         }
@@ -90,7 +89,7 @@ export struct SettingsPage { //设置页
             enable: this.allowPlayBackExist,
             onChange: (checked: boolean) => {
               this.allowPlayBackExist = checked
-              Preferences.saveAllowPlayBackExistState(context, this.allowPlayBackExist)
+              Preferences.saveAllowPlayBackExistState(PathUtils.appContext!, this.allowPlayBackExist)
             }
           })
         }
@@ -102,7 +101,7 @@ export struct SettingsPage { //设置页
             enable: this.allowDoubleFastForward,
             onChange: (checked: boolean) => {
               this.allowDoubleFastForward = checked
-              Preferences.saveAllowDoubleFastForwardState(context, this.allowDoubleFastForward)
+              Preferences.saveAllowDoubleFastForwardState(PathUtils.appContext!, this.allowDoubleFastForward)
             }
           })
         }
@@ -115,9 +114,9 @@ export struct SettingsPage { //设置页
             onChange: async (checked: boolean) => {
               this.recentPlay = checked
               if (!this.recentPlay) {
-                Preferences.saveRecentPlay(context, [])
+                Preferences.saveRecentPlay(PathUtils.appContext!, [])
               }
-              Preferences.saveRecentPlayState(context, this.recentPlay)
+              Preferences.saveRecentPlayState(PathUtils.appContext!, this.recentPlay)
             }
           })
         }
@@ -130,7 +129,7 @@ export struct SettingsPage { //设置页
             selected: ['15', '30', '60', '120'].findIndex(i => i == this.fastForwardSeconds),
             onChange: (index: number) => {
               this.fastForwardSeconds = ['15', '30', '60', '120'][index]
-              Preferences.saveFastForwardSeconds(context, this.fastForwardSeconds)
+              Preferences.saveFastForwardSeconds(PathUtils.appContext!, this.fastForwardSeconds)
             }
           })
         }
@@ -143,7 +142,7 @@ export struct SettingsPage { //设置页
             selected: ['0', '15', '30', '45', '60', '90', '120'].findIndex(i => i == this.skipIntroTime),
             onChange: (index: number) => {
               this.skipIntroTime = ['0', '15', '30', '45', '60', '90', '120'][index]
-              Preferences.saveSkipIntroTime(context, this.skipIntroTime)
+              Preferences.saveSkipIntroTime(PathUtils.appContext!, this.skipIntroTime)
             }
           })
         }
@@ -156,7 +155,7 @@ export struct SettingsPage { //设置页
             selected: ['系统播放器', 'FFMpeg播放器', '红薯播放器'].findIndex(i => i == this.defaultPlayer),
             onChange: (index: number) => {
               this.defaultPlayer = ['系统播放器', 'FFMpeg播放器', '红薯播放器'][index]
-              Preferences.saveDefaultPlayer(context, this.defaultPlayer)
+              Preferences.saveDefaultPlayer(PathUtils.appContext!, this.defaultPlayer)
             }
           })
         }
@@ -169,7 +168,7 @@ export struct SettingsPage { //设置页
             selected: this.subtitleSizeList.findIndex(i => i == this.subtitleSize),
             onChange: (index: number) => {
               this.subtitleSize = this.subtitleSizeList[index]
-              Preferences.saveSubtitleSize(context, this.subtitleSize)
+              Preferences.saveSubtitleSize(PathUtils.appContext!, this.subtitleSize)
             }
           })
         }
@@ -324,7 +323,6 @@ export struct SettingsMenuItem {
 
   build() {
     Row() {
-
       Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
         Row({ space: 10 }) {
           SymbolGlyph(this.symbol)

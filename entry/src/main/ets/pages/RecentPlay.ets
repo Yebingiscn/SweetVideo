@@ -3,12 +3,9 @@ import SelectFileUtil from '../utils/SelectFileUtil';
 import { fileUri } from '@kit.CoreFileKit';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
 import ToolsUtil from '../utils/ToolsUtil';
-import { common } from '@kit.AbilityKit';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { ImageFancyModifier } from '../utils/AttributeModifierUtil';
-
-const sandbox_path = getContext().filesDir + '/'
-const context = getContext() as common.UIAbilityContext;
+import { PathUtils } from '../utils/PathUtils';
 
 @Component
 export struct RecentPlay { // 最近播放页
@@ -37,7 +34,7 @@ export struct RecentPlay { // 最近播放页
           setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
             await ToolsUtil.isFileExist(item) ?
             ToolsUtil.routerWhere(this.pathStack, 'FFMpegPlayer', item!, this.recent_video_meta_data) :
-            this.delData(context, item!)
+            this.delData(PathUtils.appContext!, item!)
           }, 200)
         })
       }.font({ size: 15, weight: FontWeight.Normal })
@@ -47,12 +44,12 @@ export struct RecentPlay { // 最近播放页
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           await ToolsUtil.isFileExist(item) ?
           ToolsUtil.routerWhere(this.pathStack, 'RedPlayer', item!, this.recent_video_meta_data) :
-          this.delData(context, item!)
+          this.delData(PathUtils.appContext!, item!)
         }, 200)
       })
       MenuItem({ startIcon: $r('sys.symbol.trash_fill'), content: $r('app.string.delete') }).onClick(() => {
         this.MenuBuilderState = false
-        this.delData(context, item!)
+        this.delData(PathUtils.appContext!, item!)
       })
     }.width(150).onAppear(() => {
       ToolsUtil.startVibration()
@@ -83,7 +80,7 @@ export struct RecentPlay { // 最近播放页
             ListItem() {
               Column() {
                 Row() {
-                  Image(fileUri.getUriFromPath(sandbox_path + item.date))
+                  Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
                     .attributeModifier(new ImageFancyModifier(10, 60, 90))
                   Text((String(SelectFileUtil.getItem(this.recent_video_meta_data, item?.date)?.title)).slice(0,
                     String(SelectFileUtil.getItem(this.recent_video_meta_data, item?.date)?.title).lastIndexOf('.')))
@@ -98,7 +95,7 @@ export struct RecentPlay { // 最近播放页
                 .onClick(async () => {
                   await ToolsUtil.isFileExist(item) ?
                   ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.recent_video_meta_data) :
-                  this.delData(context, item)
+                  this.delData(PathUtils.appContext!, item)
                 })
                 .width('100%')
                 .height(100)

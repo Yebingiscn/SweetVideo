@@ -1,6 +1,7 @@
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
 import DataSyncUtil from '../../utils/DataSyncUtil';
 import TimeUtil from '../../utils/TimeUtil';
+import VideoInfoUtil from '../../utils/VideoInfoUtil';
 
 // 视频详情弹窗
 @CustomDialog
@@ -24,6 +25,13 @@ export struct VideoDetailDialog {
         Column() {
           Column({ space: 15 }) {
             this.buildDetailItem('视频格式：', String(this.metadata?.format))
+          }.width('100%')
+
+          Column({ space: 15 }) {
+            this.buildDetailItem('视频分辨率：',
+              VideoInfoUtil.videoWidthAndHeightFormat(this.metadata?.size.toString()!) === '0 x 0' ?
+              $r('app.string.unknown_resolution').id :
+              VideoInfoUtil.videoWidthAndHeightFormat(this.metadata?.size.toString()!))
           }.width('100%')
 
           Column({ space: 15 }) {

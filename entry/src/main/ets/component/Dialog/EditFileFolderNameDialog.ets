@@ -39,7 +39,7 @@ export struct editFileFolderNameDialog {
           }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
         }
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .backgroundColor('#00000000')
+        .backgroundColor($r('sys.color.titlebar_icon_background_color'))
         .borderRadius(8)
         .height(40)
         .onClick(() => this.controller?.close())
@@ -51,7 +51,7 @@ export struct editFileFolderNameDialog {
           }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
         }
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .backgroundColor('#00000000')
+        .backgroundColor($r('sys.color.titlebar_icon_background_color'))
         .borderRadius(8)
         .height(40)
         .onClick(() => {

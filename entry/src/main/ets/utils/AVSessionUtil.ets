@@ -2,20 +2,19 @@ import { avSession, avSession as avSessionManager } from '@kit.AVSessionKit';
 import { image } from '@kit.ImageKit';
 import { AvSessionState } from '../interfaces/AvSessionStateInterface';
 import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
-import { Context } from '@kit.AbilityKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import PermissionUtil from './PermissionUtil';
 import { media } from '@kit.MediaKit';
 import PrivacySpaceUtil from './PrivacySpaceUtil';
 import VideoInfoUtil from './VideoInfoUtil';
+import { PathUtils } from './PathUtils';
 
 // 播控中心设置类
 class AVSessionUtil {
   avSession: avSessionManager.AVSession | undefined = undefined;
-  context: Context = getContext()
-  sandbox_path: string = this.context.filesDir + '/'
   castController: avSession.AVCastController | undefined = undefined;
-  sandbox_video: string = this.context.filesDir + '/video/'
+  pixelMap: image.PixelMap | undefined
+  imageSource: image.ImageSource | undefined
 
   async getAVSession() {
     if (!this.avSession) {
@@ -26,25 +25,28 @@ class AVSessionUtil {
 
   async createSession() {
     let type: avSessionManager.AVSessionType = 'audio';
-    this.avSession = await avSessionManager.createAVSession(this.context, 'sweet_video', type);
+    this.avSession = await avSessionManager.createAVSession(PathUtils.appContext!, 'sweet_video', type);
     this.avSession.activate()
   }
 
   async setSessionInfo(metadata_json: string) {
     let metadata: VideoMetadataFromPlayer = JSON.parse(metadata_json)
-    let pixelMap: image.PixelMap | undefined;
     try {
-      const imageSource = image.createImageSource(this.sandbox_path + metadata.date);
-      pixelMap = imageSource.createPixelMapSync();
+      this.imageSource = image.createImageSource(PathUtils.coverPath + metadata.date);
+      let decodingOptions: image.DecodingOptions = {
+        //设置为AUTO会根据图片资源格式解码，如果图片资源为HDR资源则会解码为HDR的pixel map。
+        desiredDynamicRange: image.DecodingDynamicRange.AUTO,
+      };
+      this.pixelMap = this.imageSource.createPixelMapSync(decodingOptions);
     } catch (e) { //视频没有封面时加载默认封面
-      const resourceMgr = this.context.resourceManager.getMediaContentSync($r('app.media.sweet_video').id)
+      const resourceMgr = PathUtils.appContext!.resourceManager.getMediaContentSync($r('app.media.sweet_video').id)
       const defaultImageSource = image.createImageSource(resourceMgr.buffer);
-      pixelMap = defaultImageSource.createPixelMapSync();
+      this.pixelMap = defaultImageSource.createPixelMapSync();
     }
     let session_metadata: avSessionManager.AVMetadata = {
       assetId: metadata.date,
-      title: metadata.title,
-      mediaImage: pixelMap,
+      title: metadata.title.slice(0, metadata.title.lastIndexOf('.')),
+      mediaImage: this.pixelMap,
       duration: metadata.time,
       filter: avSession.ProtocolType.TYPE_CAST_PLUS_STREAM | avSession.ProtocolType.TYPE_DLNA,
     };
@@ -68,6 +70,8 @@ class AVSessionUtil {
   destroySession() {
     this.avSession?.destroy()
     this.avSession = undefined
+    this.pixelMap?.release();
+    this.imageSource?.release();
   }
 
   async getAVCastController(now_playing: VideoMetadataFromPlayer) {
@@ -111,20 +115,19 @@ class AVSessionUtil {
       itemId: 0,
       description: {
         assetId: 'VIDEO-' + JSON.stringify(now_playing.title),
-        title: now_playing.title,
+        title: now_playing.title.slice(0, now_playing.title.lastIndexOf('.')),
         artist: '',
-        // 该字段大写，音频'AUDIO'，视频'VIDEO'
         mediaType: 'VIDEO',
         mediaSize: await VideoInfoUtil.getVideoSize(PrivacySpaceUtil.getPrivacyMode()! ?
-          this.sandbox_video + now_playing.date : now_playing?.uri, true) as number,
+          PathUtils.videoPath + now_playing.date : now_playing?.uri, true) as number,
         //startPosition为投播当前进度，设置该字段可将本机播放进度同步到远端
         startPosition: now_playing.last_play,
         // 投播资源播放时长，设置该字段可将本机播放时长同步到远端显示
         duration: now_playing.time,
-        albumCoverUri: this.sandbox_path + now_playing.date,
+        albumCoverUri: PathUtils.coverPath + now_playing.date,
         albumTitle: '',
         fdSrc: avFileDescriptor,
-        appName: this.context.resourceManager.getStringSync($r('app.string.app_name').id),
+        appName: PathUtils.appContext!.resourceManager.getStringSync($r('app.string.EntryAbility_label').id),
       }
     };
     // 准备播放，这个不会触发真正的播放，会进行加载和缓冲
