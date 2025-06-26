@@ -728,6 +728,7 @@ struct Index {
                         }
 
                         VideoInfoView({ item })
+                          .reuseId(item.date)
                       }.alignItems(HorizontalAlign.Start).padding({ left: 15, right: 15 }).width('90%')
                     }.justifyContent(FlexAlign.Center)
                   }
@@ -750,7 +751,7 @@ struct Index {
                         Text(VideoInfoUtil.getVideoTitle(this.video_meta_data, item))
                           .fontSize(15)
                           .fontWeight(FontWeight.Medium)
-                          .maxLines(2)// 减少行数以适应卡片布局
+                          .maxLines(1)// 减少行数以适应卡片布局
                           .textAlign(TextAlign.Center)
                           .textOverflow({ overflow: TextOverflow.Ellipsis })
                           .layoutWeight(1)// 占据剩余空间
@@ -775,7 +776,8 @@ struct Index {
                       .width('100%')
                       .padding({ top: 5 })
 
-                      VideoInfoView({ item }) // 复用组件
+                      VideoInfoView({ item })
+                        .reuseId(item.date)
                     }.padding({ left: 5, right: 5, bottom: 5 })
                     .width('100%')
                   }
@@ -829,6 +831,7 @@ struct Index {
           .onTouch(() => {
             this.searchController.stopEditing()
           })
+          .cachedCount(3)
 
           if (this.video_meta_data.length == 0) {
             Row() { //顶栏

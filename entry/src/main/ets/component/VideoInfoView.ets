@@ -5,8 +5,15 @@ import { ImageFancyModifier } from '../utils/AttributeModifierUtil'
 import TimeUtil from '../utils/TimeUtil'
 
 @Component
+@Reusable
+  // 启用组件复用
 export struct VideoInfoView {
-  item: VideoMetadata | undefined = undefined // 根据实际类型定义
+  item: VideoMetadata | undefined = undefined
+
+  // 实现组件复用回调
+  aboutToReuse(params: Record<string, Object>): void {
+    this.item = params.item as VideoMetadata;
+  }
 
   build() {
     Row() {

@@ -266,6 +266,7 @@ export struct PrivacySpace { // 隐私空间页
                       }.width('100%')
 
                       VideoInfoView({ item })
+                        .reuseId(item.date)
                     }.margin({ left: 10 }).alignItems(HorizontalAlign.Start)
                   }
                   .width('100%')
@@ -298,6 +299,7 @@ export struct PrivacySpace { // 隐私空间页
                     .padding({ top: 5 })
 
                     VideoInfoView({ item })
+                      .reuseId(item.date)
                   }.padding({ left: 5, right: 5, bottom: 5 })
                   .width('100%')
                 }
@@ -321,6 +323,7 @@ export struct PrivacySpace { // 隐私空间页
             })
           }, (item: VideoMetadata) => JSON.stringify(item))
         }
+        .cachedCount(3)
         .lanes(this.list_line)
         .layoutWeight(1)
         .padding({ left: 20, right: 20 })

@@ -29,8 +29,9 @@ export class ImageFancyModifier implements AttributeModifier<ImageAttribute> {
       .borderRadius(this.borderRadius)
       .width(this.width)
       .height(this.height)
-      .interpolation(ImageInterpolation.Low)
-      .draggable(false)
+      .interpolation(ImageInterpolation.Medium)// 用于重采样后的抗锯齿
+      .draggable(false)// 禁止长按手势拖动
+      .autoResize(true) // 重采样，可减少内存占用
   }
 }
 

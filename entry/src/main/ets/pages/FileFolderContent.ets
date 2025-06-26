@@ -242,6 +242,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
                       }.width('100%')
 
                       VideoInfoView({ item })
+                        .reuseId(item.date)
                     }.margin({ left: 10 }).alignItems(HorizontalAlign.Start)
                   }
                   .width('100%')
@@ -274,6 +275,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
                     .padding({ top: 5 })
 
                     VideoInfoView({ item })
+                      .reuseId(item.date)
                   }.padding({ left: 5, right: 5, bottom: 5 })
                   .width('100%')
                 }
@@ -291,6 +293,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
             .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
           }, (item: VideoMetadata) => JSON.stringify(item))
         }
+        .cachedCount(3)
         .lanes(this.list_line)
         .layoutWeight(1)
         .padding({ left: 20, right: 20 })
