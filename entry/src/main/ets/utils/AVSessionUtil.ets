@@ -8,6 +8,7 @@ import { media } from '@kit.MediaKit';
 import PrivacySpaceUtil from './PrivacySpaceUtil';
 import VideoInfoUtil from './VideoInfoUtil';
 import { PathUtils } from './PathUtils';
+import { systemDateTime } from '@kit.BasicServicesKit';
 
 // 播控中心设置类
 class AVSessionUtil {
@@ -61,7 +62,7 @@ class AVSessionUtil {
       avSessionManager.PlaybackState.PLAYBACK_STATE_PAUSE,
       position: {
         elapsedTime: avSessionState.duration,
-        updateTime: new Date().getTime(),
+        updateTime: systemDateTime.getTime(false),
       },
     };
     this.avSession?.setAVPlaybackState(playbackState);

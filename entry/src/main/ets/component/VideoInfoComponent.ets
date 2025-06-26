@@ -7,7 +7,7 @@ import TimeUtil from '../utils/TimeUtil'
 @Component
 @Reusable
   // 启用组件复用
-export struct VideoInfoView {
+export struct VideoInfoComponent {
   item: VideoMetadata | undefined = undefined
 
   // 实现组件复用回调

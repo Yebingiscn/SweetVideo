@@ -3,7 +3,7 @@ import { photoAccessHelper } from '@kit.MediaLibraryKit';
 import { fileUri, fileIo as fs, picker } from '@kit.CoreFileKit';
 import VideoUtil from './VideoInfoUtil';
 import VideoInfoUtil from './VideoInfoUtil';
-import { BusinessError } from '@kit.BasicServicesKit';
+import { BusinessError, systemDateTime } from '@kit.BasicServicesKit';
 import { media } from '@kit.MediaKit';
 import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
@@ -196,10 +196,11 @@ class SelectFileUtil {
       if (!isDuplicate) {
         if (PrivacySpaceUtil.getPrivacyMode()!) {
           await this.copyFileToPrivacySpace(context, video_meta_data, uri, sandbox_video,
-            sandbox_path, new Date().getTime().toString(), metadata, file)
+            sandbox_path, systemDateTime.getTime(true).toString(), metadata, file)
         } else {
-          const videoInfo = await VideoUtil.setVideoInfo(new Date().getTime().toString(), uri, file.name, metadata,
-            sandbox_video, sandbox_path);
+          const videoInfo =
+            await VideoUtil.setVideoInfo(systemDateTime.getTime(true).toString(), uri, file.name, metadata,
+              sandbox_video, sandbox_path);
           if (file_folder) {
             file_folder.video_list.push(videoInfo)
             FileFolderUtil.updateFileFolder(context, file_folder, file_folder.video_list)

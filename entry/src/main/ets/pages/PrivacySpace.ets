@@ -17,12 +17,13 @@ import {
   ShadowModifier,
   SymbolGlyphFancyModifier
 } from '../utils/AttributeModifierUtil';
-import { ImportProgress } from '../component/ImportProgress';
+import { ImportProgressComponent } from '../component/ImportProgressComponent';
 import { FileProcessorUtil } from '../utils/FileProcessorUtil';
-import { VideoInfoView } from '../component/VideoInfoView';
+import { VideoInfoComponent } from '../component/VideoInfoComponent';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
 import SubtitleUtil from '../utils/SubtitleUtil';
 import { PathUtils } from '../utils/PathUtils';
+import { editPasswordDialog } from '../component/Dialog/EditPasswordDialog';
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -38,17 +39,44 @@ export struct PrivacySpace { // 隐私空间页
   @State loading: boolean = false
   @State searchValue: string = ''
   @State is_edit: boolean = false
+  @State passwd: string = 'passwd'
   @StorageLink('is_list_display') is_list_display: boolean = false
   searchController: SearchController = new SearchController()
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
   })
+  editPasswdDialogController: CustomDialogController = new CustomDialogController({
+    builder: editPasswordDialog({
+      confirm: (passwd: string | undefined) => {
+        if (!passwd || passwd.trim() == '') {
+          return
+        }
+        this.passwd = passwd
+        ToolsUtil.savePwd(PathUtils.appContext!, passwd)
+        ToolsUtil.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.set_passwd_tip')))
+      },
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
   private listScroller: Scroller = new Scroller();
 
   @Builder
   NavigationMenus() {
     Row() {
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph($r('sys.symbol.lock'))
+          .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+      }
+      .backdropBlur(150)
+      .attributeModifier(new ButtonFancyModifier(40, 40))
+      .animation({ duration: 300, curve: Curve.Ease })
+      .backgroundColor('rgba(0, 0, 0, 0.05)')
+      .onClick(() => {
+        this.passwd = Preferences.getPassword(PathUtils.appContext!)
+        this.editPasswdDialogController.open()
+      })
+      .margin({ right: 5 })
+
       Button({ type: ButtonType.Circle, stateEffect: true }) {
         SymbolGlyph($r('sys.symbol.plus'))
           .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
@@ -236,15 +264,6 @@ export struct PrivacySpace { // 隐私空间页
               this.is_edit = isEditing
             })
           })
-        if (this.video_meta_data_encryption?.length === 0) {
-          Text($r('app.string.privacy_space_info'))
-            .fontSize(24)
-            .fontWeight(FontWeight.Medium)
-            .textAlign(TextAlign.Center)
-            .align(Alignment.Center)
-            .height('100%')
-            .width('100%')
-        }
         List({ scroller: this.listScroller, space: 10 }) {
           LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
             ListItem() {
@@ -265,7 +284,7 @@ export struct PrivacySpace { // 隐私空间页
                           .wordBreak(WordBreak.BREAK_ALL)
                       }.width('100%')
 
-                      VideoInfoView({ item })
+                      VideoInfoComponent({ item })
                         .reuseId(item.date)
                     }.margin({ left: 10 }).alignItems(HorizontalAlign.Start)
                   }
@@ -298,7 +317,7 @@ export struct PrivacySpace { // 隐私空间页
                     .width('100%')
                     .padding({ top: 5 })
 
-                    VideoInfoView({ item })
+                    VideoInfoComponent({ item })
                       .reuseId(item.date)
                   }.padding({ left: 5, right: 5, bottom: 5 })
                   .width('100%')
@@ -350,7 +369,7 @@ export struct PrivacySpace { // 隐私空间页
         }
         if (this.loading) {
           Stack() {
-            ImportProgress({
+            ImportProgressComponent({
               current_import: this.current_import,
               import_sum: this.import_sum
             })

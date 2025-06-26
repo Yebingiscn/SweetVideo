@@ -1,5 +1,5 @@
 @Component
-export struct ImportProgress {
+export struct ImportProgressComponent {
   @Prop current_import: number
   @Prop import_sum: number
 

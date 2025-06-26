@@ -10,7 +10,7 @@
     },
     {
       "name": "EntryAbility_label",
-      "value": "流心视频"
+      "value": "枪獭播放器"
     },
     {
       "name": "sure",
@@ -155,6 +155,10 @@
     {
       "name": "VIBRATE_REASON",
       "value": "增加触感反馈，提升用户体验"
+    },
+    {
+      "name": "BIOMETRIC_ACCESS_REASON",
+      "value": "用于隐私空间验证"
     }
   ]
 }

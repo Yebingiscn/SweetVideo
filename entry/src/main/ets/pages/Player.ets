@@ -1255,7 +1255,7 @@ export struct Player { // 播放页
         .backgroundColor('#50000000')
         .bindMenu(this.PlaybackSpeedMenu, {
           backgroundColor: Color.Transparent,
-          backgroundBlurStyle: BlurStyle.Thin,
+          backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
         })
       }.span({ xs: 2, sm: 2, md: 2 })
 

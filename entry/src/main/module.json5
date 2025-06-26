@@ -89,15 +89,43 @@
     "requestPermissions": [
       {
         "name": "ohos.permission.FILE_ACCESS_PERSIST",
-        "reason": "$string:FILE_ACCESS_PERSIST_REASON"
+        "reason": "$string:FILE_ACCESS_PERSIST_REASON",
+        "usedScene": {
+          "abilities": [
+            "EntryAbility"
+          ],
+          "when": "always"
+        }
       },
       {
         "name": "ohos.permission.KEEP_BACKGROUND_RUNNING",
-        "reason": "$string:KEEP_BACKGROUND_RUNNING_REASON"
+        "reason": "$string:KEEP_BACKGROUND_RUNNING_REASON",
+        "usedScene": {
+          "abilities": [
+            "EntryAbility"
+          ],
+          "when": "always"
+        }
       },
       {
         "name": "ohos.permission.VIBRATE",
-        "reason": "$string:VIBRATE_REASON"
+        "reason": "$string:VIBRATE_REASON",
+        "usedScene": {
+          "abilities": [
+            "EntryAbility"
+          ],
+          "when": "always"
+        }
+      },
+      {
+        "name": "ohos.permission.ACCESS_BIOMETRIC",
+        "reason": "$string:BIOMETRIC_ACCESS_REASON",
+        "usedScene": {
+          "abilities": [
+            "EntryAbility"
+          ],
+          "when": "always"
+        }
       }
     ]
   }

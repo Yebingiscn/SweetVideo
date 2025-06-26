@@ -1,3 +1,5 @@
+import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil'
+
 // 重设密码弹窗
 @CustomDialog
 export struct editPasswordDialog {
@@ -7,7 +9,7 @@ export struct editPasswordDialog {
 
   build() {
     Column({ space: 25 }) {
-      Text($r('app.string.set_passwd'))
+      Text(PrivacySpaceUtil.getPrivacyMode() ? '修改密码 (/▽＼)' : $r('app.string.set_passwd'))
         .fontSize(25)
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)

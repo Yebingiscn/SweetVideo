@@ -3,13 +3,14 @@ import { FileFolder } from '../interfaces/FileFolderInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import ToolsUtil from './ToolsUtil'
 import { Context } from '@kit.AbilityKit'
+import { systemDateTime } from '@kit.BasicServicesKit'
 
 // 文件夹类
 class FileFolderUtil {
   async createNewFolder(context: Context, folder_name: string): Promise<FileFolder[]> {
     const new_folder: FileFolder = {
       name: folder_name,
-      date: new Date().getTime().toString(),
+      date: systemDateTime.getTime(true).toString(),
       video_list: []
     }
     const file_folder_list = Preferences.getFileFolder(context) as FileFolder[]

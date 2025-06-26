@@ -1,5 +1,5 @@
 import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
-import { curves, SymbolGlyphModifier } from '@kit.ArkUI';
+import { SymbolGlyphModifier } from '@kit.ArkUI';
 import DataSyncUtil, { OOBEVersion } from '../utils/DataSyncUtil';
 import { IndexDataSource } from '../utils/DataUtil';
 import ToolsUtil from '../utils/ToolsUtil';
@@ -28,7 +28,6 @@ import { PrivacyPolicyDialog } from './PrivacyInfo';
 import VideoOperateUtil from '../utils/VideoOperateUtil';
 import { PrivacySpace } from './PrivacySpace';
 import Preferences from '../database/Preferences';
-import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
 import { RedPlayer } from './RedPlayer';
 import {
   ButtonFancyModifier,
@@ -36,12 +35,13 @@ import {
   ShadowModifier,
   SymbolGlyphFancyModifier
 } from '../utils/AttributeModifierUtil';
-import { ImportProgress } from '../component/ImportProgress';
+import { ImportProgressComponent } from '../component/ImportProgressComponent';
 import { FileProcessorUtil } from '../utils/FileProcessorUtil';
-import { VideoInfoView } from '../component/VideoInfoView';
+import { VideoInfoComponent } from '../component/VideoInfoComponent';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
 import SubtitleUtil from '../utils/SubtitleUtil';
 import { PathUtils } from '../utils/PathUtils';
+import { MaskComponent } from '../component/MaskComponent';
 
 @Builder
 export function IndexBuilder() {
@@ -61,6 +61,7 @@ struct Index {
   @State sideBarStatus: boolean = false
   @State current_import: number = 0
   @State is_edit: boolean = false
+  @State mask_state: boolean = false
   @State import_sum: number = 0
   @State sideBarStatusTmp: Visibility = Visibility.Hidden
   @State itemMultipleChoose: boolean = false
@@ -494,6 +495,7 @@ struct Index {
   closeSideBar(isPlayAnimation: boolean) {
     if (this.side_bar_mode === SideBarContainerType.Overlay) {
       this.sideBarStatusTmp = Visibility.Hidden
+      this.mask_state = false
       isPlayAnimation ? setTimeout(() => {
         this.sideBarStatus = false
       }, 400) : this.sideBarStatus = false
@@ -503,6 +505,7 @@ struct Index {
   openSideBar() {
     if (this.side_bar_mode === SideBarContainerType.Overlay) {
       this.sideBarStatusTmp = Visibility.Visible
+      this.mask_state = true
       this.sideBarStatus = true
     }
   }
@@ -677,16 +680,8 @@ struct Index {
         .borderRadius(this.side_bar_mode === SideBarContainerType.Overlay ? 16 : 0)
 
         Stack({ alignContent: Alignment.Top }) { // 内容区
-          if (this.sideBarStatus && this.side_bar_mode === SideBarContainerType.Overlay) {
-            Column()// 遮罩
-              .height('100%')
-              .width('100%')
-              .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
-              .transition(TransitionEffect.OPACITY.animation({ curve: curves.springMotion(0, 1) }))
-              .zIndex(1)
-              .onClick(() => {
-                this.closeSideBar(true)
-              })
+          if (this.mask_state && this.side_bar_mode === SideBarContainerType.Overlay) {
+            MaskComponent({ onClose: (): void => this.closeSideBar(true) })
           }
 
           List({ scroller: this.listScroller }) {
@@ -727,7 +722,7 @@ struct Index {
                             })
                         }
 
-                        VideoInfoView({ item })
+                        VideoInfoComponent({ item })
                           .reuseId(item.date)
                       }.alignItems(HorizontalAlign.Start).padding({ left: 15, right: 15 }).width('90%')
                     }.justifyContent(FlexAlign.Center)
@@ -776,7 +771,7 @@ struct Index {
                       .width('100%')
                       .padding({ top: 5 })
 
-                      VideoInfoView({ item })
+                      VideoInfoComponent({ item })
                         .reuseId(item.date)
                     }.padding({ left: 5, right: 5, bottom: 5 })
                     .width('100%')
@@ -895,7 +890,6 @@ struct Index {
                   if (value == this.passwd) {
                     ToolsUtil.showToast(PathUtils.appContext!
                       .resourceManager.getStringSync($r('app.string.enter_privacy_space')))
-                    PrivacySpaceUtil.setPrivacyMode(true)
                     this.pathStack.pushPathByName('PrivacySpace', null)
                     this.searchValue = ''
                     return
@@ -943,7 +937,7 @@ struct Index {
           .width('90%') // 横屏下避让
           if (this.loading) {
             Stack() {
-              ImportProgress({
+              ImportProgressComponent({
                 current_import: this.current_import,
                 import_sum: this.import_sum
               })

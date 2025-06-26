@@ -17,7 +17,7 @@ import {
   ShadowModifier,
   SymbolGlyphFancyModifier
 } from '../utils/AttributeModifierUtil';
-import { VideoInfoView } from '../component/VideoInfoView';
+import { VideoInfoComponent } from '../component/VideoInfoComponent';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
 import SubtitleUtil from '../utils/SubtitleUtil';
@@ -241,7 +241,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
                           .wordBreak(WordBreak.BREAK_ALL)
                       }.width('100%')
 
-                      VideoInfoView({ item })
+                      VideoInfoComponent({ item })
                         .reuseId(item.date)
                     }.margin({ left: 10 }).alignItems(HorizontalAlign.Start)
                   }
@@ -274,7 +274,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
                     .width('100%')
                     .padding({ top: 5 })
 
-                    VideoInfoView({ item })
+                    VideoInfoComponent({ item })
                       .reuseId(item.date)
                   }.padding({ left: 5, right: 5, bottom: 5 })
                   .width('100%')

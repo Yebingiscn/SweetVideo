@@ -1,6 +1,7 @@
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 import { editPasswordDialog } from '../component/Dialog/EditPasswordDialog';
 import Preferences from '../database/Preferences';
+import BiometricAccessUtil from '../utils/BiometricAccessUtil';
 import { PathUtils } from '../utils/PathUtils';
 import ToolsUtil from '../utils/ToolsUtil';
 
@@ -30,6 +31,7 @@ export struct SettingsPage { //设置页
         this.passwd = passwd
         ToolsUtil.savePwd(PathUtils.appContext!, passwd)
         ToolsUtil.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.set_passwd_tip')))
+        this.pathStack.replacePathByName('PrivacySpace', null)
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -51,9 +53,22 @@ export struct SettingsPage { //设置页
           SettingsClickItem({
             symbol: $r('sys.symbol.lock'),
             message: $r('app.string.privacy_space'),
-            onPress: () => {
+            onPress: async () => {
               this.passwd = Preferences.getPassword(PathUtils.appContext!)
-              this.editPasswdDialogController.open()
+              if (this.passwd === undefined) { // 未设置密码时直接打开设置弹窗
+                this.editPasswdDialogController.open();
+                return;
+              }
+              if (BiometricAccessUtil.checkUserAuthSupport()) { // 支持生物认证时进行认证
+                const isSuccess = await BiometricAccessUtil.startUserAuth();
+                if (isSuccess) { // 认证成功进入隐私空间
+                  this.pathStack.replacePathByName('PrivacySpace', null);
+                  return;
+                }
+                ToolsUtil.showToast('验证失败，请从首页搜索框输入密码进入隐私空间'); // 认证失败显示提示
+                return;
+              }
+              ToolsUtil.showToast('请从首页搜索框输入密码进入隐私空间'); // 设备不支持生物认证的提示
             }
           })
         }
