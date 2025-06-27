@@ -99,15 +99,12 @@ export struct RedPlayer { // 红薯播放器页
                       this.playerController.setVolume(1.0)
                       if (this.now_playing?.last_play! < this.redPlayerStateHolder.videoDuration * 0.9 &&
                         this.now_playing?.last_play != 0) {
-                        this.playerController.seek(this.now_playing?.last_play!)
-                        this.redPlayerStateHolder.videoPosition = this.now_playing?.last_play!
+                        this.seekVideo(this.now_playing?.last_play!)
                       } else if (this.skipIntroTime !== '0' &&
                         Number(this.skipIntroTime) * 1000 < this.now_playing?.time! &&
                         !VideoInfoUtil.support_audio_format.includes(this.now_playing?.title.split('.')[this.now_playing?.title.split('.')
                           .length-1].toLowerCase()!)) {
-                        this.playerController.seek(this.play_time +
-                          Number(this.skipIntroTime) * 1000)
-                        this.redPlayerStateHolder.videoPosition = this.play_time + Number(this.skipIntroTime) * 1000
+                        this.seekVideo(this.play_time + Number(this.skipIntroTime) * 1000)
                       }
                       this.playerController.start()
                     })
@@ -300,27 +297,24 @@ export struct RedPlayer { // 红薯播放器页
               GestureGroup(GestureMode.Exclusive,
                 TapGesture({ count: 2 })// 双击事件
                   .onAction((event: GestureEvent) => {
-                    if (this.allowDoubleFastForward) {
-                      const tapX = event.fingerList[0].localX;
-                      const adjustWidth = this.screen_width / 5; // 计算五分之一宽度
-                      if (tapX < adjustWidth) { // 左侧1/5区域
-                        this.playerController.seek(this.play_time -
-                          Number(this.fastForwardSeconds) * 1000);
-                        this.redPlayerStateHolder.videoPosition = this.play_time -
-                          Number(this.fastForwardSeconds) * 1000
-                      } else if (tapX > adjustWidth * 4) { // 右侧1/5区域
-                        this.playerController.seek(this.play_time +
-                          Number(this.fastForwardSeconds) * 1000);
-                        this.redPlayerStateHolder.videoPosition = this.play_time +
-                          Number(this.fastForwardSeconds) * 1000
-                      } else { // 中间3/5区域
-                        this.redPlayerStateHolder.isStart ? this.playerController.pause() :
-                        this.playerController.start()
-                      }
-                    } else {
-                      this.redPlayerStateHolder.isStart ? this.playerController.pause() : this.playerController.start()
-
+                    if (!this.allowDoubleFastForward) { // 非快进模式直接切换播放状态
+                      this.togglePlayback();
+                      return;
                     }
+                    const tapX = event.fingerList[0].localX;
+                    const zoneWidth = this.screen_width / 5; // 计算区域分割宽度
+                    const seekOffset = Number(this.fastForwardSeconds) * 1000;
+                    if (tapX < zoneWidth) { // 左侧区域：回退
+                      const newPosition = this.play_time - seekOffset;
+                      this.seekVideo(newPosition);
+                      return;
+                    }
+                    if (tapX > zoneWidth * 4) { // 右侧区域：快进
+                      const newPosition = this.play_time + seekOffset;
+                      this.seekVideo(newPosition);
+                      return;
+                    }
+                    this.togglePlayback(); // 中间区域：播放/暂停切换
                   }),
                 TapGesture({ count: 1 })// 单击事件
                   .onAction(() => { //单击屏幕
@@ -328,31 +322,32 @@ export struct RedPlayer { // 红薯播放器页
                   }),
                 PanGesture({ fingers: 1, direction: PanDirection.Vertical })// 垂直滑动
                   .onActionStart((event: GestureEvent) => {
-                    if (!this.isLock) {
-                      const firstTouch = event.fingerList[0];
-                      this.swipe_start_y = firstTouch.localY;
-                      this.isLeftSideSwipe = firstTouch.localX < this.screen_width / 2;
-                      this.screenBrightnessTmp = this.screenBrightness
-                      this.volumeTmp = this.volume
+                    if (this.isLock) {
+                      return
                     }
+                    const firstTouch = event.fingerList[0];
+                    this.swipe_start_y = firstTouch.localY;
+                    this.isLeftSideSwipe = firstTouch.localX < this.screen_width / 2;
+                    this.screenBrightnessTmp = this.screenBrightness
+                    this.volumeTmp = this.volume
                   })
                   .onActionUpdate((event: GestureEvent) => {
-                    if (!this.isLock) {
-                      const currentY = event.fingerList[0].localY; // 拖动后当前的位置
-                      const deltaY = currentY - this.swipe_start_y; // 拖动后的垂直距离
-                      const deltaYScale = deltaY / this.screen_height * 2.5 // 滑动像素占屏幕高度比例
-
-                      if (this.isLeftSideSwipe) {
-                        this.onSwipingBrightness = true
-                        const newBrightness = this.screenBrightnessTmp - deltaYScale
-                        this.screenBrightness = Math.min(Math.max(newBrightness, 0), 1)
-                        VideoOperateUtil.setBrightness(this.screenBrightness);
-                      } else {
-                        this.onSwipingVoice = true
-                        const newVolume = (this.volumeTmp - deltaYScale * 20);
-                        this.volume =
-                          Math.min(Math.max(newVolume, VideoOperateUtil.min_volume), VideoOperateUtil.max_volume);
-                      }
+                    if (this.isLock) {
+                      return
+                    }
+                    const currentY = event.fingerList[0].localY; // 拖动后当前的位置
+                    const deltaY = currentY - this.swipe_start_y; // 拖动后的垂直距离
+                    const deltaYScale = deltaY / this.screen_height * 2.5 // 滑动像素占屏幕高度比例
+                    if (this.isLeftSideSwipe) {
+                      this.onSwipingBrightness = true
+                      const newBrightness = this.screenBrightnessTmp - deltaYScale
+                      this.screenBrightness = Math.min(Math.max(newBrightness, 0), 1)
+                      VideoOperateUtil.setBrightness(this.screenBrightness);
+                    } else {
+                      this.onSwipingVoice = true
+                      const newVolume = (this.volumeTmp - deltaYScale * 20);
+                      this.volume =
+                        Math.min(Math.max(newVolume, VideoOperateUtil.min_volume), VideoOperateUtil.max_volume);
                     }
                   })
                   .onActionEnd(() => {
@@ -362,14 +357,15 @@ export struct RedPlayer { // 红薯播放器页
                   }),
                 PanGesture({ fingers: 1, direction: PanDirection.Horizontal })
                   .onActionStart((event: GestureEvent) => {
-                    if (!this.isLock) {
-                      const firstTouch = event.fingerList[0];
-                      this.swipe_start_x = firstTouch.localX;
-                      this.swipe_start_y = firstTouch.localY;
-                      this.play_time = this.redPlayerStateHolder.videoPosition;
-                      this.last_play_time = this.redPlayerStateHolder.videoPosition;
-                      this.onSwiping = true
+                    if (this.isLock) {
+                      return
                     }
+                    const firstTouch = event.fingerList[0];
+                    this.swipe_start_x = firstTouch.localX;
+                    this.swipe_start_y = firstTouch.localY;
+                    this.play_time = this.redPlayerStateHolder.videoPosition;
+                    this.last_play_time = this.redPlayerStateHolder.videoPosition;
+                    this.onSwiping = true
                   })
                   .onActionUpdate((event: GestureEvent) => {
                     if (event?.fingerList?.[0]?.localX !== undefined &&
@@ -382,8 +378,7 @@ export struct RedPlayer { // 红薯播放器页
                     }
                   })
                   .onActionEnd(() => {
-                    this.playerController.seek(this.play_time);
-                    this.redPlayerStateHolder.videoPosition = this.play_time
+                    this.seekVideo(this.play_time)
                     this.onSwiping = false;
                   }),
               ),
@@ -406,28 +401,31 @@ export struct RedPlayer { // 红薯播放器页
                   direction: PanDirection.Horizontal
                 })//水平滑动事件 长按加速滑动调整倍速
                   .onActionStart((event: GestureEvent) => { // 长按且滑动屏幕
-                    if (!this.isLock) {
-                      this.longPressStartX = event.fingerList[0].localX;
+                    if (this.isLock) {
+                      return
                     }
+                    this.longPressStartX = event.fingerList[0].localX;
                   })
                   .onActionUpdate((event: GestureEvent) => {
                     if (!this.isLock && this.long_press) { // 长按状态下的滑动处理
-                      { // 长按状态下的滑动处理
-                        const deltaX = event.fingerList[0].localX - this.longPressStartX;
-                        const SWIPE_THRESHOLD = 30;
-                        if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
-                          const direction = deltaX > 0 ? 1 : -1;
-                          const newIndex = this.currentSpeedIndex + direction;
-                          const clampedIndex =
-                            Math.max(0, Math.min(newIndex, VideoInfoUtil.video_speed_list.length - 1));
-                          if (clampedIndex !== this.currentSpeedIndex && clampedIndex >= 0.5 && clampedIndex <= 2) {
-                            this.play_speed = clampedIndex;
-                            this.playerController.setSpeed(this.play_speed)
-                          }
-                          this.longPressStartX = event.fingerList[0].localX; // 重置起始点（实现分档切换效果）
-                        }
-                        return
+                      const deltaX = event.fingerList[0].localX - this.longPressStartX;
+                      const SWIPE_THRESHOLD = 30;
+                      if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
+                        return;
                       }
+                      const direction = deltaX > 0 ? 1 : -1; // 确定滑动方向（正值为右滑，负值为左滑）
+                      const newIndex = this.currentSpeedIndex + direction; // 计算新的速度索引
+                      const clampedIndex = Math.max(0, Math.min(newIndex, VideoInfoUtil.video_speed_list.length - 1));
+                      // 检查速度索引是否变化且速度值是否在允许范围内 (0.5-2.0)
+                      if (clampedIndex === this.currentSpeedIndex ||
+                        VideoInfoUtil.video_speed_list[clampedIndex] < 0.5 ||
+                        VideoInfoUtil.video_speed_list[clampedIndex] > 2) {
+                        return;
+                      }
+                      this.currentSpeedIndex = clampedIndex
+                      this.play_speed = VideoInfoUtil.video_speed_list[clampedIndex]; // 更新播放速度
+                      this.playerController.setSpeed(this.play_speed);
+                      this.longPressStartX = event.fingerList[0].localX; // 重置起始点实现分档切换效果
                     }
                   })
               )))
@@ -509,8 +507,7 @@ export struct RedPlayer { // 红薯播放器页
     });
     this.avSession?.on('seek', (position: number) => {
       let seekValue = position;
-      this.playerController.seek(seekValue)
-      this.redPlayerStateHolder.videoPosition = seekValue
+      this.seekVideo(seekValue)
     })
   }
 
@@ -558,8 +555,7 @@ export struct RedPlayer { // 红薯播放器页
           this.play_time = value
           if (this.redPlayerStateHolder.videoPosition >= this.redPlayerStateHolder.videoDuration ||
             this.play_time >= this.redPlayerStateHolder.videoDuration) {
-            this.playerController.seek(0)
-            this.redPlayerStateHolder.videoPosition = 0
+            this.seekVideo(0)
             this.onSwiping = false
           } else {
             this.isSliderPlayTimeChange = true
@@ -571,8 +567,7 @@ export struct RedPlayer { // 红薯播放器页
             this.play_time = this.redPlayerStateHolder.videoPosition
           }
           if (event.type == TouchType.Up) {
-            this.playerController.seek(this.play_time)
-            this.redPlayerStateHolder.videoPosition = this.play_time
+            this.seekVideo(this.play_time)
             this.onSwiping = false
             this.isSliderPlayTimeChange = false
           }
@@ -608,13 +603,13 @@ export struct RedPlayer { // 红薯播放器页
         .onKeyEvent((event?: KeyEvent) => {
           if (event) {
             if (event.type === KeyType.Down && event.keyCode === KeyCode.KEYCODE_SPACE) { // 空格键按下触发
-              this.redPlayerStateHolder.isStart ? this.playerController.pause() : this.playerController.start()
+              this.togglePlayback()
             }
           }
         })
         .onClick(() => {
           ToolsUtil.startVibration()
-          this.redPlayerStateHolder.isStart ? this.playerController.pause() : this.playerController.start()
+          this.togglePlayback()
         })
       }.span({ xs: 2, sm: 2, md: 2 })
 
@@ -649,5 +644,14 @@ export struct RedPlayer { // 红薯播放器页
   @Builder
   AVCastPickerBuilderBridge() { // 桥接AVCastPickerBuilder避免crash
     AVCastPickerBuilder()
+  }
+
+  private seekVideo(position: number) { // 视频跳转操作封装
+    this.playerController.seek(position);
+    this.redPlayerStateHolder.videoPosition = position;
+  }
+
+  private togglePlayback() { // 播放/暂停切换封装
+    this.redPlayerStateHolder.isStart ? this.playerController.pause() : this.playerController.start();
   }
 }
