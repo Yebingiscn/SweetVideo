@@ -531,65 +531,47 @@ struct Index {
     Navigation(this.pathStack) {
       SideBarContainer(this.side_bar_mode) {
         Column() {
+          Column() {
+            Stack() {
+              Image($r("app.media.Background"))
+                .attributeModifier(new ImageFancyModifier(16, '100%', 120))
+                .zIndex(1)
+              Row() {
+                Image($r("app.media.Foreground"))
+                  .attributeModifier(new ImageFancyModifier(0, 50, 50))
+                Text($r('app.string.EntryAbility_label'))
+                  .fontSize(20)
+                  .fontColor('#ffff')
+                  .margin({ left: 5, right: 12 })
+              }.width('100%')
+              .justifyContent(FlexAlign.Center)
+              .zIndex(2)
+            }
+            Row() {
+              Button({ type: ButtonType.Normal, stateEffect: true }) {
+                Row() {
+                  SymbolGlyph($r('sys.symbol.clock')).attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                  Text('最近播放')
+                    .fontSize(15)
+                    .fontColor($r('app.color.text_color'))
+                    .margin({ left: 10, right: 12 })
+                }
+              }
+              .align(Alignment.Start)
+              .padding({ left: 15, right: 15 })
+              .attributeModifier(new ButtonFancyModifier('100%', 60))
+              .animation({ duration: 300, curve: Curve.Ease })
+              .onClick(async () => {
+                this.closeSideBar(false)
+                this.pathStack.pushPathByName('RecentPlay', true)
+              })
+            }.width('100%').margin({ top: 10 })
+            .justifyContent(FlexAlign.Start)
+          }
+          .padding({ left: 20, right: 20, top: 50 })
+
           Scroll() {
             Column() {
-              Stack() {
-                Image($r("app.media.Background"))
-                  .attributeModifier(new ImageFancyModifier(16, '100%', 120))
-                  .zIndex(1)
-                Row() {
-                  Image($r("app.media.Foreground"))
-                    .attributeModifier(new ImageFancyModifier(0, 50, 50))
-                  Text($r('app.string.EntryAbility_label'))
-                    .fontSize(20)
-                    .fontColor('#ffff')
-                    .margin({ left: 5, right: 12 })
-                }.width('100%')
-                .justifyContent(FlexAlign.Center)
-                .zIndex(2)
-              }
-
-              Row() {
-                Button({ type: ButtonType.Normal, stateEffect: true }) {
-                  Row() {
-                    SymbolGlyph($r('sys.symbol.gearshape'))
-                      .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                    Text('设置')
-                      .fontSize(15)
-                      .margin({ left: 10, right: 12 })
-                  }
-                }
-                .align(Alignment.Start)
-                .padding({ left: 15, right: 15 })
-                .attributeModifier(new ButtonFancyModifier('100%', 60))
-                .animation({ duration: 300, curve: Curve.Ease })
-                .onClick(() => {
-                  this.closeSideBar(false)
-                  this.pathStack.pushPathByName('SettingsPage', null)
-                })
-              }.margin({ top: 10 })
-
-              Row() {
-                Button({ type: ButtonType.Normal, stateEffect: true }) {
-                  Row() {
-                    SymbolGlyph($r('sys.symbol.clock')).attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                    Text('最近播放')
-                      .fontSize(15)
-                      .fontColor($r('app.color.text_color'))
-                      .margin({ left: 10, right: 12 })
-                  }
-                }
-                .align(Alignment.Start)
-                .padding({ left: 15, right: 15 })
-                .attributeModifier(new ButtonFancyModifier('100%', 60))
-                .animation({ duration: 300, curve: Curve.Ease })
-                .onClick(async () => {
-                  this.closeSideBar(false)
-                  this.pathStack.pushPathByName('RecentPlay', true)
-                })
-              }.width('100%').margin({ top: 10 })
-              .justifyContent(FlexAlign.Start)
-
               Column() {
                 Row() {
                   Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -629,7 +611,6 @@ struct Index {
                 }.width('100%')
                 .justifyContent(FlexAlign.Start)
               }
-              .margin({ top: 10 })
               .justifyContent(FlexAlign.Start)
               .backgroundColor($r('app.color.start_window_background_blur'))
               .borderRadius(16)
@@ -663,14 +644,36 @@ struct Index {
               .backgroundColor($r('app.color.start_window_background_blur'))
             }.width('100%')
           }
-          .padding({ left: 20, right: 20, top: 50 })
+          .margin({ top: 10 })
+          .padding({ left: 20, right: 20 })
           .layoutWeight(1)
           .align(Alignment.Top)
-          .scrollBar(BarState.Off)
           .scrollable(ScrollDirection.Vertical) // 启用垂直滚动
           .edgeEffect(EdgeEffect.Spring) // 滚动边缘效果
           .width('100%')
           .height('100%')
+
+          Row() {
+            Button({ type: ButtonType.Normal, stateEffect: true }) {
+              Row() {
+                SymbolGlyph($r('sys.symbol.gearshape'))
+                  .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                Text($r('app.string.setting'))
+                  .fontSize(15)
+                  .margin({ left: 10, right: 12 })
+              }
+            }
+            .align(Alignment.Start)
+            .padding({ left: 15, right: 15 })
+            .attributeModifier(new ButtonFancyModifier('100%', 60))
+            .animation({ duration: 300, curve: Curve.Ease })
+            .onClick(() => {
+              this.closeSideBar(false)
+              this.pathStack.pushPathByName('SettingsPage', null)
+            })
+          }
+          .alignSelf(ItemAlign.End)
+          .padding(20)
         }
         .width('100%')
         .justifyContent(FlexAlign.Start)

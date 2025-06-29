@@ -25,6 +25,10 @@
       "value": "Rename"
     },
     {
+      "name": "setting",
+      "value": "Setting"
+    },
+    {
       "name": "search",
       "value": "Search"
     },
