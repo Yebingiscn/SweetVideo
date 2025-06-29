@@ -122,11 +122,13 @@ struct Index {
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
   })
+
   SyncSideBarAndMaskState(): void {
     if (this.sideBarStatusTmp == Visibility.Hidden) {
       this.mask_state = false
     }
   }
+
   listScroller: ListScroller = new ListScroller()
   searchController: SearchController = new SearchController()
   delConfirmDialog: CustomDialogController = new CustomDialogController({
@@ -552,6 +554,7 @@ struct Index {
               .justifyContent(FlexAlign.Center)
               .zIndex(2)
             }
+
             Row() {
               Button({ type: ButtonType.Normal, stateEffect: true }) {
                 Row() {
@@ -593,7 +596,8 @@ struct Index {
                   .attributeModifier(new ButtonFancyModifier('100%', 60))
                   .animation({ duration: 300, curve: Curve.Ease })
                   .bindMenu(this.SelectFileMenuBuilder)
-                }.width('100%')
+                }
+                .width('100%')
                 .justifyContent(FlexAlign.Start)
 
                 Row() {
@@ -623,22 +627,25 @@ struct Index {
               List() {
                 ForEach(this.file_folder_list, (item: FileFolder) => {
                   ListItem() {
-                    Row() {
-                      SymbolGlyph($r('sys.symbol.folder'))
-                        .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                      Text(item.name)
-                        .fontSize(15)
-                        .margin({ left: 10, right: 12 })
-                    }.width('100%')
+                    Button({ type: ButtonType.Normal, stateEffect: true }) {
+                      Row() {
+                        SymbolGlyph($r('sys.symbol.folder'))
+                          .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                        Text(item.name)
+                          .fontSize(15)
+                          .margin({ left: 10, right: 12 })
+                      }
+                    }
+                    .align(Alignment.Start)
+                    .padding({ left: 15, right: 15 })
+                    .attributeModifier(new ButtonFancyModifier('100%', 60))
+                    .animation({ duration: 300, curve: Curve.Ease })
                   }
                   .onClick(() => {
                     ToolsUtil.routerToFileFolder(this.pathStack, item)
                   })
-                  .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
                   .bindContextMenu(this.FileFolderSelectMenu(item), ResponseType.LongPress)
                   .height(60)
-                  .align(Alignment.Start)
-                  .padding({ left: 15, right: 15 })
                 })
               }
               .borderRadius(16)
