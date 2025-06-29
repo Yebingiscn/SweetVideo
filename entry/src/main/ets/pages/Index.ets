@@ -63,7 +63,7 @@ struct Index {
   @State is_edit: boolean = false
   @State mask_state: boolean = false
   @State import_sum: number = 0
-  @State sideBarStatusTmp: Visibility = Visibility.Hidden
+  @State @Watch('SyncSideBarAndMaskState') sideBarStatusTmp: Visibility = Visibility.Hidden
   @State itemMultipleChoose: boolean = false
   @State multipleChooseState: Visibility = Visibility.None
   @State MenuBuilderState: boolean = false
@@ -122,6 +122,11 @@ struct Index {
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
   })
+  SyncSideBarAndMaskState(): void {
+    if (this.sideBarStatusTmp == Visibility.Hidden) {
+      this.mask_state = false
+    }
+  }
   listScroller: ListScroller = new ListScroller()
   searchController: SearchController = new SearchController()
   delConfirmDialog: CustomDialogController = new CustomDialogController({
