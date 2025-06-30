@@ -32,6 +32,7 @@ import { RedPlayer } from './RedPlayer';
 import {
   ButtonFancyModifier,
   ImageFancyModifier,
+  MenuModifier,
   ShadowModifier,
   SymbolGlyphFancyModifier
 } from '../utils/AttributeModifierUtil';
@@ -122,13 +123,6 @@ struct Index {
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
   })
-
-  SyncSideBarAndMaskState(): void {
-    if (this.sideBarStatusTmp == Visibility.Hidden) {
-      this.mask_state = false
-    }
-  }
-
   listScroller: ListScroller = new ListScroller()
   searchController: SearchController = new SearchController()
   delConfirmDialog: CustomDialogController = new CustomDialogController({
@@ -157,6 +151,12 @@ struct Index {
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
 
+  SyncSideBarAndMaskState(): void {
+    if (this.sideBarStatusTmp == Visibility.Hidden) {
+      this.mask_state = false
+    }
+  }
+
   @Builder
   FileFolderMenu(video_item: VideoMetadata | undefined) {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
@@ -176,7 +176,7 @@ struct Index {
             })
         })
       }.font({ size: 15, weight: FontWeight.Normal })
-    }.width(150)
+    }.attributeModifier(new MenuModifier())
   }
 
   async addVideoToFileFolder(video_item: VideoMetadata, item: FileFolder) {
@@ -217,7 +217,7 @@ struct Index {
           this.editFileFolderNameDialogController.open()
         })
       }.font({ size: 15, weight: FontWeight.Normal })
-    }.onAppear(() => {
+    }.attributeModifier(new MenuModifier()).onAppear(() => {
       ToolsUtil.startVibration()
     })
   }
@@ -295,8 +295,8 @@ struct Index {
               this.multipleChooseState == Visibility.None ? Visibility.Visible : Visibility.None
             DataSyncUtil.delMultipleList.length = 0
           })
-      }.font({ size: 15, weight: FontWeight.Normal })
-    }.width(180).onAppear(() => {
+      }.attributeModifier(new MenuModifier())
+    }.onAppear(() => {
       ToolsUtil.startVibration()
       this.MenuBuilderState = true
     })
@@ -324,8 +324,8 @@ struct Index {
               await ToolsUtil.sortByTime(PathUtils.appContext!, this.video_meta_data, undefined) as VideoMetadata[]
             this.videoDataSource.updateData(this.video_meta_data)
           })
-      }.font({ size: 15, weight: FontWeight.Normal })
-    }.width(150)
+      }.attributeModifier(new MenuModifier())
+    }
   }
 
   @Builder
@@ -357,8 +357,8 @@ struct Index {
             this.closeSideBar(false)
             await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), undefined);
           })
-      }.font({ size: 15, weight: FontWeight.Normal })
-    }.width(200)
+      }.attributeModifier(new MenuModifier())
+    }
   }
 
   @Builder
@@ -405,8 +405,8 @@ struct Index {
           content: "添加到文件夹",
           builder: (): void => this.FileFolderMenu(undefined)
         })
-      }.font({ size: 15, weight: FontWeight.Normal })
-    }.width(150)
+      }.attributeModifier(new MenuModifier())
+    }
   }
 
   async deleteItem(resolve: () => void, reject: (reason?: Error) => void) {
@@ -538,48 +538,24 @@ struct Index {
     Navigation(this.pathStack) {
       SideBarContainer(this.side_bar_mode) {
         Column() {
-          Column() {
-            Stack() {
-              Image($r("app.media.Background"))
-                .attributeModifier(new ImageFancyModifier(16, '100%', 120))
-                .zIndex(1)
-              Row() {
-                Image($r("app.media.Foreground"))
-                  .attributeModifier(new ImageFancyModifier(0, 50, 50))
-                Text($r('app.string.EntryAbility_label'))
-                  .fontSize(20)
-                  .fontColor('#ffff')
-                  .margin({ left: 5, right: 12 })
-              }.width('100%')
-              .justifyContent(FlexAlign.Center)
-              .zIndex(2)
-            }
-
-            Row() {
-              Button({ type: ButtonType.Normal, stateEffect: true }) {
-                Row() {
-                  SymbolGlyph($r('sys.symbol.clock')).attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                  Text('最近播放')
-                    .fontSize(15)
-                    .fontColor($r('app.color.text_color'))
-                    .margin({ left: 10, right: 12 })
-                }
-              }
-              .align(Alignment.Start)
-              .padding({ left: 15, right: 15 })
-              .attributeModifier(new ButtonFancyModifier('100%', 60))
-              .animation({ duration: 300, curve: Curve.Ease })
-              .onClick(async () => {
-                this.closeSideBar(false)
-                this.pathStack.pushPathByName('RecentPlay', true)
-              })
-            }.width('100%').margin({ top: 10 })
-            .justifyContent(FlexAlign.Start)
-          }
-          .padding({ left: 20, right: 20, top: 50 })
-
           Scroll() {
             Column() {
+              Stack() {
+                Image($r("app.media.Background"))
+                  .attributeModifier(new ImageFancyModifier(16, '100%', 100))
+                  .zIndex(1)
+                Row() {
+                  Image($r("app.media.Foreground"))
+                    .attributeModifier(new ImageFancyModifier(0, 50, 50))
+                  Text($r('app.string.EntryAbility_label'))
+                    .fontSize(20)
+                    .fontColor('#ffff')
+                    .margin({ left: 5, right: 12 })
+                }.width('100%')
+                .justifyContent(FlexAlign.Center)
+                .zIndex(2)
+              }.margin({ top: 20 })
+
               Column() {
                 Row() {
                   Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -619,7 +595,7 @@ struct Index {
                   })
                 }.width('100%')
                 .justifyContent(FlexAlign.Start)
-              }
+              }.margin({ top: 10 })
               .justifyContent(FlexAlign.Start)
               .backgroundColor($r('app.color.start_window_background_blur'))
               .borderRadius(16)
@@ -662,8 +638,31 @@ struct Index {
           .align(Alignment.Top)
           .scrollable(ScrollDirection.Vertical) // 启用垂直滚动
           .edgeEffect(EdgeEffect.Spring) // 滚动边缘效果
+          .scrollBar(BarState.Off)
           .width('100%')
           .height('100%')
+
+          Row() {
+            Button({ type: ButtonType.Normal, stateEffect: true }) {
+              Row() {
+                SymbolGlyph($r('sys.symbol.clock')).attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                Text('最近播放')
+                  .fontSize(15)
+                  .fontColor($r('app.color.text_color'))
+                  .margin({ left: 10, right: 12 })
+              }
+            }
+            .align(Alignment.Start)
+            .padding({ left: 15, right: 15 })
+            .attributeModifier(new ButtonFancyModifier('100%', 60))
+            .backgroundColor($r('app.color.start_window_background'))
+            .animation({ duration: 300, curve: Curve.Ease })
+            .onClick(async () => {
+              this.closeSideBar(false)
+              this.pathStack.pushPathByName('RecentPlay', true)
+            })
+          }
+          .alignSelf(ItemAlign.End)
 
           Row() {
             Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -678,6 +677,7 @@ struct Index {
             .align(Alignment.Start)
             .padding({ left: 15, right: 15 })
             .attributeModifier(new ButtonFancyModifier('100%', 60))
+            .backgroundColor($r('app.color.start_window_background'))
             .animation({ duration: 300, curve: Curve.Ease })
             .onClick(() => {
               this.closeSideBar(false)
@@ -685,7 +685,7 @@ struct Index {
             })
           }
           .alignSelf(ItemAlign.End)
-          .padding(20)
+          .padding({ bottom: 15 })
         }
         .width('100%')
         .justifyContent(FlexAlign.Start)
@@ -868,7 +868,6 @@ struct Index {
                 }
                 .attributeModifier(new ButtonFancyModifier(40, 40))
                 .animation({ duration: 300, curve: Curve.Ease })
-                .backdropBlur(150)
                 .onClick(() => {
                   this.openSideBar()
                 })
@@ -884,8 +883,6 @@ struct Index {
                 .layoutWeight(1)
                 .height(40)
                 .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-                .backgroundColor($r('app.color.start_window_background_blur'))
-                .backdropBlur(150)
                 .animation({ duration: 300, curve: Curve.Ease })
                 .attributeModifier(new ShadowModifier())
                 .onChange(() => {
@@ -927,7 +924,6 @@ struct Index {
                   SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
                     .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
                 }
-                .backdropBlur(150)
                 .attributeModifier(new ButtonFancyModifier(40, 40))
                 .animation({ duration: 300, curve: Curve.Ease })
                 .bindMenu(this.SortMenuBuilder)
@@ -939,7 +935,6 @@ struct Index {
                     SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
                       .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
                   }
-                  .backdropBlur(150)
                   .attributeModifier(new ButtonFancyModifier(40, 40))
                   .animation({ duration: 300, curve: Curve.Ease })
                   .bindMenu(this.SelectItemMenuBuilder)

@@ -1,6 +1,7 @@
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 import { editPasswordDialog } from '../component/Dialog/EditPasswordDialog';
 import Preferences from '../database/Preferences';
+import { SymbolGlyphFancyModifier } from '../utils/AttributeModifierUtil';
 import BiometricAccessUtil from '../utils/BiometricAccessUtil';
 import { PathUtils } from '../utils/PathUtils';
 import ToolsUtil from '../utils/ToolsUtil';
@@ -55,7 +56,7 @@ export struct SettingsPage { //设置页
             message: $r('app.string.privacy_space'),
             onPress: async () => {
               this.passwd = Preferences.getPassword(PathUtils.appContext!)
-              if (this.passwd === undefined) { // 未设置密码时直接打开设置弹窗
+              if (this.passwd === '') { // 未设置密码时直接打开设置弹窗
                 this.editPasswdDialogController.open();
                 return;
               }
@@ -111,18 +112,6 @@ export struct SettingsPage { //设置页
 
         ListItem() {
           SettingsToggleItem({
-            symbol: $r('sys.symbol.hand_draw'),
-            message: '启用双击屏幕两边快进（后退）',
-            enable: this.allowDoubleFastForward,
-            onChange: (checked: boolean) => {
-              this.allowDoubleFastForward = checked
-              Preferences.saveAllowDoubleFastForwardState(PathUtils.appContext!, this.allowDoubleFastForward)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsToggleItem({
             symbol: $r('sys.symbol.doc_text_badge_clock'),
             message: '开启历史记录',
             enable: this.recentPlay,
@@ -132,6 +121,18 @@ export struct SettingsPage { //设置页
                 Preferences.saveRecentPlay(PathUtils.appContext!, [])
               }
               Preferences.saveRecentPlayState(PathUtils.appContext!, this.recentPlay)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsToggleItem({
+            symbol: $r('sys.symbol.hand_draw'),
+            message: '启用双击屏幕两边快进（后退）',
+            enable: this.allowDoubleFastForward,
+            onChange: (checked: boolean) => {
+              this.allowDoubleFastForward = checked
+              Preferences.saveAllowDoubleFastForwardState(PathUtils.appContext!, this.allowDoubleFastForward)
             }
           })
         }
@@ -150,13 +151,12 @@ export struct SettingsPage { //设置页
         }
 
         ListItem() {
-          SettingsMenuItem({
+          SettingTimeItem({
             symbol: $r('sys.symbol.forward_end_fill'),
             message: '跳过片头（秒）',
-            list: ['不跳过', '15秒', '30秒', '45秒', '60秒', '90秒', '120秒'],
-            selected: ['0', '15', '30', '45', '60', '90', '120'].findIndex(i => i == this.skipIntroTime),
-            onChange: (index: number) => {
-              this.skipIntroTime = ['0', '15', '30', '45', '60', '90', '120'][index]
+            selected: Number(this.skipIntroTime),
+            onChange: (value: number) => {
+              this.skipIntroTime = value.toString()
               Preferences.saveSkipIntroTime(PathUtils.appContext!, this.skipIntroTime)
             }
           })
@@ -190,7 +190,7 @@ export struct SettingsPage { //设置页
 
       }
       .align(Alignment.Top)
-      .borderRadius(20)
+      .borderRadius(16)
       .margin({ left: 16, right: 16 })
       .clip(true)
       .scrollBar(BarState.Off)
@@ -222,8 +222,7 @@ export struct SettingsClickItem {
         Row({ space: 10 }) {
           if (this.symbol) {
             SymbolGlyph(this.symbol)
-              .fontSize(22)
-              .fontColor([$r('app.color.text_color')])
+              .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
               .visibility(this.symbol ? Visibility.Visible : Visibility.None)
           } else {
             Stack()
@@ -238,10 +237,8 @@ export struct SettingsClickItem {
 
         if (this.showArrow) {
           SymbolGlyph($r('sys.symbol.chevron_right'))
-            .fontSize(22)
-            .fontColor([$r('app.color.text_color')])
+            .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
             .margin(5)
-            .fontWeight(FontWeight.Medium)
         }
 
       }.align(Alignment.Center)
@@ -256,7 +253,7 @@ export struct SettingsClickItem {
     }))
     .backgroundColor($r('app.color.start_window_background_blur'))
     .height(55)
-    .borderRadius(20)
+    .borderRadius(16)
     .padding({
       right: 15,
       left: 15,
@@ -283,8 +280,7 @@ export struct SettingsToggleItem {
       Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
         Row({ space: 10 }) {
           SymbolGlyph(this.enable && this.symbol1 ? this.symbol1 : this.symbol)
-            .fontSize(22)
-            .fontColor([$r('app.color.text_color')])
+            .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
             .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.enable))
           Text(this.message)
             .fontSize(17)
@@ -307,7 +303,7 @@ export struct SettingsToggleItem {
     }
     .backgroundColor($r('app.color.start_window_background_blur'))
     .height(55)
-    .borderRadius(20)
+    .borderRadius(16)
     .padding({
       right: 15,
       left: 15,
@@ -341,8 +337,7 @@ export struct SettingsMenuItem {
       Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
         Row({ space: 10 }) {
           SymbolGlyph(this.symbol)
-            .fontSize(22)
-            .fontColor([$r('app.color.text_color')])
+            .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
           Text(this.message)
             .fontSize(17)
             .fontWeight(FontWeight.Medium)
@@ -367,7 +362,7 @@ export struct SettingsMenuItem {
     }
     .backgroundColor($r('app.color.start_window_background_blur'))
     .height(65)
-    .borderRadius(20)
+    .borderRadius(16)
     .padding({
       right: 15,
       left: 15,
@@ -375,5 +370,70 @@ export struct SettingsMenuItem {
       bottom: 10
     })
     .margin({ top: 5, bottom: 5 })
+  }
+}
+
+@Component
+export struct SettingTimeItem {
+  @State symbol: Resource | undefined = undefined
+  @State message: ResourceStr = ''
+  @StorageProp('disable_blur') disable_blur: boolean = false
+  @State selectedIndex: number[] = [0, 0, 0]
+  @Prop selected: number = 0;
+  private PercentileOfTRime: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+  private TenthsOfTime: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+  private UnitOfTime: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+  private multi: string[][] = [this.PercentileOfTRime, this.TenthsOfTime, this.UnitOfTime]
+  onChange = (value: number) => {
+    console.log(value.toString()); // 无实际作用，只是消除未使用警告
+  }
+
+  aboutToAppear() {
+    this.selectedIndex = this.selected.toString()
+      .padStart(3, '0')
+      .split('')
+      .map(Number)
+    this.handleSelectionChange();
+  }
+
+  build() {
+    Column() {
+      Row({ space: 10 }) {
+        SymbolGlyph(this.symbol)
+          .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
+        Text(this.message + ':')
+          .fontSize(17)
+          .fontWeight(FontWeight.Medium)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.MARQUEE })
+        Text(this.selected === 0 ? '不跳过' : this.selected.toString() + 's')
+          .fontSize(17)
+          .fontWeight(FontWeight.Medium)
+          .width('100%') // 宽度充满父容器
+      }
+      .width('100%')
+      .margin({ bottom: 10 }) // 与下部分间距
+
+      TextPicker({ range: this.multi, selected: this.selectedIndex })
+        .width('100%')// 宽度充满父容器
+        .onChange((value: string | string[], index: number | number[]) => {
+          if (Array.isArray(index)) {
+            this.selectedIndex = index
+            this.onChange(Number(value.toString().replace(/,/g, '')))
+          }
+        })
+        .divider(null)
+    }
+    .backgroundColor($r('app.color.start_window_background_blur'))
+    .borderRadius(16)
+    .padding(15) // 统一内边距
+    .margin({ top: 5, bottom: 5 })
+  }
+
+  private handleSelectionChange() {
+    const selectedString = this.multi.map(
+      (column, index) => column[this.selectedIndex[index]]
+    ).join('');
+    this.onChange(Number(selectedString));
   }
 }

@@ -4,7 +4,7 @@ import { PrivacySpaceDataSource } from '../utils/DataUtil';
 import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
 import ToolsUtil from '../utils/ToolsUtil';
 import DataSyncUtil from '../utils/DataSyncUtil';
-import { SymbolGlyphModifier } from '@kit.ArkUI';
+import { MenuModifier, SymbolGlyphModifier } from '@kit.ArkUI';
 import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog';
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 import { BusinessError } from '@kit.BasicServicesKit';
@@ -70,7 +70,6 @@ export struct PrivacySpace { // 隐私空间页
       .backdropBlur(150)
       .attributeModifier(new ButtonFancyModifier(40, 40))
       .animation({ duration: 300, curve: Curve.Ease })
-      .backgroundColor('rgba(0, 0, 0, 0.05)')
       .onClick(() => {
         this.passwd = Preferences.getPassword(PathUtils.appContext!)
         this.editPasswdDialogController.open()
@@ -85,7 +84,6 @@ export struct PrivacySpace { // 隐私空间页
       .attributeModifier(new ButtonFancyModifier(40, 40))
       .animation({ duration: 300, curve: Curve.Ease })
       .bindMenu(this.SelectFileMenuBuilder)
-      .backgroundColor('rgba(0, 0, 0, 0.05)')
       .margin({ right: 5 })
 
       Button({ type: ButtonType.Circle, stateEffect: true }) {
@@ -96,7 +94,6 @@ export struct PrivacySpace { // 隐私空间页
       .attributeModifier(new ButtonFancyModifier(40, 40))
       .animation({ duration: 300, curve: Curve.Ease })
       .bindMenu(this.SortMenuBuilder)
-      .backgroundColor('rgba(0, 0, 0, 0.05)')
     }.margin({ right: 24, top: 10 })
   }
 
@@ -118,8 +115,8 @@ export struct PrivacySpace { // 隐私空间页
           .onClick(async () => {
             await this.toMetaData(await SelectFileUtil.selectVideo());
           })
-      }.font({ size: 15, weight: FontWeight.Normal })
-    }.width(150)
+      }.attributeModifier(new MenuModifier())
+    }
   }
 
   @Builder
@@ -146,8 +143,8 @@ export struct PrivacySpace { // 隐私空间页
                 undefined) as VideoMetadata[]
             this.videoDataSource.updateData(this.video_meta_data_encryption)
           })
-      }.font({ size: 15, weight: FontWeight.Normal })
-    }.width(150)
+      }.attributeModifier(new MenuModifier())
+    }
   }
 
   @Builder
@@ -173,8 +170,8 @@ export struct PrivacySpace { // 隐私空间页
           .onClick(async () => {
             await this.delData(PathUtils.appContext!, item!)
           })
-      }.font({ size: 15, weight: FontWeight.Normal })
-    }.width(180).onAppear(() => {
+      }.attributeModifier(new MenuModifier())
+    }.onAppear(() => {
       ToolsUtil.startVibration()
       this.MenuBuilderState = true
     })
@@ -243,8 +240,6 @@ export struct PrivacySpace { // 隐私空间页
           .height(40)
           .width('90%')
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-          .backgroundColor($r('app.color.start_window_background_blur'))
-          .backdropBlur(150)
           .attributeModifier(new ShadowModifier())
           .animation({ duration: 300, curve: Curve.Ease })
           .onChange(() => {

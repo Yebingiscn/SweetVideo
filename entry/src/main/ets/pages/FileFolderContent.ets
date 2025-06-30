@@ -1,5 +1,5 @@
 import ToolsUtil from '../utils/ToolsUtil';
-import { ImageModifier, SymbolGlyphModifier } from '@kit.ArkUI';
+import { ImageModifier, MenuModifier, SymbolGlyphModifier } from '@kit.ArkUI';
 import DataSyncUtil from '../utils/DataSyncUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { JSON } from '@kit.ArkTS';
@@ -70,8 +70,8 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
               })
           }
         })
-      }.font({ size: 15, weight: FontWeight.Normal })
-    }.width(150)
+      }.attributeModifier(new MenuModifier())
+    }
   }
 
   @Builder
@@ -98,8 +98,8 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
                 this.file_folder!) as FileFolder
             this.videoDataSource.updateData(this.file_folder.video_list)
           })
-      }.font({ size: 15, weight: FontWeight.Normal })
-    }.width(150)
+      }.attributeModifier(new MenuModifier())
+    }
   }
 
   @Builder
@@ -138,8 +138,8 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
           content: "添加到其他文件夹",
           builder: (): void => this.FileFolderMenu(item!)
         })
-      }.font({ size: 15, weight: FontWeight.Normal })
-    }.width(180).onAppear(() => {
+      }.attributeModifier(new MenuModifier())
+    }.onAppear(() => {
       ToolsUtil.startVibration()
       this.MenuBuilderState = true
     })
@@ -156,7 +156,6 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
       .attributeModifier(new ButtonFancyModifier(40, 40))
       .animation({ duration: 300, curve: Curve.Ease })
       .bindMenu(this.SortMenuBuilder)
-      .backgroundColor('rgba(0, 0, 0, 0.05)')
     }.margin({ right: 24, top: 10, left: 50 })
   }
 
@@ -190,8 +189,6 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
           .height(40)
           .width('90%')
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-          .backgroundColor($r('app.color.start_window_background_blur'))
-          .backdropBlur(150)
           .attributeModifier(new ShadowModifier())
           .animation({ duration: 300, curve: Curve.Ease })
           .onChange(() => {

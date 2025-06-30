@@ -6,7 +6,9 @@ export class ShadowModifier extends CommonModifier {
   }
 
   applyNormalAttribute(instance: CommonAttribute): void {
-    instance.shadow({ radius: 26, color: $r('app.color.shadow_color') }).backgroundColor('rgba(0, 0, 0, 0.05)')
+    instance.shadow({ radius: 26, color: $r('app.color.shadow_color') })
+      .backgroundColor($r('app.color.start_window_background_blur'))
+      .backdropBlur(150)
   }
 }
 
@@ -112,5 +114,15 @@ export class SelectItemFancyModifier implements AttributeModifier<ColumnAttribut
     } else {
       attr.backgroundColor(Color.Transparent)
     }
+  }
+}
+
+export class MenuModifier extends CommonModifier {
+  constructor() {
+    super()
+  }
+
+  applyNormalAttribute(instance: MenuAttribute): void {
+    instance.font({ size: 15, weight: FontWeight.Normal }).radius(16)
   }
 }
