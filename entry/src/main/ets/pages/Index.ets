@@ -554,7 +554,7 @@ struct Index {
                 }.width('100%')
                 .justifyContent(FlexAlign.Center)
                 .zIndex(2)
-              }.margin({ top: 20 })
+              }.margin({ top: this.screen_width > this.screen_height ? 15 : this.topSafeHeight })
 
               Column() {
                 Row() {
