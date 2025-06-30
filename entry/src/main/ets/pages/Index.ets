@@ -175,8 +175,8 @@ struct Index {
               }
             })
         })
-      }.font({ size: 15, weight: FontWeight.Normal })
-    }.attributeModifier(new MenuModifier())
+      }.attributeModifier(new MenuModifier())
+    }
   }
 
   async addVideoToFileFolder(video_item: VideoMetadata, item: FileFolder) {
@@ -216,8 +216,8 @@ struct Index {
           DataSyncUtil.editing_video = JSON.stringify(file_folder);
           this.editFileFolderNameDialogController.open()
         })
-      }.font({ size: 15, weight: FontWeight.Normal })
-    }.attributeModifier(new MenuModifier()).onAppear(() => {
+      }.attributeModifier(new MenuModifier())
+    }.onAppear(() => {
       ToolsUtil.startVibration()
     })
   }
