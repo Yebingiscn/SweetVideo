@@ -1,5 +1,5 @@
 import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
-import { SymbolGlyphModifier } from '@kit.ArkUI';
+import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI';
 import DataSyncUtil, { OOBEVersion } from '../utils/DataSyncUtil';
 import { IndexDataSource } from '../utils/DataUtil';
 import ToolsUtil from '../utils/ToolsUtil';
@@ -53,6 +53,7 @@ export function IndexBuilder() {
 @Component
 struct Index {
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
+  @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @State video_meta_data: VideoMetadata[] = []
   @State videoDataSource: IndexDataSource = new IndexDataSource([])
   @State passwd: string = 'passwd'
@@ -554,7 +555,7 @@ struct Index {
                 }.width('100%')
                 .justifyContent(FlexAlign.Center)
                 .zIndex(2)
-              }.margin({ top: this.screen_width > this.screen_height ? 15 : this.topSafeHeight })
+              }.margin({ top: this.topSafeHeight })
 
               Column() {
                 Row() {
@@ -698,26 +699,69 @@ struct Index {
           if (this.mask_state && this.side_bar_mode === SideBarContainerType.Overlay) {
             MaskComponent({ onClose: (): void => this.closeSideBar(true) })
           }
+          Column() {
+            List({ scroller: this.listScroller }) {
+              LazyForEach(this.videoDataSource, (item: VideoMetadata, index: number) => { // 加载视频列表
+                ListItem() {
+                  if (this.is_list_display) {
+                    Column() {
+                      Row() {
+                        Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
+                          .attributeModifier(new ImageFancyModifier(10, 60, 90))
+                        Column() {
+                          Row() {
+                            Text(VideoInfoUtil.getVideoTitle(this.video_meta_data, item))
+                              .fontSize(15)
+                              .fontWeight(FontWeight.Medium)
+                              .maxLines(3)
+                              .textOverflow({ overflow: TextOverflow.Ellipsis })
+                              .width(this.multipleChooseState === Visibility.None ? '90%' : '75%')
+                              .wordBreak(WordBreak.BREAK_ALL)
+                            Checkbox({ name: 'check_box: ' + index, group: 'checkboxGroup' })
+                              .width(30)
+                              .height(30)
+                              .select(this.itemMultipleChoose)
+                              .selectedColor($r('app.color.main_color'))
+                              .shape(CheckBoxShape.CIRCLE)
+                              .visibility(this.multipleChooseState)
+                              .onChange((value: boolean) => {
+                                if (!this.itemMultipleChoose || !value) {
+                                  if (item) {
+                                    const delSet = new Set(DataSyncUtil.delMultipleList as VideoMetadata[]);
+                                    value ? delSet.add(item) : delSet.delete(item);
+                                    DataSyncUtil.delMultipleList = Array.from(delSet);
+                                  }
+                                }
+                              })
+                          }
 
-          List({ scroller: this.listScroller }) {
-            ForEach(this.list_empty_item, () => {
-              ListItem().height(this.topSafeHeight + 55)
-            })
-            LazyForEach(this.videoDataSource, (item: VideoMetadata, index: number) => { // 加载视频列表
-              ListItem() {
-                if (this.is_list_display) {
-                  Column() {
-                    Row() {
+                          VideoInfoComponent({ item })
+                            .reuseId(item.date)
+                        }.alignItems(HorizontalAlign.Start).padding({ left: 15, right: 15 }).width('90%')
+                      }.justifyContent(FlexAlign.Center)
+                    }
+                    .height(100)
+                    .justifyContent(FlexAlign.SpaceEvenly)
+                  } else {
+                    Column() {
                       Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
-                        .attributeModifier(new ImageFancyModifier(10, 60, 90))
+                        .attributeModifier(new ImageFancyModifier({
+                          topLeft: 10,
+                          topRight: 10,
+                          bottomLeft: 0,
+                          bottomRight: 0
+                        }, 60, 200))
+                        .width('100%')
+                        .objectFit(ImageFit.Cover)
                       Column() {
                         Row() {
                           Text(VideoInfoUtil.getVideoTitle(this.video_meta_data, item))
                             .fontSize(15)
                             .fontWeight(FontWeight.Medium)
-                            .maxLines(3)
+                            .maxLines(1)// 减少行数以适应卡片布局
+                            .textAlign(TextAlign.Center)
                             .textOverflow({ overflow: TextOverflow.Ellipsis })
-                            .width(this.multipleChooseState === Visibility.None ? '90%' : '75%')
+                            .layoutWeight(1)// 占据剩余空间
                             .wordBreak(WordBreak.BREAK_ALL)
                           Checkbox({ name: 'check_box: ' + index, group: 'checkboxGroup' })
                             .width(30)
@@ -736,112 +780,66 @@ struct Index {
                               }
                             })
                         }
+                        .width('100%')
+                        .padding({ top: 5 })
 
                         VideoInfoComponent({ item })
                           .reuseId(item.date)
-                      }.alignItems(HorizontalAlign.Start).padding({ left: 15, right: 15 }).width('90%')
-                    }.justifyContent(FlexAlign.Center)
-                  }
-                  .padding({ left: 10 })
-                  .height(100)
-                  .justifyContent(FlexAlign.SpaceEvenly)
-                } else {
-                  Column() {
-                    Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
-                      .attributeModifier(new ImageFancyModifier({
-                        topLeft: 10,
-                        topRight: 10,
-                        bottomLeft: 0,
-                        bottomRight: 0
-                      }, 60, 200))
+                      }.padding({ left: 5, right: 5, bottom: 5 })
                       .width('100%')
-                      .objectFit(ImageFit.Cover)
-                    Column() {
-                      Row() {
-                        Text(VideoInfoUtil.getVideoTitle(this.video_meta_data, item))
-                          .fontSize(15)
-                          .fontWeight(FontWeight.Medium)
-                          .maxLines(1)// 减少行数以适应卡片布局
-                          .textAlign(TextAlign.Center)
-                          .textOverflow({ overflow: TextOverflow.Ellipsis })
-                          .layoutWeight(1)// 占据剩余空间
-                          .wordBreak(WordBreak.BREAK_ALL)
-                        Checkbox({ name: 'check_box: ' + index, group: 'checkboxGroup' })
-                          .width(30)
-                          .height(30)
-                          .select(this.itemMultipleChoose)
-                          .selectedColor($r('app.color.main_color'))
-                          .shape(CheckBoxShape.CIRCLE)
-                          .visibility(this.multipleChooseState)
-                          .onChange((value: boolean) => {
-                            if (!this.itemMultipleChoose || !value) {
-                              if (item) {
-                                const delSet = new Set(DataSyncUtil.delMultipleList as VideoMetadata[]);
-                                value ? delSet.add(item) : delSet.delete(item);
-                                DataSyncUtil.delMultipleList = Array.from(delSet);
-                              }
-                            }
-                          })
-                      }
-                      .width('100%')
-                      .padding({ top: 5 })
-
-                      VideoInfoComponent({ item })
-                        .reuseId(item.date)
-                    }.padding({ left: 5, right: 5, bottom: 5 })
+                    }
                     .width('100%')
+                    .height('auto')
+                    .backgroundColor($r('app.color.start_window_background_blur'))
+                    .borderRadius(10)
                   }
-                  .width('100%')
-                  .height('auto')
-                  .backgroundColor($r('app.color.start_window_background_blur'))
-                  .borderRadius(10)
                 }
-              }
-              .padding({
-                left: 10,
-                right: 10,
-                top: 5,
-                bottom: 5
-              })
-              .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-              .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
-              .width('100%')
-              .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
-              .swipeAction({
-                start: this.itemStart(),
-                edgeEffect: SwipeEdgeEffect.Spring
-              })
-              .onClick(async () => {
-                if (!this.video_meta_data.some(i => i.date == item?.date!)) {
-                  ToolsUtil.showToast('数据正在加载中，请重试')
-                  this.getOriginalMetaData()
-                  return
-                }
-                if (this.MenuBuilderState || this.multipleChooseState != Visibility.None) {
-                  this.MenuBuilderState = false
-                  return
-                }
-                this.listScroller.closeAllSwipeActions()
-                await ToolsUtil.isFileExist(item) ?
-                ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.video_meta_data) :
-                this.deleteUnExistFile(item)
-              })
-            }, (item: VideoMetadata) => JSON.stringify(item))
-            ForEach(this.list_empty_item, () => {
-              ListItem().height(50)
+                .padding({
+                  left: 10,
+                  right: 10,
+                  top: 5,
+                  bottom: 5
+                })
+                .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+                .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
+                .width('100%')
+                .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
+                .swipeAction({
+                  start: this.itemStart(),
+                  edgeEffect: SwipeEdgeEffect.Spring
+                })
+                .onClick(async () => {
+                  if (!this.video_meta_data.some(i => i.date == item?.date!)) {
+                    ToolsUtil.showToast('数据正在加载中，请重试')
+                    this.getOriginalMetaData()
+                    return
+                  }
+                  if (this.MenuBuilderState || this.multipleChooseState != Visibility.None) {
+                    this.MenuBuilderState = false
+                    return
+                  }
+                  this.listScroller.closeAllSwipeActions()
+                  await ToolsUtil.isFileExist(item) ?
+                  ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.video_meta_data) :
+                  this.deleteUnExistFile(item)
+                })
+              }, (item: VideoMetadata) => JSON.stringify(item))
+            }
+            .cachedCount(3)
+            .contentStartOffset(this.topSafeHeight + 55)
+            .contentEndOffset(this.bottomSafeHeight)
+            .lanes(this.list_line)
+            .animation({ duration: 300, curve: Curve.Smooth })
+            .scrollBar(BarState.Off)
+            .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
+            .fadingEdge(true, { fadingEdgeLength: new LengthMetrics(120) })
+            .chainAnimation(true)
+            .width('100%')
+            .height('100%') // 新增高度设置
+            .onTouch(() => {
+              this.searchController.stopEditing()
             })
           }
-          .lanes(this.list_line)
-          .animation({ duration: 300, curve: Curve.Smooth })
-          .scrollBar(BarState.Off)
-          .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
-          .chainAnimation(true)
-          .width('100%')
-          .height('auto') // 新增高度设置
-          .onTouch(() => {
-            this.searchController.stopEditing()
-          })
-          .cachedCount(3)
 
           if (this.video_meta_data.length == 0) {
             Row() { //顶栏
@@ -855,7 +853,8 @@ struct Index {
                     .margin({ top: 20 })
                 }
               }
-            }.height('100%')
+            }
+            .height('100%')
             .animation({ duration: 150, curve: Curve.Ease })
           }
 
@@ -943,15 +942,17 @@ struct Index {
                 }
               }
             }
-          }.padding({ top: this.screen_width > this.screen_height ? this.topSafeHeight + 10 : this.topSafeHeight })
-          .width('90%') // 横屏下避让
+          }
+          .padding({ top: this.topSafeHeight, left: 10, right: 10 })
+          .width('100%')
           if (this.loading) {
             Stack() {
               ImportProgressComponent({
                 current_import: this.current_import,
                 import_sum: this.import_sum
               })
-            }.width('100%')
+            }
+            .width('100%')
             .height('100%')
             .animation({ duration: 150, curve: Curve.Sharp })
           }
@@ -1014,10 +1015,6 @@ struct Index {
     this.list_line = this.is_list_display
       ? base + 1
       : base + 2;
-    this.list_empty_item = []
-    for (let i = 1; i <= this.list_line; i++) {
-      this.list_empty_item.push(i.toString())
-    }
   }
 
   @Builder
