@@ -157,10 +157,6 @@ export struct Player { // 播放页
 
   async aboutToDisappear(): Promise<void> {
     VideoOperateUtil.setBrightness(-1)
-    await (await this.windowClass).setWindowKeepScreenOn(false)
-    await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
-    await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
-    await (await this.windowClass).setPreferredOrientation(window.Orientation.FOLLOW_DESKTOP);
     Preferences.saveVideoSpeed(PathUtils.appContext!,
       (VideoInfoUtil.video_speed_list.includes(this.speed) ? this.speed : 1) + 'x')
     Preferences.saveCirclePlayState(PathUtils.appContext!, this.circle_play)
@@ -998,6 +994,10 @@ export struct Player { // 播放页
       }
     })
     .onWillDisappear(async () => {
+      await (await this.windowClass).setWindowKeepScreenOn(false)
+      await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
+      await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
+      await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
       this.avPlayer?.off('subtitleUpdate');
       if (this.video_meta_data.length > 0 && this.play_time > 0) {
         await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,

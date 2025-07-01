@@ -22,8 +22,9 @@ class Screen {
         windowClass.getWindowProperties().windowRect.height)
       windowClass.on('windowSizeChange', (size) => {
         this.updateScreenSize(size.width, size.height)
+        this.updateAvoidArea(windowClass)
       })
-      windowClass.on('systemAvoidAreaChange', () => {
+      windowClass.on('avoidAreaChange', () => {
         this.updateAvoidArea(windowClass)
       })
       windowClass.on('keyboardHeightChange', (height) => {
@@ -38,15 +39,16 @@ class Screen {
     let cutOut = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_CUTOUT)
     let system = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
     let nav = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR)
+    let uiContext = windowClass.getUIContext()
     animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
       AppStorage.setOrCreate('topSafeHeight',
-        px2vp(Math.max(cutOut.topRect.height * 1.4, system.topRect.height, windowClass.getWindowDecorHeight())))
+        uiContext.px2vp(Math.max(cutOut.topRect.height * 1.4, system.topRect.height, windowClass.getWindowDecorHeight())))
       AppStorage.setOrCreate('bottomSafeHeight',
-        px2vp(Math.max(nav.bottomRect.height, system.bottomRect.height * 1.4, cutOut.bottomRect.height * 1.4)))
+        uiContext.px2vp(Math.max(nav.bottomRect.height, system.bottomRect.height * 1.4, cutOut.bottomRect.height * 1.4)))
       AppStorage.setOrCreate('leftSafeHeight',
-        px2vp(Math.max(cutOut.leftRect.width * 1.4, system.leftRect.width * 1.4)))
+        uiContext.px2vp(Math.max(cutOut.leftRect.width * 1.4, system.leftRect.width * 1.4)))
       AppStorage.setOrCreate('rightSafeHeight',
-        px2vp(Math.max(cutOut.rightRect.width * 1.4, system.rightRect.width * 1.4)))
+        uiContext.px2vp(Math.max(cutOut.rightRect.width * 1.4, system.rightRect.width * 1.4)))
     })
   }
 

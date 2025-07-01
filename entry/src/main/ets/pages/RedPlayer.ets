@@ -454,6 +454,10 @@ export struct RedPlayer { // 红薯播放器页
         return false
       }
     }).onWillDisappear(async () => {
+      await (await this.windowClass).setWindowKeepScreenOn(false)
+      await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
+      await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
+      await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
       if (this.video_meta_data.length > 0 && this.redPlayerStateHolder.videoPosition > 0) {
         await VideoOperateUtil.saveVideoTime(this.redPlayerStateHolder.videoPosition, this.now_playing!,
           this.video_meta_data, PathUtils.appContext!,
@@ -492,10 +496,6 @@ export struct RedPlayer { // 红薯播放器页
 
   async aboutToDisappear() {
     VideoOperateUtil.setBrightness(-1)
-    await (await this.windowClass).setWindowKeepScreenOn(false)
-    await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
-    await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
-    await (await this.windowClass).setPreferredOrientation(window.Orientation.FOLLOW_DESKTOP);
   }
 
   async setSessionListener() {

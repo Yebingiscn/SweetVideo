@@ -29,6 +29,7 @@ import VideoOperateUtil from '../utils/VideoOperateUtil';
 import { PrivacySpace } from './PrivacySpace';
 import Preferences from '../database/Preferences';
 import { RedPlayer } from './RedPlayer';
+
 import {
   ButtonFancyModifier,
   ImageFancyModifier,
@@ -832,7 +833,6 @@ struct Index {
             .animation({ duration: 300, curve: Curve.Smooth })
             .scrollBar(BarState.Off)
             .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
-            .fadingEdge(true, { fadingEdgeLength: new LengthMetrics(120) })
             .chainAnimation(true)
             .width('100%')
             .height('100%') // 新增高度设置
@@ -946,7 +946,7 @@ struct Index {
           .padding({ top: this.topSafeHeight, left: 10, right: 10 })
           .width('100%')
           if (this.loading) {
-            Stack() {
+            Column() {
               ImportProgressComponent({
                 current_import: this.current_import,
                 import_sum: this.import_sum
