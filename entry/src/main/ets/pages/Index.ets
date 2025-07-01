@@ -839,6 +839,9 @@ struct Index {
             .onTouch(() => {
               this.searchController.stopEditing()
             })
+            .onAppear(() => {
+              this.listScroller.scrollEdge(Edge.Top)
+            })
           }
 
           if (this.video_meta_data.length == 0) {
