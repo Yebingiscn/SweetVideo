@@ -1018,7 +1018,10 @@ struct Index {
     this.list_line = this.is_list_display
       ? base + 1
       : base + 2;
-    this.listScroller.scrollEdge(Edge.Top)
+    // 增加判断，旋转时保持滚动位置不变
+    if(this.listScroller.currentOffset().yOffset == -55) {
+      this.listScroller.scrollEdge(Edge.Top)
+    }
   }
 
   @Builder
