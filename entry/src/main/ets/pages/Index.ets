@@ -1018,6 +1018,7 @@ struct Index {
     this.list_line = this.is_list_display
       ? base + 1
       : base + 2;
+    this.listScroller.scrollEdge(Edge.Top)
   }
 
   @Builder
