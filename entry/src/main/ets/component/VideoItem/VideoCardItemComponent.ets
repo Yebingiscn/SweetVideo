@@ -5,14 +5,14 @@ import { ImageFancyModifier } from '../../utils/AttributeModifierUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import DataSyncUtil, { OOBEVersion } from '../../utils/DataSyncUtil';
 import { VideoInfoComponent } from '../../component/VideoInfoComponent';
+import { VideoListController } from '.';
 
 @Component
 export default struct VideoCardItem {
   @Prop item: VideoMetadata
-  @Prop video_meta_data_list: VideoMetadata[]
   @Prop index: number
-  @Prop multipleChooseState: Visibility
-  @Prop itemMultipleChoose: boolean
+  @Prop videoListController: VideoListController
+
 
   build() {
     Column() {
@@ -27,7 +27,7 @@ export default struct VideoCardItem {
         .objectFit(ImageFit.Auto)
       Column() {
         Row() {
-          Text(VideoInfoUtil.getVideoTitle(this.video_meta_data_list, this.item))
+          Text(VideoInfoUtil.getVideoTitle(this.videoListController.video_meta_data_list, this.item))
             .fontSize(15)
             .fontWeight(FontWeight.Medium)
             .maxLines(1)// 减少行数以适应卡片布局
@@ -38,12 +38,12 @@ export default struct VideoCardItem {
           Checkbox({ name: 'check_box: ' + this.index, group: 'checkboxGroup' })
             .width(30)
             .height(30)
-            .select(this.itemMultipleChoose)
+            .select(this.videoListController.itemMultipleChoose)
             .selectedColor($r('app.color.main_color'))
             .shape(CheckBoxShape.CIRCLE)
-            .visibility(this.multipleChooseState)
+            .visibility(this.videoListController.multipleChooseState)
             .onChange((value: boolean) => {
-              if (!this.itemMultipleChoose || !value) {
+              if (!this.videoListController.itemMultipleChoose || !value) {
                 if (this.item) {
                   const delSet = new Set(DataSyncUtil.delMultipleList as VideoMetadata[]);
                   value ? delSet.add(this.item) : delSet.delete(this.item);

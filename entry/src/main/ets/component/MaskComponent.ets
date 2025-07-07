@@ -1,9 +1,9 @@
 import { curves } from '@kit.ArkUI';
+import { SideBarController } from './SideBarComponent/SideBar';
 
 @Component
 export struct MaskComponent {
-  onClose: () => void = () => {
-  }
+  sideBarController: SideBarController = new SideBarController()
 
   build() {
     Column()
@@ -15,7 +15,7 @@ export struct MaskComponent {
       }))
       .zIndex(1)
       .onClick(() => {
-        this.onClose(); // 调用父组件关闭逻辑
+        this.sideBarController.closeSideBar(true);
       })
   }
 }

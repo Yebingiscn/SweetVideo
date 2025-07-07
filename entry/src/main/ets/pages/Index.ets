@@ -1,13 +1,10 @@
-import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
+import { fileIo as fs } from '@kit.CoreFileKit';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 import DataSyncUtil, { OOBEVersion } from '../utils/DataSyncUtil';
 import { FileFolderDataSource, VideoDataSource } from '../utils/DataUtil';
 import ToolsUtil from '../utils/ToolsUtil';
-import { delConfirmDialog } from '../component/Dialog/DelConfirmDialog';
-import { editMetadataDialog } from '../component/Dialog//EditMetadataDialog';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { JSON } from '@kit.ArkTS';
-import { VideoDetailDialog } from '../component/Dialog//VideoDetailDialog';
 import WantProcessUtil from '../utils/WantProcessUtil';
 import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
@@ -31,20 +28,19 @@ import Preferences from '../database/Preferences';
 import { RedPlayer } from './RedPlayer';
 import {
   ButtonFancyModifier,
-  ImageFancyModifier,
   MenuModifier,
   ShadowModifier,
   SymbolGlyphFancyModifier
 } from '../utils/AttributeModifierUtil';
 import { ImportProgressComponent } from '../component/ImportProgressComponent';
 import { FileProcessorUtil } from '../utils/FileProcessorUtil';
-import { VideoInfoComponent } from '../component/VideoInfoComponent';
-import VideoInfoUtil from '../utils/VideoInfoUtil';
-import SubtitleUtil from '../utils/SubtitleUtil';
 import { PathUtils } from '../utils/PathUtils';
 import { MaskComponent } from '../component/MaskComponent';
 import { SearchComponent } from '../component/SearchComponent';
-import VideoItem from '../component/VideoItem';
+import { VideoList, VideoListController } from '../component/VideoItem';
+import SubtitleUtil from '../utils/SubtitleUtil';
+import { AppInfo, SideBarController } from '../component/SideBarComponent/SideBar';
+
 
 @Builder
 export function IndexBuilder() {
@@ -60,46 +56,19 @@ struct Index {
   @State videoDataSource: VideoDataSource = new VideoDataSource([])
   @State fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   @State passwd: string = 'passwd'
-  @State list_line: number = 1
   @State list_empty_item: string[] = ['']
   @State loading: boolean = false
-  @State sideBarStatus: boolean = false
   @State current_import: number = 0
   @State is_edit: boolean = false
-  @State mask_state: boolean = false
   @State import_sum: number = 0
-  @State @Watch('SyncSideBarAndMaskState') sideBarStatusTmp: Visibility = Visibility.Hidden
-  @State itemMultipleChoose: boolean = false
-  @State multipleChooseState: Visibility = Visibility.None
-  @State MenuBuilderState: boolean = false
+  @State videoListController: VideoListController = new VideoListController([])
   @State file_folder_list: FileFolder[] = []
-  @State side_bar_mode: SideBarContainerType = SideBarContainerType.AUTO
   @StorageLink('is_list_display') is_list_display: boolean = false
   @StorageProp('screen_width') screen_width: number = 0
   @StorageProp('screen_height') screen_height: number = 0
   @State searchValue: string = ''
   @Provide('pathStack') pathStack: NavPathStack = new NavPathStack()
-  editMetadataDialogController: CustomDialogController = new CustomDialogController({
-    builder: editMetadataDialog({
-      confirm: async (title: string | undefined) => {
-        if (!title?.trim()) {
-          return;
-        } // 更严格的空值判断
-        const editingVideo = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata;
-        const targetIndex = SelectFileUtil.getItemIndex(this.video_meta_data, editingVideo);
-        if (targetIndex === -1) {
-          return;
-        }
-        const titleSet = new Set(this.video_meta_data.map(v => v.title));
-        if (titleSet.has(title)) {
-          return;
-        }
-        this.video_meta_data[targetIndex].title = title.trim();
-        this.videoDataSource.updateData(this.video_meta_data)
-        Preferences.saveVideoMetaData(PathUtils.appContext!, this.video_meta_data)
-      },
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
+  @State @Watch('SyncSideBarAndMaskState') sideBarController: SideBarController = new SideBarController()
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: addFileFolderNameDialog({
       confirm: async (file_folder_name: string | undefined) => {
@@ -125,41 +94,11 @@ struct Index {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  VideoDetailDialog: CustomDialogController = new CustomDialogController({
-    builder: VideoDetailDialog(), cornerRadius: 20,
-    shadow: DefaultDialogShadow
-  })
-  listScroller: ListScroller = new ListScroller()
   searchController: SearchController = new SearchController()
-  delConfirmDialog: CustomDialogController = new CustomDialogController({
-    builder: delConfirmDialog({
-      confirm: async (confirm_del: boolean | undefined) => {
-        if (!confirm_del) {
-          return
-        }
-        await new Promise<void>((resolve, reject) => {
-          this.deleteItem(resolve, reject);
-        });
-        if (DataSyncUtil.delMultipleList.length > 0) {
-          this.videoDataSource.refreshData()
-          const deletePromises = DataSyncUtil.delMultipleList.map(item => {
-            return new Promise<void>((resolve, reject) => {
-              DataSyncUtil.editing_video = JSON.stringify(item);
-              this.deleteItem(resolve, reject);
-              this.closeMultipleChoose()
-            });
-          });
-          await Promise.all(deletePromises);
-        } else {
-          this.closeMultipleChoose()
-        }
-      }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
 
   SyncSideBarAndMaskState(): void {
-    if (this.sideBarStatusTmp == Visibility.Hidden) {
-      this.mask_state = false
+    if (this.sideBarController.sideBarStatusTmp == Visibility.Hidden) {
+      this.sideBarController.mask_state = false
     }
   }
 
@@ -174,8 +113,8 @@ struct Index {
                 await this.addVideoToFileFolder(DataSyncUtil.delMultipleList[i], item)
               }
               DataSyncUtil.delMultipleList = []
-              this.closeMultipleChoose()
-            } else if (this.multipleChooseState === Visibility.None) {
+              this.videoListController.closeMultipleChoose()
+            } else if (this.videoListController.multipleChooseState === Visibility.None) {
               await this.addVideoToFileFolder(video_item!, item)
             }
           })
@@ -206,7 +145,7 @@ struct Index {
             return new Promise<void>((resolve, reject) => {
               DataSyncUtil.editing_video = JSON.stringify(item);
               this.deleteItem(resolve, reject);
-              this.closeMultipleChoose()
+              this.videoListController.closeMultipleChoose()
             });
           });
           await Promise.all(deletePromises)
@@ -224,95 +163,6 @@ struct Index {
     }.attributeModifier(new MenuModifier()).onAppear(() => {
       ToolsUtil.startVibration()
     })
-  }
-
-  @Builder
-  MenuBuilder(item: VideoMetadata | undefined) {
-    Menu() {
-      MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(() => {
-        this.MenuBuilderState = false
-        setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          let target_item = SelectFileUtil.getItem(this.video_meta_data, item?.date!)
-          if (!this.video_meta_data.find(i => i.date == item?.date!)) {
-            ToolsUtil.showToast('数据正在加载中，请重试')
-            this.videoDataSource.refreshData()
-            return
-          }
-          await ToolsUtil.isFileExist(target_item) ?
-          ToolsUtil.routerWhere(this.pathStack, 'FFMpegPlayer', item!, this.video_meta_data) :
-          this.deleteUnExistFile(target_item)
-        }, 200)
-      })
-      MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
-        this.MenuBuilderState = false
-        setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          let target_item = SelectFileUtil.getItem(this.video_meta_data, item?.date!)
-          if (!this.video_meta_data.find(i => i.date == item?.date!)) {
-            ToolsUtil.showToast('数据正在加载中，请重试')
-            this.videoDataSource.refreshData()
-            return
-          }
-          await ToolsUtil.isFileExist(target_item) ?
-          ToolsUtil.routerWhere(this.pathStack, 'RedPlayer', item!, this.video_meta_data) :
-          this.deleteUnExistFile(target_item)
-        }, 200)
-      })
-      MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
-        .onClick(() => {
-          DataSyncUtil.editing_video = JSON.stringify(item)
-          this.VideoDetailDialog.open()
-        })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
-        content: "添加到文件夹",
-        builder: (): void => this.FileFolderMenu(item)
-      })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
-      })
-        .onClick(() => {
-          DataSyncUtil.editing_video = JSON.stringify(item)
-          this.delConfirmDialog.open()
-        })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.checkmark_square_on_square')),
-        content: $r('app.string.multiple_choice')
-      })
-        .onClick(() => {
-          this.multipleChooseState =
-            this.multipleChooseState == Visibility.None ? Visibility.Visible : Visibility.None
-          DataSyncUtil.delMultipleList.length = 0
-        })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.line_3_horizontal')),
-        content: '更多',
-        builder: (): void => this.MenuBuilderExtend(item)
-      })
-    }.attributeModifier(new MenuModifier()).onAppear(() => {
-      ToolsUtil.startVibration()
-      this.MenuBuilderState = true
-    })
-  }
-
-  @Builder
-  MenuBuilderExtend(item: VideoMetadata | undefined) {
-    Menu() {
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')), content: $r('app.string.edit')
-      })
-        .onClick(() => {
-          DataSyncUtil.editing_video = JSON.stringify(item)
-          this.editMetadataDialogController.open()
-        })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat_size_square')), content: '导入或删除字幕'
-      })
-        .onClick(async () => {
-          await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath, item?.date!) ?
-          SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item?.date!) :
-          SubtitleUtil.selectExternalSubtitles(PathUtils.subtitlePath, item?.date!)
-        })
-    }
   }
 
   @Builder
@@ -347,7 +197,7 @@ struct Index {
         content: $r('app.string.import_from_files')
       })
         .onClick(async () => {
-          this.closeSideBar(false)
+          this.sideBarController.closeSideBar(false)
           await this.toMetaData(await SelectFileUtil.selectFiles(), undefined);
         })
       MenuItem({
@@ -355,7 +205,7 @@ struct Index {
         content: $r('app.string.import_from_album')
       })
         .onClick(async () => {
-          this.closeSideBar(false)
+          this.sideBarController.closeSideBar(false)
           await this.toMetaData(await SelectFileUtil.selectVideo(), undefined);
         })
       MenuItem({
@@ -364,7 +214,7 @@ struct Index {
         PathUtils.appContext!.resourceManager.getStringSync($r('app.string.EntryAbility_label').id) + '）'
       })
         .onClick(async () => {
-          this.closeSideBar(false)
+          this.sideBarController.closeSideBar(false)
           await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), undefined);
         })
     }.attributeModifier(new MenuModifier())
@@ -378,7 +228,7 @@ struct Index {
         content: $r('app.string.cancel')
       })
         .onClick(() => {
-          this.closeMultipleChoose()
+          this.videoListController.closeMultipleChoose()
           DataSyncUtil.delMultipleList.length = 0
         })
       MenuItem({
@@ -386,7 +236,7 @@ struct Index {
         content: $r('app.string.select_all')
       })
         .onClick(() => {
-          this.itemMultipleChoose = !this.itemMultipleChoose
+          this.videoListController.itemMultipleChoose = !this.videoListController.itemMultipleChoose
           DataSyncUtil.delMultipleList.length = 0
           DataSyncUtil.delMultipleList = [...this.video_meta_data]
         })
@@ -395,8 +245,8 @@ struct Index {
         content: $r('app.string.delete_selected')
       })
         .onClick(async () => {
-          this.closeMultipleChoose()
-          this.multipleChooseState = Visibility.None;
+          this.videoListController.closeMultipleChoose()
+          this.videoListController.multipleChooseState = Visibility.None;
           if (DataSyncUtil.delMultipleList.length > 0) {
             this.videoDataSource.refreshData()
             const deletePromises = DataSyncUtil.delMultipleList.map(item => {
@@ -454,8 +304,8 @@ struct Index {
     ToolsUtil.isSubtitleFileFolderExist(PathUtils.videoPath, PathUtils.subtitlePath)
     this.video_meta_data = Preferences.getVideoMetaData(PathUtils.appContext!)
     this.videoDataSource = new VideoDataSource(this.video_meta_data)
+    this.videoListController = new VideoListController(this.video_meta_data)
     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
-    this.fileFolderSource = new FileFolderDataSource(this.file_folder_list)
     if (Preferences.getOOBEVersion(PathUtils.appContext!) < OOBEVersion) {
       let controller = new CustomDialogController({
         builder: PrivacyPolicyDialog({
@@ -507,29 +357,6 @@ struct Index {
     }
   }
 
-  closeSideBar(isPlayAnimation: boolean) {
-    if (this.side_bar_mode === SideBarContainerType.Overlay) {
-      this.sideBarStatusTmp = Visibility.Hidden
-      this.mask_state = false
-      isPlayAnimation ? setTimeout(() => {
-        this.sideBarStatus = false
-      }, 400) : this.sideBarStatus = false
-    }
-  }
-
-  openSideBar() {
-    if (this.side_bar_mode === SideBarContainerType.Overlay) {
-      this.sideBarStatusTmp = Visibility.Visible
-      this.mask_state = true
-      this.sideBarStatus = true
-    }
-  }
-
-  closeMultipleChoose() {
-    this.itemMultipleChoose = false;
-    this.multipleChooseState = Visibility.None;
-  }
-
   deleteUnExistFile(item: VideoMetadata | undefined) {
     DataSyncUtil.editing_video = JSON.stringify(item)
     new Promise<void>((resolve, reject) => {
@@ -539,26 +366,11 @@ struct Index {
 
   build() {
     Navigation(this.pathStack) {
-      SideBarContainer(this.side_bar_mode) {
+      SideBarContainer(this.sideBarController.side_bar_mode) {
         Column() {
           Scroll() {
             Column() {
-              Stack() {
-                Image($r("app.media.Background"))
-                  .attributeModifier(new ImageFancyModifier(16, '100%', 120))
-                  .zIndex(1)
-                Row() {
-                  Image($r("app.media.Foreground"))
-                    .attributeModifier(new ImageFancyModifier(0, 50, 50))
-                  Text($r('app.string.EntryAbility_label'))
-                    .fontSize(20)
-                    .fontColor('#ffff')
-                    .margin({ left: 5, right: 12 })
-                }.width('100%')
-                .justifyContent(FlexAlign.Center)
-                .zIndex(2)
-              }.margin({ top: this.topSafeHeight })
-
+              AppInfo()
               Column() {
                 Row() {
                   Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -661,7 +473,7 @@ struct Index {
             .backgroundColor($r('app.color.start_window_background'))
             .animation({ duration: 300, curve: Curve.Ease })
             .onClick(async () => {
-              this.closeSideBar(false)
+              this.sideBarController.closeSideBar(false)
               this.pathStack.pushPathByName('RecentPlay', true)
             })
           }
@@ -683,7 +495,7 @@ struct Index {
             .backgroundColor($r('app.color.start_window_background'))
             .animation({ duration: 300, curve: Curve.Ease })
             .onClick(() => {
-              this.closeSideBar(false)
+              this.sideBarController.closeSideBar(false)
               this.pathStack.pushPathByName('SettingsPage', null)
             })
           }
@@ -694,65 +506,19 @@ struct Index {
         .justifyContent(FlexAlign.Start)
         .backgroundColor($r('app.color.start_window_background'))
         .transition(TransitionEffect.translate({ x: -300 }).animation({ duration: 500, curve: Curve.Friction }))
-        .visibility(this.sideBarStatusTmp)
-        .borderRadius(this.side_bar_mode === SideBarContainerType.Overlay ? 16 : 0)
+        .visibility(this.sideBarController.sideBarStatusTmp)
+        .borderRadius(this.sideBarController.side_bar_mode === SideBarContainerType.Overlay ? 16 : 0)
 
         Stack({ alignContent: Alignment.Top }) { // 内容区
-          if (this.mask_state && this.side_bar_mode === SideBarContainerType.Overlay) {
-            MaskComponent({ onClose: (): void => this.closeSideBar(true) })
+          if (this.sideBarController.mask_state &&
+            this.sideBarController.side_bar_mode === SideBarContainerType.Overlay) {
+            MaskComponent({ sideBarController: this.sideBarController })
           }
           Column() {
-            List({ scroller: this.listScroller }) {
-              LazyForEach(this.videoDataSource, (item: VideoMetadata, index: number) => { // 加载视频列表
-                ListItem() {
-                  VideoItem({
-                    item: item,
-                    video_meta_data_list: this.video_meta_data,
-                    index: index,
-                    multipleChooseState: this.multipleChooseState,
-                    itemMultipleChoose: this.itemMultipleChoose
-                  })
-                }
-                .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-                .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
-                .width('100%')
-                .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
-                .swipeAction({
-                  start: this.itemStart(),
-                  edgeEffect: SwipeEdgeEffect.Spring
-                })
-                .onClick(async () => {
-                  if (!this.video_meta_data.some(i => i.date == item?.date!)) {
-                    ToolsUtil.showToast('数据正在加载中，请重试')
-                    this.videoDataSource.refreshData()
-                    return
-                  }
-                  if (this.MenuBuilderState || this.multipleChooseState != Visibility.None) {
-                    this.MenuBuilderState = false
-                    return
-                  }
-                  this.listScroller.closeAllSwipeActions()
-                  await ToolsUtil.isFileExist(item) ?
-                  ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.video_meta_data) :
-                  this.deleteUnExistFile(item)
-                })
-              }, (item: VideoMetadata) => JSON.stringify(item))
-            }
-            .cachedCount(3)
-            .contentStartOffset(this.topSafeHeight + 55)
-            .contentEndOffset(this.bottomSafeHeight)
-            .lanes(this.list_line)
-            .animation({ duration: 300, curve: Curve.Smooth })
-            .scrollBar(BarState.Off)
-            .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
-            .chainAnimation(true)
-            .width('100%')
-            .height('100%') // 新增高度设置
-            .onTouch(() => {
-              this.searchController.stopEditing()
-            })
-            .onAppear(() => {
-              this.listScroller.scrollEdge(Edge.Top)
+            VideoList({
+              videoListController: this.videoListController,
+              sideBarController: this.sideBarController,
+              searchController: this.searchController,
             })
           }
 
@@ -775,7 +541,7 @@ struct Index {
 
           Column() {
             Row({ space: 15 }) {
-              if (!this.is_edit && this.side_bar_mode == SideBarContainerType.Overlay) {
+              if (!this.is_edit && this.sideBarController.side_bar_mode == SideBarContainerType.Overlay) {
                 Button({ type: ButtonType.Circle, stateEffect: true }) {
                   SymbolGlyph($r('sys.symbol.close_sidebar'))
                     .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
@@ -783,7 +549,7 @@ struct Index {
                 .attributeModifier(new ButtonFancyModifier(40, 40))
                 .animation({ duration: 300, curve: Curve.Ease })
                 .onClick(() => {
-                  this.openSideBar()
+                  this.sideBarController.openSideBar()
                 })
                 .attributeModifier(new ShadowModifier())
                 .zIndex(0)
@@ -836,7 +602,7 @@ struct Index {
                 .attributeModifier(new ShadowModifier())
                 .zIndex(0)
 
-                if (this.multipleChooseState === Visibility.Visible) {
+                if (this.videoListController.multipleChooseState === Visibility.Visible) {
                   Button({ type: ButtonType.Circle, stateEffect: true }) {
                     SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
                       .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
@@ -865,12 +631,13 @@ struct Index {
         }.backgroundColor($r('app.color.start_window_background'))
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
           const width = Number(newValue.width);
-          this.reDeployListDisplay(width)
+          // 增加判断，旋转时保持滚动位置不变
+          this.videoListController.refresh(width, this.is_list_display)
         })
         .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
           if (event) {
-            this.sideBarStatusTmp === Visibility.Visible ?
-            this.closeSideBar(true) : this.openSideBar()
+            this.sideBarController.sideBarStatusTmp === Visibility.Visible ?
+            this.sideBarController.closeSideBar(true) : this.sideBarController.openSideBar()
           }
         }))
       }
@@ -879,13 +646,13 @@ struct Index {
       .allowDrop([uniformTypeDescriptor.UniformDataType.PLAIN_TEXT, uniformTypeDescriptor.UniformDataType.VIDEO])
       .onSizeChange((_oldValue: SizeResult, newValue: SizeResult) => {
         if (newValue.width >= DataSyncUtil.minSideBarWidth + DataSyncUtil.minContentWidth) {
-          this.side_bar_mode = SideBarContainerType.Embed
-          this.sideBarStatusTmp = Visibility.Visible
-          this.sideBarStatus = true
+          this.sideBarController.side_bar_mode = SideBarContainerType.Embed
+          this.sideBarController.sideBarStatusTmp = Visibility.Visible
+          this.sideBarController.sideBarStatus = true
         } else {
-          this.side_bar_mode = SideBarContainerType.Overlay
-          this.sideBarStatusTmp = Visibility.Hidden
-          this.sideBarStatus = false
+          this.sideBarController.side_bar_mode = SideBarContainerType.Overlay
+          this.sideBarController.sideBarStatusTmp = Visibility.Hidden
+          this.sideBarController.sideBarStatus = false
         }
       })
       .onDrop((dragEvent: DragEvent) => {
@@ -895,14 +662,14 @@ struct Index {
         WantProcessUtil.hasWant(PathUtils.appContext!, this.pathStack)
       })
       .onChange((value: boolean) => {
-        this.sideBarStatus = value;
+        this.sideBarController.sideBarStatus = value;
       })
-      .showSideBar(this.sideBarStatus)
+      .showSideBar(this.sideBarController.sideBarStatus)
       .showControlButton(false)
       .divider({ strokeWidth: 0 })
       .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
         if (event) {
-          this.closeSideBar(true)
+          this.sideBarController.closeSideBar(true)
         }
       }))
     }
@@ -911,20 +678,10 @@ struct Index {
       if (isVisible) {
         this.videoDataSource.refreshData()
         this.passwd = Preferences.getPassword(PathUtils.appContext!)
-        this.reDeployListDisplay(this.screen_width)
+        // 增加判断，旋转时保持滚动位置不变
+        this.videoListController.refresh(this.screen_width, this.is_list_display)
       }
     })
-  }
-
-  reDeployListDisplay(width: number) {
-    const base = Math.floor(width / 500);
-    this.list_line = this.is_list_display
-      ? base + 1
-      : base + 2;
-    // 增加判断，旋转时保持滚动位置不变
-    if (this.listScroller.currentOffset().yOffset == -55) {
-      this.listScroller.scrollEdge(Edge.Top)
-    }
   }
 
   @Builder
@@ -949,12 +706,13 @@ struct Index {
   }
 
   onBackPress(): boolean | void {
-    if (this.multipleChooseState === Visibility.Visible) {
-      this.closeMultipleChoose()
+    if (this.videoListController.multipleChooseState === Visibility.Visible) {
+      this.videoListController.closeMultipleChoose()
       return true
     }
-    if (this.sideBarStatusTmp === Visibility.Visible && this.side_bar_mode === SideBarContainerType.Overlay) {
-      this.closeSideBar(true)
+    if (this.sideBarController.sideBarStatusTmp === Visibility.Visible &&
+      this.sideBarController.side_bar_mode === SideBarContainerType.Overlay) {
+      this.sideBarController.closeSideBar(true)
       return true
     }
     if (this.searchValue.length > 0) {
@@ -962,17 +720,5 @@ struct Index {
       return true
     }
     return false
-  }
-
-  @Builder
-  itemStart() {
-    Stack() {
-    }
-    .onVisibleAreaChange([0, 1], (visible: boolean, a: number) => {
-      if (visible && a > 0.999999) {
-        this.openSideBar()
-        setTimeout(() => this.listScroller.closeAllSwipeActions(), 100)
-      }
-    }).width(50).height(1)
   }
 }
