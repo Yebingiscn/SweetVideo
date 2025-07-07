@@ -1,7 +1,7 @@
 import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 import DataSyncUtil, { OOBEVersion } from '../utils/DataSyncUtil';
-import { FileFolderDataSource, IndexDataSource } from '../utils/DataUtil';
+import { FileFolderDataSource, VideoDataSource } from '../utils/DataUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import { delConfirmDialog } from '../component/Dialog/DelConfirmDialog';
 import { editMetadataDialog } from '../component/Dialog//EditMetadataDialog';
@@ -56,7 +56,7 @@ struct Index {
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @State video_meta_data: VideoMetadata[] = []
-  @State videoDataSource: IndexDataSource = new IndexDataSource([])
+  @State videoDataSource: VideoDataSource = new VideoDataSource([])
   @State fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   @State passwd: string = 'passwd'
   @State list_line: number = 1
@@ -140,7 +140,7 @@ struct Index {
           this.deleteItem(resolve, reject);
         });
         if (DataSyncUtil.delMultipleList.length > 0) {
-          this.getOriginalMetaData()
+          this.videoDataSource.refreshData()
           const deletePromises = DataSyncUtil.delMultipleList.map(item => {
             return new Promise<void>((resolve, reject) => {
               DataSyncUtil.editing_video = JSON.stringify(item);
@@ -200,7 +200,7 @@ struct Index {
       })
         .onClick(async () => {
           DataSyncUtil.delMultipleList = Array.from(file_folder.video_list);
-          this.getOriginalMetaData()
+          this.videoDataSource.refreshData()
           const deletePromises = DataSyncUtil.delMultipleList.map(item => {
             return new Promise<void>((resolve, reject) => {
               DataSyncUtil.editing_video = JSON.stringify(item);
@@ -234,7 +234,7 @@ struct Index {
           let target_item = SelectFileUtil.getItem(this.video_meta_data, item?.date!)
           if (!this.video_meta_data.find(i => i.date == item?.date!)) {
             ToolsUtil.showToast('数据正在加载中，请重试')
-            this.getOriginalMetaData()
+            this.videoDataSource.refreshData()
             return
           }
           await ToolsUtil.isFileExist(target_item) ?
@@ -248,7 +248,7 @@ struct Index {
           let target_item = SelectFileUtil.getItem(this.video_meta_data, item?.date!)
           if (!this.video_meta_data.find(i => i.date == item?.date!)) {
             ToolsUtil.showToast('数据正在加载中，请重试')
-            this.getOriginalMetaData()
+            this.videoDataSource.refreshData()
             return
           }
           await ToolsUtil.isFileExist(target_item) ?
@@ -397,7 +397,7 @@ struct Index {
           this.closeMultipleChoose()
           this.multipleChooseState = Visibility.None;
           if (DataSyncUtil.delMultipleList.length > 0) {
-            this.getOriginalMetaData()
+            this.videoDataSource.refreshData()
             const deletePromises = DataSyncUtil.delMultipleList.map(item => {
               return new Promise<void>((resolve, reject) => {
                 DataSyncUtil.editing_video = JSON.stringify(item);
@@ -452,7 +452,7 @@ struct Index {
     this.passwd = Preferences.getPassword(PathUtils.appContext!)
     ToolsUtil.isSubtitleFileFolderExist(PathUtils.videoPath, PathUtils.subtitlePath)
     this.video_meta_data = Preferences.getVideoMetaData(PathUtils.appContext!)
-    this.videoDataSource = new IndexDataSource(this.video_meta_data)
+    this.videoDataSource = new VideoDataSource(this.video_meta_data)
     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
     this.fileFolderSource = new FileFolderDataSource(this.file_folder_list)
     if (Preferences.getOOBEVersion(PathUtils.appContext!) < OOBEVersion) {
@@ -495,7 +495,7 @@ struct Index {
         },
         fileFolder
       );
-      this.getOriginalMetaData()
+      this.videoDataSource.refreshData()
       ToolsUtil.showToast(
         `${PathUtils.appContext!.resourceManager.getStringSync($r('app.string.add_time_info'))}${this.import_sum}`
       );
@@ -534,11 +534,6 @@ struct Index {
     new Promise<void>((resolve, reject) => {
       this.deleteItem(resolve, reject);
     });
-  }
-
-  getOriginalMetaData() {
-    this.video_meta_data = Preferences.getVideoMetaData(PathUtils.appContext!)
-    this.videoDataSource.updateData(this.video_meta_data)
   }
 
   build() {
@@ -817,7 +812,7 @@ struct Index {
                 .onClick(async () => {
                   if (!this.video_meta_data.some(i => i.date == item?.date!)) {
                     ToolsUtil.showToast('数据正在加载中，请重试')
-                    this.getOriginalMetaData()
+                    this.videoDataSource.refreshData()
                     return
                   }
                   if (this.MenuBuilderState || this.multipleChooseState != Visibility.None) {
@@ -1002,7 +997,7 @@ struct Index {
     .hideTitleBar(true).mode(NavigationMode.Stack).navDestination(this.Pages)
     .onNavBarStateChange((isVisible: boolean) => {
       if (isVisible) {
-        this.getOriginalMetaData()
+        this.videoDataSource.refreshData()
         this.passwd = Preferences.getPassword(PathUtils.appContext!)
         this.reDeployListDisplay(this.screen_width)
       }

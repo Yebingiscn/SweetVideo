@@ -1,5 +1,7 @@
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
+import Preferences from '../database/Preferences';
+import { PathUtils } from './PathUtils';
 
 // 基础数据源抽象类（泛型实现）
 abstract class BaseDataSource<T> implements IDataSource {
@@ -59,18 +61,10 @@ abstract class BaseDataSource<T> implements IDataSource {
 
 // 具体实现类
 export class VideoDataSource extends BaseDataSource<VideoMetadata> {
-}
-
-export class RecentVideoDataSource extends BaseDataSource<VideoMetadata> {
-}
-
-export class FileFolderContentDataSource extends BaseDataSource<VideoMetadata> {
-}
-
-export class PrivacySpaceDataSource extends BaseDataSource<VideoMetadata> {
-}
-
-export class IndexDataSource extends BaseDataSource<VideoMetadata> {
+  public refreshData(){
+    const video_meta_data: VideoMetadata[] = Preferences.getVideoMetaData(PathUtils.appContext!)
+    this.updateData(video_meta_data)
+  }
 }
 
 export class FileFolderDataSource extends BaseDataSource<FileFolder> {

@@ -4,7 +4,7 @@ import DataSyncUtil from '../utils/DataSyncUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { JSON } from '@kit.ArkTS';
 import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
-import { FileFolderContentDataSource } from '../utils/DataUtil';
+import { VideoDataSource } from '../utils/DataUtil';
 import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog';
 import FileFolderUtil from '../utils/FileFolderUtil';
 import { FileFolder } from '../interfaces/FileFolderInterface';
@@ -25,7 +25,7 @@ import { PathUtils } from '../utils/PathUtils';
 
 @Component
 export struct FileFolderContent { // 文件夹页，不同文件夹公用一个页
-  @State videoDataSource: FileFolderContentDataSource = new FileFolderContentDataSource([])
+  @State videoDataSource: VideoDataSource = new VideoDataSource([])
   @State MenuBuilderState: boolean = false
   @State file_folder: FileFolder | undefined = undefined
   @State file_folder_list: FileFolder[] = []
@@ -46,7 +46,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
 
   aboutToAppear(): void {
     this.file_folder = this.pathStack.getParamByName('FileFolderContent')[0] as FileFolder
-    this.videoDataSource = new FileFolderContentDataSource(this.file_folder?.video_list!);
+    this.videoDataSource = new VideoDataSource(this.file_folder?.video_list!);
   }
 
   @Builder

@@ -1,6 +1,6 @@
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import SelectFileUtil from '../utils/SelectFileUtil';
-import { PrivacySpaceDataSource } from '../utils/DataUtil';
+import { VideoDataSource } from '../utils/DataUtil';
 import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
 import ToolsUtil from '../utils/ToolsUtil';
 import DataSyncUtil from '../utils/DataSyncUtil';
@@ -27,7 +27,7 @@ import { SearchComponent } from '../component/SearchComponent';
 
 @Component
 export struct PrivacySpace { // 隐私空间页
-  @State videoDataSource: PrivacySpaceDataSource = new PrivacySpaceDataSource([])
+  @State videoDataSource: VideoDataSource = new VideoDataSource([])
   @State video_meta_data_encryption: VideoMetadata[] = []
   @State list_line: number = 1
   @Consume('pathStack') pathStack: NavPathStack
@@ -201,7 +201,7 @@ export struct PrivacySpace { // 隐私空间页
 
   async aboutToAppear(): Promise<void> {
     this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-    this.videoDataSource = new PrivacySpaceDataSource(this.video_meta_data_encryption)
+    this.videoDataSource = new VideoDataSource(this.video_meta_data_encryption)
     PrivacySpaceUtil.setPrivacyMode(true)
   }
 

@@ -1,4 +1,4 @@
-import { RecentVideoDataSource } from '../utils/DataUtil';
+import { VideoDataSource } from '../utils/DataUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { fileUri } from '@kit.CoreFileKit';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
@@ -9,7 +9,7 @@ import { PathUtils } from '../utils/PathUtils';
 
 @Component
 export struct RecentPlay { // 最近播放页
-  @State videoDataSource: RecentVideoDataSource = new RecentVideoDataSource([])
+  @State videoDataSource: VideoDataSource = new VideoDataSource([])
   @State recent_video_meta_data: VideoMetadata[] = []
   @State MenuBuilderState: boolean = false
   @Consume('pathStack') pathStack: NavPathStack
@@ -21,7 +21,7 @@ export struct RecentPlay { // 最近播放页
   async aboutToAppear(): Promise<void> {
     if (this.recentPlay) {
       this.recent_video_meta_data = await RecentPlayUtil.getRecentPlaybacks()
-      this.videoDataSource = new RecentVideoDataSource(this.recent_video_meta_data);
+      this.videoDataSource = new VideoDataSource(this.recent_video_meta_data);
     }
   }
 
