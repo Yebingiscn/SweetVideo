@@ -5,7 +5,7 @@ import { ImageFancyModifier } from '../../utils/AttributeModifierUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import DataSyncUtil, { OOBEVersion } from '../../utils/DataSyncUtil';
 import { VideoInfoComponent } from '../../component/VideoInfoComponent';
-import { VideoListController } from '.';
+import { VideoListController } from './';
 
 @Component
 export default struct VideoListItem {
@@ -21,7 +21,7 @@ export default struct VideoListItem {
           .attributeModifier(new ImageFancyModifier(10, 60, 90))
         Column() {
           Row() {
-            Text(VideoInfoUtil.getVideoTitle(this.videoListController.video_meta_data_list, this.item))
+            Text(VideoInfoUtil.getVideoTitle(this.videoListController.videoMetaDataList, this.item))
               .fontSize(15)
               .fontWeight(FontWeight.Medium)
               .maxLines(3)

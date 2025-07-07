@@ -17,18 +17,19 @@ import SubtitleUtil from '../../utils/SubtitleUtil';
 import { FileFolder } from '../../interfaces/FileFolderInterface';
 import FileFolderUtil from '../../utils/FileFolderUtil';
 import { SideBarController } from '../SideBarComponent/SideBar';
+import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu';
 
 
 @Component
 export struct VideoItem {
   @Prop item: VideoMetadata
   @Prop index: number
-  @StorageLink('is_list_display') is_list_display: boolean = false
+  @StorageLink('is_list_display') isListDisplay: boolean = false
   videoListController: VideoListController = new VideoListController([])
 
   build() {
     Row() {
-      if (this.is_list_display) {
+      if (this.isListDisplay) {
         VideoListItem({
           item: this.item,
           index: this.index,
@@ -42,28 +43,50 @@ export struct VideoItem {
         })
       }
     }
-    .padding({
-      left: 10,
-      right: 10,
-      top: 5,
-      bottom: 5
-    })
+    .padding(10)
   }
 }
 
 @Observed
 export class VideoListController {
   listScroller: ListScroller = new ListScroller()
-  video_meta_data_list: VideoMetadata[]
+  videoMetaDataList: VideoMetadata[]
   multipleChooseState: Visibility = Visibility.None
   itemMultipleChoose: boolean = false
-  list_line: number = 1
+  listLine: number = 1
   videoDataSource: VideoDataSource
+  private listeners: DataChangeListener[] = [];
 
+  constructor(videoMetaDataList: VideoMetadata[]) {
+    this.videoMetaDataList = videoMetaDataList
+    this.videoDataSource = new VideoDataSource(this.videoMetaDataList)
+  }
 
-  constructor(video_meta_data_list: VideoMetadata[]) {
-    this.video_meta_data_list = video_meta_data_list
-    this.videoDataSource = new VideoDataSource(this.video_meta_data_list)
+  // 公共方法实现
+  registerDataChangeListener(listener: DataChangeListener): void {
+    this.listeners.push(listener);
+  }
+
+  unregisterDataChangeListener(listener: DataChangeListener): void {
+    const index = this.listeners.indexOf(listener);
+    if (index >= 0) {
+      this.listeners.splice(index, 1);
+    }
+  }
+
+  // 通知方法
+  protected notifyDataReloaded(): void {
+    this.listeners.forEach(listener => listener.onDataReloaded());
+  }
+
+  protected notifyDataDelete(index: number): void {
+    this.listeners.forEach(listener => listener.onDataDelete(index));
+  }
+
+  updateData(videoDataSource: VideoDataSource): void {
+    this.videoDataSource = videoDataSource;
+    this.videoMetaDataList = this.videoDataSource.getAllData()
+    this.notifyDataReloaded();
   }
 
   public closeMultipleChoose() {
@@ -71,9 +94,9 @@ export class VideoListController {
     this.multipleChooseState = Visibility.None;
   }
 
-  public refresh(width: number, is_list_display: boolean) {
+  public refresh(width: number, isListDisplay: boolean) {
     const base = Math.floor(width / 500);
-    this.list_line = is_list_display ? base + 1 : base + 2;
+    this.listLine = isListDisplay ? base + 1 : base + 2;
     // 增加判断，旋转时保持滚动位置不变
     if (this.listScroller.currentOffset().yOffset == -55) {
       this.listScroller.scrollEdge(Edge.Top)
@@ -84,22 +107,17 @@ export class VideoListController {
 @Component
 export struct VideoList {
   @ObjectLink videoListController: VideoListController
+  @ObjectLink fileFolderSource: FileFolderDataSource
+
   sideBarController: SideBarController = new SideBarController()
   searchController: SearchController = new SearchController()
-
   @State MenuBuilderState: boolean = false
-
   @State file_folder_list: FileFolder[] = []
-  @State fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
-
-  @StorageLink('is_list_display') is_list_display: boolean = false
-
+  @StorageLink('is_list_display') isListDisplay: boolean = false
   @Consume('pathStack') pathStack: NavPathStack
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @StorageProp('screen_width') screen_width: number = 0
-
-
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
@@ -136,24 +154,20 @@ export struct VideoList {
           return;
         } // 更严格的空值判断
         const editingVideo = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata;
-        const targetIndex = SelectFileUtil.getItemIndex(this.videoListController.video_meta_data_list, editingVideo);
+        const targetIndex = SelectFileUtil.getItemIndex(this.videoListController.videoMetaDataList, editingVideo);
         if (targetIndex === -1) {
           return;
         }
-        const titleSet = new Set(this.videoListController.video_meta_data_list.map(v => v.title));
+        const titleSet = new Set(this.videoListController.videoMetaDataList.map(v => v.title));
         if (titleSet.has(title)) {
           return;
         }
-        this.videoListController.video_meta_data_list[targetIndex].title = title.trim();
-        this.videoListController.videoDataSource.updateData(this.videoListController.video_meta_data_list)
-        Preferences.saveVideoMetaData(PathUtils.appContext!, this.videoListController.video_meta_data_list)
+        this.videoListController.videoMetaDataList[targetIndex].title = title.trim();
+        this.videoListController.videoDataSource.updateData(this.videoListController.videoMetaDataList)
+        Preferences.saveVideoMetaData(PathUtils.appContext!, this.videoListController.videoMetaDataList)
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-
-  aboutToAppear(): void {
-    this.fileFolderSource = new FileFolderDataSource(this.file_folder_list)
-  }
 
   build() {
     List({ scroller: this.videoListController.listScroller }) {
@@ -174,7 +188,7 @@ export struct VideoList {
           edgeEffect: SwipeEdgeEffect.Spring
         })
         .onClick(async () => {
-          if (!this.videoListController.video_meta_data_list.some(i => i.date == item?.date!)) {
+          if (!this.videoListController.videoMetaDataList.some(i => i.date == item?.date!)) {
             ToolsUtil.showToast('数据正在加载中，请重试')
             this.videoListController.videoDataSource.refreshData()
             return
@@ -185,7 +199,7 @@ export struct VideoList {
           }
           this.videoListController.listScroller.closeAllSwipeActions()
           await ToolsUtil.isFileExist(item) ?
-          ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.videoListController.video_meta_data_list) :
+          ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.videoListController.videoMetaDataList) :
           this.videoListController.videoDataSource.deleteUnExistFile(item)
         })
       }, (item: VideoMetadata) => JSON.stringify(item))
@@ -193,7 +207,7 @@ export struct VideoList {
     .cachedCount(3)
     .contentStartOffset(this.topSafeHeight + 55)
     .contentEndOffset(this.bottomSafeHeight)
-    .lanes(this.videoListController.list_line)
+    .lanes(this.videoListController.listLine)
     .animation({ duration: 300, curve: Curve.Smooth })
     .scrollBar(BarState.Off)
     .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
@@ -214,28 +228,28 @@ export struct VideoList {
       MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(() => {
         this.MenuBuilderState = false
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          let target_item = SelectFileUtil.getItem(this.videoListController.video_meta_data_list, item?.date!)
-          if (!this.videoListController.video_meta_data_list.find(i => i.date == item?.date!)) {
+          let target_item = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
+          if (!this.videoListController.videoMetaDataList.find(i => i.date == item?.date!)) {
             ToolsUtil.showToast('数据正在加载中，请重试')
             this.videoListController.videoDataSource.refreshData()
             return
           }
           await ToolsUtil.isFileExist(target_item) ?
-          ToolsUtil.routerWhere(this.pathStack, 'FFMpegPlayer', item!, this.videoListController.video_meta_data_list) :
+          ToolsUtil.routerWhere(this.pathStack, 'FFMpegPlayer', item!, this.videoListController.videoMetaDataList) :
           this.videoListController.videoDataSource.deleteUnExistFile(target_item)
         }, 200)
       })
       MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
         this.MenuBuilderState = false
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          let target_item = SelectFileUtil.getItem(this.videoListController.video_meta_data_list, item?.date!)
-          if (!this.videoListController.video_meta_data_list.find(i => i.date == item?.date!)) {
+          let target_item = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
+          if (!this.videoListController.videoMetaDataList.find(i => i.date == item?.date!)) {
             ToolsUtil.showToast('数据正在加载中，请重试')
             this.videoListController.videoDataSource.refreshData()
             return
           }
           await ToolsUtil.isFileExist(target_item) ?
-          ToolsUtil.routerWhere(this.pathStack, 'RedPlayer', item!, this.videoListController.video_meta_data_list) :
+          ToolsUtil.routerWhere(this.pathStack, 'RedPlayer', item!, this.videoListController.videoMetaDataList) :
           this.videoListController.videoDataSource.deleteUnExistFile(target_item)
         }, 200)
       })
@@ -247,7 +261,7 @@ export struct VideoList {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
         content: "添加到文件夹",
-        builder: (): void => this.FileFolderMenu(item)
+        builder: (): void => this.FileFolderMenuBuilder(item)
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
@@ -310,31 +324,11 @@ export struct VideoList {
   }
 
   @Builder
-  FileFolderMenu(video_item: VideoMetadata | undefined) {
-    Menu() {
-      LazyForEach(this.fileFolderSource, (item: FileFolder) => {
-        MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.folder")), content: item.name })
-          .onClick(async () => {
-            if (DataSyncUtil.delMultipleList.length > 0) {
-              for (let i = 0; i < DataSyncUtil.delMultipleList.length; i++) {
-                await this.addVideoToFileFolder(DataSyncUtil.delMultipleList[i], item)
-              }
-              DataSyncUtil.delMultipleList = []
-              this.videoListController.closeMultipleChoose!()
-            } else if (this.videoListController.multipleChooseState === Visibility.None) {
-              await this.addVideoToFileFolder(video_item!, item)
-            }
-          })
-      }, (item: FileFolder) => item.date)
-    }.attributeModifier(new MenuModifier())
-  }
-
-  async addVideoToFileFolder(video_item: VideoMetadata, item: FileFolder) {
-    if (!item.video_list.some(v => v.title === video_item.title)) {
-      this.file_folder_list = await FileFolderUtil.addVideoInFileFolder(PathUtils.appContext!, video_item!, item.date)
-      this.videoListController.videoDataSource.deleteData(this.videoListController.video_meta_data_list.findIndex(i => i.date === video_item.date))
-      this.videoListController.video_meta_data_list = this.videoListController.video_meta_data_list.filter(i => i.date !== video_item?.date)
-      Preferences.saveVideoMetaData(PathUtils.appContext!, this.videoListController.video_meta_data_list)
-    }
+  FileFolderMenuBuilder(video_item: VideoMetadata | undefined) {
+    FileFolderMenu({
+      videoListController: this.videoListController,
+      fileFolderSource: this.fileFolderSource,
+      video_item: video_item
+    })
   }
 }

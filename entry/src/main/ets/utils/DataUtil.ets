@@ -5,6 +5,7 @@ import { PathUtils } from './PathUtils';
 import DataSyncUtil from '../utils/DataSyncUtil';
 import SubtitleUtil from '../utils/SubtitleUtil';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
+import FileFolderUtil from '../utils/FileFolderUtil';
 
 import { fileIo as fs } from '@kit.CoreFileKit';
 
@@ -50,6 +51,8 @@ abstract class BaseDataSource<T> implements IDataSource {
     this.notifyDataDelete(index);
   }
 
+
+
   getAllData(): T[] {
     return [...this.data];
   }
@@ -65,6 +68,7 @@ abstract class BaseDataSource<T> implements IDataSource {
 }
 
 // 具体实现类
+@Observed
 export class VideoDataSource extends BaseDataSource<VideoMetadata> {
   public refreshData(){
     const video_meta_data: VideoMetadata[] = Preferences.getVideoMetaData(PathUtils.appContext!)
@@ -98,7 +102,19 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
       }
     });
   }
+  public deleteDatabyVideoItem(videoMetadata: VideoMetadata): void {
+    const index: number = this.data.findIndex(i => i.date === videoMetadata.date)
+    this.deleteData(index)
+  }
 }
 
+@Observed
 export class FileFolderDataSource extends BaseDataSource<FileFolder> {
+  async addVideoToFileFolder(video_item: VideoMetadata, item: FileFolder, videoDataSource: VideoDataSource) {
+    if (!item.video_list.some(v => v.title === video_item.title)) {
+      this.data = await FileFolderUtil.addVideoInFileFolder(PathUtils.appContext!, video_item!, item.date)
+      videoDataSource.deleteDatabyVideoItem(video_item)
+      Preferences.saveVideoMetaData(PathUtils.appContext!, videoDataSource.getAllData())
+    }
+  }
 }

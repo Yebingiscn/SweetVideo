@@ -17,7 +17,7 @@ import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 import ScreenUtil from '../utils/ScreenUtil';
 import { SettingsPage } from './Setting';
 import { AboutApp } from './AboutApp';
-import { FileFolderContent } from './FileFolderContent';
+// import { FileFolderContent } from './FileFolderContent';
 import { FFMpegPlayer } from './FFMpegPlayer';
 import { Player } from './Player';
 import { RecentPlay } from './RecentPlay';
@@ -37,9 +37,10 @@ import { FileProcessorUtil } from '../utils/FileProcessorUtil';
 import { PathUtils } from '../utils/PathUtils';
 import { MaskComponent } from '../component/MaskComponent';
 import { SearchComponent } from '../component/SearchComponent';
-import { VideoList, VideoListController } from '../component/VideoItem';
+import { VideoList, VideoListController } from '../component/VideoItemComponent';
 import SubtitleUtil from '../utils/SubtitleUtil';
 import { AppInfo, SideBarController } from '../component/SideBarComponent/SideBar';
+import { VideoView } from '../component/VideoItemComponent/VideoViewComponent';
 
 
 @Builder
@@ -54,21 +55,27 @@ struct Index {
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @State video_meta_data: VideoMetadata[] = []
   @State videoDataSource: VideoDataSource = new VideoDataSource([])
-  @State fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
+  @Provide fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   @State passwd: string = 'passwd'
   @State list_empty_item: string[] = ['']
   @State loading: boolean = false
   @State current_import: number = 0
-  @State is_edit: boolean = false
   @State import_sum: number = 0
-  @State videoListController: VideoListController = new VideoListController([])
   @State file_folder_list: FileFolder[] = []
   @StorageLink('is_list_display') is_list_display: boolean = false
   @StorageProp('screen_width') screen_width: number = 0
   @StorageProp('screen_height') screen_height: number = 0
   @State searchValue: string = ''
   @Provide('pathStack') pathStack: NavPathStack = new NavPathStack()
+  @State videoListController: VideoListController = new VideoListController([])
   @State @Watch('SyncSideBarAndMaskState') sideBarController: SideBarController = new SideBarController()
+
+  SyncSideBarAndMaskState(): void {
+    if (this.sideBarController.sideBarStatusTmp == Visibility.Hidden) {
+      this.sideBarController.mask_state = false
+    }
+  }
+
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: addFileFolderNameDialog({
       confirm: async (file_folder_name: string | undefined) => {
@@ -94,42 +101,6 @@ struct Index {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  searchController: SearchController = new SearchController()
-
-  SyncSideBarAndMaskState(): void {
-    if (this.sideBarController.sideBarStatusTmp == Visibility.Hidden) {
-      this.sideBarController.mask_state = false
-    }
-  }
-
-  @Builder
-  FileFolderMenu(video_item: VideoMetadata | undefined) {
-    Menu() {
-      LazyForEach(this.fileFolderSource, (item: FileFolder) => {
-        MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.folder")), content: item.name })
-          .onClick(async () => {
-            if (DataSyncUtil.delMultipleList.length > 0) {
-              for (let i = 0; i < DataSyncUtil.delMultipleList.length; i++) {
-                await this.addVideoToFileFolder(DataSyncUtil.delMultipleList[i], item)
-              }
-              DataSyncUtil.delMultipleList = []
-              this.videoListController.closeMultipleChoose()
-            } else if (this.videoListController.multipleChooseState === Visibility.None) {
-              await this.addVideoToFileFolder(video_item!, item)
-            }
-          })
-      }, (item: FileFolder) => item.date)
-    }.attributeModifier(new MenuModifier())
-  }
-
-  async addVideoToFileFolder(video_item: VideoMetadata, item: FileFolder) {
-    if (!item.video_list.some(v => v.title === video_item.title)) {
-      this.file_folder_list = await FileFolderUtil.addVideoInFileFolder(PathUtils.appContext!, video_item!, item.date)
-      this.videoDataSource.deleteData(this.video_meta_data.findIndex(i => i.date === video_item.date))
-      this.video_meta_data = this.video_meta_data.filter(i => i.date !== video_item?.date)
-      Preferences.saveVideoMetaData(PathUtils.appContext!, this.video_meta_data)
-    }
-  }
 
   @Builder
   FileFolderSelectMenu(file_folder: FileFolder) {
@@ -166,30 +137,6 @@ struct Index {
   }
 
   @Builder
-  SortMenuBuilder() {
-    Menu() {
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat')),
-        content: $r('app.string.sort_by_name')
-      })
-        .onClick(async () => {
-          this.video_meta_data =
-            await ToolsUtil.sortByName(PathUtils.appContext!, this.video_meta_data, undefined) as VideoMetadata[]
-          this.videoDataSource.updateData(this.video_meta_data)
-        })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
-        content: $r('app.string.sort_by_time')
-      })
-        .onClick(async () => {
-          this.video_meta_data =
-            await ToolsUtil.sortByTime(PathUtils.appContext!, this.video_meta_data, undefined) as VideoMetadata[]
-          this.videoDataSource.updateData(this.video_meta_data)
-        })
-    }.attributeModifier(new MenuModifier())
-  }
-
-  @Builder
   SelectFileMenuBuilder() {
     Menu() {
       MenuItem({
@@ -217,52 +164,6 @@ struct Index {
           this.sideBarController.closeSideBar(false)
           await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), undefined);
         })
-    }.attributeModifier(new MenuModifier())
-  }
-
-  @Builder
-  SelectItemMenuBuilder() {
-    Menu() {
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.xmark')),
-        content: $r('app.string.cancel')
-      })
-        .onClick(() => {
-          this.videoListController.closeMultipleChoose()
-          DataSyncUtil.delMultipleList.length = 0
-        })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.checkmark_square_on_square')),
-        content: $r('app.string.select_all')
-      })
-        .onClick(() => {
-          this.videoListController.itemMultipleChoose = !this.videoListController.itemMultipleChoose
-          DataSyncUtil.delMultipleList.length = 0
-          DataSyncUtil.delMultipleList = [...this.video_meta_data]
-        })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')),
-        content: $r('app.string.delete_selected')
-      })
-        .onClick(async () => {
-          this.videoListController.closeMultipleChoose()
-          this.videoListController.multipleChooseState = Visibility.None;
-          if (DataSyncUtil.delMultipleList.length > 0) {
-            this.videoDataSource.refreshData()
-            const deletePromises = DataSyncUtil.delMultipleList.map(item => {
-              return new Promise<void>((resolve, reject) => {
-                DataSyncUtil.editing_video = JSON.stringify(item);
-                this.deleteItem(resolve, reject);
-              });
-            });
-            await Promise.all(deletePromises);
-          }
-        })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
-        content: "添加到文件夹",
-        builder: (): void => this.FileFolderMenu(undefined)
-      })
     }.attributeModifier(new MenuModifier())
   }
 
@@ -306,6 +207,7 @@ struct Index {
     this.videoDataSource = new VideoDataSource(this.video_meta_data)
     this.videoListController = new VideoListController(this.video_meta_data)
     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
+    this.fileFolderSource.updateData(this.file_folder_list)
     if (Preferences.getOOBEVersion(PathUtils.appContext!) < OOBEVersion) {
       let controller = new CustomDialogController({
         builder: PrivacyPolicyDialog({
@@ -509,116 +411,7 @@ struct Index {
         .visibility(this.sideBarController.sideBarStatusTmp)
         .borderRadius(this.sideBarController.side_bar_mode === SideBarContainerType.Overlay ? 16 : 0)
 
-        Stack({ alignContent: Alignment.Top }) { // 内容区
-          if (this.sideBarController.mask_state &&
-            this.sideBarController.side_bar_mode === SideBarContainerType.Overlay) {
-            MaskComponent({ sideBarController: this.sideBarController })
-          }
-          Column() {
-            VideoList({
-              videoListController: this.videoListController,
-              sideBarController: this.sideBarController,
-              searchController: this.searchController,
-            })
-          }
-
-          if (this.video_meta_data.length == 0) {
-            Row() { //顶栏
-              if (!this.loading) {
-                Column() {
-                  Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
-                  Text($r('app.string.open_side_bar_tip'))
-                    .fontSize(15)
-                    .textAlign(TextAlign.Center)
-                    .fontWeight(FontWeight.Lighter)
-                    .margin({ top: 20 })
-                }
-              }
-            }
-            .height('100%')
-            .animation({ duration: 150, curve: Curve.Ease })
-          }
-
-          Column() {
-            Row({ space: 15 }) {
-              if (!this.is_edit && this.sideBarController.side_bar_mode == SideBarContainerType.Overlay) {
-                Button({ type: ButtonType.Circle, stateEffect: true }) {
-                  SymbolGlyph($r('sys.symbol.close_sidebar'))
-                    .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                }
-                .attributeModifier(new ButtonFancyModifier(40, 40))
-                .animation({ duration: 300, curve: Curve.Ease })
-                .onClick(() => {
-                  this.sideBarController.openSideBar()
-                })
-                .attributeModifier(new ShadowModifier())
-                .zIndex(0)
-              }
-
-              SearchComponent({
-                controller: this.searchController,
-                placeholder: $r('app.string.search_placeholder'),
-                searchValue: this.searchValue,
-                onChange: () => {
-                  this.searchValue === '' ? this.video_meta_data = Preferences.getVideoMetaData(PathUtils.appContext!) :
-                    this.video_meta_data = SelectFileUtil.getItemFromSearch(this.video_meta_data, this.searchValue)
-                  this.videoDataSource.updateData(this.video_meta_data)
-                },
-                onSubmit: (value: string) => {
-                  if (value == '') {
-                    if (this.video_meta_data.length == 0) {
-                      ToolsUtil.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.add_video_first')))
-                      return
-                    }
-                    this.searchController.stopEditing()
-                    return
-                  }
-                  if (value == this.passwd) {
-                    ToolsUtil.showToast(PathUtils.appContext!
-                      .resourceManager.getStringSync($r('app.string.enter_privacy_space')))
-                    this.pathStack.pushPathByName('PrivacySpace', null)
-                    this.searchValue = ''
-                    return
-                  }
-                  if (this.video_meta_data.length == 0) {
-                    ToolsUtil.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.no_search_result')))
-                  }
-                },
-                onEditChange: (isEditing: boolean) => {
-                  animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
-                    this.is_edit = isEditing
-                  })
-                }
-              })
-
-              if (!this.is_edit) {
-                Button({ type: ButtonType.Circle, stateEffect: true }) {
-                  SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
-                    .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                }
-                .attributeModifier(new ButtonFancyModifier(40, 40))
-                .animation({ duration: 300, curve: Curve.Ease })
-                .bindMenu(this.SortMenuBuilder)
-                .attributeModifier(new ShadowModifier())
-                .zIndex(0)
-
-                if (this.videoListController.multipleChooseState === Visibility.Visible) {
-                  Button({ type: ButtonType.Circle, stateEffect: true }) {
-                    SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
-                      .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                  }
-                  .attributeModifier(new ButtonFancyModifier(40, 40))
-                  .animation({ duration: 300, curve: Curve.Ease })
-                  .bindMenu(this.SelectItemMenuBuilder)
-                  .attributeModifier(new ShadowModifier())
-                  .zIndex(0)
-                }
-              }
-            }
-          }
-          .padding({ top: this.topSafeHeight, left: 10, right: 10 })
-          .width('100%')
-
+        Stack() {
           if (this.loading) {
             Stack() {
               ImportProgressComponent({
@@ -628,6 +421,12 @@ struct Index {
             }.width('100%')
             .height('100%')
           }
+          VideoView({
+            videoListController: this.videoListController,
+            sideBarController: this.sideBarController,
+            loading: this.loading,
+            passwd: this.passwd
+          })
         }.backgroundColor($r('app.color.start_window_background'))
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
           const width = Number(newValue.width);
@@ -690,8 +489,8 @@ struct Index {
       SettingsPage()
     } else if (name == 'AboutPage') {
       AboutApp()
-    } else if (name == 'FileFolderContent') {
-      FileFolderContent()
+    // } else if (name == 'FileFolderContent') {
+    //   FileFolderContent()
     } else if (name == 'Player') {
       Player()
     } else if (name == 'FFMpegPlayer') {
