@@ -35,9 +35,7 @@ import {
 import { ImportProgressComponent } from '../component/ImportProgressComponent';
 import { FileProcessorUtil } from '../utils/FileProcessorUtil';
 import { PathUtils } from '../utils/PathUtils';
-import { MaskComponent } from '../component/MaskComponent';
-import { SearchComponent } from '../component/SearchComponent';
-import { VideoList, VideoListController } from '../component/VideoItemComponent';
+import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
 import SubtitleUtil from '../utils/SubtitleUtil';
 import { AppInfo, SideBarController } from '../component/SideBarComponent/SideBar';
 import { VideoView } from '../component/VideoItemComponent/VideoViewComponent';
@@ -489,8 +487,8 @@ struct Index {
       SettingsPage()
     } else if (name == 'AboutPage') {
       AboutApp()
-    // } else if (name == 'FileFolderContent') {
-    //   FileFolderContent()
+      // } else if (name == 'FileFolderContent') {
+      //   FileFolderContent()
     } else if (name == 'Player') {
       Player()
     } else if (name == 'FFMpegPlayer') {

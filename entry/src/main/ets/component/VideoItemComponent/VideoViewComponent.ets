@@ -1,4 +1,4 @@
-import { VideoList, VideoListController } from "."
+import { VideoList, VideoListController } from "./VideoItemComponent"
 import { VideoMetadata } from "../../interfaces/VideoMetadataInterface"
 import { MaskComponent } from "../MaskComponent"
 import { SideBarController } from "../SideBarComponent/SideBar"

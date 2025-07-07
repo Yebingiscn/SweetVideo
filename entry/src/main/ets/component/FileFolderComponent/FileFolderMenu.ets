@@ -2,7 +2,7 @@ import { FileFolder } from "../../interfaces/FileFolderInterface"
 import { FileFolderDataSource } from "../../utils/DataUtil"
 import { MenuModifier, SymbolGlyphModifier } from "@kit.ArkUI"
 import DataSyncUtil from '../../utils/DataSyncUtil'
-import { VideoListController } from "../VideoItemComponent"
+import { VideoListController } from "../VideoItemComponent/VideoItemComponent"
 import { VideoMetadata } from "../../interfaces/VideoMetadataInterface"
 
 

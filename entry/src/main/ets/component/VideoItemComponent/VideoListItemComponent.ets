@@ -5,7 +5,7 @@ import { ImageFancyModifier } from '../../utils/AttributeModifierUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import DataSyncUtil, { OOBEVersion } from '../../utils/DataSyncUtil';
 import { VideoInfoComponent } from '../../component/VideoInfoComponent';
-import { VideoListController } from './';
+import { VideoListController } from './VideoItemComponent';
 
 @Component
 export default struct VideoListItem {
