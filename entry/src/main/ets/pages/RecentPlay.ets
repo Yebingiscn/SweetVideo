@@ -66,7 +66,7 @@ export struct RecentPlay { // 最近播放页
     NavDestination() {
       Column() {
         if (this.recent_video_meta_data.length === 0) {
-          Text('此时无声胜有声 <(￣ c￣)y▂ξ')
+          Text($r('app.string.nothing'))
             .fontSize(24)
             .fontWeight(FontWeight.Medium)
             .textAlign(TextAlign.Center)
@@ -78,29 +78,27 @@ export struct RecentPlay { // 最近播放页
         List({ scroller: this.listScroller, space: 10 }) {
           LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
             ListItem() {
-              Column() {
-                Row() {
-                  Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
-                    .attributeModifier(new ImageFancyModifier(10, 60, 90))
-                  Text((String(SelectFileUtil.getItem(this.recent_video_meta_data, item?.date)?.title)).slice(0,
-                    String(SelectFileUtil.getItem(this.recent_video_meta_data, item?.date)?.title).lastIndexOf('.')))
-                    .fontSize(15)
-                    .fontWeight(FontWeight.Medium)
-                    .maxLines(4)
-                    .textOverflow({ overflow: TextOverflow.Ellipsis })
-                    .width('65%')
-                    .margin({ left: 5 })
-                    .wordBreak(WordBreak.BREAK_ALL)
-                }
-                .onClick(async () => {
-                  await ToolsUtil.isFileExist(item) ?
-                  ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.recent_video_meta_data) :
-                  this.delData(PathUtils.appContext!, item)
-                })
-                .width('100%')
-                .height(100)
-                .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
+              Row() {
+                Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
+                  .attributeModifier(new ImageFancyModifier(10, 60, 90))
+                Text((String(SelectFileUtil.getItem(this.recent_video_meta_data, item?.date)?.title)).slice(0,
+                  String(SelectFileUtil.getItem(this.recent_video_meta_data, item?.date)?.title).lastIndexOf('.')))
+                  .fontSize(15)
+                  .fontWeight(FontWeight.Medium)
+                  .maxLines(4)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+                  .width('65%')
+                  .margin({ left: 5 })
+                  .wordBreak(WordBreak.BREAK_ALL)
               }
+              .onClick(async () => {
+                await ToolsUtil.isFileExist(item) ?
+                ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.recent_video_meta_data) :
+                this.delData(PathUtils.appContext!, item)
+              })
+              .width('100%')
+              .height(100)
+              .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
             }.bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
           }, (item: VideoMetadata) => item.date)
         }

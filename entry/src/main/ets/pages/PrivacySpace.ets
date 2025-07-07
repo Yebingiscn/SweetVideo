@@ -14,7 +14,6 @@ import { FileFolder } from '../interfaces/FileFolderInterface';
 import {
   ButtonFancyModifier,
   ImageFancyModifier,
-  ShadowModifier,
   SymbolGlyphFancyModifier
 } from '../utils/AttributeModifierUtil';
 import { ImportProgressComponent } from '../component/ImportProgressComponent';
@@ -24,6 +23,7 @@ import VideoInfoUtil from '../utils/VideoInfoUtil';
 import SubtitleUtil from '../utils/SubtitleUtil';
 import { PathUtils } from '../utils/PathUtils';
 import { editPasswordDialog } from '../component/Dialog/EditPasswordDialog';
+import { SearchComponent } from '../component/SearchComponent';
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -99,79 +99,73 @@ export struct PrivacySpace { // 隐私空间页
 
   @Builder
   SelectFileMenuBuilder() {
-    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      Menu() {
-        MenuItem({
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder')),
-          content: $r('app.string.import_from_files')
+    Menu() {
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder')),
+        content: $r('app.string.import_from_files')
+      })
+        .onClick(async () => {
+          await this.toMetaData(await SelectFileUtil.selectFiles());
         })
-          .onClick(async () => {
-            await this.toMetaData(await SelectFileUtil.selectFiles());
-          })
-        MenuItem({
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.picture')),
-          content: $r('app.string.import_from_album')
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.picture')),
+        content: $r('app.string.import_from_album')
+      })
+        .onClick(async () => {
+          await this.toMetaData(await SelectFileUtil.selectVideo());
         })
-          .onClick(async () => {
-            await this.toMetaData(await SelectFileUtil.selectVideo());
-          })
-      }.attributeModifier(new MenuModifier())
-    }
+    }.attributeModifier(new MenuModifier())
   }
 
   @Builder
   SortMenuBuilder() {
-    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      Menu() {
-        MenuItem({
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat')),
-          content: $r('app.string.sort_by_name')
+    Menu() {
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat')),
+        content: $r('app.string.sort_by_name')
+      })
+        .onClick(async () => {
+          this.video_meta_data_encryption =
+            await ToolsUtil.sortByName(PathUtils.appContext!, this.video_meta_data_encryption,
+              undefined) as VideoMetadata[]
+          this.videoDataSource.updateData(this.video_meta_data_encryption)
         })
-          .onClick(async () => {
-            this.video_meta_data_encryption =
-              await ToolsUtil.sortByName(PathUtils.appContext!, this.video_meta_data_encryption,
-                undefined) as VideoMetadata[]
-            this.videoDataSource.updateData(this.video_meta_data_encryption)
-          })
-        MenuItem({
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
-          content: $r('app.string.sort_by_time')
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
+        content: $r('app.string.sort_by_time')
+      })
+        .onClick(async () => {
+          this.video_meta_data_encryption =
+            await ToolsUtil.sortByTime(PathUtils.appContext!, this.video_meta_data_encryption,
+              undefined) as VideoMetadata[]
+          this.videoDataSource.updateData(this.video_meta_data_encryption)
         })
-          .onClick(async () => {
-            this.video_meta_data_encryption =
-              await ToolsUtil.sortByTime(PathUtils.appContext!, this.video_meta_data_encryption,
-                undefined) as VideoMetadata[]
-            this.videoDataSource.updateData(this.video_meta_data_encryption)
-          })
-      }.attributeModifier(new MenuModifier())
-    }
+    }.attributeModifier(new MenuModifier())
   }
 
   @Builder
   MenuBuilder(item: VideoMetadata | undefined) {
-    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      Menu() {
-        MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(async () => {
-          this.MenuBuilderState = false
-          setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-            await ToolsUtil.isFileExist(item) ?
-            ToolsUtil.routerWhere(this.pathStack, 'Player', item!, this.video_meta_data_encryption) :
-              await this.delData(PathUtils.appContext!, item!)
-          }, 200)
+    Menu() {
+      MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(async () => {
+        this.MenuBuilderState = false
+        setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
+          await ToolsUtil.isFileExist(item) ?
+          ToolsUtil.routerWhere(this.pathStack, 'Player', item!, this.video_meta_data_encryption) :
+            await this.delItem(PathUtils.appContext!, item!)
+        }, 200)
+      })
+      MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
+        .onClick(() => {
+          DataSyncUtil.editing_video = JSON.stringify(item!)
+          this.VideoDetailDialog.open()
         })
-        MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
-          .onClick(() => {
-            DataSyncUtil.editing_video = JSON.stringify(item!)
-            this.VideoDetailDialog.open()
-          })
-        MenuItem({
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
+      })
+        .onClick(async () => {
+          await this.delItem(PathUtils.appContext!, item!)
         })
-          .onClick(async () => {
-            await this.delData(PathUtils.appContext!, item!)
-          })
-      }.attributeModifier(new MenuModifier())
-    }.onAppear(() => {
+    }.attributeModifier(new MenuModifier()).onAppear(() => {
       ToolsUtil.startVibration()
       this.MenuBuilderState = true
     })
@@ -211,7 +205,7 @@ export struct PrivacySpace { // 隐私空间页
     PrivacySpaceUtil.setPrivacyMode(true)
   }
 
-  async delData(context: Context, item: VideoMetadata) {
+  async delItem(context: Context, item: VideoMetadata) {
     SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date!)
     this.videoDataSource.deleteData(this.video_meta_data_encryption.findIndex(i => i.date == item.date))
     this.video_meta_data_encryption = this.video_meta_data_encryption.filter(i => i.date != item.date);
@@ -232,17 +226,11 @@ export struct PrivacySpace { // 隐私空间页
   build() {
     NavDestination() {
       Column() {
-        Search({
+        SearchComponent({
           controller: this.searchController,
           placeholder: $r('app.string.search_placeholder'),
-          value: $$this.searchValue, // $$使得 searchValue 可以动态变化，清空搜索框依赖这个
-        })
-          .height(40)
-          .width('90%')
-          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-          .attributeModifier(new ShadowModifier())
-          .animation({ duration: 300, curve: Curve.Ease })
-          .onChange(() => {
+          searchValue: this.searchValue,
+          onChange: () => {
             const newVideoList = SelectFileUtil.getItemFromSearch(
               this.video_meta_data_encryption,
               this.searchValue,
@@ -253,12 +241,13 @@ export struct PrivacySpace { // 隐私空间页
                 : this.video_meta_data_encryption = newVideoList
               this.videoDataSource.updateData(this.video_meta_data_encryption)
             }
-          })
-          .onEditChange((isEditing: boolean) => {
+          },
+          onEditChange: (isEditing: boolean) => {
             animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
               this.is_edit = isEditing
             })
-          })
+          }
+        }).width('90%')
         List({ scroller: this.listScroller, space: 10 }) {
           LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
             ListItem() {
@@ -326,7 +315,7 @@ export struct PrivacySpace { // 隐私空间页
             .onClick(async () => {
               await ToolsUtil.isFileExist(item) ?
               ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.video_meta_data_encryption) :
-                await this.delData(PathUtils.appContext!, item)
+                await this.delItem(PathUtils.appContext!, item)
             })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
             .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
@@ -370,7 +359,6 @@ export struct PrivacySpace { // 隐私空间页
             })
           }.width('100%')
           .height('100%')
-          .animation({ duration: 150, curve: Curve.Sharp })
         }
       }.width('100%').height('100%')
       .onAreaChange(async (_oldValue: Area, newValue: Area) => {

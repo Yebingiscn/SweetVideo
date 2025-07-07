@@ -6,7 +6,7 @@ import {
   RedPlayerFactory
 } from '@rte-xhs/redplayer';
 import display from '@ohos.display';
-import RedPlayerStateHolder from '../global/RedPlayerStateHolder';
+import RedPlayerStateHolder from '../common/RedPlayerStateHolder';
 
 export default class RedPlayerControllerUtil implements IMediaPlayerStateListener {
   static TAG = "RedPlayerControllerUtil"

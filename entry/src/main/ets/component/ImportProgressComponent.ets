@@ -14,6 +14,6 @@ export struct ImportProgressComponent {
       Text(this.current_import + '/' + this.import_sum)
         .fontSize(16)
         .fontColor($r('app.color.main_color'))
-    }
+    }.animation({ duration: 150, curve: Curve.Sharp })
   }
 }

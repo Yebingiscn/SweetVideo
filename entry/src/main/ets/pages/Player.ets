@@ -25,14 +25,13 @@ import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
 import {
   ButtonFancyModifier,
   ImageFancyModifier,
-  SelectItemFancyModifier,
-  SelectItemTextFancyModifier,
   SymbolGlyphFancyModifier
 } from '../utils/AttributeModifierUtil';
 import { KeyCode } from '@kit.InputKit';
 import SubtitleUtil from '../utils/SubtitleUtil';
 import { PathUtils } from '../utils/PathUtils';
 import { AVCastPickerBuilder } from '../component/AVCastPickerBuilder';
+import { PlaybackSpeedMenuComponent } from '../component/PlaybackSpeedMenuComponent';
 
 @Component
 export struct Player { // 播放页
@@ -1388,25 +1387,12 @@ export struct Player { // 播放页
 
   @Builder
   PlaybackSpeedMenu() {
-    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      ForEach(VideoInfoUtil.video_speed_list, (speed: number) => {
-        Column() {
-          Row() {
-            Text(`${speed}x`)
-              .attributeModifier(new SelectItemTextFancyModifier(this.speed == speed))
-          }
-          .width('100%')
-          .height(40)
-          .justifyContent(FlexAlign.Start)
-          .align(Alignment.Center)
-          .onClick(() => {
-            this.updatePlaybackSpeed(speed)
-          })
-        }
-        .attributeModifier(new SelectItemFancyModifier(this.speed == speed))
-      })
-    }
-    .width(100)
+    PlaybackSpeedMenuComponent({
+      speed: this.speed,
+      onSpeedChange: (speed: number) => {
+        this.updatePlaybackSpeed(speed)
+      }
+    })
   }
 
   private async handleIntelligentSync(videoPos: number, audioPos: number) {

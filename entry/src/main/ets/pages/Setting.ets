@@ -1,5 +1,8 @@
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 import { editPasswordDialog } from '../component/Dialog/EditPasswordDialog';
+import { SettingsMenuItem } from '../component/SettingComponent/SettingsMenuItem';
+import { SettingsToggleItem } from '../component/SettingComponent/SettingsToggleItem';
+import { SettingTimeItem } from '../component/SettingComponent/SettingTimeItem';
 import Preferences from '../database/Preferences';
 import { SymbolGlyphFancyModifier } from '../utils/AttributeModifierUtil';
 import BiometricAccessUtil from '../utils/BiometricAccessUtil';
@@ -153,7 +156,7 @@ export struct SettingsPage { //设置页
         ListItem() {
           SettingTimeItem({
             symbol: $r('sys.symbol.forward_end_fill'),
-            message: '跳过片头（秒）',
+            message: '跳过片头',
             selected: Number(this.skipIntroTime),
             onChange: (value: number) => {
               this.skipIntroTime = value.toString()
@@ -187,7 +190,6 @@ export struct SettingsPage { //设置页
             }
           })
         }
-
       }
       .align(Alignment.Top)
       .borderRadius(16)
@@ -261,179 +263,5 @@ export struct SettingsClickItem {
       bottom: 10
     })
     .margin({ top: 5, bottom: 5 })
-  }
-}
-
-@Component
-export struct SettingsToggleItem {
-  @State symbol: Resource | undefined = undefined
-  @State symbol1: Resource | undefined = undefined
-  @State message: ResourceStr = ''
-  @StorageProp('disable_blur') disable_blur: boolean = false
-  @Prop enable: boolean = false
-  onChange = (checked: boolean) => {
-    console.log(checked + '') // 无实际作用，只是消除未使用警告
-  }
-
-  build() {
-    Row() {
-      Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
-        Row({ space: 10 }) {
-          SymbolGlyph(this.enable && this.symbol1 ? this.symbol1 : this.symbol)
-            .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
-            .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.enable))
-          Text(this.message)
-            .fontSize(17)
-            .fontWeight(FontWeight.Medium)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.MARQUEE })
-            .layoutWeight(1)
-        }.layoutWeight(1)
-
-        Toggle({ type: ToggleType.Switch, isOn: this.enable })
-          .onChange((checked: boolean) => {
-            this.enable = checked
-            this.onChange(checked)
-          })
-          .selectedColor($r('app.color.main_color'))
-          .width(45)
-          .height(27);
-      }.align(Alignment.Center)
-
-    }
-    .backgroundColor($r('app.color.start_window_background_blur'))
-    .height(55)
-    .borderRadius(16)
-    .padding({
-      right: 15,
-      left: 15,
-      top: 10,
-      bottom: 10
-    })
-    .margin({ top: 5, bottom: 5 })
-  }
-}
-
-@Component
-export struct SettingsMenuItem {
-  @State symbol: Resource | undefined = undefined
-  @State message: ResourceStr = ''
-  @StorageProp('disable_blur') disable_blur: boolean = false
-  @Prop selected: number = 0
-  @State list: string[] = []
-  @State private select: SelectOption[] = []
-  onChange = (index: number) => {
-    console.log(index.toString()); // 无实际作用，只是消除未使用警告
-  }
-
-  aboutToAppear(): void {
-    for (let text of this.list) {
-      this.select.push({ value: text })
-    }
-  }
-
-  build() {
-    Row() {
-      Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
-        Row({ space: 10 }) {
-          SymbolGlyph(this.symbol)
-            .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
-          Text(this.message)
-            .fontSize(17)
-            .fontWeight(FontWeight.Medium)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.MARQUEE })
-            .layoutWeight(1)
-        }
-        .layoutWeight(1)
-
-        Select(this.select)
-          .selected(this.selected)
-          .value(this.list[this.selected])
-          .selectedOptionFont({ weight: FontWeight.Medium })
-          .selectedOptionFontColor($r('app.color.main_color'))
-          .selectedOptionBgColor($r('sys.color.button_background_color_transparent'))
-          .onSelect((index: number) => {
-            this.selected = index
-            this.onChange(index)
-          })
-          .divider(null)
-      }.align(Alignment.Center)
-    }
-    .backgroundColor($r('app.color.start_window_background_blur'))
-    .height(65)
-    .borderRadius(16)
-    .padding({
-      right: 15,
-      left: 15,
-      top: 10,
-      bottom: 10
-    })
-    .margin({ top: 5, bottom: 5 })
-  }
-}
-
-@Component
-export struct SettingTimeItem {
-  @State symbol: Resource | undefined = undefined
-  @State message: ResourceStr = ''
-  @StorageProp('disable_blur') disable_blur: boolean = false
-  @State selectedIndex: number[] = [0, 0, 0]
-  @Prop selected: number = 0;
-  private PercentileOfTRime: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-  private TenthsOfTime: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-  private UnitOfTime: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-  private multi: string[][] = [this.PercentileOfTRime, this.TenthsOfTime, this.UnitOfTime]
-  onChange = (value: number) => {
-    console.log(value.toString()); // 无实际作用，只是消除未使用警告
-  }
-
-  aboutToAppear() {
-    this.selectedIndex = this.selected.toString()
-      .padStart(3, '0')
-      .split('')
-      .map(Number)
-    this.handleSelectionChange();
-  }
-
-  build() {
-    Column() {
-      Row({ space: 10 }) {
-        SymbolGlyph(this.symbol)
-          .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
-        Text(this.message + ':')
-          .fontSize(17)
-          .fontWeight(FontWeight.Medium)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.MARQUEE })
-        Text(this.selected === 0 ? '不跳过' : this.selected.toString() + 's')
-          .fontSize(17)
-          .fontWeight(FontWeight.Medium)
-          .width('100%') // 宽度充满父容器
-      }
-      .width('100%')
-      .margin({ bottom: 10 }) // 与下部分间距
-
-      TextPicker({ range: this.multi, selected: this.selectedIndex })
-        .width('100%')// 宽度充满父容器
-        .onChange((value: string | string[], index: number | number[]) => {
-          if (Array.isArray(index)) {
-            this.selectedIndex = index
-            this.onChange(Number(value.toString().replace(/,/g, '')))
-          }
-        })
-        .divider(null)
-    }
-    .backgroundColor($r('app.color.start_window_background_blur'))
-    .borderRadius(16)
-    .padding(15) // 统一内边距
-    .margin({ top: 5, bottom: 5 })
-  }
-
-  private handleSelectionChange() {
-    const selectedString = this.multi.map(
-      (column, index) => column[this.selectedIndex[index]]
-    ).join('');
-    this.onChange(Number(selectedString));
   }
 }

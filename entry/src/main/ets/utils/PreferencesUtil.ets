@@ -1,4 +1,5 @@
 import preferences from '@ohos.data.preferences'
+import ToolsUtil from './ToolsUtil'
 
 // 存储类
 export default class PreferencesUtil {
@@ -9,7 +10,9 @@ export default class PreferencesUtil {
       })
       pref.putSync(key, value)
       pref.flush()
-    } catch {
+    } catch (e) {
+      console.error('database error' + JSON.stringify(e))
+      ToolsUtil.showToast('数据库异常，保存失败，原因是' + JSON.stringify(e))
     }
   }
 
@@ -20,6 +23,8 @@ export default class PreferencesUtil {
       })
       return pref.getSync(key, defaultValue)
     } catch (e) {
+      console.error('database error' + JSON.stringify(e))
+      ToolsUtil.showToast('数据库异常，读取失败，原因是' + JSON.stringify(e))
       return defaultValue
     }
   }
@@ -32,6 +37,8 @@ export default class PreferencesUtil {
       pref.delete(key)
       pref.flush()
     } catch (e) {
+      console.error('database error' + JSON.stringify(e))
+      ToolsUtil.showToast('数据库异常，删除失败，原因是' + JSON.stringify(e))
     }
   }
 }

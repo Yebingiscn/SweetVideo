@@ -1,7 +1,5 @@
 import { window } from '@kit.ArkUI';
 import { PlayerCoreType, RedPlayerXComponentController, SourceType } from '@rte-xhs/redplayer';
-import RedPlayerSettingsConfig from '../global/RedPlayerSettingsConfig';
-import RedPlayerStateHolder from '../global/RedPlayerStateHolder';
 import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
 import PermissionUtil from '../utils/PermissionUtil';
 import RedPlayerControllerUtil from '../utils/RedPlayerControllerUtil';
@@ -21,6 +19,8 @@ import { settings } from '@kit.BasicServicesKit';
 import { ButtonFancyModifier } from '../utils/AttributeModifierUtil';
 import { PathUtils } from '../utils/PathUtils';
 import { AVCastPickerBuilder } from '../component/AVCastPickerBuilder';
+import RedPlayerSettingsConfig from '../common/RedPlayerSettingsConfig';
+import RedPlayerStateHolder from '../common/RedPlayerStateHolder';
 
 @Component
 export struct RedPlayer { // 红薯播放器页

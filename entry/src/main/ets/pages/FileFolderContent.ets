@@ -51,95 +51,89 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
 
   @Builder
   FileFolderMenu(video_item: VideoMetadata | undefined) {
-    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      Menu() {
-        MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.plus_square")), content: '添加到首页' })
-          .onClick(async () => {
-            let video_meta_data = Preferences.getVideoMetaData(PathUtils.appContext!)
-            video_meta_data.push(video_item!)
-            Preferences.saveVideoMetaData(PathUtils.appContext!, video_meta_data)
-            await this.delData(PathUtils.appContext!, video_item!, true)
-          })
-        ForEach(this.file_folder_list, (item: FileFolder) => {
-          if (item.name !== this.file_folder?.name) {
-            MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.folder")), content: item.name })
-              .onClick(async () => {
-                this.file_folder_list =
-                  await FileFolderUtil.addVideoInFileFolder(PathUtils.appContext!, video_item!, item.date)
-                await this.delData(PathUtils.appContext!, video_item!, true)
-              })
-          }
+    Menu() {
+      MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.plus_square")), content: '添加到首页' })
+        .onClick(async () => {
+          let video_meta_data = Preferences.getVideoMetaData(PathUtils.appContext!)
+          video_meta_data.push(video_item!)
+          Preferences.saveVideoMetaData(PathUtils.appContext!, video_meta_data)
+          await this.deItem(PathUtils.appContext!, video_item!, true)
         })
-      }.attributeModifier(new MenuModifier())
-    }
+      ForEach(this.file_folder_list, (item: FileFolder) => {
+        if (item.name !== this.file_folder?.name) {
+          MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.folder")), content: item.name })
+            .onClick(async () => {
+              this.file_folder_list =
+                await FileFolderUtil.addVideoInFileFolder(PathUtils.appContext!, video_item!, item.date)
+              await this.deItem(PathUtils.appContext!, video_item!, true)
+            })
+        }
+      })
+    }.attributeModifier(new MenuModifier())
   }
 
   @Builder
   SortMenuBuilder() {
-    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      Menu() {
-        MenuItem({
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat')),
-          content: $r('app.string.sort_by_name')
+    Menu() {
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat')),
+        content: $r('app.string.sort_by_name')
+      })
+        .onClick(async () => {
+          this.file_folder =
+            await ToolsUtil.sortByName(PathUtils.appContext!, this.file_folder?.video_list!,
+              this.file_folder!) as FileFolder
+          this.videoDataSource.updateData(this.file_folder.video_list)
         })
-          .onClick(async () => {
-            this.file_folder =
-              await ToolsUtil.sortByName(PathUtils.appContext!, this.file_folder?.video_list!,
-                this.file_folder!) as FileFolder
-            this.videoDataSource.updateData(this.file_folder.video_list)
-          })
-        MenuItem({
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
-          content: $r('app.string.sort_by_time')
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
+        content: $r('app.string.sort_by_time')
+      })
+        .onClick(async () => {
+          this.file_folder =
+            await ToolsUtil.sortByTime(PathUtils.appContext!, this.file_folder?.video_list!,
+              this.file_folder!) as FileFolder
+          this.videoDataSource.updateData(this.file_folder.video_list)
         })
-          .onClick(async () => {
-            this.file_folder =
-              await ToolsUtil.sortByTime(PathUtils.appContext!, this.file_folder?.video_list!,
-                this.file_folder!) as FileFolder
-            this.videoDataSource.updateData(this.file_folder.video_list)
-          })
-      }.attributeModifier(new MenuModifier())
-    }
+    }.attributeModifier(new MenuModifier())
   }
 
   @Builder
   MenuBuilder(item: VideoMetadata | undefined) {
-    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      Menu() {
-        MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(async () => {
-          this.MenuBuilderState = false
-          setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-            await ToolsUtil.isFileExist(item) ?
-            ToolsUtil.routerToVideoFromFileFolder(this.pathStack, 'FFMpegPlayer', item!, this.file_folder!) :
-              await this.delData(PathUtils.appContext!, item!, false)
-          }, 200)
+    Menu() {
+      MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(async () => {
+        this.MenuBuilderState = false
+        setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
+          await ToolsUtil.isFileExist(item) ?
+          ToolsUtil.routerToVideoFromFileFolder(this.pathStack, 'FFMpegPlayer', item!, this.file_folder!) :
+            await this.deItem(PathUtils.appContext!, item!, false)
+        }, 200)
+      })
+      MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
+        this.MenuBuilderState = false
+        setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
+          await ToolsUtil.isFileExist(item) ?
+          ToolsUtil.routerToVideoFromFileFolder(this.pathStack, 'RedPlayer', item!, this.file_folder!) :
+            await this.deItem(PathUtils.appContext!, item!, false)
+        }, 200)
+      })
+      MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
+        .onClick(() => {
+          DataSyncUtil.editing_video = JSON.stringify(item!)
+          this.VideoDetailDialog.open()
         })
-        MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
-          this.MenuBuilderState = false
-          setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-            await ToolsUtil.isFileExist(item) ?
-            ToolsUtil.routerToVideoFromFileFolder(this.pathStack, 'RedPlayer', item!, this.file_folder!) :
-              await this.delData(PathUtils.appContext!, item!, false)
-          }, 200)
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
+      })
+        .onClick(async () => {
+          await this.deItem(PathUtils.appContext!, item!, false)
         })
-        MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
-          .onClick(() => {
-            DataSyncUtil.editing_video = JSON.stringify(item!)
-            this.VideoDetailDialog.open()
-          })
-        MenuItem({
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
-        })
-          .onClick(async () => {
-            await this.delData(PathUtils.appContext!, item!, false)
-          })
-        MenuItem({
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
-          content: "添加到其他文件夹",
-          builder: (): void => this.FileFolderMenu(item!)
-        })
-      }.attributeModifier(new MenuModifier())
-    }.onAppear(() => {
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
+        content: "添加到其他文件夹",
+        builder: (): void => this.FileFolderMenu(item!)
+      })
+    }.attributeModifier(new MenuModifier()).onAppear(() => {
       ToolsUtil.startVibration()
       this.MenuBuilderState = true
     })
@@ -159,7 +153,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
     }.margin({ right: 24, top: 10, left: 50 })
   }
 
-  async delData(context: Context, item: VideoMetadata, move_to_other_file_folder: boolean) {
+  async deItem(context: Context, item: VideoMetadata, move_to_other_file_folder: boolean) {
     this.file_folder!.video_list = this.file_folder!.video_list.filter(i => i.date !== item.date);
     FileFolderUtil.updateFileFolderList(context, this.file_folder!)
     this.videoDataSource.deleteData(this.videoDataSource.getAllData().indexOf(item))
@@ -170,6 +164,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
         if (!err) { // 文件存在
           fs.unlink(PathUtils.coverPath + item.date, (unlinkErr) => {
             if (unlinkErr) {
+              ToolsUtil.showToast('删除视频失败：' + item.title + '原因是：' + unlinkErr.message)
               return;
             }
           });
@@ -284,7 +279,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
             }.onClick(async () => {
               await ToolsUtil.isFileExist(item) ?
               ToolsUtil.routerToVideoFromFileFolder(this.pathStack, 'Player', item, this.file_folder!) :
-                await this.delData(PathUtils.appContext!, item, false)
+                await this.deItem(PathUtils.appContext!, item, false)
             }).bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
             .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
             .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))

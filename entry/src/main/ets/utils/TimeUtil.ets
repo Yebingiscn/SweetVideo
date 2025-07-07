@@ -19,6 +19,19 @@ class TimeUtil {
     return hours > 0 ? `${hh}:${mm}:${ss}` : `${mm}:${ss}`
   }
 
+  convertSsToMMSS(seconds: number | undefined): string {
+    if (seconds === undefined || seconds === null || isNaN(seconds)) {
+      return '00:00';
+    }
+    const totalSeconds = Math.floor(seconds);
+    const minutes = Math.floor(totalSeconds / 60);
+    const remainingSeconds = totalSeconds % 60;
+    // 格式化显示 (分钟不补零，秒数补零)
+    const mm = minutes.toString(); // 分钟保持原始数值
+    const ss = remainingSeconds.toString().padStart(2, '0');
+    return `${mm}:${ss}`;
+  }
+
   // 字幕时间格式化
   formatTime(ms: number): string {
     const totalSeconds = Math.floor(ms / 1000);

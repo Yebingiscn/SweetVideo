@@ -1,20 +1,20 @@
+import { FileFolder } from '../interfaces/FileFolderInterface';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 
-// LazyForEach 设置类
-export class VideoDataSource implements IDataSource {
-  private listeners: DataChangeListener[] = []; // 存储监听器
-  private data: VideoMetadata[] = [];
+// 基础数据源抽象类（泛型实现）
+abstract class BaseDataSource<T> implements IDataSource {
+  protected data: T[];
+  private listeners: DataChangeListener[] = [];
 
-  constructor(data: VideoMetadata[]) {
-    this.data = data;
+  constructor(data: T[]) {
+    this.data = [...data];
   }
 
-  // 必须实现的方法：注册数据变化监听
+  // 公共方法实现
   registerDataChangeListener(listener: DataChangeListener): void {
     this.listeners.push(listener);
   }
 
-  // 必须实现的方法：取消注册
   unregisterDataChangeListener(listener: DataChangeListener): void {
     const index = this.listeners.indexOf(listener);
     if (index >= 0) {
@@ -22,269 +22,56 @@ export class VideoDataSource implements IDataSource {
     }
   }
 
-  // 数据更新时需要触发的逻辑
-  updateData(newData: VideoMetadata[]) {
-    this.data = newData;
-    this.listeners.forEach(listener => {
-      listener.onDataReloaded(); // 通知所有监听器数据已更新
-    });
-  }
-
-  totalCount(): number {
-    return this.data.length;
-  }
-
-  getData(index: number): VideoMetadata {
-    return this.data[index];
-  }
-
-  getKey(index: number): string {
-    return this.data[index].date; // 确保date是唯一标识
-  }
-}
-
-export class RecentVideoDataSource implements IDataSource {
-  private listeners: DataChangeListener[] = []; // 存储监听器
-  private data: VideoMetadata[] = [];
-
-  constructor(data: VideoMetadata[]) {
-    this.data = data;
-  }
-
-  // 必须实现的方法：注册数据变化监听
-  registerDataChangeListener(listener: DataChangeListener): void {
-    this.listeners.push(listener);
-  }
-
-  // 必须实现的方法：取消注册
-  unregisterDataChangeListener(listener: DataChangeListener): void {
-    const index = this.listeners.indexOf(listener);
-    if (index >= 0) {
-      this.listeners.splice(index, 1);
-    }
-  }
-
-  // 数据更新时需要触发的逻辑
-  updateData(newData: VideoMetadata[]) {
+  updateData(newData: T[]): void {
     this.data = [...newData];
-    this.listeners.forEach(listener => {
-      listener.onDataReloaded(); // 通知所有监听器数据已更新
-    });
+    this.notifyDataReloaded();
   }
 
   totalCount(): number {
     return this.data.length;
   }
 
-  getData(index: number): VideoMetadata {
+  getData(index: number): T {
     return this.data[index];
   }
 
-  getKey(index: number): string {
-    return this.data[index].date; // 确保date是唯一标识
-  }
-
-  notifyDataDelete(index: number): void {
-    this.listeners.forEach(listener => {
-      listener.onDataDelete(index);
-    })
-  }
-
-  public deleteData(index: number): void {
+  deleteData(index: number): void {
+    if (index < 0 || index >= this.data.length) {
+      return;
+    }
     this.data.splice(index, 1);
     this.notifyDataDelete(index);
   }
 
-  public getAllData(): VideoMetadata[] {
-    return this.data;
+  getAllData(): T[] {
+    return [...this.data];
+  }
+
+  // 通知方法
+  protected notifyDataReloaded(): void {
+    this.listeners.forEach(listener => listener.onDataReloaded());
+  }
+
+  protected notifyDataDelete(index: number): void {
+    this.listeners.forEach(listener => listener.onDataDelete(index));
   }
 }
 
-export class FileFolderContentDataSource implements IDataSource {
-  private listeners: DataChangeListener[] = []; // 存储监听器
-  private data: VideoMetadata[] = [];
-
-  constructor(data: VideoMetadata[]) {
-    this.data = data;
-  }
-
-  // 必须实现的方法：注册数据变化监听
-  registerDataChangeListener(listener: DataChangeListener): void {
-    this.listeners.push(listener);
-  }
-
-  // 必须实现的方法：取消注册
-  unregisterDataChangeListener(listener: DataChangeListener): void {
-    const index = this.listeners.indexOf(listener);
-    if (index >= 0) {
-      this.listeners.splice(index, 1);
-    }
-  }
-
-  // 数据更新时需要触发的逻辑
-  updateData(newData: VideoMetadata[]) {
-    this.data = [...newData];
-    this.listeners.forEach(listener => {
-      for (let index = 0; index < this.data.length; index++) {
-        listener.onDataChange(index);
-      }
-    });
-    this.notifyDataReload()
-  }
-
-  notifyDataReload(): void {
-    this.listeners.forEach(listener => {
-      listener.onDataReloaded();
-    })
-  }
-
-  totalCount(): number {
-    return this.data.length;
-  }
-
-  getData(index: number): VideoMetadata {
-    return this.data[index];
-  }
-
-  getKey(index: number): string {
-    return this.data[index].date; // 确保date是唯一标识
-  }
-
-  notifyDataDelete(index: number): void {
-    this.listeners.forEach(listener => {
-      listener.onDataDelete(index);
-    })
-  }
-
-  public deleteData(index: number): void {
-    this.data.splice(index, 1);
-    this.notifyDataDelete(index);
-  }
-
-  public getAllData(): VideoMetadata[] {
-    return this.data;
-  }
+// 具体实现类
+export class VideoDataSource extends BaseDataSource<VideoMetadata> {
 }
 
-export class PrivacySpaceDataSource implements IDataSource {
-  private listeners: DataChangeListener[] = []; // 存储监听器
-  private data: VideoMetadata[] = [];
-
-  constructor(data: VideoMetadata[]) {
-    this.data = data;
-  }
-
-  // 必须实现的方法：注册数据变化监听
-  registerDataChangeListener(listener: DataChangeListener): void {
-    this.listeners.push(listener);
-  }
-
-  // 必须实现的方法：取消注册
-  unregisterDataChangeListener(listener: DataChangeListener): void {
-    const index = this.listeners.indexOf(listener);
-    if (index >= 0) {
-      this.listeners.splice(index, 1);
-    }
-  }
-
-  // 数据更新时需要触发的逻辑
-  updateData(newData: VideoMetadata[]) {
-    this.data = [...newData];
-    this.listeners.forEach(listener => {
-      for (let index = 0; index < this.data.length; index++) {
-        listener.onDataChange(index);
-      }
-    });
-    this.notifyDataReload()
-  }
-
-  notifyDataReload(): void {
-    this.listeners.forEach(listener => {
-      listener.onDataReloaded();
-    })
-  }
-
-  totalCount(): number {
-    return this.data.length;
-  }
-
-  getData(index: number): VideoMetadata {
-    return this.data[index];
-  }
-
-  getKey(index: number): string {
-    return this.data[index].date; // 确保date是唯一标识
-  }
-
-  notifyDataDelete(index: number): void {
-    this.listeners.forEach(listener => {
-      listener.onDataDelete(index);
-    })
-  }
-
-  public deleteData(index: number): void {
-    this.data.splice(index, 1);
-    this.notifyDataDelete(index);
-  }
-
-  public getAllData(): VideoMetadata[] {
-    return this.data;
-  }
+export class RecentVideoDataSource extends BaseDataSource<VideoMetadata> {
 }
 
-export class IndexDataSource implements IDataSource {
-  private listeners: DataChangeListener[] = []; // 存储监听器
-  private data: VideoMetadata[] = [];
+export class FileFolderContentDataSource extends BaseDataSource<VideoMetadata> {
+}
 
-  constructor(data: VideoMetadata[]) {
-    this.data = data;
-  }
+export class PrivacySpaceDataSource extends BaseDataSource<VideoMetadata> {
+}
 
-  // 必须实现的方法：注册数据变化监听
-  registerDataChangeListener(listener: DataChangeListener): void {
-    this.listeners.push(listener);
-  }
+export class IndexDataSource extends BaseDataSource<VideoMetadata> {
+}
 
-  // 必须实现的方法：取消注册
-  unregisterDataChangeListener(listener: DataChangeListener): void {
-    const index = this.listeners.indexOf(listener);
-    if (index >= 0) {
-      this.listeners.splice(index, 1);
-    }
-  }
-
-  // 数据更新时需要触发的逻辑
-  updateData(newData: VideoMetadata[]) {
-    this.data = [...newData];
-    this.listeners.forEach(listener => {
-      listener.onDataReloaded();
-    })
-  }
-
-  totalCount(): number {
-    return this.data.length;
-  }
-
-  getData(index: number): VideoMetadata {
-    return this.data[index];
-  }
-
-  getKey(index: number): string {
-    return this.data[index].date; // 确保date是唯一标识
-  }
-
-  notifyDataDelete(index: number): void {
-    this.listeners.forEach(listener => {
-      listener.onDataDelete(index);
-    })
-  }
-
-  public deleteData(index: number): void {
-    this.data.splice(index, 1);
-    this.notifyDataDelete(index);
-  }
-
-  public getAllData(): VideoMetadata[] {
-    return this.data;
-  }
+export class FileFolderDataSource extends BaseDataSource<FileFolder> {
 }
