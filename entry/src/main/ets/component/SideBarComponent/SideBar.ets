@@ -23,6 +23,7 @@ export struct AppInfo {
   }
 }
 
+@Observed
 export class SideBarController {
   side_bar_mode: SideBarContainerType = SideBarContainerType.AUTO
   sideBarStatusTmp: Visibility = Visibility.Hidden

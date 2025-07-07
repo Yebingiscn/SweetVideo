@@ -17,7 +17,7 @@ import { FileFolderMenu } from "../FileFolderComponent/FileFolderMenu";
 @Component
 export struct VideoView {
   @ObjectLink videoListController: VideoListController
-  sideBarController: SideBarController = new SideBarController()
+  @ObjectLink sideBarController: SideBarController
   searchController: SearchController = new SearchController()
   @Prop loading: boolean = false
   @State is_edit: boolean = false

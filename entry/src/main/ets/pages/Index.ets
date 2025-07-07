@@ -67,7 +67,6 @@ struct Index {
   @Provide('pathStack') pathStack: NavPathStack = new NavPathStack()
   @State videoListController: VideoListController = new VideoListController([])
   @State @Watch('SyncSideBarAndMaskState') sideBarController: SideBarController = new SideBarController()
-
   SyncSideBarAndMaskState(): void {
     if (this.sideBarController.sideBarStatusTmp == Visibility.Hidden) {
       this.sideBarController.mask_state = false
