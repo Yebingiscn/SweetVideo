@@ -44,6 +44,7 @@ import SubtitleUtil from '../utils/SubtitleUtil';
 import { PathUtils } from '../utils/PathUtils';
 import { MaskComponent } from '../component/MaskComponent';
 import { SearchComponent } from '../component/SearchComponent';
+import VideoItem from '../component/VideoItem';
 
 @Builder
 export function IndexBuilder() {
@@ -704,103 +705,14 @@ struct Index {
             List({ scroller: this.listScroller }) {
               LazyForEach(this.videoDataSource, (item: VideoMetadata, index: number) => { // 加载视频列表
                 ListItem() {
-                  if (this.is_list_display) {
-                    Column() {
-                      Row() {
-                        Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
-                          .attributeModifier(new ImageFancyModifier(10, 60, 90))
-                        Column() {
-                          Row() {
-                            Text(VideoInfoUtil.getVideoTitle(this.video_meta_data, item))
-                              .fontSize(15)
-                              .fontWeight(FontWeight.Medium)
-                              .maxLines(3)
-                              .textOverflow({ overflow: TextOverflow.Ellipsis })
-                              .width(this.multipleChooseState === Visibility.None ? '90%' : '75%')
-                              .wordBreak(WordBreak.BREAK_ALL)
-                            Checkbox({ name: 'check_box: ' + index, group: 'checkboxGroup' })
-                              .width(30)
-                              .height(30)
-                              .select(this.itemMultipleChoose)
-                              .selectedColor($r('app.color.main_color'))
-                              .shape(CheckBoxShape.CIRCLE)
-                              .visibility(this.multipleChooseState)
-                              .onChange((value: boolean) => {
-                                if (!this.itemMultipleChoose || !value) {
-                                  if (item) {
-                                    const delSet = new Set(DataSyncUtil.delMultipleList as VideoMetadata[]);
-                                    value ? delSet.add(item) : delSet.delete(item);
-                                    DataSyncUtil.delMultipleList = Array.from(delSet);
-                                  }
-                                }
-                              })
-                          }
-
-                          VideoInfoComponent({ item })
-                            .reuseId(item.date)
-                        }.alignItems(HorizontalAlign.Start).padding({ left: 15, right: 15 }).width('90%')
-                      }.justifyContent(FlexAlign.Center)
-                    }
-                    .height(100)
-                    .justifyContent(FlexAlign.SpaceEvenly)
-                  } else {
-                    Column() {
-                      Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
-                        .attributeModifier(new ImageFancyModifier({
-                          topLeft: 10,
-                          topRight: 10,
-                          bottomLeft: 10,
-                          bottomRight: 10
-                        }, 60, 200))
-                        .width('100%')
-                        .objectFit(ImageFit.Auto)
-                      Column() {
-                        Row() {
-                          Text(VideoInfoUtil.getVideoTitle(this.video_meta_data, item))
-                            .fontSize(15)
-                            .fontWeight(FontWeight.Medium)
-                            .maxLines(1)// 减少行数以适应卡片布局
-                            .textAlign(TextAlign.Center)
-                            .textOverflow({ overflow: TextOverflow.Ellipsis })
-                            .layoutWeight(1)// 占据剩余空间
-                            .wordBreak(WordBreak.BREAK_ALL)
-                          Checkbox({ name: 'check_box: ' + index, group: 'checkboxGroup' })
-                            .width(30)
-                            .height(30)
-                            .select(this.itemMultipleChoose)
-                            .selectedColor($r('app.color.main_color'))
-                            .shape(CheckBoxShape.CIRCLE)
-                            .visibility(this.multipleChooseState)
-                            .onChange((value: boolean) => {
-                              if (!this.itemMultipleChoose || !value) {
-                                if (item) {
-                                  const delSet = new Set(DataSyncUtil.delMultipleList as VideoMetadata[]);
-                                  value ? delSet.add(item) : delSet.delete(item);
-                                  DataSyncUtil.delMultipleList = Array.from(delSet);
-                                }
-                              }
-                            })
-                        }
-                        .width('100%')
-                        .padding({ top: 5 })
-
-                        VideoInfoComponent({ item })
-                          .reuseId(item.date)
-                      }.padding({ left: 5, right: 5, bottom: 5 })
-                      .width('100%')
-                    }
-                    .width('100%')
-                    .height('auto')
-                    .backgroundColor($r('app.color.start_window_background_blur'))
-                    .borderRadius(10)
-                  }
+                  VideoItem({
+                    item: item,
+                    video_meta_data_list: this.video_meta_data,
+                    index: index,
+                    multipleChooseState: this.multipleChooseState,
+                    itemMultipleChoose: this.itemMultipleChoose
+                  })
                 }
-                .padding({
-                  left: 10,
-                  right: 10,
-                  top: 5,
-                  bottom: 5
-                })
                 .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
                 .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
                 .width('100%')

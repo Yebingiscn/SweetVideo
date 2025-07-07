@@ -22,6 +22,7 @@ import VideoInfoUtil from '../utils/VideoInfoUtil';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
 import SubtitleUtil from '../utils/SubtitleUtil';
 import { PathUtils } from '../utils/PathUtils';
+import VideoItem from '../component/VideoItem';
 
 @Component
 export struct FileFolderContent { // 文件夹页，不同文件夹公用一个页
@@ -215,67 +216,13 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
             .width('100%')
         }
         List({ scroller: this.listScroller, space: 10 }) {
-          LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
+          LazyForEach(this.videoDataSource, (item: VideoMetadata, index: number) => {
             ListItem() {
-              if (this.is_list_display) {
-                Column() {
-                  Row() {
-                    Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
-                      .attributeModifier(new ImageFancyModifier(10, 60, 90))
-                    Column() {
-                      Row() {
-                        Text(VideoInfoUtil.getVideoTitle(this.file_folder?.video_list!, item))
-                          .fontSize(15)
-                          .fontWeight(FontWeight.Medium)
-                          .maxLines(3)
-                          .textOverflow({ overflow: TextOverflow.Ellipsis })
-                          .width('80%')
-                          .wordBreak(WordBreak.BREAK_ALL)
-                      }.width('100%')
-
-                      VideoInfoComponent({ item })
-                        .reuseId(item.date)
-                    }.margin({ left: 10 }).alignItems(HorizontalAlign.Start)
-                  }
-                  .width('100%')
-                  .height(100)
-                }.justifyContent(FlexAlign.SpaceEvenly)
-              } else {
-                Column() {
-                  Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
-                    .attributeModifier(new ImageFancyModifier({
-                      topLeft: 10,
-                      topRight: 10,
-                      bottomLeft: 0,
-                      bottomRight: 0
-                    }, 60, 200))
-                    .draggable(false)
-                    .width('100%')
-                    .objectFit(ImageFit.Cover) // 完整显示图片
-                  Column() {
-                    Row() {
-                      Text(VideoInfoUtil.getVideoTitle(this.file_folder?.video_list!, item))
-                        .fontSize(15)
-                        .fontWeight(FontWeight.Medium)
-                        .maxLines(2)// 减少行数以适应卡片布局
-                        .textAlign(TextAlign.Center)
-                        .textOverflow({ overflow: TextOverflow.Ellipsis })
-                        .layoutWeight(1)// 占据剩余空间
-                        .wordBreak(WordBreak.BREAK_ALL)
-                    }
-                    .width('100%')
-                    .padding({ top: 5 })
-
-                    VideoInfoComponent({ item })
-                      .reuseId(item.date)
-                  }.padding({ left: 5, right: 5, bottom: 5 })
-                  .width('100%')
-                }
-                .width('95%')
-                .height('auto')
-                .backgroundColor($r('app.color.start_window_background_blur'))
-                .borderRadius(10)
-              }
+              VideoItem({
+                item: item,
+                video_meta_data_list: this.videoDataSource.getAllData(),
+                index: index
+              })
             }.onClick(async () => {
               await ToolsUtil.isFileExist(item) ?
               ToolsUtil.routerToVideoFromFileFolder(this.pathStack, 'Player', item, this.file_folder!) :
