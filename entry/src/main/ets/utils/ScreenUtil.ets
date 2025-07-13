@@ -12,10 +12,15 @@ class Screen {
     window.getLastWindow(context).then((windowClass) => {
       this.isInit = true
       windowClass.setWindowLayoutFullScreen(true)
-      windowClass.setWindowDecorVisible(false)
-      settings.registerKeyObserver(context, 'window_pcmode_switch_status', settings.domainName.USER_PROPERTY, () => {
-        this.updatePCMode(context)
-      });
+      if (canIUse('SystemCapability.Window.SessionManager')) {
+        windowClass.setWindowDecorVisible(false)
+        if (canIUse('SystemCapability.Applications.Settings.Core')) {
+          settings.registerKeyObserver(context, 'window_pcmode_switch_status', settings.domainName.USER_PROPERTY,
+            () => {
+              this.updatePCMode(context)
+            });
+        }
+      }
       this.updatePCMode(context)
       this.updateAvoidArea(windowClass)
       this.updateScreenSize(windowClass.getWindowProperties().windowRect.width,
@@ -41,10 +46,14 @@ class Screen {
     let nav = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR)
     let uiContext = windowClass.getUIContext()
     animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
-      AppStorage.setOrCreate('topSafeHeight',
-        uiContext.px2vp(Math.max(cutOut.topRect.height * 1.4, system.topRect.height, windowClass.getWindowDecorHeight())))
+      if (canIUse('SystemCapability.Window.SessionManager')) {
+        AppStorage.setOrCreate('topSafeHeight',
+          uiContext.px2vp(Math.max(cutOut.topRect.height * 1.4, system.topRect.height,
+            windowClass.getWindowDecorHeight())))
+      }
       AppStorage.setOrCreate('bottomSafeHeight',
-        uiContext.px2vp(Math.max(nav.bottomRect.height, system.bottomRect.height * 1.4, cutOut.bottomRect.height * 1.4)))
+        uiContext.px2vp(Math.max(nav.bottomRect.height, system.bottomRect.height * 1.4,
+          cutOut.bottomRect.height * 1.4)))
       AppStorage.setOrCreate('leftSafeHeight',
         uiContext.px2vp(Math.max(cutOut.leftRect.width * 1.4, system.leftRect.width * 1.4)))
       AppStorage.setOrCreate('rightSafeHeight',
@@ -53,21 +62,26 @@ class Screen {
   }
 
   updatePCMode(context: Context) {
-    switch (settings.getValueSync(context, 'window_pcmode_switch_status', 'false', settings.domainName.USER_PROPERTY)) {
-      case 'true':
-        AppStorage.setOrCreate('pcMode', true)
-        break
-      case 'false':
-        AppStorage.setOrCreate('pcMode', false)
-        break
+    if (canIUse('SystemCapability.Applications.Settings.Core')) {
+      switch (settings.getValueSync(context, 'window_pcmode_switch_status', 'false',
+        settings.domainName.USER_PROPERTY)) {
+        case 'true':
+          AppStorage.setOrCreate('pcMode', true)
+          break
+        case 'false':
+          AppStorage.setOrCreate('pcMode', false)
+          break
+      }
     }
   }
 
   setBarState(context: Context, status: boolean, navigationIndicator: boolean) {
-    window.getLastWindow(context).then((windowClass) => {
-      windowClass.setSpecificSystemBarEnabled('status', status)
-      windowClass.setSpecificSystemBarEnabled('navigationIndicator', navigationIndicator)
-    })
+    if (canIUse('SystemCapability.Window.SessionManager')) {
+      window.getLastWindow(context).then((windowClass) => {
+        windowClass.setSpecificSystemBarEnabled('status', status)
+        windowClass.setSpecificSystemBarEnabled('navigationIndicator', navigationIndicator)
+      })
+    }
   }
 
   setKeepScreenOn(context: Context, isOn: boolean) {

@@ -16,14 +16,14 @@ import {
   ImageFancyModifier,
   SymbolGlyphFancyModifier
 } from '../utils/AttributeModifierUtil';
-import { ImportProgressComponent } from '../component/ImportProgressComponent';
 import { FileProcessorUtil } from '../utils/FileProcessorUtil';
-import { VideoInfoComponent } from '../component/VideoInfoComponent';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
 import SubtitleUtil from '../utils/SubtitleUtil';
 import { PathUtils } from '../utils/PathUtils';
 import { editPasswordDialog } from '../component/Dialog/EditPasswordDialog';
-import { SearchComponent } from '../component/SearchComponent';
+import { SearchComponent } from '../component/VideoItemComponent/SearchComponent';
+import { VideoInfoComponent } from '../component/VideoItemComponent/VideoInfoComponent';
+import { ImportProgressComponent } from '../component/VideoItemComponent/ImportProgressComponent';
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -318,6 +318,7 @@ export struct PrivacySpace { // 隐私空间页
                 await this.delItem(PathUtils.appContext!, item)
             })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
+            .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick)
             .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
             .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
             .swipeAction({

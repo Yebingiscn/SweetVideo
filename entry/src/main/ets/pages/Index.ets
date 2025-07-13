@@ -26,20 +26,15 @@ import VideoOperateUtil from '../utils/VideoOperateUtil';
 import { PrivacySpace } from './PrivacySpace';
 import Preferences from '../database/Preferences';
 import { RedPlayer } from './RedPlayer';
-import {
-  ButtonFancyModifier,
-  MenuModifier,
-  ShadowModifier,
-  SymbolGlyphFancyModifier
-} from '../utils/AttributeModifierUtil';
-import { ImportProgressComponent } from '../component/ImportProgressComponent';
+import { ButtonFancyModifier, MenuModifier, SymbolGlyphFancyModifier } from '../utils/AttributeModifierUtil';
 import { FileProcessorUtil } from '../utils/FileProcessorUtil';
 import { PathUtils } from '../utils/PathUtils';
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
 import SubtitleUtil from '../utils/SubtitleUtil';
 import { AppInfo, SideBarController } from '../component/SideBarComponent/SideBar';
 import { VideoView } from '../component/VideoItemComponent/VideoViewComponent';
-
+import { FileFolderContent } from './FileFolderContent';
+import { ImportProgressComponent } from '../component/VideoItemComponent/ImportProgressComponent';
 
 @Builder
 export function IndexBuilder() {
@@ -67,12 +62,6 @@ struct Index {
   @Provide('pathStack') pathStack: NavPathStack = new NavPathStack()
   @State videoListController: VideoListController = new VideoListController([])
   @State @Watch('SyncSideBarAndMaskState') sideBarController: SideBarController = new SideBarController()
-  SyncSideBarAndMaskState(): void {
-    if (this.sideBarController.sideBarStatusTmp == Visibility.Hidden) {
-      this.sideBarController.mask_state = false
-    }
-  }
-
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: addFileFolderNameDialog({
       confirm: async (file_folder_name: string | undefined) => {
@@ -99,6 +88,12 @@ struct Index {
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
 
+  SyncSideBarAndMaskState(): void {
+    if (this.sideBarController.sideBarStatusTmp == Visibility.Hidden) {
+      this.sideBarController.mask_state = false
+    }
+  }
+
   @Builder
   FileFolderSelectMenu(file_folder: FileFolder) {
     Menu() {
@@ -108,7 +103,7 @@ struct Index {
       })
         .onClick(async () => {
           DataSyncUtil.delMultipleList = Array.from(file_folder.video_list);
-          this.videoDataSource.refreshData()
+          this.videoListController.videoDataSource.refreshData()
           const deletePromises = DataSyncUtil.delMultipleList.map(item => {
             return new Promise<void>((resolve, reject) => {
               DataSyncUtil.editing_video = JSON.stringify(item);
@@ -245,7 +240,7 @@ struct Index {
         },
         fileFolder
       );
-      this.videoDataSource.refreshData()
+      this.videoListController.videoDataSource.refreshData()
       ToolsUtil.showToast(
         `${PathUtils.appContext!.resourceManager.getStringSync($r('app.string.add_time_info'))}${this.import_sum}`
       );
@@ -335,6 +330,7 @@ struct Index {
                     ToolsUtil.routerToFileFolder(this.pathStack, item)
                   })
                   .bindContextMenu(this.FileFolderSelectMenu(item), ResponseType.LongPress)
+                  .bindContextMenu(this.FileFolderSelectMenu(item), ResponseType.RightClick)
                   .height(60)
                 }, (item: FileFolder) => item.date)
               }
@@ -472,7 +468,7 @@ struct Index {
     .hideTitleBar(true).mode(NavigationMode.Stack).navDestination(this.Pages)
     .onNavBarStateChange((isVisible: boolean) => {
       if (isVisible) {
-        this.videoDataSource.refreshData()
+        this.videoListController.videoDataSource.refreshData()
         this.passwd = Preferences.getPassword(PathUtils.appContext!)
         // 增加判断，旋转时保持滚动位置不变
         this.videoListController.refresh(this.screen_width, this.is_list_display)
@@ -486,8 +482,8 @@ struct Index {
       SettingsPage()
     } else if (name == 'AboutPage') {
       AboutApp()
-      // } else if (name == 'FileFolderContent') {
-      //   FileFolderContent()
+    } else if (name == 'FileFolderContent') {
+      FileFolderContent()
     } else if (name == 'Player') {
       Player()
     } else if (name == 'FFMpegPlayer') {

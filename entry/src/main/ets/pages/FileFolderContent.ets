@@ -1,9 +1,9 @@
 import ToolsUtil from '../utils/ToolsUtil';
-import { ImageModifier, MenuModifier, SymbolGlyphModifier } from '@kit.ArkUI';
+import { MenuModifier, SymbolGlyphModifier } from '@kit.ArkUI';
 import DataSyncUtil from '../utils/DataSyncUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { JSON } from '@kit.ArkTS';
-import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
+import { fileIo as fs } from '@kit.CoreFileKit';
 import { VideoDataSource } from '../utils/DataUtil';
 import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog';
 import FileFolderUtil from '../utils/FileFolderUtil';
@@ -11,18 +11,11 @@ import { FileFolder } from '../interfaces/FileFolderInterface';
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import Preferences from '../database/Preferences';
-import {
-  ButtonFancyModifier,
-  ImageFancyModifier,
-  ShadowModifier,
-  SymbolGlyphFancyModifier
-} from '../utils/AttributeModifierUtil';
-import { VideoInfoComponent } from '../component/VideoInfoComponent';
-import VideoInfoUtil from '../utils/VideoInfoUtil';
+import { ButtonFancyModifier, ShadowModifier, SymbolGlyphFancyModifier } from '../utils/AttributeModifierUtil';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
 import SubtitleUtil from '../utils/SubtitleUtil';
 import { PathUtils } from '../utils/PathUtils';
-import VideoItem from '../component/VideoItem';
+import { VideoItem, VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
 
 @Component
 export struct FileFolderContent { // 文件夹页，不同文件夹公用一个页
@@ -33,8 +26,8 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
   @State list_line: number = 1
   @State searchValue: string = ''
   @State is_edit: boolean = false
+  @State videoListController: VideoListController = new VideoListController([])
   @StorageLink('is_list_display') is_list_display: boolean = false
-  @State image_modifier: ImageModifier = new ImageModifier();
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
@@ -48,6 +41,7 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
   aboutToAppear(): void {
     this.file_folder = this.pathStack.getParamByName('FileFolderContent')[0] as FileFolder
     this.videoDataSource = new VideoDataSource(this.file_folder?.video_list!);
+    this.videoListController = new VideoListController(this.file_folder?.video_list!)
   }
 
   @Builder
@@ -220,14 +214,17 @@ export struct FileFolderContent { // 文件夹页，不同文件夹公用一个�
             ListItem() {
               VideoItem({
                 item: item,
-                video_meta_data_list: this.videoDataSource.getAllData(),
+                videoListController: this.videoListController,
                 index: index
               })
-            }.onClick(async () => {
+            }
+            .onClick(async () => {
               await ToolsUtil.isFileExist(item) ?
               ToolsUtil.routerToVideoFromFileFolder(this.pathStack, 'Player', item, this.file_folder!) :
                 await this.deItem(PathUtils.appContext!, item, false)
-            }).bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
+            })
+            .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
+            .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick)
             .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
             .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
           }, (item: VideoMetadata) => JSON.stringify(item))

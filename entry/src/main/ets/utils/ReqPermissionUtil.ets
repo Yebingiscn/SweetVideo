@@ -24,17 +24,19 @@ class ReqPermission {
 
   async persistPermission(uri: string): Promise<boolean> {
     try {
-      let policyInfo: fileShare.PolicyInfo = {
-        uri: uri,
-        operationMode: fileShare.OperationMode.READ_MODE | fileShare.OperationMode.WRITE_MODE,
-      };
-      let policies: Array<fileShare.PolicyInfo> = [policyInfo];
-      fileShare.persistPermission(policies).then(() => {
-      }).catch((err: BusinessError<Array<fileShare.PolicyErrorResult>>) => {
-        hilog.info(0xFF00, "testTag", String(err));
-      });
-      let fd = await fs.open(uri);
-      await fs.close(fd);
+      if (canIUse('SystemCapability.FileManagement.AppFileService.FolderAuthorization')) {
+        let policyInfo: fileShare.PolicyInfo = {
+          uri: uri,
+          operationMode: fileShare.OperationMode.READ_MODE | fileShare.OperationMode.WRITE_MODE,
+        };
+        let policies: Array<fileShare.PolicyInfo> = [policyInfo];
+        fileShare.persistPermission(policies).then(() => {
+        }).catch((err: BusinessError<Array<fileShare.PolicyErrorResult>>) => {
+          hilog.info(0xFF00, "testTag", String(err));
+        });
+        let fd = await fs.open(uri);
+        await fs.close(fd);
+      }
     } catch (error) {
       return true
     }

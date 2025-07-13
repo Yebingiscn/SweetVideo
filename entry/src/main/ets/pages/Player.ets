@@ -1,17 +1,15 @@
 import { media } from '@kit.MediaKit';
 import AVPlayerUtil from '../utils/AVPlayerUtil';
-import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
+import { fileIo as fs } from '@kit.CoreFileKit';
 import PermissionUtil from '../utils/PermissionUtil';
 import { window } from '@kit.ArkUI';
-import { AVCastPicker, avSession as avSessionManager } from '@kit.AVSessionKit';
+import { avSession as avSessionManager } from '@kit.AVSessionKit';
 import AVSessionUtil from '../utils/AVSessionUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
-import TimeUtil from '../utils/TimeUtil';
-import { audio, AVVolumePanel } from '@kit.AudioKit';
+import { audio } from '@kit.AudioKit';
 import { settings } from '@kit.BasicServicesKit';
 import SelectFileUtil from '../utils/SelectFileUtil';
-import { VideoDataSource } from '../utils/DataUtil';
 import VideoOperateUtil from '../utils/VideoOperateUtil';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
 import { IjkMediaPlayer } from '@ohos/ijkplayer';
@@ -22,16 +20,25 @@ import { FileFolder } from '../interfaces/FileFolderInterface';
 import { AudioTrack } from '../interfaces/AudioTrackInterface';
 import Preferences from '../database/Preferences';
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
-import {
-  ButtonFancyModifier,
-  ImageFancyModifier,
-  SymbolGlyphFancyModifier
-} from '../utils/AttributeModifierUtil';
-import { KeyCode } from '@kit.InputKit';
 import SubtitleUtil from '../utils/SubtitleUtil';
 import { PathUtils } from '../utils/PathUtils';
-import { AVCastPickerBuilder } from '../component/AVCastPickerBuilder';
-import { PlaybackSpeedMenuComponent } from '../component/PlaybackSpeedMenuComponent';
+import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
+import { PlayerSideBarComponent } from '../component/PlayerComponent/PlayerSideBarComponent';
+import { AVCastPickerBuilder } from '../component/PlayerComponent/AVCastPickerBuilder';
+import { AudioTrackComponent } from '../component/PlayerComponent/AudioTrackComponent';
+import { VolumeButtonComponent } from '../component/PlayerComponent/VolumeButtonComponent';
+import { PlaybackSpeedMenuComponent } from '../component/PlayerComponent/PlaybackSpeedComponent';
+import { BrightnessSwipingComponent } from '../component/PlayerComponent/BrightnessSwipingComponent';
+import { VolumeSwipingComponent } from '../component/PlayerComponent/VolumeSwipingComponent';
+import { FastForwardInfo } from '../component/PlayerComponent/FastForwardInfo';
+import { StatusBarComponent } from '../component/PlayerComponent/StatusBarComponent';
+import { SubtitleComponent } from '../component/PlayerComponent/SubtitleComponent';
+import { LockVideoBarComponent } from '../component/PlayerComponent/LockVideoBarComponent';
+import { SwipingPlayTimeDisplay } from '../component/PlayerComponent/SwipingPlayTimeDisplay';
+import { VideoSliderComponent } from '../component/PlayerComponent/VideoSliderComponent';
+import { GestureComponent } from '../component/PlayerComponent/GestureComponent';
+import { VideoTopComponent } from '../component/PlayerComponent/VideoTopComponent';
+import { VideoButtonsComponent } from '../component/PlayerComponent/VideoButtonsComponent';
 
 @Component
 export struct Player { // 播放页
@@ -47,7 +54,6 @@ export struct Player { // 播放页
   @State swipe_start_x: number = 0
   @State swipe_start_y: number = 0
   @State long_press: boolean = false
-  @State played: boolean = false
   @State @Watch('setScreen') showControl: boolean = false
   @State lock_rotation: boolean = false
   xComponentController: XComponentController = new XComponentController()
@@ -63,9 +69,7 @@ export struct Player { // 播放页
   @State isLeftSideSwipe: boolean = false
   @State isRightSideSwipe: boolean = false
   @State volume: number = 0
-  @State volumeTmp: number = 0
   @State screenBrightness: number = 0
-  @State screenBrightnessTmp: number = 0
   @State video_meta_data: VideoMetadata[] = []
   @State select_text: string | undefined = '原始比例'
   @State circle_play: boolean = false
@@ -82,10 +86,8 @@ export struct Player { // 播放页
   @State longPressStartX: number = 0
   @State currentSpeedIndex: number = 0
   @State clock_time: string = ''
-  @State videoDataSource: IDataSource = new VideoDataSource([])
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
-  @StorageLink('subtitleSize') subtitleSize: string = '22'
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
   @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
   @StorageLink('skipIntroTime') skipIntroTime: string = '0'
@@ -96,18 +98,17 @@ export struct Player { // 播放页
     date: '',
     video_list: []
   }
-  private listScroller: Scroller = new Scroller();
   private mIjkMediaPlayer: IjkMediaPlayer | null = null;
 
   async setSessionListener() {
     this.avSession?.on('play', () => {
-      if (VideoOperateUtil.mIjkMediaPlayerActive) {
+      if (this.mIjkMediaPlayer) {
         this.mIjkMediaPlayer?.start()
       }
       this.avPlayer?.play()
     });
     this.avSession?.on('pause', () => {
-      if (VideoOperateUtil.mIjkMediaPlayerActive && this.mIjkMediaPlayer?.isPlaying()) {
+      if (this.mIjkMediaPlayer && this.mIjkMediaPlayer?.isPlaying()) {
         this.mIjkMediaPlayer?.pause()
       }
       this.avPlayer?.pause()
@@ -129,16 +130,30 @@ export struct Player { // 播放页
     let audioVolumeManger: audio.AudioVolumeManager = audioManager.getVolumeManager();
     let volume_list = await VideoOperateUtil.getVolume(audioVolumeManger, groupId)
     this.volume = volume_list.get('volume')!
-    settings.getValue(PathUtils.appContext!, settings.display.SCREEN_BRIGHTNESS_STATUS,
-      settings.domainName.DEVICE_SHARED)
-      .then((value) => {
-        this.screenBrightness = Number(value) / 255;
-      })
+    if (canIUse('SystemCapability.Applications.Settings.Core')) {
+      settings.getValue(PathUtils.appContext!, settings.display.SCREEN_BRIGHTNESS_STATUS,
+        settings.domainName.DEVICE_SHARED)
+        .then((value) => {
+          this.screenBrightness = Number(value) / 255;
+        })
+    }
+  }
+
+  updatePlaybackSpeed(speed: number): void {
+    if (!VideoInfoUtil.video_speed_list.includes(speed)) {
+      speed = 1;
+    }
+    this.avPlayer?.setSpeed(VideoInfoUtil.getVideoSpeed(speed));
+    if (this.mIjkMediaPlayer) {
+      this.mIjkMediaPlayer?.setSpeed(String(speed));
+    }
   }
 
   async setScreen() {
-    await (await this.windowClass).setSpecificSystemBarEnabled('status', this.showControl, true)
-    await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', this.showControl, true)
+    if (canIUse('SystemCapability.Window.SessionManager')) {
+      await (await this.windowClass).setSpecificSystemBarEnabled('status', this.showControl, true)
+      await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', this.showControl, true)
+    }
   }
 
   async aboutToAppear(): Promise<void> {
@@ -186,7 +201,6 @@ export struct Player { // 播放页
       this.avPlayer!.selectTrack(this.audio_track[0].index);
     } else {
       this.mIjkMediaPlayer = IjkMediaPlayer.getInstance();
-      VideoOperateUtil.mIjkMediaPlayerActive = true
       const video_url = fs.openSync(this.now_playing?.uri).path
       this.mIjkMediaPlayer.reset();
       this.mIjkMediaPlayer.setAudioId(this.surfaceID)
@@ -220,36 +234,33 @@ export struct Player { // 播放页
 
   async setAVPlayerCallback() {
     this.avPlayer?.on('timeUpdate', async (duration) => {
-      this.clock_time = ToolsUtil.getTime()
+      if (this.showControl) {
+        this.clock_time = ToolsUtil.getTime()
+      }
       const isDestroy = AppStorage.get('destroy_signal') as boolean // 监听播放器是否将被杀掉，杀掉的话就保存记录
       if (isDestroy) {
-        await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
-          PathUtils.appContext!,
-          this.file_folder)
+        VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
+          PathUtils.appContext!, this.file_folder)
       }
       if (!this.onSwiping) {
         this.play_time = duration;
-        if (VideoOperateUtil.mIjkMediaPlayerActive) {
-          const currentTime = Date.now(); // 冷却时间检查
-          if (currentTime - VideoOperateUtil.lastSyncTime < VideoOperateUtil.syncCoolDown) {
-            return;
-          }
-          const audioPosition = Number(this.mIjkMediaPlayer?.getCurrentPosition());
-          const drift = duration - audioPosition; // 记录最近5次差异
-          VideoOperateUtil.driftHistory.push(drift);
-          if (VideoOperateUtil.driftHistory.length > 5) {
-            VideoOperateUtil.driftHistory.shift();
-          } // 动态阈值计算
-          const buffer = this.mIjkMediaPlayer?.getAsyncStatisticBufCapacity()!;
-          const dynamicThreshold = Math.min(1000, 300 + buffer * 0.5); // 趋势分析（最近3次差异是否持续扩大）
-          const isGrowing = VideoOperateUtil.driftHistory.slice(-3).every((v, i, arr) =>
-          i === 0 || Math.abs(v) > Math.abs(arr[i-1])
-          ); // 触发条件：差异超过阈值或存在持续扩大趋势
-          if (Math.abs(drift) > dynamicThreshold || (isGrowing && Math.abs(drift) > 300)) {
-            this.handleIntelligentSync(duration, audioPosition);
-            VideoOperateUtil.lastSyncTime = currentTime; // 自适应调整冷却时间
-            VideoOperateUtil.syncCoolDown = Math.max(500, 1000 - buffer * 2);
-          }
+        if (this.mIjkMediaPlayer && Date.now() - VideoOperateUtil.lastSyncTime < VideoOperateUtil.syncCoolDown) {
+          return;
+        }
+        const audioPosition = Number(this.mIjkMediaPlayer?.getCurrentPosition());
+        const drift = duration - audioPosition; // 记录最近5次差异
+        VideoOperateUtil.driftHistory.push(drift);
+        if (VideoOperateUtil.driftHistory.length > 5) {
+          VideoOperateUtil.driftHistory.shift();
+        } // 动态阈值计算
+        const buffer = this.mIjkMediaPlayer?.getAudioCachedBytes()!;
+        const dynamicThreshold = Math.min(1000, 300 + buffer * 0.5); // 趋势分析（最近3次差异是否持续扩大）
+        const isGrowing = VideoOperateUtil.driftHistory.slice(-3).every((v, i, arr) =>
+        i === 0 || Math.abs(v) > Math.abs(arr[i-1])); // 触发条件：差异超过阈值或存在持续扩大趋势
+        if (Math.abs(drift) > dynamicThreshold || (isGrowing && Math.abs(drift) > 300)) {
+          this.handleIntelligentSync(duration, audioPosition);
+          VideoOperateUtil.lastSyncTime = Date.now(); // 自适应调整冷却时间
+          VideoOperateUtil.syncCoolDown = Math.max(500, 1000 - buffer * 2);
         }
       }
     });
@@ -265,7 +276,7 @@ export struct Player { // 播放页
 
     this.avPlayer?.on('audioOutputDeviceChangeWithInfo', (data: audio.AudioStreamDeviceChangeInfo) => {
       if (data.changeReason === audio.AudioStreamDeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) {
-        if (VideoOperateUtil.mIjkMediaPlayerActive) {
+        if (this.mIjkMediaPlayer) {
           this.mIjkMediaPlayer?.pause()
         }
         this.avPlayer?.pause()
@@ -306,15 +317,14 @@ export struct Player { // 播放页
           await this.getAudioTrack()
           if (this.now_playing?.last_play !== 0 && this.now_playing?.last_play! < this.now_playing?.time! * 0.9) {
             this.avPlayer?.seek(this.now_playing?.last_play, media.SeekMode.SEEK_CLOSEST)
-            if (VideoOperateUtil.mIjkMediaPlayerActive) {
+            if (this.mIjkMediaPlayer) {
               this.mIjkMediaPlayer?.seekTo(String(this.now_playing?.last_play))
             }
           } else if (this.skipIntroTime !== '0' && Number(this.skipIntroTime) * 1000 < this.now_playing?.time! &&
             !VideoInfoUtil.support_audio_format.includes(this.now_playing?.title.split('.')[this.now_playing?.title.split('.')
-              .length-1].toLowerCase()!)
-          ) {
+              .length-1].toLowerCase()!)) {
             this.avPlayer?.seek(this.play_time + Number(this.skipIntroTime) * 1000, media.SeekMode.SEEK_CLOSEST)
-            if (VideoOperateUtil.mIjkMediaPlayerActive) {
+            if (this.mIjkMediaPlayer) {
               this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(this.skipIntroTime) * 1000))
             }
           }
@@ -328,7 +338,7 @@ export struct Player { // 播放页
           break;
         case 'completed':
           if (this.circle_play) {
-            if (VideoOperateUtil.mIjkMediaPlayerActive) {
+            if (this.mIjkMediaPlayer) {
               this.mIjkMediaPlayer?.seekTo('0')
               this.mIjkMediaPlayer?.start()
             }
@@ -339,7 +349,6 @@ export struct Player { // 播放页
           }
           break;
         case 'playing':
-          this.played = true
           this.playing = true
           if (!this.avSession && this.allowBackgroundPlay) {
             this.avSession = await AVSessionUtil.getAVSession()
@@ -350,7 +359,7 @@ export struct Player { // 播放页
           VideoOperateUtil.updateSession(this.playing, this.play_time)
           break
         case 'paused':
-          if (VideoOperateUtil.mIjkMediaPlayerActive) {
+          if (this.mIjkMediaPlayer) {
             this.mIjkMediaPlayer?.pause()
           }
           this.playing = false
@@ -376,13 +385,12 @@ export struct Player { // 播放页
   }
 
   async ijkPlayerStop() {
-    if (VideoOperateUtil.mIjkMediaPlayerActive) {
+    if (this.mIjkMediaPlayer) {
       this.mIjkMediaPlayer?.pause(); // 先暂停再停止
       this.mIjkMediaPlayer?.reset();
       this.mIjkMediaPlayer?.stop()
       this.mIjkMediaPlayer?.release()
       this.mIjkMediaPlayer = null
-      VideoOperateUtil.mIjkMediaPlayerActive = false
     }
   }
 
@@ -410,7 +418,7 @@ export struct Player { // 播放页
       RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
     }
     await this.avPlayer?.reset()
-    if (VideoOperateUtil.mIjkMediaPlayerActive) {
+    if (this.mIjkMediaPlayer) {
       await this.ijkPlayerStop()
     }
     this.now_playing = JSON.parse(JSON.stringify(item)) as VideoMetadataFromPlayer
@@ -421,10 +429,10 @@ export struct Player { // 播放页
     VideoOperateUtil.updateSession(this.playing, this.play_time)
   }
 
-  async playNextVideo() {
+  playNextVideo() {
     this.ijkPlayerStop()
     if (this.video_meta_data.length > 0 && this.play_time > 0) {
-      await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
+      VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
         PathUtils.appContext!,
         this.file_folder)
       let item = SelectFileUtil.getItem(this.video_meta_data, this.now_playing?.date || '') as VideoMetadata
@@ -465,14 +473,10 @@ export struct Player { // 播放页
     }
   }
 
-  doublePause() {
-    this.togglePlayback()
-  }
-
   backForward() {
     this.avPlayer?.seek(this.play_time - Number(this.fastForwardSeconds) * 1000,
       media.SeekMode.SEEK_CLOSEST);
-    if (VideoOperateUtil.mIjkMediaPlayerActive) {
+    if (this.mIjkMediaPlayer) {
       this.mIjkMediaPlayer?.seekTo(String(this.play_time -
         Number(this.fastForwardSeconds) * 1000))
     }
@@ -481,14 +485,14 @@ export struct Player { // 播放页
   fastForward() {
     this.avPlayer?.seek(this.play_time + Number(this.fastForwardSeconds) * 1000,
       media.SeekMode.SEEK_CLOSEST);
-    if (VideoOperateUtil.mIjkMediaPlayerActive) {
+    if (this.mIjkMediaPlayer) {
       this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(this.fastForwardSeconds) * 1000))
     }
   }
 
   togglePlayback() {
     this.playing ? this.avPlayer?.pause() : this.avPlayer?.play()
-    if (VideoOperateUtil.mIjkMediaPlayerActive) {
+    if (this.mIjkMediaPlayer) {
       this.playing ? this.mIjkMediaPlayer?.pause() : this.mIjkMediaPlayer?.start()
     }
   }
@@ -496,59 +500,17 @@ export struct Player { // 播放页
   build() {
     NavDestination() {
       SideBarContainer(SideBarContainerType.Overlay) {
-        List({ scroller: this.listScroller, space: 10 }) {
-          LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
-            ListItem() {
-              if (VideoInfoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.video_meta_data,
-                item?.date)?.size)) !== '0 x 0') {
-                Column() {
-                  Row() {
-                    Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
-                      .attributeModifier(new ImageFancyModifier(10, 60, 90))
-                      .margin({ left: 5 })
-                    Text((String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title)).slice(0,
-                      String(SelectFileUtil.getItem(this.video_meta_data, item?.date)?.title).lastIndexOf('.')))
-                      .fontSize(15)
-                      .fontColor(this.now_playing?.date ===
-                        SelectFileUtil.getItem(this.video_meta_data, item?.date)?.date
-                        ? $r('app.color.main_color') : $r('app.color.text_color'))
-                      .fontWeight(FontWeight.Medium)
-                      .maxLines(4)
-                      .textOverflow({ overflow: TextOverflow.Ellipsis })
-                      .width('65%')
-                      .margin({ left: 5 })
-                      .wordBreak(WordBreak.BREAK_ALL)
-                  }
-                  .onClick(async () => {
-                    this.playChooseVideo(item)
-                  })
-                  .width('100%')
-                  .height(100)
-                  .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
-                }
-              }
-            }
-          }, (item: VideoMetadata) => item.date)
-        }
-        .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
-        .chainAnimation(true)
-        .scrollBar(BarState.Off)
-        .onAppear(() => {
-          this.listScroller.scrollToIndex(this.video_meta_data.findIndex(item =>
-          this.now_playing?.date === SelectFileUtil.getItem(this.video_meta_data, item?.date)?.date))!
-        })
-        .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
-          if (event) {
-            this.closeSideBar(true)
+        PlayerSideBarComponent({
+          videoListController: new VideoListController(this.video_meta_data),
+          sideBarStatusTmp: this.sideBarStatusTmp,
+          video_meta_data: this.video_meta_data,
+          now_playing: this.now_playing,
+          sideBarStatus: this.sideBarStatus,
+          onItemClick: (item: VideoMetadata) => {
+            this.playChooseVideo(item) // pass
+            this.closeSideBar(true) // pass
           }
-        }))
-        .visibility(this.sideBarStatusTmp)
-        .width('100%')
-        .height('100%')
-        .backgroundColor($r('app.color.start_window_background'))
-        .padding({ top: 50, left: 20, right: 20 })
-        .transition(TransitionEffect.translate({ x: 200 }).animation({ duration: 500, curve: Curve.Friction }))
-        .borderRadius(20)
+        })
 
         Stack() {
           Stack() { //播放器
@@ -560,7 +522,7 @@ export struct Player { // 播放页
           }
           .width(this.play_area_width)
           .height(this.play_area_height)
-          .animation({ duration: this.played ? 300 : 0, curve: Curve.Ease })
+          .animation({ duration: this.playing ? 300 : 0, curve: Curve.Ease })
 
           if ((this.showControl && !this.isLock)) {
             Stack() {
@@ -571,19 +533,11 @@ export struct Player { // 播放页
               }) { //顶栏
                 Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
                   Column() {
-                    if (this.screen_width > this.screen_height) {
-                      Row() {
-                        Text(this.clock_time)
-                          .fontWeight(FontWeight.Medium)
-                          .fontSize(16)
-                          .fontColor($r('sys.color.white'))
-                          .textAlign(TextAlign.Center)
-                          .align(Alignment.Center)
-                      }
-                      .width('100%')
-                      .height(5)
-                      .justifyContent(FlexAlign.Center)
-                    }
+                    StatusBarComponent({
+                      screenHeight: this.screen_height,
+                      screenWidth: this.screen_width,
+                      clockTime: this.clock_time
+                    })
                     this.VideoTop()
                   }.width('100%')
                 }
@@ -620,344 +574,213 @@ export struct Player { // 播放页
             .animation({ duration: 300, curve: Curve.Smooth })
           }
 
-          Stack({ alignContent: Alignment.BottomEnd }) { //字幕
-            Text(this.sub_title)
-              .fontColor('#F0F0F0')
-              .fontSize(this.subtitleSize)
-              .fontWeight(FontWeight.Medium)
-              .textAlign(TextAlign.Center)
-              .fontWeight(FontWeight.Normal)// 常规字重更清晰
-              .opacity(0.95)// 轻微透明度
-              .offset({
-                x: 0,
-                y: this.screen_width > this.screen_height && this.showControl ? -120 : 0
-              })
-          }
-          .visibility(this.sub_title_visibility)
-          .align(Alignment.Center)
-          .width(this.play_area_width)
-          .offset({ x: 0, y: VideoInfoUtil.play_area_height / 2 - 40 })
-          .animation({ duration: 300, curve: Curve.Smooth })
+          SubtitleComponent({
+            subTitle: this.sub_title,
+            screenWidth: this.screen_width,
+            screenHeight: this.screen_height,
+            showControl: this.showControl,
+            subTitleVisibility: this.sub_title_visibility,
+            playAreaWidth: this.play_area_width,
+          })
 
           if (this.long_press) {
-            Stack({ alignContent: Alignment.BottomEnd }) { //快进提示
-              Text(VideoInfoUtil.optimizedFormat(this.speed) + ' ⏩')
-                .fontColor($r('sys.color.white'))
-                .fontSize(15)
-                .fontWeight(FontWeight.Bold)
-            }
-            .padding({
-              left: 25,
-              right: 25,
-              top: 10,
-              bottom: 10
+            FastForwardInfo({
+              speed: this.speed,
+              location: 0 - VideoInfoUtil.play_area_height / 2 + 20
             })
-            .offset({ x: 0, y: 0 - VideoInfoUtil.play_area_height / 2 + 20 })
-            .borderRadius(1000)
-            .backgroundColor('#30000000')
-            .backdropBlur(100)
-            .animation({ duration: 300, curve: Curve.Smooth })
           }
 
           if (this.onSwiping) {
-            Stack() { // 滑动控制栏
-              Text(this.isSliderPlayTimeChange ?
-                TimeUtil.convertMsToMMSS(this.play_time) + '/' + TimeUtil.convertMsToMMSS(this.now_playing?.time) :
-                (this.play_time - this.last_play_time > 0 ? '+' : '') +
-                Math.floor((this.play_time - this.last_play_time) / 1000) + 's : ' +
-                TimeUtil.convertMsToMMSS(this.play_time) + '/' + TimeUtil.convertMsToMMSS(this.now_playing?.time))
-                .fontColor($r('sys.color.white'))
-                .fontSize(25)
-                .fontWeight(FontWeight.Bold)
-            }
-            .padding({
-              left: 25,
-              right: 25,
-              top: 10,
-              bottom: 10
+            SwipingPlayTimeDisplay({
+              isSliderPlayTimeChange: this.isSliderPlayTimeChange,
+              playTime: this.play_time,
+              totalTime: this.now_playing?.time,
+              lastPlayTime: this.last_play_time
             })
-            .borderRadius(1000)
-            .backgroundColor('#30000000')
-            .backdropBlur(100)
-            .animation({ duration: 300, curve: Curve.Smooth })
           }
 
           if (this.onSwipingVoice) {
-            Stack() { //音量提示
-              Column() {
-                AVVolumePanel({
-                  volumeLevel: this.volume,
-                  volumeParameter: {
-                    position: {
-                      x: 10000,
-                      y: 20000
-                    }
-                  }
-                }).visibility(Visibility.None)
-                SymbolGlyph($r('sys.symbol.speaker_wave_1'))
-                  .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-                  .fontColor(['#f0f0f0'])
-                Slider({
-                  value: this.volume,
-                  min: VideoOperateUtil.min_volume,
-                  max: VideoOperateUtil.max_volume,
-                  step: 0.1,
-                  style: SliderStyle.NONE,
-                  direction: Axis.Horizontal,
-                  reverse: false
-                })
-                  .width(60)
-                  .height(30)
-                  .selectedColor('#e0e0e0')
-                  .trackColor(Color.Black)
-                  .trackThickness(40)
-                  .onChange((value) => {
-                    this.volume = value
-                  })
-              }
-            }
-            .padding({
-              left: 25,
-              right: 25,
-              top: 10,
-              bottom: 10
+            VolumeSwipingComponent({
+              videoVolume: this.volume
             })
-            .borderRadius(1000)
-            .backgroundColor('#30000000')
-            .backdropBlur(100)
-            .animation({ duration: 300, curve: Curve.Smooth })
           }
 
           if (this.onSwipingBrightness) {
-            Stack() { //亮度提示
-              Column() {
-                SymbolGlyph($r('sys.symbol.sun_max'))
-                  .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-                  .fontColor(['#f0f0f0'])
-                Slider({
-                  value: this.screenBrightness,
-                  min: 0,
-                  max: 1,
-                  step: 0.1,
-                  style: SliderStyle.NONE,
-                  direction: Axis.Horizontal,
-                  reverse: false
-                })
-                  .width(60)
-                  .height(30)
-                  .selectedColor('#e0e0e0')
-                  .trackColor(Color.Black)
-                  .trackThickness(40)
-              }
-            }
-            .padding({
-              left: 25,
-              right: 25,
-              top: 10,
-              bottom: 10
+            BrightnessSwipingComponent({
+              screenBrightness: this.screenBrightness,
             })
-            .borderRadius(1000)
-            .backgroundColor('#30000000')
-            .backdropBlur(100)
-            .animation({ duration: 300, curve: Curve.Smooth })
           }
 
           if (this.lockVisibility) {
-            Button({ type: ButtonType.Circle, stateEffect: true }) { //锁定播放栏
-              SymbolGlyph(this.isLock ? $r('sys.symbol.lock_fill') : $r('sys.symbol.lock_open_fill'))
-                .fontWeight(FontWeight.Bold)
-                .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-                .fontColor(['#f0f0f0'])
-            }
-            .zIndex(100)
-            .attributeModifier(new ButtonFancyModifier(40, 40))
-            .backgroundColor('#50000000')
-            .aspectRatio(1)
-            .onClick(() => {
-              this.isLock = !this.isLock
+            LockVideoBarComponent({
+              isLock: this.isLock,
+              screenHeight: this.screen_height,
+              screenWidth: this.screen_width
             })
-            .position({ bottom: this.screen_height / 2, left: this.screen_height > this.screen_width ? 30 : 50 })
           }
 
-          Column()
-            .width('100%')
-            .height(this.showControl ? '50%' : '80%')//触控区域
-            .gesture(
-              GestureGroup(GestureMode.Exclusive, // 将触摸事件跟滑动、长按分成两个手势组解绑互斥,触摸事件手势组为互斥事件
-                GestureGroup(GestureMode.Exclusive, //双击事件组和单击事件组互斥独立
-                  TapGesture({ count: 2 })// 双击事件
-                    .onAction((event: GestureEvent) => {
-                      if (this.isLock) {
-                        return;
-                      } // 设备锁定时直接返回
-                      if (!this.allowDoubleFastForward) { // 非双击快进模式时执行暂停
-                        this.doublePause();
-                        return;
-                      }
-                      const tapX = event.fingerList[0].localX;
-                      const zoneWidth = this.screen_width / 5; // 屏幕五分之一宽度
-                      if (tapX < zoneWidth) { // 左侧1/5区域：回退
-                        this.backForward();
-                        return;
-                      }
-                      if (tapX > zoneWidth * 4) { // 右侧1/5区域：快进
-                        this.fastForward();
-                        return;
-                      }
-                      this.doublePause(); // 中间3/5区域：暂停
-                    }),
-                  TapGesture({ count: 1 })// 单击事件
-                    .onAction(() => { //单击屏幕
-                      if (this.sideBarStatus) {
-                        this.closeSideBar(true);
-                      } else {
-                        this.lockVisibility = !this.lockVisibility;
-                        this.showControl = !this.showControl;
-                      }
-                    }),
-                  PanGesture({ fingers: 1, direction: PanDirection.Vertical })// 垂直滑动
-                    .onActionStart((event: GestureEvent) => { // 滑动屏幕
-                      if (!this.isLock) {
-                        const firstTouch = event.fingerList[0];
-                        this.swipe_start_x = firstTouch.localX;
-                        this.swipe_start_y = firstTouch.localY;
-                        this.isLeftSideSwipe = firstTouch.localX < this.screen_width / 2;
-                        this.screenBrightnessTmp = this.screenBrightness
-                        this.volumeTmp = this.volume
-                      }
-                    })
-                    .onActionUpdate((event: GestureEvent) => {
-                      if (!this.isLock && event.fingerList.length === 1) {
-                        const currentY = event.fingerList[0].localY; // 拖动后当前的位置
-                        const deltaY = currentY - this.swipe_start_y; // 拖动后的垂直距离
-                        const deltaYScale = deltaY / this.screen_height * 2.5 // 滑动像素占屏幕高度比例
-                        if (this.isLeftSideSwipe) {
-                          this.onSwipingBrightness = true
-                          const newBrightness = this.screenBrightnessTmp - deltaYScale
-                          this.screenBrightness = Math.min(Math.max(newBrightness, 0), 1)
-                          VideoOperateUtil.setBrightness(this.screenBrightness);
-                        } else {
-                          this.onSwipingVoice = true
-                          const newVolume = (this.volumeTmp - deltaYScale * 20);
-                          this.volume =
-                            Math.min(Math.max(newVolume, VideoOperateUtil.min_volume), VideoOperateUtil.max_volume);
-                        }
-                      }
-                    })
-                    .onActionEnd(() => {
-                      this.onSwiping = false;
-                      this.onSwipingVoice = false;
-                      this.onSwipingBrightness = false;
-                    }),
-                  PanGesture({ fingers: 1, direction: PanDirection.Horizontal })// 水平滑动事件滑动调整进度
-                    .onActionStart((event: GestureEvent) => { // 长按且滑动屏幕
-                      if (!this.isLock) {
-                        const firstTouch = event.fingerList[0];
-                        this.swipe_start_x = firstTouch.localX;
-                        this.last_play_time = this.play_time;
-                        this.onSwiping = true
-                      }
-                    })
-                    .onActionUpdate((event: GestureEvent) => {
-                      if (this.isLock) {
-                        return
-                      }
-                      if (event?.fingerList?.[0]?.localX !== undefined &&
-                        typeof event.fingerList[0].localX === 'number') {
-                        const currentX = event.fingerList[0].localX;
-                        const deltaX = currentX - this.swipe_start_x;
-                        this.play_time = Math.max(0,
-                          Math.min(this.last_play_time + (deltaX * VideoOperateUtil.timePerPixel),
-                            this.now_playing?.time));
-                      }
-                    })
-                    .onActionEnd(() => {
-                      this.avPlayer?.seek(this.play_time, media.SeekMode.SEEK_CLOSEST);
-                      if (VideoOperateUtil.mIjkMediaPlayerActive) {
-                        this.mIjkMediaPlayer?.seekTo(String(this.play_time))
-                      }
-                      this.onSwiping = false;
-                    }),
-                  PinchGesture({ fingers: 2, distance: 2 })//手势缩放
-                    .onActionStart((event: GestureEvent) => {
-                      const finger1 = event.fingerList[0];
-                      const finger2 = event.fingerList[1];
-                      VideoOperateUtil.initPinchDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
-                    })
-                    .onActionUpdate((event: GestureEvent) => {
-                      if (this.isLock) {
-                        return;
-                      }
-                      const finger1 = event.fingerList[0];
-                      const finger2 = event.fingerList[1];
-                      // 双指检测失败直接返回
-                      if (!finger1 || !finger2) {
-                        return;
-                      }
-                      const currentDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
-                      const rawScale = currentDistance / VideoOperateUtil.initPinchDistance;
-                      const adjustedScale = 1 + (rawScale - 1) * 0.007; // 计算调整后的缩放比例
-                      const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0);
-                      const scaledWidth = this.play_area_width * clampedScale; // 计算缩放后的播放区域宽度
-                      const maxAllowed = VideoInfoUtil.play_area_width * 3.0;
-                      const minAllowed = VideoInfoUtil.play_area_width * 0.5;
-                      if (scaledWidth > maxAllowed || scaledWidth < minAllowed) { // 检查缩放是否超出允许范围
-                        return;
-                      }
-                      this.play_area_width = scaledWidth; // 更新播放区域尺寸
-                      this.play_area_height = this.play_area_height * clampedScale;
-                      animateTo({ duration: 100 }, () => {
-                        this.play_area_width = this.play_area_width;
-                        this.play_area_height = this.play_area_height;
-                      });
-                    })
-                ),
-                GestureGroup(GestureMode.Parallel, // 不用互斥事件，会导致左右滑动调节倍速的功能失效
-                  LongPressGesture()// 长按手势
-                    .onAction(() => { //长按
-                      if (!this.isLock) {
-                        this.long_press = true
-                        this.last_speed = this.speed
-                        this.updatePlaybackSpeed(3);
-                        this.currentSpeedIndex = VideoInfoUtil.video_speed_list.indexOf(3);
-                      }
-                    })
-                    .onActionEnd(() => {
-                      this.long_press = false
-                      this.updatePlaybackSpeed(this.last_speed);
-                    }),
-                  PanGesture({
-                    fingers: 1,
-                    direction: PanDirection.Horizontal,
-                  })//水平滑动事件 长按加速滑动调整倍速
-                    .onActionStart((event: GestureEvent) => { // 长按且滑动屏幕
-                      if (!this.isLock) {
-                        this.longPressStartX = event.fingerList[0].localX;
-                      }
-                    })
-                    .onActionUpdate((event: GestureEvent) => {
-                      if (!this.isLock && this.long_press) { // 长按状态下的滑动处理
-                        const deltaX = event.fingerList[0].localX - this.longPressStartX;
-                        const SWIPE_THRESHOLD = 30;
-                        if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
-                          return;
-                        }
-                        if (typeof this.currentSpeedIndex === 'undefined') { // 确保currentSpeedIndex已初始化
-                          const defaultSpeedIdx = VideoInfoUtil.video_speed_list.indexOf(this.speed);
-                          this.currentSpeedIndex = defaultSpeedIdx === -1 ? 0 : defaultSpeedIdx;
-                        }
-                        const direction = deltaX > 0 ? 1 : -1; // 确定滑动方向（正值为右滑，负值为左滑）
-                        const newIndex = this.currentSpeedIndex + direction; // 计算新速度索引并限制在有效范围内
-                        const clampedIndex = Math.max(0, Math.min(newIndex, VideoInfoUtil.video_speed_list.length - 1));
-                        if (clampedIndex === this.currentSpeedIndex) { // 索引变化时才更新播放速度
-                          return;
-                        }
-                        this.currentSpeedIndex = clampedIndex;
-                        this.updatePlaybackSpeed(VideoInfoUtil.video_speed_list[this.currentSpeedIndex]);
-                        this.longPressStartX = event.fingerList[0].localX; // 重置起始点实现分档切换效果
-                      }
-                    })
-                )))
+          GestureComponent({
+            showControl: this.showControl,
+            onDoubleClickAction: (event: GestureEvent) => {
+              if (this.isLock) {
+                return;
+              } // 设备锁定时直接返回
+              if (!this.allowDoubleFastForward) { // 非双击快进模式时执行暂停
+                this.togglePlayback()
+                return;
+              }
+              const tapX = event.fingerList[0].localX;
+              const zoneWidth = this.screen_width / 5; // 屏幕五分之一宽度
+              if (tapX < zoneWidth) { // 左侧1/5区域：回退
+                this.backForward();
+                return;
+              }
+              if (tapX > zoneWidth * 4) { // 右侧1/5区域：快进
+                this.fastForward();
+                return;
+              }
+              this.togglePlayback()
+            },
+            onSingleClickAction: () => {
+              if (this.sideBarStatus) {
+                this.closeSideBar(true);
+              } else {
+                this.lockVisibility = !this.lockVisibility;
+                this.showControl = !this.showControl;
+              }
+            },
+            onVerticalPanStart: (event: GestureEvent) => {
+              if (!this.isLock) {
+                const firstTouch = event.fingerList[0];
+                this.swipe_start_x = firstTouch.localX;
+                this.swipe_start_y = firstTouch.localY;
+                this.isLeftSideSwipe = firstTouch.localX < this.screen_width / 2;
+                VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
+                VideoOperateUtil.volumeTmp = this.volume
+              }
+            },
+            onVerticalPanUpdate: (event: GestureEvent) => {
+              if (!this.isLock && event.fingerList.length === 1) {
+                const currentY = event.fingerList[0].localY; // 拖动后当前的位置
+                const deltaY = currentY - this.swipe_start_y; // 拖动后的垂直距离
+                const deltaYScale = deltaY / this.screen_height * 2.5 // 滑动像素占屏幕高度比例
+                if (this.isLeftSideSwipe) {
+                  this.onSwipingBrightness = true
+                  const newBrightness = VideoOperateUtil.screenBrightnessTmp - deltaYScale
+                  this.screenBrightness = Math.min(Math.max(newBrightness, 0), 1)
+                  VideoOperateUtil.setBrightness(this.screenBrightness);
+                } else {
+                  this.onSwipingVoice = true
+                  const newVolume = (VideoOperateUtil.volumeTmp - deltaYScale * 20);
+                  this.volume =
+                    Math.min(Math.max(newVolume, VideoOperateUtil.min_volume), VideoOperateUtil.max_volume);
+                }
+              }
+            },
+            onVerticalPanEnd: () => {
+              this.onSwiping = false;
+              this.onSwipingVoice = false;
+              this.onSwipingBrightness = false;
+            },
+            onHorizonPanStart: (event: GestureEvent) => {
+              if (!this.isLock) {
+                const firstTouch = event.fingerList[0];
+                this.swipe_start_x = firstTouch.localX;
+                this.last_play_time = this.play_time;
+                this.onSwiping = true
+              }
+            },
+            onHorizonPanUpdate: (event: GestureEvent) => {
+              if (this.isLock) {
+                return
+              }
+              if (event?.fingerList?.[0]?.localX !== undefined &&
+                typeof event.fingerList[0].localX === 'number') {
+                const currentX = event.fingerList[0].localX;
+                const deltaX = currentX - this.swipe_start_x;
+                this.play_time = Math.max(0,
+                  Math.min(this.last_play_time + (deltaX * VideoOperateUtil.timePerPixel),
+                    this.now_playing?.time!));
+              }
+            },
+            onHorizonPanEnd: () => {
+              this.avPlayer?.seek(this.play_time, media.SeekMode.SEEK_CLOSEST);
+              if (this.mIjkMediaPlayer) {
+                this.mIjkMediaPlayer?.seekTo(String(this.play_time))
+              }
+              this.onSwiping = false;
+            },
+            onPinchStart: (event: GestureEvent) => {
+              const finger1 = event.fingerList[0];
+              const finger2 = event.fingerList[1];
+              VideoOperateUtil.initPinchDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
+            },
+            onPinchUpdate: (event: GestureEvent) => {
+              if (this.isLock) {
+                return;
+              }
+              const finger1 = event.fingerList[0];
+              const finger2 = event.fingerList[1];
+              if (!finger1 || !finger2) { // 双指检测失败直接返回
+                return;
+              }
+              const currentDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
+              const rawScale = currentDistance / VideoOperateUtil.initPinchDistance;
+              const adjustedScale = 1 + (rawScale - 1) * 0.007; // 计算调整后的缩放比例
+              const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0);
+              const scaledWidth = this.play_area_width * clampedScale; // 计算缩放后的播放区域宽度
+              const maxAllowed = VideoInfoUtil.play_area_width * 3.0;
+              const minAllowed = VideoInfoUtil.play_area_width * 0.5;
+              if (scaledWidth > maxAllowed || scaledWidth < minAllowed) { // 检查缩放是否超出允许范围
+                return;
+              }
+              this.play_area_width = scaledWidth; // 更新播放区域尺寸
+              this.play_area_height = this.play_area_height * clampedScale;
+              animateTo({ duration: 100 }, () => {
+                this.play_area_width = this.play_area_width;
+                this.play_area_height = this.play_area_height;
+              });
+            },
+            onLongPressAction: () => {
+              if (!this.isLock) {
+                this.long_press = true
+                this.last_speed = this.speed
+                this.updatePlaybackSpeed(3);
+                this.currentSpeedIndex = VideoInfoUtil.video_speed_list.indexOf(3);
+              }
+            },
+            onLongPressEnd: () => {
+              this.long_press = false
+              this.updatePlaybackSpeed(this.last_speed);
+            },
+            onLongPressPanStart: (event: GestureEvent) => {
+              if (!this.isLock) {
+                this.longPressStartX = event.fingerList[0].localX;
+              }
+            },
+            onLongPressPanUpdate: (event: GestureEvent) => {
+              if (!this.isLock && this.long_press) { // 长按状态下的滑动处理
+                const deltaX = event.fingerList[0].localX - this.longPressStartX;
+                const SWIPE_THRESHOLD = 30;
+                if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
+                  return;
+                }
+                if (typeof this.currentSpeedIndex === 'undefined') { // 确保currentSpeedIndex已初始化
+                  const defaultSpeedIdx = VideoInfoUtil.video_speed_list.indexOf(this.speed);
+                  this.currentSpeedIndex = defaultSpeedIdx === -1 ? 0 : defaultSpeedIdx;
+                }
+                const direction = deltaX > 0 ? 1 : -1; // 确定滑动方向（正值为右滑，负值为左滑）
+                const newIndex = this.currentSpeedIndex + direction; // 计算新速度索引并限制在有效范围内
+                const clampedIndex = Math.max(0, Math.min(newIndex, VideoInfoUtil.video_speed_list.length - 1));
+                if (clampedIndex === this.currentSpeedIndex) { // 索引变化时才更新播放速度
+                  return;
+                }
+                this.currentSpeedIndex = clampedIndex;
+                this.updatePlaybackSpeed(VideoInfoUtil.video_speed_list[this.currentSpeedIndex]);
+                this.longPressStartX = event.fingerList[0].localX; // 重置起始点实现分档切换效果
+              }
+            }
+          })
         }.onAreaChange(async (_oldValue: Area, newValue: Area) => {
           this.screen_width = Math.floor(new Number(newValue.width).valueOf())
           this.screen_height = Math.floor(new Number(newValue.height).valueOf())
@@ -976,13 +799,16 @@ export struct Player { // 播放页
       try {
         this.now_playing = playerParams.metadata as VideoMetadataFromPlayer
         this.video_meta_data = playerParams.metadata_list as VideoMetadata[]
-        this.videoDataSource = new VideoDataSource(this.video_meta_data);
         this.file_folder = playerParams.file_folder as FileFolder
       } catch (e) {
         console.error(e)
       }
     })
     .onBackPressed(() => {
+      if (this.sideBarStatus) {
+        this.closeSideBar(true)
+        return true
+      }
       if (this.showControl && !this.allowPlayBackExist) {
         this.showControl = false
         this.lockVisibility = false
@@ -994,12 +820,14 @@ export struct Player { // 播放页
     })
     .onWillDisappear(async () => {
       await (await this.windowClass).setWindowKeepScreenOn(false)
-      await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
-      await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
+      if (canIUse('SystemCapability.Window.SessionManager')) {
+        await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
+        await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
+      }
       await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
       this.avPlayer?.off('subtitleUpdate');
       if (this.video_meta_data.length > 0 && this.play_time > 0) {
-        await VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
+        VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
           PathUtils.appContext!,
           this.file_folder)
       }
@@ -1014,141 +842,59 @@ export struct Player { // 播放页
 
   @Builder
   VideoTop() {
-    Row({ space: 8 }) {
-      SymbolGlyph($r('sys.symbol.chevron_left'))
-        .attributeModifier(new SymbolGlyphFancyModifier(40, '', ''))
-        .fontColor(['#f0f0f0'])
-        .onClick(() => {
-          this.avPlayer?.reset()
-          this.pathStack.pop()
-        })
-        .padding({ right: 5 })
-      Row() {
-        Text(String(this.now_playing?.title).slice(0, this.now_playing?.title.lastIndexOf('.')))
-          .fontSize(20)
-          .fontWeight(FontWeight.Medium)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.MARQUEE })
-          .fontColor($r('sys.color.white'))
-          .layoutWeight(1) // 关键布局属性
-        Row({ space: 12 }) {
-          SymbolGlyph(this.sub_title_visibility === Visibility.Visible ?
-          $r('sys.symbol.textformat_size_square_fill') : $r('sys.symbol.textformat_size_square'))
-            .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
-            .fontColor(['#f0f0f0'])
-            .onClick(() => {
-              this.sub_title_visibility === Visibility.Visible ? this.sub_title_visibility = Visibility.None :
-                this.sub_title_visibility = Visibility.Visible
-            })
-          if (this.screen_width > this.screen_height) {
-            SymbolGlyph($r('sys.symbol.opticaldisc'))
-              .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
-              .fontColor(['#f0f0f0'])
-              .bindMenu(this.AudioTrackMenuBuilder)
-          }
-          if (this.screen_width > this.screen_height) {
-            Select([//屏幕扩展
-              { value: '原始比例' },
-              { value: '填满屏幕' },
-              { value: '等比放大 110%' },
-              { value: '等比放大 120%' },
-              { value: '等比放大 130%' },
-              { value: '等比放大 140%' }])
-              .font({ size: 18, weight: FontWeight.Medium })
-              .value(this.select_text)
-              .selected(VideoInfoUtil.screen_extend_map.indexOf(this.select_text!))
-              .fontColor($r('sys.color.white'))
-              .onSelect(async (_index: number, text?: string | undefined) => {
-                this.select_text = text
-                this.screenExtend(text!)
-              })
-              .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
-          }
-        }.alignItems(VerticalAlign.Center)
-      }.height('100%').layoutWeight(1)
-
-      Button({ type: ButtonType.Circle, stateEffect: true }) { // 旋转锁定
-        SymbolGlyph(this.lock_rotation ? $r('sys.symbol.lock_fill') : $r('sys.symbol.rotate_left'))
-          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-          .fontColor(['#f0f0f0'])
-          .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.lock_rotation))
-      }
-      .attributeModifier(new ButtonFancyModifier(35, 40))
-      .backgroundColor('#50000000')
-      .onClick(async () => {
+    VideoTopComponent({
+      videoTitle: this.now_playing?.title,
+      subTitleVisibility: this.sub_title_visibility,
+      screenExtendSelectedText: this.select_text,
+      screenWidth: this.screen_width,
+      screenHeight: this.screen_height,
+      audioTrackMenuBuilder: this.getAudioMenuBuilder,
+      lockRotation: this.lock_rotation,
+      onExitVideoClick: () => {
+        this.avPlayer?.reset()
+        this.pathStack.pop()
+      },
+      onScreenExtendOptionSelected: (text: string) => {
+        this.screenExtend(text!)
+      },
+      onLockRotationClick: async () => {
         this.lock_rotation = !this.lock_rotation
-        const windowInstance = await this.windowClass
         const orientation = this.lock_rotation ?
           (this.screen_width > this.screen_height ? window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED
             : window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
           : window.Orientation.AUTO_ROTATION_RESTRICTED
-        await windowInstance.setPreferredOrientation(orientation)
+        await (await this.windowClass).setPreferredOrientation(orientation)
         const toastMessage = this.lock_rotation
           ? PathUtils.appContext!.resourceManager.getStringSync($r('app.string.open_rotation_lock'))
           : PathUtils.appContext!.resourceManager.getStringSync($r('app.string.close_rotation_lock'))
         ToolsUtil.showToast(toastMessage);
-      })
-    }
-    .padding({ left: 8, right: 8 })
-    .width('100%')
-    .alignItems(VerticalAlign.Center)
-    .focusable(true)
-    .onKeyEvent((event: KeyEvent) => {
-      if (event.keyCode === KeyCode.KEYCODE_ESCAPE &&
-        event.type === KeyType.Down) {
-        this.avPlayer?.reset();
-        this.pathStack.pop();
       }
     })
   }
 
   @Builder
   VideoSlider() {
-    Row({ space: 10 }) {
-      Row() { // 播放时间进度
-        Text(TimeUtil.convertMsToMMSS(Math.min(Math.max(this.play_time, 0), (this.now_playing?.time || 0))) + '/' +
-        TimeUtil.convertMsToMMSS(this.now_playing?.time || 0))
-          .fontWeight(FontWeight.Medium)
-          .fontSize(16)
-          .fontColor($r('sys.color.white'))
-          .textAlign(TextAlign.Start)
-      }.backgroundColor('#50000000').padding(5).borderRadius(10).margin({ left: 5 })
-
-      Slider({
-        value: this.play_time,
-        min: 0,
-        max: this.now_playing?.time,
-        style: SliderStyle.InSet
-      })
-        .onChange((value) => {
-          this.onSwiping = true
-          this.isSliderPlayTimeChange = true
-          this.play_time = value
-        })
-        .onTouch((event) => {
-          if (event.type == TouchType.Up) {
-            this.avPlayer?.seek(this.play_time, media.SeekMode.SEEK_CLOSEST)
-            if (VideoOperateUtil.mIjkMediaPlayerActive) {
-              this.mIjkMediaPlayer?.seekTo(String(this.play_time))
-            }
-            this.isSliderPlayTimeChange = false
-            this.onSwiping = false
+    VideoSliderComponent({
+      playTime: this.play_time,
+      totalTime: this.now_playing?.time,
+      screenWidth: this.screen_width,
+      screenHeight: this.screen_height,
+      onSliderChange: (value: number) => {
+        this.onSwiping = true
+        this.isSliderPlayTimeChange = true
+        this.play_time = value
+      },
+      onSliderTouch: (event: TouchEvent) => {
+        if (event.type == TouchType.Up) {
+          this.avPlayer?.seek(this.play_time, media.SeekMode.SEEK_CLOSEST)
+          if (this.mIjkMediaPlayer) {
+            this.mIjkMediaPlayer?.seekTo(String(this.play_time))
           }
-        })
-        .layoutWeight(1)
-        .animation({ duration: 100, curve: Curve.Smooth })
-        .selectedColor('#e0e0e0')
-      if (this.screen_width > this.screen_height) {
-        Row() { //剩余时间
-          Text(TimeUtil.convertMsToMMSS(Math.min(Math.max((this.now_playing?.time || 0) - this.play_time, 0),
-            (this.now_playing?.time || 0))))
-            .fontWeight(FontWeight.Medium)
-            .fontSize(15)
-            .fontColor($r('sys.color.white'))
-            .textAlign(TextAlign.End)
-        }.backgroundColor('#50000000').padding(5).borderRadius(10).margin({ right: 5 })
+          this.isSliderPlayTimeChange = false
+          this.onSwiping = false
+        }
       }
-    }
+    })
   }
 
   @Builder
@@ -1158,241 +904,69 @@ export struct Player { // 播放页
 
   @Builder
   VideoButtons() {
-    GridRow({ columns: this.screen_arco > 1.4 ? 8 : 16, gutter: 5 }) {
-      GridCol() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) { // 播放按钮
-          SymbolGlyph(this.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill'))
-            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-            .fontColor(['#f0f0f0'])
-            .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.playing))
-        }
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundColor('#50000000')
-        .onClick(() => {
-          ToolsUtil.startVibration()
-          this.togglePlayback()
-        })
-        .onKeyEvent((event: KeyEvent) => {
-          if ((event.keyCode === KeyCode.KEYCODE_SPACE && event.type === KeyType.Down)) {
-            this.togglePlayback()
-          }
-        })
-        .defaultFocus(true) // 自动获取键盘焦点
-      }.span({ xs: 2, sm: 2, md: 2 })
-
-      GridCol() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) { // 下一首按钮
-          SymbolGlyph($r('sys.symbol.forward_end_fill'))
-            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-            .fontColor(['#f0f0f0'])
-        }
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundColor('#50000000')
-        .onClick(() => {
-          this.playNextVideo()
-        })
-      }.span({ xs: 2, sm: 2, md: 2 })
-
-      GridCol() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) { // 循环按钮
-          SymbolGlyph(this.circle_play ? $r('sys.symbol.repeat') : $r('sys.symbol.order_play'))
-            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-            .fontColor(['#f0f0f0'])
-        }
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundColor('#50000000')
-        .onClick(() => {
-          this.circle_play = !this.circle_play
-        })
-      }.span({ xs: 2, sm: 2, md: 2 })
-
-      GridCol() { // 投播
-        AVCastPicker({
-          normalColor: Color.White,
-          onStateChange: VideoOperateUtil.castOnStateChange,
-          customPicker: () => this.AVCastPickerBuilderBridge()
-        })
-          .width(23)
-          .height(23)
-          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-      }.span({ xs: 2, sm: 2, md: 2 })
-
-      GridCol() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) { // 音量
-          SymbolGlyph($r('sys.symbol.speaker_wave_1'))
-            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-            .fontColor(['#f0f0f0'])
-        }
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundColor('#50000000')
-        .bindMenu(this.VolumeBuilder())
-      }.span({ xs: 2, sm: 2, md: 2 })
-
-      GridCol() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) { //选集
-          SymbolGlyph($r('sys.symbol.music_note_list'))
-            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-            .fontColor(['#f0f0f0'])
-        }
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundColor('#50000000')
-        .onClick(() => {
-          this.sideBarStatus ? this.closeSideBar(true) : this.openSideBar()
-        })
-      }.span({ xs: 2, sm: 2, md: 2 })
-
-      GridCol() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) { // 倍速调整按钮
-          Text(`${this.speed}x`)
-            .fontSize(18)
-            .fontColor($r('sys.color.white'))
-            .minFontSize(8)
-            .maxFontSize(18)
-            .maxLines(1)
-            .padding(5)
-        }
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundColor('#50000000')
-        .bindMenu(this.PlaybackSpeedMenu, {
-          backgroundColor: Color.Transparent,
-          backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-        })
-      }.span({ xs: 2, sm: 2, md: 2 })
-
-      GridCol() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) { // 全屏按钮
-          SymbolGlyph($r('sys.symbol.screen_rotation'))
-            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-            .fontColor(['#f0f0f0'])
-        }
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundColor('#50000000')
-        .onClick(async () => {
-          this.screen_height > this.screen_width ?
-          (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE)
-            : (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_PORTRAIT)
-        })
-      }.span({ xs: 2, sm: 2, md: 2 })
-    }.width('95%')
+    VideoButtonsComponent({
+      screenArco: this.screen_arco,
+      playing: this.playing,
+      speed: this.speed,
+      circle_play: this.circle_play,
+      aVCastPickerBuilderBridge: this.AVCastPickerBuilderBridge,
+      volumeBuilder: this.VolumeBuilder,
+      playbackSpeedMenu: this.getPlaybackSpeedMenuBuilder,
+      onScreenRotationClick: async () => {
+        this.screen_height > this.screen_width ?
+        (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE)
+          : (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_PORTRAIT)
+      },
+      onTogglePlaybackClick: () => {
+        this.togglePlayback()
+      },
+      onPlayNextVideoClick: () => {
+        this.playNextVideo()
+      },
+      onSideBarStatusClick: () => {
+        this.sideBarStatus ? this.closeSideBar(true) : this.openSideBar()
+      }
+    })
   }
 
   @Builder
   AudioTrackMenuBuilder() {
-    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      ForEach(this.audio_track, (item: AudioTrack, index: number) => {
-        Row() { // 音轨
-          Text(`${item.index} : ${item.name}(${VideoOperateUtil.getLanguageName(item.language)})`)
-            .fontSize(18)
-            .height(40)
-            .flexGrow(1)
-            .flexShrink(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .fontColor(this.audio_track_select === index ? $r('app.color.main_color') : $r('app.color.text_color'))
-            .margin({ left: 5 })
-          if (item.mime.split('/')[1] === 'av3a') {
-            Image($r('app.media.audio_vivid_icon'))
-              .attributeModifier(new ImageFancyModifier(10, 85, 30))
-              .width(95)
-          }
-        }
-        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .width('100%')
-        .onClick(() => {
-          this.AudioTrackMenuBuilderState = false;
-          this.avPlayer!.selectTrack(item.index);
-          this.audio_track_select = index;
-        })
-      })
-    }.width(235).onAppear(() => {
-      VideoOperateUtil.audioTrackErrorExecute(this.audio_track)
+    AudioTrackComponent({
+      audio_track: this.audio_track,
+      audio_track_select: this.audio_track_select,
+      onSelect: (index: number) => {
+        this.AudioTrackMenuBuilderState = false;
+        this.avPlayer!.selectTrack(this.audio_track[index].index);
+        this.audio_track_select = index;
+      }
     })
   }
 
   @Builder
   VolumeBuilder() {
-    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      Row() {
-        AVVolumePanel({
-          volumeLevel: this.volume,
-          volumeParameter: {
-            position: {
-              x: 10000,
-              y: 20000
-            }
-          }
-        })
-      }.visibility(Visibility.None)
-
-      Row() {
-        Slider({
-          value: this.volume,
-          min: VideoOperateUtil.min_volume,
-          max: VideoOperateUtil.max_volume,
-          step: 0.1,
-          style: SliderStyle.NONE,
-          direction: Axis.Vertical,
-          reverse: true
-        })
-          .width(40)
-          .height(160)
-          .selectedColor('#e0e0e0')
-          .trackColor(Color.Black)
-          .trackThickness(40)
-          .onChange((value) => {
-            this.volume = value
-          })
+    VolumeButtonComponent({
+      volume: this.volume,
+      onChange: (value: number) => {
+        this.volume = value
       }
-    }.width(40)
+    })
   }
 
   @Builder
-  BrightnessBuilder() {
-    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      Stack() {
-        Column() {
-          Button({ type: ButtonType.Circle, stateEffect: true }) {
-            SymbolGlyph($r('sys.symbol.undo'))
-              .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-              .fontColor(['#f0f0f0'])
-          }
-          .attributeModifier(new ButtonFancyModifier(80, 40))
-          .backgroundColor('#50000000')
-          .backdropBlur(150)
-          .onClick(() => {
-            VideoOperateUtil.setBrightness(-1)
-          })
-
-          Slider({
-            value: this.screenBrightness,
-            min: 0,
-            max: 1,
-            step: 0.1,
-            style: SliderStyle.NONE,
-            direction: Axis.Vertical,
-            reverse: true
-          })
-            .width(40)
-            .height(160)
-            .selectedColor('#e0e0e0')
-            .trackColor(Color.Black)
-            .trackThickness(40)
-            .onChange((value) => {
-              this.screenBrightness = value
-              VideoOperateUtil.setBrightness(value)
-            })
-        }
-      }.width(40)
-    }
-  }
-
-  @Builder
-  PlaybackSpeedMenu() {
+  PlaybackSpeedMenuBuilder() {
     PlaybackSpeedMenuComponent({
       speed: this.speed,
       onSpeedChange: (speed: number) => {
-        this.updatePlaybackSpeed(speed)
+        this.updatePlaybackSpeed(speed) // crash
       }
     })
+  }
+
+  private getPlaybackSpeedMenuBuilder: () => void = () => {
+    this.PlaybackSpeedMenuBuilder()
+  }
+  private getAudioMenuBuilder: () => void = () => {
+    this.AudioTrackMenuBuilder()
   }
 
   private async handleIntelligentSync(videoPos: number, audioPos: number) {
@@ -1437,15 +1011,5 @@ export struct Player { // 播放页
       }
     };
     setTimeout(restore, 30000);
-  }
-
-  private updatePlaybackSpeed(speed: number): void {
-    if (!VideoInfoUtil.video_speed_list.includes(speed)) {
-      speed = 1;
-    }
-    this.avPlayer?.setSpeed(VideoInfoUtil.getVideoSpeed(speed));
-    if (VideoOperateUtil.mIjkMediaPlayerActive) {
-      this.mIjkMediaPlayer?.setSpeed(String(speed));
-    }
   }
 }

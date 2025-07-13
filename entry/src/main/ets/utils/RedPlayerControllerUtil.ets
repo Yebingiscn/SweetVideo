@@ -89,31 +89,29 @@ export default class RedPlayerControllerUtil implements IMediaPlayerStateListene
 
   public getVideoSize() {
     if (this.redPlayerStateHolder && this.player) {
-      let width = this.player.getVideoWidth()
-      let height = this.player.getVideoHeight()
-      this.redPlayerStateHolder.videoWidth = width
-      this.redPlayerStateHolder.videoHeight = height
-      this.redPlayerStateHolder.url = this.player.getUrl()
-      this.redPlayerStateHolder.videoCodec = this.player.getVideoCodecInfo()
-      this.redPlayerStateHolder.audioCodec = this.player.getAudioCodecInfo()
-
-      let screenWidth = display.getDefaultDisplaySync().width
-      let screenHeight = display.getDefaultDisplaySync().height
-
-      this.redPlayerStateHolder.videoViewHeight = this.player.getVideoHeight()
-      let videoRatio = width / height
-      let screenRatio = screenWidth / screenHeight
+      const width = this.player.getVideoWidth();
+      const height = this.player.getVideoHeight();
+      this.redPlayerStateHolder.videoWidth = width;
+      this.redPlayerStateHolder.videoHeight = height;
+      this.redPlayerStateHolder.url = this.player.getUrl();
+      this.redPlayerStateHolder.videoCodec = this.player.getVideoCodecInfo();
+      this.redPlayerStateHolder.audioCodec = this.player.getAudioCodecInfo();
+      const screen = display.getDefaultDisplaySync();
+      const screenWidth = screen.width;
+      const screenHeight = screen.height;
+      const videoRatio = width / height;
+      const screenRatio = screenWidth / screenHeight;
       if (videoRatio > screenRatio) {
-        this.redPlayerStateHolder.videoWidth = screenWidth
-        this.redPlayerStateHolder.videoHeight = this.redPlayerStateHolder.videoWidth * (height / height)
-        this.redPlayerStateHolder.videoViewWidth = screenWidth + 'px'
-        this.redPlayerStateHolder.videoViewHeight = screenWidth / videoRatio + 'px'
+        this.redPlayerStateHolder.videoViewWidth = `${Math.round(screenWidth)}px`;
+        this.redPlayerStateHolder.videoViewHeight = `${Math.round(screenWidth / videoRatio)}px`;
       } else {
-        this.redPlayerStateHolder.videoHeight = screenHeight
-        this.redPlayerStateHolder.videoWidth = this.redPlayerStateHolder.videoHeight * (width / height)
-        this.redPlayerStateHolder.videoViewHeight = screenHeight + 'px'
-        this.redPlayerStateHolder.videoViewWidth = screenHeight * videoRatio + 'px'
+        this.redPlayerStateHolder.videoViewHeight = `${Math.round(screenHeight)}px`;
+        this.redPlayerStateHolder.videoViewWidth = `${Math.round(screenHeight * videoRatio)}px`;
       }
+      const viewWidth = parseFloat(this.redPlayerStateHolder.videoViewWidth);
+      const viewHeight = parseFloat(this.redPlayerStateHolder.videoViewHeight);
+      this.redPlayerStateHolder.videoWidth = viewWidth;
+      this.redPlayerStateHolder.videoHeight = viewHeight;
     }
   }
 

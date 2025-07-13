@@ -1,17 +1,17 @@
-import { VideoList, VideoListController } from "./VideoItemComponent"
-import { VideoMetadata } from "../../interfaces/VideoMetadataInterface"
-import { MaskComponent } from "../MaskComponent"
-import { SideBarController } from "../SideBarComponent/SideBar"
+import { VideoList, VideoListController } from './VideoItemComponent';
+import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
+import { SideBarController } from '../SideBarComponent/SideBar';
 import { ButtonFancyModifier, ShadowModifier, SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil';
-import { SearchComponent } from "../SearchComponent";
-import { PathUtils } from "../../utils/PathUtils";
+import { PathUtils } from '../../utils/PathUtils';
 import SelectFileUtil from '../../utils/SelectFileUtil';
 import Preferences from '../../database/Preferences';
 import ToolsUtil from '../../utils/ToolsUtil';
 import { MenuModifier, SymbolGlyphModifier } from '@kit.ArkUI';
-import DataSyncUtil from '../../utils/DataSyncUtil'
-import { FileFolderDataSource } from "../../utils/DataUtil";
-import { FileFolderMenu } from "../FileFolderComponent/FileFolderMenu";
+import DataSyncUtil from '../../utils/DataSyncUtil';
+import { FileFolderDataSource } from '../../utils/DataUtil';
+import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu';
+import { MaskComponent } from '../SideBarComponent/MaskComponent';
+import { SearchComponent } from './SearchComponent';
 
 
 @Component

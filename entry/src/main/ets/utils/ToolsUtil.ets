@@ -1,7 +1,6 @@
 import promptAction from '@ohos.promptAction';
 import { vibrator } from '@kit.SensorServiceKit';
 import { BusinessError, systemDateTime } from '@kit.BasicServicesKit';
-import VideoInfoUtil from './VideoInfoUtil';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { bundleManager } from '@kit.AbilityKit';
@@ -15,9 +14,10 @@ import Preferences from '../database/Preferences';
 import PrivacySpaceUtil from './PrivacySpaceUtil';
 import FileFolderUtil from './FileFolderUtil';
 import { PathUtils } from './PathUtils';
+import VideoInfoUtil from './VideoInfoUtil';
 
 // 工具类
-class ToolsUtil {
+export class ToolsUtil {
   private splitRegex = /(\d+\.?\d*)/; // 分离数字和文字，排序使用
   private pinyinCache = new WeakMap<VideoMetadata, string>(); // 缓存排序列表
 

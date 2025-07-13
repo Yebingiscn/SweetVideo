@@ -51,8 +51,6 @@ abstract class BaseDataSource<T> implements IDataSource {
     this.notifyDataDelete(index);
   }
 
-
-
   getAllData(): T[] {
     return [...this.data];
   }
@@ -70,10 +68,11 @@ abstract class BaseDataSource<T> implements IDataSource {
 // 具体实现类
 @Observed
 export class VideoDataSource extends BaseDataSource<VideoMetadata> {
-  public refreshData(){
+  public refreshData() {
     const video_meta_data: VideoMetadata[] = Preferences.getVideoMetaData(PathUtils.appContext!)
     this.updateData(video_meta_data)
   }
+
   public deleteUnExistFile(item: VideoMetadata | undefined) {
     DataSyncUtil.editing_video = JSON.stringify(item)
     new Promise<void>((resolve, reject) => {
@@ -102,6 +101,7 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
       }
     });
   }
+
   public deleteDatabyVideoItem(videoMetadata: VideoMetadata): void {
     const index: number = this.data.findIndex(i => i.date === videoMetadata.date)
     this.deleteData(index)

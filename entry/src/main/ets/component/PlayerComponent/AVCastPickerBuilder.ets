@@ -1,4 +1,4 @@
-import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../utils/AttributeModifierUtil'
+import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil'
 
 @Builder
 export function AVCastPickerBuilder(): void {

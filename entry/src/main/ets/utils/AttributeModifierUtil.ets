@@ -27,7 +27,7 @@ export class ImageFancyModifier implements AttributeModifier<ImageAttribute> {
   applyNormalAttribute(attr: ImageAttribute): void {
     attr
       .alt($r("app.media.sweet_video_alt"))
-      .backgroundImageSize(ImageSize.Cover)
+      .backgroundImageSize(ImageSize.Auto)
       .borderRadius(this.borderRadius)
       .width(this.width)
       .height(this.height)

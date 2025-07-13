@@ -29,37 +29,39 @@ class WantProcess {
 
   // 处理拉起链接
   async hasWant(context: Context, pathStack: NavPathStack) {
-    let avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor()
-    let file = fs.openSync(this.want_uri);
-    avMetadataExtractor.fdSrc = file
-    const format = this.want_uri.split('.')[this.want_uri.split('.').length-1]
-    avMetadataExtractor.fetchMetadata(async (_error: BusinessError, metadata: media.AVMetadata) => {
-      let tmp: VideoMetadata = {
-        uri: this.want_uri,
-        title: this.want_uri.split('/')[this.want_uri.split('/').length-1],
-        date: '',
-        size: VideoUtil.getVideoWidthAndHeight(metadata),
-        time: parseInt(metadata.duration || '0'),
-        last_play: 0,
-        format: format,
-        video_size: await VideoUtil.getVideoSize(this.want_uri, true) as string,
-        hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
-      }
-      // 获取默认播放器
-      const defaultPlayer = Preferences.getDefaultPlayer(context)
-      let url = ''
-      // 如果是系统分享（一般都是从图库分享，图库的视频如果使用了高效视频格式或者是 HDR VIVID 需要使用系统播放器才能播
-      if (defaultPlayer === '系统播放器' || this.isSystemShare || tmp.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID) {
-        url = 'Player'
-      } else if (defaultPlayer === '红薯播放器') {
-        url = 'RedPlayer'
-      } else {
-        url = 'FFMpegPlayer'
-      }
-      const playerParams = new PlayerParams(tmp as VideoMetadata, [], undefined)
-      this.want_uri = ''
-      pathStack.pushPathByName(url, playerParams, true)
-    })
+    if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
+      let avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor()
+      let file = fs.openSync(this.want_uri);
+      avMetadataExtractor.fdSrc = file
+      const format = this.want_uri.split('.')[this.want_uri.split('.').length-1]
+      avMetadataExtractor.fetchMetadata(async (_error: BusinessError, metadata: media.AVMetadata) => {
+        let tmp: VideoMetadata = {
+          uri: this.want_uri,
+          title: this.want_uri.split('/')[this.want_uri.split('/').length-1],
+          date: '',
+          size: VideoUtil.getVideoWidthAndHeight(metadata),
+          time: parseInt(metadata.duration || '0'),
+          last_play: 0,
+          format: format,
+          video_size: await VideoUtil.getVideoSize(this.want_uri, true) as string,
+          hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
+        }
+        // 获取默认播放器
+        const defaultPlayer = Preferences.getDefaultPlayer(context)
+        let url = ''
+        // 如果是系统分享（一般都是从图库分享，图库的视频如果使用了高效视频格式或者是 HDR VIVID 需要使用系统播放器才能播
+        if (defaultPlayer === '系统播放器' || this.isSystemShare || tmp.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID) {
+          url = 'Player'
+        } else if (defaultPlayer === '红薯播放器') {
+          url = 'RedPlayer'
+        } else {
+          url = 'FFMpegPlayer'
+        }
+        const playerParams = new PlayerParams(tmp as VideoMetadata, [], undefined)
+        this.want_uri = ''
+        pathStack.pushPathByName(url, playerParams, true)
+      })
+    }
   }
 
   // 跳转外部网页

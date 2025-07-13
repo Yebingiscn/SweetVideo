@@ -2,7 +2,6 @@ import { window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { audio } from '@kit.AudioKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import ToolsUtil from './ToolsUtil';
 import { media } from '@kit.MediaKit';
 import AVSessionUtil from './AVSessionUtil';
 import { PlayerParams } from '../common/PlayerParams';
@@ -21,18 +20,20 @@ import FileFolderUtil from './FileFolderUtil';
 import { AVCastPickerState, avSession, avSession as avSessionManager } from '@kit.AVSessionKit';
 import { PathUtils } from './PathUtils';
 import { LanguageConfig } from '../common/LanguageConfig';
+import ToolsUtil from './ToolsUtil';
 
 // 视频操作类
 class VideoOperateUtil {
   public max_volume: number = 0 // 最大音量
   public min_volume: number = 0 // 最小音量
   public lastSyncTime: number = 0; //最小同步时间
-  public syncCoolDown: number = 1000; // 同步冷却时间1秒
+  public syncCoolDown: number = 3000; // 同步冷却时间
   public driftHistory: number[] = []; // 差异记录用于趋势分析
   public initPinchDistance: number = 0; // 初始双指距离
   public clearSubtitleTimer: number | null = null; // 清除字幕时间
-  public mIjkMediaPlayerActive: boolean = false // 激活增强型解码
   public timePerPixel: number = 300 // 时间调节灵敏度
+  public screenBrightnessTmp: number = 0
+  public volumeTmp: number = 0
   private windowStage: window.WindowStage = AppStorage.get('windowStage') as window.WindowStage;
   private mainWin: window.Window = this.windowStage.getMainWindowSync();
 
@@ -167,7 +168,7 @@ class VideoOperateUtil {
   }
 
   // 保存视频播放进度
-  async saveVideoTime(play_time: number, now_playing: VideoMetadataFromPlayer,
+  saveVideoTime(play_time: number, now_playing: VideoMetadataFromPlayer,
     video_meta_data: VideoMetadata[], context: Context, file_folder: FileFolder) {
     const save_time = play_time < now_playing?.time! * 0.9 ? play_time : 0
     video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)].last_play = save_time

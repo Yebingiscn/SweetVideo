@@ -1,6 +1,6 @@
-import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
-import VideoCardItem from './VideoCardItemComponent'
-import VideoListItem from './VideoListItemComponent'
+import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
+import VideoCardItem from './VideoCardItemComponent';
+import VideoListItem from './VideoListItemComponent';
 import Preferences from '../../database/Preferences';
 import { FileFolderDataSource, VideoDataSource } from '../../utils/DataUtil';
 import { PathUtils } from '../../utils/PathUtils';
@@ -15,7 +15,6 @@ import { MenuModifier } from '../../utils/AttributeModifierUtil';
 import { editMetadataDialog } from '../../component/Dialog//EditMetadataDialog';
 import SubtitleUtil from '../../utils/SubtitleUtil';
 import { FileFolder } from '../../interfaces/FileFolderInterface';
-import FileFolderUtil from '../../utils/FileFolderUtil';
 import { SideBarController } from '../SideBarComponent/SideBar';
 import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu';
 
@@ -74,15 +73,6 @@ export class VideoListController {
     }
   }
 
-  // 通知方法
-  protected notifyDataReloaded(): void {
-    this.listeners.forEach(listener => listener.onDataReloaded());
-  }
-
-  protected notifyDataDelete(index: number): void {
-    this.listeners.forEach(listener => listener.onDataDelete(index));
-  }
-
   updateData(videoDataSource: VideoDataSource): void {
     this.videoDataSource = videoDataSource;
     this.videoMetaDataList = this.videoDataSource.getAllData()
@@ -102,13 +92,21 @@ export class VideoListController {
       this.listScroller.scrollEdge(Edge.Top)
     }
   }
+
+  // 通知方法
+  protected notifyDataReloaded(): void {
+    this.listeners.forEach(listener => listener.onDataReloaded());
+  }
+
+  protected notifyDataDelete(index: number): void {
+    this.listeners.forEach(listener => listener.onDataDelete(index));
+  }
 }
 
 @Component
 export struct VideoList {
   @ObjectLink videoListController: VideoListController
   @ObjectLink fileFolderSource: FileFolderDataSource
-
   sideBarController: SideBarController = new SideBarController()
   searchController: SearchController = new SearchController()
   @State MenuBuilderState: boolean = false
@@ -183,6 +181,7 @@ export struct VideoList {
         .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
         .width('100%')
         .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
+        .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick)
         .swipeAction({
           start: this.itemStart(),
           edgeEffect: SwipeEdgeEffect.Spring

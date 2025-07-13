@@ -1,8 +1,8 @@
-import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
-import { media } from '@kit.MediaKit'
-import VideoInfoUtil from '../utils/VideoInfoUtil'
-import { ImageFancyModifier } from '../utils/AttributeModifierUtil'
-import TimeUtil from '../utils/TimeUtil'
+import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
+import { ImageFancyModifier } from '../../utils/AttributeModifierUtil';
+import { media } from '@kit.MediaKit';
+import VideoInfoUtil from '../../utils/VideoInfoUtil';
+import TimeUtil from '../../utils/TimeUtil';
 
 @Component
 @Reusable

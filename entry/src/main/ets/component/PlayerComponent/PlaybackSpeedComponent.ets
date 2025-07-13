@@ -1,5 +1,5 @@
-import { SelectItemFancyModifier, SelectItemTextFancyModifier } from '../utils/AttributeModifierUtil';
-import VideoInfoUtil from '../utils/VideoInfoUtil';
+import { SelectItemFancyModifier, SelectItemTextFancyModifier } from '../../utils/AttributeModifierUtil';
+import VideoInfoUtil from '../../utils/VideoInfoUtil';
 
 @Component
 export struct PlaybackSpeedMenuComponent {
@@ -21,7 +21,7 @@ export struct PlaybackSpeedMenuComponent {
           .justifyContent(FlexAlign.Start)
           .align(Alignment.Center)
           .onClick(() => {
-            this.onSpeedChange?.(speed); // 触发回调
+            this.onSpeedChange(speed); // 触发回调
           })
         }
         .attributeModifier(new SelectItemFancyModifier(this.speed === speed))

@@ -179,39 +179,43 @@ class SelectFileUtil {
 
   async addFile(context: Context, sandbox_video: string, sandbox_path: string, uri: string,
     video_meta_data: VideoMetadata[], file_folder: FileFolder | undefined) {
-    await ReqPermissionUtil.persistPermission(uri);
-    const avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor();
-    const file = fs.openSync(uri);
-    try {
-      avMetadataExtractor.fdSrc = file;
-      const metadata = await new Promise<media.AVMetadata>((resolve, reject) => {
-        avMetadataExtractor.fetchMetadata((error: BusinessError, metadata: media.AVMetadata) => {
-          error ? reject(error) : resolve(metadata);
+    if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
+      await ReqPermissionUtil.persistPermission(uri);
+      const avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor();
+      const file = fs.openSync(uri);
+      try {
+        avMetadataExtractor.fdSrc = file;
+        const metadata = await new Promise<media.AVMetadata>((resolve, reject) => {
+          avMetadataExtractor.fetchMetadata((error: BusinessError, metadata: media.AVMetadata) => {
+            error ? reject(error) : resolve(metadata);
+          });
         });
-      });
-      let isDuplicate = video_meta_data.some(item => item.title === file.name)
-      if (file_folder) {
-        isDuplicate = file_folder.video_list.some(item => item.title === file.name)
-      }
-      if (!isDuplicate) {
-        if (PrivacySpaceUtil.getPrivacyMode()!) {
-          await this.copyFileToPrivacySpace(context, video_meta_data, uri, sandbox_video,
-            sandbox_path, systemDateTime.getTime(true).toString(), metadata, file)
+        let isDuplicate = false
+        if (file_folder) {
+          isDuplicate = file_folder.video_list.some(item => item.title === file.name)
         } else {
-          const videoInfo =
-            await VideoUtil.setVideoInfo(systemDateTime.getTime(true).toString(), uri, file.name, metadata,
-              sandbox_video, sandbox_path);
-          if (file_folder) {
-            file_folder.video_list.push(videoInfo)
-            FileFolderUtil.updateFileFolder(context, file_folder, file_folder.video_list)
+          isDuplicate = video_meta_data.some(item => item.title === file.name)
+        }
+        if (!isDuplicate) {
+          if (PrivacySpaceUtil.getPrivacyMode()!) {
+            await this.copyFileToPrivacySpace(context, video_meta_data, uri, sandbox_video,
+              sandbox_path, systemDateTime.getTime(true).toString(), metadata, file)
           } else {
-            video_meta_data.push(videoInfo);
-            Preferences.saveVideoMetaData(context, video_meta_data);
+            const videoInfo =
+              await VideoUtil.setVideoInfo(systemDateTime.getTime(true).toString(), uri, file.name, metadata,
+                sandbox_video, sandbox_path);
+            if (file_folder) {
+              file_folder.video_list.push(videoInfo)
+              FileFolderUtil.updateFileFolder(context, file_folder, file_folder.video_list)
+            } else {
+              video_meta_data.push(videoInfo);
+              Preferences.saveVideoMetaData(context, video_meta_data);
+            }
           }
         }
+      } finally {
+        fs.closeSync(file);
       }
-    } finally {
-      fs.closeSync(file);
     }
   }
 

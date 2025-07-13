@@ -73,40 +73,50 @@ class VideoInfoUtil {
   // 设置存储的视频信息
   async setVideoInfo(date: string, uri: string, file_name: string, metadata: media.AVMetadata,
     sandbox_video: string, sandbox_path: string) {
+    let time = '0'
+    let hdr_type = media.HdrType.AV_HDR_TYPE_NONE
+    let duration = '0'
+    if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
+      time = metadata.duration || '0'
+      duration = metadata.duration || '0'
+      hdr_type = metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE
+    }
     let tmp: VideoMetadata = {
       uri: PrivacySpaceUtil.getPrivacyMode()! ? sandbox_video + date : uri,
       title: file_name,
       date: date,
       size: this.getVideoWidthAndHeight(metadata),
-      time: parseInt(metadata.duration || '0'),
+      time: parseInt(time),
       last_play: 0,
       format: file_name.split('.')[file_name.split('.').length-1],
       video_size: await this.getVideoSize(PrivacySpaceUtil.getPrivacyMode()! ? sandbox_video + date : uri,
         true) as string,
-      hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
+      hdr_type: hdr_type,
     }
-    this.getVideoCover(sandbox_path, date, uri, tmp.size, parseInt(metadata.duration || '0'))
+    this.getVideoCover(sandbox_path, date, uri, tmp.size, parseInt(duration))
     return tmp
   }
 
   // 获取视频封面，需要控制并发，不然获取不了
   async getVideoCover(sandbox_path: string, date: string, uri: string, size: number[], time: number) {
-    return this.enqueue(async () => {
-      await ReqPermission.persistPermission(uri);
-      const avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor();
-      const file = fs.openSync(uri);
-      try {
-        avMetadataExtractor.fdSrc = file;
-        const pixelMap = await avMetadataExtractor.fetchAlbumCover();
-        this.saveVideoImg(sandbox_path, date, pixelMap);
-      } catch (error) {
-        console.error(`AlbumCover failed: ${error.message}`);
-        await this.getVideoImage(uri, size, date, sandbox_path, time);
-      } finally {
-        fs.closeSync(file)
-        avMetadataExtractor.release();
-      }
-    });
+    if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
+      return this.enqueue(async () => {
+        await ReqPermission.persistPermission(uri);
+        const avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor();
+        const file = fs.openSync(uri);
+        try {
+          avMetadataExtractor.fdSrc = file;
+          const pixelMap = await avMetadataExtractor.fetchAlbumCover();
+          this.saveVideoImg(sandbox_path, date, pixelMap);
+        } catch (error) {
+          console.error(`AlbumCover failed: ${error.message}`);
+          await this.getVideoImage(uri, size, date, sandbox_path, time);
+        } finally {
+          fs.closeSync(file)
+          avMetadataExtractor.release();
+        }
+      });
+    }
   }
 
   public optimizedFormat(speed: number): string {
@@ -133,21 +143,23 @@ class VideoInfoUtil {
 
   // 视频没有封面设置获取指定时间的截图作为视频封面
   async getVideoImage(uri: string, size: number[], date: string, sandbox_path: string, time: number) {
-    let avImageGenerator: media.AVImageGenerator = await media.createAVImageGenerator();
-    let file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
-    let avFileDescriptor: media.AVFileDescriptor = { fd: file.fd };
-    avImageGenerator.fdSrc = avFileDescriptor
-    let timeUs = (time > 0) ? time * 100 : 0
-    let queryOption = media.AVImageQueryOptions.AV_IMAGE_QUERY_NEXT_SYNC
-    let param: media.PixelMapParams = {
-      width: size[0],
-      height: size[1],
+    if (canIUse('SystemCapability.Multimedia.Media.AVImageGenerator')) {
+      let avImageGenerator: media.AVImageGenerator = await media.createAVImageGenerator();
+      let file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
+      let avFileDescriptor: media.AVFileDescriptor = { fd: file.fd };
+      avImageGenerator.fdSrc = avFileDescriptor
+      let timeUs = (time > 0) ? time * 100 : 0
+      let queryOption = media.AVImageQueryOptions.AV_IMAGE_QUERY_NEXT_SYNC
+      let param: media.PixelMapParams = {
+        width: size[0],
+        height: size[1],
+      }
+      avImageGenerator.fetchFrameByTime(timeUs, queryOption, param).then((pixelMap: PixelMap) => {
+        this.saveVideoImg(sandbox_path, date, pixelMap)
+        avImageGenerator.release()
+        fs.closeSync(file)
+      })
     }
-    avImageGenerator.fetchFrameByTime(timeUs, queryOption, param).then((pixelMap: PixelMap) => {
-      this.saveVideoImg(sandbox_path, date, pixelMap)
-      avImageGenerator.release()
-      fs.closeSync(file)
-    })
   }
 
   // 保存封面，封面获取后复制到应用私有目录下
@@ -165,10 +177,14 @@ class VideoInfoUtil {
 
   // 获取视频长宽
   getVideoWidthAndHeight(metadata: media.AVMetadata) {
-    const isPortrait = metadata.videoOrientation === '90' || metadata.videoOrientation === '270'
-    const width = parseInt(String(isPortrait ? metadata.videoHeight : metadata.videoWidth)) || 0
-    const height = parseInt(String(isPortrait ? metadata.videoWidth : metadata.videoHeight)) || 0
-    return [width, height]
+    if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
+      const isPortrait = metadata.videoOrientation === '90' || metadata.videoOrientation === '270'
+      const width = parseInt(String(isPortrait ? metadata.videoHeight : metadata.videoWidth)) || 0
+      const height = parseInt(String(isPortrait ? metadata.videoWidth : metadata.videoHeight)) || 0
+      return [width, height]
+    } else {
+      return [0, 0]
+    }
   }
 
   // 绑定系统播放倍速库，获取实际倍速

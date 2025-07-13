@@ -1,11 +1,11 @@
 import { PathUtils } from '../../utils/PathUtils';
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
-import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
+import { fileUri } from '@kit.CoreFileKit';
 import { ImageFancyModifier } from '../../utils/AttributeModifierUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
-import DataSyncUtil, { OOBEVersion } from '../../utils/DataSyncUtil';
-import { VideoInfoComponent } from '../../component/VideoInfoComponent';
+import DataSyncUtil from '../../utils/DataSyncUtil';
 import { VideoListController } from './VideoItemComponent';
+import { VideoInfoComponent } from './VideoInfoComponent';
 
 @Component
 export default struct VideoListItem {
@@ -13,12 +13,11 @@ export default struct VideoListItem {
   @Prop index: number
   @Prop videoListController: VideoListController
 
-
   build() {
     Column() {
       Row() {
         Image(fileUri.getUriFromPath(PathUtils.coverPath + this.item.date))
-          .attributeModifier(new ImageFancyModifier(10, 60, 90))
+          .attributeModifier(new ImageFancyModifier(10, 64, 96))
         Column() {
           Row() {
             Text(VideoInfoUtil.getVideoTitle(this.videoListController.videoMetaDataList, this.item))
@@ -51,7 +50,7 @@ export default struct VideoListItem {
         }.alignItems(HorizontalAlign.Start).padding({ left: 15, right: 15 }).width('90%')
       }.justifyContent(FlexAlign.Center)
     }
-    .height(100)
+    .height('auto')
     .justifyContent(FlexAlign.SpaceEvenly)
   }
 }

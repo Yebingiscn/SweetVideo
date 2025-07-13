@@ -1,5 +1,5 @@
 import { curves } from '@kit.ArkUI';
-import { SideBarController } from './SideBarComponent/SideBar';
+import { SideBarController } from './SideBar';
 
 @Component
 export struct MaskComponent {
