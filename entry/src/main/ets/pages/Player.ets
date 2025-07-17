@@ -501,7 +501,6 @@ export struct Player { // 播放页
     NavDestination() {
       SideBarContainer(SideBarContainerType.Overlay) {
         PlayerSideBarComponent({
-          videoListController: new VideoListController(this.video_meta_data),
           sideBarStatusTmp: this.sideBarStatusTmp,
           video_meta_data: this.video_meta_data,
           now_playing: this.now_playing,

@@ -12,17 +12,18 @@ import { FileFolderDataSource } from '../../utils/DataUtil';
 import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu';
 import { MaskComponent } from '../SideBarComponent/MaskComponent';
 import { SearchComponent } from './SearchComponent';
+import { FolderOperator, VideoMetaDataOperator } from '../../database/VideoMetaData';
 
 
 @Component
 export struct VideoView {
-  @ObjectLink videoListController: VideoListController
-  @ObjectLink sideBarController: SideBarController
   searchController: SearchController = new SearchController()
   @Prop loading: boolean = false
   @State is_edit: boolean = false
   @Prop searchValue: string = ''
   @Prop passwd: string = ''
+  @Consume videoListController: VideoListController
+  @Consume sideBarController: SideBarController
   @Consume('pathStack') pathStack: NavPathStack
   @Consume fileFolderSource: FileFolderDataSource
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
@@ -32,15 +33,10 @@ export struct VideoView {
     Stack({ alignContent: Alignment.Top }) { // 内容区
       if (this.sideBarController.mask_state &&
         this.sideBarController.side_bar_mode === SideBarContainerType.Overlay) {
-        MaskComponent({ sideBarController: this.sideBarController })
+        MaskComponent()
       }
       Column() {
-        VideoList({
-          videoListController: this.videoListController,
-          fileFolderSource: this.fileFolderSource,
-          sideBarController: this.sideBarController,
-          searchController: this.searchController,
-        })
+        VideoList()
       }
 
       if (this.videoListController.videoMetaDataList.length == 0) {
@@ -82,12 +78,14 @@ export struct VideoView {
             searchValue: this.searchValue,
             onChange: () => {
               if (this.searchValue === '') {
-                const videoMetaDataList: VideoMetadata[] = Preferences.getVideoMetaData(PathUtils.appContext!)
+                const videoMetaDataList: VideoMetadata[] = FolderOperator.getFolderByName(this.videoListController.folder.name).video_list
                 this.videoListController.videoDataSource.updateData(videoMetaDataList)
+                this.videoListController.updateData(this.videoListController.videoDataSource, this.videoListController.folder)
               } else {
                 const videoMetaDataList: VideoMetadata[] =
-                  SelectFileUtil.getItemFromSearch(this.videoListController.videoMetaDataList, this.searchValue)
+                  SelectFileUtil.getItemFromSearch(FolderOperator.getFolderByName(this.videoListController.folder.name).video_list, this.searchValue)
                 this.videoListController.videoDataSource.updateData(videoMetaDataList)
+                this.videoListController.updateData(this.videoListController.videoDataSource, this.videoListController.folder)
               }
             },
             onSubmit: (value: string) => {
@@ -202,11 +200,11 @@ export struct VideoView {
           this.videoListController.closeMultipleChoose()
           this.videoListController.multipleChooseState = Visibility.None;
           if (DataSyncUtil.delMultipleList.length > 0) {
-            this.videoListController.videoDataSource.refreshData()
+            this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
             const deletePromises = DataSyncUtil.delMultipleList.map(item => {
               return new Promise<void>((resolve, reject) => {
-                DataSyncUtil.editing_video = JSON.stringify(item);
-                this.videoListController.videoDataSource.deleteItem(resolve, reject);
+                DataSyncUtil.editingVideo = JSON.stringify(item);
+                VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource)
               });
             });
             await Promise.all(deletePromises);
@@ -222,10 +220,6 @@ export struct VideoView {
 
   @Builder
   FileFolderMenuBuilder(video_item: VideoMetadata | undefined) {
-    FileFolderMenu({
-      videoListController: this.videoListController,
-      fileFolderSource: this.fileFolderSource,
-      video_item: video_item
-    })
+    FileFolderMenu({ video_item: video_item })
   }
 }

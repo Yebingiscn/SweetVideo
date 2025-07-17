@@ -8,6 +8,8 @@ import RecentPlayUtil from '../utils/RecentPlayUtil';
 import FileFolderUtil from '../utils/FileFolderUtil';
 
 import { fileIo as fs } from '@kit.CoreFileKit';
+import File from '@system.file';
+import { FolderOperator } from '../database/VideoMetaData';
 
 // 基础数据源抽象类（泛型实现）
 abstract class BaseDataSource<T> implements IDataSource {
@@ -68,23 +70,27 @@ abstract class BaseDataSource<T> implements IDataSource {
 // 具体实现类
 @Observed
 export class VideoDataSource extends BaseDataSource<VideoMetadata> {
-  public refreshData() {
-    const video_meta_data: VideoMetadata[] = Preferences.getVideoMetaData(PathUtils.appContext!)
-    this.updateData(video_meta_data)
+  public refreshData(folder: FileFolder) {
+    const videoMetaData: VideoMetadata[] = FolderOperator.getFolderByName(folder.name).video_list
+    this.updateData(videoMetaData)
   }
 
   public deleteUnExistFile(item: VideoMetadata | undefined) {
-    DataSyncUtil.editing_video = JSON.stringify(item)
+    DataSyncUtil.editingVideo = JSON.stringify(item)
     new Promise<void>((resolve, reject) => {
       this.deleteItem(resolve, reject);
     });
   }
 
   async deleteItem(resolve: () => void, reject: (reason?: Error) => void) {
-    let tmp = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata;
+    // 取出editingVideo赋值给tmp
+    let tmp = JSON.parse(DataSyncUtil.editingVideo) as VideoMetadata;
+    // 删除这个editingVideo的字幕
     SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, tmp.date!)
+    //从videoList中找到这个video，然后调用deleteData方法删除
     this.deleteData(this.data.findIndex(i => i.date === tmp.date))
-    this.data = this.data.filter(i => i.date != tmp.date);
+
+    // this.data = this.data.filter(i => i.date != tmp.date);
     RecentPlayUtil.delData(PathUtils.appContext!, tmp) // 删除最近播放的记录
     fs.access(PathUtils.coverPath + tmp.date, (err) => {
       if (!err) { // 文件存在
@@ -93,7 +99,7 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
             reject(new Error(`Error deleting file from sandbox_path: ${unlinkErr.message}`));
             return;
           }
-          Preferences.saveVideoMetaData(PathUtils.appContext!, this.data)
+          // Preferences.saveVideoMetaData(PathUtils.appContext!, this.data)
           resolve(); // 在所有操作完成后调用 resolve
         });
       } else {
@@ -101,20 +107,23 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
       }
     });
   }
-
-  public deleteDatabyVideoItem(videoMetadata: VideoMetadata): void {
-    const index: number = this.data.findIndex(i => i.date === videoMetadata.date)
-    this.deleteData(index)
-  }
 }
 
 @Observed
 export class FileFolderDataSource extends BaseDataSource<FileFolder> {
   async addVideoToFileFolder(video_item: VideoMetadata, item: FileFolder, videoDataSource: VideoDataSource) {
     if (!item.video_list.some(v => v.title === video_item.title)) {
-      this.data = await FileFolderUtil.addVideoInFileFolder(PathUtils.appContext!, video_item!, item.date)
-      videoDataSource.deleteDatabyVideoItem(video_item)
+      this.data = FileFolderUtil.addVideoInFileFolder(PathUtils.appContext!, video_item!, item.date)
+      videoDataSource.deleteUnExistFile(video_item)
       Preferences.saveVideoMetaData(PathUtils.appContext!, videoDataSource.getAllData())
     }
+  }
+
+  getAllFileFolder() {
+    this.updateData(Preferences.getFileFolder(PathUtils.appContext!))
+  }
+
+  getFileFolder(fileFolderName: string): FileFolder {
+    return Preferences.getFileFolder(PathUtils.appContext!).find(item => item.name === fileFolderName)!
   }
 }

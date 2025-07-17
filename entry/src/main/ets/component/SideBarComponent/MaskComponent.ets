@@ -3,7 +3,7 @@ import { SideBarController } from './SideBar';
 
 @Component
 export struct MaskComponent {
-  sideBarController: SideBarController = new SideBarController()
+  @Consume sideBarController: SideBarController
 
   build() {
     Column()

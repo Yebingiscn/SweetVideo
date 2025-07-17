@@ -1,6 +1,6 @@
-import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
-import VideoCardItem from './VideoCardItemComponent';
-import VideoListItem from './VideoListItemComponent';
+import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
+import VideoCardItem from './VideoCardItemComponent'
+import VideoListItem from './VideoListItemComponent'
 import Preferences from '../../database/Preferences';
 import { FileFolderDataSource, VideoDataSource } from '../../utils/DataUtil';
 import { PathUtils } from '../../utils/PathUtils';
@@ -15,8 +15,10 @@ import { MenuModifier } from '../../utils/AttributeModifierUtil';
 import { editMetadataDialog } from '../../component/Dialog//EditMetadataDialog';
 import SubtitleUtil from '../../utils/SubtitleUtil';
 import { FileFolder } from '../../interfaces/FileFolderInterface';
+import FileFolderUtil from '../../utils/FileFolderUtil';
 import { SideBarController } from '../SideBarComponent/SideBar';
 import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu';
+import { FolderOperator, VideoMetaDataOperator } from '../../database/VideoMetaData';
 
 
 @Component
@@ -24,7 +26,6 @@ export struct VideoItem {
   @Prop item: VideoMetadata
   @Prop index: number
   @StorageLink('is_list_display') isListDisplay: boolean = false
-  videoListController: VideoListController = new VideoListController([])
 
   build() {
     Row() {
@@ -32,13 +33,11 @@ export struct VideoItem {
         VideoListItem({
           item: this.item,
           index: this.index,
-          videoListController: this.videoListController
         })
       } else {
         VideoCardItem({
           item: this.item,
           index: this.index,
-          videoListController: this.videoListController
         })
       }
     }
@@ -48,6 +47,7 @@ export struct VideoItem {
 
 @Observed
 export class VideoListController {
+  public folder: FileFolder
   listScroller: ListScroller = new ListScroller()
   videoMetaDataList: VideoMetadata[]
   multipleChooseState: Visibility = Visibility.None
@@ -56,8 +56,9 @@ export class VideoListController {
   videoDataSource: VideoDataSource
   private listeners: DataChangeListener[] = [];
 
-  constructor(videoMetaDataList: VideoMetadata[]) {
-    this.videoMetaDataList = videoMetaDataList
+  constructor(folder: FileFolder) {
+    this.folder = folder
+    this.videoMetaDataList = folder?.video_list || []
     this.videoDataSource = new VideoDataSource(this.videoMetaDataList)
   }
 
@@ -73,9 +74,19 @@ export class VideoListController {
     }
   }
 
-  updateData(videoDataSource: VideoDataSource): void {
+  // 通知方法
+  protected notifyDataReloaded(): void {
+    this.listeners.forEach(listener => listener.onDataReloaded());
+  }
+
+  protected notifyDataDelete(index: number): void {
+    this.listeners.forEach(listener => listener.onDataDelete(index));
+  }
+
+  updateData(videoDataSource: VideoDataSource, folder: FileFolder): void {
     this.videoDataSource = videoDataSource;
-    this.videoMetaDataList = this.videoDataSource.getAllData()
+    this.videoMetaDataList = folder.video_list
+    this.folder = folder
     this.notifyDataReloaded();
   }
 
@@ -92,25 +103,15 @@ export class VideoListController {
       this.listScroller.scrollEdge(Edge.Top)
     }
   }
-
-  // 通知方法
-  protected notifyDataReloaded(): void {
-    this.listeners.forEach(listener => listener.onDataReloaded());
-  }
-
-  protected notifyDataDelete(index: number): void {
-    this.listeners.forEach(listener => listener.onDataDelete(index));
-  }
 }
 
 @Component
 export struct VideoList {
-  @ObjectLink videoListController: VideoListController
-  @ObjectLink fileFolderSource: FileFolderDataSource
-  sideBarController: SideBarController = new SideBarController()
+  @Consume videoListController: VideoListController
+  @Consume fileFolderSource: FileFolderDataSource
+  @Consume sideBarController: SideBarController
   searchController: SearchController = new SearchController()
   @State MenuBuilderState: boolean = false
-  @State file_folder_list: FileFolder[] = []
   @StorageLink('is_list_display') isListDisplay: boolean = false
   @Consume('pathStack') pathStack: NavPathStack
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
@@ -126,22 +127,8 @@ export struct VideoList {
         if (!confirm_del) {
           return
         }
-        await new Promise<void>((resolve, reject) => {
-          this.videoListController.videoDataSource.deleteItem(resolve, reject);
-        });
-        if (DataSyncUtil.delMultipleList.length > 0) {
-          this.videoListController.videoDataSource.refreshData()
-          const deletePromises = DataSyncUtil.delMultipleList.map(item => {
-            return new Promise<void>((resolve, reject) => {
-              DataSyncUtil.editing_video = JSON.stringify(item);
-              this.videoListController.videoDataSource.deleteItem(resolve, reject);
-              this.videoListController.closeMultipleChoose!()
-            });
-          });
-          await Promise.all(deletePromises);
-        } else {
-          this.videoListController.closeMultipleChoose!()
-        }
+        await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource)
+        this.videoListController.closeMultipleChoose!()
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -151,7 +138,7 @@ export struct VideoList {
         if (!title?.trim()) {
           return;
         } // 更严格的空值判断
-        const editingVideo = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata;
+        const editingVideo = JSON.parse(DataSyncUtil.editingVideo) as VideoMetadata;
         const targetIndex = SelectFileUtil.getItemIndex(this.videoListController.videoMetaDataList, editingVideo);
         if (targetIndex === -1) {
           return;
@@ -174,14 +161,12 @@ export struct VideoList {
           VideoItem({
             item: item,
             index: index,
-            videoListController: this.videoListController
           })
         }
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
         .width('100%')
         .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
-        .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick)
         .swipeAction({
           start: this.itemStart(),
           edgeEffect: SwipeEdgeEffect.Spring
@@ -189,7 +174,7 @@ export struct VideoList {
         .onClick(async () => {
           if (!this.videoListController.videoMetaDataList.some(i => i.date == item?.date!)) {
             ToolsUtil.showToast('数据正在加载中，请重试')
-            this.videoListController.videoDataSource.refreshData()
+            this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
             return
           }
           if (this.MenuBuilderState || this.videoListController.multipleChooseState != Visibility.None) {
@@ -201,7 +186,7 @@ export struct VideoList {
           ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.videoListController.videoMetaDataList) :
           this.videoListController.videoDataSource.deleteUnExistFile(item)
         })
-      }, (item: VideoMetadata) => JSON.stringify(item))
+      }, (item: VideoMetadata) => JSON.stringify(item.uri))
     }
     .cachedCount(3)
     .contentStartOffset(this.topSafeHeight + 55)
@@ -230,7 +215,7 @@ export struct VideoList {
           let target_item = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
           if (!this.videoListController.videoMetaDataList.find(i => i.date == item?.date!)) {
             ToolsUtil.showToast('数据正在加载中，请重试')
-            this.videoListController.videoDataSource.refreshData()
+            this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
             return
           }
           await ToolsUtil.isFileExist(target_item) ?
@@ -244,7 +229,7 @@ export struct VideoList {
           let target_item = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
           if (!this.videoListController.videoMetaDataList.find(i => i.date == item?.date!)) {
             ToolsUtil.showToast('数据正在加载中，请重试')
-            this.videoListController.videoDataSource.refreshData()
+            this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
             return
           }
           await ToolsUtil.isFileExist(target_item) ?
@@ -254,19 +239,22 @@ export struct VideoList {
       })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
         .onClick(() => {
-          DataSyncUtil.editing_video = JSON.stringify(item)
+          DataSyncUtil.editingVideo = JSON.stringify(item)
           this.VideoDetailDialog.open()
         })
+      // TODO 调整文件夹转移
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
         content: "添加到文件夹",
         builder: (): void => this.FileFolderMenuBuilder(item)
       })
+      // TODO  调整删除的方法
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
       })
         .onClick(() => {
-          DataSyncUtil.editing_video = JSON.stringify(item)
+          // 将这个item传递给editingVideo
+          DataSyncUtil.editingVideo = JSON.stringify(item)
           this.delConfirmDialog.open()
         })
       MenuItem({
@@ -296,7 +284,7 @@ export struct VideoList {
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')), content: $r('app.string.edit')
       })
         .onClick(() => {
-          DataSyncUtil.editing_video = JSON.stringify(item)
+          DataSyncUtil.editingVideo = JSON.stringify(item)
           this.editMetadataDialogController.open()
         })
       MenuItem({
@@ -324,10 +312,6 @@ export struct VideoList {
 
   @Builder
   FileFolderMenuBuilder(video_item: VideoMetadata | undefined) {
-    FileFolderMenu({
-      videoListController: this.videoListController,
-      fileFolderSource: this.fileFolderSource,
-      video_item: video_item
-    })
+    FileFolderMenu({ video_item: video_item })
   }
 }

@@ -156,7 +156,7 @@ export struct PrivacySpace { // 隐私空间页
       })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
         .onClick(() => {
-          DataSyncUtil.editing_video = JSON.stringify(item!)
+          DataSyncUtil.editingVideo = JSON.stringify(item!)
           this.VideoDetailDialog.open()
         })
       MenuItem({

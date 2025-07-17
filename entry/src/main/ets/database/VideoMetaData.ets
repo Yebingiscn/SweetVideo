@@ -1,0 +1,51 @@
+import { FileFolder } from "../interfaces/FileFolderInterface";
+import { VideoMetadata } from "../interfaces/VideoMetadataInterface";
+import { PathUtils } from "../utils/PathUtils";
+import Preferences from "./Preferences";
+import PreferencesUtil from "../utils/PreferencesUtil";
+import { VideoListController } from "../component/VideoItemComponent/VideoItemComponent";
+import FileFolderUtil from "../utils/FileFolderUtil";
+import { FileFolderDataSource } from "../utils/DataUtil";
+import { systemDateTime } from "@kit.BasicServicesKit";
+
+export class VideoMetaDataOperator {
+  static getVideoMetaDataByFolderName(folderName: string): VideoMetadata[] {
+    return Preferences.getFileFolder(PathUtils.appContext!).filter(item => item.name === folderName)[0].video_list
+  }
+
+  static migrationRootVideoMetaToRootFolder() {
+    // 判断首页Folder存不存在, 迁移数据到FileFolder中
+    const folder = Preferences.getFileFolder(PathUtils.appContext!).find(item => item.name === '首页')
+    if (!folder) {
+      const rootFolder: FileFolder = {
+        name: '首页',
+        date: systemDateTime.getTime(true).toString(),
+        video_list: PreferencesUtil.getPreferencesValue(PathUtils.appContext!, 'sweet_video', 'recent_video_meta_data',
+          []) as VideoMetadata[]
+      }
+      Preferences.saveFileFolder(PathUtils.appContext!,
+        [rootFolder, ...Preferences.getFileFolder(PathUtils.appContext!)])
+    }
+  }
+
+  static async deleteItem(videoListController: VideoListController, fileFolderSource: FileFolderDataSource) {
+    await new Promise<void>((resolve, reject) => {
+      videoListController.videoDataSource.deleteItem(resolve, reject);
+      videoListController.updateData(videoListController.videoDataSource, videoListController.folder)
+      //找到这个folder,修改video_list并且保存
+      videoListController.folder.video_list = videoListController.videoDataSource.getAllData()
+      FileFolderUtil.updateFileFolderList(PathUtils.appContext!, videoListController.folder)
+      fileFolderSource.updateData(Preferences.getFileFolder(PathUtils.appContext!))
+    });
+  }
+}
+
+export class FolderOperator {
+  static getFolderByName(folderName: string): FileFolder {
+    return Preferences.getFileFolder(PathUtils.appContext!).find(item => item.name === folderName)!
+  }
+
+  static saveFolders(folders: FileFolder[]) {
+    Preferences.saveFileFolder(PathUtils.appContext!, folders)
+  }
+}

@@ -17,7 +17,6 @@ import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 import ScreenUtil from '../utils/ScreenUtil';
 import { SettingsPage } from './Setting';
 import { AboutApp } from './AboutApp';
-// import { FileFolderContent } from './FileFolderContent';
 import { FFMpegPlayer } from './FFMpegPlayer';
 import { Player } from './Player';
 import { RecentPlay } from './RecentPlay';
@@ -33,8 +32,10 @@ import { VideoListController } from '../component/VideoItemComponent/VideoItemCo
 import SubtitleUtil from '../utils/SubtitleUtil';
 import { AppInfo, SideBarController } from '../component/SideBarComponent/SideBar';
 import { VideoView } from '../component/VideoItemComponent/VideoViewComponent';
-import { FileFolderContent } from './FileFolderContent';
 import { ImportProgressComponent } from '../component/VideoItemComponent/ImportProgressComponent';
+import { FolderOperator, VideoMetaDataOperator } from '../database/VideoMetaData';
+import File from '@system.file';
+
 
 @Builder
 export function IndexBuilder() {
@@ -46,22 +47,36 @@ export function IndexBuilder() {
 struct Index {
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
-  @State video_meta_data: VideoMetadata[] = []
-  @State videoDataSource: VideoDataSource = new VideoDataSource([])
-  @Provide fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   @State passwd: string = 'passwd'
   @State list_empty_item: string[] = ['']
   @State loading: boolean = false
   @State current_import: number = 0
   @State import_sum: number = 0
   @State file_folder_list: FileFolder[] = []
-  @StorageLink('is_list_display') is_list_display: boolean = false
+  @State folderLists: string[] = []
+  @StorageLink('is_list_display') isListDisplay: boolean = false
   @StorageProp('screen_width') screen_width: number = 0
   @StorageProp('screen_height') screen_height: number = 0
   @State searchValue: string = ''
   @Provide('pathStack') pathStack: NavPathStack = new NavPathStack()
-  @State videoListController: VideoListController = new VideoListController([])
-  @State @Watch('SyncSideBarAndMaskState') sideBarController: SideBarController = new SideBarController()
+  @Provide videoListController: VideoListController =
+    new VideoListController(Preferences.getFileFolder(PathUtils.appContext!)[0])
+  @Watch('syncVideoDataSourceToVideoListController') @State videoDataSource: VideoDataSource =
+    new VideoDataSource(this.videoListController.folder.video_list)
+  @Provide fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
+  @Provide @Watch('SyncSideBarAndMaskState') sideBarController: SideBarController = new SideBarController()
+
+  SyncSideBarAndMaskState(): void {
+    if (this.sideBarController.sideBarStatusTmp == Visibility.Hidden) {
+      this.sideBarController.mask_state = false
+    }
+  }
+
+  syncVideoDataSourceToVideoListController(): void {
+    const folder = FolderOperator.getFolderByName(this.videoListController.folder.name)
+    this.videoListController.updateData(this.videoDataSource, folder)
+  }
+
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: addFileFolderNameDialog({
       confirm: async (file_folder_name: string | undefined) => {
@@ -81,51 +96,48 @@ struct Index {
         }
         this.file_folder_list =
           await FileFolderUtil.changeFileFolderName(PathUtils.appContext!,
-            JSON.parse(DataSyncUtil.editing_video) as FileFolder,
+            JSON.parse(DataSyncUtil.editingVideo) as FileFolder,
             file_folder, this.file_folder_list)
         this.fileFolderSource.updateData(this.file_folder_list)
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
 
-  SyncSideBarAndMaskState(): void {
-    if (this.sideBarController.sideBarStatusTmp == Visibility.Hidden) {
-      this.sideBarController.mask_state = false
-    }
-  }
-
   @Builder
   FileFolderSelectMenu(file_folder: FileFolder) {
-    Menu() {
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.trash_fill")),
-        content: $r('app.string.delete')
-      })
-        .onClick(async () => {
-          DataSyncUtil.delMultipleList = Array.from(file_folder.video_list);
-          this.videoListController.videoDataSource.refreshData()
-          const deletePromises = DataSyncUtil.delMultipleList.map(item => {
-            return new Promise<void>((resolve, reject) => {
-              DataSyncUtil.editing_video = JSON.stringify(item);
-              this.deleteItem(resolve, reject);
-              this.videoListController.closeMultipleChoose()
-            });
-          });
-          await Promise.all(deletePromises)
-          this.fileFolderSource.deleteData(this.file_folder_list.findIndex(i => i.date === file_folder.date))
-          this.file_folder_list =
-            await FileFolderUtil.deleteFileFolder(PathUtils.appContext!, file_folder, this.file_folder_list)
+    if (file_folder.name !== '首页') {
+      Menu() {
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.trash_fill")),
+          content: $r('app.string.delete')
         })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
-        content: $r('app.string.edit')
-      }).onClick(() => {
-        DataSyncUtil.editing_video = JSON.stringify(file_folder);
-        this.editFileFolderNameDialogController.open()
+          .onClick(async () => {
+            DataSyncUtil.delMultipleList = Array.from(file_folder.video_list);
+            this.videoDataSource.refreshData(file_folder)
+            const deletePromises = DataSyncUtil.delMultipleList.map(item => {
+              return new Promise<void>((resolve, reject) => {
+                DataSyncUtil.editingVideo = JSON.stringify(item);
+                VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource)
+              });
+            });
+            await Promise.all(deletePromises)
+            this.videoListController.closeMultipleChoose()
+            this.fileFolderSource.deleteData(this.file_folder_list.findIndex(i => i.date === file_folder.date))
+            this.file_folder_list =
+              await FileFolderUtil.deleteFileFolder(PathUtils.appContext!, file_folder, this.file_folder_list)
+          })
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
+          content: $r('app.string.edit')
+        })
+          .onClick(() => {
+            DataSyncUtil.editingVideo = JSON.stringify(file_folder);
+            this.editFileFolderNameDialogController.open()
+          })
+      }.attributeModifier(new MenuModifier()).onAppear(() => {
+        ToolsUtil.startVibration()
       })
-    }.attributeModifier(new MenuModifier()).onAppear(() => {
-      ToolsUtil.startVibration()
-    })
+    }
   }
 
   @Builder
@@ -159,28 +171,6 @@ struct Index {
     }.attributeModifier(new MenuModifier())
   }
 
-  async deleteItem(resolve: () => void, reject: (reason?: Error) => void) {
-    let tmp = JSON.parse(DataSyncUtil.editing_video) as VideoMetadata;
-    SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, tmp.date!)
-    this.videoDataSource.deleteData(this.video_meta_data.findIndex(i => i.date === tmp.date))
-    this.video_meta_data = this.video_meta_data.filter(i => i.date != tmp.date);
-    RecentPlayUtil.delData(PathUtils.appContext!, tmp) // 删除最近播放的记录
-    fs.access(PathUtils.coverPath + tmp.date, (err) => {
-      if (!err) { // 文件存在
-        fs.unlink(PathUtils.coverPath + tmp.date, (unlinkErr) => {
-          if (unlinkErr) {
-            reject(new Error(`Error deleting file from sandbox_path: ${unlinkErr.message}`));
-            return;
-          }
-          Preferences.saveVideoMetaData(PathUtils.appContext!, this.video_meta_data)
-          resolve(); // 在所有操作完成后调用 resolve
-        });
-      } else {
-        resolve(); // 文件不存在时直接调用 resolve
-      }
-    });
-  }
-
   onPageShow(): void {
     setTimeout(() => { // 临时解决 system share 获取 want 没有 onPageShow 跑的快的问题
       if (WantProcessUtil.has_new_want) {
@@ -193,13 +183,16 @@ struct Index {
     SelectFileUtil.getDownloadUri()
     ScreenUtil.init(PathUtils.appContext!)
     await VideoOperateUtil.initSetting(PathUtils.appContext!)
+    VideoMetaDataOperator.migrationRootVideoMetaToRootFolder()
     this.passwd = Preferences.getPassword(PathUtils.appContext!)
     ToolsUtil.isSubtitleFileFolderExist(PathUtils.videoPath, PathUtils.subtitlePath)
-    this.video_meta_data = Preferences.getVideoMetaData(PathUtils.appContext!)
-    this.videoDataSource = new VideoDataSource(this.video_meta_data)
-    this.videoListController = new VideoListController(this.video_meta_data)
+
     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
     this.fileFolderSource.updateData(this.file_folder_list)
+    this.videoDataSource.updateData(this.file_folder_list[0].video_list)
+
+    this.videoListController.updateData(this.videoDataSource, this.file_folder_list[0])
+
     if (Preferences.getOOBEVersion(PathUtils.appContext!) < OOBEVersion) {
       let controller = new CustomDialogController({
         builder: PrivacyPolicyDialog({
@@ -234,13 +227,13 @@ struct Index {
     this.current_import = 0;
     try {
       await FileProcessorUtil.processFilesConcurrently(
-        fileList, PathUtils.appContext!, PathUtils.videoPath, PathUtils.coverPath, this.video_meta_data,
+        fileList, PathUtils.appContext!, PathUtils.videoPath, PathUtils.coverPath, this.videoDataSource.getAllData(),
         (increment: number) => {
           this.current_import += increment;
         },
         fileFolder
       );
-      this.videoListController.videoDataSource.refreshData()
+      this.videoDataSource.refreshData(fileFolder!)
       ToolsUtil.showToast(
         `${PathUtils.appContext!.resourceManager.getStringSync($r('app.string.add_time_info'))}${this.import_sum}`
       );
@@ -252,9 +245,9 @@ struct Index {
   }
 
   deleteUnExistFile(item: VideoMetadata | undefined) {
-    DataSyncUtil.editing_video = JSON.stringify(item)
+    DataSyncUtil.editingVideo = JSON.stringify(item)
     new Promise<void>((resolve, reject) => {
-      this.deleteItem(resolve, reject);
+      VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource)
     });
   }
 
@@ -309,14 +302,16 @@ struct Index {
               .backgroundColor($r('app.color.start_window_background_blur'))
               .borderRadius(16)
 
+              //文件夹列表
               List() {
-                LazyForEach(this.fileFolderSource, (item: FileFolder) => {
+                LazyForEach(this.fileFolderSource, (folder: FileFolder) => {
                   ListItem() {
                     Button({ type: ButtonType.Normal, stateEffect: true }) {
                       Row() {
-                        SymbolGlyph($r('sys.symbol.folder'))
+                        SymbolGlyph(this.videoListController.folder.name === folder.name ?
+                        $r('sys.symbol.doc_plaintext_and_folder') : $r('sys.symbol.folder'))
                           .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                        Text(item.name)
+                        Text(folder.name)
                           .fontSize(15)
                           .margin({ left: 10, right: 12 })
                       }
@@ -327,12 +322,20 @@ struct Index {
                     .animation({ duration: 300, curve: Curve.Ease })
                   }
                   .onClick(() => {
-                    ToolsUtil.routerToFileFolder(this.pathStack, item)
+                    if (this.videoListController.folder.name === folder.name) {
+                      return
+                    }
+                    this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
+                    this.fileFolderSource.updateData(this.file_folder_list)
+                    const currentFolder = this.fileFolderSource.getFileFolder(folder.name)
+                    this.videoDataSource.updateData(currentFolder.video_list)
+                    this.videoListController.updateData(this.videoDataSource, currentFolder!)
+
+                    this.sideBarController.closeSideBar(true)
                   })
-                  .bindContextMenu(this.FileFolderSelectMenu(item), ResponseType.LongPress)
-                  .bindContextMenu(this.FileFolderSelectMenu(item), ResponseType.RightClick)
+                  .bindContextMenu(this.FileFolderSelectMenu(folder), ResponseType.LongPress)
                   .height(60)
-                }, (item: FileFolder) => item.date)
+                }, (folder: FileFolder) => folder.name)
               }
               .borderRadius(16)
               .width('100%')
@@ -415,8 +418,6 @@ struct Index {
             .height('100%')
           }
           VideoView({
-            videoListController: this.videoListController,
-            sideBarController: this.sideBarController,
             loading: this.loading,
             passwd: this.passwd
           })
@@ -424,7 +425,7 @@ struct Index {
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
           const width = Number(newValue.width);
           // 增加判断，旋转时保持滚动位置不变
-          this.videoListController.refresh(width, this.is_list_display)
+          this.videoListController.refresh(width, this.isListDisplay)
         })
         .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
           if (event) {
@@ -468,10 +469,10 @@ struct Index {
     .hideTitleBar(true).mode(NavigationMode.Stack).navDestination(this.Pages)
     .onNavBarStateChange((isVisible: boolean) => {
       if (isVisible) {
-        this.videoListController.videoDataSource.refreshData()
+        this.videoDataSource.refreshData(this.videoListController.folder)
         this.passwd = Preferences.getPassword(PathUtils.appContext!)
         // 增加判断，旋转时保持滚动位置不变
-        this.videoListController.refresh(this.screen_width, this.is_list_display)
+        this.videoListController.refresh(this.screen_width, this.isListDisplay)
       }
     })
   }
@@ -482,8 +483,6 @@ struct Index {
       SettingsPage()
     } else if (name == 'AboutPage') {
       AboutApp()
-    } else if (name == 'FileFolderContent') {
-      FileFolderContent()
     } else if (name == 'Player') {
       Player()
     } else if (name == 'FFMpegPlayer') {

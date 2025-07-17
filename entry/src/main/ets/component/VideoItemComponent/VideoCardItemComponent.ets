@@ -1,9 +1,9 @@
 import { PathUtils } from '../../utils/PathUtils';
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
-import { fileUri } from '@kit.CoreFileKit';
+import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
 import { ImageFancyModifier } from '../../utils/AttributeModifierUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
-import DataSyncUtil from '../../utils/DataSyncUtil';
+import DataSyncUtil, { OOBEVersion } from '../../utils/DataSyncUtil';
 import { VideoListController } from './VideoItemComponent';
 import { VideoInfoComponent } from './VideoInfoComponent';
 
@@ -11,7 +11,8 @@ import { VideoInfoComponent } from './VideoInfoComponent';
 export default struct VideoCardItem {
   @Prop item: VideoMetadata
   @Prop index: number
-  @Prop videoListController: VideoListController
+  @Consume videoListController: VideoListController
+
 
   build() {
     Column() {
@@ -21,14 +22,15 @@ export default struct VideoCardItem {
           topRight: 10,
           bottomLeft: 10,
           bottomRight: 10
-        }, 'auto', 'auto'))
+        }, 60, 200))
         .width('100%')
+        .objectFit(ImageFit.Auto)
       Column() {
         Row() {
-          Text(VideoInfoUtil.getVideoTitle(this.videoListController.videoMetaDataList, this.item))
+          Text(VideoInfoUtil.getVideoTitle(this.videoListController.videoDataSource.getAllData(), this.item))
             .fontSize(15)
             .fontWeight(FontWeight.Medium)
-            .maxLines(5)// 减少行数以适应卡片布局
+            .maxLines(1)// 减少行数以适应卡片布局
             .textAlign(TextAlign.Center)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .layoutWeight(1)// 占据剩余空间

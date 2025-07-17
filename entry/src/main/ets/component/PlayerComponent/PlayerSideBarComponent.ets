@@ -10,7 +10,7 @@ import { ImageFancyModifier } from '../../utils/AttributeModifierUtil'
 
 @Component
 export struct PlayerSideBarComponent {
-  @Prop videoListController: VideoListController
+  @Consume videoListController: VideoListController
   @Link sideBarStatusTmp: Visibility
   @Prop video_meta_data: VideoMetadata[]
   @Prop now_playing: VideoMetadataFromPlayer

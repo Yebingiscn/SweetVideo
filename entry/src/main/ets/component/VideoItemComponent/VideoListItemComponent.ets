@@ -11,7 +11,7 @@ import { VideoInfoComponent } from './VideoInfoComponent';
 export default struct VideoListItem {
   @Prop item: VideoMetadata
   @Prop index: number
-  @Prop videoListController: VideoListController
+  @Consume videoListController: VideoListController
 
   build() {
     Column() {
@@ -20,12 +20,13 @@ export default struct VideoListItem {
           .attributeModifier(new ImageFancyModifier(10, 64, 96))
         Column() {
           Row() {
-            Text(VideoInfoUtil.getVideoTitle(this.videoListController.videoMetaDataList, this.item))
+            Text(VideoInfoUtil.getVideoTitle(this.videoListController.videoDataSource.getAllData(), this.item))
               .fontSize(15)
               .fontWeight(FontWeight.Medium)
               .maxLines(3)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .width(this.videoListController.multipleChooseState === Visibility.None ? '90%' : '75%')
+              .width('75%')
+              // .width(this.videoListController.multipleChooseState === Visibility.None ? '90%' : '75%')
               .wordBreak(WordBreak.BREAK_ALL)
             Checkbox({ name: 'check_box: ' + this.index, group: 'checkboxGroup' })
               .width(30)

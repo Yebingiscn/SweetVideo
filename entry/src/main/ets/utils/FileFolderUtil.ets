@@ -7,7 +7,12 @@ import { systemDateTime } from '@kit.BasicServicesKit'
 
 // 文件夹类
 class FileFolderUtil {
-  async createNewFolder(context: Context, folder_name: string): Promise<FileFolder[]> {
+  static getAllFolder(context: Context): FileFolder[] {
+    return Preferences.getFileFolder(context) as FileFolder[]
+  }
+
+  //新建文件夹
+  static async createNewFolder(context: Context, folder_name: string): Promise<FileFolder[]> {
     const new_folder: FileFolder = {
       name: folder_name,
       date: systemDateTime.getTime(true).toString(),
@@ -24,7 +29,8 @@ class FileFolderUtil {
     }
   }
 
-  async addVideoInFileFolder(context: Context, video_meta_data: VideoMetadata, file_folder_date: string) {
+  // 视频添加进文件夹
+  static addVideoInFileFolder(context: Context, video_meta_data: VideoMetadata, file_folder_date: string) {
     let file_folder_list = Preferences.getFileFolder(context) as FileFolder[]
     let file_folder = file_folder_list.find(i => i.date === file_folder_date)
     file_folder?.video_list.push(video_meta_data)
@@ -32,13 +38,15 @@ class FileFolderUtil {
     return file_folder_list
   }
 
-  async deleteFileFolder(context: Context, file_folder: FileFolder, file_folder_list: FileFolder[]) {
+  // 删除文件夹
+  static async deleteFileFolder(context: Context, file_folder: FileFolder, file_folder_list: FileFolder[]) {
     file_folder_list = file_folder_list.filter(i => i.date !== file_folder.date)
     Preferences.saveFileFolder(context, file_folder_list)
     return file_folder_list
   }
 
-  async changeFileFolderName(context: Context, file_folder: FileFolder, new_file_folder_name: string,
+  //改变文件夹名称
+  static async changeFileFolderName(context: Context, file_folder: FileFolder, new_file_folder_name: string,
     file_folder_list: FileFolder[]) {
     file_folder.name = new_file_folder_name
     file_folder_list = file_folder_list.filter(i => i.date !== file_folder.date)
@@ -47,12 +55,14 @@ class FileFolderUtil {
     return file_folder_list
   }
 
-  async updateFileFolder(context: Context, file_folder: FileFolder, new_video_meta_data_list: VideoMetadata[]) {
+  // 更新文件夹内视频
+  static async updateFileFolder(context: Context, file_folder: FileFolder, new_video_meta_data_list: VideoMetadata[]) {
     file_folder.video_list = new_video_meta_data_list
-    this.updateFileFolderList(context, file_folder)
+    FileFolderUtil.updateFileFolderList(context, file_folder)
   }
 
-  async updateFileFolderList(context: Context, file_folder: FileFolder) {
+  // 更新文件夹所有内容
+  static async updateFileFolderList(context: Context, file_folder: FileFolder) {
     let file_folder_list = Preferences.getFileFolder(context)
     file_folder_list = file_folder_list.filter(i => i.date !== file_folder?.date)
     file_folder_list.push(file_folder)
@@ -60,4 +70,4 @@ class FileFolderUtil {
   }
 }
 
-export default new FileFolderUtil()
+export default FileFolderUtil

@@ -139,21 +139,6 @@ export class ToolsUtil {
     }
   }
 
-  // 跳转到文件夹
-  async routerToFileFolder(pathStack: NavPathStack, file_folder: FileFolder) {
-    pathStack.pushPathByName('FileFolderContent', file_folder, true)
-  }
-
-  //从文件夹点击视频进入视频播放器
-  async routerToVideoFromFileFolder(pathStack: NavPathStack, uri: string,
-    item: VideoMetadata, file_folder: FileFolder) {
-    if (VideoInfoUtil.videoWidthAndHeightFormat(String(item?.size)) === '0 x 0') {
-      this.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.video_error')))
-      uri = 'FFMpegPlayer'
-    }
-    const playerParams = new PlayerParams(item, file_folder.video_list, file_folder)
-    pathStack.pushPathByName(uri, playerParams, true)
-  }
 
   // 点击视频跳转到播放器
   async routerWhere(pathStack: NavPathStack, uri: string, item: VideoMetadata, list: VideoMetadata[]) {
