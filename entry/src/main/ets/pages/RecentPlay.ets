@@ -4,6 +4,7 @@ import ToolsUtil from '../utils/ToolsUtil';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { PathUtils } from '../utils/PathUtils';
 import { ListView } from '../component/PlayerComponent/PlayerSideBarComponent';
+import { SymbolGlyphModifier } from '@kit.ArkUI';
 
 @Component
 export struct RecentPlay { // 最近播放页
@@ -25,17 +26,15 @@ export struct RecentPlay { // 最近播放页
 
   @Builder
   MenuBuilder(item: VideoMetadata | undefined) {
-    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-      Menu() {
-        MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(async () => {
-          this.MenuBuilderState = false
-          setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-            await ToolsUtil.isFileExist(item) ?
-            ToolsUtil.routerWhere(this.pathStack, 'FFMpegPlayer', item!, this.recent_video_meta_data) :
-            this.delData(PathUtils.appContext!, item!)
-          }, 200)
-        })
-      }.font({ size: 15, weight: FontWeight.Normal })
+    Menu() {
+      MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(async () => {
+        this.MenuBuilderState = false
+        setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
+          await ToolsUtil.isFileExist(item) ?
+          ToolsUtil.routerWhere(this.pathStack, 'FFMpegPlayer', item!, this.recent_video_meta_data) :
+          this.delData(PathUtils.appContext!, item!)
+        }, 200)
+      })
 
       MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
         this.MenuBuilderState = false
@@ -45,11 +44,14 @@ export struct RecentPlay { // 最近播放页
           this.delData(PathUtils.appContext!, item!)
         }, 200)
       })
-      MenuItem({ startIcon: $r('sys.symbol.trash_fill'), content: $r('app.string.delete') }).onClick(() => {
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')),
+        content: $r('app.string.delete')
+      }).onClick(() => {
         this.MenuBuilderState = false
         this.delData(PathUtils.appContext!, item!)
       })
-    }.width(150).onAppear(() => {
+    }.onAppear(() => {
       ToolsUtil.startVibration()
       this.MenuBuilderState = true
     })

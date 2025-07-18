@@ -1,6 +1,6 @@
-import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
-import VideoCardItem from './VideoCardItemComponent'
-import VideoListItem from './VideoListItemComponent'
+import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
+import VideoCardItem from './VideoCardItemComponent';
+import VideoListItem from './VideoListItemComponent';
 import Preferences from '../../database/Preferences';
 import { FileFolderDataSource, VideoDataSource } from '../../utils/DataUtil';
 import { PathUtils } from '../../utils/PathUtils';
@@ -15,10 +15,9 @@ import { MenuModifier } from '../../utils/AttributeModifierUtil';
 import { editMetadataDialog } from '../../component/Dialog//EditMetadataDialog';
 import SubtitleUtil from '../../utils/SubtitleUtil';
 import { FileFolder } from '../../interfaces/FileFolderInterface';
-import FileFolderUtil from '../../utils/FileFolderUtil';
 import { SideBarController } from '../SideBarComponent/SideBar';
 import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu';
-import { FolderOperator, VideoMetaDataOperator } from '../../database/VideoMetaData';
+import { VideoMetaDataOperator } from '../../database/VideoMetaData';
 
 
 @Component
@@ -74,15 +73,6 @@ export class VideoListController {
     }
   }
 
-  // 通知方法
-  protected notifyDataReloaded(): void {
-    this.listeners.forEach(listener => listener.onDataReloaded());
-  }
-
-  protected notifyDataDelete(index: number): void {
-    this.listeners.forEach(listener => listener.onDataDelete(index));
-  }
-
   updateData(videoDataSource: VideoDataSource, folder: FileFolder): void {
     this.videoDataSource = videoDataSource;
     this.videoMetaDataList = folder.video_list
@@ -102,6 +92,15 @@ export class VideoListController {
     if (this.listScroller.currentOffset().yOffset == -55) {
       this.listScroller.scrollEdge(Edge.Top)
     }
+  }
+
+  // 通知方法
+  protected notifyDataReloaded(): void {
+    this.listeners.forEach(listener => listener.onDataReloaded());
+  }
+
+  protected notifyDataDelete(index: number): void {
+    this.listeners.forEach(listener => listener.onDataDelete(index));
   }
 }
 

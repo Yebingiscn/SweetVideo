@@ -9,16 +9,15 @@ export struct VideoButtonsComponent {
   @Prop screenArco: number
   @Prop playing: boolean
   @Prop speed: number
-  @Link circle_play: boolean
+  @Link circlePlay: boolean
   @BuilderParam aVCastPickerBuilderBridge: () => void
-  @BuilderParam volumeBuilder: () => void
+  @BuilderParam videoSettingBuilder: () => void
   @BuilderParam playbackSpeedMenu: () => void
   onScreenRotationClick = async () => {
   }
   onTogglePlaybackClick = () => {
   }
   onPlayNextVideoClick = () => {
-
   }
   onSideBarStatusClick = () => {
   }
@@ -59,19 +58,6 @@ export struct VideoButtonsComponent {
         })
       }.span({ xs: 2, sm: 2, md: 2 })
 
-      GridCol() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) { // 循环按钮
-          SymbolGlyph(this.circle_play ? $r('sys.symbol.repeat') : $r('sys.symbol.order_play'))
-            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-            .fontColor(['#f0f0f0'])
-        }
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundColor('#50000000')
-        .onClick(() => {
-          this.circle_play = !this.circle_play
-        })
-      }.span({ xs: 2, sm: 2, md: 2 })
-
       GridCol() { // 投播
         AVCastPicker({
           normalColor: Color.White,
@@ -84,14 +70,14 @@ export struct VideoButtonsComponent {
       }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) { // 音量
-          SymbolGlyph($r('sys.symbol.speaker_wave_1'))
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph($r('sys.symbol.gearshape'))
             .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
             .fontColor(['#f0f0f0'])
         }
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
-        .bindMenu(this.volumeBuilder())
+        .bindMenu(this.videoSettingBuilder)
       }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() {

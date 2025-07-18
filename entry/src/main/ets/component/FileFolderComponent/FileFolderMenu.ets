@@ -20,7 +20,7 @@ export struct FileFolderMenu {
             //批量删除
             if (DataSyncUtil.delMultipleList.length > 0) {
               for (let i = 0; i < DataSyncUtil.delMultipleList.length; i++) {
-                  await this.fileFolderSource.addVideoToFileFolder(DataSyncUtil.delMultipleList[i], item,
+                await this.fileFolderSource.addVideoToFileFolder(DataSyncUtil.delMultipleList[i], item,
                   this.videoListController.videoDataSource)
               }
               DataSyncUtil.delMultipleList = []

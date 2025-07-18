@@ -21,6 +21,7 @@ import { AVCastPickerState, avSession, avSession as avSessionManager } from '@ki
 import { PathUtils } from './PathUtils';
 import { LanguageConfig } from '../common/LanguageConfig';
 import ToolsUtil from './ToolsUtil';
+import VideoInfoUtil from './VideoInfoUtil';
 
 // 视频操作类
 class VideoOperateUtil {
@@ -34,6 +35,8 @@ class VideoOperateUtil {
   public timePerPixel: number = 300 // 时间调节灵敏度
   public screenBrightnessTmp: number = 0
   public volumeTmp: number = 0
+  public aspectRatioMap = new Map([[VideoInfoUtil.screen_extend_map[2], 16 / 9],
+    [VideoInfoUtil.screen_extend_map[3], 4 / 3]]);
   private windowStage: window.WindowStage = AppStorage.get('windowStage') as window.WindowStage;
   private mainWin: window.Window = this.windowStage.getMainWindowSync();
 
@@ -236,6 +239,23 @@ class VideoOperateUtil {
     }
     const lowerCode = code.toLowerCase();
     return LanguageConfig.languageMap[lowerCode] || code;
+  }
+
+  setVideoAspectRatio(targetRatio: number, containerWidth: number, containerHeight: number) {
+    let finalWidth = 0
+    let finalHeight = 0
+    const containerRatio = containerWidth / containerHeight;
+    // 3. 根据比例动态调整
+    if (containerRatio > targetRatio) {
+      // 容器比目标“更宽” → 固定高度，按比例缩小宽度
+      finalHeight = containerHeight;
+      finalWidth = containerHeight * targetRatio; // 宽度 = 高度 × 目标比例
+    } else {
+      // 容器比目标“更高” → 固定宽度，按比例缩小高度
+      finalWidth = containerWidth;
+      finalHeight = containerWidth / targetRatio; // 高度 = 宽度 ÷ 目标比例
+    }
+    return [finalWidth, finalHeight]
   }
 }
 

@@ -98,25 +98,6 @@ export class SelectItemTextFancyModifier implements AttributeModifier<TextAttrib
   }
 }
 
-export class SelectItemFancyModifier implements AttributeModifier<ColumnAttribute> {
-  private selected: boolean;
-
-  constructor(selected: boolean) {
-    this.selected = selected
-  }
-
-  applyNormalAttribute(attr: ColumnAttribute): void {
-    if (this.selected) {
-      attr
-        .backgroundColor($r('app.color.main_color'))
-        .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
-        .borderRadius(10)
-    } else {
-      attr.backgroundColor(Color.Transparent)
-    }
-  }
-}
-
 export class MenuModifier extends CommonModifier {
   constructor() {
     super()

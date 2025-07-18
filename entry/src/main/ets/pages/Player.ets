@@ -22,11 +22,9 @@ import Preferences from '../database/Preferences';
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
 import SubtitleUtil from '../utils/SubtitleUtil';
 import { PathUtils } from '../utils/PathUtils';
-import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
 import { PlayerSideBarComponent } from '../component/PlayerComponent/PlayerSideBarComponent';
 import { AVCastPickerBuilder } from '../component/PlayerComponent/AVCastPickerBuilder';
 import { AudioTrackComponent } from '../component/PlayerComponent/AudioTrackComponent';
-import { VolumeButtonComponent } from '../component/PlayerComponent/VolumeButtonComponent';
 import { PlaybackSpeedMenuComponent } from '../component/PlayerComponent/PlaybackSpeedComponent';
 import { BrightnessSwipingComponent } from '../component/PlayerComponent/BrightnessSwipingComponent';
 import { VolumeSwipingComponent } from '../component/PlayerComponent/VolumeSwipingComponent';
@@ -39,6 +37,7 @@ import { VideoSliderComponent } from '../component/PlayerComponent/VideoSliderCo
 import { GestureComponent } from '../component/PlayerComponent/GestureComponent';
 import { VideoTopComponent } from '../component/PlayerComponent/VideoTopComponent';
 import { VideoButtonsComponent } from '../component/PlayerComponent/VideoButtonsComponent';
+import { VideoSettingComponent } from '../component/PlayerComponent/VideoSettingComponent';
 
 @Component
 export struct Player { // 播放页
@@ -86,6 +85,7 @@ export struct Player { // 播放页
   @State longPressStartX: number = 0
   @State currentSpeedIndex: number = 0
   @State clock_time: string = ''
+  @State angle: number = 0
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
@@ -99,6 +99,7 @@ export struct Player { // 播放页
     video_list: []
   }
   private mIjkMediaPlayer: IjkMediaPlayer | null = null;
+  private autoHideTimeout: boolean = false
 
   async setSessionListener() {
     this.avSession?.on('play', () => {
@@ -108,9 +109,6 @@ export struct Player { // 播放页
       this.avPlayer?.play()
     });
     this.avSession?.on('pause', () => {
-      if (this.mIjkMediaPlayer && this.mIjkMediaPlayer?.isPlaying()) {
-        this.mIjkMediaPlayer?.pause()
-      }
       this.avPlayer?.pause()
     });
     this.avSession?.on('seek', (position: number) => {
@@ -121,6 +119,12 @@ export struct Player { // 播放页
     })
     this.avSession?.on('rewind', () => {
       this.avPlayer?.seek(this.play_time - 15000, media.SeekMode.SEEK_CLOSEST)
+    })
+    this.avSession?.on('playNext', () => {
+      this.playNextVideo()
+    })
+    this.avSession?.on('outputDeviceChange', () => {
+      this.avPlayer?.pause()
     })
   }
 
@@ -236,6 +240,14 @@ export struct Player { // 播放页
     this.avPlayer?.on('timeUpdate', async (duration) => {
       if (this.showControl) {
         this.clock_time = ToolsUtil.getTime()
+        if (!this.autoHideTimeout) {
+          this.autoHideTimeout = true
+          setTimeout(() => {
+            this.lockVisibility = !this.lockVisibility;
+            this.showControl = !this.showControl
+            this.autoHideTimeout = false
+          }, 6000)
+        }
       }
       const isDestroy = AppStorage.get('destroy_signal') as boolean // 监听播放器是否将被杀掉，杀掉的话就保存记录
       if (isDestroy) {
@@ -276,9 +288,6 @@ export struct Player { // 播放页
 
     this.avPlayer?.on('audioOutputDeviceChangeWithInfo', (data: audio.AudioStreamDeviceChangeInfo) => {
       if (data.changeReason === audio.AudioStreamDeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) {
-        if (this.mIjkMediaPlayer) {
-          this.mIjkMediaPlayer?.pause()
-        }
         this.avPlayer?.pause()
       }
     });
@@ -410,6 +419,11 @@ export struct Player { // 播放页
       this.avPlayer.fdSrc = fs.openSync(this.now_playing?.uri);
       await this.setExternalSubtitle(this.now_playing!)
       this.setRotation()
+      if (this.play_area_width > this.play_area_height && this.screen_height > this.screen_width) {
+        await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE)
+      } else if (this.play_area_height > this.play_area_width && this.screen_width > this.screen_height) {
+        await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
+      }
     }
   }
 
@@ -430,8 +444,8 @@ export struct Player { // 播放页
   }
 
   playNextVideo() {
-    this.ijkPlayerStop()
     if (this.video_meta_data.length > 0 && this.play_time > 0) {
+      this.ijkPlayerStop()
       VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
         PathUtils.appContext!,
         this.file_folder)
@@ -454,10 +468,21 @@ export struct Player { // 播放页
   }
 
   screenExtend(text: string) {
+    if (VideoOperateUtil.aspectRatioMap.has(text)) {
+      const ratio = VideoOperateUtil.aspectRatioMap.get(text)!;
+      const play_area_size = VideoOperateUtil.setVideoAspectRatio(
+        ratio,
+        VideoInfoUtil.play_area_width,
+        VideoInfoUtil.play_area_height
+      );
+      this.play_area_width = play_area_size[0];
+      this.play_area_height = play_area_size[1];
+      return;
+    }
     switch (text) {
       case VideoInfoUtil.screen_extend_map[0]:
-        this.play_area_height = VideoInfoUtil.play_area_height
-        this.play_area_width = VideoInfoUtil.play_area_width
+        this.play_area_height = VideoInfoUtil.play_area_height;
+        this.play_area_width = VideoInfoUtil.play_area_width;
         break;
       case VideoInfoUtil.screen_extend_map[1]:
         this.play_area_height = this.screen_height;
@@ -492,9 +517,6 @@ export struct Player { // 播放页
 
   togglePlayback() {
     this.playing ? this.avPlayer?.pause() : this.avPlayer?.play()
-    if (this.mIjkMediaPlayer) {
-      this.playing ? this.mIjkMediaPlayer?.pause() : this.mIjkMediaPlayer?.start()
-    }
   }
 
   build() {
@@ -522,6 +544,7 @@ export struct Player { // 播放页
           .width(this.play_area_width)
           .height(this.play_area_height)
           .animation({ duration: this.playing ? 300 : 0, curve: Curve.Ease })
+          .rotate({ y: 2, angle: this.angle, perspective: 200 })
 
           if ((this.showControl && !this.isLock)) {
             Stack() {
@@ -825,6 +848,12 @@ export struct Player { // 播放页
       }
       await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
       this.avPlayer?.off('subtitleUpdate');
+      this.avPlayer?.off('timeUpdate')
+      this.avPlayer?.off('seekDone')
+      this.avPlayer?.off('speedDone')
+      this.avPlayer?.off('audioOutputDeviceChangeWithInfo')
+      this.avPlayer?.off('subtitleUpdate')
+      this.avPlayer?.off('stateChange')
       if (this.video_meta_data.length > 0 && this.play_time > 0) {
         VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
           PathUtils.appContext!,
@@ -907,9 +936,9 @@ export struct Player { // 播放页
       screenArco: this.screen_arco,
       playing: this.playing,
       speed: this.speed,
-      circle_play: this.circle_play,
+      circlePlay: this.circle_play,
       aVCastPickerBuilderBridge: this.AVCastPickerBuilderBridge,
-      volumeBuilder: this.VolumeBuilder,
+      videoSettingBuilder: this.getVideoSettingBuilder,
       playbackSpeedMenu: this.getPlaybackSpeedMenuBuilder,
       onScreenRotationClick: async () => {
         this.screen_height > this.screen_width ?
@@ -942,11 +971,11 @@ export struct Player { // 播放页
   }
 
   @Builder
-  VolumeBuilder() {
-    VolumeButtonComponent({
-      volume: this.volume,
-      onChange: (value: number) => {
-        this.volume = value
+  VideoSettingBuilder() {
+    VideoSettingComponent({
+      circlePlay: this.circle_play,
+      onMirrorClick: () => {
+        this.angle === 0 ? this.angle = 180 : this.angle = 0
       }
     })
   }
@@ -966,6 +995,9 @@ export struct Player { // 播放页
   }
   private getAudioMenuBuilder: () => void = () => {
     this.AudioTrackMenuBuilder()
+  }
+  private getVideoSettingBuilder: () => void = () => {
+    this.VideoSettingBuilder()
   }
 
   private async handleIntelligentSync(videoPos: number, audioPos: number) {

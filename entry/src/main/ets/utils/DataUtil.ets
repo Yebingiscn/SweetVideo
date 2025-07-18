@@ -8,7 +8,6 @@ import RecentPlayUtil from '../utils/RecentPlayUtil';
 import FileFolderUtil from '../utils/FileFolderUtil';
 
 import { fileIo as fs } from '@kit.CoreFileKit';
-import File from '@system.file';
 import { FolderOperator } from '../database/VideoMetaData';
 
 // 基础数据源抽象类（泛型实现）

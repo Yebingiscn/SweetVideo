@@ -1,9 +1,9 @@
 import { PathUtils } from '../../utils/PathUtils';
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
-import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
+import { fileUri } from '@kit.CoreFileKit';
 import { ImageFancyModifier } from '../../utils/AttributeModifierUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
-import DataSyncUtil, { OOBEVersion } from '../../utils/DataSyncUtil';
+import DataSyncUtil from '../../utils/DataSyncUtil';
 import { VideoListController } from './VideoItemComponent';
 import { VideoInfoComponent } from './VideoInfoComponent';
 
@@ -12,7 +12,6 @@ export default struct VideoCardItem {
   @Prop item: VideoMetadata
   @Prop index: number
   @Consume videoListController: VideoListController
-
 
   build() {
     Column() {

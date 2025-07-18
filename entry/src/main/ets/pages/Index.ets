@@ -1,4 +1,3 @@
-import { fileIo as fs } from '@kit.CoreFileKit';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 import DataSyncUtil, { OOBEVersion } from '../utils/DataSyncUtil';
 import { FileFolderDataSource, VideoDataSource } from '../utils/DataUtil';
@@ -7,7 +6,6 @@ import SelectFileUtil from '../utils/SelectFileUtil';
 import { JSON } from '@kit.ArkTS';
 import WantProcessUtil from '../utils/WantProcessUtil';
 import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData';
-import RecentPlayUtil from '../utils/RecentPlayUtil';
 import { addFileFolderNameDialog } from '../component/Dialog/AddFileFolderNameDialog';
 import FileFolderUtil from '../utils/FileFolderUtil';
 import { editFileFolderNameDialog } from '../component/Dialog/EditFileFolderNameDialog';
@@ -29,12 +27,10 @@ import { ButtonFancyModifier, MenuModifier, SymbolGlyphFancyModifier } from '../
 import { FileProcessorUtil } from '../utils/FileProcessorUtil';
 import { PathUtils } from '../utils/PathUtils';
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
-import SubtitleUtil from '../utils/SubtitleUtil';
 import { AppInfo, SideBarController } from '../component/SideBarComponent/SideBar';
 import { VideoView } from '../component/VideoItemComponent/VideoViewComponent';
 import { ImportProgressComponent } from '../component/VideoItemComponent/ImportProgressComponent';
 import { FolderOperator, VideoMetaDataOperator } from '../database/VideoMetaData';
-import File from '@system.file';
 
 
 @Builder
@@ -62,21 +58,9 @@ struct Index {
   @Provide videoListController: VideoListController =
     new VideoListController(Preferences.getFileFolder(PathUtils.appContext!)[0])
   @Watch('syncVideoDataSourceToVideoListController') @State videoDataSource: VideoDataSource =
-    new VideoDataSource(this.videoListController.folder.video_list)
+    new VideoDataSource([])
   @Provide fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   @Provide @Watch('SyncSideBarAndMaskState') sideBarController: SideBarController = new SideBarController()
-
-  SyncSideBarAndMaskState(): void {
-    if (this.sideBarController.sideBarStatusTmp == Visibility.Hidden) {
-      this.sideBarController.mask_state = false
-    }
-  }
-
-  syncVideoDataSourceToVideoListController(): void {
-    const folder = FolderOperator.getFolderByName(this.videoListController.folder.name)
-    this.videoListController.updateData(this.videoDataSource, folder)
-  }
-
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: addFileFolderNameDialog({
       confirm: async (file_folder_name: string | undefined) => {
@@ -103,6 +87,17 @@ struct Index {
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
 
+  SyncSideBarAndMaskState(): void {
+    if (this.sideBarController.sideBarStatusTmp == Visibility.Hidden) {
+      this.sideBarController.mask_state = false
+    }
+  }
+
+  syncVideoDataSourceToVideoListController(): void {
+    const folder = FolderOperator.getFolderByName(this.videoListController.folder.name)
+    this.videoListController.updateData(this.videoDataSource, folder)
+  }
+
   @Builder
   FileFolderSelectMenu(file_folder: FileFolder) {
     if (file_folder.name !== '首页') {
@@ -115,7 +110,7 @@ struct Index {
             DataSyncUtil.delMultipleList = Array.from(file_folder.video_list);
             this.videoDataSource.refreshData(file_folder)
             const deletePromises = DataSyncUtil.delMultipleList.map(item => {
-              return new Promise<void>((resolve, reject) => {
+              return new Promise<void>((_resolve) => {
                 DataSyncUtil.editingVideo = JSON.stringify(item);
                 VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource)
               });
@@ -186,13 +181,10 @@ struct Index {
     VideoMetaDataOperator.migrationRootVideoMetaToRootFolder()
     this.passwd = Preferences.getPassword(PathUtils.appContext!)
     ToolsUtil.isSubtitleFileFolderExist(PathUtils.videoPath, PathUtils.subtitlePath)
-
     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
     this.fileFolderSource.updateData(this.file_folder_list)
     this.videoDataSource.updateData(this.file_folder_list[0].video_list)
-
     this.videoListController.updateData(this.videoDataSource, this.file_folder_list[0])
-
     if (Preferences.getOOBEVersion(PathUtils.appContext!) < OOBEVersion) {
       let controller = new CustomDialogController({
         builder: PrivacyPolicyDialog({
@@ -246,7 +238,7 @@ struct Index {
 
   deleteUnExistFile(item: VideoMetadata | undefined) {
     DataSyncUtil.editingVideo = JSON.stringify(item)
-    new Promise<void>((resolve, reject) => {
+    new Promise<void>((_resolve) => {
       VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource)
     });
   }

@@ -4,7 +4,6 @@ import { SideBarController } from '../SideBarComponent/SideBar';
 import { ButtonFancyModifier, ShadowModifier, SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil';
 import { PathUtils } from '../../utils/PathUtils';
 import SelectFileUtil from '../../utils/SelectFileUtil';
-import Preferences from '../../database/Preferences';
 import ToolsUtil from '../../utils/ToolsUtil';
 import { MenuModifier, SymbolGlyphModifier } from '@kit.ArkUI';
 import DataSyncUtil from '../../utils/DataSyncUtil';
@@ -78,14 +77,18 @@ export struct VideoView {
             searchValue: this.searchValue,
             onChange: () => {
               if (this.searchValue === '') {
-                const videoMetaDataList: VideoMetadata[] = FolderOperator.getFolderByName(this.videoListController.folder.name).video_list
+                const videoMetaDataList: VideoMetadata[] =
+                  FolderOperator.getFolderByName(this.videoListController.folder.name).video_list
                 this.videoListController.videoDataSource.updateData(videoMetaDataList)
-                this.videoListController.updateData(this.videoListController.videoDataSource, this.videoListController.folder)
+                this.videoListController.updateData(this.videoListController.videoDataSource,
+                  this.videoListController.folder)
               } else {
                 const videoMetaDataList: VideoMetadata[] =
-                  SelectFileUtil.getItemFromSearch(FolderOperator.getFolderByName(this.videoListController.folder.name).video_list, this.searchValue)
+                  SelectFileUtil.getItemFromSearch(FolderOperator.getFolderByName(this.videoListController.folder.name)
+                    .video_list, this.searchValue)
                 this.videoListController.videoDataSource.updateData(videoMetaDataList)
-                this.videoListController.updateData(this.videoListController.videoDataSource, this.videoListController.folder)
+                this.videoListController.updateData(this.videoListController.videoDataSource,
+                  this.videoListController.folder)
               }
             },
             onSubmit: (value: string) => {
@@ -202,7 +205,7 @@ export struct VideoView {
           if (DataSyncUtil.delMultipleList.length > 0) {
             this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
             const deletePromises = DataSyncUtil.delMultipleList.map(item => {
-              return new Promise<void>((resolve, reject) => {
+              return new Promise<void>(() => {
                 DataSyncUtil.editingVideo = JSON.stringify(item);
                 VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource)
               });

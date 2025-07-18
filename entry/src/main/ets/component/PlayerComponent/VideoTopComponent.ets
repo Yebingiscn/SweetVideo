@@ -56,6 +56,8 @@ export struct VideoTopComponent {
             Select([//屏幕扩展
               { value: '原始比例' },
               { value: '填满屏幕' },
+              { value: '16:9' },
+              { value: '4:3' },
               { value: '等比放大 110%' },
               { value: '等比放大 120%' },
               { value: '等比放大 130%' },

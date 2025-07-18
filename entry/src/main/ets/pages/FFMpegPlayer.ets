@@ -367,6 +367,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         this.stop();
       }
       this.mIjkMediaPlayer?.off('audioInterrupt');
+      this.mIjkMediaPlayer?.off('deviceChange')
       if (this.allowBackgroundPlay) {
         AVSessionUtil.destroySession()
         PermissionUtil.stopContinuousTask()

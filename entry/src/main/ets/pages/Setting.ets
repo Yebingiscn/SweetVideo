@@ -159,6 +159,7 @@ export struct SettingsPage { //设置页
             message: '跳过片头',
             selected: Number(this.skipIntroTime),
             onChange: (value: number) => {
+              ToolsUtil.startVibration()
               this.skipIntroTime = value.toString()
               Preferences.saveSkipIntroTime(PathUtils.appContext!, this.skipIntroTime)
             }

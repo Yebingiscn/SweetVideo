@@ -1,24 +1,22 @@
-import { FileFolder } from "../../interfaces/FileFolderInterface"
-import { ButtonFancyModifier, SymbolGlyphFancyModifier } from "../../utils/AttributeModifierUtil"
-import { FileFolderDataSource, VideoDataSource } from "../../utils/DataUtil"
-import { SideBarController } from "../SideBarComponent/SideBar"
-import { VideoListController } from "../VideoItemComponent/VideoItemComponent"
-import { MenuModifier, SymbolGlyphModifier } from "@kit.ArkUI"
-import DataSyncUtil, { OOBEVersion } from '../../utils/DataSyncUtil';
-import { PathUtils } from "../../utils/PathUtils"
-import FileFolderUtil from "../../utils/FileFolderUtil"
-import ToolsUtil from '../../utils/ToolsUtil';
-import { editFileFolderNameDialog } from '../../component/Dialog/EditFileFolderNameDialog';
-import { DefaultDialogShadow } from '../../common/DefaultDialogShadow';
+import { FileFolder } from '../../interfaces/FileFolderInterface'
+import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil'
+import { FileFolderDataSource, VideoDataSource } from '../../utils/DataUtil'
+import { SideBarController } from '../SideBarComponent/SideBar'
+import { VideoListController } from '../VideoItemComponent/VideoItemComponent'
+import { MenuModifier, SymbolGlyphModifier } from '@kit.ArkUI'
+import DataSyncUtil from '../../utils/DataSyncUtil'
+import { PathUtils } from '../../utils/PathUtils'
+import FileFolderUtil from '../../utils/FileFolderUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { editFileFolderNameDialog } from '../../component/Dialog/EditFileFolderNameDialog'
+import { DefaultDialogShadow } from '../../common/DefaultDialogShadow'
 
 @Component
 export struct FileFolderView {
   @Consume fileFolderSource: FileFolderDataSource
   @Consume videoListController: VideoListController
   @Consume sideBarController: SideBarController
-
   @State fileFolderList: FileFolder[] = this.fileFolderSource.getAllData()
-
   editFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: editFileFolderNameDialog({
       confirm: async (file_folder: string | undefined) => {
@@ -33,6 +31,7 @@ export struct FileFolderView {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+
   build() {
     List() {
       LazyForEach(this.fileFolderSource, (item: FileFolder) => {
