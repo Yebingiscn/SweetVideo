@@ -98,7 +98,6 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
             reject(new Error(`Error deleting file from sandbox_path: ${unlinkErr.message}`));
             return;
           }
-          // Preferences.saveVideoMetaData(PathUtils.appContext!, this.data)
           resolve(); // 在所有操作完成后调用 resolve
         });
       } else {
@@ -110,18 +109,6 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
 
 @Observed
 export class FileFolderDataSource extends BaseDataSource<FileFolder> {
-  async addVideoToFileFolder(video_item: VideoMetadata, item: FileFolder, videoDataSource: VideoDataSource) {
-    if (!item.video_list.some(v => v.title === video_item.title)) {
-      this.data = FileFolderUtil.addVideoInFileFolder(PathUtils.appContext!, video_item!, item.date)
-      videoDataSource.deleteUnExistFile(video_item)
-      Preferences.saveVideoMetaData(PathUtils.appContext!, videoDataSource.getAllData())
-    }
-  }
-
-  getAllFileFolder() {
-    this.updateData(Preferences.getFileFolder(PathUtils.appContext!))
-  }
-
   getFileFolder(fileFolderName: string): FileFolder {
     return Preferences.getFileFolder(PathUtils.appContext!).find(item => item.name === fileFolderName)!
   }

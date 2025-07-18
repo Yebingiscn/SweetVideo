@@ -57,8 +57,7 @@ struct Index {
   @Provide('pathStack') pathStack: NavPathStack = new NavPathStack()
   @Provide videoListController: VideoListController =
     new VideoListController(Preferences.getFileFolder(PathUtils.appContext!)[0])
-  @Watch('syncVideoDataSourceToVideoListController') @State videoDataSource: VideoDataSource =
-    new VideoDataSource([])
+  @Provide videoDataSource: VideoDataSource = new VideoDataSource([])
   @Provide fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   @Provide @Watch('SyncSideBarAndMaskState') sideBarController: SideBarController = new SideBarController()
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
@@ -74,14 +73,14 @@ struct Index {
   })
   editFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: editFileFolderNameDialog({
-      confirm: async (file_folder: string | undefined) => {
-        if (!file_folder || file_folder.trim() == '') {
+      confirm: async (newFolderName: string | undefined) => {
+        if (!newFolderName || newFolderName.trim() == '') {
           return
         }
         this.file_folder_list =
           await FileFolderUtil.changeFileFolderName(PathUtils.appContext!,
             JSON.parse(DataSyncUtil.editingVideo) as FileFolder,
-            file_folder, this.file_folder_list)
+            newFolderName)
         this.fileFolderSource.updateData(this.file_folder_list)
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
@@ -99,34 +98,36 @@ struct Index {
   }
 
   @Builder
-  FileFolderSelectMenu(file_folder: FileFolder) {
-    if (file_folder.name !== '首页') {
+  FileFolderSelectMenu(folder: FileFolder) {
+    if (folder.name !== '首页') {
       Menu() {
         MenuItem({
           symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.trash_fill")),
           content: $r('app.string.delete')
         })
           .onClick(async () => {
-            DataSyncUtil.delMultipleList = Array.from(file_folder.video_list);
-            this.videoDataSource.refreshData(file_folder)
-            const deletePromises = DataSyncUtil.delMultipleList.map(item => {
-              return new Promise<void>((_resolve) => {
-                DataSyncUtil.editingVideo = JSON.stringify(item);
-                VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource)
-              });
+            DataSyncUtil.delMultipleList = Array.from(folder.video_list);
+            this.videoDataSource.refreshData(folder)
+            const deletePromises = DataSyncUtil.delMultipleList.map(async item => {
+              DataSyncUtil.editingVideo = JSON.stringify(item);
+              await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource);
             });
             await Promise.all(deletePromises)
             this.videoListController.closeMultipleChoose()
-            this.fileFolderSource.deleteData(this.file_folder_list.findIndex(i => i.date === file_folder.date))
+            this.fileFolderSource.deleteData(this.file_folder_list.findIndex(i => i.date === folder.date))
             this.file_folder_list =
-              await FileFolderUtil.deleteFileFolder(PathUtils.appContext!, file_folder, this.file_folder_list)
+              await FileFolderUtil.deleteFileFolder(PathUtils.appContext!, folder)
+            this.videoListController.folder = this.file_folder_list[0]
+            this.fileFolderSource.updateData(this.file_folder_list)
+            this.videoDataSource.updateData(this.file_folder_list[0].video_list)
+            this.videoListController.updateData(this.videoDataSource, this.file_folder_list[0])
           })
         MenuItem({
           symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
           content: $r('app.string.edit')
         })
           .onClick(() => {
-            DataSyncUtil.editingVideo = JSON.stringify(file_folder);
+            DataSyncUtil.editingVideo = JSON.stringify(folder);
             this.editFileFolderNameDialogController.open()
           })
       }.attributeModifier(new MenuModifier()).onAppear(() => {
@@ -144,7 +145,7 @@ struct Index {
       })
         .onClick(async () => {
           this.sideBarController.closeSideBar(false)
-          await this.toMetaData(await SelectFileUtil.selectFiles(), undefined);
+          await this.toMetaData(await SelectFileUtil.selectFiles(), this.videoListController.folder);
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.picture')),
@@ -152,7 +153,7 @@ struct Index {
       })
         .onClick(async () => {
           this.sideBarController.closeSideBar(false)
-          await this.toMetaData(await SelectFileUtil.selectVideo(), undefined);
+          await this.toMetaData(await SelectFileUtil.selectVideo(), this.videoListController.folder);
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder_badge_eye')),
@@ -161,7 +162,7 @@ struct Index {
       })
         .onClick(async () => {
           this.sideBarController.closeSideBar(false)
-          await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), undefined);
+          await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), this.videoListController.folder);
         })
     }.attributeModifier(new MenuModifier())
   }
@@ -233,6 +234,7 @@ struct Index {
       ToolsUtil.showToast('处理过程中发生意外错误:' + error);
     } finally {
       this.loading = false;
+      this.videoListController.updateData(this.videoDataSource, this.videoListController.folder)
     }
   }
 

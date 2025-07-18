@@ -18,7 +18,9 @@ class Preferences {
 
   // 所有文件夹视频数据
   static getFileFolder(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'file_folder', []) as FileFolder[]
+    const folders = PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'file_folder', []) as FileFolder[]
+    folders.sort((a, b) => Number(a.date) - Number(b.date))
+    return folders
   }
 
   // 最近播放视频数据
@@ -129,9 +131,11 @@ class Preferences {
   //保存首页 TODO 这里需要施工
   static saveVideoMetaData(context: Context, video_meta_data: VideoMetadata[]) {
     const folders = Preferences.getFileFolder(context)
-    folders[0].video_list = video_meta_data
-    Preferences.saveFileFolder(context, folders)
-    // PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_video_meta_data', video_meta_data);
+    const rootFolderIndex: number = folders.findIndex(i => i.name === '首页')
+    if (rootFolderIndex !== -1) {
+      folders[rootFolderIndex].video_list = video_meta_data
+      Preferences.saveFileFolder(context, folders)
+    }
   }
 
   static saveVideoMetaDataEncryption(context: Context, video_meta_data_encryption: VideoMetadata[]) {

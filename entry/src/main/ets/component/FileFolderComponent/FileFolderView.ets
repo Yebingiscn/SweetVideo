@@ -26,7 +26,7 @@ export struct FileFolderView {
         this.fileFolderList =
           await FileFolderUtil.changeFileFolderName(PathUtils.appContext!,
             JSON.parse(DataSyncUtil.editingVideo) as FileFolder,
-            file_folder, this.fileFolderList)
+            file_folder)
         this.fileFolderSource.updateData(this.fileFolderList)
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
@@ -87,7 +87,7 @@ export struct FileFolderView {
           await Promise.all(deletePromises)
           this.fileFolderSource.deleteData(this.fileFolderList.findIndex(i => i.date === file_folder.date))
           this.fileFolderList =
-            await FileFolderUtil.deleteFileFolder(PathUtils.appContext!, file_folder, this.fileFolderList)
+            await FileFolderUtil.deleteFileFolder(PathUtils.appContext!, file_folder)
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),

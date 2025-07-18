@@ -4,6 +4,8 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import ToolsUtil from './ToolsUtil'
 import { Context } from '@kit.AbilityKit'
 import { systemDateTime } from '@kit.BasicServicesKit'
+import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog'
+import { VideoDataSource } from './DataUtil'
 
 // 文件夹类
 class FileFolderUtil {
@@ -30,35 +32,41 @@ class FileFolderUtil {
   }
 
   // 视频添加进文件夹
-  static addVideoInFileFolder(context: Context, video_meta_data: VideoMetadata, file_folder_date: string) {
-    let file_folder_list = Preferences.getFileFolder(context) as FileFolder[]
-    let file_folder = file_folder_list.find(i => i.date === file_folder_date)
-    file_folder?.video_list.push(video_meta_data)
-    Preferences.saveFileFolder(context, file_folder_list)
-    return file_folder_list
+  static addVideoInFileFolder(context: Context, videoMetaData: VideoMetadata, fromFolderDate: string, targetFolderDate: string, videoDataSource: VideoDataSource) {
+    let folders = Preferences.getFileFolder(context) as FileFolder[]
+    let fromFolderIndex = folders.findIndex(i => i.date === fromFolderDate)
+    let targetFolderIndex = folders.findIndex(i => i.date === targetFolderDate)
+    folders[fromFolderIndex].video_list = folders[fromFolderIndex].video_list.filter(i => i.uri !== videoMetaData.uri)
+    if (folders[targetFolderIndex].video_list.findIndex(i => i.uri === videoMetaData.uri) === -1) {
+      folders[targetFolderIndex].video_list.push(videoMetaData)
+    }
+    Preferences.saveFileFolder(context, folders)
+    return folders
   }
 
   // 删除文件夹
-  static async deleteFileFolder(context: Context, file_folder: FileFolder, file_folder_list: FileFolder[]) {
-    file_folder_list = file_folder_list.filter(i => i.date !== file_folder.date)
-    Preferences.saveFileFolder(context, file_folder_list)
-    return file_folder_list
+  static async deleteFileFolder(context: Context, file_folder: FileFolder) {
+    let folders = Preferences.getFileFolder(context)
+    folders = folders.filter(i  =>i.date !== file_folder.date)
+    Preferences.saveFileFolder(context, folders)
+    return folders
   }
 
   //改变文件夹名称
-  static async changeFileFolderName(context: Context, file_folder: FileFolder, new_file_folder_name: string,
-    file_folder_list: FileFolder[]) {
-    file_folder.name = new_file_folder_name
-    file_folder_list = file_folder_list.filter(i => i.date !== file_folder.date)
-    file_folder_list.push(file_folder)
-    Preferences.saveFileFolder(context, file_folder_list)
-    return file_folder_list
+  static async changeFileFolderName(context: Context, folder: FileFolder, newFolderName: string) {
+    let folders = Preferences.getFileFolder(context) as FileFolder[]
+    let folderIndex = folders.findIndex(i => i.date === folder.date)
+    folders[folderIndex].name = newFolderName
+    Preferences.saveFileFolder(context, folders)
+    return folders
   }
 
   // 更新文件夹内视频
-  static async updateFileFolder(context: Context, file_folder: FileFolder, new_video_meta_data_list: VideoMetadata[]) {
-    file_folder.video_list = new_video_meta_data_list
-    FileFolderUtil.updateFileFolderList(context, file_folder)
+  static async updateFileFolder(context: Context, folder: FileFolder, newVideoMetaDataList: VideoMetadata[]) {
+    let folders = Preferences.getFileFolder(context) as FileFolder[]
+    let folderIndex = folders.findIndex(i => i.date === folder.date)
+    folders[folderIndex].video_list = newVideoMetaDataList
+    Preferences.saveFileFolder(context, folders)
   }
 
   // 更新文件夹所有内容

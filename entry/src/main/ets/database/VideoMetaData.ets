@@ -19,7 +19,7 @@ export class VideoMetaDataOperator {
     if (!folder) {
       const rootFolder: FileFolder = {
         name: '首页',
-        date: systemDateTime.getTime(true).toString(),
+        date: '0',
         video_list: PreferencesUtil.getPreferencesValue(PathUtils.appContext!, 'sweet_video', 'recent_video_meta_data',
           []) as VideoMetadata[]
       }

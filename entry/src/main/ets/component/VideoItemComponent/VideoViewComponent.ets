@@ -38,7 +38,7 @@ export struct VideoView {
         VideoList()
       }
 
-      if (this.videoListController.videoMetaDataList.length == 0) {
+      if (this.videoListController.videoDataSource.getAllData().length == 0) {
         Row() { //顶栏
           if (!this.loading) {
             Column() {

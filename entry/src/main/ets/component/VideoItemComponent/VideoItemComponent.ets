@@ -171,7 +171,7 @@ export struct VideoList {
           edgeEffect: SwipeEdgeEffect.Spring
         })
         .onClick(async () => {
-          if (!this.videoListController.videoMetaDataList.some(i => i.date == item?.date!)) {
+          if (!this.videoListController.videoDataSource.getAllData().some(i => i.date == item?.date!)) {
             ToolsUtil.showToast('数据正在加载中，请重试')
             this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
             return
@@ -185,7 +185,7 @@ export struct VideoList {
           ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.videoListController.videoMetaDataList) :
           this.videoListController.videoDataSource.deleteUnExistFile(item)
         })
-      }, (item: VideoMetadata) => JSON.stringify(item.uri))
+      }, (item: VideoMetadata) => JSON.stringify(item.uri + this.videoListController.folder.name))
     }
     .cachedCount(3)
     .contentStartOffset(this.topSafeHeight + 55)
