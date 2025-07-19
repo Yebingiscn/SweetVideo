@@ -115,7 +115,7 @@ struct Index {
             this.videoListController.closeMultipleChoose()
             this.fileFolderSource.deleteData(this.file_folder_list.findIndex(i => i.date === folder.date))
             this.file_folder_list =
-              await FileFolderUtil.deleteFileFolder(PathUtils.appContext!, folder)
+              FileFolderUtil.deleteFileFolder(PathUtils.appContext!, folder)
             this.videoListController.folder = this.file_folder_list[0]
             this.fileFolderSource.updateData(this.file_folder_list)
             this.videoDataSource.updateData(this.file_folder_list[0].video_list)

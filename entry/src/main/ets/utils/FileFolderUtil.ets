@@ -45,7 +45,7 @@ class FileFolderUtil {
   }
 
   // 删除文件夹
-  static async deleteFileFolder(context: Context, file_folder: FileFolder) {
+  static deleteFileFolder(context: Context, file_folder: FileFolder) {
     let folders = Preferences.getFileFolder(context)
     folders = folders.filter(i => i.date !== file_folder.date)
     Preferences.saveFileFolder(context, folders)
