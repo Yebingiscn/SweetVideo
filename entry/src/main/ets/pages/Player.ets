@@ -420,7 +420,12 @@ export struct Player { // 播放页
       await this.setExternalSubtitle(this.now_playing!)
       this.setRotation()
       if (this.play_area_width > this.play_area_height && this.screen_height > this.screen_width) {
-        await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE)
+        const proportion =
+          Math.max(this.screen_width, this.screen_height) / Math.min(this.screen_width, this.screen_height)
+        const orientation = proportion > (16 / 10)
+          ? window.Orientation.AUTO_ROTATION_LANDSCAPE
+          : window.Orientation.AUTO_ROTATION_PORTRAIT;
+        (await this.windowClass).setPreferredOrientation(orientation)
       }
     }
   }
@@ -940,10 +945,12 @@ export struct Player { // 播放页
       playbackSpeedMenu: this.getPlaybackSpeedMenuBuilder,
       onScreenRotationOrFullScreenClick: async () => {
         VideoOperateUtil.fullScreenOperate()
-        const orientation = this.screen_height > this.screen_width
+        const proportion = Math.max(this.screen_width, this.screen_height) / Math.min(this.screen_width, this.screen_height)
+        const orientation = proportion > (16/10)
           ? window.Orientation.AUTO_ROTATION_LANDSCAPE
           : window.Orientation.AUTO_ROTATION_PORTRAIT;
         (await this.windowClass).setPreferredOrientation(orientation)
+
       },
       onTogglePlaybackClick: () => {
         this.togglePlayback()
