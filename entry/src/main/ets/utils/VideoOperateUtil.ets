@@ -22,6 +22,7 @@ import { PathUtils } from './PathUtils';
 import { LanguageConfig } from '../common/LanguageConfig';
 import ToolsUtil from './ToolsUtil';
 import VideoInfoUtil from './VideoInfoUtil';
+import { WindowUtil } from './WindowUtil';
 
 // 视频操作类
 class VideoOperateUtil {
@@ -256,6 +257,21 @@ class VideoOperateUtil {
       finalHeight = containerWidth / targetRatio; // 高度 = 宽度 ÷ 目标比例
     }
     return [finalWidth, finalHeight]
+  }
+
+  fullScreenOperate() {
+    if (canIUse('SystemCapability.Window.SessionManager')) {
+      const windowUtil = WindowUtil?.getInstance?.()
+      const windowStatus = windowUtil?.getWindowsStatus?.()
+      switch (windowStatus) {
+        case window.WindowStatusType.FLOATING:
+          windowUtil?.maximize?.()
+          return
+        case window.WindowStatusType.FULL_SCREEN:
+          windowUtil?.recover?.()
+          return
+      }
+    }
   }
 }
 

@@ -32,7 +32,6 @@ import { VideoView } from '../component/VideoItemComponent/VideoViewComponent';
 import { ImportProgressComponent } from '../component/VideoItemComponent/ImportProgressComponent';
 import { FolderOperator, VideoMetaDataOperator } from '../database/VideoMetaData';
 
-
 @Builder
 export function IndexBuilder() {
   Index()
@@ -167,12 +166,8 @@ struct Index {
     }.attributeModifier(new MenuModifier())
   }
 
-  onPageShow(): void {
-    setTimeout(() => { // 临时解决 system share 获取 want 没有 onPageShow 跑的快的问题
-      if (WantProcessUtil.has_new_want) {
-        WantProcessUtil.checkWant(PathUtils.appContext!, this.pathStack)
-      }
-    }, 0.1)
+  async onPageShow(): Promise<void> {
+    await WantProcessUtil.checkWant(PathUtils.appContext!, this.pathStack)
   }
 
   async aboutToAppear(): Promise<void> {
@@ -413,7 +408,9 @@ struct Index {
           }
           VideoView({
             loading: this.loading,
-            passwd: this.passwd
+            passwd: this.passwd,
+            searchValue: this.searchValue,
+            videoListController: this.videoListController
           })
         }.backgroundColor($r('app.color.start_window_background'))
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
@@ -445,7 +442,7 @@ struct Index {
       .onDrop((dragEvent: DragEvent) => {
         let records: Array<unifiedDataChannel.UnifiedRecord> = dragEvent.getData().getRecords();
         let video: unifiedDataChannel.Video = records[0] as unifiedDataChannel.Video;
-        WantProcessUtil.want_uri = video.uri
+        WantProcessUtil.wantUri = video.uri
         WantProcessUtil.hasWant(PathUtils.appContext!, this.pathStack)
       })
       .onChange((value: boolean) => {

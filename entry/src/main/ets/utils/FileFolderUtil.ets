@@ -4,7 +4,6 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import ToolsUtil from './ToolsUtil'
 import { Context } from '@kit.AbilityKit'
 import { systemDateTime } from '@kit.BasicServicesKit'
-import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog'
 import { VideoDataSource } from './DataUtil'
 
 // 文件夹类
@@ -32,7 +31,8 @@ class FileFolderUtil {
   }
 
   // 视频添加进文件夹
-  static addVideoInFileFolder(context: Context, videoMetaData: VideoMetadata, fromFolderDate: string, targetFolderDate: string, videoDataSource: VideoDataSource) {
+  static addVideoInFileFolder(context: Context, videoMetaData: VideoMetadata, fromFolderDate: string,
+    targetFolderDate: string, videoDataSource: VideoDataSource) {
     let folders = Preferences.getFileFolder(context) as FileFolder[]
     let fromFolderIndex = folders.findIndex(i => i.date === fromFolderDate)
     let targetFolderIndex = folders.findIndex(i => i.date === targetFolderDate)
@@ -47,7 +47,7 @@ class FileFolderUtil {
   // 删除文件夹
   static async deleteFileFolder(context: Context, file_folder: FileFolder) {
     let folders = Preferences.getFileFolder(context)
-    folders = folders.filter(i  =>i.date !== file_folder.date)
+    folders = folders.filter(i => i.date !== file_folder.date)
     Preferences.saveFileFolder(context, folders)
     return folders
   }

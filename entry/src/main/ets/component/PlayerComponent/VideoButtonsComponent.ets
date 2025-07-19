@@ -3,6 +3,8 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { KeyCode } from '@kit.InputKit'
 import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil'
+import { WindowUtil } from '../../utils/WindowUtil'
+import { window } from '@kit.ArkUI'
 
 @Component
 export struct VideoButtonsComponent {
@@ -13,13 +15,31 @@ export struct VideoButtonsComponent {
   @BuilderParam aVCastPickerBuilderBridge: () => void
   @BuilderParam videoSettingBuilder: () => void
   @BuilderParam playbackSpeedMenu: () => void
-  onScreenRotationClick = async () => {
+  @State showFullScreenSymbol: boolean = false
+  onScreenRotationOrFullScreenClick = async () => {
   }
   onTogglePlaybackClick = () => {
   }
   onPlayNextVideoClick = () => {
   }
   onSideBarStatusClick = () => {
+  }
+
+  aboutToAppear(): void {
+    if (canIUse('SystemCapability.Window.SessionManager')) {
+      const windowUtil = WindowUtil.getInstance()
+      if (!windowUtil) {
+        return
+      }
+      const windowStatus = windowUtil.getWindowsStatus()
+      if (windowStatus === undefined) {
+        return;
+      }
+      this.showFullScreenSymbol = [
+        window.WindowStatusType.FLOATING,
+        window.WindowStatusType.FULL_SCREEN
+      ].includes(windowStatus)
+    }
   }
 
   build() {
@@ -113,14 +133,14 @@ export struct VideoButtonsComponent {
 
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 屏幕旋转按钮
-          SymbolGlyph($r('sys.symbol.screen_rotation'))
+          SymbolGlyph(this.showFullScreenSymbol ? $r('sys.symbol.fullscreen') : $r('sys.symbol.screen_rotation'))
             .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
             .fontColor(['#f0f0f0'])
         }
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .onClick(async () => {
-          await this.onScreenRotationClick()
+          await this.onScreenRotationOrFullScreenClick()
         })
       }.span({ xs: 2, sm: 2, md: 2 })
     }.width('95%')

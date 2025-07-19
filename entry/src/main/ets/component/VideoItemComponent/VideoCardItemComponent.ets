@@ -30,7 +30,7 @@ export default struct VideoCardItem {
             .fontSize(15)
             .fontWeight(FontWeight.Medium)
             .maxLines(1)// 减少行数以适应卡片布局
-            .textAlign(TextAlign.Center)
+            .textAlign(TextAlign.Start)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .layoutWeight(1)// 占据剩余空间
             .wordBreak(WordBreak.BREAK_ALL)
@@ -61,7 +61,5 @@ export default struct VideoCardItem {
     }
     .width('100%')
     .height('auto')
-    .backgroundColor($r('app.color.start_window_background_blur'))
-    .borderRadius(10)
   }
 }

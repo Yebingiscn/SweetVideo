@@ -1,10 +1,7 @@
 import { ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
-import WantProcess from '../utils/WantProcessUtil';
 import WantProcessUtil from '../utils/WantProcessUtil';
-import { systemShare } from '@kit.ShareKit';
-import { BusinessError } from '@kit.BasicServicesKit';
 import { RedPlayerConfigBuilder, RedPlayerInitManager, RedPlayerPreload } from '@rte-xhs/redplayer';
 import LoggerImpl from '../utils/LoggerImpl';
 import { PathUtils } from '../utils/PathUtils';
@@ -17,13 +14,7 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate('context', this.context)
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onCreate');
     PathUtils.init(this.context);
-    // 检测是否应用未启动时外部应用拉起，检测相应链接，适用于文件管理器
-    if (want.uri) {
-      WantProcess.want_uri = want.uri
-      WantProcessUtil.has_new_want = true
-    }
-    // 检测是否应用未启动时通过华为分享拉起，检测相应链接，适用于相册
-    await this.handleParam(want)
+    WantProcessUtil.want = want
     this.initRedPlayer()
   }
 
@@ -36,34 +27,9 @@ export default class EntryAbility extends UIAbility {
     RedPlayerPreload.globalInit(this.context.cacheDir + '/red_player', 20, 4, 0)
   }
 
-  // 华为分享拉起接收
-  // 1. 改造 handleParam 为异步函数，让其返回 Promise
-  async handleParam(want: Want) {
-    try {
-      // 通过 await 等待异步操作完成
-      const data = await systemShare.getSharedData(want);
-      const records = data.getRecords();
-      for (const record of records) {
-        if (record.uri) {
-          WantProcess.want_uri = record.uri;
-          WantProcess.isSystemShare = true;
-          WantProcessUtil.has_new_want = true;
-          break;
-        }
-      }
-    } catch (error) {
-      const businessError = error as BusinessError;
-      console.error(`Failed: Code ${businessError.code}, ${businessError.message}`);
-    }
-  }
-
   // 应用在后台，接收外部应用拉起或者华为分享拉起
   async onNewWant(want: Want) {
-    await this.handleParam(want)
-    if (want.uri) {
-      WantProcess.want_uri = want.uri
-      WantProcessUtil.has_new_want = true
-    }
+    WantProcessUtil.want = want
     console.log(`onNewWant, want: ${want.abilityName}`);
   }
 
@@ -75,7 +41,9 @@ export default class EntryAbility extends UIAbility {
     // Main window is created, set main page for this ability
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
     try {
-      windowStage.setDefaultDensityEnabled(true); // 设置窗口不跟随系统显示大小变化重新布局
+      if (canIUse('SystemCapability.Window.SessionManager')) {
+        windowStage.setDefaultDensityEnabled(true); // 设置窗口不跟随系统显示大小变化重新布局
+      }
     } catch (exception) {
       console.error(`Failed to set default density enabled. Cause code: ${exception.code}, message: ${exception.message}`);
     }

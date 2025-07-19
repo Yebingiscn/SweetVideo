@@ -26,18 +26,21 @@ export struct FileFolderMenu {
               if (DataSyncUtil.delMultipleList.length > 0) {
                 DataSyncUtil.delMultipleList.forEach(video => {
                   DataSyncUtil.editingVideo = JSON.stringify(video);
-                  folders = FileFolderUtil.addVideoInFileFolder(PathUtils.appContext!, video, this.videoListController.folder.date,
+                  folders = FileFolderUtil.addVideoInFileFolder(PathUtils.appContext!, video,
+                    this.videoListController.folder.date,
                     item.date, this.videoListController.videoDataSource)
                 });
                 DataSyncUtil.delMultipleList = []
                 this.videoListController.closeMultipleChoose()
               } else if (this.videoListController.multipleChooseState === Visibility.None) { //非批量操作
                 folders = FileFolderUtil.addVideoInFileFolder(PathUtils.appContext!, this.video_item,
-                  this.videoListController.folder.date, item.date,this.videoListController.videoDataSource)
+                  this.videoListController.folder.date, item.date, this.videoListController.videoDataSource)
               }
               this.fileFolderSource.updateData(folders)
-              this.videoListController.videoDataSource.updateData(FolderOperator.getFolderByName(this.videoListController.folder.name).video_list)
-              this.videoListController.updateData(this.videoListController.videoDataSource, this.videoListController.folder)
+              this.videoListController.videoDataSource.updateData(FolderOperator.getFolderByName(this.videoListController.folder.name)
+                .video_list)
+              this.videoListController.updateData(this.videoListController.videoDataSource,
+                this.videoListController.folder)
             })
         }
       }, (item: FileFolder) => item.date)

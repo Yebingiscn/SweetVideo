@@ -13,15 +13,14 @@ import { MaskComponent } from '../SideBarComponent/MaskComponent';
 import { SearchComponent } from './SearchComponent';
 import { FolderOperator, VideoMetaDataOperator } from '../../database/VideoMetaData';
 
-
 @Component
 export struct VideoView {
   searchController: SearchController = new SearchController()
   @Prop loading: boolean = false
   @State is_edit: boolean = false
-  @Prop searchValue: string = ''
+  @Link searchValue: string
   @Prop passwd: string = ''
-  @Consume videoListController: VideoListController
+  @Link videoListController: VideoListController
   @Consume sideBarController: SideBarController
   @Consume('pathStack') pathStack: NavPathStack
   @Consume fileFolderSource: FileFolderDataSource
@@ -35,10 +34,12 @@ export struct VideoView {
         MaskComponent()
       }
       Column() {
-        VideoList()
+        VideoList({
+          videoListController: this.videoListController
+        })
       }
 
-      if (this.videoListController.videoDataSource.getAllData().length == 0) {
+      if (this.videoListController.videoDataSource.totalCount() == 0) {
         Row() { //顶栏
           if (!this.loading) {
             Column() {

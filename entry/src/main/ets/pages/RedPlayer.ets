@@ -38,7 +38,6 @@ export struct RedPlayer { // 红薯播放器页
   @State screen_width: number = 0
   @State screen_height: number = 0
   @State last_play_time: number = 0
-  @State played: boolean = false
   @State now_playing: VideoMetadataFromPlayer | undefined = undefined
   @State redPlayerStateHolder: RedPlayerStateHolder = new RedPlayerStateHolder()
   @State play_time: number = this.redPlayerStateHolder.videoPosition
@@ -126,7 +125,7 @@ export struct RedPlayer { // 红薯播放器页
           }
           .width(this.redPlayerStateHolder.videoViewWidth)
           .height(this.redPlayerStateHolder.videoViewHeight)
-          .animation({ duration: this.played ? 300 : 0, curve: Curve.Ease })
+          .animation({ duration: 300, curve: Curve.Ease })
 
           Stack() {
             Flex({
@@ -500,9 +499,11 @@ export struct RedPlayer { // 红薯播放器页
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .onClick(async () => {
-          this.screen_height > this.screen_width ?
-          (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE)
-            : (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_PORTRAIT)
+          VideoOperateUtil.fullScreenOperate()
+          const orientation = this.screen_height > this.screen_width
+            ? window.Orientation.AUTO_ROTATION_LANDSCAPE
+            : window.Orientation.AUTO_ROTATION_PORTRAIT;
+          (await this.windowClass).setPreferredOrientation(orientation)
         })
       }.span({ xs: 2, sm: 2, md: 2 })
 

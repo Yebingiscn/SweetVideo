@@ -456,9 +456,11 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .onClick(async () => {
-          this.screen_height > this.screen_width ?
-          (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE)
-            : (await (this.windowClass)).setPreferredOrientation(window.Orientation.AUTO_ROTATION_PORTRAIT)
+          VideoOperateUtil.fullScreenOperate()
+          const orientation = this.screen_height > this.screen_width
+            ? window.Orientation.AUTO_ROTATION_LANDSCAPE
+            : window.Orientation.AUTO_ROTATION_PORTRAIT;
+          (await this.windowClass).setPreferredOrientation(orientation)
         })
       }.span({ xs: 2, sm: 2, md: 2 })
 

@@ -50,7 +50,7 @@ export struct VideoInfoComponent {
         .fontSize(15)
         .opacity(0.8)
     }
-    .justifyContent(FlexAlign.Center)
-    .padding({ top: 5 })
+    .justifyContent(FlexAlign.Start)
+    .padding({ top: 5 }).width('100%')
   }
 }
