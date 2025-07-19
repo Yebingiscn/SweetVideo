@@ -185,7 +185,7 @@ export struct VideoList {
           ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.videoListController.videoMetaDataList) :
           this.videoListController.videoDataSource.deleteUnExistFile(item)
         })
-      }, (item: VideoMetadata) => JSON.stringify(item + this.videoListController.folder.name))
+      }, (item: VideoMetadata) => JSON.stringify(item) + this.videoListController.folder.name)
     }
     .cachedCount(3)
     .contentStartOffset(this.topSafeHeight + 55)
