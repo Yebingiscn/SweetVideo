@@ -171,40 +171,49 @@ export struct VideoList {
         this.videoListController.listScroller.scrollEdge(Edge.Top)
       })
     } else {
-      WaterFlow({ scroller: this.videoListController.listScroller, layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW }) {
-        LazyForEach(this.videoListController.videoDataSource, (item: VideoMetadata, index: number) => {
-          FlowItem() {
-            VideoCardItem({
-              item: item,
-              index: index,
-            }).width('100%').reuseId('card_item')
+      Scroll() {
+        Column() {
+          Blank().height(this.topSafeHeight + 55)
+          WaterFlow({
+            scroller: this.videoListController.listScroller,
+            layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW
+          }) {
+            LazyForEach(this.videoListController.videoDataSource, (item: VideoMetadata, index: number) => {
+              FlowItem() {
+                VideoCardItem({
+                  item: item,
+                  index: index,
+                }).width('100%').reuseId('card_item')
+              }
+              .width('100%')
+              .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+              .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
+              .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick)
+              .onClick(async () => {
+                await this.clickItem(item)
+              })
+            }, (item: VideoMetadata) => item.date + item.last_play + item.title + item.size +
+            this.videoListController.folder.name)
           }
+          .columnsTemplate('1fr '.repeat(this.videoListController.listLine).trim())
+          .columnsGap(12) // 列间距
+          .rowsGap(16) // 行间距
+          .cachedCount(6)
+          .scrollBar(BarState.Off)
+          .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+          .onTouch(() => this.searchController.stopEditing())
           .width('100%')
-          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-          .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
-          .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick)
-          .onClick(async () => {
-            await this.clickItem(item)
+          .height('100%')
+          .padding(10)
+          .onAppear(() => {
+            this.videoListController.listScroller.scrollEdge(Edge.Top)
           })
-        }, (item: VideoMetadata) => item.date + item.last_play + item.title + item.size.toString() +
-        this.videoListController.folder.name)
+          .nestedScroll({
+            scrollForward: NestedScrollMode.PARENT_FIRST,
+            scrollBackward: NestedScrollMode.SELF_FIRST
+          })
+        }
       }
-      .padding({
-        top: this.topSafeHeight + 75, // 顶部安全区+自定义偏移
-      })
-      .columnsTemplate('1fr '.repeat(this.videoListController.listLine).trim())
-      .layoutWeight(1)
-      .columnsGap(12) // 列间距
-      .rowsGap(16) // 行间距
-      .cachedCount(6)
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
-      .onTouch(() => this.searchController.stopEditing())
-      .width('100%')
-      .height('100%')
-      .onAppear(() => {
-        this.videoListController.listScroller.scrollEdge(Edge.Top)
-      })
     }
   }
 
