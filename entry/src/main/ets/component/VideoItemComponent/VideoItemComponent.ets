@@ -136,12 +136,14 @@ export struct VideoList {
             VideoListItem({
               item: item,
               index: index
-            }).reuseId(item.date)
+            }).reuseId('list_item')
           }
+          .margin({ bottom: 15 }) // 不知道动了哪里，挤在一起了，先这样改
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
           .width('100%')
           .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
+          .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick)
           .swipeAction({
             start: this.itemStart(),
             edgeEffect: SwipeEdgeEffect.Spring
@@ -149,7 +151,7 @@ export struct VideoList {
           .onClick(async () => {
             await this.clickItem(item)
           })
-        }, (item: VideoMetadata) => item.title + item.size + item.date + item.last_play +
+        }, (item: VideoMetadata) => item.title + item.size.toString() + item.date + item.last_play +
         this.videoListController.folder.name)
       }
       .cachedCount(3)
@@ -175,17 +177,21 @@ export struct VideoList {
             VideoCardItem({
               item: item,
               index: index,
-            }).width('100%').reuseId(item.date)
+            }).width('100%').reuseId('card_item')
           }
           .width('100%')
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
+          .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick)
           .onClick(async () => {
             await this.clickItem(item)
           })
-        }, (item: VideoMetadata) => item.date + item.last_play + item.title + item.size +
+        }, (item: VideoMetadata) => item.date + item.last_play + item.title + item.size.toString() +
         this.videoListController.folder.name)
       }
+      .padding({
+        top: this.topSafeHeight + 75, // 顶部安全区+自定义偏移
+      })
       .columnsTemplate('1fr '.repeat(this.videoListController.listLine).trim())
       .layoutWeight(1)
       .columnsGap(12) // 列间距

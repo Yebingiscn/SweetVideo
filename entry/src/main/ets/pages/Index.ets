@@ -31,6 +31,7 @@ import { AppInfo, SideBarController } from '../component/SideBarComponent/SideBa
 import { VideoView } from '../component/VideoItemComponent/VideoViewComponent';
 import { ImportProgressComponent } from '../component/VideoItemComponent/ImportProgressComponent';
 import { FolderOperator, VideoMetaDataOperator } from '../database/VideoMetaData';
+import { FileFolderListComponent } from '../component/FileFolderComponent/FileFolderListComponent';
 
 @Builder
 export function IndexBuilder() {
@@ -294,20 +295,10 @@ struct Index {
               List() {
                 LazyForEach(this.fileFolderSource, (folder: FileFolder) => {
                   ListItem() {
-                    Button({ type: ButtonType.Normal, stateEffect: true }) {
-                      Row() {
-                        SymbolGlyph(this.videoListController.folder.name === folder.name ?
-                        $r('sys.symbol.doc_plaintext_and_folder') : $r('sys.symbol.folder'))
-                          .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                        Text(folder.name)
-                          .fontSize(15)
-                          .margin({ left: 10, right: 12 })
-                      }
-                    }
-                    .align(Alignment.Start)
-                    .padding({ left: 15, right: 15 })
-                    .attributeModifier(new ButtonFancyModifier('100%', 60))
-                    .animation({ duration: 300, curve: Curve.Ease })
+                    FileFolderListComponent({
+                      folder: folder,
+                      videoListController: this.videoListController
+                    })
                   }
                   .onClick(() => {
                     if (this.videoListController.folder.name === folder.name) {

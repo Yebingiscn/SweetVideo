@@ -325,7 +325,7 @@ export struct PrivacySpace { // 隐私空间页
               end: this.itemEnd(item),
               edgeEffect: SwipeEdgeEffect.Spring
             })
-          }, (item: VideoMetadata) => item.date + item.title + item.last_play + item.size)
+          }, (item: VideoMetadata) => item.date + item.title + item.last_play + item.size.toString())
         }
         .cachedCount(3)
         .lanes(this.list_line)

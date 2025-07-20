@@ -28,7 +28,7 @@ export struct PlayerSideBarComponent {
             item: item,
             now_playing: this.now_playing
           })
-            .reuseId(item.date)
+            .reuseId(this.now_playing && this.now_playing?.date === item?.date ? 'now_playing_item' : 'playing_item')
             .onClick(() => {
               if (this.sideBarStatusTmp === Visibility.Hidden) {
                 return

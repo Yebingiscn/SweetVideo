@@ -1,5 +1,4 @@
 import { FileFolder } from '../../interfaces/FileFolderInterface'
-import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil'
 import { FileFolderDataSource, VideoDataSource } from '../../utils/DataUtil'
 import { SideBarController } from '../SideBarComponent/SideBar'
 import { VideoListController } from '../VideoItemComponent/VideoItemComponent'
@@ -10,6 +9,7 @@ import FileFolderUtil from '../../utils/FileFolderUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { editFileFolderNameDialog } from '../../component/Dialog/EditFileFolderNameDialog'
 import { DefaultDialogShadow } from '../../common/DefaultDialogShadow'
+import { FileFolderListComponent } from './FileFolderListComponent'
 
 @Component
 export struct FileFolderView {
@@ -36,19 +36,9 @@ export struct FileFolderView {
     List() {
       LazyForEach(this.fileFolderSource, (item: FileFolder) => {
         ListItem() {
-          Button({ type: ButtonType.Normal, stateEffect: true }) {
-            Row() {
-              SymbolGlyph($r('sys.symbol.folder'))
-                .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-              Text(item.name)
-                .fontSize(15)
-                .margin({ left: 10, right: 12 })
-            }
-          }
-          .align(Alignment.Start)
-          .padding({ left: 15, right: 15 })
-          .attributeModifier(new ButtonFancyModifier('100%', 60))
-          .animation({ duration: 300, curve: Curve.Ease })
+          FileFolderListComponent({
+            folder: item
+          })
         }
         .onClick(() => {
           const video_list = item.video_list || []
@@ -56,6 +46,7 @@ export struct FileFolderView {
           this.sideBarController.closeSideBar(true)
         })
         .bindContextMenu(this.FileFolderSelectMenu(item), ResponseType.LongPress)
+        .bindContextMenu(this.FileFolderSelectMenu(item), ResponseType.RightClick)
         .height(60)
       }, (item: FileFolder) => item.date)
     }
