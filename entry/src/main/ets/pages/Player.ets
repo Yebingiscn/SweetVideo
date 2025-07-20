@@ -424,7 +424,7 @@ export struct Player { // 播放页
           Math.max(this.screen_width, this.screen_height) / Math.min(this.screen_width, this.screen_height)
         const orientation = proportion > (16 / 10)
           ? window.Orientation.AUTO_ROTATION_LANDSCAPE
-          : window.Orientation.AUTO_ROTATION_PORTRAIT;
+          : window.Orientation.AUTO_ROTATION_RESTRICTED;
         (await this.windowClass).setPreferredOrientation(orientation)
       }
     }
@@ -945,13 +945,10 @@ export struct Player { // 播放页
       playbackSpeedMenu: this.getPlaybackSpeedMenuBuilder,
       onScreenRotationOrFullScreenClick: async () => {
         VideoOperateUtil.fullScreenOperate()
-        const proportion =
-          Math.max(this.screen_width, this.screen_height) / Math.min(this.screen_width, this.screen_height)
-        const orientation = proportion > (16 / 10)
+        const orientation = this.screen_height > this.screen_width
           ? window.Orientation.AUTO_ROTATION_LANDSCAPE
-          : window.Orientation.AUTO_ROTATION_PORTRAIT;
+          : window.Orientation.AUTO_ROTATION_PORTRAIT; // 这里是横竖屏切换顺应用户操作就好
         (await this.windowClass).setPreferredOrientation(orientation)
-
       },
       onTogglePlaybackClick: () => {
         this.togglePlayback()
