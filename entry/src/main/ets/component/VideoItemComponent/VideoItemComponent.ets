@@ -19,31 +19,6 @@ import { SideBarController } from '../SideBarComponent/SideBar';
 import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu';
 import { VideoMetaDataOperator } from '../../database/VideoMetaData';
 
-
-@Component
-export struct VideoItem {
-  @Prop item: VideoMetadata
-  @Prop index: number
-  @StorageLink('is_list_display') isListDisplay: boolean = false
-
-  build() {
-    Row() {
-      if (this.isListDisplay) {
-        VideoListItem({
-          item: this.item,
-          index: this.index,
-        })
-      } else {
-        VideoCardItem({
-          item: this.item,
-          index: this.index,
-        })
-      }
-    }
-    .padding(10)
-  }
-}
-
 @Observed
 export class VideoListController {
   public folder: FileFolder
@@ -89,7 +64,7 @@ export class VideoListController {
     const base = Math.floor(width / 500);
     this.listLine = isListDisplay ? base + 1 : base + 2;
     // 增加判断，旋转时保持滚动位置不变
-    if (this.listScroller.currentOffset().yOffset == -55) {
+    if (this.listScroller.currentOffset()?.yOffset == -55) {
       this.listScroller.scrollEdge(Edge.Top)
     }
   }
@@ -154,55 +129,93 @@ export struct VideoList {
   })
 
   build() {
-    List({ scroller: this.videoListController.listScroller }) {
-      LazyForEach(this.videoListController.videoDataSource, (item: VideoMetadata, index: number) => { // 加载视频列表
-        ListItem() {
-          VideoItem({
-            item: item,
-            index: index,
+    if (this.isListDisplay) {
+      List({ scroller: this.videoListController.listScroller }) {
+        LazyForEach(this.videoListController.videoDataSource, (item: VideoMetadata, index: number) => { // 加载视频列表
+          ListItem() {
+            VideoListItem({
+              item: item,
+              index: index
+            }).reuseId(item.date)
+          }
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+          .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
+          .width('100%')
+          .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
+          .swipeAction({
+            start: this.itemStart(),
+            edgeEffect: SwipeEdgeEffect.Spring
           })
-        }
-        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
-        .width('100%')
-        .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
-        .swipeAction({
-          start: this.itemStart(),
-          edgeEffect: SwipeEdgeEffect.Spring
-        })
-        .onClick(async () => {
-          if (!this.videoListController.videoDataSource.getAllData().some(i => i.date == item?.date!)) {
-            ToolsUtil.showToast('数据正在加载中，请重试')
-            this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
-            return
+          .onClick(async () => {
+            await this.clickItem(item)
+          })
+        }, (item: VideoMetadata) => item.title + item.size + item.date + item.last_play +
+        this.videoListController.folder.name)
+      }
+      .cachedCount(3)
+      .contentStartOffset(this.topSafeHeight + 55)
+      .contentEndOffset(this.bottomSafeHeight)
+      .lanes(this.videoListController.listLine)
+      .animation({ duration: 300, curve: Curve.Smooth })
+      .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
+      .chainAnimation(true)
+      .width('100%')
+      .height('100%') // 新增高度设置
+      .onTouch(() => {
+        this.searchController.stopEditing()
+      })
+      .onAppear(() => {
+        this.videoListController.listScroller.scrollEdge(Edge.Top)
+      })
+    } else {
+      WaterFlow({ scroller: this.videoListController.listScroller, layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW }) {
+        LazyForEach(this.videoListController.videoDataSource, (item: VideoMetadata, index: number) => {
+          FlowItem() {
+            VideoCardItem({
+              item: item,
+              index: index,
+            }).width('100%').reuseId(item.date)
           }
-          if (this.MenuBuilderState || this.videoListController.multipleChooseState != Visibility.None) {
-            this.MenuBuilderState = false
-            return
-          }
-          this.videoListController.listScroller.closeAllSwipeActions()
-          await ToolsUtil.isFileExist(item) ?
-          ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.videoListController.videoMetaDataList) :
-          this.videoListController.videoDataSource.deleteUnExistFile(item)
-        })
-      }, (item: VideoMetadata) => JSON.stringify(item) + this.videoListController.folder.name)
+          .width('100%')
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+          .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
+          .onClick(async () => {
+            await this.clickItem(item)
+          })
+        }, (item: VideoMetadata) => item.date + item.last_play + item.title + item.size +
+        this.videoListController.folder.name)
+      }
+      .columnsTemplate('1fr '.repeat(this.videoListController.listLine).trim())
+      .layoutWeight(1)
+      .columnsGap(12) // 列间距
+      .rowsGap(16) // 行间距
+      .cachedCount(6)
+      .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+      .onTouch(() => this.searchController.stopEditing())
+      .width('100%')
+      .height('100%')
+      .onAppear(() => {
+        this.videoListController.listScroller.scrollEdge(Edge.Top)
+      })
     }
-    .cachedCount(3)
-    .contentStartOffset(this.topSafeHeight + 55)
-    .contentEndOffset(this.bottomSafeHeight)
-    .lanes(this.videoListController.listLine)
-    .animation({ duration: 300, curve: Curve.Smooth })
-    .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
-    .chainAnimation(true)
-    .width('100%')
-    .height('100%') // 新增高度设置
-    .onTouch(() => {
-      this.searchController.stopEditing()
-    })
-    .onAppear(() => {
-      this.videoListController.listScroller.scrollEdge(Edge.Top)
-    })
+  }
+
+  async clickItem(item: VideoMetadata) {
+    if (!this.videoListController.videoDataSource.getAllData().some(i => i.date == item?.date!)) {
+      ToolsUtil.showToast('数据正在加载中，请重试')
+      this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
+      return
+    }
+    if (this.MenuBuilderState || this.videoListController.multipleChooseState != Visibility.None) {
+      this.MenuBuilderState = false
+      return
+    }
+    this.videoListController.listScroller.closeAllSwipeActions()
+    await ToolsUtil.isFileExist(item) ?
+    ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.videoListController.videoMetaDataList) :
+    this.videoListController.videoDataSource.deleteUnExistFile(item)
   }
 
   @Builder

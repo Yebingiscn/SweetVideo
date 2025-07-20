@@ -7,11 +7,17 @@ import DataSyncUtil from '../../utils/DataSyncUtil';
 import { VideoListController } from './VideoItemComponent';
 import { VideoInfoComponent } from './VideoInfoComponent';
 
+@Reusable
 @Component
 export default struct VideoCardItem {
   @Prop item: VideoMetadata
   @Prop index: number
   @Consume videoListController: VideoListController
+
+  // 实现组件复用回调
+  aboutToReuse(params: Record<string, Object>): void {
+    this.item = params.item as VideoMetadata;
+  }
 
   build() {
     Column() {
@@ -22,14 +28,14 @@ export default struct VideoCardItem {
           bottomLeft: 10,
           bottomRight: 10
         }, 60, 200))
-        .width('100%')
+        .width('100%').height('auto')
         .objectFit(ImageFit.Auto)
       Column() {
         Row() {
           Text(VideoInfoUtil.getVideoTitle(this.videoListController.videoDataSource.getAllData(), this.item))
             .fontSize(15)
             .fontWeight(FontWeight.Medium)
-            .maxLines(1)// 减少行数以适应卡片布局
+            .maxLines(5)
             .textAlign(TextAlign.Start)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .layoutWeight(1)// 占据剩余空间

@@ -362,7 +362,7 @@ export struct Player { // 播放页
           if (!this.avSession && this.allowBackgroundPlay) {
             this.avSession = await AVSessionUtil.getAVSession()
             await this.setSessionListener()
-            AVSessionUtil.setSessionInfo(JSON.stringify(this.now_playing))
+            AVSessionUtil.setSessionInfo(this.now_playing!)
             VideoOperateUtil.updateSession(this.playing, this.play_time)
           }
           VideoOperateUtil.updateSession(this.playing, this.play_time)
@@ -438,11 +438,11 @@ export struct Player { // 播放页
     if (this.mIjkMediaPlayer) {
       await this.ijkPlayerStop()
     }
-    this.now_playing = JSON.parse(JSON.stringify(item)) as VideoMetadataFromPlayer
+    this.now_playing = item as VideoMetadataFromPlayer
     this.getData()
     this.avSession = await AVSessionUtil.getAVSession()
     await this.setSessionListener()
-    AVSessionUtil.setSessionInfo(JSON.stringify(this.now_playing))
+    AVSessionUtil.setSessionInfo(this.now_playing!)
     VideoOperateUtil.updateSession(this.playing, this.play_time)
   }
 
@@ -945,8 +945,9 @@ export struct Player { // 播放页
       playbackSpeedMenu: this.getPlaybackSpeedMenuBuilder,
       onScreenRotationOrFullScreenClick: async () => {
         VideoOperateUtil.fullScreenOperate()
-        const proportion = Math.max(this.screen_width, this.screen_height) / Math.min(this.screen_width, this.screen_height)
-        const orientation = proportion > (16/10)
+        const proportion =
+          Math.max(this.screen_width, this.screen_height) / Math.min(this.screen_width, this.screen_height)
+        const orientation = proportion > (16 / 10)
           ? window.Orientation.AUTO_ROTATION_LANDSCAPE
           : window.Orientation.AUTO_ROTATION_PORTRAIT;
         (await this.windowClass).setPreferredOrientation(orientation)

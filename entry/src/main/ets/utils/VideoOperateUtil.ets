@@ -198,7 +198,7 @@ class VideoOperateUtil {
       playing: playing,
       duration: play_time
     }
-    AVSessionUtil.updateSession(JSON.stringify(data))
+    AVSessionUtil.updateSession(data)
   }
 
   // 启动时初始化已保存的设置项

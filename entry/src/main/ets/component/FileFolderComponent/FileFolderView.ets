@@ -65,6 +65,7 @@ export struct FileFolderView {
     .align(Alignment.Start)
     .margin({ top: 10 })
     .backgroundColor($r('app.color.start_window_background_blur'))
+    .cachedCount(2)
   }
 
   @Builder
@@ -86,8 +87,7 @@ export struct FileFolderView {
           });
           await Promise.all(deletePromises)
           this.fileFolderSource.deleteData(this.fileFolderList.findIndex(i => i.date === file_folder.date))
-          this.fileFolderList =
-            await FileFolderUtil.deleteFileFolder(PathUtils.appContext!, file_folder)
+          this.fileFolderList = FileFolderUtil.deleteFileFolder(PathUtils.appContext!, file_folder)
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),

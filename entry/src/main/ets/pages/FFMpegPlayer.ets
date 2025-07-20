@@ -583,7 +583,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     if (!this.avSession && this.allowBackgroundPlay) {
       this.avSession = await AVSessionUtil.getAVSession()
       await this.setSessionListener()
-      AVSessionUtil.setSessionInfo(JSON.stringify(this.now_playing))
+      AVSessionUtil.setSessionInfo(this.now_playing!)
       VideoOperateUtil.updateSession(this.playing, this.play_time)
     }
     VideoOperateUtil.updateSession(this.playing, this.play_time)

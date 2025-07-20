@@ -322,9 +322,11 @@ struct Index {
                     this.sideBarController.closeSideBar(true)
                   })
                   .bindContextMenu(this.FileFolderSelectMenu(folder), ResponseType.LongPress)
+                  .bindContextMenu(this.FileFolderSelectMenu(folder), ResponseType.RightClick)
                   .height(60)
-                }, (folder: FileFolder) => folder.name)
+                }, (folder: FileFolder) => folder.name + folder.date)
               }
+              .cachedCount(3)
               .borderRadius(16)
               .width('100%')
               .height('auto')

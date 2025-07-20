@@ -30,8 +30,7 @@ class AVSessionUtil {
     this.avSession.activate()
   }
 
-  async setSessionInfo(metadata_json: string) {
-    let metadata: VideoMetadataFromPlayer = JSON.parse(metadata_json)
+  async setSessionInfo(metadata: VideoMetadataFromPlayer) {
     try {
       this.imageSource = image.createImageSource(PathUtils.coverPath + metadata.date);
       let decodingOptions: image.DecodingOptions = {
@@ -55,8 +54,7 @@ class AVSessionUtil {
     await this.getAVCastController(metadata)
   }
 
-  updateSession(state: string) {
-    let avSessionState: AvSessionState = JSON.parse(state);
+  updateSession(avSessionState: AvSessionState) {
     let playbackState: avSessionManager.AVPlaybackState = {
       state: avSessionState.playing ? avSessionManager.PlaybackState.PLAYBACK_STATE_PLAY :
       avSessionManager.PlaybackState.PLAYBACK_STATE_PAUSE,
@@ -115,7 +113,7 @@ class AVSessionUtil {
     let playItem: avSession.AVQueueItem = {
       itemId: 0,
       description: {
-        assetId: 'VIDEO-' + JSON.stringify(now_playing.title),
+        assetId: 'VIDEO-' + now_playing.title,
         title: now_playing.title.slice(0, now_playing.title.lastIndexOf('.')),
         artist: '',
         mediaType: 'VIDEO',

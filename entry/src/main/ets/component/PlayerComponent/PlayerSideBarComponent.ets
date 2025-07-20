@@ -1,7 +1,6 @@
 import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import SelectFileUtil from '../../utils/SelectFileUtil'
-import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { VideoListController } from '../VideoItemComponent/VideoItemComponent'
 import { fileUri } from '@kit.CoreFileKit'
 import { PathUtils } from '../../utils/PathUtils'
@@ -24,24 +23,22 @@ export struct PlayerSideBarComponent {
   build() {
     List({ scroller: this.listScroller, space: 10 }) {
       LazyForEach(this.videoListController.videoDataSource, (item: VideoMetadata, index: number) => {
-        if (VideoInfoUtil.videoWidthAndHeightFormat(String(SelectFileUtil.getItem(this.video_meta_data,
-          item?.date)?.size)) !== '0 x 0') {
-          ListItem() {
-            ListView({
-              item: item,
-              now_playing: this.now_playing
+        ListItem() {
+          ListView({
+            item: item,
+            now_playing: this.now_playing
+          })
+            .reuseId(item.date)
+            .onClick(() => {
+              if (this.sideBarStatusTmp === Visibility.Hidden) {
+                return
+              }
+              this.onItemClick(item)
             })
-              .onClick(() => {
-                if (this.sideBarStatusTmp === Visibility.Hidden) {
-                  return
-                }
-                this.onItemClick(item)
-              })
-              .width('100%')
-              .height('auto')
-              .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.9 })
-          }.padding({ top: index === 0 ? 10 : 0 })
-        }
+            .width('100%')
+            .height('auto')
+            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.9 })
+        }.padding({ top: index === 0 ? 10 : 0 })
       }, (item: VideoMetadata) => item.date)
     }
     .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
@@ -67,6 +64,7 @@ export struct PlayerSideBarComponent {
     .margin({ top: this.topSafeHeight })
     .transition(TransitionEffect.translate({ x: 250 }).animation({ duration: 300, curve: Curve.Friction }))
     .borderRadius(20)
+    .cachedCount(3)
   }
 }
 

@@ -32,7 +32,7 @@ export struct SettingTimeItem {
           .fontWeight(FontWeight.Medium)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.MARQUEE })
-        Text(this.selected === 0 ? '不跳过' : TimeUtil.convertSsToMMSS(this.selected))
+        Text(this.selected === 0 ? '不跳过' : TimeUtil.convertSSToMMSS(this.selected))
           .fontSize(17)
           .fontWeight(FontWeight.Medium)
           .width('100%') // 宽度充满父容器

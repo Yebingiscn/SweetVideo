@@ -43,7 +43,7 @@ export struct FileFolderMenu {
                 this.videoListController.folder)
             })
         }
-      }, (item: FileFolder) => item.date)
+      }, (item: FileFolder) => item.date + item.name)
     }.attributeModifier(new MenuModifier())
   }
 }

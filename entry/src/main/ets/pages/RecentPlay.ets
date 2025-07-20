@@ -92,7 +92,7 @@ export struct RecentPlay { // 最近播放页
                 .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
             }.bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
             .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick)
-          }, (item: VideoMetadata) => item.date)
+          }, (item: VideoMetadata) => item.date + item.title)
         }
         .layoutWeight(1)
         .padding({ left: 20, right: 20 })
@@ -101,6 +101,7 @@ export struct RecentPlay { // 最近播放页
         .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
         .chainAnimation(true)
         .scrollBar(BarState.Off)
+        .cachedCount(3)
       }
     }.onShown(async () => {
       if (this.recentPlay) {
