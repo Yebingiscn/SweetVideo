@@ -106,7 +106,6 @@ struct Index {
         })
           .onClick(async () => {
             DataSyncUtil.delMultipleList = Array.from(folder.video_list);
-            this.videoDataSource.refreshData(folder)
             const deletePromises = DataSyncUtil.delMultipleList.map(async item => {
               DataSyncUtil.editingVideo = JSON.stringify(item);
               await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource);
