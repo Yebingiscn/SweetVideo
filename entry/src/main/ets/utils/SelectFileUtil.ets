@@ -103,19 +103,52 @@ class SelectFileUtil {
       == item.format ? item.title : item.title + '.' + item.format]
   }
 
-  saveData(context: Context, update_list: VideoMetadata[], target_data: VideoMetadataFromPlayer) {
-    const tmp_meta_data = Preferences.getVideoMetaData(context);
-    const tmp_meta_data_encryption = Preferences.getVideoMetaDataEncryption(context);
+  saveData(context: Context, target_data: VideoMetadataFromPlayer, play_time?: number, size?: number[]) {
+    let save_time: number = 0
+    if (play_time) {
+      //计算保存进度
+      save_time = play_time < target_data?.time! * 0.9 ? play_time : 0
+    }
+    
+    //  更新文件夹的数据
+    const folders = Preferences.getFileFolder(context)
+    for (let folderIndex = 0; folderIndex < folders.length; folderIndex++) {
+      const videoMetaData: VideoMetadata[] = folders[folderIndex].video_list
+      const targetVideoMetaDataIndex = videoMetaData.findIndex(video => video.uri == target_data.uri)
+      if (targetVideoMetaDataIndex !== -1) {
+        if (play_time) {
+          folders[folderIndex].video_list[targetVideoMetaDataIndex].last_play = save_time
+        }
+        if (size) {
+          folders[folderIndex].video_list[targetVideoMetaDataIndex].size = size
+        }
+      }
+    }
+    Preferences.saveFileFolder(context, folders)
+    //更新隐私空间的数据
+    const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(context);
+    const targetVideoMetaDataIndex = videoMetaDataEncryption.findIndex(video => video.uri == target_data.uri)
+    if (targetVideoMetaDataIndex !== -1) {
+      if (play_time) {
+        videoMetaDataEncryption[targetVideoMetaDataIndex].last_play = save_time
+      }
+      if (size) {
+        videoMetaDataEncryption[targetVideoMetaDataIndex].size = size
+      }
+    }
+    Preferences.saveVideoMetaDataEncryption(context, videoMetaDataEncryption)
+    //更新最近播放的数据
     const recent_play_deque = Preferences.getRecentPlay(context);
-    if (tmp_meta_data.some(item => item.date === target_data.date)) {
-      Preferences.saveVideoMetaData(context, update_list)
+    const recentTargetVideoMetaDataIndex = recent_play_deque.findIndex(video => video.uri == target_data.uri)
+    if (recentTargetVideoMetaDataIndex !== -1) {
+      if (play_time) {
+        recent_play_deque[recentTargetVideoMetaDataIndex].last_play = save_time
+      }
+      if (size) {
+        recent_play_deque[recentTargetVideoMetaDataIndex].size = size
+      }
     }
-    if (tmp_meta_data_encryption.some(item => item.date === target_data.date)) {
-      Preferences.saveVideoMetaDataEncryption(context, update_list)
-    }
-    if (recent_play_deque.some(item => item.date === target_data.date)) {
-      Preferences.saveRecentPlay(context, update_list)
-    }
+    Preferences.saveRecentPlay(context, recent_play_deque)
   }
 
   getItem(list: VideoMetadata[], item: string): VideoMetadata | undefined {

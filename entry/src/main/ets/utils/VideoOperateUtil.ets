@@ -173,11 +173,10 @@ class VideoOperateUtil {
 
   // 保存视频播放进度
   saveVideoTime(play_time: number, now_playing: VideoMetadataFromPlayer,
-    video_meta_data: VideoMetadata[], context: Context, file_folder: FileFolder) {
-    const save_time = play_time < now_playing?.time! * 0.9 ? play_time : 0
-    video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)].last_play = save_time
-    file_folder ? FileFolderUtil.updateFileFolder(context, file_folder, video_meta_data) :
-    SelectFileUtil.saveData(context, video_meta_data, now_playing!)
+    video_meta_data: VideoMetadata[], context: Context) {
+    // 保存文件数据
+    SelectFileUtil.saveData(context, now_playing!, play_time)
+
     const recentPlay = Preferences.getRecentPlayState(context) // 添加到最近播放
     if (recentPlay && !PrivacySpaceUtil.getPrivacyMode()) {
       RecentPlayUtil.addPlayback(context, video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)])
@@ -185,11 +184,8 @@ class VideoOperateUtil {
   }
 
   // 保存音视频宽高信息
-  async saveVideoWeightAndHeight(now_playing: VideoMetadataFromPlayer,
-    video_meta_data: VideoMetadata[], context: Context, file_folder: FileFolder) {
-    video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)].size = now_playing.size
-    file_folder.name.length !== 0 ? FileFolderUtil.updateFileFolder(context, file_folder, video_meta_data) :
-    SelectFileUtil.saveData(context, video_meta_data, now_playing!)
+  async saveVideoWeightAndHeight(context: Context, now_playing: VideoMetadataFromPlayer) {
+    SelectFileUtil.saveData(context, now_playing!, undefined, now_playing.size)
   }
 
   // 更新播控中心状态

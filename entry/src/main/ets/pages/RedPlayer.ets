@@ -357,8 +357,7 @@ export struct RedPlayer { // 红薯播放器页
       await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
       if (this.video_meta_data.length > 0 && this.redPlayerStateHolder.videoPosition > 0) {
         VideoOperateUtil.saveVideoTime(this.redPlayerStateHolder.videoPosition, this.now_playing!,
-          this.video_meta_data, PathUtils.appContext!,
-          this.file_folder)
+          this.video_meta_data, PathUtils.appContext!)
       }
       if (this.allowBackgroundPlay) {
         AVSessionUtil.destroySession()

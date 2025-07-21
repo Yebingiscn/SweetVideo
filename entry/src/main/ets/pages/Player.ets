@@ -252,7 +252,7 @@ export struct Player { // 播放页
       const isDestroy = AppStorage.get('destroy_signal') as boolean // 监听播放器是否将被杀掉，杀掉的话就保存记录
       if (isDestroy) {
         VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
-          PathUtils.appContext!, this.file_folder)
+          PathUtils.appContext!)
       }
       if (!this.onSwiping) {
         this.play_time = duration;
@@ -450,8 +450,7 @@ export struct Player { // 播放页
     if (this.video_meta_data.length > 0 && this.play_time > 0) {
       this.ijkPlayerStop()
       VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
-        PathUtils.appContext!,
-        this.file_folder)
+        PathUtils.appContext!)
       let item = SelectFileUtil.getItem(this.video_meta_data, this.now_playing?.date || '') as VideoMetadata
       let next_item = SelectFileUtil.getNextItem(this.video_meta_data, item.date)
       this.playChooseVideo(next_item!)
@@ -859,8 +858,7 @@ export struct Player { // 播放页
       this.avPlayer?.off('stateChange')
       if (this.video_meta_data.length > 0 && this.play_time > 0) {
         VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
-          PathUtils.appContext!,
-          this.file_folder)
+          PathUtils.appContext!)
       }
       if (this.allowBackgroundPlay) { //若发生错误跳转FFMpeg播放器，确保提前关闭申请防止两个播放器重复申请导致失败
         AVSessionUtil.destroySession()

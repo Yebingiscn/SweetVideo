@@ -128,6 +128,10 @@ class Preferences {
     PreferencesUtil.putPreferencesValue(context, "sweet_video", "OOBEVersion", OOBEVersion)
   }
 
+  static saveSingleVideoMetaData(context: Context, video_meta_data: VideoMetadata, folder: FileFolder) {
+
+  }
+
   //保存首页 TODO 这里需要施工
   static saveVideoMetaData(context: Context, video_meta_data: VideoMetadata[]) {
     const folders = Preferences.getFileFolder(context)

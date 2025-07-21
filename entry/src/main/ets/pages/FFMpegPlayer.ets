@@ -358,8 +358,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       }
       if (this.video_meta_data.length > 0 && this.play_time > 0) {
         VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
-          PathUtils.appContext!,
-          this.file_folder)
+          PathUtils.appContext!)
       }
       this.mDestroyPage = true;
       this.mIjkMediaPlayer?.setScreenOnWhilePlaying(false);
@@ -782,8 +781,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     if (this.now_playing?.size[0] === 0 && VideoWidth !== 0) {
       this.now_playing.size[0] = VideoWidth
       this.now_playing.size[1] = VideoHeight
-      VideoOperateUtil.saveVideoWeightAndHeight(this.now_playing, this.video_meta_data, PathUtils.appContext!,
-        this.file_folder)
+      VideoOperateUtil.saveVideoWeightAndHeight(PathUtils.appContext!, this.now_playing)
     }
     const aspectRatioNow = VideoWidth / VideoHeight;
     const screenAspectRatio = this.screen_width / this.screen_height;
