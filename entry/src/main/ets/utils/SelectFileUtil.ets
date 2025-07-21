@@ -151,19 +151,38 @@ class SelectFileUtil {
     Preferences.saveRecentPlay(context, recent_play_deque)
   }
 
-  deleteVideo(videoMetaData: VideoMetadata){
+  deleteVideo(videoMetaData: VideoMetadata) {
+    this.deleteVideoFolder(videoMetaData)
+    this.deleteVideoEncryption(videoMetaData)
+    this.deleteVideoRecent(videoMetaData)
+  }
+
+  deleteVideoFolder(videoMetaData: VideoMetadata, currentFolder?: FileFolder) {
     const context = PathUtils.appContext!
     //  更新文件夹的数据
     const folders = Preferences.getFileFolder(context)
-    for (let folderIndex = 0; folderIndex < folders.length; folderIndex++) {
-      folders[folderIndex].video_list = folders[folderIndex].video_list.filter(i => i.uri !== videoMetaData.uri)
+    if (currentFolder) {
+      const folderIndex = folders.findIndex(i => i.name === currentFolder.name)
+      folders[folderIndex].video_list.filter(i => i.uri !== videoMetaData.uri)
+    } else {
+      for (let folderIndex = 0; folderIndex < folders.length; folderIndex++) {
+        folders[folderIndex].video_list = folders[folderIndex].video_list.filter(i => i.uri !== videoMetaData.uri)
+      }
     }
     Preferences.saveFileFolder(context, folders)
+  }
+
+  deleteVideoEncryption(videoMetaData: VideoMetadata) {
+    const context = PathUtils.appContext!
 
     //更新隐私空间的数据
     let videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(context);
     videoMetaDataEncryption = videoMetaDataEncryption.filter(video => video.uri !== videoMetaData.uri)
     Preferences.saveVideoMetaDataEncryption(context, videoMetaDataEncryption)
+  }
+
+  deleteVideoRecent(videoMetaData: VideoMetadata) {
+    const context = PathUtils.appContext!
 
     //更新最近播放的数据
     let recent_play_deque = Preferences.getRecentPlay(context);

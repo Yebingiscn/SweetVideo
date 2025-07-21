@@ -7,7 +7,6 @@ import SubtitleUtil from '../utils/SubtitleUtil';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
 import SelectFileUtil from '../utils/SelectFileUtil'
 
-
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { FolderOperator } from '../database/VideoMetaData';
 
@@ -79,6 +78,9 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
     DataSyncUtil.editingVideo = JSON.stringify(item)
     new Promise<void>((resolve, reject) => {
       this.deleteItem(resolve, reject);
+      if (item) {
+        SelectFileUtil.deleteVideo(item!)
+      }
     });
   }
 
@@ -90,8 +92,7 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
     //从videoList中找到这个video，然后调用deleteData方法删除
     this.deleteData(this.data.findIndex(i => i.date === tmp.date))
     // this.data = this.data.filter(i => i.date != tmp.date);
-    SelectFileUtil.deleteVideo(tmp)
-    // RecentPlayUtil.delData(PathUtils.appContext!, tmp) // 删除最近播放的记录
+    SelectFileUtil.deleteVideoRecent(tmp) // 删除最近播放的记录
     fs.access(PathUtils.coverPath + tmp.date, (err) => {
       if (!err) { // 文件存在
         fs.unlink(PathUtils.coverPath + tmp.date, (unlinkErr) => {
