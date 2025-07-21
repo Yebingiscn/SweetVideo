@@ -389,6 +389,12 @@ struct Index {
         .borderRadius(this.sideBarController.side_bar_mode === SideBarContainerType.Overlay ? 16 : 0)
 
         Stack() {
+          VideoView({
+            loading: this.loading,
+            passwd: this.passwd,
+            searchValue: this.searchValue,
+            videoListController: this.videoListController
+          })
           if (this.loading) {
             Stack() {
               ImportProgressComponent({
@@ -398,12 +404,6 @@ struct Index {
             }.width('100%')
             .height('100%')
           }
-          VideoView({
-            loading: this.loading,
-            passwd: this.passwd,
-            searchValue: this.searchValue,
-            videoListController: this.videoListController
-          })
         }.backgroundColor($r('app.color.start_window_background'))
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
           const width = Number(newValue.width);
