@@ -109,7 +109,7 @@ class SelectFileUtil {
       //计算保存进度
       save_time = play_time < target_data?.time! * 0.9 ? play_time : 0
     }
-    
+
     //  更新文件夹的数据
     const folders = Preferences.getFileFolder(context)
     for (let folderIndex = 0; folderIndex < folders.length; folderIndex++) {
@@ -148,6 +148,26 @@ class SelectFileUtil {
         recent_play_deque[recentTargetVideoMetaDataIndex].size = size
       }
     }
+    Preferences.saveRecentPlay(context, recent_play_deque)
+  }
+
+  deleteVideo(videoMetaData: VideoMetadata){
+    const context = PathUtils.appContext!
+    //  更新文件夹的数据
+    const folders = Preferences.getFileFolder(context)
+    for (let folderIndex = 0; folderIndex < folders.length; folderIndex++) {
+      folders[folderIndex].video_list = folders[folderIndex].video_list.filter(i => i.uri !== videoMetaData.uri)
+    }
+    Preferences.saveFileFolder(context, folders)
+
+    //更新隐私空间的数据
+    let videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(context);
+    videoMetaDataEncryption = videoMetaDataEncryption.filter(video => video.uri !== videoMetaData.uri)
+    Preferences.saveVideoMetaDataEncryption(context, videoMetaDataEncryption)
+
+    //更新最近播放的数据
+    let recent_play_deque = Preferences.getRecentPlay(context);
+    recent_play_deque = recent_play_deque.filter(i => i.uri !== videoMetaData.uri)
     Preferences.saveRecentPlay(context, recent_play_deque)
   }
 

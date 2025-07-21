@@ -159,6 +159,7 @@ class Preferences {
   static saveListDisplayMode(context: Context, is_list_display: boolean) {
     PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'is_list_display', is_list_display);
   }
+
 }
 
 export default Preferences
