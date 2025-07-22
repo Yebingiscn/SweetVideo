@@ -25,7 +25,6 @@ import { PlayerParams } from '../common/PlayerParams'
 import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { PlayStatus } from '../common/enum/PlayStatus'
-import { FileFolder } from '../interfaces/FileFolderInterface'
 import VideoInfoUtil from '../utils/VideoInfoUtil'
 import { KeyCode } from '@kit.InputKit'
 import { PathUtils } from '../utils/PathUtils'
@@ -91,11 +90,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   private initPinchDistance: number = 0;
   private CONTROL_PlayStatus = PlayStatus.INIT;
   private mIjkMediaPlayer: IjkMediaPlayer | null = null;
-  private file_folder: FileFolder = {
-    name: '',
-    date: '',
-    video_list: []
-  }
 
   build() {
     NavDestination() {
@@ -335,7 +329,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       try {
         this.now_playing = playerParams.metadata as VideoMetadataFromPlayer
         this.video_meta_data = playerParams.metadata_list as VideoMetadata[];
-        this.file_folder = playerParams.file_folder as FileFolder
       } catch (e) {
         console.error(e)
       }
@@ -347,6 +340,10 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         return false
       }
     }).onWillDisappear(async () => {
+      if (this.video_meta_data.length > 0 && this.play_time > 0) {
+        VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
+          PathUtils.appContext!)
+      }
       await (await this.windowClass).setWindowKeepScreenOn(false)
       if (canIUse('SystemCapability.Window.SessionManager')) {
         await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
@@ -355,10 +352,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
       if (this.now_playing?.time === 0) {
         this.now_playing.time = this.total_time; // 若系统无法识别视频时长，则由 FFMpeg API 提供以保存记忆时间
-      }
-      if (this.video_meta_data.length > 0 && this.play_time > 0) {
-        VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
-          PathUtils.appContext!)
       }
       this.mDestroyPage = true;
       this.mIjkMediaPlayer?.setScreenOnWhilePlaying(false);

@@ -10,10 +10,10 @@ export struct SwipingPlayTimeDisplay {
   build() {
     Stack() { // 滑动控制栏
       Text(this.isSliderPlayTimeChange ?
-        TimeUtil.convertMsToMMSS(this.playTime) + '/' + TimeUtil.convertMsToMMSS(this.totalTime) :
+        TimeUtil.convertMSToMMSS(this.playTime) + '/' + TimeUtil.convertMSToMMSS(this.totalTime) :
         (this.playTime - this.lastPlayTime > 0 ? '+' : '') +
         Math.floor((this.playTime - this.lastPlayTime) / 1000) + 's : ' +
-        TimeUtil.convertMsToMMSS(this.playTime) + '/' + TimeUtil.convertMsToMMSS(this.totalTime))
+        TimeUtil.convertMSToMMSS(this.playTime) + '/' + TimeUtil.convertMSToMMSS(this.totalTime))
         .fontColor($r('sys.color.white'))
         .fontSize(25)
         .fontWeight(FontWeight.Bold)

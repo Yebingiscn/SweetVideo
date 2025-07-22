@@ -40,7 +40,7 @@ export struct VideoDetailDialog {
           }.width('100%')
 
           Column({ space: 15 }) {
-            this.buildDetailItem('上次播放时间：', TimeUtil.convertMsToMMSS(this.metadata?.last_play))
+            this.buildDetailItem('上次播放时间：', TimeUtil.convertMSToMMSS(this.metadata?.last_play))
           }.width('100%')
 
           Column({ space: 15 }) {

@@ -8,7 +8,6 @@ import ToolsUtil from '../utils/ToolsUtil';
 import { KeyCode } from '@kit.InputKit';
 import { PlayerParams } from '../common/PlayerParams';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
-import { FileFolder } from '../interfaces/FileFolderInterface';
 import AVSessionUtil from '../utils/AVSessionUtil';
 import { AVCastPicker, avSession as avSessionManager } from '@kit.AVSessionKit';
 import VideoOperateUtil from '../utils/VideoOperateUtil';
@@ -69,11 +68,6 @@ export struct RedPlayer { // 红薯播放器页
   @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
   @State video_meta_data: VideoMetadata[] = []
-  private file_folder: FileFolder = {
-    name: '',
-    date: '',
-    video_list: []
-  }
 
   build() {
     NavDestination() {
@@ -336,7 +330,6 @@ export struct RedPlayer { // 红薯播放器页
       try {
         this.now_playing = playerParams.metadata as VideoMetadataFromPlayer
         this.video_meta_data = playerParams.metadata_list as VideoMetadata[];
-        this.file_folder = playerParams.file_folder as FileFolder
       } catch (e) {
         console.error(e)
       }
@@ -349,16 +342,16 @@ export struct RedPlayer { // 红薯播放器页
         return false
       }
     }).onWillDisappear(async () => {
+      if (this.video_meta_data.length > 0 && this.redPlayerStateHolder.videoPosition > 0) {
+        VideoOperateUtil.saveVideoTime(this.redPlayerStateHolder.videoPosition, this.now_playing!,
+          this.video_meta_data, PathUtils.appContext!)
+      }
       await (await this.windowClass).setWindowKeepScreenOn(false)
       if (canIUse('SystemCapability.Window.SessionManager')) {
         await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
         await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
       }
       await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
-      if (this.video_meta_data.length > 0 && this.redPlayerStateHolder.videoPosition > 0) {
-        VideoOperateUtil.saveVideoTime(this.redPlayerStateHolder.videoPosition, this.now_playing!,
-          this.video_meta_data, PathUtils.appContext!)
-      }
       if (this.allowBackgroundPlay) {
         AVSessionUtil.destroySession()
         PermissionUtil.stopContinuousTask()

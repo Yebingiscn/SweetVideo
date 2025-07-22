@@ -324,7 +324,7 @@ struct Index {
                   .bindContextMenu(this.FileFolderSelectMenu(folder), ResponseType.LongPress)
                   .bindContextMenu(this.FileFolderSelectMenu(folder), ResponseType.RightClick)
                   .height(60)
-                }, (folder: FileFolder) => folder.name + folder.date)
+                }, (folder: FileFolder) => folder.name + folder.date + folder.video_list.toString())
               }
               .cachedCount(3)
               .borderRadius(16)

@@ -13,6 +13,8 @@ import ReqPermissionUtil from './ReqPermissionUtil';
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import FileFolderUtil from './FileFolderUtil';
 import { PathUtils } from './PathUtils';
+import ToolsUtil from './ToolsUtil';
+import RecentPlayUtil from './RecentPlayUtil';
 
 // 获取视频类
 class SelectFileUtil {
@@ -109,17 +111,17 @@ class SelectFileUtil {
       //计算保存进度
       save_time = play_time < target_data?.time! * 0.9 ? play_time : 0
     }
-
     //  更新文件夹的数据
     const folders = Preferences.getFileFolder(context)
     for (let folderIndex = 0; folderIndex < folders.length; folderIndex++) {
       const videoMetaData: VideoMetadata[] = folders[folderIndex].video_list
-      const targetVideoMetaDataIndex = videoMetaData.findIndex(video => video.uri == target_data.uri)
+      const targetVideoMetaDataIndex = videoMetaData.findIndex(video => video.date == target_data.date)
       if (targetVideoMetaDataIndex !== -1) {
         if (play_time) {
           folders[folderIndex].video_list[targetVideoMetaDataIndex].last_play = save_time
         }
-        if (size) {
+        if (size && size[0] !== 0 &&
+          folders[folderIndex].video_list[targetVideoMetaDataIndex].size[0] === 0) { // 只有当长宽为0时才需要更新长宽
           folders[folderIndex].video_list[targetVideoMetaDataIndex].size = size
         }
       }
@@ -127,24 +129,24 @@ class SelectFileUtil {
     Preferences.saveFileFolder(context, folders)
     //更新隐私空间的数据
     const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(context);
-    const targetVideoMetaDataIndex = videoMetaDataEncryption.findIndex(video => video.uri == target_data.uri)
+    const targetVideoMetaDataIndex = videoMetaDataEncryption.findIndex(video => video.date == target_data.date)
     if (targetVideoMetaDataIndex !== -1) {
       if (play_time) {
         videoMetaDataEncryption[targetVideoMetaDataIndex].last_play = save_time
       }
-      if (size) {
+      if (size && size[0] !== 0 && videoMetaDataEncryption[targetVideoMetaDataIndex].size[0] === 0) {
         videoMetaDataEncryption[targetVideoMetaDataIndex].size = size
       }
     }
     Preferences.saveVideoMetaDataEncryption(context, videoMetaDataEncryption)
     //更新最近播放的数据
     const recent_play_deque = Preferences.getRecentPlay(context);
-    const recentTargetVideoMetaDataIndex = recent_play_deque.findIndex(video => video.uri == target_data.uri)
+    const recentTargetVideoMetaDataIndex = recent_play_deque.findIndex(video => video.date == target_data.date)
     if (recentTargetVideoMetaDataIndex !== -1) {
       if (play_time) {
         recent_play_deque[recentTargetVideoMetaDataIndex].last_play = save_time
       }
-      if (size) {
+      if (size && size[0] !== 0 && recent_play_deque[recentTargetVideoMetaDataIndex].size[0] === 0) {
         recent_play_deque[recentTargetVideoMetaDataIndex].size = size
       }
     }
@@ -154,7 +156,7 @@ class SelectFileUtil {
   deleteVideo(videoMetaData: VideoMetadata) {
     this.deleteVideoFolder(videoMetaData)
     this.deleteVideoEncryption(videoMetaData)
-    this.deleteVideoRecent(videoMetaData)
+    RecentPlayUtil.delData(PathUtils.appContext!, videoMetaData)
   }
 
   deleteVideoFolder(videoMetaData: VideoMetadata, currentFolder?: FileFolder) {
@@ -163,31 +165,32 @@ class SelectFileUtil {
     const folders = Preferences.getFileFolder(context)
     if (currentFolder) {
       const folderIndex = folders.findIndex(i => i.name === currentFolder.name)
-      folders[folderIndex].video_list.filter(i => i.uri !== videoMetaData.uri)
+      folders[folderIndex].video_list.filter(i => i.date !== videoMetaData.date)
     } else {
       for (let folderIndex = 0; folderIndex < folders.length; folderIndex++) {
-        folders[folderIndex].video_list = folders[folderIndex].video_list.filter(i => i.uri !== videoMetaData.uri)
+        folders[folderIndex].video_list = folders[folderIndex].video_list.filter(i => i.date !== videoMetaData.date)
       }
     }
     Preferences.saveFileFolder(context, folders)
   }
 
   deleteVideoEncryption(videoMetaData: VideoMetadata) {
-    const context = PathUtils.appContext!
-
     //更新隐私空间的数据
-    let videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(context);
-    videoMetaDataEncryption = videoMetaDataEncryption.filter(video => video.uri !== videoMetaData.uri)
-    Preferences.saveVideoMetaDataEncryption(context, videoMetaDataEncryption)
-  }
-
-  deleteVideoRecent(videoMetaData: VideoMetadata) {
-    const context = PathUtils.appContext!
-
-    //更新最近播放的数据
-    let recent_play_deque = Preferences.getRecentPlay(context);
-    recent_play_deque = recent_play_deque.filter(i => i.uri !== videoMetaData.uri)
-    Preferences.saveRecentPlay(context, recent_play_deque)
+    let videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!);
+    videoMetaDataEncryption = videoMetaDataEncryption.filter(video => video.date !== videoMetaData.date)
+    Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, videoMetaDataEncryption)
+    fs.access(PathUtils.videoPath + videoMetaData.date).then((res: boolean) => {
+      if (res) {
+        fs.unlink(PathUtils.videoPath + videoMetaData.date, async (unlinkErr) => {
+          if (unlinkErr) {
+            ToolsUtil.showToast('删除视频失败：' + videoMetaData.title + '原因是：' + unlinkErr.message)
+          }
+          Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, videoMetaDataEncryption)
+        });
+      }
+    }).catch((err: BusinessError) => {
+      console.error("access failed with error message: " + err.message + ", error code: " + err.code);
+    });
   }
 
   getItem(list: VideoMetadata[], item: string): VideoMetadata | undefined {
@@ -326,6 +329,20 @@ class SelectFileUtil {
       video_meta_data,
       fileFolder
     );
+  }
+
+  // return [folder1,folder2]
+  async getFolderAndVideoFromDownloadFile() {
+    fs.listFile(this.file_folder_uri, (err: BusinessError, filenames: Array<string>) => {
+      if (err) {
+        console.error("list file failed with error message: " + err.message + ", error code: " + err.code);
+      } else {
+        console.info("listFile succeed");
+        for (let i = 0; i < filenames.length; i++) {
+          console.info("filename: %s", filenames[i]);
+        }
+      }
+    });
   }
 
   // 从下载文件夹获取视频，视频和文件夹太多

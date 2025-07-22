@@ -9,14 +9,12 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
 import SelectFileUtil from './SelectFileUtil';
 import { AudioTrack } from '../interfaces/AudioTrackInterface';
-import { FileFolder } from '../interfaces/FileFolderInterface';
 import { AvSessionState } from '../interfaces/AvSessionStateInterface';
 import ReqPermissionUtil from './ReqPermissionUtil';
 import { common } from '@kit.AbilityKit';
 import Preferences from '../database/Preferences';
 import RecentPlayUtil from './RecentPlayUtil';
 import PrivacySpaceUtil from './PrivacySpaceUtil';
-import FileFolderUtil from './FileFolderUtil';
 import { AVCastPickerState, avSession, avSession as avSessionManager } from '@kit.AVSessionKit';
 import { PathUtils } from './PathUtils';
 import { LanguageConfig } from '../common/LanguageConfig';
@@ -110,13 +108,13 @@ class VideoOperateUtil {
   }
 
   // 系统播放器播放失败处理
-  playErrorExecute(pathStack: NavPathStack, video_meta_data: VideoMetadata[], date: string, file_folder: FileFolder) {
+  playErrorExecute(pathStack: NavPathStack, video_meta_data: VideoMetadata[], date: string) {
     ToolsUtil.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.video_error')))
     const now_play_item = video_meta_data.find(item => {
       const target_item = SelectFileUtil.getItem(video_meta_data, item?.date)?.date;
       return date === target_item;
     });
-    const playerParams = new PlayerParams(now_play_item, video_meta_data, file_folder ? file_folder : undefined)
+    const playerParams = new PlayerParams(now_play_item, video_meta_data, undefined)
     pathStack.replacePathByName('FFMpegPlayer', playerParams, true)
   }
 
@@ -176,9 +174,8 @@ class VideoOperateUtil {
     video_meta_data: VideoMetadata[], context: Context) {
     // 保存文件数据
     SelectFileUtil.saveData(context, now_playing!, play_time)
-
-    const recentPlay = Preferences.getRecentPlayState(context) // 添加到最近播放
-    if (recentPlay && !PrivacySpaceUtil.getPrivacyMode()) {
+    const recentPlay = Preferences.getRecentPlayState(context) // 判断最近播放开关是否开启
+    if (recentPlay && !PrivacySpaceUtil.getPrivacyMode()) { // 最近播放开启且非隐私空间视频则添加到最近播放
       RecentPlayUtil.addPlayback(context, video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)])
     }
   }

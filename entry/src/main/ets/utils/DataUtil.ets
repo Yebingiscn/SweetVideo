@@ -4,11 +4,11 @@ import Preferences from '../database/Preferences';
 import { PathUtils } from './PathUtils';
 import DataSyncUtil from '../utils/DataSyncUtil';
 import SubtitleUtil from '../utils/SubtitleUtil';
-import RecentPlayUtil from '../utils/RecentPlayUtil';
-import SelectFileUtil from '../utils/SelectFileUtil'
+import SelectFileUtil from '../utils/SelectFileUtil';
 
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { FolderOperator } from '../database/VideoMetaData';
+import RecentPlayUtil from './RecentPlayUtil';
 
 // 基础数据源抽象类（泛型实现）
 abstract class BaseDataSource<T> implements IDataSource {
@@ -92,8 +92,8 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
     //从videoList中找到这个video，然后调用deleteData方法删除
     this.deleteData(this.data.findIndex(i => i.date === tmp.date))
     // this.data = this.data.filter(i => i.date != tmp.date);
-    SelectFileUtil.deleteVideoRecent(tmp) // 删除最近播放的记录
-    fs.access(PathUtils.coverPath + tmp.date, (err) => {
+    RecentPlayUtil.delData(PathUtils.appContext!, tmp)
+    fs.access(PathUtils.coverPath + tmp.date, (err) => { // 删除封面
       if (!err) { // 文件存在
         fs.unlink(PathUtils.coverPath + tmp.date, (unlinkErr) => {
           if (unlinkErr) {

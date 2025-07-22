@@ -58,6 +58,7 @@ export class VideoListController {
   public closeMultipleChoose() {
     this.itemMultipleChoose = false;
     this.multipleChooseState = Visibility.None;
+    DataSyncUtil.delMultipleList = [] // 需要进行置空，防止脏数据
   }
 
   public refresh(width: number, isListDisplay: boolean) {
@@ -102,7 +103,17 @@ export struct VideoList {
           return
         }
         await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource)
-        this.videoListController.closeMultipleChoose!()
+        if (DataSyncUtil.delMultipleList.length > 0) {
+          this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
+          await Promise.all(
+            DataSyncUtil.delMultipleList.map(item => {
+              DataSyncUtil.editingVideo = JSON.stringify(item);
+              VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource);
+              return Promise.resolve();
+            })
+          );
+        }
+        this.videoListController.closeMultipleChoose()
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -151,9 +162,10 @@ export struct VideoList {
           .onClick(async () => {
             await this.clickItem(item)
           })
-        }, (item: VideoMetadata) => item.title + item.size.toString() + item.date + item.last_play +
+        }, (item: VideoMetadata) => item.date + item.last_play + item.title + item.size.toString() +
         this.videoListController.folder.name)
       }
+      .padding({ left: 15, right: 15 })
       .cachedCount(3)
       .contentStartOffset(this.topSafeHeight + 55)
       .contentEndOffset(this.bottomSafeHeight)
@@ -192,7 +204,7 @@ export struct VideoList {
               .onClick(async () => {
                 await this.clickItem(item)
               })
-            }, (item: VideoMetadata) => item.date + item.last_play + item.title + item.size +
+            }, (item: VideoMetadata) => item.date + item.last_play + item.title + item.size.toString() +
             this.videoListController.folder.name)
           }
           .columnsTemplate('1fr '.repeat(this.videoListController.listLine).trim())
@@ -213,7 +225,7 @@ export struct VideoList {
             scrollBackward: NestedScrollMode.SELF_FIRST
           })
         }
-      }
+      }.scrollBar(BarState.Off)
     }
   }
 
@@ -301,6 +313,8 @@ export struct VideoList {
     }.attributeModifier(new MenuModifier()).onAppear(() => {
       ToolsUtil.startVibration()
       this.MenuBuilderState = true
+    }).onDisAppear(() => {
+      this.MenuBuilderState = false
     })
   }
 

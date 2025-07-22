@@ -16,7 +16,6 @@ import { IjkMediaPlayer } from '@ohos/ijkplayer';
 import { PlayerParams } from '../common/PlayerParams';
 import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
-import { FileFolder } from '../interfaces/FileFolderInterface';
 import { AudioTrack } from '../interfaces/AudioTrackInterface';
 import Preferences from '../database/Preferences';
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
@@ -93,11 +92,6 @@ export struct Player { // 播放页
   @StorageLink('skipIntroTime') skipIntroTime: string = '0'
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @Consume('pathStack') pathStack: NavPathStack
-  private file_folder: FileFolder = {
-    name: '',
-    date: '',
-    video_list: []
-  }
   private mIjkMediaPlayer: IjkMediaPlayer | null = null;
   private autoHideTimeout: boolean = false
 
@@ -244,7 +238,7 @@ export struct Player { // 播放页
           this.autoHideTimeout = true
           setTimeout(() => {
             this.lockVisibility = !this.lockVisibility;
-            this.showControl = !this.showControl
+            this.showControl = false
             this.autoHideTimeout = false
           }, 6000)
         }
@@ -385,8 +379,7 @@ export struct Player { // 播放页
           break;
         case 'error':
           await this.ijkPlayerStop()
-          VideoOperateUtil.playErrorExecute(this.pathStack, this.video_meta_data, this.now_playing?.date!,
-            this.file_folder)
+          VideoOperateUtil.playErrorExecute(this.pathStack, this.video_meta_data, this.now_playing?.date!)
           this.avPlayer?.release()
           break;
       }
@@ -723,8 +716,7 @@ export struct Player { // 播放页
                 const currentX = event.fingerList[0].localX;
                 const deltaX = currentX - this.swipe_start_x;
                 this.play_time = Math.max(0,
-                  Math.min(this.last_play_time + (deltaX * VideoOperateUtil.timePerPixel),
-                    this.now_playing?.time!));
+                  Math.min(this.last_play_time + (deltaX * VideoOperateUtil.timePerPixel), this.now_playing?.time!));
               }
             },
             onHorizonPanEnd: () => {
@@ -823,7 +815,6 @@ export struct Player { // 播放页
       try {
         this.now_playing = playerParams.metadata as VideoMetadataFromPlayer
         this.video_meta_data = playerParams.metadata_list as VideoMetadata[]
-        this.file_folder = playerParams.file_folder as FileFolder
       } catch (e) {
         console.error(e)
       }
@@ -843,6 +834,14 @@ export struct Player { // 播放页
       }
     })
     .onWillDisappear(async () => {
+      if (this.video_meta_data.length > 0 && this.play_time > 0) {
+        VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
+          PathUtils.appContext!)
+      }
+      if (this.allowBackgroundPlay) { //若发生错误跳转FFMpeg播放器，确保提前关闭申请防止两个播放器重复申请导致失败
+        AVSessionUtil.destroySession()
+        PermissionUtil.stopContinuousTask()
+      }
       await (await this.windowClass).setWindowKeepScreenOn(false)
       if (canIUse('SystemCapability.Window.SessionManager')) {
         await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
@@ -856,14 +855,6 @@ export struct Player { // 播放页
       this.avPlayer?.off('audioOutputDeviceChangeWithInfo')
       this.avPlayer?.off('subtitleUpdate')
       this.avPlayer?.off('stateChange')
-      if (this.video_meta_data.length > 0 && this.play_time > 0) {
-        VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
-          PathUtils.appContext!)
-      }
-      if (this.allowBackgroundPlay) { //若发生错误跳转FFMpeg播放器，确保提前关闭申请防止两个播放器重复申请导致失败
-        AVSessionUtil.destroySession()
-        PermissionUtil.stopContinuousTask()
-      }
       await this.avSession?.stopCasting();
     })
     .hideTitleBar(true)

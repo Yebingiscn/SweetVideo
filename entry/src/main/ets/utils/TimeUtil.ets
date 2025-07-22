@@ -1,6 +1,6 @@
 // 时间类，格式化时间
 class TimeUtil {
-  convertMsToMMSS(ms: number | undefined): string {
+  convertMSToMMSS(ms: number | undefined): string {
     if (!ms) {
       return '00:00'
     }

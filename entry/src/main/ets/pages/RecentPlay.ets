@@ -92,7 +92,7 @@ export struct RecentPlay { // 最近播放页
                 .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
             }.bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
             .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick)
-          }, (item: VideoMetadata) => item.date + item.title)
+          }, (item: VideoMetadata) => item.date + item.title + item.last_play + item.size.toString())
         }
         .layoutWeight(1)
         .padding({ left: 20, right: 20 })

@@ -16,7 +16,7 @@ import { FolderOperator, VideoMetaDataOperator } from '../../database/VideoMetaD
 @Component
 export struct VideoView {
   searchController: SearchController = new SearchController()
-  @Prop loading: boolean = false
+  @Link loading: boolean
   @State is_edit: boolean = false
   @Link searchValue: string
   @Prop passwd: string = ''
@@ -201,18 +201,17 @@ export struct VideoView {
         content: $r('app.string.delete_selected')
       })
         .onClick(async () => {
-          this.videoListController.closeMultipleChoose()
-          this.videoListController.multipleChooseState = Visibility.None;
           if (DataSyncUtil.delMultipleList.length > 0) {
             this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
-            const deletePromises = DataSyncUtil.delMultipleList.map(item => {
-              return new Promise<void>(() => {
+            await Promise.all(
+              DataSyncUtil.delMultipleList.map(item => {
                 DataSyncUtil.editingVideo = JSON.stringify(item);
-                VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource)
-              });
-            });
-            await Promise.all(deletePromises);
+                VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource);
+                return Promise.resolve();
+              })
+            );
           }
+          this.videoListController.closeMultipleChoose()
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),

@@ -18,7 +18,7 @@ export struct VideoInfoComponent {
   build() {
     Row() {
       // HDR类型图标
-      if (this.item!.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID) {
+      if (this.item?.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID) {
         Image($r("app.media.hdr_vivid_icon"))
           .attributeModifier(new ImageFancyModifier(10, 65, 25))
       }
@@ -46,7 +46,7 @@ export struct VideoInfoComponent {
         }
       }
       // 时长显示
-      Text("  " + TimeUtil.convertMsToMMSS(this.item!.time))
+      Text("  " + TimeUtil.convertMSToMMSS(this.item!.time))
         .fontSize(15)
         .opacity(0.8)
     }

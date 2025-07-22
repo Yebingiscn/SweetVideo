@@ -206,7 +206,7 @@ export struct PrivacySpace { // 隐私空间页
   }
 
   async delItem(context: Context, item: VideoMetadata) {
-    SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date!)
+    await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date!)
     this.videoDataSource.deleteData(this.video_meta_data_encryption.findIndex(i => i.date == item.date))
     this.video_meta_data_encryption = this.video_meta_data_encryption.filter(i => i.date != item.date);
     fs.access(PathUtils.videoPath + item.date).then((res: boolean) => {
@@ -269,7 +269,6 @@ export struct PrivacySpace { // 隐私空间页
                       }.width('100%')
 
                       VideoInfoComponent({ item })
-                        .reuseId(item.date)
                     }.margin({ left: 10 }).alignItems(HorizontalAlign.Start)
                   }
                   .width('100%')
@@ -302,7 +301,6 @@ export struct PrivacySpace { // 隐私空间页
                     .padding({ top: 5 })
 
                     VideoInfoComponent({ item })
-                      .reuseId(item.date)
                   }.padding({ left: 5, right: 5, bottom: 5 })
                   .width('100%')
                 }

@@ -4,7 +4,6 @@ import { BusinessError, systemDateTime } from '@kit.BasicServicesKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { bundleManager } from '@kit.AbilityKit';
-import SelectFileUtil from './SelectFileUtil';
 import { pinyin4js } from '@ohos/pinyin4js';
 import PermissionUtil from './PermissionUtil';
 import { PlayerParams } from '../common/PlayerParams';
@@ -139,16 +138,14 @@ export class ToolsUtil {
     }
   }
 
-
   // 点击视频跳转到播放器
   async routerWhere(pathStack: NavPathStack, uri: string, item: VideoMetadata, list: VideoMetadata[]) {
-    let target_item = SelectFileUtil.getItem(list, item.date!)
     // 没有长宽的视频/音频系统播放器播不了
-    if (VideoInfoUtil.videoWidthAndHeightFormat(String(target_item?.size)) === '0 x 0') {
+    if (VideoInfoUtil.videoWidthAndHeightFormat(String(item?.size)) === '0 x 0') {
       this.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.video_error')))
       uri = 'FFMpegPlayer'
     }
-    const playerParams = new PlayerParams(list.find(i => i.date === item.date) as VideoMetadata, list, undefined)
+    const playerParams = new PlayerParams(item, list, undefined)
     pathStack.pushPathByName(uri, playerParams, true)
   }
 

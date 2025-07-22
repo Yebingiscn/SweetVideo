@@ -27,6 +27,7 @@ class RecentPlayUtil {
   }
 
   async getRecentPlaybacks(): Promise<VideoMetadata[]> {
+    this.loadData(PathUtils.appContext!)
     return [...this.deque];
   }
 
