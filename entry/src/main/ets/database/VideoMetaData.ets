@@ -35,6 +35,7 @@ export class VideoMetaDataOperator {
       videoListController.folder.video_list = videoListController.videoDataSource.getAllData()
       FileFolderUtil.updateFileFolderList(PathUtils.appContext!, videoListController.folder)
       fileFolderSource.updateData(Preferences.getFileFolder(PathUtils.appContext!))
+      videoListController.videoDataSource.refreshData(videoListController.folder)
     });
   }
 }

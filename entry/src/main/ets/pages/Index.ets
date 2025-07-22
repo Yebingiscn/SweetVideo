@@ -54,10 +54,11 @@ struct Index {
   @StorageProp('screen_width') screen_width: number = 0
   @StorageProp('screen_height') screen_height: number = 0
   @State searchValue: string = ''
+  @Provide open_side_bar_tip: boolean = false
   @Provide('pathStack') pathStack: NavPathStack = new NavPathStack()
-  @Provide videoListController: VideoListController =
+  @Watch('showOpenSideBarTip') @Provide videoListController: VideoListController =
     new VideoListController(Preferences.getFileFolder(PathUtils.appContext!)[0])
-  @Provide videoDataSource: VideoDataSource = new VideoDataSource([])
+  @Watch('showOpenSideBarTip') @Provide videoDataSource: VideoDataSource = new VideoDataSource([])
   @Provide fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   @Provide @Watch('SyncSideBarAndMaskState') sideBarController: SideBarController = new SideBarController()
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
@@ -89,6 +90,14 @@ struct Index {
   SyncSideBarAndMaskState(): void {
     if (this.sideBarController.sideBarStatusTmp == Visibility.Hidden) {
       this.sideBarController.mask_state = false
+    }
+  }
+
+  showOpenSideBarTip(): void {
+    if (this.videoListController.videoDataSource.totalCount() == 0 && !this.loading) {
+      this.open_side_bar_tip = true
+    } else {
+      this.open_side_bar_tip = false
     }
   }
 
@@ -221,7 +230,6 @@ struct Index {
         },
         fileFolder
       );
-      this.videoDataSource.refreshData(fileFolder!)
       ToolsUtil.showToast(
         `${PathUtils.appContext!.resourceManager.getStringSync($r('app.string.add_time_info'))}${this.import_sum}`
       );
@@ -230,6 +238,7 @@ struct Index {
     } finally {
       this.loading = false;
       this.videoListController.updateData(this.videoDataSource, this.videoListController.folder)
+      this.videoListController.videoDataSource.refreshData(fileFolder!)
     }
   }
 

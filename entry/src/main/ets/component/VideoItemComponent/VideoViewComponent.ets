@@ -23,6 +23,7 @@ export struct VideoView {
   @Link videoListController: VideoListController
   @Consume sideBarController: SideBarController
   @Consume('pathStack') pathStack: NavPathStack
+  @Consume open_side_bar_tip: boolean
   @Consume fileFolderSource: FileFolderDataSource
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
@@ -39,17 +40,16 @@ export struct VideoView {
         })
       }
 
-      if (this.videoListController.videoDataSource.totalCount() == 0) {
+      if (this.open_side_bar_tip) {
         Row() { //顶栏
-          if (!this.loading) {
-            Column() {
-              Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
-              Text($r('app.string.open_side_bar_tip'))
-                .fontSize(15)
-                .textAlign(TextAlign.Center)
-                .fontWeight(FontWeight.Lighter)
-                .margin({ top: 20 })
-            }
+          Column() {
+            Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
+            Text($r('app.string.open_side_bar_tip'))
+              .fontSize(15)
+              .textAlign(TextAlign.Center)
+              .fontWeight(FontWeight.Lighter)
+              .margin({ top: 20 })
+
           }
         }
         .height('100%')
