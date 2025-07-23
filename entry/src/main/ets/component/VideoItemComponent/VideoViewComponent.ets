@@ -40,7 +40,7 @@ export struct VideoView {
         })
       }
 
-      if (this.open_side_bar_tip) {
+      if (!this.loading && this.open_side_bar_tip) {
         Row() { //顶栏
           Column() {
             Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
@@ -193,7 +193,6 @@ export struct VideoView {
       })
         .onClick(() => {
           this.videoListController.itemMultipleChoose = !this.videoListController.itemMultipleChoose
-          DataSyncUtil.delMultipleList.length = 0
           DataSyncUtil.delMultipleList = this.videoListController.videoMetaDataList
         })
       MenuItem({

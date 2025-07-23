@@ -58,6 +58,7 @@ export struct RecentPlay { // 最近播放页
   }
 
   delData(context: Context, item: VideoMetadata) {
+    this.recent_video_meta_data = this.recent_video_meta_data.filter(i => i.date !== item.date)
     RecentPlayUtil.delData(context, item)
     this.videoDataSource.deleteData(this.videoDataSource.getAllData().indexOf(item))
   }

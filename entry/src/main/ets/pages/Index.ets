@@ -46,8 +46,8 @@ struct Index {
   @State passwd: string = 'passwd'
   @State list_empty_item: string[] = ['']
   @State loading: boolean = false
-  @State current_import: number = 0
-  @State import_sum: number = 0
+  @State processedItems: number = 0
+  @State totalItems: number = 0
   @State file_folder_list: FileFolder[] = []
   @State folderLists: string[] = []
   @StorageLink('is_list_display') isListDisplay: boolean = false
@@ -94,7 +94,7 @@ struct Index {
   }
 
   showOpenSideBarTip(): void {
-    if (this.videoListController.videoDataSource.totalCount() == 0 && !this.loading) {
+    if (this.videoListController.videoDataSource.totalCount() == 0) {
       this.open_side_bar_tip = true
     } else {
       this.open_side_bar_tip = false
@@ -116,11 +116,13 @@ struct Index {
         })
           .onClick(async () => {
             DataSyncUtil.delMultipleList = Array.from(folder.video_list);
-            const deletePromises = DataSyncUtil.delMultipleList.map(async item => {
-              DataSyncUtil.editingVideo = JSON.stringify(item);
-              await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource);
-            });
-            await Promise.all(deletePromises)
+            await Promise.all(
+              DataSyncUtil.delMultipleList.map(item => {
+                DataSyncUtil.editingVideo = JSON.stringify(item);
+                VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource);
+                return Promise.resolve();
+              })
+            );
             this.videoListController.closeMultipleChoose()
             this.fileFolderSource.deleteData(this.file_folder_list.findIndex(i => i.date === folder.date))
             this.file_folder_list =
@@ -220,18 +222,18 @@ struct Index {
       return;
     }
     this.loading = true;
-    this.import_sum = fileList.length;
-    this.current_import = 0;
+    this.totalItems = fileList.length;
+    this.processedItems = 0;
     try {
       await FileProcessorUtil.processFilesConcurrently(
         fileList, PathUtils.appContext!, PathUtils.videoPath, PathUtils.coverPath, this.videoDataSource.getAllData(),
         (increment: number) => {
-          this.current_import += increment;
+          this.processedItems += increment;
         },
         fileFolder
       );
       ToolsUtil.showToast(
-        `${PathUtils.appContext!.resourceManager.getStringSync($r('app.string.add_time_info'))}${this.import_sum}`
+        `${PathUtils.appContext!.resourceManager.getStringSync($r('app.string.add_time_info'))}${this.totalItems}`
       );
     } catch (error) {
       ToolsUtil.showToast('处理过程中发生意外错误:' + error);
@@ -407,8 +409,8 @@ struct Index {
           if (this.loading) {
             Stack() {
               ImportProgressComponent({
-                current_import: this.current_import,
-                import_sum: this.import_sum
+                processedItems: this.processedItems,
+                totalItems: this.totalItems
               })
             }.width('100%')
             .height('100%')

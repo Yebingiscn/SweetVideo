@@ -61,7 +61,6 @@ export default struct VideoCardItem {
         .padding({ top: 5 })
 
         VideoInfoComponent({ item: this.item })
-          .reuseId(this.item.date)
       }.padding({ left: 5, right: 5, bottom: 5 })
       .width('100%')
     }

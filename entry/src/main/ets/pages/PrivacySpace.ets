@@ -353,8 +353,8 @@ export struct PrivacySpace { // 隐私空间页
         if (this.loading) {
           Stack() {
             ImportProgressComponent({
-              current_import: this.current_import,
-              import_sum: this.import_sum
+              processedItems: this.current_import,
+              totalItems: this.import_sum
             })
           }.width('100%')
           .height('100%')

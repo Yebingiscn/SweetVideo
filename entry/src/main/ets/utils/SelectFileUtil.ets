@@ -305,17 +305,14 @@ class SelectFileUtil {
   // 将列表拆分为多个块
   splitListIntoChunks(list: string[], chunkSize: number): string[][] {
     const chunks: string[][] = [];
-
     for (let i = 0; i < VideoUtil.MAX_CONCURRENT; i++) {
       const start = i * chunkSize;
       if (start >= list.length) {
         break;
       } // 防止空分块
-
       const end = Math.min(start + chunkSize, list.length);
       chunks.push(list.slice(start, end));
     }
-
     return chunks;
   }
 

@@ -52,7 +52,6 @@ export default struct VideoListItem {
           }
 
           VideoInfoComponent({ item: this.item })
-            .reuseId(this.item.date)
         }.alignItems(HorizontalAlign.Start).padding({ left: 15, right: 15 }).width('90%')
       }.justifyContent(FlexAlign.Center)
     }
