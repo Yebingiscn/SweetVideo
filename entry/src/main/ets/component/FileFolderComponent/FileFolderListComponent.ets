@@ -5,8 +5,8 @@ import { VideoListController } from '../VideoItemComponent/VideoItemComponent'
 @Reusable
 @Component
 export struct FileFolderListComponent {
-  folder: FileFolder | undefined = undefined
-  @Prop videoListController: VideoListController
+  @Prop folder: FileFolder
+  @Link videoListController: VideoListController
 
   aboutToReuse(params: Record<string, Object>): void {
     this.folder = params.item as FileFolder;
@@ -18,7 +18,7 @@ export struct FileFolderListComponent {
         SymbolGlyph(this.videoListController.folder.name === this.folder?.name ?
         $r('sys.symbol.doc_plaintext_and_folder') : $r('sys.symbol.folder'))
           .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-        Text(this.folder?.name)
+        Text(this.folder.name)
           .fontSize(15)
           .margin({ left: 10, right: 12 })
       }

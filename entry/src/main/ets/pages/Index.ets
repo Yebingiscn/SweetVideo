@@ -9,7 +9,6 @@ import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData';
 import { addFileFolderNameDialog } from '../component/Dialog/AddFileFolderNameDialog';
 import FileFolderUtil from '../utils/FileFolderUtil';
 import { editFileFolderNameDialog } from '../component/Dialog/EditFileFolderNameDialog';
-import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 import ScreenUtil from '../utils/ScreenUtil';
@@ -69,6 +68,8 @@ struct Index {
         }
         this.file_folder_list = await FileFolderUtil.createNewFolder(PathUtils.appContext!, file_folder_name)
         this.fileFolderSource.updateData(this.file_folder_list)
+        const file_folder = this.file_folder_list.find(i => i.name == file_folder_name)
+        this.videoListController.updateData(this.videoDataSource, file_folder!)
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -244,13 +245,6 @@ struct Index {
     }
   }
 
-  deleteUnExistFile(item: VideoMetadata | undefined) {
-    DataSyncUtil.editingVideo = JSON.stringify(item)
-    new Promise<void>((_resolve) => {
-      VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource)
-    });
-  }
-
   build() {
     Navigation(this.pathStack) {
       SideBarContainer(this.sideBarController.side_bar_mode) {
@@ -310,6 +304,8 @@ struct Index {
                       folder: folder,
                       videoListController: this.videoListController
                     })
+                      .reuseId(this.videoListController.folder.name === folder.name ? 'selected_folder' :
+                        'unselect_folder')
                   }
                   .onClick(() => {
                     if (this.videoListController.folder.name === folder.name) {
@@ -320,7 +316,6 @@ struct Index {
                     const currentFolder = this.fileFolderSource.getFileFolder(folder.name)
                     this.videoDataSource.updateData(currentFolder.video_list)
                     this.videoListController.updateData(this.videoDataSource, currentFolder!)
-
                     this.sideBarController.closeSideBar(true)
                   })
                   .bindContextMenu(this.FileFolderSelectMenu(folder), ResponseType.LongPress)
@@ -328,7 +323,7 @@ struct Index {
                   .height(60)
                 }, (folder: FileFolder) => folder.name + folder.date + folder.video_list.toString())
               }
-              .cachedCount(3)
+              .cachedCount(1)
               .borderRadius(16)
               .width('100%')
               .height('auto')

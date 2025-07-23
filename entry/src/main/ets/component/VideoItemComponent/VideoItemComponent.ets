@@ -242,7 +242,8 @@ export struct VideoList {
     this.videoListController.listScroller.closeAllSwipeActions()
     await ToolsUtil.isFileExist(item) ?
     ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.videoListController.videoMetaDataList) :
-    this.videoListController.videoDataSource.deleteUnExistFile(item)
+      await this.videoListController.videoDataSource.deleteUnExistFile(item, this.videoListController,
+        this.fileFolderSource)
   }
 
   @Builder
@@ -259,7 +260,8 @@ export struct VideoList {
           }
           await ToolsUtil.isFileExist(target_item) ?
           ToolsUtil.routerWhere(this.pathStack, 'FFMpegPlayer', item!, this.videoListController.videoMetaDataList) :
-          this.videoListController.videoDataSource.deleteUnExistFile(target_item)
+            await this.videoListController.videoDataSource.deleteUnExistFile(item, this.videoListController,
+              this.fileFolderSource)
         }, 200)
       })
       MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
@@ -273,7 +275,8 @@ export struct VideoList {
           }
           await ToolsUtil.isFileExist(target_item) ?
           ToolsUtil.routerWhere(this.pathStack, 'RedPlayer', item!, this.videoListController.videoMetaDataList) :
-          this.videoListController.videoDataSource.deleteUnExistFile(target_item)
+            await this.videoListController.videoDataSource.deleteUnExistFile(item, this.videoListController,
+              this.fileFolderSource)
         }, 200)
       })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })

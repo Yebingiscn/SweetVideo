@@ -7,8 +7,9 @@ import SubtitleUtil from '../utils/SubtitleUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 
 import { fileIo as fs } from '@kit.CoreFileKit';
-import { FolderOperator } from '../database/VideoMetaData';
+import { FolderOperator, VideoMetaDataOperator } from '../database/VideoMetaData';
 import RecentPlayUtil from './RecentPlayUtil';
+import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
 
 // 基础数据源抽象类（泛型实现）
 abstract class BaseDataSource<T> implements IDataSource {
@@ -74,21 +75,24 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
     this.updateData(videoMetaData)
   }
 
-  public deleteUnExistFile(item: VideoMetadata | undefined) {
-    DataSyncUtil.editingVideo = JSON.stringify(item)
-    new Promise<void>((resolve, reject) => {
+  public async deleteUnExistFile(item: VideoMetadata | undefined, videoListController: VideoListController,
+    fileFolderSource: FileFolderDataSource) {
+    if (!item) {
+      return
+    }
+    DataSyncUtil.editingVideo = JSON.stringify(item);
+    await new Promise<void>((resolve, reject) => {
       this.deleteItem(resolve, reject);
-      if (item) {
-        SelectFileUtil.deleteVideo(item!)
-      }
     });
+    SelectFileUtil.deleteVideo(item);
+    await VideoMetaDataOperator.deleteItem(videoListController, fileFolderSource)
   }
 
   async deleteItem(resolve: () => void, reject: (reason?: Error) => void) {
     // 取出editingVideo赋值给tmp
     let tmp = JSON.parse(DataSyncUtil.editingVideo) as VideoMetadata;
     // 删除这个editingVideo的字幕
-    SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, tmp.date!)
+    await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, tmp.date!)
     //从videoList中找到这个video，然后调用deleteData方法删除
     this.deleteData(this.data.findIndex(i => i.date === tmp.date))
     // this.data = this.data.filter(i => i.date != tmp.date);

@@ -37,7 +37,8 @@ export struct FileFolderView {
       LazyForEach(this.fileFolderSource, (item: FileFolder) => {
         ListItem() {
           FileFolderListComponent({
-            folder: item
+            folder: item,
+            videoListController: this.videoListController
           })
         }
         .onClick(() => {

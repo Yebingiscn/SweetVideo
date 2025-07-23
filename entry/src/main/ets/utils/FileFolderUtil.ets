@@ -4,7 +4,6 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import ToolsUtil from './ToolsUtil'
 import { Context } from '@kit.AbilityKit'
 import { systemDateTime } from '@kit.BasicServicesKit'
-import { VideoDataSource } from './DataUtil'
 
 // 文件夹类
 class FileFolderUtil {
@@ -32,7 +31,7 @@ class FileFolderUtil {
 
   // 视频添加进文件夹
   static addVideoInFileFolder(context: Context, videoMetaData: VideoMetadata, fromFolderDate: string,
-    targetFolderDate: string, videoDataSource: VideoDataSource) {
+    targetFolderDate: string) {
     let folders = Preferences.getFileFolder(context) as FileFolder[]
     let fromFolderIndex = folders.findIndex(i => i.date === fromFolderDate)
     let targetFolderIndex = folders.findIndex(i => i.date === targetFolderDate)
