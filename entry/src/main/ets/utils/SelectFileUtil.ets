@@ -266,11 +266,13 @@ class SelectFileUtil {
           });
         });
         let isDuplicate = false
-        if (file_folder) {
-          isDuplicate = file_folder.video_list.some(item => item.title === file.name)
-        } else {
-          isDuplicate = video_meta_data.some(item => item.title === file.name)
-        }
+        // 获取文件夹
+        // const downloadPath = this.getDownloadUri()
+
+
+        // 判断文件夹是否存在，不存在则创建文件夹
+        // 把视频放入文件夹
+        isDuplicate = FileFolderUtil.existVideoInFolders(context, uri)
         if (!isDuplicate) {
           if (PrivacySpaceUtil.getPrivacyMode()!) {
             await this.copyFileToPrivacySpace(context, video_meta_data, uri, sandbox_video,

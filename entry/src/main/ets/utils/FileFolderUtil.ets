@@ -75,6 +75,16 @@ class FileFolderUtil {
     file_folder_list.push(file_folder)
     Preferences.saveFileFolder(context, file_folder_list)
   }
+
+  static existVideoInFolders(context: Context, uri: string): boolean {
+    const folders = Preferences.getFileFolder(context)
+    for (let i = 0; i < folders.length; i++) {
+      if (folders[i].video_list.some(item => item.uri == uri)) {
+        return true
+      }
+    }
+    return false
+  }
 }
 
 export default FileFolderUtil
