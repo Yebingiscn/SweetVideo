@@ -266,12 +266,30 @@ class SelectFileUtil {
           });
         });
         let isDuplicate = false
-        // 获取文件夹
-        // const downloadPath = this.getDownloadUri()
-
-
-        // 判断文件夹是否存在，不存在则创建文件夹
-        // 把视频放入文件夹
+        // 从 uri 中获取文件夹名
+        if (!file_folder) {
+          let folderName: string | undefined
+          if (uri.startsWith(this.file_folder_uri)) {
+            const prefix = this.file_folder_uri + "/"
+            const suffix = file.name
+            folderName = uri.substring(prefix.length);
+            folderName = folderName.replace(suffix, "")
+            const pathArray = folderName.split("/")
+            if (pathArray.length > 1) {
+              folderName = pathArray[0]
+            }
+          }
+          if (folderName) {
+            // 判断文件夹是否存在，不存在则创建文件夹
+            let folders = Preferences.getFileFolder(context) as FileFolder[]
+            if (!folders.some(i => i.name === folderName)) {
+              ToolsUtil.showToast(`自动创建文件夹《${folderName}》`)
+              folders = await FileFolderUtil.createNewFolder(context, folderName)
+            }
+            // 把视频放入文件夹
+            file_folder = folders.find(item => item.name === folderName)
+          }
+        }
         isDuplicate = FileFolderUtil.existVideoInFolders(context, uri)
         if (!isDuplicate) {
           if (PrivacySpaceUtil.getPrivacyMode()!) {

@@ -172,7 +172,7 @@ struct Index {
       })
         .onClick(async () => {
           this.sideBarController.closeSideBar(false)
-          await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), this.videoListController.folder);
+          await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), undefined);
         })
     }.attributeModifier(new MenuModifier())
   }
@@ -240,6 +240,8 @@ struct Index {
     } finally {
       this.loading = false;
       this.videoListController.updateData(this.videoDataSource, this.videoListController.folder)
+      const folders = Preferences.getFileFolder(PathUtils.appContext!)
+      this.fileFolderSource.updateData(folders)
       this.videoListController.videoDataSource.refreshData(fileFolder!)
     }
   }
