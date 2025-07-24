@@ -81,34 +81,35 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
       return
     }
     DataSyncUtil.editingVideo = JSON.stringify(item);
-    await new Promise<void>((resolve, reject) => {
-      this.deleteItem(resolve, reject);
-    });
+    await this.deleteItem()
     SelectFileUtil.deleteVideo(item);
     await VideoMetaDataOperator.deleteItem(videoListController, fileFolderSource)
   }
 
-  async deleteItem(resolve: () => void, reject: (reason?: Error) => void) {
-    // 取出editingVideo赋值给tmp
-    let tmp = JSON.parse(DataSyncUtil.editingVideo) as VideoMetadata;
-    // 删除这个editingVideo的字幕
+  async deleteItem(): Promise<void> {
+    const tmp = JSON.parse(DataSyncUtil.editingVideo) as VideoMetadata;
     await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, tmp.date!)
-    //从videoList中找到这个video，然后调用deleteData方法删除
-    this.deleteData(this.data.findIndex(i => i.date === tmp.date))
-    // this.data = this.data.filter(i => i.date != tmp.date);
-    RecentPlayUtil.delData(PathUtils.appContext!, tmp)
-    fs.access(PathUtils.coverPath + tmp.date, (err) => { // 删除封面
-      if (!err) { // 文件存在
-        fs.unlink(PathUtils.coverPath + tmp.date, (unlinkErr) => {
-          if (unlinkErr) {
-            reject(new Error(`Error deleting file from sandbox_path: ${unlinkErr.message}`));
-            return;
-          }
-          resolve(); // 在所有操作完成后调用 resolve
-        });
-      } else {
-        resolve(); // 文件不存在时直接调用 resolve
-      }
+    this.deleteData(this.data.findIndex(i => i.date === tmp.date));
+    RecentPlayUtil.delData(PathUtils.appContext!, tmp);
+
+    return new Promise<void>((resolve, reject) => {
+      fs.access(PathUtils.coverPath + tmp.date, (err) => {
+        if (!err) {
+          fs.unlink(PathUtils.coverPath + tmp.date, (unlinkErr) => {
+            if (unlinkErr) {
+              if (unlinkErr.code == 13900002) {
+                resolve();
+              } else {
+                reject(new Error(`删除封面失败: ${unlinkErr.message}`));
+              }
+            } else {
+              resolve();
+            }
+          });
+        } else {
+          resolve(); // 文件不存在也算删除成功
+        }
+      });
     });
   }
 }

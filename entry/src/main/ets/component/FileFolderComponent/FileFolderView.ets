@@ -72,7 +72,7 @@ export struct FileFolderView {
           const deletePromises = DataSyncUtil.delMultipleList.map(item => {
             return new Promise<void>((resolve, reject) => {
               DataSyncUtil.editingVideo = JSON.stringify(item);
-              this.videoListController.videoDataSource.deleteItem(resolve, reject);
+              this.videoListController.videoDataSource.deleteItem()
               this.videoListController.closeMultipleChoose()
             });
           });

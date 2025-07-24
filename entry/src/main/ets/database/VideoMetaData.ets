@@ -28,15 +28,12 @@ export class VideoMetaDataOperator {
   }
 
   static async deleteItem(videoListController: VideoListController, fileFolderSource: FileFolderDataSource) {
-    await new Promise<void>((resolve, reject) => {
-      videoListController.videoDataSource.deleteItem(resolve, reject);
-      videoListController.updateData(videoListController.videoDataSource, videoListController.folder)
-      //找到这个folder,修改video_list并且保存
-      videoListController.folder.video_list = videoListController.videoDataSource.getAllData()
-      FileFolderUtil.updateFileFolderList(PathUtils.appContext!, videoListController.folder)
-      fileFolderSource.updateData(Preferences.getFileFolder(PathUtils.appContext!))
-      videoListController.videoDataSource.refreshData(videoListController.folder)
-    });
+    await videoListController.videoDataSource.deleteItem();
+    videoListController.updateData(videoListController.videoDataSource, videoListController.folder);
+    videoListController.folder.video_list = videoListController.videoDataSource.getAllData();
+    FileFolderUtil.updateFileFolderList(PathUtils.appContext!, videoListController.folder);
+    fileFolderSource.updateData(Preferences.getFileFolder(PathUtils.appContext!));
+    videoListController.videoDataSource.refreshData(videoListController.folder);
   }
 }
 

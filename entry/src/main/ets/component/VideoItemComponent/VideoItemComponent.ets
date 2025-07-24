@@ -99,21 +99,20 @@ export struct VideoList {
   delConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: delConfirmDialog({
       confirm: async (confirm_del: boolean | undefined) => {
-        if (!confirm_del) {
-          return
-        }
-        await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource)
-        if (DataSyncUtil.delMultipleList.length > 0) {
-          this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
-          await Promise.all(
-            DataSyncUtil.delMultipleList.map(item => {
+        if (!confirm_del) return;
+        try {
+          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource);
+          if (DataSyncUtil.delMultipleList.length > 0) {
+            this.videoListController.videoDataSource.refreshData(this.videoListController.folder);
+            for (const item of DataSyncUtil.delMultipleList) {
               DataSyncUtil.editingVideo = JSON.stringify(item);
-              VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource);
-              return Promise.resolve();
-            })
-          );
+              await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource);
+            }
+          }
+          this.videoListController.closeMultipleChoose();
+        } catch (e) {
+          ToolsUtil.showToast(`删除失败:${e}`)
         }
-        this.videoListController.closeMultipleChoose()
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
