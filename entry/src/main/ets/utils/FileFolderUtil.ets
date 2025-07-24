@@ -4,6 +4,9 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import ToolsUtil from './ToolsUtil'
 import { Context } from '@kit.AbilityKit'
 import { systemDateTime } from '@kit.BasicServicesKit'
+import DataSyncUtil from '../utils/DataSyncUtil'
+import { FileFolderDataSource, VideoDataSource } from './DataUtil'
+import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent'
 
 // 文件夹类
 class FileFolderUtil {
@@ -41,6 +44,38 @@ class FileFolderUtil {
     }
     Preferences.saveFileFolder(context, folders)
     return folders
+  }
+
+  static delVideosFileFolder(context: Context, videoListController: VideoListController,
+    folderDataSource: FileFolderDataSource) {
+    let folders = Preferences.getFileFolder(context) as FileFolder[]
+    let folderIndex = folders.findIndex(i => i.date === videoListController.folder.date)
+    const folder = folders[folderIndex]
+    const delMultiVideosUri = DataSyncUtil.delMultipleList.map(item => item.uri)
+    let newVideoList = folder.video_list
+    for (let i = 0; i < delMultiVideosUri.length; i++) {
+      newVideoList = newVideoList.filter(video => video.uri === delMultiVideosUri[i])
+    }
+    folder.video_list = newVideoList
+    folders[folderIndex] = folder
+    Preferences.saveFileFolder(context, folders)
+    videoListController.updateData(undefined, folders[folderIndex])
+    folderDataSource.updateData(folders)
+    return folders[folderIndex]
+  }
+
+  static delVideoInFileFolder(context: Context, videoListController: VideoListController,
+    folderDataSource: FileFolderDataSource) {
+    const videoMetaData = JSON.parse(DataSyncUtil.editingVideo) as VideoMetadata;
+    let folders = Preferences.getFileFolder(context) as FileFolder[]
+    let folderIndex = folders.findIndex(i => i.date === videoListController.folder.date)
+    if (folderIndex !== -1) {
+      folders[folderIndex].video_list = folders[folderIndex].video_list.filter(item => item.uri !== videoMetaData.uri)
+      videoListController.updateData(undefined, folders[folderIndex])
+      folderDataSource.updateData(folders)
+      Preferences.saveFileFolder(context, folders)
+    }
+    return folders[folderIndex]
   }
 
   // 删除文件夹

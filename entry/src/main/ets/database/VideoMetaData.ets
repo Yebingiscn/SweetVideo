@@ -6,6 +6,8 @@ import PreferencesUtil from '../utils/PreferencesUtil';
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
 import FileFolderUtil from '../utils/FileFolderUtil';
 import { FileFolderDataSource } from '../utils/DataUtil';
+import VideoUtils from '../utils/VideoUtil';
+import File from '@system.file';
 
 export class VideoMetaDataOperator {
   static getVideoMetaDataByFolderName(folderName: string): VideoMetadata[] {
@@ -29,11 +31,7 @@ export class VideoMetaDataOperator {
 
   static async deleteItem(videoListController: VideoListController, fileFolderSource: FileFolderDataSource) {
     await videoListController.videoDataSource.deleteItem();
-    videoListController.updateData(videoListController.videoDataSource, videoListController.folder);
-    videoListController.folder.video_list = videoListController.videoDataSource.getAllData();
-    FileFolderUtil.updateFileFolderList(PathUtils.appContext!, videoListController.folder);
-    fileFolderSource.updateData(Preferences.getFileFolder(PathUtils.appContext!));
-    videoListController.videoDataSource.refreshData(videoListController.folder);
+    FileFolderUtil.delVideoInFileFolder(PathUtils.appContext!, videoListController, fileFolderSource)
   }
 }
 

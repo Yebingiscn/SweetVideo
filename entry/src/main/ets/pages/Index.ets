@@ -31,6 +31,7 @@ import { VideoView } from '../component/VideoItemComponent/VideoViewComponent';
 import { ImportProgressComponent } from '../component/VideoItemComponent/ImportProgressComponent';
 import { FolderOperator, VideoMetaDataOperator } from '../database/VideoMetaData';
 import { FileFolderListComponent } from '../component/FileFolderComponent/FileFolderListComponent';
+import VideoUtils from '../utils/VideoUtil';
 
 @Builder
 export function IndexBuilder() {
@@ -124,13 +125,16 @@ struct Index {
               })
             );
             this.videoListController.closeMultipleChoose()
-            this.fileFolderSource.deleteData(this.file_folder_list.findIndex(i => i.date === folder.date))
-            this.file_folder_list =
-              FileFolderUtil.deleteFileFolder(PathUtils.appContext!, folder)
-            this.videoListController.folder = this.file_folder_list[0]
+            this.file_folder_list = FileFolderUtil.deleteFileFolder(PathUtils.appContext!, folder)
             this.fileFolderSource.updateData(this.file_folder_list)
-            this.videoDataSource.updateData(this.file_folder_list[0].video_list)
-            this.videoListController.updateData(this.videoDataSource, this.file_folder_list[0])
+            let newFolder: FileFolder | undefined
+            if (this.videoListController.folder.date === folder.date) {
+              newFolder = this.file_folder_list[0]
+            } else {
+              newFolder = this.videoListController.folder
+            }
+            VideoUtils.refresh(this.videoListController, this.fileFolderSource, newFolder)
+            this.videoListController.folder = newFolder
           })
         MenuItem({
           symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
@@ -239,12 +243,7 @@ struct Index {
       ToolsUtil.showToast('处理过程中发生意外错误:' + error);
     } finally {
       this.loading = false;
-      this.videoListController.updateData(this.videoDataSource, this.videoListController.folder)
-      const folders = Preferences.getFileFolder(PathUtils.appContext!)
-      this.fileFolderSource.updateData(folders)
-      //fileFolder 为 undefined 说明是从 Download 导入，需要重定向到currentFolder
-      const currentFolder = folders.find(item => item.name === this.videoListController.folder.name)
-      this.videoListController.videoDataSource.refreshData(currentFolder!)
+      VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
     }
   }
 

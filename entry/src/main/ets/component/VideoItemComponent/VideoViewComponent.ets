@@ -12,6 +12,8 @@ import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu';
 import { MaskComponent } from '../SideBarComponent/MaskComponent';
 import { SearchComponent } from './SearchComponent';
 import { FolderOperator, VideoMetaDataOperator } from '../../database/VideoMetaData';
+import VideoUtils from '../../utils/VideoUtil';
+import FileFolderUtil from '../../utils/FileFolderUtil';
 
 @Component
 export struct VideoView {
@@ -200,17 +202,14 @@ export struct VideoView {
         content: $r('app.string.delete_selected')
       })
         .onClick(async () => {
-          if (DataSyncUtil.delMultipleList.length > 0) {
-            this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
-            await Promise.all(
-              DataSyncUtil.delMultipleList.map(item => {
-                DataSyncUtil.editingVideo = JSON.stringify(item);
-                VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource);
-                return Promise.resolve();
-              })
-            );
+          try{
+            if (DataSyncUtil.delMultipleList.length > 0) {
+              FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController, this.fileFolderSource)
+            }
+          } finally {
+            VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+            this.videoListController.closeMultipleChoose()
           }
-          this.videoListController.closeMultipleChoose()
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),

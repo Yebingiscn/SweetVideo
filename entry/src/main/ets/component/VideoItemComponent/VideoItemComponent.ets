@@ -18,6 +18,7 @@ import { FileFolder } from '../../interfaces/FileFolderInterface';
 import { SideBarController } from '../SideBarComponent/SideBar';
 import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu';
 import { VideoMetaDataOperator } from '../../database/VideoMetaData';
+import VideoUtils from '../../utils/VideoUtil';
 
 @Observed
 export class VideoListController {
@@ -48,10 +49,14 @@ export class VideoListController {
     }
   }
 
-  updateData(videoDataSource: VideoDataSource, folder: FileFolder): void {
-    this.videoDataSource = videoDataSource;
-    this.videoMetaDataList = folder.video_list
+  updateData(videoDataSource: VideoDataSource | undefined, folder: FileFolder): void {
     this.folder = folder
+    this.videoMetaDataList = folder.video_list
+    if (videoDataSource) {
+      this.videoDataSource.updateData(videoDataSource.getAllData())
+    }else {
+      this.videoDataSource.updateData(this.videoMetaDataList)
+    }
     this.notifyDataReloaded();
   }
 
@@ -112,6 +117,8 @@ export struct VideoList {
           this.videoListController.closeMultipleChoose();
         } catch (e) {
           ToolsUtil.showToast(`删除失败:${e}`)
+        } finally {
+          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
         }
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
