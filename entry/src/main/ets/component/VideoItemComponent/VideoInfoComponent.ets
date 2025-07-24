@@ -10,10 +10,6 @@ import TimeUtil from '../../utils/TimeUtil';
 export struct VideoInfoComponent {
   @Prop item: VideoMetadata | undefined = undefined
 
-  // 实现组件复用回调
-  aboutToReuse(params: Record<string, Object>): void {
-    this.item = params.item as VideoMetadata;
-  }
 
   build() {
     Row() {

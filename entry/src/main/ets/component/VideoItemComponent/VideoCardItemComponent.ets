@@ -14,11 +14,6 @@ export default struct VideoCardItem {
   @Prop index: number
   @Consume videoListController: VideoListController
 
-  // 实现组件复用回调
-  aboutToReuse(params: Record<string, Object>): void {
-    this.item = params.item as VideoMetadata;
-  }
-
   build() {
     Column() {
       Image(fileUri.getUriFromPath(PathUtils.coverPath + this.item.date))
