@@ -67,9 +67,8 @@ struct Index {
           return
         }
         this.file_folder_list = await FileFolderUtil.createNewFolder(PathUtils.appContext!, file_folder_name)
+        this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
         this.fileFolderSource.updateData(this.file_folder_list)
-        const file_folder = this.file_folder_list.find(i => i.name == file_folder_name)
-        this.videoListController.updateData(this.videoDataSource, file_folder!)
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
