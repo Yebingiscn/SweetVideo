@@ -242,7 +242,9 @@ struct Index {
       this.videoListController.updateData(this.videoDataSource, this.videoListController.folder)
       const folders = Preferences.getFileFolder(PathUtils.appContext!)
       this.fileFolderSource.updateData(folders)
-      this.videoListController.videoDataSource.refreshData(fileFolder!)
+      //fileFolder 为 undefined 说明是从 Download 导入，需要重定向到currentFolder
+      const currentFolder = folders.find(item => item.name === this.videoListController.folder.name)
+      this.videoListController.videoDataSource.refreshData(currentFolder!)
     }
   }
 
