@@ -45,9 +45,11 @@ export default struct VideoCardItem {
             .onChange((value: boolean) => {
               if (!this.videoListController.itemMultipleChoose || !value) {
                 if (this.item) {
-                  const delSet = new Set(DataSyncUtil.delMultipleList as VideoMetadata[]);
-                  value ? delSet.add(this.item) : delSet.delete(this.item);
-                  DataSyncUtil.delMultipleList = Array.from(delSet);
+                  if (value) {
+                    DataSyncUtil.delMultipleList.push(this.item)
+                  }else {
+                    DataSyncUtil.delMultipleList = DataSyncUtil.delMultipleList.filter(item => item.date !==this.item.date)
+                  }
                 }
               }
             })
