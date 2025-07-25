@@ -41,9 +41,9 @@ export class SideBarController {
   public closeSideBar(isPlayAnimation: boolean) {
     if (this.side_bar_mode === SideBarContainerType.Overlay) {
       this.sideBarStatusTmp = Visibility.Hidden
-      this.mask_state = false
       isPlayAnimation ? setTimeout(() => {
         this.sideBarStatus = false
+        this.mask_state = false
       }, 400) : this.sideBarStatus = false
     }
   }
