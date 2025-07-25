@@ -160,13 +160,20 @@ export struct VideoList {
           .width('100%')
           .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
           .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick)
-          .swipeAction({
-            start: this.itemStart(),
-            edgeEffect: SwipeEdgeEffect.Spring
-          })
-          .onClick(async () => {
-            await this.clickItem(item)
-          })
+          .gesture(
+            GestureGroup(GestureMode.Exclusive,
+              SwipeGesture({ direction: SwipeDirection.Horizontal })
+                .onAction((event: GestureEvent) => {
+                  if (event) {
+                    this.sideBarController.openSideBar()
+                  }
+                }),
+              TapGesture({ count: 1, fingers: 1 })
+                .onAction(async (event: GestureEvent | undefined) => {
+                  await this.clickItem(item)
+                })
+            )
+          )
         }, (item: VideoMetadata) => item.date + item.last_play + item.title + item.size.toString() +
         this.videoListController.folder.name)
       }
@@ -345,18 +352,6 @@ export struct VideoList {
           SubtitleUtil.selectExternalSubtitles(PathUtils.subtitlePath, item?.date!)
         })
     }
-  }
-
-  @Builder
-  itemStart() {
-    Stack() {
-    }
-    .onVisibleAreaChange([0, 1], (visible: boolean, a: number) => {
-      if (visible && a > 0.999999) {
-        this.sideBarController.openSideBar()
-        setTimeout(() => this.videoListController.listScroller.closeAllSwipeActions(), 100)
-      }
-    }).width(50).height(1)
   }
 
   @Builder
