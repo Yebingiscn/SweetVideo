@@ -303,10 +303,9 @@ class SelectFileUtil {
               file_folder.video_list.push(videoInfo)
               FileFolderUtil.updateFileFolder(context, file_folder, file_folder.video_list)
             } else {
-              video_meta_data.push(videoInfo);
               // TODO 此处复刻首页保存
               const folders = Preferences.getFileFolder(context)
-              folders[0].video_list = video_meta_data
+              folders[0].video_list.push(videoInfo)
               Preferences.saveFileFolder(context, folders)
             }
           }
