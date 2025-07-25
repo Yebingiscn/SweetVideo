@@ -6,8 +6,6 @@ import PreferencesUtil from '../utils/PreferencesUtil';
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
 import FileFolderUtil from '../utils/FileFolderUtil';
 import { FileFolderDataSource } from '../utils/DataUtil';
-import VideoUtils from '../utils/VideoUtil';
-import File from '@system.file';
 
 export class VideoMetaDataOperator {
   static getVideoMetaDataByFolderName(folderName: string): VideoMetadata[] {

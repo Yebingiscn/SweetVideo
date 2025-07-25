@@ -54,7 +54,7 @@ export class VideoListController {
     this.videoMetaDataList = folder.video_list
     if (videoDataSource) {
       this.videoDataSource.updateData(videoDataSource.getAllData())
-    }else {
+    } else {
       this.videoDataSource.updateData(this.videoMetaDataList)
     }
     this.notifyDataReloaded();
@@ -103,8 +103,7 @@ export struct VideoList {
   })
   delConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: delConfirmDialog({
-      confirm: async (confirm_del: boolean | undefined) => {
-        if (!confirm_del) return;
+      confirm: async () => {
         try {
           await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource);
           if (DataSyncUtil.delMultipleList.length > 0) {

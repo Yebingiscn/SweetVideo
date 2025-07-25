@@ -47,8 +47,9 @@ export default struct VideoCardItem {
                 if (this.item) {
                   if (value) {
                     DataSyncUtil.delMultipleList.push(this.item)
-                  }else {
-                    DataSyncUtil.delMultipleList = DataSyncUtil.delMultipleList.filter(item => item.date !==this.item.date)
+                  } else {
+                    DataSyncUtil.delMultipleList =
+                      DataSyncUtil.delMultipleList.filter(item => item.date !== this.item.date)
                   }
                 }
               }

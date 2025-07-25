@@ -10,7 +10,6 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 import { FolderOperator, VideoMetaDataOperator } from '../database/VideoMetaData';
 import RecentPlayUtil from './RecentPlayUtil';
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
-import FileFolderUtil from './FileFolderUtil';
 import VideoUtils from './VideoUtil';
 
 // 基础数据源抽象类（泛型实现）

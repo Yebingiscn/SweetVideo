@@ -71,12 +71,8 @@ export struct PlayerSideBarComponent {
 @Reusable
 @Component
 export struct ListView {
-  item: VideoMetadata | undefined = undefined
+  @Prop item: VideoMetadata | undefined = undefined
   @Prop now_playing: VideoMetadataFromPlayer | undefined
-
-  aboutToReuse(params: Record<string, Object>): void {
-    this.item = params.item as VideoMetadata;
-  }
 
   build() {
     Row() {

@@ -127,7 +127,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
                 }.width('100%')
               }.height(85)
               .width('100%')
-              .backgroundColor('#61000000')
+              .backgroundColor($r('sys.color.mask_fourth'))
               .padding({
                 left: (this.screen_height > this.screen_width ? 5 : 5),
                 right: 20,
@@ -150,7 +150,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
                   }
                 }
               }
-              .backgroundColor('#61000000')
+              .backgroundColor($r('sys.color.mask_fourth'))
               .height(this.screen_height > this.screen_width ? 180 : 110)
               .width('100%')
               .padding(1)
@@ -369,7 +369,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
 
   @Builder
   VideoTop() {
-    Row() {
+    Row({ space: 8 }) {
       SymbolGlyph($r('sys.symbol.chevron_left'))// 返回图标
         .fontSize(40)
         .fontColor(['#f0f0f0'])
@@ -381,10 +381,10 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       Text(String(this.now_playing?.title).slice(0, this.now_playing?.title.lastIndexOf('.')))
         .fontSize(20)
         .fontWeight(FontWeight.Medium)
-        .width('100%')
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.MARQUEE })
         .fontColor($r('sys.color.white'))
+        .layoutWeight(1) // 关键布局属性
     }
   }
 

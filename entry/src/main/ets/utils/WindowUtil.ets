@@ -24,8 +24,8 @@ export class WindowUtil {
 
   public maximize(): void {
     if (canIUse('SystemCapability.Window.SessionManager')) {
-      if (this.mainWindowClass!.getWindowStatus() === window.WindowStatusType.FLOATING) {
-        this.mainWindowClass!.maximize()
+      if (this.mainWindowClass?.getWindowStatus() === window.WindowStatusType.FLOATING) {
+        this.mainWindowClass?.maximize()
           .then(() => {
             hilog.info(0x0000, 'testTag', '%{public}s', `Succeed in maximizing the window.`);
           })
@@ -39,8 +39,8 @@ export class WindowUtil {
 
   public recover(): void {
     if (canIUse('SystemCapability.Window.SessionManager')) {
-      if (this.mainWindowClass!.getWindowStatus() === window.WindowStatusType.FULL_SCREEN) {
-        this.mainWindowClass!.recover()
+      if (this.mainWindowClass?.getWindowStatus() === window.WindowStatusType.FULL_SCREEN) {
+        this.mainWindowClass?.recover()
           .then(() => {
             hilog.info(0x0000, 'testTag', '%{public}s', `Succeed in recovering the window.`);
           })

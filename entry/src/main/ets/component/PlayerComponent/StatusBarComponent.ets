@@ -14,7 +14,7 @@ export struct StatusBarComponent {
         .align(Alignment.Center)
     }
     .width('100%')
-    .height(5)
+    .height(15) // TODO: 临时解决PC MODE下遮挡的问题
     .justifyContent(FlexAlign.Center)
   }
 }

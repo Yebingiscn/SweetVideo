@@ -6,10 +6,8 @@ import TimeUtil from '../../utils/TimeUtil';
 
 @Component
 @Reusable
-  // 启用组件复用
 export struct VideoInfoComponent {
   @Prop item: VideoMetadata | undefined = undefined
-
 
   build() {
     Row() {

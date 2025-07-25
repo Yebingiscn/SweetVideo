@@ -32,7 +32,7 @@ export struct AudioTrackComponent {
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .width('100%')
           .onClick(() => {
-            this.onSelect(item.index)
+            this.onSelect(index)
           })
         })
       }.width(235)

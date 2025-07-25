@@ -66,7 +66,6 @@ export struct VideoDetailDialog {
     }.padding(20)
   }
 
-  // 新增详情项构建方法
   @Builder
   private buildDetailItem(label: string | Resource, value: string | number | undefined) {
     Row() {

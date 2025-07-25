@@ -11,7 +11,7 @@ import { FileFolderDataSource } from '../../utils/DataUtil';
 import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu';
 import { MaskComponent } from '../SideBarComponent/MaskComponent';
 import { SearchComponent } from './SearchComponent';
-import { FolderOperator, VideoMetaDataOperator } from '../../database/VideoMetaData';
+import { FolderOperator } from '../../database/VideoMetaData';
 import VideoUtils from '../../utils/VideoUtil';
 import FileFolderUtil from '../../utils/FileFolderUtil';
 
@@ -202,7 +202,7 @@ export struct VideoView {
         content: $r('app.string.delete_selected')
       })
         .onClick(async () => {
-          try{
+          try {
             if (DataSyncUtil.delMultipleList.length > 0) {
               FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController, this.fileFolderSource)
             }

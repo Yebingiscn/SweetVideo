@@ -11,10 +11,10 @@ export struct FileFolderListComponent {
   build() {
     Button({ type: ButtonType.Normal, stateEffect: true }) {
       Row() {
-        SymbolGlyph(this.videoListController.folder.name === this.folder.name ?
+        SymbolGlyph(this.videoListController.folder.name === this.folder?.name ?
         $r('sys.symbol.doc_plaintext_and_folder') : $r('sys.symbol.folder'))
           .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-        Text(this.folder.name)
+        Text(this.folder?.name)
           .fontSize(15)
           .margin({ left: 10, right: 12 })
       }

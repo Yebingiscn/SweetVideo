@@ -1,10 +1,8 @@
-import { VideoList, VideoListController } from "../component/VideoItemComponent/VideoItemComponent";
-import Preferences from "../database/Preferences";
-import { FileFolder } from "../interfaces/FileFolderInterface";
-import { VideoMetadata } from "../interfaces/VideoMetadataInterface";
-import { FileFolderDataSource, VideoDataSource } from "./DataUtil";
-import { PathUtils } from "./PathUtils";
-import File from "@system.file";
+import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
+import Preferences from '../database/Preferences';
+import { FileFolder } from '../interfaces/FileFolderInterface';
+import { FileFolderDataSource } from './DataUtil';
+import { PathUtils } from './PathUtils';
 
 export default class VideoUtils {
   static refresh(videoListController: VideoListController, fileFolderDataSource: FileFolderDataSource,

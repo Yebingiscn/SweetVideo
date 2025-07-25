@@ -40,8 +40,9 @@ export default struct VideoListItem {
                   if (this.item) {
                     if (value) {
                       DataSyncUtil.delMultipleList.push(this.item)
-                    }else {
-                      DataSyncUtil.delMultipleList = DataSyncUtil.delMultipleList.filter(item => item.date !==this.item.date)
+                    } else {
+                      DataSyncUtil.delMultipleList =
+                        DataSyncUtil.delMultipleList.filter(item => item.date !== this.item.date)
                     }
                   }
                 }

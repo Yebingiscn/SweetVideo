@@ -1,7 +1,7 @@
 //删除确认弹窗
 @CustomDialog
 export struct delConfirmDialog {
-  confirm?: (confirm_del: boolean | undefined) => void
+  confirm?: () => void
   controller?: CustomDialogController
 
   build() {
@@ -41,7 +41,7 @@ export struct delConfirmDialog {
         .onClick(() => {
           this.controller?.close()
           if (this.confirm) {
-            this.confirm(true)
+            this.confirm()
           }
         })
       }.margin({ bottom: 10 })

@@ -5,7 +5,7 @@ import ToolsUtil from './ToolsUtil'
 import { Context } from '@kit.AbilityKit'
 import { systemDateTime } from '@kit.BasicServicesKit'
 import DataSyncUtil from '../utils/DataSyncUtil'
-import { FileFolderDataSource, VideoDataSource } from './DataUtil'
+import { FileFolderDataSource } from './DataUtil'
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent'
 
 // 文件夹类
@@ -112,13 +112,9 @@ class FileFolderUtil {
   }
 
   static existVideoInFolders(context: Context, uri: string): boolean {
-    const folders = Preferences.getFileFolder(context)
-    for (let i = 0; i < folders.length; i++) {
-      if (folders[i].video_list.some(item => item.uri == uri)) {
-        return true
-      }
-    }
-    return false
+    return Preferences.getFileFolder(context)?.some(folder =>
+    folder.video_list?.some(video => video.uri === uri)
+    ) ?? false
   }
 }
 

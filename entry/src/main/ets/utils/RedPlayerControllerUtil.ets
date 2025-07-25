@@ -91,8 +91,9 @@ export default class RedPlayerControllerUtil implements IMediaPlayerStateListene
     if (this.redPlayerStateHolder && this.player) {
       const width = this.player.getVideoWidth();
       const height = this.player.getVideoHeight();
-      this.redPlayerStateHolder.videoWidth = width;
-      this.redPlayerStateHolder.videoHeight = height;
+      if (width === 0 || height === 0) {
+        return
+      }
       this.redPlayerStateHolder.url = this.player.getUrl();
       this.redPlayerStateHolder.videoCodec = this.player.getVideoCodecInfo();
       this.redPlayerStateHolder.audioCodec = this.player.getAudioCodecInfo();

@@ -172,6 +172,13 @@ export struct Player { // 播放页
     Preferences.saveVideoSpeed(PathUtils.appContext!,
       (VideoInfoUtil.video_speed_list.includes(this.speed) ? this.speed : 1) + 'x')
     Preferences.saveCirclePlayState(PathUtils.appContext!, this.circle_play)
+    this.avPlayer?.off('subtitleUpdate');
+    this.avPlayer?.off('timeUpdate')
+    this.avPlayer?.off('seekDone')
+    this.avPlayer?.off('speedDone')
+    this.avPlayer?.off('audioOutputDeviceChangeWithInfo')
+    this.avPlayer?.off('subtitleUpdate')
+    this.avPlayer?.off('stateChange')
   }
 
   async setRotation() {
@@ -237,7 +244,7 @@ export struct Player { // 播放页
         if (!this.autoHideTimeout) {
           this.autoHideTimeout = true
           setTimeout(() => {
-            this.lockVisibility = !this.lockVisibility;
+            this.lockVisibility = false;
             this.showControl = false
             this.autoHideTimeout = false
           }, 6000)
@@ -428,9 +435,7 @@ export struct Player { // 播放页
       RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
     }
     await this.avPlayer?.reset()
-    if (this.mIjkMediaPlayer) {
-      await this.ijkPlayerStop()
-    }
+    await this.ijkPlayerStop()
     this.now_playing = item as VideoMetadataFromPlayer
     this.getData()
     this.avSession = await AVSessionUtil.getAVSession()
@@ -559,7 +564,7 @@ export struct Player { // 播放页
                   }.width('100%')
                 }
                 .height(this.screen_height > this.screen_width ? 85 : 75)
-                .backgroundColor('#61000000')
+                .backgroundColor($r('sys.color.mask_fourth'))
                 .width('100%')
                 .padding({
                   left: (this.screen_height > this.screen_width ? 20 : 35),
@@ -583,7 +588,7 @@ export struct Player { // 播放页
                     }
                   }
                 }
-                .backgroundColor('#61000000')
+                .backgroundColor($r('sys.color.mask_fourth'))
                 .height(this.screen_height > this.screen_width ? 180 : 110)
                 .width('100%')
               }.height('100%').width('100%')
@@ -842,19 +847,13 @@ export struct Player { // 播放页
         AVSessionUtil.destroySession()
         PermissionUtil.stopContinuousTask()
       }
+      await this.ijkPlayerStop()
       await (await this.windowClass).setWindowKeepScreenOn(false)
       if (canIUse('SystemCapability.Window.SessionManager')) {
         await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
         await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
       }
       await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
-      this.avPlayer?.off('subtitleUpdate');
-      this.avPlayer?.off('timeUpdate')
-      this.avPlayer?.off('seekDone')
-      this.avPlayer?.off('speedDone')
-      this.avPlayer?.off('audioOutputDeviceChangeWithInfo')
-      this.avPlayer?.off('subtitleUpdate')
-      this.avPlayer?.off('stateChange')
       await this.avSession?.stopCasting();
     })
     .hideTitleBar(true)
@@ -958,7 +957,8 @@ export struct Player { // 播放页
       audio_track_select: this.audio_track_select,
       onSelect: (index: number) => {
         this.AudioTrackMenuBuilderState = false;
-        this.avPlayer!.selectTrack(this.audio_track[index].index);
+        console.error('test' + index)
+        this.avPlayer?.selectTrack(this.audio_track[index]?.index);
         this.audio_track_select = index;
       }
     })

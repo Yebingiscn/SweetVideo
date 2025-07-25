@@ -30,7 +30,6 @@ export struct FileFolderMenu {
                     this.videoListController.folder.date,
                     item.date)
                 });
-                DataSyncUtil.delMultipleList = []
                 this.videoListController.closeMultipleChoose()
               } else if (this.videoListController.multipleChooseState === Visibility.None) { //非批量操作
                 folders = FileFolderUtil.addVideoInFileFolder(PathUtils.appContext!, this.video_item,
