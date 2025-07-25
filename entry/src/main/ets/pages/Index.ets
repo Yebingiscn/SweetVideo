@@ -464,6 +464,7 @@ struct Index {
         this.passwd = Preferences.getPassword(PathUtils.appContext!)
         // 增加判断，旋转时保持滚动位置不变
         this.videoListController.refresh(this.screen_width, this.isListDisplay)
+        VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
       }
     })
   }
