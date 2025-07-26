@@ -1,6 +1,6 @@
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 import DataSyncUtil, { OOBEVersion } from '../utils/DataSyncUtil';
-import { FileFolderDataSource, VideoDataSource } from '../utils/DataUtil';
+import { FileFolderDataSource } from '../utils/DataUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { JSON } from '@kit.ArkTS';
@@ -41,37 +41,27 @@ export function IndexBuilder() {
 @Entry
 @Component
 struct Index {
-  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
-  @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
+
   @State passwd: string = 'passwd'
   @State list_empty_item: string[] = ['']
   @State loading: boolean = false
   @State processedItems: number = 0
   @State totalItems: number = 0
   @State file_folder_list: FileFolder[] = []
-  @State folderLists: string[] = []
+  @State searchValue: string = ''
+
   @StorageLink('is_list_display') isListDisplay: boolean = false
   @StorageProp('screen_width') screen_width: number = 0
   @StorageProp('screen_height') screen_height: number = 0
-  @State searchValue: string = ''
-  @Provide open_side_bar_tip: boolean = false
-  @Provide('pathStack') pathStack: NavPathStack = new NavPathStack()
-  @Watch('showOpenSideBarTip') @Provide videoListController: VideoListController =
-    new VideoListController(Preferences.getFileFolder(PathUtils.appContext!)[0])
-  @Watch('showOpenSideBarTip') @Provide videoDataSource: VideoDataSource = new VideoDataSource([])
+  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
+  @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
+
+  @Provide videoListController: VideoListController = new VideoListController()
   @Provide fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
-  @Provide @Watch('SyncSideBarAndMaskState') sideBarController: SideBarController = new SideBarController()
+  @Provide sideBarController: SideBarController = new SideBarController()
+  @Provide('pathStack') pathStack: NavPathStack = new NavPathStack()
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
-    builder: addFileFolderNameDialog({
-      confirm: async (file_folder_name: string | undefined) => {
-        if (!file_folder_name || file_folder_name.trim() == '') {
-          return
-        }
-        this.file_folder_list = await FileFolderUtil.createNewFolder(PathUtils.appContext!, file_folder_name)
-        this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
-        this.fileFolderSource.updateData(this.file_folder_list)
-      },
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    builder: addFileFolderNameDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   editFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: editFileFolderNameDialog({
@@ -79,33 +69,12 @@ struct Index {
         if (!newFolderName || newFolderName.trim() == '') {
           return
         }
-        this.file_folder_list =
           await FileFolderUtil.changeFileFolderName(PathUtils.appContext!,
             JSON.parse(DataSyncUtil.editingVideo) as FileFolder,
-            newFolderName)
-        this.fileFolderSource.updateData(this.file_folder_list)
+            newFolderName, this.fileFolderSource)
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-
-  SyncSideBarAndMaskState(): void {
-    if (this.sideBarController.sideBarStatusTmp == Visibility.Hidden) {
-      this.sideBarController.mask_state = false
-    }
-  }
-
-  showOpenSideBarTip(): void {
-    if (this.videoListController.videoDataSource.totalCount() == 0) {
-      this.open_side_bar_tip = true
-    } else {
-      this.open_side_bar_tip = false
-    }
-  }
-
-  syncVideoDataSourceToVideoListController(): void {
-    const folder = FolderOperator.getFolderByName(this.videoListController.folder.name)
-    this.videoListController.updateData(this.videoDataSource, folder)
-  }
 
   @Builder
   FileFolderSelectMenu(folder: FileFolder) {
@@ -125,8 +94,7 @@ struct Index {
               })
             );
             this.videoListController.closeMultipleChoose()
-            this.file_folder_list = FileFolderUtil.deleteFileFolder(PathUtils.appContext!, folder)
-            this.fileFolderSource.updateData(this.file_folder_list)
+            this.file_folder_list = FileFolderUtil.deleteFileFolder(PathUtils.appContext!, folder, this.fileFolderSource)
             let newFolder: FileFolder | undefined
             if (this.videoListController.folder.date === folder.date) {
               newFolder = this.file_folder_list[0]
@@ -194,8 +162,7 @@ struct Index {
     ToolsUtil.isSubtitleFileFolderExist(PathUtils.videoPath, PathUtils.subtitlePath)
     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
     this.fileFolderSource?.updateData(this.file_folder_list)
-    this.videoDataSource?.updateData(this.file_folder_list[0]?.video_list)
-    this.videoListController?.updateData(this.videoDataSource, this.file_folder_list[0])
+    this.videoListController?.updateData(undefined, this.file_folder_list[0])
     if (Preferences.getOOBEVersion(PathUtils.appContext!) < OOBEVersion) {
       let controller = new CustomDialogController({
         builder: PrivacyPolicyDialog({
@@ -230,7 +197,8 @@ struct Index {
     this.processedItems = 0;
     try {
       await FileProcessorUtil.processFilesConcurrently(
-        fileList, PathUtils.appContext!, PathUtils.videoPath, PathUtils.coverPath, this.videoDataSource.getAllData(),
+        fileList, PathUtils.appContext!, PathUtils.videoPath, PathUtils.coverPath,
+        this.videoListController.videoDataSource.getAllData(),
         (increment: number) => {
           this.processedItems += increment;
         },

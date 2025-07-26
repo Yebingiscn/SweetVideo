@@ -31,10 +31,22 @@ export class VideoListController {
   videoDataSource: VideoDataSource
   private listeners: DataChangeListener[] = [];
 
-  constructor(folder: FileFolder) {
-    this.folder = folder
+  constructor(folder?: FileFolder) {
+    if (folder) {
+      this.folder = folder
+    } else {
+      this.folder = Preferences.getFileFolder(PathUtils.appContext!)[0]
+    }
     this.videoMetaDataList = folder?.video_list || []
     this.videoDataSource = new VideoDataSource(this.videoMetaDataList)
+  }
+
+  open_side_bar_tip() {
+    if (this.videoDataSource.totalCount() == 0) {
+      return true
+    } else {
+      return false
+    }
   }
 
   // 公共方法实现

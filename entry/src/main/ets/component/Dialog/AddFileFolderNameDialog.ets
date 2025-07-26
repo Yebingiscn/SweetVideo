@@ -1,9 +1,13 @@
+import { FileFolderDataSource } from "../../utils/DataUtil"
+import FileFolderUtil from "../../utils/FileFolderUtil"
+import { PathUtils } from "../../utils/PathUtils"
+
 // 添加文件夹弹窗
 @CustomDialog
 export struct addFileFolderNameDialog { //编辑元数据弹窗
-  confirm?: (name: string | undefined) => void
   controller?: CustomDialogController
   file_folder_name: string | undefined = undefined
+  @Consume fileFolderSource: FileFolderDataSource
 
   build() {
     Column({ space: 25 }) {
@@ -46,11 +50,13 @@ export struct addFileFolderNameDialog { //编辑元数据弹窗
         .backgroundColor($r('sys.color.button_background_color_transparent'))
         .borderRadius(8)
         .height(40)
+        .enabled(this.file_folder_name?.trim() != '')
         .onClick(() => {
-          this.controller?.close()
-          if (this.confirm) {
-            this.confirm(this.file_folder_name)
+          if (!this.file_folder_name || this.file_folder_name.trim() == '') {
+            return
           }
+          FileFolderUtil.createNewFolder(PathUtils.appContext!, this.file_folder_name, this.fileFolderSource)
+          this.controller?.close()
         })
       }.margin({ bottom: 10 })
     }.padding(20)

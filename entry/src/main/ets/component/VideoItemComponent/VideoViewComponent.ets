@@ -25,7 +25,6 @@ export struct VideoView {
   @Link videoListController: VideoListController
   @Consume sideBarController: SideBarController
   @Consume('pathStack') pathStack: NavPathStack
-  @Consume open_side_bar_tip: boolean
   @Consume fileFolderSource: FileFolderDataSource
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
@@ -42,7 +41,7 @@ export struct VideoView {
         })
       }
 
-      if (!this.loading && this.open_side_bar_tip) {
+      if (!this.loading && this.videoListController.open_side_bar_tip()) {
         Row() { //顶栏
           Column() {
             Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)

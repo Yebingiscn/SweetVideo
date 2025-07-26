@@ -23,11 +23,9 @@ export struct FileFolderView {
         if (!file_folder || file_folder.trim() == '') {
           return
         }
-        this.fileFolderList =
-          await FileFolderUtil.changeFileFolderName(PathUtils.appContext!,
-            JSON.parse(DataSyncUtil.editingVideo) as FileFolder,
-            file_folder)
-        this.fileFolderSource.updateData(this.fileFolderList)
+        await FileFolderUtil.changeFileFolderName(PathUtils.appContext!,
+          JSON.parse(DataSyncUtil.editingVideo) as FileFolder,
+          file_folder, this.fileFolderSource)
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
