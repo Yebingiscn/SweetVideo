@@ -160,20 +160,18 @@ export struct VideoView {
         content: $r('app.string.sort_by_name')
       })
         .onClick(async () => {
-          const videoMetaDataList =
             await ToolsUtil.sortByName(PathUtils.appContext!, this.videoListController.videoMetaDataList,
-              undefined) as VideoMetadata[]
-          this.videoListController.videoDataSource.updateData(videoMetaDataList)
+              this.videoListController.folder) as VideoMetadata[]
+          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
         content: $r('app.string.sort_by_time')
       })
         .onClick(async () => {
-          const videoMetaDataList =
             await ToolsUtil.sortByTime(PathUtils.appContext!, this.videoListController.videoMetaDataList,
-              undefined) as VideoMetadata[]
-          this.videoListController.videoDataSource.updateData(videoMetaDataList)
+              this.videoListController.folder) as VideoMetadata[]
+          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
         })
     }.attributeModifier(new MenuModifier())
   }
