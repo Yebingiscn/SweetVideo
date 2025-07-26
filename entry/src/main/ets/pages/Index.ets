@@ -133,8 +133,8 @@ struct Index {
             } else {
               newFolder = this.videoListController.folder
             }
-            VideoUtils.refresh(this.videoListController, this.fileFolderSource, newFolder)
             this.videoListController.folder = newFolder
+            VideoUtils.refresh(this.videoListController, this.fileFolderSource, newFolder)
           })
         MenuItem({
           symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
@@ -316,8 +316,8 @@ struct Index {
                     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
                     this.fileFolderSource.updateData(this.file_folder_list)
                     const currentFolder = this.fileFolderSource.getFileFolder(folder.name)
-                    this.videoDataSource.updateData(currentFolder.video_list)
-                    this.videoListController.updateData(this.videoDataSource, currentFolder!)
+                    this.videoListController.videoDataSource.updateData(currentFolder.video_list)
+                    this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder!)
                     this.sideBarController.closeSideBar(true)
                   })
                   .bindContextMenu(this.FileFolderSelectMenu(folder), ResponseType.LongPress)
@@ -460,7 +460,7 @@ struct Index {
     .hideTitleBar(true).mode(NavigationMode.Stack).navDestination(this.Pages)
     .onNavBarStateChange((isVisible: boolean) => {
       if (isVisible) {
-        this.videoDataSource.refreshData(this.videoListController.folder)
+        // this.videoDataSource.refreshData(this.videoListController.folder)
         this.passwd = Preferences.getPassword(PathUtils.appContext!)
         // 增加判断，旋转时保持滚动位置不变
         this.videoListController.refresh(this.screen_width, this.isListDisplay)
