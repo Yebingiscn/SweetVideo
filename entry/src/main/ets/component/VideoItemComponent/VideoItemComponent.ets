@@ -19,6 +19,7 @@ import { SideBarController } from '../SideBarComponent/SideBar';
 import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu';
 import { VideoMetaDataOperator } from '../../database/VideoMetaData';
 import VideoUtils from '../../utils/VideoUtil';
+import FileFolderUtil from '../../utils/FileFolderUtil';
 
 @Observed
 export class VideoListController {
@@ -118,11 +119,7 @@ export struct VideoList {
         try {
           await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource);
           if (DataSyncUtil.delMultipleList.length > 0) {
-            this.videoListController.videoDataSource.refreshData(this.videoListController.folder);
-            for (const item of DataSyncUtil.delMultipleList) {
-              DataSyncUtil.editingVideo = JSON.stringify(item);
-              await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource);
-            }
+            FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController, this.fileFolderSource)
           }
           this.videoListController.closeMultipleChoose();
         } catch (e) {
