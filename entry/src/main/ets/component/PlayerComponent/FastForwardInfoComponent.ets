@@ -1,7 +1,7 @@
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 
 @Component
-export struct FastForwardInfo {
+export struct FastForwardInfoComponent {
   @Prop speed: number
   @Prop location: number
 

@@ -16,8 +16,7 @@ export struct PlayerSideBarComponent {
   @Prop sideBarStatus: boolean
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   private listScroller: Scroller = new Scroller();
-  onItemClick = (item: VideoMetadata) => {
-    console.log('choose item: ' + item.title)
+  onItemClick = (_item: VideoMetadata) => {
   }
 
   build() {

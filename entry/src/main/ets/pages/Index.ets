@@ -193,9 +193,9 @@ struct Index {
     this.passwd = Preferences.getPassword(PathUtils.appContext!)
     ToolsUtil.isSubtitleFileFolderExist(PathUtils.videoPath, PathUtils.subtitlePath)
     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
-    this.fileFolderSource.updateData(this.file_folder_list)
-    this.videoDataSource.updateData(this.file_folder_list[0].video_list)
-    this.videoListController.updateData(this.videoDataSource, this.file_folder_list[0])
+    this.fileFolderSource?.updateData(this.file_folder_list)
+    this.videoDataSource?.updateData(this.file_folder_list[0]?.video_list)
+    this.videoListController?.updateData(this.videoDataSource, this.file_folder_list[0])
     if (Preferences.getOOBEVersion(PathUtils.appContext!) < OOBEVersion) {
       let controller = new CustomDialogController({
         builder: PrivacyPolicyDialog({

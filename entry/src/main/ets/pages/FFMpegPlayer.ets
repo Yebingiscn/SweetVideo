@@ -32,7 +32,7 @@ import { ButtonFancyModifier } from '../utils/AttributeModifierUtil'
 import { AVCastPickerBuilder } from '../component/PlayerComponent/AVCastPickerBuilder'
 import { VolumeSwipingComponent } from '../component/PlayerComponent/VolumeSwipingComponent'
 import { BrightnessSwipingComponent } from '../component/PlayerComponent/BrightnessSwipingComponent'
-import { FastForwardInfo } from '../component/PlayerComponent/FastForwardInfo'
+import { FastForwardInfoComponent } from '../component/PlayerComponent/FastForwardInfoComponent'
 import { SwipingPlayTimeDisplay } from '../component/PlayerComponent/SwipingPlayTimeDisplay'
 import { VideoSliderComponent } from '../component/PlayerComponent/VideoSliderComponent'
 import { GestureComponent } from '../component/PlayerComponent/GestureComponent'
@@ -181,7 +181,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         }
 
         if (this.long_press) {
-          FastForwardInfo({
+          FastForwardInfoComponent({
             speed: Number(this.play_speed),
             location: 0 - this.play_area_height / 2 + 20
           })

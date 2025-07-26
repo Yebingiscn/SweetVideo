@@ -8,8 +8,7 @@ export struct SettingsMenuItem {
   @Prop selected: number = 0
   @State list: string[] = []
   @State private select: SelectOption[] = []
-  onChange = (index: number) => {
-    console.log(index.toString()); // 无实际作用，只是消除未使用警告
+  onChange = (_index: number) => {
   }
 
   aboutToAppear(): void {

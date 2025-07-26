@@ -6,8 +6,7 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 export struct AudioTrackComponent {
   @Prop audio_track: AudioTrack[]
   @Prop audio_track_select: number
-  onSelect = (index: number) => {
-    console.log('select: ' + index)
+  onSelect = (_index: number) => {
   }
 
   build() {

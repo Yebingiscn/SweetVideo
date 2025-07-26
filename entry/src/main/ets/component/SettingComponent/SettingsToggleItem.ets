@@ -7,8 +7,7 @@ export struct SettingsToggleItem {
   @State message: ResourceStr = ''
   @StorageProp('disable_blur') disable_blur: boolean = false
   @Prop enable: boolean = false
-  onChange = (checked: boolean) => {
-    console.log(checked + '') // 无实际作用，只是消除未使用警告
+  onChange = (_checked: boolean) => {
   }
 
   build() {
