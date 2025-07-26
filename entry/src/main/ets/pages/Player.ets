@@ -27,7 +27,7 @@ import { AudioTrackComponent } from '../component/PlayerComponent/AudioTrackComp
 import { PlaybackSpeedMenuComponent } from '../component/PlayerComponent/PlaybackSpeedComponent';
 import { BrightnessSwipingComponent } from '../component/PlayerComponent/BrightnessSwipingComponent';
 import { VolumeSwipingComponent } from '../component/PlayerComponent/VolumeSwipingComponent';
-import { FastForwardInfo } from '../component/PlayerComponent/FastForwardInfo';
+import { FastForwardInfoComponent } from '../component/PlayerComponent/FastForwardInfoComponent';
 import { StatusBarComponent } from '../component/PlayerComponent/StatusBarComponent';
 import { SubtitleComponent } from '../component/PlayerComponent/SubtitleComponent';
 import { LockVideoBarComponent } from '../component/PlayerComponent/LockVideoBarComponent';
@@ -606,7 +606,7 @@ export struct Player { // 播放页
           })
 
           if (this.long_press) {
-            FastForwardInfo({
+            FastForwardInfoComponent({
               speed: this.speed,
               location: 0 - VideoInfoUtil.play_area_height / 2 + 20
             })
@@ -957,7 +957,6 @@ export struct Player { // 播放页
       audio_track_select: this.audio_track_select,
       onSelect: (index: number) => {
         this.AudioTrackMenuBuilderState = false;
-        console.error('test' + index)
         this.avPlayer?.selectTrack(this.audio_track[index]?.index);
         this.audio_track_select = index;
       }

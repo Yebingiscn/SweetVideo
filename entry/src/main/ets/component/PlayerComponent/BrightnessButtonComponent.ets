@@ -4,8 +4,7 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 @Component
 export struct BrightnessButtonComponent {
   @Prop screenBrightness: number
-  onChange = (value: number) => {
-    console.log('brightness change: ' + value)
+  onChange = (_value: number) => {
   }
 
   build() {

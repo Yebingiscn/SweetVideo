@@ -1,47 +1,33 @@
 @Component
 export struct GestureComponent {
   @Prop showControl: boolean
-  onDoubleClickAction = (event: GestureEvent) => {
-    console.log('onDoubleClickAction active: ' + event)
+  onDoubleClickAction = (_event: GestureEvent) => {
   };
   onSingleClickAction = () => {
-    console.log('onSingleClickAction active')
   }
-  onVerticalPanStart = (event: GestureEvent) => {
-    console.log('onVerticalPanStart active: ' + event)
+  onVerticalPanStart = (_event: GestureEvent) => {
   }
-  onVerticalPanUpdate = (event: GestureEvent) => {
-    console.log('onVerticalPanUpdate active: ' + event)
+  onVerticalPanUpdate = (_event: GestureEvent) => {
   }
   onVerticalPanEnd = () => {
-    console.log('onVerticalPanEnd active')
   }
-  onHorizonPanStart = (event: GestureEvent) => {
-    console.log('onHorizonPanStart active: ' + event)
+  onHorizonPanStart = (_event: GestureEvent) => {
   }
-  onHorizonPanUpdate = (event: GestureEvent) => {
-    console.log('onHorizonPanUpdate active: ' + event)
+  onHorizonPanUpdate = (_event: GestureEvent) => {
   }
   onHorizonPanEnd = () => {
-    console.log('onHorizonPanEnd active')
   }
-  onPinchStart = (event: GestureEvent) => {
-    console.log('onPinchStart active: ' + event)
+  onPinchStart = (_event: GestureEvent) => {
   }
-  onPinchUpdate = (event: GestureEvent) => {
-    console.log('onPinchUpdate active: ' + event)
+  onPinchUpdate = (_event: GestureEvent) => {
   }
   onLongPressAction = () => {
-    console.log('onLongPressAction active')
   }
   onLongPressEnd = () => {
-    console.log('onLongPressEnd active')
   }
-  onLongPressPanStart = (event: GestureEvent) => {
-    console.log('onLongPressPanStart active: ' + event)
+  onLongPressPanStart = (_event: GestureEvent) => {
   }
-  onLongPressPanUpdate = (event: GestureEvent) => {
-    console.log('onLongPressPanUpdate active: ' + event)
+  onLongPressPanUpdate = (_event: GestureEvent) => {
   }
 
   build() {

@@ -11,13 +11,10 @@ export struct VideoTopComponent {
   @BuilderParam audioTrackMenuBuilder: () => void
   @Prop lockRotation: boolean
   onLockRotationClick = async () => {
-
   }
   onExitVideoClick = () => {
-
   }
-  onScreenExtendOptionSelected = (text: string) => {
-    console.log('Screen extend option select: ' + text)
+  onScreenExtendOptionSelected = (_text: string) => {
   }
 
   build() {

@@ -13,8 +13,7 @@ export struct SettingTimeItem {
   private TenthsOfSecond: string[] = ['0', '1', '2', '3', '4', '5']
   private UnitOfSecond: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
   private multi: string[][] = [this.TenthsOfMinutes, this.UnitOfTMinutes, this.TenthsOfSecond, this.UnitOfSecond]
-  onChange = (value: number) => {
-    console.log(value.toString()); // 无实际作用，只是消除未使用警告
+  onChange = (_value: number) => {
   }
 
   aboutToAppear() {

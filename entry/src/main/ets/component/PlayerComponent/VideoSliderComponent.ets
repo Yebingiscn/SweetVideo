@@ -6,11 +6,9 @@ export struct VideoSliderComponent {
   @Prop totalTime: number
   @Prop screenWidth: number
   @Prop screenHeight: number
-  onSliderChange = (value: number) => {
-    console.log('slider change: ' + value)
+  onSliderChange = (_value: number) => {
   }
-  onSliderTouch = (event: TouchEvent) => {
-    console.log('slider touch: ' + event.type)
+  onSliderTouch = (_event: TouchEvent) => {
   }
 
   build() {

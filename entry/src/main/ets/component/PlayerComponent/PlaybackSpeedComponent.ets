@@ -4,8 +4,7 @@ import VideoInfoUtil from '../../utils/VideoInfoUtil';
 @Component
 export struct PlaybackSpeedMenuComponent {
   @Prop speed: number;
-  onSpeedChange = (speed: number) => {
-    console.log(speed.toString()); // 无实际作用，只是消除未使用警告
+  onSpeedChange = (_speed: number) => {
   }
 
   build() {

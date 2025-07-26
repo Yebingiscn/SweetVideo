@@ -4,8 +4,7 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 @Component
 export struct VolumeButtonComponent {
   @Prop volume: number
-  onChange = (value: number) => {
-    console.log('volume change: ' + value)
+  onChange = (_value: number) => {
   }
 
   build() {
