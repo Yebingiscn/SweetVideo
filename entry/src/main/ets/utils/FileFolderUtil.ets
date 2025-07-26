@@ -16,7 +16,7 @@ class FileFolderUtil {
   }
 
   //新建文件夹
-  static async createNewFolder(context: Context, folder_name: string): Promise<FileFolder[]> {
+  static async createNewFolder(context: Context, folder_name: string, fileFolderSource?: FileFolderDataSource) {
     const new_folder: FileFolder = {
       name: folder_name,
       date: systemDateTime.getTime(true).toString(),
@@ -26,11 +26,13 @@ class FileFolderUtil {
     if (!file_folder_list.some(i => i.name === new_folder.name)) {
       file_folder_list.push(new_folder)
       Preferences.saveFileFolder(context, file_folder_list)
-      return file_folder_list
     } else {
       ToolsUtil.showToast('添加失败，已存在相同文件夹')
-      return file_folder_list
     }
+    if (fileFolderSource) {
+      fileFolderSource.updateData(file_folder_list)
+    }
+    return file_folder_list
   }
 
   // 视频添加进文件夹
@@ -54,7 +56,7 @@ class FileFolderUtil {
     const folder = folders[folderIndex]
     let surviveVideo: HashMap<string, VideoMetadata> = new HashMap()
     for (let video of folder.video_list) {
-      surviveVideo.set(video.uri, video)
+        surviveVideo.set(video.uri, video)
     }
     DataSyncUtil.delMultipleList.forEach(item => {
       surviveVideo.remove(item.uri)
@@ -82,20 +84,24 @@ class FileFolderUtil {
   }
 
   // 删除文件夹
-  static deleteFileFolder(context: Context, file_folder: FileFolder) {
+  static deleteFileFolder(context: Context, file_folder: FileFolder, fileDataSource?: FileFolderDataSource) {
     let folders = Preferences.getFileFolder(context)
     folders = folders.filter(i => i.date !== file_folder.date)
     Preferences.saveFileFolder(context, folders)
+    if (fileDataSource) {
+      fileDataSource.updateData(folders)
+    }
     return folders
   }
 
   //改变文件夹名称
-  static async changeFileFolderName(context: Context, folder: FileFolder, newFolderName: string) {
+  static async changeFileFolderName(context: Context, folder: FileFolder, newFolderName: string,
+    fileFolderDataSource: FileFolderDataSource) {
     let folders = Preferences.getFileFolder(context) as FileFolder[]
     let folderIndex = folders.findIndex(i => i.date === folder.date)
     folders[folderIndex].name = newFolderName
     Preferences.saveFileFolder(context, folders)
-    return folders
+    fileFolderDataSource.updateData(folders)
   }
 
   // 更新文件夹内视频

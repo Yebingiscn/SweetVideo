@@ -26,15 +26,26 @@ export class VideoListController {
   listScroller: ListScroller = new ListScroller()
   videoMetaDataList: VideoMetadata[]
   multipleChooseState: Visibility = Visibility.None
-  itemMultipleChoose: boolean = false
   listLine: number = 1
   videoDataSource: VideoDataSource
   private listeners: DataChangeListener[] = [];
 
-  constructor(folder: FileFolder) {
-    this.folder = folder
+  constructor(folder?: FileFolder) {
+    if (folder) {
+      this.folder = folder
+    } else {
+      this.folder = Preferences.getFileFolder(PathUtils.appContext!)[0]
+    }
     this.videoMetaDataList = folder?.video_list || []
     this.videoDataSource = new VideoDataSource(this.videoMetaDataList)
+  }
+
+  open_side_bar_tip() {
+    if (this.videoDataSource.totalCount() == 0) {
+      return true
+    } else {
+      return false
+    }
   }
 
   // 公共方法实现
@@ -61,7 +72,6 @@ export class VideoListController {
   }
 
   public closeMultipleChoose() {
-    this.itemMultipleChoose = false;
     this.multipleChooseState = Visibility.None;
     DataSyncUtil.delMultipleList = [] // 需要进行置空，防止脏数据
   }
@@ -97,6 +107,7 @@ export struct VideoList {
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @StorageProp('screen_width') screen_width: number = 0
+  @Link delMultipleList: VideoMetadata[]
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
@@ -151,7 +162,8 @@ export struct VideoList {
           ListItem() {
             VideoListItem({
               item: item,
-              index: index
+              index: index,
+              delMultipleList: this.delMultipleList
             }).reuseId('list_item')
           }
           .margin({ bottom: 15 }) // 不知道动了哪里，挤在一起了，先这样改
@@ -170,7 +182,18 @@ export struct VideoList {
                 }),
               TapGesture({ count: 1, fingers: 1 })
                 .onAction(async (event: GestureEvent | undefined) => {
-                  await this.clickItem(item)
+                  if (this.videoListController.multipleChooseState !== Visibility.Visible) {
+                    await this.clickItem(item)
+                    return
+                  } else {
+                    //已存在，标记置反
+                    if (this.delMultipleList.some(video => video.uri === item.uri)) {
+                      this.delMultipleList =
+                        this.delMultipleList.filter(video => video.uri !== item.uri)
+                    } else {
+                      this.delMultipleList.push(item)
+                    }
+                  }
                 })
             )
           )
@@ -207,15 +230,38 @@ export struct VideoList {
                 VideoCardItem({
                   item: item,
                   index: index,
+                  delMultipleList: this.delMultipleList
                 }).width('100%').reuseId('card_item')
               }
               .width('100%')
               .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
               .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
               .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick)
-              .onClick(async () => {
-                await this.clickItem(item)
-              })
+              .gesture(
+                GestureGroup(GestureMode.Exclusive,
+                  SwipeGesture({ direction: SwipeDirection.Horizontal })
+                    .onAction((event: GestureEvent) => {
+                      if (event) {
+                        this.sideBarController.openSideBar()
+                      }
+                    }),
+                  TapGesture({ count: 1, fingers: 1 })
+                    .onAction(async (event: GestureEvent | undefined) => {
+                      if (this.videoListController.multipleChooseState !== Visibility.Visible) {
+                        await this.clickItem(item)
+                        return
+                      } else {
+                        //已存在，标记置反
+                        if (this.delMultipleList.some(video => video.uri === item.uri)) {
+                          this.delMultipleList =
+                            this.delMultipleList.filter(video => video.uri !== item.uri)
+                        } else {
+                          this.delMultipleList.push(item)
+                        }
+                      }
+                    })
+                )
+              )
             }, (item: VideoMetadata) => item.date + item.last_play + item.title + item.size.toString() +
             this.videoListController.folder.name)
           }

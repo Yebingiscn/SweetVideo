@@ -25,7 +25,7 @@ export struct AppInfo {
 
 @Observed
 export class SideBarController {
-  side_bar_mode: SideBarContainerType = SideBarContainerType.AUTO
+  side_bar_mode: SideBarContainerType = SideBarContainerType.Embed
   sideBarStatusTmp: Visibility = Visibility.Hidden
   mask_state: boolean = false
   sideBarStatus: boolean = false
@@ -36,6 +36,9 @@ export class SideBarController {
       this.mask_state = true
       this.sideBarStatus = true
     }
+    if (this.sideBarStatusTmp == Visibility.Hidden) {
+      this.mask_state = false
+    }
   }
 
   public closeSideBar(isPlayAnimation: boolean) {
@@ -44,7 +47,8 @@ export class SideBarController {
       isPlayAnimation ? setTimeout(() => {
         this.sideBarStatus = false
         this.mask_state = false
-      }, 400) : this.sideBarStatus = false
+      }, 200) : this.sideBarStatus = false
     }
+    this.mask_state = false
   }
 }

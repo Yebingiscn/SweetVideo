@@ -1,6 +1,7 @@
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 
 // 数据类
+@ObservedV2
 class DataSyncUtil {
   public topSafeHeight: number = 0;
   public lastTime: number = 0;

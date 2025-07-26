@@ -13,6 +13,12 @@ export default struct VideoListItem {
   @Prop item: VideoMetadata
   @Prop index: number
   @Consume videoListController: VideoListController
+  @State choose: boolean = false
+  @Watch('checkChoose') @Link delMultipleList: VideoMetadata[]
+
+  checkChoose() {
+    this.choose = this.delMultipleList.some(item => item.uri === this.item.uri)
+  }
 
   build() {
     Column() {
@@ -26,33 +32,26 @@ export default struct VideoListItem {
               .fontWeight(FontWeight.Medium)
               .maxLines(3)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .width('75%')// .width(this.videoListController.multipleChooseState === Visibility.None ? '90%' : '75%')
+              .layoutWeight(1)
               .wordBreak(WordBreak.BREAK_ALL)
             Checkbox({ name: 'check_box: ' + this.index, group: 'checkboxGroup' })
-              .width(30)
+              .width('10%')
               .height(30)
-              .select(this.videoListController.itemMultipleChoose)
+              .select(this.choose)
               .selectedColor($r('app.color.main_color'))
               .shape(CheckBoxShape.CIRCLE)
               .visibility(this.videoListController.multipleChooseState)
-              .onChange((value: boolean) => {
-                if (!this.videoListController.itemMultipleChoose || !value) {
-                  if (this.item) {
-                    if (value) {
-                      DataSyncUtil.delMultipleList.push(this.item)
-                    } else {
-                      DataSyncUtil.delMultipleList =
-                        DataSyncUtil.delMultipleList.filter(item => item.date !== this.item.date)
-                    }
-                  }
-                }
-              })
           }
-
           VideoInfoComponent({ item: this.item })
-        }.alignItems(HorizontalAlign.Start).padding({ left: 15, right: 15 }).width('90%')
-      }.justifyContent(FlexAlign.Center)
+        }
+        .alignItems(HorizontalAlign.Start)
+        .padding({ left: 15, right: 15 })
+        .layoutWeight(1)
+      }
+      .justifyContent(FlexAlign.Center)
+      .width('100%')
     }
+    .width('100%')
     .height('auto')
     .justifyContent(FlexAlign.SpaceEvenly)
   }

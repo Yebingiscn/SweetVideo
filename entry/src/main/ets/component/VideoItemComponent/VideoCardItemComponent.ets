@@ -13,6 +13,13 @@ export default struct VideoCardItem {
   @Prop item: VideoMetadata
   @Prop index: number
   @Consume videoListController: VideoListController
+  @State choose: boolean = false
+
+  @Watch('checkChoose') @Link delMultipleList: VideoMetadata[]
+
+  checkChoose() {
+    this.choose = this.delMultipleList.some(item => item.uri === this.item.uri)
+  }
 
   build() {
     Column() {
@@ -38,22 +45,10 @@ export default struct VideoCardItem {
           Checkbox({ name: 'check_box: ' + this.index, group: 'checkboxGroup' })
             .width(30)
             .height(30)
-            .select(this.videoListController.itemMultipleChoose)
+            .select(this.choose)
             .selectedColor($r('app.color.main_color'))
             .shape(CheckBoxShape.CIRCLE)
             .visibility(this.videoListController.multipleChooseState)
-            .onChange((value: boolean) => {
-              if (!this.videoListController.itemMultipleChoose || !value) {
-                if (this.item) {
-                  if (value) {
-                    DataSyncUtil.delMultipleList.push(this.item)
-                  } else {
-                    DataSyncUtil.delMultipleList =
-                      DataSyncUtil.delMultipleList.filter(item => item.date !== this.item.date)
-                  }
-                }
-              }
-            })
         }
         .width('100%')
         .padding({ top: 5 })

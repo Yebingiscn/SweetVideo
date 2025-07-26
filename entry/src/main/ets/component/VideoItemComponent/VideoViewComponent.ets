@@ -25,10 +25,16 @@ export struct VideoView {
   @Link videoListController: VideoListController
   @Consume sideBarController: SideBarController
   @Consume('pathStack') pathStack: NavPathStack
-  @Consume open_side_bar_tip: boolean
   @Consume fileFolderSource: FileFolderDataSource
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
+
+  @Watch('SyncDelMultipleList') @State delMultipleList: VideoMetadata[] = DataSyncUtil.delMultipleList
+
+  SyncDelMultipleList() {
+    DataSyncUtil.delMultipleList = this.delMultipleList
+  }
+
 
   build() {
     Stack({ alignContent: Alignment.Top }) { // 内容区
@@ -38,11 +44,12 @@ export struct VideoView {
       }
       Column() {
         VideoList({
-          videoListController: this.videoListController
+          videoListController: this.videoListController,
+          delMultipleList: this.delMultipleList
         })
       }
 
-      if (!this.loading && this.open_side_bar_tip) {
+      if (!this.loading && this.videoListController.open_side_bar_tip()) {
         Row() { //顶栏
           Column() {
             Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
@@ -184,15 +191,14 @@ export struct VideoView {
       })
         .onClick(() => {
           this.videoListController.closeMultipleChoose()
-          DataSyncUtil.delMultipleList.length = 0
+          this.delMultipleList.length = 0
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.checkmark_square_on_square')),
         content: $r('app.string.select_all')
       })
         .onClick(() => {
-          this.videoListController.itemMultipleChoose = !this.videoListController.itemMultipleChoose
-          DataSyncUtil.delMultipleList = this.videoListController.videoMetaDataList
+          this.delMultipleList = this.videoListController.videoMetaDataList
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')),
@@ -200,7 +206,7 @@ export struct VideoView {
       })
         .onClick(async () => {
           try {
-            if (DataSyncUtil.delMultipleList.length > 0) {
+            if (this.delMultipleList.length > 0) {
               FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController, this.fileFolderSource)
             }
           } finally {
