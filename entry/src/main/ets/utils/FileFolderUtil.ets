@@ -7,7 +7,6 @@ import { systemDateTime } from '@kit.BasicServicesKit'
 import DataSyncUtil from '../utils/DataSyncUtil'
 import { FileFolderDataSource } from './DataUtil'
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent'
-import { HashMap } from '@kit.ArkTS'
 
 // 文件夹类
 class FileFolderUtil {
@@ -52,12 +51,12 @@ class FileFolderUtil {
     let folders = Preferences.getFileFolder(context) as FileFolder[]
     let folderIndex = folders.findIndex(i => i.date === videoListController.folder.date)
     const folder = folders[folderIndex]
-    let surviveVideo: HashMap<string, VideoMetadata> = new HashMap()
+    const surviveVideo = new Map<string, VideoMetadata>()
     for (let video of folder.video_list) {
       surviveVideo.set(video.uri, video)
     }
     DataSyncUtil.delMultipleList.forEach(item => {
-      surviveVideo.remove(item.uri)
+      surviveVideo.delete(item.uri)
     })
     folder.video_list = Array.from(surviveVideo.values())
     folders[folderIndex] = folder
