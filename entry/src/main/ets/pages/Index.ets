@@ -412,7 +412,8 @@ struct Index {
             }.width('100%')
             .height('100%')
           }
-        }.backgroundColor($r('app.color.start_window_background'))
+        }
+        .backgroundColor($r('app.color.start_window_background'))
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
           const width = Number(newValue.width);
           // 增加判断，旋转时保持滚动位置不变

@@ -177,7 +177,7 @@ export struct VideoList {
         }, (item: VideoMetadata) => item.date + item.last_play + item.title + item.size.toString() +
         this.videoListController.folder.name)
       }
-      .padding({ left: 15, right: 15 })
+      .padding({ left: 10, right: 10 })
       .cachedCount(3)
       .contentStartOffset(this.topSafeHeight + 55)
       .contentEndOffset(this.bottomSafeHeight)
