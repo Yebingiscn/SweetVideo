@@ -51,7 +51,6 @@ export default struct VideoListItem {
       .justifyContent(FlexAlign.Center)
       .width('100%')
     }
-    .width('100%')
     .height('auto')
     .justifyContent(FlexAlign.SpaceEvenly)
   }
