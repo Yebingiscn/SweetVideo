@@ -1,6 +1,6 @@
-import { FileFolderDataSource } from "../../utils/DataUtil"
-import FileFolderUtil from "../../utils/FileFolderUtil"
-import { PathUtils } from "../../utils/PathUtils"
+import { FileFolderDataSource } from '../../utils/DataUtil'
+import FileFolderUtil from '../../utils/FileFolderUtil'
+import { PathUtils } from '../../utils/PathUtils'
 
 // 添加文件夹弹窗
 @CustomDialog

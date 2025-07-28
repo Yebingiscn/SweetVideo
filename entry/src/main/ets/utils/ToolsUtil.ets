@@ -95,11 +95,9 @@ export class ToolsUtil {
     const sorted_list = this.sortByNameProcess(list)
     if (file_folder) {
       FileFolderUtil.updateFileFolder(context, file_folder, sorted_list)
-      return file_folder
     } else {
       PrivacySpaceUtil.getPrivacyMode() ? Preferences.saveVideoMetaDataEncryption(context, sorted_list)
         : Preferences.saveVideoMetaData(context, sorted_list);
-      return sorted_list // 返回处理后的数据
     }
   }
 
@@ -108,13 +106,9 @@ export class ToolsUtil {
     const sorted_list = this.sortByTimeProcess(list)
     if (file_folder) {
       FileFolderUtil.updateFileFolder(context, file_folder, sorted_list)
-      return file_folder
     } else {
       PrivacySpaceUtil.getPrivacyMode() ? Preferences.saveVideoMetaDataEncryption(context, sorted_list)
         : Preferences.saveVideoMetaData(context, sorted_list)
-      const latestData = PrivacySpaceUtil.getPrivacyMode() ? Preferences.getVideoMetaDataEncryption(context)
-        : Preferences.getVideoMetaData(context);
-      return latestData
     }
   }
 

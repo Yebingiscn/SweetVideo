@@ -29,7 +29,7 @@ import { VideoListController } from '../component/VideoItemComponent/VideoItemCo
 import { AppInfo, SideBarController } from '../component/SideBarComponent/SideBar';
 import { VideoView } from '../component/VideoItemComponent/VideoViewComponent';
 import { ImportProgressComponent } from '../component/VideoItemComponent/ImportProgressComponent';
-import { FolderOperator, VideoMetaDataOperator } from '../database/VideoMetaData';
+import { VideoMetaDataOperator } from '../database/VideoMetaData';
 import { FileFolderListComponent } from '../component/FileFolderComponent/FileFolderListComponent';
 import VideoUtils from '../utils/VideoUtil';
 
@@ -41,7 +41,6 @@ export function IndexBuilder() {
 @Entry
 @Component
 struct Index {
-
   @State passwd: string = 'passwd'
   @State list_empty_item: string[] = ['']
   @State loading: boolean = false
@@ -49,13 +48,11 @@ struct Index {
   @State totalItems: number = 0
   @State file_folder_list: FileFolder[] = []
   @State searchValue: string = ''
-
   @StorageLink('is_list_display') isListDisplay: boolean = false
   @StorageProp('screen_width') screen_width: number = 0
   @StorageProp('screen_height') screen_height: number = 0
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
-
   @Provide videoListController: VideoListController = new VideoListController()
   @Provide fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   @Provide sideBarController: SideBarController = new SideBarController()
@@ -69,9 +66,8 @@ struct Index {
         if (!newFolderName || newFolderName.trim() == '') {
           return
         }
-          await FileFolderUtil.changeFileFolderName(PathUtils.appContext!,
-            JSON.parse(DataSyncUtil.editingVideo) as FileFolder,
-            newFolderName, this.fileFolderSource)
+        await FileFolderUtil.changeFileFolderName(PathUtils.appContext!,
+          JSON.parse(DataSyncUtil.editingVideo) as FileFolder, newFolderName, this.fileFolderSource)
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -94,7 +90,7 @@ struct Index {
               })
             );
             this.videoListController.closeMultipleChoose()
-            this.file_folder_list = FileFolderUtil.deleteFileFolder(PathUtils.appContext!, folder, this.fileFolderSource)
+            this.file_folder_list = FileFolderUtil.deleteFileFolder(PathUtils.appContext!, folder)
             let newFolder: FileFolder | undefined
             if (this.videoListController.folder.date === folder.date) {
               newFolder = this.file_folder_list[0]

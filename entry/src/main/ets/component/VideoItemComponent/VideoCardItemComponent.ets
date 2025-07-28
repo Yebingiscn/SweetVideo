@@ -3,7 +3,6 @@ import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
 import { fileUri } from '@kit.CoreFileKit';
 import { ImageFancyModifier } from '../../utils/AttributeModifierUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
-import DataSyncUtil from '../../utils/DataSyncUtil';
 import { VideoListController } from './VideoItemComponent';
 import { VideoInfoComponent } from './VideoInfoComponent';
 
@@ -14,7 +13,6 @@ export default struct VideoCardItem {
   @Prop index: number
   @Consume videoListController: VideoListController
   @State choose: boolean = false
-
   @Watch('checkChoose') @Link delMultipleList: VideoMetadata[]
 
   checkChoose() {

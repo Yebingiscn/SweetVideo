@@ -3,7 +3,6 @@ import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
 import { fileUri } from '@kit.CoreFileKit';
 import { ImageFancyModifier } from '../../utils/AttributeModifierUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
-import DataSyncUtil from '../../utils/DataSyncUtil';
 import { VideoListController } from './VideoItemComponent';
 import { VideoInfoComponent } from './VideoInfoComponent';
 
@@ -42,6 +41,7 @@ export default struct VideoListItem {
               .shape(CheckBoxShape.CIRCLE)
               .visibility(this.videoListController.multipleChooseState)
           }
+
           VideoInfoComponent({ item: this.item })
         }
         .alignItems(HorizontalAlign.Start)

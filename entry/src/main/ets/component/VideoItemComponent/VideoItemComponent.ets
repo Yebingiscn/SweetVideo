@@ -37,7 +37,7 @@ export class VideoListController {
     } else {
       this.folder = Preferences.getFileFolder(PathUtils.appContext!)[0]
     }
-    this.videoMetaDataList = folder?.video_list || []
+    this.videoMetaDataList = this.folder?.video_list || []
     this.videoDataSource = new VideoDataSource(this.videoMetaDataList)
   }
 
@@ -178,7 +178,7 @@ export struct VideoList {
                   }
                 }),
               TapGesture({ count: 1, fingers: 1 })
-                .onAction(async (event: GestureEvent | undefined) => {
+                .onAction(async () => {
                   if (this.videoListController.multipleChooseState !== Visibility.Visible) {
                     await this.clickItem(item)
                     return
@@ -194,7 +194,7 @@ export struct VideoList {
                 })
             )
           )
-        }, (item: VideoMetadata) => item.date + item.last_play + item.title + item.size.toString() +
+        }, (item: VideoMetadata) => item.date.toString() + item.last_play + item.title + item.size.toString() +
         this.videoListController.folder.name)
       }
       .padding({ left: 10, right: 10 })
@@ -243,7 +243,7 @@ export struct VideoList {
                       }
                     }),
                   TapGesture({ count: 1, fingers: 1 })
-                    .onAction(async (event: GestureEvent | undefined) => {
+                    .onAction(async () => {
                       if (this.videoListController.multipleChooseState !== Visibility.Visible) {
                         await this.clickItem(item)
                         return

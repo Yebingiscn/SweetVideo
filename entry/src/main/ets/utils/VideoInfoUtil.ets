@@ -6,6 +6,7 @@ import ReqPermission from '../utils/ReqPermissionUtil';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import PrivacySpaceUtil from './PrivacySpaceUtil';
 import SelectFileUtil from './SelectFileUtil';
+import { FileProcessorUtil } from './FileProcessorUtil';
 
 // 视频信息类
 class VideoInfoUtil {
@@ -35,8 +36,6 @@ class VideoInfoUtil {
   public play_area_width: number = 0
   // 播放器视频高度
   public play_area_height: number = 0
-  // 获取视频封面最大并发数
-  public MAX_CONCURRENT = 3;
   private GB = 1024 * 1024 * 1024 // 1GB in bytes
   private MB = 1024 * 1024 // 1MB in bytes
   private VIDEO_SPEED = 1
@@ -97,7 +96,7 @@ class VideoInfoUtil {
     return tmp
   }
 
-  // 获取视频封面，需要控制并发，不然获取不了
+  // 获取视频封面，需要控制并发，不然获取不了,这里实现一个队列来控制并发
   async getVideoCover(sandbox_path: string, date: string, uri: string, size: number[], time: number) {
     if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
       return this.enqueue(async () => {
@@ -107,7 +106,7 @@ class VideoInfoUtil {
         try {
           avMetadataExtractor.fdSrc = file;
           const pixelMap = await avMetadataExtractor.fetchAlbumCover();
-          this.saveVideoImg(sandbox_path, date, pixelMap);
+          this.saveVideoImageToPrivacySpace(sandbox_path, date, pixelMap);
         } catch (error) {
           console.error(`AlbumCover failed: ${error.message}`);
           await this.getVideoImage(uri, size, date, sandbox_path, time);
@@ -155,7 +154,7 @@ class VideoInfoUtil {
         height: size[1],
       }
       avImageGenerator.fetchFrameByTime(timeUs, queryOption, param).then((pixelMap: PixelMap) => {
-        this.saveVideoImg(sandbox_path, date, pixelMap)
+        this.saveVideoImageToPrivacySpace(sandbox_path, date, pixelMap)
         avImageGenerator.release()
         fs.closeSync(file)
       })
@@ -163,7 +162,7 @@ class VideoInfoUtil {
   }
 
   // 保存封面，封面获取后复制到应用私有目录下
-  saveVideoImg(sandbox_path: string, date: string, pixelMap: image.PixelMap) {
+  saveVideoImageToPrivacySpace(sandbox_path: string, date: string, pixelMap: image.PixelMap) {
     let packer = image.createImagePacker()
     let file1 = fs.openSync(sandbox_path + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
     // 设置为85平衡内存、导入速度以及图片质量
@@ -237,7 +236,7 @@ class VideoInfoUtil {
     this.play_area_height = play_area_height
   }
 
-  // 并发控制核心方法
+  // 实现了一个并发控制队列方法
   private async enqueue<T>(task: () => Promise<T>): Promise<T> {
     return new Promise((resolve, reject) => {
       const wrappedTask = async () => {
@@ -258,7 +257,7 @@ class VideoInfoUtil {
   }
 
   private processNext() {
-    if (this.activeCount < this.MAX_CONCURRENT && this.pendingQueue.length > 0) {
+    if (this.activeCount < FileProcessorUtil.MAX_CONCURRENT && this.pendingQueue.length > 0) {
       this.activeCount++;
       const task = this.pendingQueue.shift()!;
       task();

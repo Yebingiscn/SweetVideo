@@ -28,13 +28,11 @@ export struct VideoView {
   @Consume fileFolderSource: FileFolderDataSource
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
-
   @Watch('SyncDelMultipleList') @State delMultipleList: VideoMetadata[] = DataSyncUtil.delMultipleList
 
   SyncDelMultipleList() {
     DataSyncUtil.delMultipleList = this.delMultipleList
   }
-
 
   build() {
     Stack({ alignContent: Alignment.Top }) { // 内容区
@@ -167,7 +165,7 @@ export struct VideoView {
       })
         .onClick(async () => {
           await ToolsUtil.sortByName(PathUtils.appContext!, this.videoListController.videoMetaDataList,
-            this.videoListController.folder) as VideoMetadata[]
+            this.videoListController.folder)
           VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
         })
       MenuItem({
@@ -176,7 +174,7 @@ export struct VideoView {
       })
         .onClick(async () => {
           await ToolsUtil.sortByTime(PathUtils.appContext!, this.videoListController.videoMetaDataList,
-            this.videoListController.folder) as VideoMetadata[]
+            this.videoListController.folder)
           VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
         })
     }.attributeModifier(new MenuModifier())
@@ -198,7 +196,7 @@ export struct VideoView {
         content: $r('app.string.select_all')
       })
         .onClick(() => {
-          this.delMultipleList = this.videoListController.videoMetaDataList
+          this.delMultipleList = [...this.videoListController.videoMetaDataList]
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')),

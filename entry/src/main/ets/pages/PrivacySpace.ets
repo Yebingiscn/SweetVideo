@@ -125,9 +125,9 @@ export struct PrivacySpace { // 隐私空间页
         content: $r('app.string.sort_by_name')
       })
         .onClick(async () => {
-          this.video_meta_data_encryption =
-            await ToolsUtil.sortByName(PathUtils.appContext!, this.video_meta_data_encryption,
-              undefined) as VideoMetadata[]
+          await ToolsUtil.sortByName(PathUtils.appContext!, this.video_meta_data_encryption,
+            undefined)
+          this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
           this.videoDataSource.updateData(this.video_meta_data_encryption)
         })
       MenuItem({
@@ -135,9 +135,8 @@ export struct PrivacySpace { // 隐私空间页
         content: $r('app.string.sort_by_time')
       })
         .onClick(async () => {
-          this.video_meta_data_encryption =
-            await ToolsUtil.sortByTime(PathUtils.appContext!, this.video_meta_data_encryption,
-              undefined) as VideoMetadata[]
+          await ToolsUtil.sortByTime(PathUtils.appContext!, this.video_meta_data_encryption, undefined)
+          this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
           this.videoDataSource.updateData(this.video_meta_data_encryption)
         })
     }.attributeModifier(new MenuModifier())

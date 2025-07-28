@@ -68,7 +68,7 @@ export struct FileFolderView {
         .onClick(async () => {
           DataSyncUtil.delMultipleList = Array.from(file_folder.video_list);
           const deletePromises = DataSyncUtil.delMultipleList.map(item => {
-            return new Promise<void>((resolve, reject) => {
+            return new Promise<void>(() => {
               DataSyncUtil.editingVideo = JSON.stringify(item);
               this.videoListController.videoDataSource.deleteItem()
               this.videoListController.closeMultipleChoose()

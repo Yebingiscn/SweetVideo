@@ -55,7 +55,7 @@ class FileFolderUtil {
     const folder = folders[folderIndex]
     const surviveVideo = new Map<string, VideoMetadata>()
     for (let video of folder.video_list) {
-        surviveVideo.set(video.uri, video)
+      surviveVideo.set(video.uri, video)
     }
     DataSyncUtil.delMultipleList.forEach(item => {
       surviveVideo.delete(item.uri)
@@ -97,8 +97,10 @@ class FileFolderUtil {
   static async changeFileFolderName(context: Context, folder: FileFolder, newFolderName: string,
     fileFolderDataSource: FileFolderDataSource) {
     let folders = Preferences.getFileFolder(context) as FileFolder[]
-    let folderIndex = folders.findIndex(i => i.date === folder.date)
-    folders[folderIndex].name = newFolderName
+    const targetFolder = folders.find(i => i.date === folder.date);
+    if (targetFolder) {
+      targetFolder.name = newFolderName;
+    }
     Preferences.saveFileFolder(context, folders)
     fileFolderDataSource.updateData(folders)
   }

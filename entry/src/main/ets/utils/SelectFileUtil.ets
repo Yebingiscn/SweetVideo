@@ -15,6 +15,7 @@ import FileFolderUtil from './FileFolderUtil';
 import { PathUtils } from './PathUtils';
 import ToolsUtil from './ToolsUtil';
 import RecentPlayUtil from './RecentPlayUtil';
+import { ConcurrencyManagerUtil } from './FileProcessorUtil';
 
 // 获取视频类
 class SelectFileUtil {
@@ -257,82 +258,81 @@ class SelectFileUtil {
     if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
       await ReqPermissionUtil.persistPermission(uri);
       const avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor();
-      const file = fs.openSync(uri);
-      try {
-        avMetadataExtractor.fdSrc = file;
-        const metadata = await new Promise<media.AVMetadata>((resolve, reject) => {
-          avMetadataExtractor.fetchMetadata((error: BusinessError, metadata: media.AVMetadata) => {
-            error ? reject(error) : resolve(metadata);
+      // 获取文件操作队列（按URI串行化），避免重复创建文件夹
+      const fileQueue = ConcurrencyManagerUtil.getFileQueue(uri);
+      await fileQueue.run(async () => {
+        const file = fs.openSync(uri);
+        try {
+          avMetadataExtractor.fdSrc = file;
+          const metadata = await new Promise<media.AVMetadata>((resolve, reject) => {
+            avMetadataExtractor.fetchMetadata((error: BusinessError, metadata: media.AVMetadata) => {
+              error ? reject(error) : resolve(metadata);
+            });
           });
-        });
-        let isDuplicate = false
-        // 从 uri 中获取文件夹名
-        if (!file_folder) {
-          let folderName: string | undefined
-          if (uri.startsWith(this.file_folder_uri)) {
-            const prefix = this.file_folder_uri + "/"
-            const suffix = file.name
-            folderName = uri.substring(prefix.length);
-            folderName = folderName.replace(suffix, "")
-            const pathArray = folderName.split("/")
-            if (pathArray.length > 1) {
-              folderName = pathArray[0]
+          // 获取全局数据锁（保证原子操作）
+          const dataLock = ConcurrencyManagerUtil.getLock('global_data');
+          await dataLock.acquire();
+          try {
+            if (!file_folder) {
+              let folderName: string | undefined;
+              // 从 uri 中获取文件夹名
+              if (uri.startsWith(this.file_folder_uri)) {
+                const prefix = this.file_folder_uri + "/";
+                const suffix = file.name;
+                folderName = uri.substring(prefix.length);
+                folderName = folderName.replace(suffix, "");
+                const pathArray = folderName.split("/");
+                if (pathArray.length > 1) {
+                  folderName = pathArray[0];
+                }
+              }
+              if (folderName) {
+                const folderLock = ConcurrencyManagerUtil.getLock(`folder_${folderName}`);
+                await folderLock.acquire();
+                try {
+                  // 每次获取最新数据，防止不同线程覆盖数据
+                  const latestFolders = Preferences.getFileFolder(context) as FileFolder[];
+                  if (!latestFolders.some(i => i.name === folderName)) {
+                    await FileFolderUtil.createNewFolder(context, folderName);
+                    // 创建后重新获取最新数据
+                    file_folder = (Preferences.getFileFolder(context) as FileFolder[])
+                      .find(item => item.name === folderName);
+                  } else {
+                    file_folder = latestFolders.find(item => item.name === folderName);
+                  }
+                } finally {
+                  folderLock.release();
+                }
+              }
             }
-          }
-          if (folderName) {
-            // 判断文件夹是否存在，不存在则创建文件夹
-            let folders = Preferences.getFileFolder(context) as FileFolder[]
-            if (!folders.some(i => i.name === folderName)) {
-              ToolsUtil.showToast(`自动创建文件夹《${folderName}》`)
-              folders = await FileFolderUtil.createNewFolder(context, folderName)
+            let isDuplicate = false;
+            isDuplicate = FileFolderUtil.existVideoInFolders(context, uri);
+            if (!isDuplicate) {
+              if (PrivacySpaceUtil.getPrivacyMode()!) {
+                await this.copyFileToPrivacySpace(context, video_meta_data, uri, sandbox_video,
+                  sandbox_path, systemDateTime.getTime(true).toString(), metadata, file);
+              } else {
+                const videoInfo =
+                  await VideoUtil.setVideoInfo(systemDateTime.getTime(true).toString(), uri, file.name, metadata,
+                    sandbox_video, sandbox_path);
+                if (file_folder) {
+                  file_folder.video_list.push(videoInfo)
+                  FileFolderUtil.updateFileFolder(context, file_folder, file_folder.video_list)
+                } else {
+                  const folders = Preferences.getFileFolder(context)
+                  folders[0].video_list.push(videoInfo)
+                  Preferences.saveFileFolder(context, folders)
+                }
+              }
             }
-            // 把视频放入文件夹
-            file_folder = folders.find(item => item.name === folderName)
+          } finally {
+            dataLock.release();
           }
+        } finally {
+          fs.closeSync(file);
         }
-        isDuplicate = FileFolderUtil.existVideoInFolders(context, uri)
-        if (!isDuplicate) {
-          if (PrivacySpaceUtil.getPrivacyMode()!) {
-            await this.copyFileToPrivacySpace(context, video_meta_data, uri, sandbox_video,
-              sandbox_path, systemDateTime.getTime(true).toString(), metadata, file)
-          } else {
-            const videoInfo =
-              await VideoUtil.setVideoInfo(systemDateTime.getTime(true).toString(), uri, file.name, metadata,
-                sandbox_video, sandbox_path);
-            if (file_folder) {
-              file_folder.video_list.push(videoInfo)
-              FileFolderUtil.updateFileFolder(context, file_folder, file_folder.video_list)
-            } else {
-              // TODO 此处复刻首页保存
-              const folders = Preferences.getFileFolder(context)
-              folders[0].video_list.push(videoInfo)
-              Preferences.saveFileFolder(context, folders)
-            }
-          }
-        }
-      } finally {
-        fs.closeSync(file);
-      }
+      });
     }
-  }
-
-  // 计算分块大小
-  calculateChunkSize(totalItems: number): number {
-    return Math.ceil(totalItems / VideoUtil.MAX_CONCURRENT);
-  }
-
-  // 将列表拆分为多个块
-  splitListIntoChunks(list: string[], chunkSize: number): string[][] {
-    const chunks: string[][] = [];
-    for (let i = 0; i < VideoUtil.MAX_CONCURRENT; i++) {
-      const start = i * chunkSize;
-      if (start >= list.length) {
-        break;
-      } // 防止空分块
-      const end = Math.min(start + chunkSize, list.length);
-      chunks.push(list.slice(start, end));
-    }
-    return chunks;
   }
 
   async processSingleFile(uri: string, context: Context, sandbox_video: string, sandbox_path: string,
@@ -345,20 +345,6 @@ class SelectFileUtil {
       video_meta_data,
       fileFolder
     );
-  }
-
-  // return [folder1,folder2]
-  async getFolderAndVideoFromDownloadFile() {
-    fs.listFile(this.file_folder_uri, (err: BusinessError, filenames: Array<string>) => {
-      if (err) {
-        console.error("list file failed with error message: " + err.message + ", error code: " + err.code);
-      } else {
-        console.info("listFile succeed");
-        for (let i = 0; i < filenames.length; i++) {
-          console.info("filename: %s", filenames[i]);
-        }
-      }
-    });
   }
 
   // 从下载文件夹获取视频，视频和文件夹太多
