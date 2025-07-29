@@ -37,6 +37,7 @@ export struct VideoView {
   build() {
     Stack({ alignContent: Alignment.Top }) { // 内容区
       if (this.sideBarController.mask_state &&
+        this.sideBarController.sideBarStatusTmp !== Visibility.Hidden &&
         this.sideBarController.side_bar_mode === SideBarContainerType.Overlay) {
         MaskComponent()
       }
