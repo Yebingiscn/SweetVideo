@@ -184,9 +184,9 @@ export struct VideoList {
                     return
                   } else {
                     //已存在，标记置反
-                    if (this.delMultipleList.some(video => video.uri === item.uri)) {
+                    if (this.delMultipleList.some(video => video.date === item.date)) {
                       this.delMultipleList =
-                        this.delMultipleList.filter(video => video.uri !== item.uri)
+                        this.delMultipleList.filter(video => video.date !== item.date)
                     } else {
                       this.delMultipleList.push(item)
                     }
@@ -249,9 +249,9 @@ export struct VideoList {
                         return
                       } else {
                         //已存在，标记置反
-                        if (this.delMultipleList.some(video => video.uri === item.uri)) {
+                        if (this.delMultipleList.some(video => video.date === item.date)) {
                           this.delMultipleList =
-                            this.delMultipleList.filter(video => video.uri !== item.uri)
+                            this.delMultipleList.filter(video => video.date !== item.date)
                         } else {
                           this.delMultipleList.push(item)
                         }

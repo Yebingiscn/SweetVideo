@@ -347,7 +347,7 @@ class SelectFileUtil {
     );
   }
 
-  // 从下载文件夹获取视频，视频和文件夹太多
+  // 从下载文件夹获取视频，视频和文件夹太多，通过分离文件夹和文件两个线程池提高性能，进行递归遍历
   async getDownloadFilesUri(): Promise<string[]> {
     const VIDEO_EXTENSIONS = new Set(VideoUtil.support_video_format.concat(VideoInfoUtil.support_audio_format));
     const EXT_REGEX = /\.([a-z0-9]+)$/i; // 预编译正则提升性能

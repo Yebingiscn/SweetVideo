@@ -351,7 +351,7 @@ struct Index {
             })
           }
           .alignSelf(ItemAlign.End)
-          .padding({ bottom: 15 })
+          .padding({ bottom: 30 })
         }
         .width('100%')
         .justifyContent(FlexAlign.Start)
@@ -373,11 +373,11 @@ struct Index {
                 processedItems: this.processedItems,
                 totalItems: this.totalItems
               })
-                .backgroundColor($r('app.color.custom_dialog_background_blur'))
-                .shadow({ radius: 26, color: $r('app.color.shadow_color') })
-                .backdropBlur(150)
                 .padding(30)
-                .borderRadius(20)
+                .borderRadius(16)
+                .shadow({ radius: 26, color: $r('app.color.shadow_color') })
+                .backgroundColor($r('app.color.start_window_background_blur'))
+                .backdropBlur(150)
             }
             .width('100%')
             .height('100%')

@@ -40,7 +40,7 @@ class FileFolderUtil {
     let folders = Preferences.getFileFolder(context) as FileFolder[]
     let fromFolderIndex = folders.findIndex(i => i.date === fromFolderDate)
     let targetFolderIndex = folders.findIndex(i => i.date === targetFolderDate)
-    folders[fromFolderIndex].video_list = folders[fromFolderIndex].video_list.filter(i => i.uri !== videoMetaData.uri)
+    folders[fromFolderIndex].video_list = folders[fromFolderIndex].video_list.filter(i => i.date !== videoMetaData.date)
     if (folders[targetFolderIndex].video_list.findIndex(i => i.uri === videoMetaData.uri) === -1) {
       folders[targetFolderIndex].video_list.push(videoMetaData)
     }
@@ -74,7 +74,7 @@ class FileFolderUtil {
     let folders = Preferences.getFileFolder(context) as FileFolder[]
     let folderIndex = folders.findIndex(i => i.date === videoListController.folder.date)
     if (folderIndex !== -1) {
-      folders[folderIndex].video_list = folders[folderIndex].video_list.filter(item => item.uri !== videoMetaData.uri)
+      folders[folderIndex].video_list = folders[folderIndex].video_list.filter(item => item.date !== videoMetaData.date)
       videoListController.updateData(undefined, folders[folderIndex])
       folderDataSource.updateData(folders)
       Preferences.saveFileFolder(context, folders)

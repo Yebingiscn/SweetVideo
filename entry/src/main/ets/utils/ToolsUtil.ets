@@ -45,7 +45,7 @@ export class ToolsUtil {
     })
   }
 
-  // 名称排序处理
+  // 名称排序处理，如果单纯使用普通排序逻辑会造成卡顿，这里结合华为提供的排序进行排序
   sortByNameProcess(list: VideoMetadata[]) {
     const collator = new Intl.Collator("zh-CN", {
       sensitivity: "variant",
@@ -73,7 +73,7 @@ export class ToolsUtil {
       }
       return aParts.length - bParts.length;
     };
-    const sortedList = [...list].sort((a, b): number => { // 缓存读取逻辑
+    const sortedList = [...list].sort((a, b): number => { // 实现一个排序缓存
       const getCachedPinyin = (item: VideoMetadata) => {
         if (!this.pinyinCache.has(item)) {
           this.pinyinCache.set(item, pinyin4js.getShortPinyin(item.title || ""));

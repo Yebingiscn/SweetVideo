@@ -16,7 +16,7 @@ export default struct VideoListItem {
   @Watch('checkChoose') @Link delMultipleList: VideoMetadata[]
 
   checkChoose() {
-    this.choose = this.delMultipleList.some(item => item.uri === this.item.uri)
+    this.choose = this.delMultipleList.some(item => item.date === this.item.date)
   }
 
   build() {
@@ -33,13 +33,14 @@ export default struct VideoListItem {
               .textOverflow({ overflow: TextOverflow.Ellipsis })
               .layoutWeight(1)
               .wordBreak(WordBreak.BREAK_ALL)
-            Checkbox({ name: 'check_box: ' + this.index, group: 'checkboxGroup' })
-              .width('10%')
-              .height(30)
-              .select(this.choose)
-              .selectedColor($r('app.color.main_color'))
-              .shape(CheckBoxShape.CIRCLE)
-              .visibility(this.videoListController.multipleChooseState)
+            if (this.videoListController.multipleChooseState === Visibility.Visible) {
+              Checkbox({ name: 'check_box: ' + this.item.date, group: 'checkboxGroup' })
+                .width('10%')
+                .height(30)
+                .select(this.choose)
+                .selectedColor($r('app.color.main_color'))
+                .shape(CheckBoxShape.CIRCLE)
+            }
           }
 
           VideoInfoComponent({ item: this.item })

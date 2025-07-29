@@ -87,7 +87,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @StorageLink('skipIntroTime') skipIntroTime: string = '0'
   @Consume('pathStack') pathStack: NavPathStack
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
-  private initPinchDistance: number = 0;
   private CONTROL_PlayStatus = PlayStatus.INIT;
   private mIjkMediaPlayer: IjkMediaPlayer | null = null;
 
@@ -268,13 +267,13 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           onPinchStart: (event: GestureEvent) => {
             const finger1 = event.fingerList[0];
             const finger2 = event.fingerList[1];
-            this.initPinchDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
+            VideoOperateUtil.initPinchDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
           },
           onPinchUpdate: (event: GestureEvent) => {
             const finger1 = event.fingerList[0];
             const finger2 = event.fingerList[1];
             const currentDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
-            const rawScale = currentDistance / this.initPinchDistance;
+            const rawScale = currentDistance / VideoOperateUtil.initPinchDistance;
             const adjustedScale = 1 + (rawScale - 1) * 0.007;
             const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0);
             this.play_area_width = Math.max(this.play_area_width * clampedScale, 0.5);
