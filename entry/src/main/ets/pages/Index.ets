@@ -373,7 +373,13 @@ struct Index {
                 processedItems: this.processedItems,
                 totalItems: this.totalItems
               })
-            }.width('100%')
+                .backgroundColor($r('app.color.custom_dialog_background_blur'))
+                .shadow({ radius: 26, color: $r('app.color.shadow_color') })
+                .backdropBlur(150)
+                .padding(30)
+                .borderRadius(20)
+            }
+            .width('100%')
             .height('100%')
           }
         }
