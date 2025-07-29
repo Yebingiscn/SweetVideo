@@ -200,6 +200,7 @@ export struct SettingsPage { //设置页
       .height('100%')
       .width('95%')
       .layoutWeight(1)
+      .contentEndOffset(this.bottomSafeHeight)
     }.hideToolBar(true).title('设置')
     .backgroundColor($r('app.color.start_window_background'))
     .padding({ top: this.topSafeHeight })
