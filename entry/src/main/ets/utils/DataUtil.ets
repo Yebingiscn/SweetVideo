@@ -81,7 +81,7 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
     if (!item) {
       return
     }
-    DataSyncUtil.editingVideo = JSON.stringify(item);
+    DataSyncUtil.getInstance().editingVideo = JSON.stringify(item);
     await this.deleteItem()
     SelectFileUtil.deleteVideo(item);
     await VideoMetaDataOperator.deleteItem(videoListController, fileFolderSource)
@@ -89,7 +89,7 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
   }
 
   async deleteItem(): Promise<void> {
-    const tmp = JSON.parse(DataSyncUtil.editingVideo) as VideoMetadata;
+    const tmp = JSON.parse(DataSyncUtil.getInstance().editingVideo) as VideoMetadata;
     await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, tmp.date!)
     this.deleteData(this.data.findIndex(i => i.date === tmp.date));
     RecentPlayUtil.delData(PathUtils.appContext!, tmp);

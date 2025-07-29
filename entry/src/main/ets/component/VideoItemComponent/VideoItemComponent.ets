@@ -74,7 +74,7 @@ export class VideoListController {
 
   public closeMultipleChoose() {
     this.multipleChooseState = Visibility.None;
-    DataSyncUtil.delMultipleList = [] // 需要进行置空，防止脏数据
+    DataSyncUtil.getInstance().delMultipleList = [] // 需要进行置空，防止脏数据
   }
 
   public refresh(width: number, isListDisplay: boolean) {
@@ -118,7 +118,7 @@ export struct VideoList {
       confirm: async () => {
         try {
           await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource);
-          if (DataSyncUtil.delMultipleList.length > 0) {
+          if (DataSyncUtil.getInstance().delMultipleList.length > 0) {
             FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController, this.fileFolderSource)
           }
           this.videoListController.closeMultipleChoose();
@@ -136,7 +136,7 @@ export struct VideoList {
         if (!title?.trim()) {
           return;
         } // 更严格的空值判断
-        const editingVideo = JSON.parse(DataSyncUtil.editingVideo) as VideoMetadata;
+        const editingVideo = JSON.parse(DataSyncUtil.getInstance().editingVideo) as VideoMetadata;
         const targetIndex = SelectFileUtil.getItemIndex(this.videoListController.videoMetaDataList, editingVideo);
         if (targetIndex === -1) {
           return;
@@ -336,7 +336,7 @@ export struct VideoList {
       })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
         .onClick(() => {
-          DataSyncUtil.editingVideo = JSON.stringify(item)
+          DataSyncUtil.getInstance().editingVideo = JSON.stringify(item)
           this.VideoDetailDialog.open()
         })
       // TODO 调整文件夹转移
@@ -351,7 +351,7 @@ export struct VideoList {
       })
         .onClick(() => {
           // 将这个item传递给editingVideo
-          DataSyncUtil.editingVideo = JSON.stringify(item)
+          DataSyncUtil.getInstance().editingVideo = JSON.stringify(item)
           this.delConfirmDialog.open()
         })
       MenuItem({
@@ -361,7 +361,7 @@ export struct VideoList {
         .onClick(() => {
           this.videoListController.multipleChooseState =
             this.videoListController.multipleChooseState == Visibility.None ? Visibility.Visible : Visibility.None
-          DataSyncUtil.delMultipleList.length = 0
+          DataSyncUtil.getInstance().delMultipleList.length = 0
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.line_3_horizontal')),
@@ -383,7 +383,7 @@ export struct VideoList {
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')), content: $r('app.string.edit')
       })
         .onClick(() => {
-          DataSyncUtil.editingVideo = JSON.stringify(item)
+          DataSyncUtil.getInstance().editingVideo = JSON.stringify(item)
           this.editMetadataDialogController.open()
         })
       MenuItem({

@@ -24,7 +24,7 @@ export struct FileFolderView {
           return
         }
         await FileFolderUtil.changeFileFolderName(PathUtils.appContext!,
-          JSON.parse(DataSyncUtil.editingVideo) as FileFolder,
+          JSON.parse(DataSyncUtil.getInstance().editingVideo) as FileFolder,
           file_folder, this.fileFolderSource)
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
@@ -66,10 +66,10 @@ export struct FileFolderView {
         content: $r('app.string.delete')
       })
         .onClick(async () => {
-          DataSyncUtil.delMultipleList = Array.from(file_folder.video_list);
-          const deletePromises = DataSyncUtil.delMultipleList.map(item => {
+          DataSyncUtil.getInstance().delMultipleList = Array.from(file_folder.video_list);
+          const deletePromises = DataSyncUtil.getInstance().delMultipleList.map(item => {
             return new Promise<void>(() => {
-              DataSyncUtil.editingVideo = JSON.stringify(item);
+              DataSyncUtil.getInstance().editingVideo = JSON.stringify(item);
               this.videoListController.videoDataSource.deleteItem()
               this.videoListController.closeMultipleChoose()
             });
@@ -83,7 +83,7 @@ export struct FileFolderView {
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
         content: $r('app.string.edit')
       }).onClick(() => {
-        DataSyncUtil.editingVideo = JSON.stringify(file_folder);
+        DataSyncUtil.getInstance().editingVideo = JSON.stringify(file_folder);
         this.editFileFolderNameDialogController.open()
       })
     }.attributeModifier(new MenuModifier).onAppear(() => {

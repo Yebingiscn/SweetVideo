@@ -57,7 +57,7 @@ class FileFolderUtil {
     for (let video of folder.video_list) {
       surviveVideo.set(video.uri, video)
     }
-    DataSyncUtil.delMultipleList.forEach(item => {
+    DataSyncUtil.getInstance().delMultipleList.forEach(item => {
       surviveVideo.delete(item.uri)
     })
     folder.video_list = Array.from(surviveVideo.values())
@@ -70,7 +70,7 @@ class FileFolderUtil {
 
   static delVideoInFileFolder(context: Context, videoListController: VideoListController,
     folderDataSource: FileFolderDataSource) {
-    const videoMetaData = JSON.parse(DataSyncUtil.editingVideo) as VideoMetadata;
+    const videoMetaData = JSON.parse(DataSyncUtil.getInstance().editingVideo) as VideoMetadata;
     let folders = Preferences.getFileFolder(context) as FileFolder[]
     let folderIndex = folders.findIndex(i => i.date === videoListController.folder.date)
     if (folderIndex !== -1) {

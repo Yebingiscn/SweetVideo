@@ -11,7 +11,7 @@ export struct VideoDetailDialog {
   private metadata?: VideoMetadata
 
   aboutToAppear(): void {
-    const metadata = JSON.parse(DataSyncUtil.editingVideo) as VideoMetadata
+    const metadata = JSON.parse(DataSyncUtil.getInstance().editingVideo) as VideoMetadata
     this.metadata = metadata
   }
 

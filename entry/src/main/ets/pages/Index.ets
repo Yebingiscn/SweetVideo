@@ -67,7 +67,7 @@ struct Index {
           return
         }
         await FileFolderUtil.changeFileFolderName(PathUtils.appContext!,
-          JSON.parse(DataSyncUtil.editingVideo) as FileFolder, newFolderName, this.fileFolderSource)
+          JSON.parse(DataSyncUtil.getInstance().editingVideo) as FileFolder, newFolderName, this.fileFolderSource)
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -81,10 +81,10 @@ struct Index {
           content: $r('app.string.delete')
         })
           .onClick(async () => {
-            DataSyncUtil.delMultipleList = Array.from(folder.video_list);
+            DataSyncUtil.getInstance().delMultipleList = Array.from(folder.video_list);
             await Promise.all(
-              DataSyncUtil.delMultipleList.map(item => {
-                DataSyncUtil.editingVideo = JSON.stringify(item);
+              DataSyncUtil.getInstance().delMultipleList.map(item => {
+                DataSyncUtil.getInstance().editingVideo = JSON.stringify(item);
                 VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource);
                 return Promise.resolve();
               })
@@ -105,7 +105,7 @@ struct Index {
           content: $r('app.string.edit')
         })
           .onClick(() => {
-            DataSyncUtil.editingVideo = JSON.stringify(folder);
+            DataSyncUtil.getInstance().editingVideo = JSON.stringify(folder);
             this.editFileFolderNameDialogController.open()
           })
       }.attributeModifier(new MenuModifier()).onAppear(() => {
@@ -390,11 +390,11 @@ struct Index {
           }
         }))
       }
-      .minSideBarWidth(DataSyncUtil.minSideBarWidth) // 设置侧边栏最小宽度
-      .minContentWidth(DataSyncUtil.minContentWidth) // 设置内容区最小宽度
+      .minSideBarWidth(DataSyncUtil.getInstance().minSideBarWidth) // 设置侧边栏最小宽度
+      .minContentWidth(DataSyncUtil.getInstance().minContentWidth) // 设置内容区最小宽度
       .allowDrop([uniformTypeDescriptor.UniformDataType.PLAIN_TEXT, uniformTypeDescriptor.UniformDataType.VIDEO])
       .onSizeChange((_oldValue: SizeResult, newValue: SizeResult) => {
-        if (newValue.width >= DataSyncUtil.minSideBarWidth + DataSyncUtil.minContentWidth) {
+        if (newValue.width >= DataSyncUtil.getInstance().minSideBarWidth + DataSyncUtil.getInstance().minContentWidth) {
           this.sideBarController.side_bar_mode = SideBarContainerType.Embed
           this.sideBarController.sideBarStatusTmp = Visibility.Visible
           this.sideBarController.sideBarStatus = true

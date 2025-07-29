@@ -23,9 +23,9 @@ export struct FileFolderMenu {
             .onClick(async () => {
               //批量删除
               let folders: FileFolder[] = []
-              if (DataSyncUtil.delMultipleList.length > 0) {
-                DataSyncUtil.delMultipleList.forEach(video => {
-                  DataSyncUtil.editingVideo = JSON.stringify(video);
+              if (DataSyncUtil.getInstance().delMultipleList.length > 0) {
+                DataSyncUtil.getInstance().delMultipleList.forEach(video => {
+                  DataSyncUtil.getInstance().editingVideo = JSON.stringify(video);
                   folders = FileFolderUtil.addVideoInFileFolder(PathUtils.appContext!, video,
                     this.videoListController.folder.date,
                     item.date)

@@ -13,7 +13,7 @@ export default struct VideoListItem {
   @Prop index: number
   @Consume videoListController: VideoListController
   @State choose: boolean = false
-  @Watch('checkChoose') @Link delMultipleList: VideoMetadata[]
+  @Watch('checkChoose') @ObjectLink delMultipleList: VideoMetadata[]
 
   checkChoose() {
     this.choose = this.delMultipleList.some(item => item.uri === this.item.uri)

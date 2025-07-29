@@ -9,7 +9,7 @@ export struct editFileFolderNameDialog {
   file_folder_name: string | undefined = undefined
 
   aboutToAppear(): void {
-    let tmp = JSON.parse(DataSyncUtil.editingVideo) as FileFolder
+    let tmp = JSON.parse(DataSyncUtil.getInstance().editingVideo) as FileFolder
     this.file_folder_name = tmp.name
   }
 

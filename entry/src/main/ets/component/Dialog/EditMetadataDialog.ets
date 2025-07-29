@@ -9,7 +9,7 @@ export struct editMetadataDialog {
   name: string | undefined = undefined
 
   aboutToAppear(): void {
-    let tmp = JSON.parse(DataSyncUtil.editingVideo) as VideoMetadata
+    let tmp = JSON.parse(DataSyncUtil.getInstance().editingVideo) as VideoMetadata
     this.name = tmp.title
   }
 

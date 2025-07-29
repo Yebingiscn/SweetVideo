@@ -28,10 +28,10 @@ export struct VideoView {
   @Consume fileFolderSource: FileFolderDataSource
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
-  @Watch('SyncDelMultipleList') @State delMultipleList: VideoMetadata[] = DataSyncUtil.delMultipleList
+  @Watch('SyncDelMultipleList') @State delMultipleList: VideoMetadata[] = DataSyncUtil.getInstance().delMultipleList
 
   SyncDelMultipleList() {
-    DataSyncUtil.delMultipleList = this.delMultipleList
+    DataSyncUtil.getInstance().delMultipleList = this.delMultipleList
   }
 
   build() {
