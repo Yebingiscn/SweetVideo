@@ -351,7 +351,7 @@ struct Index {
             })
           }
           .alignSelf(ItemAlign.End)
-          .padding({ bottom: 30 })
+          .padding({ bottom: this.bottomSafeHeight })
         }
         .width('100%')
         .justifyContent(FlexAlign.Start)
