@@ -85,6 +85,7 @@ export struct Player { // 播放页
   @State currentSpeedIndex: number = 0
   @State clock_time: string = ''
   @State angle: number = 0
+  @State volumeActually: number = 0
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
@@ -94,6 +95,7 @@ export struct Player { // 播放页
   @Consume('pathStack') pathStack: NavPathStack
   private mIjkMediaPlayer: IjkMediaPlayer | null = null;
   private autoHideTimeout: boolean = false
+  private audioVolumeManager: audio.AudioVolumeManager | null = null
 
   async setSessionListener() {
     this.avSession?.on('play', () => {
@@ -125,9 +127,14 @@ export struct Player { // 播放页
   async initVolumeAndBrightness() {
     let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
     let audioManager = audio.getAudioManager();
-    let audioVolumeManger: audio.AudioVolumeManager = audioManager.getVolumeManager();
-    let volume_list = await VideoOperateUtil.getVolume(audioVolumeManger, groupId)
+    this.audioVolumeManager = audioManager.getVolumeManager();
+    let volume_list = await VideoOperateUtil.getVolume(this.audioVolumeManager, groupId)
     this.volume = volume_list.get('volume')!
+    this.volumeActually = this.volume
+    this.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
+      this.volumeActually = volumeEvent.volume
+      ToolsUtil.startVibration()
+    });
     if (canIUse('SystemCapability.Applications.Settings.Core')) {
       settings.getValue(PathUtils.appContext!, settings.display.SCREEN_BRIGHTNESS_STATUS,
         settings.domainName.DEVICE_SHARED)
@@ -179,6 +186,8 @@ export struct Player { // 播放页
     this.avPlayer?.off('audioOutputDeviceChangeWithInfo')
     this.avPlayer?.off('subtitleUpdate')
     this.avPlayer?.off('stateChange')
+    this.audioVolumeManager?.off('volumeChange');
+    this.audioVolumeManager = null
   }
 
   async setRotation() {
@@ -623,7 +632,8 @@ export struct Player { // 播放页
 
           if (this.onSwipingVoice) {
             VolumeSwipingComponent({
-              videoVolume: this.volume
+              videoVolume: this.volume,
+              videoVolumeShow: this.volumeActually
             })
           }
 
@@ -790,7 +800,7 @@ export struct Player { // 播放页
                   const defaultSpeedIdx = VideoInfoUtil.video_speed_list.indexOf(this.speed);
                   this.currentSpeedIndex = defaultSpeedIdx === -1 ? 0 : defaultSpeedIdx;
                 }
-                const direction = deltaX > 0 ? 1 : -1; // 确定滑动方向（正值为右滑，负值为左滑）
+                const direction = Math.sign(deltaX);
                 const newIndex = this.currentSpeedIndex + direction; // 计算新速度索引并限制在有效范围内
                 const clampedIndex = Math.max(0, Math.min(newIndex, VideoInfoUtil.video_speed_list.length - 1));
                 if (clampedIndex === this.currentSpeedIndex) { // 索引变化时才更新播放速度
@@ -966,7 +976,10 @@ export struct Player { // 播放页
   @Builder
   VideoSettingBuilder() {
     VideoSettingComponent({
+      playTime: this.play_time,
       circlePlay: this.circle_play,
+      nowPlaying: this.now_playing,
+      videoMetaData: this.video_meta_data,
       onMirrorClick: () => {
         this.angle === 0 ? this.angle = 180 : this.angle = 0
       }

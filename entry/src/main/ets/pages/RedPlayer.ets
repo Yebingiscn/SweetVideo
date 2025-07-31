@@ -61,6 +61,7 @@ export struct RedPlayer { // 红薯播放器页
   @State isLock: boolean = false
   @State volume: number = 1.0
   @State screenBrightness: number = 0
+  @State volumeActually: number = 0
   playerController = new RedPlayerControllerUtil(this.redPlayerStateHolder)
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
@@ -68,6 +69,7 @@ export struct RedPlayer { // 红薯播放器页
   @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
   @State video_meta_data: VideoMetadata[] = []
+  private audioVolumeManager: audio.AudioVolumeManager | null = null
 
   build() {
     NavDestination() {
@@ -176,7 +178,8 @@ export struct RedPlayer { // 红薯播放器页
 
         if (this.onSwipingVoice) {
           VolumeSwipingComponent({
-            videoVolume: this.volume
+            videoVolume: this.volume,
+            videoVolumeShow: this.volumeActually
           })
         }
 
@@ -239,7 +242,7 @@ export struct RedPlayer { // 红薯播放器页
               this.onSwipingBrightness = true
               const newBrightness = this.screenBrightnessTmp - deltaYScale
               this.screenBrightness = Math.min(Math.max(newBrightness, 0), 1)
-              VideoOperateUtil.setBrightness(this.screenBrightness);
+              VideoOperateUtil.setBrightness(this.screenBrightness)
             } else {
               this.onSwipingVoice = true
               const newVolume = (this.volumeTmp - deltaYScale * 20);
@@ -375,8 +378,8 @@ export struct RedPlayer { // 红薯播放器页
     await (await this.windowClass).setWindowKeepScreenOn(true)
     let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
     let audioManager = audio.getAudioManager();
-    let audioVolumeManger: audio.AudioVolumeManager = audioManager.getVolumeManager();
-    let volume_list = await VideoOperateUtil.getVolume(audioVolumeManger, groupId)
+    this.audioVolumeManager = audioManager.getVolumeManager();
+    let volume_list = await VideoOperateUtil.getVolume(this.audioVolumeManager, groupId)
     this.volume = volume_list.get('volume')!
     if (canIUse('SystemCapability.Applications.Settings.Core')) {
       settings.getValue(PathUtils.appContext!, settings.display.SCREEN_BRIGHTNESS_STATUS,
@@ -385,10 +388,17 @@ export struct RedPlayer { // 红薯播放器页
           this.screenBrightness = Number(value) / 255;
         })
     }
+    this.volumeActually = this.volume
+    this.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
+      this.volumeActually = volumeEvent.volume
+      ToolsUtil.startVibration()
+    });
   }
 
   async aboutToDisappear() {
     VideoOperateUtil.setBrightness(-1)
+    this.audioVolumeManager?.off('volumeChange');
+    this.audioVolumeManager = null
   }
 
   async setSessionListener() {

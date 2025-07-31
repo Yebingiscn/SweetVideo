@@ -82,6 +82,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @State swipe_start_x: number = 0
   @State isHorizontalSwiping: boolean = false
   @State video_meta_data: VideoMetadata[] = []
+  @State volumeActually: number = 0
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
   @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
   @StorageLink('skipIntroTime') skipIntroTime: string = '0'
@@ -89,6 +90,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   private CONTROL_PlayStatus = PlayStatus.INIT;
   private mIjkMediaPlayer: IjkMediaPlayer | null = null;
+  private audioVolumeManager: audio.AudioVolumeManager | null = null
 
   build() {
     NavDestination() {
@@ -169,7 +171,8 @@ export struct FFMpegPlayer { // FFMpeg播放器页
 
         if (this.onSwipingVoice) {
           VolumeSwipingComponent({
-            videoVolume: this.volume
+            videoVolume: this.volume,
+            videoVolumeShow: this.volumeActually
           })
         }
 
@@ -488,8 +491,8 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     await this.setScreen()
     let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
     let audioManager = audio.getAudioManager();
-    let audioVolumeManger: audio.AudioVolumeManager = audioManager.getVolumeManager();
-    let volumeList = await VideoOperateUtil.getVolume(audioVolumeManger, groupId)
+    this.audioVolumeManager = audioManager.getVolumeManager();
+    let volumeList = await VideoOperateUtil.getVolume(this.audioVolumeManager, groupId)
     this.volume = volumeList.get('volume')!
     await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
     await (await this.windowClass).setWindowKeepScreenOn(true)
@@ -516,11 +519,18 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           this.screenBrightness = Number(value) / 255;
         })
     }
+    this.volumeActually = this.volume
+    this.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
+      this.volumeActually = volumeEvent.volume
+      ToolsUtil.startVibration()
+    });
   }
 
   async aboutToDisappear() {
     this.mIjkMediaPlayer = null
     VideoOperateUtil.setBrightness(-1)
+    this.audioVolumeManager?.off('volumeChange');
+    this.audioVolumeManager = null
   }
 
   async setSessionListener() {
