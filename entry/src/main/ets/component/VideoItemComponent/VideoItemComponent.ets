@@ -74,7 +74,7 @@ export class VideoListController {
 
   public closeMultipleChoose() {
     this.multipleChooseState = Visibility.None;
-    DataSyncUtil.delMultipleList = [] // 需要进行置空，防止脏数据
+    DataSyncUtil.delMultipleList.length = 0
   }
 
   public refresh(width: number, isListDisplay: boolean) {

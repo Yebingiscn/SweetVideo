@@ -5,6 +5,7 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 @Component
 export struct VolumeSwipingComponent {
   @Link videoVolume: number
+  @Link videoVolumeShow: number
 
   build() {
     Stack() { //音量提示
@@ -22,7 +23,7 @@ export struct VolumeSwipingComponent {
           .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
           .fontColor(['#f0f0f0'])
         Slider({
-          value: this.videoVolume,
+          value: this.videoVolumeShow,
           min: VideoOperateUtil.min_volume,
           max: VideoOperateUtil.max_volume,
           step: 0.1,
@@ -35,9 +36,6 @@ export struct VolumeSwipingComponent {
           .selectedColor('#e0e0e0')
           .trackColor(Color.Black)
           .trackThickness(40)
-          .onChange((value) => {
-            this.videoVolume = value
-          })
       }
     }
     .padding({

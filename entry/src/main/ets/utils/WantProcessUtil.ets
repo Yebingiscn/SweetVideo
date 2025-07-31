@@ -1,8 +1,9 @@
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { media } from '@kit.MediaKit';
-import { BusinessError } from '@kit.BasicServicesKit';
+import { BusinessError, systemDateTime } from '@kit.BasicServicesKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import VideoUtil from './VideoInfoUtil';
+import VideoInfoUtil from './VideoInfoUtil';
 import { common, Context, OpenLinkOptions, Want } from '@kit.AbilityKit';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { PlayerParams } from '../common/PlayerParams';
@@ -63,22 +64,23 @@ class WantProcess {
       let avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor()
       let file = fs.openSync(this.wantUri);
       avMetadataExtractor.fdSrc = file
-      const format = this.wantUri.split('.')[this.wantUri.split('.').length-1]
       avMetadataExtractor.fetchMetadata(async (_error: BusinessError, metadata: media.AVMetadata) => {
-        let tmp: VideoMetadata = {
+        let targetVideo: VideoMetadata = {
           uri: this.wantUri,
-          title: this.wantUri.split('/')[this.wantUri.split('/').length-1],
-          date: '',
+          title: decodeURI(this.wantUri.split('/')[this.wantUri.split('/').length-1]),
+          date: systemDateTime.getTime(false).toString(),
           size: VideoUtil.getVideoWidthAndHeight(metadata),
           time: parseInt(metadata.duration || '0'),
           last_play: 0,
-          format: format,
+          format: VideoInfoUtil.getVideoFormat(this.wantUri),
           video_size: await VideoUtil.getVideoSize(this.wantUri, true) as string,
           hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
+          start_time: 0,
+          end_time: 0
         }
         // 获取默认播放器
-        let url = this.getPlayer(context, tmp)
-        const playerParams = new PlayerParams(tmp as VideoMetadata, [], undefined)
+        let url = this.getPlayer(context, targetVideo)
+        const playerParams = new PlayerParams(targetVideo as VideoMetadata, [], undefined)
         this.wantUri = ''
         pathStack.pushPathByName(url, playerParams, true)
       })

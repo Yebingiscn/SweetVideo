@@ -190,7 +190,6 @@ export struct VideoView {
       })
         .onClick(() => {
           this.videoListController.closeMultipleChoose()
-          this.delMultipleList.length = 0
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.checkmark_square_on_square')),

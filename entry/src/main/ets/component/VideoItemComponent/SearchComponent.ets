@@ -7,11 +7,9 @@ export struct SearchComponent {
   @Prop placeholder: ResourceStr;
   onChange = () => {
   }
-  onSubmit = (value: string) => {
-    console.log(value)
+  onSubmit = (_value: string) => {
   }
-  onEditChange = ((isEditing: boolean) => {
-    console.log(isEditing + '')
+  onEditChange = ((_isEditing: boolean) => {
   })
 
   build() {
