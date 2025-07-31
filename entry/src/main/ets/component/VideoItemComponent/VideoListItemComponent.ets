@@ -1,7 +1,7 @@
 import { PathUtils } from '../../utils/PathUtils';
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
 import { fileUri } from '@kit.CoreFileKit';
-import { ImageFancyModifier } from '../../utils/AttributeModifierUtil';
+import { ImageFancyModifier, SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import { VideoListController } from './VideoItemComponent';
 import { VideoInfoComponent } from './VideoInfoComponent';
@@ -34,12 +34,11 @@ export default struct VideoListItem {
               .layoutWeight(1)
               .wordBreak(WordBreak.BREAK_ALL)
             if (this.videoListController.multipleChooseState === Visibility.Visible) {
-              Checkbox({ name: 'check_box: ' + this.item.date, group: 'checkboxGroup' })
-                .width('10%')
-                .height(30)
-                .select(this.choose)
-                .selectedColor($r('app.color.main_color'))
-                .shape(CheckBoxShape.CIRCLE)
+              SymbolGlyph(this.choose ? $r('sys.symbol.checkmark_circle') : $r('sys.symbol.circle'))
+                .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                .onAppear(() => {
+                  this.checkChoose()
+                })
             }
           }
 
