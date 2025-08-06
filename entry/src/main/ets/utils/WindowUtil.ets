@@ -1,12 +1,13 @@
 import { window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { BusinessError } from '@kit.BasicServicesKit';
+import { PathUtils } from './PathUtils';
 
 // 用于设置窗口状态
 export class WindowUtil {
   private static instance: WindowUtil;
   private windowStage?: window.WindowStage;
-  private mainWindowClass?: window.Window;
+  private mainWindowClass = window.getLastWindow(PathUtils.appContext!)
 
   public static getInstance() {
     if (!WindowUtil.instance) {
@@ -15,17 +16,17 @@ export class WindowUtil {
     return WindowUtil.instance;
   }
 
-  public getWindowsStatus(): window.WindowStatusType | undefined {
+  public async getWindowsStatus(): Promise<window.WindowStatusType | undefined> {
     if (canIUse('SystemCapability.Window.SessionManager')) {
-      return this.mainWindowClass?.getWindowStatus?.();
+      return (await this.mainWindowClass)?.getWindowStatus();
     }
     return undefined;
   }
 
-  public maximize(): void {
+  public async maximize(): Promise<void> {
     if (canIUse('SystemCapability.Window.SessionManager')) {
-      if (this.mainWindowClass?.getWindowStatus() === window.WindowStatusType.FLOATING) {
-        this.mainWindowClass?.maximize()
+      if ((await this.mainWindowClass)?.getWindowStatus() === window.WindowStatusType.FLOATING) {
+        (await this.mainWindowClass)?.maximize()
           .then(() => {
             hilog.info(0x0000, 'testTag', '%{public}s', `Succeed in maximizing the window.`);
           })
@@ -37,10 +38,10 @@ export class WindowUtil {
     }
   }
 
-  public recover(): void {
+  public async recover(): Promise<void> {
     if (canIUse('SystemCapability.Window.SessionManager')) {
-      if (this.mainWindowClass?.getWindowStatus() === window.WindowStatusType.FULL_SCREEN) {
-        this.mainWindowClass?.recover()
+      if ((await this.mainWindowClass)?.getWindowStatus() === window.WindowStatusType.FULL_SCREEN) {
+        (await this.mainWindowClass)?.recover()
           .then(() => {
             hilog.info(0x0000, 'testTag', '%{public}s', `Succeed in recovering the window.`);
           })

@@ -37,6 +37,7 @@ import { GestureComponent } from '../component/PlayerComponent/GestureComponent'
 import { VideoTopComponent } from '../component/PlayerComponent/VideoTopComponent';
 import { VideoButtonsComponent } from '../component/PlayerComponent/VideoButtonsComponent';
 import { VideoSettingComponent } from '../component/PlayerComponent/VideoSettingComponent';
+import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
 
 @Component
 export struct Player { // 播放页
@@ -92,6 +93,7 @@ export struct Player { // 播放页
   @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
   @StorageLink('skipIntroTime') skipIntroTime: string = '0'
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
+  @StorageLink('smartRotation') smartRotation: boolean = true
   @Consume('pathStack') pathStack: NavPathStack
   private mIjkMediaPlayer: IjkMediaPlayer | null = null;
   private autoHideTimeout: boolean = false
@@ -108,13 +110,13 @@ export struct Player { // 播放页
       this.avPlayer?.pause()
     });
     this.avSession?.on('seek', (position: number) => {
-      this.avPlayer?.seek(position, media.SeekMode.SEEK_CLOSEST)
+      this.seekTime(position)
     })
     this.avSession?.on('fastForward', () => {
-      this.avPlayer?.seek(this.play_time + 15000, media.SeekMode.SEEK_CLOSEST)
+      this.seekTime(this.play_time + 15000)
     })
     this.avSession?.on('rewind', () => {
-      this.avPlayer?.seek(this.play_time - 15000, media.SeekMode.SEEK_CLOSEST)
+      this.seekTime(this.play_time - 15000)
     })
     this.avSession?.on('playNext', () => {
       this.playNextVideo()
@@ -264,6 +266,9 @@ export struct Player { // 播放页
         VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
           PathUtils.appContext!)
       }
+      if (this.now_playing?.end_time && duration >= this.now_playing?.end_time && !this.circle_play) {
+        this.playNextVideo()
+      }
       if (!this.onSwiping) {
         this.play_time = duration;
         if (this.mIjkMediaPlayer && Date.now() - VideoOperateUtil.lastSyncTime < VideoOperateUtil.syncCoolDown) {
@@ -292,8 +297,8 @@ export struct Player { // 播放页
       VideoOperateUtil.updateSession(this.playing, this.play_time)
     })
 
-    this.avPlayer?.on('speedDone', (speed) => {
-      this.speed = VideoInfoUtil.getVideoSpeed(parseFloat(speed.toFixed(2)))
+    this.avPlayer?.on('speedDone', (enumValue) => {
+      this.speed = VideoInfoUtil.getVideoSpeed(enumValue) // 这里返回的是倍速的枚举值，需要转换为实际倍速
     })
 
     this.avPlayer?.on('audioOutputDeviceChangeWithInfo', (data: audio.AudioStreamDeviceChangeInfo) => {
@@ -326,27 +331,14 @@ export struct Player { // 播放页
         case 'initialized':
           if (this.avPlayer) {
             this.avPlayer.surfaceId = this.surfaceID
-            let playStrategy: media.PlaybackStrategy =
-              { showFirstFrameOnPrepare: true, preferredAudioLanguage: 'chi', preferredSubtitleLanguage: 'chi' }
+            let playStrategy: media.PlaybackStrategy = { showFirstFrameOnPrepare: true } // 设置播放配置
             this.avPlayer.setPlaybackStrategy(playStrategy);
             this.avPlayer.prepare();
           }
           break;
         case 'prepared':
           await this.getAudioTrack()
-          if (this.now_playing?.last_play !== 0 && this.now_playing?.last_play! < this.now_playing?.time! * 0.9) {
-            this.avPlayer?.seek(this.now_playing?.last_play, media.SeekMode.SEEK_CLOSEST)
-            if (this.mIjkMediaPlayer) {
-              this.mIjkMediaPlayer?.seekTo(String(this.now_playing?.last_play))
-            }
-          } else if (this.skipIntroTime !== '0' && Number(this.skipIntroTime) * 1000 < this.now_playing?.time! &&
-            !VideoInfoUtil.support_audio_format.includes(this.now_playing?.title.split('.')[this.now_playing?.title.split('.')
-              .length-1].toLowerCase()!)) {
-            this.avPlayer?.seek(this.play_time + Number(this.skipIntroTime) * 1000, media.SeekMode.SEEK_CLOSEST)
-            if (this.mIjkMediaPlayer) {
-              this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(this.skipIntroTime) * 1000))
-            }
-          }
+          this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.now_playing!, this.skipIntroTime))
           this.avPlayer?.play();
           await this.initVolumeAndBrightness()
           this.updatePlaybackSpeed(this.speed)
@@ -420,6 +412,29 @@ export struct Player { // 播放页
     }
   }
 
+  videoStartPlayTime(seekMode: number) {
+    switch (seekMode) {
+      case VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME:
+        this.seekTime(this.now_playing?.last_play || 0)
+        break
+      case VideoStartTimeMode.SEEK_TO_START_TIME:
+        this.seekTime(this.now_playing?.start_time || 0)
+        break
+      case VideoStartTimeMode.SEEK_TO_INTRO_TIME:
+        this.seekTime(this.play_time + Number(this.skipIntroTime) * 1000)
+        break
+      default:
+        return
+    }
+  }
+
+  seekTime(seekTime: number) {
+    this.avPlayer?.seek(seekTime, media.SeekMode.SEEK_CLOSEST)
+    if (this.mIjkMediaPlayer) {
+      this.mIjkMediaPlayer?.seekTo(String(seekTime))
+    }
+  }
+
   async getData() {
     this.avPlayer = await AVPlayerUtil.getAVPlayer()
     if (this.avPlayer) {
@@ -428,7 +443,8 @@ export struct Player { // 播放页
       this.avPlayer.fdSrc = fs.openSync(this.now_playing?.uri);
       await this.setExternalSubtitle(this.now_playing!)
       this.setRotation()
-      if (this.play_area_width > this.play_area_height && this.screen_height > this.screen_width) {
+      if (this.smartRotation && this.play_area_width > this.play_area_height &&
+        this.screen_height > this.screen_width) {
         const proportion =
           Math.max(this.screen_width, this.screen_height) / Math.min(this.screen_width, this.screen_height)
         const orientation = proportion > (16 / 10)
@@ -508,20 +524,11 @@ export struct Player { // 播放页
   }
 
   backForward() {
-    this.avPlayer?.seek(this.play_time - Number(this.fastForwardSeconds) * 1000,
-      media.SeekMode.SEEK_CLOSEST);
-    if (this.mIjkMediaPlayer) {
-      this.mIjkMediaPlayer?.seekTo(String(this.play_time -
-        Number(this.fastForwardSeconds) * 1000))
-    }
+    this.seekTime(this.play_time - Number(this.fastForwardSeconds) * 1000)
   }
 
   fastForward() {
-    this.avPlayer?.seek(this.play_time + Number(this.fastForwardSeconds) * 1000,
-      media.SeekMode.SEEK_CLOSEST);
-    if (this.mIjkMediaPlayer) {
-      this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(this.fastForwardSeconds) * 1000))
-    }
+    this.seekTime(this.play_time + Number(this.fastForwardSeconds) * 1000)
   }
 
   togglePlayback() {
@@ -572,8 +579,8 @@ export struct Player { // 播放页
                     this.VideoTop()
                   }.width('100%')
                 }
-                .height(this.screen_height > this.screen_width ? 85 : 75)
-                .backgroundColor($r('sys.color.mask_fourth'))
+                .height(this.screen_height > this.screen_width ? 100 : 75)
+                .backgroundColor('#36ffffff')
                 .width('100%')
                 .padding({
                   left: (this.screen_height > this.screen_width ? 20 : 35),
@@ -735,10 +742,7 @@ export struct Player { // 播放页
               }
             },
             onHorizonPanEnd: () => {
-              this.avPlayer?.seek(this.play_time, media.SeekMode.SEEK_CLOSEST);
-              if (this.mIjkMediaPlayer) {
-                this.mIjkMediaPlayer?.seekTo(String(this.play_time))
-              }
+              this.seekTime(this.play_time)
               this.onSwiping = false;
             },
             onPinchStart: (event: GestureEvent) => {
@@ -915,10 +919,7 @@ export struct Player { // 播放页
       },
       onSliderTouch: (event: TouchEvent) => {
         if (event.type == TouchType.Up) {
-          this.avPlayer?.seek(this.play_time, media.SeekMode.SEEK_CLOSEST)
-          if (this.mIjkMediaPlayer) {
-            this.mIjkMediaPlayer?.seekTo(String(this.play_time))
-          }
+          this.seekTime(this.play_time)
           this.isSliderPlayTimeChange = false
           this.onSwiping = false
         }
@@ -942,7 +943,7 @@ export struct Player { // 播放页
       videoSettingBuilder: this.getVideoSettingBuilder,
       playbackSpeedMenu: this.getPlaybackSpeedMenuBuilder,
       onScreenRotationOrFullScreenClick: async () => {
-        VideoOperateUtil.fullScreenOperate()
+        await VideoOperateUtil.fullScreenOperate()
         const orientation = this.screen_height > this.screen_width
           ? window.Orientation.AUTO_ROTATION_LANDSCAPE
           : window.Orientation.AUTO_ROTATION_PORTRAIT; // 这里是横竖屏切换顺应用户操作就好
@@ -991,7 +992,7 @@ export struct Player { // 播放页
     PlaybackSpeedMenuComponent({
       speed: this.speed,
       onSpeedChange: (speed: number) => {
-        this.updatePlaybackSpeed(speed) // crash
+        this.updatePlaybackSpeed(speed)
       }
     })
   }

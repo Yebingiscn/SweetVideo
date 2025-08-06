@@ -18,8 +18,8 @@ class FileFolderUtil {
   static async createNewFolder(context: Context, folder_name: string, fileFolderSource?: FileFolderDataSource) {
     const new_folder: FileFolder = {
       name: folder_name,
-      date: systemDateTime.getTime(true).toString(),
-      video_list: []
+      date: systemDateTime.getTime(false).toString(), // 这里不需要使用纳秒
+      video_list: [],
     }
     const file_folder_list = Preferences.getFileFolder(context) as FileFolder[]
     if (!file_folder_list.some(i => i.name === new_folder.name)) {
@@ -54,7 +54,7 @@ class FileFolderUtil {
     let folderIndex = folders.findIndex(i => i.date === videoListController.folder.date)
     const folder = folders[folderIndex]
     const surviveVideo = new Map<string, VideoMetadata>()
-    for (let video of folder.video_list) {
+    for (const video of folder.video_list) {
       surviveVideo.set(video.uri, video)
     }
     DataSyncUtil.delMultipleList.forEach(item => {

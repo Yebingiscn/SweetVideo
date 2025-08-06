@@ -40,7 +40,7 @@ export struct PrivacySpace { // 隐私空间页
   @State searchValue: string = ''
   @State is_edit: boolean = false
   @State passwd: string = 'passwd'
-  @StorageLink('is_list_display') is_list_display: boolean = false
+  @StorageLink('isListDisplay') is_list_display: boolean = false
   searchController: SearchController = new SearchController()
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
@@ -291,7 +291,7 @@ export struct PrivacySpace { // 隐私空间页
                         .fontSize(15)
                         .fontWeight(FontWeight.Medium)
                         .maxLines(2)// 减少行数以适应卡片布局
-                        .textAlign(TextAlign.Center)
+                        .textAlign(TextAlign.Start)
                         .textOverflow({ overflow: TextOverflow.Ellipsis })
                         .layoutWeight(1)// 占据剩余空间
                         .wordBreak(WordBreak.BREAK_ALL)

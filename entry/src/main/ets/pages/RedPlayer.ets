@@ -25,6 +25,7 @@ import { FastForwardInfoComponent } from '../component/PlayerComponent/FastForwa
 import { SwipingPlayTimeDisplay } from '../component/PlayerComponent/SwipingPlayTimeDisplay';
 import { VideoSliderComponent } from '../component/PlayerComponent/VideoSliderComponent';
 import { GestureComponent } from '../component/PlayerComponent/GestureComponent';
+import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
 
 @Component
 export struct RedPlayer { // 红薯播放器页
@@ -97,15 +98,8 @@ export struct RedPlayer { // 红薯播放器页
                     this.playerController.setSurfaceId(this.xComponentController.getSurfaceId())
                     this.playerController.prepare()?.then(() => {
                       this.playerController.setVolume(1.0)
-                      if (this.now_playing?.last_play! < this.redPlayerStateHolder.videoDuration * 0.9 &&
-                        this.now_playing?.last_play != 0) {
-                        this.seekVideo(this.now_playing?.last_play!)
-                      } else if (this.skipIntroTime !== '0' &&
-                        Number(this.skipIntroTime) * 1000 < this.now_playing?.time! &&
-                        !VideoInfoUtil.support_audio_format.includes(this.now_playing?.title.split('.')[this.now_playing?.title.split('.')
-                          .length-1].toLowerCase()!)) {
-                        this.seekVideo(this.play_time + Number(this.skipIntroTime) * 1000)
-                      }
+                      this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.now_playing!,
+                        this.skipIntroTime))
                       this.playerController.start()
                     })
                     this.avSession = await AVSessionUtil.getAVSession()
@@ -208,12 +202,12 @@ export struct RedPlayer { // 红薯播放器页
             const seekOffset = Number(this.fastForwardSeconds) * 1000;
             if (tapX < zoneWidth) { // 左侧区域：回退
               const newPosition = this.play_time - seekOffset;
-              this.seekVideo(newPosition);
+              this.seekTime(newPosition);
               return;
             }
             if (tapX > zoneWidth * 4) { // 右侧区域：快进
               const newPosition = this.play_time + seekOffset;
-              this.seekVideo(newPosition);
+              this.seekTime(newPosition);
               return;
             }
             this.togglePlayback(); // 中间区域：播放/暂停切换
@@ -277,7 +271,7 @@ export struct RedPlayer { // 红薯播放器页
             }
           },
           onHorizonPanEnd: () => {
-            this.seekVideo(this.play_time)
+            this.seekTime(this.play_time)
             this.onSwiping = false;
           },
           onLongPressAction: () => {
@@ -410,7 +404,7 @@ export struct RedPlayer { // 红薯播放器页
     });
     this.avSession?.on('seek', (position: number) => {
       let seekValue = position;
-      this.seekVideo(seekValue)
+      this.seekTime(seekValue)
     })
   }
 
@@ -446,7 +440,7 @@ export struct RedPlayer { // 红薯播放器页
         this.play_time = value
         if (this.redPlayerStateHolder.videoPosition >= this.redPlayerStateHolder.videoDuration ||
           this.play_time >= this.redPlayerStateHolder.videoDuration) {
-          this.seekVideo(0)
+          this.seekTime(0)
           this.onSwiping = false
         } else {
           this.isSliderPlayTimeChange = true
@@ -458,7 +452,7 @@ export struct RedPlayer { // 红薯播放器页
           this.play_time = this.redPlayerStateHolder.videoPosition
         }
         if (event.type == TouchType.Up) {
-          this.seekVideo(this.play_time)
+          this.seekTime(this.play_time)
           this.onSwiping = false
           this.isSliderPlayTimeChange = false
         }
@@ -527,7 +521,23 @@ export struct RedPlayer { // 红薯播放器页
     AVCastPickerBuilder()
   }
 
-  private seekVideo(position: number) { // 视频跳转操作封装
+  videoStartPlayTime(seekMode: number) {
+    switch (seekMode) {
+      case VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME:
+        this.seekTime(this.now_playing?.last_play || 0)
+        break
+      case VideoStartTimeMode.SEEK_TO_START_TIME:
+        this.seekTime(this.now_playing?.start_time || 0)
+        break
+      case VideoStartTimeMode.SEEK_TO_INTRO_TIME:
+        this.seekTime(this.play_time + Number(this.skipIntroTime) * 1000)
+        break
+      default:
+        return
+    }
+  }
+
+  private seekTime(position: number) { // 视频跳转操作封装
     this.playerController.seek(position);
     this.redPlayerStateHolder.videoPosition = position;
   }

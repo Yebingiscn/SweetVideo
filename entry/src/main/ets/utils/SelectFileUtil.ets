@@ -106,50 +106,52 @@ class SelectFileUtil {
       == item.format ? item.title : item.title + '.' + item.format]
   }
 
-  saveData(context: Context, target_data: VideoMetadataFromPlayer, play_time?: number, size?: number[]) {
+  saveData(context: Context, target_data: VideoMetadataFromPlayer, play_time?: number, size?: number[],
+    start_time?: number, end_time?: number) {
     let save_time: number = 0
-    if (play_time) {
-      //计算保存进度
-      save_time = play_time < target_data?.time! * 0.9 ? play_time : 0
+    if (play_time && !start_time && !end_time) {
+      //计算保存进度，超过这个时间默认用户已经看完，从头开始
+      save_time = play_time > target_data?.time * 0.95 ? 0 : play_time
+    }
+    const updateVideo = (video: VideoMetadata) => {
+      if (play_time !== undefined) {
+        video.last_play = save_time;
+      }
+      if (start_time !== undefined) {
+        video.start_time = start_time;
+      }
+      if (end_time !== undefined) {
+        video.end_time = end_time;
+      }
+      if (size?.[0] && video.size[0] === 0) {
+        video.size = size;
+      }
+    };
+    if (PrivacySpaceUtil.getPrivacyMode()) {
+      //确认是否在隐私空间并更新隐私空间的数据
+      const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(context);
+      const targetVideoMetaDataEncryption = videoMetaDataEncryption.find(v => v.date === target_data.date);
+      if (targetVideoMetaDataEncryption) {
+        updateVideo(targetVideoMetaDataEncryption);
+        Preferences.saveVideoMetaDataEncryption(context, videoMetaDataEncryption);
+      }
+      return // 隐私空间不需要加入最近播放
     }
     //  更新文件夹的数据
     const folders = Preferences.getFileFolder(context)
-    for (let folderIndex = 0; folderIndex < folders.length; folderIndex++) {
-      const videoMetaData: VideoMetadata[] = folders[folderIndex].video_list
-      const targetVideoMetaDataIndex = videoMetaData.findIndex(video => video.date == target_data.date)
-      if (targetVideoMetaDataIndex !== -1) {
-        if (play_time) {
-          folders[folderIndex].video_list[targetVideoMetaDataIndex].last_play = save_time
-        }
-        if (size && size[0] !== 0 &&
-          folders[folderIndex].video_list[targetVideoMetaDataIndex].size[0] === 0) { // 只有当长宽为0时才需要更新长宽
-          folders[folderIndex].video_list[targetVideoMetaDataIndex].size = size
-        }
+    for (const folder of folders) {
+      const videoMetaData: VideoMetadata[] = folder.video_list
+      const targetVideoMetaData = videoMetaData.find(video => video.date === target_data.date)
+      if (targetVideoMetaData) {
+        updateVideo(targetVideoMetaData);
       }
     }
     Preferences.saveFileFolder(context, folders)
-    //更新隐私空间的数据
-    const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(context);
-    const targetVideoMetaDataIndex = videoMetaDataEncryption.findIndex(video => video.date == target_data.date)
-    if (targetVideoMetaDataIndex !== -1) {
-      if (play_time) {
-        videoMetaDataEncryption[targetVideoMetaDataIndex].last_play = save_time
-      }
-      if (size && size[0] !== 0 && videoMetaDataEncryption[targetVideoMetaDataIndex].size[0] === 0) {
-        videoMetaDataEncryption[targetVideoMetaDataIndex].size = size
-      }
-    }
-    Preferences.saveVideoMetaDataEncryption(context, videoMetaDataEncryption)
     //更新最近播放的数据
     const recent_play_deque = Preferences.getRecentPlay(context);
-    const recentTargetVideoMetaDataIndex = recent_play_deque.findIndex(video => video.date == target_data.date)
-    if (recentTargetVideoMetaDataIndex !== -1) {
-      if (play_time) {
-        recent_play_deque[recentTargetVideoMetaDataIndex].last_play = save_time
-      }
-      if (size && size[0] !== 0 && recent_play_deque[recentTargetVideoMetaDataIndex].size[0] === 0) {
-        recent_play_deque[recentTargetVideoMetaDataIndex].size = size
-      }
+    const recentTargetVideoMetaData = recent_play_deque.find(video => video.date === target_data.date)
+    if (recentTargetVideoMetaData) {
+      updateVideo(recentTargetVideoMetaData);
     }
     Preferences.saveRecentPlay(context, recent_play_deque)
   }

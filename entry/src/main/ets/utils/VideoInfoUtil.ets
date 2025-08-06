@@ -80,20 +80,22 @@ class VideoInfoUtil {
       duration = metadata.duration || '0'
       hdr_type = metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE
     }
-    let tmp: VideoMetadata = {
+    let targetVideo: VideoMetadata = {
       uri: PrivacySpaceUtil.getPrivacyMode()! ? sandbox_video + date : uri,
       title: file_name,
       date: date,
       size: this.getVideoWidthAndHeight(metadata),
       time: parseInt(time),
       last_play: 0,
-      format: file_name.split('.')[file_name.split('.').length-1],
+      format: this.getVideoFormat(file_name),
       video_size: await this.getVideoSize(PrivacySpaceUtil.getPrivacyMode()! ? sandbox_video + date : uri,
         true) as string,
       hdr_type: hdr_type,
+      start_time: 0,
+      end_time: 0
     }
-    this.getVideoCover(sandbox_path, date, uri, tmp.size, parseInt(duration))
-    return tmp
+    this.getVideoCover(sandbox_path, date, uri, targetVideo.size, parseInt(duration))
+    return targetVideo
   }
 
   // 获取视频封面，需要控制并发，不然获取不了,这里实现一个队列来控制并发
@@ -116,6 +118,10 @@ class VideoInfoUtil {
         }
       });
     }
+  }
+
+  public getVideoFormat(videoName: string) {
+    return videoName.split('.')[videoName.split('.').length-1]
   }
 
   public optimizedFormat(speed: number): string {
@@ -188,14 +194,18 @@ class VideoInfoUtil {
 
   // 绑定系统播放倍速库，获取实际倍速
   getVideoSpeed(video_speed: number) {
+    if (this.video_speed_map.get(this.VIDEO_SPEED) === video_speed) {
+      const pre_speed = this.VIDEO_SPEED;
+      this.VIDEO_SPEED = 1;
+      return pre_speed;
+    }
     if (this.VIDEO_SPEED === 1) {
       this.VIDEO_SPEED = video_speed
       return this.video_speed_map.get(video_speed)!
-    } else {
-      let pre_speed = this.VIDEO_SPEED
-      this.VIDEO_SPEED = 1
-      return pre_speed
     }
+    return this.video_speed_map.has(video_speed) ?
+      this.video_speed_map.get(video_speed)! :
+    media.PlaybackSpeed.SPEED_FORWARD_1_00_X;
   }
 
   // 获取视频标签格式化

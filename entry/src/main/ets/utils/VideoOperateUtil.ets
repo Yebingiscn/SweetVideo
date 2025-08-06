@@ -21,6 +21,7 @@ import { LanguageConfig } from '../common/LanguageConfig';
 import ToolsUtil from './ToolsUtil';
 import VideoInfoUtil from './VideoInfoUtil';
 import { WindowUtil } from './WindowUtil';
+import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
 
 // 视频操作类
 class VideoOperateUtil {
@@ -172,12 +173,22 @@ class VideoOperateUtil {
   // 保存视频播放进度
   saveVideoTime(play_time: number, now_playing: VideoMetadataFromPlayer,
     video_meta_data: VideoMetadata[], context: Context) {
-    // 保存文件数据
-    SelectFileUtil.saveData(context, now_playing!, play_time)
     const recentPlay = Preferences.getRecentPlayState(context) // 判断最近播放开关是否开启
     if (recentPlay && !PrivacySpaceUtil.getPrivacyMode()) { // 最近播放开启且非隐私空间视频则添加到最近播放
       RecentPlayUtil.addPlayback(context, video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)])
     }
+    // 保存文件数据
+    SelectFileUtil.saveData(context, now_playing!, play_time)
+  }
+
+  // 保存视频片头时间
+  saveVideoStartTime(startTime: number, nowPlaying: VideoMetadataFromPlayer, context: Context) {
+    SelectFileUtil.saveData(context, nowPlaying, undefined, undefined, startTime, undefined)
+  }
+
+  // 保存视频片尾时间
+  saveVideoEndTime(endTime: number, nowPlaying: VideoMetadataFromPlayer, context: Context) {
+    SelectFileUtil.saveData(context, nowPlaying, undefined, undefined, undefined, endTime)
   }
 
   // 保存音视频宽高信息
@@ -204,7 +215,8 @@ class VideoOperateUtil {
     AppStorage.setOrCreate('subtitleSize', Preferences.getSubtitleSize(context))
     AppStorage.setOrCreate('allowDoubleFastForward', Preferences.getAllowDoubleFastForwardState(context))
     AppStorage.setOrCreate('skipIntroTime', Preferences.getSkipIntroTime(context))
-    AppStorage.setOrCreate('is_list_display', Preferences.getListDisplayMode(context))
+    AppStorage.setOrCreate('isListDisplay', Preferences.getListDisplayMode(context))
+    AppStorage.setOrCreate('smartRotation', Preferences.getSmartRotationState(context))
     ReqPermissionUtil.reqPermissionsFromUser(ReqPermissionUtil.permissions, context);
   }
 
@@ -252,10 +264,10 @@ class VideoOperateUtil {
     return [finalWidth, finalHeight]
   }
 
-  fullScreenOperate() {
+  async fullScreenOperate() {
     if (canIUse('SystemCapability.Window.SessionManager')) {
       const windowUtil = WindowUtil?.getInstance?.()
-      const windowStatus = windowUtil?.getWindowsStatus?.()
+      const windowStatus = await windowUtil?.getWindowsStatus?.()
       switch (windowStatus) {
         case window.WindowStatusType.FLOATING:
           windowUtil?.maximize?.()
@@ -265,6 +277,24 @@ class VideoOperateUtil {
           return
       }
     }
+  }
+
+  getVideoStartPlayTimeMode(nowPlaying: VideoMetadataFromPlayer, skipIntroTime: string) {
+    // 若为视频设置了片头时间，并且上次播放记录小于片头时间，则自动跳到片头时间
+    if (nowPlaying?.start_time && nowPlaying?.start_time > 0 && nowPlaying.start_time > nowPlaying.last_play) {
+      return VideoStartTimeMode.SEEK_TO_START_TIME
+    }
+    // 若已有播放记录，则自动跳到上次播放时间
+    if (nowPlaying?.last_play !== 0 && nowPlaying?.last_play! < nowPlaying?.time! * 0.9) {
+      return VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME
+    }
+    // 若无播放记录，并且设定了统一片头时间，则自动跳到片头时间（音频除外）
+    if (Number(skipIntroTime) > 0 && Number(skipIntroTime) * 1000 < nowPlaying?.time! &&
+      !VideoInfoUtil.support_audio_format.includes(nowPlaying?.title.split('.')[nowPlaying?.title.split('.')
+        .length-1].toLowerCase()!)) {
+      return VideoStartTimeMode.SEEK_TO_INTRO_TIME
+    }
+    return -1
   }
 }
 

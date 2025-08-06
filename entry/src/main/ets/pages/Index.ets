@@ -274,7 +274,8 @@ struct Index {
                         'unselect_folder')
                   }
                   .onClick(() => {
-                    if (this.videoListController.folder.name === folder.name) {
+                    this.clearSearchValue()
+                    if (this.videoListController.folder.date === folder.date) {
                       return
                     }
                     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
@@ -459,6 +460,15 @@ struct Index {
     }
   }
 
+  clearSearchValue() {
+    if (this.searchValue.length > 0) {
+      this.searchValue = ''
+      return true
+    } else {
+      return false
+    }
+  }
+
   onBackPress(): boolean | void {
     if (this.videoListController.multipleChooseState === Visibility.Visible) {
       this.videoListController.closeMultipleChoose()
@@ -469,8 +479,7 @@ struct Index {
       this.sideBarController.closeSideBar(true)
       return true
     }
-    if (this.searchValue.length > 0) {
-      this.searchValue = ''
+    if (this.clearSearchValue()) {
       return true
     }
     return false

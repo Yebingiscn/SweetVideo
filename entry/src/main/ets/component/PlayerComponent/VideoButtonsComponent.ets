@@ -3,8 +3,6 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { KeyCode } from '@kit.InputKit'
 import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil'
-import { WindowUtil } from '../../utils/WindowUtil'
-import { window } from '@kit.ArkUI'
 
 @Component
 export struct VideoButtonsComponent {
@@ -15,7 +13,6 @@ export struct VideoButtonsComponent {
   @BuilderParam aVCastPickerBuilderBridge: () => void
   @BuilderParam videoSettingBuilder: () => void
   @BuilderParam playbackSpeedMenu: () => void
-  @State showFullScreenSymbol: boolean = false
   onScreenRotationOrFullScreenClick = async () => {
   }
   onTogglePlaybackClick = () => {
@@ -23,23 +20,6 @@ export struct VideoButtonsComponent {
   onPlayNextVideoClick = () => {
   }
   onSideBarStatusClick = () => {
-  }
-
-  aboutToAppear(): void {
-    if (canIUse('SystemCapability.Window.SessionManager')) {
-      const windowUtil = WindowUtil.getInstance()
-      if (!windowUtil) {
-        return
-      }
-      const windowStatus = windowUtil.getWindowsStatus()
-      if (windowStatus === undefined) {
-        return;
-      }
-      this.showFullScreenSymbol = [
-        window.WindowStatusType.FLOATING,
-        window.WindowStatusType.FULL_SCREEN
-      ].includes(windowStatus)
-    }
   }
 
   build() {
@@ -133,7 +113,7 @@ export struct VideoButtonsComponent {
 
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 屏幕旋转按钮
-          SymbolGlyph(this.showFullScreenSymbol ? $r('sys.symbol.fullscreen') : $r('sys.symbol.screen_rotation'))
+          SymbolGlyph($r('sys.symbol.fullscreen'))
             .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
             .fontColor(['#f0f0f0'])
         }

@@ -36,6 +36,7 @@ import { FastForwardInfoComponent } from '../component/PlayerComponent/FastForwa
 import { SwipingPlayTimeDisplay } from '../component/PlayerComponent/SwipingPlayTimeDisplay'
 import { VideoSliderComponent } from '../component/PlayerComponent/VideoSliderComponent'
 import { GestureComponent } from '../component/PlayerComponent/GestureComponent'
+import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode'
 
 @Component
 export struct FFMpegPlayer { // FFMpeg播放器页
@@ -548,6 +549,22 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     })
   }
 
+  videoStartPlayTime(seekMode: number) {
+    switch (seekMode) {
+      case VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME:
+        this.mIjkMediaPlayer?.seekTo(String(this.now_playing?.last_play) || '0')
+        break
+      case VideoStartTimeMode.SEEK_TO_START_TIME:
+        this.mIjkMediaPlayer?.seekTo(String(this.now_playing?.start_time) || '0')
+        break
+      case VideoStartTimeMode.SEEK_TO_INTRO_TIME:
+        this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(this.skipIntroTime) * 1000))
+        break
+      default:
+        return
+    }
+  }
+
   private initDelayPlay(context: object) {
     this.mContext = context;
     let that = this;
@@ -568,13 +585,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       this.startProgressTask();
       this.play();
       setTimeout(() => {
-        if (this.now_playing?.last_play! < this.total_time * 0.9 && this.now_playing?.last_play != 0) {
-          this.mIjkMediaPlayer?.seekTo(this.now_playing?.last_play! + '')
-        } else if (this.skipIntroTime !== '0' && Number(this.skipIntroTime) * 1000 < this.now_playing?.time! &&
-          !VideoInfoUtil.support_audio_format.includes(this.now_playing?.title.split('.')[this.now_playing?.title.split('.')
-            .length-1].toLowerCase()!)) {
-          this.mIjkMediaPlayer?.seekTo(this.play_time + Number(this.skipIntroTime) * 1000 + '')
-        }
+        this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.now_playing!, this.skipIntroTime))
       }, 600)
     }
     if (this.CONTROL_PlayStatus == PlayStatus.PAUSE) {

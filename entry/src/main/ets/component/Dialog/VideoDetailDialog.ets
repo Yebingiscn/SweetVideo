@@ -22,32 +22,38 @@ export struct VideoDetailDialog {
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)
         .margin({ top: 10 })
-      Scroll() {
-        Column() {
-          Column({ space: 15 }) {
-            this.buildDetailItem('视频格式：', String(this.metadata?.format))
-          }.width('100%')
+      List() {
+        ListItem() {
+          this.buildDetailItem('视频格式：', String(this.metadata?.format))
+        }.width('100%')
 
-          Column({ space: 15 }) {
-            this.buildDetailItem('视频分辨率：',
-              VideoInfoUtil.videoWidthAndHeightFormat(this.metadata?.size.toString()!) === '0 x 0' ?
-              PathUtils.appContext!.resourceManager.getStringSync($r('app.string.unknown_resolution').id) :
-              VideoInfoUtil.videoWidthAndHeightFormat(this.metadata?.size.toString()!))
-          }.width('100%')
+        ListItem() {
+          this.buildDetailItem('视频分辨率：',
+            VideoInfoUtil.videoWidthAndHeightFormat(this.metadata?.size.toString()!) === '0 x 0' ?
+            PathUtils.appContext!.resourceManager.getStringSync($r('app.string.unknown_resolution').id) :
+            VideoInfoUtil.videoWidthAndHeightFormat(this.metadata?.size.toString()!))
+        }.width('100%')
 
-          Column({ space: 15 }) {
-            this.buildDetailItem('视频大小：', String(this.metadata?.video_size))
-          }.width('100%')
+        ListItem() {
+          this.buildDetailItem('视频大小：', String(this.metadata?.video_size))
+        }.width('100%')
 
-          Column({ space: 15 }) {
-            this.buildDetailItem('上次播放时间：', TimeUtil.convertMSToMMSS(this.metadata?.last_play))
-          }.width('100%')
+        ListItem() {
+          this.buildDetailItem('上次播放时间：', TimeUtil.convertMSToMMSS(this.metadata?.last_play))
+        }.width('100%')
 
-          Column({ space: 15 }) {
-            this.buildDetailItem('视频路径：', this.metadata?.uri)
-          }.width('100%')
-        }
-      }.scrollable(ScrollDirection.Vertical) // 启用垂直滚动
+        ListItem() {
+          this.buildDetailItem('片头时间：', TimeUtil.convertMSToMMSS(this.metadata?.start_time))
+        }.width('100%')
+
+        ListItem() {
+          this.buildDetailItem('片尾时间：', TimeUtil.convertMSToMMSS(this.metadata?.end_time))
+        }.width('100%')
+
+        ListItem() {
+          this.buildDetailItem('视频路径：', decodeURI(this.metadata?.uri || ''))
+        }.width('100%')
+      }.height('auto').width('auto')
       .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring) // 滚动边缘效果
       Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -62,7 +68,6 @@ export struct VideoDetailDialog {
       .width(80)
       .onClick(() => this.controller?.close())
       .margin({ bottom: 10 })
-
     }.padding(20)
   }
 

@@ -9,4 +9,6 @@ export interface VideoMetadata {
   format: string
   video_size: string
   hdr_type: number
+  start_time: number
+  end_time: number
 }

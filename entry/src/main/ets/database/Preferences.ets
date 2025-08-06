@@ -80,6 +80,10 @@ class Preferences {
     return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'is_list_display', true) as boolean
   }
 
+  static getSmartRotationState(context: Context) {
+    return PreferencesUtil.getPreferencesValue(context, "sweet_video", "OOBEVersion", true) as boolean
+  }
+
   static saveSkipIntroTime(context: Context, skipIntroTime: string) {
     PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'skipIntroTime', skipIntroTime);
   }
@@ -126,6 +130,10 @@ class Preferences {
 
   static saveOOBEVersion(context: Context, OOBEVersion: number) {
     PreferencesUtil.putPreferencesValue(context, "sweet_video", "OOBEVersion", OOBEVersion)
+  }
+
+  static saveSmartRotation(context: Context, smartRotationState: boolean) {
+    PreferencesUtil.putPreferencesValue(context, "sweet_video", "OOBEVersion", smartRotationState)
   }
 
   //保存首页 TODO 这里需要施工
