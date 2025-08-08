@@ -250,8 +250,6 @@ export struct Player { // 播放页
 
   async setAVPlayerCallback() {
     this.avPlayer?.on('timeUpdate', async (duration) => {
-      // 保存播放数据，防止杀掉应用或者闪退丢失数据
-      AppStorage.setOrCreate('nowPlayingData', [this.play_time, this.now_playing!, this.video_meta_data])
       if (this.showControl) {
         this.clock_time = ToolsUtil.getTime()
         if (!this.autoHideTimeout) {
@@ -262,6 +260,11 @@ export struct Player { // 播放页
             this.autoHideTimeout = false
           }, 6000)
         }
+      }
+      const isDestroy = AppStorage.get('destroy_signal') as boolean // 监听播放器是否将被杀掉，杀掉的话就保存记录
+      if (isDestroy) {
+        VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
+          PathUtils.appContext!)
       }
       if (this.now_playing?.end_time && duration >= this.now_playing?.end_time && !this.circle_play) {
         this.playNextVideo()

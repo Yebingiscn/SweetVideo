@@ -5,9 +5,6 @@ import WantProcessUtil from '../utils/WantProcessUtil';
 import { RedPlayerConfigBuilder, RedPlayerInitManager, RedPlayerPreload } from '@rte-xhs/redplayer';
 import LoggerImpl from '../utils/LoggerImpl';
 import { PathUtils } from '../utils/PathUtils';
-import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
-import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
-import VideoOperateUtil from '../utils/VideoOperateUtil';
 
 export default class EntryAbility extends UIAbility {
   async onCreate(want: Want): Promise<void> {
@@ -66,13 +63,8 @@ export default class EntryAbility extends UIAbility {
   }
 
   onWindowStageWillDestroy(): void {
-    // 杀掉应用时保存播放记录
-    const nowPlayingData =
-      AppStorage.get('nowPlayingData') as (number | VideoMetadataFromPlayer | VideoMetadata[])[];
-    if (nowPlayingData) {
-      VideoOperateUtil.saveVideoTime(nowPlayingData[0] as number, nowPlayingData[1] as VideoMetadataFromPlayer,
-        nowPlayingData[2] as VideoMetadata[], PathUtils.appContext!)
-    }
+    AppStorage.setOrCreate('destroy_signal', true) // 提示播放器保存记录
+    console.error('test will destroy')
   }
 
   onWindowStageDestroy(): void {

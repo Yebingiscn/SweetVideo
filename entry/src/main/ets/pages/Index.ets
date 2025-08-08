@@ -48,7 +48,7 @@ struct Index {
   @State totalItems: number = 0
   @State file_folder_list: FileFolder[] = []
   @State searchValue: string = ''
-  @StorageLink('isListDisplay') isListDisplay: boolean = false
+  @StorageLink('is_list_display') isListDisplay: boolean = false
   @StorageProp('screen_width') screen_width: number = 0
   @StorageProp('screen_height') screen_height: number = 0
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
