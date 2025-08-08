@@ -38,10 +38,13 @@ class VideoOperateUtil {
   public aspectRatioMap = new Map([[VideoInfoUtil.screen_extend_map[2], 16 / 9],
     [VideoInfoUtil.screen_extend_map[3], 4 / 3]]);
   private windowStage: window.WindowStage = AppStorage.get('windowStage') as window.WindowStage;
-  private mainWin: window.Window = this.windowStage.getMainWindowSync();
+  private mainWin: window.Window | undefined = undefined
 
   // 设置亮度
   setBrightness(screenBrightness: number) {
+    if (!this.mainWin) {
+      this.mainWin = this.windowStage.getMainWindowSync()
+    }
     try {
       this.mainWin.setWindowBrightness(screenBrightness, (err) => {
         if (err && err.code !== 0) {
