@@ -40,7 +40,7 @@ export struct PrivacySpace { // 隐私空间页
   @State searchValue: string = ''
   @State is_edit: boolean = false
   @State passwd: string = 'passwd'
-  @StorageLink('isListDisplay') is_list_display: boolean = false
+  @StorageLink('isListDisplay') isListDisplay: boolean = false
   searchController: SearchController = new SearchController()
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
@@ -250,7 +250,7 @@ export struct PrivacySpace { // 隐私空间页
         List({ scroller: this.listScroller, space: 10 }) {
           LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
             ListItem() {
-              if (this.is_list_display) {
+              if (this.isListDisplay) {
                 Column() {
                   Row() {
                     Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
@@ -362,7 +362,7 @@ export struct PrivacySpace { // 隐私空间页
       .onAreaChange(async (_oldValue: Area, newValue: Area) => {
         const width = Number(newValue.width);
         const base = Math.floor(width / 500);
-        this.list_line = this.is_list_display
+        this.list_line = this.isListDisplay
           ? base + 1
           : base + 2;
       })

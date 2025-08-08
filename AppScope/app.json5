@@ -2,7 +2,7 @@
   "app": {
     "bundleName": "com.example.sweetvideo",
     "vendor": "example",
-    "versionCode": 1000008,
+    "versionCode": 1000009,
     "versionName": "1.0.18",
     "icon": "$media:app_icon",
     "label": "$string:app_name"
