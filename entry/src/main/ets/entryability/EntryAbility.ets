@@ -56,7 +56,7 @@ export default class EntryAbility extends UIAbility {
         hilog.error(0x0000, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err) ?? '');
         return;
       }
-      AppStorage.setOrCreate('windowStage', windowStage);
+      VideoOperateUtil.windowStage = windowStage
       this.context.resourceManager.getStringValue($r('app.color.start_window_background_blur').id)
         .then(colorValue => {
           windowStage.getMainWindowSync().setWindowBackgroundColor(colorValue);

@@ -692,24 +692,25 @@ export struct Player { // 播放页
                 this.swipe_start_y = firstTouch.localY;
                 this.isLeftSideSwipe = firstTouch.localX < this.screen_width / 2;
                 VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
-                VideoOperateUtil.volumeTmp = this.volume
+                VideoOperateUtil.lastVolume = this.volume; // 记录起始音量
+                VideoOperateUtil.lastVolumeTime = Date.now(); // 记录起始时间
+                VideoOperateUtil.volumeChangeAccumulator = 0; // 变化量累加器
               }
             },
             onVerticalPanUpdate: (event: GestureEvent) => {
               if (!this.isLock && event.fingerList.length === 1) {
-                const currentY = event.fingerList[0].localY; // 拖动后当前的位置
-                const deltaY = currentY - this.swipe_start_y; // 拖动后的垂直距离
-                const deltaYScale = deltaY / this.screen_height * 2.5 // 滑动像素占屏幕高度比例
+                const currentY = event.fingerList[0].localY;
+                const deltaY = currentY - this.swipe_start_y;
+                const deltaYScale = deltaY / this.screen_height * 2.5;
                 if (this.isLeftSideSwipe) {
                   this.onSwipingBrightness = true
-                  const newBrightness = VideoOperateUtil.screenBrightnessTmp - deltaYScale
-                  this.screenBrightness = Math.min(Math.max(newBrightness, 0), 1)
+                  this.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
                   VideoOperateUtil.setBrightness(this.screenBrightness);
                 } else {
                   this.onSwipingVoice = true
-                  const newVolume = (VideoOperateUtil.volumeTmp - deltaYScale * 20);
-                  this.volume =
-                    Math.min(Math.max(newVolume, VideoOperateUtil.min_volume), VideoOperateUtil.max_volume);
+                  this.volume = VideoOperateUtil.calNewVolume(deltaYScale)
+                  VideoOperateUtil.lastVolumeTime = VideoOperateUtil.volumeGestureActiveTime;
+                  VideoOperateUtil.lastVolume = this.volume
                 }
               }
             },
@@ -717,6 +718,7 @@ export struct Player { // 播放页
               this.onSwiping = false;
               this.onSwipingVoice = false;
               this.onSwipingBrightness = false;
+              VideoOperateUtil.volumeChangeAccumulator = 0; // 重置累加器
             },
             onHorizonPanStart: (event: GestureEvent) => {
               if (!this.isLock) {
