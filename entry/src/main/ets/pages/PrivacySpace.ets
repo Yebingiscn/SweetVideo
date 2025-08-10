@@ -314,8 +314,16 @@ export struct PrivacySpace { // 隐私空间页
               ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.video_meta_data_encryption) :
                 await this.delItem(PathUtils.appContext!, item)
             })
-            .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
-            .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick)
+            .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
+              {
+                preview: MenuPreviewMode.IMAGE,
+                previewAnimationOptions: { scale: [0.8, 1.0] },
+              })
+            .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
+              {
+                preview: MenuPreviewMode.IMAGE,
+                previewAnimationOptions: { scale: [0.8, 1.0] },
+              })
             .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
             .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
             .swipeAction({

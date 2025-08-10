@@ -310,15 +310,16 @@ class VideoOperateUtil {
     return Math.min(Math.max(newBrightness, 0), 1)
   }
 
-  calNewVolume(deltaYScale: number,) {
+  calNewVolume(deltaYScale: number) {
     // 1. 计算原始音量变化
-    const rawVolumeChange = -deltaYScale * 0.05;
+    const rawVolumeChange = -deltaYScale * 0.05
     // 2. 应用变化速率限制
     this.volumeGestureActiveTime = Date.now()
-    const timeDelta = Math.max(this.volumeGestureActiveTime - this.lastVolumeTime, 1); // 防止除0
+    // 记录当前时间，并计算与上次音量调整的时间间隔，数字必须大于0，否则后面会出错
+    const timeDelta = Math.max(this.volumeGestureActiveTime - this.lastVolumeTime, 1)
     // 3. 指数平滑处理（EMA系数）
-    const alpha = 0.3;
-    const maxChangePerFrame = 0.15 // 每帧最大变化量
+    const alpha = 0.85;
+    const maxChangePerFrame = 0.1 // 每帧最大变化量
     this.volumeChangeAccumulator =
       alpha * rawVolumeChange +
         (1 - alpha) * this.volumeChangeAccumulator;

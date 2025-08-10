@@ -51,7 +51,6 @@ export struct Player { // 播放页
   @State last_play_time: number = 0
   surfaceID: string = ''
   @State swipe_start_x: number = 0
-  @State swipe_start_y: number = 0
   @State long_press: boolean = false
   @State @Watch('setScreen') showControl: boolean = false
   @State lock_rotation: boolean = false
@@ -135,7 +134,7 @@ export struct Player { // 播放页
     this.volumeActually = this.volume
     this.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
       this.volumeActually = volumeEvent.volume
-      ToolsUtil.startVibration()
+      //  ToolsUtil.startVibration()
     });
     if (canIUse('SystemCapability.Applications.Settings.Core')) {
       settings.getValue(PathUtils.appContext!, settings.display.SCREEN_BRIGHTNESS_STATUS,
@@ -688,8 +687,6 @@ export struct Player { // 播放页
             onVerticalPanStart: (event: GestureEvent) => {
               if (!this.isLock) {
                 const firstTouch = event.fingerList[0];
-                this.swipe_start_x = firstTouch.localX;
-                this.swipe_start_y = firstTouch.localY;
                 this.isLeftSideSwipe = firstTouch.localX < this.screen_width / 2;
                 VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
                 VideoOperateUtil.lastVolume = this.volume; // 记录起始音量
@@ -699,9 +696,7 @@ export struct Player { // 播放页
             },
             onVerticalPanUpdate: (event: GestureEvent) => {
               if (!this.isLock && event.fingerList.length === 1) {
-                const currentY = event.fingerList[0].localY;
-                const deltaY = currentY - this.swipe_start_y;
-                const deltaYScale = deltaY / this.screen_height * 2.5;
+                const deltaYScale = event.offsetY / this.screen_height * 2.5;
                 if (this.isLeftSideSwipe) {
                   this.onSwipingBrightness = true
                   this.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)

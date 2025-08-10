@@ -91,8 +91,16 @@ export struct RecentPlay { // 最近播放页
                 .width('100%')
                 .height(100)
                 .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
-            }.bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
-            .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick)
+            }.bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
+              {
+                preview: MenuPreviewMode.IMAGE,
+                previewAnimationOptions: { scale: [0.8, 1.0] },
+              })
+            .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
+              {
+                preview: MenuPreviewMode.IMAGE,
+                previewAnimationOptions: { scale: [0.8, 1.0] },
+              })
           }, (item: VideoMetadata) => item.date + item.title + item.last_play + item.size.toString())
         }
         .layoutWeight(1)

@@ -167,8 +167,16 @@ export struct VideoList {
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
           .width('100%')
-          .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
-          .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick)
+          .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
+            {
+              preview: MenuPreviewMode.IMAGE,
+              previewAnimationOptions: { scale: [0.8, 1.0] },
+            })
+          .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
+            {
+              preview: MenuPreviewMode.IMAGE,
+              previewAnimationOptions: { scale: [0.8, 1.0] },
+            })
           .gesture(
             GestureGroup(GestureMode.Exclusive,
               SwipeGesture({ direction: SwipeDirection.Horizontal })
@@ -232,8 +240,16 @@ export struct VideoList {
               }
               .width('100%')
               .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-              .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress)
-              .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick)
+              .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
+                {
+                  preview: MenuPreviewMode.IMAGE,
+                  previewAnimationOptions: { scale: [0.8, 1.0] },
+                })
+              .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
+                {
+                  preview: MenuPreviewMode.IMAGE,
+                  previewAnimationOptions: { scale: [0.8, 1.0] },
+                })
               .gesture(
                 GestureGroup(GestureMode.Exclusive,
                   SwipeGesture({ direction: SwipeDirection.Horizontal })
