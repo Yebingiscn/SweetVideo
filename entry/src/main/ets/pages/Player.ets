@@ -691,12 +691,11 @@ export struct Player { // 播放页
                 VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
                 VideoOperateUtil.lastVolume = this.volume; // 记录起始音量
                 VideoOperateUtil.lastVolumeTime = Date.now(); // 记录起始时间
-                VideoOperateUtil.volumeChangeAccumulator = 0; // 变化量累加器
               }
             },
             onVerticalPanUpdate: (event: GestureEvent) => {
               if (!this.isLock && event.fingerList.length === 1) {
-                const deltaYScale = event.offsetY / this.screen_height * 2.5;
+                const deltaYScale = event.offsetY / this.screen_height * 2.5
                 if (this.isLeftSideSwipe) {
                   this.onSwipingBrightness = true
                   this.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
@@ -713,7 +712,6 @@ export struct Player { // 播放页
               this.onSwiping = false;
               this.onSwipingVoice = false;
               this.onSwipingBrightness = false;
-              VideoOperateUtil.volumeChangeAccumulator = 0; // 重置累加器
             },
             onHorizonPanStart: (event: GestureEvent) => {
               if (!this.isLock) {

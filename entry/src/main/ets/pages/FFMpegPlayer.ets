@@ -220,7 +220,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
               VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
               VideoOperateUtil.lastVolume = this.volume; // 记录起始音量
               VideoOperateUtil.lastVolumeTime = Date.now(); // 记录起始时间
-              VideoOperateUtil.volumeChangeAccumulator = 0; // 变化量累加器
             }
           },
           onVerticalPanUpdate: (event: GestureEvent) => {
@@ -244,7 +243,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             this.onSwiping = false;
             this.onSwipingVoice = false;
             this.onSwipingBrightness = false;
-            VideoOperateUtil.volumeChangeAccumulator = 0; // 重置累加器
           },
           onHorizonPanStart: (event: GestureEvent) => {
             if (this.isLock) {
