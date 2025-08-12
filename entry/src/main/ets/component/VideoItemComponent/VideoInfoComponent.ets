@@ -40,7 +40,8 @@ export struct VideoInfoComponent {
         }
       }
       // 时长显示
-      Text("  " + TimeUtil.convertMSToMMSS(this.item!.time))
+      Text("  " + TimeUtil.convertMSToMMSS(this.item!.last_play) + '/'
+        + TimeUtil.convertMSToMMSS(this.item!.time))
         .fontSize(15)
         .opacity(0.8)
     }

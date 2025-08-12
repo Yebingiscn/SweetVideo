@@ -40,6 +40,7 @@ export struct PrivacySpace { // 隐私空间页
   @State searchValue: string = ''
   @State is_edit: boolean = false
   @State passwd: string = 'passwd'
+  @State longPressPreview: boolean = false
   @StorageLink('isListDisplay') isListDisplay: boolean = false
   searchController: SearchController = new SearchController()
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
@@ -272,7 +273,11 @@ export struct PrivacySpace { // 隐私空间页
                   }
                   .width('100%')
                   .height(100)
-                }.justifyContent(FlexAlign.SpaceEvenly)
+                }
+                .justifyContent(FlexAlign.SpaceEvenly)
+                .backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
+                $r('app.color.start_window_background'))
+                .borderRadius(8)
               } else {
                 Column() {
                   Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
@@ -303,6 +308,9 @@ export struct PrivacySpace { // 隐私空间页
                   }.padding({ left: 5, right: 5, bottom: 5 })
                   .width('100%')
                 }
+                .backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
+                $r('app.color.start_window_background'))
+                .borderRadius(8)
                 .width('95%')
                 .height('auto')
                 .backgroundColor($r('app.color.start_window_background_blur'))
@@ -318,11 +326,23 @@ export struct PrivacySpace { // 隐私空间页
               {
                 preview: MenuPreviewMode.IMAGE,
                 previewAnimationOptions: { scale: [0.8, 1.0] },
+                onAppear: () => {
+                  this.longPressPreview = true
+                },
+                aboutToDisappear: () => {
+                  this.longPressPreview = false
+                }
               })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
               {
                 preview: MenuPreviewMode.IMAGE,
                 previewAnimationOptions: { scale: [0.8, 1.0] },
+                onAppear: () => {
+                  this.longPressPreview = true
+                },
+                aboutToDisappear: () => {
+                  this.longPressPreview = false
+                }
               })
             .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
             .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))

@@ -11,6 +11,7 @@ import { FolderOperator, VideoMetaDataOperator } from '../database/VideoMetaData
 import RecentPlayUtil from './RecentPlayUtil';
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
 import VideoUtils from './VideoUtil';
+import { AudioTrack } from '../interfaces/AudioTrackInterface';
 
 // 基础数据源抽象类（泛型实现）
 abstract class BaseDataSource<T> implements IDataSource {
@@ -66,6 +67,14 @@ abstract class BaseDataSource<T> implements IDataSource {
   protected notifyDataDelete(index: number): void {
     this.listeners.forEach(listener => listener.onDataDelete(index));
   }
+}
+
+@Observed
+export class SpeedDataSource extends BaseDataSource<number> {
+}
+
+@Observed
+export class AudioTrackSource extends BaseDataSource<AudioTrack> {
 }
 
 // 具体实现类

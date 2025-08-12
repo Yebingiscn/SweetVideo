@@ -5,6 +5,13 @@
   "buildOptionSet": [
     {
       "name": "release",
+      "nativeLib": {
+        "filter": {
+          "excludes": [
+            "**/x86_64/*.so"
+          ]
+        }
+      },
       "arkOptions": {
         "obfuscation": {
           "ruleOptions": {

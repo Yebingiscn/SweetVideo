@@ -103,6 +103,7 @@ export struct VideoList {
   @Consume sideBarController: SideBarController
   searchController: SearchController = new SearchController()
   @State MenuBuilderState: boolean = false
+  @State longPressPreview: boolean = false
   @StorageLink('isListDisplay') isListDisplay: boolean = false
   @Consume('pathStack') pathStack: NavPathStack
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
@@ -163,19 +164,35 @@ export struct VideoList {
               delMultipleList: this.delMultipleList
             }).reuseId('list_item')
           }
+          .backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
+          $r('app.color.start_window_background'))
+          .borderRadius(8)
           .margin({ bottom: 15 }) // 不知道动了哪里，挤在一起了，先这样改
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
           .width('100%')
+          .height('auto')
           .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
             {
               preview: MenuPreviewMode.IMAGE,
               previewAnimationOptions: { scale: [0.8, 1.0] },
+              onAppear: () => {
+                this.longPressPreview = true
+              },
+              aboutToDisappear: () => {
+                this.longPressPreview = false
+              }
             })
           .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
             {
               preview: MenuPreviewMode.IMAGE,
               previewAnimationOptions: { scale: [0.8, 1.0] },
+              onAppear: () => {
+                this.longPressPreview = true
+              },
+              aboutToDisappear: () => {
+                this.longPressPreview = false
+              }
             })
           .gesture(
             GestureGroup(GestureMode.Exclusive,
@@ -238,17 +255,32 @@ export struct VideoList {
                   delMultipleList: this.delMultipleList
                 }).width('100%').reuseId('card_item')
               }
+              .borderRadius(8)
+              .backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
+              $r('app.color.start_window_background'))
               .width('100%')
               .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
               .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
                 {
                   preview: MenuPreviewMode.IMAGE,
                   previewAnimationOptions: { scale: [0.8, 1.0] },
+                  onAppear: () => {
+                    this.longPressPreview = true
+                  },
+                  aboutToDisappear: () => {
+                    this.longPressPreview = false
+                  }
                 })
               .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
                 {
                   preview: MenuPreviewMode.IMAGE,
                   previewAnimationOptions: { scale: [0.8, 1.0] },
+                  onAppear: () => {
+                    this.longPressPreview = true
+                  },
+                  aboutToDisappear: () => {
+                    this.longPressPreview = false
+                  }
                 })
               .gesture(
                 GestureGroup(GestureMode.Exclusive,

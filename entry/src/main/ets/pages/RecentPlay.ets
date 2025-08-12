@@ -11,6 +11,7 @@ export struct RecentPlay { // 最近播放页
   @State videoDataSource: VideoDataSource = new VideoDataSource([])
   @State recent_video_meta_data: VideoMetadata[] = []
   @State MenuBuilderState: boolean = false
+  @State longPressPreview: boolean = false
   @Consume('pathStack') pathStack: NavPathStack
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
@@ -91,7 +92,10 @@ export struct RecentPlay { // 最近播放页
                 .width('100%')
                 .height(100)
                 .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
-            }.bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
+            }.backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
+            $r('app.color.start_window_background'))
+            .borderRadius(8)
+            .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
               {
                 preview: MenuPreviewMode.IMAGE,
                 previewAnimationOptions: { scale: [0.8, 1.0] },

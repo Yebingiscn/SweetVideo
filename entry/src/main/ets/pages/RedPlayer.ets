@@ -217,28 +217,29 @@ export struct RedPlayer { // 红薯播放器页
           onVerticalPanStart: (event: GestureEvent) => {
             if (!this.isLock) {
               const firstTouch = event.fingerList[0];
-              this.swipe_start_x = firstTouch.localX;
-              this.swipe_start_y = firstTouch.localY;
               this.isLeftSideSwipe = firstTouch.localX < this.screen_width / 2;
               VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
+              this.volume = this.volumeActually
               VideoOperateUtil.lastVolume = this.volume; // 记录起始音量
               VideoOperateUtil.lastVolumeTime = Date.now(); // 记录起始时间
+              VideoOperateUtil.lastOffSetY = 0
             }
           },
           onVerticalPanUpdate: (event: GestureEvent) => {
             if (!this.isLock && event.fingerList.length === 1) {
-              const currentY = event.fingerList[0].localY;
-              const deltaY = currentY - this.swipe_start_y;
-              const deltaYScale = deltaY / this.screen_height * 2.5;
               if (this.isLeftSideSwipe) {
                 this.onSwipingBrightness = true
+                const deltaYScale = event.offsetY / this.screen_height * 2.5
                 this.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
                 VideoOperateUtil.setBrightness(this.screenBrightness);
               } else {
                 this.onSwipingVoice = true
+                let deltaY = event.offsetY - VideoOperateUtil.lastOffSetY
+                const deltaYScale = deltaY / this.screen_height * 150
                 this.volume = VideoOperateUtil.calNewVolume(deltaYScale)
                 VideoOperateUtil.lastVolumeTime = VideoOperateUtil.volumeGestureActiveTime;
                 VideoOperateUtil.lastVolume = this.volume
+                VideoOperateUtil.lastOffSetY = event.offsetY
               }
             }
           },

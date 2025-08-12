@@ -312,7 +312,7 @@ class VideoOperateUtil {
 
   calNewVolume(deltaYScale: number) {
     // 设置一个死区，用于过滤掉静止状态下噪音
-    const DEAD_ZONE = 0.15; // 阈值
+    const DEAD_ZONE = 0.05; // 阈值
     const effectiveDeltaY = Math.abs(deltaYScale) < DEAD_ZONE ? 0 : deltaYScale;
     // 1. 计算原始音量变化 (使用处理后的值)
     const rawVolumeChange = -effectiveDeltaY * 0.15; // 灵敏度系数
@@ -320,17 +320,17 @@ class VideoOperateUtil {
     this.volumeGestureActiveTime = Date.now();
     const timeDelta = Math.max(this.volumeGestureActiveTime - this.lastVolumeTime, 1);
     // 3. 指数平滑处理（EMA系数）
-    const alpha = 0.85;
+    const alpha = 0.05;
     // 这里实现了一个指数移动平均算法
     this.volumeChangeAccumulator = alpha * rawVolumeChange + (1 - alpha) * this.volumeChangeAccumulator;
-    const maxChangePerFrame = 0.1; // 每帧最大变化量
+    const maxChangePerFrame = 0.15; // 每帧最大变化量
     // 4. 应用时间敏感的限制
     const rateLimitedChange = Math.min(
-      Math.abs(this.volumeChangeAccumulator / timeDelta * 16),
+      Math.abs(this.volumeChangeAccumulator / timeDelta * 8),
       maxChangePerFrame
     ) * Math.sign(this.volumeChangeAccumulator);
     const newVolume = this.lastVolume + rateLimitedChange;
-    return Math.min(Math.max(newVolume, this.min_volume), this.max_volume);
+    return Number(Math.min(Math.max(newVolume, -10), this.max_volume).toFixed(2));
   }
 }
 
