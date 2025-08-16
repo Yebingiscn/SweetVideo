@@ -22,7 +22,7 @@ export struct RecentPlay { // 最近播放页
 
   async aboutToAppear(): Promise<void> {
     if (this.recentPlay) {
-      this.recent_video_meta_data = await RecentPlayUtil.getRecentPlaybacks()
+      this.recent_video_meta_data = RecentPlayUtil.getRecentPlaybacks()
       this.videoDataSource = new VideoDataSource(this.recent_video_meta_data);
     }
   }
@@ -141,7 +141,7 @@ export struct RecentPlay { // 最近播放页
     }
     .onShown(async () => {
       if (this.recentPlay) {
-        this.recent_video_meta_data = await RecentPlayUtil.getRecentPlaybacks()
+        this.recent_video_meta_data = RecentPlayUtil.getRecentPlaybacks()
         this.videoDataSource.updateData(this.recent_video_meta_data)
       }
     })

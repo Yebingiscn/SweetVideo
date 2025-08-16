@@ -159,7 +159,7 @@ class SelectFileUtil {
   deleteVideo(videoMetaData: VideoMetadata) {
     this.deleteVideoFolder(videoMetaData)
     this.deleteVideoEncryption(videoMetaData)
-    RecentPlayUtil.delData(PathUtils.appContext!, videoMetaData)
+    RecentPlayUtil.delData(PathUtils.appContext!, videoMetaData.uri)
   }
 
   deleteVideoFolder(videoMetaData: VideoMetadata, currentFolder?: FileFolder) {

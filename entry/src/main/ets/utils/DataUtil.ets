@@ -102,15 +102,15 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
   }
 
   async deleteItem(): Promise<void> {
-    const tmp = JSON.parse(DataSyncUtil.editingVideo) as VideoMetadata;
-    await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, tmp.date!)
-    this.deleteData(this.data.findIndex(i => i.date === tmp.date));
-    RecentPlayUtil.delData(PathUtils.appContext!, tmp);
+    const item = JSON.parse(DataSyncUtil.editingVideo) as VideoMetadata;
+    await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date!)
+    this.deleteData(this.data.findIndex(i => i.date === item.date));
+    RecentPlayUtil.delData(PathUtils.appContext!, item.uri);
 
     return new Promise<void>((resolve, reject) => {
-      fs.access(PathUtils.coverPath + tmp.date, (err) => {
+      fs.access(PathUtils.coverPath + item.date, (err) => {
         if (!err) {
-          fs.unlink(PathUtils.coverPath + tmp.date, (unlinkErr) => {
+          fs.unlink(PathUtils.coverPath + item.date, (unlinkErr) => {
             if (unlinkErr) {
               if (unlinkErr.code == 13900002) {
                 resolve();

@@ -13,7 +13,7 @@ class RecentPlayUtil {
     this.init(PathUtils.appContext!);
   }
 
-  async addPlayback(context: Context, item: VideoMetadata): Promise<void> {
+  addPlayback(context: Context, item: VideoMetadata): void {
     // 这里可能包含外链传进来的视频，用uri去重
     if (this.videoIdMap.has(item.uri)) {
       const existingIndex = this.videoIdMap.get(item.uri)!;
@@ -24,23 +24,29 @@ class RecentPlayUtil {
       this.deque.pop();
     }
     this.updateMapIndices();
-    await this.persistData(context);
+    this.persistData(context);
   }
 
-  async getRecentPlaybacks(): Promise<VideoMetadata[]> {
+  getRecentPlaybacks(): VideoMetadata[] {
     this.loadData(PathUtils.appContext!)
     return [...this.deque];
   }
 
-  public async delData(context: Context, item: VideoMetadata) {
-    if (this.deque.findIndex(i => i.uri === item.uri) !== -1) {
-      this.deque = this.deque.filter(i => i.uri != item?.uri)
-      Preferences.saveRecentPlay(context, this.deque)
+  public delData(context: Context, uri: string) {
+    if (this.videoIdMap.has(uri)) {
+      const index = this.videoIdMap.get(uri)!;
+      this.deque.splice(index, 1);
+      this.videoIdMap.delete(uri);
+      // 更新后续元素的索引
+      for (let i = index; i < this.deque.length; i++) {
+        this.videoIdMap.set(this.deque[i].uri, i);
+      }
+      this.persistData(context);
     }
   }
 
-  private async init(context: Context) {
-    await this.loadData(context);
+  private init(context: Context) {
+    this.loadData(context);
   }
 
   private updateMapIndices() {
@@ -50,11 +56,11 @@ class RecentPlayUtil {
     });
   }
 
-  private async persistData(context: Context) {
+  private persistData(context: Context) {
     Preferences.saveRecentPlay(context, this.deque)
   }
 
-  private async loadData(context: Context) {
+  private loadData(context: Context) {
     this.deque = Preferences.getRecentPlay(context)
     this.updateMapIndices();
   }
