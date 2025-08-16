@@ -252,7 +252,7 @@ class SelectFileUtil {
   }
 
   getItemIndex(list: VideoMetadata[], tmp: VideoMetadata) {
-    return list.findIndex(i => i.title == tmp.title)
+    return list.findIndex(i => i.date == tmp.date)
   }
 
   async addFile(context: Context, sandbox_video: string, sandbox_path: string, uri: string,

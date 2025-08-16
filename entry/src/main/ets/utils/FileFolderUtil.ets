@@ -34,18 +34,41 @@ class FileFolderUtil {
     return file_folder_list
   }
 
-  // 视频添加进文件夹
-  static addVideoInFileFolder(context: Context, videoMetaData: VideoMetadata, fromFolderDate: string,
-    targetFolderDate: string) {
-    let folders = Preferences.getFileFolder(context) as FileFolder[]
-    let fromFolderIndex = folders.findIndex(i => i.date === fromFolderDate)
-    let targetFolderIndex = folders.findIndex(i => i.date === targetFolderDate)
-    folders[fromFolderIndex].video_list = folders[fromFolderIndex].video_list.filter(i => i.date !== videoMetaData.date)
-    if (folders[targetFolderIndex].video_list.findIndex(i => i.date === videoMetaData.date) === -1) {
-      folders[targetFolderIndex].video_list.push(videoMetaData)
+  // 添加视频到文件夹，支持批量
+  static addVideosInFileFolder(context: Context, videos: VideoMetadata[], fromFolderDate: string,
+    targetFolderDate: string): FileFolder[] {
+    const folders = Preferences.getFileFolder(context) || [];
+    // 单次遍历查找两个文件夹
+    let fromFolder: FileFolder | undefined;
+    let targetFolder: FileFolder | undefined;
+    for (const folder of folders) {
+      if (!fromFolder && folder.date === fromFolderDate) {
+        fromFolder = folder;
+      }
+      if (!targetFolder && folder.date === targetFolderDate) {
+        targetFolder = folder;
+      }
+      if (fromFolder && targetFolder) {
+        break;
+      }
     }
-    Preferences.saveFileFolder(context, folders)
-    return folders
+    if (!fromFolder || !targetFolder) {
+      return folders;
+    }
+    // 创建目标视频集合用于快速查找
+    const targetVideoSet = new Set(targetFolder.video_list.map(v => v.date));
+    // 创建待移动视频集合
+    const videosToMove = new Set(videos.map(v => v.date));
+    // 批量过滤源文件夹视频
+    fromFolder.video_list = fromFolder.video_list.filter(
+      v => !videosToMove.has(v.date)
+    );
+    // 批量添加新视频（过滤已存在的）
+    const newVideos = videos.filter(v => !targetVideoSet.has(v.date));
+    targetFolder.video_list.push(...newVideos);
+    // 保存并返回
+    Preferences.saveFileFolder(context, folders);
+    return folders;
   }
 
   static delVideosFileFolder(context: Context, videoListController: VideoListController,
@@ -122,9 +145,23 @@ class FileFolderUtil {
   }
 
   static existVideoInFolders(context: Context, uri: string): boolean {
-    return Preferences.getFileFolder(context)?.some(folder =>
-    folder.video_list?.some(video => video.uri === uri)
-    ) ?? false
+    const folders = Preferences.getFileFolder(context);
+    if (!folders) {
+      return false;
+    }
+    for (const folder of folders) {
+      const videos = folder.video_list;
+      if (!videos) {
+        continue;
+      }
+      // 使用for循环可提前终止
+      for (let i = 0; i < videos.length; i++) {
+        if (videos[i].uri === uri) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }
 

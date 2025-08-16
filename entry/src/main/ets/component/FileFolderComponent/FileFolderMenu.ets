@@ -18,21 +18,26 @@ export struct FileFolderMenu {
   build() {
     Menu() {
       LazyForEach(this.fileFolderSource, (item: FileFolder) => {
-        if (item.name !== this.videoListController.folder.name) {
+        if (item.date !== this.videoListController.folder.date) {
           MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.folder")), content: item.name })
             .onClick(async () => {
-              //批量删除
+              //批量移动
               let folders: FileFolder[] = []
               if (DataSyncUtil.delMultipleList.length > 0) {
-                DataSyncUtil.delMultipleList.forEach(video => {
-                  DataSyncUtil.editingVideo = JSON.stringify(video);
-                  folders = FileFolderUtil.addVideoInFileFolder(PathUtils.appContext!, video,
-                    this.videoListController.folder.date, item.date)
-                });
-                this.videoListController.closeMultipleChoose()
-              } else if (this.videoListController.multipleChooseState === Visibility.None) { //非批量操作
-                folders = FileFolderUtil.addVideoInFileFolder(PathUtils.appContext!, this.video_item,
+                folders = FileFolderUtil.addVideosInFileFolder(PathUtils.appContext!, DataSyncUtil.delMultipleList,
                   this.videoListController.folder.date, item.date)
+                this.videoListController.closeMultipleChoose()
+              } else { //非批量操作
+                folders = FileFolderUtil.addVideosInFileFolder(PathUtils.appContext!, [this.video_item],
+                  this.videoListController.folder.date, item.date)
+                // 处理用户多选但是没有选择而是直接移动的情况
+                if (this.videoListController.multipleChooseState === Visibility.Visible) {
+                  this.videoListController.closeMultipleChoose()
+                }
+                // TODO: 这里有个问题没解决：此处移除当前文件夹最后一个视频是，页面提示词未出现
+                // 以下是临时解决方案
+                this.videoListController.multipleChooseState = Visibility.Hidden
+                this.videoListController.closeMultipleChoose()
               }
               this.fileFolderSource.updateData(folders)
               this.videoListController.videoDataSource.updateData(FolderOperator.getFolderByName(this.videoListController.folder.name)

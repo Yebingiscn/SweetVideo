@@ -42,7 +42,7 @@ export class VideoListController {
     this.videoDataSource = new VideoDataSource(this.videoMetaDataList)
   }
 
-  open_side_bar_tip() {
+  openSideBarTip() {
     if (this.videoDataSource.totalCount() == 0) {
       return true
     } else {
@@ -354,38 +354,6 @@ export struct VideoList {
   @Builder
   MenuBuilder(item: VideoMetadata | undefined) {
     Menu() {
-      MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(() => {
-        this.MenuBuilderState = false
-        setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          let target_item = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
-          if (!this.videoListController.videoMetaDataList.find(i => i.date == item?.date!)) {
-            ToolsUtil.showToast('数据正在加载中，请重试')
-            this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
-            return
-          }
-          await ToolsUtil.isFileExist(target_item) ?
-          ToolsUtil.routerWhere(this.pathStack, NavigationAddress.FFMPEG_PLAYER, item!,
-            this.videoListController.videoMetaDataList) :
-            await this.videoListController.videoDataSource.deleteUnExistFile(item, this.videoListController,
-              this.fileFolderSource)
-        }, 200)
-      })
-      MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
-        this.MenuBuilderState = false
-        setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          let target_item = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
-          if (!this.videoListController.videoMetaDataList.find(i => i.date == item?.date!)) {
-            ToolsUtil.showToast('数据正在加载中，请重试')
-            this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
-            return
-          }
-          await ToolsUtil.isFileExist(target_item) ?
-          ToolsUtil.routerWhere(this.pathStack, NavigationAddress.RED_PLAYER, item!,
-            this.videoListController.videoMetaDataList) :
-            await this.videoListController.videoDataSource.deleteUnExistFile(item, this.videoListController,
-              this.fileFolderSource)
-        }, 200)
-      })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
         .onClick(() => {
           DataSyncUtil.editingVideo = JSON.stringify(item)
@@ -431,6 +399,38 @@ export struct VideoList {
   @Builder
   MenuBuilderExtend(item: VideoMetadata | undefined) {
     Menu() {
+      MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(() => {
+        this.MenuBuilderState = false
+        setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
+          let target_item = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
+          if (!this.videoListController.videoMetaDataList.find(i => i.date == item?.date!)) {
+            ToolsUtil.showToast('数据正在加载中，请重试')
+            this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
+            return
+          }
+          await ToolsUtil.isFileExist(target_item) ?
+          ToolsUtil.routerWhere(this.pathStack, NavigationAddress.FFMPEG_PLAYER, item!,
+            this.videoListController.videoMetaDataList) :
+            await this.videoListController.videoDataSource.deleteUnExistFile(item, this.videoListController,
+              this.fileFolderSource)
+        }, 300)
+      })
+      MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
+        this.MenuBuilderState = false
+        setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
+          let target_item = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
+          if (!this.videoListController.videoMetaDataList.find(i => i.date == item?.date!)) {
+            ToolsUtil.showToast('数据正在加载中，请重试')
+            this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
+            return
+          }
+          await ToolsUtil.isFileExist(target_item) ?
+          ToolsUtil.routerWhere(this.pathStack, NavigationAddress.RED_PLAYER, item!,
+            this.videoListController.videoMetaDataList) :
+            await this.videoListController.videoDataSource.deleteUnExistFile(item, this.videoListController,
+              this.fileFolderSource)
+        }, 300)
+      })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')), content: $r('app.string.edit')
       })

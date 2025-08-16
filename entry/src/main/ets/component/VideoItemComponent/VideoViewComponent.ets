@@ -49,7 +49,7 @@ export struct VideoView {
         })
       }
 
-      if (!this.loading && this.videoListController.open_side_bar_tip()) {
+      if (!this.loading && this.videoListController.openSideBarTip()) {
         Row() { //顶栏
           Column() {
             Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
