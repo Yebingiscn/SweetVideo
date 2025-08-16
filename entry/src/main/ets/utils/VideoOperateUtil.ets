@@ -34,6 +34,7 @@ class VideoOperateUtil {
   public clearSubtitleTimer: number | null = null; // 清除字幕时间
   public timePerPixel: number = 300 // 时间调节灵敏度
   public screenBrightnessTmp: number = 0
+  public lastOffSetY: number = 0
   public aspectRatioMap = new Map([[VideoInfoUtil.screen_extend_map[2], 16 / 9],
     [VideoInfoUtil.screen_extend_map[3], 4 / 3]]);
   public lastVolume: number = 0
@@ -116,15 +117,15 @@ class VideoOperateUtil {
     });
   }
 
-  // 系统播放器播放失败处理
-  playErrorExecute(pathStack: NavPathStack, video_meta_data: VideoMetadata[], date: string) {
+  // 播放器播放失败处理
+  playErrorExecute(pathStack: NavPathStack, video_meta_data: VideoMetadata[], date: string, playerName: string) {
     ToolsUtil.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.video_error')))
     const now_play_item = video_meta_data.find(item => {
       const target_item = SelectFileUtil.getItem(video_meta_data, item?.date)?.date;
       return date === target_item;
     });
     const playerParams = new PlayerParams(now_play_item, video_meta_data, undefined)
-    pathStack.replacePathByName('FFMpegPlayer', playerParams, true)
+    pathStack.replacePathByName(playerName, playerParams, true)
   }
 
   // 未识别到音轨处理

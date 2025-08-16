@@ -38,6 +38,7 @@ import { VideoTopComponent } from '../component/PlayerComponent/VideoTopComponen
 import { VideoButtonsComponent } from '../component/PlayerComponent/VideoButtonsComponent';
 import { VideoSettingComponent } from '../component/PlayerComponent/VideoSettingComponent';
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
+import NavigationAddress from '../common/NavigationAddress';
 
 @Component
 export struct Player { // 播放页
@@ -50,7 +51,6 @@ export struct Player { // 播放页
   @State play_time: number = 0
   @State last_play_time: number = 0
   surfaceID: string = ''
-  @State swipe_start_x: number = 0
   @State long_press: boolean = false
   @State @Watch('setScreen') showControl: boolean = false
   @State lock_rotation: boolean = false
@@ -65,7 +65,6 @@ export struct Player { // 播放页
   @State onSwipingVoice: boolean = false
   @State onSwipingBrightness: boolean = false
   @State isLeftSideSwipe: boolean = false
-  @State isRightSideSwipe: boolean = false
   @State volume: number = 0
   @State screenBrightness: number = 0
   @State video_meta_data: VideoMetadata[] = []
@@ -134,7 +133,7 @@ export struct Player { // 播放页
     this.volumeActually = this.volume
     this.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
       this.volumeActually = volumeEvent.volume
-      //  ToolsUtil.startVibration()
+      ToolsUtil.startVibration()
     });
     if (canIUse('SystemCapability.Applications.Settings.Core')) {
       settings.getValue(PathUtils.appContext!, settings.display.SCREEN_BRIGHTNESS_STATUS,
@@ -383,7 +382,8 @@ export struct Player { // 播放页
           break;
         case 'error':
           await this.ijkPlayerStop()
-          VideoOperateUtil.playErrorExecute(this.pathStack, this.video_meta_data, this.now_playing?.date!)
+          VideoOperateUtil.playErrorExecute(this.pathStack, this.video_meta_data, this.now_playing?.date!,
+            NavigationAddress.FFMPEG_PLAYER)
           this.avPlayer?.release()
           break;
       }
@@ -718,10 +718,8 @@ export struct Player { // 播放页
               this.onSwipingVoice = false;
               this.onSwipingBrightness = false;
             },
-            onHorizonPanStart: (event: GestureEvent) => {
+            onHorizonPanStart: (_event: GestureEvent) => {
               if (!this.isLock) {
-                const firstTouch = event.fingerList[0];
-                this.swipe_start_x = firstTouch.localX;
                 this.last_play_time = this.play_time;
                 this.onSwiping = true
               }
@@ -732,10 +730,9 @@ export struct Player { // 播放页
               }
               if (event?.fingerList?.[0]?.localX !== undefined &&
                 typeof event.fingerList[0].localX === 'number') {
-                const currentX = event.fingerList[0].localX;
-                const deltaX = currentX - this.swipe_start_x;
                 this.play_time = Math.max(0,
-                  Math.min(this.last_play_time + (deltaX * VideoOperateUtil.timePerPixel), this.now_playing?.time!));
+                  Math.min(this.last_play_time + (event.offsetX * VideoOperateUtil.timePerPixel),
+                    this.now_playing?.time!));
               }
             },
             onHorizonPanEnd: () => {
@@ -827,7 +824,7 @@ export struct Player { // 播放页
       .sideBarPosition(SideBarPosition.End)
       .divider({ strokeWidth: 0 })
     }.onReady(() => {
-      const playerParams: PlayerParams = this.pathStack.getParamByName('Player')[0] as PlayerParams
+      const playerParams: PlayerParams = this.pathStack.getParamByName(NavigationAddress.AV_PLAYER)[0] as PlayerParams
       try {
         this.now_playing = playerParams.metadata as VideoMetadataFromPlayer
         this.video_meta_data = playerParams.metadata_list as VideoMetadata[]

@@ -24,6 +24,7 @@ import { editPasswordDialog } from '../component/Dialog/EditPasswordDialog';
 import { SearchComponent } from '../component/VideoItemComponent/SearchComponent';
 import { VideoInfoComponent } from '../component/VideoItemComponent/VideoInfoComponent';
 import { ImportProgressComponent } from '../component/VideoItemComponent/ImportProgressComponent';
+import NavigationAddress from '../common/NavigationAddress';
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -150,7 +151,17 @@ export struct PrivacySpace { // 隐私空间页
         this.MenuBuilderState = false
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           await ToolsUtil.isFileExist(item) ?
-          ToolsUtil.routerWhere(this.pathStack, 'Player', item!, this.video_meta_data_encryption) :
+          ToolsUtil.routerWhere(this.pathStack, NavigationAddress.FFMPEG_PLAYER, item!,
+            this.video_meta_data_encryption) :
+            await this.delItem(PathUtils.appContext!, item!)
+        }, 200)
+      })
+      MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
+        this.MenuBuilderState = false
+        setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
+          await ToolsUtil.isFileExist(item) ?
+          ToolsUtil.routerWhere(this.pathStack, NavigationAddress.RED_PLAYER, item!,
+            this.video_meta_data_encryption) :
             await this.delItem(PathUtils.appContext!, item!)
         }, 200)
       })
@@ -319,7 +330,8 @@ export struct PrivacySpace { // 隐私空间页
             }
             .onClick(async () => {
               await ToolsUtil.isFileExist(item) ?
-              ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.video_meta_data_encryption) :
+              ToolsUtil.routerWhere(this.pathStack, NavigationAddress.AV_PLAYER, item,
+                this.video_meta_data_encryption) :
                 await this.delItem(PathUtils.appContext!, item)
             })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,

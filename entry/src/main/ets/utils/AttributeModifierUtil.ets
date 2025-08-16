@@ -86,7 +86,7 @@ export class SelectItemTextFancyModifier implements AttributeModifier<TextAttrib
   applyNormalAttribute(attr: TextAttribute): void {
     if (this.selected) {
       attr
-        .fontColor($r('sys.color.ohos_id_color_text_primary_activated'))
+        .fontColor($r('app.color.main_color'))
         .fontSize($r('sys.float.ohos_id_text_size_body1'))
         .fontWeight(FontWeight.Regular)
     } else {

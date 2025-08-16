@@ -14,8 +14,8 @@ export struct VideoSliderComponent {
   build() {
     Row({ space: 10 }) {
       Row() { // 播放时间进度
-        Text(TimeUtil.convertMSToMMSS(Math.min(Math.max(this.playTime, 0), (this.totalTime || 0))) + '/' +
-        TimeUtil.convertMSToMMSS(this.totalTime || 0))
+        Text(TimeUtil.convertMSToHHMMSS(Math.min(Math.max(this.playTime, 0), (this.totalTime || 0))) + '/' +
+        TimeUtil.convertMSToHHMMSS(this.totalTime || 0))
           .fontWeight(FontWeight.Medium)
           .fontSize(16)
           .fontColor($r('sys.color.white'))
@@ -39,7 +39,7 @@ export struct VideoSliderComponent {
         .selectedColor('#e0e0e0')
       if (this.screenWidth > this.screenHeight) {
         Row() { //剩余时间
-          Text(TimeUtil.convertMSToMMSS(Math.min(Math.max((this.totalTime || 0) - this.playTime, 0),
+          Text(TimeUtil.convertMSToHHMMSS(Math.min(Math.max((this.totalTime || 0) - this.playTime, 0),
             (this.totalTime || 0))))
             .fontWeight(FontWeight.Medium)
             .fontSize(15)

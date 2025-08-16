@@ -20,6 +20,7 @@ import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu';
 import { VideoMetaDataOperator } from '../../database/VideoMetaData';
 import VideoUtils from '../../utils/VideoUtil';
 import FileFolderUtil from '../../utils/FileFolderUtil';
+import NavigationAddress from '../../common/NavigationAddress';
 
 @Observed
 export class VideoListController {
@@ -344,7 +345,8 @@ export struct VideoList {
     }
     this.videoListController.listScroller.closeAllSwipeActions()
     await ToolsUtil.isFileExist(item) ?
-    ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.videoListController.videoMetaDataList) :
+    ToolsUtil.routerWhere(this.pathStack, NavigationAddress.AV_PLAYER, item,
+      this.videoListController.videoMetaDataList) :
       await this.videoListController.videoDataSource.deleteUnExistFile(item, this.videoListController,
         this.fileFolderSource)
   }
@@ -362,7 +364,8 @@ export struct VideoList {
             return
           }
           await ToolsUtil.isFileExist(target_item) ?
-          ToolsUtil.routerWhere(this.pathStack, 'FFMpegPlayer', item!, this.videoListController.videoMetaDataList) :
+          ToolsUtil.routerWhere(this.pathStack, NavigationAddress.FFMPEG_PLAYER, item!,
+            this.videoListController.videoMetaDataList) :
             await this.videoListController.videoDataSource.deleteUnExistFile(item, this.videoListController,
               this.fileFolderSource)
         }, 200)
@@ -377,7 +380,8 @@ export struct VideoList {
             return
           }
           await ToolsUtil.isFileExist(target_item) ?
-          ToolsUtil.routerWhere(this.pathStack, 'RedPlayer', item!, this.videoListController.videoMetaDataList) :
+          ToolsUtil.routerWhere(this.pathStack, NavigationAddress.RED_PLAYER, item!,
+            this.videoListController.videoMetaDataList) :
             await this.videoListController.videoDataSource.deleteUnExistFile(item, this.videoListController,
               this.fileFolderSource)
         }, 200)

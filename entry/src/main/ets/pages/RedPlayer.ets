@@ -26,6 +26,7 @@ import { SwipingPlayTimeDisplay } from '../component/PlayerComponent/SwipingPlay
 import { VideoSliderComponent } from '../component/PlayerComponent/VideoSliderComponent';
 import { GestureComponent } from '../component/PlayerComponent/GestureComponent';
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
+import NavigationAddress from '../common/NavigationAddress';
 
 @Component
 export struct RedPlayer { // 红薯播放器页
@@ -51,11 +52,9 @@ export struct RedPlayer { // 红薯播放器页
   @State isLeftSideSwipe: boolean = false
   @State isRightSideSwipe: boolean = false
   @State isVerticalSwiping: boolean = false
-  @State swipe_start_y: number = 0
   @State onSwipingVoice: boolean = false
   @State onSwipingBrightness: boolean = false
   @State screenBrightnessAtFirst: number = 0
-  @State swipe_start_x: number = 0
   @State isHorizontalSwiping: boolean = false
   @State volumeTmp: number = 0
   @State isLock: boolean = false
@@ -107,9 +106,6 @@ export struct RedPlayer { // 红薯播放器页
                     VideoOperateUtil.updateSession(this.isSliderPlayTimeChange, this.redPlayerStateHolder.videoPosition)
                   })
                 })
-              })
-              .onDestroy(() => {
-                this.playerController.release()
               })
           }
           .width(this.redPlayerStateHolder.videoViewWidth)
@@ -248,13 +244,10 @@ export struct RedPlayer { // 红薯播放器页
             this.onSwipingVoice = false;
             this.onSwipingBrightness = false;
           },
-          onHorizonPanStart: (event: GestureEvent) => {
+          onHorizonPanStart: (_event: GestureEvent) => {
             if (this.isLock) {
               return
             }
-            const firstTouch = event.fingerList[0];
-            this.swipe_start_x = firstTouch.localX;
-            this.swipe_start_y = firstTouch.localY;
             this.play_time = this.redPlayerStateHolder.videoPosition;
             this.last_play_time = this.redPlayerStateHolder.videoPosition;
             this.onSwiping = true
@@ -262,10 +255,8 @@ export struct RedPlayer { // 红薯播放器页
           onHorizonPanUpdate: (event: GestureEvent) => {
             if (event?.fingerList?.[0]?.localX !== undefined &&
               typeof event.fingerList[0].localX === 'number') {
-              const currentX = event.fingerList[0].localX;
-              const deltaX = currentX - this.swipe_start_x;
               this.play_time = Math.max(0,
-                Math.min(this.last_play_time + (deltaX * VideoOperateUtil.timePerPixel),
+                Math.min(this.last_play_time + (event.offsetX * VideoOperateUtil.timePerPixel),
                   this.now_playing?.time!));
             }
           },
@@ -322,7 +313,7 @@ export struct RedPlayer { // 红薯播放器页
       })
       .backgroundColor($r('sys.color.black'))
     }.onReady(() => {
-      const playerParams: PlayerParams = this.pathStack.getParamByName('RedPlayer')[0] as PlayerParams
+      const playerParams: PlayerParams = this.pathStack.getParamByName(NavigationAddress.RED_PLAYER)[0] as PlayerParams
       try {
         this.now_playing = playerParams.metadata as VideoMetadataFromPlayer
         this.video_meta_data = playerParams.metadata_list as VideoMetadata[];
@@ -342,16 +333,17 @@ export struct RedPlayer { // 红薯播放器页
         VideoOperateUtil.saveVideoTime(this.redPlayerStateHolder.videoPosition, this.now_playing!,
           this.video_meta_data, PathUtils.appContext!)
       }
+      if (this.allowBackgroundPlay) {
+        AVSessionUtil.destroySession()
+        PermissionUtil.stopContinuousTask()
+      }
+      this.playerController.release()
       await (await this.windowClass).setWindowKeepScreenOn(false)
       if (canIUse('SystemCapability.Window.SessionManager')) {
         await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
         await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
       }
       await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
-      if (this.allowBackgroundPlay) {
-        AVSessionUtil.destroySession()
-        PermissionUtil.stopContinuousTask()
-      }
     }).hideTitleBar(true)
   }
 

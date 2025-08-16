@@ -9,6 +9,7 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { PlayerParams } from '../common/PlayerParams';
 import Preferences from '../database/Preferences';
 import { systemShare } from '@kit.ShareKit';
+import NavigationAddress from '../common/NavigationAddress';
 
 // 处理拉起应用传来的视频链接
 class WantProcess {
@@ -80,7 +81,7 @@ class WantProcess {
         }
         // 获取默认播放器
         let url = this.getPlayer(context, targetVideo)
-        const playerParams = new PlayerParams(targetVideo as VideoMetadata, [], undefined)
+        const playerParams = new PlayerParams(targetVideo, [targetVideo], undefined)
         this.wantUri = ''
         pathStack.pushPathByName(url, playerParams, true)
       })
@@ -92,14 +93,14 @@ class WantProcess {
     // 系统分享（有长宽情况下）和 HDR VIVID 视频强制使用系统播放器
     if ((defaultPlayer === '系统播放器' || this.isSystemShare ||
       metadata.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID) && metadata.size[0] !== 0) {
-      return 'Player';
+      return NavigationAddress.AV_PLAYER;
     } else if (defaultPlayer === '红薯播放器') {
-      return 'RedPlayer';
+      return NavigationAddress.RED_PLAYER;
     } else if (defaultPlayer === 'FFMpeg播放器') {
-      return 'FFMpegPlayer';
+      return NavigationAddress.FFMPEG_PLAYER;
     }
     // 默认使用FFMpeg播放器
-    return 'FFMpegPlayer';
+    return NavigationAddress.FFMPEG_PLAYER;
   }
 
   // 跳转外部网页

@@ -37,6 +37,7 @@ import { SwipingPlayTimeDisplay } from '../component/PlayerComponent/SwipingPlay
 import { VideoSliderComponent } from '../component/PlayerComponent/VideoSliderComponent'
 import { GestureComponent } from '../component/PlayerComponent/GestureComponent'
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode'
+import NavigationAddress from '../common/NavigationAddress'
 
 @Component
 export struct FFMpegPlayer { // FFMpeg播放器页
@@ -64,7 +65,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @State isLeftSideSwipe: boolean = false
   @State isRightSideSwipe: boolean = false
   @State isVerticalSwiping: boolean = false
-  @State swipe_start_y: number = 0
   @State onSwipingVoice: boolean = false
   @State onSwipingBrightness: boolean = false
   @State screenBrightness: number = 0
@@ -79,7 +79,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @State onSwiping: boolean = false
   @State long_press: boolean = false
   @State last_speed: string = '1'
-  @State swipe_start_x: number = 0
   @State isHorizontalSwiping: boolean = false
   @State video_meta_data: VideoMetadata[] = []
   @State volumeActually: number = 0
@@ -245,23 +244,18 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             this.onSwipingVoice = false;
             this.onSwipingBrightness = false;
           },
-          onHorizonPanStart: (event: GestureEvent) => {
+          onHorizonPanStart: (_event: GestureEvent) => {
             if (this.isLock) {
               return
             }
-            const firstTouch = event.fingerList[0];
-            this.swipe_start_x = firstTouch.localX;
-            this.swipe_start_y = firstTouch.localY;
             this.last_play_time = this.play_time;
             this.onSwiping = true
           },
           onHorizonPanUpdate: (event: GestureEvent) => {
             if (event?.fingerList?.[0]?.localX !== undefined &&
               typeof event.fingerList[0].localX === 'number') {
-              const currentX = event.fingerList[0].localX;
-              const deltaX = currentX - this.swipe_start_x;
               this.play_time = Math.max(0,
-                Math.min(this.last_play_time + (deltaX * VideoOperateUtil.timePerPixel),
+                Math.min(this.last_play_time + (event.offsetX * VideoOperateUtil.timePerPixel),
                   this.now_playing?.time!));
             }
           },
@@ -329,7 +323,8 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       })
       .backgroundColor($r('sys.color.black'))
     }.onReady(() => {
-      const playerParams: PlayerParams = this.pathStack.getParamByName('FFMpegPlayer')[0] as PlayerParams
+      const playerParams: PlayerParams =
+        this.pathStack.getParamByName(NavigationAddress.FFMPEG_PLAYER)[0] as PlayerParams
       try {
         this.now_playing = playerParams.metadata as VideoMetadataFromPlayer
         this.video_meta_data = playerParams.metadata_list as VideoMetadata[];
@@ -348,6 +343,10 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
           PathUtils.appContext!)
       }
+      if (this.allowBackgroundPlay) {
+        AVSessionUtil.destroySession()
+        PermissionUtil.stopContinuousTask()
+      }
       await (await this.windowClass).setWindowKeepScreenOn(false)
       if (canIUse('SystemCapability.Window.SessionManager')) {
         await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
@@ -364,10 +363,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       }
       this.mIjkMediaPlayer?.off('audioInterrupt');
       this.mIjkMediaPlayer?.off('deviceChange')
-      if (this.allowBackgroundPlay) {
-        AVSessionUtil.destroySession()
-        PermissionUtil.stopContinuousTask()
-      }
     }).hideTitleBar(true)
   }
 
@@ -758,10 +753,10 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     this.mIjkMediaPlayer?.setOnInfoListener(mOnInfoListener);
 
     let mOnErrorListener: OnErrorListener = {
-      onError: (what: number, extra: number) => {
+      onError: (_what: number, _extra: number) => {
         this.stopProgressTask();
-        ToolsUtil.showToast('播放出错了: ' + what + ':' + extra)
-        console.log('mOnErrorListener' + what + ':' + extra)
+        VideoOperateUtil.playErrorExecute(this.pathStack, this.video_meta_data, this.now_playing?.date!,
+          NavigationAddress.RED_PLAYER)
       }
     }
 

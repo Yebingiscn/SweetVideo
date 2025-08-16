@@ -39,15 +39,15 @@ export struct VideoDetailDialog {
         }.width('100%')
 
         ListItem() {
-          this.buildDetailItem('上次播放时间：', TimeUtil.convertMSToMMSS(this.metadata?.last_play))
+          this.buildDetailItem('上次播放时间：', TimeUtil.convertMSToHHMMSS(this.metadata?.last_play))
         }.width('100%')
 
         ListItem() {
-          this.buildDetailItem('片头时间：', TimeUtil.convertMSToMMSS(this.metadata?.start_time))
+          this.buildDetailItem('片头时间：', TimeUtil.convertMSToHHMMSS(this.metadata?.start_time))
         }.width('100%')
 
         ListItem() {
-          this.buildDetailItem('片尾时间：', TimeUtil.convertMSToMMSS(this.metadata?.end_time))
+          this.buildDetailItem('片尾时间：', TimeUtil.convertMSToHHMMSS(this.metadata?.end_time))
         }.width('100%')
 
         ListItem() {

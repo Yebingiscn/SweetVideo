@@ -5,6 +5,8 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { PathUtils } from '../utils/PathUtils';
 import { ListView } from '../component/PlayerComponent/PlayerSideBarComponent';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
+import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../utils/AttributeModifierUtil';
+import NavigationAddress from '../common/NavigationAddress';
 
 @Component
 export struct RecentPlay { // 最近播放页
@@ -26,13 +28,32 @@ export struct RecentPlay { // 最近播放页
   }
 
   @Builder
+  NavigationMenus() {
+    Row() {
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph($r('sys.symbol.ohos_trash'))
+          .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+      }
+      .backdropBlur(150)
+      .attributeModifier(new ButtonFancyModifier(40, 40))
+      .animation({ duration: 300, curve: Curve.Ease })
+      .onClick(() => {
+        for (const element of this.recent_video_meta_data ?? []) {
+          this.delData(PathUtils.appContext!, element);
+        }
+      })
+      .margin({ right: 10 })
+    }
+  }
+
+  @Builder
   MenuBuilder(item: VideoMetadata | undefined) {
     Menu() {
       MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(async () => {
         this.MenuBuilderState = false
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           await ToolsUtil.isFileExist(item) ?
-          ToolsUtil.routerWhere(this.pathStack, 'FFMpegPlayer', item!, this.recent_video_meta_data) :
+          ToolsUtil.routerWhere(this.pathStack, NavigationAddress.FFMPEG_PLAYER, item!, this.recent_video_meta_data) :
           this.delData(PathUtils.appContext!, item!)
         }, 200)
       })
@@ -41,7 +62,7 @@ export struct RecentPlay { // 最近播放页
         this.MenuBuilderState = false
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           await ToolsUtil.isFileExist(item) ?
-          ToolsUtil.routerWhere(this.pathStack, 'RedPlayer', item!, this.recent_video_meta_data) :
+          ToolsUtil.routerWhere(this.pathStack, NavigationAddress.RED_PLAYER, item!, this.recent_video_meta_data) :
           this.delData(PathUtils.appContext!, item!)
         }, 200)
       })
@@ -86,7 +107,8 @@ export struct RecentPlay { // 最近播放页
               })
                 .onClick(async () => {
                   await ToolsUtil.isFileExist(item) ?
-                  ToolsUtil.routerWhere(this.pathStack, 'Player', item, this.recent_video_meta_data) :
+                  ToolsUtil.routerWhere(this.pathStack, NavigationAddress.AV_PLAYER, item,
+                    this.recent_video_meta_data) :
                   this.delData(PathUtils.appContext!, item)
                 })
                 .width('100%')
@@ -116,12 +138,14 @@ export struct RecentPlay { // 最近播放页
         .scrollBar(BarState.Off)
         .cachedCount(3)
       }
-    }.onShown(async () => {
+    }
+    .onShown(async () => {
       if (this.recentPlay) {
         this.recent_video_meta_data = await RecentPlayUtil.getRecentPlaybacks()
         this.videoDataSource.updateData(this.recent_video_meta_data)
       }
     })
+    .menus(this.NavigationMenus())
     .title('最近播放')
     .padding({ top: this.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))

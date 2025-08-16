@@ -14,6 +14,7 @@ import PrivacySpaceUtil from './PrivacySpaceUtil';
 import FileFolderUtil from './FileFolderUtil';
 import { PathUtils } from './PathUtils';
 import VideoInfoUtil from './VideoInfoUtil';
+import NavigationAddress from '../common/NavigationAddress';
 
 // 工具类
 export class ToolsUtil {
@@ -137,7 +138,7 @@ export class ToolsUtil {
     // 没有长宽的视频/音频系统播放器播不了
     if (VideoInfoUtil.videoWidthAndHeightFormat(String(item?.size)) === '0 x 0') {
       this.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.video_error')))
-      uri = 'FFMpegPlayer'
+      uri = NavigationAddress.FFMPEG_PLAYER
     }
     const playerParams = new PlayerParams(item, list, undefined)
     pathStack.pushPathByName(uri, playerParams, true)

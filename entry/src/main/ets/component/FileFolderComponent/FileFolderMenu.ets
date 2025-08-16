@@ -27,8 +27,7 @@ export struct FileFolderMenu {
                 DataSyncUtil.delMultipleList.forEach(video => {
                   DataSyncUtil.editingVideo = JSON.stringify(video);
                   folders = FileFolderUtil.addVideoInFileFolder(PathUtils.appContext!, video,
-                    this.videoListController.folder.date,
-                    item.date)
+                    this.videoListController.folder.date, item.date)
                 });
                 this.videoListController.closeMultipleChoose()
               } else if (this.videoListController.multipleChooseState === Visibility.None) { //非批量操作

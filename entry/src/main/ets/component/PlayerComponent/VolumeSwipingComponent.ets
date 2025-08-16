@@ -33,7 +33,7 @@ export struct VolumeSwipingComponent {
         })
           .width(60)
           .height(30)
-          .selectedColor('#e0e0e0')
+          .selectedColor($r('app.color.main_color'))
           .trackColor(Color.Black)
           .trackThickness(40)
       }

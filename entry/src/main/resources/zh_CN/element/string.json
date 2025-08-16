@@ -98,7 +98,7 @@
     },
     {
       "name": "video_error",
-      "value": "尝试使用FFMpeg播放器播放＞﹏＜"
+      "value": "尝试使用其他播放器播放＞﹏＜"
     },
     {
       "name": "add_time_info",

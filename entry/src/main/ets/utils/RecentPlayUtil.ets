@@ -14,8 +14,9 @@ class RecentPlayUtil {
   }
 
   async addPlayback(context: Context, item: VideoMetadata): Promise<void> {
-    if (this.videoIdMap.has(item.date)) {
-      const existingIndex = this.videoIdMap.get(item.date)!;
+    // 这里可能包含外链传进来的视频，用uri去重
+    if (this.videoIdMap.has(item.uri)) {
+      const existingIndex = this.videoIdMap.get(item.uri)!;
       this.deque.splice(existingIndex, 1);
     }
     this.deque.unshift(item);

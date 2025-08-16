@@ -32,6 +32,7 @@ import { ImportProgressComponent } from '../component/VideoItemComponent/ImportP
 import { VideoMetaDataOperator } from '../database/VideoMetaData';
 import { FileFolderListComponent } from '../component/FileFolderComponent/FileFolderListComponent';
 import VideoUtils from '../utils/VideoUtil';
+import NavigationAddress from '../common/NavigationAddress';
 
 @Builder
 export function IndexBuilder() {
@@ -326,7 +327,7 @@ struct Index {
             .animation({ duration: 300, curve: Curve.Ease })
             .onClick(async () => {
               this.sideBarController.closeSideBar(false)
-              this.pathStack.pushPathByName('RecentPlay', true)
+              this.pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, true)
             })
           }
           .alignSelf(ItemAlign.End)
@@ -348,7 +349,7 @@ struct Index {
             .animation({ duration: 300, curve: Curve.Ease })
             .onClick(() => {
               this.sideBarController.closeSideBar(false)
-              this.pathStack.pushPathByName('SettingsPage', null)
+              this.pathStack.pushPathByName(NavigationAddress.SETTING_PAGE, null)
             })
           }
           .alignSelf(ItemAlign.End)
@@ -443,19 +444,19 @@ struct Index {
 
   @Builder
   Pages(name: string) {
-    if (name == 'SettingsPage') {
+    if (name == NavigationAddress.SETTING_PAGE) {
       SettingsPage()
-    } else if (name == 'AboutPage') {
+    } else if (name == NavigationAddress.ABOUT_PAGE) {
       AboutApp()
-    } else if (name == 'Player') {
+    } else if (name == NavigationAddress.AV_PLAYER) {
       Player()
-    } else if (name == 'FFMpegPlayer') {
+    } else if (name == NavigationAddress.FFMPEG_PLAYER) {
       FFMpegPlayer()
-    } else if (name == 'RecentPlay') {
+    } else if (name == NavigationAddress.RECENT_PLAY) {
       RecentPlay()
-    } else if (name == 'PrivacySpace') {
+    } else if (name == NavigationAddress.PRIVACY_SPACE) {
       PrivacySpace()
-    } else if (name == 'RedPlayer') {
+    } else if (name == NavigationAddress.RED_PLAYER) {
       RedPlayer()
     }
   }

@@ -30,7 +30,11 @@
     },
     {
       "name": "main_color",
-      "value": "#608ff6"
+      "value": "#15559a"
+    },
+    {
+      "name": "sweet_music_color",
+      "value": "#103fb6"
     }
   ]
 }

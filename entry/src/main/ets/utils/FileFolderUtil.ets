@@ -41,7 +41,7 @@ class FileFolderUtil {
     let fromFolderIndex = folders.findIndex(i => i.date === fromFolderDate)
     let targetFolderIndex = folders.findIndex(i => i.date === targetFolderDate)
     folders[fromFolderIndex].video_list = folders[fromFolderIndex].video_list.filter(i => i.date !== videoMetaData.date)
-    if (folders[targetFolderIndex].video_list.findIndex(i => i.uri === videoMetaData.uri) === -1) {
+    if (folders[targetFolderIndex].video_list.findIndex(i => i.date === videoMetaData.date) === -1) {
       folders[targetFolderIndex].video_list.push(videoMetaData)
     }
     Preferences.saveFileFolder(context, folders)

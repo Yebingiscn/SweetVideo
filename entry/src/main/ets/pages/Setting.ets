@@ -1,10 +1,11 @@
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
+import NavigationAddress from '../common/NavigationAddress';
 import { editPasswordDialog } from '../component/Dialog/EditPasswordDialog';
+import { SettingsClickItem } from '../component/SettingComponent/SettingsClickItem';
+import { SettingSliderItem } from '../component/SettingComponent/SettingSliderItem';
 import { SettingsMenuItem } from '../component/SettingComponent/SettingsMenuItem';
 import { SettingsToggleItem } from '../component/SettingComponent/SettingsToggleItem';
-import { SettingTimeItem } from '../component/SettingComponent/SettingTimeItem';
 import Preferences from '../database/Preferences';
-import { SymbolGlyphFancyModifier } from '../utils/AttributeModifierUtil';
 import BiometricAccessUtil from '../utils/BiometricAccessUtil';
 import { PathUtils } from '../utils/PathUtils';
 import ToolsUtil from '../utils/ToolsUtil';
@@ -36,7 +37,7 @@ export struct SettingsPage { //设置页
         this.passwd = passwd
         ToolsUtil.savePwd(PathUtils.appContext!, passwd)
         ToolsUtil.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.set_passwd_tip')))
-        this.pathStack.replacePathByName('PrivacySpace', null)
+        this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null)
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -49,7 +50,7 @@ export struct SettingsPage { //设置页
             symbol: $r('sys.symbol.info_circle'),
             message: '关于此应用',
             onPress: () => {
-              this.pathStack.pushPathByName('AboutPage', true)
+              this.pathStack.pushPathByName(NavigationAddress.ABOUT_PAGE, true)
             }
           })
         }
@@ -67,7 +68,7 @@ export struct SettingsPage { //设置页
               if (BiometricAccessUtil.checkUserAuthSupport()) { // 支持生物认证时进行认证
                 const isSuccess = await BiometricAccessUtil.startUserAuth();
                 if (isSuccess) { // 认证成功进入隐私空间
-                  this.pathStack.replacePathByName('PrivacySpace', null);
+                  this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null);
                   return;
                 }
                 ToolsUtil.showToast('验证失败，请从首页搜索框输入密码进入隐私空间'); // 认证失败显示提示
@@ -167,19 +168,6 @@ export struct SettingsPage { //设置页
         }
 
         ListItem() {
-          SettingTimeItem({
-            symbol: $r('sys.symbol.forward_end_fill'),
-            message: '跳过片头',
-            selected: Number(this.skipIntroTime),
-            onChange: (value: number) => {
-              ToolsUtil.startVibration()
-              this.skipIntroTime = value.toString()
-              Preferences.saveSkipIntroTime(PathUtils.appContext!, this.skipIntroTime)
-            }
-          })
-        }
-
-        ListItem() {
           SettingsMenuItem({
             symbol: $r('sys.symbol.play_round_rectangle'),
             message: '外链默认播放器',
@@ -204,6 +192,18 @@ export struct SettingsPage { //设置页
             }
           })
         }
+
+        ListItem() {
+          SettingSliderItem({
+            symbol: $r('sys.symbol.forward_end_fill'),
+            message: '跳过片头',
+            selected: Number(this.skipIntroTime),
+            onChangeComplete: (value: number) => {
+              this.skipIntroTime = value.toString()
+              Preferences.saveSkipIntroTime(PathUtils.appContext!, this.skipIntroTime)
+            }
+          })
+        }
       }
       .align(Alignment.Top)
       .borderRadius(16)
@@ -217,66 +217,5 @@ export struct SettingsPage { //设置页
     }.hideToolBar(true).title('设置')
     .backgroundColor($r('app.color.start_window_background'))
     .padding({ top: this.topSafeHeight })
-  }
-}
-
-@Component
-export struct SettingsClickItem {
-  @State symbol: Resource | undefined = undefined
-  @State message: ResourceStr = ''
-  @StorageProp('disable_blur') disable_blur: boolean = false
-  @Prop showArrow: boolean = true
-  @StorageProp('vipState') vipState: boolean = false
-  onPress = () => {
-  }
-  onLongPress = () => {
-  }
-
-  build() {
-    Button({ type: ButtonType.Normal, stateEffect: true }) {
-
-      Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
-        Row({ space: 10 }) {
-          if (this.symbol) {
-            SymbolGlyph(this.symbol)
-              .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
-              .visibility(this.symbol ? Visibility.Visible : Visibility.None)
-          } else {
-            Stack()
-          }
-          Text(this.message)
-            .fontSize(17)
-            .fontWeight(FontWeight.Medium)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.MARQUEE })
-            .layoutWeight(1)
-        }.layoutWeight(1)
-
-        if (this.showArrow) {
-          SymbolGlyph($r('sys.symbol.chevron_right'))
-            .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
-            .margin(5)
-        }
-
-      }.align(Alignment.Center)
-
-    }
-    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.95 })
-    .onClick(() => {
-      this.onPress()
-    })
-    .gesture(LongPressGesture().onAction(() => {
-      this.onLongPress()
-    }))
-    .backgroundColor($r('app.color.start_window_background_blur'))
-    .height(55)
-    .borderRadius(16)
-    .padding({
-      right: 15,
-      left: 15,
-      top: 10,
-      bottom: 10
-    })
-    .margin({ top: 5, bottom: 5 })
   }
 }

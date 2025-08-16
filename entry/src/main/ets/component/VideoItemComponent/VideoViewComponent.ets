@@ -14,6 +14,7 @@ import { SearchComponent } from './SearchComponent';
 import { FolderOperator } from '../../database/VideoMetaData';
 import VideoUtils from '../../utils/VideoUtil';
 import FileFolderUtil from '../../utils/FileFolderUtil';
+import NavigationAddress from '../../common/NavigationAddress';
 
 @Component
 export struct VideoView {
@@ -112,7 +113,7 @@ export struct VideoView {
               if (value == this.passwd) {
                 ToolsUtil.showToast(PathUtils.appContext!
                   .resourceManager.getStringSync($r('app.string.enter_privacy_space')))
-                this.pathStack.pushPathByName('PrivacySpace', null)
+                this.pathStack.pushPathByName(NavigationAddress.PRIVACY_SPACE, null)
                 this.searchValue = ''
                 return
               }

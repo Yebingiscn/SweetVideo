@@ -1,15 +1,15 @@
 import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import SelectFileUtil from '../../utils/SelectFileUtil'
-import { VideoListController } from '../VideoItemComponent/VideoItemComponent'
 import { fileUri } from '@kit.CoreFileKit'
 import { PathUtils } from '../../utils/PathUtils'
 import { ImageFancyModifier } from '../../utils/AttributeModifierUtil'
+import { PlayerSideBarSource } from '../../utils/DataUtil'
 
 
 @Component
 export struct PlayerSideBarComponent {
-  @Consume videoListController: VideoListController
+  @State playerSideBarSource: PlayerSideBarSource = new PlayerSideBarSource([])
   @Link sideBarStatusTmp: Visibility
   @Prop video_meta_data: VideoMetadata[]
   @Prop now_playing: VideoMetadataFromPlayer
@@ -19,9 +19,13 @@ export struct PlayerSideBarComponent {
   onItemClick = (_item: VideoMetadata) => {
   }
 
+  aboutToAppear(): void {
+    this.playerSideBarSource = new PlayerSideBarSource(this.video_meta_data)
+  }
+
   build() {
     List({ scroller: this.listScroller, space: 10 }) {
-      LazyForEach(this.videoListController.videoDataSource, (item: VideoMetadata, index: number) => {
+      LazyForEach(this.playerSideBarSource, (item: VideoMetadata, index: number) => {
         ListItem() {
           ListView({
             item: item,

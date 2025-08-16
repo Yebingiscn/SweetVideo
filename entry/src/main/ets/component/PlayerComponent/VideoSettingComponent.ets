@@ -23,14 +23,14 @@ export struct VideoSettingComponent {
         content: '设置片头时间'
       }).onClick(() => {
         VideoOperateUtil.saveVideoStartTime(this.playTime, this.nowPlaying, PathUtils.appContext!)
-        ToolsUtil.showToast(this.nowPlaying.title + '成功设置片头时间为:' + TimeUtil.convertMSToMMSS(this.playTime))
+        ToolsUtil.showToast(this.nowPlaying.title + '成功设置片头时间为:' + TimeUtil.convertMSToHHMMSS(this.playTime))
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
         content: '设置片尾时间'
       }).onClick(() => {
         VideoOperateUtil.saveVideoEndTime(this.playTime, this.nowPlaying, PathUtils.appContext!)
-        ToolsUtil.showToast(this.nowPlaying.title + '成功设置片尾时间为:' + TimeUtil.convertMSToMMSS(this.playTime))
+        ToolsUtil.showToast(this.nowPlaying.title + '成功设置片尾时间为:' + TimeUtil.convertMSToHHMMSS(this.playTime))
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trapezoid_and_line_vertical')),

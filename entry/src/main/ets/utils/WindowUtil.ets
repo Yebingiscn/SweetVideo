@@ -66,8 +66,8 @@ export class WindowUtil {
         windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR);
       AppStorage.setOrCreate('deviceWidth', properties.windowRect.width);
       AppStorage.setOrCreate('deviceHeight', properties.windowRect.height);
-      AppStorage.setOrCreate('statusBarHeight', px2vp(area.topRect.height));
-      AppStorage.setOrCreate('navBarHeight', px2vp(naviBarArea.bottomRect.height));
+      AppStorage.setOrCreate('statusBarHeight', area.topRect.height);
+      AppStorage.setOrCreate('navBarHeight', naviBarArea.bottomRect.height);
     });
   }
 }

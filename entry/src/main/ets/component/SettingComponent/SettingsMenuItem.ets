@@ -18,33 +18,32 @@ export struct SettingsMenuItem {
   }
 
   build() {
-    Row() {
-      Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
-        Row({ space: 10 }) {
-          SymbolGlyph(this.symbol)
-            .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
-          Text(this.message)
-            .fontSize(17)
-            .fontWeight(FontWeight.Medium)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.MARQUEE })
-            .layoutWeight(1)
-        }
-        .layoutWeight(1)
+    Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
+      Row({ space: 10 }) {
+        SymbolGlyph(this.symbol)
+          .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
+        Text(this.message)
+          .fontSize(17)
+          .fontWeight(FontWeight.Medium)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.MARQUEE })
+          .layoutWeight(1)
+      }
+      .layoutWeight(1)
 
-        Select(this.select)
-          .selected(this.selected)
-          .value(this.list[this.selected])
-          .selectedOptionFont({ weight: FontWeight.Medium })
-          .selectedOptionFontColor($r('app.color.main_color'))
-          .selectedOptionBgColor($r('sys.color.button_background_color_transparent'))
-          .onSelect((index: number) => {
-            this.selected = index
-            this.onChange(index)
-          })
-          .divider(null)
-      }.align(Alignment.Center)
+      Select(this.select)
+        .selected(this.selected)
+        .value(this.list[this.selected])
+        .selectedOptionFont({ weight: FontWeight.Medium })
+        .selectedOptionFontColor($r('app.color.main_color'))
+        .selectedOptionBgColor($r('sys.color.button_background_color_transparent'))
+        .onSelect((index: number) => {
+          this.selected = index
+          this.onChange(index)
+        })
+        .divider(null)
     }
+    .align(Alignment.Center)
     .backgroundColor($r('app.color.start_window_background_blur'))
     .height(65)
     .borderRadius(16)

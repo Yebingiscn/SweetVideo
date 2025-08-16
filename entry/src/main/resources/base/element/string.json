@@ -98,7 +98,7 @@
     },
     {
       "name": "video_error",
-      "value": "Video exception, try to play using FFMpeg player"
+      "value": "Video exception, try to play using Another player"
     },
     {
       "name": "add_time_info",
