@@ -33,8 +33,8 @@ class RecentPlayUtil {
   }
 
   public async delData(context: Context, item: VideoMetadata) {
-    if (this.deque.findIndex(i => i.date === item.date) !== -1) {
-      this.deque = this.deque.filter(i => i.date != item?.date)
+    if (this.deque.findIndex(i => i.uri === item.uri) !== -1) {
+      this.deque = this.deque.filter(i => i.uri != item?.uri)
       Preferences.saveRecentPlay(context, this.deque)
     }
   }
@@ -46,7 +46,7 @@ class RecentPlayUtil {
   private updateMapIndices() {
     this.videoIdMap.clear();
     this.deque.forEach((item, index) => {
-      this.videoIdMap.set(item.date, index);
+      this.videoIdMap.set(item.uri, index);
     });
   }
 
