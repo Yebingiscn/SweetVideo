@@ -32,7 +32,6 @@ class VideoOperateUtil {
   public driftHistory: number[] = []; // 差异记录用于趋势分析
   public initPinchDistance: number = 0; // 初始双指距离
   public clearSubtitleTimer: number | null = null; // 清除字幕时间
-  public timePerPixel: number = 300 // 时间调节灵敏度
   public screenBrightnessTmp: number = 0
   public lastOffSetY: number = 0
   public aspectRatioMap = new Map([[VideoInfoUtil.screen_extend_map[2], 16 / 9],
@@ -332,6 +331,10 @@ class VideoOperateUtil {
     ) * Math.sign(this.volumeChangeAccumulator);
     const newVolume = this.lastVolume + rateLimitedChange;
     return Number(Math.min(Math.max(newVolume, -10), this.max_volume).toFixed(2));
+  }
+
+  getTimePixel(screenWidth: number, videoTime: number) {
+    return videoTime / screenWidth
   }
 }
 

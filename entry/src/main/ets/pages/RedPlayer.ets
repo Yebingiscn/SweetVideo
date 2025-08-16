@@ -124,7 +124,7 @@ export struct RedPlayer { // 红薯播放器页
                 }.width('100%')
               }.height(85)
               .width('100%')
-              .backgroundColor($r('sys.color.mask_fourth'))
+              .backgroundColor('#36ffffff')
               .padding({
                 left: (this.screen_height > this.screen_width ? 5 : 5),
                 right: 20,
@@ -255,8 +255,9 @@ export struct RedPlayer { // 红薯播放器页
           onHorizonPanUpdate: (event: GestureEvent) => {
             if (event?.fingerList?.[0]?.localX !== undefined &&
               typeof event.fingerList[0].localX === 'number') {
+              const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.now_playing?.time!) * 1.5
               this.play_time = Math.max(0,
-                Math.min(this.last_play_time + (event.offsetX * VideoOperateUtil.timePerPixel),
+                Math.min(this.last_play_time + (event.offsetX * timePerPixel),
                   this.now_playing?.time!));
             }
           },

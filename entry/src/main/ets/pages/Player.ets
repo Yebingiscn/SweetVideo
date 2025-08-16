@@ -730,8 +730,9 @@ export struct Player { // 播放页
               }
               if (event?.fingerList?.[0]?.localX !== undefined &&
                 typeof event.fingerList[0].localX === 'number') {
+                const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.now_playing?.time!) * 1.5
                 this.play_time = Math.max(0,
-                  Math.min(this.last_play_time + (event.offsetX * VideoOperateUtil.timePerPixel),
+                  Math.min(this.last_play_time + (event.offsetX * timePerPixel),
                     this.now_playing?.time!));
               }
             },
