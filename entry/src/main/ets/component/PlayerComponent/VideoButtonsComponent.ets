@@ -1,4 +1,5 @@
 import { AVCastPicker } from '@kit.AVSessionKit'
+import { RepeatMode } from '../../common/enum/RepeatMode'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { KeyCode } from '@kit.InputKit'
@@ -9,7 +10,6 @@ export struct VideoButtonsComponent {
   @Prop screenArco: number
   @Prop playing: boolean
   @Prop speed: number
-  @Link circlePlay: boolean
   @BuilderParam aVCastPickerBuilderBridge: () => void
   @BuilderParam videoSettingBuilder: () => void
   @BuilderParam playbackSpeedMenu: () => void

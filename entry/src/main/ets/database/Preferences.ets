@@ -2,6 +2,7 @@ import { FileFolder } from '../interfaces/FileFolderInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import PreferencesUtil from '../utils/PreferencesUtil'
 import { Context } from '@kit.AbilityKit'
+import { RepeatMode } from '../common/enum/RepeatMode'
 
 // 存储类
 class Preferences {
@@ -68,8 +69,8 @@ class Preferences {
     return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'video_speed', '1x') as string
   }
 
-  static getCirclePlayState(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'circle_play', false) as boolean
+  static getRepeatModeState(context: Context) {
+    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'repeatMode', RepeatMode.LIST_LOOP) as RepeatMode
   }
 
   static getSkipIntroTime(context: Context) {
@@ -92,8 +93,8 @@ class Preferences {
     PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'video_speed', video_speed);
   }
 
-  static saveCirclePlayState(context: Context, isEnabled: boolean) {
-    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'circle_play', isEnabled)
+  static saveRepeatModeState(context: Context, repeatMode: RepeatMode) {
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'repeatMode', repeatMode)
   }
 
   static saveDefaultPlayer(context: Context, defaultPlayer: string) {

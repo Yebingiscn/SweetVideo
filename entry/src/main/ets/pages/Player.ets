@@ -37,6 +37,7 @@ import { GestureComponent } from '../component/PlayerComponent/GestureComponent'
 import { VideoTopComponent } from '../component/PlayerComponent/VideoTopComponent';
 import { VideoButtonsComponent } from '../component/PlayerComponent/VideoButtonsComponent';
 import { VideoSettingComponent } from '../component/PlayerComponent/VideoSettingComponent';
+import { RepeatMode } from '../common/enum/RepeatMode';
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
 import NavigationAddress from '../common/NavigationAddress';
 
@@ -69,7 +70,7 @@ export struct Player { // 播放页
   @State screenBrightness: number = 0
   @State video_meta_data: VideoMetadata[] = []
   @State select_text: string | undefined = '原始比例'
-  @State circle_play: boolean = false
+  @State repeatMode: RepeatMode = RepeatMode.LIST_LOOP
   @State audio_track: AudioTrack[] = []
   @State AudioTrackMenuBuilderState: boolean = false
   @State audio_track_select: number = 0
@@ -169,7 +170,7 @@ export struct Player { // 播放页
     this.setScreen()
     await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
     await (await this.windowClass).setWindowKeepScreenOn(true)
-    this.circle_play = Preferences.getCirclePlayState(PathUtils.appContext!)
+    this.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
     const video_speed = Preferences.getVideoSpeed(PathUtils.appContext!)
     this.speed = parseFloat(video_speed?.replace('x', '') || '1')
   }
@@ -178,7 +179,7 @@ export struct Player { // 播放页
     VideoOperateUtil.setBrightness(-1)
     Preferences.saveVideoSpeed(PathUtils.appContext!,
       (VideoInfoUtil.video_speed_list.includes(this.speed) ? this.speed : 1) + 'x')
-    Preferences.saveCirclePlayState(PathUtils.appContext!, this.circle_play)
+    Preferences.saveRepeatModeState(PathUtils.appContext!, this.repeatMode)
     this.avPlayer?.off('subtitleUpdate');
     this.avPlayer?.off('timeUpdate')
     this.avPlayer?.off('seekDone')
@@ -261,7 +262,7 @@ export struct Player { // 播放页
           }, 6000)
         }
       }
-      if (this.now_playing?.end_time && duration >= this.now_playing?.end_time && !this.circle_play) {
+      if (this.now_playing?.end_time && duration >= this.now_playing?.end_time && this.repeatMode !== RepeatMode.SINGLE_LOOP) {
         this.playNextVideo()
       }
       if (!this.onSwiping) {
@@ -343,7 +344,7 @@ export struct Player { // 播放页
           this.onSwiping = false
           break;
         case 'completed':
-          if (this.circle_play) {
+          if (this.repeatMode === RepeatMode.SINGLE_LOOP) {
             if (this.mIjkMediaPlayer) {
               this.mIjkMediaPlayer?.seekTo('0')
               this.mIjkMediaPlayer?.start()
@@ -471,7 +472,23 @@ export struct Player { // 播放页
       VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
         PathUtils.appContext!)
       let item = SelectFileUtil.getItem(this.video_meta_data, this.now_playing?.date || '') as VideoMetadata
-      let next_item = SelectFileUtil.getNextItem(this.video_meta_data, item.date)
+      let next_item: VideoMetadata | null
+      
+      if (this.repeatMode === RepeatMode.RANDOM) {
+        // 随机模式：从视频列表中随机选择一个视频
+        const randomIndex = Math.floor(Math.random() * this.video_meta_data.length)
+        next_item = this.video_meta_data[randomIndex]
+        
+        // 避免随机到当前正在播放的视频
+        if (next_item.date === item.date && this.video_meta_data.length > 1) {
+          const newIndex = (randomIndex + 1) % this.video_meta_data.length
+          next_item = this.video_meta_data[newIndex]
+        }
+      } else {
+        // 非随机模式：按顺序获取下一个视频
+        next_item = SelectFileUtil.getNextItem(this.video_meta_data, item.date)
+      }
+      
       this.playChooseVideo(next_item!)
     }
   }
@@ -933,7 +950,6 @@ export struct Player { // 播放页
       screenArco: this.screen_arco,
       playing: this.playing,
       speed: this.speed,
-      circlePlay: this.circle_play,
       aVCastPickerBuilderBridge: this.AVCastPickerBuilderBridge,
       videoSettingBuilder: this.getVideoSettingBuilder,
       playbackSpeedMenu: this.getPlaybackSpeedMenuBuilder,
@@ -973,7 +989,7 @@ export struct Player { // 播放页
   VideoSettingBuilder() {
     VideoSettingComponent({
       playTime: this.play_time,
-      circlePlay: this.circle_play,
+      repeatMode: this.repeatMode,
       nowPlaying: this.now_playing,
       videoMetaData: this.video_meta_data,
       onMirrorClick: () => {
