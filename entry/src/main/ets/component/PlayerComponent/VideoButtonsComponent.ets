@@ -1,5 +1,4 @@
 import { AVCastPicker } from '@kit.AVSessionKit'
-import { RepeatMode } from '../../common/enum/RepeatMode'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { KeyCode } from '@kit.InputKit'
