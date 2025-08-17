@@ -9,7 +9,6 @@ export struct VideoButtonsComponent {
   @Prop screenArco: number
   @Prop playing: boolean
   @Prop speed: number
-  @Link circlePlay: boolean
   @BuilderParam aVCastPickerBuilderBridge: () => void
   @BuilderParam videoSettingBuilder: () => void
   @BuilderParam playbackSpeedMenu: () => void
