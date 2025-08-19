@@ -34,6 +34,11 @@ export default class PreferencesUtil {
       let pref = preferences.getPreferencesSync(context, {
         name: name
       })
+      const value = pref.getSync(key, 'DEFAULT_VALUE');
+      if (value === 'DEFAULT_VALUE') {
+        console.log(`Key "${key}" not found, skip deletion`);
+        return; // 键不存在时提前返回
+      }
       pref.delete(key)
       pref.flush()
     } catch (e) {

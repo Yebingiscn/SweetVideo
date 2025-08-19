@@ -15,6 +15,7 @@ import FileFolderUtil from './FileFolderUtil';
 import { PathUtils } from './PathUtils';
 import VideoInfoUtil from './VideoInfoUtil';
 import NavigationAddress from '../common/NavigationAddress';
+import { media } from '@kit.MediaKit';
 
 // 工具类
 export class ToolsUtil {
@@ -139,6 +140,11 @@ export class ToolsUtil {
     if (VideoInfoUtil.videoWidthAndHeightFormat(String(item?.size)) === '0 x 0') {
       this.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.video_error')))
       uri = NavigationAddress.FFMPEG_PLAYER
+    }
+    // 红薯播放器不允许播放 HDR VIVID 视频，否则可能会导致卡屏
+    if (uri === NavigationAddress.RED_PLAYER && item.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID) {
+      this.showToast('该播放器不支持 HDR VIVID，已智能切换到合适播放器')
+      uri = NavigationAddress.AV_PLAYER
     }
     const playerParams = new PlayerParams(item, list, undefined)
     pathStack.pushPathByName(uri, playerParams, true)

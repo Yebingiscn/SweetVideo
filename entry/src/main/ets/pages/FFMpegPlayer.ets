@@ -61,7 +61,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @State video_url: string = ''
   @State total_time: number = 0
   @State currentSpeedIndex: number = 0
-  @State longPressStartX: number = 0
   @State isLeftSideSwipe: boolean = false
   @State isRightSideSwipe: boolean = false
   @State isVerticalSwiping: boolean = false
@@ -217,25 +216,20 @@ export struct FFMpegPlayer { // FFMpeg播放器页
               VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
               this.volume = this.volumeActually
               VideoOperateUtil.lastVolume = this.volume; // 记录起始音量
-              VideoOperateUtil.lastVolumeTime = Date.now(); // 记录起始时间
-              VideoOperateUtil.lastOffSetY = 0
             }
           },
           onVerticalPanUpdate: (event: GestureEvent) => {
             if (!this.isLock && event.fingerList.length === 1) {
+              const deltaYScale = event.offsetY / this.screen_height * 2.5
               if (this.isLeftSideSwipe) {
                 this.onSwipingBrightness = true
-                const deltaYScale = event.offsetY / this.screen_height * 2.5
                 this.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
                 VideoOperateUtil.setBrightness(this.screenBrightness);
               } else {
                 this.onSwipingVoice = true
-                let deltaY = event.offsetY - VideoOperateUtil.lastOffSetY
-                const deltaYScale = deltaY / this.screen_height * 150
-                this.volume = VideoOperateUtil.calNewVolume(deltaYScale)
-                VideoOperateUtil.lastVolumeTime = VideoOperateUtil.volumeGestureActiveTime;
-                VideoOperateUtil.lastVolume = this.volume
-                VideoOperateUtil.lastOffSetY = event.offsetY
+                const newVolume = (VideoOperateUtil.lastVolume - deltaYScale * 20);
+                this.volume =
+                  Math.min(Math.max(newVolume, -10), VideoOperateUtil.max_volume);
               }
             }
           },
@@ -295,16 +289,12 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             this.play_speed = this.last_speed
             this.mIjkMediaPlayer?.setSpeed(this.last_speed);
           },
-          onLongPressPanStart: (event: GestureEvent) => {
-            this.longPressStartX = event.fingerList[0].localX;
-          },
           onLongPressPanUpdate: (event: GestureEvent) => {
-            const deltaX = event.fingerList[0].localX - this.longPressStartX;
             const SWIPE_THRESHOLD = 30;
-            if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 检查是否达到滑动阈值
+            if (Math.abs(event.offsetX) <= SWIPE_THRESHOLD) { // 检查是否达到滑动阈值
               return;
             }
-            const direction = deltaX > 0 ? 1 : -1; // 确定滑动方向（正值为右滑，负值为左滑）
+            const direction = event.offsetX > 0 ? 1 : -1; // 确定滑动方向（正值为右滑，负值为左滑）
             const newIndex = this.currentSpeedIndex + direction; // 计算新的速度索引
             const clampedIndex = Math.max(0, Math.min(newIndex, VideoInfoUtil.video_speed_list.length - 1));
             if (clampedIndex === this.currentSpeedIndex) { // 如果速度没有变化则直接返回
@@ -313,7 +303,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             this.currentSpeedIndex = clampedIndex
             this.play_speed = VideoInfoUtil.video_speed_list[this.currentSpeedIndex].toString()
             this.mIjkMediaPlayer?.setSpeed(this.play_speed);
-            this.longPressStartX = event.fingerList[0].localX; // 重置起始点实现分档切换效果
           }
         })
       }

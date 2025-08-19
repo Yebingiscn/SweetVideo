@@ -15,6 +15,7 @@ export struct editPasswordDialog {
         .fontWeight(FontWeight.Bold)
         .margin({ top: 10 })
       TextInput()
+        .keyboardAppearance(KeyboardAppearance.IMMERSIVE)// 设置搜索框沉浸模式
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .onChange((input: string) => this.passwd = input)
         .type(InputType.NEW_PASSWORD)

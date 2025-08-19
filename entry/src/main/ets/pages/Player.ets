@@ -45,10 +45,9 @@ import NavigationAddress from '../common/NavigationAddress';
 export struct Player { // 播放页
   avPlayer: media.AVPlayer | undefined = undefined
   avSession: avSessionManager.AVSession | undefined = undefined;
-  @State now_playing: VideoMetadataFromPlayer | undefined = undefined
+  now_playing: VideoMetadataFromPlayer | undefined = undefined
   @State playing: boolean = false
   @State speed: number = 1.0
-  @State last_speed: number = 1
   @State play_time: number = 0
   @State last_play_time: number = 0
   surfaceID: string = ''
@@ -72,7 +71,6 @@ export struct Player { // 播放页
   @State select_text: string | undefined = '原始比例'
   @State repeatMode: RepeatMode = RepeatMode.LIST_LOOP
   @State audio_track: AudioTrack[] = []
-  @State AudioTrackMenuBuilderState: boolean = false
   @State audio_track_select: number = 0
   @State sideBarStatusTmp: Visibility = Visibility.Hidden
   @State sideBarStatus: boolean = false
@@ -81,7 +79,6 @@ export struct Player { // 播放页
   @State sub_title: string = ''
   @State sub_title_visibility: Visibility = Visibility.Visible
   @State isSliderPlayTimeChange: boolean = false
-  @State longPressStartX: number = 0
   @State currentSpeedIndex: number = 0
   @State clock_time: string = ''
   @State angle: number = 0
@@ -262,7 +259,8 @@ export struct Player { // 播放页
           }, 6000)
         }
       }
-      if (this.now_playing?.end_time && duration >= this.now_playing?.end_time && this.repeatMode !== RepeatMode.SINGLE_LOOP) {
+      if (this.now_playing?.end_time && duration >= this.now_playing?.end_time &&
+        this.repeatMode !== RepeatMode.SINGLE_LOOP) {
         this.playNextVideo()
       }
       if (!this.onSwiping) {
@@ -468,28 +466,22 @@ export struct Player { // 播放页
 
   playNextVideo() {
     if (this.video_meta_data.length > 0 && this.play_time > 0) {
-      this.ijkPlayerStop()
       VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
         PathUtils.appContext!)
       let item = SelectFileUtil.getItem(this.video_meta_data, this.now_playing?.date || '') as VideoMetadata
-      let next_item: VideoMetadata | null
-      
+      let nextItem: VideoMetadata | null
+      // 修改后的随机逻辑
       if (this.repeatMode === RepeatMode.RANDOM) {
-        // 随机模式：从视频列表中随机选择一个视频
-        const randomIndex = Math.floor(Math.random() * this.video_meta_data.length)
-        next_item = this.video_meta_data[randomIndex]
-        
-        // 避免随机到当前正在播放的视频
-        if (next_item.date === item.date && this.video_meta_data.length > 1) {
-          const newIndex = (randomIndex + 1) % this.video_meta_data.length
-          next_item = this.video_meta_data[newIndex]
-        }
+        const availableVideos = this.video_meta_data.filter(v => v.date !== item.date);
+        nextItem = availableVideos.length > 0
+          ? availableVideos[Math.floor(Math.random() * availableVideos.length)]
+          : item; // 回退到当前视频
       } else {
         // 非随机模式：按顺序获取下一个视频
-        next_item = SelectFileUtil.getNextItem(this.video_meta_data, item.date)
+        nextItem = SelectFileUtil.getNextItem(this.video_meta_data, item.date)
       }
-      
-      this.playChooseVideo(next_item!)
+
+      this.playChooseVideo(nextItem!)
     }
   }
 
@@ -592,7 +584,7 @@ export struct Player { // 播放页
                     this.VideoTop()
                   }.width('100%')
                 }
-                .height(this.screen_height > this.screen_width ? 100 : 75)
+                .height(75)
                 .backgroundColor('#36ffffff')
                 .width('100%')
                 .padding({
@@ -708,25 +700,20 @@ export struct Player { // 播放页
                 VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
                 this.volume = this.volumeActually
                 VideoOperateUtil.lastVolume = this.volume; // 记录起始音量
-                VideoOperateUtil.lastVolumeTime = Date.now(); // 记录起始时间
-                VideoOperateUtil.lastOffSetY = 0
               }
             },
             onVerticalPanUpdate: (event: GestureEvent) => {
               if (!this.isLock && event.fingerList.length === 1) {
+                const deltaYScale = event.offsetY / this.screen_height * 2.5
                 if (this.isLeftSideSwipe) {
                   this.onSwipingBrightness = true
-                  const deltaYScale = event.offsetY / this.screen_height * 2.5
                   this.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
                   VideoOperateUtil.setBrightness(this.screenBrightness);
                 } else {
                   this.onSwipingVoice = true
-                  let deltaY = event.offsetY - VideoOperateUtil.lastOffSetY
-                  const deltaYScale = deltaY / this.screen_height * 150
-                  this.volume = VideoOperateUtil.calNewVolume(deltaYScale)
-                  VideoOperateUtil.lastVolumeTime = VideoOperateUtil.volumeGestureActiveTime;
-                  VideoOperateUtil.lastVolume = this.volume
-                  VideoOperateUtil.lastOffSetY = event.offsetY
+                  const newVolume = (VideoOperateUtil.lastVolume - deltaYScale * 20);
+                  this.volume =
+                    Math.min(Math.max(newVolume, -10), VideoOperateUtil.max_volume);
                 }
               }
             },
@@ -738,23 +725,24 @@ export struct Player { // 播放页
             onHorizonPanStart: (_event: GestureEvent) => {
               if (!this.isLock) {
                 this.last_play_time = this.play_time;
-                this.onSwiping = true
+                this.onSwiping = true;
+                // 记录初始拖拽位置
               }
             },
             onHorizonPanUpdate: (event: GestureEvent) => {
               if (this.isLock) {
-                return
+                return;
               }
               if (event?.fingerList?.[0]?.localX !== undefined &&
                 typeof event.fingerList[0].localX === 'number') {
-                const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.now_playing?.time!) * 1.5
+                const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.now_playing?.time!)
                 this.play_time = Math.max(0,
                   Math.min(this.last_play_time + (event.offsetX * timePerPixel),
                     this.now_playing?.time!));
               }
             },
             onHorizonPanEnd: () => {
-              this.seekTime(this.play_time)
+              this.seekTime(this.play_time);
               this.onSwiping = false;
             },
             onPinchStart: (event: GestureEvent) => {
@@ -791,32 +779,30 @@ export struct Player { // 播放页
             onLongPressAction: () => {
               if (!this.isLock) {
                 this.long_press = true
-                this.last_speed = this.speed
+                VideoOperateUtil.lastSpeed = this.speed
                 this.updatePlaybackSpeed(3);
                 this.currentSpeedIndex = VideoInfoUtil.video_speed_list.indexOf(3);
               }
             },
             onLongPressEnd: () => {
               this.long_press = false
-              this.updatePlaybackSpeed(this.last_speed);
+              this.updatePlaybackSpeed(VideoOperateUtil.lastSpeed);
             },
-            onLongPressPanStart: (event: GestureEvent) => {
+            onLongPressPanStart: (_event: GestureEvent) => {
               if (!this.isLock) {
-                this.longPressStartX = event.fingerList[0].localX;
               }
             },
             onLongPressPanUpdate: (event: GestureEvent) => {
               if (!this.isLock && this.long_press) { // 长按状态下的滑动处理
-                const deltaX = event.fingerList[0].localX - this.longPressStartX;
                 const SWIPE_THRESHOLD = 30;
-                if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
+                if (Math.abs(event.offsetX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
                   return;
                 }
                 if (typeof this.currentSpeedIndex === 'undefined') { // 确保currentSpeedIndex已初始化
                   const defaultSpeedIdx = VideoInfoUtil.video_speed_list.indexOf(this.speed);
                   this.currentSpeedIndex = defaultSpeedIdx === -1 ? 0 : defaultSpeedIdx;
                 }
-                const direction = Math.sign(deltaX);
+                const direction = Math.sign(event.offsetX);
                 const newIndex = this.currentSpeedIndex + direction; // 计算新速度索引并限制在有效范围内
                 const clampedIndex = Math.max(0, Math.min(newIndex, VideoInfoUtil.video_speed_list.length - 1));
                 if (clampedIndex === this.currentSpeedIndex) { // 索引变化时才更新播放速度
@@ -824,7 +810,6 @@ export struct Player { // 播放页
                 }
                 this.currentSpeedIndex = clampedIndex;
                 this.updatePlaybackSpeed(VideoInfoUtil.video_speed_list[this.currentSpeedIndex]);
-                this.longPressStartX = event.fingerList[0].localX; // 重置起始点实现分档切换效果
               }
             }
           })
@@ -978,7 +963,6 @@ export struct Player { // 播放页
       audioTrack: this.audio_track,
       audioTrackSelected: this.audio_track_select,
       onSelect: (index: number) => {
-        this.AudioTrackMenuBuilderState = false;
         this.avPlayer?.selectTrack(this.audio_track[index]?.index);
         this.audio_track_select = index;
       }

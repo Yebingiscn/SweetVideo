@@ -10,7 +10,7 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 @Component
 export struct VideoSettingComponent {
   @Link playTime: number
-  @Link nowPlaying: VideoMetadataFromPlayer
+  @Prop nowPlaying: VideoMetadataFromPlayer
   @Link videoMetaData: VideoMetadata[]
   @Link repeatMode: RepeatMode
   onMirrorClick = () => {

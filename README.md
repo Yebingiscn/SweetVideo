@@ -41,7 +41,6 @@ QQ群：973792610
 
 ## 功能排期
 
-- [ ] 对每个视频自定义跳转时间（完成全局设置，已过滤音频）
 - [ ] FFMpeg播放器选集功能
 - [ ] 完全的字幕功能支持(ASS、SRT)
 - [ ] 视频标签（点击标签即可跳转该视频对应时间）
@@ -58,6 +57,12 @@ QQ群：973792610
 - 一款运行在 HarmonyOS Next 上精致、简约的视频（音乐）原生播放器，使用 ArkTS 语言开发，具有美观的设计和优雅的动画。
 - 基于开源项目`流心视频` https://gitee.com/lqsxy/sweetvideo/tree/master
 - 本应用根据原作者授权并基于 MIT 协议二次开发而来。
+
+### 流心项目概览
+
+https://deepwiki.com/Yebingiscn/SweetVideo/3.5-system-utilities
+
+- 基于deep wiki
 
 ## 内置播放器
 

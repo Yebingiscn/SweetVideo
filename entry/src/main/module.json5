@@ -14,6 +14,8 @@
     "installationFree": false,
     "pages": "$profile:main_pages",
     "routerMap": "$profile:route_map",
+    "compressNativeLibs": true,
+    // 压缩so包。减少包体积
     "abilities": [
       {
         "name": "EntryAbility",

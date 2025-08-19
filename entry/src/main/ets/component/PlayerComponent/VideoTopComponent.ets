@@ -6,10 +6,10 @@ export struct VideoTopComponent {
   @Prop videoTitle: string
   @Link subTitleVisibility: Visibility
   @Link screenExtendSelectedText: string | undefined
-  @Prop screenWidth: number
-  @Prop screenHeight: number
+  @Link screenWidth: number
+  @Link screenHeight: number
   @BuilderParam audioTrackMenuBuilder: () => void
-  @Prop lockRotation: boolean
+  @Link lockRotation: boolean
   onLockRotationClick = async () => {
   }
   onExitVideoClick = () => {

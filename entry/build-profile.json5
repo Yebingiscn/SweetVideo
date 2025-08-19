@@ -5,10 +5,58 @@
   "buildOptionSet": [
     {
       "name": "release",
+      // 打包时候排除x64 so包，减少包体积
       "nativeLib": {
         "filter": {
           "excludes": [
             "**/x86_64/*.so"
+          ]
+        }
+      },
+      // 这里开启了纹理压缩，用于提升内置图片加载速度
+      "resOptions": {
+        "compression": {
+          "media": {
+            "enable": true
+          },
+          "filters": [
+            {
+              "method": {
+                "type": "sut",
+                // conversion type
+                "blocks": "4x4"
+                // The extended parameters of the conversion type
+              },
+              // Specifies the files used for compression. Only files that meet all conditions and are not excluded can be compressed
+              "files": {
+                "path": [
+                  "./**/*"
+                ],
+                // All files in the specified resource directory
+                "size": [
+                  [
+                    0,
+                    '1000k'
+                  ]
+                ],
+                // Files with a specified size of less than 1000k
+                // Pictures with a resolution smaller than 3000 x 3000
+                "resolution": [
+                  [
+                    {
+                      "width": 0,
+                      "height": 0
+                    },
+                    // minimum width and height
+                    {
+                      "width": 3000,
+                      "height": 3000
+                    }
+                    // Maximum width and height
+                  ]
+                ]
+              }
+            }
           ]
         }
       },

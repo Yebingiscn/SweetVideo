@@ -153,7 +153,7 @@ struct Index {
   async aboutToAppear(): Promise<void> {
     SelectFileUtil.getDownloadUri()
     ScreenUtil.init(PathUtils.appContext!)
-    await VideoOperateUtil.initSetting(PathUtils.appContext!)
+    VideoOperateUtil.initSetting(PathUtils.appContext!)
     VideoMetaDataOperator.migrationRootVideoMetaToRootFolder()
     this.passwd = Preferences.getPassword(PathUtils.appContext!)
     ToolsUtil.isSubtitleFileFolderExist(PathUtils.videoPath, PathUtils.subtitlePath)

@@ -22,6 +22,7 @@ import ToolsUtil from './ToolsUtil';
 import VideoInfoUtil from './VideoInfoUtil';
 import { WindowUtil } from './WindowUtil';
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
+import PreferencesUtil from './PreferencesUtil';
 
 // 视频操作类
 class VideoOperateUtil {
@@ -33,15 +34,12 @@ class VideoOperateUtil {
   public initPinchDistance: number = 0; // 初始双指距离
   public clearSubtitleTimer: number | null = null; // 清除字幕时间
   public screenBrightnessTmp: number = 0
-  public lastOffSetY: number = 0
+  public lastSpeed: number = 1
   public aspectRatioMap = new Map([[VideoInfoUtil.screen_extend_map[2], 16 / 9],
     [VideoInfoUtil.screen_extend_map[3], 4 / 3]]);
   public lastVolume: number = 0
-  public lastVolumeTime: number = 0
   public windowStage: window.WindowStage | undefined = undefined
-  public volumeGestureActiveTime: number = 0
   private mainWin: window.Window | undefined = undefined
-  private volumeChangeAccumulator: number = 0
 
   // 设置亮度
   setBrightness(screenBrightness: number) {
@@ -214,7 +212,7 @@ class VideoOperateUtil {
   }
 
   // 启动时初始化已保存的设置项
-  async initSetting(context: common.UIAbilityContext) {
+  initSetting(context: common.UIAbilityContext) {
     AppStorage.setOrCreate('allowBackgroundPlay', Preferences.getAllowBackgroundPlayState(context))
     AppStorage.setOrCreate('allowPlayBackExist', Preferences.getAllowPlayBackExistState(context))
     AppStorage.setOrCreate('fastForwardSeconds', Preferences.getFastForwardSeconds(context))
@@ -226,6 +224,8 @@ class VideoOperateUtil {
     AppStorage.setOrCreate('isListDisplay', Preferences.getListDisplayMode(context))
     AppStorage.setOrCreate('smartRotation', Preferences.getSmartRotationState(context))
     ReqPermissionUtil.reqPermissionsFromUser(ReqPermissionUtil.permissions, context);
+    // 这里删掉没用的存储项
+    PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'circle_play')
   }
 
   async checkOtherCast(avSession: avSessionManager.AVSession) {
@@ -310,31 +310,8 @@ class VideoOperateUtil {
     return Math.min(Math.max(newBrightness, 0), 1)
   }
 
-  calNewVolume(deltaYScale: number) {
-    // 设置一个死区，用于过滤掉静止状态下噪音
-    const DEAD_ZONE = 0.05; // 阈值
-    const effectiveDeltaY = Math.abs(deltaYScale) < DEAD_ZONE ? 0 : deltaYScale;
-    // 1. 计算原始音量变化 (使用处理后的值)
-    const rawVolumeChange = -effectiveDeltaY * 0.15; // 灵敏度系数
-    // 2. 应用变化速率限制
-    this.volumeGestureActiveTime = Date.now();
-    const timeDelta = Math.max(this.volumeGestureActiveTime - this.lastVolumeTime, 1);
-    // 3. 指数平滑处理（EMA系数）
-    const alpha = 0.05;
-    // 这里实现了一个指数移动平均算法
-    this.volumeChangeAccumulator = alpha * rawVolumeChange + (1 - alpha) * this.volumeChangeAccumulator;
-    const maxChangePerFrame = 0.15; // 每帧最大变化量
-    // 4. 应用时间敏感的限制
-    const rateLimitedChange = Math.min(
-      Math.abs(this.volumeChangeAccumulator / timeDelta * 8),
-      maxChangePerFrame
-    ) * Math.sign(this.volumeChangeAccumulator);
-    const newVolume = this.lastVolume + rateLimitedChange;
-    return Number(Math.min(Math.max(newVolume, -10), this.max_volume).toFixed(2));
-  }
-
   getTimePixel(screenWidth: number, videoTime: number) {
-    return videoTime / screenWidth
+    return videoTime > 600000 ? 600000 / screenWidth : videoTime / screenWidth
   }
 }
 

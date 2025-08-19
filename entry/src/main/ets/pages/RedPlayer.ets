@@ -39,7 +39,7 @@ export struct RedPlayer { // 红薯播放器页
   @State screen_width: number = 0
   @State screen_height: number = 0
   @State last_play_time: number = 0
-  @State now_playing: VideoMetadataFromPlayer | undefined = undefined
+  now_playing: VideoMetadataFromPlayer | undefined = undefined
   @State redPlayerStateHolder: RedPlayerStateHolder = new RedPlayerStateHolder()
   @State play_time: number = this.redPlayerStateHolder.videoPosition
   @State onSwiping: boolean = false
@@ -48,7 +48,6 @@ export struct RedPlayer { // 红薯播放器页
   @State last_speed: number = 1
   @State currentSpeedIndex: number = 0
   @State long_press: boolean = false
-  @State longPressStartX: number = 0
   @State isLeftSideSwipe: boolean = false
   @State isRightSideSwipe: boolean = false
   @State isVerticalSwiping: boolean = false
@@ -217,25 +216,20 @@ export struct RedPlayer { // 红薯播放器页
               VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
               this.volume = this.volumeActually
               VideoOperateUtil.lastVolume = this.volume; // 记录起始音量
-              VideoOperateUtil.lastVolumeTime = Date.now(); // 记录起始时间
-              VideoOperateUtil.lastOffSetY = 0
             }
           },
           onVerticalPanUpdate: (event: GestureEvent) => {
             if (!this.isLock && event.fingerList.length === 1) {
+              const deltaYScale = event.offsetY / this.screen_height * 2.5
               if (this.isLeftSideSwipe) {
                 this.onSwipingBrightness = true
-                const deltaYScale = event.offsetY / this.screen_height * 2.5
                 this.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
                 VideoOperateUtil.setBrightness(this.screenBrightness);
               } else {
                 this.onSwipingVoice = true
-                let deltaY = event.offsetY - VideoOperateUtil.lastOffSetY
-                const deltaYScale = deltaY / this.screen_height * 150
-                this.volume = VideoOperateUtil.calNewVolume(deltaYScale)
-                VideoOperateUtil.lastVolumeTime = VideoOperateUtil.volumeGestureActiveTime;
-                VideoOperateUtil.lastVolume = this.volume
-                VideoOperateUtil.lastOffSetY = event.offsetY
+                const newVolume = (VideoOperateUtil.lastVolume - deltaYScale * 20);
+                this.volume =
+                  Math.min(Math.max(newVolume, -10), VideoOperateUtil.max_volume);
               }
             }
           },
@@ -277,20 +271,13 @@ export struct RedPlayer { // 红薯播放器页
             this.play_speed = this.last_speed
             this.playerController.setSpeed(this.last_speed)
           },
-          onLongPressPanStart: (event: GestureEvent) => {
-            if (this.isLock) {
-              return
-            }
-            this.longPressStartX = event.fingerList[0].localX;
-          },
           onLongPressPanUpdate: (event: GestureEvent) => {
             if (!this.isLock && this.long_press) { // 长按状态下的滑动处理
-              const deltaX = event.fingerList[0].localX - this.longPressStartX;
               const SWIPE_THRESHOLD = 30;
-              if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
+              if (Math.abs(event.offsetX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
                 return;
               }
-              const direction = deltaX > 0 ? 1 : -1; // 确定滑动方向（正值为右滑，负值为左滑）
+              const direction = event.offsetX > 0 ? 1 : -1; // 确定滑动方向（正值为右滑，负值为左滑）
               const newIndex = this.currentSpeedIndex + direction; // 计算新的速度索引
               const clampedIndex = Math.max(0, Math.min(newIndex, VideoInfoUtil.video_speed_list.length - 1));
               // 检查速度索引是否变化且速度值是否在允许范围内 (0.5-2.0)
@@ -302,7 +289,6 @@ export struct RedPlayer { // 红薯播放器页
               this.currentSpeedIndex = clampedIndex
               this.play_speed = VideoInfoUtil.video_speed_list[clampedIndex]; // 更新播放速度
               this.playerController.setSpeed(this.play_speed);
-              this.longPressStartX = event.fingerList[0].localX; // 重置起始点实现分档切换效果
             }
           }
         })
@@ -338,6 +324,7 @@ export struct RedPlayer { // 红薯播放器页
         AVSessionUtil.destroySession()
         PermissionUtil.stopContinuousTask()
       }
+      this.playerController.stop()
       this.playerController.release()
       await (await this.windowClass).setWindowKeepScreenOn(false)
       if (canIUse('SystemCapability.Window.SessionManager')) {

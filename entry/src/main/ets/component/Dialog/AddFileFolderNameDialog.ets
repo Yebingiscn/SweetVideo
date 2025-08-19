@@ -17,6 +17,7 @@ export struct addFileFolderNameDialog { //编辑元数据弹窗
         .fontWeight(FontWeight.Bold)
         .margin({ top: 10 })
       TextInput()
+        .keyboardAppearance(KeyboardAppearance.IMMERSIVE)// 设置搜索框沉浸模式
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .onChange((input: string) => this.file_folder_name = input)
         .id('input_name')

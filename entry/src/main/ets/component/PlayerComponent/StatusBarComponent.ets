@@ -5,16 +5,17 @@ export struct StatusBarComponent {
   @Prop clockTime: string
 
   build() {
-    Row() {
-      Text(this.clockTime)
-        .fontWeight(FontWeight.Medium)
-        .fontSize(16)
-        .fontColor($r('sys.color.white'))
-        .textAlign(TextAlign.Center)
-        .align(Alignment.Center)
+    if (this.screenWidth > this.screenHeight) {
+      Row() {
+        Text(this.clockTime)
+          .fontWeight(FontWeight.Medium)
+          .fontSize(16)
+          .fontColor($r('sys.color.white'))
+          .textAlign(TextAlign.Center)
+          .align(Alignment.Center)
+      }.width('100%')
+      .height(15) //临时解决PC MODE下遮挡的问题
+      .justifyContent(FlexAlign.Center)
     }
-    .width('100%')
-    .height(this.screenHeight > this.screenWidth ? 5 : 15) // TODO: 临时解决PC MODE下遮挡的问题
-    .justifyContent(FlexAlign.Center)
   }
 }

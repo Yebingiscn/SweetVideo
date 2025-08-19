@@ -22,6 +22,7 @@ export struct editMetadataDialog {
         .margin({ top: 10 })
       TextInput({ text: this.name?.slice(0, this.name?.lastIndexOf('.')) })
         .id('change_name')
+        .keyboardAppearance(KeyboardAppearance.IMMERSIVE)// 设置搜索框沉浸模式
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .onChange((input: string) => this.name = input + "." + this.name?.split('.')[this.name?.split('.').length - 1])
         .onAppear(() => {

@@ -23,6 +23,7 @@ export struct SearchComponent {
       .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
       .animation({ duration: 300, curve: Curve.Ease })
       .attributeModifier(new ShadowModifier())
+      .keyboardAppearance(KeyboardAppearance.IMMERSIVE)// 设置搜索框沉浸模式
       .onChange(() => {
         this.onChange()
       })

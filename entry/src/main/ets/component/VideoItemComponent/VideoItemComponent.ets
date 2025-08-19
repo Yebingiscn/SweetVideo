@@ -103,7 +103,6 @@ export struct VideoList {
   @Consume fileFolderSource: FileFolderDataSource
   @Consume sideBarController: SideBarController
   searchController: SearchController = new SearchController()
-  @State MenuBuilderState: boolean = false
   @State longPressPreview: boolean = false
   @StorageLink('isListDisplay') isListDisplay: boolean = false
   @Consume('pathStack') pathStack: NavPathStack
@@ -176,7 +175,7 @@ export struct VideoList {
           .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
             {
               preview: MenuPreviewMode.IMAGE,
-              previewAnimationOptions: { scale: [0.8, 1.0] },
+              previewAnimationOptions: { hoverScale: [1.0, 0.95] },
               onAppear: () => {
                 this.longPressPreview = true
               },
@@ -187,7 +186,7 @@ export struct VideoList {
           .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
             {
               preview: MenuPreviewMode.IMAGE,
-              previewAnimationOptions: { scale: [0.8, 1.0] },
+              previewAnimationOptions: { hoverScale: [1.0, 0.95] },
               onAppear: () => {
                 this.longPressPreview = true
               },
@@ -264,7 +263,7 @@ export struct VideoList {
               .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
                 {
                   preview: MenuPreviewMode.IMAGE,
-                  previewAnimationOptions: { scale: [0.8, 1.0] },
+                  previewAnimationOptions: { hoverScale: [1.0, 0.95] },
                   onAppear: () => {
                     this.longPressPreview = true
                   },
@@ -275,7 +274,7 @@ export struct VideoList {
               .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
                 {
                   preview: MenuPreviewMode.IMAGE,
-                  previewAnimationOptions: { scale: [0.8, 1.0] },
+                  previewAnimationOptions: { hoverScale: [1.0, 0.95] },
                   onAppear: () => {
                     this.longPressPreview = true
                   },
@@ -339,10 +338,6 @@ export struct VideoList {
       this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
       return
     }
-    if (this.MenuBuilderState || this.videoListController.multipleChooseState != Visibility.None) {
-      this.MenuBuilderState = false
-      return
-    }
     this.videoListController.listScroller.closeAllSwipeActions()
     await ToolsUtil.isFileExist(item) ?
     ToolsUtil.routerWhere(this.pathStack, NavigationAddress.AV_PLAYER, item,
@@ -354,10 +349,12 @@ export struct VideoList {
   @Builder
   MenuBuilder(item: VideoMetadata | undefined) {
     Menu() {
-      MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')), content: $r('app.string.edit')
+      })
         .onClick(() => {
           DataSyncUtil.editingVideo = JSON.stringify(item)
-          this.VideoDetailDialog.open()
+          this.editMetadataDialogController.open()
         })
       // TODO 调整文件夹转移
       MenuItem({
@@ -388,19 +385,13 @@ export struct VideoList {
         content: '更多',
         builder: (): void => this.MenuBuilderExtend(item)
       })
-    }.attributeModifier(new MenuModifier()).onAppear(() => {
-      ToolsUtil.startVibration()
-      this.MenuBuilderState = true
-    }).onDisAppear(() => {
-      this.MenuBuilderState = false
-    })
+    }.attributeModifier(new MenuModifier())
   }
 
   @Builder
   MenuBuilderExtend(item: VideoMetadata | undefined) {
     Menu() {
       MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(() => {
-        this.MenuBuilderState = false
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           let target_item = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
           if (!this.videoListController.videoMetaDataList.find(i => i.date == item?.date!)) {
@@ -416,7 +407,6 @@ export struct VideoList {
         }, 300)
       })
       MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
-        this.MenuBuilderState = false
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           let target_item = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
           if (!this.videoListController.videoMetaDataList.find(i => i.date == item?.date!)) {
@@ -431,12 +421,12 @@ export struct VideoList {
               this.fileFolderSource)
         }, 300)
       })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')), content: $r('app.string.edit')
-      })
+      MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
         .onClick(() => {
-          DataSyncUtil.editingVideo = JSON.stringify(item)
-          this.editMetadataDialogController.open()
+          setTimeout(() => {
+            DataSyncUtil.editingVideo = JSON.stringify(item)
+            this.VideoDetailDialog.open()
+          }, 150)
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat_size_square')), content: '导入或删除字幕'
