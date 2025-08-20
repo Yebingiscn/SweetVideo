@@ -5,7 +5,6 @@ import { image } from '@kit.ImageKit';
 import ReqPermission from '../utils/ReqPermissionUtil';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import PrivacySpaceUtil from './PrivacySpaceUtil';
-import SelectFileUtil from './SelectFileUtil';
 import { FileProcessorUtil } from './FileProcessorUtil';
 
 // 视频信息类
@@ -140,10 +139,8 @@ class VideoInfoUtil {
     }
   }
 
-  getVideoTitle(video_meta_data: VideoMetadata[], item: VideoMetadata) {
-    return (String(SelectFileUtil.getItem(video_meta_data, item?.date)?.title)).slice(0,
-      String(SelectFileUtil.getItem(video_meta_data, item?.date)?.title)
-        .lastIndexOf('.'))
+  getVideoTitle(item: VideoMetadata) {
+    return item.title.slice(0, item.title.lastIndexOf('.'))
   }
 
   // 视频没有封面设置获取指定时间的截图作为视频封面

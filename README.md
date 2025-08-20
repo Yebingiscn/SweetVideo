@@ -97,6 +97,7 @@ https://deepwiki.com/Yebingiscn/SweetVideo/3.5-system-utilities
 - 折叠屏适配：微车游
 - AloePlayer 作者：Aloereed
 - kimufly
+- Fpark
 
 ## 流心视频（枪獭播放器）由以下开源项目提供支持
 

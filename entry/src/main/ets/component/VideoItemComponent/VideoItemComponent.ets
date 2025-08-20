@@ -205,7 +205,8 @@ export struct VideoList {
               TapGesture({ count: 1, fingers: 1 })
                 .onAction(async () => {
                   if (this.videoListController.multipleChooseState !== Visibility.Visible) {
-                    await this.clickItem(item)
+                    const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
+                    await this.clickItem(videoItem, NavigationAddress.AV_PLAYER)
                     return
                   } else {
                     //已存在，标记置反
@@ -293,7 +294,7 @@ export struct VideoList {
                   TapGesture({ count: 1, fingers: 1 })
                     .onAction(async () => {
                       if (this.videoListController.multipleChooseState !== Visibility.Visible) {
-                        await this.clickItem(item)
+                        await this.clickItem(item, NavigationAddress.AV_PLAYER)
                         return
                       } else {
                         //已存在，标记置反
@@ -332,15 +333,15 @@ export struct VideoList {
     }
   }
 
-  async clickItem(item: VideoMetadata) {
-    if (!this.videoListController.videoDataSource.getAllData().some(i => i.date == item?.date!)) {
+  async clickItem(item: VideoMetadata | undefined, choosePlayer: string) {
+    if (!item || !this.videoListController.videoDataSource.getAllData().some(i => i.date == item?.date!)) {
       ToolsUtil.showToast('数据正在加载中，请重试')
       this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
       return
     }
     this.videoListController.listScroller.closeAllSwipeActions()
     await ToolsUtil.isFileExist(item) ?
-    ToolsUtil.routerWhere(this.pathStack, NavigationAddress.AV_PLAYER, item,
+    ToolsUtil.routerWhere(this.pathStack, choosePlayer, item,
       this.videoListController.videoMetaDataList) :
       await this.videoListController.videoDataSource.deleteUnExistFile(item, this.videoListController,
         this.fileFolderSource)
@@ -393,32 +394,14 @@ export struct VideoList {
     Menu() {
       MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(() => {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          let target_item = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
-          if (!this.videoListController.videoMetaDataList.find(i => i.date == item?.date!)) {
-            ToolsUtil.showToast('数据正在加载中，请重试')
-            this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
-            return
-          }
-          await ToolsUtil.isFileExist(target_item) ?
-          ToolsUtil.routerWhere(this.pathStack, NavigationAddress.FFMPEG_PLAYER, item!,
-            this.videoListController.videoMetaDataList) :
-            await this.videoListController.videoDataSource.deleteUnExistFile(item, this.videoListController,
-              this.fileFolderSource)
+          const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
+          await this.clickItem(videoItem, NavigationAddress.FFMPEG_PLAYER)
         }, 300)
       })
       MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          let target_item = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
-          if (!this.videoListController.videoMetaDataList.find(i => i.date == item?.date!)) {
-            ToolsUtil.showToast('数据正在加载中，请重试')
-            this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
-            return
-          }
-          await ToolsUtil.isFileExist(target_item) ?
-          ToolsUtil.routerWhere(this.pathStack, NavigationAddress.RED_PLAYER, item!,
-            this.videoListController.videoMetaDataList) :
-            await this.videoListController.videoDataSource.deleteUnExistFile(item, this.videoListController,
-              this.fileFolderSource)
+          const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
+          await this.clickItem(videoItem, NavigationAddress.RED_PLAYER)
         }, 300)
       })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })

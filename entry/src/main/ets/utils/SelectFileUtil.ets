@@ -308,7 +308,7 @@ class SelectFileUtil {
               }
             }
             let isDuplicate = false;
-            isDuplicate = FileFolderUtil.existVideoInFolders(context, uri);
+            isDuplicate = FileFolderUtil.existsVideoInFolders(context, uri);
             if (!isDuplicate) {
               if (PrivacySpaceUtil.getPrivacyMode()!) {
                 await this.copyFileToPrivacySpace(context, video_meta_data, uri, sandbox_video,

@@ -7,6 +7,8 @@ import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import FileFolderUtil from '../../utils/FileFolderUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import { FolderOperator } from '../../database/VideoMetaData'
+import { addFileFolderNameDialog } from '../Dialog/AddFileFolderNameDialog'
+import { DefaultDialogShadow } from '../../common/DefaultDialogShadow'
 
 
 @Component
@@ -14,9 +16,18 @@ export struct FileFolderMenu {
   @Consume fileFolderSource: FileFolderDataSource
   @Consume videoListController: VideoListController
   @Prop video_item: VideoMetadata
+  addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
+    builder: addFileFolderNameDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
 
   build() {
     Menu() {
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder_badge_plus')),
+        content: '添加文件夹'
+      }).onClick(() => {
+        this.addFileFolderNameDialogController.open()
+      })
       LazyForEach(this.fileFolderSource, (item: FileFolder) => {
         if (item.date !== this.videoListController.folder.date) {
           MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.folder")), content: item.name })

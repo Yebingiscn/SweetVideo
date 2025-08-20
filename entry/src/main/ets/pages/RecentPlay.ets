@@ -52,18 +52,14 @@ export struct RecentPlay { // 最近播放页
       MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(async () => {
         this.MenuBuilderState = false
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          await ToolsUtil.isFileExist(item) ?
-          ToolsUtil.routerWhere(this.pathStack, NavigationAddress.FFMPEG_PLAYER, item!, this.recent_video_meta_data) :
-          this.delData(PathUtils.appContext!, item!)
+          this.clickItem(item, NavigationAddress.FFMPEG_PLAYER)
         }, 200)
       })
 
       MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
         this.MenuBuilderState = false
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          await ToolsUtil.isFileExist(item) ?
-          ToolsUtil.routerWhere(this.pathStack, NavigationAddress.RED_PLAYER, item!, this.recent_video_meta_data) :
-          this.delData(PathUtils.appContext!, item!)
+          this.clickItem(item, NavigationAddress.RED_PLAYER)
         }, 200)
       })
       MenuItem({
@@ -77,6 +73,14 @@ export struct RecentPlay { // 最近播放页
       ToolsUtil.startVibration()
       this.MenuBuilderState = true
     })
+  }
+
+  async clickItem(item: VideoMetadata | undefined, choosePlayer: string) {
+    if (item) {
+      await ToolsUtil.isFileExist(item) ?
+      ToolsUtil.routerWhere(this.pathStack, choosePlayer, item!, this.recent_video_meta_data) :
+      this.delData(PathUtils.appContext!, item!)
+    }
   }
 
   delData(context: Context, item: VideoMetadata) {
@@ -106,10 +110,7 @@ export struct RecentPlay { // 最近播放页
                 now_playing: undefined
               })
                 .onClick(async () => {
-                  await ToolsUtil.isFileExist(item) ?
-                  ToolsUtil.routerWhere(this.pathStack, NavigationAddress.AV_PLAYER, item,
-                    this.recent_video_meta_data) :
-                  this.delData(PathUtils.appContext!, item)
+                  this.clickItem(item, NavigationAddress.AV_PLAYER)
                 })
                 .width('100%')
                 .height(100)

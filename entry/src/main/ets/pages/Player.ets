@@ -261,7 +261,7 @@ export struct Player { // 播放页
       }
       if (this.now_playing?.end_time && duration >= this.now_playing?.end_time &&
         this.repeatMode !== RepeatMode.SINGLE_LOOP) {
-        this.playNextVideo()
+        this.skipTheEnd()
       }
       if (!this.onSwiping) {
         this.play_time = duration;
@@ -470,17 +470,14 @@ export struct Player { // 播放页
         PathUtils.appContext!)
       let item = SelectFileUtil.getItem(this.video_meta_data, this.now_playing?.date || '') as VideoMetadata
       let nextItem: VideoMetadata | null
-      // 修改后的随机逻辑
-      if (this.repeatMode === RepeatMode.RANDOM) {
+      if (this.repeatMode === RepeatMode.RANDOM) { // 随机模式
         const availableVideos = this.video_meta_data.filter(v => v.date !== item.date);
         nextItem = availableVideos.length > 0
           ? availableVideos[Math.floor(Math.random() * availableVideos.length)]
           : item; // 回退到当前视频
       } else {
-        // 非随机模式：按顺序获取下一个视频
-        nextItem = SelectFileUtil.getNextItem(this.video_meta_data, item.date)
+        nextItem = SelectFileUtil.getNextItem(this.video_meta_data, item.date) // 非随机模式：按顺序获取下一个视频
       }
-
       this.playChooseVideo(nextItem!)
     }
   }
@@ -526,6 +523,11 @@ export struct Player { // 播放页
         }
         break;
     }
+  }
+
+  skipTheEnd() {
+    this.playNextVideo()
+    ToolsUtil.showToast('已智能跳过片尾')
   }
 
   backForward() {
@@ -584,7 +586,7 @@ export struct Player { // 播放页
                     this.VideoTop()
                   }.width('100%')
                 }
-                .height(75)
+                .height(90)
                 .backgroundColor('#36ffffff')
                 .width('100%')
                 .padding({
@@ -700,20 +702,25 @@ export struct Player { // 播放页
                 VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
                 this.volume = this.volumeActually
                 VideoOperateUtil.lastVolume = this.volume; // 记录起始音量
+                VideoOperateUtil.lastVolumeTime = Date.now(); // 记录起始时间
+                VideoOperateUtil.lastOffSetY = 0
               }
             },
             onVerticalPanUpdate: (event: GestureEvent) => {
               if (!this.isLock && event.fingerList.length === 1) {
-                const deltaYScale = event.offsetY / this.screen_height * 2.5
                 if (this.isLeftSideSwipe) {
                   this.onSwipingBrightness = true
+                  const deltaYScale = event.offsetY / this.screen_height * 2.5
                   this.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
                   VideoOperateUtil.setBrightness(this.screenBrightness);
                 } else {
                   this.onSwipingVoice = true
-                  const newVolume = (VideoOperateUtil.lastVolume - deltaYScale * 20);
-                  this.volume =
-                    Math.min(Math.max(newVolume, -10), VideoOperateUtil.max_volume);
+                  let deltaY = event.offsetY - VideoOperateUtil.lastOffSetY
+                  const deltaYScale = deltaY / this.screen_height * 150
+                  this.volume = VideoOperateUtil.calNewVolume(deltaYScale)
+                  VideoOperateUtil.lastVolumeTime = VideoOperateUtil.volumeGestureActiveTime;
+                  VideoOperateUtil.lastVolume = this.volume
+                  VideoOperateUtil.lastOffSetY = event.offsetY
                 }
               }
             },
@@ -938,6 +945,7 @@ export struct Player { // 播放页
       aVCastPickerBuilderBridge: this.AVCastPickerBuilderBridge,
       videoSettingBuilder: this.getVideoSettingBuilder,
       playbackSpeedMenu: this.getPlaybackSpeedMenuBuilder,
+      repeatMode: this.repeatMode,
       onScreenRotationOrFullScreenClick: async () => {
         await VideoOperateUtil.fullScreenOperate()
         const orientation = this.screen_height > this.screen_width
@@ -973,7 +981,6 @@ export struct Player { // 播放页
   VideoSettingBuilder() {
     VideoSettingComponent({
       playTime: this.play_time,
-      repeatMode: this.repeatMode,
       nowPlaying: this.now_playing,
       videoMetaData: this.video_meta_data,
       onMirrorClick: () => {

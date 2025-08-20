@@ -6,6 +6,7 @@ import { SettingSliderItem } from '../component/SettingComponent/SettingSliderIt
 import { SettingsMenuItem } from '../component/SettingComponent/SettingsMenuItem';
 import { SettingsToggleItem } from '../component/SettingComponent/SettingsToggleItem';
 import Preferences from '../database/Preferences';
+import { FastForwardSecondInterface } from '../interfaces/FastForwardSecondInterface';
 import BiometricAccessUtil from '../utils/BiometricAccessUtil';
 import { PathUtils } from '../utils/PathUtils';
 import ToolsUtil from '../utils/ToolsUtil';
@@ -25,8 +26,6 @@ export struct SettingsPage { //设置页
   @StorageLink('isListDisplay') isListDisplay: boolean = true
   @StorageLink('smartRotation') smartRotation: boolean = true
   @State passwd: string = 'passwd'
-  fastForwardSecondsList = ['15', '30', '60', '120']
-  subtitleSizeList = ['19', '20', '21', '22', '23', '24', '25', '26']
   @Consume('pathStack') pathStack: NavPathStack
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
     builder: editPasswordDialog({
@@ -41,6 +40,16 @@ export struct SettingsPage { //设置页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  private subtitleSizeList = ['19', '20', '21', '22', '23', '24', '25', '26']
+  private fastForwardSecond: FastForwardSecondInterface[] = [
+    { label: '5秒', value: '5' },
+    { label: '10秒', value: '10' },
+    { label: '15秒', value: '15' },
+    { label: '30秒', value: '30' },
+    { label: '60秒', value: '60' },
+    { label: '120秒', value: '120' }
+  ];
+  private playerList = ['系统播放器', 'FFMpeg播放器', '红薯播放器']
 
   build() {
     NavDestination() {
@@ -158,10 +167,10 @@ export struct SettingsPage { //设置页
           SettingsMenuItem({
             symbol: $r('sys.symbol.fast_forward'),
             message: '快进快退时长',
-            list: ['15秒', '30秒', '60秒', '120秒'],
-            selected: ['15', '30', '60', '120'].findIndex(i => i == this.fastForwardSeconds),
+            list: this.fastForwardSecond.map(opt => opt.label),
+            selected: this.fastForwardSecond.findIndex(opt => opt.value === this.fastForwardSeconds),
             onChange: (index: number) => {
-              this.fastForwardSeconds = ['15', '30', '60', '120'][index]
+              this.fastForwardSeconds = this.fastForwardSecond[index].value;
               Preferences.saveFastForwardSeconds(PathUtils.appContext!, this.fastForwardSeconds)
             }
           })
@@ -171,10 +180,10 @@ export struct SettingsPage { //设置页
           SettingsMenuItem({
             symbol: $r('sys.symbol.play_round_rectangle'),
             message: '外链默认播放器',
-            list: ['系统播放器', 'FFMpeg播放器', '红薯播放器'],
-            selected: ['系统播放器', 'FFMpeg播放器', '红薯播放器'].findIndex(i => i == this.defaultPlayer),
+            list: this.playerList,
+            selected: this.playerList.findIndex(i => i == this.defaultPlayer),
             onChange: (index: number) => {
-              this.defaultPlayer = ['系统播放器', 'FFMpeg播放器', '红薯播放器'][index]
+              this.defaultPlayer = this.playerList[index]
               Preferences.saveDefaultPlayer(PathUtils.appContext!, this.defaultPlayer)
             }
           })

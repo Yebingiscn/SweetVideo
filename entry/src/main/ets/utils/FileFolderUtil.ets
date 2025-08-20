@@ -7,9 +7,12 @@ import { systemDateTime } from '@kit.BasicServicesKit'
 import DataSyncUtil from '../utils/DataSyncUtil'
 import { FileFolderDataSource } from './DataUtil'
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent'
+import PrivacySpaceUtil from './PrivacySpaceUtil'
 
 // 文件夹类
 class FileFolderUtil {
+  public static duplicateVideo: number = 0
+
   static getAllFolder(context: Context): FileFolder[] {
     return Preferences.getFileFolder(context) as FileFolder[]
   }
@@ -144,24 +147,21 @@ class FileFolderUtil {
     Preferences.saveFileFolder(context, file_folder_list)
   }
 
-  static existVideoInFolders(context: Context, uri: string): boolean {
-    const folders = Preferences.getFileFolder(context);
-    if (!folders) {
-      return false;
+  static existsVideoInFolders(context: Context, uri: string): boolean {
+    let exists: boolean;
+    if (PrivacySpaceUtil.getPrivacyMode()) {
+      const videoMetaData = Preferences.getVideoMetaDataEncryption(context) || [];
+      exists = videoMetaData.some(item => item.uri === uri);
+    } else {
+      const folders = Preferences.getFileFolder(context) || [];
+      exists = folders.some(folder =>
+      folder.video_list?.some(video => video.uri === uri)
+      );
     }
-    for (const folder of folders) {
-      const videos = folder.video_list;
-      if (!videos) {
-        continue;
-      }
-      // 使用for循环可提前终止
-      for (let i = 0; i < videos.length; i++) {
-        if (videos[i].uri === uri) {
-          return true;
-        }
-      }
+    if (exists) {
+      FileFolderUtil.duplicateVideo++;
     }
-    return false;
+    return exists;
   }
 }
 

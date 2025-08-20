@@ -202,7 +202,9 @@ struct Index {
         fileFolder
       );
       ToolsUtil.showToast(
-        `${PathUtils.appContext!.resourceManager.getStringSync($r('app.string.add_time_info'))}${this.totalItems}`
+        `${PathUtils.appContext!.resourceManager.getStringSync($r('app.string.add_time_info'))}${this.totalItems -
+        FileFolderUtil.duplicateVideo}${FileFolderUtil.duplicateVideo > 0 ?
+          '重复视频已经智能跳过，跳过视频数：' + FileFolderUtil.duplicateVideo : ''}`
       );
     } catch (error) {
       ToolsUtil.showToast('处理过程中发生意外错误:' + error);

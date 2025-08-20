@@ -26,7 +26,7 @@ export default struct VideoListItem {
           .attributeModifier(new ImageFancyModifier(10, 64, 96))
         Column() {
           Row() {
-            Text(VideoInfoUtil.getVideoTitle(this.videoListController.videoDataSource.getAllData(), this.item))
+            Text(VideoInfoUtil.getVideoTitle(this.item))
               .fontSize(15)
               .fontWeight(FontWeight.Medium)
               .maxLines(3)

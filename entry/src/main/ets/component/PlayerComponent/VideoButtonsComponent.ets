@@ -3,12 +3,14 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { KeyCode } from '@kit.InputKit'
 import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil'
+import { RepeatMode } from '../../common/enum/RepeatMode'
 
 @Component
 export struct VideoButtonsComponent {
   @Prop screenArco: number
   @Prop playing: boolean
   @Prop speed: number
+  @Link repeatMode: RepeatMode
   @BuilderParam aVCastPickerBuilderBridge: () => void
   @BuilderParam videoSettingBuilder: () => void
   @BuilderParam playbackSpeedMenu: () => void
@@ -80,6 +82,30 @@ export struct VideoButtonsComponent {
       }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() {
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph(this.getRepeatModeIcon())
+            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+            .fontColor(['#f0f0f0'])
+        }
+        .attributeModifier(new ButtonFancyModifier(40, 40))
+        .backgroundColor('#50000000')
+        .onClick(() => {
+          switch (this.repeatMode) {
+            case RepeatMode.LIST_LOOP:
+              this.repeatMode = RepeatMode.SINGLE_LOOP
+              break
+            case RepeatMode.SINGLE_LOOP:
+              this.repeatMode = RepeatMode.RANDOM
+              break
+            case RepeatMode.RANDOM:
+              this.repeatMode = RepeatMode.LIST_LOOP
+              break
+          }
+          ToolsUtil.showToast(this.getRepeatModeText())
+        })
+      }.span({ xs: 2, sm: 2, md: 2 })
+
+      GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { //选集
           SymbolGlyph($r('sys.symbol.music_note_list'))
             .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
@@ -123,5 +149,37 @@ export struct VideoButtonsComponent {
         })
       }.span({ xs: 2, sm: 2, md: 2 })
     }.width('95%')
+  }
+
+  /**
+   * 获取当前播放模式对应的图标
+   * @returns 播放模式图标
+   */
+  private getRepeatModeIcon(): Resource {
+    switch (this.repeatMode) {
+      case RepeatMode.SINGLE_LOOP:
+        return $r('sys.symbol.repeat_1')
+      case RepeatMode.RANDOM:
+        return $r('sys.symbol.shuffle')
+      case RepeatMode.LIST_LOOP:
+      default:
+        return $r('sys.symbol.order_play')
+    }
+  }
+
+  /**
+   * 获取当前播放模式对应的文本
+   * @returns 播放模式文本
+   */
+  private getRepeatModeText(): string {
+    switch (this.repeatMode) {
+      case RepeatMode.SINGLE_LOOP:
+        return '单曲循环'
+      case RepeatMode.RANDOM:
+        return '随机播放'
+      case RepeatMode.LIST_LOOP:
+      default:
+        return '列表循环'
+    }
   }
 }

@@ -1,5 +1,6 @@
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
+import FileFolderUtil from './FileFolderUtil';
 import SelectFileUtil from './SelectFileUtil';
 import ToolsUtil from './ToolsUtil';
 
@@ -22,6 +23,7 @@ export class FileProcessorUtil {
       ToolsUtil.showToast('没有任何文件被导入哦~');
       return;
     }
+    FileFolderUtil.duplicateVideo = 0 // 这里重置重复视频数
     const chunks = FileProcessorUtil.splitListIntoChunks(fileList);
     const workers = chunks.map((chunk): Promise<void> => {
       return (async () => {

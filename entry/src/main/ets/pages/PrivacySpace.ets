@@ -269,7 +269,7 @@ export struct PrivacySpace { // 隐私空间页
                       .attributeModifier(new ImageFancyModifier(10, 60, 90))
                     Column() {
                       Row() {
-                        Text(VideoInfoUtil.getVideoTitle(this.video_meta_data_encryption, item))
+                        Text(VideoInfoUtil.getVideoTitle(item))
                           .fontSize(15)
                           .fontWeight(FontWeight.Medium)
                           .maxLines(4)
@@ -303,7 +303,7 @@ export struct PrivacySpace { // 隐私空间页
                     .objectFit(ImageFit.Cover)
                   Column() {
                     Row() {
-                      Text(VideoInfoUtil.getVideoTitle(this.video_meta_data_encryption, item))
+                      Text(VideoInfoUtil.getVideoTitle(item))
                         .fontSize(15)
                         .fontWeight(FontWeight.Medium)
                         .maxLines(2)// 减少行数以适应卡片布局

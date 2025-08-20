@@ -39,7 +39,11 @@ class VideoOperateUtil {
     [VideoInfoUtil.screen_extend_map[3], 4 / 3]]);
   public lastVolume: number = 0
   public windowStage: window.WindowStage | undefined = undefined
+  public volumeGestureActiveTime: number = 0
+  public lastVolumeTime: number = 0
+  public lastOffSetY: number = 0
   private mainWin: window.Window | undefined = undefined
+  private volumeChangeAccumulator: number = 0
 
   // 设置亮度
   setBrightness(screenBrightness: number) {
@@ -312,6 +316,26 @@ class VideoOperateUtil {
 
   getTimePixel(screenWidth: number, videoTime: number) {
     return videoTime > 600000 ? 600000 / screenWidth : videoTime / screenWidth
+  }
+
+  calNewVolume(deltaYScale: number) {
+    // 1. 计算原始音量变化 (使用处理后的值)
+    const rawVolumeChange = -deltaYScale * 0.15; // 灵敏度系数
+    // 2. 应用变化速率限制
+    this.volumeGestureActiveTime = Date.now();
+    const timeDelta = Math.max(this.volumeGestureActiveTime - this.lastVolumeTime, 1);
+    // 3. 指数平滑处理（EMA系数）
+    const alpha = 0.55;
+    // 这里实现了一个指数移动平均算法
+    this.volumeChangeAccumulator = alpha * rawVolumeChange + (1 - alpha) * this.volumeChangeAccumulator;
+    const maxChangePerFrame = 0.3; // 每帧最大变化量
+    // 4. 应用时间敏感的限制
+    const rateLimitedChange = Math.min(
+      Math.abs(this.volumeChangeAccumulator / timeDelta * 8),
+      maxChangePerFrame
+    ) * Math.sign(this.volumeChangeAccumulator);
+    const newVolume = this.lastVolume + rateLimitedChange;
+    return Number(Math.min(Math.max(newVolume, -10), this.max_volume).toFixed(2));
   }
 }
 

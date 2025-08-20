@@ -1,6 +1,5 @@
 import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
-import SelectFileUtil from '../../utils/SelectFileUtil'
 import { fileUri } from '@kit.CoreFileKit'
 import { PathUtils } from '../../utils/PathUtils'
 import { ImageFancyModifier } from '../../utils/AttributeModifierUtil'
@@ -48,8 +47,7 @@ export struct PlayerSideBarComponent {
     .chainAnimation(true)
     .scrollBar(BarState.Off)
     .onAppear(() => {
-      this.listScroller.scrollToIndex(this.video_meta_data.findIndex(item =>
-      this.now_playing?.date === SelectFileUtil.getItem(this.video_meta_data, item?.date)?.date))!
+      this.listScroller.scrollToIndex(this.video_meta_data.findIndex(item => item?.date)!)
     })
     .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
       if (event) {

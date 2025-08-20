@@ -32,7 +32,7 @@ export default struct VideoCardItem {
         .objectFit(ImageFit.Auto)
       Column() {
         Row() {
-          Text(VideoInfoUtil.getVideoTitle(this.videoListController.videoDataSource.getAllData(), this.item))
+          Text(VideoInfoUtil.getVideoTitle(this.item))
             .fontSize(15)
             .fontWeight(FontWeight.Medium)
             .maxLines(5)

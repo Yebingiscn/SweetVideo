@@ -16,18 +16,14 @@ export struct SettingSliderItem {
       Row({ space: 10 }) {
         SymbolGlyph(this.symbol)
           .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
-        Text(this.message + ':')
+        Text(this.message + '：' + (this.selected === 0 ? '不跳过' : TimeUtil.convertSSToMMSS(this.selected)))
           .fontSize(17)
           .fontWeight(FontWeight.Medium)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.MARQUEE })
-        Text(this.selected === 0 ? '不跳过' : TimeUtil.convertSSToMMSS(this.selected))
-          .fontSize(17)
-          .fontWeight(FontWeight.Medium)
-          .width('100%') // 宽度充满父容器
       }
       .width('100%')
-      .margin({ bottom: 10 }) // 与下部分间距
+      .justifyContent(FlexAlign.Start) // 文字区域两端对齐
 
       Slider({
         value: this.selected,
@@ -43,14 +39,14 @@ export struct SettingSliderItem {
             this.onChangeComplete(this.selected)
           }
         })
-        .selectedColor($r('app.color.main_color'))
+        .selectedColor($r('app.color.main_color')).width('100%') // 进度条单独占满宽度
     }
     .align(Alignment.Center)
     .backgroundColor($r('app.color.start_window_background_blur'))
     .height(65)
     .borderRadius(16)
     .padding({
-      right: 15,
+      right: 10,
       left: 15,
       top: 10,
       bottom: 10
