@@ -10,16 +10,16 @@ export struct VolumeSwipingComponent {
 
   build() {
     Stack() { //音量提示
-      Column() {
-        AVVolumePanel({
-          volumeLevel: this.videoVolume,
-          volumeParameter: {
-            position: {
-              x: -1,
-              y: -1
-            }
+      AVVolumePanel({
+        volumeLevel: this.videoVolume,
+        volumeParameter: {
+          position: {
+            x: -1,
+            y: -1
           }
-        }).visibility(Visibility.None)
+        }
+      }).visibility(Visibility.None)
+      Column() {
         if (this.onSwipingVoice) {
           SymbolGlyph($r('sys.symbol.speaker_wave_1'))
             .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
@@ -40,16 +40,16 @@ export struct VolumeSwipingComponent {
             .trackThickness(40)
         }
       }
+      .padding({
+        left: 25,
+        right: 25,
+        top: 10,
+        bottom: 10
+      })
+      .borderRadius(1000)
+      .backgroundColor('#30000000')
+      .backdropBlur(100)
+      .animation({ duration: 300, curve: Curve.Smooth })
     }
-    .padding({
-      left: 25,
-      right: 25,
-      top: 10,
-      bottom: 10
-    })
-    .borderRadius(1000)
-    .backgroundColor('#30000000')
-    .backdropBlur(100)
-    .animation({ duration: 300, curve: Curve.Smooth })
   }
 }

@@ -4,14 +4,14 @@ import { fileUri } from '@kit.CoreFileKit'
 import { PathUtils } from '../../utils/PathUtils'
 import { ImageFancyModifier } from '../../utils/AttributeModifierUtil'
 import { PlayerSideBarSource } from '../../utils/DataUtil'
-
+import VideoInfoUtil from '../../utils/VideoInfoUtil'
 
 @Component
 export struct PlayerSideBarComponent {
   @State playerSideBarSource: PlayerSideBarSource = new PlayerSideBarSource([])
   @Link sideBarStatusTmp: Visibility
   @Prop video_meta_data: VideoMetadata[]
-  @Prop now_playing: VideoMetadataFromPlayer
+  @Link now_playing: VideoMetadataFromPlayer | undefined
   @Link sideBarStatus: boolean
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   private listScroller: Scroller = new Scroller();
@@ -30,18 +30,18 @@ export struct PlayerSideBarComponent {
             item: item,
             now_playing: this.now_playing
           })
-            .reuseId(this.now_playing && this.now_playing?.date === item?.date ? 'now_playing_item' : 'playing_item')
             .onClick(() => {
               if (this.sideBarStatusTmp === Visibility.Hidden) {
                 return
               }
               this.onItemClick(item)
+              console.error('test' + this.now_playing?.title)
             })
             .width('100%')
             .height('auto')
             .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.9 })
         }.padding({ top: index === 0 ? 10 : 0 })
-      }, (item: VideoMetadata) => item.date)
+      }, (item: VideoMetadata) => item.date + this.now_playing?.date)
     }
     .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
     .chainAnimation(true)
@@ -80,7 +80,7 @@ export struct ListView {
       Image(fileUri.getUriFromPath(PathUtils.coverPath + this.item?.date))
         .attributeModifier(new ImageFancyModifier(10, 64, 96))
         .margin({ left: 5 })
-      Text((String(this.item?.title)).slice(0, String(this.item?.title).lastIndexOf('.')))
+      Text(VideoInfoUtil.getVideoTitle(this.item!))
         .fontSize(15)
         .fontColor(this.now_playing && this.now_playing?.date === this.item?.date ? $r('app.color.main_color') :
         $r('app.color.text_color'))

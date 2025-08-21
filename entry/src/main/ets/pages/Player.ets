@@ -45,7 +45,7 @@ import NavigationAddress from '../common/NavigationAddress';
 export struct Player { // 播放页
   avPlayer: media.AVPlayer | undefined = undefined
   avSession: avSessionManager.AVSession | undefined = undefined;
-  now_playing: VideoMetadataFromPlayer | undefined = undefined
+  @State now_playing: VideoMetadataFromPlayer | undefined = undefined
   @State playing: boolean = false
   @State speed: number = 1.0
   @State play_time: number = 0
@@ -463,6 +463,7 @@ export struct Player { // 播放页
     if (!PrivacySpaceUtil.getPrivacyMode()) {
       RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
     }
+    this.avPlayer?.off('subtitleUpdate');
     await this.avPlayer?.reset()
     await this.ijkPlayerStop()
     this.now_playing = item as VideoMetadataFromPlayer
@@ -560,8 +561,8 @@ export struct Player { // 播放页
           now_playing: this.now_playing,
           sideBarStatus: this.sideBarStatus,
           onItemClick: (item: VideoMetadata) => {
-            this.playChooseVideo(item) // pass
-            this.closeSideBar(true) // pass
+            this.playChooseVideo(item)
+            this.closeSideBar(true)
           }
         })
 
