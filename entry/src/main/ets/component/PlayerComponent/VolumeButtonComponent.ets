@@ -11,15 +11,9 @@ export struct VolumeButtonComponent {
     Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
       Row() {
         AVVolumePanel({
-          volumeLevel: this.volume,
-          volumeParameter: {
-            position: {
-              x: -1,
-              y: -1
-            }
-          }
+          volumeLevel: this.volume
         })
-      }.visibility(Visibility.None)
+      }.visibility(Visibility.Hidden)
 
       Row() {
         Slider({
