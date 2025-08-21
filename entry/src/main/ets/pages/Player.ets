@@ -130,8 +130,18 @@ export struct Player { // 播放页
     this.volume = volume_list.get('volume')!
     this.volumeActually = this.volume
     this.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
+      let changeVolumeByVolumeButton = false
+      if (!this.onSwipingVoice) { // 这里复用手势音量调节提示
+        this.onSwipingVoice = !this.onSwipingVoice
+        changeVolumeByVolumeButton = true
+      }
       this.volumeActually = volumeEvent.volume
       ToolsUtil.startVibration()
+      setTimeout(() => {
+        if (changeVolumeByVolumeButton) {
+          this.onSwipingVoice = !this.onSwipingVoice
+        }
+      }, 800)
     });
     if (canIUse('SystemCapability.Applications.Settings.Core')) {
       settings.getValue(PathUtils.appContext!, settings.display.SCREEN_BRIGHTNESS_STATUS,
@@ -301,25 +311,6 @@ export struct Player { // 播放页
       }
     });
 
-    this.avPlayer?.on('subtitleUpdate', async (info: media.SubtitleInfo) => {
-      if (VideoOperateUtil.clearSubtitleTimer !== null) {
-        clearTimeout(VideoOperateUtil.clearSubtitleTimer);
-        VideoOperateUtil.clearSubtitleTimer = null;
-      }
-      if (info) {
-        const text = info.text ?? '';
-        const duration = info.duration ?? 0;
-        this.sub_title = text;
-        if (duration > 0) {
-          VideoOperateUtil.clearSubtitleTimer = setTimeout(() => {
-            this.sub_title = '';
-          }, duration) as number;
-        }
-      } else {
-        this.sub_title = '';
-      }
-    });
-
     this.avPlayer?.on('stateChange', async (state) => {
       switch (state) {
         case 'initialized':
@@ -405,6 +396,24 @@ export struct Player { // 播放页
       const size = fs.statSync(PathUtils.subtitlePath! + now_playing.date);
       this.avPlayer?.addSubtitleFromFd(file1.fd, 0, size.size);
     }
+    this.avPlayer?.on('subtitleUpdate', async (info: media.SubtitleInfo) => { // 需要进入prepare状态前完成注册
+      if (VideoOperateUtil.clearSubtitleTimer !== null) {
+        clearTimeout(VideoOperateUtil.clearSubtitleTimer);
+        VideoOperateUtil.clearSubtitleTimer = null;
+      }
+      if (info) {
+        const text = info.text ?? '';
+        const duration = info.duration ?? 0;
+        this.sub_title = text;
+        if (duration > 0) {
+          VideoOperateUtil.clearSubtitleTimer = setTimeout(() => {
+            this.sub_title = '';
+          }, duration) as number;
+        }
+      } else {
+        this.sub_title = '';
+      }
+    });
   }
 
   videoStartPlayTime(seekMode: number) {
@@ -433,10 +442,10 @@ export struct Player { // 播放页
   async getData() {
     this.avPlayer = await AVPlayerUtil.getAVPlayer()
     if (this.avPlayer) {
+      await this.setExternalSubtitle(this.now_playing!)
       this.setAVPlayerCallback()
       await PermissionUtil.activatePermission(this.now_playing?.uri || '')
       this.avPlayer.fdSrc = fs.openSync(this.now_playing?.uri);
-      await this.setExternalSubtitle(this.now_playing!)
       this.setRotation()
       if (this.smartRotation && this.play_area_width > this.play_area_height &&
         this.screen_height > this.screen_width) {
@@ -644,12 +653,11 @@ export struct Player { // 播放页
             })
           }
 
-          if (this.onSwipingVoice) {
-            VolumeSwipingComponent({
-              videoVolume: this.volume,
-              videoVolumeShow: this.volumeActually
-            })
-          }
+          VolumeSwipingComponent({
+            videoVolume: this.volume,
+            videoVolumeShow: this.volumeActually,
+            onSwipingVoice: this.onSwipingVoice,
+          })
 
           if (this.onSwipingBrightness) {
             BrightnessSwipingComponent({
@@ -702,25 +710,20 @@ export struct Player { // 播放页
                 VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
                 this.volume = this.volumeActually
                 VideoOperateUtil.lastVolume = this.volume; // 记录起始音量
-                VideoOperateUtil.lastVolumeTime = Date.now(); // 记录起始时间
-                VideoOperateUtil.lastOffSetY = 0
               }
             },
             onVerticalPanUpdate: (event: GestureEvent) => {
               if (!this.isLock && event.fingerList.length === 1) {
+                const deltaYScale = event.offsetY / this.screen_height * 2.5
                 if (this.isLeftSideSwipe) {
                   this.onSwipingBrightness = true
-                  const deltaYScale = event.offsetY / this.screen_height * 2.5
                   this.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
                   VideoOperateUtil.setBrightness(this.screenBrightness);
                 } else {
                   this.onSwipingVoice = true
-                  let deltaY = event.offsetY - VideoOperateUtil.lastOffSetY
-                  const deltaYScale = deltaY / this.screen_height * 150
-                  this.volume = VideoOperateUtil.calNewVolume(deltaYScale)
-                  VideoOperateUtil.lastVolumeTime = VideoOperateUtil.volumeGestureActiveTime;
-                  VideoOperateUtil.lastVolume = this.volume
-                  VideoOperateUtil.lastOffSetY = event.offsetY
+                  const newVolume = VideoOperateUtil.lastVolume - deltaYScale * 20;
+                  this.volume =
+                    Math.min(Math.max(newVolume, VideoOperateUtil.min_volume), VideoOperateUtil.max_volume);
                 }
               }
             },

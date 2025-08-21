@@ -167,12 +167,11 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           })
         }
 
-        if (this.onSwipingVoice) {
-          VolumeSwipingComponent({
-            videoVolume: this.volume,
-            videoVolumeShow: this.volumeActually
-          })
-        }
+        VolumeSwipingComponent({
+          videoVolume: this.volume,
+          videoVolumeShow: this.volumeActually,
+          onSwipingVoice: this.onSwipingVoice
+        })
 
         if (this.onSwipingBrightness) {
           BrightnessSwipingComponent({
@@ -508,8 +507,18 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     }
     this.volumeActually = this.volume
     this.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
+      let changeVolumeByVolumeButton = false
+      if (!this.onSwipingVoice) { // 这里复用手势音量调节提示
+        this.onSwipingVoice = !this.onSwipingVoice
+        changeVolumeByVolumeButton = true
+      }
       this.volumeActually = volumeEvent.volume
       ToolsUtil.startVibration()
+      setTimeout(() => {
+        if (changeVolumeByVolumeButton) {
+          this.onSwipingVoice = !this.onSwipingVoice
+        }
+      }, 800)
     });
   }
 

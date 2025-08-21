@@ -6,6 +6,7 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 export struct VolumeSwipingComponent {
   @Link videoVolume: number
   @Link videoVolumeShow: number
+  @Link onSwipingVoice: boolean
 
   build() {
     Stack() { //音量提示
@@ -14,28 +15,30 @@ export struct VolumeSwipingComponent {
           volumeLevel: this.videoVolume,
           volumeParameter: {
             position: {
-              x: 10000,
-              y: 20000
+              x: -1,
+              y: -1
             }
           }
         }).visibility(Visibility.None)
-        SymbolGlyph($r('sys.symbol.speaker_wave_1'))
-          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-          .fontColor(['#f0f0f0'])
-        Slider({
-          value: this.videoVolumeShow,
-          min: VideoOperateUtil.min_volume,
-          max: VideoOperateUtil.max_volume,
-          step: 0.1,
-          style: SliderStyle.NONE,
-          direction: Axis.Horizontal,
-          reverse: false
-        })
-          .width(60)
-          .height(30)
-          .selectedColor($r('app.color.main_color'))
-          .trackColor(Color.Black)
-          .trackThickness(40)
+        if (this.onSwipingVoice) {
+          SymbolGlyph($r('sys.symbol.speaker_wave_1'))
+            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+            .fontColor(['#f0f0f0'])
+          Slider({
+            value: this.videoVolumeShow,
+            min: VideoOperateUtil.min_volume,
+            max: VideoOperateUtil.max_volume,
+            step: 0.1,
+            style: SliderStyle.NONE,
+            direction: Axis.Horizontal,
+            reverse: false
+          })
+            .width(60)
+            .height(30)
+            .selectedColor($r('app.color.main_color'))
+            .trackColor(Color.Black)
+            .trackThickness(40)
+        }
       }
     }
     .padding({

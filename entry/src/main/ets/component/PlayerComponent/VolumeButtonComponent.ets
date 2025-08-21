@@ -14,8 +14,8 @@ export struct VolumeButtonComponent {
           volumeLevel: this.volume,
           volumeParameter: {
             position: {
-              x: 10000,
-              y: 20000
+              x: -1,
+              y: -1
             }
           }
         })

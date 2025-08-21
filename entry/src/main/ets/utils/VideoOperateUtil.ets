@@ -40,10 +40,7 @@ class VideoOperateUtil {
   public lastVolume: number = 0
   public windowStage: window.WindowStage | undefined = undefined
   public volumeGestureActiveTime: number = 0
-  public lastVolumeTime: number = 0
-  public lastOffSetY: number = 0
   private mainWin: window.Window | undefined = undefined
-  private volumeChangeAccumulator: number = 0
 
   // 设置亮度
   setBrightness(screenBrightness: number) {
@@ -294,16 +291,19 @@ class VideoOperateUtil {
   getVideoStartPlayTimeMode(nowPlaying: VideoMetadataFromPlayer, skipIntroTime: string) {
     // 若为视频设置了片头时间，并且上次播放记录小于片头时间，则自动跳到片头时间
     if (nowPlaying?.start_time && nowPlaying?.start_time > 0 && nowPlaying.start_time > nowPlaying.last_play) {
+      ToolsUtil.showToast('已跳过片头')
       return VideoStartTimeMode.SEEK_TO_START_TIME
     }
     // 若已有播放记录，则自动跳到上次播放时间
     if (nowPlaying?.last_play !== 0 && nowPlaying?.last_play! < nowPlaying?.time! * 0.9) {
+      ToolsUtil.showToast('已跳到上次播放时间')
       return VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME
     }
     // 若无播放记录，并且设定了统一片头时间，则自动跳到片头时间（音频除外）
     if (Number(skipIntroTime) > 0 && Number(skipIntroTime) * 1000 < nowPlaying?.time! &&
       !VideoInfoUtil.support_audio_format.includes(nowPlaying?.title.split('.')[nowPlaying?.title.split('.')
         .length-1].toLowerCase()!)) {
+      ToolsUtil.showToast('已跳过统一的片头时间')
       return VideoStartTimeMode.SEEK_TO_INTRO_TIME
     }
     return -1
@@ -316,26 +316,6 @@ class VideoOperateUtil {
 
   getTimePixel(screenWidth: number, videoTime: number) {
     return videoTime > 600000 ? 600000 / screenWidth : videoTime / screenWidth
-  }
-
-  calNewVolume(deltaYScale: number) {
-    // 1. 计算原始音量变化 (使用处理后的值)
-    const rawVolumeChange = -deltaYScale * 0.15; // 灵敏度系数
-    // 2. 应用变化速率限制
-    this.volumeGestureActiveTime = Date.now();
-    const timeDelta = Math.max(this.volumeGestureActiveTime - this.lastVolumeTime, 1);
-    // 3. 指数平滑处理（EMA系数）
-    const alpha = 0.55;
-    // 这里实现了一个指数移动平均算法
-    this.volumeChangeAccumulator = alpha * rawVolumeChange + (1 - alpha) * this.volumeChangeAccumulator;
-    const maxChangePerFrame = 0.3; // 每帧最大变化量
-    // 4. 应用时间敏感的限制
-    const rateLimitedChange = Math.min(
-      Math.abs(this.volumeChangeAccumulator / timeDelta * 8),
-      maxChangePerFrame
-    ) * Math.sign(this.volumeChangeAccumulator);
-    const newVolume = this.lastVolume + rateLimitedChange;
-    return Number(Math.min(Math.max(newVolume, -10), this.max_volume).toFixed(2));
   }
 }
 
