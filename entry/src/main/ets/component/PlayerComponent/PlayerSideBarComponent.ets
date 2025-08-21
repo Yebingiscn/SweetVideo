@@ -34,10 +34,7 @@ export struct PlayerSideBarComponent {
               if (this.sideBarStatusTmp === Visibility.Hidden) {
                 return
               }
-              if (this.now_playing?.date !== item.date) {
-                this.onItemClick(item)
-              }
-              console.error('test' + this.now_playing?.title)
+              this.now_playing?.date === item.date ? this.closeSideBar() : this.onItemClick(item)
             })
             .width('100%')
             .height('auto')
@@ -53,10 +50,7 @@ export struct PlayerSideBarComponent {
     })
     .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
       if (event) {
-        this.sideBarStatusTmp = Visibility.Hidden
-        setTimeout(() => {
-          this.sideBarStatus = false
-        }, 250)
+        this.closeSideBar()
       }
     }))
     .visibility(this.sideBarStatusTmp)
@@ -68,6 +62,13 @@ export struct PlayerSideBarComponent {
     .transition(TransitionEffect.translate({ x: 250 }).animation({ duration: 300, curve: Curve.Friction }))
     .borderRadius(20)
     .cachedCount(3)
+  }
+
+  private closeSideBar() {
+    this.sideBarStatusTmp = Visibility.Hidden
+    setTimeout(() => {
+      this.sideBarStatus = false
+    }, 250)
   }
 }
 
