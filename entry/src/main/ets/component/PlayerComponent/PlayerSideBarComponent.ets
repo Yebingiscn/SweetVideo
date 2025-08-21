@@ -34,7 +34,9 @@ export struct PlayerSideBarComponent {
               if (this.sideBarStatusTmp === Visibility.Hidden) {
                 return
               }
-              this.onItemClick(item)
+              if (this.now_playing?.date !== item.date) {
+                this.onItemClick(item)
+              }
               console.error('test' + this.now_playing?.title)
             })
             .width('100%')
