@@ -281,27 +281,36 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             this.last_speed = this.play_speed
             this.play_speed = '3'
             this.mIjkMediaPlayer?.setSpeed(this.play_speed)
-            this.currentSpeedIndex = VideoInfoUtil.video_speed_list.indexOf(3);
+            this.currentSpeedIndex = VideoInfoUtil.getVideoSpeedList(NavigationAddress.FFMPEG_PLAYER).indexOf(3);
           },
           onLongPressEnd: () => {
             this.long_press = false
             this.play_speed = this.last_speed
             this.mIjkMediaPlayer?.setSpeed(this.last_speed);
           },
+          onLongPressPanStart: (event: GestureEvent) => {
+            if (!this.isLock) {
+              VideoOperateUtil.longPressStartX = event.fingerList[0].localX;
+            }
+          },
           onLongPressPanUpdate: (event: GestureEvent) => {
-            const SWIPE_THRESHOLD = 30;
-            if (Math.abs(event.offsetX) <= SWIPE_THRESHOLD) { // 检查是否达到滑动阈值
+            const deltaX = event.fingerList[0].localX - VideoOperateUtil.longPressStartX;
+            const SWIPE_THRESHOLD = 15;
+            if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
               return;
             }
-            const direction = event.offsetX > 0 ? 1 : -1; // 确定滑动方向（正值为右滑，负值为左滑）
-            const newIndex = this.currentSpeedIndex + direction; // 计算新的速度索引
-            const clampedIndex = Math.max(0, Math.min(newIndex, VideoInfoUtil.video_speed_list.length - 1));
+            const direction = Math.sign(deltaX);
+            const newIndex = this.currentSpeedIndex + direction; // 计算新速度索引并限制在有效范围内
+            const clampedIndex = Math.max(0,
+              Math.min(newIndex, VideoInfoUtil.getVideoSpeedList(NavigationAddress.FFMPEG_PLAYER).length - 1));
             if (clampedIndex === this.currentSpeedIndex) { // 如果速度没有变化则直接返回
               return;
             }
             this.currentSpeedIndex = clampedIndex
-            this.play_speed = VideoInfoUtil.video_speed_list[this.currentSpeedIndex].toString()
+            this.play_speed =
+              VideoInfoUtil.getVideoSpeedList(NavigationAddress.FFMPEG_PLAYER)[this.currentSpeedIndex].toString()
             this.mIjkMediaPlayer?.setSpeed(this.play_speed);
+            VideoOperateUtil.longPressStartX = event.fingerList[0].localX; // 重置起始点实现分档切换效果
           }
         })
       }
