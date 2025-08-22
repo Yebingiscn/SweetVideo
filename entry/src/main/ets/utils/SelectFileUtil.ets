@@ -110,8 +110,8 @@ class SelectFileUtil {
     start_time?: number, end_time?: number) {
     let save_time: number = 0
     if (play_time && !start_time && !end_time) {
-      //计算保存进度，超过这个时间默认用户已经看完，从头开始
-      save_time = play_time > target_data?.time * 0.95 ? 0 : play_time
+      //计算保存进度，超过这个时间默认用户已经看完，从头开始, 但是保存为总时间
+      save_time = play_time > target_data?.time * 0.95 ? target_data?.time : play_time
     }
     const updateVideo = (video: VideoMetadata) => {
       if (play_time !== undefined) {
@@ -157,24 +157,24 @@ class SelectFileUtil {
   }
 
   deleteVideo(videoMetaData: VideoMetadata) {
-    this.deleteVideoFolder(videoMetaData)
+    this.deleteVideoFromFolder(videoMetaData)
     this.deleteVideoEncryption(videoMetaData)
     RecentPlayUtil.delData(PathUtils.appContext!, videoMetaData.uri)
   }
 
-  deleteVideoFolder(videoMetaData: VideoMetadata, currentFolder?: FileFolder) {
-    const context = PathUtils.appContext!
-    //  更新文件夹的数据
-    const folders = Preferences.getFileFolder(context)
-    if (currentFolder) {
-      const folderIndex = folders.findIndex(i => i.name === currentFolder.name)
-      folders[folderIndex].video_list.filter(i => i.date !== videoMetaData.date)
-    } else {
-      for (let folderIndex = 0; folderIndex < folders.length; folderIndex++) {
-        folders[folderIndex].video_list = folders[folderIndex].video_list.filter(i => i.date !== videoMetaData.date)
-      }
+  deleteVideoFromFolder(videoMetaData: VideoMetadata, currentFolder?: FileFolder) {
+    const context = PathUtils.appContext!;
+    const folders = Preferences.getFileFolder(context);
+    if (!folders || folders.length === 0) {
+      return;
     }
-    Preferences.saveFileFolder(context, folders)
+    const targetFolders = currentFolder
+      ? folders.filter(f => f.name === currentFolder.name)
+      : folders;
+    targetFolders.forEach(folder => {
+      folder.video_list = folder.video_list.filter(video => video.date !== videoMetaData.date);
+    });
+    Preferences.saveFileFolder(context, folders);
   }
 
   deleteVideoEncryption(videoMetaData: VideoMetadata) {
@@ -228,8 +228,8 @@ class SelectFileUtil {
   getNextItem(list: VideoMetadata[], item: string) {
     const currentIndex = list.findIndex(i => i.date === item);
     if (currentIndex === -1) {
-      return null;
-    } // 如果没有找到当前项，返回 null
+      return list[0];
+    } // 如果没有找到当前项，返回 第一项
     let nextIndex = (currentIndex + 1) % list.length;
     for (let i = 0; i < list.length; i++) {
       if (VideoInfoUtil.videoWidthAndHeightFormat(String(list[nextIndex].size)) !== '0 x 0') {
@@ -237,18 +237,18 @@ class SelectFileUtil {
       }
       nextIndex = (nextIndex + 1) % list.length; // 移动到下一个索引
     }
-    return list[(currentIndex + 1) % list.length]; // 如果没有找到有效项，返回下一个项
+    return list[(currentIndex + 1) % list.length]; // 如果没有找到有效项，返回下一个项，0x0会自动调用其他播放核心
   }
 
   getItemFromSearch(list: VideoMetadata[], value: string): VideoMetadata[] {
-    const lowerValue = value.toLowerCase().trim();
-    const results: VideoMetadata[] = [];
-    for (const item of list) {
-      if (item.title.toLowerCase().includes(lowerValue)) {
-        (results as VideoMetadata[]).push(item);
-      }
+    const trimmedValue = value?.trim();
+    if (!trimmedValue) {
+      return [];
     }
-    return results;
+    const lowerValue = trimmedValue.toLowerCase();
+    return list.filter(item =>
+    item.title.toLowerCase().includes(lowerValue)
+    );
   }
 
   getItemIndex(list: VideoMetadata[], tmp: VideoMetadata) {
@@ -276,18 +276,7 @@ class SelectFileUtil {
           await dataLock.acquire();
           try {
             if (!file_folder) {
-              let folderName: string | undefined;
-              // 从 uri 中获取文件夹名
-              if (uri.startsWith(this.file_folder_uri)) {
-                const prefix = this.file_folder_uri + "/";
-                const suffix = file.name;
-                folderName = uri.substring(prefix.length);
-                folderName = folderName.replace(suffix, "");
-                const pathArray = folderName.split("/");
-                if (pathArray.length > 1) {
-                  folderName = pathArray[0];
-                }
-              }
+              const folderName = FileFolderUtil.extractRootFolderNameFromUri(uri, file.name)
               if (folderName) {
                 const folderLock = ConcurrencyManagerUtil.getLock(`folder_${folderName}`);
                 await folderLock.acquire();
@@ -308,7 +297,7 @@ class SelectFileUtil {
               }
             }
             let isDuplicate = false;
-            isDuplicate = FileFolderUtil.existsVideoInFolders(context, uri);
+            isDuplicate = FileFolderUtil.existsVideoInFolders(context, uri, file.name);
             if (!isDuplicate) {
               if (PrivacySpaceUtil.getPrivacyMode()!) {
                 await this.copyFileToPrivacySpace(context, video_meta_data, uri, sandbox_video,
@@ -331,6 +320,7 @@ class SelectFileUtil {
             dataLock.release();
           }
         } finally {
+          avMetadataExtractor.release?.(); // 或 .release()
           fs.closeSync(file);
         }
       });

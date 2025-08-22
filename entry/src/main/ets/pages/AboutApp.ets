@@ -9,6 +9,7 @@ export struct AboutApp {
   @Consume('pathStack') pathStack: NavPathStack
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
+  private GITHUB_HOME_LINK: string = "https://github.com/Yebingiscn/SweetVideo" // 项目主页
 
   build() {
     NavDestination() {
@@ -71,7 +72,7 @@ export struct AboutApp {
               .width('48%')
               .backgroundColor($r('app.color.start_window_background_blur'))
               .onClick(() => {
-                let link: string = WantProcessUtil.GITHUB_HOME_LINK;
+                let link: string = this.GITHUB_HOME_LINK;
                 WantProcessUtil.linkToWeb(PathUtils.appContext!, link)
               })
 

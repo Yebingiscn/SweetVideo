@@ -35,11 +35,11 @@ export struct FileFolderMenu {
               //批量移动
               let folders: FileFolder[] = []
               if (DataSyncUtil.delMultipleList.length > 0) {
-                folders = FileFolderUtil.addVideosInFileFolder(PathUtils.appContext!, DataSyncUtil.delMultipleList,
+                folders = FileFolderUtil.transferVideosToFileFolder(PathUtils.appContext!, DataSyncUtil.delMultipleList,
                   this.videoListController.folder.date, item.date)
                 this.videoListController.closeMultipleChoose()
               } else { //非批量操作
-                folders = FileFolderUtil.addVideosInFileFolder(PathUtils.appContext!, [this.video_item],
+                folders = FileFolderUtil.transferVideosToFileFolder(PathUtils.appContext!, [this.video_item],
                   this.videoListController.folder.date, item.date)
                 // 处理用户多选但是没有选择而是直接移动的情况
                 if (this.videoListController.multipleChooseState === Visibility.Visible) {

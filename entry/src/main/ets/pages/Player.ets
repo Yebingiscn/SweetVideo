@@ -274,25 +274,7 @@ export struct Player { // 播放页
         this.skipTheEnd()
       }
       if (!this.onSwiping) {
-        this.play_time = duration;
-        if (this.mIjkMediaPlayer && Date.now() - VideoOperateUtil.lastSyncTime < VideoOperateUtil.syncCoolDown) {
-          return;
-        }
-        const audioPosition = Number(this.mIjkMediaPlayer?.getCurrentPosition());
-        const drift = duration - audioPosition; // 记录最近5次差异
-        VideoOperateUtil.driftHistory.push(drift);
-        if (VideoOperateUtil.driftHistory.length > 5) {
-          VideoOperateUtil.driftHistory.shift();
-        } // 动态阈值计算
-        const buffer = this.mIjkMediaPlayer?.getAudioCachedBytes()!;
-        const dynamicThreshold = Math.min(1000, 300 + buffer * 0.5); // 趋势分析（最近3次差异是否持续扩大）
-        const isGrowing = VideoOperateUtil.driftHistory.slice(-3).every((v, i, arr) =>
-        i === 0 || Math.abs(v) > Math.abs(arr[i-1])); // 触发条件：差异超过阈值或存在持续扩大趋势
-        if (Math.abs(drift) > dynamicThreshold || (isGrowing && Math.abs(drift) > 300)) {
-          this.handleIntelligentSync(duration, audioPosition);
-          VideoOperateUtil.lastSyncTime = Date.now(); // 自适应调整冷却时间
-          VideoOperateUtil.syncCoolDown = Math.max(500, 1000 - buffer * 2);
-        }
+        this.calPlayerSync(duration)
       }
     });
 
@@ -322,6 +304,7 @@ export struct Player { // 播放页
           }
           break;
         case 'prepared':
+          await this.setExternalSubtitle(this.now_playing!)
           await this.getAudioTrack()
           this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.now_playing!, this.skipIntroTime))
           this.avPlayer?.play();
@@ -346,6 +329,9 @@ export struct Player { // 播放页
           break;
         case 'playing':
           this.playing = true
+          if (this.mIjkMediaPlayer) {
+            this.mIjkMediaPlayer?.start()
+          }
           if (!this.avSession && this.allowBackgroundPlay) {
             this.avSession = await AVSessionUtil.getAVSession()
             await this.setSessionListener()
@@ -442,7 +428,6 @@ export struct Player { // 播放页
   async getData() {
     this.avPlayer = await AVPlayerUtil.getAVPlayer()
     if (this.avPlayer) {
-      await this.setExternalSubtitle(this.now_playing!)
       this.setAVPlayerCallback()
       await PermissionUtil.activatePermission(this.now_playing?.uri || '')
       this.avPlayer.fdSrc = fs.openSync(this.now_playing?.uri);
@@ -1055,5 +1040,27 @@ export struct Player { // 播放页
       }
     };
     setTimeout(restore, 30000);
+  }
+
+  private calPlayerSync(duration: number) {
+    this.play_time = duration;
+    if (this.mIjkMediaPlayer && Date.now() - VideoOperateUtil.lastSyncTime < VideoOperateUtil.syncCoolDown) {
+      return;
+    }
+    const audioPosition = Number(this.mIjkMediaPlayer?.getCurrentPosition());
+    const drift = duration - audioPosition; // 记录最近5次差异
+    VideoOperateUtil.driftHistory.push(drift);
+    if (VideoOperateUtil.driftHistory.length > 5) {
+      VideoOperateUtil.driftHistory.shift();
+    } // 动态阈值计算
+    const buffer = this.mIjkMediaPlayer?.getAudioCachedBytes()!;
+    const dynamicThreshold = Math.min(1000, 300 + buffer * 0.5); // 趋势分析（最近3次差异是否持续扩大）
+    const isGrowing = VideoOperateUtil.driftHistory.slice(-3).every((v, i, arr) =>
+    i === 0 || Math.abs(v) > Math.abs(arr[i-1])); // 触发条件：差异超过阈值或存在持续扩大趋势
+    if (Math.abs(drift) > dynamicThreshold || (isGrowing && Math.abs(drift) > 300)) {
+      this.handleIntelligentSync(duration, audioPosition);
+      VideoOperateUtil.lastSyncTime = Date.now(); // 自适应调整冷却时间
+      VideoOperateUtil.syncCoolDown = Math.max(500, 1000 - buffer * 2);
+    }
   }
 }

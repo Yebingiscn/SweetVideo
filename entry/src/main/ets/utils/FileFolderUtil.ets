@@ -8,6 +8,7 @@ import DataSyncUtil from '../utils/DataSyncUtil'
 import { FileFolderDataSource } from './DataUtil'
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
+import SelectFileUtil from './SelectFileUtil'
 
 // 文件夹类
 class FileFolderUtil {
@@ -38,7 +39,7 @@ class FileFolderUtil {
   }
 
   // 添加视频到文件夹，支持批量
-  static addVideosInFileFolder(context: Context, videos: VideoMetadata[], fromFolderDate: string,
+  static transferVideosToFileFolder(context: Context, videos: VideoMetadata[], fromFolderDate: string,
     targetFolderDate: string): FileFolder[] {
     const folders = Preferences.getFileFolder(context) || [];
     // 单次遍历查找两个文件夹
@@ -147,11 +148,11 @@ class FileFolderUtil {
     Preferences.saveFileFolder(context, file_folder_list)
   }
 
-  static existsVideoInFolders(context: Context, uri: string): boolean {
+  static existsVideoInFolders(context: Context, uri: string, title: string): boolean {
     let exists: boolean;
     if (PrivacySpaceUtil.getPrivacyMode()) {
       const videoMetaData = Preferences.getVideoMetaDataEncryption(context) || [];
-      exists = videoMetaData.some(item => item.uri === uri);
+      exists = videoMetaData.some(item => item.title === title);
     } else {
       const folders = Preferences.getFileFolder(context) || [];
       exists = folders.some(folder =>
@@ -162,6 +163,25 @@ class FileFolderUtil {
       FileFolderUtil.duplicateVideo++;
     }
     return exists;
+  }
+
+  static extractRootFolderNameFromUri(uri: string, fileName: string): string | undefined {
+    const prefix = SelectFileUtil.file_folder_uri + "/";
+    if (!uri.startsWith(SelectFileUtil.file_folder_uri) || !uri.startsWith(prefix)) {
+      return undefined;
+    }
+    const relativePath = uri.substring(prefix.length);
+    // 必须以文件名结尾
+    if (!relativePath.endsWith(fileName)) {
+      return undefined;
+    }
+    const dirPath = relativePath.substring(0, relativePath.length - fileName.length);
+    const cleanDir = dirPath.replace(/\/+$/, ""); // 移除尾部斜杠
+    if (!cleanDir) {
+      return undefined;
+    }
+    const parts = cleanDir.split("/");
+    return parts[0] || undefined;
   }
 }
 

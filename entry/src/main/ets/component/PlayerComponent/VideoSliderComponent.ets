@@ -2,7 +2,7 @@ import TimeUtil from '../../utils/TimeUtil'
 
 @Component
 export struct VideoSliderComponent {
-  @Link playTime: number
+  @Prop playTime: number
   @Prop totalTime: number
   @Link screenWidth: number
   @Link screenHeight: number

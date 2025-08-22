@@ -133,7 +133,7 @@ export struct VideoList {
   })
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: editMetadataDialog({
-      confirm: async (title: string | undefined) => {
+      confirm: (title: string | undefined) => {
         if (!title?.trim()) {
           return;
         } // 更严格的空值判断
@@ -142,9 +142,9 @@ export struct VideoList {
         if (targetIndex === -1) {
           return;
         }
-        const titleSet = new Set(this.videoListController.videoMetaDataList.map(v => v.title));
-        if (titleSet.has(title)) {
-          return;
+        if (this.videoListController.videoMetaDataList.some((v, index) => index !== targetIndex &&
+          v.title === title.trim())) {
+          return; // 这里直接用 some 来代替，没必要每次都 new 一个Set
         }
         this.videoListController.videoMetaDataList[targetIndex].title = title.trim();
         this.videoListController.videoDataSource.updateData(this.videoListController.videoMetaDataList)

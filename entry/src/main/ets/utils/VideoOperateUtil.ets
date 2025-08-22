@@ -182,7 +182,7 @@ class VideoOperateUtil {
     video_meta_data: VideoMetadata[], context: Context) {
     const recentPlay = Preferences.getRecentPlayState(context) // 判断最近播放开关是否开启
     if (recentPlay && !PrivacySpaceUtil.getPrivacyMode()) { // 最近播放开启且非隐私空间视频则添加到最近播放
-      RecentPlayUtil.addPlayback(context, video_meta_data[video_meta_data.findIndex(i => i.date == now_playing?.date)])
+      RecentPlayUtil.addPlayback(context, video_meta_data.find(i => i.date == now_playing?.date)!)
     }
     // 保存文件数据
     SelectFileUtil.saveData(context, now_playing!, play_time)
@@ -289,13 +289,14 @@ class VideoOperateUtil {
   }
 
   getVideoStartPlayTimeMode(nowPlaying: VideoMetadataFromPlayer, skipIntroTime: string) {
-    // 若为视频设置了片头时间，并且上次播放记录小于片头时间，则自动跳到片头时间
-    if (nowPlaying?.start_time && nowPlaying?.start_time > 0 && nowPlaying.start_time > nowPlaying.last_play) {
+    // 若为视频设置了片头时间，并且上次播放记录小于片头时间或者已经播完了，则自动跳到片头时间
+    if (nowPlaying?.start_time && nowPlaying?.start_time > 0 &&
+      (nowPlaying.start_time > nowPlaying.last_play || nowPlaying?.last_play > nowPlaying?.time! * 0.95)) {
       ToolsUtil.showToast('已跳过片头')
       return VideoStartTimeMode.SEEK_TO_START_TIME
     }
     // 若已有播放记录，则自动跳到上次播放时间
-    if (nowPlaying?.last_play !== 0 && nowPlaying?.last_play! < nowPlaying?.time! * 0.9) {
+    if (nowPlaying?.last_play !== 0 && nowPlaying?.last_play! < nowPlaying?.time! * 0.95) {
       ToolsUtil.showToast('已跳到上次播放时间')
       return VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME
     }

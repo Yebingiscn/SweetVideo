@@ -14,13 +14,22 @@ import NavigationAddress from '../common/NavigationAddress';
 // 处理拉起应用传来的视频链接
 class WantProcess {
   public hasNewWant = false //是否接收到拉起
-  public want: Want | undefined = undefined
-  public wantUri: string = '' //接收到的uri
-  public isSystemShare: boolean = false // 是否系统分享
-  public GITHUB_HOME_LINK: string = "https://github.com/Yebingiscn/SweetVideo" // 项目主页
   // 隐私协议链接
   public PRIVACY_LINK: string =
     "https://github.com/Yebingiscn/SweetVideo/wiki/%E6%B5%81%E5%BF%83%E8%A7%86%E9%A2%91%E7%9A%84%E4%BD%BF%E7%94%A8%E6%9D%A1%E6%AC%BE%E4%B8%8E%E9%9A%90%E7%A7%81%E5%A3%B0%E6%98%8E"
+  private isSystemShare: boolean = false // 是否系统分享
+
+  private _wantUri: string = ''; //接收到的uri
+
+  public set wantUri(value: string) {
+    this._wantUri = value;
+  }
+
+  private _want: Want | undefined = undefined;
+
+  public set want(value: Want | undefined) {
+    this._want = value;
+  }
 
   async getSystemShareWant(want: Want) {
     try {
@@ -28,7 +37,7 @@ class WantProcess {
       const records = data.getRecords();
       for (const record of records) {
         if (record.uri) {
-          this.wantUri = record.uri;
+          this._wantUri = record.uri;
           this.isSystemShare = true;
           this.hasNewWant = true;
           break;
@@ -41,19 +50,19 @@ class WantProcess {
   }
 
   async checkWant(context: Context, pathStack: NavPathStack) {
-    if (!this.want) {
+    if (!this._want) {
       return
     }
-    if (this.want.uri) {
-      this.wantUri = this.want.uri
+    if (this._want.uri) {
+      this._wantUri = this._want.uri
       this.hasNewWant = true
     } else {
-      await this.getSystemShareWant(this.want)
-      if (!this.wantUri) {
+      await this.getSystemShareWant(this._want)
+      if (!this._wantUri) {
         return
       }
     }
-    if (this.wantUri != '') {
+    if (this._wantUri != '') {
       this.clearWantState()
       this.hasWant(context, pathStack)
     }
@@ -63,18 +72,18 @@ class WantProcess {
   async hasWant(context: Context, pathStack: NavPathStack) {
     if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
       let avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor()
-      let file = fs.openSync(this.wantUri);
+      let file = fs.openSync(this._wantUri);
       avMetadataExtractor.fdSrc = file
       avMetadataExtractor.fetchMetadata(async (_error: BusinessError, metadata: media.AVMetadata) => {
         let targetVideo: VideoMetadata = {
-          uri: this.wantUri,
-          title: decodeURI(this.wantUri.split('/')[this.wantUri.split('/').length-1]),
+          uri: this._wantUri,
+          title: decodeURI(this._wantUri.split('/')[this._wantUri.split('/').length-1]),
           date: systemDateTime.getTime(false).toString(),
           size: VideoUtil.getVideoWidthAndHeight(metadata),
           time: parseInt(metadata.duration || '0'),
           last_play: 0,
-          format: VideoInfoUtil.getVideoFormat(this.wantUri),
-          video_size: await VideoUtil.getVideoSize(this.wantUri, true) as string,
+          format: VideoInfoUtil.getVideoFormat(this._wantUri),
+          video_size: await VideoUtil.getVideoSize(this._wantUri, true) as string,
           hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
           start_time: 0,
           end_time: 0
@@ -82,7 +91,7 @@ class WantProcess {
         // 获取默认播放器
         let url = this.getPlayer(context, targetVideo)
         const playerParams = new PlayerParams(targetVideo, [targetVideo], undefined)
-        this.wantUri = ''
+        this._wantUri = ''
         pathStack.pushPathByName(url, playerParams, true)
       })
     }
@@ -117,7 +126,7 @@ class WantProcess {
 
   private clearWantState() {
     this.hasNewWant = false;
-    this.want = undefined;
+    this._want = undefined;
   }
 }
 

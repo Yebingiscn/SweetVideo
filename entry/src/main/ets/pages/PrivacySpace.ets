@@ -25,6 +25,8 @@ import { SearchComponent } from '../component/VideoItemComponent/SearchComponent
 import { VideoInfoComponent } from '../component/VideoItemComponent/VideoInfoComponent';
 import { ImportProgressComponent } from '../component/VideoItemComponent/ImportProgressComponent';
 import NavigationAddress from '../common/NavigationAddress';
+import { editMetadataDialog } from '../component/Dialog/EditMetadataDialog';
+import FileFolderUtil from '../utils/FileFolderUtil';
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -34,7 +36,6 @@ export struct PrivacySpace { // 隐私空间页
   @Consume('pathStack') pathStack: NavPathStack
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
-  @State MenuBuilderState: boolean = false
   @State import_sum: number = 0
   @State current_import: number = 0
   @State loading: boolean = false
@@ -57,6 +58,26 @@ export struct PrivacySpace { // 隐私空间页
         this.passwd = passwd
         ToolsUtil.savePwd(PathUtils.appContext!, passwd)
         ToolsUtil.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.set_passwd_tip')))
+      },
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  editMetadataDialogController: CustomDialogController = new CustomDialogController({
+    builder: editMetadataDialog({
+      confirm: (title: string | undefined) => {
+        if (!title?.trim()) {
+          return;
+        } // 更严格的空值判断
+        const editingVideo = JSON.parse(DataSyncUtil.editingVideo) as VideoMetadata;
+        const targetIndex = SelectFileUtil.getItemIndex(this.video_meta_data_encryption, editingVideo);
+        if (targetIndex === -1) {
+          return;
+        }
+        if (this.video_meta_data_encryption.some((v, index) => index !== targetIndex && v.title === title.trim())) {
+          return; // 这里直接用 some 来代替，隐私空间视频不多，没必要每次都 new 一个Set
+        }
+        this.video_meta_data_encryption[targetIndex].title = title.trim();
+        this.videoDataSource.updateData(this.video_meta_data_encryption)
+        Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, this.video_meta_data_encryption)
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -148,7 +169,6 @@ export struct PrivacySpace { // 隐私空间页
   MenuBuilder(item: VideoMetadata | undefined) {
     Menu() {
       MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(async () => {
-        this.MenuBuilderState = false
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           await ToolsUtil.isFileExist(item) ?
           ToolsUtil.routerWhere(this.pathStack, NavigationAddress.FFMPEG_PLAYER, item!,
@@ -157,7 +177,6 @@ export struct PrivacySpace { // 隐私空间页
         }, 200)
       })
       MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
-        this.MenuBuilderState = false
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           await ToolsUtil.isFileExist(item) ?
           ToolsUtil.routerWhere(this.pathStack, NavigationAddress.RED_PLAYER, item!,
@@ -176,10 +195,22 @@ export struct PrivacySpace { // 隐私空间页
         .onClick(async () => {
           await this.delItem(PathUtils.appContext!, item!)
         })
-    }.attributeModifier(new MenuModifier()).onAppear(() => {
-      ToolsUtil.startVibration()
-      this.MenuBuilderState = true
-    })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
+        content: $r('app.string.rename')
+      })
+        .onClick(() => {
+          DataSyncUtil.editingVideo = JSON.stringify(item);
+          this.editMetadataDialogController.open()
+        })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
+        content: '导出'
+      })
+        .onClick(() => {
+          SelectFileUtil.exportFile(item!, PathUtils.appContext!)
+        })
+    }.attributeModifier(new MenuModifier())
   }
 
   async toMetaData(fileList: string[], fileFolder?: FileFolder) {
@@ -201,7 +232,9 @@ export struct PrivacySpace { // 隐私空间页
       this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!);
       this.videoDataSource.updateData(this.video_meta_data_encryption)
       ToolsUtil.showToast(
-        `${PathUtils.appContext!.resourceManager.getStringSync($r('app.string.add_time_info'))}${this.import_sum}`
+        `${PathUtils.appContext!.resourceManager.getStringSync($r('app.string.add_time_info'))}${this.import_sum -
+        FileFolderUtil.duplicateVideo}${FileFolderUtil.duplicateVideo > 0 ?
+          '重复视频已经智能跳过，跳过视频数：' + FileFolderUtil.duplicateVideo : ''}`
       );
     } catch (error) {
       ToolsUtil.showToast('处理过程中发生意外错误:' + error);
