@@ -263,31 +263,36 @@ export struct RedPlayer { // 红薯播放器页
             this.last_speed = this.play_speed
             this.play_speed = 2
             this.playerController.setSpeed(this.play_speed)
-            this.currentSpeedIndex = VideoInfoUtil.video_speed_list.indexOf(2);
+            this.currentSpeedIndex = VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER).indexOf(2);
           },
           onLongPressEnd: () => {
             this.long_press = false
             this.play_speed = this.last_speed
             this.playerController.setSpeed(this.last_speed)
           },
+          onLongPressPanStart: (event: GestureEvent) => {
+            if (!this.isLock) {
+              VideoOperateUtil.longPressStartX = event.fingerList[0].localX;
+            }
+          },
           onLongPressPanUpdate: (event: GestureEvent) => {
             if (!this.isLock && this.long_press) { // 长按状态下的滑动处理
-              const SWIPE_THRESHOLD = 30;
-              if (Math.abs(event.offsetX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
+              const deltaX = event.fingerList[0].localX - VideoOperateUtil.longPressStartX;
+              const SWIPE_THRESHOLD = 15;
+              if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
                 return;
               }
-              const direction = event.offsetX > 0 ? 1 : -1; // 确定滑动方向（正值为右滑，负值为左滑）
-              const newIndex = this.currentSpeedIndex + direction; // 计算新的速度索引
-              const clampedIndex = Math.max(0, Math.min(newIndex, VideoInfoUtil.video_speed_list.length - 1));
-              // 检查速度索引是否变化且速度值是否在允许范围内 (0.5-2.0)
-              if (clampedIndex === this.currentSpeedIndex ||
-                VideoInfoUtil.video_speed_list[clampedIndex] < 0.5 ||
-                VideoInfoUtil.video_speed_list[clampedIndex] > 2) {
+              const direction = Math.sign(deltaX);
+              const newIndex = this.currentSpeedIndex + direction; // 计算新速度索引并限制在有效范围内
+              const clampedIndex = Math.max(0,
+                Math.min(newIndex, VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER).length - 1));
+              if (clampedIndex === this.currentSpeedIndex) { // 索引变化时才更新播放速度
                 return;
               }
               this.currentSpeedIndex = clampedIndex
-              this.play_speed = VideoInfoUtil.video_speed_list[clampedIndex]; // 更新播放速度
+              this.play_speed = VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER)[clampedIndex]; // 更新播放速度
               this.playerController.setSpeed(this.play_speed);
+              VideoOperateUtil.longPressStartX = event.fingerList[0].localX; // 重置起始点实现分档切换效果
             }
           }
         })

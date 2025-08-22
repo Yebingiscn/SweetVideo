@@ -40,6 +40,7 @@ class VideoOperateUtil {
   public lastVolume: number = 0
   public windowStage: window.WindowStage | undefined = undefined
   public volumeGestureActiveTime: number = 0
+  public longPressStartX: number = 0
   private mainWin: window.Window | undefined = undefined
 
   // 设置亮度

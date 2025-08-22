@@ -6,6 +6,7 @@ import ReqPermission from '../utils/ReqPermissionUtil';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import PrivacySpaceUtil from './PrivacySpaceUtil';
 import { FileProcessorUtil } from './FileProcessorUtil';
+import NavigationAddress from '../common/NavigationAddress';
 
 // 视频信息类
 class VideoInfoUtil {
@@ -19,8 +20,6 @@ class VideoInfoUtil {
   ];
   // 字幕格式支持列表
   public support_subtitle_format = ['srt', 'vtt', 'ass']
-  // 倍数格式支持列表
-  public video_speed_list: number[] = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3]
   // 屏幕比例放大列表
   public scale_factors = new Map<string, number>([
     ['等比放大 110%', 1.1],
@@ -37,15 +36,24 @@ class VideoInfoUtil {
   public play_area_height: number = 0
   private GB = 1024 * 1024 * 1024 // 1GB in bytes
   private MB = 1024 * 1024 // 1MB in bytes
-  private VIDEO_SPEED = 1
-  // 倍速枚举，绑定系统倍速
-  private video_speed_map =
-    new Map([[0.125, media.PlaybackSpeed.SPEED_FORWARD_0_125_X], [0.25, media.PlaybackSpeed.SPEED_FORWARD_0_25_X],
+  // 倍速枚举，绑定系统倍速，倍速映射：用户倍速 ↔ 系统枚举
+  private VIDEO_SPEED_MAP =
+    new Map<number, media.PlaybackSpeed>([[0.125, media.PlaybackSpeed.SPEED_FORWARD_0_125_X],
+      [0.25, media.PlaybackSpeed.SPEED_FORWARD_0_25_X],
       [0.5, media.PlaybackSpeed.SPEED_FORWARD_0_50_X],
       [0.75, media.PlaybackSpeed.SPEED_FORWARD_0_75_X], [1, media.PlaybackSpeed.SPEED_FORWARD_1_00_X],
       [1.25, media.PlaybackSpeed.SPEED_FORWARD_1_25_X], [1.5, media.PlaybackSpeed.SPEED_FORWARD_1_50_X],
       [1.75, media.PlaybackSpeed.SPEED_FORWARD_1_75_X], [2, media.PlaybackSpeed.SPEED_FORWARD_2_00_X],
       [3, media.PlaybackSpeed.SPEED_FORWARD_3_00_X]])
+  // 反向映射：系统枚举 → 用户倍速
+  private REVERSE_SPEED_MAP = new Map<media.PlaybackSpeed, number>(
+    Array.from(this.VIDEO_SPEED_MAP.entries()).map((entry) => [entry[1], entry[0]])
+  );
+  // 类成员变量
+  private readonly videoSpeedListAll: number[] = Array.from(this.VIDEO_SPEED_MAP.keys())
+    .filter(speed => speed >= 0.25)
+    .sort((a, b) => a - b);
+  private readonly videoSpeedListRedPlayer: number[] = this.videoSpeedListAll.filter(s => s <= 2);
   // 视频标签格式化
   private video_size_map: Record<string, string> = {
     '720': '720P HD',
@@ -189,20 +197,20 @@ class VideoInfoUtil {
     }
   }
 
-  // 绑定系统播放倍速库，获取实际倍速
-  getVideoSpeed(video_speed: number) {
-    if (this.video_speed_map.get(this.VIDEO_SPEED) === video_speed) {
-      const pre_speed = this.VIDEO_SPEED;
-      this.VIDEO_SPEED = 1;
-      return pre_speed;
-    }
-    if (this.VIDEO_SPEED === 1) {
-      this.VIDEO_SPEED = video_speed
-      return this.video_speed_map.get(video_speed)!
-    }
-    return this.video_speed_map.has(video_speed) ?
-      this.video_speed_map.get(video_speed)! :
-    media.PlaybackSpeed.SPEED_FORWARD_1_00_X;
+  // 正向：用户倍速 → 系统枚举
+  mapToSystemSpeed(userSpeed: number): media.PlaybackSpeed {
+    return this.VIDEO_SPEED_MAP.get(userSpeed) || media.PlaybackSpeed.SPEED_FORWARD_1_00_X;
+  }
+
+  // 反向：系统枚举 → 用户倍速
+  mapFromSystemSpeed(systemEnum: media.PlaybackSpeed): number {
+    return this.REVERSE_SPEED_MAP.get(systemEnum) || 1.0;
+  }
+
+  getVideoSpeedList(player: string): number[] {
+    return player === NavigationAddress.RED_PLAYER
+      ? this.videoSpeedListRedPlayer
+      : this.videoSpeedListAll;
   }
 
   // 获取视频标签格式化

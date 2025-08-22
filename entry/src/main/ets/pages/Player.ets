@@ -153,10 +153,11 @@ export struct Player { // 播放页
   }
 
   updatePlaybackSpeed(speed: number): void {
-    if (!VideoInfoUtil.video_speed_list.includes(speed)) {
-      speed = 1;
+    if (!VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).includes(speed)) {
+      speed = 1.0;
     }
-    this.avPlayer?.setSpeed(VideoInfoUtil.getVideoSpeed(speed));
+    const systemSpeed = VideoInfoUtil.mapToSystemSpeed(speed);
+    this.avPlayer?.setSpeed(systemSpeed);
     if (this.mIjkMediaPlayer) {
       this.mIjkMediaPlayer?.setSpeed(String(speed));
     }
@@ -185,7 +186,7 @@ export struct Player { // 播放页
   async aboutToDisappear(): Promise<void> {
     VideoOperateUtil.setBrightness(-1)
     Preferences.saveVideoSpeed(PathUtils.appContext!,
-      (VideoInfoUtil.video_speed_list.includes(this.speed) ? this.speed : 1) + 'x')
+      (VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).includes(this.speed) ? this.speed : 1) + 'x')
     Preferences.saveRepeatModeState(PathUtils.appContext!, this.repeatMode)
     this.avPlayer?.off('subtitleUpdate');
     this.avPlayer?.off('timeUpdate')
@@ -283,9 +284,10 @@ export struct Player { // 播放页
       VideoOperateUtil.updateSession(this.playing, this.play_time)
     })
 
-    this.avPlayer?.on('speedDone', (enumValue) => {
-      this.speed = VideoInfoUtil.getVideoSpeed(enumValue) // 这里返回的是倍速的枚举值，需要转换为实际倍速
-    })
+    this.avPlayer?.on('speedDone', (systemEnum: media.PlaybackSpeed) => {
+      const actualSpeed = VideoInfoUtil.mapFromSystemSpeed(systemEnum);
+      this.speed = actualSpeed;
+    });
 
     this.avPlayer?.on('audioOutputDeviceChangeWithInfo', (data: audio.AudioStreamDeviceChangeInfo) => {
       if (data.changeReason === audio.AudioStreamDeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) {
@@ -777,35 +779,35 @@ export struct Player { // 播放页
                 this.long_press = true
                 VideoOperateUtil.lastSpeed = this.speed
                 this.updatePlaybackSpeed(3);
-                this.currentSpeedIndex = VideoInfoUtil.video_speed_list.indexOf(3);
+                this.currentSpeedIndex = VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).indexOf(3);
               }
             },
             onLongPressEnd: () => {
               this.long_press = false
               this.updatePlaybackSpeed(VideoOperateUtil.lastSpeed);
             },
-            onLongPressPanStart: (_event: GestureEvent) => {
+            onLongPressPanStart: (event: GestureEvent) => {
               if (!this.isLock) {
+                VideoOperateUtil.longPressStartX = event.fingerList[0].localX;
               }
             },
             onLongPressPanUpdate: (event: GestureEvent) => {
               if (!this.isLock && this.long_press) { // 长按状态下的滑动处理
-                const SWIPE_THRESHOLD = 30;
-                if (Math.abs(event.offsetX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
+                const deltaX = event.fingerList[0].localX - VideoOperateUtil.longPressStartX;
+                const SWIPE_THRESHOLD = 15;
+                if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
                   return;
                 }
-                if (typeof this.currentSpeedIndex === 'undefined') { // 确保currentSpeedIndex已初始化
-                  const defaultSpeedIdx = VideoInfoUtil.video_speed_list.indexOf(this.speed);
-                  this.currentSpeedIndex = defaultSpeedIdx === -1 ? 0 : defaultSpeedIdx;
-                }
-                const direction = Math.sign(event.offsetX);
+                const direction = Math.sign(deltaX);
                 const newIndex = this.currentSpeedIndex + direction; // 计算新速度索引并限制在有效范围内
-                const clampedIndex = Math.max(0, Math.min(newIndex, VideoInfoUtil.video_speed_list.length - 1));
+                const clampedIndex = Math.max(0,
+                  Math.min(newIndex, VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).length - 1));
                 if (clampedIndex === this.currentSpeedIndex) { // 索引变化时才更新播放速度
                   return;
                 }
                 this.currentSpeedIndex = clampedIndex;
-                this.updatePlaybackSpeed(VideoInfoUtil.video_speed_list[this.currentSpeedIndex]);
+                this.updatePlaybackSpeed(VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER)[this.currentSpeedIndex]);
+                VideoOperateUtil.longPressStartX = event.fingerList[0].localX; // 重置起始点实现分档切换效果
               }
             }
           })
