@@ -153,6 +153,17 @@ export struct VideoList {
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
 
+
+  @Builder
+  VideoItemPreviewer(item: VideoMetadata, index: number) {
+    VideoListItem({
+      item: item,
+      index: index,
+      delMultipleList: this.delMultipleList
+    }).backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
+    $r('app.color.start_window_background'))
+  }
+
   build() {
     if (this.isListDisplay) {
       List({ scroller: this.videoListController.listScroller }) {
@@ -174,8 +185,8 @@ export struct VideoList {
           .height('auto')
           .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
             {
-              preview: MenuPreviewMode.IMAGE,
-              previewAnimationOptions: { hoverScale: [1.0, 0.95] },
+              preview: this.VideoItemPreviewer(item, index),
+              previewAnimationOptions: { hoverScale: [1.0, 0.6] },
               onAppear: () => {
                 this.longPressPreview = true
               },
@@ -185,8 +196,8 @@ export struct VideoList {
             })
           .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
             {
-              preview: MenuPreviewMode.IMAGE,
-              previewAnimationOptions: { hoverScale: [1.0, 0.95] },
+              preview: this.VideoItemPreviewer(item, index),
+              previewAnimationOptions: { hoverScale: [1.0, 0.6] },
               onAppear: () => {
                 this.longPressPreview = true
               },
