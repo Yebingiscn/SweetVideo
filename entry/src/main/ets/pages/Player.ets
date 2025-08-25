@@ -49,7 +49,6 @@ export struct Player { // 播放页
   @State playing: boolean = false
   @State speed: number = 1.0
   @State play_time: number = 0
-  @State last_play_time: number = 0
   surfaceID: string = ''
   @State long_press: boolean = false
   @State @Watch('setScreen') showControl: boolean = false
@@ -215,12 +214,15 @@ export struct Player { // 播放页
       this.play_area_height = this.screen_height;
       this.play_area_width = this.play_area_height * (nowWidth / nowHeight);
     }
+    if (this.select_text !== '原始比例') {
+      this.select_text = '原始比例'
+    }
     VideoInfoUtil.saveVideoWidthAndHeight(this.play_area_width, this.play_area_height)
   }
 
   async getAudioTrack() {
     this.audio_track = await VideoOperateUtil.getAudioTracks(this.avPlayer!)
-    if (VideoOperateUtil.audioTrackErrorExecute(this.audio_track)) {
+    if (VideoOperateUtil.validateAudioTracks(this.audio_track)) {
       this.avPlayer!.selectTrack(this.audio_track[0].index);
     } else {
       this.mIjkMediaPlayer = IjkMediaPlayer.getInstance();
@@ -504,11 +506,11 @@ export struct Player { // 播放页
       return;
     }
     switch (text) {
-      case VideoInfoUtil.screen_extend_map[0]:
+      case VideoInfoUtil.screenExtendMap[0]:
         this.play_area_height = VideoInfoUtil.play_area_height;
         this.play_area_width = VideoInfoUtil.play_area_width;
         break;
-      case VideoInfoUtil.screen_extend_map[1]:
+      case VideoInfoUtil.screenExtendMap[1]:
         this.play_area_height = this.screen_height;
         this.play_area_width = this.screen_width;
         break;
@@ -637,7 +639,7 @@ export struct Player { // 播放页
               isSliderPlayTimeChange: this.isSliderPlayTimeChange,
               playTime: this.play_time,
               totalTime: this.now_playing?.time,
-              lastPlayTime: this.last_play_time
+              lastPlayTime: VideoOperateUtil.last_play_time
             })
           }
 
@@ -722,7 +724,7 @@ export struct Player { // 播放页
             },
             onHorizonPanStart: (_event: GestureEvent) => {
               if (!this.isLock) {
-                this.last_play_time = this.play_time;
+                VideoOperateUtil.last_play_time = this.play_time;
                 this.onSwiping = true;
                 // 记录初始拖拽位置
               }
@@ -735,7 +737,7 @@ export struct Player { // 播放页
                 typeof event.fingerList[0].localX === 'number') {
                 const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.now_playing?.time!)
                 this.play_time = Math.max(0,
-                  Math.min(this.last_play_time + (event.offsetX * timePerPixel),
+                  Math.min(VideoOperateUtil.last_play_time + (event.offsetX * timePerPixel),
                     this.now_playing?.time!));
               }
             },

@@ -28,8 +28,16 @@ class VideoInfoUtil {
     ['等比放大 140%', 1.4]
   ]);
   // 屏幕比例放大列表
-  public screen_extend_map: string[] =
-    ['原始比例', '填满屏幕', '16:9', '4:3', '等比放大 110%', '等比放大 120%', '等比放大 130%', '等比放大 140%']
+  public screenExtendList: Array<SelectOption> = [//屏幕扩展
+    { value: '原始比例' },
+    { value: '填满屏幕' },
+    { value: '16:9' },
+    { value: '4:3' },
+    { value: '等比放大 110%' },
+    { value: '等比放大 120%' },
+    { value: '等比放大 130%' },
+    { value: '等比放大 140%' }]
+  public screenExtendMap: string[] = this.screenExtendList.map(item => item.value as string);
   // 播放器视频宽度
   public play_area_width: number = 0
   // 播放器视频高度

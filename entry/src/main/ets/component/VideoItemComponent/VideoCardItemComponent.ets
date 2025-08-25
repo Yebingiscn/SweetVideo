@@ -30,7 +30,6 @@ export default struct VideoCardItem {
         }, 60, 200))
         .width('100%').height('auto')
         .objectFit(ImageFit.Auto)
-      Column() {
         Row() {
           Text(VideoInfoUtil.getVideoTitle(this.item))
             .fontSize(15)
@@ -52,8 +51,6 @@ export default struct VideoCardItem {
         .padding({ top: 5 })
 
         VideoInfoComponent({ item: this.item })
-      }.padding({ left: 5, right: 5, bottom: 5 })
-      .width('100%')
     }
     .width('100%')
     .height('auto')

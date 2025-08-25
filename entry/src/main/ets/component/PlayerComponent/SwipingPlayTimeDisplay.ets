@@ -4,7 +4,7 @@ import TimeUtil from '../../utils/TimeUtil'
 export struct SwipingPlayTimeDisplay {
   @Link isSliderPlayTimeChange: boolean
   @Link playTime: number
-  @Link lastPlayTime: number
+  @Prop lastPlayTime: number
   @Prop totalTime: number
 
   build() {

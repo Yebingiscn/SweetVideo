@@ -153,15 +153,14 @@ export struct VideoList {
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
 
-
   @Builder
-  VideoItemPreviewer(item: VideoMetadata, index: number) {
+  VideoItemBuilder(item: VideoMetadata, index: number) {
     VideoListItem({
       item: item,
       index: index,
       delMultipleList: this.delMultipleList
     }).backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
-    $r('app.color.start_window_background'))
+    $r('app.color.start_window_background')).reuseId('list_item').borderRadius(8)
   }
 
   build() {
@@ -169,15 +168,10 @@ export struct VideoList {
       List({ scroller: this.videoListController.listScroller }) {
         LazyForEach(this.videoListController.videoDataSource, (item: VideoMetadata, index: number) => { // 加载视频列表
           ListItem() {
-            VideoListItem({
-              item: item,
-              index: index,
-              delMultipleList: this.delMultipleList
-            }).reuseId('list_item')
+            this.VideoItemBuilder(item, index)
           }
           .backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
           $r('app.color.start_window_background'))
-          .borderRadius(8)
           .margin({ bottom: 15 }) // 不知道动了哪里，挤在一起了，先这样改
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
@@ -185,10 +179,11 @@ export struct VideoList {
           .height('auto')
           .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
             {
-              preview: this.VideoItemPreviewer(item, index),
-              previewAnimationOptions: { hoverScale: [1.0, 0.6] },
+              preview: this.VideoItemBuilder(item, index),
+              previewAnimationOptions: { hoverScale: [1.0, 1.2] },
               onAppear: () => {
                 this.longPressPreview = true
+                ToolsUtil.startVibration()
               },
               aboutToDisappear: () => {
                 this.longPressPreview = false
@@ -196,8 +191,8 @@ export struct VideoList {
             })
           .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
             {
-              preview: this.VideoItemPreviewer(item, index),
-              previewAnimationOptions: { hoverScale: [1.0, 0.6] },
+              preview: this.VideoItemBuilder(item, index),
+              previewAnimationOptions: { hoverScale: [1.0, 1.2] },
               onAppear: () => {
                 this.longPressPreview = true
               },
@@ -267,17 +262,15 @@ export struct VideoList {
                   delMultipleList: this.delMultipleList
                 }).width('100%').reuseId('card_item')
               }
-              .borderRadius(8)
-              .backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
-              $r('app.color.start_window_background'))
               .width('100%')
               .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
               .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
                 {
-                  preview: MenuPreviewMode.IMAGE,
-                  previewAnimationOptions: { hoverScale: [1.0, 0.95] },
+                  preview: this.VideoItemBuilder(item, index),
+                  previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                   onAppear: () => {
                     this.longPressPreview = true
+                    ToolsUtil.startVibration()
                   },
                   aboutToDisappear: () => {
                     this.longPressPreview = false
@@ -285,8 +278,8 @@ export struct VideoList {
                 })
               .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
                 {
-                  preview: MenuPreviewMode.IMAGE,
-                  previewAnimationOptions: { hoverScale: [1.0, 0.95] },
+                  preview: this.VideoItemBuilder(item, index),
+                  previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                   onAppear: () => {
                     this.longPressPreview = true
                   },

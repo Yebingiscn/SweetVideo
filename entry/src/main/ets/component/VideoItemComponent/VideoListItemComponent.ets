@@ -20,7 +20,6 @@ export default struct VideoListItem {
   }
 
   build() {
-    Column() {
       Row() {
         Image(fileUri.getUriFromPath(PathUtils.coverPath + this.item.date))
           .attributeModifier(new ImageFancyModifier(10, 64, 96))
@@ -50,8 +49,5 @@ export default struct VideoListItem {
       }
       .justifyContent(FlexAlign.Center)
       .width('100%')
-    }
-    .height('auto')
-    .justifyContent(FlexAlign.SpaceEvenly)
   }
 }

@@ -35,8 +35,9 @@ class VideoOperateUtil {
   public clearSubtitleTimer: number | null = null; // 清除字幕时间
   public screenBrightnessTmp: number = 0
   public lastSpeed: number = 1
-  public aspectRatioMap = new Map([[VideoInfoUtil.screen_extend_map[2], 16 / 9],
-    [VideoInfoUtil.screen_extend_map[3], 4 / 3]]);
+  public last_play_time: number = 0
+  public aspectRatioMap = new Map([[VideoInfoUtil.screenExtendMap[2], 16 / 9],
+    [VideoInfoUtil.screenExtendMap[3], 4 / 3]]);
   public lastVolume: number = 0
   public windowStage: window.WindowStage | undefined = undefined
   public volumeGestureActiveTime: number = 0
@@ -128,9 +129,9 @@ class VideoOperateUtil {
   }
 
   // 未识别到音轨处理
-  audioTrackErrorExecute(audio_track: AudioTrack[]) {
+  validateAudioTracks(audio_track: AudioTrack[]) {
     if (audio_track.length === 0) {
-      ToolsUtil.showToast('未识别到音轨，已开启实验性解码，可能会导致闪退、发热、耗电以及音画不同步')
+      ToolsUtil.showToast('未识别到音轨，已开启实验性解码')
       return false
     }
     return true

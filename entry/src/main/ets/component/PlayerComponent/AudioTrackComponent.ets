@@ -16,9 +16,23 @@ export struct AudioTrackComponent {
   }
 
   build() {
-    if (VideoOperateUtil.audioTrackErrorExecute(this.audioTrack)) {
       Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-        LazyForEach(this.audioTrackDataSource, (item: AudioTrack, index: number) => {
+        if (this.audioTrack.length === 0) {
+          Row() {
+            Text('实验性音轨解码')
+              .fontSize(18)
+              .height(40)
+              .flexGrow(1)
+              .flexShrink(1)
+              .fontColor($r('app.color.main_color'))
+              .margin({ left: 5 })
+            Image($r('app.media.ffmpeg'))
+              .attributeModifier(new ImageFancyModifier(10, 30, 30))
+              .width(95)
+          }
+        }
+        if (VideoOperateUtil.validateAudioTracks(this.audioTrack)) {
+          LazyForEach(this.audioTrackDataSource, (item: AudioTrack, index: number) => {
           Row() { // 音轨
             Text(`${item.index} : ${item.name}(${VideoOperateUtil.getLanguageName(item.language)})`)
               .fontSize(18)
@@ -40,7 +54,7 @@ export struct AudioTrackComponent {
             this.onSelect(index)
           })
         })
+        }
       }.width(235)
-    }
   }
 }
