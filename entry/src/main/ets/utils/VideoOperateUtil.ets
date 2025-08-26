@@ -1,7 +1,7 @@
 import { window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { audio } from '@kit.AudioKit';
-import { BusinessError } from '@kit.BasicServicesKit';
+import { BusinessError, settings } from '@kit.BasicServicesKit';
 import { media } from '@kit.MediaKit';
 import AVSessionUtil from './AVSessionUtil';
 import { PlayerParams } from '../common/PlayerParams';
@@ -205,15 +205,6 @@ class VideoOperateUtil {
     SelectFileUtil.saveData(context, now_playing!, undefined, now_playing.size)
   }
 
-  // 更新播控中心状态
-  updateSession(playing: boolean, play_time: number) {
-    let data: AvSessionState = {
-      playing: playing,
-      duration: play_time
-    }
-    AVSessionUtil.updateSession(data)
-  }
-
   // 启动时初始化已保存的设置项
   initSetting(context: common.UIAbilityContext) {
     AppStorage.setOrCreate('allowBackgroundPlay', Preferences.getAllowBackgroundPlayState(context))
@@ -231,23 +222,21 @@ class VideoOperateUtil {
     PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'circle_play')
   }
 
-  async checkOtherCast(avSession: avSessionManager.AVSession) {
-    try {
-      let currentOutputDevice: avSession.OutputDeviceInfo = avSession.getOutputDeviceSync();
-      return currentOutputDevice
-    } catch (err) {
-      let error = err as BusinessError;
-      console.error(`getOutputDeviceSync error, error code: ${error.code}, error message: ${error.message}`);
-      return null
+  // 封装获取屏幕亮度的方法
+  async getScreenBrightness(): Promise<number> {
+    if (canIUse('SystemCapability.Applications.Settings.Core')) {
+      try {
+        const value = await settings.getValue(
+          PathUtils.appContext!,
+          settings.display.SCREEN_BRIGHTNESS_STATUS,
+          settings.domainName.DEVICE_SHARED
+        );
+        return Number(value) / 255;
+      } catch (error) {
+        return 0
+      }
     }
-  }
-
-  castOnStateChange(state: AVCastPickerState) {
-    if (state == AVCastPickerState.STATE_APPEARING) {
-      console.log('The picker starts showing.');
-    } else if (state == AVCastPickerState.STATE_DISAPPEARING) {
-      console.log('The picker finishes presenting.');
-    }
+    return 0
   }
 
   getLanguageName(code: string): string {
@@ -277,14 +266,12 @@ class VideoOperateUtil {
 
   async fullScreenOperate() {
     if (canIUse('SystemCapability.Window.SessionManager')) {
-      const windowUtil = WindowUtil?.getInstance?.()
-      const windowStatus = await windowUtil?.getWindowsStatus?.()
-      switch (windowStatus) {
+      switch (await WindowUtil.getWindowsStatus()) {
         case window.WindowStatusType.FLOATING:
-          windowUtil?.maximize?.()
+          WindowUtil?.maximize?.()
           return
         case window.WindowStatusType.FULL_SCREEN:
-          windowUtil?.recover?.()
+          WindowUtil?.recover?.()
           return
       }
     }

@@ -1,9 +1,9 @@
 import { AVCastPicker } from '@kit.AVSessionKit'
 import ToolsUtil from '../../utils/ToolsUtil'
-import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { KeyCode } from '@kit.InputKit'
 import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil'
 import { RepeatMode } from '../../common/enum/RepeatMode'
+import AVSessionUtil from '../../utils/AVSessionUtil'
 
 @Component
 export struct VideoButtonsComponent {
@@ -30,7 +30,6 @@ export struct VideoButtonsComponent {
           SymbolGlyph(this.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill'))
             .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
             .fontColor(['#f0f0f0'])
-            .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.playing))
         }
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
@@ -62,7 +61,7 @@ export struct VideoButtonsComponent {
       GridCol() { // 投播
         AVCastPicker({
           normalColor: Color.White,
-          onStateChange: VideoOperateUtil.castOnStateChange,
+          onStateChange: AVSessionUtil.castOnStateChange,
           customPicker: () => this.aVCastPickerBuilderBridge()
         })
           .width(23)

@@ -2,7 +2,7 @@ import { SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil'
 
 @Component
 export struct BrightnessSwipingComponent {
-  @Prop screenBrightness: number
+  @Link screenBrightness: number
 
   build() {
     Stack() { //亮度提示
@@ -10,6 +10,8 @@ export struct BrightnessSwipingComponent {
         SymbolGlyph($r('sys.symbol.sun_max'))
           .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
           .fontColor(['#f0f0f0'])
+          .rotate({ angle: this.screenBrightness * 360 })
+          .animation({ duration: 300, curve: Curve.Smooth })
         Slider({
           value: this.screenBrightness,
           min: 0,

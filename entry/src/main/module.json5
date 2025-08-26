@@ -27,6 +27,8 @@
         "startWindowBackground": "$color:start_window_background",
         "exported": true,
         "orientation": "auto_rotation_restricted",
+        "supportWindowMode": ["floating","fullscreen","split"],
+        "preferMultiWindowOrientation": "landscape_auto",
         "backgroundModes": [
           "audioPlayback"
         ],

@@ -68,7 +68,6 @@ export struct VideoTopComponent {
         SymbolGlyph(this.lockRotation ? $r('sys.symbol.lock_fill') : $r('sys.symbol.rotate_left'))
           .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
           .fontColor(['#f0f0f0'])
-          .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.lockRotation))
       }
       .attributeModifier(new ButtonFancyModifier(35, 40))
       .backgroundColor('#50000000')

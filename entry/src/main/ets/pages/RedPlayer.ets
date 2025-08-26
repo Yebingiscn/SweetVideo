@@ -13,7 +13,6 @@ import { AVCastPicker, avSession as avSessionManager } from '@kit.AVSessionKit';
 import VideoOperateUtil from '../utils/VideoOperateUtil';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
 import { audio } from '@kit.AudioKit';
-import { settings } from '@kit.BasicServicesKit';
 import { ButtonFancyModifier } from '../utils/AttributeModifierUtil';
 import { PathUtils } from '../utils/PathUtils';
 import RedPlayerSettingsConfig from '../common/RedPlayerSettingsConfig';
@@ -27,6 +26,7 @@ import { GestureComponent } from '../component/PlayerComponent/GestureComponent'
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
 import NavigationAddress from '../common/NavigationAddress';
 import { VolumeSwipingComponent } from '../component/PlayerComponent/VolumeSwipingComponent';
+import { WindowUtil } from '../utils/WindowUtil';
 
 @Component
 export struct RedPlayer { // 红薯播放器页
@@ -102,7 +102,7 @@ export struct RedPlayer { // 红薯播放器页
                     this.avSession = await AVSessionUtil.getAVSession()
                     await this.setSessionListener()
                     AVSessionUtil.setSessionInfo(this.now_playing!)
-                    VideoOperateUtil.updateSession(this.isSliderPlayTimeChange, this.redPlayerStateHolder.videoPosition)
+                    AVSessionUtil.updatePlaybackSessionState(this.isSliderPlayTimeChange, this.redPlayerStateHolder.videoPosition)
                   })
                 })
               })
@@ -358,13 +358,8 @@ export struct RedPlayer { // 红薯播放器页
     this.audioVolumeManager = audioManager.getVolumeManager();
     let volume_list = await VideoOperateUtil.getVolume(this.audioVolumeManager, groupId)
     this.volume = volume_list.get('volume')!
-    if (canIUse('SystemCapability.Applications.Settings.Core')) {
-      settings.getValue(PathUtils.appContext!, settings.display.SCREEN_BRIGHTNESS_STATUS,
-        settings.domainName.DEVICE_SHARED)
-        .then((value) => {
-          this.screenBrightness = Number(value) / 255;
-        })
-    }
+    WindowUtil.enableLandscapeMultiWindow(this.windowClass)
+    this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
     this.volumeActually = this.volume
     this.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
       let changeVolumeByVolumeButton = false
@@ -386,6 +381,7 @@ export struct RedPlayer { // 红薯播放器页
     VideoOperateUtil.setBrightness(-1)
     this.audioVolumeManager?.off('volumeChange');
     this.audioVolumeManager = null
+    WindowUtil.disableLandscapeMultiWindow(this.windowClass)
   }
 
   async setSessionListener() {
@@ -499,7 +495,7 @@ export struct RedPlayer { // 红薯播放器页
       GridCol() { // 投播
         AVCastPicker({
           normalColor: Color.White,
-          onStateChange: VideoOperateUtil.castOnStateChange,
+          onStateChange: AVSessionUtil.castOnStateChange,
           customPicker: () => this.AVCastPickerBuilderBridge()
         })
           .width(23)

@@ -21,7 +21,7 @@ export struct VolumeSwipingComponent {
       }).visibility(Visibility.None)
       Column() {
         if (this.onSwipingVoice) {
-          SymbolGlyph($r('sys.symbol.speaker_wave_1'))
+          SymbolGlyph(this.getVoiceIcon())
             .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
             .fontColor(['#f0f0f0'])
           Slider({
@@ -52,4 +52,18 @@ export struct VolumeSwipingComponent {
       .animation({ duration: 300, curve: Curve.Smooth })
     }
   }
+
+  private getVoiceIcon() {
+    if (this.videoVolume <= VideoOperateUtil.min_volume) {
+      return $r('sys.symbol.speaker_slash'); // 静音
+    }
+    if (this.videoVolume >= VideoOperateUtil.max_volume * 2/3) {
+      return $r('sys.symbol.speaker_wave_3'); // 高音量
+    }
+    if (this.videoVolume >= VideoOperateUtil.max_volume * 1/3) {
+      return $r('sys.symbol.speaker_wave_2'); // 中音量
+    }
+    return $r('sys.symbol.speaker_wave_1'); // 低音量
+  }
 }
+

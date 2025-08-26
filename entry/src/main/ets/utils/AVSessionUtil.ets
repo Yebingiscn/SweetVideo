@@ -1,4 +1,4 @@
-import { avSession, avSession as avSessionManager } from '@kit.AVSessionKit';
+import { AVCastPickerState, avSession, avSession as avSessionManager } from '@kit.AVSessionKit';
 import { image } from '@kit.ImageKit';
 import { AvSessionState } from '../interfaces/AvSessionStateInterface';
 import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
@@ -8,7 +8,7 @@ import { media } from '@kit.MediaKit';
 import PrivacySpaceUtil from './PrivacySpaceUtil';
 import VideoInfoUtil from './VideoInfoUtil';
 import { PathUtils } from './PathUtils';
-import { systemDateTime } from '@kit.BasicServicesKit';
+import { BusinessError, systemDateTime } from '@kit.BasicServicesKit';
 
 // 播控中心设置类
 class AVSessionUtil {
@@ -22,6 +22,34 @@ class AVSessionUtil {
       await this.createSession();
     }
     return this.avSession;
+  }
+
+  async checkOtherCast(avSession: avSessionManager.AVSession) {
+    try {
+      let currentOutputDevice: avSession.OutputDeviceInfo = avSession.getOutputDeviceSync();
+      return currentOutputDevice
+    } catch (err) {
+      let error = err as BusinessError;
+      console.error(`getOutputDeviceSync error, error code: ${error.code}, error message: ${error.message}`);
+      return null
+    }
+  }
+
+  // 更新播控中心状态
+  updatePlaybackSessionState(playing: boolean, play_time: number) {
+    let data: AvSessionState = {
+      playing: playing,
+      duration: play_time
+    }
+    this.updateSession(data)
+  }
+
+  castOnStateChange(state: AVCastPickerState) {
+    if (state == AVCastPickerState.STATE_APPEARING) {
+      console.log('The picker starts showing.');
+    } else if (state == AVCastPickerState.STATE_DISAPPEARING) {
+      console.log('The picker finishes presenting.');
+    }
   }
 
   async createSession() {

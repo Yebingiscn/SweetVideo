@@ -53,7 +53,9 @@ export class SymbolGlyphFancyModifier implements AttributeModifier<SymbolGlyphAt
       .fontSize(this.fontSize)
       .fontColor([$r('app.color.text_color')])
       .width(this.width)
-      .height(this.height);
+      .height(this.height)
+      .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+      .effectStrategy(SymbolEffectStrategy.SCALE)
   }
 }
 

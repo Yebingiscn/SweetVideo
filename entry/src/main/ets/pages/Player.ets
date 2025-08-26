@@ -8,7 +8,6 @@ import AVSessionUtil from '../utils/AVSessionUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
 import { audio } from '@kit.AudioKit';
-import { settings } from '@kit.BasicServicesKit';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import VideoOperateUtil from '../utils/VideoOperateUtil';
 import RecentPlayUtil from '../utils/RecentPlayUtil';
@@ -40,6 +39,7 @@ import { VideoSettingComponent } from '../component/PlayerComponent/VideoSetting
 import { RepeatMode } from '../common/enum/RepeatMode';
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
 import NavigationAddress from '../common/NavigationAddress';
+import { WindowUtil } from '../utils/WindowUtil';
 
 @Component
 export struct Player { // 播放页
@@ -142,13 +142,7 @@ export struct Player { // 播放页
         }
       }, 800)
     });
-    if (canIUse('SystemCapability.Applications.Settings.Core')) {
-      settings.getValue(PathUtils.appContext!, settings.display.SCREEN_BRIGHTNESS_STATUS,
-        settings.domainName.DEVICE_SHARED)
-        .then((value) => {
-          this.screenBrightness = Number(value) / 255;
-        })
-    }
+    this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
   }
 
   updatePlaybackSpeed(speed: number): void {
@@ -179,7 +173,7 @@ export struct Player { // 播放页
     await (await this.windowClass).setWindowKeepScreenOn(true)
     this.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
     const video_speed = Preferences.getVideoSpeed(PathUtils.appContext!)
-    this.speed = parseFloat(video_speed?.replace('x', '') || '1')
+    this.speed = parseFloat(video_speed?.replace('x', '') || '1');
   }
 
   async aboutToDisappear(): Promise<void> {
@@ -196,6 +190,7 @@ export struct Player { // 播放页
     this.avPlayer?.off('stateChange')
     this.audioVolumeManager?.off('volumeChange');
     this.audioVolumeManager = null
+    WindowUtil.disableLandscapeMultiWindow(this.windowClass)
   }
 
   async setRotation() {
@@ -283,7 +278,7 @@ export struct Player { // 播放页
 
     this.avPlayer?.on('seekDone', (percent) => {
       this.play_time = percent
-      VideoOperateUtil.updateSession(this.playing, this.play_time)
+      AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
     })
 
     this.avPlayer?.on('speedDone', (systemEnum: media.PlaybackSpeed) => {
@@ -340,21 +335,21 @@ export struct Player { // 播放页
             this.avSession = await AVSessionUtil.getAVSession()
             await this.setSessionListener()
             AVSessionUtil.setSessionInfo(this.now_playing!)
-            VideoOperateUtil.updateSession(this.playing, this.play_time)
+            AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
           }
-          VideoOperateUtil.updateSession(this.playing, this.play_time)
+          AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
           break
         case 'paused':
           if (this.mIjkMediaPlayer) {
             this.mIjkMediaPlayer?.pause()
           }
           this.playing = false
-          VideoOperateUtil.updateSession(this.playing, this.play_time)
+          AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
           break
         case 'released':
           await this.ijkPlayerStop()
           this.playing = false
-          VideoOperateUtil.updateSession(this.playing, this.play_time)
+          AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
           break
         case 'idle':
           await this.ijkPlayerStop()
@@ -436,6 +431,9 @@ export struct Player { // 播放页
       await PermissionUtil.activatePermission(this.now_playing?.uri || '')
       this.avPlayer.fdSrc = fs.openSync(this.now_playing?.uri);
       this.setRotation()
+      if (this.play_area_width > this.play_area_height) {
+        WindowUtil.enableLandscapeMultiWindow(this.windowClass)
+      }
       if (this.smartRotation && this.play_area_width > this.play_area_height &&
         this.screen_height > this.screen_width) {
         const proportion =
@@ -460,7 +458,7 @@ export struct Player { // 播放页
     this.avSession = await AVSessionUtil.getAVSession()
     await this.setSessionListener()
     AVSessionUtil.setSessionInfo(this.now_playing!)
-    VideoOperateUtil.updateSession(this.playing, this.play_time)
+    AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
   }
 
   playNextVideo() {

@@ -6,8 +6,8 @@ import { PathUtils } from './PathUtils';
 // 用于设置窗口状态
 export class WindowUtil {
   private static instance: WindowUtil;
-  private windowStage?: window.WindowStage;
-  private mainWindowClass = window.getLastWindow(PathUtils.appContext!)
+  private static  windowStage?: window.WindowStage;
+  private static  mainWindowClass = window.getLastWindow(PathUtils.appContext!)
 
   public static getInstance() {
     if (!WindowUtil.instance) {
@@ -16,17 +16,29 @@ export class WindowUtil {
     return WindowUtil.instance;
   }
 
-  public async getWindowsStatus(): Promise<window.WindowStatusType | undefined> {
+  public static  async getWindowsStatus(): Promise<window.WindowStatusType | undefined> {
     if (canIUse('SystemCapability.Window.SessionManager')) {
-      return (await this.mainWindowClass)?.getWindowStatus();
+      return (await WindowUtil.mainWindowClass)?.getWindowStatus();
     }
     return undefined;
   }
 
-  public async maximize(): Promise<void> {
+  public static  async enableLandscapeMultiWindow(windowClass:  Promise<window.Window>) {
+    if (canIUse("SystemCapability.Window.SessionManager")) {
+      (await windowClass).enableLandscapeMultiWindow()
+    }
+  }
+
+  public static  async disableLandscapeMultiWindow(windowClass:  Promise<window.Window>) {
+    if (canIUse("SystemCapability.Window.SessionManager")) {
+      (await windowClass).disableLandscapeMultiWindow()
+    }
+  }
+
+  public static  async maximize(): Promise<void> {
     if (canIUse('SystemCapability.Window.SessionManager')) {
-      if ((await this.mainWindowClass)?.getWindowStatus() === window.WindowStatusType.FLOATING) {
-        (await this.mainWindowClass)?.maximize()
+      if ((await WindowUtil.mainWindowClass)?.getWindowStatus() === window.WindowStatusType.FLOATING) {
+        (await WindowUtil.mainWindowClass)?.maximize()
           .then(() => {
             hilog.info(0x0000, 'testTag', '%{public}s', `Succeed in maximizing the window.`);
           })
@@ -38,10 +50,10 @@ export class WindowUtil {
     }
   }
 
-  public async recover(): Promise<void> {
+  public static  async recover(): Promise<void> {
     if (canIUse('SystemCapability.Window.SessionManager')) {
-      if ((await this.mainWindowClass)?.getWindowStatus() === window.WindowStatusType.FULL_SCREEN) {
-        (await this.mainWindowClass)?.recover()
+      if ((await WindowUtil.mainWindowClass)?.getWindowStatus() === window.WindowStatusType.FULL_SCREEN) {
+        (await WindowUtil.mainWindowClass)?.recover()
           .then(() => {
             hilog.info(0x0000, 'testTag', '%{public}s', `Succeed in recovering the window.`);
           })
@@ -53,9 +65,9 @@ export class WindowUtil {
     }
   }
 
-  public setWindowStage(windowStage: window.WindowStage): void {
-    this.windowStage = windowStage;
-    this.windowStage.getMainWindow((err, windowClass: window.Window) => {
+  public static  setWindowStage(windowStage: window.WindowStage): void {
+    WindowUtil.windowStage = windowStage;
+    WindowUtil.windowStage.getMainWindow((err, windowClass: window.Window) => {
       if (err.code) {
         hilog.error(777, 'testFlag', `Failed to obtain the main window. Code:${err.code}, message:${err.message}`);
         return;

@@ -20,7 +20,6 @@ import AVSessionUtil from '../utils/AVSessionUtil'
 import { AVCastPicker, avSession as avSessionManager } from '@kit.AVSessionKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
-import { settings } from '@kit.BasicServicesKit'
 import { PlayerParams } from '../common/PlayerParams'
 import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
@@ -38,6 +37,7 @@ import { VideoSliderComponent } from '../component/PlayerComponent/VideoSliderCo
 import { GestureComponent } from '../component/PlayerComponent/GestureComponent'
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode'
 import NavigationAddress from '../common/NavigationAddress'
+import { WindowUtil } from '../utils/WindowUtil'
 
 @Component
 export struct FFMpegPlayer { // FFMpeg播放器页
@@ -456,7 +456,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       GridCol() { // 投播
         AVCastPicker({
           normalColor: Color.White,
-          onStateChange: VideoOperateUtil.castOnStateChange,
+          onStateChange: AVSessionUtil.castOnStateChange,
           customPicker: () => this.AVCastPickerBuilderBridge()
         })
           .width(23)
@@ -491,6 +491,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     this.volume = volumeList.get('volume')!
     await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
     await (await this.windowClass).setWindowKeepScreenOn(true)
+    WindowUtil.enableLandscapeMultiWindow(this.windowClass)
     let event: Callback<InterruptEvent> = (event) => {
       if (event.hintType === InterruptHintType.INTERRUPT_HINT_PAUSE) {
         this.pause();
@@ -507,13 +508,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       }
     }
     this.mIjkMediaPlayer?.on('deviceChange', deviceChangeEvent);
-    if (canIUse('SystemCapability.Applications.Settings.Core')) {
-      settings.getValue(PathUtils.appContext!, settings.display.SCREEN_BRIGHTNESS_STATUS,
-        settings.domainName.DEVICE_SHARED)
-        .then((value) => {
-          this.screenBrightness = Number(value) / 255;
-        })
-    }
+    this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
     this.volumeActually = this.volume
     this.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
       let changeVolumeByVolumeButton = false
@@ -536,6 +531,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     VideoOperateUtil.setBrightness(-1)
     this.audioVolumeManager?.off('volumeChange');
     this.audioVolumeManager = null
+    WindowUtil.disableLandscapeMultiWindow(this.windowClass)
   }
 
   async setSessionListener() {
@@ -600,9 +596,9 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       this.avSession = await AVSessionUtil.getAVSession()
       await this.setSessionListener()
       AVSessionUtil.setSessionInfo(this.now_playing!)
-      VideoOperateUtil.updateSession(this.playing, this.play_time)
+      AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
     }
-    VideoOperateUtil.updateSession(this.playing, this.play_time)
+    AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
   }
 
   private startProgressTask() {
@@ -780,11 +776,11 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     this.setProgress();
     this.mDestroyPage = true;
     this.CONTROL_PlayStatus = PlayStatus.PAUSE;
-    VideoOperateUtil.updateSession(this.playing, this.play_time)
+    AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
   }
 
   private stop() {
-    VideoOperateUtil.updateSession(this.playing, this.play_time)
+    AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
     this.CONTROL_PlayStatus = PlayStatus.INIT;
     this.mIjkMediaPlayer?.stop();
     this.mIjkMediaPlayer?.release();
