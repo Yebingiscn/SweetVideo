@@ -1,13 +1,12 @@
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { VideoDataSource } from '../utils/DataUtil';
-import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
+import { fileUri } from '@kit.CoreFileKit';
 import ToolsUtil from '../utils/ToolsUtil';
 import DataSyncUtil from '../utils/DataSyncUtil';
 import { MenuModifier, SymbolGlyphModifier } from '@kit.ArkUI';
 import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog';
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
-import { BusinessError } from '@kit.BasicServicesKit';
 import Preferences from '../database/Preferences';
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
 import { FileFolder } from '../interfaces/FileFolderInterface';
@@ -173,7 +172,7 @@ export struct PrivacySpace { // 隐私空间页
           await ToolsUtil.isFileExist(item) ?
           ToolsUtil.routerWhere(this.pathStack, NavigationAddress.FFMPEG_PLAYER, item!,
             this.video_meta_data_encryption) :
-            await this.delItem(PathUtils.appContext!, item!)
+            await this.delItem(item!)
         }, 200)
       })
       MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
@@ -181,7 +180,7 @@ export struct PrivacySpace { // 隐私空间页
           await ToolsUtil.isFileExist(item) ?
           ToolsUtil.routerWhere(this.pathStack, NavigationAddress.RED_PLAYER, item!,
             this.video_meta_data_encryption) :
-            await this.delItem(PathUtils.appContext!, item!)
+            await this.delItem(item!)
         }, 200)
       })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
@@ -193,7 +192,7 @@ export struct PrivacySpace { // 隐私空间页
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
       })
         .onClick(async () => {
-          await this.delItem(PathUtils.appContext!, item!)
+          await this.delItem(item!)
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
@@ -249,22 +248,11 @@ export struct PrivacySpace { // 隐私空间页
     PrivacySpaceUtil.setPrivacyMode(true)
   }
 
-  async delItem(context: Context, item: VideoMetadata) {
+  async delItem(item: VideoMetadata) {
     await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date!)
     this.videoDataSource.deleteData(this.video_meta_data_encryption.findIndex(i => i.date == item.date))
     this.video_meta_data_encryption = this.video_meta_data_encryption.filter(i => i.date != item.date);
-    fs.access(PathUtils.videoPath + item.date).then((res: boolean) => {
-      if (res) {
-        fs.unlink(PathUtils.videoPath + item.date, async (unlinkErr) => {
-          if (unlinkErr) {
-            ToolsUtil.showToast('删除视频失败：' + item.title + '原因是：' + unlinkErr.message)
-          }
-          Preferences.saveVideoMetaDataEncryption(context, this.video_meta_data_encryption)
-        });
-      }
-    }).catch((err: BusinessError) => {
-      console.error("access failed with error message: " + err.message + ", error code: " + err.code);
-    });
+    await SelectFileUtil.deleteCover(item.date)
   }
 
   build() {
@@ -365,7 +353,7 @@ export struct PrivacySpace { // 隐私空间页
               await ToolsUtil.isFileExist(item) ?
               ToolsUtil.routerWhere(this.pathStack, NavigationAddress.AV_PLAYER, item,
                 this.video_meta_data_encryption) :
-                await this.delItem(PathUtils.appContext!, item)
+                await this.delItem(item)
             })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
               {

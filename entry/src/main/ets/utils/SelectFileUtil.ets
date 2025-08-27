@@ -16,6 +16,7 @@ import { PathUtils } from './PathUtils';
 import ToolsUtil from './ToolsUtil';
 import RecentPlayUtil from './RecentPlayUtil';
 import { ConcurrencyManagerUtil } from './FileProcessorUtil';
+import SubtitleUtil from './SubtitleUtil';
 
 // 获取视频类
 class SelectFileUtil {
@@ -337,6 +338,75 @@ class SelectFileUtil {
       video_meta_data,
       fileFolder
     );
+  }
+
+  async checkUrisAvailable() {
+    try {
+      const fileFolderList = Preferences.getFileFolder(PathUtils.appContext!);
+      let processed = 0;
+      // 遍历每个文件夹
+      for (const folder of fileFolderList) {
+        const validVideos: VideoMetadata[] = [];
+        // 分批处理视频，每批20个
+        const batchSize = 20;
+        for (let i = 0; i < folder.video_list.length; i += batchSize) {
+          const batch = folder.video_list.slice(i, i + batchSize);
+          await Promise.all(batch.map(async (video) => {
+            try {
+              const exists = await ToolsUtil.isFileExist(video);
+              if (exists) {
+                validVideos.push(video)
+              } else {
+                // 并行执行所有清理操作
+                await Promise.all([
+                  SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, video.date!),
+                  RecentPlayUtil.delData(PathUtils.appContext!, video.uri),
+                  this.deleteCover(video.uri!)
+                ]);
+                processed++;
+              }
+            } catch (error) {
+              console.warn(`清理视频资源失败: ${video.uri}`, error);
+            }
+          }));
+        }
+        // 更新当前文件夹的视频列表
+        folder.video_list = validVideos;
+      }
+      // 显示处理结果
+      if (processed > 0) {
+        const message = processed +
+        PathUtils.appContext!.resourceManager.getStringSync($r('app.string.re_import_info'));
+        ToolsUtil.showToast(message);
+        Preferences.saveFileFolder(PathUtils.appContext!, fileFolderList);
+      }
+    } catch (error) {
+      console.error('检查URI可用性时发生错误:', error);
+      ToolsUtil.showToast("检查URI可用性时发生错误");
+    }
+  }
+
+  // 删除封面
+  async deleteCover(date: string) {
+    await new Promise<void>((resolve, reject) => {
+      fs.access(PathUtils.coverPath + date, (err) => {
+        if (!err) {
+          fs.unlink(PathUtils.coverPath + date, (unlinkErr) => {
+            if (unlinkErr) {
+              if (unlinkErr.code == 13900002) {
+                resolve();
+              } else {
+                reject(new Error(`删除封面失败: ${unlinkErr.message}`));
+              }
+            } else {
+              resolve();
+            }
+          });
+        } else {
+          resolve(); // 文件不存在也算删除成功
+        }
+      });
+    });
   }
 
   // 从下载文件夹获取视频，视频和文件夹太多，通过分离文件夹和文件两个线程池提高性能，进行递归遍历

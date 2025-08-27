@@ -57,10 +57,10 @@ export struct VolumeSwipingComponent {
     if (this.videoVolume <= VideoOperateUtil.min_volume) {
       return $r('sys.symbol.speaker_slash'); // 静音
     }
-    if (this.videoVolume >= VideoOperateUtil.max_volume * 2/3) {
+    if (this.videoVolume >= VideoOperateUtil.max_volume * 2 / 3) {
       return $r('sys.symbol.speaker_wave_3'); // 高音量
     }
-    if (this.videoVolume >= VideoOperateUtil.max_volume * 1/3) {
+    if (this.videoVolume >= VideoOperateUtil.max_volume * 1 / 3) {
       return $r('sys.symbol.speaker_wave_2'); // 中音量
     }
     return $r('sys.symbol.speaker_wave_1'); // 低音量

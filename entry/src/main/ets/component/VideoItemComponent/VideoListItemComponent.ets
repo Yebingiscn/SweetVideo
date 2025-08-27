@@ -20,34 +20,34 @@ export default struct VideoListItem {
   }
 
   build() {
-      Row() {
-        Image(fileUri.getUriFromPath(PathUtils.coverPath + this.item.date))
-          .attributeModifier(new ImageFancyModifier(10, 64, 96))
-        Column() {
-          Row() {
-            Text(VideoInfoUtil.getVideoTitle(this.item))
-              .fontSize(15)
-              .fontWeight(FontWeight.Medium)
-              .maxLines(3)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .layoutWeight(1)
-              .wordBreak(WordBreak.BREAK_ALL)
-            if (this.videoListController.multipleChooseState === Visibility.Visible) {
-              SymbolGlyph(this.choose ? $r('sys.symbol.checkmark_circle') : $r('sys.symbol.circle'))
-                .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                .onAppear(() => {
-                  this.checkChoose()
-                })
-            }
+    Row() {
+      Image(fileUri.getUriFromPath(PathUtils.coverPath + this.item.date))
+        .attributeModifier(new ImageFancyModifier(10, 64, 96))
+      Column() {
+        Row() {
+          Text(VideoInfoUtil.getVideoTitle(this.item))
+            .fontSize(15)
+            .fontWeight(FontWeight.Medium)
+            .maxLines(3)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .layoutWeight(1)
+            .wordBreak(WordBreak.BREAK_ALL)
+          if (this.videoListController.multipleChooseState === Visibility.Visible) {
+            SymbolGlyph(this.choose ? $r('sys.symbol.checkmark_circle') : $r('sys.symbol.circle'))
+              .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+              .onAppear(() => {
+                this.checkChoose()
+              })
           }
-
-          VideoInfoComponent({ item: this.item })
         }
-        .alignItems(HorizontalAlign.Start)
-        .padding({ left: 15, right: 15 })
-        .layoutWeight(1)
+
+        VideoInfoComponent({ item: this.item })
       }
-      .justifyContent(FlexAlign.Center)
-      .width('100%')
+      .alignItems(HorizontalAlign.Start)
+      .padding({ left: 15, right: 15 })
+      .layoutWeight(1)
+    }
+    .justifyContent(FlexAlign.Center)
+    .width('100%')
   }
 }

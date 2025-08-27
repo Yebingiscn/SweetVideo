@@ -431,9 +431,8 @@ export struct Player { // 播放页
       await PermissionUtil.activatePermission(this.now_playing?.uri || '')
       this.avPlayer.fdSrc = fs.openSync(this.now_playing?.uri);
       this.setRotation()
-      if (this.play_area_width > this.play_area_height) {
-        WindowUtil.enableLandscapeMultiWindow(this.windowClass)
-      }
+      this.play_area_width > this.play_area_height ? WindowUtil.enableLandscapeMultiWindow(this.windowClass) :
+      WindowUtil.disableLandscapeMultiWindow(this.windowClass)
       if (this.smartRotation && this.play_area_width > this.play_area_height &&
         this.screen_height > this.screen_width) {
         const proportion =

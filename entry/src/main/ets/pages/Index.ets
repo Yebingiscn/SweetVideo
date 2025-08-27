@@ -155,6 +155,7 @@ struct Index {
     ScreenUtil.init(PathUtils.appContext!)
     VideoOperateUtil.initSetting(PathUtils.appContext!)
     VideoMetaDataOperator.migrationRootVideoMetaToRootFolder()
+    await SelectFileUtil.checkUrisAvailable()
     this.passwd = Preferences.getPassword(PathUtils.appContext!)
     ToolsUtil.isSubtitleFileFolderExist(PathUtils.videoPath, PathUtils.subtitlePath)
     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)

@@ -127,9 +127,7 @@ export class ToolsUtil {
       fs.openSync(String(item?.uri))
       return true
     } catch (e) {
-      hilog.error(777, 'testFlag', 'file error' + e)
-      this.showToast(String(item?.title) +
-      PathUtils.appContext!.resourceManager.getStringSync($r('app.string.re_import_info')))
+      console.log('file error' + e)
       return false
     }
   }

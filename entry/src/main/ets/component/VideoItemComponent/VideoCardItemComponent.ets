@@ -30,27 +30,27 @@ export default struct VideoCardItem {
         }, 60, 200))
         .width('100%').height('auto')
         .objectFit(ImageFit.Auto)
-        Row() {
-          Text(VideoInfoUtil.getVideoTitle(this.item))
-            .fontSize(15)
-            .fontWeight(FontWeight.Medium)
-            .maxLines(5)
-            .textAlign(TextAlign.Start)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .layoutWeight(1)// 占据剩余空间
-            .wordBreak(WordBreak.BREAK_ALL)
-          if (this.videoListController.multipleChooseState === Visibility.Visible) {
-            SymbolGlyph(this.choose ? $r('sys.symbol.checkmark_circle') : $r('sys.symbol.circle'))
-              .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-              .onAppear(() => {
-                this.checkChoose()
-              })
-          }
+      Row() {
+        Text(VideoInfoUtil.getVideoTitle(this.item))
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .maxLines(5)
+          .textAlign(TextAlign.Start)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .layoutWeight(1)// 占据剩余空间
+          .wordBreak(WordBreak.BREAK_ALL)
+        if (this.videoListController.multipleChooseState === Visibility.Visible) {
+          SymbolGlyph(this.choose ? $r('sys.symbol.checkmark_circle') : $r('sys.symbol.circle'))
+            .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+            .onAppear(() => {
+              this.checkChoose()
+            })
         }
-        .width('100%')
-        .padding({ top: 5 })
+      }
+      .width('100%')
+      .padding({ top: 5 })
 
-        VideoInfoComponent({ item: this.item })
+      VideoInfoComponent({ item: this.item })
     }
     .width('100%')
     .height('auto')

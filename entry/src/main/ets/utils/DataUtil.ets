@@ -6,7 +6,6 @@ import DataSyncUtil from '../utils/DataSyncUtil';
 import SubtitleUtil from '../utils/SubtitleUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 
-import { fileIo as fs } from '@kit.CoreFileKit';
 import { FolderOperator, VideoMetaDataOperator } from '../database/VideoMetaData';
 import RecentPlayUtil from './RecentPlayUtil';
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
@@ -106,26 +105,7 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
     await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date!)
     this.deleteData(this.data.findIndex(i => i.date === item.date));
     RecentPlayUtil.delData(PathUtils.appContext!, item.uri);
-
-    return new Promise<void>((resolve, reject) => {
-      fs.access(PathUtils.coverPath + item.date, (err) => {
-        if (!err) {
-          fs.unlink(PathUtils.coverPath + item.date, (unlinkErr) => {
-            if (unlinkErr) {
-              if (unlinkErr.code == 13900002) {
-                resolve();
-              } else {
-                reject(new Error(`删除封面失败: ${unlinkErr.message}`));
-              }
-            } else {
-              resolve();
-            }
-          });
-        } else {
-          resolve(); // 文件不存在也算删除成功
-        }
-      });
-    });
+    await SelectFileUtil.deleteCover(item.date)
   }
 }
 

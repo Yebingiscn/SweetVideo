@@ -18,7 +18,6 @@ class WantProcess {
   public PRIVACY_LINK: string =
     "https://github.com/Yebingiscn/SweetVideo/wiki/%E6%B5%81%E5%BF%83%E8%A7%86%E9%A2%91%E7%9A%84%E4%BD%BF%E7%94%A8%E6%9D%A1%E6%AC%BE%E4%B8%8E%E9%9A%90%E7%A7%81%E5%A3%B0%E6%98%8E"
   private isSystemShare: boolean = false // 是否系统分享
-
   private _wantUri: string = ''; //接收到的uri
 
   public set wantUri(value: string) {

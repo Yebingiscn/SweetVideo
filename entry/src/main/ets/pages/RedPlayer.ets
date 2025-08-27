@@ -102,7 +102,8 @@ export struct RedPlayer { // 红薯播放器页
                     this.avSession = await AVSessionUtil.getAVSession()
                     await this.setSessionListener()
                     AVSessionUtil.setSessionInfo(this.now_playing!)
-                    AVSessionUtil.updatePlaybackSessionState(this.isSliderPlayTimeChange, this.redPlayerStateHolder.videoPosition)
+                    AVSessionUtil.updatePlaybackSessionState(this.isSliderPlayTimeChange,
+                      this.redPlayerStateHolder.videoPosition)
                   })
                 })
               })

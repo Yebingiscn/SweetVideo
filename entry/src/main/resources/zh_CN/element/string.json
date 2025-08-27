@@ -138,7 +138,7 @@
     },
     {
       "name": "re_import_info",
-      "value": "已失效（源视频可能已经被移动或者改名），请重新导入"
+      "value": "个视频已失效（源视频可能已经被移动或者改名），请重新导入"
     },
     {
       "name": "exit_privacy_space",

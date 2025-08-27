@@ -33,6 +33,9 @@ class RecentPlayUtil {
   }
 
   public delData(context: Context, uri: string) {
+    if (Array.from(this.videoIdMap.keys()).length === 0) { // 如果为空，则初始化一下
+      this.init(context)
+    }
     if (this.videoIdMap.has(uri)) {
       const index = this.videoIdMap.get(uri)!;
       this.deque.splice(index, 1);
