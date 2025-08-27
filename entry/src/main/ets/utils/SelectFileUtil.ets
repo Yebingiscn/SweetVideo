@@ -17,11 +17,42 @@ import ToolsUtil from './ToolsUtil';
 import RecentPlayUtil from './RecentPlayUtil';
 import { ConcurrencyManagerUtil } from './FileProcessorUtil';
 import SubtitleUtil from './SubtitleUtil';
+import { FolderProcessResult } from '../interfaces/FolderProcessResultInterface';
 
 // 获取视频类
 class SelectFileUtil {
   private static queryCache = new WeakMap<VideoMetadata[], Map<string, VideoMetadata>>();
   public file_folder_uri = ''
+  // 在类中定义方法
+  private processSingleFolder = async (folder: FileFolder): Promise<FolderProcessResult> => {
+    const validVideos: VideoMetadata[] = [];
+    let folderProcessed = 0;
+    // 分批处理视频，每批20个
+    const batchSize = 20;
+    for (let i = 0; i < folder.video_list.length; i += batchSize) {
+      const batch = folder.video_list.slice(i, i + batchSize);
+      await Promise.all(batch.map(async (video) => {
+        try {
+          const exists = await ToolsUtil.isFileExist(video);
+          if (exists) {
+            validVideos.push(video);
+          } else {
+            await Promise.all([
+              SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, video.date!),
+              RecentPlayUtil.delData(PathUtils.appContext!, video.uri),
+              this.deleteCover(video.date!)
+            ]);
+            folderProcessed++;
+          }
+        } catch (error) {
+          console.warn(`清理视频资源失败: ${video.uri}`, error);
+        }
+      }));
+    }
+    // 更新当前文件夹的视频列表
+    folder.video_list = validVideos;
+    return { folder, processed: folderProcessed };
+  };
 
   // 从文件管理器获取视频
   async selectFiles(): Promise<string[]> {
@@ -340,45 +371,24 @@ class SelectFileUtil {
     );
   }
 
+  // 主函数
   async checkUrisAvailable() {
     try {
-      const fileFolderList = Preferences.getFileFolder(PathUtils.appContext!);
-      let processed = 0;
-      // 遍历每个文件夹
-      for (const folder of fileFolderList) {
-        const validVideos: VideoMetadata[] = [];
-        // 分批处理视频，每批20个
-        const batchSize = 20;
-        for (let i = 0; i < folder.video_list.length; i += batchSize) {
-          const batch = folder.video_list.slice(i, i + batchSize);
-          await Promise.all(batch.map(async (video) => {
-            try {
-              const exists = await ToolsUtil.isFileExist(video);
-              if (exists) {
-                validVideos.push(video)
-              } else {
-                // 并行执行所有清理操作
-                await Promise.all([
-                  SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, video.date!),
-                  RecentPlayUtil.delData(PathUtils.appContext!, video.uri),
-                  this.deleteCover(video.uri!)
-                ]);
-                processed++;
-              }
-            } catch (error) {
-              console.warn(`清理视频资源失败: ${video.uri}`, error);
-            }
-          }));
-        }
-        // 更新当前文件夹的视频列表
-        folder.video_list = validVideos;
-      }
+      const fileFolderList: FileFolder[] = Preferences.getFileFolder(PathUtils.appContext!);
+      // 使用并发限制函数
+      const results = await this.processWithConcurrencyLimit(
+        fileFolderList, 3, this.processSingleFolder // 直接传递方法引用
+      );
+      // 计算总共处理的视频数量
+      const totalProcessed = results.reduce((sum, result) => sum + result.processed, 0);
       // 显示处理结果
-      if (processed > 0) {
-        const message = processed +
+      if (totalProcessed > 0) {
+        const message = totalProcessed +
         PathUtils.appContext!.resourceManager.getStringSync($r('app.string.re_import_info'));
         ToolsUtil.showToast(message);
-        Preferences.saveFileFolder(PathUtils.appContext!, fileFolderList);
+        // 从结果中提取更新后的文件夹列表
+        const updatedFolders: FileFolder[] = results.map(result => result.folder);
+        Preferences.saveFileFolder(PathUtils.appContext!, updatedFolders);
       }
     } catch (error) {
       console.error('检查URI可用性时发生错误:', error);
@@ -407,6 +417,21 @@ class SelectFileUtil {
         }
       });
     });
+  }
+
+  // 并发限制函数
+  private async processWithConcurrencyLimit(
+    items: FileFolder[],
+    limit: number,
+    processFn: (item: FileFolder) => Promise<FolderProcessResult>
+  ): Promise<FolderProcessResult[]> {
+    const results: FolderProcessResult[] = [];
+    for (let i = 0; i < items.length; i += limit) {
+      const chunk = items.slice(i, i + limit);
+      const chunkResults = await Promise.all(chunk.map(item => processFn(item)));
+      results.push(...chunkResults);
+    }
+    return results;
   }
 
   // 从下载文件夹获取视频，视频和文件夹太多，通过分离文件夹和文件两个线程池提高性能，进行递归遍历
