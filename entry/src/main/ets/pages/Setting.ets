@@ -106,10 +106,10 @@ export struct SettingsPage { //设置页
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.arrow_left'),
-            message: '播放器使用返回手势时直接退出',
-            enable: this.allowPlayBackExist,
+            message: '播放时返回隐藏状态栏',
+            enable: !this.allowPlayBackExist,
             onChange: (checked: boolean) => {
-              this.allowPlayBackExist = checked
+              this.allowPlayBackExist = !checked
               Preferences.saveAllowPlayBackExistState(PathUtils.appContext!, this.allowPlayBackExist)
             }
           })
@@ -156,7 +156,7 @@ export struct SettingsPage { //设置页
 
         ListItem() {
           SettingsMenuItem({
-            symbol: $r('sys.symbol.fast_forward'),
+            symbol: $r('sys.symbol.hand_point_up_tap'),
             message: '快进快退时长',
             list: this.fastForwardSecond.map(opt => opt.label),
             selected: this.fastForwardSecond.findIndex(opt => opt.value === this.fastForwardSeconds),
@@ -169,7 +169,7 @@ export struct SettingsPage { //设置页
 
         ListItem() {
           SettingsMenuItem({
-            symbol: $r('sys.symbol.fast_forward'),
+            symbol: $r('sys.symbol.square_fill_grid_2x2'),
             message: '列表布局',
             list: this.listDisplayMode,
             selected: this.isListDisplay ? 0 : 1,

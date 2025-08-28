@@ -35,7 +35,7 @@ export class WindowUtil {
     }
   }
 
- public static async fullScreenOperate() {
+  public static async fullScreenOperate() {
     if (canIUse('SystemCapability.Window.SessionManager')) {
       switch (await WindowUtil.getWindowsStatus()) {
         case window.WindowStatusType.FLOATING:
