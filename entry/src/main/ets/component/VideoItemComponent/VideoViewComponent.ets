@@ -83,7 +83,6 @@ export struct VideoView {
 
           SearchComponent({
             controller: this.searchController,
-            placeholder: $r('app.string.search_placeholder'),
             searchValue: this.searchValue,
             onChange: () => {
               if (this.searchValue === '') {

@@ -260,7 +260,6 @@ export struct PrivacySpace { // 隐私空间页
       Column() {
         SearchComponent({
           controller: this.searchController,
-          placeholder: $r('app.string.search_placeholder'),
           searchValue: this.searchValue,
           onChange: () => {
             const newVideoList = SelectFileUtil.getItemFromSearch(

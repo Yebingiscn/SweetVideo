@@ -4,7 +4,6 @@ import { ShadowModifier } from '../../utils/AttributeModifierUtil';
 export struct SearchComponent {
   @Link searchValue: string;
   controller: SearchController | undefined = undefined;
-  @Prop placeholder: ResourceStr;
   onChange = () => {
   }
   onSubmit = (_value: string) => {
@@ -15,7 +14,7 @@ export struct SearchComponent {
   build() {
     Search({
       controller: this.controller,
-      placeholder: this.placeholder,
+      placeholder: $r('app.string.search_placeholder'),
       value: $$this.searchValue
     })
       .layoutWeight(1)

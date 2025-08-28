@@ -89,6 +89,7 @@ export struct Player { // 播放页
   @StorageLink('skipIntroTime') skipIntroTime: string = '0'
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageLink('smartRotation') smartRotation: boolean = true
+  @StorageLink('longPressSpeed') longPressSpeed: number = 3
   @Consume('pathStack') pathStack: NavPathStack
   private mIjkMediaPlayer: IjkMediaPlayer | null = null;
   private autoHideTimeout: boolean = false
@@ -777,8 +778,9 @@ export struct Player { // 播放页
               if (!this.isLock) {
                 this.long_press = true
                 VideoOperateUtil.lastSpeed = this.speed
-                this.updatePlaybackSpeed(3);
-                this.currentSpeedIndex = VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).indexOf(3);
+                this.updatePlaybackSpeed(this.longPressSpeed);
+                this.currentSpeedIndex =
+                  VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).indexOf(this.longPressSpeed);
               }
             },
             onLongPressEnd: () => {
@@ -937,7 +939,7 @@ export struct Player { // 播放页
       playbackSpeedMenu: this.getPlaybackSpeedMenuBuilder,
       repeatMode: this.repeatMode,
       onScreenRotationOrFullScreenClick: async () => {
-        await VideoOperateUtil.fullScreenOperate()
+        await WindowUtil.fullScreenOperate()
         const orientation = this.screen_height > this.screen_width
           ? window.Orientation.AUTO_ROTATION_LANDSCAPE
           : window.Orientation.AUTO_ROTATION_PORTRAIT; // 这里是横竖屏切换顺应用户操作就好

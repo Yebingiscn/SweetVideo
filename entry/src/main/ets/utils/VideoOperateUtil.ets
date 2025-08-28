@@ -17,7 +17,6 @@ import { PathUtils } from './PathUtils';
 import { LanguageConfig } from '../common/LanguageConfig';
 import ToolsUtil from './ToolsUtil';
 import VideoInfoUtil from './VideoInfoUtil';
-import { WindowUtil } from './WindowUtil';
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
 import PreferencesUtil from './PreferencesUtil';
 
@@ -204,6 +203,8 @@ class VideoOperateUtil {
 
   // 启动时初始化已保存的设置项
   initSetting(context: common.UIAbilityContext) {
+    ReqPermissionUtil.reqPermissionsFromUser(ReqPermissionUtil.permissions, context);
+
     AppStorage.setOrCreate('allowBackgroundPlay', Preferences.getAllowBackgroundPlayState(context))
     AppStorage.setOrCreate('allowPlayBackExist', Preferences.getAllowPlayBackExistState(context))
     AppStorage.setOrCreate('fastForwardSeconds', Preferences.getFastForwardSeconds(context))
@@ -214,7 +215,8 @@ class VideoOperateUtil {
     AppStorage.setOrCreate('skipIntroTime', Preferences.getSkipIntroTime(context))
     AppStorage.setOrCreate('isListDisplay', Preferences.getListDisplayMode(context))
     AppStorage.setOrCreate('smartRotation', Preferences.getSmartRotationState(context))
-    ReqPermissionUtil.reqPermissionsFromUser(ReqPermissionUtil.permissions, context);
+    AppStorage.setOrCreate('longPressSpeed', Preferences.getLongPressSpeed(context))
+    console.error('test' + Preferences.getLongPressSpeed(context))
     // 这里删掉没用的存储项
     PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'circle_play')
   }
@@ -259,19 +261,6 @@ class VideoOperateUtil {
       finalHeight = containerWidth / targetRatio; // 高度 = 宽度 ÷ 目标比例
     }
     return [finalWidth, finalHeight]
-  }
-
-  async fullScreenOperate() {
-    if (canIUse('SystemCapability.Window.SessionManager')) {
-      switch (await WindowUtil.getWindowsStatus()) {
-        case window.WindowStatusType.FLOATING:
-          WindowUtil?.maximize?.()
-          return
-        case window.WindowStatusType.FULL_SCREEN:
-          WindowUtil?.recover?.()
-          return
-      }
-    }
   }
 
   getVideoStartPlayTimeMode(nowPlaying: VideoMetadataFromPlayer, skipIntroTime: string) {

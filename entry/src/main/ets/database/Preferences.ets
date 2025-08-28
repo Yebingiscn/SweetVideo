@@ -164,6 +164,14 @@ class Preferences {
   static saveListDisplayMode(context: Context, is_list_display: boolean) {
     PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'is_list_display', is_list_display);
   }
+
+  static saveLongPressSpeed(context: Context, longPressSpeed: number) {
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'longPressSpeed', longPressSpeed);
+  }
+
+  static getLongPressSpeed(context: Context) {
+    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'longPressSpeed', 3) as number
+  }
 }
 
 export default Preferences

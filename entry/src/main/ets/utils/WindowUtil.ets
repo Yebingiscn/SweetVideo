@@ -35,6 +35,19 @@ export class WindowUtil {
     }
   }
 
+ public static async fullScreenOperate() {
+    if (canIUse('SystemCapability.Window.SessionManager')) {
+      switch (await WindowUtil.getWindowsStatus()) {
+        case window.WindowStatusType.FLOATING:
+          await WindowUtil?.maximize?.()
+          return
+        case window.WindowStatusType.FULL_SCREEN:
+          await WindowUtil?.recover?.()
+          return
+      }
+    }
+  }
+
   public static async maximize(): Promise<void> {
     if (canIUse('SystemCapability.Window.SessionManager')) {
       if ((await WindowUtil.mainWindowClass)?.getWindowStatus() === window.WindowStatusType.FLOATING) {

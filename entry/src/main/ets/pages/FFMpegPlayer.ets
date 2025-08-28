@@ -56,7 +56,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @State loadingVisible: Visibility = Visibility.None;
   @State replayVisible: Visibility = Visibility.None;
   @State volume: number = 1.0;
-  @State play_speed: string = '1';
+  @State play_speed: number = 1;
   now_playing: VideoMetadataFromPlayer | undefined = undefined
   @State video_url: string = ''
   @State total_time: number = 0
@@ -75,9 +75,10 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @State @Watch('setScreen') showControl: boolean = false
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
+  @StorageLink('longPressSpeed') longPressSpeed: number = 3
   @State onSwiping: boolean = false
   @State long_press: boolean = false
-  @State last_speed: string = '1'
+  @State last_speed: number = 1
   @State isHorizontalSwiping: boolean = false
   @State video_meta_data: VideoMetadata[] = []
   @State volumeActually: number = 0
@@ -181,7 +182,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
 
         if (this.long_press) {
           FastForwardInfoComponent({
-            speed: Number(this.play_speed),
+            speed: this.play_speed,
             location: 0 - this.play_area_height / 2 + 20
           })
         }
@@ -279,14 +280,15 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           onLongPressAction: () => {
             this.long_press = true
             this.last_speed = this.play_speed
-            this.play_speed = '3'
-            this.mIjkMediaPlayer?.setSpeed(this.play_speed)
-            this.currentSpeedIndex = VideoInfoUtil.getVideoSpeedList(NavigationAddress.FFMPEG_PLAYER).indexOf(3);
+            this.play_speed = this.longPressSpeed
+            this.mIjkMediaPlayer?.setSpeed(this.play_speed + '')
+            this.currentSpeedIndex =
+              VideoInfoUtil.getVideoSpeedList(NavigationAddress.FFMPEG_PLAYER).indexOf(this.longPressSpeed);
           },
           onLongPressEnd: () => {
             this.long_press = false
             this.play_speed = this.last_speed
-            this.mIjkMediaPlayer?.setSpeed(this.last_speed);
+            this.mIjkMediaPlayer?.setSpeed(this.last_speed + '');
           },
           onLongPressPanStart: (event: GestureEvent) => {
             if (!this.isLock) {
@@ -308,8 +310,8 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             }
             this.currentSpeedIndex = clampedIndex
             this.play_speed =
-              VideoInfoUtil.getVideoSpeedList(NavigationAddress.FFMPEG_PLAYER)[this.currentSpeedIndex].toString()
-            this.mIjkMediaPlayer?.setSpeed(this.play_speed);
+              VideoInfoUtil.getVideoSpeedList(NavigationAddress.FFMPEG_PLAYER)[this.currentSpeedIndex]
+            this.mIjkMediaPlayer?.setSpeed(this.play_speed + '');
             VideoOperateUtil.longPressStartX = event.fingerList[0].localX; // 重置起始点实现分档切换效果
           }
         })
@@ -445,7 +447,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .onClick(async () => {
-          VideoOperateUtil.fullScreenOperate()
+          await WindowUtil.fullScreenOperate()
           const orientation = this.screen_height > this.screen_width
             ? window.Orientation.AUTO_ROTATION_LANDSCAPE
             : window.Orientation.AUTO_ROTATION_PORTRAIT;
@@ -684,7 +686,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     this.mIjkMediaPlayer?.setScreenOnWhilePlaying(true);
     // 变速播放
     this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "soundtouch", "1");
-    this.mIjkMediaPlayer?.setSpeed(this.play_speed);
+    this.mIjkMediaPlayer?.setSpeed(this.play_speed + '');
     //是否开启循环播放
     this.mIjkMediaPlayer?.setLoopCount(true);
     let mOnVideoSizeChangedListener: OnVideoSizeChangedListener = {

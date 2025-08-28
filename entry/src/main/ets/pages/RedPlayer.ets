@@ -66,6 +66,7 @@ export struct RedPlayer { // 红薯播放器页
   @StorageLink('skipIntroTime') skipIntroTime: string = '0'
   @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
+  @StorageLink('longPressSpeed') longPressSpeed: number = 2
   @State video_meta_data: VideoMetadata[] = []
   private audioVolumeManager: audio.AudioVolumeManager | null = null
 
@@ -179,7 +180,7 @@ export struct RedPlayer { // 红薯播放器页
 
         if (this.long_press) {
           FastForwardInfoComponent({
-            speed: Number(this.play_speed),
+            speed: this.play_speed,
             location: this.screen_width > this.screen_height ? -160 : -80
           })
         }
@@ -262,9 +263,10 @@ export struct RedPlayer { // 红薯播放器页
           onLongPressAction: () => {
             this.long_press = true
             this.last_speed = this.play_speed
-            this.play_speed = 2
+            this.play_speed = this.longPressSpeed > 2 ? 2 : this.longPressSpeed
             this.playerController.setSpeed(this.play_speed)
-            this.currentSpeedIndex = VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER).indexOf(2);
+            this.currentSpeedIndex = VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER)
+              .indexOf(this.longPressSpeed > 2 ? 2 : this.longPressSpeed);
           },
           onLongPressEnd: () => {
             this.long_press = false
@@ -485,7 +487,7 @@ export struct RedPlayer { // 红薯播放器页
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .onClick(async () => {
-          VideoOperateUtil.fullScreenOperate()
+          await WindowUtil.fullScreenOperate()
           const orientation = this.screen_height > this.screen_width
             ? window.Orientation.AUTO_ROTATION_LANDSCAPE
             : window.Orientation.AUTO_ROTATION_PORTRAIT;

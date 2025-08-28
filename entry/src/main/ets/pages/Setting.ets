@@ -10,6 +10,7 @@ import { FastForwardSecondInterface } from '../interfaces/FastForwardSecondInter
 import BiometricAccessUtil from '../utils/BiometricAccessUtil';
 import { PathUtils } from '../utils/PathUtils';
 import ToolsUtil from '../utils/ToolsUtil';
+import VideoInfoUtil from '../utils/VideoInfoUtil';
 
 @Component
 export struct SettingsPage { //设置页
@@ -25,6 +26,7 @@ export struct SettingsPage { //设置页
   @StorageLink('subtitleSize') subtitleSize: string = '22'
   @StorageLink('isListDisplay') isListDisplay: boolean = true
   @StorageLink('smartRotation') smartRotation: boolean = true
+  @StorageLink('longPressSpeed') longPressSpeed: number = 3
   @State passwd: string = 'passwd'
   @Consume('pathStack') pathStack: NavPathStack
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
@@ -40,6 +42,7 @@ export struct SettingsPage { //设置页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  private listDisplayMode = ['列表布局', '卡片布局']
   private subtitleSizeList = ['19', '20', '21', '22', '23', '24', '25', '26']
   private fastForwardSecond: FastForwardSecondInterface[] = [
     { label: '5秒', value: '5' },
@@ -84,18 +87,6 @@ export struct SettingsPage { //设置页
                 return;
               }
               ToolsUtil.showToast('请从首页搜索框输入密码进入隐私空间'); // 设备不支持生物认证的提示
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsToggleItem({
-            symbol: $r('sys.symbol.list_square'),
-            message: '列表样式（关闭为卡片样式）',
-            enable: this.isListDisplay,
-            onChange: (checked: boolean) => {
-              this.isListDisplay = checked
-              Preferences.saveListDisplayMode(PathUtils.appContext!, this.isListDisplay)
             }
           })
         }
@@ -172,6 +163,33 @@ export struct SettingsPage { //设置页
             onChange: (index: number) => {
               this.fastForwardSeconds = this.fastForwardSecond[index].value;
               Preferences.saveFastForwardSeconds(PathUtils.appContext!, this.fastForwardSeconds)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsMenuItem({
+            symbol: $r('sys.symbol.fast_forward'),
+            message: '列表布局',
+            list: this.listDisplayMode,
+            selected: this.isListDisplay ? 0 : 1,
+            onChange: (index: number) => {
+              this.isListDisplay = (index === 0);
+              Preferences.saveListDisplayMode(PathUtils.appContext!, this.isListDisplay);
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsMenuItem({
+            symbol: $r('sys.symbol.fast_forward'),
+            message: '长按快进倍速',
+            list: VideoInfoUtil.getVideoSpeedTextList(),
+            selected: VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER)
+              .findIndex(opt => opt === this.longPressSpeed),
+            onChange: (index: number) => {
+              this.longPressSpeed = VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER)[index]
+              Preferences.saveLongPressSpeed(PathUtils.appContext!, this.longPressSpeed)
             }
           })
         }

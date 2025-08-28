@@ -80,6 +80,10 @@ export class AudioTrackSource extends BaseDataSource<AudioTrack> {
 export class PlayerSideBarSource extends BaseDataSource<VideoMetadata> {
 }
 
+@Observed
+export class SpeedListDataSource extends BaseDataSource<string> {
+}
+
 // 具体实现类
 @Observed
 export class VideoDataSource extends BaseDataSource<VideoMetadata> {

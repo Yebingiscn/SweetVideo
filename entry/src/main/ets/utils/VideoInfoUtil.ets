@@ -221,6 +221,12 @@ class VideoInfoUtil {
       : this.videoSpeedListAll;
   }
 
+  getVideoSpeedTextList() {
+    return this.videoSpeedListAll.map(speed =>
+    `${speed}x`.replace(/(\.0+)?x$/, 'x')  // 同时处理整数和小数
+    );
+  }
+
   // 获取视频标签格式化
   videoWidthAndHeightFormat(size: string) {
     const sizeArray = size.split(',');
