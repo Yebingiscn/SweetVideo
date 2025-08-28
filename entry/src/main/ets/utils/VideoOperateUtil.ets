@@ -216,7 +216,6 @@ class VideoOperateUtil {
     AppStorage.setOrCreate('isListDisplay', Preferences.getListDisplayMode(context))
     AppStorage.setOrCreate('smartRotation', Preferences.getSmartRotationState(context))
     AppStorage.setOrCreate('longPressSpeed', Preferences.getLongPressSpeed(context))
-    console.error('test' + Preferences.getLongPressSpeed(context))
     // 这里删掉没用的存储项
     PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'circle_play')
   }
