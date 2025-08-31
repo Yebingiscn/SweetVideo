@@ -121,10 +121,10 @@ export class ToolsUtil {
   }
 
   // 检查文件是否存在
-  async isFileExist(item: VideoMetadata | undefined) {
-    await PermissionUtil.activatePermission(item?.uri!)
+  async isFileExist(uri: string) {
+    await PermissionUtil.activatePermission(uri)
     try {
-      fs.openSync(String(item?.uri))
+      await fs.open(String(uri))
       return true
     } catch (e) {
       console.log('file error' + e)

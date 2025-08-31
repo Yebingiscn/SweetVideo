@@ -344,7 +344,7 @@ export struct VideoList {
       return
     }
     this.videoListController.listScroller.closeAllSwipeActions()
-    await ToolsUtil.isFileExist(item) ?
+    await ToolsUtil.isFileExist(item.uri) ?
     ToolsUtil.routerWhere(this.pathStack, choosePlayer, item,
       this.videoListController.videoMetaDataList) :
       await this.videoListController.videoDataSource.deleteUnExistFile(item, this.videoListController,

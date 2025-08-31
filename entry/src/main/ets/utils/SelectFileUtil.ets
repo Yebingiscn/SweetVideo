@@ -23,35 +23,20 @@ import { FolderProcessResult } from '../interfaces/FolderProcessResultInterface'
 class SelectFileUtil {
   private static queryCache = new WeakMap<VideoMetadata[], Map<string, VideoMetadata>>();
   public file_folder_uri = ''
-  // 在类中定义方法
-  private processSingleFolder = async (folder: FileFolder): Promise<FolderProcessResult> => {
-    const validVideos: VideoMetadata[] = [];
-    let folderProcessed = 0;
-    // 分批处理视频，每批20个
-    const batchSize = 20;
-    for (let i = 0; i < folder.video_list.length; i += batchSize) {
-      const batch = folder.video_list.slice(i, i + batchSize);
-      await Promise.all(batch.map(async (video) => {
-        try {
-          const exists = await ToolsUtil.isFileExist(video);
-          if (exists) {
-            validVideos.push(video);
-          } else {
-            await Promise.all([
-              SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, video.date!),
-              RecentPlayUtil.delData(PathUtils.appContext!, video.uri),
-              this.deleteCover(video.date!)
-            ]);
-            folderProcessed++;
-          }
-        } catch (error) {
-          console.warn(`清理视频资源失败: ${video.uri}`, error);
-        }
-      }));
+  // 单视频处理函数
+  private processSingleVideo = async (video: VideoMetadata): Promise<boolean> => {
+    try {
+      const exists = await ToolsUtil.isFileExist(video.uri);
+      if (!exists) {
+        // 触发异步清理（不等待）
+        this.cleanupVideoResources(video);
+        return true; // 标记为已处理
+      }
+      return false; // 视频有效，无需处理
+    } catch (error) {
+      console.warn(`视频检查失败: ${video.uri}`, error);
+      return false;
     }
-    // 更新当前文件夹的视频列表
-    folder.video_list = validVideos;
-    return { folder, processed: folderProcessed };
   };
 
   // 从文件管理器获取视频
@@ -371,13 +356,12 @@ class SelectFileUtil {
     );
   }
 
-  // 主函数
   async checkUrisAvailable() {
     try {
       const fileFolderList: FileFolder[] = Preferences.getFileFolder(PathUtils.appContext!);
       // 使用并发限制函数
       const results = await this.processWithConcurrencyLimit(
-        fileFolderList, 3, this.processSingleFolder // 直接传递方法引用
+        fileFolderList, 5, this.processSingleFolder // 直接传递方法引用
       );
       // 计算总共处理的视频数量
       const totalProcessed = results.reduce((sum, result) => sum + result.processed, 0);
@@ -394,6 +378,21 @@ class SelectFileUtil {
       console.error('检查URI可用性时发生错误:', error);
       ToolsUtil.showToast("检查URI可用性时发生错误");
     }
+  }
+
+  async deletePrivacyVideo(item: VideoMetadata, video_meta_data_encryption: VideoMetadata[]) {
+    fs.access(PathUtils.videoPath + item.date).then((res: boolean) => {
+      if (res) {
+        fs.unlink(PathUtils.videoPath + item.date, async (unlinkErr) => {
+          if (unlinkErr) {
+            ToolsUtil.showToast('删除视频失败：' + item.title + '原因是：' + unlinkErr.message)
+          }
+          Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, video_meta_data_encryption)
+        });
+      }
+    }).catch((err: BusinessError) => {
+      console.error("access failed with error message: " + err.message + ", error code: " + err.code);
+    });
   }
 
   // 删除封面
@@ -419,20 +418,76 @@ class SelectFileUtil {
     });
   }
 
-  // 并发限制函数
-  private async processWithConcurrencyLimit(
-    items: FileFolder[],
+  // 实现细粒度并发控制（视频级别）
+  private async processWithConcurrencyLimit<T, R>(
+    items: T[],
     limit: number,
-    processFn: (item: FileFolder) => Promise<FolderProcessResult>
-  ): Promise<FolderProcessResult[]> {
-    const results: FolderProcessResult[] = [];
-    for (let i = 0; i < items.length; i += limit) {
-      const chunk = items.slice(i, i + limit);
-      const chunkResults = await Promise.all(chunk.map(item => processFn(item)));
-      results.push(...chunkResults);
+    processFn: (item: T) => Promise<R>
+  ): Promise<R[]> {
+    // 预分配结果数组
+    const results: R[] = new Array(items.length);
+    // 跟踪正在执行的任务
+    const executing: Promise<void>[] = [];
+    let index = 0;
+
+    const run = async () => {
+      while (index < items.length) {
+        const currentIndex = index++;
+        const item = items[currentIndex];
+        try {
+          // 处理单个任务
+          const result = await processFn(item);
+          results[currentIndex] = result;
+        } catch (error) {
+          // 错误隔离：单个任务失败不影响其他
+          results[currentIndex] = null!;
+          console.error('Task failed:', error);
+        }
+      }
+    };
+
+    // 启动 worker（最多limit个）
+    const workerCount = Math.min(limit, items.length);
+    for (let i = 0; i < workerCount; i++) {
+      executing.push(run());
     }
+
+    // 等待所有任务完成
+    await Promise.all(executing);
     return results;
   }
+
+  // 优化后的资源清理方法（异步非阻塞）
+  private cleanupVideoResources(video: VideoMetadata): void {
+    // 使用IIFE创建异步执行上下文
+    (async () => {
+      try {
+        // 并行发起所有清理请求（不等待结果）
+        await Promise.all([
+          SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, video.date!),
+          RecentPlayUtil.delData(PathUtils.appContext!, video.uri),
+          this.deleteCover(video.date!)
+        ]);
+      } catch (error) {
+        console.warn(`清理视频资源失败: ${video.uri}`, error);
+      }
+    })(); // 立即执行
+  }
+
+  // 文件夹处理函数（使用细粒度并发）
+  private processSingleFolder = async (folder: FileFolder): Promise<FolderProcessResult> => {
+    // 使用细粒度并发处理每个视频
+    const results = await this.processWithConcurrencyLimit(
+      folder.video_list,
+      20, // 视频级别并发度（可调整）
+      this.processSingleVideo
+    );
+    // 计算处理数量
+    const processedCount = results.filter(result => result).length;
+    // 过滤掉无效视频
+    folder.video_list = folder.video_list.filter((_, index) => !results[index]);
+    return { folder, processed: processedCount };
+  };
 
   // 从下载文件夹获取视频，视频和文件夹太多，通过分离文件夹和文件两个线程池提高性能，进行递归遍历
   async getDownloadFilesUri(): Promise<string[]> {

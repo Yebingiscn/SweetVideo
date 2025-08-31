@@ -169,7 +169,7 @@ export struct PrivacySpace { // 隐私空间页
     Menu() {
       MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(async () => {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          await ToolsUtil.isFileExist(item) ?
+          await ToolsUtil.isFileExist(item?.uri!) ?
           ToolsUtil.routerWhere(this.pathStack, NavigationAddress.FFMPEG_PLAYER, item!,
             this.video_meta_data_encryption) :
             await this.delItem(item!)
@@ -177,7 +177,7 @@ export struct PrivacySpace { // 隐私空间页
       })
       MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          await ToolsUtil.isFileExist(item) ?
+          await ToolsUtil.isFileExist(item?.uri!) ?
           ToolsUtil.routerWhere(this.pathStack, NavigationAddress.RED_PLAYER, item!,
             this.video_meta_data_encryption) :
             await this.delItem(item!)
@@ -253,6 +253,7 @@ export struct PrivacySpace { // 隐私空间页
     this.videoDataSource.deleteData(this.video_meta_data_encryption.findIndex(i => i.date == item.date))
     this.video_meta_data_encryption = this.video_meta_data_encryption.filter(i => i.date != item.date);
     await SelectFileUtil.deleteCover(item.date)
+    await SelectFileUtil.deletePrivacyVideo(item, this.video_meta_data_encryption)
   }
 
   build() {
@@ -349,7 +350,7 @@ export struct PrivacySpace { // 隐私空间页
               }
             }
             .onClick(async () => {
-              await ToolsUtil.isFileExist(item) ?
+              await ToolsUtil.isFileExist(item?.uri!) ?
               ToolsUtil.routerWhere(this.pathStack, NavigationAddress.AV_PLAYER, item,
                 this.video_meta_data_encryption) :
                 await this.delItem(item)

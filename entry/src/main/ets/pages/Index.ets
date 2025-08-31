@@ -155,9 +155,9 @@ struct Index {
     ScreenUtil.init(PathUtils.appContext!)
     VideoOperateUtil.initSetting(PathUtils.appContext!)
     VideoMetaDataOperator.migrationRootVideoMetaToRootFolder()
-    await SelectFileUtil.checkUrisAvailable()
     this.passwd = Preferences.getPassword(PathUtils.appContext!)
     ToolsUtil.isSubtitleFileFolderExist(PathUtils.videoPath, PathUtils.subtitlePath)
+    await SelectFileUtil.checkUrisAvailable()
     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
     this.fileFolderSource?.updateData(this.file_folder_list)
     this.videoListController?.updateData(undefined, this.file_folder_list[0])
@@ -436,7 +436,6 @@ struct Index {
     .hideTitleBar(true).mode(NavigationMode.Stack).navDestination(this.Pages)
     .onNavBarStateChange((isVisible: boolean) => {
       if (isVisible) {
-        // this.videoDataSource.refreshData(this.videoListController.folder)
         this.passwd = Preferences.getPassword(PathUtils.appContext!)
         // 增加判断，旋转时保持滚动位置不变
         this.videoListController.refresh(this.screen_width, this.isListDisplay)
