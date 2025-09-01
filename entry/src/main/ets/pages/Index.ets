@@ -152,12 +152,12 @@ struct Index {
 
   async aboutToAppear(): Promise<void> {
     SelectFileUtil.getDownloadUri()
-    ScreenUtil.init(PathUtils.appContext!)
+    await ScreenUtil.init(PathUtils.appContext!)
     VideoOperateUtil.initSetting(PathUtils.appContext!)
     VideoMetaDataOperator.migrationRootVideoMetaToRootFolder()
-    this.passwd = Preferences.getPassword(PathUtils.appContext!)
-    ToolsUtil.isSubtitleFileFolderExist(PathUtils.videoPath, PathUtils.subtitlePath)
     await SelectFileUtil.checkUrisAvailable()
+    ToolsUtil.isSubtitleFileFolderExist(PathUtils.videoPath, PathUtils.subtitlePath)
+    this.passwd = Preferences.getPassword(PathUtils.appContext!)
     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
     this.fileFolderSource?.updateData(this.file_folder_list)
     this.videoListController?.updateData(undefined, this.file_folder_list[0])
@@ -373,19 +373,10 @@ struct Index {
             videoListController: this.videoListController
           })
           if (this.loading) {
-            Stack() {
-              ImportProgressComponent({
-                processedItems: this.processedItems,
-                totalItems: this.totalItems
-              })
-                .padding(30)
-                .borderRadius(16)
-                .shadow({ radius: 26, color: $r('app.color.shadow_color') })
-                .backgroundColor($r('app.color.start_window_background_blur'))
-                .backdropBlur(150)
-            }
-            .width('100%')
-            .height('100%')
+            ImportProgressComponent({
+              processedItems: this.processedItems,
+              totalItems: this.totalItems
+            })
           }
         }
         .backgroundColor($r('app.color.start_window_background'))

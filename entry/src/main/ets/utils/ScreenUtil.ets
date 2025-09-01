@@ -1,30 +1,29 @@
-import { display, window } from '@kit.ArkUI'
-import { Context } from '@kit.AbilityKit'
-import { settings } from '@kit.BasicServicesKit'
+import { display, window } from '@kit.ArkUI';
+import { Context } from '@kit.AbilityKit';
+import { settings } from '@kit.BasicServicesKit';
 
 class Screen {
   isInit: boolean = false
 
-  init(context: Context) {
+  async init(context: Context) {
     if (this.isInit) {
       return
     }
-    window.getLastWindow(context).then((windowClass) => {
+    try {
+      const windowClass = await window.getLastWindow(context)
       this.isInit = true
-      windowClass.setWindowLayoutFullScreen(true)
+      await windowClass.setWindowLayoutFullScreen(true)
       if (canIUse('SystemCapability.Window.SessionManager')) {
         windowClass.setWindowDecorVisible(false)
         if (canIUse('SystemCapability.Applications.Settings.Core')) {
-          settings.registerKeyObserver(context, 'window_pcmode_switch_status', settings.domainName.USER_PROPERTY,
-            () => {
-              this.updatePCMode(context)
-            });
+          settings.registerKeyObserver(context, 'window_pcmode_switch_status',
+            settings.domainName.USER_PROPERTY, () => this.updatePCMode(context))
         }
       }
       this.updatePCMode(context)
       this.updateAvoidArea(windowClass)
-      this.updateScreenSize(windowClass.getWindowProperties().windowRect.width,
-        windowClass.getWindowProperties().windowRect.height)
+      const windowRect = windowClass.getWindowProperties().windowRect
+      this.updateScreenSize(windowRect.width, windowRect.height)
       windowClass.on('windowSizeChange', (size) => {
         this.updateScreenSize(size.width, size.height)
         this.updateAvoidArea(windowClass)
@@ -37,10 +36,12 @@ class Screen {
           AppStorage.setOrCreate('main_blur', 0)
         }
       })
-    })
+    } catch (error) {
+      console.error("Window initialization error:", error);
+    }
   }
 
-  async updateAvoidArea(windowClass: window.Window) {
+  updateAvoidArea(windowClass: window.Window) {
     let cutOut = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_CUTOUT)
     let system = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
     let nav = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR)
@@ -90,7 +91,7 @@ class Screen {
     })
   }
 
-  async updateScreenSize(width: number | undefined, height: number | undefined) {
+  updateScreenSize(width: number | undefined, height: number | undefined) {
     let screen_width = px2vp(width || display.getPrimaryDisplaySync().width)
     let screen_height = px2vp(height || display.getDefaultDisplaySync().height)
     animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {

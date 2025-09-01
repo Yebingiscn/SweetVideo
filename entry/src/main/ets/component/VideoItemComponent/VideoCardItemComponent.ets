@@ -10,7 +10,6 @@ import { VideoInfoComponent } from './VideoInfoComponent';
 @Component
 export default struct VideoCardItem {
   @Prop item: VideoMetadata
-  @Prop index: number
   @Consume videoListController: VideoListController
   @State choose: boolean = false
   @Watch('checkChoose') @Link delMultipleList: VideoMetadata[]

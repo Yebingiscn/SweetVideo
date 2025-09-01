@@ -154,10 +154,9 @@ export struct VideoList {
   })
 
   @Builder
-  VideoItemBuilder(item: VideoMetadata, index: number) {
+  VideoItemBuilder(item: VideoMetadata) {
     VideoListItem({
       item: item,
-      index: index,
       delMultipleList: this.delMultipleList
     }).backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
     $r('app.color.start_window_background')).reuseId('list_item').borderRadius(8)
@@ -166,9 +165,9 @@ export struct VideoList {
   build() {
     if (this.isListDisplay) {
       List({ scroller: this.videoListController.listScroller }) {
-        LazyForEach(this.videoListController.videoDataSource, (item: VideoMetadata, index: number) => { // 加载视频列表
+        LazyForEach(this.videoListController.videoDataSource, (item: VideoMetadata) => { // 加载视频列表
           ListItem() {
-            this.VideoItemBuilder(item, index)
+            this.VideoItemBuilder(item)
           }
           .backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
           $r('app.color.start_window_background'))
@@ -179,7 +178,7 @@ export struct VideoList {
           .height('auto')
           .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
             {
-              preview: this.VideoItemBuilder(item, index),
+              preview: this.VideoItemBuilder(item),
               previewAnimationOptions: { hoverScale: [1.0, 1.2] },
               onAppear: () => {
                 this.longPressPreview = true
@@ -191,7 +190,7 @@ export struct VideoList {
             })
           .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
             {
-              preview: this.VideoItemBuilder(item, index),
+              preview: this.VideoItemBuilder(item),
               previewAnimationOptions: { hoverScale: [1.0, 1.2] },
               onAppear: () => {
                 this.longPressPreview = true
@@ -254,11 +253,10 @@ export struct VideoList {
             scroller: this.videoListController.listScroller,
             layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW
           }) {
-            LazyForEach(this.videoListController.videoDataSource, (item: VideoMetadata, index: number) => {
+            LazyForEach(this.videoListController.videoDataSource, (item: VideoMetadata) => {
               FlowItem() {
                 VideoCardItem({
                   item: item,
-                  index: index,
                   delMultipleList: this.delMultipleList
                 }).width('100%').reuseId('card_item')
               }
@@ -266,7 +264,7 @@ export struct VideoList {
               .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
               .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
                 {
-                  preview: this.VideoItemBuilder(item, index),
+                  preview: this.VideoItemBuilder(item),
                   previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                   onAppear: () => {
                     this.longPressPreview = true
@@ -278,7 +276,7 @@ export struct VideoList {
                 })
               .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
                 {
-                  preview: this.VideoItemBuilder(item, index),
+                  preview: this.VideoItemBuilder(item),
                   previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                   onAppear: () => {
                     this.longPressPreview = true

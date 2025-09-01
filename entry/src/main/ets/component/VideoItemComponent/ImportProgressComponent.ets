@@ -6,16 +6,25 @@ export struct ImportProgressComponent {
     { color: $r('app.color.main_color'), offset: 1.0 }])
 
   build() {
-    Column() {
-      Progress({ value: this.processedItems, total: this.totalItems, type: ProgressType.Ring })
-        .width(100)
-        .height(100)
-        .color(this.gradientColor)
-        .style({ strokeWidth: 15, enableSmoothEffect: true, shadow: true })
-        .margin({ bottom: 8 }) // 添加底部间距分隔文字
-      Text(this.processedItems + '/' + this.totalItems)
-        .fontSize(16)
-        .fontColor($r('app.color.main_color'))
-    }.animation({ duration: 150, curve: Curve.Sharp })
+    Stack() {
+      Column() {
+        Progress({ value: this.processedItems, total: this.totalItems, type: ProgressType.Ring })
+          .width(100)
+          .height(100)
+          .color(this.gradientColor)
+          .style({ strokeWidth: 15, enableSmoothEffect: true, shadow: true })
+          .margin({ bottom: 8 }) // 添加底部间距分隔文字
+        Text(this.processedItems + '/' + this.totalItems)
+          .fontSize(16)
+          .fontColor($r('app.color.main_color'))
+      }
+      .animation({ duration: 150, curve: Curve.Sharp })
+      .padding(30)
+      .borderRadius(16)
+      .shadow({ radius: 26, color: $r('app.color.shadow_color') })
+      .backgroundColor($r('app.color.start_window_background_blur'))
+      .backdropBlur(150)
+    }.width('100%')
+    .height('100%')
   }
 }

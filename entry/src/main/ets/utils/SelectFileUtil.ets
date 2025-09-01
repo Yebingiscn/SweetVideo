@@ -76,19 +76,31 @@ class SelectFileUtil {
   }
 
   // 导出视频文件
-  exportFile(item: VideoMetadata, context: common.UIAbilityContext) {
-    let file = fs.openSync(item.uri)
-    let saverOption = new picker.DocumentSaveOptions()
-    saverOption.newFileNames = this.copyFileReName(item)
-    let saver = new picker.DocumentViewPicker(context)
-    saver.save(saverOption, (err: BusinessError, documentSaveResult: string[]) => {
-      if (!err) {
-        let file1 = fs.openSync(documentSaveResult[0], fs.OpenMode.READ_WRITE)
-        fs.copyFileSync(file.fd, file1.fd)
-        fs.close(file.fd)
-        fs.close(file1.fd)
+  async exportFile(item: VideoMetadata, context: common.UIAbilityContext) {
+    let sourceFile: fs.File | null = null;
+    let targetFile: fs.File | null = null;
+    try {
+      sourceFile = fs.openSync(item.uri)
+      const saverOption = new picker.DocumentSaveOptions()
+      saverOption.newFileNames = this.copyFileReName(item)
+      const documentSaveResult = await new Promise<string[]>((resolve, reject) => {
+        const saver = new picker.DocumentViewPicker(context);
+        saver.save(saverOption, (err: BusinessError, uris: string[]) => {
+          err ? reject(err) : resolve(uris);
+        });
+      });
+      targetFile = fs.openSync(documentSaveResult[0], fs.OpenMode.READ_WRITE);
+      await fs.copyFile(sourceFile.fd, targetFile.fd);
+      ToolsUtil.showToast(`导出成功: ${targetFile?.name} 路径为: ${targetFile?.path}`);
+    } finally {
+      // 确保关闭文件资源
+      if (sourceFile) {
+        fs.close(sourceFile.fd);
       }
-    })
+      if (targetFile) {
+        fs.close(targetFile.fd);
+      }
+    }
   }
 
   //复制视频进入隐私空间

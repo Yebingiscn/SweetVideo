@@ -66,4 +66,3 @@ export struct VolumeSwipingComponent {
     return $r('sys.symbol.speaker_wave_1'); // 低音量
   }
 }
-

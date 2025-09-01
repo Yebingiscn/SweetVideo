@@ -256,6 +256,35 @@ export struct PrivacySpace { // 隐私空间页
     await SelectFileUtil.deletePrivacyVideo(item, this.video_meta_data_encryption)
   }
 
+  @Builder
+  VideoItemBuilder(item: VideoMetadata) {
+    Column() {
+      Row() {
+        Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
+          .attributeModifier(new ImageFancyModifier(10, 60, 90))
+        Column() {
+          Row() {
+            Text(VideoInfoUtil.getVideoTitle(item))
+              .fontSize(15)
+              .fontWeight(FontWeight.Medium)
+              .maxLines(4)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .width('80%')
+              .margin({ left: 5 })
+              .wordBreak(WordBreak.BREAK_ALL)
+          }.width('100%')
+
+          VideoInfoComponent({ item })
+        }.margin({ left: 10 }).alignItems(HorizontalAlign.Start)
+      }
+      .width('100%')
+    }
+    .justifyContent(FlexAlign.SpaceEvenly)
+    .backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
+    $r('app.color.start_window_background'))
+    .borderRadius(8)
+  }
+
   build() {
     NavDestination() {
       Column() {
@@ -280,36 +309,17 @@ export struct PrivacySpace { // 隐私空间页
             })
           }
         }).width('90%')
+        if (this.loading) {
+          ImportProgressComponent({
+            processedItems: this.current_import,
+            totalItems: this.import_sum
+          })
+        }
         List({ scroller: this.listScroller, space: 10 }) {
           LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
             ListItem() {
               if (this.isListDisplay) {
-                Column() {
-                  Row() {
-                    Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
-                      .attributeModifier(new ImageFancyModifier(10, 60, 90))
-                    Column() {
-                      Row() {
-                        Text(VideoInfoUtil.getVideoTitle(item))
-                          .fontSize(15)
-                          .fontWeight(FontWeight.Medium)
-                          .maxLines(4)
-                          .textOverflow({ overflow: TextOverflow.Ellipsis })
-                          .width('80%')
-                          .margin({ left: 5 })
-                          .wordBreak(WordBreak.BREAK_ALL)
-                      }.width('100%')
-
-                      VideoInfoComponent({ item })
-                    }.margin({ left: 10 }).alignItems(HorizontalAlign.Start)
-                  }
-                  .width('100%')
-                  .height(100)
-                }
-                .justifyContent(FlexAlign.SpaceEvenly)
-                .backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
-                $r('app.color.start_window_background'))
-                .borderRadius(8)
+                this.VideoItemBuilder(item)
               } else {
                 Column() {
                   Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
@@ -357,10 +367,11 @@ export struct PrivacySpace { // 隐私空间页
             })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
               {
-                preview: MenuPreviewMode.IMAGE,
-                previewAnimationOptions: { scale: [0.8, 1.0] },
+                preview: this.VideoItemBuilder(item),
+                previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                 onAppear: () => {
                   this.longPressPreview = true
+                  ToolsUtil.startVibration()
                 },
                 aboutToDisappear: () => {
                   this.longPressPreview = false
@@ -368,8 +379,8 @@ export struct PrivacySpace { // 隐私空间页
               })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
               {
-                preview: MenuPreviewMode.IMAGE,
-                previewAnimationOptions: { scale: [0.8, 1.0] },
+                preview: this.VideoItemBuilder(item),
+                previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                 onAppear: () => {
                   this.longPressPreview = true
                 },
@@ -395,29 +406,18 @@ export struct PrivacySpace { // 隐私空间页
         .chainAnimation(true)
         .scrollBar(BarState.Off)
 
-        if (this.video_meta_data_encryption.length == 0) {
+        if (this.video_meta_data_encryption.length == 0 && !this.loading) {
           Row() { //顶栏
-            if (!this.loading) {
-              Column() {
-                Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
-                Text($r('app.string.privacy_space_info'))
-                  .fontSize(15)
-                  .textAlign(TextAlign.Center)
-                  .fontWeight(FontWeight.Lighter)
-                  .margin({ top: 20 })
-              }
+            Column() {
+              Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
+              Text($r('app.string.privacy_space_info'))
+                .fontSize(15)
+                .textAlign(TextAlign.Center)
+                .fontWeight(FontWeight.Lighter)
+                .margin({ top: 20 })
             }
           }.height('100%')
           .animation({ duration: 150, curve: Curve.Ease })
-        }
-        if (this.loading) {
-          Stack() {
-            ImportProgressComponent({
-              processedItems: this.current_import,
-              totalItems: this.import_sum
-            })
-          }.width('100%')
-          .height('100%')
         }
       }.width('100%').height('100%')
       .onAreaChange(async (_oldValue: Area, newValue: Area) => {
