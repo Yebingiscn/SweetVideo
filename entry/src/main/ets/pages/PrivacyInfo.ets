@@ -51,17 +51,17 @@ export struct PrivacyPolicyDialog {
         direction: FlexDirection.Row,
         justifyContent: FlexAlign.SpaceAround
       }) { // 子组件在容器主轴上行布局
-        Button('不同意')
+        Button('拒绝并退出')
           .onClick(() => {
             this.cancel();
           })
-          .fontColor('#999999')
+          .fontColor(Color.Red)
           .fontSize(15)
           .backgroundColor(Color.Transparent)
           .align(Alignment.Center)
           .width('40%')
 
-        Button('同意')
+        Button('同意并继续')
           .onClick(() => {
             ToolsUtil.startVibration()
             this.confirm();
@@ -79,7 +79,9 @@ export struct PrivacyPolicyDialog {
       }
       .width('100%')
       .margin({ top: 20, bottom: 20 })
-    }
+    }.backgroundImage($r("app.media.sweet_video"))
+    .backgroundImagePosition(Alignment.Center)
+    .backdropBlur(150)
     .padding({ left: 15, right: 15 })
   }
 

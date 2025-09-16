@@ -16,28 +16,11 @@ import { PathUtils } from './PathUtils';
 import ToolsUtil from './ToolsUtil';
 import RecentPlayUtil from './RecentPlayUtil';
 import { ConcurrencyManagerUtil } from './FileProcessorUtil';
-import SubtitleUtil from './SubtitleUtil';
-import { FolderProcessResult } from '../interfaces/FolderProcessResultInterface';
 
 // 获取视频类
 class SelectFileUtil {
   private static queryCache = new WeakMap<VideoMetadata[], Map<string, VideoMetadata>>();
   public file_folder_uri = ''
-  // 单视频处理函数
-  private processSingleVideo = async (video: VideoMetadata): Promise<boolean> => {
-    try {
-      const exists = await ToolsUtil.isFileExist(video.uri);
-      if (!exists) {
-        // 触发异步清理（不等待）
-        this.cleanupVideoResources(video);
-        return true; // 标记为已处理
-      }
-      return false; // 视频有效，无需处理
-    } catch (error) {
-      console.warn(`视频检查失败: ${video.uri}`, error);
-      return false;
-    }
-  };
 
   // 从文件管理器获取视频
   async selectFiles(): Promise<string[]> {
@@ -349,7 +332,7 @@ class SelectFileUtil {
             dataLock.release();
           }
         } finally {
-          avMetadataExtractor.release?.(); // 或 .release()
+          avMetadataExtractor.release?.();
           fs.closeSync(file);
         }
       });
@@ -366,30 +349,6 @@ class SelectFileUtil {
       video_meta_data,
       fileFolder
     );
-  }
-
-  async checkUrisAvailable() {
-    try {
-      const fileFolderList: FileFolder[] = Preferences.getFileFolder(PathUtils.appContext!);
-      // 使用并发限制函数
-      const results = await this.processWithConcurrencyLimit(
-        fileFolderList, 5, this.processSingleFolder // 直接传递方法引用
-      );
-      // 计算总共处理的视频数量
-      const totalProcessed = results.reduce((sum, result) => sum + result.processed, 0);
-      // 显示处理结果
-      if (totalProcessed > 0) {
-        const message = totalProcessed +
-        PathUtils.appContext!.resourceManager.getStringSync($r('app.string.re_import_info'));
-        ToolsUtil.showToast(message);
-        // 从结果中提取更新后的文件夹列表
-        const updatedFolders: FileFolder[] = results.map(result => result.folder);
-        Preferences.saveFileFolder(PathUtils.appContext!, updatedFolders);
-      }
-    } catch (error) {
-      console.error('检查URI可用性时发生错误:', error);
-      ToolsUtil.showToast("检查URI可用性时发生错误");
-    }
   }
 
   async deletePrivacyVideo(item: VideoMetadata, video_meta_data_encryption: VideoMetadata[]) {
@@ -429,77 +388,6 @@ class SelectFileUtil {
       });
     });
   }
-
-  // 实现细粒度并发控制（视频级别）
-  private async processWithConcurrencyLimit<T, R>(
-    items: T[],
-    limit: number,
-    processFn: (item: T) => Promise<R>
-  ): Promise<R[]> {
-    // 预分配结果数组
-    const results: R[] = new Array(items.length);
-    // 跟踪正在执行的任务
-    const executing: Promise<void>[] = [];
-    let index = 0;
-
-    const run = async () => {
-      while (index < items.length) {
-        const currentIndex = index++;
-        const item = items[currentIndex];
-        try {
-          // 处理单个任务
-          const result = await processFn(item);
-          results[currentIndex] = result;
-        } catch (error) {
-          // 错误隔离：单个任务失败不影响其他
-          results[currentIndex] = null!;
-          console.error('Task failed:', error);
-        }
-      }
-    };
-
-    // 启动 worker（最多limit个）
-    const workerCount = Math.min(limit, items.length);
-    for (let i = 0; i < workerCount; i++) {
-      executing.push(run());
-    }
-
-    // 等待所有任务完成
-    await Promise.all(executing);
-    return results;
-  }
-
-  // 优化后的资源清理方法（异步非阻塞）
-  private cleanupVideoResources(video: VideoMetadata): void {
-    // 使用IIFE创建异步执行上下文
-    (async () => {
-      try {
-        // 并行发起所有清理请求（不等待结果）
-        await Promise.all([
-          SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, video.date!),
-          RecentPlayUtil.delData(PathUtils.appContext!, video.uri),
-          this.deleteCover(video.date!)
-        ]);
-      } catch (error) {
-        console.warn(`清理视频资源失败: ${video.uri}`, error);
-      }
-    })(); // 立即执行
-  }
-
-  // 文件夹处理函数（使用细粒度并发）
-  private processSingleFolder = async (folder: FileFolder): Promise<FolderProcessResult> => {
-    // 使用细粒度并发处理每个视频
-    const results = await this.processWithConcurrencyLimit(
-      folder.video_list,
-      20, // 视频级别并发度（可调整）
-      this.processSingleVideo
-    );
-    // 计算处理数量
-    const processedCount = results.filter(result => result).length;
-    // 过滤掉无效视频
-    folder.video_list = folder.video_list.filter((_, index) => !results[index]);
-    return { folder, processed: processedCount };
-  };
 
   // 从下载文件夹获取视频，视频和文件夹太多，通过分离文件夹和文件两个线程池提高性能，进行递归遍历
   async getDownloadFilesUri(): Promise<string[]> {

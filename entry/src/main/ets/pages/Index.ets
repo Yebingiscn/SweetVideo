@@ -18,7 +18,7 @@ import { FFMpegPlayer } from './FFMpegPlayer';
 import { Player } from './Player';
 import { RecentPlay } from './RecentPlay';
 import { PrivacyPolicyDialog } from './PrivacyInfo';
-import VideoOperateUtil from '../utils/VideoOperateUtil';
+import VideoOperateUtil, { taskpoolExecTool } from '../utils/VideoOperateUtil';
 import { PrivacySpace } from './PrivacySpace';
 import Preferences from '../database/Preferences';
 import { RedPlayer } from './RedPlayer';
@@ -151,11 +151,10 @@ struct Index {
   }
 
   async aboutToAppear(): Promise<void> {
-    SelectFileUtil.getDownloadUri()
     await ScreenUtil.init(PathUtils.appContext!)
+    SelectFileUtil.getDownloadUri()
     VideoOperateUtil.initSetting(PathUtils.appContext!)
     VideoMetaDataOperator.migrationRootVideoMetaToRootFolder()
-    await SelectFileUtil.checkUrisAvailable()
     ToolsUtil.isSubtitleFileFolderExist(PathUtils.videoPath, PathUtils.subtitlePath)
     this.passwd = Preferences.getPassword(PathUtils.appContext!)
     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
@@ -165,7 +164,9 @@ struct Index {
       let controller = new CustomDialogController({
         builder: PrivacyPolicyDialog({
           cancel: () => {
-            PathUtils.appContext!.terminateSelf()
+            PathUtils.appContext!.terminateSelf().catch((error: Error) => {
+              ToolsUtil.showToast('关闭弹窗失败' + error)
+            })
           },
           confirm: async () => {
             Preferences.saveOOBEVersion(PathUtils.appContext!, OOBEVersion)
@@ -175,7 +176,9 @@ struct Index {
         autoCancel: false,
         onWillDismiss: async () => {
           if (Preferences.getOOBEVersion(PathUtils.appContext!) < OOBEVersion) {
-            PathUtils.appContext!.terminateSelf()
+            PathUtils.appContext!.terminateSelf().catch((error: Error) => {
+              ToolsUtil.showToast('退出应用失败' + error)
+            })
           }
         }
       })
@@ -183,6 +186,12 @@ struct Index {
         controller.open()
       }, 1000)
     }
+    taskpoolExecTool(Preferences.getFileFolder(PathUtils.appContext!), (re: Object) => {
+      if (Number(re) > 0) {
+        VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+        ToolsUtil.showToast(`移除${Number(re)}个视频`)
+      }
+    })
   }
 
   async toMetaData(fileList: string[], fileFolder?: FileFolder) {
@@ -388,7 +397,7 @@ struct Index {
         .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
           if (event) {
             this.sideBarController.sideBarStatusTmp === Visibility.Visible ?
-            this.sideBarController.closeSideBar(true) : this.sideBarController.openSideBar()
+              this.sideBarController.closeSideBar(true) : this.sideBarController.openSideBar()
           }
         }))
       }
@@ -407,7 +416,12 @@ struct Index {
         }
       })
       .onDrop((dragEvent: DragEvent) => {
-        let records: Array<unifiedDataChannel.UnifiedRecord> = dragEvent.getData().getRecords();
+        let records: Array<unifiedDataChannel.UnifiedRecord> = []
+        try {
+          records = dragEvent.getData().getRecords();
+        } catch (error) {
+          ToolsUtil.showToast('获取数据时异常：' + error)
+        }
         let video: unifiedDataChannel.Video = records[0] as unifiedDataChannel.Video;
         WantProcessUtil.wantUri = video.uri
         WantProcessUtil.hasWant(PathUtils.appContext!, this.pathStack)
@@ -429,8 +443,10 @@ struct Index {
       if (isVisible) {
         this.passwd = Preferences.getPassword(PathUtils.appContext!)
         // 增加判断，旋转时保持滚动位置不变
-        this.videoListController.refresh(this.screen_width, this.isListDisplay)
-        VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+        if (this.videoListController.folder?.video_list) {
+          this.videoListController.refresh(this.screen_width, this.isListDisplay)
+          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+        }
       }
     })
   }

@@ -85,7 +85,7 @@ class AVSessionUtil {
   updateSession(avSessionState: AvSessionState) {
     let playbackState: avSessionManager.AVPlaybackState = {
       state: avSessionState.playing ? avSessionManager.PlaybackState.PLAYBACK_STATE_PLAY :
-      avSessionManager.PlaybackState.PLAYBACK_STATE_PAUSE,
+        avSessionManager.PlaybackState.PLAYBACK_STATE_PAUSE,
       position: {
         elapsedTime: avSessionState.duration,
         updateTime: systemDateTime.getTime(false),

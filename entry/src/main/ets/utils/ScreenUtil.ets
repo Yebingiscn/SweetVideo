@@ -92,8 +92,8 @@ class Screen {
   }
 
   updateScreenSize(width: number | undefined, height: number | undefined) {
-    let screen_width = px2vp(width || display.getPrimaryDisplaySync().width)
-    let screen_height = px2vp(height || display.getDefaultDisplaySync().height)
+    let screen_width = width || display.getPrimaryDisplaySync().width
+    let screen_height = height || display.getDefaultDisplaySync().height
     animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
       AppStorage.setOrCreate('screen_width', screen_width)
       AppStorage.setOrCreate('screen_height', screen_height)

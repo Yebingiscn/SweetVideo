@@ -17,7 +17,7 @@ export struct FastForwardInfoComponent {
         LazyForEach(this.speedListDataSource, (item: string, index) => {
           Text(`${item}${item === VideoInfoUtil.optimizedFormat(this.speed) ? ' ⏩' : ''}`)
             .fontColor(item === VideoInfoUtil.optimizedFormat(this.speed) ? $r('app.color.main_color') :
-            $r('sys.color.white'))
+              $r('sys.color.white'))
             .fontSize(15)
             .opacity(item === VideoInfoUtil.optimizedFormat(this.speed) ? 1 : 0.6)// 当前速度不透明，其他半透明
             .fontWeight(item === VideoInfoUtil.optimizedFormat(this.speed) ? FontWeight.Bold : FontWeight.Normal)

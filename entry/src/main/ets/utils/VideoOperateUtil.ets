@@ -19,6 +19,9 @@ import ToolsUtil from './ToolsUtil';
 import VideoInfoUtil from './VideoInfoUtil';
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
 import PreferencesUtil from './PreferencesUtil';
+import { FileFolder } from '../interfaces/FileFolderInterface';
+import SubtitleUtil from './SubtitleUtil';
+import { taskpool } from '@kit.ArkTS';
 
 // 视频操作类
 class VideoOperateUtil {
@@ -293,5 +296,41 @@ class VideoOperateUtil {
     return videoTime > 600000 ? 600000 / screenWidth : videoTime / screenWidth
   }
 }
+
+@Concurrent
+async function checkUriAvailable(fileFolderList: FileFolder[]): Promise<number> {
+  let deletedVideoNum = 0
+  for (let index = 0; index < fileFolderList.length; index++) {
+    const videos = fileFolderList[index];
+    for (let index = 0; index < videos.video_list.length; index++) {
+      const video = videos.video_list[index]
+      const exists = await ToolsUtil.isFileExist(video.uri);
+      if (!exists) {
+        try {
+          // 并行发起所有清理请求（不等待结果）
+          await Promise.all([
+            SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, video.date!),
+            RecentPlayUtil.delData(PathUtils.appContext!, video.uri),
+            SelectFileUtil.deleteCover(video.date!),
+            deletedVideoNum++
+          ]);
+        } catch (error) {
+          console.warn(`清理视频资源失败: ${video.uri}`, error);
+        }
+      }
+    }
+  }
+  return deletedVideoNum;
+}
+
+export function taskpoolExecTool(param: FileFolder[], callback: (re: Object) => void) {
+  taskpool.execute(new taskpool.Task(checkUriAvailable, param), taskpool.Priority.HIGH).then((result: Object) => {
+    console.info("taskPoolTest task result: " + result);
+    callback(result);
+  }).catch((err: string) => {
+    console.error("taskPoolTest test occur error: " + err);
+  })
+}
+
 
 export default new VideoOperateUtil()

@@ -86,7 +86,7 @@ export struct ListView {
       Text(VideoInfoUtil.getVideoTitle(this.item!))
         .fontSize(15)
         .fontColor(this.now_playing && this.now_playing?.date === this.item?.date ? $r('app.color.main_color') :
-        $r('app.color.text_color'))
+          $r('app.color.text_color'))
         .fontWeight(FontWeight.Medium)
         .maxLines(4)
         .textOverflow({ overflow: TextOverflow.Ellipsis })

@@ -36,7 +36,7 @@ export struct VideoTopComponent {
           .layoutWeight(1) // 关键布局属性
         Row({ space: 12 }) {
           SymbolGlyph(this.subTitleVisibility === Visibility.Visible ?
-          $r('sys.symbol.textformat_size_square_fill') : $r('sys.symbol.textformat_size_square'))
+            $r('sys.symbol.textformat_size_square_fill') : $r('sys.symbol.textformat_size_square'))
             .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
             .fontColor(['#f0f0f0'])
             .onClick(() => {

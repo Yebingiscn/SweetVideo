@@ -170,16 +170,16 @@ export struct PrivacySpace { // 隐私空间页
       MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(async () => {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           await ToolsUtil.isFileExist(item?.uri!) ?
-          ToolsUtil.routerWhere(this.pathStack, NavigationAddress.FFMPEG_PLAYER, item!,
-            this.video_meta_data_encryption) :
+            ToolsUtil.routerWhere(this.pathStack, NavigationAddress.FFMPEG_PLAYER, item!,
+              this.video_meta_data_encryption) :
             await this.delItem(item!)
         }, 200)
       })
       MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           await ToolsUtil.isFileExist(item?.uri!) ?
-          ToolsUtil.routerWhere(this.pathStack, NavigationAddress.RED_PLAYER, item!,
-            this.video_meta_data_encryption) :
+            ToolsUtil.routerWhere(this.pathStack, NavigationAddress.RED_PLAYER, item!,
+              this.video_meta_data_encryption) :
             await this.delItem(item!)
         }, 200)
       })
@@ -281,7 +281,7 @@ export struct PrivacySpace { // 隐私空间页
     }
     .justifyContent(FlexAlign.SpaceEvenly)
     .backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
-    $r('app.color.start_window_background'))
+      $r('app.color.start_window_background'))
     .borderRadius(8)
   }
 
@@ -351,7 +351,7 @@ export struct PrivacySpace { // 隐私空间页
                   .width('100%')
                 }
                 .backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
-                $r('app.color.start_window_background'))
+                  $r('app.color.start_window_background'))
                 .borderRadius(8)
                 .width('95%')
                 .height('auto')
@@ -361,8 +361,8 @@ export struct PrivacySpace { // 隐私空间页
             }
             .onClick(async () => {
               await ToolsUtil.isFileExist(item?.uri!) ?
-              ToolsUtil.routerWhere(this.pathStack, NavigationAddress.AV_PLAYER, item,
-                this.video_meta_data_encryption) :
+                ToolsUtil.routerWhere(this.pathStack, NavigationAddress.AV_PLAYER, item,
+                  this.video_meta_data_encryption) :
                 await this.delItem(item)
             })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,

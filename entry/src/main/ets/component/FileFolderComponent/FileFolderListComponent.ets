@@ -12,7 +12,7 @@ export struct FileFolderListComponent {
     Button({ type: ButtonType.Normal, stateEffect: true }) {
       Row() {
         SymbolGlyph(this.videoListController.folder.name === this.folder?.name ?
-        $r('sys.symbol.doc_plaintext_and_folder') : $r('sys.symbol.folder'))
+          $r('sys.symbol.doc_plaintext_and_folder') : $r('sys.symbol.folder'))
           .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
         Column() {
           Text(this.folder?.name)

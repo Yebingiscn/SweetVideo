@@ -159,7 +159,7 @@ export struct VideoList {
       item: item,
       delMultipleList: this.delMultipleList
     }).backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
-    $r('app.color.start_window_background')).reuseId('list_item').borderRadius(8)
+      $r('app.color.start_window_background')).reuseId('list_item').borderRadius(8)
   }
 
   build() {
@@ -170,7 +170,7 @@ export struct VideoList {
             this.VideoItemBuilder(item)
           }
           .backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
-          $r('app.color.start_window_background'))
+            $r('app.color.start_window_background'))
           .margin({ bottom: 15 }) // 不知道动了哪里，挤在一起了，先这样改
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
@@ -343,8 +343,8 @@ export struct VideoList {
     }
     this.videoListController.listScroller.closeAllSwipeActions()
     await ToolsUtil.isFileExist(item.uri) ?
-    ToolsUtil.routerWhere(this.pathStack, choosePlayer, item,
-      this.videoListController.videoMetaDataList) :
+      ToolsUtil.routerWhere(this.pathStack, choosePlayer, item,
+        this.videoListController.videoMetaDataList) :
       await this.videoListController.videoDataSource.deleteUnExistFile(item, this.videoListController,
         this.fileFolderSource)
   }
@@ -418,8 +418,8 @@ export struct VideoList {
       })
         .onClick(async () => {
           await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath, item?.date!) ?
-          SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item?.date!) :
-          SubtitleUtil.selectExternalSubtitles(PathUtils.subtitlePath, item?.date!)
+            SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item?.date!) :
+            SubtitleUtil.selectExternalSubtitles(PathUtils.subtitlePath, item?.date!)
         })
     }
   }

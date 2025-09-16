@@ -10,7 +10,17 @@ class RecentPlayUtil {
   private videoIdMap: Map<string, number> = new Map(); // ID -> Index in deque
 
   constructor() {
-    this.init(PathUtils.appContext!);
+    if (PathUtils.appContext) {
+      this.init(PathUtils.appContext);
+    } else {
+      setTimeout(() => {
+        if (PathUtils.appContext) {
+          this.init(PathUtils.appContext);
+        } else {
+          console.warn("PathUtils.appContext is still not available after delay");
+        }
+      }, 200);
+    }
   }
 
   addPlayback(context: Context, item: VideoMetadata): void {
@@ -49,7 +59,9 @@ class RecentPlayUtil {
   }
 
   private init(context: Context) {
-    this.loadData(context);
+    if (context) {
+      this.loadData(context);
+    }
   }
 
   private updateMapIndices() {

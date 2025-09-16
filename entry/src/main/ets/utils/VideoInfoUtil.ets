@@ -166,7 +166,7 @@ class VideoInfoUtil {
       let file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
       let avFileDescriptor: media.AVFileDescriptor = { fd: file.fd };
       avImageGenerator.fdSrc = avFileDescriptor
-      let timeUs = (time > 0) ? time * 100 : 0
+      let timeUs = (time > 0) ? time * 100 : 0 // 微秒
       let queryOption = media.AVImageQueryOptions.AV_IMAGE_QUERY_NEXT_SYNC
       let param: media.PixelMapParams = {
         width: size[0],

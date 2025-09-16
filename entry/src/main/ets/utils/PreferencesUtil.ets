@@ -9,10 +9,12 @@ export default class PreferencesUtil {
         name: name
       })
       pref.putSync(key, value)
-      pref.flush()
+      pref.flush().catch(() => {
+        console.error('flush error')
+      })
     } catch (e) {
       console.error('database error' + JSON.stringify(e))
-      ToolsUtil.showToast('数据库异常，保存失败，原因是' + JSON.stringify(e))
+      ToolsUtil.showToast(`数据库异常，保存失败，原因是:${JSON.stringify(e)}，ValueType: ${value}，获取参数为 ${name}}: ${key}`)
     }
   }
 
@@ -24,7 +26,7 @@ export default class PreferencesUtil {
       return pref.getSync(key, defaultValue)
     } catch (e) {
       console.error('database error' + JSON.stringify(e))
-      ToolsUtil.showToast('数据库异常，读取失败，原因是' + JSON.stringify(e))
+      ToolsUtil.showToast(`数据库异常，读取失败，原因是: ${JSON.stringify(e)}，初始化${defaultValue}时失败，获取参数为 ${name}}: ${key}`)
       return defaultValue
     }
   }
@@ -39,11 +41,15 @@ export default class PreferencesUtil {
         console.log(`Key "${key}" not found, skip deletion`);
         return; // 键不存在时提前返回
       }
-      pref.delete(key)
-      pref.flush()
+      pref.delete(key).catch(() => {
+        console.error('delete error')
+      })
+      pref.flush().catch(() => {
+        console.error('flush error')
+      })
     } catch (e) {
       console.error('database error' + JSON.stringify(e))
-      ToolsUtil.showToast('数据库异常，删除失败，原因是' + JSON.stringify(e))
+      ToolsUtil.showToast(`数据库异常，删除失败，原因是 ${JSON.stringify(e)} 删除${key}:${name}失败`)
     }
   }
 }

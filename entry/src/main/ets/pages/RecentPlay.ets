@@ -78,8 +78,8 @@ export struct RecentPlay { // 最近播放页
   async clickItem(item: VideoMetadata | undefined, choosePlayer: string) {
     if (item) {
       await ToolsUtil.isFileExist(item?.uri) ?
-      ToolsUtil.routerWhere(this.pathStack, choosePlayer, item, this.recent_video_meta_data) :
-      this.delData(PathUtils.appContext!, item)
+        ToolsUtil.routerWhere(this.pathStack, choosePlayer, item, this.recent_video_meta_data) :
+        this.delData(PathUtils.appContext!, item)
     }
   }
 
@@ -116,7 +116,7 @@ export struct RecentPlay { // 最近播放页
                 .height(100)
                 .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
             }.backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
-            $r('app.color.start_window_background'))
+              $r('app.color.start_window_background'))
             .borderRadius(8)
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
               {
