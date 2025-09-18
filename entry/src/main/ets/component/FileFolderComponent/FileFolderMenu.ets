@@ -7,7 +7,7 @@ import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import FileFolderUtil from '../../utils/FileFolderUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import { FolderOperator } from '../../database/VideoMetaData'
-import { addFileFolderNameDialog } from '../Dialog/AddFileFolderNameDialog'
+import { AddFileFolderNameDialog } from '../Dialog/AddFileFolderNameDialog'
 import { DefaultDialogShadow } from '../../common/DefaultDialogShadow'
 
 
@@ -17,7 +17,7 @@ export struct FileFolderMenu {
   @Consume videoListController: VideoListController
   @Prop video_item: VideoMetadata
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
-    builder: addFileFolderNameDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
+    builder: AddFileFolderNameDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
   })
 
   build() {

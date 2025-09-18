@@ -1,6 +1,6 @@
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 import NavigationAddress from '../common/NavigationAddress';
-import { editPasswordDialog } from '../component/Dialog/EditPasswordDialog';
+import { EditPasswordDialog } from '../component/Dialog/EditPasswordDialog';
 import { SettingsClickItem } from '../component/SettingComponent/SettingsClickItem';
 import { SettingSliderItem } from '../component/SettingComponent/SettingSliderItem';
 import { SettingsMenuItem } from '../component/SettingComponent/SettingsMenuItem';
@@ -30,7 +30,7 @@ export struct SettingsPage { //设置页
   @State passwd: string = 'passwd'
   @Consume('pathStack') pathStack: NavPathStack
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
-    builder: editPasswordDialog({
+    builder: EditPasswordDialog({
       confirm: (passwd: string | undefined) => {
         if (!passwd || passwd.trim() == '') {
           return

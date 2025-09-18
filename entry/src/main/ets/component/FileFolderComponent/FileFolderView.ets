@@ -7,7 +7,7 @@ import DataSyncUtil from '../../utils/DataSyncUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import FileFolderUtil from '../../utils/FileFolderUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
-import { editFileFolderNameDialog } from '../../component/Dialog/EditFileFolderNameDialog'
+import { EditFileFolderNameDialog } from '../../component/Dialog/EditFileFolderNameDialog'
 import { DefaultDialogShadow } from '../../common/DefaultDialogShadow'
 import { FileFolderListComponent } from './FileFolderListComponent'
 
@@ -18,7 +18,7 @@ export struct FileFolderView {
   @Consume sideBarController: SideBarController
   @State fileFolderList: FileFolder[] = this.fileFolderSource.getAllData()
   editFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
-    builder: editFileFolderNameDialog({
+    builder: EditFileFolderNameDialog({
       confirm: async (file_folder: string | undefined) => {
         if (!file_folder || file_folder.trim() == '') {
           return

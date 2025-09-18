@@ -4,7 +4,7 @@ import { PathUtils } from '../../utils/PathUtils'
 
 // 添加文件夹弹窗
 @CustomDialog
-export struct addFileFolderNameDialog { //编辑元数据弹窗
+export struct AddFileFolderNameDialog { //编辑元数据弹窗
   controller?: CustomDialogController
   file_folder_name: string | undefined = undefined
   @Consume fileFolderSource: FileFolderDataSource

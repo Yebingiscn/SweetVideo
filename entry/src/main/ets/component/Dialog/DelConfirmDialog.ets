@@ -1,6 +1,6 @@
 //删除确认弹窗
 @CustomDialog
-export struct delConfirmDialog {
+export struct DelConfirmDialog {
   confirm?: () => void
   controller?: CustomDialogController
 

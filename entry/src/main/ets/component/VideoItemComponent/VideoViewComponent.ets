@@ -1,7 +1,11 @@
 import { VideoList, VideoListController } from './VideoItemComponent';
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
 import { SideBarController } from '../SideBarComponent/SideBar';
-import { ButtonFancyModifier, ShadowModifier, SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil';
+import {
+  ButtonFancyModifier,
+  SearchShadowModifier,
+  SymbolGlyphFancyModifier
+} from '../../utils/AttributeModifierUtil';
 import { PathUtils } from '../../utils/PathUtils';
 import SelectFileUtil from '../../utils/SelectFileUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
@@ -77,7 +81,7 @@ export struct VideoView {
             .onClick(() => {
               this.sideBarController.openSideBar()
             })
-            .attributeModifier(new ShadowModifier())
+            .attributeModifier(new SearchShadowModifier())
             .zIndex(0)
           }
 
@@ -135,7 +139,7 @@ export struct VideoView {
             .attributeModifier(new ButtonFancyModifier(40, 40))
             .animation({ duration: 300, curve: Curve.Ease })
             .bindMenu(this.SortMenuBuilder)
-            .attributeModifier(new ShadowModifier())
+            .attributeModifier(new SearchShadowModifier())
             .zIndex(0)
 
             if (this.videoListController.multipleChooseState === Visibility.Visible) {
@@ -146,7 +150,7 @@ export struct VideoView {
               .attributeModifier(new ButtonFancyModifier(40, 40))
               .animation({ duration: 300, curve: Curve.Ease })
               .bindMenu(this.SelectItemMenuBuilder)
-              .attributeModifier(new ShadowModifier())
+              .attributeModifier(new SearchShadowModifier())
               .zIndex(0)
             }
           }

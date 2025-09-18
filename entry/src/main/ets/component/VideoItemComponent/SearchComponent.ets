@@ -1,4 +1,4 @@
-import { ShadowModifier } from '../../utils/AttributeModifierUtil';
+import { SearchShadowModifier } from '../../utils/AttributeModifierUtil';
 
 @Component
 export struct SearchComponent {
@@ -21,7 +21,7 @@ export struct SearchComponent {
       .height(40)
       .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
       .animation({ duration: 300, curve: Curve.Ease })
-      .attributeModifier(new ShadowModifier())
+      .attributeModifier(new SearchShadowModifier())
       .keyboardAppearance(KeyboardAppearance.IMMERSIVE)// 设置搜索框沉浸模式
       .onChange(() => {
         this.onChange()

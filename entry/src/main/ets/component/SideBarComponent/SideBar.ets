@@ -11,7 +11,11 @@ export struct AppInfo {
         .zIndex(1)
       Row() {
         Image($r("app.media.Foreground"))
-          .attributeModifier(new ImageFancyModifier(0, 50, 50))
+          .width(50)
+          .height(50)
+          .interpolation(ImageInterpolation.Medium)// 用于重采样后的抗锯齿
+          .draggable(false)// 禁止长按手势拖动
+          .autoResize(true) // 重采样，可减少内存占用
         Text($r('app.string.EntryAbility_label'))
           .fontSize(20)
           .fontColor('#ffff')

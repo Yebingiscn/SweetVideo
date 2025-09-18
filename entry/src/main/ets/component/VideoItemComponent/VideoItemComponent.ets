@@ -10,9 +10,9 @@ import { SymbolGlyphModifier } from '@kit.ArkUI';
 import DataSyncUtil from '../../utils/DataSyncUtil';
 import { VideoDetailDialog } from '../../component/Dialog//VideoDetailDialog';
 import { DefaultDialogShadow } from '../../common/DefaultDialogShadow';
-import { delConfirmDialog } from '../../component/Dialog/DelConfirmDialog';
+import { DelConfirmDialog } from '../../component/Dialog/DelConfirmDialog';
 import { MenuModifier } from '../../utils/AttributeModifierUtil';
-import { editMetadataDialog } from '../../component/Dialog//EditMetadataDialog';
+import { EditMetadataDialog } from '../../component/Dialog//EditMetadataDialog';
 import SubtitleUtil from '../../utils/SubtitleUtil';
 import { FileFolder } from '../../interfaces/FileFolderInterface';
 import { SideBarController } from '../SideBarComponent/SideBar';
@@ -80,7 +80,9 @@ export class VideoListController {
 
   public refresh(width: number, isListDisplay: boolean) {
     const base = Math.floor(width / 500);
+    console.error('test' + base + ' ' + width)
     this.listLine = isListDisplay ? base + 1 : base + 2;
+    console.error('test' + this.listLine + ' ' + base)
     // 增加判断，旋转时保持滚动位置不变
     if (this.listScroller.currentOffset()?.yOffset == -55) {
       this.listScroller.scrollEdge(Edge.Top)
@@ -115,7 +117,7 @@ export struct VideoList {
     shadow: DefaultDialogShadow
   })
   delConfirmDialog: CustomDialogController = new CustomDialogController({
-    builder: delConfirmDialog({
+    builder: DelConfirmDialog({
       confirm: async () => {
         try {
           await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource);
@@ -132,7 +134,7 @@ export struct VideoList {
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
-    builder: editMetadataDialog({
+    builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
         if (!title?.trim()) {
           return;

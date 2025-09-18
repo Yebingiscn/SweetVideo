@@ -3,7 +3,7 @@ import DataSyncUtil from '../../utils/DataSyncUtil'
 
 // 重命名文件夹弹窗
 @CustomDialog
-export struct editFileFolderNameDialog {
+export struct EditFileFolderNameDialog {
   confirm?: (name: string | undefined) => void
   controller?: CustomDialogController
   file_folder_name: string | undefined = undefined

@@ -2,6 +2,7 @@ import ToolsUtil from '../utils/ToolsUtil';
 import WantProcessUtil from '../utils/WantProcessUtil';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
 import { PathUtils } from '../utils/PathUtils';
+import { ImageFancyModifier } from '../utils/AttributeModifierUtil';
 
 @Component
 export struct AboutApp {
@@ -18,12 +19,7 @@ export struct AboutApp {
           Column() {
             Stack() {
               Image($r("app.media.Background"))
-                .backgroundImageSize(ImageSize.Cover)
-                .borderRadius(20)
-                .width('100%')
-                .height(140)
-                .autoResize(true)
-                .interpolation(ImageInterpolation.Low)
+                .attributeModifier(new ImageFancyModifier(20, '100%', 140))
                 .zIndex(1)
               Row() {
                 Image($r("app.media.Foreground"))

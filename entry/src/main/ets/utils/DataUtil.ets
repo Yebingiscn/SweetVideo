@@ -84,6 +84,10 @@ export class PlayerSideBarSource extends BaseDataSource<VideoMetadata> {
 export class SpeedListDataSource extends BaseDataSource<string> {
 }
 
+@Observed
+export class DeletedVideosDataSource extends BaseDataSource<VideoMetadata> {
+}
+
 // 具体实现类
 @Observed
 export class VideoDataSource extends BaseDataSource<VideoMetadata> {

@@ -9,6 +9,10 @@
       "value": "#ffffff"
     },
     {
+      "name": "search_component_blur",
+      "value": "#0000000D"
+    },
+    {
       "name": "shadow_color",
       "value": "#33000000"
     },

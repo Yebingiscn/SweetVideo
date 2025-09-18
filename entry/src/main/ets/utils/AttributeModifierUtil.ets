@@ -12,6 +12,18 @@ export class ShadowModifier extends CommonModifier {
   }
 }
 
+export class SearchShadowModifier extends CommonModifier {
+  constructor() {
+    super()
+  }
+
+  applyNormalAttribute(instance: CommonAttribute): void {
+    instance.shadow({ radius: 32, color: $r('app.color.shadow_color') })
+      .backgroundColor($r('app.color.search_component_blur'))
+      .backdropBlur(150)
+  }
+}
+
 export class ImageFancyModifier implements AttributeModifier<ImageAttribute> {
   private borderRadius: Length | BorderRadiuses | LocalizedBorderRadiuses;
   private width: number | string;
@@ -34,6 +46,12 @@ export class ImageFancyModifier implements AttributeModifier<ImageAttribute> {
       .interpolation(ImageInterpolation.Medium)// 用于重采样后的抗锯齿
       .draggable(false)// 禁止长按手势拖动
       .autoResize(true) // 重采样，可减少内存占用
+      .opacity(0.98)
+      .shadow({
+        radius: 18,
+        type: ShadowType.BLUR,
+        color: 'primary'
+      })
   }
 }
 

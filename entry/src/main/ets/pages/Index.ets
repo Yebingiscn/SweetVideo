@@ -6,9 +6,9 @@ import SelectFileUtil from '../utils/SelectFileUtil';
 import { JSON } from '@kit.ArkTS';
 import WantProcessUtil from '../utils/WantProcessUtil';
 import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData';
-import { addFileFolderNameDialog } from '../component/Dialog/AddFileFolderNameDialog';
+import { AddFileFolderNameDialog } from '../component/Dialog/AddFileFolderNameDialog';
 import FileFolderUtil from '../utils/FileFolderUtil';
-import { editFileFolderNameDialog } from '../component/Dialog/EditFileFolderNameDialog';
+import { EditFileFolderNameDialog } from '../component/Dialog/EditFileFolderNameDialog';
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 import ScreenUtil from '../utils/ScreenUtil';
@@ -18,7 +18,7 @@ import { FFMpegPlayer } from './FFMpegPlayer';
 import { Player } from './Player';
 import { RecentPlay } from './RecentPlay';
 import { PrivacyPolicyDialog } from './PrivacyInfo';
-import VideoOperateUtil, { taskpoolExecTool } from '../utils/VideoOperateUtil';
+import VideoOperateUtil from '../utils/VideoOperateUtil';
 import { PrivacySpace } from './PrivacySpace';
 import Preferences from '../database/Preferences';
 import { RedPlayer } from './RedPlayer';
@@ -33,6 +33,9 @@ import { VideoMetaDataOperator } from '../database/VideoMetaData';
 import { FileFolderListComponent } from '../component/FileFolderComponent/FileFolderListComponent';
 import VideoUtils from '../utils/VideoUtil';
 import NavigationAddress from '../common/NavigationAddress';
+import { taskpoolExecTool } from '../utils/TaskpoolUtil';
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
+import { DeletedVideosDialog } from '../component/Dialog/DeletedVideosDialog';
 
 @Builder
 export function IndexBuilder() {
@@ -59,10 +62,13 @@ struct Index {
   @Provide sideBarController: SideBarController = new SideBarController()
   @Provide('pathStack') pathStack: NavPathStack = new NavPathStack()
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
-    builder: addFileFolderNameDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
+    builder: AddFileFolderNameDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  deletedVideosDialogController: CustomDialogController = new CustomDialogController({
+    builder: DeletedVideosDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   editFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
-    builder: editFileFolderNameDialog({
+    builder: EditFileFolderNameDialog({
       confirm: async (newFolderName: string | undefined) => {
         if (!newFolderName || newFolderName.trim() == '') {
           return
@@ -187,10 +193,19 @@ struct Index {
       }, 1000)
     }
     taskpoolExecTool(Preferences.getFileFolder(PathUtils.appContext!), (re: Object) => {
-      if (Number(re) > 0) {
-        VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
-        ToolsUtil.showToast(`移除${Number(re)}个视频`)
-      }
+      setTimeout(() => {
+        const result = re as Array<VideoMetadata>
+        if (result.length > 0) {
+          const idsToDelete = result
+          idsToDelete.forEach(async item => {
+            await this.videoListController.videoDataSource.deleteUnExistFile(item, this.videoListController,
+              this.fileFolderSource)
+          });
+          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+          DataSyncUtil.deletedVideos = result
+          this.deletedVideosDialogController.open()
+        }
+      }, 50)
     })
   }
 
@@ -438,7 +453,10 @@ struct Index {
         }
       }))
     }
-    .hideTitleBar(true).mode(NavigationMode.Stack).navDestination(this.Pages)
+    .backgroundImage('')
+    .hideTitleBar(true)
+    .mode(NavigationMode.Stack)
+    .navDestination(this.Pages)
     .onNavBarStateChange((isVisible: boolean) => {
       if (isVisible) {
         this.passwd = Preferences.getPassword(PathUtils.appContext!)

@@ -53,7 +53,7 @@ export struct AudioTrackComponent {
           .onClick(() => {
             this.onSelect(index)
           })
-        })
+        }, (item: AudioTrack) => item.name + item.index)
       }
     }.width(235)
   }

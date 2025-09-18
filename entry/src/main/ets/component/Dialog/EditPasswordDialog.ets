@@ -2,7 +2,7 @@ import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil'
 
 // 重设密码弹窗
 @CustomDialog
-export struct editPasswordDialog {
+export struct EditPasswordDialog {
   confirm?: (name: string | undefined) => void
   controller?: CustomDialogController
   passwd: string | undefined = undefined

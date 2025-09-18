@@ -79,9 +79,7 @@ export struct PrivacyPolicyDialog {
       }
       .width('100%')
       .margin({ top: 20, bottom: 20 })
-    }.backgroundImage($r("app.media.sweet_video"))
-    .backgroundImagePosition(Alignment.Center)
-    .backdropBlur(150)
+    }
     .padding({ left: 15, right: 15 })
   }
 

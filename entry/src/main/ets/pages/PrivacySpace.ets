@@ -19,12 +19,12 @@ import { FileProcessorUtil } from '../utils/FileProcessorUtil';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
 import SubtitleUtil from '../utils/SubtitleUtil';
 import { PathUtils } from '../utils/PathUtils';
-import { editPasswordDialog } from '../component/Dialog/EditPasswordDialog';
+import { EditPasswordDialog } from '../component/Dialog/EditPasswordDialog';
 import { SearchComponent } from '../component/VideoItemComponent/SearchComponent';
 import { VideoInfoComponent } from '../component/VideoItemComponent/VideoInfoComponent';
 import { ImportProgressComponent } from '../component/VideoItemComponent/ImportProgressComponent';
 import NavigationAddress from '../common/NavigationAddress';
-import { editMetadataDialog } from '../component/Dialog/EditMetadataDialog';
+import { EditMetadataDialog } from '../component/Dialog/EditMetadataDialog';
 import FileFolderUtil from '../utils/FileFolderUtil';
 
 @Component
@@ -49,7 +49,7 @@ export struct PrivacySpace { // 隐私空间页
     shadow: DefaultDialogShadow
   })
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
-    builder: editPasswordDialog({
+    builder: EditPasswordDialog({
       confirm: (passwd: string | undefined) => {
         if (!passwd || passwd.trim() == '') {
           return
@@ -61,7 +61,7 @@ export struct PrivacySpace { // 隐私空间页
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
-    builder: editMetadataDialog({
+    builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
         if (!title?.trim()) {
           return;
