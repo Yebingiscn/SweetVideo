@@ -80,9 +80,7 @@ export class VideoListController {
 
   public refresh(width: number, isListDisplay: boolean) {
     const base = Math.floor(width / 500);
-    console.error('test' + base + ' ' + width)
     this.listLine = isListDisplay ? base + 1 : base + 2;
-    console.error('test' + this.listLine + ' ' + base)
     // 增加判断，旋转时保持滚动位置不变
     if (this.listScroller.currentOffset()?.yOffset == -55) {
       this.listScroller.scrollEdge(Edge.Top)

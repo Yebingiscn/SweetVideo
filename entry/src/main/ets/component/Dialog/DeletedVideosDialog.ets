@@ -12,7 +12,6 @@ export struct DeletedVideosDialog {
     const metadata = DataSyncUtil.deletedVideos as VideoMetadata[]
     this.metadata = metadata
     this.deletedVideosDataSource = new DeletedVideosDataSource(this.metadata)
-    console.error('test3')
   }
 
   build() {
