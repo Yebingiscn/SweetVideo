@@ -31,29 +31,23 @@ export struct DeletedVideosDialog {
       .padding({ bottom: 12 })
 
       // 列表区域优化
-      Column() {
-        List({ space: 8 }) {
-          LazyForEach(this.deletedVideosDataSource, (item: VideoMetadata) => {
-            ListItem() {
-              Column() {
-                Text(item?.title)
-                  .fontSize(14)
-                  .fontColor($r('app.color.text_color'))
-                  .margin({ bottom: 4 })
-              }
+      List({ space: 8 }) {
+        LazyForEach(this.deletedVideosDataSource, (item: VideoMetadata) => {
+          ListItem() {
+            Text(item?.title)
+              .fontSize(14)
+              .fontColor($r('app.color.text_color'))
+              .margin({ bottom: 4 })
               .width('100%')
-            }
-          }, (item: VideoMetadata) => item.uri)
-        }
-        .width('auto')
-        .height('auto')
-        .divider({ strokeWidth: 0 })
-        .scrollBar(BarState.Off) // 动态显示滚动条
-        .edgeEffect(EdgeEffect.Spring)
-        .layoutWeight(1) // 关键：自动填充剩余空间
+          }.reuseId(item?.title)
+        }, (item: VideoMetadata) => item.uri)
       }
+      .cachedCount(6)
       .width('auto')
       .height('auto')
+      .divider({ strokeWidth: 0 })
+      .scrollBar(BarState.Off) // 动态显示滚动条
+      .edgeEffect(EdgeEffect.Spring)
       .layoutWeight(1) // 确保列表区域自动扩展
 
       // 按钮区域增强可见性

@@ -2,6 +2,12 @@
   "modelVersion": "5.0.1",
   "dependencies": {
   },
+  "properties": {
+    "hvigor.incremental.optimization": true,
+    "hvigor.task.schedule.optimization": true,
+    "ohos.arkCompile.singleFileEmit": true,
+    "ohos.arkCompile.noEmitJs": true
+  },
   "execution": {
     // "analyze": "normal",                     /* Define the build analyze mode. Value: [ "normal" | "advanced" | false ]. Default: "normal" */
     // "daemon": true,                          /* Enable daemon compilation. Value: [ true | false ]. Default: true */

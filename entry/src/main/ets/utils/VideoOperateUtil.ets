@@ -19,9 +19,6 @@ import ToolsUtil from './ToolsUtil';
 import VideoInfoUtil from './VideoInfoUtil';
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
 import PreferencesUtil from './PreferencesUtil';
-import { FileFolder } from '../interfaces/FileFolderInterface';
-import SubtitleUtil from './SubtitleUtil';
-import { taskpool } from '@kit.ArkTS';
 
 // 视频操作类
 class VideoOperateUtil {
@@ -48,10 +45,10 @@ class VideoOperateUtil {
     if (!this.windowStage) {
       return
     }
-    if (!this.mainWin) {
-      this.mainWin = this.windowStage.getMainWindowSync()
-    }
     try {
+      if (!this.mainWin) {
+        this.mainWin = this.windowStage.getMainWindowSync()
+      }
       this.mainWin.setWindowBrightness(screenBrightness, (err) => {
         if (err && err.code !== 0) {
           console.error(`Failed to obtain the main window. Cause code: ${err.code}, message: ${err.message}`);
@@ -118,7 +115,7 @@ class VideoOperateUtil {
 
   // 播放器播放失败处理
   playErrorExecute(pathStack: NavPathStack, video_meta_data: VideoMetadata[], date: string, playerName: string) {
-    ToolsUtil.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.video_error')))
+    ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
     const now_play_item = video_meta_data.find(item => {
       const target_item = SelectFileUtil.getItem(video_meta_data, item?.date)?.date;
       return date === target_item;
@@ -138,6 +135,16 @@ class VideoOperateUtil {
 
   // 计算手指移动距离
   calcFingerDistance(f1: FingerInfo, f2: FingerInfo): number {
+    // 检查坐标是否存在
+    if (
+      f1.localX === undefined ||
+        f1.localY === undefined ||
+        f2.localX === undefined ||
+        f2.localY === undefined
+    ) {
+      return -1
+    }
+
     const dx = f2.localX - f1.localX;
     const dy = f2.localY - f1.localY;
     return Math.sqrt(dx * dx + dy * dy);
@@ -220,7 +227,7 @@ class VideoOperateUtil {
     AppStorage.setOrCreate('smartRotation', Preferences.getSmartRotationState(context))
     AppStorage.setOrCreate('longPressSpeed', Preferences.getLongPressSpeed(context))
     // 这里删掉没用的存储项
-    PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'circle_play')
+    PreferencesUtil.delPreferencesValue(context, 'sweet_video', 'circle_play')
   }
 
   // 封装获取屏幕亮度的方法

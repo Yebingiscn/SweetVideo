@@ -21,11 +21,11 @@ import SubtitleUtil from '../utils/SubtitleUtil';
 import { PathUtils } from '../utils/PathUtils';
 import { EditPasswordDialog } from '../component/Dialog/EditPasswordDialog';
 import { SearchComponent } from '../component/VideoItemComponent/SearchComponent';
-import { VideoInfoComponent } from '../component/VideoItemComponent/VideoInfoComponent';
-import { ImportProgressComponent } from '../component/VideoItemComponent/ImportProgressComponent';
 import NavigationAddress from '../common/NavigationAddress';
 import { EditMetadataDialog } from '../component/Dialog/EditMetadataDialog';
 import FileFolderUtil from '../utils/FileFolderUtil';
+import { VideoInfoBuilder } from '../component/VideoItemComponent/VideoInfoBuilder';
+import { ImportProgressBuilder } from '../component/VideoItemComponent/ImportProgressBuilder';
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -35,8 +35,8 @@ export struct PrivacySpace { // 隐私空间页
   @Consume('pathStack') pathStack: NavPathStack
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
-  @State import_sum: number = 0
-  @State current_import: number = 0
+  @State totalItems: number = 0
+  @State processedItems: number = 0
   @State loading: boolean = false
   @State searchValue: string = ''
   @State is_edit: boolean = false
@@ -56,7 +56,7 @@ export struct PrivacySpace { // 隐私空间页
         }
         this.passwd = passwd
         ToolsUtil.savePwd(PathUtils.appContext!, passwd)
-        ToolsUtil.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.set_passwd_tip')))
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.set_passwd_tip').id))
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -218,20 +218,20 @@ export struct PrivacySpace { // 隐私空间页
       return;
     }
     this.loading = true;
-    this.import_sum = fileList.length;
-    this.current_import = 0;
+    this.totalItems = fileList.length;
+    this.processedItems = 0;
     try {
       await FileProcessorUtil.processFilesConcurrently(
         fileList, PathUtils.appContext!, PathUtils.videoPath, PathUtils.coverPath, this.video_meta_data_encryption,
         (increment: number) => {
-          this.current_import += increment;
+          this.processedItems += increment;
         },
         fileFolder
       );
       this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!);
       this.videoDataSource.updateData(this.video_meta_data_encryption)
       ToolsUtil.showToast(
-        `${PathUtils.appContext!.resourceManager.getStringSync($r('app.string.add_time_info'))}${this.import_sum -
+        `${PathUtils.appContext!.resourceManager.getStringSync($r('app.string.add_time_info'))}${this.totalItems -
         FileFolderUtil.duplicateVideo}${FileFolderUtil.duplicateVideo > 0 ?
           '重复视频已经智能跳过，跳过视频数：' + FileFolderUtil.duplicateVideo : ''}`
       );
@@ -274,7 +274,7 @@ export struct PrivacySpace { // 隐私空间页
               .wordBreak(WordBreak.BREAK_ALL)
           }.width('100%')
 
-          VideoInfoComponent({ item })
+          this.VideoInfoBuilderBridge(item)
         }.margin({ left: 10 }).alignItems(HorizontalAlign.Start)
       }
       .width('100%')
@@ -310,10 +310,7 @@ export struct PrivacySpace { // 隐私空间页
           }
         }).width('90%')
         if (this.loading) {
-          ImportProgressComponent({
-            processedItems: this.current_import,
-            totalItems: this.import_sum
-          })
+          ImportProgressBuilder({ processedItems: this.processedItems, totalItems: this.totalItems })
         }
         List({ scroller: this.listScroller, space: 10 }) {
           LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
@@ -346,7 +343,7 @@ export struct PrivacySpace { // 隐私空间页
                     .width('100%')
                     .padding({ top: 5 })
 
-                    VideoInfoComponent({ item })
+                    this.VideoInfoBuilderBridge(item)
                   }.padding({ left: 5, right: 5, bottom: 5 })
                   .width('100%')
                 }
@@ -460,5 +457,10 @@ export struct PrivacySpace { // 隐私空间页
           SelectFileUtil.exportFile(item, PathUtils.appContext!)
         })
     }.padding({ left: 15, right: 15 }).justifyContent(FlexAlign.SpaceEvenly)
+  }
+
+  @Builder
+  VideoInfoBuilderBridge(item: VideoMetadata | undefined) {
+    VideoInfoBuilder(item)
   }
 }

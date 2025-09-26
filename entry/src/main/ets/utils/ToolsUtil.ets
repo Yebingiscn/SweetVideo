@@ -24,27 +24,49 @@ export class ToolsUtil {
 
   // Toast设置
   showToast(text: string) {
-    promptAction.showToast({
-      message: text,
-      duration: 3500,
-      backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THICK,
-    });
+    try {
+      promptAction.showToast({
+        message: text,
+        duration: 3500,
+        backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THICK,
+      });
+    } catch (error) {
+      console.error('show toast error：' + error)
+    }
   }
 
   // 震动设置
   startVibration() {
-    vibrator.startVibration({
-      type: 'preset',
-      effectId: 'haptic.effect.soft',
-      count: 1,
-      intensity: 100,
-    }, {
-      usage: 'unknown'
-    }, (error: BusinessError) => {
-      if (error) {
-        console.error(`Failed to start vibration. Code: ${error.code}, message: ${error.message}`);
-      }
-    })
+    if (canIUse("SystemCapability.Sensors.MiscDevice")) {
+      vibrator.startVibration({
+        type: 'preset',
+        effectId: 'haptic.effect.soft',
+        count: 1,
+        intensity: 100,
+      }, {
+        usage: 'unknown'
+      }, (error: BusinessError) => {
+        if (error) {
+          console.error(`Failed to start vibration. Code: ${error.code}, message: ${error.message}`);
+        }
+      })
+    } else {
+      console.log('device unsupport vibration')
+    }
+  }
+
+  getStringResource(resource: number) {
+    try {
+      return PathUtils.appContext!.resourceManager.getStringSync(resource)
+    } catch (error) {
+      console.error('get String Resource error' + error)
+      return '未知'
+    }
+  }
+
+  errorCatchExec(name: string, error?: string) {
+    console.error(`sweet_video error log name: ${name}: error: ${error}`)
+    this.showToast(`流心出错了，方法名：${name} 内容：${error}`)
   }
 
   // 名称排序处理，如果单纯使用普通排序逻辑会造成卡顿，这里结合华为提供的排序进行排序
@@ -117,7 +139,7 @@ export class ToolsUtil {
   // 保存密码
   savePwd(context: Context, passwd: string) {
     Preferences.savePassword(context, passwd)
-    this.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.set_passwd_tip')))
+    this.showToast(this.getStringResource($r('app.string.set_passwd_tip').id))
   }
 
   // 检查文件是否存在
@@ -136,7 +158,7 @@ export class ToolsUtil {
   async routerWhere(pathStack: NavPathStack, uri: string, item: VideoMetadata, list: VideoMetadata[]) {
     // 没有长宽的视频/音频系统播放器播不了
     if (VideoInfoUtil.videoWidthAndHeightFormat(String(item?.size)) === '0 x 0') {
-      this.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.video_error')))
+      this.showToast(this.getStringResource($r('app.string.video_error').id))
       uri = NavigationAddress.FFMPEG_PLAYER
     }
     // 红薯播放器不允许播放 HDR VIVID 视频，否则可能会导致卡屏
@@ -160,14 +182,23 @@ export class ToolsUtil {
     }
   }
 
-  // 检查字幕文件夹是否存在
-  isSubtitleFileFolderExist(sandbox_video: string, sandbox_subtitle: string) {
-    if (!fs.accessSync(sandbox_video)) {
-      fs.mkdirSync(sandbox_video)
-    }
-    if (!fs.accessSync(sandbox_subtitle)) {
-      fs.mkdirSync(sandbox_subtitle)
-    }
+  // 检查文件夹是否存在
+  fileFolderExistCheck() {
+    const paths = [
+      PathUtils.videoPath,
+      PathUtils.subtitlePath,
+      PathUtils.photoPath
+    ];
+
+    paths.forEach(path => {
+      try {
+        if (!fs.accessSync(path)) {
+          fs.mkdirSync(path);
+        }
+      } catch (error) {
+        console.error(`Failed to create directory ${path}:`, error);
+      }
+    });
   }
 
   // 获取当前时间

@@ -19,6 +19,8 @@ class ReqPermission {
           return;
         }
       }
+    }).catch(() => {
+      console.error('requestPermissionsFromUser error')
     })
   }
 

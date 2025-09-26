@@ -4,7 +4,6 @@ import { SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil'
 export struct SettingsMenuItem {
   @State symbol: Resource | undefined = undefined
   @State message: ResourceStr = ''
-  @StorageProp('disable_blur') disable_blur: boolean = false
   @Prop selected: number = 0
   @State list: string[] = []
   @State private select: SelectOption[] = []

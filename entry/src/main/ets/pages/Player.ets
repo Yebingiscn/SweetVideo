@@ -54,7 +54,7 @@ export struct Player { // 播放页
   @State @Watch('setScreen') showControl: boolean = false
   @State lock_rotation: boolean = false
   xComponentController: XComponentController = new XComponentController()
-  windowClass = window.getLastWindow(PathUtils.appContext!)
+  windowClass = WindowUtil.getWindow()
   @State screen_width: number = 0
   @State screen_height: number = 0
   @State play_area_height: number = 0
@@ -96,30 +96,40 @@ export struct Player { // 播放页
   private audioVolumeManager: audio.AudioVolumeManager | null = null
 
   async setSessionListener() {
-    this.avSession?.on('play', () => {
-      if (this.mIjkMediaPlayer) {
-        this.mIjkMediaPlayer?.start()
-      }
-      this.avPlayer?.play()
-    });
-    this.avSession?.on('pause', () => {
-      this.avPlayer?.pause()
-    });
-    this.avSession?.on('seek', (position: number) => {
-      this.seekTime(position)
-    })
-    this.avSession?.on('fastForward', () => {
-      this.seekTime(this.play_time + 15000)
-    })
-    this.avSession?.on('rewind', () => {
-      this.seekTime(this.play_time - 15000)
-    })
-    this.avSession?.on('playNext', () => {
-      this.playNextVideo()
-    })
-    this.avSession?.on('outputDeviceChange', () => {
-      this.avPlayer?.pause()
-    })
+    try {
+      this.avSession?.on('play', () => {
+        if (this.mIjkMediaPlayer) {
+          this.mIjkMediaPlayer?.start()
+        }
+        this.avPlayer?.play().catch(() => {
+          console.error('player error')
+        })
+      });
+      this.avSession?.on('pause', () => {
+        this.avPlayer?.pause().catch(() => {
+          console.error('player error')
+        })
+      });
+      this.avSession?.on('seek', (position: number) => {
+        this.seekTime(position)
+      })
+      this.avSession?.on('fastForward', () => {
+        this.seekTime(this.play_time + 15000)
+      })
+      this.avSession?.on('rewind', () => {
+        this.seekTime(this.play_time - 15000)
+      })
+      this.avSession?.on('playNext', () => {
+        this.playNextVideo()
+      })
+      this.avSession?.on('outputDeviceChange', () => {
+        this.avPlayer?.pause().catch(() => {
+          console.error('player error')
+        })
+      })
+    } catch (error) {
+      console.error('set av session state error')
+    }
   }
 
   async initVolumeAndBrightness() {
@@ -159,8 +169,12 @@ export struct Player { // 播放页
 
   async setScreen() {
     if (canIUse('SystemCapability.Window.SessionManager')) {
-      await (await this.windowClass).setSpecificSystemBarEnabled('status', this.showControl, true)
-      await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', this.showControl, true)
+      try {
+        await (await this.windowClass)?.setSpecificSystemBarEnabled('status', this.showControl, true)
+        await (await this.windowClass)?.setSpecificSystemBarEnabled('navigationIndicator', this.showControl, true)
+      } catch (error) {
+        console.error('player error')
+      }
     }
   }
 
@@ -170,11 +184,15 @@ export struct Player { // 播放页
     }
     this.clock_time = ToolsUtil.getTime()
     this.setScreen()
-    await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
-    await (await this.windowClass).setWindowKeepScreenOn(true)
-    this.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
-    const video_speed = Preferences.getVideoSpeed(PathUtils.appContext!)
-    this.speed = parseFloat(video_speed?.replace('x', '') || '1');
+    try {
+      await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
+      await (await this.windowClass)?.setWindowKeepScreenOn(true)
+      this.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
+      const video_speed = Preferences.getVideoSpeed(PathUtils.appContext!)
+      this.speed = parseFloat(video_speed?.replace('x', '') || '1');
+    } catch (error) {
+      console.error('player error' + error)
+    }
   }
 
   async aboutToDisappear(): Promise<void> {
@@ -219,37 +237,43 @@ export struct Player { // 播放页
   async getAudioTrack() {
     this.audio_track = await VideoOperateUtil.getAudioTracks(this.avPlayer!)
     if (VideoOperateUtil.validateAudioTracks(this.audio_track)) {
-      this.avPlayer!.selectTrack(this.audio_track[0].index);
+      this.avPlayer!.selectTrack(this.audio_track[0].index).catch(() => {
+        console.error('player error')
+      });
     } else {
       this.mIjkMediaPlayer = IjkMediaPlayer.getInstance();
-      const video_url = fs.openSync(this.now_playing?.uri).path
-      this.mIjkMediaPlayer.reset();
-      this.mIjkMediaPlayer.setAudioId(this.surfaceID)
-      this.mIjkMediaPlayer.native_setup();
-      this.mIjkMediaPlayer.setDebug(false);
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", '15728600');
-      this.mIjkMediaPlayer.setVolume('1.0', '1.0');
-      this.mIjkMediaPlayer.setDataSource(video_url)
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "start-on-prepared", "1");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "enable-accurate-seek", "1");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "packet-buffering", "1");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-fps", "0"); // 禁用FPS限制
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "disable_video", "1"); // 跳过视频流
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_CODEC, "skip-video", "1");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "audio-resampler", "soxr");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "avsync", '100');
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-all-videos", "1");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-hevc", "0");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "enable-buffer-age", "0");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "buffer-pool-size", "32");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "sync-av-start", "1");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "infbuf", "0");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "soundtouch", "1");
-      this.mIjkMediaPlayer.setSpeed('1f');
-      this.mIjkMediaPlayer.setLoopCount(false);
-      this.mIjkMediaPlayer.setMessageListener();
-      this.mIjkMediaPlayer.prepareAsync();
-      this.mIjkMediaPlayer.start()
+      try {
+        const video_url = fs.openSync(this.now_playing?.uri).path
+        this.mIjkMediaPlayer.reset();
+        this.mIjkMediaPlayer.setAudioId(this.surfaceID)
+        this.mIjkMediaPlayer.native_setup();
+        this.mIjkMediaPlayer.setDebug(false);
+        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", '15728600');
+        this.mIjkMediaPlayer.setVolume('1.0', '1.0');
+        this.mIjkMediaPlayer.setDataSource(video_url)
+        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "start-on-prepared", "1");
+        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "enable-accurate-seek", "1");
+        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "packet-buffering", "1");
+        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-fps", "0"); // 禁用FPS限制
+        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "disable_video", "1"); // 跳过视频流
+        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_CODEC, "skip-video", "1");
+        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "audio-resampler", "soxr");
+        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "avsync", '100');
+        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-all-videos", "1");
+        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-hevc", "0");
+        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "enable-buffer-age", "0");
+        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "buffer-pool-size", "32");
+        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "sync-av-start", "1");
+        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "infbuf", "0");
+        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "soundtouch", "1");
+        this.mIjkMediaPlayer.setSpeed('1f');
+        this.mIjkMediaPlayer.setLoopCount(false);
+        this.mIjkMediaPlayer.setMessageListener();
+        this.mIjkMediaPlayer.prepareAsync();
+        this.mIjkMediaPlayer.start()
+      } catch (error) {
+        console.error('ijk error:' + error)
+      }
     }
   }
 
@@ -289,7 +313,9 @@ export struct Player { // 播放页
 
     this.avPlayer?.on('audioOutputDeviceChangeWithInfo', (data: audio.AudioStreamDeviceChangeInfo) => {
       if (data.changeReason === audio.AudioStreamDeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) {
-        this.avPlayer?.pause()
+        this.avPlayer?.pause().catch(() => {
+          console.error('player error')
+        })
       }
     });
 
@@ -299,15 +325,21 @@ export struct Player { // 播放页
           if (this.avPlayer) {
             this.avPlayer.surfaceId = this.surfaceID
             let playStrategy: media.PlaybackStrategy = { showFirstFrameOnPrepare: true } // 设置播放配置
-            this.avPlayer.setPlaybackStrategy(playStrategy);
-            this.avPlayer.prepare();
+            this.avPlayer.setPlaybackStrategy(playStrategy).catch(() => {
+              console.error('player error')
+            });
+            this.avPlayer.prepare().catch(() => {
+              console.error('player error')
+            });
           }
           break;
         case 'prepared':
           await this.setExternalSubtitle(this.now_playing!)
           await this.getAudioTrack()
           this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.now_playing!, this.skipIntroTime))
-          this.avPlayer?.play();
+          this.avPlayer?.play().catch(() => {
+            console.error('player error')
+          });
           await this.initVolumeAndBrightness()
           this.updatePlaybackSpeed(this.speed)
           this.showControl = false
@@ -321,7 +353,9 @@ export struct Player { // 播放页
               this.mIjkMediaPlayer?.seekTo('0')
               this.mIjkMediaPlayer?.start()
             }
-            this.avPlayer?.play()
+            this.avPlayer?.play().catch(() => {
+              console.error('player error')
+            })
             this.avPlayer?.seek(0, media.SeekMode.SEEK_CLOSEST)
           } else {
             this.playNextVideo()
@@ -354,13 +388,17 @@ export struct Player { // 播放页
           break
         case 'idle':
           await this.ijkPlayerStop()
-          this.avPlayer?.release()
+          this.avPlayer?.release().catch(() => {
+            console.error('player error')
+          })
           break;
         case 'error':
           await this.ijkPlayerStop()
           VideoOperateUtil.playErrorExecute(this.pathStack, this.video_meta_data, this.now_playing?.date!,
             NavigationAddress.FFMPEG_PLAYER)
-          this.avPlayer?.release()
+          this.avPlayer?.release().catch(() => {
+            console.error('player error')
+          })
           break;
       }
     })
@@ -378,9 +416,15 @@ export struct Player { // 播放页
 
   async setExternalSubtitle(now_playing: VideoMetadataFromPlayer) {
     if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, now_playing.date!)) {
-      let file1 = fs.openSync(PathUtils.subtitlePath! + now_playing.date, fs.OpenMode.READ_ONLY)
-      const size = fs.statSync(PathUtils.subtitlePath! + now_playing.date);
-      this.avPlayer?.addSubtitleFromFd(file1.fd, 0, size.size);
+      try {
+        let file1 = fs.openSync(PathUtils.subtitlePath! + now_playing.date, fs.OpenMode.READ_ONLY)
+        const size = fs.statSync(PathUtils.subtitlePath! + now_playing.date);
+        this.avPlayer?.addSubtitleFromFd(file1.fd, 0, size.size).catch(() => {
+          console.error('subtitle error')
+        });
+      } catch (error) {
+        console.error('subtitle error' + error)
+      }
     }
     this.avPlayer?.on('subtitleUpdate', async (info: media.SubtitleInfo) => { // 需要进入prepare状态前完成注册
       if (VideoOperateUtil.clearSubtitleTimer !== null) {
@@ -430,10 +474,16 @@ export struct Player { // 播放页
     if (this.avPlayer) {
       this.setAVPlayerCallback()
       await PermissionUtil.activatePermission(this.now_playing?.uri || '')
-      this.avPlayer.fdSrc = fs.openSync(this.now_playing?.uri);
+      try {
+        this.avPlayer.fdSrc = fs.openSync(this.now_playing?.uri);
+      } catch (error) {
+        console.error('uri error: ' + error)
+      }
       this.setRotation()
-      this.play_area_width > this.play_area_height ? WindowUtil.enableLandscapeMultiWindow(this.windowClass) :
-        WindowUtil.disableLandscapeMultiWindow(this.windowClass)
+      if (this.windowClass) {
+        this.play_area_width > this.play_area_height ? WindowUtil.enableLandscapeMultiWindow(this.windowClass) :
+          WindowUtil.disableLandscapeMultiWindow(this.windowClass)
+      }
       if (this.smartRotation && this.play_area_width > this.play_area_height &&
         this.screen_height > this.screen_width) {
         const proportion =
@@ -441,7 +491,9 @@ export struct Player { // 播放页
         const orientation = proportion > (16 / 10)
           ? window.Orientation.AUTO_ROTATION_LANDSCAPE
           : window.Orientation.AUTO_ROTATION_RESTRICTED;
-        (await this.windowClass).setPreferredOrientation(orientation)
+        (await this.windowClass)?.setPreferredOrientation(orientation).catch(() => {
+          console.error('player error')
+        })
       }
     }
   }
@@ -451,7 +503,11 @@ export struct Player { // 播放页
       RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
     }
     this.avPlayer?.off('subtitleUpdate');
-    await this.avPlayer?.reset()
+    try {
+      await this.avPlayer?.reset()
+    } catch (error) {
+      console.error('reset error' + error)
+    }
     await this.ijkPlayerStop()
     this.now_playing = item as VideoMetadataFromPlayer
     this.getData()
@@ -536,7 +592,11 @@ export struct Player { // 播放页
   }
 
   togglePlayback() {
-    this.playing ? this.avPlayer?.pause() : this.avPlayer?.play()
+    this.playing ? this.avPlayer?.pause().catch(() => {
+      console.error('player error')
+    }) : this.avPlayer?.play().catch(() => {
+      console.error('player error')
+    })
   }
 
   build() {
@@ -746,7 +806,12 @@ export struct Player { // 播放页
             onPinchStart: (event: GestureEvent) => {
               const finger1 = event.fingerList[0];
               const finger2 = event.fingerList[1];
-              VideoOperateUtil.initPinchDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
+              const fingerDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2)
+              if (fingerDistance >= 0) {
+                VideoOperateUtil.initPinchDistance = fingerDistance
+              } else {
+                return
+              }
             },
             onPinchUpdate: (event: GestureEvent) => {
               if (this.isLock) {
@@ -757,22 +822,24 @@ export struct Player { // 播放页
               if (!finger1 || !finger2) { // 双指检测失败直接返回
                 return;
               }
-              const currentDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
-              const rawScale = currentDistance / VideoOperateUtil.initPinchDistance;
-              const adjustedScale = 1 + (rawScale - 1) * 0.007; // 计算调整后的缩放比例
-              const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0);
-              const scaledWidth = this.play_area_width * clampedScale; // 计算缩放后的播放区域宽度
-              const maxAllowed = VideoInfoUtil.play_area_width * 3.0;
-              const minAllowed = VideoInfoUtil.play_area_width * 0.5;
-              if (scaledWidth > maxAllowed || scaledWidth < minAllowed) { // 检查缩放是否超出允许范围
-                return;
+              const fingerDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2)
+              if (fingerDistance >= 0) {
+                const rawScale = fingerDistance / VideoOperateUtil.initPinchDistance;
+                const adjustedScale = 1 + (rawScale - 1) * 0.007; // 计算调整后的缩放比例
+                const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0);
+                const scaledWidth = this.play_area_width * clampedScale; // 计算缩放后的播放区域宽度
+                const maxAllowed = VideoInfoUtil.play_area_width * 3.0;
+                const minAllowed = VideoInfoUtil.play_area_width * 0.5;
+                if (scaledWidth > maxAllowed || scaledWidth < minAllowed) { // 检查缩放是否超出允许范围
+                  return;
+                }
+                this.play_area_width = scaledWidth; // 更新播放区域尺寸
+                this.play_area_height = this.play_area_height * clampedScale;
+                animateTo({ duration: 100 }, () => {
+                  this.play_area_width = this.play_area_width;
+                  this.play_area_height = this.play_area_height;
+                });
               }
-              this.play_area_width = scaledWidth; // 更新播放区域尺寸
-              this.play_area_height = this.play_area_height * clampedScale;
-              animateTo({ duration: 100 }, () => {
-                this.play_area_width = this.play_area_width;
-                this.play_area_height = this.play_area_height;
-              });
             },
             onLongPressAction: () => {
               if (!this.isLock) {
@@ -844,7 +911,9 @@ export struct Player { // 播放页
         this.lockVisibility = false
         return true
       } else {
-        this.avPlayer?.release()
+        this.avPlayer?.release().catch(() => {
+          console.error('player error')
+        })
         return false
       }
     })
@@ -858,13 +927,17 @@ export struct Player { // 播放页
         PermissionUtil.stopContinuousTask()
       }
       await this.ijkPlayerStop()
-      await (await this.windowClass).setWindowKeepScreenOn(false)
-      if (canIUse('SystemCapability.Window.SessionManager')) {
-        await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
-        await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
+      try {
+        await (await this.windowClass)?.setWindowKeepScreenOn(false)
+        if (canIUse('SystemCapability.Window.SessionManager')) {
+          await (await this.windowClass)?.setSpecificSystemBarEnabled('status', true)
+          await (await this.windowClass)?.setSpecificSystemBarEnabled('navigationIndicator', true)
+        }
+        await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
+        await this.avSession?.stopCasting();
+      } catch (error) {
+        console.error('player error：' + error)
       }
-      await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
-      await this.avSession?.stopCasting();
     })
     .hideTitleBar(true)
   }
@@ -880,7 +953,9 @@ export struct Player { // 播放页
       audioTrackMenuBuilder: this.getAudioMenuBuilder,
       lockRotation: this.lock_rotation,
       onExitVideoClick: () => {
-        this.avPlayer?.reset()
+        this.avPlayer?.reset().catch(() => {
+          console.error('player error')
+        })
         this.pathStack.pop()
       },
       onScreenExtendOptionSelected: (text: string) => {
@@ -892,10 +967,14 @@ export struct Player { // 播放页
           (this.screen_width > this.screen_height ? window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED
             : window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
           : window.Orientation.AUTO_ROTATION_RESTRICTED
-        await (await this.windowClass).setPreferredOrientation(orientation)
+        try {
+          await (await this.windowClass)?.setPreferredOrientation(orientation)
+        } catch (error) {
+          ToolsUtil.errorCatchExec('屏幕旋转异常', String(error))
+        }
         const toastMessage = this.lock_rotation
-          ? PathUtils.appContext!.resourceManager.getStringSync($r('app.string.open_rotation_lock'))
-          : PathUtils.appContext!.resourceManager.getStringSync($r('app.string.close_rotation_lock'))
+          ? ToolsUtil.getStringResource($r('app.string.open_rotation_lock').id)
+          : ToolsUtil.getStringResource($r('app.string.close_rotation_lock').id)
         ToolsUtil.showToast(toastMessage);
       }
     })
@@ -943,7 +1022,9 @@ export struct Player { // 播放页
         const orientation = this.screen_height > this.screen_width
           ? window.Orientation.AUTO_ROTATION_LANDSCAPE
           : window.Orientation.AUTO_ROTATION_PORTRAIT; // 这里是横竖屏切换顺应用户操作就好
-        (await this.windowClass).setPreferredOrientation(orientation)
+        (await this.windowClass)?.setPreferredOrientation(orientation).catch(() => {
+          console.error('setPreferredOrientation error')
+        })
       },
       onTogglePlaybackClick: () => {
         this.togglePlayback()
@@ -963,7 +1044,9 @@ export struct Player { // 播放页
       audioTrack: this.audio_track,
       audioTrackSelected: this.audio_track_select,
       onSelect: (index: number) => {
-        this.avPlayer?.selectTrack(this.audio_track[index]?.index);
+        this.avPlayer?.selectTrack(this.audio_track[index]?.index).catch(() => {
+          console.error('select track error')
+        });
         this.audio_track_select = index;
       }
     })
@@ -1017,11 +1100,15 @@ export struct Player { // 播放页
   }
 
   private async fullResetSync(position: number) { // 严重不同步处理
-    this.avPlayer?.pause();
+    this.avPlayer?.pause().catch(() => {
+      console.error('player error')
+    });
     this.mIjkMediaPlayer?.pause();
     this.mIjkMediaPlayer?.seekTo(String(position))
     await new Promise<void>(resolve => setTimeout(resolve, 50));
-    this.avPlayer?.play();
+    this.avPlayer?.play().catch(() => {
+      console.error('player error')
+    });
     this.mIjkMediaPlayer?.start();
   }
 

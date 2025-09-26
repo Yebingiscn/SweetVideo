@@ -4,9 +4,7 @@ import { SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil'
 export struct SettingsClickItem {
   @State symbol: Resource | undefined = undefined
   @State message: ResourceStr = ''
-  @StorageProp('disable_blur') disable_blur: boolean = false
   @Prop showArrow: boolean = true
-  @StorageProp('vipState') vipState: boolean = false
   onPress = () => {
   }
   onLongPress = () => {

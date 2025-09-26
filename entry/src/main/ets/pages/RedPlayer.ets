@@ -31,7 +31,7 @@ import { WindowUtil } from '../utils/WindowUtil';
 @Component
 export struct RedPlayer { // 红薯播放器页
   @Consume('pathStack') pathStack: NavPathStack
-  windowClass = window.getLastWindow(PathUtils.appContext!)
+  windowClass = WindowUtil.getWindow()
   xComponentController: RedPlayerXComponentController =
     new RedPlayerXComponentController(PlayerCoreType.TYPE_RED_PLAYER)
   avSession: avSessionManager.AVSession | undefined = undefined;
@@ -84,28 +84,32 @@ export struct RedPlayer { // 红薯播放器页
               .onLoad(() => {
                 this.playerController.createMediaPlayer(PlayerCoreType.TYPE_RED_PLAYER).then(async () => {
                   await PermissionUtil.activatePermission(this.now_playing?.uri || '')
-                  const file = fs.openSync(this.now_playing?.uri)
-                  this.playerController.setDataSource({
-                    fd: file.fd,
-                    logHead: "RedPlayer",
-                    sourceType: SourceType.FD,
-                    enableAccurateSeek: true,
-                    isAutoLoop: RedPlayerSettingsConfig.useLoopPlay,
-                    isAutoStart: true
-                  })?.then(async () => {
-                    this.playerController.setSurfaceId(this.xComponentController.getSurfaceId())
-                    this.playerController.prepare()?.then(() => {
-                      this.playerController.setVolume(1.0)
-                      this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.now_playing!,
-                        this.skipIntroTime))
-                      this.playerController.start()
+                  try {
+                    const file = fs.openSync(this.now_playing?.uri)
+                    this.playerController.setDataSource({
+                      fd: file.fd,
+                      logHead: "RedPlayer",
+                      sourceType: SourceType.FD,
+                      enableAccurateSeek: true,
+                      isAutoLoop: RedPlayerSettingsConfig.useLoopPlay,
+                      isAutoStart: true
+                    })?.then(async () => {
+                      this.playerController.setSurfaceId(this.xComponentController.getSurfaceId())
+                      this.playerController.prepare()?.then(() => {
+                        this.playerController.setVolume(1.0)
+                        this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.now_playing!,
+                          this.skipIntroTime))
+                        this.playerController.start()
+                      })
+                      this.avSession = await AVSessionUtil.getAVSession()
+                      await this.setSessionListener()
+                      AVSessionUtil.setSessionInfo(this.now_playing!)
+                      AVSessionUtil.updatePlaybackSessionState(this.isSliderPlayTimeChange,
+                        this.redPlayerStateHolder.videoPosition)
                     })
-                    this.avSession = await AVSessionUtil.getAVSession()
-                    await this.setSessionListener()
-                    AVSessionUtil.setSessionInfo(this.now_playing!)
-                    AVSessionUtil.updatePlaybackSessionState(this.isSliderPlayTimeChange,
-                      this.redPlayerStateHolder.videoPosition)
-                  })
+                  } catch (error) {
+                    console.error('uri error:' + error)
+                  }
                 })
               })
           }
@@ -333,19 +337,27 @@ export struct RedPlayer { // 红薯播放器页
       }
       this.playerController.stop()
       this.playerController.release()
-      await (await this.windowClass).setWindowKeepScreenOn(false)
-      if (canIUse('SystemCapability.Window.SessionManager')) {
-        await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
-        await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
+      try {
+        await (await this.windowClass)?.setWindowKeepScreenOn(false)
+        if (canIUse('SystemCapability.Window.SessionManager')) {
+          await (await this.windowClass)?.setSpecificSystemBarEnabled('status', true)
+          await (await this.windowClass)?.setSpecificSystemBarEnabled('navigationIndicator', true)
+        }
+        await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
+      } catch (error) {
+        console.error('player error:' + error)
       }
-      await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
     }).hideTitleBar(true)
   }
 
   async setScreen() {
     if (canIUse('SystemCapability.Window.SessionManager')) {
-      await (await this.windowClass).setSpecificSystemBarEnabled('status', this.showControl, true)
-      await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', this.showControl, true)
+      try {
+        await (await this.windowClass)?.setSpecificSystemBarEnabled('status', this.showControl, true)
+        await (await this.windowClass)?.setSpecificSystemBarEnabled('navigationIndicator', this.showControl, true)
+      } catch (error) {
+        console.error('setSpecificSystemBarEnabled error:' + error)
+      }
     }
   }
 
@@ -354,8 +366,12 @@ export struct RedPlayer { // 红薯播放器页
       PermissionUtil.startContinuousTask()
     }
     await this.setScreen()
-    await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
-    await (await this.windowClass).setWindowKeepScreenOn(true)
+    try {
+      await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
+      await (await this.windowClass)?.setWindowKeepScreenOn(true)
+    } catch (error) {
+      console.error('setPreferredOrientation error:' + error)
+    }
     let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
     let audioManager = audio.getAudioManager();
     this.audioVolumeManager = audioManager.getVolumeManager();
@@ -388,16 +404,20 @@ export struct RedPlayer { // 红薯播放器页
   }
 
   async setSessionListener() {
-    this.avSession?.on('play', () => {
-      this.playerController.start()
-    });
-    this.avSession?.on('pause', () => {
-      this.playerController.pause()
-    });
-    this.avSession?.on('seek', (position: number) => {
-      let seekValue = position;
-      this.seekTime(seekValue)
-    })
+    try {
+      this.avSession?.on('play', () => {
+        this.playerController.start()
+      });
+      this.avSession?.on('pause', () => {
+        this.playerController.pause()
+      });
+      this.avSession?.on('seek', (position: number) => {
+        let seekValue = position;
+        this.seekTime(seekValue)
+      })
+    } catch (error) {
+      console.error('set av session state error')
+    }
   }
 
   @Builder
@@ -491,7 +511,9 @@ export struct RedPlayer { // 红薯播放器页
           const orientation = this.screen_height > this.screen_width
             ? window.Orientation.AUTO_ROTATION_LANDSCAPE
             : window.Orientation.AUTO_ROTATION_PORTRAIT;
-          (await this.windowClass).setPreferredOrientation(orientation)
+          (await this.windowClass)?.setPreferredOrientation(orientation).catch(() => {
+            console.error('player error')
+          })
         })
       }.span({ xs: 2, sm: 2, md: 2 })
 

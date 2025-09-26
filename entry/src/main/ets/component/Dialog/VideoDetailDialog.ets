@@ -1,7 +1,7 @@
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
 import DataSyncUtil from '../../utils/DataSyncUtil';
-import { PathUtils } from '../../utils/PathUtils';
 import TimeUtil from '../../utils/TimeUtil';
+import ToolsUtil from '../../utils/ToolsUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 
 // 视频详情弹窗
@@ -30,7 +30,7 @@ export struct VideoDetailDialog {
         ListItem() {
           this.buildDetailItem('视频分辨率：',
             VideoInfoUtil.videoWidthAndHeightFormat(this.metadata?.size.toString()!) === '0 x 0' ?
-              PathUtils.appContext!.resourceManager.getStringSync($r('app.string.unknown_resolution').id) :
+              ToolsUtil.getStringResource($r('app.string.unknown_resolution').id) :
               VideoInfoUtil.videoWidthAndHeightFormat(this.metadata?.size.toString()!))
         }.width('100%')
 

@@ -53,14 +53,14 @@ export struct RecentPlay { // 最近播放页
         this.MenuBuilderState = false
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           this.clickItem(item, NavigationAddress.FFMPEG_PLAYER)
-        }, 200)
+        }, 350)
       })
 
       MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
         this.MenuBuilderState = false
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           this.clickItem(item, NavigationAddress.RED_PLAYER)
-        }, 200)
+        }, 350)
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')),

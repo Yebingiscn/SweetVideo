@@ -23,10 +23,12 @@ export struct FileFolderListComponent {
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.MARQUEE })
           if (this.videoListController.folder.name === this.folder?.name) {
-            Text(`共 ${this.videoListController.folder.video_list.length} 部视频`)
+            Text(this.videoListController.folder.video_list.length === 0 ? `空空如也~` :
+              `共 ${this.videoListController.folder.video_list.length} 部视频`)
               .fontSize(12)
               .textAlign(TextAlign.Start)
               .width('100%')
+              .textOverflow({ overflow: TextOverflow.MARQUEE })
           }
         }
         .margin({ left: 5 })

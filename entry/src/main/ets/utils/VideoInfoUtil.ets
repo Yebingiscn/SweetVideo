@@ -1,12 +1,12 @@
 import { media } from '@kit.MediaKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { image } from '@kit.ImageKit';
 import ReqPermission from '../utils/ReqPermissionUtil';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import PrivacySpaceUtil from './PrivacySpaceUtil';
 import { FileProcessorUtil } from './FileProcessorUtil';
 import NavigationAddress from '../common/NavigationAddress';
+import SelectFileUtil from './SelectFileUtil';
 
 // 视频信息类
 class VideoInfoUtil {
@@ -118,18 +118,26 @@ class VideoInfoUtil {
     if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
       return this.enqueue(async () => {
         await ReqPermission.persistPermission(uri);
-        const avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor();
-        const file = fs.openSync(uri);
+        let file: fs.File | undefined
+        let avMetadataExtractor: media.AVMetadataExtractor | undefined
         try {
+          avMetadataExtractor = await media.createAVMetadataExtractor();
+          file = fs.openSync(uri);
           avMetadataExtractor.fdSrc = file;
           const pixelMap = await avMetadataExtractor.fetchAlbumCover();
-          this.saveVideoImageToPrivacySpace(sandbox_path, date, pixelMap);
+          SelectFileUtil.saveVideoImageToPrivacySpace(sandbox_path, date, pixelMap);
         } catch (error) {
           console.error(`AlbumCover failed: ${error.message}`);
           await this.getVideoImage(uri, size, date, sandbox_path, time);
         } finally {
-          fs.closeSync(file)
-          avMetadataExtractor.release();
+          if (file) {
+            fs.closeSync(file)
+          }
+          if (avMetadataExtractor) {
+            avMetadataExtractor?.release().catch(() => {
+              console.error('release error')
+            });
+          }
         }
       });
     }
@@ -162,35 +170,30 @@ class VideoInfoUtil {
   // 视频没有封面设置获取指定时间的截图作为视频封面
   async getVideoImage(uri: string, size: number[], date: string, sandbox_path: string, time: number) {
     if (canIUse('SystemCapability.Multimedia.Media.AVImageGenerator')) {
-      let avImageGenerator: media.AVImageGenerator = await media.createAVImageGenerator();
-      let file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
-      let avFileDescriptor: media.AVFileDescriptor = { fd: file.fd };
-      avImageGenerator.fdSrc = avFileDescriptor
-      let timeUs = (time > 0) ? time * 100 : 0 // 微秒
-      let queryOption = media.AVImageQueryOptions.AV_IMAGE_QUERY_NEXT_SYNC
-      let param: media.PixelMapParams = {
-        width: size[0],
-        height: size[1],
+      try {
+        let avImageGenerator: media.AVImageGenerator = await media.createAVImageGenerator();
+        let file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
+        let avFileDescriptor: media.AVFileDescriptor = { fd: file.fd };
+        avImageGenerator.fdSrc = avFileDescriptor
+        let timeUs = (time > 0) ? time * 100 : 0 // 微秒
+        let queryOption = media.AVImageQueryOptions.AV_IMAGE_QUERY_NEXT_SYNC
+        let param: media.PixelMapParams = {
+          width: size[0],
+          height: size[1],
+        }
+        avImageGenerator.fetchFrameByTime(timeUs, queryOption, param).then((pixelMap: PixelMap) => {
+          SelectFileUtil.saveVideoImageToPrivacySpace(sandbox_path, date, pixelMap)
+          avImageGenerator.release().catch(() => {
+            console.error('release error')
+          })
+          fs.closeSync(file)
+        }).catch(() => {
+          console.error('fetch frame error')
+        })
+      } catch (error) {
+        console.error('get video image error:' + error)
       }
-      avImageGenerator.fetchFrameByTime(timeUs, queryOption, param).then((pixelMap: PixelMap) => {
-        this.saveVideoImageToPrivacySpace(sandbox_path, date, pixelMap)
-        avImageGenerator.release()
-        fs.closeSync(file)
-      })
     }
-  }
-
-  // 保存封面，封面获取后复制到应用私有目录下
-  saveVideoImageToPrivacySpace(sandbox_path: string, date: string, pixelMap: image.PixelMap) {
-    let packer = image.createImagePacker()
-    let file1 = fs.openSync(sandbox_path + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
-    // 设置为85平衡内存、导入速度以及图片质量
-    packer.packToFile(pixelMap, file1.fd, { format: 'image/webp', quality: 85 }).then(() => {
-      fs.closeSync(file1)
-    }).catch((error: BusinessError) => {
-      console.error(`Failed to pack the image to file.code ${error.code},message is ${error.message}`);
-      fs.closeSync(file1)
-    })
   }
 
   // 获取视频长宽
@@ -207,12 +210,20 @@ class VideoInfoUtil {
 
   // 正向：用户倍速 → 系统枚举
   mapToSystemSpeed(userSpeed: number): media.PlaybackSpeed {
-    return this.VIDEO_SPEED_MAP.get(userSpeed) || media.PlaybackSpeed.SPEED_FORWARD_1_00_X;
+    const systemSpeed = this.VIDEO_SPEED_MAP.get(userSpeed)
+    if (systemSpeed !== undefined) {
+      return systemSpeed
+    }
+    return media.PlaybackSpeed.SPEED_FORWARD_1_00_X;
   }
 
   // 反向：系统枚举 → 用户倍速
   mapFromSystemSpeed(systemEnum: media.PlaybackSpeed): number {
-    return this.REVERSE_SPEED_MAP.get(systemEnum) || 1.0;
+    const userSpeed = this.REVERSE_SPEED_MAP.get(systemEnum)
+    if (userSpeed !== undefined) {
+      return userSpeed
+    }
+    return 1.0;
   }
 
   getVideoSpeedList(player: string): number[] {
@@ -243,19 +254,23 @@ class VideoInfoUtil {
   // 获取视频大小
   async getVideoSize(uri: string, return_string: boolean): Promise<string | number> {
     return new Promise((resolve, reject) => {
-      let file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
-      fs.stat(file.fd, (err: BusinessError, stat: fs.Stat) => {
-        if (err) {
-          reject('app.string.unknown_size')
-        } else if (return_string) {
-          const size = stat.size > this.GB ?
-            (stat.size / this.GB).toFixed(2) + ' GB' :
-            (stat.size / this.MB).toFixed(2) + ' MB'
-          resolve(size)
-        } else {
-          resolve(stat.size)
-        }
-      });
+      try {
+        let file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
+        fs.stat(file.fd, (err: BusinessError, stat: fs.Stat) => {
+          if (err) {
+            reject('app.string.unknown_size')
+          } else if (return_string) {
+            const size = stat.size > this.GB ?
+              (stat.size / this.GB).toFixed(2) + ' GB' :
+              (stat.size / this.MB).toFixed(2) + ' MB'
+            resolve(size)
+          } else {
+            resolve(stat.size)
+          }
+        });
+      } catch (error) {
+        console.error('size error:' + error)
+      }
     });
   }
 

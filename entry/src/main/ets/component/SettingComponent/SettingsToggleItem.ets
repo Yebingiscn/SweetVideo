@@ -5,7 +5,6 @@ export struct SettingsToggleItem {
   @State symbol: Resource | undefined = undefined
   @State symbol1: Resource | undefined = undefined
   @State message: ResourceStr = ''
-  @StorageProp('disable_blur') disable_blur: boolean = false
   @Prop enable: boolean = false
   onChange = (_checked: boolean) => {
   }

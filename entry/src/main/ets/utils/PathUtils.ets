@@ -1,4 +1,3 @@
-// utils/PathUtils.ts
 import common from '@ohos.app.ability.common';
 
 export class PathUtils {
@@ -18,6 +17,10 @@ export class PathUtils {
     return `${this.sandboxPath}/video/`;
   }
 
+  // 获取图片目录路径
+  static get photoPath(): string {
+    return `${this.sandboxPath}/photo/`
+  }
   // 获取字幕目录路径
   static get subtitlePath(): string {
     return `${this.sandboxPath}/subtitle/`;

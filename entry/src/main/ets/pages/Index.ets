@@ -26,9 +26,8 @@ import { ButtonFancyModifier, MenuModifier, SymbolGlyphFancyModifier } from '../
 import { FileProcessorUtil } from '../utils/FileProcessorUtil';
 import { PathUtils } from '../utils/PathUtils';
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
-import { AppInfo, SideBarController } from '../component/SideBarComponent/SideBar';
+import { AppInfoBuilder, SideBarController } from '../component/SideBarComponent/SideBar';
 import { VideoView } from '../component/VideoItemComponent/VideoViewComponent';
-import { ImportProgressComponent } from '../component/VideoItemComponent/ImportProgressComponent';
 import { VideoMetaDataOperator } from '../database/VideoMetaData';
 import { FileFolderListComponent } from '../component/FileFolderComponent/FileFolderListComponent';
 import VideoUtils from '../utils/VideoUtil';
@@ -36,6 +35,7 @@ import NavigationAddress from '../common/NavigationAddress';
 import { taskpoolExecTool } from '../utils/TaskpoolUtil';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { DeletedVideosDialog } from '../component/Dialog/DeletedVideosDialog';
+import { ImportProgressBuilder } from '../component/VideoItemComponent/ImportProgressBuilder';
 
 @Builder
 export function IndexBuilder() {
@@ -142,8 +142,8 @@ struct Index {
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder_badge_eye')),
-        content: '从下载文件夹导入（路径：Download/' +
-        PathUtils.appContext!.resourceManager.getStringSync($r('app.string.EntryAbility_label').id) + '）'
+        content: `从下载文件夹导入（路径：Download/${ToolsUtil.getStringResource($r('app.string.EntryAbility_label')
+          .id)}）`
       })
         .onClick(async () => {
           this.sideBarController.closeSideBar(false)
@@ -161,7 +161,7 @@ struct Index {
     SelectFileUtil.getDownloadUri()
     VideoOperateUtil.initSetting(PathUtils.appContext!)
     VideoMetaDataOperator.migrationRootVideoMetaToRootFolder()
-    ToolsUtil.isSubtitleFileFolderExist(PathUtils.videoPath, PathUtils.subtitlePath)
+    ToolsUtil.fileFolderExistCheck()
     this.passwd = Preferences.getPassword(PathUtils.appContext!)
     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
     this.fileFolderSource?.updateData(this.file_folder_list)
@@ -227,7 +227,7 @@ struct Index {
         fileFolder
       );
       ToolsUtil.showToast(
-        `${PathUtils.appContext!.resourceManager.getStringSync($r('app.string.add_time_info'))}${this.totalItems -
+        `${ToolsUtil.getStringResource($r('app.string.add_time_info').id)}${this.totalItems -
         FileFolderUtil.duplicateVideo}${FileFolderUtil.duplicateVideo > 0 ?
           '重复视频已经智能跳过，跳过视频数：' + FileFolderUtil.duplicateVideo : ''}`
       );
@@ -245,46 +245,42 @@ struct Index {
         Column() {
           Scroll() {
             Column() {
-              AppInfo()
+              AppInfoBuilder({ topSafeHeight: this.topSafeHeight })
               Column() {
-                Row() {
-                  Button({ type: ButtonType.Normal, stateEffect: true }) {
-                    Row() {
-                      SymbolGlyph($r('sys.symbol.plus_square'))
-                        .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                      Text('导入视频')
-                        .fontSize(15)
-                        .margin({ left: 10, right: 12 })
-                    }
+                Button({ type: ButtonType.Normal, stateEffect: true }) {
+                  Row() {
+                    SymbolGlyph($r('sys.symbol.plus_square'))
+                      .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                    Text('导入视频')
+                      .fontSize(15)
+                      .margin({ left: 10, right: 12 })
+                      .textOverflow({ overflow: TextOverflow.MARQUEE })
                   }
-                  .align(Alignment.Start)
-                  .padding({ left: 15, right: 15 })
-                  .attributeModifier(new ButtonFancyModifier('100%', 60))
-                  .animation({ duration: 300, curve: Curve.Ease })
-                  .bindMenu(this.SelectFileMenuBuilder)
                 }
+                .align(Alignment.Start)
+                .padding({ left: 15, right: 15 })
+                .attributeModifier(new ButtonFancyModifier('100%', 60))
+                .animation({ duration: 300, curve: Curve.Ease })
+                .bindMenu(this.SelectFileMenuBuilder)
                 .width('100%')
-                .justifyContent(FlexAlign.Start)
 
-                Row() {
-                  Button({ type: ButtonType.Normal, stateEffect: true }) {
-                    Row() {
-                      SymbolGlyph($r('sys.symbol.folder_badge_plus'))
-                        .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                      Text('添加文件夹')
-                        .fontSize(15)
-                        .margin({ left: 10, right: 12 })
-                    }
+                Button({ type: ButtonType.Normal, stateEffect: true }) {
+                  Row() {
+                    SymbolGlyph($r('sys.symbol.folder_badge_plus'))
+                      .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                    Text('添加文件夹')
+                      .fontSize(15)
+                      .margin({ left: 10, right: 12 })
+                      .textOverflow({ overflow: TextOverflow.MARQUEE })
                   }
-                  .align(Alignment.Start)
-                  .padding({ left: 15, right: 15 })
-                  .attributeModifier(new ButtonFancyModifier('100%', 60))
-                  .animation({ duration: 300, curve: Curve.Ease })
-                  .onClick(() => {
-                    this.addFileFolderNameDialogController.open()
-                  })
-                }.width('100%')
-                .justifyContent(FlexAlign.Start)
+                }
+                .align(Alignment.Start)
+                .padding({ left: 15, right: 15 })
+                .attributeModifier(new ButtonFancyModifier('100%', 60))
+                .animation({ duration: 300, curve: Curve.Ease })
+                .onClick(() => {
+                  this.addFileFolderNameDialogController.open()
+                })
               }.margin({ top: 10 })
               .justifyContent(FlexAlign.Start)
               .backgroundColor($r('app.color.start_window_background_blur'))
@@ -297,9 +293,8 @@ struct Index {
                     FileFolderListComponent({
                       folder: folder,
                       videoListController: this.videoListController
-                    })
-                      .reuseId(this.videoListController.folder.name === folder.name ? 'selected_folder' :
-                        'unselect_folder')
+                    }).reuseId(this.videoListController.folder.name === folder.name ? 'selected_folder' :
+                      'unselect_folder')
                   }
                   .onClick(() => {
                     this.clearSearchValue()
@@ -337,27 +332,25 @@ struct Index {
           .width('100%')
           .height('100%')
 
-          Row() {
-            Button({ type: ButtonType.Normal, stateEffect: true }) {
-              Row() {
-                SymbolGlyph($r('sys.symbol.clock')).attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                Text('最近播放')
-                  .fontSize(15)
-                  .fontColor($r('app.color.text_color'))
-                  .margin({ left: 10, right: 12 })
-              }
+          Button({ type: ButtonType.Normal, stateEffect: true }) {
+            Row() {
+              SymbolGlyph($r('sys.symbol.clock')).attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+              Text('最近播放')
+                .fontSize(15)
+                .fontColor($r('app.color.text_color'))
+                .margin({ left: 10, right: 12 })
+                .textOverflow({ overflow: TextOverflow.MARQUEE })
             }
-            .align(Alignment.Start)
-            .padding({ left: 15, right: 15 })
-            .attributeModifier(new ButtonFancyModifier('100%', 60))
-            .backgroundColor($r('app.color.start_window_background'))
-            .animation({ duration: 300, curve: Curve.Ease })
-            .onClick(async () => {
-              this.sideBarController.closeSideBar(false)
-              this.pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, true)
-            })
           }
-          .alignSelf(ItemAlign.End)
+          .align(Alignment.Start)
+          .padding({ left: 15, right: 15 })
+          .attributeModifier(new ButtonFancyModifier('100%', 60))
+          .backgroundColor($r('app.color.start_window_background'))
+          .animation({ duration: 300, curve: Curve.Ease })
+          .onClick(async () => {
+            this.sideBarController.closeSideBar(false)
+            this.pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, true)
+          })
 
           Row() {
             Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -367,6 +360,7 @@ struct Index {
                 Text($r('app.string.setting'))
                   .fontSize(15)
                   .margin({ left: 10, right: 12 })
+                  .textOverflow({ overflow: TextOverflow.MARQUEE })
               }
             }
             .align(Alignment.Start)
@@ -397,10 +391,7 @@ struct Index {
             videoListController: this.videoListController
           })
           if (this.loading) {
-            ImportProgressComponent({
-              processedItems: this.processedItems,
-              totalItems: this.totalItems
-            })
+            ImportProgressBuilder({ processedItems: this.processedItems, totalItems: this.totalItems })
           }
         }
         .backgroundColor($r('app.color.start_window_background'))

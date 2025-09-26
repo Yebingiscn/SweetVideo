@@ -37,7 +37,7 @@ export struct SettingsPage { //设置页
         }
         this.passwd = passwd
         ToolsUtil.savePwd(PathUtils.appContext!, passwd)
-        ToolsUtil.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.set_passwd_tip')))
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.set_passwd_tip').id))
         this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null)
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow

@@ -16,13 +16,12 @@ export struct PrivacyPolicyDialog {
   privacyInfoBuilder() {
     Column() {
       Text() {
-        Span('《' + getContext(this).resourceManager.getStringSync($r('app.string.EntryAbility_label').id) +
-          '的使用条款与隐私声明》')
+        Span(`《${ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id)}的使用条款与隐私声明》`)
           .fontColor($r('app.color.main_color'))
           .onClick(() => {
             this.openWebUrl();
           })
-        Span('\n' + getContext(this).resourceManager.getStringSync($r('app.string.EntryAbility_label').id) +
+        Span('\n' + ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id) +
           '（以下简称“本软件”）是由 叶滨 （以下简称“我们”）开发，供您（以下称“用户”）免费使用的本地音乐播放软件。\n' +
           '\n' +
           '一、服务与内容\n' +
@@ -95,7 +94,9 @@ export struct PrivacyPolicyDialog {
         if (DismissSheetAction.reason == DismissReason.SLIDE_DOWN ||
           DismissSheetAction.reason == DismissReason.PRESS_BACK ||
           DismissSheetAction.reason == DismissReason.TOUCH_OUTSIDE) {
-          PathUtils.appContext?.terminateSelf()
+          PathUtils.appContext?.terminateSelf().catch(() => {
+            console.error('exit app error')
+          })
         }
       }),
     })

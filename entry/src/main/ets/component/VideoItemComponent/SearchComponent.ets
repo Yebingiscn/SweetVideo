@@ -32,6 +32,5 @@ export struct SearchComponent {
       .onEditChange((isEditing: boolean) => {
         this.onEditChange(isEditing)
       })
-      .zIndex(1)
   }
 }

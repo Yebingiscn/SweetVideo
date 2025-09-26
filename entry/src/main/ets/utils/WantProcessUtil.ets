@@ -10,6 +10,7 @@ import { PlayerParams } from '../common/PlayerParams';
 import Preferences from '../database/Preferences';
 import { systemShare } from '@kit.ShareKit';
 import NavigationAddress from '../common/NavigationAddress';
+import ToolsUtil from './ToolsUtil';
 
 // 处理拉起应用传来的视频链接
 class WantProcess {
@@ -32,15 +33,19 @@ class WantProcess {
 
   async getSystemShareWant(want: Want) {
     try {
-      const data = await systemShare.getSharedData(want);
-      const records = data.getRecords();
-      for (const record of records) {
-        if (record.uri) {
-          this._wantUri = record.uri;
-          this.isSystemShare = true;
-          this.hasNewWant = true;
-          break;
+      if (canIUse("SystemCapability.Collaboration.SystemShare")) {
+        const data = await systemShare.getSharedData(want);
+        const records = data.getRecords();
+        for (const record of records) {
+          if (record.uri) {
+            this._wantUri = record.uri;
+            this.isSystemShare = true;
+            this.hasNewWant = true;
+            break;
+          }
         }
+      } else {
+        ToolsUtil.showToast('系统不支持该功能')
       }
     } catch (error) {
       const businessError = error as BusinessError;
@@ -70,29 +75,33 @@ class WantProcess {
   // 处理拉起链接
   async hasWant(context: Context, pathStack: NavPathStack) {
     if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
-      let avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor()
-      let file = fs.openSync(this._wantUri);
-      avMetadataExtractor.fdSrc = file
-      avMetadataExtractor.fetchMetadata(async (_error: BusinessError, metadata: media.AVMetadata) => {
-        let targetVideo: VideoMetadata = {
-          uri: this._wantUri,
-          title: decodeURI(this._wantUri.split('/')[this._wantUri.split('/').length-1]),
-          date: systemDateTime.getTime(false).toString(),
-          size: VideoUtil.getVideoWidthAndHeight(metadata),
-          time: parseInt(metadata.duration || '0'),
-          last_play: 0,
-          format: VideoInfoUtil.getVideoFormat(this._wantUri),
-          video_size: await VideoUtil.getVideoSize(this._wantUri, true) as string,
-          hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
-          start_time: 0,
-          end_time: 0
-        }
-        // 获取默认播放器
-        let url = this.getPlayer(context, targetVideo)
-        const playerParams = new PlayerParams(targetVideo, [targetVideo], undefined)
-        this._wantUri = ''
-        pathStack.pushPathByName(url, playerParams, true)
-      })
+      try {
+        let avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor()
+        let file = fs.openSync(this._wantUri);
+        avMetadataExtractor.fdSrc = file
+        avMetadataExtractor.fetchMetadata(async (_error: BusinessError, metadata: media.AVMetadata) => {
+          let targetVideo: VideoMetadata = {
+            uri: this._wantUri,
+            title: decodeURI(this._wantUri.split('/')[this._wantUri.split('/').length-1]),
+            date: systemDateTime.getTime(false).toString(),
+            size: VideoUtil.getVideoWidthAndHeight(metadata),
+            time: parseInt(metadata.duration || '0'),
+            last_play: 0,
+            format: VideoInfoUtil.getVideoFormat(this._wantUri),
+            video_size: await VideoUtil.getVideoSize(this._wantUri, true) as string,
+            hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
+            start_time: 0,
+            end_time: 0
+          }
+          // 获取默认播放器
+          let url = this.getPlayer(context, targetVideo)
+          const playerParams = new PlayerParams(targetVideo, [targetVideo], undefined)
+          this._wantUri = ''
+          pathStack.pushPathByName(url, playerParams, true)
+        })
+      } catch (error) {
+        console.error('want process error:' + error)
+      }
     }
   }
 

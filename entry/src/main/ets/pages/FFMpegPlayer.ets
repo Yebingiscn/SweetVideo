@@ -70,7 +70,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @State volumeTmp: number = 0
   @State isLock: boolean = false
   @State isSliderPlayTimeChange: boolean = false
-  windowClass = window.getLastWindow(PathUtils.appContext!)
+  windowClass = WindowUtil.getWindow()
   xComponentController: XComponentController = new XComponentController()
   @State @Watch('setScreen') showControl: boolean = false
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
@@ -106,8 +106,12 @@ export struct FFMpegPlayer { // FFMpeg播放器页
                 if (!!event) {
                   this.initDelayPlay(event);
                   await PermissionUtil.activatePermission(this.now_playing?.uri || '')
-                  const file = fs.openSync(this.now_playing?.uri)
-                  this.video_url = file.path
+                  try {
+                    const file = fs.openSync(this.now_playing?.uri)
+                    this.video_url = file.path
+                  } catch (error) {
+                    console.error('uri error:' + error)
+                  }
                 }
               })
           }
@@ -261,21 +265,29 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           onPinchStart: (event: GestureEvent) => {
             const finger1 = event.fingerList[0];
             const finger2 = event.fingerList[1];
-            VideoOperateUtil.initPinchDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
+            const fingerDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2)
+            if (fingerDistance >= 0) {
+              VideoOperateUtil.initPinchDistance = fingerDistance
+            } else {
+              return
+            }
           },
           onPinchUpdate: (event: GestureEvent) => {
             const finger1 = event.fingerList[0];
             const finger2 = event.fingerList[1];
-            const currentDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2);
-            const rawScale = currentDistance / VideoOperateUtil.initPinchDistance;
-            const adjustedScale = 1 + (rawScale - 1) * 0.007;
-            const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0);
-            this.play_area_width = Math.max(this.play_area_width * clampedScale, 0.5);
-            this.play_area_height = Math.max(this.play_area_height * clampedScale, 0.5);
-            animateTo({ duration: 100 }, () => {
-              this.play_area_width = this.play_area_width;
-              this.play_area_height = this.play_area_height;
-            });
+            const fingerDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2)
+            if (fingerDistance >= 0) {
+              const currentDistance = fingerDistance
+              const rawScale = currentDistance / VideoOperateUtil.initPinchDistance;
+              const adjustedScale = 1 + (rawScale - 1) * 0.007;
+              const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0);
+              this.play_area_width = Math.max(this.play_area_width * clampedScale, 0.5);
+              this.play_area_height = Math.max(this.play_area_height * clampedScale, 0.5);
+              animateTo({ duration: 100 }, () => {
+                this.play_area_width = this.play_area_width;
+                this.play_area_height = this.play_area_height;
+              });
+            }
           },
           onLongPressAction: () => {
             this.long_press = true
@@ -347,12 +359,16 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         AVSessionUtil.destroySession()
         PermissionUtil.stopContinuousTask()
       }
-      await (await this.windowClass).setWindowKeepScreenOn(false)
-      if (canIUse('SystemCapability.Window.SessionManager')) {
-        await (await this.windowClass).setSpecificSystemBarEnabled('status', true)
-        await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', true)
+      try {
+        await (await this.windowClass)?.setWindowKeepScreenOn(false)
+        if (canIUse('SystemCapability.Window.SessionManager')) {
+          await (await this.windowClass)?.setSpecificSystemBarEnabled('status', true)
+          await (await this.windowClass)?.setSpecificSystemBarEnabled('navigationIndicator', true)
+        }
+        await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
+      } catch (error) {
+        console.error('player error:' + error)
       }
-      await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
       if (this.now_playing?.time === 0) {
         this.now_playing.time = this.total_time; // 若系统无法识别视频时长，则由 FFMpeg API 提供以保存记忆时间
       }
@@ -451,7 +467,9 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           const orientation = this.screen_height > this.screen_width
             ? window.Orientation.AUTO_ROTATION_LANDSCAPE
             : window.Orientation.AUTO_ROTATION_PORTRAIT;
-          (await this.windowClass).setPreferredOrientation(orientation)
+          (await this.windowClass)?.setPreferredOrientation(orientation).catch(() => {
+            console.error('player error')
+          })
         })
       }.span({ xs: 2, sm: 2, md: 2 })
 
@@ -475,8 +493,12 @@ export struct FFMpegPlayer { // FFMpeg播放器页
 
   async setScreen() {
     if (canIUse('SystemCapability.Window.SessionManager')) {
-      await (await this.windowClass).setSpecificSystemBarEnabled('status', this.showControl, true)
-      await (await this.windowClass).setSpecificSystemBarEnabled('navigationIndicator', this.showControl, true)
+      try {
+        await (await this.windowClass)?.setSpecificSystemBarEnabled('status', this.showControl, true)
+        await (await this.windowClass)?.setSpecificSystemBarEnabled('navigationIndicator', this.showControl, true)
+      } catch (error) {
+        console.error('setSpecificSystemBarEnabled error:' + error)
+      }
     }
   }
 
@@ -491,8 +513,12 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     this.audioVolumeManager = audioManager.getVolumeManager();
     let volumeList = await VideoOperateUtil.getVolume(this.audioVolumeManager, groupId)
     this.volume = volumeList.get('volume')!
-    await (await this.windowClass).setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
-    await (await this.windowClass).setWindowKeepScreenOn(true)
+    try {
+      await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
+      await (await this.windowClass)?.setWindowKeepScreenOn(true)
+    } catch (error) {
+      console.error('setPreferredOrientation error:' + error)
+    }
     WindowUtil.enableLandscapeMultiWindow(this.windowClass)
     let event: Callback<InterruptEvent> = (event) => {
       if (event.hintType === InterruptHintType.INTERRUPT_HINT_PAUSE) {
@@ -537,18 +563,22 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   }
 
   async setSessionListener() {
-    this.avSession?.on('play', () => {
-      this.startPlayOrResumePlay();
-    });
-    this.avSession?.on('pause', () => {
-      this.pause()
-    });
-    this.avSession?.on('seek', (position: number) => {
-      this.mDestroyPage = false;
-      let seekValue = position;
-      this.mIjkMediaPlayer?.seekTo(seekValue + "");
-      this.setProgress()
-    })
+    try {
+      this.avSession?.on('play', () => {
+        this.startPlayOrResumePlay();
+      });
+      this.avSession?.on('pause', () => {
+        this.pause()
+      });
+      this.avSession?.on('seek', (position: number) => {
+        this.mDestroyPage = false;
+        let seekValue = position;
+        this.mIjkMediaPlayer?.seekTo(seekValue + "");
+        this.setProgress()
+      })
+    } catch (error) {
+      console.error('set av session state error')
+    }
   }
 
   videoStartPlayTime(seekMode: number) {

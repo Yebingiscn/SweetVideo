@@ -68,95 +68,87 @@ export struct VideoView {
         .height('100%')
         .animation({ duration: 150, curve: Curve.Ease })
       }
-
-      Column() {
-        Row({ space: 15 }) {
-          if (!this.is_edit && this.sideBarController.side_bar_mode == SideBarContainerType.Overlay) {
-            Button({ type: ButtonType.Circle, stateEffect: true }) {
-              SymbolGlyph($r('sys.symbol.close_sidebar'))
-                .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-            }
-            .attributeModifier(new ButtonFancyModifier(40, 40))
-            .animation({ duration: 300, curve: Curve.Ease })
-            .onClick(() => {
-              this.sideBarController.openSideBar()
-            })
-            .attributeModifier(new SearchShadowModifier())
-            .zIndex(0)
+      Row({ space: 15 }) {
+        if (!this.is_edit && this.sideBarController.side_bar_mode == SideBarContainerType.Overlay) {
+          Button({ type: ButtonType.Circle, stateEffect: true }) {
+            SymbolGlyph($r('sys.symbol.close_sidebar'))
+              .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
           }
-
-          SearchComponent({
-            controller: this.searchController,
-            searchValue: this.searchValue,
-            onChange: () => {
-              if (this.searchValue === '') {
-                const videoMetaDataList: VideoMetadata[] =
-                  FolderOperator.getFolderByName(this.videoListController.folder.name).video_list
-                this.videoListController.videoDataSource.updateData(videoMetaDataList)
-                this.videoListController.updateData(this.videoListController.videoDataSource,
-                  this.videoListController.folder)
-              } else {
-                const videoMetaDataList: VideoMetadata[] =
-                  SelectFileUtil.getItemFromSearch(FolderOperator.getFolderByName(this.videoListController.folder.name)
-                    .video_list, this.searchValue)
-                this.videoListController.videoDataSource.updateData(videoMetaDataList)
-                this.videoListController.updateData(this.videoListController.videoDataSource,
-                  this.videoListController.folder)
-              }
-            },
-            onSubmit: (value: string) => {
-              if (value == '') {
-                if (this.videoListController.videoMetaDataList.length == 0) {
-                  ToolsUtil.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.add_video_first')))
-                  return
-                }
-                this.searchController.stopEditing()
-                return
-              }
-              if (value == this.passwd) {
-                ToolsUtil.showToast(PathUtils.appContext!
-                  .resourceManager.getStringSync($r('app.string.enter_privacy_space')))
-                this.pathStack.pushPathByName(NavigationAddress.PRIVACY_SPACE, null)
-                this.searchValue = ''
-                return
-              }
-              if (this.videoListController.videoMetaDataList.length == 0) {
-                ToolsUtil.showToast(PathUtils.appContext!.resourceManager.getStringSync($r('app.string.no_search_result')))
-              }
-            },
-            onEditChange: (isEditing: boolean) => {
-              animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
-                this.is_edit = isEditing
-              })
-            }
+          .attributeModifier(new ButtonFancyModifier(40, 40))
+          .animation({ duration: 300, curve: Curve.Ease })
+          .onClick(() => {
+            this.sideBarController.openSideBar()
           })
+          .attributeModifier(new SearchShadowModifier())
+        }
 
-          if (!this.is_edit) {
+        SearchComponent({
+          controller: this.searchController,
+          searchValue: this.searchValue,
+          onChange: () => {
+            if (this.searchValue === '') {
+              const videoMetaDataList: VideoMetadata[] =
+                FolderOperator.getFolderByName(this.videoListController.folder.name).video_list
+              this.videoListController.videoDataSource.updateData(videoMetaDataList)
+              this.videoListController.updateData(this.videoListController.videoDataSource,
+                this.videoListController.folder)
+            } else {
+              const videoMetaDataList: VideoMetadata[] =
+                SelectFileUtil.getItemFromSearch(FolderOperator.getFolderByName(this.videoListController.folder.name)
+                  .video_list, this.searchValue)
+              this.videoListController.videoDataSource.updateData(videoMetaDataList)
+              this.videoListController.updateData(this.videoListController.videoDataSource,
+                this.videoListController.folder)
+            }
+          },
+          onSubmit: (value: string) => {
+            if (value == '') {
+              if (this.videoListController.videoMetaDataList.length == 0) {
+                ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
+                return
+              }
+              this.searchController.stopEditing()
+              return
+            }
+            if (value == this.passwd) {
+              ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
+              this.pathStack.pushPathByName(NavigationAddress.PRIVACY_SPACE, null)
+              this.searchValue = ''
+              return
+            }
+            if (this.videoListController.videoMetaDataList.length == 0) {
+              ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
+            }
+          },
+          onEditChange: (isEditing: boolean) => {
+            animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
+              this.is_edit = isEditing
+            })
+          }
+        })
+
+        if (!this.is_edit) {
+          Button({ type: ButtonType.Circle, stateEffect: true }) {
+            SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
+              .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+          }
+          .attributeModifier(new ButtonFancyModifier(40, 40))
+          .animation({ duration: 300, curve: Curve.Ease })
+          .bindMenu(this.SortMenuBuilder)
+          .attributeModifier(new SearchShadowModifier())
+
+          if (this.videoListController.multipleChooseState === Visibility.Visible) {
             Button({ type: ButtonType.Circle, stateEffect: true }) {
-              SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
+              SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
                 .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
             }
             .attributeModifier(new ButtonFancyModifier(40, 40))
             .animation({ duration: 300, curve: Curve.Ease })
-            .bindMenu(this.SortMenuBuilder)
+            .bindMenu(this.SelectItemMenuBuilder)
             .attributeModifier(new SearchShadowModifier())
-            .zIndex(0)
-
-            if (this.videoListController.multipleChooseState === Visibility.Visible) {
-              Button({ type: ButtonType.Circle, stateEffect: true }) {
-                SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
-                  .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-              }
-              .attributeModifier(new ButtonFancyModifier(40, 40))
-              .animation({ duration: 300, curve: Curve.Ease })
-              .bindMenu(this.SelectItemMenuBuilder)
-              .attributeModifier(new SearchShadowModifier())
-              .zIndex(0)
-            }
           }
         }
-      }
-      .padding({ top: this.topSafeHeight, left: 10, right: 10 })
+      }.padding({ top: this.topSafeHeight, left: 10, right: 10 })
       .width('100%')
     }
   }

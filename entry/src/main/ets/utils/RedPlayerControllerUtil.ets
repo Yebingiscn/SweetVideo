@@ -97,22 +97,26 @@ export default class RedPlayerControllerUtil implements IMediaPlayerStateListene
       this.redPlayerStateHolder.url = this.player.getUrl();
       this.redPlayerStateHolder.videoCodec = this.player.getVideoCodecInfo();
       this.redPlayerStateHolder.audioCodec = this.player.getAudioCodecInfo();
-      const screen = display.getDefaultDisplaySync();
-      const screenWidth = screen.width;
-      const screenHeight = screen.height;
-      const videoRatio = width / height;
-      const screenRatio = screenWidth / screenHeight;
-      if (videoRatio > screenRatio) {
-        this.redPlayerStateHolder.videoViewWidth = `${Math.round(screenWidth)}px`;
-        this.redPlayerStateHolder.videoViewHeight = `${Math.round(screenWidth / videoRatio)}px`;
-      } else {
-        this.redPlayerStateHolder.videoViewHeight = `${Math.round(screenHeight)}px`;
-        this.redPlayerStateHolder.videoViewWidth = `${Math.round(screenHeight * videoRatio)}px`;
+      try {
+        const screen = display.getDefaultDisplaySync();
+        const screenWidth = screen.width;
+        const screenHeight = screen.height;
+        const videoRatio = width / height;
+        const screenRatio = screenWidth / screenHeight;
+        if (videoRatio > screenRatio) {
+          this.redPlayerStateHolder.videoViewWidth = `${Math.round(screenWidth)}px`;
+          this.redPlayerStateHolder.videoViewHeight = `${Math.round(screenWidth / videoRatio)}px`;
+        } else {
+          this.redPlayerStateHolder.videoViewHeight = `${Math.round(screenHeight)}px`;
+          this.redPlayerStateHolder.videoViewWidth = `${Math.round(screenHeight * videoRatio)}px`;
+        }
+        const viewWidth = parseFloat(this.redPlayerStateHolder.videoViewWidth);
+        const viewHeight = parseFloat(this.redPlayerStateHolder.videoViewHeight);
+        this.redPlayerStateHolder.videoWidth = viewWidth;
+        this.redPlayerStateHolder.videoHeight = viewHeight;
+      } catch (error) {
+        console.error('get video info error:' + error)
       }
-      const viewWidth = parseFloat(this.redPlayerStateHolder.videoViewWidth);
-      const viewHeight = parseFloat(this.redPlayerStateHolder.videoViewHeight);
-      this.redPlayerStateHolder.videoWidth = viewWidth;
-      this.redPlayerStateHolder.videoHeight = viewHeight;
     }
   }
 

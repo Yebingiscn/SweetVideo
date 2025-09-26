@@ -75,7 +75,7 @@ export struct AboutApp {
               Button({ type: ButtonType.Normal, stateEffect: true }) {
                 Row() {
                   SymbolGlyph($r('sys.symbol.person_shield')).fontSize(25).fontColor([$r('app.color.text_color')])
-                  Text(getContext(this).resourceManager.getStringSync($r('app.string.EntryAbility_label').id) +
+                  Text(ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id) +
                     '的使用条款与隐私声明')
                     .fontSize(15)
                     .fontColor($r('app.color.text_color'))
@@ -155,6 +155,9 @@ export struct AboutApp {
               Text('kimufly')
                 .fontSize(14)
                 .fontColor($r('app.color.text_color'))
+              Text('F-park')
+                .fontSize(14)
+                .fontColor($r('app.color.text_color'))
             }.alignItems(HorizontalAlign.Start)
           }
           .padding(15)
@@ -164,7 +167,7 @@ export struct AboutApp {
           .backgroundColor($r('app.color.start_window_background_blur'))
 
           Column({ space: 8 }) {
-            Text(getContext(this).resourceManager.getStringSync($r('app.string.EntryAbility_label').id) +
+            Text(ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id) +
               '由以下开源项目提供支持')
               .fontSize(20)
               .fontWeight(FontWeight.Medium)

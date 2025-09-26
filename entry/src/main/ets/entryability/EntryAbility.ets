@@ -11,7 +11,11 @@ import VideoOperateUtil from '../utils/VideoOperateUtil';
 
 export default class EntryAbility extends UIAbility {
   async onCreate(want: Want): Promise<void> {
-    this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
+    try {
+      this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
+    } catch (error) {
+      console.error('sweet video error set color mode error')
+    }
     //  PreferencesUtil.localPreferences(this.context, 'sweet_video')
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onCreate');
     AppStorage.setOrCreate('context', this.context)
@@ -58,8 +62,17 @@ export default class EntryAbility extends UIAbility {
       }
       VideoOperateUtil.windowStage = windowStage
       this.context.resourceManager.getStringValue($r('app.color.start_window_background_blur').id)
+        .catch(() => {
+          console.error("获取颜色失败:");
+          return "#000000"; // 返回默认颜色（例如黑色）
+        })
         .then(colorValue => {
-          windowStage.getMainWindowSync().setWindowBackgroundColor(colorValue);
+          try {
+            // 此时 colorValue 一定是 string 类型
+            windowStage.getMainWindowSync().setWindowBackgroundColor(colorValue);
+          } catch (error) {
+            console.error("设置窗口背景色失败:", error);
+          }
         });
       hilog.info(0x0000, 'testTag', 'Succeeded in loading the content.');
     });

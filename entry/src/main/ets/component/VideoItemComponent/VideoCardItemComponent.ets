@@ -4,7 +4,7 @@ import { fileUri } from '@kit.CoreFileKit';
 import { ImageFancyModifier, SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import { VideoListController } from './VideoItemComponent';
-import { VideoInfoComponent } from './VideoInfoComponent';
+import { VideoInfoBuilder } from './VideoInfoBuilder';
 
 @Reusable
 @Component
@@ -49,9 +49,14 @@ export default struct VideoCardItem {
       .width('100%')
       .padding({ top: 5 })
 
-      VideoInfoComponent({ item: this.item })
+      this.VideoInfoBuilderBridge(this.item)
     }
     .width('100%')
     .height('auto')
+  }
+
+  @Builder
+  VideoInfoBuilderBridge(item: VideoMetadata | undefined) {
+    VideoInfoBuilder(item)
   }
 }

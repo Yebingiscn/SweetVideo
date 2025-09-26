@@ -37,7 +37,7 @@ export struct FileFolderView {
           FileFolderListComponent({
             folder: item,
             videoListController: this.videoListController
-          })
+          }).reuseId(item.name)
         }
         .onClick(() => {
           const video_list = item.video_list || []

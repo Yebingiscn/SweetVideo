@@ -54,8 +54,14 @@ class AVSessionUtil {
 
   async createSession() {
     let type: avSessionManager.AVSessionType = 'audio';
-    this.avSession = await avSessionManager.createAVSession(PathUtils.appContext!, 'sweet_video', type);
-    this.avSession.activate()
+    try {
+      this.avSession = await avSessionManager.createAVSession(PathUtils.appContext!, 'sweet_video', type);
+      this.avSession.activate().catch(() => {
+        console.error('activate avSession erro')
+      })
+    } catch (error) {
+      console.error('create session error:' + error)
+    }
   }
 
   async setSessionInfo(metadata: VideoMetadataFromPlayer) {
@@ -78,7 +84,9 @@ class AVSessionUtil {
       duration: metadata.time,
       filter: avSession.ProtocolType.TYPE_CAST_PLUS_STREAM | avSession.ProtocolType.TYPE_DLNA,
     };
-    this.avSession?.setAVMetadata(session_metadata)
+    this.avSession?.setAVMetadata(session_metadata).catch(() => {
+      console.error('setAVMetadata error')
+    })
     await this.getAVCastController(metadata)
   }
 
@@ -91,11 +99,15 @@ class AVSessionUtil {
         updateTime: systemDateTime.getTime(false),
       },
     };
-    this.avSession?.setAVPlaybackState(playbackState);
+    this.avSession?.setAVPlaybackState(playbackState).catch(() => {
+      console.error('updateSession error')
+    });
   }
 
   destroySession() {
-    this.avSession?.destroy()
+    this.avSession?.destroy().catch(() => {
+      console.error('destroy Session error')
+    })
     this.avSession = undefined
     this.pixelMap?.release();
     this.imageSource?.release();
@@ -103,68 +115,76 @@ class AVSessionUtil {
 
   async getAVCastController(now_playing: VideoMetadataFromPlayer) {
     // 如支持投播，可使用下面接口监听设备连接状态的变化
-    await this.avSession?.setExtras({
-      requireAbilityList: ['url-cast']
-    })
-    this.avSession?.on('outputDeviceChange', async (connectState: avSession.ConnectionState,
-      device: avSession.OutputDeviceInfo) => {
-      // 可以通过当前设备及设备连接状态来更新应用内播放界面的显示
-      let currentDevice: avSession.DeviceInfo = device?.devices?.[0];
-      if (currentDevice.castCategory === avSession.AVCastCategory.CATEGORY_REMOTE &&
-        connectState === avSession.ConnectionState.STATE_CONNECTED) { // 设备连接成功
-        console.error(`Device connected: ${device}`);
-        console.error('Succeeded in getting a cast controller');
-        // 查询当前播放的状态
-        this.castController = await this.avSession?.getAVCastController();
-        let avPlaybackState = await this.castController?.getAVPlaybackState();
-        console.error(`Succeeded in AVPlaybackState resource obtained: ${avPlaybackState}`);
-        // 监听播放状态的变化
-        this.castController?.on('playbackStateChange', 'all', (state: avSession.AVPlaybackState) => {
-          console.error(`Succeeded in Playback state changed: ${state}`);
-        });
-        if (currentDevice.supportedProtocols === avSession.ProtocolType.TYPE_CAST_PLUS_STREAM) {
-          this.playItem(now_playing)
-          // 此设备支持cast+投播协议
-        } else if (currentDevice.supportedProtocols === avSession.ProtocolType.TYPE_DLNA) {
-          // 此设备支持DLNA投播协议
-          this.playItem(now_playing)
+    try {
+      await this.avSession?.setExtras({
+        requireAbilityList: ['url-cast']
+      })
+      this.avSession?.on('outputDeviceChange', async (connectState: avSession.ConnectionState,
+        device: avSession.OutputDeviceInfo) => {
+        // 可以通过当前设备及设备连接状态来更新应用内播放界面的显示
+        let currentDevice: avSession.DeviceInfo = device?.devices?.[0];
+        if (currentDevice.castCategory === avSession.AVCastCategory.CATEGORY_REMOTE &&
+          connectState === avSession.ConnectionState.STATE_CONNECTED) { // 设备连接成功
+          console.error(`Device connected: ${device}`);
+          console.error('Succeeded in getting a cast controller');
+          // 查询当前播放的状态
+          this.castController = await this.avSession?.getAVCastController();
+          let avPlaybackState = await this.castController?.getAVPlaybackState();
+          console.error(`Succeeded in AVPlaybackState resource obtained: ${avPlaybackState}`);
+          // 监听播放状态的变化
+          this.castController?.on('playbackStateChange', 'all', (state: avSession.AVPlaybackState) => {
+            console.error(`Succeeded in Playback state changed: ${state}`);
+          });
+          if (currentDevice.supportedProtocols === avSession.ProtocolType.TYPE_CAST_PLUS_STREAM) {
+            this.playItem(now_playing)
+            // 此设备支持cast+投播协议
+          } else if (currentDevice.supportedProtocols === avSession.ProtocolType.TYPE_DLNA) {
+            // 此设备支持DLNA投播协议
+            this.playItem(now_playing)
+          }
         }
-      }
-    })
+      })
+    } catch (error) {
+      console.error('getAVCastController error' + error)
+    }
   }
 
   async playItem(now_playing: VideoMetadataFromPlayer) {
     await PermissionUtil.activatePermission(now_playing?.uri || '')
-    const file = fs.openSync(now_playing?.uri)
-    let avFileDescriptor: media.AVFileDescriptor = { fd: file.fd };
-    // 设置播放参数，开始播放
-    let playItem: avSession.AVQueueItem = {
-      itemId: 0,
-      description: {
-        assetId: 'VIDEO-' + now_playing.title,
-        title: now_playing.title.slice(0, now_playing.title.lastIndexOf('.')),
-        artist: '',
-        mediaType: 'VIDEO',
-        mediaSize: await VideoInfoUtil.getVideoSize(PrivacySpaceUtil.getPrivacyMode()! ?
-          PathUtils.videoPath + now_playing.date : now_playing?.uri, true) as number,
-        //startPosition为投播当前进度，设置该字段可将本机播放进度同步到远端
-        startPosition: now_playing.last_play,
-        // 投播资源播放时长，设置该字段可将本机播放时长同步到远端显示
-        duration: now_playing.time,
-        albumCoverUri: PathUtils.coverPath + now_playing.date,
-        albumTitle: '',
-        fdSrc: avFileDescriptor,
-        appName: PathUtils.appContext!.resourceManager.getStringSync($r('app.string.EntryAbility_label').id),
-      }
-    };
-    // 准备播放，这个不会触发真正的播放，会进行加载和缓冲
-    this.castController?.prepare(playItem, () => {
-      console.info('Preparation done');
-      // 启动播放，真正触发对端播放。请在Prepare成功后再调用start。
-      this.castController?.start(playItem, () => {
-        console.info('Playback started');
+    try {
+      const file = fs.openSync(now_playing?.uri)
+      let avFileDescriptor: media.AVFileDescriptor = { fd: file.fd };
+      // 设置播放参数，开始播放
+      let playItem: avSession.AVQueueItem = {
+        itemId: 0,
+        description: {
+          assetId: 'VIDEO-' + now_playing.title,
+          title: now_playing.title.slice(0, now_playing.title.lastIndexOf('.')),
+          artist: '',
+          mediaType: 'VIDEO',
+          mediaSize: await VideoInfoUtil.getVideoSize(PrivacySpaceUtil.getPrivacyMode()! ?
+            PathUtils.videoPath + now_playing.date : now_playing?.uri, true) as number,
+          //startPosition为投播当前进度，设置该字段可将本机播放进度同步到远端
+          startPosition: now_playing.last_play,
+          // 投播资源播放时长，设置该字段可将本机播放时长同步到远端显示
+          duration: now_playing.time,
+          albumCoverUri: PathUtils.coverPath + now_playing.date,
+          albumTitle: '',
+          fdSrc: avFileDescriptor,
+          appName: PathUtils.appContext!.resourceManager.getStringSync($r('app.string.EntryAbility_label').id),
+        }
+      };
+      // 准备播放，这个不会触发真正的播放，会进行加载和缓冲
+      this.castController?.prepare(playItem, () => {
+        console.info('Preparation done');
+        // 启动播放，真正触发对端播放。请在Prepare成功后再调用start。
+        this.castController?.start(playItem, () => {
+          console.info('Playback started');
+        });
       });
-    });
+    } catch (error) {
+      console.error('play item error:' + error)
+    }
   }
 }
 

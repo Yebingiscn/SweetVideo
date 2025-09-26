@@ -4,7 +4,7 @@ import { fileUri } from '@kit.CoreFileKit';
 import { ImageFancyModifier, SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import { VideoListController } from './VideoItemComponent';
-import { VideoInfoComponent } from './VideoInfoComponent';
+import { VideoInfoBuilder } from './VideoInfoBuilder';
 
 @Reusable
 @Component
@@ -40,7 +40,7 @@ export default struct VideoListItem {
           }
         }
 
-        VideoInfoComponent({ item: this.item })
+        this.VideoInfoBuilderBridge(this.item)
       }
       .alignItems(HorizontalAlign.Start)
       .padding({ left: 15, right: 15 })
@@ -49,4 +49,10 @@ export default struct VideoListItem {
     .justifyContent(FlexAlign.Center)
     .width('100%')
   }
+
+  @Builder
+  VideoInfoBuilderBridge(item: VideoMetadata | undefined) {
+    VideoInfoBuilder(item)
+  }
 }
+

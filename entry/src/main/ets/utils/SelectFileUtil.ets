@@ -16,6 +16,7 @@ import { PathUtils } from './PathUtils';
 import ToolsUtil from './ToolsUtil';
 import RecentPlayUtil from './RecentPlayUtil';
 import { ConcurrencyManagerUtil } from './FileProcessorUtil';
+import { image } from '@kit.ImageKit';
 
 // 获取视频类
 class SelectFileUtil {
@@ -36,18 +37,14 @@ class SelectFileUtil {
     }
   }
 
-  // 从图库获取视频
-  async selectVideo(): Promise<string[]> { // 确保返回类型是 Promise<string[]>
-    const photoSelectOptions = new photoAccessHelper.PhotoSelectOptions();
-    photoSelectOptions.MIMEType = photoAccessHelper.PhotoViewMIMETypes.VIDEO_TYPE;
-    const photoViewPicker = new photoAccessHelper.PhotoViewPicker();
-    try {
-      const photoSelectResult: photoAccessHelper.PhotoSelectResult = await photoViewPicker.select(photoSelectOptions);
-      return photoSelectResult.photoUris.length > 0 ? photoSelectResult.photoUris : [];
-    } catch (error) {
-      console.error("Error selecting videos:", error);
-      return []; // 捕获错误并返回空数组
-    }
+  // 选择视频（支持多选）
+  async selectVideo(): Promise<string[]> {
+    return this.selectMedia(photoAccessHelper.PhotoViewMIMETypes.VIDEO_TYPE)
+  }
+
+  // 选择图片（单选）
+  async selectPhoto(): Promise<string[]> {
+    return this.selectMedia(photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE, 1)
   }
 
   // 获取下载文件夹路径
@@ -67,22 +64,70 @@ class SelectFileUtil {
       const saverOption = new picker.DocumentSaveOptions()
       saverOption.newFileNames = this.copyFileReName(item)
       const documentSaveResult = await new Promise<string[]>((resolve, reject) => {
-        const saver = new picker.DocumentViewPicker(context);
+        const saver = new picker.DocumentViewPicker(context)
         saver.save(saverOption, (err: BusinessError, uris: string[]) => {
-          err ? reject(err) : resolve(uris);
-        });
-      });
-      targetFile = fs.openSync(documentSaveResult[0], fs.OpenMode.READ_WRITE);
-      await fs.copyFile(sourceFile.fd, targetFile.fd);
-      ToolsUtil.showToast(`导出成功: ${targetFile?.name} 路径为: ${targetFile?.path}`);
+          err ? reject(err) : resolve(uris)
+        })
+      })
+      targetFile = fs.openSync(documentSaveResult[0], fs.OpenMode.READ_WRITE)
+      await fs.copyFile(sourceFile.fd, targetFile.fd)
+      ToolsUtil.showToast(`导出成功: ${targetFile?.name} 路径为: ${targetFile?.path}`)
+    } catch (error) {
+      ToolsUtil.showToast(`导出失败，原因是：${error}`)
     } finally {
-      // 确保关闭文件资源
       if (sourceFile) {
-        fs.close(sourceFile.fd);
+        fs.closeSync(sourceFile.fd)
       }
       if (targetFile) {
-        fs.close(targetFile.fd);
+        fs.closeSync(targetFile.fd)
       }
+    }
+  }
+
+  getImageUri(name: string) {
+    let photo: fs.File | null = null
+    try {
+      photo = fs.openSync(PathUtils.photoPath! + name, fs.OpenMode.READ_ONLY)
+      return photo.path || ''
+    } catch (error) {
+      return ''
+    } finally {
+      if (photo) {
+        fs.closeSync(photo)
+      }
+    }
+  }
+
+  saveImageToPrivacySpace(name: string, pixelMap: image.PixelMap) {
+    let packer = image.createImagePacker()
+    try {
+      let file1 = fs.openSync(PathUtils.photoPath + name, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
+      // 设置为85平衡内存、导入速度以及图片质量
+      packer.packToFile(pixelMap, file1.fd, { format: 'image/webp', quality: 100 }).then(() => {
+        fs.closeSync(file1)
+      }).catch((error: BusinessError) => {
+        console.error(`Failed to pack the image to file.code ${error.code},message is ${error.message}`);
+        fs.closeSync(file1)
+      })
+    } catch (error) {
+      console.error('save image error:' + error)
+    }
+  }
+
+  // 保存封面，封面获取后复制到应用私有目录下
+  saveVideoImageToPrivacySpace(sandbox_path: string, date: string, pixelMap: image.PixelMap) {
+    let packer = image.createImagePacker()
+    try {
+      let file1 = fs.openSync(sandbox_path + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
+      // 设置为85平衡内存、导入速度以及图片质量
+      packer.packToFile(pixelMap, file1.fd, { format: 'image/webp', quality: 85 }).then(() => {
+        fs.closeSync(file1)
+      }).catch((error: BusinessError) => {
+        console.error(`Failed to pack the image to file.code ${error.code},message is ${error.message}`);
+        fs.closeSync(file1)
+      })
+    } catch (error) {
+      console.error('save cover error:' + error)
     }
   }
 
@@ -90,12 +135,14 @@ class SelectFileUtil {
   async copyFileToPrivacySpace(context: Context, video_meta_data_encryption: VideoMetadata[], uri: string,
     sandbox_video: string, sandbox_path: string, date: string, metadata: media.AVMetadata,
     file: fs.File): Promise<VideoMetadata> {
-    const file1 = fs.openSync(uri, fs.OpenMode.READ_ONLY);
-    const targetPath = `${sandbox_video}${date}`;
-    const file2 = fs.openSync(targetPath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
+    let sourceFile: fs.File | null = null;
+    let targetFile: fs.File | null = null;
     try {
+      const sourceFile = fs.openSync(uri, fs.OpenMode.READ_ONLY);
+      const targetPath = `${sandbox_video}${date}`;
+      const targetFile = fs.openSync(targetPath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
       await new Promise<void>((resolve, reject) => {
-        fs.copyFile(file1.fd, file2.fd, (error) => {
+        fs.copyFile(sourceFile.fd, targetFile.fd, (error) => {
           error ? reject(error) : resolve();
         });
       });
@@ -108,8 +155,8 @@ class SelectFileUtil {
       console.error(`文件复制失败: ${uri}`, error);
       throw new Error(`隐私空间复制失败: ${error.message}`);
     } finally {
-      fs.closeSync(file1);
-      fs.closeSync(file2);
+      fs.closeSync(sourceFile);
+      fs.closeSync(targetFile);
     }
   }
 
@@ -268,74 +315,84 @@ class SelectFileUtil {
   }
 
   async addFile(context: Context, sandbox_video: string, sandbox_path: string, uri: string,
-    video_meta_data: VideoMetadata[], file_folder: FileFolder | undefined) {
+    video_meta_data: VideoMetadata[], file_folder?: FileFolder) {
     if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
       await ReqPermissionUtil.persistPermission(uri);
-      const avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor();
-      // 获取文件操作队列（按URI串行化），避免重复创建文件夹
-      const fileQueue = ConcurrencyManagerUtil.getFileQueue(uri);
-      await fileQueue.run(async () => {
-        const file = fs.openSync(uri);
-        try {
-          avMetadataExtractor.fdSrc = file;
-          const metadata = await new Promise<media.AVMetadata>((resolve, reject) => {
-            avMetadataExtractor.fetchMetadata((error: BusinessError, metadata: media.AVMetadata) => {
-              error ? reject(error) : resolve(metadata);
-            });
-          });
-          // 获取全局数据锁（保证原子操作）
-          const dataLock = ConcurrencyManagerUtil.getLock('global_data');
-          await dataLock.acquire();
+      try {
+        const avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor();
+        // 获取文件操作队列（按URI串行化），避免重复创建文件夹
+        const fileQueue = ConcurrencyManagerUtil.getFileQueue(uri);
+        await fileQueue.run(async () => {
+          const file = fs.openSync(uri);
           try {
-            if (!file_folder) {
-              const folderName = FileFolderUtil.extractRootFolderNameFromUri(uri, file.name)
-              if (folderName) {
-                const folderLock = ConcurrencyManagerUtil.getLock(`folder_${folderName}`);
-                await folderLock.acquire();
-                try {
-                  // 每次获取最新数据，防止不同线程覆盖数据
-                  const latestFolders = Preferences.getFileFolder(context) as FileFolder[];
-                  if (!latestFolders.some(i => i.name === folderName)) {
-                    await FileFolderUtil.createNewFolder(context, folderName);
-                    // 创建后重新获取最新数据
-                    file_folder = (Preferences.getFileFolder(context) as FileFolder[])
-                      .find(item => item.name === folderName);
-                  } else {
-                    file_folder = latestFolders.find(item => item.name === folderName);
+            avMetadataExtractor.fdSrc = file;
+            const metadata = await new Promise<media.AVMetadata>((resolve, reject) => {
+              avMetadataExtractor.fetchMetadata((error: BusinessError, metadata: media.AVMetadata) => {
+                error ? reject(error) : resolve(metadata);
+              });
+            });
+            // 获取全局数据锁（保证原子操作）
+            const dataLock = ConcurrencyManagerUtil.getLock('global_data');
+            await dataLock.acquire();
+            try {
+              if (!file_folder) {
+                const folderName = FileFolderUtil.extractRootFolderNameFromUri(uri, file.name)
+                if (folderName) {
+                  const folderLock = ConcurrencyManagerUtil.getLock(`folder_${folderName}`);
+                  await folderLock.acquire();
+                  try {
+                    // 每次获取最新数据，防止不同线程覆盖数据
+                    const latestFolders = Preferences.getFileFolder(context) as FileFolder[];
+                    if (!latestFolders.some(i => i.name === folderName)) {
+                      await FileFolderUtil.createNewFolder(context, folderName);
+                      // 创建后重新获取最新数据
+                      file_folder = (Preferences.getFileFolder(context) as FileFolder[])
+                        .find(item => item.name === folderName);
+                    } else {
+                      file_folder = latestFolders.find(item => item.name === folderName);
+                    }
+                  } finally {
+                    folderLock.release();
                   }
-                } finally {
-                  folderLock.release();
                 }
               }
-            }
-            let isDuplicate = false;
-            isDuplicate = FileFolderUtil.existsVideoInFolders(context, uri, file.name);
-            if (!isDuplicate) {
-              if (PrivacySpaceUtil.getPrivacyMode()!) {
-                await this.copyFileToPrivacySpace(context, video_meta_data, uri, sandbox_video,
-                  sandbox_path, systemDateTime.getTime(true).toString(), metadata, file);
-              } else {
-                const videoInfo =
-                  await VideoUtil.setVideoInfo(systemDateTime.getTime(true).toString(), uri, file.name, metadata,
-                    sandbox_video, sandbox_path);
-                if (file_folder) {
-                  file_folder.video_list.push(videoInfo)
-                  FileFolderUtil.updateFileFolder(context, file_folder, file_folder.video_list)
+              let isDuplicate = false;
+              isDuplicate = FileFolderUtil.existsVideoInFolders(context, uri, file.name);
+              if (!isDuplicate) {
+                if (PrivacySpaceUtil.getPrivacyMode()!) {
+                  await this.copyFileToPrivacySpace(context, video_meta_data, uri, sandbox_video,
+                    sandbox_path, systemDateTime.getTime(true).toString(), metadata, file);
                 } else {
-                  const folders = Preferences.getFileFolder(context)
-                  folders[0].video_list.push(videoInfo)
-                  Preferences.saveFileFolder(context, folders)
+                  const videoInfo =
+                    await VideoUtil.setVideoInfo(systemDateTime.getTime(true).toString(), uri, file.name, metadata,
+                      sandbox_video, sandbox_path);
+                  if (file_folder) {
+                    file_folder.video_list.push(videoInfo)
+                    FileFolderUtil.updateFileFolder(context, file_folder, file_folder.video_list)
+                  } else {
+                    const folders = Preferences.getFileFolder(context)
+                    folders[0].video_list.push(videoInfo)
+                    Preferences.saveFileFolder(context, folders)
+                  }
                 }
               }
+            } finally {
+              dataLock.release();
             }
           } finally {
-            dataLock.release();
+            try {
+              avMetadataExtractor.release?.().catch(() => {
+                console.error('avMetadataExtractor release error')
+              });
+              fs.closeSync(file);
+            } catch (error) {
+              console.error('关闭文件出错，原因是：' + error)
+            }
           }
-        } finally {
-          avMetadataExtractor.release?.();
-          fs.closeSync(file);
-        }
-      });
+        });
+      } catch (error) {
+        console.error('createAVMetadataExtractor 发生错误, 原因是：' + error)
+      }
     }
   }
 
@@ -387,6 +444,21 @@ class SelectFileUtil {
         }
       });
     });
+  }
+
+  private async selectMedia(mimeType: photoAccessHelper.PhotoViewMIMETypes,
+    maxSelect: number = Number.MAX_SAFE_INTEGER): Promise<string[]> {
+    const options = new photoAccessHelper.PhotoSelectOptions()
+    options.MIMEType = mimeType
+    options.maxSelectNumber = maxSelect
+    try {
+      const picker = new photoAccessHelper.PhotoViewPicker()
+      const result: photoAccessHelper.PhotoSelectResult = await picker.select(options)
+      return result.photoUris || []
+    } catch (error) {
+      console.error(`Error selecting media [${mimeType}]:`, error)
+      return []
+    }
   }
 
   // 从下载文件夹获取视频，视频和文件夹太多，通过分离文件夹和文件两个线程池提高性能，进行递归遍历

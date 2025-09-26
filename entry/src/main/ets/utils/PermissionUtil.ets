@@ -66,11 +66,15 @@ class PermissionUtil {
       } catch (error) {
         hilog.error(777, 'testFlag', 'background play failed: ' + JSON.stringify(error))
       }
-    });
+    }).catch(() => {
+      console.error('getWantAgent error')
+    })
   }
 
   stopContinuousTask() {
-    backgroundTaskManager.stopBackgroundRunning(PathUtils.appContext!)
+    backgroundTaskManager.stopBackgroundRunning(PathUtils.appContext!).catch(() => {
+      console.error('stopBackgroundRunning error')
+    })
   }
 
   async persistPermission(uri: string): Promise<boolean> {
@@ -81,7 +85,8 @@ class PermissionUtil {
           operationMode: fileShare.OperationMode.READ_MODE | fileShare.OperationMode.WRITE_MODE,
         };
         let policies: Array<fileShare.PolicyInfo> = [policyInfo];
-        fileShare.persistPermission(policies).then(() => {
+        fileShare.persistPermission(policies).catch(() => {
+          console.error('persistPermission error')
         })
         let fd = await fs.open(uri);
         await fs.close(fd);

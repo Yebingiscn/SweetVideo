@@ -159,7 +159,7 @@ export struct VideoList {
       item: item,
       delMultipleList: this.delMultipleList
     }).backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
-      $r('app.color.start_window_background')).reuseId('list_item').borderRadius(8)
+      $r('app.color.start_window_background')).reuseId(item.uri).borderRadius(8)
   }
 
   build() {
@@ -258,7 +258,7 @@ export struct VideoList {
                 VideoCardItem({
                   item: item,
                   delMultipleList: this.delMultipleList
-                }).width('100%').reuseId('card_item')
+                }).width('100%').reuseId(item.uri)
               }
               .width('100%')
               .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
@@ -322,7 +322,7 @@ export struct VideoList {
           .onTouch(() => this.searchController.stopEditing())
           .width('100%')
           .height('100%')
-          .padding(10)
+          .padding({ left: 10, right: 10 })
           .onAppear(() => {
             this.videoListController.listScroller.scrollEdge(Edge.Top)
           })
@@ -341,7 +341,11 @@ export struct VideoList {
       this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
       return
     }
-    this.videoListController.listScroller.closeAllSwipeActions()
+    try {
+      this.videoListController.listScroller.closeAllSwipeActions()
+    } catch (error) {
+      ToolsUtil.errorCatchExec('closeAllSwipeActions', String(error))
+    }
     await ToolsUtil.isFileExist(item.uri) ?
       ToolsUtil.routerWhere(this.pathStack, choosePlayer, item,
         this.videoListController.videoMetaDataList) :
@@ -398,13 +402,13 @@ export struct VideoList {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
           await this.clickItem(videoItem, NavigationAddress.FFMPEG_PLAYER)
-        }, 300)
+        }, 350)
       })
       MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
           await this.clickItem(videoItem, NavigationAddress.RED_PLAYER)
-        }, 300)
+        }, 350)
       })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
         .onClick(() => {
