@@ -52,7 +52,7 @@ struct Index {
   @State totalItems: number = 0
   @State file_folder_list: FileFolder[] = []
   @State searchValue: string = ''
-  @StorageLink('isListDisplay') isListDisplay: boolean = false
+  @StorageLink('isListDisplay') isListDisplay: boolean = true
   @StorageProp('screen_width') screen_width: number = 0
   @StorageProp('screen_height') screen_height: number = 0
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
@@ -444,7 +444,8 @@ struct Index {
         }
       }))
     }
-    .backgroundImage('')
+    .backgroundImage(SelectFileUtil.getImageUri())
+    .blur(0)
     .hideTitleBar(true)
     .mode(NavigationMode.Stack)
     .navDestination(this.Pages)

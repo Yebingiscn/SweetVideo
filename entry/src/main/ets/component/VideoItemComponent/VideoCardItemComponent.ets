@@ -49,14 +49,9 @@ export default struct VideoCardItem {
       .width('100%')
       .padding({ top: 5 })
 
-      this.VideoInfoBuilderBridge(this.item)
+      VideoInfoBuilder({ item: this.item })
     }
     .width('100%')
     .height('auto')
-  }
-
-  @Builder
-  VideoInfoBuilderBridge(item: VideoMetadata | undefined) {
-    VideoInfoBuilder(item)
   }
 }

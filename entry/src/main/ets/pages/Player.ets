@@ -27,7 +27,6 @@ import { PlaybackSpeedMenuComponent } from '../component/PlayerComponent/Playbac
 import { BrightnessSwipingComponent } from '../component/PlayerComponent/BrightnessSwipingComponent';
 import { VolumeSwipingComponent } from '../component/PlayerComponent/VolumeSwipingComponent';
 import { FastForwardInfoComponent } from '../component/PlayerComponent/FastForwardInfoComponent';
-import { StatusBarComponent } from '../component/PlayerComponent/StatusBarComponent';
 import { SubtitleComponent } from '../component/PlayerComponent/SubtitleComponent';
 import { LockVideoBarComponent } from '../component/PlayerComponent/LockVideoBarComponent';
 import { SwipingPlayTimeDisplay } from '../component/PlayerComponent/SwipingPlayTimeDisplay';
@@ -40,6 +39,7 @@ import { RepeatMode } from '../common/enum/RepeatMode';
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
 import NavigationAddress from '../common/NavigationAddress';
 import { WindowUtil } from '../utils/WindowUtil';
+import { VideoStatusBarBuilder } from '../component/PlayerComponent/VideoStatusBarBuilder';
 
 @Component
 export struct Player { // 播放页
@@ -528,6 +528,8 @@ export struct Player { // 播放页
         nextItem = availableVideos.length > 0
           ? availableVideos[Math.floor(Math.random() * availableVideos.length)]
           : item; // 回退到当前视频
+      } else if (this.repeatMode === RepeatMode.SINGLE_PLAY) {
+        this.exitVideo()
       } else {
         nextItem = SelectFileUtil.getNextItem(this.video_meta_data, item.date) // 非随机模式：按顺序获取下一个视频
       }
@@ -635,9 +637,9 @@ export struct Player { // 播放页
               }) { //顶栏
                 Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
                   Column() {
-                    StatusBarComponent({
-                      screenHeight: this.screen_height,
+                    VideoStatusBarBuilder({
                       screenWidth: this.screen_width,
+                      screenHeight: this.screen_height,
                       clockTime: this.clock_time
                     })
                     this.VideoTop()
@@ -731,7 +733,10 @@ export struct Player { // 播放页
                 this.togglePlayback()
                 return;
               }
-              const tapX = event.fingerList[0].localX;
+              const tapX = event.fingerList[0]?.localX;
+              if (!VideoOperateUtil.checkLocalX(tapX)) {
+                return
+              }
               const zoneWidth = this.screen_width / 5; // 屏幕五分之一宽度
               if (tapX < zoneWidth) { // 左侧1/5区域：回退
                 this.backForward();
@@ -753,8 +758,11 @@ export struct Player { // 播放页
             },
             onVerticalPanStart: (event: GestureEvent) => {
               if (!this.isLock) {
-                const firstTouch = event.fingerList[0];
-                this.isLeftSideSwipe = firstTouch.localX < this.screen_width / 2;
+                const tapX = event.fingerList[0]?.localX;
+                if (!VideoOperateUtil.checkLocalX(tapX)) {
+                  return
+                }
+                this.isLeftSideSwipe = tapX < this.screen_width / 2;
                 VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
                 this.volume = this.volumeActually
                 VideoOperateUtil.lastVolume = this.volume; // 记录起始音量
@@ -762,7 +770,7 @@ export struct Player { // 播放页
             },
             onVerticalPanUpdate: (event: GestureEvent) => {
               if (!this.isLock && event.fingerList.length === 1) {
-                const deltaYScale = event.offsetY / this.screen_height * 2.5
+                const deltaYScale = event?.offsetY / this.screen_height * 2.5
                 if (this.isLeftSideSwipe) {
                   this.onSwipingBrightness = true
                   this.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
@@ -784,20 +792,19 @@ export struct Player { // 播放页
               if (!this.isLock) {
                 VideoOperateUtil.last_play_time = this.play_time;
                 this.onSwiping = true;
-                // 记录初始拖拽位置
               }
             },
             onHorizonPanUpdate: (event: GestureEvent) => {
               if (this.isLock) {
                 return;
               }
-              if (event?.fingerList?.[0]?.localX !== undefined &&
-                typeof event.fingerList[0].localX === 'number') {
-                const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.now_playing?.time!)
-                this.play_time = Math.max(0,
-                  Math.min(VideoOperateUtil.last_play_time + (event.offsetX * timePerPixel),
-                    this.now_playing?.time!));
+              if (!VideoOperateUtil.checkLocalX(event?.fingerList?.[0]?.localX)) {
+                return
               }
+              const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.now_playing?.time!)
+              this.play_time = Math.max(0,
+                Math.min(VideoOperateUtil.last_play_time + (event.offsetX * timePerPixel),
+                  this.now_playing?.time!));
             },
             onHorizonPanEnd: () => {
               this.seekTime(this.play_time);
@@ -855,13 +862,22 @@ export struct Player { // 播放页
               this.updatePlaybackSpeed(VideoOperateUtil.lastSpeed);
             },
             onLongPressPanStart: (event: GestureEvent) => {
-              if (!this.isLock) {
-                VideoOperateUtil.longPressStartX = event.fingerList[0].localX;
+              if (this.isLock) {
+                return
               }
+              const tapX = event.fingerList[0]?.localX
+              if (!VideoOperateUtil.checkLocalX(tapX)) {
+                return
+              }
+              VideoOperateUtil.longPressStartX = tapX
             },
             onLongPressPanUpdate: (event: GestureEvent) => {
               if (!this.isLock && this.long_press) { // 长按状态下的滑动处理
-                const deltaX = event.fingerList[0].localX - VideoOperateUtil.longPressStartX;
+                const tapX = event.fingerList[0]?.localX
+                if (!VideoOperateUtil.checkLocalX(tapX)) {
+                  return
+                }
+                const deltaX = tapX - VideoOperateUtil.longPressStartX;
                 const SWIPE_THRESHOLD = 15;
                 if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
                   return;
@@ -875,7 +891,7 @@ export struct Player { // 播放页
                 }
                 this.currentSpeedIndex = clampedIndex;
                 this.updatePlaybackSpeed(VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER)[this.currentSpeedIndex]);
-                VideoOperateUtil.longPressStartX = event.fingerList[0].localX; // 重置起始点实现分档切换效果
+                VideoOperateUtil.longPressStartX = event.fingerList[0]?.localX; // 重置起始点实现分档切换效果
               }
             }
           })
@@ -942,6 +958,13 @@ export struct Player { // 播放页
     .hideTitleBar(true)
   }
 
+  exitVideo() {
+    this.avPlayer?.reset().catch(() => {
+      console.error('player error')
+    })
+    this.pathStack.pop()
+  }
+
   @Builder
   VideoTop() {
     VideoTopComponent({
@@ -953,10 +976,7 @@ export struct Player { // 播放页
       audioTrackMenuBuilder: this.getAudioMenuBuilder,
       lockRotation: this.lock_rotation,
       onExitVideoClick: () => {
-        this.avPlayer?.reset().catch(() => {
-          console.error('player error')
-        })
-        this.pathStack.pop()
+        this.exitVideo()
       },
       onScreenExtendOptionSelected: (text: string) => {
         this.screenExtend(text!)

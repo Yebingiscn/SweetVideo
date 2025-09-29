@@ -104,7 +104,7 @@ export struct VideoList {
   @Consume sideBarController: SideBarController
   searchController: SearchController = new SearchController()
   @State longPressPreview: boolean = false
-  @StorageLink('isListDisplay') isListDisplay: boolean = false
+  @StorageLink('isListDisplay') isListDisplay: boolean = true
   @Consume('pathStack') pathStack: NavPathStack
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;

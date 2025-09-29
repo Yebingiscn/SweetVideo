@@ -40,7 +40,7 @@ export default struct VideoListItem {
           }
         }
 
-        this.VideoInfoBuilderBridge(this.item)
+        VideoInfoBuilder({ item: this.item })
       }
       .alignItems(HorizontalAlign.Start)
       .padding({ left: 15, right: 15 })
@@ -48,11 +48,6 @@ export default struct VideoListItem {
     }
     .justifyContent(FlexAlign.Center)
     .width('100%')
-  }
-
-  @Builder
-  VideoInfoBuilderBridge(item: VideoMetadata | undefined) {
-    VideoInfoBuilder(item)
   }
 }
 

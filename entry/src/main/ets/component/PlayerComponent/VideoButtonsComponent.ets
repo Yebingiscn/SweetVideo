@@ -89,16 +89,22 @@ export struct VideoButtonsComponent {
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .onClick(() => {
+          // LIST_LOOP -> SINGLE_LOOP -> RANDOM -> SINGLE_PLAY -> 回到LIST_LOOP
           switch (this.repeatMode) {
             case RepeatMode.LIST_LOOP:
-              this.repeatMode = RepeatMode.SINGLE_LOOP
-              break
+              this.repeatMode = RepeatMode.SINGLE_LOOP;
+              break;
             case RepeatMode.SINGLE_LOOP:
-              this.repeatMode = RepeatMode.RANDOM
-              break
+              this.repeatMode = RepeatMode.RANDOM;
+              break;
             case RepeatMode.RANDOM:
-              this.repeatMode = RepeatMode.LIST_LOOP
-              break
+              this.repeatMode = RepeatMode.SINGLE_PLAY;
+              break;
+            case RepeatMode.SINGLE_PLAY:
+              this.repeatMode = RepeatMode.LIST_LOOP;
+              break;
+            default:
+              this.repeatMode = RepeatMode.LIST_LOOP;
           }
           ToolsUtil.showToast(this.getRepeatModeText())
         })
@@ -157,10 +163,13 @@ export struct VideoButtonsComponent {
   private getRepeatModeIcon(): Resource {
     switch (this.repeatMode) {
       case RepeatMode.SINGLE_LOOP:
-        return $r('sys.symbol.repeat_1')
+        return $r('sys.symbol.repeat')
       case RepeatMode.RANDOM:
         return $r('sys.symbol.shuffle')
       case RepeatMode.LIST_LOOP:
+        return $r('sys.symbol.order_play')
+      case RepeatMode.SINGLE_PLAY:
+        return $r('sys.symbol.repeat_1')
       default:
         return $r('sys.symbol.order_play')
     }
@@ -177,6 +186,9 @@ export struct VideoButtonsComponent {
       case RepeatMode.RANDOM:
         return '随机播放'
       case RepeatMode.LIST_LOOP:
+        return '列表循环'
+      case RepeatMode.SINGLE_PLAY:
+        return '播放完当前视频后自动退出'
       default:
         return '列表循环'
     }

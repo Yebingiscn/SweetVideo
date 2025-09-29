@@ -197,6 +197,9 @@ export struct RedPlayer { // 红薯播放器页
               return;
             }
             const tapX = event.fingerList[0].localX;
+            if (!VideoOperateUtil.checkLocalX(tapX)) {
+              return
+            }
             const zoneWidth = this.screen_width / 5; // 计算区域分割宽度
             const seekOffset = Number(this.fastForwardSeconds) * 1000;
             if (tapX < zoneWidth) { // 左侧区域：回退
@@ -216,8 +219,11 @@ export struct RedPlayer { // 红薯播放器页
           },
           onVerticalPanStart: (event: GestureEvent) => {
             if (!this.isLock) {
-              const firstTouch = event.fingerList[0];
-              this.isLeftSideSwipe = firstTouch.localX < this.screen_width / 2;
+              const tapX = event.fingerList[0]?.localX;
+              if (!VideoOperateUtil.checkLocalX(tapX)) {
+                return
+              }
+              this.isLeftSideSwipe = tapX < this.screen_width / 2;
               VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
               this.volume = this.volumeActually
               VideoOperateUtil.lastVolume = this.volume; // 记录起始音量
@@ -252,13 +258,14 @@ export struct RedPlayer { // 红薯播放器页
             this.onSwiping = true
           },
           onHorizonPanUpdate: (event: GestureEvent) => {
-            if (event?.fingerList?.[0]?.localX !== undefined &&
-              typeof event.fingerList[0].localX === 'number') {
-              const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.now_playing?.time!) * 1.5
-              this.play_time = Math.max(0,
-                Math.min(this.last_play_time + (event.offsetX * timePerPixel),
-                  this.now_playing?.time!));
+            const tapX = event.fingerList[0]?.localX;
+            if (!VideoOperateUtil.checkLocalX(tapX)) {
+              return
             }
+            const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.now_playing?.time!) * 1.5
+            this.play_time = Math.max(0,
+              Math.min(this.last_play_time + (event.offsetX * timePerPixel),
+                this.now_playing?.time!));
           },
           onHorizonPanEnd: () => {
             this.seekTime(this.play_time)
@@ -284,7 +291,11 @@ export struct RedPlayer { // 红薯播放器页
           },
           onLongPressPanUpdate: (event: GestureEvent) => {
             if (!this.isLock && this.long_press) { // 长按状态下的滑动处理
-              const deltaX = event.fingerList[0].localX - VideoOperateUtil.longPressStartX;
+              const tapX = event.fingerList[0]?.localX;
+              if (!VideoOperateUtil.checkLocalX(tapX)) {
+                return
+              }
+              const deltaX = tapX - VideoOperateUtil.longPressStartX;
               const SWIPE_THRESHOLD = 15;
               if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
                 return;

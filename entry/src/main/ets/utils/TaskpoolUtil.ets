@@ -40,7 +40,6 @@ async function checkUriAvailable(fileFolderList: FileFolder[]): Promise<VideoMet
 
 export function taskpoolExecTool(param: FileFolder[], callback: (re: Object) => void) {
   taskpool.execute(new taskpool.Task(checkUriAvailable, param), taskpool.Priority.HIGH).then((result: Object) => {
-    console.info("taskPoolTest task result: " + result);
     callback(result);
   }).catch((err: string) => {
     console.error("taskPoolTest test occur error: " + err);

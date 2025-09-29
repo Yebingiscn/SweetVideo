@@ -137,17 +137,21 @@ class VideoOperateUtil {
   calcFingerDistance(f1: FingerInfo, f2: FingerInfo): number {
     // 检查坐标是否存在
     if (
-      f1.localX === undefined ||
-        f1.localY === undefined ||
-        f2.localX === undefined ||
-        f2.localY === undefined
+      typeof f1?.localX !== 'number' ||
+        typeof f1?.localY !== 'number' ||
+        typeof f2?.localX !== 'number' ||
+        typeof f2?.localY !== 'number'
     ) {
-      return -1
+      return -1;
     }
 
     const dx = f2.localX - f1.localX;
     const dy = f2.localY - f1.localY;
     return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  checkLocalX(localX: number | undefined | null) {
+    return typeof localX === 'number';
   }
 
   // 获取音轨
@@ -259,7 +263,6 @@ class VideoOperateUtil {
     let finalWidth = 0
     let finalHeight = 0
     const containerRatio = containerWidth / containerHeight;
-    // 3. 根据比例动态调整
     if (containerRatio > targetRatio) {
       // 容器比目标“更宽” → 固定高度，按比例缩小宽度
       finalHeight = containerHeight;

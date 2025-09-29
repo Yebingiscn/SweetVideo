@@ -12,6 +12,7 @@ export struct DeletedVideosDialog {
     const metadata = DataSyncUtil.deletedVideos as VideoMetadata[]
     this.metadata = metadata
     this.deletedVideosDataSource = new DeletedVideosDataSource(this.metadata)
+    DataSyncUtil.deletedVideos.length = 0
   }
 
   build() {
@@ -22,7 +23,7 @@ export struct DeletedVideosDialog {
           .fontSize(25)
           .fontColor($r('app.color.text_color'))
           .fontWeight(FontWeight.Bold)
-        Text(`视频已失效，请重新导入，共${this.deletedVideosDataSource.totalCount()}项`)
+        Text(`视频已失效，请重新导入，共 ${this.deletedVideosDataSource.totalCount()} 项`)
           .fontSize(14)
           .fontColor($r('app.color.text_color'))
           .margin({ top: 4 })
@@ -42,7 +43,7 @@ export struct DeletedVideosDialog {
           }.reuseId(item?.title)
         }, (item: VideoMetadata) => item.uri)
       }
-      .cachedCount(6)
+      .cachedCount(12)
       .width('auto')
       .height('auto')
       .divider({ strokeWidth: 0 })
@@ -64,7 +65,6 @@ export struct DeletedVideosDialog {
       .margin({ bottom: 10 })
       .onClick(() => {
         this.controller?.close()
-        DataSyncUtil.deletedVideos.length = 0
       })
     }
     .padding(20)

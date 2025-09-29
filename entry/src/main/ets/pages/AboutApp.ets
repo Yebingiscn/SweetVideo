@@ -16,85 +16,81 @@ export struct AboutApp {
     NavDestination() {
       Scroll() {
         Column({ space: 10 }) {
-          Column() {
-            Stack() {
-              Image($r("app.media.Background"))
-                .attributeModifier(new ImageFancyModifier(20, '100%', 140))
-                .zIndex(1)
+          Stack() {
+            Image($r("app.media.Background"))
+              .attributeModifier(new ImageFancyModifier(20, '100%', 140))
+              .zIndex(1)
+            Row() {
+              Image($r("app.media.Foreground"))
+                .backgroundImageSize(ImageSize.Cover)
+                .autoResize(true)
+                .interpolation(ImageInterpolation.Low)
+                .width(80)
+                .height(80)
+              Text($r('app.string.EntryAbility_label'))
+                .fontSize(25)
+                .fontColor('#ffff')
+                .margin({ left: 5, right: 5 })
+              Text(this.version_code)
+                .fontSize(25)
+                .fontColor('#ffff')
+                .onAppear(async () => {
+                  this.version_code = await ToolsUtil.getVersionCode()
+                })
+            }.width('100%')
+            .justifyContent(FlexAlign.Center)
+            .zIndex(2)
+          }.width('100%')
+
+          Row({ space: 10 }) {
+            Button({ type: ButtonType.Normal, stateEffect: true }) {
               Row() {
-                Image($r("app.media.Foreground"))
-                  .backgroundImageSize(ImageSize.Cover)
-                  .autoResize(true)
-                  .interpolation(ImageInterpolation.Low)
-                  .width(80)
-                  .height(80)
-                Text($r('app.string.EntryAbility_label'))
-                  .fontSize(25)
-                  .fontColor('#ffff')
-                  .margin({ left: 5, right: 5 })
-                Text(this.version_code)
-                  .fontSize(25)
-                  .fontColor('#ffff')
-                  .onAppear(async () => {
-                    this.version_code = await ToolsUtil.getVersionCode()
-                  })
-              }.width('100%')
-              .justifyContent(FlexAlign.Center)
-              .zIndex(2)
-            }
-          }.width('100%')
-
-          Column() {
-            Row({ space: 10 }) {
-              Button({ type: ButtonType.Normal, stateEffect: true }) {
-                Row() {
-                  Image($r('app.media.github'))
-                    .height(25)
-                    .width(25)
-                    .backgroundImageSize(ImageSize.Contain)
-                  Text('项目地址，欢迎 star')
-                    .fontSize(15)
-                    .fontColor($r('app.color.text_color'))
-                    .margin({ left: 10, right: 2 })
-                    .maxLines(2)
-                    .width('80%')
-                }
+                Image($r('app.media.github'))
+                  .height(25)
+                  .width(25)
+                  .backgroundImageSize(ImageSize.Contain)
+                Text('项目地址，欢迎 star')
+                  .fontSize(15)
+                  .fontColor($r('app.color.text_color'))
+                  .margin({ left: 10, right: 2 })
+                  .maxLines(2)
+                  .width('80%')
               }
-              .align(Alignment.Start)
-              .padding(15)
-              .borderRadius(20)
-              .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-              .height(80)
-              .width('48%')
-              .backgroundColor($r('app.color.start_window_background_blur'))
-              .onClick(() => {
-                let link: string = this.GITHUB_HOME_LINK;
-                WantProcessUtil.linkToWeb(PathUtils.appContext!, link)
-              })
-
-              Button({ type: ButtonType.Normal, stateEffect: true }) {
-                Row() {
-                  SymbolGlyph($r('sys.symbol.person_shield')).fontSize(25).fontColor([$r('app.color.text_color')])
-                  Text(ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id) +
-                    '的使用条款与隐私声明')
-                    .fontSize(15)
-                    .fontColor($r('app.color.text_color'))
-                    .margin({ left: 10, right: 12 })
-                    .width('80%')
-                }
-              }
-              .align(Alignment.Start)
-              .padding(15)
-              .borderRadius(20)
-              .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-              .height(80)
-              .width('48%')
-              .backgroundColor($r('app.color.start_window_background_blur'))
-              .onClick(() => {
-                WantProcessUtil.linkToWeb(PathUtils.appContext!, WantProcessUtil.PRIVACY_LINK)
-              })
             }
-          }.width('100%')
+            .align(Alignment.Start)
+            .padding(15)
+            .borderRadius(20)
+            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+            .height(80)
+            .width('48%')
+            .backgroundColor($r('app.color.start_window_background_blur'))
+            .onClick(() => {
+              let link: string = this.GITHUB_HOME_LINK;
+              WantProcessUtil.linkToWeb(PathUtils.appContext!, link)
+            })
+
+            Button({ type: ButtonType.Normal, stateEffect: true }) {
+              Row() {
+                SymbolGlyph($r('sys.symbol.person_shield')).fontSize(25).fontColor([$r('app.color.text_color')])
+                Text(ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id) +
+                  '的使用条款与隐私声明')
+                  .fontSize(15)
+                  .fontColor($r('app.color.text_color'))
+                  .margin({ left: 10, right: 12 })
+                  .width('80%')
+              }
+            }
+            .align(Alignment.Start)
+            .padding(15)
+            .borderRadius(20)
+            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+            .height(80)
+            .width('48%')
+            .backgroundColor($r('app.color.start_window_background_blur'))
+            .onClick(() => {
+              WantProcessUtil.linkToWeb(PathUtils.appContext!, WantProcessUtil.PRIVACY_LINK)
+            })
+          }
 
           Column({ space: 8 }) {
             Text('应用简介')

@@ -11,7 +11,7 @@ export default class VideoUtils {
     //获取最新的folders
     const folders: FileFolder[] = Preferences.getFileFolder(PathUtils.appContext!)
     //更新FileFolderDataSource
-    fileFolderDataSource.updateData(folders)
+    fileFolderDataSource.updateData([...folders])
     let currentFolder: FileFolder | undefined
     //获取当前的folder
     if (folder) {
@@ -19,13 +19,15 @@ export default class VideoUtils {
     } else {
       currentFolder = folders[0]
     }
-    //更新videoDataSource
-    if (videoListController.folder?.video_list || currentFolder) {
-      videoListController.videoDataSource.updateData(currentFolder!.video_list)
+    if (!currentFolder) {
+      ToolsUtil.showToast('出异常了：数据刷新失败')
+      return;
+    }
+    if (videoListController?.folder?.video_list) {
+      //更新videoDataSource
+      videoListController.videoDataSource.updateData(currentFolder.video_list || [])
       //更新VideoListController
       videoListController.updateData(videoListController.videoDataSource, currentFolder!)
-    } else {
-      ToolsUtil.showToast('出异常了：数据刷新失败')
     }
   }
 }

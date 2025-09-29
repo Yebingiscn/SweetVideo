@@ -84,10 +84,10 @@ class SelectFileUtil {
     }
   }
 
-  getImageUri(name: string) {
+  getImageUri() {
     let photo: fs.File | null = null
     try {
-      photo = fs.openSync(PathUtils.photoPath! + name, fs.OpenMode.READ_ONLY)
+      photo = fs.openSync(PathUtils.photoPath! + 'BackgroundImage', fs.OpenMode.READ_ONLY)
       return photo.path || ''
     } catch (error) {
       return ''
@@ -98,19 +98,27 @@ class SelectFileUtil {
     }
   }
 
-  saveImageToPrivacySpace(name: string, pixelMap: image.PixelMap) {
-    let packer = image.createImagePacker()
+  saveImageToPrivacySpace(pixelMap: image.PixelMap) {
+    const filePath = PathUtils.photoPath + 'BackgroundImage'; // 定义完整文件路径
+    let packer = image.createImagePacker();
     try {
-      let file1 = fs.openSync(PathUtils.photoPath + name, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
-      // 设置为85平衡内存、导入速度以及图片质量
-      packer.packToFile(pixelMap, file1.fd, { format: 'image/webp', quality: 100 }).then(() => {
-        fs.closeSync(file1)
+      // 检测文件是否存在
+      if (fs.accessSync(filePath)) {
+        fs.unlinkSync(filePath); // 存在则直接删除
+      }
+      // 创建并写入新文件
+      let file1 = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
+      packer.packToFile(pixelMap, file1.fd, {
+        format: 'image/webp',
+        quality: 100
+      }).then(() => {
+        fs.closeSync(file1);
       }).catch((error: BusinessError) => {
-        console.error(`Failed to pack the image to file.code ${error.code},message is ${error.message}`);
-        fs.closeSync(file1)
-      })
+        console.error(`Failed to pack image. Code:${error.code}, Message:${error.message}`);
+        fs.closeSync(file1);
+      });
     } catch (error) {
-      console.error('save image error:' + error)
+      console.error('File operation error:' + error);
     }
   }
 

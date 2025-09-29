@@ -15,5 +15,9 @@ export enum RepeatMode {
   /**
    * 随机播放模式
    */
-  RANDOM = 2
+  RANDOM = 2,
+  /**
+   * 仅播放一次后退出
+   */
+  SINGLE_PLAY = 3
 }

@@ -42,7 +42,7 @@ export struct PrivacySpace { // 隐私空间页
   @State is_edit: boolean = false
   @State passwd: string = 'passwd'
   @State longPressPreview: boolean = false
-  @StorageLink('isListDisplay') isListDisplay: boolean = false
+  @StorageLink('isListDisplay') isListDisplay: boolean = true
   searchController: SearchController = new SearchController()
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
@@ -231,7 +231,7 @@ export struct PrivacySpace { // 隐私空间页
       this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!);
       this.videoDataSource.updateData(this.video_meta_data_encryption)
       ToolsUtil.showToast(
-        `${PathUtils.appContext!.resourceManager.getStringSync($r('app.string.add_time_info'))}${this.totalItems -
+        `${ToolsUtil.getStringResource($r('app.string.add_time_info').id)}${this.totalItems -
         FileFolderUtil.duplicateVideo}${FileFolderUtil.duplicateVideo > 0 ?
           '重复视频已经智能跳过，跳过视频数：' + FileFolderUtil.duplicateVideo : ''}`
       );
@@ -274,7 +274,7 @@ export struct PrivacySpace { // 隐私空间页
               .wordBreak(WordBreak.BREAK_ALL)
           }.width('100%')
 
-          this.VideoInfoBuilderBridge(item)
+          VideoInfoBuilder({ item: item })
         }.margin({ left: 10 }).alignItems(HorizontalAlign.Start)
       }
       .width('100%')
@@ -343,7 +343,7 @@ export struct PrivacySpace { // 隐私空间页
                     .width('100%')
                     .padding({ top: 5 })
 
-                    this.VideoInfoBuilderBridge(item)
+                    VideoInfoBuilder({ item: item })
                   }.padding({ left: 5, right: 5, bottom: 5 })
                   .width('100%')
                 }
@@ -457,10 +457,5 @@ export struct PrivacySpace { // 隐私空间页
           SelectFileUtil.exportFile(item, PathUtils.appContext!)
         })
     }.padding({ left: 15, right: 15 }).justifyContent(FlexAlign.SpaceEvenly)
-  }
-
-  @Builder
-  VideoInfoBuilderBridge(item: VideoMetadata | undefined) {
-    VideoInfoBuilder(item)
   }
 }

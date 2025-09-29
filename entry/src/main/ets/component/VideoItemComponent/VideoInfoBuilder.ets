@@ -4,19 +4,23 @@ import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import { media } from '@kit.MediaKit';
 import TimeUtil from '../../utils/TimeUtil';
 
+export class VideoInfoBuilderParams {
+  item: VideoMetadata | undefined = undefined
+}
+
 @Builder
-export function VideoInfoBuilder(item: VideoMetadata | undefined) {
+export function VideoInfoBuilder(params: VideoInfoBuilderParams) {
   Row() {
     // HDR类型图标
-    if (item?.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID) {
+    if (params.item?.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID) {
       Image($r("app.media.hdr_vivid_icon"))
         .attributeModifier(new ImageFancyModifier(8, 65, 25))
         .height(22) // 统一高度
     }
     // 分辨率显示逻辑
     else {
-      if (VideoInfoUtil.videoWidthAndHeightFormat(item!.size.toString()).includes('HD')) {
-        Text(VideoInfoUtil.videoWidthAndHeightFormat(item!.size.toString()))
+      if (VideoInfoUtil.videoWidthAndHeightFormat(params.item!.size.toString()).includes('HD')) {
+        Text(VideoInfoUtil.videoWidthAndHeightFormat(params.item!.size.toString()))
           .height(22)// 统一高度
           .fontWeight(FontWeight.Bold)
           .fontSize(10)
@@ -25,7 +29,7 @@ export function VideoInfoBuilder(item: VideoMetadata | undefined) {
           .fontColor($r('sys.color.black'))
           .padding(5)
           .borderRadius(8)
-      } else if (VideoInfoUtil.videoWidthAndHeightFormat(item!.size.toString()) === '0 x 0') {
+      } else if (VideoInfoUtil.videoWidthAndHeightFormat(params.item!.size.toString()) === '0 x 0') {
         Text($r('app.string.unknown_resolution'))
           .height(22)// 统一高度
           .fontSize(10)
@@ -35,17 +39,17 @@ export function VideoInfoBuilder(item: VideoMetadata | undefined) {
           .padding(5)
           .borderRadius(8)
       } else {
-        Text(VideoInfoUtil.videoWidthAndHeightFormat(item!.size.toString()))
+        Text(VideoInfoUtil.videoWidthAndHeightFormat(params.item!.size.toString()))
           .fontSize(15)
           .opacity(0.8)
       }
     }
 
-    Text("  " + TimeUtil.convertMSToHHMMSS(item!.time))
+    Text("  " + TimeUtil.convertMSToHHMMSS(params.item!.time))
       .fontSize(15)
       .opacity(0.8)
 
-    Progress({ value: item?.last_play, total: item?.time, type: ProgressType.Ring })
+    Progress({ value: params.item?.last_play, total: params.item?.time, type: ProgressType.Ring })
       .width(30).color($r('app.color.main_color')).height(30)
       .style({ strokeWidth: 5, shadow: true, enableSmoothEffect: true })
   }
