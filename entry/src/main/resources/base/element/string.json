@@ -163,6 +163,10 @@
     {
       "name": "BIOMETRIC_ACCESS_REASON",
       "value": "Used for privacy space validation"
+    },
+    {
+      "name": "move_to_folder",
+      "value": "Move to folder"
     }
   ]
 }

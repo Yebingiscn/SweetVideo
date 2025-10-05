@@ -62,7 +62,6 @@ export struct VideoView {
               .textAlign(TextAlign.Center)
               .fontWeight(FontWeight.Lighter)
               .margin({ top: 20 })
-
           }
         }
         .height('100%')
@@ -210,7 +209,7 @@ export struct VideoView {
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
-        content: "添加到文件夹",
+        content: $r('app.string.move_to_folder'),
         builder: (): void => this.FileFolderMenuBuilder(undefined)
       })
     }.attributeModifier(new MenuModifier())

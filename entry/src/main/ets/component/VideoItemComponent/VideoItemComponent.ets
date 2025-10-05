@@ -367,7 +367,7 @@ export struct VideoList {
       // TODO 调整文件夹转移
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
-        content: "添加到文件夹",
+        content: $r('app.string.move_to_folder'),
         builder: (): void => this.FileFolderMenuBuilder(item)
       })
       // TODO  调整删除的方法

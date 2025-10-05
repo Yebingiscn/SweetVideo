@@ -163,6 +163,10 @@
     {
       "name": "BIOMETRIC_ACCESS_REASON",
       "value": "用于隐私空间验证"
+    },
+    {
+      "name": "move_to_folder",
+      "value": "移动到文件夹"
     }
   ]
 }
