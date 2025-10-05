@@ -79,6 +79,7 @@ export class VideoListController {
   }
 
   public refresh(width: number, isListDisplay: boolean) {
+    // TODO 这里的处理太粗暴了，应该定义每个元素的MaxWidth 来计算格子，或者根据尺寸做响应式布局
     const base = Math.floor(width / 500);
     this.listLine = isListDisplay ? base + 1 : base + 2;
     // 增加判断，旋转时保持滚动位置不变
