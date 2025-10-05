@@ -229,6 +229,7 @@ export struct VideoList {
         }, (item: VideoMetadata) => item.date.toString() + item.last_play + item.title + item.size.toString() +
         this.videoListController.folder.name)
       }
+      .clip(false)
       .padding({ left: 10, right: 10 })
       .cachedCount(3)
       .contentStartOffset(this.topSafeHeight + 55)
@@ -314,6 +315,7 @@ export struct VideoList {
             }, (item: VideoMetadata) => item.date + item.last_play + item.title + item.size.toString() +
             this.videoListController.folder.name)
           }
+          .clip(false)
           .columnsTemplate('1fr '.repeat(this.videoListController.listLine).trim())
           .columnsGap(12) // 列间距
           .rowsGap(16) // 行间距
@@ -332,7 +334,10 @@ export struct VideoList {
             scrollBackward: NestedScrollMode.SELF_FIRST
           })
         }
-      }.scrollBar(BarState.Off)
+        .clip(false)
+      }
+      .clip(false)
+      .scrollBar(BarState.Off)
     }
   }
 
