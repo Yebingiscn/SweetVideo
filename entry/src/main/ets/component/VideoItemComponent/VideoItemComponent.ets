@@ -159,7 +159,7 @@ export struct VideoList {
       item: item,
       delMultipleList: this.delMultipleList
     }).backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
-      $r('app.color.start_window_background')).reuseId(item.uri).borderRadius(8)
+      $r('app.color.start_window_background')).reuseId(`VideoListItem#${item.uri}`).borderRadius(8)
   }
 
   build() {
@@ -258,7 +258,7 @@ export struct VideoList {
                 VideoCardItem({
                   item: item,
                   delMultipleList: this.delMultipleList
-                }).width('100%').reuseId(item.uri)
+                }).width('100%').reuseId(`VideoCardItem#${item.uri}`)
               }
               .width('100%')
               .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
