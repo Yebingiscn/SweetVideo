@@ -9,6 +9,7 @@ import { PathUtils } from '../../utils/PathUtils'
 import { FolderOperator } from '../../database/VideoMetaData'
 import { AddFileFolderNameDialog } from '../Dialog/AddFileFolderNameDialog'
 import { DefaultDialogShadow } from '../../common/DefaultDialogShadow'
+import VideoUtils from '../../utils/VideoUtil'
 
 
 @Component
@@ -37,24 +38,24 @@ export struct FileFolderMenu {
               if (DataSyncUtil.delMultipleList.length > 0) {
                 folders = FileFolderUtil.transferVideosToFileFolder(PathUtils.appContext!, DataSyncUtil.delMultipleList,
                   this.videoListController.folder.date, item.date)
-                this.videoListController.closeMultipleChoose()
               } else { //非批量操作
                 folders = FileFolderUtil.transferVideosToFileFolder(PathUtils.appContext!, [this.video_item],
                   this.videoListController.folder.date, item.date)
                 // 处理用户多选但是没有选择而是直接移动的情况
                 if (this.videoListController.multipleChooseState === Visibility.Visible) {
-                  this.videoListController.closeMultipleChoose()
                 }
                 // TODO: 这里有个问题没解决：此处移除当前文件夹最后一个视频是，页面提示词未出现
                 // 以下是临时解决方案
                 this.videoListController.multipleChooseState = Visibility.Hidden
-                this.videoListController.closeMultipleChoose()
               }
               this.fileFolderSource.updateData(folders)
               this.videoListController.videoDataSource.updateData(FolderOperator.getFolderByName(this.videoListController.folder.name)
                 .video_list)
               this.videoListController.updateData(this.videoListController.videoDataSource,
                 this.videoListController.folder)
+
+              VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+              this.videoListController.closeMultipleChoose()
             })
         }
       }, (item: FileFolder) => item.date + item.name + item.video_list.toString())
