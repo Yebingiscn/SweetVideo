@@ -17,12 +17,13 @@
         <a href="https://img.shields.io/badge/QQ-973792610-red" style="text-decoration:none" >
             <img src="https://img.shields.io/badge/QQ群-973792610-red" alt="QQ Group"/>
         </a>
-
- <a href="LICENSE" style="text-decoration:none" >
+        <a href="LICENSE" style="text-decoration:none" >
             <img src="https://img.shields.io/github/license/Yebingiscn/SweetVideo" alt="GitHub license"/>
         </a>
         <a href="https://img.shields.io/github/forks/Yebingiscn/SweetVideo" style="text-decoration:none" >
             <img src="https://img.shields.io/github/forks/Yebingiscn/SweetVideo" alt="GitHub fork"/>
+        </a>
+        <a href="https://deepwiki.com/Yebingiscn/SweetVideo"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki" >
         </a>
     </p>
 </div>
