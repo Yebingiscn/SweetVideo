@@ -17,12 +17,13 @@
         <a href="https://img.shields.io/badge/QQ-973792610-red" style="text-decoration:none" >
             <img src="https://img.shields.io/badge/QQ群-973792610-red" alt="QQ Group"/>
         </a>
-
- <a href="LICENSE" style="text-decoration:none" >
+        <a href="LICENSE" style="text-decoration:none" >
             <img src="https://img.shields.io/github/license/Yebingiscn/SweetVideo" alt="GitHub license"/>
         </a>
         <a href="https://img.shields.io/github/forks/Yebingiscn/SweetVideo" style="text-decoration:none" >
             <img src="https://img.shields.io/github/forks/Yebingiscn/SweetVideo" alt="GitHub fork"/>
+        </a>
+        <a href="https://deepwiki.com/Yebingiscn/SweetVideo"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki" >
         </a>
     </p>
 </div>
@@ -58,11 +59,12 @@ QQ群：973792610
 - 基于开源项目`流心视频` https://gitee.com/lqsxy/sweetvideo/tree/master
 - 本应用根据原作者授权并基于 MIT 协议二次开发而来。
 
-### 流心项目概览
+### 流心项目 AI 解读
 
-https://deepwiki.com/Yebingiscn/SweetVideo/3.5-system-utilities
-
-- 基于deep wiki
+- https://deepwiki.com/Yebingiscn/SweetVideo
+  （英文，可以精准提问）
+- https://zread.ai/Yebingiscn/SweetVideo
+  （中文，只能简单提问（需登录））
 
 ## 内置播放器
 
