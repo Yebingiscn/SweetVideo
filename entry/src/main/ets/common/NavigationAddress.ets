@@ -6,4 +6,7 @@ export default class NavigationAddress {
   static ABOUT_PAGE = 'AboutPage'
   static RECENT_PLAY = 'RecentPlay'
   static PRIVACY_SPACE = 'PrivacySpace'
+  static CRASH_PAGE = 'CrashPage'
+  static PERSONALIZE_PAGE = 'PersonalizePage'
+  static PLAYER_SETTING_PAGE = 'PlayerSettingPage'
 }

@@ -12,16 +12,16 @@ import { EditFileFolderNameDialog } from '../component/Dialog/EditFileFolderName
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 import ScreenUtil from '../utils/ScreenUtil';
-import { SettingsPage } from './Setting';
+import { SettingsPage } from './SettingPage/Setting';
 import { AboutApp } from './AboutApp';
-import { FFMpegPlayer } from './FFMpegPlayer';
-import { Player } from './Player';
+import { FFMpegPlayer } from './VideoPlayer/FFMpegPlayer';
+import { Player } from './VideoPlayer/Player';
 import { RecentPlay } from './RecentPlay';
 import { PrivacyPolicyDialog } from './PrivacyInfo';
 import VideoOperateUtil from '../utils/VideoOperateUtil';
 import { PrivacySpace } from './PrivacySpace';
 import Preferences from '../database/Preferences';
-import { RedPlayer } from './RedPlayer';
+import { RedPlayer } from './VideoPlayer/RedPlayer';
 import { ButtonFancyModifier, MenuModifier, SymbolGlyphFancyModifier } from '../utils/AttributeModifierUtil';
 import { FileProcessorUtil } from '../utils/FileProcessorUtil';
 import { PathUtils } from '../utils/PathUtils';
@@ -36,6 +36,9 @@ import { taskpoolExecTool } from '../utils/TaskpoolUtil';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { DeletedVideosDialog } from '../component/Dialog/DeletedVideosDialog';
 import { ImportProgressBuilder } from '../component/VideoItemComponent/ImportProgressBuilder';
+import { CrashPage } from './SettingPage/CrashPage';
+import { PlayerSettingPage } from './SettingPage/PlayerSettingPage';
+import { PersonalizePage } from './SettingPage/PersonalizePage';
 
 @Builder
 export function IndexBuilder() {
@@ -57,6 +60,8 @@ struct Index {
   @StorageProp('screen_height') screen_height: number = 0
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
+  @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
+  @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
   @Provide videoListController: VideoListController = new VideoListController()
   @Provide fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   @Provide sideBarController: SideBarController = new SideBarController()
@@ -133,7 +138,7 @@ struct Index {
           await this.toMetaData(await SelectFileUtil.selectFiles(), this.videoListController.folder);
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.picture')),
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.picture_2')),
         content: $r('app.string.import_from_album')
       })
         .onClick(async () => {
@@ -332,49 +337,52 @@ struct Index {
           .width('100%')
           .height('100%')
 
-          Button({ type: ButtonType.Normal, stateEffect: true }) {
-            Row() {
-              SymbolGlyph($r('sys.symbol.clock')).attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-              Text('最近播放')
-                .fontSize(15)
-                .fontColor($r('app.color.text_color'))
-                .margin({ left: 10, right: 12 })
-                .textOverflow({ overflow: TextOverflow.MARQUEE })
-            }
-          }
-          .align(Alignment.Start)
-          .padding({ left: 15, right: 15 })
-          .attributeModifier(new ButtonFancyModifier('100%', 60))
-          .backgroundColor($r('app.color.start_window_background'))
-          .animation({ duration: 300, curve: Curve.Ease })
-          .onClick(async () => {
-            this.sideBarController.closeSideBar(false)
-            this.pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, true)
-          })
-
-          Row() {
+          Column() {
             Button({ type: ButtonType.Normal, stateEffect: true }) {
               Row() {
-                SymbolGlyph($r('sys.symbol.gearshape'))
-                  .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                Text($r('app.string.setting'))
+                SymbolGlyph($r('sys.symbol.clock')).attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                Text('最近播放')
                   .fontSize(15)
+                  .fontColor($r('app.color.text_color'))
                   .margin({ left: 10, right: 12 })
                   .textOverflow({ overflow: TextOverflow.MARQUEE })
               }
             }
             .align(Alignment.Start)
-            .padding({ left: 15, right: 15 })
+            .padding({ left: 15, right: 15, bottom: 15 })
             .attributeModifier(new ButtonFancyModifier('100%', 60))
-            .backgroundColor($r('app.color.start_window_background'))
             .animation({ duration: 300, curve: Curve.Ease })
-            .onClick(() => {
+            .onClick(async () => {
               this.sideBarController.closeSideBar(false)
-              this.pathStack.pushPathByName(NavigationAddress.SETTING_PAGE, null)
+              this.pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, true)
             })
+
+            Row() {
+              Button({ type: ButtonType.Normal, stateEffect: true }) {
+                Row() {
+                  SymbolGlyph($r('sys.symbol.gearshape'))
+                    .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                  Text($r('app.string.setting'))
+                    .fontSize(15)
+                    .margin({ left: 10, right: 12 })
+                    .textOverflow({ overflow: TextOverflow.MARQUEE })
+                }
+              }
+              .align(Alignment.Start)
+              .padding({ left: 15, right: 15 })
+              .attributeModifier(new ButtonFancyModifier('100%', 60))
+              .animation({ duration: 300, curve: Curve.Ease })
+              .onClick(() => {
+                this.sideBarController.closeSideBar(false)
+                this.pathStack.pushPathByName(NavigationAddress.SETTING_PAGE, null)
+              })
+            }
+            .alignSelf(ItemAlign.End)
           }
-          .alignSelf(ItemAlign.End)
-          .padding({ bottom: this.bottomSafeHeight })
+          .margin({ bottom: this.bottomSafeHeight, left: 20, right: 20 })
+          .justifyContent(FlexAlign.Start)
+          .backgroundColor($r('app.color.start_window_background_blur'))
+          .borderRadius(16)
         }
         .width('100%')
         .justifyContent(FlexAlign.Start)
@@ -382,6 +390,9 @@ struct Index {
         .transition(TransitionEffect.translate({ x: -300 }).animation({ duration: 500, curve: Curve.Friction }))
         .visibility(this.sideBarController.sideBarStatusTmp)
         .borderRadius(this.sideBarController.side_bar_mode === SideBarContainerType.Overlay ? 16 : 0)
+        .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
+        .backgroundImageSize(ImageSize.Cover)
+        .backdropBlur(this.backgroundDropBlur)
 
         Stack() {
           VideoView({
@@ -394,6 +405,9 @@ struct Index {
             ImportProgressBuilder({ processedItems: this.processedItems, totalItems: this.totalItems })
           }
         }
+        .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
+        .backgroundImageSize(ImageSize.Cover)
+        .backdropBlur(this.backgroundDropBlur)
         .backgroundColor($r('app.color.start_window_background'))
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
           const width = Number(newValue.width);
@@ -444,8 +458,6 @@ struct Index {
         }
       }))
     }
-    .backgroundImage(SelectFileUtil.getImageUri())
-    .blur(0)
     .hideTitleBar(true)
     .mode(NavigationMode.Stack)
     .navDestination(this.Pages)
@@ -477,6 +489,12 @@ struct Index {
       PrivacySpace()
     } else if (name == NavigationAddress.RED_PLAYER) {
       RedPlayer()
+    } else if (name == NavigationAddress.CRASH_PAGE) {
+      CrashPage()
+    } else if (name == NavigationAddress.PLAYER_SETTING_PAGE) {
+      PlayerSettingPage()
+    } else if (name == NavigationAddress.PERSONALIZE_PAGE) {
+      PersonalizePage()
     }
   }
 

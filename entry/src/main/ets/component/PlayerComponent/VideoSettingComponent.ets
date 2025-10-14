@@ -13,6 +13,8 @@ export struct VideoSettingComponent {
   @Link videoMetaData: VideoMetadata[]
   onMirrorClick = () => {
   }
+  forward_80_s = () => {
+  }
 
   build() {
     Menu() {
@@ -35,6 +37,12 @@ export struct VideoSettingComponent {
         content: '屏幕镜像'
       }).onClick(() => {
         this.onMirrorClick()
+      })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trapezoid_and_line_vertical')),
+        content: '前进 80s'
+      }).onClick(() => {
+        this.forward_80_s()
       })
     }
   }

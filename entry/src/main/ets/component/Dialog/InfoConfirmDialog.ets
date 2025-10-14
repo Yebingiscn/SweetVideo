@@ -1,12 +1,13 @@
 //删除确认弹窗
 @CustomDialog
-export struct DelConfirmDialog {
+export struct InfoConfirmDialog {
   confirm?: () => void
   controller?: CustomDialogController
+  @Prop textInfo: ResourceStr = ''
 
   build() {
     Column({ space: 25 }) {
-      Text($r('app.string.del_confirm'))
+      Text(this.textInfo)
         .fontSize(25)
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)

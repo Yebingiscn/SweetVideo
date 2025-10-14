@@ -10,7 +10,7 @@ import { SymbolGlyphModifier } from '@kit.ArkUI';
 import DataSyncUtil from '../../utils/DataSyncUtil';
 import { VideoDetailDialog } from '../../component/Dialog//VideoDetailDialog';
 import { DefaultDialogShadow } from '../../common/DefaultDialogShadow';
-import { DelConfirmDialog } from '../../component/Dialog/DelConfirmDialog';
+import { InfoConfirmDialog } from '../Dialog/InfoConfirmDialog';
 import { MenuModifier } from '../../utils/AttributeModifierUtil';
 import { EditMetadataDialog } from '../../component/Dialog//EditMetadataDialog';
 import SubtitleUtil from '../../utils/SubtitleUtil';
@@ -110,13 +110,14 @@ export struct VideoList {
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @StorageProp('screen_width') screen_width: number = 0
+  @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
   @Link delMultipleList: VideoMetadata[]
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
   })
   delConfirmDialog: CustomDialogController = new CustomDialogController({
-    builder: DelConfirmDialog({
+    builder: InfoConfirmDialog({
       confirm: async () => {
         try {
           await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource);
@@ -129,7 +130,8 @@ export struct VideoList {
         } finally {
           VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
         }
-      }
+      },
+      textInfo: $r('app.string.del_confirm')
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
@@ -170,7 +172,9 @@ export struct VideoList {
           ListItem() {
             this.VideoItemBuilder(item)
           }
-          .backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
+          .borderRadius(8)
+          .backgroundColor(this.longPressPreview || this.backgroundImageSrc.length > 0 ?
+            $r('app.color.start_window_background_blur') :
             $r('app.color.start_window_background'))
           .margin({ bottom: 15 }) // 不知道动了哪里，挤在一起了，先这样改
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
@@ -262,6 +266,9 @@ export struct VideoList {
                   delMultipleList: this.delMultipleList
                 }).width('100%').reuseId(`VideoCardItem#${item.uri}`)
               }
+              .backgroundColor(this.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
+                $r('app.color.start_window_background'))
+              .borderRadius(8)
               .width('100%')
               .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
               .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,

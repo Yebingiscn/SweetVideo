@@ -21,7 +21,7 @@ export default struct VideoListItem {
   build() {
     Row() {
       Image(fileUri.getUriFromPath(PathUtils.coverPath + this.item.date))
-        .attributeModifier(new ImageFancyModifier(10, 64, 96))
+        .attributeModifier(new ImageFancyModifier(8, 64, 96))
       Column() {
         Row() {
           Text(VideoInfoUtil.getVideoTitle(this.item))
@@ -38,9 +38,9 @@ export default struct VideoListItem {
                 this.checkChoose()
               })
           }
-        }
+        }.padding({ left: 5 })
 
-        VideoInfoBuilder({ item: this.item })
+        VideoInfoBuilder({ item: this.item, showProgress: true })
       }
       .alignItems(HorizontalAlign.Start)
       .padding({ left: 15, right: 15 })

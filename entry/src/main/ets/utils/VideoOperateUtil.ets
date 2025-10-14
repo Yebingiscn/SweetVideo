@@ -230,6 +230,8 @@ class VideoOperateUtil {
     AppStorage.setOrCreate('isListDisplay', Preferences.getListDisplayMode(context))
     AppStorage.setOrCreate('smartRotation', Preferences.getSmartRotationState(context))
     AppStorage.setOrCreate('longPressSpeed', Preferences.getLongPressSpeed(context))
+    AppStorage.setOrCreate('backgroundImageSrc', SelectFileUtil.getImageUri())
+    AppStorage.setOrCreate('backgroundDropBlur', Preferences.getBackgroundDropBlur(context))
     // 这里删掉没用的存储项
     PreferencesUtil.delPreferencesValue(context, 'sweet_video', 'circle_play')
   }

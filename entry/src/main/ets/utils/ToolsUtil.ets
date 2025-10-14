@@ -19,7 +19,7 @@ import { media } from '@kit.MediaKit';
 
 // 工具类
 export class ToolsUtil {
-  private splitRegex = /(\d+\.?\d*)/; // 分离数字和文字，排序使用
+  private splitRegex = /(\d+)/g; // 只匹配连续数字
   private pinyinCache = new WeakMap<VideoMetadata, string>(); // 缓存排序列表
 
   // Toast设置
@@ -77,21 +77,28 @@ export class ToolsUtil {
       ignorePunctuation: false,
       caseFirst: "upper"
     });
-    const naturalCompare = (a: string, b: string) => { // 自然排序逻辑
-      const aParts = a.split(this.splitRegex);
-      const bParts = b.split(this.splitRegex);
+    const naturalCompare = (a: string, b: string) => {
+      // 使用新正则拆分数字部分
+      const aParts = a.split(this.splitRegex).filter(Boolean);
+      const bParts = b.split(this.splitRegex).filter(Boolean);
       for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
-        const aVal = aParts[i], bVal = bParts[i];
-        if (i % 2 === 0) { // 文本部分
+        const aVal = aParts[i];
+        const bVal = bParts[i];
+        // 判断当前部分是否为数字
+        const aIsNum = /^\d+$/.test(aVal);
+        const bIsNum = /^\d+$/.test(bVal);
+        if (aIsNum && bIsNum) {
+          // 数字部分按数值比较
+          const numA = parseInt(aVal, 10);
+          const numB = parseInt(bVal, 10);
+          if (numA !== numB) {
+            return numA - numB;
+          }
+        } else {
+          // 非数字部分按文本比较
           const cmp = collator.compare(aVal, bVal);
           if (cmp !== 0) {
             return cmp;
-          }
-        } else { // 数字部分
-          const numA = parseFloat(aVal);
-          const numB = parseFloat(bVal);
-          if (numA !== numB) {
-            return numA - numB;
           }
         }
       }
@@ -209,6 +216,20 @@ export class ToolsUtil {
     const minutes = date.getMinutes().toString().padStart(2, '0');
     const timeString = `${hours}:${minutes}`;
     return timeString
+  }
+
+  getTextByTime() {
+    const now = new Date();
+    const hours = now.getHours();
+    if (hours >= 0 && hours < 5) {
+      return '晚安！流心'
+    } else if (hours >= 5 && hours < 12) {
+      return '早上好！流心'
+    } else if (hours >= 12 && hours < 14) {
+      return '中午好！流心'
+    } else {
+      return '晚上好！流心'
+    }
   }
 }
 

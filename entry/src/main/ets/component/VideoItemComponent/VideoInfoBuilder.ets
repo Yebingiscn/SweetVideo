@@ -6,6 +6,7 @@ import TimeUtil from '../../utils/TimeUtil';
 
 export class VideoInfoBuilderParams {
   item: VideoMetadata | undefined = undefined
+  showProgress: boolean = true
 }
 
 @Builder
@@ -49,12 +50,14 @@ export function VideoInfoBuilder(params: VideoInfoBuilderParams) {
       .fontSize(15)
       .opacity(0.8)
 
-    Progress({ value: params.item?.last_play, total: params.item?.time, type: ProgressType.Ring })
-      .width(30).color($r('app.color.main_color')).height(30)
-      .style({ strokeWidth: 5, shadow: true, enableSmoothEffect: true })
+    if (params.showProgress) {
+      Progress({ value: params.item?.last_play, total: params.item?.time, type: ProgressType.Ring })
+        .width(30).color($r('app.color.main_color')).height(30)
+        .style({ strokeWidth: 5, shadow: true, enableSmoothEffect: true })
+    }
   }
   .justifyContent(FlexAlign.Start)
   .width('100%')
   .height(32) // 固定行高
-  .padding({ top: 5, right: 10 })
+  .padding({ top: 5, right: 10, left: 5 })
 }

@@ -85,6 +85,14 @@ class Preferences {
     return PreferencesUtil.getPreferencesValue(context, "sweet_video", "OOBEVersion", true) as boolean
   }
 
+  static getLongPressSpeed(context: Context) {
+    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'longPressSpeed', 3) as number
+  }
+
+  static getBackgroundDropBlur(context: Context) {
+    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'backgroundDropBlur', 0) as number
+  }
+
   static saveSkipIntroTime(context: Context, skipIntroTime: string) {
     PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'skipIntroTime', skipIntroTime);
   }
@@ -169,8 +177,8 @@ class Preferences {
     PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'longPressSpeed', longPressSpeed);
   }
 
-  static getLongPressSpeed(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'longPressSpeed', 3) as number
+  static saveBackgroundDropBlur(context: Context, backgroundDropBlur: number) {
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'backgroundDropBlur', backgroundDropBlur);
   }
 }
 

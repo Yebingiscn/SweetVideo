@@ -1,49 +1,29 @@
-import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
-import NavigationAddress from '../common/NavigationAddress';
-import { EditPasswordDialog } from '../component/Dialog/EditPasswordDialog';
-import { SettingsClickItem } from '../component/SettingComponent/SettingsClickItem';
-import { SettingSliderItem } from '../component/SettingComponent/SettingSliderItem';
-import { SettingsMenuItem } from '../component/SettingComponent/SettingsMenuItem';
-import { SettingsToggleItem } from '../component/SettingComponent/SettingsToggleItem';
-import Preferences from '../database/Preferences';
-import { FastForwardSecondInterface } from '../interfaces/FastForwardSecondInterface';
-import BiometricAccessUtil from '../utils/BiometricAccessUtil';
-import { PathUtils } from '../utils/PathUtils';
-import ToolsUtil from '../utils/ToolsUtil';
-import VideoInfoUtil from '../utils/VideoInfoUtil';
+import NavigationAddress from '../../common/NavigationAddress';
+import { SettingSliderItem } from '../../component/SettingComponent/SettingSliderItem';
+import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuItem';
+import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem';
+import Preferences from '../../database/Preferences';
+import { FastForwardSecondInterface } from '../../interfaces/FastForwardSecondInterface';
+import { PathUtils } from '../../utils/PathUtils';
+import VideoInfoUtil from '../../utils/VideoInfoUtil';
 
 @Component
-export struct SettingsPage { //设置页
+export struct PlayerSettingPage {
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
+  @StorageLink('smartRotation') smartRotation: boolean = true
   @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
-  @StorageLink('skipIntroTime') skipIntroTime: string = '0'
-  @StorageLink('recentPlay') recentPlay: boolean = true
+  @StorageLink('longPressSpeed') longPressSpeed: number = 3
   @StorageLink('defaultPlayer') defaultPlayer: string = 'FFMpeg播放器'
   @StorageLink('subtitleSize') subtitleSize: string = '22'
-  @StorageLink('isListDisplay') isListDisplay: boolean = true
-  @StorageLink('smartRotation') smartRotation: boolean = true
-  @StorageLink('longPressSpeed') longPressSpeed: number = 3
-  @State passwd: string = 'passwd'
-  @Consume('pathStack') pathStack: NavPathStack
-  editPasswdDialogController: CustomDialogController = new CustomDialogController({
-    builder: EditPasswordDialog({
-      confirm: (passwd: string | undefined) => {
-        if (!passwd || passwd.trim() == '') {
-          return
-        }
-        this.passwd = passwd
-        ToolsUtil.savePwd(PathUtils.appContext!, passwd)
-        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.set_passwd_tip').id))
-        this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null)
-      },
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
-  private listDisplayMode = ['列表布局', '卡片布局']
+  @StorageLink('skipIntroTime') skipIntroTime: string = '0'
+  @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
+  @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
   private subtitleSizeList = ['19', '20', '21', '22', '23', '24', '25', '26']
+  private playerList = ['系统播放器', 'FFMpeg播放器', '红薯播放器']
   private fastForwardSecond: FastForwardSecondInterface[] = [
     { label: '5秒', value: '5' },
     { label: '10秒', value: '10' },
@@ -52,45 +32,10 @@ export struct SettingsPage { //设置页
     { label: '60秒', value: '60' },
     { label: '120秒', value: '120' }
   ];
-  private playerList = ['系统播放器', 'FFMpeg播放器', '红薯播放器']
 
   build() {
     NavDestination() {
       List() {
-        ListItem() {
-          SettingsClickItem({
-            symbol: $r('sys.symbol.info_circle'),
-            message: '关于此应用',
-            onPress: () => {
-              this.pathStack.pushPathByName(NavigationAddress.ABOUT_PAGE, true)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsClickItem({
-            symbol: $r('sys.symbol.lock'),
-            message: $r('app.string.privacy_space'),
-            onPress: async () => {
-              this.passwd = Preferences.getPassword(PathUtils.appContext!)
-              if (this.passwd === '') { // 未设置密码时直接打开设置弹窗
-                this.editPasswdDialogController.open();
-                return;
-              }
-              if (BiometricAccessUtil.checkUserAuthSupport()) { // 支持生物认证时进行认证
-                const isSuccess = await BiometricAccessUtil.startUserAuth();
-                if (isSuccess) { // 认证成功进入隐私空间
-                  this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null);
-                  return;
-                }
-                ToolsUtil.showToast('验证失败，请从首页搜索框输入密码进入隐私空间'); // 认证失败显示提示
-                return;
-              }
-              ToolsUtil.showToast('请从首页搜索框输入密码进入隐私空间'); // 设备不支持生物认证的提示
-            }
-          })
-        }
-
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.play'),
@@ -129,21 +74,6 @@ export struct SettingsPage { //设置页
 
         ListItem() {
           SettingsToggleItem({
-            symbol: $r('sys.symbol.doc_text_badge_clock'),
-            message: '开启历史记录',
-            enable: this.recentPlay,
-            onChange: async (checked: boolean) => {
-              this.recentPlay = checked
-              if (!this.recentPlay) {
-                Preferences.saveRecentPlay(PathUtils.appContext!, [])
-              }
-              Preferences.saveRecentPlayState(PathUtils.appContext!, this.recentPlay)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsToggleItem({
             symbol: $r('sys.symbol.hand_draw'),
             message: '启用双击屏幕两边快进（后退）',
             enable: this.allowDoubleFastForward,
@@ -163,19 +93,6 @@ export struct SettingsPage { //设置页
             onChange: (index: number) => {
               this.fastForwardSeconds = this.fastForwardSecond[index].value;
               Preferences.saveFastForwardSeconds(PathUtils.appContext!, this.fastForwardSeconds)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsMenuItem({
-            symbol: $r('sys.symbol.square_fill_grid_2x2'),
-            message: '列表布局',
-            list: this.listDisplayMode,
-            selected: this.isListDisplay ? 0 : 1,
-            onChange: (index: number) => {
-              this.isListDisplay = (index === 0);
-              Preferences.saveListDisplayMode(PathUtils.appContext!, this.isListDisplay);
             }
           })
         }
@@ -225,6 +142,7 @@ export struct SettingsPage { //设置页
             symbol: $r('sys.symbol.forward_end_fill'),
             message: '跳过片头',
             selected: Number(this.skipIntroTime),
+            textSliderMode: true,
             onChangeComplete: (value: number) => {
               this.skipIntroTime = value.toString()
               Preferences.saveSkipIntroTime(PathUtils.appContext!, this.skipIntroTime)
@@ -241,8 +159,13 @@ export struct SettingsPage { //设置页
       .width('95%')
       .layoutWeight(1)
       .contentEndOffset(this.bottomSafeHeight)
-    }.hideToolBar(true).title('设置')
+    }
+    .hideToolBar(true)
+    .title('个性化')
     .backgroundColor($r('app.color.start_window_background'))
     .padding({ top: this.topSafeHeight })
+    .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImageSize(ImageSize.Cover)
+    .backdropBlur(this.backgroundDropBlur)
   }
 }

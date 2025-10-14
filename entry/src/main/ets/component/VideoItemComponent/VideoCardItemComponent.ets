@@ -22,10 +22,10 @@ export default struct VideoCardItem {
     Column() {
       Image(fileUri.getUriFromPath(PathUtils.coverPath + this.item.date))
         .attributeModifier(new ImageFancyModifier({
-          topLeft: 10,
-          topRight: 10,
-          bottomLeft: 10,
-          bottomRight: 10
+          topLeft: 8,
+          topRight: 8,
+          bottomLeft: 8,
+          bottomRight: 8
         }, 60, 200))
         .width('100%').height('auto')
         .objectFit(ImageFit.Auto)
@@ -47,9 +47,9 @@ export default struct VideoCardItem {
         }
       }
       .width('100%')
-      .padding({ top: 5 })
+      .padding({ top: 5, left: 5 })
 
-      VideoInfoBuilder({ item: this.item })
+      VideoInfoBuilder({ item: this.item, showProgress: true })
     }
     .width('100%')
     .height('auto')

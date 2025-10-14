@@ -42,9 +42,26 @@ class SelectFileUtil {
     return this.selectMedia(photoAccessHelper.PhotoViewMIMETypes.VIDEO_TYPE)
   }
 
-  // 选择图片（单选）
+  // 选择壁纸（单选）
   async selectPhoto(): Promise<string[]> {
     return this.selectMedia(photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE, 1)
+  }
+
+  async deletePhoto() {
+    fs.access(PathUtils.photoPath! + 'BackgroundImage').then((res: boolean) => {
+      if (res) {
+        fs.unlink(PathUtils.photoPath! + 'BackgroundImage', async (unlinkErr) => {
+          if (unlinkErr) {
+            ToolsUtil.showToast('删除自定义背景失败，原因是：' + unlinkErr.message)
+          }
+          ToolsUtil.showToast('删除自定义背景成功')
+        });
+      } else {
+        ToolsUtil.showToast('自定义背景不存在')
+      }
+    }).catch((err: BusinessError) => {
+      console.error("access failed with error message: " + err.message + ", error code: " + err.code);
+    });
   }
 
   // 获取下载文件夹路径
@@ -85,38 +102,30 @@ class SelectFileUtil {
   }
 
   getImageUri() {
-    let photo: fs.File | null = null
     try {
-      photo = fs.openSync(PathUtils.photoPath! + 'BackgroundImage', fs.OpenMode.READ_ONLY)
-      return photo.path || ''
+      return fileUri.getUriFromPath(fs.accessSync(PathUtils.photoPath! + 'BackgroundImage') ?
+        PathUtils.photoPath! + 'BackgroundImage' : '')
     } catch (error) {
       return ''
-    } finally {
-      if (photo) {
-        fs.closeSync(photo)
-      }
     }
   }
 
-  saveImageToPrivacySpace(pixelMap: image.PixelMap) {
+  async saveImageToPrivacySpace(sourceFileUri: string) {
     const filePath = PathUtils.photoPath + 'BackgroundImage'; // 定义完整文件路径
-    let packer = image.createImagePacker();
     try {
       // 检测文件是否存在
       if (fs.accessSync(filePath)) {
         fs.unlinkSync(filePath); // 存在则直接删除
       }
-      // 创建并写入新文件
-      let file1 = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
-      packer.packToFile(pixelMap, file1.fd, {
-        format: 'image/webp',
-        quality: 100
-      }).then(() => {
-        fs.closeSync(file1);
-      }).catch((error: BusinessError) => {
-        console.error(`Failed to pack image. Code:${error.code}, Message:${error.message}`);
-        fs.closeSync(file1);
+      let sourceFile = fs.openSync(sourceFileUri, fs.OpenMode.READ_ONLY)
+      let targetFile = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
+      await new Promise<void>((resolve, reject) => {
+        fs.copyFile(sourceFile.fd, targetFile.fd, (error) => {
+          error ? reject(error) : resolve();
+        });
       });
+      fs.closeSync(sourceFile)
+      fs.closeSync(targetFile)
     } catch (error) {
       console.error('File operation error:' + error);
     }

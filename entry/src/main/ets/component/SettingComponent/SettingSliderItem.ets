@@ -7,6 +7,7 @@ export struct SettingSliderItem {
   @State symbol: Resource | undefined = undefined
   @State message: ResourceStr = ''
   @Prop selected: number = 0
+  @State textSliderMode: boolean = false
   onChangeComplete = (_value: number) => {
 
   }
@@ -16,11 +17,19 @@ export struct SettingSliderItem {
       Row({ space: 10 }) {
         SymbolGlyph(this.symbol)
           .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
-        Text(this.message + '：' + (this.selected === 0 ? '不跳过' : TimeUtil.convertSSToMMSS(this.selected)))
-          .fontSize(17)
-          .fontWeight(FontWeight.Medium)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.MARQUEE })
+        if (this.textSliderMode) {
+          Text(this.message + '：' + (this.selected === 0 ? '不跳过' : TimeUtil.convertSSToMMSS(this.selected)))
+            .fontSize(17)
+            .fontWeight(FontWeight.Medium)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.MARQUEE })
+        } else {
+          Text(this.message)
+            .fontSize(17)
+            .fontWeight(FontWeight.Medium)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.MARQUEE })
+        }
       }
       .width('100%')
       .justifyContent(FlexAlign.Start) // 文字区域两端对齐

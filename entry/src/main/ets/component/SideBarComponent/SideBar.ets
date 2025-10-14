@@ -1,4 +1,6 @@
 import { ImageFancyModifier } from '../../utils/AttributeModifierUtil';
+import ToolsUtil from '../../utils/ToolsUtil';
+
 
 export class AppInfoBuilderParams {
   topSafeHeight: number = 0;
@@ -17,7 +19,7 @@ export function AppInfoBuilder(params: AppInfoBuilderParams) {
         .interpolation(ImageInterpolation.Medium)// 用于重采样后的抗锯齿
         .draggable(false)// 禁止长按手势拖动
         .autoResize(true) // 重采样，可减少内存占用
-      Text($r('app.string.EntryAbility_label'))
+      Text(ToolsUtil.getTextByTime())
         .fontSize(20)
         .fontColor('#ffff')
         .margin({ left: 5, right: 12 })
@@ -25,7 +27,10 @@ export function AppInfoBuilder(params: AppInfoBuilderParams) {
     }.width('100%')
     .justifyContent(FlexAlign.Center)
     .zIndex(2)
-  }.margin({ top: params.topSafeHeight })
+  }.margin({ top: params.topSafeHeight }).clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 }).onClick(() => {
+    ToolsUtil.startVibration()
+    ToolsUtil.showToast('不管多么难熬，人生都要眉开眼笑( •̀ ω •́ )✧，祝你早安，午安，晚安！')
+  })
 }
 
 @Observed

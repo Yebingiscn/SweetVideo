@@ -12,32 +12,32 @@ import {
   OnTimedTextListener,
   OnVideoSizeChangedListener
 } from '@ohos/ijkplayer'
-import ToolsUtil from '../utils/ToolsUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
 import { window } from '@kit.ArkUI'
 import { audio } from '@kit.AudioKit'
-import PermissionUtil from '../utils/PermissionUtil'
-import AVSessionUtil from '../utils/AVSessionUtil'
+import PermissionUtil from '../../utils/PermissionUtil'
+import AVSessionUtil from '../../utils/AVSessionUtil'
 import { AVCastPicker, avSession as avSessionManager } from '@kit.AVSessionKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
-import VideoOperateUtil from '../utils/VideoOperateUtil'
-import { PlayerParams } from '../common/PlayerParams'
-import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface'
-import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
-import { PlayStatus } from '../common/enum/PlayStatus'
-import VideoInfoUtil from '../utils/VideoInfoUtil'
+import VideoOperateUtil from '../../utils/VideoOperateUtil'
+import { PlayerParams } from '../../common/PlayerParams'
+import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface'
+import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
+import { PlayStatus } from '../../common/enum/PlayStatus'
+import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { KeyCode } from '@kit.InputKit'
-import { PathUtils } from '../utils/PathUtils'
-import { ButtonFancyModifier } from '../utils/AttributeModifierUtil'
-import { AVCastPickerBuilder } from '../component/PlayerComponent/AVCastPickerBuilder'
-import { VolumeSwipingComponent } from '../component/PlayerComponent/VolumeSwipingComponent'
-import { BrightnessSwipingComponent } from '../component/PlayerComponent/BrightnessSwipingComponent'
-import { FastForwardInfoComponent } from '../component/PlayerComponent/FastForwardInfoComponent'
-import { SwipingPlayTimeDisplay } from '../component/PlayerComponent/SwipingPlayTimeDisplay'
-import { VideoSliderComponent } from '../component/PlayerComponent/VideoSliderComponent'
-import { GestureComponent } from '../component/PlayerComponent/GestureComponent'
-import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode'
-import NavigationAddress from '../common/NavigationAddress'
-import { WindowUtil } from '../utils/WindowUtil'
+import { PathUtils } from '../../utils/PathUtils'
+import { ButtonFancyModifier } from '../../utils/AttributeModifierUtil'
+import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder'
+import { VolumeSwipingComponent } from '../../component/PlayerComponent/VolumeSwipingComponent'
+import { BrightnessSwipingComponent } from '../../component/PlayerComponent/BrightnessSwipingComponent'
+import { FastForwardInfoComponent } from '../../component/PlayerComponent/FastForwardInfoComponent'
+import { SwipingPlayTimeDisplay } from '../../component/PlayerComponent/SwipingPlayTimeDisplay'
+import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent'
+import { GestureComponent } from '../../component/PlayerComponent/GestureComponent'
+import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode'
+import NavigationAddress from '../../common/NavigationAddress'
+import { WindowUtil } from '../../utils/WindowUtil'
 
 @Component
 export struct FFMpegPlayer { // FFMpeg播放器页
@@ -118,6 +118,25 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           .width(this.play_area_width)
           .height(this.play_area_height)
           .animation({ duration: this.play_time > 300 ? 300 : 0, curve: Curve.Ease })
+          .focusable(true)
+          .defaultFocus(true)
+          .onKeyEvent((event?: KeyEvent) => {
+            if (!event || event.type !== KeyType.Down) {
+              return;
+            }
+            if (event.keyCode === KeyCode.KEYCODE_SPACE) {
+              this.togglePlayState();
+            }
+            if (event.keyCode === KeyCode.KEYCODE_ESCAPE) {
+              this.pathStack.pop()
+            }
+            if (event.keyCode === KeyCode.KEYCODE_DPAD_RIGHT) {
+              this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(this.fastForwardSeconds) * 1000));
+            }
+            if (event.keyCode === KeyCode.KEYCODE_DPAD_LEFT) {
+              this.mIjkMediaPlayer?.seekTo(String(this.play_time - Number(this.fastForwardSeconds) * 1000));
+            }
+          })
 
           Stack() {
             Flex({
@@ -426,6 +445,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       totalTime: this.total_time,
       screenHeight: this.screen_height,
       screenWidth: this.screen_width,
+      playSpeed: this.play_speed,
       onSliderChange: (value: number) => {
         this.isSliderPlayTimeChange = true
         this.onSwiping = true

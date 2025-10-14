@@ -6,6 +6,7 @@ export struct VideoSliderComponent {
   @Prop totalTime: number
   @Link screenWidth: number
   @Link screenHeight: number
+  @Link playSpeed: number
   onSliderChange = (_value: number) => {
   }
   onSliderTouch = (_event: TouchEvent) => {
@@ -38,9 +39,9 @@ export struct VideoSliderComponent {
         .animation({ duration: 100, curve: Curve.Smooth })
         .selectedColor('#e0e0e0')
       if (this.screenWidth > this.screenHeight) {
-        Row() { //剩余时间
-          Text(TimeUtil.convertMSToHHMMSS(Math.min(Math.max((this.totalTime || 0) - this.playTime, 0),
-            (this.totalTime || 0))))
+        Row() { //剩余时间，剩余时间 = (总时长 - 已播放时间) / 倍速值
+          Text(TimeUtil.convertMSToHHMMSS(Math.max(((this.totalTime || 0) - this.playTime) / (this.playSpeed || 1),
+            0)))
             .fontWeight(FontWeight.Medium)
             .fontSize(15)
             .fontColor($r('sys.color.white'))

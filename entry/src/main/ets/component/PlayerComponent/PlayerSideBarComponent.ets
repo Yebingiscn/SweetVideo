@@ -5,6 +5,7 @@ import { PathUtils } from '../../utils/PathUtils'
 import { ImageFancyModifier } from '../../utils/AttributeModifierUtil'
 import { PlayerSideBarSource } from '../../utils/DataUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
+import { VideoInfoBuilder } from '../VideoItemComponent/VideoInfoBuilder'
 
 @Component
 export struct PlayerSideBarComponent {
@@ -83,16 +84,26 @@ export struct ListView {
       Image(fileUri.getUriFromPath(PathUtils.coverPath + this.item?.date))
         .attributeModifier(new ImageFancyModifier(10, 64, 96))
         .margin({ left: 5 })
-      Text(VideoInfoUtil.getVideoTitle(this.item!))
-        .fontSize(15)
-        .fontColor(this.now_playing && this.now_playing?.date === this.item?.date ? $r('app.color.main_color') :
-          $r('app.color.text_color'))
-        .fontWeight(FontWeight.Medium)
-        .maxLines(4)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-        .width('65%')
-        .margin({ left: 5 })
-        .wordBreak(WordBreak.BREAK_ALL)
-    }
+      Column() {
+        Row() {
+          Text(VideoInfoUtil.getVideoTitle(this.item!))
+            .fontSize(15)
+            .fontColor(this.now_playing && this.now_playing?.date === this.item?.date ? $r('app.color.main_color') :
+              $r('app.color.text_color'))
+            .fontWeight(FontWeight.Medium)
+            .maxLines(4)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .width('65%')
+            .margin({ left: 5 })
+            .wordBreak(WordBreak.BREAK_ALL)
+        }
+
+        VideoInfoBuilder({ item: this.item, showProgress: false })
+
+      }.alignItems(HorizontalAlign.Start)
+      .padding({ left: 15, right: 15 })
+      .layoutWeight(1)
+    }.justifyContent(FlexAlign.Center)
+    .width('100%')
   }
 }

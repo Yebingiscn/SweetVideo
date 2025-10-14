@@ -1,32 +1,32 @@
 import { window } from '@kit.ArkUI';
 import { PlayerCoreType, RedPlayerXComponentController, SourceType } from '@rte-xhs/redplayer';
-import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
-import PermissionUtil from '../utils/PermissionUtil';
-import RedPlayerControllerUtil from '../utils/RedPlayerControllerUtil';
+import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface';
+import PermissionUtil from '../../utils/PermissionUtil';
+import RedPlayerControllerUtil from '../../utils/RedPlayerControllerUtil';
 import { fileIo as fs } from '@kit.CoreFileKit';
-import ToolsUtil from '../utils/ToolsUtil';
+import ToolsUtil from '../../utils/ToolsUtil';
 import { KeyCode } from '@kit.InputKit';
-import { PlayerParams } from '../common/PlayerParams';
-import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
-import AVSessionUtil from '../utils/AVSessionUtil';
+import { PlayerParams } from '../../common/PlayerParams';
+import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
+import AVSessionUtil from '../../utils/AVSessionUtil';
 import { AVCastPicker, avSession as avSessionManager } from '@kit.AVSessionKit';
-import VideoOperateUtil from '../utils/VideoOperateUtil';
-import VideoInfoUtil from '../utils/VideoInfoUtil';
+import VideoOperateUtil from '../../utils/VideoOperateUtil';
+import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import { audio } from '@kit.AudioKit';
-import { ButtonFancyModifier } from '../utils/AttributeModifierUtil';
-import { PathUtils } from '../utils/PathUtils';
-import RedPlayerSettingsConfig from '../common/RedPlayerSettingsConfig';
-import RedPlayerStateHolder from '../common/RedPlayerStateHolder';
-import { AVCastPickerBuilder } from '../component/PlayerComponent/AVCastPickerBuilder';
-import { BrightnessSwipingComponent } from '../component/PlayerComponent/BrightnessSwipingComponent';
-import { FastForwardInfoComponent } from '../component/PlayerComponent/FastForwardInfoComponent';
-import { SwipingPlayTimeDisplay } from '../component/PlayerComponent/SwipingPlayTimeDisplay';
-import { VideoSliderComponent } from '../component/PlayerComponent/VideoSliderComponent';
-import { GestureComponent } from '../component/PlayerComponent/GestureComponent';
-import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
-import NavigationAddress from '../common/NavigationAddress';
-import { VolumeSwipingComponent } from '../component/PlayerComponent/VolumeSwipingComponent';
-import { WindowUtil } from '../utils/WindowUtil';
+import { ButtonFancyModifier } from '../../utils/AttributeModifierUtil';
+import { PathUtils } from '../../utils/PathUtils';
+import RedPlayerSettingsConfig from '../../common/RedPlayerSettingsConfig';
+import RedPlayerStateHolder from '../../common/RedPlayerStateHolder';
+import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder';
+import { BrightnessSwipingComponent } from '../../component/PlayerComponent/BrightnessSwipingComponent';
+import { FastForwardInfoComponent } from '../../component/PlayerComponent/FastForwardInfoComponent';
+import { SwipingPlayTimeDisplay } from '../../component/PlayerComponent/SwipingPlayTimeDisplay';
+import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent';
+import { GestureComponent } from '../../component/PlayerComponent/GestureComponent';
+import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode';
+import NavigationAddress from '../../common/NavigationAddress';
+import { VolumeSwipingComponent } from '../../component/PlayerComponent/VolumeSwipingComponent';
+import { WindowUtil } from '../../utils/WindowUtil';
 
 @Component
 export struct RedPlayer { // 红薯播放器页
@@ -116,6 +116,29 @@ export struct RedPlayer { // 红薯播放器页
           .width(this.redPlayerStateHolder.videoViewWidth)
           .height(this.redPlayerStateHolder.videoViewHeight)
           .animation({ duration: 300, curve: Curve.Ease })
+          .focusable(true)
+          .defaultFocus(true)
+          .onKeyEvent((event?: KeyEvent) => {
+            if (!event || event.type !== KeyType.Down) {
+              return;
+            }
+            if (event.keyCode === KeyCode.KEYCODE_SPACE) {
+              this.togglePlayback()
+            }
+            if (event.keyCode === KeyCode.KEYCODE_ESCAPE) {
+              this.pathStack.pop()
+            }
+            if (event.keyCode === KeyCode.KEYCODE_DPAD_RIGHT) {
+              const seekOffset = Number(this.fastForwardSeconds) * 1000;
+              const newPosition = this.play_time + seekOffset;
+              this.seekTime(newPosition);
+            }
+            if (event.keyCode === KeyCode.KEYCODE_DPAD_LEFT) {
+              const seekOffset = Number(this.fastForwardSeconds) * 1000;
+              const newPosition = this.play_time - seekOffset;
+              this.seekTime(newPosition);
+            }
+          })
 
           Stack() {
             Flex({
@@ -459,6 +482,7 @@ export struct RedPlayer { // 红薯播放器页
       totalTime: this.redPlayerStateHolder.videoDuration,
       screenHeight: this.screen_height,
       screenWidth: this.screen_width,
+      playSpeed: this.play_speed,
       onSliderChange: (value: number) => {
         this.play_time = value
         if (this.redPlayerStateHolder.videoPosition >= this.redPlayerStateHolder.videoDuration ||

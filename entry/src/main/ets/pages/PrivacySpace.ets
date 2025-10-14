@@ -35,6 +35,8 @@ export struct PrivacySpace { // 隐私空间页
   @Consume('pathStack') pathStack: NavPathStack
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
+  @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
+  @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
   @State totalItems: number = 0
   @State processedItems: number = 0
   @State loading: boolean = false
@@ -274,7 +276,7 @@ export struct PrivacySpace { // 隐私空间页
               .wordBreak(WordBreak.BREAK_ALL)
           }.width('100%')
 
-          VideoInfoBuilder({ item: item })
+          VideoInfoBuilder({ item: item, showProgress: true })
         }.margin({ left: 10 }).alignItems(HorizontalAlign.Start)
       }
       .width('100%')
@@ -343,7 +345,7 @@ export struct PrivacySpace { // 隐私空间页
                     .width('100%')
                     .padding({ top: 5 })
 
-                    VideoInfoBuilder({ item: item })
+                    VideoInfoBuilder({ item: item, showProgress: true })
                   }.padding({ left: 5, right: 5, bottom: 5 })
                   .width('100%')
                 }
@@ -416,7 +418,12 @@ export struct PrivacySpace { // 隐私空间页
           }.height('100%')
           .animation({ duration: 150, curve: Curve.Ease })
         }
-      }.width('100%').height('100%')
+      }
+      .width('100%')
+      .height('100%')
+      .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
+      .backgroundImageSize(ImageSize.Cover)
+      .backdropBlur(this.backgroundDropBlur)
       .onAreaChange(async (_oldValue: Area, newValue: Area) => {
         const width = Number(newValue.width);
         const base = Math.floor(width / 500);
@@ -426,6 +433,9 @@ export struct PrivacySpace { // 隐私空间页
       })
       .backgroundColor($r('app.color.start_window_background'))
     }
+    .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImageSize(ImageSize.Cover)
+    .backdropBlur(this.backgroundDropBlur)
     .onWillDisappear(() => {
       PrivacySpaceUtil.setPrivacyMode(false)
     })

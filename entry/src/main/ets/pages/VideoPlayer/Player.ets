@@ -1,45 +1,46 @@
 import { media } from '@kit.MediaKit';
-import AVPlayerUtil from '../utils/AVPlayerUtil';
+import AVPlayerUtil from '../../utils/AVPlayerUtil';
 import { fileIo as fs } from '@kit.CoreFileKit';
-import PermissionUtil from '../utils/PermissionUtil';
+import PermissionUtil from '../../utils/PermissionUtil';
 import { window } from '@kit.ArkUI';
 import { avSession as avSessionManager } from '@kit.AVSessionKit';
-import AVSessionUtil from '../utils/AVSessionUtil';
-import ToolsUtil from '../utils/ToolsUtil';
-import VideoInfoUtil from '../utils/VideoInfoUtil';
+import AVSessionUtil from '../../utils/AVSessionUtil';
+import ToolsUtil from '../../utils/ToolsUtil';
+import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import { audio } from '@kit.AudioKit';
-import SelectFileUtil from '../utils/SelectFileUtil';
-import VideoOperateUtil from '../utils/VideoOperateUtil';
-import RecentPlayUtil from '../utils/RecentPlayUtil';
+import SelectFileUtil from '../../utils/SelectFileUtil';
+import VideoOperateUtil from '../../utils/VideoOperateUtil';
+import RecentPlayUtil from '../../utils/RecentPlayUtil';
 import { IjkMediaPlayer } from '@ohos/ijkplayer';
-import { PlayerParams } from '../common/PlayerParams';
-import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
-import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
-import { AudioTrack } from '../interfaces/AudioTrackInterface';
-import Preferences from '../database/Preferences';
-import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
-import SubtitleUtil from '../utils/SubtitleUtil';
-import { PathUtils } from '../utils/PathUtils';
-import { PlayerSideBarComponent } from '../component/PlayerComponent/PlayerSideBarComponent';
-import { AVCastPickerBuilder } from '../component/PlayerComponent/AVCastPickerBuilder';
-import { AudioTrackComponent } from '../component/PlayerComponent/AudioTrackComponent';
-import { PlaybackSpeedMenuComponent } from '../component/PlayerComponent/PlaybackSpeedComponent';
-import { BrightnessSwipingComponent } from '../component/PlayerComponent/BrightnessSwipingComponent';
-import { VolumeSwipingComponent } from '../component/PlayerComponent/VolumeSwipingComponent';
-import { FastForwardInfoComponent } from '../component/PlayerComponent/FastForwardInfoComponent';
-import { SubtitleComponent } from '../component/PlayerComponent/SubtitleComponent';
-import { LockVideoBarComponent } from '../component/PlayerComponent/LockVideoBarComponent';
-import { SwipingPlayTimeDisplay } from '../component/PlayerComponent/SwipingPlayTimeDisplay';
-import { VideoSliderComponent } from '../component/PlayerComponent/VideoSliderComponent';
-import { GestureComponent } from '../component/PlayerComponent/GestureComponent';
-import { VideoTopComponent } from '../component/PlayerComponent/VideoTopComponent';
-import { VideoButtonsComponent } from '../component/PlayerComponent/VideoButtonsComponent';
-import { VideoSettingComponent } from '../component/PlayerComponent/VideoSettingComponent';
-import { RepeatMode } from '../common/enum/RepeatMode';
-import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
-import NavigationAddress from '../common/NavigationAddress';
-import { WindowUtil } from '../utils/WindowUtil';
-import { VideoStatusBarBuilder } from '../component/PlayerComponent/VideoStatusBarBuilder';
+import { PlayerParams } from '../../common/PlayerParams';
+import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface';
+import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
+import { AudioTrack } from '../../interfaces/AudioTrackInterface';
+import Preferences from '../../database/Preferences';
+import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil';
+import SubtitleUtil from '../../utils/SubtitleUtil';
+import { PathUtils } from '../../utils/PathUtils';
+import { PlayerSideBarComponent } from '../../component/PlayerComponent/PlayerSideBarComponent';
+import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder';
+import { AudioTrackComponent } from '../../component/PlayerComponent/AudioTrackComponent';
+import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent';
+import { BrightnessSwipingComponent } from '../../component/PlayerComponent/BrightnessSwipingComponent';
+import { VolumeSwipingComponent } from '../../component/PlayerComponent/VolumeSwipingComponent';
+import { FastForwardInfoComponent } from '../../component/PlayerComponent/FastForwardInfoComponent';
+import { SubtitleComponent } from '../../component/PlayerComponent/SubtitleComponent';
+import { LockVideoBarComponent } from '../../component/PlayerComponent/LockVideoBarComponent';
+import { SwipingPlayTimeDisplay } from '../../component/PlayerComponent/SwipingPlayTimeDisplay';
+import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent';
+import { GestureComponent } from '../../component/PlayerComponent/GestureComponent';
+import { VideoTopComponent } from '../../component/PlayerComponent/VideoTopComponent';
+import { VideoButtonsComponent } from '../../component/PlayerComponent/VideoButtonsComponent';
+import { VideoSettingComponent } from '../../component/PlayerComponent/VideoSettingComponent';
+import { RepeatMode } from '../../common/enum/RepeatMode';
+import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode';
+import NavigationAddress from '../../common/NavigationAddress';
+import { WindowUtil } from '../../utils/WindowUtil';
+import { VideoStatusBarBuilder } from '../../component/PlayerComponent/VideoStatusBarBuilder';
+import { KeyCode } from '@kit.InputKit';
 
 @Component
 export struct Player { // 播放页
@@ -627,6 +628,25 @@ export struct Player { // 播放页
           .height(this.play_area_height)
           .animation({ duration: this.playing ? 300 : 0, curve: Curve.Ease })
           .rotate({ y: 2, angle: this.angle, perspective: 200 })
+          .focusable(true)
+          .defaultFocus(true)
+          .onKeyEvent((event?: KeyEvent) => {
+            if (!event || event.type !== KeyType.Down) {
+              return;
+            }
+            if (event.keyCode === KeyCode.KEYCODE_SPACE) {
+              this.togglePlayback()
+            }
+            if (event.keyCode === KeyCode.KEYCODE_ESCAPE) {
+              this.exitVideo()
+            }
+            if (event.keyCode === KeyCode.KEYCODE_DPAD_RIGHT) {
+              this.fastForward();
+            }
+            if (event.keyCode === KeyCode.KEYCODE_DPAD_LEFT) {
+              this.backForward();
+            }
+          })
 
           if ((this.showControl && !this.isLock)) {
             Stack() {
@@ -1007,6 +1027,7 @@ export struct Player { // 播放页
       totalTime: this.now_playing?.time,
       screenWidth: this.screen_width,
       screenHeight: this.screen_height,
+      playSpeed: this.speed,
       onSliderChange: (value: number) => {
         this.onSwiping = true
         this.isSliderPlayTimeChange = true
@@ -1080,6 +1101,9 @@ export struct Player { // 播放页
       videoMetaData: this.video_meta_data,
       onMirrorClick: () => {
         this.angle === 0 ? this.angle = 180 : this.angle = 0
+      },
+      forward_80_s: () => {
+        this.seekTime(this.play_time + 80 * 1000)
       }
     })
   }
