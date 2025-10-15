@@ -104,7 +104,13 @@ QQ群：973792610
 ## 流心视频由以下开源项目提供支持
 
 - 播放器R
-- 流心视频 https://gitee.com/lqsxy/sweetvideo/tree/master
-- pinyin4js https://ohpm.openharmony.cn/#/cn/detail/@ohos%2Fpinyin4js
-- ohos_ijkplayer https://gitee.com/openharmony-sig/ohos_ijkplayer/tree/master
-- REDPlayer https://github.com/RTE-Dev/REDPlayer
+- [流心视频](https://gitee.com/lqsxy/sweetvideo/tree/master)
+- [pinyin4js](https://ohpm.openharmony.cn/#/cn/detail/@ohos%2Fpinyin4js)
+- [ohos_ijkplayer](https://gitee.com/openharmony-sig/ohos_ijkplayer/tree/master)
+- [REDPlayer](https://github.com/RTE-Dev/REDPlayer)
+
+## 赞助作者
+
+流心视频是我最重要的一个项目，我希望无论我以后处在什么样的境地下都能坚持维护他，把他变得更好、更强大。 \
+但是不可避免的我们生活的其他部分依然有波折，所以如果你喜欢流心的话，可以请作者喝杯咖啡或者吃碗泡面~ \
+[爱发电](https://www.ifdian.net/a/SweetVideo)

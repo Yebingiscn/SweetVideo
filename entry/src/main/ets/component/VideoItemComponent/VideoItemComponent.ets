@@ -268,7 +268,7 @@ export struct VideoList {
               }
               .backgroundColor(this.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
                 $r('app.color.start_window_background'))
-              .borderRadius(8)
+              .borderRadius(12)
               .width('100%')
               .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
               .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,

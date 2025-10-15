@@ -3,6 +3,8 @@ import WantProcessUtil from '../utils/WantProcessUtil';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
 import { PathUtils } from '../utils/PathUtils';
 import { ImageFancyModifier } from '../utils/AttributeModifierUtil';
+import { InfoConfirmDialog } from '../component/Dialog/InfoConfirmDialog';
+import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 
 @Component
 export struct AboutApp {
@@ -14,6 +16,17 @@ export struct AboutApp {
   @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
   private GITHUB_HOME_LINK: string = "https://github.com/Yebingiscn/SweetVideo" // 项目主页
   private QQ_GROUP_LINK: string = 'https://qm.qq.com/q/ejj8jbUDBu'
+  private AI_FA_DIAN_LINK: string = 'https://www.ifdian.net/a/SweetVideo'
+  private tempLink: string = ''
+  linkConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: InfoConfirmDialog({
+      confirm: async () => {
+        WantProcessUtil.linkToWeb(PathUtils.appContext!, this.tempLink)
+        this.tempLink = ''
+      },
+      textInfo: '即将跳转至外部网页，是否跳转？'
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
 
   build() {
     NavDestination() {
@@ -69,8 +82,8 @@ export struct AboutApp {
               .width('48%')
               .backgroundColor($r('app.color.start_window_background_blur'))
               .onClick(() => {
-                let link: string = this.GITHUB_HOME_LINK;
-                WantProcessUtil.linkToWeb(PathUtils.appContext!, link)
+                this.tempLink = this.GITHUB_HOME_LINK
+                this.linkConfirmDialog.open()
               })
 
               Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -92,17 +105,15 @@ export struct AboutApp {
               .width('48%')
               .backgroundColor($r('app.color.start_window_background_blur'))
               .onClick(() => {
-                WantProcessUtil.linkToWeb(PathUtils.appContext!, WantProcessUtil.PRIVACY_LINK)
+                this.tempLink = WantProcessUtil.PRIVACY_LINK
+                this.linkConfirmDialog.open()
               })
             }
 
             Row({ space: 10 }) {
               Button({ type: ButtonType.Normal, stateEffect: true }) {
                 Row() {
-                  Image($r('sys.symbol.person_2'))
-                    .height(25)
-                    .width(25)
-                    .backgroundImageSize(ImageSize.Contain)
+                  SymbolGlyph($r('sys.symbol.person_2')).fontSize(25).fontColor([$r('app.color.text_color')])
                   Text('QQ 交流群：973792610')
                     .fontSize(15)
                     .fontColor($r('app.color.text_color'))
@@ -119,8 +130,8 @@ export struct AboutApp {
               .width('48%')
               .backgroundColor($r('app.color.start_window_background_blur'))
               .onClick(() => {
-                let link: string = this.QQ_GROUP_LINK;
-                WantProcessUtil.linkToWeb(PathUtils.appContext!, link)
+                this.tempLink = this.QQ_GROUP_LINK
+                this.linkConfirmDialog.open()
               })
 
               Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -141,7 +152,8 @@ export struct AboutApp {
               .width('48%')
               .backgroundColor($r('app.color.start_window_background_blur'))
               .onClick(() => {
-                WantProcessUtil.linkToWeb(PathUtils.appContext!, WantProcessUtil.PRIVACY_LINK)
+                this.tempLink = this.AI_FA_DIAN_LINK
+                this.linkConfirmDialog.open()
               })
             }.margin({ top: 10 })
           }
