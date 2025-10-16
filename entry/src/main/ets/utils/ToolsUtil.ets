@@ -227,6 +227,8 @@ export class ToolsUtil {
       return '早上好！流心'
     } else if (hours >= 12 && hours < 14) {
       return '中午好！流心'
+    } else if (hours >= 14 && hours < 18) {
+      return '下午好！流心'
     } else {
       return '晚上好！流心'
     }
