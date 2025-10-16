@@ -82,7 +82,7 @@ class Preferences {
   }
 
   static getSmartRotationState(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, "sweet_video", "OOBEVersion", true) as boolean
+    return PreferencesUtil.getPreferencesValue(context, "sweet_video", "smartRotation", true) as boolean
   }
 
   static getLongPressSpeed(context: Context) {
@@ -142,7 +142,7 @@ class Preferences {
   }
 
   static saveSmartRotation(context: Context, smartRotationState: boolean) {
-    PreferencesUtil.putPreferencesValue(context, "sweet_video", "OOBEVersion", smartRotationState)
+    PreferencesUtil.putPreferencesValue(context, "sweet_video", "smartRotation", smartRotationState)
   }
 
   //保存首页 TODO 这里需要施工
