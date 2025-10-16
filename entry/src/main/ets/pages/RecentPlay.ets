@@ -168,5 +168,6 @@ export struct RecentPlay { // 最近播放页
     .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backdropBlur(this.backgroundDropBlur)
+    .backgroundImagePosition(Alignment.Center)
   }
 }

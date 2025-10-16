@@ -19,7 +19,7 @@ class ReqPermission {
           return;
         }
       }
-    }).catch(() => {
+    })?.catch(() => {
       console.error('requestPermissionsFromUser error')
     })
   }
@@ -33,7 +33,7 @@ class ReqPermission {
         };
         let policies: Array<fileShare.PolicyInfo> = [policyInfo];
         fileShare.persistPermission(policies).then(() => {
-        }).catch((err: BusinessError<Array<fileShare.PolicyErrorResult>>) => {
+        })?.catch((err: BusinessError<Array<fileShare.PolicyErrorResult>>) => {
           hilog.info(0xFF00, "testTag", String(err));
         });
         let fd = await fs.open(uri);

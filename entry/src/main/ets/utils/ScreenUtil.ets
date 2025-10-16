@@ -84,13 +84,13 @@ class Screen {
   setBarState(context: Context, status: boolean, navigationIndicator: boolean) {
     if (canIUse('SystemCapability.Window.SessionManager')) {
       window.getLastWindow(context).then((windowClass) => {
-        windowClass.setSpecificSystemBarEnabled('status', status).catch(() => {
+        windowClass.setSpecificSystemBarEnabled('status', status)?.catch(() => {
           console.error('status error')
         })
-        windowClass.setSpecificSystemBarEnabled('navigationIndicator', navigationIndicator).catch(() => {
+        windowClass.setSpecificSystemBarEnabled('navigationIndicator', navigationIndicator)?.catch(() => {
           console.error('navigationIndicator error')
         })
-      }).catch(() => {
+      })?.catch(() => {
         console.error('setBarState error')
       })
     }
@@ -98,10 +98,10 @@ class Screen {
 
   setKeepScreenOn(context: Context, isOn: boolean) {
     window.getLastWindow(context).then((windowClass) => {
-      windowClass.setWindowKeepScreenOn(isOn).catch(() => {
+      windowClass.setWindowKeepScreenOn(isOn)?.catch(() => {
         console.error('setWindowKeepScreenOn error')
       })
-    }).catch(() => {
+    })?.catch(() => {
       console.error('getLastWindow error')
     })
   }

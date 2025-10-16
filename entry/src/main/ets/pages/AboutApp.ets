@@ -1,6 +1,5 @@
 import ToolsUtil from '../utils/ToolsUtil';
 import WantProcessUtil from '../utils/WantProcessUtil';
-import VideoInfoUtil from '../utils/VideoInfoUtil';
 import { PathUtils } from '../utils/PathUtils';
 import { ImageFancyModifier } from '../utils/AttributeModifierUtil';
 import { InfoConfirmDialog } from '../component/Dialog/InfoConfirmDialog';
@@ -66,7 +65,7 @@ export struct AboutApp {
                     .height(25)
                     .width(25)
                     .backgroundImageSize(ImageSize.Contain)
-                  Text('代码已开源，欢迎 star')
+                  Text('代码已开源，欢迎 ⭐')
                     .fontSize(15)
                     .fontColor($r('app.color.text_color'))
                     .margin({ left: 10, right: 2 })
@@ -177,24 +176,6 @@ export struct AboutApp {
           .backgroundColor($r('app.color.start_window_background_blur'))
 
           Column({ space: 8 }) {
-            Text('播放器支持格式和注意事项')
-              .fontSize(20).fontWeight(FontWeight.Medium)
-            Column({ space: 2 }) {
-              Text(VideoInfoUtil.support_video_format.concat(VideoInfoUtil.support_audio_format).toString())
-                .fontSize(17)
-              Text('1. rmvb, wmv, avi格式仅能使用 FFMpeg 播放器，其余格式若系统播放器无法播放或者没有声音，请首页长按视频选择 FFMpeg 播放器播放')
-                .fontSize(14).opacity(0.7)
-              Text('2. FFMpeg 播放器目前不支持 HDR 映射，不支持 HDR Vivid，不支持“高效视频格式”，不适合播放高码率视频')
-                .fontSize(14).opacity(0.7)
-            }.alignItems(HorizontalAlign.Start)
-          }
-          .padding(15)
-          .alignItems(HorizontalAlign.Start)
-          .borderRadius(20)
-          .width('100%')
-          .backgroundColor($r('app.color.start_window_background_blur'))
-
-          Column({ space: 8 }) {
             Text('特别鸣谢')
               .fontSize(20)
               .fontWeight(FontWeight.Medium)
@@ -242,8 +223,6 @@ export struct AboutApp {
                 .fontSize(14)
               Text('RedPlayer')
                 .fontSize(14)
-              Text('subtitles')
-                .fontSize(14)
             }.alignItems(HorizontalAlign.Start)
           }
           .backgroundColor($r('app.color.start_window_background_blur'))
@@ -270,5 +249,6 @@ export struct AboutApp {
     .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backdropBlur(this.backgroundDropBlur)
+    .backgroundImagePosition(Alignment.Center)
   }
 }

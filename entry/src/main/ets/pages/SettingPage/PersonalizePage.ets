@@ -32,6 +32,10 @@ export struct PersonalizePage {
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
 
+  aboutToAppear(): void {
+    console.error('test' + this.backgroundImageSrc)
+  }
+
   build() {
     NavDestination() {
       List() {
@@ -98,6 +102,7 @@ export struct PersonalizePage {
     .padding({ top: this.topSafeHeight })
     .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
+    .backgroundImagePosition(Alignment.Center)
     .backdropBlur(this.backgroundDropBlur)
   }
 }

@@ -56,7 +56,7 @@ class AVSessionUtil {
     let type: avSessionManager.AVSessionType = 'audio';
     try {
       this.avSession = await avSessionManager.createAVSession(PathUtils.appContext!, 'sweet_video', type);
-      this.avSession.activate().catch(() => {
+      this.avSession.activate()?.catch(() => {
         console.error('activate avSession erro')
       })
     } catch (error) {
@@ -84,7 +84,7 @@ class AVSessionUtil {
       duration: metadata.time,
       filter: avSession.ProtocolType.TYPE_CAST_PLUS_STREAM | avSession.ProtocolType.TYPE_DLNA,
     };
-    this.avSession?.setAVMetadata(session_metadata).catch(() => {
+    this.avSession?.setAVMetadata(session_metadata)?.catch(() => {
       console.error('setAVMetadata error')
     })
     await this.getAVCastController(metadata)
@@ -99,13 +99,13 @@ class AVSessionUtil {
         updateTime: systemDateTime.getTime(false),
       },
     };
-    this.avSession?.setAVPlaybackState(playbackState).catch(() => {
+    this.avSession?.setAVPlaybackState(playbackState)?.catch(() => {
       console.error('updateSession error')
     });
   }
 
   destroySession() {
-    this.avSession?.destroy().catch(() => {
+    this.avSession?.destroy()?.catch(() => {
       console.error('destroy Session error')
     })
     this.avSession = undefined

@@ -242,9 +242,6 @@ export struct RedPlayer { // 红薯播放器页
           onVerticalPanStart: (event: GestureEvent) => {
             if (!this.isLock) {
               const tapX = event.fingerList[0]?.localX;
-              if (!VideoOperateUtil.checkLocalX(tapX)) {
-                return
-              }
               this.isLeftSideSwipe = tapX < this.screen_width / 2;
               VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
               this.volume = this.volumeActually
@@ -364,10 +361,7 @@ export struct RedPlayer { // 红薯播放器页
         VideoOperateUtil.saveVideoTime(this.redPlayerStateHolder.videoPosition, this.now_playing!,
           this.video_meta_data, PathUtils.appContext!)
       }
-      if (this.allowBackgroundPlay) {
-        AVSessionUtil.destroySession()
-        PermissionUtil.stopContinuousTask()
-      }
+      PermissionUtil.applyStopContinuousTask(this.allowBackgroundPlay)
       this.playerController.stop()
       this.playerController.release()
       try {
@@ -395,9 +389,7 @@ export struct RedPlayer { // 红薯播放器页
   }
 
   async aboutToAppear(): Promise<void> {
-    if (this.allowBackgroundPlay) {
-      PermissionUtil.startContinuousTask()
-    }
+    PermissionUtil.applyContinuousTask(this.allowBackgroundPlay)
     await this.setScreen()
     try {
       await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
@@ -545,7 +537,7 @@ export struct RedPlayer { // 红薯播放器页
           const orientation = this.screen_height > this.screen_width
             ? window.Orientation.AUTO_ROTATION_LANDSCAPE
             : window.Orientation.AUTO_ROTATION_PORTRAIT;
-          (await this.windowClass)?.setPreferredOrientation(orientation).catch(() => {
+          (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
             console.error('player error')
           })
         })

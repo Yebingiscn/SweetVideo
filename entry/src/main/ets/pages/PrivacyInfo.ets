@@ -94,7 +94,7 @@ export struct PrivacyPolicyDialog {
         if (DismissSheetAction.reason == DismissReason.SLIDE_DOWN ||
           DismissSheetAction.reason == DismissReason.PRESS_BACK ||
           DismissSheetAction.reason == DismissReason.TOUCH_OUTSIDE) {
-          PathUtils.appContext?.terminateSelf().catch(() => {
+          PathUtils.appContext?.terminateSelf()?.catch(() => {
             console.error('exit app error')
           })
         }

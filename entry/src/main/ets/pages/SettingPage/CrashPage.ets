@@ -53,21 +53,21 @@ export struct CrashPage {
         .backgroundColor($r('app.color.start_window_background_blur'))
         .height('100%')
         .width('100%')
-        .borderRadius(12)
+        .borderRadius(8)
       }
       .margin({ left: 16, right: 16, bottom: 16 })
       .layoutWeight(1)
       .align(Alignment.Top)
       .height('100%')
       .width('100%')
-      .borderRadius(12)
+      .borderRadius(8)
       .clip(true)
       .scrollBar(BarState.Off)
       .scrollable(ScrollDirection.Vertical) // 启用垂直滚动
       .edgeEffect(EdgeEffect.Spring) // 滚动边缘效果
       Button('复制给开发者')
         .onClick(() => {
-          this.appEventGroups.toString().length > 0 ? copyText(this.appEventGroups.toString()) :
+          this.appEventGroups.toString().length > 0 ? copyText(JSON.stringify(this.appEventGroups)) :
             ToolsUtil.showToast('还没有日志可以复制喔')
         })
         .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
@@ -87,6 +87,7 @@ export struct CrashPage {
     .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backdropBlur(this.backgroundDropBlur)
+    .backgroundImagePosition(Alignment.Center)
   }
 }
 
@@ -98,7 +99,7 @@ function copyText(text: string) {
   const systemPasteboard = pasteboard.getSystemPasteboard();
   systemPasteboard.setData(pasteboardData).then(() => {
     ToolsUtil.showToast('日志复制成功' + infoText)
-  }).catch(() => {
+  })?.catch(() => {
     ToolsUtil.errorCatchExec('复制失败')
   }); // Put data into clipboard
 }

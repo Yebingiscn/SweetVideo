@@ -4,6 +4,7 @@ import { backgroundTaskManager } from '@kit.BackgroundTasksKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { PathUtils } from './PathUtils';
+import AVSessionUtil from './AVSessionUtil';
 
 //权限类
 class PermissionUtil {
@@ -44,6 +45,19 @@ class PermissionUtil {
     }
   }
 
+  applyContinuousTask(allowBackgroundPlay: boolean) {
+    if (allowBackgroundPlay) {
+      this.startContinuousTask()
+    }
+  }
+
+  applyStopContinuousTask(allowBackgroundPlay: boolean) {
+    if (allowBackgroundPlay) { //若发生错误跳转FFMpeg播放器，确保提前关闭申请防止两个播放器重复申请导致失败
+      AVSessionUtil.destroySession()
+      this.stopContinuousTask()
+    }
+  }
+
   async startContinuousTask() {
     let wantAgentInfo: wantAgent.WantAgentInfo = {
       wants: [
@@ -60,19 +74,19 @@ class PermissionUtil {
       try {
         backgroundTaskManager.startBackgroundRunning(PathUtils.appContext!,
           backgroundTaskManager.BackgroundMode.AUDIO_PLAYBACK, wantAgentObj).then(() => {
-        }).catch((error: BusinessError) => {
+        })?.catch((error: BusinessError) => {
           hilog.error(777, 'testFlag', 'background play failed BusinessError: ' + JSON.stringify(error))
         });
       } catch (error) {
         hilog.error(777, 'testFlag', 'background play failed: ' + JSON.stringify(error))
       }
-    }).catch(() => {
+    })?.catch(() => {
       console.error('getWantAgent error')
     })
   }
 
   stopContinuousTask() {
-    backgroundTaskManager.stopBackgroundRunning(PathUtils.appContext!).catch(() => {
+    backgroundTaskManager.stopBackgroundRunning(PathUtils.appContext!)?.catch(() => {
       console.error('stopBackgroundRunning error')
     })
   }
@@ -85,7 +99,7 @@ class PermissionUtil {
           operationMode: fileShare.OperationMode.READ_MODE | fileShare.OperationMode.WRITE_MODE,
         };
         let policies: Array<fileShare.PolicyInfo> = [policyInfo];
-        fileShare.persistPermission(policies).catch(() => {
+        fileShare.persistPermission(policies)?.catch(() => {
           console.error('persistPermission error')
         })
         let fd = await fs.open(uri);

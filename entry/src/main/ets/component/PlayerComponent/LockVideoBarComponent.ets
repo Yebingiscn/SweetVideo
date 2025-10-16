@@ -3,8 +3,9 @@ import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../utils/Attri
 @Component
 export struct LockVideoBarComponent {
   @Link isLock: boolean
-  @Prop screenHeight: number
-  @Prop screenWidth: number
+  @Link screenHeight: number
+  @Link screenWidth: number
+  @Link showControl: boolean
 
   build() {
     Button({ type: ButtonType.Circle, stateEffect: true }) { //锁定播放栏
@@ -19,6 +20,7 @@ export struct LockVideoBarComponent {
     .aspectRatio(1)
     .onClick(() => {
       this.isLock = !this.isLock
+      this.showControl = true
     })
     .position({ bottom: this.screenHeight / 2, left: this.screenHeight > this.screenWidth ? 30 : 50 })
   }

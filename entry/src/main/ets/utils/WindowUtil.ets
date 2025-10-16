@@ -17,7 +17,7 @@ export class WindowUtil {
   }
 
   public static getWindow() {
-    return window.getLastWindow(PathUtils.appContext!).catch(() => {
+    return window.getLastWindow(PathUtils.appContext!)?.catch(() => {
       console.error('window error')
       return undefined
     })
@@ -38,7 +38,7 @@ export class WindowUtil {
   public static async enableLandscapeMultiWindow(windowClass: Promise<window.Window | undefined>) {
     if (canIUse("SystemCapability.Window.SessionManager")) {
       if (windowClass) {
-        (await windowClass)?.enableLandscapeMultiWindow().catch(() => {
+        (await windowClass)?.enableLandscapeMultiWindow()?.catch(() => {
           console.error('window error')
         })
       }
@@ -48,7 +48,7 @@ export class WindowUtil {
   public static async disableLandscapeMultiWindow(windowClass: Promise<window.Window | undefined>) {
     if (canIUse("SystemCapability.Window.SessionManager")) {
       if (windowClass) {
-        (await windowClass)?.disableLandscapeMultiWindow().catch(() => {
+        (await windowClass)?.disableLandscapeMultiWindow()?.catch(() => {
           console.error('window error')
         })
       }
@@ -76,11 +76,11 @@ export class WindowUtil {
             .then(() => {
               hilog.info(0x0000, 'testTag', '%{public}s', `Succeed in maximizing the window.`);
             })
-            .catch((err: BusinessError) => {
-              hilog.error(0x0000, 'testTag',
-                `Failed to maximize the window. Code: ${err.code}, message: ${err.message}`,
-                JSON.stringify(err) ?? '');
-            });
+          ?.catch((err: BusinessError) => {
+            hilog.error(0x0000, 'testTag',
+              `Failed to maximize the window. Code: ${err.code}, message: ${err.message}`,
+              JSON.stringify(err) ?? '');
+          });
         }
       } catch (error) {
         console.error('window error' + error)
@@ -96,10 +96,10 @@ export class WindowUtil {
             .then(() => {
               hilog.info(0x0000, 'testTag', '%{public}s', `Succeed in recovering the window.`);
             })
-            .catch((err: BusinessError) => {
-              hilog.error(0x0000, 'testTag', `Failed to recover the window. Code: ${err.code}, message: ${err.message}`,
-                JSON.stringify(err) ?? '');
-            });
+          ?.catch((err: BusinessError) => {
+            hilog.error(0x0000, 'testTag', `Failed to recover the window. Code: ${err.code}, message: ${err.message}`,
+              JSON.stringify(err) ?? '');
+          });
         }
       } catch (error) {
         console.error('window error' + error)

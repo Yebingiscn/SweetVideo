@@ -59,7 +59,7 @@ class SelectFileUtil {
       } else {
         ToolsUtil.showToast('自定义背景不存在')
       }
-    }).catch((err: BusinessError) => {
+    })?.catch((err: BusinessError) => {
       console.error("access failed with error message: " + err.message + ", error code: " + err.code);
     });
   }
@@ -103,8 +103,8 @@ class SelectFileUtil {
 
   getImageUri() {
     try {
-      return fileUri.getUriFromPath(fs.accessSync(PathUtils.photoPath! + 'BackgroundImage') ?
-        PathUtils.photoPath! + 'BackgroundImage' : '')
+      const isExist = fs.accessSync(PathUtils.photoPath! + 'BackgroundImage');
+      return isExist ? fileUri.getUriFromPath(PathUtils.photoPath! + 'BackgroundImage') : '';
     } catch (error) {
       return ''
     }
@@ -139,7 +139,7 @@ class SelectFileUtil {
       // 设置为85平衡内存、导入速度以及图片质量
       packer.packToFile(pixelMap, file1.fd, { format: 'image/webp', quality: 85 }).then(() => {
         fs.closeSync(file1)
-      }).catch((error: BusinessError) => {
+      })?.catch((error: BusinessError) => {
         console.error(`Failed to pack the image to file.code ${error.code},message is ${error.message}`);
         fs.closeSync(file1)
       })
@@ -267,7 +267,7 @@ class SelectFileUtil {
           Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, videoMetaDataEncryption)
         });
       }
-    }).catch((err: BusinessError) => {
+    })?.catch((err: BusinessError) => {
       console.error("access failed with error message: " + err.message + ", error code: " + err.code);
     });
   }
@@ -398,7 +398,7 @@ class SelectFileUtil {
             }
           } finally {
             try {
-              avMetadataExtractor.release?.().catch(() => {
+              avMetadataExtractor.release?.()?.catch(() => {
                 console.error('avMetadataExtractor release error')
               });
               fs.closeSync(file);
@@ -435,7 +435,7 @@ class SelectFileUtil {
           Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, video_meta_data_encryption)
         });
       }
-    }).catch((err: BusinessError) => {
+    })?.catch((err: BusinessError) => {
       console.error("access failed with error message: " + err.message + ", error code: " + err.code);
     });
   }
@@ -497,7 +497,7 @@ class SelectFileUtil {
           const wrapper = async () => {
             const promise = task()
               .then(resolve)
-              .catch(reject)
+            ?.catch(reject)
               .finally(() => {
                 this.active.delete(promise as Promise<void>);
                 this.processQueue(); // 立即唤醒新任务

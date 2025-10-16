@@ -14,11 +14,11 @@ export struct SettingSliderItem {
 
   build() {
     Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
-      Row({ space: 10 }) {
+      Row({ space: 12 }) {
         SymbolGlyph(this.symbol)
           .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
         if (this.textSliderMode) {
-          Text(this.message + '：' + (this.selected === 0 ? '不跳过' : TimeUtil.convertSSToMMSS(this.selected)))
+          Text(this.message + '：' + (this.selected === 0 ? '关闭' : TimeUtil.convertSSToMMSS(this.selected)))
             .fontSize(17)
             .fontWeight(FontWeight.Medium)
             .maxLines(1)

@@ -175,7 +175,7 @@ struct Index {
       let controller = new CustomDialogController({
         builder: PrivacyPolicyDialog({
           cancel: () => {
-            PathUtils.appContext!.terminateSelf().catch((error: Error) => {
+            PathUtils.appContext!.terminateSelf()?.catch((error: Error) => {
               ToolsUtil.showToast('关闭弹窗失败' + error)
             })
           },
@@ -187,7 +187,7 @@ struct Index {
         autoCancel: false,
         onWillDismiss: async () => {
           if (Preferences.getOOBEVersion(PathUtils.appContext!) < OOBEVersion) {
-            PathUtils.appContext!.terminateSelf().catch((error: Error) => {
+            PathUtils.appContext!.terminateSelf()?.catch((error: Error) => {
               ToolsUtil.showToast('退出应用失败' + error)
             })
           }
@@ -349,7 +349,7 @@ struct Index {
               }
             }
             .align(Alignment.Start)
-            .padding({ left: 15, right: 15, bottom: 15 })
+            .padding({ left: 15, right: 15 })
             .attributeModifier(new ButtonFancyModifier('100%', 60))
             .animation({ duration: 300, curve: Curve.Ease })
             .onClick(async () => {
@@ -386,13 +386,10 @@ struct Index {
         }
         .width('100%')
         .justifyContent(FlexAlign.Start)
-        .backgroundColor($r('app.color.start_window_background'))
+        .backgroundColor(this.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))
         .transition(TransitionEffect.translate({ x: -300 }).animation({ duration: 500, curve: Curve.Friction }))
         .visibility(this.sideBarController.sideBarStatusTmp)
         .borderRadius(this.sideBarController.side_bar_mode === SideBarContainerType.Overlay ? 16 : 0)
-        .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
-        .backgroundImageSize(ImageSize.Cover)
-        .backdropBlur(this.backgroundDropBlur)
 
         Stack() {
           VideoView({
@@ -405,10 +402,7 @@ struct Index {
             ImportProgressBuilder({ processedItems: this.processedItems, totalItems: this.totalItems })
           }
         }
-        .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
-        .backgroundImageSize(ImageSize.Cover)
-        .backdropBlur(this.backgroundDropBlur)
-        .backgroundColor($r('app.color.start_window_background'))
+        .backgroundColor(this.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
           const width = Number(newValue.width);
           // 增加判断，旋转时保持滚动位置不变
@@ -458,6 +452,10 @@ struct Index {
         }
       }))
     }
+    .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImageSize(ImageSize.Cover)
+    .backdropBlur(this.backgroundDropBlur)
+    .backgroundImagePosition(Alignment.Center)
     .hideTitleBar(true)
     .mode(NavigationMode.Stack)
     .navDestination(this.Pages)

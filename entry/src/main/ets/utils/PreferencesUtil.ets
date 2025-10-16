@@ -9,7 +9,7 @@ export default class PreferencesUtil {
         name: name
       })
       pref.putSync(key, value)
-      pref.flush().catch(() => {
+      pref.flush()?.catch(() => {
         console.error('flush error')
       })
     } catch (e) {
@@ -41,10 +41,10 @@ export default class PreferencesUtil {
         console.log(`Key "${key}" not found, skip deletion`);
         return; // 键不存在时提前返回
       }
-      pref.delete(key).catch(() => {
+      pref.delete(key)?.catch(() => {
         console.error('delete error')
       })
-      pref.flush().catch(() => {
+      pref.flush()?.catch(() => {
         console.error('flush error')
       })
     } catch (e) {

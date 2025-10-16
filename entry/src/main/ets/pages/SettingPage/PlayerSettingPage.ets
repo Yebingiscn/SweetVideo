@@ -167,5 +167,6 @@ export struct PlayerSettingPage {
     .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backdropBlur(this.backgroundDropBlur)
+    .backgroundImagePosition(Alignment.Center)
   }
 }

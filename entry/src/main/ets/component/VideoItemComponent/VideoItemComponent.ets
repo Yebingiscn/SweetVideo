@@ -179,7 +179,7 @@ export struct VideoList {
           .margin({ bottom: 15 }) // 不知道动了哪里，挤在一起了，先这样改
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
-          .width('100%')
+          .width(this.videoListController.listLine === 1 ? '100%' : '95%')
           .height('auto')
           .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
             {
@@ -268,7 +268,7 @@ export struct VideoList {
               }
               .backgroundColor(this.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
                 $r('app.color.start_window_background'))
-              .borderRadius(12)
+              .borderRadius(8)
               .width('100%')
               .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
               .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,

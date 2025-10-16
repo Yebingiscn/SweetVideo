@@ -13,7 +13,7 @@ import { BusinessError } from '@ohos.base';
 export default class EntryAbility extends UIAbility {
   watcher: hiAppEvent.Watcher | undefined = undefined
 
-  async onCreate(want: Want): Promise<void> {
+  async onCreate(want: Want) {
     try {
       this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     } catch (error) {
@@ -25,6 +25,7 @@ export default class EntryAbility extends UIAbility {
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onCreate');
     PathUtils.init(this.context);
     WantProcessUtil.want = want
+    this.crashWatcher()
     this.initRedPlayer()
   }
 
@@ -65,7 +66,7 @@ export default class EntryAbility extends UIAbility {
     });
     this.watcher = {
       // 自定义观察者名称，系统会使用名称来标识不同的观察者
-      name: "watcher",
+      name: "ButtonClickWatcher",
       // 可以订阅感兴趣的系统事件，此处是订阅了崩溃事件
       appEventFilters: [
         {

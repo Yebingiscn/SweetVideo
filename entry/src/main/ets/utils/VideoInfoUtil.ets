@@ -134,7 +134,7 @@ class VideoInfoUtil {
             fs.closeSync(file)
           }
           if (avMetadataExtractor) {
-            avMetadataExtractor?.release().catch(() => {
+            avMetadataExtractor?.release()?.catch(() => {
               console.error('release error')
             });
           }
@@ -183,11 +183,11 @@ class VideoInfoUtil {
         }
         avImageGenerator.fetchFrameByTime(timeUs, queryOption, param).then((pixelMap: PixelMap) => {
           SelectFileUtil.saveVideoImageToPrivacySpace(sandbox_path, date, pixelMap)
-          avImageGenerator.release().catch(() => {
+          avImageGenerator.release()?.catch(() => {
             console.error('release error')
           })
           fs.closeSync(file)
-        }).catch(() => {
+        })?.catch(() => {
           console.error('fetch frame error')
         })
       } catch (error) {

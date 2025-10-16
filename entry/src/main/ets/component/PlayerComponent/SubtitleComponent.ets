@@ -2,14 +2,13 @@ import VideoInfoUtil from '../../utils/VideoInfoUtil'
 
 @Component
 export struct SubtitleComponent {
-  @Prop subTitle: string
+  @Link subTitle: string
   @StorageLink('subtitleSize') subtitleSize: string = '22'
-  @Prop screenWidth: number
-  @Prop screenHeight: number
-  @Prop showControl: boolean
-  @Prop subTitleVisibility: Visibility
-  @Prop playAreaWidth: number
-
+  @Link screenWidth: number
+  @Link screenHeight: number
+  @Link showControl: boolean
+  @Link subTitleVisibility: Visibility
+  @Link playAreaWidth: number
   build() {
     Stack({ alignContent: Alignment.BottomEnd }) { //字幕
       Text(this.subTitle)

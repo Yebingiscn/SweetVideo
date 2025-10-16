@@ -102,12 +102,12 @@ export struct Player { // 播放页
         if (this.mIjkMediaPlayer) {
           this.mIjkMediaPlayer?.start()
         }
-        this.avPlayer?.play().catch(() => {
+        this.avPlayer?.play()?.catch(() => {
           console.error('player error')
         })
       });
       this.avSession?.on('pause', () => {
-        this.avPlayer?.pause().catch(() => {
+        this.avPlayer?.pause()?.catch(() => {
           console.error('player error')
         })
       });
@@ -124,7 +124,7 @@ export struct Player { // 播放页
         this.playNextVideo()
       })
       this.avSession?.on('outputDeviceChange', () => {
-        this.avPlayer?.pause().catch(() => {
+        this.avPlayer?.pause()?.catch(() => {
           console.error('player error')
         })
       })
@@ -180,9 +180,7 @@ export struct Player { // 播放页
   }
 
   async aboutToAppear(): Promise<void> {
-    if (this.allowBackgroundPlay) {
-      PermissionUtil.startContinuousTask()
-    }
+    PermissionUtil.applyContinuousTask(this.allowBackgroundPlay)
     this.clock_time = ToolsUtil.getTime()
     this.setScreen()
     try {
@@ -238,7 +236,7 @@ export struct Player { // 播放页
   async getAudioTrack() {
     this.audio_track = await VideoOperateUtil.getAudioTracks(this.avPlayer!)
     if (VideoOperateUtil.validateAudioTracks(this.audio_track)) {
-      this.avPlayer!.selectTrack(this.audio_track[0].index).catch(() => {
+      this.avPlayer!.selectTrack(this.audio_track[0].index)?.catch(() => {
         console.error('player error')
       });
     } else {
@@ -314,7 +312,7 @@ export struct Player { // 播放页
 
     this.avPlayer?.on('audioOutputDeviceChangeWithInfo', (data: audio.AudioStreamDeviceChangeInfo) => {
       if (data.changeReason === audio.AudioStreamDeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) {
-        this.avPlayer?.pause().catch(() => {
+        this.avPlayer?.pause()?.catch(() => {
           console.error('player error')
         })
       }
@@ -326,21 +324,21 @@ export struct Player { // 播放页
           if (this.avPlayer) {
             this.avPlayer.surfaceId = this.surfaceID
             let playStrategy: media.PlaybackStrategy = { showFirstFrameOnPrepare: true } // 设置播放配置
-            this.avPlayer.setPlaybackStrategy(playStrategy).catch(() => {
+            this.avPlayer.setPlaybackStrategy(playStrategy)?.catch(() => {
               console.error('player error')
             });
-            this.avPlayer.prepare().catch(() => {
+            this.avPlayer.prepare()?.catch(() => {
               console.error('player error')
             });
           }
           break;
         case 'prepared':
-          await this.setExternalSubtitle(this.now_playing!)
-          await this.getAudioTrack()
           this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.now_playing!, this.skipIntroTime))
-          this.avPlayer?.play().catch(() => {
+          this.avPlayer?.play()?.catch(() => {
             console.error('player error')
           });
+          await this.getAudioTrack()
+          await this.setExternalSubtitle(this.now_playing!)
           await this.initVolumeAndBrightness()
           this.updatePlaybackSpeed(this.speed)
           this.showControl = false
@@ -354,7 +352,7 @@ export struct Player { // 播放页
               this.mIjkMediaPlayer?.seekTo('0')
               this.mIjkMediaPlayer?.start()
             }
-            this.avPlayer?.play().catch(() => {
+            this.avPlayer?.play()?.catch(() => {
               console.error('player error')
             })
             this.avPlayer?.seek(0, media.SeekMode.SEEK_CLOSEST)
@@ -389,7 +387,7 @@ export struct Player { // 播放页
           break
         case 'idle':
           await this.ijkPlayerStop()
-          this.avPlayer?.release().catch(() => {
+          this.avPlayer?.release()?.catch(() => {
             console.error('player error')
           })
           break;
@@ -397,7 +395,7 @@ export struct Player { // 播放页
           await this.ijkPlayerStop()
           VideoOperateUtil.playErrorExecute(this.pathStack, this.video_meta_data, this.now_playing?.date!,
             NavigationAddress.FFMPEG_PLAYER)
-          this.avPlayer?.release().catch(() => {
+          this.avPlayer?.release()?.catch(() => {
             console.error('player error')
           })
           break;
@@ -420,7 +418,7 @@ export struct Player { // 播放页
       try {
         let file1 = fs.openSync(PathUtils.subtitlePath! + now_playing.date, fs.OpenMode.READ_ONLY)
         const size = fs.statSync(PathUtils.subtitlePath! + now_playing.date);
-        this.avPlayer?.addSubtitleFromFd(file1.fd, 0, size.size).catch(() => {
+        this.avPlayer?.addSubtitleFromFd(file1.fd, 0, size.size)?.catch(() => {
           console.error('subtitle error')
         });
       } catch (error) {
@@ -492,7 +490,7 @@ export struct Player { // 播放页
         const orientation = proportion > (16 / 10)
           ? window.Orientation.AUTO_ROTATION_LANDSCAPE
           : window.Orientation.AUTO_ROTATION_RESTRICTED;
-        (await this.windowClass)?.setPreferredOrientation(orientation).catch(() => {
+        (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
           console.error('player error')
         })
       }
@@ -595,9 +593,9 @@ export struct Player { // 播放页
   }
 
   togglePlayback() {
-    this.playing ? this.avPlayer?.pause().catch(() => {
+    this.playing ? this.avPlayer?.pause()?.catch(() => {
       console.error('player error')
-    }) : this.avPlayer?.play().catch(() => {
+    }) : this.avPlayer?.play()?.catch(() => {
       console.error('player error')
     })
   }
@@ -739,7 +737,8 @@ export struct Player { // 播放页
             LockVideoBarComponent({
               isLock: this.isLock,
               screenHeight: this.screen_height,
-              screenWidth: this.screen_width
+              screenWidth: this.screen_width,
+              showControl: this.showControl
             })
           }
 
@@ -773,7 +772,11 @@ export struct Player { // 播放页
                 this.closeSideBar(true);
               } else {
                 this.lockVisibility = !this.lockVisibility;
-                this.showControl = !this.showControl;
+                if (this.isLock) {
+                  this.showControl = false
+                } else {
+                  this.showControl = !this.showControl;
+                }
               }
             },
             onVerticalPanStart: (event: GestureEvent) => {
@@ -947,7 +950,7 @@ export struct Player { // 播放页
         this.lockVisibility = false
         return true
       } else {
-        this.avPlayer?.release().catch(() => {
+        this.avPlayer?.release()?.catch(() => {
           console.error('player error')
         })
         return false
@@ -958,10 +961,7 @@ export struct Player { // 播放页
         VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
           PathUtils.appContext!)
       }
-      if (this.allowBackgroundPlay) { //若发生错误跳转FFMpeg播放器，确保提前关闭申请防止两个播放器重复申请导致失败
-        AVSessionUtil.destroySession()
-        PermissionUtil.stopContinuousTask()
-      }
+      PermissionUtil.applyStopContinuousTask(this.allowBackgroundPlay)
       await this.ijkPlayerStop()
       try {
         await (await this.windowClass)?.setWindowKeepScreenOn(false)
@@ -979,7 +979,7 @@ export struct Player { // 播放页
   }
 
   exitVideo() {
-    this.avPlayer?.reset().catch(() => {
+    this.avPlayer?.reset()?.catch(() => {
       console.error('player error')
     })
     this.pathStack.pop()
@@ -1063,7 +1063,7 @@ export struct Player { // 播放页
         const orientation = this.screen_height > this.screen_width
           ? window.Orientation.AUTO_ROTATION_LANDSCAPE
           : window.Orientation.AUTO_ROTATION_PORTRAIT; // 这里是横竖屏切换顺应用户操作就好
-        (await this.windowClass)?.setPreferredOrientation(orientation).catch(() => {
+        (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
           console.error('setPreferredOrientation error')
         })
       },
@@ -1085,7 +1085,7 @@ export struct Player { // 播放页
       audioTrack: this.audio_track,
       audioTrackSelected: this.audio_track_select,
       onSelect: (index: number) => {
-        this.avPlayer?.selectTrack(this.audio_track[index]?.index).catch(() => {
+        this.avPlayer?.selectTrack(this.audio_track[index]?.index)?.catch(() => {
           console.error('select track error')
         });
         this.audio_track_select = index;
@@ -1144,13 +1144,13 @@ export struct Player { // 播放页
   }
 
   private async fullResetSync(position: number) { // 严重不同步处理
-    this.avPlayer?.pause().catch(() => {
+    this.avPlayer?.pause()?.catch(() => {
       console.error('player error')
     });
     this.mIjkMediaPlayer?.pause();
     this.mIjkMediaPlayer?.seekTo(String(position))
     await new Promise<void>(resolve => setTimeout(resolve, 50));
-    this.avPlayer?.play().catch(() => {
+    this.avPlayer?.play()?.catch(() => {
       console.error('player error')
     });
     this.mIjkMediaPlayer?.start();

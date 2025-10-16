@@ -323,10 +323,10 @@ export struct PrivacySpace { // 隐私空间页
                 Column() {
                   Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
                     .attributeModifier(new ImageFancyModifier({
-                      topLeft: 10,
-                      topRight: 10,
-                      bottomLeft: 0,
-                      bottomRight: 0
+                      topLeft: 8,
+                      topRight: 8,
+                      bottomLeft: 8,
+                      bottomRight: 8
                     }, 60, 200))
                     .draggable(false)
                     .width('100%')
@@ -355,7 +355,6 @@ export struct PrivacySpace { // 隐私空间页
                 .width('95%')
                 .height('auto')
                 .backgroundColor($r('app.color.start_window_background_blur'))
-                .borderRadius(10)
               }
             }
             .onClick(async () => {
@@ -435,6 +434,7 @@ export struct PrivacySpace { // 隐私空间页
     }
     .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
+    .backgroundImagePosition(Alignment.Center)
     .backdropBlur(this.backgroundDropBlur)
     .onWillDisappear(() => {
       PrivacySpaceUtil.setPrivacyMode(false)

@@ -237,9 +237,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           onVerticalPanStart: (event: GestureEvent) => {
             if (!this.isLock) {
               const tapX = event.fingerList[0]?.localX;
-              if (!VideoOperateUtil.checkLocalX(tapX)) {
-                return
-              }
               this.isLeftSideSwipe = tapX < this.screen_width / 2;
               VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
               this.volume = this.volumeActually
@@ -389,10 +386,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
           PathUtils.appContext!)
       }
-      if (this.allowBackgroundPlay) {
-        AVSessionUtil.destroySession()
-        PermissionUtil.stopContinuousTask()
-      }
+      PermissionUtil.applyStopContinuousTask(this.allowBackgroundPlay)
       try {
         await (await this.windowClass)?.setWindowKeepScreenOn(false)
         if (canIUse('SystemCapability.Window.SessionManager')) {
@@ -539,9 +533,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
 
   async aboutToAppear() {
     this.mIjkMediaPlayer = IjkMediaPlayer.getInstance();
-    if (this.allowBackgroundPlay) {
-      PermissionUtil.startContinuousTask()
-    }
+    PermissionUtil.applyContinuousTask(this.allowBackgroundPlay)
     await this.setScreen()
     let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
     let audioManager = audio.getAudioManager();
