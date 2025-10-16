@@ -50,7 +50,6 @@ export struct RedPlayer { // 红薯播放器页
   @State long_press: boolean = false
   @State isLeftSideSwipe: boolean = false
   @State isRightSideSwipe: boolean = false
-  @State isVerticalSwiping: boolean = false
   @State onSwipingVoice: boolean = false
   @State onSwipingBrightness: boolean = false
   @State screenBrightnessAtFirst: number = 0

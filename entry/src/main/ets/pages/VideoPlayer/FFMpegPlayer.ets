@@ -63,7 +63,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @State currentSpeedIndex: number = 0
   @State isLeftSideSwipe: boolean = false
   @State isRightSideSwipe: boolean = false
-  @State isVerticalSwiping: boolean = false
   @State onSwipingVoice: boolean = false
   @State onSwipingBrightness: boolean = false
   @State screenBrightness: number = 0
