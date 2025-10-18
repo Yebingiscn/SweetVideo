@@ -41,6 +41,7 @@ import NavigationAddress from '../../common/NavigationAddress';
 import { WindowUtil } from '../../utils/WindowUtil';
 import { VideoStatusBarBuilder } from '../../component/PlayerComponent/VideoStatusBarBuilder';
 import { KeyCode } from '@kit.InputKit';
+import TimeUtil from '../../utils/TimeUtil';
 
 @Component
 export struct Player { // 播放页
@@ -181,7 +182,7 @@ export struct Player { // 播放页
 
   async aboutToAppear(): Promise<void> {
     PermissionUtil.applyContinuousTask(this.allowBackgroundPlay)
-    this.clock_time = ToolsUtil.getTime()
+    this.clock_time = TimeUtil.getTime()
     this.setScreen()
     try {
       await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
@@ -240,39 +241,43 @@ export struct Player { // 播放页
         console.error('player error')
       });
     } else {
-      this.mIjkMediaPlayer = IjkMediaPlayer.getInstance();
-      try {
-        const video_url = fs.openSync(this.now_playing?.uri).path
-        this.mIjkMediaPlayer.reset();
-        this.mIjkMediaPlayer.setAudioId(this.surfaceID)
-        this.mIjkMediaPlayer.native_setup();
-        this.mIjkMediaPlayer.setDebug(false);
-        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", '15728600');
-        this.mIjkMediaPlayer.setVolume('1.0', '1.0');
-        this.mIjkMediaPlayer.setDataSource(video_url)
-        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "start-on-prepared", "1");
-        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "enable-accurate-seek", "1");
-        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "packet-buffering", "1");
-        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-fps", "0"); // 禁用FPS限制
-        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "disable_video", "1"); // 跳过视频流
-        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_CODEC, "skip-video", "1");
-        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "audio-resampler", "soxr");
-        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "avsync", '100');
-        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-all-videos", "1");
-        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-hevc", "0");
-        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "enable-buffer-age", "0");
-        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "buffer-pool-size", "32");
-        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "sync-av-start", "1");
-        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "infbuf", "0");
-        this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "soundtouch", "1");
-        this.mIjkMediaPlayer.setSpeed('1f');
-        this.mIjkMediaPlayer.setLoopCount(false);
-        this.mIjkMediaPlayer.setMessageListener();
-        this.mIjkMediaPlayer.prepareAsync();
-        this.mIjkMediaPlayer.start()
-      } catch (error) {
-        console.error('ijk error:' + error)
-      }
+      this.activeEnhanceAudio()
+    }
+  }
+
+  activeEnhanceAudio() {
+    this.mIjkMediaPlayer = IjkMediaPlayer.getInstance();
+    try {
+      const video_url = fs.openSync(this.now_playing?.uri).path
+      this.mIjkMediaPlayer.reset();
+      this.mIjkMediaPlayer.setAudioId(this.surfaceID)
+      this.mIjkMediaPlayer.native_setup();
+      this.mIjkMediaPlayer.setDebug(false);
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", '15728600');
+      this.mIjkMediaPlayer.setVolume('1.0', '1.0');
+      this.mIjkMediaPlayer.setDataSource(video_url)
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "start-on-prepared", "1");
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "enable-accurate-seek", "1");
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "packet-buffering", "1");
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-fps", "0"); // 禁用FPS限制
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "disable_video", "1"); // 跳过视频流
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_CODEC, "skip-video", "1");
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "audio-resampler", "soxr");
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "avsync", '100');
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-all-videos", "1");
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-hevc", "0");
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "enable-buffer-age", "0");
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "buffer-pool-size", "32");
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "sync-av-start", "1");
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "infbuf", "0");
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "soundtouch", "1");
+      this.mIjkMediaPlayer.setSpeed('1f');
+      this.mIjkMediaPlayer.setLoopCount(false);
+      this.mIjkMediaPlayer.setMessageListener();
+      this.mIjkMediaPlayer.prepareAsync();
+      this.mIjkMediaPlayer.start()
+    } catch (error) {
+      console.error('ijk error:' + error)
     }
   }
 
@@ -281,7 +286,7 @@ export struct Player { // 播放页
       // 保存播放数据，防止杀掉应用或者闪退丢失数据
       AppStorage.setOrCreate('nowPlayingData', [this.play_time, this.now_playing!, this.video_meta_data])
       if (this.showControl) {
-        this.clock_time = ToolsUtil.getTime()
+        this.clock_time = TimeUtil.getTime()
         if (!this.autoHideTimeout) {
           this.autoHideTimeout = true
           setTimeout(() => {
@@ -1104,6 +1109,10 @@ export struct Player { // 播放页
       },
       forward_80_s: () => {
         this.seekTime(this.play_time + 80 * 1000)
+      },
+      onActiveEnhanceAudio: () => {
+        this.activeEnhanceAudio()
+        ToolsUtil.showToast('增强型解码启用成功')
       }
     })
   }

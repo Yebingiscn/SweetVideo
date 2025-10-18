@@ -9,6 +9,7 @@ export struct SubtitleComponent {
   @Link showControl: boolean
   @Link subTitleVisibility: Visibility
   @Link playAreaWidth: number
+
   build() {
     Stack({ alignContent: Alignment.BottomEnd }) { //字幕
       Text(this.subTitle)

@@ -1,3 +1,5 @@
+import { systemDateTime } from '@kit.BasicServicesKit'
+
 // 时间类，格式化时间
 class TimeUtil {
   convertMSToHHMMSS(ms: number | undefined): string {
@@ -39,6 +41,36 @@ class TimeUtil {
 
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString()
       .padStart(3, '0')}`;
+  }
+
+  // 获取当前时间
+  getTime() {
+    let timestamp = systemDateTime.getTime(false)
+    const date = new Date(timestamp);
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const timeString = `${hours}:${minutes}`;
+    return timeString
+  }
+
+  getTextByTime() {
+    const now = new Date();
+    const hours = now.getHours();
+    if (hours === 15) {
+      return '饮茶啦！流心';
+    }
+    // 常规时间问候
+    if (hours >= 0 && hours < 5) {
+      return '晚安！流心';
+    } else if (hours >= 5 && hours < 12) {
+      return '早上好！流心';
+    } else if (hours >= 12 && hours < 14) {
+      return '中午好！流心';
+    } else if (hours >= 14 && hours < 18) {
+      return '下午好！流心';
+    } else {
+      return '晚上好！流心';
+    }
   }
 }
 

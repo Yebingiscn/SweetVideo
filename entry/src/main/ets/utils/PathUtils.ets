@@ -21,6 +21,7 @@ export class PathUtils {
   static get photoPath(): string {
     return `${this.sandboxPath}/photo/`
   }
+
   // 获取字幕目录路径
   static get subtitlePath(): string {
     return `${this.sandboxPath}/subtitle/`;

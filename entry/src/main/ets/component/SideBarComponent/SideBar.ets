@@ -1,4 +1,5 @@
 import { ImageFancyModifier } from '../../utils/AttributeModifierUtil';
+import TimeUtil from '../../utils/TimeUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
 
 
@@ -19,7 +20,7 @@ export function AppInfoBuilder(params: AppInfoBuilderParams) {
         .interpolation(ImageInterpolation.Medium)// 用于重采样后的抗锯齿
         .draggable(false)// 禁止长按手势拖动
         .autoResize(true) // 重采样，可减少内存占用
-      Text(ToolsUtil.getTextByTime())
+      Text(TimeUtil.getTextByTime())
         .fontSize(20)
         .fontColor('#ffff')
         .margin({ left: 5, right: 12 })

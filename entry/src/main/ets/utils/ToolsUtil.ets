@@ -1,6 +1,6 @@
 import promptAction from '@ohos.promptAction';
 import { vibrator } from '@kit.SensorServiceKit';
-import { BusinessError, systemDateTime } from '@kit.BasicServicesKit';
+import { BusinessError } from '@kit.BasicServicesKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { bundleManager } from '@kit.AbilityKit';
@@ -206,36 +206,6 @@ export class ToolsUtil {
         console.error(`Failed to create directory ${path}:`, error);
       }
     });
-  }
-
-  // 获取当前时间
-  getTime() {
-    let timestamp = systemDateTime.getTime(false)
-    const date = new Date(timestamp);
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    const timeString = `${hours}:${minutes}`;
-    return timeString
-  }
-
-  getTextByTime() {
-    const now = new Date();
-    const hours = now.getHours();
-    if (hours === 15) {
-      return '饮茶啦！流心';
-    }
-    // 常规时间问候
-    if (hours >= 0 && hours < 5) {
-      return '晚安！流心';
-    } else if (hours >= 5 && hours < 12) {
-      return '早上好！流心';
-    } else if (hours >= 12 && hours < 14) {
-      return '中午好！流心';
-    } else if (hours >= 14 && hours < 18) {
-      return '下午好！流心';
-    } else {
-      return '晚上好！流心';
-    }
   }
 }
 

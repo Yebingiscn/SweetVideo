@@ -3,7 +3,7 @@ import ToolsUtil from './ToolsUtil';
 import { fileIo as fs, picker } from '@kit.CoreFileKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { PathUtils } from './PathUtils';
-import { ParseSrt, SrtLine } from '@dove/subtitles';
+import { AssEvent, ParseAss } from '@dove/subtitles';
 
 class SubtitleUtil {
   // 获取外挂字幕
@@ -63,7 +63,7 @@ class SubtitleUtil {
 
   async parseSrtFile(filePath: string) {
     // 1. 创建解析器实例
-    const parser = new ParseSrt(filePath);
+    const parser = new ParseAss(filePath);
 
     try {
       // 2. 初始化解析器（异步操作）
@@ -71,7 +71,7 @@ class SubtitleUtil {
       console.error('test SRT解析器初始化成功');
 
       // 3. 读取字幕行（异步操作）
-      const srtLines: SrtLine[] = await parser.readLines();
+      const srtLines: AssEvent[] = await parser.readEvents();
       console.error(`test 成功读取 ${srtLines.length} 条字幕记录`);
 
       // 4. 处理结果（示例：打印前5条）

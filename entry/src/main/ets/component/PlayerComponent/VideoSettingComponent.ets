@@ -15,9 +15,17 @@ export struct VideoSettingComponent {
   }
   forward_80_s = () => {
   }
+  onActiveEnhanceAudio = () => {
+  }
 
   build() {
     Menu() {
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.service')),
+        content: '启用增强型音频解码（仅在放不出来声音时使用）'
+      }).onClick(() => {
+        this.onActiveEnhanceAudio()
+      })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
         content: '设置片头时间'
@@ -39,7 +47,7 @@ export struct VideoSettingComponent {
         this.onMirrorClick()
       })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trapezoid_and_line_vertical')),
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.fast_forward')),
         content: '前进 80s'
       }).onClick(() => {
         this.forward_80_s()
