@@ -3,7 +3,7 @@ import ToolsUtil from './ToolsUtil';
 import { fileIo as fs, picker } from '@kit.CoreFileKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { PathUtils } from './PathUtils';
-import { AssEvent, ParseAss } from '@dove/subtitles';
+import { ParseSrt, SrtLine } from '@dove/subtitles';
 
 class SubtitleUtil {
   // 获取外挂字幕
@@ -63,20 +63,20 @@ class SubtitleUtil {
 
   async parseSrtFile(filePath: string) {
     // 1. 创建解析器实例
-    const parser = new ParseAss(filePath);
-
+    const parser = new ParseSrt(filePath);
     try {
       // 2. 初始化解析器（异步操作）
       await parser.init();
       console.error('test SRT解析器初始化成功');
 
       // 3. 读取字幕行（异步操作）
-      const srtLines: AssEvent[] = await parser.readEvents();
+      const srtLines: SrtLine[] = await parser.readLines();
       console.error(`test 成功读取 ${srtLines.length} 条字幕记录`);
 
       // 4. 处理结果（示例：打印前5条）
       srtLines.slice(0, 5).forEach(line => {
-        console.error(`[${line.start} -> ${line.end}] ${line.text}`);
+        // 直接使用数值时间戳
+        console.error(`test[${line.startTimestampMillis} -> ${line.endTimestampMillis}] ${line.text}`);
       });
 
       return srtLines;

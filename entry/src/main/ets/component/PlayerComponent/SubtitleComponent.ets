@@ -21,7 +21,7 @@ export struct SubtitleComponent {
         .opacity(0.95)// 轻微透明度
         .offset({
           x: 0,
-          y: this.screenWidth > this.screenHeight && this.showControl ? -120 : 0
+          y: this.screenWidth > this.screenHeight && this.showControl ? -100 : 0
         })
     }
     .visibility(this.subTitleVisibility)

@@ -27,6 +27,8 @@ import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode';
 import NavigationAddress from '../../common/NavigationAddress';
 import { VolumeSwipingComponent } from '../../component/PlayerComponent/VolumeSwipingComponent';
 import { WindowUtil } from '../../utils/WindowUtil';
+import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent';
+import { XAnimation } from '../../utils/AnimationUtil';
 
 @Component
 export struct RedPlayer { // 红薯播放器页
@@ -237,7 +239,9 @@ export struct RedPlayer { // 红薯播放器页
             this.togglePlayback(); // 中间区域：播放/暂停切换
           },
           onSingleClickAction: () => {
-            this.showControl = !this.showControl
+            XAnimation.runWithAnimation(async () => {
+              this.showControl = !this.showControl
+            })
           },
           onVerticalPanStart: (event: GestureEvent) => {
             if (!this.isLock) {
@@ -375,6 +379,25 @@ export struct RedPlayer { // 红薯播放器页
         console.error('player error:' + error)
       }
     }).hideTitleBar(true)
+  }
+
+  @Builder
+  PlaybackSpeedMenuBuilder() {
+    PlaybackSpeedMenuComponent({
+      speed: this.play_speed,
+      player: NavigationAddress.RED_PLAYER,
+      onSpeedChange: (speed: number) => {
+        this.updatePlaybackSpeed(speed)
+      }
+    })
+  }
+
+  updatePlaybackSpeed(speed: number): void {
+    if (!VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER).includes(speed)) {
+      speed = 1.0;
+    }
+    this.play_speed = speed
+    this.playerController.setSpeed(speed)
   }
 
   async setScreen() {
@@ -537,8 +560,10 @@ export struct RedPlayer { // 红薯播放器页
           const orientation = this.screen_height > this.screen_width
             ? window.Orientation.AUTO_ROTATION_LANDSCAPE
             : window.Orientation.AUTO_ROTATION_PORTRAIT;
-          (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
-            console.error('player error')
+          XAnimation.runWithAnimation(async () => {
+            (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
+              console.error('player error')
+            })
           })
         })
       }.span({ xs: 2, sm: 2, md: 2 })
@@ -552,6 +577,24 @@ export struct RedPlayer { // 红薯播放器页
           .width(23)
           .height(23)
           .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+      }.span({ xs: 2, sm: 2, md: 2 })
+
+      GridCol() {
+        Button({ type: ButtonType.Circle, stateEffect: true }) { // 倍速调整按钮
+          Text(`${this.play_speed}x`)
+            .fontSize(18)
+            .fontColor($r('sys.color.white'))
+            .minFontSize(8)
+            .maxFontSize(18)
+            .maxLines(1)
+            .padding(5)
+        }
+        .attributeModifier(new ButtonFancyModifier(40, 40))
+        .backgroundColor('#50000000')
+        .bindMenu(this.PlaybackSpeedMenuBuilder, {
+          backgroundColor: Color.Transparent,
+          backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+        })
       }.span({ xs: 2, sm: 2, md: 2 })
     }.width('95%')
   }

@@ -231,7 +231,7 @@ export struct VideoList {
             )
           )
         }, (item: VideoMetadata) => item.date.toString() + item.last_play + item.title + item.size.toString() +
-        this.videoListController.folder.name)
+        this.videoListController.folder.name + item.time)
       }
       .clip(false)
       .padding({ left: 10, right: 10 })
@@ -320,7 +320,7 @@ export struct VideoList {
                 )
               )
             }, (item: VideoMetadata) => item.date + item.last_play + item.title + item.size.toString() +
-            this.videoListController.folder.name)
+            this.videoListController.folder.name + item.time)
           }
           .clip(false)
           .columnsTemplate('1fr '.repeat(this.videoListController.listLine).trim())

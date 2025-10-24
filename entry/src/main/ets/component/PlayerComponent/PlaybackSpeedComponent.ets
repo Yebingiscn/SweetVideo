@@ -1,4 +1,3 @@
-import NavigationAddress from '../../common/NavigationAddress';
 import { SelectItemTextFancyModifier } from '../../utils/AttributeModifierUtil';
 import { SpeedDataSource } from '../../utils/DataUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
@@ -7,11 +6,12 @@ import VideoInfoUtil from '../../utils/VideoInfoUtil';
 export struct PlaybackSpeedMenuComponent {
   @State speedDataSource: SpeedDataSource = new SpeedDataSource([])
   @Prop speed: number
+  @Prop player: string
   onSpeedChange = (_speed: number) => {
   }
 
-  aboutToAppear(): void { // 这里先写死
-    this.speedDataSource = new SpeedDataSource(VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER))
+  aboutToAppear(): void {
+    this.speedDataSource = new SpeedDataSource(VideoInfoUtil.getVideoSpeedList(this.player))
   }
 
   build() {

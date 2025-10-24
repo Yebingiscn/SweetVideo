@@ -9,7 +9,7 @@ import AVSessionUtil from '../../utils/AVSessionUtil'
 export struct VideoButtonsComponent {
   @Prop screenArco: number
   @Prop playing: boolean
-  @Prop speed: number
+  @Link speed: number
   @Link repeatMode: RepeatMode
   @BuilderParam aVCastPickerBuilderBridge: () => void
   @BuilderParam videoSettingBuilder: () => void

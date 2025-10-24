@@ -42,6 +42,7 @@ import { WindowUtil } from '../../utils/WindowUtil';
 import { VideoStatusBarBuilder } from '../../component/PlayerComponent/VideoStatusBarBuilder';
 import { KeyCode } from '@kit.InputKit';
 import TimeUtil from '../../utils/TimeUtil';
+import { XAnimation } from '../../utils/AnimationUtil';
 
 @Component
 export struct Player { // 播放页
@@ -93,6 +94,7 @@ export struct Player { // 播放页
   @StorageLink('smartRotation') smartRotation: boolean = true
   @StorageLink('longPressSpeed') longPressSpeed: number = 3
   @Consume('pathStack') pathStack: NavPathStack
+  @State exitVideoTime: number = 0
   private mIjkMediaPlayer: IjkMediaPlayer | null = null;
   private autoHideTimeout: boolean = false
   private audioVolumeManager: audio.AudioVolumeManager | null = null
@@ -200,6 +202,7 @@ export struct Player { // 播放页
     Preferences.saveVideoSpeed(PathUtils.appContext!,
       (VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).includes(this.speed) ? this.speed : 1) + 'x')
     Preferences.saveRepeatModeState(PathUtils.appContext!, this.repeatMode)
+    clearTimeout(this.exitVideoTime)
     this.avPlayer?.off('subtitleUpdate');
     this.avPlayer?.off('timeUpdate')
     this.avPlayer?.off('seekDone')
@@ -221,17 +224,19 @@ export struct Player { // 播放页
     const nowHeight = this.now_playing.size[1];
     const aspectRatioNow = nowWidth / nowHeight;
     const screenAspectRatio = this.screen_width / this.screen_height;
-    if (aspectRatioNow > screenAspectRatio) {
-      this.play_area_width = this.screen_width;
-      this.play_area_height = this.play_area_width * (nowHeight / nowWidth);
-    } else {
-      this.play_area_height = this.screen_height;
-      this.play_area_width = this.play_area_height * (nowWidth / nowHeight);
-    }
+    XAnimation.runWithAnimation(() => {
+      if (aspectRatioNow > screenAspectRatio) {
+        this.play_area_width = this.screen_width;
+        this.play_area_height = this.play_area_width * (nowHeight / nowWidth);
+      } else {
+        this.play_area_height = this.screen_height;
+        this.play_area_width = this.play_area_height * (nowWidth / nowHeight);
+      }
+    })
     if (this.select_text !== '原始比例') {
       this.select_text = '原始比例'
     }
-    VideoInfoUtil.saveVideoWidthAndHeight(this.play_area_width, this.play_area_height)
+    VideoInfoUtil.saveOriginalVideoWidthAndHeight(this.play_area_width, this.play_area_height)
   }
 
   async getAudioTrack() {
@@ -503,6 +508,8 @@ export struct Player { // 播放页
   }
 
   async playChooseVideo(item: VideoMetadata) {
+    VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
+      PathUtils.appContext!)
     if (!PrivacySpaceUtil.getPrivacyMode()) {
       RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
     }
@@ -523,8 +530,6 @@ export struct Player { // 播放页
 
   playNextVideo() {
     if (this.video_meta_data.length > 0 && this.play_time > 0) {
-      VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
-        PathUtils.appContext!)
       let item = SelectFileUtil.getItem(this.video_meta_data, this.now_playing?.date || '') as VideoMetadata
       let nextItem: VideoMetadata | null
       if (this.repeatMode === RepeatMode.RANDOM) { // 随机模式
@@ -533,7 +538,7 @@ export struct Player { // 播放页
           ? availableVideos[Math.floor(Math.random() * availableVideos.length)]
           : item; // 回退到当前视频
       } else if (this.repeatMode === RepeatMode.SINGLE_PLAY) {
-        this.exitVideo()
+        this.exitVideo(0)
       } else {
         nextItem = SelectFileUtil.getNextItem(this.video_meta_data, item.date) // 非随机模式：按顺序获取下一个视频
       }
@@ -641,7 +646,7 @@ export struct Player { // 播放页
               this.togglePlayback()
             }
             if (event.keyCode === KeyCode.KEYCODE_ESCAPE) {
-              this.exitVideo()
+              this.exitVideo(0)
             }
             if (event.keyCode === KeyCode.KEYCODE_DPAD_RIGHT) {
               this.fastForward();
@@ -777,11 +782,13 @@ export struct Player { // 播放页
                 this.closeSideBar(true);
               } else {
                 this.lockVisibility = !this.lockVisibility;
-                if (this.isLock) {
-                  this.showControl = false
-                } else {
-                  this.showControl = !this.showControl;
-                }
+                XAnimation.runWithAnimation(() => {
+                  if (this.isLock) {
+                    this.showControl = false
+                  } else {
+                    this.showControl = !this.showControl;
+                  }
+                })
               }
             },
             onVerticalPanStart: (event: GestureEvent) => {
@@ -983,11 +990,13 @@ export struct Player { // 播放页
     .hideTitleBar(true)
   }
 
-  exitVideo() {
-    this.avPlayer?.reset()?.catch(() => {
-      console.error('player error')
-    })
-    this.pathStack.pop()
+  exitVideo(timeOut: number) {
+    this.exitVideoTime = setTimeout(() => {
+      this.avPlayer?.reset()?.catch(() => {
+        console.error('player error')
+      })
+      this.pathStack.pop()
+    }, timeOut);
   }
 
   @Builder
@@ -1001,7 +1010,7 @@ export struct Player { // 播放页
       audioTrackMenuBuilder: this.getAudioMenuBuilder,
       lockRotation: this.lock_rotation,
       onExitVideoClick: () => {
-        this.exitVideo()
+        this.exitVideo(0)
       },
       onScreenExtendOptionSelected: (text: string) => {
         this.screenExtend(text!)
@@ -1013,7 +1022,9 @@ export struct Player { // 播放页
             : window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
           : window.Orientation.AUTO_ROTATION_RESTRICTED
         try {
-          await (await this.windowClass)?.setPreferredOrientation(orientation)
+          XAnimation.runWithAnimation(async () => {
+            await (await this.windowClass)?.setPreferredOrientation(orientation)
+          })
         } catch (error) {
           ToolsUtil.errorCatchExec('屏幕旋转异常', String(error))
         }
@@ -1068,8 +1079,10 @@ export struct Player { // 播放页
         const orientation = this.screen_height > this.screen_width
           ? window.Orientation.AUTO_ROTATION_LANDSCAPE
           : window.Orientation.AUTO_ROTATION_PORTRAIT; // 这里是横竖屏切换顺应用户操作就好
-        (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
-          console.error('setPreferredOrientation error')
+        XAnimation.runWithAnimation(async () => {
+          (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
+            console.error('setPreferredOrientation error')
+          })
         })
       },
       onTogglePlaybackClick: () => {
@@ -1104,15 +1117,31 @@ export struct Player { // 播放页
       playTime: this.play_time,
       nowPlaying: this.now_playing,
       videoMetaData: this.video_meta_data,
-      onMirrorClick: () => {
-        this.angle === 0 ? this.angle = 180 : this.angle = 0
-      },
+      angle: this.angle,
       forward_80_s: () => {
         this.seekTime(this.play_time + 80 * 1000)
       },
       onActiveEnhanceAudio: () => {
         this.activeEnhanceAudio()
         ToolsUtil.showToast('增强型解码启用成功')
+      },
+      closeAfter15min: () => {
+        clearTimeout(this.exitVideoTime)
+        this.exitVideo(15 * 60000)
+      },
+      closeAfter30min: () => {
+        clearTimeout(this.exitVideoTime)
+        this.exitVideo(30 * 60000)
+      },
+      closeAfter60min: () => {
+        clearTimeout(this.exitVideoTime)
+        this.exitVideo(60 * 60000)
+      },
+      closeAfterVideoEnd: () => {
+        this.repeatMode = RepeatMode.SINGLE_PLAY
+      },
+      closeAfterIsClose: () => {
+        clearTimeout(this.exitVideoTime)
       }
     })
   }
@@ -1121,6 +1150,7 @@ export struct Player { // 播放页
   PlaybackSpeedMenuBuilder() {
     PlaybackSpeedMenuComponent({
       speed: this.speed,
+      player: NavigationAddress.AV_PLAYER,
       onSpeedChange: (speed: number) => {
         this.updatePlaybackSpeed(speed)
       }

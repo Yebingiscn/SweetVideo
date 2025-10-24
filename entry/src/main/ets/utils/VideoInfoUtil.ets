@@ -275,7 +275,7 @@ class VideoInfoUtil {
   }
 
   // 保存视频初始长宽，变更后视频长宽后使用
-  saveVideoWidthAndHeight(play_area_width: number, play_area_height: number) {
+  saveOriginalVideoWidthAndHeight(play_area_width: number, play_area_height: number) {
     this.play_area_width = play_area_width
     this.play_area_height = play_area_height
   }

@@ -336,6 +336,7 @@ struct Index {
           .scrollBar(BarState.Off)
           .width('100%')
           .height('100%')
+          .fadingEdge(true)
 
           Column() {
             Button({ type: ButtonType.Normal, stateEffect: true }) {

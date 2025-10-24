@@ -38,6 +38,8 @@ import { GestureComponent } from '../../component/PlayerComponent/GestureCompone
 import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode'
 import NavigationAddress from '../../common/NavigationAddress'
 import { WindowUtil } from '../../utils/WindowUtil'
+import SubtitleUtil from '../../utils/SubtitleUtil'
+import { XAnimation } from '../../utils/AnimationUtil'
 
 @Component
 export struct FFMpegPlayer { // FFMpeg播放器页
@@ -232,7 +234,9 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             this.togglePlayState(); // 中间区域：播放/暂停切换
           },
           onSingleClickAction: () => {
-            this.showControl = !this.showControl
+            XAnimation.runWithAnimation(async () => {
+              this.showControl = !this.showControl
+            })
           },
           onVerticalPanStart: (event: GestureEvent) => {
             if (!this.isLock) {
@@ -399,6 +403,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       }
       if (this.now_playing?.time === 0) {
         this.now_playing.time = this.total_time; // 若系统无法识别视频时长，则由 FFMpeg API 提供以保存记忆时间
+        VideoOperateUtil.saveVideoTotalTime(PathUtils.appContext!, this.now_playing)
       }
       this.mDestroyPage = true;
       this.mIjkMediaPlayer?.setScreenOnWhilePlaying(false);
@@ -469,14 +474,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         }
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
-        .defaultFocus(true)
-        .onKeyEvent((event?: KeyEvent) => {
-          if (event) {
-            if (event.type === KeyType.Down && event.keyCode === KeyCode.KEYCODE_SPACE) { // 空格键按下触发
-              this.togglePlayState()
-            }
-          }
-        })
         .onClick(() => {
           ToolsUtil.startVibration()
           this.togglePlayState()
@@ -496,8 +493,10 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           const orientation = this.screen_height > this.screen_width
             ? window.Orientation.AUTO_ROTATION_LANDSCAPE
             : window.Orientation.AUTO_ROTATION_PORTRAIT;
-          (await this.windowClass)?.setPreferredOrientation(orientation).catch(() => {
-            console.error('player error')
+          XAnimation.runWithAnimation(async () => {
+            (await this.windowClass)?.setPreferredOrientation(orientation).catch(() => {
+              console.error('player error')
+            })
           })
         })
       }.span({ xs: 2, sm: 2, md: 2 })
@@ -579,6 +578,12 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         }
       }, 800)
     });
+    try {
+      let file1 = fs.openSync(PathUtils.subtitlePath! + this.now_playing?.date, fs.OpenMode.READ_ONLY)
+      SubtitleUtil.parseSrtFile(file1.path)
+    } catch (error) {
+      console.error('subtitle error' + error)
+    }
   }
 
   async aboutToDisappear() {

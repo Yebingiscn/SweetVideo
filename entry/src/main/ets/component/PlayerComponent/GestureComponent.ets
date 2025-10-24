@@ -46,6 +46,8 @@ export struct GestureComponent {
                 this.onSingleClickAction()
               }),
             PanGesture({ fingers: 1, direction: PanDirection.Vertical })// 垂直滑动
+              .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
+                SourceTool.JOYSTICK])
               .onActionStart((event: GestureEvent) => { // 滑动屏幕
                 this.onVerticalPanStart(event)
               })

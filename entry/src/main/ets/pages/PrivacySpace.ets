@@ -118,7 +118,7 @@ export struct PrivacySpace { // 隐私空间页
       .attributeModifier(new ButtonFancyModifier(40, 40))
       .animation({ duration: 300, curve: Curve.Ease })
       .bindMenu(this.SortMenuBuilder)
-    }.margin({ right: 24, top: 10 })
+    }.padding({ right: 24, top: 10 })
   }
 
   @Builder
@@ -290,6 +290,20 @@ export struct PrivacySpace { // 隐私空间页
   build() {
     NavDestination() {
       Column() {
+        if (this.video_meta_data_encryption.length == 0 && !this.loading) {
+          Row() { //顶栏
+            Column() {
+              Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
+              Text($r('app.string.privacy_space_info'))
+                .fontSize(15)
+                .textAlign(TextAlign.Center)
+                .fontWeight(FontWeight.Lighter)
+                .margin({ top: 20 })
+            }
+          }.height('100%')
+          .animation({ duration: 150, curve: Curve.Ease })
+        }
+
         SearchComponent({
           controller: this.searchController,
           searchValue: this.searchValue,
@@ -349,12 +363,12 @@ export struct PrivacySpace { // 隐私空间页
                   }.padding({ left: 5, right: 5, bottom: 5 })
                   .width('100%')
                 }
-                .backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
+                .backgroundColor(this.longPressPreview || this.backgroundImageSrc.length > 0 ?
+                  $r('app.color.start_window_background_blur') :
                   $r('app.color.start_window_background'))
                 .borderRadius(8)
                 .width('95%')
                 .height('auto')
-                .backgroundColor($r('app.color.start_window_background_blur'))
               }
             }
             .onClick(async () => {
@@ -392,8 +406,9 @@ export struct PrivacySpace { // 隐私空间页
               end: this.itemEnd(item),
               edgeEffect: SwipeEdgeEffect.Spring
             })
-          }, (item: VideoMetadata) => item.date + item.title + item.last_play + item.size.toString())
+          }, (item: VideoMetadata) => item.date + item.title + item.last_play + item.size.toString() + item.time)
         }
+        .clip(false)
         .cachedCount(3)
         .lanes(this.list_line)
         .layoutWeight(1)
@@ -404,25 +419,9 @@ export struct PrivacySpace { // 隐私空间页
         .chainAnimation(true)
         .scrollBar(BarState.Off)
 
-        if (this.video_meta_data_encryption.length == 0 && !this.loading) {
-          Row() { //顶栏
-            Column() {
-              Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
-              Text($r('app.string.privacy_space_info'))
-                .fontSize(15)
-                .textAlign(TextAlign.Center)
-                .fontWeight(FontWeight.Lighter)
-                .margin({ top: 20 })
-            }
-          }.height('100%')
-          .animation({ duration: 150, curve: Curve.Ease })
-        }
       }
       .width('100%')
       .height('100%')
-      .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
-      .backgroundImageSize(ImageSize.Cover)
-      .backdropBlur(this.backgroundDropBlur)
       .onAreaChange(async (_oldValue: Area, newValue: Area) => {
         const width = Number(newValue.width);
         const base = Math.floor(width / 500);
@@ -430,12 +429,7 @@ export struct PrivacySpace { // 隐私空间页
           ? base + 1
           : base + 2;
       })
-      .backgroundColor($r('app.color.start_window_background'))
     }
-    .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
-    .backgroundImageSize(ImageSize.Cover)
-    .backgroundImagePosition(Alignment.Center)
-    .backdropBlur(this.backgroundDropBlur)
     .onWillDisappear(() => {
       PrivacySpaceUtil.setPrivacyMode(false)
     })
@@ -447,6 +441,10 @@ export struct PrivacySpace { // 隐私空间页
     .menus(this.NavigationMenus)
     .padding({ top: this.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
+    .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImageSize(ImageSize.Cover)
+    .backgroundImagePosition(Alignment.Center)
+    .backdropBlur(this.backgroundDropBlur)
     .onBackPressed(() => {
       if (this.searchValue.length > 0) {
         this.searchValue = ''

@@ -183,7 +183,7 @@ class SelectFileUtil {
   }
 
   saveData(context: Context, target_data: VideoMetadataFromPlayer, play_time?: number, size?: number[],
-    start_time?: number, end_time?: number) {
+    start_time?: number, end_time?: number, total_time?: number) {
     let save_time: number = 0
     if (play_time && !start_time && !end_time) {
       //计算保存进度，超过这个时间默认用户已经看完，从头开始, 但是保存为总时间
@@ -201,6 +201,9 @@ class SelectFileUtil {
       }
       if (size?.[0] && video.size[0] === 0) {
         video.size = size;
+      }
+      if (total_time && video.time === 0) {
+        video.time = total_time
       }
     };
     if (PrivacySpaceUtil.getPrivacyMode()) {

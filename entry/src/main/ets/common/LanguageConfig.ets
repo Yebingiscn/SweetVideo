@@ -1,5 +1,6 @@
 export class LanguageConfig {
   public static languageMap: Record<string, string> = {
+    'und': '未知',
     'chi': '中文',
     'jpn': '日语',
     'eng': '英语',

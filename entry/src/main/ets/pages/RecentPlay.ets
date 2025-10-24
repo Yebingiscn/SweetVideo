@@ -143,7 +143,7 @@ export struct RecentPlay { // 最近播放页
                   this.longPressPreview = false
                 }
               })
-          }, (item: VideoMetadata) => item.date + item.title + item.last_play + item.size.toString())
+          }, (item: VideoMetadata) => item.date + item.title + item.last_play + item.size.toString() + item.time)
         }
         .layoutWeight(1)
         .padding({ left: 20, right: 20 })

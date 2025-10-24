@@ -116,10 +116,7 @@ class VideoOperateUtil {
   // 播放器播放失败处理
   playErrorExecute(pathStack: NavPathStack, video_meta_data: VideoMetadata[], date: string, playerName: string) {
     ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
-    const now_play_item = video_meta_data.find(item => {
-      const target_item = SelectFileUtil.getItem(video_meta_data, item?.date)?.date;
-      return date === target_item;
-    });
+    const now_play_item = video_meta_data.find(item => item.date === date);
     const playerParams = new PlayerParams(now_play_item, video_meta_data, undefined)
     pathStack.replacePathByName(playerName, playerParams, true)
   }
@@ -211,8 +208,12 @@ class VideoOperateUtil {
   }
 
   // 保存音视频宽高信息
-  async saveVideoWeightAndHeight(context: Context, now_playing: VideoMetadataFromPlayer) {
+  saveVideoWeightAndHeight(context: Context, now_playing: VideoMetadataFromPlayer) {
     SelectFileUtil.saveData(context, now_playing!, undefined, now_playing.size)
+  }
+
+  saveVideoTotalTime(context: Context, now_playing: VideoMetadataFromPlayer) {
+    SelectFileUtil.saveData(context, now_playing!, undefined, undefined, undefined, undefined, now_playing.time)
   }
 
   // 启动时初始化已保存的设置项
