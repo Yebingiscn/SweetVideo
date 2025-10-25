@@ -185,7 +185,10 @@ class SelectFileUtil {
   saveData(context: Context, target_data: VideoMetadataFromPlayer, play_time?: number, size?: number[],
     start_time?: number, end_time?: number, total_time?: number) {
     let save_time: number = 0
-    if (play_time && !start_time && !end_time) {
+    if (target_data.time === 0 && total_time) {
+      target_data.time = total_time
+    }
+    if (play_time && !start_time && !end_time && !total_time) {
       //计算保存进度，超过这个时间默认用户已经看完，从头开始, 但是保存为总时间
       save_time = play_time > target_data?.time * 0.95 ? target_data?.time : play_time
     }

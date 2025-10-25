@@ -143,20 +143,24 @@ export struct Player { // 播放页
     let volume_list = await VideoOperateUtil.getVolume(this.audioVolumeManager, groupId)
     this.volume = volume_list.get('volume')!
     this.volumeActually = this.volume
-    this.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
-      let changeVolumeByVolumeButton = false
-      if (!this.onSwipingVoice) { // 这里复用手势音量调节提示
-        this.onSwipingVoice = !this.onSwipingVoice
-        changeVolumeByVolumeButton = true
-      }
-      this.volumeActually = volumeEvent.volume
-      ToolsUtil.startVibration()
-      setTimeout(() => {
-        if (changeVolumeByVolumeButton) {
+    try {
+      this.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
+        let changeVolumeByVolumeButton = false
+        if (!this.onSwipingVoice) { // 这里复用手势音量调节提示
           this.onSwipingVoice = !this.onSwipingVoice
+          changeVolumeByVolumeButton = true
         }
-      }, 800)
-    });
+        this.volumeActually = volumeEvent.volume
+        ToolsUtil.startVibration()
+        setTimeout(() => {
+          if (changeVolumeByVolumeButton) {
+            this.onSwipingVoice = !this.onSwipingVoice
+          }
+        }, 800)
+      });
+    } catch (error) {
+      console.error('volumeChange error:' + error)
+    }
     this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
   }
 
@@ -210,7 +214,11 @@ export struct Player { // 播放页
     this.avPlayer?.off('audioOutputDeviceChangeWithInfo')
     this.avPlayer?.off('subtitleUpdate')
     this.avPlayer?.off('stateChange')
-    this.audioVolumeManager?.off('volumeChange');
+    try {
+      this.audioVolumeManager?.off('volumeChange');
+    } catch (error) {
+      console.error('volume off error' + error)
+    }
     this.audioVolumeManager = null
     WindowUtil.disableLandscapeMultiWindow(this.windowClass)
   }
@@ -357,6 +365,12 @@ export struct Player { // 播放页
           this.onSwiping = false
           break;
         case 'completed':
+          VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
+            PathUtils.appContext!)
+          const targetItem = this.video_meta_data.find(i => i.date == this.now_playing?.date)
+          if (targetItem) {
+            targetItem!.last_play = this.play_time
+          }
           if (this.repeatMode === RepeatMode.SINGLE_LOOP) {
             if (this.mIjkMediaPlayer) {
               this.mIjkMediaPlayer?.seekTo('0')
@@ -877,10 +891,10 @@ export struct Player { // 播放页
                 }
                 this.play_area_width = scaledWidth; // 更新播放区域尺寸
                 this.play_area_height = this.play_area_height * clampedScale;
-                animateTo({ duration: 100 }, () => {
+                XAnimation.runWithAnimation(() => {
                   this.play_area_width = this.play_area_width;
                   this.play_area_height = this.play_area_height;
-                });
+                })
               }
             },
             onLongPressAction: () => {

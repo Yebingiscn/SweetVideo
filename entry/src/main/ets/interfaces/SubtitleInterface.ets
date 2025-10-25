@@ -1,20 +1,12 @@
-export interface VttSubtitleItem {
-  start: string;
-  end: string;
+export interface SubtitleItem {
+  startTimestampMillis: number; // 毫秒时间戳
+  endTimestampMillis: number; // 毫秒时间戳
   text: string;
 }
 
-export interface SrtSubtitleItem {
-  id: number; // 序号
-  start: string; // 开始时间
-  end: string; // 结束时间
-  text: string; // 字幕文本
-}
+// 定义解析器接口
+export interface Parser<T> {
+  init(): Promise<void>;
 
-export interface AssSubtitleItem {
-  layer: number; // 图层
-  start: string; // 开始时间
-  end: string; // 结束时间
-  style: string; // 样式名
-  text: string; // 文本
+  readLines(): Promise<T[]>;
 }

@@ -1,0 +1,29 @@
+{
+  "app": {
+    "bundleName": "com.michael.rtf_parser",
+    "debug": false,
+    "versionCode": 1000000,
+    "versionName": "1.0.0",
+    "minAPIVersion": 12,
+    "targetAPIVersion": 12,
+    "apiReleaseType": "Release",
+    "compileSdkVersion": "5.0.0.71",
+    "compileSdkType": "OpenHarmony",
+    "appEnvironments": [],
+    "bundleType": "app",
+    "buildMode": "release"
+  },
+  "module": {
+    "name": "subtitles",
+    "type": "har",
+    "deviceTypes": [
+      "default",
+      "tablet"
+    ],
+    "packageName": "subtitles",
+    "installationFree": false,
+    "virtualMachine": "ark12.0.2.0",
+    "compileMode": "esmodule",
+    "dependencies": []
+  }
+}

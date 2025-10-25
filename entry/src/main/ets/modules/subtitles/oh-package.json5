@@ -1,0 +1,26 @@
+{
+  "name": "@dove/subtitles",
+  "version": "0.3.4",
+  "description": "OpenHarmony/HarmonyOS 字幕解析库(OpenHarmony/HarmonyOS subtitles analysis library)",
+  "main": "index.ts",
+  "author": "michael",
+  "license": "Mulan PSL v2",
+  "keywords": [
+    "ssa",
+    "ass",
+    "vtt",
+    "srt",
+    "subtitle"
+  ],
+  "dependencies": {},
+  "metadata": {
+    "sourceRoots": [
+      "./src/main"
+    ],
+    "debug": false,
+    "nativeDebugSymbol": true
+  },
+  "compatibleSdkVersion": 12,
+  "compatibleSdkType": "OpenHarmony",
+  "obfuscated": false
+}

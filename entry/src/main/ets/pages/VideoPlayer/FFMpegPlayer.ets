@@ -564,20 +564,24 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     this.mIjkMediaPlayer?.on('deviceChange', deviceChangeEvent);
     this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
     this.volumeActually = this.volume
-    this.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
-      let changeVolumeByVolumeButton = false
-      if (!this.onSwipingVoice) { // 这里复用手势音量调节提示
-        this.onSwipingVoice = !this.onSwipingVoice
-        changeVolumeByVolumeButton = true
-      }
-      this.volumeActually = volumeEvent.volume
-      ToolsUtil.startVibration()
-      setTimeout(() => {
-        if (changeVolumeByVolumeButton) {
+    try {
+      this.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
+        let changeVolumeByVolumeButton = false
+        if (!this.onSwipingVoice) { // 这里复用手势音量调节提示
           this.onSwipingVoice = !this.onSwipingVoice
+          changeVolumeByVolumeButton = true
         }
-      }, 800)
-    });
+        this.volumeActually = volumeEvent.volume
+        ToolsUtil.startVibration()
+        setTimeout(() => {
+          if (changeVolumeByVolumeButton) {
+            this.onSwipingVoice = !this.onSwipingVoice
+          }
+        }, 800)
+      });
+    } catch (error) {
+      console.error('volumeChange error:' + error)
+    }
     try {
       let file1 = fs.openSync(PathUtils.subtitlePath! + this.now_playing?.date, fs.OpenMode.READ_ONLY)
       SubtitleUtil.parseSrtFile(file1.path)
@@ -589,7 +593,11 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   async aboutToDisappear() {
     this.mIjkMediaPlayer = null
     VideoOperateUtil.setBrightness(-1)
-    this.audioVolumeManager?.off('volumeChange');
+    try {
+      this.audioVolumeManager?.off('volumeChange');
+    } catch (error) {
+      console.error('volumeChange error:' + error)
+    }
     this.audioVolumeManager = null
     WindowUtil.disableLandscapeMultiWindow(this.windowClass)
   }

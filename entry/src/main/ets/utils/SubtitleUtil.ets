@@ -3,9 +3,34 @@ import ToolsUtil from './ToolsUtil';
 import { fileIo as fs, picker } from '@kit.CoreFileKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { PathUtils } from './PathUtils';
-import { ParseSrt, SrtLine } from '@dove/subtitles';
+import { AssEvent, ParseAss, ParseSrt, ParseVtt, SrtLine, VttLine } from '../modules/subtitles';
+import { Parser, SubtitleItem } from '../interfaces/SubtitleInterface';
+
+// 实现 Parser 接口的适配器类
+class ParserAdapter<T> implements Parser<T> {
+  private initFn: () => Promise<void>;
+  private readLinesFn: () => Promise<T[]>;
+
+  constructor(
+    initFn: () => Promise<void>,
+    readLinesFn: () => Promise<T[]>
+  ) {
+    this.initFn = initFn;
+    this.readLinesFn = readLinesFn;
+  }
+
+  async init(): Promise<void> {
+    return this.initFn();
+  }
+
+  async readLines(): Promise<T[]> {
+    return this.readLinesFn();
+  }
+}
 
 class SubtitleUtil {
+  private subtitles: SubtitleItem[] = []; // 存储所有字幕项（已按开始时间排序）
+
   // 获取外挂字幕
   async selectExternalSubtitles(sandbox_subtitle: string, date: string) {
     const documentSelectOptions = new picker.DocumentSelectOptions();
@@ -61,30 +86,130 @@ class SubtitleUtil {
     }
   }
 
-  async parseSrtFile(filePath: string) {
-    // 1. 创建解析器实例
+  // 解析SRT文件
+  async parseSrtFile(filePath: string): Promise<SubtitleItem[]> {
     const parser = new ParseSrt(filePath);
-    try {
-      // 2. 初始化解析器（异步操作）
-      await parser.init();
-      console.error('test SRT解析器初始化成功');
+    const items = await this.parseSubtitleFile<SrtLine>(
+      parser,
+      (line: SrtLine) => ({
+        startTimestampMillis: line.startTimestampMillis,
+        endTimestampMillis: line.endTimestampMillis,
+        text: line.text
+      })
+    );
 
-      // 3. 读取字幕行（异步操作）
-      const srtLines: SrtLine[] = await parser.readLines();
-      console.error(`test 成功读取 ${srtLines.length} 条字幕记录`);
+    this.setSubtitles(items);
+    return items;
+  }
 
-      // 4. 处理结果（示例：打印前5条）
-      srtLines.slice(0, 5).forEach(line => {
-        // 直接使用数值时间戳
-        console.error(`test[${line.startTimestampMillis} -> ${line.endTimestampMillis}] ${line.text}`);
-      });
+  // 解析ASS文件
+  async parseAssFile(filePath: string): Promise<SubtitleItem[]> {
+    const parser = new ParseAss(filePath);
 
-      return srtLines;
-    } catch (error) {
-      // 错误处理
-      console.error('test 解析SRT文件失败:', error instanceof Error ? error.message : error);
-      return []
+    // 创建适配器实例
+    const parserAdapter = new ParserAdapter<AssEvent>(
+      async () => await parser.init(),
+      async () => await parser.readEvents()
+    );
+
+    const items = await this.parseSubtitleFile<AssEvent>(
+      parserAdapter,
+      (line: AssEvent) => ({
+        startTimestampMillis: line.startTimestampMillis,
+        endTimestampMillis: line.endTimestampMillis,
+        text: line.text
+      })
+    );
+
+    this.setSubtitles(items);
+    return items;
+  }
+
+  // 解析VTT文件
+  async parseVttFile(filePath: string): Promise<SubtitleItem[]> {
+    const parser = new ParseVtt(filePath);
+    const items = await this.parseSubtitleFile<VttLine>(
+      parser,
+      (line: VttLine) => ({
+        startTimestampMillis: line.startTimestampMillis,
+        endTimestampMillis: line.endTimestampMillis,
+        text: line.text
+      })
+    );
+    this.setSubtitles(items);
+    return items;
+  }
+
+  // 获取某个时间点正在显示的字幕
+  getSubtitlesAtTime(timestamp: number): SubtitleItem[] {
+    if (this.subtitles.length === 0) {
+      return [];
     }
+
+    const index = this.findFirstIndexAfter(timestamp);
+    const result: SubtitleItem[] = [];
+
+    // 向前查找重叠字幕
+    for (let i = index - 1; i >= 0; i--) {
+      const sub = this.subtitles[i];
+      if (sub.endTimestampMillis < timestamp) {
+        break;
+      }
+      if (sub.startTimestampMillis <= timestamp) {
+        result.unshift(sub);
+      }
+    }
+
+    // 向后查找重叠字幕
+    for (let i = index; i < this.subtitles.length; i++) {
+      const sub = this.subtitles[i];
+      if (sub.startTimestampMillis > timestamp) {
+        break;
+      }
+      if (sub.endTimestampMillis >= timestamp) {
+        result.push(sub);
+      }
+    }
+
+    return result;
+  }
+
+  // 统一解析字幕文件
+  private async parseSubtitleFile<T>(
+    parser: Parser<T>,
+    mapper: (item: T) => SubtitleItem
+  ): Promise<SubtitleItem[]> {
+    try {
+      await parser.init();
+      const lines = await parser.readLines();
+      return lines.map(mapper);
+    } catch (error) {
+      console.error('解析字幕文件失败:', error instanceof Error ? error.message : error);
+      return [];
+    }
+  }
+
+  // 设置字幕数据
+  private setSubtitles(items: SubtitleItem[]) {
+    this.subtitles = items.sort((a, b) => a.startTimestampMillis - b.endTimestampMillis);
+  }
+
+  // 优化后的二分查找：找到第一个开始时间大于等于目标时间的索引
+  private findFirstIndexAfter(time: number): number {
+    let low = 0;
+    let high = this.subtitles.length - 1;
+    let result = this.subtitles.length;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      if (this.subtitles[mid].startTimestampMillis >= time) {
+        result = mid;
+        high = mid - 1;
+      } else {
+        low = mid + 1;
+      }
+    }
+    return result;
   }
 }
 

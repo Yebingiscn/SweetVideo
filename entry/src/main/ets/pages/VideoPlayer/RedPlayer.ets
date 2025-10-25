@@ -428,25 +428,33 @@ export struct RedPlayer { // 红薯播放器页
     WindowUtil.enableLandscapeMultiWindow(this.windowClass)
     this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
     this.volumeActually = this.volume
-    this.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
-      let changeVolumeByVolumeButton = false
-      if (!this.onSwipingVoice) { // 这里复用手势音量调节提示
-        this.onSwipingVoice = !this.onSwipingVoice
-        changeVolumeByVolumeButton = true
-      }
-      this.volumeActually = volumeEvent.volume
-      ToolsUtil.startVibration()
-      setTimeout(() => {
-        if (changeVolumeByVolumeButton) {
+    try {
+      this.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
+        let changeVolumeByVolumeButton = false
+        if (!this.onSwipingVoice) { // 这里复用手势音量调节提示
           this.onSwipingVoice = !this.onSwipingVoice
+          changeVolumeByVolumeButton = true
         }
-      }, 800)
-    });
+        this.volumeActually = volumeEvent.volume
+        ToolsUtil.startVibration()
+        setTimeout(() => {
+          if (changeVolumeByVolumeButton) {
+            this.onSwipingVoice = !this.onSwipingVoice
+          }
+        }, 800)
+      });
+    } catch (error) {
+      console.error('volumeChange error:' + error)
+    }
   }
 
   async aboutToDisappear() {
     VideoOperateUtil.setBrightness(-1)
-    this.audioVolumeManager?.off('volumeChange');
+    try {
+      this.audioVolumeManager?.off('volumeChange');
+    } catch (error) {
+      console.error('volumeChange error:' + error)
+    }
     this.audioVolumeManager = null
     WindowUtil.disableLandscapeMultiWindow(this.windowClass)
   }

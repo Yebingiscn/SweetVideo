@@ -47,7 +47,7 @@ export struct PlayerSideBarComponent {
     .chainAnimation(true)
     .scrollBar(BarState.Off)
     .onAppear(() => {
-      this.listScroller.scrollToIndex(this.video_meta_data.findIndex(item => item?.date)!)
+      this.listScroller.scrollToIndex(this.video_meta_data.findIndex(item => item?.date === this.now_playing?.date)!)
     })
     .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
       if (event) {
@@ -88,8 +88,6 @@ export struct ListView {
         Row() {
           Text(VideoInfoUtil.getVideoTitle(this.item!))
             .fontSize(15)
-            .fontColor(this.now_playing && this.now_playing?.date === this.item?.date ? $r('app.color.main_color') :
-              $r('app.color.text_color'))
             .fontWeight(FontWeight.Medium)
             .maxLines(4)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -103,7 +101,12 @@ export struct ListView {
       }.alignItems(HorizontalAlign.Start)
       .padding({ left: 15, right: 15 })
       .layoutWeight(1)
-    }.justifyContent(FlexAlign.Center)
+    }
+    .justifyContent(FlexAlign.Center)
     .width('100%')
+    .backgroundColor(this.now_playing && this.now_playing?.date === this.item?.date ? $r('app.color.main_color') :
+      $r('app.color.text_color'))
+    .opacity(0.8)
+    .borderRadius(8)
   }
 }
