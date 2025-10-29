@@ -43,6 +43,8 @@ import { VideoStatusBarBuilder } from '../../component/PlayerComponent/VideoStat
 import { KeyCode } from '@kit.InputKit';
 import TimeUtil from '../../utils/TimeUtil';
 import { XAnimation } from '../../utils/AnimationUtil';
+import { deviceInfo } from "@kit.BasicServicesKit";
+import { AIAsr } from "../../component/VideoItemComponent/AIAsrComponent"
 
 @Component
 export struct Player { // 播放页
@@ -80,6 +82,7 @@ export struct Player { // 播放页
   @State lockVisibility: boolean = false
   @State sub_title: string = ''
   @State sub_title_visibility: Visibility = Visibility.Visible
+  @State isAIAsrShown: boolean = false
   @State isSliderPlayTimeChange: boolean = false
   @State currentSpeedIndex: number = 0
   @State clock_time: string = ''
@@ -438,8 +441,10 @@ export struct Player { // 播放页
   }
 
   async setExternalSubtitle(now_playing: VideoMetadataFromPlayer) {
+    this.isAIAsrShown = true
     if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, now_playing.date!)) {
       try {
+        this.isAIAsrShown = false
         let file1 = fs.openSync(PathUtils.subtitlePath! + now_playing.date, fs.OpenMode.READ_ONLY)
         const size = fs.statSync(PathUtils.subtitlePath! + now_playing.date);
         this.avPlayer?.addSubtitleFromFd(file1.fd, 0, size.size)?.catch(() => {
@@ -645,6 +650,9 @@ export struct Player { // 播放页
                 this.surfaceID = this.xComponentController.getXComponentSurfaceId()
                 this.getData()
               })
+            if (deviceInfo.sdkApiVersion >= 18) {
+              AIAsr({isShown: this.isAIAsrShown && this.sub_title_visibility === Visibility.Visible})
+            }
           }
           .width(this.play_area_width)
           .height(this.play_area_height)
