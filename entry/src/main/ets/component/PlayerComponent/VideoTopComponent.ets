@@ -1,20 +1,22 @@
 import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
+import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
 @Component
 export struct VideoTopComponent {
-  @Prop videoTitle: string
+  @State videoTitle: string = ''
   @Link subTitleVisibility: Visibility
   @Link screenExtendSelectedText: string | undefined
   @Link screenWidth: number
   @Link screenHeight: number
   @BuilderParam audioTrackMenuBuilder: () => void
+  @BuilderParam subtitleMenuBuilder: () => void
   @Link lockRotation: boolean
+  @Link playAreaHeight: number
+  @Link playAreaWidth: number
   onLockRotationClick = async () => {
   }
   onExitVideoClick = () => {
-  }
-  onScreenExtendOptionSelected = (_text: string) => {
   }
 
   build() {
@@ -27,7 +29,7 @@ export struct VideoTopComponent {
         })
         .padding({ right: 5 })
       Row() {
-        Text(String(this.videoTitle).slice(0, this.videoTitle.lastIndexOf('.')))
+        Text(this.videoTitle.slice(0, this.videoTitle?.lastIndexOf('.')))
           .fontSize(20)
           .fontWeight(FontWeight.Medium)
           .maxLines(1)
@@ -39,10 +41,7 @@ export struct VideoTopComponent {
             $r('sys.symbol.textformat_size_square_fill') : $r('sys.symbol.textformat_size_square'))
             .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
             .fontColor(['#f0f0f0'])
-            .onClick(() => {
-              this.subTitleVisibility === Visibility.Visible ? this.subTitleVisibility = Visibility.None :
-                this.subTitleVisibility = Visibility.Visible
-            })
+            .bindMenu(this.subtitleMenuBuilder)
           if (this.screenWidth > this.screenHeight) {
             SymbolGlyph($r('sys.symbol.opticaldisc'))
               .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
@@ -57,7 +56,7 @@ export struct VideoTopComponent {
               .fontColor($r('sys.color.white'))
               .onSelect((_index: number, text?: string | undefined) => {
                 this.screenExtendSelectedText = text
-                this.onScreenExtendOptionSelected(text!)
+                this.screenExtend(text!)
               })
               .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
           }
@@ -78,5 +77,35 @@ export struct VideoTopComponent {
     .padding({ left: 8, right: 8 })
     .width('100%')
     .alignItems(VerticalAlign.Center)
+  }
+
+  private screenExtend(text: string) {
+    if (VideoOperateUtil.aspectRatioMap.has(text)) {
+      const play_area_size = VideoOperateUtil.setVideoAspectRatio(
+        VideoOperateUtil.aspectRatioMap.get(text)!,
+        VideoInfoUtil.play_area_width,
+        VideoInfoUtil.play_area_height
+      );
+      this.playAreaWidth = play_area_size[0];
+      this.playAreaHeight = play_area_size[1];
+      return;
+    }
+    switch (text) {
+      case VideoInfoUtil.screenExtendMap[0]:
+        this.playAreaHeight = VideoInfoUtil.play_area_height;
+        this.playAreaWidth = VideoInfoUtil.play_area_width;
+        break;
+      case VideoInfoUtil.screenExtendMap[1]:
+        this.playAreaHeight = this.screenHeight;
+        this.playAreaWidth = this.screenWidth;
+        break;
+      default:
+        const scale = text ? VideoInfoUtil.scale_factors.get(text) : undefined;
+        if (scale) {
+          this.playAreaHeight = scale * VideoInfoUtil.play_area_height;
+          this.playAreaWidth = scale * VideoInfoUtil.play_area_width;
+        }
+        break;
+    }
   }
 }

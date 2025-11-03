@@ -42,8 +42,8 @@ export struct RedPlayer { // 红薯播放器页
   @State screen_height: number = 0
   @State last_play_time: number = 0
   now_playing: VideoMetadataFromPlayer | undefined = undefined
-  @State redPlayerStateHolder: RedPlayerStateHolder = new RedPlayerStateHolder()
-  @State play_time: number = this.redPlayerStateHolder.videoPosition
+  @State redPlayerStateHolder: RedPlayerStateHolder | null = null
+  @State play_time: number = 0
   @State onSwiping: boolean = false
   @State isSliderPlayTimeChange: boolean = false
   @State play_speed: number = 1
@@ -61,7 +61,7 @@ export struct RedPlayer { // 红薯播放器页
   @State volume: number = 1.0
   @State screenBrightness: number = 0
   @State volumeActually: number = 0
-  playerController = new RedPlayerControllerUtil(this.redPlayerStateHolder)
+  playerController: RedPlayerControllerUtil | null = null
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
   @StorageLink('skipIntroTime') skipIntroTime: string = '0'
@@ -83,11 +83,14 @@ export struct RedPlayer { // 红薯播放器页
               controller: this.xComponentController
             })
               .onLoad(() => {
-                this.playerController.createMediaPlayer(PlayerCoreType.TYPE_RED_PLAYER).then(async () => {
+                if (this.redPlayerStateHolder?.videoPosition) {
+                  this.play_time = this.redPlayerStateHolder?.videoPosition
+                }
+                this.playerController?.createMediaPlayer(PlayerCoreType.TYPE_RED_PLAYER).then(async () => {
                   await PermissionUtil.activatePermission(this.now_playing?.uri || '')
                   try {
                     const file = fs.openSync(this.now_playing?.uri)
-                    this.playerController.setDataSource({
+                    this.playerController?.setDataSource({
                       fd: file.fd,
                       logHead: "RedPlayer",
                       sourceType: SourceType.FD,
@@ -95,18 +98,18 @@ export struct RedPlayer { // 红薯播放器页
                       isAutoLoop: RedPlayerSettingsConfig.useLoopPlay,
                       isAutoStart: true
                     })?.then(async () => {
-                      this.playerController.setSurfaceId(this.xComponentController.getSurfaceId())
-                      this.playerController.prepare()?.then(() => {
-                        this.playerController.setVolume(1.0)
+                      this.playerController?.setSurfaceId(this.xComponentController.getSurfaceId())
+                      this.playerController?.prepare()?.then(() => {
+                        this.playerController?.setVolume(1.0)
                         this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.now_playing!,
                           this.skipIntroTime))
-                        this.playerController.start()
+                        this.playerController?.start()
                       })
                       this.avSession = await AVSessionUtil.getAVSession()
                       await this.setSessionListener()
                       AVSessionUtil.setSessionInfo(this.now_playing!)
                       AVSessionUtil.updatePlaybackSessionState(this.isSliderPlayTimeChange,
-                        this.redPlayerStateHolder.videoPosition)
+                        this.redPlayerStateHolder!.videoPosition)
                     })
                   } catch (error) {
                     console.error('uri error:' + error)
@@ -114,8 +117,8 @@ export struct RedPlayer { // 红薯播放器页
                 })
               })
           }
-          .width(this.redPlayerStateHolder.videoViewWidth)
-          .height(this.redPlayerStateHolder.videoViewHeight)
+          .width(this.redPlayerStateHolder?.videoViewWidth)
+          .height(this.redPlayerStateHolder?.videoViewHeight)
           .animation({ duration: 300, curve: Curve.Ease })
           .focusable(true)
           .defaultFocus(true)
@@ -189,7 +192,7 @@ export struct RedPlayer { // 红薯播放器页
           SwipingPlayTimeDisplay({
             isSliderPlayTimeChange: this.isSliderPlayTimeChange,
             playTime: this.play_time,
-            totalTime: this.redPlayerStateHolder.videoDuration,
+            totalTime: this.redPlayerStateHolder?.videoDuration,
             lastPlayTime: this.last_play_time
           })
         }
@@ -276,8 +279,8 @@ export struct RedPlayer { // 红薯播放器页
             if (this.isLock) {
               return
             }
-            this.play_time = this.redPlayerStateHolder.videoPosition;
-            this.last_play_time = this.redPlayerStateHolder.videoPosition;
+            this.play_time = this.redPlayerStateHolder!.videoPosition;
+            this.last_play_time = this.redPlayerStateHolder!.videoPosition;
             this.onSwiping = true
           },
           onHorizonPanUpdate: (event: GestureEvent) => {
@@ -298,14 +301,14 @@ export struct RedPlayer { // 红薯播放器页
             this.long_press = true
             this.last_speed = this.play_speed
             this.play_speed = this.longPressSpeed > 2 ? 2 : this.longPressSpeed
-            this.playerController.setSpeed(this.play_speed)
+            this.playerController?.setSpeed(this.play_speed)
             this.currentSpeedIndex = VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER)
               .indexOf(this.longPressSpeed > 2 ? 2 : this.longPressSpeed);
           },
           onLongPressEnd: () => {
             this.long_press = false
             this.play_speed = this.last_speed
-            this.playerController.setSpeed(this.last_speed)
+            this.playerController?.setSpeed(this.last_speed)
           },
           onLongPressPanStart: (event: GestureEvent) => {
             if (!this.isLock) {
@@ -332,7 +335,7 @@ export struct RedPlayer { // 红薯播放器页
               }
               this.currentSpeedIndex = clampedIndex
               this.play_speed = VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER)[clampedIndex]; // 更新播放速度
-              this.playerController.setSpeed(this.play_speed);
+              this.playerController?.setSpeed(this.play_speed);
               VideoOperateUtil.longPressStartX = event.fingerList[0].localX; // 重置起始点实现分档切换效果
             }
           }
@@ -341,7 +344,7 @@ export struct RedPlayer { // 红薯播放器页
       .onAreaChange(async (_oldValue: Area, newValue: Area) => {
         this.screen_width = Math.floor(new Number(newValue.width).valueOf())
         this.screen_height = Math.floor(new Number(newValue.height).valueOf())
-        this.playerController.getVideoSize()
+        this.playerController?.getVideoSize()
       })
       .backgroundColor($r('sys.color.black'))
     }.onReady(() => {
@@ -361,13 +364,13 @@ export struct RedPlayer { // 红薯播放器页
         return false
       }
     }).onWillDisappear(async () => {
-      if (this.video_meta_data.length > 0 && this.redPlayerStateHolder.videoPosition > 0) {
-        VideoOperateUtil.saveVideoTime(this.redPlayerStateHolder.videoPosition, this.now_playing!,
+      if (this.video_meta_data.length > 0 && this.redPlayerStateHolder!.videoPosition > 0) {
+        VideoOperateUtil.saveVideoTime(this.redPlayerStateHolder!.videoPosition, this.now_playing!,
           this.video_meta_data, PathUtils.appContext!)
       }
       PermissionUtil.applyStopContinuousTask(this.allowBackgroundPlay)
-      this.playerController.stop()
-      this.playerController.release()
+      this.playerController?.stop()
+      this.playerController?.release()
       try {
         await (await this.windowClass)?.setWindowKeepScreenOn(false)
         if (canIUse('SystemCapability.Window.SessionManager')) {
@@ -397,7 +400,7 @@ export struct RedPlayer { // 红薯播放器页
       speed = 1.0;
     }
     this.play_speed = speed
-    this.playerController.setSpeed(speed)
+    this.playerController?.setSpeed(speed)
   }
 
   async setScreen() {
@@ -412,6 +415,8 @@ export struct RedPlayer { // 红薯播放器页
   }
 
   async aboutToAppear(): Promise<void> {
+    this.redPlayerStateHolder = new RedPlayerStateHolder()
+    this.playerController = new RedPlayerControllerUtil(this.redPlayerStateHolder)
     PermissionUtil.applyContinuousTask(this.allowBackgroundPlay)
     await this.setScreen()
     try {
@@ -457,15 +462,17 @@ export struct RedPlayer { // 红薯播放器页
     }
     this.audioVolumeManager = null
     WindowUtil.disableLandscapeMultiWindow(this.windowClass)
+    this.playerController = null
+    this.redPlayerStateHolder = null
   }
 
   async setSessionListener() {
     try {
       this.avSession?.on('play', () => {
-        this.playerController.start()
+        this.playerController?.start()
       });
       this.avSession?.on('pause', () => {
-        this.playerController.pause()
+        this.playerController?.pause()
       });
       this.avSession?.on('seek', (position: number) => {
         let seekValue = position;
@@ -500,15 +507,15 @@ export struct RedPlayer { // 红薯播放器页
   @Builder
   VideoSlider() {
     VideoSliderComponent({
-      playTime: this.redPlayerStateHolder.videoPosition,
-      totalTime: this.redPlayerStateHolder.videoDuration,
+      playTime: this.redPlayerStateHolder?.videoPosition,
+      totalTime: this.redPlayerStateHolder?.videoDuration,
       screenHeight: this.screen_height,
       screenWidth: this.screen_width,
       playSpeed: this.play_speed,
       onSliderChange: (value: number) => {
         this.play_time = value
-        if (this.redPlayerStateHolder.videoPosition >= this.redPlayerStateHolder.videoDuration ||
-          this.play_time >= this.redPlayerStateHolder.videoDuration) {
+        if (this.redPlayerStateHolder!.videoPosition >= this.redPlayerStateHolder!.videoDuration ||
+          this.play_time >= this.redPlayerStateHolder!.videoDuration) {
           this.seekTime(0)
           this.onSwiping = false
         } else {
@@ -518,7 +525,7 @@ export struct RedPlayer { // 红薯播放器页
       },
       onSliderTouch: (event: TouchEvent) => {
         if (event.type == TouchType.Down) {
-          this.play_time = this.redPlayerStateHolder.videoPosition
+          this.play_time = this.redPlayerStateHolder!.videoPosition
         }
         if (event.type == TouchType.Up) {
           this.seekTime(this.play_time)
@@ -534,10 +541,10 @@ export struct RedPlayer { // 红薯播放器页
     GridRow({ columns: 14, gutter: 5 }) {
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 播放按钮
-          SymbolGlyph(this.redPlayerStateHolder.isStart ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill'))
+          SymbolGlyph(this.redPlayerStateHolder?.isStart ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill'))
             .fontSize(27)
             .fontColor(['#f0f0f0'])
-            .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.redPlayerStateHolder.isStart))
+            .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.redPlayerStateHolder?.isStart))
         }
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
@@ -629,11 +636,11 @@ export struct RedPlayer { // 红薯播放器页
   }
 
   private seekTime(position: number) { // 视频跳转操作封装
-    this.playerController.seek(position);
-    this.redPlayerStateHolder.videoPosition = position;
+    this.playerController?.seek(position);
+    this.redPlayerStateHolder!.videoPosition = position;
   }
 
   private togglePlayback() { // 播放/暂停切换封装
-    this.redPlayerStateHolder.isStart ? this.playerController.pause() : this.playerController.start();
+    this.redPlayerStateHolder?.isStart ? this.playerController?.pause() : this.playerController?.start();
   }
 }

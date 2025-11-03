@@ -11,4 +11,5 @@ export interface VideoMetadata {
   hdr_type: number
   start_time: number
   end_time: number
+  external_subtitle_format: string
 }

@@ -1,6 +1,6 @@
 {
   "name": "@dove/subtitles",
-  "version": "0.3.4",
+  "version": "0.3.2",
   "description": "OpenHarmony/HarmonyOS 字幕解析库(OpenHarmony/HarmonyOS subtitles analysis library)",
   "main": "index.ts",
   "author": "michael",

@@ -91,7 +91,8 @@ class WantProcess {
             video_size: await VideoUtil.getVideoSize(this._wantUri, true) as string,
             hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
             start_time: 0,
-            end_time: 0
+            end_time: 0,
+            external_subtitle_format: ''
           }
           // 获取默认播放器
           let url = this.getPlayer(context, targetVideo)

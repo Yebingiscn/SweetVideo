@@ -21,6 +21,7 @@ import { VideoMetaDataOperator } from '../../database/VideoMetaData';
 import VideoUtils from '../../utils/VideoUtil';
 import FileFolderUtil from '../../utils/FileFolderUtil';
 import NavigationAddress from '../../common/NavigationAddress';
+import SubtitleFormat from '../../common/SubtitleFormatConfig';
 
 @Observed
 export class VideoListController {
@@ -176,7 +177,7 @@ export struct VideoList {
           .backgroundColor(this.longPressPreview || this.backgroundImageSrc.length > 0 ?
             $r('app.color.start_window_background_blur') :
             $r('app.color.start_window_background'))
-          .margin({ bottom: 15 }) // 不知道动了哪里，挤在一起了，先这样改
+          .margin({ bottom: 20 }) // 不知道动了哪里，挤在一起了，先这样改
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
           .width(this.videoListController.listLine === 1 ? '100%' : '95%')
@@ -235,7 +236,7 @@ export struct VideoList {
       }
       .clip(false)
       .padding({ left: 10, right: 10 })
-      .cachedCount(3)
+      .cachedCount(12)
       .contentStartOffset(this.topSafeHeight + 55)
       .contentEndOffset(this.bottomSafeHeight)
       .lanes(this.videoListController.listLine)
@@ -244,7 +245,7 @@ export struct VideoList {
       .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
       .chainAnimation(true)
       .width('100%')
-      .height('100%') // 新增高度设置
+      .height('100%')
       .onTouch(() => {
         this.searchController.stopEditing()
       })
@@ -324,9 +325,9 @@ export struct VideoList {
           }
           .clip(false)
           .columnsTemplate('1fr '.repeat(this.videoListController.listLine).trim())
-          .columnsGap(12) // 列间距
-          .rowsGap(16) // 行间距
-          .cachedCount(6)
+          .columnsGap(22) // 列间距
+          .rowsGap(32) // 行间距
+          .cachedCount(12)
           .scrollBar(BarState.Off)
           .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
           .onTouch(() => this.searchController.stopEditing())
@@ -434,9 +435,32 @@ export struct VideoList {
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat_size_square')), content: '导入或删除字幕'
       })
         .onClick(async () => {
-          await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath, item?.date!) ?
-            SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item?.date!) :
-            SubtitleUtil.selectExternalSubtitles(PathUtils.subtitlePath, item?.date!)
+          if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath, item?.date!)) {
+            await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item?.date!)
+            item!.external_subtitle_format = ''
+          } else {
+            const subtitleName = await SubtitleUtil.selectExternalSubtitles(PathUtils.subtitlePath, item?.date!);
+            const subtitleNameFormat = subtitleName?.match(/[^.]+$/)?.[0] || ''
+            switch (subtitleNameFormat) {
+              case SubtitleFormat.SRT:
+                item!.external_subtitle_format = SubtitleFormat.SRT
+                break
+              case SubtitleFormat.ASS:
+                item!.external_subtitle_format = SubtitleFormat.ASS
+                break
+              case SubtitleFormat.VTT:
+                item!.external_subtitle_format = SubtitleFormat.VTT
+                break
+              default:
+                item!.external_subtitle_format = ''
+            }
+          }
+          const targetIndex = SelectFileUtil.getItemIndex(this.videoListController.videoMetaDataList, item!);
+          if (targetIndex !== -1) {
+            this.videoListController.videoMetaDataList[targetIndex] = item!;
+            this.videoListController.videoDataSource.updateData(this.videoListController.videoMetaDataList)
+            Preferences.saveVideoMetaData(PathUtils.appContext!, this.videoListController.videoMetaDataList)
+          }
         })
     }
   }

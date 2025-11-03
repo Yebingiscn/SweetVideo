@@ -430,17 +430,6 @@ struct Index {
           this.sideBarController.sideBarStatus = false
         }
       })
-      .onDrop((dragEvent: DragEvent) => {
-        let records: Array<unifiedDataChannel.UnifiedRecord> = []
-        try {
-          records = dragEvent.getData().getRecords();
-        } catch (error) {
-          ToolsUtil.showToast('获取数据时异常：' + error)
-        }
-        let video: unifiedDataChannel.Video = records[0] as unifiedDataChannel.Video;
-        WantProcessUtil.wantUri = video.uri
-        WantProcessUtil.hasWant(PathUtils.appContext!, this.pathStack)
-      })
       .onChange((value: boolean) => {
         this.sideBarController.sideBarStatus = value;
       })
@@ -460,6 +449,17 @@ struct Index {
     .hideTitleBar(true)
     .mode(NavigationMode.Stack)
     .navDestination(this.Pages)
+    .onDrop((dragEvent: DragEvent) => {
+      let records: Array<unifiedDataChannel.UnifiedRecord> = []
+      try {
+        records = dragEvent.getData().getRecords();
+      } catch (error) {
+        ToolsUtil.showToast('获取数据时异常：' + error)
+      }
+      let video: unifiedDataChannel.Video = records[0] as unifiedDataChannel.Video;
+      WantProcessUtil.wantUri = video.uri
+      WantProcessUtil.hasWant(PathUtils.appContext!, this.pathStack)
+    })
     .onNavBarStateChange((isVisible: boolean) => {
       if (isVisible) {
         this.passwd = Preferences.getPassword(PathUtils.appContext!)

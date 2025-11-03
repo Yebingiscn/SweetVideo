@@ -38,7 +38,6 @@ import { GestureComponent } from '../../component/PlayerComponent/GestureCompone
 import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode'
 import NavigationAddress from '../../common/NavigationAddress'
 import { WindowUtil } from '../../utils/WindowUtil'
-import SubtitleUtil from '../../utils/SubtitleUtil'
 import { XAnimation } from '../../utils/AnimationUtil'
 
 @Component
@@ -401,10 +400,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       } catch (error) {
         console.error('player error:' + error)
       }
-      if (this.now_playing?.time === 0) {
-        this.now_playing.time = this.total_time; // 若系统无法识别视频时长，则由 FFMpeg API 提供以保存记忆时间
-        VideoOperateUtil.saveVideoTotalTime(PathUtils.appContext!, this.now_playing)
-      }
       this.mDestroyPage = true;
       this.mIjkMediaPlayer?.setScreenOnWhilePlaying(false);
       if (this.CONTROL_PlayStatus != PlayStatus.INIT) {
@@ -582,12 +577,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     } catch (error) {
       console.error('volumeChange error:' + error)
     }
-    try {
-      let file1 = fs.openSync(PathUtils.subtitlePath! + this.now_playing?.date, fs.OpenMode.READ_ONLY)
-      SubtitleUtil.parseSrtFile(file1.path)
-    } catch (error) {
-      console.error('subtitle error' + error)
-    }
   }
 
   async aboutToDisappear() {
@@ -705,6 +694,10 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       position = duration;
     }
     this.play_time = position;
+    if (this.now_playing?.time === 0) {
+      this.now_playing.time = this.total_time; // 若系统无法识别视频时长，则由 FFMpeg API 提供以保存记忆时间
+      VideoOperateUtil.saveVideoTotalTime(PathUtils.appContext!, this.now_playing)
+    }
   }
 
   private showRePlay() {
@@ -835,7 +828,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           NavigationAddress.RED_PLAYER)
       }
     }
-
     this.mIjkMediaPlayer?.setOnErrorListener(mOnErrorListener);
     this.mIjkMediaPlayer?.setMessageListener();
     this.mIjkMediaPlayer?.prepareAsync();

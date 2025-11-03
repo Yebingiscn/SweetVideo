@@ -8,4 +8,5 @@ export interface VideoMetadataFromPlayer {
   last_play: number
   start_time: number
   end_time: number
+  external_subtitle_format: string
 }

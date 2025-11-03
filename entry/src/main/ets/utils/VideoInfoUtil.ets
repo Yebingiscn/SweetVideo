@@ -107,7 +107,8 @@ class VideoInfoUtil {
         true) as string,
       hdr_type: hdr_type,
       start_time: 0,
-      end_time: 0
+      end_time: 0,
+      external_subtitle_format: ''
     }
     this.getVideoCover(sandbox_path, date, uri, targetVideo.size, parseInt(duration))
     return targetVideo

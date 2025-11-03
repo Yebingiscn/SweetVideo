@@ -53,6 +53,10 @@ export struct VideoDetailDialog {
         ListItem() {
           this.buildDetailItem('视频路径：', decodeURI(this.metadata?.uri || ''))
         }.width('100%')
+
+        ListItem() {
+          this.buildDetailItem('外挂字幕：', this.metadata?.external_subtitle_format || '无字幕')
+        }.width('100%')
       }.height('auto').width('auto')
       .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring) // 滚动边缘效果

@@ -24,12 +24,12 @@ export struct AudioTrackComponent {
             .height(40)
             .flexGrow(1)
             .flexShrink(1)
-            .fontColor($r('app.color.main_color'))
             .margin({ left: 5 })
           Image($r('app.media.ffmpeg'))
             .attributeModifier(new ImageFancyModifier(10, 30, 30))
             .width(95)
-        }
+        }.backgroundColor($r('app.color.main_color'))
+        .borderRadius(8).width('100%')
       }
       if (VideoOperateUtil.validateAudioTracks(this.audioTrack)) {
         LazyForEach(this.audioTrackDataSource, (item: AudioTrack, index: number) => {
@@ -40,7 +40,6 @@ export struct AudioTrackComponent {
               .flexGrow(1)
               .flexShrink(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .fontColor(this.audioTrackSelected === index ? $r('app.color.main_color') : $r('app.color.text_color'))
               .margin({ left: 5 })
             if (item.mime.split('/')[1] === 'av3a') {
               Image($r('app.media.audio_vivid_icon'))
@@ -48,6 +47,8 @@ export struct AudioTrackComponent {
                 .width(95)
             }
           }
+          .backgroundColor(this.audioTrackSelected === index ? $r('app.color.main_color') : '')
+          .borderRadius(8)
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .width('100%')
           .onClick(() => {

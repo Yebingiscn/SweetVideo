@@ -5,6 +5,7 @@ import { PathUtils } from '../../utils/PathUtils'
 import TimeUtil from '../../utils/TimeUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
+import { RepeatMode } from '../../common/enum/RepeatMode'
 
 @Component
 export struct VideoSettingComponent {
@@ -12,19 +13,17 @@ export struct VideoSettingComponent {
   @Prop nowPlaying: VideoMetadataFromPlayer
   @Link videoMetaData: VideoMetadata[]
   @Link angle: number
-  forward_80_s = () => {
+  @Link repeatMode: RepeatMode
+  @Link exitVideoTime: number
+  forward_80_s = (_time: number) => {
   }
   onActiveEnhanceAudio = () => {
   }
-  closeAfter15min = () => {
+  closeAfter15min = (_time: number) => {
   }
-  closeAfter30min = () => {
+  closeAfter30min = (_time: number) => {
   }
-  closeAfter60min = () => {
-  }
-  closeAfterVideoEnd = () => {
-  }
-  closeAfterIsClose = () => {
+  closeAfter60min = (_time: number) => {
   }
 
   build() {
@@ -58,7 +57,7 @@ export struct VideoSettingComponent {
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.fast_forward')),
         content: '前进 80s'
       }).onClick(() => {
-        this.forward_80_s()
+        this.forward_80_s(this.playTime + 80 * 1000)
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.service')),
@@ -76,36 +75,40 @@ export struct VideoSettingComponent {
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
         content: '15min'
       }).onClick(() => {
+        clearTimeout(this.exitVideoTime)
         ToolsUtil.showToast('设置成功，15分钟后自动关闭')
-        this.closeAfter15min()
+        this.closeAfter15min(15 * 60000)
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
         content: '30min'
       }).onClick(() => {
+        clearTimeout(this.exitVideoTime)
         ToolsUtil.showToast('设置成功，30分钟后自动关闭')
-        this.closeAfter30min()
+        this.closeAfter30min(30 * 60000)
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
         content: '60min'
       }).onClick(() => {
+        clearTimeout(this.exitVideoTime)
         ToolsUtil.showToast('设置成功，60分钟后自动关闭')
-        this.closeAfter60min()
+        this.closeAfter60min(60 * 60000)
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
         content: '播完本集'
       }).onClick(() => {
+        clearTimeout(this.exitVideoTime)
         ToolsUtil.showToast('设置成功，播完本集后自动关闭')
-        this.closeAfterVideoEnd()
+        this.repeatMode = RepeatMode.SINGLE_PLAY
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
         content: '不启用'
       }).onClick(() => {
+        clearTimeout(this.exitVideoTime)
         ToolsUtil.showToast('设置成功，已清除定时器')
-        this.closeAfterIsClose()
       })
     }
   }

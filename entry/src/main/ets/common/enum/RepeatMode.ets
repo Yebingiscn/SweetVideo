@@ -1,7 +1,7 @@
 /**
  * 视频播放循环模式枚举
  */
-export enum RepeatMode {
+export const enum RepeatMode {
   /**
    * 列表循环模式
    */

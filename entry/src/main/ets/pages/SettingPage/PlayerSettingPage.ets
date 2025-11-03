@@ -161,7 +161,7 @@ export struct PlayerSettingPage {
       .contentEndOffset(this.bottomSafeHeight)
     }
     .hideToolBar(true)
-    .title('个性化')
+    .title('播放设置')
     .backgroundColor($r('app.color.start_window_background'))
     .padding({ top: this.topSafeHeight })
     .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)

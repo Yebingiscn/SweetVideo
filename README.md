@@ -14,7 +14,7 @@
         <a href="https://img.shields.io/github/stars/Yebingiscn/SweetVideo?style=flat" style="text-decoration:none" >
             <img src="https://img.shields.io/github/stars/Yebingiscn/SweetVideo?style=flat" alt="GitHub all stars"/>
         </a>
-        <a href="https://img.shields.io/badge/QQ-973792610-red" style="text-decoration:none" >
+        <a href="https://qm.qq.com/q/ejj8jbUDBu" style="text-decoration:none" >
             <img src="https://img.shields.io/badge/QQ群-973792610-red" alt="QQ Group"/>
         </a>
         <a href="LICENSE" style="text-decoration:none" >
@@ -43,7 +43,7 @@ QQ群：973792610
 ## 功能排期
 
 - [ ] FFMpeg播放器选集功能
-- [ ] 完全的字幕功能支持(ASS、SRT)
+- [x] 完全的字幕功能支持(ASS、SRT)【已经支持外挂】
 - [ ] 视频标签（点击标签即可跳转该视频对应时间）
 
 ### 远期支持
@@ -82,9 +82,13 @@ QQ群：973792610
 
 ## 支持的字幕格式
 
-| 类型   | 格式列表         |
-|------|--------------|
-| 字幕文件 | `srt`, `vtt` |
+> 指的是在 AVPlayer 中
+
+| 类型         | 格式列表                      |
+|------------|---------------------------|
+| 外挂字幕（标准格式） | `srt`, `vtt`,  `ass`      |
+| 内嵌字幕       | `mkv格式为txt的字幕，只支持读取第一条字幕` |  
+| AI字幕       | 需鸿蒙 6 及以上                 |
 
 ## 特别鸣谢 && 欢迎参与共建及须知
 
@@ -108,7 +112,7 @@ QQ群：973792610
 - [pinyin4js](https://ohpm.openharmony.cn/#/cn/detail/@ohos%2Fpinyin4js)
 - [ohos_ijkplayer](https://gitee.com/openharmony-sig/ohos_ijkplayer/tree/master)
 - [REDPlayer](https://github.com/RTE-Dev/REDPlayer)
-- [Subtitle](https://atomgit.com/wysp2012/ohos_napi/)
+- [subtitles](https://atomgit.com/wysp2012/ohos_napi/)
 
 ## 赞助作者
 
@@ -119,3 +123,4 @@ QQ群：973792610
 ### 赞助感谢
 
 - CowBoy
+- 羽

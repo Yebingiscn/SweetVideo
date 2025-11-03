@@ -11,7 +11,7 @@ import { VideoInfoBuilder } from '../VideoItemComponent/VideoInfoBuilder'
 export struct PlayerSideBarComponent {
   @State playerSideBarSource: PlayerSideBarSource = new PlayerSideBarSource([])
   @Link sideBarStatusTmp: Visibility
-  @Prop video_meta_data: VideoMetadata[]
+  @State video_meta_data: VideoMetadata[] = []
   @Link now_playing: VideoMetadataFromPlayer | undefined
   @Link sideBarStatus: boolean
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
@@ -31,6 +31,9 @@ export struct PlayerSideBarComponent {
             item: item,
             now_playing: this.now_playing
           })
+            .backgroundColor(this.now_playing && this.now_playing?.date === item?.date ?
+              $r('app.color.main_color') : '')
+            .borderRadius(8)
             .onClick(() => {
               if (this.sideBarStatusTmp === Visibility.Hidden) {
                 return
@@ -43,11 +46,13 @@ export struct PlayerSideBarComponent {
         }.padding({ top: index === 0 ? 10 : 0 })
       }, (item: VideoMetadata) => item.date + this.now_playing?.date)
     }
+    .clip(false)
     .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
     .chainAnimation(true)
     .scrollBar(BarState.Off)
     .onAppear(() => {
-      this.listScroller.scrollToIndex(this.video_meta_data.findIndex(item => item?.date === this.now_playing?.date)!)
+      this.listScroller.scrollToIndex(this.video_meta_data.findIndex(item => item?.date === this.now_playing?.date)!,
+        false)
     })
     .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
       if (event) {
@@ -58,7 +63,7 @@ export struct PlayerSideBarComponent {
     .width('100%')
     .height('100%')
     .backgroundColor($r('app.color.start_window_background'))
-    .padding({ left: 10, right: 10 })
+    .padding({ left: 5, right: 5 })
     .margin({ top: this.topSafeHeight })
     .transition(TransitionEffect.translate({ x: 250 }).animation({ duration: 300, curve: Curve.Friction }))
     .borderRadius(20)
@@ -82,16 +87,15 @@ export struct ListView {
   build() {
     Row() {
       Image(fileUri.getUriFromPath(PathUtils.coverPath + this.item?.date))
-        .attributeModifier(new ImageFancyModifier(10, 64, 96))
-        .margin({ left: 5 })
+        .attributeModifier(new ImageFancyModifier(8, 64, 96))
       Column() {
         Row() {
           Text(VideoInfoUtil.getVideoTitle(this.item!))
-            .fontSize(15)
-            .fontWeight(FontWeight.Medium)
+            .fontSize(16)
+            .fontWeight(FontWeight.Bold)
             .maxLines(4)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .width('65%')
+            .width('100%')
             .margin({ left: 5 })
             .wordBreak(WordBreak.BREAK_ALL)
         }
@@ -104,8 +108,6 @@ export struct ListView {
     }
     .justifyContent(FlexAlign.Center)
     .width('100%')
-    .backgroundColor(this.now_playing && this.now_playing?.date === this.item?.date ? $r('app.color.main_color') :
-      $r('app.color.text_color'))
     .opacity(0.8)
     .borderRadius(8)
   }

@@ -1,7 +1,6 @@
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { VideoDataSource } from '../utils/DataUtil';
-import { fileUri } from '@kit.CoreFileKit';
 import ToolsUtil from '../utils/ToolsUtil';
 import DataSyncUtil from '../utils/DataSyncUtil';
 import { MenuModifier, SymbolGlyphModifier } from '@kit.ArkUI';
@@ -11,12 +10,9 @@ import Preferences from '../database/Preferences';
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import {
-  ButtonFancyModifier,
-  ImageFancyModifier,
-  SymbolGlyphFancyModifier
+  ButtonFancyModifier, SymbolGlyphFancyModifier
 } from '../utils/AttributeModifierUtil';
 import { FileProcessorUtil } from '../utils/FileProcessorUtil';
-import VideoInfoUtil from '../utils/VideoInfoUtil';
 import SubtitleUtil from '../utils/SubtitleUtil';
 import { PathUtils } from '../utils/PathUtils';
 import { EditPasswordDialog } from '../component/Dialog/EditPasswordDialog';
@@ -24,8 +20,9 @@ import { SearchComponent } from '../component/VideoItemComponent/SearchComponent
 import NavigationAddress from '../common/NavigationAddress';
 import { EditMetadataDialog } from '../component/Dialog/EditMetadataDialog';
 import FileFolderUtil from '../utils/FileFolderUtil';
-import { VideoInfoBuilder } from '../component/VideoItemComponent/VideoInfoBuilder';
 import { ImportProgressBuilder } from '../component/VideoItemComponent/ImportProgressBuilder';
+import VideoListItem from '../component/VideoItemComponent/VideoListItemComponent';
+import VideoCardItem from '../component/VideoItemComponent/VideoCardItemComponent';
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -44,6 +41,7 @@ export struct PrivacySpace { // 隐私空间页
   @State is_edit: boolean = false
   @State passwd: string = 'passwd'
   @State longPressPreview: boolean = false
+  @State delMultipleList: VideoMetadata[] = []
   @StorageLink('isListDisplay') isListDisplay: boolean = true
   searchController: SearchController = new SearchController()
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
@@ -208,8 +206,8 @@ export struct PrivacySpace { // 隐私空间页
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
         content: '导出'
       })
-        .onClick(() => {
-          SelectFileUtil.exportFile(item!, PathUtils.appContext!)
+        .onClick(async () => {
+          await SelectFileUtil.exportFile(item!, PathUtils.appContext!)
         })
     }.attributeModifier(new MenuModifier())
   }
@@ -260,31 +258,11 @@ export struct PrivacySpace { // 隐私空间页
 
   @Builder
   VideoItemBuilder(item: VideoMetadata) {
-    Column() {
-      Row() {
-        Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
-          .attributeModifier(new ImageFancyModifier(10, 60, 90))
-        Column() {
-          Row() {
-            Text(VideoInfoUtil.getVideoTitle(item))
-              .fontSize(15)
-              .fontWeight(FontWeight.Medium)
-              .maxLines(4)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .width('80%')
-              .margin({ left: 5 })
-              .wordBreak(WordBreak.BREAK_ALL)
-          }.width('100%')
-
-          VideoInfoBuilder({ item: item, showProgress: true })
-        }.margin({ left: 10 }).alignItems(HorizontalAlign.Start)
-      }
-      .width('100%')
-    }
-    .justifyContent(FlexAlign.SpaceEvenly)
-    .backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
-      $r('app.color.start_window_background'))
-    .borderRadius(8)
+    VideoListItem({
+      item: item,
+      delMultipleList: this.delMultipleList
+    }).backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
+      $r('app.color.start_window_background')).reuseId(`VideoListItem#${item.uri}`).borderRadius(8)
   }
 
   build() {
@@ -334,41 +312,18 @@ export struct PrivacySpace { // 隐私空间页
               if (this.isListDisplay) {
                 this.VideoItemBuilder(item)
               } else {
-                Column() {
-                  Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
-                    .attributeModifier(new ImageFancyModifier({
-                      topLeft: 8,
-                      topRight: 8,
-                      bottomLeft: 8,
-                      bottomRight: 8
-                    }, 60, 200))
-                    .draggable(false)
-                    .width('100%')
-                    .objectFit(ImageFit.Cover)
-                  Column() {
-                    Row() {
-                      Text(VideoInfoUtil.getVideoTitle(item))
-                        .fontSize(15)
-                        .fontWeight(FontWeight.Medium)
-                        .maxLines(2)// 减少行数以适应卡片布局
-                        .textAlign(TextAlign.Start)
-                        .textOverflow({ overflow: TextOverflow.Ellipsis })
-                        .layoutWeight(1)// 占据剩余空间
-                        .wordBreak(WordBreak.BREAK_ALL)
-                    }
-                    .width('100%')
-                    .padding({ top: 5 })
-
-                    VideoInfoBuilder({ item: item, showProgress: true })
-                  }.padding({ left: 5, right: 5, bottom: 5 })
+                VideoCardItem({
+                  item: item,
+                  delMultipleList: this.delMultipleList
+                })
                   .width('100%')
-                }
-                .backgroundColor(this.longPressPreview || this.backgroundImageSrc.length > 0 ?
-                  $r('app.color.start_window_background_blur') :
-                  $r('app.color.start_window_background'))
-                .borderRadius(8)
-                .width('95%')
-                .height('auto')
+                  .reuseId(`VideoCardItem#${item.uri}`)
+                  .backgroundColor(this.longPressPreview || this.backgroundImageSrc.length > 0 ?
+                    $r('app.color.start_window_background_blur') :
+                    $r('app.color.start_window_background'))
+                  .borderRadius(8)
+                  .width('95%')
+                  .height('auto')
               }
             }
             .onClick(async () => {
@@ -461,8 +416,8 @@ export struct PrivacySpace { // 隐私空间页
       Stack().width(10)
       SymbolGlyph($r('sys.symbol.arrow_right_folder_circle'))
         .attributeModifier(new SymbolGlyphFancyModifier(28, 40, 40))
-        .onClick(() => {
-          SelectFileUtil.exportFile(item, PathUtils.appContext!)
+        .onClick(async () => {
+          await SelectFileUtil.exportFile(item, PathUtils.appContext!)
         })
     }.padding({ left: 15, right: 15 }).justifyContent(FlexAlign.SpaceEvenly)
   }

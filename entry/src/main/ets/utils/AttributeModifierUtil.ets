@@ -96,28 +96,6 @@ export class ButtonFancyModifier implements AttributeModifier<ButtonAttribute> {
   }
 }
 
-export class SelectItemTextFancyModifier implements AttributeModifier<TextAttribute> {
-  private selected: boolean;
-
-  constructor(selected: boolean) {
-    this.selected = selected
-  }
-
-  applyNormalAttribute(attr: TextAttribute): void {
-    if (this.selected) {
-      attr
-        .fontColor($r('app.color.main_color'))
-        .fontSize($r('sys.float.ohos_id_text_size_body1'))
-        .fontWeight(FontWeight.Regular)
-    } else {
-      attr
-        .fontSize($r('sys.float.ohos_id_text_size_body1'))
-        .fontWeight(FontWeight.Regular)
-    }
-    attr.margin({ left: 20, right: 20 })
-  }
-}
-
 export class MenuModifier extends CommonModifier {
   constructor() {
     super()

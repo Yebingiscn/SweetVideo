@@ -39,12 +39,12 @@ class SelectFileUtil {
 
   // 选择视频（支持多选）
   async selectVideo(): Promise<string[]> {
-    return this.selectMedia(photoAccessHelper.PhotoViewMIMETypes.VIDEO_TYPE)
+    return this.selectBackgroundImage(photoAccessHelper.PhotoViewMIMETypes.VIDEO_TYPE)
   }
 
   // 选择壁纸（单选）
   async selectPhoto(): Promise<string[]> {
-    return this.selectMedia(photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE, 1)
+    return this.selectBackgroundImage(photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE, 1)
   }
 
   async deletePhoto() {
@@ -469,7 +469,7 @@ class SelectFileUtil {
     });
   }
 
-  private async selectMedia(mimeType: photoAccessHelper.PhotoViewMIMETypes,
+  private async selectBackgroundImage(mimeType: photoAccessHelper.PhotoViewMIMETypes,
     maxSelect: number = Number.MAX_SAFE_INTEGER): Promise<string[]> {
     const options = new photoAccessHelper.PhotoSelectOptions()
     options.MIMEType = mimeType

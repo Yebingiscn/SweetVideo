@@ -1,5 +1,5 @@
 //@ts-ignore
-import lib from 'libsubtitles.so';
+import * as lib from 'libsubtitles.so';
 import { SrtLine } from './models/SrtLine';
 
 export class ParseSrt {
@@ -13,7 +13,7 @@ export class ParseSrt {
     return this.instance.init();
   }
 
-  async readLines(): Promise<SrtLine[]> {
+  readLines(): Promise<SrtLine[]> {
     return this.instance.readLines();
   }
 }

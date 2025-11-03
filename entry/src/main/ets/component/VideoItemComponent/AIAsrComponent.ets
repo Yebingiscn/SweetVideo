@@ -1,4 +1,4 @@
-import { AICaptionComponent, AICaptionOptions, AICaptionController } from '@kit.SpeechKit';
+import { AICaptionComponent, AICaptionController, AICaptionOptions } from '@kit.SpeechKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
@@ -16,13 +16,13 @@ class Logger {
 
 @Component
 export struct AIAsr {
+  @Prop isShown: boolean = false;
   private captionOption?: AICaptionOptions;
   private controller: AICaptionController = new AICaptionController();
-  @Prop isShown: boolean = false;
 
   aboutToAppear(): void {
     this.captionOption = {
-      initialOpacity: 1,
+      initialOpacity: 0.5,
       onPrepared: () => {
         Logger.info('AI字幕组件准备就绪')
       },

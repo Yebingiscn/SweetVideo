@@ -21,12 +21,12 @@ export default struct VideoListItem {
   build() {
     Row() {
       Image(fileUri.getUriFromPath(PathUtils.coverPath + this.item.date))
-        .attributeModifier(new ImageFancyModifier(8, 64, 96))
+        .attributeModifier(new ImageFancyModifier(8, 80, 120))
       Column() {
         Row() {
           Text(VideoInfoUtil.getVideoTitle(this.item))
-            .fontSize(15)
-            .fontWeight(FontWeight.Medium)
+            .fontSize(16)
+            .fontWeight(FontWeight.Bold)
             .maxLines(3)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .layoutWeight(1)
@@ -47,7 +47,7 @@ export default struct VideoListItem {
       .layoutWeight(1)
     }
     .justifyContent(FlexAlign.Center)
-    .width('100%')
+    .width('100%').height('auto')
   }
 }
 

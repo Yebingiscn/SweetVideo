@@ -26,7 +26,7 @@ export struct VideoView {
   @Link loading: boolean
   @State is_edit: boolean = false
   @Link searchValue: string
-  @Prop passwd: string = ''
+  @Link passwd: string
   @Link videoListController: VideoListController
   @Consume sideBarController: SideBarController
   @Consume('pathStack') pathStack: NavPathStack

@@ -17,6 +17,7 @@ export function VideoInfoBuilder(params: VideoInfoBuilderParams) {
       Image($r("app.media.hdr_vivid_icon"))
         .attributeModifier(new ImageFancyModifier(8, 65, 25))
         .height(22) // 统一高度
+        .width('auto')
     }
     // 分辨率显示逻辑
     else {
@@ -58,6 +59,6 @@ export function VideoInfoBuilder(params: VideoInfoBuilderParams) {
   }
   .justifyContent(FlexAlign.Start)
   .width('100%')
-  .height(32) // 固定行高
+  .height(25) // 固定行高
   .padding({ top: 5, right: 10, left: 5 })
 }

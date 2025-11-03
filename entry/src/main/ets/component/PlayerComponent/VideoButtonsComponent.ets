@@ -7,10 +7,13 @@ import AVSessionUtil from '../../utils/AVSessionUtil'
 
 @Component
 export struct VideoButtonsComponent {
-  @Prop screenArco: number
-  @Prop playing: boolean
+  @Link screenHeight: number
+  @Link screenWidth: number
+  @Link playing: boolean
   @Link speed: number
   @Link repeatMode: RepeatMode
+  @Link sideBarStatusTmp: Visibility
+  @Link sideBarStatus: boolean
   @BuilderParam aVCastPickerBuilderBridge: () => void
   @BuilderParam videoSettingBuilder: () => void
   @BuilderParam playbackSpeedMenu: () => void
@@ -20,11 +23,11 @@ export struct VideoButtonsComponent {
   }
   onPlayNextVideoClick = () => {
   }
-  onSideBarStatusClick = () => {
+  onSideBaClose = () => {
   }
 
   build() {
-    GridRow({ columns: this.screenArco > 1.4 ? 8 : 16, gutter: 5 }) {
+    GridRow({ columns: this.screenHeight / this.screenWidth > 1.4 ? 8 : 16, gutter: 5 }) {
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 播放按钮
           SymbolGlyph(this.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill'))
@@ -119,7 +122,12 @@ export struct VideoButtonsComponent {
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .onClick(() => {
-          this.onSideBarStatusClick()
+          if (this.sideBarStatus) {
+            this.onSideBaClose()
+          } else {
+            this.sideBarStatusTmp = Visibility.Visible
+            this.sideBarStatus = true
+          }
         })
       }.span({ xs: 2, sm: 2, md: 2 })
 

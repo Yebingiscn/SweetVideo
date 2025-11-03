@@ -26,13 +26,15 @@ export default struct VideoCardItem {
           topRight: 8,
           bottomLeft: 8,
           bottomRight: 8
-        }, 60, 200))
-        .width('100%').height('auto')
+        }, '', ''))
+        .width('100%')
+        .height('auto')
+        .constraintSize({ maxHeight: 200 })
         .objectFit(ImageFit.Auto)
       Row() {
         Text(VideoInfoUtil.getVideoTitle(this.item))
-          .fontSize(15)
-          .fontWeight(FontWeight.Medium)
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
           .maxLines(5)
           .textAlign(TextAlign.Start)
           .textOverflow({ overflow: TextOverflow.Ellipsis })

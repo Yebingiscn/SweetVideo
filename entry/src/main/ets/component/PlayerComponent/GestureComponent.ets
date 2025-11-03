@@ -1,6 +1,6 @@
 @Component
 export struct GestureComponent {
-  @Prop showControl: boolean
+  @Link showControl: boolean
   onDoubleClickAction = (_event: GestureEvent) => {
   };
   onSingleClickAction = () => {

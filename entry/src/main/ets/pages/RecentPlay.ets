@@ -117,7 +117,7 @@ export struct RecentPlay { // 最近播放页
             .backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
               $r('app.color.start_window_background'))
             .width('100%')
-            .height(100)
+            .height('auto')
             .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
             .borderRadius(8)
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
@@ -145,6 +145,7 @@ export struct RecentPlay { // 最近播放页
               })
           }, (item: VideoMetadata) => item.date + item.title + item.last_play + item.size.toString() + item.time)
         }
+        .clip(false)
         .layoutWeight(1)
         .padding({ left: 20, right: 20 })
         .width('100%')
