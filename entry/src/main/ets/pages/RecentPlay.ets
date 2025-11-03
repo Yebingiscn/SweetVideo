@@ -7,6 +7,7 @@ import { ListView } from '../component/PlayerComponent/PlayerSideBarComponent';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../utils/AttributeModifierUtil';
 import NavigationAddress from '../common/NavigationAddress';
+import VideoOperateUtil from '../utils/VideoOperateUtil';
 
 @Component
 export struct RecentPlay { // 最近播放页
@@ -53,13 +54,13 @@ export struct RecentPlay { // 最近播放页
       MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(async () => {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           this.clickItem(item, NavigationAddress.FFMPEG_PLAYER)
-        }, 350)
+        }, VideoOperateUtil.delayJumpToPlayer)
       })
 
       MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           this.clickItem(item, NavigationAddress.RED_PLAYER)
-        }, 350)
+        }, VideoOperateUtil.delayJumpToPlayer)
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')),

@@ -27,7 +27,7 @@ import { PlayStatus } from '../../common/enum/PlayStatus'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { KeyCode } from '@kit.InputKit'
 import { PathUtils } from '../../utils/PathUtils'
-import { ButtonFancyModifier } from '../../utils/AttributeModifierUtil'
+import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil'
 import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder'
 import { VolumeSwipingComponent } from '../../component/PlayerComponent/VolumeSwipingComponent'
 import { BrightnessSwipingComponent } from '../../component/PlayerComponent/BrightnessSwipingComponent'
@@ -39,6 +39,8 @@ import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode'
 import NavigationAddress from '../../common/NavigationAddress'
 import { WindowUtil } from '../../utils/WindowUtil'
 import { XAnimation } from '../../utils/AnimationUtil'
+import { deviceInfo } from '@kit.BasicServicesKit'
+import { AIAsr } from '../../component/VideoItemComponent/AIAsrComponent'
 
 @Component
 export struct FFMpegPlayer { // FFMpeg播放器页
@@ -62,13 +64,12 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @State video_url: string = ''
   @State total_time: number = 0
   @State currentSpeedIndex: number = 0
-  @State isLeftSideSwipe: boolean = false
-  @State isRightSideSwipe: boolean = false
   @State onSwipingVoice: boolean = false
   @State onSwipingBrightness: boolean = false
   @State screenBrightness: number = 0
   @State volumeTmp: number = 0
   @State isLock: boolean = false
+  @State isAIAsrShown: boolean = false
   @State isSliderPlayTimeChange: boolean = false
   windowClass = WindowUtil.getWindow()
   xComponentController: XComponentController = new XComponentController()
@@ -240,7 +241,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           onVerticalPanStart: (event: GestureEvent) => {
             if (!this.isLock) {
               const tapX = event.fingerList[0]?.localX;
-              this.isLeftSideSwipe = tapX < this.screen_width / 2;
+              VideoOperateUtil.leftSideSwipe = tapX < this.screen_width / 2;
               VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
               this.volume = this.volumeActually
               VideoOperateUtil.lastVolume = this.volume; // 记录起始音量
@@ -249,7 +250,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           onVerticalPanUpdate: (event: GestureEvent) => {
             if (!this.isLock && event.fingerList.length === 1) {
               const deltaYScale = event.offsetY / this.screen_height * 2.5
-              if (this.isLeftSideSwipe) {
+              if (VideoOperateUtil.leftSideSwipe) {
                 this.onSwipingBrightness = true
                 this.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
                 VideoOperateUtil.setBrightness(this.screenBrightness);
@@ -361,6 +362,18 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             VideoOperateUtil.longPressStartX = event.fingerList[0].localX; // 重置起始点实现分档切换效果
           }
         })
+
+        if (deviceInfo.sdkApiVersion >= 18) {
+          AIAsr({
+            isShown: this.isAIAsrShown
+          })
+            .visibility(this.showControl ? Visibility.None : Visibility.Visible)
+            .width('80%').height(80)
+            .offset({
+              x: 0,
+              y: this.screen_width > this.screen_height ? this.screen_height / 2 - 40 : this.screen_height / 2 - 100
+            })
+        }
       }
       .onAreaChange(async (_oldValue: Area, newValue: Area) => {
         this.screen_width = Math.floor(new Number(newValue.width).valueOf())
@@ -506,6 +519,20 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           .height(23)
           .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
       }.span({ xs: 2, sm: 2, md: 2 })
+
+      GridCol() {
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph(this.isAIAsrShown ?
+            $r('sys.symbol.textformat_size_square_fill') : $r('sys.symbol.textformat_size_square'))
+            .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
+            .fontColor(['#f0f0f0'])
+        }
+        .attributeModifier(new ButtonFancyModifier(40, 40))
+        .backgroundColor('#50000000')
+        .onClick(() => {
+          this.isAIAsrShown = !this.isAIAsrShown
+        })
+      }.span({ xs: 2, sm: 2, md: 2 })
     }.width('95%')
   }
 
@@ -577,6 +604,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     } catch (error) {
       console.error('volumeChange error:' + error)
     }
+    this.isAIAsrShown = true
   }
 
   async aboutToDisappear() {

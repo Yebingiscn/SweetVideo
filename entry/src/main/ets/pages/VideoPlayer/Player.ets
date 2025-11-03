@@ -923,7 +923,7 @@ export struct Player { // 播放页
               .width('80%').height(80)
               .offset({
                 x: 0,
-                y: this.screen_height / 2 - 40
+                y: this.screen_width > this.screen_height ? this.screen_height / 2 - 40 : this.screen_height / 2 - 100
               })
           }
         }.onAreaChange(async (_oldValue: Area, newValue: Area) => {

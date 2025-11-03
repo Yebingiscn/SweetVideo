@@ -22,6 +22,7 @@ import VideoUtils from '../../utils/VideoUtil';
 import FileFolderUtil from '../../utils/FileFolderUtil';
 import NavigationAddress from '../../common/NavigationAddress';
 import SubtitleFormat from '../../common/SubtitleFormatConfig';
+import VideoOperateUtil from '../../utils/VideoOperateUtil';
 
 @Observed
 export class VideoListController {
@@ -416,13 +417,13 @@ export struct VideoList {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
           await this.clickItem(videoItem, NavigationAddress.FFMPEG_PLAYER)
-        }, 350)
+        }, VideoOperateUtil.delayJumpToPlayer)
       })
       MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
           await this.clickItem(videoItem, NavigationAddress.RED_PLAYER)
-        }, 350)
+        }, VideoOperateUtil.delayJumpToPlayer)
       })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
         .onClick(() => {

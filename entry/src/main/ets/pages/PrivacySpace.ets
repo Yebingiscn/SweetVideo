@@ -23,6 +23,7 @@ import FileFolderUtil from '../utils/FileFolderUtil';
 import { ImportProgressBuilder } from '../component/VideoItemComponent/ImportProgressBuilder';
 import VideoListItem from '../component/VideoItemComponent/VideoListItemComponent';
 import VideoCardItem from '../component/VideoItemComponent/VideoCardItemComponent';
+import VideoOperateUtil from '../utils/VideoOperateUtil';
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -173,7 +174,7 @@ export struct PrivacySpace { // 隐私空间页
             ToolsUtil.routerWhere(this.pathStack, NavigationAddress.FFMPEG_PLAYER, item!,
               this.video_meta_data_encryption) :
             await this.delItem(item!)
-        }, 200)
+        }, VideoOperateUtil.delayJumpToPlayer)
       })
       MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
@@ -181,7 +182,7 @@ export struct PrivacySpace { // 隐私空间页
             ToolsUtil.routerWhere(this.pathStack, NavigationAddress.RED_PLAYER, item!,
               this.video_meta_data_encryption) :
             await this.delItem(item!)
-        }, 200)
+        }, VideoOperateUtil.delayJumpToPlayer)
       })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
         .onClick(() => {

@@ -39,6 +39,7 @@ class VideoOperateUtil {
   public volumeGestureActiveTime: number = 0
   public longPressStartX: number = 0
   public leftSideSwipe: boolean = true
+  public delayJumpToPlayer: number = 450
   private mainWin: window.Window | undefined = undefined
 
   // 设置亮度

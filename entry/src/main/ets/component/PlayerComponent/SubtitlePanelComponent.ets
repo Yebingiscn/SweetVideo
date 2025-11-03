@@ -1,5 +1,6 @@
 import { deviceInfo } from '@kit.BasicServicesKit'
 import { SubtitleMode } from '../../common/enum/SubtitleMode'
+import ToolsUtil from '../../utils/ToolsUtil'
 
 @Component
 export struct SubtitlePanelComponent {
@@ -45,6 +46,9 @@ export struct SubtitlePanelComponent {
         }
         .onClick(() => {
           this.isAIAsrShown = !this.isAIAsrShown
+          if (this.isAIAsrShown) {
+            ToolsUtil.showToast('AI 字幕将在控制栏隐藏后启用')
+          }
           this.subTitleVisibility = Visibility.None
           this.subtitleSelected === SubtitleMode.AI_SUBTITLE
         })
