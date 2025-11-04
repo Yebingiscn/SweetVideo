@@ -39,6 +39,8 @@ import { ImportProgressBuilder } from '../component/VideoItemComponent/ImportPro
 import { CrashPage } from './SettingPage/CrashPage';
 import { PlayerSettingPage } from './SettingPage/PlayerSettingPage';
 import { PersonalizePage } from './SettingPage/PersonalizePage';
+import { EditPasswordDialog } from '../component/Dialog/EditPasswordDialog';
+import BiometricAccessUtil from '../utils/BiometricAccessUtil';
 
 @Builder
 export function IndexBuilder() {
@@ -66,6 +68,7 @@ struct Index {
   @Provide fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   @Provide sideBarController: SideBarController = new SideBarController()
   @Provide('pathStack') pathStack: NavPathStack = new NavPathStack()
+  private scaleValue: number | undefined;
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: AddFileFolderNameDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -416,6 +419,45 @@ struct Index {
               this.sideBarController.closeSideBar(true) : this.sideBarController.openSideBar()
           }
         }))
+        .gesture(
+          // 绑定二指触发的捏合手势
+          PinchGesture({ fingers: 2 })
+            .onActionUpdate((event: GestureEvent|undefined) => {
+              this.scaleValue = event?.scale
+            })
+            .onActionEnd(() => {
+              if (this.scaleValue && this.scaleValue > 1) {
+                  this.passwd = Preferences.getPassword(PathUtils.appContext!)
+                  if (this.passwd === '') { // 未设置密码时直接打开设置弹窗
+                    new CustomDialogController({
+                      builder: EditPasswordDialog({
+                        confirm: (passwd: string | undefined) => {
+                          if (!passwd || passwd.trim() == '') {
+                            return
+                          }
+                          this.passwd = passwd
+                          ToolsUtil.savePwd(PathUtils.appContext!, passwd)
+                          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.set_passwd_tip').id))
+                          this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null)
+                        },
+                      }), cornerRadius: 20, shadow: DefaultDialogShadow
+                    }).open();
+                    return;
+                  }
+                  if (BiometricAccessUtil.checkUserAuthSupport()) { // 支持生物认证时进行认证
+                    BiometricAccessUtil.startUserAuth().then(isSuccess => {
+                      if (isSuccess) { // 认证成功进入隐私空间
+                        this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null);
+                      } else {
+                        ToolsUtil.showToast('验证失败，请从首页搜索框输入密码进入隐私空间'); // 认证失败显示提示
+                      }
+                    })
+                    return;
+                  }
+                  ToolsUtil.showToast('请从首页搜索框输入密码进入隐私空间'); // 设备不支持生物认证的提示
+              }
+            })
+        )
       }
       .minSideBarWidth(DataSyncUtil.minSideBarWidth) // 设置侧边栏最小宽度
       .minContentWidth(DataSyncUtil.minContentWidth) // 设置内容区最小宽度
