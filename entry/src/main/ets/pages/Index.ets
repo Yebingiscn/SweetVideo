@@ -410,7 +410,8 @@ struct Index {
           this.videoListController.refresh(width, this.isListDisplay)
         })
         .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
-          if (event) {
+          let rotateAngle = event?.angle
+          if (rotateAngle > -45 && rotateAngle < 45) {
             this.sideBarController.sideBarStatusTmp === Visibility.Visible ?
               this.sideBarController.closeSideBar(true) : this.sideBarController.openSideBar()
           }
