@@ -41,6 +41,7 @@ import { PlayerSettingPage } from './SettingPage/PlayerSettingPage';
 import { PersonalizePage } from './SettingPage/PersonalizePage';
 import { EditPasswordDialog } from '../component/Dialog/EditPasswordDialog';
 import BiometricAccessUtil from '../utils/BiometricAccessUtil';
+import { DeleteType } from '../common/enum/deleteType';
 
 @Builder
 export function IndexBuilder() {
@@ -100,7 +101,7 @@ struct Index {
             await Promise.all(
               DataSyncUtil.delMultipleList.map(item => {
                 DataSyncUtil.editingVideo = JSON.stringify(item);
-                VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource);
+                VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, DeleteType.SOFT);
                 return Promise.resolve();
               })
             );

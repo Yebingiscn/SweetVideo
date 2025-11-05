@@ -11,6 +11,10 @@ import RecentPlayUtil from './RecentPlayUtil';
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
 import VideoUtils from './VideoUtil';
 import { AudioTrack } from '../interfaces/AudioTrackInterface';
+import { DeleteType } from '../common/enum/deleteType';
+import { fileManagerService } from '@kit.FileManagerServiceKit';
+import { BusinessError } from '@kit.BasicServicesKit';
+import { fileIo as fs } from '@kit.CoreFileKit';
 
 // 基础数据源抽象类（泛型实现）
 abstract class BaseDataSource<T> implements IDataSource {
@@ -102,18 +106,36 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
       return
     }
     DataSyncUtil.editingVideo = JSON.stringify(item);
-    await this.deleteItem()
+    await this.deleteItem(DeleteType.SOFT)
     SelectFileUtil.deleteVideo(item);
-    await VideoMetaDataOperator.deleteItem(videoListController, fileFolderSource)
+    await VideoMetaDataOperator.deleteItem(videoListController, fileFolderSource, DeleteType.SOFT)
     VideoUtils.refresh(videoListController, fileFolderSource, videoListController.folder)
   }
 
-  async deleteItem(): Promise<void> {
+  async deleteItem(deleteType: DeleteType): Promise<void> {
     const item = JSON.parse(DataSyncUtil.editingVideo) as VideoMetadata;
     await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date!)
     this.deleteData(this.data.findIndex(i => i.date === item.date));
     RecentPlayUtil.delData(PathUtils.appContext!, item.uri);
     await SelectFileUtil.deleteCover(item.date)
+
+    if (deleteType == DeleteType.HARD) {
+      fs.unlink(item.uri, (err: BusinessError) => {
+        if (err) {
+          console.error("remove file failed with error message: " + err.message + ", error code: " + err.code);
+        } else {
+          console.info("remove file succeed");
+        }
+      });
+    } else if (deleteType == DeleteType.RECENT) {
+      try {
+        let trashUri: string = await fileManagerService.deleteToTrash(item.uri);
+        console.info("trashUri: " + trashUri);
+      } catch (err) {
+        let error: BusinessError = err as BusinessError;
+        console.error("delete failed, errCode:" + error.code + ", errMessage:" + error.message);
+      }
+    }
   }
 }
 

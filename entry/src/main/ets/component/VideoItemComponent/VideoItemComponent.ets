@@ -10,7 +10,6 @@ import { SymbolGlyphModifier } from '@kit.ArkUI';
 import DataSyncUtil from '../../utils/DataSyncUtil';
 import { VideoDetailDialog } from '../../component/Dialog//VideoDetailDialog';
 import { DefaultDialogShadow } from '../../common/DefaultDialogShadow';
-import { InfoConfirmDialog } from '../Dialog/InfoConfirmDialog';
 import { MenuModifier } from '../../utils/AttributeModifierUtil';
 import { EditMetadataDialog } from '../../component/Dialog//EditMetadataDialog';
 import SubtitleUtil from '../../utils/SubtitleUtil';
@@ -23,6 +22,8 @@ import FileFolderUtil from '../../utils/FileFolderUtil';
 import NavigationAddress from '../../common/NavigationAddress';
 import SubtitleFormat from '../../common/SubtitleFormatConfig';
 import VideoOperateUtil from '../../utils/VideoOperateUtil';
+import { VideoDeleteDialog } from '../Dialog/VideoDeleteDialog';
+import { DeleteType } from '../../common/enum/deleteType';
 
 @Observed
 export class VideoListController {
@@ -119,10 +120,10 @@ export struct VideoList {
     shadow: DefaultDialogShadow
   })
   delConfirmDialog: CustomDialogController = new CustomDialogController({
-    builder: InfoConfirmDialog({
-      confirm: async () => {
+    builder: VideoDeleteDialog({
+      confirm: async (deleteType: DeleteType) => {
         try {
-          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource);
+          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType);
           if (DataSyncUtil.delMultipleList.length > 0) {
             FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController, this.fileFolderSource)
           }
@@ -132,8 +133,7 @@ export struct VideoList {
         } finally {
           VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
         }
-      },
-      textInfo: $r('app.string.del_confirm')
+      }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   editMetadataDialogController: CustomDialogController = new CustomDialogController({

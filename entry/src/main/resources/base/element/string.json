@@ -69,8 +69,16 @@
       "value": "unknown size"
     },
     {
-      "name": "del_confirm",
-      "value": "Do you want to delete the video?"
+      "name": "soft_del_confirm",
+      "value": "Just delete the video import record? Confirm deletion?"
+    },
+    {
+      "name": "hard_del_confirm",
+      "value": "After deletion, the selected files cannot be recovered. Confirm deletion?"
+    },
+    {
+      "name": "recent_del_confirm",
+      "value": "After moving to the \"Recently Deleted\" folder in File Management, files will be retained for up to 30 days before being permanently deleted."
     },
     {
       "name": "edit",
