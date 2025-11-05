@@ -401,6 +401,10 @@ export struct VideoList {
           this.videoListController.multipleChooseState =
             this.videoListController.multipleChooseState == Visibility.None ? Visibility.Visible : Visibility.None
           DataSyncUtil.delMultipleList.length = 0
+          // 选择当前项
+          if (item) {
+            this.delMultipleList.push(item)
+          }
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.line_3_horizontal')),
