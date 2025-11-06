@@ -10,6 +10,8 @@ export struct SearchComponent {
   }
   onEditChange = ((_isEditing: boolean) => {
   })
+  onSearchFocus = () => {
+  }
 
   build() {
     Search({
@@ -31,6 +33,9 @@ export struct SearchComponent {
       })
       .onEditChange((isEditing: boolean) => {
         this.onEditChange(isEditing)
+      })
+      .onFocus(() => {
+        this.onSearchFocus()
       })
   }
 }

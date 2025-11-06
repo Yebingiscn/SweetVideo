@@ -13,6 +13,7 @@ ohpm install @dove/subtitles
 ## 接口和使用
 
 ### 转换ass字幕文件
+
 ```typescript
 export declare class ParseAss {
   constructor(path: string)

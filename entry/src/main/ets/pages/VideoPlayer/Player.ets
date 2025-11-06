@@ -217,6 +217,7 @@ export struct Player { // 播放页
     this.avPlayer?.off('audioOutputDeviceChangeWithInfo')
     this.avPlayer?.off('subtitleUpdate')
     this.avPlayer?.off('stateChange')
+    AppStorage.delete('nowPlayingData') //清除已保存的播放进度
     try {
       this.audioVolumeManager?.off('volumeChange');
     } catch (error) {
@@ -396,12 +397,7 @@ export struct Player { // 播放页
           if (this.mIjkMediaPlayer) {
             this.mIjkMediaPlayer?.start()
           }
-          if (!this.avSession && this.allowBackgroundPlay) {
-            this.avSession = await AVSessionUtil.getAVSession()
-            await this.setSessionListener()
-            AVSessionUtil.setSessionInfo(this.now_playing!)
-            AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
-          }
+          this.initAVSession()
           AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
           break
         case 'paused':
@@ -548,10 +544,7 @@ export struct Player { // 播放页
     await this.ijkPlayerStop()
     this.now_playing = item as VideoMetadataFromPlayer
     this.getData()
-    this.avSession = await AVSessionUtil.getAVSession()
-    await this.setSessionListener()
-    AVSessionUtil.setSessionInfo(this.now_playing!)
-    AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
+    this.initAVSession()
   }
 
   playNextVideo() {
@@ -592,6 +585,15 @@ export struct Player { // 播放页
     }) : this.avPlayer?.play()?.catch(() => {
       console.error('player error')
     })
+  }
+
+  async initAVSession() {
+    if (!this.avSession && this.allowBackgroundPlay) {
+      this.avSession = await AVSessionUtil.getAVSession()
+      await this.setSessionListener()
+      AVSessionUtil.setSessionInfo(this.now_playing!)
+      AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
+    }
   }
 
   build() {

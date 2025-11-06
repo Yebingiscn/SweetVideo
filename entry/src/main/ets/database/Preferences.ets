@@ -93,6 +93,14 @@ class Preferences {
     return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'backgroundDropBlur', 0) as number
   }
 
+  static getShowSettingPageEntry(context: Context) {
+    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'showSettingPageEntry', true) as boolean
+  }
+
+  static saveShowSettingPageEntry(context: Context, showSettingPageEntry: boolean) {
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'showSettingPageEntry', showSettingPageEntry);
+  }
+
   static saveSkipIntroTime(context: Context, skipIntroTime: string) {
     PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'skipIntroTime', skipIntroTime);
   }

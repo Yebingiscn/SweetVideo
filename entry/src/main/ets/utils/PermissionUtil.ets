@@ -1,5 +1,5 @@
 import { fileShare, fileIo as fs } from '@kit.CoreFileKit';
-import { wantAgent } from '@kit.AbilityKit';
+import { abilityAccessCtrl, common, Permissions, wantAgent } from '@kit.AbilityKit';
 import { backgroundTaskManager } from '@kit.BackgroundTasksKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
@@ -8,6 +8,8 @@ import AVSessionUtil from './AVSessionUtil';
 
 //权限类
 class PermissionUtil {
+  public permissions: Permissions[] = ['ohos.permission.FILE_ACCESS_PERSIST', 'ohos.permission.VIBRATE'];
+
   async activatePermission(uri: string | undefined): Promise<boolean> {
     if (!uri) {
       return false
@@ -59,30 +61,32 @@ class PermissionUtil {
   }
 
   async startContinuousTask() {
-    let wantAgentInfo: wantAgent.WantAgentInfo = {
-      wants: [
-        ({
-          bundleName: PathUtils.appContext!.abilityInfo.bundleName,
-          abilityName: "EntryAbility"
-        })
-      ],
-      actionType: wantAgent.OperationType.START_ABILITY,
-      requestCode: 114514,
-      actionFlags: [wantAgent.WantAgentFlags.UPDATE_PRESENT_FLAG]
-    };
-    wantAgent.getWantAgent(wantAgentInfo).then((wantAgentObj: Object) => {
-      try {
-        backgroundTaskManager.startBackgroundRunning(PathUtils.appContext!,
-          backgroundTaskManager.BackgroundMode.AUDIO_PLAYBACK, wantAgentObj).then(() => {
-        })?.catch((error: BusinessError) => {
-          hilog.error(777, 'testFlag', 'background play failed BusinessError: ' + JSON.stringify(error))
-        });
-      } catch (error) {
-        hilog.error(777, 'testFlag', 'background play failed: ' + JSON.stringify(error))
-      }
-    })?.catch(() => {
-      console.error('getWantAgent error')
-    })
+    if (canIUse('SystemCapability.BundleManager.BundleFramework.Core')) {
+      let wantAgentInfo: wantAgent.WantAgentInfo = {
+        wants: [
+          ({
+            bundleName: PathUtils.appContext!.abilityInfo.bundleName,
+            abilityName: "EntryAbility"
+          })
+        ],
+        actionType: wantAgent.OperationType.START_ABILITY,
+        requestCode: 114514,
+        actionFlags: [wantAgent.WantAgentFlags.UPDATE_PRESENT_FLAG]
+      };
+      wantAgent.getWantAgent(wantAgentInfo).then((wantAgentObj: Object) => {
+        try {
+          backgroundTaskManager.startBackgroundRunning(PathUtils.appContext!,
+            backgroundTaskManager.BackgroundMode.AUDIO_PLAYBACK, wantAgentObj).then(() => {
+          })?.catch((error: BusinessError) => {
+            hilog.error(777, 'testFlag', 'background play failed BusinessError: ' + JSON.stringify(error))
+          });
+        } catch (error) {
+          hilog.error(777, 'testFlag', 'background play failed: ' + JSON.stringify(error))
+        }
+      })?.catch(() => {
+        console.error('getWantAgent error')
+      })
+    }
   }
 
   stopContinuousTask() {
@@ -109,6 +113,23 @@ class PermissionUtil {
       return true
     }
     return false
+  }
+
+  // 重新申请权限
+  reqPermissionsFromUser(permissions: Permissions[], context: common.UIAbilityContext): void {
+    let atManager: abilityAccessCtrl.AtManager = abilityAccessCtrl.createAtManager();
+    atManager.requestPermissionsFromUser(context, permissions).then((data) => {
+      let grantStatus: number[] = data.authResults;
+      let length: number = grantStatus.length;
+      for (let i = 0; i < length; i++) {
+        if (grantStatus[i] === 0) {
+        } else {
+          return;
+        }
+      }
+    })?.catch(() => {
+      console.error('requestPermissionsFromUser error')
+    })
   }
 }
 

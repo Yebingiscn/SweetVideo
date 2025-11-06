@@ -11,7 +11,7 @@ import RecentPlayUtil from './RecentPlayUtil';
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
 import VideoUtils from './VideoUtil';
 import { AudioTrack } from '../interfaces/AudioTrackInterface';
-import { DeleteType } from '../common/enum/deleteType';
+import { DeleteType } from '../common/enum/DeleteType';
 import { fileManagerService } from '@kit.FileManagerServiceKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { fileIo as fs } from '@kit.CoreFileKit';

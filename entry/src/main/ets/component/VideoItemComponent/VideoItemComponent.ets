@@ -23,7 +23,7 @@ import NavigationAddress from '../../common/NavigationAddress';
 import SubtitleFormat from '../../common/SubtitleFormatConfig';
 import VideoOperateUtil from '../../utils/VideoOperateUtil';
 import { VideoDeleteDialog } from '../Dialog/VideoDeleteDialog';
-import { DeleteType } from '../../common/enum/deleteType';
+import { DeleteType } from '../../common/enum/DeleteType';
 
 @Observed
 export class VideoListController {
@@ -185,6 +185,7 @@ export struct VideoList {
           .height('auto')
           .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
             {
+              backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
               preview: this.VideoItemBuilder(item),
               previewAnimationOptions: { hoverScale: [1.0, 1.2] },
               onAppear: () => {
@@ -197,6 +198,7 @@ export struct VideoList {
             })
           .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
             {
+              backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
               preview: this.VideoItemBuilder(item),
               previewAnimationOptions: { hoverScale: [1.0, 1.2] },
               onAppear: () => {
@@ -275,6 +277,7 @@ export struct VideoList {
               .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
               .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
                 {
+                  backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
                   preview: this.VideoItemBuilder(item),
                   previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                   onAppear: () => {
@@ -287,6 +290,7 @@ export struct VideoList {
                 })
               .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
                 {
+                  backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
                   preview: this.VideoItemBuilder(item),
                   previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                   onAppear: () => {
@@ -406,17 +410,6 @@ export struct VideoList {
             this.delMultipleList.push(item)
           }
         })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.line_3_horizontal')),
-        content: '更多',
-        builder: (): void => this.MenuBuilderExtend(item)
-      })
-    }.attributeModifier(new MenuModifier())
-  }
-
-  @Builder
-  MenuBuilderExtend(item: VideoMetadata | undefined) {
-    Menu() {
       MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(() => {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
@@ -467,7 +460,7 @@ export struct VideoList {
             Preferences.saveVideoMetaData(PathUtils.appContext!, this.videoListController.videoMetaDataList)
           }
         })
-    }
+    }.attributeModifier(new MenuModifier())
   }
 
   @Builder

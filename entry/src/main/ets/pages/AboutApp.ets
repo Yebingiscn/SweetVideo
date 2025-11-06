@@ -57,117 +57,112 @@ export struct AboutApp {
             .zIndex(2)
           }.width('100%')
 
-          Column() {
-            Row({ space: 10 }) {
-              Button({ type: ButtonType.Normal, stateEffect: true }) {
-                Row() {
-                  Image($r('app.media.github'))
-                    .height(25)
-                    .width(25)
-                    .backgroundImageSize(ImageSize.Contain)
-                  Text('代码已开源，欢迎 ⭐')
-                    .fontSize(15)
-                    .fontColor($r('app.color.text_color'))
-                    .margin({ left: 10, right: 2 })
-                    .maxLines(2)
-                    .width('80%')
-                }
+          Row({ space: 10 }) {
+            Button({ type: ButtonType.Normal, stateEffect: true }) {
+              Row() {
+                Image($r('app.media.github'))
+                  .height(25)
+                  .width(25)
+                  .backgroundImageSize(ImageSize.Contain)
+                Text('代码已开源，欢迎 ⭐')
+                  .fontSize(15)
+                  .fontColor($r('app.color.text_color'))
+                  .margin({ left: 10, right: 2 })
+                  .maxLines(2)
+                  .width('80%')
               }
-              .align(Alignment.Start)
-              .padding(15)
-              .borderRadius(20)
-              .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-              .height(80)
-              .width('48%')
-              .backgroundColor($r('app.color.start_window_background_blur'))
-              .onClick(() => {
-                this.tempLink = this.GITHUB_HOME_LINK
-                this.linkConfirmDialog.open()
-              })
-
-              Button({ type: ButtonType.Normal, stateEffect: true }) {
-                Row() {
-                  SymbolGlyph($r('sys.symbol.person_shield')).fontSize(25).fontColor([$r('app.color.text_color')])
-                  Text(ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id) +
-                    '的使用条款与隐私声明')
-                    .fontSize(15)
-                    .fontColor($r('app.color.text_color'))
-                    .margin({ left: 10, right: 12 })
-                    .width('80%')
-                }
-              }
-              .align(Alignment.Start)
-              .padding(15)
-              .borderRadius(20)
-              .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-              .height(80)
-              .width('48%')
-              .backgroundColor($r('app.color.start_window_background_blur'))
-              .onClick(() => {
-                this.tempLink = WantProcessUtil.PRIVACY_LINK
-                this.linkConfirmDialog.open()
-              })
             }
+            .align(Alignment.Start)
+            .padding(15)
+            .borderRadius(20)
+            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+            .height(80)
+            .width('48%')
+            .backgroundColor($r('app.color.start_window_background_blur'))
+            .onClick(() => {
+              this.tempLink = this.GITHUB_HOME_LINK
+              this.linkConfirmDialog.open()
+            })
 
-            Row({ space: 10 }) {
-              Button({ type: ButtonType.Normal, stateEffect: true }) {
-                Row() {
-                  SymbolGlyph($r('sys.symbol.person_2')).fontSize(25).fontColor([$r('app.color.text_color')])
-                  Text('QQ 交流群：973792610')
-                    .fontSize(15)
-                    .fontColor($r('app.color.text_color'))
-                    .margin({ left: 10, right: 2 })
-                    .maxLines(2)
-                    .width('80%')
-                }
+            Button({ type: ButtonType.Normal, stateEffect: true }) {
+              Row() {
+                SymbolGlyph($r('sys.symbol.person_shield')).fontSize(25).fontColor([$r('app.color.text_color')])
+                Text(ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id) +
+                  '的使用条款与隐私声明')
+                  .fontSize(15)
+                  .fontColor($r('app.color.text_color'))
+                  .margin({ left: 10, right: 12 })
+                  .width('80%')
               }
-              .align(Alignment.Start)
-              .padding(15)
-              .borderRadius(20)
-              .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-              .height(80)
-              .width('48%')
-              .backgroundColor($r('app.color.start_window_background_blur'))
-              .onClick(() => {
-                this.tempLink = this.QQ_GROUP_LINK
-                this.linkConfirmDialog.open()
-              })
-
-              Button({ type: ButtonType.Normal, stateEffect: true }) {
-                Row() {
-                  SymbolGlyph($r('sys.symbol.capture_smiles')).fontSize(25).fontColor([$r('app.color.text_color')])
-                  Text('赞赏作者')
-                    .fontSize(15)
-                    .fontColor($r('app.color.text_color'))
-                    .margin({ left: 10, right: 12 })
-                    .width('80%')
-                }
-              }
-              .align(Alignment.Start)
-              .padding(15)
-              .borderRadius(20)
-              .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-              .height(80)
-              .width('48%')
-              .backgroundColor($r('app.color.start_window_background_blur'))
-              .onClick(() => {
-                this.tempLink = this.AI_FA_DIAN_LINK
-                this.linkConfirmDialog.open()
-              })
-            }.margin({ top: 10 })
+            }
+            .align(Alignment.Start)
+            .padding(15)
+            .borderRadius(20)
+            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+            .height(80)
+            .width('48%')
+            .backgroundColor($r('app.color.start_window_background_blur'))
+            .onClick(() => {
+              this.tempLink = WantProcessUtil.PRIVACY_LINK
+              this.linkConfirmDialog.open()
+            })
           }
+
+          Row({ space: 10 }) {
+            Button({ type: ButtonType.Normal, stateEffect: true }) {
+              Row() {
+                SymbolGlyph($r('sys.symbol.person_2')).fontSize(25).fontColor([$r('app.color.text_color')])
+                Text('QQ 交流群：973792610')
+                  .fontSize(15)
+                  .fontColor($r('app.color.text_color'))
+                  .margin({ left: 10, right: 2 })
+                  .maxLines(2)
+                  .width('80%')
+              }
+            }
+            .align(Alignment.Start)
+            .padding(15)
+            .borderRadius(20)
+            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+            .height(80)
+            .width('48%')
+            .backgroundColor($r('app.color.start_window_background_blur'))
+            .onClick(() => {
+              this.tempLink = this.QQ_GROUP_LINK
+              this.linkConfirmDialog.open()
+            })
+
+            Button({ type: ButtonType.Normal, stateEffect: true }) {
+              Row() {
+                SymbolGlyph($r('sys.symbol.capture_smiles')).fontSize(25).fontColor([$r('app.color.text_color')])
+                Text('赞赏作者')
+                  .fontSize(15)
+                  .fontColor($r('app.color.text_color'))
+                  .margin({ left: 10, right: 12 })
+                  .width('80%')
+              }
+            }
+            .align(Alignment.Start)
+            .padding(15)
+            .borderRadius(20)
+            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+            .height(80)
+            .width('48%')
+            .backgroundColor($r('app.color.start_window_background_blur'))
+            .onClick(() => {
+              this.tempLink = this.AI_FA_DIAN_LINK
+              this.linkConfirmDialog.open()
+            })
+          }.margin({ top: 10 })
 
 
           Column({ space: 8 }) {
             Text('应用简介')
               .fontSize(20).fontWeight(FontWeight.Medium)
-            Column({ space: 2 }) {
-              Text('一款运行在 HarmonyOS Next 上的精致、简约的本地视频播放器，使用 ArkTS 语言开发，具有美观的设计和优雅的动画。')
-                .fontSize(15)
-              Text('基于开源项目流心视频，本应用根据原作者授权并基于 MIT 协议二次开发而来。')
-                .fontSize(15)
-            }
-            .alignItems(HorizontalAlign.Start)
+            Text('一款运行在 HarmonyOS Next 上的精致、简约的本地视频播放器，使用 ArkTS 语言开发，具有美观的设计和优雅的动画。')
+              .fontSize(15)
+            Text('基于开源项目流心视频，本应用根据原作者授权并基于 MIT 协议二次开发而来。')
+              .fontSize(15)
           }
           .padding(15)
           .alignItems(HorizontalAlign.Start)
@@ -179,30 +174,27 @@ export struct AboutApp {
             Text('特别鸣谢')
               .fontSize(20)
               .fontWeight(FontWeight.Medium)
-
-            Column({ space: 2 }) {
-              Text('流心视频开源项目作者：鱼Salmon')
-                .fontSize(14)
-                .fontColor($r('app.color.text_color'))
-              Text('图标、头图等素材：科蓝kl')
-                .fontSize(14)
-                .fontColor($r('app.color.text_color'))
-              Text('记账本 R 的作者：漫漫是我宝')
-                .fontSize(14)
-                .fontColor($r('app.color.text_color'))
-              Text('测试视频提供：萧十一狼')
-                .fontSize(14)
-                .fontColor($r('app.color.text_color'))
-              Text('折叠屏适配：微车游')
-                .fontSize(14)
-                .fontColor($r('app.color.text_color'))
-              Text('kimufly')
-                .fontSize(14)
-                .fontColor($r('app.color.text_color'))
-              Text('F-park')
-                .fontSize(14)
-                .fontColor($r('app.color.text_color'))
-            }.alignItems(HorizontalAlign.Start)
+            Text('流心视频开源项目作者：鱼Salmon')
+              .fontSize(14)
+              .fontColor($r('app.color.text_color'))
+            Text('图标、头图等素材：科蓝kl')
+              .fontSize(14)
+              .fontColor($r('app.color.text_color'))
+            Text('记账本 R 的作者：漫漫是我宝')
+              .fontSize(14)
+              .fontColor($r('app.color.text_color'))
+            Text('测试视频提供：萧十一狼')
+              .fontSize(14)
+              .fontColor($r('app.color.text_color'))
+            Text('折叠屏适配：微车游')
+              .fontSize(14)
+              .fontColor($r('app.color.text_color'))
+            Text('kimufly')
+              .fontSize(14)
+              .fontColor($r('app.color.text_color'))
+            Text('F-park')
+              .fontSize(14)
+              .fontColor($r('app.color.text_color'))
           }
           .padding(15)
           .alignItems(HorizontalAlign.Start)
@@ -215,15 +207,12 @@ export struct AboutApp {
               '由以下开源项目提供支持')
               .fontSize(20)
               .fontWeight(FontWeight.Medium)
-
-            Column({ space: 2 }) {
-              Text('pinyin4js')
-                .fontSize(14)
-              Text('ohos_ijkplayer')
-                .fontSize(14)
-              Text('RedPlayer')
-                .fontSize(14)
-            }.alignItems(HorizontalAlign.Start)
+            Text('pinyin4js')
+              .fontSize(14)
+            Text('ohos_ijkplayer')
+              .fontSize(14)
+            Text('RedPlayer')
+              .fontSize(14)
           }
           .backgroundColor($r('app.color.start_window_background_blur'))
           .padding(15)

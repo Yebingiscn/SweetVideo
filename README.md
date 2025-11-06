@@ -1,8 +1,8 @@
 <p align="center"><img src="./entry/src/main/resources/base/media/sweet_video.png" style="width: 128px; height: 128px;"  alt="logo"></p>
 <div align="center">
-    <h1>流心视频</h1>
+    <h1>流心播放器</h1>
     <p>
-        <a href="https://github.com/Yebingiscn/SweetVideo/releases/latest" style="text-decoration:none">
+        <a href="https://appgallery.huawei.com/app/detail?id=com.example.sweetvideo&channelId=SHARE&source=appshare" style="text-decoration:none">
             <img src="https://img.shields.io/github/v/release/Yebingiscn/SweetVideo?display_name=release" alt="GitHub release (latest by date)"/>
         </a>
         <a href="https://img.shields.io/badge/OS-HarmonyOS Next-103fb6" style="text-decoration:none" >
@@ -30,15 +30,15 @@
 <p align="center">一款运行在 HarmonyOS Next 上的精致、简约的原生视频播放器</p>
 <p align="center">A slick, minimalist video player that runs on HarmonyOS Next</p>
 
-## 流心视频交流群
+## 流心播放器交流群
 
 QQ群：973792610
 
-## 欢迎加入流心视频测试组
+## 欢迎安装流心播放器
 
-> 可以从华为应用商店收到内测提醒和更新
+**流心播放器已经上架华为应用市场**
 
-请加入 QQ 群获取最新测试链接
+- [安装链接](https://appgallery.huawei.com/app/detail?id=com.example.sweetvideo&channelId=SHARE&source=appshare)
 
 ## 功能排期
 
@@ -56,7 +56,7 @@ QQ群：973792610
 ## 简介
 
 - 一款运行在 HarmonyOS Next 上精致、简约的视频（音乐）原生播放器，使用 ArkTS 语言开发，具有美观的设计和优雅的动画。
-- 基于开源项目`流心视频` https://gitee.com/lqsxy/sweetvideo/tree/master
+- 基于开源项目`流心播放器` https://gitee.com/lqsxy/sweetvideo/tree/master
 - 本应用根据原作者授权并基于 MIT 协议二次开发而来。
 
 ### 流心项目 AI 解读
@@ -90,7 +90,7 @@ QQ群：973792610
 
 ## 特别鸣谢 && 欢迎参与共建及须知
 
-> 欢迎提交 PR，一起共同建设流心视频 \
+> 欢迎提交 PR，一起共同建设流心播放器 \
 > 提交 PR 请遵照以往提交格式，如`[fix]`是修复内容 `[update]`是优化内容 `[new]`是新增内容 \
 > 如果提交中有没有解决的地方请注明
 
@@ -103,7 +103,7 @@ QQ群：973792610
 - kimufly
 - Fpark
 
-## 流心视频由以下开源项目提供支持
+## 流心播放器由以下开源项目提供支持
 
 - 播放器R
 - [流心视频](https://gitee.com/lqsxy/sweetvideo/tree/master)
@@ -114,7 +114,7 @@ QQ群：973792610
 
 ## 赞助作者
 
-流心视频是我最重要的一个项目，我希望无论我以后处在什么样的境地下都能坚持维护他，把他变得更好、更强大。 \
+流心播放器是我最重要的一个项目，我希望无论我以后处在什么样的境地下都能坚持维护他，把他变得更好、更强大。 \
 但是不可避免的我们生活的其他部分依然有波折，所以如果你喜欢流心的话，可以请作者喝杯咖啡或者吃碗泡面~ \
 [爱发电](https://www.ifdian.net/a/SweetVideo)
 

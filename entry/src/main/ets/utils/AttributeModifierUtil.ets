@@ -102,6 +102,6 @@ export class MenuModifier extends CommonModifier {
   }
 
   applyNormalAttribute(instance: MenuAttribute): void {
-    instance.font({ size: 15, weight: FontWeight.Normal }).radius(16)
+    instance.font({ size: 15, weight: FontWeight.Normal })
   }
 }

@@ -24,6 +24,8 @@ import { ImportProgressBuilder } from '../component/VideoItemComponent/ImportPro
 import VideoListItem from '../component/VideoItemComponent/VideoListItemComponent';
 import VideoCardItem from '../component/VideoItemComponent/VideoCardItemComponent';
 import VideoOperateUtil from '../utils/VideoOperateUtil';
+import { SettingsToggleItem } from '../component/SettingComponent/SettingsToggleItem';
+import { SettingsClickItem } from '../component/SettingComponent/SettingsClickItem';
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -43,6 +45,8 @@ export struct PrivacySpace { // 隐私空间页
   @State passwd: string = 'passwd'
   @State longPressPreview: boolean = false
   @State delMultipleList: VideoMetadata[] = []
+  @State isPresent: boolean = false;
+  @StorageLink('showSettingPageEntry') showSettingPageEntry: boolean = true
   @StorageLink('isListDisplay') isListDisplay: boolean = true
   searchController: SearchController = new SearchController()
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
@@ -84,18 +88,67 @@ export struct PrivacySpace { // 隐私空间页
   private listScroller: Scroller = new Scroller();
 
   @Builder
+  PrivacySpaceSettingBuilder() {
+    Column() {
+      SettingsClickItem({
+        symbol: $r('sys.symbol.lock'),
+        message: '重设密码',
+        onPress: () => {
+          this.isPresent = false
+          this.passwd = Preferences.getPassword(PathUtils.appContext!)
+          this.editPasswdDialogController.open()
+        }
+      })
+
+      SettingsToggleItem({
+        symbol: $r('sys.symbol.checkmark_shield'),
+        message: '设置中显示隐私空间入口',
+        enable: this.showSettingPageEntry,
+        onChange: (checked: boolean) => {
+          this.showSettingPageEntry = checked
+          Preferences.saveShowSettingPageEntry(PathUtils.appContext!, this.showSettingPageEntry)
+        }
+      })
+
+      Column({ space: 8 }) {
+        Text('如何进入隐私空间')
+          .fontSize(20).fontWeight(FontWeight.Medium)
+        Text('1. 通过设置页隐私空间进入')
+          .fontSize(15)
+        Text('2. 通过搜索框输入密码进入')
+          .fontSize(15)
+        Text('3. 通过首页双指捏合往外划开进入')
+          .fontSize(15)
+      }
+      .padding(15)
+      .alignItems(HorizontalAlign.Start)
+      .borderRadius(20)
+      .width('100%')
+      .backgroundColor($r('app.color.start_window_background_blur'))
+    }.width('100%').height('100%').padding({ left: 5, right: 5 })
+  }
+
+  @Builder
   NavigationMenus() {
     Row() {
       Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph($r('sys.symbol.lock'))
+        SymbolGlyph($r('sys.symbol.gearshape'))
           .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
       }
       .backdropBlur(150)
       .attributeModifier(new ButtonFancyModifier(40, 40))
       .animation({ duration: 300, curve: Curve.Ease })
+      .bindSheet($$this.isPresent, this.PrivacySpaceSettingBuilder(), {
+        detents: [SheetSize.MEDIUM, SheetSize.LARGE, SheetSize.FIT_CONTENT],
+        height: SheetSize.MEDIUM,
+        preferType: SheetType.CENTER,
+        enableOutsideInteractive: false,
+        dragBar: true,
+        showClose: true,
+        title: { title: '隐私空间设置' },
+      })
       .onClick(() => {
-        this.passwd = Preferences.getPassword(PathUtils.appContext!)
-        this.editPasswdDialogController.open()
+        this.isPresent = !this.isPresent;
       })
       .margin({ right: 5 })
 
@@ -116,7 +169,8 @@ export struct PrivacySpace { // 隐私空间页
       .backdropBlur(150)
       .attributeModifier(new ButtonFancyModifier(40, 40))
       .animation({ duration: 300, curve: Curve.Ease })
-      .bindMenu(this.SortMenuBuilder)
+      .bindMenu(this.SortMenuBuilder,
+        { borderRadius: 8, backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK })
     }.padding({ right: 24, top: 10 })
   }
 
@@ -128,6 +182,7 @@ export struct PrivacySpace { // 隐私空间页
         content: $r('app.string.import_from_files')
       })
         .onClick(async () => {
+          this.isPresent = false
           await this.toMetaData(await SelectFileUtil.selectFiles());
         })
       MenuItem({
@@ -135,6 +190,7 @@ export struct PrivacySpace { // 隐私空间页
         content: $r('app.string.import_from_album')
       })
         .onClick(async () => {
+          this.isPresent = false
           await this.toMetaData(await SelectFileUtil.selectVideo());
         })
     }.attributeModifier(new MenuModifier())
@@ -243,10 +299,19 @@ export struct PrivacySpace { // 隐私空间页
     }
   }
 
+  closePrivacyMode() {
+    PrivacySpaceUtil.setPrivacyMode(false)
+  }
+
   async aboutToAppear(): Promise<void> {
     this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
     this.videoDataSource = new VideoDataSource(this.video_meta_data_encryption)
     PrivacySpaceUtil.setPrivacyMode(true)
+  }
+
+  onPageHide(): void {
+    this.closePrivacyMode()
+    this.pathStack.pop()
   }
 
   async delItem(item: VideoMetadata) {
@@ -387,7 +452,7 @@ export struct PrivacySpace { // 隐私空间页
       })
     }
     .onWillDisappear(() => {
-      PrivacySpaceUtil.setPrivacyMode(false)
+      this.closePrivacyMode()
     })
     .onShown(() => {
       this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)

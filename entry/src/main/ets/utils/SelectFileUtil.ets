@@ -9,7 +9,6 @@ import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerIn
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import Preferences from '../database/Preferences';
 import PrivacySpaceUtil from './PrivacySpaceUtil';
-import ReqPermissionUtil from './ReqPermissionUtil';
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import FileFolderUtil from './FileFolderUtil';
 import { PathUtils } from './PathUtils';
@@ -17,6 +16,7 @@ import ToolsUtil from './ToolsUtil';
 import RecentPlayUtil from './RecentPlayUtil';
 import { ConcurrencyManagerUtil } from './FileProcessorUtil';
 import { image } from '@kit.ImageKit';
+import PermissionUtil from './PermissionUtil';
 
 // 获取视频类
 class SelectFileUtil {
@@ -340,7 +340,7 @@ class SelectFileUtil {
   async addFile(context: Context, sandbox_video: string, sandbox_path: string, uri: string,
     video_meta_data: VideoMetadata[], file_folder?: FileFolder) {
     if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
-      await ReqPermissionUtil.persistPermission(uri);
+      await PermissionUtil.persistPermission(uri);
       try {
         const avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor();
         // 获取文件操作队列（按URI串行化），避免重复创建文件夹

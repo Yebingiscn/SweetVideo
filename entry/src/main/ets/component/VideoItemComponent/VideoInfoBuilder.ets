@@ -59,6 +59,6 @@ export function VideoInfoBuilder(params: VideoInfoBuilderParams) {
   }
   .justifyContent(FlexAlign.Start)
   .width('100%')
-  .height(25) // 固定行高
+  .height(32) // 固定行高
   .padding({ top: 5, right: 10, left: 5 })
 }

@@ -17,6 +17,7 @@ export struct SettingsPage { //设置页
   @StorageLink('isListDisplay') isListDisplay: boolean = true
   @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
   @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
+  @StorageLink('showSettingPageEntry') showSettingPageEntry: boolean = true
   @State passwd: string = 'passwd'
   @Consume('pathStack') pathStack: NavPathStack
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
@@ -47,28 +48,30 @@ export struct SettingsPage { //设置页
           })
         }
 
-        ListItem() {
-          SettingsClickItem({
-            symbol: $r('sys.symbol.lock'),
-            message: $r('app.string.privacy_space'),
-            onPress: async () => {
-              this.passwd = Preferences.getPassword(PathUtils.appContext!)
-              if (this.passwd === '') { // 未设置密码时直接打开设置弹窗
-                this.editPasswdDialogController.open();
-                return;
-              }
-              if (BiometricAccessUtil.checkUserAuthSupport()) { // 支持生物认证时进行认证
-                const isSuccess = await BiometricAccessUtil.startUserAuth();
-                if (isSuccess) { // 认证成功进入隐私空间
-                  this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null);
+        if (this.showSettingPageEntry) {
+          ListItem() {
+            SettingsClickItem({
+              symbol: $r('sys.symbol.lock'),
+              message: $r('app.string.privacy_space'),
+              onPress: async () => {
+                this.passwd = Preferences.getPassword(PathUtils.appContext!)
+                if (this.passwd === '') { // 未设置密码时直接打开设置弹窗
+                  this.editPasswdDialogController.open();
                   return;
                 }
-                ToolsUtil.showToast('验证失败，请从首页搜索框输入密码进入隐私空间'); // 认证失败显示提示
-                return;
+                if (BiometricAccessUtil.checkUserAuthSupport()) { // 支持生物认证时进行认证
+                  const isSuccess = await BiometricAccessUtil.startUserAuth();
+                  if (isSuccess) { // 认证成功进入隐私空间
+                    this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null);
+                    return;
+                  }
+                  ToolsUtil.showToast('验证失败，请从首页搜索框输入密码进入隐私空间'); // 认证失败显示提示
+                  return;
+                }
+                ToolsUtil.showToast('请从首页搜索框输入密码进入隐私空间'); // 设备不支持生物认证的提示
               }
-              ToolsUtil.showToast('请从首页搜索框输入密码进入隐私空间'); // 设备不支持生物认证的提示
-            }
-          })
+            })
+          }
         }
 
         ListItem() {

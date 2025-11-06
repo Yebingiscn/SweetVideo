@@ -41,7 +41,7 @@ import { PlayerSettingPage } from './SettingPage/PlayerSettingPage';
 import { PersonalizePage } from './SettingPage/PersonalizePage';
 import { EditPasswordDialog } from '../component/Dialog/EditPasswordDialog';
 import BiometricAccessUtil from '../utils/BiometricAccessUtil';
-import { DeleteType } from '../common/enum/deleteType';
+import { DeleteType } from '../common/enum/DeleteType';
 
 @Builder
 export function IndexBuilder() {
@@ -69,7 +69,6 @@ struct Index {
   @Provide fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   @Provide sideBarController: SideBarController = new SideBarController()
   @Provide('pathStack') pathStack: NavPathStack = new NavPathStack()
-  private scaleValue: number | undefined;
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: AddFileFolderNameDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -87,6 +86,20 @@ struct Index {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  addPasswordDialogController: CustomDialogController = new CustomDialogController({
+    builder: EditPasswordDialog({
+      confirm: (passwd: string | undefined) => {
+        if (!passwd || passwd.trim() == '') {
+          return
+        }
+        this.passwd = passwd
+        ToolsUtil.savePwd(PathUtils.appContext!, passwd)
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.set_passwd_tip').id))
+        this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null)
+      },
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  private scaleValue: number | undefined;
 
   @Builder
   FileFolderSelectMenu(folder: FileFolder) {
@@ -171,7 +184,6 @@ struct Index {
     VideoOperateUtil.initSetting(PathUtils.appContext!)
     VideoMetaDataOperator.migrationRootVideoMetaToRootFolder()
     ToolsUtil.fileFolderExistCheck()
-    this.passwd = Preferences.getPassword(PathUtils.appContext!)
     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
     this.fileFolderSource?.updateData(this.file_folder_list)
     this.videoListController?.updateData(undefined, this.file_folder_list[0])
@@ -414,7 +426,7 @@ struct Index {
           this.videoListController.refresh(width, this.isListDisplay)
         })
         .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
-          let rotateAngle = event?.angle
+          const rotateAngle = event?.angle
           if (rotateAngle > -45 && rotateAngle < 45) {
             this.sideBarController.sideBarStatusTmp === Visibility.Visible ?
               this.sideBarController.closeSideBar(true) : this.sideBarController.openSideBar()
@@ -423,39 +435,27 @@ struct Index {
         .gesture(
           // 绑定二指触发的捏合手势
           PinchGesture({ fingers: 2 })
-            .onActionUpdate((event: GestureEvent|undefined) => {
+            .onActionUpdate((event: GestureEvent | undefined) => {
               this.scaleValue = event?.scale
             })
             .onActionEnd(() => {
               if (this.scaleValue && this.scaleValue > 1) {
-                  this.passwd = Preferences.getPassword(PathUtils.appContext!)
-                  if (this.passwd === '') { // 未设置密码时直接打开设置弹窗
-                    new CustomDialogController({
-                      builder: EditPasswordDialog({
-                        confirm: (passwd: string | undefined) => {
-                          if (!passwd || passwd.trim() == '') {
-                            return
-                          }
-                          this.passwd = passwd
-                          ToolsUtil.savePwd(PathUtils.appContext!, passwd)
-                          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.set_passwd_tip').id))
-                          this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null)
-                        },
-                      }), cornerRadius: 20, shadow: DefaultDialogShadow
-                    }).open();
-                    return;
-                  }
-                  if (BiometricAccessUtil.checkUserAuthSupport()) { // 支持生物认证时进行认证
-                    BiometricAccessUtil.startUserAuth().then(isSuccess => {
-                      if (isSuccess) { // 认证成功进入隐私空间
-                        this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null);
-                      } else {
-                        ToolsUtil.showToast('验证失败，请从首页搜索框输入密码进入隐私空间'); // 认证失败显示提示
-                      }
-                    })
-                    return;
-                  }
-                  ToolsUtil.showToast('请从首页搜索框输入密码进入隐私空间'); // 设备不支持生物认证的提示
+                this.passwd = Preferences.getPassword(PathUtils.appContext!)
+                if (this.passwd === '') { // 未设置密码时直接打开设置弹窗
+                  this.addPasswordDialogController.open();
+                  return;
+                }
+                if (BiometricAccessUtil.checkUserAuthSupport()) { // 支持生物认证时进行认证
+                  BiometricAccessUtil.startUserAuth().then(isSuccess => {
+                    if (isSuccess) { // 认证成功进入隐私空间
+                      this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null);
+                    } else {
+                      ToolsUtil.showToast('验证失败，请从首页搜索框输入密码进入隐私空间'); // 认证失败显示提示
+                    }
+                  })
+                  return;
+                }
+                ToolsUtil.showToast('请从首页搜索框输入密码进入隐私空间'); // 设备不支持生物认证的提示
               }
             })
         )
@@ -506,7 +506,6 @@ struct Index {
     })
     .onNavBarStateChange((isVisible: boolean) => {
       if (isVisible) {
-        this.passwd = Preferences.getPassword(PathUtils.appContext!)
         // 增加判断，旋转时保持滚动位置不变
         if (this.videoListController.folder?.video_list) {
           this.videoListController.refresh(this.screen_width, this.isListDisplay)

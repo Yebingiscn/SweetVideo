@@ -18,4 +18,3 @@
 - 修复 srt ass vtt 字幕解析异常的问题
 - 修复没有创建对象导致调用 undefined 的问题
 - napi-ohos 升级到 1.1.3
-- 

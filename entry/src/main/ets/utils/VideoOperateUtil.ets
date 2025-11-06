@@ -8,7 +8,6 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
 import SelectFileUtil from './SelectFileUtil';
 import { AudioTrack } from '../interfaces/AudioTrackInterface';
-import ReqPermissionUtil from './ReqPermissionUtil';
 import { common } from '@kit.AbilityKit';
 import Preferences from '../database/Preferences';
 import RecentPlayUtil from './RecentPlayUtil';
@@ -19,6 +18,7 @@ import ToolsUtil from './ToolsUtil';
 import VideoInfoUtil from './VideoInfoUtil';
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
 import PreferencesUtil from './PreferencesUtil';
+import PermissionUtil from './PermissionUtil';
 
 // 视频操作类
 class VideoOperateUtil {
@@ -220,8 +220,7 @@ class VideoOperateUtil {
 
   // 启动时初始化已保存的设置项
   initSetting(context: common.UIAbilityContext) {
-    ReqPermissionUtil.reqPermissionsFromUser(ReqPermissionUtil.permissions, context);
-
+    PermissionUtil.reqPermissionsFromUser(PermissionUtil.permissions, context);
     AppStorage.setOrCreate('allowBackgroundPlay', Preferences.getAllowBackgroundPlayState(context))
     AppStorage.setOrCreate('allowPlayBackExist', Preferences.getAllowPlayBackExistState(context))
     AppStorage.setOrCreate('fastForwardSeconds', Preferences.getFastForwardSeconds(context))
@@ -235,6 +234,7 @@ class VideoOperateUtil {
     AppStorage.setOrCreate('longPressSpeed', Preferences.getLongPressSpeed(context))
     AppStorage.setOrCreate('backgroundImageSrc', SelectFileUtil.getImageUri())
     AppStorage.setOrCreate('backgroundDropBlur', Preferences.getBackgroundDropBlur(context))
+    AppStorage.setOrCreate('showSettingPageEntry', Preferences.getShowSettingPageEntry(context))
     // 这里删掉没用的存储项
     PreferencesUtil.delPreferencesValue(context, 'sweet_video', 'circle_play')
   }

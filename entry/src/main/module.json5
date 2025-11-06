@@ -8,6 +8,7 @@
       "phone",
       "tablet",
       "2in1",
+      "tv"
     ],
     "deliveryWithInstall": true,
     "installationFree": false,

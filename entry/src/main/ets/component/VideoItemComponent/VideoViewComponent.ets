@@ -19,6 +19,7 @@ import { FolderOperator } from '../../database/VideoMetaData';
 import VideoUtils from '../../utils/VideoUtil';
 import FileFolderUtil from '../../utils/FileFolderUtil';
 import NavigationAddress from '../../common/NavigationAddress';
+import Preferences from '../../database/Preferences';
 
 @Component
 export struct VideoView {
@@ -123,6 +124,9 @@ export struct VideoView {
             animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
               this.is_edit = isEditing
             })
+          },
+          onSearchFocus: () => {
+            this.passwd = Preferences.getPassword(PathUtils.appContext!)
           }
         })
 
@@ -133,7 +137,8 @@ export struct VideoView {
           }
           .attributeModifier(new ButtonFancyModifier(40, 40))
           .animation({ duration: 300, curve: Curve.Ease })
-          .bindMenu(this.SortMenuBuilder)
+          .bindMenu(this.SortMenuBuilder,
+            { backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK })
           .attributeModifier(new SearchShadowModifier())
 
           if (this.videoListController.multipleChooseState === Visibility.Visible) {
@@ -143,7 +148,8 @@ export struct VideoView {
             }
             .attributeModifier(new ButtonFancyModifier(40, 40))
             .animation({ duration: 300, curve: Curve.Ease })
-            .bindMenu(this.SelectItemMenuBuilder)
+            .bindMenu(this.SelectItemMenuBuilder,
+              { borderRadius: 8, backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK })
             .attributeModifier(new SearchShadowModifier())
           }
         }

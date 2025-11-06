@@ -1,12 +1,12 @@
 import { media } from '@kit.MediaKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import ReqPermission from '../utils/ReqPermissionUtil';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import PrivacySpaceUtil from './PrivacySpaceUtil';
 import { FileProcessorUtil } from './FileProcessorUtil';
 import NavigationAddress from '../common/NavigationAddress';
 import SelectFileUtil from './SelectFileUtil';
+import PermissionUtil from './PermissionUtil';
 
 // 视频信息类
 class VideoInfoUtil {
@@ -118,7 +118,7 @@ class VideoInfoUtil {
   async getVideoCover(sandbox_path: string, date: string, uri: string, size: number[], time: number) {
     if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
       return this.enqueue(async () => {
-        await ReqPermission.persistPermission(uri);
+        await PermissionUtil.persistPermission(uri);
         let file: fs.File | undefined
         let avMetadataExtractor: media.AVMetadataExtractor | undefined
         try {

@@ -1,5 +1,5 @@
-import { DeleteType } from "../../common/enum/deleteType"
-import { VideoMetadata } from "../../interfaces/VideoMetadataInterface";
+import { DeleteType } from '../../common/enum/DeleteType';
+import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
 import DataSyncUtil from '../../utils/DataSyncUtil';
 
 function itemUri() {
@@ -13,37 +13,10 @@ export struct VideoDeleteDialog {
   controller?: CustomDialogController
   @State cb1: boolean = true
   @State cb2: boolean = false
-  private uri: string = itemUri()
-  private cb1VisGen() { // V2 时可用 @Computed
-    if (this.uri.startsWith("/storage/Users/currentUser/")) {
-      return Visibility.Visible
-    } else {
-      this.cb1 = false
-      return Visibility.None
-    }
-  }
   @State cb1Vis: Visibility = this.cb1VisGen()
-  private cb2VisGen() { // V2 时可用 @Computed
-    if (this.uri.startsWith("file://media/")) {
-      this.cb2 = false
-      return Visibility.None
-    } else {
-      return Visibility.Visible
-    }
-  }
   @State cb2Vis: Visibility = this.cb2VisGen()
-
-  private msgGen() { // V2 时可用 @Computed
-    if (this.cb1) {
-      return $r('app.string.hard_del_confirm')
-    } else if (this.cb2){
-      return $r('app.string.recent_del_confirm')
-    } else {
-      return $r('app.string.soft_del_confirm')
-    }
-  }
   @State msg: ResourceStr = this.msgGen();
-
+  private uri: string = itemUri()
 
   build() {
     Column({ space: 25 }) {
@@ -54,7 +27,7 @@ export struct VideoDeleteDialog {
         .margin({ top: 10 })
 
       Flex({ justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
-        Row(){
+        Row() {
           Checkbox({ name: 'cb1', group: 'cbg' })
             .selectedColor($r('app.color.main_color'))
             .shape(CheckBoxShape.CIRCLE)
@@ -75,7 +48,8 @@ export struct VideoDeleteDialog {
             .fontWeight(FontWeight.Medium)
         }
         .visibility(this.cb1Vis)
-        Row(){
+
+        Row() {
           Checkbox({ name: 'cb2', group: 'cbg' })
             .selectedColor($r('app.color.main_color'))
             .shape(CheckBoxShape.CIRCLE)
@@ -83,7 +57,7 @@ export struct VideoDeleteDialog {
               if (checked) {
                 this.cb1 = false
                 this.msg = $r('app.string.recent_del_confirm')
-              } else if (!this.cb1){
+              } else if (!this.cb1) {
                 this.msg = $r('app.string.soft_del_confirm')
               }
             })
@@ -126,7 +100,6 @@ export struct VideoDeleteDialog {
         .height(40)
         .onClick(() => {
           this.controller?.close()
-
           let deleteType = DeleteType.SOFT
           if (this.cb1) {
             deleteType = DeleteType.HARD
@@ -137,5 +110,33 @@ export struct VideoDeleteDialog {
         })
       }.margin({ bottom: 10 })
     }.padding(20)
+  }
+
+  private cb1VisGen() { // V2 时可用 @Computed
+    if (this.uri.startsWith("/storage/Users/currentUser/")) {
+      return Visibility.Visible
+    } else {
+      this.cb1 = false
+      return Visibility.None
+    }
+  }
+
+  private cb2VisGen() { // V2 时可用 @Computed
+    if (this.uri.startsWith("file://media/")) {
+      this.cb2 = false
+      return Visibility.None
+    } else {
+      return Visibility.Visible
+    }
+  }
+
+  private msgGen() { // V2 时可用 @Computed
+    if (this.cb1) {
+      return $r('app.string.hard_del_confirm')
+    } else if (this.cb2) {
+      return $r('app.string.recent_del_confirm')
+    } else {
+      return $r('app.string.soft_del_confirm')
+    }
   }
 }
