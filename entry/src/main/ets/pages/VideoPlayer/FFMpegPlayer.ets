@@ -363,7 +363,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           }
         })
 
-        if (deviceInfo.sdkApiVersion >= 18) {
+        if (deviceInfo.sdkApiVersion >= 18 && canIUse('SystemCapability.AI.AICaption')) {
           AIAsr({
             isShown: this.isAIAsrShown
           })
