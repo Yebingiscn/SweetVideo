@@ -83,6 +83,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @State isHorizontalSwiping: boolean = false
   @State video_meta_data: VideoMetadata[] = []
   @State volumeActually: number = 0
+  @StorageLink('isPrivacyBackground') isPrivacyBackground: boolean = false
   @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
   @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
   @StorageLink('skipIntroTime') skipIntroTime: string = '0'
@@ -421,6 +422,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       this.mIjkMediaPlayer?.off('audioInterrupt');
       this.mIjkMediaPlayer?.off('deviceChange')
     }).hideTitleBar(true)
+    .blur(this.isPrivacyBackground ? 1000 : 0)
   }
 
   @Builder

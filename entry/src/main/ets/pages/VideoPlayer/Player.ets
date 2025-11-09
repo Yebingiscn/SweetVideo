@@ -96,6 +96,7 @@ export struct Player { // 播放页
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageLink('smartRotation') smartRotation: boolean = true
   @StorageLink('longPressSpeed') longPressSpeed: number = 3
+  @StorageLink('isPrivacyBackground') isPrivacyBackground: boolean = false
   @Consume('pathStack') pathStack: NavPathStack
   @State exitVideoTime: number = 0
   private mIjkMediaPlayer: IjkMediaPlayer | null = null;
@@ -984,6 +985,7 @@ export struct Player { // 播放页
       }
     })
     .hideTitleBar(true)
+    .blur(this.isPrivacyBackground ? 1000 : 0)
   }
 
   exitVideo(timeOut: number) {

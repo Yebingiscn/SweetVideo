@@ -9,6 +9,7 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
 import VideoOperateUtil from '../utils/VideoOperateUtil';
 import { BusinessError } from '@ohos.base';
+import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
 
 export default class EntryAbility extends UIAbility {
   watcher: hiAppEvent.Watcher | undefined = undefined
@@ -129,6 +130,26 @@ export default class EntryAbility extends UIAbility {
       }
       hilog.info(0x0000, 'testTag', 'Succeeded in loading the content.');
     });
+    // 是否进入后台
+    windowStage.on('windowStageEvent', (windowEvent) => {
+      if (!PrivacySpaceUtil.getPrivacyMode()) {
+        return
+      }
+      switch (windowEvent) {
+        case window.WindowStageEventType.SHOWN:
+        case window.WindowStageEventType.ACTIVE:
+        case window.WindowStageEventType.RESUMED: {
+          AppStorage.setOrCreate('isPrivacyBackground', false);
+          break
+        }
+        case window.WindowStageEventType.HIDDEN:
+        case window.WindowStageEventType.INACTIVE:
+        case window.WindowStageEventType.PAUSED: {
+          AppStorage.setOrCreate('isPrivacyBackground', true);
+          break
+        }
+      }
+    })
   }
 
   onWindowStageWillDestroy(): void {

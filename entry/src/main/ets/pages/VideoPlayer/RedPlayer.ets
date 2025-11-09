@@ -61,6 +61,7 @@ export struct RedPlayer { // 红薯播放器页
   @State screenBrightness: number = 0
   @State volumeActually: number = 0
   playerController: RedPlayerControllerUtil | null = null
+  @StorageLink('isPrivacyBackground') isPrivacyBackground: boolean = false
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
   @StorageLink('skipIntroTime') skipIntroTime: string = '0'
@@ -394,6 +395,7 @@ export struct RedPlayer { // 红薯播放器页
         console.error('player error:' + error)
       }
     }).hideTitleBar(true)
+    .blur(this.isPrivacyBackground ? 1000 : 0)
   }
 
   @Builder

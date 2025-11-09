@@ -3,7 +3,7 @@ import SelectFileUtil from '../utils/SelectFileUtil';
 import { VideoDataSource } from '../utils/DataUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import DataSyncUtil from '../utils/DataSyncUtil';
-import { MenuModifier, SymbolGlyphModifier, window } from '@kit.ArkUI';
+import { MenuModifier, SymbolGlyphModifier } from '@kit.ArkUI';
 import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog';
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 import Preferences from '../database/Preferences';
@@ -26,8 +26,6 @@ import VideoCardItem from '../component/VideoItemComponent/VideoCardItemComponen
 import VideoOperateUtil from '../utils/VideoOperateUtil';
 import { SettingsToggleItem } from '../component/SettingComponent/SettingsToggleItem';
 import { SettingsClickItem } from '../component/SettingComponent/SettingsClickItem';
-import { application, ApplicationStateChangeCallback, common } from '@kit.AbilityKit';
-import { BusinessError } from '@kit.BasicServicesKit';
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -48,8 +46,7 @@ export struct PrivacySpace { // 隐私空间页
   @State longPressPreview: boolean = false
   @State delMultipleList: VideoMetadata[] = []
   @State isPresent: boolean = false;
-  @State isBackground: boolean = false;
-  @State exited: boolean = false;
+  @StorageLink('isPrivacyBackground') isPrivacyBackground: boolean = false
   @StorageLink('showSettingPageEntry') showSettingPageEntry: boolean = true
   @StorageLink('isListDisplay') isListDisplay: boolean = true
   searchController: SearchController = new SearchController()
@@ -308,24 +305,6 @@ export struct PrivacySpace { // 隐私空间页
   }
 
   async aboutToAppear(): Promise<void> {
-    (this.getUIContext().getHostContext() as common.UIAbilityContext).windowStage.on('windowStageEvent',
-      (windowEvent) => {
-        switch (windowEvent) {
-          case window.WindowStageEventType.SHOWN:
-          case window.WindowStageEventType.ACTIVE:
-          case window.WindowStageEventType.RESUMED: {
-            this.isBackground = false;
-            break
-          }
-          case window.WindowStageEventType.HIDDEN:
-          case window.WindowStageEventType.INACTIVE:
-          case window.WindowStageEventType.PAUSED: {
-            this.isBackground = true;
-            break
-          }
-        }
-        console.info('Window event happened. Event:' + `${windowEvent}`);
-      })
     this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
     this.videoDataSource = new VideoDataSource(this.video_meta_data_encryption)
     PrivacySpaceUtil.setPrivacyMode(true)
@@ -347,17 +326,6 @@ export struct PrivacySpace { // 隐私空间页
     }).backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
       $r('app.color.start_window_background')).reuseId(`VideoListItem#${item.uri}`).borderRadius(8)
   }
-
-  private applicationStateChangeCallback: ApplicationStateChangeCallback = {
-    onApplicationForeground() {
-    },
-    onApplicationBackground: () => {
-      this.exited = true
-      this.isPresent = false
-      this.closePrivacyMode()
-      this.pathStack.pop()
-    }
-  };
 
   build() {
     NavDestination() {
@@ -481,22 +449,10 @@ export struct PrivacySpace { // 隐私空间页
     }
     .onWillDisappear(() => {
       this.closePrivacyMode()
-
-      try {
-        application.getApplicationContext()?.off('applicationStateChange', this.applicationStateChangeCallback);
-      } catch (paramError) {
-        console.error(`error: ${(paramError as BusinessError).code}, ${(paramError as BusinessError).message}`);
-      }
     })
     .onShown(() => {
       this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
       this.videoDataSource.updateData(this.video_meta_data_encryption)
-
-      try {
-        application.getApplicationContext()?.on('applicationStateChange', this.applicationStateChangeCallback);
-      } catch (paramError) {
-        console.error(`error: ${(paramError as BusinessError).code}, ${(paramError as BusinessError).message}`);
-      }
     })
     .title($r('app.string.privacy_space'))
     .menus(this.NavigationMenus)
@@ -514,7 +470,7 @@ export struct PrivacySpace { // 隐私空间页
         return false
       }
     })
-    .blur(this.isBackground || this.exited ? 1000 : 0)
+    .blur(this.isPrivacyBackground ? 1000 : 0)
   }
 
   @Builder
