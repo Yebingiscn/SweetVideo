@@ -10,11 +10,13 @@ import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerIn
 import VideoOperateUtil from '../utils/VideoOperateUtil';
 import { BusinessError } from '@ohos.base';
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
+import { updateManager } from '@kit.AppGalleryKit';
 
 export default class EntryAbility extends UIAbility {
   watcher: hiAppEvent.Watcher | undefined = undefined
 
   async onCreate(want: Want) {
+    this.checkUpdate()
     try {
       this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     } catch (error) {
@@ -28,6 +30,24 @@ export default class EntryAbility extends UIAbility {
     WantProcessUtil.want = want
     this.crashWatcher()
     this.initRedPlayer()
+  }
+
+  checkUpdate() {
+    updateManager.checkAppUpdate(this.context)
+      .then((checkResult: updateManager.CheckUpdateResult) => {
+        hilog.info(0, 'TAG', "Succeeded in checking Result updateAvailable:" + checkResult.updateAvailable);
+        if (checkResult.updateAvailable == updateManager.UpdateAvailableCode.LATER_VERSION_EXIST) {
+          updateManager.showUpdateDialog(this.context)
+            .then((resultCode: updateManager.ShowUpdateResultCode) => {
+              hilog.info(0, 'TAG', "Succeeded in showing UpdateDialog resultCode:" + resultCode);
+            })
+            .catch((error: BusinessError) => {
+              hilog.error(0, 'TAG', `showUpdateDialog onError.code is ${error.code}, message is ${error.message}`);
+            });
+        }
+      }).catch((error: BusinessError) => {
+        hilog.error(0, 'TAG', `checkAppUpdate onError.code is ${error.code}, message is ${error.message}`);
+      });
   }
 
   // 红薯播放器初始化
