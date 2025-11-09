@@ -9,6 +9,7 @@ function itemUri() {
 
 @CustomDialog
 export struct VideoDeleteDialog {
+  private uri: string = itemUri()
   confirm?: (deleteType: DeleteType) => void
   controller?: CustomDialogController
   @State cb1: boolean = true
@@ -16,7 +17,6 @@ export struct VideoDeleteDialog {
   @State cb1Vis: Visibility = this.cb1VisGen()
   @State cb2Vis: Visibility = this.cb2VisGen()
   @State msg: ResourceStr = this.msgGen();
-  private uri: string = itemUri()
 
   build() {
     Column({ space: 25 }) {
@@ -112,7 +112,7 @@ export struct VideoDeleteDialog {
     }.padding(20)
   }
 
-  private cb1VisGen() { // V2 时可用 @Computed
+  private cb1VisGen() {
     if (this.uri.startsWith("/storage/Users/currentUser/")) {
       return Visibility.Visible
     } else {
@@ -121,7 +121,7 @@ export struct VideoDeleteDialog {
     }
   }
 
-  private cb2VisGen() { // V2 时可用 @Computed
+  private cb2VisGen() {
     if (this.uri.startsWith("file://media/")) {
       this.cb2 = false
       return Visibility.None
