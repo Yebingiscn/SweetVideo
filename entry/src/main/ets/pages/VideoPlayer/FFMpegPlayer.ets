@@ -39,7 +39,6 @@ import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode'
 import NavigationAddress from '../../common/NavigationAddress'
 import { WindowUtil } from '../../utils/WindowUtil'
 import { XAnimation } from '../../utils/AnimationUtil'
-import { deviceInfo } from '@kit.BasicServicesKit'
 import { AIAsr } from '../../component/VideoItemComponent/AIAsrComponent'
 
 @Component
@@ -364,17 +363,15 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           }
         })
 
-        if (deviceInfo.sdkApiVersion >= 18 && canIUse('SystemCapability.AI.AICaption')) {
-          AIAsr({
-            isShown: this.isAIAsrShown
+        AIAsr({
+          isShown: this.isAIAsrShown
+        })
+          .visibility(this.showControl ? Visibility.None : Visibility.Visible)
+          .width('80%').height(80)
+          .offset({
+            x: 0,
+            y: this.screen_width > this.screen_height ? this.screen_height / 2 - 40 : this.screen_height / 2 - 100
           })
-            .visibility(this.showControl ? Visibility.None : Visibility.Visible)
-            .width('80%').height(80)
-            .offset({
-              x: 0,
-              y: this.screen_width > this.screen_height ? this.screen_height / 2 - 40 : this.screen_height / 2 - 100
-            })
-        }
       }
       .onAreaChange(async (_oldValue: Area, newValue: Area) => {
         this.screen_width = Math.floor(new Number(newValue.width).valueOf())

@@ -45,14 +45,12 @@ export struct VideoView {
       if (this.sideBarController.mask_state &&
         this.sideBarController.sideBarStatusTmp !== Visibility.Hidden &&
         this.sideBarController.side_bar_mode === SideBarContainerType.Overlay) {
-        MaskComponent()
+        MaskComponent(this.sideBarController)
       }
-      Column() {
-        VideoList({
-          videoListController: this.videoListController,
-          delMultipleList: this.delMultipleList
-        })
-      }
+      VideoList({
+        videoListController: this.videoListController,
+        delMultipleList: this.delMultipleList
+      })
 
       if (!this.loading && this.videoListController.openSideBarTip()) {
         Row() { //顶栏
@@ -138,7 +136,7 @@ export struct VideoView {
           .attributeModifier(new ButtonFancyModifier(40, 40))
           .animation({ duration: 300, curve: Curve.Ease })
           .bindMenu(this.SortMenuBuilder,
-            { backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK })
+            { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
           .attributeModifier(new SearchShadowModifier())
 
           if (this.videoListController.multipleChooseState === Visibility.Visible) {
@@ -149,7 +147,7 @@ export struct VideoView {
             .attributeModifier(new ButtonFancyModifier(40, 40))
             .animation({ duration: 300, curve: Curve.Ease })
             .bindMenu(this.SelectItemMenuBuilder,
-              { borderRadius: 8, backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK })
+              { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
             .attributeModifier(new SearchShadowModifier())
           }
         }
@@ -206,7 +204,8 @@ export struct VideoView {
         .onClick(async () => {
           try {
             if (this.delMultipleList.length > 0) {
-              FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController, this.fileFolderSource)
+              await FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController,
+                this.fileFolderSource)
             }
           } finally {
             VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)

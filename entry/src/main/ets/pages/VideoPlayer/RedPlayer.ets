@@ -2,7 +2,7 @@ import { window } from '@kit.ArkUI';
 import { PlayerCoreType, RedPlayerXComponentController, SourceType } from '@rte-xhs/redplayer';
 import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface';
 import PermissionUtil from '../../utils/PermissionUtil';
-import RedPlayerControllerUtil from '../../utils/RedPlayerControllerUtil';
+import RedPlayerControllerUtil from '../../common/RedPlayerControllerUtil';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import ToolsUtil from '../../utils/ToolsUtil';
 import { KeyCode } from '@kit.InputKit';
@@ -29,7 +29,6 @@ import { VolumeSwipingComponent } from '../../component/PlayerComponent/VolumeSw
 import { WindowUtil } from '../../utils/WindowUtil';
 import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent';
 import { XAnimation } from '../../utils/AnimationUtil';
-import { deviceInfo } from '@kit.BasicServicesKit';
 import { AIAsr } from '../../component/VideoItemComponent/AIAsrComponent';
 
 @Component
@@ -342,17 +341,16 @@ export struct RedPlayer { // 红薯播放器页
           }
         })
 
-        if (deviceInfo.sdkApiVersion >= 18 && canIUse('SystemCapability.AI.AICaption')) {
-          AIAsr({
-            isShown: this.isAIAsrShown
+        AIAsr({
+          isShown: this.isAIAsrShown
+        })
+          .visibility(this.showControl ? Visibility.None : Visibility.Visible)
+          .width('80%').height(80)
+          .offset({
+            x: 0,
+            y: this.screen_width > this.screen_height ? this.screen_height / 2 - 40 : this.screen_height / 2 - 100
           })
-            .visibility(this.showControl ? Visibility.None : Visibility.Visible)
-            .width('80%').height(80)
-            .offset({
-              x: 0,
-              y: this.screen_width > this.screen_height ? this.screen_height / 2 - 40 : this.screen_height / 2 - 100
-            })
-        }
+
       }
       .onAreaChange(async (_oldValue: Area, newValue: Area) => {
         this.screen_width = Math.floor(new Number(newValue.width).valueOf())
@@ -382,6 +380,7 @@ export struct RedPlayer { // 红薯播放器页
           this.video_meta_data, PathUtils.appContext!)
       }
       PermissionUtil.applyStopContinuousTask(this.allowBackgroundPlay)
+      this.playerController?.pause()
       this.playerController?.stop()
       this.playerController?.release()
       try {
@@ -621,7 +620,7 @@ export struct RedPlayer { // 红薯播放器页
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .bindMenu(this.PlaybackSpeedMenuBuilder,
-          { borderRadius: 8, backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK })
+          { backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK })
       }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() {

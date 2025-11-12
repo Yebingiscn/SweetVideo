@@ -1,31 +1,30 @@
-import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
-import SelectFileUtil from '../utils/SelectFileUtil';
-import { VideoDataSource } from '../utils/DataUtil';
-import ToolsUtil from '../utils/ToolsUtil';
-import DataSyncUtil from '../utils/DataSyncUtil';
+import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
+import SelectFileUtil from '../../utils/SelectFileUtil';
+import { VideoDataSource } from '../../utils/DataUtil';
+import ToolsUtil from '../../utils/ToolsUtil';
+import DataSyncUtil from '../../utils/DataSyncUtil';
 import { MenuModifier, SymbolGlyphModifier } from '@kit.ArkUI';
-import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog';
-import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
-import Preferences from '../database/Preferences';
-import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
-import { FileFolder } from '../interfaces/FileFolderInterface';
+import { VideoDetailDialog } from '../../component/Dialog/VideoDetailDialog';
+import { DefaultDialogShadow } from '../../common/DefaultDialogShadow';
+import Preferences from '../../database/Preferences';
+import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil';
+import { FileFolder } from '../../interfaces/FileFolderInterface';
 import {
   ButtonFancyModifier, SymbolGlyphFancyModifier
-} from '../utils/AttributeModifierUtil';
-import { FileProcessorUtil } from '../utils/FileProcessorUtil';
-import SubtitleUtil from '../utils/SubtitleUtil';
-import { PathUtils } from '../utils/PathUtils';
-import { EditPasswordDialog } from '../component/Dialog/EditPasswordDialog';
-import { SearchComponent } from '../component/VideoItemComponent/SearchComponent';
-import NavigationAddress from '../common/NavigationAddress';
-import { EditMetadataDialog } from '../component/Dialog/EditMetadataDialog';
-import FileFolderUtil from '../utils/FileFolderUtil';
-import { ImportProgressBuilder } from '../component/VideoItemComponent/ImportProgressBuilder';
-import VideoListItem from '../component/VideoItemComponent/VideoListItemComponent';
-import VideoCardItem from '../component/VideoItemComponent/VideoCardItemComponent';
-import VideoOperateUtil from '../utils/VideoOperateUtil';
-import { SettingsToggleItem } from '../component/SettingComponent/SettingsToggleItem';
-import { SettingsClickItem } from '../component/SettingComponent/SettingsClickItem';
+} from '../../utils/AttributeModifierUtil';
+import { FileProcessorUtil } from '../../utils/FileProcessorUtil';
+import { PathUtils } from '../../utils/PathUtils';
+import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog';
+import { SearchComponent } from '../../component/VideoItemComponent/SearchComponent';
+import NavigationAddress from '../../common/NavigationAddress';
+import { EditMetadataDialog } from '../../component/Dialog/EditMetadataDialog';
+import FileFolderUtil from '../../utils/FileFolderUtil';
+import { ImportProgressBuilder } from '../../component/VideoItemComponent/ImportProgressBuilder';
+import VideoListItem from '../../component/VideoItemComponent/VideoListItemComponent';
+import VideoCardItem from '../../component/VideoItemComponent/VideoCardItemComponent';
+import VideoOperateUtil from '../../utils/VideoOperateUtil';
+import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem';
+import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem';
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -34,7 +33,6 @@ export struct PrivacySpace { // 隐私空间页
   @State list_line: number = 1
   @Consume('pathStack') pathStack: NavPathStack
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
-  @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
   @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
   @State totalItems: number = 0
@@ -71,8 +69,8 @@ export struct PrivacySpace { // 隐私空间页
       confirm: (title: string | undefined) => {
         if (!title?.trim()) {
           return;
-        } // 更严格的空值判断
-        const editingVideo = JSON.parse(DataSyncUtil.editingVideo) as VideoMetadata;
+        }
+        const editingVideo = DataSyncUtil.editingVideo!
         const targetIndex = SelectFileUtil.getItemIndex(this.video_meta_data_encryption, editingVideo);
         if (targetIndex === -1) {
           return;
@@ -123,10 +121,31 @@ export struct PrivacySpace { // 隐私空间页
       }
       .padding(15)
       .alignItems(HorizontalAlign.Start)
-      .borderRadius(20)
+      .borderRadius(16)
       .width('100%')
       .backgroundColor($r('app.color.start_window_background_blur'))
-    }.width('100%').height('100%').padding({ left: 5, right: 5 })
+
+      SettingsClickItem({
+        symbol: $r('sys.symbol.staroflife_rectangle'),
+        message: '异常数据列表',
+        onPress: () => {
+          this.isPresent = false
+          this.pathStack.pushPathByName(NavigationAddress.PRIVACY_ERROR_LIST, true)
+        }
+      })
+
+      Column({ space: 8 }) {
+        Text('清理提示')
+          .fontSize(20).fontWeight(FontWeight.Medium)
+        Text('删除隐私空间的视频后，系统存储的占用情况可能不会立即刷新。建议重启手机，以查看准确的空间释放情况。')
+          .fontSize(15)
+      }
+      .padding(15)
+      .alignItems(HorizontalAlign.Start)
+      .borderRadius(16)
+      .width('100%')
+      .backgroundColor($r('app.color.start_window_background_blur'))
+    }.width('100%').height('100%').padding({ left: 16, right: 16 })
   }
 
   @Builder
@@ -137,10 +156,10 @@ export struct PrivacySpace { // 隐私空间页
           .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
       }
       .backdropBlur(150)
-      .attributeModifier(new ButtonFancyModifier(40, 40))
+      .attributeModifier(new ButtonFancyModifier(35, 35))
       .animation({ duration: 300, curve: Curve.Ease })
-      .bindSheet($$this.isPresent, this.PrivacySpaceSettingBuilder(), {
-        detents: [SheetSize.MEDIUM, SheetSize.LARGE, SheetSize.FIT_CONTENT],
+      .bindSheet($$this.isPresent, this.PrivacySpaceSettingBuilder, {
+        detents: [SheetSize.FIT_CONTENT],
         height: SheetSize.MEDIUM,
         preferType: SheetType.CENTER,
         enableOutsideInteractive: false,
@@ -151,28 +170,29 @@ export struct PrivacySpace { // 隐私空间页
       .onClick(() => {
         this.isPresent = !this.isPresent;
       })
-      .margin({ right: 5 })
+      .margin({ right: 10 })
 
       Button({ type: ButtonType.Circle, stateEffect: true }) {
         SymbolGlyph($r('sys.symbol.plus'))
           .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
       }
       .backdropBlur(150)
-      .attributeModifier(new ButtonFancyModifier(40, 40))
+      .attributeModifier(new ButtonFancyModifier(35, 35))
       .animation({ duration: 300, curve: Curve.Ease })
-      .bindMenu(this.SelectFileMenuBuilder)
-      .margin({ right: 5 })
+      .bindMenu(this.SelectFileMenuBuilder,
+        { backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK })
+      .margin({ right: 10 })
 
       Button({ type: ButtonType.Circle, stateEffect: true }) {
         SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
           .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
       }
       .backdropBlur(150)
-      .attributeModifier(new ButtonFancyModifier(40, 40))
+      .attributeModifier(new ButtonFancyModifier(35, 35))
       .animation({ duration: 300, curve: Curve.Ease })
       .bindMenu(this.SortMenuBuilder,
-        { borderRadius: 8, backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK })
-    }.padding({ right: 24, top: 10 })
+        { backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK })
+    }.margin({ right: 10, top: 10 })
   }
 
   @Builder
@@ -230,7 +250,7 @@ export struct PrivacySpace { // 隐私空间页
           await ToolsUtil.isFileExist(item?.uri!) ?
             ToolsUtil.routerWhere(this.pathStack, NavigationAddress.FFMPEG_PLAYER, item!,
               this.video_meta_data_encryption) :
-            await this.delItem(item!)
+            await this.deleteItem(item!.date, item!.title)
         }, VideoOperateUtil.delayJumpToPlayer)
       })
       MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
@@ -238,26 +258,26 @@ export struct PrivacySpace { // 隐私空间页
           await ToolsUtil.isFileExist(item?.uri!) ?
             ToolsUtil.routerWhere(this.pathStack, NavigationAddress.RED_PLAYER, item!,
               this.video_meta_data_encryption) :
-            await this.delItem(item!)
+            await this.deleteItem(item!.date, item!.title)
         }, VideoOperateUtil.delayJumpToPlayer)
       })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
         .onClick(() => {
-          DataSyncUtil.editingVideo = JSON.stringify(item!)
+          DataSyncUtil.editingVideo = item
           this.VideoDetailDialog.open()
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
       })
         .onClick(async () => {
-          await this.delItem(item!)
+          await this.deleteItem(item!.date, item!.title)
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
         content: $r('app.string.rename')
       })
         .onClick(() => {
-          DataSyncUtil.editingVideo = JSON.stringify(item);
+          DataSyncUtil.editingVideo = item
           this.editMetadataDialogController.open()
         })
       MenuItem({
@@ -265,7 +285,7 @@ export struct PrivacySpace { // 隐私空间页
         content: '导出'
       })
         .onClick(async () => {
-          await SelectFileUtil.exportFile(item!, PathUtils.appContext!)
+          await SelectFileUtil.exportFile(item!.uri, item!.title, item!.format, PathUtils.appContext!)
         })
     }.attributeModifier(new MenuModifier())
   }
@@ -310,12 +330,11 @@ export struct PrivacySpace { // 隐私空间页
     PrivacySpaceUtil.setPrivacyMode(true)
   }
 
-  async delItem(item: VideoMetadata) {
-    await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date!)
-    this.videoDataSource.deleteData(this.video_meta_data_encryption.findIndex(i => i.date == item.date))
-    this.video_meta_data_encryption = this.video_meta_data_encryption.filter(i => i.date != item.date);
-    await SelectFileUtil.deleteCover(item.date)
-    await SelectFileUtil.deletePrivacyVideo(item, this.video_meta_data_encryption)
+  async deleteItem(date: string, title: string) {
+    this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+    this.videoDataSource.deleteData(this.video_meta_data_encryption.findIndex(i => i.date === date))
+    this.video_meta_data_encryption = this.video_meta_data_encryption.filter(i => i.date !== date)
+    await SelectFileUtil.deletePrivacyVideo(date, title, this.video_meta_data_encryption)
   }
 
   @Builder
@@ -324,7 +343,7 @@ export struct PrivacySpace { // 隐私空间页
       item: item,
       delMultipleList: this.delMultipleList
     }).backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
-      $r('app.color.start_window_background')).reuseId(`VideoListItem#${item.uri}`).borderRadius(8)
+      $r('app.color.start_window_background')).reuseId(`VideoListItem#${item.uri}`).borderRadius(16)
   }
 
   build() {
@@ -364,7 +383,7 @@ export struct PrivacySpace { // 隐私空间页
               this.is_edit = isEditing
             })
           }
-        }).width('90%')
+        }).padding({ left: 10, right: 10 })
         if (this.loading) {
           ImportProgressBuilder({ processedItems: this.processedItems, totalItems: this.totalItems })
         }
@@ -378,21 +397,22 @@ export struct PrivacySpace { // 隐私空间页
                   item: item,
                   delMultipleList: this.delMultipleList
                 })
-                  .width('100%')
+                  .width('95%')
                   .reuseId(`VideoCardItem#${item.uri}`)
                   .backgroundColor(this.longPressPreview || this.backgroundImageSrc.length > 0 ?
                     $r('app.color.start_window_background_blur') :
                     $r('app.color.start_window_background'))
-                  .borderRadius(8)
-                  .width('95%')
+                  .borderRadius(16)
                   .height('auto')
               }
             }
+            .width('100%')
+            .height('auto')
             .onClick(async () => {
               await ToolsUtil.isFileExist(item?.uri!) ?
                 ToolsUtil.routerWhere(this.pathStack, NavigationAddress.AV_PLAYER, item,
                   this.video_meta_data_encryption) :
-                await this.delItem(item)
+                await this.deleteItem(item!.date, item!.title)
             })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
               {
@@ -429,13 +449,12 @@ export struct PrivacySpace { // 隐私空间页
         .cachedCount(3)
         .lanes(this.list_line)
         .layoutWeight(1)
-        .padding({ left: 20, right: 20 })
+        .padding({ left: 10, right: 10 })
         .width('100%')
         .height('auto')
         .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
         .chainAnimation(true)
         .scrollBar(BarState.Off)
-
       }
       .width('100%')
       .height('100%')
@@ -480,7 +499,7 @@ export struct PrivacySpace { // 隐私空间页
       SymbolGlyph($r('sys.symbol.arrow_right_folder_circle'))
         .attributeModifier(new SymbolGlyphFancyModifier(28, 40, 40))
         .onClick(async () => {
-          await SelectFileUtil.exportFile(item, PathUtils.appContext!)
+          await SelectFileUtil.exportFile(item!.uri, item!.title, item!.format, PathUtils.appContext!)
         })
     }.padding({ left: 15, right: 15 }).justifyContent(FlexAlign.SpaceEvenly)
   }

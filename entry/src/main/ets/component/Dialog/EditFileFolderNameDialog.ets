@@ -9,8 +9,8 @@ export struct EditFileFolderNameDialog {
   file_folder_name: string | undefined = undefined
 
   aboutToAppear(): void {
-    let tmp = JSON.parse(DataSyncUtil.editingVideo) as FileFolder
-    this.file_folder_name = tmp.name
+    let tmp = DataSyncUtil.editingFolder as FileFolder
+    this.file_folder_name = tmp?.name
   }
 
   build() {
@@ -41,7 +41,7 @@ export struct EditFileFolderNameDialog {
         }
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-        .borderRadius(8)
+        .borderRadius(16)
         .height(40)
         .onClick(() => this.controller?.close())
 
@@ -53,7 +53,7 @@ export struct EditFileFolderNameDialog {
         }
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-        .borderRadius(8)
+        .borderRadius(16)
         .height(40)
         .onClick(() => {
           this.controller?.close()

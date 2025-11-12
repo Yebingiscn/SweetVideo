@@ -20,7 +20,8 @@ export class SearchShadowModifier extends CommonModifier {
   applyNormalAttribute(instance: CommonAttribute): void {
     instance.shadow({ radius: 32, color: $r('app.color.shadow_color') })
       .backgroundColor($r('app.color.search_component_blur'))
-      .backdropBlur(150)
+      .backgroundEffect({ radius: 100 })
+      .useEffect(true, EffectType.WINDOW_EFFECT)
   }
 }
 

@@ -143,11 +143,17 @@ export default class EntryAbility extends UIAbility {
         return;
       }
       VideoOperateUtil.windowStage = windowStage
-      try {
-        windowStage.getMainWindowSync().setWindowBackgroundColor("#000000");
-      } catch (error) {
-        console.error('配置窗口底色失败：' + error)
-      }
+      this.context.resourceManager.getStringValue($r('app.color.start_window_background_blur').id)
+        .then(colorValue => {
+          try {
+            windowStage.getMainWindowSync().setWindowBackgroundColor(colorValue);
+          } catch (error) {
+            console.error('setWindowBackgroundColor error')
+          }
+        })
+        .catch(() => {
+          console.error('loadContent error')
+        })
       hilog.info(0x0000, 'testTag', 'Succeeded in loading the content.');
     });
     // 是否进入后台

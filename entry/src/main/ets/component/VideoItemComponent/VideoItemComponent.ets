@@ -123,9 +123,11 @@ export struct VideoList {
     builder: VideoDeleteDialog({
       confirm: async (deleteType: DeleteType) => {
         try {
-          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType);
+          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType,
+            DataSyncUtil.editingVideo!);
           if (DataSyncUtil.delMultipleList.length > 0) {
-            FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController, this.fileFolderSource)
+            await FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController,
+              this.fileFolderSource)
           }
           this.videoListController.closeMultipleChoose();
         } catch (e) {
@@ -142,7 +144,7 @@ export struct VideoList {
         if (!title?.trim()) {
           return;
         } // 更严格的空值判断
-        const editingVideo = JSON.parse(DataSyncUtil.editingVideo) as VideoMetadata;
+        const editingVideo = DataSyncUtil.editingVideo!;
         const targetIndex = SelectFileUtil.getItemIndex(this.videoListController.videoMetaDataList, editingVideo);
         if (targetIndex === -1) {
           return;
@@ -164,7 +166,7 @@ export struct VideoList {
       item: item,
       delMultipleList: this.delMultipleList
     }).backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
-      $r('app.color.start_window_background')).reuseId(`VideoListItem#${item.uri}`).borderRadius(8)
+      $r('app.color.start_window_background')).reuseId(`VideoListItem#${item.uri}`).borderRadius(16)
   }
 
   build() {
@@ -174,7 +176,7 @@ export struct VideoList {
           ListItem() {
             this.VideoItemBuilder(item)
           }
-          .borderRadius(8)
+          .borderRadius(16)
           .backgroundColor(this.longPressPreview || this.backgroundImageSrc.length > 0 ?
             $r('app.color.start_window_background_blur') :
             $r('app.color.start_window_background'))
@@ -272,7 +274,7 @@ export struct VideoList {
               }
               .backgroundColor(this.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
                 $r('app.color.start_window_background'))
-              .borderRadius(8)
+              .borderRadius(16)
               .width('100%')
               .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
               .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
@@ -379,7 +381,7 @@ export struct VideoList {
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')), content: $r('app.string.edit')
       })
         .onClick(() => {
-          DataSyncUtil.editingVideo = JSON.stringify(item)
+          DataSyncUtil.editingVideo = item
           this.editMetadataDialogController.open()
         })
       // TODO 调整文件夹转移
@@ -394,7 +396,7 @@ export struct VideoList {
       })
         .onClick(() => {
           // 将这个item传递给editingVideo
-          DataSyncUtil.editingVideo = JSON.stringify(item)
+          DataSyncUtil.editingVideo = item!
           this.delConfirmDialog.open()
         })
       MenuItem({
@@ -425,9 +427,9 @@ export struct VideoList {
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
         .onClick(() => {
           setTimeout(() => {
-            DataSyncUtil.editingVideo = JSON.stringify(item)
+            DataSyncUtil.editingVideo = item
             this.VideoDetailDialog.open()
-          }, 150)
+          }, 300)
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat_size_square')), content: '导入或删除字幕'

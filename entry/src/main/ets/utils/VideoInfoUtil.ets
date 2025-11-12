@@ -3,7 +3,7 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import PrivacySpaceUtil from './PrivacySpaceUtil';
-import { FileProcessorUtil } from './FileProcessorUtil';
+import { ConcurrentQueue } from './FileProcessorUtil';
 import NavigationAddress from '../common/NavigationAddress';
 import SelectFileUtil from './SelectFileUtil';
 import PermissionUtil from './PermissionUtil';
@@ -117,7 +117,7 @@ class VideoInfoUtil {
   // 获取视频封面，需要控制并发，不然获取不了,这里实现一个队列来控制并发
   async getVideoCover(sandbox_path: string, date: string, uri: string, size: number[], time: number) {
     if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
-      return this.enqueue(async () => {
+      return ConcurrentQueue.enqueue(async () => {
         await PermissionUtil.persistPermission(uri);
         let file: fs.File | undefined
         let avMetadataExtractor: media.AVMetadataExtractor | undefined
@@ -279,34 +279,6 @@ class VideoInfoUtil {
   saveOriginalVideoWidthAndHeight(play_area_width: number, play_area_height: number) {
     this.play_area_width = play_area_width
     this.play_area_height = play_area_height
-  }
-
-  // 实现了一个并发控制队列方法
-  private async enqueue<T>(task: () => Promise<T>): Promise<T> {
-    return new Promise((resolve, reject) => {
-      const wrappedTask = async () => {
-        try {
-          const result = await task();
-          resolve(result);
-        } catch (error) {
-          reject(error);
-        } finally {
-          this.activeCount--;
-          this.processNext();
-        }
-      };
-
-      this.pendingQueue.push(wrappedTask);
-      this.processNext();
-    });
-  }
-
-  private processNext() {
-    if (this.activeCount < FileProcessorUtil.MAX_CONCURRENT && this.pendingQueue.length > 0) {
-      this.activeCount++;
-      const task = this.pendingQueue.shift()!;
-      task();
-    }
   }
 }
 

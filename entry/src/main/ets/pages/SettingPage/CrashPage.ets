@@ -24,47 +24,54 @@ export struct CrashPage {
   build() {
     NavDestination() {
       Scroll() {
-        Column() {
-          Text(this.appEventGroups.length > 0 ? '流心崩溃日志' : '流心正常运行中...( •̀ ω •́ )✧')
-          ForEach(this.appEventGroups, (eventGroup: hiAppEvent.AppEventGroup) => {
-            Text('事件名：' + eventGroup.name)
-            ForEach(eventGroup.appEventInfos, (eventInfo: hiAppEvent.AppEventInfo) => {
-              Text() {
-                Span(`HiAppEvent eventInfo.domain=${eventInfo.domain}\n` +
-                  `HiAppEvent eventInfo.name=${eventInfo.name}\n` +
-                  `HiAppEvent eventInfo.eventType=${eventInfo.eventType}\n` +
-                  `HiAppEvent eventInfo.params.time=${eventInfo.params['time']}\n` +
-                  `HiAppEvent eventInfo.params.crash_type=${eventInfo.params['crash_type']}\n` +
-                  `HiAppEvent eventInfo.params.foreground=${eventInfo.params['foreground']}\n` +
-                  `HiAppEvent eventInfo.params.bundle_version=${eventInfo.params['bundle_version']}\n` +
-                  `HiAppEvent eventInfo.params.bundle_name=${eventInfo.params['bundle_name']}\n` +
-                  `HiAppEvent eventInfo.params.pid=${eventInfo.params['pid']}\n` +
-                  `HiAppEvent eventInfo.params.uid=${eventInfo.params['uid']}\n` +
-                  `HiAppEvent eventInfo.params.uuid=${eventInfo.params['uuid']}\n` +
-                  `HiAppEvent eventInfo.params.exception=${JSON.stringify(eventInfo.params['exception'])}\n` +
-                  `HiAppEvent eventInfo.params.hilog.size=${eventInfo.params['hilog']?.length}\n` +
-                  `HiAppEvent eventInfo.params.external_log=${JSON.stringify(eventInfo.params['external_log'])}\n` +
-                  `HiAppEvent eventInfo.params.log_over_limit=${eventInfo.params['log_over_limit']}\n` +
-                  `HiAppEvent eventInfo.params.test_data=${eventInfo.params['test_data']}`)
-              }
+        if (this.appEventGroups.length === 0) {
+          Text('流心正常运行中...( •̀ ω •́ )✧')
+            .textAlign(TextAlign.Center)
+            .align(Alignment.Center)
+            .width('100%').height('100%')
+        } else {
+          Column() {
+            Text('流心崩溃日志').margin(10)
+            ForEach(this.appEventGroups, (eventGroup: hiAppEvent.AppEventGroup) => {
+              Text('事件名：' + eventGroup.name)
+              ForEach(eventGroup.appEventInfos, (eventInfo: hiAppEvent.AppEventInfo) => {
+                Text() {
+                  Span(`HiAppEvent eventInfo.domain=${eventInfo.domain}\n` +
+                    `HiAppEvent eventInfo.name=${eventInfo.name}\n` +
+                    `HiAppEvent eventInfo.eventType=${eventInfo.eventType}\n` +
+                    `HiAppEvent eventInfo.params.time=${eventInfo.params['time']}\n` +
+                    `HiAppEvent eventInfo.params.crash_type=${eventInfo.params['crash_type']}\n` +
+                    `HiAppEvent eventInfo.params.foreground=${eventInfo.params['foreground']}\n` +
+                    `HiAppEvent eventInfo.params.bundle_version=${eventInfo.params['bundle_version']}\n` +
+                    `HiAppEvent eventInfo.params.bundle_name=${eventInfo.params['bundle_name']}\n` +
+                    `HiAppEvent eventInfo.params.pid=${eventInfo.params['pid']}\n` +
+                    `HiAppEvent eventInfo.params.uid=${eventInfo.params['uid']}\n` +
+                    `HiAppEvent eventInfo.params.uuid=${eventInfo.params['uuid']}\n` +
+                    `HiAppEvent eventInfo.params.exception=${JSON.stringify(eventInfo.params['exception'])}\n` +
+                    `HiAppEvent eventInfo.params.hilog.size=${eventInfo.params['hilog']?.length}\n` +
+                    `HiAppEvent eventInfo.params.external_log=${JSON.stringify(eventInfo.params['external_log'])}\n` +
+                    `HiAppEvent eventInfo.params.log_over_limit=${eventInfo.params['log_over_limit']}\n` +
+                    `HiAppEvent eventInfo.params.test_data=${eventInfo.params['test_data']}`)
+                }
+              })
             })
-          })
+          }.backgroundColor($r('app.color.start_window_background_blur'))
+          .height('100%')
+          .width('100%')
+          .borderRadius(16)
         }
-        .backgroundColor($r('app.color.start_window_background_blur'))
-        .height('100%')
-        .width('100%')
-        .borderRadius(8)
       }
       .margin({ left: 16, right: 16, bottom: 16 })
       .layoutWeight(1)
       .align(Alignment.Top)
       .height('100%')
       .width('100%')
-      .borderRadius(8)
+      .borderRadius(16)
       .clip(true)
       .scrollBar(BarState.Off)
       .scrollable(ScrollDirection.Vertical) // 启用垂直滚动
       .edgeEffect(EdgeEffect.Spring) // 滚动边缘效果
+
       Button('复制给开发者')
         .onClick(() => {
           this.appEventGroups.toString().length > 0 ? copyText(JSON.stringify(this.appEventGroups)) :
@@ -79,6 +86,7 @@ export struct CrashPage {
         })
         .width('40%')
         .borderRadius(24)
+        .margin({ bottom: 15 })
     }
     .hideToolBar(true)
     .title('流心崩溃日志')

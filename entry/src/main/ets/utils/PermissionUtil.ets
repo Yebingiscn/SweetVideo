@@ -78,10 +78,10 @@ class PermissionUtil {
           backgroundTaskManager.startBackgroundRunning(PathUtils.appContext!,
             backgroundTaskManager.BackgroundMode.AUDIO_PLAYBACK, wantAgentObj).then(() => {
           })?.catch((error: BusinessError) => {
-            hilog.error(777, 'testFlag', 'background play failed BusinessError: ' + JSON.stringify(error))
+            hilog.error(777, 'testFlag', 'background play failed BusinessError: ' + error)
           });
         } catch (error) {
-          hilog.error(777, 'testFlag', 'background play failed: ' + JSON.stringify(error))
+          hilog.error(777, 'testFlag', 'background play failed: ' + error)
         }
       })?.catch(() => {
         console.error('getWantAgent error')

@@ -6,8 +6,8 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 @Component
 export struct AudioTrackComponent {
   @State audioTrackDataSource: AudioTrackSource = new AudioTrackSource([])
-  @Prop audioTrack: AudioTrack[]
-  @Prop audioTrackSelected: number
+  @Link audioTrack: AudioTrack[]
+  @Link audioTrackSelected: number
   onSelect = (_index: number) => {
   }
 
@@ -29,7 +29,7 @@ export struct AudioTrackComponent {
             .attributeModifier(new ImageFancyModifier(10, 30, 30))
             .width(95)
         }.backgroundColor($r('app.color.main_color'))
-        .borderRadius(8).width('100%')
+        .borderRadius(16).width('100%')
       }
       if (VideoOperateUtil.validateAudioTracks(this.audioTrack)) {
         LazyForEach(this.audioTrackDataSource, (item: AudioTrack, index: number) => {
@@ -43,12 +43,12 @@ export struct AudioTrackComponent {
               .margin({ left: 5 })
             if (item.mime.split('/')[1] === 'av3a') {
               Image($r('app.media.audio_vivid_icon'))
-                .attributeModifier(new ImageFancyModifier(10, 85, 30))
+                .attributeModifier(new ImageFancyModifier(8, 85, 30))
                 .width(95)
             }
           }
           .backgroundColor(this.audioTrackSelected === index ? $r('app.color.main_color') : '')
-          .borderRadius(8)
+          .borderRadius(16)
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .width('100%')
           .onClick(() => {

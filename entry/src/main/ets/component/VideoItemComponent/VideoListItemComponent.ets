@@ -21,7 +21,7 @@ export default struct VideoListItem {
   build() {
     Row() {
       Image(fileUri.getUriFromPath(PathUtils.coverPath + this.item.date))
-        .attributeModifier(new ImageFancyModifier(8, 80, 120))
+        .attributeModifier(new ImageFancyModifier(16, 80, 120))
       Column() {
         Row() {
           Text(VideoInfoUtil.getVideoTitle(this.item))

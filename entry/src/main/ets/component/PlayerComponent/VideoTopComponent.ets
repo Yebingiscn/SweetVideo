@@ -42,13 +42,13 @@ export struct VideoTopComponent {
             .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
             .fontColor(['#f0f0f0'])
             .bindMenu(this.subtitleMenuBuilder,
-              { borderRadius: 8, backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK })
+              { backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK })
           if (this.screenWidth > this.screenHeight) {
             SymbolGlyph($r('sys.symbol.opticaldisc'))
               .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
               .fontColor(['#f0f0f0'])
               .bindMenu(this.audioTrackMenuBuilder,
-                { borderRadius: 8, backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK })
+                { backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK })
           }
           if (this.screenWidth > this.screenHeight) {
             Select(VideoInfoUtil.screenExtendList)

@@ -9,8 +9,7 @@ export struct DeletedVideosDialog {
   private metadata: VideoMetadata[] = []
 
   aboutToAppear(): void {
-    const metadata = DataSyncUtil.deletedVideos as VideoMetadata[]
-    this.metadata = metadata
+    this.metadata = DataSyncUtil.deletedVideos as VideoMetadata[]
     this.deletedVideosDataSource = new DeletedVideosDataSource(this.metadata)
     DataSyncUtil.deletedVideos.length = 0
   }
@@ -59,7 +58,7 @@ export struct DeletedVideosDialog {
       }
       .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
       .backgroundColor($r('sys.color.button_background_color_transparent'))
-      .borderRadius(8)
+      .borderRadius(16)
       .height(60)
       .width(80)
       .margin({ bottom: 10 })

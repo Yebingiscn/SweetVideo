@@ -70,15 +70,15 @@
     },
     {
       "name": "soft_del_confirm",
-      "value": "只是删掉视频导入记录？确认删除？"
+      "value": "删除视频的快捷方式（不影响源文件），确认删除？"
     },
     {
       "name": "hard_del_confirm",
-      "value": "删掉后，所选文件将无法恢复？确认删除？"
+      "value": "所选文件将从设备彻底删除，确认删除？"
     },
     {
       "name": "recent_del_confirm",
-      "value": "移动到文件管理的最近删除后最长保留30天，之后将永久删除。"
+      "value": "移动到文件管理的最近删除"
     },
     {
       "name": "edit",

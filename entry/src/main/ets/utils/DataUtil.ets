@@ -2,7 +2,6 @@ import { FileFolder } from '../interfaces/FileFolderInterface';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import Preferences from '../database/Preferences';
 import { PathUtils } from './PathUtils';
-import DataSyncUtil from '../utils/DataSyncUtil';
 import SubtitleUtil from '../utils/SubtitleUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 
@@ -92,6 +91,10 @@ export class SpeedListDataSource extends BaseDataSource<string> {
 export class DeletedVideosDataSource extends BaseDataSource<VideoMetadata> {
 }
 
+@Observed
+export class PrivacySpaceErrorListDataSource extends BaseDataSource<String> {
+}
+
 // 具体实现类
 @Observed
 export class VideoDataSource extends BaseDataSource<VideoMetadata> {
@@ -105,15 +108,13 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
     if (!item) {
       return
     }
-    DataSyncUtil.editingVideo = JSON.stringify(item);
-    await this.deleteItem(DeleteType.SOFT)
+    await this.deleteItem(DeleteType.SOFT, item)
     SelectFileUtil.deleteVideo(item);
-    await VideoMetaDataOperator.deleteItem(videoListController, fileFolderSource, DeleteType.SOFT)
+    await VideoMetaDataOperator.deleteItem(videoListController, fileFolderSource, DeleteType.SOFT, item)
     VideoUtils.refresh(videoListController, fileFolderSource, videoListController.folder)
   }
 
-  async deleteItem(deleteType: DeleteType): Promise<void> {
-    const item = JSON.parse(DataSyncUtil.editingVideo) as VideoMetadata;
+  async deleteItem(deleteType: DeleteType, item: VideoMetadata): Promise<void> {
     await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date!)
     this.deleteData(this.data.findIndex(i => i.date === item.date));
     RecentPlayUtil.delData(PathUtils.appContext!, item.uri);
@@ -129,7 +130,10 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
       });
     } else if (deleteType == DeleteType.RECENT) {
       try {
-        let trashUri: string = await fileManagerService.deleteToTrash(item.uri);
+        let trashUri: string = ''
+        if (canIUse('SystemCapability.FileManagement.FileManagerService.Core')) {
+          trashUri = await fileManagerService.deleteToTrash(item.uri);
+        }
         console.info("trashUri: " + trashUri);
       } catch (err) {
         let error: BusinessError = err as BusinessError;

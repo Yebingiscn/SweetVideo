@@ -25,7 +25,7 @@ export struct InfoConfirmDialog {
         }
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .backgroundColor($r('sys.color.button_background_color_transparent'))
-        .borderRadius(8)
+        .borderRadius(16)
         .height(40)
         .onClick(() => this.controller?.close())
 
@@ -37,7 +37,7 @@ export struct InfoConfirmDialog {
         }
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .backgroundColor($r('sys.color.button_background_color_transparent'))
-        .borderRadius(8)
+        .borderRadius(16)
         .height(40)
         .onClick(() => {
           this.controller?.close()

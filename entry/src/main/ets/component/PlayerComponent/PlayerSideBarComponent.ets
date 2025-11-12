@@ -33,7 +33,7 @@ export struct PlayerSideBarComponent {
           })
             .backgroundColor(this.now_playing && this.now_playing?.date === item?.date ?
               $r('app.color.main_color') : '')
-            .borderRadius(8)
+            .borderRadius(16)
             .onClick(() => {
               if (this.sideBarStatusTmp === Visibility.Hidden) {
                 return
@@ -66,7 +66,7 @@ export struct PlayerSideBarComponent {
     .padding({ left: 5, right: 5 })
     .margin({ top: this.topSafeHeight })
     .transition(TransitionEffect.translate({ x: 250 }).animation({ duration: 300, curve: Curve.Friction }))
-    .borderRadius(20)
+    .borderRadius(16)
     .cachedCount(3)
   }
 
@@ -87,7 +87,7 @@ export struct ListView {
   build() {
     Row() {
       Image(fileUri.getUriFromPath(PathUtils.coverPath + this.item?.date))
-        .attributeModifier(new ImageFancyModifier(8, 64, 96))
+        .attributeModifier(new ImageFancyModifier(16, 80, 120))
       Column() {
         Row() {
           Text(VideoInfoUtil.getVideoTitle(this.item!))
@@ -101,7 +101,6 @@ export struct ListView {
         }
 
         VideoInfoBuilder({ item: this.item, showProgress: false })
-
       }.alignItems(HorizontalAlign.Start)
       .padding({ left: 15, right: 15 })
       .layoutWeight(1)
@@ -109,6 +108,6 @@ export struct ListView {
     .justifyContent(FlexAlign.Center)
     .width('100%')
     .opacity(0.8)
-    .borderRadius(8)
+    .borderRadius(16)
   }
 }

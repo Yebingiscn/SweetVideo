@@ -11,7 +11,7 @@ export struct VideoDetailDialog {
   private metadata?: VideoMetadata
 
   aboutToAppear(): void {
-    const metadata = JSON.parse(DataSyncUtil.editingVideo) as VideoMetadata
+    const metadata = DataSyncUtil.editingVideo as VideoMetadata
     this.metadata = metadata
   }
 
@@ -67,7 +67,7 @@ export struct VideoDetailDialog {
       }
       .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
       .backgroundColor($r('sys.color.button_background_color_transparent'))
-      .borderRadius(8)
+      .borderRadius(16)
       .height(60)
       .width(80)
       .onClick(() => this.controller?.close())

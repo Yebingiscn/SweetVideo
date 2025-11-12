@@ -9,8 +9,8 @@ export struct EditMetadataDialog {
   name: string | undefined = undefined
 
   aboutToAppear(): void {
-    let tmp = JSON.parse(DataSyncUtil.editingVideo) as VideoMetadata
-    this.name = tmp.title
+    let videoMetadata = DataSyncUtil.editingVideo as VideoMetadata
+    this.name = videoMetadata?.title
   }
 
   build() {
@@ -40,7 +40,7 @@ export struct EditMetadataDialog {
         }
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-        .borderRadius(8)
+        .borderRadius(16)
         .height(40)
         .onClick(() => this.controller?.close())
 
@@ -52,7 +52,7 @@ export struct EditMetadataDialog {
         }
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-        .borderRadius(8)
+        .borderRadius(16)
         .height(40)
         .onClick(() => {
           this.controller?.close()

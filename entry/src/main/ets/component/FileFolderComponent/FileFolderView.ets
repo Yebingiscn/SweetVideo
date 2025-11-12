@@ -10,6 +10,7 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import { EditFileFolderNameDialog } from '../../component/Dialog/EditFileFolderNameDialog'
 import { DefaultDialogShadow } from '../../common/DefaultDialogShadow'
 import { FileFolderListComponent } from './FileFolderListComponent'
+import { DeleteType } from '../../common/enum/DeleteType'
 
 @Component
 export struct FileFolderView {
@@ -24,7 +25,7 @@ export struct FileFolderView {
           return
         }
         await FileFolderUtil.changeFileFolderName(PathUtils.appContext!,
-          JSON.parse(DataSyncUtil.editingVideo) as FileFolder,
+          DataSyncUtil.editingFolder!,
           file_folder, this.fileFolderSource)
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
@@ -69,8 +70,7 @@ export struct FileFolderView {
           DataSyncUtil.delMultipleList = Array.from(file_folder.video_list);
           const deletePromises = DataSyncUtil.delMultipleList.map(item => {
             return new Promise<void>(() => {
-              DataSyncUtil.editingVideo = JSON.stringify(item);
-              this.videoListController.videoDataSource.deleteItem()
+              this.videoListController.videoDataSource.deleteItem(DeleteType.SOFT, item)
               this.videoListController.closeMultipleChoose()
             });
           });
@@ -83,7 +83,7 @@ export struct FileFolderView {
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
         content: $r('app.string.edit')
       }).onClick(() => {
-        DataSyncUtil.editingVideo = JSON.stringify(file_folder);
+        DataSyncUtil.editingFolder = file_folder
         this.editFileFolderNameDialogController.open()
       })
     }.attributeModifier(new MenuModifier).onAppear(() => {

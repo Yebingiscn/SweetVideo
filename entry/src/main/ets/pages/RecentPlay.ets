@@ -8,6 +8,9 @@ import { SymbolGlyphModifier } from '@kit.ArkUI';
 import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../utils/AttributeModifierUtil';
 import NavigationAddress from '../common/NavigationAddress';
 import VideoOperateUtil from '../utils/VideoOperateUtil';
+import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog';
+import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
+import DataSyncUtil from '../utils/DataSyncUtil';
 
 @Component
 export struct RecentPlay { // 最近播放页
@@ -20,6 +23,10 @@ export struct RecentPlay { // 最近播放页
   @StorageLink('recentPlay') recentPlay: boolean = true
   @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
   @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
+  VideoDetailDialog: CustomDialogController = new CustomDialogController({
+    builder: VideoDetailDialog(), cornerRadius: 20,
+    shadow: DefaultDialogShadow
+  })
   private listScroller: Scroller = new Scroller();
 
   async aboutToAppear(): Promise<void> {
@@ -37,15 +44,14 @@ export struct RecentPlay { // 最近播放页
           .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
       }
       .backdropBlur(150)
-      .attributeModifier(new ButtonFancyModifier(40, 40))
+      .attributeModifier(new ButtonFancyModifier(35, 35))
       .animation({ duration: 300, curve: Curve.Ease })
       .onClick(() => {
         for (const element of this.recent_video_meta_data ?? []) {
           this.delData(PathUtils.appContext!, element);
         }
       })
-      .margin({ right: 10 })
-    }
+    }.margin({ right: 10, top: 10 })
   }
 
   @Builder
@@ -68,6 +74,13 @@ export struct RecentPlay { // 最近播放页
       }).onClick(() => {
         this.delData(PathUtils.appContext!, item!)
       })
+      MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
+        .onClick(() => {
+          setTimeout(() => {
+            DataSyncUtil.editingVideo = item
+            this.VideoDetailDialog.open()
+          }, 300)
+        })
     }
   }
 
@@ -80,7 +93,7 @@ export struct RecentPlay { // 最近播放页
       .onClick(async () => {
         this.clickItem(item, NavigationAddress.AV_PLAYER)
       }).backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
-      $r('app.color.start_window_background')).reuseId(`VideoListItem#${item.uri}`).borderRadius(8)
+      $r('app.color.start_window_background')).reuseId(`VideoListItem#${item.uri}`).borderRadius(16)
   }
 
   async clickItem(item: VideoMetadata | undefined, choosePlayer: string) {
@@ -120,7 +133,7 @@ export struct RecentPlay { // 最近播放页
             .width('100%')
             .height('auto')
             .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
-            .borderRadius(8)
+            .borderRadius(16)
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
               {
                 preview: this.VideoItemBuilder(item),
@@ -163,7 +176,7 @@ export struct RecentPlay { // 最近播放页
         this.videoDataSource.updateData(this.recent_video_meta_data)
       }
     })
-    .menus(this.NavigationMenus())
+    .menus(this.NavigationMenus)
     .title('最近播放')
     .padding({ top: this.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))

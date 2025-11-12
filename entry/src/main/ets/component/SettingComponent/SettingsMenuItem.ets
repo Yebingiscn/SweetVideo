@@ -34,8 +34,9 @@ export struct SettingsMenuItem {
         .selected(this.selected)
         .value(this.list[this.selected])
         .selectedOptionFont({ weight: FontWeight.Medium })
-        .selectedOptionFontColor($r('app.color.main_color'))
-        .selectedOptionBgColor($r('sys.color.button_background_color_transparent'))
+        .selectedOptionFontColor($r('app.color.text_color'))
+        .selectedOptionBgColor($r('app.color.main_color'))
+        .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
         .onSelect((index: number) => {
           this.selected = index
           this.onChange(index)

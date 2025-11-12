@@ -9,4 +9,5 @@ export default class NavigationAddress {
   static CRASH_PAGE = 'CrashPage'
   static PERSONALIZE_PAGE = 'PersonalizePage'
   static PLAYER_SETTING_PAGE = 'PlayerSettingPage'
+  static PRIVACY_ERROR_LIST = 'PrivacySpaceErrorList'
 }

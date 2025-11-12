@@ -29,8 +29,8 @@ export class VideoMetaDataOperator {
   }
 
   static async deleteItem(videoListController: VideoListController, fileFolderSource: FileFolderDataSource,
-    deleteType: DeleteType) {
-    await videoListController.videoDataSource.deleteItem(deleteType);
+    deleteType: DeleteType, deleteItem: VideoMetadata) {
+    await videoListController.videoDataSource.deleteItem(deleteType, deleteItem);
     FileFolderUtil.delVideoInFileFolder(PathUtils.appContext!, videoListController, fileFolderSource)
   }
 }

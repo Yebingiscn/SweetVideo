@@ -25,9 +25,9 @@ export struct PlaybackSpeedMenuComponent {
         .height(40)
         .backgroundColor(this.speed && speedAvailable === this.speed ?
           $r('app.color.main_color') : '')
-        .borderRadius(8)
+        .borderRadius(16)
         .width('100%')
-      })
+      }, (speedAvailable: number) => speedAvailable.toString())
     }.cachedCount(2)
     .width(100).height('auto').scrollBar(BarState.Off)
   }

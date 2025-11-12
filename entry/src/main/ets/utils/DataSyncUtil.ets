@@ -1,10 +1,12 @@
+import { FileFolder } from '../interfaces/FileFolderInterface';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 
 // 数据类
 class DataSyncUtil {
   public topSafeHeight: number = 0;
   public lastTime: number = 0;
-  public editingVideo: string = '';
+  public editingVideo: VideoMetadata | undefined = undefined
+  public editingFolder: FileFolder | undefined = undefined
   public deletedVideos: VideoMetadata[] = []
   public bottomSafeHeight: number = 0
   public delMultipleList: VideoMetadata[] = []

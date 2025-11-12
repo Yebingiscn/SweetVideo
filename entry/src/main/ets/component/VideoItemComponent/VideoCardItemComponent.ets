@@ -22,10 +22,10 @@ export default struct VideoCardItem {
     Column() {
       Image(fileUri.getUriFromPath(PathUtils.coverPath + this.item.date))
         .attributeModifier(new ImageFancyModifier({
-          topLeft: 8,
-          topRight: 8,
-          bottomLeft: 8,
-          bottomRight: 8
+          topLeft: 16,
+          topRight: 16,
+          bottomLeft: 16,
+          bottomRight: 16
         }, '', ''))
         .width('100%')
         .height('auto')
@@ -33,7 +33,7 @@ export default struct VideoCardItem {
         .objectFit(ImageFit.Auto)
       Row() {
         Text(VideoInfoUtil.getVideoTitle(this.item))
-          .fontSize(16)
+          .fontSize(15)
           .fontWeight(FontWeight.Bold)
           .maxLines(5)
           .textAlign(TextAlign.Start)

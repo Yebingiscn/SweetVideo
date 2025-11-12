@@ -17,11 +17,20 @@ import RecentPlayUtil from './RecentPlayUtil';
 import { ConcurrencyManagerUtil } from './FileProcessorUtil';
 import { image } from '@kit.ImageKit';
 import PermissionUtil from './PermissionUtil';
+import { VideoSource } from '../common/enum/VideoSource';
+import SubtitleUtil from './SubtitleUtil';
 
 // 获取视频类
 class SelectFileUtil {
   private static queryCache = new WeakMap<VideoMetadata[], Map<string, VideoMetadata>>();
   public file_folder_uri = ''
+  public videoSourcePath = new Map<number, string>([
+    [VideoSource.SWEET_VIDEO_DOWNLOAD_FILE, '/storage/Users/currentUser/'],
+    [VideoSource.DOCUMENT_SELECT_OPTION, 'file://docs/storage/Users'],
+    [VideoSource.PHOTO_SELECT_OPTION, 'file://media/Photo'],
+    [VideoSource.PRIVACY_SPACE, '/data/storage/el2'],
+    [VideoSource.EXTERNAL_DEVICE, 'file://docs/storage/External']
+  ]);
 
   // 从文件管理器获取视频
   async selectFiles(): Promise<string[]> {
@@ -73,13 +82,13 @@ class SelectFileUtil {
   }
 
   // 导出视频文件
-  async exportFile(item: VideoMetadata, context: common.UIAbilityContext) {
+  async exportFile(uri: string, title: string, format: string, context: common.UIAbilityContext) {
     let sourceFile: fs.File | null = null;
     let targetFile: fs.File | null = null;
     try {
-      sourceFile = fs.openSync(item.uri)
+      sourceFile = fs.openSync(uri)
       const saverOption = new picker.DocumentSaveOptions()
-      saverOption.newFileNames = this.copyFileReName(item)
+      saverOption.newFileNames = this.copyFileReName(title, format)
       const documentSaveResult = await new Promise<string[]>((resolve, reject) => {
         const saver = new picker.DocumentViewPicker(context)
         saver.save(saverOption, (err: BusinessError, uris: string[]) => {
@@ -177,9 +186,9 @@ class SelectFileUtil {
     }
   }
 
-  copyFileReName(item: VideoMetadata) {
-    return [item.title.split('.')[item.title.split('.').length - 1]
-      == item.format ? item.title : item.title + '.' + item.format]
+  copyFileReName(title: string, format: string) {
+    return [title.split('.')[title.split('.').length - 1]
+      == format ? title : title + '.' + format]
   }
 
   saveData(context: Context, target_data: VideoMetadataFromPlayer, play_time?: number, size?: number[],
@@ -337,6 +346,17 @@ class SelectFileUtil {
     return list.findIndex(i => i.date == tmp.date)
   }
 
+  isPathFromSource(path: string | undefined, key: VideoSource) {
+    const prefix = this.videoSourcePath.get(key);
+    if (!path || !prefix) {
+      return false;
+    }
+    // 标准化路径比较
+    const normalizedPath = path.replace(/\\/g, '/');
+    const normalizedPrefix = prefix.replace(/\\/g, '/');
+    return normalizedPath.startsWith(normalizedPrefix);
+  }
+
   async addFile(context: Context, sandbox_video: string, sandbox_path: string, uri: string,
     video_meta_data: VideoMetadata[], file_folder?: FileFolder) {
     if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
@@ -346,7 +366,7 @@ class SelectFileUtil {
         // 获取文件操作队列（按URI串行化），避免重复创建文件夹
         const fileQueue = ConcurrencyManagerUtil.getFileQueue(uri);
         await fileQueue.run(async () => {
-          const file = fs.openSync(uri);
+          const file = await fs.open(uri);
           try {
             avMetadataExtractor.fdSrc = file;
             const metadata = await new Promise<media.AVMetadata>((resolve, reject) => {
@@ -431,19 +451,22 @@ class SelectFileUtil {
     );
   }
 
-  async deletePrivacyVideo(item: VideoMetadata, video_meta_data_encryption: VideoMetadata[]) {
-    fs.access(PathUtils.videoPath + item.date).then((res: boolean) => {
-      if (res) {
-        fs.unlink(PathUtils.videoPath + item.date, async (unlinkErr) => {
-          if (unlinkErr) {
-            ToolsUtil.showToast('删除视频失败：' + item.title + '原因是：' + unlinkErr.message)
-          }
-          Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, video_meta_data_encryption)
-        });
+  async deletePrivacyVideo(date: string, title: string, video_meta_data_encryption: VideoMetadata[]) {
+    await this.deleteCover(date)
+    await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, date)
+    Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, video_meta_data_encryption)
+    try {
+      await fs.unlink(PathUtils.videoPath + date);
+      ToolsUtil.showToast('删除成功');
+    } catch (err) {
+      const error = err as BusinessError;
+      if (error.code === 13900002) { // 文件或目录不存在错误码
+        console.warn('文件不存在');
+      } else {
+        console.error('delete failed: ' + error.code + ':' + error.message)
       }
-    })?.catch((err: BusinessError) => {
-      console.error("access failed with error message: " + err.message + ", error code: " + err.code);
-    });
+      ToolsUtil.showToast('删除视频失败：' + title + '原因是：' + err)
+    }
   }
 
   // 删除封面
@@ -484,14 +507,15 @@ class SelectFileUtil {
     }
   }
 
-  // 从下载文件夹获取视频，视频和文件夹太多，通过分离文件夹和文件两个线程池提高性能，进行递归遍历
   async getDownloadFilesUri(): Promise<string[]> {
-    const VIDEO_EXTENSIONS = new Set(VideoUtil.support_video_format.concat(VideoInfoUtil.support_audio_format));
-    const EXT_REGEX = /\.([a-z0-9]+)$/i; // 预编译正则提升性能
+    const VIDEO_EXTENSIONS = new Set([
+      ...VideoUtil.support_video_format,
+      ...VideoInfoUtil.support_audio_format
+    ].map(ext => ext.toLowerCase()));
 
     class ConcurrencyPool {
-      private active = new Set<Promise<void>>();
-      private pendingQueue: Array<() => void> = [];
+      private active = 0;
+      private pending: Array<() => void> = [];
       private concurrency: number;
 
       constructor(concurrency: number) {
@@ -499,78 +523,87 @@ class SelectFileUtil {
       }
 
       async run<T>(task: () => Promise<T>): Promise<T> {
-        return new Promise<T>((resolve, reject) => {
-          const wrapper = async () => {
-            const promise = task()
-              .then(resolve)
-            ?.catch(reject)
-              .finally(() => {
-                this.active.delete(promise as Promise<void>);
-                this.processQueue(); // 立即唤醒新任务
-              });
-            this.active.add(promise as Promise<void>);
-          };
-          this.pendingQueue.push(wrapper);
-          this.processQueue();
-        });
-      }
-
-      async drain() {
-        while (this.active.size > 0 || this.pendingQueue.length > 0) {
-          await Promise.allSettled(Array.from(this.active));
-          this.processQueue(); // 确保处理剩余任务
+        // 如果当前活跃任务数达到并发上限，等待
+        if (this.active >= this.concurrency) {
+          await new Promise<void>(resolve => {
+            this.pending.push(resolve);
+          });
+        }
+        this.active++;
+        try {
+          return await task();
+        } finally {
+          this.active--;
+          // 唤醒下一个等待的任务
+          this.pending.shift()?.();
         }
       }
 
-      private processQueue() {
-        while (this.active.size < this.concurrency && this.pendingQueue.length > 0) {
-          const task = this.pendingQueue.shift()!;
-          task();
+      async drain() {
+        // 等待所有活跃任务完成
+        while (this.active > 0 || this.pending.length > 0) {
+          await new Promise<void>((resolve) => setTimeout(resolve, 10));
         }
       }
     }
 
+    // 更高效的扩展名提取函数
     const isVideoFile = (filePath: string): boolean => {
-      const ext = filePath.match(EXT_REGEX)?.[1]?.toLowerCase() || '';
+      const lastDotIndex = filePath.lastIndexOf('.');
+      if (lastDotIndex === -1) {
+        return false;
+      }
+      const ext = filePath.slice(lastDotIndex + 1).toLowerCase();
       return VIDEO_EXTENSIONS.has(ext);
     };
-    const filePool = new ConcurrencyPool(12); // 文件处理：高并发
-    const dirPool = new ConcurrencyPool(24); // 目录遍历：更高并发
-    const collectFiles = async (directory: string): Promise<string[]> => {
+    const dirPool = new ConcurrencyPool(8); // 目录遍历并发控制
+    const filePaths: string[] = [];
+    const processedPaths = new Set<string>(); // 避免重复处理
+
+    const collectFiles = async (directory: string): Promise<void> => {
+      if (processedPaths.has(directory)) {
+        return;
+      }
+      processedPaths.add(directory);
       try {
         const entries: string[] = await fs.listFile(directory);
-        const tasks: Promise<string[]>[] = entries.map((entry: string) => {
-          const fullPath: string = `${directory}/${entry}`;
-          const handler = async (): Promise<string[]> => {
-            const stat = await fs.stat(fullPath);
-            if (stat.isFile()) {
-              return filePool.run<string[]>(async () =>
-              isVideoFile(fullPath) ? [fullPath] : []
-              );
-            } else if (stat.isDirectory()) {
-              return dirPool.run<string[]>(() => collectFiles(fullPath));
+        // 批量处理条目，提高效率
+        const batchSize = 50;
+        for (let i = 0; i < entries.length; i += batchSize) {
+          const batch = entries.slice(i, i + batchSize);
+          const batchPromises = batch.map(async (entry: string) => {
+            const fullPath: string = `${directory}/${entry}`.replace(/\/+/g, '/'); // 规范化路径
+            try {
+              const stat = await fs.stat(fullPath);
+              if (stat.isFile()) {
+                // 同步判断文件类型，避免不必要的异步开销
+                if (isVideoFile(fullPath)) {
+                  filePaths.push(fullPath);
+                }
+              } else if (stat.isDirectory()) {
+                // 目录遍历使用线程池控制并发
+                await dirPool.run(() => collectFiles(fullPath));
+              }
+            } catch (error) {
+              console.warn(`Failed to process ${fullPath}:`,
+                error instanceof Error ? error.message : 'Unknown error');
             }
-            return [];
-          };
-          return handler();
-        });
-        const results: PromiseSettledResult<string[]>[] = await Promise.allSettled(tasks);
-        return results.flatMap((result: PromiseSettledResult<string[]>) => {
-          return result.status === 'fulfilled' ? result.value : [];
-        });
+          });
+          // 等待当前批次完成，避免内存溢出
+          await Promise.allSettled(batchPromises);
+        }
       } catch (error) {
-        console.error(`Directory ${directory} error:`,
+        console.error(`Failed to list directory ${directory}:`,
           error instanceof Error ? error.message : 'Unknown error');
-        return [];
       }
     };
     try {
-      const result = await collectFiles(this.file_folder_uri);
-      await dirPool.drain(); // 确保目录任务完成
-      await filePool.drain(); // 确保文件任务完成
-      return result
+      await collectFiles(this.file_folder_uri);
+      await dirPool.drain(); // 等待所有目录遍历任务完成
+      // 去重并返回结果
+      return Array.from(new Set(filePaths));
     } catch (error) {
-      console.error('Root processing failed:', error);
+      console.error('Root directory processing failed:', error);
       return [];
     }
   }

@@ -1,4 +1,5 @@
 import { taskpool } from '@kit.ArkTS';
+import { VideoSource } from '../common/enum/VideoSource';
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { PathUtils } from './PathUtils';
@@ -11,13 +12,22 @@ import ToolsUtil from './ToolsUtil';
 async function checkUriAvailable(fileFolderList: FileFolder[]): Promise<VideoMetadata[]> {
   const deletedVideos: VideoMetadata[] = [];
   const cleanupPromises: Promise<void>[] = [];
+  const videosToCheck: VideoMetadata[] = [];
   for (let folderIndex = 0; folderIndex < fileFolderList.length; folderIndex++) {
-    const videos = fileFolderList[folderIndex];
-    for (let videoIndex = 0; videoIndex < videos.video_list.length; videoIndex++) {
-      const video = videos.video_list[videoIndex];
+    const folder = fileFolderList[folderIndex];
+    for (let videoIndex = 0; videoIndex < folder.video_list.length; videoIndex++) {
+      const video = folder.video_list[videoIndex];
+      if (SelectFileUtil.isPathFromSource(video.uri, VideoSource.EXTERNAL_DEVICE)) {
+        continue;
+      }
+      videosToCheck.push(video);
+    }
+  }
+  const checkPromises = videosToCheck.map(async (video: VideoMetadata) => {
+    try {
       const exists = await ToolsUtil.isFileExist(video.uri);
       if (!exists) {
-        deletedVideos.push(video)
+        deletedVideos.push(video);
         const cleanupTask = (async () => {
           try {
             await Promise.all([
@@ -31,9 +41,11 @@ async function checkUriAvailable(fileFolderList: FileFolder[]): Promise<VideoMet
         })();
         cleanupPromises.push(cleanupTask);
       }
+    } catch (error) {
+      console.warn(`检查文件存在性失败: ${video.uri}`, error);
     }
-  }
-  // 等待所有清理任务完成
+  });
+  await Promise.all(checkPromises);
   await Promise.all(cleanupPromises);
   return deletedVideos;
 }

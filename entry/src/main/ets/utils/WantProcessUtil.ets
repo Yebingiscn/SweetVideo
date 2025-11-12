@@ -110,7 +110,8 @@ class WantProcess {
     const defaultPlayer = Preferences.getDefaultPlayer(context);
     // 系统分享（有长宽情况下）和 HDR VIVID 视频强制使用系统播放器
     if ((defaultPlayer === '系统播放器' || this.isSystemShare ||
-      metadata.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID) && metadata.size[0] !== 0) {
+      metadata.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID || metadata.format.toLowerCase() === 'mov') &&
+      metadata.size[0] !== 0) {
       return NavigationAddress.AV_PLAYER;
     } else if (defaultPlayer === '红薯播放器') {
       return NavigationAddress.RED_PLAYER;

@@ -41,7 +41,6 @@ export class FileProcessorUtil {
         }
       })();
     });
-
     await Promise.all(workers);
   }
 
@@ -140,6 +139,39 @@ class MutexLock {
       next();
     } else {
       this.locked = false;
+    }
+  }
+}
+
+export class ConcurrentQueue {
+  private static activeCount = 0;
+  private static pendingQueue: (() => void)[] = [];
+
+  public static async enqueue<T>(task: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const wrappedTask = async () => {
+        try {
+          const result = await task();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        } finally {
+          ConcurrentQueue.activeCount--;
+          ConcurrentQueue.processNext();
+        }
+      };
+
+      ConcurrentQueue.pendingQueue.push(wrappedTask);
+      ConcurrentQueue.processNext();
+    });
+  }
+
+  private static processNext() {
+    if (ConcurrentQueue.activeCount < FileProcessorUtil.MAX_CONCURRENT &&
+      ConcurrentQueue.pendingQueue.length > 0) {
+      ConcurrentQueue.activeCount++;
+      const task = ConcurrentQueue.pendingQueue.shift()!;
+      Promise.resolve().then(() => task());
     }
   }
 }

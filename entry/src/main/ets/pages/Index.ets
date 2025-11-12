@@ -3,7 +3,6 @@ import DataSyncUtil, { OOBEVersion } from '../utils/DataSyncUtil';
 import { FileFolderDataSource } from '../utils/DataUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
-import { JSON } from '@kit.ArkTS';
 import WantProcessUtil from '../utils/WantProcessUtil';
 import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData';
 import { AddFileFolderNameDialog } from '../component/Dialog/AddFileFolderNameDialog';
@@ -19,7 +18,7 @@ import { Player } from './VideoPlayer/Player';
 import { RecentPlay } from './RecentPlay';
 import { PrivacyPolicyDialog } from './PrivacyInfo';
 import VideoOperateUtil from '../utils/VideoOperateUtil';
-import { PrivacySpace } from './PrivacySpace';
+import { PrivacySpace } from './PrivacySpace/PrivacySpace';
 import Preferences from '../database/Preferences';
 import { RedPlayer } from './VideoPlayer/RedPlayer';
 import { ButtonFancyModifier, MenuModifier, SymbolGlyphFancyModifier } from '../utils/AttributeModifierUtil';
@@ -42,6 +41,7 @@ import { PersonalizePage } from './SettingPage/PersonalizePage';
 import { EditPasswordDialog } from '../component/Dialog/EditPasswordDialog';
 import BiometricAccessUtil from '../utils/BiometricAccessUtil';
 import { DeleteType } from '../common/enum/DeleteType';
+import { PrivacySpaceErrorList } from './PrivacySpace/PrivacySpaceErrorList';
 
 @Builder
 export function IndexBuilder() {
@@ -82,7 +82,7 @@ struct Index {
           return
         }
         await FileFolderUtil.changeFileFolderName(PathUtils.appContext!,
-          JSON.parse(DataSyncUtil.editingVideo) as FileFolder, newFolderName, this.fileFolderSource)
+          DataSyncUtil.editingFolder!, newFolderName, this.fileFolderSource)
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -113,8 +113,8 @@ struct Index {
             DataSyncUtil.delMultipleList = Array.from(folder.video_list);
             await Promise.all(
               DataSyncUtil.delMultipleList.map(item => {
-                DataSyncUtil.editingVideo = JSON.stringify(item);
-                VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, DeleteType.SOFT);
+                VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, DeleteType.SOFT,
+                  item);
                 return Promise.resolve();
               })
             );
@@ -134,7 +134,7 @@ struct Index {
           content: $r('app.string.edit')
         })
           .onClick(() => {
-            DataSyncUtil.editingVideo = JSON.stringify(folder);
+            DataSyncUtil.editingFolder = folder
             this.editFileFolderNameDialogController.open()
           })
       }.attributeModifier(new MenuModifier()).onAppear(() => {
@@ -396,7 +396,7 @@ struct Index {
             }
             .alignSelf(ItemAlign.End)
           }
-          .margin({ bottom: this.bottomSafeHeight, left: 20, right: 20 })
+          .margin({ bottom: this.bottomSafeHeight === 0 ? 15 : this.bottomSafeHeight, left: 20, right: 20 })
           .justifyContent(FlexAlign.Start)
           .backgroundColor($r('app.color.start_window_background_blur'))
           .borderRadius(16)
@@ -414,7 +414,10 @@ struct Index {
             passwd: this.passwd,
             searchValue: this.searchValue,
             videoListController: this.videoListController
-          })
+          }).scale({
+            x: this.sideBarController.sideBarStatus === true ? 0.95 : 1,
+            y: this.sideBarController.sideBarStatus ? 0.95 : 1
+          }).animation({ duration: 300, curve: Curve.Ease })
           if (this.loading) {
             ImportProgressBuilder({ processedItems: this.processedItems, totalItems: this.totalItems })
           }
@@ -537,6 +540,8 @@ struct Index {
       PlayerSettingPage()
     } else if (name == NavigationAddress.PERSONALIZE_PAGE) {
       PersonalizePage()
+    } else if (name == NavigationAddress.PRIVACY_ERROR_LIST) {
+      PrivacySpaceErrorList()
     }
   }
 

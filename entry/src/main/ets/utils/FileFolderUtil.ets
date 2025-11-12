@@ -9,6 +9,9 @@ import { FileFolderDataSource } from './DataUtil'
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
 import SelectFileUtil from './SelectFileUtil'
+import RecentPlayUtil from './RecentPlayUtil'
+import { PathUtils } from './PathUtils'
+import SubtitleUtil from './SubtitleUtil'
 
 // 文件夹类
 class FileFolderUtil {
@@ -75,7 +78,7 @@ class FileFolderUtil {
     return folders;
   }
 
-  static delVideosFileFolder(context: Context, videoListController: VideoListController,
+  static async delVideosFileFolder(context: Context, videoListController: VideoListController,
     folderDataSource: FileFolderDataSource) {
     let folders = Preferences.getFileFolder(context) as FileFolder[]
     let folderIndex = folders.findIndex(i => i.date === videoListController.folder.date)
@@ -84,9 +87,16 @@ class FileFolderUtil {
     for (const video of folder.video_list) {
       surviveVideo.set(video.uri, video)
     }
-    DataSyncUtil.delMultipleList.forEach(item => {
-      surviveVideo.delete(item.uri)
-    })
+    for (const item of DataSyncUtil.delMultipleList) {
+      if (!item.date) {
+        continue;
+      } // 跳过无效数据
+
+      RecentPlayUtil.delData(PathUtils.appContext!, item.uri);
+      await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date);
+      await SelectFileUtil.deleteCover(item.date);
+      surviveVideo.delete(item.uri);
+    }
     folder.video_list = Array.from(surviveVideo.values())
     folders[folderIndex] = folder
     Preferences.saveFileFolder(context, folders)
@@ -97,11 +107,12 @@ class FileFolderUtil {
 
   static delVideoInFileFolder(context: Context, videoListController: VideoListController,
     folderDataSource: FileFolderDataSource) {
-    const videoMetaData = JSON.parse(DataSyncUtil.editingVideo) as VideoMetadata;
+    const videoMetaData = DataSyncUtil.editingVideo
     let folders = Preferences.getFileFolder(context) as FileFolder[]
     let folderIndex = folders.findIndex(i => i.date === videoListController.folder.date)
     if (folderIndex !== -1) {
-      folders[folderIndex].video_list = folders[folderIndex].video_list.filter(item => item.date !== videoMetaData.date)
+      folders[folderIndex].video_list =
+        folders[folderIndex].video_list.filter(item => item.date !== videoMetaData?.date)
       videoListController.updateData(undefined, folders[folderIndex])
       folderDataSource.updateData(folders)
       Preferences.saveFileFolder(context, folders)

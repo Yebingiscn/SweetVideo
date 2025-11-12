@@ -225,7 +225,7 @@ class SubtitleUtil {
         break;
       }
     }
-    return result.map(sub => sub.text).join('\n');
+    return result.map(sub => sub.text.replace(/<[^>]*>/g, '')).join('\n');
   }
 
   // 统一解析字幕文件

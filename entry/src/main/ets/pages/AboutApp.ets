@@ -40,24 +40,22 @@ export struct AboutApp {
                 .backgroundImageSize(ImageSize.Cover)
                 .autoResize(true)
                 .interpolation(ImageInterpolation.Low)
-                .width(80)
-                .height(80)
-              Text($r('app.string.EntryAbility_label'))
-                .fontSize(25)
-                .fontColor('#ffff')
-                .margin({ left: 5, right: 5 })
-              Text(this.version_code)
-                .fontSize(25)
-                .fontColor('#ffff')
+                .width(60)
+                .height(60)
+              Text(`${ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id)}` + this.version_code)
+                .fontSize(20)
+                .fontColor('#ffffff')
+                .textOverflow({ overflow: TextOverflow.MARQUEE })
+                .margin({ left: 5 })
                 .onAppear(async () => {
-                  this.version_code = await ToolsUtil.getVersionCode()
+                  this.version_code = await ToolsUtil.getVersionName()
                 })
             }.width('100%')
             .justifyContent(FlexAlign.Center)
             .zIndex(2)
           }.width('100%')
 
-          Row({ space: 10 }) {
+          Row({ space: '4%' }) { // 统一间距处理
             Button({ type: ButtonType.Normal, stateEffect: true }) {
               Row() {
                 Image($r('app.media.github'))
@@ -70,11 +68,11 @@ export struct AboutApp {
                   .margin({ left: 10, right: 2 })
                   .maxLines(2)
                   .width('80%')
-              }
+              }.width('100%')
             }
             .align(Alignment.Start)
             .padding(15)
-            .borderRadius(20)
+            .borderRadius(16)
             .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
             .height(80)
             .width('48%')
@@ -93,11 +91,11 @@ export struct AboutApp {
                   .fontColor($r('app.color.text_color'))
                   .margin({ left: 10, right: 12 })
                   .width('80%')
-              }
+              }.width('100%')
             }
             .align(Alignment.Start)
             .padding(15)
-            .borderRadius(20)
+            .borderRadius(16)
             .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
             .height(80)
             .width('48%')
@@ -106,9 +104,9 @@ export struct AboutApp {
               this.tempLink = WantProcessUtil.PRIVACY_LINK
               this.linkConfirmDialog.open()
             })
-          }
+          }.width('100%').justifyContent(FlexAlign.SpaceBetween)
 
-          Row({ space: 10 }) {
+          Row({ space: '4%' }) {
             Button({ type: ButtonType.Normal, stateEffect: true }) {
               Row() {
                 SymbolGlyph($r('sys.symbol.person_2')).fontSize(25).fontColor([$r('app.color.text_color')])
@@ -118,11 +116,11 @@ export struct AboutApp {
                   .margin({ left: 10, right: 2 })
                   .maxLines(2)
                   .width('80%')
-              }
+              }.width('100%')
             }
             .align(Alignment.Start)
             .padding(15)
-            .borderRadius(20)
+            .borderRadius(16)
             .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
             .height(80)
             .width('48%')
@@ -140,11 +138,11 @@ export struct AboutApp {
                   .fontColor($r('app.color.text_color'))
                   .margin({ left: 10, right: 12 })
                   .width('80%')
-              }
+              }.width('100%')
             }
             .align(Alignment.Start)
             .padding(15)
-            .borderRadius(20)
+            .borderRadius(16)
             .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
             .height(80)
             .width('48%')
@@ -153,8 +151,7 @@ export struct AboutApp {
               this.tempLink = this.AI_FA_DIAN_LINK
               this.linkConfirmDialog.open()
             })
-          }.margin({ top: 10 })
-
+          }.margin({ top: 10 }).width('100%').justifyContent(FlexAlign.SpaceBetween)
 
           Column({ space: 8 }) {
             Text('应用简介')

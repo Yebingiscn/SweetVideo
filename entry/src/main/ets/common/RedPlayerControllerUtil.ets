@@ -6,7 +6,7 @@ import {
   RedPlayerFactory
 } from '@rte-xhs/redplayer';
 import display from '@ohos.display';
-import RedPlayerStateHolder from '../common/RedPlayerStateHolder';
+import RedPlayerStateHolder from './RedPlayerStateHolder';
 
 export default class RedPlayerControllerUtil implements IMediaPlayerStateListener {
   static TAG = "RedPlayerControllerUtil"
@@ -50,6 +50,7 @@ export default class RedPlayerControllerUtil implements IMediaPlayerStateListene
   }
 
   public release() {
+    this.player?.reset()
     this.player?.release()
   }
 

@@ -178,14 +178,18 @@ export class ToolsUtil {
   }
 
   // 获取版本号
-  async getVersionCode() {
+  async getVersionName() {
     try {
-      const bundleInfo =
-        await bundleManager.getBundleInfoForSelf(bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION);
-      return bundleInfo.versionName;
+      if (canIUse("SystemCapability.BundleManager.BundleFramework.Core")) {
+        const bundleInfo =
+          await bundleManager.getBundleInfoForSelf(bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION);
+        return bundleInfo.versionName + '(' + bundleInfo.versionCode + ')';
+      } else {
+        return '未知版本'
+      }
     } catch (error) {
       hilog.error(777, 'testFlag', "get bundleInfo failed, error is " + error)
-      return ''
+      return '未知版本'
     }
   }
 

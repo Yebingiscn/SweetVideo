@@ -19,6 +19,7 @@ import VideoInfoUtil from './VideoInfoUtil';
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
 import PreferencesUtil from './PreferencesUtil';
 import PermissionUtil from './PermissionUtil';
+import { VideoSource } from '../common/enum/VideoSource';
 
 // 视频操作类
 class VideoOperateUtil {
@@ -192,8 +193,12 @@ class VideoOperateUtil {
   saveVideoTime(play_time: number, now_playing: VideoMetadataFromPlayer,
     video_meta_data: VideoMetadata[], context: Context) {
     const recentPlay = Preferences.getRecentPlayState(context) // 判断最近播放开关是否开启
-    if (recentPlay && !PrivacySpaceUtil.getPrivacyMode()) { // 最近播放开启且非隐私空间视频则添加到最近播放
-      RecentPlayUtil.addPlayback(context, video_meta_data.find(i => i.date == now_playing?.date)!)
+    if (recentPlay && !PrivacySpaceUtil.getPrivacyMode() &&
+      !SelectFileUtil.isPathFromSource(now_playing.uri, VideoSource.PRIVACY_SPACE)) { // 最近播放开启且非隐私空间视频则添加到最近播放
+      const meta = video_meta_data.find(i => i.date == now_playing?.date)
+      if (meta) {
+        RecentPlayUtil.addPlayback(context, meta)
+      }
     }
     // 保存文件数据
     SelectFileUtil.saveData(context, now_playing!, play_time)

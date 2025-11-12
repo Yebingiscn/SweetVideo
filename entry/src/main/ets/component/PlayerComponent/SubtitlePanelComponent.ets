@@ -22,7 +22,7 @@ export struct SubtitlePanelComponent {
       })
       .height(40)
       .backgroundColor(this.subtitleSelected === SubtitleMode.INNER_SUBTITLE ? $r('app.color.main_color') : '')
-      .borderRadius(8)
+      .borderRadius(16)
       .width('100%')
 
       ListItem() {
@@ -37,7 +37,7 @@ export struct SubtitlePanelComponent {
       })
       .height(40)
       .backgroundColor(this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE ? $r('app.color.main_color') : '')
-      .borderRadius(8)
+      .borderRadius(16)
       .width('100%')
 
       if (deviceInfo.sdkApiVersion >= 18) {
@@ -54,7 +54,7 @@ export struct SubtitlePanelComponent {
         })
         .height(40)
         .backgroundColor(this.subtitleSelected === SubtitleMode.AI_SUBTITLE ? $r('app.color.main_color') : '')
-        .borderRadius(8)
+        .borderRadius(16)
         .width('100%')
       }
     }
