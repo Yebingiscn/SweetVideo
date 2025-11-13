@@ -33,7 +33,7 @@ export struct AboutApp {
         Column({ space: 10 }) {
           Stack() {
             Image($r("app.media.Background"))
-              .attributeModifier(new ImageFancyModifier(20, '100%', 140))
+              .attributeModifier(new ImageFancyModifier(16, '100%', 140))
               .zIndex(1)
             Row() {
               Image($r("app.media.Foreground"))
@@ -58,10 +58,7 @@ export struct AboutApp {
           Row({ space: '4%' }) { // 统一间距处理
             Button({ type: ButtonType.Normal, stateEffect: true }) {
               Row() {
-                Image($r('app.media.github'))
-                  .height(25)
-                  .width(25)
-                  .backgroundImageSize(ImageSize.Contain)
+                SymbolGlyph($r('sys.symbol.cat_fill')).fontSize(25).fontColor([$r('app.color.text_color')])
                 Text('代码已开源，欢迎 ⭐')
                   .fontSize(15)
                   .fontColor($r('app.color.text_color'))
@@ -84,7 +81,7 @@ export struct AboutApp {
 
             Button({ type: ButtonType.Normal, stateEffect: true }) {
               Row() {
-                SymbolGlyph($r('sys.symbol.person_shield')).fontSize(25).fontColor([$r('app.color.text_color')])
+                SymbolGlyph($r('sys.symbol.book_1')).fontSize(25).fontColor([$r('app.color.text_color')])
                 Text(ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id) +
                   '的使用条款与隐私声明')
                   .fontSize(15)
@@ -132,7 +129,7 @@ export struct AboutApp {
 
             Button({ type: ButtonType.Normal, stateEffect: true }) {
               Row() {
-                SymbolGlyph($r('sys.symbol.capture_smiles')).fontSize(25).fontColor([$r('app.color.text_color')])
+                SymbolGlyph($r('sys.symbol.fish')).fontSize(25).fontColor([$r('app.color.text_color')])
                 Text('赞赏作者')
                   .fontSize(15)
                   .fontColor($r('app.color.text_color'))
@@ -157,13 +154,13 @@ export struct AboutApp {
             Text('应用简介')
               .fontSize(20).fontWeight(FontWeight.Medium)
             Text('一款运行在 HarmonyOS Next 上的精致、简约的本地视频播放器，使用 ArkTS 语言开发，具有美观的设计和优雅的动画。')
-              .fontSize(15)
+              .fontSize(14)
             Text('基于开源项目流心视频，本应用根据原作者授权并基于 MIT 协议二次开发而来。')
-              .fontSize(15)
+              .fontSize(14)
           }
           .padding(15)
           .alignItems(HorizontalAlign.Start)
-          .borderRadius(20)
+          .borderRadius(16)
           .width('100%')
           .backgroundColor($r('app.color.start_window_background_blur'))
 
@@ -195,7 +192,7 @@ export struct AboutApp {
           }
           .padding(15)
           .alignItems(HorizontalAlign.Start)
-          .borderRadius(20)
+          .borderRadius(16)
           .width('100%')
           .backgroundColor($r('app.color.start_window_background_blur'))
 
@@ -214,7 +211,7 @@ export struct AboutApp {
           .backgroundColor($r('app.color.start_window_background_blur'))
           .padding(15)
           .alignItems(HorizontalAlign.Start)
-          .borderRadius(20)
+          .borderRadius(16)
           .width('100%')
         }
       }
@@ -222,7 +219,7 @@ export struct AboutApp {
       .layoutWeight(1)
       .align(Alignment.Top)
       .height('100%')
-      .borderRadius(20)
+      .borderRadius(16)
       .clip(true)
       .scrollBar(BarState.Off)
       .scrollable(ScrollDirection.Vertical) // 启用垂直滚动

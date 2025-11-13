@@ -109,6 +109,15 @@ export struct PrivacySpace { // 隐私空间页
         }
       })
 
+      SettingsClickItem({
+        symbol: $r('sys.symbol.staroflife_rectangle'),
+        message: '异常数据列表',
+        onPress: () => {
+          this.isPresent = false
+          this.pathStack.pushPathByName(NavigationAddress.PRIVACY_ERROR_LIST, true)
+        }
+      })
+
       Column({ space: 8 }) {
         Text('如何进入隐私空间')
           .fontSize(20).fontWeight(FontWeight.Medium)
@@ -119,20 +128,12 @@ export struct PrivacySpace { // 隐私空间页
         Text('3. 通过首页双指捏合往外划开进入')
           .fontSize(15)
       }
+      .margin({ top: 5 })
       .padding(15)
       .alignItems(HorizontalAlign.Start)
       .borderRadius(16)
       .width('100%')
       .backgroundColor($r('app.color.start_window_background_blur'))
-
-      SettingsClickItem({
-        symbol: $r('sys.symbol.staroflife_rectangle'),
-        message: '异常数据列表',
-        onPress: () => {
-          this.isPresent = false
-          this.pathStack.pushPathByName(NavigationAddress.PRIVACY_ERROR_LIST, true)
-        }
-      })
 
       Column({ space: 8 }) {
         Text('清理提示')
@@ -145,6 +146,7 @@ export struct PrivacySpace { // 隐私空间页
       .borderRadius(16)
       .width('100%')
       .backgroundColor($r('app.color.start_window_background_blur'))
+      .margin({ top: 10 })
     }.width('100%').height('100%').padding({ left: 16, right: 16 })
   }
 
@@ -247,18 +249,12 @@ export struct PrivacySpace { // 隐私空间页
     Menu() {
       MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(async () => {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          await ToolsUtil.isFileExist(item?.uri!) ?
-            ToolsUtil.routerWhere(this.pathStack, NavigationAddress.FFMPEG_PLAYER, item!,
-              this.video_meta_data_encryption) :
-            await this.deleteItem(item!.date, item!.title)
+          this.clickItem(item, NavigationAddress.FFMPEG_PLAYER)
         }, VideoOperateUtil.delayJumpToPlayer)
       })
       MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          await ToolsUtil.isFileExist(item?.uri!) ?
-            ToolsUtil.routerWhere(this.pathStack, NavigationAddress.RED_PLAYER, item!,
-              this.video_meta_data_encryption) :
-            await this.deleteItem(item!.date, item!.title)
+          this.clickItem(item, NavigationAddress.RED_PLAYER)
         }, VideoOperateUtil.delayJumpToPlayer)
       })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
@@ -328,6 +324,13 @@ export struct PrivacySpace { // 隐私空间页
     this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
     this.videoDataSource = new VideoDataSource(this.video_meta_data_encryption)
     PrivacySpaceUtil.setPrivacyMode(true)
+  }
+
+  async clickItem(item: VideoMetadata | undefined, choosePlayer: string) {
+    await SelectFileUtil.isFileExist(item?.uri!) ?
+      ToolsUtil.routerWhere(this.pathStack, choosePlayer, item!,
+        this.video_meta_data_encryption) :
+      await this.deleteItem(item!.date, item!.title)
   }
 
   async deleteItem(date: string, title: string) {
@@ -409,10 +412,7 @@ export struct PrivacySpace { // 隐私空间页
             .width('100%')
             .height('auto')
             .onClick(async () => {
-              await ToolsUtil.isFileExist(item?.uri!) ?
-                ToolsUtil.routerWhere(this.pathStack, NavigationAddress.AV_PLAYER, item,
-                  this.video_meta_data_encryption) :
-                await this.deleteItem(item!.date, item!.title)
+              this.clickItem(item, NavigationAddress.AV_PLAYER)
             })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
               {

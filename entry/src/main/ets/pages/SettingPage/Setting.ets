@@ -8,6 +8,9 @@ import Preferences from '../../database/Preferences';
 import BiometricAccessUtil from '../../utils/BiometricAccessUtil';
 import { PathUtils } from '../../utils/PathUtils';
 import ToolsUtil from '../../utils/ToolsUtil';
+import { fileIo as fs } from '@kit.CoreFileKit';
+import SelectFileUtil from '../../utils/SelectFileUtil';
+import SubtitleUtil from '../../utils/SubtitleUtil';
 
 @Component
 export struct SettingsPage { //设置页
@@ -105,6 +108,52 @@ export struct SettingsPage { //设置页
         }
 
         ListItem() {
+          SettingsClickItem({
+            symbol: $r('sys.symbol.arrow_up_circle'),
+            message: '检查更新',
+            onPress: () => {
+              ToolsUtil.checkUpdate()
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsClickItem({
+            symbol: $r('sys.symbol.trash'),
+            message: '清理无效文件',
+            onPress: async () => {
+              const coverFromSandbox = await fs.listFile(PathUtils.photoPath).catch(() => {
+                console.error('get cover fail')
+              })
+              const subtitleFromSandbox = await fs.listFile(PathUtils.subtitlePath).catch(() => {
+                console.error('get subtitle fail')
+              })
+              const coverFromSandboxArray = Array.isArray(coverFromSandbox) ? coverFromSandbox : []
+              const subtitleFromSandboxArray = Array.isArray(subtitleFromSandbox) ? subtitleFromSandbox : []
+              const videoMetaData = Preferences.getVideoMetaData(PathUtils.appContext!)
+              const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+              const fileFolder = Preferences.getFileFolder(PathUtils.appContext!)
+              const existingItemsSet = new Set([
+                ...videoMetaData.map(v => v.date),
+                ...videoMetaDataEncryption.map(v => v.date),
+                ...fileFolder.flatMap(folder =>
+                folder.video_list?.map(item => item!.date) ?? []
+                )
+              ])
+              const missingCoverFiles = coverFromSandboxArray.filter((file => !existingItemsSet.has(file)))
+              const missingSubtitleFiles = subtitleFromSandboxArray.filter(file => !existingItemsSet.has(file));
+              const missingFileSum = missingCoverFiles.length + missingSubtitleFiles.length
+              await Promise.all([
+                ...missingCoverFiles.map((file): Promise<void> => SelectFileUtil.deleteCover(file)),
+                ...missingSubtitleFiles.map((file): Promise<void> => SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath,
+                  file))
+              ])
+              ToolsUtil.showToast(missingFileSum > 0 ? '删除了 ' + missingFileSum + ' 项文件' : '没有找到失效文件')
+            }
+          })
+        }
+
+        ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.doc_text_badge_clock'),
             message: '开启历史记录',
@@ -119,7 +168,6 @@ export struct SettingsPage { //设置页
           })
         }
 
-
         ListItem() {
           SettingsMenuItem({
             symbol: $r('sys.symbol.square_fill_grid_2x2'),
@@ -132,6 +180,48 @@ export struct SettingsPage { //设置页
             }
           })
         }
+
+        ListItem() {
+          Column() {
+            Text('手势操作')
+              .fontSize(20).fontWeight(FontWeight.Medium)
+            Text('1. 左侧 1/5 处 快退 中间暂停 右侧 1/5 处快进')
+              .fontSize(15)
+            Text('2. 横向滑动调整进度')
+              .fontSize(15)
+            Text('3. 竖向滑动左侧调节亮度，右侧调节音量')
+              .fontSize(15)
+            Text('4. 长按倍速，长按并横向滑动调节倍速值')
+              .fontSize(15)
+            Text('4. 双指缩放调节视频显示大小')
+              .fontSize(15)
+          }.alignItems(HorizontalAlign.Start).width('100%')
+        }
+        .margin({ top: 5 })
+        .padding(15)
+        .borderRadius(16)
+        .width('100%')
+        .backgroundColor($r('app.color.start_window_background_blur'))
+
+        ListItem() {
+          Column() {
+            Text('键盘操作')
+              .fontSize(20).fontWeight(FontWeight.Medium)
+            Text('1. ESC 退出视频')
+              .fontSize(15)
+            Text('2. 空格暂停视频')
+              .fontSize(15)
+            Text('3. 方向左键快进')
+              .fontSize(15)
+            Text('4. 方向右键回退')
+              .fontSize(15)
+          }.alignItems(HorizontalAlign.Start).width('100%')
+        }
+        .margin({ top: 10 })
+        .padding(15)
+        .borderRadius(16)
+        .width('100%')
+        .backgroundColor($r('app.color.start_window_background_blur'))
       }
       .align(Alignment.Top)
       .borderRadius(16)

@@ -357,6 +357,18 @@ class SelectFileUtil {
     return normalizedPath.startsWith(normalizedPrefix);
   }
 
+  // 检查文件是否存在
+  async isFileExist(uri: string) {
+    await PermissionUtil.activatePermission(uri)
+    try {
+      await fs.open(String(uri))
+      return true
+    } catch (e) {
+      console.log('file error' + e)
+      return false
+    }
+  }
+
   async addFile(context: Context, sandbox_video: string, sandbox_path: string, uri: string,
     video_meta_data: VideoMetadata[], file_folder?: FileFolder) {
     if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {

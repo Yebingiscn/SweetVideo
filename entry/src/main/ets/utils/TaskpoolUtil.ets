@@ -6,7 +6,6 @@ import { PathUtils } from './PathUtils';
 import RecentPlayUtil from './RecentPlayUtil';
 import SelectFileUtil from './SelectFileUtil';
 import SubtitleUtil from './SubtitleUtil';
-import ToolsUtil from './ToolsUtil';
 
 @Concurrent
 async function checkUriAvailable(fileFolderList: FileFolder[]): Promise<VideoMetadata[]> {
@@ -25,7 +24,7 @@ async function checkUriAvailable(fileFolderList: FileFolder[]): Promise<VideoMet
   }
   const checkPromises = videosToCheck.map(async (video: VideoMetadata) => {
     try {
-      const exists = await ToolsUtil.isFileExist(video.uri);
+      const exists = await SelectFileUtil.isFileExist(video.uri);
       if (!exists) {
         deletedVideos.push(video);
         const cleanupTask = (async () => {

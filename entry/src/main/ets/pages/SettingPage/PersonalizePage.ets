@@ -17,15 +17,17 @@ export struct PersonalizePage {
   restartConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog({
       confirm: async () => {
-        let applicationContext = PathUtils.appContext!.getApplicationContext();
-        let want: Want = {
-          bundleName: PathUtils.appContext!.abilityInfo.bundleName,
-          abilityName: PathUtils.appContext!.abilityInfo.name
-        };
-        try {
-          applicationContext.restartApp(want);
-        } catch (error) {
-          console.error(`restartApp fail, error: ${JSON.stringify(error)}`);
+        if (canIUse('SystemCapability.BundleManager.BundleFramework.Core')) {
+          let applicationContext = PathUtils.appContext!.getApplicationContext();
+          let want: Want = {
+            bundleName: PathUtils.appContext!.abilityInfo.bundleName,
+            abilityName: PathUtils.appContext!.abilityInfo.name
+          };
+          try {
+            applicationContext.restartApp(want);
+          } catch (error) {
+            console.error(`restartApp fail, error: ${JSON.stringify(error)}`);
+          }
         }
       },
       textInfo: '部分效果需要重启 APP 才能显示，是否重启？'

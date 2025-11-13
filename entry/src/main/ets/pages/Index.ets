@@ -183,7 +183,7 @@ struct Index {
     SelectFileUtil.getDownloadUri()
     VideoOperateUtil.initSetting(PathUtils.appContext!)
     VideoMetaDataOperator.migrationRootVideoMetaToRootFolder()
-    ToolsUtil.fileFolderExistCheck()
+    FileFolderUtil.fileFolderExistCheck()
     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
     this.fileFolderSource?.updateData(this.file_folder_list)
     this.videoListController?.updateData(undefined, this.file_folder_list[0])

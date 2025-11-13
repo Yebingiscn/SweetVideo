@@ -10,13 +10,11 @@ import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerIn
 import VideoOperateUtil from '../utils/VideoOperateUtil';
 import { BusinessError } from '@ohos.base';
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
-import { updateManager } from '@kit.AppGalleryKit';
 
 export default class EntryAbility extends UIAbility {
   watcher: hiAppEvent.Watcher | undefined = undefined
 
   async onCreate(want: Want) {
-    this.checkUpdate()
     try {
       this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     } catch (error) {
@@ -30,24 +28,6 @@ export default class EntryAbility extends UIAbility {
     WantProcessUtil.want = want
     this.crashWatcher()
     this.initRedPlayer()
-  }
-
-  checkUpdate() {
-    updateManager.checkAppUpdate(this.context)
-      .then((checkResult: updateManager.CheckUpdateResult) => {
-        hilog.info(0, 'TAG', "Succeeded in checking Result updateAvailable:" + checkResult.updateAvailable);
-        if (checkResult.updateAvailable == updateManager.UpdateAvailableCode.LATER_VERSION_EXIST) {
-          updateManager.showUpdateDialog(this.context)
-            .then((resultCode: updateManager.ShowUpdateResultCode) => {
-              hilog.info(0, 'TAG', "Succeeded in showing UpdateDialog resultCode:" + resultCode);
-            })
-            .catch((error: BusinessError) => {
-              hilog.error(0, 'TAG', `showUpdateDialog onError.code is ${error.code}, message is ${error.message}`);
-            });
-        }
-      }).catch((error: BusinessError) => {
-        hilog.error(0, 'TAG', `checkAppUpdate onError.code is ${error.code}, message is ${error.message}`);
-      });
   }
 
   // 红薯播放器初始化
@@ -157,25 +137,29 @@ export default class EntryAbility extends UIAbility {
       hilog.info(0x0000, 'testTag', 'Succeeded in loading the content.');
     });
     // 是否进入后台
-    windowStage.on('windowStageEvent', (windowEvent) => {
-      if (!PrivacySpaceUtil.getPrivacyMode()) {
-        return
-      }
-      switch (windowEvent) {
-        case window.WindowStageEventType.SHOWN:
-        case window.WindowStageEventType.ACTIVE:
-        case window.WindowStageEventType.RESUMED: {
-          AppStorage.setOrCreate('isPrivacyBackground', false);
-          break
+    try {
+      windowStage.on('windowStageEvent', (windowEvent) => {
+        if (!PrivacySpaceUtil.getPrivacyMode()) {
+          return
         }
-        case window.WindowStageEventType.HIDDEN:
-        case window.WindowStageEventType.INACTIVE:
-        case window.WindowStageEventType.PAUSED: {
-          AppStorage.setOrCreate('isPrivacyBackground', true);
-          break
+        switch (windowEvent) {
+          case window.WindowStageEventType.SHOWN:
+          case window.WindowStageEventType.ACTIVE:
+          case window.WindowStageEventType.RESUMED: {
+            AppStorage.setOrCreate('isPrivacyBackground', false);
+            break
+          }
+          case window.WindowStageEventType.HIDDEN:
+          case window.WindowStageEventType.INACTIVE:
+          case window.WindowStageEventType.PAUSED: {
+            AppStorage.setOrCreate('isPrivacyBackground', true);
+            break
+          }
         }
-      }
-    })
+      })
+    } catch (error) {
+      console.error('windowStageEvent error' + error)
+    }
   }
 
   onWindowStageWillDestroy(): void {

@@ -12,6 +12,7 @@ import SelectFileUtil from './SelectFileUtil'
 import RecentPlayUtil from './RecentPlayUtil'
 import { PathUtils } from './PathUtils'
 import SubtitleUtil from './SubtitleUtil'
+import { fileIo as fs } from '@kit.CoreFileKit';
 
 // 文件夹类
 class FileFolderUtil {
@@ -193,6 +194,25 @@ class FileFolderUtil {
     }
     const parts = cleanDir.split("/");
     return parts[0] || undefined;
+  }
+
+  // 检查文件夹是否存在
+  static fileFolderExistCheck() {
+    const paths = [
+      PathUtils.videoPath,
+      PathUtils.subtitlePath,
+      PathUtils.photoPath
+    ];
+
+    paths.forEach(path => {
+      try {
+        if (!fs.accessSync(path)) {
+          fs.mkdirSync(path);
+        }
+      } catch (error) {
+        console.error(`Failed to create directory ${path}:`, error);
+      }
+    });
   }
 }
 

@@ -1,11 +1,9 @@
 import promptAction from '@ohos.promptAction';
 import { vibrator } from '@kit.SensorServiceKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { fileIo as fs } from '@kit.CoreFileKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { bundleManager } from '@kit.AbilityKit';
 import { pinyin4js } from '@ohos/pinyin4js';
-import PermissionUtil from './PermissionUtil';
 import { PlayerParams } from '../common/PlayerParams';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { FileFolder } from '../interfaces/FileFolderInterface';
@@ -16,6 +14,7 @@ import { PathUtils } from './PathUtils';
 import VideoInfoUtil from './VideoInfoUtil';
 import NavigationAddress from '../common/NavigationAddress';
 import { media } from '@kit.MediaKit';
+import { updateManager } from '@kit.StoreKit';
 
 // 工具类
 export class ToolsUtil {
@@ -149,18 +148,6 @@ export class ToolsUtil {
     this.showToast(this.getStringResource($r('app.string.set_passwd_tip').id))
   }
 
-  // 检查文件是否存在
-  async isFileExist(uri: string) {
-    await PermissionUtil.activatePermission(uri)
-    try {
-      await fs.open(String(uri))
-      return true
-    } catch (e) {
-      console.log('file error' + e)
-      return false
-    }
-  }
-
   // 点击视频跳转到播放器
   async routerWhere(pathStack: NavPathStack, uri: string, item: VideoMetadata, list: VideoMetadata[]) {
     // 没有长宽的视频/音频系统播放器播不了
@@ -193,22 +180,24 @@ export class ToolsUtil {
     }
   }
 
-  // 检查文件夹是否存在
-  fileFolderExistCheck() {
-    const paths = [
-      PathUtils.videoPath,
-      PathUtils.subtitlePath,
-      PathUtils.photoPath
-    ];
-
-    paths.forEach(path => {
-      try {
-        if (!fs.accessSync(path)) {
-          fs.mkdirSync(path);
+  checkUpdate() {
+    updateManager.checkAppUpdate(PathUtils.appContext)
+      .then((checkResult: updateManager.CheckUpdateResult) => {
+        hilog.info(0, 'TAG', "Succeeded in checking Result updateAvailable:" + checkResult.updateAvailable);
+        if (checkResult.updateAvailable == updateManager.UpdateAvailableCode.LATER_VERSION_EXIST) {
+          updateManager.showUpdateDialog(PathUtils.appContext)
+            .then((resultCode: updateManager.ShowUpdateResultCode) => {
+              hilog.info(0, 'TAG', "Succeeded in showing UpdateDialog resultCode:" + resultCode);
+              this.showToast('更新检查结果（用于测试）：' + resultCode)
+            })
+            .catch((error: BusinessError) => {
+              this.showToast('更新弹窗生成失败，原因是：' + error)
+              hilog.error(0, 'TAG', `showUpdateDialog onError.code is ${error.code}, message is ${error.message}`);
+            });
         }
-      } catch (error) {
-        console.error(`Failed to create directory ${path}:`, error);
-      }
+      }).catch((error: BusinessError) => {
+      this.showToast('检查更新失败，原因是：' + error)
+      hilog.error(0, 'TAG', `checkAppUpdate onError.code is ${error.code}, message is ${error.message}`);
     });
   }
 }

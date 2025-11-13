@@ -11,6 +11,7 @@ import VideoOperateUtil from '../utils/VideoOperateUtil';
 import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog';
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 import DataSyncUtil from '../utils/DataSyncUtil';
+import SelectFileUtil from '../utils/SelectFileUtil';
 
 @Component
 export struct RecentPlay { // 最近播放页
@@ -98,7 +99,7 @@ export struct RecentPlay { // 最近播放页
 
   async clickItem(item: VideoMetadata | undefined, choosePlayer: string) {
     if (item) {
-      await ToolsUtil.isFileExist(item?.uri) ?
+      await SelectFileUtil.isFileExist(item?.uri) ?
         ToolsUtil.routerWhere(this.pathStack, choosePlayer, item, this.recent_video_meta_data) :
         this.delData(PathUtils.appContext!, item)
     }
