@@ -84,10 +84,6 @@ export class PlayerSideBarSource extends BaseDataSource<VideoMetadata> {
 }
 
 @Observed
-export class SpeedListDataSource extends BaseDataSource<string> {
-}
-
-@Observed
 export class DeletedVideosDataSource extends BaseDataSource<VideoMetadata> {
 }
 

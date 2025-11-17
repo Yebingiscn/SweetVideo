@@ -1,30 +1,23 @@
-import { SpeedListDataSource } from '../../utils/DataUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 
 @Component
 export struct FastForwardInfoComponent {
   @Link speed: number
   @Prop location: number
-  @State speedListDataSource: SpeedListDataSource = new SpeedListDataSource([])
-
-  aboutToAppear(): void {
-    this.speedListDataSource = new SpeedListDataSource(VideoInfoUtil.getVideoSpeedTextList())
-  }
+  private list: string[] = VideoInfoUtil.getVideoSpeedTextList()
 
   build() {
     Stack({ alignContent: Alignment.BottomEnd }) {
-      Row() {
-        LazyForEach(this.speedListDataSource, (item: string, index) => {
-          Text(`${item}${item === VideoInfoUtil.optimizedFormat(this.speed) ? ' ⏩' : ''}`)
-            .fontColor(item === VideoInfoUtil.optimizedFormat(this.speed) ? $r('app.color.main_color') :
-              $r('sys.color.white'))
-            .fontSize(15)
-            .opacity(item === VideoInfoUtil.optimizedFormat(this.speed) ? 1 : 0.6)// 当前速度不透明，其他半透明
-            .fontWeight(item === VideoInfoUtil.optimizedFormat(this.speed) ? FontWeight.Bold : FontWeight.Normal)
-            .margin({ right: index < VideoInfoUtil.getVideoSpeedTextList().length - 1 ? 10 : 0 }) // 项间距
-        },
-          (item: string) => item.toString() // 唯一键生成
-        )
+      Column() {
+        Text(VideoInfoUtil.optimizedFormat(this.speed) + ' ⏩')
+          .fontColor($r('app.color.main_color')).fontSize(15)
+          .fontWeight(FontWeight.Bold)
+        Row() {
+          Text(`← ${this.getLastAndNextItem(VideoInfoUtil.optimizedFormat(this.speed))[0]}`)
+            .fontColor($r('sys.color.white')).margin({ right: 10 }).fontSize(10)
+          Text(`${this.getLastAndNextItem(VideoInfoUtil.optimizedFormat(this.speed))[1]} →`)
+            .fontColor($r('sys.color.white')).fontSize(10)
+        }.justifyContent(FlexAlign.SpaceBetween).margin({ top: 5 })
       }
     }
     .padding({
@@ -38,5 +31,12 @@ export struct FastForwardInfoComponent {
     .backgroundColor('#30000000') // 半透明黑色背景
     .backdropBlur(100) // 背景模糊效果
     .animation({ duration: 300, curve: Curve.Smooth })
+  }
+
+  getLastAndNextItem(targetItem: string) {
+    const listIndex = this.list.findIndex(i => i === targetItem)
+    const prevIndex = (listIndex - 1 + this.list.length) % this.list.length
+    const nextIndex = (listIndex + 1) % this.list.length
+    return [this.list[prevIndex], this.list[nextIndex]]
   }
 }

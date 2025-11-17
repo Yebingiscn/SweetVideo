@@ -1,4 +1,4 @@
-import { ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
+import { UIAbility, Want } from '@kit.AbilityKit';
 import { hiAppEvent, hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import WantProcessUtil from '../utils/WantProcessUtil';
@@ -10,20 +10,19 @@ import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerIn
 import VideoOperateUtil from '../utils/VideoOperateUtil';
 import { BusinessError } from '@ohos.base';
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
+import Preferences from '../database/Preferences';
+import ToolsUtil from '../utils/ToolsUtil';
+import { deviceInfo } from '@kit.BasicServicesKit';
 
 export default class EntryAbility extends UIAbility {
   watcher: hiAppEvent.Watcher | undefined = undefined
 
   async onCreate(want: Want) {
-    try {
-      this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
-    } catch (error) {
-      console.error('sweet video error set color mode error')
-    }
+    const backgroundColorMode = Preferences.getBackgroundColorMode(this.context)
+    ToolsUtil.setColorMode(this.context.getApplicationContext(), backgroundColorMode)
     //  PreferencesUtil.localPreferences(this.context, 'sweet_video')
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onCreate');
     AppStorage.setOrCreate('context', this.context)
-    hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onCreate');
     PathUtils.init(this.context);
     WantProcessUtil.want = want
     this.crashWatcher()
@@ -51,7 +50,6 @@ export default class EntryAbility extends UIAbility {
     }).catch((err: BusinessError) => {
       hilog.error(0x0000, 'testTag', `HiAppEvent code: ${err.code}, message: ${err.message}`);
     });
-
     // 构建崩溃日志规格自定义参数
     let configParams: Record<string, hiAppEvent.ParamType> = {
       "extend_pc_lr_printing": true, // 使能扩展打印pc和lr寄存器附近的内存值
@@ -65,15 +63,22 @@ export default class EntryAbility extends UIAbility {
     }).catch((err: BusinessError) => {
       hilog.error(0x0000, 'testTag', `HiAppEvent code: ${err.code}, message: ${err.message}`);
     });
+    let events: string[] = [hiAppEvent.event.APP_CRASH, hiAppEvent.event.APP_FREEZE]
+    if (deviceInfo.sdkApiVersion > 19) {
+      events.push(hiAppEvent.event.APP_KILLED)
+    }
+    if (deviceInfo.sdkApiVersion > 19) {
+      events.push(hiAppEvent.event.APP_KILLED)
+    }
     this.watcher = {
       // 自定义观察者名称，系统会使用名称来标识不同的观察者
-      name: "ButtonClickWatcher",
+      name: "SweetCore",
       // 可以订阅感兴趣的系统事件，此处是订阅了崩溃事件
       appEventFilters: [
         {
           domain: hiAppEvent.domain.OS,
-          names: [hiAppEvent.event.APP_CRASH]
-        }
+          names: events
+        },
       ],
       // 自行实现订阅实时回调函数，以便对订阅获取到的事件数据进行自定义处理
       onReceive: (_domain: string, appEventGroups: Array<hiAppEvent.AppEventGroup>) => {

@@ -358,7 +358,8 @@ export struct RedPlayer { // 红薯播放器页
         this.playerController?.getVideoSize()
       })
       .backgroundColor($r('sys.color.black'))
-    }.onReady(() => {
+    }
+    .onReady(() => {
       const playerParams: PlayerParams = this.pathStack.getParamByName(NavigationAddress.RED_PLAYER)[0] as PlayerParams
       try {
         this.now_playing = playerParams.metadata as VideoMetadataFromPlayer
@@ -374,7 +375,8 @@ export struct RedPlayer { // 红薯播放器页
       } else {
         return false
       }
-    }).onWillDisappear(async () => {
+    })
+    .onWillDisappear(async () => {
       if (this.video_meta_data.length > 0 && this.redPlayerStateHolder!.videoPosition > 0) {
         VideoOperateUtil.saveVideoTime(this.redPlayerStateHolder!.videoPosition, this.now_playing!,
           this.video_meta_data, PathUtils.appContext!)
@@ -393,7 +395,8 @@ export struct RedPlayer { // 红薯播放器页
       } catch (error) {
         console.error('player error:' + error)
       }
-    }).hideTitleBar(true)
+    })
+    .hideTitleBar(true)
     .blur(this.isPrivacyBackground ? 1000 : 0)
   }
 
@@ -620,7 +623,7 @@ export struct RedPlayer { // 红薯播放器页
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .bindMenu(this.PlaybackSpeedMenuBuilder,
-          { backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK })
+          { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
       }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() {

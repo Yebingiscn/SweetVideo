@@ -1,8 +1,10 @@
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
-import PreferencesUtil from '../utils/PreferencesUtil'
+import PreferencesUtil from './PreferencesUtil'
 import { Context } from '@kit.AbilityKit'
 import { RepeatMode } from '../common/enum/RepeatMode'
+import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
+import { ListDisplayMode } from '../common/enum/ListDisplayMode'
 
 // 存储类
 class Preferences {
@@ -78,7 +80,8 @@ class Preferences {
   }
 
   static getListDisplayMode(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'is_list_display', true) as boolean
+    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'listDisplayMode',
+      ListDisplayMode.LIST_DISPLAY) as ListDisplayMode
   }
 
   static getSmartRotationState(context: Context) {
@@ -95,6 +98,15 @@ class Preferences {
 
   static getShowSettingPageEntry(context: Context) {
     return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'showSettingPageEntry', true) as boolean
+  }
+
+  static getBackgroundColorMode(context: Context) {
+    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'backgroundColorMode',
+      BackgroundColorMode.AUTO) as BackgroundColorMode
+  }
+
+  static saveBackgroundColorMode(context: Context, backgroundColorMode: BackgroundColorMode) {
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'backgroundColorMode', backgroundColorMode)
   }
 
   static saveShowSettingPageEntry(context: Context, showSettingPageEntry: boolean) {
@@ -177,8 +189,8 @@ class Preferences {
     PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_play', recent_play_deque);
   }
 
-  static saveListDisplayMode(context: Context, is_list_display: boolean) {
-    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'is_list_display', is_list_display);
+  static saveListDisplayMode(context: Context, listDisplayMode: ListDisplayMode) {
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'listDisplayMode', listDisplayMode)
   }
 
   static saveLongPressSpeed(context: Context, longPressSpeed: number) {

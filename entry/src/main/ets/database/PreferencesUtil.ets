@@ -1,5 +1,5 @@
 import preferences from '@ohos.data.preferences'
-import ToolsUtil from './ToolsUtil'
+import ToolsUtil from '../utils/ToolsUtil'
 
 // 存储类
 export default class PreferencesUtil {

@@ -40,6 +40,7 @@ export struct AudioTrackComponent {
               .flexGrow(1)
               .flexShrink(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .fontColor(this.audioTrackSelected === index ? $r('sys.color.white') : $r('app.color.text_color'))
               .margin({ left: 5 })
             if (item.mime.split('/')[1] === 'av3a') {
               Image($r('app.media.audio_vivid_icon'))

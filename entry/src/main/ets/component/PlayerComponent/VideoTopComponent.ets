@@ -42,13 +42,13 @@ export struct VideoTopComponent {
             .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
             .fontColor(['#f0f0f0'])
             .bindMenu(this.subtitleMenuBuilder,
-              { backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK })
+              { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
           if (this.screenWidth > this.screenHeight) {
             SymbolGlyph($r('sys.symbol.opticaldisc'))
               .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
               .fontColor(['#f0f0f0'])
               .bindMenu(this.audioTrackMenuBuilder,
-                { backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK })
+                { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
           }
           if (this.screenWidth > this.screenHeight) {
             Select(VideoInfoUtil.screenExtendList)
@@ -60,7 +60,7 @@ export struct VideoTopComponent {
                 this.screenExtendSelectedText = text
                 this.screenExtend(text!)
               })
-              .menuBackgroundBlurStyle(BlurStyle.BACKGROUND_ULTRA_THICK)
+              .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
           }
         }.alignItems(VerticalAlign.Center)
       }.height('100%').layoutWeight(1)

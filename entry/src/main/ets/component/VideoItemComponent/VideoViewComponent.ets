@@ -49,7 +49,8 @@ export struct VideoView {
       }
       VideoList({
         videoListController: this.videoListController,
-        delMultipleList: this.delMultipleList
+        delMultipleList: this.delMultipleList,
+        searchValue: this.searchValue
       })
 
       if (!this.loading && this.videoListController.openSideBarTip()) {

@@ -24,6 +24,7 @@ import SubtitleFormat from '../../common/SubtitleFormatConfig';
 import VideoOperateUtil from '../../utils/VideoOperateUtil';
 import { VideoDeleteDialog } from '../Dialog/VideoDeleteDialog';
 import { DeleteType } from '../../common/enum/DeleteType';
+import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
 
 @Observed
 export class VideoListController {
@@ -81,10 +82,10 @@ export class VideoListController {
     DataSyncUtil.delMultipleList.length = 0
   }
 
-  public refresh(width: number, isListDisplay: boolean) {
+  public refresh(width: number, listDisplayMode: ListDisplayMode) {
     // TODO 这里的处理太粗暴了，应该定义每个元素的MaxWidth 来计算格子，或者根据尺寸做响应式布局
     const base = Math.floor(width / 500);
-    this.listLine = isListDisplay ? base + 1 : base + 2;
+    this.listLine = listDisplayMode === ListDisplayMode.LIST_DISPLAY ? base + 1 : base + 2;
     // 增加判断，旋转时保持滚动位置不变
     if (this.listScroller.currentOffset()?.yOffset == -55) {
       this.listScroller.scrollEdge(Edge.Top)
@@ -103,12 +104,13 @@ export class VideoListController {
 
 @Component
 export struct VideoList {
+  @Link searchValue: string
   @Link videoListController: VideoListController
   @Consume fileFolderSource: FileFolderDataSource
   @Consume sideBarController: SideBarController
   searchController: SearchController = new SearchController()
   @State longPressPreview: boolean = false
-  @StorageLink('isListDisplay') isListDisplay: boolean = true
+  @StorageLink('listDisplayMode') listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
   @Consume('pathStack') pathStack: NavPathStack
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
@@ -170,7 +172,7 @@ export struct VideoList {
   }
 
   build() {
-    if (this.isListDisplay) {
+    if (this.listDisplayMode === ListDisplayMode.LIST_DISPLAY) {
       List({ scroller: this.videoListController.listScroller }) {
         LazyForEach(this.videoListController.videoDataSource, (item: VideoMetadata) => { // 加载视频列表
           ListItem() {
@@ -367,6 +369,7 @@ export struct VideoList {
     } catch (error) {
       ToolsUtil.errorCatchExec('closeAllSwipeActions', String(error))
     }
+    this.searchValue = ''
     await SelectFileUtil.isFileExist(item.uri) ?
       ToolsUtil.routerWhere(this.pathStack, choosePlayer, item,
         this.videoListController.videoMetaDataList) :

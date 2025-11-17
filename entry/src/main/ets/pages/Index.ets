@@ -42,6 +42,7 @@ import { EditPasswordDialog } from '../component/Dialog/EditPasswordDialog';
 import BiometricAccessUtil from '../utils/BiometricAccessUtil';
 import { DeleteType } from '../common/enum/DeleteType';
 import { PrivacySpaceErrorList } from './PrivacySpace/PrivacySpaceErrorList';
+import { ListDisplayMode } from '../common/enum/ListDisplayMode';
 
 @Builder
 export function IndexBuilder() {
@@ -58,7 +59,7 @@ struct Index {
   @State totalItems: number = 0
   @State file_folder_list: FileFolder[] = []
   @State searchValue: string = ''
-  @StorageLink('isListDisplay') isListDisplay: boolean = true
+  @StorageLink('listDisplayMode') listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
   @StorageProp('screen_width') screen_width: number = 0
   @StorageProp('screen_height') screen_height: number = 0
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
@@ -426,7 +427,7 @@ struct Index {
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
           const width = Number(newValue.width);
           // 增加判断，旋转时保持滚动位置不变
-          this.videoListController.refresh(width, this.isListDisplay)
+          this.videoListController.refresh(width, this.listDisplayMode)
         })
         .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
           const rotateAngle = event?.angle
@@ -511,7 +512,7 @@ struct Index {
       if (isVisible) {
         // 增加判断，旋转时保持滚动位置不变
         if (this.videoListController.folder?.video_list) {
-          this.videoListController.refresh(this.screen_width, this.isListDisplay)
+          this.videoListController.refresh(this.screen_width, this.listDisplayMode)
           VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
         }
       }

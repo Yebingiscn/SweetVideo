@@ -2,7 +2,6 @@ import { DefaultDialogShadow } from '../../common/DefaultDialogShadow';
 import NavigationAddress from '../../common/NavigationAddress';
 import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog';
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem';
-import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuItem';
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem';
 import Preferences from '../../database/Preferences';
 import BiometricAccessUtil from '../../utils/BiometricAccessUtil';
@@ -11,13 +10,15 @@ import ToolsUtil from '../../utils/ToolsUtil';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import SelectFileUtil from '../../utils/SelectFileUtil';
 import SubtitleUtil from '../../utils/SubtitleUtil';
+import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem';
+import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
 
 @Component
 export struct SettingsPage { //设置页
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @StorageLink('recentPlay') recentPlay: boolean = true
-  @StorageLink('isListDisplay') isListDisplay: boolean = true
+  @StorageLink('listDisplayMode') listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
   @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
   @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
   @StorageLink('showSettingPageEntry') showSettingPageEntry: boolean = true
@@ -36,7 +37,7 @@ export struct SettingsPage { //设置页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  private listDisplayMode = ['列表布局', '卡片布局']
+  private listDisplayModeList: ResourceStr[] = ['卡片', '列表', '网格']
 
   build() {
     NavDestination() {
@@ -154,6 +155,19 @@ export struct SettingsPage { //设置页
         }
 
         ListItem() {
+          SettingsCheckboxItem({
+            symbol: $r('sys.symbol.square_fill_grid_2x2'),
+            message: '列表布局',
+            tips: this.listDisplayModeList,
+            tabSelectedIndexes: [this.listDisplayMode],
+            onButtonClick: (tabSelectedIndexes: number) => {
+              this.listDisplayMode = tabSelectedIndexes
+              Preferences.saveListDisplayMode(PathUtils.appContext!, tabSelectedIndexes);
+            }
+          })
+        }
+
+        ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.doc_text_badge_clock'),
             message: '开启历史记录',
@@ -169,21 +183,8 @@ export struct SettingsPage { //设置页
         }
 
         ListItem() {
-          SettingsMenuItem({
-            symbol: $r('sys.symbol.square_fill_grid_2x2'),
-            message: '列表布局',
-            list: this.listDisplayMode,
-            selected: this.isListDisplay ? 0 : 1,
-            onChange: (index: number) => {
-              this.isListDisplay = (index === 0);
-              Preferences.saveListDisplayMode(PathUtils.appContext!, this.isListDisplay);
-            }
-          })
-        }
-
-        ListItem() {
           Column() {
-            Text('手势操作')
+            Text('手势操作说明')
               .fontSize(20).fontWeight(FontWeight.Medium)
             Text('1. 左侧 1/5 处 快退 中间暂停 右侧 1/5 处快进')
               .fontSize(15)
@@ -205,7 +206,7 @@ export struct SettingsPage { //设置页
 
         ListItem() {
           Column() {
-            Text('键盘操作')
+            Text('快捷键操作说明')
               .fontSize(20).fontWeight(FontWeight.Medium)
             Text('1. ESC 退出视频')
               .fontSize(15)

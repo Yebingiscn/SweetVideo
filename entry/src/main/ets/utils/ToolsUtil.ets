@@ -2,7 +2,7 @@ import promptAction from '@ohos.promptAction';
 import { vibrator } from '@kit.SensorServiceKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { bundleManager } from '@kit.AbilityKit';
+import { bundleManager, ConfigurationConstant } from '@kit.AbilityKit';
 import { pinyin4js } from '@ohos/pinyin4js';
 import { PlayerParams } from '../common/PlayerParams';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
@@ -15,6 +15,7 @@ import VideoInfoUtil from './VideoInfoUtil';
 import NavigationAddress from '../common/NavigationAddress';
 import { media } from '@kit.MediaKit';
 import { updateManager } from '@kit.StoreKit';
+import { BackgroundColorMode } from '../common/enum/BackgroundColorMode';
 
 // 工具类
 export class ToolsUtil {
@@ -199,6 +200,23 @@ export class ToolsUtil {
       this.showToast('检查更新失败，原因是：' + error)
       hilog.error(0, 'TAG', `checkAppUpdate onError.code is ${error.code}, message is ${error.message}`);
     });
+  }
+
+  setColorMode(context: Context, select: number) {
+    try {
+      switch (select) {
+        case BackgroundColorMode.AUTO:
+          context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET)
+          break
+        case BackgroundColorMode.LIGHT:
+          context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT)
+          break
+        case BackgroundColorMode.DARK:
+          context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_DARK)
+          break
+      }
+    } catch {
+    }
   }
 }
 

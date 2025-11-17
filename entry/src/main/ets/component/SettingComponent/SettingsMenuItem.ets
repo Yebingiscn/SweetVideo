@@ -5,7 +5,7 @@ export struct SettingsMenuItem {
   @State symbol: Resource | undefined = undefined
   @State message: ResourceStr = ''
   @Prop selected: number = 0
-  @State list: string[] = []
+  @State list: ResourceStr[] = []
   @State private select: SelectOption[] = []
   onChange = (_index: number) => {
   }
@@ -36,6 +36,7 @@ export struct SettingsMenuItem {
         .selectedOptionFont({ weight: FontWeight.Medium })
         .selectedOptionFontColor($r('app.color.text_color'))
         .selectedOptionBgColor($r('app.color.main_color'))
+        .selectedOptionFontColor($r('sys.color.white'))
         .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
         .onSelect((index: number) => {
           this.selected = index

@@ -5,7 +5,7 @@ export struct SettingsToggleItem {
   @State symbol: Resource | undefined = undefined
   @State symbol1: Resource | undefined = undefined
   @State message: ResourceStr = ''
-  @Prop enable: boolean = false
+  @State enable: boolean = false
   onChange = (_checked: boolean) => {
   }
 

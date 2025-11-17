@@ -10,7 +10,7 @@ import { VideoInfoBuilder } from '../VideoItemComponent/VideoInfoBuilder'
 @Component
 export struct PlayerSideBarComponent {
   @State playerSideBarSource: PlayerSideBarSource = new PlayerSideBarSource([])
-  @Link sideBarStatusTmp: Visibility
+  @Link @Watch('onSideBarVisibleChange') sideBarStatusTmp: Visibility
   @State video_meta_data: VideoMetadata[] = []
   @Link now_playing: VideoMetadataFromPlayer | undefined
   @Link sideBarStatus: boolean
@@ -51,8 +51,7 @@ export struct PlayerSideBarComponent {
     .chainAnimation(true)
     .scrollBar(BarState.Off)
     .onAppear(() => {
-      this.listScroller.scrollToIndex(this.video_meta_data.findIndex(item => item?.date === this.now_playing?.date)!,
-        false)
+      this.onSideBarVisibleChange()
     })
     .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
       if (event) {
@@ -65,9 +64,22 @@ export struct PlayerSideBarComponent {
     .backgroundColor($r('app.color.start_window_background'))
     .padding({ left: 5, right: 5 })
     .margin({ top: this.topSafeHeight })
-    .transition(TransitionEffect.translate({ x: 250 }).animation({ duration: 300, curve: Curve.Friction }))
+    .transition(TransitionEffect.translate({ x: 300 }).animation({ duration: 300, curve: Curve.Friction }))
     .borderRadius(16)
     .cachedCount(3)
+  }
+
+  onSideBarVisibleChange() {
+    if (this.sideBarStatusTmp === Visibility.Visible) {
+      setTimeout(() => {
+        const targetIndex = this.video_meta_data.findIndex(
+          item => item?.date === this.now_playing?.date
+        );
+        if (targetIndex >= 0) {
+          this.listScroller.scrollToIndex(targetIndex, false);
+        }
+      }, 50); // 添加短暂延迟确保DOM更新
+    }
   }
 
   private closeSideBar() {
@@ -98,6 +110,8 @@ export struct ListView {
             .width('100%')
             .margin({ left: 5 })
             .wordBreak(WordBreak.BREAK_ALL)
+            .fontColor(this.now_playing && this.now_playing?.date === this.item?.date ?
+              $r('sys.color.white') : $r('app.color.text_color'))
         }
 
         VideoInfoBuilder({ item: this.item, showProgress: false })

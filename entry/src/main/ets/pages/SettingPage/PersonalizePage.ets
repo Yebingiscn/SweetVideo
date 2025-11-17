@@ -7,6 +7,8 @@ import { DefaultDialogShadow } from '../../common/DefaultDialogShadow';
 import { PathUtils } from '../../utils/PathUtils';
 import { SettingSliderItem } from '../../component/SettingComponent/SettingSliderItem';
 import Preferences from '../../database/Preferences';
+import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem';
+import { BackgroundColorMode } from '../../common/enum/BackgroundColorMode';
 
 @Component
 export struct PersonalizePage {
@@ -14,6 +16,7 @@ export struct PersonalizePage {
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
   @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
+  @StorageLink('backgroundColorMode') backgroundColorMode: BackgroundColorMode = BackgroundColorMode.AUTO
   restartConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog({
       confirm: async () => {
@@ -33,14 +36,25 @@ export struct PersonalizePage {
       textInfo: '部分效果需要重启 APP 才能显示，是否重启？'
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-
-  aboutToAppear(): void {
-    console.error('test' + this.backgroundImageSrc)
-  }
+  private backgroundColorDisplayMode: ResourceStr[] = ['自动', '浅色', '深色']
 
   build() {
     NavDestination() {
       List() {
+        ListItem() {
+          SettingsCheckboxItem({
+            symbol: $r('sys.symbol.sun'),
+            message: '显示模式',
+            tips: this.backgroundColorDisplayMode,
+            tabSelectedIndexes: [this.backgroundColorMode],
+            onButtonClick: (tabSelectedIndexes: number) => {
+              this.backgroundColorMode = tabSelectedIndexes
+              Preferences.saveBackgroundColorMode(PathUtils.appContext!, tabSelectedIndexes)
+              ToolsUtil.setColorMode(PathUtils.appContext!, tabSelectedIndexes)
+            }
+          })
+        }
+
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.picture'),

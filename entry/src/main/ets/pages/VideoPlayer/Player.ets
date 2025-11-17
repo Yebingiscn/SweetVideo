@@ -936,10 +936,12 @@ export struct Player { // 播放页
       .onChange((value: boolean) => {
         this.sideBarStatus = value;
       })
+      .sideBarWidth(300)
       .showSideBar(this.sideBarStatus)
       .sideBarPosition(SideBarPosition.End)
       .divider({ strokeWidth: 0 })
-    }.onReady(() => {
+    }
+    .onReady(() => {
       const playerParams: PlayerParams = this.pathStack.getParamByName(NavigationAddress.AV_PLAYER)[0] as PlayerParams
       try {
         this.now_playing = playerParams.metadata as VideoMetadataFromPlayer

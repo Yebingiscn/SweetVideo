@@ -17,7 +17,7 @@ import { LanguageConfig } from '../common/LanguageConfig';
 import ToolsUtil from './ToolsUtil';
 import VideoInfoUtil from './VideoInfoUtil';
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
-import PreferencesUtil from './PreferencesUtil';
+import PreferencesUtil from '../database/PreferencesUtil';
 import PermissionUtil from './PermissionUtil';
 import { VideoSource } from '../common/enum/VideoSource';
 
@@ -234,14 +234,16 @@ class VideoOperateUtil {
     AppStorage.setOrCreate('subtitleSize', Preferences.getSubtitleSize(context))
     AppStorage.setOrCreate('allowDoubleFastForward', Preferences.getAllowDoubleFastForwardState(context))
     AppStorage.setOrCreate('skipIntroTime', Preferences.getSkipIntroTime(context))
-    AppStorage.setOrCreate('isListDisplay', Preferences.getListDisplayMode(context))
+    AppStorage.setOrCreate('listDisplayMode', Preferences.getListDisplayMode(context))
     AppStorage.setOrCreate('smartRotation', Preferences.getSmartRotationState(context))
     AppStorage.setOrCreate('longPressSpeed', Preferences.getLongPressSpeed(context))
     AppStorage.setOrCreate('backgroundImageSrc', SelectFileUtil.getImageUri())
     AppStorage.setOrCreate('backgroundDropBlur', Preferences.getBackgroundDropBlur(context))
     AppStorage.setOrCreate('showSettingPageEntry', Preferences.getShowSettingPageEntry(context))
+    AppStorage.setOrCreate('backgroundColorMode', Preferences.getBackgroundColorMode(context))
     // 这里删掉没用的存储项
     PreferencesUtil.delPreferencesValue(context, 'sweet_video', 'circle_play')
+    PreferencesUtil.delPreferencesValue(context, 'sweet_video', 'is_list_display')
   }
 
   // 封装获取屏幕亮度的方法

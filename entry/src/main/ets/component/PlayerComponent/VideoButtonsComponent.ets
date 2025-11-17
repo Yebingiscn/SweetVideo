@@ -81,7 +81,7 @@ export struct VideoButtonsComponent {
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .bindMenu(this.videoSettingBuilder,
-          { backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK })
+          { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
       }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() {
@@ -145,7 +145,7 @@ export struct VideoButtonsComponent {
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .bindMenu(this.playbackSpeedMenu,
-          { backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK })
+          { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
       }.span({ xs: 2, sm: 2, md: 2 })
 
       GridCol() {

@@ -12,6 +12,8 @@ export struct SubtitlePanelComponent {
     List() {
       ListItem() {
         Text('内嵌字幕：' + (this.subTitleVisibility === Visibility.Visible ? '显示（如果有）' : '字幕隐藏'))
+          .fontColor(this.subtitleSelected === SubtitleMode.INNER_SUBTITLE ? $r('sys.color.white') :
+            $r('app.color.text_color'))
       }
       .onClick(() => {
         this.isAIAsrShown = false
@@ -27,6 +29,8 @@ export struct SubtitlePanelComponent {
 
       ListItem() {
         Text('外挂字幕' + (this.subTitleVisibility === Visibility.Visible ? '显示（如果有）' : '字幕隐藏'))
+          .fontColor(this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE ? $r('sys.color.white') :
+            $r('app.color.text_color'))
       }
       .onClick(() => {
         this.isAIAsrShown = false
@@ -43,6 +47,8 @@ export struct SubtitlePanelComponent {
       if (deviceInfo.sdkApiVersion >= 18) {
         ListItem() {
           Text('AI 字幕：' + (this.isAIAsrShown ? '显示' : '隐藏'))
+            .fontColor(this.subtitleSelected === SubtitleMode.AI_SUBTITLE ? $r('sys.color.white') :
+              $r('app.color.text_color'))
         }
         .onClick(() => {
           this.isAIAsrShown = !this.isAIAsrShown

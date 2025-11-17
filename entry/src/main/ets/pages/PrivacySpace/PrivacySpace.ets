@@ -25,6 +25,7 @@ import VideoCardItem from '../../component/VideoItemComponent/VideoCardItemCompo
 import VideoOperateUtil from '../../utils/VideoOperateUtil';
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem';
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem';
+import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -46,7 +47,7 @@ export struct PrivacySpace { // 隐私空间页
   @State isPresent: boolean = false;
   @StorageLink('isPrivacyBackground') isPrivacyBackground: boolean = false
   @StorageLink('showSettingPageEntry') showSettingPageEntry: boolean = true
-  @StorageLink('isListDisplay') isListDisplay: boolean = true
+  @StorageLink('listDisplayMode') listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
   searchController: SearchController = new SearchController()
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
@@ -393,7 +394,7 @@ export struct PrivacySpace { // 隐私空间页
         List({ scroller: this.listScroller, space: 10 }) {
           LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
             ListItem() {
-              if (this.isListDisplay) {
+              if (this.listDisplayMode === ListDisplayMode.LIST_DISPLAY) {
                 this.VideoItemBuilder(item)
               } else {
                 VideoCardItem({
@@ -461,7 +462,7 @@ export struct PrivacySpace { // 隐私空间页
       .onAreaChange(async (_oldValue: Area, newValue: Area) => {
         const width = Number(newValue.width);
         const base = Math.floor(width / 500);
-        this.list_line = this.isListDisplay
+        this.list_line = this.listDisplayMode === ListDisplayMode.LIST_DISPLAY
           ? base + 1
           : base + 2;
       })

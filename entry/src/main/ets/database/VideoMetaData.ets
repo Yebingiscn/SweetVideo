@@ -2,7 +2,7 @@ import { FileFolder } from '../interfaces/FileFolderInterface';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { PathUtils } from '../utils/PathUtils';
 import Preferences from './Preferences';
-import PreferencesUtil from '../utils/PreferencesUtil';
+import PreferencesUtil from './PreferencesUtil';
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
 import FileFolderUtil from '../utils/FileFolderUtil';
 import { FileFolderDataSource } from '../utils/DataUtil';

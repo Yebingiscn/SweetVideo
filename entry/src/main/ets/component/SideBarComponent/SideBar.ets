@@ -30,7 +30,7 @@ export function AppInfoBuilder(params: AppInfoBuilderParams) {
     .zIndex(2)
   }.margin({ top: params.topSafeHeight }).clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 }).onClick(() => {
     ToolsUtil.startVibration()
-    ToolsUtil.showToast('不管多么难熬，人生都要眉开眼笑( •̀ ω •́ )✧，祝你早安，午安，晚安！')
+    ToolsUtil.showToast('不管多么难熬，人生都要眉开眼笑 ( •̀ ω •́ )✧')
   })
 }
 

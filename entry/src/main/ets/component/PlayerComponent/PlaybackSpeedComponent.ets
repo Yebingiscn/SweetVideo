@@ -17,7 +17,8 @@ export struct PlaybackSpeedMenuComponent {
     List() {
       LazyForEach(this.speedDataSource, (speedAvailable: number) => {
         ListItem() {
-          Text(`${speedAvailable}x`)
+          Text(`${speedAvailable}x`).fontColor(this.speed && speedAvailable === this.speed ?
+            $r('sys.color.white') : $r('app.color.text_color'))
         }
         .onClick(() => {
           this.onSpeedChange(speedAvailable); // 触发回调
