@@ -1,4 +1,4 @@
-//删除确认弹窗
+//信息确认弹窗
 @CustomDialog
 export struct InfoConfirmDialog {
   confirm?: () => void

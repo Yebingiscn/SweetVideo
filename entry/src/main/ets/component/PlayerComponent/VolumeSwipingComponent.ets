@@ -19,8 +19,8 @@ export struct VolumeSwipingComponent {
           }
         }
       }).visibility(Visibility.None)
-      Column() {
-        if (this.onSwipingVoice) {
+      if (this.onSwipingVoice) {
+        Column() {
           SymbolGlyph(this.getVoiceIcon())
             .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
             .fontColor(['#f0f0f0'])
@@ -39,17 +39,17 @@ export struct VolumeSwipingComponent {
             .trackColor(Color.Black)
             .trackThickness(40)
         }
+        .padding({
+          left: 25,
+          right: 25,
+          top: 10,
+          bottom: 10
+        })
+        .borderRadius(1000)
+        .backgroundColor('#30000000')
+        .backdropBlur(100)
+        .animation({ duration: 300, curve: Curve.Smooth })
       }
-      .padding({
-        left: 25,
-        right: 25,
-        top: 10,
-        bottom: 10
-      })
-      .borderRadius(1000)
-      .backgroundColor('#30000000')
-      .backdropBlur(100)
-      .animation({ duration: 300, curve: Curve.Smooth })
     }
   }
 

@@ -13,7 +13,8 @@ import { AudioTrack } from '../interfaces/AudioTrackInterface';
 import { DeleteType } from '../common/enum/DeleteType';
 import { fileManagerService } from '@kit.FileManagerServiceKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { fileIo as fs } from '@kit.CoreFileKit';
+import { fileUri, fileIo as fs } from '@kit.CoreFileKit';
+import ToolsUtil from './ToolsUtil';
 
 // 基础数据源抽象类（泛型实现）
 abstract class BaseDataSource<T> implements IDataSource {
@@ -126,14 +127,14 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
       });
     } else if (deleteType == DeleteType.RECENT) {
       try {
-        let trashUri: string = ''
         if (canIUse('SystemCapability.FileManagement.FileManagerService.Core')) {
-          trashUri = await fileManagerService.deleteToTrash(item.uri);
+          await fileManagerService.deleteToTrash(fileUri.getUriFromPath(item.uri));
         }
-        console.info("trashUri: " + trashUri);
-      } catch (err) {
-        let error: BusinessError = err as BusinessError;
-        console.error("delete failed, errCode:" + error.code + ", errMessage:" + error.message);
+        ToolsUtil.showToast(item.title + ' 已经移动到回收站')
+      } catch (error) {
+        console.error("test delete failed, errCode:" + error.code + ", errMessage:" + error.message);
+        ToolsUtil.showToast('视频快捷方式已删除，但移动到最近回收失败，原因是：errCode:' + error.code + ", errMessage:" +
+        error.message)
       }
     }
   }

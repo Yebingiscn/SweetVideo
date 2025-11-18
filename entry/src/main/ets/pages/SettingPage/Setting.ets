@@ -8,10 +8,10 @@ import BiometricAccessUtil from '../../utils/BiometricAccessUtil';
 import { PathUtils } from '../../utils/PathUtils';
 import ToolsUtil from '../../utils/ToolsUtil';
 import { fileIo as fs } from '@kit.CoreFileKit';
-import SelectFileUtil from '../../utils/SelectFileUtil';
-import SubtitleUtil from '../../utils/SubtitleUtil';
 import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem';
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
+import SelectFileUtil from '../../utils/SelectFileUtil';
+import SubtitleUtil from '../../utils/SubtitleUtil';
 
 @Component
 export struct SettingsPage { //设置页
@@ -121,15 +121,17 @@ export struct SettingsPage { //设置页
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.trash'),
-            message: '清理无效文件',
+            message: '清理失效文件',
             onPress: async () => {
-              const coverFromSandbox = await fs.listFile(PathUtils.photoPath).catch(() => {
+              const coverFromSandbox = await fs.listFile(PathUtils.coverPath).catch(() => {
                 console.error('get cover fail')
-              })
+              });
+              const isNumericStart = (filename: string): boolean => /^\d/.test(filename);
+              const coverFromSandboxArray = Array.isArray(coverFromSandbox)
+                ? coverFromSandbox.filter(file => isNumericStart(file)) : [];
               const subtitleFromSandbox = await fs.listFile(PathUtils.subtitlePath).catch(() => {
                 console.error('get subtitle fail')
               })
-              const coverFromSandboxArray = Array.isArray(coverFromSandbox) ? coverFromSandbox : []
               const subtitleFromSandboxArray = Array.isArray(subtitleFromSandbox) ? subtitleFromSandbox : []
               const videoMetaData = Preferences.getVideoMetaData(PathUtils.appContext!)
               const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)

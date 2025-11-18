@@ -2,7 +2,7 @@
   "modelVersion": "5.0.1",
   "description": "Please describe the basic information.",
   "dependencies": {
-    "@ohos/ijkplayer": "2.0.7-rc.5",
+    "@ohos/ijkplayer": "2.0.7-rc.6",
     "@ohos/pinyin4js": "^2.0.2",
     "@rte-xhs/redplayer": "^1.0.0"
   },

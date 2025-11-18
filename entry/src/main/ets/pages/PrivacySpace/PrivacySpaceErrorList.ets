@@ -62,7 +62,7 @@ export struct PrivacySpaceErrorList {
     NavDestination() {
       Column() {
         if (this.videoList.length === 0) {
-          Text('没有异常视频，看起来一点 bug 也没有捏 (^人^)').textAlign(TextAlign.Center)
+          Text('没有异常，看起来一点 bug 也没有捏 (^人^)').textAlign(TextAlign.Center)
             .align(Alignment.Center)
             .width('100%').height('100%')
         } else {

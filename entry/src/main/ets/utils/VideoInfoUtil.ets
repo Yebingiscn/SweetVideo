@@ -81,8 +81,6 @@ class VideoInfoUtil {
     '2720x1530': 'FHD+',
     '1216x2160': 'FHD+',
   };
-  private pendingQueue: Array<() => Promise<void>> = [];
-  private activeCount = 0;
 
   // 设置存储的视频信息
   async setVideoInfo(date: string, uri: string, file_name: string, metadata: media.AVMetadata,

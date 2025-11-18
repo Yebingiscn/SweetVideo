@@ -72,7 +72,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @State isSliderPlayTimeChange: boolean = false
   windowClass = WindowUtil.getWindow()
   xComponentController: XComponentController = new XComponentController()
-  @State @Watch('setScreen') showControl: boolean = false
+  @State showControl: boolean = false
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
   @StorageLink('longPressSpeed') longPressSpeed: number = 3
@@ -183,14 +183,13 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           .animation({ duration: 300, curve: Curve.Smooth })
         }
 
-        if (this.onSwiping) {
-          SwipingPlayTimeDisplay({
-            isSliderPlayTimeChange: this.isSliderPlayTimeChange,
-            playTime: this.play_time,
-            totalTime: this.total_time,
-            lastPlayTime: this.last_play_time
-          })
-        }
+        SwipingPlayTimeDisplay({
+          isSliderPlayTimeChange: this.isSliderPlayTimeChange,
+          playTime: this.play_time,
+          totalTime: this.total_time,
+          lastPlayTime: this.last_play_time,
+          onSwiping: this.onSwiping
+        })
 
         VolumeSwipingComponent({
           videoVolume: this.volume,
@@ -198,18 +197,16 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           onSwipingVoice: this.onSwipingVoice
         })
 
-        if (this.onSwipingBrightness) {
-          BrightnessSwipingComponent({
-            screenBrightness: this.screenBrightness,
-          })
-        }
+        BrightnessSwipingComponent({
+          screenBrightness: this.screenBrightness,
+          onSwipingBrightness: this.onSwipingBrightness
+        })
 
-        if (this.long_press) {
-          FastForwardInfoComponent({
-            speed: this.play_speed,
-            location: 0 - this.play_area_height / 2 + 20
-          })
-        }
+        FastForwardInfoComponent({
+          speed: this.play_speed,
+          location: 0 - this.play_area_height / 2 + 20,
+          longPress: this.long_press
+        })
 
         GestureComponent({
           showControl: this.showControl,
@@ -379,7 +376,8 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         this.getVideoSize()
       })
       .backgroundColor($r('sys.color.black'))
-    }.onReady(() => {
+    }
+    .onReady(() => {
       const playerParams: PlayerParams =
         this.pathStack.getParamByName(NavigationAddress.FFMPEG_PLAYER)[0] as PlayerParams
       try {
@@ -388,25 +386,23 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       } catch (e) {
         console.error(e)
       }
-    }).onBackPressed(() => {
+    })
+    .onBackPressed(() => {
       if (this.showControl && !this.allowPlayBackExist) {
         this.showControl = false
         return true
       } else {
         return false
       }
-    }).onWillDisappear(async () => {
+    })
+    .onWillDisappear(async () => {
       if (this.video_meta_data.length > 0 && this.play_time > 0) {
         VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
           PathUtils.appContext!)
       }
       PermissionUtil.applyStopContinuousTask(this.allowBackgroundPlay)
       try {
-        await (await this.windowClass)?.setWindowKeepScreenOn(false)
-        if (canIUse('SystemCapability.Window.SessionManager')) {
-          await (await this.windowClass)?.setSpecificSystemBarEnabled('status', true)
-          await (await this.windowClass)?.setSpecificSystemBarEnabled('navigationIndicator', true)
-        }
+        WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
         await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
       } catch (error) {
         console.error('player error:' + error)
@@ -418,7 +414,8 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       }
       this.mIjkMediaPlayer?.off('audioInterrupt');
       this.mIjkMediaPlayer?.off('deviceChange')
-    }).hideTitleBar(true)
+    })
+    .hideTitleBar(true)
     .blur(this.isPrivacyBackground ? 1000 : 0)
   }
 
@@ -540,21 +537,10 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     AVCastPickerBuilder()
   }
 
-  async setScreen() {
-    if (canIUse('SystemCapability.Window.SessionManager')) {
-      try {
-        await (await this.windowClass)?.setSpecificSystemBarEnabled('status', this.showControl, true)
-        await (await this.windowClass)?.setSpecificSystemBarEnabled('navigationIndicator', this.showControl, true)
-      } catch (error) {
-        console.error('setSpecificSystemBarEnabled error:' + error)
-      }
-    }
-  }
-
   async aboutToAppear() {
     this.mIjkMediaPlayer = IjkMediaPlayer.getInstance();
     PermissionUtil.applyContinuousTask(this.allowBackgroundPlay)
-    await this.setScreen()
+    WindowUtil.setBarState(PathUtils.appContext!, this.showControl, this.showControl)
     let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
     let audioManager = audio.getAudioManager();
     this.audioVolumeManager = audioManager.getVolumeManager();
@@ -562,7 +548,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     this.volume = volumeList.get('volume')!
     try {
       await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
-      await (await this.windowClass)?.setWindowKeepScreenOn(true)
+      WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
     } catch (error) {
       console.error('setPreferredOrientation error:' + error)
     }

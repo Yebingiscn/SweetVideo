@@ -38,7 +38,7 @@ export struct RedPlayer { // 红薯播放器页
   xComponentController: RedPlayerXComponentController =
     new RedPlayerXComponentController(PlayerCoreType.TYPE_RED_PLAYER)
   avSession: avSessionManager.AVSession | undefined = undefined;
-  @State @Watch('setScreen') showControl: boolean = false
+  @State showControl: boolean = false
   @State screen_width: number = 0
   @State screen_height: number = 0
   @State last_play_time: number = 0
@@ -188,14 +188,13 @@ export struct RedPlayer { // 红薯播放器页
           .visibility(this.showControl ? Visibility.Visible : Visibility.Hidden)
         }
 
-        if (this.onSwiping) {
-          SwipingPlayTimeDisplay({
-            isSliderPlayTimeChange: this.isSliderPlayTimeChange,
-            playTime: this.play_time,
-            totalTime: this.redPlayerStateHolder?.videoDuration,
-            lastPlayTime: this.last_play_time
-          })
-        }
+        SwipingPlayTimeDisplay({
+          isSliderPlayTimeChange: this.isSliderPlayTimeChange,
+          playTime: this.play_time,
+          totalTime: this.redPlayerStateHolder?.videoDuration,
+          lastPlayTime: this.last_play_time,
+          onSwiping: this.onSwiping
+        })
 
         VolumeSwipingComponent({
           videoVolume: this.volume,
@@ -203,18 +202,16 @@ export struct RedPlayer { // 红薯播放器页
           onSwipingVoice: this.onSwipingVoice
         })
 
-        if (this.onSwipingBrightness) {
-          BrightnessSwipingComponent({
-            screenBrightness: this.screenBrightness,
-          })
-        }
+        BrightnessSwipingComponent({
+          screenBrightness: this.screenBrightness,
+          onSwipingBrightness: this.onSwipingBrightness
+        })
 
-        if (this.long_press) {
-          FastForwardInfoComponent({
-            speed: this.play_speed,
-            location: this.screen_width > this.screen_height ? -160 : -80
-          })
-        }
+        FastForwardInfoComponent({
+          speed: this.play_speed,
+          location: this.screen_width > this.screen_height ? -160 : -80,
+          longPress: this.long_press
+        })
 
         GestureComponent({
           showControl: this.showControl,
@@ -386,11 +383,7 @@ export struct RedPlayer { // 红薯播放器页
       this.playerController?.stop()
       this.playerController?.release()
       try {
-        await (await this.windowClass)?.setWindowKeepScreenOn(false)
-        if (canIUse('SystemCapability.Window.SessionManager')) {
-          await (await this.windowClass)?.setSpecificSystemBarEnabled('status', true)
-          await (await this.windowClass)?.setSpecificSystemBarEnabled('navigationIndicator', true)
-        }
+        WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
         await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
       } catch (error) {
         console.error('player error:' + error)
@@ -419,25 +412,14 @@ export struct RedPlayer { // 红薯播放器页
     this.playerController?.setSpeed(speed)
   }
 
-  async setScreen() {
-    if (canIUse('SystemCapability.Window.SessionManager')) {
-      try {
-        await (await this.windowClass)?.setSpecificSystemBarEnabled('status', this.showControl, true)
-        await (await this.windowClass)?.setSpecificSystemBarEnabled('navigationIndicator', this.showControl, true)
-      } catch (error) {
-        console.error('setSpecificSystemBarEnabled error:' + error)
-      }
-    }
-  }
-
   async aboutToAppear(): Promise<void> {
     this.redPlayerStateHolder = new RedPlayerStateHolder()
     this.playerController = new RedPlayerControllerUtil(this.redPlayerStateHolder)
     PermissionUtil.applyContinuousTask(this.allowBackgroundPlay)
-    await this.setScreen()
+    WindowUtil.setBarState(PathUtils.appContext!, this.showControl, this.showControl)
     try {
       await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
-      await (await this.windowClass)?.setWindowKeepScreenOn(true)
+      WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
     } catch (error) {
       console.error('setPreferredOrientation error:' + error)
     }

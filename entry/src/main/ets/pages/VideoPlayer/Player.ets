@@ -1,5 +1,4 @@
 import { media } from '@kit.MediaKit';
-import AVPlayerUtil from '../../utils/AVPlayerUtil';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import PermissionUtil from '../../utils/PermissionUtil';
 import { window } from '@kit.ArkUI';
@@ -46,6 +45,7 @@ import { AIAsr } from '../../component/VideoItemComponent/AIAsrComponent';
 import SubtitleUtil from '../../utils/SubtitleUtil';
 import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent';
 import { SubtitleMode } from '../../common/enum/SubtitleMode';
+import { AVPlayerUtil } from '../../utils/AVPlayerUtil';
 
 @Component
 export struct Player { // 播放页
@@ -54,10 +54,10 @@ export struct Player { // 播放页
   @State now_playing: VideoMetadataFromPlayer | undefined = undefined
   @State playing: boolean = false
   @State speed: number = 1.0
-  @State play_time: number = 0
+  @State playTime: number = 0
   surfaceID: string = ''
-  @State long_press: boolean = false
-  @State @Watch('setScreen') showControl: boolean = false
+  @State longPress: boolean = false
+  @State showControl: boolean = false
   @State lock_rotation: boolean = false
   xComponentController: XComponentController = new XComponentController()
   windowClass = WindowUtil.getWindow()
@@ -121,10 +121,10 @@ export struct Player { // 播放页
         this.seekTime(position)
       })
       this.avSession?.on('fastForward', () => {
-        this.seekTime(this.play_time + 15000)
+        this.seekTime(this.playTime + 15000)
       })
       this.avSession?.on('rewind', () => {
-        this.seekTime(this.play_time - 15000)
+        this.seekTime(this.playTime - 15000)
       })
       this.avSession?.on('playNext', () => {
         this.playNextVideo()
@@ -178,24 +178,13 @@ export struct Player { // 播放页
     }
   }
 
-  async setScreen() {
-    if (canIUse('SystemCapability.Window.SessionManager')) {
-      try {
-        await (await this.windowClass)?.setSpecificSystemBarEnabled('status', this.showControl, true)
-        await (await this.windowClass)?.setSpecificSystemBarEnabled('navigationIndicator', this.showControl, true)
-      } catch (error) {
-        console.error('player error')
-      }
-    }
-  }
-
   async aboutToAppear(): Promise<void> {
     PermissionUtil.applyContinuousTask(this.allowBackgroundPlay)
     TimeUtil.clock_time = TimeUtil.getTime()
-    this.setScreen()
+    WindowUtil.setBarState(PathUtils.appContext!, this.showControl, this.showControl)
     try {
       await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
-      await (await this.windowClass)?.setWindowKeepScreenOn(true)
+      WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
       this.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
       const video_speed = Preferences.getVideoSpeed(PathUtils.appContext!)
       this.speed = parseFloat(video_speed?.replace('x', '') || '1');
@@ -300,7 +289,7 @@ export struct Player { // 播放页
 
   async setAVPlayerCallback() {
     this.avPlayer?.on('timeUpdate', async (duration) => {
-      AppStorage.setOrCreate('nowPlayingData', [this.play_time, this.now_playing!, this.video_meta_data])
+      AppStorage.setOrCreate('nowPlayingData', [this.playTime, this.now_playing!, this.video_meta_data])
       if (this.showControl) {
         TimeUtil.clock_time = TimeUtil.getTime()
         if (!this.autoHideTimeout) {
@@ -326,8 +315,8 @@ export struct Player { // 播放页
     });
 
     this.avPlayer?.on('seekDone', (percent) => {
-      this.play_time = percent
-      AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
+      this.playTime = percent
+      AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime)
     })
 
     this.avPlayer?.on('speedDone', (systemEnum: media.PlaybackSpeed) => {
@@ -373,11 +362,11 @@ export struct Player { // 播放页
           this.onSwiping = false
           break;
         case 'completed':
-          VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
+          VideoOperateUtil.saveVideoTime(this.playTime, this.now_playing!, this.video_meta_data,
             PathUtils.appContext!)
           const targetItem = this.video_meta_data.find(i => i.date == this.now_playing?.date)
           if (targetItem) {
-            targetItem!.last_play = this.play_time
+            targetItem!.last_play = this.playTime
           }
           if (this.repeatMode === RepeatMode.SINGLE_LOOP) {
             if (this.mIjkMediaPlayer) {
@@ -398,19 +387,19 @@ export struct Player { // 播放页
             this.mIjkMediaPlayer?.start()
           }
           this.initAVSession()
-          AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
+          AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime)
           break
         case 'paused':
           if (this.mIjkMediaPlayer) {
             this.mIjkMediaPlayer?.pause()
           }
           this.playing = false
-          AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
+          AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime)
           break
         case 'released':
           await this.ijkPlayerStop()
           this.playing = false
-          AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
+          AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime)
           break
         case 'idle':
           await this.ijkPlayerStop()
@@ -480,7 +469,7 @@ export struct Player { // 播放页
         this.seekTime(this.now_playing?.start_time || 0)
         break
       case VideoStartTimeMode.SEEK_TO_INTRO_TIME:
-        this.seekTime(this.play_time + Number(this.skipIntroTime) * 1000)
+        this.seekTime(this.playTime + Number(this.skipIntroTime) * 1000)
         break
       default:
         return
@@ -530,7 +519,7 @@ export struct Player { // 播放页
   }
 
   async playChooseVideo(item: VideoMetadata) {
-    VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
+    VideoOperateUtil.saveVideoTime(this.playTime, this.now_playing!, this.video_meta_data,
       PathUtils.appContext!)
     if (!PrivacySpaceUtil.getPrivacyMode()) {
       RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
@@ -548,7 +537,7 @@ export struct Player { // 播放页
   }
 
   playNextVideo() {
-    if (this.video_meta_data.length > 0 && this.play_time > 0) {
+    if (this.video_meta_data.length > 0 && this.playTime > 0) {
       let item = SelectFileUtil.getItem(this.video_meta_data, this.now_playing?.date || '') as VideoMetadata
       let nextItem: VideoMetadata | null
       if (this.repeatMode === RepeatMode.RANDOM) { // 随机模式
@@ -572,11 +561,11 @@ export struct Player { // 播放页
   }
 
   backForward() {
-    this.seekTime(this.play_time - Number(this.fastForwardSeconds) * 1000)
+    this.seekTime(this.playTime - Number(this.fastForwardSeconds) * 1000)
   }
 
   fastForward() {
-    this.seekTime(this.play_time + Number(this.fastForwardSeconds) * 1000)
+    this.seekTime(this.playTime + Number(this.fastForwardSeconds) * 1000)
   }
 
   togglePlayback() {
@@ -592,7 +581,7 @@ export struct Player { // 播放页
       this.avSession = await AVSessionUtil.getAVSession()
       await this.setSessionListener()
       AVSessionUtil.setSessionInfo(this.now_playing!)
-      AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
+      AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime)
     }
   }
 
@@ -700,22 +689,19 @@ export struct Player { // 播放页
             .animation({ duration: 300, curve: Curve.Smooth })
           }
 
+          FastForwardInfoComponent({
+            speed: this.speed,
+            location: 0 - VideoInfoUtil.play_area_height / 2 + 20,
+            longPress: this.longPress
+          })
 
-          if (this.long_press) {
-            FastForwardInfoComponent({
-              speed: this.speed,
-              location: 0 - VideoInfoUtil.play_area_height / 2 + 20
-            })
-          }
-
-          if (this.onSwiping) {
-            SwipingPlayTimeDisplay({
-              isSliderPlayTimeChange: this.isSliderPlayTimeChange,
-              playTime: this.play_time,
-              totalTime: this.now_playing?.time,
-              lastPlayTime: VideoOperateUtil.last_play_time
-            })
-          }
+          SwipingPlayTimeDisplay({
+            isSliderPlayTimeChange: this.isSliderPlayTimeChange,
+            playTime: this.playTime,
+            totalTime: this.now_playing?.time,
+            lastPlayTime: VideoOperateUtil.last_play_time,
+            onSwiping: this.onSwiping
+          })
 
           VolumeSwipingComponent({
             videoVolume: this.volume,
@@ -723,20 +709,18 @@ export struct Player { // 播放页
             onSwipingVoice: this.onSwipingVoice,
           })
 
-          if (this.onSwipingBrightness) {
-            BrightnessSwipingComponent({
-              screenBrightness: this.screenBrightness,
-            })
-          }
+          BrightnessSwipingComponent({
+            screenBrightness: this.screenBrightness,
+            onSwipingBrightness: this.onSwipingBrightness
+          })
 
-          if (this.lockVisibility) {
-            LockVideoBarComponent({
-              isLock: this.isLock,
-              screenHeight: this.screen_height,
-              screenWidth: this.screen_width,
-              showControl: this.showControl
-            })
-          }
+          LockVideoBarComponent({
+            isLock: this.isLock,
+            screenHeight: this.screen_height,
+            screenWidth: this.screen_width,
+            showControl: this.showControl,
+            lockVisibility: this.lockVisibility
+          })
 
           GestureComponent({
             showControl: this.showControl,
@@ -811,7 +795,7 @@ export struct Player { // 播放页
             },
             onHorizonPanStart: (_event: GestureEvent) => {
               if (!this.isLock) {
-                VideoOperateUtil.last_play_time = this.play_time;
+                VideoOperateUtil.last_play_time = this.playTime;
                 this.onSwiping = true;
               }
             },
@@ -823,12 +807,12 @@ export struct Player { // 播放页
                 return
               }
               const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.now_playing?.time!)
-              this.play_time = Math.max(0,
+              this.playTime = Math.max(0,
                 Math.min(VideoOperateUtil.last_play_time + (event.offsetX * timePerPixel),
                   this.now_playing?.time!));
             },
             onHorizonPanEnd: () => {
-              this.seekTime(this.play_time);
+              this.seekTime(this.playTime);
               this.onSwiping = false;
             },
             onPinchStart: (event: GestureEvent) => {
@@ -871,7 +855,7 @@ export struct Player { // 播放页
             },
             onLongPressAction: () => {
               if (!this.isLock) {
-                this.long_press = true
+                this.longPress = true
                 VideoOperateUtil.lastSpeed = this.speed
                 this.updatePlaybackSpeed(this.longPressSpeed);
                 this.currentSpeedIndex =
@@ -879,7 +863,7 @@ export struct Player { // 播放页
               }
             },
             onLongPressEnd: () => {
-              this.long_press = false
+              this.longPress = false
               this.updatePlaybackSpeed(VideoOperateUtil.lastSpeed);
             },
             onLongPressPanStart: (event: GestureEvent) => {
@@ -893,7 +877,7 @@ export struct Player { // 播放页
               VideoOperateUtil.longPressStartX = tapX
             },
             onLongPressPanUpdate: (event: GestureEvent) => {
-              if (!this.isLock && this.long_press) { // 长按状态下的滑动处理
+              if (!this.isLock && this.longPress) { // 长按状态下的滑动处理
                 const tapX = event.fingerList[0]?.localX
                 if (!VideoOperateUtil.checkLocalX(tapX)) {
                   return
@@ -965,14 +949,14 @@ export struct Player { // 播放页
       }
     })
     .onWillDisappear(async () => {
-      if (this.video_meta_data.length > 0 && this.play_time > 0) {
-        VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
+      if (this.video_meta_data.length > 0 && this.playTime > 0) {
+        VideoOperateUtil.saveVideoTime(this.playTime, this.now_playing!, this.video_meta_data,
           PathUtils.appContext!)
       }
       PermissionUtil.applyStopContinuousTask(this.allowBackgroundPlay)
       await this.ijkPlayerStop()
       try {
-        await (await this.windowClass)?.setWindowKeepScreenOn(false)
+        WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
         if (canIUse('SystemCapability.Window.SessionManager')) {
           await (await this.windowClass)?.setSpecificSystemBarEnabled('status', true)
           await (await this.windowClass)?.setSpecificSystemBarEnabled('navigationIndicator', true)
@@ -1036,7 +1020,7 @@ export struct Player { // 播放页
   @Builder
   VideoSlider() {
     VideoSliderComponent({
-      playTime: this.play_time,
+      playTime: this.playTime,
       totalTime: this.now_playing?.time,
       screenWidth: this.screen_width,
       screenHeight: this.screen_height,
@@ -1044,11 +1028,11 @@ export struct Player { // 播放页
       onSliderChange: (value: number) => {
         this.onSwiping = true
         this.isSliderPlayTimeChange = true
-        this.play_time = value
+        this.playTime = value
       },
       onSliderTouch: (event: TouchEvent) => {
         if (event.type == TouchType.Up) {
-          this.seekTime(this.play_time)
+          this.seekTime(this.playTime)
           this.isSliderPlayTimeChange = false
           this.onSwiping = false
         }
@@ -1114,7 +1098,7 @@ export struct Player { // 播放页
   @Builder
   VideoSettingBuilder() {
     VideoSettingComponent({
-      playTime: this.play_time,
+      playTime: this.playTime,
       nowPlaying: this.now_playing,
       videoMetaData: this.video_meta_data,
       angle: this.angle,
@@ -1211,7 +1195,7 @@ export struct Player { // 播放页
     const speed = Math.min(1.1, Math.max(0.9, 1 + drift / 2000));
     this.mIjkMediaPlayer?.setSpeed(speed.toFixed(1.5)); // 30秒后恢复或差异小于310ms时恢复
     const restore = () => {
-      if (Math.abs(this.play_time - Number(this.mIjkMediaPlayer?.getCurrentPosition())) < 310) {
+      if (Math.abs(this.playTime - Number(this.mIjkMediaPlayer?.getCurrentPosition())) < 310) {
         this.mIjkMediaPlayer?.setSpeed(String(this.speed));
       } else {
         setTimeout(restore, 1000);
@@ -1221,7 +1205,7 @@ export struct Player { // 播放页
   }
 
   private calPlayerSync(duration: number) {
-    this.play_time = duration;
+    this.playTime = duration;
     if (this.mIjkMediaPlayer && Date.now() - VideoOperateUtil.lastSyncTime < VideoOperateUtil.syncCoolDown) {
       return;
     }

@@ -10,7 +10,6 @@ import FileFolderUtil from '../utils/FileFolderUtil';
 import { EditFileFolderNameDialog } from '../component/Dialog/EditFileFolderNameDialog';
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
-import ScreenUtil from '../utils/ScreenUtil';
 import { SettingsPage } from './SettingPage/Setting';
 import { AboutApp } from './AboutApp';
 import { FFMpegPlayer } from './VideoPlayer/FFMpegPlayer';
@@ -43,6 +42,7 @@ import BiometricAccessUtil from '../utils/BiometricAccessUtil';
 import { DeleteType } from '../common/enum/DeleteType';
 import { PrivacySpaceErrorList } from './PrivacySpace/PrivacySpaceErrorList';
 import { ListDisplayMode } from '../common/enum/ListDisplayMode';
+import { WindowUtil } from '../utils/WindowUtil';
 
 @Builder
 export function IndexBuilder() {
@@ -180,7 +180,7 @@ struct Index {
   }
 
   async aboutToAppear(): Promise<void> {
-    await ScreenUtil.init(PathUtils.appContext!)
+    await WindowUtil.init(PathUtils.appContext!)
     SelectFileUtil.getDownloadUri()
     VideoOperateUtil.initSetting(PathUtils.appContext!)
     VideoMetaDataOperator.migrationRootVideoMetaToRootFolder()

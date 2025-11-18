@@ -5,6 +5,7 @@ import { ImageFancyModifier, SymbolGlyphFancyModifier } from '../../utils/Attrib
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import { VideoListController } from './VideoItemComponent';
 import { VideoInfoBuilder } from './VideoInfoBuilder';
+import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
 
 @Reusable
 @Component
@@ -13,6 +14,7 @@ export default struct VideoCardItem {
   @Consume videoListController: VideoListController
   @State choose: boolean = false
   @Watch('checkChoose') @Link delMultipleList: VideoMetadata[]
+  @StorageLink('listDisplayMode') listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
 
   checkChoose() {
     this.choose = this.delMultipleList.some(item => item.date === this.item.date)
@@ -29,13 +31,16 @@ export default struct VideoCardItem {
         }, '', ''))
         .width('100%')
         .height('auto')
-        .constraintSize({ maxHeight: 200 })
+        .constraintSize({
+          maxHeight: this.listDisplayMode === ListDisplayMode.GRID_DISPLAY ? 100 : 300,
+          minHeight: this.listDisplayMode === ListDisplayMode.GRID_DISPLAY ? 100 : undefined
+        })
         .objectFit(ImageFit.Auto)
       Row() {
         Text(VideoInfoUtil.getVideoTitle(this.item))
           .fontSize(15)
           .fontWeight(FontWeight.Bold)
-          .maxLines(5)
+          .maxLines(this.listDisplayMode === ListDisplayMode.GRID_DISPLAY ? 1 : 5)
           .textAlign(TextAlign.Start)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .layoutWeight(1)// 占据剩余空间

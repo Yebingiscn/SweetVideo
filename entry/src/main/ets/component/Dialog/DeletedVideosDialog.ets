@@ -16,7 +16,6 @@ export struct DeletedVideosDialog {
 
   build() {
     Column() {
-      // 标题区域增强视觉层次
       Column() {
         Text('已失效视频')
           .fontSize(25)
@@ -30,7 +29,6 @@ export struct DeletedVideosDialog {
       .alignItems(HorizontalAlign.Start)
       .padding({ bottom: 12 })
 
-      // 列表区域优化
       List({ space: 8 }) {
         LazyForEach(this.deletedVideosDataSource, (item: VideoMetadata) => {
           ListItem() {
@@ -50,7 +48,6 @@ export struct DeletedVideosDialog {
       .edgeEffect(EdgeEffect.Spring)
       .layoutWeight(1) // 确保列表区域自动扩展
 
-      // 按钮区域增强可见性
       Button({ type: ButtonType.Capsule, stateEffect: true }) {
         Text($r('app.string.cancel'))
           .fontSize(18)

@@ -207,6 +207,8 @@ export struct AboutApp {
               .fontSize(14)
             Text('RedPlayer')
               .fontSize(14)
+            Text('subtitles')
+              .fontSize(14)
           }
           .backgroundColor($r('app.color.start_window_background_blur'))
           .padding(15)
