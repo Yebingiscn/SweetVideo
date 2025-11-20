@@ -509,6 +509,7 @@ class SelectFileUtil {
     const options = new photoAccessHelper.PhotoSelectOptions()
     options.MIMEType = mimeType
     options.maxSelectNumber = maxSelect
+    options.isPhotoTakingSupported = false
     try {
       const picker = new photoAccessHelper.PhotoViewPicker()
       const result: photoAccessHelper.PhotoSelectResult = await picker.select(options)
