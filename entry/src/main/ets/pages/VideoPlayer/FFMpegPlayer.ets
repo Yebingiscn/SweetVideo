@@ -95,50 +95,50 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   build() {
     NavDestination() {
       Stack() {
-        Stack() {
-          Stack() { //播放器
-            XComponent({
-              type: XComponentType.SURFACE,
-              controller: this.xComponentController,
-              id: 'xcomponentId',
-              libraryname: 'ijkplayer_napi'
-            })
-              .onLoad(async (event?: object) => {
-                if (!!event) {
-                  this.initDelayPlay(event);
-                  await PermissionUtil.activatePermission(this.now_playing?.uri || '')
-                  try {
-                    const file = fs.openSync(this.now_playing?.uri)
-                    this.video_url = file.path
-                  } catch (error) {
-                    console.error('uri error:' + error)
-                  }
-                }
-              })
-          }
-          .width(this.play_area_width)
-          .height(this.play_area_height)
-          .animation({ duration: this.play_time > 300 ? 300 : 0, curve: Curve.Ease })
-          .focusable(true)
-          .defaultFocus(true)
-          .onKeyEvent((event?: KeyEvent) => {
-            if (!event || event.type !== KeyType.Down) {
-              return;
-            }
-            if (event.keyCode === KeyCode.KEYCODE_SPACE) {
-              this.togglePlayState();
-            }
-            if (event.keyCode === KeyCode.KEYCODE_ESCAPE) {
-              this.pathStack.pop()
-            }
-            if (event.keyCode === KeyCode.KEYCODE_DPAD_RIGHT) {
-              this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(this.fastForwardSeconds) * 1000));
-            }
-            if (event.keyCode === KeyCode.KEYCODE_DPAD_LEFT) {
-              this.mIjkMediaPlayer?.seekTo(String(this.play_time - Number(this.fastForwardSeconds) * 1000));
-            }
+        Stack() { //播放器
+          XComponent({
+            type: XComponentType.SURFACE,
+            controller: this.xComponentController,
+            id: 'xcomponentId',
+            libraryname: 'ijkplayer_napi'
           })
+            .onLoad(async (event?: object) => {
+              if (!!event) {
+                this.initDelayPlay(event);
+                await PermissionUtil.activatePermission(this.now_playing?.uri || '')
+                try {
+                  const file = fs.openSync(this.now_playing?.uri)
+                  this.video_url = file.path
+                } catch (error) {
+                  console.error('uri error:' + error)
+                }
+              }
+            })
+        }
+        .width(this.play_area_width)
+        .height(this.play_area_height)
+        .animation({ duration: this.play_time > 300 ? 300 : 0, curve: Curve.Ease })
+        .focusable(true)
+        .defaultFocus(true)
+        .onKeyEvent((event?: KeyEvent) => {
+          if (!event || event.type !== KeyType.Down) {
+            return;
+          }
+          if (event.keyCode === KeyCode.KEYCODE_SPACE) {
+            this.togglePlayState();
+          }
+          if (event.keyCode === KeyCode.KEYCODE_ESCAPE) {
+            this.pathStack.pop()
+          }
+          if (event.keyCode === KeyCode.KEYCODE_DPAD_RIGHT) {
+            this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(this.fastForwardSeconds) * 1000));
+          }
+          if (event.keyCode === KeyCode.KEYCODE_DPAD_LEFT) {
+            this.mIjkMediaPlayer?.seekTo(String(this.play_time - Number(this.fastForwardSeconds) * 1000));
+          }
+        })
 
+        if (this.showControl) {
           Stack() {
             Flex({
               justifyContent: FlexAlign.SpaceBetween,
@@ -149,7 +149,9 @@ export struct FFMpegPlayer { // FFMpeg播放器页
                 Column() {
                   this.VideoTop()
                 }.width('100%')
-              }.height(85)
+              }
+              .height(85)
+              .transition(XAnimation.getAnimation('up', 0, false))
               .width('100%')
               .backgroundColor('#36ffffff')
               .padding({
@@ -174,13 +176,13 @@ export struct FFMpegPlayer { // FFMpeg播放器页
                   }
                 }
               }
+              .transition(XAnimation.getAnimation('bottom', 0, false))
               .backgroundColor($r('sys.color.mask_fourth'))
               .height(this.screen_height > this.screen_width ? 180 : 110)
               .width('100%')
               .padding(1)
             }.height('100%').width('100%')
-          }.visibility(this.showControl ? Visibility.Visible : Visibility.Hidden)
-          .animation({ duration: 300, curve: Curve.Smooth })
+          }
         }
 
         SwipingPlayTimeDisplay({
@@ -204,7 +206,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
 
         FastForwardInfoComponent({
           speed: this.play_speed,
-          location: 0 - this.play_area_height / 2 + 20,
+          location: this.play_area_height,
           longPress: this.long_press
         })
 
@@ -215,7 +217,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
               this.togglePlayState();
               return;
             }
-            const tapX = event.fingerList[0].localX;
+            const tapX = event.fingerList[0]?.localX;
             if (!VideoOperateUtil.checkLocalX(tapX)) {
               return
             }
@@ -245,7 +247,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             }
           },
           onVerticalPanUpdate: (event: GestureEvent) => {
-            if (!this.isLock && event.fingerList.length === 1) {
+            if (!this.isLock && event.fingerList?.length === 1) {
               const deltaYScale = event.offsetY / this.screen_height * 2.5
               if (VideoOperateUtil.leftSideSwipe) {
                 this.onSwipingBrightness = true
@@ -333,7 +335,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             if (!VideoOperateUtil.checkLocalX(tapX)) {
               return
             }
-            VideoOperateUtil.longPressStartX = event.fingerList[0].localX;
+            VideoOperateUtil.longPressStartX = event.fingerList[0]?.localX;
           },
           onLongPressPanUpdate: (event: GestureEvent) => {
             const tapX = event.fingerList[0]?.localX;
@@ -356,7 +358,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             this.play_speed =
               VideoInfoUtil.getVideoSpeedList(NavigationAddress.FFMPEG_PLAYER)[this.currentSpeedIndex]
             this.mIjkMediaPlayer?.setSpeed(this.play_speed + '');
-            VideoOperateUtil.longPressStartX = event.fingerList[0].localX; // 重置起始点实现分档切换效果
+            VideoOperateUtil.longPressStartX = event.fingerList[0]?.localX; // 重置起始点实现分档切换效果
           }
         })
 
@@ -375,6 +377,8 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         this.screen_height = Math.floor(new Number(newValue.height).valueOf())
         this.getVideoSize()
       })
+      .height('100%')
+      .width('100%')
       .backgroundColor($r('sys.color.black'))
     }
     .onReady(() => {

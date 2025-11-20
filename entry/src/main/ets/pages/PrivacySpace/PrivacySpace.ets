@@ -3,14 +3,14 @@ import SelectFileUtil from '../../utils/SelectFileUtil';
 import { VideoDataSource } from '../../utils/DataUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
 import DataSyncUtil from '../../utils/DataSyncUtil';
-import { MenuModifier, SymbolGlyphModifier } from '@kit.ArkUI';
+import { SymbolGlyphModifier } from '@kit.ArkUI';
 import { VideoDetailDialog } from '../../component/Dialog/VideoDetailDialog';
 import { DefaultDialogShadow } from '../../common/DefaultDialogShadow';
 import Preferences from '../../database/Preferences';
 import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil';
 import { FileFolder } from '../../interfaces/FileFolderInterface';
 import {
-  ButtonFancyModifier, SymbolGlyphFancyModifier
+  ButtonFancyModifier, MenuFancyModifier, SymbolGlyphFancyModifier
 } from '../../utils/AttributeModifierUtil';
 import { FileProcessorUtil } from '../../utils/FileProcessorUtil';
 import { PathUtils } from '../../utils/PathUtils';
@@ -47,6 +47,7 @@ export struct PrivacySpace { // 隐私空间页
   @State isPresent: boolean = false;
   @StorageLink('isPrivacyBackground') isPrivacyBackground: boolean = false
   @StorageLink('showSettingPageEntry') showSettingPageEntry: boolean = true
+  @StorageLink('allowGestureEntry') allowGestureEntry: boolean = false
   @StorageLink('listDisplayMode') listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
   searchController: SearchController = new SearchController()
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
@@ -107,6 +108,16 @@ export struct PrivacySpace { // 隐私空间页
         onChange: (checked: boolean) => {
           this.showSettingPageEntry = checked
           Preferences.saveShowSettingPageEntry(PathUtils.appContext!, this.showSettingPageEntry)
+        }
+      })
+
+      SettingsToggleItem({
+        symbol: $r('sys.symbol.arrow_up_left_and_arrow_down_right'),
+        message: '首页双指捏合往外划开进入隐私空间',
+        enable: this.allowGestureEntry,
+        onChange: (checked: boolean) => {
+          this.allowGestureEntry = checked
+          Preferences.saveAllowGestureEntry(PathUtils.appContext!, this.showSettingPageEntry)
         }
       })
 
@@ -217,7 +228,7 @@ export struct PrivacySpace { // 隐私空间页
           this.isPresent = false
           await this.toMetaData(await SelectFileUtil.selectVideo());
         })
-    }.attributeModifier(new MenuModifier())
+    }.attributeModifier(new MenuFancyModifier())
   }
 
   @Builder
@@ -242,7 +253,7 @@ export struct PrivacySpace { // 隐私空间页
           this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
           this.videoDataSource.updateData(this.video_meta_data_encryption)
         })
-    }.attributeModifier(new MenuModifier())
+    }.attributeModifier(new MenuFancyModifier())
   }
 
   @Builder
@@ -284,7 +295,7 @@ export struct PrivacySpace { // 隐私空间页
         .onClick(async () => {
           await SelectFileUtil.exportFile(item!.uri, item!.title, item!.format, PathUtils.appContext!)
         })
-    }.attributeModifier(new MenuModifier())
+    }.attributeModifier(new MenuFancyModifier())
   }
 
   async toMetaData(fileList: string[], fileFolder?: FileFolder) {
@@ -417,6 +428,7 @@ export struct PrivacySpace { // 隐私空间页
             })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
               {
+                backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
                 preview: this.VideoItemBuilder(item),
                 previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                 onAppear: () => {
@@ -429,6 +441,7 @@ export struct PrivacySpace { // 隐私空间页
               })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
               {
+                backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
                 preview: this.VideoItemBuilder(item),
                 previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                 onAppear: () => {

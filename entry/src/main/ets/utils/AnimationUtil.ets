@@ -64,4 +64,8 @@ export class XAnimation {
       fn()
     }
   }
+
+  public static getAnimationCurve(duration: number = 300, s1: number = 0.4, s2: number = 0.7): AnimateParam {
+    return { duration: duration, curve: curves.springMotion(s1, s2) }
+  }
 }

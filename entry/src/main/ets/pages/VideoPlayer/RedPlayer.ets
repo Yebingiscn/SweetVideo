@@ -74,76 +74,76 @@ export struct RedPlayer { // 红薯播放器页
     NavDestination() {
       Stack() {
         Stack() {
-          Stack() {
-            XComponent({
-              id: this.xComponentController.getSurfaceId(),
-              type: this.xComponentController.getSurfaceType(),
-              libraryname: this.xComponentController.getLibraryName(),
-              controller: this.xComponentController
-            })
-              .onLoad(() => {
-                if (this.redPlayerStateHolder?.videoPosition) {
-                  this.play_time = this.redPlayerStateHolder?.videoPosition
-                }
-                this.playerController?.createMediaPlayer(PlayerCoreType.TYPE_RED_PLAYER).then(async () => {
-                  await PermissionUtil.activatePermission(this.now_playing?.uri || '')
-                  try {
-                    const file = fs.openSync(this.now_playing?.uri)
-                    this.playerController?.setDataSource({
-                      fd: file.fd,
-                      logHead: "RedPlayer",
-                      sourceType: SourceType.FD,
-                      enableAccurateSeek: true,
-                      isAutoLoop: RedPlayerSettingsConfig.useLoopPlay,
-                      isAutoStart: true
-                    })?.then(async () => {
-                      this.playerController?.setSurfaceId(this.xComponentController.getSurfaceId())
-                      this.playerController?.prepare()?.then(() => {
-                        this.playerController?.setVolume(1.0)
-                        this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.now_playing!,
-                          this.skipIntroTime))
-                        this.playerController?.start()
-                      })
-                      this.avSession = await AVSessionUtil.getAVSession()
-                      await this.setSessionListener()
-                      AVSessionUtil.setSessionInfo(this.now_playing!)
-                      AVSessionUtil.updatePlaybackSessionState(this.isSliderPlayTimeChange,
-                        this.redPlayerStateHolder!.videoPosition)
-                      this.isAIAsrShown = true
-                    })
-                  } catch (error) {
-                    console.error('uri error:' + error)
-                  }
-                })
-              })
-          }
-          .width(this.redPlayerStateHolder?.videoViewWidth)
-          .height(this.redPlayerStateHolder?.videoViewHeight)
-          .animation({ duration: 300, curve: Curve.Ease })
-          .focusable(true)
-          .defaultFocus(true)
-          .onKeyEvent((event?: KeyEvent) => {
-            if (!event || event.type !== KeyType.Down) {
-              return;
-            }
-            if (event.keyCode === KeyCode.KEYCODE_SPACE) {
-              this.togglePlayback()
-            }
-            if (event.keyCode === KeyCode.KEYCODE_ESCAPE) {
-              this.pathStack.pop()
-            }
-            if (event.keyCode === KeyCode.KEYCODE_DPAD_RIGHT) {
-              const seekOffset = Number(this.fastForwardSeconds) * 1000;
-              const newPosition = this.play_time + seekOffset;
-              this.seekTime(newPosition);
-            }
-            if (event.keyCode === KeyCode.KEYCODE_DPAD_LEFT) {
-              const seekOffset = Number(this.fastForwardSeconds) * 1000;
-              const newPosition = this.play_time - seekOffset;
-              this.seekTime(newPosition);
-            }
+          XComponent({
+            id: this.xComponentController.getSurfaceId(),
+            type: this.xComponentController.getSurfaceType(),
+            libraryname: this.xComponentController.getLibraryName(),
+            controller: this.xComponentController
           })
+            .onLoad(() => {
+              if (this.redPlayerStateHolder?.videoPosition) {
+                this.play_time = this.redPlayerStateHolder?.videoPosition
+              }
+              this.playerController?.createMediaPlayer(PlayerCoreType.TYPE_RED_PLAYER).then(async () => {
+                await PermissionUtil.activatePermission(this.now_playing?.uri || '')
+                try {
+                  const file = fs.openSync(this.now_playing?.uri)
+                  this.playerController?.setDataSource({
+                    fd: file.fd,
+                    logHead: "RedPlayer",
+                    sourceType: SourceType.FD,
+                    enableAccurateSeek: true,
+                    isAutoLoop: RedPlayerSettingsConfig.useLoopPlay,
+                    isAutoStart: true
+                  })?.then(async () => {
+                    this.playerController?.setSurfaceId(this.xComponentController.getSurfaceId())
+                    this.playerController?.prepare()?.then(() => {
+                      this.playerController?.setVolume(1.0)
+                      this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.now_playing!,
+                        this.skipIntroTime))
+                      this.playerController?.start()
+                    })
+                    this.avSession = await AVSessionUtil.getAVSession()
+                    await this.setSessionListener()
+                    AVSessionUtil.setSessionInfo(this.now_playing!)
+                    AVSessionUtil.updatePlaybackSessionState(this.isSliderPlayTimeChange,
+                      this.redPlayerStateHolder!.videoPosition)
+                    this.isAIAsrShown = true
+                  })
+                } catch (error) {
+                  console.error('uri error:' + error)
+                }
+              })
+            })
+        }
+        .width(this.redPlayerStateHolder?.videoViewWidth)
+        .height(this.redPlayerStateHolder?.videoViewHeight)
+        .animation({ duration: 300, curve: Curve.Ease })
+        .focusable(true)
+        .defaultFocus(true)
+        .onKeyEvent((event?: KeyEvent) => {
+          if (!event || event.type !== KeyType.Down) {
+            return;
+          }
+          if (event.keyCode === KeyCode.KEYCODE_SPACE) {
+            this.togglePlayback()
+          }
+          if (event.keyCode === KeyCode.KEYCODE_ESCAPE) {
+            this.pathStack.pop()
+          }
+          if (event.keyCode === KeyCode.KEYCODE_DPAD_RIGHT) {
+            const seekOffset = Number(this.fastForwardSeconds) * 1000;
+            const newPosition = this.play_time + seekOffset;
+            this.seekTime(newPosition);
+          }
+          if (event.keyCode === KeyCode.KEYCODE_DPAD_LEFT) {
+            const seekOffset = Number(this.fastForwardSeconds) * 1000;
+            const newPosition = this.play_time - seekOffset;
+            this.seekTime(newPosition);
+          }
+        })
 
+        if (this.showControl) {
           Stack() {
             Flex({
               justifyContent: FlexAlign.SpaceBetween,
@@ -154,7 +154,9 @@ export struct RedPlayer { // 红薯播放器页
                 Column() {
                   this.VideoTop()
                 }.width('100%')
-              }.height(85)
+              }
+              .transition(XAnimation.getAnimation('up', 0, false))
+              .height(85)
               .width('100%')
               .backgroundColor('#36ffffff')
               .padding({
@@ -178,14 +180,12 @@ export struct RedPlayer { // 红薯播放器页
                     }
                   }
                 }
-              }
+              }.transition(XAnimation.getAnimation('bottom', 0, false))
               .backgroundColor($r('sys.color.mask_fourth'))
               .height(this.screen_height > this.screen_width ? 180 : 110)
               .width('100%')
             }.height('100%').width('100%')
           }
-          .animation({ duration: 300, curve: Curve.Smooth })
-          .visibility(this.showControl ? Visibility.Visible : Visibility.Hidden)
         }
 
         SwipingPlayTimeDisplay({
@@ -220,7 +220,7 @@ export struct RedPlayer { // 红薯播放器页
               this.togglePlayback();
               return;
             }
-            const tapX = event.fingerList[0].localX;
+            const tapX = event.fingerList[0]?.localX;
             if (!VideoOperateUtil.checkLocalX(tapX)) {
               return
             }
@@ -309,7 +309,7 @@ export struct RedPlayer { // 红薯播放器页
           },
           onLongPressPanStart: (event: GestureEvent) => {
             if (!this.isLock) {
-              VideoOperateUtil.longPressStartX = event.fingerList[0].localX;
+              VideoOperateUtil.longPressStartX = event.fingerList[0]?.localX;
             }
           },
           onLongPressPanUpdate: (event: GestureEvent) => {
@@ -333,7 +333,7 @@ export struct RedPlayer { // 红薯播放器页
               this.currentSpeedIndex = clampedIndex
               this.play_speed = VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER)[clampedIndex]; // 更新播放速度
               this.playerController?.setSpeed(this.play_speed);
-              VideoOperateUtil.longPressStartX = event.fingerList[0].localX; // 重置起始点实现分档切换效果
+              VideoOperateUtil.longPressStartX = event.fingerList[0]?.localX; // 重置起始点实现分档切换效果
             }
           }
         })
@@ -354,6 +354,8 @@ export struct RedPlayer { // 红薯播放器页
         this.screen_height = Math.floor(new Number(newValue.height).valueOf())
         this.playerController?.getVideoSize()
       })
+      .height('100%')
+      .width('100%')
       .backgroundColor($r('sys.color.black'))
     }
     .onReady(() => {

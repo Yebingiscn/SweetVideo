@@ -28,7 +28,7 @@ export class ToolsUtil {
       promptAction.showToast({
         message: text,
         duration: 3500,
-        backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THICK,
+        backgroundBlurStyle: BlurStyle.Regular,
       });
     } catch (error) {
       console.error('show toast error：' + error)
@@ -40,18 +40,16 @@ export class ToolsUtil {
     if (canIUse("SystemCapability.Sensors.MiscDevice")) {
       vibrator.startVibration({
         type: 'preset',
-        effectId: 'haptic.effect.soft',
+        effectId: 'haptic.effect.hard',
         count: 1,
         intensity: 100,
       }, {
-        usage: 'unknown'
+        usage: 'physicalFeedback'
       }, (error: BusinessError) => {
         if (error) {
           console.error(`Failed to start vibration. Code: ${error.code}, message: ${error.message}`);
         }
       })
-    } else {
-      console.log('device unsupport vibration')
     }
   }
 
@@ -189,12 +187,14 @@ export class ToolsUtil {
           updateManager.showUpdateDialog(PathUtils.appContext)
             .then((resultCode: updateManager.ShowUpdateResultCode) => {
               hilog.info(0, 'TAG', "Succeeded in showing UpdateDialog resultCode:" + resultCode);
-              this.showToast('更新检查结果（用于测试）：' + resultCode)
+              this.showToast('有新版本：' + resultCode)
             })
             .catch((error: BusinessError) => {
               this.showToast('更新弹窗生成失败，原因是：' + error)
               hilog.error(0, 'TAG', `showUpdateDialog onError.code is ${error.code}, message is ${error.message}`);
             });
+        } else {
+          this.showToast('还没有新版本~')
         }
       }).catch((error: BusinessError) => {
       this.showToast('检查更新失败，原因是：' + error)
@@ -215,7 +215,8 @@ export class ToolsUtil {
           context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_DARK)
           break
       }
-    } catch {
+    } catch (error) {
+      console.error('set color mode errro: ' + error)
     }
   }
 }

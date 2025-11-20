@@ -105,12 +105,20 @@ class Preferences {
       BackgroundColorMode.AUTO) as BackgroundColorMode
   }
 
+  static getAllowGestureEntry(context: Context) {
+    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'allowGestureEntry', false) as boolean
+  }
+
   static saveBackgroundColorMode(context: Context, backgroundColorMode: BackgroundColorMode) {
     PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'backgroundColorMode', backgroundColorMode)
   }
 
   static saveShowSettingPageEntry(context: Context, showSettingPageEntry: boolean) {
     PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'showSettingPageEntry', showSettingPageEntry);
+  }
+
+  static saveAllowGestureEntry(context: Context, allowGestureEntry: boolean) {
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'allowGestureEntry', allowGestureEntry);
   }
 
   static saveSkipIntroTime(context: Context, skipIntroTime: string) {

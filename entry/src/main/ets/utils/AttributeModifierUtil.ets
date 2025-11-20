@@ -97,7 +97,7 @@ export class ButtonFancyModifier implements AttributeModifier<ButtonAttribute> {
   }
 }
 
-export class MenuModifier extends CommonModifier {
+export class MenuFancyModifier extends CommonModifier {
   constructor() {
     super()
   }

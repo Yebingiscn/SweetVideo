@@ -214,9 +214,9 @@ export struct SettingsPage { //设置页
               .fontSize(15)
             Text('2. 空格暂停视频')
               .fontSize(15)
-            Text('3. 方向左键快进')
+            Text('3. 方向左键回退')
               .fontSize(15)
-            Text('4. 方向右键回退')
+            Text('4. 方向右键快进')
               .fontSize(15)
           }.alignItems(HorizontalAlign.Start).width('100%')
         }

@@ -10,7 +10,7 @@ import { SymbolGlyphModifier } from '@kit.ArkUI';
 import DataSyncUtil from '../../utils/DataSyncUtil';
 import { VideoDetailDialog } from '../../component/Dialog//VideoDetailDialog';
 import { DefaultDialogShadow } from '../../common/DefaultDialogShadow';
-import { MenuModifier } from '../../utils/AttributeModifierUtil';
+import { MenuFancyModifier } from '../../utils/AttributeModifierUtil';
 import { EditMetadataDialog } from '../../component/Dialog//EditMetadataDialog';
 import SubtitleUtil from '../../utils/SubtitleUtil';
 import { FileFolder } from '../../interfaces/FileFolderInterface';
@@ -465,7 +465,7 @@ export struct VideoList {
             Preferences.saveVideoMetaData(PathUtils.appContext!, this.videoListController.videoMetaDataList)
           }
         })
-    }.attributeModifier(new MenuModifier())
+    }.attributeModifier(new MenuFancyModifier())
   }
 
   @Builder

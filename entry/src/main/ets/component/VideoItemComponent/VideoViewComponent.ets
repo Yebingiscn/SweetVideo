@@ -3,13 +3,14 @@ import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
 import { SideBarController } from '../SideBarComponent/SideBar';
 import {
   ButtonFancyModifier,
+  MenuFancyModifier,
   SearchShadowModifier,
   SymbolGlyphFancyModifier
 } from '../../utils/AttributeModifierUtil';
 import { PathUtils } from '../../utils/PathUtils';
 import SelectFileUtil from '../../utils/SelectFileUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
-import { MenuModifier, SymbolGlyphModifier } from '@kit.ArkUI';
+import { SymbolGlyphModifier } from '@kit.ArkUI';
 import DataSyncUtil from '../../utils/DataSyncUtil';
 import { FileFolderDataSource } from '../../utils/DataUtil';
 import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu';
@@ -178,7 +179,7 @@ export struct VideoView {
             this.videoListController.folder)
           VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
         })
-    }.attributeModifier(new MenuModifier())
+    }.attributeModifier(new MenuFancyModifier())
   }
 
   @Builder
@@ -218,7 +219,7 @@ export struct VideoView {
         content: $r('app.string.move_to_folder'),
         builder: (): void => this.FileFolderMenuBuilder(undefined)
       })
-    }.attributeModifier(new MenuModifier())
+    }.attributeModifier(new MenuFancyModifier())
   }
 
   @Builder

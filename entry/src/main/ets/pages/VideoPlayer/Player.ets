@@ -225,15 +225,13 @@ export struct Player { // 播放页
     const nowHeight = this.now_playing.size[1];
     const aspectRatioNow = nowWidth / nowHeight;
     const screenAspectRatio = this.screen_width / this.screen_height;
-    XAnimation.runWithAnimation(() => {
-      if (aspectRatioNow > screenAspectRatio) {
-        this.play_area_width = this.screen_width;
-        this.play_area_height = this.play_area_width * (nowHeight / nowWidth);
-      } else {
-        this.play_area_height = this.screen_height;
-        this.play_area_width = this.play_area_height * (nowWidth / nowHeight);
-      }
-    })
+    if (aspectRatioNow > screenAspectRatio) {
+      this.play_area_width = this.screen_width;
+      this.play_area_height = this.play_area_width * (nowHeight / nowWidth);
+    } else {
+      this.play_area_height = this.screen_height;
+      this.play_area_width = this.play_area_height * (nowWidth / nowHeight);
+    }
     if (this.select_text !== '原始比例') {
       this.select_text = '原始比例'
     }
@@ -537,19 +535,33 @@ export struct Player { // 播放页
   }
 
   playNextVideo() {
-    if (this.video_meta_data.length > 0 && this.playTime > 0) {
-      let item = SelectFileUtil.getItem(this.video_meta_data, this.now_playing?.date || '') as VideoMetadata
-      let nextItem: VideoMetadata | null
-      if (this.repeatMode === RepeatMode.RANDOM) { // 随机模式
+    if (this.video_meta_data.length === 0 || this.playTime <= 0) {
+      return;
+    }
+    const currentDate = this.now_playing?.date || '';
+    let item = SelectFileUtil.getItem(this.video_meta_data, currentDate) as VideoMetadata;
+    if (!item) {
+      item = this.video_meta_data[0];
+    }
+    let nextItem: VideoMetadata | null = null;
+    try {
+      if (this.repeatMode === RepeatMode.RANDOM) {
         const availableVideos = this.video_meta_data.filter(v => v.date !== item.date);
         nextItem = availableVideos.length > 0
-          ? availableVideos[Math.floor(Math.random() * availableVideos.length)] : item; // 回退到当前视频
+          ? availableVideos[Math.floor(Math.random() * availableVideos.length)]
+          : item
       } else if (this.repeatMode === RepeatMode.SINGLE_PLAY) {
-        this.exitVideo(0)
+        this.exitVideo(0);
+        return
       } else {
-        nextItem = SelectFileUtil.getNextItem(this.video_meta_data, item.date) // 非随机模式：按顺序获取下一个视频
+        nextItem = SelectFileUtil.getNextItem(this.video_meta_data, item.date);
       }
-      this.playChooseVideo(nextItem!)
+      if (nextItem) {
+        this.playChooseVideo(nextItem);
+      }
+    } catch (error) {
+      console.error('Error in playNextVideo:', error);
+      this.exitVideo(0);
     }
   }
 
@@ -639,7 +651,7 @@ export struct Player { // 播放页
             }
           })
 
-          if ((this.showControl && !this.isLock)) {
+          if (this.showControl && !this.isLock) {
             Stack() {
               Flex({
                 justifyContent: FlexAlign.SpaceBetween,
@@ -656,6 +668,7 @@ export struct Player { // 播放页
                     this.VideoTop()
                   }.width('100%')
                 }
+                .transition(XAnimation.getAnimation('up', 0, false))
                 .height(90)
                 .backgroundColor('#36ffffff')
                 .width('100%')
@@ -680,18 +693,17 @@ export struct Player { // 播放页
                       }
                     }
                   }
-                }
+                }.transition(XAnimation.getAnimation('bottom', 0, false))
                 .backgroundColor($r('sys.color.mask_fourth'))
                 .height(this.screen_height > this.screen_width ? 180 : 110)
                 .width('100%')
               }.height('100%').width('100%')
             }
-            .animation({ duration: 300, curve: Curve.Smooth })
           }
 
           FastForwardInfoComponent({
             speed: this.speed,
-            location: 0 - VideoInfoUtil.play_area_height / 2 + 20,
+            location: this.play_area_height,
             longPress: this.longPress
           })
 
@@ -774,7 +786,7 @@ export struct Player { // 播放页
               }
             },
             onVerticalPanUpdate: (event: GestureEvent) => {
-              if (!this.isLock && event.fingerList.length === 1) {
+              if (!this.isLock && event.fingerList?.length === 1) {
                 const deltaYScale = event?.offsetY / this.screen_height * 2.5
                 if (VideoOperateUtil.leftSideSwipe) {
                   this.onSwipingBrightness = true

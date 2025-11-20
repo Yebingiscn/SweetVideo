@@ -1,6 +1,6 @@
 import { FileFolder } from '../../interfaces/FileFolderInterface'
 import { FileFolderDataSource } from '../../utils/DataUtil'
-import { MenuModifier, SymbolGlyphModifier } from '@kit.ArkUI'
+import { SymbolGlyphModifier } from '@kit.ArkUI'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import { VideoListController } from '../VideoItemComponent/VideoItemComponent'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
@@ -10,6 +10,7 @@ import { FolderOperator } from '../../database/VideoMetaData'
 import { AddFileFolderNameDialog } from '../Dialog/AddFileFolderNameDialog'
 import { DefaultDialogShadow } from '../../common/DefaultDialogShadow'
 import VideoUtils from '../../utils/VideoUtil'
+import { MenuFancyModifier } from '../../utils/AttributeModifierUtil'
 
 
 @Component
@@ -59,6 +60,6 @@ export struct FileFolderMenu {
             })
         }
       }, (item: FileFolder) => item.date + item.name + item.video_list.toString())
-    }.attributeModifier(new MenuModifier())
+    }.attributeModifier(new MenuFancyModifier())
   }
 }

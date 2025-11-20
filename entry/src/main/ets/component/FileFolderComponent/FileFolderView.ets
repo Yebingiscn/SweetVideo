@@ -2,7 +2,7 @@ import { FileFolder } from '../../interfaces/FileFolderInterface'
 import { FileFolderDataSource, VideoDataSource } from '../../utils/DataUtil'
 import { SideBarController } from '../SideBarComponent/SideBar'
 import { VideoListController } from '../VideoItemComponent/VideoItemComponent'
-import { MenuModifier, SymbolGlyphModifier } from '@kit.ArkUI'
+import { SymbolGlyphModifier } from '@kit.ArkUI'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import FileFolderUtil from '../../utils/FileFolderUtil'
@@ -11,6 +11,7 @@ import { EditFileFolderNameDialog } from '../../component/Dialog/EditFileFolderN
 import { DefaultDialogShadow } from '../../common/DefaultDialogShadow'
 import { FileFolderListComponent } from './FileFolderListComponent'
 import { DeleteType } from '../../common/enum/DeleteType'
+import { MenuFancyModifier } from '../../utils/AttributeModifierUtil'
 
 @Component
 export struct FileFolderView {
@@ -86,7 +87,7 @@ export struct FileFolderView {
         DataSyncUtil.editingFolder = file_folder
         this.editFileFolderNameDialogController.open()
       })
-    }.attributeModifier(new MenuModifier).onAppear(() => {
+    }.attributeModifier(new MenuFancyModifier).onAppear(() => {
       ToolsUtil.startVibration()
     })
   }

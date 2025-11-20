@@ -12,7 +12,7 @@ import SelectFileUtil from './SelectFileUtil'
 import RecentPlayUtil from './RecentPlayUtil'
 import { PathUtils } from './PathUtils'
 import SubtitleUtil from './SubtitleUtil'
-import { fileIo as fs } from '@kit.CoreFileKit';
+import { fileIo as fs } from '@kit.CoreFileKit'
 
 // 文件夹类
 class FileFolderUtil {

@@ -6,6 +6,7 @@ import { ImageFancyModifier } from '../../utils/AttributeModifierUtil'
 import { PlayerSideBarSource } from '../../utils/DataUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { VideoInfoBuilder } from '../VideoItemComponent/VideoInfoBuilder'
+import { XAnimation } from '../../utils/AnimationUtil'
 
 @Component
 export struct PlayerSideBarComponent {
@@ -64,7 +65,7 @@ export struct PlayerSideBarComponent {
     .backgroundColor($r('app.color.start_window_background'))
     .padding({ left: 5, right: 5 })
     .margin({ top: this.topSafeHeight })
-    .transition(TransitionEffect.translate({ x: 300 }).animation({ duration: 300, curve: Curve.Friction }))
+    .transition(TransitionEffect.translate({ x: 300 }).animation(XAnimation.getAnimationCurve()))
     .borderRadius(16)
     .cachedCount(3)
   }

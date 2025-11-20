@@ -10,7 +10,6 @@ function itemUri() {
 
 @CustomDialog
 export struct VideoDeleteDialog {
-  private uri: string = itemUri()
   confirm?: (deleteType: DeleteType) => void
   controller?: CustomDialogController
   @State isPermanentDelete: boolean = false
@@ -18,6 +17,7 @@ export struct VideoDeleteDialog {
   @State permanentDeleteVisibility: boolean = false
   @State moveToRecentVisibility: boolean = false
   @State msg: ResourceStr = this.generateMessage();
+  private uri: string = itemUri()
 
   aboutToAppear(): void {
     this.permanentDeleteVisibility = this.getPermanentDeleteVisibility()

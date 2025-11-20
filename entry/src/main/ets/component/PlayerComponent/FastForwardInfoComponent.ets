@@ -28,7 +28,14 @@ export struct FastForwardInfoComponent {
         top: 10,
         bottom: 10
       })
-      .offset({ x: 0, y: this.location })
+      .offset({
+        x: 0,
+        y: (this.location === -160 || this.location === -80) ?
+          this.location :
+          (this.location !== VideoInfoUtil.play_area_height && VideoInfoUtil.play_area_height !== 0 ?
+            0 - VideoInfoUtil.play_area_height / 2 + 20 :
+            0 - this.location / 2 + 20)
+      })
       .borderRadius(1000) // 胶囊形状背景
       .backgroundColor('#30000000') // 半透明黑色背景
       .backdropBlur(100) // 背景模糊效果

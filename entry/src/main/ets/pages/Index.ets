@@ -20,7 +20,9 @@ import VideoOperateUtil from '../utils/VideoOperateUtil';
 import { PrivacySpace } from './PrivacySpace/PrivacySpace';
 import Preferences from '../database/Preferences';
 import { RedPlayer } from './VideoPlayer/RedPlayer';
-import { ButtonFancyModifier, MenuModifier, SymbolGlyphFancyModifier } from '../utils/AttributeModifierUtil';
+import {
+  ButtonFancyModifier, MenuFancyModifier, SymbolGlyphFancyModifier
+} from '../utils/AttributeModifierUtil';
 import { FileProcessorUtil } from '../utils/FileProcessorUtil';
 import { PathUtils } from '../utils/PathUtils';
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
@@ -43,6 +45,7 @@ import { DeleteType } from '../common/enum/DeleteType';
 import { PrivacySpaceErrorList } from './PrivacySpace/PrivacySpaceErrorList';
 import { ListDisplayMode } from '../common/enum/ListDisplayMode';
 import { WindowUtil } from '../utils/WindowUtil';
+import { XAnimation } from '../utils/AnimationUtil';
 
 @Builder
 export function IndexBuilder() {
@@ -66,6 +69,7 @@ struct Index {
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
   @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
+  @StorageLink('allowGestureEntry') allowGestureEntry: boolean = false
   @Provide videoListController: VideoListController = new VideoListController()
   @Provide fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   @Provide sideBarController: SideBarController = new SideBarController()
@@ -138,7 +142,7 @@ struct Index {
             DataSyncUtil.editingFolder = folder
             this.editFileFolderNameDialogController.open()
           })
-      }.attributeModifier(new MenuModifier()).onAppear(() => {
+      }.attributeModifier(new MenuFancyModifier()).onAppear(() => {
         ToolsUtil.startVibration()
       })
     }
@@ -172,7 +176,7 @@ struct Index {
           this.sideBarController.closeSideBar(false)
           await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), undefined);
         })
-    }.attributeModifier(new MenuModifier())
+    }.attributeModifier(new MenuFancyModifier())
   }
 
   async onPageShow(): Promise<void> {
@@ -405,7 +409,7 @@ struct Index {
         .width('100%')
         .justifyContent(FlexAlign.Start)
         .backgroundColor(this.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))
-        .transition(TransitionEffect.translate({ x: -300 }).animation({ duration: 500, curve: Curve.Friction }))
+        .transition(TransitionEffect.translate({ x: -300 }).animation(XAnimation.getAnimationCurve()))
         .visibility(this.sideBarController.sideBarStatusTmp)
         .borderRadius(this.sideBarController.side_bar_mode === SideBarContainerType.Overlay ? 16 : 0)
 
@@ -443,23 +447,25 @@ struct Index {
               this.scaleValue = event?.scale
             })
             .onActionEnd(() => {
-              if (this.scaleValue && this.scaleValue > 1) {
-                this.passwd = Preferences.getPassword(PathUtils.appContext!)
-                if (this.passwd === '') { // 未设置密码时直接打开设置弹窗
-                  this.addPasswordDialogController.open();
-                  return;
+              if (this.allowGestureEntry) {
+                if (this.scaleValue && this.scaleValue > 1) {
+                  this.passwd = Preferences.getPassword(PathUtils.appContext!)
+                  if (this.passwd === '') { // 未设置密码时直接打开设置弹窗
+                    this.addPasswordDialogController.open();
+                    return;
+                  }
+                  if (BiometricAccessUtil.checkUserAuthSupport()) { // 支持生物认证时进行认证
+                    BiometricAccessUtil.startUserAuth().then(isSuccess => {
+                      if (isSuccess) { // 认证成功进入隐私空间
+                        this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null);
+                      } else {
+                        ToolsUtil.showToast('验证失败，请从首页搜索框输入密码进入隐私空间'); // 认证失败显示提示
+                      }
+                    })
+                    return;
+                  }
+                  ToolsUtil.showToast('请从首页搜索框输入密码进入隐私空间'); // 设备不支持生物认证的提示
                 }
-                if (BiometricAccessUtil.checkUserAuthSupport()) { // 支持生物认证时进行认证
-                  BiometricAccessUtil.startUserAuth().then(isSuccess => {
-                    if (isSuccess) { // 认证成功进入隐私空间
-                      this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null);
-                    } else {
-                      ToolsUtil.showToast('验证失败，请从首页搜索框输入密码进入隐私空间'); // 认证失败显示提示
-                    }
-                  })
-                  return;
-                }
-                ToolsUtil.showToast('请从首页搜索框输入密码进入隐私空间'); // 设备不支持生物认证的提示
               }
             })
         )
@@ -505,7 +511,7 @@ struct Index {
         ToolsUtil.showToast('获取数据时异常：' + error)
       }
       let video: unifiedDataChannel.Video = records[0] as unifiedDataChannel.Video;
-      WantProcessUtil.wantUri = video.uri
+      WantProcessUtil.wantUri = video?.uri
       WantProcessUtil.hasWant(PathUtils.appContext!, this.pathStack)
     })
     .onNavBarStateChange((isVisible: boolean) => {

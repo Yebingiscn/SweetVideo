@@ -1,15 +1,16 @@
 import { PrivacySpaceErrorListDataSource } from '../../utils/DataUtil'
 import { fileUri, fileIo as fs } from '@kit.CoreFileKit'
 import { PathUtils } from '../../utils/PathUtils'
-import { ImageFancyModifier } from '../../utils/AttributeModifierUtil'
+import { ImageFancyModifier, MenuFancyModifier } from '../../utils/AttributeModifierUtil'
 import Preferences from '../../database/Preferences'
 import SelectFileUtil from '../../utils/SelectFileUtil'
-import { MenuModifier, SymbolGlyphModifier } from '@kit.ArkUI'
+import { SymbolGlyphModifier } from '@kit.ArkUI'
 
 @Component
 export struct PrivacySpaceErrorList {
   @State errorListDataSource: PrivacySpaceErrorListDataSource = new PrivacySpaceErrorListDataSource([])
   @State videoList: String[] = []
+  @State longPressPreview: boolean = false
   @Consume('pathStack') pathStack: NavPathStack
   @StorageLink('isPrivacyBackground') isPrivacyBackground: boolean = false
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
@@ -55,7 +56,34 @@ export struct PrivacySpaceErrorList {
           await SelectFileUtil.exportFile(fileUri.getUriFromPath(PathUtils.videoPath + item), item, '',
             PathUtils.appContext!)
         })
-    }.attributeModifier(new MenuModifier())
+    }
+    .attributeModifier(new MenuFancyModifier())
+  }
+
+  @Builder
+  VideoItemBuilder(errorVideo: string) {
+    Row() {
+      Image(fileUri.getUriFromPath(PathUtils.coverPath + errorVideo))
+        .attributeModifier(new ImageFancyModifier(16, 80, 120))
+      Column() {
+        Row() {
+          Text(errorVideo)
+            .fontSize(16)
+            .fontWeight(FontWeight.Bold)
+            .maxLines(4)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .width('100%')
+            .margin({ left: 5 })
+            .wordBreak(WordBreak.BREAK_ALL)
+        }
+      }.alignItems(HorizontalAlign.Start)
+      .padding({ left: 15, right: 15 })
+      .layoutWeight(1)
+    }
+    .backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
+      $r('app.color.start_window_background'))
+    .justifyContent(FlexAlign.Center)
+    .width('100%')
   }
 
   build() {
@@ -69,30 +97,34 @@ export struct PrivacySpaceErrorList {
           List({ scroller: this.listScroller, space: 10 }) {
             LazyForEach(this.errorListDataSource, (errorVideo: string) => {
               ListItem() {
-                Row() {
-                  Image(fileUri.getUriFromPath(PathUtils.coverPath + errorVideo))
-                    .attributeModifier(new ImageFancyModifier(16, 80, 120))
-                  Column() {
-                    Row() {
-                      Text(errorVideo)
-                        .fontSize(16)
-                        .fontWeight(FontWeight.Bold)
-                        .maxLines(4)
-                        .textOverflow({ overflow: TextOverflow.Ellipsis })
-                        .width('100%')
-                        .margin({ left: 5 })
-                        .wordBreak(WordBreak.BREAK_ALL)
-                    }
-                  }.alignItems(HorizontalAlign.Start)
-                  .padding({ left: 15, right: 15 })
-                  .layoutWeight(1)
-                }
-                .justifyContent(FlexAlign.Center)
-                .width('100%')
-                .opacity(0.8)
-                .borderRadius(16)
-              }.clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+                this.VideoItemBuilder(errorVideo)
+              }
+              .width('100%')
+              .height('auto')
+              .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
               .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
+              .bindContextMenu(this.MenuBuilder(errorVideo), ResponseType.LongPress, {
+                backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
+                preview: this.VideoItemBuilder(errorVideo),
+                previewAnimationOptions: { hoverScale: [1.0, 1.2] },
+                onAppear: () => {
+                  this.longPressPreview = true
+                },
+                aboutToDisappear: () => {
+                  this.longPressPreview = false
+                }
+              })
+              .bindContextMenu(this.MenuBuilder(errorVideo), ResponseType.RightClick, {
+                backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
+                preview: this.VideoItemBuilder(errorVideo),
+                previewAnimationOptions: { hoverScale: [1.0, 1.2] },
+                onAppear: () => {
+                  this.longPressPreview = true
+                },
+                aboutToDisappear: () => {
+                  this.longPressPreview = false
+                }
+              })
             }, (errorVideo: string) => errorVideo)
           }
           .clip(false)

@@ -241,6 +241,7 @@ class VideoOperateUtil {
     AppStorage.setOrCreate('backgroundDropBlur', Preferences.getBackgroundDropBlur(context))
     AppStorage.setOrCreate('showSettingPageEntry', Preferences.getShowSettingPageEntry(context))
     AppStorage.setOrCreate('backgroundColorMode', Preferences.getBackgroundColorMode(context))
+    AppStorage.setOrCreate('allowGestureEntry', Preferences.getAllowGestureEntry(context))
     // 这里删掉没用的存储项
     PreferencesUtil.delPreferencesValue(context, 'sweet_video', 'circle_play')
     PreferencesUtil.delPreferencesValue(context, 'sweet_video', 'is_list_display')

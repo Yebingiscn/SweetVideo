@@ -24,6 +24,9 @@ class RecentPlayUtil {
   }
 
   addPlayback(context: Context, item: VideoMetadata): void {
+    if (item?.uri == null) {
+      return;
+    }
     if (this.videoIdMap.has(item.uri)) {
       const existingIndex = this.videoIdMap.get(item.uri)!;
       this.deque.splice(existingIndex, 1);

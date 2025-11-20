@@ -12,7 +12,6 @@ import { BusinessError } from '@ohos.base';
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
 import Preferences from '../database/Preferences';
 import ToolsUtil from '../utils/ToolsUtil';
-import { deviceInfo } from '@kit.BasicServicesKit';
 
 export default class EntryAbility extends UIAbility {
   watcher: hiAppEvent.Watcher | undefined = undefined
@@ -64,12 +63,13 @@ export default class EntryAbility extends UIAbility {
       hilog.error(0x0000, 'testTag', `HiAppEvent code: ${err.code}, message: ${err.message}`);
     });
     let events: string[] = [hiAppEvent.event.APP_CRASH, hiAppEvent.event.APP_FREEZE]
-    if (deviceInfo.sdkApiVersion > 19) {
-      events.push(hiAppEvent.event.APP_KILLED)
-    }
-    if (deviceInfo.sdkApiVersion > 19) {
-      events.push(hiAppEvent.event.APP_KILLED)
-    }
+    // 需要编译API >= 20
+    // if (deviceInfo.sdkApiVersion > 19) {
+    //   events.push(hiAppEvent.event.APP_KILLED)
+    // }
+    // if (deviceInfo.sdkApiVersion > 19) {
+    //   events.push(hiAppEvent.event.APP_KILLED)
+    // }
     this.watcher = {
       // 自定义观察者名称，系统会使用名称来标识不同的观察者
       name: "SweetCore",
