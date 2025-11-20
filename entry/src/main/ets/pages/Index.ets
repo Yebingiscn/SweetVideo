@@ -104,7 +104,6 @@ struct Index {
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  private scaleValue: number | undefined;
 
   @Builder
   FileFolderSelectMenu(folder: FileFolder) {
@@ -443,12 +442,10 @@ struct Index {
         .gesture(
           // 绑定二指触发的捏合手势
           PinchGesture({ fingers: 2 })
-            .onActionUpdate((event: GestureEvent | undefined) => {
-              this.scaleValue = event?.scale
-            })
-            .onActionEnd(() => {
+            .onActionEnd((event: PinchGestureEvent) => {
+              const scaleValue = event.scale
               if (this.allowGestureEntry) {
-                if (this.scaleValue && this.scaleValue > 1) {
+                if (scaleValue > 1.5) {
                   this.passwd = Preferences.getPassword(PathUtils.appContext!)
                   if (this.passwd === '') { // 未设置密码时直接打开设置弹窗
                     this.addPasswordDialogController.open();
