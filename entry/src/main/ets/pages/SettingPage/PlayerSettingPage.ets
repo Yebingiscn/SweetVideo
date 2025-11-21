@@ -1,4 +1,4 @@
-import NavigationAddress from '../../common/NavigationAddress';
+import NavigationAddress from '../../common/NavigationCommon';
 import { SettingSliderItem } from '../../component/SettingComponent/SettingSliderItem';
 import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuItem';
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem';

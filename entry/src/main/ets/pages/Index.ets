@@ -15,7 +15,6 @@ import { AboutApp } from './AboutApp';
 import { FFMpegPlayer } from './VideoPlayer/FFMpegPlayer';
 import { Player } from './VideoPlayer/Player';
 import { RecentPlay } from './RecentPlay';
-import { PrivacyPolicyDialog } from './PrivacyInfo';
 import VideoOperateUtil from '../utils/VideoOperateUtil';
 import { PrivacySpace } from './PrivacySpace/PrivacySpace';
 import Preferences from '../database/Preferences';
@@ -31,7 +30,7 @@ import { VideoView } from '../component/VideoItemComponent/VideoViewComponent';
 import { VideoMetaDataOperator } from '../database/VideoMetaData';
 import { FileFolderListComponent } from '../component/FileFolderComponent/FileFolderListComponent';
 import VideoUtils from '../utils/VideoUtil';
-import NavigationAddress from '../common/NavigationAddress';
+import NavigationAddress from '../common/NavigationCommon';
 import { taskpoolExecTool } from '../utils/TaskpoolUtil';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { DeletedVideosDialog } from '../component/Dialog/DeletedVideosDialog';
@@ -45,6 +44,7 @@ import { PrivacySpaceErrorList } from './PrivacySpace/PrivacySpaceErrorList';
 import { ListDisplayMode } from '../common/enum/ListDisplayMode';
 import { WindowUtil } from '../utils/WindowUtil';
 import { XAnimation } from '../utils/AnimationUtil';
+import { PrivacyPolicyComponent } from '../component/VideoItemComponent/PrivacyPolicyComponent';
 
 @Builder
 export function IndexBuilder() {
@@ -61,6 +61,7 @@ struct Index {
   @State totalItems: number = 0
   @State file_folder_list: FileFolder[] = []
   @State searchValue: string = ''
+  @State isPresent: boolean = false
   @StorageLink('listDisplayMode') listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
   @StorageProp('screen_width') screen_width: number = 0
   @StorageProp('screen_height') screen_height: number = 0
@@ -178,29 +179,8 @@ struct Index {
     this.fileFolderSource?.updateData(this.file_folder_list)
     this.videoListController?.updateData(undefined, this.file_folder_list[0])
     if (Preferences.getOOBEVersion(PathUtils.appContext!) < OOBEVersion) {
-      let controller = new CustomDialogController({
-        builder: PrivacyPolicyDialog({
-          cancel: () => {
-            PathUtils.appContext!.terminateSelf()?.catch((error: Error) => {
-              ToolsUtil.showToast('关闭弹窗失败' + error)
-            })
-          },
-          confirm: async () => {
-            Preferences.saveOOBEVersion(PathUtils.appContext!, OOBEVersion)
-            controller.close()
-          }
-        }),
-        autoCancel: false,
-        onWillDismiss: async () => {
-          if (Preferences.getOOBEVersion(PathUtils.appContext!) < OOBEVersion) {
-            PathUtils.appContext!.terminateSelf()?.catch((error: Error) => {
-              ToolsUtil.showToast('退出应用失败' + error)
-            })
-          }
-        }
-      })
       setTimeout(() => {
-        controller.open()
+        this.isPresent = true
       }, 1000)
     }
     taskpoolExecTool(Preferences.getFileFolder(PathUtils.appContext!), (re: Object) => {
@@ -410,6 +390,9 @@ struct Index {
           }).animation({ duration: 300, curve: Curve.Ease })
           if (this.loading) {
             ImportProgressBuilder({ processedItems: this.processedItems, totalItems: this.totalItems })
+          }
+          if (this.isPresent) {
+            PrivacyPolicyComponent({ isPresent: this.isPresent })
           }
         }
         .backgroundColor(this.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))

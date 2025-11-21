@@ -1,16 +1,13 @@
-import WantProcessUtil from '../utils/WantProcessUtil';
-import ToolsUtil from '../utils/ToolsUtil';
-import { PathUtils } from '../utils/PathUtils';
+import Preferences from '../../database/Preferences';
+import { OOBEVersion } from '../../utils/DataSyncUtil';
+import { PathUtils } from '../../utils/PathUtils';
+import ToolsUtil from '../../utils/ToolsUtil';
+import WantProcessUtil from '../../utils/WantProcessUtil';
 
-@CustomDialog
 @Component
-export struct PrivacyPolicyDialog {
-  controller?: CustomDialogController
-  @State isPresent: boolean = false;
-  cancel: () => void = () => {
-  }; // 初始化为空函数
-  confirm: () => void = () => {
-  }; // 初始化为空函数
+export struct PrivacyPolicyComponent {
+  @Link isPresent: boolean
+  @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
 
   @Builder
   privacyInfoBuilder() {
@@ -63,7 +60,9 @@ export struct PrivacyPolicyDialog {
       Row() {
         Button('拒绝并退出')
           .onClick(() => {
-            this.cancel();
+            PathUtils.appContext!.terminateSelf()?.catch((error: Error) => {
+              ToolsUtil.showToast('关闭弹窗失败' + error)
+            })
           })
           .fontColor(Color.Red)
           .fontSize(15)
@@ -74,7 +73,7 @@ export struct PrivacyPolicyDialog {
         Button('同意并继续')
           .onClick(() => {
             ToolsUtil.startVibration()
-            this.confirm();
+            Preferences.saveOOBEVersion(PathUtils.appContext!, OOBEVersion)
             this.isPresent = false; // 直接关闭弹窗
           })
           .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
@@ -87,18 +86,17 @@ export struct PrivacyPolicyDialog {
           .width('40%')
           .borderRadius(16)
       }.width('100%')
-      .height(80)
+      .height(60)
       .justifyContent(FlexAlign.SpaceEvenly)
     }
     .width('100%')
-    .margin({ top: 10 }).height('100%')
+    .height('100%').margin({ bottom: this.bottomSafeHeight })
   }
 
   build() {
     Stack() {
     }.bindSheet($$this.isPresent, this.privacyInfoBuilder(), {
-      height: SheetSize.FIT_CONTENT,
-      preferType: SheetType.CENTER,
+      height: SheetSize.LARGE,
       enableOutsideInteractive: false,
       showClose: false,
       title: { title: '用户协议和隐私政策' },
@@ -111,10 +109,6 @@ export struct PrivacyPolicyDialog {
           })
         }
       }),
-    })
-    .onAppear(() => {
-      console.error('test4')
-      this.isPresent = !this.isPresent;
     })
   }
 

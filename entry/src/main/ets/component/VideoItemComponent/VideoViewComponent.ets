@@ -19,7 +19,7 @@ import { SearchComponent } from './SearchComponent';
 import { FolderOperator } from '../../database/VideoMetaData';
 import VideoUtils from '../../utils/VideoUtil';
 import FileFolderUtil from '../../utils/FileFolderUtil';
-import NavigationAddress from '../../common/NavigationAddress';
+import NavigationAddress from '../../common/NavigationCommon';
 import Preferences from '../../database/Preferences';
 
 @Component

@@ -154,7 +154,7 @@
     },
     {
       "name": "privacy_space_info",
-      "value": "Long press the privacy space button to reset the password, and enter the password in the input box to access the privacy space."
+      "value": "Here the imported video will be copied to the app's private directory"
     },
     {
       "name": "FILE_ACCESS_PERSIST_REASON",

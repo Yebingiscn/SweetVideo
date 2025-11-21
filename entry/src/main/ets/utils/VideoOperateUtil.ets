@@ -3,7 +3,6 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { audio } from '@kit.AudioKit';
 import { BusinessError, settings } from '@kit.BasicServicesKit';
 import { media } from '@kit.MediaKit';
-import { PlayerParams } from '../common/PlayerParams';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
 import SelectFileUtil from './SelectFileUtil';
@@ -20,6 +19,7 @@ import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
 import PreferencesUtil from '../database/PreferencesUtil';
 import PermissionUtil from './PermissionUtil';
 import { VideoSource } from '../common/enum/VideoSource';
+import { PlayerParams } from '../common/NavigationCommon';
 
 // 视频操作类
 class VideoOperateUtil {
@@ -32,7 +32,7 @@ class VideoOperateUtil {
   public clearSubtitleTimer: number | null = null; // 清除字幕时间
   public screenBrightnessTmp: number = 0
   public lastSpeed: number = 1
-  public last_play_time: number = 0
+  public lastPlayTime: number = 0
   public aspectRatioMap = new Map([[VideoInfoUtil.screenExtendMap[2], 16 / 9],
     [VideoInfoUtil.screenExtendMap[3], 4 / 3]]);
   public lastVolume: number = 0
@@ -144,7 +144,6 @@ class VideoOperateUtil {
     ) {
       return -1;
     }
-
     const dx = f2.localX - f1.localX;
     const dy = f2.localY - f1.localY;
     return Math.sqrt(dx * dx + dy * dy);

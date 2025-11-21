@@ -6,10 +6,9 @@ import VideoUtil from './VideoInfoUtil';
 import VideoInfoUtil from './VideoInfoUtil';
 import { common, Context, OpenLinkOptions, Want } from '@kit.AbilityKit';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
-import { PlayerParams } from '../common/PlayerParams';
 import Preferences from '../database/Preferences';
 import { systemShare } from '@kit.ShareKit';
-import NavigationAddress from '../common/NavigationAddress';
+import NavigationAddress, { PlayerParams } from '../common/NavigationCommon';
 import ToolsUtil from './ToolsUtil';
 
 // 处理拉起应用传来的视频链接

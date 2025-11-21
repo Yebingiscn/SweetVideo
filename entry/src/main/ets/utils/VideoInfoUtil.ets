@@ -4,7 +4,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import PrivacySpaceUtil from './PrivacySpaceUtil';
 import { ConcurrentQueue } from './FileProcessorUtil';
-import NavigationAddress from '../common/NavigationAddress';
+import NavigationAddress from '../common/NavigationCommon';
 import SelectFileUtil from './SelectFileUtil';
 import PermissionUtil from './PermissionUtil';
 

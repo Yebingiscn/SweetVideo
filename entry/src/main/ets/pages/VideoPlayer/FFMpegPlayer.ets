@@ -20,7 +20,6 @@ import AVSessionUtil from '../../utils/AVSessionUtil'
 import { AVCastPicker, avSession as avSessionManager } from '@kit.AVSessionKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
-import { PlayerParams } from '../../common/PlayerParams'
 import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { PlayStatus } from '../../common/enum/PlayStatus'
@@ -36,10 +35,11 @@ import { SwipingPlayTimeDisplay } from '../../component/PlayerComponent/SwipingP
 import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent'
 import { GestureComponent } from '../../component/PlayerComponent/GestureComponent'
 import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode'
-import NavigationAddress from '../../common/NavigationAddress'
+import NavigationAddress, { PlayerParams } from '../../common/NavigationCommon'
 import { WindowUtil } from '../../utils/WindowUtil'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { AIAsr } from '../../component/VideoItemComponent/AIAsrComponent'
+import json from '@ohos.util.json'
 
 @Component
 export struct FFMpegPlayer { // FFMpeg播放器页
@@ -49,7 +49,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @State screen_width: number = 0
   @State screen_height: number = 0
   @State play_time: number = 0
-  @State last_play_time: number = 0
   @State playing: boolean = false
   @State mContext: object | undefined = undefined;
   @State updateProgressTimer: number = 0;
@@ -58,7 +57,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @State loadingVisible: Visibility = Visibility.None;
   @State replayVisible: Visibility = Visibility.None;
   @State volume: number = 1.0;
-  @State play_speed: number = 1;
+  @State playSpeed: number = 1;
   now_playing: VideoMetadataFromPlayer | undefined = undefined
   @State video_url: string = ''
   @State total_time: number = 0
@@ -77,7 +76,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
   @StorageLink('longPressSpeed') longPressSpeed: number = 3
   @State onSwiping: boolean = false
-  @State long_press: boolean = false
+  @State longPress: boolean = false
   @State last_speed: number = 1
   @State isHorizontalSwiping: boolean = false
   @State video_meta_data: VideoMetadata[] = []
@@ -101,7 +100,8 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             controller: this.xComponentController,
             id: 'xcomponentId',
             libraryname: 'ijkplayer_napi'
-          })
+          }).focusable(true)
+            .defaultFocus(true)
             .onLoad(async (event?: object) => {
               if (!!event) {
                 this.initDelayPlay(event);
@@ -115,12 +115,8 @@ export struct FFMpegPlayer { // FFMpeg播放器页
               }
             })
         }
-        .width(this.play_area_width)
-        .height(this.play_area_height)
-        .animation({ duration: this.play_time > 300 ? 300 : 0, curve: Curve.Ease })
-        .focusable(true)
-        .defaultFocus(true)
         .onKeyEvent((event?: KeyEvent) => {
+          console.error('test focus' + json.stringify(event))
           if (!event || event.type !== KeyType.Down) {
             return;
           }
@@ -137,6 +133,9 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             this.mIjkMediaPlayer?.seekTo(String(this.play_time - Number(this.fastForwardSeconds) * 1000));
           }
         })
+        .width(this.play_area_width)
+        .height(this.play_area_height)
+        .animation({ duration: this.play_time > 300 ? 300 : 0, curve: Curve.Ease })
 
         if (this.showControl) {
           Stack() {
@@ -185,13 +184,13 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           }
         }
 
-        SwipingPlayTimeDisplay({
-          isSliderPlayTimeChange: this.isSliderPlayTimeChange,
-          playTime: this.play_time,
-          totalTime: this.total_time,
-          lastPlayTime: this.last_play_time,
-          onSwiping: this.onSwiping
-        })
+        if (this.onSwiping) {
+          SwipingPlayTimeDisplay({
+            isSliderPlayTimeChange: this.isSliderPlayTimeChange,
+            playTime: this.play_time,
+            totalTime: this.total_time,
+          })
+        }
 
         VolumeSwipingComponent({
           videoVolume: this.volume,
@@ -199,17 +198,17 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           onSwipingVoice: this.onSwipingVoice
         })
 
-        BrightnessSwipingComponent({
-          screenBrightness: this.screenBrightness,
-          onSwipingBrightness: this.onSwipingBrightness
-        })
-
-        FastForwardInfoComponent({
-          speed: this.play_speed,
-          location: this.play_area_height,
-          longPress: this.long_press
-        })
-
+        if (this.onSwipingBrightness) {
+          BrightnessSwipingComponent({
+            screenBrightness: this.screenBrightness,
+          })
+        }
+        if (this.longPress) {
+          FastForwardInfoComponent({
+            speed: this.playSpeed,
+            location: this.play_area_height,
+          })
+        }
         GestureComponent({
           showControl: this.showControl,
           onDoubleClickAction: (event: GestureEvent) => {
@@ -270,7 +269,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             if (this.isLock) {
               return
             }
-            this.last_play_time = this.play_time;
+            VideoOperateUtil.lastPlayTime = this.play_time;
             this.onSwiping = true
           },
           onHorizonPanUpdate: (event: GestureEvent) => {
@@ -280,7 +279,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             }
             const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.now_playing?.time!) * 1.5
             this.play_time = Math.max(0,
-              Math.min(this.last_play_time + (event.offsetX * timePerPixel),
+              Math.min(VideoOperateUtil.lastPlayTime + (event.offsetX * timePerPixel),
                 this.now_playing?.time!));
           },
           onHorizonPanEnd: () => {
@@ -315,16 +314,16 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             }
           },
           onLongPressAction: () => {
-            this.long_press = true
-            this.last_speed = this.play_speed
-            this.play_speed = this.longPressSpeed
-            this.mIjkMediaPlayer?.setSpeed(this.play_speed + '')
+            this.longPress = true
+            this.last_speed = this.playSpeed
+            this.playSpeed = this.longPressSpeed
+            this.mIjkMediaPlayer?.setSpeed(this.playSpeed + '')
             this.currentSpeedIndex =
               VideoInfoUtil.getVideoSpeedList(NavigationAddress.FFMPEG_PLAYER).indexOf(this.longPressSpeed);
           },
           onLongPressEnd: () => {
-            this.long_press = false
-            this.play_speed = this.last_speed
+            this.longPress = false
+            this.playSpeed = this.last_speed
             this.mIjkMediaPlayer?.setSpeed(this.last_speed + '');
           },
           onLongPressPanStart: (event: GestureEvent) => {
@@ -355,9 +354,9 @@ export struct FFMpegPlayer { // FFMpeg播放器页
               return;
             }
             this.currentSpeedIndex = clampedIndex
-            this.play_speed =
+            this.playSpeed =
               VideoInfoUtil.getVideoSpeedList(NavigationAddress.FFMPEG_PLAYER)[this.currentSpeedIndex]
-            this.mIjkMediaPlayer?.setSpeed(this.play_speed + '');
+            this.mIjkMediaPlayer?.setSpeed(this.playSpeed + '');
             VideoOperateUtil.longPressStartX = event.fingerList[0]?.localX; // 重置起始点实现分档切换效果
           }
         })
@@ -451,7 +450,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       totalTime: this.total_time,
       screenHeight: this.screen_height,
       screenWidth: this.screen_width,
-      playSpeed: this.play_speed,
+      playSpeed: this.playSpeed,
       onSliderChange: (value: number) => {
         this.isSliderPlayTimeChange = true
         this.onSwiping = true
@@ -766,7 +765,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     this.mIjkMediaPlayer?.setScreenOnWhilePlaying(true);
     // 变速播放
     this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "soundtouch", "1");
-    this.mIjkMediaPlayer?.setSpeed(this.play_speed + '');
+    this.mIjkMediaPlayer?.setSpeed(this.playSpeed + '');
     //是否开启循环播放
     this.mIjkMediaPlayer?.setLoopCount(true);
     let mOnVideoSizeChangedListener: OnVideoSizeChangedListener = {

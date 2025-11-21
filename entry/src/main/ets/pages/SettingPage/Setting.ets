@@ -1,5 +1,5 @@
 import { DefaultDialogShadow } from '../../common/DefaultDialogShadow';
-import NavigationAddress from '../../common/NavigationAddress';
+import NavigationAddress from '../../common/NavigationCommon';
 import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog';
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem';
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem';
@@ -33,7 +33,7 @@ export struct SettingsPage { //设置页
         this.passwd = passwd
         ToolsUtil.savePwd(PathUtils.appContext!, passwd)
         ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.set_passwd_tip').id))
-        this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, {"needGotoSetting": true})
+        this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, { "needGotoSetting": true })
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })

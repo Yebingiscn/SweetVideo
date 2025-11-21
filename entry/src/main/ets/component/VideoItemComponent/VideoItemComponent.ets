@@ -19,7 +19,7 @@ import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu';
 import { VideoMetaDataOperator } from '../../database/VideoMetaData';
 import VideoUtils from '../../utils/VideoUtil';
 import FileFolderUtil from '../../utils/FileFolderUtil';
-import NavigationAddress from '../../common/NavigationAddress';
+import NavigationAddress from '../../common/NavigationCommon';
 import SubtitleFormat from '../../common/SubtitleFormatConfig';
 import VideoOperateUtil from '../../utils/VideoOperateUtil';
 import { VideoDeleteDialog } from '../Dialog/VideoDeleteDialog';

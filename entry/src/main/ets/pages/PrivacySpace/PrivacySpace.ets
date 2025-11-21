@@ -16,7 +16,7 @@ import { FileProcessorUtil } from '../../utils/FileProcessorUtil';
 import { PathUtils } from '../../utils/PathUtils';
 import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog';
 import { SearchComponent } from '../../component/VideoItemComponent/SearchComponent';
-import NavigationAddress from '../../common/NavigationAddress';
+import NavigationAddress, { PrivacySpaceParams } from '../../common/NavigationCommon';
 import { EditMetadataDialog } from '../../component/Dialog/EditMetadataDialog';
 import FileFolderUtil from '../../utils/FileFolderUtil';
 import { ImportProgressBuilder } from '../../component/VideoItemComponent/ImportProgressBuilder';
@@ -26,7 +26,6 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil';
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem';
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem';
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
-import { PrivacySpaceParams } from '../../common/PrivacySpaceParams';
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -194,8 +193,7 @@ export struct PrivacySpace { // 隐私空间页
       .backdropBlur(150)
       .attributeModifier(new ButtonFancyModifier(35, 35))
       .animation({ duration: 300, curve: Curve.Ease })
-      .bindMenu(this.SelectFileMenuBuilder,
-        { backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK })
+      .bindMenu(this.SelectFileMenuBuilder)
       .margin({ right: 10 })
 
       Button({ type: ButtonType.Circle, stateEffect: true }) {
@@ -205,8 +203,7 @@ export struct PrivacySpace { // 隐私空间页
       .backdropBlur(150)
       .attributeModifier(new ButtonFancyModifier(35, 35))
       .animation({ duration: 300, curve: Curve.Ease })
-      .bindMenu(this.SortMenuBuilder,
-        { backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK })
+      .bindMenu(this.SortMenuBuilder)
     }.margin({ right: 10, top: 10 })
   }
 

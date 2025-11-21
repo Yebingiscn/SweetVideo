@@ -6,7 +6,6 @@ import RedPlayerControllerUtil from '../../common/RedPlayerControllerUtil';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import ToolsUtil from '../../utils/ToolsUtil';
 import { KeyCode } from '@kit.InputKit';
-import { PlayerParams } from '../../common/PlayerParams';
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
 import AVSessionUtil from '../../utils/AVSessionUtil';
 import { AVCastPicker, avSession as avSessionManager } from '@kit.AVSessionKit';
@@ -24,7 +23,7 @@ import { SwipingPlayTimeDisplay } from '../../component/PlayerComponent/SwipingP
 import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent';
 import { GestureComponent } from '../../component/PlayerComponent/GestureComponent';
 import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode';
-import NavigationAddress from '../../common/NavigationAddress';
+import NavigationAddress, { PlayerParams } from '../../common/NavigationCommon';
 import { VolumeSwipingComponent } from '../../component/PlayerComponent/VolumeSwipingComponent';
 import { WindowUtil } from '../../utils/WindowUtil';
 import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent';
@@ -47,10 +46,10 @@ export struct RedPlayer { // 红薯播放器页
   @State play_time: number = 0
   @State onSwiping: boolean = false
   @State isSliderPlayTimeChange: boolean = false
-  @State play_speed: number = 1
+  @State longSpeed: number = 1
   @State last_speed: number = 1
   @State currentSpeedIndex: number = 0
-  @State long_press: boolean = false
+  @State longPress: boolean = false
   @State onSwipingVoice: boolean = false
   @State onSwipingBrightness: boolean = false
   @State isAIAsrShown: boolean = false
@@ -80,6 +79,8 @@ export struct RedPlayer { // 红薯播放器页
             libraryname: this.xComponentController.getLibraryName(),
             controller: this.xComponentController
           })
+            .focusable(true)
+            .defaultFocus(true)
             .onLoad(() => {
               if (this.redPlayerStateHolder?.videoPosition) {
                 this.play_time = this.redPlayerStateHolder?.videoPosition
@@ -119,12 +120,11 @@ export struct RedPlayer { // 红薯播放器页
         .width(this.redPlayerStateHolder?.videoViewWidth)
         .height(this.redPlayerStateHolder?.videoViewHeight)
         .animation({ duration: 300, curve: Curve.Ease })
-        .focusable(true)
-        .defaultFocus(true)
         .onKeyEvent((event?: KeyEvent) => {
           if (!event || event.type !== KeyType.Down) {
             return;
           }
+          this.play_time = this.redPlayerStateHolder!.videoPosition;
           if (event.keyCode === KeyCode.KEYCODE_SPACE) {
             this.togglePlayback()
           }
@@ -187,32 +187,30 @@ export struct RedPlayer { // 红薯播放器页
             }.height('100%').width('100%')
           }
         }
+        if (this.onSwiping) {
 
-        SwipingPlayTimeDisplay({
-          isSliderPlayTimeChange: this.isSliderPlayTimeChange,
-          playTime: this.play_time,
-          totalTime: this.redPlayerStateHolder?.videoDuration,
-          lastPlayTime: this.last_play_time,
-          onSwiping: this.onSwiping
-        })
-
+          SwipingPlayTimeDisplay({
+            isSliderPlayTimeChange: this.isSliderPlayTimeChange,
+            playTime: this.play_time,
+            totalTime: this.redPlayerStateHolder?.videoDuration,
+          })
+        }
         VolumeSwipingComponent({
           videoVolume: this.volume,
           videoVolumeShow: this.volumeActually,
           onSwipingVoice: this.onSwipingVoice
         })
-
-        BrightnessSwipingComponent({
-          screenBrightness: this.screenBrightness,
-          onSwipingBrightness: this.onSwipingBrightness
-        })
-
-        FastForwardInfoComponent({
-          speed: this.play_speed,
-          location: this.screen_width > this.screen_height ? -160 : -80,
-          longPress: this.long_press
-        })
-
+        if (this.onSwipingBrightness) {
+          BrightnessSwipingComponent({
+            screenBrightness: this.screenBrightness,
+          })
+        }
+        if (this.longPress) {
+          FastForwardInfoComponent({
+            speed: this.longSpeed,
+            location: this.screen_width > this.screen_height ? -160 : -80,
+          })
+        }
         GestureComponent({
           showControl: this.showControl,
           onDoubleClickAction: (event: GestureEvent) => {
@@ -220,6 +218,7 @@ export struct RedPlayer { // 红薯播放器页
               this.togglePlayback();
               return;
             }
+            this.play_time = this.redPlayerStateHolder!.videoPosition;
             const tapX = event.fingerList[0]?.localX;
             if (!VideoOperateUtil.checkLocalX(tapX)) {
               return
@@ -295,16 +294,16 @@ export struct RedPlayer { // 红薯播放器页
             this.onSwiping = false;
           },
           onLongPressAction: () => {
-            this.long_press = true
-            this.last_speed = this.play_speed
-            this.play_speed = this.longPressSpeed > 2 ? 2 : this.longPressSpeed
-            this.playerController?.setSpeed(this.play_speed)
+            this.longPress = true
+            this.last_speed = this.longSpeed
+            this.longSpeed = this.longPressSpeed > 2 ? 2 : this.longPressSpeed
+            this.playerController?.setSpeed(this.longSpeed)
             this.currentSpeedIndex = VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER)
               .indexOf(this.longPressSpeed > 2 ? 2 : this.longPressSpeed);
           },
           onLongPressEnd: () => {
-            this.long_press = false
-            this.play_speed = this.last_speed
+            this.longPress = false
+            this.longSpeed = this.last_speed
             this.playerController?.setSpeed(this.last_speed)
           },
           onLongPressPanStart: (event: GestureEvent) => {
@@ -313,7 +312,7 @@ export struct RedPlayer { // 红薯播放器页
             }
           },
           onLongPressPanUpdate: (event: GestureEvent) => {
-            if (!this.isLock && this.long_press) { // 长按状态下的滑动处理
+            if (!this.isLock && this.longPress) { // 长按状态下的滑动处理
               const tapX = event.fingerList[0]?.localX;
               if (!VideoOperateUtil.checkLocalX(tapX)) {
                 return
@@ -331,8 +330,8 @@ export struct RedPlayer { // 红薯播放器页
                 return;
               }
               this.currentSpeedIndex = clampedIndex
-              this.play_speed = VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER)[clampedIndex]; // 更新播放速度
-              this.playerController?.setSpeed(this.play_speed);
+              this.longSpeed = VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER)[clampedIndex]; // 更新播放速度
+              this.playerController?.setSpeed(this.longSpeed);
               VideoOperateUtil.longPressStartX = event.fingerList[0]?.localX; // 重置起始点实现分档切换效果
             }
           }
@@ -398,7 +397,7 @@ export struct RedPlayer { // 红薯播放器页
   @Builder
   PlaybackSpeedMenuBuilder() {
     PlaybackSpeedMenuComponent({
-      speed: this.play_speed,
+      speed: this.longSpeed,
       player: NavigationAddress.RED_PLAYER,
       onSpeedChange: (speed: number) => {
         this.updatePlaybackSpeed(speed)
@@ -410,7 +409,7 @@ export struct RedPlayer { // 红薯播放器页
     if (!VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER).includes(speed)) {
       speed = 1.0;
     }
-    this.play_speed = speed
+    this.longSpeed = speed
     this.playerController?.setSpeed(speed)
   }
 
@@ -511,7 +510,7 @@ export struct RedPlayer { // 红薯播放器页
       totalTime: this.redPlayerStateHolder?.videoDuration,
       screenHeight: this.screen_height,
       screenWidth: this.screen_width,
-      playSpeed: this.play_speed,
+      playSpeed: this.longSpeed,
       onSliderChange: (value: number) => {
         this.play_time = value
         if (this.redPlayerStateHolder!.videoPosition >= this.redPlayerStateHolder!.videoDuration ||
@@ -596,7 +595,7 @@ export struct RedPlayer { // 红薯播放器页
 
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 倍速调整按钮
-          Text(`${this.play_speed}x`)
+          Text(`${this.longSpeed}x`)
             .fontSize(18)
             .fontColor($r('sys.color.white'))
             .minFontSize(8)

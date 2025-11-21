@@ -6,7 +6,7 @@ import { PathUtils } from '../utils/PathUtils';
 import { ListView } from '../component/PlayerComponent/PlayerSideBarComponent';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../utils/AttributeModifierUtil';
-import NavigationAddress from '../common/NavigationAddress';
+import NavigationAddress from '../common/NavigationCommon';
 import VideoOperateUtil from '../utils/VideoOperateUtil';
 import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog';
 import { DefaultDialogShadow } from '../common/DefaultDialogShadow';

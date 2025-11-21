@@ -11,7 +11,6 @@ import SelectFileUtil from '../../utils/SelectFileUtil';
 import VideoOperateUtil from '../../utils/VideoOperateUtil';
 import RecentPlayUtil from '../../utils/RecentPlayUtil';
 import { IjkMediaPlayer } from '@ohos/ijkplayer';
-import { PlayerParams } from '../../common/PlayerParams';
 import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface';
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
 import { AudioTrack } from '../../interfaces/AudioTrackInterface';
@@ -35,7 +34,7 @@ import { VideoButtonsComponent } from '../../component/PlayerComponent/VideoButt
 import { VideoSettingComponent } from '../../component/PlayerComponent/VideoSettingComponent';
 import { RepeatMode } from '../../common/enum/RepeatMode';
 import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode';
-import NavigationAddress from '../../common/NavigationAddress';
+import NavigationAddress, { PlayerParams } from '../../common/NavigationCommon';
 import { WindowUtil } from '../../utils/WindowUtil';
 import { VideoStatusBarBuilder } from '../../component/PlayerComponent/VideoStatusBarBuilder';
 import { KeyCode } from '@kit.InputKit';
@@ -617,7 +616,8 @@ export struct Player { // 播放页
               .onLoad(() => {
                 this.surfaceID = this.xComponentController.getXComponentSurfaceId()
                 this.getData()
-              })
+              }).focusable(true)
+              .defaultFocus(true)
             SubtitleDisplayComponent({
               subTitle: this.sub_title,
               screenWidth: this.screen_width,
@@ -627,12 +627,6 @@ export struct Player { // 播放页
               playAreaWidth: this.play_area_width,
             })
           }
-          .width(this.play_area_width)
-          .height(this.play_area_height)
-          .animation({ duration: this.playing ? 300 : 0, curve: Curve.Ease })
-          .rotate({ y: 2, angle: this.angle, perspective: 200 })
-          .focusable(true)
-          .defaultFocus(true)
           .onKeyEvent((event?: KeyEvent) => {
             if (!event || event.type !== KeyType.Down) {
               return;
@@ -650,6 +644,10 @@ export struct Player { // 播放页
               this.backForward();
             }
           })
+          .width(this.play_area_width)
+          .height(this.play_area_height)
+          .animation({ duration: this.playing ? 300 : 0, curve: Curve.Ease })
+          .rotate({ y: 2, angle: this.angle, perspective: 200 })
 
           if (this.showControl && !this.isLock) {
             Stack() {
@@ -701,19 +699,19 @@ export struct Player { // 播放页
             }
           }
 
-          FastForwardInfoComponent({
-            speed: this.speed,
-            location: this.play_area_height,
-            longPress: this.longPress
-          })
-
-          SwipingPlayTimeDisplay({
-            isSliderPlayTimeChange: this.isSliderPlayTimeChange,
-            playTime: this.playTime,
-            totalTime: this.now_playing?.time,
-            lastPlayTime: VideoOperateUtil.last_play_time,
-            onSwiping: this.onSwiping
-          })
+          if (this.longPress) {
+            FastForwardInfoComponent({
+              speed: this.speed,
+              location: this.play_area_height,
+            })
+          }
+          if (this.onSwiping) {
+            SwipingPlayTimeDisplay({
+              isSliderPlayTimeChange: this.isSliderPlayTimeChange,
+              playTime: this.playTime,
+              totalTime: this.now_playing?.time,
+            })
+          }
 
           VolumeSwipingComponent({
             videoVolume: this.volume,
@@ -721,19 +719,19 @@ export struct Player { // 播放页
             onSwipingVoice: this.onSwipingVoice,
           })
 
-          BrightnessSwipingComponent({
-            screenBrightness: this.screenBrightness,
-            onSwipingBrightness: this.onSwipingBrightness
-          })
-
-          LockVideoBarComponent({
-            isLock: this.isLock,
-            screenHeight: this.screen_height,
-            screenWidth: this.screen_width,
-            showControl: this.showControl,
-            lockVisibility: this.lockVisibility
-          })
-
+          if (this.onSwipingBrightness) {
+            BrightnessSwipingComponent({
+              screenBrightness: this.screenBrightness,
+            })
+          }
+          if (this.lockVisibility) {
+            LockVideoBarComponent({
+              isLock: this.isLock,
+              screenHeight: this.screen_height,
+              screenWidth: this.screen_width,
+              showControl: this.showControl,
+            })
+          }
           GestureComponent({
             showControl: this.showControl,
             onDoubleClickAction: (event: GestureEvent) => {
@@ -807,7 +805,7 @@ export struct Player { // 播放页
             },
             onHorizonPanStart: (_event: GestureEvent) => {
               if (!this.isLock) {
-                VideoOperateUtil.last_play_time = this.playTime;
+                VideoOperateUtil.lastPlayTime = this.playTime;
                 this.onSwiping = true;
               }
             },
@@ -820,7 +818,7 @@ export struct Player { // 播放页
               }
               const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.now_playing?.time!)
               this.playTime = Math.max(0,
-                Math.min(VideoOperateUtil.last_play_time + (event.offsetX * timePerPixel),
+                Math.min(VideoOperateUtil.lastPlayTime + (event.offsetX * timePerPixel),
                   this.now_playing?.time!));
             },
             onHorizonPanEnd: () => {
