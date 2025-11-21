@@ -39,7 +39,6 @@ import { ImportProgressBuilder } from '../component/VideoItemComponent/ImportPro
 import { CrashPage } from './SettingPage/CrashPage';
 import { PlayerSettingPage } from './SettingPage/PlayerSettingPage';
 import { PersonalizePage } from './SettingPage/PersonalizePage';
-import { EditPasswordDialog } from '../component/Dialog/EditPasswordDialog';
 import BiometricAccessUtil from '../utils/BiometricAccessUtil';
 import { DeleteType } from '../common/enum/DeleteType';
 import { PrivacySpaceErrorList } from './PrivacySpace/PrivacySpaceErrorList';
@@ -89,19 +88,6 @@ struct Index {
         await FileFolderUtil.changeFileFolderName(PathUtils.appContext!,
           DataSyncUtil.editingFolder!, newFolderName, this.fileFolderSource)
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
-  addPasswordDialogController: CustomDialogController = new CustomDialogController({
-    builder: EditPasswordDialog({
-      confirm: (passwd: string | undefined) => {
-        if (!passwd || passwd.trim() == '') {
-          return
-        }
-        this.passwd = passwd
-        ToolsUtil.savePwd(PathUtils.appContext!, passwd)
-        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.set_passwd_tip').id))
-        this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null)
-      },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
 
@@ -447,10 +433,6 @@ struct Index {
               if (this.allowGestureEntry) {
                 if (scaleValue > 1.5) {
                   this.passwd = Preferences.getPassword(PathUtils.appContext!)
-                  if (this.passwd === '') { // 未设置密码时直接打开设置弹窗
-                    this.addPasswordDialogController.open();
-                    return;
-                  }
                   if (BiometricAccessUtil.checkUserAuthSupport()) { // 支持生物认证时进行认证
                     BiometricAccessUtil.startUserAuth().then(isSuccess => {
                       if (isSuccess) { // 认证成功进入隐私空间

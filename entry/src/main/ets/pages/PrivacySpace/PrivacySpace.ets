@@ -26,6 +26,7 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil';
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem';
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem';
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
+import { PrivacySpaceParams } from '../../common/PrivacySpaceParams';
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -504,6 +505,12 @@ export struct PrivacySpace { // 隐私空间页
       }
     })
     .blur(this.isPrivacyBackground ? 1000 : 0)
+    .onReady(() => {
+      const privacySpaceParams = this.pathStack.getParamByName(NavigationAddress.PRIVACY_SPACE)[0] as PrivacySpaceParams
+      if (privacySpaceParams?.needGotoSetting) {
+        this.isPresent = true
+      }
+    })
   }
 
   @Builder
