@@ -2,8 +2,6 @@ import { systemDateTime } from '@kit.BasicServicesKit'
 
 // 时间类，格式化时间
 class TimeUtil {
-  public clock_time: string = ''
-
   convertMSToHHMMSS(ms: number | undefined): string {
     if (!ms) {
       return '00:00'

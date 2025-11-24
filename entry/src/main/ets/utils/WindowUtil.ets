@@ -7,7 +7,6 @@ import { PathUtils } from './PathUtils';
 export class WindowUtil {
   private static instance: WindowUtil;
   private static windowStage?: window.WindowStage;
-  private static mainWindowClass = this.getWindow()
   private static windowClass: window.Window | null = null
   private static isInit: boolean = false
 
@@ -18,8 +17,8 @@ export class WindowUtil {
     return WindowUtil.instance;
   }
 
-  public static getWindow() {
-    return window.getLastWindow(PathUtils.appContext!)?.catch(() => {
+  public static async getWindow() {
+    return await window.getLastWindow(PathUtils.appContext!)?.catch(() => {
       console.error('window error')
       return undefined
     })
@@ -28,9 +27,9 @@ export class WindowUtil {
   public static async getWindowsStatus(): Promise<window.WindowStatusType | undefined> {
     if (canIUse('SystemCapability.Window.SessionManager')) {
       try {
-        return (await WindowUtil.mainWindowClass)?.getWindowStatus()
+        return (await WindowUtil.getWindow())?.getWindowStatus()
       } catch (error) {
-        console.error('window error' + error)
+        console.error('test window error' + error)
         return undefined
       }
     }
@@ -40,7 +39,9 @@ export class WindowUtil {
   public static async enableLandscapeMultiWindow(windowClass: Promise<window.Window | undefined>) {
     if (canIUse("SystemCapability.Window.SessionManager")) {
       if (windowClass) {
-        (await windowClass)?.enableLandscapeMultiWindow()?.catch(() => {
+        (await windowClass)?.enableLandscapeMultiWindow()?.then(() => {
+          AppStorage.setOrCreate('enableLandscapeMultiWindow', true)
+        }).catch(() => {
           console.error('window error')
         })
       }
@@ -50,31 +51,51 @@ export class WindowUtil {
   public static async disableLandscapeMultiWindow(windowClass: Promise<window.Window | undefined>) {
     if (canIUse("SystemCapability.Window.SessionManager")) {
       if (windowClass) {
-        (await windowClass)?.disableLandscapeMultiWindow()?.catch(() => {
+        (await windowClass)?.disableLandscapeMultiWindow()?.then(() => {
+          AppStorage.setOrCreate('enableLandscapeMultiWindow', false)
+        }).catch(() => {
           console.error('window error')
         })
       }
     }
   }
 
-  public static async fullScreenOperate() {
+  public static async fullScreenOperate(screen_height: number, screen_width: number,
+    windowClass: Promise<window.Window | undefined>): Promise<window.Orientation.AUTO_ROTATION_PORTRAIT | window.Orientation.AUTO_ROTATION_LANDSCAPE | undefined> {
     if (canIUse('SystemCapability.Window.SessionManager')) {
       switch (await WindowUtil.getWindowsStatus()) {
         case window.WindowStatusType.FLOATING:
-          await WindowUtil?.maximize?.()
-          return
+          if (AppStorage.get('pcMode')) {
+            await WindowUtil?.maximize?.()
+            return undefined
+          }
+          AppStorage.get('enableLandscapeMultiWindow') ? WindowUtil.disableLandscapeMultiWindow(windowClass) :
+            WindowUtil.enableLandscapeMultiWindow(windowClass)
+          return undefined
         case window.WindowStatusType.FULL_SCREEN:
-          await WindowUtil?.recover?.()
-          return
+          if (AppStorage.get('pcMode')) {
+            await WindowUtil?.recover?.()
+            return undefined
+          }
+        case window.WindowStatusType.UNDEFINED:
+        default:
+          return WindowUtil.getWindowOrientation(screen_height, screen_width)
       }
     }
+    return undefined
+  }
+
+  public static getWindowOrientation(screen_height: number, screen_width: number) {
+    return screen_height > screen_width
+      ? window.Orientation.AUTO_ROTATION_LANDSCAPE
+      : window.Orientation.AUTO_ROTATION_PORTRAIT;
   }
 
   public static async maximize(): Promise<void> {
     if (canIUse('SystemCapability.Window.SessionManager')) {
       try {
-        if ((await WindowUtil.mainWindowClass)?.getWindowStatus() === window.WindowStatusType.FLOATING) {
-          (await WindowUtil.mainWindowClass)?.maximize()
+        if ((await WindowUtil.getWindow())?.getWindowStatus() === window.WindowStatusType.FLOATING) {
+          (await WindowUtil.getWindow())?.maximize()
             .then(() => {
               hilog.info(0x0000, 'testTag', '%{public}s', `Succeed in maximizing the window.`);
             })
@@ -93,8 +114,8 @@ export class WindowUtil {
   public static async recover(): Promise<void> {
     if (canIUse('SystemCapability.Window.SessionManager')) {
       try {
-        if ((await WindowUtil.mainWindowClass)?.getWindowStatus() === window.WindowStatusType.FULL_SCREEN) {
-          (await WindowUtil.mainWindowClass)?.recover()
+        if ((await WindowUtil.getWindow())?.getWindowStatus() === window.WindowStatusType.FULL_SCREEN) {
+          (await WindowUtil.getWindow())?.recover()
             .then(() => {
               hilog.info(0x0000, 'testTag', '%{public}s', `Succeed in recovering the window.`);
             })

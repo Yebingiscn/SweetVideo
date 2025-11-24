@@ -39,7 +39,6 @@ import NavigationAddress, { PlayerParams } from '../../common/NavigationCommon'
 import { WindowUtil } from '../../utils/WindowUtil'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { AIAsr } from '../../component/VideoItemComponent/AIAsrComponent'
-import json from '@ohos.util.json'
 
 @Component
 export struct FFMpegPlayer { // FFMpeg播放器页
@@ -71,7 +70,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @State isSliderPlayTimeChange: boolean = false
   windowClass = WindowUtil.getWindow()
   xComponentController: XComponentController = new XComponentController()
-  @State showControl: boolean = false
+  @State @Watch('setScreen') showControl: boolean = false
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
   @StorageLink('longPressSpeed') longPressSpeed: number = 3
@@ -116,7 +115,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             })
         }
         .onKeyEvent((event?: KeyEvent) => {
-          console.error('test focus' + json.stringify(event))
           if (!event || event.type !== KeyType.Down) {
             return;
           }
@@ -145,9 +143,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
               direction: FlexDirection.Column
             }) { //顶栏
               Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
-                Column() {
-                  this.VideoTop()
-                }.width('100%')
+                this.VideoTop()
               }
               .height(85)
               .transition(XAnimation.getAnimation('up', 0, false))
@@ -404,11 +400,12 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           PathUtils.appContext!)
       }
       PermissionUtil.applyStopContinuousTask(this.allowBackgroundPlay)
+      WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
+      WindowUtil.setBarState(PathUtils.appContext!, true, true)
       try {
-        WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
         await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
       } catch (error) {
-        console.error('player error:' + error)
+        console.error('setPreferredOrientation' + error)
       }
       this.mDestroyPage = true;
       this.mIjkMediaPlayer?.setScreenOnWhilePlaying(false);
@@ -496,15 +493,15 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .onClick(async () => {
-          await WindowUtil.fullScreenOperate()
-          const orientation = this.screen_height > this.screen_width
-            ? window.Orientation.AUTO_ROTATION_LANDSCAPE
-            : window.Orientation.AUTO_ROTATION_PORTRAIT;
-          XAnimation.runWithAnimation(async () => {
-            (await this.windowClass)?.setPreferredOrientation(orientation).catch(() => {
-              console.error('player error')
+          const orientation =
+            await WindowUtil.fullScreenOperate(this.screen_height, this.screen_width, this.windowClass)
+          if (orientation) {
+            XAnimation.runWithAnimation(async () => {
+              (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
+                console.error('setPreferredOrientation error')
+              })
             })
-          })
+          }
         })
       }.span({ xs: 2, sm: 2, md: 2 })
 
@@ -543,7 +540,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   async aboutToAppear() {
     this.mIjkMediaPlayer = IjkMediaPlayer.getInstance();
     PermissionUtil.applyContinuousTask(this.allowBackgroundPlay)
-    WindowUtil.setBarState(PathUtils.appContext!, this.showControl, this.showControl)
+    this.setScreen()
     let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
     let audioManager = audio.getAudioManager();
     this.audioVolumeManager = audioManager.getVolumeManager();
@@ -604,7 +601,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       console.error('volumeChange error:' + error)
     }
     this.audioVolumeManager = null
-    WindowUtil.disableLandscapeMultiWindow(this.windowClass)
   }
 
   async setSessionListener() {
@@ -624,6 +620,10 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     } catch (error) {
       console.error('set av session state error')
     }
+  }
+
+  setScreen() {
+    WindowUtil.setBarState(PathUtils.appContext!, this.showControl, this.showControl)
   }
 
   videoStartPlayTime(seekMode: number) {

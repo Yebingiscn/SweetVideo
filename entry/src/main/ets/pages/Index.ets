@@ -483,6 +483,15 @@ struct Index {
           this.videoListController.refresh(this.screen_width, this.listDisplayMode)
           VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
         }
+        if (DataSyncUtil.lastPlayVideoIndex >= 0) {
+          this.videoListController.listScroller.scrollToIndex(DataSyncUtil.lastPlayVideoIndex)
+          DataSyncUtil.lastPlayVideoIndex = -1
+        }
+        if (DataSyncUtil.invalidVideoIndex >= 0) {
+          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, DeleteType.SOFT,
+            this.videoListController.videoDataSource.getData(DataSyncUtil.invalidVideoIndex))
+          DataSyncUtil.invalidVideoIndex = -1
+        }
       }
     })
   }

@@ -337,7 +337,7 @@ export struct PrivacySpace { // 隐私空间页
   }
 
   async clickItem(item: VideoMetadata | undefined, choosePlayer: string) {
-    await SelectFileUtil.isFileExist(item?.uri!) ?
+    await SelectFileUtil.isFileExist(item?.uri!, true) ?
       ToolsUtil.routerWhere(this.pathStack, choosePlayer, item!,
         this.video_meta_data_encryption) :
       await this.deleteItem(item!.date, item!.title)
@@ -481,9 +481,18 @@ export struct PrivacySpace { // 隐私空间页
     .onWillDisappear(() => {
       this.closePrivacyMode()
     })
-    .onShown(() => {
+    .onShown(async () => {
       this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
       this.videoDataSource.updateData(this.video_meta_data_encryption)
+      if (DataSyncUtil.lastPlayVideoIndex >= 0) {
+        this.listScroller.scrollToIndex(DataSyncUtil.lastPlayVideoIndex)
+        DataSyncUtil.lastPlayVideoIndex = -1
+      }
+      if (DataSyncUtil.invalidVideoIndex >= 0) {
+        const item = this.video_meta_data_encryption[DataSyncUtil.invalidVideoIndex]
+        await this.deleteItem(item.date, item.title)
+        DataSyncUtil.invalidVideoIndex = -1
+      }
     })
     .title($r('app.string.privacy_space'))
     .menus(this.NavigationMenus)

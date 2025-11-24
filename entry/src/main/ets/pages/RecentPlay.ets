@@ -98,10 +98,20 @@ export struct RecentPlay { // 最近播放页
   }
 
   async clickItem(item: VideoMetadata | undefined, choosePlayer: string) {
-    if (item) {
-      await SelectFileUtil.isFileExist(item?.uri) ?
-        ToolsUtil.routerWhere(this.pathStack, choosePlayer, item, this.recent_video_meta_data) :
+    if (!item) {
+      return
+    }
+    const isFileExist = await SelectFileUtil.isFileExist(item.uri, true)
+    if (isFileExist) {
+      const originalList = RecentPlayUtil.getVideoListByVideoDate(item.date)
+      if (originalList[1].length > 0 && originalList[0]) {
+        await ToolsUtil.routerWhere(this.pathStack, choosePlayer, originalList[0], originalList[1])
+      } else {
+        ToolsUtil.showToast('数据异常，已移除该数据')
         this.delData(PathUtils.appContext!, item)
+      }
+    } else {
+      this.delData(PathUtils.appContext!, item)
     }
   }
 

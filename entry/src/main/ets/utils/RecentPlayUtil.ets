@@ -61,6 +61,17 @@ class RecentPlayUtil {
     }
   }
 
+  public getVideoListByVideoDate(videoDate: string): [VideoMetadata | undefined, VideoMetadata[]] {
+    const fileFolderList = Preferences.getFileFolder(PathUtils.appContext!)
+    for (const folder of fileFolderList) {
+      const targetVideo = folder.video_list.find(video => video.date === videoDate)
+      if (targetVideo) {
+        return [targetVideo, folder.video_list]
+      }
+    }
+    return [undefined, []]
+  }
+
   private init(context: Context) {
     if (context) {
       this.loadData(context);

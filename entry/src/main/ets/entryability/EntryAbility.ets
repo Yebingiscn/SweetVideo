@@ -143,7 +143,7 @@ export default class EntryAbility extends UIAbility {
     });
     // 是否进入后台
     try {
-      windowStage.on('windowStageEvent', (windowEvent) => {
+      windowStage.on('windowStageEvent', async (windowEvent) => {
         if (!PrivacySpaceUtil.getPrivacyMode()) {
           return
         }
@@ -151,14 +151,18 @@ export default class EntryAbility extends UIAbility {
           case window.WindowStageEventType.SHOWN:
           case window.WindowStageEventType.ACTIVE:
           case window.WindowStageEventType.RESUMED: {
-            AppStorage.setOrCreate('isPrivacyBackground', false);
+            AppStorage.setOrCreate('isPrivacyBackground', false)
             break
           }
           case window.WindowStageEventType.HIDDEN:
-          case window.WindowStageEventType.INACTIVE:
           case window.WindowStageEventType.PAUSED: {
-            AppStorage.setOrCreate('isPrivacyBackground', true);
+            AppStorage.setOrCreate('isPrivacyBackground', true)
             break
+          }
+          // pc 模式下窗口失焦隐私空间模糊，手机平板分屏、悬浮窗下不模糊
+          case window.WindowStageEventType.INACTIVE: {
+            AppStorage.get('pcMode') ? AppStorage.setOrCreate('isPrivacyBackground', true) :
+              AppStorage.setOrCreate('isPrivacyBackground', false);
           }
         }
       })

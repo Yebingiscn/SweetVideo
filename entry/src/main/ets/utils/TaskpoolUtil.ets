@@ -24,7 +24,7 @@ async function checkUriAvailable(fileFolderList: FileFolder[]): Promise<VideoMet
   }
   const checkPromises = videosToCheck.map(async (video: VideoMetadata) => {
     try {
-      const exists = await SelectFileUtil.isFileExist(video.uri);
+      const exists = await SelectFileUtil.isFileExist(video.uri, false);
       if (!exists) {
         deletedVideos.push(video);
         const cleanupTask = (async () => {

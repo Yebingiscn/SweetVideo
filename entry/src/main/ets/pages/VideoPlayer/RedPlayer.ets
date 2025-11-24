@@ -37,7 +37,7 @@ export struct RedPlayer { // 红薯播放器页
   xComponentController: RedPlayerXComponentController =
     new RedPlayerXComponentController(PlayerCoreType.TYPE_RED_PLAYER)
   avSession: avSessionManager.AVSession | undefined = undefined;
-  @State showControl: boolean = false
+  @State @Watch('setScreen') showControl: boolean = false
   @State screen_width: number = 0
   @State screen_height: number = 0
   @State last_play_time: number = 0
@@ -151,9 +151,7 @@ export struct RedPlayer { // 红薯播放器页
               direction: FlexDirection.Column
             }) { //顶栏
               Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
-                Column() {
-                  this.VideoTop()
-                }.width('100%')
+                this.VideoTop()
               }
               .transition(XAnimation.getAnimation('up', 0, false))
               .height(85)
@@ -383,8 +381,9 @@ export struct RedPlayer { // 红薯播放器页
       this.playerController?.pause()
       this.playerController?.stop()
       this.playerController?.release()
+      WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
+      WindowUtil.setBarState(PathUtils.appContext!, true, true)
       try {
-        WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
         await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
       } catch (error) {
         console.error('player error:' + error)
@@ -417,7 +416,7 @@ export struct RedPlayer { // 红薯播放器页
     this.redPlayerStateHolder = new RedPlayerStateHolder()
     this.playerController = new RedPlayerControllerUtil(this.redPlayerStateHolder)
     PermissionUtil.applyContinuousTask(this.allowBackgroundPlay)
-    WindowUtil.setBarState(PathUtils.appContext!, this.showControl, this.showControl)
+    this.setScreen()
     try {
       await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
@@ -452,6 +451,10 @@ export struct RedPlayer { // 红薯播放器页
     }
   }
 
+  setScreen() {
+    WindowUtil.setBarState(PathUtils.appContext!, this.showControl, this.showControl)
+  }
+
   async aboutToDisappear() {
     VideoOperateUtil.setBrightness(-1)
     try {
@@ -460,7 +463,6 @@ export struct RedPlayer { // 红薯播放器页
       console.error('volumeChange error:' + error)
     }
     this.audioVolumeManager = null
-    WindowUtil.disableLandscapeMultiWindow(this.windowClass)
     this.playerController = null
     this.redPlayerStateHolder = null
   }
@@ -570,15 +572,15 @@ export struct RedPlayer { // 红薯播放器页
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .onClick(async () => {
-          await WindowUtil.fullScreenOperate()
-          const orientation = this.screen_height > this.screen_width
-            ? window.Orientation.AUTO_ROTATION_LANDSCAPE
-            : window.Orientation.AUTO_ROTATION_PORTRAIT;
-          XAnimation.runWithAnimation(async () => {
-            (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
-              console.error('player error')
+          const orientation =
+            await WindowUtil.fullScreenOperate(this.screen_height, this.screen_width, this.windowClass)
+          if (orientation) {
+            XAnimation.runWithAnimation(async () => {
+              (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
+                console.error('setPreferredOrientation error')
+              })
             })
-          })
+          }
         })
       }.span({ xs: 2, sm: 2, md: 2 })
 

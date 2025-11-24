@@ -19,10 +19,6 @@ export class PrivacySpaceParams {
   public needGotoSetting: boolean = false
 }
 
-export class PlayerBackParams {
-  public lastPlayVideoIndex: number = 0
-}
-
 // Navigation 传参设置
 export class PlayerParams {
   public metadata: VideoMetadata | undefined

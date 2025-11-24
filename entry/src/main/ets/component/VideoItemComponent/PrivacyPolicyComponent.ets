@@ -95,10 +95,13 @@ export struct PrivacyPolicyComponent {
 
   build() {
     Stack() {
-    }.bindSheet($$this.isPresent, this.privacyInfoBuilder(), {
+    }.bindSheet($$this.isPresent, this.privacyInfoBuilder, {
+      detents: [SheetSize.FIT_CONTENT],
       height: SheetSize.LARGE,
+      preferType: SheetType.CENTER,
       enableOutsideInteractive: false,
       showClose: false,
+      dragBar: false,
       title: { title: '用户协议和隐私政策' },
       onWillDismiss: ((DismissSheetAction: DismissSheetAction) => {
         if (DismissSheetAction.reason == DismissReason.SLIDE_DOWN ||

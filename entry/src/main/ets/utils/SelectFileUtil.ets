@@ -358,13 +358,19 @@ class SelectFileUtil {
   }
 
   // 检查文件是否存在
-  async isFileExist(uri: string) {
+  async isFileExist(uri: string, showToast: boolean) {
     await PermissionUtil.activatePermission(uri)
+    if (this.isPathFromSource(uri, VideoSource.EXTERNAL_DEVICE)) {
+      return true
+    }
     try {
       await fs.open(String(uri))
       return true
     } catch (e) {
       console.log('file error' + e)
+      if (showToast) {
+        ToolsUtil.showToast(uri + '文件已经失效，请重新导入')
+      }
       return false
     }
   }

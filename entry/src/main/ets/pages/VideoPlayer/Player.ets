@@ -36,15 +36,14 @@ import { RepeatMode } from '../../common/enum/RepeatMode';
 import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode';
 import NavigationAddress, { PlayerParams } from '../../common/NavigationCommon';
 import { WindowUtil } from '../../utils/WindowUtil';
-import { VideoStatusBarBuilder } from '../../component/PlayerComponent/VideoStatusBarBuilder';
 import { KeyCode } from '@kit.InputKit';
-import TimeUtil from '../../utils/TimeUtil';
 import { XAnimation } from '../../utils/AnimationUtil';
 import { AIAsr } from '../../component/VideoItemComponent/AIAsrComponent';
 import SubtitleUtil from '../../utils/SubtitleUtil';
 import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent';
 import { SubtitleMode } from '../../common/enum/SubtitleMode';
 import { AVPlayerUtil } from '../../utils/AVPlayerUtil';
+import DataSyncUtil from '../../utils/DataSyncUtil';
 
 @Component
 export struct Player { // 播放页
@@ -56,7 +55,7 @@ export struct Player { // 播放页
   @State playTime: number = 0
   surfaceID: string = ''
   @State longPress: boolean = false
-  @State showControl: boolean = false
+  @State @Watch('setScreen') showControl: boolean = false
   @State lock_rotation: boolean = false
   xComponentController: XComponentController = new XComponentController()
   windowClass = WindowUtil.getWindow()
@@ -179,8 +178,7 @@ export struct Player { // 播放页
 
   async aboutToAppear(): Promise<void> {
     PermissionUtil.applyContinuousTask(this.allowBackgroundPlay)
-    TimeUtil.clock_time = TimeUtil.getTime()
-    WindowUtil.setBarState(PathUtils.appContext!, this.showControl, this.showControl)
+    this.setScreen()
     try {
       await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
@@ -197,6 +195,7 @@ export struct Player { // 播放页
     Preferences.saveVideoSpeed(PathUtils.appContext!,
       (VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).includes(this.speed) ? this.speed : 1) + 'x')
     Preferences.saveRepeatModeState(PathUtils.appContext!, this.repeatMode)
+    WindowUtil.setBarState(PathUtils.appContext!, true, true)
     clearTimeout(this.exitVideoTime)
     this.avPlayer?.off('subtitleUpdate');
     this.avPlayer?.off('timeUpdate')
@@ -212,7 +211,6 @@ export struct Player { // 播放页
       console.error('volume off error' + error)
     }
     this.audioVolumeManager = null
-    WindowUtil.disableLandscapeMultiWindow(this.windowClass)
     this.releaseAVPlayer()
   }
 
@@ -288,7 +286,6 @@ export struct Player { // 播放页
     this.avPlayer?.on('timeUpdate', async (duration) => {
       AppStorage.setOrCreate('nowPlayingData', [this.playTime, this.now_playing!, this.video_meta_data])
       if (this.showControl) {
-        TimeUtil.clock_time = TimeUtil.getTime()
         if (!this.autoHideTimeout) {
           this.autoHideTimeout = true
           setTimeout(() => {
@@ -494,7 +491,9 @@ export struct Player { // 播放页
       try {
         this.avPlayer.fdSrc = fs.openSync(this.now_playing?.uri);
       } catch (error) {
-        console.error('uri error: ' + error)
+        ToolsUtil.showToast('视频打开失败，可能已失效')
+        DataSyncUtil.invalidVideoIndex = this.video_meta_data.findIndex(i => i.date === this.now_playing?.date)
+        this.pathStack.pop()
       }
       this.setRotation()
       if (this.windowClass) {
@@ -505,8 +504,7 @@ export struct Player { // 播放页
         this.screen_height > this.screen_width) {
         const proportion =
           Math.max(this.screen_width, this.screen_height) / Math.min(this.screen_width, this.screen_height)
-        const orientation = proportion > (16 / 10)
-          ? window.Orientation.AUTO_ROTATION_LANDSCAPE
+        const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
           : window.Orientation.AUTO_ROTATION_RESTRICTED;
         (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
           console.error('player error')
@@ -587,6 +585,10 @@ export struct Player { // 播放页
     })
   }
 
+  setScreen() {
+    WindowUtil.setBarState(PathUtils.appContext!, this.showControl, this.showControl)
+  }
+
   async initAVSession() {
     if (!this.avSession && this.allowBackgroundPlay) {
       this.avSession = await AVSessionUtil.getAVSession()
@@ -657,14 +659,7 @@ export struct Player { // 播放页
                 direction: FlexDirection.Column
               }) { //顶栏
                 Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
-                  Column() {
-                    VideoStatusBarBuilder({
-                      screenWidth: this.screen_width,
-                      screenHeight: this.screen_height,
-                      clockTime: TimeUtil.clock_time
-                    })
-                    this.VideoTop()
-                  }.width('100%')
+                  this.VideoTop()
                 }
                 .transition(XAnimation.getAnimation('up', 0, false))
                 .height(90)
@@ -955,6 +950,7 @@ export struct Player { // 播放页
         return true
       } else {
         this.releaseAVPlayer()
+        DataSyncUtil.lastPlayVideoIndex = this.video_meta_data.findIndex(i => i.date === this.now_playing?.date)
         return false
       }
     })
@@ -986,6 +982,7 @@ export struct Player { // 播放页
       this.avPlayer?.reset()?.catch(() => {
         console.error('player error')
       })
+      DataSyncUtil.lastPlayVideoIndex = this.video_meta_data.findIndex(i => i.date === this.now_playing?.date)
       this.pathStack.pop()
     }, timeOut);
   }
@@ -1069,15 +1066,14 @@ export struct Player { // 播放页
       sideBarStatusTmp: this.sideBarStatusTmp,
       sideBarStatus: this.sideBarStatus,
       onScreenRotationOrFullScreenClick: async () => {
-        await WindowUtil.fullScreenOperate()
-        const orientation = this.screen_height > this.screen_width
-          ? window.Orientation.AUTO_ROTATION_LANDSCAPE
-          : window.Orientation.AUTO_ROTATION_PORTRAIT; // 这里是横竖屏切换顺应用户操作就好
-        XAnimation.runWithAnimation(async () => {
-          (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
-            console.error('setPreferredOrientation error')
+        const orientation = await WindowUtil.fullScreenOperate(this.screen_height, this.screen_width, this.windowClass)
+        if (orientation) {
+          XAnimation.runWithAnimation(async () => {
+            (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
+              console.error('setPreferredOrientation error')
+            })
           })
-        })
+        }
       },
       onTogglePlaybackClick: () => {
         this.togglePlayback()

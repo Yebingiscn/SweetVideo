@@ -75,11 +75,11 @@ export struct PlayerSideBarComponent {
       setTimeout(() => {
         const targetIndex = this.video_meta_data.findIndex(
           item => item?.date === this.now_playing?.date
-        );
+        )
         if (targetIndex >= 0) {
           this.listScroller.scrollToIndex(targetIndex, false);
         }
-      }, 50); // 添加短暂延迟确保DOM更新
+      }, 50)
     }
   }
 
