@@ -21,19 +21,19 @@ import { VideoSource } from '../common/enum/VideoSource';
 import SubtitleUtil from './SubtitleUtil';
 
 // 获取视频类
-class SelectFileUtil {
-  private static queryCache = new WeakMap<VideoMetadata[], Map<string, VideoMetadata>>();
-  public file_folder_uri = ''
-  public videoSourcePath = new Map<number, string>([
+export default class SelectFileUtil {
+  public static fileFolderUri = ''
+  public static videoSourcePath = new Map<number, string>([
     [VideoSource.SWEET_VIDEO_DOWNLOAD_FILE, '/storage/Users/currentUser/'],
     [VideoSource.DOCUMENT_SELECT_OPTION, 'file://docs/storage/Users'],
     [VideoSource.PHOTO_SELECT_OPTION, 'file://media/Photo'],
     [VideoSource.PRIVACY_SPACE, '/data/storage/el2'],
     [VideoSource.EXTERNAL_DEVICE, 'file://docs/storage/External']
   ]);
+  private static queryCache = new WeakMap<VideoMetadata[], Map<string, VideoMetadata>>();
 
   // 从文件管理器获取视频
-  async selectFiles(): Promise<string[]> {
+  static async selectFiles(): Promise<string[]> {
     const documentSelectOptions = new picker.DocumentSelectOptions();
     documentSelectOptions.fileSuffixFilters = VideoUtil.support_video_format.concat(VideoUtil.support_audio_format)
     const documentViewPicker = new picker.DocumentViewPicker(PathUtils.appContext!);
@@ -47,16 +47,16 @@ class SelectFileUtil {
   }
 
   // 选择视频（支持多选）
-  async selectVideo(): Promise<string[]> {
-    return this.selectBackgroundImage(photoAccessHelper.PhotoViewMIMETypes.VIDEO_TYPE)
+  static async selectVideo(): Promise<string[]> {
+    return SelectFileUtil.selectBackgroundImage(photoAccessHelper.PhotoViewMIMETypes.VIDEO_TYPE)
   }
 
   // 选择壁纸（单选）
-  async selectPhoto(): Promise<string[]> {
-    return this.selectBackgroundImage(photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE, 1)
+  static async selectPhoto(): Promise<string[]> {
+    return SelectFileUtil.selectBackgroundImage(photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE, 1)
   }
 
-  async deletePhoto() {
+  static async deletePhoto() {
     fs.access(PathUtils.photoPath! + 'BackgroundImage').then((res: boolean) => {
       if (res) {
         fs.unlink(PathUtils.photoPath! + 'BackgroundImage', async (unlinkErr) => {
@@ -74,21 +74,21 @@ class SelectFileUtil {
   }
 
   // 获取下载文件夹路径
-  async getDownloadUri() {
+  static async getDownloadUri() {
     const documentViewPicker = new picker.DocumentViewPicker()
     let documentSaveResult = await documentViewPicker.save({ pickerMode: picker.DocumentPickerMode.DOWNLOAD })
     const uri = new fileUri.FileUri(documentSaveResult[0])
-    this.file_folder_uri = uri.path
+    SelectFileUtil.fileFolderUri = uri.path
   }
 
   // 导出视频文件
-  async exportFile(uri: string, title: string, format: string, context: common.UIAbilityContext) {
+  static async exportFile(uri: string, title: string, format: string, context: common.UIAbilityContext) {
     let sourceFile: fs.File | null = null;
     let targetFile: fs.File | null = null;
     try {
       sourceFile = fs.openSync(uri)
       const saverOption = new picker.DocumentSaveOptions()
-      saverOption.newFileNames = this.copyFileReName(title, format)
+      saverOption.newFileNames = SelectFileUtil.copyFileReName(title, format)
       const documentSaveResult = await new Promise<string[]>((resolve, reject) => {
         const saver = new picker.DocumentViewPicker(context)
         saver.save(saverOption, (err: BusinessError, uris: string[]) => {
@@ -110,7 +110,7 @@ class SelectFileUtil {
     }
   }
 
-  getImageUri() {
+  static getImageUri() {
     try {
       const isExist = fs.accessSync(PathUtils.photoPath! + 'BackgroundImage');
       return isExist ? fileUri.getUriFromPath(PathUtils.photoPath! + 'BackgroundImage') : '';
@@ -119,7 +119,7 @@ class SelectFileUtil {
     }
   }
 
-  async saveImageToPrivacySpace(sourceFileUri: string) {
+  static async saveImageToPrivacySpace(sourceFileUri: string) {
     const filePath = PathUtils.photoPath + 'BackgroundImage'; // 定义完整文件路径
     try {
       // 检测文件是否存在
@@ -141,7 +141,7 @@ class SelectFileUtil {
   }
 
   // 保存封面，封面获取后复制到应用私有目录下
-  saveVideoImageToPrivacySpace(sandbox_path: string, date: string, pixelMap: image.PixelMap) {
+  static saveVideoImageToPrivacySpace(sandbox_path: string, date: string, pixelMap: image.PixelMap) {
     let packer = image.createImagePacker()
     try {
       let file1 = fs.openSync(sandbox_path + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
@@ -158,7 +158,7 @@ class SelectFileUtil {
   }
 
   //复制视频进入隐私空间
-  async copyFileToPrivacySpace(context: Context, video_meta_data_encryption: VideoMetadata[], uri: string,
+  static async copyFileToPrivacySpace(context: Context, video_meta_data_encryption: VideoMetadata[], uri: string,
     sandbox_video: string, sandbox_path: string, date: string, metadata: media.AVMetadata,
     file: fs.File): Promise<VideoMetadata> {
     let sourceFile: fs.File | null = null;
@@ -186,12 +186,12 @@ class SelectFileUtil {
     }
   }
 
-  copyFileReName(title: string, format: string) {
+  static copyFileReName(title: string, format: string) {
     return [title.split('.')[title.split('.').length - 1]
       == format ? title : title + '.' + format]
   }
 
-  saveData(context: Context, target_data: VideoMetadataFromPlayer, play_time?: number, size?: number[],
+  static saveData(context: Context, target_data: VideoMetadataFromPlayer, play_time?: number, size?: number[],
     start_time?: number, end_time?: number, total_time?: number) {
     let save_time: number = 0
     if (target_data.time === 0 && total_time) {
@@ -247,13 +247,13 @@ class SelectFileUtil {
     Preferences.saveRecentPlay(context, recent_play_deque)
   }
 
-  deleteVideo(videoMetaData: VideoMetadata) {
-    this.deleteVideoFromFolder(videoMetaData)
-    this.deleteVideoEncryption(videoMetaData)
+  static deleteVideo(videoMetaData: VideoMetadata) {
+    SelectFileUtil.deleteVideoFromFolder(videoMetaData)
+    SelectFileUtil.deleteVideoEncryption(videoMetaData)
     RecentPlayUtil.delData(PathUtils.appContext!, videoMetaData.uri)
   }
 
-  deleteVideoFromFolder(videoMetaData: VideoMetadata, currentFolder?: FileFolder) {
+  static deleteVideoFromFolder(videoMetaData: VideoMetadata, currentFolder?: FileFolder) {
     const context = PathUtils.appContext!;
     const folders = Preferences.getFileFolder(context);
     if (!folders || folders.length === 0) {
@@ -268,7 +268,7 @@ class SelectFileUtil {
     Preferences.saveFileFolder(context, folders);
   }
 
-  deleteVideoEncryption(videoMetaData: VideoMetadata) {
+  static deleteVideoEncryption(videoMetaData: VideoMetadata) {
     //更新隐私空间的数据
     let videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!);
     videoMetaDataEncryption = videoMetaDataEncryption.filter(video => video.date !== videoMetaData.date)
@@ -287,7 +287,7 @@ class SelectFileUtil {
     });
   }
 
-  getItem(list: VideoMetadata[], item: string): VideoMetadata | undefined {
+  static getItem(list: VideoMetadata[], item: string): VideoMetadata | undefined {
     if (!list || !item) {
       return undefined;
     }
@@ -316,7 +316,7 @@ class SelectFileUtil {
   }
 
   // 获取下一个视频
-  getNextItem(list: VideoMetadata[], item: string) {
+  static getNextItem(list: VideoMetadata[], item: string) {
     const currentIndex = list.findIndex(i => i.date === item);
     if (currentIndex === -1) {
       return list[0];
@@ -331,7 +331,7 @@ class SelectFileUtil {
     return list[(currentIndex + 1) % list.length]; // 如果没有找到有效项，返回下一个项，0x0会自动调用其他播放核心
   }
 
-  getItemFromSearch(list: VideoMetadata[], value: string): VideoMetadata[] {
+  static getItemFromSearch(list: VideoMetadata[], value: string): VideoMetadata[] {
     const trimmedValue = value?.trim();
     if (!trimmedValue) {
       return [];
@@ -342,12 +342,12 @@ class SelectFileUtil {
     );
   }
 
-  getItemIndex(list: VideoMetadata[], tmp: VideoMetadata) {
+  static getItemIndex(list: VideoMetadata[], tmp: VideoMetadata) {
     return list.findIndex(i => i.date == tmp.date)
   }
 
-  isPathFromSource(path: string | undefined, key: VideoSource) {
-    const prefix = this.videoSourcePath.get(key);
+  static isPathFromSource(path: string | undefined, key: VideoSource) {
+    const prefix = SelectFileUtil.videoSourcePath.get(key);
     if (!path || !prefix) {
       return false;
     }
@@ -358,9 +358,9 @@ class SelectFileUtil {
   }
 
   // 检查文件是否存在
-  async isFileExist(uri: string, showToast: boolean) {
+  static async isFileExist(uri: string, showToast: boolean) {
     await PermissionUtil.activatePermission(uri)
-    if (this.isPathFromSource(uri, VideoSource.EXTERNAL_DEVICE)) {
+    if (SelectFileUtil.isPathFromSource(uri, VideoSource.EXTERNAL_DEVICE)) {
       return true
     }
     try {
@@ -375,7 +375,7 @@ class SelectFileUtil {
     }
   }
 
-  async addFile(context: Context, sandbox_video: string, sandbox_path: string, uri: string,
+  static async addFile(context: Context, sandbox_video: string, sandbox_path: string, uri: string,
     video_meta_data: VideoMetadata[], file_folder?: FileFolder) {
     if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
       await PermissionUtil.persistPermission(uri);
@@ -421,7 +421,7 @@ class SelectFileUtil {
               isDuplicate = FileFolderUtil.existsVideoInFolders(context, uri, file.name);
               if (!isDuplicate) {
                 if (PrivacySpaceUtil.getPrivacyMode()!) {
-                  await this.copyFileToPrivacySpace(context, video_meta_data, uri, sandbox_video,
+                  await SelectFileUtil.copyFileToPrivacySpace(context, video_meta_data, uri, sandbox_video,
                     sandbox_path, systemDateTime.getTime(true).toString(), metadata, file);
                 } else {
                   const videoInfo =
@@ -457,9 +457,9 @@ class SelectFileUtil {
     }
   }
 
-  async processSingleFile(uri: string, context: Context, sandbox_video: string, sandbox_path: string,
+  static async processSingleFile(uri: string, context: Context, sandbox_video: string, sandbox_path: string,
     video_meta_data: VideoMetadata[], fileFolder?: FileFolder): Promise<void> {
-    await this.addFile(
+    await SelectFileUtil.addFile(
       context,
       sandbox_video,
       sandbox_path,
@@ -469,8 +469,8 @@ class SelectFileUtil {
     );
   }
 
-  async deletePrivacyVideo(date: string, title: string, video_meta_data_encryption: VideoMetadata[]) {
-    await this.deleteCover(date)
+  static async deletePrivacyVideo(date: string, title: string, video_meta_data_encryption: VideoMetadata[]) {
+    await SelectFileUtil.deleteCover(date)
     await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, date)
     Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, video_meta_data_encryption)
     try {
@@ -488,7 +488,7 @@ class SelectFileUtil {
   }
 
   // 删除封面
-  async deleteCover(date: string) {
+  static async deleteCover(date: string) {
     await new Promise<void>((resolve, reject) => {
       fs.access(PathUtils.coverPath + date, (err) => {
         if (!err) {
@@ -510,7 +510,7 @@ class SelectFileUtil {
     });
   }
 
-  private async selectBackgroundImage(mimeType: photoAccessHelper.PhotoViewMIMETypes,
+  private static async selectBackgroundImage(mimeType: photoAccessHelper.PhotoViewMIMETypes,
     maxSelect: number = Number.MAX_SAFE_INTEGER): Promise<string[]> {
     const options = new photoAccessHelper.PhotoSelectOptions()
     options.MIMEType = mimeType
@@ -526,7 +526,7 @@ class SelectFileUtil {
     }
   }
 
-  async getDownloadFilesUri(): Promise<string[]> {
+  static async getDownloadFilesUri(): Promise<string[]> {
     const VIDEO_EXTENSIONS = new Set([
       ...VideoUtil.support_video_format,
       ...VideoInfoUtil.support_audio_format
@@ -617,7 +617,7 @@ class SelectFileUtil {
       }
     };
     try {
-      await collectFiles(this.file_folder_uri);
+      await collectFiles(SelectFileUtil.fileFolderUri);
       await dirPool.drain(); // 等待所有目录遍历任务完成
       // 去重并返回结果
       return Array.from(new Set(filePaths));
@@ -627,5 +627,3 @@ class SelectFileUtil {
     }
   }
 }
-
-export default new SelectFileUtil()

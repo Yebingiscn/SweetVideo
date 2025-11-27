@@ -1,4 +1,4 @@
-import { display, window } from '@kit.ArkUI';
+import { window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { BusinessError, settings } from '@kit.BasicServicesKit';
 import { PathUtils } from './PathUtils';
@@ -255,8 +255,10 @@ export class WindowUtil {
   private static updateScreenSize(width: number | undefined, height: number | undefined) {
     try {
       let uiContext = WindowUtil.windowClass?.getUIContext()
-      const screen_width = uiContext?.px2vp(width || display.getPrimaryDisplaySync().width)
-      const screen_height = uiContext?.px2vp(height || display.getDefaultDisplaySync().height)
+      const screen_width =
+        uiContext?.px2vp(width || WindowUtil.windowClass?.getWindowProperties().windowRect.width) || 0
+      const screen_height =
+        uiContext?.px2vp(height || WindowUtil.windowClass?.getWindowProperties().windowRect.height) || 0
       animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
         AppStorage.setOrCreate('screen_width', screen_width)
         AppStorage.setOrCreate('screen_height', screen_height)

@@ -86,7 +86,7 @@ export struct RedPlayer { // 红薯播放器页
                 this.play_time = this.redPlayerStateHolder?.videoPosition
               }
               this.playerController?.createMediaPlayer(PlayerCoreType.TYPE_RED_PLAYER).then(async () => {
-                await PermissionUtil.activatePermission(this.now_playing?.uri || '')
+                await PermissionUtil.activatePermission(this.now_playing?.uri)
                 try {
                   const file = fs.openSync(this.now_playing?.uri)
                   this.playerController?.setDataSource({

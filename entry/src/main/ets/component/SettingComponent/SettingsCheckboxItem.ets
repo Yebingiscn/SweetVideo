@@ -8,7 +8,6 @@ export struct SettingsCheckboxItem {
   @State symbol: Resource | undefined = undefined
   @State message: ResourceStr = ''
   @Prop tips: ResourceStr[]
-  @State @Watch('onSegmentButtonChange') tabSelectedIndexes: number[] = [1];
   @State tabOptions: SegmentButtonOptions = SegmentButtonOptions.tab({
     buttons: [{ text: this.tips[0] }, { text: this.tips[1] }, {
       text: this.tips[2]
@@ -17,6 +16,7 @@ export struct SettingsCheckboxItem {
     selectedBackgroundColor: $r('app.color.main_color'),
     selectedFontColor: $r('sys.color.white')
   });
+  @State @Watch('onSegmentButtonChange') tabSelectedIndexes: number[] = [1];
 
   onSegmentButtonChange() {
     this.onButtonClick(Number(this.tabSelectedIndexes.toString()))

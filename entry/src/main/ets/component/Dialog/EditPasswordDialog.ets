@@ -19,6 +19,7 @@ export struct EditPasswordDialog {
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .onChange((input: string) => this.passwd = input)
         .type(InputType.NEW_PASSWORD)
+        .enableAutoFill(true)
         .id('input_pwd')
         .onAppear(() => {
           focusControl.requestFocus('input_pwd')

@@ -487,12 +487,11 @@ export struct Player { // 播放页
     this.avPlayer = await AVPlayerUtil.getAVPlayer()
     if (this.avPlayer) {
       this.setAVPlayerCallback()
-      await PermissionUtil.activatePermission(this.now_playing?.uri || '')
       try {
+        await PermissionUtil.activatePermission(this.now_playing?.uri)
         this.avPlayer.fdSrc = fs.openSync(this.now_playing?.uri);
       } catch (error) {
-        ToolsUtil.showToast('视频打开失败，可能已失效')
-        DataSyncUtil.invalidVideoIndex = this.video_meta_data.findIndex(i => i.date === this.now_playing?.date)
+        ToolsUtil.showToast('视频打开失败，可能已失效：' + error)
         this.pathStack.pop()
       }
       this.setRotation()

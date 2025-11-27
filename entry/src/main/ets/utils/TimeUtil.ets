@@ -1,8 +1,8 @@
 import { systemDateTime } from '@kit.BasicServicesKit'
 
 // 时间类，格式化时间
-class TimeUtil {
-  convertMSToHHMMSS(ms: number | undefined): string {
+export default class TimeUtil {
+  static convertMSToHHMMSS(ms: number | undefined): string {
     if (!ms) {
       return '00:00'
     }
@@ -19,7 +19,7 @@ class TimeUtil {
     return hours > 0 ? `${hh}:${mm}:${ss}` : `${mm}:${ss}`
   }
 
-  convertSSToMMSS(seconds: number | undefined): string {
+  static convertSSToMMSS(seconds: number | undefined): string {
     if (seconds === undefined || seconds === null || isNaN(seconds)) {
       return '00:00';
     }
@@ -33,7 +33,7 @@ class TimeUtil {
   }
 
   // 字幕时间格式化
-  formatTime(ms: number): string {
+  static formatTime(ms: number): string {
     const totalSeconds = Math.floor(ms / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
@@ -44,7 +44,7 @@ class TimeUtil {
   }
 
   // 获取当前时间
-  getTime() {
+  static getTime() {
     let timestamp = systemDateTime.getTime(false)
     const date = new Date(timestamp);
     const hours = date.getHours().toString().padStart(2, '0');
@@ -53,7 +53,7 @@ class TimeUtil {
     return timeString
   }
 
-  getTextByTime() {
+  static getTextByTime() {
     const now = new Date();
     const hours = now.getHours();
     if (hours === 15) {
@@ -73,5 +73,3 @@ class TimeUtil {
     }
   }
 }
-
-export default new TimeUtil()

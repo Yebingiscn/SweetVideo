@@ -9,26 +9,26 @@ import SelectFileUtil from './SelectFileUtil';
 import PermissionUtil from './PermissionUtil';
 
 // 视频信息类
-class VideoInfoUtil {
+export default class VideoInfoUtil {
   // 视频格式支持列表
-  public support_video_format = [
+  public static support_video_format = [
     'mp4', 'flv', 'mkv', 'ts', 'mov', 'rmvb', 'wmv', 'avi', 'm4v'
   ];
   // 音频格式支持列表
-  public support_audio_format = [
+  public static support_audio_format = [
     'wav', 'mp3', 'flac', 'dsf', 'dsd', 'dff', 'm4a', 'ape', 'aac', 'ogg', 'amr', 'aif', 'aiff', 'dts', 'wma', 'av3a'
   ];
   // 字幕格式支持列表
-  public support_subtitle_format = ['srt', 'vtt', 'ass']
+  public static support_subtitle_format = ['srt', 'vtt', 'ass']
   // 屏幕比例放大列表
-  public scale_factors = new Map<string, number>([
+  public static scale_factors = new Map<string, number>([
     ['等比放大 110%', 1.1],
     ['等比放大 120%', 1.2],
     ['等比放大 130%', 1.3],
     ['等比放大 140%', 1.4]
   ]);
   // 屏幕比例放大列表
-  public screenExtendList: Array<SelectOption> = [//屏幕扩展
+  public static screenExtendList: Array<SelectOption> = [//屏幕扩展
     { value: '原始比例' },
     { value: '填满屏幕' },
     { value: '16:9' },
@@ -37,15 +37,17 @@ class VideoInfoUtil {
     { value: '等比放大 120%' },
     { value: '等比放大 130%' },
     { value: '等比放大 140%' }]
-  public screenExtendMap: string[] = this.screenExtendList.map(item => item.value as string);
+  public static screenExtendMap: string[] = VideoInfoUtil.screenExtendList.map(item => item.value as string);
   // 播放器视频宽度
-  public play_area_width: number = 0
+  public static play_area_width: number = 0
   // 播放器视频高度
-  public play_area_height: number = 0
-  private GB = 1024 * 1024 * 1024 // 1GB in bytes
-  private MB = 1024 * 1024 // 1MB in bytes
+  public static play_area_height: number = 0
+  private static GB = 1024 * 1024 * 1024
+  // 1GB in bytes
+  private static MB = 1024 * 1024
+  // 1MB in bytes
   // 倍速枚举，绑定系统倍速，倍速映射：用户倍速 ↔ 系统枚举
-  private VIDEO_SPEED_MAP =
+  private static VIDEO_SPEED_MAP =
     new Map<number, media.PlaybackSpeed>([[0.125, media.PlaybackSpeed.SPEED_FORWARD_0_125_X],
       [0.25, media.PlaybackSpeed.SPEED_FORWARD_0_25_X],
       [0.5, media.PlaybackSpeed.SPEED_FORWARD_0_50_X],
@@ -53,17 +55,17 @@ class VideoInfoUtil {
       [1.25, media.PlaybackSpeed.SPEED_FORWARD_1_25_X], [1.5, media.PlaybackSpeed.SPEED_FORWARD_1_50_X],
       [1.75, media.PlaybackSpeed.SPEED_FORWARD_1_75_X], [2, media.PlaybackSpeed.SPEED_FORWARD_2_00_X],
       [3, media.PlaybackSpeed.SPEED_FORWARD_3_00_X]])
-  // 反向映射：系统枚举 → 用户倍速
-  private REVERSE_SPEED_MAP = new Map<media.PlaybackSpeed, number>(
-    Array.from(this.VIDEO_SPEED_MAP.entries()).map((entry) => [entry[1], entry[0]])
-  );
   // 类成员变量
-  private readonly videoSpeedListAll: number[] = Array.from(this.VIDEO_SPEED_MAP.keys())
+  private static readonly videoSpeedListAll: number[] = Array.from(VideoInfoUtil.VIDEO_SPEED_MAP.keys())
     .filter(speed => speed >= 0.25)
     .sort((a, b) => a - b);
-  private readonly videoSpeedListRedPlayer: number[] = this.videoSpeedListAll.filter(s => s <= 2);
+  // 反向映射：系统枚举 → 用户倍速
+  private static REVERSE_SPEED_MAP = new Map<media.PlaybackSpeed, number>(
+    Array.from(VideoInfoUtil.VIDEO_SPEED_MAP.entries()).map((entry) => [entry[1], entry[0]])
+  );
+  private static readonly videoSpeedListRedPlayer: number[] = VideoInfoUtil.videoSpeedListAll.filter(s => s <= 2);
   // 视频标签格式化
-  private video_size_map: Record<string, string> = {
+  private static video_size_map: Record<string, string> = {
     '720': '720P HD',
     '800': 'HD+',
     '900': '900P HD+',
@@ -83,7 +85,7 @@ class VideoInfoUtil {
   };
 
   // 设置存储的视频信息
-  async setVideoInfo(date: string, uri: string, file_name: string, metadata: media.AVMetadata,
+  static async setVideoInfo(date: string, uri: string, file_name: string, metadata: media.AVMetadata,
     sandbox_video: string, sandbox_path: string) {
     let time = '0'
     let hdr_type = media.HdrType.AV_HDR_TYPE_NONE
@@ -97,23 +99,23 @@ class VideoInfoUtil {
       uri: PrivacySpaceUtil.getPrivacyMode()! ? sandbox_video + date : uri,
       title: file_name,
       date: date,
-      size: this.getVideoWidthAndHeight(metadata),
+      size: VideoInfoUtil.getVideoWidthAndHeight(metadata),
       time: parseInt(time),
       last_play: 0,
-      format: this.getVideoFormat(file_name),
-      video_size: await this.getVideoSize(PrivacySpaceUtil.getPrivacyMode()! ? sandbox_video + date : uri,
+      format: VideoInfoUtil.getVideoFormat(file_name),
+      video_size: await VideoInfoUtil.getVideoSize(PrivacySpaceUtil.getPrivacyMode()! ? sandbox_video + date : uri,
         true) as string,
       hdr_type: hdr_type,
       start_time: 0,
       end_time: 0,
       external_subtitle_format: ''
     }
-    this.getVideoCover(sandbox_path, date, uri, targetVideo.size, parseInt(duration))
+    VideoInfoUtil.getVideoCover(sandbox_path, date, uri, targetVideo.size, parseInt(duration))
     return targetVideo
   }
 
   // 获取视频封面，需要控制并发，不然获取不了,这里实现一个队列来控制并发
-  async getVideoCover(sandbox_path: string, date: string, uri: string, size: number[], time: number) {
+  static async getVideoCover(sandbox_path: string, date: string, uri: string, size: number[], time: number) {
     if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
       return ConcurrentQueue.enqueue(async () => {
         await PermissionUtil.persistPermission(uri);
@@ -127,7 +129,7 @@ class VideoInfoUtil {
           SelectFileUtil.saveVideoImageToPrivacySpace(sandbox_path, date, pixelMap);
         } catch (error) {
           console.error(`AlbumCover failed: ${error.message}`);
-          await this.getVideoImage(uri, size, date, sandbox_path, time);
+          await VideoInfoUtil.getVideoImage(uri, size, date, sandbox_path, time);
         } finally {
           if (file) {
             fs.closeSync(file)
@@ -142,11 +144,11 @@ class VideoInfoUtil {
     }
   }
 
-  public getVideoFormat(videoName: string) {
+  public static getVideoFormat(videoName: string) {
     return videoName.split('.')[videoName.split('.').length-1]
   }
 
-  public optimizedFormat(speed: number): string {
+  public static optimizedFormat(speed: number): string {
     if (speed) {
       const str = speed.toFixed(2);
       let end = str.length;
@@ -162,12 +164,12 @@ class VideoInfoUtil {
     }
   }
 
-  getVideoTitle(item: VideoMetadata) {
+  static getVideoTitle(item: VideoMetadata) {
     return item.title.slice(0, item.title.lastIndexOf('.'))
   }
 
   // 视频没有封面设置获取指定时间的截图作为视频封面
-  async getVideoImage(uri: string, size: number[], date: string, sandbox_path: string, time: number) {
+  static async getVideoImage(uri: string, size: number[], date: string, sandbox_path: string, time: number) {
     if (canIUse('SystemCapability.Multimedia.Media.AVImageGenerator')) {
       try {
         let avImageGenerator: media.AVImageGenerator = await media.createAVImageGenerator();
@@ -196,7 +198,7 @@ class VideoInfoUtil {
   }
 
   // 获取视频长宽
-  getVideoWidthAndHeight(metadata: media.AVMetadata) {
+  static getVideoWidthAndHeight(metadata: media.AVMetadata) {
     if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
       const isPortrait = metadata.videoOrientation === '90' || metadata.videoOrientation === '270'
       const width = parseInt(String(isPortrait ? metadata.videoHeight : metadata.videoWidth)) || 0
@@ -208,8 +210,8 @@ class VideoInfoUtil {
   }
 
   // 正向：用户倍速 → 系统枚举
-  mapToSystemSpeed(userSpeed: number): media.PlaybackSpeed {
-    const systemSpeed = this.VIDEO_SPEED_MAP.get(userSpeed)
+  static mapToSystemSpeed(userSpeed: number): media.PlaybackSpeed {
+    const systemSpeed = VideoInfoUtil.VIDEO_SPEED_MAP.get(userSpeed)
     if (systemSpeed !== undefined) {
       return systemSpeed
     }
@@ -217,41 +219,41 @@ class VideoInfoUtil {
   }
 
   // 反向：系统枚举 → 用户倍速
-  mapFromSystemSpeed(systemEnum: media.PlaybackSpeed): number {
-    const userSpeed = this.REVERSE_SPEED_MAP.get(systemEnum)
+  static mapFromSystemSpeed(systemEnum: media.PlaybackSpeed): number {
+    const userSpeed = VideoInfoUtil.REVERSE_SPEED_MAP.get(systemEnum)
     if (userSpeed !== undefined) {
       return userSpeed
     }
     return 1.0;
   }
 
-  getVideoSpeedList(player: string): number[] {
+  static getVideoSpeedList(player: string): number[] {
     return player === NavigationAddress.RED_PLAYER
-      ? this.videoSpeedListRedPlayer
-      : this.videoSpeedListAll;
+      ? VideoInfoUtil.videoSpeedListRedPlayer
+      : VideoInfoUtil.videoSpeedListAll;
   }
 
-  getVideoSpeedTextList() {
-    return this.videoSpeedListAll.map(speed =>
+  static getVideoSpeedTextList() {
+    return VideoInfoUtil.videoSpeedListAll.map(speed =>
     `${speed}x`.replace(/(\.0+)?x$/, 'x')  // 同时处理整数和小数
     );
   }
 
   // 获取视频标签格式化
-  videoWidthAndHeightFormat(size: string) {
+  static videoWidthAndHeightFormat(size: string) {
     const sizeArray = size.split(',');
     const width = sizeArray[0];
     const height = sizeArray[1];
     const sizeKey = `${width}x${height}`;
     // 匹配优先级
-    return this.video_size_map[sizeKey] || // 1. 精确匹配宽高
-    this.video_size_map[height] || // 2. 标准高度命名
-    this.video_size_map[width] || // 3. 特殊宽度标准
+    return VideoInfoUtil.video_size_map[sizeKey] || // 1. 精确匹配宽高
+    VideoInfoUtil.video_size_map[height] || // 2. 标准高度命名
+    VideoInfoUtil.video_size_map[width] || // 3. 特殊宽度标准
       `${width} x ${height}`; // 4. 默认格式
   }
 
   // 获取视频大小
-  async getVideoSize(uri: string, return_string: boolean): Promise<string | number> {
+  static async getVideoSize(uri: string, return_string: boolean): Promise<string | number> {
     return new Promise((resolve, reject) => {
       try {
         let file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
@@ -259,9 +261,9 @@ class VideoInfoUtil {
           if (err) {
             reject('app.string.unknown_size')
           } else if (return_string) {
-            const size = stat.size > this.GB ?
-              (stat.size / this.GB).toFixed(2) + ' GB' :
-              (stat.size / this.MB).toFixed(2) + ' MB'
+            const size = stat.size > VideoInfoUtil.GB ?
+              (stat.size / VideoInfoUtil.GB).toFixed(2) + ' GB' :
+              (stat.size / VideoInfoUtil.MB).toFixed(2) + ' MB'
             resolve(size)
           } else {
             resolve(stat.size)
@@ -274,10 +276,8 @@ class VideoInfoUtil {
   }
 
   // 保存视频初始长宽，变更后视频长宽后使用
-  saveOriginalVideoWidthAndHeight(play_area_width: number, play_area_height: number) {
-    this.play_area_width = play_area_width
-    this.play_area_height = play_area_height
+  static saveOriginalVideoWidthAndHeight(play_area_width: number, play_area_height: number) {
+    VideoInfoUtil.play_area_width = play_area_width
+    VideoInfoUtil.play_area_height = play_area_height
   }
 }
-
-export default new VideoInfoUtil()

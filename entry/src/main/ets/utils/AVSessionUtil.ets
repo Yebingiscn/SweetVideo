@@ -11,20 +11,20 @@ import { PathUtils } from './PathUtils';
 import { BusinessError, systemDateTime } from '@kit.BasicServicesKit';
 
 // 播控中心设置类
-class AVSessionUtil {
-  avSession: avSessionManager.AVSession | undefined = undefined;
-  castController: avSession.AVCastController | undefined = undefined;
-  pixelMap: image.PixelMap | undefined
-  imageSource: image.ImageSource | undefined
+export default class AVSessionUtil {
+  static avSession: avSessionManager.AVSession | undefined = undefined;
+  static castController: avSession.AVCastController | undefined = undefined;
+  static pixelMap: image.PixelMap | undefined
+  static imageSource: image.ImageSource | undefined
 
-  async getAVSession() {
-    if (!this.avSession) {
-      await this.createSession();
+  static async getAVSession() {
+    if (!AVSessionUtil.avSession) {
+      await AVSessionUtil.createSession();
     }
-    return this.avSession;
+    return AVSessionUtil.avSession;
   }
 
-  async checkOtherCast(avSession: avSessionManager.AVSession) {
+  static async checkOtherCast(avSession: avSessionManager.AVSession) {
     try {
       let currentOutputDevice: avSession.OutputDeviceInfo = avSession.getOutputDeviceSync();
       return currentOutputDevice
@@ -36,15 +36,15 @@ class AVSessionUtil {
   }
 
   // 更新播控中心状态
-  updatePlaybackSessionState(playing: boolean, play_time: number) {
+  static updatePlaybackSessionState(playing: boolean, play_time: number) {
     let data: AvSessionState = {
       playing: playing,
       duration: play_time
     }
-    this.updateSession(data)
+    AVSessionUtil.updateSession(data)
   }
 
-  castOnStateChange(state: AVCastPickerState) {
+  static castOnStateChange(state: AVCastPickerState) {
     if (state == AVCastPickerState.STATE_APPEARING) {
       console.log('The picker starts showing.');
     } else if (state == AVCastPickerState.STATE_DISAPPEARING) {
@@ -52,11 +52,11 @@ class AVSessionUtil {
     }
   }
 
-  async createSession() {
+  static async createSession() {
     let type: avSessionManager.AVSessionType = 'audio';
     try {
-      this.avSession = await avSessionManager.createAVSession(PathUtils.appContext!, 'sweet_video', type);
-      this.avSession.activate()?.catch(() => {
+      AVSessionUtil.avSession = await avSessionManager.createAVSession(PathUtils.appContext!, 'sweet_video', type);
+      AVSessionUtil.avSession.activate()?.catch(() => {
         console.error('activate avSession erro')
       })
     } catch (error) {
@@ -64,33 +64,33 @@ class AVSessionUtil {
     }
   }
 
-  async setSessionInfo(metadata: VideoMetadataFromPlayer) {
+  static async setSessionInfo(metadata: VideoMetadataFromPlayer) {
     try {
-      this.imageSource = image.createImageSource(PathUtils.coverPath + metadata.date);
+      AVSessionUtil.imageSource = image.createImageSource(PathUtils.coverPath + metadata.date);
       let decodingOptions: image.DecodingOptions = {
         //设置为AUTO会根据图片资源格式解码，如果图片资源为HDR资源则会解码为HDR的pixel map。
         desiredDynamicRange: image.DecodingDynamicRange.AUTO,
       };
-      this.pixelMap = this.imageSource.createPixelMapSync(decodingOptions);
+      AVSessionUtil.pixelMap = AVSessionUtil.imageSource.createPixelMapSync(decodingOptions);
     } catch (e) { //视频没有封面时加载默认封面
       const resourceMgr = PathUtils.appContext!.resourceManager.getMediaContentSync($r('app.media.sweet_video').id)
       const defaultImageSource = image.createImageSource(resourceMgr.buffer);
-      this.pixelMap = defaultImageSource.createPixelMapSync();
+      AVSessionUtil.pixelMap = defaultImageSource.createPixelMapSync();
     }
     let session_metadata: avSessionManager.AVMetadata = {
       assetId: metadata.date,
       title: metadata.title.slice(0, metadata.title.lastIndexOf('.')),
-      mediaImage: this.pixelMap,
+      mediaImage: AVSessionUtil.pixelMap,
       duration: metadata.time,
       filter: avSession.ProtocolType.TYPE_CAST_PLUS_STREAM | avSession.ProtocolType.TYPE_DLNA,
     };
-    this.avSession?.setAVMetadata(session_metadata)?.catch(() => {
+    AVSessionUtil.avSession?.setAVMetadata(session_metadata)?.catch(() => {
       console.error('setAVMetadata error')
     })
-    await this.getAVCastController(metadata)
+    await AVSessionUtil.getAVCastController(metadata)
   }
 
-  updateSession(avSessionState: AvSessionState) {
+  static updateSession(avSessionState: AvSessionState) {
     let playbackState: avSessionManager.AVPlaybackState = {
       state: avSessionState.playing ? avSessionManager.PlaybackState.PLAYBACK_STATE_PLAY :
         avSessionManager.PlaybackState.PLAYBACK_STATE_PAUSE,
@@ -99,27 +99,27 @@ class AVSessionUtil {
         updateTime: systemDateTime.getTime(false),
       },
     };
-    this.avSession?.setAVPlaybackState(playbackState)?.catch(() => {
+    AVSessionUtil.avSession?.setAVPlaybackState(playbackState)?.catch(() => {
       console.error('updateSession error')
     });
   }
 
-  destroySession() {
-    this.avSession?.destroy()?.catch(() => {
+  static destroySession() {
+    AVSessionUtil.avSession?.destroy()?.catch(() => {
       console.error('destroy Session error')
     })
-    this.avSession = undefined
-    this.pixelMap?.release();
-    this.imageSource?.release();
+    AVSessionUtil.avSession = undefined
+    AVSessionUtil.pixelMap?.release();
+    AVSessionUtil.imageSource?.release();
   }
 
-  async getAVCastController(now_playing: VideoMetadataFromPlayer) {
+  static async getAVCastController(now_playing: VideoMetadataFromPlayer) {
     // 如支持投播，可使用下面接口监听设备连接状态的变化
     try {
-      await this.avSession?.setExtras({
+      await AVSessionUtil.avSession?.setExtras({
         requireAbilityList: ['url-cast']
       })
-      this.avSession?.on('outputDeviceChange', async (connectState: avSession.ConnectionState,
+      AVSessionUtil.avSession?.on('outputDeviceChange', async (connectState: avSession.ConnectionState,
         device: avSession.OutputDeviceInfo) => {
         // 可以通过当前设备及设备连接状态来更新应用内播放界面的显示
         let currentDevice: avSession.DeviceInfo = device?.devices?.[0];
@@ -128,19 +128,19 @@ class AVSessionUtil {
           console.error(`Device connected: ${device}`);
           console.error('Succeeded in getting a cast controller');
           // 查询当前播放的状态
-          this.castController = await this.avSession?.getAVCastController();
-          let avPlaybackState = await this.castController?.getAVPlaybackState();
+          AVSessionUtil.castController = await AVSessionUtil.avSession?.getAVCastController();
+          let avPlaybackState = await AVSessionUtil.castController?.getAVPlaybackState();
           console.error(`Succeeded in AVPlaybackState resource obtained: ${avPlaybackState}`);
           // 监听播放状态的变化
-          this.castController?.on('playbackStateChange', 'all', (state: avSession.AVPlaybackState) => {
+          AVSessionUtil.castController?.on('playbackStateChange', 'all', (state: avSession.AVPlaybackState) => {
             console.error(`Succeeded in Playback state changed: ${state}`);
           });
           if (currentDevice.supportedProtocols === avSession.ProtocolType.TYPE_CAST_PLUS_STREAM) {
-            this.playItem(now_playing)
+            AVSessionUtil.playItem(now_playing)
             // 此设备支持cast+投播协议
           } else if (currentDevice.supportedProtocols === avSession.ProtocolType.TYPE_DLNA) {
             // 此设备支持DLNA投播协议
-            this.playItem(now_playing)
+            AVSessionUtil.playItem(now_playing)
           }
         }
       })
@@ -149,8 +149,8 @@ class AVSessionUtil {
     }
   }
 
-  async playItem(now_playing: VideoMetadataFromPlayer) {
-    await PermissionUtil.activatePermission(now_playing?.uri || '')
+  static async playItem(now_playing: VideoMetadataFromPlayer) {
+    await PermissionUtil.activatePermission(now_playing?.uri)
     try {
       const file = fs.openSync(now_playing?.uri)
       let avFileDescriptor: media.AVFileDescriptor = { fd: file.fd };
@@ -175,10 +175,10 @@ class AVSessionUtil {
         }
       };
       // 准备播放，这个不会触发真正的播放，会进行加载和缓冲
-      this.castController?.prepare(playItem, () => {
+      AVSessionUtil.castController?.prepare(playItem, () => {
         console.info('Preparation done');
         // 启动播放，真正触发对端播放。请在Prepare成功后再调用start。
-        this.castController?.start(playItem, () => {
+        AVSessionUtil.castController?.start(playItem, () => {
           console.info('Playback started');
         });
       });
@@ -187,5 +187,3 @@ class AVSessionUtil {
     }
   }
 }
-
-export default new AVSessionUtil();

@@ -21,6 +21,8 @@ import VideoUtils from '../../utils/VideoUtil';
 import FileFolderUtil from '../../utils/FileFolderUtil';
 import NavigationAddress from '../../common/NavigationCommon';
 import Preferences from '../../database/Preferences';
+import { XAnimation } from '../../utils/AnimationUtil';
+import { FileFolder } from '../../interfaces/FileFolderInterface';
 
 @Component
 export struct VideoView {
@@ -30,6 +32,7 @@ export struct VideoView {
   @Link searchValue: string
   @Link passwd: string
   @Link videoListController: VideoListController
+  @Consume file_folder_list: FileFolder[]
   @Consume sideBarController: SideBarController
   @Consume('pathStack') pathStack: NavPathStack
   @Consume fileFolderSource: FileFolderDataSource
@@ -68,94 +71,126 @@ export struct VideoView {
         .height('100%')
         .animation({ duration: 150, curve: Curve.Ease })
       }
-      Row({ space: 15 }) {
-        if (!this.is_edit && this.sideBarController.side_bar_mode == SideBarContainerType.Overlay) {
-          Button({ type: ButtonType.Circle, stateEffect: true }) {
-            SymbolGlyph($r('sys.symbol.close_sidebar'))
-              .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-          }
-          .attributeModifier(new ButtonFancyModifier(40, 40))
-          .animation({ duration: 300, curve: Curve.Ease })
-          .onClick(() => {
-            this.sideBarController.openSideBar()
-          })
-          .attributeModifier(new SearchShadowModifier())
-        }
-
-        SearchComponent({
-          controller: this.searchController,
-          searchValue: this.searchValue,
-          onChange: () => {
-            if (this.searchValue === '') {
-              const videoMetaDataList: VideoMetadata[] =
-                FolderOperator.getFolderByName(this.videoListController.folder.name).video_list
-              this.videoListController.videoDataSource.updateData(videoMetaDataList)
-              this.videoListController.updateData(this.videoListController.videoDataSource,
-                this.videoListController.folder)
-            } else {
-              const videoMetaDataList: VideoMetadata[] =
-                SelectFileUtil.getItemFromSearch(FolderOperator.getFolderByName(this.videoListController.folder.name)
-                  .video_list, this.searchValue)
-              this.videoListController.videoDataSource.updateData(videoMetaDataList)
-              this.videoListController.updateData(this.videoListController.videoDataSource,
-                this.videoListController.folder)
-            }
-          },
-          onSubmit: (value: string) => {
-            if (value == '') {
-              if (this.videoListController.videoMetaDataList.length == 0) {
-                ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
-                return
-              }
-              this.searchController.stopEditing()
-              return
-            }
-            if (value == this.passwd) {
-              ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
-              this.pathStack.pushPathByName(NavigationAddress.PRIVACY_SPACE, null)
-              this.searchValue = ''
-              return
-            }
-            if (this.videoListController.videoMetaDataList.length == 0) {
-              ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
-            }
-          },
-          onEditChange: (isEditing: boolean) => {
-            animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
-              this.is_edit = isEditing
-            })
-          },
-          onSearchFocus: () => {
-            this.passwd = Preferences.getPassword(PathUtils.appContext!)
-          }
-        })
-
-        if (!this.is_edit) {
-          Button({ type: ButtonType.Circle, stateEffect: true }) {
-            SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
-              .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-          }
-          .attributeModifier(new ButtonFancyModifier(40, 40))
-          .animation({ duration: 300, curve: Curve.Ease })
-          .bindMenu(this.SortMenuBuilder,
-            { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
-          .attributeModifier(new SearchShadowModifier())
-
-          if (this.videoListController.multipleChooseState === Visibility.Visible) {
+      Column() {
+        Row({ space: 15 }) {
+          if (!this.is_edit && this.sideBarController.side_bar_mode == SideBarContainerType.Overlay) {
             Button({ type: ButtonType.Circle, stateEffect: true }) {
-              SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
+              SymbolGlyph($r('sys.symbol.close_sidebar'))
                 .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
             }
             .attributeModifier(new ButtonFancyModifier(40, 40))
             .animation({ duration: 300, curve: Curve.Ease })
-            .bindMenu(this.SelectItemMenuBuilder,
+            .onClick(() => {
+              this.sideBarController.openSideBar()
+            })
+            .attributeModifier(new SearchShadowModifier())
+            .transition(XAnimation.getAnimation('left', 0, false))
+          }
+
+          SearchComponent({
+            controller: this.searchController,
+            searchValue: this.searchValue,
+            onChange: () => {
+              if (this.searchValue === '') {
+                const videoMetaDataList: VideoMetadata[] =
+                  FolderOperator.getFolderByName(this.videoListController.folder.name).video_list
+                this.videoListController.videoDataSource.updateData(videoMetaDataList)
+                this.videoListController.updateData(this.videoListController.videoDataSource,
+                  this.videoListController.folder)
+              } else {
+                const videoMetaDataList: VideoMetadata[] =
+                  SelectFileUtil.getItemFromSearch(FolderOperator.getFolderByName(this.videoListController.folder.name)
+                    .video_list, this.searchValue)
+                this.videoListController.videoDataSource.updateData(videoMetaDataList)
+                this.videoListController.updateData(this.videoListController.videoDataSource,
+                  this.videoListController.folder)
+              }
+            },
+            onSubmit: (value: string) => {
+              if (value == '') {
+                if (this.videoListController.videoMetaDataList.length == 0) {
+                  ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
+                  return
+                }
+                this.searchController.stopEditing()
+                return
+              }
+              if (value == this.passwd) {
+                ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
+                this.pathStack.pushPathByName(NavigationAddress.PRIVACY_SPACE, null)
+                this.searchValue = ''
+                return
+              }
+              if (this.videoListController.videoMetaDataList.length == 0) {
+                ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
+              }
+            },
+            onEditChange: (isEditing: boolean) => {
+              animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
+                this.is_edit = isEditing
+              })
+            },
+            onSearchFocus: () => {
+              this.passwd = Preferences.getPassword(PathUtils.appContext!)
+            }
+          })
+
+          if (!this.is_edit) {
+            Button({ type: ButtonType.Circle, stateEffect: true }) {
+              SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
+                .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+            }
+            .attributeModifier(new ButtonFancyModifier(40, 40))
+            .bindMenu(this.SortMenuBuilder,
               { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
             .attributeModifier(new SearchShadowModifier())
+            .transition(XAnimation.getAnimation('right', 0, false))
+
+            if (this.videoListController.multipleChooseState === Visibility.Visible) {
+              Button({ type: ButtonType.Circle, stateEffect: true }) {
+                SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
+                  .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+              }
+              .attributeModifier(new ButtonFancyModifier(40, 40))
+              .bindMenu(this.SelectItemMenuBuilder,
+                { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
+              .attributeModifier(new SearchShadowModifier())
+              .transition(XAnimation.getAnimation('right', 0, false))
+            }
           }
         }
-      }.padding({ top: this.topSafeHeight, left: 10, right: 10 })
-      .width('100%')
-    }
+        .width('100%')
+
+        Scroll() {
+          Row({ space: 15 }) {
+            LazyForEach(this.fileFolderSource, (folder: FileFolder) => {
+              Text(folder?.name)
+                .fontWeight(this.videoListController.folder.name === folder?.name ? FontWeight.Bold :
+                  FontWeight.Medium)
+                .fontSize(this.videoListController.folder.name === folder?.name ? 18 : 15)
+                .textAlign(TextAlign.Start)
+                .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+                .textOverflow({ overflow: TextOverflow.MARQUEE })
+                .onClick(() => {
+                  if (this.videoListController.folder.date === folder.date) {
+                    return
+                  }
+                  this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
+                  this.fileFolderSource.updateData(this.file_folder_list)
+                  const currentFolder = this.fileFolderSource.getFileFolder(folder.name)
+                  this.videoListController.videoDataSource.updateData(currentFolder.video_list)
+                  this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder!)
+                  this.sideBarController.closeSideBar(true)
+                })
+            }, (folder: FileFolder) => folder.name + folder.date + folder.video_list.toString())
+          }
+        }
+        .width('100%')
+        .scrollBar(BarState.Off)
+        .scrollable(ScrollDirection.Horizontal)
+        .edgeEffect(EdgeEffect.Spring) // 滚动边缘效果
+      }.width('100%').padding({ top: this.topSafeHeight, left: 10, right: 10 })
+    }.width('100%')
   }
 
   @Builder

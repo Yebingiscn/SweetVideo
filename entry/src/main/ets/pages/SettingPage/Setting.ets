@@ -7,11 +7,8 @@ import Preferences from '../../database/Preferences';
 import BiometricAccessUtil from '../../utils/BiometricAccessUtil';
 import { PathUtils } from '../../utils/PathUtils';
 import ToolsUtil from '../../utils/ToolsUtil';
-import { fileIo as fs } from '@kit.CoreFileKit';
 import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem';
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
-import SelectFileUtil from '../../utils/SelectFileUtil';
-import SubtitleUtil from '../../utils/SubtitleUtil';
 
 @Component
 export struct SettingsPage { //设置页
@@ -59,7 +56,7 @@ export struct SettingsPage { //设置页
               message: $r('app.string.privacy_space'),
               onPress: async () => {
                 this.passwd = Preferences.getPassword(PathUtils.appContext!)
-                if (this.passwd === '') { // 未设置密码时直接打开设置弹窗
+                if (this.passwd.length === 0) { // 未设置密码时直接打开设置弹窗
                   this.editPasswdDialogController.open();
                   return;
                 }
@@ -76,16 +73,6 @@ export struct SettingsPage { //设置页
               }
             })
           }
-        }
-
-        ListItem() {
-          SettingsClickItem({
-            symbol: $r('sys.symbol.doc_plaintext'),
-            message: '崩溃日志',
-            onPress: () => {
-              this.pathStack.pushPathByName(NavigationAddress.CRASH_PAGE, true)
-            }
-          })
         }
 
         ListItem() {
@@ -110,48 +97,10 @@ export struct SettingsPage { //设置页
 
         ListItem() {
           SettingsClickItem({
-            symbol: $r('sys.symbol.arrow_up_circle'),
-            message: '检查更新',
+            symbol: $r('sys.symbol.more'),
+            message: '更多设置',
             onPress: () => {
-              ToolsUtil.checkUpdate()
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsClickItem({
-            symbol: $r('sys.symbol.trash'),
-            message: '清理失效文件',
-            onPress: async () => {
-              const coverFromSandbox = await fs.listFile(PathUtils.coverPath).catch(() => {
-                console.error('get cover fail')
-              });
-              const isNumericStart = (filename: string): boolean => /^\d/.test(filename);
-              const coverFromSandboxArray = Array.isArray(coverFromSandbox)
-                ? coverFromSandbox.filter(file => isNumericStart(file)) : [];
-              const subtitleFromSandbox = await fs.listFile(PathUtils.subtitlePath).catch(() => {
-                console.error('get subtitle fail')
-              })
-              const subtitleFromSandboxArray = Array.isArray(subtitleFromSandbox) ? subtitleFromSandbox : []
-              const videoMetaData = Preferences.getVideoMetaData(PathUtils.appContext!)
-              const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-              const fileFolder = Preferences.getFileFolder(PathUtils.appContext!)
-              const existingItemsSet = new Set([
-                ...videoMetaData.map(v => v.date),
-                ...videoMetaDataEncryption.map(v => v.date),
-                ...fileFolder.flatMap(folder =>
-                folder.video_list?.map(item => item!.date) ?? []
-                )
-              ])
-              const missingCoverFiles = coverFromSandboxArray.filter((file => !existingItemsSet.has(file)))
-              const missingSubtitleFiles = subtitleFromSandboxArray.filter(file => !existingItemsSet.has(file));
-              const missingFileSum = missingCoverFiles.length + missingSubtitleFiles.length
-              await Promise.all([
-                ...missingCoverFiles.map((file): Promise<void> => SelectFileUtil.deleteCover(file)),
-                ...missingSubtitleFiles.map((file): Promise<void> => SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath,
-                  file))
-              ])
-              ToolsUtil.showToast(missingFileSum > 0 ? '删除了 ' + missingFileSum + ' 项文件' : '没有找到失效文件')
+              this.pathStack.pushPathByName(NavigationAddress.MORE_SETTING_PAGE, true)
             }
           })
         }
@@ -217,6 +166,24 @@ export struct SettingsPage { //设置页
             Text('3. 方向左键回退')
               .fontSize(15)
             Text('4. 方向右键快进')
+              .fontSize(15)
+          }.alignItems(HorizontalAlign.Start).width('100%')
+        }
+        .margin({ top: 10 })
+        .padding(15)
+        .borderRadius(16)
+        .width('100%')
+        .backgroundColor($r('app.color.start_window_background_blur'))
+
+        ListItem() {
+          Column() {
+            Text('如何进入隐私空间')
+              .fontSize(20).fontWeight(FontWeight.Medium)
+            Text('1. 通过设置页隐私空间进入')
+              .fontSize(15)
+            Text('2. 通过搜索框输入密码进入')
+              .fontSize(15)
+            Text('3. 通过首页双指捏合往外划开进入')
               .fontSize(15)
           }.alignItems(HorizontalAlign.Start).width('100%')
         }

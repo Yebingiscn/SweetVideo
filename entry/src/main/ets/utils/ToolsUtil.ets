@@ -17,12 +17,15 @@ import { updateManager } from '@kit.StoreKit';
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode';
 
 // 工具类
-export class ToolsUtil {
-  private splitRegex = /(\d+)/g; // 只匹配连续数字
-  private pinyinCache = new WeakMap<VideoMetadata, string>(); // 缓存排序列表
+export default class ToolsUtil {
+  private static splitRegex = /(\d+)/g;
+  // 只匹配连续数字
+  private static pinyinCache = new WeakMap<VideoMetadata, string>();
+
+  // 缓存排序列表
 
   // Toast设置
-  showToast(text: string) {
+  static showToast(text: string) {
     try {
       promptAction.showToast({
         message: text,
@@ -35,7 +38,7 @@ export class ToolsUtil {
   }
 
   // 震动设置
-  startVibration() {
+  static startVibration() {
     if (canIUse("SystemCapability.Sensors.MiscDevice")) {
       vibrator.startVibration({
         type: 'preset',
@@ -52,7 +55,7 @@ export class ToolsUtil {
     }
   }
 
-  getStringResource(resource: number) {
+  static getStringResource(resource: number) {
     try {
       return PathUtils.appContext!.resourceManager.getStringSync(resource)
     } catch (error) {
@@ -61,13 +64,13 @@ export class ToolsUtil {
     }
   }
 
-  errorCatchExec(name: string, error?: string) {
+  static errorCatchExec(name: string, error?: string) {
     console.error(`sweet_video error log name: ${name}: error: ${error}`)
-    this.showToast(`流心出错了，方法名：${name} 内容：${error}`)
+    ToolsUtil.showToast(`流心出错了，方法名：${name} 内容：${error}`)
   }
 
   // 名称排序处理，如果单纯使用普通排序逻辑会造成卡顿，这里结合华为提供的排序进行排序
-  sortByNameProcess(list: VideoMetadata[]) {
+  static sortByNameProcess(list: VideoMetadata[]) {
     const collator = new Intl.Collator("zh-CN", {
       sensitivity: "variant",
       numeric: true,
@@ -76,8 +79,8 @@ export class ToolsUtil {
     });
     const naturalCompare = (a: string, b: string) => {
       // 使用新正则拆分数字部分
-      const aParts = a.split(this.splitRegex).filter(Boolean);
-      const bParts = b.split(this.splitRegex).filter(Boolean);
+      const aParts = a.split(ToolsUtil.splitRegex).filter(Boolean);
+      const bParts = b.split(ToolsUtil.splitRegex).filter(Boolean);
       for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
         const aVal = aParts[i];
         const bVal = bParts[i];
@@ -103,24 +106,24 @@ export class ToolsUtil {
     };
     const sortedList = [...list].sort((a, b): number => { // 实现一个排序缓存
       const getCachedPinyin = (item: VideoMetadata) => {
-        if (!this.pinyinCache.has(item)) {
-          this.pinyinCache.set(item, pinyin4js.getShortPinyin(item.title || ""));
+        if (!ToolsUtil.pinyinCache.has(item)) {
+          ToolsUtil.pinyinCache.set(item, pinyin4js.getShortPinyin(item.title || ""));
         }
-        return this.pinyinCache.get(item)!;
+        return ToolsUtil.pinyinCache.get(item)!;
       };
       return naturalCompare(getCachedPinyin(a), getCachedPinyin(b));
     });
     return sortedList;
   }
 
-  sortByTimeProcess(list: VideoMetadata[]) {
+  static sortByTimeProcess(list: VideoMetadata[]) {
     return [...list].sort((a, b) => Number(b.date) - Number(a.date)
     );
   }
 
   // 名称排序
-  async sortByName(context: Context, list: VideoMetadata[], file_folder: FileFolder | undefined) {
-    const sorted_list = this.sortByNameProcess(list)
+  static async sortByName(context: Context, list: VideoMetadata[], file_folder: FileFolder | undefined) {
+    const sorted_list = ToolsUtil.sortByNameProcess(list)
     if (file_folder) {
       FileFolderUtil.updateFileFolder(context, file_folder, sorted_list)
     } else {
@@ -130,8 +133,8 @@ export class ToolsUtil {
   }
 
   //时间排序，从近到久
-  async sortByTime(context: Context, list: VideoMetadata[], file_folder: FileFolder | undefined) {
-    const sorted_list = this.sortByTimeProcess(list)
+  static async sortByTime(context: Context, list: VideoMetadata[], file_folder: FileFolder | undefined) {
+    const sorted_list = ToolsUtil.sortByTimeProcess(list)
     if (file_folder) {
       FileFolderUtil.updateFileFolder(context, file_folder, sorted_list)
     } else {
@@ -141,21 +144,21 @@ export class ToolsUtil {
   }
 
   // 保存密码
-  savePwd(context: Context, passwd: string) {
+  static savePwd(context: Context, passwd: string) {
     Preferences.savePassword(context, passwd)
-    this.showToast(this.getStringResource($r('app.string.set_passwd_tip').id))
+    ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.set_passwd_tip').id))
   }
 
   // 点击视频跳转到播放器
-  async routerWhere(pathStack: NavPathStack, uri: string, item: VideoMetadata, list: VideoMetadata[]) {
+  static async routerWhere(pathStack: NavPathStack, uri: string, item: VideoMetadata, list: VideoMetadata[]) {
     // 没有长宽的视频/音频系统播放器播不了
     if (VideoInfoUtil.videoWidthAndHeightFormat(String(item?.size)) === '0 x 0') {
-      this.showToast(this.getStringResource($r('app.string.video_error').id))
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
       uri = NavigationAddress.FFMPEG_PLAYER
     }
     // 红薯播放器不允许播放 HDR VIVID 视频，否则可能会导致卡屏
     if (uri === NavigationAddress.RED_PLAYER && item.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID) {
-      this.showToast('该播放器不支持 HDR VIVID，已智能切换到合适播放器')
+      ToolsUtil.showToast('该播放器不支持 HDR VIVID，已智能切换到合适播放器')
       uri = NavigationAddress.AV_PLAYER
     }
     const playerParams = new PlayerParams(item, list, undefined)
@@ -163,7 +166,7 @@ export class ToolsUtil {
   }
 
   // 获取版本号
-  async getVersionName() {
+  static async getVersionName() {
     try {
       if (canIUse("SystemCapability.BundleManager.BundleFramework.Core")) {
         const bundleInfo =
@@ -178,7 +181,7 @@ export class ToolsUtil {
     }
   }
 
-  checkUpdate() {
+  static checkUpdate() {
     updateManager.checkAppUpdate(PathUtils.appContext)
       .then((checkResult: updateManager.CheckUpdateResult) => {
         hilog.info(0, 'TAG', "Succeeded in checking Result updateAvailable:" + checkResult.updateAvailable);
@@ -186,22 +189,22 @@ export class ToolsUtil {
           updateManager.showUpdateDialog(PathUtils.appContext)
             .then((resultCode: updateManager.ShowUpdateResultCode) => {
               hilog.info(0, 'TAG', "Succeeded in showing UpdateDialog resultCode:" + resultCode);
-              this.showToast('有新版本：' + resultCode)
+              ToolsUtil.showToast('有新版本：' + resultCode)
             })
             .catch((error: BusinessError) => {
-              this.showToast('更新弹窗生成失败，原因是：' + error)
+              ToolsUtil.showToast('更新弹窗生成失败，原因是：' + error)
               hilog.error(0, 'TAG', `showUpdateDialog onError.code is ${error.code}, message is ${error.message}`);
             });
         } else {
-          this.showToast('还没有新版本~')
+          ToolsUtil.showToast('还没有新版本~')
         }
       }).catch((error: BusinessError) => {
-      this.showToast('检查更新失败，原因是：' + error)
+      ToolsUtil.showToast('检查更新失败，原因是：' + error)
       hilog.error(0, 'TAG', `checkAppUpdate onError.code is ${error.code}, message is ${error.message}`);
     });
   }
 
-  setColorMode(context: Context, select: number) {
+  static setColorMode(context: Context, select: number) {
     try {
       switch (select) {
         case BackgroundColorMode.AUTO:
@@ -219,5 +222,3 @@ export class ToolsUtil {
     }
   }
 }
-
-export default new ToolsUtil()

@@ -16,9 +16,10 @@ export struct FileFolderListComponent {
           .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
         Column() {
           Text(this.folder?.name)
-            .fontWeight(FontWeight.Medium)
             .width('100%')
             .fontSize(this.videoListController.folder.name === this.folder?.name ? 18 : 15)
+            .fontWeight(this.videoListController.folder.name === this.folder?.name ? FontWeight.Bold :
+              FontWeight.Medium)
             .textAlign(TextAlign.Start)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.MARQUEE })

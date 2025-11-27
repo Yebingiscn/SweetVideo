@@ -16,6 +16,7 @@ export struct SubtitleDisplayComponent {
         .fontWeight(FontWeight.Medium)
         .textAlign(TextAlign.Center)
         .fontWeight(FontWeight.Normal)// 常规字重更清晰
+        .textShadow({ color: Color.Black, type: ShadowType.BLUR, radius: 6 })
         .opacity(0.95) // 轻微透明度
     }
     .visibility(this.subTitleVisibility)

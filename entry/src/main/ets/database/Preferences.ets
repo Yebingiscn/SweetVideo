@@ -7,7 +7,7 @@ import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import { ListDisplayMode } from '../common/enum/ListDisplayMode'
 
 // 存储类
-class Preferences {
+export default class Preferences {
   // 首页视频数据
   static getVideoMetaData(context: Context) {
     return Preferences.getFileFolder(context)[0]?.video_list ?? [] as VideoMetadata[]
@@ -106,7 +106,7 @@ class Preferences {
   }
 
   static getAllowGestureEntry(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'allowGestureEntry', false) as boolean
+    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'allowGestureEntry', true) as boolean
   }
 
   static saveBackgroundColorMode(context: Context, backgroundColorMode: BackgroundColorMode) {
@@ -209,5 +209,3 @@ class Preferences {
     PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'backgroundDropBlur', backgroundDropBlur);
   }
 }
-
-export default Preferences

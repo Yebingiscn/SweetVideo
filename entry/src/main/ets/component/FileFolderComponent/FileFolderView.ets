@@ -16,8 +16,6 @@ import { MenuFancyModifier } from '../../utils/AttributeModifierUtil'
 @Component
 export struct FileFolderView {
   @Consume fileFolderSource: FileFolderDataSource
-  @Consume videoListController: VideoListController
-  @Consume sideBarController: SideBarController
   @State fileFolderList: FileFolder[] = this.fileFolderSource.getAllData()
   editFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: EditFileFolderNameDialog({
@@ -31,6 +29,8 @@ export struct FileFolderView {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  @Consume videoListController: VideoListController
+  @Consume sideBarController: SideBarController
 
   build() {
     List() {

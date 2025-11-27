@@ -22,37 +22,44 @@ import { VideoSource } from '../common/enum/VideoSource';
 import { PlayerParams } from '../common/NavigationCommon';
 
 // 视频操作类
-class VideoOperateUtil {
-  public max_volume: number = 0 // 最大音量
-  public min_volume: number = 0 // 最小音量
-  public lastSyncTime: number = 0; //最小同步时间
-  public syncCoolDown: number = 3000; // 同步冷却时间
-  public driftHistory: number[] = []; // 差异记录用于趋势分析
-  public initPinchDistance: number = 0; // 初始双指距离
-  public clearSubtitleTimer: number | null = null; // 清除字幕时间
-  public screenBrightnessTmp: number = 0
-  public lastSpeed: number = 1
-  public lastPlayTime: number = 0
-  public aspectRatioMap = new Map([[VideoInfoUtil.screenExtendMap[2], 16 / 9],
+export default class VideoOperateUtil {
+  public static max_volume: number = 0
+  // 最大音量
+  public static min_volume: number = 0
+  // 最小音量
+  public static lastSyncTime: number = 0;
+  //最小同步时间
+  public static syncCoolDown: number = 3000;
+  // 同步冷却时间
+  public static driftHistory: number[] = [];
+  // 差异记录用于趋势分析
+  public static initPinchDistance: number = 0;
+  // 初始双指距离
+  public static clearSubtitleTimer: number | null = null;
+  // 清除字幕时间
+  public static screenBrightnessTmp: number = 0
+  public static lastSpeed: number = 1
+  public static lastPlayTime: number = 0
+  public static aspectRatioMap = new Map([[VideoInfoUtil.screenExtendMap[2], 16 / 9],
     [VideoInfoUtil.screenExtendMap[3], 4 / 3]]);
-  public lastVolume: number = 0
-  public windowStage: window.WindowStage | undefined = undefined
-  public volumeGestureActiveTime: number = 0
-  public longPressStartX: number = 0
-  public leftSideSwipe: boolean = true
-  public delayJumpToPlayer: number = 450
-  private mainWin: window.Window | undefined = undefined
+  public static lastVolume: number = 0
+  public static windowStage: window.WindowStage | undefined = undefined
+  public static volumeGestureActiveTime: number = 0
+  public static longPressStartX: number = 0
+  public static leftSideSwipe: boolean = true
+  public static delayJumpToPlayer: number = 450
+  private static mainWin: window.Window | undefined = undefined
 
   // 设置亮度
-  setBrightness(screenBrightness: number) {
-    if (!this.windowStage) {
+  static setBrightness(screenBrightness: number) {
+    if (!VideoOperateUtil.windowStage) {
       return
     }
     try {
-      if (!this.mainWin) {
-        this.mainWin = this.windowStage.getMainWindowSync()
+      if (!VideoOperateUtil.mainWin) {
+        VideoOperateUtil.mainWin = VideoOperateUtil.windowStage.getMainWindowSync()
       }
-      this.mainWin.setWindowBrightness(screenBrightness, (err) => {
+      VideoOperateUtil.mainWin.setWindowBrightness(screenBrightness, (err) => {
         if (err && err.code !== 0) {
           console.error(`Failed to obtain the main window. Cause code: ${err.code}, message: ${err.message}`);
           hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness. Cause: ${JSON.stringify(err)}`);
@@ -65,7 +72,7 @@ class VideoOperateUtil {
   }
 
   // 获取系统音量
-  async getVolume(audioVolumeManager: audio.AudioVolumeManager, groupId: number): Promise<Map<string, number>> {
+  static async getVolume(audioVolumeManager: audio.AudioVolumeManager, groupId: number): Promise<Map<string, number>> {
     let volume_list: Map<string, number> = new Map();
     return new Promise((resolve, reject) => {
       audioVolumeManager.getVolumeGroupManager(groupId,
@@ -93,7 +100,7 @@ class VideoOperateUtil {
                   return rejectMax(err);
                 }
                 volume_list.set('max_volume', maxVolume);
-                this.max_volume = maxVolume
+                VideoOperateUtil.max_volume = maxVolume
                 resolveMax();
               });
           }));
@@ -105,7 +112,7 @@ class VideoOperateUtil {
                   return rejectMin(err);
                 }
                 volume_list.set('min_volume', minVolume);
-                this.min_volume = minVolume
+                VideoOperateUtil.min_volume = minVolume
                 resolveMin();
               });
           }));
@@ -117,7 +124,7 @@ class VideoOperateUtil {
   }
 
   // 播放器播放失败处理
-  playErrorExecute(pathStack: NavPathStack, video_meta_data: VideoMetadata[], date: string, playerName: string) {
+  static playErrorExecute(pathStack: NavPathStack, video_meta_data: VideoMetadata[], date: string, playerName: string) {
     ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
     const now_play_item = video_meta_data.find(item => item.date === date);
     const playerParams = new PlayerParams(now_play_item, video_meta_data, undefined)
@@ -125,7 +132,7 @@ class VideoOperateUtil {
   }
 
   // 未识别到音轨处理
-  validateAudioTracks(audio_track: AudioTrack[]) {
+  static validateAudioTracks(audio_track: AudioTrack[]) {
     if (audio_track.length === 0) {
       ToolsUtil.showToast('未识别到音轨，已开启实验性解码')
       return false
@@ -134,7 +141,7 @@ class VideoOperateUtil {
   }
 
   // 计算手指移动距离
-  calcFingerDistance(f1: FingerInfo, f2: FingerInfo): number {
+  static calcFingerDistance(f1: FingerInfo, f2: FingerInfo): number {
     // 检查坐标是否存在
     if (
       typeof f1?.localX !== 'number' ||
@@ -149,12 +156,12 @@ class VideoOperateUtil {
     return Math.sqrt(dx * dx + dy * dy);
   }
 
-  checkLocalX(localX: number | undefined | null) {
+  static checkLocalX(localX: number | undefined | null) {
     return typeof localX === 'number';
   }
 
   // 获取音轨
-  async getAudioTracks(avPlayer: media.AVPlayer): Promise<AudioTrack[]> {
+  static async getAudioTracks(avPlayer: media.AVPlayer): Promise<AudioTrack[]> {
     const getTrackDescriptions = (): Promise<AudioTrack[]> => {
       return new Promise((resolve, reject) => {
         avPlayer.getTrackDescription((error: BusinessError, arrList: Array<media.MediaDescription>) => {
@@ -189,7 +196,7 @@ class VideoOperateUtil {
   }
 
   // 保存视频播放进度
-  saveVideoTime(play_time: number, now_playing: VideoMetadataFromPlayer,
+  static saveVideoTime(play_time: number, now_playing: VideoMetadataFromPlayer,
     video_meta_data: VideoMetadata[], context: Context) {
     const recentPlay = Preferences.getRecentPlayState(context) // 判断最近播放开关是否开启
     if (recentPlay && !PrivacySpaceUtil.getPrivacyMode() &&
@@ -204,26 +211,26 @@ class VideoOperateUtil {
   }
 
   // 保存视频片头时间
-  saveVideoStartTime(startTime: number, nowPlaying: VideoMetadataFromPlayer, context: Context) {
+  static saveVideoStartTime(startTime: number, nowPlaying: VideoMetadataFromPlayer, context: Context) {
     SelectFileUtil.saveData(context, nowPlaying, undefined, undefined, startTime, undefined)
   }
 
   // 保存视频片尾时间
-  saveVideoEndTime(endTime: number, nowPlaying: VideoMetadataFromPlayer, context: Context) {
+  static saveVideoEndTime(endTime: number, nowPlaying: VideoMetadataFromPlayer, context: Context) {
     SelectFileUtil.saveData(context, nowPlaying, undefined, undefined, undefined, endTime)
   }
 
   // 保存音视频宽高信息
-  saveVideoWeightAndHeight(context: Context, now_playing: VideoMetadataFromPlayer) {
+  static saveVideoWeightAndHeight(context: Context, now_playing: VideoMetadataFromPlayer) {
     SelectFileUtil.saveData(context, now_playing!, undefined, now_playing.size)
   }
 
-  saveVideoTotalTime(context: Context, now_playing: VideoMetadataFromPlayer) {
+  static saveVideoTotalTime(context: Context, now_playing: VideoMetadataFromPlayer) {
     SelectFileUtil.saveData(context, now_playing!, undefined, undefined, undefined, undefined, now_playing.time)
   }
 
   // 启动时初始化已保存的设置项
-  initSetting(context: common.UIAbilityContext) {
+  static initSetting(context: common.UIAbilityContext) {
     PermissionUtil.reqPermissionsFromUser(PermissionUtil.permissions, context);
     AppStorage.setOrCreate('allowBackgroundPlay', Preferences.getAllowBackgroundPlayState(context))
     AppStorage.setOrCreate('allowPlayBackExist', Preferences.getAllowPlayBackExistState(context))
@@ -247,7 +254,7 @@ class VideoOperateUtil {
   }
 
   // 封装获取屏幕亮度的方法
-  async getScreenBrightness(): Promise<number> {
+  static async getScreenBrightness(): Promise<number> {
     if (canIUse('SystemCapability.Applications.Settings.Core')) {
       try {
         const value = await settings.getValue(
@@ -263,7 +270,7 @@ class VideoOperateUtil {
     return 0
   }
 
-  getLanguageName(code: string): string {
+  static getLanguageName(code: string): string {
     if (!code) {
       return code;
     }
@@ -271,7 +278,7 @@ class VideoOperateUtil {
     return LanguageConfig.languageMap[lowerCode] || code;
   }
 
-  setVideoAspectRatio(targetRatio: number, containerWidth: number, containerHeight: number) {
+  static setVideoAspectRatio(targetRatio: number, containerWidth: number, containerHeight: number) {
     let finalWidth = 0
     let finalHeight = 0
     const containerRatio = containerWidth / containerHeight;
@@ -287,7 +294,7 @@ class VideoOperateUtil {
     return [finalWidth, finalHeight]
   }
 
-  getVideoStartPlayTimeMode(nowPlaying: VideoMetadataFromPlayer, skipIntroTime: string) {
+  static getVideoStartPlayTimeMode(nowPlaying: VideoMetadataFromPlayer, skipIntroTime: string) {
     // 若为视频设置了片头时间，并且上次播放记录小于片头时间或者已经播完了，则自动跳到片头时间
     if (nowPlaying?.start_time && nowPlaying?.start_time > 0 &&
       (nowPlaying.start_time > nowPlaying.last_play || nowPlaying?.last_play > nowPlaying?.time! * 0.95)) {
@@ -309,14 +316,12 @@ class VideoOperateUtil {
     return -1
   }
 
-  calNewBrightness(deltaYScale: number) {
-    const newBrightness = this.screenBrightnessTmp - deltaYScale
+  static calNewBrightness(deltaYScale: number) {
+    const newBrightness = VideoOperateUtil.screenBrightnessTmp - deltaYScale
     return Math.min(Math.max(newBrightness, 0), 1)
   }
 
-  getTimePixel(screenWidth: number, videoTime: number) {
+  static getTimePixel(screenWidth: number, videoTime: number) {
     return videoTime > 600000 ? 600000 / screenWidth : videoTime / screenWidth
   }
 }
-
-export default new VideoOperateUtil()

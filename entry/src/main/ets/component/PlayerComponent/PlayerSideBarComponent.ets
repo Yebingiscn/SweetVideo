@@ -15,7 +15,7 @@ export struct PlayerSideBarComponent {
   @State video_meta_data: VideoMetadata[] = []
   @Link now_playing: VideoMetadataFromPlayer | undefined
   @Link sideBarStatus: boolean
-  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
+  @StorageProp('topSafeHeight') topSafeHeight: number = 0
   private listScroller: Scroller = new Scroller();
   onItemClick = (_item: VideoMetadata) => {
   }
@@ -28,12 +28,10 @@ export struct PlayerSideBarComponent {
     List({ scroller: this.listScroller, space: 10 }) {
       LazyForEach(this.playerSideBarSource, (item: VideoMetadata, index: number) => {
         ListItem() {
-          ListView({
+          VideoItemComponent({
             item: item,
             now_playing: this.now_playing
           })
-            .backgroundColor(this.now_playing && this.now_playing?.date === item?.date ?
-              $r('app.color.main_color') : '')
             .borderRadius(16)
             .onClick(() => {
               if (this.sideBarStatusTmp === Visibility.Hidden) {
@@ -45,7 +43,7 @@ export struct PlayerSideBarComponent {
             .height('auto')
             .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.9 })
         }.padding({ top: index === 0 ? 10 : 0 })
-      }, (item: VideoMetadata) => item.date + this.now_playing?.date)
+      }, (item: VideoMetadata) => item.date)
     }
     .clip(false)
     .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
@@ -63,11 +61,14 @@ export struct PlayerSideBarComponent {
     .width('100%')
     .height('100%')
     .backgroundColor($r('app.color.start_window_background'))
-    .padding({ left: 5, right: 5 })
-    .margin({ top: this.topSafeHeight })
+    .padding({
+      left: 10,
+      right: 5,
+      top: this.topSafeHeight,
+    })
     .transition(TransitionEffect.translate({ x: 300 }).animation(XAnimation.getAnimationCurve()))
     .borderRadius(16)
-    .cachedCount(3)
+    .cachedCount(6)
   }
 
   onSideBarVisibleChange() {
@@ -93,7 +94,7 @@ export struct PlayerSideBarComponent {
 
 @Reusable
 @Component
-export struct ListView {
+export struct VideoItemComponent {
   @Prop item: VideoMetadata | undefined = undefined
   @Prop now_playing: VideoMetadataFromPlayer | undefined
 
@@ -120,6 +121,8 @@ export struct ListView {
       .padding({ left: 15, right: 15 })
       .layoutWeight(1)
     }
+    .backgroundColor(this.now_playing && this.now_playing?.date === this.item?.date ?
+      $r('app.color.main_color') : '')
     .justifyContent(FlexAlign.Center)
     .width('100%')
     .opacity(0.8)

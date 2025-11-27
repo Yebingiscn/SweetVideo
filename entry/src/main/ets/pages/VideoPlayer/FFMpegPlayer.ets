@@ -104,7 +104,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             .onLoad(async (event?: object) => {
               if (!!event) {
                 this.initDelayPlay(event);
-                await PermissionUtil.activatePermission(this.now_playing?.uri || '')
+                await PermissionUtil.activatePermission(this.now_playing?.uri)
                 try {
                   const file = fs.openSync(this.now_playing?.uri)
                   this.video_url = file.path

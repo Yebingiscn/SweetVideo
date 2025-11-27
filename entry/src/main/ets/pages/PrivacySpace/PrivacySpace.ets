@@ -30,42 +30,6 @@ import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
 @Component
 export struct PrivacySpace { // 隐私空间页
   @State videoDataSource: VideoDataSource = new VideoDataSource([])
-  @State video_meta_data_encryption: VideoMetadata[] = []
-  @State list_line: number = 1
-  @Consume('pathStack') pathStack: NavPathStack
-  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
-  @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
-  @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
-  @State totalItems: number = 0
-  @State processedItems: number = 0
-  @State loading: boolean = false
-  @State searchValue: string = ''
-  @State is_edit: boolean = false
-  @State passwd: string = 'passwd'
-  @State longPressPreview: boolean = false
-  @State delMultipleList: VideoMetadata[] = []
-  @State isPresent: boolean = false;
-  @StorageLink('isPrivacyBackground') isPrivacyBackground: boolean = false
-  @StorageLink('showSettingPageEntry') showSettingPageEntry: boolean = true
-  @StorageLink('allowGestureEntry') allowGestureEntry: boolean = false
-  @StorageLink('listDisplayMode') listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
-  searchController: SearchController = new SearchController()
-  VideoDetailDialog: CustomDialogController = new CustomDialogController({
-    builder: VideoDetailDialog(), cornerRadius: 20,
-    shadow: DefaultDialogShadow
-  })
-  editPasswdDialogController: CustomDialogController = new CustomDialogController({
-    builder: EditPasswordDialog({
-      confirm: (passwd: string | undefined) => {
-        if (!passwd || passwd.trim() == '') {
-          return
-        }
-        this.passwd = passwd
-        ToolsUtil.savePwd(PathUtils.appContext!, passwd)
-        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.set_passwd_tip').id))
-      },
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -85,6 +49,42 @@ export struct PrivacySpace { // 隐私空间页
         Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, this.video_meta_data_encryption)
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  @State video_meta_data_encryption: VideoMetadata[] = []
+  @State list_line: number = 1
+  @Consume('pathStack') pathStack: NavPathStack
+  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
+  @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
+  @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
+  @State totalItems: number = 0
+  @State processedItems: number = 0
+  @State loading: boolean = false
+  @State searchValue: string = ''
+  @State is_edit: boolean = false
+  @State passwd: string = 'passwd'
+  editPasswdDialogController: CustomDialogController = new CustomDialogController({
+    builder: EditPasswordDialog({
+      confirm: (passwd: string | undefined) => {
+        if (!passwd || passwd.trim() == '') {
+          return
+        }
+        this.passwd = passwd
+        ToolsUtil.savePwd(PathUtils.appContext!, passwd)
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.set_passwd_tip').id))
+      },
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  @State longPressPreview: boolean = false
+  @State delMultipleList: VideoMetadata[] = []
+  @State isPresent: boolean = false;
+  @StorageLink('isPrivacyBackground') isPrivacyBackground: boolean = false
+  @StorageLink('showSettingPageEntry') showSettingPageEntry: boolean = true
+  @StorageLink('allowGestureEntry') allowGestureEntry: boolean = true
+  @StorageLink('listDisplayMode') listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
+  searchController: SearchController = new SearchController()
+  VideoDetailDialog: CustomDialogController = new CustomDialogController({
+    builder: VideoDetailDialog(), cornerRadius: 20,
+    shadow: DefaultDialogShadow
   })
   private listScroller: Scroller = new Scroller();
 
@@ -117,7 +117,7 @@ export struct PrivacySpace { // 隐私空间页
         enable: this.allowGestureEntry,
         onChange: (checked: boolean) => {
           this.allowGestureEntry = checked
-          Preferences.saveAllowGestureEntry(PathUtils.appContext!, this.showSettingPageEntry)
+          Preferences.saveAllowGestureEntry(PathUtils.appContext!, this.allowGestureEntry)
         }
       })
 
@@ -129,23 +129,6 @@ export struct PrivacySpace { // 隐私空间页
           this.pathStack.pushPathByName(NavigationAddress.PRIVACY_ERROR_LIST, true)
         }
       })
-
-      Column({ space: 8 }) {
-        Text('如何进入隐私空间')
-          .fontSize(20).fontWeight(FontWeight.Medium)
-        Text('1. 通过设置页隐私空间进入')
-          .fontSize(15)
-        Text('2. 通过搜索框输入密码进入')
-          .fontSize(15)
-        Text('3. 通过首页双指捏合往外划开进入')
-          .fontSize(15)
-      }
-      .margin({ top: 5 })
-      .padding(15)
-      .alignItems(HorizontalAlign.Start)
-      .borderRadius(16)
-      .width('100%')
-      .backgroundColor($r('app.color.start_window_background_blur'))
 
       Column({ space: 8 }) {
         Text('清理提示')
@@ -481,17 +464,12 @@ export struct PrivacySpace { // 隐私空间页
     .onWillDisappear(() => {
       this.closePrivacyMode()
     })
-    .onShown(async () => {
+    .onShown(() => {
       this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
       this.videoDataSource.updateData(this.video_meta_data_encryption)
       if (DataSyncUtil.lastPlayVideoIndex >= 0) {
         this.listScroller.scrollToIndex(DataSyncUtil.lastPlayVideoIndex)
         DataSyncUtil.lastPlayVideoIndex = -1
-      }
-      if (DataSyncUtil.invalidVideoIndex >= 0) {
-        const item = this.video_meta_data_encryption[DataSyncUtil.invalidVideoIndex]
-        await this.deleteItem(item.date, item.title)
-        DataSyncUtil.invalidVideoIndex = -1
       }
     })
     .title($r('app.string.privacy_space'))

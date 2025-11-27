@@ -3,7 +3,7 @@ import RecentPlayUtil from '../utils/RecentPlayUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { PathUtils } from '../utils/PathUtils';
-import { ListView } from '../component/PlayerComponent/PlayerSideBarComponent';
+import { VideoItemComponent } from '../component/PlayerComponent/PlayerSideBarComponent';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../utils/AttributeModifierUtil';
 import NavigationAddress from '../common/NavigationCommon';
@@ -87,7 +87,7 @@ export struct RecentPlay { // 最近播放页
 
   @Builder
   VideoItemBuilder(item: VideoMetadata) {
-    ListView({
+    VideoItemComponent({
       item: item,
       now_playing: undefined
     })

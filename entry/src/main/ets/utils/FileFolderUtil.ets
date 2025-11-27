@@ -15,7 +15,7 @@ import SubtitleUtil from './SubtitleUtil'
 import { fileIo as fs } from '@kit.CoreFileKit'
 
 // 文件夹类
-class FileFolderUtil {
+export default class FileFolderUtil {
   public static duplicateVideo: number = 0
 
   static getAllFolder(context: Context): FileFolder[] {
@@ -178,8 +178,8 @@ class FileFolderUtil {
   }
 
   static extractRootFolderNameFromUri(uri: string, fileName: string): string | undefined {
-    const prefix = SelectFileUtil.file_folder_uri + "/";
-    if (!uri.startsWith(SelectFileUtil.file_folder_uri) || !uri.startsWith(prefix)) {
+    const prefix = SelectFileUtil.fileFolderUri + "/";
+    if (!uri.startsWith(SelectFileUtil.fileFolderUri) || !uri.startsWith(prefix)) {
       return undefined;
     }
     const relativePath = uri.substring(prefix.length);
@@ -215,5 +215,3 @@ class FileFolderUtil {
     });
   }
 }
-
-export default FileFolderUtil

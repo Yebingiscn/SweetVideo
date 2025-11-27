@@ -13,6 +13,7 @@ export default class NavigationAddress {
   static PERSONALIZE_PAGE = 'PersonalizePage'
   static PLAYER_SETTING_PAGE = 'PlayerSettingPage'
   static PRIVACY_ERROR_LIST = 'PrivacySpaceErrorList'
+  static MORE_SETTING_PAGE = 'MoreSettingPage'
 }
 
 export class PrivacySpaceParams {

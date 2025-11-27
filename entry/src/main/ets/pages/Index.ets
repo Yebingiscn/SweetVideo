@@ -30,7 +30,6 @@ import { VideoView } from '../component/VideoItemComponent/VideoViewComponent';
 import { VideoMetaDataOperator } from '../database/VideoMetaData';
 import { FileFolderListComponent } from '../component/FileFolderComponent/FileFolderListComponent';
 import VideoUtils from '../utils/VideoUtil';
-import NavigationAddress from '../common/NavigationCommon';
 import { taskpoolExecTool } from '../utils/TaskpoolUtil';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { DeletedVideosDialog } from '../component/Dialog/DeletedVideosDialog';
@@ -45,6 +44,8 @@ import { ListDisplayMode } from '../common/enum/ListDisplayMode';
 import { WindowUtil } from '../utils/WindowUtil';
 import { XAnimation } from '../utils/AnimationUtil';
 import { PrivacyPolicyComponent } from '../component/VideoItemComponent/PrivacyPolicyComponent';
+import { MoreSettingPage } from './SettingPage/MoreSettingPage';
+import NavigationAddress from '../common/NavigationCommon';
 
 @Builder
 export function IndexBuilder() {
@@ -59,7 +60,7 @@ struct Index {
   @State loading: boolean = false
   @State processedItems: number = 0
   @State totalItems: number = 0
-  @State file_folder_list: FileFolder[] = []
+  @Provide file_folder_list: FileFolder[] = []
   @State searchValue: string = ''
   @State isPresent: boolean = false
   @StorageLink('listDisplayMode') listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
@@ -69,17 +70,9 @@ struct Index {
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
   @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
-  @StorageLink('allowGestureEntry') allowGestureEntry: boolean = false
+  @StorageLink('allowGestureEntry') allowGestureEntry: boolean = true
   @Provide videoListController: VideoListController = new VideoListController()
   @Provide fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
-  @Provide sideBarController: SideBarController = new SideBarController()
-  @Provide('pathStack') pathStack: NavPathStack = new NavPathStack()
-  addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
-    builder: AddFileFolderNameDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
-  deletedVideosDialogController: CustomDialogController = new CustomDialogController({
-    builder: DeletedVideosDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
   editFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: EditFileFolderNameDialog({
       confirm: async (newFolderName: string | undefined) => {
@@ -90,6 +83,14 @@ struct Index {
           DataSyncUtil.editingFolder!, newFolderName, this.fileFolderSource)
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  @Provide sideBarController: SideBarController = new SideBarController()
+  @Provide('pathStack') pathStack: NavPathStack = new NavPathStack()
+  addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
+    builder: AddFileFolderNameDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  deletedVideosDialogController: CustomDialogController = new CustomDialogController({
+    builder: DeletedVideosDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
   })
 
   @Builder
@@ -344,27 +345,24 @@ struct Index {
               this.pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, true)
             })
 
-            Row() {
-              Button({ type: ButtonType.Normal, stateEffect: true }) {
-                Row() {
-                  SymbolGlyph($r('sys.symbol.gearshape'))
-                    .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                  Text($r('app.string.setting'))
-                    .fontSize(15)
-                    .margin({ left: 10, right: 12 })
-                    .textOverflow({ overflow: TextOverflow.MARQUEE })
-                }
+            Button({ type: ButtonType.Normal, stateEffect: true }) {
+              Row() {
+                SymbolGlyph($r('sys.symbol.gearshape'))
+                  .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                Text($r('app.string.setting'))
+                  .fontSize(15)
+                  .margin({ left: 10, right: 12 })
+                  .textOverflow({ overflow: TextOverflow.MARQUEE })
               }
-              .align(Alignment.Start)
-              .padding({ left: 15, right: 15 })
-              .attributeModifier(new ButtonFancyModifier('100%', 60))
-              .animation({ duration: 300, curve: Curve.Ease })
-              .onClick(() => {
-                this.sideBarController.closeSideBar(false)
-                this.pathStack.pushPathByName(NavigationAddress.SETTING_PAGE, null)
-              })
             }
-            .alignSelf(ItemAlign.End)
+            .align(Alignment.Start)
+            .padding({ left: 15, right: 15 })
+            .attributeModifier(new ButtonFancyModifier('100%', 60))
+            .animation({ duration: 300, curve: Curve.Ease })
+            .onClick(() => {
+              this.sideBarController.closeSideBar(false)
+              this.pathStack.pushPathByName(NavigationAddress.SETTING_PAGE, null)
+            })
           }
           .margin({ bottom: this.bottomSafeHeight === 0 ? 15 : this.bottomSafeHeight, left: 20, right: 20 })
           .justifyContent(FlexAlign.Start)
@@ -413,21 +411,25 @@ struct Index {
           PinchGesture({ fingers: 2 })
             .onActionEnd((event: PinchGestureEvent) => {
               const scaleValue = event.scale
-              if (this.allowGestureEntry) {
-                if (scaleValue > 1.5) {
-                  this.passwd = Preferences.getPassword(PathUtils.appContext!)
-                  if (BiometricAccessUtil.checkUserAuthSupport()) { // 支持生物认证时进行认证
-                    BiometricAccessUtil.startUserAuth().then(isSuccess => {
-                      if (isSuccess) { // 认证成功进入隐私空间
-                        this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null);
-                      } else {
-                        ToolsUtil.showToast('验证失败，请从首页搜索框输入密码进入隐私空间'); // 认证失败显示提示
-                      }
-                    })
-                    return;
-                  }
-                  ToolsUtil.showToast('请从首页搜索框输入密码进入隐私空间'); // 设备不支持生物认证的提示
+              if (!this.allowGestureEntry) {
+                return
+              }
+              this.passwd = Preferences.getPassword(PathUtils.appContext!)
+              if (!this.passwd || this.passwd.length === 0) {
+                return
+              }
+              if (scaleValue > 1.5) {
+                if (BiometricAccessUtil.checkUserAuthSupport()) { // 支持生物认证时进行认证
+                  BiometricAccessUtil.startUserAuth().then(isSuccess => {
+                    if (isSuccess) { // 认证成功进入隐私空间
+                      this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null);
+                    } else {
+                      ToolsUtil.showToast('验证失败，请从首页搜索框输入密码进入隐私空间'); // 认证失败显示提示
+                    }
+                  })
+                  return;
                 }
+                ToolsUtil.showToast('请从首页搜索框输入密码进入隐私空间'); // 设备不支持生物认证的提示
               }
             })
         )
@@ -476,7 +478,7 @@ struct Index {
       WantProcessUtil.wantUri = video?.uri
       WantProcessUtil.hasWant(PathUtils.appContext!, this.pathStack)
     })
-    .onNavBarStateChange((isVisible: boolean) => {
+    .onNavBarStateChange(async (isVisible: boolean) => {
       if (isVisible) {
         // 增加判断，旋转时保持滚动位置不变
         if (this.videoListController.folder?.video_list) {
@@ -486,11 +488,6 @@ struct Index {
         if (DataSyncUtil.lastPlayVideoIndex >= 0) {
           this.videoListController.listScroller.scrollToIndex(DataSyncUtil.lastPlayVideoIndex)
           DataSyncUtil.lastPlayVideoIndex = -1
-        }
-        if (DataSyncUtil.invalidVideoIndex >= 0) {
-          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, DeleteType.SOFT,
-            this.videoListController.videoDataSource.getData(DataSyncUtil.invalidVideoIndex))
-          DataSyncUtil.invalidVideoIndex = -1
         }
       }
     })
@@ -520,6 +517,8 @@ struct Index {
       PersonalizePage()
     } else if (name == NavigationAddress.PRIVACY_ERROR_LIST) {
       PrivacySpaceErrorList()
+    } else if (name == NavigationAddress.MORE_SETTING_PAGE) {
+      MoreSettingPage()
     }
   }
 

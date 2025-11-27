@@ -25,6 +25,7 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil';
 import { VideoDeleteDialog } from '../Dialog/VideoDeleteDialog';
 import { DeleteType } from '../../common/enum/DeleteType';
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
+import { XAnimation } from '../../utils/AnimationUtil';
 
 @Observed
 export class VideoListController {
@@ -78,7 +79,9 @@ export class VideoListController {
   }
 
   public closeMultipleChoose() {
-    this.multipleChooseState = Visibility.None;
+    XAnimation.runWithAnimation(() => {
+      this.multipleChooseState = Visibility.None;
+    })
     DataSyncUtil.delMultipleList.length = 0
   }
 
@@ -87,7 +90,7 @@ export class VideoListController {
     const base = Math.floor(width / 500);
     this.listLine = listDisplayMode === ListDisplayMode.LIST_DISPLAY ? base + 1 : base + 2;
     // 增加判断，旋转时保持滚动位置不变
-    if (this.listScroller.currentOffset()?.yOffset == -55) {
+    if (this.listScroller.currentOffset()?.yOffset == -85) {
       this.listScroller.scrollEdge(Edge.Top)
     }
   }
@@ -106,40 +109,6 @@ export class VideoListController {
 export struct VideoList {
   @Link searchValue: string
   @Link videoListController: VideoListController
-  @Consume fileFolderSource: FileFolderDataSource
-  @Consume sideBarController: SideBarController
-  searchController: SearchController = new SearchController()
-  @State longPressPreview: boolean = false
-  @StorageLink('listDisplayMode') listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
-  @Consume('pathStack') pathStack: NavPathStack
-  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
-  @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
-  @StorageProp('screen_width') screen_width: number = 0
-  @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
-  @Link delMultipleList: VideoMetadata[]
-  VideoDetailDialog: CustomDialogController = new CustomDialogController({
-    builder: VideoDetailDialog(), cornerRadius: 20,
-    shadow: DefaultDialogShadow
-  })
-  delConfirmDialog: CustomDialogController = new CustomDialogController({
-    builder: VideoDeleteDialog({
-      confirm: async (deleteType: DeleteType) => {
-        try {
-          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType,
-            DataSyncUtil.editingVideo!);
-          if (DataSyncUtil.delMultipleList.length > 0) {
-            await FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController,
-              this.fileFolderSource)
-          }
-          this.videoListController.closeMultipleChoose();
-        } catch (e) {
-          ToolsUtil.showToast(`删除失败:${e}`)
-        } finally {
-          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
-        }
-      }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -160,6 +129,40 @@ export struct VideoList {
         Preferences.saveVideoMetaData(PathUtils.appContext!, this.videoListController.videoMetaDataList)
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  @Consume fileFolderSource: FileFolderDataSource
+  delConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: VideoDeleteDialog({
+      confirm: async (deleteType: DeleteType) => {
+        try {
+          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType,
+            DataSyncUtil.editingVideo!);
+          if (DataSyncUtil.delMultipleList.length > 0) {
+            await FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController,
+              this.fileFolderSource)
+          }
+          this.videoListController.closeMultipleChoose();
+        } catch (e) {
+          ToolsUtil.showToast(`删除失败:${e}`)
+        } finally {
+          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+        }
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  @Consume sideBarController: SideBarController
+  searchController: SearchController = new SearchController()
+  @State longPressPreview: boolean = false
+  @StorageLink('listDisplayMode') listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
+  @Consume('pathStack') pathStack: NavPathStack
+  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
+  @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
+  @StorageProp('screen_width') screen_width: number = 0
+  @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
+  @Link delMultipleList: VideoMetadata[]
+  VideoDetailDialog: CustomDialogController = new CustomDialogController({
+    builder: VideoDetailDialog(), cornerRadius: 20,
+    shadow: DefaultDialogShadow
   })
 
   @Builder
@@ -244,7 +247,7 @@ export struct VideoList {
       .clip(false)
       .padding({ left: 10, right: 10 })
       .cachedCount(12)
-      .contentStartOffset(this.topSafeHeight + 55)
+      .contentStartOffset(this.topSafeHeight + 85)
       .contentEndOffset(this.bottomSafeHeight)
       .lanes(this.videoListController.listLine)
       .animation({ duration: 300, curve: Curve.Smooth })
@@ -262,7 +265,7 @@ export struct VideoList {
     } else {
       Scroll() {
         Column() {
-          Blank().height(this.topSafeHeight + 55)
+          Blank().height(this.topSafeHeight + 85)
           WaterFlow({
             scroller: this.videoListController.listScroller,
             layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW
@@ -407,8 +410,10 @@ export struct VideoList {
         content: $r('app.string.multiple_choice')
       })
         .onClick(() => {
-          this.videoListController.multipleChooseState =
-            this.videoListController.multipleChooseState == Visibility.None ? Visibility.Visible : Visibility.None
+          XAnimation.runWithAnimation(() => {
+            this.videoListController.multipleChooseState =
+              this.videoListController.multipleChooseState == Visibility.None ? Visibility.Visible : Visibility.None
+          })
           DataSyncUtil.delMultipleList.length = 0
           // 选择当前项
           if (item) {
