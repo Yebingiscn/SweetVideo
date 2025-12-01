@@ -30,7 +30,7 @@ import { VideoView } from '../component/VideoItemComponent/VideoViewComponent';
 import { VideoMetaDataOperator } from '../database/VideoMetaData';
 import { FileFolderListComponent } from '../component/FileFolderComponent/FileFolderListComponent';
 import VideoUtils from '../utils/VideoUtil';
-import { taskpoolExecTool } from '../utils/TaskpoolUtil';
+import { checkUriProcess } from '../utils/TaskpoolUtil';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { DeletedVideosDialog } from '../component/Dialog/DeletedVideosDialog';
 import { ImportProgressBuilder } from '../component/VideoItemComponent/ImportProgressBuilder';
@@ -184,7 +184,7 @@ struct Index {
         this.isPresent = true
       }, 1000)
     }
-    taskpoolExecTool(Preferences.getFileFolder(PathUtils.appContext!), (re: Object) => {
+    checkUriProcess(Preferences.getFileFolder(PathUtils.appContext!), (re: Object) => {
       setTimeout(() => {
         const result = re as Array<VideoMetadata>
         if (result.length > 0) {

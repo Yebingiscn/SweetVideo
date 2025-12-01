@@ -37,14 +37,14 @@ export struct SubtitlePanelComponent {
         this.subTitleVisibility === Visibility.Visible && this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE ?
           this.subTitleVisibility = Visibility.None :
           this.subTitleVisibility = Visibility.Visible
-        this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE
+        this.subtitleSelected = SubtitleMode.EXTERNAL_SUBTITLE
       })
       .height(40)
       .backgroundColor(this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE ? $r('app.color.main_color') : '')
       .borderRadius(16)
       .width('100%')
 
-      if (deviceInfo.sdkApiVersion >= 18) {
+      if (deviceInfo.sdkApiVersion >= 18 && canIUse('SystemCapability.AI.AICaption')) {
         ListItem() {
           Text('AI 字幕：' + (this.isAIAsrShown ? '显示' : '隐藏'))
             .fontColor(this.subtitleSelected === SubtitleMode.AI_SUBTITLE ? $r('sys.color.white') :
@@ -53,10 +53,10 @@ export struct SubtitlePanelComponent {
         .onClick(() => {
           this.isAIAsrShown = !this.isAIAsrShown
           if (this.isAIAsrShown) {
-            ToolsUtil.showToast('AI 字幕将在控制栏隐藏后启用')
+            ToolsUtil.showToast('AI 字幕将在控制栏隐藏后出现')
           }
           this.subTitleVisibility = Visibility.None
-          this.subtitleSelected === SubtitleMode.AI_SUBTITLE
+          this.subtitleSelected = SubtitleMode.AI_SUBTITLE
         })
         .height(40)
         .backgroundColor(this.subtitleSelected === SubtitleMode.AI_SUBTITLE ? $r('app.color.main_color') : '')

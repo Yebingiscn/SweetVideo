@@ -3,18 +3,20 @@ import { BusinessError, deviceInfo } from '@kit.BasicServicesKit';
 
 @Component
 export struct AIAsr {
-  @State isShown: boolean = false;
+  @Link isShown: boolean
   private captionOption?: AICaptionOptions;
   private controller: AICaptionController = new AICaptionController();
 
   aboutToAppear(): void {
-    this.captionOption = {
-      initialOpacity: 0.5,
-      onPrepared: () => {
-        console.info('AI字幕组件准备就绪')
-      },
-      onError: (error: BusinessError) => {
-        console.error(`AI字幕组件错误。错误码: ${error.code}, 消息: ${error.message}`)
+    if (!this.captionOption) {
+      this.captionOption = {
+        initialOpacity: 0.5,
+        onPrepared: () => {
+          console.error('test AI字幕组件准备就绪')
+        },
+        onError: (error: BusinessError) => {
+          console.error(`test AI字幕组件错误。错误码: ${error.code}, 消息: ${error.message}`)
+        }
       }
     }
   }

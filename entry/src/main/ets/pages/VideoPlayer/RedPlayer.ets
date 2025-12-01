@@ -28,7 +28,7 @@ import { VolumeSwipingComponent } from '../../component/PlayerComponent/VolumeSw
 import { WindowUtil } from '../../utils/WindowUtil';
 import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent';
 import { XAnimation } from '../../utils/AnimationUtil';
-import { AIAsr } from '../../component/VideoItemComponent/AIAsrComponent';
+import { AIAsr } from '../../component/PlayerComponent/AIAsrComponent';
 
 @Component
 export struct RedPlayer { // 红薯播放器页
@@ -160,7 +160,7 @@ export struct RedPlayer { // 红薯播放器页
               .padding({
                 left: (this.screen_height > this.screen_width ? 5 : 5),
                 right: 20,
-                top: (this.screen_height > this.screen_width ? this.topSafeHeight : 0),
+                top: (this.showControl ? this.topSafeHeight : 0),
                 bottom: 0
               })
 

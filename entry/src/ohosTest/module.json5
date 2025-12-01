@@ -5,8 +5,7 @@
     "deviceTypes": [
       "phone",
       "tablet",
-      "2in1",
-      "car"
+      "2in1"
     ],
     "deliveryWithInstall": true,
     "installationFree": false

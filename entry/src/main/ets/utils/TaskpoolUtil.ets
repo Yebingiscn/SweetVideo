@@ -49,7 +49,7 @@ async function checkUriAvailable(fileFolderList: FileFolder[]): Promise<VideoMet
   return deletedVideos;
 }
 
-export function taskpoolExecTool(param: FileFolder[], callback: (re: Object) => void) {
+export function checkUriProcess(param: FileFolder[], callback: (re: Object) => void) {
   taskpool.execute(new taskpool.Task(checkUriAvailable, param), taskpool.Priority.HIGH).then((result: Object) => {
     callback(result);
   }).catch((err: string) => {

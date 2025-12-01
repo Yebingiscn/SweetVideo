@@ -38,7 +38,7 @@ import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode'
 import NavigationAddress, { PlayerParams } from '../../common/NavigationCommon'
 import { WindowUtil } from '../../utils/WindowUtil'
 import { XAnimation } from '../../utils/AnimationUtil'
-import { AIAsr } from '../../component/VideoItemComponent/AIAsrComponent'
+import { AIAsr } from '../../component/PlayerComponent/AIAsrComponent'
 
 @Component
 export struct FFMpegPlayer { // FFMpeg播放器页
@@ -152,7 +152,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
               .padding({
                 left: (this.screen_height > this.screen_width ? 5 : 5),
                 right: 20,
-                top: (this.screen_height > this.screen_width ? this.topSafeHeight : 0),
+                top: (this.showControl ? this.topSafeHeight : 0),
                 bottom: 0
               })
 

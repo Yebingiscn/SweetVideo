@@ -38,7 +38,7 @@ import NavigationAddress, { PlayerParams } from '../../common/NavigationCommon';
 import { WindowUtil } from '../../utils/WindowUtil';
 import { KeyCode } from '@kit.InputKit';
 import { XAnimation } from '../../utils/AnimationUtil';
-import { AIAsr } from '../../component/VideoItemComponent/AIAsrComponent';
+import { AIAsr } from '../../component/PlayerComponent/AIAsrComponent';
 import SubtitleUtil from '../../utils/SubtitleUtil';
 import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent';
 import { SubtitleMode } from '../../common/enum/SubtitleMode';
@@ -667,7 +667,7 @@ export struct Player { // 播放页
                 .padding({
                   left: (this.screen_height > this.screen_width ? 20 : 35),
                   right: 20,
-                  top: (this.screen_height > this.screen_width ? this.topSafeHeight : 0),
+                  top: (this.showControl ? this.topSafeHeight : 0),
                   bottom: 0
                 })
 
