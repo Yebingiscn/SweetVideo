@@ -400,10 +400,13 @@ struct Index {
           this.videoListController.refresh(width, this.listDisplayMode)
         })
         .priorityGesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
-          const rotateAngle = event?.angle
-          if (rotateAngle > -45 && rotateAngle < 45) {
-            this.sideBarController.sideBarStatusTmp === Visibility.Visible ?
-              this.sideBarController.closeSideBar(true) : this.sideBarController.openSideBar()
+          if (this.sideBarController.sideBarStatusTmp === Visibility.Visible) {
+            this.sideBarController.closeSideBar(true)
+          } else {
+            const rotateAngle = event?.angle
+            if (rotateAngle > -45 && rotateAngle < 45) {
+              this.sideBarController.openSideBar()
+            }
           }
         }))
         .gesture(
