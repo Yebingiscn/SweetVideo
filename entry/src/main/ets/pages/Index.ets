@@ -399,7 +399,7 @@ struct Index {
           // 增加判断，旋转时保持滚动位置不变
           this.videoListController.refresh(width, this.listDisplayMode)
         })
-        .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
+        .priorityGesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
           const rotateAngle = event?.angle
           if (rotateAngle > -45 && rotateAngle < 45) {
             this.sideBarController.sideBarStatusTmp === Visibility.Visible ?
@@ -456,7 +456,10 @@ struct Index {
       .divider({ strokeWidth: 0 })
       .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
         if (event) {
-          this.sideBarController.closeSideBar(true)
+          const rotateAngle = event?.angle
+          if (rotateAngle < -135 || rotateAngle > 135) {
+            this.sideBarController.closeSideBar(true)
+          }
         }
       }))
     }

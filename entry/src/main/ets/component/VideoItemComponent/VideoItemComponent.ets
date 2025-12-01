@@ -216,30 +216,22 @@ export struct VideoList {
               }
             })
           .gesture(
-            GestureGroup(GestureMode.Exclusive,
-              SwipeGesture({ direction: SwipeDirection.Horizontal })
-                .onAction((event: GestureEvent) => {
-                  if (event) {
-                    this.sideBarController.openSideBar()
-                  }
-                }),
-              TapGesture({ count: 1, fingers: 1 })
-                .onAction(async () => {
-                  if (this.videoListController.multipleChooseState !== Visibility.Visible) {
-                    const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
-                    await this.clickItem(videoItem, NavigationAddress.AV_PLAYER)
-                    return
+            TapGesture({ count: 1, fingers: 1 })
+              .onAction(async () => {
+                if (this.videoListController.multipleChooseState !== Visibility.Visible) {
+                  const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
+                  await this.clickItem(videoItem, NavigationAddress.AV_PLAYER)
+                  return
+                } else {
+                  //已存在，标记置反
+                  if (this.delMultipleList.some(video => video.date === item.date)) {
+                    this.delMultipleList =
+                      this.delMultipleList.filter(video => video.date !== item.date)
                   } else {
-                    //已存在，标记置反
-                    if (this.delMultipleList.some(video => video.date === item.date)) {
-                      this.delMultipleList =
-                        this.delMultipleList.filter(video => video.date !== item.date)
-                    } else {
-                      this.delMultipleList.push(item)
-                    }
+                    this.delMultipleList.push(item)
                   }
-                })
-            )
+                }
+              })
           )
         }, (item: VideoMetadata) => item.date.toString() + item.last_play + item.title + item.size.toString() +
         this.videoListController.folder.name + item.time)
@@ -308,29 +300,21 @@ export struct VideoList {
                   }
                 })
               .gesture(
-                GestureGroup(GestureMode.Exclusive,
-                  SwipeGesture({ direction: SwipeDirection.Horizontal })
-                    .onAction((event: GestureEvent) => {
-                      if (event) {
-                        this.sideBarController.openSideBar()
-                      }
-                    }),
-                  TapGesture({ count: 1, fingers: 1 })
-                    .onAction(async () => {
-                      if (this.videoListController.multipleChooseState !== Visibility.Visible) {
-                        await this.clickItem(item, NavigationAddress.AV_PLAYER)
-                        return
+                TapGesture({ count: 1, fingers: 1 })
+                  .onAction(async () => {
+                    if (this.videoListController.multipleChooseState !== Visibility.Visible) {
+                      await this.clickItem(item, NavigationAddress.AV_PLAYER)
+                      return
+                    } else {
+                      //已存在，标记置反
+                      if (this.delMultipleList.some(video => video.date === item.date)) {
+                        this.delMultipleList =
+                          this.delMultipleList.filter(video => video.date !== item.date)
                       } else {
-                        //已存在，标记置反
-                        if (this.delMultipleList.some(video => video.date === item.date)) {
-                          this.delMultipleList =
-                            this.delMultipleList.filter(video => video.date !== item.date)
-                        } else {
-                          this.delMultipleList.push(item)
-                        }
+                        this.delMultipleList.push(item)
                       }
-                    })
-                )
+                    }
+                  })
               )
             }, (item: VideoMetadata) => item.date + item.last_play + item.title + item.size.toString() +
             this.videoListController.folder.name + item.time)
