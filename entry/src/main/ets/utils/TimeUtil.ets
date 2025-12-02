@@ -1,4 +1,3 @@
-import { systemDateTime } from '@kit.BasicServicesKit'
 
 // 时间类，格式化时间
 export default class TimeUtil {
@@ -41,16 +40,6 @@ export default class TimeUtil {
 
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString()
       .padStart(3, '0')}`;
-  }
-
-  // 获取当前时间
-  static getTime() {
-    let timestamp = systemDateTime.getTime(false)
-    const date = new Date(timestamp);
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    const timeString = `${hours}:${minutes}`;
-    return timeString
   }
 
   static getTextByTime() {

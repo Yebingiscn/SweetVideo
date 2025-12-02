@@ -4,7 +4,8 @@
   "dependencies": {
     "@ohos/ijkplayer": "2.0.7-rc.6",
     "@ohos/pinyin4js": "^2.0.2",
-    "@rte-xhs/redplayer": "^1.0.0"
+    "@rte-xhs/redplayer": "^1.0.0",
+    "salmonlogger": "feature/salmonlogger.har"
   },
   "devDependencies": {
     "@ohos/hypium": "1.0.19",

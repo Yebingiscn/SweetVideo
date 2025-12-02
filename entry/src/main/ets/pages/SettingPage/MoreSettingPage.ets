@@ -6,6 +6,8 @@ import SelectFileUtil from '../../utils/SelectFileUtil';
 import SubtitleUtil from '../../utils/SubtitleUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
 import { fileIo as fs } from '@kit.CoreFileKit';
+import { commentManager } from '@kit.AppGalleryKit';
+import { salmonLogger } from 'salmonlogger';
 
 @Component
 export struct MoreSettingPage {
@@ -21,7 +23,7 @@ export struct MoreSettingPage {
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.doc_plaintext'),
-            message: '崩溃日志',
+            message: '流心运行日志',
             onPress: () => {
               this.pathStack.pushPathByName(NavigationAddress.CRASH_PAGE, true)
             }
@@ -72,6 +74,26 @@ export struct MoreSettingPage {
                   file))
               ])
               ToolsUtil.showToast(missingFileSum > 0 ? '删除了 ' + missingFileSum + ' 项文件' : '没有找到失效文件')
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsClickItem({
+            symbol: $r('sys.symbol.hand_thumbsup'),
+            message: '评价下下流心(^人^)',
+            onPress: async () => {
+              try {
+                commentManager.showCommentDialog(PathUtils.appContext!).then(() => {
+                  salmonLogger.addLog('sweet_video', '成功展示评论弹窗', false)
+                }).catch((error: BusinessError<Object>) => {
+                  salmonLogger.addLog('sweet_video', `展示评论弹窗错误, Code: ${error.code}, message: ${error.message}`,
+                    true)
+                });
+              } catch (error) {
+                salmonLogger.addLog('sweet_video', `展示评论弹窗错误, Code: ${error.code}, message: ${error.message}`,
+                  true)
+              }
             }
           })
         }

@@ -1,6 +1,8 @@
 import { hiAppEvent } from '@kit.PerformanceAnalysisKit';
 import { pasteboard } from '@kit.BasicServicesKit';
 import ToolsUtil from '../../utils/ToolsUtil';
+import { salmonLogger, SalmonLoggerComponent } from 'salmonlogger';
+import { PathUtils } from '../../utils/PathUtils';
 
 @Component
 export struct CrashPage {
@@ -25,10 +27,19 @@ export struct CrashPage {
     NavDestination() {
       Scroll() {
         if (this.appEventGroups.length === 0) {
-          Text('流心正常运行中...( •̀ ω •́ )✧')
-            .textAlign(TextAlign.Center)
-            .align(Alignment.Center)
-            .width('100%').height('100%')
+          SalmonLoggerComponent({
+            onExit: () => {
+              salmonLogger.clearLog()
+            },
+            onExport: () => {
+              salmonLogger.exportLog('sweet_video', PathUtils.appContext!)
+            }
+          })
+            .padding({ left: 10 })
+            .width('100%')
+            .height('100%')
+            .backgroundColor($r('app.color.start_window_background_blur'))
+            .borderRadius(16)
         } else {
           Column() {
             Text('流心崩溃日志').margin(10)
@@ -74,8 +85,9 @@ export struct CrashPage {
 
       Button('复制给开发者')
         .onClick(() => {
+          salmonLogger.addLog('sweet_video', 'test', true)
           this.appEventGroups.toString().length > 0 ? copyText(JSON.stringify(this.appEventGroups)) :
-            ToolsUtil.showToast('还没有日志可以复制喔')
+            copyText(JSON.stringify(salmonLogger.logs))
         })
         .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
         .fontColor($r('sys.color.white'))
@@ -89,7 +101,7 @@ export struct CrashPage {
         .margin({ bottom: 15 })
     }
     .hideToolBar(true)
-    .title('流心崩溃日志')
+    .title('流心运行日志')
     .backgroundColor($r('app.color.start_window_background'))
     .padding({ top: this.topSafeHeight, bottom: this.bottomSafeHeight })
     .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
@@ -100,7 +112,7 @@ export struct CrashPage {
 }
 
 function copyText(text: string) {
-  const infoText = '反馈 QQ群 973792610，作者邮箱 1309932526@qq.com：'
+  const infoText = '反馈 QQ群 973792610，作者邮箱 1309932526@qq.com：\n'
   // Create clipboard content object
   const pasteboardData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, infoText + text);
   // Get system clipboard object
