@@ -8,24 +8,12 @@ export default class RecentPlayUtil {
   public static deque: VideoMetadata[] = [];
   private static readonly MAX_SIZE = 30;
   private static videoIdMap: Map<string, number> = new Map();
-
-  // ID -> Index in deque
-
-  constructor() {
-    if (PathUtils.appContext) {
-      RecentPlayUtil.init(PathUtils.appContext);
-    } else {
-      setTimeout(() => {
-        if (PathUtils.appContext) {
-          RecentPlayUtil.init(PathUtils.appContext);
-        } else {
-          console.warn("PathUtils.appContext is still not available after delay");
-        }
-      }, 200);
-    }
-  }
+  private static initialized = false;
 
   static addPlayback(context: Context, item: VideoMetadata): void {
+    if (!RecentPlayUtil.initialized) {
+      RecentPlayUtil.init(context)
+    }
     if (item?.uri == null) {
       return;
     }
@@ -48,7 +36,7 @@ export default class RecentPlayUtil {
   }
 
   public static delData(context: Context, uri: string) {
-    if (Array.from(RecentPlayUtil.videoIdMap.keys()).length === 0) { // 如果为空，则初始化一下
+    if (RecentPlayUtil.videoIdMap.size === 0) { // 如果为空，则初始化一下
       RecentPlayUtil.init(context)
     }
     if (RecentPlayUtil.videoIdMap.has(uri)) {
@@ -63,20 +51,10 @@ export default class RecentPlayUtil {
     }
   }
 
-  public static getVideoListByVideoDate(videoDate: string): [VideoMetadata | undefined, VideoMetadata[]] {
-    const fileFolderList = Preferences.getFileFolder(PathUtils.appContext!)
-    for (const folder of fileFolderList) {
-      const targetVideo = folder.video_list.find(video => video.date === videoDate)
-      if (targetVideo) {
-        return [targetVideo, folder.video_list]
-      }
-    }
-    return [undefined, []]
-  }
-
   private static init(context: Context) {
     if (context) {
       RecentPlayUtil.loadData(context);
+      RecentPlayUtil.initialized = true
     }
   }
 

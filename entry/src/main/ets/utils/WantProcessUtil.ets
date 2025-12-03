@@ -14,24 +14,18 @@ import ToolsUtil from './ToolsUtil';
 // 处理拉起应用传来的视频链接
 export default class WantProcess {
   public static hasNewWant = false
-  //是否接收到拉起
-  // 隐私协议链接
   public static PRIVACY_LINK: string =
     "https://github.com/Yebingiscn/SweetVideo/wiki/%E6%B5%81%E5%BF%83%E6%92%AD%E6%94%BE%E5%99%A8%E7%9A%84%E4%BD%BF%E7%94%A8%E6%9D%A1%E6%AC%BE%E4%B8%8E%E9%9A%90%E7%A7%81%E5%A3%B0%E6%98%8E"
   private static isSystemShare: boolean = false
-  // 是否系统分享
-  private static _wantUri: string = '';
-
-  //接收到的uri
+  private static receiveWant: Want | undefined = undefined;
+  private static receiveWantUri: string = '';
 
   public static set wantUri(value: string) {
-    WantProcess._wantUri = value;
+    WantProcess.receiveWantUri = value;
   }
 
-  private static _want: Want | undefined = undefined;
-
   public static set want(value: Want | undefined) {
-    WantProcess._want = value;
+    WantProcess.receiveWant = value;
   }
 
   static async getSystemShareWant(want: Want) {
@@ -41,7 +35,7 @@ export default class WantProcess {
         const records = data.getRecords();
         for (const record of records) {
           if (record.uri) {
-            WantProcess._wantUri = record.uri;
+            WantProcess.receiveWantUri = record.uri;
             WantProcess.isSystemShare = true;
             WantProcess.hasNewWant = true;
             break;
@@ -57,19 +51,19 @@ export default class WantProcess {
   }
 
   static async checkWant(context: Context, pathStack: NavPathStack) {
-    if (!WantProcess._want) {
+    if (!WantProcess.receiveWant) {
       return
     }
-    if (WantProcess._want.uri) {
-      WantProcess._wantUri = WantProcess._want.uri
+    if (WantProcess.receiveWant.uri) {
+      WantProcess.receiveWantUri = WantProcess.receiveWant.uri
       WantProcess.hasNewWant = true
     } else {
-      await WantProcess.getSystemShareWant(WantProcess._want)
-      if (!WantProcess._wantUri) {
+      await WantProcess.getSystemShareWant(WantProcess.receiveWant)
+      if (!WantProcess.receiveWantUri) {
         return
       }
     }
-    if (WantProcess._wantUri != '') {
+    if (WantProcess.receiveWantUri != '') {
       WantProcess.clearWantState()
       WantProcess.hasWant(context, pathStack)
     }
@@ -80,18 +74,18 @@ export default class WantProcess {
     if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
       try {
         let avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor()
-        let file = fs.openSync(WantProcess._wantUri);
+        let file = fs.openSync(WantProcess.receiveWantUri);
         avMetadataExtractor.fdSrc = file
         avMetadataExtractor.fetchMetadata(async (_error: BusinessError, metadata: media.AVMetadata) => {
           let targetVideo: VideoMetadata = {
-            uri: WantProcess._wantUri,
-            title: decodeURI(WantProcess._wantUri.split('/')[WantProcess._wantUri.split('/').length-1]),
+            uri: WantProcess.receiveWantUri,
+            title: decodeURI(WantProcess.receiveWantUri.split('/')[WantProcess.receiveWantUri.split('/').length-1]),
             date: systemDateTime.getTime(false).toString(),
             size: VideoUtil.getVideoWidthAndHeight(metadata),
             time: parseInt(metadata.duration || '0'),
             last_play: 0,
-            format: VideoInfoUtil.getVideoFormat(WantProcess._wantUri),
-            video_size: await VideoUtil.getVideoSize(WantProcess._wantUri, true) as string,
+            format: VideoInfoUtil.getVideoFormat(WantProcess.receiveWantUri),
+            video_size: await VideoUtil.getVideoSize(WantProcess.receiveWantUri, true) as string,
             hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
             start_time: 0,
             end_time: 0,
@@ -100,7 +94,7 @@ export default class WantProcess {
           // 获取默认播放器
           let url = WantProcess.getPlayer(context, targetVideo)
           const playerParams = new PlayerParams(targetVideo, [targetVideo], undefined)
-          WantProcess._wantUri = ''
+          WantProcess.receiveWantUri = ''
           pathStack.pushPathByName(url, playerParams, true)
         })
       } catch (error) {
@@ -139,6 +133,6 @@ export default class WantProcess {
 
   private static clearWantState() {
     WantProcess.hasNewWant = false;
-    WantProcess._want = undefined;
+    WantProcess.receiveWant = undefined;
   }
 }

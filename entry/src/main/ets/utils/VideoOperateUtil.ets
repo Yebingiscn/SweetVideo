@@ -24,24 +24,25 @@ import { PlayerParams } from '../common/NavigationCommon';
 // 视频操作类
 export default class VideoOperateUtil {
   public static max_volume: number = 0
-  // 最大音量
   public static min_volume: number = 0
-  // 最小音量
   public static lastSyncTime: number = 0;
-  //最小同步时间
   public static syncCoolDown: number = 3000;
-  // 同步冷却时间
   public static driftHistory: number[] = [];
-  // 差异记录用于趋势分析
   public static initPinchDistance: number = 0;
-  // 初始双指距离
   public static clearSubtitleTimer: number | null = null;
-  // 清除字幕时间
   public static screenBrightnessTmp: number = 0
   public static lastSpeed: number = 1
   public static lastPlayTime: number = 0
   public static aspectRatioMap = new Map([[VideoInfoUtil.screenExtendMap[2], 16 / 9],
     [VideoInfoUtil.screenExtendMap[3], 4 / 3]]);
+  public static config: ImageAnalyzerConfig = {
+    types: [ImageAnalyzerType.SUBJECT, ImageAnalyzerType.TEXT, ImageAnalyzerType.OBJECT_LOOKUP]
+  };
+  public static aiController: ImageAnalyzerController = new ImageAnalyzerController();
+  public static options: ImageAIOptions = {
+    types: [ImageAnalyzerType.SUBJECT, ImageAnalyzerType.TEXT, ImageAnalyzerType.OBJECT_LOOKUP],
+    aiController: VideoOperateUtil.aiController
+  };
   public static lastVolume: number = 0
   public static windowStage: window.WindowStage | undefined = undefined
   public static volumeGestureActiveTime: number = 0

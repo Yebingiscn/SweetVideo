@@ -6,7 +6,9 @@ export class LanguageConfig {
     'eng': '英语',
     'kor': '韩语',
     'fre': '法语',
+    'fra': '法语',
     'ger': '德语',
+    'deu': '德语',
     'spa': '西班牙语',
     'rus': '俄语',
     'ara': '阿拉伯语',
@@ -14,10 +16,11 @@ export class LanguageConfig {
     'ita': '意大利语',
     'hin': '印地语',
     'tha': '泰语',
-    'urk': '乌克兰语',
-    'thr': '土耳其语',
+    'ukr': '乌克兰语',
+    'tur': '土耳其语',
     'ind': '印尼语',
     'dut': '荷兰语',
+    'nld': '荷兰语',
     'swe': '瑞典语'
   }
 }

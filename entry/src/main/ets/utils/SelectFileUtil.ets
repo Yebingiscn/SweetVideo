@@ -315,6 +315,17 @@ export default class SelectFileUtil {
     return foundItem;
   }
 
+  public static getVideoListByVideoDate(videoDate: string): [VideoMetadata | undefined, VideoMetadata[]] {
+    const fileFolderList = Preferences.getFileFolder(PathUtils.appContext!)
+    for (const folder of fileFolderList) {
+      const targetVideo = folder.video_list.find(video => video.date === videoDate)
+      if (targetVideo) {
+        return [targetVideo, folder.video_list]
+      }
+    }
+    return [undefined, []]
+  }
+
   // 获取下一个视频
   static getNextItem(list: VideoMetadata[], item: string) {
     const currentIndex = list.findIndex(i => i.date === item);

@@ -19,10 +19,7 @@ import { BackgroundColorMode } from '../common/enum/BackgroundColorMode';
 // 工具类
 export default class ToolsUtil {
   private static splitRegex = /(\d+)/g;
-  // 只匹配连续数字
   private static pinyinCache = new WeakMap<VideoMetadata, string>();
-
-  // 缓存排序列表
 
   // Toast设置
   static showToast(text: string) {
@@ -121,25 +118,28 @@ export default class ToolsUtil {
     );
   }
 
-  // 名称排序
-  static async sortByName(context: Context, list: VideoMetadata[], file_folder: FileFolder | undefined) {
-    const sorted_list = ToolsUtil.sortByNameProcess(list)
-    if (file_folder) {
-      FileFolderUtil.updateFileFolder(context, file_folder, sorted_list)
-    } else {
-      PrivacySpaceUtil.getPrivacyMode() ? Preferences.saveVideoMetaDataEncryption(context, sorted_list)
-        : Preferences.saveVideoMetaData(context, sorted_list);
-    }
-  }
 
-  //时间排序，从近到久
-  static async sortByTime(context: Context, list: VideoMetadata[], file_folder: FileFolder | undefined) {
-    const sorted_list = ToolsUtil.sortByTimeProcess(list)
+  static async sortBy(context: Context, list: VideoMetadata[], file_folder: FileFolder | undefined,
+    sortType: 'name' | 'time') {
+    let sorted_list: VideoMetadata[]
+    switch (sortType) {
+      case 'name':
+        sorted_list = ToolsUtil.sortByNameProcess(list)
+        break
+      case 'time':
+        sorted_list = ToolsUtil.sortByTimeProcess(list)
+        break;
+      default:
+        sorted_list = ToolsUtil.sortByNameProcess(list)
+    }
     if (file_folder) {
       FileFolderUtil.updateFileFolder(context, file_folder, sorted_list)
     } else {
-      PrivacySpaceUtil.getPrivacyMode() ? Preferences.saveVideoMetaDataEncryption(context, sorted_list)
-        : Preferences.saveVideoMetaData(context, sorted_list)
+      if (PrivacySpaceUtil.getPrivacyMode()) {
+        Preferences.saveVideoMetaDataEncryption(context, sorted_list)
+      } else {
+        Preferences.saveVideoMetaData(context, sorted_list)
+      }
     }
   }
 

@@ -103,7 +103,7 @@ export struct RecentPlay { // 最近播放页
     }
     const isFileExist = await SelectFileUtil.isFileExist(item.uri, true)
     if (isFileExist) {
-      const originalList = RecentPlayUtil.getVideoListByVideoDate(item.date)
+      const originalList = SelectFileUtil.getVideoListByVideoDate(item.date)
       if (originalList[1].length > 0 && originalList[0]) {
         await ToolsUtil.routerWhere(this.pathStack, choosePlayer, originalList[0], originalList[1])
       } else {

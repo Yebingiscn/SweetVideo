@@ -7,7 +7,7 @@ import { Parser, SubtitleItem } from '../interfaces/SubtitleInterface';
 import SubtitleFormat from '../common/SubtitleFormatConfig';
 import { AssEvent, ParseAss, ParseSrt, ParseVtt, SrtLine, VttLine } from '../modules/subtitles';
 
-// 实现 Parser 接口的适配器类 gul
+// 实现 Parser 接口的适配器类
 export class ParserAdapter<T> implements Parser<T> {
   private initFn: () => Promise<void>;
   private readLinesFn: () => Promise<T[]>;

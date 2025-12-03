@@ -613,12 +613,17 @@ export struct Player { // 播放页
 
         Stack() {
           Stack() { //播放器
-            XComponent({ type: XComponentType.SURFACE, controller: this.xComponentController })
+            XComponent({
+              type: XComponentType.SURFACE,
+              controller: this.xComponentController,
+              imageAIOptions: VideoOperateUtil.options
+            })
               .onLoad(() => {
                 this.surfaceID = this.xComponentController.getXComponentSurfaceId()
                 this.getData()
               }).focusable(true)
               .defaultFocus(true)
+              .enableAnalyzer(true)
             SubtitleDisplayComponent({
               subTitle: this.sub_title,
               screenWidth: this.screen_width,
@@ -858,12 +863,23 @@ export struct Player { // 播放页
               }
             },
             onLongPressAction: () => {
-              if (!this.isLock) {
+              if (this.isLock) {
+                return
+              }
+              if (this.playing) {
                 this.longPress = true
                 VideoOperateUtil.lastSpeed = this.speed
-                this.updatePlaybackSpeed(this.longPressSpeed);
+                this.updatePlaybackSpeed(this.longPressSpeed)
                 this.currentSpeedIndex =
-                  VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).indexOf(this.longPressSpeed);
+                  VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).indexOf(this.longPressSpeed)
+              } else {
+                this.xComponentController.startImageAnalyzer(VideoOperateUtil.config)
+                  .then(() => {
+                    console.error("analysis complete");
+                  })
+                  .catch((error: BusinessError) => {
+                    console.error("error code: " + error.code);
+                  })
               }
             },
             onLongPressEnd: () => {

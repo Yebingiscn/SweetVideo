@@ -43,9 +43,7 @@ export default class VideoInfoUtil {
   // 播放器视频高度
   public static play_area_height: number = 0
   private static GB = 1024 * 1024 * 1024
-  // 1GB in bytes
   private static MB = 1024 * 1024
-  // 1MB in bytes
   // 倍速枚举，绑定系统倍速，倍速映射：用户倍速 ↔ 系统枚举
   private static VIDEO_SPEED_MAP =
     new Map<number, media.PlaybackSpeed>([[0.125, media.PlaybackSpeed.SPEED_FORWARD_0_125_X],
@@ -55,7 +53,6 @@ export default class VideoInfoUtil {
       [1.25, media.PlaybackSpeed.SPEED_FORWARD_1_25_X], [1.5, media.PlaybackSpeed.SPEED_FORWARD_1_50_X],
       [1.75, media.PlaybackSpeed.SPEED_FORWARD_1_75_X], [2, media.PlaybackSpeed.SPEED_FORWARD_2_00_X],
       [3, media.PlaybackSpeed.SPEED_FORWARD_3_00_X]])
-  // 类成员变量
   private static readonly videoSpeedListAll: number[] = Array.from(VideoInfoUtil.VIDEO_SPEED_MAP.keys())
     .filter(speed => speed >= 0.25)
     .sort((a, b) => a - b);
@@ -149,19 +146,7 @@ export default class VideoInfoUtil {
   }
 
   public static optimizedFormat(speed: number): string {
-    if (speed) {
-      const str = speed.toFixed(2);
-      let end = str.length;
-      while (end > 0 && (str[end - 1] === '0' || str[end - 1] === '.')) {
-        end--;
-        if (str[end] === '.') {
-          break;
-        }
-      }
-      return str.slice(0, end || 1) + 'x';
-    } else {
-      return '1x'
-    }
+    return speed ? speed.toFixed(2).replace(/\.?0+$/, '') + 'x' : '1x';
   }
 
   static getVideoTitle(item: VideoMetadata) {

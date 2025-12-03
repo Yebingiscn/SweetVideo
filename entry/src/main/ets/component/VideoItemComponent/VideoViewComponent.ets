@@ -201,8 +201,8 @@ export struct VideoView {
         content: $r('app.string.sort_by_name')
       })
         .onClick(async () => {
-          await ToolsUtil.sortByName(PathUtils.appContext!, this.videoListController.videoMetaDataList,
-            this.videoListController.folder)
+          await ToolsUtil.sortBy(PathUtils.appContext!, this.videoListController.videoMetaDataList,
+            this.videoListController.folder, "name")
           VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
         })
       MenuItem({
@@ -210,8 +210,8 @@ export struct VideoView {
         content: $r('app.string.sort_by_time')
       })
         .onClick(async () => {
-          await ToolsUtil.sortByTime(PathUtils.appContext!, this.videoListController.videoMetaDataList,
-            this.videoListController.folder)
+          await ToolsUtil.sortBy(PathUtils.appContext!, this.videoListController.videoMetaDataList,
+            this.videoListController.folder, "time")
           VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
         })
     }.attributeModifier(new MenuFancyModifier())

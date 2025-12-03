@@ -220,8 +220,7 @@ export struct PrivacySpace { // 隐私空间页
         content: $r('app.string.sort_by_name')
       })
         .onClick(async () => {
-          await ToolsUtil.sortByName(PathUtils.appContext!, this.video_meta_data_encryption,
-            undefined)
+          await ToolsUtil.sortBy(PathUtils.appContext!, this.video_meta_data_encryption, undefined, "name")
           this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
           this.videoDataSource.updateData(this.video_meta_data_encryption)
         })
@@ -230,7 +229,7 @@ export struct PrivacySpace { // 隐私空间页
         content: $r('app.string.sort_by_time')
       })
         .onClick(async () => {
-          await ToolsUtil.sortByTime(PathUtils.appContext!, this.video_meta_data_encryption, undefined)
+          await ToolsUtil.sortBy(PathUtils.appContext!, this.video_meta_data_encryption, undefined, "time")
           this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
           this.videoDataSource.updateData(this.video_meta_data_encryption)
         })
