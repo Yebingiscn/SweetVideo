@@ -311,6 +311,10 @@ export struct Player { // 播放页
     this.avPlayer?.on('seekDone', (percent) => {
       this.playTime = percent
       AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime)
+      this.xComponentController.startImageAnalyzer(VideoOperateUtil.config)
+        .catch((error: BusinessError) => {
+          console.error("error code: " + error.code);
+        })
     })
 
     this.avPlayer?.on('speedDone', (systemEnum: media.PlaybackSpeed) => {
@@ -382,6 +386,7 @@ export struct Player { // 播放页
           }
           this.initAVSession()
           AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime)
+          this.xComponentController.stopImageAnalyzer()
           break
         case 'paused':
           if (this.mIjkMediaPlayer) {
@@ -389,6 +394,12 @@ export struct Player { // 播放页
           }
           this.playing = false
           AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime)
+          setTimeout(() => {
+            this.xComponentController.startImageAnalyzer(VideoOperateUtil.config)
+              .catch((error: BusinessError) => {
+                console.error("error code: " + error.code);
+              })
+          }, 100)
           break
         case 'released':
           await this.ijkPlayerStop()
@@ -471,6 +482,7 @@ export struct Player { // 播放页
   }
 
   seekTime(seekTime: number) {
+    this.xComponentController.stopImageAnalyzer()
     this.avPlayer?.seek(seekTime, media.SeekMode.SEEK_CLOSEST)
     if (this.mIjkMediaPlayer) {
       this.mIjkMediaPlayer?.seekTo(String(seekTime))
@@ -872,14 +884,6 @@ export struct Player { // 播放页
                 this.updatePlaybackSpeed(this.longPressSpeed)
                 this.currentSpeedIndex =
                   VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).indexOf(this.longPressSpeed)
-              } else {
-                this.xComponentController.startImageAnalyzer(VideoOperateUtil.config)
-                  .then(() => {
-                    console.error("analysis complete");
-                  })
-                  .catch((error: BusinessError) => {
-                    console.error("error code: " + error.code);
-                  })
               }
             },
             onLongPressEnd: () => {
@@ -920,6 +924,7 @@ export struct Player { // 播放页
               }
             }
           })
+            .hitTestBehavior(HitTestMode.Transparent)
 
           AIAsr({
             isShown: this.isAIAsrShown
