@@ -9,7 +9,7 @@ import { RepeatMode } from '../../common/enum/RepeatMode'
 
 @Component
 export struct VideoSettingComponent {
-  @Link playTime: number
+  @Prop playTime: number
   @Prop nowPlaying: VideoMetadataFromPlayer
   @Link videoMetaData: VideoMetadata[]
   @Link angle: number

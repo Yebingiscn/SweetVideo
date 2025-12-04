@@ -10,8 +10,8 @@ export struct SettingTimeItem {
   private TenthsOfMinutes: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
   private UnitOfTMinutes: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
   private TenthsOfSecond: string[] = ['0', '1', '2', '3', '4', '5']
-  private UnitOfSecond: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
   private multi: string[][] = [this.TenthsOfMinutes, this.UnitOfTMinutes, this.TenthsOfSecond, this.UnitOfSecond]
+  private UnitOfSecond: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
   onChange = (_value: number) => {
   }
 

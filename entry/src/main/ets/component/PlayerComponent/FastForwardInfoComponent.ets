@@ -2,7 +2,7 @@ import VideoInfoUtil from '../../utils/VideoInfoUtil'
 
 @Component
 export struct FastForwardInfoComponent {
-  @Link speed: number
+  @Prop speed: number
   @State location: number = 0
   private list: string[] = VideoInfoUtil.getVideoSpeedTextList()
 

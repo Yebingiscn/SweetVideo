@@ -1,16 +1,16 @@
 @Component
 export struct SubtitleDisplayComponent {
-  @Link subTitle: string
+  @Prop subtitle: string
   @StorageLink('subtitleSize') subtitleSize: string = '22'
   @Link screenWidth: number
   @Link screenHeight: number
   @Link showControl: boolean
-  @Link subTitleVisibility: Visibility
+  @Prop subTitleVisibility: Visibility
   @Link playAreaWidth: number
 
   build() {
     Stack({ alignContent: Alignment.BottomEnd }) { //字幕
-      Text(this.subTitle)
+      Text(this.subtitle)
         .fontColor('#F0F0F0')
         .fontSize(this.subtitleSize)
         .fontWeight(FontWeight.Medium)

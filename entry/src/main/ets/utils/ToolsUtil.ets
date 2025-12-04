@@ -15,6 +15,9 @@ import NavigationAddress, { PlayerParams } from '../common/NavigationCommon';
 import { media } from '@kit.MediaKit';
 import { updateManager } from '@kit.StoreKit';
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode';
+import { UniversalDetector } from '@ohos/juniversalchardet';
+import { fileIo } from '@kit.CoreFileKit';
+import { util } from '@kit.ArkTS';
 
 // 工具类
 export default class ToolsUtil {
@@ -219,6 +222,39 @@ export default class ToolsUtil {
       }
     } catch (error) {
       console.error('set color mode errro: ' + error)
+    }
+  }
+
+  static async detectFileDecoder(filePath: string) {
+    try {
+      const encoding = await UniversalDetector.detectCharset(filePath);
+      return encoding
+    } catch (error) {
+      console.error('File encoding detection failed:', JSON.stringify(error));
+      return '';
+    }
+  }
+
+  static transFileDecodeAsUTF8(filePath: string, decode: string) {
+    try {
+      const readStream = fileIo.createStreamSync(filePath, "r+");
+      const stat = fileIo.statSync(filePath);
+      const buffer = new ArrayBuffer(stat.size);
+      readStream.readSync(buffer);
+      let textDecoder = util.TextDecoder.create(decode, { ignoreBOM: true });
+      let text = textDecoder.decodeToString(new Uint8Array(buffer), { stream: false });
+      readStream.close().catch(() => {
+        return false
+      });
+      const writeStream = fileIo.createStreamSync(filePath, "w+");
+      writeStream.writeSync(text, { encoding: 'utf-8' });
+      writeStream.close().catch(() => {
+        return false
+      });
+      return true
+    } catch (error) {
+      console.error("操作失败: " + JSON.stringify(error));
+      return false
     }
   }
 }

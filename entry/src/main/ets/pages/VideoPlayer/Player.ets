@@ -2,7 +2,6 @@ import { media } from '@kit.MediaKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import PermissionUtil from '../../utils/PermissionUtil';
 import { window } from '@kit.ArkUI';
-import { avSession as avSessionManager } from '@kit.AVSessionKit';
 import AVSessionUtil from '../../utils/AVSessionUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
@@ -10,10 +9,8 @@ import { audio } from '@kit.AudioKit';
 import SelectFileUtil from '../../utils/SelectFileUtil';
 import VideoOperateUtil from '../../utils/VideoOperateUtil';
 import RecentPlayUtil from '../../utils/RecentPlayUtil';
-import { IjkMediaPlayer } from '@ohos/ijkplayer';
 import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface';
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
-import { AudioTrack } from '../../interfaces/AudioTrackInterface';
 import Preferences from '../../database/Preferences';
 import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil';
 import { PathUtils } from '../../utils/PathUtils';
@@ -33,7 +30,6 @@ import { VideoTopComponent } from '../../component/PlayerComponent/VideoTopCompo
 import { VideoButtonsComponent } from '../../component/PlayerComponent/VideoButtonsComponent';
 import { VideoSettingComponent } from '../../component/PlayerComponent/VideoSettingComponent';
 import { RepeatMode } from '../../common/enum/RepeatMode';
-import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode';
 import NavigationAddress, { PlayerParams } from '../../common/NavigationCommon';
 import { WindowUtil } from '../../utils/WindowUtil';
 import { KeyCode } from '@kit.InputKit';
@@ -44,19 +40,14 @@ import { SubtitlePanelComponent } from '../../component/PlayerComponent/Subtitle
 import { SubtitleMode } from '../../common/enum/SubtitleMode';
 import { AVPlayerUtil } from '../../utils/AVPlayerUtil';
 import DataSyncUtil from '../../utils/DataSyncUtil';
+import { AVPlayerController } from '../../controller/AVPlayerController';
 
 @Component
 export struct Player { // 播放页
-  avPlayer: media.AVPlayer | undefined = undefined
-  avSession: avSessionManager.AVSession | undefined = undefined;
-  @State now_playing: VideoMetadataFromPlayer | undefined = undefined
-  @State playing: boolean = false
-  @State speed: number = 1.0
-  @State playTime: number = 0
-  surfaceID: string = ''
+  @Provide('player') player: AVPlayerController = new AVPlayerController()
   @State longPress: boolean = false
   @State @Watch('setScreen') showControl: boolean = false
-  @State lock_rotation: boolean = false
+  @State lockRotation: boolean = false
   xComponentController: XComponentController = new XComponentController()
   windowClass = WindowUtil.getWindow()
   @State screen_width: number = 0
@@ -64,117 +55,30 @@ export struct Player { // 播放页
   @State play_area_height: number = 0
   @State play_area_width: number = 0
   @State onSwiping: boolean = false
-  @State onSwipingVoice: boolean = false
   @State onSwipingBrightness: boolean = false
-  @State volume: number = 0
-  @State screenBrightness: number = 0
   @State video_meta_data: VideoMetadata[] = []
   @State select_text: string | undefined = '原始比例'
   @State repeatMode: RepeatMode = RepeatMode.LIST_LOOP
-  @State audio_track: AudioTrack[] = []
   @State audio_track_select: number = 0
   @State sideBarStatusTmp: Visibility = Visibility.Hidden
   @State sideBarStatus: boolean = false
   @State isLock: boolean = false
   @State lockVisibility: boolean = false
-  @State sub_title: string = ''
-  @State sub_title_visibility: Visibility = Visibility.Visible
-  @State subtitleSelected: SubtitleMode = SubtitleMode.INNER_SUBTITLE
   @State isAIAsrShown: boolean = false
   @State isSliderPlayTimeChange: boolean = false
   @State currentSpeedIndex: number = 0
   @State angle: number = 0
-  @State volumeActually: number = 0
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
-  @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
   @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
   @StorageLink('skipIntroTime') skipIntroTime: string = '0'
-  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
+  @StorageProp('topSafeHeight') topSafeHeight: number = 0
   @StorageLink('smartRotation') smartRotation: boolean = true
   @StorageLink('longPressSpeed') longPressSpeed: number = 3
   @StorageLink('isPrivacyBackground') isPrivacyBackground: boolean = false
   @Consume('pathStack') pathStack: NavPathStack
   @State exitVideoTime: number = 0
-  private mIjkMediaPlayer: IjkMediaPlayer | null = null;
   private autoHideTimeout: boolean = false
-  private audioVolumeManager: audio.AudioVolumeManager | null = null
-
-  async setSessionListener() {
-    try {
-      this.avSession?.on('play', () => {
-        if (this.mIjkMediaPlayer) {
-          this.mIjkMediaPlayer?.start()
-        }
-        this.avPlayer?.play()?.catch(() => {
-          console.error('player error')
-        })
-      });
-      this.avSession?.on('pause', () => {
-        this.avPlayer?.pause()?.catch(() => {
-          console.error('player error')
-        })
-      });
-      this.avSession?.on('seek', (position: number) => {
-        this.seekTime(position)
-      })
-      this.avSession?.on('fastForward', () => {
-        this.seekTime(this.playTime + 15000)
-      })
-      this.avSession?.on('rewind', () => {
-        this.seekTime(this.playTime - 15000)
-      })
-      this.avSession?.on('playNext', () => {
-        this.playNextVideo()
-      })
-      this.avSession?.on('outputDeviceChange', () => {
-        this.avPlayer?.pause()?.catch(() => {
-          console.error('player error')
-        })
-      })
-    } catch (error) {
-      console.error('set av session state error')
-    }
-  }
-
-  async initVolumeAndBrightness() {
-    let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
-    let audioManager = audio.getAudioManager();
-    this.audioVolumeManager = audioManager.getVolumeManager();
-    let volume_list = await VideoOperateUtil.getVolume(this.audioVolumeManager, groupId)
-    this.volume = volume_list.get('volume')!
-    this.volumeActually = this.volume
-    try {
-      this.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
-        let changeVolumeByVolumeButton = false
-        if (!this.onSwipingVoice) { // 这里复用手势音量调节提示
-          this.onSwipingVoice = !this.onSwipingVoice
-          changeVolumeByVolumeButton = true
-        }
-        this.volumeActually = volumeEvent.volume
-        ToolsUtil.startVibration()
-        setTimeout(() => {
-          if (changeVolumeByVolumeButton) {
-            this.onSwipingVoice = !this.onSwipingVoice
-          }
-        }, 800)
-      });
-    } catch (error) {
-      console.error('volumeChange error:' + error)
-    }
-    this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
-  }
-
-  updatePlaybackSpeed(speed: number): void {
-    if (!VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).includes(speed)) {
-      speed = 1.0;
-    }
-    const systemSpeed = VideoInfoUtil.mapToSystemSpeed(speed);
-    this.avPlayer?.setSpeed(systemSpeed);
-    if (this.mIjkMediaPlayer) {
-      this.mIjkMediaPlayer?.setSpeed(String(speed));
-    }
-  }
 
   async aboutToAppear(): Promise<void> {
     PermissionUtil.applyContinuousTask(this.allowBackgroundPlay)
@@ -184,7 +88,7 @@ export struct Player { // 播放页
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
       this.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
       const video_speed = Preferences.getVideoSpeed(PathUtils.appContext!)
-      this.speed = parseFloat(video_speed?.replace('x', '') || '1');
+      this.player.speed = parseFloat(video_speed?.replace('x', '') || '1')
     } catch (error) {
       console.error('player error' + error)
     }
@@ -193,41 +97,42 @@ export struct Player { // 播放页
   async aboutToDisappear(): Promise<void> {
     VideoOperateUtil.setBrightness(-1)
     Preferences.saveVideoSpeed(PathUtils.appContext!,
-      (VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).includes(this.speed) ? this.speed : 1) + 'x')
+      (VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).includes(this.player.speed) ? this.player.speed :
+        1) + 'x')
     Preferences.saveRepeatModeState(PathUtils.appContext!, this.repeatMode)
     WindowUtil.setBarState(PathUtils.appContext!, true, true)
     clearTimeout(this.exitVideoTime)
-    this.avPlayer?.off('subtitleUpdate');
-    this.avPlayer?.off('timeUpdate')
-    this.avPlayer?.off('seekDone')
-    this.avPlayer?.off('speedDone')
-    this.avPlayer?.off('audioOutputDeviceChangeWithInfo')
-    this.avPlayer?.off('subtitleUpdate')
-    this.avPlayer?.off('stateChange')
+    this.player.avPlayer?.off('subtitleUpdate');
+    this.player.avPlayer?.off('timeUpdate')
+    this.player.avPlayer?.off('seekDone')
+    this.player.avPlayer?.off('speedDone')
+    this.player.avPlayer?.off('audioOutputDeviceChangeWithInfo')
+    this.player.avPlayer?.off('subtitleUpdate')
+    this.player.avPlayer?.off('stateChange')
     AppStorage.delete('nowPlayingData') //清除已保存的播放进度
     try {
-      this.audioVolumeManager?.off('volumeChange');
+      this.player.audioVolumeManager?.off('volumeChange');
     } catch (error) {
       console.error('volume off error' + error)
     }
-    this.audioVolumeManager = null
-    this.releaseAVPlayer()
+    this.player.audioVolumeManager = null
+    this.player.releaseAVPlayer()
   }
 
   async setRotation() {
-    if (!this.now_playing) {
+    if (!this.player.nowPlaying) {
       return
     }
-    const nowWidth = this.now_playing.size[0];
-    const nowHeight = this.now_playing.size[1];
+    const nowWidth = this.player.nowPlaying.size[0]
+    const nowHeight = this.player.nowPlaying.size[1]
     const aspectRatioNow = nowWidth / nowHeight;
-    const screenAspectRatio = this.screen_width / this.screen_height;
+    const screenAspectRatio = this.screen_width / this.screen_height
     if (aspectRatioNow > screenAspectRatio) {
-      this.play_area_width = this.screen_width;
-      this.play_area_height = this.play_area_width * (nowHeight / nowWidth);
+      this.play_area_width = this.screen_width
+      this.play_area_height = this.play_area_width * (nowHeight / nowWidth)
     } else {
-      this.play_area_height = this.screen_height;
-      this.play_area_width = this.play_area_height * (nowWidth / nowHeight);
+      this.play_area_height = this.screen_height
+      this.play_area_width = this.play_area_height * (nowWidth / nowHeight)
     }
     if (this.select_text !== '原始比例') {
       this.select_text = '原始比例'
@@ -235,56 +140,9 @@ export struct Player { // 播放页
     VideoInfoUtil.saveOriginalVideoWidthAndHeight(this.play_area_width, this.play_area_height)
   }
 
-  async getAudioTrack() {
-    this.audio_track = await VideoOperateUtil.getAudioTracks(this.avPlayer!)
-    if (VideoOperateUtil.validateAudioTracks(this.audio_track)) {
-      this.avPlayer!.selectTrack(this.audio_track[0].index)?.catch(() => {
-        console.error('player error')
-      });
-    } else {
-      this.activeEnhanceAudio()
-    }
-  }
-
-  activeEnhanceAudio() {
-    this.mIjkMediaPlayer = IjkMediaPlayer.getInstance();
-    try {
-      const video_url = fs.openSync(this.now_playing?.uri).path
-      this.mIjkMediaPlayer.reset();
-      this.mIjkMediaPlayer.setAudioId(this.surfaceID)
-      this.mIjkMediaPlayer.native_setup();
-      this.mIjkMediaPlayer.setDebug(false);
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", '15728600');
-      this.mIjkMediaPlayer.setVolume('1.0', '1.0');
-      this.mIjkMediaPlayer.setDataSource(video_url)
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "start-on-prepared", "1");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "enable-accurate-seek", "1");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "packet-buffering", "1");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-fps", "0"); // 禁用FPS限制
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "disable_video", "1"); // 跳过视频流
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_CODEC, "skip-video", "1");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "audio-resampler", "soxr");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "avsync", '100');
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-all-videos", "1");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-hevc", "0");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "enable-buffer-age", "0");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "buffer-pool-size", "32");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "sync-av-start", "1");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "infbuf", "0");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "soundtouch", "1");
-      this.mIjkMediaPlayer.setSpeed('1f');
-      this.mIjkMediaPlayer.setLoopCount(false);
-      this.mIjkMediaPlayer.setMessageListener();
-      this.mIjkMediaPlayer.prepareAsync();
-      this.mIjkMediaPlayer.start()
-    } catch (error) {
-      console.error('ijk error:' + error)
-    }
-  }
-
   async setAVPlayerCallback() {
-    this.avPlayer?.on('timeUpdate', async (duration) => {
-      AppStorage.setOrCreate('nowPlayingData', [this.playTime, this.now_playing!, this.video_meta_data])
+    this.player.avPlayer?.on('timeUpdate', async (duration) => {
+      AppStorage.setOrCreate('nowPlayingData', [this.player.playTime, this.player.nowPlaying!, this.video_meta_data])
       if (this.showControl) {
         if (!this.autoHideTimeout) {
           this.autoHideTimeout = true
@@ -295,213 +153,138 @@ export struct Player { // 播放页
           }, 8000)
         }
       }
-      if (this.now_playing?.end_time && duration >= this.now_playing?.end_time &&
+      if (this.player.nowPlaying?.end_time && duration >= this.player.nowPlaying?.end_time &&
         this.repeatMode !== RepeatMode.SINGLE_LOOP) {
         this.playNextVideo()
         ToolsUtil.showToast('已智能跳过片尾')
       }
       if (!this.onSwiping) {
-        this.calPlayerSync(duration)
+        this.player.calPlayerSync(duration)
       }
-      if (this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
-        this.sub_title = SubtitleUtil.getSubtitlesAtTime(duration)
+      if (this.player.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
+        this.player.subtitle = SubtitleUtil.getSubtitlesAtTime(duration)
       }
     });
 
-    this.avPlayer?.on('seekDone', (percent) => {
-      this.playTime = percent
-      AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime)
-      this.xComponentController.startImageAnalyzer(VideoOperateUtil.config)
-        .catch((error: BusinessError) => {
-          console.error("error code: " + error.code);
-        })
+    this.player.avPlayer?.on('seekDone', (percent) => {
+      this.player.playTime = percent
+      AVSessionUtil.updatePlaybackSessionState(this.player.playing, this.player.playTime)
+      this.xComponentController.startImageAnalyzer(VideoOperateUtil.config).catch((error: BusinessError) => {
+        console.error("error code: " + error.code);
+      })
     })
 
-    this.avPlayer?.on('speedDone', (systemEnum: media.PlaybackSpeed) => {
-      const actualSpeed = VideoInfoUtil.mapFromSystemSpeed(systemEnum);
-      this.speed = actualSpeed;
+    this.player.avPlayer?.on('speedDone', (systemEnum: media.PlaybackSpeed) => {
+      const actualSpeed = VideoInfoUtil.mapFromSystemSpeed(systemEnum)
+      this.player.speed = actualSpeed
     });
 
-    this.avPlayer?.on('audioOutputDeviceChangeWithInfo', (data: audio.AudioStreamDeviceChangeInfo) => {
+    this.player.avPlayer?.on('audioOutputDeviceChangeWithInfo', (data: audio.AudioStreamDeviceChangeInfo) => {
       if (data.changeReason === audio.AudioStreamDeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) {
-        this.avPlayer?.pause()?.catch(() => {
+        this.player.avPlayer?.pause()?.catch(() => {
           console.error('player error')
         })
       }
     });
 
-    this.avPlayer?.on('stateChange', async (state) => {
+    this.player.avPlayer?.on('stateChange', async (state) => {
       switch (state) {
         case 'initialized':
-          if (this.avPlayer) {
-            this.avPlayer.surfaceId = this.surfaceID
-            this.avPlayer.setPlaybackStrategy({
+          if (this.player.avPlayer) {
+            this.player.avPlayer.surfaceId = this.player.surfaceID
+            this.player.avPlayer.setPlaybackStrategy({
               showFirstFrameOnPrepare: true
             })?.catch(() => {
               console.error('player error')
             });
-            await this.setExternalSubtitle(this.now_playing!)
-            this.avPlayer.prepare()?.catch(() => {
+            await this.player.setExternalSubtitle(this.player.nowPlaying!)
+            this.player.avPlayer.prepare()?.catch(() => {
               console.error('player error')
             });
           }
           break;
         case 'prepared':
-          this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.now_playing!, this.skipIntroTime))
-          this.avPlayer?.play()?.catch(() => {
+          this.player.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.player.nowPlaying!,
+            this.skipIntroTime))
+          this.player.avPlayer?.play()?.catch(() => {
             console.error('player error')
           });
-          await this.getAudioTrack()
-          await this.initVolumeAndBrightness()
-          this.updatePlaybackSpeed(this.speed)
+          await this.player.getAudioTrack()
+          await this.player.initVolumeAndBrightness()
+          this.player.updatePlaybackSpeed(this.player.speed)
           this.showControl = false
           this.lockVisibility = false
           this.isSliderPlayTimeChange = false
           this.onSwiping = false
           break;
         case 'completed':
-          VideoOperateUtil.saveVideoTime(this.playTime, this.now_playing!, this.video_meta_data,
+          VideoOperateUtil.saveVideoTime(this.player.playTime, this.player.nowPlaying!, this.video_meta_data,
             PathUtils.appContext!)
-          const targetItem = this.video_meta_data.find(i => i.date == this.now_playing?.date)
+          const targetItem = this.video_meta_data.find(i => i.date == this.player.nowPlaying?.date)
           if (targetItem) {
-            targetItem!.last_play = this.playTime
+            targetItem!.last_play = this.player.playTime
           }
           if (this.repeatMode === RepeatMode.SINGLE_LOOP) {
-            if (this.mIjkMediaPlayer) {
-              this.mIjkMediaPlayer?.seekTo('0')
-              this.mIjkMediaPlayer?.start()
+            if (this.player.mIjkMediaPlayer) {
+              this.player.mIjkMediaPlayer?.seekTo('0')
+              this.player.mIjkMediaPlayer?.start()
             }
-            this.avPlayer?.play()?.catch(() => {
+            this.player.avPlayer?.play()?.catch(() => {
               console.error('player error')
             })
-            this.avPlayer?.seek(0, media.SeekMode.SEEK_CLOSEST)
+            this.player.avPlayer?.seek(0, media.SeekMode.SEEK_CLOSEST)
           } else {
             this.playNextVideo()
           }
           break;
         case 'playing':
-          this.playing = true
-          if (this.mIjkMediaPlayer) {
-            this.mIjkMediaPlayer?.start()
+          this.player.playing = true
+          if (this.player.mIjkMediaPlayer) {
+            this.player.mIjkMediaPlayer?.start()
           }
-          this.initAVSession()
-          AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime)
+          this.player.initAVSession()
+          AVSessionUtil.updatePlaybackSessionState(this.player.playing, this.player.playTime)
           this.xComponentController.stopImageAnalyzer()
           break
         case 'paused':
-          if (this.mIjkMediaPlayer) {
-            this.mIjkMediaPlayer?.pause()
+          if (this.player.mIjkMediaPlayer) {
+            this.player.mIjkMediaPlayer?.pause()
           }
-          this.playing = false
-          AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime)
+          this.player.playing = false
+          AVSessionUtil.updatePlaybackSessionState(this.player.playing, this.player.playTime)
           setTimeout(() => {
             this.xComponentController.startImageAnalyzer(VideoOperateUtil.config)
               .catch((error: BusinessError) => {
-                console.error("error code: " + error.code);
+                console.error("error code: " + error.code)
               })
           }, 100)
           break
         case 'released':
-          await this.ijkPlayerStop()
-          this.playing = false
-          AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime)
+          await this.player.ijkPlayerStop()
+          this.player.playing = false
+          AVSessionUtil.updatePlaybackSessionState(this.player.playing, this.player.playTime)
           break
         case 'idle':
-          await this.ijkPlayerStop()
-          this.releaseAVPlayer()
+          await this.player.ijkPlayerStop()
+          this.player.releaseAVPlayer()
           break;
         case 'error':
-          await this.ijkPlayerStop()
-          VideoOperateUtil.playErrorExecute(this.pathStack, this.video_meta_data, this.now_playing?.date!,
+          await this.player.ijkPlayerStop()
+          VideoOperateUtil.playErrorExecute(this.pathStack, this.video_meta_data, this.player.nowPlaying?.date!,
             NavigationAddress.FFMPEG_PLAYER)
-          this.releaseAVPlayer()
+          this.player.releaseAVPlayer()
           break;
       }
-    })
-  }
-
-  async ijkPlayerStop() {
-    if (this.mIjkMediaPlayer) {
-      this.mIjkMediaPlayer?.pause(); // 先暂停再停止
-      this.mIjkMediaPlayer?.reset();
-      this.mIjkMediaPlayer?.stop()
-      this.mIjkMediaPlayer?.release()
-      this.mIjkMediaPlayer = null
-    }
-  }
-
-  async setExternalSubtitle(now_playing: VideoMetadataFromPlayer) {
-    if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, now_playing.date!)) {
-      try {
-        let file1 = fs.openSync(PathUtils.subtitlePath! + now_playing.date, fs.OpenMode.READ_ONLY)
-        await SubtitleUtil.parseSubtitleProcess(file1.path, now_playing.external_subtitle_format) ?
-          this.subtitleSelected = SubtitleMode.EXTERNAL_SUBTITLE : this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
-      } catch (error) {
-        this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
-        console.error('subtitle error' + error)
-      }
-    } else {
-      this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
-    }
-    this.avPlayer?.on('subtitleUpdate', async (info: media.SubtitleInfo) => { // 需要进入prepare状态前完成注册
-      if (VideoOperateUtil.clearSubtitleTimer !== null) {
-        clearTimeout(VideoOperateUtil.clearSubtitleTimer);
-        VideoOperateUtil.clearSubtitleTimer = null;
-      }
-      if (this.subtitleSelected === SubtitleMode.INNER_SUBTITLE) {
-        if (info) {
-          const text = info.text ?? '';
-          const duration = info.duration ?? 0;
-          this.sub_title = text;
-          if (duration > 0) {
-            VideoOperateUtil.clearSubtitleTimer = setTimeout(() => {
-              this.sub_title = '';
-            }, duration) as number;
-          }
-        } else {
-          this.sub_title = '';
-        }
-      }
-    });
-  }
-
-  videoStartPlayTime(seekMode: number) {
-    switch (seekMode) {
-      case VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME:
-        this.seekTime(this.now_playing?.last_play || 0)
-        break
-      case VideoStartTimeMode.SEEK_TO_START_TIME:
-        this.seekTime(this.now_playing?.start_time || 0)
-        break
-      case VideoStartTimeMode.SEEK_TO_INTRO_TIME:
-        this.seekTime(this.playTime + Number(this.skipIntroTime) * 1000)
-        break
-      default:
-        return
-    }
-  }
-
-  seekTime(seekTime: number) {
-    this.xComponentController.stopImageAnalyzer()
-    this.avPlayer?.seek(seekTime, media.SeekMode.SEEK_CLOSEST)
-    if (this.mIjkMediaPlayer) {
-      this.mIjkMediaPlayer?.seekTo(String(seekTime))
-    }
-  }
-
-  releaseAVPlayer() {
-    this.avPlayer?.release()?.catch(() => {
-      console.error('player error')
     })
   }
 
   async getData() {
-    this.avPlayer = await AVPlayerUtil.getAVPlayer()
-    if (this.avPlayer) {
+    this.player.avPlayer = await AVPlayerUtil.getAVPlayer()
+    if (this.player.avPlayer) {
       this.setAVPlayerCallback()
       try {
-        await PermissionUtil.activatePermission(this.now_playing?.uri)
-        this.avPlayer.fdSrc = fs.openSync(this.now_playing?.uri);
+        await PermissionUtil.activatePermission(this.player.nowPlaying?.uri)
+        this.player.avPlayer.fdSrc = fs.openSync(this.player.nowPlaying?.uri)
       } catch (error) {
         ToolsUtil.showToast('视频打开失败，可能已失效：' + error)
         this.pathStack.pop()
@@ -525,51 +308,51 @@ export struct Player { // 播放页
   }
 
   async playChooseVideo(item: VideoMetadata) {
-    VideoOperateUtil.saveVideoTime(this.playTime, this.now_playing!, this.video_meta_data,
+    VideoOperateUtil.saveVideoTime(this.player.playTime, this.player.nowPlaying!, this.video_meta_data,
       PathUtils.appContext!)
     if (!PrivacySpaceUtil.getPrivacyMode()) {
       RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
     }
-    this.avPlayer?.off('subtitleUpdate');
+    this.player.avPlayer?.off('subtitleUpdate')
     try {
-      await this.avPlayer?.reset()
+      await this.player.avPlayer?.reset()
     } catch (error) {
       console.error('reset error' + error)
     }
-    await this.ijkPlayerStop()
-    this.now_playing = item as VideoMetadataFromPlayer
+    await this.player.ijkPlayerStop()
+    this.player.nowPlaying = item as VideoMetadataFromPlayer
     this.getData()
-    this.initAVSession()
+    this.player.initAVSession()
   }
 
   playNextVideo() {
-    if (this.video_meta_data.length === 0 || this.playTime <= 0) {
-      return;
+    if (this.video_meta_data.length === 0 || this.player.playTime <= 0) {
+      return
     }
-    const currentDate = this.now_playing?.date || '';
-    let item = SelectFileUtil.getItem(this.video_meta_data, currentDate) as VideoMetadata;
+    const currentDate = this.player.nowPlaying?.date || ''
+    let item = SelectFileUtil.getItem(this.video_meta_data, currentDate) as VideoMetadata
     if (!item) {
-      item = this.video_meta_data[0];
+      item = this.video_meta_data[0]
     }
-    let nextItem: VideoMetadata | null = null;
+    let nextItem: VideoMetadata | null = null
     try {
       if (this.repeatMode === RepeatMode.RANDOM) {
-        const availableVideos = this.video_meta_data.filter(v => v.date !== item.date);
+        const availableVideos = this.video_meta_data.filter(v => v.date !== item.date)
         nextItem = availableVideos.length > 0
           ? availableVideos[Math.floor(Math.random() * availableVideos.length)]
           : item
       } else if (this.repeatMode === RepeatMode.SINGLE_PLAY) {
-        this.exitVideo(0);
+        this.exitVideo(0)
         return
       } else {
-        nextItem = SelectFileUtil.getNextItem(this.video_meta_data, item.date);
+        nextItem = SelectFileUtil.getNextItem(this.video_meta_data, item.date)
       }
       if (nextItem) {
-        this.playChooseVideo(nextItem);
+        this.playChooseVideo(nextItem)
       }
     } catch (error) {
-      console.error('Error in playNextVideo:', error);
-      this.exitVideo(0);
+      console.error('Error in playNextVideo:', error)
+      this.exitVideo(0)
     }
   }
 
@@ -580,33 +363,8 @@ export struct Player { // 播放页
     }, 400) : this.sideBarStatus = false
   }
 
-  backForward() {
-    this.seekTime(this.playTime - Number(this.fastForwardSeconds) * 1000)
-  }
-
-  fastForward() {
-    this.seekTime(this.playTime + Number(this.fastForwardSeconds) * 1000)
-  }
-
-  togglePlayback() {
-    this.playing ? this.avPlayer?.pause()?.catch(() => {
-      console.error('player error')
-    }) : this.avPlayer?.play()?.catch(() => {
-      console.error('player error')
-    })
-  }
-
   setScreen() {
     WindowUtil.setBarState(PathUtils.appContext!, this.showControl, this.showControl)
-  }
-
-  async initAVSession() {
-    if (!this.avSession && this.allowBackgroundPlay) {
-      this.avSession = await AVSessionUtil.getAVSession()
-      await this.setSessionListener()
-      AVSessionUtil.setSessionInfo(this.now_playing!)
-      AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime)
-    }
   }
 
   build() {
@@ -615,7 +373,7 @@ export struct Player { // 播放页
         PlayerSideBarComponent({
           sideBarStatusTmp: this.sideBarStatusTmp,
           video_meta_data: this.video_meta_data,
-          now_playing: this.now_playing,
+          now_playing: this.player.nowPlaying,
           sideBarStatus: this.sideBarStatus,
           onItemClick: (item: VideoMetadata) => {
             this.playChooseVideo(item)
@@ -631,17 +389,18 @@ export struct Player { // 播放页
               imageAIOptions: VideoOperateUtil.options
             })
               .onLoad(() => {
-                this.surfaceID = this.xComponentController.getXComponentSurfaceId()
+                this.player.surfaceID = this.xComponentController.getXComponentSurfaceId()
                 this.getData()
-              }).focusable(true)
+              })
+              .focusable(true)
               .defaultFocus(true)
               .enableAnalyzer(true)
             SubtitleDisplayComponent({
-              subTitle: this.sub_title,
+              subtitle: this.player.subtitle,
               screenWidth: this.screen_width,
               screenHeight: this.screen_height,
               showControl: this.showControl,
-              subTitleVisibility: this.sub_title_visibility,
+              subTitleVisibility: this.player.subtitleVisibility,
               playAreaWidth: this.play_area_width,
             })
           }
@@ -650,21 +409,21 @@ export struct Player { // 播放页
               return;
             }
             if (event.keyCode === KeyCode.KEYCODE_SPACE) {
-              this.togglePlayback()
+              this.player.togglePlayback()
             }
             if (event.keyCode === KeyCode.KEYCODE_ESCAPE) {
               this.exitVideo(0)
             }
             if (event.keyCode === KeyCode.KEYCODE_DPAD_RIGHT) {
-              this.fastForward();
+              this.player.fastForward();
             }
             if (event.keyCode === KeyCode.KEYCODE_DPAD_LEFT) {
-              this.backForward();
+              this.player.backForward();
             }
           })
           .width(this.play_area_width)
           .height(this.play_area_height)
-          .animation({ duration: this.playing ? 300 : 0, curve: Curve.Ease })
+          .animation({ duration: this.player.playing ? 300 : 0, curve: Curve.Ease })
           .rotate({ y: 2, angle: this.angle, perspective: 200 })
 
           if (this.showControl && !this.isLock) {
@@ -712,27 +471,27 @@ export struct Player { // 播放页
 
           if (this.longPress) {
             FastForwardInfoComponent({
-              speed: this.speed,
+              speed: this.player.speed,
               location: this.play_area_height,
             })
           }
           if (this.onSwiping) {
             SwipingPlayTimeDisplay({
               isSliderPlayTimeChange: this.isSliderPlayTimeChange,
-              playTime: this.playTime,
-              totalTime: this.now_playing?.time,
+              playTime: this.player.playTime,
+              totalTime: this.player.nowPlaying?.time,
             })
           }
 
           VolumeSwipingComponent({
-            videoVolume: this.volume,
-            videoVolumeShow: this.volumeActually,
-            onSwipingVoice: this.onSwipingVoice,
+            videoVolume: this.player.volume,
+            videoVolumeShow: this.player.volumeActually,
+            onSwipingVoice: this.player.onSwipingVoice,
           })
 
           if (this.onSwipingBrightness) {
             BrightnessSwipingComponent({
-              screenBrightness: this.screenBrightness,
+              screenBrightness: this.player.screenBrightness,
             })
           }
           if (this.lockVisibility) {
@@ -747,51 +506,51 @@ export struct Player { // 播放页
             showControl: this.showControl,
             onDoubleClickAction: (event: GestureEvent) => {
               if (this.isLock) {
-                return;
+                return
               } // 设备锁定时直接返回
               if (!this.allowDoubleFastForward) { // 非双击快进模式时执行暂停
-                this.togglePlayback()
-                return;
+                this.player.togglePlayback()
+                return
               }
-              const tapX = event.fingerList[0]?.localX;
+              const tapX = event.fingerList[0]?.localX
               if (!VideoOperateUtil.checkLocalX(tapX)) {
                 return
               }
-              const zoneWidth = this.screen_width / 5; // 屏幕五分之一宽度
+              const zoneWidth = this.screen_width / 5 // 屏幕五分之一宽度
               if (tapX < zoneWidth) { // 左侧1/5区域：回退
-                this.backForward();
-                return;
+                this.player.backForward()
+                return
               }
               if (tapX > zoneWidth * 4) { // 右侧1/5区域：快进
-                this.fastForward();
-                return;
+                this.player.fastForward()
+                return
               }
-              this.togglePlayback()
+              this.player.togglePlayback()
             },
             onSingleClickAction: () => {
               if (this.sideBarStatus) {
-                this.closeSideBar(true);
+                this.closeSideBar(true)
               } else {
-                this.lockVisibility = !this.lockVisibility;
+                this.lockVisibility = !this.lockVisibility
                 XAnimation.runWithAnimation(() => {
                   if (this.isLock) {
                     this.showControl = false
                   } else {
-                    this.showControl = !this.showControl;
+                    this.showControl = !this.showControl
                   }
                 })
               }
             },
             onVerticalPanStart: (event: GestureEvent) => {
               if (!this.isLock) {
-                const tapX = event.fingerList[0]?.localX;
+                const tapX = event.fingerList[0]?.localX
                 if (!VideoOperateUtil.checkLocalX(tapX)) {
                   return
                 }
-                VideoOperateUtil.leftSideSwipe = tapX < this.screen_width / 2;
-                VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
-                this.volume = this.volumeActually
-                VideoOperateUtil.lastVolume = this.volume; // 记录起始音量
+                VideoOperateUtil.leftSideSwipe = tapX < this.screen_width / 2
+                VideoOperateUtil.screenBrightnessTmp = this.player.screenBrightness
+                this.player.volume = this.player.volumeActually
+                VideoOperateUtil.lastVolume = this.player.volume // 记录起始音量
               }
             },
             onVerticalPanUpdate: (event: GestureEvent) => {
@@ -799,25 +558,25 @@ export struct Player { // 播放页
                 const deltaYScale = event?.offsetY / this.screen_height * 2.5
                 if (VideoOperateUtil.leftSideSwipe) {
                   this.onSwipingBrightness = true
-                  this.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
-                  VideoOperateUtil.setBrightness(this.screenBrightness);
+                  this.player.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
+                  VideoOperateUtil.setBrightness(this.player.screenBrightness);
                 } else {
-                  this.onSwipingVoice = true
-                  const newVolume = VideoOperateUtil.lastVolume - deltaYScale * 20;
-                  this.volume =
+                  this.player.onSwipingVoice = true
+                  const newVolume = VideoOperateUtil.lastVolume - deltaYScale * 20
+                  this.player.volume =
                     Math.min(Math.max(newVolume, VideoOperateUtil.min_volume), VideoOperateUtil.max_volume);
                 }
               }
             },
             onVerticalPanEnd: () => {
-              this.onSwiping = false;
-              this.onSwipingVoice = false;
-              this.onSwipingBrightness = false;
+              this.onSwiping = false
+              this.player.onSwipingVoice = false
+              this.onSwipingBrightness = false
             },
             onHorizonPanStart: (_event: GestureEvent) => {
               if (!this.isLock) {
-                VideoOperateUtil.lastPlayTime = this.playTime;
-                this.onSwiping = true;
+                VideoOperateUtil.lastPlayTime = this.player.playTime;
+                this.onSwiping = true
               }
             },
             onHorizonPanUpdate: (event: GestureEvent) => {
@@ -827,18 +586,18 @@ export struct Player { // 播放页
               if (!VideoOperateUtil.checkLocalX(event?.fingerList?.[0]?.localX)) {
                 return
               }
-              const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.now_playing?.time!)
-              this.playTime = Math.max(0,
+              const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.player.nowPlaying?.time!)
+              this.player.playTime = Math.max(0,
                 Math.min(VideoOperateUtil.lastPlayTime + (event.offsetX * timePerPixel),
-                  this.now_playing?.time!));
+                  this.player.nowPlaying?.time!))
             },
             onHorizonPanEnd: () => {
-              this.seekTime(this.playTime);
+              this.player.seekTime(this.player.playTime);
               this.onSwiping = false;
             },
             onPinchStart: (event: GestureEvent) => {
-              const finger1 = event.fingerList[0];
-              const finger2 = event.fingerList[1];
+              const finger1 = event.fingerList[0]
+              const finger2 = event.fingerList[1]
               const fingerDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2)
               if (fingerDistance >= 0) {
                 VideoOperateUtil.initPinchDistance = fingerDistance
@@ -850,27 +609,27 @@ export struct Player { // 播放页
               if (this.isLock) {
                 return;
               }
-              const finger1 = event.fingerList[0];
-              const finger2 = event.fingerList[1];
+              const finger1 = event.fingerList[0]
+              const finger2 = event.fingerList[1]
               if (!finger1 || !finger2) { // 双指检测失败直接返回
                 return;
               }
               const fingerDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2)
               if (fingerDistance >= 0) {
                 const rawScale = fingerDistance / VideoOperateUtil.initPinchDistance;
-                const adjustedScale = 1 + (rawScale - 1) * 0.007; // 计算调整后的缩放比例
-                const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0);
+                const adjustedScale = 1 + (rawScale - 1) * 0.007 // 计算调整后的缩放比例
+                const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0)
                 const scaledWidth = this.play_area_width * clampedScale; // 计算缩放后的播放区域宽度
-                const maxAllowed = VideoInfoUtil.play_area_width * 3.0;
-                const minAllowed = VideoInfoUtil.play_area_width * 0.5;
+                const maxAllowed = VideoInfoUtil.play_area_width * 3.0
+                const minAllowed = VideoInfoUtil.play_area_width * 0.5
                 if (scaledWidth > maxAllowed || scaledWidth < minAllowed) { // 检查缩放是否超出允许范围
                   return;
                 }
-                this.play_area_width = scaledWidth; // 更新播放区域尺寸
+                this.play_area_width = scaledWidth
                 this.play_area_height = this.play_area_height * clampedScale;
                 XAnimation.runWithAnimation(() => {
-                  this.play_area_width = this.play_area_width;
-                  this.play_area_height = this.play_area_height;
+                  this.play_area_width = this.play_area_width
+                  this.play_area_height = this.play_area_height
                 })
               }
             },
@@ -878,17 +637,17 @@ export struct Player { // 播放页
               if (this.isLock) {
                 return
               }
-              if (this.playing) {
+              if (this.player.playing) {
                 this.longPress = true
-                VideoOperateUtil.lastSpeed = this.speed
-                this.updatePlaybackSpeed(this.longPressSpeed)
+                VideoOperateUtil.lastSpeed = this.player.speed
+                this.player.updatePlaybackSpeed(this.longPressSpeed)
                 this.currentSpeedIndex =
                   VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).indexOf(this.longPressSpeed)
               }
             },
             onLongPressEnd: () => {
               this.longPress = false
-              this.updatePlaybackSpeed(VideoOperateUtil.lastSpeed);
+              this.player.updatePlaybackSpeed(VideoOperateUtil.lastSpeed);
             },
             onLongPressPanStart: (event: GestureEvent) => {
               if (this.isLock) {
@@ -907,19 +666,19 @@ export struct Player { // 播放页
                   return
                 }
                 const deltaX = tapX - VideoOperateUtil.longPressStartX;
-                const SWIPE_THRESHOLD = 15;
+                const SWIPE_THRESHOLD = 15
                 if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
                   return;
                 }
-                const direction = Math.sign(deltaX);
+                const direction = Math.sign(deltaX)
                 const newIndex = this.currentSpeedIndex + direction; // 计算新速度索引并限制在有效范围内
                 const clampedIndex = Math.max(0,
-                  Math.min(newIndex, VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).length - 1));
+                  Math.min(newIndex, VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).length - 1))
                 if (clampedIndex === this.currentSpeedIndex) { // 索引变化时才更新播放速度
                   return;
                 }
-                this.currentSpeedIndex = clampedIndex;
-                this.updatePlaybackSpeed(VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER)[this.currentSpeedIndex]);
+                this.currentSpeedIndex = clampedIndex
+                this.player.updatePlaybackSpeed(VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER)[this.currentSpeedIndex])
                 VideoOperateUtil.longPressStartX = event.fingerList[0]?.localX; // 重置起始点实现分档切换效果
               }
             }
@@ -953,7 +712,7 @@ export struct Player { // 播放页
     .onReady(() => {
       const playerParams: PlayerParams = this.pathStack.getParamByName(NavigationAddress.AV_PLAYER)[0] as PlayerParams
       try {
-        this.now_playing = playerParams.metadata as VideoMetadataFromPlayer
+        this.player.nowPlaying = playerParams.metadata as VideoMetadataFromPlayer
         this.video_meta_data = playerParams.metadata_list as VideoMetadata[]
       } catch (e) {
         console.error(e)
@@ -969,18 +728,18 @@ export struct Player { // 播放页
         this.lockVisibility = false
         return true
       } else {
-        this.releaseAVPlayer()
-        DataSyncUtil.lastPlayVideoIndex = this.video_meta_data.findIndex(i => i.date === this.now_playing?.date)
+        this.player.releaseAVPlayer()
+        DataSyncUtil.lastPlayVideoIndex = this.video_meta_data.findIndex(i => i.date === this.player.nowPlaying?.date)
         return false
       }
     })
     .onWillDisappear(async () => {
-      if (this.video_meta_data.length > 0 && this.playTime > 0) {
-        VideoOperateUtil.saveVideoTime(this.playTime, this.now_playing!, this.video_meta_data,
+      if (this.video_meta_data.length > 0 && this.player.playTime > 0) {
+        VideoOperateUtil.saveVideoTime(this.player.playTime, this.player.nowPlaying!, this.video_meta_data,
           PathUtils.appContext!)
       }
       PermissionUtil.applyStopContinuousTask(this.allowBackgroundPlay)
-      await this.ijkPlayerStop()
+      await this.player.ijkPlayerStop()
       try {
         WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
         if (canIUse('SystemCapability.Window.SessionManager')) {
@@ -988,7 +747,7 @@ export struct Player { // 播放页
           await (await this.windowClass)?.setSpecificSystemBarEnabled('navigationIndicator', true)
         }
         await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
-        await this.avSession?.stopCasting();
+        await this.player.avSession?.stopCasting();
       } catch (error) {
         console.error('player error：' + error)
       }
@@ -999,33 +758,33 @@ export struct Player { // 播放页
 
   exitVideo(timeOut: number) {
     this.exitVideoTime = setTimeout(() => {
-      this.avPlayer?.reset()?.catch(() => {
+      this.player.avPlayer?.reset()?.catch(() => {
         console.error('player error')
       })
-      DataSyncUtil.lastPlayVideoIndex = this.video_meta_data.findIndex(i => i.date === this.now_playing?.date)
+      DataSyncUtil.lastPlayVideoIndex = this.video_meta_data.findIndex(i => i.date === this.player.nowPlaying?.date)
       this.pathStack.pop()
-    }, timeOut);
+    }, timeOut)
   }
 
   @Builder
   VideoTop() {
     VideoTopComponent({
-      videoTitle: this.now_playing?.title,
-      subTitleVisibility: this.sub_title_visibility,
+      videoTitle: this.player.nowPlaying?.title,
+      subTitleVisibility: this.player.subtitleVisibility,
       screenExtendSelectedText: this.select_text,
       screenWidth: this.screen_width,
       screenHeight: this.screen_height,
       audioTrackMenuBuilder: this.getAudioMenuBuilder,
       subtitleMenuBuilder: this.getSubtitleMenuBuilder,
-      lockRotation: this.lock_rotation,
+      lockRotation: this.lockRotation,
       playAreaHeight: this.play_area_height,
       playAreaWidth: this.play_area_width,
       onExitVideoClick: () => {
         this.exitVideo(0)
       },
       onLockRotationClick: async () => {
-        this.lock_rotation = !this.lock_rotation
-        const orientation = this.lock_rotation ?
+        this.lockRotation = !this.lockRotation
+        const orientation = this.lockRotation ?
           (this.screen_width > this.screen_height ? window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED
             : window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
           : window.Orientation.AUTO_ROTATION_RESTRICTED
@@ -1036,10 +795,10 @@ export struct Player { // 播放页
         } catch (error) {
           ToolsUtil.errorCatchExec('屏幕旋转异常', String(error))
         }
-        const toastMessage = this.lock_rotation
+        const toastMessage = this.lockRotation
           ? ToolsUtil.getStringResource($r('app.string.open_rotation_lock').id)
           : ToolsUtil.getStringResource($r('app.string.close_rotation_lock').id)
-        ToolsUtil.showToast(toastMessage);
+        ToolsUtil.showToast(toastMessage)
       }
     })
   }
@@ -1047,19 +806,19 @@ export struct Player { // 播放页
   @Builder
   VideoSlider() {
     VideoSliderComponent({
-      playTime: this.playTime,
-      totalTime: this.now_playing?.time,
+      playTime: this.player.playTime,
+      totalTime: this.player.nowPlaying?.time,
       screenWidth: this.screen_width,
       screenHeight: this.screen_height,
-      playSpeed: this.speed,
+      playSpeed: this.player.speed,
       onSliderChange: (value: number) => {
         this.onSwiping = true
         this.isSliderPlayTimeChange = true
-        this.playTime = value
+        this.player.playTime = value
       },
       onSliderTouch: (event: TouchEvent) => {
         if (event.type == TouchType.Up) {
-          this.seekTime(this.playTime)
+          this.player.seekTime(this.player.playTime)
           this.isSliderPlayTimeChange = false
           this.onSwiping = false
         }
@@ -1077,8 +836,8 @@ export struct Player { // 播放页
     VideoButtonsComponent({
       screenHeight: this.screen_height,
       screenWidth: this.screen_width,
-      playing: this.playing,
-      speed: this.speed,
+      playing: this.player.playing,
+      speed: this.player.speed,
       aVCastPickerBuilderBridge: this.AVCastPickerBuilderBridge,
       videoSettingBuilder: this.getVideoSettingBuilder,
       playbackSpeedMenu: this.getPlaybackSpeedMenuBuilder,
@@ -1096,7 +855,7 @@ export struct Player { // 播放页
         }
       },
       onTogglePlaybackClick: () => {
-        this.togglePlayback()
+        this.player.togglePlayback()
       },
       onPlayNextVideoClick: () => {
         this.playNextVideo()
@@ -1110,10 +869,10 @@ export struct Player { // 播放页
   @Builder
   AudioTrackMenuBuilder() {
     AudioTrackComponent({
-      audioTrack: this.audio_track,
+      audioTrack: this.player.audio_track,
       audioTrackSelected: this.audio_track_select,
       onSelect: (index: number) => {
-        this.avPlayer?.selectTrack(this.audio_track[index]?.index)?.catch(() => {
+        this.player.avPlayer?.selectTrack(this.player.audio_track[index]?.index)?.catch(() => {
           console.error('select track error')
         });
         this.audio_track_select = index;
@@ -1124,17 +883,17 @@ export struct Player { // 播放页
   @Builder
   VideoSettingBuilder() {
     VideoSettingComponent({
-      playTime: this.playTime,
-      nowPlaying: this.now_playing,
+      playTime: this.player.playTime,
+      nowPlaying: this.player.nowPlaying,
       videoMetaData: this.video_meta_data,
       angle: this.angle,
       repeatMode: this.repeatMode,
       exitVideoTime: this.exitVideoTime,
       forward_80_s: (time: number) => {
-        this.seekTime(time)
+        this.player.seekTime(time)
       },
       onActiveEnhanceAudio: () => {
-        this.activeEnhanceAudio()
+        this.player.activeEnhanceAudio()
         ToolsUtil.showToast('增强型解码启用成功')
       },
       closeAfter15min: (time: number) => {
@@ -1152,10 +911,10 @@ export struct Player { // 播放页
   @Builder
   PlaybackSpeedMenuBuilder() {
     PlaybackSpeedMenuComponent({
-      speed: this.speed,
+      speed: this.player.speed,
       player: NavigationAddress.AV_PLAYER,
       onSpeedChange: (speed: number) => {
-        this.updatePlaybackSpeed(speed)
+        this.player.updatePlaybackSpeed(speed)
       }
     })
   }
@@ -1163,9 +922,9 @@ export struct Player { // 播放页
   @Builder
   SubtitleMenuBuilder() {
     SubtitlePanelComponent({
-      subTitleVisibility: this.sub_title_visibility,
+      subTitleVisibility: this.player.subtitleVisibility,
       isAIAsrShown: this.isAIAsrShown,
-      subtitleSelected: this.subtitleSelected
+      subtitleSelected: this.player.subtitleSelected
     })
   }
 
@@ -1180,75 +939,5 @@ export struct Player { // 播放页
   }
   private getSubtitleMenuBuilder: () => void = () => {
     this.SubtitleMenuBuilder()
-  }
-
-  private async handleIntelligentSync(videoPos: number, audioPos: number) {
-    const drift = videoPos - audioPos;
-    try { // 分级处理策略
-      if (Math.abs(drift) > 1000) { // 严重不同步：完全重置
-        await this.fullResetSync(videoPos);
-      } else if (Math.abs(drift) > 700) { // 中度不同步：双重seek
-        await this.doubleSeekSync(videoPos);
-      } else { // 轻度不同步：加速追赶
-        await this.speedAdjustSync(drift);
-      }
-    } catch (error) {
-      console.error('同步失败:', error);
-    }
-  }
-
-  private async fullResetSync(position: number) { // 严重不同步处理
-    this.avPlayer?.pause()?.catch(() => {
-      console.error('player error')
-    });
-    this.mIjkMediaPlayer?.pause();
-    this.mIjkMediaPlayer?.seekTo(String(position))
-    await new Promise<void>(resolve => setTimeout(resolve, 50));
-    this.avPlayer?.play()?.catch(() => {
-      console.error('player error')
-    });
-    this.mIjkMediaPlayer?.start();
-  }
-
-  private async doubleSeekSync(position: number) { // 中度不同步处理
-    const prePos = Math.max(0, position - 500);
-    this.mIjkMediaPlayer?.seekTo(String(prePos));
-    await new Promise<void>(resolve => setTimeout(resolve, 30));
-    this.mIjkMediaPlayer?.seekTo(String(position));
-  }
-
-  private async speedAdjustSync(drift: number) { // 轻度不同步处理
-    const speed = Math.min(1.1, Math.max(0.9, 1 + drift / 2000));
-    this.mIjkMediaPlayer?.setSpeed(speed.toFixed(1.5)); // 30秒后恢复或差异小于310ms时恢复
-    const restore = () => {
-      if (Math.abs(this.playTime - Number(this.mIjkMediaPlayer?.getCurrentPosition())) < 310) {
-        this.mIjkMediaPlayer?.setSpeed(String(this.speed));
-      } else {
-        setTimeout(restore, 1000);
-      }
-    };
-    setTimeout(restore, 30000);
-  }
-
-  private calPlayerSync(duration: number) {
-    this.playTime = duration;
-    if (this.mIjkMediaPlayer && Date.now() - VideoOperateUtil.lastSyncTime < VideoOperateUtil.syncCoolDown) {
-      return;
-    }
-    const audioPosition = Number(this.mIjkMediaPlayer?.getCurrentPosition());
-    const drift = duration - audioPosition; // 记录最近5次差异
-    VideoOperateUtil.driftHistory.push(drift);
-    if (VideoOperateUtil.driftHistory.length > 5) {
-      VideoOperateUtil.driftHistory.shift();
-    } // 动态阈值计算
-    const buffer = this.mIjkMediaPlayer?.getAudioCachedBytes()!;
-    const dynamicThreshold = Math.min(1000, 300 + buffer * 0.5); // 趋势分析（最近3次差异是否持续扩大）
-    const isGrowing = VideoOperateUtil.driftHistory.slice(-3).every((v, i, arr) =>
-    i === 0 || Math.abs(v) > Math.abs(arr[i-1])); // 触发条件：差异超过阈值或存在持续扩大趋势
-    if (Math.abs(drift) > dynamicThreshold || (isGrowing && Math.abs(drift) > 300)) {
-      this.handleIntelligentSync(duration, audioPosition);
-      VideoOperateUtil.lastSyncTime = Date.now(); // 自适应调整冷却时间
-      VideoOperateUtil.syncCoolDown = Math.max(500, 1000 - buffer * 2);
-    }
   }
 }

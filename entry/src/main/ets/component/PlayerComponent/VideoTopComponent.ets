@@ -5,7 +5,7 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 @Component
 export struct VideoTopComponent {
   @State videoTitle: string = ''
-  @Link subTitleVisibility: Visibility
+  @Prop subTitleVisibility: Visibility
   @Link screenExtendSelectedText: string | undefined
   @Link screenWidth: number
   @Link screenHeight: number

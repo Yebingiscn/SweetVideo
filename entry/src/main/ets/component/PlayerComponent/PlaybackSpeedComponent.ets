@@ -4,7 +4,7 @@ import VideoInfoUtil from '../../utils/VideoInfoUtil';
 @Component
 export struct PlaybackSpeedMenuComponent {
   @State speedDataSource: SpeedDataSource = new SpeedDataSource([])
-  @Link speed: number
+  @Prop speed: number
   @Prop player: string
   onSpeedChange = (_speed: number) => {
   }

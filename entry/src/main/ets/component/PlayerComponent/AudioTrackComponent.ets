@@ -6,7 +6,7 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 @Component
 export struct AudioTrackComponent {
   @State audioTrackDataSource: AudioTrackSource = new AudioTrackSource([])
-  @Link audioTrack: AudioTrack[]
+  @Prop audioTrack: AudioTrack[]
   @Link audioTrackSelected: number
   onSelect = (_index: number) => {
   }

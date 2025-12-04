@@ -4,9 +4,9 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
 @Component
 export struct VolumeSwipingComponent {
-  @Link videoVolume: number
-  @Link videoVolumeShow: number
-  @Link onSwipingVoice: boolean
+  @Prop videoVolume: number
+  @Prop videoVolumeShow: number
+  @Prop onSwipingVoice: boolean
 
   build() {
     Stack() { //音量提示

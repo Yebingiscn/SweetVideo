@@ -13,7 +13,7 @@ export struct PlayerSideBarComponent {
   @State playerSideBarSource: PlayerSideBarSource = new PlayerSideBarSource([])
   @Link @Watch('onSideBarVisibleChange') sideBarStatusTmp: Visibility
   @State video_meta_data: VideoMetadata[] = []
-  @Link now_playing: VideoMetadataFromPlayer | undefined
+  @Prop now_playing: VideoMetadataFromPlayer | undefined
   @Link sideBarStatus: boolean
   @StorageProp('topSafeHeight') topSafeHeight: number = 0
   private listScroller: Scroller = new Scroller();

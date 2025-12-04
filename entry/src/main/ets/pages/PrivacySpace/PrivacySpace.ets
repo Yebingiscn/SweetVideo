@@ -30,6 +30,7 @@ import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
 @Component
 export struct PrivacySpace { // 隐私空间页
   @State videoDataSource: VideoDataSource = new VideoDataSource([])
+  @State video_meta_data_encryption: VideoMetadata[] = []
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -50,7 +51,6 @@ export struct PrivacySpace { // 隐私空间页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @State video_meta_data_encryption: VideoMetadata[] = []
   @State list_line: number = 1
   @Consume('pathStack') pathStack: NavPathStack
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;

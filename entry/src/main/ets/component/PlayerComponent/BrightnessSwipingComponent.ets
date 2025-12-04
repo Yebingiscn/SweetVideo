@@ -2,7 +2,7 @@ import { SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil'
 
 @Component
 export struct BrightnessSwipingComponent {
-  @Link screenBrightness: number
+  @Prop screenBrightness: number
 
   build() {
     Stack() { //亮度提示

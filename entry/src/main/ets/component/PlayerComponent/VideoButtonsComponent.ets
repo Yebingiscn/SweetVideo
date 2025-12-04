@@ -9,8 +9,8 @@ import AVSessionUtil from '../../utils/AVSessionUtil'
 export struct VideoButtonsComponent {
   @Link screenHeight: number
   @Link screenWidth: number
-  @Link playing: boolean
-  @Link speed: number
+  @Prop playing: boolean
+  @Prop speed: number
   @Link repeatMode: RepeatMode
   @Link sideBarStatusTmp: Visibility
   @Link sideBarStatus: boolean

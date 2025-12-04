@@ -36,11 +36,11 @@ export default class VideoOperateUtil {
   public static aspectRatioMap = new Map([[VideoInfoUtil.screenExtendMap[2], 16 / 9],
     [VideoInfoUtil.screenExtendMap[3], 4 / 3]]);
   public static config: ImageAnalyzerConfig = {
-    types: [ImageAnalyzerType.SUBJECT, ImageAnalyzerType.TEXT, ImageAnalyzerType.OBJECT_LOOKUP]
+    types: [ImageAnalyzerType.SUBJECT, ImageAnalyzerType.TEXT]
   };
   public static aiController: ImageAnalyzerController = new ImageAnalyzerController();
   public static options: ImageAIOptions = {
-    types: [ImageAnalyzerType.SUBJECT, ImageAnalyzerType.TEXT, ImageAnalyzerType.OBJECT_LOOKUP],
+    types: [ImageAnalyzerType.SUBJECT, ImageAnalyzerType.TEXT],
     aiController: VideoOperateUtil.aiController
   };
   public static lastVolume: number = 0

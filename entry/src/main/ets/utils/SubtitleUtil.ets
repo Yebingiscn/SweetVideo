@@ -51,6 +51,10 @@ class SubtitleUtil {
         await fs.copyFile(sourceFile.fd, targetFile.fd).catch(() => {
           console.error('copy 失败')
         });
+        const encode = await ToolsUtil.detectFileDecoder(targetFile.path)
+        if (encode.length > 0 && encode.toLowerCase() !== 'utf-8') {
+          ToolsUtil.transFileDecodeAsUTF8(targetFile.path, encode)
+        }
         ToolsUtil.showToast(`导入字幕成功: ${sourceFile.name}`);
         return sourceFile.name;
       } catch (error) {

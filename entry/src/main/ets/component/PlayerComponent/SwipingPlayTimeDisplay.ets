@@ -4,7 +4,7 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 @Component
 export struct SwipingPlayTimeDisplay {
   @Link isSliderPlayTimeChange: boolean
-  @Link playTime: number
+  @Prop playTime: number
   @Prop totalTime: number
 
   build() {

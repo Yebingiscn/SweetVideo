@@ -1,4 +1,3 @@
-
 // 时间类，格式化时间
 export default class TimeUtil {
   static convertMSToHHMMSS(ms: number | undefined): string {
