@@ -1,9 +1,0 @@
-{
-  "routerMap": [
-    {
-      "name": "Index",
-      "pageSourceFile": "src/main/ets/pages/Index.ets",
-      "buildFunction": "IndexBuilder"
-    }
-  ]
-}
