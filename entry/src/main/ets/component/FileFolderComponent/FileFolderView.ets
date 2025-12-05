@@ -8,10 +8,9 @@ import { PathUtils } from '../../utils/PathUtils'
 import FileFolderUtil from '../../utils/FileFolderUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { EditFileFolderNameDialog } from '../../component/Dialog/EditFileFolderNameDialog'
-import { DefaultDialogShadow } from '../../common/DefaultDialogShadow'
 import { FileFolderListComponent } from './FileFolderListComponent'
 import { DeleteType } from '../../common/enum/DeleteType'
-import { MenuFancyModifier } from '../../utils/AttributeModifierUtil'
+import { DefaultDialogShadow, MenuFancyModifier } from '../../common/AttributeModifierConfig'
 
 @Component
 export struct FileFolderView {

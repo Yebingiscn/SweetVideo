@@ -3,12 +3,12 @@ import SelectFileUtil from '../../utils/SelectFileUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
 import { Want } from '@kit.AbilityKit';
 import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog';
-import { DefaultDialogShadow } from '../../common/DefaultDialogShadow';
 import { PathUtils } from '../../utils/PathUtils';
 import { SettingSliderItem } from '../../component/SettingComponent/SettingSliderItem';
 import Preferences from '../../database/Preferences';
 import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem';
 import { BackgroundColorMode } from '../../common/enum/BackgroundColorMode';
+import { DefaultDialogShadow } from '../../common/AttributeModifierConfig';
 
 @Component
 export struct PersonalizePage {

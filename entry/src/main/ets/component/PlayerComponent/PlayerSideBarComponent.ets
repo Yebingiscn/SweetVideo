@@ -2,7 +2,7 @@ import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlaye
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { fileUri } from '@kit.CoreFileKit'
 import { PathUtils } from '../../utils/PathUtils'
-import { ImageFancyModifier } from '../../utils/AttributeModifierUtil'
+import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
 import { PlayerSideBarSource } from '../../utils/DataUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { VideoInfoBuilder } from '../VideoItemComponent/VideoInfoBuilder'

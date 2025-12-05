@@ -26,12 +26,8 @@ import { PlayStatus } from '../../common/enum/PlayStatus'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { KeyCode } from '@kit.InputKit'
 import { PathUtils } from '../../utils/PathUtils'
-import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil'
+import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder'
-import { VolumeSwipingComponent } from '../../component/PlayerComponent/VolumeSwipingComponent'
-import { BrightnessSwipingComponent } from '../../component/PlayerComponent/BrightnessSwipingComponent'
-import { FastForwardInfoComponent } from '../../component/PlayerComponent/FastForwardInfoComponent'
-import { SwipingPlayTimeDisplay } from '../../component/PlayerComponent/SwipingPlayTimeDisplay'
 import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent'
 import { GestureComponent } from '../../component/PlayerComponent/GestureComponent'
 import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode'
@@ -39,6 +35,11 @@ import NavigationAddress, { PlayerParams } from '../../common/NavigationCommon'
 import { WindowUtil } from '../../utils/WindowUtil'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { AIAsr } from '../../component/PlayerComponent/AIAsrComponent'
+import { BrightnessSwipingBuilder } from '../../component/PlayerComponent/BrightnessSwipingBuilder'
+import { FastForwardPanelBuilder } from '../../component/PlayerComponent/FastForwardPanelBuilder'
+import { VolumeSwipingPanelBuilder } from '../../component/PlayerComponent/VolumeSwipingPanelBuilder'
+
+import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/SwipingPlayTimePanelBuilder'
 
 @Component
 export struct FFMpegPlayer { // FFMpeg播放器页
@@ -181,29 +182,24 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         }
 
         if (this.onSwiping) {
-          SwipingPlayTimeDisplay({
+          SwipingPlayTimePanelBuilder({
             isSliderPlayTimeChange: this.isSliderPlayTimeChange,
             playTime: this.play_time,
             totalTime: this.total_time,
           })
         }
 
-        VolumeSwipingComponent({
+        VolumeSwipingPanelBuilder({
           videoVolume: this.volume,
           videoVolumeShow: this.volumeActually,
           onSwipingVoice: this.onSwipingVoice
         })
 
         if (this.onSwipingBrightness) {
-          BrightnessSwipingComponent({
-            screenBrightness: this.screenBrightness,
-          })
+          BrightnessSwipingBuilder({ screenBrightness: this.screenBrightness })
         }
         if (this.longPress) {
-          FastForwardInfoComponent({
-            speed: this.playSpeed,
-            location: this.play_area_height,
-          })
+          FastForwardPanelBuilder({ speed: this.playSpeed, location: this.play_area_height })
         }
         GestureComponent({
           showControl: this.showControl,

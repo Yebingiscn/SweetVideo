@@ -12,23 +12,23 @@ import { AVCastPicker, avSession as avSessionManager } from '@kit.AVSessionKit';
 import VideoOperateUtil from '../../utils/VideoOperateUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import { audio } from '@kit.AudioKit';
-import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil';
+import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig';
 import { PathUtils } from '../../utils/PathUtils';
 import RedPlayerSettingsConfig from '../../controller/RedPlayerController/RedPlayerSettingsConfig';
 import RedPlayerStateHolder from '../../controller/RedPlayerController/RedPlayerStateHolder';
 import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder';
-import { BrightnessSwipingComponent } from '../../component/PlayerComponent/BrightnessSwipingComponent';
-import { FastForwardInfoComponent } from '../../component/PlayerComponent/FastForwardInfoComponent';
-import { SwipingPlayTimeDisplay } from '../../component/PlayerComponent/SwipingPlayTimeDisplay';
 import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent';
 import { GestureComponent } from '../../component/PlayerComponent/GestureComponent';
 import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode';
 import NavigationAddress, { PlayerParams } from '../../common/NavigationCommon';
-import { VolumeSwipingComponent } from '../../component/PlayerComponent/VolumeSwipingComponent';
 import { WindowUtil } from '../../utils/WindowUtil';
 import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent';
 import { XAnimation } from '../../utils/AnimationUtil';
 import { AIAsr } from '../../component/PlayerComponent/AIAsrComponent';
+import { BrightnessSwipingBuilder } from '../../component/PlayerComponent/BrightnessSwipingBuilder';
+import { FastForwardPanelBuilder } from '../../component/PlayerComponent/FastForwardPanelBuilder';
+import { VolumeSwipingPanelBuilder } from '../../component/PlayerComponent/VolumeSwipingPanelBuilder';
+import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/SwipingPlayTimePanelBuilder';
 
 @Component
 export struct RedPlayer { // 红薯播放器页
@@ -186,27 +186,26 @@ export struct RedPlayer { // 红薯播放器页
           }
         }
         if (this.onSwiping) {
-
-          SwipingPlayTimeDisplay({
+          SwipingPlayTimePanelBuilder({
             isSliderPlayTimeChange: this.isSliderPlayTimeChange,
             playTime: this.play_time,
-            totalTime: this.redPlayerStateHolder?.videoDuration,
+            totalTime: this.redPlayerStateHolder!.videoDuration,
           })
         }
-        VolumeSwipingComponent({
+
+        VolumeSwipingPanelBuilder({
           videoVolume: this.volume,
           videoVolumeShow: this.volumeActually,
           onSwipingVoice: this.onSwipingVoice
         })
+
         if (this.onSwipingBrightness) {
-          BrightnessSwipingComponent({
-            screenBrightness: this.screenBrightness,
-          })
+          BrightnessSwipingBuilder({ screenBrightness: this.screenBrightness })
         }
         if (this.longPress) {
-          FastForwardInfoComponent({
+          FastForwardPanelBuilder({
             speed: this.longSpeed,
-            location: this.screen_width > this.screen_height ? -160 : -80,
+            location: this.screen_width > this.screen_height ? -160 : -80
           })
         }
         GestureComponent({

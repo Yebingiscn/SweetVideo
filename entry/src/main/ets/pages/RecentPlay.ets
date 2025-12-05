@@ -5,11 +5,10 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { PathUtils } from '../utils/PathUtils';
 import { VideoItemComponent } from '../component/PlayerComponent/PlayerSideBarComponent';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
-import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../utils/AttributeModifierUtil';
+import { ButtonFancyModifier, DefaultDialogShadow, SymbolGlyphFancyModifier } from '../common/AttributeModifierConfig';
 import NavigationAddress from '../common/NavigationCommon';
 import VideoOperateUtil from '../utils/VideoOperateUtil';
 import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog';
-import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 import DataSyncUtil from '../utils/DataSyncUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 

@@ -1,7 +1,7 @@
 import { PrivacySpaceErrorListDataSource } from '../../utils/DataUtil'
 import { fileUri, fileIo as fs } from '@kit.CoreFileKit'
 import { PathUtils } from '../../utils/PathUtils'
-import { ImageFancyModifier, MenuFancyModifier } from '../../utils/AttributeModifierUtil'
+import { ImageFancyModifier, MenuFancyModifier } from '../../common/AttributeModifierConfig'
 import Preferences from '../../database/Preferences'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import { SymbolGlyphModifier } from '@kit.ArkUI'

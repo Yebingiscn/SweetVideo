@@ -1,4 +1,4 @@
-import { SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil'
+import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import {
   ItemRestriction, SegmentButton, SegmentButtonOptions, SegmentButtonTextItem
 } from '@kit.ArkUI'

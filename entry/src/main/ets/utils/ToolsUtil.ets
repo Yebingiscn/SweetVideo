@@ -18,6 +18,7 @@ import { BackgroundColorMode } from '../common/enum/BackgroundColorMode';
 import { UniversalDetector } from '@ohos/juniversalchardet';
 import { fileIo } from '@kit.CoreFileKit';
 import { util } from '@kit.ArkTS';
+import { salmonLogger } from 'salmonlogger';
 
 // 工具类
 export default class ToolsUtil {
@@ -192,7 +193,6 @@ export default class ToolsUtil {
           updateManager.showUpdateDialog(PathUtils.appContext)
             .then((resultCode: updateManager.ShowUpdateResultCode) => {
               hilog.info(0, 'TAG', "Succeeded in showing UpdateDialog resultCode:" + resultCode);
-              ToolsUtil.showToast('有新版本：' + resultCode)
             })
             .catch((error: BusinessError) => {
               ToolsUtil.showToast('更新弹窗生成失败，原因是：' + error)
@@ -254,6 +254,7 @@ export default class ToolsUtil {
       return true
     } catch (error) {
       console.error("操作失败: " + JSON.stringify(error));
+      salmonLogger.addLog('subtitle', 'decode failed: ' + error.code + ':' + error.message, false)
       return false
     }
   }

@@ -19,6 +19,7 @@ import { image } from '@kit.ImageKit';
 import PermissionUtil from './PermissionUtil';
 import { VideoSource } from '../common/enum/VideoSource';
 import SubtitleUtil from './SubtitleUtil';
+import { salmonLogger } from 'salmonlogger';
 
 // 获取视频类
 export default class SelectFileUtil {
@@ -32,9 +33,11 @@ export default class SelectFileUtil {
   ]);
   private static queryCache = new WeakMap<VideoMetadata[], Map<string, VideoMetadata>>();
 
-  // 从文件管理器获取视频
-  static async selectFiles(): Promise<string[]> {
+  static async selectFromFileManager(uri?: string): Promise<string[]> {
     const documentSelectOptions = new picker.DocumentSelectOptions();
+    if (uri) {
+      documentSelectOptions.defaultFilePathUri = uri
+    }
     documentSelectOptions.fileSuffixFilters = VideoUtil.support_video_format.concat(VideoUtil.support_audio_format)
     const documentViewPicker = new picker.DocumentViewPicker(PathUtils.appContext!);
     try {
@@ -46,14 +49,12 @@ export default class SelectFileUtil {
     }
   }
 
-  // 选择视频（支持多选）
-  static async selectVideo(): Promise<string[]> {
-    return SelectFileUtil.selectBackgroundImage(photoAccessHelper.PhotoViewMIMETypes.VIDEO_TYPE)
+  static async selectVideos(): Promise<string[]> {
+    return SelectFileUtil.selectFromAlbum(photoAccessHelper.PhotoViewMIMETypes.VIDEO_TYPE)
   }
 
-  // 选择壁纸（单选）
   static async selectPhoto(): Promise<string[]> {
-    return SelectFileUtil.selectBackgroundImage(photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE, 1)
+    return SelectFileUtil.selectFromAlbum(photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE, 1)
   }
 
   static async deletePhoto() {
@@ -287,6 +288,18 @@ export default class SelectFileUtil {
     });
   }
 
+  static getLastAndNextItem(targetItem: string, list: string[]) {
+    const listIndex = list.findIndex(i => i === targetItem)
+    if (listIndex === -1) {
+      return ['', ''] // 如果没找到，返回空字符串
+    }
+    // 如果是第一个元素（最小倍速），不显示左箭头
+    const prevItem = listIndex === 0 ? '' : list[listIndex - 1]
+    // 如果是最后一个元素（最大倍速），不显示右箭头
+    const nextItem = listIndex === list.length - 1 ? '' : list[listIndex + 1]
+    return [prevItem, nextItem]
+  }
+
   static getItem(list: VideoMetadata[], item: string): VideoMetadata | undefined {
     if (!list || !item) {
       return undefined;
@@ -372,13 +385,15 @@ export default class SelectFileUtil {
   static async isFileExist(uri: string, showToast: boolean) {
     await PermissionUtil.activatePermission(uri)
     if (SelectFileUtil.isPathFromSource(uri, VideoSource.EXTERNAL_DEVICE)) {
-      return true
+      ToolsUtil.showToast('文件需要重新授权才能继续播放，请点击确定予以授权')
+      await SelectFileUtil.selectFromFileManager(uri)
     }
     try {
       await fs.open(String(uri))
       return true
     } catch (e) {
       console.log('file error' + e)
+      salmonLogger.addLog('file error', 'file error: ' + e.code + ':' + e.message, true)
       if (showToast) {
         ToolsUtil.showToast(uri + '文件已经失效，请重新导入')
       }
@@ -521,7 +536,7 @@ export default class SelectFileUtil {
     });
   }
 
-  private static async selectBackgroundImage(mimeType: photoAccessHelper.PhotoViewMIMETypes,
+  private static async selectFromAlbum(mimeType: photoAccessHelper.PhotoViewMIMETypes,
     maxSelect: number = Number.MAX_SAFE_INTEGER): Promise<string[]> {
     const options = new photoAccessHelper.PhotoSelectOptions()
     options.MIMEType = mimeType

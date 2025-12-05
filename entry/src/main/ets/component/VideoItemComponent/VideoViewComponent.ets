@@ -6,7 +6,7 @@ import {
   MenuFancyModifier,
   SearchShadowModifier,
   SymbolGlyphFancyModifier
-} from '../../utils/AttributeModifierUtil';
+} from '../../common/AttributeModifierConfig';
 import { PathUtils } from '../../utils/PathUtils';
 import SelectFileUtil from '../../utils/SelectFileUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
@@ -49,7 +49,7 @@ export struct VideoView {
       if (this.sideBarController.mask_state &&
         this.sideBarController.sideBarStatusTmp !== Visibility.Hidden &&
         this.sideBarController.side_bar_mode === SideBarContainerType.Overlay) {
-        MaskComponent(this.sideBarController)
+        MaskComponent({ sideBarController: this.sideBarController })
       }
       VideoList({
         videoListController: this.videoListController,
@@ -168,6 +168,8 @@ export struct VideoView {
                 .fontWeight(this.videoListController.folder.name === folder?.name ? FontWeight.Bold :
                   FontWeight.Medium)
                 .fontSize(this.videoListController.folder.name === folder?.name ? 18 : 15)
+                .fontColor(this.videoListController.folder.name === folder?.name ?
+                  $r('app.color.main_color') : $r('app.color.text_color'))
                 .textAlign(TextAlign.Start)
                 .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
                 .textOverflow({ overflow: TextOverflow.MARQUEE })

@@ -8,9 +8,8 @@ import FileFolderUtil from '../../utils/FileFolderUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import { FolderOperator } from '../../database/VideoMetaData'
 import { AddFileFolderNameDialog } from '../Dialog/AddFileFolderNameDialog'
-import { DefaultDialogShadow } from '../../common/DefaultDialogShadow'
 import VideoUtils from '../../utils/VideoUtil'
-import { MenuFancyModifier } from '../../utils/AttributeModifierUtil'
+import { DefaultDialogShadow, MenuFancyModifier } from '../../common/AttributeModifierConfig'
 
 
 @Component

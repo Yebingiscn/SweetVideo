@@ -66,7 +66,11 @@ export struct MoreSettingPage {
                 )
               ])
               const missingCoverFiles = coverFromSandboxArray.filter((file => !existingItemsSet.has(file)))
+              salmonLogger.addLog(this.pathStack.getAllPathName()[0],
+                `检测到失效封面文件数：${missingCoverFiles.length}，内容：${missingCoverFiles.toString()}`, false)
               const missingSubtitleFiles = subtitleFromSandboxArray.filter(file => !existingItemsSet.has(file));
+              salmonLogger.addLog(this.pathStack.getAllPathName()[0],
+                `检测到失效字幕文件数：${missingSubtitleFiles.length}，内容：${missingSubtitleFiles.toString()}`, false)
               const missingFileSum = missingCoverFiles.length + missingSubtitleFiles.length
               await Promise.all([
                 ...missingCoverFiles.map((file): Promise<void> => SelectFileUtil.deleteCover(file)),
@@ -81,17 +85,18 @@ export struct MoreSettingPage {
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.hand_thumbsup'),
-            message: '评价下下流心(^人^)',
+            message: '从夯到拉锐评下流心',
             onPress: async () => {
               try {
                 commentManager.showCommentDialog(PathUtils.appContext!).then(() => {
-                  salmonLogger.addLog('sweet_video', '成功展示评论弹窗', false)
+                  salmonLogger.addLog(this.pathStack.getAllPathName()[0], '成功展示评论弹窗', false)
                 }).catch((error: BusinessError<Object>) => {
-                  salmonLogger.addLog('sweet_video', `展示评论弹窗错误, Code: ${error.code}, message: ${error.message}`,
-                    true)
+                  salmonLogger.addLog(this.pathStack.getAllPathName()[0],
+                    `展示评论弹窗错误, Code: ${error.code}, message: ${error.message}`, true)
                 });
               } catch (error) {
-                salmonLogger.addLog('sweet_video', `展示评论弹窗错误, Code: ${error.code}, message: ${error.message}`,
+                salmonLogger.addLog(this.pathStack.getAllPathName()[0],
+                  `展示评论弹窗错误, Code: ${error.code}, message: ${error.message}`,
                   true)
               }
             }

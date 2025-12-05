@@ -9,8 +9,7 @@ import SelectFileUtil from '../../utils/SelectFileUtil';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 import DataSyncUtil from '../../utils/DataSyncUtil';
 import { VideoDetailDialog } from '../../component/Dialog//VideoDetailDialog';
-import { DefaultDialogShadow } from '../../common/DefaultDialogShadow';
-import { MenuFancyModifier } from '../../utils/AttributeModifierUtil';
+import { DefaultDialogShadow, MenuFancyModifier } from '../../common/AttributeModifierConfig';
 import { EditMetadataDialog } from '../../component/Dialog//EditMetadataDialog';
 import SubtitleUtil from '../../utils/SubtitleUtil';
 import { FileFolder } from '../../interfaces/FileFolderInterface';
@@ -20,12 +19,12 @@ import { VideoMetaDataOperator } from '../../database/VideoMetaData';
 import VideoUtils from '../../utils/VideoUtil';
 import FileFolderUtil from '../../utils/FileFolderUtil';
 import NavigationAddress from '../../common/NavigationCommon';
-import SubtitleFormat from '../../common/SubtitleFormatConfig';
 import VideoOperateUtil from '../../utils/VideoOperateUtil';
 import { VideoDeleteDialog } from '../Dialog/VideoDeleteDialog';
 import { DeleteType } from '../../common/enum/DeleteType';
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
 import { XAnimation } from '../../utils/AnimationUtil';
+import { salmonLogger } from 'salmonlogger';
 
 @Observed
 export class VideoListController {
@@ -354,7 +353,8 @@ export struct VideoList {
     try {
       this.videoListController.listScroller.closeAllSwipeActions()
     } catch (error) {
-      ToolsUtil.errorCatchExec('closeAllSwipeActions', String(error))
+      salmonLogger.addLog(this.pathStack.getAllPathName()[0],
+        'closeAllSwipeActions failed: ' + error.code + ':' + error.message, true)
     }
     this.searchValue = ''
     await SelectFileUtil.isFileExist(item.uri, true) ?
@@ -427,26 +427,7 @@ export struct VideoList {
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat_size_square')), content: '导入或删除字幕'
       })
         .onClick(async () => {
-          if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath, item?.date!)) {
-            await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item?.date!)
-            item!.external_subtitle_format = ''
-          } else {
-            const subtitleName = await SubtitleUtil.selectExternalSubtitles(PathUtils.subtitlePath, item?.date!);
-            const subtitleNameFormat = subtitleName?.match(/[^.]+$/)?.[0] || ''
-            switch (subtitleNameFormat) {
-              case SubtitleFormat.SRT:
-                item!.external_subtitle_format = SubtitleFormat.SRT
-                break
-              case SubtitleFormat.ASS:
-                item!.external_subtitle_format = SubtitleFormat.ASS
-                break
-              case SubtitleFormat.VTT:
-                item!.external_subtitle_format = SubtitleFormat.VTT
-                break
-              default:
-                item!.external_subtitle_format = ''
-            }
-          }
+          await SubtitleUtil.importOrDeleteSubtitleProcess(item!)
           const targetIndex = SelectFileUtil.getItemIndex(this.videoListController.videoMetaDataList, item!);
           if (targetIndex !== -1) {
             this.videoListController.videoMetaDataList[targetIndex] = item!;

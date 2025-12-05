@@ -10,6 +10,7 @@ export struct CrashPage {
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0
   @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
   @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
+  @Consume('pathStack') pathStack: NavPathStack
   private appEventGroups: Array<hiAppEvent.AppEventGroup> | [] = []
 
   aboutToAppear(): void {
@@ -85,9 +86,8 @@ export struct CrashPage {
 
       Button('复制给开发者')
         .onClick(() => {
-          salmonLogger.addLog('sweet_video', 'test', true)
-          this.appEventGroups.toString().length > 0 ? copyText(JSON.stringify(this.appEventGroups)) :
-            copyText(JSON.stringify(salmonLogger.logs))
+          this.appEventGroups.toString().length > 0 ? this.copyText(JSON.stringify(this.appEventGroups)) :
+            this.copyText(JSON.stringify(salmonLogger.logs))
         })
         .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
         .fontColor($r('sys.color.white'))
@@ -109,17 +109,20 @@ export struct CrashPage {
     .backdropBlur(this.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
   }
-}
 
-function copyText(text: string) {
-  const infoText = '反馈 QQ群 973792610，作者邮箱 1309932526@qq.com：\n'
-  // Create clipboard content object
-  const pasteboardData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, infoText + text);
-  // Get system clipboard object
-  const systemPasteboard = pasteboard.getSystemPasteboard();
-  systemPasteboard.setData(pasteboardData).then(() => {
-    ToolsUtil.showToast('日志复制成功' + infoText)
-  })?.catch(() => {
-    ToolsUtil.errorCatchExec('复制失败')
-  }); // Put data into clipboard
+  copyText(text: string) {
+    const infoText = '反馈 QQ群 973792610，作者邮箱 1309932526@qq.com：\n'
+    // Create clipboard content object
+    const pasteboardData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, infoText + text);
+    // Get system clipboard object
+    const systemPasteboard = pasteboard.getSystemPasteboard();
+    systemPasteboard.setData(pasteboardData).then(() => {
+      ToolsUtil.showToast('日志复制成功' + infoText)
+      salmonLogger.addLog(this.pathStack.getAllPathName()[0], '复制日志成功', false)
+    })?.catch(() => {
+      this.pathStack.getAllPathName()[0]
+      salmonLogger.addLog(this.pathStack.getAllPathName()[0], '复制失败', true)
+      ToolsUtil.showToast('复制失败')
+    }); // Put data into clipboard
+  }
 }

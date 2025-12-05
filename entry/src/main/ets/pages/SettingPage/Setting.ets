@@ -1,4 +1,3 @@
-import { DefaultDialogShadow } from '../../common/DefaultDialogShadow';
 import NavigationAddress from '../../common/NavigationCommon';
 import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog';
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem';
@@ -9,6 +8,7 @@ import { PathUtils } from '../../utils/PathUtils';
 import ToolsUtil from '../../utils/ToolsUtil';
 import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem';
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
+import { DefaultDialogShadow } from '../../common/AttributeModifierConfig';
 
 @Component
 export struct SettingsPage { //设置页

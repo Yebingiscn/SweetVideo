@@ -5,13 +5,15 @@ import ToolsUtil from '../../utils/ToolsUtil';
 import DataSyncUtil from '../../utils/DataSyncUtil';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 import { VideoDetailDialog } from '../../component/Dialog/VideoDetailDialog';
-import { DefaultDialogShadow } from '../../common/DefaultDialogShadow';
 import Preferences from '../../database/Preferences';
 import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil';
 import { FileFolder } from '../../interfaces/FileFolderInterface';
 import {
-  ButtonFancyModifier, MenuFancyModifier, SymbolGlyphFancyModifier
-} from '../../utils/AttributeModifierUtil';
+  ButtonFancyModifier,
+  DefaultDialogShadow,
+  MenuFancyModifier,
+  SymbolGlyphFancyModifier
+} from '../../common/AttributeModifierConfig';
 import { FileProcessorUtil } from '../../utils/FileProcessorUtil';
 import { PathUtils } from '../../utils/PathUtils';
 import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog';
@@ -26,6 +28,7 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil';
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem';
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem';
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
+import SubtitleUtil from '../../utils/SubtitleUtil';
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -199,7 +202,7 @@ export struct PrivacySpace { // 隐私空间页
       })
         .onClick(async () => {
           this.isPresent = false
-          await this.toMetaData(await SelectFileUtil.selectFiles());
+          await this.toMetaData(await SelectFileUtil.selectFromFileManager());
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.picture')),
@@ -207,7 +210,7 @@ export struct PrivacySpace { // 隐私空间页
       })
         .onClick(async () => {
           this.isPresent = false
-          await this.toMetaData(await SelectFileUtil.selectVideo());
+          await this.toMetaData(await SelectFileUtil.selectVideos());
         })
     }.attributeModifier(new MenuFancyModifier())
   }
@@ -274,6 +277,18 @@ export struct PrivacySpace { // 隐私空间页
       })
         .onClick(async () => {
           await SelectFileUtil.exportFile(item!.uri, item!.title, item!.format, PathUtils.appContext!)
+        })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat_size_square')), content: '导入或删除字幕'
+      })
+        .onClick(async () => {
+          await SubtitleUtil.importOrDeleteSubtitleProcess(item!)
+          const targetIndex = SelectFileUtil.getItemIndex(this.video_meta_data_encryption, item!);
+          if (targetIndex !== -1) {
+            this.video_meta_data_encryption[targetIndex] = item!;
+            this.videoDataSource.updateData(this.video_meta_data_encryption)
+            Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, this.video_meta_data_encryption)
+          }
         })
     }.attributeModifier(new MenuFancyModifier())
   }

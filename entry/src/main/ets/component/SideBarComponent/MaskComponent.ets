@@ -1,8 +1,12 @@
 import { curves } from '@kit.ArkUI';
 import { SideBarController } from './SideBar';
 
+class SideBarValue {
+  sideBarController: SideBarController | undefined = undefined
+}
+
 @Builder
-export function MaskComponent(sideBarController: SideBarController) {
+export function MaskComponent(sideBarValue: SideBarValue) {
   Column()
     .height('100%')
     .width('100%')
@@ -11,11 +15,11 @@ export function MaskComponent(sideBarController: SideBarController) {
       curve: curves.springMotion(0, 1)
     }))
     .scale({
-      x: sideBarController.sideBarStatus === true ? 1.05 : 1,
-      y: sideBarController.sideBarStatus ? 1.05 : 1
+      x: sideBarValue.sideBarController?.sideBarStatus === true ? 1.05 : 1,
+      y: sideBarValue.sideBarController?.sideBarStatus ? 1.05 : 1
     })
     .zIndex(1)
     .onClick(() => {
-      sideBarController.closeSideBar(true);
+      sideBarValue.sideBarController?.closeSideBar(true);
     })
 }

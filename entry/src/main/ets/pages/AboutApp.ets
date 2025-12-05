@@ -1,9 +1,8 @@
 import ToolsUtil from '../utils/ToolsUtil';
 import WantProcessUtil from '../utils/WantProcessUtil';
 import { PathUtils } from '../utils/PathUtils';
-import { ImageFancyModifier } from '../utils/AttributeModifierUtil';
+import { DefaultDialogShadow, ImageFancyModifier } from '../common/AttributeModifierConfig';
 import { InfoConfirmDialog } from '../component/Dialog/InfoConfirmDialog';
-import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 
 @Component
 export struct AboutApp {

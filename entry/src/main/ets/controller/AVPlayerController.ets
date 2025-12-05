@@ -188,6 +188,12 @@ export class AVPlayerController {
     })
   }
 
+  resetAVPlayer() {
+    this.avPlayer?.reset()?.catch(() => {
+      console.error('player error')
+    })
+  }
+
   activeEnhanceAudio() {
     this.mIjkMediaPlayer = IjkMediaPlayer.getInstance();
     try {
@@ -257,7 +263,7 @@ export class AVPlayerController {
     }
   }
 
-  public async handleIntelligentSync(videoPos: number, audioPos: number) {
+  async handleIntelligentSync(videoPos: number, audioPos: number) {
     const drift = videoPos - audioPos;
     try { // 分级处理策略
       if (Math.abs(drift) > 1000) { // 严重不同步：完全重置
@@ -272,7 +278,7 @@ export class AVPlayerController {
     }
   }
 
-  public async fullResetSync(position: number) { // 严重不同步处理
+  async fullResetSync(position: number) { // 严重不同步处理
     this.avPlayer?.pause()?.catch(() => {
       console.error('player error')
     });
@@ -285,7 +291,7 @@ export class AVPlayerController {
     this.mIjkMediaPlayer?.start();
   }
 
-  public calPlayerSync(duration: number) {
+  calPlayerSync(duration: number) {
     this.playTime = duration;
     if (this.mIjkMediaPlayer && Date.now() - VideoOperateUtil.lastSyncTime < VideoOperateUtil.syncCoolDown) {
       return;

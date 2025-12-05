@@ -1,7 +1,7 @@
 import { AVCastPicker } from '@kit.AVSessionKit'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { KeyCode } from '@kit.InputKit'
-import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil'
+import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import { RepeatMode } from '../../common/enum/RepeatMode'
 import AVSessionUtil from '../../utils/AVSessionUtil'
 
@@ -14,7 +14,7 @@ export struct VideoButtonsComponent {
   @Link repeatMode: RepeatMode
   @Link sideBarStatusTmp: Visibility
   @Link sideBarStatus: boolean
-  @BuilderParam aVCastPickerBuilderBridge: () => void
+  @BuilderParam AVCastPickerBuilderBridge: () => void
   @BuilderParam videoSettingBuilder: () => void
   @BuilderParam playbackSpeedMenu: () => void
   onScreenRotationOrFullScreenClick = async () => {
@@ -65,7 +65,7 @@ export struct VideoButtonsComponent {
         AVCastPicker({
           normalColor: Color.White,
           onStateChange: AVSessionUtil.castOnStateChange,
-          customPicker: () => this.aVCastPickerBuilderBridge()
+          customPicker: () => this.AVCastPickerBuilderBridge()
         })
           .width(23)
           .height(23)

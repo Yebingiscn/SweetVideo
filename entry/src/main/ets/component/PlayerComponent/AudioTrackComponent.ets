@@ -1,5 +1,5 @@
 import { AudioTrack } from '../../interfaces/AudioTrackInterface'
-import { ImageFancyModifier } from '../../utils/AttributeModifierUtil'
+import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
 import { AudioTrackSource } from '../../utils/DataUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 

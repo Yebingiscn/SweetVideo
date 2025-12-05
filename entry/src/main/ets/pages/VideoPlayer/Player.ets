@@ -18,12 +18,7 @@ import { PlayerSideBarComponent } from '../../component/PlayerComponent/PlayerSi
 import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder';
 import { AudioTrackComponent } from '../../component/PlayerComponent/AudioTrackComponent';
 import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent';
-import { BrightnessSwipingComponent } from '../../component/PlayerComponent/BrightnessSwipingComponent';
-import { VolumeSwipingComponent } from '../../component/PlayerComponent/VolumeSwipingComponent';
-import { FastForwardInfoComponent } from '../../component/PlayerComponent/FastForwardInfoComponent';
-import { SubtitleDisplayComponent } from '../../component/PlayerComponent/SubtitleDisplayComponent';
 import { LockVideoBarComponent } from '../../component/PlayerComponent/LockVideoBarComponent';
-import { SwipingPlayTimeDisplay } from '../../component/PlayerComponent/SwipingPlayTimeDisplay';
 import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent';
 import { GestureComponent } from '../../component/PlayerComponent/GestureComponent';
 import { VideoTopComponent } from '../../component/PlayerComponent/VideoTopComponent';
@@ -36,11 +31,16 @@ import { KeyCode } from '@kit.InputKit';
 import { XAnimation } from '../../utils/AnimationUtil';
 import { AIAsr } from '../../component/PlayerComponent/AIAsrComponent';
 import SubtitleUtil from '../../utils/SubtitleUtil';
-import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent';
 import { SubtitleMode } from '../../common/enum/SubtitleMode';
 import { AVPlayerUtil } from '../../utils/AVPlayerUtil';
 import DataSyncUtil from '../../utils/DataSyncUtil';
 import { AVPlayerController } from '../../controller/AVPlayerController';
+import { BrightnessSwipingBuilder } from '../../component/PlayerComponent/BrightnessSwipingBuilder';
+import { FastForwardPanelBuilder } from '../../component/PlayerComponent/FastForwardPanelBuilder';
+import { VolumeSwipingPanelBuilder } from '../../component/PlayerComponent/VolumeSwipingPanelBuilder';
+import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/SwipingPlayTimePanelBuilder';
+import { SubtitleDisplayBuilder } from '../../component/PlayerComponent/SubtitleDisplayBuilder';
+import { salmonLogger } from 'salmonlogger';
 
 @Component
 export struct Player { // 播放页
@@ -314,11 +314,7 @@ export struct Player { // 播放页
       RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
     }
     this.player.avPlayer?.off('subtitleUpdate')
-    try {
-      await this.player.avPlayer?.reset()
-    } catch (error) {
-      console.error('reset error' + error)
-    }
+    this.player.resetAVPlayer()
     await this.player.ijkPlayerStop()
     this.player.nowPlaying = item as VideoMetadataFromPlayer
     this.getData()
@@ -395,7 +391,7 @@ export struct Player { // 播放页
               .focusable(true)
               .defaultFocus(true)
               .enableAnalyzer(true)
-            SubtitleDisplayComponent({
+            SubtitleDisplayBuilder({
               subtitle: this.player.subtitle,
               screenWidth: this.screen_width,
               screenHeight: this.screen_height,
@@ -470,29 +466,24 @@ export struct Player { // 播放页
           }
 
           if (this.longPress) {
-            FastForwardInfoComponent({
-              speed: this.player.speed,
-              location: this.play_area_height,
-            })
+            FastForwardPanelBuilder({ speed: this.player.speed, location: this.play_area_height })
           }
           if (this.onSwiping) {
-            SwipingPlayTimeDisplay({
+            SwipingPlayTimePanelBuilder({
               isSliderPlayTimeChange: this.isSliderPlayTimeChange,
               playTime: this.player.playTime,
-              totalTime: this.player.nowPlaying?.time,
+              totalTime: this.player.nowPlaying!.time
             })
           }
 
-          VolumeSwipingComponent({
+          VolumeSwipingPanelBuilder({
             videoVolume: this.player.volume,
             videoVolumeShow: this.player.volumeActually,
-            onSwipingVoice: this.player.onSwipingVoice,
+            onSwipingVoice: this.player.onSwipingVoice
           })
 
           if (this.onSwipingBrightness) {
-            BrightnessSwipingComponent({
-              screenBrightness: this.player.screenBrightness,
-            })
+            BrightnessSwipingBuilder({ screenBrightness: this.player.screenBrightness })
           }
           if (this.lockVisibility) {
             LockVideoBarComponent({
@@ -758,9 +749,7 @@ export struct Player { // 播放页
 
   exitVideo(timeOut: number) {
     this.exitVideoTime = setTimeout(() => {
-      this.player.avPlayer?.reset()?.catch(() => {
-        console.error('player error')
-      })
+      this.player.resetAVPlayer()
       DataSyncUtil.lastPlayVideoIndex = this.video_meta_data.findIndex(i => i.date === this.player.nowPlaying?.date)
       this.pathStack.pop()
     }, timeOut)
@@ -771,11 +760,12 @@ export struct Player { // 播放页
     VideoTopComponent({
       videoTitle: this.player.nowPlaying?.title,
       subTitleVisibility: this.player.subtitleVisibility,
+      subtitleSelected: this.player.subtitleSelected,
+      isAIAsrShown: this.isAIAsrShown,
       screenExtendSelectedText: this.select_text,
       screenWidth: this.screen_width,
       screenHeight: this.screen_height,
       audioTrackMenuBuilder: this.getAudioMenuBuilder,
-      subtitleMenuBuilder: this.getSubtitleMenuBuilder,
       lockRotation: this.lockRotation,
       playAreaHeight: this.play_area_height,
       playAreaWidth: this.play_area_width,
@@ -793,7 +783,8 @@ export struct Player { // 播放页
             await (await this.windowClass)?.setPreferredOrientation(orientation)
           })
         } catch (error) {
-          ToolsUtil.errorCatchExec('屏幕旋转异常', String(error))
+          salmonLogger.addLog(this.pathStack.getAllPathName()[0],
+            '屏幕旋转异常: ' + error.code + ':' + error.message, true)
         }
         const toastMessage = this.lockRotation
           ? ToolsUtil.getStringResource($r('app.string.open_rotation_lock').id)
@@ -838,7 +829,7 @@ export struct Player { // 播放页
       screenWidth: this.screen_width,
       playing: this.player.playing,
       speed: this.player.speed,
-      aVCastPickerBuilderBridge: this.AVCastPickerBuilderBridge,
+      AVCastPickerBuilderBridge: this.AVCastPickerBuilderBridge,
       videoSettingBuilder: this.getVideoSettingBuilder,
       playbackSpeedMenu: this.getPlaybackSpeedMenuBuilder,
       repeatMode: this.repeatMode,
@@ -919,15 +910,6 @@ export struct Player { // 播放页
     })
   }
 
-  @Builder
-  SubtitleMenuBuilder() {
-    SubtitlePanelComponent({
-      subTitleVisibility: this.player.subtitleVisibility,
-      isAIAsrShown: this.isAIAsrShown,
-      subtitleSelected: this.player.subtitleSelected
-    })
-  }
-
   private getPlaybackSpeedMenuBuilder: () => void = () => {
     this.PlaybackSpeedMenuBuilder()
   }
@@ -936,8 +918,5 @@ export struct Player { // 播放页
   }
   private getVideoSettingBuilder: () => void = () => {
     this.VideoSettingBuilder()
-  }
-  private getSubtitleMenuBuilder: () => void = () => {
-    this.SubtitleMenuBuilder()
   }
 }

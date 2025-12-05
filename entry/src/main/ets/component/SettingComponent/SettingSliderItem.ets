@@ -1,4 +1,4 @@
-import { SymbolGlyphFancyModifier } from '../../utils/AttributeModifierUtil';
+import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig';
 import TimeUtil from '../../utils/TimeUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
 

@@ -1,5 +1,5 @@
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
-import { ImageFancyModifier } from '../../utils/AttributeModifierUtil';
+import { ImageFancyModifier } from '../../common/AttributeModifierConfig';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import { media } from '@kit.MediaKit';
 import TimeUtil from '../../utils/TimeUtil';

@@ -1,4 +1,4 @@
-import { ImageFancyModifier } from '../../utils/AttributeModifierUtil';
+import { ImageFancyModifier } from '../../common/AttributeModifierConfig';
 import TimeUtil from '../../utils/TimeUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
 

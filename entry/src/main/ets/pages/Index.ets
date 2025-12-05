@@ -9,7 +9,6 @@ import { AddFileFolderNameDialog } from '../component/Dialog/AddFileFolderNameDi
 import FileFolderUtil from '../utils/FileFolderUtil';
 import { EditFileFolderNameDialog } from '../component/Dialog/EditFileFolderNameDialog';
 import { FileFolder } from '../interfaces/FileFolderInterface';
-import { DefaultDialogShadow } from '../common/DefaultDialogShadow';
 import { SettingsPage } from './SettingPage/Setting';
 import { AboutApp } from './AboutApp';
 import { FFMpegPlayer } from './VideoPlayer/FFMpegPlayer';
@@ -20,8 +19,11 @@ import { PrivacySpace } from './PrivacySpace/PrivacySpace';
 import Preferences from '../database/Preferences';
 import { RedPlayer } from './VideoPlayer/RedPlayer';
 import {
-  ButtonFancyModifier, MenuFancyModifier, SymbolGlyphFancyModifier
-} from '../utils/AttributeModifierUtil';
+  ButtonFancyModifier,
+  DefaultDialogShadow,
+  MenuFancyModifier,
+  SymbolGlyphFancyModifier
+} from '../common/AttributeModifierConfig';
 import { FileProcessorUtil } from '../utils/FileProcessorUtil';
 import { PathUtils } from '../utils/PathUtils';
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
@@ -144,7 +146,7 @@ struct Index {
       })
         .onClick(async () => {
           this.sideBarController.closeSideBar(false)
-          await this.toMetaData(await SelectFileUtil.selectFiles(), this.videoListController.folder);
+          await this.toMetaData(await SelectFileUtil.selectFromFileManager(), this.videoListController.folder);
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.picture_2')),
@@ -152,7 +154,7 @@ struct Index {
       })
         .onClick(async () => {
           this.sideBarController.closeSideBar(false)
-          await this.toMetaData(await SelectFileUtil.selectVideo(), this.videoListController.folder);
+          await this.toMetaData(await SelectFileUtil.selectVideos(), this.videoListController.folder);
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder_badge_eye')),

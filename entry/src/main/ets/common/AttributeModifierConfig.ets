@@ -1,4 +1,5 @@
 import { CommonModifier } from '@kit.ArkUI';
+import { ShadowFancy } from '../interfaces/ShadowFancyInterface';
 
 export class ShadowModifier extends CommonModifier {
   constructor() {
@@ -51,7 +52,8 @@ export class ImageFancyModifier implements AttributeModifier<ImageAttribute> {
       .shadow({
         radius: 18,
         type: ShadowType.BLUR,
-        color: 'primary'
+        color: 'primary',
+        fill: true
       })
   }
 }
@@ -106,3 +108,10 @@ export class MenuFancyModifier extends CommonModifier {
     instance.font({ size: 15, weight: FontWeight.Normal })
   }
 }
+
+export const DefaultDialogShadow: ShadowFancy = {
+  radius: 26,
+  color: $r('app.color.shadow_color'),
+  offsetX: 0,
+  offsetY: 0
+};

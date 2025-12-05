@@ -6,6 +6,8 @@ import { PathUtils } from './PathUtils';
 import { Parser, SubtitleItem } from '../interfaces/SubtitleInterface';
 import SubtitleFormat from '../common/SubtitleFormatConfig';
 import { AssEvent, ParseAss, ParseSrt, ParseVtt, SrtLine, VttLine } from '../modules/subtitles';
+import { salmonLogger } from 'salmonlogger';
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 
 // 实现 Parser 接口的适配器类
 export class ParserAdapter<T> implements Parser<T> {
@@ -71,6 +73,7 @@ class SubtitleUtil {
       }
     } catch (error) {
       console.error('import failed: ', error);
+      salmonLogger.addLog('subtitle', 'import failed: ' + error.code + ':' + error.message, true)
       return '';
     }
   }
@@ -86,6 +89,7 @@ class SubtitleUtil {
         }
       }).catch((err: BusinessError) => {
         console.error("access failed with error message: " + err.message + ", error code: " + err.code);
+        salmonLogger.addLog('subtitle', 'delete failed: ' + err.code + ':' + err.message, false)
         resolve(false);
       });
     })
@@ -103,6 +107,30 @@ class SubtitleUtil {
       } else {
         ToolsUtil.showToast('删除失败');
         console.error('delete failed: ' + error.code + ':' + error.message)
+        salmonLogger.addLog('subtitle', 'delete failed: ' + error.code + ':' + error.message, true)
+      }
+    }
+  }
+
+  async importOrDeleteSubtitleProcess(item: VideoMetadata) {
+    if (await this.isSubtitleExist(PathUtils.subtitlePath, item?.date!)) {
+      await this.deleteSubtitle(PathUtils.subtitlePath, item?.date!)
+      item!.external_subtitle_format = ''
+    } else {
+      const subtitleName = await this.selectExternalSubtitles(PathUtils.subtitlePath, item?.date!);
+      const subtitleNameFormat = subtitleName?.match(/[^.]+$/)?.[0] || ''
+      switch (subtitleNameFormat) {
+        case SubtitleFormat.SRT:
+          item!.external_subtitle_format = SubtitleFormat.SRT
+          break
+        case SubtitleFormat.ASS:
+          item!.external_subtitle_format = SubtitleFormat.ASS
+          break
+        case SubtitleFormat.VTT:
+          item!.external_subtitle_format = SubtitleFormat.VTT
+          break
+        default:
+          item!.external_subtitle_format = ''
       }
     }
   }
@@ -139,7 +167,9 @@ class SubtitleUtil {
       this.setSubtitles(items);
       return true
     } catch (e) {
+      const error: string = e
       console.error('test' + e)
+      salmonLogger.addLog('subtitle', `SRT 外挂字幕加载失败，原因是：${error}`, true)
       return false
     }
   }
@@ -162,7 +192,9 @@ class SubtitleUtil {
       this.setSubtitles(items);
       return true;
     } catch (e) {
-      console.error('testASS解析诊断失败:', e);
+      const error: string = e
+      salmonLogger.addLog('subtitle', `ASS 外挂字幕加载失败，原因是：${error}`, true)
+      console.error('testASS解析诊断失败:', error);
       return false;
     }
   }
@@ -182,7 +214,9 @@ class SubtitleUtil {
       this.setSubtitles(items);
       return true
     } catch (e) {
+      const error: string = e
       console.error('test' + e)
+      salmonLogger.addLog('subtitle', `VTT 外挂字幕加载失败，原因是：${error}`, true)
       return false
     }
   }
