@@ -47,11 +47,6 @@ import { PrivacyPolicyComponent } from '../component/VideoItemComponent/PrivacyP
 import { MoreSettingPage } from './SettingPage/MoreSettingPage';
 import NavigationAddress from '../common/NavigationCommon';
 
-@Builder
-export function IndexBuilder() {
-  Index()
-}
-
 @Entry
 @Component
 struct Index {
