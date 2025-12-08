@@ -50,6 +50,7 @@ import { XAnimation } from '../utils/AnimationUtil';
 import { PrivacyPolicyComponent } from '../component/VideoItemComponent/PrivacyPolicyComponent';
 import { MoreSettingPage } from './SettingPage/MoreSettingPage';
 import NavigationAddress from '../common/NavigationCommon';
+import { FolderSelectMenu, IMenuItem } from './components/FolderSelectMenu'
 
 @Entry
 @Component
@@ -95,74 +96,75 @@ struct Index {
   @Builder
   FileFolderSelectMenu(folder: FileFolder) {
     if (folder.name !== '首页') {
-      Menu() {
-        MenuItem({
-          symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.trash_fill")),
-          content: $r('app.string.delete')
-        })
-          .onClick(async () => {
-            DataSyncUtil.delMultipleList = Array.from(folder.video_list);
-            await Promise.all(
-              DataSyncUtil.delMultipleList.map(item => {
-                VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, DeleteType.SOFT,
-                  item);
-                return Promise.resolve();
-              })
-            );
-            this.videoListController.closeMultipleChoose()
-            this.file_folder_list = FileFolderUtil.deleteFileFolder(PathUtils.appContext!, folder)
-            let newFolder: FileFolder | undefined
-            if (this.videoListController.folder.date === folder.date) {
-              newFolder = this.file_folder_list[0]
-            } else {
-              newFolder = this.videoListController.folder
-            }
-            this.videoListController.folder = newFolder
-            VideoUtils.refresh(this.videoListController, this.fileFolderSource, newFolder)
-          })
-        MenuItem({
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
-          content: $r('app.string.edit')
-        })
-          .onClick(() => {
-            DataSyncUtil.editingFolder = folder
-            this.editFileFolderNameDialogController.open()
-          })
-      }.attributeModifier(new MenuFancyModifier()).onAppear(() => {
-        ToolsUtil.startVibration()
+      FolderSelectMenu({
+        menus: [
+          {
+            icon: $r("sys.symbol.trash_fill"),
+            content: $r('app.string.delete'),
+            onAction: async () => {
+              DataSyncUtil.delMultipleList = Array.from(folder.video_list);
+              await Promise.all(
+                DataSyncUtil.delMultipleList.map(item => {
+                  VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, DeleteType.SOFT,
+                    item);
+                  return Promise.resolve();
+                })
+              );
+              this.videoListController.closeMultipleChoose()
+              this.file_folder_list = FileFolderUtil.deleteFileFolder(PathUtils.appContext!, folder)
+              let newFolder: FileFolder | undefined
+              if (this.videoListController.folder.date === folder.date) {
+                newFolder = this.file_folder_list[0]
+              } else {
+                newFolder = this.videoListController.folder
+              }
+              this.videoListController.folder = newFolder
+              VideoUtils.refresh(this.videoListController, this.fileFolderSource, newFolder)
+            },
+          },
+          {
+            icon: $r('sys.symbol.rename'),
+            content: $r('app.string.edit'),
+            onAction: () => {
+              DataSyncUtil.editingFolder = folder
+              this.editFileFolderNameDialogController.open()
+            },
+          },
+        ]
       })
     }
   }
 
   @Builder
   SelectFileMenuBuilder() {
-    Menu() {
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder')),
-        content: $r('app.string.import_from_files')
-      })
-        .onClick(async () => {
-          this.sideBarController.close(false)
-          await this.toMetaData(await SelectFileUtil.selectFromFileManager(), this.videoListController.folder);
-        })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.picture_2')),
-        content: $r('app.string.import_from_album')
-      })
-        .onClick(async () => {
-          this.sideBarController.close(false)
-          await this.toMetaData(await SelectFileUtil.selectVideos(), this.videoListController.folder);
-        })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder_badge_eye')),
-        content: `从下载文件夹导入（路径：Download/${ToolsUtil.getStringResource($r('app.string.EntryAbility_label')
-          .id)}）`
-      })
-        .onClick(async () => {
-          this.sideBarController.close(false)
-          await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), undefined);
-        })
-    }.attributeModifier(new MenuFancyModifier())
+    FolderSelectMenu({
+      menus: [
+        {
+          icon: $r("sys.symbol.folder"),
+          content: $r('app.string.import_from_files'),
+          onAction: async () => {
+            this.sideBarController.close(false)
+            await this.toMetaData(await SelectFileUtil.selectFromFileManager(), this.videoListController.folder);
+          },
+        },
+        {
+          icon: $r('sys.symbol.picture_2'),
+          content: $r('app.string.import_from_album'),
+          onAction: async () => {
+            this.sideBarController.close(false)
+            await this.toMetaData(await SelectFileUtil.selectVideos(), this.videoListController.folder);
+          },
+        },
+        {
+          icon: $r('sys.symbol.folder_badge_eye'),
+          content:`从下载文件夹导入（路径：Download/${ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id)}）`,
+          onAction: async () => {
+            this.sideBarController.close(false)
+            await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), undefined);
+          },
+        },
+      ]
+    })
   }
 
   async onPageShow(): Promise<void> {
