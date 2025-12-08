@@ -36,30 +36,30 @@ export function AppInfoBuilder(params: AppInfoBuilderParams) {
 
 @Observed
 export class SideBarController {
-  side_bar_mode: SideBarContainerType = SideBarContainerType.Embed
-  sideBarStatusTmp: Visibility = Visibility.Hidden
-  mask_state: boolean = false
-  sideBarStatus: boolean = false
+  mode: SideBarContainerType = SideBarContainerType.Embed
+  visibility: Visibility = Visibility.Hidden
+  overlay: boolean = false
+  isShow: boolean = false
 
-  public openSideBar() {
-    if (this.side_bar_mode === SideBarContainerType.Overlay) {
-      this.sideBarStatusTmp = Visibility.Visible
-      this.mask_state = true
-      this.sideBarStatus = true
+  public open() {
+    if (this.mode === SideBarContainerType.Overlay) {
+      this.visibility = Visibility.Visible
+      this.overlay = true
+      this.isShow = true
     }
-    if (this.sideBarStatusTmp == Visibility.Hidden) {
-      this.mask_state = false
+    if (this.visibility == Visibility.Hidden) {
+      this.overlay = false
     }
   }
 
-  public closeSideBar(isPlayAnimation: boolean) {
-    if (this.side_bar_mode === SideBarContainerType.Overlay) {
-      this.sideBarStatusTmp = Visibility.Hidden
+  public close(isPlayAnimation: boolean) {
+    if (this.mode === SideBarContainerType.Overlay) {
+      this.visibility = Visibility.Hidden
       isPlayAnimation ? setTimeout(() => {
-        this.sideBarStatus = false
-        this.mask_state = false
-      }, 200) : this.sideBarStatus = false
+        this.isShow = false
+        this.overlay = false
+      }, 200) : this.isShow = false
     }
-    this.mask_state = false
+    this.overlay = false
   }
 }
