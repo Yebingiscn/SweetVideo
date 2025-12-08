@@ -2,7 +2,6 @@ import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/Attr
 import { SubtitleMode } from '../../common/enum/SubtitleMode'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
-import { SubtitlePanelBuilder } from './SubtitlePanelBuilder'
 
 @Component
 export struct VideoTopComponent {
@@ -14,6 +13,7 @@ export struct VideoTopComponent {
   @Link screenWidth: number
   @Link screenHeight: number
   @BuilderParam audioTrackMenuBuilder: () => void
+  @BuilderParam subtitlePanelComponent: () => void
   @Link lockRotation: boolean
   @Link playAreaHeight: number
   @Link playAreaWidth: number
@@ -44,12 +44,7 @@ export struct VideoTopComponent {
             $r('sys.symbol.textformat_size_square_fill') : $r('sys.symbol.textformat_size_square'))
             .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
             .fontColor(['#f0f0f0'])
-            .bindMenu(SubtitlePanelBuilder({
-              subTitleVisibility: this.subTitleVisibility,
-              isAIAsrShown: this.isAIAsrShown,
-              subtitleSelected: this.subtitleSelected
-            }),
-              { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
+            .bindMenu(this.subtitlePanelComponent, { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
           if (this.screenWidth > this.screenHeight) {
             SymbolGlyph($r('sys.symbol.opticaldisc'))
               .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))

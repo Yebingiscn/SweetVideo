@@ -3,9 +3,11 @@ import { ImageFancyModifier } from '../../common/AttributeModifierConfig';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import { media } from '@kit.MediaKit';
 import TimeUtil from '../../utils/TimeUtil';
+import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface';
 
-export class VideoInfoBuilderParams {
+class VideoInfoBuilderParams {
   item: VideoMetadata | undefined = undefined
+  nowPlaying?: VideoMetadataFromPlayer | undefined = undefined
   showProgress: boolean = true
 }
 
@@ -44,13 +46,16 @@ export function VideoInfoBuilder(params: VideoInfoBuilderParams) {
         Text(VideoInfoUtil.videoWidthAndHeightFormat(params.item!.size.toString()))
           .fontSize(15)
           .opacity(0.8)
+          .fontColor(params.nowPlaying && params.nowPlaying?.date === params.item?.date ?
+            $r('sys.color.white') : $r('app.color.text_color'))
       }
     }
 
     Text("  " + TimeUtil.convertMSToHHMMSS(params.item!.time))
       .fontSize(15)
       .opacity(0.8)
-
+      .fontColor(params.nowPlaying && params.nowPlaying?.date === params.item?.date ?
+        $r('sys.color.white') : $r('app.color.text_color'))
     if (params.showProgress) {
       Progress({ value: params.item?.last_play, total: params.item?.time, type: ProgressType.Ring })
         .width(30).color($r('app.color.main_color')).height(30)

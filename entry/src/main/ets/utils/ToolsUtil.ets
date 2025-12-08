@@ -244,18 +244,17 @@ export default class ToolsUtil {
       let textDecoder = util.TextDecoder.create(decode, { ignoreBOM: true });
       let text = textDecoder.decodeToString(new Uint8Array(buffer), { stream: false });
       readStream.close().catch(() => {
-        return false
+        throw new Error(`文件解码转换失败: ${'未知错误'}`);
       });
       const writeStream = fileIo.createStreamSync(filePath, "w+");
       writeStream.writeSync(text, { encoding: 'utf-8' });
       writeStream.close().catch(() => {
-        return false
+        throw new Error(`文件解码转换失败: ${'未知错误'}`);
       });
-      return true
     } catch (error) {
       console.error("操作失败: " + JSON.stringify(error));
-      salmonLogger.addLog('subtitle', 'decode failed: ' + error.code + ':' + error.message, false)
-      return false
+      salmonLogger.addLog('subtitle', 'decode failed: ' + error.code + ':' + error.message, true)
+      throw new Error(`文件解码转换失败: ${error.message || '未知错误'}`);
     }
   }
 }

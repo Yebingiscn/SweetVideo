@@ -100,12 +100,16 @@ QQ群：973792610
 - 测试视频提供：萧十一狼
 - 折叠屏适配：微车游
 - AloePlayer 作者：Aloereed
+- 浑天编辑器作者：向着星辰与深渊 ⭐︎
 - kimufly
 - Fpark
 
-## 流心播放器由以下开源项目提供支持
+## 流心播放器由以下开源项目或开源组件提供支持
 
 - 播放器R
+- 浑天编辑器
+- pilipala
+- 蓝牙调试器（BluetoothDebugger）
 - [流心视频](https://gitee.com/lqsxy/sweetvideo/tree/master)
 - [pinyin4js](https://ohpm.openharmony.cn/#/cn/detail/@ohos%2Fpinyin4js)
 - [ohos_ijkplayer](https://gitee.com/openharmony-sig/ohos_ijkplayer/tree/master)
@@ -129,3 +133,4 @@ QQ群：973792610
 - 歪比歪比
 - 爱发电用户_e83w
 - 爱发电用户_15800
+- 爱发电用户_6092b

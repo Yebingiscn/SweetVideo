@@ -45,19 +45,19 @@ export default class TimeUtil {
     const now = new Date();
     const hours = now.getHours();
     if (hours === 15) {
-      return '饮茶啦！流心';
+      return '流心，饮茶啦！';
     }
     // 常规时间问候
     if (hours >= 0 && hours < 5) {
-      return '晚安！流心';
+      return '流心晚安~';
     } else if (hours >= 5 && hours < 12) {
-      return '早上好！流心';
+      return '流心早上好！';
     } else if (hours >= 12 && hours < 14) {
-      return '中午好！流心';
+      return '流心中午好！';
     } else if (hours >= 14 && hours < 18) {
-      return '下午好！流心';
+      return '流心下午好！';
     } else {
-      return '晚上好！流心';
+      return '流心晚上好！';
     }
   }
 }

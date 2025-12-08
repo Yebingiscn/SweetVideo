@@ -3,7 +3,7 @@ import RecentPlayUtil from '../utils/RecentPlayUtil';
 import ToolsUtil from '../utils/ToolsUtil';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { PathUtils } from '../utils/PathUtils';
-import { VideoItemComponent } from '../component/PlayerComponent/PlayerSideBarComponent';
+import { VideoItemBuilder } from '../component/PlayerComponent/PlayerSideBarComponent';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 import { ButtonFancyModifier, DefaultDialogShadow, SymbolGlyphFancyModifier } from '../common/AttributeModifierConfig';
 import NavigationAddress from '../common/NavigationCommon';
@@ -11,6 +11,7 @@ import VideoOperateUtil from '../utils/VideoOperateUtil';
 import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog';
 import DataSyncUtil from '../utils/DataSyncUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
+import { Context } from '@kit.AbilityKit';
 
 @Component
 export struct RecentPlay { // 最近播放页
@@ -84,18 +85,6 @@ export struct RecentPlay { // 最近播放页
     }
   }
 
-  @Builder
-  VideoItemBuilder(item: VideoMetadata) {
-    VideoItemComponent({
-      item: item,
-      now_playing: undefined
-    })
-      .onClick(async () => {
-        this.clickItem(item, NavigationAddress.AV_PLAYER)
-      }).backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
-      $r('app.color.start_window_background')).reuseId(`VideoListItem#${item.uri}`).borderRadius(16)
-  }
-
   async clickItem(item: VideoMetadata | undefined, choosePlayer: string) {
     if (!item) {
       return
@@ -136,8 +125,11 @@ export struct RecentPlay { // 最近播放页
         List({ scroller: this.listScroller, space: 10 }) {
           LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
             ListItem() {
-              this.VideoItemBuilder(item)
+              VideoItemBuilder({ item: item })
             }
+            .onClick(async () => {
+              this.clickItem(item, NavigationAddress.AV_PLAYER)
+            })
             .backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
               $r('app.color.start_window_background'))
             .width('100%')
@@ -146,8 +138,9 @@ export struct RecentPlay { // 最近播放页
             .borderRadius(16)
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
               {
-                preview: this.VideoItemBuilder(item),
+                preview: VideoItemBuilder({ item: item, longPressPreview: this.longPressPreview }),
                 previewAnimationOptions: { hoverScale: [1.0, 1.2] },
+                backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 onAppear: () => {
                   this.longPressPreview = true
                   ToolsUtil.startVibration()
@@ -158,8 +151,9 @@ export struct RecentPlay { // 最近播放页
               })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
               {
-                preview: this.VideoItemBuilder(item),
+                preview: VideoItemBuilder({ item: item, longPressPreview: this.longPressPreview }),
                 previewAnimationOptions: { hoverScale: [1.0, 1.2] },
+                backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 onAppear: () => {
                   this.longPressPreview = true
                 },

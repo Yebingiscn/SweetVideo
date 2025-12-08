@@ -8,7 +8,9 @@ export class AVPlayerUtil {
 
   public static async getAVPlayer() {
     try {
-      AVPlayerUtil.avPlayer = await media.createAVPlayer()
+      if (!AVPlayerUtil.avPlayer) {
+        AVPlayerUtil.avPlayer = await media.createAVPlayer()
+      }
     } catch (error) {
       ToolsUtil.showToast('播放异常')
       salmonLogger.addLog('avplayer',

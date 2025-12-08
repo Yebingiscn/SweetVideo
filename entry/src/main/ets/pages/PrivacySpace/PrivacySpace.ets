@@ -334,6 +334,12 @@ export struct PrivacySpace { // 隐私空间页
   }
 
   async clickItem(item: VideoMetadata | undefined, choosePlayer: string) {
+    if (this.searchValue) {
+      setTimeout(() => {
+        AppStorage.setOrCreate('searchValue', this.searchValue)
+        this.searchValue = ''
+      }, 500)
+    }
     await SelectFileUtil.isFileExist(item?.uri!, true) ?
       ToolsUtil.routerWhere(this.pathStack, choosePlayer, item!,
         this.video_meta_data_encryption) :
@@ -423,7 +429,7 @@ export struct PrivacySpace { // 隐私空间页
             })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
               {
-                backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
+                backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 preview: this.VideoItemBuilder(item),
                 previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                 onAppear: () => {
@@ -436,7 +442,7 @@ export struct PrivacySpace { // 隐私空间页
               })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
               {
-                backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
+                backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 preview: this.VideoItemBuilder(item),
                 previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                 onAppear: () => {
@@ -484,6 +490,11 @@ export struct PrivacySpace { // 隐私空间页
       if (DataSyncUtil.lastPlayVideoIndex >= 0) {
         this.listScroller.scrollToIndex(DataSyncUtil.lastPlayVideoIndex)
         DataSyncUtil.lastPlayVideoIndex = -1
+      }
+      const value: string | undefined = AppStorage.get('searchValue')
+      if (value) {
+        this.searchValue = value
+        AppStorage.set('searchValue', '')
       }
     })
     .title($r('app.string.privacy_space'))

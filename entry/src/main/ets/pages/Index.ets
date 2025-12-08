@@ -30,7 +30,9 @@ import { VideoListController } from '../component/VideoItemComponent/VideoItemCo
 import { AppInfoBuilder, SideBarController } from '../component/SideBarComponent/SideBar';
 import { VideoView } from '../component/VideoItemComponent/VideoViewComponent';
 import { VideoMetaDataOperator } from '../database/VideoMetaData';
-import { FileFolderListComponent } from '../component/FileFolderComponent/FileFolderListComponent';
+import {
+  FileFolderListBuilder
+} from '../component/FileFolderComponent/FileFolderListComponent';
 import VideoUtils from '../utils/VideoUtil';
 import { checkUriProcess } from '../utils/TaskpoolUtil';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
@@ -279,11 +281,10 @@ struct Index {
               List() {
                 LazyForEach(this.fileFolderSource, (folder: FileFolder) => {
                   ListItem() {
-                    FileFolderListComponent({
+                    FileFolderListBuilder({
                       folder: folder,
                       videoListController: this.videoListController
-                    }).reuseId(this.videoListController.folder.name === folder.name ? 'selected_folder' :
-                      'unselect_folder')
+                    })
                   }
                   .onClick(() => {
                     this.clearSearchValue()
@@ -491,6 +492,11 @@ struct Index {
         if (DataSyncUtil.lastPlayVideoIndex >= 0) {
           this.videoListController.listScroller.scrollToIndex(DataSyncUtil.lastPlayVideoIndex)
           DataSyncUtil.lastPlayVideoIndex = -1
+        }
+        const value: string | undefined = AppStorage.get('searchValue')
+        if (value) {
+          this.searchValue = value
+          AppStorage.set('searchValue', '')
         }
       }
     })

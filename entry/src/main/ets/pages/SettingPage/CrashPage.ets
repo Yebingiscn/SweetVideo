@@ -111,9 +111,9 @@ export struct CrashPage {
   }
 
   copyText(text: string) {
-    const infoText = '反馈 QQ群 973792610，作者邮箱 1309932526@qq.com：\n'
+    const infoText = '反馈 QQ群 973792610，作者邮箱 1309932526@qq.com'
     // Create clipboard content object
-    const pasteboardData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, infoText + text);
+    const pasteboardData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, infoText + '\n' + text);
     // Get system clipboard object
     const systemPasteboard = pasteboard.getSystemPasteboard();
     systemPasteboard.setData(pasteboardData).then(() => {

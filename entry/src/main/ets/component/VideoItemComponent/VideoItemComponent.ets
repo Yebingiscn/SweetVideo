@@ -191,7 +191,7 @@ export struct VideoList {
           .height('auto')
           .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
             {
-              backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
+              backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
               preview: this.VideoItemBuilder(item),
               previewAnimationOptions: { hoverScale: [1.0, 1.2] },
               onAppear: () => {
@@ -204,7 +204,7 @@ export struct VideoList {
             })
           .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
             {
-              backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
+              backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
               preview: this.VideoItemBuilder(item),
               previewAnimationOptions: { hoverScale: [1.0, 1.2] },
               onAppear: () => {
@@ -275,7 +275,7 @@ export struct VideoList {
               .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
               .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
                 {
-                  backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
+                  backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                   preview: this.VideoItemBuilder(item),
                   previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                   onAppear: () => {
@@ -288,7 +288,7 @@ export struct VideoList {
                 })
               .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
                 {
-                  backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
+                  backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                   preview: this.VideoItemBuilder(item),
                   previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                   onAppear: () => {
@@ -356,10 +356,15 @@ export struct VideoList {
       salmonLogger.addLog(this.pathStack.getAllPathName()[0],
         'closeAllSwipeActions failed: ' + error.code + ':' + error.message, true)
     }
-    this.searchValue = ''
+    if (this.searchValue) {
+      setTimeout(() => {
+        AppStorage.setOrCreate('searchValue', this.searchValue)
+        this.searchValue = ''
+      }, 500)
+    }
     await SelectFileUtil.isFileExist(item.uri, true) ?
       ToolsUtil.routerWhere(this.pathStack, choosePlayer, item,
-        this.videoListController.videoMetaDataList) :
+        this.videoListController.videoDataSource.getAllData()) :
       await this.videoListController.videoDataSource.deleteUnExistFile(item, this.videoListController,
         this.fileFolderSource)
   }

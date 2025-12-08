@@ -41,6 +41,7 @@ import { VolumeSwipingPanelBuilder } from '../../component/PlayerComponent/Volum
 import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/SwipingPlayTimePanelBuilder';
 import { SubtitleDisplayBuilder } from '../../component/PlayerComponent/SubtitleDisplayBuilder';
 import { salmonLogger } from 'salmonlogger';
+import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent';
 
 @Component
 export struct Player { // 播放页
@@ -766,6 +767,7 @@ export struct Player { // 播放页
       screenWidth: this.screen_width,
       screenHeight: this.screen_height,
       audioTrackMenuBuilder: this.getAudioMenuBuilder,
+      subtitlePanelComponent: this.getSubtitleMenuBuilder,
       lockRotation: this.lockRotation,
       playAreaHeight: this.play_area_height,
       playAreaWidth: this.play_area_width,
@@ -910,6 +912,15 @@ export struct Player { // 播放页
     })
   }
 
+  @Builder
+  SubtitleMenuBuilder() {
+    SubtitlePanelComponent({
+      subTitleVisibility: this.player.subtitleVisibility,
+      isAIAsrShown: this.isAIAsrShown,
+      subtitleSelected: this.player.subtitleSelected
+    })
+  }
+
   private getPlaybackSpeedMenuBuilder: () => void = () => {
     this.PlaybackSpeedMenuBuilder()
   }
@@ -918,5 +929,8 @@ export struct Player { // 播放页
   }
   private getVideoSettingBuilder: () => void = () => {
     this.VideoSettingBuilder()
+  }
+  private getSubtitleMenuBuilder: () => void = () => {
+    this.SubtitleMenuBuilder()
   }
 }

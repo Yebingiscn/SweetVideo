@@ -8,7 +8,7 @@ import { PathUtils } from '../../utils/PathUtils'
 import FileFolderUtil from '../../utils/FileFolderUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { EditFileFolderNameDialog } from '../../component/Dialog/EditFileFolderNameDialog'
-import { FileFolderListComponent } from './FileFolderListComponent'
+import { FileFolderListBuilder } from './FileFolderListComponent'
 import { DeleteType } from '../../common/enum/DeleteType'
 import { DefaultDialogShadow, MenuFancyModifier } from '../../common/AttributeModifierConfig'
 
@@ -35,10 +35,10 @@ export struct FileFolderView {
     List() {
       LazyForEach(this.fileFolderSource, (item: FileFolder) => {
         ListItem() {
-          FileFolderListComponent({
+          FileFolderListBuilder({
             folder: item,
             videoListController: this.videoListController
-          }).reuseId(item.name)
+          })
         }
         .onClick(() => {
           const video_list = item.video_list || []

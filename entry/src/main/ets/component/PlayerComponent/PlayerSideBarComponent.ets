@@ -28,21 +28,22 @@ export struct PlayerSideBarComponent {
     List({ scroller: this.listScroller, space: 10 }) {
       LazyForEach(this.playerSideBarSource, (item: VideoMetadata, index: number) => {
         ListItem() {
-          VideoItemComponent({
+          VideoItemBuilder({
             item: item,
             now_playing: this.now_playing
           })
-            .borderRadius(16)
-            .onClick(() => {
-              if (this.sideBarStatusTmp === Visibility.Hidden) {
-                return
-              }
-              this.now_playing?.date === item.date ? this.closeSideBar() : this.onItemClick(item)
-            })
-            .width('100%')
-            .height('auto')
-            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.9 })
-        }.padding({ top: index === 0 ? 10 : 0 })
+        }
+        .padding({ top: index === 0 ? 10 : 0 })
+        .borderRadius(16)
+        .onClick(() => {
+          if (this.sideBarStatusTmp === Visibility.Hidden) {
+            return
+          }
+          this.now_playing?.date === item.date ? this.closeSideBar() : this.onItemClick(item)
+        })
+        .width('100%')
+        .height('auto')
+        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.9 })
       }, (item: VideoMetadata) => item.date)
     }
     .clip(false)
@@ -92,40 +93,44 @@ export struct PlayerSideBarComponent {
   }
 }
 
-@Reusable
-@Component
-export struct VideoItemComponent {
-  @Prop item: VideoMetadata | undefined = undefined
-  @Prop now_playing: VideoMetadataFromPlayer | undefined
+class VideoItemValue {
+  item: VideoMetadata | undefined = undefined
+  now_playing?: VideoMetadataFromPlayer | undefined = undefined
+  longPressPreview?: boolean = false
+}
 
-  build() {
-    Row() {
-      Image(fileUri.getUriFromPath(PathUtils.coverPath + this.item?.date))
-        .attributeModifier(new ImageFancyModifier(16, 80, 120))
-      Column() {
-        Row() {
-          Text(VideoInfoUtil.getVideoTitle(this.item!))
-            .fontSize(16)
-            .fontWeight(FontWeight.Bold)
-            .maxLines(4)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .width('100%')
-            .margin({ left: 5 })
-            .wordBreak(WordBreak.BREAK_ALL)
-            .fontColor(this.now_playing && this.now_playing?.date === this.item?.date ?
-              $r('sys.color.white') : $r('app.color.text_color'))
-        }
+@Builder
+export function VideoItemBuilder(videoItemValue: VideoItemValue) {
+  Row() {
+    Image(fileUri.getUriFromPath(PathUtils.coverPath + videoItemValue.item?.date))
+      .attributeModifier(new ImageFancyModifier(16, 80, 120))
+    Column() {
+      Row() {
+        Text(VideoInfoUtil.getVideoTitle(videoItemValue.item!))
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .maxLines(4)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .width('100%')
+          .margin({ left: 5 })
+          .wordBreak(WordBreak.BREAK_ALL)
+          .fontColor(videoItemValue.now_playing && videoItemValue.now_playing?.date === videoItemValue.item?.date ?
+            $r('sys.color.white') : $r('app.color.text_color'))
+      }
 
-        VideoInfoBuilder({ item: this.item, showProgress: false })
-      }.alignItems(HorizontalAlign.Start)
-      .padding({ left: 15, right: 15 })
-      .layoutWeight(1)
-    }
-    .backgroundColor(this.now_playing && this.now_playing?.date === this.item?.date ?
-      $r('app.color.main_color') : '')
-    .justifyContent(FlexAlign.Center)
-    .width('100%')
-    .opacity(0.8)
-    .borderRadius(16)
+      VideoInfoBuilder({ item: videoItemValue.item, showProgress: false, nowPlaying: videoItemValue.now_playing })
+    }.alignItems(HorizontalAlign.Start)
+    .padding({ left: 15, right: 15 })
+    .layoutWeight(1)
   }
+  .backgroundColor(
+    videoItemValue.longPressPreview
+      ? $r('app.color.start_window_background_blur')
+      : videoItemValue.now_playing && videoItemValue.now_playing?.date === videoItemValue.item?.date
+      ? $r('app.color.main_color')
+      : $r('app.color.start_window_background')
+  )
+  .justifyContent(FlexAlign.Center)
+  .width('100%')
+  .borderRadius(16)
 }

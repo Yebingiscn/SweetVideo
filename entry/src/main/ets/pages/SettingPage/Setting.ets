@@ -183,7 +183,7 @@ export struct SettingsPage { //设置页
               .fontSize(15)
             Text('2. 通过搜索框输入密码进入')
               .fontSize(15)
-            Text('3. 通过首页双指捏合往外划开进入')
+            Text('3. 通过首页双指往外划开进入（类似于放大照片的手势）')
               .fontSize(15)
           }.alignItems(HorizontalAlign.Start).width('100%')
         }

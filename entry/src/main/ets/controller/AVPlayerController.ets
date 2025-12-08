@@ -14,6 +14,7 @@ import { audio } from '@kit.AudioKit';
 import { SubtitleMode } from '../common/enum/SubtitleMode';
 import { PathUtils } from '../utils/PathUtils';
 import SubtitleUtil from '../utils/SubtitleUtil';
+import { AVPlayerUtil } from '../utils/AVPlayerUtil';
 
 @Observed
 export class AVPlayerController {
@@ -186,6 +187,7 @@ export class AVPlayerController {
     this.avPlayer?.release()?.catch(() => {
       console.error('player error')
     })
+    AVPlayerUtil.avPlayer = undefined
   }
 
   resetAVPlayer() {

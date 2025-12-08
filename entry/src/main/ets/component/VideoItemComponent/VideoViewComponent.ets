@@ -177,6 +177,7 @@ export struct VideoView {
                   if (this.videoListController.folder.date === folder.date) {
                     return
                   }
+                  this.searchValue = ''
                   this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
                   this.fileFolderSource.updateData(this.file_folder_list)
                   const currentFolder = this.fileFolderSource.getFileFolder(folder.name)
