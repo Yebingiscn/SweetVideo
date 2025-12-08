@@ -142,7 +142,7 @@ struct Index {
         content: $r('app.string.import_from_files')
       })
         .onClick(async () => {
-          this.sideBarController.closeSideBar(false)
+          this.sideBarController.close(false)
           await this.toMetaData(await SelectFileUtil.selectFromFileManager(), this.videoListController.folder);
         })
       MenuItem({
@@ -150,7 +150,7 @@ struct Index {
         content: $r('app.string.import_from_album')
       })
         .onClick(async () => {
-          this.sideBarController.closeSideBar(false)
+          this.sideBarController.close(false)
           await this.toMetaData(await SelectFileUtil.selectVideos(), this.videoListController.folder);
         })
       MenuItem({
@@ -159,7 +159,7 @@ struct Index {
           .id)}）`
       })
         .onClick(async () => {
-          this.sideBarController.closeSideBar(false)
+          this.sideBarController.close(false)
           await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), undefined);
         })
     }.attributeModifier(new MenuFancyModifier())
@@ -232,7 +232,7 @@ struct Index {
 
   build() {
     Navigation(this.pathStack) {
-      SideBarContainer(this.sideBarController.side_bar_mode) {
+      SideBarContainer(this.sideBarController.mode) {
         Column() {
           Scroll() {
             Column() {
@@ -296,7 +296,7 @@ struct Index {
                     const currentFolder = this.fileFolderSource.getFileFolder(folder.name)
                     this.videoListController.videoDataSource.updateData(currentFolder.video_list)
                     this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder!)
-                    this.sideBarController.closeSideBar(true)
+                    this.sideBarController.close(true)
                   })
                   .bindContextMenu(this.FileFolderSelectMenu(folder), ResponseType.LongPress)
                   .bindContextMenu(this.FileFolderSelectMenu(folder), ResponseType.RightClick)
@@ -339,7 +339,7 @@ struct Index {
             .attributeModifier(new ButtonFancyModifier('100%', 60))
             .animation({ duration: 300, curve: Curve.Ease })
             .onClick(async () => {
-              this.sideBarController.closeSideBar(false)
+              this.sideBarController.close(false)
               this.pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, true)
             })
 
@@ -358,7 +358,7 @@ struct Index {
             .attributeModifier(new ButtonFancyModifier('100%', 60))
             .animation({ duration: 300, curve: Curve.Ease })
             .onClick(() => {
-              this.sideBarController.closeSideBar(false)
+              this.sideBarController.close(false)
               this.pathStack.pushPathByName(NavigationAddress.SETTING_PAGE, null)
             })
           }
@@ -371,8 +371,8 @@ struct Index {
         .justifyContent(FlexAlign.Start)
         .backgroundColor(this.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))
         .transition(TransitionEffect.translate({ x: -300 }).animation(XAnimation.getAnimationCurve()))
-        .visibility(this.sideBarController.sideBarStatusTmp)
-        .borderRadius(this.sideBarController.side_bar_mode === SideBarContainerType.Overlay ? 16 : 0)
+        .visibility(this.sideBarController.visibility)
+        .borderRadius(this.sideBarController.mode === SideBarContainerType.Overlay ? 16 : 0)
 
         Stack() {
           VideoView({
@@ -381,8 +381,8 @@ struct Index {
             searchValue: this.searchValue,
             videoListController: this.videoListController
           }).scale({
-            x: this.sideBarController.sideBarStatus === true ? 0.95 : 1,
-            y: this.sideBarController.sideBarStatus ? 0.95 : 1
+            x: this.sideBarController.isShow === true ? 0.95 : 1,
+            y: this.sideBarController.isShow ? 0.95 : 1
           }).animation({ duration: 300, curve: Curve.Ease })
           if (this.loading) {
             ImportProgressBuilder({ processedItems: this.processedItems, totalItems: this.totalItems })
@@ -398,12 +398,12 @@ struct Index {
           this.videoListController.refresh(width, this.listDisplayMode)
         })
         .priorityGesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
-          if (this.sideBarController.sideBarStatusTmp === Visibility.Visible) {
-            this.sideBarController.closeSideBar(true)
+          if (this.sideBarController.visibility === Visibility.Visible) {
+            this.sideBarController.close(true)
           } else {
             const rotateAngle = event?.angle
             if (rotateAngle > -45 && rotateAngle < 45) {
-              this.sideBarController.openSideBar()
+              this.sideBarController.open()
             }
           }
         }))
@@ -440,26 +440,26 @@ struct Index {
       .allowDrop([uniformTypeDescriptor.UniformDataType.PLAIN_TEXT, uniformTypeDescriptor.UniformDataType.VIDEO])
       .onSizeChange((_oldValue: SizeResult, newValue: SizeResult) => {
         if (newValue.width >= DataSyncUtil.minSideBarWidth + DataSyncUtil.minContentWidth) {
-          this.sideBarController.side_bar_mode = SideBarContainerType.Embed
-          this.sideBarController.sideBarStatusTmp = Visibility.Visible
-          this.sideBarController.sideBarStatus = true
+          this.sideBarController.mode = SideBarContainerType.Embed
+          this.sideBarController.visibility = Visibility.Visible
+          this.sideBarController.isShow = true
         } else {
-          this.sideBarController.side_bar_mode = SideBarContainerType.Overlay
-          this.sideBarController.sideBarStatusTmp = Visibility.Hidden
-          this.sideBarController.sideBarStatus = false
+          this.sideBarController.mode = SideBarContainerType.Overlay
+          this.sideBarController.visibility = Visibility.Hidden
+          this.sideBarController.isShow = false
         }
       })
       .onChange((value: boolean) => {
-        this.sideBarController.sideBarStatus = value;
+        this.sideBarController.isShow = value;
       })
-      .showSideBar(this.sideBarController.sideBarStatus)
+      .showSideBar(this.sideBarController.isShow)
       .showControlButton(false)
       .divider({ strokeWidth: 0 })
       .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
         if (event) {
           const rotateAngle = event?.angle
           if (rotateAngle < -135 || rotateAngle > 135) {
-            this.sideBarController.closeSideBar(true)
+            this.sideBarController.close(true)
           }
         }
       }))
@@ -545,9 +545,9 @@ struct Index {
       this.videoListController.closeMultipleChoose()
       return true
     }
-    if (this.sideBarController.sideBarStatusTmp === Visibility.Visible &&
-      this.sideBarController.side_bar_mode === SideBarContainerType.Overlay) {
-      this.sideBarController.closeSideBar(true)
+    if (this.sideBarController.visibility === Visibility.Visible &&
+      this.sideBarController.mode === SideBarContainerType.Overlay) {
+      this.sideBarController.close(true)
       return true
     }
     if (this.clearSearchValue()) {

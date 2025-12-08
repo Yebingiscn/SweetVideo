@@ -15,11 +15,11 @@ export function MaskComponent(sideBarValue: SideBarValue) {
       curve: curves.springMotion(0, 1)
     }))
     .scale({
-      x: sideBarValue.sideBarController?.sideBarStatus === true ? 1.05 : 1,
-      y: sideBarValue.sideBarController?.sideBarStatus ? 1.05 : 1
+      x: sideBarValue.sideBarController?.isShow === true ? 1.05 : 1,
+      y: sideBarValue.sideBarController?.isShow ? 1.05 : 1
     })
     .zIndex(1)
     .onClick(() => {
-      sideBarValue.sideBarController?.closeSideBar(true);
+      sideBarValue.sideBarController?.close(true);
     })
 }
