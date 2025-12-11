@@ -225,6 +225,12 @@ export default class ToolsUtil {
     }
   }
 
+  static addLogger(text: string, isError: boolean, pathStack?: NavPathStack, className?: string) {
+    isError ? console.error(text) : console.warn(text)
+    const title = pathStack?.getAllPathName()[0] ?? className ?? 'sweet_video';
+    salmonLogger.addLog(title, text, isError)
+  }
+
   static async detectFileDecoder(filePath: string) {
     try {
       const encoding = await UniversalDetector.detectCharset(filePath);

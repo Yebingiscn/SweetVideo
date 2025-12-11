@@ -108,7 +108,7 @@ QQ群：973792610
 
 - 播放器R
 - 浑天编辑器
-- pilipala
+- Seline Bili
 - 蓝牙调试器（BluetoothDebugger）
 - [流心视频](https://gitee.com/lqsxy/sweetvideo/tree/master)
 - [pinyin4js](https://ohpm.openharmony.cn/#/cn/detail/@ohos%2Fpinyin4js)

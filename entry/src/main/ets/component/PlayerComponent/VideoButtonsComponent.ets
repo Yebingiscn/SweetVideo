@@ -11,7 +11,7 @@ export struct VideoButtonsComponent {
   @Link screenWidth: number
   @Prop playing: boolean
   @Prop speed: number
-  @Link repeatMode: RepeatMode
+  @Prop repeatMode: RepeatMode
   @Link sideBarStatusTmp: Visibility
   @Link sideBarStatus: boolean
   @BuilderParam AVCastPickerBuilderBridge: () => void

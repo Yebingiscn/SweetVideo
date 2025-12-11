@@ -11,9 +11,9 @@ import { RepeatMode } from '../../common/enum/RepeatMode'
 export struct VideoSettingComponent {
   @Prop playTime: number
   @Prop nowPlaying: VideoMetadataFromPlayer
-  @Link videoMetaData: VideoMetadata[]
+  @Prop videoMetaData: VideoMetadata[]
   @Link angle: number
-  @Link repeatMode: RepeatMode
+  @Prop repeatMode: RepeatMode
   @Link exitVideoTime: number
   forward_80_s = (_time: number) => {
   }

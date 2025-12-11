@@ -3,6 +3,8 @@ import WantProcessUtil from '../utils/WantProcessUtil';
 import { PathUtils } from '../utils/PathUtils';
 import { DefaultDialogShadow, ImageFancyModifier } from '../common/AttributeModifierConfig';
 import { InfoConfirmDialog } from '../component/Dialog/InfoConfirmDialog';
+import { Markdown, MarkdownController } from '@luvi/lv-markdown-in';
+import { salmonLogger } from 'salmonlogger';
 
 @Component
 export struct AboutApp {
@@ -12,6 +14,7 @@ export struct AboutApp {
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
   @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
+  controller: MarkdownController = new MarkdownController()
   private GITHUB_HOME_LINK: string = "https://github.com/Yebingiscn/SweetVideo" // 项目主页
   private QQ_GROUP_LINK: string = 'https://qm.qq.com/q/ejj8jbUDBu'
   private AI_FA_DIAN_LINK: string = 'https://www.ifdian.net/a/SweetVideo'
@@ -25,6 +28,15 @@ export struct AboutApp {
       textInfo: '即将跳转至外部网页，是否跳转？'
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+
+  aboutToAppear(): void {
+    this.controller
+      .setTitleColor($r("app.color.text_color"))
+      .setTextColor($r("app.color.text_color"))
+      .setTableTitleBackgroundColor($r('app.color.start_window_background_blur'))
+      .setQuoteBackgroundColor($r('app.color.start_window_background_blur'))
+      .setTableBackgroundColor($r('app.color.start_window_background_blur'))
+  }
 
   build() {
     NavDestination() {
@@ -43,7 +55,7 @@ export struct AboutApp {
                 .height(60)
               Text(`${ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id)}` + this.version_code)
                 .fontSize(20)
-                .fontColor('#ffffff')
+                .fontColor($r('sys.color.white'))
                 .textOverflow({ overflow: TextOverflow.MARQUEE })
                 .margin({ left: 5 })
                 .onAppear(async () => {
@@ -150,112 +162,30 @@ export struct AboutApp {
           }.margin({ top: 10 }).width('100%').justifyContent(FlexAlign.SpaceBetween)
 
           Column({ space: 8 }) {
-            Text('应用简介')
-              .fontSize(20).fontWeight(FontWeight.Medium)
-            Text('一款运行在 HarmonyOS Next 上的精致、简约的本地视频播放器，使用 ArkTS 语言开发，具有美观的设计和优雅的动画。')
-              .fontSize(14)
-            Text('基于开源项目流心视频，本应用根据原作者授权并基于 MIT 协议二次开发而来。')
-              .fontSize(14)
+            Markdown({
+              controller: this.controller,
+              mode: "rawfile",
+              context: PathUtils.appContext!, // 资源文件模式必填参数
+              rawfilePath: "README.md", // 资源文件地址
+              callback: {
+                complete: () => {
+                  console.log("Markdown component load success.")
+                  salmonLogger.addLog(this.pathStack.getAllPathName()[0],
+                    "Markdown component load success.", false)
+                },
+                fail: (code: number, message: string) => {
+                  console.error("Markdown component load error. code: " + code + ", message: " + message)
+                  salmonLogger.addLog(this.pathStack.getAllPathName()[0],
+                    "Markdown component load error. code: " + code + ", message: " + message, true)
+                }
+              }
+            })
           }
           .padding(15)
           .alignItems(HorizontalAlign.Start)
           .borderRadius(16)
           .width('100%')
           .backgroundColor($r('app.color.start_window_background_blur'))
-
-          Column({ space: 8 }) {
-            Text('特别鸣谢')
-              .fontSize(20)
-              .fontWeight(FontWeight.Medium)
-            Text('流心视频开源项目作者：鱼Salmon')
-              .fontSize(14)
-              .fontColor($r('app.color.text_color'))
-            Text('图标、头图等素材：科蓝kl')
-              .fontSize(14)
-              .fontColor($r('app.color.text_color'))
-            Text('记账本 R 作者：漫漫是我宝')
-              .fontSize(14)
-              .fontColor($r('app.color.text_color'))
-            Text('测试视频提供：萧十一狼')
-              .fontSize(14)
-              .fontColor($r('app.color.text_color'))
-            Text('折叠屏适配：微车游')
-              .fontSize(14)
-              .fontColor($r('app.color.text_color'))
-            Text('浑天编辑器作者：向着星辰与深渊 ⭐︎')
-              .fontSize(14)
-              .fontColor($r('app.color.text_color'))
-            Text('kimufly')
-              .fontSize(14)
-              .fontColor($r('app.color.text_color'))
-            Text('F-park')
-              .fontSize(14)
-              .fontColor($r('app.color.text_color'))
-          }
-          .padding(15)
-          .alignItems(HorizontalAlign.Start)
-          .borderRadius(16)
-          .width('100%')
-          .backgroundColor($r('app.color.start_window_background_blur'))
-
-          Column({ space: 8 }) {
-            Text(ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id) +
-              '由以下开源项目提供支持')
-              .fontSize(20)
-              .fontWeight(FontWeight.Medium)
-            Text('播放器R')
-              .fontSize(14)
-            Text('蓝牙调试器（BluetoothDebugger）')
-              .fontSize(14)
-            Text('浑天编辑器')
-              .fontSize(14)
-            Text('pilipala')
-              .fontSize(14)
-            Text('pinyin4js')
-              .fontSize(14)
-            Text('ohos_ijkplayer')
-              .fontSize(14)
-            Text('RedPlayer')
-              .fontSize(14)
-            Text('subtitles')
-              .fontSize(14)
-            Text('juniversalchardet')
-              .fontSize(14)
-          }
-          .backgroundColor($r('app.color.start_window_background_blur'))
-          .padding(15)
-          .alignItems(HorizontalAlign.Start)
-          .borderRadius(16)
-          .width('100%')
-
-          Column({ space: 8 }) {
-            Text('赞助感谢')
-              .fontSize(20)
-              .fontWeight(FontWeight.Medium)
-            Text('CowBoy')
-              .fontSize(14)
-            Text('羽')
-              .fontSize(14)
-            Text('无名')
-              .fontSize(14)
-            Text('爱发电用户_NhwD')
-              .fontSize(14)
-            Text('爱发电用户_PbvN')
-              .fontSize(14)
-            Text('歪比歪比')
-              .fontSize(14)
-            Text('爱发电用户_e83w')
-              .fontSize(14)
-            Text('爱发电用户_15800')
-              .fontSize(14)
-            Text('爱发电用户_6092b')
-              .fontSize(14)
-          }
-          .backgroundColor($r('app.color.start_window_background_blur'))
-          .padding(15)
-          .alignItems(HorizontalAlign.Start)
-          .borderRadius(16)
-          .width('100%')
 
           Text('郴州液态科技有限公司 版权所有 © 2025')
             .fontSize(14)

@@ -15,6 +15,9 @@ import { SubtitleMode } from '../common/enum/SubtitleMode';
 import { PathUtils } from '../utils/PathUtils';
 import SubtitleUtil from '../utils/SubtitleUtil';
 import { AVPlayerUtil } from '../utils/AVPlayerUtil';
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
+import SelectFileUtil from '../utils/SelectFileUtil';
+import { RepeatMode } from '../common/enum/RepeatMode';
 
 @Observed
 export class AVPlayerController {
@@ -33,6 +36,8 @@ export class AVPlayerController {
   @Track subtitleSelected: SubtitleMode = SubtitleMode.INNER_SUBTITLE
   @Track subtitle: string = ''
   @Track subtitleVisibility: Visibility = Visibility.Visible
+  @Track video_meta_data: VideoMetadata[] = []
+  @Track repeatMode: RepeatMode = RepeatMode.LIST_LOOP
   mIjkMediaPlayer: IjkMediaPlayer | null = null
   audioVolumeManager: audio.AudioVolumeManager | null = null
 
@@ -42,14 +47,10 @@ export class AVPlayerController {
         if (this.mIjkMediaPlayer) {
           this.mIjkMediaPlayer?.start()
         }
-        this.avPlayer?.play()?.catch(() => {
-          console.error('player error')
-        })
+        this.playAVPlayer()
       });
       this.avSession?.on('pause', () => {
-        this.avPlayer?.pause()?.catch(() => {
-          console.error('player error')
-        })
+        this.pauseAVPlayer()
       });
       this.avSession?.on('seek', (position: number) => {
         this.seekTime(position)
@@ -64,9 +65,7 @@ export class AVPlayerController {
         // this.playNextVideo()
       })
       this.avSession?.on('outputDeviceChange', () => {
-        this.avPlayer?.pause()?.catch(() => {
-          console.error('player error')
-        })
+        this.pauseAVPlayer()
       })
     } catch (error) {
       console.error('set av session state error')
@@ -100,6 +99,7 @@ export class AVPlayerController {
     }
     this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
   }
+
 
   async setExternalSubtitle(now_playing: VideoMetadataFromPlayer) {
     if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, now_playing.date!)) {
@@ -196,6 +196,65 @@ export class AVPlayerController {
     })
   }
 
+  prepareAVPlayer() {
+    this.avPlayer?.prepare()?.catch(() => {
+      console.error('player error')
+    });
+  }
+
+  pauseAVPlayer() {
+    this.avPlayer?.pause()?.catch(() => {
+      ToolsUtil.addLogger(`pause error`, true)
+    })
+  }
+
+  playAVPlayer() {
+    this.avPlayer?.play()?.catch(() => {
+      ToolsUtil.addLogger(`play error`, true)
+    })
+  }
+
+  cancelSubscribe() {
+    this.avPlayer?.off('subtitleUpdate');
+    this.avPlayer?.off('timeUpdate')
+    this.avPlayer?.off('seekDone')
+    this.avPlayer?.off('speedDone')
+    this.avPlayer?.off('audioOutputDeviceChangeWithInfo')
+    this.avPlayer?.off('subtitleUpdate')
+    this.avPlayer?.off('stateChange')
+  }
+
+  playNextVideo() {
+    if (this.video_meta_data.length === 0 || this.playTime <= 0) {
+      return
+    }
+    const currentDate = this.nowPlaying?.date || ''
+    let item = SelectFileUtil.getItem(this.video_meta_data, currentDate) as VideoMetadata
+    if (!item) {
+      item = this.video_meta_data[0]
+    }
+    let nextItem: VideoMetadata | null = null
+    try {
+      if (this.repeatMode === RepeatMode.RANDOM) {
+        const availableVideos = this.video_meta_data.filter(v => v.date !== item.date)
+        nextItem = availableVideos.length > 0
+          ? availableVideos[Math.floor(Math.random() * availableVideos.length)]
+          : item
+      } else if (this.repeatMode === RepeatMode.SINGLE_PLAY) {
+        return undefined
+      } else {
+        nextItem = SelectFileUtil.getNextItem(this.video_meta_data, item.date)
+      }
+      if (nextItem) {
+        return nextItem
+      }
+      return undefined
+    } catch (error) {
+      ToolsUtil.addLogger(`Error in playNextVideo: ${error}`, true, undefined, 'player')
+      return undefined
+    }
+  }
+
   activeEnhanceAudio() {
     this.mIjkMediaPlayer = IjkMediaPlayer.getInstance();
     try {
@@ -233,11 +292,7 @@ export class AVPlayerController {
   }
 
   togglePlayback() {
-    this.playing ? this.avPlayer?.pause()?.catch(() => {
-      console.error('player error')
-    }) : this.avPlayer?.play()?.catch(() => {
-      console.error('player error')
-    })
+    this.playing ? this.pauseAVPlayer() : this.playAVPlayer()
   }
 
   backForward() {
@@ -281,15 +336,11 @@ export class AVPlayerController {
   }
 
   async fullResetSync(position: number) { // 严重不同步处理
-    this.avPlayer?.pause()?.catch(() => {
-      console.error('player error')
-    });
+    this.pauseAVPlayer()
     this.mIjkMediaPlayer?.pause();
     this.mIjkMediaPlayer?.seekTo(String(position))
     await new Promise<void>(resolve => setTimeout(resolve, 50));
-    this.avPlayer?.play()?.catch(() => {
-      console.error('player error')
-    });
+    this.playAVPlayer()
     this.mIjkMediaPlayer?.start();
   }
 

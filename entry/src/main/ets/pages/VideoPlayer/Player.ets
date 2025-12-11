@@ -6,7 +6,6 @@ import AVSessionUtil from '../../utils/AVSessionUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import { audio } from '@kit.AudioKit';
-import SelectFileUtil from '../../utils/SelectFileUtil';
 import VideoOperateUtil from '../../utils/VideoOperateUtil';
 import RecentPlayUtil from '../../utils/RecentPlayUtil';
 import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface';
@@ -57,9 +56,7 @@ export struct Player { // 播放页
   @State play_area_width: number = 0
   @State onSwiping: boolean = false
   @State onSwipingBrightness: boolean = false
-  @State video_meta_data: VideoMetadata[] = []
   @State select_text: string | undefined = '原始比例'
-  @State repeatMode: RepeatMode = RepeatMode.LIST_LOOP
   @State audio_track_select: number = 0
   @State sideBarStatusTmp: Visibility = Visibility.Hidden
   @State sideBarStatus: boolean = false
@@ -87,11 +84,11 @@ export struct Player { // 播放页
     try {
       await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
-      this.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
+      this.player.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
       const video_speed = Preferences.getVideoSpeed(PathUtils.appContext!)
       this.player.speed = parseFloat(video_speed?.replace('x', '') || '1')
     } catch (error) {
-      console.error('player error' + error)
+      ToolsUtil.addLogger(`play error ${error}`, true, this.pathStack)
     }
   }
 
@@ -100,21 +97,15 @@ export struct Player { // 播放页
     Preferences.saveVideoSpeed(PathUtils.appContext!,
       (VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).includes(this.player.speed) ? this.player.speed :
         1) + 'x')
-    Preferences.saveRepeatModeState(PathUtils.appContext!, this.repeatMode)
+    Preferences.saveRepeatModeState(PathUtils.appContext!, this.player.repeatMode)
     WindowUtil.setBarState(PathUtils.appContext!, true, true)
     clearTimeout(this.exitVideoTime)
-    this.player.avPlayer?.off('subtitleUpdate');
-    this.player.avPlayer?.off('timeUpdate')
-    this.player.avPlayer?.off('seekDone')
-    this.player.avPlayer?.off('speedDone')
-    this.player.avPlayer?.off('audioOutputDeviceChangeWithInfo')
-    this.player.avPlayer?.off('subtitleUpdate')
-    this.player.avPlayer?.off('stateChange')
+    this.player.cancelSubscribe()
     AppStorage.delete('nowPlayingData') //清除已保存的播放进度
     try {
       this.player.audioVolumeManager?.off('volumeChange');
     } catch (error) {
-      console.error('volume off error' + error)
+      ToolsUtil.addLogger(`volume off error ${error}`, true, this.pathStack)
     }
     this.player.audioVolumeManager = null
     this.player.releaseAVPlayer()
@@ -143,7 +134,8 @@ export struct Player { // 播放页
 
   async setAVPlayerCallback() {
     this.player.avPlayer?.on('timeUpdate', async (duration) => {
-      AppStorage.setOrCreate('nowPlayingData', [this.player.playTime, this.player.nowPlaying!, this.video_meta_data])
+      AppStorage.setOrCreate('nowPlayingData',
+        [this.player.playTime, this.player.nowPlaying!, this.player.video_meta_data])
       if (this.showControl) {
         if (!this.autoHideTimeout) {
           this.autoHideTimeout = true
@@ -155,8 +147,8 @@ export struct Player { // 播放页
         }
       }
       if (this.player.nowPlaying?.end_time && duration >= this.player.nowPlaying?.end_time &&
-        this.repeatMode !== RepeatMode.SINGLE_LOOP) {
-        this.playNextVideo()
+        this.player.repeatMode !== RepeatMode.SINGLE_LOOP) {
+        this.playNextVideoProcess()
         ToolsUtil.showToast('已智能跳过片尾')
       }
       if (!this.onSwiping) {
@@ -170,10 +162,8 @@ export struct Player { // 播放页
     this.player.avPlayer?.on('seekDone', (percent) => {
       this.player.playTime = percent
       AVSessionUtil.updatePlaybackSessionState(this.player.playing, this.player.playTime)
-      if(!this.player.playing) {
-        this.xComponentController.startImageAnalyzer(VideoOperateUtil.config).catch((error: BusinessError) => {
-          console.error("error code: " + error.code);
-        })
+      if (!this.player.playing) {
+        this.startImageAnalyzer()
       }
     })
 
@@ -184,9 +174,7 @@ export struct Player { // 播放页
 
     this.player.avPlayer?.on('audioOutputDeviceChangeWithInfo', (data: audio.AudioStreamDeviceChangeInfo) => {
       if (data.changeReason === audio.AudioStreamDeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) {
-        this.player.avPlayer?.pause()?.catch(() => {
-          console.error('player error')
-        })
+        this.player.pauseAVPlayer()
       }
     });
 
@@ -201,17 +189,13 @@ export struct Player { // 播放页
               console.error('player error')
             });
             await this.player.setExternalSubtitle(this.player.nowPlaying!)
-            this.player.avPlayer.prepare()?.catch(() => {
-              console.error('player error')
-            });
+            this.player.prepareAVPlayer()
           }
           break;
         case 'prepared':
           this.player.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.player.nowPlaying!,
             this.skipIntroTime))
-          this.player.avPlayer?.play()?.catch(() => {
-            console.error('player error')
-          });
+          this.player.playAVPlayer()
           await this.player.getAudioTrack()
           await this.player.initVolumeAndBrightness()
           this.player.updatePlaybackSpeed(this.player.speed)
@@ -221,23 +205,21 @@ export struct Player { // 播放页
           this.onSwiping = false
           break;
         case 'completed':
-          VideoOperateUtil.saveVideoTime(this.player.playTime, this.player.nowPlaying!, this.video_meta_data,
+          VideoOperateUtil.saveVideoTime(this.player.playTime, this.player.nowPlaying!, this.player.video_meta_data,
             PathUtils.appContext!)
-          const targetItem = this.video_meta_data.find(i => i.date == this.player.nowPlaying?.date)
+          const targetItem = this.player.video_meta_data.find(i => i.date == this.player.nowPlaying?.date)
           if (targetItem) {
             targetItem!.last_play = this.player.playTime
           }
-          if (this.repeatMode === RepeatMode.SINGLE_LOOP) {
+          if (this.player.repeatMode === RepeatMode.SINGLE_LOOP) {
             if (this.player.mIjkMediaPlayer) {
               this.player.mIjkMediaPlayer?.seekTo('0')
               this.player.mIjkMediaPlayer?.start()
             }
-            this.player.avPlayer?.play()?.catch(() => {
-              console.error('player error')
-            })
+            this.player.playAVPlayer()
             this.player.avPlayer?.seek(0, media.SeekMode.SEEK_CLOSEST)
           } else {
-            this.playNextVideo()
+            this.playNextVideoProcess()
           }
           break;
         case 'playing':
@@ -256,10 +238,7 @@ export struct Player { // 播放页
           this.player.playing = false
           AVSessionUtil.updatePlaybackSessionState(this.player.playing, this.player.playTime)
           setTimeout(() => {
-            this.xComponentController.startImageAnalyzer(VideoOperateUtil.config)
-              .catch((error: BusinessError) => {
-                console.error("error code: " + error.code)
-              })
+            this.startImageAnalyzer()
           }, 100)
           break
         case 'released':
@@ -273,7 +252,7 @@ export struct Player { // 播放页
           break;
         case 'error':
           await this.player.ijkPlayerStop()
-          VideoOperateUtil.playErrorExecute(this.pathStack, this.video_meta_data, this.player.nowPlaying?.date!,
+          VideoOperateUtil.playErrorExecute(this.pathStack, this.player.video_meta_data, this.player.nowPlaying?.date!,
             NavigationAddress.FFMPEG_PLAYER)
           this.player.releaseAVPlayer()
           break;
@@ -281,37 +260,60 @@ export struct Player { // 播放页
     })
   }
 
-  async getData() {
-    this.player.avPlayer = await AVPlayerUtil.getAVPlayer()
-    if (this.player.avPlayer) {
-      this.setAVPlayerCallback()
-      try {
-        await PermissionUtil.activatePermission(this.player.nowPlaying?.uri)
-        this.player.avPlayer.fdSrc = fs.openSync(this.player.nowPlaying?.uri)
-      } catch (error) {
-        ToolsUtil.showToast('视频打开失败，可能已失效：' + error)
-        this.pathStack.pop()
-      }
-      this.setRotation()
-      if (this.windowClass) {
-        this.play_area_width > this.play_area_height ? WindowUtil.enableLandscapeMultiWindow(this.windowClass) :
-          WindowUtil.disableLandscapeMultiWindow(this.windowClass)
-      }
-      if (this.smartRotation && this.play_area_width > this.play_area_height &&
-        this.screen_height > this.screen_width) {
-        const proportion =
-          Math.max(this.screen_width, this.screen_height) / Math.min(this.screen_width, this.screen_height)
-        const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
-          : window.Orientation.AUTO_ROTATION_RESTRICTED;
-        (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
-          console.error('player error')
-        })
-      }
+  playNextVideoProcess() {
+    const nextItem = this.player.playNextVideo()
+    if (nextItem) {
+      this.playChooseVideo(nextItem)
+    } else {
+      ToolsUtil.showToast('播放完毕，已自动退出')
+      this.pathStack.pop()
     }
   }
 
+  async getData() {
+    try {
+      this.player.avPlayer = await AVPlayerUtil.getAVPlayer()
+      if (this.player.avPlayer) {
+        this.setAVPlayerCallback()
+        try {
+          await PermissionUtil.activatePermission(this.player.nowPlaying?.uri)
+          this.player.avPlayer.fdSrc = fs.openSync(this.player.nowPlaying?.uri)
+        } catch (error) {
+          ToolsUtil.showToast('视频打开失败，可能已失效：' + error)
+          this.pathStack.pop()
+        }
+        this.setRotation()
+        if (this.windowClass) {
+          this.play_area_width > this.play_area_height ? WindowUtil.enableLandscapeMultiWindow(this.windowClass) :
+            WindowUtil.disableLandscapeMultiWindow(this.windowClass)
+        }
+        if (this.smartRotation && this.play_area_width > this.play_area_height &&
+          this.screen_height > this.screen_width) {
+          const proportion =
+            Math.max(this.screen_width, this.screen_height) / Math.min(this.screen_width, this.screen_height)
+          const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
+            : window.Orientation.AUTO_ROTATION_RESTRICTED;
+          (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
+            console.error('player error')
+          })
+        }
+      }
+    } catch (error) {
+      const errorText = '视频加载失败。原因是：' + error
+      ToolsUtil.showToast(errorText)
+      ToolsUtil.addLogger(errorText, true, this.pathStack)
+      this.pathStack.pop()
+    }
+  }
+
+  startImageAnalyzer() {
+    this.xComponentController.startImageAnalyzer(VideoOperateUtil.config)?.catch((error: BusinessError) => {
+      ToolsUtil.addLogger(`startImageAnalyzer error ${error}`, true, this.pathStack)
+    })
+  }
+
   async playChooseVideo(item: VideoMetadata) {
-    VideoOperateUtil.saveVideoTime(this.player.playTime, this.player.nowPlaying!, this.video_meta_data,
+    VideoOperateUtil.saveVideoTime(this.player.playTime, this.player.nowPlaying!, this.player.video_meta_data,
       PathUtils.appContext!)
     if (!PrivacySpaceUtil.getPrivacyMode()) {
       RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
@@ -322,37 +324,6 @@ export struct Player { // 播放页
     this.player.nowPlaying = item as VideoMetadataFromPlayer
     this.getData()
     this.player.initAVSession()
-  }
-
-  playNextVideo() {
-    if (this.video_meta_data.length === 0 || this.player.playTime <= 0) {
-      return
-    }
-    const currentDate = this.player.nowPlaying?.date || ''
-    let item = SelectFileUtil.getItem(this.video_meta_data, currentDate) as VideoMetadata
-    if (!item) {
-      item = this.video_meta_data[0]
-    }
-    let nextItem: VideoMetadata | null = null
-    try {
-      if (this.repeatMode === RepeatMode.RANDOM) {
-        const availableVideos = this.video_meta_data.filter(v => v.date !== item.date)
-        nextItem = availableVideos.length > 0
-          ? availableVideos[Math.floor(Math.random() * availableVideos.length)]
-          : item
-      } else if (this.repeatMode === RepeatMode.SINGLE_PLAY) {
-        this.exitVideo(0)
-        return
-      } else {
-        nextItem = SelectFileUtil.getNextItem(this.video_meta_data, item.date)
-      }
-      if (nextItem) {
-        this.playChooseVideo(nextItem)
-      }
-    } catch (error) {
-      console.error('Error in playNextVideo:', error)
-      this.exitVideo(0)
-    }
   }
 
   closeSideBar(isPlayAnimation: boolean) {
@@ -371,7 +342,7 @@ export struct Player { // 播放页
       SideBarContainer(SideBarContainerType.Overlay) {
         PlayerSideBarComponent({
           sideBarStatusTmp: this.sideBarStatusTmp,
-          video_meta_data: this.video_meta_data,
+          video_meta_data: this.player.video_meta_data,
           now_playing: this.player.nowPlaying,
           sideBarStatus: this.sideBarStatus,
           onItemClick: (item: VideoMetadata) => {
@@ -707,7 +678,7 @@ export struct Player { // 播放页
       const playerParams: PlayerParams = this.pathStack.getParamByName(NavigationAddress.AV_PLAYER)[0] as PlayerParams
       try {
         this.player.nowPlaying = playerParams.metadata as VideoMetadataFromPlayer
-        this.video_meta_data = playerParams.metadata_list as VideoMetadata[]
+        this.player.video_meta_data = playerParams.metadata_list as VideoMetadata[]
       } catch (e) {
         console.error(e)
       }
@@ -723,13 +694,14 @@ export struct Player { // 播放页
         return true
       } else {
         this.player.releaseAVPlayer()
-        DataSyncUtil.lastPlayVideoIndex = this.video_meta_data.findIndex(i => i.date === this.player.nowPlaying?.date)
+        DataSyncUtil.lastPlayVideoIndex =
+          this.player.video_meta_data.findIndex(i => i.date === this.player.nowPlaying?.date)
         return false
       }
     })
     .onWillDisappear(async () => {
-      if (this.video_meta_data.length > 0 && this.player.playTime > 0) {
-        VideoOperateUtil.saveVideoTime(this.player.playTime, this.player.nowPlaying!, this.video_meta_data,
+      if (this.player.video_meta_data.length > 0 && this.player.playTime > 0) {
+        VideoOperateUtil.saveVideoTime(this.player.playTime, this.player.nowPlaying!, this.player.video_meta_data,
           PathUtils.appContext!)
       }
       PermissionUtil.applyStopContinuousTask(this.allowBackgroundPlay)
@@ -752,8 +724,10 @@ export struct Player { // 播放页
 
   exitVideo(timeOut: number) {
     this.exitVideoTime = setTimeout(() => {
+      ToolsUtil.showToast('播放完毕，已自动退出')
       this.player.resetAVPlayer()
-      DataSyncUtil.lastPlayVideoIndex = this.video_meta_data.findIndex(i => i.date === this.player.nowPlaying?.date)
+      DataSyncUtil.lastPlayVideoIndex =
+        this.player.video_meta_data.findIndex(i => i.date === this.player.nowPlaying?.date)
       this.pathStack.pop()
     }, timeOut)
   }
@@ -836,7 +810,7 @@ export struct Player { // 播放页
       AVCastPickerBuilderBridge: this.AVCastPickerBuilderBridge,
       videoSettingBuilder: this.getVideoSettingBuilder,
       playbackSpeedMenu: this.getPlaybackSpeedMenuBuilder,
-      repeatMode: this.repeatMode,
+      repeatMode: this.player.repeatMode,
       sideBarStatusTmp: this.sideBarStatusTmp,
       sideBarStatus: this.sideBarStatus,
       onScreenRotationOrFullScreenClick: async () => {
@@ -853,7 +827,7 @@ export struct Player { // 播放页
         this.player.togglePlayback()
       },
       onPlayNextVideoClick: () => {
-        this.playNextVideo()
+        this.playNextVideoProcess()
       },
       onSideBaClose: () => {
         this.closeSideBar(true)
@@ -880,9 +854,9 @@ export struct Player { // 播放页
     VideoSettingComponent({
       playTime: this.player.playTime,
       nowPlaying: this.player.nowPlaying,
-      videoMetaData: this.video_meta_data,
+      videoMetaData: this.player.video_meta_data,
       angle: this.angle,
-      repeatMode: this.repeatMode,
+      repeatMode: this.player.repeatMode,
       exitVideoTime: this.exitVideoTime,
       forward_80_s: (time: number) => {
         this.player.seekTime(time)
