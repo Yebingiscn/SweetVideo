@@ -50,6 +50,7 @@ import { XAnimation } from '../utils/AnimationUtil';
 import { PrivacyPolicyComponent } from '../component/VideoItemComponent/PrivacyPolicyComponent';
 import { MoreSettingPage } from './SettingPage/MoreSettingPage';
 import NavigationAddress from '../common/NavigationCommon';
+import { FolderSelectMenu, IMenuItem } from './components/FolderSelectMenu'
 
 @Entry
 @Component
@@ -95,74 +96,75 @@ struct Index {
   @Builder
   FileFolderSelectMenu(folder: FileFolder) {
     if (folder.name !== '首页') {
-      Menu() {
-        MenuItem({
-          symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.trash_fill")),
-          content: $r('app.string.delete')
-        })
-          .onClick(async () => {
-            DataSyncUtil.delMultipleList = Array.from(folder.video_list);
-            await Promise.all(
-              DataSyncUtil.delMultipleList.map(item => {
-                VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, DeleteType.SOFT,
-                  item);
-                return Promise.resolve();
-              })
-            );
-            this.videoListController.closeMultipleChoose()
-            this.file_folder_list = FileFolderUtil.deleteFileFolder(PathUtils.appContext!, folder)
-            let newFolder: FileFolder | undefined
-            if (this.videoListController.folder.date === folder.date) {
-              newFolder = this.file_folder_list[0]
-            } else {
-              newFolder = this.videoListController.folder
-            }
-            this.videoListController.folder = newFolder
-            VideoUtils.refresh(this.videoListController, this.fileFolderSource, newFolder)
-          })
-        MenuItem({
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
-          content: $r('app.string.edit')
-        })
-          .onClick(() => {
-            DataSyncUtil.editingFolder = folder
-            this.editFileFolderNameDialogController.open()
-          })
-      }.attributeModifier(new MenuFancyModifier()).onAppear(() => {
-        ToolsUtil.startVibration()
+      FolderSelectMenu({
+        menus: [
+          {
+            icon: $r("sys.symbol.trash_fill"),
+            content: $r('app.string.delete'),
+            onAction: async () => {
+              DataSyncUtil.delMultipleList = Array.from(folder.video_list);
+              await Promise.all(
+                DataSyncUtil.delMultipleList.map(item => {
+                  VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, DeleteType.SOFT,
+                    item);
+                  return Promise.resolve();
+                })
+              );
+              this.videoListController.closeMultipleChoose()
+              this.file_folder_list = FileFolderUtil.deleteFileFolder(PathUtils.appContext!, folder)
+              let newFolder: FileFolder | undefined
+              if (this.videoListController.folder.date === folder.date) {
+                newFolder = this.file_folder_list[0]
+              } else {
+                newFolder = this.videoListController.folder
+              }
+              this.videoListController.folder = newFolder
+              VideoUtils.refresh(this.videoListController, this.fileFolderSource, newFolder)
+            },
+          },
+          {
+            icon: $r('sys.symbol.rename'),
+            content: $r('app.string.edit'),
+            onAction: () => {
+              DataSyncUtil.editingFolder = folder
+              this.editFileFolderNameDialogController.open()
+            },
+          },
+        ]
       })
     }
   }
 
   @Builder
   SelectFileMenuBuilder() {
-    Menu() {
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder')),
-        content: $r('app.string.import_from_files')
-      })
-        .onClick(async () => {
-          this.sideBarController.closeSideBar(false)
-          await this.toMetaData(await SelectFileUtil.selectFromFileManager(), this.videoListController.folder);
-        })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.picture_2')),
-        content: $r('app.string.import_from_album')
-      })
-        .onClick(async () => {
-          this.sideBarController.closeSideBar(false)
-          await this.toMetaData(await SelectFileUtil.selectVideos(), this.videoListController.folder);
-        })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder_badge_eye')),
-        content: `从下载文件夹导入（路径：Download/${ToolsUtil.getStringResource($r('app.string.EntryAbility_label')
-          .id)}）`
-      })
-        .onClick(async () => {
-          this.sideBarController.closeSideBar(false)
-          await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), undefined);
-        })
-    }.attributeModifier(new MenuFancyModifier())
+    FolderSelectMenu({
+      menus: [
+        {
+          icon: $r("sys.symbol.folder"),
+          content: $r('app.string.import_from_files'),
+          onAction: async () => {
+            this.sideBarController.close(false)
+            await this.toMetaData(await SelectFileUtil.selectFromFileManager(), this.videoListController.folder);
+          },
+        },
+        {
+          icon: $r('sys.symbol.picture_2'),
+          content: $r('app.string.import_from_album'),
+          onAction: async () => {
+            this.sideBarController.close(false)
+            await this.toMetaData(await SelectFileUtil.selectVideos(), this.videoListController.folder);
+          },
+        },
+        {
+          icon: $r('sys.symbol.folder_badge_eye'),
+          content:`从下载文件夹导入（路径：Download/${ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id)}）`,
+          onAction: async () => {
+            this.sideBarController.close(false)
+            await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), undefined);
+          },
+        },
+      ]
+    })
   }
 
   async onPageShow(): Promise<void> {
@@ -232,7 +234,7 @@ struct Index {
 
   build() {
     Navigation(this.pathStack) {
-      SideBarContainer(this.sideBarController.side_bar_mode) {
+      SideBarContainer(this.sideBarController.mode) {
         Column() {
           Scroll() {
             Column() {
@@ -296,7 +298,7 @@ struct Index {
                     const currentFolder = this.fileFolderSource.getFileFolder(folder.name)
                     this.videoListController.videoDataSource.updateData(currentFolder.video_list)
                     this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder!)
-                    this.sideBarController.closeSideBar(true)
+                    this.sideBarController.close(true)
                   })
                   .bindContextMenu(this.FileFolderSelectMenu(folder), ResponseType.LongPress)
                   .bindContextMenu(this.FileFolderSelectMenu(folder), ResponseType.RightClick)
@@ -339,7 +341,7 @@ struct Index {
             .attributeModifier(new ButtonFancyModifier('100%', 60))
             .animation({ duration: 300, curve: Curve.Ease })
             .onClick(async () => {
-              this.sideBarController.closeSideBar(false)
+              this.sideBarController.close(false)
               this.pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, true)
             })
 
@@ -358,7 +360,7 @@ struct Index {
             .attributeModifier(new ButtonFancyModifier('100%', 60))
             .animation({ duration: 300, curve: Curve.Ease })
             .onClick(() => {
-              this.sideBarController.closeSideBar(false)
+              this.sideBarController.close(false)
               this.pathStack.pushPathByName(NavigationAddress.SETTING_PAGE, null)
             })
           }
@@ -371,8 +373,8 @@ struct Index {
         .justifyContent(FlexAlign.Start)
         .backgroundColor(this.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))
         .transition(TransitionEffect.translate({ x: -300 }).animation(XAnimation.getAnimationCurve()))
-        .visibility(this.sideBarController.sideBarStatusTmp)
-        .borderRadius(this.sideBarController.side_bar_mode === SideBarContainerType.Overlay ? 16 : 0)
+        .visibility(this.sideBarController.visibility)
+        .borderRadius(this.sideBarController.mode === SideBarContainerType.Overlay ? 16 : 0)
 
         Stack() {
           VideoView({
@@ -381,8 +383,8 @@ struct Index {
             searchValue: this.searchValue,
             videoListController: this.videoListController
           }).scale({
-            x: this.sideBarController.sideBarStatus === true ? 0.95 : 1,
-            y: this.sideBarController.sideBarStatus ? 0.95 : 1
+            x: this.sideBarController.isShow === true ? 0.95 : 1,
+            y: this.sideBarController.isShow ? 0.95 : 1
           }).animation({ duration: 300, curve: Curve.Ease })
           if (this.loading) {
             ImportProgressBuilder({ processedItems: this.processedItems, totalItems: this.totalItems })
@@ -398,12 +400,12 @@ struct Index {
           this.videoListController.refresh(width, this.listDisplayMode)
         })
         .priorityGesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
-          if (this.sideBarController.sideBarStatusTmp === Visibility.Visible) {
-            this.sideBarController.closeSideBar(true)
+          if (this.sideBarController.visibility === Visibility.Visible) {
+            this.sideBarController.close(true)
           } else {
             const rotateAngle = event?.angle
             if (rotateAngle > -45 && rotateAngle < 45) {
-              this.sideBarController.openSideBar()
+              this.sideBarController.open()
             }
           }
         }))
@@ -440,26 +442,26 @@ struct Index {
       .allowDrop([uniformTypeDescriptor.UniformDataType.PLAIN_TEXT, uniformTypeDescriptor.UniformDataType.VIDEO])
       .onSizeChange((_oldValue: SizeResult, newValue: SizeResult) => {
         if (newValue.width >= DataSyncUtil.minSideBarWidth + DataSyncUtil.minContentWidth) {
-          this.sideBarController.side_bar_mode = SideBarContainerType.Embed
-          this.sideBarController.sideBarStatusTmp = Visibility.Visible
-          this.sideBarController.sideBarStatus = true
+          this.sideBarController.mode = SideBarContainerType.Embed
+          this.sideBarController.visibility = Visibility.Visible
+          this.sideBarController.isShow = true
         } else {
-          this.sideBarController.side_bar_mode = SideBarContainerType.Overlay
-          this.sideBarController.sideBarStatusTmp = Visibility.Hidden
-          this.sideBarController.sideBarStatus = false
+          this.sideBarController.mode = SideBarContainerType.Overlay
+          this.sideBarController.visibility = Visibility.Hidden
+          this.sideBarController.isShow = false
         }
       })
       .onChange((value: boolean) => {
-        this.sideBarController.sideBarStatus = value;
+        this.sideBarController.isShow = value;
       })
-      .showSideBar(this.sideBarController.sideBarStatus)
+      .showSideBar(this.sideBarController.isShow)
       .showControlButton(false)
       .divider({ strokeWidth: 0 })
       .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
         if (event) {
           const rotateAngle = event?.angle
           if (rotateAngle < -135 || rotateAngle > 135) {
-            this.sideBarController.closeSideBar(true)
+            this.sideBarController.close(true)
           }
         }
       }))
@@ -545,9 +547,9 @@ struct Index {
       this.videoListController.closeMultipleChoose()
       return true
     }
-    if (this.sideBarController.sideBarStatusTmp === Visibility.Visible &&
-      this.sideBarController.side_bar_mode === SideBarContainerType.Overlay) {
-      this.sideBarController.closeSideBar(true)
+    if (this.sideBarController.visibility === Visibility.Visible &&
+      this.sideBarController.mode === SideBarContainerType.Overlay) {
+      this.sideBarController.close(true)
       return true
     }
     if (this.clearSearchValue()) {
