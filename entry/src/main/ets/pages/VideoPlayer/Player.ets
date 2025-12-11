@@ -170,9 +170,11 @@ export struct Player { // 播放页
     this.player.avPlayer?.on('seekDone', (percent) => {
       this.player.playTime = percent
       AVSessionUtil.updatePlaybackSessionState(this.player.playing, this.player.playTime)
-      this.xComponentController.startImageAnalyzer(VideoOperateUtil.config).catch((error: BusinessError) => {
-        console.error("error code: " + error.code);
-      })
+      if(!this.player.playing) {
+        this.xComponentController.startImageAnalyzer(VideoOperateUtil.config).catch((error: BusinessError) => {
+          console.error("error code: " + error.code);
+        })
+      }
     })
 
     this.player.avPlayer?.on('speedDone', (systemEnum: media.PlaybackSpeed) => {
