@@ -46,9 +46,9 @@ export struct VideoView {
 
   build() {
     Stack({ alignContent: Alignment.Top }) { // 内容区
-      if (this.sideBarController.mask_state &&
-        this.sideBarController.sideBarStatusTmp !== Visibility.Hidden &&
-        this.sideBarController.side_bar_mode === SideBarContainerType.Overlay) {
+      if (this.sideBarController.overlay &&
+        this.sideBarController.visibility !== Visibility.Hidden &&
+        this.sideBarController.mode === SideBarContainerType.Overlay) {
         MaskComponent({ sideBarController: this.sideBarController })
       }
       VideoList({
@@ -73,7 +73,7 @@ export struct VideoView {
       }
       Column() {
         Row({ space: 15 }) {
-          if (!this.is_edit && this.sideBarController.side_bar_mode == SideBarContainerType.Overlay) {
+          if (!this.is_edit && this.sideBarController.mode == SideBarContainerType.Overlay) {
             Button({ type: ButtonType.Circle, stateEffect: true }) {
               SymbolGlyph($r('sys.symbol.close_sidebar'))
                 .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
@@ -81,7 +81,7 @@ export struct VideoView {
             .attributeModifier(new ButtonFancyModifier(40, 40))
             .animation({ duration: 300, curve: Curve.Ease })
             .onClick(() => {
-              this.sideBarController.openSideBar()
+              this.sideBarController.open()
             })
             .attributeModifier(new SearchShadowModifier())
             .transition(XAnimation.getAnimation('left', 0, false))
@@ -183,7 +183,7 @@ export struct VideoView {
                   const currentFolder = this.fileFolderSource.getFileFolder(folder.name)
                   this.videoListController.videoDataSource.updateData(currentFolder.video_list)
                   this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder!)
-                  this.sideBarController.closeSideBar(true)
+                  this.sideBarController.close(true)
                 })
             }, (folder: FileFolder) => folder.name + folder.date + folder.video_list.toString())
           }

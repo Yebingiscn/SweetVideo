@@ -43,7 +43,7 @@ export struct FileFolderView {
         .onClick(() => {
           const video_list = item.video_list || []
           this.videoListController.updateData(new VideoDataSource(video_list), item)
-          this.sideBarController.closeSideBar(true)
+          this.sideBarController.close(true)
         })
         .bindContextMenu(this.FileFolderSelectMenu(item), ResponseType.LongPress)
         .bindContextMenu(this.FileFolderSelectMenu(item), ResponseType.RightClick)
