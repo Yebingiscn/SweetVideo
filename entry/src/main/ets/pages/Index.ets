@@ -1,4 +1,3 @@
-import { SymbolGlyphModifier } from '@kit.ArkUI';
 import DataSyncUtil, { OOBEVersion } from '../utils/DataSyncUtil';
 import { FileFolderDataSource } from '../utils/DataUtil';
 import ToolsUtil from '../utils/ToolsUtil';
@@ -21,7 +20,6 @@ import { RedPlayer } from './VideoPlayer/RedPlayer';
 import {
   ButtonFancyModifier,
   DefaultDialogShadow,
-  MenuFancyModifier,
   SymbolGlyphFancyModifier
 } from '../common/AttributeModifierConfig';
 import { FileProcessorUtil } from '../utils/FileProcessorUtil';
@@ -50,7 +48,7 @@ import { XAnimation } from '../utils/AnimationUtil';
 import { PrivacyPolicyComponent } from '../component/VideoItemComponent/PrivacyPolicyComponent';
 import { MoreSettingPage } from './SettingPage/MoreSettingPage';
 import NavigationAddress from '../common/NavigationCommon';
-import { FolderSelectMenu, IMenuItem } from './components/FolderSelectMenu'
+import { FolderSelectMenuBuilder } from '../component/FileFolderComponent/FileFolderSelectBuilder';
 
 @Entry
 @Component
@@ -96,7 +94,7 @@ struct Index {
   @Builder
   FileFolderSelectMenu(folder: FileFolder) {
     if (folder.name !== '首页') {
-      FolderSelectMenu({
+      FolderSelectMenuBuilder({
         menus: [
           {
             icon: $r("sys.symbol.trash_fill"),
@@ -137,7 +135,7 @@ struct Index {
 
   @Builder
   SelectFileMenuBuilder() {
-    FolderSelectMenu({
+    FolderSelectMenuBuilder({
       menus: [
         {
           icon: $r("sys.symbol.folder"),
@@ -157,7 +155,8 @@ struct Index {
         },
         {
           icon: $r('sys.symbol.folder_badge_eye'),
-          content:`从下载文件夹导入（路径：Download/${ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id)}）`,
+          content: `从下载文件夹导入（路径：Download/${ToolsUtil.getStringResource($r('app.string.EntryAbility_label')
+            .id)}）`,
           onAction: async () => {
             this.sideBarController.close(false)
             await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), undefined);
