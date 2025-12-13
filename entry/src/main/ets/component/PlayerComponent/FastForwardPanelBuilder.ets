@@ -14,15 +14,15 @@ export function FastForwardPanelBuilder(fastForwardInfo: FastForwardInfo) {
         .fontColor($r('app.color.main_color')).fontSize(15)
         .fontWeight(FontWeight.Bold)
       Row() {
-        if (SelectFileUtil.getLastAndNextItem(VideoInfoUtil.optimizedFormat(fastForwardInfo.speed),
+        if (SelectFileUtil.getPrevAndNextItem(VideoInfoUtil.optimizedFormat(fastForwardInfo.speed),
           VideoInfoUtil.getVideoSpeedTextList())[0] !== '') {
-          Text(`← ${SelectFileUtil.getLastAndNextItem(VideoInfoUtil.optimizedFormat(fastForwardInfo.speed),
+          Text(`← ${SelectFileUtil.getPrevAndNextItem(VideoInfoUtil.optimizedFormat(fastForwardInfo.speed),
             VideoInfoUtil.getVideoSpeedTextList())[0]}`)
             .fontColor($r('sys.color.white')).margin({ right: 10 }).fontSize(10)
         }
-        if (SelectFileUtil.getLastAndNextItem(VideoInfoUtil.optimizedFormat(fastForwardInfo.speed),
+        if (SelectFileUtil.getPrevAndNextItem(VideoInfoUtil.optimizedFormat(fastForwardInfo.speed),
           VideoInfoUtil.getVideoSpeedTextList())[1] !== '') {
-          Text(`${SelectFileUtil.getLastAndNextItem(VideoInfoUtil.optimizedFormat(fastForwardInfo.speed),
+          Text(`${SelectFileUtil.getPrevAndNextItem(VideoInfoUtil.optimizedFormat(fastForwardInfo.speed),
             VideoInfoUtil.getVideoSpeedTextList())[1]} →`)
             .fontColor($r('sys.color.white')).fontSize(10)
         }

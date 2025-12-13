@@ -289,7 +289,7 @@ export default class SelectFileUtil {
     });
   }
 
-  static getLastAndNextItem(targetItem: string, list: string[]) {
+  static getPrevAndNextItem(targetItem: string, list: string[]) {
     const listIndex = list.findIndex(i => i === targetItem)
     if (listIndex === -1) {
       return ['', ''] // 如果没找到，返回空字符串
