@@ -78,9 +78,6 @@ export struct PrivacySpace { // 隐私空间页
   @State longPressPreview: boolean = false
   @State delMultipleList: VideoMetadata[] = []
   @State isPresent: boolean = false;
-  @StorageLink('showSettingPageEntry') showSettingPageEntry: boolean = true
-  @StorageLink('allowGestureEntry') allowGestureEntry: boolean = true
-  @StorageLink('listDisplayMode') listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
   searchController: SearchController = new SearchController()
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
@@ -104,20 +101,20 @@ export struct PrivacySpace { // 隐私空间页
       SettingsToggleItem({
         symbol: $r('sys.symbol.checkmark_shield'),
         message: '设置中显示隐私空间入口',
-        enable: this.showSettingPageEntry,
+        enable: Setting.showSettingPageEntry,
         onChange: (checked: boolean) => {
-          this.showSettingPageEntry = checked
-          Preferences.saveShowSettingPageEntry(PathUtils.appContext!, this.showSettingPageEntry)
+          Setting.showSettingPageEntry = checked
+          Preferences.saveShowSettingPageEntry(PathUtils.appContext!, Setting.showSettingPageEntry)
         }
       })
 
       SettingsToggleItem({
         symbol: $r('sys.symbol.arrow_up_left_and_arrow_down_right'),
         message: '首页双指捏合往外划开进入隐私空间',
-        enable: this.allowGestureEntry,
+        enable: Setting.allowGestureEntry,
         onChange: (checked: boolean) => {
-          this.allowGestureEntry = checked
-          Preferences.saveAllowGestureEntry(PathUtils.appContext!, this.allowGestureEntry)
+          Setting.allowGestureEntry = checked
+          Preferences.saveAllowGestureEntry(PathUtils.appContext!, Setting.allowGestureEntry)
         }
       })
 
@@ -403,7 +400,7 @@ export struct PrivacySpace { // 隐私空间页
         List({ scroller: this.listScroller, space: 10 }) {
           LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
             ListItem() {
-              if (this.listDisplayMode === ListDisplayMode.LIST_DISPLAY) {
+              if (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY) {
                 this.VideoItemBuilder(item)
               } else {
                 VideoCardItem({
@@ -473,7 +470,7 @@ export struct PrivacySpace { // 隐私空间页
       .onAreaChange(async (_oldValue: Area, newValue: Area) => {
         const width = Number(newValue.width);
         const base = Math.floor(width / 500);
-        this.list_line = this.listDisplayMode === ListDisplayMode.LIST_DISPLAY
+        this.list_line = Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY
           ? base + 1
           : base + 2;
       })

@@ -7,16 +7,13 @@ import BiometricAccessUtil from '../../utils/BiometricAccessUtil';
 import { PathUtils } from '../../utils/PathUtils';
 import ToolsUtil from '../../utils/ToolsUtil';
 import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem';
-import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig';
 import { SafeHeight, Setting } from '../../utils/ObservedUtil';
 
 @Component
 export struct SettingsPage { //设置页
-  @StorageLink('recentPlay') recentPlay: boolean = true
-  @StorageLink('listDisplayMode') listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
-  @StorageLink('showSettingPageEntry') showSettingPageEntry: boolean = true
   @State passwd: string = 'passwd'
+  @Consume('pathStack') pathStack: NavPathStack
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
     builder: EditPasswordDialog({
       confirm: (passwd: string | undefined) => {
@@ -30,7 +27,6 @@ export struct SettingsPage { //设置页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @Consume('pathStack') pathStack: NavPathStack
   private listDisplayModeList: ResourceStr[] = ['卡片', '列表', '网格']
 
   build() {
@@ -46,7 +42,7 @@ export struct SettingsPage { //设置页
           })
         }
 
-        if (this.showSettingPageEntry) {
+        if (Setting.showSettingPageEntry) {
           ListItem() {
             SettingsClickItem({
               symbol: $r('sys.symbol.lock'),
@@ -107,9 +103,9 @@ export struct SettingsPage { //设置页
             symbol: $r('sys.symbol.square_fill_grid_2x2'),
             message: '列表布局',
             tips: this.listDisplayModeList,
-            tabSelectedIndexes: [this.listDisplayMode],
+            tabSelectedIndexes: [Setting.listDisplayMode],
             onButtonClick: (tabSelectedIndexes: number) => {
-              this.listDisplayMode = tabSelectedIndexes
+              Setting.listDisplayMode = tabSelectedIndexes
               Preferences.saveListDisplayMode(PathUtils.appContext!, tabSelectedIndexes);
             }
           })
@@ -119,13 +115,13 @@ export struct SettingsPage { //设置页
           SettingsToggleItem({
             symbol: $r('sys.symbol.doc_text_badge_clock'),
             message: '开启历史记录',
-            enable: this.recentPlay,
+            enable: Setting.recentPlay,
             onChange: async (checked: boolean) => {
-              this.recentPlay = checked
-              if (!this.recentPlay) {
+              Setting.recentPlay = checked
+              if (!Setting.recentPlay) {
                 Preferences.saveRecentPlay(PathUtils.appContext!, [])
               }
-              Preferences.saveRecentPlayState(PathUtils.appContext!, this.recentPlay)
+              Preferences.saveRecentPlayState(PathUtils.appContext!, Setting.recentPlay)
             }
           })
         }

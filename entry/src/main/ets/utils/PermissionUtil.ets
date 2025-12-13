@@ -5,6 +5,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { PathUtils } from './PathUtils';
 import AVSessionUtil from './AVSessionUtil';
+import { Setting } from './ObservedUtil';
 
 //权限类
 export default class PermissionUtil {
@@ -48,14 +49,14 @@ export default class PermissionUtil {
     }
   }
 
-  static applyContinuousTask(allowBackgroundPlay: boolean) {
-    if (allowBackgroundPlay) {
+  static applyContinuousTask() {
+    if (Setting.allowBackgroundPlay) {
       PermissionUtil.startContinuousTask()
     }
   }
 
-  static applyStopContinuousTask(allowBackgroundPlay: boolean) {
-    if (allowBackgroundPlay) { //若发生错误跳转FFMpeg播放器，确保提前关闭申请防止两个播放器重复申请导致失败
+  static applyStopContinuousTask() {
+    if (Setting.allowBackgroundPlay) { //若发生错误跳转FFMpeg播放器，确保提前关闭申请防止两个播放器重复申请导致失败
       AVSessionUtil.destroySession()
       PermissionUtil.stopContinuousTask()
     }

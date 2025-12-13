@@ -25,7 +25,7 @@ import { DeleteType } from '../../common/enum/DeleteType';
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
 import { XAnimation } from '../../utils/AnimationUtil';
 import { salmonLogger } from 'salmonlogger';
-import { SafeHeight } from '../../utils/ObservedUtil';
+import { SafeHeight, Setting } from '../../utils/ObservedUtil';
 
 @Observed
 export class VideoListController {
@@ -153,7 +153,6 @@ export struct VideoList {
   @Consume sideBarController: SideBarController
   searchController: SearchController = new SearchController()
   @State longPressPreview: boolean = false
-  @StorageLink('listDisplayMode') listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
   @Consume('pathStack') pathStack: NavPathStack
   @StorageProp('screen_width') screen_width: number = 0
   @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
@@ -173,7 +172,7 @@ export struct VideoList {
   }
 
   build() {
-    if (this.listDisplayMode === ListDisplayMode.LIST_DISPLAY) {
+    if (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY) {
       List({ scroller: this.videoListController.listScroller }) {
         LazyForEach(this.videoListController.videoDataSource, (item: VideoMetadata) => { // 加载视频列表
           ListItem() {

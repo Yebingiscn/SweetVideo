@@ -234,19 +234,6 @@ export default class VideoOperateUtil {
   // 启动时初始化已保存的设置项
   static initSetting(context: common.UIAbilityContext) {
     PermissionUtil.reqPermissionsFromUser(PermissionUtil.permissions, context);
-    AppStorage.setOrCreate('allowBackgroundPlay', Preferences.getAllowBackgroundPlayState(context))
-    AppStorage.setOrCreate('allowPlayBackExist', Preferences.getAllowPlayBackExistState(context))
-    AppStorage.setOrCreate('fastForwardSeconds', Preferences.getFastForwardSeconds(context))
-    AppStorage.setOrCreate('recentPlay', Preferences.getRecentPlayState(context))
-    AppStorage.setOrCreate('defaultPlayer', Preferences.getDefaultPlayer(context))
-    AppStorage.setOrCreate('subtitleSize', Preferences.getSubtitleSize(context))
-    AppStorage.setOrCreate('allowDoubleFastForward', Preferences.getAllowDoubleFastForwardState(context))
-    AppStorage.setOrCreate('skipIntroTime', Preferences.getSkipIntroTime(context))
-    AppStorage.setOrCreate('listDisplayMode', Preferences.getListDisplayMode(context))
-    AppStorage.setOrCreate('smartRotation', Preferences.getSmartRotationState(context))
-    AppStorage.setOrCreate('longPressSpeed', Preferences.getLongPressSpeed(context))
-    AppStorage.setOrCreate('showSettingPageEntry', Preferences.getShowSettingPageEntry(context))
-    AppStorage.setOrCreate('allowGestureEntry', Preferences.getAllowGestureEntry(context))
     // 这里删掉没用的存储项
     PreferencesUtil.delPreferencesValue(context, 'sweet_video', 'circle_play')
     PreferencesUtil.delPreferencesValue(context, 'sweet_video', 'is_list_display')
@@ -254,6 +241,19 @@ export default class VideoOperateUtil {
     Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
     Setting.backgroundDropBlur = Preferences.getBackgroundDropBlur(context)
     Setting.backgroundColorMode = Preferences.getBackgroundColorMode(context)
+    Setting.allowBackgroundPlay = Preferences.getAllowBackgroundPlayState(context)
+    Setting.allowPlayBackExist = Preferences.getAllowPlayBackExistState(context)
+    Setting.fastForwardSeconds = Preferences.getFastForwardSeconds(context)
+    Setting.recentPlay = Preferences.getRecentPlayState(context)
+    Setting.defaultPlayer = Preferences.getDefaultPlayer(context)
+    Setting.subtitleSize = Preferences.getSubtitleSize(context)
+    Setting.allowDoubleFastForward = Preferences.getAllowDoubleFastForwardState(context)
+    Setting.skipIntroTime = Preferences.getSkipIntroTime(context)
+    Setting.listDisplayMode = Preferences.getListDisplayMode(context)
+    Setting.smartRotation = Preferences.getSmartRotationState(context)
+    Setting.longPressSpeed = Preferences.getLongPressSpeed(context)
+    Setting.showSettingPageEntry = Preferences.getShowSettingPageEntry(context)
+    Setting.allowGestureEntry = Preferences.getAllowGestureEntry(context)
   }
 
   // 封装获取屏幕亮度的方法
@@ -297,7 +297,7 @@ export default class VideoOperateUtil {
     return [finalWidth, finalHeight]
   }
 
-  static getVideoStartPlayTimeMode(nowPlaying: VideoMetadataFromPlayer, skipIntroTime: string) {
+  static getVideoStartPlayTimeMode(nowPlaying: VideoMetadataFromPlayer) {
     // 若为视频设置了片头时间，并且上次播放记录小于片头时间或者已经播完了，则自动跳到片头时间
     if (nowPlaying?.start_time && nowPlaying?.start_time > 0 &&
       (nowPlaying.start_time > nowPlaying.last_play || nowPlaying?.last_play > nowPlaying?.time! * 0.95)) {
@@ -310,7 +310,7 @@ export default class VideoOperateUtil {
       return VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME
     }
     // 若无播放记录，并且设定了统一片头时间，则自动跳到片头时间（音频除外）
-    if (Number(skipIntroTime) > 0 && Number(skipIntroTime) * 1000 < nowPlaying?.time! &&
+    if (Number(Setting.skipIntroTime) > 0 && Number(Setting.skipIntroTime) * 1000 < nowPlaying?.time! &&
       !VideoInfoUtil.support_audio_format.includes(nowPlaying?.title.split('.')[nowPlaying?.title.split('.')
         .length-1].toLowerCase()!)) {
       ToolsUtil.showToast('已跳过统一的片头时间')

@@ -41,7 +41,7 @@ import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/Swi
 import { SubtitleDisplayBuilder } from '../../component/PlayerComponent/SubtitleDisplayBuilder';
 import { salmonLogger } from 'salmonlogger';
 import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent';
-import { Privacy, SafeHeight } from '../../utils/ObservedUtil';
+import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil';
 
 @Component
 export struct Player { // 播放页
@@ -68,19 +68,13 @@ export struct Player { // 播放页
   @State currentSpeedIndex: number = 0
   @State angle: number = 0
   @State repeatMode: RepeatMode = RepeatMode.LIST // 传子不能用@Trace
-  @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
-  @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
-  @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
-  @StorageLink('skipIntroTime') skipIntroTime: string = '0'
-  @StorageLink('smartRotation') smartRotation: boolean = true
-  @StorageLink('longPressSpeed') longPressSpeed: number = 3
   @Consume('pathStack') pathStack: NavPathStack
   @State exitVideoTime: number = 0
   private autoHideTimeout: boolean = false
   private isListenVideo: boolean = false
 
   async aboutToAppear(): Promise<void> {
-    PermissionUtil.applyContinuousTask(this.allowBackgroundPlay)
+    PermissionUtil.applyContinuousTask()
     this.setScreen()
     try {
       await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
@@ -194,8 +188,7 @@ export struct Player { // 播放页
           }
           break;
         case 'prepared':
-          this.player.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.player.nowPlaying!,
-            this.skipIntroTime))
+          this.player.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.player.nowPlaying!))
           this.player.playAVPlayer()
           await this.player.getAudioTrack()
           await this.player.initVolumeAndBrightness()
@@ -288,7 +281,7 @@ export struct Player { // 播放页
           this.play_area_width > this.play_area_height ? WindowUtil.enableLandscapeMultiWindow(this.windowClass) :
             WindowUtil.disableLandscapeMultiWindow(this.windowClass)
         }
-        if (this.smartRotation && this.play_area_width > this.play_area_height &&
+        if (Setting.smartRotation && this.play_area_width > this.play_area_height &&
           this.screen_height > this.screen_width) {
           const proportion =
             Math.max(this.screen_width, this.screen_height) / Math.min(this.screen_width, this.screen_height)
@@ -474,7 +467,7 @@ export struct Player { // 播放页
               if (this.isLock) {
                 return
               } // 设备锁定时直接返回
-              if (!this.allowDoubleFastForward) { // 非双击快进模式时执行暂停
+              if (!Setting.allowDoubleFastForward) { // 非双击快进模式时执行暂停
                 this.player.togglePlayback()
                 return
               }
@@ -606,9 +599,9 @@ export struct Player { // 播放页
               if (this.player.playing) {
                 this.longPress = true
                 VideoOperateUtil.lastSpeed = this.player.speed
-                this.player.updatePlaybackSpeed(this.longPressSpeed)
+                this.player.updatePlaybackSpeed(Setting.longPressSpeed)
                 this.currentSpeedIndex =
-                  VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).indexOf(this.longPressSpeed)
+                  VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).indexOf(Setting.longPressSpeed)
               }
             },
             onLongPressEnd: () => {
@@ -689,7 +682,7 @@ export struct Player { // 播放页
         this.closeSideBar(true)
         return true
       }
-      if (this.showControl && !this.allowPlayBackExist) {
+      if (this.showControl && !Setting.allowPlayBackExist) {
         this.showControl = false
         this.lockVisibility = false
         return true
@@ -705,7 +698,7 @@ export struct Player { // 播放页
         VideoOperateUtil.saveVideoTime(this.player.playTime, this.player.nowPlaying!, this.player.video_meta_data,
           PathUtils.appContext!)
       }
-      PermissionUtil.applyStopContinuousTask(this.allowBackgroundPlay)
+      PermissionUtil.applyStopContinuousTask()
       await this.player.ijkPlayerStop()
       try {
         WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)

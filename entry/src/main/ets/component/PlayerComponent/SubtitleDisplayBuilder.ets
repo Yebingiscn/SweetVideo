@@ -1,3 +1,5 @@
+import { Setting } from '../../utils/ObservedUtil'
+
 class SubtitleDisplayValue {
   subtitle: string = ''
   screenWidth: number = 0
@@ -12,7 +14,7 @@ export function SubtitleDisplayBuilder(subtitleDisplayValue: SubtitleDisplayValu
   Stack({ alignContent: Alignment.BottomEnd }) { //字幕
     Text(subtitleDisplayValue.subtitle)
       .fontColor('#F0F0F0')
-      .fontSize(AppStorage.get('subtitleSize') as string)
+      .fontSize(Setting.subtitleSize)
       .fontWeight(FontWeight.Medium)
       .textAlign(TextAlign.Center)
       .fontWeight(FontWeight.Normal)// 常规字重更清晰

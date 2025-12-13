@@ -40,7 +40,7 @@ import { FastForwardPanelBuilder } from '../../component/PlayerComponent/FastFor
 import { VolumeSwipingPanelBuilder } from '../../component/PlayerComponent/VolumeSwipingPanelBuilder'
 
 import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/SwipingPlayTimePanelBuilder'
-import { Privacy, SafeHeight } from '../../utils/ObservedUtil'
+import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
 
 @Component
 export struct FFMpegPlayer { // FFMpeg播放器页
@@ -73,18 +73,12 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   windowClass = WindowUtil.getWindow()
   xComponentController: XComponentController = new XComponentController()
   @State @Watch('setScreen') showControl: boolean = false
-  @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
-  @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
-  @StorageLink('longPressSpeed') longPressSpeed: number = 3
   @State onSwiping: boolean = false
   @State longPress: boolean = false
   @State last_speed: number = 1
   @State isHorizontalSwiping: boolean = false
   @State video_meta_data: VideoMetadata[] = []
   @State volumeActually: number = 0
-  @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
-  @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
-  @StorageLink('skipIntroTime') skipIntroTime: string = '0'
   @Consume('pathStack') pathStack: NavPathStack
   private CONTROL_PlayStatus = PlayStatus.INIT;
   private mIjkMediaPlayer: IjkMediaPlayer | null = null;
@@ -125,10 +119,10 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             this.pathStack.pop()
           }
           if (event.keyCode === KeyCode.KEYCODE_DPAD_RIGHT) {
-            this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(this.fastForwardSeconds) * 1000));
+            this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(Setting.fastForwardSeconds) * 1000));
           }
           if (event.keyCode === KeyCode.KEYCODE_DPAD_LEFT) {
-            this.mIjkMediaPlayer?.seekTo(String(this.play_time - Number(this.fastForwardSeconds) * 1000));
+            this.mIjkMediaPlayer?.seekTo(String(this.play_time - Number(Setting.fastForwardSeconds) * 1000));
           }
         })
         .width(this.play_area_width)
@@ -203,7 +197,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         GestureComponent({
           showControl: this.showControl,
           onDoubleClickAction: (event: GestureEvent) => {
-            if (!this.allowDoubleFastForward) { // 非快进模式直接切换播放状态
+            if (!Setting.allowDoubleFastForward) { // 非快进模式直接切换播放状态
               this.togglePlayState();
               return;
             }
@@ -213,11 +207,11 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             }
             const zoneWidth = this.screen_width / 5; // 计算区域分割宽度
             if (tapX < zoneWidth) { // 左侧区域：回退
-              this.mIjkMediaPlayer?.seekTo(String(this.play_time - Number(this.fastForwardSeconds) * 1000));
+              this.mIjkMediaPlayer?.seekTo(String(this.play_time - Number(Setting.fastForwardSeconds) * 1000));
               return;
             }
             if (tapX > zoneWidth * 4) { // 右侧区域：快进
-              this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(this.fastForwardSeconds) * 1000));
+              this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(Setting.fastForwardSeconds) * 1000));
               return;
             }
             this.togglePlayState(); // 中间区域：播放/暂停切换
@@ -307,10 +301,10 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           onLongPressAction: () => {
             this.longPress = true
             this.last_speed = this.playSpeed
-            this.playSpeed = this.longPressSpeed
+            this.playSpeed = Setting.longPressSpeed
             this.mIjkMediaPlayer?.setSpeed(this.playSpeed + '')
             this.currentSpeedIndex =
-              VideoInfoUtil.getVideoSpeedList(NavigationAddress.FFMPEG_PLAYER).indexOf(this.longPressSpeed);
+              VideoInfoUtil.getVideoSpeedList(NavigationAddress.FFMPEG_PLAYER).indexOf(Setting.longPressSpeed);
           },
           onLongPressEnd: () => {
             this.longPress = false
@@ -382,7 +376,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       }
     })
     .onBackPressed(() => {
-      if (this.showControl && !this.allowPlayBackExist) {
+      if (this.showControl && !Setting.allowPlayBackExist) {
         this.showControl = false
         return true
       } else {
@@ -394,7 +388,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
           PathUtils.appContext!)
       }
-      PermissionUtil.applyStopContinuousTask(this.allowBackgroundPlay)
+      PermissionUtil.applyStopContinuousTask()
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
       WindowUtil.setBarState(PathUtils.appContext!, true, true)
       try {
@@ -534,7 +528,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
 
   async aboutToAppear() {
     this.mIjkMediaPlayer = IjkMediaPlayer.getInstance();
-    PermissionUtil.applyContinuousTask(this.allowBackgroundPlay)
+    PermissionUtil.applyContinuousTask()
     this.setScreen()
     let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
     let audioManager = audio.getAudioManager();
@@ -630,7 +624,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         this.mIjkMediaPlayer?.seekTo(String(this.now_playing?.start_time) || '0')
         break
       case VideoStartTimeMode.SEEK_TO_INTRO_TIME:
-        this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(this.skipIntroTime) * 1000))
+        this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(Setting.skipIntroTime) * 1000))
         break
       default:
         return
@@ -657,14 +651,14 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       this.startProgressTask();
       this.play();
       setTimeout(() => {
-        this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.now_playing!, this.skipIntroTime))
+        this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.now_playing!))
       }, 600)
     }
     if (this.CONTROL_PlayStatus == PlayStatus.PAUSE) {
       this.mIjkMediaPlayer?.start();
       this.setProgress()
     }
-    if (!this.avSession && this.allowBackgroundPlay) {
+    if (!this.avSession && Setting.allowBackgroundPlay) {
       this.avSession = await AVSessionUtil.getAVSession()
       await this.setSessionListener()
       AVSessionUtil.setSessionInfo(this.now_playing!)

@@ -1,10 +1,24 @@
 import { UIUtils } from '@kit.ArkUI';
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode';
+import { ListDisplayMode } from '../common/enum/ListDisplayMode';
 
 class SettingUtil {
   public backgroundImageSrc: string = ''
   public backgroundDropBlur: number = 0
   public backgroundColorMode: BackgroundColorMode = BackgroundColorMode.AUTO
+  public allowBackgroundPlay: boolean = true
+  public allowPlayBackExist: boolean = false
+  public fastForwardSeconds: string = '15'
+  public recentPlay: boolean = true
+  public defaultPlayer: string = 'FFMpeg播放器'
+  public subtitleSize: string = '22'
+  public allowDoubleFastForward: boolean = true
+  public skipIntroTime: string = '0'
+  public listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
+  public smartRotation: boolean = true
+  public longPressSpeed: number = 3
+  public showSettingPageEntry: boolean = true
+  public allowGestureEntry: boolean = true
 }
 
 class SafeHeightUtil {

@@ -18,6 +18,7 @@ import { AVPlayerUtil } from '../utils/AVPlayerUtil';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { RepeatMode } from '../common/enum/RepeatMode';
+import { Setting } from '../utils/ObservedUtil';
 
 @Observed
 export class AVPlayerController {
@@ -144,7 +145,7 @@ export class AVPlayerController {
         this.seekTime(this.nowPlaying?.start_time || 0)
         break
       case VideoStartTimeMode.SEEK_TO_INTRO_TIME:
-        this.seekTime(this.playTime + Number(AppStorage.get('skipIntroTime')) * 1000)
+        this.seekTime(this.playTime + Number(Setting.skipIntroTime) * 1000)
         break
       default:
         return
@@ -152,7 +153,7 @@ export class AVPlayerController {
   }
 
   async initAVSession() {
-    if (!this.avSession && AppStorage.get('allowBackgroundPlay') as boolean) {
+    if (!this.avSession && Setting.allowBackgroundPlay) {
       this.avSession = await AVSessionUtil.getAVSession()
       await this.setSessionListener()
       AVSessionUtil.setSessionInfo(this.nowPlaying!)
@@ -300,11 +301,11 @@ export class AVPlayerController {
   }
 
   backForward() {
-    this.seekTime(this.playTime - Number(AppStorage.get('fastForwardSeconds')) * 1000)
+    this.seekTime(this.playTime - Number(Setting.fastForwardSeconds) * 1000)
   }
 
   fastForward() {
-    this.seekTime(this.playTime + Number(AppStorage.get('fastForwardSeconds')) * 1000)
+    this.seekTime(this.playTime + Number(Setting.fastForwardSeconds) * 1000)
   }
 
   async ijkPlayerStop() {

@@ -36,7 +36,6 @@ import { PersonalizePage } from './SettingPage/PersonalizePage';
 import BiometricAccessUtil from '../utils/BiometricAccessUtil';
 import { DeleteType } from '../common/enum/DeleteType';
 import { PrivacySpaceErrorList } from './PrivacySpace/PrivacySpaceErrorList';
-import { ListDisplayMode } from '../common/enum/ListDisplayMode';
 import { WindowUtil } from '../utils/WindowUtil';
 import { XAnimation } from '../utils/AnimationUtil';
 import { PrivacyPolicyComponent } from '../component/VideoItemComponent/PrivacyPolicyComponent';
@@ -56,10 +55,8 @@ struct Index {
   @Provide file_folder_list: FileFolder[] = []
   @State searchValue: string = ''
   @State isPresent: boolean = false
-  @StorageLink('listDisplayMode') listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
   @StorageProp('screen_width') screen_width: number = 0
   @StorageProp('screen_height') screen_height: number = 0
-  @StorageLink('allowGestureEntry') allowGestureEntry: boolean = true
   @Provide videoListController: VideoListController = new VideoListController()
   @Provide fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   editFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
@@ -387,7 +384,7 @@ struct Index {
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
           const width = Number(newValue.width);
           // 增加判断，旋转时保持滚动位置不变
-          this.videoListController.refresh(width, this.listDisplayMode)
+          this.videoListController.refresh(width, Setting.listDisplayMode)
         })
         .priorityGesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
           if (this.sideBarController.visibility === Visibility.Visible) {
@@ -404,7 +401,7 @@ struct Index {
           PinchGesture({ fingers: 2 })
             .onActionEnd((event: PinchGestureEvent) => {
               const scaleValue = event.scale
-              if (!this.allowGestureEntry) {
+              if (!Setting.allowGestureEntry) {
                 return
               }
               this.passwd = Preferences.getPassword(PathUtils.appContext!)
@@ -478,7 +475,7 @@ struct Index {
       if (isVisible) {
         // 增加判断，旋转时保持滚动位置不变
         if (this.videoListController.folder?.video_list) {
-          this.videoListController.refresh(this.screen_width, this.listDisplayMode)
+          this.videoListController.refresh(this.screen_width, Setting.listDisplayMode)
           VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
         }
         if (DataSyncUtil.lastPlayVideoIndex >= 0) {

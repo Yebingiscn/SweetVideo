@@ -10,15 +10,6 @@ import VideoInfoUtil from '../../utils/VideoInfoUtil';
 
 @Component
 export struct PlayerSettingPage {
-  @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
-  @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
-  @StorageLink('smartRotation') smartRotation: boolean = true
-  @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
-  @StorageLink('fastForwardSeconds') fastForwardSeconds: string = '15'
-  @StorageLink('longPressSpeed') longPressSpeed: number = 3
-  @StorageLink('defaultPlayer') defaultPlayer: string = 'FFMpeg播放器'
-  @StorageLink('subtitleSize') subtitleSize: string = '22'
-  @StorageLink('skipIntroTime') skipIntroTime: string = '0'
   private subtitleSizeList = ['19', '20', '21', '22', '23', '24', '25', '26']
   private playerList = ['系统播放器', 'FFMpeg播放器', '红薯播放器']
   private fastForwardSecond: FastForwardSecondInterface[] = [
@@ -37,10 +28,10 @@ export struct PlayerSettingPage {
           SettingsToggleItem({
             symbol: $r('sys.symbol.play'),
             message: '后台播放',
-            enable: this.allowBackgroundPlay,
+            enable: Setting.allowBackgroundPlay,
             onChange: (checked: boolean) => {
-              this.allowBackgroundPlay = checked
-              Preferences.saveAllowBackgroundPlayState(PathUtils.appContext!, this.allowBackgroundPlay)
+              Setting.allowBackgroundPlay = checked
+              Preferences.saveAllowBackgroundPlayState(PathUtils.appContext!, Setting.allowBackgroundPlay)
             }
           })
         }
@@ -49,10 +40,10 @@ export struct PlayerSettingPage {
           SettingsToggleItem({
             symbol: $r('sys.symbol.arrow_left'),
             message: '播放时返回隐藏状态栏',
-            enable: !this.allowPlayBackExist,
+            enable: !Setting.allowPlayBackExist,
             onChange: (checked: boolean) => {
-              this.allowPlayBackExist = !checked
-              Preferences.saveAllowPlayBackExistState(PathUtils.appContext!, this.allowPlayBackExist)
+              Setting.allowPlayBackExist = !checked
+              Preferences.saveAllowPlayBackExistState(PathUtils.appContext!, Setting.allowPlayBackExist)
             }
           })
         }
@@ -61,10 +52,10 @@ export struct PlayerSettingPage {
           SettingsToggleItem({
             symbol: $r('sys.symbol.screen_rotation'),
             message: '智能横屏',
-            enable: this.smartRotation,
+            enable: Setting.smartRotation,
             onChange: (checked: boolean) => {
-              this.smartRotation = checked
-              Preferences.saveSmartRotation(PathUtils.appContext!, this.smartRotation)
+              Setting.smartRotation = checked
+              Preferences.saveSmartRotation(PathUtils.appContext!, Setting.smartRotation)
             }
           })
         }
@@ -73,10 +64,10 @@ export struct PlayerSettingPage {
           SettingsToggleItem({
             symbol: $r('sys.symbol.hand_draw'),
             message: '启用双击屏幕两边快进（后退）',
-            enable: this.allowDoubleFastForward,
+            enable: Setting.allowDoubleFastForward,
             onChange: (checked: boolean) => {
-              this.allowDoubleFastForward = checked
-              Preferences.saveAllowDoubleFastForwardState(PathUtils.appContext!, this.allowDoubleFastForward)
+              Setting.allowDoubleFastForward = checked
+              Preferences.saveAllowDoubleFastForwardState(PathUtils.appContext!, Setting.allowDoubleFastForward)
             }
           })
         }
@@ -86,10 +77,10 @@ export struct PlayerSettingPage {
             symbol: $r('sys.symbol.hand_point_up_tap'),
             message: '快进快退时长',
             list: this.fastForwardSecond.map(opt => opt.label),
-            selected: this.fastForwardSecond.findIndex(opt => opt.value === this.fastForwardSeconds),
+            selected: this.fastForwardSecond.findIndex(opt => opt.value === Setting.fastForwardSeconds),
             onChange: (index: number) => {
-              this.fastForwardSeconds = this.fastForwardSecond[index].value;
-              Preferences.saveFastForwardSeconds(PathUtils.appContext!, this.fastForwardSeconds)
+              Setting.fastForwardSeconds = this.fastForwardSecond[index].value;
+              Preferences.saveFastForwardSeconds(PathUtils.appContext!, Setting.fastForwardSeconds)
             }
           })
         }
@@ -100,10 +91,10 @@ export struct PlayerSettingPage {
             message: '长按快进倍速',
             list: VideoInfoUtil.getVideoSpeedTextList(),
             selected: VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER)
-              .findIndex(opt => opt === this.longPressSpeed),
+              .findIndex(opt => opt === Setting.longPressSpeed),
             onChange: (index: number) => {
-              this.longPressSpeed = VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER)[index]
-              Preferences.saveLongPressSpeed(PathUtils.appContext!, this.longPressSpeed)
+              Setting.longPressSpeed = VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER)[index]
+              Preferences.saveLongPressSpeed(PathUtils.appContext!, Setting.longPressSpeed)
             }
           })
         }
@@ -113,10 +104,10 @@ export struct PlayerSettingPage {
             symbol: $r('sys.symbol.play_round_rectangle'),
             message: '外链默认播放器',
             list: this.playerList,
-            selected: this.playerList.findIndex(i => i == this.defaultPlayer),
+            selected: this.playerList.findIndex(i => i == Setting.defaultPlayer),
             onChange: (index: number) => {
-              this.defaultPlayer = this.playerList[index]
-              Preferences.saveDefaultPlayer(PathUtils.appContext!, this.defaultPlayer)
+              Setting.defaultPlayer = this.playerList[index]
+              Preferences.saveDefaultPlayer(PathUtils.appContext!, Setting.defaultPlayer)
             }
           })
         }
@@ -126,10 +117,10 @@ export struct PlayerSettingPage {
             symbol: $r('sys.symbol.textformat_size_square'),
             message: '字幕字体大小',
             list: this.subtitleSizeList,
-            selected: this.subtitleSizeList.findIndex(i => i == this.subtitleSize),
+            selected: this.subtitleSizeList.findIndex(i => i == Setting.subtitleSize),
             onChange: (index: number) => {
-              this.subtitleSize = this.subtitleSizeList[index]
-              Preferences.saveSubtitleSize(PathUtils.appContext!, this.subtitleSize)
+              Setting.subtitleSize = this.subtitleSizeList[index]
+              Preferences.saveSubtitleSize(PathUtils.appContext!, Setting.subtitleSize)
             }
           })
         }
@@ -138,11 +129,11 @@ export struct PlayerSettingPage {
           SettingSliderItem({
             symbol: $r('sys.symbol.forward_end_fill'),
             message: '跳过片头',
-            selected: Number(this.skipIntroTime),
+            selected: Number(Setting.skipIntroTime),
             textSliderMode: true,
             onChangeComplete: (value: number) => {
-              this.skipIntroTime = value.toString()
-              Preferences.saveSkipIntroTime(PathUtils.appContext!, this.skipIntroTime)
+              Setting.skipIntroTime = value.toString()
+              Preferences.saveSkipIntroTime(PathUtils.appContext!, Setting.skipIntroTime)
             }
           })
         }

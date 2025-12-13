@@ -20,7 +20,6 @@ export struct RecentPlay { // 最近播放页
   @State recent_video_meta_data: VideoMetadata[] = []
   @State longPressPreview: boolean = false
   @Consume('pathStack') pathStack: NavPathStack
-  @StorageLink('recentPlay') recentPlay: boolean = true
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
@@ -28,7 +27,7 @@ export struct RecentPlay { // 最近播放页
   private listScroller: Scroller = new Scroller();
 
   async aboutToAppear(): Promise<void> {
-    if (this.recentPlay) {
+    if (Setting.recentPlay) {
       this.recent_video_meta_data = RecentPlayUtil.getRecentPlaybacks()
       this.videoDataSource = new VideoDataSource(this.recent_video_meta_data);
     }
@@ -172,7 +171,7 @@ export struct RecentPlay { // 最近播放页
       }
     }
     .onShown(() => {
-      if (this.recentPlay) {
+      if (Setting.recentPlay) {
         this.recent_video_meta_data = RecentPlayUtil.getRecentPlaybacks()
         this.videoDataSource.updateData(this.recent_video_meta_data)
       }
