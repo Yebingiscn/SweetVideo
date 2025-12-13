@@ -20,6 +20,7 @@ import PreferencesUtil from '../database/PreferencesUtil';
 import PermissionUtil from './PermissionUtil';
 import { VideoSource } from '../common/enum/VideoSource';
 import { PlayerParams } from '../common/NavigationCommon';
+import BackgroundUtil from './BackgroundUtil';
 
 // 视频操作类
 export default class VideoOperateUtil {
@@ -244,14 +245,15 @@ export default class VideoOperateUtil {
     AppStorage.setOrCreate('listDisplayMode', Preferences.getListDisplayMode(context))
     AppStorage.setOrCreate('smartRotation', Preferences.getSmartRotationState(context))
     AppStorage.setOrCreate('longPressSpeed', Preferences.getLongPressSpeed(context))
-    AppStorage.setOrCreate('backgroundImageSrc', SelectFileUtil.getImageUri())
-    AppStorage.setOrCreate('backgroundDropBlur', Preferences.getBackgroundDropBlur(context))
     AppStorage.setOrCreate('showSettingPageEntry', Preferences.getShowSettingPageEntry(context))
     AppStorage.setOrCreate('backgroundColorMode', Preferences.getBackgroundColorMode(context))
     AppStorage.setOrCreate('allowGestureEntry', Preferences.getAllowGestureEntry(context))
     // 这里删掉没用的存储项
     PreferencesUtil.delPreferencesValue(context, 'sweet_video', 'circle_play')
     PreferencesUtil.delPreferencesValue(context, 'sweet_video', 'is_list_display')
+
+    BackgroundUtil.backgroundImageSrc = SelectFileUtil.getImageUri()
+    BackgroundUtil.backgroundDropBlur = Preferences.getBackgroundDropBlur(context)
   }
 
   // 封装获取屏幕亮度的方法

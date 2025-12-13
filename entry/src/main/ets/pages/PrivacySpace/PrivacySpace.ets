@@ -29,6 +29,7 @@ import { SettingsToggleItem } from '../../component/SettingComponent/SettingsTog
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem';
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
 import SubtitleUtil from '../../utils/SubtitleUtil';
+import BackgroundUtil from '../../utils/BackgroundUtil';
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -57,8 +58,6 @@ export struct PrivacySpace { // 隐私空间页
   @State list_line: number = 1
   @Consume('pathStack') pathStack: NavPathStack
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
-  @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
-  @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
   @State totalItems: number = 0
   @State processedItems: number = 0
   @State loading: boolean = false
@@ -415,7 +414,7 @@ export struct PrivacySpace { // 隐私空间页
                 })
                   .width('95%')
                   .reuseId(`VideoCardItem#${item.uri}`)
-                  .backgroundColor(this.longPressPreview || this.backgroundImageSrc.length > 0 ?
+                  .backgroundColor(this.longPressPreview || BackgroundUtil.backgroundImageSrc.length > 0 ?
                     $r('app.color.start_window_background_blur') :
                     $r('app.color.start_window_background'))
                   .borderRadius(16)
@@ -501,10 +500,10 @@ export struct PrivacySpace { // 隐私空间页
     .menus(this.NavigationMenus)
     .padding({ top: this.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
-    .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)
-    .backdropBlur(this.backgroundDropBlur)
+    .backdropBlur(BackgroundUtil.backgroundDropBlur)
     .onBackPressed(() => {
       if (this.searchValue.length > 0) {
         this.searchValue = ''

@@ -49,6 +49,7 @@ import { PrivacyPolicyComponent } from '../component/VideoItemComponent/PrivacyP
 import { MoreSettingPage } from './SettingPage/MoreSettingPage';
 import NavigationAddress from '../common/NavigationCommon';
 import { FolderSelectMenuBuilder } from '../component/FileFolderComponent/FileFolderSelectBuilder';
+import BackgroundUtil from '../utils/BackgroundUtil';
 
 @Entry
 @Component
@@ -66,8 +67,6 @@ struct Index {
   @StorageProp('screen_height') screen_height: number = 0
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
-  @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
-  @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
   @StorageLink('allowGestureEntry') allowGestureEntry: boolean = true
   @Provide videoListController: VideoListController = new VideoListController()
   @Provide fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
@@ -370,7 +369,7 @@ struct Index {
         }
         .width('100%')
         .justifyContent(FlexAlign.Start)
-        .backgroundColor(this.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))
+        .backgroundColor(BackgroundUtil.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))
         .transition(TransitionEffect.translate({ x: -300 }).animation(XAnimation.getAnimationCurve()))
         .visibility(this.sideBarController.visibility)
         .borderRadius(this.sideBarController.mode === SideBarContainerType.Overlay ? 16 : 0)
@@ -392,7 +391,7 @@ struct Index {
             PrivacyPolicyComponent({ isPresent: this.isPresent })
           }
         }
-        .backgroundColor(this.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))
+        .backgroundColor(BackgroundUtil.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
           const width = Number(newValue.width);
           // 增加判断，旋转时保持滚动位置不变
@@ -465,9 +464,9 @@ struct Index {
         }
       }))
     }
-    .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
-    .backdropBlur(this.backgroundDropBlur)
+    .backdropBlur(BackgroundUtil.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
     .hideTitleBar(true)
     .mode(NavigationMode.Stack)

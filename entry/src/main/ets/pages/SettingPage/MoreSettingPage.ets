@@ -8,13 +8,12 @@ import ToolsUtil from '../../utils/ToolsUtil';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { commentManager } from '@kit.AppGalleryKit';
 import { salmonLogger } from 'salmonlogger';
+import BackgroundUtil from '../../utils/BackgroundUtil';
 
 @Component
 export struct MoreSettingPage {
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
-  @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
-  @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
   @Consume('pathStack') pathStack: NavPathStack
 
   build() {
@@ -117,9 +116,9 @@ export struct MoreSettingPage {
     .title('更多设置')
     .backgroundColor($r('app.color.start_window_background'))
     .padding({ top: this.topSafeHeight })
-    .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)
-    .backdropBlur(this.backgroundDropBlur)
+    .backdropBlur(BackgroundUtil.backgroundDropBlur)
   }
 }

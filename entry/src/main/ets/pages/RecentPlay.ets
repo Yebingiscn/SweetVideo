@@ -12,6 +12,7 @@ import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog';
 import DataSyncUtil from '../utils/DataSyncUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { Context } from '@kit.AbilityKit';
+import BackgroundUtil from '../utils/BackgroundUtil';
 
 @Component
 export struct RecentPlay { // 最近播放页
@@ -22,8 +23,6 @@ export struct RecentPlay { // 最近播放页
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @StorageLink('recentPlay') recentPlay: boolean = true
-  @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
-  @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
@@ -184,9 +183,9 @@ export struct RecentPlay { // 最近播放页
     .title('最近播放')
     .padding({ top: this.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
-    .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
-    .backdropBlur(this.backgroundDropBlur)
+    .backdropBlur(BackgroundUtil.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
   }
 }

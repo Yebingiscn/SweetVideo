@@ -3,13 +3,12 @@ import { pasteboard } from '@kit.BasicServicesKit';
 import ToolsUtil from '../../utils/ToolsUtil';
 import { salmonLogger, SalmonLoggerComponent } from 'salmonlogger';
 import { PathUtils } from '../../utils/PathUtils';
+import BackgroundUtil from '../../utils/BackgroundUtil';
 
 @Component
 export struct CrashPage {
   @StorageProp('topSafeHeight') topSafeHeight: number = 0
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0
-  @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
-  @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
   @Consume('pathStack') pathStack: NavPathStack
   private appEventGroups: Array<hiAppEvent.AppEventGroup> | [] = []
 
@@ -104,9 +103,9 @@ export struct CrashPage {
     .title('流心运行日志')
     .backgroundColor($r('app.color.start_window_background'))
     .padding({ top: this.topSafeHeight, bottom: this.bottomSafeHeight })
-    .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
-    .backdropBlur(this.backgroundDropBlur)
+    .backdropBlur(BackgroundUtil.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
   }
 

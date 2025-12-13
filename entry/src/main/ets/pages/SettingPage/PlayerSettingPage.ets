@@ -4,6 +4,7 @@ import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuI
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem';
 import Preferences from '../../database/Preferences';
 import { FastForwardSecondInterface } from '../../interfaces/FastForwardSecondInterface';
+import BackgroundUtil from '../../utils/BackgroundUtil';
 import { PathUtils } from '../../utils/PathUtils';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 
@@ -20,8 +21,6 @@ export struct PlayerSettingPage {
   @StorageLink('defaultPlayer') defaultPlayer: string = 'FFMpeg播放器'
   @StorageLink('subtitleSize') subtitleSize: string = '22'
   @StorageLink('skipIntroTime') skipIntroTime: string = '0'
-  @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
-  @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
   private subtitleSizeList = ['19', '20', '21', '22', '23', '24', '25', '26']
   private playerList = ['系统播放器', 'FFMpeg播放器', '红薯播放器']
   private fastForwardSecond: FastForwardSecondInterface[] = [
@@ -164,9 +163,9 @@ export struct PlayerSettingPage {
     .title('播放设置')
     .backgroundColor($r('app.color.start_window_background'))
     .padding({ top: this.topSafeHeight })
-    .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
-    .backdropBlur(this.backgroundDropBlur)
+    .backdropBlur(BackgroundUtil.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
   }
 }

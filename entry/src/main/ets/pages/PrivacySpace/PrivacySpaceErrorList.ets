@@ -5,6 +5,7 @@ import { ImageFancyModifier, MenuFancyModifier } from '../../common/AttributeMod
 import Preferences from '../../database/Preferences'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
+import BackgroundUtil from '../../utils/BackgroundUtil'
 
 @Component
 export struct PrivacySpaceErrorList {
@@ -14,8 +15,6 @@ export struct PrivacySpaceErrorList {
   @Consume('pathStack') pathStack: NavPathStack
   @StorageLink('isPrivacyBackground') isPrivacyBackground: boolean = false
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
-  @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
-  @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
   private listScroller: Scroller = new Scroller();
 
   async aboutToAppear(): Promise<void> {
@@ -143,10 +142,10 @@ export struct PrivacySpaceErrorList {
     .title('隐私空间异常数据')
     .padding({ top: this.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
-    .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)
-    .backdropBlur(this.backgroundDropBlur)
+    .backdropBlur(BackgroundUtil.backgroundDropBlur)
     .blur(this.isPrivacyBackground ? 1000 : 0)
   }
 }

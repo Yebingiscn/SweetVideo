@@ -9,13 +9,12 @@ import Preferences from '../../database/Preferences';
 import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem';
 import { BackgroundColorMode } from '../../common/enum/BackgroundColorMode';
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig';
+import BackgroundUtil from '../../utils/BackgroundUtil';
 
 @Component
 export struct PersonalizePage {
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
-  @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
-  @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
   @StorageLink('backgroundColorMode') backgroundColorMode: BackgroundColorMode = BackgroundColorMode.AUTO
   restartConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog({
@@ -66,21 +65,21 @@ export struct PersonalizePage {
                 return
               }
               SelectFileUtil.saveImageToPrivacySpace(imageUris[0])
-              this.backgroundImageSrc = SelectFileUtil.getImageUri()
+              BackgroundUtil.backgroundImageSrc = SelectFileUtil.getImageUri()
               ToolsUtil.showToast('设置成功')
               this.restartConfirmDialog.open()
             }
           })
         }
 
-        if (this.backgroundImageSrc.length > 0) {
+        if (BackgroundUtil.backgroundImageSrc.length > 0) {
           ListItem() {
             SettingsClickItem({
               symbol: $r('sys.symbol.picture_damage'),
               message: '删除自定义背景',
               onPress: async () => {
                 await SelectFileUtil.deletePhoto()
-                this.backgroundImageSrc = SelectFileUtil.getImageUri()
+                BackgroundUtil.backgroundImageSrc = ''
                 ToolsUtil.showToast('删除成功')
                 Preferences.saveBackgroundDropBlur(PathUtils.appContext!, 0)
                 this.restartConfirmDialog.open()
@@ -93,10 +92,10 @@ export struct PersonalizePage {
               symbol: $r('sys.symbol.livephoto'),
               message: '背景模糊',
               textSliderMode: false,
-              selected: this.backgroundDropBlur,
+              selected: BackgroundUtil.backgroundDropBlur,
               onChangeComplete: (value: number) => {
-                this.backgroundDropBlur = value
-                Preferences.saveBackgroundDropBlur(PathUtils.appContext!, this.backgroundDropBlur)
+                BackgroundUtil.backgroundDropBlur = value
+                Preferences.saveBackgroundDropBlur(PathUtils.appContext!, BackgroundUtil.backgroundDropBlur)
               }
             })
           }
@@ -116,9 +115,9 @@ export struct PersonalizePage {
     .title('个性化')
     .backgroundColor($r('app.color.start_window_background'))
     .padding({ top: this.topSafeHeight })
-    .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)
-    .backdropBlur(this.backgroundDropBlur)
+    .backdropBlur(BackgroundUtil.backgroundDropBlur)
   }
 }

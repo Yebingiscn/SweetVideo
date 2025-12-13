@@ -9,6 +9,7 @@ import ToolsUtil from '../../utils/ToolsUtil';
 import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem';
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig';
+import BackgroundUtil from '../../utils/BackgroundUtil';
 
 @Component
 export struct SettingsPage { //设置页
@@ -16,8 +17,6 @@ export struct SettingsPage { //设置页
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @StorageLink('recentPlay') recentPlay: boolean = true
   @StorageLink('listDisplayMode') listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
-  @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
-  @StorageLink('backgroundDropBlur') backgroundDropBlur: number = 0
   @StorageLink('showSettingPageEntry') showSettingPageEntry: boolean = true
   @State passwd: string = 'passwd'
   @Consume('pathStack') pathStack: NavPathStack
@@ -207,9 +206,9 @@ export struct SettingsPage { //设置页
     .title('设置')
     .backgroundColor($r('app.color.start_window_background'))
     .padding({ top: this.topSafeHeight })
-    .backgroundImage(this.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
-    .backdropBlur(this.backgroundDropBlur)
+    .backdropBlur(BackgroundUtil.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
   }
 }
