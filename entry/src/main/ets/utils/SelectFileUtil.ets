@@ -362,7 +362,7 @@ export default class SelectFileUtil {
     if (currentIndex === -1) {
       return true;
     }
-    return list.length - 1 === currentIndex
+    return (list.length - 1) === currentIndex
   }
 
   static getItemFromSearch(list: VideoMetadata[], value: string): VideoMetadata[] {
