@@ -1,21 +1,16 @@
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem';
 import SelectFileUtil from '../../utils/SelectFileUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
-import { Want } from '@kit.AbilityKit';
-import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog';
 import { PathUtils } from '../../utils/PathUtils';
 import { SettingSliderItem } from '../../component/SettingComponent/SettingSliderItem';
 import Preferences from '../../database/Preferences';
 import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem';
-import { BackgroundColorMode } from '../../common/enum/BackgroundColorMode';
-import { DefaultDialogShadow } from '../../common/AttributeModifierConfig';
 import BackgroundUtil from '../../utils/BackgroundUtil';
 
 @Component
 export struct PersonalizePage {
   @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
-  @StorageLink('backgroundColorMode') backgroundColorMode: BackgroundColorMode = BackgroundColorMode.AUTO
   private backgroundColorDisplayMode: ResourceStr[] = ['自动', '浅色', '深色']
 
   build() {
@@ -26,9 +21,9 @@ export struct PersonalizePage {
             symbol: $r('sys.symbol.sun'),
             message: '显示模式',
             tips: this.backgroundColorDisplayMode,
-            tabSelectedIndexes: [this.backgroundColorMode],
+            tabSelectedIndexes: [BackgroundUtil.backgroundColorMode],
             onButtonClick: (tabSelectedIndexes: number) => {
-              this.backgroundColorMode = tabSelectedIndexes
+              BackgroundUtil.backgroundColorMode = tabSelectedIndexes
               Preferences.saveBackgroundColorMode(PathUtils.appContext!, tabSelectedIndexes)
               ToolsUtil.setColorMode(PathUtils.appContext!, tabSelectedIndexes)
             }
