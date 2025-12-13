@@ -11,7 +11,7 @@ export struct VideoButtonsComponent {
   @Link screenWidth: number
   @Prop playing: boolean
   @Prop speed: number
-  @Prop repeatMode: RepeatMode
+  @Link repeatMode: RepeatMode
   @Link sideBarStatusTmp: Visibility
   @Link sideBarStatus: boolean
   @BuilderParam AVCastPickerBuilderBridge: () => void
@@ -93,22 +93,22 @@ export struct VideoButtonsComponent {
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .onClick(() => {
-          // LIST_LOOP -> SINGLE_LOOP -> RANDOM -> SINGLE_PLAY -> 回到LIST_LOOP
+          // LIST -> SINGLE -> RANDOM -> SEQUENCE -> 回到LIST
           switch (this.repeatMode) {
-            case RepeatMode.LIST_LOOP:
-              this.repeatMode = RepeatMode.SINGLE_LOOP;
+            case RepeatMode.LIST:
+              this.repeatMode = RepeatMode.SINGLE;
               break;
-            case RepeatMode.SINGLE_LOOP:
+            case RepeatMode.SINGLE:
               this.repeatMode = RepeatMode.RANDOM;
               break;
             case RepeatMode.RANDOM:
-              this.repeatMode = RepeatMode.SINGLE_PLAY;
+              this.repeatMode = RepeatMode.SEQUENCE;
               break;
-            case RepeatMode.SINGLE_PLAY:
-              this.repeatMode = RepeatMode.LIST_LOOP;
+            case RepeatMode.SEQUENCE:
+              this.repeatMode = RepeatMode.LIST;
               break;
             default:
-              this.repeatMode = RepeatMode.LIST_LOOP;
+              this.repeatMode = RepeatMode.LIST;
           }
           ToolsUtil.showToast(this.getRepeatModeText())
         })
@@ -169,14 +169,14 @@ export struct VideoButtonsComponent {
    */
   private getRepeatModeIcon(): Resource {
     switch (this.repeatMode) {
-      case RepeatMode.SINGLE_LOOP:
-        return $r('sys.symbol.repeat')
+      case RepeatMode.SINGLE:
+        return $r('sys.symbol.repeat_1')
       case RepeatMode.RANDOM:
         return $r('sys.symbol.shuffle')
-      case RepeatMode.LIST_LOOP:
+      case RepeatMode.LIST:
+        return $r('sys.symbol.repeat')
+      case RepeatMode.SEQUENCE:
         return $r('sys.symbol.order_play')
-      case RepeatMode.SINGLE_PLAY:
-        return $r('sys.symbol.repeat_1')
       default:
         return $r('sys.symbol.order_play')
     }
@@ -188,14 +188,14 @@ export struct VideoButtonsComponent {
    */
   private getRepeatModeText(): string {
     switch (this.repeatMode) {
-      case RepeatMode.SINGLE_LOOP:
+      case RepeatMode.SINGLE:
         return '单曲循环'
       case RepeatMode.RANDOM:
         return '随机播放'
-      case RepeatMode.LIST_LOOP:
+      case RepeatMode.LIST:
         return '列表循环'
-      case RepeatMode.SINGLE_PLAY:
-        return '播放完当前视频后自动退出'
+      case RepeatMode.SEQUENCE:
+        return '顺序播放'
       default:
         return '列表循环'
     }

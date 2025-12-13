@@ -13,7 +13,7 @@ export struct VideoSettingComponent {
   @Prop nowPlaying: VideoMetadataFromPlayer
   @Prop videoMetaData: VideoMetadata[]
   @Link angle: number
-  @Prop repeatMode: RepeatMode
+  @Link repeatMode: RepeatMode
   @Link exitVideoTime: number
   forward_80_s = (_time: number) => {
   }
@@ -101,7 +101,7 @@ export struct VideoSettingComponent {
       }).onClick(() => {
         clearTimeout(this.exitVideoTime)
         ToolsUtil.showToast('设置成功，播完本集后自动关闭')
-        this.repeatMode = RepeatMode.SINGLE_PLAY
+        this.repeatMode = RepeatMode.ONCE
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),

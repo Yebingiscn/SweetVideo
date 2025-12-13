@@ -66,6 +66,7 @@ export struct Player { // 播放页
   @State isSliderPlayTimeChange: boolean = false
   @State currentSpeedIndex: number = 0
   @State angle: number = 0
+  @State repeatMode: RepeatMode = RepeatMode.LIST // 传子不能用@Trace
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
   @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
@@ -84,7 +85,7 @@ export struct Player { // 播放页
     try {
       await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
-      this.player.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
+      this.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
       const video_speed = Preferences.getVideoSpeed(PathUtils.appContext!)
       this.player.speed = parseFloat(video_speed?.replace('x', '') || '1')
     } catch (error) {
@@ -97,7 +98,7 @@ export struct Player { // 播放页
     Preferences.saveVideoSpeed(PathUtils.appContext!,
       (VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).includes(this.player.speed) ? this.player.speed :
         1) + 'x')
-    Preferences.saveRepeatModeState(PathUtils.appContext!, this.player.repeatMode)
+    Preferences.saveRepeatModeState(PathUtils.appContext!, this.repeatMode)
     WindowUtil.setBarState(PathUtils.appContext!, true, true)
     clearTimeout(this.exitVideoTime)
     this.player.cancelSubscribe()
@@ -147,7 +148,7 @@ export struct Player { // 播放页
         }
       }
       if (this.player.nowPlaying?.end_time && duration >= this.player.nowPlaying?.end_time &&
-        this.player.repeatMode !== RepeatMode.SINGLE_LOOP) {
+        this.repeatMode !== RepeatMode.SINGLE) {
         this.playNextVideoProcess()
         ToolsUtil.showToast('已智能跳过片尾')
       }
@@ -211,7 +212,7 @@ export struct Player { // 播放页
           if (targetItem) {
             targetItem!.last_play = this.player.playTime
           }
-          if (this.player.repeatMode === RepeatMode.SINGLE_LOOP) {
+          if (this.repeatMode === RepeatMode.SINGLE) {
             if (this.player.mIjkMediaPlayer) {
               this.player.mIjkMediaPlayer?.seekTo('0')
               this.player.mIjkMediaPlayer?.start()
@@ -261,12 +262,9 @@ export struct Player { // 播放页
   }
 
   playNextVideoProcess() {
-    const nextItem = this.player.playNextVideo()
+    const nextItem = this.player.playNextVideo(this.repeatMode)
     if (nextItem) {
       this.playChooseVideo(nextItem)
-    } else {
-      ToolsUtil.showToast('播放完毕，已自动退出')
-      this.pathStack.pop()
     }
   }
 
@@ -810,7 +808,7 @@ export struct Player { // 播放页
       AVCastPickerBuilderBridge: this.AVCastPickerBuilderBridge,
       videoSettingBuilder: this.getVideoSettingBuilder,
       playbackSpeedMenu: this.getPlaybackSpeedMenuBuilder,
-      repeatMode: this.player.repeatMode,
+      repeatMode: this.repeatMode,
       sideBarStatusTmp: this.sideBarStatusTmp,
       sideBarStatus: this.sideBarStatus,
       onScreenRotationOrFullScreenClick: async () => {
@@ -856,7 +854,7 @@ export struct Player { // 播放页
       nowPlaying: this.player.nowPlaying,
       videoMetaData: this.player.video_meta_data,
       angle: this.angle,
-      repeatMode: this.player.repeatMode,
+      repeatMode: this.repeatMode,
       exitVideoTime: this.exitVideoTime,
       forward_80_s: (time: number) => {
         this.player.seekTime(time)

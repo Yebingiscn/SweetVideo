@@ -72,7 +72,7 @@ export default class Preferences {
   }
 
   static getRepeatModeState(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'repeatMode', RepeatMode.LIST_LOOP) as RepeatMode
+    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'repeatMode', RepeatMode.LIST) as RepeatMode
   }
 
   static getSkipIntroTime(context: Context) {

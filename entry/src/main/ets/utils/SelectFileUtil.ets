@@ -341,8 +341,8 @@ export default class SelectFileUtil {
   }
 
   // 获取下一个视频
-  static getNextItem(list: VideoMetadata[], item: string) {
-    const currentIndex = list.findIndex(i => i.date === item);
+  static getNextItem(list: VideoMetadata[], date: string) {
+    const currentIndex = list.findIndex(i => i.date === date);
     if (currentIndex === -1) {
       return list[0];
     } // 如果没有找到当前项，返回 第一项
@@ -354,6 +354,15 @@ export default class SelectFileUtil {
       nextIndex = (nextIndex + 1) % list.length; // 移动到下一个索引
     }
     return list[(currentIndex + 1) % list.length]; // 如果没有找到有效项，返回下一个项，0x0会自动调用其他播放核心
+  }
+
+  // 判断是否为最后一个视频
+  static isLastItem(list: VideoMetadata[], date: string) {
+    const currentIndex = list.findIndex(i => i.date === date);
+    if (currentIndex === -1) {
+      return true;
+    }
+    return list.length - 1 === currentIndex
   }
 
   static getItemFromSearch(list: VideoMetadata[], value: string): VideoMetadata[] {

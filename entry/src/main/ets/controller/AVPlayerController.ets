@@ -37,7 +37,6 @@ export class AVPlayerController {
   @Track subtitle: string = ''
   @Track subtitleVisibility: Visibility = Visibility.Visible
   @Track video_meta_data: VideoMetadata[] = []
-  @Track repeatMode: RepeatMode = RepeatMode.LIST_LOOP
   mIjkMediaPlayer: IjkMediaPlayer | null = null
   audioVolumeManager: audio.AudioVolumeManager | null = null
 
@@ -224,7 +223,7 @@ export class AVPlayerController {
     this.avPlayer?.off('stateChange')
   }
 
-  playNextVideo() {
+  playNextVideo(repeatMode: RepeatMode) {
     if (this.video_meta_data.length === 0 || this.playTime <= 0) {
       return
     }
@@ -235,14 +234,20 @@ export class AVPlayerController {
     }
     let nextItem: VideoMetadata | null = null
     try {
-      if (this.repeatMode === RepeatMode.RANDOM) {
+      if (repeatMode === RepeatMode.RANDOM) {
         const availableVideos = this.video_meta_data.filter(v => v.date !== item.date)
         nextItem = availableVideos.length > 0
           ? availableVideos[Math.floor(Math.random() * availableVideos.length)]
           : item
-      } else if (this.repeatMode === RepeatMode.SINGLE_PLAY) {
+      } else if (repeatMode === RepeatMode.ONCE) {
         return undefined
       } else {
+        if (repeatMode === RepeatMode.SEQUENCE) {
+          if (SelectFileUtil.isLastItem(this.video_meta_data, item.date)) {
+            ToolsUtil.showToast('已经是最后一个视频啦')
+            return
+          }
+        }
         nextItem = SelectFileUtil.getNextItem(this.video_meta_data, item.date)
       }
       if (nextItem) {
