@@ -78,6 +78,7 @@ export struct Player { // 播放页
   @Consume('pathStack') pathStack: NavPathStack
   @State exitVideoTime: number = 0
   private autoHideTimeout: boolean = false
+  private isListenVideo: boolean = false
 
   async aboutToAppear(): Promise<void> {
     PermissionUtil.applyContinuousTask(this.allowBackgroundPlay)
@@ -875,6 +876,10 @@ export struct Player { // 播放页
       closeAfter60min: (time: number) => {
         this.exitVideo(time)
       },
+      toggleListenVideo: () => {
+        this.isListenVideo = !this.isListenVideo
+        this.player.avPlayer?.setMediaMuted(media.MediaType.MEDIA_TYPE_VID, this.isListenVideo);
+      }
     })
   }
 

@@ -6,6 +6,7 @@ import TimeUtil from '../../utils/TimeUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { RepeatMode } from '../../common/enum/RepeatMode'
+import { deviceInfo } from '@kit.BasicServicesKit'
 
 @Component
 export struct VideoSettingComponent {
@@ -24,6 +25,8 @@ export struct VideoSettingComponent {
   closeAfter30min = (_time: number) => {
   }
   closeAfter60min = (_time: number) => {
+  }
+  toggleListenVideo = () => {
   }
 
   build() {
@@ -47,6 +50,14 @@ export struct VideoSettingComponent {
         VideoOperateUtil.saveVideoEndTime(this.playTime, this.nowPlaying, PathUtils.appContext!)
         ToolsUtil.showToast(this.nowPlaying.title + '成功设置片尾时间为:' + TimeUtil.convertMSToHHMMSS(this.playTime))
       })
+      if (deviceInfo.sdkApiVersion >= 20) {
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.headphones')),
+          content: '听视频'
+        }).onClick(() => {
+          this.toggleListenVideo()
+        })
+      }
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trapezoid_and_line_vertical')),
         content: '屏幕镜像'
