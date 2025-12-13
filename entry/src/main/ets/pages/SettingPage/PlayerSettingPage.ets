@@ -4,7 +4,7 @@ import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuI
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem';
 import Preferences from '../../database/Preferences';
 import { FastForwardSecondInterface } from '../../interfaces/FastForwardSecondInterface';
-import { Background, SafeHeight } from '../../utils/ObservedUtil';
+import { SafeHeight, Setting } from '../../utils/ObservedUtil';
 import { PathUtils } from '../../utils/PathUtils';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 
@@ -161,9 +161,9 @@ export struct PlayerSettingPage {
     .title('播放设置')
     .backgroundColor($r('app.color.start_window_background'))
     .padding({ top: SafeHeight.topSafeHeight })
-    .backgroundImage(Background.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
-    .backdropBlur(Background.backgroundDropBlur)
+    .backdropBlur(Setting.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
   }
 }

@@ -8,7 +8,7 @@ import ToolsUtil from '../../utils/ToolsUtil';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { commentManager } from '@kit.AppGalleryKit';
 import { salmonLogger } from 'salmonlogger';
-import { Background, SafeHeight } from '../../utils/ObservedUtil';
+import { SafeHeight, Setting } from '../../utils/ObservedUtil';
 
 @Component
 export struct MoreSettingPage {
@@ -114,9 +114,9 @@ export struct MoreSettingPage {
     .title('更多设置')
     .backgroundColor($r('app.color.start_window_background'))
     .padding({ top: SafeHeight.topSafeHeight })
-    .backgroundImage(Background.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)
-    .backdropBlur(Background.backgroundDropBlur)
+    .backdropBlur(Setting.backgroundDropBlur)
   }
 }

@@ -17,20 +17,14 @@ import VideoOperateUtil from '../utils/VideoOperateUtil';
 import { PrivacySpace } from './PrivacySpace/PrivacySpace';
 import Preferences from '../database/Preferences';
 import { RedPlayer } from './VideoPlayer/RedPlayer';
-import {
-  ButtonFancyModifier,
-  DefaultDialogShadow,
-  SymbolGlyphFancyModifier
-} from '../common/AttributeModifierConfig';
+import { ButtonFancyModifier, DefaultDialogShadow, SymbolGlyphFancyModifier } from '../common/AttributeModifierConfig';
 import { FileProcessorUtil } from '../utils/FileProcessorUtil';
 import { PathUtils } from '../utils/PathUtils';
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
 import { AppInfoBuilder, SideBarController } from '../component/SideBarComponent/SideBar';
 import { VideoView } from '../component/VideoItemComponent/VideoViewComponent';
 import { VideoMetaDataOperator } from '../database/VideoMetaData';
-import {
-  FileFolderListBuilder
-} from '../component/FileFolderComponent/FileFolderListComponent';
+import { FileFolderListBuilder } from '../component/FileFolderComponent/FileFolderListComponent';
 import VideoUtils from '../utils/VideoUtil';
 import { checkUriProcess } from '../utils/TaskpoolUtil';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
@@ -49,7 +43,7 @@ import { PrivacyPolicyComponent } from '../component/VideoItemComponent/PrivacyP
 import { MoreSettingPage } from './SettingPage/MoreSettingPage';
 import NavigationAddress from '../common/NavigationCommon';
 import { FolderSelectMenuBuilder } from '../component/FileFolderComponent/FileFolderSelectBuilder';
-import { Background, SafeHeight } from '../utils/ObservedUtil';
+import { SafeHeight, Setting } from '../utils/ObservedUtil';
 
 @Entry
 @Component
@@ -367,7 +361,7 @@ struct Index {
         }
         .width('100%')
         .justifyContent(FlexAlign.Start)
-        .backgroundColor(Background.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))
+        .backgroundColor(Setting.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))
         .transition(TransitionEffect.translate({ x: -300 }).animation(XAnimation.getAnimationCurve()))
         .visibility(this.sideBarController.visibility)
         .borderRadius(this.sideBarController.mode === SideBarContainerType.Overlay ? 16 : 0)
@@ -389,7 +383,7 @@ struct Index {
             PrivacyPolicyComponent({ isPresent: this.isPresent })
           }
         }
-        .backgroundColor(Background.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))
+        .backgroundColor(Setting.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
           const width = Number(newValue.width);
           // 增加判断，旋转时保持滚动位置不变
@@ -462,9 +456,9 @@ struct Index {
         }
       }))
     }
-    .backgroundImage(Background.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
-    .backdropBlur(Background.backgroundDropBlur)
+    .backdropBlur(Setting.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
     .hideTitleBar(true)
     .mode(NavigationMode.Stack)

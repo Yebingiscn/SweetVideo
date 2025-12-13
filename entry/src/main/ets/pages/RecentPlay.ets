@@ -12,7 +12,7 @@ import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog';
 import DataSyncUtil from '../utils/DataSyncUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { Context } from '@kit.AbilityKit';
-import { Background, SafeHeight } from '../utils/ObservedUtil';
+import { SafeHeight, Setting } from '../utils/ObservedUtil';
 
 @Component
 export struct RecentPlay { // 最近播放页
@@ -181,9 +181,9 @@ export struct RecentPlay { // 最近播放页
     .title('最近播放')
     .padding({ top: SafeHeight.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
-    .backgroundImage(Background.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
-    .backdropBlur(Background.backgroundDropBlur)
+    .backdropBlur(Setting.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
   }
 }

@@ -9,7 +9,7 @@ import ToolsUtil from '../../utils/ToolsUtil';
 import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem';
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig';
-import { Background, SafeHeight } from '../../utils/ObservedUtil';
+import { SafeHeight, Setting } from '../../utils/ObservedUtil';
 
 @Component
 export struct SettingsPage { //设置页
@@ -204,9 +204,9 @@ export struct SettingsPage { //设置页
     .title('设置')
     .backgroundColor($r('app.color.start_window_background'))
     .padding({ top: SafeHeight.topSafeHeight })
-    .backgroundImage(Background.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
-    .backdropBlur(Background.backgroundDropBlur)
+    .backdropBlur(Setting.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
   }
 }

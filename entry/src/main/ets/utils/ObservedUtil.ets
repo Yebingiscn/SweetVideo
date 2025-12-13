@@ -1,7 +1,7 @@
 import { UIUtils } from '@kit.ArkUI';
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode';
 
-class BackgroundUtil {
+class SettingUtil {
   public backgroundImageSrc: string = ''
   public backgroundDropBlur: number = 0
   public backgroundColorMode: BackgroundColorMode = BackgroundColorMode.AUTO
@@ -22,7 +22,7 @@ class PcUtil {
 
 export const SafeHeight = UIUtils.makeObserved(new SafeHeightUtil());
 
-export const Background = UIUtils.makeObserved(new BackgroundUtil());
+export const Setting = UIUtils.makeObserved(new SettingUtil());
 
 export const Privacy = UIUtils.makeObserved(new PrivacyBackgroundUtil());
 

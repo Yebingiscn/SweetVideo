@@ -5,7 +5,7 @@ import { DefaultDialogShadow, ImageFancyModifier } from '../common/AttributeModi
 import { InfoConfirmDialog } from '../component/Dialog/InfoConfirmDialog';
 import { Markdown, MarkdownController } from '@luvi/lv-markdown-in';
 import { salmonLogger } from 'salmonlogger';
-import { Background, SafeHeight } from '../utils/ObservedUtil';
+import { SafeHeight, Setting } from '../utils/ObservedUtil';
 
 @Component
 export struct AboutApp {
@@ -207,9 +207,9 @@ export struct AboutApp {
     .padding({ top: SafeHeight.topSafeHeight })
     .title('关于此应用')
     .backgroundColor($r('app.color.start_window_background'))
-    .backgroundImage(Background.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
-    .backdropBlur(Background.backgroundDropBlur)
+    .backdropBlur(Setting.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
   }
 }

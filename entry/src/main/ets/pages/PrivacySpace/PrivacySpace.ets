@@ -29,7 +29,7 @@ import { SettingsToggleItem } from '../../component/SettingComponent/SettingsTog
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem';
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
 import SubtitleUtil from '../../utils/SubtitleUtil';
-import { Background, Privacy, SafeHeight } from '../../utils/ObservedUtil';
+import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil';
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -412,7 +412,7 @@ export struct PrivacySpace { // 隐私空间页
                 })
                   .width('95%')
                   .reuseId(`VideoCardItem#${item.uri}`)
-                  .backgroundColor(this.longPressPreview || Background.backgroundImageSrc.length > 0 ?
+                  .backgroundColor(this.longPressPreview || Setting.backgroundImageSrc.length > 0 ?
                     $r('app.color.start_window_background_blur') :
                     $r('app.color.start_window_background'))
                   .borderRadius(16)
@@ -498,10 +498,10 @@ export struct PrivacySpace { // 隐私空间页
     .menus(this.NavigationMenus)
     .padding({ top: SafeHeight.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
-    .backgroundImage(Background.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)
-    .backdropBlur(Background.backgroundDropBlur)
+    .backdropBlur(Setting.backgroundDropBlur)
     .onBackPressed(() => {
       if (this.searchValue.length > 0) {
         this.searchValue = ''

@@ -5,7 +5,7 @@ import { PathUtils } from '../../utils/PathUtils';
 import { SettingSliderItem } from '../../component/SettingComponent/SettingSliderItem';
 import Preferences from '../../database/Preferences';
 import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem';
-import { Background, SafeHeight } from '../../utils/ObservedUtil';
+import { SafeHeight, Setting } from '../../utils/ObservedUtil';
 
 @Component
 export struct PersonalizePage {
@@ -19,9 +19,9 @@ export struct PersonalizePage {
             symbol: $r('sys.symbol.sun'),
             message: '显示模式',
             tips: this.backgroundColorDisplayMode,
-            tabSelectedIndexes: [Background.backgroundColorMode],
+            tabSelectedIndexes: [Setting.backgroundColorMode],
             onButtonClick: (tabSelectedIndexes: number) => {
-              Background.backgroundColorMode = tabSelectedIndexes
+              Setting.backgroundColorMode = tabSelectedIndexes
               Preferences.saveBackgroundColorMode(PathUtils.appContext!, tabSelectedIndexes)
               ToolsUtil.setColorMode(PathUtils.appContext!, tabSelectedIndexes)
             }
@@ -38,24 +38,24 @@ export struct PersonalizePage {
                 ToolsUtil.showToast('没有照片被选择')
                 return
               }
-              Background.backgroundImageSrc = ''
+              Setting.backgroundImageSrc = ''
               SelectFileUtil.saveImageToPrivacySpace(imageUris[0])
               setTimeout(() => {
-                Background.backgroundImageSrc = SelectFileUtil.getImageUri()
+                Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
                 ToolsUtil.showToast('设置成功')
               }, 100)
             }
           })
         }
 
-        if (Background.backgroundImageSrc.length > 0) {
+        if (Setting.backgroundImageSrc.length > 0) {
           ListItem() {
             SettingsClickItem({
               symbol: $r('sys.symbol.picture_damage'),
               message: '删除自定义背景',
               onPress: async () => {
                 await SelectFileUtil.deletePhoto()
-                Background.backgroundImageSrc = ''
+                Setting.backgroundImageSrc = ''
                 ToolsUtil.showToast('删除成功')
                 Preferences.saveBackgroundDropBlur(PathUtils.appContext!, 0)
               }
@@ -67,10 +67,10 @@ export struct PersonalizePage {
               symbol: $r('sys.symbol.livephoto'),
               message: '背景模糊',
               textSliderMode: false,
-              selected: Background.backgroundDropBlur,
+              selected: Setting.backgroundDropBlur,
               onChangeComplete: (value: number) => {
-                Background.backgroundDropBlur = value
-                Preferences.saveBackgroundDropBlur(PathUtils.appContext!, Background.backgroundDropBlur)
+                Setting.backgroundDropBlur = value
+                Preferences.saveBackgroundDropBlur(PathUtils.appContext!, Setting.backgroundDropBlur)
               }
             })
           }
@@ -90,9 +90,9 @@ export struct PersonalizePage {
     .title('个性化')
     .backgroundColor($r('app.color.start_window_background'))
     .padding({ top: SafeHeight.topSafeHeight })
-    .backgroundImage(Background.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)
-    .backdropBlur(Background.backgroundDropBlur)
+    .backdropBlur(Setting.backgroundDropBlur)
   }
 }
