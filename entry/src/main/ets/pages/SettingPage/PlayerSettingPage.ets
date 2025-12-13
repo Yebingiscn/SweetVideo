@@ -5,13 +5,12 @@ import { SettingsToggleItem } from '../../component/SettingComponent/SettingsTog
 import Preferences from '../../database/Preferences';
 import { FastForwardSecondInterface } from '../../interfaces/FastForwardSecondInterface';
 import BackgroundUtil from '../../utils/BackgroundUtil';
+import HeightUtil from '../../utils/HeightUtil';
 import { PathUtils } from '../../utils/PathUtils';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 
 @Component
 export struct PlayerSettingPage {
-  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
-  @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
   @StorageLink('smartRotation') smartRotation: boolean = true
@@ -157,12 +156,12 @@ export struct PlayerSettingPage {
       .height('100%')
       .width('95%')
       .layoutWeight(1)
-      .contentEndOffset(this.bottomSafeHeight)
+      .contentEndOffset(HeightUtil.bottomSafeHeight)
     }
     .hideToolBar(true)
     .title('播放设置')
     .backgroundColor($r('app.color.start_window_background'))
-    .padding({ top: this.topSafeHeight })
+    .padding({ top: HeightUtil.topSafeHeight })
     .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backdropBlur(BackgroundUtil.backgroundDropBlur)

@@ -1,5 +1,6 @@
 import Preferences from '../../database/Preferences';
 import { OOBEVersion } from '../../utils/DataSyncUtil';
+import HeightUtil from '../../utils/HeightUtil';
 import { PathUtils } from '../../utils/PathUtils';
 import ToolsUtil from '../../utils/ToolsUtil';
 import WantProcessUtil from '../../utils/WantProcessUtil';
@@ -7,7 +8,6 @@ import WantProcessUtil from '../../utils/WantProcessUtil';
 @Component
 export struct PrivacyPolicyComponent {
   @Link isPresent: boolean
-  @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
 
   @Builder
   privacyInfoBuilder() {
@@ -90,7 +90,7 @@ export struct PrivacyPolicyComponent {
       .justifyContent(FlexAlign.SpaceEvenly)
     }
     .width('100%')
-    .height('100%').margin({ bottom: this.bottomSafeHeight })
+    .height('100%').margin({ bottom: HeightUtil.bottomSafeHeight })
   }
 
   build() {

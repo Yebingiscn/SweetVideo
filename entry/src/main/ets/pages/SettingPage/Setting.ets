@@ -10,11 +10,10 @@ import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsC
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig';
 import BackgroundUtil from '../../utils/BackgroundUtil';
+import HeightUtil from '../../utils/HeightUtil';
 
 @Component
 export struct SettingsPage { //设置页
-  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
-  @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @StorageLink('recentPlay') recentPlay: boolean = true
   @StorageLink('listDisplayMode') listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
   @StorageLink('showSettingPageEntry') showSettingPageEntry: boolean = true
@@ -200,12 +199,12 @@ export struct SettingsPage { //设置页
       .height('100%')
       .width('95%')
       .layoutWeight(1)
-      .contentEndOffset(this.bottomSafeHeight)
+      .contentEndOffset(HeightUtil.bottomSafeHeight)
     }
     .hideToolBar(true)
     .title('设置')
     .backgroundColor($r('app.color.start_window_background'))
-    .padding({ top: this.topSafeHeight })
+    .padding({ top: HeightUtil.topSafeHeight })
     .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backdropBlur(BackgroundUtil.backgroundDropBlur)

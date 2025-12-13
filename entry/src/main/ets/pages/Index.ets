@@ -50,6 +50,7 @@ import { MoreSettingPage } from './SettingPage/MoreSettingPage';
 import NavigationAddress from '../common/NavigationCommon';
 import { FolderSelectMenuBuilder } from '../component/FileFolderComponent/FileFolderSelectBuilder';
 import BackgroundUtil from '../utils/BackgroundUtil';
+import HeightUtil from '../utils/HeightUtil';
 
 @Entry
 @Component
@@ -65,8 +66,6 @@ struct Index {
   @StorageLink('listDisplayMode') listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
   @StorageProp('screen_width') screen_width: number = 0
   @StorageProp('screen_height') screen_height: number = 0
-  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
-  @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @StorageLink('allowGestureEntry') allowGestureEntry: boolean = true
   @Provide videoListController: VideoListController = new VideoListController()
   @Provide fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
@@ -236,7 +235,7 @@ struct Index {
         Column() {
           Scroll() {
             Column() {
-              AppInfoBuilder({ topSafeHeight: this.topSafeHeight })
+              AppInfoBuilder({ topSafeHeight: HeightUtil.topSafeHeight })
               Column() {
                 Button({ type: ButtonType.Normal, stateEffect: true }) {
                   Row() {
@@ -362,7 +361,7 @@ struct Index {
               this.pathStack.pushPathByName(NavigationAddress.SETTING_PAGE, null)
             })
           }
-          .margin({ bottom: this.bottomSafeHeight === 0 ? 15 : this.bottomSafeHeight, left: 20, right: 20 })
+          .margin({ bottom: HeightUtil.bottomSafeHeight === 0 ? 15 : HeightUtil.bottomSafeHeight, left: 20, right: 20 })
           .justifyContent(FlexAlign.Start)
           .backgroundColor($r('app.color.start_window_background_blur'))
           .borderRadius(16)

@@ -23,6 +23,7 @@ import NavigationAddress from '../../common/NavigationCommon';
 import Preferences from '../../database/Preferences';
 import { XAnimation } from '../../utils/AnimationUtil';
 import { FileFolder } from '../../interfaces/FileFolderInterface';
+import HeightUtil from '../../utils/HeightUtil';
 
 @Component
 export struct VideoView {
@@ -36,8 +37,6 @@ export struct VideoView {
   @Consume sideBarController: SideBarController
   @Consume('pathStack') pathStack: NavPathStack
   @Consume fileFolderSource: FileFolderDataSource
-  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
-  @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @Watch('SyncDelMultipleList') @State delMultipleList: VideoMetadata[] = DataSyncUtil.delMultipleList
 
   SyncDelMultipleList() {
@@ -192,7 +191,7 @@ export struct VideoView {
         .scrollBar(BarState.Off)
         .scrollable(ScrollDirection.Horizontal)
         .edgeEffect(EdgeEffect.Spring) // 滚动边缘效果
-      }.width('100%').padding({ top: this.topSafeHeight, left: 10, right: 10 })
+      }.width('100%').padding({ top: HeightUtil.topSafeHeight, left: 10, right: 10 })
     }.width('100%')
   }
 

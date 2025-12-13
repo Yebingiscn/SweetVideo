@@ -2,6 +2,7 @@ import { window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { BusinessError, settings } from '@kit.BasicServicesKit';
 import { PathUtils } from './PathUtils';
+import HeightUtil from './HeightUtil';
 
 // 用于设置窗口状态
 export class WindowUtil {
@@ -221,17 +222,14 @@ export class WindowUtil {
       const uiContext = WindowUtil.windowClass?.getUIContext()
       animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
         if (canIUse('SystemCapability.Window.SessionManager')) {
-          AppStorage.setOrCreate('topSafeHeight', Math.max(uiContext?.px2vp(cutOut.topRect.height * 1.4)!,
+          HeightUtil.topSafeHeight = Math.max(uiContext?.px2vp(cutOut.topRect.height * 1.4)!,
             uiContext?.px2vp(system.topRect.height)!,
-            windowClass.getWindowDecorHeight()))
+            windowClass.getWindowDecorHeight())
         }
-        AppStorage.setOrCreate('bottomSafeHeight',
-          uiContext?.px2vp(Math.max(nav.bottomRect.height, system.bottomRect.height * 1.4,
-            cutOut.bottomRect.height * 1.4)))
-        AppStorage.setOrCreate('leftSafeHeight',
-          uiContext?.px2vp(Math.max(cutOut.leftRect.width * 1.4, system.leftRect.width * 1.4)))
-        AppStorage.setOrCreate('rightSafeHeight',
-          uiContext?.px2vp(Math.max(cutOut.rightRect.width * 1.4, system.rightRect.width * 1.4)))
+        HeightUtil.bottomSafeHeight = uiContext?.px2vp(Math.max(nav.bottomRect.height, system.bottomRect.height * 1.4,
+          cutOut.bottomRect.height * 1.4)) || 0
+        // 'leftSafeHeight' uiContext?.px2vp(Math.max(cutOut.leftRect.width * 1.4, system.leftRect.width * 1.4))
+        // 'rightSafeHeight' uiContext?.px2vp(Math.max(cutOut.rightRect.width * 1.4, system.rightRect.width * 1.4))
       })
     } catch (error) {
       console.error('updateAvoidArea error: ' + error)

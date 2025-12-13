@@ -6,11 +6,10 @@ import { SettingSliderItem } from '../../component/SettingComponent/SettingSlide
 import Preferences from '../../database/Preferences';
 import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem';
 import BackgroundUtil from '../../utils/BackgroundUtil';
+import HeightUtil from '../../utils/HeightUtil';
 
 @Component
 export struct PersonalizePage {
-  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
-  @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   private backgroundColorDisplayMode: ResourceStr[] = ['自动', '浅色', '深色']
 
   build() {
@@ -86,12 +85,12 @@ export struct PersonalizePage {
       .height('100%')
       .width('95%')
       .layoutWeight(1)
-      .contentEndOffset(this.bottomSafeHeight)
+      .contentEndOffset(HeightUtil.bottomSafeHeight)
     }
     .hideToolBar(true)
     .title('个性化')
     .backgroundColor($r('app.color.start_window_background'))
-    .padding({ top: this.topSafeHeight })
+    .padding({ top: HeightUtil.topSafeHeight })
     .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)

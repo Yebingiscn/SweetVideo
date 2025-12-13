@@ -40,6 +40,7 @@ import { FastForwardPanelBuilder } from '../../component/PlayerComponent/FastFor
 import { VolumeSwipingPanelBuilder } from '../../component/PlayerComponent/VolumeSwipingPanelBuilder'
 
 import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/SwipingPlayTimePanelBuilder'
+import HeightUtil from '../../utils/HeightUtil'
 
 @Component
 export struct FFMpegPlayer { // FFMpeg播放器页
@@ -86,7 +87,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
   @StorageLink('skipIntroTime') skipIntroTime: string = '0'
   @Consume('pathStack') pathStack: NavPathStack
-  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   private CONTROL_PlayStatus = PlayStatus.INIT;
   private mIjkMediaPlayer: IjkMediaPlayer | null = null;
   private audioVolumeManager: audio.AudioVolumeManager | null = null
@@ -153,7 +153,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
               .padding({
                 left: (this.screen_height > this.screen_width ? 5 : 5),
                 right: 20,
-                top: (this.showControl ? this.topSafeHeight : 0),
+                top: (this.showControl ? HeightUtil.topSafeHeight : 0),
                 bottom: 0
               })
 

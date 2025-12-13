@@ -4,11 +4,10 @@ import ToolsUtil from '../../utils/ToolsUtil';
 import { salmonLogger, SalmonLoggerComponent } from 'salmonlogger';
 import { PathUtils } from '../../utils/PathUtils';
 import BackgroundUtil from '../../utils/BackgroundUtil';
+import HeightUtil from '../../utils/HeightUtil';
 
 @Component
 export struct CrashPage {
-  @StorageProp('topSafeHeight') topSafeHeight: number = 0
-  @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0
   @Consume('pathStack') pathStack: NavPathStack
   private appEventGroups: Array<hiAppEvent.AppEventGroup> | [] = []
 
@@ -102,7 +101,7 @@ export struct CrashPage {
     .hideToolBar(true)
     .title('流心运行日志')
     .backgroundColor($r('app.color.start_window_background'))
-    .padding({ top: this.topSafeHeight, bottom: this.bottomSafeHeight })
+    .padding({ top: HeightUtil.topSafeHeight, bottom: HeightUtil.bottomSafeHeight })
     .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backdropBlur(BackgroundUtil.backgroundDropBlur)

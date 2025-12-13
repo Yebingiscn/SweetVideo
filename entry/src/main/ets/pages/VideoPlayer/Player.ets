@@ -41,6 +41,7 @@ import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/Swi
 import { SubtitleDisplayBuilder } from '../../component/PlayerComponent/SubtitleDisplayBuilder';
 import { salmonLogger } from 'salmonlogger';
 import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent';
+import HeightUtil from '../../utils/HeightUtil';
 
 @Component
 export struct Player { // 播放页
@@ -71,7 +72,6 @@ export struct Player { // 播放页
   @StorageLink('allowPlayBackExist') allowPlayBackExist: boolean = false
   @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
   @StorageLink('skipIntroTime') skipIntroTime: string = '0'
-  @StorageProp('topSafeHeight') topSafeHeight: number = 0
   @StorageLink('smartRotation') smartRotation: boolean = true
   @StorageLink('longPressSpeed') longPressSpeed: number = 3
   @StorageLink('isPrivacyBackground') isPrivacyBackground: boolean = false
@@ -415,7 +415,7 @@ export struct Player { // 播放页
                 .padding({
                   left: (this.screen_height > this.screen_width ? 20 : 35),
                   right: 20,
-                  top: (this.showControl ? this.topSafeHeight : 0),
+                  top: (this.showControl ? HeightUtil.topSafeHeight : 0),
                   bottom: 0
                 })
 

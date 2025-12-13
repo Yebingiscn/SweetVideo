@@ -6,13 +6,12 @@ import { InfoConfirmDialog } from '../component/Dialog/InfoConfirmDialog';
 import { Markdown, MarkdownController } from '@luvi/lv-markdown-in';
 import { salmonLogger } from 'salmonlogger';
 import BackgroundUtil from '../utils/BackgroundUtil';
+import HeightUtil from '../utils/HeightUtil';
 
 @Component
 export struct AboutApp {
   @State version_code: string = ''
   @Consume('pathStack') pathStack: NavPathStack
-  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
-  @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   controller: MarkdownController = new MarkdownController()
   private GITHUB_HOME_LINK: string = "https://github.com/Yebingiscn/SweetVideo" // 项目主页
   private QQ_GROUP_LINK: string = 'https://qm.qq.com/q/ejj8jbUDBu'
@@ -203,10 +202,10 @@ export struct AboutApp {
       .scrollBar(BarState.Off)
       .scrollable(ScrollDirection.Vertical) // 启用垂直滚动
       .edgeEffect(EdgeEffect.Spring) // 滚动边缘效果
-      .padding({ bottom: this.bottomSafeHeight })
+      .padding({ bottom: HeightUtil.bottomSafeHeight })
     }
     .hideToolBar(true)
-    .padding({ top: this.topSafeHeight })
+    .padding({ top: HeightUtil.topSafeHeight })
     .title('关于此应用')
     .backgroundColor($r('app.color.start_window_background'))
     .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)

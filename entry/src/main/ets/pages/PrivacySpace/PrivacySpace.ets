@@ -30,6 +30,7 @@ import { SettingsClickItem } from '../../component/SettingComponent/SettingsClic
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
 import SubtitleUtil from '../../utils/SubtitleUtil';
 import BackgroundUtil from '../../utils/BackgroundUtil';
+import HeightUtil from '../../utils/HeightUtil';
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -57,7 +58,6 @@ export struct PrivacySpace { // 隐私空间页
   })
   @State list_line: number = 1
   @Consume('pathStack') pathStack: NavPathStack
-  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
   @State totalItems: number = 0
   @State processedItems: number = 0
   @State loading: boolean = false
@@ -498,7 +498,7 @@ export struct PrivacySpace { // 隐私空间页
     })
     .title($r('app.string.privacy_space'))
     .menus(this.NavigationMenus)
-    .padding({ top: this.topSafeHeight })
+    .padding({ top: HeightUtil.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
     .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)

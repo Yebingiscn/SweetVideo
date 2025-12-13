@@ -13,6 +13,7 @@ import DataSyncUtil from '../utils/DataSyncUtil';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { Context } from '@kit.AbilityKit';
 import BackgroundUtil from '../utils/BackgroundUtil';
+import HeightUtil from '../utils/HeightUtil';
 
 @Component
 export struct RecentPlay { // 最近播放页
@@ -20,8 +21,6 @@ export struct RecentPlay { // 最近播放页
   @State recent_video_meta_data: VideoMetadata[] = []
   @State longPressPreview: boolean = false
   @Consume('pathStack') pathStack: NavPathStack
-  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
-  @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @StorageLink('recentPlay') recentPlay: boolean = true
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
@@ -181,7 +180,7 @@ export struct RecentPlay { // 最近播放页
     })
     .menus(this.NavigationMenus)
     .title('最近播放')
-    .padding({ top: this.topSafeHeight })
+    .padding({ top: HeightUtil.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
     .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)

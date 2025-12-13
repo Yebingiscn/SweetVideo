@@ -9,11 +9,10 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 import { commentManager } from '@kit.AppGalleryKit';
 import { salmonLogger } from 'salmonlogger';
 import BackgroundUtil from '../../utils/BackgroundUtil';
+import HeightUtil from '../../utils/HeightUtil';
 
 @Component
 export struct MoreSettingPage {
-  @StorageProp('topSafeHeight') topSafeHeight: number = 0;
-  @StorageProp('bottomSafeHeight') bottomSafeHeight: number = 0;
   @Consume('pathStack') pathStack: NavPathStack
 
   build() {
@@ -110,12 +109,12 @@ export struct MoreSettingPage {
       .height('100%')
       .width('95%')
       .layoutWeight(1)
-      .contentEndOffset(this.bottomSafeHeight)
+      .contentEndOffset(HeightUtil.bottomSafeHeight)
     }
     .hideToolBar(true)
     .title('更多设置')
     .backgroundColor($r('app.color.start_window_background'))
-    .padding({ top: this.topSafeHeight })
+    .padding({ top: HeightUtil.topSafeHeight })
     .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)

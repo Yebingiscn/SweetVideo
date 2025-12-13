@@ -7,6 +7,7 @@ import { PlayerSideBarSource } from '../../utils/DataUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { VideoInfoBuilder } from '../VideoItemComponent/VideoInfoBuilder'
 import { XAnimation } from '../../utils/AnimationUtil'
+import HeightUtil from '../../utils/HeightUtil'
 
 @Component
 export struct PlayerSideBarComponent {
@@ -15,7 +16,6 @@ export struct PlayerSideBarComponent {
   @State video_meta_data: VideoMetadata[] = []
   @Prop now_playing: VideoMetadataFromPlayer | undefined
   @Link sideBarStatus: boolean
-  @StorageProp('topSafeHeight') topSafeHeight: number = 0
   private listScroller: Scroller = new Scroller();
   onItemClick = (_item: VideoMetadata) => {
   }
@@ -65,7 +65,7 @@ export struct PlayerSideBarComponent {
     .padding({
       left: 10,
       right: 5,
-      top: this.topSafeHeight,
+      top: HeightUtil.topSafeHeight,
     })
     .transition(TransitionEffect.translate({ x: 300 }).animation(XAnimation.getAnimationCurve()))
     .borderRadius(16)
