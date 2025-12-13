@@ -50,7 +50,7 @@ export struct PersonalizePage {
               setTimeout(() => {
                 BackgroundUtil.backgroundImageSrc = SelectFileUtil.getImageUri()
                 ToolsUtil.showToast('设置成功')
-              }, 0)
+              }, 100)
             }
           })
         }
