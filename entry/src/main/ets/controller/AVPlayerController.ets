@@ -240,12 +240,11 @@ export class AVPlayerController {
           ? availableVideos[Math.floor(Math.random() * availableVideos.length)]
           : item
       } else if (repeatMode === RepeatMode.ONCE) {
-        return undefined
+        return false
       } else {
         if (repeatMode === RepeatMode.SEQUENCE) {
           if (SelectFileUtil.isLastItem(this.video_meta_data, item.date)) {
-            ToolsUtil.showToast('已经是最后一个视频啦')
-            return
+            return false
           }
         }
         nextItem = SelectFileUtil.getNextItem(this.video_meta_data, item.date)

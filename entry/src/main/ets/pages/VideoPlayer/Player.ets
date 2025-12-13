@@ -265,6 +265,9 @@ export struct Player { // 播放页
     const nextItem = this.player.playNextVideo(this.repeatMode)
     if (nextItem) {
       this.playChooseVideo(nextItem)
+    } else {
+      ToolsUtil.showToast('播放完毕，已自动退出')
+      this.pathStack.pop()
     }
   }
 
