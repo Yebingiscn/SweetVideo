@@ -49,8 +49,7 @@ import { PrivacyPolicyComponent } from '../component/VideoItemComponent/PrivacyP
 import { MoreSettingPage } from './SettingPage/MoreSettingPage';
 import NavigationAddress from '../common/NavigationCommon';
 import { FolderSelectMenuBuilder } from '../component/FileFolderComponent/FileFolderSelectBuilder';
-import BackgroundUtil from '../utils/BackgroundUtil';
-import HeightUtil from '../utils/HeightUtil';
+import { Background, SafeHeight } from '../utils/ObservedUtil';
 
 @Entry
 @Component
@@ -235,7 +234,7 @@ struct Index {
         Column() {
           Scroll() {
             Column() {
-              AppInfoBuilder({ topSafeHeight: HeightUtil.topSafeHeight })
+              AppInfoBuilder({ topSafeHeight: SafeHeight.topSafeHeight })
               Column() {
                 Button({ type: ButtonType.Normal, stateEffect: true }) {
                   Row() {
@@ -361,14 +360,14 @@ struct Index {
               this.pathStack.pushPathByName(NavigationAddress.SETTING_PAGE, null)
             })
           }
-          .margin({ bottom: HeightUtil.bottomSafeHeight === 0 ? 15 : HeightUtil.bottomSafeHeight, left: 20, right: 20 })
+          .margin({ bottom: SafeHeight.bottomSafeHeight === 0 ? 15 : SafeHeight.bottomSafeHeight, left: 20, right: 20 })
           .justifyContent(FlexAlign.Start)
           .backgroundColor($r('app.color.start_window_background_blur'))
           .borderRadius(16)
         }
         .width('100%')
         .justifyContent(FlexAlign.Start)
-        .backgroundColor(BackgroundUtil.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))
+        .backgroundColor(Background.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))
         .transition(TransitionEffect.translate({ x: -300 }).animation(XAnimation.getAnimationCurve()))
         .visibility(this.sideBarController.visibility)
         .borderRadius(this.sideBarController.mode === SideBarContainerType.Overlay ? 16 : 0)
@@ -390,7 +389,7 @@ struct Index {
             PrivacyPolicyComponent({ isPresent: this.isPresent })
           }
         }
-        .backgroundColor(BackgroundUtil.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))
+        .backgroundColor(Background.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
           const width = Number(newValue.width);
           // 增加判断，旋转时保持滚动位置不变
@@ -463,9 +462,9 @@ struct Index {
         }
       }))
     }
-    .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(Background.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
-    .backdropBlur(BackgroundUtil.backgroundDropBlur)
+    .backdropBlur(Background.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
     .hideTitleBar(true)
     .mode(NavigationMode.Stack)

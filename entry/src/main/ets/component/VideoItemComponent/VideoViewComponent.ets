@@ -23,7 +23,7 @@ import NavigationAddress from '../../common/NavigationCommon';
 import Preferences from '../../database/Preferences';
 import { XAnimation } from '../../utils/AnimationUtil';
 import { FileFolder } from '../../interfaces/FileFolderInterface';
-import HeightUtil from '../../utils/HeightUtil';
+import { SafeHeight } from '../../utils/ObservedUtil';
 
 @Component
 export struct VideoView {
@@ -191,7 +191,7 @@ export struct VideoView {
         .scrollBar(BarState.Off)
         .scrollable(ScrollDirection.Horizontal)
         .edgeEffect(EdgeEffect.Spring) // 滚动边缘效果
-      }.width('100%').padding({ top: HeightUtil.topSafeHeight, left: 10, right: 10 })
+      }.width('100%').padding({ top: SafeHeight.topSafeHeight, left: 10, right: 10 })
     }.width('100%')
   }
 

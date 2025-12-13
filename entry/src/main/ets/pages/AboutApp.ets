@@ -5,8 +5,7 @@ import { DefaultDialogShadow, ImageFancyModifier } from '../common/AttributeModi
 import { InfoConfirmDialog } from '../component/Dialog/InfoConfirmDialog';
 import { Markdown, MarkdownController } from '@luvi/lv-markdown-in';
 import { salmonLogger } from 'salmonlogger';
-import BackgroundUtil from '../utils/BackgroundUtil';
-import HeightUtil from '../utils/HeightUtil';
+import { Background, SafeHeight } from '../utils/ObservedUtil';
 
 @Component
 export struct AboutApp {
@@ -202,15 +201,15 @@ export struct AboutApp {
       .scrollBar(BarState.Off)
       .scrollable(ScrollDirection.Vertical) // 启用垂直滚动
       .edgeEffect(EdgeEffect.Spring) // 滚动边缘效果
-      .padding({ bottom: HeightUtil.bottomSafeHeight })
+      .padding({ bottom: SafeHeight.bottomSafeHeight })
     }
     .hideToolBar(true)
-    .padding({ top: HeightUtil.topSafeHeight })
+    .padding({ top: SafeHeight.topSafeHeight })
     .title('关于此应用')
     .backgroundColor($r('app.color.start_window_background'))
-    .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(Background.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
-    .backdropBlur(BackgroundUtil.backgroundDropBlur)
+    .backdropBlur(Background.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
   }
 }

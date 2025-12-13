@@ -29,7 +29,7 @@ import { BrightnessSwipingBuilder } from '../../component/PlayerComponent/Bright
 import { FastForwardPanelBuilder } from '../../component/PlayerComponent/FastForwardPanelBuilder';
 import { VolumeSwipingPanelBuilder } from '../../component/PlayerComponent/VolumeSwipingPanelBuilder';
 import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/SwipingPlayTimePanelBuilder';
-import HeightUtil from '../../utils/HeightUtil';
+import { SafeHeight } from '../../utils/ObservedUtil';
 
 @Component
 export struct RedPlayer { // 红薯播放器页
@@ -160,7 +160,7 @@ export struct RedPlayer { // 红薯播放器页
               .padding({
                 left: (this.screen_height > this.screen_width ? 5 : 5),
                 right: 20,
-                top: (this.showControl ? HeightUtil.topSafeHeight : 0),
+                top: (this.showControl ? SafeHeight.topSafeHeight : 0),
                 bottom: 0
               })
 

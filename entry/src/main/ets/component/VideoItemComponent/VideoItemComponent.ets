@@ -25,7 +25,7 @@ import { DeleteType } from '../../common/enum/DeleteType';
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
 import { XAnimation } from '../../utils/AnimationUtil';
 import { salmonLogger } from 'salmonlogger';
-import HeightUtil from '../../utils/HeightUtil';
+import { SafeHeight } from '../../utils/ObservedUtil';
 
 @Observed
 export class VideoListController {
@@ -237,8 +237,8 @@ export struct VideoList {
       .clip(false)
       .padding({ left: 10, right: 10 })
       .cachedCount(12)
-      .contentStartOffset(HeightUtil.topSafeHeight + 85)
-      .contentEndOffset(HeightUtil.bottomSafeHeight)
+      .contentStartOffset(SafeHeight.topSafeHeight + 85)
+      .contentEndOffset(SafeHeight.bottomSafeHeight)
       .lanes(this.videoListController.listLine)
       .animation({ duration: 300, curve: Curve.Smooth })
       .scrollBar(BarState.Off)
@@ -255,7 +255,7 @@ export struct VideoList {
     } else {
       Scroll() {
         Column() {
-          Blank().height(HeightUtil.topSafeHeight + 85)
+          Blank().height(SafeHeight.topSafeHeight + 85)
           WaterFlow({
             scroller: this.videoListController.listScroller,
             layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW

@@ -41,7 +41,7 @@ import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/Swi
 import { SubtitleDisplayBuilder } from '../../component/PlayerComponent/SubtitleDisplayBuilder';
 import { salmonLogger } from 'salmonlogger';
 import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent';
-import HeightUtil from '../../utils/HeightUtil';
+import { SafeHeight } from '../../utils/ObservedUtil';
 
 @Component
 export struct Player { // 播放页
@@ -415,7 +415,7 @@ export struct Player { // 播放页
                 .padding({
                   left: (this.screen_height > this.screen_width ? 20 : 35),
                   right: 20,
-                  top: (this.showControl ? HeightUtil.topSafeHeight : 0),
+                  top: (this.showControl ? SafeHeight.topSafeHeight : 0),
                   bottom: 0
                 })
 

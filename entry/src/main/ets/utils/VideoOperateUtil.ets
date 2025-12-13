@@ -20,7 +20,7 @@ import PreferencesUtil from '../database/PreferencesUtil';
 import PermissionUtil from './PermissionUtil';
 import { VideoSource } from '../common/enum/VideoSource';
 import { PlayerParams } from '../common/NavigationCommon';
-import BackgroundUtil from './BackgroundUtil';
+import { Background } from './ObservedUtil';
 
 // 视频操作类
 export default class VideoOperateUtil {
@@ -251,9 +251,9 @@ export default class VideoOperateUtil {
     PreferencesUtil.delPreferencesValue(context, 'sweet_video', 'circle_play')
     PreferencesUtil.delPreferencesValue(context, 'sweet_video', 'is_list_display')
 
-    BackgroundUtil.backgroundImageSrc = SelectFileUtil.getImageUri()
-    BackgroundUtil.backgroundDropBlur = Preferences.getBackgroundDropBlur(context)
-    BackgroundUtil.backgroundColorMode = Preferences.getBackgroundColorMode(context)
+    Background.backgroundImageSrc = SelectFileUtil.getImageUri()
+    Background.backgroundDropBlur = Preferences.getBackgroundDropBlur(context)
+    Background.backgroundColorMode = Preferences.getBackgroundColorMode(context)
   }
 
   // 封装获取屏幕亮度的方法

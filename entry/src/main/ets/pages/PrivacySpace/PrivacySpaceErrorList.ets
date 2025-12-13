@@ -5,8 +5,7 @@ import { ImageFancyModifier, MenuFancyModifier } from '../../common/AttributeMod
 import Preferences from '../../database/Preferences'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
-import BackgroundUtil from '../../utils/BackgroundUtil'
-import HeightUtil from '../../utils/HeightUtil'
+import { Background, SafeHeight } from '../../utils/ObservedUtil'
 
 @Component
 export struct PrivacySpaceErrorList {
@@ -140,12 +139,12 @@ export struct PrivacySpaceErrorList {
       .height('100%')
     }
     .title('隐私空间异常数据')
-    .padding({ top: HeightUtil.topSafeHeight })
+    .padding({ top: SafeHeight.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
-    .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(Background.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)
-    .backdropBlur(BackgroundUtil.backgroundDropBlur)
+    .backdropBlur(Background.backgroundDropBlur)
     .blur(this.isPrivacyBackground ? 1000 : 0)
   }
 }

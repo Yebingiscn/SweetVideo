@@ -7,7 +7,7 @@ import { PlayerSideBarSource } from '../../utils/DataUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { VideoInfoBuilder } from '../VideoItemComponent/VideoInfoBuilder'
 import { XAnimation } from '../../utils/AnimationUtil'
-import HeightUtil from '../../utils/HeightUtil'
+import { SafeHeight } from '../../utils/ObservedUtil'
 
 @Component
 export struct PlayerSideBarComponent {
@@ -65,7 +65,7 @@ export struct PlayerSideBarComponent {
     .padding({
       left: 10,
       right: 5,
-      top: HeightUtil.topSafeHeight,
+      top: SafeHeight.topSafeHeight,
     })
     .transition(TransitionEffect.translate({ x: 300 }).animation(XAnimation.getAnimationCurve()))
     .borderRadius(16)

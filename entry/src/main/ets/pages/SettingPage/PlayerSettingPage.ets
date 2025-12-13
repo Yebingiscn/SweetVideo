@@ -4,8 +4,7 @@ import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuI
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem';
 import Preferences from '../../database/Preferences';
 import { FastForwardSecondInterface } from '../../interfaces/FastForwardSecondInterface';
-import BackgroundUtil from '../../utils/BackgroundUtil';
-import HeightUtil from '../../utils/HeightUtil';
+import { Background, SafeHeight } from '../../utils/ObservedUtil';
 import { PathUtils } from '../../utils/PathUtils';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 
@@ -156,15 +155,15 @@ export struct PlayerSettingPage {
       .height('100%')
       .width('95%')
       .layoutWeight(1)
-      .contentEndOffset(HeightUtil.bottomSafeHeight)
+      .contentEndOffset(SafeHeight.bottomSafeHeight)
     }
     .hideToolBar(true)
     .title('播放设置')
     .backgroundColor($r('app.color.start_window_background'))
-    .padding({ top: HeightUtil.topSafeHeight })
-    .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .padding({ top: SafeHeight.topSafeHeight })
+    .backgroundImage(Background.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
-    .backdropBlur(BackgroundUtil.backgroundDropBlur)
+    .backdropBlur(Background.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
   }
 }

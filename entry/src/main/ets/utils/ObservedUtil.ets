@@ -7,4 +7,11 @@ class BackgroundUtil {
   public backgroundColorMode: BackgroundColorMode = BackgroundColorMode.AUTO
 }
 
-export default UIUtils.makeObserved(new BackgroundUtil());
+class SafeHeightUtil {
+  public topSafeHeight: number = 0
+  public bottomSafeHeight: number = 0
+}
+
+export const SafeHeight = UIUtils.makeObserved(new SafeHeightUtil());
+
+export const Background = UIUtils.makeObserved(new BackgroundUtil());

@@ -9,8 +9,7 @@ import ToolsUtil from '../../utils/ToolsUtil';
 import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem';
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig';
-import BackgroundUtil from '../../utils/BackgroundUtil';
-import HeightUtil from '../../utils/HeightUtil';
+import { Background, SafeHeight } from '../../utils/ObservedUtil';
 
 @Component
 export struct SettingsPage { //设置页
@@ -18,7 +17,6 @@ export struct SettingsPage { //设置页
   @StorageLink('listDisplayMode') listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
   @StorageLink('showSettingPageEntry') showSettingPageEntry: boolean = true
   @State passwd: string = 'passwd'
-  @Consume('pathStack') pathStack: NavPathStack
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
     builder: EditPasswordDialog({
       confirm: (passwd: string | undefined) => {
@@ -32,6 +30,7 @@ export struct SettingsPage { //设置页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  @Consume('pathStack') pathStack: NavPathStack
   private listDisplayModeList: ResourceStr[] = ['卡片', '列表', '网格']
 
   build() {
@@ -199,15 +198,15 @@ export struct SettingsPage { //设置页
       .height('100%')
       .width('95%')
       .layoutWeight(1)
-      .contentEndOffset(HeightUtil.bottomSafeHeight)
+      .contentEndOffset(SafeHeight.bottomSafeHeight)
     }
     .hideToolBar(true)
     .title('设置')
     .backgroundColor($r('app.color.start_window_background'))
-    .padding({ top: HeightUtil.topSafeHeight })
-    .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .padding({ top: SafeHeight.topSafeHeight })
+    .backgroundImage(Background.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
-    .backdropBlur(BackgroundUtil.backgroundDropBlur)
+    .backdropBlur(Background.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
   }
 }

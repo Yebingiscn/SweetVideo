@@ -1,6 +1,6 @@
 import Preferences from '../../database/Preferences';
 import { OOBEVersion } from '../../utils/DataSyncUtil';
-import HeightUtil from '../../utils/HeightUtil';
+import { SafeHeight } from '../../utils/ObservedUtil';
 import { PathUtils } from '../../utils/PathUtils';
 import ToolsUtil from '../../utils/ToolsUtil';
 import WantProcessUtil from '../../utils/WantProcessUtil';
@@ -90,7 +90,7 @@ export struct PrivacyPolicyComponent {
       .justifyContent(FlexAlign.SpaceEvenly)
     }
     .width('100%')
-    .height('100%').margin({ bottom: HeightUtil.bottomSafeHeight })
+    .height('100%').margin({ bottom: SafeHeight.bottomSafeHeight })
   }
 
   build() {

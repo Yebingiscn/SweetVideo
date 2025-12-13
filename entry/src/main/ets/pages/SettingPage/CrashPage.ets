@@ -3,8 +3,7 @@ import { pasteboard } from '@kit.BasicServicesKit';
 import ToolsUtil from '../../utils/ToolsUtil';
 import { salmonLogger, SalmonLoggerComponent } from 'salmonlogger';
 import { PathUtils } from '../../utils/PathUtils';
-import BackgroundUtil from '../../utils/BackgroundUtil';
-import HeightUtil from '../../utils/HeightUtil';
+import { Background, SafeHeight } from '../../utils/ObservedUtil'
 
 @Component
 export struct CrashPage {
@@ -101,10 +100,10 @@ export struct CrashPage {
     .hideToolBar(true)
     .title('流心运行日志')
     .backgroundColor($r('app.color.start_window_background'))
-    .padding({ top: HeightUtil.topSafeHeight, bottom: HeightUtil.bottomSafeHeight })
-    .backgroundImage(BackgroundUtil.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .padding({ top: SafeHeight.topSafeHeight, bottom: SafeHeight.bottomSafeHeight })
+    .backgroundImage(Background.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
-    .backdropBlur(BackgroundUtil.backgroundDropBlur)
+    .backdropBlur(Background.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
   }
 
