@@ -5,7 +5,7 @@ import { ImageFancyModifier, MenuFancyModifier } from '../../common/AttributeMod
 import Preferences from '../../database/Preferences'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
-import { Background, SafeHeight } from '../../utils/ObservedUtil'
+import { Background, Privacy, SafeHeight } from '../../utils/ObservedUtil'
 
 @Component
 export struct PrivacySpaceErrorList {
@@ -13,7 +13,6 @@ export struct PrivacySpaceErrorList {
   @State videoList: String[] = []
   @State longPressPreview: boolean = false
   @Consume('pathStack') pathStack: NavPathStack
-  @StorageLink('isPrivacyBackground') isPrivacyBackground: boolean = false
   private listScroller: Scroller = new Scroller();
 
   async aboutToAppear(): Promise<void> {
@@ -145,6 +144,6 @@ export struct PrivacySpaceErrorList {
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)
     .backdropBlur(Background.backgroundDropBlur)
-    .blur(this.isPrivacyBackground ? 1000 : 0)
+    .blur(Privacy.isPrivacyBackground ? 1000 : 0)
   }
 }

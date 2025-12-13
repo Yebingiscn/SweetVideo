@@ -2,7 +2,7 @@ import { window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { BusinessError, settings } from '@kit.BasicServicesKit';
 import { PathUtils } from './PathUtils';
-import { SafeHeight } from './ObservedUtil';
+import { Pc, SafeHeight } from './ObservedUtil';
 
 // 用于设置窗口状态
 export class WindowUtil {
@@ -66,7 +66,7 @@ export class WindowUtil {
     if (canIUse('SystemCapability.Window.SessionManager')) {
       switch (await WindowUtil.getWindowsStatus()) {
         case window.WindowStatusType.FLOATING:
-          if (AppStorage.get('pcMode')) {
+          if (Pc.pcMode) {
             await WindowUtil?.maximize?.()
             return undefined
           }
@@ -74,7 +74,7 @@ export class WindowUtil {
             WindowUtil.enableLandscapeMultiWindow(windowClass)
           return undefined
         case window.WindowStatusType.FULL_SCREEN:
-          if (AppStorage.get('pcMode')) {
+          if (Pc.pcMode) {
             await WindowUtil?.recover?.()
             return undefined
           }
@@ -241,10 +241,10 @@ export class WindowUtil {
       switch (settings.getValueSync(context, 'window_pcmode_switch_status', 'false',
         settings.domainName.USER_PROPERTY)) {
         case 'true':
-          AppStorage.setOrCreate('pcMode', true)
+          Pc.pcMode = true
           break
         case 'false':
-          AppStorage.setOrCreate('pcMode', false)
+          Pc.pcMode = false
           break
       }
     }

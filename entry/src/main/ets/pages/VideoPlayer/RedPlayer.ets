@@ -29,7 +29,7 @@ import { BrightnessSwipingBuilder } from '../../component/PlayerComponent/Bright
 import { FastForwardPanelBuilder } from '../../component/PlayerComponent/FastForwardPanelBuilder';
 import { VolumeSwipingPanelBuilder } from '../../component/PlayerComponent/VolumeSwipingPanelBuilder';
 import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/SwipingPlayTimePanelBuilder';
-import { SafeHeight } from '../../utils/ObservedUtil';
+import { Privacy, SafeHeight } from '../../utils/ObservedUtil';
 
 @Component
 export struct RedPlayer { // 红薯播放器页
@@ -60,7 +60,6 @@ export struct RedPlayer { // 红薯播放器页
   @State screenBrightness: number = 0
   @State volumeActually: number = 0
   playerController: RedPlayerControllerUtil | null = null
-  @StorageLink('isPrivacyBackground') isPrivacyBackground: boolean = false
   @StorageLink('allowBackgroundPlay') allowBackgroundPlay: boolean = true
   @StorageLink('skipIntroTime') skipIntroTime: string = '0'
   @StorageLink('allowDoubleFastForward') allowDoubleFastForward: boolean = true
@@ -389,7 +388,7 @@ export struct RedPlayer { // 红薯播放器页
       }
     })
     .hideTitleBar(true)
-    .blur(this.isPrivacyBackground ? 1000 : 0)
+    .blur(Privacy.isPrivacyBackground ? 1000 : 0)
   }
 
   @Builder

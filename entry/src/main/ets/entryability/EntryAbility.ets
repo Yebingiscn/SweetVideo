@@ -12,6 +12,7 @@ import { BusinessError } from '@ohos.base';
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
 import Preferences from '../database/Preferences';
 import ToolsUtil from '../utils/ToolsUtil';
+import { Pc, Privacy } from '../utils/ObservedUtil';
 
 export default class EntryAbility extends UIAbility {
   watcher: hiAppEvent.Watcher | undefined = undefined
@@ -151,18 +152,17 @@ export default class EntryAbility extends UIAbility {
           case window.WindowStageEventType.SHOWN:
           case window.WindowStageEventType.ACTIVE:
           case window.WindowStageEventType.RESUMED: {
-            AppStorage.setOrCreate('isPrivacyBackground', false)
+            Privacy.isPrivacyBackground = false
             break
           }
           case window.WindowStageEventType.HIDDEN:
           case window.WindowStageEventType.PAUSED: {
-            AppStorage.setOrCreate('isPrivacyBackground', true)
+            Privacy.isPrivacyBackground = true
             break
           }
           // pc 模式下窗口失焦隐私空间模糊，手机平板分屏、悬浮窗下不模糊
           case window.WindowStageEventType.INACTIVE: {
-            AppStorage.get('pcMode') ? AppStorage.setOrCreate('isPrivacyBackground', true) :
-              AppStorage.setOrCreate('isPrivacyBackground', false);
+            Privacy.isPrivacyBackground = Pc.pcMode
           }
         }
       })

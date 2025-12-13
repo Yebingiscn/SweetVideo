@@ -29,7 +29,7 @@ import { SettingsToggleItem } from '../../component/SettingComponent/SettingsTog
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem';
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
 import SubtitleUtil from '../../utils/SubtitleUtil';
-import { Background, SafeHeight } from '../../utils/ObservedUtil';
+import { Background, Privacy, SafeHeight } from '../../utils/ObservedUtil';
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -78,7 +78,6 @@ export struct PrivacySpace { // 隐私空间页
   @State longPressPreview: boolean = false
   @State delMultipleList: VideoMetadata[] = []
   @State isPresent: boolean = false;
-  @StorageLink('isPrivacyBackground') isPrivacyBackground: boolean = false
   @StorageLink('showSettingPageEntry') showSettingPageEntry: boolean = true
   @StorageLink('allowGestureEntry') allowGestureEntry: boolean = true
   @StorageLink('listDisplayMode') listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
@@ -511,7 +510,7 @@ export struct PrivacySpace { // 隐私空间页
         return false
       }
     })
-    .blur(this.isPrivacyBackground ? 1000 : 0)
+    .blur(Privacy.isPrivacyBackground ? 1000 : 0)
     .onReady(() => {
       const privacySpaceParams = this.pathStack.getParamByName(NavigationAddress.PRIVACY_SPACE)[0] as PrivacySpaceParams
       if (privacySpaceParams?.needGotoSetting) {

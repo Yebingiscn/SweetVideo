@@ -41,7 +41,7 @@ import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/Swi
 import { SubtitleDisplayBuilder } from '../../component/PlayerComponent/SubtitleDisplayBuilder';
 import { salmonLogger } from 'salmonlogger';
 import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent';
-import { SafeHeight } from '../../utils/ObservedUtil';
+import { Privacy, SafeHeight } from '../../utils/ObservedUtil';
 
 @Component
 export struct Player { // 播放页
@@ -74,7 +74,6 @@ export struct Player { // 播放页
   @StorageLink('skipIntroTime') skipIntroTime: string = '0'
   @StorageLink('smartRotation') smartRotation: boolean = true
   @StorageLink('longPressSpeed') longPressSpeed: number = 3
-  @StorageLink('isPrivacyBackground') isPrivacyBackground: boolean = false
   @Consume('pathStack') pathStack: NavPathStack
   @State exitVideoTime: number = 0
   private autoHideTimeout: boolean = false
@@ -721,7 +720,7 @@ export struct Player { // 播放页
       }
     })
     .hideTitleBar(true)
-    .blur(this.isPrivacyBackground ? 1000 : 0)
+    .blur(Privacy.isPrivacyBackground ? 1000 : 0)
   }
 
   exitVideo(timeOut: number) {
