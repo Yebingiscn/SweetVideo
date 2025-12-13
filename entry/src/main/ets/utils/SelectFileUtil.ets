@@ -120,20 +120,14 @@ export default class SelectFileUtil {
     }
   }
 
-  static async saveImageToPrivacySpace(sourceFileUri: string) {
+  static saveImageToPrivacySpace(sourceFileUri: string) {
     const filePath = PathUtils.photoPath + 'BackgroundImage'; // 定义完整文件路径
     try {
-      // 检测文件是否存在
-      if (fs.accessSync(filePath)) {
-        fs.unlinkSync(filePath); // 存在则直接删除
-      }
       let sourceFile = fs.openSync(sourceFileUri, fs.OpenMode.READ_ONLY)
       let targetFile = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
-      await new Promise<void>((resolve, reject) => {
-        fs.copyFile(sourceFile.fd, targetFile.fd, (error) => {
-          error ? reject(error) : resolve();
-        });
-      });
+
+      fs.copyFileSync(sourceFile.fd, targetFile.fd);
+
       fs.closeSync(sourceFile)
       fs.closeSync(targetFile)
     } catch (error) {
