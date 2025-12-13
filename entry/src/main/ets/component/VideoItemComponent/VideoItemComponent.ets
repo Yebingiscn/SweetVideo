@@ -154,8 +154,6 @@ export struct VideoList {
   searchController: SearchController = new SearchController()
   @State longPressPreview: boolean = false
   @Consume('pathStack') pathStack: NavPathStack
-  @StorageProp('screen_width') screen_width: number = 0
-  @StorageLink('backgroundImageSrc') backgroundImageSrc: string = ''
   @Link delMultipleList: VideoMetadata[]
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
@@ -179,7 +177,7 @@ export struct VideoList {
             this.VideoItemBuilder(item)
           }
           .borderRadius(16)
-          .backgroundColor(this.longPressPreview || this.backgroundImageSrc.length > 0 ?
+          .backgroundColor(this.longPressPreview || Setting.backgroundImageSrc.length > 0 ?
             $r('app.color.start_window_background_blur') :
             $r('app.color.start_window_background'))
           .margin({ bottom: 20 }) // 不知道动了哪里，挤在一起了，先这样改
@@ -266,7 +264,7 @@ export struct VideoList {
                   delMultipleList: this.delMultipleList
                 }).width('100%').reuseId(`VideoCardItem#${item.uri}`)
               }
-              .backgroundColor(this.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
+              .backgroundColor(Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
                 $r('app.color.start_window_background'))
               .borderRadius(16)
               .width('100%')

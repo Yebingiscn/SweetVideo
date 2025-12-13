@@ -56,7 +56,6 @@ struct Index {
   @State searchValue: string = ''
   @State isPresent: boolean = false
   @StorageProp('screen_width') screen_width: number = 0
-  @StorageProp('screen_height') screen_height: number = 0
   @Provide videoListController: VideoListController = new VideoListController()
   @Provide fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   editFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
