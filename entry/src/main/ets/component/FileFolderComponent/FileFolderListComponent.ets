@@ -11,28 +11,28 @@ class FileFolderListBuilderValue {
 export function FileFolderListBuilder(fileFolderListBuilderValue: FileFolderListBuilderValue) {
   Button({ type: ButtonType.Normal, stateEffect: true }) {
     Row() {
-      SymbolGlyph(fileFolderListBuilderValue.videoListController?.folder.name ===
-        fileFolderListBuilderValue.folder?.name ?
+      SymbolGlyph(fileFolderListBuilderValue.videoListController?.folder.date ===
+        fileFolderListBuilderValue.folder?.date ?
         $r('sys.symbol.doc_plaintext_and_folder') : $r('sys.symbol.folder'))
         .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-        .fontColor(fileFolderListBuilderValue.videoListController?.folder.name ===
-          fileFolderListBuilderValue.folder?.name ?
+        .fontColor(fileFolderListBuilderValue.videoListController?.folder.date ===
+          fileFolderListBuilderValue.folder?.date ?
           [$r('app.color.main_color'), $r('app.color.text_color')] : [$r('app.color.text_color')])
       Column() {
         Text(fileFolderListBuilderValue.folder?.name)
           .width('100%')
-          .fontColor(fileFolderListBuilderValue.videoListController?.folder.name ===
-            fileFolderListBuilderValue.folder?.name ?
+          .fontColor(fileFolderListBuilderValue.videoListController?.folder.date ===
+            fileFolderListBuilderValue.folder?.date ?
             $r('app.color.main_color') : $r('app.color.text_color'))
-          .fontSize(fileFolderListBuilderValue.videoListController?.folder.name ===
-            fileFolderListBuilderValue.folder?.name ? 18 : 15)
-          .fontWeight(fileFolderListBuilderValue.videoListController?.folder.name ===
-            fileFolderListBuilderValue.folder?.name ? FontWeight.Bold :
+          .fontSize(fileFolderListBuilderValue.videoListController?.folder.date ===
+            fileFolderListBuilderValue.folder?.date ? 18 : 15)
+          .fontWeight(fileFolderListBuilderValue.videoListController?.folder.date ===
+            fileFolderListBuilderValue.folder?.date ? FontWeight.Bold :
             FontWeight.Medium)
           .textAlign(TextAlign.Start)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.MARQUEE })
-        if (fileFolderListBuilderValue.videoListController?.folder?.name === fileFolderListBuilderValue.folder?.name) {
+        if (fileFolderListBuilderValue.videoListController?.folder?.date === fileFolderListBuilderValue.folder?.date) {
           Text(fileFolderListBuilderValue.videoListController?.folder?.video_list.length === 0 ? `空空如也~` :
             `共 ${fileFolderListBuilderValue.videoListController?.folder?.video_list.length} 部视频`)
             .fontColor($r('app.color.main_color'))

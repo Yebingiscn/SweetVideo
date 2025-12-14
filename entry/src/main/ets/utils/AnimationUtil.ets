@@ -31,25 +31,25 @@ export class XAnimation {
       TransitionEffect.OPACITY.animation(hasAnimate ? { duration: 200, curve: Curve.Ease, delay: delay } : undefined)
         .combine(TransitionEffect.translate({ x: 0, y: -100 })
           .animation(hasAnimate ? { curve: Curves.responsiveSpringMotion(0.4, 0.75), delay: delay } : undefined))
-    
+
     // 从下方进入的动画效果：透明度渐显 + 向下平移
     const MoveFromBottom: object =
       TransitionEffect.OPACITY.animation(hasAnimate ? { duration: 200, curve: Curve.Ease, delay: delay } : undefined)
         .combine(TransitionEffect.translate({ x: 0, y: 100 })
           .animation(hasAnimate ? { curve: Curves.responsiveSpringMotion(0.4, 0.75), delay: delay } : undefined))
-    
+
     // 从起始位置进入的动画效果：透明度渐显 + 向左平移
     const MoveFromStart: object =
       TransitionEffect.OPACITY.animation(hasAnimate ? { duration: 200, curve: Curve.Ease, delay: delay } : undefined)
         .combine(TransitionEffect.translate({ x: -100, y: 0 })
           .animation(hasAnimate ? { curve: Curves.responsiveSpringMotion(0.4, 0.75), delay: delay } : undefined))
-    
+
     // 从结束位置进入的动画效果：透明度渐显 + 向右平移
     const MoveFromEnd: object =
       TransitionEffect.OPACITY.animation(hasAnimate ? { duration: 200, curve: Curve.Ease, delay: delay } : undefined)
         .combine(TransitionEffect.translate({ x: 100, y: 0 })
           .animation(hasAnimate ? { curve: Curves.responsiveSpringMotion(0.4, 0.75), delay: delay } : undefined))
-    
+
     // 根据当前模式返回相应的动画效果
     switch (XAnimation.mode) {
       case 'auto': {

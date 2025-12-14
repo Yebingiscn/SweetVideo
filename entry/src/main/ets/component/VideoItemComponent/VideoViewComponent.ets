@@ -164,10 +164,10 @@ export struct VideoView {
           Row({ space: 15 }) {
             LazyForEach(this.fileFolderSource, (folder: FileFolder) => {
               Text(folder?.name)
-                .fontWeight(this.videoListController.folder.name === folder?.name ? FontWeight.Bold :
+                .fontWeight(this.videoListController.folder.date === folder?.date ? FontWeight.Bold :
                   FontWeight.Medium)
-                .fontSize(this.videoListController.folder.name === folder?.name ? 18 : 15)
-                .fontColor(this.videoListController.folder.name === folder?.name ?
+                .fontSize(this.videoListController.folder.date === folder?.date ? 18 : 15)
+                .fontColor(this.videoListController.folder.date === folder?.date ?
                   $r('app.color.main_color') : $r('app.color.text_color'))
                 .textAlign(TextAlign.Start)
                 .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })

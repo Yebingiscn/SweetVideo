@@ -188,59 +188,73 @@ export default class SelectFileUtil {
 
   static saveData(context: Context, target_data: VideoMetadataFromPlayer, play_time?: number, size?: number[],
     start_time?: number, end_time?: number, total_time?: number) {
+    ToolsUtil.addLogger('开始保存播放数据', false, undefined, 'SelectFileUtil')
     let save_time: number = 0
     if (target_data.time === 0 && total_time) {
       target_data.time = total_time
     }
     if (play_time && !start_time && !end_time && !total_time) {
-      //计算保存进度，超过这个时间默认用户已经看完，从头开始, 但是保存为总时间
-      save_time =
-        play_time > target_data?.time * 0.95 || play_time >= target_data.end_time ? target_data?.time : play_time
+      const totalDuration = target_data?.time
+      const endTime = target_data?.end_time
+      let shouldMarkAsWatched = false
+      if (totalDuration && play_time > totalDuration * 0.95) {
+        shouldMarkAsWatched = true
+        ToolsUtil.addLogger('播放进度超过95%，标记为已观看', false, undefined, 'SelectFileUtil')
+      } else if (endTime > 0 && play_time >= endTime) {
+        shouldMarkAsWatched = true
+        ToolsUtil.addLogger('播放至指定结束时间，标记为已观看', false, undefined, 'SelectFileUtil')
+      }
+      save_time = shouldMarkAsWatched ? totalDuration : play_time
     }
     const updateVideo = (video: VideoMetadata) => {
       if (play_time !== undefined) {
-        video.last_play = save_time;
+        video.last_play = save_time
       }
       if (start_time !== undefined) {
-        video.start_time = start_time;
+        video.start_time = start_time
       }
       if (end_time !== undefined) {
-        video.end_time = end_time;
+        video.end_time = end_time
       }
       if (size?.[0] && video.size[0] === 0) {
-        video.size = size;
+        video.size = size
       }
       if (total_time && video.time === 0) {
         video.time = total_time
       }
-    };
-    if (PrivacySpaceUtil.getPrivacyMode()) {
-      //确认是否在隐私空间并更新隐私空间的数据
-      const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(context);
-      const targetVideoMetaDataEncryption = videoMetaDataEncryption.find(v => v.date === target_data.date);
-      if (targetVideoMetaDataEncryption) {
-        updateVideo(targetVideoMetaDataEncryption);
-        Preferences.saveVideoMetaDataEncryption(context, videoMetaDataEncryption);
-      }
-      return // 隐私空间不需要加入最近播放
     }
-    //  更新文件夹的数据
+    if (PrivacySpaceUtil.getPrivacyMode()) {
+      ToolsUtil.addLogger('当前处于隐私空间，更新隐私空间数据', false, undefined, 'SelectFileUtil')
+      const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(context)
+      const targetVideoMetaDataEncryption = videoMetaDataEncryption.find(v => v.date === target_data.date)
+      if (targetVideoMetaDataEncryption) {
+        updateVideo(targetVideoMetaDataEncryption)
+        Preferences.saveVideoMetaDataEncryption(context, videoMetaDataEncryption)
+        ToolsUtil.addLogger('隐私空间数据更新完成', false, undefined, 'SelectFileUtil')
+      } else {
+        ToolsUtil.addLogger('未在隐私空间中找到目标视频数据', true, undefined, 'SelectFileUtil')
+      }
+      return
+    }
+    ToolsUtil.addLogger('更新文件夹中的视频数据', false, undefined, 'SelectFileUtil')
     const folders = Preferences.getFileFolder(context)
     for (const folder of folders) {
       const videoMetaData: VideoMetadata[] = folder.video_list
       const targetVideoMetaData = videoMetaData.find(video => video.date === target_data.date)
       if (targetVideoMetaData) {
-        updateVideo(targetVideoMetaData);
+        updateVideo(targetVideoMetaData)
       }
     }
     Preferences.saveFileFolder(context, folders)
-    //更新最近播放的数据
-    const recent_play_deque = Preferences.getRecentPlay(context);
+    ToolsUtil.addLogger('文件夹数据更新完成', false, undefined, 'SelectFileUtil')
+    ToolsUtil.addLogger('更新最近播放列表数据', false, undefined, 'SelectFileUtil')
+    const recent_play_deque = Preferences.getRecentPlay(context)
     const recentTargetVideoMetaData = recent_play_deque.find(video => video.date === target_data.date)
     if (recentTargetVideoMetaData) {
-      updateVideo(recentTargetVideoMetaData);
+      updateVideo(recentTargetVideoMetaData)
     }
     Preferences.saveRecentPlay(context, recent_play_deque)
+    ToolsUtil.addLogger('最近播放列表更新完成', false, undefined, 'SelectFileUtil')
   }
 
   static deleteVideo(videoMetaData: VideoMetadata) {

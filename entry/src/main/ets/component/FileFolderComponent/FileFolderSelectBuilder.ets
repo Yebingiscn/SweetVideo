@@ -3,14 +3,10 @@ import { IMenuItem } from '../../interfaces/IMenuItemInterface';
 import ToolsUtil from '../../utils/ToolsUtil';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
 
-class FolderMenus {
-  menus: IMenuItem[] | undefined = undefined
-}
-
 @Builder
-export function FolderSelectMenuBuilder(folderMenus: FolderMenus) {
+export function FolderSelectMenuBuilder(menus: IMenuItem[]) {
   Menu() {
-    ForEach(folderMenus?.menus, (item: IMenuItem, _index) => {
+    ForEach(menus, (item: IMenuItem, _index: number) => {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier(item.icon),
         content: item.content
