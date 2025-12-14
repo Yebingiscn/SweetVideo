@@ -1,5 +1,5 @@
 import { media } from '@kit.MediaKit';
-import { fileIo as fs } from '@kit.CoreFileKit';
+import { fileIo, fileUri, fileIo as fs } from '@kit.CoreFileKit';
 import PermissionUtil from '../../utils/PermissionUtil';
 import { window } from '@kit.ArkUI';
 import AVSessionUtil from '../../utils/AVSessionUtil';
@@ -41,6 +41,8 @@ import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/Swi
 import { SubtitleDisplayBuilder } from '../../component/PlayerComponent/SubtitleDisplayBuilder';
 import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent';
 import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil';
+import { image } from '@kit.ImageKit';
+import { photoAccessHelper } from '@kit.MediaLibraryKit';
 
 @Component
 export struct Player { // 播放页
@@ -1017,6 +1019,43 @@ export struct Player { // 播放页
           ToolsUtil.addLogger('设置视频静音失败', true, this.pathStack)
         });
         ToolsUtil.addLogger(`视频静音状态设置为：${this.isListenVideo}`, false, this.pathStack)
+      },
+      captureScreen: () => {
+        // 1. 截屏 → 沙箱临时文件
+        const pixelMap = image.createPixelMapFromSurfaceSync(this.player.surfaceID);
+        const packOpts: image.PackingOption = { format: 'image/png', quality: 100 };
+        const imagePackerApi = image.createImagePacker();
+
+        const tempPath = PathUtils.tempPath + '/screenshot.png';
+        const tempFile = fileIo.openSync(tempPath, fileIo.OpenMode.CREATE | fileIo.OpenMode.READ_WRITE);
+
+        let srcUri: string;
+
+        imagePackerApi.packToFile(pixelMap, tempFile.fd, packOpts)
+          .then(() => imagePackerApi.release())
+          .then(() => {
+            fileIo.closeSync(tempFile);
+            // 2. 用系统对话框保存到相册
+            srcUri = fileUri.getUriFromPath(tempPath);
+            const helper = photoAccessHelper.getPhotoAccessHelper(PathUtils.appContext);
+            return helper.showAssetsCreationDialog(
+              [srcUri],
+              [{ photoType: photoAccessHelper.PhotoType.IMAGE, fileNameExtension: 'png' }]
+            );
+          })
+          .then(dstUris => {
+            // 3. 拷贝到用户选择的相册位置
+            if (dstUris.length) {
+              const src = fileIo.openSync(srcUri, fileIo.OpenMode.READ_ONLY);
+              const dst = fileIo.openSync(dstUris[0], fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE);
+              fileIo.copyFileSync(src.fd, dst.fd);
+              fileIo.closeSync(src);
+              fileIo.closeSync(dst);
+            }
+          })
+          .catch((err: BusinessError) => {
+            console.error(`captureScreen failed: ${err.code}, ${err.message}`);
+          });
       }
     })
   }

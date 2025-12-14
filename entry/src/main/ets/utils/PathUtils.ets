@@ -1,4 +1,4 @@
-import common from '@ohos.app.ability.common';
+import { common } from '@kit.AbilityKit';
 
 export class PathUtils {
   private static context: common.UIAbilityContext | null = null;
@@ -25,6 +25,11 @@ export class PathUtils {
   // 获取字幕目录路径
   static get subtitlePath(): string {
     return `${this.sandboxPath}/subtitle/`;
+  }
+
+  // 获取临时目录路径
+  static get tempPath(): string {
+    return this.context?.tempDir ?? '';
   }
 
   static get appContext(): common.UIAbilityContext | null {

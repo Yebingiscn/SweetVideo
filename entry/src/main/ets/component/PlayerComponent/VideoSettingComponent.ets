@@ -28,6 +28,8 @@ export struct VideoSettingComponent {
   }
   toggleListenVideo = () => {
   }
+  captureScreen = () => {
+  }
 
   build() {
     Menu() {
@@ -49,6 +51,12 @@ export struct VideoSettingComponent {
       }).onClick(() => {
         VideoOperateUtil.saveVideoEndTime(this.playTime, this.nowPlaying, PathUtils.appContext!)
         ToolsUtil.showToast(this.nowPlaying.title + '成功设置片尾时间为:' + TimeUtil.convertMSToHHMMSS(this.playTime))
+      })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.camera')),
+        content: '截图并保存'
+      }).onClick(() => {
+        this.captureScreen()
       })
       if (deviceInfo.sdkApiVersion >= 20) {
         MenuItem({
