@@ -6,7 +6,7 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 @Component
 export struct VideoTopComponent {
   @State videoTitle: string = ''
-  @Prop subTitleVisibility: Visibility
+  @Link subTitleVisibility: Visibility
   @Link isAIAsrShown: boolean
   @Prop subtitleSelected: SubtitleMode
   @Link screenExtendSelectedText: string | undefined

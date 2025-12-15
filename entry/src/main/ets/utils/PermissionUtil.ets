@@ -6,6 +6,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { PathUtils } from './PathUtils';
 import AVSessionUtil from './AVSessionUtil';
 import { Setting } from './ObservedUtil';
+import json from '@ohos.util.json';
 
 //权限类
 export default class PermissionUtil {
@@ -80,7 +81,7 @@ export default class PermissionUtil {
           backgroundTaskManager.startBackgroundRunning(PathUtils.appContext!,
             backgroundTaskManager.BackgroundMode.AUDIO_PLAYBACK, wantAgentObj).then(() => {
           })?.catch((error: BusinessError) => {
-            hilog.error(777, 'testFlag', 'background play failed BusinessError: ' + error)
+            hilog.error(777, 'testFlag', 'background play failed BusinessError: ' + json.stringify(error))
           });
         } catch (error) {
           hilog.error(777, 'testFlag', 'background play failed: ' + error)

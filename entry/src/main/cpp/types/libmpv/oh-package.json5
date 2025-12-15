@@ -1,6 +1,0 @@
-{
-  "name": "libmpv.so.2",
-  "types": "./Index.d.ts",
-  "version": "1.0.0",
-  "description": "mpv is reporting."
-}

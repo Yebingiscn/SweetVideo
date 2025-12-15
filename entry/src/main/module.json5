@@ -132,6 +132,16 @@
           ],
           "when": "always"
         }
+      },
+      {
+        "name": "ohos.permission.READ_WRITE_DOWNLOAD_DIRECTORY",
+        "reason": "$string:READ_WRITE_DOWNLOAD_DIRECTORY_REASON",
+        "usedScene": {
+          "abilities": [
+            "EntryAbility"
+          ],
+          "when": "always"
+        }
       }
     ]
   }

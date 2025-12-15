@@ -6,7 +6,6 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
 import NavigationAddress from '../common/NavigationCommon';
 import VideoInfoUtil from '../utils/VideoInfoUtil';
-import AVSessionUtil from '../utils/AVSessionUtil';
 import { AudioTrack } from '../interfaces/AudioTrackInterface';
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
 import ToolsUtil from '../utils/ToolsUtil';
@@ -36,41 +35,9 @@ export class AVPlayerController {
   @Track onSwipingVoice: boolean = false
   @Track subtitleSelected: SubtitleMode = SubtitleMode.INNER_SUBTITLE
   @Track subtitle: string = ''
-  @Track subtitleVisibility: Visibility = Visibility.Visible
   @Track video_meta_data: VideoMetadata[] = []
   mIjkMediaPlayer: IjkMediaPlayer | null = null
   audioVolumeManager: audio.AudioVolumeManager | null = null
-
-  async setSessionListener() {
-    try {
-      this.avSession?.on('play', () => {
-        if (this.mIjkMediaPlayer) {
-          this.mIjkMediaPlayer?.start()
-        }
-        this.playAVPlayer()
-      });
-      this.avSession?.on('pause', () => {
-        this.pauseAVPlayer()
-      });
-      this.avSession?.on('seek', (position: number) => {
-        this.seekTime(position)
-      })
-      this.avSession?.on('fastForward', () => {
-        this.seekTime(this.playTime + 15000)
-      })
-      this.avSession?.on('rewind', () => {
-        this.seekTime(this.playTime - 15000)
-      })
-      this.avSession?.on('playNext', () => {
-        // this.playNextVideo()
-      })
-      this.avSession?.on('outputDeviceChange', () => {
-        this.pauseAVPlayer()
-      })
-    } catch (error) {
-      console.error('set av session state error')
-    }
-  }
 
   async initVolumeAndBrightness() {
     let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
@@ -152,15 +119,6 @@ export class AVPlayerController {
     }
   }
 
-  async initAVSession() {
-    if (!this.avSession && Setting.allowBackgroundPlay) {
-      this.avSession = await AVSessionUtil.getAVSession()
-      await this.setSessionListener()
-      AVSessionUtil.setSessionInfo(this.nowPlaying!)
-      AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime)
-    }
-  }
-
   updatePlaybackSpeed(speed: number): void {
     if (!VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).includes(speed)) {
       speed = 1.0;
@@ -176,7 +134,7 @@ export class AVPlayerController {
     this.audio_track = await VideoOperateUtil.getAudioTracks(this.avPlayer!)
     if (VideoOperateUtil.validateAudioTracks(this.audio_track)) {
       this.avPlayer!.selectTrack(this.audio_track[0].index)?.catch(() => {
-        console.error('player error')
+        ToolsUtil.addLogger('selectTrack error', true)
       });
     } else {
       this.activeEnhanceAudio()
@@ -185,20 +143,20 @@ export class AVPlayerController {
 
   releaseAVPlayer() {
     this.avPlayer?.release()?.catch(() => {
-      console.error('player error')
+      ToolsUtil.addLogger('release error', true)
     })
     AVPlayerUtil.avPlayer = undefined
   }
 
   resetAVPlayer() {
     this.avPlayer?.reset()?.catch(() => {
-      console.error('player error')
+      ToolsUtil.addLogger('reset error', true)
     })
   }
 
   prepareAVPlayer() {
     this.avPlayer?.prepare()?.catch(() => {
-      console.error('player error')
+      ToolsUtil.addLogger('prepare error', true)
     });
   }
 
@@ -306,6 +264,21 @@ export class AVPlayerController {
 
   fastForward() {
     this.seekTime(this.playTime + Number(Setting.fastForwardSeconds) * 1000)
+  }
+
+  getRepeatMode(repeatMode: RepeatMode): RepeatMode {
+    switch (repeatMode) {
+      case RepeatMode.LIST:
+        return RepeatMode.SINGLE;
+      case RepeatMode.SINGLE:
+        return RepeatMode.RANDOM;
+      case RepeatMode.RANDOM:
+        return RepeatMode.SEQUENCE;
+      case RepeatMode.SEQUENCE:
+        return RepeatMode.LIST;
+      default:
+        return RepeatMode.LIST;
+    }
   }
 
   async ijkPlayerStop() {

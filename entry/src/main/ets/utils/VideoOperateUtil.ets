@@ -298,9 +298,10 @@ export default class VideoOperateUtil {
   }
 
   static getVideoStartPlayTimeMode(nowPlaying: VideoMetadataFromPlayer) {
-    // 若为视频设置了片头时间，并且上次播放记录小于片头时间或者已经播完了，则自动跳到片头时间
+    // 若为视频设置了片头时间，并且上次播放记录小于片头时间或者已经播完了或者超过了片尾时间，则自动跳到片头时间
     if (nowPlaying?.start_time && nowPlaying?.start_time > 0 &&
-      (nowPlaying.start_time > nowPlaying.last_play || nowPlaying?.last_play > nowPlaying?.time! * 0.95)) {
+      (nowPlaying.start_time > nowPlaying.last_play || nowPlaying?.last_play > nowPlaying?.time! * 0.95) ||
+      nowPlaying?.last_play >= nowPlaying?.end_time!) {
       ToolsUtil.showToast('已跳过片头')
       return VideoStartTimeMode.SEEK_TO_START_TIME
     }

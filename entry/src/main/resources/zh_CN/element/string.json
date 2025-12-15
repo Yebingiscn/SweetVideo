@@ -175,6 +175,10 @@
     {
       "name": "move_to_folder",
       "value": "移动到文件夹"
+    },
+    {
+      "name": "READ_WRITE_DOWNLOAD_DIRECTORY_REASON",
+      "value": "读取下载文件夹中的视频"
     }
   ]
 }

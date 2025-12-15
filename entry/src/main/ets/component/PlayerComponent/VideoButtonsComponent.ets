@@ -4,6 +4,7 @@ import { KeyCode } from '@kit.InputKit'
 import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import { RepeatMode } from '../../common/enum/RepeatMode'
 import AVSessionUtil from '../../utils/AVSessionUtil'
+import { AVPlayerController } from '../../controller/AVPlayerController'
 
 @Component
 export struct VideoButtonsComponent {
@@ -17,6 +18,7 @@ export struct VideoButtonsComponent {
   @BuilderParam AVCastPickerBuilderBridge: () => void
   @BuilderParam videoSettingBuilder: () => void
   @BuilderParam playbackSpeedMenu: () => void
+  @Consume('player') player: AVPlayerController
   onScreenRotationOrFullScreenClick = async () => {
   }
   onTogglePlaybackClick = () => {
@@ -94,23 +96,9 @@ export struct VideoButtonsComponent {
         .backgroundColor('#50000000')
         .onClick(() => {
           // LIST -> SINGLE -> RANDOM -> SEQUENCE -> 回到LIST
-          switch (this.repeatMode) {
-            case RepeatMode.LIST:
-              this.repeatMode = RepeatMode.SINGLE;
-              break;
-            case RepeatMode.SINGLE:
-              this.repeatMode = RepeatMode.RANDOM;
-              break;
-            case RepeatMode.RANDOM:
-              this.repeatMode = RepeatMode.SEQUENCE;
-              break;
-            case RepeatMode.SEQUENCE:
-              this.repeatMode = RepeatMode.LIST;
-              break;
-            default:
-              this.repeatMode = RepeatMode.LIST;
-          }
+          this.repeatMode = this.player.getRepeatMode(this.repeatMode)
           ToolsUtil.showToast(this.getRepeatModeText())
+          AVSessionUtil.updatePlaybackSessionState(this.player.playing, this.player.playTime, this.repeatMode)
         })
       }.span({ xs: 2, sm: 2, md: 2 })
 

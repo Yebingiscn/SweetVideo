@@ -4,7 +4,7 @@ import ToolsUtil from '../../utils/ToolsUtil'
 
 @Component
 export struct SubtitlePanelComponent {
-  @Prop subTitleVisibility: Visibility
+  @Link subTitleVisibility: Visibility
   @Link isAIAsrShown: boolean
   @Prop subtitleSelected: SubtitleMode
 

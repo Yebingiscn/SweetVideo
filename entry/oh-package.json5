@@ -5,7 +5,5 @@
   "main": "",
   "author": "",
   "license": "",
-  "dependencies": {
-    "libmpv.so.2": "file:./src/main/cpp/types/libmpv"
-  }
+  "dependencies": {}
 }

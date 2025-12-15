@@ -226,7 +226,6 @@ export default class ToolsUtil {
   }
 
   static addLogger(text: string, isError: boolean, pathStack?: NavPathStack, className?: string) {
-    console.error('sweet_video：' + text)
     const title = pathStack?.getAllPathName()[0] ?? className ?? 'sweet_video';
     salmonLogger.addLog(title, text, isError)
   }
