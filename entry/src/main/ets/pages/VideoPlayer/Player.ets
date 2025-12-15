@@ -1059,41 +1059,45 @@ export struct Player { // 播放页
         ToolsUtil.addLogger(`视频静音状态设置为：${this.isListenVideo}`, false, this.pathStack)
       },
       captureScreen: () => {
-        // 1. 截屏 → 沙箱临时文件
-        const pixelMap = image.createPixelMapFromSurfaceSync(this.player.surfaceID);
-        const packOpts: image.PackingOption = { format: 'image/png', quality: 100 };
-        const imagePackerApi = image.createImagePacker();
+        try {
+          // 1. 截屏 → 沙箱临时文件
+          const pixelMap = image.createPixelMapFromSurfaceSync(this.player.surfaceID);
+          const packOpts: image.PackingOption = { format: 'image/png', quality: 100 };
+          const imagePackerApi = image.createImagePacker();
 
-        const tempPath = PathUtils.tempPath + '/screenshot.png';
-        const tempFile = fileIo.openSync(tempPath, fileIo.OpenMode.CREATE | fileIo.OpenMode.READ_WRITE);
+          const tempPath = PathUtils.tempPath + '/screenshot.png';
+          const tempFile = fileIo.openSync(tempPath, fileIo.OpenMode.CREATE | fileIo.OpenMode.READ_WRITE);
 
-        let srcUri: string;
+          let srcUri: string;
 
-        imagePackerApi.packToFile(pixelMap, tempFile.fd, packOpts)
-          .then(() => imagePackerApi.release())
-          .then(() => {
-            fileIo.closeSync(tempFile);
-            // 2. 用系统对话框保存到相册
-            srcUri = fileUri.getUriFromPath(tempPath);
-            const helper = photoAccessHelper.getPhotoAccessHelper(PathUtils.appContext);
-            return helper.showAssetsCreationDialog(
-              [srcUri],
-              [{ photoType: photoAccessHelper.PhotoType.IMAGE, fileNameExtension: 'png' }]
-            );
-          })
-          .then(dstUris => {
-            // 3. 拷贝到用户选择的相册位置
-            if (dstUris.length) {
-              const src = fileIo.openSync(srcUri, fileIo.OpenMode.READ_ONLY);
-              const dst = fileIo.openSync(dstUris[0], fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE);
-              fileIo.copyFileSync(src.fd, dst.fd);
-              fileIo.closeSync(src);
-              fileIo.closeSync(dst);
-            }
-          })
-          .catch((err: BusinessError) => {
-            console.error(`captureScreen failed: ${err.code}, ${err.message}`);
-          });
+          imagePackerApi.packToFile(pixelMap, tempFile.fd, packOpts)
+            .then(() => imagePackerApi.release())
+            .then(async () => {
+              fileIo.closeSync(tempFile);
+              // 2. 用系统对话框保存到相册
+              srcUri = fileUri.getUriFromPath(tempPath);
+              const helper = photoAccessHelper.getPhotoAccessHelper(PathUtils.appContext);
+              return await helper.showAssetsCreationDialog(
+                [srcUri],
+                [{ photoType: photoAccessHelper.PhotoType.IMAGE, fileNameExtension: 'png' }]
+              )
+            })
+            .then(dstUris => {
+              // 3. 拷贝到用户选择的相册位置
+              if (dstUris.length) {
+                const src = fileIo.openSync(srcUri, fileIo.OpenMode.READ_ONLY);
+                const dst = fileIo.openSync(dstUris[0], fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE);
+                fileIo.copyFileSync(src.fd, dst.fd);
+                fileIo.closeSync(src);
+                fileIo.closeSync(dst);
+              }
+            })
+            .catch((err: BusinessError) => {
+              console.error(`packToFile failed: ${err.code}, ${err.message}`);
+            });
+        } catch (e) {
+          console.error(`captureScreen failed: ${e.code}, ${e.message}`);
+        }
       }
     })
   }
