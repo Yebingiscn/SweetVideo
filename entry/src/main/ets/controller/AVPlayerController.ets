@@ -18,9 +18,10 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import SelectFileUtil from '../utils/SelectFileUtil';
 import { RepeatMode } from '../common/enum/RepeatMode';
 import { Setting } from '../utils/ObservedUtil';
+import { PlayerControllerInterface } from './PlayerControllerFactory';
 
 @Observed
-export class AVPlayerController {
+export class AVPlayerController implements PlayerControllerInterface {
   avPlayer: media.AVPlayer | undefined = undefined
   avSession: avSessionManager.AVSession | undefined = undefined
   surfaceID: string = ''
@@ -38,6 +39,7 @@ export class AVPlayerController {
   @Track video_meta_data: VideoMetadata[] = []
   mIjkMediaPlayer: IjkMediaPlayer | null = null
   audioVolumeManager: audio.AudioVolumeManager | null = null
+  public isListenVideo: boolean = false
 
   async initVolumeAndBrightness() {
     let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
@@ -141,35 +143,42 @@ export class AVPlayerController {
     }
   }
 
-  releaseAVPlayer() {
+  release() {
     this.avPlayer?.release()?.catch(() => {
       ToolsUtil.addLogger('release error', true)
     })
     AVPlayerUtil.avPlayer = undefined
   }
 
-  resetAVPlayer() {
+  reset() {
     this.avPlayer?.reset()?.catch(() => {
       ToolsUtil.addLogger('reset error', true)
     })
   }
 
-  prepareAVPlayer() {
+  prepare() {
     this.avPlayer?.prepare()?.catch(() => {
       ToolsUtil.addLogger('prepare error', true)
     });
   }
 
-  pauseAVPlayer() {
+  pause() {
     this.avPlayer?.pause()?.catch(() => {
       ToolsUtil.addLogger(`pause error`, true)
     })
   }
 
-  playAVPlayer() {
+  play() {
     this.avPlayer?.play()?.catch(() => {
       ToolsUtil.addLogger(`play error`, true)
     })
+  }
+
+  setMuted() {
+    this.avPlayer?.setMediaMuted(media.MediaType.MEDIA_TYPE_VID, this.isListenVideo).catch(() => {
+      ToolsUtil.addLogger('设置视频静音失败', true)
+    });
+    ToolsUtil.addLogger(`视频静音状态设置为：${this.isListenVideo}`, false)
   }
 
   cancelSubscribe() {
@@ -255,7 +264,7 @@ export class AVPlayerController {
   }
 
   togglePlayback() {
-    this.playing ? this.pauseAVPlayer() : this.playAVPlayer()
+    this.playing ? this.pause() : this.play()
   }
 
   backForward() {
@@ -314,11 +323,11 @@ export class AVPlayerController {
   }
 
   async fullResetSync(position: number) { // 严重不同步处理
-    this.pauseAVPlayer()
+    this.pause()
     this.mIjkMediaPlayer?.pause();
     this.mIjkMediaPlayer?.seekTo(String(position))
     await new Promise<void>(resolve => setTimeout(resolve, 50));
-    this.playAVPlayer()
+    this.play()
     this.mIjkMediaPlayer?.start();
   }
 

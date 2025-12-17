@@ -117,19 +117,26 @@ export default class ToolsUtil {
     return sortedList;
   }
 
-  static sortByTimeProcess(list: VideoMetadata[]) {
+  static sortByDatetimeProcess(list: VideoMetadata[]) {
     return [...list].sort((a, b) => Number(b.date) - Number(a.date)
     );
   }
 
+  static sortByTimeProcess(list: VideoMetadata[]) {
+    return [...list].sort((a, b) => Number(b.time) - Number(a.time)
+    );
+  }
 
-  static async sortBy(context: Context, list: VideoMetadata[], file_folder: FileFolder | undefined,
-    sortType: 'name' | 'time') {
+  static sortBy(context: Context, list: VideoMetadata[], file_folder: FileFolder | undefined,
+    sortType: 'name' | 'datetime' | 'time') {
     let sorted_list: VideoMetadata[]
     switch (sortType) {
       case 'name':
         sorted_list = ToolsUtil.sortByNameProcess(list)
         break
+      case 'datetime':
+        sorted_list = ToolsUtil.sortByDatetimeProcess(list)
+        break;
       case 'time':
         sorted_list = ToolsUtil.sortByTimeProcess(list)
         break;

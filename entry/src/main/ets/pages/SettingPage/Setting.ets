@@ -90,7 +90,7 @@ export struct SettingsPage { //设置页
 
         ListItem() {
           SettingsClickItem({
-            symbol: $r('sys.symbol.more'),
+            symbol: $r('sys.symbol.square_grid_2x2'),
             message: '更多设置',
             onPress: () => {
               this.pathStack.pushPathByName(NavigationAddress.MORE_SETTING_PAGE, true)

@@ -126,7 +126,7 @@
     },
     {
       "name": "sort_by_time",
-      "value": "按添加时间"
+      "value": "按视频时长"
     },
     {
       "name": "multiple_choice",
@@ -179,6 +179,10 @@
     {
       "name": "READ_WRITE_DOWNLOAD_DIRECTORY_REASON",
       "value": "读取下载文件夹中的视频"
+    },
+    {
+      "name": "sort_by_datetime",
+      "value": "按添加时间"
     }
   ]
 }

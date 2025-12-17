@@ -619,7 +619,7 @@ export default class SelectFileUtil {
       const ext = filePath.slice(lastDotIndex + 1).toLowerCase();
       return VIDEO_EXTENSIONS.has(ext);
     };
-    const dirPool = new ConcurrencyPool(8); // 目录遍历并发控制
+    const dirPool = new ConcurrencyPool(24); // 目录遍历并发控制
     const filePaths: string[] = [];
     const processedPaths = new Set<string>(); // 避免重复处理
 

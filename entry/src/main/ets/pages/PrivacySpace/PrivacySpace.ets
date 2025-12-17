@@ -30,6 +30,7 @@ import { SettingsClickItem } from '../../component/SettingComponent/SettingsClic
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
 import SubtitleUtil from '../../utils/SubtitleUtil';
 import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil';
+import { SortComponent } from '../../component/VideoItemComponent/SortComponent';
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -211,26 +212,24 @@ export struct PrivacySpace { // 隐私空间页
 
   @Builder
   SortMenuBuilder() {
-    Menu() {
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat')),
-        content: $r('app.string.sort_by_name')
-      })
-        .onClick(async () => {
-          await ToolsUtil.sortBy(PathUtils.appContext!, this.video_meta_data_encryption, undefined, "name")
-          this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-          this.videoDataSource.updateData(this.video_meta_data_encryption)
-        })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
-        content: $r('app.string.sort_by_time')
-      })
-        .onClick(async () => {
-          await ToolsUtil.sortBy(PathUtils.appContext!, this.video_meta_data_encryption, undefined, "time")
-          this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-          this.videoDataSource.updateData(this.video_meta_data_encryption)
-        })
-    }.attributeModifier(new MenuFancyModifier())
+    SortComponent({
+      onSortByName: () => {
+        ToolsUtil.sortBy(PathUtils.appContext!, this.video_meta_data_encryption, undefined, "name")
+        this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+        this.videoDataSource.updateData(this.video_meta_data_encryption)
+      },
+      onSortByTime: () => {
+        ToolsUtil.sortBy(PathUtils.appContext!, this.video_meta_data_encryption, undefined, "time")
+        this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+        this.videoDataSource.updateData(this.video_meta_data_encryption)
+      },
+      onSortByDatetime: () => {
+        ToolsUtil.sortBy(PathUtils.appContext!, this.video_meta_data_encryption, undefined, "datetime")
+        this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+        this.videoDataSource.updateData(this.video_meta_data_encryption)
+
+      }
+    })
   }
 
   @Builder

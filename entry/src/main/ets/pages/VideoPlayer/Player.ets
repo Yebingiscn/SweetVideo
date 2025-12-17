@@ -44,10 +44,11 @@ import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil';
 import { image } from '@kit.ImageKit';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
 import { avSession } from '@kit.AVSessionKit';
+import { PlayerControllerFactory } from '../../controller/PlayerControllerFactory';
 
 @Component
 export struct Player { // 播放页
-  @Provide('player') player: AVPlayerController = new AVPlayerController()
+  @Provide('player') player: AVPlayerController = PlayerControllerFactory.createPlayerController()
   @State longPress: boolean = false
   @State @Watch('setScreen') showControl: boolean = false
   @State lockRotation: boolean = false
@@ -74,7 +75,6 @@ export struct Player { // 播放页
   @Consume('pathStack') pathStack: NavPathStack
   @State exitVideoTime: number = 0
   private autoHideTimeout: boolean = false
-  private isListenVideo: boolean = false
 
   async aboutToAppear(): Promise<void> {
     PermissionUtil.applyContinuousTask()
@@ -89,9 +89,8 @@ export struct Player { // 播放页
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
       ToolsUtil.addLogger("设置保持屏幕状态完成", false, this.pathStack)
       this.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
-      ToolsUtil.addLogger("获取重复模式状态完成", false, this.pathStack)
+      ToolsUtil.addLogger("设置循环模式状态完成", false, this.pathStack)
       const video_speed = Preferences.getVideoSpeed(PathUtils.appContext!)
-      ToolsUtil.addLogger("获取视频速度完成", false, this.pathStack)
       this.player.speed = parseFloat(video_speed?.replace('x', '') || '1')
       ToolsUtil.addLogger("设置播放器速度完成", false, this.pathStack)
     } catch (error) {
@@ -126,7 +125,7 @@ export struct Player { // 播放页
     }
     this.player.audioVolumeManager = null
     ToolsUtil.addLogger("清理音频管理器完成", false, this.pathStack)
-    this.player.releaseAVPlayer()
+    this.player.release()
     ToolsUtil.addLogger("释放播放器资源完成", false, this.pathStack)
     ToolsUtil.addLogger("aboutToDisappear方法执行完成", false, this.pathStack)
   }
@@ -209,7 +208,7 @@ export struct Player { // 播放页
     this.player.avPlayer?.on('audioOutputDeviceChangeWithInfo', (data: audio.AudioStreamDeviceChangeInfo) => {
       if (data.changeReason === audio.AudioStreamDeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) {
         ToolsUtil.addLogger("旧音频设备不可用，暂停播放", false, this.pathStack)
-        this.player.pauseAVPlayer()
+        this.player.pause()
       }
     });
 
@@ -228,7 +227,7 @@ export struct Player { // 播放页
             });
             await this.player.setExternalSubtitle(this.player.nowPlaying!)
             ToolsUtil.addLogger("设置外挂字幕完成", false, this.pathStack)
-            this.player.prepareAVPlayer()
+            this.player.prepare()
             ToolsUtil.addLogger("准备播放器完成", false, this.pathStack)
           }
           break;
@@ -236,7 +235,7 @@ export struct Player { // 播放页
           ToolsUtil.addLogger("进入prepared状态", false, this.pathStack)
           this.player.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.player.nowPlaying!))
           ToolsUtil.addLogger("设置视频开始播放时间完成", false, this.pathStack)
-          this.player.playAVPlayer()
+          this.player.play()
           ToolsUtil.addLogger("开始播放视频", false, this.pathStack)
           await this.player.getAudioTrack()
           ToolsUtil.addLogger("获取音频轨道完成", false, this.pathStack)
@@ -266,7 +265,7 @@ export struct Player { // 播放页
               this.player.mIjkMediaPlayer?.seekTo('0')
               this.player.mIjkMediaPlayer?.start()
             }
-            this.player.playAVPlayer()
+            this.player.play()
             this.player.avPlayer?.seek(0, media.SeekMode.SEEK_CLOSEST)
           } else {
             ToolsUtil.addLogger("播放下一视频", false, this.pathStack)
@@ -311,7 +310,7 @@ export struct Player { // 播放页
           ToolsUtil.addLogger("进入idle状态", false, this.pathStack)
           await this.player.ijkPlayerStop()
           ToolsUtil.addLogger("停止ijk播放器完成", false, this.pathStack)
-          this.player.releaseAVPlayer()
+          this.player.release()
           ToolsUtil.addLogger("释放播放器资源完成", false, this.pathStack)
           break;
         case 'error':
@@ -321,7 +320,7 @@ export struct Player { // 播放页
           VideoOperateUtil.playErrorExecute(this.pathStack, this.player.video_meta_data, this.player.nowPlaying?.date!,
             NavigationAddress.FFMPEG_PLAYER)
           ToolsUtil.addLogger("执行播放错误处理完成", false, this.pathStack)
-          this.player.releaseAVPlayer()
+          this.player.release()
           ToolsUtil.addLogger("释放播放器资源完成", false, this.pathStack)
           break;
       }
@@ -408,7 +407,7 @@ export struct Player { // 播放页
     }
     this.player.avPlayer?.off('subtitleUpdate')
     ToolsUtil.addLogger("取消字幕更新监听完成", false, this.pathStack)
-    this.player.resetAVPlayer()
+    this.player.reset()
     ToolsUtil.addLogger("重置播放器完成", false, this.pathStack)
     await this.player.ijkPlayerStop()
     ToolsUtil.addLogger("停止ijk播放器完成", false, this.pathStack)
@@ -427,10 +426,10 @@ export struct Player { // 播放页
         if (this.player.mIjkMediaPlayer) {
           this.player.mIjkMediaPlayer?.start()
         }
-        this.player.playAVPlayer()
+        this.player.play()
       });
       this.player.avSession?.on('pause', () => {
-        this.player.pauseAVPlayer()
+        this.player.pause()
       });
       this.player.avSession?.on('seek', (position: number) => {
         this.player.seekTime(position)
@@ -445,7 +444,7 @@ export struct Player { // 播放页
         this.playNextVideoProcess()
       })
       this.player.avSession?.on('outputDeviceChange', () => {
-        this.player.pauseAVPlayer()
+        this.player.pause()
       })
       this.player.avSession?.on('setLoopMode', (mode: avSession.LoopMode) => {
         this.repeatMode = AVSessionUtil.getRepeatModeFromAvSession(mode)
@@ -609,10 +608,8 @@ export struct Player { // 播放页
           }
           GestureComponent({
             showControl: this.showControl,
+            isLock: this.isLock,
             onDoubleClickAction: (event: GestureEvent) => {
-              if (this.isLock) {
-                return
-              } // 设备锁定时直接返回
               if (!Setting.allowDoubleFastForward) { // 非双击快进模式时执行暂停
                 this.player.togglePlayback()
                 return
@@ -647,19 +644,17 @@ export struct Player { // 播放页
               }
             },
             onVerticalPanStart: (event: GestureEvent) => {
-              if (!this.isLock) {
-                const tapX = event.fingerList[0]?.localX
-                if (!VideoOperateUtil.checkLocalX(tapX)) {
-                  return
-                }
-                VideoOperateUtil.leftSideSwipe = tapX < this.screen_width / 2
-                VideoOperateUtil.screenBrightnessTmp = this.player.screenBrightness
-                this.player.volume = this.player.volumeActually
-                VideoOperateUtil.lastVolume = this.player.volume // 记录起始音量
+              const tapX = event.fingerList[0]?.localX
+              if (!VideoOperateUtil.checkLocalX(tapX)) {
+                return
               }
+              VideoOperateUtil.leftSideSwipe = tapX < this.screen_width / 2
+              VideoOperateUtil.screenBrightnessTmp = this.player.screenBrightness
+              this.player.volume = this.player.volumeActually
+              VideoOperateUtil.lastVolume = this.player.volume // 记录起始音量
             },
             onVerticalPanUpdate: (event: GestureEvent) => {
-              if (!this.isLock && event.fingerList?.length === 1) {
+              if (event.fingerList?.length === 1) {
                 const deltaYScale = event?.offsetY / this.screen_height * 2.5
                 if (VideoOperateUtil.leftSideSwipe) {
                   this.onSwipingBrightness = true
@@ -679,15 +674,10 @@ export struct Player { // 播放页
               this.onSwipingBrightness = false
             },
             onHorizonPanStart: (_event: GestureEvent) => {
-              if (!this.isLock) {
-                VideoOperateUtil.lastPlayTime = this.player.playTime;
-                this.onSwiping = true
-              }
+              VideoOperateUtil.lastPlayTime = this.player.playTime;
+              this.onSwiping = true
             },
             onHorizonPanUpdate: (event: GestureEvent) => {
-              if (this.isLock) {
-                return;
-              }
               if (!VideoOperateUtil.checkLocalX(event?.fingerList?.[0]?.localX)) {
                 return
               }
@@ -711,9 +701,6 @@ export struct Player { // 播放页
               }
             },
             onPinchUpdate: (event: GestureEvent) => {
-              if (this.isLock) {
-                return;
-              }
               const finger1 = event.fingerList[0]
               const finger2 = event.fingerList[1]
               if (!finger1 || !finger2) { // 双指检测失败直接返回
@@ -739,9 +726,6 @@ export struct Player { // 播放页
               }
             },
             onLongPressAction: () => {
-              if (this.isLock) {
-                return
-              }
               if (this.player.playing) {
                 this.longPress = true
                 VideoOperateUtil.lastSpeed = this.player.speed
@@ -755,9 +739,6 @@ export struct Player { // 播放页
               this.player.updatePlaybackSpeed(VideoOperateUtil.lastSpeed);
             },
             onLongPressPanStart: (event: GestureEvent) => {
-              if (this.isLock) {
-                return
-              }
               const tapX = event.fingerList[0]?.localX
               if (!VideoOperateUtil.checkLocalX(tapX)) {
                 return
@@ -765,7 +746,7 @@ export struct Player { // 播放页
               VideoOperateUtil.longPressStartX = tapX
             },
             onLongPressPanUpdate: (event: GestureEvent) => {
-              if (!this.isLock && this.longPress) { // 长按状态下的滑动处理
+              if (this.longPress) { // 长按状态下的滑动处理
                 const tapX = event.fingerList[0]?.localX
                 if (!VideoOperateUtil.checkLocalX(tapX)) {
                   return
@@ -833,7 +814,7 @@ export struct Player { // 播放页
         this.lockVisibility = false
         return true
       } else {
-        this.player.releaseAVPlayer()
+        this.player.release()
         ToolsUtil.addLogger("播放器资源已释放", false, this.pathStack)
         DataSyncUtil.lastPlayVideoIndex =
           this.player.video_meta_data.findIndex(i => i.date === this.player.nowPlaying?.date)
@@ -851,10 +832,8 @@ export struct Player { // 播放页
       PermissionUtil.applyStopContinuousTask()
       ToolsUtil.addLogger("停止连续任务完成", false, this.pathStack)
       await this.player.ijkPlayerStop()
-      ToolsUtil.addLogger("停止ijk播放器完成", false, this.pathStack)
       try {
         WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
-        ToolsUtil.addLogger("关闭屏幕常亮完成", false, this.pathStack)
         if (canIUse('SystemCapability.Window.SessionManager')) {
           await (await this.windowClass)?.setSpecificSystemBarEnabled('status', true)
           await (await this.windowClass)?.setSpecificSystemBarEnabled('navigationIndicator', true)
@@ -878,7 +857,7 @@ export struct Player { // 播放页
     this.exitVideoTime = setTimeout(() => {
       ToolsUtil.addLogger("退出视频定时器触发" + timeOut, false, this.pathStack)
       ToolsUtil.showToast(timeOut > 0 ? '到设定的时间了，已自动退出' : '播放完毕，已自动退出')
-      this.player.resetAVPlayer()
+      this.player.reset()
       ToolsUtil.addLogger("重置播放器完成", false, this.pathStack)
       DataSyncUtil.lastPlayVideoIndex =
         this.player.video_meta_data.findIndex(i => i.date === this.player.nowPlaying?.date)
@@ -975,9 +954,7 @@ export struct Player { // 播放页
       onScreenRotationOrFullScreenClick: async () => {
         ToolsUtil.addLogger("开始处理屏幕旋转/全屏点击", false, this.pathStack)
         const orientation = await WindowUtil.fullScreenOperate(this.screen_height, this.screen_width, this.windowClass)
-        ToolsUtil.addLogger("获取全屏操作方向完成", false, this.pathStack)
         if (orientation) {
-          ToolsUtil.addLogger("执行方向设置动画", false, this.pathStack)
           XAnimation.runWithAnimation(async () => {
             (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
               ToolsUtil.addLogger("设置窗口方向失败", true, this.pathStack)
@@ -985,7 +962,6 @@ export struct Player { // 播放页
           })
           ToolsUtil.addLogger("屏幕旋转/全屏操作完成", false, this.pathStack)
         }
-        ToolsUtil.addLogger("屏幕旋转/全屏点击处理完成", false, this.pathStack)
       },
       onTogglePlaybackClick: () => {
         ToolsUtil.addLogger("点击切换播放/暂停", false, this.pathStack)
@@ -997,9 +973,7 @@ export struct Player { // 播放页
         ToolsUtil.addLogger("播放下一个视频请求已发送", false, this.pathStack)
       },
       onSideBaClose: () => {
-        ToolsUtil.addLogger("点击关闭侧边栏", false, this.pathStack)
         this.closeSideBar(true)
-        ToolsUtil.addLogger("侧边栏关闭完成", false, this.pathStack)
       }
     })
   }
@@ -1036,7 +1010,6 @@ export struct Player { // 播放页
       onActiveEnhanceAudio: () => {
         ToolsUtil.addLogger("启用增强音频解码", false, this.pathStack)
         this.player.activeEnhanceAudio()
-        ToolsUtil.showToast('增强型解码启用成功')
       },
       closeAfter15min: (time: number) => {
         ToolsUtil.addLogger("设置15分钟后关闭播放器", false, this.pathStack)
@@ -1052,11 +1025,10 @@ export struct Player { // 播放页
       },
       toggleListenVideo: () => {
         ToolsUtil.addLogger("切换只听视频模式", false, this.pathStack)
-        this.isListenVideo = !this.isListenVideo
-        this.player.avPlayer?.setMediaMuted(media.MediaType.MEDIA_TYPE_VID, this.isListenVideo).catch(() => {
-          ToolsUtil.addLogger('设置视频静音失败', true, this.pathStack)
-        });
-        ToolsUtil.addLogger(`视频静音状态设置为：${this.isListenVideo}`, false, this.pathStack)
+        this.player.isListenVideo = !this.player.isListenVideo
+        this.player.isListenVideo ? ToolsUtil.showToast('只听视频模式已开启') :
+          ToolsUtil.showToast('只听视频模式已关闭')
+        this.player.setMuted()
       },
       captureScreen: () => {
         try {
@@ -1064,12 +1036,9 @@ export struct Player { // 播放页
           const pixelMap = image.createPixelMapFromSurfaceSync(this.player.surfaceID);
           const packOpts: image.PackingOption = { format: 'image/png', quality: 100 };
           const imagePackerApi = image.createImagePacker();
-
           const tempPath = PathUtils.tempPath + '/screenshot.png';
           const tempFile = fileIo.openSync(tempPath, fileIo.OpenMode.CREATE | fileIo.OpenMode.READ_WRITE);
-
           let srcUri: string;
-
           imagePackerApi.packToFile(pixelMap, tempFile.fd, packOpts)
             .then(() => imagePackerApi.release())
             .then(async () => {
@@ -1090,6 +1059,7 @@ export struct Player { // 播放页
                 fileIo.copyFileSync(src.fd, dst.fd);
                 fileIo.closeSync(src);
                 fileIo.closeSync(dst);
+                ToolsUtil.showToast('保存成功')
               }
             })
             .catch((err: BusinessError) => {

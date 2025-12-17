@@ -1,6 +1,7 @@
 @Component
 export struct GestureComponent {
   @Link showControl: boolean
+  @Link isLock: boolean
   onDoubleClickAction = (_event: GestureEvent) => {
   };
   onSingleClickAction = () => {
@@ -39,6 +40,9 @@ export struct GestureComponent {
           GestureGroup(GestureMode.Exclusive, //双击事件组和单击事件组互斥独立
             TapGesture({ count: 2 })// 双击事件
               .onAction((event: GestureEvent) => {
+                if (this.isLock) {
+                  return
+                }
                 this.onDoubleClickAction(event)
               }),
             TapGesture({ count: 1 })// 单击事件
@@ -49,38 +53,68 @@ export struct GestureComponent {
               .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
                 SourceTool.JOYSTICK])
               .onActionStart((event: GestureEvent) => { // 滑动屏幕
+                if (this.isLock) {
+                  return
+                }
                 this.onVerticalPanStart(event)
               })
               .onActionUpdate((event: GestureEvent) => {
+                if (this.isLock) {
+                  return
+                }
                 this.onVerticalPanUpdate(event)
               })
               .onActionEnd(() => {
+                if (this.isLock) {
+                  return
+                }
                 this.onVerticalPanEnd()
               }),
             PanGesture({ fingers: 1, direction: PanDirection.Horizontal })// 水平滑动事件滑动调整进度
               .onActionStart((event: GestureEvent) => { // 长按且滑动屏幕
+                if (this.isLock) {
+                  return
+                }
                 this.onHorizonPanStart(event)
               })
               .onActionUpdate((event: GestureEvent) => {
+                if (this.isLock) {
+                  return
+                }
                 this.onHorizonPanUpdate(event)
               })
               .onActionEnd(() => {
+                if (this.isLock) {
+                  return
+                }
                 this.onHorizonPanEnd()
               }),
             PinchGesture({ fingers: 2, distance: 2 })//手势缩放
               .onActionStart((event: GestureEvent) => {
+                if (this.isLock) {
+                  return
+                }
                 this.onPinchStart(event)
               })
               .onActionUpdate((event: GestureEvent) => {
+                if (this.isLock) {
+                  return
+                }
                 this.onPinchUpdate(event)
               })
           ),
           GestureGroup(GestureMode.Parallel, // 不用互斥事件，会导致左右滑动调节倍速的功能失效
             LongPressGesture()// 长按手势
               .onAction(() => { //长按
+                if (this.isLock) {
+                  return
+                }
                 this.onLongPressAction()
               })
               .onActionEnd(() => {
+                if (this.isLock) {
+                  return
+                }
                 this.onLongPressEnd()
               }),
             PanGesture({
@@ -88,9 +122,15 @@ export struct GestureComponent {
               direction: PanDirection.Horizontal,
             })//水平滑动事件 长按加速滑动调整倍速
               .onActionStart((event: GestureEvent) => { // 长按且滑动屏幕
+                if (this.isLock) {
+                  return
+                }
                 this.onLongPressPanStart(event)
               })
               .onActionUpdate((event: GestureEvent) => {
+                if (this.isLock) {
+                  return
+                }
                 this.onLongPressPanUpdate(event)
               })
           )))

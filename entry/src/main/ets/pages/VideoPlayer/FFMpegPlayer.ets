@@ -196,6 +196,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         }
         GestureComponent({
           showControl: this.showControl,
+          isLock: this.isLock,
           onDoubleClickAction: (event: GestureEvent) => {
             if (!Setting.allowDoubleFastForward) { // 非快进模式直接切换播放状态
               this.togglePlayState();

@@ -297,25 +297,43 @@ export default class VideoOperateUtil {
     return [finalWidth, finalHeight]
   }
 
-  static getVideoStartPlayTimeMode(nowPlaying: VideoMetadataFromPlayer) {
-    // 若为视频设置了片头时间，并且上次播放记录小于片头时间或者已经播完了或者超过了片尾时间，则自动跳到片头时间
-    if (nowPlaying?.start_time && nowPlaying?.start_time > 0 &&
-      (nowPlaying.start_time > nowPlaying.last_play || nowPlaying?.last_play > nowPlaying?.time! * 0.95) ||
-      nowPlaying?.last_play >= nowPlaying?.end_time!) {
-      ToolsUtil.showToast('已跳过片头')
-      return VideoStartTimeMode.SEEK_TO_START_TIME
+  static getVideoStartPlayTimeMode(nowPlaying: VideoMetadataFromPlayer): number {
+    // 先判断 nowPlaying 是否有效
+    if (!nowPlaying) {
+      return -1;
     }
-    // 若已有播放记录，则自动跳到上次播放时间
-    if (nowPlaying?.last_play !== 0 && nowPlaying?.last_play! < nowPlaying?.time! * 0.95) {
+    const start_time = nowPlaying.start_time;
+    const end_time = nowPlaying.end_time;
+    const last_play = nowPlaying.last_play ?? 0;
+    const time = nowPlaying.time ?? 0;
+    const title = nowPlaying.title;
+    // 条件1：若设置了片头时间（start_time > 0）
+    if (start_time != null && start_time > 0) {
+      const isBeforeStart = last_play < start_time
+      const isAlmostComplete = last_play > time * 0.95
+      const isBeyondEnd = end_time != null && end_time > 0 && last_play >= end_time
+      if (isBeforeStart || isAlmostComplete || isBeyondEnd) {
+        ToolsUtil.showToast('已跳过片头')
+        return VideoStartTimeMode.SEEK_TO_START_TIME
+      }
+    }
+    // 条件2：若有有效播放记录（且未接近结尾），则跳转到上次播放位置
+    if (last_play !== 0 && last_play < time * 0.95) {
       ToolsUtil.showToast('已跳到上次播放时间')
       return VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME
     }
-    // 若无播放记录，并且设定了统一片头时间，则自动跳到片头时间（音频除外）
-    if (Number(Setting.skipIntroTime) > 0 && Number(Setting.skipIntroTime) * 1000 < nowPlaying?.time! &&
-      !VideoInfoUtil.support_audio_format.includes(nowPlaying?.title.split('.')[nowPlaying?.title.split('.')
-        .length-1].toLowerCase()!)) {
-      ToolsUtil.showToast('已跳过统一的片头时间')
-      return VideoStartTimeMode.SEEK_TO_INTRO_TIME
+    // 条件3：若无播放记录，但全局设置了统一片头跳过时间（仅适用于视频）
+    const skipIntroSeconds = Number(Setting.skipIntroTime)
+    if (skipIntroSeconds > 0) {
+      const skipIntroMs = skipIntroSeconds * 1000
+      if (skipIntroMs < time && title != null) {
+        const parts = title.split('.')
+        const fileExt = parts.length > 0 ? parts[parts.length - 1].toLowerCase() : ''
+        if (fileExt !== '' && !VideoInfoUtil.support_audio_format.includes(fileExt)) {
+          ToolsUtil.showToast('已跳过统一的片头时间')
+          return VideoStartTimeMode.SEEK_TO_INTRO_TIME
+        }
+      }
     }
     return -1
   }

@@ -24,6 +24,7 @@ import Preferences from '../../database/Preferences';
 import { XAnimation } from '../../utils/AnimationUtil';
 import { FileFolder } from '../../interfaces/FileFolderInterface';
 import { SafeHeight } from '../../utils/ObservedUtil';
+import { SortComponent } from './SortComponent';
 
 @Component
 export struct VideoView {
@@ -197,26 +198,23 @@ export struct VideoView {
 
   @Builder
   SortMenuBuilder() {
-    Menu() {
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat')),
-        content: $r('app.string.sort_by_name')
-      })
-        .onClick(async () => {
-          await ToolsUtil.sortBy(PathUtils.appContext!, this.videoListController.videoMetaDataList,
-            this.videoListController.folder, "name")
-          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
-        })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
-        content: $r('app.string.sort_by_time')
-      })
-        .onClick(async () => {
-          await ToolsUtil.sortBy(PathUtils.appContext!, this.videoListController.videoMetaDataList,
-            this.videoListController.folder, "time")
-          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
-        })
-    }.attributeModifier(new MenuFancyModifier())
+    SortComponent({
+      onSortByName: () => {
+        ToolsUtil.sortBy(PathUtils.appContext!, this.videoListController.videoMetaDataList,
+          this.videoListController.folder, "name")
+        VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+      },
+      onSortByTime: () => {
+        ToolsUtil.sortBy(PathUtils.appContext!, this.videoListController.videoMetaDataList,
+          this.videoListController.folder, "time")
+        VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+      },
+      onSortByDatetime: () => {
+        ToolsUtil.sortBy(PathUtils.appContext!, this.videoListController.videoMetaDataList,
+          this.videoListController.folder, "datetime")
+        VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+      }
+    })
   }
 
   @Builder
