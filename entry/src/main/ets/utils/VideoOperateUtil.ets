@@ -21,6 +21,8 @@ import PermissionUtil from './PermissionUtil';
 import { VideoSource } from '../common/enum/VideoSource';
 import { PlayerParams } from '../common/NavigationCommon';
 import { Setting } from './ObservedUtil';
+import DataSyncUtil from './DataSyncUtil';
+import { fileIo, fileIo as fs } from '@kit.CoreFileKit';
 
 // 视频操作类
 export default class VideoOperateUtil {
@@ -50,6 +52,9 @@ export default class VideoOperateUtil {
   public static longPressStartX: number = 0
   public static leftSideSwipe: boolean = true
   public static delayJumpToPlayer: number = 450
+  public static avImageGenerator: media.AVImageGenerator | undefined = undefined
+  public static fileTest: fileIo.File | undefined = undefined
+  public static timeTmp: number = 0
   private static mainWin: window.Window | undefined = undefined
 
   // 设置亮度
@@ -229,6 +234,29 @@ export default class VideoOperateUtil {
 
   static saveVideoTotalTime(context: Context, now_playing: VideoMetadataFromPlayer) {
     SelectFileUtil.saveData(context, now_playing!, undefined, undefined, undefined, undefined, now_playing.time)
+  }
+
+  static saveLastPlayVideoIndex(list: VideoMetadata[], date: string | undefined) {
+    if (!date) {
+      return
+    }
+    const targetIndex = list.findIndex(i => i.date === date)
+    if (targetIndex === DataSyncUtil.lastPlayVideoIndex) {
+      DataSyncUtil.lastPlayVideoIndex = -1
+    } else {
+      DataSyncUtil.lastPlayVideoIndex = targetIndex
+    }
+  }
+
+  static async getFrameTimeProcess(uri: string) {
+    try {
+      VideoOperateUtil.avImageGenerator = await media.createAVImageGenerator();
+      VideoOperateUtil.fileTest = fs.openSync(uri, fs.OpenMode.READ_ONLY)
+      let avFileDescriptor: media.AVFileDescriptor = { fd: VideoOperateUtil.fileTest.fd };
+      VideoOperateUtil.avImageGenerator.fdSrc = avFileDescriptor
+    } catch (error) {
+      // TODO: Implement error handling.
+    }
   }
 
   // 启动时初始化已保存的设置项

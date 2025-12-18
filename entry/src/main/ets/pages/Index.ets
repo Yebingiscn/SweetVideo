@@ -55,7 +55,7 @@ struct Index {
   @Provide file_folder_list: FileFolder[] = []
   @State searchValue: string = ''
   @State isPresent: boolean = false
-  @StorageProp('screen_width') screen_width: number = 0
+  @StorageLink('screen_width') screen_width: number = 0
   @Provide videoListController: VideoListController = new VideoListController()
   @Provide fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   editFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
@@ -470,7 +470,8 @@ struct Index {
       if (isVisible) {
         // 增加判断，旋转时保持滚动位置不变
         if (this.videoListController.folder?.video_list) {
-          this.videoListController.refresh(this.screen_width, Setting.listDisplayMode)
+          const actualContentWidth = this.screen_width - DataSyncUtil.minContentWidth
+          this.videoListController.refresh(actualContentWidth, Setting.listDisplayMode)
           VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
         }
         if (DataSyncUtil.lastPlayVideoIndex >= 0) {

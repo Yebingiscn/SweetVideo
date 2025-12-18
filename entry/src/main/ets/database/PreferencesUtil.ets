@@ -10,7 +10,7 @@ export default class PreferencesUtil {
       })
       pref.putSync(key, value)
       pref.flush()?.catch(() => {
-        console.error('flush error')
+        ToolsUtil.addLogger('flush error', true)
       })
     } catch (e) {
       ToolsUtil.showToast(`数据库异常，保存失败，原因是:${e}，ValueType: ${value}，获取参数为 ${name}}: ${key}`)
@@ -36,14 +36,14 @@ export default class PreferencesUtil {
       })
       const value = pref.getSync(key, 'DEFAULT_VALUE');
       if (value === 'DEFAULT_VALUE') {
-        console.log(`Key "${key}" not found, skip deletion`);
+        ToolsUtil.addLogger(`Key "${key}" not found, skip deletion`, false)
         return; // 键不存在时提前返回
       }
       pref.delete(key)?.catch(() => {
-        console.error('delete error')
+        ToolsUtil.addLogger(`delete error`, true)
       })
       pref.flush()?.catch(() => {
-        console.error('flush error')
+        ToolsUtil.addLogger(`flush error`, true)
       })
     } catch (e) {
       ToolsUtil.showToast(`数据库异常，删除失败，原因是 ${e} 删除${key}:${name}失败`)

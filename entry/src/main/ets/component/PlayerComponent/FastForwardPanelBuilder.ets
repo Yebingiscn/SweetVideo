@@ -43,7 +43,7 @@ export function FastForwardPanelBuilder(fastForwardInfo: FastForwardInfo) {
         0 - VideoInfoUtil.play_area_height / 2 + 20 :
         0 - fastForwardInfo.location / 2 + 20)
   })
-  .borderRadius(1000) // 胶囊形状背景
+  .borderRadius(16) // 胶囊形状背景
   .backgroundColor('#30000000') // 半透明黑色背景
   .backdropBlur(100) // 背景模糊效果
   .animation({ duration: 300, curve: Curve.Smooth })

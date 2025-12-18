@@ -32,7 +32,6 @@ import { AIAsr } from '../../component/PlayerComponent/AIAsrComponent';
 import SubtitleUtil from '../../utils/SubtitleUtil';
 import { SubtitleMode } from '../../common/enum/SubtitleMode';
 import { AVPlayerUtil } from '../../utils/AVPlayerUtil';
-import DataSyncUtil from '../../utils/DataSyncUtil';
 import { AVPlayerController } from '../../controller/AVPlayerController';
 import { BrightnessSwipingBuilder } from '../../component/PlayerComponent/BrightnessSwipingBuilder';
 import { FastForwardPanelBuilder } from '../../component/PlayerComponent/FastForwardPanelBuilder';
@@ -73,6 +72,7 @@ export struct Player { // 播放页
   @State subtitleVisibility: Visibility = Visibility.Visible
   @State repeatMode: RepeatMode = RepeatMode.LIST
   @Consume('pathStack') pathStack: NavPathStack
+  @State pixelMap: PixelMap | undefined = undefined
   @State exitVideoTime: number = 0
   private autoHideTimeout: boolean = false
 
@@ -127,6 +127,8 @@ export struct Player { // 播放页
     ToolsUtil.addLogger("清理音频管理器完成", false, this.pathStack)
     this.player.release()
     ToolsUtil.addLogger("释放播放器资源完成", false, this.pathStack)
+    VideoOperateUtil.avImageGenerator?.release().catch(() => {
+    })
     ToolsUtil.addLogger("aboutToDisappear方法执行完成", false, this.pathStack)
   }
 
@@ -155,7 +157,6 @@ export struct Player { // 播放页
       ToolsUtil.addLogger("比例模式设置为原始比例", false, this.pathStack)
     }
     VideoInfoUtil.saveOriginalVideoWidthAndHeight(this.play_area_width, this.play_area_height)
-    ToolsUtil.addLogger("保存原始视频尺寸完成", false, this.pathStack)
     ToolsUtil.addLogger("setRotation方法执行完成", false, this.pathStack)
   }
 
@@ -360,6 +361,7 @@ export struct Player { // 播放页
           ToolsUtil.showToast('视频打开失败，可能已失效：' + error)
           this.pathStack.pop()
         }
+        await VideoOperateUtil.getFrameTimeProcess(this.player.nowPlaying!.uri)
         this.setRotation()
         ToolsUtil.addLogger("计算播放区域尺寸完成", false, this.pathStack)
         if (this.windowClass) {
@@ -579,13 +581,17 @@ export struct Player { // 播放页
           }
 
           if (this.longPress) {
-            FastForwardPanelBuilder({ speed: this.player.speed, location: this.play_area_height })
+            FastForwardPanelBuilder({
+              speed: this.player.speed,
+              location: this.play_area_height,
+            })
           }
           if (this.onSwiping) {
             SwipingPlayTimePanelBuilder({
               isSliderPlayTimeChange: this.isSliderPlayTimeChange,
               playTime: this.player.playTime,
-              totalTime: this.player.nowPlaying!.time
+              totalTime: this.player.nowPlaying!.time,
+              pixelMap: this.pixelMap
             })
           }
 
@@ -673,11 +679,13 @@ export struct Player { // 播放页
               this.player.onSwipingVoice = false
               this.onSwipingBrightness = false
             },
-            onHorizonPanStart: (_event: GestureEvent) => {
+            onHorizonPanStart: async (_event: GestureEvent) => {
               VideoOperateUtil.lastPlayTime = this.player.playTime;
               this.onSwiping = true
+              this.pixelMap = undefined
+              this.getFrameByTime(this.player.playTime)
             },
-            onHorizonPanUpdate: (event: GestureEvent) => {
+            onHorizonPanUpdate: async (event: GestureEvent) => {
               if (!VideoOperateUtil.checkLocalX(event?.fingerList?.[0]?.localX)) {
                 return
               }
@@ -685,10 +693,12 @@ export struct Player { // 播放页
               this.player.playTime = Math.max(0,
                 Math.min(VideoOperateUtil.lastPlayTime + (event.offsetX * timePerPixel),
                   this.player.nowPlaying?.time!))
+              this.getFrameByTime(this.player.playTime)
             },
             onHorizonPanEnd: () => {
               this.player.seekTime(this.player.playTime);
               this.onSwiping = false;
+              VideoOperateUtil.timeTmp = 0
             },
             onPinchStart: (event: GestureEvent) => {
               const finger1 = event.fingerList[0]
@@ -816,8 +826,7 @@ export struct Player { // 播放页
       } else {
         this.player.release()
         ToolsUtil.addLogger("播放器资源已释放", false, this.pathStack)
-        DataSyncUtil.lastPlayVideoIndex =
-          this.player.video_meta_data.findIndex(i => i.date === this.player.nowPlaying?.date)
+        VideoOperateUtil.saveLastPlayVideoIndex(this.player.video_meta_data, this.player.nowPlaying?.date)
         ToolsUtil.addLogger("更新最后播放视频索引完成", false, this.pathStack)
         return false
       }
@@ -856,15 +865,34 @@ export struct Player { // 播放页
     ToolsUtil.addLogger("开始设置退出视频定时器", false, this.pathStack)
     this.exitVideoTime = setTimeout(() => {
       ToolsUtil.addLogger("退出视频定时器触发" + timeOut, false, this.pathStack)
-      ToolsUtil.showToast(timeOut > 0 ? '到设定的时间了，已自动退出' : '播放完毕，已自动退出')
+      ToolsUtil.showToast(timeOut > 0 ? '到设定的时间了，已自动退出' : '已退出')
       this.player.reset()
       ToolsUtil.addLogger("重置播放器完成", false, this.pathStack)
-      DataSyncUtil.lastPlayVideoIndex =
-        this.player.video_meta_data.findIndex(i => i.date === this.player.nowPlaying?.date)
+      VideoOperateUtil.saveLastPlayVideoIndex(this.player.video_meta_data, this.player.nowPlaying?.date)
       ToolsUtil.addLogger("更新最后播放视频索引完成", false, this.pathStack)
       this.pathStack.pop()
     }, timeOut)
     ToolsUtil.addLogger(`退出视频定时器设置完成，超时时间：${timeOut}`, false, this.pathStack)
+  }
+
+  getFrameByTime(time: number) {
+    console.error('test' + Math.abs(time - VideoOperateUtil.timeTmp))
+    if (Math.abs(time - VideoOperateUtil.timeTmp) > 10) {
+      VideoOperateUtil.timeTmp = time
+      return
+    }
+    VideoOperateUtil.timeTmp = time
+    try {
+      VideoOperateUtil.avImageGenerator?.fetchFrameByTime(time * 1000,
+        media.AVImageQueryOptions.AV_IMAGE_QUERY_CLOSEST, { width: 100, height: 100 }).then(image => {
+        this.pixelMap = image
+      }).catch(() => {
+        // TODO: Implement error handling.
+      })
+    } catch (error) {
+      console.error('test' + error)
+      this.pixelMap = undefined
+    }
   }
 
   @Builder

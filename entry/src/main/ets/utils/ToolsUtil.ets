@@ -19,11 +19,18 @@ import { UniversalDetector } from '@ohos/juniversalchardet';
 import { fileIo } from '@kit.CoreFileKit';
 import { util } from '@kit.ArkTS';
 import { salmonLogger } from 'salmonlogger';
+import DataSyncUtil from './DataSyncUtil';
+import { VideoItemWithPinyin } from '../interfaces/VideoItemWithPinyinInterface';
 
 // 工具类
 export default class ToolsUtil {
   private static splitRegex = /(\d+)/g;
-  private static pinyinCache = new WeakMap<VideoMetadata, string>();
+  private static readonly COLLATOR = new Intl.Collator("zh-CN", {
+    sensitivity: "variant",
+    numeric: true,
+    ignorePunctuation: false,
+    caseFirst: "upper"
+  });
 
   // Toast设置
   static showToast(text: string) {
@@ -65,56 +72,21 @@ export default class ToolsUtil {
     }
   }
 
-  static errorCatchExec(name: string, error?: string) {
-    console.error(`sweet_video error log name: ${name}: error: ${error}`)
-    ToolsUtil.showToast(`流心出错了，方法名：${name} 内容：${error}`)
-  }
-
-  // 名称排序处理，如果单纯使用普通排序逻辑会造成卡顿，这里结合华为提供的排序进行排序
   static sortByNameProcess(list: VideoMetadata[]) {
-    const collator = new Intl.Collator("zh-CN", {
-      sensitivity: "variant",
-      numeric: true,
-      ignorePunctuation: false,
-      caseFirst: "upper"
-    });
-    const naturalCompare = (a: string, b: string) => {
-      // 使用新正则拆分数字部分
-      const aParts = a.split(ToolsUtil.splitRegex).filter(Boolean);
-      const bParts = b.split(ToolsUtil.splitRegex).filter(Boolean);
-      for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
-        const aVal = aParts[i];
-        const bVal = bParts[i];
-        // 判断当前部分是否为数字
-        const aIsNum = /^\d+$/.test(aVal);
-        const bIsNum = /^\d+$/.test(bVal);
-        if (aIsNum && bIsNum) {
-          // 数字部分按数值比较
-          const numA = parseInt(aVal, 10);
-          const numB = parseInt(bVal, 10);
-          if (numA !== numB) {
-            return numA - numB;
-          }
-        } else {
-          // 非数字部分按文本比较
-          const cmp = collator.compare(aVal, bVal);
-          if (cmp !== 0) {
-            return cmp;
-          }
-        }
-      }
-      return aParts.length - bParts.length;
-    };
-    const sortedList = [...list].sort((a, b): number => { // 实现一个排序缓存
-      const getCachedPinyin = (item: VideoMetadata) => {
-        if (!ToolsUtil.pinyinCache.has(item)) {
-          ToolsUtil.pinyinCache.set(item, pinyin4js.getShortPinyin(item.title || ""));
-        }
-        return ToolsUtil.pinyinCache.get(item)!;
+    if (list.length <= 1) {
+      return [...list];
+    }
+    const itemsWithPinyin: VideoItemWithPinyin[] = list.map(item => {
+      const videoItem: VideoItemWithPinyin = {
+        item: item,
+        pinyin: pinyin4js.getShortPinyin(item.title || "")
       };
-      return naturalCompare(getCachedPinyin(a), getCachedPinyin(b));
+      return videoItem;
     });
-    return sortedList;
+    const sortedItems = [...itemsWithPinyin].sort((a, b) => {
+      return ToolsUtil.naturalCompare(a.pinyin, b.pinyin);
+    });
+    return sortedItems.map(entry => entry.item);
   }
 
   static sortByDatetimeProcess(list: VideoMetadata[]) {
@@ -162,6 +134,9 @@ export default class ToolsUtil {
 
   // 点击视频跳转到播放器
   static async routerWhere(pathStack: NavPathStack, uri: string, item: VideoMetadata, list: VideoMetadata[]) {
+    if (uri === NavigationAddress.AV_PLAYER) {
+      DataSyncUtil.lastPlayVideoIndex = list.findIndex(i => i.date === item?.date)
+    }
     // 没有长宽的视频/音频系统播放器播不了
     if (VideoInfoUtil.videoWidthAndHeightFormat(String(item?.size)) === '0 x 0') {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
@@ -268,5 +243,31 @@ export default class ToolsUtil {
       salmonLogger.addLog('subtitle', 'decode failed: ' + error.code + ':' + error.message, true)
       throw new Error(`文件解码转换失败: ${error.message || '未知错误'}`);
     }
+  }
+
+  private static naturalCompare(a: string, b: string): number {
+    const aParts = a.split(ToolsUtil.splitRegex).filter(Boolean);
+    const bParts = b.split(ToolsUtil.splitRegex).filter(Boolean);
+
+    for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
+      const aVal = aParts[i];
+      const bVal = bParts[i];
+      const aIsNum = /^\d+$/.test(aVal);
+      const bIsNum = /^\d+$/.test(bVal);
+
+      if (aIsNum && bIsNum) {
+        const numA = parseInt(aVal, 10);
+        const numB = parseInt(bVal, 10);
+        if (numA !== numB) {
+          return numA - numB;
+        }
+      } else {
+        const cmp = ToolsUtil.COLLATOR.compare(aVal, bVal);
+        if (cmp !== 0) {
+          return cmp;
+        }
+      }
+    }
+    return aParts.length - bParts.length;
   }
 }
