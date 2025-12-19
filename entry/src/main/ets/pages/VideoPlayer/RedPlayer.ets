@@ -183,7 +183,7 @@ export struct RedPlayer { // 红薯播放器页
             isSliderPlayTimeChange: this.isSliderPlayTimeChange,
             playTime: this.play_time,
             totalTime: this.redPlayerStateHolder!.videoDuration,
-            pixelMap: undefined
+            pixelMap: null
           })
         }
 

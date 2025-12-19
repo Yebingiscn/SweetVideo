@@ -53,8 +53,8 @@ export default class VideoOperateUtil {
   public static leftSideSwipe: boolean = true
   public static delayJumpToPlayer: number = 450
   public static avImageGenerator: media.AVImageGenerator | undefined = undefined
-  public static fileTest: fileIo.File | undefined = undefined
-  public static timeTmp: number = 0
+  public static nowPlayingFile: fileIo.File | undefined = undefined
+  public static updatePix: boolean = false
   private static mainWin: window.Window | undefined = undefined
 
   // 设置亮度
@@ -248,15 +248,30 @@ export default class VideoOperateUtil {
     }
   }
 
-  static async getFrameTimeProcess(uri: string) {
+  static async getFrameTimePreprocess(uri: string) {
     try {
       VideoOperateUtil.avImageGenerator = await media.createAVImageGenerator();
-      VideoOperateUtil.fileTest = fs.openSync(uri, fs.OpenMode.READ_ONLY)
-      let avFileDescriptor: media.AVFileDescriptor = { fd: VideoOperateUtil.fileTest.fd };
+      VideoOperateUtil.nowPlayingFile = fs.openSync(uri, fs.OpenMode.READ_ONLY)
+      let avFileDescriptor: media.AVFileDescriptor = { fd: VideoOperateUtil.nowPlayingFile.fd };
       VideoOperateUtil.avImageGenerator.fdSrc = avFileDescriptor
     } catch (error) {
-      // TODO: Implement error handling.
+      ToolsUtil.addLogger('getFrameTimePreprocess error' + error, true, undefined, 'VideoOperateUtil')
     }
+  }
+
+  static async releaseAVImageGenerator() {
+    VideoOperateUtil.avImageGenerator?.release().catch(() => {
+      ToolsUtil.addLogger('releaseAVImageGenerator error', true, undefined, 'VideoOperateUtil')
+    })
+    VideoOperateUtil.nowPlayingFile = undefined
+    VideoOperateUtil.updatePix = false
+  }
+
+  static async fetchFrameByTime(time: number) {
+    return await VideoOperateUtil.avImageGenerator?.fetchFrameByTime(time * 1000,
+      media.AVImageQueryOptions.AV_IMAGE_QUERY_CLOSEST, { width: 100, height: 100 }).catch(() => {
+      ToolsUtil.addLogger('fetchFrameByTime error', true, undefined, 'VideoOperateUtil')
+    })
   }
 
   // 启动时初始化已保存的设置项

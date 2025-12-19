@@ -6,7 +6,7 @@ class SwipingPlayTimeValue {
   isSliderPlayTimeChange: boolean = false
   playTime: number = 0
   totalTime: number = 0
-  pixelMap: PixelMap | undefined
+  pixelMap: PixelMap | null = null
 }
 
 @Builder

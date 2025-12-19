@@ -72,7 +72,7 @@ export struct Player { // 播放页
   @State subtitleVisibility: Visibility = Visibility.Visible
   @State repeatMode: RepeatMode = RepeatMode.LIST
   @Consume('pathStack') pathStack: NavPathStack
-  @State pixelMap: PixelMap | undefined = undefined
+  @State pixelMap: PixelMap | null = null
   @State exitVideoTime: number = 0
   private autoHideTimeout: boolean = false
 
@@ -361,7 +361,7 @@ export struct Player { // 播放页
           ToolsUtil.showToast('视频打开失败，可能已失效：' + error)
           this.pathStack.pop()
         }
-        await VideoOperateUtil.getFrameTimeProcess(this.player.nowPlaying!.uri)
+        await VideoOperateUtil.getFrameTimePreprocess(this.player.nowPlaying!.uri)
         this.setRotation()
         ToolsUtil.addLogger("计算播放区域尺寸完成", false, this.pathStack)
         if (this.windowClass) {
@@ -682,8 +682,8 @@ export struct Player { // 播放页
             onHorizonPanStart: async (_event: GestureEvent) => {
               VideoOperateUtil.lastPlayTime = this.player.playTime;
               this.onSwiping = true
-              this.pixelMap = undefined
-              this.getFrameByTime(this.player.playTime)
+              this.pixelMap = null
+              this.getFrameByTime(this.player.playTime, true)
             },
             onHorizonPanUpdate: async (event: GestureEvent) => {
               if (!VideoOperateUtil.checkLocalX(event?.fingerList?.[0]?.localX)) {
@@ -693,12 +693,11 @@ export struct Player { // 播放页
               this.player.playTime = Math.max(0,
                 Math.min(VideoOperateUtil.lastPlayTime + (event.offsetX * timePerPixel),
                   this.player.nowPlaying?.time!))
-              this.getFrameByTime(this.player.playTime)
+              this.getFrameByTime(this.player.playTime, false)
             },
             onHorizonPanEnd: () => {
               this.player.seekTime(this.player.playTime);
               this.onSwiping = false;
-              VideoOperateUtil.timeTmp = 0
             },
             onPinchStart: (event: GestureEvent) => {
               const finger1 = event.fingerList[0]
@@ -839,7 +838,6 @@ export struct Player { // 播放页
         ToolsUtil.addLogger("保存视频播放时间完成", false, this.pathStack)
       }
       PermissionUtil.applyStopContinuousTask()
-      ToolsUtil.addLogger("停止连续任务完成", false, this.pathStack)
       await this.player.ijkPlayerStop()
       try {
         WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
@@ -849,9 +847,8 @@ export struct Player { // 播放页
           ToolsUtil.addLogger("恢复系统栏显示完成", false, this.pathStack)
         }
         await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
-        ToolsUtil.addLogger("恢复窗口方向完成", false, this.pathStack)
         await this.player.avSession?.stopCasting();
-        ToolsUtil.addLogger("停止AVSession投播完成", false, this.pathStack)
+        await VideoOperateUtil.releaseAVImageGenerator()
       } catch (error) {
         ToolsUtil.addLogger(`onWillDisappear中发生错误：${error}`, true, this.pathStack)
       }
@@ -875,23 +872,23 @@ export struct Player { // 播放页
     ToolsUtil.addLogger(`退出视频定时器设置完成，超时时间：${timeOut}`, false, this.pathStack)
   }
 
-  getFrameByTime(time: number) {
-    console.error('test' + Math.abs(time - VideoOperateUtil.timeTmp))
-    if (Math.abs(time - VideoOperateUtil.timeTmp) > 10) {
-      VideoOperateUtil.timeTmp = time
-      return
+  async getFrameByTime(time: number, isFirstFrame: boolean) {
+    const isUpdating = !VideoOperateUtil.updatePix
+    const shouldSkip = isUpdating && !isFirstFrame
+    if (shouldSkip) {
+      return // 非第一帧且正在更新时跳过，避免堆积
     }
-    VideoOperateUtil.timeTmp = time
+    VideoOperateUtil.updatePix = false // 加锁
     try {
-      VideoOperateUtil.avImageGenerator?.fetchFrameByTime(time * 1000,
-        media.AVImageQueryOptions.AV_IMAGE_QUERY_CLOSEST, { width: 100, height: 100 }).then(image => {
-        this.pixelMap = image
-      }).catch(() => {
-        // TODO: Implement error handling.
-      })
+      const img = await VideoOperateUtil.fetchFrameByTime(time)
+      if (img) {
+        this.pixelMap = img
+      }
     } catch (error) {
-      console.error('test' + error)
-      this.pixelMap = undefined
+      console.error('获取视频帧失败:', error)
+      this.pixelMap = null
+    } finally {
+      VideoOperateUtil.updatePix = true // 确保解锁
     }
   }
 

@@ -410,10 +410,10 @@ export default class SelectFileUtil {
       await fs.open(String(uri))
       return true
     } catch (e) {
-      console.log('file error' + e)
-      salmonLogger.addLog('file error', 'file error: ' + e.code + ':' + e.message, true)
+      console.error('file error' + e)
       if (showToast) {
         ToolsUtil.showToast(uri + '文件已经失效，请重新导入')
+        salmonLogger.addLog('file error', 'file error: ' + e.code + ':' + e.message, true)
       }
       return false
     }

@@ -179,7 +179,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             isSliderPlayTimeChange: this.isSliderPlayTimeChange,
             playTime: this.play_time,
             totalTime: this.total_time,
-            pixelMap: undefined
+            pixelMap: null
           })
         }
 
