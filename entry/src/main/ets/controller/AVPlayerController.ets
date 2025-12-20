@@ -215,7 +215,11 @@ export class AVPlayerController implements PlayerControllerInterface {
             return false
           }
         }
-        nextItem = SelectFileUtil.getNextItem(this.video_meta_data, item.date)
+        if (repeatMode === RepeatMode.SINGLE) {
+          nextItem = this.video_meta_data.find(v => v.date === this.nowPlaying?.date)!
+        } else {
+          nextItem = SelectFileUtil.getNextItem(this.video_meta_data, item.date)
+        }
       }
       if (nextItem) {
         return nextItem
