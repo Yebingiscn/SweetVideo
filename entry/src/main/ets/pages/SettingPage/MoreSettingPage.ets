@@ -9,6 +9,7 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 import { commentManager } from '@kit.AppGalleryKit';
 import { salmonLogger } from 'salmonlogger';
 import { SafeHeight, Setting } from '../../utils/ObservedUtil';
+import { Want } from '@kit.AbilityKit';
 
 @Component
 export struct MoreSettingPage {
@@ -90,6 +91,20 @@ export struct MoreSettingPage {
                 }).catch((error: BusinessError<Object>) => {
                   salmonLogger.addLog(this.pathStack.getAllPathName()[0],
                     `展示评论弹窗错误, Code: ${error.code}, message: ${error.message}`, true)
+                  const want: Want = {
+                    action: 'ohos.want.action.appdetail',
+                    // bundleName为需要拉起写评论页的应用包名，action隐式指定为write-review，表示进入详情页后，下一步将拉起写评论页。
+                    uri: `store://appgallery.huawei.com/app/detail?id=${PathUtils.appContext!.abilityInfo.bundleName}&action=write-review`
+                  };
+                  PathUtils.appContext!.startAbility(want)
+                    .then(() => {
+                      salmonLogger.addLog(this.pathStack.getAllPathName()[0], '成功打开应用市场评论页', false)
+                    })
+                    .catch((error: BusinessError) => {
+                      ToolsUtil.showToast('打开应用市场失败，原因是：' + error)
+                      salmonLogger.addLog(this.pathStack.getAllPathName()[0], '打开应用市场评论页失败，原因是：' + error,
+                        true)
+                    });
                 });
               } catch (error) {
                 salmonLogger.addLog(this.pathStack.getAllPathName()[0],
