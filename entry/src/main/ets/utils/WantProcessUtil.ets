@@ -14,8 +14,6 @@ import ToolsUtil from './ToolsUtil';
 // 处理拉起应用传来的视频链接
 export default class WantProcess {
   public static hasNewWant = false
-  public static PRIVACY_LINK: string =
-    "https://github.com/Yebingiscn/SweetVideo/wiki/%E6%B5%81%E5%BF%83%E6%92%AD%E6%94%BE%E5%99%A8%E7%9A%84%E4%BD%BF%E7%94%A8%E6%9D%A1%E6%AC%BE%E4%B8%8E%E9%9A%90%E7%A7%81%E5%A3%B0%E6%98%8E"
   private static isSystemShare: boolean = false
   private static receiveWant: Want | undefined = undefined;
   private static receiveWantUri: string = '';

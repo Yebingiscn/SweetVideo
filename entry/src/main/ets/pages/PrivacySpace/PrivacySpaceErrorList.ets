@@ -17,7 +17,7 @@ export struct PrivacySpaceErrorList {
 
   async aboutToAppear(): Promise<void> {
     const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-    const videoFromSandbox = await fs.listFile(PathUtils.videoPath).catch(() => {
+    const videoFromSandbox = await fs.listFile(PathUtils.videoPath)?.catch(() => {
       console.error('get video fail')
     })
     // 确保 videoFromSandbox 是一个数组（如果出错则设为空数组）

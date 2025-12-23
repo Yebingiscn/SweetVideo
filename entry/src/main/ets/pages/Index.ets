@@ -47,7 +47,6 @@ import { SafeHeight, Setting } from '../utils/ObservedUtil';
 @Entry
 @Component
 struct Index {
-  @State passwd: string = 'passwd'
   @State list_empty_item: string[] = ['']
   @State loading: boolean = false
   @State processedItems: number = 0
@@ -77,6 +76,7 @@ struct Index {
   deletedVideosDialogController: CustomDialogController = new CustomDialogController({
     builder: DeletedVideosDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  private passwd: string = 'passwd'
 
   @Builder
   FileFolderSelectMenu(folder: FileFolder) {
@@ -361,7 +361,6 @@ struct Index {
         Stack() {
           VideoView({
             loading: this.loading,
-            passwd: this.passwd,
             searchValue: this.searchValue,
             videoListController: this.videoListController
           }).scale({

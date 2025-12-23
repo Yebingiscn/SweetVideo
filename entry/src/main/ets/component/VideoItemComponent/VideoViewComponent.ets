@@ -32,13 +32,13 @@ export struct VideoView {
   @Link loading: boolean
   @State is_edit: boolean = false
   @Link searchValue: string
-  @Link passwd: string
   @Link videoListController: VideoListController
   @Consume file_folder_list: FileFolder[]
   @Consume sideBarController: SideBarController
   @Consume('pathStack') pathStack: NavPathStack
   @Consume fileFolderSource: FileFolderDataSource
   @Watch('SyncDelMultipleList') @State delMultipleList: VideoMetadata[] = DataSyncUtil.delMultipleList
+  private passwd: string = 'passwd'
 
   SyncDelMultipleList() {
     DataSyncUtil.delMultipleList = this.delMultipleList

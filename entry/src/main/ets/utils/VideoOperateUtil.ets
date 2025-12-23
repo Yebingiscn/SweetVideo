@@ -16,7 +16,6 @@ import { LanguageConfig } from '../common/LanguageConfig';
 import ToolsUtil from './ToolsUtil';
 import VideoInfoUtil from './VideoInfoUtil';
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
-import PreferencesUtil from '../database/PreferencesUtil';
 import PermissionUtil from './PermissionUtil';
 import { VideoSource } from '../common/enum/VideoSource';
 import { PlayerParams } from '../common/NavigationCommon';
@@ -260,7 +259,7 @@ export default class VideoOperateUtil {
   }
 
   static async releaseAVImageGenerator() {
-    VideoOperateUtil.avImageGenerator?.release().catch(() => {
+    VideoOperateUtil.avImageGenerator?.release()?.catch(() => {
       ToolsUtil.addLogger('releaseAVImageGenerator error', true, undefined, 'VideoOperateUtil')
     })
     VideoOperateUtil.nowPlayingFile = undefined
@@ -269,18 +268,14 @@ export default class VideoOperateUtil {
 
   static async fetchFrameByTime(time: number) {
     return await VideoOperateUtil.avImageGenerator?.fetchFrameByTime(time * 1000,
-      media.AVImageQueryOptions.AV_IMAGE_QUERY_CLOSEST, { width: 100, height: 100 }).catch(() => {
+      media.AVImageQueryOptions.AV_IMAGE_QUERY_CLOSEST, { width: 100, height: 100 })?.catch(() => {
       ToolsUtil.addLogger('fetchFrameByTime error', true, undefined, 'VideoOperateUtil')
     })
   }
 
   // 启动时初始化已保存的设置项
   static initSetting(context: common.UIAbilityContext) {
-    PermissionUtil.reqPermissionsFromUser(PermissionUtil.permissions, context);
-    // 这里删掉没用的存储项
-    PreferencesUtil.delPreferencesValue(context, 'sweet_video', 'circle_play')
-    PreferencesUtil.delPreferencesValue(context, 'sweet_video', 'is_list_display')
-
+    PermissionUtil.reqPermissionsFromUser(PermissionUtil.permissions, context)
     Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
     Setting.backgroundDropBlur = Preferences.getBackgroundDropBlur(context)
     Setting.backgroundColorMode = Preferences.getBackgroundColorMode(context)

@@ -3,7 +3,6 @@ import { OOBEVersion } from '../../utils/DataSyncUtil';
 import { SafeHeight } from '../../utils/ObservedUtil';
 import { PathUtils } from '../../utils/PathUtils';
 import ToolsUtil from '../../utils/ToolsUtil';
-import WantProcessUtil from '../../utils/WantProcessUtil';
 
 @Component
 export struct PrivacyPolicyComponent {
@@ -16,9 +15,6 @@ export struct PrivacyPolicyComponent {
         Text() {
           Span(`《${ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id)}的使用条款与隐私声明》`)
             .fontColor($r('app.color.main_color'))
-            .onClick(() => {
-              this.openWebUrl();
-            })
           Span('\n\n' +
             '流心播放器（以下简称“本软件”）是由 郴州液态科技有限公司 （以下简称“我们”）开发，供您（以下称“用户”）免费使用的本地音视频播放软件。\n' +
             '\n' +
@@ -113,10 +109,5 @@ export struct PrivacyPolicyComponent {
         }
       }),
     })
-  }
-
-  openWebUrl() {
-    let link: string = WantProcessUtil.PRIVACY_LINK
-    WantProcessUtil.linkToWeb(PathUtils.appContext!, link)
   }
 }

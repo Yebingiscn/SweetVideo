@@ -127,7 +127,7 @@ export struct Player { // 播放页
     ToolsUtil.addLogger("清理音频管理器完成", false, this.pathStack)
     this.player.release()
     ToolsUtil.addLogger("释放播放器资源完成", false, this.pathStack)
-    VideoOperateUtil.avImageGenerator?.release().catch(() => {
+    VideoOperateUtil.avImageGenerator?.release()?.catch(() => {
     })
     ToolsUtil.addLogger("aboutToDisappear方法执行完成", false, this.pathStack)
   }
@@ -615,13 +615,9 @@ export struct Player { // 播放页
           GestureComponent({
             showControl: this.showControl,
             isLock: this.isLock,
-            onDoubleClickAction: (event: GestureEvent) => {
+            onDoubleClickAction: (tapX: number) => {
               if (!Setting.allowDoubleFastForward) { // 非双击快进模式时执行暂停
                 this.player.togglePlayback()
-                return
-              }
-              const tapX = event.fingerList[0]?.localX
-              if (!VideoOperateUtil.checkLocalX(tapX)) {
                 return
               }
               const zoneWidth = this.screen_width / 5 // 屏幕五分之一宽度
@@ -649,29 +645,23 @@ export struct Player { // 播放页
                 })
               }
             },
-            onVerticalPanStart: (event: GestureEvent) => {
-              const tapX = event.fingerList[0]?.localX
-              if (!VideoOperateUtil.checkLocalX(tapX)) {
-                return
-              }
+            onVerticalPanStart: (tapX: number) => {
               VideoOperateUtil.leftSideSwipe = tapX < this.screen_width / 2
               VideoOperateUtil.screenBrightnessTmp = this.player.screenBrightness
               this.player.volume = this.player.volumeActually
               VideoOperateUtil.lastVolume = this.player.volume // 记录起始音量
             },
-            onVerticalPanUpdate: (event: GestureEvent) => {
-              if (event.fingerList?.length === 1) {
-                const deltaYScale = event?.offsetY / this.screen_height * 2.5
-                if (VideoOperateUtil.leftSideSwipe) {
-                  this.onSwipingBrightness = true
-                  this.player.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
-                  VideoOperateUtil.setBrightness(this.player.screenBrightness);
-                } else {
-                  this.player.onSwipingVoice = true
-                  const newVolume = VideoOperateUtil.lastVolume - deltaYScale * 20
-                  this.player.volume =
-                    Math.min(Math.max(newVolume, VideoOperateUtil.min_volume), VideoOperateUtil.max_volume);
-                }
+            onVerticalPanUpdate: (offsetY: number) => {
+              const deltaYScale = offsetY / this.screen_height * 2.5
+              if (VideoOperateUtil.leftSideSwipe) {
+                this.onSwipingBrightness = true
+                this.player.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
+                VideoOperateUtil.setBrightness(this.player.screenBrightness)
+              } else {
+                this.player.onSwipingVoice = true
+                const newVolume = VideoOperateUtil.lastVolume - deltaYScale * 20
+                this.player.volume =
+                  Math.min(Math.max(newVolume, VideoOperateUtil.min_volume), VideoOperateUtil.max_volume)
               }
             },
             onVerticalPanEnd: () => {
@@ -679,60 +669,41 @@ export struct Player { // 播放页
               this.player.onSwipingVoice = false
               this.onSwipingBrightness = false
             },
-            onHorizonPanStart: async (_event: GestureEvent) => {
-              VideoOperateUtil.lastPlayTime = this.player.playTime;
+            onHorizonPanStart: () => {
+              VideoOperateUtil.lastPlayTime = this.player.playTime
               this.onSwiping = true
               this.pixelMap = null
               this.getFrameByTime(this.player.playTime, true)
             },
-            onHorizonPanUpdate: async (event: GestureEvent) => {
-              if (!VideoOperateUtil.checkLocalX(event?.fingerList?.[0]?.localX)) {
-                return
-              }
+            onHorizonPanUpdate: (offsetX: number) => {
               const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.player.nowPlaying?.time!)
               this.player.playTime = Math.max(0,
-                Math.min(VideoOperateUtil.lastPlayTime + (event.offsetX * timePerPixel),
-                  this.player.nowPlaying?.time!))
+                Math.min(VideoOperateUtil.lastPlayTime + (offsetX * timePerPixel), this.player.nowPlaying?.time!))
               this.getFrameByTime(this.player.playTime, false)
             },
             onHorizonPanEnd: () => {
               this.player.seekTime(this.player.playTime);
               this.onSwiping = false;
             },
-            onPinchStart: (event: GestureEvent) => {
-              const finger1 = event.fingerList[0]
-              const finger2 = event.fingerList[1]
-              const fingerDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2)
-              if (fingerDistance >= 0) {
-                VideoOperateUtil.initPinchDistance = fingerDistance
-              } else {
-                return
-              }
+            onPinchStart: (fingerDistance: number) => {
+              VideoOperateUtil.initPinchDistance = fingerDistance
             },
-            onPinchUpdate: (event: GestureEvent) => {
-              const finger1 = event.fingerList[0]
-              const finger2 = event.fingerList[1]
-              if (!finger1 || !finger2) { // 双指检测失败直接返回
+            onPinchUpdate: (fingerDistance: number) => {
+              const rawScale = fingerDistance / VideoOperateUtil.initPinchDistance;
+              const adjustedScale = 1 + (rawScale - 1) * 0.007 // 计算调整后的缩放比例
+              const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0)
+              const scaledWidth = this.play_area_width * clampedScale; // 计算缩放后的播放区域宽度
+              const maxAllowed = VideoInfoUtil.play_area_width * 3.0
+              const minAllowed = VideoInfoUtil.play_area_width * 0.5
+              if (scaledWidth > maxAllowed || scaledWidth < minAllowed) { // 检查缩放是否超出允许范围
                 return;
               }
-              const fingerDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2)
-              if (fingerDistance >= 0) {
-                const rawScale = fingerDistance / VideoOperateUtil.initPinchDistance;
-                const adjustedScale = 1 + (rawScale - 1) * 0.007 // 计算调整后的缩放比例
-                const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0)
-                const scaledWidth = this.play_area_width * clampedScale; // 计算缩放后的播放区域宽度
-                const maxAllowed = VideoInfoUtil.play_area_width * 3.0
-                const minAllowed = VideoInfoUtil.play_area_width * 0.5
-                if (scaledWidth > maxAllowed || scaledWidth < minAllowed) { // 检查缩放是否超出允许范围
-                  return;
-                }
-                this.play_area_width = scaledWidth
-                this.play_area_height = this.play_area_height * clampedScale;
-                XAnimation.runWithAnimation(() => {
-                  this.play_area_width = this.play_area_width
-                  this.play_area_height = this.play_area_height
-                })
-              }
+              this.play_area_width = scaledWidth
+              this.play_area_height = this.play_area_height * clampedScale
+              XAnimation.runWithAnimation(() => {
+                this.play_area_width = this.play_area_width
+                this.play_area_height = this.play_area_height
+              })
             },
             onLongPressAction: () => {
               if (this.player.playing) {
@@ -747,19 +718,11 @@ export struct Player { // 播放页
               this.longPress = false
               this.player.updatePlaybackSpeed(VideoOperateUtil.lastSpeed);
             },
-            onLongPressPanStart: (event: GestureEvent) => {
-              const tapX = event.fingerList[0]?.localX
-              if (!VideoOperateUtil.checkLocalX(tapX)) {
-                return
-              }
+            onLongPressPanStart: (tapX: number) => {
               VideoOperateUtil.longPressStartX = tapX
             },
-            onLongPressPanUpdate: (event: GestureEvent) => {
+            onLongPressPanUpdate: (tapX: number) => {
               if (this.longPress) { // 长按状态下的滑动处理
-                const tapX = event.fingerList[0]?.localX
-                if (!VideoOperateUtil.checkLocalX(tapX)) {
-                  return
-                }
                 const deltaX = tapX - VideoOperateUtil.longPressStartX;
                 const SWIPE_THRESHOLD = 15
                 if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
@@ -770,11 +733,11 @@ export struct Player { // 播放页
                 const clampedIndex = Math.max(0,
                   Math.min(newIndex, VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).length - 1))
                 if (clampedIndex === this.currentSpeedIndex) { // 索引变化时才更新播放速度
-                  return;
+                  return
                 }
                 this.currentSpeedIndex = clampedIndex
                 this.player.updatePlaybackSpeed(VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER)[this.currentSpeedIndex])
-                VideoOperateUtil.longPressStartX = event.fingerList[0]?.localX; // 重置起始点实现分档切换效果
+                VideoOperateUtil.longPressStartX = tapX // 重置起始点实现分档切换效果
               }
             }
           })
@@ -804,6 +767,14 @@ export struct Player { // 播放页
       .sideBarPosition(SideBarPosition.End)
       .divider({ strokeWidth: 0 })
     }
+    .onHidden(() => {
+      this.player.isListenVideo = true
+      this.player.setListenVideoStatus()
+    })
+    .onShown(() => {
+      this.player.isListenVideo = false
+      this.player.setListenVideoStatus()
+    })
     .onReady(() => {
       const playerParams: PlayerParams = this.pathStack.getParamByName(NavigationAddress.AV_PLAYER)[0] as PlayerParams
       try {
@@ -1053,7 +1024,7 @@ export struct Player { // 播放页
         this.player.isListenVideo = !this.player.isListenVideo
         this.player.isListenVideo ? ToolsUtil.showToast('只听视频模式已开启') :
           ToolsUtil.showToast('只听视频模式已关闭')
-        this.player.setMuted()
+        this.player.setListenVideoStatus()
       },
       captureScreen: () => {
         try {
@@ -1087,9 +1058,9 @@ export struct Player { // 播放页
                 ToolsUtil.showToast('保存成功')
               }
             })
-            .catch((err: BusinessError) => {
-              console.error(`packToFile failed: ${err.code}, ${err.message}`);
-            });
+          ?.catch((err: BusinessError) => {
+            console.error(`packToFile failed: ${err.code}, ${err.message}`);
+          });
         } catch (e) {
           console.error(`captureScreen failed: ${e.code}, ${e.message}`);
         }

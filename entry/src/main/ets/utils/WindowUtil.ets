@@ -42,7 +42,7 @@ export class WindowUtil {
       if (windowClass) {
         (await windowClass)?.enableLandscapeMultiWindow()?.then(() => {
           AppStorage.setOrCreate('enableLandscapeMultiWindow', true)
-        }).catch(() => {
+        })?.catch(() => {
           console.error('window error')
         })
       }
@@ -54,7 +54,7 @@ export class WindowUtil {
       if (windowClass) {
         (await windowClass)?.disableLandscapeMultiWindow()?.then(() => {
           AppStorage.setOrCreate('enableLandscapeMultiWindow', false)
-        }).catch(() => {
+        })?.catch(() => {
           console.error('window error')
         })
       }

@@ -114,7 +114,7 @@ QQ群：973792610
 - [pinyin4js](https://ohpm.openharmony.cn/#/cn/detail/@ohos%2Fpinyin4js)
 - [ohos_ijkplayer](https://gitee.com/openharmony-sig/ohos_ijkplayer/tree/master)
 - [REDPlayer](https://github.com/RTE-Dev/REDPlayer)
-- [subtitles](https://atomgit.com/wysp2012/ohos_napi/)
+- [subtitles](https://ohpm.openharmony.cn/#/cn/detail/@dove%2Fsubtitles)
 - [juniversalchardet](https://ohpm.openharmony.cn/#/cn/detail/@ohos%2Fjuniversalchardet)
 
 ## 赞助作者

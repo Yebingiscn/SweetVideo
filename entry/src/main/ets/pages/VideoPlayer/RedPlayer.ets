@@ -205,16 +205,12 @@ export struct RedPlayer { // 红薯播放器页
         GestureComponent({
           showControl: this.showControl,
           isLock: this.isLock,
-          onDoubleClickAction: (event: GestureEvent) => {
+          onDoubleClickAction: (tapX: number) => {
             if (!Setting.allowDoubleFastForward) { // 非快进模式直接切换播放状态
               this.togglePlayback();
               return;
             }
             this.play_time = this.redPlayerStateHolder!.videoPosition;
-            const tapX = event.fingerList[0]?.localX;
-            if (!VideoOperateUtil.checkLocalX(tapX)) {
-              return
-            }
             const zoneWidth = this.screen_width / 5; // 计算区域分割宽度
             const seekOffset = Number(Setting.fastForwardSeconds) * 1000;
             if (tapX < zoneWidth) { // 左侧区域：回退
@@ -234,81 +230,64 @@ export struct RedPlayer { // 红薯播放器页
               this.showControl = !this.showControl
             })
           },
-          onVerticalPanStart: (event: GestureEvent) => {
-            if (!this.isLock) {
-              const tapX = event.fingerList[0]?.localX;
-              VideoOperateUtil.leftSideSwipe = tapX < this.screen_width / 2;
-              VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
-              this.volume = this.volumeActually
-              VideoOperateUtil.lastVolume = this.volume; // 记录起始音量
-            }
+          onVerticalPanStart: (tapX: number) => {
+            VideoOperateUtil.leftSideSwipe = tapX < this.screen_width / 2;
+            VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
+            this.volume = this.volumeActually
+            VideoOperateUtil.lastVolume = this.volume; // 记录起始音量
           },
-          onVerticalPanUpdate: (event: GestureEvent) => {
-            if (!this.isLock && event.fingerList.length === 1) {
-              const deltaYScale = event.offsetY / this.screen_height * 2.5
-              if (VideoOperateUtil.leftSideSwipe) {
-                this.onSwipingBrightness = true
-                this.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
-                VideoOperateUtil.setBrightness(this.screenBrightness);
-              } else {
-                this.onSwipingVoice = true
-                const newVolume = (VideoOperateUtil.lastVolume - deltaYScale * 20);
-                this.volume =
-                  Math.min(Math.max(newVolume, -10), VideoOperateUtil.max_volume);
-              }
+          onVerticalPanUpdate: (offsetY: number) => {
+            const deltaYScale = offsetY / this.screen_height * 2.5
+            if (VideoOperateUtil.leftSideSwipe) {
+              this.onSwipingBrightness = true
+              this.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
+              VideoOperateUtil.setBrightness(this.screenBrightness)
+            } else {
+              this.onSwipingVoice = true
+              const newVolume = VideoOperateUtil.lastVolume - deltaYScale * 20
+              this.volume =
+                Math.min(Math.max(newVolume, -10), VideoOperateUtil.max_volume)
             }
           },
           onVerticalPanEnd: () => {
-            this.onSwiping = false;
-            this.onSwipingVoice = false;
-            this.onSwipingBrightness = false;
+            this.onSwiping = false
+            this.onSwipingVoice = false
+            this.onSwipingBrightness = false
           },
-          onHorizonPanStart: (_event: GestureEvent) => {
-            if (this.isLock) {
-              return
-            }
-            this.play_time = this.redPlayerStateHolder!.videoPosition;
-            this.last_play_time = this.redPlayerStateHolder!.videoPosition;
+          onHorizonPanStart: () => {
+            this.play_time = this.redPlayerStateHolder!.videoPosition
+            this.last_play_time = this.redPlayerStateHolder!.videoPosition
             this.onSwiping = true
           },
-          onHorizonPanUpdate: (event: GestureEvent) => {
-            const tapX = event.fingerList[0]?.localX;
-            if (!VideoOperateUtil.checkLocalX(tapX)) {
-              return
-            }
+          onHorizonPanUpdate: (offsetX: number) => {
             const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.now_playing?.time!) * 1.5
             this.play_time = Math.max(0,
-              Math.min(this.last_play_time + (event.offsetX * timePerPixel),
-                this.now_playing?.time!));
+              Math.min(this.last_play_time + (offsetX * timePerPixel), this.now_playing?.time!));
           },
           onHorizonPanEnd: () => {
             this.seekTime(this.play_time)
             this.onSwiping = false;
           },
           onLongPressAction: () => {
-            this.longPress = true
-            this.last_speed = this.longSpeed
-            this.longSpeed = Setting.longPressSpeed > 2 ? 2 : Setting.longPressSpeed
-            this.playerController?.setSpeed(this.longSpeed)
-            this.currentSpeedIndex = VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER)
-              .indexOf(Setting.longPressSpeed > 2 ? 2 : Setting.longPressSpeed);
+            if (this.redPlayerStateHolder?.isStart) {
+              this.longPress = true
+              this.last_speed = this.longSpeed
+              this.longSpeed = Setting.longPressSpeed > 2 ? 2 : Setting.longPressSpeed
+              this.playerController?.setSpeed(this.longSpeed)
+              this.currentSpeedIndex = VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER)
+                .indexOf(Setting.longPressSpeed > 2 ? 2 : Setting.longPressSpeed);
+            }
           },
           onLongPressEnd: () => {
             this.longPress = false
             this.longSpeed = this.last_speed
             this.playerController?.setSpeed(this.last_speed)
           },
-          onLongPressPanStart: (event: GestureEvent) => {
-            if (!this.isLock) {
-              VideoOperateUtil.longPressStartX = event.fingerList[0]?.localX;
-            }
+          onLongPressPanStart: (tapX: number) => {
+            VideoOperateUtil.longPressStartX = tapX
           },
-          onLongPressPanUpdate: (event: GestureEvent) => {
-            if (!this.isLock && this.longPress) { // 长按状态下的滑动处理
-              const tapX = event.fingerList[0]?.localX;
-              if (!VideoOperateUtil.checkLocalX(tapX)) {
-                return
-              }
+          onLongPressPanUpdate: (tapX: number) => {
+            if (this.longPress) { // 长按状态下的滑动处理
               const deltaX = tapX - VideoOperateUtil.longPressStartX;
               const SWIPE_THRESHOLD = 15;
               if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
@@ -324,7 +303,7 @@ export struct RedPlayer { // 红薯播放器页
               this.currentSpeedIndex = clampedIndex
               this.longSpeed = VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER)[clampedIndex]; // 更新播放速度
               this.playerController?.setSpeed(this.longSpeed);
-              VideoOperateUtil.longPressStartX = event.fingerList[0]?.localX; // 重置起始点实现分档切换效果
+              VideoOperateUtil.longPressStartX = tapX // 重置起始点实现分档切换效果
             }
           }
         })

@@ -50,7 +50,7 @@ class SubtitleUtil {
       try {
         sourceFile = fs.openSync(uris[0], fs.OpenMode.READ_ONLY);
         targetFile = fs.openSync(`${sandbox_subtitle}${date}`, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
-        await fs.copyFile(sourceFile.fd, targetFile.fd).catch(() => {
+        await fs.copyFile(sourceFile.fd, targetFile.fd)?.catch(() => {
           console.error('copy 失败')
         });
         const encode = await ToolsUtil.detectFileDecoder(targetFile.path)
@@ -87,7 +87,7 @@ class SubtitleUtil {
         } else {
           resolve(false);
         }
-      }).catch((err: BusinessError) => {
+      })?.catch((err: BusinessError) => {
         console.error("access failed with error message: " + err.message + ", error code: " + err.code);
         salmonLogger.addLog('subtitle', 'delete failed: ' + err.code + ':' + err.message, false)
         resolve(false);

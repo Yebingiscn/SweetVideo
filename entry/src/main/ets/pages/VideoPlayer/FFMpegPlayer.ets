@@ -198,23 +198,19 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         GestureComponent({
           showControl: this.showControl,
           isLock: this.isLock,
-          onDoubleClickAction: (event: GestureEvent) => {
+          onDoubleClickAction: (tapX: number) => {
             if (!Setting.allowDoubleFastForward) { // 非快进模式直接切换播放状态
-              this.togglePlayState();
+              this.togglePlayState()
               return;
             }
-            const tapX = event.fingerList[0]?.localX;
-            if (!VideoOperateUtil.checkLocalX(tapX)) {
+            const zoneWidth = this.screen_width / 5 // 计算区域分割宽度
+            if (tapX < zoneWidth) { // 左侧区域：回退
+              this.mIjkMediaPlayer?.seekTo(String(this.play_time - Number(Setting.fastForwardSeconds) * 1000))
               return
             }
-            const zoneWidth = this.screen_width / 5; // 计算区域分割宽度
-            if (tapX < zoneWidth) { // 左侧区域：回退
-              this.mIjkMediaPlayer?.seekTo(String(this.play_time - Number(Setting.fastForwardSeconds) * 1000));
-              return;
-            }
             if (tapX > zoneWidth * 4) { // 右侧区域：快进
-              this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(Setting.fastForwardSeconds) * 1000));
-              return;
+              this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(Setting.fastForwardSeconds) * 1000))
+              return
             }
             this.togglePlayState(); // 中间区域：播放/暂停切换
           },
@@ -223,128 +219,102 @@ export struct FFMpegPlayer { // FFMpeg播放器页
               this.showControl = !this.showControl
             })
           },
-          onVerticalPanStart: (event: GestureEvent) => {
-            if (!this.isLock) {
-              const tapX = event.fingerList[0]?.localX;
-              VideoOperateUtil.leftSideSwipe = tapX < this.screen_width / 2;
-              VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
-              this.volume = this.volumeActually
-              VideoOperateUtil.lastVolume = this.volume; // 记录起始音量
-            }
+          onVerticalPanStart: (tapX: number) => {
+            VideoOperateUtil.leftSideSwipe = tapX < this.screen_width / 2;
+            VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
+            this.volume = this.volumeActually
+            VideoOperateUtil.lastVolume = this.volume; // 记录起始音量
           },
-          onVerticalPanUpdate: (event: GestureEvent) => {
-            if (!this.isLock && event.fingerList?.length === 1) {
-              const deltaYScale = event.offsetY / this.screen_height * 2.5
-              if (VideoOperateUtil.leftSideSwipe) {
-                this.onSwipingBrightness = true
-                this.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
-                VideoOperateUtil.setBrightness(this.screenBrightness);
-              } else {
-                this.onSwipingVoice = true
-                const newVolume = (VideoOperateUtil.lastVolume - deltaYScale * 20);
-                this.volume =
-                  Math.min(Math.max(newVolume, -10), VideoOperateUtil.max_volume);
-              }
+          onVerticalPanUpdate: (offsetY: number) => {
+            const deltaYScale = offsetY / this.screen_height * 2.5
+            if (VideoOperateUtil.leftSideSwipe) {
+              this.onSwipingBrightness = true
+              this.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
+              VideoOperateUtil.setBrightness(this.screenBrightness)
+            } else {
+              this.onSwipingVoice = true
+              const newVolume = (VideoOperateUtil.lastVolume - deltaYScale * 20)
+              this.volume =
+                Math.min(Math.max(newVolume, -10), VideoOperateUtil.max_volume)
             }
           },
           onVerticalPanEnd: () => {
-            this.onSwiping = false;
-            this.onSwipingVoice = false;
-            this.onSwipingBrightness = false;
+            this.onSwiping = false
+            this.onSwipingVoice = false
+            this.onSwipingBrightness = false
           },
-          onHorizonPanStart: (_event: GestureEvent) => {
-            if (this.isLock) {
-              return
-            }
-            VideoOperateUtil.lastPlayTime = this.play_time;
+          onHorizonPanStart: () => {
+            VideoOperateUtil.lastPlayTime = this.play_time
             this.onSwiping = true
           },
-          onHorizonPanUpdate: (event: GestureEvent) => {
-            const tapX = event.fingerList[0]?.localX;
-            if (!VideoOperateUtil.checkLocalX(tapX)) {
-              return
-            }
+          onHorizonPanUpdate: async (offsetX: number) => {
             const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.now_playing?.time!) * 1.5
             this.play_time = Math.max(0,
-              Math.min(VideoOperateUtil.lastPlayTime + (event.offsetX * timePerPixel),
-                this.now_playing?.time!));
+              Math.min(VideoOperateUtil.lastPlayTime + (offsetX * timePerPixel),
+                this.now_playing?.time!))
           },
           onHorizonPanEnd: () => {
-            this.mIjkMediaPlayer?.seekTo(String(this.play_time));
-            this.onSwiping = false;
+            this.mIjkMediaPlayer?.seekTo(String(this.play_time))
+            this.onSwiping = false
           },
-          onPinchStart: (event: GestureEvent) => {
-            const finger1 = event.fingerList[0];
-            const finger2 = event.fingerList[1];
-            const fingerDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2)
-            if (fingerDistance >= 0) {
-              VideoOperateUtil.initPinchDistance = fingerDistance
-            } else {
+          onPinchStart: (fingerDistance: number) => {
+            VideoOperateUtil.initPinchDistance = fingerDistance
+          },
+          onPinchUpdate: (fingerDistance: number) => {
+            const rawScale = fingerDistance / VideoOperateUtil.initPinchDistance
+            const adjustedScale = 1 + (rawScale - 1) * 0.007
+            const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0)
+            const scaledWidth = this.play_area_width * clampedScale; // 计算缩放后的播放区域宽度
+            const maxAllowed = VideoInfoUtil.play_area_width * 3.0
+            const minAllowed = VideoInfoUtil.play_area_width * 0.5
+            if (scaledWidth > maxAllowed || scaledWidth < minAllowed) { // 检查缩放是否超出允许范围
               return
             }
-          },
-          onPinchUpdate: (event: GestureEvent) => {
-            const finger1 = event.fingerList[0];
-            const finger2 = event.fingerList[1];
-            const fingerDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2)
-            if (fingerDistance >= 0) {
-              const currentDistance = fingerDistance
-              const rawScale = currentDistance / VideoOperateUtil.initPinchDistance;
-              const adjustedScale = 1 + (rawScale - 1) * 0.007;
-              const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0);
-              this.play_area_width = Math.max(this.play_area_width * clampedScale, 0.5);
-              this.play_area_height = Math.max(this.play_area_height * clampedScale, 0.5);
-              animateTo({ duration: 100 }, () => {
-                this.play_area_width = this.play_area_width;
-                this.play_area_height = this.play_area_height;
-              });
-            }
+            this.play_area_width = scaledWidth
+            this.play_area_height = this.play_area_height * clampedScale
+            XAnimation.runWithAnimation(() => {
+              this.play_area_width = this.play_area_width
+              this.play_area_height = this.play_area_height
+            })
           },
           onLongPressAction: () => {
-            this.longPress = true
-            this.last_speed = this.playSpeed
-            this.playSpeed = Setting.longPressSpeed
-            this.mIjkMediaPlayer?.setSpeed(this.playSpeed + '')
-            this.currentSpeedIndex =
-              VideoInfoUtil.getVideoSpeedList(NavigationAddress.FFMPEG_PLAYER).indexOf(Setting.longPressSpeed);
+            if (this.playing) {
+              this.longPress = true
+              this.last_speed = this.playSpeed
+              this.playSpeed = Setting.longPressSpeed
+              this.mIjkMediaPlayer?.setSpeed(this.playSpeed + '')
+              this.currentSpeedIndex =
+                VideoInfoUtil.getVideoSpeedList(NavigationAddress.FFMPEG_PLAYER).indexOf(Setting.longPressSpeed)
+            }
           },
           onLongPressEnd: () => {
             this.longPress = false
             this.playSpeed = this.last_speed
             this.mIjkMediaPlayer?.setSpeed(this.last_speed + '');
           },
-          onLongPressPanStart: (event: GestureEvent) => {
-            if (this.isLock) {
-              return
-            }
-            const tapX = event.fingerList[0]?.localX;
-            if (!VideoOperateUtil.checkLocalX(tapX)) {
-              return
-            }
-            VideoOperateUtil.longPressStartX = event.fingerList[0]?.localX;
+          onLongPressPanStart: (tapX: number) => {
+            VideoOperateUtil.longPressStartX = tapX;
           },
-          onLongPressPanUpdate: (event: GestureEvent) => {
-            const tapX = event.fingerList[0]?.localX;
-            if (!VideoOperateUtil.checkLocalX(tapX)) {
-              return
+          onLongPressPanUpdate: (tapX: number) => {
+            if (this.longPress) { // 长按状态下的滑动处理
+              const deltaX = tapX - VideoOperateUtil.longPressStartX;
+              const SWIPE_THRESHOLD = 15
+              if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
+                return
+              }
+              const direction = Math.sign(deltaX)
+              const newIndex = this.currentSpeedIndex + direction // 计算新速度索引并限制在有效范围内
+              const clampedIndex = Math.max(0,
+                Math.min(newIndex, VideoInfoUtil.getVideoSpeedList(NavigationAddress.FFMPEG_PLAYER).length - 1))
+              if (clampedIndex === this.currentSpeedIndex) { // 如果速度没有变化则直接返回
+                return
+              }
+              this.currentSpeedIndex = clampedIndex
+              this.playSpeed =
+                VideoInfoUtil.getVideoSpeedList(NavigationAddress.FFMPEG_PLAYER)[this.currentSpeedIndex]
+              this.mIjkMediaPlayer?.setSpeed(this.playSpeed + '')
+              VideoOperateUtil.longPressStartX = tapX // 重置起始点实现分档切换效果
             }
-            const deltaX = tapX - VideoOperateUtil.longPressStartX;
-            const SWIPE_THRESHOLD = 15;
-            if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
-              return;
-            }
-            const direction = Math.sign(deltaX);
-            const newIndex = this.currentSpeedIndex + direction; // 计算新速度索引并限制在有效范围内
-            const clampedIndex = Math.max(0,
-              Math.min(newIndex, VideoInfoUtil.getVideoSpeedList(NavigationAddress.FFMPEG_PLAYER).length - 1));
-            if (clampedIndex === this.currentSpeedIndex) { // 如果速度没有变化则直接返回
-              return;
-            }
-            this.currentSpeedIndex = clampedIndex
-            this.playSpeed =
-              VideoInfoUtil.getVideoSpeedList(NavigationAddress.FFMPEG_PLAYER)[this.currentSpeedIndex]
-            this.mIjkMediaPlayer?.setSpeed(this.playSpeed + '');
-            VideoOperateUtil.longPressStartX = event.fingerList[0]?.localX; // 重置起始点实现分档切换效果
           }
         })
 

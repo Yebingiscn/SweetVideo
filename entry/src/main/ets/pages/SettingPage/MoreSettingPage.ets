@@ -10,6 +10,7 @@ import { commentManager } from '@kit.AppGalleryKit';
 import { salmonLogger } from 'salmonlogger';
 import { SafeHeight, Setting } from '../../utils/ObservedUtil';
 import { Want } from '@kit.AbilityKit';
+import PreferencesUtil from '../../database/PreferencesUtil';
 
 @Component
 export struct MoreSettingPage {
@@ -43,13 +44,15 @@ export struct MoreSettingPage {
             symbol: $r('sys.symbol.trash'),
             message: '清理失效文件',
             onPress: async () => {
-              const coverFromSandbox = await fs.listFile(PathUtils.coverPath).catch(() => {
+              PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'circle_play')
+              PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'is_list_display')
+              const coverFromSandbox = await fs.listFile(PathUtils.coverPath)?.catch(() => {
                 console.error('get cover fail')
               });
               const isNumericStart = (filename: string): boolean => /^\d/.test(filename);
               const coverFromSandboxArray = Array.isArray(coverFromSandbox)
                 ? coverFromSandbox.filter(file => isNumericStart(file)) : [];
-              const subtitleFromSandbox = await fs.listFile(PathUtils.subtitlePath).catch(() => {
+              const subtitleFromSandbox = await fs.listFile(PathUtils.subtitlePath)?.catch(() => {
                 console.error('get subtitle fail')
               })
               const subtitleFromSandboxArray = Array.isArray(subtitleFromSandbox) ? subtitleFromSandbox : []
@@ -88,7 +91,7 @@ export struct MoreSettingPage {
               try {
                 commentManager.showCommentDialog(PathUtils.appContext!).then(() => {
                   salmonLogger.addLog(this.pathStack.getAllPathName()[0], '成功展示评论弹窗', false)
-                }).catch((error: BusinessError<Object>) => {
+                })?.catch((error: BusinessError<Object>) => {
                   salmonLogger.addLog(this.pathStack.getAllPathName()[0],
                     `展示评论弹窗错误, Code: ${error.code}, message: ${error.message}`, true)
                   const want: Want = {
@@ -100,11 +103,11 @@ export struct MoreSettingPage {
                     .then(() => {
                       salmonLogger.addLog(this.pathStack.getAllPathName()[0], '成功打开应用市场评论页', false)
                     })
-                    .catch((error: BusinessError) => {
-                      ToolsUtil.showToast('打开应用市场失败，原因是：' + error)
-                      salmonLogger.addLog(this.pathStack.getAllPathName()[0], '打开应用市场评论页失败，原因是：' + error,
-                        true)
-                    });
+                  ?.catch((error: BusinessError) => {
+                    ToolsUtil.showToast('打开应用市场失败，原因是：' + error)
+                    salmonLogger.addLog(this.pathStack.getAllPathName()[0], '打开应用市场评论页失败，原因是：' + error,
+                      true)
+                  });
                 });
               } catch (error) {
                 salmonLogger.addLog(this.pathStack.getAllPathName()[0],

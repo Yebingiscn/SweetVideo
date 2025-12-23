@@ -6,10 +6,12 @@ import { InfoConfirmDialog } from '../component/Dialog/InfoConfirmDialog';
 import { Markdown, MarkdownController } from '@luvi/lv-markdown-in';
 import { salmonLogger } from 'salmonlogger';
 import { SafeHeight, Setting } from '../utils/ObservedUtil';
+import { PrivacyPolicyComponent } from '../component/VideoItemComponent/PrivacyPolicyComponent';
 
 @Component
 export struct AboutApp {
   @State version_code: string = ''
+  @State isPresent: boolean = false
   @Consume('pathStack') pathStack: NavPathStack
   controller: MarkdownController = new MarkdownController()
   private GITHUB_HOME_LINK: string = "https://github.com/Yebingiscn/SweetVideo" // 项目主页
@@ -106,8 +108,7 @@ export struct AboutApp {
             .width('48%')
             .backgroundColor($r('app.color.start_window_background_blur'))
             .onClick(() => {
-              this.tempLink = WantProcessUtil.PRIVACY_LINK
-              this.linkConfirmDialog.open()
+              this.isPresent = true
             })
           }.width('100%').justifyContent(FlexAlign.SpaceBetween)
 
@@ -190,6 +191,10 @@ export struct AboutApp {
             .textAlign(TextAlign.Center)
             .width('100%')
             .margin({ top: 10 })
+
+          if (this.isPresent) {
+            PrivacyPolicyComponent({ isPresent: this.isPresent })
+          }
         }
       }
       .margin({ left: 16, right: 16 })

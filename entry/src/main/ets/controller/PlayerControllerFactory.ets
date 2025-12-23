@@ -17,6 +17,8 @@ export interface PlayerControllerInterface {
   seekTime(seekTime: number): void
 
   togglePlayback(): void
+
+  videoStartPlayTime(seekMode: number): void
 }
 
 // 真正的工厂 controller

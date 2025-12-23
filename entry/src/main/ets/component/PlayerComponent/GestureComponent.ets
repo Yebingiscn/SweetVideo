@@ -1,34 +1,36 @@
+import VideoOperateUtil from '../../utils/VideoOperateUtil';
+
 @Component
 export struct GestureComponent {
   @Link showControl: boolean
   @Link isLock: boolean
-  onDoubleClickAction = (_event: GestureEvent) => {
+  onDoubleClickAction = (_tapX: number) => {
   };
   onSingleClickAction = () => {
   }
-  onVerticalPanStart = (_event: GestureEvent) => {
+  onVerticalPanStart = (_tapX: number) => {
   }
-  onVerticalPanUpdate = (_event: GestureEvent) => {
+  onVerticalPanUpdate = (_offsetY: number) => {
   }
   onVerticalPanEnd = () => {
   }
-  onHorizonPanStart = (_event: GestureEvent) => {
+  onHorizonPanStart = () => {
   }
-  onHorizonPanUpdate = (_event: GestureEvent) => {
+  onHorizonPanUpdate = (_offsetY: number) => {
   }
   onHorizonPanEnd = () => {
   }
-  onPinchStart = (_event: GestureEvent) => {
+  onPinchStart = (_fingerDistance: number) => {
   }
-  onPinchUpdate = (_event: GestureEvent) => {
+  onPinchUpdate = (_fingerDistance: number) => {
   }
   onLongPressAction = () => {
   }
   onLongPressEnd = () => {
   }
-  onLongPressPanStart = (_event: GestureEvent) => {
+  onLongPressPanStart = (_tapX: number) => {
   }
-  onLongPressPanUpdate = (_event: GestureEvent) => {
+  onLongPressPanUpdate = (_tapX: number) => {
   }
 
   build() {
@@ -43,7 +45,11 @@ export struct GestureComponent {
                 if (this.isLock) {
                   return
                 }
-                this.onDoubleClickAction(event)
+                const tapX = event.fingerList[0]?.localX
+                if (!VideoOperateUtil.checkLocalX(tapX)) {
+                  return
+                }
+                this.onDoubleClickAction(tapX)
               }),
             TapGesture({ count: 1 })// 单击事件
               .onAction(() => { //单击屏幕
@@ -56,13 +62,20 @@ export struct GestureComponent {
                 if (this.isLock) {
                   return
                 }
-                this.onVerticalPanStart(event)
+                const tapX = event.fingerList[0]?.localX
+                if (!VideoOperateUtil.checkLocalX(tapX)) {
+                  return
+                }
+                this.onVerticalPanStart(tapX)
               })
               .onActionUpdate((event: GestureEvent) => {
                 if (this.isLock) {
                   return
                 }
-                this.onVerticalPanUpdate(event)
+                if (event.fingerList?.length !== 1) {
+                  return
+                }
+                this.onVerticalPanUpdate(event?.offsetY)
               })
               .onActionEnd(() => {
                 if (this.isLock) {
@@ -71,17 +84,20 @@ export struct GestureComponent {
                 this.onVerticalPanEnd()
               }),
             PanGesture({ fingers: 1, direction: PanDirection.Horizontal })// 水平滑动事件滑动调整进度
-              .onActionStart((event: GestureEvent) => { // 长按且滑动屏幕
+              .onActionStart((_event: GestureEvent) => { // 长按且滑动屏幕
                 if (this.isLock) {
                   return
                 }
-                this.onHorizonPanStart(event)
+                this.onHorizonPanStart()
               })
               .onActionUpdate((event: GestureEvent) => {
                 if (this.isLock) {
                   return
                 }
-                this.onHorizonPanUpdate(event)
+                if (!VideoOperateUtil.checkLocalX(event?.fingerList?.[0]?.localX)) {
+                  return
+                }
+                this.onHorizonPanUpdate(event?.offsetX)
               })
               .onActionEnd(() => {
                 if (this.isLock) {
@@ -94,13 +110,28 @@ export struct GestureComponent {
                 if (this.isLock) {
                   return
                 }
-                this.onPinchStart(event)
+                const finger1 = event.fingerList[0]
+                const finger2 = event.fingerList[1]
+                const fingerDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2)
+                if (fingerDistance < 0) {
+                  return
+                }
+                this.onPinchStart(fingerDistance)
               })
               .onActionUpdate((event: GestureEvent) => {
                 if (this.isLock) {
                   return
                 }
-                this.onPinchUpdate(event)
+                const finger1 = event.fingerList[0]
+                const finger2 = event.fingerList[1]
+                if (!finger1 || !finger2) { // 双指检测失败直接返回
+                  return;
+                }
+                const fingerDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2)
+                if (fingerDistance < 0) {
+                  return
+                }
+                this.onPinchUpdate(fingerDistance)
               })
           ),
           GestureGroup(GestureMode.Parallel, // 不用互斥事件，会导致左右滑动调节倍速的功能失效
@@ -125,13 +156,21 @@ export struct GestureComponent {
                 if (this.isLock) {
                   return
                 }
-                this.onLongPressPanStart(event)
+                const tapX = event.fingerList[0]?.localX
+                if (!VideoOperateUtil.checkLocalX(tapX)) {
+                  return
+                }
+                this.onLongPressPanStart(tapX)
               })
               .onActionUpdate((event: GestureEvent) => {
                 if (this.isLock) {
                   return
                 }
-                this.onLongPressPanUpdate(event)
+                const tapX = event.fingerList[0]?.localX
+                if (!VideoOperateUtil.checkLocalX(tapX)) {
+                  return
+                }
+                this.onLongPressPanUpdate(tapX)
               })
           )))
   }

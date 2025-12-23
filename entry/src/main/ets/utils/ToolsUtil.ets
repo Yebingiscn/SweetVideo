@@ -176,14 +176,14 @@ export default class ToolsUtil {
             .then((resultCode: updateManager.ShowUpdateResultCode) => {
               hilog.info(0, 'TAG', "Succeeded in showing UpdateDialog resultCode:" + resultCode);
             })
-            .catch((error: BusinessError) => {
-              ToolsUtil.showToast('更新弹窗生成失败，原因是：' + error)
-              hilog.error(0, 'TAG', `showUpdateDialog onError.code is ${error.code}, message is ${error.message}`);
-            });
+          ?.catch((error: BusinessError) => {
+            ToolsUtil.showToast('更新弹窗生成失败，原因是：' + error)
+            hilog.error(0, 'TAG', `showUpdateDialog onError.code is ${error.code}, message is ${error.message}`);
+          });
         } else {
           ToolsUtil.showToast('还没有新版本~')
         }
-      }).catch((error: BusinessError) => {
+      })?.catch((error: BusinessError) => {
       ToolsUtil.showToast('检查更新失败，原因是：' + error)
       hilog.error(0, 'TAG', `checkAppUpdate onError.code is ${error.code}, message is ${error.message}`);
     });
@@ -230,12 +230,12 @@ export default class ToolsUtil {
       readStream.readSync(buffer);
       let textDecoder = util.TextDecoder.create(decode, { ignoreBOM: true });
       let text = textDecoder.decodeToString(new Uint8Array(buffer), { stream: false });
-      readStream.close().catch(() => {
+      readStream.close()?.catch(() => {
         throw new Error(`文件解码转换失败: ${'未知错误'}`);
       });
       const writeStream = fileIo.createStreamSync(filePath, "w+");
       writeStream.writeSync(text, { encoding: 'utf-8' });
-      writeStream.close().catch(() => {
+      writeStream.close()?.catch(() => {
         throw new Error(`文件解码转换失败: ${'未知错误'}`);
       });
     } catch (error) {

@@ -238,7 +238,7 @@ export struct VideoList {
       .contentEndOffset(SafeHeight.bottomSafeHeight)
       .lanes(this.videoListController.listLine)
       .animation({ duration: 300, curve: Curve.Smooth })
-      .scrollBar(BarState.Off)
+      .scrollBar(BarState.Auto)
       .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
       .chainAnimation(true)
       .width('100%')
@@ -319,7 +319,7 @@ export struct VideoList {
           .columnsGap(22) // 列间距
           .rowsGap(32) // 行间距
           .cachedCount(12)
-          .scrollBar(BarState.Off)
+          .scrollBar(BarState.Auto)
           .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
           .onTouch(() => this.searchController.stopEditing())
           .width('100%')
@@ -336,7 +336,7 @@ export struct VideoList {
         .clip(false)
       }
       .clip(false)
-      .scrollBar(BarState.Off)
+      .scrollBar(BarState.Auto)
     }
   }
 

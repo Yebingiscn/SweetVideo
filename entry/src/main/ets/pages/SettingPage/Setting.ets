@@ -9,11 +9,14 @@ import ToolsUtil from '../../utils/ToolsUtil';
 import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem';
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig';
 import { SafeHeight, Setting } from '../../utils/ObservedUtil';
+import { Markdown, MarkdownController } from '@luvi/lv-markdown-in';
+import { salmonLogger } from 'salmonlogger';
 
 @Component
 export struct SettingsPage { //设置页
   @State passwd: string = 'passwd'
   @Consume('pathStack') pathStack: NavPathStack
+  controller: MarkdownController = new MarkdownController()
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
     builder: EditPasswordDialog({
       confirm: (passwd: string | undefined) => {
@@ -28,6 +31,15 @@ export struct SettingsPage { //设置页
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   private listDisplayModeList: ResourceStr[] = ['卡片', '列表', '网格']
+
+  aboutToAppear(): void {
+    this.controller
+      .setTitleColor($r("app.color.text_color"))
+      .setTextColor($r("app.color.text_color"))
+      .setTableTitleBackgroundColor($r('app.color.start_window_background_blur'))
+      .setQuoteBackgroundColor($r('app.color.start_window_background_blur'))
+      .setTableBackgroundColor($r('app.color.start_window_background_blur'))
+  }
 
   build() {
     NavDestination() {
@@ -100,7 +112,7 @@ export struct SettingsPage { //设置页
 
         ListItem() {
           SettingsCheckboxItem({
-            symbol: $r('sys.symbol.square_fill_grid_2x2'),
+            symbol: $r('sys.symbol.grid'),
             message: '列表布局',
             tips: this.listDisplayModeList,
             tabSelectedIndexes: [Setting.listDisplayMode],
@@ -128,63 +140,31 @@ export struct SettingsPage { //设置页
 
         ListItem() {
           Column() {
-            Text('手势操作说明')
-              .fontSize(20).fontWeight(FontWeight.Medium)
-            Text('1. 左侧 1/5 处 快退 中间暂停 右侧 1/5 处快进')
-              .fontSize(15)
-            Text('2. 横向滑动调整进度')
-              .fontSize(15)
-            Text('3. 竖向滑动左侧调节亮度，右侧调节音量')
-              .fontSize(15)
-            Text('4. 长按倍速，长按并横向滑动调节倍速值')
-              .fontSize(15)
-            Text('4. 双指缩放调节视频显示大小')
-              .fontSize(15)
-          }.alignItems(HorizontalAlign.Start).width('100%')
+            Markdown({
+              controller: this.controller,
+              mode: "rawfile",
+              context: PathUtils.appContext!, // 资源文件模式必填参数
+              rawfilePath: "Tips.md", // 资源文件地址
+              callback: {
+                complete: () => {
+                  console.log("Markdown component load success.")
+                  salmonLogger.addLog(this.pathStack.getAllPathName()[0],
+                    "Markdown component load success.", false)
+                },
+                fail: (code: number, message: string) => {
+                  console.error("Markdown component load error. code: " + code + ", message: " + message)
+                  salmonLogger.addLog(this.pathStack.getAllPathName()[0],
+                    "Markdown component load error. code: " + code + ", message: " + message, true)
+                }
+              }
+            })
+          }
+          .padding(15)
+          .alignItems(HorizontalAlign.Start)
+          .borderRadius(16)
+          .width('100%')
+          .backgroundColor($r('app.color.start_window_background_blur'))
         }
-        .margin({ top: 5 })
-        .padding(15)
-        .borderRadius(16)
-        .width('100%')
-        .backgroundColor($r('app.color.start_window_background_blur'))
-
-        ListItem() {
-          Column() {
-            Text('快捷键操作说明')
-              .fontSize(20).fontWeight(FontWeight.Medium)
-            Text('1. ESC 退出视频')
-              .fontSize(15)
-            Text('2. 空格暂停视频')
-              .fontSize(15)
-            Text('3. 方向左键回退')
-              .fontSize(15)
-            Text('4. 方向右键快进')
-              .fontSize(15)
-          }.alignItems(HorizontalAlign.Start).width('100%')
-        }
-        .margin({ top: 10 })
-        .padding(15)
-        .borderRadius(16)
-        .width('100%')
-        .backgroundColor($r('app.color.start_window_background_blur'))
-
-        ListItem() {
-          Column() {
-            Text('如何进入隐私空间')
-              .fontSize(20).fontWeight(FontWeight.Medium)
-            Text('1. 通过设置页隐私空间进入')
-              .fontSize(15)
-            Text('2. 通过搜索框输入密码进入')
-              .fontSize(15)
-            Text('3. 通过首页双指往外划开进入（类似于放大照片的手势）')
-              .fontSize(15)
-          }.alignItems(HorizontalAlign.Start).width('100%')
-        }
-        .margin({ top: 10 })
-        .padding(15)
-        .borderRadius(16)
-        .width('100%')
-        .backgroundColor($r('app.color.start_window_background_blur'))
       }
       .align(Alignment.Top)
       .borderRadius(16)

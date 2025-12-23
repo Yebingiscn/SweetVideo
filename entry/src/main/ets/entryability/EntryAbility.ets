@@ -48,7 +48,7 @@ export default class EntryAbility extends UIAbility {
     // 崩溃事件的自定义参数
     hiAppEvent.setEventParam(params, hiAppEvent.domain.OS, hiAppEvent.event.APP_CRASH).then(() => {
       hilog.info(0x0000, 'testTag', `HiAppEvent success to set event param`);
-    }).catch((err: BusinessError) => {
+    })?.catch((err: BusinessError) => {
       hilog.error(0x0000, 'testTag', `HiAppEvent code: ${err.code}, message: ${err.message}`);
     });
     // 构建崩溃日志规格自定义参数
@@ -143,9 +143,9 @@ export default class EntryAbility extends UIAbility {
             console.error('setWindowBackgroundColor error')
           }
         })
-        .catch(() => {
-          console.error('loadContent error')
-        })
+      ?.catch(() => {
+        console.error('loadContent error')
+      })
       hilog.info(0x0000, 'testTag', 'Succeeded in loading the content.');
     });
     // 是否进入后台

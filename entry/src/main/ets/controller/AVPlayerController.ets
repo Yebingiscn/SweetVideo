@@ -174,8 +174,8 @@ export class AVPlayerController implements PlayerControllerInterface {
     })
   }
 
-  setMuted() {
-    this.avPlayer?.setMediaMuted(media.MediaType.MEDIA_TYPE_VID, this.isListenVideo).catch(() => {
+  setListenVideoStatus() {
+    this.avPlayer?.setMediaMuted(media.MediaType.MEDIA_TYPE_VID, this.isListenVideo)?.catch(() => {
       ToolsUtil.addLogger('设置视频静音失败', true)
     });
     ToolsUtil.addLogger(`视频静音状态设置为：${this.isListenVideo}`, false)
@@ -191,43 +191,33 @@ export class AVPlayerController implements PlayerControllerInterface {
     this.avPlayer?.off('stateChange')
   }
 
-  playNextVideo(repeatMode: RepeatMode) {
+  playNextVideo(repeatMode: RepeatMode): VideoMetadata | undefined {
     if (this.video_meta_data.length === 0 || this.playTime <= 0) {
-      return
+      return undefined
     }
-    const currentDate = this.nowPlaying?.date || ''
-    let item = SelectFileUtil.getItem(this.video_meta_data, currentDate) as VideoMetadata
+    let item = SelectFileUtil.getItem(this.video_meta_data, this.nowPlaying?.date || '') as VideoMetadata
     if (!item) {
       item = this.video_meta_data[0]
     }
-    let nextItem: VideoMetadata | null = null
-    try {
-      if (repeatMode === RepeatMode.RANDOM) {
+    switch (repeatMode) {
+      case RepeatMode.RANDOM:
         const availableVideos = this.video_meta_data.filter(v => v.date !== item.date)
-        nextItem = availableVideos.length > 0
+        return availableVideos.length > 0
           ? availableVideos[Math.floor(Math.random() * availableVideos.length)]
           : item
-      } else if (repeatMode === RepeatMode.ONCE) {
-        return false
-      } else {
-        if (repeatMode === RepeatMode.SEQUENCE) {
-          if (SelectFileUtil.isLastItem(this.video_meta_data, item.date)) {
-            return false
-          }
+      case RepeatMode.ONCE:
+        return undefined
+      case RepeatMode.SEQUENCE:
+        if (SelectFileUtil.isLastItem(this.video_meta_data, item.date)) {
+          return undefined
         }
-        if (repeatMode === RepeatMode.SINGLE) {
-          nextItem = this.video_meta_data.find(v => v.date === this.nowPlaying?.date)!
-        } else {
-          nextItem = SelectFileUtil.getNextItem(this.video_meta_data, item.date)
-        }
-      }
-      if (nextItem) {
-        return nextItem
-      }
-      return undefined
-    } catch (error) {
-      ToolsUtil.addLogger(`Error in playNextVideo: ${error}`, true, undefined, 'player')
-      return undefined
+        return SelectFileUtil.getNextItem(this.video_meta_data, item.date)
+      case RepeatMode.SINGLE:
+        return this.video_meta_data.find(v => v.date === this.nowPlaying?.date)!
+      case RepeatMode.LIST:
+        return SelectFileUtil.getNextItem(this.video_meta_data, item.date)
+      default:
+        return undefined
     }
   }
 
