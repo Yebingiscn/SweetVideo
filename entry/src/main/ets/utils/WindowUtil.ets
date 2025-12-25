@@ -1,21 +1,21 @@
-import { window } from '@kit.ArkUI';
-import { hilog } from '@kit.PerformanceAnalysisKit';
-import { BusinessError, settings } from '@kit.BasicServicesKit';
-import { PathUtils } from './PathUtils';
-import { Pc, SafeHeight } from './ObservedUtil';
+import { window } from '@kit.ArkUI'
+import { hilog } from '@kit.PerformanceAnalysisKit'
+import { BusinessError, settings } from '@kit.BasicServicesKit'
+import { PathUtils } from './PathUtils'
+import { Pc, SafeHeight } from './ObservedUtil'
 
 // 用于设置窗口状态
 export class WindowUtil {
-  private static instance: WindowUtil;
-  private static windowStage?: window.WindowStage;
+  private static instance: WindowUtil
+  private static windowStage?: window.WindowStage
   private static windowClass: window.Window | null = null
   private static isInit: boolean = false
 
   public static getInstance() {
     if (!WindowUtil.instance) {
-      WindowUtil.instance = new WindowUtil();
+      WindowUtil.instance = new WindowUtil()
     }
-    return WindowUtil.instance;
+    return WindowUtil.instance
   }
 
   public static async getWindow() {
@@ -89,7 +89,7 @@ export class WindowUtil {
   public static getWindowOrientation(screen_height: number, screen_width: number) {
     return screen_height > screen_width
       ? window.Orientation.AUTO_ROTATION_LANDSCAPE
-      : window.Orientation.AUTO_ROTATION_PORTRAIT;
+      : window.Orientation.AUTO_ROTATION_PORTRAIT
   }
 
   public static async maximize(): Promise<void> {
@@ -98,13 +98,13 @@ export class WindowUtil {
         if ((await WindowUtil.getWindow())?.getWindowStatus() === window.WindowStatusType.FLOATING) {
           (await WindowUtil.getWindow())?.maximize()
             .then(() => {
-              hilog.info(0x0000, 'testTag', '%{public}s', `Succeed in maximizing the window.`);
+              hilog.info(0x0000, 'testTag', '%{public}s', `Succeed in maximizing the window.`)
             })
           ?.catch((err: BusinessError) => {
             hilog.error(0x0000, 'testTag',
               `Failed to maximize the window. Code: ${err.code}, message: ${err.message}`,
-              JSON.stringify(err) ?? '');
-          });
+              JSON.stringify(err) ?? '')
+          })
         }
       } catch (error) {
         console.error('window error' + error)
@@ -118,12 +118,12 @@ export class WindowUtil {
         if ((await WindowUtil.getWindow())?.getWindowStatus() === window.WindowStatusType.FULL_SCREEN) {
           (await WindowUtil.getWindow())?.recover()
             .then(() => {
-              hilog.info(0x0000, 'testTag', '%{public}s', `Succeed in recovering the window.`);
+              hilog.info(0x0000, 'testTag', '%{public}s', `Succeed in recovering the window.`)
             })
           ?.catch((err: BusinessError) => {
             hilog.error(0x0000, 'testTag', `Failed to recover the window. Code: ${err.code}, message: ${err.message}`,
-              JSON.stringify(err) ?? '');
-          });
+              JSON.stringify(err) ?? '')
+          })
         }
       } catch (error) {
         console.error('window error' + error)
@@ -132,25 +132,25 @@ export class WindowUtil {
   }
 
   public static setWindowStage(windowStage: window.WindowStage): void {
-    WindowUtil.windowStage = windowStage;
+    WindowUtil.windowStage = windowStage
     WindowUtil.windowStage.getMainWindow((err, windowClass: window.Window) => {
       if (err.code) {
-        hilog.error(777, 'testFlag', `Failed to obtain the main window. Code:${err.code}, message:${err.message}`);
-        return;
+        hilog.error(777, 'testFlag', `Failed to obtain the main window. Code:${err.code}, message:${err.message}`)
+        return
       }
       try {
-        const properties = windowClass.getWindowProperties();
-        let area: window.AvoidArea = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
+        const properties = windowClass.getWindowProperties()
+        let area: window.AvoidArea = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
         let naviBarArea: window.AvoidArea =
-          windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR);
-        AppStorage.setOrCreate('deviceWidth', properties.windowRect.width);
-        AppStorage.setOrCreate('deviceHeight', properties.windowRect.height);
-        AppStorage.setOrCreate('statusBarHeight', area.topRect.height);
-        AppStorage.setOrCreate('navBarHeight', naviBarArea.bottomRect.height);
+          windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR)
+        AppStorage.setOrCreate('deviceWidth', properties.windowRect.width)
+        AppStorage.setOrCreate('deviceHeight', properties.windowRect.height)
+        AppStorage.setOrCreate('statusBarHeight', area.topRect.height)
+        AppStorage.setOrCreate('navBarHeight', naviBarArea.bottomRect.height)
       } catch (error) {
         console.error('window error' + error)
       }
-    });
+    })
   }
 
   public static async init(context: Context) {
@@ -185,7 +185,7 @@ export class WindowUtil {
         }
       })
     } catch (error) {
-      console.error("Window initialization error:", error);
+      console.error("Window initialization error:", error)
     }
   }
 

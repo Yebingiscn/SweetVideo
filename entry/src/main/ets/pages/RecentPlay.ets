@@ -1,18 +1,18 @@
-import { VideoDataSource } from '../utils/DataUtil';
-import RecentPlayUtil from '../utils/RecentPlayUtil';
-import ToolsUtil from '../utils/ToolsUtil';
-import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
-import { PathUtils } from '../utils/PathUtils';
-import { VideoItemBuilder } from '../component/PlayerComponent/PlayerSideBarComponent';
-import { SymbolGlyphModifier } from '@kit.ArkUI';
-import { ButtonFancyModifier, DefaultDialogShadow, SymbolGlyphFancyModifier } from '../common/AttributeModifierConfig';
-import NavigationAddress from '../common/NavigationCommon';
-import VideoOperateUtil from '../utils/VideoOperateUtil';
-import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog';
-import DataSyncUtil from '../utils/DataSyncUtil';
-import SelectFileUtil from '../utils/SelectFileUtil';
-import { Context } from '@kit.AbilityKit';
-import { SafeHeight, Setting } from '../utils/ObservedUtil';
+import { VideoDataSource } from '../utils/DataUtil'
+import RecentPlayUtil from '../utils/RecentPlayUtil'
+import ToolsUtil from '../utils/ToolsUtil'
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
+import { PathUtils } from '../utils/PathUtils'
+import { VideoItemBuilder } from '../component/PlayerComponent/PlayerSideBarComponent'
+import { SymbolGlyphModifier } from '@kit.ArkUI'
+import { ButtonFancyModifier, DefaultDialogShadow, SymbolGlyphFancyModifier } from '../common/AttributeModifierConfig'
+import NavigationAddress from '../common/NavigationCommon'
+import VideoOperateUtil from '../utils/VideoOperateUtil'
+import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog'
+import DataSyncUtil from '../utils/DataSyncUtil'
+import SelectFileUtil from '../utils/SelectFileUtil'
+import { Context } from '@kit.AbilityKit'
+import { SafeHeight, Setting } from '../utils/ObservedUtil'
 
 @Component
 export struct RecentPlay { // 最近播放页
@@ -24,12 +24,12 @@ export struct RecentPlay { // 最近播放页
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
   })
-  private listScroller: Scroller = new Scroller();
+  private listScroller: Scroller = new Scroller()
 
   async aboutToAppear(): Promise<void> {
     if (Setting.recentPlay) {
       this.recent_video_meta_data = RecentPlayUtil.getRecentPlaybacks()
-      this.videoDataSource = new VideoDataSource(this.recent_video_meta_data);
+      this.videoDataSource = new VideoDataSource(this.recent_video_meta_data)
     }
   }
 
@@ -45,7 +45,7 @@ export struct RecentPlay { // 最近播放页
       .animation({ duration: 300, curve: Curve.Ease })
       .onClick(() => {
         for (const element of this.recent_video_meta_data ?? []) {
-          this.delData(PathUtils.appContext!, element);
+          this.delData(PathUtils.appContext!, element)
         }
       })
     }.margin({ right: 10, top: 10 })

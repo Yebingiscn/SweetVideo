@@ -1,5 +1,5 @@
-import { curves } from '@kit.ArkUI';
-import { SideBarController } from './SideBar';
+import { curves } from '@kit.ArkUI'
+import { SideBarController } from './SideBar'
 
 class SideBarValue {
   sideBarController: SideBarController | undefined = undefined
@@ -20,6 +20,6 @@ export function MaskComponent(sideBarValue: SideBarValue) {
     })
     .zIndex(1)
     .onClick(() => {
-      sideBarValue.sideBarController?.close(true);
+      sideBarValue.sideBarController?.close(true)
     })
 }

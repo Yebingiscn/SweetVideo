@@ -1,31 +1,31 @@
-import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
-import VideoCardItem from './VideoCardItemComponent';
-import VideoListItem from './VideoListItemComponent';
-import Preferences from '../../database/Preferences';
-import { FileFolderDataSource, VideoDataSource } from '../../utils/DataUtil';
-import { PathUtils } from '../../utils/PathUtils';
-import ToolsUtil from '../../utils/ToolsUtil';
-import SelectFileUtil from '../../utils/SelectFileUtil';
-import { SymbolGlyphModifier } from '@kit.ArkUI';
-import DataSyncUtil from '../../utils/DataSyncUtil';
-import { VideoDetailDialog } from '../../component/Dialog//VideoDetailDialog';
-import { DefaultDialogShadow, MenuFancyModifier } from '../../common/AttributeModifierConfig';
-import { EditMetadataDialog } from '../../component/Dialog//EditMetadataDialog';
-import SubtitleUtil from '../../utils/SubtitleUtil';
-import { FileFolder } from '../../interfaces/FileFolderInterface';
-import { SideBarController } from '../SideBarComponent/SideBar';
-import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu';
-import { VideoMetaDataOperator } from '../../database/VideoMetaData';
-import VideoUtils from '../../utils/VideoUtil';
-import FileFolderUtil from '../../utils/FileFolderUtil';
-import NavigationAddress from '../../common/NavigationCommon';
-import VideoOperateUtil from '../../utils/VideoOperateUtil';
-import { VideoDeleteDialog } from '../Dialog/VideoDeleteDialog';
-import { DeleteType } from '../../common/enum/DeleteType';
-import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
-import { XAnimation } from '../../utils/AnimationUtil';
-import { salmonLogger } from 'salmonlogger';
-import { SafeHeight, Setting } from '../../utils/ObservedUtil';
+import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
+import VideoCardItem from './VideoCardItemComponent'
+import VideoListItem from './VideoListItemComponent'
+import Preferences from '../../database/Preferences'
+import { FileFolderDataSource, VideoDataSource } from '../../utils/DataUtil'
+import { PathUtils } from '../../utils/PathUtils'
+import ToolsUtil from '../../utils/ToolsUtil'
+import SelectFileUtil from '../../utils/SelectFileUtil'
+import { SymbolGlyphModifier } from '@kit.ArkUI'
+import DataSyncUtil from '../../utils/DataSyncUtil'
+import { VideoDetailDialog } from '../../component/Dialog//VideoDetailDialog'
+import { DefaultDialogShadow, MenuFancyModifier } from '../../common/AttributeModifierConfig'
+import { EditMetadataDialog } from '../../component/Dialog//EditMetadataDialog'
+import SubtitleUtil from '../../utils/SubtitleUtil'
+import { FileFolder } from '../../interfaces/FileFolderInterface'
+import { SideBarController } from '../SideBarComponent/SideBar'
+import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu'
+import { VideoMetaDataOperator } from '../../database/VideoMetaData'
+import VideoUtils from '../../utils/VideoUtil'
+import FileFolderUtil from '../../utils/FileFolderUtil'
+import NavigationAddress from '../../common/NavigationCommon'
+import VideoOperateUtil from '../../utils/VideoOperateUtil'
+import { VideoDeleteDialog } from '../Dialog/VideoDeleteDialog'
+import { DeleteType } from '../../common/enum/DeleteType'
+import { ListDisplayMode } from '../../common/enum/ListDisplayMode'
+import { XAnimation } from '../../utils/AnimationUtil'
+import { salmonLogger } from 'salmonlogger'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 
 @Observed
 export class VideoListController {
@@ -35,7 +35,7 @@ export class VideoListController {
   multipleChooseState: Visibility = Visibility.None
   listLine: number = 1
   videoDataSource: VideoDataSource
-  private listeners: DataChangeListener[] = [];
+  private listeners: DataChangeListener[] = []
 
   constructor(folder?: FileFolder) {
     if (folder) {
@@ -57,13 +57,13 @@ export class VideoListController {
 
   // 公共方法实现
   registerDataChangeListener(listener: DataChangeListener): void {
-    this.listeners.push(listener);
+    this.listeners.push(listener)
   }
 
   unregisterDataChangeListener(listener: DataChangeListener): void {
-    const index = this.listeners.indexOf(listener);
+    const index = this.listeners.indexOf(listener)
     if (index >= 0) {
-      this.listeners.splice(index, 1);
+      this.listeners.splice(index, 1)
     }
   }
 
@@ -75,20 +75,20 @@ export class VideoListController {
     } else {
       this.videoDataSource.updateData(this.videoMetaDataList)
     }
-    this.notifyDataReloaded();
+    this.notifyDataReloaded()
   }
 
   public closeMultipleChoose() {
     XAnimation.runWithAnimation(() => {
-      this.multipleChooseState = Visibility.None;
+      this.multipleChooseState = Visibility.None
     })
     DataSyncUtil.delMultipleList.length = 0
   }
 
   public refresh(width: number, listDisplayMode: ListDisplayMode) {
     // TODO 这里的处理太粗暴了，应该定义每个元素的MaxWidth 来计算格子，或者根据尺寸做响应式布局
-    const base = Math.floor(width / 500);
-    this.listLine = listDisplayMode === ListDisplayMode.LIST_DISPLAY ? base + 1 : base + 2;
+    const base = Math.floor(width / 500)
+    this.listLine = listDisplayMode === ListDisplayMode.LIST_DISPLAY ? base + 1 : base + 2
     // 增加判断，旋转时保持滚动位置不变
     if (this.listScroller.currentOffset()?.yOffset == -85) {
       this.listScroller.scrollEdge(Edge.Top)
@@ -97,11 +97,11 @@ export class VideoListController {
 
   // 通知方法
   protected notifyDataReloaded(): void {
-    this.listeners.forEach(listener => listener.onDataReloaded());
+    this.listeners.forEach(listener => listener.onDataReloaded())
   }
 
   protected notifyDataDelete(index: number): void {
-    this.listeners.forEach(listener => listener.onDataDelete(index));
+    this.listeners.forEach(listener => listener.onDataDelete(index))
   }
 }
 
@@ -109,39 +109,17 @@ export class VideoListController {
 export struct VideoList {
   @Link searchValue: string
   @Link videoListController: VideoListController
-  editMetadataDialogController: CustomDialogController = new CustomDialogController({
-    builder: EditMetadataDialog({
-      confirm: (title: string | undefined) => {
-        if (!title?.trim()) {
-          return;
-        } // 更严格的空值判断
-        const editingVideo = DataSyncUtil.editingVideo!;
-        const targetIndex = SelectFileUtil.getItemIndex(this.videoListController.videoMetaDataList, editingVideo);
-        if (targetIndex === -1) {
-          return;
-        }
-        if (this.videoListController.videoMetaDataList.some((v, index) => index !== targetIndex &&
-          v.title === title.trim())) {
-          return; // 这里直接用 some 来代替，没必要每次都 new 一个Set
-        }
-        this.videoListController.videoMetaDataList[targetIndex].title = title.trim();
-        this.videoListController.videoDataSource.updateData(this.videoListController.videoMetaDataList)
-        Preferences.saveVideoMetaData(PathUtils.appContext!, this.videoListController.videoMetaDataList)
-      },
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
-  @Consume fileFolderSource: FileFolderDataSource
   delConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDeleteDialog({
       confirm: async (deleteType: DeleteType) => {
         try {
           await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType,
-            DataSyncUtil.editingVideo!);
+            DataSyncUtil.editingVideo!)
           if (DataSyncUtil.delMultipleList.length > 0) {
             await FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController,
               this.fileFolderSource)
           }
-          this.videoListController.closeMultipleChoose();
+          this.videoListController.closeMultipleChoose()
         } catch (e) {
           ToolsUtil.showToast(`删除失败:${e}`)
         } finally {
@@ -150,6 +128,29 @@ export struct VideoList {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  editMetadataDialogController: CustomDialogController = new CustomDialogController({
+    builder: EditMetadataDialog({
+      confirm: (title: string | undefined) => {
+        if (!title?.trim()) {
+          return
+        } // 更严格的空值判断
+        const editingVideo = DataSyncUtil.editingVideo!
+        const targetIndex = SelectFileUtil.getItemIndex(this.videoListController.videoMetaDataList, editingVideo)
+        if (targetIndex === -1) {
+          return
+        }
+        if (this.videoListController.videoMetaDataList.some((v, index) => index !== targetIndex &&
+          v.title === title.trim())) {
+          return // 这里直接用 some 来代替，没必要每次都 new 一个Set
+        }
+        this.videoListController.videoMetaDataList[targetIndex].title = title.trim()
+        this.videoListController.videoDataSource.updateData(this.videoListController.videoMetaDataList)
+        FileFolderUtil.updateVideoInFileFolder(PathUtils.appContext!, this.videoListController, this.fileFolderSource)
+        VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+      },
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  @Consume fileFolderSource: FileFolderDataSource
   @Consume sideBarController: SideBarController
   searchController: SearchController = new SearchController()
   @State longPressPreview: boolean = false
@@ -429,11 +430,13 @@ export struct VideoList {
       })
         .onClick(async () => {
           await SubtitleUtil.importOrDeleteSubtitleProcess(item!)
-          const targetIndex = SelectFileUtil.getItemIndex(this.videoListController.videoMetaDataList, item!);
+          const targetIndex = SelectFileUtil.getItemIndex(this.videoListController.videoMetaDataList, item!)
           if (targetIndex !== -1) {
-            this.videoListController.videoMetaDataList[targetIndex] = item!;
+            this.videoListController.videoMetaDataList[targetIndex] = item!
             this.videoListController.videoDataSource.updateData(this.videoListController.videoMetaDataList)
-            Preferences.saveVideoMetaData(PathUtils.appContext!, this.videoListController.videoMetaDataList)
+            FileFolderUtil.updateVideoInFileFolder(PathUtils.appContext!, this.videoListController,
+              this.fileFolderSource)
+            VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
           }
         })
     }.attributeModifier(new MenuFancyModifier())

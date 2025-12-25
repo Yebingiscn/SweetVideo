@@ -1,4 +1,6 @@
 import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
+import NavigationAddress from '../../common/NavigationCommon'
+import { Setting } from '../../utils/ObservedUtil'
 import TimeUtil from '../../utils/TimeUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
@@ -7,6 +9,7 @@ class SwipingPlayTimeValue {
   playTime: number = 0
   totalTime: number = 0
   pixelMap: PixelMap | null = null
+  player: string = NavigationAddress.AV_PLAYER
 }
 
 @Builder
@@ -16,9 +19,10 @@ export function SwipingPlayTimePanelBuilder(swipingPlayTimeValue: SwipingPlayTim
       .fontColor($r('sys.color.white'))
       .fontSize(25)
       .fontWeight(FontWeight.Bold)
-    Image(swipingPlayTimeValue.pixelMap)
-      .attributeModifier(new ImageFancyModifier(16, 100, 100))
-
+    if (Setting.showFrameImgStatus && swipingPlayTimeValue.player === NavigationAddress.AV_PLAYER) {
+      Image(swipingPlayTimeValue.pixelMap)
+        .attributeModifier(new ImageFancyModifier(16, 100, 100))
+    }
   }
   .padding({
     left: 25,
@@ -33,13 +37,13 @@ export function SwipingPlayTimePanelBuilder(swipingPlayTimeValue: SwipingPlayTim
 }
 
 export function getFormattedTimeText(swipingPlayTimeValue: SwipingPlayTimeValue): string {
-  const currentTime = TimeUtil.convertMSToHHMMSS(swipingPlayTimeValue.playTime);
-  const totalTime = TimeUtil.convertMSToHHMMSS(swipingPlayTimeValue.totalTime);
+  const currentTime = TimeUtil.convertMSToHHMMSS(swipingPlayTimeValue.playTime)
+  const totalTime = TimeUtil.convertMSToHHMMSS(swipingPlayTimeValue.totalTime)
   if (swipingPlayTimeValue.isSliderPlayTimeChange) {
-    return `${currentTime}/${totalTime}`;
+    return `${currentTime}/${totalTime}`
   } else {
-    const timeDiff = Math.floor((swipingPlayTimeValue.playTime - VideoOperateUtil.lastPlayTime) / 1000);
-    const sign = timeDiff > 0 ? '+' : '';
-    return `${sign}${timeDiff}s : ${currentTime}/${totalTime}`;
+    const timeDiff = Math.floor((swipingPlayTimeValue.playTime - VideoOperateUtil.lastPlayTime) / 1000)
+    const sign = timeDiff > 0 ? '+' : ''
+    return `${sign}${timeDiff}s : ${currentTime}/${totalTime}`
   }
 }

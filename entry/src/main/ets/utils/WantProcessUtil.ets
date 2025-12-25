@@ -1,50 +1,50 @@
-import { hilog } from '@kit.PerformanceAnalysisKit';
-import { media } from '@kit.MediaKit';
-import { BusinessError, systemDateTime } from '@kit.BasicServicesKit';
-import { fileIo as fs } from '@kit.CoreFileKit';
-import VideoUtil from './VideoInfoUtil';
-import VideoInfoUtil from './VideoInfoUtil';
-import { common, Context, OpenLinkOptions, Want } from '@kit.AbilityKit';
-import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
-import Preferences from '../database/Preferences';
-import { systemShare } from '@kit.ShareKit';
-import NavigationAddress, { PlayerParams } from '../common/NavigationCommon';
-import ToolsUtil from './ToolsUtil';
+import { hilog } from '@kit.PerformanceAnalysisKit'
+import { media } from '@kit.MediaKit'
+import { BusinessError, systemDateTime } from '@kit.BasicServicesKit'
+import { fileIo as fs } from '@kit.CoreFileKit'
+import VideoUtil from './VideoInfoUtil'
+import VideoInfoUtil from './VideoInfoUtil'
+import { common, Context, OpenLinkOptions, Want } from '@kit.AbilityKit'
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
+import Preferences from '../database/Preferences'
+import { systemShare } from '@kit.ShareKit'
+import NavigationAddress, { PlayerParams } from '../common/NavigationCommon'
+import ToolsUtil from './ToolsUtil'
 
 // 处理拉起应用传来的视频链接
 export default class WantProcess {
   public static hasNewWant = false
   private static isSystemShare: boolean = false
-  private static receiveWant: Want | undefined = undefined;
-  private static receiveWantUri: string = '';
+  private static receiveWant: Want | undefined = undefined
+  private static receiveWantUri: string = ''
 
   public static set wantUri(value: string) {
-    WantProcess.receiveWantUri = value;
+    WantProcess.receiveWantUri = value
   }
 
   public static set want(value: Want | undefined) {
-    WantProcess.receiveWant = value;
+    WantProcess.receiveWant = value
   }
 
   static async getSystemShareWant(want: Want) {
     try {
       if (canIUse("SystemCapability.Collaboration.SystemShare")) {
-        const data = await systemShare.getSharedData(want);
-        const records = data.getRecords();
+        const data = await systemShare.getSharedData(want)
+        const records = data.getRecords()
         for (const record of records) {
           if (record.uri) {
-            WantProcess.receiveWantUri = record.uri;
-            WantProcess.isSystemShare = true;
-            WantProcess.hasNewWant = true;
-            break;
+            WantProcess.receiveWantUri = record.uri
+            WantProcess.isSystemShare = true
+            WantProcess.hasNewWant = true
+            break
           }
         }
       } else {
         ToolsUtil.showToast('系统不支持该功能')
       }
     } catch (error) {
-      const businessError = error as BusinessError;
-      console.error(`Failed: Code ${businessError.code}, ${businessError.message}`);
+      const businessError = error as BusinessError
+      console.error(`Failed: Code ${businessError.code}, ${businessError.message}`)
     }
   }
 
@@ -72,7 +72,7 @@ export default class WantProcess {
     if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
       try {
         let avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor()
-        let file = fs.openSync(WantProcess.receiveWantUri);
+        let file = fs.openSync(WantProcess.receiveWantUri)
         avMetadataExtractor.fdSrc = file
         avMetadataExtractor.fetchMetadata(async (_error: BusinessError, metadata: media.AVMetadata) => {
           let targetVideo: VideoMetadata = {
@@ -102,26 +102,26 @@ export default class WantProcess {
   }
 
   static getPlayer(context: Context, metadata: VideoMetadata) {
-    const defaultPlayer = Preferences.getDefaultPlayer(context);
+    const defaultPlayer = Preferences.getDefaultPlayer(context)
     // 系统分享（有长宽情况下）和 HDR VIVID 视频强制使用系统播放器
     if ((defaultPlayer === '系统播放器' || WantProcess.isSystemShare ||
       metadata.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID || metadata.format.toLowerCase() === 'mov') &&
       metadata.size[0] !== 0) {
-      return NavigationAddress.AV_PLAYER;
+      return NavigationAddress.AV_PLAYER
     } else if (defaultPlayer === '红薯播放器') {
-      return NavigationAddress.RED_PLAYER;
+      return NavigationAddress.RED_PLAYER
     } else if (defaultPlayer === 'FFMpeg播放器') {
-      return NavigationAddress.FFMPEG_PLAYER;
+      return NavigationAddress.FFMPEG_PLAYER
     }
     // 默认使用FFMpeg播放器
-    return NavigationAddress.FFMPEG_PLAYER;
+    return NavigationAddress.FFMPEG_PLAYER
   }
 
   // 跳转外部网页
   static linkToWeb(context: common.UIAbilityContext, link: string) {
     let openLinkOptions: OpenLinkOptions = {
       appLinkingOnly: false,
-    };
+    }
     try {
       context.openLink(link, openLinkOptions)
     } catch (paramError) {
@@ -130,7 +130,7 @@ export default class WantProcess {
   }
 
   private static clearWantState() {
-    WantProcess.hasNewWant = false;
-    WantProcess.receiveWant = undefined;
+    WantProcess.hasNewWant = false
+    WantProcess.receiveWant = undefined
   }
 }

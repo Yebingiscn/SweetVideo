@@ -1,8 +1,8 @@
-import Preferences from '../../database/Preferences';
-import { OOBEVersion } from '../../utils/DataSyncUtil';
-import { SafeHeight } from '../../utils/ObservedUtil';
-import { PathUtils } from '../../utils/PathUtils';
-import ToolsUtil from '../../utils/ToolsUtil';
+import Preferences from '../../database/Preferences'
+import { OOBEVersion } from '../../utils/DataSyncUtil'
+import { SafeHeight } from '../../utils/ObservedUtil'
+import { PathUtils } from '../../utils/PathUtils'
+import ToolsUtil from '../../utils/ToolsUtil'
 
 @Component
 export struct PrivacyPolicyComponent {
@@ -70,7 +70,7 @@ export struct PrivacyPolicyComponent {
           .onClick(() => {
             ToolsUtil.startVibration()
             Preferences.saveOOBEVersion(PathUtils.appContext!, OOBEVersion)
-            this.isPresent = false; // 直接关闭弹窗
+            this.isPresent = false // 直接关闭弹窗
           })
           .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
           .fontColor($r('sys.color.white'))

@@ -1,12 +1,12 @@
-import NavigationAddress from '../../common/NavigationCommon';
-import { SettingSliderItem } from '../../component/SettingComponent/SettingSliderItem';
-import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuItem';
-import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem';
-import Preferences from '../../database/Preferences';
-import { FastForwardSecondInterface } from '../../interfaces/FastForwardSecondInterface';
-import { SafeHeight, Setting } from '../../utils/ObservedUtil';
-import { PathUtils } from '../../utils/PathUtils';
-import VideoInfoUtil from '../../utils/VideoInfoUtil';
+import NavigationAddress from '../../common/NavigationCommon'
+import { SettingSliderItem } from '../../component/SettingComponent/SettingSliderItem'
+import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuItem'
+import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
+import Preferences from '../../database/Preferences'
+import { FastForwardSecondInterface } from '../../interfaces/FastForwardSecondInterface'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { PathUtils } from '../../utils/PathUtils'
+import VideoInfoUtil from '../../utils/VideoInfoUtil'
 
 @Component
 export struct PlayerSettingPage {
@@ -19,7 +19,7 @@ export struct PlayerSettingPage {
     { label: '30秒', value: '30' },
     { label: '60秒', value: '60' },
     { label: '120秒', value: '120' }
-  ];
+  ]
 
   build() {
     NavDestination() {
@@ -73,13 +73,37 @@ export struct PlayerSettingPage {
         }
 
         ListItem() {
+          SettingsToggleItem({
+            symbol: $r('sys.symbol.resolution_video'),
+            message: '展示进度条预览图',
+            enable: Setting.showFrameImgStatus,
+            onChange: (checked: boolean) => {
+              Setting.showFrameImgStatus = checked
+              Preferences.saveShowFrameTime(PathUtils.appContext!, Setting.showFrameImgStatus)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsToggleItem({
+            symbol: $r('sys.symbol.pin'),
+            message: '自动跳转到上次播放时间',
+            enable: Setting.jumpToHistoryTimeStatus,
+            onChange: (checked: boolean) => {
+              Setting.jumpToHistoryTimeStatus = checked
+              Preferences.saveJumpToHistoryTime(PathUtils.appContext!, Setting.showFrameImgStatus)
+            }
+          })
+        }
+
+        ListItem() {
           SettingsMenuItem({
             symbol: $r('sys.symbol.hand_point_up_tap'),
             message: '快进快退时长',
             list: this.fastForwardSecond.map(opt => opt.label),
             selected: this.fastForwardSecond.findIndex(opt => opt.value === Setting.fastForwardSeconds),
             onChange: (index: number) => {
-              Setting.fastForwardSeconds = this.fastForwardSecond[index].value;
+              Setting.fastForwardSeconds = this.fastForwardSecond[index].value
               Preferences.saveFastForwardSeconds(PathUtils.appContext!, Setting.fastForwardSeconds)
             }
           })

@@ -1,48 +1,48 @@
-import DataSyncUtil, { OOBEVersion } from '../utils/DataSyncUtil';
-import { FileFolderDataSource } from '../utils/DataUtil';
-import ToolsUtil from '../utils/ToolsUtil';
-import SelectFileUtil from '../utils/SelectFileUtil';
-import WantProcessUtil from '../utils/WantProcessUtil';
-import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData';
-import { AddFileFolderNameDialog } from '../component/Dialog/AddFileFolderNameDialog';
-import FileFolderUtil from '../utils/FileFolderUtil';
-import { EditFileFolderNameDialog } from '../component/Dialog/EditFileFolderNameDialog';
-import { FileFolder } from '../interfaces/FileFolderInterface';
-import { SettingsPage } from './SettingPage/Setting';
-import { AboutApp } from './AboutApp';
-import { FFMpegPlayer } from './VideoPlayer/FFMpegPlayer';
-import { Player } from './VideoPlayer/Player';
-import { RecentPlay } from './RecentPlay';
-import VideoOperateUtil from '../utils/VideoOperateUtil';
-import { PrivacySpace } from './PrivacySpace/PrivacySpace';
-import Preferences from '../database/Preferences';
-import { RedPlayer } from './VideoPlayer/RedPlayer';
-import { ButtonFancyModifier, DefaultDialogShadow, SymbolGlyphFancyModifier } from '../common/AttributeModifierConfig';
-import { FileProcessorUtil } from '../utils/FileProcessorUtil';
-import { PathUtils } from '../utils/PathUtils';
-import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
-import { AppInfoBuilder, SideBarController } from '../component/SideBarComponent/SideBar';
-import { VideoView } from '../component/VideoItemComponent/VideoViewComponent';
-import { VideoMetaDataOperator } from '../database/VideoMetaData';
-import { FileFolderListBuilder } from '../component/FileFolderComponent/FileFolderListComponent';
-import VideoUtils from '../utils/VideoUtil';
-import { checkUriProcess } from '../utils/TaskpoolUtil';
-import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
-import { DeletedVideosDialog } from '../component/Dialog/DeletedVideosDialog';
-import { ImportProgressBuilder } from '../component/VideoItemComponent/ImportProgressBuilder';
-import { CrashPage } from './SettingPage/CrashPage';
-import { PlayerSettingPage } from './SettingPage/PlayerSettingPage';
-import { PersonalizePage } from './SettingPage/PersonalizePage';
-import BiometricAccessUtil from '../utils/BiometricAccessUtil';
-import { DeleteType } from '../common/enum/DeleteType';
-import { PrivacySpaceErrorList } from './PrivacySpace/PrivacySpaceErrorList';
-import { WindowUtil } from '../utils/WindowUtil';
-import { XAnimation } from '../utils/AnimationUtil';
-import { PrivacyPolicyComponent } from '../component/VideoItemComponent/PrivacyPolicyComponent';
-import { MoreSettingPage } from './SettingPage/MoreSettingPage';
-import NavigationAddress from '../common/NavigationCommon';
-import { FolderSelectMenuBuilder } from '../component/FileFolderComponent/FileFolderSelectBuilder';
-import { SafeHeight, Setting } from '../utils/ObservedUtil';
+import DataSyncUtil, { OOBEVersion } from '../utils/DataSyncUtil'
+import { FileFolderDataSource } from '../utils/DataUtil'
+import ToolsUtil from '../utils/ToolsUtil'
+import SelectFileUtil from '../utils/SelectFileUtil'
+import WantProcessUtil from '../utils/WantProcessUtil'
+import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData'
+import { AddFileFolderNameDialog } from '../component/Dialog/AddFileFolderNameDialog'
+import FileFolderUtil from '../utils/FileFolderUtil'
+import { EditFileFolderNameDialog } from '../component/Dialog/EditFileFolderNameDialog'
+import { FileFolder } from '../interfaces/FileFolderInterface'
+import { SettingsPage } from './SettingPage/Setting'
+import { AboutApp } from './AboutApp'
+import { FFMpegPlayer } from './VideoPlayer/FFMpegPlayer'
+import { Player } from './VideoPlayer/Player'
+import { RecentPlay } from './RecentPlay'
+import VideoOperateUtil from '../utils/VideoOperateUtil'
+import { PrivacySpace } from './PrivacySpace/PrivacySpace'
+import Preferences from '../database/Preferences'
+import { RedPlayer } from './VideoPlayer/RedPlayer'
+import { ButtonFancyModifier, DefaultDialogShadow, SymbolGlyphFancyModifier } from '../common/AttributeModifierConfig'
+import { FileProcessorUtil } from '../utils/FileProcessorUtil'
+import { PathUtils } from '../utils/PathUtils'
+import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent'
+import { AppInfoBuilder, SideBarController } from '../component/SideBarComponent/SideBar'
+import { VideoView } from '../component/VideoItemComponent/VideoViewComponent'
+import { VideoMetaDataOperator } from '../database/VideoMetaData'
+import { FileFolderListBuilder } from '../component/FileFolderComponent/FileFolderListComponent'
+import VideoUtils from '../utils/VideoUtil'
+import { checkUriProcess } from '../utils/TaskpoolUtil'
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
+import { DeletedVideosDialog } from '../component/Dialog/DeletedVideosDialog'
+import { ImportProgressBuilder } from '../component/VideoItemComponent/ImportProgressBuilder'
+import { CrashPage } from './SettingPage/CrashPage'
+import { PlayerSettingPage } from './SettingPage/PlayerSettingPage'
+import { PersonalizePage } from './SettingPage/PersonalizePage'
+import BiometricAccessUtil from '../utils/BiometricAccessUtil'
+import { DeleteType } from '../common/enum/DeleteType'
+import { PrivacySpaceErrorList } from './PrivacySpace/PrivacySpaceErrorList'
+import { WindowUtil } from '../utils/WindowUtil'
+import { XAnimation } from '../utils/AnimationUtil'
+import { PrivacyPolicyComponent } from '../component/VideoItemComponent/PrivacyPolicyComponent'
+import { MoreSettingPage } from './SettingPage/MoreSettingPage'
+import NavigationAddress from '../common/NavigationCommon'
+import { FolderSelectMenuBuilder } from '../component/FileFolderComponent/FileFolderSelectBuilder'
+import { SafeHeight, Setting } from '../utils/ObservedUtil'
 
 @Entry
 @Component
@@ -86,14 +86,14 @@ struct Index {
           icon: $r("sys.symbol.trash_fill"),
           content: $r('app.string.delete'),
           onAction: async () => {
-            DataSyncUtil.delMultipleList = Array.from(folder.video_list);
+            DataSyncUtil.delMultipleList = Array.from(folder.video_list)
             await Promise.all(
               DataSyncUtil.delMultipleList.map(item => {
                 VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, DeleteType.SOFT,
-                  item);
-                return Promise.resolve();
+                  item)
+                return Promise.resolve()
               })
-            );
+            )
             this.videoListController.closeMultipleChoose()
             this.file_folder_list = FileFolderUtil.deleteFileFolder(PathUtils.appContext!, folder)
             let newFolder: FileFolder | undefined
@@ -126,7 +126,7 @@ struct Index {
         content: $r('app.string.import_from_files'),
         onAction: async () => {
           this.sideBarController.close(false)
-          await this.toMetaData(await SelectFileUtil.selectFromFileManager(), this.videoListController.folder);
+          await this.toMetaData(await SelectFileUtil.selectFromFileManager(), this.videoListController.folder)
         },
       },
       {
@@ -134,7 +134,7 @@ struct Index {
         content: $r('app.string.import_from_album'),
         onAction: async () => {
           this.sideBarController.close(false)
-          await this.toMetaData(await SelectFileUtil.selectVideos(), this.videoListController.folder);
+          await this.toMetaData(await SelectFileUtil.selectVideos(), this.videoListController.folder)
         },
       },
       {
@@ -143,7 +143,7 @@ struct Index {
           .id)}）`,
         onAction: async () => {
           this.sideBarController.close(false)
-          await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), undefined);
+          await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), undefined)
         },
       },
     ])
@@ -175,7 +175,7 @@ struct Index {
           idsToDelete.forEach(async item => {
             await this.videoListController.videoDataSource.deleteUnExistFile(item, this.videoListController,
               this.fileFolderSource)
-          });
+          })
           VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
           DataSyncUtil.deletedVideos = result
           this.deletedVideosDialogController.open()
@@ -186,30 +186,30 @@ struct Index {
 
   async toMetaData(fileList: string[], fileFolder?: FileFolder) {
     if (fileList.length === 0) {
-      ToolsUtil.showToast('没有任何文件被导入哦~');
-      return;
+      ToolsUtil.showToast('没有任何文件被导入哦~')
+      return
     }
-    this.loading = true;
-    this.totalItems = fileList.length;
-    this.processedItems = 0;
+    this.loading = true
+    this.totalItems = fileList.length
+    this.processedItems = 0
     try {
       await FileProcessorUtil.processFilesConcurrently(
         fileList, PathUtils.appContext!, PathUtils.videoPath, PathUtils.coverPath,
         this.videoListController.videoDataSource.getAllData(),
         (increment: number) => {
-          this.processedItems += increment;
+          this.processedItems += increment
         },
         fileFolder
-      );
+      )
       ToolsUtil.showToast(
         `${ToolsUtil.getStringResource($r('app.string.add_time_info').id)}${this.totalItems -
         FileFolderUtil.duplicateVideo}${FileFolderUtil.duplicateVideo > 0 ?
           '重复视频已经智能跳过，跳过视频数：' + FileFolderUtil.duplicateVideo : ''}`
-      );
+      )
     } catch (error) {
-      ToolsUtil.showToast('处理过程中发生意外错误:' + error);
+      ToolsUtil.showToast('处理过程中发生意外错误:' + error)
     } finally {
-      this.loading = false;
+      this.loading = false
       VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
     }
   }
@@ -376,7 +376,7 @@ struct Index {
         }
         .backgroundColor(Setting.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
-          const width = Number(newValue.width);
+          const width = Number(newValue.width)
           // 增加判断，旋转时保持滚动位置不变
           this.videoListController.refresh(width, Setting.listDisplayMode)
         })
@@ -406,14 +406,14 @@ struct Index {
                 if (BiometricAccessUtil.checkUserAuthSupport()) { // 支持生物认证时进行认证
                   BiometricAccessUtil.startUserAuth().then(isSuccess => {
                     if (isSuccess) { // 认证成功进入隐私空间
-                      this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null);
+                      this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null)
                     } else {
-                      ToolsUtil.showToast('验证失败，请从首页搜索框输入密码进入隐私空间'); // 认证失败显示提示
+                      ToolsUtil.showToast('验证失败，请从首页搜索框输入密码进入隐私空间') // 认证失败显示提示
                     }
                   })
-                  return;
+                  return
                 }
-                ToolsUtil.showToast('请从首页搜索框输入密码进入隐私空间'); // 设备不支持生物认证的提示
+                ToolsUtil.showToast('请从首页搜索框输入密码进入隐私空间') // 设备不支持生物认证的提示
               }
             })
         )
@@ -433,7 +433,7 @@ struct Index {
         }
       })
       .onChange((value: boolean) => {
-        this.sideBarController.isShow = value;
+        this.sideBarController.isShow = value
       })
       .showSideBar(this.sideBarController.isShow)
       .showControlButton(false)
@@ -457,11 +457,11 @@ struct Index {
     .onDrop((dragEvent: DragEvent) => {
       let records: Array<unifiedDataChannel.UnifiedRecord> = []
       try {
-        records = dragEvent.getData().getRecords();
+        records = dragEvent.getData().getRecords()
       } catch (error) {
         ToolsUtil.showToast('获取数据时异常：' + error)
       }
-      let video: unifiedDataChannel.Video = records[0] as unifiedDataChannel.Video;
+      let video: unifiedDataChannel.Video = records[0] as unifiedDataChannel.Video
       WantProcessUtil.wantUri = video?.uri
       WantProcessUtil.hasWant(PathUtils.appContext!, this.pathStack)
     })

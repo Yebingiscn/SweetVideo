@@ -1,6 +1,6 @@
-import { UIUtils } from '@kit.ArkUI';
-import { BackgroundColorMode } from '../common/enum/BackgroundColorMode';
-import { ListDisplayMode } from '../common/enum/ListDisplayMode';
+import { UIUtils } from '@kit.ArkUI'
+import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
+import { ListDisplayMode } from '../common/enum/ListDisplayMode'
 
 class SettingUtil {
   public backgroundImageSrc: string = ''
@@ -19,6 +19,8 @@ class SettingUtil {
   public longPressSpeed: number = 3
   public showSettingPageEntry: boolean = true
   public allowGestureEntry: boolean = true
+  public showFrameImgStatus: boolean = true
+  public jumpToHistoryTimeStatus: boolean = true
 }
 
 class SafeHeightUtil {
@@ -34,10 +36,10 @@ class PcUtil {
   public pcMode: boolean = false
 }
 
-export const SafeHeight = UIUtils.makeObserved(new SafeHeightUtil());
+export const SafeHeight = UIUtils.makeObserved(new SafeHeightUtil())
 
-export const Setting = UIUtils.makeObserved(new SettingUtil());
+export const Setting = UIUtils.makeObserved(new SettingUtil())
 
-export const Privacy = UIUtils.makeObserved(new PrivacyBackgroundUtil());
+export const Privacy = UIUtils.makeObserved(new PrivacyBackgroundUtil())
 
-export const Pc = UIUtils.makeObserved(new PcUtil());
+export const Pc = UIUtils.makeObserved(new PcUtil())

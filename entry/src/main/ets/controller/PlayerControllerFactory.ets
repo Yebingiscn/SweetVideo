@@ -12,6 +12,8 @@ export interface PlayerControllerInterface {
 
   pause(): void
 
+  reset(): void
+
   release(): void
 
   seekTime(seekTime: number): void
@@ -23,7 +25,7 @@ export interface PlayerControllerInterface {
 
 // 真正的工厂 controller
 export class PlayerControllerFactory {
-  static createPlayerController(): AVPlayerController {
-    return new AVPlayerController();
+  static createAVPlayerController(): AVPlayerController {
+    return new AVPlayerController()
   }
 }

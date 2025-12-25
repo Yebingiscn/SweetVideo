@@ -1,9 +1,9 @@
-import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
-import Preferences from '../database/Preferences';
-import { FileFolder } from '../interfaces/FileFolderInterface';
-import { FileFolderDataSource } from './DataUtil';
-import { PathUtils } from './PathUtils';
-import ToolsUtil from './ToolsUtil';
+import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent'
+import Preferences from '../database/Preferences'
+import { FileFolder } from '../interfaces/FileFolderInterface'
+import { FileFolderDataSource } from './DataUtil'
+import { PathUtils } from './PathUtils'
+import ToolsUtil from './ToolsUtil'
 
 export default class VideoUtils {
   static refresh(videoListController: VideoListController, fileFolderDataSource: FileFolderDataSource,
@@ -21,7 +21,7 @@ export default class VideoUtils {
     }
     if (!currentFolder) {
       ToolsUtil.showToast('出异常了：数据刷新失败')
-      return;
+      return
     }
     if (videoListController?.folder?.video_list) {
       //更新videoDataSource

@@ -16,7 +16,7 @@ export struct PlayerSideBarComponent {
   @State video_meta_data: VideoMetadata[] = []
   @Prop now_playing: VideoMetadataFromPlayer | undefined
   @Link sideBarStatus: boolean
-  private listScroller: Scroller = new Scroller();
+  private listScroller: Scroller = new Scroller()
   onItemClick = (_item: VideoMetadata) => {
   }
 
@@ -79,7 +79,7 @@ export struct PlayerSideBarComponent {
           item => item?.date === this.now_playing?.date
         )
         if (targetIndex >= 0) {
-          this.listScroller.scrollToIndex(targetIndex, false);
+          this.listScroller.scrollToIndex(targetIndex, false)
         }
       }, 50)
     }

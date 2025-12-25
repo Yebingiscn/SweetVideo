@@ -44,21 +44,21 @@ import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
 
 @Component
 export struct FFMpegPlayer { // FFMpeg播放器页
-  avSession: avSessionManager.AVSession | undefined = undefined;
+  avSession: avSessionManager.AVSession | undefined = undefined
   @State play_area_height: number = 1
   @State play_area_width: number = 1
   @State screen_width: number = 0
   @State screen_height: number = 0
   @State play_time: number = 0
   @State playing: boolean = false
-  @State mContext: object | undefined = undefined;
-  @State updateProgressTimer: number = 0;
-  @State mDestroyPage: boolean = false;
-  @State slideEnable: boolean = false;
-  @State loadingVisible: Visibility = Visibility.None;
-  @State replayVisible: Visibility = Visibility.None;
-  @State volume: number = 1.0;
-  @State playSpeed: number = 1;
+  @State mContext: object | undefined = undefined
+  @State updateProgressTimer: number = 0
+  @State mDestroyPage: boolean = false
+  @State slideEnable: boolean = false
+  @State loadingVisible: Visibility = Visibility.None
+  @State replayVisible: Visibility = Visibility.None
+  @State volume: number = 1.0
+  @State playSpeed: number = 1
   now_playing: VideoMetadataFromPlayer | undefined = undefined
   @State video_url: string = ''
   @State total_time: number = 0
@@ -80,8 +80,8 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @State video_meta_data: VideoMetadata[] = []
   @State volumeActually: number = 0
   @Consume('pathStack') pathStack: NavPathStack
-  private CONTROL_PlayStatus = PlayStatus.INIT;
-  private mIjkMediaPlayer: IjkMediaPlayer | null = null;
+  private CONTROL_PlayStatus = PlayStatus.INIT
+  private mIjkMediaPlayer: IjkMediaPlayer | null = null
   private audioVolumeManager: audio.AudioVolumeManager | null = null
 
   build() {
@@ -97,7 +97,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             .defaultFocus(true)
             .onLoad(async (event?: object) => {
               if (!!event) {
-                this.initDelayPlay(event);
+                this.initDelayPlay(event)
                 await PermissionUtil.activatePermission(this.now_playing?.uri)
                 try {
                   const file = fs.openSync(this.now_playing?.uri)
@@ -110,19 +110,19 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         }
         .onKeyEvent((event?: KeyEvent) => {
           if (!event || event.type !== KeyType.Down) {
-            return;
+            return
           }
           if (event.keyCode === KeyCode.KEYCODE_SPACE) {
-            this.togglePlayState();
+            this.togglePlayState()
           }
           if (event.keyCode === KeyCode.KEYCODE_ESCAPE) {
             this.pathStack.pop()
           }
           if (event.keyCode === KeyCode.KEYCODE_DPAD_RIGHT) {
-            this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(Setting.fastForwardSeconds) * 1000));
+            this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(Setting.fastForwardSeconds) * 1000))
           }
           if (event.keyCode === KeyCode.KEYCODE_DPAD_LEFT) {
-            this.mIjkMediaPlayer?.seekTo(String(this.play_time - Number(Setting.fastForwardSeconds) * 1000));
+            this.mIjkMediaPlayer?.seekTo(String(this.play_time - Number(Setting.fastForwardSeconds) * 1000))
           }
         })
         .width(this.play_area_width)
@@ -179,7 +179,8 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             isSliderPlayTimeChange: this.isSliderPlayTimeChange,
             playTime: this.play_time,
             totalTime: this.total_time,
-            pixelMap: null
+            pixelMap: null,
+            player: NavigationAddress.FFMPEG_PLAYER
           })
         }
 
@@ -201,7 +202,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           onDoubleClickAction: (tapX: number) => {
             if (!Setting.allowDoubleFastForward) { // 非快进模式直接切换播放状态
               this.togglePlayState()
-              return;
+              return
             }
             const zoneWidth = this.screen_width / 5 // 计算区域分割宽度
             if (tapX < zoneWidth) { // 左侧区域：回退
@@ -212,7 +213,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
               this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(Setting.fastForwardSeconds) * 1000))
               return
             }
-            this.togglePlayState(); // 中间区域：播放/暂停切换
+            this.togglePlayState() // 中间区域：播放/暂停切换
           },
           onSingleClickAction: () => {
             XAnimation.runWithAnimation(async () => {
@@ -220,10 +221,10 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             })
           },
           onVerticalPanStart: (tapX: number) => {
-            VideoOperateUtil.leftSideSwipe = tapX < this.screen_width / 2;
+            VideoOperateUtil.leftSideSwipe = tapX < this.screen_width / 2
             VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
             this.volume = this.volumeActually
-            VideoOperateUtil.lastVolume = this.volume; // 记录起始音量
+            VideoOperateUtil.lastVolume = this.volume // 记录起始音量
           },
           onVerticalPanUpdate: (offsetY: number) => {
             const deltaYScale = offsetY / this.screen_height * 2.5
@@ -264,7 +265,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             const rawScale = fingerDistance / VideoOperateUtil.initPinchDistance
             const adjustedScale = 1 + (rawScale - 1) * 0.007
             const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0)
-            const scaledWidth = this.play_area_width * clampedScale; // 计算缩放后的播放区域宽度
+            const scaledWidth = this.play_area_width * clampedScale // 计算缩放后的播放区域宽度
             const maxAllowed = VideoInfoUtil.play_area_width * 3.0
             const minAllowed = VideoInfoUtil.play_area_width * 0.5
             if (scaledWidth > maxAllowed || scaledWidth < minAllowed) { // 检查缩放是否超出允许范围
@@ -290,14 +291,14 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           onLongPressEnd: () => {
             this.longPress = false
             this.playSpeed = this.last_speed
-            this.mIjkMediaPlayer?.setSpeed(this.last_speed + '');
+            this.mIjkMediaPlayer?.setSpeed(this.last_speed + '')
           },
           onLongPressPanStart: (tapX: number) => {
-            VideoOperateUtil.longPressStartX = tapX;
+            VideoOperateUtil.longPressStartX = tapX
           },
           onLongPressPanUpdate: (tapX: number) => {
             if (this.longPress) { // 长按状态下的滑动处理
-              const deltaX = tapX - VideoOperateUtil.longPressStartX;
+              const deltaX = tapX - VideoOperateUtil.longPressStartX
               const SWIPE_THRESHOLD = 15
               if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
                 return
@@ -342,7 +343,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         this.pathStack.getParamByName(NavigationAddress.FFMPEG_PLAYER)[0] as PlayerParams
       try {
         this.now_playing = playerParams.metadata as VideoMetadataFromPlayer
-        this.video_meta_data = playerParams.metadata_list as VideoMetadata[];
+        this.video_meta_data = playerParams.metadata_list as VideoMetadata[]
       } catch (e) {
         console.error(e)
       }
@@ -364,16 +365,16 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
       WindowUtil.setBarState(PathUtils.appContext!, true, true)
       try {
-        await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
+        await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
       } catch (error) {
         console.error('setPreferredOrientation' + error)
       }
-      this.mDestroyPage = true;
-      this.mIjkMediaPlayer?.setScreenOnWhilePlaying(false);
+      this.mDestroyPage = true
+      this.mIjkMediaPlayer?.setScreenOnWhilePlaying(false)
       if (this.CONTROL_PlayStatus != PlayStatus.INIT) {
-        this.stop();
+        this.stop()
       }
-      this.mIjkMediaPlayer?.off('audioInterrupt');
+      this.mIjkMediaPlayer?.off('audioInterrupt')
       this.mIjkMediaPlayer?.off('deviceChange')
     })
     .hideTitleBar(true)
@@ -413,12 +414,12 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         this.isSliderPlayTimeChange = true
         this.onSwiping = true
         this.play_time = value
-        this.mDestroyPage = false;
+        this.mDestroyPage = false
       },
       onSliderTouch: (event: TouchEvent) => {
         if (event.type == TouchType.Up) {
           let seekValue = this.play_time
-          this.mIjkMediaPlayer?.seekTo(seekValue + "");
+          this.mIjkMediaPlayer?.seekTo(seekValue + "")
           this.setProgress()
           this.onSwiping = false
           this.isSliderPlayTimeChange = false
@@ -499,16 +500,16 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   }
 
   async aboutToAppear() {
-    this.mIjkMediaPlayer = IjkMediaPlayer.getInstance();
+    this.mIjkMediaPlayer = IjkMediaPlayer.getInstance()
     PermissionUtil.applyContinuousTask()
     this.setScreen()
-    let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
-    let audioManager = audio.getAudioManager();
-    this.audioVolumeManager = audioManager.getVolumeManager();
+    let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID
+    let audioManager = audio.getAudioManager()
+    this.audioVolumeManager = audioManager.getVolumeManager()
     let volumeList = await VideoOperateUtil.getVolume(this.audioVolumeManager, groupId)
     this.volume = volumeList.get('volume')!
     try {
-      await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
+      await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
     } catch (error) {
       console.error('setPreferredOrientation error:' + error)
@@ -516,20 +517,20 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     WindowUtil.enableLandscapeMultiWindow(this.windowClass)
     let event: Callback<InterruptEvent> = (event) => {
       if (event.hintType === InterruptHintType.INTERRUPT_HINT_PAUSE) {
-        this.pause();
+        this.pause()
       } else if (event.hintType === InterruptHintType.INTERRUPT_HINT_RESUME) {
-        this.startPlayOrResumePlay();
+        this.startPlayOrResumePlay()
       } else if (event.hintType === InterruptHintType.INTERRUPT_HINT_STOP) {
-        this.pause();
+        this.pause()
       }
     }
-    this.mIjkMediaPlayer?.on('audioInterrupt', event);
+    this.mIjkMediaPlayer?.on('audioInterrupt', event)
     let deviceChangeEvent: Callback<InterruptEvent> = (event) => {
       if (event.reason === DeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) { // 音频设备断开连接
-        this.pause();
+        this.pause()
       }
     }
-    this.mIjkMediaPlayer?.on('deviceChange', deviceChangeEvent);
+    this.mIjkMediaPlayer?.on('deviceChange', deviceChangeEvent)
     this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
     this.volumeActually = this.volume
     try {
@@ -546,7 +547,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             this.onSwipingVoice = !this.onSwipingVoice
           }
         }, 800)
-      });
+      })
     } catch (error) {
       console.error('volumeChange error:' + error)
     }
@@ -557,7 +558,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     this.mIjkMediaPlayer = null
     VideoOperateUtil.setBrightness(-1)
     try {
-      this.audioVolumeManager?.off('volumeChange');
+      this.audioVolumeManager?.off('volumeChange')
     } catch (error) {
       console.error('volumeChange error:' + error)
     }
@@ -567,15 +568,15 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   async setSessionListener() {
     try {
       this.avSession?.on('play', () => {
-        this.startPlayOrResumePlay();
-      });
+        this.startPlayOrResumePlay()
+      })
       this.avSession?.on('pause', () => {
         this.pause()
-      });
+      })
       this.avSession?.on('seek', (position: number) => {
-        this.mDestroyPage = false;
-        let seekValue = position;
-        this.mIjkMediaPlayer?.seekTo(seekValue + "");
+        this.mDestroyPage = false
+        let seekValue = position
+        this.mIjkMediaPlayer?.seekTo(seekValue + "")
         this.setProgress()
       })
     } catch (error) {
@@ -604,30 +605,30 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   }
 
   private initDelayPlay(context: object) {
-    this.mContext = context;
-    let that = this;
+    this.mContext = context
+    let that = this
     setTimeout(() => {
-      that.startPlayOrResumePlay();
+      that.startPlayOrResumePlay()
     }, 150)
   }
 
   private togglePlayState() {
-    this.playing ? this.pause() : this.startPlayOrResumePlay();
+    this.playing ? this.pause() : this.startPlayOrResumePlay()
   }
 
   private async startPlayOrResumePlay() {
     this.playing = true
-    this.mDestroyPage = false;
+    this.mDestroyPage = false
     if (this.CONTROL_PlayStatus == PlayStatus.INIT) {
-      this.stopProgressTask();
-      this.startProgressTask();
-      this.play();
+      this.stopProgressTask()
+      this.startProgressTask()
+      this.play()
       setTimeout(() => {
         this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.now_playing!))
       }, 600)
     }
     if (this.CONTROL_PlayStatus == PlayStatus.PAUSE) {
-      this.mIjkMediaPlayer?.start();
+      this.mIjkMediaPlayer?.start()
       this.setProgress()
     }
     if (!this.avSession && Setting.allowBackgroundPlay) {
@@ -640,119 +641,119 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   }
 
   private startProgressTask() {
-    let that = this;
+    let that = this
     this.updateProgressTimer = setInterval(() => {
       if (!that.mDestroyPage) {
-        that.setProgress();
+        that.setProgress()
       }
-    }, 300);
+    }, 300)
   }
 
   private stopProgressTask() {
-    clearInterval(this.updateProgressTimer);
+    clearInterval(this.updateProgressTimer)
   }
 
   private setProgress() { //设置进度条
-    let position = this.mIjkMediaPlayer?.getCurrentPosition()!;
-    let duration = this.mIjkMediaPlayer?.getDuration()!;
-    let pos = 0;
+    let position = this.mIjkMediaPlayer?.getCurrentPosition()!
+    let duration = this.mIjkMediaPlayer?.getDuration()!
+    let pos = 0
     this.total_time = duration
     if (duration > 0) {
-      this.slideEnable = true;
-      let curPercent = position / duration;
-      pos = curPercent * 100;
+      this.slideEnable = true
+      let curPercent = position / duration
+      pos = curPercent * 100
       if (pos > (this.total_time || 0)) {
         this.play_time = this.total_time || 0
       } else {
-        this.play_time = pos;
+        this.play_time = pos
       }
     }
     if (position > duration) {
-      position = duration;
+      position = duration
     }
-    this.play_time = position;
+    this.play_time = position
     if (this.now_playing?.time === 0) {
-      this.now_playing.time = this.total_time; // 若系统无法识别视频时长，则由 FFMpeg API 提供以保存记忆时间
+      this.now_playing.time = this.total_time // 若系统无法识别视频时长，则由 FFMpeg API 提供以保存记忆时间
       VideoOperateUtil.saveVideoTotalTime(PathUtils.appContext!, this.now_playing)
     }
   }
 
   private showRePlay() {
-    this.loadingVisible = Visibility.None;
-    this.replayVisible = Visibility.Visible;
+    this.loadingVisible = Visibility.None
+    this.replayVisible = Visibility.Visible
   }
 
   private play() {
-    let that = this;
+    let that = this
     //设置XComponent回调的context
     if (!!this.mContext) {
-      this.mIjkMediaPlayer?.setContext(this.mContext, 'xcomponentId');
+      this.mIjkMediaPlayer?.setContext(this.mContext, 'xcomponentId')
     }
     if (this.CONTROL_PlayStatus == PlayStatus.INIT) {
-      this.mIjkMediaPlayer?.reset();
+      this.mIjkMediaPlayer?.reset()
     }
-    this.CONTROL_PlayStatus = PlayStatus.PLAY;
+    this.CONTROL_PlayStatus = PlayStatus.PLAY
     //设置debug模式
-    this.mIjkMediaPlayer?.setDebug(false);
+    this.mIjkMediaPlayer?.setDebug(false)
     //初始化配置
-    this.mIjkMediaPlayer?.native_setup();
+    this.mIjkMediaPlayer?.native_setup()
     // 初始化配置后需要重新设置音频流音量，否则音量为默认值1.0
-    this.mIjkMediaPlayer?.setVolume('1.0', '1.0');
+    this.mIjkMediaPlayer?.setVolume('1.0', '1.0')
     //设置视频源
-    this.mIjkMediaPlayer?.setDataSource(this.video_url);
+    this.mIjkMediaPlayer?.setDataSource(this.video_url)
     //使用精确寻帧 例如，拖动播放后，会寻找最近的关键帧进行播放，很有可能关键帧的位置不是拖动后的位置，而是较前的位置.可以设置这个参数来解决问题
-    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "enable-accurate-seek", "1");
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "enable-accurate-seek", "1")
     //预读数据的缓冲区大小
-    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", '943718400');
-    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "min-frames", "120");
-    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "start-on-prepared", "1");
-    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "videotoolbox", "1"); // 用硬件解码
-    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "packet-buffering", "1");
-    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "framedrop", "5");
-    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-all-videos", "1");
-    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-hevc", "0");
-    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-sync", "1");
-    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-auto-rotate", "1");
-    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-handle-resolution-change", "1");
-    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "skip_loop_filter", "48L");
-    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzeduration", "100");
-    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzemaxduration", '100L');
-    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "lush_packets", '1L');
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", '943718400')
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "min-frames", "120")
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "start-on-prepared", "1")
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "videotoolbox", "1") // 用硬件解码
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "packet-buffering", "1")
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "framedrop", "5")
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-all-videos", "1")
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-hevc", "0")
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-sync", "1")
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-auto-rotate", "1")
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-handle-resolution-change", "1")
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "skip_loop_filter", "48L")
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzeduration", "100")
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzemaxduration", '100L')
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "lush_packets", '1L')
     // 重置错误状态
-    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "skip_clear", "0");
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "skip_clear", "0")
     // 使用相对安全模式
-    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "seek-at-start", "1");
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "seek-at-start", "1")
     // 屏幕常亮
-    this.mIjkMediaPlayer?.setScreenOnWhilePlaying(true);
+    this.mIjkMediaPlayer?.setScreenOnWhilePlaying(true)
     // 变速播放
-    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "soundtouch", "1");
-    this.mIjkMediaPlayer?.setSpeed(this.playSpeed + '');
+    this.mIjkMediaPlayer?.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "soundtouch", "1")
+    this.mIjkMediaPlayer?.setSpeed(this.playSpeed + '')
     //是否开启循环播放
-    this.mIjkMediaPlayer?.setLoopCount(true);
+    this.mIjkMediaPlayer?.setLoopCount(true)
     let mOnVideoSizeChangedListener: OnVideoSizeChangedListener = {
       onVideoSizeChanged: (width: number, height: number, sar_num: number, sar_den: number) => {
         console.log('video size: ' + sar_num + ':' + sar_den)
         if (height === 0) {
-          return;
+          return
         }
-        const aspectRatioNow = width / height;
-        const screenAspectRatio = this.screen_width / this.screen_height;
+        const aspectRatioNow = width / height
+        const screenAspectRatio = this.screen_width / this.screen_height
         if (aspectRatioNow > screenAspectRatio) {
-          this.play_area_width = this.screen_width;
-          this.play_area_height = this.play_area_width * (height / width);
+          this.play_area_width = this.screen_width
+          this.play_area_height = this.play_area_width * (height / width)
         } else {
-          this.play_area_height = this.screen_height;
-          this.play_area_width = this.play_area_height * (width / height);
+          this.play_area_height = this.screen_height
+          this.play_area_width = this.play_area_height * (width / height)
         }
-        that.getVideoSize();
+        that.getVideoSize()
       }
     }
-    this.mIjkMediaPlayer?.setOnVideoSizeChangedListener(mOnVideoSizeChangedListener);
+    this.mIjkMediaPlayer?.setOnVideoSizeChangedListener(mOnVideoSizeChangedListener)
     let mOnPreparedListener: OnPreparedListener = {
       onPrepared: () => {
       }
     }
-    this.mIjkMediaPlayer?.setOnPreparedListener(mOnPreparedListener);
+    this.mIjkMediaPlayer?.setOnPreparedListener(mOnPreparedListener)
 
     let mOnTimedTextListener: OnTimedTextListener = {
       onTimedText: () => {
@@ -762,13 +763,13 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     // 播完之后
     let mOnCompletionListener: OnCompletionListener = {
       onCompletion: () => {
-        that.showRePlay();
+        that.showRePlay()
         that.play_time = this.mIjkMediaPlayer?.getDuration()!
-        that.slideEnable = false;
-        that.stop();
+        that.slideEnable = false
+        that.stop()
       }
     }
-    this.mIjkMediaPlayer?.setOnCompletionListener(mOnCompletionListener);
+    this.mIjkMediaPlayer?.setOnCompletionListener(mOnCompletionListener)
     let mOnBufferingUpdateListener: OnBufferingUpdateListener = {
       onBufferingUpdate: (percent: number) => {
         let MediaInfo = this.mIjkMediaPlayer?.getMediaInfo()
@@ -783,68 +784,68 @@ export struct FFMpegPlayer { // FFMpeg播放器页
           'AudioSessionId=' + AudioSessionId + 'Looping=' + Looping)
       }
     }
-    this.mIjkMediaPlayer?.setOnBufferingUpdateListener(mOnBufferingUpdateListener);
+    this.mIjkMediaPlayer?.setOnBufferingUpdateListener(mOnBufferingUpdateListener)
     let mOnSeekCompleteListener: OnSeekCompleteListener = {
       onSeekComplete: () => {
-        that.startPlayOrResumePlay();
+        that.startPlayOrResumePlay()
       }
     }
-    this.mIjkMediaPlayer?.setOnSeekCompleteListener(mOnSeekCompleteListener);
+    this.mIjkMediaPlayer?.setOnSeekCompleteListener(mOnSeekCompleteListener)
 
     let mOnInfoListener: OnInfoListener = {
       onInfo: (what: number, extra: number) => {
         console.log("OnInfoListener-->go:" + what + "===" + extra)
       }
     }
-    this.mIjkMediaPlayer?.setOnInfoListener(mOnInfoListener);
+    this.mIjkMediaPlayer?.setOnInfoListener(mOnInfoListener)
 
     let mOnErrorListener: OnErrorListener = {
       onError: (_what: number, _extra: number) => {
-        this.stopProgressTask();
+        this.stopProgressTask()
         VideoOperateUtil.playErrorExecute(this.pathStack, this.video_meta_data, this.now_playing?.date!,
           NavigationAddress.RED_PLAYER)
       }
     }
-    this.mIjkMediaPlayer?.setOnErrorListener(mOnErrorListener);
-    this.mIjkMediaPlayer?.setMessageListener();
-    this.mIjkMediaPlayer?.prepareAsync();
-    this.mIjkMediaPlayer?.start();
+    this.mIjkMediaPlayer?.setOnErrorListener(mOnErrorListener)
+    this.mIjkMediaPlayer?.setMessageListener()
+    this.mIjkMediaPlayer?.prepareAsync()
+    this.mIjkMediaPlayer?.start()
   }
 
   private pause() {
     this.playing = false
-    this.mIjkMediaPlayer?.pause();
-    this.setProgress();
-    this.mDestroyPage = true;
-    this.CONTROL_PlayStatus = PlayStatus.PAUSE;
+    this.mIjkMediaPlayer?.pause()
+    this.setProgress()
+    this.mDestroyPage = true
+    this.CONTROL_PlayStatus = PlayStatus.PAUSE
     AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
   }
 
   private stop() {
     AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
-    this.CONTROL_PlayStatus = PlayStatus.INIT;
-    this.mIjkMediaPlayer?.stop();
-    this.mIjkMediaPlayer?.release();
-    this.stopProgressTask();
+    this.CONTROL_PlayStatus = PlayStatus.INIT
+    this.mIjkMediaPlayer?.stop()
+    this.mIjkMediaPlayer?.release()
+    this.stopProgressTask()
     this.mIjkMediaPlayer = null
   }
 
   private getVideoSize() {
-    let VideoWidth = this.mIjkMediaPlayer?.getVideoWidth()!;
-    let VideoHeight = this.mIjkMediaPlayer?.getVideoHeight()!;
+    let VideoWidth = this.mIjkMediaPlayer?.getVideoWidth()!
+    let VideoHeight = this.mIjkMediaPlayer?.getVideoHeight()!
     if (this.now_playing?.size[0] === 0 && VideoWidth !== 0) {
       this.now_playing.size[0] = VideoWidth
       this.now_playing.size[1] = VideoHeight
       VideoOperateUtil.saveVideoWeightAndHeight(PathUtils.appContext!, this.now_playing)
     }
-    const aspectRatioNow = VideoWidth / VideoHeight;
-    const screenAspectRatio = this.screen_width / this.screen_height;
+    const aspectRatioNow = VideoWidth / VideoHeight
+    const screenAspectRatio = this.screen_width / this.screen_height
     if (aspectRatioNow > screenAspectRatio) {
-      this.play_area_width = this.screen_width;
-      this.play_area_height = this.play_area_width * (VideoHeight / VideoWidth);
+      this.play_area_width = this.screen_width
+      this.play_area_height = this.play_area_width * (VideoHeight / VideoWidth)
     } else {
-      this.play_area_height = this.screen_height;
-      this.play_area_width = this.play_area_height * (VideoWidth / VideoHeight);
+      this.play_area_height = this.screen_height
+      this.play_area_width = this.play_area_height * (VideoWidth / VideoHeight)
     }
   }
 }

@@ -1,7 +1,7 @@
-import { DeleteType } from '../../common/enum/DeleteType';
-import { VideoSource } from '../../common/enum/VideoSource';
-import DataSyncUtil from '../../utils/DataSyncUtil';
-import SelectFileUtil from '../../utils/SelectFileUtil';
+import { DeleteType } from '../../common/enum/DeleteType'
+import { VideoSource } from '../../common/enum/VideoSource'
+import DataSyncUtil from '../../utils/DataSyncUtil'
+import SelectFileUtil from '../../utils/SelectFileUtil'
 
 function itemUri() {
   const item = DataSyncUtil.editingVideo
@@ -16,7 +16,7 @@ export struct VideoDeleteDialog {
   @State isMoveToRecent: boolean = false
   @State permanentDeleteVisibility: boolean = false
   @State moveToRecentVisibility: boolean = false
-  @State msg: ResourceStr = this.generateMessage();
+  @State msg: ResourceStr = this.generateMessage()
   private uri: string = itemUri()
 
   aboutToAppear(): void {

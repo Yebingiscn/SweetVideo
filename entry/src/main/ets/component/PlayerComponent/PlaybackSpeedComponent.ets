@@ -1,5 +1,5 @@
-import { SpeedDataSource } from '../../utils/DataUtil';
-import VideoInfoUtil from '../../utils/VideoInfoUtil';
+import { SpeedDataSource } from '../../utils/DataUtil'
+import VideoInfoUtil from '../../utils/VideoInfoUtil'
 
 @Component
 export struct PlaybackSpeedMenuComponent {
@@ -21,7 +21,7 @@ export struct PlaybackSpeedMenuComponent {
             $r('sys.color.white') : $r('app.color.text_color'))
         }
         .onClick(() => {
-          this.onSpeedChange(speedAvailable); // 触发回调
+          this.onSpeedChange(speedAvailable) // 触发回调
         })
         .height(40)
         .backgroundColor(this.speed && speedAvailable === this.speed ?

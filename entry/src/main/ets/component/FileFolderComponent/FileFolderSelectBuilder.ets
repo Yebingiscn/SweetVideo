@@ -1,7 +1,7 @@
-import { MenuFancyModifier } from '../../common/AttributeModifierConfig';
-import { IMenuItem } from '../../interfaces/IMenuItemInterface';
-import ToolsUtil from '../../utils/ToolsUtil';
-import { SymbolGlyphModifier } from '@kit.ArkUI';
+import { MenuFancyModifier } from '../../common/AttributeModifierConfig'
+import { IMenuItem } from '../../interfaces/IMenuItemInterface'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { SymbolGlyphModifier } from '@kit.ArkUI'
 
 @Builder
 export function FolderSelectMenuBuilder(menus: IMenuItem[]) {

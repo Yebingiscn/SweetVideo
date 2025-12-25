@@ -3,7 +3,7 @@ import { hiAppEvent, hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import WantProcessUtil from '../utils/WantProcessUtil';
 import { RedPlayerConfigBuilder, RedPlayerInitManager, RedPlayerPreload } from '@rte-xhs/redplayer';
-import LoggerImpl from '../utils/LoggerImpl';
+import LoggerImpl from '../controller/RedPlayerController/LoggerImpl';
 import { PathUtils } from '../utils/PathUtils';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';

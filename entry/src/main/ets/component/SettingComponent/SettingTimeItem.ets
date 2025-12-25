@@ -1,12 +1,12 @@
-import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig';
-import TimeUtil from '../../utils/TimeUtil';
+import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
+import TimeUtil from '../../utils/TimeUtil'
 
 @Component
 export struct SettingTimeItem {
   @State symbol: Resource | undefined = undefined
   @State message: ResourceStr = ''
   @State selectedIndex: number[] = [0, 0, 0, 0]
-  @Prop selected: number = 0;
+  @Prop selected: number = 0
   private TenthsOfMinutes: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
   private UnitOfTMinutes: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
   private TenthsOfSecond: string[] = ['0', '1', '2', '3', '4', '5']
@@ -16,8 +16,8 @@ export struct SettingTimeItem {
   }
 
   aboutToAppear() {
-    const timeStr = this.convertToTimeFormat(this.selected);
-    this.selectedIndex = this.timeToIndexes(timeStr);
+    const timeStr = this.convertToTimeFormat(this.selected)
+    this.selectedIndex = this.timeToIndexes(timeStr)
   }
 
   build() {
@@ -43,9 +43,9 @@ export struct SettingTimeItem {
         .onChange((value: string | string[], index: number | number[]) => {
           if (Array.isArray(index)) {
             this.selectedIndex = index
-            const minutes = parseInt(value[0] + value[1], 10);
-            const seconds = parseInt(value[2] + value[3], 10);
-            const totalSeconds = minutes * 60 + seconds;
+            const minutes = parseInt(value[0] + value[1], 10)
+            const seconds = parseInt(value[2] + value[3], 10)
+            const totalSeconds = minutes * 60 + seconds
             this.onChange(totalSeconds)
           }
         })
@@ -58,12 +58,12 @@ export struct SettingTimeItem {
   }
 
   private convertToTimeFormat(totalSeconds: number): string {
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes.toString().padStart(2, '0')}${seconds.toString().padStart(2, '0')}`;
+    const minutes = Math.floor(totalSeconds / 60)
+    const seconds = totalSeconds % 60
+    return `${minutes.toString().padStart(2, '0')}${seconds.toString().padStart(2, '0')}`
   }
 
   private timeToIndexes(timeStr: string): number[] {
-    return timeStr.split('').map((char, i) => this.multi[i].indexOf(char));
+    return timeStr.split('').map((char, i) => this.multi[i].indexOf(char))
   }
 }

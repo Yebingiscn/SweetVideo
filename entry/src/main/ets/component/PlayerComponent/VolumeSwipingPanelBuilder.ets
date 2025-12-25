@@ -56,13 +56,13 @@ export function VolumeSwipingPanelBuilder(volumeValue: VolumeValue) {
 
 export function getVoiceIcon(videoVolume: number) {
   if (videoVolume <= VideoOperateUtil.min_volume) {
-    return $r('sys.symbol.speaker_slash'); // 静音
+    return $r('sys.symbol.speaker_slash') // 静音
   }
   if (videoVolume >= VideoOperateUtil.max_volume * 2 / 3) {
-    return $r('sys.symbol.speaker_wave_3'); // 高音量
+    return $r('sys.symbol.speaker_wave_3') // 高音量
   }
   if (videoVolume >= VideoOperateUtil.max_volume * 1 / 3) {
-    return $r('sys.symbol.speaker_wave_2'); // 中音量
+    return $r('sys.symbol.speaker_wave_2') // 中音量
   }
-  return $r('sys.symbol.speaker_wave_1'); // 低音量
+  return $r('sys.symbol.speaker_wave_1') // 低音量
 }

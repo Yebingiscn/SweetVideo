@@ -15,8 +15,8 @@ export struct SettingsCheckboxItem {
     backgroundBlurStyle: BlurStyle.BACKGROUND_THICK,
     selectedBackgroundColor: $r('app.color.main_color'),
     selectedFontColor: $r('sys.color.white')
-  });
-  @State @Watch('onSegmentButtonChange') tabSelectedIndexes: number[] = [1];
+  })
+  @State @Watch('onSegmentButtonChange') tabSelectedIndexes: number[] = [1]
 
   onSegmentButtonChange() {
     this.onButtonClick(Number(this.tabSelectedIndexes.toString()))

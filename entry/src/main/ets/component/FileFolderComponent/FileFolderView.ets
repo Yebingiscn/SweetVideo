@@ -67,13 +67,13 @@ export struct FileFolderView {
         content: $r('app.string.delete')
       })
         .onClick(async () => {
-          DataSyncUtil.delMultipleList = Array.from(file_folder.video_list);
+          DataSyncUtil.delMultipleList = Array.from(file_folder.video_list)
           const deletePromises = DataSyncUtil.delMultipleList.map(item => {
             return new Promise<void>(() => {
               this.videoListController.videoDataSource.deleteItem(DeleteType.SOFT, item)
               this.videoListController.closeMultipleChoose()
-            });
-          });
+            })
+          })
           await Promise.all(deletePromises)
           this.fileFolderSource.deleteData(this.fileFolderList.findIndex(i => i.date === file_folder.date))
           this.fileFolderList = FileFolderUtil.deleteFileFolder(PathUtils.appContext!, file_folder)

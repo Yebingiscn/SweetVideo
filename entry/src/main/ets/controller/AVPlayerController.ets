@@ -1,24 +1,24 @@
-import { media } from '@kit.MediaKit';
-import { avSession as avSessionManager } from '@kit.AVSessionKit';
-import { IjkMediaPlayer } from '@ohos/ijkplayer';
-import VideoOperateUtil from '../utils/VideoOperateUtil';
-import { fileIo as fs } from '@kit.CoreFileKit';
-import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
-import NavigationAddress from '../common/NavigationCommon';
-import VideoInfoUtil from '../utils/VideoInfoUtil';
-import { AudioTrack } from '../interfaces/AudioTrackInterface';
-import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
-import ToolsUtil from '../utils/ToolsUtil';
-import { audio } from '@kit.AudioKit';
-import { SubtitleMode } from '../common/enum/SubtitleMode';
-import { PathUtils } from '../utils/PathUtils';
-import SubtitleUtil from '../utils/SubtitleUtil';
-import { AVPlayerUtil } from '../utils/AVPlayerUtil';
-import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
-import SelectFileUtil from '../utils/SelectFileUtil';
-import { RepeatMode } from '../common/enum/RepeatMode';
-import { Setting } from '../utils/ObservedUtil';
-import { PlayerControllerInterface } from './PlayerControllerFactory';
+import { media } from '@kit.MediaKit'
+import { avSession as avSessionManager } from '@kit.AVSessionKit'
+import { IjkMediaPlayer } from '@ohos/ijkplayer'
+import VideoOperateUtil from '../utils/VideoOperateUtil'
+import { fileIo as fs } from '@kit.CoreFileKit'
+import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface'
+import NavigationAddress from '../common/NavigationCommon'
+import VideoInfoUtil from '../utils/VideoInfoUtil'
+import { AudioTrack } from '../interfaces/AudioTrackInterface'
+import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode'
+import ToolsUtil from '../utils/ToolsUtil'
+import { audio } from '@kit.AudioKit'
+import { SubtitleMode } from '../common/enum/SubtitleMode'
+import { PathUtils } from '../utils/PathUtils'
+import SubtitleUtil from '../utils/SubtitleUtil'
+import { AVPlayerUtil } from '../utils/AVPlayerUtil'
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
+import SelectFileUtil from '../utils/SelectFileUtil'
+import { RepeatMode } from '../common/enum/RepeatMode'
+import { Setting } from '../utils/ObservedUtil'
+import { PlayerControllerInterface } from './PlayerControllerFactory'
 
 @Observed
 export class AVPlayerController implements PlayerControllerInterface {
@@ -42,9 +42,9 @@ export class AVPlayerController implements PlayerControllerInterface {
   public isListenVideo: boolean = false
 
   async initVolumeAndBrightness() {
-    let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
-    let audioManager = audio.getAudioManager();
-    this.audioVolumeManager = audioManager.getVolumeManager();
+    let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID
+    let audioManager = audio.getAudioManager()
+    this.audioVolumeManager = audioManager.getVolumeManager()
     let volume_list = await VideoOperateUtil.getVolume(this.audioVolumeManager, groupId)
     this.volume = volume_list.get('volume')!
     this.volumeActually = this.volume
@@ -62,7 +62,7 @@ export class AVPlayerController implements PlayerControllerInterface {
             this.onSwipingVoice = !this.onSwipingVoice
           }
         }, 800)
-      });
+      })
     } catch (error) {
       console.error('volumeChange error:' + error)
     }
@@ -85,24 +85,24 @@ export class AVPlayerController implements PlayerControllerInterface {
     }
     this.avPlayer?.on('subtitleUpdate', async (info: media.SubtitleInfo) => { // 需要进入prepare状态前完成注册
       if (VideoOperateUtil.clearSubtitleTimer !== null) {
-        clearTimeout(VideoOperateUtil.clearSubtitleTimer);
-        VideoOperateUtil.clearSubtitleTimer = null;
+        clearTimeout(VideoOperateUtil.clearSubtitleTimer)
+        VideoOperateUtil.clearSubtitleTimer = null
       }
       if (this.subtitleSelected === SubtitleMode.INNER_SUBTITLE) {
         if (info) {
-          const text = info.text ?? '';
-          const duration = info.duration ?? 0;
-          this.subtitle = text;
+          const text = info.text ?? ''
+          const duration = info.duration ?? 0
+          this.subtitle = text
           if (duration > 0) {
             VideoOperateUtil.clearSubtitleTimer = setTimeout(() => {
-              this.subtitle = '';
-            }, duration) as number;
+              this.subtitle = ''
+            }, duration) as number
           }
         } else {
-          this.subtitle = '';
+          this.subtitle = ''
         }
       }
-    });
+    })
   }
 
   videoStartPlayTime(seekMode: number) {
@@ -123,12 +123,12 @@ export class AVPlayerController implements PlayerControllerInterface {
 
   updatePlaybackSpeed(speed: number): void {
     if (!VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).includes(speed)) {
-      speed = 1.0;
+      speed = 1.0
     }
-    const systemSpeed = VideoInfoUtil.mapToSystemSpeed(speed);
-    this.avPlayer?.setSpeed(systemSpeed);
+    const systemSpeed = VideoInfoUtil.mapToSystemSpeed(speed)
+    this.avPlayer?.setSpeed(systemSpeed)
     if (this.mIjkMediaPlayer) {
-      this.mIjkMediaPlayer?.setSpeed(String(speed));
+      this.mIjkMediaPlayer?.setSpeed(String(speed))
     }
   }
 
@@ -137,7 +137,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     if (VideoOperateUtil.validateAudioTracks(this.audio_track)) {
       this.avPlayer!.selectTrack(this.audio_track[0].index)?.catch(() => {
         ToolsUtil.addLogger('selectTrack error', true)
-      });
+      })
     } else {
       this.activeEnhanceAudio()
     }
@@ -159,7 +159,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   prepare() {
     this.avPlayer?.prepare()?.catch(() => {
       ToolsUtil.addLogger('prepare error', true)
-    });
+    })
   }
 
   pause() {
@@ -177,12 +177,12 @@ export class AVPlayerController implements PlayerControllerInterface {
   setListenVideoStatus() {
     this.avPlayer?.setMediaMuted(media.MediaType.MEDIA_TYPE_VID, this.isListenVideo)?.catch(() => {
       ToolsUtil.addLogger('设置视频静音失败', true)
-    });
+    })
     ToolsUtil.addLogger(`视频静音状态设置为：${this.isListenVideo}`, false)
   }
 
   cancelSubscribe() {
-    this.avPlayer?.off('subtitleUpdate');
+    this.avPlayer?.off('subtitleUpdate')
     this.avPlayer?.off('timeUpdate')
     this.avPlayer?.off('seekDone')
     this.avPlayer?.off('speedDone')
@@ -222,35 +222,35 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   activeEnhanceAudio() {
-    this.mIjkMediaPlayer = IjkMediaPlayer.getInstance();
+    this.mIjkMediaPlayer = IjkMediaPlayer.getInstance()
     try {
       const video_url = fs.openSync(this.nowPlaying?.uri).path
-      this.mIjkMediaPlayer.reset();
+      this.mIjkMediaPlayer.reset()
       this.mIjkMediaPlayer.setAudioId(this.surfaceID)
-      this.mIjkMediaPlayer.native_setup();
-      this.mIjkMediaPlayer.setDebug(false);
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", '15728600');
-      this.mIjkMediaPlayer.setVolume('1.0', '1.0');
+      this.mIjkMediaPlayer.native_setup()
+      this.mIjkMediaPlayer.setDebug(false)
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", '15728600')
+      this.mIjkMediaPlayer.setVolume('1.0', '1.0')
       this.mIjkMediaPlayer.setDataSource(video_url)
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "start-on-prepared", "1");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "enable-accurate-seek", "1");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "packet-buffering", "1");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-fps", "0"); // 禁用FPS限制
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "disable_video", "1"); // 跳过视频流
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_CODEC, "skip-video", "1");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "audio-resampler", "soxr");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "avsync", '100');
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-all-videos", "1");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-hevc", "0");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "enable-buffer-age", "0");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "buffer-pool-size", "32");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "sync-av-start", "1");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "infbuf", "0");
-      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "soundtouch", "1");
-      this.mIjkMediaPlayer.setSpeed('1f');
-      this.mIjkMediaPlayer.setLoopCount(false);
-      this.mIjkMediaPlayer.setMessageListener();
-      this.mIjkMediaPlayer.prepareAsync();
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "start-on-prepared", "1")
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "enable-accurate-seek", "1")
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "packet-buffering", "1")
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-fps", "0") // 禁用FPS限制
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "disable_video", "1") // 跳过视频流
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_CODEC, "skip-video", "1")
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "audio-resampler", "soxr")
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "avsync", '100')
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-all-videos", "1")
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-hevc", "0")
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "enable-buffer-age", "0")
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "buffer-pool-size", "32")
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "sync-av-start", "1")
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "infbuf", "0")
+      this.mIjkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "soundtouch", "1")
+      this.mIjkMediaPlayer.setSpeed('1f')
+      this.mIjkMediaPlayer.setLoopCount(false)
+      this.mIjkMediaPlayer.setMessageListener()
+      this.mIjkMediaPlayer.prepareAsync()
       this.mIjkMediaPlayer.start()
     } catch (error) {
       console.error('ijk error:' + error)
@@ -269,25 +269,10 @@ export class AVPlayerController implements PlayerControllerInterface {
     this.seekTime(this.playTime + Number(Setting.fastForwardSeconds) * 1000)
   }
 
-  getRepeatMode(repeatMode: RepeatMode): RepeatMode {
-    switch (repeatMode) {
-      case RepeatMode.LIST:
-        return RepeatMode.SINGLE;
-      case RepeatMode.SINGLE:
-        return RepeatMode.RANDOM;
-      case RepeatMode.RANDOM:
-        return RepeatMode.SEQUENCE;
-      case RepeatMode.SEQUENCE:
-        return RepeatMode.LIST;
-      default:
-        return RepeatMode.LIST;
-    }
-  }
-
   async ijkPlayerStop() {
     if (this.mIjkMediaPlayer) {
-      this.mIjkMediaPlayer?.pause(); // 先暂停再停止
-      this.mIjkMediaPlayer?.reset();
+      this.mIjkMediaPlayer?.pause() // 先暂停再停止
+      this.mIjkMediaPlayer?.reset()
       this.mIjkMediaPlayer?.stop()
       this.mIjkMediaPlayer?.release()
       this.mIjkMediaPlayer = null
@@ -302,68 +287,68 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   async handleIntelligentSync(videoPos: number, audioPos: number) {
-    const drift = videoPos - audioPos;
+    const drift = videoPos - audioPos
     try { // 分级处理策略
       if (Math.abs(drift) > 1000) { // 严重不同步：完全重置
-        await this.fullResetSync(videoPos);
+        await this.fullResetSync(videoPos)
       } else if (Math.abs(drift) > 700) { // 中度不同步：双重seek
-        await this.doubleSeekSync(videoPos);
+        await this.doubleSeekSync(videoPos)
       } else { // 轻度不同步：加速追赶
-        await this.speedAdjustSync(drift);
+        await this.speedAdjustSync(drift)
       }
     } catch (error) {
-      console.error('同步失败:', error);
+      console.error('同步失败:', error)
     }
   }
 
   async fullResetSync(position: number) { // 严重不同步处理
     this.pause()
-    this.mIjkMediaPlayer?.pause();
+    this.mIjkMediaPlayer?.pause()
     this.mIjkMediaPlayer?.seekTo(String(position))
-    await new Promise<void>(resolve => setTimeout(resolve, 50));
+    await new Promise<void>(resolve => setTimeout(resolve, 50))
     this.play()
-    this.mIjkMediaPlayer?.start();
+    this.mIjkMediaPlayer?.start()
   }
 
   calPlayerSync(duration: number) {
-    this.playTime = duration;
+    this.playTime = duration
     if (this.mIjkMediaPlayer && Date.now() - VideoOperateUtil.lastSyncTime < VideoOperateUtil.syncCoolDown) {
-      return;
+      return
     }
-    const audioPosition = Number(this.mIjkMediaPlayer?.getCurrentPosition());
-    const drift = duration - audioPosition; // 记录最近5次差异
-    VideoOperateUtil.driftHistory.push(drift);
+    const audioPosition = Number(this.mIjkMediaPlayer?.getCurrentPosition())
+    const drift = duration - audioPosition // 记录最近5次差异
+    VideoOperateUtil.driftHistory.push(drift)
     if (VideoOperateUtil.driftHistory.length > 5) {
-      VideoOperateUtil.driftHistory.shift();
+      VideoOperateUtil.driftHistory.shift()
     } // 动态阈值计算
-    const buffer = this.mIjkMediaPlayer?.getAudioCachedBytes()!;
-    const dynamicThreshold = Math.min(1000, 300 + buffer * 0.5); // 趋势分析（最近3次差异是否持续扩大）
+    const buffer = this.mIjkMediaPlayer?.getAudioCachedBytes()!
+    const dynamicThreshold = Math.min(1000, 300 + buffer * 0.5) // 趋势分析（最近3次差异是否持续扩大）
     const isGrowing = VideoOperateUtil.driftHistory.slice(-3).every((v, i, arr) =>
-    i === 0 || Math.abs(v) > Math.abs(arr[i-1])); // 触发条件：差异超过阈值或存在持续扩大趋势
+    i === 0 || Math.abs(v) > Math.abs(arr[i-1])) // 触发条件：差异超过阈值或存在持续扩大趋势
     if (Math.abs(drift) > dynamicThreshold || (isGrowing && Math.abs(drift) > 300)) {
-      this.handleIntelligentSync(duration, audioPosition);
-      VideoOperateUtil.lastSyncTime = Date.now(); // 自适应调整冷却时间
-      VideoOperateUtil.syncCoolDown = Math.max(500, 1000 - buffer * 2);
+      this.handleIntelligentSync(duration, audioPosition)
+      VideoOperateUtil.lastSyncTime = Date.now() // 自适应调整冷却时间
+      VideoOperateUtil.syncCoolDown = Math.max(500, 1000 - buffer * 2)
     }
   }
 
   private async doubleSeekSync(position: number) { // 中度不同步处理
-    const prePos = Math.max(0, position - 500);
-    this.mIjkMediaPlayer?.seekTo(String(prePos));
-    await new Promise<void>(resolve => setTimeout(resolve, 30));
-    this.mIjkMediaPlayer?.seekTo(String(position));
+    const prePos = Math.max(0, position - 500)
+    this.mIjkMediaPlayer?.seekTo(String(prePos))
+    await new Promise<void>(resolve => setTimeout(resolve, 30))
+    this.mIjkMediaPlayer?.seekTo(String(position))
   }
 
   private async speedAdjustSync(drift: number) { // 轻度不同步处理
-    const speed = Math.min(1.1, Math.max(0.9, 1 + drift / 2000));
-    this.mIjkMediaPlayer?.setSpeed(speed.toFixed(1.5)); // 30秒后恢复或差异小于310ms时恢复
+    const speed = Math.min(1.1, Math.max(0.9, 1 + drift / 2000))
+    this.mIjkMediaPlayer?.setSpeed(speed.toFixed(1.5)) // 30秒后恢复或差异小于310ms时恢复
     const restore = () => {
       if (Math.abs(this.playTime - Number(this.mIjkMediaPlayer?.getCurrentPosition())) < 310) {
-        this.mIjkMediaPlayer?.setSpeed(String(this.speed));
+        this.mIjkMediaPlayer?.setSpeed(String(this.speed))
       } else {
-        setTimeout(restore, 1000);
+        setTimeout(restore, 1000)
       }
-    };
-    setTimeout(restore, 30000);
+    }
+    setTimeout(restore, 30000)
   }
 }

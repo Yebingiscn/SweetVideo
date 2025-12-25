@@ -1,11 +1,11 @@
-import VideoOperateUtil from '../../utils/VideoOperateUtil';
+import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
 @Component
 export struct GestureComponent {
   @Link showControl: boolean
   @Link isLock: boolean
   onDoubleClickAction = (_tapX: number) => {
-  };
+  }
   onSingleClickAction = () => {
   }
   onVerticalPanStart = (_tapX: number) => {
@@ -125,7 +125,7 @@ export struct GestureComponent {
                 const finger1 = event.fingerList[0]
                 const finger2 = event.fingerList[1]
                 if (!finger1 || !finger2) { // 双指检测失败直接返回
-                  return;
+                  return
                 }
                 const fingerDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2)
                 if (fingerDistance < 0) {

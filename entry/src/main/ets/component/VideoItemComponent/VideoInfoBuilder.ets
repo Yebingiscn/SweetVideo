@@ -1,9 +1,9 @@
-import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
-import { ImageFancyModifier } from '../../common/AttributeModifierConfig';
-import VideoInfoUtil from '../../utils/VideoInfoUtil';
-import { media } from '@kit.MediaKit';
-import TimeUtil from '../../utils/TimeUtil';
-import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface';
+import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
+import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
+import VideoInfoUtil from '../../utils/VideoInfoUtil'
+import { media } from '@kit.MediaKit'
+import TimeUtil from '../../utils/TimeUtil'
+import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface'
 
 class VideoInfoBuilderParams {
   item: VideoMetadata | undefined = undefined

@@ -13,7 +13,7 @@ export struct PrivacySpaceErrorList {
   @State videoList: String[] = []
   @State longPressPreview: boolean = false
   @Consume('pathStack') pathStack: NavPathStack
-  private listScroller: Scroller = new Scroller();
+  private listScroller: Scroller = new Scroller()
 
   async aboutToAppear(): Promise<void> {
     const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)

@@ -31,7 +31,7 @@ export struct SettingsToggleItem {
           })
           .selectedColor($r('app.color.main_color'))
           .width(45)
-          .height(27);
+          .height(27)
       }.align(Alignment.Center)
 
     }

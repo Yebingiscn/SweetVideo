@@ -1,11 +1,11 @@
-import { taskpool } from '@kit.ArkTS';
-import { VideoSource } from '../common/enum/VideoSource';
-import { FileFolder } from '../interfaces/FileFolderInterface';
-import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
-import { PathUtils } from './PathUtils';
-import RecentPlayUtil from './RecentPlayUtil';
-import SelectFileUtil from './SelectFileUtil';
-import SubtitleUtil from './SubtitleUtil';
+import { taskpool } from '@kit.ArkTS'
+import { VideoSource } from '../common/enum/VideoSource'
+import { FileFolder } from '../interfaces/FileFolderInterface'
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
+import { PathUtils } from './PathUtils'
+import RecentPlayUtil from './RecentPlayUtil'
+import SelectFileUtil from './SelectFileUtil'
+import SubtitleUtil from './SubtitleUtil'
 
 @Concurrent
 async function checkUriAvailable(fileFolderList: FileFolder[]): Promise<VideoMetadata[]> {

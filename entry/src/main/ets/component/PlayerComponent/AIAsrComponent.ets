@@ -1,11 +1,11 @@
-import { AICaptionComponent, AICaptionController, AICaptionOptions } from '@kit.SpeechKit';
-import { BusinessError, deviceInfo } from '@kit.BasicServicesKit';
+import { AICaptionComponent, AICaptionController, AICaptionOptions } from '@kit.SpeechKit'
+import { BusinessError, deviceInfo } from '@kit.BasicServicesKit'
 
 @Component
 export struct AIAsr {
   @Link isShown: boolean
-  private captionOption?: AICaptionOptions;
-  private controller: AICaptionController = new AICaptionController();
+  private captionOption?: AICaptionOptions
+  private controller: AICaptionController = new AICaptionController()
 
   aboutToAppear(): void {
     if (!this.captionOption) {

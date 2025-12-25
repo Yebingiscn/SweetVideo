@@ -1,11 +1,11 @@
-import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem';
-import SelectFileUtil from '../../utils/SelectFileUtil';
-import ToolsUtil from '../../utils/ToolsUtil';
-import { PathUtils } from '../../utils/PathUtils';
-import { SettingSliderItem } from '../../component/SettingComponent/SettingSliderItem';
-import Preferences from '../../database/Preferences';
-import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem';
-import { SafeHeight, Setting } from '../../utils/ObservedUtil';
+import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
+import SelectFileUtil from '../../utils/SelectFileUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { PathUtils } from '../../utils/PathUtils'
+import { SettingSliderItem } from '../../component/SettingComponent/SettingSliderItem'
+import Preferences from '../../database/Preferences'
+import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 
 @Component
 export struct PersonalizePage {

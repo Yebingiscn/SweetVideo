@@ -1,9 +1,9 @@
-import { hiAppEvent } from '@kit.PerformanceAnalysisKit';
-import { pasteboard } from '@kit.BasicServicesKit';
-import ToolsUtil from '../../utils/ToolsUtil';
-import { salmonLogger, SalmonLoggerComponent } from 'salmonlogger';
-import { PathUtils } from '../../utils/PathUtils';
-import { SafeHeight, Setting } from '../../utils/ObservedUtil';
+import { hiAppEvent } from '@kit.PerformanceAnalysisKit'
+import { pasteboard } from '@kit.BasicServicesKit'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { salmonLogger, SalmonLoggerComponent } from 'salmonlogger'
+import { PathUtils } from '../../utils/PathUtils'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 
 @Component
 export struct CrashPage {
@@ -110,9 +110,9 @@ export struct CrashPage {
   copyText(text: string) {
     const infoText = '反馈 QQ群 973792610，作者邮箱 1309932526@qq.com'
     // Create clipboard content object
-    const pasteboardData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, infoText + '\n' + text);
+    const pasteboardData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, infoText + '\n' + text)
     // Get system clipboard object
-    const systemPasteboard = pasteboard.getSystemPasteboard();
+    const systemPasteboard = pasteboard.getSystemPasteboard()
     systemPasteboard.setData(pasteboardData).then(() => {
       ToolsUtil.showToast('日志复制成功' + infoText)
       salmonLogger.addLog(this.pathStack.getAllPathName()[0], '复制日志成功', false)
@@ -120,6 +120,6 @@ export struct CrashPage {
       this.pathStack.getAllPathName()[0]
       salmonLogger.addLog(this.pathStack.getAllPathName()[0], '复制失败', true)
       ToolsUtil.showToast('复制失败')
-    }); // Put data into clipboard
+    }) // Put data into clipboard
   }
 }

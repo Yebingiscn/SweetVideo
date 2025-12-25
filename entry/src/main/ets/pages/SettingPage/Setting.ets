@@ -1,22 +1,20 @@
-import NavigationAddress from '../../common/NavigationCommon';
-import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog';
-import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem';
-import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem';
-import Preferences from '../../database/Preferences';
-import BiometricAccessUtil from '../../utils/BiometricAccessUtil';
-import { PathUtils } from '../../utils/PathUtils';
-import ToolsUtil from '../../utils/ToolsUtil';
-import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem';
-import { DefaultDialogShadow } from '../../common/AttributeModifierConfig';
-import { SafeHeight, Setting } from '../../utils/ObservedUtil';
-import { Markdown, MarkdownController } from '@luvi/lv-markdown-in';
-import { salmonLogger } from 'salmonlogger';
+import NavigationAddress from '../../common/NavigationCommon'
+import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog'
+import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
+import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
+import Preferences from '../../database/Preferences'
+import BiometricAccessUtil from '../../utils/BiometricAccessUtil'
+import { PathUtils } from '../../utils/PathUtils'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem'
+import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { Markdown, MarkdownController } from '@luvi/lv-markdown-in'
+import { salmonLogger } from 'salmonlogger'
 
 @Component
 export struct SettingsPage { //设置页
   @State passwd: string = 'passwd'
-  @Consume('pathStack') pathStack: NavPathStack
-  controller: MarkdownController = new MarkdownController()
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
     builder: EditPasswordDialog({
       confirm: (passwd: string | undefined) => {
@@ -30,6 +28,8 @@ export struct SettingsPage { //设置页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  @Consume('pathStack') pathStack: NavPathStack
+  controller: MarkdownController = new MarkdownController()
   private listDisplayModeList: ResourceStr[] = ['卡片', '列表', '网格']
 
   aboutToAppear(): void {
@@ -62,19 +62,19 @@ export struct SettingsPage { //设置页
               onPress: async () => {
                 this.passwd = Preferences.getPassword(PathUtils.appContext!)
                 if (this.passwd.length === 0) { // 未设置密码时直接打开设置弹窗
-                  this.editPasswdDialogController.open();
-                  return;
+                  this.editPasswdDialogController.open()
+                  return
                 }
                 if (BiometricAccessUtil.checkUserAuthSupport()) { // 支持生物认证时进行认证
-                  const isSuccess = await BiometricAccessUtil.startUserAuth();
+                  const isSuccess = await BiometricAccessUtil.startUserAuth()
                   if (isSuccess) { // 认证成功进入隐私空间
-                    this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null);
-                    return;
+                    this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null)
+                    return
                   }
-                  ToolsUtil.showToast('验证失败，请从首页搜索框输入密码进入隐私空间'); // 认证失败显示提示
-                  return;
+                  ToolsUtil.showToast('验证失败，请从首页搜索框输入密码进入隐私空间') // 认证失败显示提示
+                  return
                 }
-                ToolsUtil.showToast('请从首页搜索框输入密码进入隐私空间'); // 设备不支持生物认证的提示
+                ToolsUtil.showToast('请从首页搜索框输入密码进入隐私空间') // 设备不支持生物认证的提示
               }
             })
           }
@@ -118,7 +118,7 @@ export struct SettingsPage { //设置页
             tabSelectedIndexes: [Setting.listDisplayMode],
             onButtonClick: (tabSelectedIndexes: number) => {
               Setting.listDisplayMode = tabSelectedIndexes
-              Preferences.saveListDisplayMode(PathUtils.appContext!, tabSelectedIndexes);
+              Preferences.saveListDisplayMode(PathUtils.appContext!, tabSelectedIndexes)
             }
           })
         }

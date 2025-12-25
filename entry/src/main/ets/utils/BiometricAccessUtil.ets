@@ -1,4 +1,4 @@
-import { userAuth } from '@kit.UserAuthenticationKit';
+import { userAuth } from '@kit.UserAuthenticationKit'
 
 // 生物识别工具类
 export default class BiometricAccessUtil {

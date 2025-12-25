@@ -1,16 +1,15 @@
-import WantProcessUtil from '../utils/WantProcessUtil';
-import ToolsUtil from '../utils/ToolsUtil';
-import { PathUtils } from '../utils/PathUtils';
+import ToolsUtil from '../utils/ToolsUtil'
+import { PathUtils } from '../utils/PathUtils'
 
 @CustomDialog
 @Component
 export struct PrivacyPolicyDialog {
   controller?: CustomDialogController
-  @State isPresent: boolean = false;
+  @State isPresent: boolean = false
   cancel: () => void = () => {
-  }; // 初始化为空函数
+  } // 初始化为空函数
   confirm: () => void = () => {
-  }; // 初始化为空函数
+  } // 初始化为空函数
 
   @Builder
   privacyInfoBuilder() {
@@ -19,9 +18,6 @@ export struct PrivacyPolicyDialog {
         Text() {
           Span(`《${ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id)}的使用条款与隐私声明》`)
             .fontColor($r('app.color.main_color'))
-            .onClick(() => {
-              this.openWebUrl();
-            })
           Span('\n\n' +
             '流心播放器（以下简称“本软件”）是由 郴州液态科技有限公司 （以下简称“我们”）开发，供您（以下称“用户”）免费使用的本地音视频播放软件。\n' +
             '\n' +
@@ -63,7 +59,7 @@ export struct PrivacyPolicyDialog {
       Row() {
         Button('拒绝并退出')
           .onClick(() => {
-            this.cancel();
+            this.cancel()
           })
           .fontColor(Color.Red)
           .fontSize(15)
@@ -74,8 +70,8 @@ export struct PrivacyPolicyDialog {
         Button('同意并继续')
           .onClick(() => {
             ToolsUtil.startVibration()
-            this.confirm();
-            this.isPresent = false; // 直接关闭弹窗
+            this.confirm()
+            this.isPresent = false // 直接关闭弹窗
           })
           .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
           .fontColor($r('sys.color.white'))
@@ -114,12 +110,7 @@ export struct PrivacyPolicyDialog {
     })
     .onAppear(() => {
       console.error('test4')
-      this.isPresent = !this.isPresent;
+      this.isPresent = !this.isPresent
     })
-  }
-
-  openWebUrl() {
-    let link: string = WantProcessUtil.PRIVACY_LINK
-    WantProcessUtil.linkToWeb(PathUtils.appContext!, link)
   }
 }

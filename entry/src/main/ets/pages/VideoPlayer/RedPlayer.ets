@@ -1,35 +1,35 @@
-import { window } from '@kit.ArkUI';
-import { PlayerCoreType, RedPlayerXComponentController, SourceType } from '@rte-xhs/redplayer';
-import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface';
-import PermissionUtil from '../../utils/PermissionUtil';
-import RedPlayerControllerUtil from '../../controller/RedPlayerController/RedPlayerControllerUtil';
-import { fileIo as fs } from '@kit.CoreFileKit';
-import ToolsUtil from '../../utils/ToolsUtil';
-import { KeyCode } from '@kit.InputKit';
-import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
-import AVSessionUtil from '../../utils/AVSessionUtil';
-import { AVCastPicker, avSession as avSessionManager } from '@kit.AVSessionKit';
-import VideoOperateUtil from '../../utils/VideoOperateUtil';
-import VideoInfoUtil from '../../utils/VideoInfoUtil';
-import { audio } from '@kit.AudioKit';
-import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig';
-import { PathUtils } from '../../utils/PathUtils';
-import RedPlayerSettingsConfig from '../../controller/RedPlayerController/RedPlayerSettingsConfig';
-import RedPlayerStateHolder from '../../controller/RedPlayerController/RedPlayerStateHolder';
-import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder';
-import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent';
-import { GestureComponent } from '../../component/PlayerComponent/GestureComponent';
-import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode';
-import NavigationAddress, { PlayerParams } from '../../common/NavigationCommon';
-import { WindowUtil } from '../../utils/WindowUtil';
-import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent';
-import { XAnimation } from '../../utils/AnimationUtil';
-import { AIAsr } from '../../component/PlayerComponent/AIAsrComponent';
-import { BrightnessSwipingBuilder } from '../../component/PlayerComponent/BrightnessSwipingBuilder';
-import { FastForwardPanelBuilder } from '../../component/PlayerComponent/FastForwardPanelBuilder';
-import { VolumeSwipingPanelBuilder } from '../../component/PlayerComponent/VolumeSwipingPanelBuilder';
-import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/SwipingPlayTimePanelBuilder';
-import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil';
+import { window } from '@kit.ArkUI'
+import { PlayerCoreType, RedPlayerXComponentController, SourceType } from '@rte-xhs/redplayer'
+import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface'
+import PermissionUtil from '../../utils/PermissionUtil'
+import RedPlayerControllerUtil from '../../controller/RedPlayerController/RedPlayerControllerUtil'
+import { fileIo as fs } from '@kit.CoreFileKit'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { KeyCode } from '@kit.InputKit'
+import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
+import AVSessionUtil from '../../utils/AVSessionUtil'
+import { AVCastPicker, avSession as avSessionManager } from '@kit.AVSessionKit'
+import VideoOperateUtil from '../../utils/VideoOperateUtil'
+import VideoInfoUtil from '../../utils/VideoInfoUtil'
+import { audio } from '@kit.AudioKit'
+import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
+import { PathUtils } from '../../utils/PathUtils'
+import RedPlayerSettingsConfig from '../../controller/RedPlayerController/RedPlayerSettingsConfig'
+import RedPlayerStateHolder from '../../controller/RedPlayerController/RedPlayerStateHolder'
+import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder'
+import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent'
+import { GestureComponent } from '../../component/PlayerComponent/GestureComponent'
+import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode'
+import NavigationAddress, { PlayerParams } from '../../common/NavigationCommon'
+import { WindowUtil } from '../../utils/WindowUtil'
+import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent'
+import { XAnimation } from '../../utils/AnimationUtil'
+import { AIAsr } from '../../component/PlayerComponent/AIAsrComponent'
+import { BrightnessSwipingBuilder } from '../../component/PlayerComponent/BrightnessSwipingBuilder'
+import { FastForwardPanelBuilder } from '../../component/PlayerComponent/FastForwardPanelBuilder'
+import { VolumeSwipingPanelBuilder } from '../../component/PlayerComponent/VolumeSwipingPanelBuilder'
+import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/SwipingPlayTimePanelBuilder'
+import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
 
 @Component
 export struct RedPlayer { // 红薯播放器页
@@ -37,7 +37,7 @@ export struct RedPlayer { // 红薯播放器页
   windowClass = WindowUtil.getWindow()
   xComponentController: RedPlayerXComponentController =
     new RedPlayerXComponentController(PlayerCoreType.TYPE_RED_PLAYER)
-  avSession: avSessionManager.AVSession | undefined = undefined;
+  avSession: avSessionManager.AVSession | undefined = undefined
   @State @Watch('setScreen') showControl: boolean = false
   @State screen_width: number = 0
   @State screen_height: number = 0
@@ -115,9 +115,9 @@ export struct RedPlayer { // 红薯播放器页
         .animation({ duration: 300, curve: Curve.Ease })
         .onKeyEvent((event?: KeyEvent) => {
           if (!event || event.type !== KeyType.Down) {
-            return;
+            return
           }
-          this.play_time = this.redPlayerStateHolder!.videoPosition;
+          this.play_time = this.redPlayerStateHolder!.videoPosition
           if (event.keyCode === KeyCode.KEYCODE_SPACE) {
             this.togglePlayback()
           }
@@ -125,14 +125,14 @@ export struct RedPlayer { // 红薯播放器页
             this.pathStack.pop()
           }
           if (event.keyCode === KeyCode.KEYCODE_DPAD_RIGHT) {
-            const seekOffset = Number(Setting.fastForwardSeconds) * 1000;
-            const newPosition = this.play_time + seekOffset;
-            this.seekTime(newPosition);
+            const seekOffset = Number(Setting.fastForwardSeconds) * 1000
+            const newPosition = this.play_time + seekOffset
+            this.seekTime(newPosition)
           }
           if (event.keyCode === KeyCode.KEYCODE_DPAD_LEFT) {
-            const seekOffset = Number(Setting.fastForwardSeconds) * 1000;
-            const newPosition = this.play_time - seekOffset;
-            this.seekTime(newPosition);
+            const seekOffset = Number(Setting.fastForwardSeconds) * 1000
+            const newPosition = this.play_time - seekOffset
+            this.seekTime(newPosition)
           }
         })
 
@@ -183,7 +183,8 @@ export struct RedPlayer { // 红薯播放器页
             isSliderPlayTimeChange: this.isSliderPlayTimeChange,
             playTime: this.play_time,
             totalTime: this.redPlayerStateHolder!.videoDuration,
-            pixelMap: null
+            pixelMap: null,
+            player: NavigationAddress.RED_PLAYER
           })
         }
 
@@ -207,23 +208,23 @@ export struct RedPlayer { // 红薯播放器页
           isLock: this.isLock,
           onDoubleClickAction: (tapX: number) => {
             if (!Setting.allowDoubleFastForward) { // 非快进模式直接切换播放状态
-              this.togglePlayback();
-              return;
+              this.togglePlayback()
+              return
             }
-            this.play_time = this.redPlayerStateHolder!.videoPosition;
-            const zoneWidth = this.screen_width / 5; // 计算区域分割宽度
-            const seekOffset = Number(Setting.fastForwardSeconds) * 1000;
+            this.play_time = this.redPlayerStateHolder!.videoPosition
+            const zoneWidth = this.screen_width / 5 // 计算区域分割宽度
+            const seekOffset = Number(Setting.fastForwardSeconds) * 1000
             if (tapX < zoneWidth) { // 左侧区域：回退
-              const newPosition = this.play_time - seekOffset;
-              this.seekTime(newPosition);
-              return;
+              const newPosition = this.play_time - seekOffset
+              this.seekTime(newPosition)
+              return
             }
             if (tapX > zoneWidth * 4) { // 右侧区域：快进
-              const newPosition = this.play_time + seekOffset;
-              this.seekTime(newPosition);
-              return;
+              const newPosition = this.play_time + seekOffset
+              this.seekTime(newPosition)
+              return
             }
-            this.togglePlayback(); // 中间区域：播放/暂停切换
+            this.togglePlayback() // 中间区域：播放/暂停切换
           },
           onSingleClickAction: () => {
             XAnimation.runWithAnimation(async () => {
@@ -231,10 +232,10 @@ export struct RedPlayer { // 红薯播放器页
             })
           },
           onVerticalPanStart: (tapX: number) => {
-            VideoOperateUtil.leftSideSwipe = tapX < this.screen_width / 2;
+            VideoOperateUtil.leftSideSwipe = tapX < this.screen_width / 2
             VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
             this.volume = this.volumeActually
-            VideoOperateUtil.lastVolume = this.volume; // 记录起始音量
+            VideoOperateUtil.lastVolume = this.volume // 记录起始音量
           },
           onVerticalPanUpdate: (offsetY: number) => {
             const deltaYScale = offsetY / this.screen_height * 2.5
@@ -262,11 +263,11 @@ export struct RedPlayer { // 红薯播放器页
           onHorizonPanUpdate: (offsetX: number) => {
             const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.now_playing?.time!) * 1.5
             this.play_time = Math.max(0,
-              Math.min(this.last_play_time + (offsetX * timePerPixel), this.now_playing?.time!));
+              Math.min(this.last_play_time + (offsetX * timePerPixel), this.now_playing?.time!))
           },
           onHorizonPanEnd: () => {
             this.seekTime(this.play_time)
-            this.onSwiping = false;
+            this.onSwiping = false
           },
           onLongPressAction: () => {
             if (this.redPlayerStateHolder?.isStart) {
@@ -275,7 +276,7 @@ export struct RedPlayer { // 红薯播放器页
               this.longSpeed = Setting.longPressSpeed > 2 ? 2 : Setting.longPressSpeed
               this.playerController?.setSpeed(this.longSpeed)
               this.currentSpeedIndex = VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER)
-                .indexOf(Setting.longPressSpeed > 2 ? 2 : Setting.longPressSpeed);
+                .indexOf(Setting.longPressSpeed > 2 ? 2 : Setting.longPressSpeed)
             }
           },
           onLongPressEnd: () => {
@@ -288,21 +289,21 @@ export struct RedPlayer { // 红薯播放器页
           },
           onLongPressPanUpdate: (tapX: number) => {
             if (this.longPress) { // 长按状态下的滑动处理
-              const deltaX = tapX - VideoOperateUtil.longPressStartX;
-              const SWIPE_THRESHOLD = 15;
+              const deltaX = tapX - VideoOperateUtil.longPressStartX
+              const SWIPE_THRESHOLD = 15
               if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
-                return;
+                return
               }
-              const direction = Math.sign(deltaX);
-              const newIndex = this.currentSpeedIndex + direction; // 计算新速度索引并限制在有效范围内
+              const direction = Math.sign(deltaX)
+              const newIndex = this.currentSpeedIndex + direction // 计算新速度索引并限制在有效范围内
               const clampedIndex = Math.max(0,
-                Math.min(newIndex, VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER).length - 1));
+                Math.min(newIndex, VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER).length - 1))
               if (clampedIndex === this.currentSpeedIndex) { // 索引变化时才更新播放速度
-                return;
+                return
               }
               this.currentSpeedIndex = clampedIndex
-              this.longSpeed = VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER)[clampedIndex]; // 更新播放速度
-              this.playerController?.setSpeed(this.longSpeed);
+              this.longSpeed = VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER)[clampedIndex] // 更新播放速度
+              this.playerController?.setSpeed(this.longSpeed)
               VideoOperateUtil.longPressStartX = tapX // 重置起始点实现分档切换效果
             }
           }
@@ -332,7 +333,7 @@ export struct RedPlayer { // 红薯播放器页
       const playerParams: PlayerParams = this.pathStack.getParamByName(NavigationAddress.RED_PLAYER)[0] as PlayerParams
       try {
         this.now_playing = playerParams.metadata as VideoMetadataFromPlayer
-        this.video_meta_data = playerParams.metadata_list as VideoMetadata[];
+        this.video_meta_data = playerParams.metadata_list as VideoMetadata[]
       } catch (e) {
         console.error(e)
       }
@@ -357,7 +358,7 @@ export struct RedPlayer { // 红薯播放器页
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
       WindowUtil.setBarState(PathUtils.appContext!, true, true)
       try {
-        await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
+        await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
       } catch (error) {
         console.error('player error:' + error)
       }
@@ -379,7 +380,7 @@ export struct RedPlayer { // 红薯播放器页
 
   updatePlaybackSpeed(speed: number): void {
     if (!VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER).includes(speed)) {
-      speed = 1.0;
+      speed = 1.0
     }
     this.longSpeed = speed
     this.playerController?.setSpeed(speed)
@@ -391,14 +392,14 @@ export struct RedPlayer { // 红薯播放器页
     PermissionUtil.applyContinuousTask()
     this.setScreen()
     try {
-      await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED);
+      await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
     } catch (error) {
       console.error('setPreferredOrientation error:' + error)
     }
-    let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID;
-    let audioManager = audio.getAudioManager();
-    this.audioVolumeManager = audioManager.getVolumeManager();
+    let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID
+    let audioManager = audio.getAudioManager()
+    this.audioVolumeManager = audioManager.getVolumeManager()
     let volume_list = await VideoOperateUtil.getVolume(this.audioVolumeManager, groupId)
     this.volume = volume_list.get('volume')!
     WindowUtil.enableLandscapeMultiWindow(this.windowClass)
@@ -418,7 +419,7 @@ export struct RedPlayer { // 红薯播放器页
             this.onSwipingVoice = !this.onSwipingVoice
           }
         }, 800)
-      });
+      })
     } catch (error) {
       console.error('volumeChange error:' + error)
     }
@@ -431,7 +432,7 @@ export struct RedPlayer { // 红薯播放器页
   async aboutToDisappear() {
     VideoOperateUtil.setBrightness(-1)
     try {
-      this.audioVolumeManager?.off('volumeChange');
+      this.audioVolumeManager?.off('volumeChange')
     } catch (error) {
       console.error('volumeChange error:' + error)
     }
@@ -444,12 +445,12 @@ export struct RedPlayer { // 红薯播放器页
     try {
       this.avSession?.on('play', () => {
         this.playerController?.start()
-      });
+      })
       this.avSession?.on('pause', () => {
         this.playerController?.pause()
-      });
+      })
       this.avSession?.on('seek', (position: number) => {
-        let seekValue = position;
+        let seekValue = position
         this.seekTime(seekValue)
       })
     } catch (error) {
@@ -622,11 +623,11 @@ export struct RedPlayer { // 红薯播放器页
   }
 
   private seekTime(position: number) { // 视频跳转操作封装
-    this.playerController?.seek(position);
-    this.redPlayerStateHolder!.videoPosition = position;
+    this.playerController?.seek(position)
+    this.redPlayerStateHolder!.videoPosition = position
   }
 
   private togglePlayback() { // 播放/暂停切换封装
-    this.redPlayerStateHolder?.isStart ? this.playerController?.pause() : this.playerController?.start();
+    this.redPlayerStateHolder?.isStart ? this.playerController?.pause() : this.playerController?.start()
   }
 }

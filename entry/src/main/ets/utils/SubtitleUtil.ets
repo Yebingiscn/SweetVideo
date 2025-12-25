@@ -1,80 +1,80 @@
-import VideoInfoUtil from './VideoInfoUtil';
-import ToolsUtil from './ToolsUtil';
-import { fileIo as fs, picker } from '@kit.CoreFileKit';
-import { BusinessError } from '@kit.BasicServicesKit';
-import { PathUtils } from './PathUtils';
-import { Parser, SubtitleItem } from '../interfaces/SubtitleInterface';
-import SubtitleFormat from '../common/SubtitleFormatConfig';
-import { AssEvent, ParseAss, ParseSrt, ParseVtt, SrtLine, VttLine } from '../modules/subtitles';
-import { salmonLogger } from 'salmonlogger';
-import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
+import VideoInfoUtil from './VideoInfoUtil'
+import ToolsUtil from './ToolsUtil'
+import { fileIo as fs, picker } from '@kit.CoreFileKit'
+import { BusinessError } from '@kit.BasicServicesKit'
+import { PathUtils } from './PathUtils'
+import { Parser, SubtitleItem } from '../interfaces/SubtitleInterface'
+import SubtitleFormat from '../common/SubtitleFormatConfig'
+import { AssEvent, ParseAss, ParseSrt, ParseVtt, SrtLine, VttLine } from '../modules/subtitles'
+import { salmonLogger } from 'salmonlogger'
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 
 // 实现 Parser 接口的适配器类
 export class ParserAdapter<T> implements Parser<T> {
-  private initFn: () => Promise<void>;
-  private readLinesFn: () => Promise<T[]>;
+  private initFn: () => Promise<void>
+  private readLinesFn: () => Promise<T[]>
 
   constructor(
     initFn: () => Promise<void>,
     readLinesFn: () => Promise<T[]>
   ) {
-    this.initFn = initFn;
-    this.readLinesFn = readLinesFn;
+    this.initFn = initFn
+    this.readLinesFn = readLinesFn
   }
 
   async init(): Promise<void> {
-    return this.initFn();
+    return this.initFn()
   }
 
   async readLines(): Promise<T[]> {
-    return this.readLinesFn();
+    return this.readLinesFn()
   }
 }
 
 class SubtitleUtil {
-  private subtitles: SubtitleItem[] = []; // 存储所有字幕项（已按开始时间排序）
+  private subtitles: SubtitleItem[] = [] // 存储所有字幕项（已按开始时间排序）
 
   // 获取外挂字幕
   async selectExternalSubtitles(sandbox_subtitle: string, date: string) {
-    const documentSelectOptions = new picker.DocumentSelectOptions();
-    documentSelectOptions.fileSuffixFilters = VideoInfoUtil.support_subtitle_format;
-    documentSelectOptions.maxSelectNumber = 1;
-    const documentViewPicker = new picker.DocumentViewPicker(PathUtils.appContext!);
+    const documentSelectOptions = new picker.DocumentSelectOptions()
+    documentSelectOptions.fileSuffixFilters = VideoInfoUtil.support_subtitle_format
+    documentSelectOptions.maxSelectNumber = 1
+    const documentViewPicker = new picker.DocumentViewPicker(PathUtils.appContext!)
     try {
-      const uris = await documentViewPicker.select(documentSelectOptions);
+      const uris = await documentViewPicker.select(documentSelectOptions)
       if (uris.length === 0) {
-        return '';
+        return ''
       }
-      let sourceFile: fs.File | null = null;
-      let targetFile: fs.File | null = null;
+      let sourceFile: fs.File | null = null
+      let targetFile: fs.File | null = null
       try {
-        sourceFile = fs.openSync(uris[0], fs.OpenMode.READ_ONLY);
-        targetFile = fs.openSync(`${sandbox_subtitle}${date}`, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
+        sourceFile = fs.openSync(uris[0], fs.OpenMode.READ_ONLY)
+        targetFile = fs.openSync(`${sandbox_subtitle}${date}`, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
         await fs.copyFile(sourceFile.fd, targetFile.fd)?.catch(() => {
           console.error('copy 失败')
-        });
+        })
         const encode = await ToolsUtil.detectFileDecoder(targetFile.path)
         if (encode.length > 0 && encode.toLowerCase() !== 'utf-8') {
           ToolsUtil.transFileDecodeAsUTF8(targetFile.path, encode)
         }
-        ToolsUtil.showToast(`导入字幕成功: ${sourceFile.name}`);
-        return sourceFile.name;
+        ToolsUtil.showToast(`导入字幕成功: ${sourceFile.name}`)
+        return sourceFile.name
       } catch (error) {
-        console.error('import failed: ', error);
+        console.error('import failed: ', error)
         return ''
       } finally {
         // 确保文件描述符总是被关闭
         if (sourceFile) {
-          fs.closeSync(sourceFile.fd);
+          fs.closeSync(sourceFile.fd)
         }
         if (targetFile) {
-          fs.closeSync(targetFile.fd);
+          fs.closeSync(targetFile.fd)
         }
       }
     } catch (error) {
-      console.error('import failed: ', error);
+      console.error('import failed: ', error)
       salmonLogger.addLog('subtitle', 'import failed: ' + error.code + ':' + error.message, true)
-      return '';
+      return ''
     }
   }
 
@@ -83,29 +83,29 @@ class SubtitleUtil {
     return new Promise((resolve) => {
       fs.access(sandbox_subtitle + date).then((res: boolean) => {
         if (res) {
-          resolve(true);
+          resolve(true)
         } else {
-          resolve(false);
+          resolve(false)
         }
       })?.catch((err: BusinessError) => {
-        console.error("access failed with error message: " + err.message + ", error code: " + err.code);
+        console.error("access failed with error message: " + err.message + ", error code: " + err.code)
         salmonLogger.addLog('subtitle', 'delete failed: ' + err.code + ':' + err.message, false)
-        resolve(false);
-      });
+        resolve(false)
+      })
     })
   }
 
   // 删除字幕
   async deleteSubtitle(sandboxDir: string, fileName: string) {
     try {
-      await fs.unlink(sandboxDir + fileName);
-      ToolsUtil.showToast('删除成功');
+      await fs.unlink(sandboxDir + fileName)
+      ToolsUtil.showToast('删除成功')
     } catch (err) {
-      const error = err as BusinessError;
+      const error = err as BusinessError
       if (error.code === 13900002) { // 文件或目录不存在错误码
-        console.warn('文件不存在');
+        console.warn('文件不存在')
       } else {
-        ToolsUtil.showToast('删除失败');
+        ToolsUtil.showToast('删除失败')
         console.error('delete failed: ' + error.code + ':' + error.message)
         salmonLogger.addLog('subtitle', 'delete failed: ' + error.code + ':' + error.message, true)
       }
@@ -117,7 +117,7 @@ class SubtitleUtil {
       await this.deleteSubtitle(PathUtils.subtitlePath, item?.date!)
       item!.external_subtitle_format = ''
     } else {
-      const subtitleName = await this.selectExternalSubtitles(PathUtils.subtitlePath, item?.date!);
+      const subtitleName = await this.selectExternalSubtitles(PathUtils.subtitlePath, item?.date!)
       const subtitleNameFormat = subtitleName?.match(/[^.]+$/)?.[0] || ''
       switch (subtitleNameFormat) {
         case SubtitleFormat.SRT:
@@ -155,7 +155,7 @@ class SubtitleUtil {
   // 解析SRT文件
   async parseSrtFile(filePath: string) {
     try {
-      const parser = new ParseSrt(filePath);
+      const parser = new ParseSrt(filePath)
       const items = await this.parseSubtitleFile<SrtLine>(
         parser,
         (line: SrtLine) => ({
@@ -163,8 +163,8 @@ class SubtitleUtil {
           endTimestampMillis: line.endTimestampMillis,
           text: line.text
         })
-      );
-      this.setSubtitles(items);
+      )
+      this.setSubtitles(items)
       return true
     } catch (e) {
       const error: string = e
@@ -177,11 +177,11 @@ class SubtitleUtil {
   // 解析ASS文件
   async parseAssFile(filePath: string) {
     try {
-      const parser = new ParseAss(filePath);
+      const parser = new ParseAss(filePath)
       const parserAdapter = new ParserAdapter<AssEvent>(
         async () => await parser.init(),
         async () => await parser.readEvents()
-      );
+      )
       const items = await this.parseSubtitleFile<AssEvent>(
         parserAdapter,
         (line: AssEvent) => ({
@@ -189,20 +189,20 @@ class SubtitleUtil {
           endTimestampMillis: line.endTimestampMillis,
           text: line.text
         }))
-      this.setSubtitles(items);
-      return true;
+      this.setSubtitles(items)
+      return true
     } catch (e) {
       const error: string = e
       salmonLogger.addLog('subtitle', `ASS 外挂字幕加载失败，原因是：${error}`, true)
-      console.error('testASS解析诊断失败:', error);
-      return false;
+      console.error('testASS解析诊断失败:', error)
+      return false
     }
   }
 
   // 解析VTT文件
   async parseVttFile(filePath: string) {
     try {
-      const parser = new ParseVtt(filePath);
+      const parser = new ParseVtt(filePath)
       const items = await this.parseSubtitleFile<VttLine>(
         parser,
         (line: VttLine) => ({
@@ -210,8 +210,8 @@ class SubtitleUtil {
           endTimestampMillis: line.endTimestampMillis,
           text: line.text
         })
-      );
-      this.setSubtitles(items);
+      )
+      this.setSubtitles(items)
       return true
     } catch (e) {
       const error: string = e
@@ -223,44 +223,44 @@ class SubtitleUtil {
 
   getSubtitlesAtTime(timestamp: number): string {
     if (this.subtitles.length === 0) {
-      return "";
+      return ""
     }
-    const result: SubtitleItem[] = [];
-    let left = 0;
-    let right = this.subtitles.length - 1;
-    let startIndex = -1;
+    const result: SubtitleItem[] = []
+    let left = 0
+    let right = this.subtitles.length - 1
+    let startIndex = -1
     // 二分查找可能包含时间戳的字幕范围
     while (left <= right) {
-      const mid = Math.floor((left + right) / 2);
-      const sub = this.subtitles[mid];
+      const mid = Math.floor((left + right) / 2)
+      const sub = this.subtitles[mid]
       if (sub.startTimestampMillis <= timestamp && sub.endTimestampMillis >= timestamp) {
-        startIndex = mid;
-        break;
+        startIndex = mid
+        break
       } else if (sub.startTimestampMillis > timestamp) {
-        right = mid - 1;
+        right = mid - 1
       } else {
-        left = mid + 1;
+        left = mid + 1
       }
     }
     if (startIndex === -1) {
-      return ""; // 没有找到包含该时间点的字幕
+      return "" // 没有找到包含该时间点的字幕
     }
     // 从找到的位置向两边扩展，收集所有重叠的字幕
-    result.push(this.subtitles[startIndex]);
+    result.push(this.subtitles[startIndex])
     // 向左查找
     for (let i = startIndex - 1; i >= 0; i--) {
       if (this.subtitles[i].endTimestampMillis >= timestamp) {
-        result.unshift(this.subtitles[i]);
+        result.unshift(this.subtitles[i])
       } else {
-        break;
+        break
       }
     }
     // 向右查找
     for (let i = startIndex + 1; i < this.subtitles.length; i++) {
       if (this.subtitles[i].startTimestampMillis <= timestamp) {
-        result.push(this.subtitles[i]);
+        result.push(this.subtitles[i])
       } else {
-        break;
+        break
       }
     }
     return result.map(sub =>
@@ -268,7 +268,7 @@ class SubtitleUtil {
       .replace(/\\[Nn]/g, '\n')
       .replace(/\{[^}]*\}/g, '')
       .replace(/<[^>]*>/g, '')
-    ).join('\n');
+    ).join('\n')
   }
 
   // 统一解析字幕文件
@@ -276,14 +276,14 @@ class SubtitleUtil {
     parser: Parser<T>,
     mapper: (item: T) => SubtitleItem
   ): Promise<SubtitleItem[]> {
-    await parser.init();
-    const lines = await parser.readLines();
-    return lines.map(mapper);
+    await parser.init()
+    const lines = await parser.readLines()
+    return lines.map(mapper)
   }
 
   // 设置字幕数据
   private setSubtitles(items: SubtitleItem[]) {
-    this.subtitles = items.sort((a, b) => a.startTimestampMillis - b.startTimestampMillis);
+    this.subtitles = items.sort((a, b) => a.startTimestampMillis - b.startTimestampMillis)
   }
 }
 

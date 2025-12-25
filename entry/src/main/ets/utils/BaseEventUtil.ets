@@ -1,19 +1,19 @@
 /**
  * 事件回调函数类型定义
  */
-type EventCallback<T> = (data: T) => void;
+type EventCallback<T> = (data: T) => void
 
 /**
  * 事件监听器基础接口
  */
 interface BaseEventListener<T> {
-  id: string;
-  once: boolean;
-  callback: EventCallback<T>;
+  id: string
+  once: boolean
+  callback: EventCallback<T>
 }
 
 export class BaseListener<T> {
-  private dataEvents: Map<string, BaseEventListener<T>[]> = new Map();
+  private dataEvents: Map<string, BaseEventListener<T>[]> = new Map()
 
   /**
    * @param eventName 事件名称
@@ -22,23 +22,23 @@ export class BaseListener<T> {
    * @returns 取消订阅的函数
    */
   on(eventName: string, callback: EventCallback<T>, once: boolean = false): () => void {
-    const listenerId = this.generateId();
+    const listenerId = this.generateId()
     const listener: BaseEventListener<T> = {
       id: listenerId,
       callback,
       once
-    };
+    }
 
     if (!this.dataEvents.has(eventName)) {
-      this.dataEvents.set(eventName, []);
+      this.dataEvents.set(eventName, [])
     }
 
-    const listeners = this.dataEvents.get(eventName);
+    const listeners = this.dataEvents.get(eventName)
     if (listeners) {
-      listeners.push(listener);
+      listeners.push(listener)
     }
 
-    return () => this.off(eventName, listenerId);
+    return () => this.off(eventName, listenerId)
   }
 
   /**
@@ -48,24 +48,24 @@ export class BaseListener<T> {
    * @returns 取消订阅的函数
    */
   once(eventName: string, callback: EventCallback<T>): () => void {
-    return this.on(eventName, callback, true);
+    return this.on(eventName, callback, true)
   }
 
   off(eventName: string, listenerId?: string): void {
     // 处理数据事件
-    const dataListeners = this.dataEvents.get(eventName);
+    const dataListeners = this.dataEvents.get(eventName)
     if (dataListeners) {
       if (listenerId) {
-        const index = dataListeners.findIndex(listener => listener.id === listenerId);
+        const index = dataListeners.findIndex(listener => listener.id === listenerId)
         if (index !== -1) {
-          dataListeners.splice(index, 1);
+          dataListeners.splice(index, 1)
           if (dataListeners.length === 0) {
-            this.dataEvents.delete(eventName);
+            this.dataEvents.delete(eventName)
           }
-          return;
+          return
         }
       } else {
-        this.dataEvents.delete(eventName);
+        this.dataEvents.delete(eventName)
       }
     }
   }
@@ -76,23 +76,23 @@ export class BaseListener<T> {
    * @param data 事件数据
    */
   emit(eventName: string, data: T): void {
-    const listeners = this.dataEvents.get(eventName);
+    const listeners = this.dataEvents.get(eventName)
     if (!listeners || listeners.length === 0) {
-      return;
+      return
     }
 
-    const listenersToExecute = [...listeners];
+    const listenersToExecute = [...listeners]
 
     listenersToExecute.forEach(listener => {
       try {
-        (listener.callback as EventCallback<T>)(data);
+        (listener.callback as EventCallback<T>)(data)
         if (listener.once) {
-          this.off(eventName, listener.id);
+          this.off(eventName, listener.id)
         }
       } catch (error) {
-        console.error(`事件回调执行错误 [${eventName}]:`, error);
+        console.error(`事件回调执行错误 [${eventName}]:`, error)
       }
-    });
+    })
   }
 
   /**
@@ -101,11 +101,11 @@ export class BaseListener<T> {
    * @returns 是否存在监听器
    */
   hasListeners(eventName: string): boolean {
-    const dataListeners = this.dataEvents.get(eventName);
-    // const voidListeners = this.voidEvents.get(eventName);
+    const dataListeners = this.dataEvents.get(eventName)
+    // const voidListeners = this.voidEvents.get(eventName)
 
-    const hasDataListeners = dataListeners ? dataListeners.length > 0 : false;
-    // const hasVoidListeners = voidListeners ? voidListeners.length > 0 : false;
+    const hasDataListeners = dataListeners ? dataListeners.length > 0 : false
+    // const hasVoidListeners = voidListeners ? voidListeners.length > 0 : false
 
     return hasDataListeners
   }
@@ -117,12 +117,12 @@ export class BaseListener<T> {
    */
   getListenerCount(eventName?: string): number {
     if (eventName) {
-      const dataCount = this.dataEvents.get(eventName)?.length || 0;
-      return dataCount;
+      const dataCount = this.dataEvents.get(eventName)?.length || 0
+      return dataCount
     }
-    let total = 0;
-    this.dataEvents.forEach(listeners => total += listeners.length);
-    return total;
+    let total = 0
+    this.dataEvents.forEach(listeners => total += listeners.length)
+    return total
   }
 
   /**
@@ -130,7 +130,7 @@ export class BaseListener<T> {
    * @returns 事件名称数组
    */
   getEventNames(): string[] {
-    const dataEventNames = Array.from(this.dataEvents.keys());
+    const dataEventNames = Array.from(this.dataEvents.keys())
     return dataEventNames
   }
 
@@ -138,7 +138,7 @@ export class BaseListener<T> {
    * 清除所有事件监听器
    */
   clear(): void {
-    this.dataEvents.clear();
+    this.dataEvents.clear()
   }
 
   /**
@@ -146,8 +146,8 @@ export class BaseListener<T> {
    * @param eventName 事件名称
    */
   clearEvent(eventName: string): void {
-    this.dataEvents.delete(eventName);
-    // this.voidEvents.delete(eventName);
+    this.dataEvents.delete(eventName)
+    // this.voidEvents.delete(eventName)
   }
 
   /**
@@ -155,6 +155,6 @@ export class BaseListener<T> {
    * @returns 唯一ID字符串
    */
   private generateId(): string {
-    return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   }
 }

@@ -1,10 +1,10 @@
-import { PathUtils } from '../../utils/PathUtils';
-import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
-import { fileUri } from '@kit.CoreFileKit';
-import { ImageFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig';
-import VideoInfoUtil from '../../utils/VideoInfoUtil';
-import { VideoListController } from './VideoItemComponent';
-import { VideoInfoBuilder } from './VideoInfoBuilder';
+import { PathUtils } from '../../utils/PathUtils'
+import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
+import { fileUri } from '@kit.CoreFileKit'
+import { ImageFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
+import VideoInfoUtil from '../../utils/VideoInfoUtil'
+import { VideoListController } from './VideoItemComponent'
+import { VideoInfoBuilder } from './VideoInfoBuilder'
 
 @Reusable
 @Component

@@ -1,10 +1,10 @@
-import { ImageFancyModifier } from '../../common/AttributeModifierConfig';
-import TimeUtil from '../../utils/TimeUtil';
-import ToolsUtil from '../../utils/ToolsUtil';
+import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
+import TimeUtil from '../../utils/TimeUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
 
 
 export class AppInfoBuilderParams {
-  topSafeHeight: number = 0;
+  topSafeHeight: number = 0
 }
 
 @Builder

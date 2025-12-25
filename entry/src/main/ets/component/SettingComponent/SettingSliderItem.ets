@@ -1,6 +1,6 @@
-import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig';
-import TimeUtil from '../../utils/TimeUtil';
-import ToolsUtil from '../../utils/ToolsUtil';
+import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
+import TimeUtil from '../../utils/TimeUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
 
 @Component
 export struct SettingSliderItem {

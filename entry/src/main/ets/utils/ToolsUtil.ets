@@ -1,36 +1,36 @@
-import promptAction from '@ohos.promptAction';
-import { vibrator } from '@kit.SensorServiceKit';
-import { BusinessError } from '@kit.BasicServicesKit';
-import { hilog } from '@kit.PerformanceAnalysisKit';
-import { bundleManager, ConfigurationConstant } from '@kit.AbilityKit';
-import { pinyin4js } from '@ohos/pinyin4js';
-import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
-import { FileFolder } from '../interfaces/FileFolderInterface';
-import Preferences from '../database/Preferences';
-import PrivacySpaceUtil from './PrivacySpaceUtil';
-import FileFolderUtil from './FileFolderUtil';
-import { PathUtils } from './PathUtils';
-import VideoInfoUtil from './VideoInfoUtil';
-import NavigationAddress, { PlayerParams } from '../common/NavigationCommon';
-import { media } from '@kit.MediaKit';
-import { updateManager } from '@kit.StoreKit';
-import { BackgroundColorMode } from '../common/enum/BackgroundColorMode';
-import { UniversalDetector } from '@ohos/juniversalchardet';
-import { fileIo } from '@kit.CoreFileKit';
-import { util } from '@kit.ArkTS';
-import { salmonLogger } from 'salmonlogger';
-import DataSyncUtil from './DataSyncUtil';
-import { VideoItemWithPinyin } from '../interfaces/VideoItemWithPinyinInterface';
+import promptAction from '@ohos.promptAction'
+import { vibrator } from '@kit.SensorServiceKit'
+import { BusinessError } from '@kit.BasicServicesKit'
+import { hilog } from '@kit.PerformanceAnalysisKit'
+import { bundleManager, ConfigurationConstant } from '@kit.AbilityKit'
+import { pinyin4js } from '@ohos/pinyin4js'
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
+import { FileFolder } from '../interfaces/FileFolderInterface'
+import Preferences from '../database/Preferences'
+import PrivacySpaceUtil from './PrivacySpaceUtil'
+import FileFolderUtil from './FileFolderUtil'
+import { PathUtils } from './PathUtils'
+import VideoInfoUtil from './VideoInfoUtil'
+import NavigationAddress, { PlayerParams } from '../common/NavigationCommon'
+import { media } from '@kit.MediaKit'
+import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
+import { UniversalDetector } from '@ohos/juniversalchardet'
+import { fileIo } from '@kit.CoreFileKit'
+import { util } from '@kit.ArkTS'
+import { salmonLogger } from 'salmonlogger'
+import DataSyncUtil from './DataSyncUtil'
+import { VideoItemWithPinyin } from '../interfaces/VideoItemWithPinyinInterface'
+import { updateManager } from '@kit.AppGalleryKit'
 
 // 工具类
 export default class ToolsUtil {
-  private static splitRegex = /(\d+)/g;
+  private static splitRegex = /(\d+)/g
   private static readonly COLLATOR = new Intl.Collator("zh-CN", {
     sensitivity: "variant",
     numeric: true,
     ignorePunctuation: false,
     caseFirst: "upper"
-  });
+  })
 
   // Toast设置
   static showToast(text: string) {
@@ -39,7 +39,7 @@ export default class ToolsUtil {
         message: text,
         duration: 3500,
         backgroundBlurStyle: BlurStyle.Regular,
-      });
+      })
     } catch (error) {
       console.error('show toast error：' + error)
     }
@@ -57,7 +57,7 @@ export default class ToolsUtil {
         usage: 'physicalFeedback'
       }, (error: BusinessError) => {
         if (error) {
-          console.error(`Failed to start vibration. Code: ${error.code}, message: ${error.message}`);
+          console.error(`Failed to start vibration. Code: ${error.code}, message: ${error.message}`)
         }
       })
     }
@@ -74,29 +74,29 @@ export default class ToolsUtil {
 
   static sortByNameProcess(list: VideoMetadata[]) {
     if (list.length <= 1) {
-      return [...list];
+      return [...list]
     }
     const itemsWithPinyin: VideoItemWithPinyin[] = list.map(item => {
       const videoItem: VideoItemWithPinyin = {
         item: item,
         pinyin: pinyin4js.getShortPinyin(item.title || "")
-      };
-      return videoItem;
-    });
+      }
+      return videoItem
+    })
     const sortedItems = [...itemsWithPinyin].sort((a, b) => {
-      return ToolsUtil.naturalCompare(a.pinyin, b.pinyin);
-    });
-    return sortedItems.map(entry => entry.item);
+      return ToolsUtil.naturalCompare(a.pinyin, b.pinyin)
+    })
+    return sortedItems.map(entry => entry.item)
   }
 
   static sortByDatetimeProcess(list: VideoMetadata[]) {
     return [...list].sort((a, b) => Number(b.date) - Number(a.date)
-    );
+    )
   }
 
   static sortByTimeProcess(list: VideoMetadata[]) {
     return [...list].sort((a, b) => Number(b.time) - Number(a.time)
-    );
+    )
   }
 
   static sortBy(context: Context, list: VideoMetadata[], file_folder: FileFolder | undefined,
@@ -108,10 +108,10 @@ export default class ToolsUtil {
         break
       case 'datetime':
         sorted_list = ToolsUtil.sortByDatetimeProcess(list)
-        break;
+        break
       case 'time':
         sorted_list = ToolsUtil.sortByTimeProcess(list)
-        break;
+        break
       default:
         sorted_list = ToolsUtil.sortByNameProcess(list)
     }
@@ -156,8 +156,8 @@ export default class ToolsUtil {
     try {
       if (canIUse("SystemCapability.BundleManager.BundleFramework.Core")) {
         const bundleInfo =
-          await bundleManager.getBundleInfoForSelf(bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION);
-        return bundleInfo.versionName + '(' + bundleInfo.versionCode + ')';
+          await bundleManager.getBundleInfoForSelf(bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION)
+        return bundleInfo.versionName + '(' + bundleInfo.versionCode + ')'
       } else {
         return '未知版本'
       }
@@ -170,23 +170,23 @@ export default class ToolsUtil {
   static checkUpdate() {
     updateManager.checkAppUpdate(PathUtils.appContext)
       .then((checkResult: updateManager.CheckUpdateResult) => {
-        hilog.info(0, 'TAG', "Succeeded in checking Result updateAvailable:" + checkResult.updateAvailable);
+        hilog.info(0, 'TAG', "Succeeded in checking Result updateAvailable:" + checkResult.updateAvailable)
         if (checkResult.updateAvailable == updateManager.UpdateAvailableCode.LATER_VERSION_EXIST) {
           updateManager.showUpdateDialog(PathUtils.appContext)
             .then((resultCode: updateManager.ShowUpdateResultCode) => {
-              hilog.info(0, 'TAG', "Succeeded in showing UpdateDialog resultCode:" + resultCode);
+              hilog.info(0, 'TAG', "Succeeded in showing UpdateDialog resultCode:" + resultCode)
             })
           ?.catch((error: BusinessError) => {
             ToolsUtil.showToast('更新弹窗生成失败，原因是：' + error)
-            hilog.error(0, 'TAG', `showUpdateDialog onError.code is ${error.code}, message is ${error.message}`);
-          });
+            hilog.error(0, 'TAG', `showUpdateDialog onError.code is ${error.code}, message is ${error.message}`)
+          })
         } else {
           ToolsUtil.showToast('还没有新版本~')
         }
       })?.catch((error: BusinessError) => {
       ToolsUtil.showToast('检查更新失败，原因是：' + error)
-      hilog.error(0, 'TAG', `checkAppUpdate onError.code is ${error.code}, message is ${error.message}`);
-    });
+      hilog.error(0, 'TAG', `checkAppUpdate onError.code is ${error.code}, message is ${error.message}`)
+    })
   }
 
   static setColorMode(context: Context, select: number) {
@@ -208,66 +208,66 @@ export default class ToolsUtil {
   }
 
   static addLogger(text: string, isError: boolean, pathStack?: NavPathStack, className?: string) {
-    const title = pathStack?.getAllPathName()[0] ?? className ?? 'sweet_video';
+    const title = pathStack?.getAllPathName()[0] ?? className ?? 'sweet_video'
     salmonLogger.addLog(title, text, isError)
   }
 
   static async detectFileDecoder(filePath: string) {
     try {
-      const encoding = await UniversalDetector.detectCharset(filePath);
+      const encoding = await UniversalDetector.detectCharset(filePath)
       return encoding
     } catch (error) {
-      console.error('File encoding detection failed:', JSON.stringify(error));
-      return '';
+      console.error('File encoding detection failed:', JSON.stringify(error))
+      return ''
     }
   }
 
   static transFileDecodeAsUTF8(filePath: string, decode: string) {
     try {
-      const readStream = fileIo.createStreamSync(filePath, "r+");
-      const stat = fileIo.statSync(filePath);
-      const buffer = new ArrayBuffer(stat.size);
-      readStream.readSync(buffer);
-      let textDecoder = util.TextDecoder.create(decode, { ignoreBOM: true });
-      let text = textDecoder.decodeToString(new Uint8Array(buffer), { stream: false });
+      const readStream = fileIo.createStreamSync(filePath, "r+")
+      const stat = fileIo.statSync(filePath)
+      const buffer = new ArrayBuffer(stat.size)
+      readStream.readSync(buffer)
+      let textDecoder = util.TextDecoder.create(decode, { ignoreBOM: true })
+      let text = textDecoder.decodeToString(new Uint8Array(buffer), { stream: false })
       readStream.close()?.catch(() => {
-        throw new Error(`文件解码转换失败: ${'未知错误'}`);
-      });
-      const writeStream = fileIo.createStreamSync(filePath, "w+");
-      writeStream.writeSync(text, { encoding: 'utf-8' });
+        throw new Error(`文件解码转换失败: ${'未知错误'}`)
+      })
+      const writeStream = fileIo.createStreamSync(filePath, "w+")
+      writeStream.writeSync(text, { encoding: 'utf-8' })
       writeStream.close()?.catch(() => {
-        throw new Error(`文件解码转换失败: ${'未知错误'}`);
-      });
+        throw new Error(`文件解码转换失败: ${'未知错误'}`)
+      })
     } catch (error) {
-      console.error("操作失败: " + JSON.stringify(error));
+      console.error("操作失败: " + JSON.stringify(error))
       salmonLogger.addLog('subtitle', 'decode failed: ' + error.code + ':' + error.message, true)
-      throw new Error(`文件解码转换失败: ${error.message || '未知错误'}`);
+      throw new Error(`文件解码转换失败: ${error.message || '未知错误'}`)
     }
   }
 
   private static naturalCompare(a: string, b: string): number {
-    const aParts = a.split(ToolsUtil.splitRegex).filter(Boolean);
-    const bParts = b.split(ToolsUtil.splitRegex).filter(Boolean);
+    const aParts = a.split(ToolsUtil.splitRegex).filter(Boolean)
+    const bParts = b.split(ToolsUtil.splitRegex).filter(Boolean)
 
     for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
-      const aVal = aParts[i];
-      const bVal = bParts[i];
-      const aIsNum = /^\d+$/.test(aVal);
-      const bIsNum = /^\d+$/.test(bVal);
+      const aVal = aParts[i]
+      const bVal = bParts[i]
+      const aIsNum = /^\d+$/.test(aVal)
+      const bIsNum = /^\d+$/.test(bVal)
 
       if (aIsNum && bIsNum) {
-        const numA = parseInt(aVal, 10);
-        const numB = parseInt(bVal, 10);
+        const numA = parseInt(aVal, 10)
+        const numB = parseInt(bVal, 10)
         if (numA !== numB) {
-          return numA - numB;
+          return numA - numB
         }
       } else {
-        const cmp = ToolsUtil.COLLATOR.compare(aVal, bVal);
+        const cmp = ToolsUtil.COLLATOR.compare(aVal, bVal)
         if (cmp !== 0) {
-          return cmp;
+          return cmp
         }
       }
     }
-    return aParts.length - bParts.length;
+    return aParts.length - bParts.length
   }
 }

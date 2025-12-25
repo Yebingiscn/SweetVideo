@@ -5,6 +5,7 @@ import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/Attr
 import { RepeatMode } from '../../common/enum/RepeatMode'
 import AVSessionUtil from '../../utils/AVSessionUtil'
 import { AVPlayerController } from '../../controller/AVPlayerController'
+import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
 @Component
 export struct VideoButtonsComponent {
@@ -96,7 +97,7 @@ export struct VideoButtonsComponent {
         .backgroundColor('#50000000')
         .onClick(() => {
           // LIST -> SINGLE -> RANDOM -> SEQUENCE -> 回到LIST
-          this.repeatMode = this.player.getRepeatMode(this.repeatMode)
+          this.repeatMode = VideoOperateUtil.getRepeatMode(this.repeatMode)
           ToolsUtil.showToast(this.getRepeatModeText())
           AVSessionUtil.updatePlaybackSessionState(this.player.playing, this.player.playTime, this.repeatMode)
         })

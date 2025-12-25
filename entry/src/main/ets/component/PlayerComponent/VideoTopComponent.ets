@@ -89,27 +89,27 @@ export struct VideoTopComponent {
         VideoOperateUtil.aspectRatioMap.get(text)!,
         VideoInfoUtil.play_area_width,
         VideoInfoUtil.play_area_height
-      );
-      this.playAreaWidth = play_area_size[0];
-      this.playAreaHeight = play_area_size[1];
-      return;
+      )
+      this.playAreaWidth = play_area_size[0]
+      this.playAreaHeight = play_area_size[1]
+      return
     }
     switch (text) {
       case VideoInfoUtil.screenExtendMap[0]:
-        this.playAreaHeight = VideoInfoUtil.play_area_height;
-        this.playAreaWidth = VideoInfoUtil.play_area_width;
-        break;
+        this.playAreaHeight = VideoInfoUtil.play_area_height
+        this.playAreaWidth = VideoInfoUtil.play_area_width
+        break
       case VideoInfoUtil.screenExtendMap[1]:
-        this.playAreaHeight = this.screenHeight;
-        this.playAreaWidth = this.screenWidth;
-        break;
+        this.playAreaHeight = this.screenHeight
+        this.playAreaWidth = this.screenWidth
+        break
       default:
-        const scale = text ? VideoInfoUtil.scale_factors.get(text) : undefined;
+        const scale = text ? VideoInfoUtil.scale_factors.get(text) : undefined
         if (scale) {
-          this.playAreaHeight = scale * VideoInfoUtil.play_area_height;
-          this.playAreaWidth = scale * VideoInfoUtil.play_area_width;
+          this.playAreaHeight = scale * VideoInfoUtil.play_area_height
+          this.playAreaWidth = scale * VideoInfoUtil.play_area_width
         }
-        break;
+        break
     }
   }
 }

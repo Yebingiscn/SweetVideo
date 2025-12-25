@@ -1,36 +1,36 @@
-import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
-import SelectFileUtil from '../../utils/SelectFileUtil';
-import { VideoDataSource } from '../../utils/DataUtil';
-import ToolsUtil from '../../utils/ToolsUtil';
-import DataSyncUtil from '../../utils/DataSyncUtil';
-import { SymbolGlyphModifier } from '@kit.ArkUI';
-import { VideoDetailDialog } from '../../component/Dialog/VideoDetailDialog';
-import Preferences from '../../database/Preferences';
-import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil';
-import { FileFolder } from '../../interfaces/FileFolderInterface';
+import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
+import SelectFileUtil from '../../utils/SelectFileUtil'
+import { VideoDataSource } from '../../utils/DataUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
+import DataSyncUtil from '../../utils/DataSyncUtil'
+import { SymbolGlyphModifier } from '@kit.ArkUI'
+import { VideoDetailDialog } from '../../component/Dialog/VideoDetailDialog'
+import Preferences from '../../database/Preferences'
+import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil'
+import { FileFolder } from '../../interfaces/FileFolderInterface'
 import {
   ButtonFancyModifier,
   DefaultDialogShadow,
   MenuFancyModifier,
   SymbolGlyphFancyModifier
-} from '../../common/AttributeModifierConfig';
-import { FileProcessorUtil } from '../../utils/FileProcessorUtil';
-import { PathUtils } from '../../utils/PathUtils';
-import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog';
-import { SearchComponent } from '../../component/VideoItemComponent/SearchComponent';
-import NavigationAddress, { PrivacySpaceParams } from '../../common/NavigationCommon';
-import { EditMetadataDialog } from '../../component/Dialog/EditMetadataDialog';
-import FileFolderUtil from '../../utils/FileFolderUtil';
-import { ImportProgressBuilder } from '../../component/VideoItemComponent/ImportProgressBuilder';
-import VideoListItem from '../../component/VideoItemComponent/VideoListItemComponent';
-import VideoCardItem from '../../component/VideoItemComponent/VideoCardItemComponent';
-import VideoOperateUtil from '../../utils/VideoOperateUtil';
-import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem';
-import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem';
-import { ListDisplayMode } from '../../common/enum/ListDisplayMode';
-import SubtitleUtil from '../../utils/SubtitleUtil';
-import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil';
-import { SortComponent } from '../../component/VideoItemComponent/SortComponent';
+} from '../../common/AttributeModifierConfig'
+import { FileProcessorUtil } from '../../utils/FileProcessorUtil'
+import { PathUtils } from '../../utils/PathUtils'
+import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog'
+import { SearchComponent } from '../../component/VideoItemComponent/SearchComponent'
+import NavigationAddress, { PrivacySpaceParams } from '../../common/NavigationCommon'
+import { EditMetadataDialog } from '../../component/Dialog/EditMetadataDialog'
+import FileFolderUtil from '../../utils/FileFolderUtil'
+import { ImportProgressBuilder } from '../../component/VideoItemComponent/ImportProgressBuilder'
+import VideoListItem from '../../component/VideoItemComponent/VideoListItemComponent'
+import VideoCardItem from '../../component/VideoItemComponent/VideoCardItemComponent'
+import VideoOperateUtil from '../../utils/VideoOperateUtil'
+import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
+import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
+import { ListDisplayMode } from '../../common/enum/ListDisplayMode'
+import SubtitleUtil from '../../utils/SubtitleUtil'
+import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { SortComponent } from '../../component/VideoItemComponent/SortComponent'
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -40,17 +40,17 @@ export struct PrivacySpace { // 隐私空间页
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
         if (!title?.trim()) {
-          return;
+          return
         }
         const editingVideo = DataSyncUtil.editingVideo!
-        const targetIndex = SelectFileUtil.getItemIndex(this.video_meta_data_encryption, editingVideo);
+        const targetIndex = SelectFileUtil.getItemIndex(this.video_meta_data_encryption, editingVideo)
         if (targetIndex === -1) {
-          return;
+          return
         }
         if (this.video_meta_data_encryption.some((v, index) => index !== targetIndex && v.title === title.trim())) {
-          return; // 这里直接用 some 来代替，隐私空间视频不多，没必要每次都 new 一个Set
+          return // 这里直接用 some 来代替，隐私空间视频不多，没必要每次都 new 一个Set
         }
-        this.video_meta_data_encryption[targetIndex].title = title.trim();
+        this.video_meta_data_encryption[targetIndex].title = title.trim()
         this.videoDataSource.updateData(this.video_meta_data_encryption)
         Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, this.video_meta_data_encryption)
       },
@@ -78,13 +78,13 @@ export struct PrivacySpace { // 隐私空间页
   })
   @State longPressPreview: boolean = false
   @State delMultipleList: VideoMetadata[] = []
-  @State isPresent: boolean = false;
+  @State isPresent: boolean = false
   searchController: SearchController = new SearchController()
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
   })
-  private listScroller: Scroller = new Scroller();
+  private listScroller: Scroller = new Scroller()
 
   @Builder
   PrivacySpaceSettingBuilder() {
@@ -163,7 +163,7 @@ export struct PrivacySpace { // 隐私空间页
         title: { title: '隐私空间设置' },
       })
       .onClick(() => {
-        this.isPresent = !this.isPresent;
+        this.isPresent = !this.isPresent
       })
       .margin({ right: 10 })
 
@@ -197,7 +197,7 @@ export struct PrivacySpace { // 隐私空间页
       })
         .onClick(async () => {
           this.isPresent = false
-          await this.toMetaData(await SelectFileUtil.selectFromFileManager());
+          await this.toMetaData(await SelectFileUtil.selectFromFileManager())
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.picture')),
@@ -205,7 +205,7 @@ export struct PrivacySpace { // 隐私空间页
       })
         .onClick(async () => {
           this.isPresent = false
-          await this.toMetaData(await SelectFileUtil.selectVideos());
+          await this.toMetaData(await SelectFileUtil.selectVideos())
         })
     }.attributeModifier(new MenuFancyModifier())
   }
@@ -276,9 +276,9 @@ export struct PrivacySpace { // 隐私空间页
       })
         .onClick(async () => {
           await SubtitleUtil.importOrDeleteSubtitleProcess(item!)
-          const targetIndex = SelectFileUtil.getItemIndex(this.video_meta_data_encryption, item!);
+          const targetIndex = SelectFileUtil.getItemIndex(this.video_meta_data_encryption, item!)
           if (targetIndex !== -1) {
-            this.video_meta_data_encryption[targetIndex] = item!;
+            this.video_meta_data_encryption[targetIndex] = item!
             this.videoDataSource.updateData(this.video_meta_data_encryption)
             Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, this.video_meta_data_encryption)
           }
@@ -288,31 +288,31 @@ export struct PrivacySpace { // 隐私空间页
 
   async toMetaData(fileList: string[], fileFolder?: FileFolder) {
     if (fileList.length === 0) {
-      ToolsUtil.showToast('没有任何文件被导入哦~');
-      return;
+      ToolsUtil.showToast('没有任何文件被导入哦~')
+      return
     }
-    this.loading = true;
-    this.totalItems = fileList.length;
-    this.processedItems = 0;
+    this.loading = true
+    this.totalItems = fileList.length
+    this.processedItems = 0
     try {
       await FileProcessorUtil.processFilesConcurrently(
         fileList, PathUtils.appContext!, PathUtils.videoPath, PathUtils.coverPath, this.video_meta_data_encryption,
         (increment: number) => {
-          this.processedItems += increment;
+          this.processedItems += increment
         },
         fileFolder
-      );
-      this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!);
+      )
+      this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
       this.videoDataSource.updateData(this.video_meta_data_encryption)
       ToolsUtil.showToast(
         `${ToolsUtil.getStringResource($r('app.string.add_time_info').id)}${this.totalItems -
         FileFolderUtil.duplicateVideo}${FileFolderUtil.duplicateVideo > 0 ?
           '重复视频已经智能跳过，跳过视频数：' + FileFolderUtil.duplicateVideo : ''}`
-      );
+      )
     } catch (error) {
-      ToolsUtil.showToast('处理过程中发生意外错误:' + error);
+      ToolsUtil.showToast('处理过程中发生意外错误:' + error)
     } finally {
-      this.loading = false;
+      this.loading = false
     }
   }
 
@@ -379,7 +379,7 @@ export struct PrivacySpace { // 隐私空间页
             const newVideoList = SelectFileUtil.getItemFromSearch(
               this.video_meta_data_encryption,
               this.searchValue,
-            );
+            )
             if (this.video_meta_data_encryption) {
               this.searchValue === '' ?
                 this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
@@ -467,11 +467,11 @@ export struct PrivacySpace { // 隐私空间页
       .width('100%')
       .height('100%')
       .onAreaChange(async (_oldValue: Area, newValue: Area) => {
-        const width = Number(newValue.width);
-        const base = Math.floor(width / 500);
+        const width = Number(newValue.width)
+        const base = Math.floor(width / 500)
         this.list_line = Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY
           ? base + 1
-          : base + 2;
+          : base + 2
       })
     }
     .onWillDisappear(() => {

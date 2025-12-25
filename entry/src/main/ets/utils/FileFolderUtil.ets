@@ -45,38 +45,38 @@ export default class FileFolderUtil {
   // 添加视频到文件夹，支持批量
   static transferVideosToFileFolder(context: Context, videos: VideoMetadata[], fromFolderDate: string,
     targetFolderDate: string): FileFolder[] {
-    const folders = Preferences.getFileFolder(context) || [];
+    const folders = Preferences.getFileFolder(context) || []
     // 单次遍历查找两个文件夹
-    let fromFolder: FileFolder | undefined;
-    let targetFolder: FileFolder | undefined;
+    let fromFolder: FileFolder | undefined
+    let targetFolder: FileFolder | undefined
     for (const folder of folders) {
       if (!fromFolder && folder.date === fromFolderDate) {
-        fromFolder = folder;
+        fromFolder = folder
       }
       if (!targetFolder && folder.date === targetFolderDate) {
-        targetFolder = folder;
+        targetFolder = folder
       }
       if (fromFolder && targetFolder) {
-        break;
+        break
       }
     }
     if (!fromFolder || !targetFolder) {
-      return folders;
+      return folders
     }
     // 创建目标视频集合用于快速查找
-    const targetVideoSet = new Set(targetFolder.video_list.map(v => v.date));
+    const targetVideoSet = new Set(targetFolder.video_list.map(v => v.date))
     // 创建待移动视频集合
-    const videosToMove = new Set(videos.map(v => v.date));
+    const videosToMove = new Set(videos.map(v => v.date))
     // 批量过滤源文件夹视频
     fromFolder.video_list = fromFolder.video_list.filter(
       v => !videosToMove.has(v.date)
-    );
+    )
     // 批量添加新视频（过滤已存在的）
-    const newVideos = videos.filter(v => !targetVideoSet.has(v.date));
-    targetFolder.video_list.push(...newVideos);
+    const newVideos = videos.filter(v => !targetVideoSet.has(v.date))
+    targetFolder.video_list.push(...newVideos)
     // 保存并返回
-    Preferences.saveFileFolder(context, folders);
-    return folders;
+    Preferences.saveFileFolder(context, folders)
+    return folders
   }
 
   static async delVideosFileFolder(context: Context, videoListController: VideoListController,
@@ -90,13 +90,12 @@ export default class FileFolderUtil {
     }
     for (const item of DataSyncUtil.delMultipleList) {
       if (!item.date) {
-        continue;
+        continue
       } // 跳过无效数据
-
-      RecentPlayUtil.delData(PathUtils.appContext!, item.uri);
-      await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date);
-      await SelectFileUtil.deleteCover(item.date);
-      surviveVideo.delete(item.uri);
+      RecentPlayUtil.delData(PathUtils.appContext!, item.uri)
+      await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date)
+      await SelectFileUtil.deleteCover(item.date)
+      surviveVideo.delete(item.uri)
     }
     folder.video_list = Array.from(surviveVideo.values())
     folders[folderIndex] = folder
@@ -121,6 +120,27 @@ export default class FileFolderUtil {
     return folders[folderIndex]
   }
 
+  static updateVideoInFileFolder(context: Context, videoListController: VideoListController,
+    folderDataSource: FileFolderDataSource) {
+    const videoMetaData = DataSyncUtil.editingVideo
+    if (!videoMetaData) {
+      return
+    }
+    const folders = Preferences.getFileFolder(context) as FileFolder[]
+    const folderIndex = folders.findIndex(i => i.date === videoListController.folder.date)
+    if (folderIndex === -1) {
+      return
+    }
+    const targetFolder = folders[folderIndex]
+    let videoIndex = targetFolder.video_list.findIndex(item => item.date === videoMetaData.date)
+    if (videoIndex >= 0) {
+      targetFolder.video_list[videoIndex] = videoMetaData
+    }
+    videoListController.updateData(undefined, targetFolder)
+    folderDataSource.updateData(folders)
+    Preferences.saveFileFolder(context, folders)
+  }
+
   // 删除文件夹
   static deleteFileFolder(context: Context, file_folder: FileFolder, fileDataSource?: FileFolderDataSource) {
     let folders = Preferences.getFileFolder(context)
@@ -136,9 +156,9 @@ export default class FileFolderUtil {
   static async changeFileFolderName(context: Context, folder: FileFolder, newFolderName: string,
     fileFolderDataSource: FileFolderDataSource) {
     let folders = Preferences.getFileFolder(context) as FileFolder[]
-    const targetFolder = folders.find(i => i.date === folder.date);
+    const targetFolder = folders.find(i => i.date === folder.date)
     if (targetFolder) {
-      targetFolder.name = newFolderName;
+      targetFolder.name = newFolderName
     }
     Preferences.saveFileFolder(context, folders)
     fileFolderDataSource.updateData(folders)
@@ -161,39 +181,39 @@ export default class FileFolderUtil {
   }
 
   static existsVideoInFolders(context: Context, uri: string, title: string): boolean {
-    let exists: boolean;
+    let exists: boolean
     if (PrivacySpaceUtil.getPrivacyMode()) {
-      const videoMetaData = Preferences.getVideoMetaDataEncryption(context) || [];
-      exists = videoMetaData.some(item => item.title === title);
+      const videoMetaData = Preferences.getVideoMetaDataEncryption(context) || []
+      exists = videoMetaData.some(item => item.title === title)
     } else {
-      const folders = Preferences.getFileFolder(context) || [];
+      const folders = Preferences.getFileFolder(context) || []
       exists = folders.some(folder =>
       folder.video_list?.some(video => video.uri === uri)
-      );
+      )
     }
     if (exists) {
-      FileFolderUtil.duplicateVideo++;
+      FileFolderUtil.duplicateVideo++
     }
-    return exists;
+    return exists
   }
 
   static extractRootFolderNameFromUri(uri: string, fileName: string): string | undefined {
-    const prefix = SelectFileUtil.fileFolderUri + "/";
+    const prefix = SelectFileUtil.fileFolderUri + "/"
     if (!uri.startsWith(SelectFileUtil.fileFolderUri) || !uri.startsWith(prefix)) {
-      return undefined;
+      return undefined
     }
-    const relativePath = uri.substring(prefix.length);
+    const relativePath = uri.substring(prefix.length)
     // 必须以文件名结尾
     if (!relativePath.endsWith(fileName)) {
-      return undefined;
+      return undefined
     }
-    const dirPath = relativePath.substring(0, relativePath.length - fileName.length);
-    const cleanDir = dirPath.replace(/\/+$/, ""); // 移除尾部斜杠
+    const dirPath = relativePath.substring(0, relativePath.length - fileName.length)
+    const cleanDir = dirPath.replace(/\/+$/, "") // 移除尾部斜杠
     if (!cleanDir) {
-      return undefined;
+      return undefined
     }
-    const parts = cleanDir.split("/");
-    return parts[0] || undefined;
+    const parts = cleanDir.split("/")
+    return parts[0] || undefined
   }
 
   // 检查文件夹是否存在
@@ -202,16 +222,16 @@ export default class FileFolderUtil {
       PathUtils.videoPath,
       PathUtils.subtitlePath,
       PathUtils.photoPath
-    ];
+    ]
 
     paths.forEach(path => {
       try {
         if (!fs.accessSync(path)) {
-          fs.mkdirSync(path);
+          fs.mkdirSync(path)
         }
       } catch (error) {
-        console.error(`Failed to create directory ${path}:`, error);
+        console.error(`Failed to create directory ${path}:`, error)
       }
-    });
+    })
   }
 }

@@ -1,50 +1,53 @@
-import { window } from '@kit.ArkUI';
-import { hilog } from '@kit.PerformanceAnalysisKit';
-import { audio } from '@kit.AudioKit';
-import { BusinessError, settings } from '@kit.BasicServicesKit';
-import { media } from '@kit.MediaKit';
-import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
-import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
-import SelectFileUtil from './SelectFileUtil';
-import { AudioTrack } from '../interfaces/AudioTrackInterface';
-import { common } from '@kit.AbilityKit';
-import Preferences from '../database/Preferences';
-import RecentPlayUtil from './RecentPlayUtil';
-import PrivacySpaceUtil from './PrivacySpaceUtil';
-import { PathUtils } from './PathUtils';
-import { LanguageConfig } from '../common/LanguageConfig';
-import ToolsUtil from './ToolsUtil';
-import VideoInfoUtil from './VideoInfoUtil';
-import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode';
-import PermissionUtil from './PermissionUtil';
-import { VideoSource } from '../common/enum/VideoSource';
-import { PlayerParams } from '../common/NavigationCommon';
-import { Setting } from './ObservedUtil';
-import DataSyncUtil from './DataSyncUtil';
-import { fileIo, fileIo as fs } from '@kit.CoreFileKit';
+import { window } from '@kit.ArkUI'
+import { hilog } from '@kit.PerformanceAnalysisKit'
+import { audio } from '@kit.AudioKit'
+import { BusinessError, settings } from '@kit.BasicServicesKit'
+import { media } from '@kit.MediaKit'
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
+import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface'
+import SelectFileUtil from './SelectFileUtil'
+import { AudioTrack } from '../interfaces/AudioTrackInterface'
+import { common } from '@kit.AbilityKit'
+import Preferences from '../database/Preferences'
+import RecentPlayUtil from './RecentPlayUtil'
+import PrivacySpaceUtil from './PrivacySpaceUtil'
+import { PathUtils } from './PathUtils'
+import { LanguageConfig } from '../common/LanguageConfig'
+import ToolsUtil from './ToolsUtil'
+import VideoInfoUtil from './VideoInfoUtil'
+import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode'
+import PermissionUtil from './PermissionUtil'
+import { VideoSource } from '../common/enum/VideoSource'
+import { PlayerParams } from '../common/NavigationCommon'
+import { Setting } from './ObservedUtil'
+import DataSyncUtil from './DataSyncUtil'
+import { fileIo, fileUri, fileIo as fs } from '@kit.CoreFileKit'
+import { RepeatMode } from '../common/enum/RepeatMode'
+import { photoAccessHelper } from '@kit.MediaLibraryKit'
+import { image } from '@kit.ImageKit'
 
 // 视频操作类
 export default class VideoOperateUtil {
   public static max_volume: number = 0
   public static min_volume: number = 0
-  public static lastSyncTime: number = 0;
-  public static syncCoolDown: number = 3000;
-  public static driftHistory: number[] = [];
-  public static initPinchDistance: number = 0;
-  public static clearSubtitleTimer: number | null = null;
+  public static lastSyncTime: number = 0
+  public static syncCoolDown: number = 3000
+  public static driftHistory: number[] = []
+  public static initPinchDistance: number = 0
+  public static clearSubtitleTimer: number | null = null
   public static screenBrightnessTmp: number = 0
   public static lastSpeed: number = 1
   public static lastPlayTime: number = 0
   public static aspectRatioMap = new Map([[VideoInfoUtil.screenExtendMap[2], 16 / 9],
-    [VideoInfoUtil.screenExtendMap[3], 4 / 3]]);
+    [VideoInfoUtil.screenExtendMap[3], 4 / 3]])
   public static config: ImageAnalyzerConfig = {
     types: [ImageAnalyzerType.SUBJECT, ImageAnalyzerType.TEXT]
-  };
-  public static aiController: ImageAnalyzerController = new ImageAnalyzerController();
+  }
+  public static aiController: ImageAnalyzerController = new ImageAnalyzerController()
   public static options: ImageAIOptions = {
     types: [ImageAnalyzerType.SUBJECT, ImageAnalyzerType.TEXT],
     aiController: VideoOperateUtil.aiController
-  };
+  }
   public static lastVolume: number = 0
   public static windowStage: window.WindowStage | undefined = undefined
   public static volumeGestureActiveTime: number = 0
@@ -67,72 +70,72 @@ export default class VideoOperateUtil {
       }
       VideoOperateUtil.mainWin.setWindowBrightness(screenBrightness, (err) => {
         if (err && err.code !== 0) {
-          console.error(`Failed to obtain the main window. Cause code: ${err.code}, message: ${err.message}`);
-          hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness. Cause: ${JSON.stringify(err)}`);
-          return;
+          console.error(`Failed to obtain the main window. Cause code: ${err.code}, message: ${err.message}`)
+          hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness. Cause: ${JSON.stringify(err)}`)
+          return
         }
-      });
+      })
     } catch (exception) {
-      hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness.`);
+      hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness.`)
     }
   }
 
   // 获取系统音量
   static async getVolume(audioVolumeManager: audio.AudioVolumeManager, groupId: number): Promise<Map<string, number>> {
-    let volume_list: Map<string, number> = new Map();
+    let volume_list: Map<string, number> = new Map()
     return new Promise((resolve, reject) => {
       audioVolumeManager.getVolumeGroupManager(groupId,
         (err: BusinessError, audioVolumeGroupManager: audio.AudioVolumeGroupManager) => {
           if (err) {
-            hilog.error(0x0000, 'AVPlayer', `Failed to obtain the volume group info list. ${err}`);
-            return reject(err);
+            hilog.error(0x0000, 'AVPlayer', `Failed to obtain the volume group info list. ${err}`)
+            return reject(err)
           }
-          const volumePromises: Promise<void>[] = [];
+          const volumePromises: Promise<void>[] = []
           volumePromises.push(new Promise((resolveVolume, rejectVolume) => {
             audioVolumeGroupManager.getVolume(audio.AudioVolumeType.MEDIA, (err: BusinessError, volume: number) => {
               if (err) {
-                hilog.error(0x0000, 'AVPlayer', `Failed to obtain the volume. ${err}`);
-                return rejectVolume(err);
+                hilog.error(0x0000, 'AVPlayer', `Failed to obtain the volume. ${err}`)
+                return rejectVolume(err)
               }
-              volume_list.set('volume', volume);
-              resolveVolume();
-            });
-          }));
+              volume_list.set('volume', volume)
+              resolveVolume()
+            })
+          }))
           volumePromises.push(new Promise((resolveMax, rejectMax) => {
             audioVolumeGroupManager.getMaxVolume(audio.AudioVolumeType.MEDIA,
               (err: BusinessError, maxVolume: number) => {
                 if (err) {
-                  hilog.error(0x0000, 'AVPlayer', `Failed to obtain the maximum volume. ${err}`);
-                  return rejectMax(err);
+                  hilog.error(0x0000, 'AVPlayer', `Failed to obtain the maximum volume. ${err}`)
+                  return rejectMax(err)
                 }
-                volume_list.set('max_volume', maxVolume);
+                volume_list.set('max_volume', maxVolume)
                 VideoOperateUtil.max_volume = maxVolume
-                resolveMax();
-              });
-          }));
+                resolveMax()
+              })
+          }))
           volumePromises.push(new Promise((resolveMin, rejectMin) => {
             audioVolumeGroupManager.getMinVolume(audio.AudioVolumeType.MEDIA,
               (err: BusinessError, minVolume: number) => {
                 if (err) {
-                  hilog.error(0x0000, 'AVPlayer', `Failed to obtain the minimum volume. ${err}`);
-                  return rejectMin(err);
+                  hilog.error(0x0000, 'AVPlayer', `Failed to obtain the minimum volume. ${err}`)
+                  return rejectMin(err)
                 }
-                volume_list.set('min_volume', minVolume);
+                volume_list.set('min_volume', minVolume)
                 VideoOperateUtil.min_volume = minVolume
-                resolveMin();
-              });
-          }));
+                resolveMin()
+              })
+          }))
           Promise.all(volumePromises)
             .then(() => resolve(volume_list))// 所有音量均成功获取，返回 volume_list
-            .catch(reject); // 如果有任何一个 Promise 失败，拒绝整个 Promise
-        });
-    });
+            .catch(reject) // 如果有任何一个 Promise 失败，拒绝整个 Promise
+        })
+    })
   }
 
   // 播放器播放失败处理
   static playErrorExecute(pathStack: NavPathStack, video_meta_data: VideoMetadata[], date: string, playerName: string) {
     ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
-    const now_play_item = video_meta_data.find(item => item.date === date);
+    const now_play_item = video_meta_data.find(item => item.date === date)
     const playerParams = new PlayerParams(now_play_item, video_meta_data, undefined)
     pathStack.replacePathByName(playerName, playerParams, true)
   }
@@ -155,15 +158,15 @@ export default class VideoOperateUtil {
         typeof f2?.localX !== 'number' ||
         typeof f2?.localY !== 'number'
     ) {
-      return -1;
+      return -1
     }
-    const dx = f2.localX - f1.localX;
-    const dy = f2.localY - f1.localY;
-    return Math.sqrt(dx * dx + dy * dy);
+    const dx = f2.localX - f1.localX
+    const dy = f2.localY - f1.localY
+    return Math.sqrt(dx * dx + dy * dy)
   }
 
   static checkLocalX(localX: number | undefined | null) {
-    return typeof localX === 'number';
+    return typeof localX === 'number'
   }
 
   // 获取音轨
@@ -172,8 +175,8 @@ export default class VideoOperateUtil {
       return new Promise((resolve, reject) => {
         avPlayer.getTrackDescription((error: BusinessError, arrList: Array<media.MediaDescription>) => {
           if (error || !arrList || arrList.length === 0) {
-            console.error(`Failed to get TrackDescription, error: ${error}`);
-            return reject(error || new Error("No audio tracks available"));
+            console.error(`Failed to get TrackDescription, error: ${error}`)
+            return reject(error || new Error("No audio tracks available"))
           }
           const audioTracks: AudioTrack[] = arrList
             .filter(description =>
@@ -185,19 +188,19 @@ export default class VideoOperateUtil {
                 language: description[media.MediaDescriptionKey.MD_KEY_LANGUAGE] as string,
                 name: description[media.MediaDescriptionKey.MD_KEY_TRACK_NAME] as string,
                 mime: description[media.MediaDescriptionKey.MD_KEY_CODEC_MIME] as string
-              };
-            });
-          resolve(audioTracks);
-        });
-      });
-    };
+              }
+            })
+          resolve(audioTracks)
+        })
+      })
+    }
 
     try {
-      const audioTracks = await getTrackDescriptions();
-      return audioTracks; // 返回包含音轨索引、语言和名称的对象数组
+      const audioTracks = await getTrackDescriptions()
+      return audioTracks // 返回包含音轨索引、语言和名称的对象数组
     } catch (error) {
-      console.error("获取 audioTracks 失败:", error);
-      return []; // 返回空数组表示没有获取到音轨
+      console.error("获取 audioTracks 失败:", error)
+      return [] // 返回空数组表示没有获取到音轨
     }
   }
 
@@ -248,29 +251,35 @@ export default class VideoOperateUtil {
   }
 
   static async getFrameTimePreprocess(uri: string) {
-    try {
-      VideoOperateUtil.avImageGenerator = await media.createAVImageGenerator();
-      VideoOperateUtil.nowPlayingFile = fs.openSync(uri, fs.OpenMode.READ_ONLY)
-      let avFileDescriptor: media.AVFileDescriptor = { fd: VideoOperateUtil.nowPlayingFile.fd };
-      VideoOperateUtil.avImageGenerator.fdSrc = avFileDescriptor
-    } catch (error) {
-      ToolsUtil.addLogger('getFrameTimePreprocess error' + error, true, undefined, 'VideoOperateUtil')
+    if (Setting.showFrameImgStatus) {
+      try {
+        VideoOperateUtil.avImageGenerator = await media.createAVImageGenerator()
+        VideoOperateUtil.nowPlayingFile = fs.openSync(uri, fs.OpenMode.READ_ONLY)
+        let avFileDescriptor: media.AVFileDescriptor = { fd: VideoOperateUtil.nowPlayingFile.fd }
+        VideoOperateUtil.avImageGenerator.fdSrc = avFileDescriptor
+      } catch (error) {
+        ToolsUtil.addLogger('getFrameTimePreprocess error' + error, true, undefined, 'VideoOperateUtil')
+      }
     }
   }
 
   static async releaseAVImageGenerator() {
-    VideoOperateUtil.avImageGenerator?.release()?.catch(() => {
-      ToolsUtil.addLogger('releaseAVImageGenerator error', true, undefined, 'VideoOperateUtil')
-    })
-    VideoOperateUtil.nowPlayingFile = undefined
-    VideoOperateUtil.updatePix = false
+    if (Setting.showFrameImgStatus) {
+      VideoOperateUtil.avImageGenerator?.release()?.catch(() => {
+        ToolsUtil.addLogger('releaseAVImageGenerator error', true, undefined, 'VideoOperateUtil')
+      })
+      VideoOperateUtil.nowPlayingFile = undefined
+      VideoOperateUtil.updatePix = false
+    }
   }
 
   static async fetchFrameByTime(time: number) {
-    return await VideoOperateUtil.avImageGenerator?.fetchFrameByTime(time * 1000,
-      media.AVImageQueryOptions.AV_IMAGE_QUERY_CLOSEST, { width: 100, height: 100 })?.catch(() => {
-      ToolsUtil.addLogger('fetchFrameByTime error', true, undefined, 'VideoOperateUtil')
-    })
+    if (Setting.showFrameImgStatus) {
+      return await VideoOperateUtil.avImageGenerator?.fetchFrameByTime(time * 1000,
+        media.AVImageQueryOptions.AV_IMAGE_QUERY_CLOSEST, { width: 100, height: 100 })?.catch(() => {
+        ToolsUtil.addLogger('fetchFrameByTime error', true, undefined, 'VideoOperateUtil')
+      })
+    }
   }
 
   // 启动时初始化已保存的设置项
@@ -292,6 +301,8 @@ export default class VideoOperateUtil {
     Setting.longPressSpeed = Preferences.getLongPressSpeed(context)
     Setting.showSettingPageEntry = Preferences.getShowSettingPageEntry(context)
     Setting.allowGestureEntry = Preferences.getAllowGestureEntry(context)
+    Setting.showFrameImgStatus = Preferences.getShowFrameTime(context)
+    Setting.jumpToHistoryTimeStatus = Preferences.getJumpToHistoryTime(context)
   }
 
   // 封装获取屏幕亮度的方法
@@ -302,8 +313,8 @@ export default class VideoOperateUtil {
           PathUtils.appContext!,
           settings.display.SCREEN_BRIGHTNESS_STATUS,
           settings.domainName.DEVICE_SHARED
-        );
-        return Number(value) / 255;
+        )
+        return Number(value) / 255
       } catch (error) {
         return 0
       }
@@ -313,24 +324,24 @@ export default class VideoOperateUtil {
 
   static getLanguageName(code: string): string {
     if (!code) {
-      return code;
+      return code
     }
-    const lowerCode = code.toLowerCase();
-    return LanguageConfig.languageMap[lowerCode] || code;
+    const lowerCode = code.toLowerCase()
+    return LanguageConfig.languageMap[lowerCode] || code
   }
 
   static setVideoAspectRatio(targetRatio: number, containerWidth: number, containerHeight: number) {
     let finalWidth = 0
     let finalHeight = 0
-    const containerRatio = containerWidth / containerHeight;
+    const containerRatio = containerWidth / containerHeight
     if (containerRatio > targetRatio) {
       // 容器比目标“更宽” → 固定高度，按比例缩小宽度
-      finalHeight = containerHeight;
-      finalWidth = containerHeight * targetRatio; // 宽度 = 高度 × 目标比例
+      finalHeight = containerHeight
+      finalWidth = containerHeight * targetRatio // 宽度 = 高度 × 目标比例
     } else {
       // 容器比目标“更高” → 固定宽度，按比例缩小高度
-      finalWidth = containerWidth;
-      finalHeight = containerWidth / targetRatio; // 高度 = 宽度 ÷ 目标比例
+      finalWidth = containerWidth
+      finalHeight = containerWidth / targetRatio // 高度 = 宽度 ÷ 目标比例
     }
     return [finalWidth, finalHeight]
   }
@@ -338,13 +349,13 @@ export default class VideoOperateUtil {
   static getVideoStartPlayTimeMode(nowPlaying: VideoMetadataFromPlayer): number {
     // 先判断 nowPlaying 是否有效
     if (!nowPlaying) {
-      return -1;
+      return -1
     }
-    const start_time = nowPlaying.start_time;
-    const end_time = nowPlaying.end_time;
-    const last_play = nowPlaying.last_play ?? 0;
-    const time = nowPlaying.time ?? 0;
-    const title = nowPlaying.title;
+    const start_time = nowPlaying.start_time
+    const end_time = nowPlaying.end_time
+    const last_play = nowPlaying.last_play ?? 0
+    const time = nowPlaying.time ?? 0
+    const title = nowPlaying.title
     // 条件1：若设置了片头时间（start_time > 0）
     if (start_time != null && start_time > 0) {
       const isBeforeStart = last_play < start_time
@@ -356,7 +367,7 @@ export default class VideoOperateUtil {
       }
     }
     // 条件2：若有有效播放记录（且未接近结尾），则跳转到上次播放位置
-    if (last_play !== 0 && last_play < time * 0.95) {
+    if (last_play !== 0 && last_play < time * 0.95 && Setting.jumpToHistoryTimeStatus) {
       ToolsUtil.showToast('已跳到上次播放时间')
       return VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME
     }
@@ -383,5 +394,60 @@ export default class VideoOperateUtil {
 
   static getTimePixel(screenWidth: number, videoTime: number) {
     return videoTime > 600000 ? 600000 / screenWidth : videoTime / screenWidth
+  }
+
+  static saveCaptureScreenToAlbum(surfaceID: string) {
+    try {
+      // 1. 截屏 → 沙箱临时文件
+      const pixelMap = image.createPixelMapFromSurfaceSync(surfaceID)
+      const packOpts: image.PackingOption = { format: 'image/png', quality: 100 }
+      const imagePackerApi = image.createImagePacker()
+      const tempPath = PathUtils.tempPath + '/screenshot.png'
+      const tempFile = fileIo.openSync(tempPath, fileIo.OpenMode.CREATE | fileIo.OpenMode.READ_WRITE)
+      let srcUri: string
+      imagePackerApi.packToFile(pixelMap, tempFile.fd, packOpts)
+        .then(() => imagePackerApi.release())
+        .then(async () => {
+          fileIo.closeSync(tempFile)
+          // 2. 用系统对话框保存到相册
+          srcUri = fileUri.getUriFromPath(tempPath)
+          const helper = photoAccessHelper.getPhotoAccessHelper(PathUtils.appContext)
+          return await helper.showAssetsCreationDialog(
+            [srcUri],
+            [{ photoType: photoAccessHelper.PhotoType.IMAGE, fileNameExtension: 'png' }]
+          )
+        })
+        .then(dstUris => {
+          // 3. 拷贝到用户选择的相册位置
+          if (dstUris.length) {
+            const src = fileIo.openSync(srcUri, fileIo.OpenMode.READ_ONLY)
+            const dst = fileIo.openSync(dstUris[0], fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE)
+            fileIo.copyFileSync(src.fd, dst.fd)
+            fileIo.closeSync(src)
+            fileIo.closeSync(dst)
+            ToolsUtil.showToast('保存成功')
+          }
+        })
+      ?.catch((err: BusinessError) => {
+        ToolsUtil.addLogger(`packToFile failed: ${err.code}, ${err.message}`, true)
+      })
+    } catch (e) {
+      ToolsUtil.addLogger(`captureScreen failed: ${e.code}, ${e.message}`, true)
+    }
+  }
+
+  static getRepeatMode(repeatMode: RepeatMode): RepeatMode {
+    switch (repeatMode) {
+      case RepeatMode.LIST:
+        return RepeatMode.SINGLE
+      case RepeatMode.SINGLE:
+        return RepeatMode.RANDOM
+      case RepeatMode.RANDOM:
+        return RepeatMode.SEQUENCE
+      case RepeatMode.SEQUENCE:
+        return RepeatMode.LIST
+      default:
+        return RepeatMode.LIST
+    }
   }
 }

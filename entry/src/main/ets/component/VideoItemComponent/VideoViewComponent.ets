@@ -1,30 +1,30 @@
-import { VideoList, VideoListController } from './VideoItemComponent';
-import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
-import { SideBarController } from '../SideBarComponent/SideBar';
+import { VideoList, VideoListController } from './VideoItemComponent'
+import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
+import { SideBarController } from '../SideBarComponent/SideBar'
 import {
   ButtonFancyModifier,
   MenuFancyModifier,
   SearchShadowModifier,
   SymbolGlyphFancyModifier
-} from '../../common/AttributeModifierConfig';
-import { PathUtils } from '../../utils/PathUtils';
-import SelectFileUtil from '../../utils/SelectFileUtil';
-import ToolsUtil from '../../utils/ToolsUtil';
-import { SymbolGlyphModifier } from '@kit.ArkUI';
-import DataSyncUtil from '../../utils/DataSyncUtil';
-import { FileFolderDataSource } from '../../utils/DataUtil';
-import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu';
-import { MaskComponent } from '../SideBarComponent/MaskComponent';
-import { SearchComponent } from './SearchComponent';
-import { FolderOperator } from '../../database/VideoMetaData';
-import VideoUtils from '../../utils/VideoUtil';
-import FileFolderUtil from '../../utils/FileFolderUtil';
-import NavigationAddress from '../../common/NavigationCommon';
-import Preferences from '../../database/Preferences';
-import { XAnimation } from '../../utils/AnimationUtil';
-import { FileFolder } from '../../interfaces/FileFolderInterface';
-import { SafeHeight } from '../../utils/ObservedUtil';
-import { SortComponent } from './SortComponent';
+} from '../../common/AttributeModifierConfig'
+import { PathUtils } from '../../utils/PathUtils'
+import SelectFileUtil from '../../utils/SelectFileUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { SymbolGlyphModifier } from '@kit.ArkUI'
+import DataSyncUtil from '../../utils/DataSyncUtil'
+import { FileFolderDataSource } from '../../utils/DataUtil'
+import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu'
+import { MaskComponent } from '../SideBarComponent/MaskComponent'
+import { SearchComponent } from './SearchComponent'
+import { FolderOperator } from '../../database/VideoMetaData'
+import VideoUtils from '../../utils/VideoUtil'
+import FileFolderUtil from '../../utils/FileFolderUtil'
+import NavigationAddress from '../../common/NavigationCommon'
+import Preferences from '../../database/Preferences'
+import { XAnimation } from '../../utils/AnimationUtil'
+import { FileFolder } from '../../interfaces/FileFolderInterface'
+import { SafeHeight } from '../../utils/ObservedUtil'
+import { SortComponent } from './SortComponent'
 
 @Component
 export struct VideoView {

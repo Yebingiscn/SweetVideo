@@ -1,23 +1,23 @@
-import { media } from '@kit.MediaKit';
-import { fileIo as fs } from '@kit.CoreFileKit';
-import { BusinessError } from '@kit.BasicServicesKit';
-import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
-import PrivacySpaceUtil from './PrivacySpaceUtil';
-import { ConcurrentQueue } from './FileProcessorUtil';
-import NavigationAddress from '../common/NavigationCommon';
-import SelectFileUtil from './SelectFileUtil';
-import PermissionUtil from './PermissionUtil';
+import { media } from '@kit.MediaKit'
+import { fileIo as fs } from '@kit.CoreFileKit'
+import { BusinessError } from '@kit.BasicServicesKit'
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
+import PrivacySpaceUtil from './PrivacySpaceUtil'
+import { ConcurrentQueue } from './FileProcessorUtil'
+import NavigationAddress from '../common/NavigationCommon'
+import SelectFileUtil from './SelectFileUtil'
+import PermissionUtil from './PermissionUtil'
 
 // 视频信息类
 export default class VideoInfoUtil {
   // 视频格式支持列表
   public static support_video_format = [
     'mp4', 'flv', 'mkv', 'ts', 'mov', 'rmvb', 'wmv', 'avi', 'm4v'
-  ];
+  ]
   // 音频格式支持列表
   public static support_audio_format = [
     'wav', 'mp3', 'flac', 'dsf', 'dsd', 'dff', 'm4a', 'ape', 'aac', 'ogg', 'amr', 'aif', 'aiff', 'dts', 'wma', 'av3a'
-  ];
+  ]
   // 字幕格式支持列表
   public static support_subtitle_format = ['srt', 'vtt', 'ass']
   // 屏幕比例放大列表
@@ -26,7 +26,7 @@ export default class VideoInfoUtil {
     ['等比放大 120%', 1.2],
     ['等比放大 130%', 1.3],
     ['等比放大 140%', 1.4]
-  ]);
+  ])
   // 屏幕比例放大列表
   public static screenExtendList: Array<SelectOption> = [//屏幕扩展
     { value: '原始比例' },
@@ -37,7 +37,7 @@ export default class VideoInfoUtil {
     { value: '等比放大 120%' },
     { value: '等比放大 130%' },
     { value: '等比放大 140%' }]
-  public static screenExtendMap: string[] = VideoInfoUtil.screenExtendList.map(item => item.value as string);
+  public static screenExtendMap: string[] = VideoInfoUtil.screenExtendList.map(item => item.value as string)
   // 播放器视频宽度
   public static play_area_width: number = 0
   // 播放器视频高度
@@ -55,12 +55,12 @@ export default class VideoInfoUtil {
       [3, media.PlaybackSpeed.SPEED_FORWARD_3_00_X]])
   private static readonly videoSpeedListAll: number[] = Array.from(VideoInfoUtil.VIDEO_SPEED_MAP.keys())
     .filter(speed => speed >= 0.25)
-    .sort((a, b) => a - b);
+    .sort((a, b) => a - b)
   // 反向映射：系统枚举 → 用户倍速
   private static REVERSE_SPEED_MAP = new Map<media.PlaybackSpeed, number>(
     Array.from(VideoInfoUtil.VIDEO_SPEED_MAP.entries()).map((entry) => [entry[1], entry[0]])
-  );
-  private static readonly videoSpeedListRedPlayer: number[] = VideoInfoUtil.videoSpeedListAll.filter(s => s <= 2);
+  )
+  private static readonly videoSpeedListRedPlayer: number[] = VideoInfoUtil.videoSpeedListAll.filter(s => s <= 2)
   // 视频标签格式化
   private static video_size_map: Record<string, string> = {
     '720': '720P HD',
@@ -79,7 +79,7 @@ export default class VideoInfoUtil {
     '7680': '8K Ultra HD',
     '2720x1530': 'FHD+',
     '1216x2160': 'FHD+',
-  };
+  }
 
   // 设置存储的视频信息
   static async setVideoInfo(date: string, uri: string, file_name: string, metadata: media.AVMetadata,
@@ -115,18 +115,18 @@ export default class VideoInfoUtil {
   static async getVideoCover(sandbox_path: string, date: string, uri: string, size: number[], time: number) {
     if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
       return ConcurrentQueue.enqueue(async () => {
-        await PermissionUtil.persistPermission(uri);
+        await PermissionUtil.persistPermission(uri)
         let file: fs.File | undefined
         let avMetadataExtractor: media.AVMetadataExtractor | undefined
         try {
-          avMetadataExtractor = await media.createAVMetadataExtractor();
-          file = fs.openSync(uri);
-          avMetadataExtractor.fdSrc = file;
-          const pixelMap = await avMetadataExtractor.fetchAlbumCover();
-          SelectFileUtil.saveVideoImageToPrivacySpace(sandbox_path, date, pixelMap);
+          avMetadataExtractor = await media.createAVMetadataExtractor()
+          file = fs.openSync(uri)
+          avMetadataExtractor.fdSrc = file
+          const pixelMap = await avMetadataExtractor.fetchAlbumCover()
+          SelectFileUtil.saveVideoImageToPrivacySpace(sandbox_path, date, pixelMap)
         } catch (error) {
-          console.error(`AlbumCover failed: ${error.message}`);
-          await VideoInfoUtil.getVideoImage(uri, size, date, sandbox_path, time);
+          console.error(`AlbumCover failed: ${error.message}`)
+          await VideoInfoUtil.getVideoImage(uri, size, date, sandbox_path, time)
         } finally {
           if (file) {
             fs.closeSync(file)
@@ -134,10 +134,10 @@ export default class VideoInfoUtil {
           if (avMetadataExtractor) {
             avMetadataExtractor?.release()?.catch(() => {
               console.error('release error')
-            });
+            })
           }
         }
-      });
+      })
     }
   }
 
@@ -146,7 +146,7 @@ export default class VideoInfoUtil {
   }
 
   public static optimizedFormat(speed: number): string {
-    return speed ? speed.toFixed(2).replace(/\.?0+$/, '') + 'x' : '1x';
+    return speed ? speed.toFixed(2).replace(/\.?0+$/, '') + 'x' : '1x'
   }
 
   static getVideoTitle(item: VideoMetadata) {
@@ -157,9 +157,9 @@ export default class VideoInfoUtil {
   static async getVideoImage(uri: string, size: number[], date: string, sandbox_path: string, time: number) {
     if (canIUse('SystemCapability.Multimedia.Media.AVImageGenerator')) {
       try {
-        let avImageGenerator: media.AVImageGenerator = await media.createAVImageGenerator();
+        let avImageGenerator: media.AVImageGenerator = await media.createAVImageGenerator()
         let file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
-        let avFileDescriptor: media.AVFileDescriptor = { fd: file.fd };
+        let avFileDescriptor: media.AVFileDescriptor = { fd: file.fd }
         avImageGenerator.fdSrc = avFileDescriptor
         let timeUs = (time > 0) ? time * 100 : 0 // 微秒
         let queryOption = media.AVImageQueryOptions.AV_IMAGE_QUERY_CLOSEST
@@ -200,7 +200,7 @@ export default class VideoInfoUtil {
     if (systemSpeed !== undefined) {
       return systemSpeed
     }
-    return media.PlaybackSpeed.SPEED_FORWARD_1_00_X;
+    return media.PlaybackSpeed.SPEED_FORWARD_1_00_X
   }
 
   // 反向：系统枚举 → 用户倍速
@@ -209,32 +209,32 @@ export default class VideoInfoUtil {
     if (userSpeed !== undefined) {
       return userSpeed
     }
-    return 1.0;
+    return 1.0
   }
 
   static getVideoSpeedList(player: string): number[] {
     return player === NavigationAddress.RED_PLAYER
       ? VideoInfoUtil.videoSpeedListRedPlayer
-      : VideoInfoUtil.videoSpeedListAll;
+      : VideoInfoUtil.videoSpeedListAll
   }
 
   static getVideoSpeedTextList() {
     return VideoInfoUtil.videoSpeedListAll.map(speed =>
     `${speed}x`.replace(/(\.0+)?x$/, 'x')  // 同时处理整数和小数
-    );
+    )
   }
 
   // 获取视频标签格式化
   static videoWidthAndHeightFormat(size: string) {
-    const sizeArray = size.split(',');
-    const width = sizeArray[0];
-    const height = sizeArray[1];
-    const sizeKey = `${width}x${height}`;
+    const sizeArray = size.split(',')
+    const width = sizeArray[0]
+    const height = sizeArray[1]
+    const sizeKey = `${width}x${height}`
     // 匹配优先级
     return VideoInfoUtil.video_size_map[sizeKey] || // 1. 精确匹配宽高
     VideoInfoUtil.video_size_map[height] || // 2. 标准高度命名
     VideoInfoUtil.video_size_map[width] || // 3. 特殊宽度标准
-      `${width} x ${height}`; // 4. 默认格式
+      `${width} x ${height}` // 4. 默认格式
   }
 
   // 获取视频大小
@@ -253,11 +253,11 @@ export default class VideoInfoUtil {
           } else {
             resolve(stat.size)
           }
-        });
+        })
       } catch (error) {
         console.error('size error:' + error)
       }
-    });
+    })
   }
 
   // 保存视频初始长宽，变更后视频长宽后使用

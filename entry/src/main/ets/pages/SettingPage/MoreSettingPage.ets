@@ -1,16 +1,16 @@
-import NavigationAddress from '../../common/NavigationCommon';
-import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem';
-import Preferences from '../../database/Preferences';
-import { PathUtils } from '../../utils/PathUtils';
-import SelectFileUtil from '../../utils/SelectFileUtil';
-import SubtitleUtil from '../../utils/SubtitleUtil';
-import ToolsUtil from '../../utils/ToolsUtil';
-import { fileIo as fs } from '@kit.CoreFileKit';
-import { commentManager } from '@kit.AppGalleryKit';
-import { salmonLogger } from 'salmonlogger';
-import { SafeHeight, Setting } from '../../utils/ObservedUtil';
-import { Want } from '@kit.AbilityKit';
-import PreferencesUtil from '../../database/PreferencesUtil';
+import NavigationAddress from '../../common/NavigationCommon'
+import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
+import Preferences from '../../database/Preferences'
+import { PathUtils } from '../../utils/PathUtils'
+import SelectFileUtil from '../../utils/SelectFileUtil'
+import SubtitleUtil from '../../utils/SubtitleUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { fileIo as fs } from '@kit.CoreFileKit'
+import { commentManager } from '@kit.AppGalleryKit'
+import { salmonLogger } from 'salmonlogger'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { Want } from '@kit.AbilityKit'
+import PreferencesUtil from '../../database/PreferencesUtil'
 
 @Component
 export struct MoreSettingPage {
@@ -48,10 +48,10 @@ export struct MoreSettingPage {
               PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'is_list_display')
               const coverFromSandbox = await fs.listFile(PathUtils.coverPath)?.catch(() => {
                 console.error('get cover fail')
-              });
-              const isNumericStart = (filename: string): boolean => /^\d/.test(filename);
+              })
+              const isNumericStart = (filename: string): boolean => /^\d/.test(filename)
               const coverFromSandboxArray = Array.isArray(coverFromSandbox)
-                ? coverFromSandbox.filter(file => isNumericStart(file)) : [];
+                ? coverFromSandbox.filter(file => isNumericStart(file)) : []
               const subtitleFromSandbox = await fs.listFile(PathUtils.subtitlePath)?.catch(() => {
                 console.error('get subtitle fail')
               })
@@ -69,7 +69,7 @@ export struct MoreSettingPage {
               const missingCoverFiles = coverFromSandboxArray.filter((file => !existingItemsSet.has(file)))
               salmonLogger.addLog(this.pathStack.getAllPathName()[0],
                 `检测到失效封面文件数：${missingCoverFiles.length}，内容：${missingCoverFiles.toString()}`, false)
-              const missingSubtitleFiles = subtitleFromSandboxArray.filter(file => !existingItemsSet.has(file));
+              const missingSubtitleFiles = subtitleFromSandboxArray.filter(file => !existingItemsSet.has(file))
               salmonLogger.addLog(this.pathStack.getAllPathName()[0],
                 `检测到失效字幕文件数：${missingSubtitleFiles.length}，内容：${missingSubtitleFiles.toString()}`, false)
               const missingFileSum = missingCoverFiles.length + missingSubtitleFiles.length
@@ -98,7 +98,7 @@ export struct MoreSettingPage {
                     action: 'ohos.want.action.appdetail',
                     // bundleName为需要拉起写评论页的应用包名，action隐式指定为write-review，表示进入详情页后，下一步将拉起写评论页。
                     uri: `store://appgallery.huawei.com/app/detail?id=${PathUtils.appContext!.abilityInfo.bundleName}&action=write-review`
-                  };
+                  }
                   PathUtils.appContext!.startAbility(want)
                     .then(() => {
                       salmonLogger.addLog(this.pathStack.getAllPathName()[0], '成功打开应用市场评论页', false)
@@ -107,8 +107,8 @@ export struct MoreSettingPage {
                     ToolsUtil.showToast('打开应用市场失败，原因是：' + error)
                     salmonLogger.addLog(this.pathStack.getAllPathName()[0], '打开应用市场评论页失败，原因是：' + error,
                       true)
-                  });
-                });
+                  })
+                })
               } catch (error) {
                 salmonLogger.addLog(this.pathStack.getAllPathName()[0],
                   `展示评论弹窗错误, Code: ${error.code}, message: ${error.message}`,

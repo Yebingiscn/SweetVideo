@@ -1,9 +1,9 @@
-import { SearchShadowModifier } from '../../common/AttributeModifierConfig';
+import { SearchShadowModifier } from '../../common/AttributeModifierConfig'
 
 @Component
 export struct SearchComponent {
-  @Link searchValue: string;
-  controller: SearchController | undefined = undefined;
+  @Link searchValue: string
+  controller: SearchController | undefined = undefined
   onChange = () => {
   }
   onSubmit = (_value: string) => {

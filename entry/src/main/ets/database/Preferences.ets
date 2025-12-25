@@ -109,24 +109,32 @@ export default class Preferences {
     return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'allowGestureEntry', true) as boolean
   }
 
+  static getShowFrameTime(context: Context) {
+    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'showFrameTime', true) as boolean
+  }
+
+  static getJumpToHistoryTime(context: Context) {
+    return PreferencesUtil.getPreferencesValue(context, 'sweet_video', 'jumpToHistoryTime', true) as boolean
+  }
+
   static saveBackgroundColorMode(context: Context, backgroundColorMode: BackgroundColorMode) {
     PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'backgroundColorMode', backgroundColorMode)
   }
 
   static saveShowSettingPageEntry(context: Context, showSettingPageEntry: boolean) {
-    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'showSettingPageEntry', showSettingPageEntry);
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'showSettingPageEntry', showSettingPageEntry)
   }
 
   static saveAllowGestureEntry(context: Context, allowGestureEntry: boolean) {
-    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'allowGestureEntry', allowGestureEntry);
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'allowGestureEntry', allowGestureEntry)
   }
 
   static saveSkipIntroTime(context: Context, skipIntroTime: string) {
-    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'skipIntroTime', skipIntroTime);
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'skipIntroTime', skipIntroTime)
   }
 
   static saveVideoSpeed(context: Context, video_speed: string) {
-    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'video_speed', video_speed);
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'video_speed', video_speed)
   }
 
   static saveRepeatModeState(context: Context, repeatMode: RepeatMode) {
@@ -185,16 +193,16 @@ export default class Preferences {
 
   static saveVideoMetaDataEncryption(context: Context, video_meta_data_encryption: VideoMetadata[]) {
     PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'video_meta_data_encryption',
-      video_meta_data_encryption);
+      video_meta_data_encryption)
   }
 
   // 保存所有文件夹视频数据
   static saveFileFolder(context: Context, file_folder: FileFolder[]) {
-    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'file_folder', file_folder);
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'file_folder', file_folder)
   }
 
   static saveRecentPlay(context: Context, recent_play_deque: VideoMetadata[]) {
-    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_play', recent_play_deque);
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'recent_play', recent_play_deque)
   }
 
   static saveListDisplayMode(context: Context, listDisplayMode: ListDisplayMode) {
@@ -202,10 +210,18 @@ export default class Preferences {
   }
 
   static saveLongPressSpeed(context: Context, longPressSpeed: number) {
-    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'longPressSpeed', longPressSpeed);
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'longPressSpeed', longPressSpeed)
   }
 
   static saveBackgroundDropBlur(context: Context, backgroundDropBlur: number) {
-    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'backgroundDropBlur', backgroundDropBlur);
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'backgroundDropBlur', backgroundDropBlur)
+  }
+
+  static saveShowFrameTime(context: Context, showFrameTime: boolean) {
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'showFrameTime', showFrameTime)
+  }
+
+  static saveJumpToHistoryTime(context: Context, jumpToHistoryTime: boolean) {
+    PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'jumpToHistoryTime', jumpToHistoryTime)
   }
 }

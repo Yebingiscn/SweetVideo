@@ -1,6 +1,6 @@
-import { media } from '@kit.MediaKit';
-import { salmonLogger } from 'salmonlogger';
-import ToolsUtil from './ToolsUtil';
+import { media } from '@kit.MediaKit'
+import { salmonLogger } from 'salmonlogger'
+import ToolsUtil from './ToolsUtil'
 
 // 系统播放器类
 export class AVPlayerUtil {

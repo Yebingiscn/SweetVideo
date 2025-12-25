@@ -1,5 +1,5 @@
-import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
-import DataSyncUtil from '../../utils/DataSyncUtil';
+import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
+import DataSyncUtil from '../../utils/DataSyncUtil'
 
 // 重命名视频弹窗
 @CustomDialog
