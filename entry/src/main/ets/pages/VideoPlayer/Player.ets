@@ -30,7 +30,7 @@ import { KeyCode } from '@kit.InputKit'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { AIAsr } from '../../component/PlayerComponent/AIAsrComponent'
 import SubtitleUtil from '../../utils/SubtitleUtil'
-import { SubtitleMode } from '../../common/enum/SubtitleMode'
+import { SubtitleMode, Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import { AVPlayerUtil } from '../../utils/AVPlayerUtil'
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { BrightnessSwipingBuilder } from '../../component/PlayerComponent/BrightnessSwipingBuilder'
@@ -68,6 +68,7 @@ export struct Player { // 播放页
   @State currentSpeedIndex: number = 0
   @State angle: number = 0
   @State subtitleVisibility: Visibility = Visibility.Visible
+  @State subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
   @State repeatMode: RepeatMode = RepeatMode.LIST
   @Consume('pathStack') pathStack: NavPathStack
   @State pixelMap: PixelMap | null = null
@@ -509,7 +510,9 @@ export struct Player { // 播放页
               screenHeight: this.screen_height,
               showControl: this.showControl,
               subTitleVisibility: this.subtitleVisibility,
+              subtitle3DMode: this.subtitle3DMode,
               playAreaWidth: this.play_area_width,
+              playAreaHeight: this.play_area_height
             })
           }
           .onKeyEvent((event?: KeyEvent) => {
@@ -1047,6 +1050,7 @@ export struct Player { // 播放页
     SubtitlePanelComponent({
       subTitleVisibility: this.subtitleVisibility,
       isAIAsrShown: this.isAIAsrShown,
+      subtitle3DMode: this.subtitle3DMode,
       subtitleSelected: this.player.subtitleSelected
     })
   }
