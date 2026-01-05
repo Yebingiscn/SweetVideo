@@ -34,7 +34,7 @@ export function SubtitleDisplayBuilder(subtitleDisplayValue: SubtitleDisplayValu
       .justifyContent(FlexAlign.SpaceAround)
       .width("100%")
     } else if (subtitleDisplayValue.subtitle3DMode === Subtitle3DMode.TOP_AND_BOTTOM) {
-      Column({ space: subtitleDisplayValue.playAreaHeight / 2 }) {
+      Column({ space: subtitleDisplayValue.playAreaHeight / 2}) {
         Text(subtitleDisplayValue.subtitle)
           .subtitleTextExtend()
           .scale({
