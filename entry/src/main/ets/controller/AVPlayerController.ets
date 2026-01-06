@@ -22,7 +22,7 @@ import { PlayerControllerInterface } from './PlayerControllerFactory'
 
 @Observed
 export class AVPlayerController implements PlayerControllerInterface {
-  avPlayer: media.AVPlayer | undefined = undefined
+  @Track avPlayer: media.AVPlayer | undefined = undefined
   avSession: avSessionManager.AVSession | undefined = undefined
   surfaceID: string = ''
   @Track nowPlaying: VideoMetadataFromPlayer | undefined = undefined

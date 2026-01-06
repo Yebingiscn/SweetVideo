@@ -9,7 +9,7 @@ class SwipingPlayTimeValue {
   playTime: number = 0
   totalTime: number = 0
   pixelMap: PixelMap | null = null
-  player: string = NavigationAddress.AV_PLAYER
+  player: string = ''
 }
 
 @Builder

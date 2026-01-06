@@ -159,6 +159,7 @@ export struct SettingsPage { //设置页
               }
             })
           }
+          .margin({ top: 10 })
           .padding(15)
           .alignItems(HorizontalAlign.Start)
           .borderRadius(16)

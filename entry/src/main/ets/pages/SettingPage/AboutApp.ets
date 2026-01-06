@@ -1,12 +1,12 @@
-import ToolsUtil from '../utils/ToolsUtil'
-import WantProcessUtil from '../utils/WantProcessUtil'
-import { PathUtils } from '../utils/PathUtils'
-import { DefaultDialogShadow, ImageFancyModifier } from '../common/AttributeModifierConfig'
-import { InfoConfirmDialog } from '../component/Dialog/InfoConfirmDialog'
+import ToolsUtil from '../../utils/ToolsUtil'
+import WantProcessUtil from '../../utils/WantProcessUtil'
+import { PathUtils } from '../../utils/PathUtils'
+import { DefaultDialogShadow, ImageFancyModifier } from '../../common/AttributeModifierConfig'
+import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
 import { Markdown, MarkdownController } from '@luvi/lv-markdown-in'
 import { salmonLogger } from 'salmonlogger'
-import { SafeHeight, Setting } from '../utils/ObservedUtil'
-import { PrivacyPolicyComponent } from '../component/VideoItemComponent/PrivacyPolicyComponent'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { PrivacyPolicyComponent } from '../../component/VideoItemComponent/PrivacyPolicyComponent'
 
 @Component
 export struct AboutApp {
@@ -179,6 +179,7 @@ export struct AboutApp {
               }
             })
           }
+          .margin({ top: 10 })
           .padding(15)
           .alignItems(HorizontalAlign.Start)
           .borderRadius(16)
