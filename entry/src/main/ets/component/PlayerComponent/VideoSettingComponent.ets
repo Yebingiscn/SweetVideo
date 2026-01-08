@@ -1,5 +1,4 @@
 import { SymbolGlyphModifier } from '@kit.ArkUI'
-import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { PathUtils } from '../../utils/PathUtils'
 import TimeUtil from '../../utils/TimeUtil'
@@ -11,11 +10,16 @@ import { deviceInfo } from '@kit.BasicServicesKit'
 @Component
 export struct VideoSettingComponent {
   @Prop playTime: number
-  @Prop nowPlaying: VideoMetadataFromPlayer
+  @Prop nowPlaying: VideoMetadata
   @Prop videoMetaData: VideoMetadata[]
   @Link angle: number
   @Link repeatMode: RepeatMode
   @Link exitVideoTime: number
+  @Link abCircleStatus: boolean
+  @State startTime: string = '00:00'
+  @State endTime: string = '00:00'
+  @State pointA: string = '00:00'
+  @State pointB: string = '00:00'
   forward_80_s = (_time: number) => {
   }
   onActiveEnhanceAudio = () => {
@@ -30,27 +34,38 @@ export struct VideoSettingComponent {
   }
   captureScreen = () => {
   }
+  updateStarTime = (_time: number) => {
+  }
+  updateEndTime = (_time: number) => {
+  }
+  updatePointATime = (_time: number) => {
+  }
+  updatePointBTime = (_time: number) => {
+  }
+
+  aboutToAppear(): void {
+    this.startTime = TimeUtil.convertMSToHHMMSS(this.nowPlaying.start_time)
+    this.endTime = TimeUtil.convertMSToHHMMSS(this.nowPlaying.end_time)
+    this.pointA = TimeUtil.convertMSToHHMMSS(this.nowPlaying.pointA)
+    this.pointB = TimeUtil.convertMSToHHMMSS(this.nowPlaying.pointB)
+  }
 
   build() {
     Menu() {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
         content: '定时器',
-        builder: (): void => this.MenuExtend()
+        builder: (): void => this.TimerMenuExtend()
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
-        content: '设置片头时间'
-      }).onClick(() => {
-        VideoOperateUtil.saveVideoStartTime(this.playTime, this.nowPlaying, PathUtils.appContext!)
-        ToolsUtil.showToast(this.nowPlaying.title + '成功设置片头时间为:' + TimeUtil.convertMSToHHMMSS(this.playTime))
+        content: '片头片尾时间',
+        builder: (): void => this.OPEDMenuExtend()
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
-        content: '设置片尾时间'
-      }).onClick(() => {
-        VideoOperateUtil.saveVideoEndTime(this.playTime, this.nowPlaying, PathUtils.appContext!)
-        ToolsUtil.showToast(this.nowPlaying.title + '成功设置片尾时间为:' + TimeUtil.convertMSToHHMMSS(this.playTime))
+        content: 'AB循环',
+        builder: (): void => this.ABMenuExtend()
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.camera')),
@@ -88,7 +103,7 @@ export struct VideoSettingComponent {
   }
 
   @Builder
-  MenuExtend() {
+  TimerMenuExtend() {
     Menu() {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
@@ -128,6 +143,84 @@ export struct VideoSettingComponent {
       }).onClick(() => {
         clearTimeout(this.exitVideoTime)
         ToolsUtil.showToast('设置成功，已清除定时器')
+      })
+    }
+  }
+
+  @Builder
+  OPEDMenuExtend() {
+    Menu() {
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
+        content: '设置片头时间：' + this.startTime,
+      }).onClick(() => {
+        this.startTime = TimeUtil.convertMSToHHMMSS(this.playTime)
+        VideoOperateUtil.saveVideoStartTime(this.playTime, this.nowPlaying, PathUtils.appContext!)
+        ToolsUtil.showToast(this.nowPlaying.title + '成功设置片头时间为:' + TimeUtil.convertMSToHHMMSS(this.playTime))
+        this.updateStarTime(this.playTime)
+      })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
+        content: '设置片尾时间：' + this.endTime,
+      }).onClick(() => {
+        this.endTime = TimeUtil.convertMSToHHMMSS(this.playTime)
+        VideoOperateUtil.saveVideoEndTime(this.playTime, this.nowPlaying, PathUtils.appContext!)
+        ToolsUtil.showToast(this.nowPlaying.title + '成功设置片尾时间为:' + TimeUtil.convertMSToHHMMSS(this.playTime))
+        this.updateEndTime(this.playTime)
+      })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
+        content: '取消片头片尾时间'
+      }).onClick(() => {
+        this.startTime = TimeUtil.convertMSToHHMMSS(0)
+        VideoOperateUtil.saveVideoStartTime(0, this.nowPlaying, PathUtils.appContext!)
+        this.endTime = TimeUtil.convertMSToHHMMSS(this.nowPlaying.time)
+        VideoOperateUtil.saveVideoEndTime(this.nowPlaying.time, this.nowPlaying, PathUtils.appContext!)
+        ToolsUtil.showToast('取消片头片尾时间成功')
+        this.updateStarTime(0)
+        this.updateEndTime(this.nowPlaying.time)
+      })
+    }
+  }
+
+  @Builder
+  ABMenuExtend() {
+    Menu() {
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
+        content: this.abCircleStatus ? '停止 AB 循环' : '启动 AB 循环'
+      }).onClick(() => {
+        this.abCircleStatus = !this.abCircleStatus
+      })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
+        content: '设置A点时间：' + this.pointA,
+      }).onClick(() => {
+        this.pointA = TimeUtil.convertMSToHHMMSS(this.playTime)
+        VideoOperateUtil.saveVideoPointA(PathUtils.appContext!, this.nowPlaying, this.playTime)
+        ToolsUtil.showToast(this.nowPlaying.title + '成功设置A点时间为:' + TimeUtil.convertMSToHHMMSS(this.playTime))
+        this.updatePointATime(this.playTime)
+      })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
+        content: '设置B点时间：' + this.pointB,
+      }).onClick(() => {
+        this.pointB = TimeUtil.convertMSToHHMMSS(this.playTime)
+        VideoOperateUtil.saveVideoPointB(PathUtils.appContext!, this.nowPlaying, this.playTime)
+        ToolsUtil.showToast(this.nowPlaying.title + '成功设置B点时间为:' + TimeUtil.convertMSToHHMMSS(this.playTime))
+        this.updatePointBTime(this.playTime)
+      })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
+        content: '取消AB点时间'
+      }).onClick(() => {
+        this.pointA = TimeUtil.convertMSToHHMMSS(0)
+        VideoOperateUtil.saveVideoPointA(PathUtils.appContext!, this.nowPlaying, 0)
+        this.pointB = TimeUtil.convertMSToHHMMSS(this.nowPlaying.time)
+        VideoOperateUtil.saveVideoPointB(PathUtils.appContext!, this.nowPlaying, this.nowPlaying.time)
+        ToolsUtil.showToast('取消AB点时间成功')
+        this.updatePointATime(0)
+        this.updatePointBTime(this.nowPlaying.time)
       })
     }
   }

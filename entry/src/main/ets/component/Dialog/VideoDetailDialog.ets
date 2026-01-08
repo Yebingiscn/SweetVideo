@@ -57,6 +57,14 @@ export struct VideoDetailDialog {
         ListItem() {
           this.buildDetailItem('外挂字幕：', this.metadata?.external_subtitle_format || '无字幕')
         }.width('100%')
+
+        ListItem() {
+          this.buildDetailItem('循环A点', TimeUtil.convertMSToHHMMSS(this.metadata?.pointA))
+        }.width('100%')
+
+        ListItem() {
+          this.buildDetailItem('循环B点', TimeUtil.convertMSToHHMMSS(this.metadata?.pointB))
+        }.width('100%')
       }.height('auto').width('auto')
       .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring) // 滚动边缘效果

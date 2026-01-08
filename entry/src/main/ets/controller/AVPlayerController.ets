@@ -3,7 +3,6 @@ import { avSession as avSessionManager } from '@kit.AVSessionKit'
 import { IjkMediaPlayer } from '@ohos/ijkplayer'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
 import { fileIo as fs } from '@kit.CoreFileKit'
-import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface'
 import NavigationAddress from '../common/NavigationCommon'
 import VideoInfoUtil from '../utils/VideoInfoUtil'
 import { AudioTrack } from '../interfaces/AudioTrackInterface'
@@ -25,7 +24,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Track avPlayer: media.AVPlayer | undefined = undefined
   avSession: avSessionManager.AVSession | undefined = undefined
   surfaceID: string = ''
-  @Track nowPlaying: VideoMetadataFromPlayer | undefined = undefined
+  @Track nowPlaying: VideoMetadata | undefined = undefined
   @Track playing: boolean = false
   @Track speed: number = 1.0
   @Track playTime: number = 0
@@ -70,7 +69,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
 
-  async setExternalSubtitle(now_playing: VideoMetadataFromPlayer) {
+  async setExternalSubtitle(now_playing: VideoMetadata) {
     if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, now_playing.date!)) {
       try {
         let subtitle = fs.openSync(PathUtils.subtitlePath! + now_playing.date, fs.OpenMode.READ_ONLY)

@@ -20,7 +20,6 @@ import AVSessionUtil from '../../utils/AVSessionUtil'
 import { AVCastPicker, avSession as avSessionManager } from '@kit.AVSessionKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
-import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { PlayStatus } from '../../common/enum/PlayStatus'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
@@ -59,7 +58,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @State replayVisible: Visibility = Visibility.None
   @State volume: number = 1.0
   @State playSpeed: number = 1
-  now_playing: VideoMetadataFromPlayer | undefined = undefined
+  now_playing: VideoMetadata | undefined = undefined
   @State video_url: string = ''
   @State total_time: number = 0
   @State currentSpeedIndex: number = 0
@@ -342,7 +341,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       const playerParams: PlayerParams =
         this.pathStack.getParamByName(NavigationAddress.FFMPEG_PLAYER)[0] as PlayerParams
       try {
-        this.now_playing = playerParams.metadata as VideoMetadataFromPlayer
+        this.now_playing = playerParams.metadata as VideoMetadata
         this.video_meta_data = playerParams.metadata_list as VideoMetadata[]
       } catch (e) {
         console.error(e)
