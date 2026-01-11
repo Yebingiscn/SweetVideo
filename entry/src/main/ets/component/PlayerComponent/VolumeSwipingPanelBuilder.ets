@@ -22,7 +22,7 @@ export function VolumeSwipingPanelBuilder(volumeValue: VolumeValue) {
     }).visibility(Visibility.None)
     if (volumeValue.onSwipingVoice) {
       Column() {
-        SymbolGlyph(getVoiceIcon(volumeValue.videoVolume))
+        SymbolGlyph(getVoiceIcon(volumeValue.videoVolumeShow))
           .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
           .fontColor(['#f0f0f0'])
         Slider({

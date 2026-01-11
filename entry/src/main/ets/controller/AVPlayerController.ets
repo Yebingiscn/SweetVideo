@@ -47,8 +47,10 @@ export class AVPlayerController implements PlayerControllerInterface {
     let volume_list = await VideoOperateUtil.getVolume(this.audioVolumeManager, groupId)
     this.volume = volume_list.get('volume')!
     this.volumeActually = this.volume
+    let swipingVoiceTimer: number | null = null
     try {
       this.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
+        clearTimeout(swipingVoiceTimer)
         let changeVolumeByVolumeButton = false
         if (!this.onSwipingVoice) { // 这里复用手势音量调节提示
           this.onSwipingVoice = !this.onSwipingVoice
@@ -56,7 +58,7 @@ export class AVPlayerController implements PlayerControllerInterface {
         }
         this.volumeActually = volumeEvent.volume
         ToolsUtil.startVibration()
-        setTimeout(() => {
+        swipingVoiceTimer = setTimeout(() => {
           if (changeVolumeByVolumeButton) {
             this.onSwipingVoice = !this.onSwipingVoice
           }
