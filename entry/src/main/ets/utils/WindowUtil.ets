@@ -1,6 +1,6 @@
 import { window } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
-import { BusinessError, settings } from '@kit.BasicServicesKit'
+import { BusinessError, deviceInfo, settings } from '@kit.BasicServicesKit'
 import { PathUtils } from './PathUtils'
 import { Pc, SafeHeight } from './ObservedUtil'
 
@@ -244,6 +244,10 @@ export class WindowUtil {
           Pc.pcMode = true
           break
         case 'false':
+          if (deviceInfo.deviceType === '2in1') {
+            Pc.pcMode = true
+            break
+          }
           Pc.pcMode = false
           break
       }
