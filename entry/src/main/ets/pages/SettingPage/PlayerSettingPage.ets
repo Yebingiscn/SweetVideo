@@ -91,7 +91,7 @@ export struct PlayerSettingPage {
             enable: Setting.jumpToHistoryTimeStatus,
             onChange: (checked: boolean) => {
               Setting.jumpToHistoryTimeStatus = checked
-              Preferences.saveJumpToHistoryTime(PathUtils.appContext!, Setting.showFrameImgStatus)
+              Preferences.saveJumpToHistoryTime(PathUtils.appContext!, Setting.jumpToHistoryTimeStatus)
             }
           })
         }
