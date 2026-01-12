@@ -43,7 +43,8 @@
             ],
             "actions": [
               "action.system.home",
-              "ohos.want.action.sendData"
+              "ohos.want.action.sendData",
+              "ohos.want.action.viewData"
             ],
             "uris": [
               {

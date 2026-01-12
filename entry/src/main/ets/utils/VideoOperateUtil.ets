@@ -4,7 +4,6 @@ import { audio } from '@kit.AudioKit'
 import { BusinessError, settings } from '@kit.BasicServicesKit'
 import { media } from '@kit.MediaKit'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
-import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface'
 import SelectFileUtil from './SelectFileUtil'
 import { AudioTrack } from '../interfaces/AudioTrackInterface'
 import { common } from '@kit.AbilityKit'
@@ -25,6 +24,8 @@ import { fileIo, fileUri, fileIo as fs } from '@kit.CoreFileKit'
 import { RepeatMode } from '../common/enum/RepeatMode'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { image } from '@kit.ImageKit'
+
+const TAG = 'VideoOperateUtil'
 
 // 视频操作类
 export default class VideoOperateUtil {
@@ -205,7 +206,7 @@ export default class VideoOperateUtil {
   }
 
   // 保存视频播放进度
-  static saveVideoTime(play_time: number, now_playing: VideoMetadataFromPlayer,
+  static saveVideoTime(play_time: number, now_playing: VideoMetadata,
     video_meta_data: VideoMetadata[], context: Context) {
     const recentPlay = Preferences.getRecentPlayState(context) // 判断最近播放开关是否开启
     if (recentPlay && !PrivacySpaceUtil.getPrivacyMode() &&
@@ -216,26 +217,34 @@ export default class VideoOperateUtil {
       }
     }
     // 保存文件数据
-    SelectFileUtil.saveData(context, now_playing!, play_time)
+    SelectFileUtil.saveData(context, now_playing!, { playTime: play_time })
   }
 
   // 保存视频片头时间
-  static saveVideoStartTime(startTime: number, nowPlaying: VideoMetadataFromPlayer, context: Context) {
-    SelectFileUtil.saveData(context, nowPlaying, undefined, undefined, startTime, undefined)
+  static saveVideoStartTime(startTime: number, nowPlaying: VideoMetadata, context: Context) {
+    SelectFileUtil.saveData(context, nowPlaying, { startTime: startTime })
   }
 
   // 保存视频片尾时间
-  static saveVideoEndTime(endTime: number, nowPlaying: VideoMetadataFromPlayer, context: Context) {
-    SelectFileUtil.saveData(context, nowPlaying, undefined, undefined, undefined, endTime)
+  static saveVideoEndTime(endTime: number, nowPlaying: VideoMetadata, context: Context) {
+    SelectFileUtil.saveData(context, nowPlaying, { endTime: endTime })
   }
 
   // 保存音视频宽高信息
-  static saveVideoWeightAndHeight(context: Context, now_playing: VideoMetadataFromPlayer) {
-    SelectFileUtil.saveData(context, now_playing!, undefined, now_playing.size)
+  static saveVideoWeightAndHeight(context: Context, now_playing: VideoMetadata) {
+    SelectFileUtil.saveData(context, now_playing!, { size: now_playing.size })
   }
 
-  static saveVideoTotalTime(context: Context, now_playing: VideoMetadataFromPlayer) {
-    SelectFileUtil.saveData(context, now_playing!, undefined, undefined, undefined, undefined, now_playing.time)
+  static saveVideoTotalTime(context: Context, now_playing: VideoMetadata) {
+    SelectFileUtil.saveData(context, now_playing!, { totalTime: now_playing.time })
+  }
+
+  static saveVideoPointA(context: Context, now_playing: VideoMetadata, pointA?: number) {
+    SelectFileUtil.saveData(context, now_playing!, { pointA: pointA })
+  }
+
+  static saveVideoPointB(context: Context, now_playing: VideoMetadata, pointB?: number) {
+    SelectFileUtil.saveData(context, now_playing!, { pointB: pointB })
   }
 
   static saveLastPlayVideoIndex(list: VideoMetadata[], date: string | undefined) {
@@ -258,7 +267,7 @@ export default class VideoOperateUtil {
         let avFileDescriptor: media.AVFileDescriptor = { fd: VideoOperateUtil.nowPlayingFile.fd }
         VideoOperateUtil.avImageGenerator.fdSrc = avFileDescriptor
       } catch (error) {
-        ToolsUtil.addLogger('getFrameTimePreprocess error' + error, true, undefined, 'VideoOperateUtil')
+        ToolsUtil.addLogger('getFrameTimePreprocess error' + error, true, undefined, TAG)
       }
     }
   }
@@ -266,7 +275,7 @@ export default class VideoOperateUtil {
   static async releaseAVImageGenerator() {
     if (Setting.showFrameImgStatus) {
       VideoOperateUtil.avImageGenerator?.release()?.catch(() => {
-        ToolsUtil.addLogger('releaseAVImageGenerator error', true, undefined, 'VideoOperateUtil')
+        ToolsUtil.addLogger('releaseAVImageGenerator error', true, undefined, TAG)
       })
       VideoOperateUtil.nowPlayingFile = undefined
       VideoOperateUtil.updatePix = false
@@ -277,7 +286,7 @@ export default class VideoOperateUtil {
     if (Setting.showFrameImgStatus) {
       return await VideoOperateUtil.avImageGenerator?.fetchFrameByTime(time * 1000,
         media.AVImageQueryOptions.AV_IMAGE_QUERY_CLOSEST, { width: 100, height: 100 })?.catch(() => {
-        ToolsUtil.addLogger('fetchFrameByTime error', true, undefined, 'VideoOperateUtil')
+        ToolsUtil.addLogger('fetchFrameByTime error', true, undefined, TAG)
       })
     }
   }
@@ -346,7 +355,7 @@ export default class VideoOperateUtil {
     return [finalWidth, finalHeight]
   }
 
-  static getVideoStartPlayTimeMode(nowPlaying: VideoMetadataFromPlayer): number {
+  static getVideoStartPlayTimeMode(nowPlaying: VideoMetadata): number {
     // 先判断 nowPlaying 是否有效
     if (!nowPlaying) {
       return -1

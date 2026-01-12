@@ -105,7 +105,9 @@ export default class VideoInfoUtil {
       hdr_type: hdr_type,
       start_time: 0,
       end_time: 0,
-      external_subtitle_format: ''
+      external_subtitle_format: '',
+      pointA: 0,
+      pointB: 0
     }
     VideoInfoUtil.getVideoCover(sandbox_path, date, uri, targetVideo.size, parseInt(duration))
     return targetVideo

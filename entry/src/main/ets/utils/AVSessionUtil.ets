@@ -1,7 +1,6 @@
 import { AVCastPickerState, avSession, avSession as avSessionManager } from '@kit.AVSessionKit'
 import { image } from '@kit.ImageKit'
 import { AvSessionState } from '../interfaces/AvSessionStateInterface'
-import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import PermissionUtil from './PermissionUtil'
 import { media } from '@kit.MediaKit'
@@ -10,6 +9,7 @@ import VideoInfoUtil from './VideoInfoUtil'
 import { PathUtils } from './PathUtils'
 import { BusinessError, systemDateTime } from '@kit.BasicServicesKit'
 import { RepeatMode } from '../common/enum/RepeatMode'
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 
 // 播控中心设置类
 export default class AVSessionUtil {
@@ -86,7 +86,7 @@ export default class AVSessionUtil {
     }
   }
 
-  static async setSessionInfo(metadata: VideoMetadataFromPlayer) {
+  static async setSessionInfo(metadata: VideoMetadata) {
     try {
       AVSessionUtil.imageSource = image.createImageSource(PathUtils.coverPath + metadata.date)
       let decodingOptions: image.DecodingOptions = {
@@ -138,7 +138,7 @@ export default class AVSessionUtil {
     AVSessionUtil.imageSource?.release()
   }
 
-  static async getAVCastController(now_playing: VideoMetadataFromPlayer) {
+  static async getAVCastController(now_playing: VideoMetadata) {
     // 如支持投播，可使用下面接口监听设备连接状态的变化
     try {
       await AVSessionUtil.avSession?.setExtras({
@@ -174,7 +174,7 @@ export default class AVSessionUtil {
     }
   }
 
-  static async playItem(now_playing: VideoMetadataFromPlayer) {
+  static async playItem(now_playing: VideoMetadata) {
     await PermissionUtil.activatePermission(now_playing?.uri)
     try {
       const file = fs.openSync(now_playing?.uri)

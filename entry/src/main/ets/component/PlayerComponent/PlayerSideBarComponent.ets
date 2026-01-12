@@ -1,4 +1,3 @@
-import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { fileUri } from '@kit.CoreFileKit'
 import { PathUtils } from '../../utils/PathUtils'
@@ -13,15 +12,15 @@ import { SafeHeight } from '../../utils/ObservedUtil'
 export struct PlayerSideBarComponent {
   @State playerSideBarSource: PlayerSideBarSource = new PlayerSideBarSource([])
   @Link @Watch('onSideBarVisibleChange') sideBarStatusTmp: Visibility
-  @State video_meta_data: VideoMetadata[] = []
-  @Prop now_playing: VideoMetadataFromPlayer | undefined
+  @State videoMetadata: VideoMetadata[] = []
+  @Prop nowPlaying: VideoMetadata | undefined
   @Link sideBarStatus: boolean
   private listScroller: Scroller = new Scroller()
   onItemClick = (_item: VideoMetadata) => {
   }
 
   aboutToAppear(): void {
-    this.playerSideBarSource = new PlayerSideBarSource(this.video_meta_data)
+    this.playerSideBarSource = new PlayerSideBarSource(this.videoMetadata)
   }
 
   build() {
@@ -30,7 +29,7 @@ export struct PlayerSideBarComponent {
         ListItem() {
           VideoItemBuilder({
             item: item,
-            now_playing: this.now_playing
+            nowPlaying: this.nowPlaying
           })
         }
         .padding({ top: index === 0 ? 10 : 0 })
@@ -39,7 +38,7 @@ export struct PlayerSideBarComponent {
           if (this.sideBarStatusTmp === Visibility.Hidden) {
             return
           }
-          this.now_playing?.date === item.date ? this.closeSideBar() : this.onItemClick(item)
+          this.nowPlaying?.date === item.date ? this.closeSideBar() : this.onItemClick(item)
         })
         .width('100%')
         .height('auto')
@@ -75,8 +74,8 @@ export struct PlayerSideBarComponent {
   onSideBarVisibleChange() {
     if (this.sideBarStatusTmp === Visibility.Visible) {
       setTimeout(() => {
-        const targetIndex = this.video_meta_data.findIndex(
-          item => item?.date === this.now_playing?.date
+        const targetIndex = this.videoMetadata.findIndex(
+          item => item?.date === this.nowPlaying?.date
         )
         if (targetIndex >= 0) {
           this.listScroller.scrollToIndex(targetIndex, false)
@@ -95,7 +94,7 @@ export struct PlayerSideBarComponent {
 
 class VideoItemValue {
   item: VideoMetadata | undefined = undefined
-  now_playing?: VideoMetadataFromPlayer | undefined = undefined
+  nowPlaying?: VideoMetadata | undefined = undefined
   longPressPreview?: boolean = false
 }
 
@@ -114,11 +113,11 @@ export function VideoItemBuilder(videoItemValue: VideoItemValue) {
           .width('100%')
           .margin({ left: 5 })
           .wordBreak(WordBreak.BREAK_ALL)
-          .fontColor(videoItemValue.now_playing && videoItemValue.now_playing?.date === videoItemValue.item?.date ?
+          .fontColor(videoItemValue.nowPlaying && videoItemValue.nowPlaying?.date === videoItemValue.item?.date ?
             $r('sys.color.white') : $r('app.color.text_color'))
       }
 
-      VideoInfoBuilder({ item: videoItemValue.item, showProgress: false, nowPlaying: videoItemValue.now_playing })
+      VideoInfoBuilder({ item: videoItemValue.item, showProgress: false, nowPlaying: videoItemValue.nowPlaying })
     }.alignItems(HorizontalAlign.Start)
     .padding({ left: 15, right: 15 })
     .layoutWeight(1)
@@ -126,7 +125,7 @@ export function VideoItemBuilder(videoItemValue: VideoItemValue) {
   .backgroundColor(
     videoItemValue.longPressPreview
       ? $r('app.color.start_window_background_blur')
-      : videoItemValue.now_playing && videoItemValue.now_playing?.date === videoItemValue.item?.date
+      : videoItemValue.nowPlaying && videoItemValue.nowPlaying?.date === videoItemValue.item?.date
       ? $r('app.color.main_color')
       : $r('app.color.start_window_background')
   )

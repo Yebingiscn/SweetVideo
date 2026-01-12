@@ -5,8 +5,7 @@ import VideoUtil from './VideoInfoUtil'
 import VideoInfoUtil from './VideoInfoUtil'
 import { BusinessError, systemDateTime } from '@kit.BasicServicesKit'
 import { media } from '@kit.MediaKit'
-import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface'
-import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
+import { SaveOptions, VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import Preferences from '../database/Preferences'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
 import { FileFolder } from '../interfaces/FileFolderInterface'
@@ -20,6 +19,8 @@ import PermissionUtil from './PermissionUtil'
 import { VideoSource } from '../common/enum/VideoSource'
 import SubtitleUtil from './SubtitleUtil'
 import { salmonLogger } from 'salmonlogger'
+
+const TAG = 'SelectFileUtil'
 
 // 获取视频类
 export default class SelectFileUtil {
@@ -186,57 +187,62 @@ export default class SelectFileUtil {
       == format ? title : title + '.' + format]
   }
 
-  static saveData(context: Context, target_data: VideoMetadataFromPlayer, play_time?: number, size?: number[],
-    start_time?: number, end_time?: number, total_time?: number) {
-    ToolsUtil.addLogger('开始保存播放数据', false, undefined, 'SelectFileUtil')
+  static saveData(context: Context, target_data: VideoMetadata, options: SaveOptions) {
+    ToolsUtil.addLogger('开始保存播放数据', false, undefined, TAG)
     let save_time: number = 0
-    if (target_data.time === 0 && total_time) {
-      target_data.time = total_time
+    if (target_data.time === 0 && options.totalTime) {
+      target_data.time = options.totalTime
     }
-    if (play_time && !start_time && !end_time && !total_time) {
+    if (options.playTime) {
       const totalDuration = target_data?.time
       const endTime = target_data?.end_time
       let shouldMarkAsWatched = false
-      if (totalDuration && play_time > totalDuration * 0.95) {
+      if (totalDuration && options.playTime > totalDuration * 0.95) {
         shouldMarkAsWatched = true
-        ToolsUtil.addLogger('播放进度超过95%，标记为已观看', false, undefined, 'SelectFileUtil')
-      } else if (endTime > 0 && play_time >= endTime) {
+        ToolsUtil.addLogger('播放进度超过95%，标记为已观看', false, undefined, TAG)
+      } else if (endTime > 0 && options.playTime >= endTime) {
         shouldMarkAsWatched = true
-        ToolsUtil.addLogger('播放至指定结束时间，标记为已观看', false, undefined, 'SelectFileUtil')
+        ToolsUtil.addLogger('播放至指定结束时间，标记为已观看', false, undefined, TAG)
       }
-      save_time = shouldMarkAsWatched ? totalDuration : play_time
+      save_time = shouldMarkAsWatched ? totalDuration : options.playTime
     }
     const updateVideo = (video: VideoMetadata) => {
-      if (play_time !== undefined) {
+      if (options.playTime) {
         video.last_play = save_time
       }
-      if (start_time !== undefined) {
-        video.start_time = start_time
+      if (options.startTime) {
+        video.start_time = options.startTime
       }
-      if (end_time !== undefined) {
-        video.end_time = end_time
+      if (options.endTime) {
+        video.end_time = options.endTime
       }
-      if (size?.[0] && video.size[0] === 0) {
-        video.size = size
+      if (options.size?.[0] && video.size[0] === 0) {
+        video.size = options.size
       }
-      if (total_time && video.time === 0) {
-        video.time = total_time
+      if (options.totalTime && video.time === 0) {
+        video.time = options.totalTime
+      }
+      if (options.pointA) {
+        video.pointA = options.pointA
+      }
+      if (options.pointB) {
+        video.pointB = options.pointB
       }
     }
     if (PrivacySpaceUtil.getPrivacyMode()) {
-      ToolsUtil.addLogger('当前处于隐私空间，更新隐私空间数据', false, undefined, 'SelectFileUtil')
+      ToolsUtil.addLogger('当前处于隐私空间，更新隐私空间数据', false, undefined, TAG)
       const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(context)
       const targetVideoMetaDataEncryption = videoMetaDataEncryption.find(v => v.date === target_data.date)
       if (targetVideoMetaDataEncryption) {
         updateVideo(targetVideoMetaDataEncryption)
         Preferences.saveVideoMetaDataEncryption(context, videoMetaDataEncryption)
-        ToolsUtil.addLogger('隐私空间数据更新完成', false, undefined, 'SelectFileUtil')
+        ToolsUtil.addLogger('隐私空间数据更新完成', false, undefined, TAG)
       } else {
-        ToolsUtil.addLogger('未在隐私空间中找到目标视频数据', true, undefined, 'SelectFileUtil')
+        ToolsUtil.addLogger('未在隐私空间中找到目标视频数据', true, undefined, TAG)
       }
       return
     }
-    ToolsUtil.addLogger('更新文件夹中的视频数据', false, undefined, 'SelectFileUtil')
+    ToolsUtil.addLogger('更新文件夹中的视频数据', false, undefined, TAG)
     const folders = Preferences.getFileFolder(context)
     for (const folder of folders) {
       const videoMetaData: VideoMetadata[] = folder.video_list
@@ -246,15 +252,15 @@ export default class SelectFileUtil {
       }
     }
     Preferences.saveFileFolder(context, folders)
-    ToolsUtil.addLogger('文件夹数据更新完成', false, undefined, 'SelectFileUtil')
-    ToolsUtil.addLogger('更新最近播放列表数据', false, undefined, 'SelectFileUtil')
+    ToolsUtil.addLogger('文件夹数据更新完成', false, undefined, TAG)
+    ToolsUtil.addLogger('更新最近播放列表数据', false, undefined, TAG)
     const recent_play_deque = Preferences.getRecentPlay(context)
     const recentTargetVideoMetaData = recent_play_deque.find(video => video.date === target_data.date)
     if (recentTargetVideoMetaData) {
       updateVideo(recentTargetVideoMetaData)
     }
     Preferences.saveRecentPlay(context, recent_play_deque)
-    ToolsUtil.addLogger('最近播放列表更新完成', false, undefined, 'SelectFileUtil')
+    ToolsUtil.addLogger('最近播放列表更新完成', false, undefined, TAG)
   }
 
   static deleteVideo(videoMetaData: VideoMetadata) {
@@ -619,7 +625,7 @@ export default class SelectFileUtil {
       const ext = filePath.slice(lastDotIndex + 1).toLowerCase()
       return VIDEO_EXTENSIONS.has(ext)
     }
-    const dirPool = new ConcurrencyPool(24) // 目录遍历并发控制
+    const dirPool = new ConcurrencyPool(48) // 目录遍历并发控制
     const filePaths: string[] = []
     const processedPaths = new Set<string>() // 避免重复处理
 

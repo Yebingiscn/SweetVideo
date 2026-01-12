@@ -3,11 +3,10 @@ import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { media } from '@kit.MediaKit'
 import TimeUtil from '../../utils/TimeUtil'
-import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface'
 
 class VideoInfoBuilderParams {
   item: VideoMetadata | undefined = undefined
-  nowPlaying?: VideoMetadataFromPlayer | undefined = undefined
+  nowPlaying?: VideoMetadata | undefined = undefined
   showProgress: boolean = true
 }
 

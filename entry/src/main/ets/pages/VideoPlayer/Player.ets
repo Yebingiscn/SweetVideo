@@ -8,7 +8,6 @@ import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { audio } from '@kit.AudioKit'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import RecentPlayUtil from '../../utils/RecentPlayUtil'
-import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import Preferences from '../../database/Preferences'
 import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil'
@@ -73,6 +72,7 @@ export struct Player { // 播放页
   @Consume('pathStack') pathStack: NavPathStack
   @State pixelMap: PixelMap | null = null
   @State exitVideoTime: number = 0
+  @State abCircleStatus: boolean = false
   private autoHideTimeout: boolean = false
 
   async aboutToAppear(): Promise<void> {
@@ -171,7 +171,7 @@ export struct Player { // 播放页
             this.lockVisibility = false
             this.showControl = false
             this.autoHideTimeout = false
-          }, 8000)
+          }, 12000)
         }
       }
       const endTime = this.player.nowPlaying?.end_time
@@ -186,6 +186,16 @@ export struct Player { // 播放页
       }
       if (this.player.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
         this.player.subtitle = SubtitleUtil.getSubtitlesAtTime(duration)
+      }
+      if (this.abCircleStatus && this.player.playing) {
+        if (this.player.nowPlaying?.pointA !== undefined && this.player.nowPlaying?.pointB !== undefined) {
+          const pointA = this.player.nowPlaying.pointA
+          const pointB = this.player.nowPlaying.pointB
+          const playTime = this.player.playTime
+          if (playTime < pointA || playTime > pointB) {
+            this.player.seekTime(pointA)
+          }
+        }
       }
     })
 
@@ -411,7 +421,7 @@ export struct Player { // 播放页
     ToolsUtil.addLogger("重置播放器完成", false, this.pathStack)
     await this.player.ijkPlayerStop()
     ToolsUtil.addLogger("停止ijk播放器完成", false, this.pathStack)
-    this.player.nowPlaying = item as VideoMetadataFromPlayer
+    this.player.nowPlaying = item as VideoMetadata
     ToolsUtil.addLogger("设置当前播放视频完成", false, this.pathStack)
     this.getData()
     ToolsUtil.addLogger("获取播放数据完成", false, this.pathStack)
@@ -481,8 +491,8 @@ export struct Player { // 播放页
       SideBarContainer(SideBarContainerType.Overlay) {
         PlayerSideBarComponent({
           sideBarStatusTmp: this.sideBarStatusTmp,
-          video_meta_data: this.player.video_meta_data,
-          now_playing: this.player.nowPlaying,
+          videoMetadata: this.player.video_meta_data,
+          nowPlaying: this.player.nowPlaying,
           sideBarStatus: this.sideBarStatus,
           onItemClick: (item: VideoMetadata) => {
             this.playChooseVideo(item)
@@ -779,7 +789,7 @@ export struct Player { // 播放页
     .onReady(() => {
       const playerParams: PlayerParams = this.pathStack.getParamByName(NavigationAddress.AV_PLAYER)[0] as PlayerParams
       try {
-        this.player.nowPlaying = playerParams.metadata as VideoMetadataFromPlayer
+        this.player.nowPlaying = playerParams.metadata as VideoMetadata
         this.player.video_meta_data = playerParams.metadata_list as VideoMetadata[]
       } catch (e) {
         ToolsUtil.addLogger(e, true, this.pathStack)
@@ -1001,6 +1011,7 @@ export struct Player { // 播放页
       angle: this.angle,
       repeatMode: this.repeatMode,
       exitVideoTime: this.exitVideoTime,
+      abCircleStatus: this.abCircleStatus,
       forward_80_s: (time: number) => {
         ToolsUtil.addLogger(`执行快进80秒操作，目标时间：${time}`, false, this.pathStack)
         this.player.seekTime(time)
@@ -1030,7 +1041,19 @@ export struct Player { // 播放页
       },
       captureScreen: () => {
         VideoOperateUtil.saveCaptureScreenToAlbum(this.player.surfaceID)
-      }
+      },
+      updateStarTime: (time: number) => {
+        this.player.nowPlaying!.start_time = time
+      },
+      updateEndTime: (time: number) => {
+        this.player.nowPlaying!.end_time = time
+      },
+      updatePointATime: (time: number) => {
+        this.player.nowPlaying!.pointA = time
+      },
+      updatePointBTime: (time: number) => {
+        this.player.nowPlaying!.pointB = time
+      },
     })
   }
 

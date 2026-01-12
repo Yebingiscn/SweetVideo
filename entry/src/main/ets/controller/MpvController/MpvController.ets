@@ -2,14 +2,14 @@ import { PlayerControllerInterface } from '../PlayerControllerFactory';
 import * as mpv from 'libmpvnative.so';
 import { Setting } from '../../utils/ObservedUtil';
 import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode';
-import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface';
+import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
 
 @Observed
 export class MPVController implements PlayerControllerInterface {
   mpvId: number | null = null
   @Track playTime: number = 0
   @Track playing: boolean = false
-  @Track nowPlaying: VideoMetadataFromPlayer | undefined = undefined
+  @Track nowPlaying: VideoMetadata | undefined = undefined
 
   create(): void {
     this.mpvId = mpv.create()

@@ -87,7 +87,9 @@ export default class WantProcess {
             hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
             start_time: 0,
             end_time: 0,
-            external_subtitle_format: ''
+            external_subtitle_format: '',
+            pointA: 0,
+            pointB: 0
           }
           // 获取默认播放器
           let url = WantProcess.getPlayer(context, targetVideo)

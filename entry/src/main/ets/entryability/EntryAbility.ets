@@ -6,14 +6,12 @@ import { RedPlayerConfigBuilder, RedPlayerInitManager, RedPlayerPreload } from '
 import LoggerImpl from '../controller/RedPlayerController/LoggerImpl';
 import { PathUtils } from '../utils/PathUtils';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
-import { VideoMetadataFromPlayer } from '../interfaces/VideoMetadataFromPlayerInterface';
 import VideoOperateUtil from '../utils/VideoOperateUtil';
 import { BusinessError } from '@ohos.base';
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
 import Preferences from '../database/Preferences';
 import ToolsUtil from '../utils/ToolsUtil';
 import { Pc, Privacy } from '../utils/ObservedUtil';
-import { salmonLogger } from 'salmonlogger';
 
 export default class EntryAbility extends UIAbility {
   watcher: hiAppEvent.Watcher | undefined = undefined
@@ -123,11 +121,6 @@ export default class EntryAbility extends UIAbility {
     } catch (exception) {
       console.error(`Failed to set default density enabled. Cause code: ${exception.code}, message: ${exception.message}`);
     }
-    try {
-      salmonLogger.addLog('sweet_video', 'onWindowStageCreate success', false)
-    } catch (error) {
-      console.error('test error' + error)
-    }
     // 进入启动页
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
@@ -180,9 +173,9 @@ export default class EntryAbility extends UIAbility {
   onWindowStageWillDestroy(): void {
     // 杀掉应用时保存播放记录
     const nowPlayingData =
-      AppStorage.get('nowPlayingData') as (number | VideoMetadataFromPlayer | VideoMetadata[])[];
+      AppStorage.get('nowPlayingData') as (number | VideoMetadata | VideoMetadata[])[];
     if (nowPlayingData) {
-      VideoOperateUtil.saveVideoTime(nowPlayingData[0] as number, nowPlayingData[1] as VideoMetadataFromPlayer,
+      VideoOperateUtil.saveVideoTime(nowPlayingData[0] as number, nowPlayingData[1] as VideoMetadata,
         nowPlayingData[2] as VideoMetadata[], PathUtils.appContext!)
     }
   }

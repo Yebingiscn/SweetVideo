@@ -1,6 +1,5 @@
 import { window } from '@kit.ArkUI'
 import { PlayerCoreType, RedPlayerXComponentController, SourceType } from '@rte-xhs/redplayer'
-import { VideoMetadataFromPlayer } from '../../interfaces/VideoMetadataFromPlayerInterface'
 import PermissionUtil from '../../utils/PermissionUtil'
 import RedPlayerControllerUtil from '../../controller/RedPlayerController/RedPlayerControllerUtil'
 import { fileIo as fs } from '@kit.CoreFileKit'
@@ -42,7 +41,7 @@ export struct RedPlayer { // 红薯播放器页
   @State screen_width: number = 0
   @State screen_height: number = 0
   @State last_play_time: number = 0
-  now_playing: VideoMetadataFromPlayer | undefined = undefined
+  now_playing: VideoMetadata | undefined = undefined
   @State redPlayerStateHolder: RedPlayerStateHolder | null = null
   @State play_time: number = 0
   @State onSwiping: boolean = false
@@ -332,7 +331,7 @@ export struct RedPlayer { // 红薯播放器页
     .onReady(() => {
       const playerParams: PlayerParams = this.pathStack.getParamByName(NavigationAddress.RED_PLAYER)[0] as PlayerParams
       try {
-        this.now_playing = playerParams.metadata as VideoMetadataFromPlayer
+        this.now_playing = playerParams.metadata as VideoMetadata
         this.video_meta_data = playerParams.metadata_list as VideoMetadata[]
       } catch (e) {
         console.error(e)
