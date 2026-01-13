@@ -15,6 +15,7 @@ import { salmonLogger } from 'salmonlogger'
 @Component
 export struct SettingsPage { //设置页
   @State passwd: string = 'passwd'
+  @Consume('pathStack') pathStack: NavPathStack
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
     builder: EditPasswordDialog({
       confirm: (passwd: string | undefined) => {
@@ -28,7 +29,6 @@ export struct SettingsPage { //设置页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @Consume('pathStack') pathStack: NavPathStack
   controller: MarkdownController = new MarkdownController()
   private listDisplayModeList: ResourceStr[] = ['卡片', '列表', '网格']
 
