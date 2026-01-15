@@ -30,7 +30,9 @@ export default class VideoInfoUtil {
   // 屏幕比例放大列表
   public static screenExtendList: Array<SelectOption> = [//屏幕扩展
     { value: '原始比例' },
-    { value: '填满屏幕' },
+    { value: '拉伸全屏' },
+    { value: '按宽度全屏' },
+    { value: '按高度全屏' },
     { value: '16:9' },
     { value: '4:3' },
     { value: '等比放大 110%' },

@@ -39,8 +39,8 @@ export default class VideoOperateUtil {
   public static screenBrightnessTmp: number = 0
   public static lastSpeed: number = 1
   public static lastPlayTime: number = 0
-  public static aspectRatioMap = new Map([[VideoInfoUtil.screenExtendMap[2], 16 / 9],
-    [VideoInfoUtil.screenExtendMap[3], 4 / 3]])
+  public static aspectRatioMap = new Map([[VideoInfoUtil.screenExtendMap[4], 16 / 9],
+    [VideoInfoUtil.screenExtendMap[5], 4 / 3]])
   public static config: ImageAnalyzerConfig = {
     types: [ImageAnalyzerType.SUBJECT, ImageAnalyzerType.TEXT]
   }
