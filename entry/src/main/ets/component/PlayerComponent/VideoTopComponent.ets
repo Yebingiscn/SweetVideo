@@ -103,6 +103,14 @@ export struct VideoTopComponent {
         this.playAreaHeight = this.screenHeight
         this.playAreaWidth = this.screenWidth
         break
+      case VideoInfoUtil.screenExtendMap[2]: // 适应宽度
+        this.playAreaWidth = this.screenWidth
+        this.playAreaHeight = (VideoInfoUtil.play_area_height / VideoInfoUtil.play_area_width) * this.screenWidth
+        break
+      case VideoInfoUtil.screenExtendMap[3]: // 适应高度
+        this.playAreaHeight = this.screenHeight
+        this.playAreaWidth = (VideoInfoUtil.play_area_width / VideoInfoUtil.play_area_height) * this.screenHeight
+        break
       default:
         const scale = text ? VideoInfoUtil.scale_factors.get(text) : undefined
         if (scale) {
