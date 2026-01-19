@@ -39,8 +39,8 @@ export function FastForwardPanelBuilder(fastForwardInfo: FastForwardInfo) {
     x: 0,
     y: (fastForwardInfo.location === -160 || fastForwardInfo.location === -80) ?
       fastForwardInfo.location :
-      (fastForwardInfo.location !== VideoInfoUtil.play_area_height && VideoInfoUtil.play_area_height !== 0 ?
-        0 - VideoInfoUtil.play_area_height / 2 + 20 :
+      (fastForwardInfo.location !== VideoInfoUtil.playAreaHeight && VideoInfoUtil.playAreaHeight !== 0 ?
+        0 - VideoInfoUtil.playAreaHeight / 2 + 20 :
         0 - fastForwardInfo.location / 2 + 20)
   })
   .borderRadius(16) // 胶囊形状背景

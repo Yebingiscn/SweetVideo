@@ -35,7 +35,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Track onSwipingVoice: boolean = false
   @Track subtitleSelected: SubtitleMode = SubtitleMode.INNER_SUBTITLE
   @Track subtitle: string = ''
-  @Track video_meta_data: VideoMetadata[] = []
+  @Track videoMetaDataList: VideoMetadata[] = []
   mIjkMediaPlayer: IjkMediaPlayer | null = null
   audioVolumeManager: audio.AudioVolumeManager | null = null
   public isListenVideo: boolean = false
@@ -194,30 +194,30 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   playNextVideo(repeatMode: RepeatMode): VideoMetadata | undefined {
-    if (this.video_meta_data.length === 0 || this.playTime <= 0) {
+    if (this.videoMetaDataList.length === 0 || this.playTime <= 0) {
       return undefined
     }
-    let item = SelectFileUtil.getItem(this.video_meta_data, this.nowPlaying?.date || '') as VideoMetadata
+    let item = SelectFileUtil.getItem(this.videoMetaDataList, this.nowPlaying?.date || '') as VideoMetadata
     if (!item) {
-      item = this.video_meta_data[0]
+      item = this.videoMetaDataList[0]
     }
     switch (repeatMode) {
       case RepeatMode.RANDOM:
-        const availableVideos = this.video_meta_data.filter(v => v.date !== item.date)
+        const availableVideos = this.videoMetaDataList.filter(v => v.date !== item.date)
         return availableVideos.length > 0
           ? availableVideos[Math.floor(Math.random() * availableVideos.length)]
           : item
       case RepeatMode.ONCE:
         return undefined
       case RepeatMode.SEQUENCE:
-        if (SelectFileUtil.isLastItem(this.video_meta_data, item.date)) {
+        if (SelectFileUtil.isLastItem(this.videoMetaDataList, item.date)) {
           return undefined
         }
-        return SelectFileUtil.getNextItem(this.video_meta_data, item.date)
+        return SelectFileUtil.getNextItem(this.videoMetaDataList, item.date)
       case RepeatMode.SINGLE:
-        return this.video_meta_data.find(v => v.date === this.nowPlaying?.date)!
+        return this.videoMetaDataList.find(v => v.date === this.nowPlaying?.date)!
       case RepeatMode.LIST:
-        return SelectFileUtil.getNextItem(this.video_meta_data, item.date)
+        return SelectFileUtil.getNextItem(this.videoMetaDataList, item.date)
       default:
         return undefined
     }

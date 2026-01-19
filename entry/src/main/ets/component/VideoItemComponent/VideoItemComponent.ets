@@ -109,6 +109,7 @@ export class VideoListController {
 export struct VideoList {
   @Link searchValue: string
   @Link videoListController: VideoListController
+  @Consume fileFolderSource: FileFolderDataSource
   delConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDeleteDialog({
       confirm: async (deleteType: DeleteType) => {
@@ -150,7 +151,6 @@ export struct VideoList {
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @Consume fileFolderSource: FileFolderDataSource
   @Consume sideBarController: SideBarController
   searchController: SearchController = new SearchController()
   @State longPressPreview: boolean = false
@@ -416,6 +416,12 @@ export struct VideoList {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
           await this.clickItem(videoItem, NavigationAddress.RED_PLAYER)
+        }, VideoOperateUtil.delayJumpToPlayer)
+      })
+      MenuItem({ startIcon: $r("app.media.ffmpeg"), content: 'MPV播放器' }).onClick(() => {
+        setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
+          const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
+          await this.clickItem(videoItem, NavigationAddress.MPV_PLAYER)
         }, VideoOperateUtil.delayJumpToPlayer)
       })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })

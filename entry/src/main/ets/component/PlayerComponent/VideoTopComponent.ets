@@ -87,8 +87,8 @@ export struct VideoTopComponent {
     if (VideoOperateUtil.aspectRatioMap.has(text)) {
       const play_area_size = VideoOperateUtil.setVideoAspectRatio(
         VideoOperateUtil.aspectRatioMap.get(text)!,
-        VideoInfoUtil.play_area_width,
-        VideoInfoUtil.play_area_height
+        VideoInfoUtil.playAreaWidth,
+        VideoInfoUtil.playAreaHeight
       )
       this.playAreaWidth = play_area_size[0]
       this.playAreaHeight = play_area_size[1]
@@ -96,8 +96,8 @@ export struct VideoTopComponent {
     }
     switch (text) {
       case VideoInfoUtil.screenExtendMap[0]:
-        this.playAreaHeight = VideoInfoUtil.play_area_height
-        this.playAreaWidth = VideoInfoUtil.play_area_width
+        this.playAreaHeight = VideoInfoUtil.playAreaHeight
+        this.playAreaWidth = VideoInfoUtil.playAreaWidth
         break
       case VideoInfoUtil.screenExtendMap[1]:
         this.playAreaHeight = this.screenHeight
@@ -105,17 +105,17 @@ export struct VideoTopComponent {
         break
       case VideoInfoUtil.screenExtendMap[2]: // 适应宽度
         this.playAreaWidth = this.screenWidth
-        this.playAreaHeight = (VideoInfoUtil.play_area_height / VideoInfoUtil.play_area_width) * this.screenWidth
+        this.playAreaHeight = (VideoInfoUtil.playAreaHeight / VideoInfoUtil.playAreaWidth) * this.screenWidth
         break
       case VideoInfoUtil.screenExtendMap[3]: // 适应高度
         this.playAreaHeight = this.screenHeight
-        this.playAreaWidth = (VideoInfoUtil.play_area_width / VideoInfoUtil.play_area_height) * this.screenHeight
+        this.playAreaWidth = (VideoInfoUtil.playAreaWidth / VideoInfoUtil.playAreaHeight) * this.screenHeight
         break
       default:
         const scale = text ? VideoInfoUtil.scale_factors.get(text) : undefined
         if (scale) {
-          this.playAreaHeight = scale * VideoInfoUtil.play_area_height
-          this.playAreaWidth = scale * VideoInfoUtil.play_area_width
+          this.playAreaHeight = scale * VideoInfoUtil.playAreaHeight
+          this.playAreaWidth = scale * VideoInfoUtil.playAreaWidth
         }
         break
     }
