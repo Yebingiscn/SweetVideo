@@ -41,9 +41,9 @@ export default class VideoInfoUtil {
     { value: '等比放大 140%' }]
   public static screenExtendMap: string[] = VideoInfoUtil.screenExtendList.map(item => item.value as string)
   // 播放器视频宽度
-  public static play_area_width: number = 0
+  public static playAreaWidth: number = 0
   // 播放器视频高度
-  public static play_area_height: number = 0
+  public static playAreaHeight: number = 0
   private static GB = 1024 * 1024 * 1024
   private static MB = 1024 * 1024
   // 倍速枚举，绑定系统倍速，倍速映射：用户倍速 ↔ 系统枚举
@@ -266,7 +266,7 @@ export default class VideoInfoUtil {
 
   // 保存视频初始长宽，变更后视频长宽后使用
   static saveOriginalVideoWidthAndHeight(play_area_width: number, play_area_height: number) {
-    VideoInfoUtil.play_area_width = play_area_width
-    VideoInfoUtil.play_area_height = play_area_height
+    VideoInfoUtil.playAreaWidth = play_area_width
+    VideoInfoUtil.playAreaHeight = play_area_height
   }
 }

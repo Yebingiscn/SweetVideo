@@ -1,4 +1,5 @@
 import { AVPlayerController } from './AVPlayerController'
+import { MpvController } from './MpvController/MpvController'
 
 // 产品接口 interface
 export interface PlayerControllerInterface {
@@ -27,5 +28,9 @@ export interface PlayerControllerInterface {
 export class PlayerControllerFactory {
   static createAVPlayerController(): AVPlayerController {
     return new AVPlayerController()
+  }
+
+  static createMpvController(): MpvController {
+    return new MpvController()
   }
 }

@@ -50,10 +50,10 @@ export struct Player { // 播放页
   @State lockRotation: boolean = false
   xComponentController: XComponentController = new XComponentController()
   windowClass = WindowUtil.getWindow()
-  @State screen_width: number = 0
-  @State screen_height: number = 0
-  @State play_area_height: number = 0
-  @State play_area_width: number = 0
+  @State screenWidth: number = 0
+  @State screenHeight: number = 0
+  @State playAreaHeight: number = 0
+  @State playAreaWidth: number = 0
   @State onSwiping: boolean = false
   @State onSwipingBrightness: boolean = false
   @State select_text: string | undefined = '原始比例'
@@ -141,28 +141,28 @@ export struct Player { // 播放页
     const nowWidth = this.player.nowPlaying.size[0]
     const nowHeight = this.player.nowPlaying.size[1]
     const aspectRatioNow = nowWidth / nowHeight
-    const screenAspectRatio = this.screen_width / this.screen_height
+    const screenAspectRatio = this.screenWidth / this.screenHeight
     if (aspectRatioNow > screenAspectRatio) {
-      this.play_area_width = this.screen_width
-      this.play_area_height = this.play_area_width * (nowHeight / nowWidth)
+      this.playAreaWidth = this.screenWidth
+      this.playAreaHeight = this.playAreaWidth * (nowHeight / nowWidth)
       ToolsUtil.addLogger("使用屏幕宽度适配计算播放区域", false, this.pathStack)
     } else {
-      this.play_area_height = this.screen_height
-      this.play_area_width = this.play_area_height * (nowWidth / nowHeight)
+      this.playAreaHeight = this.screenHeight
+      this.playAreaWidth = this.playAreaHeight * (nowWidth / nowHeight)
       ToolsUtil.addLogger("使用屏幕高度适配计算播放区域", false, this.pathStack)
     }
     if (this.select_text !== '原始比例') {
       this.select_text = '原始比例'
       ToolsUtil.addLogger("比例模式设置为原始比例", false, this.pathStack)
     }
-    VideoInfoUtil.saveOriginalVideoWidthAndHeight(this.play_area_width, this.play_area_height)
+    VideoInfoUtil.saveOriginalVideoWidthAndHeight(this.playAreaWidth, this.playAreaHeight)
     ToolsUtil.addLogger("setRotation方法执行完成", false, this.pathStack)
   }
 
   async setAVPlayerCallback() {
     this.player.avPlayer?.on('timeUpdate', async (duration) => {
       AppStorage.setOrCreate('nowPlayingData',
-        [this.player.playTime, this.player.nowPlaying!, this.player.video_meta_data])
+        [this.player.playTime, this.player.nowPlaying!, this.player.videoMetaDataList])
       if (this.showControl) {
         if (!this.autoHideTimeout) {
           this.autoHideTimeout = true
@@ -261,10 +261,10 @@ export struct Player { // 播放页
           break
         case 'completed':
           ToolsUtil.addLogger("进入completed状态", false, this.pathStack)
-          VideoOperateUtil.saveVideoTime(this.player.playTime, this.player.nowPlaying!, this.player.video_meta_data,
+          VideoOperateUtil.saveVideoTime(this.player.playTime, this.player.nowPlaying!, this.player.videoMetaDataList,
             PathUtils.appContext!)
           ToolsUtil.addLogger("保存视频播放时间完成", false, this.pathStack)
-          const targetItem = this.player.video_meta_data.find(i => i.date == this.player.nowPlaying?.date)
+          const targetItem = this.player.videoMetaDataList.find(i => i.date == this.player.nowPlaying?.date)
           if (targetItem) {
             targetItem!.last_play = this.player.playTime
             ToolsUtil.addLogger("更新当前视频最后播放时间完成", false, this.pathStack)
@@ -327,7 +327,8 @@ export struct Player { // 播放页
           ToolsUtil.addLogger("进入error状态", false, this.pathStack)
           await this.player.ijkPlayerStop()
           ToolsUtil.addLogger("停止ijk播放器完成", false, this.pathStack)
-          VideoOperateUtil.playErrorExecute(this.pathStack, this.player.video_meta_data, this.player.nowPlaying?.date!,
+          VideoOperateUtil.playErrorExecute(this.pathStack, this.player.videoMetaDataList,
+            this.player.nowPlaying?.date!,
             NavigationAddress.FFMPEG_PLAYER)
           ToolsUtil.addLogger("执行播放错误处理完成", false, this.pathStack)
           this.player.release()
@@ -374,15 +375,15 @@ export struct Player { // 播放页
         this.setRotation()
         ToolsUtil.addLogger("计算播放区域尺寸完成", false, this.pathStack)
         if (this.windowClass) {
-          this.play_area_width > this.play_area_height ? WindowUtil.enableLandscapeMultiWindow(this.windowClass) :
+          this.playAreaWidth > this.playAreaHeight ? WindowUtil.enableLandscapeMultiWindow(this.windowClass) :
             WindowUtil.disableLandscapeMultiWindow(this.windowClass)
           ToolsUtil.addLogger("设置窗口多窗口模式完成", false, this.pathStack)
         }
-        if (Setting.smartRotation && this.play_area_width > this.play_area_height &&
-          this.screen_height > this.screen_width) {
+        if (Setting.smartRotation && this.playAreaWidth > this.playAreaHeight &&
+          this.screenHeight > this.screenWidth) {
           ToolsUtil.addLogger("智能旋转条件满足，开始设置方向", false, this.pathStack)
           const proportion =
-            Math.max(this.screen_width, this.screen_height) / Math.min(this.screen_width, this.screen_height)
+            Math.max(this.screenWidth, this.screenHeight) / Math.min(this.screenWidth, this.screenHeight)
           const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
             : window.Orientation.AUTO_ROTATION_RESTRICTED;
           (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
@@ -410,7 +411,7 @@ export struct Player { // 播放页
 
   async playChooseVideo(item: VideoMetadata) {
     ToolsUtil.addLogger("开始播放选择的视频", false, this.pathStack)
-    VideoOperateUtil.saveVideoTime(this.player.playTime, this.player.nowPlaying!, this.player.video_meta_data,
+    VideoOperateUtil.saveVideoTime(this.player.playTime, this.player.nowPlaying!, this.player.videoMetaDataList,
       PathUtils.appContext!)
     if (!PrivacySpaceUtil.getPrivacyMode()) {
       RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
@@ -491,7 +492,7 @@ export struct Player { // 播放页
       SideBarContainer(SideBarContainerType.Overlay) {
         PlayerSideBarComponent({
           sideBarStatusTmp: this.sideBarStatusTmp,
-          videoMetadata: this.player.video_meta_data,
+          videoMetadata: this.player.videoMetaDataList,
           nowPlaying: this.player.nowPlaying,
           sideBarStatus: this.sideBarStatus,
           onItemClick: (item: VideoMetadata) => {
@@ -516,13 +517,13 @@ export struct Player { // 播放页
               .enableAnalyzer(true)
             SubtitleDisplayBuilder({
               subtitle: this.player.subtitle,
-              screenWidth: this.screen_width,
-              screenHeight: this.screen_height,
+              screenWidth: this.screenWidth,
+              screenHeight: this.screenHeight,
               showControl: this.showControl,
               subTitleVisibility: this.subtitleVisibility,
               subtitle3DMode: this.subtitle3DMode,
-              playAreaWidth: this.play_area_width,
-              playAreaHeight: this.play_area_height
+              playAreaWidth: this.playAreaWidth,
+              playAreaHeight: this.playAreaHeight
             })
           }
           .onKeyEvent((event?: KeyEvent) => {
@@ -542,8 +543,8 @@ export struct Player { // 播放页
               this.player.backForward()
             }
           })
-          .width(this.play_area_width)
-          .height(this.play_area_height)
+          .width(this.playAreaWidth)
+          .height(this.playAreaHeight)
           .animation({ duration: this.player.playing ? 300 : 0, curve: Curve.Ease })
           .rotate({ y: 2, angle: this.angle, perspective: 200 })
 
@@ -562,14 +563,14 @@ export struct Player { // 播放页
                 .backgroundColor('#36ffffff')
                 .width('100%')
                 .padding({
-                  left: (this.screen_height > this.screen_width ? 20 : 35),
+                  left: (this.screenHeight > this.screenWidth ? 20 : 35),
                   right: 20,
                   top: (this.showControl ? SafeHeight.topSafeHeight : 0),
                   bottom: 0
                 })
 
                 Stack() { //底栏
-                  if (this.screen_height / this.screen_width > 1.4) {
+                  if (this.screenHeight / this.screenWidth > 1.4) {
                     Column({ space: 15 }) {
                       this.VideoButtons()
                       this.VideoSlider()
@@ -584,7 +585,7 @@ export struct Player { // 播放页
                   }
                 }.transition(XAnimation.getAnimation('bottom', 0, false))
                 .backgroundColor($r('sys.color.mask_fourth'))
-                .height(this.screen_height > this.screen_width ? 180 : 110)
+                .height(this.screenHeight > this.screenWidth ? 180 : 110)
                 .width('100%')
               }.height('100%').width('100%')
             }
@@ -593,7 +594,7 @@ export struct Player { // 播放页
           if (this.longPress) {
             FastForwardPanelBuilder({
               speed: this.player.speed,
-              location: this.play_area_height,
+              location: this.playAreaHeight,
             })
           }
           if (this.onSwiping) {
@@ -618,8 +619,8 @@ export struct Player { // 播放页
           if (this.lockVisibility) {
             LockVideoBarComponent({
               isLock: this.isLock,
-              screenHeight: this.screen_height,
-              screenWidth: this.screen_width,
+              screenHeight: this.screenHeight,
+              screenWidth: this.screenWidth,
               showControl: this.showControl,
             })
           }
@@ -631,7 +632,7 @@ export struct Player { // 播放页
                 this.player.togglePlayback()
                 return
               }
-              const zoneWidth = this.screen_width / 5 // 屏幕五分之一宽度
+              const zoneWidth = this.screenWidth / 5 // 屏幕五分之一宽度
               if (tapX < zoneWidth) { // 左侧1/5区域：回退
                 this.player.backForward()
                 return
@@ -657,13 +658,13 @@ export struct Player { // 播放页
               }
             },
             onVerticalPanStart: (tapX: number) => {
-              VideoOperateUtil.leftSideSwipe = tapX < this.screen_width / 2
+              VideoOperateUtil.leftSideSwipe = tapX < this.screenWidth / 2
               VideoOperateUtil.screenBrightnessTmp = this.player.screenBrightness
               this.player.volume = this.player.volumeActually
               VideoOperateUtil.lastVolume = this.player.volume // 记录起始音量
             },
             onVerticalPanUpdate: (offsetY: number) => {
-              const deltaYScale = offsetY / this.screen_height * 2.5
+              const deltaYScale = offsetY / this.screenHeight * 2.5
               if (VideoOperateUtil.leftSideSwipe) {
                 this.onSwipingBrightness = true
                 this.player.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
@@ -687,7 +688,7 @@ export struct Player { // 播放页
               this.getFrameByTime(this.player.playTime, true)
             },
             onHorizonPanUpdate: (offsetX: number) => {
-              const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.player.nowPlaying?.time!)
+              const timePerPixel = VideoOperateUtil.getTimePixel(this.screenWidth, this.player.nowPlaying?.time!)
               this.player.playTime = Math.max(0,
                 Math.min(VideoOperateUtil.lastPlayTime + (offsetX * timePerPixel), this.player.nowPlaying?.time!))
               this.getFrameByTime(this.player.playTime, false)
@@ -703,17 +704,17 @@ export struct Player { // 播放页
               const rawScale = fingerDistance / VideoOperateUtil.initPinchDistance
               const adjustedScale = 1 + (rawScale - 1) * 0.007 // 计算调整后的缩放比例
               const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0)
-              const scaledWidth = this.play_area_width * clampedScale // 计算缩放后的播放区域宽度
-              const maxAllowed = VideoInfoUtil.play_area_width * 3.0
-              const minAllowed = VideoInfoUtil.play_area_width * 0.5
+              const scaledWidth = this.playAreaWidth * clampedScale // 计算缩放后的播放区域宽度
+              const maxAllowed = VideoInfoUtil.playAreaWidth * 3.0
+              const minAllowed = VideoInfoUtil.playAreaWidth * 0.5
               if (scaledWidth > maxAllowed || scaledWidth < minAllowed) { // 检查缩放是否超出允许范围
                 return
               }
-              this.play_area_width = scaledWidth
-              this.play_area_height = this.play_area_height * clampedScale
+              this.playAreaWidth = scaledWidth
+              this.playAreaHeight = this.playAreaHeight * clampedScale
               XAnimation.runWithAnimation(() => {
-                this.play_area_width = this.play_area_width
-                this.play_area_height = this.play_area_height
+                this.playAreaWidth = this.playAreaWidth
+                this.playAreaHeight = this.playAreaHeight
               })
             },
             onLongPressAction: () => {
@@ -761,11 +762,11 @@ export struct Player { // 播放页
             .width('80%').height(80)
             .offset({
               x: 0,
-              y: this.screen_width > this.screen_height ? this.screen_height / 2 - 40 : this.screen_height / 2 - 100
+              y: this.screenWidth > this.screenHeight ? this.screenHeight / 2 - 40 : this.screenHeight / 2 - 100
             })
         }.onAreaChange(async (_oldValue: Area, newValue: Area) => {
-          this.screen_width = Math.floor(new Number(newValue.width).valueOf())
-          this.screen_height = Math.floor(new Number(newValue.height).valueOf())
+          this.screenWidth = Math.floor(new Number(newValue.width).valueOf())
+          this.screenHeight = Math.floor(new Number(newValue.height).valueOf())
           this.setRotation()
         }).backgroundColor($r('sys.color.black'))
       }
@@ -790,7 +791,7 @@ export struct Player { // 播放页
       const playerParams: PlayerParams = this.pathStack.getParamByName(NavigationAddress.AV_PLAYER)[0] as PlayerParams
       try {
         this.player.nowPlaying = playerParams.metadata as VideoMetadata
-        this.player.video_meta_data = playerParams.metadata_list as VideoMetadata[]
+        this.player.videoMetaDataList = playerParams.metadata_list as VideoMetadata[]
       } catch (e) {
         ToolsUtil.addLogger(e, true, this.pathStack)
       }
@@ -807,15 +808,15 @@ export struct Player { // 播放页
       } else {
         this.player.release()
         ToolsUtil.addLogger("播放器资源已释放", false, this.pathStack)
-        VideoOperateUtil.saveLastPlayVideoIndex(this.player.video_meta_data, this.player.nowPlaying?.date)
+        VideoOperateUtil.saveLastPlayVideoIndex(this.player.videoMetaDataList, this.player.nowPlaying?.date)
         ToolsUtil.addLogger("更新最后播放视频索引完成", false, this.pathStack)
         return false
       }
     })
     .onWillDisappear(async () => {
       ToolsUtil.addLogger("开始执行onWillDisappear生命周期", false, this.pathStack)
-      if (this.player.video_meta_data.length > 0 && this.player.playTime > 0) {
-        VideoOperateUtil.saveVideoTime(this.player.playTime, this.player.nowPlaying!, this.player.video_meta_data,
+      if (this.player.videoMetaDataList.length > 0 && this.player.playTime > 0) {
+        VideoOperateUtil.saveVideoTime(this.player.playTime, this.player.nowPlaying!, this.player.videoMetaDataList,
           PathUtils.appContext!)
         ToolsUtil.addLogger("保存视频播放时间完成", false, this.pathStack)
       }
@@ -847,7 +848,7 @@ export struct Player { // 播放页
       ToolsUtil.showToast(timeOut > 0 ? '到设定的时间了，已自动退出' : '已退出')
       this.player.reset()
       ToolsUtil.addLogger("重置播放器完成", false, this.pathStack)
-      VideoOperateUtil.saveLastPlayVideoIndex(this.player.video_meta_data, this.player.nowPlaying?.date)
+      VideoOperateUtil.saveLastPlayVideoIndex(this.player.videoMetaDataList, this.player.nowPlaying?.date)
       ToolsUtil.addLogger("更新最后播放视频索引完成", false, this.pathStack)
       this.pathStack.pop()
     }, timeOut)
@@ -884,13 +885,13 @@ export struct Player { // 播放页
       subtitleSelected: this.player.subtitleSelected,
       isAIAsrShown: this.isAIAsrShown,
       screenExtendSelectedText: this.select_text,
-      screenWidth: this.screen_width,
-      screenHeight: this.screen_height,
+      screenWidth: this.screenWidth,
+      screenHeight: this.screenHeight,
       audioTrackMenuBuilder: this.getAudioMenuBuilder,
       subtitlePanelComponent: this.getSubtitleMenuBuilder,
       lockRotation: this.lockRotation,
-      playAreaHeight: this.play_area_height,
-      playAreaWidth: this.play_area_width,
+      playAreaHeight: this.playAreaHeight,
+      playAreaWidth: this.playAreaWidth,
       onExitVideoClick: () => {
         ToolsUtil.addLogger("点击退出视频按钮", false, this.pathStack)
         this.exitVideo(0)
@@ -899,7 +900,7 @@ export struct Player { // 播放页
         this.lockRotation = !this.lockRotation
         ToolsUtil.addLogger(`锁定旋转状态切换为：${this.lockRotation}`, false, this.pathStack)
         const orientation = this.lockRotation ?
-          (this.screen_width > this.screen_height ? window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED
+          (this.screenWidth > this.screenHeight ? window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED
             : window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
           : window.Orientation.AUTO_ROTATION_RESTRICTED
         try {
@@ -924,8 +925,8 @@ export struct Player { // 播放页
     VideoSliderComponent({
       playTime: this.player.playTime,
       totalTime: this.player.nowPlaying?.time,
-      screenWidth: this.screen_width,
-      screenHeight: this.screen_height,
+      screenWidth: this.screenWidth,
+      screenHeight: this.screenHeight,
       playSpeed: this.player.speed,
       onSliderChange: (value: number) => {
         this.onSwiping = true
@@ -950,8 +951,8 @@ export struct Player { // 播放页
   @Builder
   VideoButtons() {
     VideoButtonsComponent({
-      screenHeight: this.screen_height,
-      screenWidth: this.screen_width,
+      screenHeight: this.screenHeight,
+      screenWidth: this.screenWidth,
       playing: this.player.playing,
       speed: this.player.speed,
       AVCastPickerBuilderBridge: this.AVCastPickerBuilderBridge,
@@ -962,7 +963,7 @@ export struct Player { // 播放页
       sideBarStatus: this.sideBarStatus,
       onScreenRotationOrFullScreenClick: async () => {
         ToolsUtil.addLogger("开始处理屏幕旋转/全屏点击", false, this.pathStack)
-        const orientation = await WindowUtil.fullScreenOperate(this.screen_height, this.screen_width, this.windowClass)
+        const orientation = await WindowUtil.fullScreenOperate(this.screenHeight, this.screenWidth, this.windowClass)
         if (orientation) {
           XAnimation.runWithAnimation(async () => {
             (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
@@ -1007,7 +1008,7 @@ export struct Player { // 播放页
     VideoSettingComponent({
       playTime: this.player.playTime,
       nowPlaying: this.player.nowPlaying,
-      videoMetaData: this.player.video_meta_data,
+      videoMetaData: this.player.videoMetaDataList,
       angle: this.angle,
       repeatMode: this.repeatMode,
       exitVideoTime: this.exitVideoTime,

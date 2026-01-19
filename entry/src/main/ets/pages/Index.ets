@@ -43,6 +43,7 @@ import { MoreSettingPage } from './SettingPage/MoreSettingPage'
 import NavigationAddress from '../common/NavigationCommon'
 import { FolderSelectMenuBuilder } from '../component/FileFolderComponent/FileFolderSelectBuilder'
 import { SafeHeight, Setting } from '../utils/ObservedUtil'
+import { MpvPlayer } from './VideoPlayer/MpvPlayer'
 
 @Entry
 @Component
@@ -512,6 +513,8 @@ struct Index {
       PrivacySpaceErrorList()
     } else if (name == NavigationAddress.MORE_SETTING_PAGE) {
       MoreSettingPage()
+    } else if (name == NavigationAddress.MPV_PLAYER) {
+      MpvPlayer()
     }
   }
 

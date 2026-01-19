@@ -58,7 +58,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @State replayVisible: Visibility = Visibility.None
   @State volume: number = 1.0
   @State playSpeed: number = 1
-  now_playing: VideoMetadata | undefined = undefined
+  nowPlaying: VideoMetadata | undefined = undefined
   @State video_url: string = ''
   @State total_time: number = 0
   @State currentSpeedIndex: number = 0
@@ -97,9 +97,9 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             .onLoad(async (event?: object) => {
               if (!!event) {
                 this.initDelayPlay(event)
-                await PermissionUtil.activatePermission(this.now_playing?.uri)
+                await PermissionUtil.activatePermission(this.nowPlaying?.uri)
                 try {
-                  const file = fs.openSync(this.now_playing?.uri)
+                  const file = fs.openSync(this.nowPlaying?.uri)
                   this.video_url = file.path
                 } catch (error) {
                   console.error('uri error:' + error)
@@ -248,10 +248,10 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             this.onSwiping = true
           },
           onHorizonPanUpdate: async (offsetX: number) => {
-            const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.now_playing?.time!) * 1.5
+            const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.nowPlaying?.time!) * 1.5
             this.play_time = Math.max(0,
               Math.min(VideoOperateUtil.lastPlayTime + (offsetX * timePerPixel),
-                this.now_playing?.time!))
+                this.nowPlaying?.time!))
           },
           onHorizonPanEnd: () => {
             this.mIjkMediaPlayer?.seekTo(String(this.play_time))
@@ -265,8 +265,8 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             const adjustedScale = 1 + (rawScale - 1) * 0.007
             const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0)
             const scaledWidth = this.play_area_width * clampedScale // 计算缩放后的播放区域宽度
-            const maxAllowed = VideoInfoUtil.play_area_width * 3.0
-            const minAllowed = VideoInfoUtil.play_area_width * 0.5
+            const maxAllowed = VideoInfoUtil.playAreaWidth * 3.0
+            const minAllowed = VideoInfoUtil.playAreaWidth * 0.5
             if (scaledWidth > maxAllowed || scaledWidth < minAllowed) { // 检查缩放是否超出允许范围
               return
             }
@@ -341,7 +341,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       const playerParams: PlayerParams =
         this.pathStack.getParamByName(NavigationAddress.FFMPEG_PLAYER)[0] as PlayerParams
       try {
-        this.now_playing = playerParams.metadata as VideoMetadata
+        this.nowPlaying = playerParams.metadata as VideoMetadata
         this.video_meta_data = playerParams.metadata_list as VideoMetadata[]
       } catch (e) {
         console.error(e)
@@ -357,7 +357,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     })
     .onWillDisappear(async () => {
       if (this.video_meta_data.length > 0 && this.play_time > 0) {
-        VideoOperateUtil.saveVideoTime(this.play_time, this.now_playing!, this.video_meta_data,
+        VideoOperateUtil.saveVideoTime(this.play_time, this.nowPlaying!, this.video_meta_data,
           PathUtils.appContext!)
       }
       PermissionUtil.applyStopContinuousTask()
@@ -391,7 +391,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         })
         .padding({ right: 10 })
         .margin({ left: 15 })
-      Text(String(this.now_playing?.title).slice(0, this.now_playing?.title.lastIndexOf('.')))
+      Text(String(this.nowPlaying?.title).slice(0, this.nowPlaying?.title.lastIndexOf('.')))
         .fontSize(20)
         .fontWeight(FontWeight.Medium)
         .maxLines(1)
@@ -590,10 +590,10 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   videoStartPlayTime(seekMode: number) {
     switch (seekMode) {
       case VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME:
-        this.mIjkMediaPlayer?.seekTo(String(this.now_playing?.last_play) || '0')
+        this.mIjkMediaPlayer?.seekTo(String(this.nowPlaying?.last_play) || '0')
         break
       case VideoStartTimeMode.SEEK_TO_START_TIME:
-        this.mIjkMediaPlayer?.seekTo(String(this.now_playing?.start_time) || '0')
+        this.mIjkMediaPlayer?.seekTo(String(this.nowPlaying?.start_time) || '0')
         break
       case VideoStartTimeMode.SEEK_TO_INTRO_TIME:
         this.mIjkMediaPlayer?.seekTo(String(this.play_time + Number(Setting.skipIntroTime) * 1000))
@@ -623,7 +623,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       this.startProgressTask()
       this.play()
       setTimeout(() => {
-        this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.now_playing!))
+        this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!))
       }, 600)
     }
     if (this.CONTROL_PlayStatus == PlayStatus.PAUSE) {
@@ -633,7 +633,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     if (!this.avSession && Setting.allowBackgroundPlay) {
       this.avSession = await AVSessionUtil.getAVSession()
       await this.setSessionListener()
-      AVSessionUtil.setSessionInfo(this.now_playing!)
+      AVSessionUtil.setSessionInfo(this.nowPlaying!)
       AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
     }
     AVSessionUtil.updatePlaybackSessionState(this.playing, this.play_time)
@@ -671,9 +671,9 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       position = duration
     }
     this.play_time = position
-    if (this.now_playing?.time === 0) {
-      this.now_playing.time = this.total_time // 若系统无法识别视频时长，则由 FFMpeg API 提供以保存记忆时间
-      VideoOperateUtil.saveVideoTotalTime(PathUtils.appContext!, this.now_playing)
+    if (this.nowPlaying?.time === 0) {
+      this.nowPlaying.time = this.total_time // 若系统无法识别视频时长，则由 FFMpeg API 提供以保存记忆时间
+      VideoOperateUtil.saveVideoTotalTime(PathUtils.appContext!, this.nowPlaying)
     }
   }
 
@@ -801,7 +801,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     let mOnErrorListener: OnErrorListener = {
       onError: (_what: number, _extra: number) => {
         this.stopProgressTask()
-        VideoOperateUtil.playErrorExecute(this.pathStack, this.video_meta_data, this.now_playing?.date!,
+        VideoOperateUtil.playErrorExecute(this.pathStack, this.video_meta_data, this.nowPlaying?.date!,
           NavigationAddress.RED_PLAYER)
       }
     }
@@ -832,10 +832,10 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   private getVideoSize() {
     let VideoWidth = this.mIjkMediaPlayer?.getVideoWidth()!
     let VideoHeight = this.mIjkMediaPlayer?.getVideoHeight()!
-    if (this.now_playing?.size[0] === 0 && VideoWidth !== 0) {
-      this.now_playing.size[0] = VideoWidth
-      this.now_playing.size[1] = VideoHeight
-      VideoOperateUtil.saveVideoWeightAndHeight(PathUtils.appContext!, this.now_playing)
+    if (this.nowPlaying?.size[0] === 0 && VideoWidth !== 0) {
+      this.nowPlaying.size[0] = VideoWidth
+      this.nowPlaying.size[1] = VideoHeight
+      VideoOperateUtil.saveVideoWeightAndHeight(PathUtils.appContext!, this.nowPlaying)
     }
     const aspectRatioNow = VideoWidth / VideoHeight
     const screenAspectRatio = this.screen_width / this.screen_height
