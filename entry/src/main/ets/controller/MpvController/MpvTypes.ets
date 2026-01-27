@@ -5,7 +5,7 @@ export interface MpvPlayerOptions {
 /**
  * 字幕轨道信息
  */
-export interface SubtitleTrack {
+export interface MpvSubtitleTrack {
   /** 轨道 ID */
   id: number;
 
@@ -22,7 +22,7 @@ export interface SubtitleTrack {
 /**
  * 字幕样式配置
  */
-export interface SubtitleStyle {
+export interface MpvSubtitleStyle {
   /** 字体大小 (像素) */
   fontSize?: number;
 
@@ -42,7 +42,7 @@ export interface SubtitleStyle {
 /**
  * 音频轨道信息
  */
-export interface AudioTrack {
+export interface MpvAudioTrack {
   /** 轨道 ID */
   id: number;
 
@@ -65,7 +65,7 @@ export interface AudioTrack {
 /**
  * MPV命令执行结果
  */
-export interface CommandResult {
+export interface MpvCommandResult {
   /** 是否执行成功 */
   success: boolean;
 

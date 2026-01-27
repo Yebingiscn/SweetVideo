@@ -110,25 +110,6 @@ export struct VideoList {
   @Link searchValue: string
   @Link videoListController: VideoListController
   @Consume fileFolderSource: FileFolderDataSource
-  delConfirmDialog: CustomDialogController = new CustomDialogController({
-    builder: VideoDeleteDialog({
-      confirm: async (deleteType: DeleteType) => {
-        try {
-          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType,
-            DataSyncUtil.editingVideo!)
-          if (DataSyncUtil.delMultipleList.length > 0) {
-            await FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController,
-              this.fileFolderSource)
-          }
-          this.videoListController.closeMultipleChoose()
-        } catch (e) {
-          ToolsUtil.showToast(`删除失败:${e}`)
-        } finally {
-          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
-        }
-      }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -151,6 +132,26 @@ export struct VideoList {
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  delConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: VideoDeleteDialog({
+      confirm: async (deleteType: DeleteType) => {
+        try {
+          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType,
+            DataSyncUtil.editingVideo!)
+          if (DataSyncUtil.delMultipleList.length > 0) {
+            await FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController,
+              this.fileFolderSource)
+          }
+          this.videoListController.closeMultipleChoose()
+        } catch (e) {
+          ToolsUtil.showToast(`删除失败:${e}`)
+        } finally {
+          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+        }
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  @Consume file_folder_list: FileFolder[]
   @Consume sideBarController: SideBarController
   searchController: SearchController = new SearchController()
   @State longPressPreview: boolean = false
@@ -235,7 +236,7 @@ export struct VideoList {
       .clip(false)
       .padding({ left: 10, right: 10 })
       .cachedCount(12)
-      .contentStartOffset(SafeHeight.topSafeHeight + 85)
+      .contentStartOffset(SafeHeight.topSafeHeight + (this.file_folder_list.length > 1 ? 85 : 55))
       .contentEndOffset(SafeHeight.bottomSafeHeight)
       .lanes(this.videoListController.listLine)
       .animation({ duration: 300, curve: Curve.Smooth })
@@ -253,7 +254,7 @@ export struct VideoList {
     } else {
       Scroll() {
         Column() {
-          Blank().height(SafeHeight.topSafeHeight + 85)
+          Blank().height(SafeHeight.topSafeHeight + (this.file_folder_list.length > 1 ? 85 : 55))
           WaterFlow({
             scroller: this.videoListController.listScroller,
             layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW

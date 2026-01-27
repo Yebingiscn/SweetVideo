@@ -28,7 +28,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Track playing: boolean = false
   @Track speed: number = 1.0
   @Track playTime: number = 0
-  @Track audio_track: AudioTrack[] = []
+  @Track audioTrack: AudioTrack[] = []
   @Track volume: number = 0
   @Track volumeActually: number = 0
   @Track screenBrightness: number = 0
@@ -134,15 +134,15 @@ export class AVPlayerController implements PlayerControllerInterface {
     }
   }
 
-  async getAudioTrack() {
-    this.audio_track = await VideoOperateUtil.getAudioTracks(this.avPlayer!)
-    if (VideoOperateUtil.validateAudioTracks(this.audio_track)) {
-      this.avPlayer!.selectTrack(this.audio_track[0].index)?.catch(() => {
-        ToolsUtil.addLogger('selectTrack error', true)
-      })
-    } else {
-      this.activeEnhanceAudio()
-    }
+  async getAudioTrackList() {
+    this.audioTrack = await VideoOperateUtil.getAudioTracks(this.avPlayer!)
+    this.selectAudioTrack(this.audioTrack[0].index)
+  }
+
+  selectAudioTrack(index: number) {
+    this.avPlayer?.selectTrack(index)?.catch(() => {
+      ToolsUtil.addLogger('selectTrack error', true)
+    })
   }
 
   release() {

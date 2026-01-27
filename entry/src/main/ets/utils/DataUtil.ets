@@ -15,6 +15,7 @@ import { fileManagerService } from '@kit.FileManagerServiceKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { fileUri, fileIo as fs } from '@kit.CoreFileKit'
 import ToolsUtil from './ToolsUtil'
+import { MpvAudioTrack } from '../controller/MpvController/MpvTypes'
 
 // 基础数据源抽象类（泛型实现）
 abstract class BaseDataSource<T> implements IDataSource {
@@ -77,7 +78,7 @@ export class SpeedDataSource extends BaseDataSource<number> {
 }
 
 @Observed
-export class AudioTrackSource extends BaseDataSource<AudioTrack> {
+export class AudioTrackSource extends BaseDataSource<AudioTrack | MpvAudioTrack> {
 }
 
 @Observed

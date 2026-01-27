@@ -136,18 +136,9 @@ export default class VideoOperateUtil {
   // 播放器播放失败处理
   static playErrorExecute(pathStack: NavPathStack, video_meta_data: VideoMetadata[], date: string, playerName: string) {
     ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
-    const now_play_item = video_meta_data.find(item => item.date === date)
-    const playerParams = new PlayerParams(now_play_item, video_meta_data, undefined)
+    const nowPlayItem = video_meta_data.find(item => item.date === date)
+    const playerParams = new PlayerParams(nowPlayItem, video_meta_data, undefined)
     pathStack.replacePathByName(playerName, playerParams, true)
-  }
-
-  // 未识别到音轨处理
-  static validateAudioTracks(audio_track: AudioTrack[]) {
-    if (audio_track.length === 0) {
-      ToolsUtil.showToast('未识别到音轨，已开启实验性解码')
-      return false
-    }
-    return true
   }
 
   // 计算手指移动距离
@@ -206,18 +197,18 @@ export default class VideoOperateUtil {
   }
 
   // 保存视频播放进度
-  static saveVideoTime(play_time: number, now_playing: VideoMetadata,
+  static saveVideoTime(play_time: number, nowPlaying: VideoMetadata,
     video_meta_data: VideoMetadata[], context: Context) {
     const recentPlay = Preferences.getRecentPlayState(context) // 判断最近播放开关是否开启
     if (recentPlay && !PrivacySpaceUtil.getPrivacyMode() &&
-      !SelectFileUtil.isPathFromSource(now_playing.uri, VideoSource.PRIVACY_SPACE)) { // 最近播放开启且非隐私空间视频则添加到最近播放
-      const meta = video_meta_data.find(i => i.date == now_playing?.date)
+      !SelectFileUtil.isPathFromSource(nowPlaying.uri, VideoSource.PRIVACY_SPACE)) { // 最近播放开启且非隐私空间视频则添加到最近播放
+      const meta = video_meta_data.find(i => i.date == nowPlaying?.date)
       if (meta) {
         RecentPlayUtil.addPlayback(context, meta)
       }
     }
     // 保存文件数据
-    SelectFileUtil.saveData(context, now_playing!, { playTime: play_time })
+    SelectFileUtil.saveData(context, nowPlaying!, { playTime: play_time })
   }
 
   // 保存视频片头时间
@@ -231,20 +222,20 @@ export default class VideoOperateUtil {
   }
 
   // 保存音视频宽高信息
-  static saveVideoWeightAndHeight(context: Context, now_playing: VideoMetadata) {
-    SelectFileUtil.saveData(context, now_playing!, { size: now_playing.size })
+  static saveVideoWeightAndHeight(context: Context, nowPlaying: VideoMetadata) {
+    SelectFileUtil.saveData(context, nowPlaying!, { size: nowPlaying.size })
   }
 
-  static saveVideoTotalTime(context: Context, now_playing: VideoMetadata) {
-    SelectFileUtil.saveData(context, now_playing!, { totalTime: now_playing.time })
+  static saveVideoTotalTime(context: Context, nowPlaying: VideoMetadata) {
+    SelectFileUtil.saveData(context, nowPlaying!, { totalTime: nowPlaying.time })
   }
 
-  static saveVideoPointA(context: Context, now_playing: VideoMetadata, pointA?: number) {
-    SelectFileUtil.saveData(context, now_playing!, { pointA: pointA })
+  static saveVideoPointA(context: Context, nowPlaying: VideoMetadata, pointA?: number) {
+    SelectFileUtil.saveData(context, nowPlaying!, { pointA: pointA })
   }
 
-  static saveVideoPointB(context: Context, now_playing: VideoMetadata, pointB?: number) {
-    SelectFileUtil.saveData(context, now_playing!, { pointB: pointB })
+  static saveVideoPointB(context: Context, nowPlaying: VideoMetadata, pointB?: number) {
+    SelectFileUtil.saveData(context, nowPlaying!, { pointB: pointB })
   }
 
   static saveLastPlayVideoIndex(list: VideoMetadata[], date: string | undefined) {

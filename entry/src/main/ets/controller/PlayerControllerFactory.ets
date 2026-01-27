@@ -22,6 +22,10 @@ export interface PlayerControllerInterface {
   togglePlayback(): void
 
   videoStartPlayTime(seekMode: number): void
+
+  getAudioTrackList(): void
+
+  selectAudioTrack(trackId: number): void
 }
 
 // 真正的工厂 controller

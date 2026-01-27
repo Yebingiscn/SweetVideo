@@ -36,6 +36,12 @@ import { SortComponent } from '../../component/VideoItemComponent/SortComponent'
 export struct PrivacySpace { // 隐私空间页
   @State videoDataSource: VideoDataSource = new VideoDataSource([])
   @State video_meta_data_encryption: VideoMetadata[] = []
+  @State list_line: number = 1
+  @Consume('pathStack') pathStack: NavPathStack
+  @State totalItems: number = 0
+  @State processedItems: number = 0
+  @State loading: boolean = false
+  @State searchValue: string = ''
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -50,18 +56,14 @@ export struct PrivacySpace { // 隐私空间页
         if (this.video_meta_data_encryption.some((v, index) => index !== targetIndex && v.title === title.trim())) {
           return // 这里直接用 some 来代替，隐私空间视频不多，没必要每次都 new 一个Set
         }
+        this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
         this.video_meta_data_encryption[targetIndex].title = title.trim()
         this.videoDataSource.updateData(this.video_meta_data_encryption)
         Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, this.video_meta_data_encryption)
+        this.searchValue = ''
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @State list_line: number = 1
-  @Consume('pathStack') pathStack: NavPathStack
-  @State totalItems: number = 0
-  @State processedItems: number = 0
-  @State loading: boolean = false
-  @State searchValue: string = ''
   @State is_edit: boolean = false
   @State passwd: string = 'passwd'
   editPasswdDialogController: CustomDialogController = new CustomDialogController({

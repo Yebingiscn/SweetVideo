@@ -47,7 +47,6 @@ export struct RedPlayer { // 红薯播放器页
   @State onSwiping: boolean = false
   @State isSliderPlayTimeChange: boolean = false
   @State longSpeed: number = 1
-  @State last_speed: number = 1
   @State currentSpeedIndex: number = 0
   @State longPress: boolean = false
   @State onSwipingVoice: boolean = false
@@ -271,7 +270,7 @@ export struct RedPlayer { // 红薯播放器页
           onLongPressAction: () => {
             if (this.redPlayerStateHolder?.isStart) {
               this.longPress = true
-              this.last_speed = this.longSpeed
+              VideoOperateUtil.lastSpeed = this.longSpeed
               this.longSpeed = Setting.longPressSpeed > 2 ? 2 : Setting.longPressSpeed
               this.playerController?.setSpeed(this.longSpeed)
               this.currentSpeedIndex = VideoInfoUtil.getVideoSpeedList(NavigationAddress.RED_PLAYER)
@@ -280,8 +279,8 @@ export struct RedPlayer { // 红薯播放器页
           },
           onLongPressEnd: () => {
             this.longPress = false
-            this.longSpeed = this.last_speed
-            this.playerController?.setSpeed(this.last_speed)
+            this.longSpeed = VideoOperateUtil.lastSpeed
+            this.playerController?.setSpeed(this.longSpeed)
           },
           onLongPressPanStart: (tapX: number) => {
             VideoOperateUtil.longPressStartX = tapX

@@ -56,8 +56,8 @@ export struct Player { // 播放页
   @State playAreaWidth: number = 0
   @State onSwiping: boolean = false
   @State onSwipingBrightness: boolean = false
-  @State select_text: string | undefined = '原始比例'
-  @State audio_track_select: number = 0
+  @State selectedText: string | undefined = '原始比例'
+  @State audioTrackSelect: number = 0
   @State sideBarStatusTmp: Visibility = Visibility.Hidden
   @State sideBarStatus: boolean = false
   @State isLock: boolean = false
@@ -76,7 +76,6 @@ export struct Player { // 播放页
   private autoHideTimeout: boolean = false
 
   async aboutToAppear(): Promise<void> {
-    PermissionUtil.applyContinuousTask()
     ToolsUtil.addLogger("开始执行aboutToAppear方法", false, this.pathStack)
     PermissionUtil.applyContinuousTask()
     ToolsUtil.addLogger("应用连续任务完成", false, this.pathStack)
@@ -151,8 +150,8 @@ export struct Player { // 播放页
       this.playAreaWidth = this.playAreaHeight * (nowWidth / nowHeight)
       ToolsUtil.addLogger("使用屏幕高度适配计算播放区域", false, this.pathStack)
     }
-    if (this.select_text !== '原始比例') {
-      this.select_text = '原始比例'
+    if (this.selectedText !== '原始比例') {
+      this.selectedText = '原始比例'
       ToolsUtil.addLogger("比例模式设置为原始比例", false, this.pathStack)
     }
     VideoInfoUtil.saveOriginalVideoWidthAndHeight(this.playAreaWidth, this.playAreaHeight)
@@ -247,7 +246,7 @@ export struct Player { // 播放页
           ToolsUtil.addLogger("设置视频开始播放时间完成", false, this.pathStack)
           this.player.play()
           ToolsUtil.addLogger("开始播放视频", false, this.pathStack)
-          await this.player.getAudioTrack()
+          await this.player.getAudioTrackList()
           ToolsUtil.addLogger("获取音频轨道完成", false, this.pathStack)
           await this.player.initVolumeAndBrightness()
           ToolsUtil.addLogger("初始化音量和亮度完成", false, this.pathStack)
@@ -884,7 +883,7 @@ export struct Player { // 播放页
       subTitleVisibility: this.subtitleVisibility,
       subtitleSelected: this.player.subtitleSelected,
       isAIAsrShown: this.isAIAsrShown,
-      screenExtendSelectedText: this.select_text,
+      screenExtendSelectedText: this.selectedText,
       screenWidth: this.screenWidth,
       screenHeight: this.screenHeight,
       audioTrackMenuBuilder: this.getAudioMenuBuilder,
@@ -991,14 +990,12 @@ export struct Player { // 播放页
   @Builder
   AudioTrackMenuBuilder() {
     AudioTrackComponent({
-      audioTrack: this.player.audio_track,
-      audioTrackSelected: this.audio_track_select,
+      audioTrack: this.player.audioTrack,
+      audioTrackSelected: this.audioTrackSelect,
       onSelect: (index: number) => {
         ToolsUtil.addLogger(`选择音频轨道，索引：${index}`, false, this.pathStack)
-        this.player.avPlayer?.selectTrack(this.player.audio_track[index]?.index)?.catch(() => {
-          ToolsUtil.addLogger("选择音频轨道失败", true, this.pathStack)
-        })
-        this.audio_track_select = index
+        this.player?.selectAudioTrack(this.player?.audioTrack[index]?.index)
+        this.audioTrackSelect = index
       }
     })
   }

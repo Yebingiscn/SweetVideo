@@ -161,37 +161,39 @@ export struct VideoView {
         }
         .width('100%')
 
-        Scroll() {
-          Row({ space: 15 }) {
-            LazyForEach(this.fileFolderSource, (folder: FileFolder) => {
-              Text(folder?.name)
-                .fontWeight(this.videoListController.folder.date === folder?.date ? FontWeight.Bold :
-                  FontWeight.Medium)
-                .fontSize(this.videoListController.folder.date === folder?.date ? 18 : 15)
-                .fontColor(this.videoListController.folder.date === folder?.date ?
-                  $r('app.color.main_color') : $r('app.color.text_color'))
-                .textAlign(TextAlign.Start)
-                .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-                .textOverflow({ overflow: TextOverflow.MARQUEE })
-                .onClick(() => {
-                  if (this.videoListController.folder.date === folder.date) {
-                    return
-                  }
-                  this.searchValue = ''
-                  this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
-                  this.fileFolderSource.updateData(this.file_folder_list)
-                  const currentFolder = this.fileFolderSource.getFileFolder(folder.name)
-                  this.videoListController.videoDataSource.updateData(currentFolder.video_list)
-                  this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder!)
-                  this.sideBarController.close(true)
-                })
-            }, (folder: FileFolder) => folder.name + folder.date + folder.video_list.toString())
+        if (this.file_folder_list.length > 1) {
+          Scroll() {
+            Row({ space: 15 }) {
+              LazyForEach(this.fileFolderSource, (folder: FileFolder) => {
+                Text(folder?.name)
+                  .fontWeight(this.videoListController.folder.date === folder?.date ? FontWeight.Bold :
+                    FontWeight.Medium)
+                  .fontSize(this.videoListController.folder.date === folder?.date ? 18 : 15)
+                  .fontColor(this.videoListController.folder.date === folder?.date ?
+                    $r('app.color.main_color') : $r('app.color.text_color'))
+                  .textAlign(TextAlign.Start)
+                  .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+                  .textOverflow({ overflow: TextOverflow.MARQUEE })
+                  .onClick(() => {
+                    if (this.videoListController.folder.date === folder.date) {
+                      return
+                    }
+                    this.searchValue = ''
+                    this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
+                    this.fileFolderSource.updateData(this.file_folder_list)
+                    const currentFolder = this.fileFolderSource.getFileFolder(folder.name)
+                    this.videoListController.videoDataSource.updateData(currentFolder.video_list)
+                    this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder!)
+                    this.sideBarController.close(true)
+                  })
+              }, (folder: FileFolder) => folder.name + folder.date + folder.video_list.toString())
+            }
           }
+          .width('100%')
+          .scrollBar(BarState.Off)
+          .scrollable(ScrollDirection.Horizontal)
+          .edgeEffect(EdgeEffect.Spring) // 滚动边缘效果
         }
-        .width('100%')
-        .scrollBar(BarState.Off)
-        .scrollable(ScrollDirection.Horizontal)
-        .edgeEffect(EdgeEffect.Spring) // 滚动边缘效果
       }.width('100%').padding({ top: SafeHeight.topSafeHeight, left: 10, right: 10 })
     }.width('100%')
   }

@@ -76,7 +76,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
   @State longPress: boolean = false
   @State last_speed: number = 1
   @State isHorizontalSwiping: boolean = false
-  @State video_meta_data: VideoMetadata[] = []
+  @State videoMetaData: VideoMetadata[] = []
   @State volumeActually: number = 0
   @Consume('pathStack') pathStack: NavPathStack
   private CONTROL_PlayStatus = PlayStatus.INIT
@@ -342,7 +342,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
         this.pathStack.getParamByName(NavigationAddress.FFMPEG_PLAYER)[0] as PlayerParams
       try {
         this.nowPlaying = playerParams.metadata as VideoMetadata
-        this.video_meta_data = playerParams.metadata_list as VideoMetadata[]
+        this.videoMetaData = playerParams.metadata_list as VideoMetadata[]
       } catch (e) {
         console.error(e)
       }
@@ -356,8 +356,8 @@ export struct FFMpegPlayer { // FFMpeg播放器页
       }
     })
     .onWillDisappear(async () => {
-      if (this.video_meta_data.length > 0 && this.play_time > 0) {
-        VideoOperateUtil.saveVideoTime(this.play_time, this.nowPlaying!, this.video_meta_data,
+      if (this.videoMetaData.length > 0 && this.play_time > 0) {
+        VideoOperateUtil.saveVideoTime(this.play_time, this.nowPlaying!, this.videoMetaData,
           PathUtils.appContext!)
       }
       PermissionUtil.applyStopContinuousTask()
@@ -801,7 +801,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     let mOnErrorListener: OnErrorListener = {
       onError: (_what: number, _extra: number) => {
         this.stopProgressTask()
-        VideoOperateUtil.playErrorExecute(this.pathStack, this.video_meta_data, this.nowPlaying?.date!,
+        VideoOperateUtil.playErrorExecute(this.pathStack, this.videoMetaData, this.nowPlaying?.date!,
           NavigationAddress.RED_PLAYER)
       }
     }

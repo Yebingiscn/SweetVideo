@@ -10,7 +10,6 @@ import { KeyCode } from '@kit.InputKit'
 import PermissionUtil from '../../utils/PermissionUtil'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { XAnimation } from '../../utils/AnimationUtil'
-import { JSON } from '@kit.ArkTS'
 import { FastForwardPanelBuilder } from '../../component/PlayerComponent/FastForwardPanelBuilder'
 import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/SwipingPlayTimePanelBuilder'
 import { VolumeSwipingPanelBuilder } from '../../component/PlayerComponent/VolumeSwipingPanelBuilder'
@@ -19,10 +18,23 @@ import { LockVideoBarComponent } from '../../component/PlayerComponent/LockVideo
 import { AIAsr } from '../../component/PlayerComponent/AIAsrComponent'
 import { GestureComponent } from '../../component/PlayerComponent/GestureComponent'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent'
+import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder'
+import { RepeatMode } from '../../common/enum/RepeatMode'
+import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
+import AVSessionUtil from '../../utils/AVSessionUtil'
+import { AVCastPicker } from '@kit.AVSessionKit'
+import { audio } from '@kit.AudioKit'
+import { window } from '@kit.ArkUI'
 
 @Component
 export struct MpvPlayer {
   xComponentController: XComponentController = new XComponentController()
+  windowClass = WindowUtil.getWindow()
+  @State subtitleVisibility: Visibility = Visibility.Visible
+  @State lockRotation: boolean = false
+  @State selectedText: string | undefined = '原始比例'
   @Consume('pathStack') pathStack: NavPathStack
   @Provide('MpvPlayer') mpv: MpvController = PlayerControllerFactory.createMpvController()
   @State @Watch('setScreen') showControl: boolean = false
@@ -39,33 +51,72 @@ export struct MpvPlayer {
   @State isAIAsrShown: boolean = false
   @State currentSpeedIndex: number = 0
   @State sideBarStatus: boolean = false
+  @State repeatMode: RepeatMode = RepeatMode.LIST
+  @State sideBarStatusTmp: Visibility = Visibility.Hidden
+  @State volume: number = 1.0
+  @State screenBrightness: number = 0
+  @State volumeActually: number = 0
+  @State onSwipingVoice: boolean = false
+  private audioVolumeManager: audio.AudioVolumeManager | null = null
 
   async aboutToAppear(): Promise<void> {
-    this.mpv.create()
+    this.mpv.prepare()
+    PermissionUtil.applyContinuousTask()
+    this.setScreen()
+    let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID
+    let audioManager = audio.getAudioManager()
+    this.audioVolumeManager = audioManager.getVolumeManager()
+    let volumeList = await VideoOperateUtil.getVolume(this.audioVolumeManager, groupId)
+    this.volume = volumeList.get('volume')!
+    try {
+      await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
+      WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
+    } catch (error) {
+      console.error('setPreferredOrientation error:' + error)
+    }
+    WindowUtil.enableLandscapeMultiWindow(this.windowClass)
+    this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
+    this.volumeActually = this.volume
+    try {
+      this.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
+        let changeVolumeByVolumeButton = false
+        if (!this.onSwipingVoice) { // 这里复用手势音量调节提示
+          this.onSwipingVoice = !this.onSwipingVoice
+          changeVolumeByVolumeButton = true
+        }
+        this.volumeActually = volumeEvent.volume
+        ToolsUtil.startVibration()
+        setTimeout(() => {
+          if (changeVolumeByVolumeButton) {
+            this.onSwipingVoice = !this.onSwipingVoice
+          }
+        }, 800)
+      })
+    } catch (error) {
+      console.error('volumeChange error:' + error)
+    }
   }
 
   build() {
     NavDestination() {
       Stack() {
         Stack() {
-          Stack() { //播放器
-            XComponent({
-              type: XComponentType.SURFACE,
-              controller: this.xComponentController,
-              id: 'xcomponentId',
-              libraryname: 'mpvnative'
-            }).focusable(true)
-              .defaultFocus(true)
-              .onLoad(async () => {
-                await PermissionUtil.activatePermission(this.mpv.nowPlaying?.uri)
-                try {
-                  const file = fs.openSync(this.mpv!.nowPlaying!.uri)
-                  this.mpv.init(this.xComponentController.getXComponentSurfaceId(), file.path, 0)
-                } catch (error) {
-                  console.error('uri error:' + error)
-                }
-              })
-          }
+          XComponent({
+            type: XComponentType.SURFACE,
+            controller: this.xComponentController,
+            id: 'xcomponentId',
+            libraryname: 'mpvnative'
+          }).focusable(true)
+            .defaultFocus(true)
+            .onLoad(async () => {
+              await PermissionUtil.activatePermission(this.mpv.nowPlaying?.uri)
+              try {
+                const file = fs.openSync(this.mpv!.nowPlaying!.uri)
+                this.mpv.init(file.path, 0)
+              } catch (error) {
+                console.error('uri error:' + error)
+              }
+            })
         }.onKeyEvent((event?: KeyEvent) => {
           if (!event || event.type !== KeyType.Down) {
             return
@@ -265,7 +316,8 @@ export struct MpvPlayer {
           },
           onLongPressEnd: () => {
             this.longPress = false
-            //   this.mpv.updatePlaybackSpeed(VideoOperateUtil.lastSpeed)
+            this.mpv.speed = VideoOperateUtil.lastSpeed
+            this.mpv.updatePlaybackSpeed(this.mpv.speed)
           },
           onLongPressPanStart: (tapX: number) => {
             VideoOperateUtil.longPressStartX = tapX
@@ -309,35 +361,51 @@ export struct MpvPlayer {
       .height('100%')
       .width('100%')
       .backgroundColor($r('sys.color.black'))
-    }.onReady(async () => {
+    }
+    .onReady(async () => {
       const playerParams: PlayerParams =
         this.pathStack.getParamByName(NavigationAddress.MPV_PLAYER)[0] as PlayerParams
       try {
         this.mpv.nowPlaying = playerParams.metadata as VideoMetadata
         this.mpv.videoMetaDataList = playerParams.metadata_list as VideoMetadata[]
-        console.error('test' + JSON.stringify(this.mpv.nowPlaying))
       } catch (e) {
         console.error(e)
       }
-    }).onBackPressed(() => {
+    })
+    .onWillDisappear(async () => {
+      if (this.mpv.videoMetaDataList.length > 0 && this.mpv.playTime > 0) {
+        VideoOperateUtil.saveVideoTime(this.mpv.playTime, this.mpv.nowPlaying!, this.mpv.videoMetaDataList,
+          PathUtils.appContext!)
+      }
+      PermissionUtil.applyStopContinuousTask()
+      WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
+      WindowUtil.setBarState(PathUtils.appContext!, true, true)
+      try {
+        await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
+      } catch (error) {
+        console.error('setPreferredOrientation' + error)
+      }
+      this.exitVideo()
+    })
+    .onBackPressed(() => {
       if (this.showControl && !Setting.allowPlayBackExist) {
         this.showControl = false
         return true
       } else {
         return false
       }
-    }).hideTitleBar(true)
+    })
+    .hideTitleBar(true)
     .blur(Privacy.isPrivacyBackground ? 1000 : 0)
   }
 
-  closeSideBar(arg0: boolean) {
+  closeSideBar(_arg0: boolean) {
     throw new Error('Method not implemented.')
   }
 
   getVideoSize() {
-    let VideoWidth = this.mpv.getPlayAreaWidth() === 0 ? 2000 : this.mpv.getPlayAreaWidth()
-    let VideoHeight = this.mpv.getPlayAreaHeight() === 0 ? 2000 : this.mpv.getPlayAreaHeight()
-    console.error('test' + VideoWidth + ' ' + VideoHeight)
+    let VideoWidth = this.mpv.getPlayAreaWidth() === 0 ? 1999 : this.mpv.getPlayAreaWidth()
+    let VideoHeight = this.mpv.getPlayAreaHeight() === 0 ? 1999 : this.mpv.getPlayAreaHeight()
     if (this.mpv.nowPlaying?.size[0] === 0 && VideoWidth !== 0) {
       this.mpv.nowPlaying.size[0] = VideoWidth
       this.mpv.nowPlaying.size[1] = VideoHeight
@@ -351,6 +419,11 @@ export struct MpvPlayer {
     } else {
       this.playAreaHeight = this.screenHeight
       this.playAreaWidth = this.playAreaHeight * (VideoWidth / VideoHeight)
+    }
+    if (this.mpv.nowPlaying?.size[0] === 0 && VideoWidth !== 0 && VideoHeight !== 1999) {
+      this.mpv.nowPlaying.size[0] = VideoWidth
+      this.mpv.nowPlaying.size[1] = VideoHeight
+      VideoOperateUtil.saveVideoWeightAndHeight(PathUtils.appContext!, this.mpv.nowPlaying)
     }
   }
 
@@ -366,6 +439,7 @@ export struct MpvPlayer {
         .fontColor(['#f0f0f0'])
         .onClick(() => {
           this.pathStack.pop()
+          this.exitVideo()
         })
         .padding({ right: 10 })
         .margin({ left: 15 })
@@ -379,12 +453,102 @@ export struct MpvPlayer {
     }
   }
 
+  exitVideo() {
+    this.mpv.release()
+  }
+
   @Builder
   VideoButtons() {
+    GridRow({ columns: 14, gutter: 5 }) {
+      GridCol() {
+        Button({ type: ButtonType.Circle, stateEffect: true }) { // 播放按钮
+          SymbolGlyph(this.mpv.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill'))
+            .fontSize(27)
+            .fontColor(['#f0f0f0'])
+            .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.mpv.playing))
+        }
+        .attributeModifier(new ButtonFancyModifier(40, 40))
+        .backgroundColor('#50000000')
+        .onClick(() => {
+          ToolsUtil.startVibration()
+          this.mpv.togglePlayback()
+        })
+      }.span({ xs: 2, sm: 2, md: 2 })
+
+      GridCol() {
+        Button({ type: ButtonType.Circle, stateEffect: true }) { // 全屏按钮
+          SymbolGlyph($r('sys.symbol.screen_rotation'))
+            .fontSize(23)
+            .fontColor(['#f0f0f0'])
+        }
+        .attributeModifier(new ButtonFancyModifier(40, 40))
+        .backgroundColor('#50000000')
+        .onClick(async () => {
+          const orientation =
+            await WindowUtil.fullScreenOperate(this.screenHeight, this.screenWidth, this.windowClass)
+          if (orientation) {
+            XAnimation.runWithAnimation(async () => {
+              (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
+                console.error('setPreferredOrientation error')
+              })
+            })
+          }
+        })
+      }.span({ xs: 2, sm: 2, md: 2 })
+
+      GridCol() { // 投播
+        AVCastPicker({
+          normalColor: Color.White,
+          onStateChange: AVSessionUtil.castOnStateChange,
+          customPicker: () => this.AVCastPickerBuilderBridge()
+        })
+          .width(23)
+          .height(23)
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+      }.span({ xs: 2, sm: 2, md: 2 })
+
+      GridCol() {
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph(this.isAIAsrShown ?
+            $r('sys.symbol.textformat_size_square_fill') : $r('sys.symbol.textformat_size_square'))
+            .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
+            .fontColor(['#f0f0f0'])
+        }
+        .attributeModifier(new ButtonFancyModifier(40, 40))
+        .backgroundColor('#50000000')
+        .onClick(() => {
+          this.isAIAsrShown = !this.isAIAsrShown
+        })
+      }.span({ xs: 2, sm: 2, md: 2 })
+    }.width('95%')
   }
 
   @Builder
   VideoSlider() {
+    VideoSliderComponent({
+      playTime: this.mpv.playTime,
+      totalTime: this.mpv.getDuration(),
+      screenWidth: this.screenWidth,
+      screenHeight: this.screenHeight,
+      playSpeed: this.mpv.speed,
+      onSliderChange: (value: number) => {
+        this.onSwiping = true
+        this.isSliderPlayTimeChange = true
+        this.mpv.playTime = value
+      },
+      onSliderTouch: (event: TouchEvent) => {
+        if (event.type == TouchType.Up) {
+          this.mpv.seekTime(this.mpv.playTime)
+          this.isSliderPlayTimeChange = false
+          this.onSwiping = false
+        }
+      }
+    })
+  }
+
+  @Builder
+  AVCastPickerBuilderBridge() { // 桥接AVCastPickerBuilder避免crash
+    AVCastPickerBuilder()
   }
 }
 
