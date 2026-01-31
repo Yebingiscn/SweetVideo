@@ -114,9 +114,11 @@ export default class WantProcess {
       return NavigationAddress.RED_PLAYER
     } else if (defaultPlayer === 'FFMpeg播放器') {
       return NavigationAddress.FFMPEG_PLAYER
+    } else if (defaultPlayer === 'MPV播放器') {
+      return NavigationAddress.MPV_PLAYER
     }
-    // 默认使用FFMpeg播放器
-    return NavigationAddress.FFMPEG_PLAYER
+    // 默认播放器
+    return NavigationAddress.MPV_PLAYER
   }
 
   // 跳转外部网页

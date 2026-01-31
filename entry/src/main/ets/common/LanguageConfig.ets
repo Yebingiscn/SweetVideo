@@ -1,7 +1,11 @@
 export class LanguageConfig {
+  // languageMap 中的键全部使用小写，不允许使用大写
   public static languageMap: Record<string, string> = {
     'und': '未知',
     'chi': '中文',
+    'traditional': '繁体',
+    'cantonese': '粤语',
+    'simplified': '简体',
     'jpn': '日语',
     'eng': '英语',
     'kor': '韩语',
@@ -21,6 +25,23 @@ export class LanguageConfig {
     'ind': '印尼语',
     'dut': '荷兰语',
     'nld': '荷兰语',
-    'swe': '瑞典语'
+    'swe': '瑞典语',
+    'slv': '斯洛文尼亚语',
+    'hrv': '克罗地亚语',
+    'bul': '保加利亚语',
+    'cze': '捷克语',
+    'dan': '丹麦语',
+    'fin': '芬兰语',
+    'gre': '希腊语',
+    'heb': '希伯来语',
+    'hun': '匈牙利语',
+    'nor': '挪威语',
+    'pol': '波兰语',
+    'rum': '罗马尼亚语',
+    'est': '爱沙尼亚语',
+    'lav': '拉脱维亚语',
+    'lit': '立陶宛语',
+    'ice': '冰岛语',
+    'sdh': '听障字幕',
   }
 }

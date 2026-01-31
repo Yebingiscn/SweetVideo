@@ -1,6 +1,10 @@
 import { deviceInfo } from '@kit.BasicServicesKit'
 import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode'
+import { MpvController } from '../../controller/MpvController/MpvController'
+import { MpvSubtitleTrack } from '../../controller/MpvController/MpvTypes'
+import { InnerSubtitleDataSource } from '../../utils/DataUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
+import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
 @Component
 export struct SubtitlePanelComponent {
@@ -8,22 +12,25 @@ export struct SubtitlePanelComponent {
   @Link isAIAsrShown: boolean
   @Link subtitle3DMode: Subtitle3DMode
   @Prop subtitleSelected: SubtitleMode
+  @Prop innerSubtitleData: MpvSubtitleTrack[] | []
   @State threeDSubtitleValue: string[] = ["不使用", "左/右", "上/下"]
+  @State innerSubtitleMenu: InnerSubtitleDataSource = new InnerSubtitleDataSource([])
+  @Prop mpv: MpvController
+
+  aboutToAppear(): void {
+    if (this.innerSubtitleData.length > 0) {
+      this.innerSubtitleMenu = new InnerSubtitleDataSource(this.innerSubtitleData)
+    }
+  }
 
   build() {
     Menu() {
       MenuItem({
         content: '内嵌字幕：' + (this.subTitleVisibility === Visibility.Visible ? '显示（如果有）' : '字幕隐藏'),
+        builder: this.InnerSubtitleMenu,
       })
         .contentFontColor(this.subtitleSelected === SubtitleMode.INNER_SUBTITLE ? $r('sys.color.white') :
           $r('app.color.text_color'))
-        .onClick(() => {
-          this.isAIAsrShown = false
-          this.subTitleVisibility === Visibility.Visible && this.subtitleSelected === SubtitleMode.INNER_SUBTITLE ?
-            this.subTitleVisibility = Visibility.None :
-            this.subTitleVisibility = Visibility.Visible
-          this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
-        })
         .height(40)
         .backgroundColor(this.subtitleSelected === SubtitleMode.INNER_SUBTITLE ? $r('app.color.main_color') : '')
         .borderRadius(16)
@@ -115,6 +122,21 @@ export struct SubtitlePanelComponent {
         .backgroundColor(this.subtitle3DMode === Subtitle3DMode.TOP_AND_BOTTOM ? $r('app.color.main_color') : '')
     }
     .width(100).height('auto')
+  }
+
+  @Builder
+  InnerSubtitleMenu() {
+    Menu() {
+      LazyForEach(this.innerSubtitleMenu, (item: MpvSubtitleTrack) => {
+        MenuItem({
+          content: item.id + " " + VideoOperateUtil.getLanguageName(item.title) + " " +
+          VideoOperateUtil.getLanguageName(item.lang)
+        })
+          .onClick(() => {
+            this.mpv.selectSubtitleTrack(item.id)
+          })
+      }, (item: MpvSubtitleTrack) => item.title)
+    }
   }
 }
 

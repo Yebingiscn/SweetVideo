@@ -22,11 +22,15 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent'
 import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder'
 import { RepeatMode } from '../../common/enum/RepeatMode'
-import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
+import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 import AVSessionUtil from '../../utils/AVSessionUtil'
-import { AVCastPicker } from '@kit.AVSessionKit'
+import { AVCastPicker, avSession } from '@kit.AVSessionKit'
 import { audio } from '@kit.AudioKit'
 import { window } from '@kit.ArkUI'
+import { AudioTrackComponent } from '../../component/PlayerComponent/AudioTrackComponent'
+import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent'
+import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
+import { VideoTopComponent } from '../../component/PlayerComponent/VideoTopComponent'
 
 @Component
 export struct MpvPlayer {
@@ -53,21 +57,14 @@ export struct MpvPlayer {
   @State sideBarStatus: boolean = false
   @State repeatMode: RepeatMode = RepeatMode.LIST
   @State sideBarStatusTmp: Visibility = Visibility.Hidden
-  @State volume: number = 1.0
   @State screenBrightness: number = 0
-  @State volumeActually: number = 0
-  @State onSwipingVoice: boolean = false
-  private audioVolumeManager: audio.AudioVolumeManager | null = null
+  @State audioTrackSelect: number = 0
+  @State subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
 
   async aboutToAppear(): Promise<void> {
     this.mpv.prepare()
     PermissionUtil.applyContinuousTask()
     this.setScreen()
-    let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID
-    let audioManager = audio.getAudioManager()
-    this.audioVolumeManager = audioManager.getVolumeManager()
-    let volumeList = await VideoOperateUtil.getVolume(this.audioVolumeManager, groupId)
-    this.volume = volumeList.get('volume')!
     try {
       await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
@@ -76,24 +73,42 @@ export struct MpvPlayer {
     }
     WindowUtil.enableLandscapeMultiWindow(this.windowClass)
     this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
-    this.volumeActually = this.volume
+    let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID
+    let audioManager = audio.getAudioManager()
+    this.mpv.audioVolumeManager = audioManager.getVolumeManager()
+    let volumeList = await VideoOperateUtil.getVolume(this.mpv.audioVolumeManager, groupId)
+    this.mpv.volume = volumeList.get('volume')!
+    this.mpv.volumeActually = this.mpv.volume
+    let changeVolumeByVolumeButton = false
+    let swipingVoiceTimer: number | null = null
     try {
-      this.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
-        let changeVolumeByVolumeButton = false
-        if (!this.onSwipingVoice) { // 这里复用手势音量调节提示
-          this.onSwipingVoice = !this.onSwipingVoice
+      this.mpv.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
+        clearTimeout(swipingVoiceTimer)
+        if (!this.mpv.onSwipingVoice) { // 这里复用手势音量调节提示
+          this.mpv.onSwipingVoice = !this.mpv.onSwipingVoice
           changeVolumeByVolumeButton = true
         }
-        this.volumeActually = volumeEvent.volume
+        this.mpv.volumeActually = volumeEvent.volume
         ToolsUtil.startVibration()
-        setTimeout(() => {
+        swipingVoiceTimer = setTimeout(() => {
           if (changeVolumeByVolumeButton) {
-            this.onSwipingVoice = !this.onSwipingVoice
+            this.mpv.onSwipingVoice = !this.mpv.onSwipingVoice
+            changeVolumeByVolumeButton = false
           }
         }, 800)
       })
     } catch (error) {
       console.error('volumeChange error:' + error)
+    }
+  }
+
+  aboutToDisappear(): void {
+    VideoOperateUtil.setBrightness(-1)
+    try {
+      this.mpv.audioVolumeManager?.off('volumeChange')
+      ToolsUtil.addLogger("取消音量变化监听完成", false, this.pathStack)
+    } catch (error) {
+      ToolsUtil.addLogger(`音量监听取消错误 ${error}`, true, this.pathStack)
     }
   }
 
@@ -113,6 +128,7 @@ export struct MpvPlayer {
               try {
                 const file = fs.openSync(this.mpv!.nowPlaying!.uri)
                 this.mpv.init(file.path, 0)
+                this.initAVSession()
               } catch (error) {
                 console.error('uri error:' + error)
               }
@@ -381,6 +397,11 @@ export struct MpvPlayer {
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
       WindowUtil.setBarState(PathUtils.appContext!, true, true)
       try {
+        await this.mpv.avSession?.stopCasting()
+      } catch (error) {
+        console.error('stop cast fail')
+      }
+      try {
         await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
       } catch (error) {
         console.error('setPreferredOrientation' + error)
@@ -433,28 +454,92 @@ export struct MpvPlayer {
 
   @Builder
   VideoTop() {
-    Row({ space: 8 }) {
-      SymbolGlyph($r('sys.symbol.chevron_left'))// 返回图标
-        .fontSize(40)
-        .fontColor(['#f0f0f0'])
-        .onClick(() => {
-          this.pathStack.pop()
-          this.exitVideo()
-        })
-        .padding({ right: 10 })
-        .margin({ left: 15 })
-      Text(String(this.mpv.nowPlaying?.title).slice(0, this.mpv.nowPlaying?.title.lastIndexOf('.')))
-        .fontSize(20)
-        .fontWeight(FontWeight.Medium)
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.MARQUEE })
-        .fontColor($r('sys.color.white'))
-        .layoutWeight(1) // 关键布局属性
-    }
+    VideoTopComponent({
+      videoTitle: this.mpv.nowPlaying?.title,
+      subTitleVisibility: this.subtitleVisibility,
+      subtitleSelected: this.mpv.subtitleSelected,
+      isAIAsrShown: this.isAIAsrShown,
+      screenExtendSelectedText: this.selectedText,
+      screenWidth: this.screenWidth,
+      screenHeight: this.screenHeight,
+      audioTrackMenuBuilder: () => {
+        this.AudioTrackMenuBuilderBridge()
+      },
+      subtitlePanelComponent: () => {
+        this.SubtitleMenuBuilderBridge()
+      },
+      lockRotation: this.lockRotation,
+      playAreaHeight: this.playAreaHeight,
+      playAreaWidth: this.playAreaWidth,
+      onExitVideoClick: () => {
+        ToolsUtil.addLogger("点击退出视频按钮", false, this.pathStack)
+        this.exitVideo()
+      },
+      onLockRotationClick: async () => {
+        this.lockRotation = !this.lockRotation
+        ToolsUtil.addLogger(`锁定旋转状态切换为：${this.lockRotation}`, false, this.pathStack)
+        const orientation = this.lockRotation ?
+          (this.screenWidth > this.screenHeight ? window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED
+            : window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
+          : window.Orientation.AUTO_ROTATION_RESTRICTED
+        try {
+          XAnimation.runWithAnimation(async () => {
+            await (await this.windowClass)?.setPreferredOrientation(orientation)
+            ToolsUtil.addLogger("窗口方向设置成功", false, this.pathStack)
+          })
+        } catch (error) {
+          ToolsUtil.addLogger(`屏幕旋转异常: ${error.code}:${error.message}`, true, this.pathStack)
+        }
+        const toastMessage = this.lockRotation
+          ? ToolsUtil.getStringResource($r('app.string.open_rotation_lock').id)
+          : ToolsUtil.getStringResource($r('app.string.close_rotation_lock').id)
+        ToolsUtil.showToast(toastMessage)
+        ToolsUtil.addLogger(`显示旋转锁定提示：${toastMessage}`, false, this.pathStack)
+      }
+    })
   }
 
   exitVideo() {
     this.mpv.release()
+  }
+
+  async setSessionListener() {
+    try {
+      this.mpv.avSession?.on('play', () => {
+        this.mpv.play()
+      })
+      this.mpv.avSession?.on('pause', () => {
+        this.mpv.pause()
+      })
+      this.mpv.avSession?.on('seek', (position: number) => {
+        this.mpv.seekTime(position)
+      })
+      this.mpv.avSession?.on('fastForward', () => {
+        this.mpv.fastForward()
+      })
+      this.mpv.avSession?.on('rewind', () => {
+        this.mpv.backForward()
+      })
+      this.mpv.avSession?.on('outputDeviceChange', () => {
+        this.mpv.pause()
+      })
+      this.mpv.avSession?.on('setLoopMode', (mode: avSession.LoopMode) => {
+        this.repeatMode = AVSessionUtil.getRepeatModeFromAvSession(mode)
+        this.repeatMode = VideoOperateUtil.getRepeatMode(this.repeatMode)
+        AVSessionUtil.updatePlaybackSessionState(this.mpv.playing, this.mpv.playTime, this.repeatMode)
+      })
+    } catch (error) {
+      ToolsUtil.addLogger('set avSession state error', true, this.pathStack)
+    }
+  }
+
+  async initAVSession() {
+    if (Setting.allowBackgroundPlay) {
+      this.mpv.avSession = await AVSessionUtil.getAVSession()
+      await this.setSessionListener()
+      AVSessionUtil.setSessionInfo(this.mpv.nowPlaying!)
+      AVSessionUtil.updatePlaybackSessionState(this.mpv.playing, this.mpv.playTime, this.repeatMode)
+    }
   }
 
   @Builder
@@ -506,20 +591,6 @@ export struct MpvPlayer {
           .height(23)
           .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
       }.span({ xs: 2, sm: 2, md: 2 })
-
-      GridCol() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph(this.isAIAsrShown ?
-            $r('sys.symbol.textformat_size_square_fill') : $r('sys.symbol.textformat_size_square'))
-            .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
-            .fontColor(['#f0f0f0'])
-        }
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundColor('#50000000')
-        .onClick(() => {
-          this.isAIAsrShown = !this.isAIAsrShown
-        })
-      }.span({ xs: 2, sm: 2, md: 2 })
     }.width('95%')
   }
 
@@ -547,8 +618,43 @@ export struct MpvPlayer {
   }
 
   @Builder
+  AudioTrackMenuBuilder() {
+    AudioTrackComponent({
+      audioTrack: this.mpv.audioTrack,
+      audioTrackSelected: this.audioTrackSelect,
+      onSelect: (index: number) => {
+        ToolsUtil.addLogger(`选择音频轨道，索引：${index}`, false, this.pathStack)
+        this.mpv?.selectAudioTrack(this.mpv?.audioTrack[index]?.id)
+        this.audioTrackSelect = index
+      }
+    })
+  }
+
+  @Builder
+  SubtitleMenuBuilder() {
+    SubtitlePanelComponent({
+      subTitleVisibility: this.subtitleVisibility,
+      isAIAsrShown: this.isAIAsrShown,
+      subtitle3DMode: this.subtitle3DMode,
+      subtitleSelected: this.mpv.subtitleSelected,
+      innerSubtitleData: this.mpv.subtitleTrack,
+      mpv: this.mpv
+    })
+  }
+
+  @Builder
+  SubtitleMenuBuilderBridge() {
+    this.SubtitleMenuBuilder()
+  }
+
+  @Builder
   AVCastPickerBuilderBridge() { // 桥接AVCastPickerBuilder避免crash
     AVCastPickerBuilder()
+  }
+
+  @Builder
+  AudioTrackMenuBuilderBridge() {
+    this.AudioTrackMenuBuilder()
   }
 }
 

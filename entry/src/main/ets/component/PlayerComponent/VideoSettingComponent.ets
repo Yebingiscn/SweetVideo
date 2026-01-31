@@ -22,8 +22,6 @@ export struct VideoSettingComponent {
   @State pointB: string = '00:00'
   forward_80_s = (_time: number) => {
   }
-  onActiveEnhanceAudio = () => {
-  }
   closeAfter15min = (_time: number) => {
   }
   closeAfter30min = (_time: number) => {
@@ -92,12 +90,6 @@ export struct VideoSettingComponent {
         content: '前进 80s'
       }).onClick(() => {
         this.forward_80_s(this.playTime + 80 * 1000)
-      })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.service')),
-        content: '启用增强型音频解码（仅在放不出来声音时使用）'
-      }).onClick(() => {
-        this.onActiveEnhanceAudio()
       })
     }
   }

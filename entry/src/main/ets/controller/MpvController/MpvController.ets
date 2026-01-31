@@ -7,6 +7,8 @@ import { SubtitleMode } from '../../common/enum/SubtitleMode';
 import { PathUtils } from '../../utils/PathUtils';
 import VideoOperateUtil from '../../utils/VideoOperateUtil';
 import { MpvAudioTrack, MpvSubtitleTrack } from './MpvTypes';
+import { avSession as avSessionManager } from '@kit.AVSessionKit';
+import { audio } from '@kit.AudioKit';
 
 @Observed
 export class MpvController implements PlayerControllerInterface {
@@ -25,6 +27,8 @@ export class MpvController implements PlayerControllerInterface {
   @Track screenBrightness: number = 0
   @Track onSwipingVoice: boolean = false
   @Track subtitleSelected: SubtitleMode = SubtitleMode.INNER_SUBTITLE
+  avSession: avSessionManager.AVSession | undefined = undefined
+  audioVolumeManager: audio.AudioVolumeManager | null = null
 
   create(): void {
     if (this.mpvHandle) {
@@ -58,6 +62,11 @@ export class MpvController implements PlayerControllerInterface {
     }, 1000);
     this.playing = true
     console.error('[MpvPlayer] load video success')
+    setTimeout(() => {
+      this.getAudioTrackList()
+      this.getSubtitleTrackList()
+    }, 1000)
+
   }
 
   backForward(): void {

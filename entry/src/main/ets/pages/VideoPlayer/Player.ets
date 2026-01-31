@@ -80,14 +80,10 @@ export struct Player { // 播放页
     PermissionUtil.applyContinuousTask()
     ToolsUtil.addLogger("应用连续任务完成", false, this.pathStack)
     this.setScreen()
-    ToolsUtil.addLogger("设置屏幕完成", false, this.pathStack)
     try {
       await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
-      ToolsUtil.addLogger("设置窗口方向完成", false, this.pathStack)
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
-      ToolsUtil.addLogger("设置保持屏幕状态完成", false, this.pathStack)
       this.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
-      ToolsUtil.addLogger("设置循环模式状态完成", false, this.pathStack)
       const video_speed = Preferences.getVideoSpeed(PathUtils.appContext!)
       this.player.speed = parseFloat(video_speed?.replace('x', '') || '1')
       ToolsUtil.addLogger("设置播放器速度完成", false, this.pathStack)
@@ -100,21 +96,14 @@ export struct Player { // 播放页
   async aboutToDisappear(): Promise<void> {
     ToolsUtil.addLogger("开始执行aboutToDisappear方法", false, this.pathStack)
     VideoOperateUtil.setBrightness(-1)
-    ToolsUtil.addLogger("重置屏幕亮度完成", false, this.pathStack)
     Preferences.saveVideoSpeed(PathUtils.appContext!,
       (VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).includes(this.player.speed) ? this.player.speed :
         1) + 'x')
-    ToolsUtil.addLogger("保存视频速度完成", false, this.pathStack)
     Preferences.saveRepeatModeState(PathUtils.appContext!, this.repeatMode)
-    ToolsUtil.addLogger("保存重复模式状态完成", false, this.pathStack)
     WindowUtil.setBarState(PathUtils.appContext!, true, true)
-    ToolsUtil.addLogger("设置导航栏状态完成", false, this.pathStack)
     clearTimeout(this.exitVideoTime)
-    ToolsUtil.addLogger("清理退出视频定时器完成", false, this.pathStack)
     this.player.cancelSubscribe()
-    ToolsUtil.addLogger("取消播放器订阅完成", false, this.pathStack)
     AppStorage.delete('nowPlayingData')
-    ToolsUtil.addLogger("清理播放进度数据完成", false, this.pathStack)
     try {
       this.player.audioVolumeManager?.off('volumeChange')
       ToolsUtil.addLogger("取消音量变化监听完成", false, this.pathStack)
@@ -122,7 +111,6 @@ export struct Player { // 播放页
       ToolsUtil.addLogger(`音量监听取消错误 ${error}`, true, this.pathStack)
     }
     this.player.audioVolumeManager = null
-    ToolsUtil.addLogger("清理音频管理器完成", false, this.pathStack)
     this.player.release()
     ToolsUtil.addLogger("释放播放器资源完成", false, this.pathStack)
     VideoOperateUtil.avImageGenerator?.release()?.catch(() => {
@@ -133,7 +121,6 @@ export struct Player { // 播放页
   async setRotation() {
     ToolsUtil.addLogger("开始执行setRotation方法", false, this.pathStack)
     if (!this.player.nowPlaying) {
-      ToolsUtil.addLogger("当前无播放内容，方法终止", false, this.pathStack)
       return
     }
     ToolsUtil.addLogger("开始计算播放区域尺寸", false, this.pathStack)
@@ -144,15 +131,12 @@ export struct Player { // 播放页
     if (aspectRatioNow > screenAspectRatio) {
       this.playAreaWidth = this.screenWidth
       this.playAreaHeight = this.playAreaWidth * (nowHeight / nowWidth)
-      ToolsUtil.addLogger("使用屏幕宽度适配计算播放区域", false, this.pathStack)
     } else {
       this.playAreaHeight = this.screenHeight
       this.playAreaWidth = this.playAreaHeight * (nowWidth / nowHeight)
-      ToolsUtil.addLogger("使用屏幕高度适配计算播放区域", false, this.pathStack)
     }
     if (this.selectedText !== '原始比例') {
       this.selectedText = '原始比例'
-      ToolsUtil.addLogger("比例模式设置为原始比例", false, this.pathStack)
     }
     VideoInfoUtil.saveOriginalVideoWidthAndHeight(this.playAreaWidth, this.playAreaHeight)
     ToolsUtil.addLogger("setRotation方法执行完成", false, this.pathStack)
@@ -179,9 +163,6 @@ export struct Player { // 播放页
           false, this.pathStack)
         this.playNextVideoProcess()
         ToolsUtil.showToast('已智能跳过片尾')
-      }
-      if (!this.onSwiping) {
-        this.player.calPlayerSync(duration)
       }
       if (this.player.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
         this.player.subtitle = SubtitleUtil.getSubtitlesAtTime(duration)
@@ -216,7 +197,6 @@ export struct Player { // 播放页
 
     this.player.avPlayer?.on('audioOutputDeviceChangeWithInfo', (data: audio.AudioStreamDeviceChangeInfo) => {
       if (data.changeReason === audio.AudioStreamDeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) {
-        ToolsUtil.addLogger("旧音频设备不可用，暂停播放", false, this.pathStack)
         this.player.pause()
       }
     })
@@ -228,16 +208,13 @@ export struct Player { // 播放页
           ToolsUtil.addLogger("进入initialized状态", false, this.pathStack)
           if (this.player.avPlayer) {
             this.player.avPlayer.surfaceId = this.player.surfaceID
-            ToolsUtil.addLogger("设置surfaceId完成", false, this.pathStack)
             this.player.avPlayer.setPlaybackStrategy({
               showFirstFrameOnPrepare: true
             })?.catch(() => {
               ToolsUtil.addLogger("设置播放策略失败", true, this.pathStack)
             })
             await this.player.setExternalSubtitle(this.player.nowPlaying!)
-            ToolsUtil.addLogger("设置外挂字幕完成", false, this.pathStack)
             this.player.prepare()
-            ToolsUtil.addLogger("准备播放器完成", false, this.pathStack)
           }
           break
         case 'prepared':
@@ -249,7 +226,6 @@ export struct Player { // 播放页
           await this.player.getAudioTrackList()
           ToolsUtil.addLogger("获取音频轨道完成", false, this.pathStack)
           await this.player.initVolumeAndBrightness()
-          ToolsUtil.addLogger("初始化音量和亮度完成", false, this.pathStack)
           this.player.updatePlaybackSpeed(this.player.speed)
           ToolsUtil.addLogger("更新播放速度完成", false, this.pathStack)
           this.showControl = false
@@ -270,10 +246,6 @@ export struct Player { // 播放页
           }
           if (this.repeatMode === RepeatMode.SINGLE) {
             ToolsUtil.addLogger("单曲循环模式，重新开始播放", false, this.pathStack)
-            if (this.player.mIjkMediaPlayer) {
-              this.player.mIjkMediaPlayer?.seekTo('0')
-              this.player.mIjkMediaPlayer?.start()
-            }
             this.player.play()
             this.player.avPlayer?.seek(0, media.SeekMode.SEEK_CLOSEST)
           } else {
@@ -284,9 +256,6 @@ export struct Player { // 播放页
         case 'playing':
           ToolsUtil.addLogger("进入playing状态", false, this.pathStack)
           this.player.playing = true
-          if (this.player.mIjkMediaPlayer) {
-            this.player.mIjkMediaPlayer?.start()
-          }
           this.initAVSession()
           ToolsUtil.addLogger("初始化AVSession完成", false, this.pathStack)
           AVSessionUtil.updatePlaybackSessionState(this.player.playing, this.player.playTime, this.repeatMode)
@@ -296,9 +265,6 @@ export struct Player { // 播放页
           break
         case 'paused':
           ToolsUtil.addLogger("进入paused状态", false, this.pathStack)
-          if (this.player.mIjkMediaPlayer) {
-            this.player.mIjkMediaPlayer?.pause()
-          }
           this.player.playing = false
           AVSessionUtil.updatePlaybackSessionState(this.player.playing, this.player.playTime, this.repeatMode)
           ToolsUtil.addLogger("更新播放会话状态为暂停完成", false, this.pathStack)
@@ -309,26 +275,20 @@ export struct Player { // 播放页
           break
         case 'released':
           ToolsUtil.addLogger("进入released状态", false, this.pathStack)
-          await this.player.ijkPlayerStop()
-          ToolsUtil.addLogger("停止ijk播放器完成", false, this.pathStack)
           this.player.playing = false
           AVSessionUtil.updatePlaybackSessionState(this.player.playing, this.player.playTime, this.repeatMode)
           ToolsUtil.addLogger("更新播放会话状态为释放完成", false, this.pathStack)
           break
         case 'idle':
           ToolsUtil.addLogger("进入idle状态", false, this.pathStack)
-          await this.player.ijkPlayerStop()
-          ToolsUtil.addLogger("停止ijk播放器完成", false, this.pathStack)
           this.player.release()
           ToolsUtil.addLogger("释放播放器资源完成", false, this.pathStack)
           break
         case 'error':
           ToolsUtil.addLogger("进入error状态", false, this.pathStack)
-          await this.player.ijkPlayerStop()
-          ToolsUtil.addLogger("停止ijk播放器完成", false, this.pathStack)
           VideoOperateUtil.playErrorExecute(this.pathStack, this.player.videoMetaDataList,
             this.player.nowPlaying?.date!,
-            NavigationAddress.FFMPEG_PLAYER)
+            NavigationAddress.MPV_PLAYER)
           ToolsUtil.addLogger("执行播放错误处理完成", false, this.pathStack)
           this.player.release()
           ToolsUtil.addLogger("释放播放器资源完成", false, this.pathStack)
@@ -402,8 +362,8 @@ export struct Player { // 播放页
 
   startImageAnalyzer() {
     ToolsUtil.addLogger("开始启动图像分析器", false, this.pathStack)
-    this.xComponentController.startImageAnalyzer(VideoOperateUtil.config)?.catch((error: BusinessError) => {
-      ToolsUtil.addLogger(`启动图像分析器错误 ${error}`, true, this.pathStack)
+    this.xComponentController.startImageAnalyzer(VideoOperateUtil.config)?.catch(() => {
+      ToolsUtil.addLogger(`启动图像分析器错误`, true, this.pathStack)
     })
     ToolsUtil.addLogger("启动图像分析器请求已发送", false, this.pathStack)
   }
@@ -419,7 +379,6 @@ export struct Player { // 播放页
     this.player.avPlayer?.off('subtitleUpdate')
     this.player.reset()
     ToolsUtil.addLogger("重置播放器完成", false, this.pathStack)
-    await this.player.ijkPlayerStop()
     ToolsUtil.addLogger("停止ijk播放器完成", false, this.pathStack)
     this.player.nowPlaying = item as VideoMetadata
     ToolsUtil.addLogger("设置当前播放视频完成", false, this.pathStack)
@@ -433,9 +392,6 @@ export struct Player { // 播放页
   async setSessionListener() {
     try {
       this.player.avSession?.on('play', () => {
-        if (this.player.mIjkMediaPlayer) {
-          this.player.mIjkMediaPlayer?.start()
-        }
         this.player.play()
       })
       this.player.avSession?.on('pause', () => {
@@ -820,7 +776,6 @@ export struct Player { // 播放页
         ToolsUtil.addLogger("保存视频播放时间完成", false, this.pathStack)
       }
       PermissionUtil.applyStopContinuousTask()
-      await this.player.ijkPlayerStop()
       try {
         WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
         if (canIUse('SystemCapability.Window.SessionManager')) {
@@ -886,8 +841,12 @@ export struct Player { // 播放页
       screenExtendSelectedText: this.selectedText,
       screenWidth: this.screenWidth,
       screenHeight: this.screenHeight,
-      audioTrackMenuBuilder: this.getAudioMenuBuilder,
-      subtitlePanelComponent: this.getSubtitleMenuBuilder,
+      audioTrackMenuBuilder: () => {
+        this.AudioTrackMenuBuilderBridge()
+      },
+      subtitlePanelComponent: () => {
+        this.SubtitleMenuBuilderBridge()
+      },
       lockRotation: this.lockRotation,
       playAreaHeight: this.playAreaHeight,
       playAreaWidth: this.playAreaWidth,
@@ -943,11 +902,6 @@ export struct Player { // 播放页
   }
 
   @Builder
-  AVCastPickerBuilderBridge() { // 桥接AVCastPickerBuilder避免crash
-    AVCastPickerBuilder()
-  }
-
-  @Builder
   VideoButtons() {
     VideoButtonsComponent({
       screenHeight: this.screenHeight,
@@ -955,13 +909,16 @@ export struct Player { // 播放页
       playing: this.player.playing,
       speed: this.player.speed,
       AVCastPickerBuilderBridge: this.AVCastPickerBuilderBridge,
-      videoSettingBuilder: this.getVideoSettingBuilder,
-      playbackSpeedMenu: this.getPlaybackSpeedMenuBuilder,
+      videoSettingBuilder: () => {
+        this.VideoSettingBuilderBridge()
+      },
+      playbackSpeedMenu: () => {
+        this.PlaybackSpeedMenuBuilderBridge()
+      },
       repeatMode: this.repeatMode,
       sideBarStatusTmp: this.sideBarStatusTmp,
       sideBarStatus: this.sideBarStatus,
       onScreenRotationOrFullScreenClick: async () => {
-        ToolsUtil.addLogger("开始处理屏幕旋转/全屏点击", false, this.pathStack)
         const orientation = await WindowUtil.fullScreenOperate(this.screenHeight, this.screenWidth, this.windowClass)
         if (orientation) {
           XAnimation.runWithAnimation(async () => {
@@ -973,7 +930,6 @@ export struct Player { // 播放页
         }
       },
       onTogglePlaybackClick: () => {
-        ToolsUtil.addLogger("点击切换播放/暂停", false, this.pathStack)
         this.player.togglePlayback()
         ToolsUtil.addLogger("播放/暂停切换完成", false, this.pathStack)
       },
@@ -1013,10 +969,6 @@ export struct Player { // 播放页
       forward_80_s: (time: number) => {
         ToolsUtil.addLogger(`执行快进80秒操作，目标时间：${time}`, false, this.pathStack)
         this.player.seekTime(time)
-      },
-      onActiveEnhanceAudio: () => {
-        ToolsUtil.addLogger("启用增强音频解码", false, this.pathStack)
-        this.player.activeEnhanceAudio()
       },
       closeAfter15min: (time: number) => {
         ToolsUtil.addLogger("设置15分钟后关闭播放器", false, this.pathStack)
@@ -1072,20 +1024,33 @@ export struct Player { // 播放页
       subTitleVisibility: this.subtitleVisibility,
       isAIAsrShown: this.isAIAsrShown,
       subtitle3DMode: this.subtitle3DMode,
-      subtitleSelected: this.player.subtitleSelected
+      subtitleSelected: this.player.subtitleSelected,
+      innerSubtitleData: []
     })
   }
 
-  private getPlaybackSpeedMenuBuilder: () => void = () => {
+  @Builder
+  SubtitleMenuBuilderBridge() {
+    this.SubtitleMenuBuilder()
+  }
+
+  @Builder
+  PlaybackSpeedMenuBuilderBridge() {
     this.PlaybackSpeedMenuBuilder()
   }
-  private getAudioMenuBuilder: () => void = () => {
+
+  @Builder
+  AudioTrackMenuBuilderBridge() {
     this.AudioTrackMenuBuilder()
   }
-  private getVideoSettingBuilder: () => void = () => {
+
+  @Builder
+  VideoSettingBuilderBridge() {
     this.VideoSettingBuilder()
   }
-  private getSubtitleMenuBuilder: () => void = () => {
-    this.SubtitleMenuBuilder()
+
+  @Builder
+  AVCastPickerBuilderBridge() { // 桥接AVCastPickerBuilder避免crash
+    AVCastPickerBuilder()
   }
 }

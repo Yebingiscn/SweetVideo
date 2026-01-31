@@ -15,7 +15,7 @@ import { fileManagerService } from '@kit.FileManagerServiceKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { fileUri, fileIo as fs } from '@kit.CoreFileKit'
 import ToolsUtil from './ToolsUtil'
-import { MpvAudioTrack } from '../controller/MpvController/MpvTypes'
+import { MpvAudioTrack, MpvSubtitleTrack } from '../controller/MpvController/MpvTypes'
 
 // 基础数据源抽象类（泛型实现）
 abstract class BaseDataSource<T> implements IDataSource {
@@ -91,6 +91,10 @@ export class DeletedVideosDataSource extends BaseDataSource<VideoMetadata> {
 
 @Observed
 export class PrivacySpaceErrorListDataSource extends BaseDataSource<String> {
+}
+
+@Observed
+export class InnerSubtitleDataSource extends BaseDataSource<MpvSubtitleTrack> {
 }
 
 // 具体实现类

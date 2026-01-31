@@ -11,7 +11,7 @@ import VideoInfoUtil from '../../utils/VideoInfoUtil'
 @Component
 export struct PlayerSettingPage {
   private subtitleSizeList = ['19', '20', '21', '22', '23', '24', '25', '26']
-  private playerList = ['系统播放器', 'FFMpeg播放器', '红薯播放器']
+  private playerList = ['系统播放器', 'FFMpeg播放器', '红薯播放器', 'MPV播放器']
   private fastForwardSecond: FastForwardSecondInterface[] = [
     { label: '5秒', value: '5' },
     { label: '10秒', value: '10' },
