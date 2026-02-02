@@ -144,6 +144,9 @@ export struct Player { // 播放页
 
   async setAVPlayerCallback() {
     this.player.avPlayer?.on('timeUpdate', async (duration) => {
+      if (!this.onSwiping) {
+        this.player.playTime = duration
+      }
       AppStorage.setOrCreate('nowPlayingData',
         [this.player.playTime, this.player.nowPlaying!, this.player.videoMetaDataList])
       if (this.showControl) {

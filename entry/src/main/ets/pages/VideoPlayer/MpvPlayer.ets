@@ -406,13 +406,13 @@ export struct MpvPlayer {
       } catch (error) {
         console.error('setPreferredOrientation' + error)
       }
-      this.exitVideo()
     })
     .onBackPressed(() => {
       if (this.showControl && !Setting.allowPlayBackExist) {
         this.showControl = false
         return true
       } else {
+        this.exitVideo()
         return false
       }
     })
@@ -501,6 +501,7 @@ export struct MpvPlayer {
 
   exitVideo() {
     this.mpv.release()
+    this.pathStack.pop()
   }
 
   async setSessionListener() {

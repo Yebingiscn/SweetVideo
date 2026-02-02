@@ -11,15 +11,16 @@ import PermissionUtil from './PermissionUtil'
 // 视频信息类
 export default class VideoInfoUtil {
   // 视频格式支持列表
-  public static support_video_format = [
+  public static support_video_format = ['视频|.mpv,.mkv,.mp4,.mov,.rmvb,.wmv,.avi,.m4v',
     'mp4', 'flv', 'mkv', 'ts', 'mov', 'rmvb', 'wmv', 'avi', 'm4v'
   ]
   // 音频格式支持列表
-  public static support_audio_format = [
-    'wav', 'mp3', 'flac', 'dsf', 'dsd', 'dff', 'm4a', 'ape', 'aac', 'ogg', 'amr', 'aif', 'aiff', 'dts', 'wma', 'av3a'
-  ]
+  public static support_audio_format =
+    ['音频|.mp3,.wav,.flac,.dsf,.dsd,.dff,.m4a,.ape,.aac,.ogg,.amr,.aif,.aiff,.dts,.wma,.av3a',
+      'wav', 'mp3', 'flac', 'dsf', 'dsd', 'dff', 'm4a', 'ape', 'aac', 'ogg', 'amr', 'aif', 'aiff', 'dts', 'wma', 'av3a'
+    ]
   // 字幕格式支持列表
-  public static support_subtitle_format = ['srt', 'vtt', 'ass']
+  public static support_subtitle_format = ['字幕|.ass,.srt,.vtt', 'srt', 'vtt', 'ass']
   // 屏幕比例放大列表
   public static scale_factors = new Map<string, number>([
     ['等比放大 110%', 1.1],
