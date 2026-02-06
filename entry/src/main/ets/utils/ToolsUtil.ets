@@ -147,6 +147,9 @@ export default class ToolsUtil {
       ToolsUtil.showToast('该播放器不支持 HDR VIVID，已智能切换到合适播放器')
       uri = NavigationAddress.AV_PLAYER
     }
+    if (item.format === 'mkv') {
+      uri = NavigationAddress.MPV_PLAYER
+    }
     const playerParams = new PlayerParams(item, list, undefined)
     pathStack.pushPathByName(uri, playerParams, true)
   }

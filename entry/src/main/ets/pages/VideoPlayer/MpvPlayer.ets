@@ -31,6 +31,7 @@ import { AudioTrackComponent } from '../../component/PlayerComponent/AudioTrackC
 import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent'
 import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import { VideoTopComponent } from '../../component/PlayerComponent/VideoTopComponent'
+import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent'
 
 @Component
 export struct MpvPlayer {
@@ -141,13 +142,21 @@ export struct MpvPlayer {
             this.mpv.togglePlayback()
           }
           if (event.keyCode === KeyCode.KEYCODE_ESCAPE) {
-            this.pathStack.pop()
+            VideoOperateUtil.fullScreenOrRotateScreen(this.screenWidth, this.screenHeight, this.windowClass)
           }
           if (event.keyCode === KeyCode.KEYCODE_DPAD_RIGHT) {
             this.mpv.fastForward()
           }
           if (event.keyCode === KeyCode.KEYCODE_DPAD_LEFT) {
             this.mpv.backForward()
+          }
+          if (event.keyCode === KeyCode.KEYCODE_DPAD_UP || event.keyCode === KeyCode.KEYCODE_DPAD_DOWN) {
+            this.mpv.volume = this.mpv.volumeActually
+            const newVolume = VideoOperateUtil.changeVolume(this.mpv.volume,
+              event.keyCode === KeyCode.KEYCODE_DPAD_UP ? 0.5 : -0.5)
+            this.mpv.volume = newVolume
+            this.mpv.volumeActually = newVolume
+            VideoOperateUtil.lastVolume = newVolume
           }
         })
         .width(this.playAreaWidth)
@@ -280,7 +289,7 @@ export struct MpvPlayer {
               this.mpv.onSwipingVoice = true
               const newVolume = VideoOperateUtil.lastVolume - deltaYScale * 20
               this.mpv.volume =
-                Math.min(Math.max(newVolume, VideoOperateUtil.min_volume), VideoOperateUtil.max_volume)
+                Math.min(Math.max(newVolume, VideoOperateUtil.minVolume), VideoOperateUtil.maxVolume)
             }
           },
           onVerticalPanEnd: () => {
@@ -410,6 +419,7 @@ export struct MpvPlayer {
     .onBackPressed(() => {
       if (this.showControl && !Setting.allowPlayBackExist) {
         this.showControl = false
+        this.lockVisibility = false
         return true
       } else {
         this.exitVideo()
@@ -427,7 +437,7 @@ export struct MpvPlayer {
   getVideoSize() {
     let VideoWidth = this.mpv.getPlayAreaWidth() === 0 ? 1999 : this.mpv.getPlayAreaWidth()
     let VideoHeight = this.mpv.getPlayAreaHeight() === 0 ? 1999 : this.mpv.getPlayAreaHeight()
-    if (this.mpv.nowPlaying?.size[0] === 0 && VideoWidth !== 0) {
+    if (this.mpv.nowPlaying?.size[0] === 0 && VideoWidth !== 0 && VideoHeight !== 1999) {
       this.mpv.nowPlaying.size[0] = VideoWidth
       this.mpv.nowPlaying.size[1] = VideoHeight
       VideoOperateUtil.saveVideoWeightAndHeight(PathUtils.appContext!, this.mpv.nowPlaying)
@@ -570,15 +580,7 @@ export struct MpvPlayer {
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .onClick(async () => {
-          const orientation =
-            await WindowUtil.fullScreenOperate(this.screenHeight, this.screenWidth, this.windowClass)
-          if (orientation) {
-            XAnimation.runWithAnimation(async () => {
-              (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
-                console.error('setPreferredOrientation error')
-              })
-            })
-          }
+          VideoOperateUtil.fullScreenOrRotateScreen(this.screenWidth, this.screenHeight, this.windowClass)
         })
       }.span({ xs: 2, sm: 2, md: 2 })
 
@@ -591,6 +593,22 @@ export struct MpvPlayer {
           .width(23)
           .height(23)
           .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+      }.span({ xs: 2, sm: 2, md: 2 })
+
+      GridCol() {
+        Button({ type: ButtonType.Circle, stateEffect: true }) { // 倍速调整按钮
+          Text(`${this.mpv.speed}x`)
+            .fontSize(18)
+            .fontColor($r('sys.color.white'))
+            .minFontSize(8)
+            .maxFontSize(18)
+            .maxLines(1)
+            .padding(5)
+        }
+        .attributeModifier(new ButtonFancyModifier(40, 40))
+        .backgroundColor('#50000000')
+        .bindMenu(this.PlaybackSpeedMenuBuilder,
+          { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
       }.span({ xs: 2, sm: 2, md: 2 })
     }.width('95%')
   }
@@ -656,6 +674,17 @@ export struct MpvPlayer {
   @Builder
   AudioTrackMenuBuilderBridge() {
     this.AudioTrackMenuBuilder()
+  }
+
+  @Builder
+  PlaybackSpeedMenuBuilder() {
+    PlaybackSpeedMenuComponent({
+      speed: this.mpv.speed,
+      player: NavigationAddress.MPV_PLAYER,
+      onSpeedChange: (speed: number) => {
+        this.mpv.updatePlaybackSpeed(speed)
+      }
+    })
   }
 }
 

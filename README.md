@@ -116,6 +116,7 @@ QQ群：973792610
 - [REDPlayer](https://github.com/RTE-Dev/REDPlayer)
 - [subtitles](https://ohpm.openharmony.cn/#/cn/detail/@dove%2Fsubtitles)
 - [juniversalchardet](https://ohpm.openharmony.cn/#/cn/detail/@ohos%2Fjuniversalchardet)
+- mpv
 
 ## 赞助作者
 
@@ -138,3 +139,4 @@ QQ群：973792610
 - 爱发电用户_kNEC
 - 爱发电用户_wkjR
 - PhoenixYV
+- imgradeone

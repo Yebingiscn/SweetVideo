@@ -65,6 +65,7 @@ export class MpvController implements PlayerControllerInterface {
     setTimeout(() => {
       this.getAudioTrackList()
       this.getSubtitleTrackList()
+      this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!))
     }, 1000)
 
   }

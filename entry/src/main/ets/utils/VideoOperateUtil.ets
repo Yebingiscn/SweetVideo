@@ -24,13 +24,15 @@ import { fileIo, fileUri, fileIo as fs } from '@kit.CoreFileKit'
 import { RepeatMode } from '../common/enum/RepeatMode'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { image } from '@kit.ImageKit'
+import { XAnimation } from './AnimationUtil'
+import { WindowUtil } from './WindowUtil'
 
 const TAG = 'VideoOperateUtil'
 
 // 视频操作类
 export default class VideoOperateUtil {
-  public static max_volume: number = 0
-  public static min_volume: number = 0
+  public static maxVolume: number = 0
+  public static minVolume: number = 0
   public static lastSyncTime: number = 0
   public static syncCoolDown: number = 3000
   public static driftHistory: number[] = []
@@ -110,7 +112,7 @@ export default class VideoOperateUtil {
                   return rejectMax(err)
                 }
                 volume_list.set('max_volume', maxVolume)
-                VideoOperateUtil.max_volume = maxVolume
+                VideoOperateUtil.maxVolume = maxVolume
                 resolveMax()
               })
           }))
@@ -122,7 +124,7 @@ export default class VideoOperateUtil {
                   return rejectMin(err)
                 }
                 volume_list.set('min_volume', minVolume)
-                VideoOperateUtil.min_volume = minVolume
+                VideoOperateUtil.minVolume = minVolume
                 resolveMin()
               })
           }))
@@ -134,10 +136,10 @@ export default class VideoOperateUtil {
   }
 
   // 播放器播放失败处理
-  static playErrorExecute(pathStack: NavPathStack, video_meta_data: VideoMetadata[], date: string, playerName: string) {
+  static playErrorExecute(pathStack: NavPathStack, videoMetaData: VideoMetadata[], date: string, playerName: string) {
     ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
-    const nowPlayItem = video_meta_data.find(item => item.date === date)
-    const playerParams = new PlayerParams(nowPlayItem, video_meta_data, undefined)
+    const nowPlayItem = videoMetaData.find(item => item.date === date)
+    const playerParams = new PlayerParams(nowPlayItem, videoMetaData, undefined)
     pathStack.replacePathByName(playerName, playerParams, true)
   }
 
@@ -198,11 +200,11 @@ export default class VideoOperateUtil {
 
   // 保存视频播放进度
   static saveVideoTime(play_time: number, nowPlaying: VideoMetadata,
-    video_meta_data: VideoMetadata[], context: Context) {
+    videoMetaData: VideoMetadata[], context: Context) {
     const recentPlay = Preferences.getRecentPlayState(context) // 判断最近播放开关是否开启
     if (recentPlay && !PrivacySpaceUtil.getPrivacyMode() &&
       !SelectFileUtil.isPathFromSource(nowPlaying.uri, VideoSource.PRIVACY_SPACE)) { // 最近播放开启且非隐私空间视频则添加到最近播放
-      const meta = video_meta_data.find(i => i.date == nowPlaying?.date)
+      const meta = videoMetaData.find(i => i.date == nowPlaying?.date)
       if (meta) {
         RecentPlayUtil.addPlayback(context, meta)
       }
@@ -280,6 +282,25 @@ export default class VideoOperateUtil {
         ToolsUtil.addLogger('fetchFrameByTime error', true, undefined, TAG)
       })
     }
+  }
+
+  static async fullScreenOrRotateScreen(screenWidth: number, screenHeight: number,
+    windowClass: Promise<window.Window | undefined>) {
+    const orientation =
+      await WindowUtil.fullScreenOperate(screenHeight, screenWidth, windowClass)
+    if (orientation) {
+      XAnimation.runWithAnimation(async () => {
+        (await windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
+          console.error('setPreferredOrientation error')
+        })
+      })
+    }
+  }
+
+  static changeVolume(currentVolume: number, step: number) {
+    const newVolume = currentVolume + step;
+    // 确保音量在有效范围内
+    return Math.min(Math.max(newVolume, VideoOperateUtil.minVolume), VideoOperateUtil.maxVolume);
   }
 
   // 启动时初始化已保存的设置项

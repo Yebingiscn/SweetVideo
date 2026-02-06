@@ -38,8 +38,8 @@ export struct RedPlayer { // 红薯播放器页
     new RedPlayerXComponentController(PlayerCoreType.TYPE_RED_PLAYER)
   avSession: avSessionManager.AVSession | undefined = undefined
   @State @Watch('setScreen') showControl: boolean = false
-  @State screen_width: number = 0
-  @State screen_height: number = 0
+  @State screenWidth: number = 0
+  @State screenHeight: number = 0
   @State last_play_time: number = 0
   now_playing: VideoMetadata | undefined = undefined
   @State redPlayerStateHolder: RedPlayerStateHolder | null = null
@@ -120,7 +120,7 @@ export struct RedPlayer { // 红薯播放器页
             this.togglePlayback()
           }
           if (event.keyCode === KeyCode.KEYCODE_ESCAPE) {
-            this.pathStack.pop()
+            VideoOperateUtil.fullScreenOrRotateScreen(this.screenWidth, this.screenHeight, this.windowClass)
           }
           if (event.keyCode === KeyCode.KEYCODE_DPAD_RIGHT) {
             const seekOffset = Number(Setting.fastForwardSeconds) * 1000
@@ -131,6 +131,14 @@ export struct RedPlayer { // 红薯播放器页
             const seekOffset = Number(Setting.fastForwardSeconds) * 1000
             const newPosition = this.play_time - seekOffset
             this.seekTime(newPosition)
+          }
+          if (event.keyCode === KeyCode.KEYCODE_DPAD_UP || event.keyCode === KeyCode.KEYCODE_DPAD_DOWN) {
+            this.volume = this.volumeActually
+            const newVolume = VideoOperateUtil.changeVolume(this.volume,
+              event.keyCode === KeyCode.KEYCODE_DPAD_UP ? 0.5 : -0.5)
+            this.volume = newVolume
+            this.volumeActually = newVolume
+            VideoOperateUtil.lastVolume = newVolume
           }
         })
 
@@ -149,14 +157,14 @@ export struct RedPlayer { // 红薯播放器页
               .width('100%')
               .backgroundColor('#36ffffff')
               .padding({
-                left: (this.screen_height > this.screen_width ? 5 : 5),
+                left: (this.screenHeight > this.screenWidth ? 5 : 5),
                 right: 20,
                 top: (this.showControl ? SafeHeight.topSafeHeight : 0),
                 bottom: 0
               })
 
               Stack() { //底栏
-                if (this.screen_height > this.screen_width) {
+                if (this.screenHeight > this.screenWidth) {
                   Column({ space: 15 }) {
                     this.VideoButtons()
                     this.VideoSlider()
@@ -171,7 +179,7 @@ export struct RedPlayer { // 红薯播放器页
                 }
               }.transition(XAnimation.getAnimation('bottom', 0, false))
               .backgroundColor($r('sys.color.mask_fourth'))
-              .height(this.screen_height > this.screen_width ? 180 : 110)
+              .height(this.screenHeight > this.screenWidth ? 180 : 110)
               .width('100%')
             }.height('100%').width('100%')
           }
@@ -198,7 +206,7 @@ export struct RedPlayer { // 红薯播放器页
         if (this.longPress) {
           FastForwardPanelBuilder({
             speed: this.longSpeed,
-            location: this.screen_width > this.screen_height ? -160 : -80
+            location: this.screenWidth > this.screenHeight ? -160 : -80
           })
         }
         GestureComponent({
@@ -210,7 +218,7 @@ export struct RedPlayer { // 红薯播放器页
               return
             }
             this.play_time = this.redPlayerStateHolder!.videoPosition
-            const zoneWidth = this.screen_width / 5 // 计算区域分割宽度
+            const zoneWidth = this.screenWidth / 5 // 计算区域分割宽度
             const seekOffset = Number(Setting.fastForwardSeconds) * 1000
             if (tapX < zoneWidth) { // 左侧区域：回退
               const newPosition = this.play_time - seekOffset
@@ -230,13 +238,13 @@ export struct RedPlayer { // 红薯播放器页
             })
           },
           onVerticalPanStart: (tapX: number) => {
-            VideoOperateUtil.leftSideSwipe = tapX < this.screen_width / 2
+            VideoOperateUtil.leftSideSwipe = tapX < this.screenWidth / 2
             VideoOperateUtil.screenBrightnessTmp = this.screenBrightness
             this.volume = this.volumeActually
             VideoOperateUtil.lastVolume = this.volume // 记录起始音量
           },
           onVerticalPanUpdate: (offsetY: number) => {
-            const deltaYScale = offsetY / this.screen_height * 2.5
+            const deltaYScale = offsetY / this.screenHeight * 2.5
             if (VideoOperateUtil.leftSideSwipe) {
               this.onSwipingBrightness = true
               this.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
@@ -245,7 +253,7 @@ export struct RedPlayer { // 红薯播放器页
               this.onSwipingVoice = true
               const newVolume = VideoOperateUtil.lastVolume - deltaYScale * 20
               this.volume =
-                Math.min(Math.max(newVolume, -10), VideoOperateUtil.max_volume)
+                Math.min(Math.max(newVolume, -10), VideoOperateUtil.maxVolume)
             }
           },
           onVerticalPanEnd: () => {
@@ -259,7 +267,7 @@ export struct RedPlayer { // 红薯播放器页
             this.onSwiping = true
           },
           onHorizonPanUpdate: (offsetX: number) => {
-            const timePerPixel = VideoOperateUtil.getTimePixel(this.screen_width, this.now_playing?.time!) * 1.5
+            const timePerPixel = VideoOperateUtil.getTimePixel(this.screenWidth, this.now_playing?.time!) * 1.5
             this.play_time = Math.max(0,
               Math.min(this.last_play_time + (offsetX * timePerPixel), this.now_playing?.time!))
           },
@@ -314,13 +322,13 @@ export struct RedPlayer { // 红薯播放器页
           .width('80%').height(80)
           .offset({
             x: 0,
-            y: this.screen_width > this.screen_height ? this.screen_height / 2 - 40 : this.screen_height / 2 - 100
+            y: this.screenWidth > this.screenHeight ? this.screenHeight / 2 - 40 : this.screenHeight / 2 - 100
           })
 
       }
       .onAreaChange(async (_oldValue: Area, newValue: Area) => {
-        this.screen_width = Math.floor(new Number(newValue.width).valueOf())
-        this.screen_height = Math.floor(new Number(newValue.height).valueOf())
+        this.screenWidth = Math.floor(new Number(newValue.width).valueOf())
+        this.screenHeight = Math.floor(new Number(newValue.height).valueOf())
         this.playerController?.getVideoSize()
       })
       .height('100%')
@@ -482,8 +490,8 @@ export struct RedPlayer { // 红薯播放器页
     VideoSliderComponent({
       playTime: this.redPlayerStateHolder?.videoPosition,
       totalTime: this.redPlayerStateHolder?.videoDuration,
-      screenHeight: this.screen_height,
-      screenWidth: this.screen_width,
+      screenHeight: this.screenHeight,
+      screenWidth: this.screenWidth,
       playSpeed: this.longSpeed,
       onSliderChange: (value: number) => {
         this.play_time = value
@@ -544,15 +552,7 @@ export struct RedPlayer { // 红薯播放器页
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .onClick(async () => {
-          const orientation =
-            await WindowUtil.fullScreenOperate(this.screen_height, this.screen_width, this.windowClass)
-          if (orientation) {
-            XAnimation.runWithAnimation(async () => {
-              (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
-                console.error('setPreferredOrientation error')
-              })
-            })
-          }
+          VideoOperateUtil.fullScreenOrRotateScreen(this.screenWidth, this.screenHeight, this.windowClass)
         })
       }.span({ xs: 2, sm: 2, md: 2 })
 

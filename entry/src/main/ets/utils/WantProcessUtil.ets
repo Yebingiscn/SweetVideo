@@ -110,6 +110,8 @@ export default class WantProcess {
       metadata.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID || metadata.format.toLowerCase() === 'mov') &&
       metadata.size[0] !== 0) {
       return NavigationAddress.AV_PLAYER
+    } else if (metadata.format === 'mkv') {
+      return NavigationAddress.MPV_PLAYER
     } else if (defaultPlayer === '红薯播放器') {
       return NavigationAddress.RED_PLAYER
     } else if (defaultPlayer === 'FFMpeg播放器') {

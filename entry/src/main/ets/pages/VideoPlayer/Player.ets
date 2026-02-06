@@ -84,8 +84,8 @@ export struct Player { // 播放页
       await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
       this.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
-      const video_speed = Preferences.getVideoSpeed(PathUtils.appContext!)
-      this.player.speed = parseFloat(video_speed?.replace('x', '') || '1')
+      const videoSpeed = Preferences.getVideoSpeed(PathUtils.appContext!)
+      this.player.speed = parseFloat(videoSpeed?.replace('x', '') || '1')
       ToolsUtil.addLogger("设置播放器速度完成", false, this.pathStack)
     } catch (error) {
       ToolsUtil.addLogger(`播放错误 ${error}`, true, this.pathStack)
@@ -492,13 +492,21 @@ export struct Player { // 播放页
               this.player.togglePlayback()
             }
             if (event.keyCode === KeyCode.KEYCODE_ESCAPE) {
-              this.exitVideo(0)
+              VideoOperateUtil.fullScreenOrRotateScreen(this.screenWidth, this.screenHeight, this.windowClass)
             }
             if (event.keyCode === KeyCode.KEYCODE_DPAD_RIGHT) {
               this.player.fastForward()
             }
             if (event.keyCode === KeyCode.KEYCODE_DPAD_LEFT) {
               this.player.backForward()
+            }
+            if (event.keyCode === KeyCode.KEYCODE_DPAD_UP || event.keyCode === KeyCode.KEYCODE_DPAD_DOWN) {
+              this.player.volume = this.player.volumeActually
+              const newVolume = VideoOperateUtil.changeVolume(this.player.volume,
+                event.keyCode === KeyCode.KEYCODE_DPAD_UP ? 0.5 : -0.5)
+              this.player.volume = newVolume
+              this.player.volumeActually = newVolume
+              VideoOperateUtil.lastVolume = newVolume
             }
           })
           .width(this.playAreaWidth)
@@ -631,7 +639,7 @@ export struct Player { // 播放页
                 this.player.onSwipingVoice = true
                 const newVolume = VideoOperateUtil.lastVolume - deltaYScale * 20
                 this.player.volume =
-                  Math.min(Math.max(newVolume, VideoOperateUtil.min_volume), VideoOperateUtil.max_volume)
+                  Math.min(Math.max(newVolume, VideoOperateUtil.minVolume), VideoOperateUtil.maxVolume)
               }
             },
             onVerticalPanEnd: () => {
@@ -922,15 +930,7 @@ export struct Player { // 播放页
       sideBarStatusTmp: this.sideBarStatusTmp,
       sideBarStatus: this.sideBarStatus,
       onScreenRotationOrFullScreenClick: async () => {
-        const orientation = await WindowUtil.fullScreenOperate(this.screenHeight, this.screenWidth, this.windowClass)
-        if (orientation) {
-          XAnimation.runWithAnimation(async () => {
-            (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
-              ToolsUtil.addLogger("设置窗口方向失败", true, this.pathStack)
-            })
-          })
-          ToolsUtil.addLogger("屏幕旋转/全屏操作完成", false, this.pathStack)
-        }
+        VideoOperateUtil.fullScreenOrRotateScreen(this.screenWidth, this.screenHeight, this.windowClass)
       },
       onTogglePlaybackClick: () => {
         this.player.togglePlayback()

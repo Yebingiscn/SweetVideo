@@ -27,8 +27,8 @@ export function VolumeSwipingPanelBuilder(volumeValue: VolumeValue) {
           .fontColor(['#f0f0f0'])
         Slider({
           value: volumeValue.videoVolumeShow,
-          min: VideoOperateUtil.min_volume,
-          max: VideoOperateUtil.max_volume,
+          min: VideoOperateUtil.minVolume,
+          max: VideoOperateUtil.maxVolume,
           step: 0.1,
           style: SliderStyle.NONE,
           direction: Axis.Horizontal,
@@ -55,13 +55,13 @@ export function VolumeSwipingPanelBuilder(volumeValue: VolumeValue) {
 }
 
 export function getVoiceIcon(videoVolume: number) {
-  if (videoVolume <= VideoOperateUtil.min_volume) {
+  if (videoVolume <= VideoOperateUtil.minVolume) {
     return $r('sys.symbol.speaker_slash') // 静音
   }
-  if (videoVolume >= VideoOperateUtil.max_volume * 2 / 3) {
+  if (videoVolume >= VideoOperateUtil.maxVolume * 2 / 3) {
     return $r('sys.symbol.speaker_wave_3') // 高音量
   }
-  if (videoVolume >= VideoOperateUtil.max_volume * 1 / 3) {
+  if (videoVolume >= VideoOperateUtil.maxVolume * 1 / 3) {
     return $r('sys.symbol.speaker_wave_2') // 中音量
   }
   return $r('sys.symbol.speaker_wave_1') // 低音量
