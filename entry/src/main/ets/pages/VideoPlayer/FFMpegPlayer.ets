@@ -336,7 +336,7 @@ export struct FFMpegPlayer { // FFMpeg播放器页
             y: this.screenWidth > this.screenHeight ? this.screenHeight / 2 - 40 : this.screenHeight / 2 - 100
           })
       }
-      .onAreaChange(async (_oldValue: Area, newValue: Area) => {
+      .onAreaChange((_oldValue: Area, newValue: Area) => {
         this.screenWidth = Math.floor(new Number(newValue.width).valueOf())
         this.screenHeight = Math.floor(new Number(newValue.height).valueOf())
         this.getVideoSize()

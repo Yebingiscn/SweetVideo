@@ -378,7 +378,7 @@ export struct MpvPlayer {
             x: 0,
             y: this.screenWidth > this.screenHeight ? this.screenHeight / 2 - 40 : this.screenHeight / 2 - 100
           })
-      }.onAreaChange(async (_oldValue: Area, newValue: Area) => {
+      }.onAreaChange((_oldValue: Area, newValue: Area) => {
         this.screenWidth = Math.floor(new Number(newValue.width).valueOf())
         this.screenHeight = Math.floor(new Number(newValue.height).valueOf())
         this.getVideoSize()
@@ -437,11 +437,6 @@ export struct MpvPlayer {
   getVideoSize() {
     let VideoWidth = this.mpv.getPlayAreaWidth() === 0 ? 1999 : this.mpv.getPlayAreaWidth()
     let VideoHeight = this.mpv.getPlayAreaHeight() === 0 ? 1999 : this.mpv.getPlayAreaHeight()
-    if (this.mpv.nowPlaying?.size[0] === 0 && VideoWidth !== 0 && VideoHeight !== 1999) {
-      this.mpv.nowPlaying.size[0] = VideoWidth
-      this.mpv.nowPlaying.size[1] = VideoHeight
-      VideoOperateUtil.saveVideoWeightAndHeight(PathUtils.appContext!, this.mpv.nowPlaying)
-    }
     const aspectRatioNow = VideoWidth / VideoHeight
     const screenAspectRatio = this.screenWidth / this.screenHeight
     if (aspectRatioNow > screenAspectRatio) {
@@ -450,6 +445,11 @@ export struct MpvPlayer {
     } else {
       this.playAreaHeight = this.screenHeight
       this.playAreaWidth = this.playAreaHeight * (VideoWidth / VideoHeight)
+    }
+    if (this.windowClass) {
+      this.playAreaWidth > this.playAreaHeight ? WindowUtil.enableLandscapeMultiWindow(this.windowClass) :
+        WindowUtil.disableLandscapeMultiWindow(this.windowClass)
+      VideoInfoUtil.saveOriginalVideoWidthAndHeight(this.playAreaWidth, this.playAreaHeight)
     }
     if (this.mpv.nowPlaying?.size[0] === 0 && VideoWidth !== 0 && VideoHeight !== 1999) {
       this.mpv.nowPlaying.size[0] = VideoWidth

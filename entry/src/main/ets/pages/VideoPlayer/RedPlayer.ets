@@ -326,7 +326,7 @@ export struct RedPlayer { // 红薯播放器页
           })
 
       }
-      .onAreaChange(async (_oldValue: Area, newValue: Area) => {
+      .onAreaChange((_oldValue: Area, newValue: Area) => {
         this.screenWidth = Math.floor(new Number(newValue.width).valueOf())
         this.screenHeight = Math.floor(new Number(newValue.height).valueOf())
         this.playerController?.getVideoSize()
