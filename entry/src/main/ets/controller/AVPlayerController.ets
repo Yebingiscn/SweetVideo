@@ -36,7 +36,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Track subtitle: string = ''
   @Track videoMetaDataList: VideoMetadata[] = []
   audioVolumeManager: audio.AudioVolumeManager | null = null
-  public isListenVideo: boolean = false
+  @Track isListenVideo: boolean = false
 
   async initVolumeAndBrightness() {
     let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID

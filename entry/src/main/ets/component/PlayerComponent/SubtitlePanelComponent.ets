@@ -15,7 +15,7 @@ export struct SubtitlePanelComponent {
   @Prop innerSubtitleData: MpvSubtitleTrack[] | []
   @State threeDSubtitleValue: string[] = ["不使用", "左/右", "上/下"]
   @State innerSubtitleMenu: InnerSubtitleDataSource = new InnerSubtitleDataSource([])
-  @Prop mpv: MpvController
+  @ObjectLink mpv: MpvController | null
 
   aboutToAppear(): void {
     if (this.innerSubtitleData.length > 0) {
@@ -57,7 +57,7 @@ export struct SubtitlePanelComponent {
         MenuItem({
           content: 'AI 字幕：' + (this.isAIAsrShown ? '显示' : '隐藏')
         })
-          .contentFontColor(this.subtitleSelected === SubtitleMode.AI_SUBTITLE ? $r('sys.color.white') :
+          .contentFontColor(this.isAIAsrShown ? $r('sys.color.white') :
             $r('app.color.text_color'))
           .onClick(() => {
             this.isAIAsrShown = !this.isAIAsrShown
@@ -68,7 +68,7 @@ export struct SubtitlePanelComponent {
             this.subtitleSelected = SubtitleMode.AI_SUBTITLE
           })
           .height(40)
-          .backgroundColor(this.subtitleSelected === SubtitleMode.AI_SUBTITLE ? $r('app.color.main_color') : '')
+          .backgroundColor(this.isAIAsrShown ? $r('app.color.main_color') : '')
           .borderRadius(16)
           .width('100%')
       }
@@ -133,7 +133,7 @@ export struct SubtitlePanelComponent {
           VideoOperateUtil.getLanguageName(item.lang)
         })
           .onClick(() => {
-            this.mpv.selectSubtitleTrack(item.id)
+            this.mpv?.selectSubtitleTrack(item.id)
           })
       }, (item: MpvSubtitleTrack) => item.title)
     }

@@ -550,7 +550,6 @@ export struct FFMpegPlayer { // FFMpeg播放器页
     } catch (error) {
       console.error('volumeChange error:' + error)
     }
-    this.isAIAsrShown = true
   }
 
   async aboutToDisappear() {

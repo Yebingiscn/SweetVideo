@@ -100,7 +100,6 @@ export struct RedPlayer { // 红薯播放器页
                     AVSessionUtil.setSessionInfo(this.now_playing!)
                     AVSessionUtil.updatePlaybackSessionState(this.isSliderPlayTimeChange,
                       this.redPlayerStateHolder!.videoPosition)
-                    this.isAIAsrShown = true
                   })
                 } catch (error) {
                   console.error('uri error:' + error)

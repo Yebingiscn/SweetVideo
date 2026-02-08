@@ -114,6 +114,7 @@ export class MpvController implements PlayerControllerInterface {
     }
     mpv.destroy(this.mpvHandle)
     clearInterval(this.playTimeUpdateTag)
+    this.mpvHandle = null
   }
 
   seekTime(seekTime: number): void {

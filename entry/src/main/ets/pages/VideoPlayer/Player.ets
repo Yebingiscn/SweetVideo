@@ -41,10 +41,12 @@ import { SubtitlePanelComponent } from '../../component/PlayerComponent/Subtitle
 import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { avSession } from '@kit.AVSessionKit'
 import { PlayerControllerFactory } from '../../controller/PlayerControllerFactory'
+import { MpvController } from '../../controller/MpvController/MpvController'
 
 @Component
 export struct Player { // 播放页
   @Provide('player') player: AVPlayerController = PlayerControllerFactory.createAVPlayerController()
+  @Provide('MpvPlayer') mpv: MpvController = PlayerControllerFactory.createMpvController()
   @State longPress: boolean = false
   @State @Watch('setScreen') showControl: boolean = false
   @State lockRotation: boolean = false
@@ -1028,7 +1030,8 @@ export struct Player { // 播放页
       isAIAsrShown: this.isAIAsrShown,
       subtitle3DMode: this.subtitle3DMode,
       subtitleSelected: this.player.subtitleSelected,
-      innerSubtitleData: []
+      innerSubtitleData: [],
+      mpv: this.mpv
     })
   }
 

@@ -220,7 +220,7 @@ export struct MpvPlayer {
             playTime: this.mpv.playTime,
             totalTime: this.mpv.nowPlaying!.time,
             pixelMap: null,
-            player: NavigationAddress.AV_PLAYER
+            player: NavigationAddress.MPV_PLAYER
           })
         }
 
@@ -387,7 +387,7 @@ export struct MpvPlayer {
       .width('100%')
       .backgroundColor($r('sys.color.black'))
     }
-    .onReady(async () => {
+    .onReady(() => {
       const playerParams: PlayerParams =
         this.pathStack.getParamByName(NavigationAddress.MPV_PLAYER)[0] as PlayerParams
       try {
