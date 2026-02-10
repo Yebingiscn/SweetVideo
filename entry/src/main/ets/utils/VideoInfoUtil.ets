@@ -7,82 +7,25 @@ import { ConcurrentQueue } from './FileProcessorUtil'
 import NavigationAddress from '../common/NavigationCommon'
 import SelectFileUtil from './SelectFileUtil'
 import PermissionUtil from './PermissionUtil'
+import { GB, MB, SCREEN_EXTEND_LIST, VIDEO_SIZE_MAP, VIDEO_SPEED_MAP } from '../common/Constants'
 
 // 视频信息类
 export default class VideoInfoUtil {
-  // 视频格式支持列表
-  public static support_video_format = ['视频|.mpv,.mkv,.mp4,.mov,.rmvb,.wmv,.avi,.m4v',
-    'mp4', 'flv', 'mkv', 'ts', 'mov', 'rmvb', 'wmv', 'avi', 'm4v'
-  ]
-  // 音频格式支持列表
-  public static support_audio_format =
-    ['音频|.mp3,.wav,.flac,.dsf,.dsd,.dff,.m4a,.ape,.aac,.ogg,.amr,.aif,.aiff,.dts,.wma,.av3a',
-      'wav', 'mp3', 'flac', 'dsf', 'dsd', 'dff', 'm4a', 'ape', 'aac', 'ogg', 'amr', 'aif', 'aiff', 'dts', 'wma', 'av3a'
-    ]
-  // 字幕格式支持列表
-  public static support_subtitle_format = ['字幕|.ass,.srt,.vtt', 'srt', 'vtt', 'ass']
-  // 屏幕比例放大列表
-  public static scale_factors = new Map<string, number>([
-    ['等比放大 110%', 1.1],
-    ['等比放大 120%', 1.2],
-    ['等比放大 130%', 1.3],
-    ['等比放大 140%', 1.4]
-  ])
-  // 屏幕比例放大列表
-  public static screenExtendList: Array<SelectOption> = [//屏幕扩展
-    { value: '原始比例' },
-    { value: '拉伸全屏' },
-    { value: '按宽度全屏' },
-    { value: '按高度全屏' },
-    { value: '16:9' },
-    { value: '4:3' },
-    { value: '等比放大 110%' },
-    { value: '等比放大 120%' },
-    { value: '等比放大 130%' },
-    { value: '等比放大 140%' }]
-  public static screenExtendMap: string[] = VideoInfoUtil.screenExtendList.map(item => item.value as string)
+  public static screenExtendMap: string[] = SCREEN_EXTEND_LIST.map(item => item.value as string)
   // 播放器视频宽度
   public static playAreaWidth: number = 0
   // 播放器视频高度
   public static playAreaHeight: number = 0
-  private static GB = 1024 * 1024 * 1024
-  private static MB = 1024 * 1024
-  // 倍速枚举，绑定系统倍速，倍速映射：用户倍速 ↔ 系统枚举
-  private static VIDEO_SPEED_MAP =
-    new Map<number, media.PlaybackSpeed>([[0.125, media.PlaybackSpeed.SPEED_FORWARD_0_125_X],
-      [0.25, media.PlaybackSpeed.SPEED_FORWARD_0_25_X],
-      [0.5, media.PlaybackSpeed.SPEED_FORWARD_0_50_X],
-      [0.75, media.PlaybackSpeed.SPEED_FORWARD_0_75_X], [1, media.PlaybackSpeed.SPEED_FORWARD_1_00_X],
-      [1.25, media.PlaybackSpeed.SPEED_FORWARD_1_25_X], [1.5, media.PlaybackSpeed.SPEED_FORWARD_1_50_X],
-      [1.75, media.PlaybackSpeed.SPEED_FORWARD_1_75_X], [2, media.PlaybackSpeed.SPEED_FORWARD_2_00_X],
-      [3, media.PlaybackSpeed.SPEED_FORWARD_3_00_X]])
-  private static readonly videoSpeedListAll: number[] = Array.from(VideoInfoUtil.VIDEO_SPEED_MAP.keys())
+  public static ASPECT_RATIO_MAP: Map<string, number> = new Map([[VideoInfoUtil.screenExtendMap[4], 16 / 9],
+    [VideoInfoUtil.screenExtendMap[5], 4 / 3]])
+  private static readonly videoSpeedListAll: number[] = Array.from(VIDEO_SPEED_MAP.keys())
     .filter(speed => speed >= 0.25)
     .sort((a, b) => a - b)
   // 反向映射：系统枚举 → 用户倍速
   private static REVERSE_SPEED_MAP = new Map<media.PlaybackSpeed, number>(
-    Array.from(VideoInfoUtil.VIDEO_SPEED_MAP.entries()).map((entry) => [entry[1], entry[0]])
+    Array.from(VIDEO_SPEED_MAP.entries()).map((entry) => [entry[1], entry[0]])
   )
   private static readonly videoSpeedListRedPlayer: number[] = VideoInfoUtil.videoSpeedListAll.filter(s => s <= 2)
-  // 视频标签格式化
-  private static video_size_map: Record<string, string> = {
-    '720': '720P HD',
-    '800': 'HD+',
-    '900': '900P HD+',
-    '960': 'HD+',
-    '1080': '1080P FHD',
-    '1440': '2K QHD',
-    '1600': 'UW QHD',
-    '1666': 'Quad HD+',
-    '1800': 'QHD+',
-    '1960': '1080P FHD',
-    '2560': '2K QHD',
-    '3840': '4K Ultra HD',
-    '4096': '4K Ultra HD',
-    '7680': '8K Ultra HD',
-    '2720x1530': 'FHD+',
-    '1216x2160': 'FHD+',
-  }
 
   // 设置存储的视频信息
   static async setVideoInfo(date: string, uri: string, file_name: string, metadata: media.AVMetadata,
@@ -201,7 +144,7 @@ export default class VideoInfoUtil {
 
   // 正向：用户倍速 → 系统枚举
   static mapToSystemSpeed(userSpeed: number): media.PlaybackSpeed {
-    const systemSpeed = VideoInfoUtil.VIDEO_SPEED_MAP.get(userSpeed)
+    const systemSpeed = VIDEO_SPEED_MAP.get(userSpeed)
     if (systemSpeed !== undefined) {
       return systemSpeed
     }
@@ -236,9 +179,9 @@ export default class VideoInfoUtil {
     const height = sizeArray[1]
     const sizeKey = `${width}x${height}`
     // 匹配优先级
-    return VideoInfoUtil.video_size_map[sizeKey] || // 1. 精确匹配宽高
-    VideoInfoUtil.video_size_map[height] || // 2. 标准高度命名
-    VideoInfoUtil.video_size_map[width] || // 3. 特殊宽度标准
+    return VIDEO_SIZE_MAP[sizeKey] || // 1. 精确匹配宽高
+    VIDEO_SIZE_MAP[height] || // 2. 标准高度命名
+    VIDEO_SIZE_MAP[width] || // 3. 特殊宽度标准
       `${width} x ${height}` // 4. 默认格式
   }
 
@@ -251,9 +194,9 @@ export default class VideoInfoUtil {
           if (err) {
             reject('app.string.unknown_size')
           } else if (return_string) {
-            const size = stat.size > VideoInfoUtil.GB ?
-              (stat.size / VideoInfoUtil.GB).toFixed(2) + ' GB' :
-              (stat.size / VideoInfoUtil.MB).toFixed(2) + ' MB'
+            const size = stat.size > GB ?
+              (stat.size / GB).toFixed(2) + ' GB' :
+              (stat.size / MB).toFixed(2) + ' MB'
             resolve(size)
           } else {
             resolve(stat.size)

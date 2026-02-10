@@ -3,8 +3,8 @@ import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/Attr
 @Component
 export struct LockVideoBarComponent {
   @Link isLock: boolean
-  @Link screenHeight: number
-  @Link screenWidth: number
+  @Prop screenHeight: number
+  @Prop screenWidth: number
   @Link showControl: boolean
 
   build() {

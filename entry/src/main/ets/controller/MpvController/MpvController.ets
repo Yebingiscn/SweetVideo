@@ -9,9 +9,14 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil';
 import { MpvAudioTrack, MpvSubtitleTrack } from './MpvTypes';
 import { avSession as avSessionManager } from '@kit.AVSessionKit';
 import { audio } from '@kit.AudioKit';
+import { WindowUtil } from '../../utils/WindowUtil';
+import { window } from '@kit.ArkUI';
+import VideoInfoUtil from '../../utils/VideoInfoUtil';
+import ToolsUtil from '../../utils/ToolsUtil';
 
 @Observed
 export class MpvController implements PlayerControllerInterface {
+  windowClass = WindowUtil.getWindow()
   @Track mpvHandle: number | null = null
   surfaceId: string | null = null
   playTimeUpdateTag: number | null = null
@@ -27,6 +32,10 @@ export class MpvController implements PlayerControllerInterface {
   @Track screenBrightness: number = 0
   @Track onSwipingVoice: boolean = false
   @Track subtitleSelected: SubtitleMode = SubtitleMode.INNER_SUBTITLE
+  @Track screenWidth: number = 0
+  @Track screenHeight: number = 0
+  @Track playAreaHeight: number = 0
+  @Track playAreaWidth: number = 0
   avSession: avSessionManager.AVSession | undefined = undefined
   audioVolumeManager: audio.AudioVolumeManager | null = null
 
@@ -61,11 +70,12 @@ export class MpvController implements PlayerControllerInterface {
       this.playTime = mpv.getCurrentPosition(this.mpvHandle)
     }, 1000);
     this.playing = true
-    console.error('[MpvPlayer] load video success')
     setTimeout(() => {
       this.getAudioTrackList()
       this.getSubtitleTrackList()
       this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!))
+      this.nowPlaying!.time = this.getDuration()
+      this.getVideoSize()
     }, 1000)
 
   }
@@ -143,6 +153,9 @@ export class MpvController implements PlayerControllerInterface {
 
   getDuration(): number {
     const totalTime = mpv.getDuration(this.mpvHandle)
+    if (totalTime === 0) {
+      return this.nowPlaying!.time
+    }
     if (this.nowPlaying?.time === 0) {
       this.nowPlaying.time = totalTime
       VideoOperateUtil.saveVideoTotalTime(PathUtils.appContext!, this.nowPlaying)
@@ -180,5 +193,41 @@ export class MpvController implements PlayerControllerInterface {
 
   selectSubtitleTrack(trackId: number): void {
     mpv.selectSubtitle(this.mpvHandle, trackId)
+  }
+
+  async getVideoSize() {
+    let VideoWidth = this.getPlayAreaWidth() === 0 ? 1999 : this.getPlayAreaWidth()
+    let VideoHeight = this.getPlayAreaHeight() === 0 ? 1999 : this.getPlayAreaHeight()
+    const aspectRatioNow = VideoWidth / VideoHeight
+    const screenAspectRatio = this.screenWidth / this.screenHeight
+    if (aspectRatioNow > screenAspectRatio) {
+      this.playAreaWidth = this.screenWidth
+      this.playAreaHeight = this.playAreaWidth * (VideoHeight / VideoWidth)
+    } else {
+      this.playAreaHeight = this.screenHeight
+      this.playAreaWidth = this.playAreaHeight * (VideoWidth / VideoHeight)
+    }
+    if (this.windowClass) {
+      this.playAreaWidth > this.playAreaHeight ? WindowUtil.enableLandscapeMultiWindow(this.windowClass) :
+        WindowUtil.disableLandscapeMultiWindow(this.windowClass)
+      VideoInfoUtil.saveOriginalVideoWidthAndHeight(this.playAreaWidth, this.playAreaHeight)
+    }
+    if (Setting.smartRotation && this.playAreaWidth > this.playAreaHeight &&
+      this.screenHeight > this.screenWidth) {
+      ToolsUtil.addLogger("智能旋转条件满足，开始设置方向", false)
+      const proportion =
+        Math.max(this.screenWidth, this.screenHeight) / Math.min(this.screenWidth, this.screenHeight)
+      const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
+        : window.Orientation.AUTO_ROTATION_RESTRICTED;
+      (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
+        ToolsUtil.addLogger("设置窗口方向失败", true)
+      })
+      ToolsUtil.addLogger("设置窗口方向完成", false)
+    }
+    if (this.nowPlaying?.size[0] === 0 && VideoWidth !== 0 && VideoHeight !== 1999) {
+      this.nowPlaying!.size[0] = VideoWidth
+      this.nowPlaying!.size[1] = VideoHeight
+      VideoOperateUtil.saveVideoWeightAndHeight(PathUtils.appContext!, this.nowPlaying)
+    }
   }
 }

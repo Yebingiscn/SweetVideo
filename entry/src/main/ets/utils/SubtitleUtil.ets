@@ -1,4 +1,3 @@
-import VideoInfoUtil from './VideoInfoUtil'
 import ToolsUtil from './ToolsUtil'
 import { fileIo as fs, picker } from '@kit.CoreFileKit'
 import { BusinessError } from '@kit.BasicServicesKit'
@@ -8,6 +7,7 @@ import SubtitleFormat from '../common/SubtitleFormatConfig'
 import { AssEvent, ParseAss, ParseSrt, ParseVtt, SrtLine, VttLine } from '../modules/subtitles'
 import { salmonLogger } from 'salmonlogger'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
+import { SUPPORT_SUBTITLE_FORMAT } from '../common/Constants'
 
 // 实现 Parser 接口的适配器类
 export class ParserAdapter<T> implements Parser<T> {
@@ -37,7 +37,7 @@ class SubtitleUtil {
   // 获取外挂字幕
   async selectExternalSubtitles(sandbox_subtitle: string, date: string) {
     const documentSelectOptions = new picker.DocumentSelectOptions()
-    documentSelectOptions.fileSuffixFilters = VideoInfoUtil.support_subtitle_format
+    documentSelectOptions.fileSuffixFilters = SUPPORT_SUBTITLE_FORMAT
     documentSelectOptions.maxSelectNumber = 1
     const documentViewPicker = new picker.DocumentViewPicker(PathUtils.appContext!)
     try {

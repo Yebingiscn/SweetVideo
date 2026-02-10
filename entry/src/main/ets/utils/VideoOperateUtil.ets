@@ -13,7 +13,6 @@ import PrivacySpaceUtil from './PrivacySpaceUtil'
 import { PathUtils } from './PathUtils'
 import { LanguageConfig } from '../common/LanguageConfig'
 import ToolsUtil from './ToolsUtil'
-import VideoInfoUtil from './VideoInfoUtil'
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode'
 import PermissionUtil from './PermissionUtil'
 import { VideoSource } from '../common/enum/VideoSource'
@@ -26,6 +25,7 @@ import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { image } from '@kit.ImageKit'
 import { XAnimation } from './AnimationUtil'
 import { WindowUtil } from './WindowUtil'
+import { SUPPORT_AUDIO_FORMAT } from '../common/Constants'
 
 const TAG = 'VideoOperateUtil'
 
@@ -33,30 +33,15 @@ const TAG = 'VideoOperateUtil'
 export default class VideoOperateUtil {
   public static maxVolume: number = 0
   public static minVolume: number = 0
-  public static lastSyncTime: number = 0
-  public static syncCoolDown: number = 3000
-  public static driftHistory: number[] = []
   public static initPinchDistance: number = 0
   public static clearSubtitleTimer: number | null = null
   public static screenBrightnessTmp: number = 0
   public static lastSpeed: number = 1
   public static lastPlayTime: number = 0
-  public static aspectRatioMap = new Map([[VideoInfoUtil.screenExtendMap[4], 16 / 9],
-    [VideoInfoUtil.screenExtendMap[5], 4 / 3]])
-  public static config: ImageAnalyzerConfig = {
-    types: [ImageAnalyzerType.SUBJECT, ImageAnalyzerType.TEXT]
-  }
-  public static aiController: ImageAnalyzerController = new ImageAnalyzerController()
-  public static options: ImageAIOptions = {
-    types: [ImageAnalyzerType.SUBJECT, ImageAnalyzerType.TEXT],
-    aiController: VideoOperateUtil.aiController
-  }
   public static lastVolume: number = 0
   public static windowStage: window.WindowStage | undefined = undefined
-  public static volumeGestureActiveTime: number = 0
   public static longPressStartX: number = 0
   public static leftSideSwipe: boolean = true
-  public static delayJumpToPlayer: number = 450
   public static avImageGenerator: media.AVImageGenerator | undefined = undefined
   public static nowPlayingFile: fileIo.File | undefined = undefined
   public static updatePix: boolean = false
@@ -399,7 +384,7 @@ export default class VideoOperateUtil {
       if (skipIntroMs < time && title != null) {
         const parts = title.split('.')
         const fileExt = parts.length > 0 ? parts[parts.length - 1].toLowerCase() : ''
-        if (fileExt !== '' && !VideoInfoUtil.support_audio_format.includes(fileExt)) {
+        if (fileExt !== '' && !SUPPORT_AUDIO_FORMAT.includes(fileExt)) {
           ToolsUtil.showToast('已跳过统一的片头时间')
           return VideoStartTimeMode.SEEK_TO_INTRO_TIME
         }

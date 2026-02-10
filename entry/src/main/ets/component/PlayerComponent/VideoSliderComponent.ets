@@ -4,8 +4,8 @@ import TimeUtil from '../../utils/TimeUtil'
 export struct VideoSliderComponent {
   @Prop playTime: number
   @Prop totalTime: number
-  @Link screenWidth: number
-  @Link screenHeight: number
+  @Prop screenWidth: number
+  @Prop screenHeight: number
   @Prop playSpeed: number
   onSliderChange = (_value: number) => {
   }

@@ -21,7 +21,6 @@ export function SwipingPlayTimePanelBuilder(swipingPlayTimeValue: SwipingPlayTim
         .fontSize(25)
         .fontWeight(FontWeight.Bold)
       if (Setting.showFrameImgStatus && swipingPlayTimeValue.player === NavigationAddress.AV_PLAYER) {
-        // 添加 pixelMap 检查
         if (swipingPlayTimeValue.pixelMap) {
           Image(swipingPlayTimeValue.pixelMap)
             .attributeModifier(new ImageFancyModifier(16, 100, 100))
@@ -42,22 +41,16 @@ export function SwipingPlayTimePanelBuilder(swipingPlayTimeValue: SwipingPlayTim
 }
 
 export function getFormattedTimeText(swipingPlayTimeValue: SwipingPlayTimeValue): string {
-  // 添加参数检查
   if (!swipingPlayTimeValue) {
     return "00:00/00:00"
   }
-
-  // 使用默认值防止 NaN
   const playTime = swipingPlayTimeValue.playTime || 0
   const totalTime = swipingPlayTimeValue.totalTime || 0
-
   const currentTime = TimeUtil.convertMSToHHMMSS(playTime)
   const totalTimeStr = TimeUtil.convertMSToHHMMSS(totalTime)
-
   if (swipingPlayTimeValue.isSliderPlayTimeChange) {
     return `${currentTime}/${totalTimeStr}`
   } else {
-    // 安全访问 VideoOperateUtil.lastPlayTime
     const lastPlayTime = typeof VideoOperateUtil.lastPlayTime === 'number'
       ? VideoOperateUtil.lastPlayTime
       : 0

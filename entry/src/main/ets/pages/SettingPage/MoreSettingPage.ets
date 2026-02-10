@@ -41,7 +41,7 @@ export struct MoreSettingPage {
 
         ListItem() {
           SettingsClickItem({
-            symbol: $r('sys.symbol.trash'),
+            symbol: $r('sys.symbol.fast'),
             message: '清理失效文件',
             onPress: async () => {
               PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'circle_play')

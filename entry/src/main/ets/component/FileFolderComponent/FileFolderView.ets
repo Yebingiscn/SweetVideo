@@ -15,7 +15,6 @@ import { DefaultDialogShadow, MenuFancyModifier } from '../../common/AttributeMo
 @Component
 export struct FileFolderView {
   @Consume fileFolderSource: FileFolderDataSource
-  @State fileFolderList: FileFolder[] = this.fileFolderSource.getAllData()
   editFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: EditFileFolderNameDialog({
       confirm: async (file_folder: string | undefined) => {
@@ -28,6 +27,7 @@ export struct FileFolderView {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  @State fileFolderList: FileFolder[] = this.fileFolderSource.getAllData()
   @Consume videoListController: VideoListController
   @Consume sideBarController: SideBarController
 

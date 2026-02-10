@@ -9,8 +9,8 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
 @Component
 export struct VideoButtonsComponent {
-  @Link screenHeight: number
-  @Link screenWidth: number
+  @Prop screenHeight: number
+  @Prop screenWidth: number
   @Prop playing: boolean
   @Prop speed: number
   @Link repeatMode: RepeatMode

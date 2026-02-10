@@ -11,12 +11,13 @@ import { audio } from '@kit.AudioKit'
 import { SubtitleMode } from '../common/enum/SubtitleMode'
 import { PathUtils } from '../utils/PathUtils'
 import SubtitleUtil from '../utils/SubtitleUtil'
-import { AVPlayerUtil } from '../utils/AVPlayerUtil'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import SelectFileUtil from '../utils/SelectFileUtil'
 import { RepeatMode } from '../common/enum/RepeatMode'
 import { Setting } from '../utils/ObservedUtil'
 import { PlayerControllerInterface } from './PlayerControllerFactory'
+import { IMAGE_ANALYZER_CONFIG } from '../common/Constants'
+import { salmonLogger } from 'salmonlogger'
 
 @Observed
 export class AVPlayerController implements PlayerControllerInterface {
@@ -37,6 +38,46 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Track videoMetaDataList: VideoMetadata[] = []
   audioVolumeManager: audio.AudioVolumeManager | null = null
   @Track isListenVideo: boolean = false
+  @Track screenWidth: number = 0
+  @Track screenHeight: number = 0
+  @Track playAreaHeight: number = 0
+  @Track playAreaWidth: number = 0
+  @Track pixelMap: PixelMap | null = null
+
+  async getAVPlayer() {
+    try {
+      if (!this.avPlayer) {
+        this.avPlayer = await media.createAVPlayer()
+      }
+    } catch (error) {
+      ToolsUtil.showToast('播放异常')
+      salmonLogger.addLog('avplayer',
+        'create avplayer error: ' + error.code + ':' + error.message, true)
+    }
+    return this.avPlayer
+  }
+
+  async getFrameByTime(time: number, isFirstFrame: boolean) {
+    if (Setting.showFrameImgStatus) {
+      const isUpdating = !VideoOperateUtil.updatePix
+      const shouldSkip = isUpdating && !isFirstFrame
+      if (shouldSkip) {
+        return // 非第一帧且正在更新时跳过，避免堆积
+      }
+      VideoOperateUtil.updatePix = false // 加锁
+      try {
+        const img = await VideoOperateUtil.fetchFrameByTime(time)
+        if (img) {
+          this.pixelMap = img
+        }
+      } catch (error) {
+        ToolsUtil.addLogger('获取视频帧失败:' + error, true)
+        this.pixelMap = null
+      } finally {
+        VideoOperateUtil.updatePix = true // 确保解锁
+      }
+    }
+  }
 
   async initVolumeAndBrightness() {
     let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID
@@ -144,7 +185,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     this.avPlayer?.release()?.catch(() => {
       ToolsUtil.addLogger('release error', true)
     })
-    AVPlayerUtil.avPlayer = undefined
+    this.avPlayer = undefined
   }
 
   reset() {
@@ -232,5 +273,12 @@ export class AVPlayerController implements PlayerControllerInterface {
 
   seekTime(seekTime: number) {
     this.avPlayer?.seek(seekTime, media.SeekMode.SEEK_CLOSEST)
+  }
+
+  startImageAnalyzer(xComponentController: XComponentController) {
+    ToolsUtil.addLogger("开始启动图像分析器", false)
+    xComponentController.startImageAnalyzer(IMAGE_ANALYZER_CONFIG)?.catch(() => {
+      ToolsUtil.addLogger(`启动图像分析器错误`, true)
+    })
   }
 }

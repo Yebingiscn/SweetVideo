@@ -19,6 +19,7 @@ import PermissionUtil from './PermissionUtil'
 import { VideoSource } from '../common/enum/VideoSource'
 import SubtitleUtil from './SubtitleUtil'
 import { salmonLogger } from 'salmonlogger'
+import { SUPPORT_AUDIO_FORMAT, SUPPORT_VIDEO_FORMAT } from '../common/Constants'
 
 const TAG = 'SelectFileUtil'
 
@@ -39,7 +40,7 @@ export default class SelectFileUtil {
     if (uri) {
       documentSelectOptions.defaultFilePathUri = uri
     }
-    documentSelectOptions.fileSuffixFilters = VideoUtil.support_video_format.concat(VideoUtil.support_audio_format)
+    documentSelectOptions.fileSuffixFilters = SUPPORT_VIDEO_FORMAT.concat(SUPPORT_AUDIO_FORMAT)
     const documentViewPicker = new picker.DocumentViewPicker(PathUtils.appContext!)
     try {
       const documentSelectResult: string[] = await documentViewPicker.select(documentSelectOptions)
@@ -578,8 +579,8 @@ export default class SelectFileUtil {
 
   static async getDownloadFilesUri(): Promise<string[]> {
     const VIDEO_EXTENSIONS = new Set([
-      ...VideoUtil.support_video_format,
-      ...VideoInfoUtil.support_audio_format
+      ...SUPPORT_VIDEO_FORMAT,
+      ...SUPPORT_AUDIO_FORMAT
     ].map(ext => ext.toLowerCase()))
 
     class ConcurrencyPool {

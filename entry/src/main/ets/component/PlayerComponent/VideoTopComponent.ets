@@ -1,4 +1,5 @@
 import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
+import { SCALE_FACTORS, SCREEN_EXTEND_LIST } from '../../common/Constants'
 import { SubtitleMode } from '../../common/enum/SubtitleMode'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
@@ -10,16 +11,28 @@ export struct VideoTopComponent {
   @Link isAIAsrShown: boolean
   @Prop subtitleSelected: SubtitleMode
   @Link screenExtendSelectedText: string | undefined
-  @Link screenWidth: number
-  @Link screenHeight: number
+  @Prop screenWidth: number
+  @Prop screenHeight: number
   @BuilderParam audioTrackMenuBuilder: () => void
   @BuilderParam subtitlePanelComponent: () => void
   @Link lockRotation: boolean
-  @Link playAreaHeight: number
-  @Link playAreaWidth: number
+  @Prop playAreaHeight: number
+  @Prop playAreaWidth: number
   onLockRotationClick = async () => {
   }
   onExitVideoClick = () => {
+  }
+  onOriginalRatio = () => {
+  }
+  onStretchedToFullScreen = () => {
+  }
+  onFullScreenByWidth = () => {
+  }
+  onFullScreenByHeight = () => {
+  }
+  onUniformScale = (_scale: number) => {
+  }
+  onSpecificVideoProportions = (_playAreaSize: number[]) => {
   }
 
   build() {
@@ -53,7 +66,7 @@ export struct VideoTopComponent {
                 { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
           }
           if (this.screenWidth > this.screenHeight) {
-            Select(VideoInfoUtil.screenExtendList)
+            Select(SCREEN_EXTEND_LIST)
               .font({ size: 18, weight: FontWeight.Medium })
               .value(this.screenExtendSelectedText)
               .selected(VideoInfoUtil.screenExtendMap.indexOf(this.screenExtendSelectedText!))
@@ -84,38 +97,32 @@ export struct VideoTopComponent {
   }
 
   private screenExtend(text: string) {
-    if (VideoOperateUtil.aspectRatioMap.has(text)) {
-      const play_area_size = VideoOperateUtil.setVideoAspectRatio(
-        VideoOperateUtil.aspectRatioMap.get(text)!,
+    if (VideoInfoUtil.ASPECT_RATIO_MAP.has(text)) {
+      const playAreaSize = VideoOperateUtil.setVideoAspectRatio(
+        VideoInfoUtil.ASPECT_RATIO_MAP.get(text)!,
         VideoInfoUtil.playAreaWidth,
         VideoInfoUtil.playAreaHeight
       )
-      this.playAreaWidth = play_area_size[0]
-      this.playAreaHeight = play_area_size[1]
+      this.onSpecificVideoProportions(playAreaSize)
       return
     }
     switch (text) {
       case VideoInfoUtil.screenExtendMap[0]:
-        this.playAreaHeight = VideoInfoUtil.playAreaHeight
-        this.playAreaWidth = VideoInfoUtil.playAreaWidth
+        this.onOriginalRatio()
         break
       case VideoInfoUtil.screenExtendMap[1]:
-        this.playAreaHeight = this.screenHeight
-        this.playAreaWidth = this.screenWidth
+        this.onStretchedToFullScreen()
         break
       case VideoInfoUtil.screenExtendMap[2]: // 适应宽度
-        this.playAreaWidth = this.screenWidth
-        this.playAreaHeight = (VideoInfoUtil.playAreaHeight / VideoInfoUtil.playAreaWidth) * this.screenWidth
+        this.onFullScreenByWidth()
         break
       case VideoInfoUtil.screenExtendMap[3]: // 适应高度
-        this.playAreaHeight = this.screenHeight
-        this.playAreaWidth = (VideoInfoUtil.playAreaWidth / VideoInfoUtil.playAreaHeight) * this.screenHeight
+        this.onFullScreenByHeight()
         break
       default:
-        const scale = text ? VideoInfoUtil.scale_factors.get(text) : undefined
+        const scale = text ? SCALE_FACTORS.get(text) : undefined
         if (scale) {
-          this.playAreaHeight = scale * VideoInfoUtil.playAreaHeight
-          this.playAreaWidth = scale * VideoInfoUtil.playAreaWidth
+          this.onUniformScale(scale)
         }
         break
     }

@@ -36,17 +36,12 @@ import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/Play
 @Component
 export struct MpvPlayer {
   xComponentController: XComponentController = new XComponentController()
-  windowClass = WindowUtil.getWindow()
   @State subtitleVisibility: Visibility = Visibility.Visible
   @State lockRotation: boolean = false
   @State selectedText: string | undefined = '原始比例'
   @Consume('pathStack') pathStack: NavPathStack
   @Provide('MpvPlayer') mpv: MpvController = PlayerControllerFactory.createMpvController()
   @State @Watch('setScreen') showControl: boolean = false
-  @State screenWidth: number = 0
-  @State screenHeight: number = 0
-  @State playAreaHeight: number = 0
-  @State playAreaWidth: number = 0
   @State longPress: boolean = false
   @State isLock: boolean = false
   @State onSwiping: boolean = false
@@ -67,12 +62,12 @@ export struct MpvPlayer {
     PermissionUtil.applyContinuousTask()
     this.setScreen()
     try {
-      await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
+      await (await this.mpv.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
     } catch (error) {
       console.error('setPreferredOrientation error:' + error)
     }
-    WindowUtil.enableLandscapeMultiWindow(this.windowClass)
+    WindowUtil.enableLandscapeMultiWindow(this.mpv.windowClass)
     this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
     let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID
     let audioManager = audio.getAudioManager()
@@ -142,7 +137,7 @@ export struct MpvPlayer {
             this.mpv.togglePlayback()
           }
           if (event.keyCode === KeyCode.KEYCODE_ESCAPE) {
-            VideoOperateUtil.fullScreenOrRotateScreen(this.screenWidth, this.screenHeight, this.windowClass)
+            VideoOperateUtil.fullScreenOrRotateScreen(this.mpv.screenWidth, this.mpv.screenHeight, this.mpv.windowClass)
           }
           if (event.keyCode === KeyCode.KEYCODE_DPAD_RIGHT) {
             this.mpv.fastForward()
@@ -159,8 +154,8 @@ export struct MpvPlayer {
             VideoOperateUtil.lastVolume = newVolume
           }
         })
-        .width(this.playAreaWidth)
-        .height(this.playAreaHeight)
+        .width(this.mpv.playAreaWidth)
+        .height(this.mpv.playAreaHeight)
         .animation({ duration: this.mpv.playTime > 300 ? 300 : 0, curve: Curve.Ease })
 
         if (this.showControl && !this.isLock) {
@@ -178,14 +173,14 @@ export struct MpvPlayer {
               .width('100%')
               .backgroundColor('#36ffffff')
               .padding({
-                left: (this.screenHeight > this.screenWidth ? 5 : 5),
+                left: (this.mpv.screenHeight > this.mpv.screenWidth ? 5 : 5),
                 right: 20,
                 top: (this.showControl ? SafeHeight.topSafeHeight : 0),
                 bottom: 0
               })
 
               Stack() { //底栏
-                if (this.screenHeight > this.screenWidth) {
+                if (this.mpv.screenHeight > this.mpv.screenWidth) {
                   Column({ space: 15 }) {
                     this.VideoButtons()
                     this.VideoSlider()
@@ -201,7 +196,7 @@ export struct MpvPlayer {
               }
               .transition(XAnimation.getAnimation('bottom', 0, false))
               .backgroundColor($r('sys.color.mask_fourth'))
-              .height(this.screenHeight > this.screenWidth ? 180 : 110)
+              .height(this.mpv.screenHeight > this.mpv.screenWidth ? 180 : 110)
               .width('100%')
             }.height('100%').width('100%')
           }
@@ -210,7 +205,7 @@ export struct MpvPlayer {
         if (this.longPress) {
           FastForwardPanelBuilder({
             speed: this.mpv.speed,
-            location: this.playAreaHeight,
+            location: this.mpv.playAreaHeight,
           })
         }
 
@@ -235,8 +230,8 @@ export struct MpvPlayer {
         if (this.lockVisibility) {
           LockVideoBarComponent({
             isLock: this.isLock,
-            screenHeight: this.screenHeight,
-            screenWidth: this.screenWidth,
+            screenHeight: this.mpv.screenHeight,
+            screenWidth: this.mpv.screenWidth,
             showControl: this.showControl,
           })
         }
@@ -248,7 +243,7 @@ export struct MpvPlayer {
               this.mpv.togglePlayback()
               return
             }
-            const zoneWidth = this.screenWidth / 5 // 屏幕五分之一宽度
+            const zoneWidth = this.mpv.screenWidth / 5 // 屏幕五分之一宽度
             if (tapX < zoneWidth) { // 左侧1/5区域：回退
               this.mpv.backForward()
               return
@@ -274,13 +269,13 @@ export struct MpvPlayer {
             }
           },
           onVerticalPanStart: (tapX: number) => {
-            VideoOperateUtil.leftSideSwipe = tapX < this.screenWidth / 2
+            VideoOperateUtil.leftSideSwipe = tapX < this.mpv.screenWidth / 2
             VideoOperateUtil.screenBrightnessTmp = this.mpv.screenBrightness
             this.mpv.volume = this.mpv.volumeActually
             VideoOperateUtil.lastVolume = this.mpv.volume // 记录起始音量
           },
           onVerticalPanUpdate: (offsetY: number) => {
-            const deltaYScale = offsetY / this.screenHeight * 2.5
+            const deltaYScale = offsetY / this.mpv.screenHeight * 2.5
             if (VideoOperateUtil.leftSideSwipe) {
               this.onSwipingBrightness = true
               this.mpv.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
@@ -302,7 +297,7 @@ export struct MpvPlayer {
             this.onSwiping = true
           },
           onHorizonPanUpdate: (offsetX: number) => {
-            const timePerPixel = VideoOperateUtil.getTimePixel(this.screenWidth, this.mpv.nowPlaying?.time!)
+            const timePerPixel = VideoOperateUtil.getTimePixel(this.mpv.screenWidth, this.mpv.nowPlaying?.time!)
             this.mpv.playTime = Math.max(0,
               Math.min(VideoOperateUtil.lastPlayTime + (offsetX * timePerPixel), this.mpv.nowPlaying?.time!))
           },
@@ -317,17 +312,17 @@ export struct MpvPlayer {
             const rawScale = fingerDistance / VideoOperateUtil.initPinchDistance
             const adjustedScale = 1 + (rawScale - 1) * 0.007 // 计算调整后的缩放比例
             const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0)
-            const scaledWidth = this.playAreaWidth * clampedScale // 计算缩放后的播放区域宽度
+            const scaledWidth = this.mpv.playAreaWidth * clampedScale // 计算缩放后的播放区域宽度
             const maxAllowed = VideoInfoUtil.playAreaWidth * 3.0
             const minAllowed = VideoInfoUtil.playAreaWidth * 0.5
             if (scaledWidth > maxAllowed || scaledWidth < minAllowed) { // 检查缩放是否超出允许范围
               return
             }
-            this.playAreaWidth = scaledWidth
-            this.playAreaHeight = this.playAreaHeight * clampedScale
+            this.mpv.playAreaWidth = scaledWidth
+            this.mpv.playAreaHeight = this.mpv.playAreaHeight * clampedScale
             XAnimation.runWithAnimation(() => {
-              this.playAreaWidth = this.playAreaWidth
-              this.playAreaHeight = this.playAreaHeight
+              this.mpv.playAreaWidth = this.mpv.playAreaWidth
+              this.mpv.playAreaHeight = this.mpv.playAreaHeight
             })
           },
           onLongPressAction: () => {
@@ -376,12 +371,13 @@ export struct MpvPlayer {
           .width('80%').height(80)
           .offset({
             x: 0,
-            y: this.screenWidth > this.screenHeight ? this.screenHeight / 2 - 40 : this.screenHeight / 2 - 100
+            y: this.mpv.screenWidth > this.mpv.screenHeight ? this.mpv.screenHeight / 2 - 40 :
+              this.mpv.screenHeight / 2 - 100
           })
-      }.onAreaChange((_oldValue: Area, newValue: Area) => {
-        this.screenWidth = Math.floor(new Number(newValue.width).valueOf())
-        this.screenHeight = Math.floor(new Number(newValue.height).valueOf())
-        this.getVideoSize()
+      }.onAreaChange(async (_oldValue: Area, newValue: Area) => {
+        this.mpv.screenWidth = Math.floor(new Number(newValue.width).valueOf())
+        this.mpv.screenHeight = Math.floor(new Number(newValue.height).valueOf())
+        await this.mpv.getVideoSize()
       })
       .height('100%')
       .width('100%')
@@ -411,7 +407,7 @@ export struct MpvPlayer {
         console.error('stop cast fail')
       }
       try {
-        await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
+        await (await this.mpv.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
       } catch (error) {
         console.error('setPreferredOrientation' + error)
       }
@@ -434,30 +430,6 @@ export struct MpvPlayer {
     throw new Error('Method not implemented.')
   }
 
-  getVideoSize() {
-    let VideoWidth = this.mpv.getPlayAreaWidth() === 0 ? 1999 : this.mpv.getPlayAreaWidth()
-    let VideoHeight = this.mpv.getPlayAreaHeight() === 0 ? 1999 : this.mpv.getPlayAreaHeight()
-    const aspectRatioNow = VideoWidth / VideoHeight
-    const screenAspectRatio = this.screenWidth / this.screenHeight
-    if (aspectRatioNow > screenAspectRatio) {
-      this.playAreaWidth = this.screenWidth
-      this.playAreaHeight = this.playAreaWidth * (VideoHeight / VideoWidth)
-    } else {
-      this.playAreaHeight = this.screenHeight
-      this.playAreaWidth = this.playAreaHeight * (VideoWidth / VideoHeight)
-    }
-    if (this.windowClass) {
-      this.playAreaWidth > this.playAreaHeight ? WindowUtil.enableLandscapeMultiWindow(this.windowClass) :
-        WindowUtil.disableLandscapeMultiWindow(this.windowClass)
-      VideoInfoUtil.saveOriginalVideoWidthAndHeight(this.playAreaWidth, this.playAreaHeight)
-    }
-    if (this.mpv.nowPlaying?.size[0] === 0 && VideoWidth !== 0 && VideoHeight !== 1999) {
-      this.mpv.nowPlaying.size[0] = VideoWidth
-      this.mpv.nowPlaying.size[1] = VideoHeight
-      VideoOperateUtil.saveVideoWeightAndHeight(PathUtils.appContext!, this.mpv.nowPlaying)
-    }
-  }
-
   setScreen() {
     WindowUtil.setBarState(PathUtils.appContext!, this.showControl, this.showControl)
   }
@@ -470,8 +442,8 @@ export struct MpvPlayer {
       subtitleSelected: this.mpv.subtitleSelected,
       isAIAsrShown: this.isAIAsrShown,
       screenExtendSelectedText: this.selectedText,
-      screenWidth: this.screenWidth,
-      screenHeight: this.screenHeight,
+      screenWidth: this.mpv.screenWidth,
+      screenHeight: this.mpv.screenHeight,
       audioTrackMenuBuilder: () => {
         this.AudioTrackMenuBuilderBridge()
       },
@@ -479,8 +451,8 @@ export struct MpvPlayer {
         this.SubtitleMenuBuilderBridge()
       },
       lockRotation: this.lockRotation,
-      playAreaHeight: this.playAreaHeight,
-      playAreaWidth: this.playAreaWidth,
+      playAreaHeight: this.mpv.playAreaHeight,
+      playAreaWidth: this.mpv.playAreaWidth,
       onExitVideoClick: () => {
         ToolsUtil.addLogger("点击退出视频按钮", false, this.pathStack)
         this.exitVideo()
@@ -489,12 +461,12 @@ export struct MpvPlayer {
         this.lockRotation = !this.lockRotation
         ToolsUtil.addLogger(`锁定旋转状态切换为：${this.lockRotation}`, false, this.pathStack)
         const orientation = this.lockRotation ?
-          (this.screenWidth > this.screenHeight ? window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED
+          (this.mpv.screenWidth > this.mpv.screenHeight ? window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED
             : window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
           : window.Orientation.AUTO_ROTATION_RESTRICTED
         try {
           XAnimation.runWithAnimation(async () => {
-            await (await this.windowClass)?.setPreferredOrientation(orientation)
+            await (await this.mpv.windowClass)?.setPreferredOrientation(orientation)
             ToolsUtil.addLogger("窗口方向设置成功", false, this.pathStack)
           })
         } catch (error) {
@@ -505,6 +477,30 @@ export struct MpvPlayer {
           : ToolsUtil.getStringResource($r('app.string.close_rotation_lock').id)
         ToolsUtil.showToast(toastMessage)
         ToolsUtil.addLogger(`显示旋转锁定提示：${toastMessage}`, false, this.pathStack)
+      },
+      onSpecificVideoProportions: (playAreaSize: number[]) => {
+        this.mpv.playAreaWidth = playAreaSize[0]
+        this.mpv.playAreaHeight = playAreaSize[1]
+      },
+      onOriginalRatio: () => {
+        this.mpv.playAreaHeight = this.mpv.playAreaHeight
+        this.mpv.playAreaWidth = this.mpv.playAreaWidth
+      },
+      onStretchedToFullScreen: () => {
+        this.mpv.playAreaHeight = this.mpv.screenHeight
+        this.mpv.playAreaWidth = this.mpv.screenWidth
+      },
+      onFullScreenByWidth: () => {
+        this.mpv.playAreaWidth = this.mpv.screenWidth
+        this.mpv.playAreaHeight = (VideoInfoUtil.playAreaHeight / VideoInfoUtil.playAreaWidth) * this.mpv.screenWidth
+      },
+      onFullScreenByHeight: () => {
+        this.mpv.playAreaHeight = this.mpv.screenHeight
+        this.mpv.playAreaWidth = (VideoInfoUtil.playAreaWidth / VideoInfoUtil.playAreaHeight) * this.mpv.screenHeight
+      },
+      onUniformScale: (scale: number) => {
+        this.mpv.playAreaHeight = scale * VideoInfoUtil.playAreaHeight
+        this.mpv.playAreaWidth = scale * VideoInfoUtil.playAreaWidth
       }
     })
   }
@@ -580,7 +576,7 @@ export struct MpvPlayer {
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .onClick(async () => {
-          VideoOperateUtil.fullScreenOrRotateScreen(this.screenWidth, this.screenHeight, this.windowClass)
+          VideoOperateUtil.fullScreenOrRotateScreen(this.mpv.screenWidth, this.mpv.screenHeight, this.mpv.windowClass)
         })
       }.span({ xs: 2, sm: 2, md: 2 })
 
@@ -617,9 +613,9 @@ export struct MpvPlayer {
   VideoSlider() {
     VideoSliderComponent({
       playTime: this.mpv.playTime,
-      totalTime: this.mpv.getDuration(),
-      screenWidth: this.screenWidth,
-      screenHeight: this.screenHeight,
+      totalTime: this.mpv.nowPlaying?.time,
+      screenWidth: this.mpv.screenWidth,
+      screenHeight: this.mpv.screenHeight,
       playSpeed: this.mpv.speed,
       onSliderChange: (value: number) => {
         this.onSwiping = true

@@ -24,13 +24,13 @@ import FileFolderUtil from '../../utils/FileFolderUtil'
 import { ImportProgressBuilder } from '../../component/VideoItemComponent/ImportProgressBuilder'
 import VideoListItem from '../../component/VideoItemComponent/VideoListItemComponent'
 import VideoCardItem from '../../component/VideoItemComponent/VideoCardItemComponent'
-import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode'
 import SubtitleUtil from '../../utils/SubtitleUtil'
 import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { SortComponent } from '../../component/VideoItemComponent/SortComponent'
+import { DELAY_JUMP_TO_PLAYER } from '../../common/Constants'
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -237,16 +237,25 @@ export struct PrivacySpace { // 隐私空间页
   @Builder
   MenuBuilder(item: VideoMetadata | undefined) {
     Menu() {
-      MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(async () => {
+      MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(() => {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          this.clickItem(item, NavigationAddress.FFMPEG_PLAYER)
-        }, VideoOperateUtil.delayJumpToPlayer)
+          await this.clickItem(item, NavigationAddress.FFMPEG_PLAYER)
+        }, DELAY_JUMP_TO_PLAYER)
       })
       MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          this.clickItem(item, NavigationAddress.RED_PLAYER)
-        }, VideoOperateUtil.delayJumpToPlayer)
+          await this.clickItem(item, NavigationAddress.RED_PLAYER)
+        }, DELAY_JUMP_TO_PLAYER)
       })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.play_round_triangle')),
+        content: 'MPV 播放器'
+      })
+        .onClick(() => {
+          setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
+            await this.clickItem(item, NavigationAddress.MPV_PLAYER)
+          }, DELAY_JUMP_TO_PLAYER)
+        })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
         .onClick(() => {
           DataSyncUtil.editingVideo = item

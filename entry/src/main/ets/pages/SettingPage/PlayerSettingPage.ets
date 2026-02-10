@@ -63,7 +63,7 @@ export struct PlayerSettingPage {
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.hand_draw'),
-            message: '启用双击屏幕两边快进（后退）',
+            message: '启用双击屏幕两边快进快退',
             enable: Setting.allowDoubleFastForward,
             onChange: (checked: boolean) => {
               Setting.allowDoubleFastForward = checked

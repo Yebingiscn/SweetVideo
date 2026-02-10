@@ -7,12 +7,12 @@ import { VideoItemBuilder } from '../component/PlayerComponent/PlayerSideBarComp
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { ButtonFancyModifier, DefaultDialogShadow, SymbolGlyphFancyModifier } from '../common/AttributeModifierConfig'
 import NavigationAddress from '../common/NavigationCommon'
-import VideoOperateUtil from '../utils/VideoOperateUtil'
 import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog'
 import DataSyncUtil from '../utils/DataSyncUtil'
 import SelectFileUtil from '../utils/SelectFileUtil'
 import { Context } from '@kit.AbilityKit'
 import { SafeHeight, Setting } from '../utils/ObservedUtil'
+import { DELAY_JUMP_TO_PLAYER } from '../common/Constants'
 
 @Component
 export struct RecentPlay { // 最近播放页
@@ -54,17 +54,26 @@ export struct RecentPlay { // 最近播放页
   @Builder
   MenuBuilder(item: VideoMetadata | undefined) {
     Menu() {
-      MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(async () => {
+      MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(() => {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          this.clickItem(item, NavigationAddress.FFMPEG_PLAYER)
-        }, VideoOperateUtil.delayJumpToPlayer)
+          await this.clickItem(item, NavigationAddress.FFMPEG_PLAYER)
+        }, DELAY_JUMP_TO_PLAYER)
       })
 
       MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          this.clickItem(item, NavigationAddress.RED_PLAYER)
-        }, VideoOperateUtil.delayJumpToPlayer)
+          await this.clickItem(item, NavigationAddress.RED_PLAYER)
+        }, DELAY_JUMP_TO_PLAYER)
       })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.play_round_triangle')),
+        content: 'MPV 播放器'
+      })
+        .onClick(() => {
+          setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
+            await this.clickItem(item, NavigationAddress.MPV_PLAYER)
+          }, DELAY_JUMP_TO_PLAYER)
+        })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')),
         content: $r('app.string.delete')

@@ -19,13 +19,13 @@ import { VideoMetaDataOperator } from '../../database/VideoMetaData'
 import VideoUtils from '../../utils/VideoUtil'
 import FileFolderUtil from '../../utils/FileFolderUtil'
 import NavigationAddress from '../../common/NavigationCommon'
-import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { VideoDeleteDialog } from '../Dialog/VideoDeleteDialog'
 import { DeleteType } from '../../common/enum/DeleteType'
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { salmonLogger } from 'salmonlogger'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { DELAY_JUMP_TO_PLAYER } from '../../common/Constants'
 
 @Observed
 export class VideoListController {
@@ -110,6 +110,25 @@ export struct VideoList {
   @Link searchValue: string
   @Link videoListController: VideoListController
   @Consume fileFolderSource: FileFolderDataSource
+  delConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: VideoDeleteDialog({
+      confirm: async (deleteType: DeleteType) => {
+        try {
+          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType,
+            DataSyncUtil.editingVideo!)
+          if (DataSyncUtil.delMultipleList.length > 0) {
+            await FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController,
+              this.fileFolderSource)
+          }
+          this.videoListController.closeMultipleChoose()
+        } catch (e) {
+          ToolsUtil.showToast(`删除失败:${e}`)
+        } finally {
+          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+        }
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -130,25 +149,6 @@ export struct VideoList {
         FileFolderUtil.updateVideoInFileFolder(PathUtils.appContext!, this.videoListController, this.fileFolderSource)
         VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
       },
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
-  delConfirmDialog: CustomDialogController = new CustomDialogController({
-    builder: VideoDeleteDialog({
-      confirm: async (deleteType: DeleteType) => {
-        try {
-          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType,
-            DataSyncUtil.editingVideo!)
-          if (DataSyncUtil.delMultipleList.length > 0) {
-            await FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController,
-              this.fileFolderSource)
-          }
-          this.videoListController.closeMultipleChoose()
-        } catch (e) {
-          ToolsUtil.showToast(`删除失败:${e}`)
-        } finally {
-          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
-        }
-      }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   @Consume file_folder_list: FileFolder[]
@@ -411,26 +411,30 @@ export struct VideoList {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
           await this.clickItem(videoItem, NavigationAddress.FFMPEG_PLAYER)
-        }, VideoOperateUtil.delayJumpToPlayer)
+        }, DELAY_JUMP_TO_PLAYER)
       })
       MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
         setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
           const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
           await this.clickItem(videoItem, NavigationAddress.RED_PLAYER)
-        }, VideoOperateUtil.delayJumpToPlayer)
+        }, DELAY_JUMP_TO_PLAYER)
       })
-      MenuItem({ startIcon: $r("app.media.ffmpeg"), content: 'MPV播放器' }).onClick(() => {
-        setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
-          await this.clickItem(videoItem, NavigationAddress.MPV_PLAYER)
-        }, VideoOperateUtil.delayJumpToPlayer)
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.play_round_triangle')),
+        content: 'MPV 播放器'
       })
+        .onClick(() => {
+          setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
+            const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
+            await this.clickItem(videoItem, NavigationAddress.MPV_PLAYER)
+          }, DELAY_JUMP_TO_PLAYER)
+        })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
         .onClick(() => {
           setTimeout(() => {
             DataSyncUtil.editingVideo = item
             this.VideoDetailDialog.open()
-          }, 300)
+          }, DELAY_JUMP_TO_PLAYER)
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat_size_square')), content: '导入或删除字幕'
