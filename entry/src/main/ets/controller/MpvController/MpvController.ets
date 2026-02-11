@@ -13,6 +13,7 @@ import { WindowUtil } from '../../utils/WindowUtil';
 import { window } from '@kit.ArkUI';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
+import json from '@ohos.util.json';
 
 @Observed
 export class MpvController implements PlayerControllerInterface {
@@ -56,28 +57,44 @@ export class MpvController implements PlayerControllerInterface {
       }
     } catch {
       console.error('[MpvPlayer] Exception during create')
+      ToolsUtil.showToast("Mpv 创建失败")
     }
   }
 
   init(url: string, startPosition?: number): void {
     // 传递起始位置给 native（参考 mpv-android）
-    if (startPosition !== undefined && startPosition > 0) {
-      mpv.loadVideo(this.mpvHandle, url, startPosition)
-    } else {
-      mpv.loadVideo(this.mpvHandle, url)
+    try {
+      if (startPosition !== undefined && startPosition > 0) {
+        mpv.loadVideo(this.mpvHandle, url, startPosition)
+      } else {
+        mpv.loadVideo(this.mpvHandle, url)
+      }
+    } catch (err) {
+      ToolsUtil.showToast("Mpv 播放失败：" + json.stringify(err))
     }
     this.playTimeUpdateTag = setInterval(() => {
       this.playTime = mpv.getCurrentPosition(this.mpvHandle)
     }, 1000);
     this.playing = true
-    setTimeout(() => {
+    setTimeout(async () => {
       this.getAudioTrackList()
       this.getSubtitleTrackList()
       this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!))
       this.nowPlaying!.time = this.getDuration()
       this.getVideoSize()
+      if (Setting.smartRotation && this.playAreaWidth > this.playAreaHeight &&
+        this.screenHeight > this.screenWidth) {
+        ToolsUtil.addLogger("智能旋转条件满足，开始设置方向", false)
+        const proportion =
+          Math.max(this.screenWidth, this.screenHeight) / Math.min(this.screenWidth, this.screenHeight)
+        const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
+          : window.Orientation.AUTO_ROTATION_RESTRICTED;
+        (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
+          ToolsUtil.addLogger("设置窗口方向失败", true)
+        })
+        ToolsUtil.addLogger("设置窗口方向完成", false)
+      }
     }, 1000)
-
   }
 
   backForward(): void {
@@ -211,18 +228,6 @@ export class MpvController implements PlayerControllerInterface {
       this.playAreaWidth > this.playAreaHeight ? WindowUtil.enableLandscapeMultiWindow(this.windowClass) :
         WindowUtil.disableLandscapeMultiWindow(this.windowClass)
       VideoInfoUtil.saveOriginalVideoWidthAndHeight(this.playAreaWidth, this.playAreaHeight)
-    }
-    if (Setting.smartRotation && this.playAreaWidth > this.playAreaHeight &&
-      this.screenHeight > this.screenWidth) {
-      ToolsUtil.addLogger("智能旋转条件满足，开始设置方向", false)
-      const proportion =
-        Math.max(this.screenWidth, this.screenHeight) / Math.min(this.screenWidth, this.screenHeight)
-      const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
-        : window.Orientation.AUTO_ROTATION_RESTRICTED;
-      (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
-        ToolsUtil.addLogger("设置窗口方向失败", true)
-      })
-      ToolsUtil.addLogger("设置窗口方向完成", false)
     }
     if (this.nowPlaying?.size[0] === 0 && VideoWidth !== 0 && VideoHeight !== 1999) {
       this.nowPlaying!.size[0] = VideoWidth

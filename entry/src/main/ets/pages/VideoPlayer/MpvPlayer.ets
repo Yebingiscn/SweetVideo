@@ -32,6 +32,7 @@ import { SubtitlePanelComponent } from '../../component/PlayerComponent/Subtitle
 import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import { VideoTopComponent } from '../../component/PlayerComponent/VideoTopComponent'
 import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent'
+import { XComponents } from '../../component/PlayerComponent/XComponents'
 
 @Component
 export struct MpvPlayer {
@@ -56,6 +57,7 @@ export struct MpvPlayer {
   @State screenBrightness: number = 0
   @State audioTrackSelect: number = 0
   @State subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
+  @State angle: number = 0
 
   async aboutToAppear(): Promise<void> {
     this.mpv.prepare()
@@ -111,52 +113,52 @@ export struct MpvPlayer {
   build() {
     NavDestination() {
       Stack() {
-        Stack() {
-          XComponent({
-            type: XComponentType.SURFACE,
-            controller: this.xComponentController,
-            id: 'xcomponentId',
-            libraryname: 'mpvnative'
-          }).focusable(true)
-            .defaultFocus(true)
-            .onLoad(async () => {
-              await PermissionUtil.activatePermission(this.mpv.nowPlaying?.uri)
-              try {
-                const file = fs.openSync(this.mpv!.nowPlaying!.uri)
-                this.mpv.init(file.path, 0)
-                this.initAVSession()
-              } catch (error) {
-                console.error('uri error:' + error)
-              }
-            })
-        }.onKeyEvent((event?: KeyEvent) => {
-          if (!event || event.type !== KeyType.Down) {
-            return
-          }
-          if (event.keyCode === KeyCode.KEYCODE_SPACE) {
-            this.mpv.togglePlayback()
-          }
-          if (event.keyCode === KeyCode.KEYCODE_ESCAPE) {
-            VideoOperateUtil.fullScreenOrRotateScreen(this.mpv.screenWidth, this.mpv.screenHeight, this.mpv.windowClass)
-          }
-          if (event.keyCode === KeyCode.KEYCODE_DPAD_RIGHT) {
-            this.mpv.fastForward()
-          }
-          if (event.keyCode === KeyCode.KEYCODE_DPAD_LEFT) {
+        XComponents({
+          playAreaHeight: this.mpv.playAreaHeight,
+          playAreaWidth: this.mpv.playAreaWidth,
+          playTime: this.mpv.playTime,
+          xComponentController: this.xComponentController,
+          xComponentId: 'xcomponentId',
+          libraryName: 'mpvnative',
+          choosePlayer: NavigationAddress.MPV_PLAYER,
+          angle: this.angle,
+          screenHeight: this.mpv.screenHeight,
+          screenWidth: this.mpv.screenWidth,
+          showControl: this.showControl,
+          subtitle3DMode: this.subtitle3DMode,
+          subtitleVisibility: this.subtitleVisibility,
+          onXComponentLoad: async () => {
+            await PermissionUtil.activatePermission(this.mpv.nowPlaying?.uri)
+            try {
+              const file = fs.openSync(this.mpv!.nowPlaying!.uri)
+              this.mpv.init(file.path, 0)
+              await this.initAVSession()
+            } catch (error) {
+              console.error('uri error:' + error)
+            }
+          },
+          onKeyCodeEscape: () => {
+            VideoOperateUtil.fullScreenOrRotateScreen(this.mpv.screenWidth, this.mpv.screenHeight,
+              this.mpv.windowClass)
+          },
+          onKeyCodeLeft: () => {
             this.mpv.backForward()
-          }
-          if (event.keyCode === KeyCode.KEYCODE_DPAD_UP || event.keyCode === KeyCode.KEYCODE_DPAD_DOWN) {
+          },
+          onKeyCodeRight: () => {
+            this.mpv.fastForward()
+          },
+          onKeyCodeSpace: () => {
+            this.mpv.togglePlayback()
+          },
+          onKeyCodeUpAndDown: (event: KeyEvent) => {
             this.mpv.volume = this.mpv.volumeActually
             const newVolume = VideoOperateUtil.changeVolume(this.mpv.volume,
               event.keyCode === KeyCode.KEYCODE_DPAD_UP ? 0.5 : -0.5)
             this.mpv.volume = newVolume
             this.mpv.volumeActually = newVolume
             VideoOperateUtil.lastVolume = newVolume
-          }
+          },
         })
-        .width(this.mpv.playAreaWidth)
-        .height(this.mpv.playAreaHeight)
-        .animation({ duration: this.mpv.playTime > 300 ? 300 : 0, curve: Curve.Ease })
 
         if (this.showControl && !this.isLock) {
           Stack() {

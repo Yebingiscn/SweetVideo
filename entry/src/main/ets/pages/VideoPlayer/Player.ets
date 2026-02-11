@@ -35,13 +35,12 @@ import { BrightnessSwipingBuilder } from '../../component/PlayerComponent/Bright
 import { FastForwardPanelBuilder } from '../../component/PlayerComponent/FastForwardPanelBuilder'
 import { VolumeSwipingPanelBuilder } from '../../component/PlayerComponent/VolumeSwipingPanelBuilder'
 import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/SwipingPlayTimePanelBuilder'
-import { SubtitleDisplayBuilder } from '../../component/PlayerComponent/SubtitleDisplayBuilder'
 import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent'
 import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { avSession } from '@kit.AVSessionKit'
 import { PlayerControllerFactory } from '../../controller/PlayerControllerFactory'
 import { MpvController } from '../../controller/MpvController/MpvController'
-import { OPTIONS } from '../../common/Constants'
+import { XComponents } from '../../component/PlayerComponent/XComponents'
 
 @Component
 export struct Player { // 播放页
@@ -149,7 +148,6 @@ export struct Player { // 播放页
         if (!this.autoHideTimeout) {
           this.autoHideTimeout = true
           setTimeout(() => {
-            ToolsUtil.addLogger("自动隐藏控制界面", false, this.pathStack)
             this.lockVisibility = false
             this.showControl = false
             this.autoHideTimeout = false
@@ -439,60 +437,46 @@ export struct Player { // 播放页
         })
 
         Stack() {
-          Stack() { //播放器
-            XComponent({
-              type: XComponentType.SURFACE,
-              controller: this.xComponentController,
-              imageAIOptions: OPTIONS
-            })
-              .onLoad(() => {
-                this.player.surfaceID = this.xComponentController.getXComponentSurfaceId()
-                this.getData()
-              })
-              .focusable(true)
-              .defaultFocus(true)
-              .enableAnalyzer(true)
-            SubtitleDisplayBuilder({
-              subtitle: this.player.subtitle,
-              screenWidth: this.player.screenWidth,
-              screenHeight: this.player.screenHeight,
-              showControl: this.showControl,
-              subTitleVisibility: this.subtitleVisibility,
-              subtitle3DMode: this.subtitle3DMode,
-              playAreaWidth: this.player.playAreaWidth,
-              playAreaHeight: this.player.playAreaHeight
-            })
-          }
-          .onKeyEvent((event?: KeyEvent) => {
-            if (!event || event.type !== KeyType.Down) {
-              return
-            }
-            if (event.keyCode === KeyCode.KEYCODE_SPACE) {
+          XComponents({
+            xComponentController: this.xComponentController,
+            playAreaWidth: this.player.playAreaWidth,
+            playAreaHeight: this.player.playAreaHeight,
+            playTime: this.player.playTime,
+            subtitle: this.player.subtitle,
+            screenHeight: this.player.screenHeight,
+            screenWidth: this.player.screenWidth,
+            choosePlayer: NavigationAddress.AV_PLAYER,
+            angle: this.angle,
+            showControl: this.showControl,
+            subtitleVisibility: this.subtitleVisibility,
+            subtitle3DMode: this.subtitle3DMode,
+            onXComponentLoad: () => {
+              console.error('test')
+              this.player.surfaceID = this.xComponentController.getXComponentSurfaceId()
+              this.getData()
+            },
+            onKeyCodeSpace: () => {
               this.player.togglePlayback()
-            }
-            if (event.keyCode === KeyCode.KEYCODE_ESCAPE) {
+            },
+            onKeyCodeEscape: () => {
               VideoOperateUtil.fullScreenOrRotateScreen(this.player.screenWidth, this.player.screenHeight,
                 this.windowClass)
-            }
-            if (event.keyCode === KeyCode.KEYCODE_DPAD_RIGHT) {
-              this.player.fastForward()
-            }
-            if (event.keyCode === KeyCode.KEYCODE_DPAD_LEFT) {
+            },
+            onKeyCodeLeft: () => {
               this.player.backForward()
-            }
-            if (event.keyCode === KeyCode.KEYCODE_DPAD_UP || event.keyCode === KeyCode.KEYCODE_DPAD_DOWN) {
+            },
+            onKeyCodeRight: () => {
+              this.player.fastForward()
+            },
+            onKeyCodeUpAndDown: (event: KeyEvent) => {
               this.player.volume = this.player.volumeActually
               const newVolume = VideoOperateUtil.changeVolume(this.player.volume,
                 event.keyCode === KeyCode.KEYCODE_DPAD_UP ? 0.5 : -0.5)
               this.player.volume = newVolume
               this.player.volumeActually = newVolume
               VideoOperateUtil.lastVolume = newVolume
-            }
+            },
           })
-          .width(this.player.playAreaWidth)
-          .height(this.player.playAreaHeight)
-          .animation({ duration: this.player.playing ? 300 : 0, curve: Curve.Ease })
-          .rotate({ y: 2, angle: this.angle, perspective: 200 })
 
           if (this.showControl && !this.isLock) {
             Stack() {
