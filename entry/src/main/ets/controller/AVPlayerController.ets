@@ -1,5 +1,5 @@
 import { media } from '@kit.MediaKit'
-import { avSession as avSessionManager } from '@kit.AVSessionKit'
+import { avSession, avSession as avSessionManager } from '@kit.AVSessionKit'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import NavigationAddress from '../common/NavigationCommon'
@@ -18,6 +18,12 @@ import { Setting } from '../utils/ObservedUtil'
 import { PlayerControllerInterface } from './PlayerControllerFactory'
 import { IMAGE_ANALYZER_CONFIG } from '../common/Constants'
 import { salmonLogger } from 'salmonlogger'
+import AVSessionUtil from '../utils/AVSessionUtil'
+import PrivacySpaceUtil from '../utils/PrivacySpaceUtil'
+import RecentPlayUtil from '../utils/RecentPlayUtil'
+import PermissionUtil from '../utils/PermissionUtil'
+import { WindowUtil } from '../utils/WindowUtil'
+import { window } from '@kit.ArkUI'
 
 @Observed
 export class AVPlayerController implements PlayerControllerInterface {
@@ -42,9 +48,12 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Track screenHeight: number = 0
   @Track playAreaHeight: number = 0
   @Track playAreaWidth: number = 0
+  @Track angle: number = 0
   @Track pixelMap: PixelMap | null = null
+  @Track repeatMode: RepeatMode = RepeatMode.LIST
+  @Track selectedText: string | undefined = '原始比例'
 
-  async getAVPlayer() {
+  async create() {
     try {
       if (!this.avPlayer) {
         this.avPlayer = await media.createAVPlayer()
@@ -280,5 +289,149 @@ export class AVPlayerController implements PlayerControllerInterface {
     xComponentController.startImageAnalyzer(IMAGE_ANALYZER_CONFIG)?.catch(() => {
       ToolsUtil.addLogger(`启动图像分析器错误`, true)
     })
+  }
+
+  async initAVSession() {
+    if (Setting.allowBackgroundPlay) {
+      this.avSession = await AVSessionUtil.getAVSession()
+      await this.setSessionListener()
+      AVSessionUtil.setSessionInfo(this.nowPlaying!)
+      AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
+    }
+  }
+
+  async setSessionListener() {
+    try {
+      this.avSession?.on('play', () => {
+        this.play()
+      })
+      this.avSession?.on('pause', () => {
+        this.pause()
+      })
+      this.avSession?.on('seek', (position: number) => {
+        this.seekTime(position)
+      })
+      this.avSession?.on('fastForward', () => {
+        this.fastForward()
+      })
+      this.avSession?.on('rewind', () => {
+        this.backForward()
+      })
+      this.avSession?.on('outputDeviceChange', () => {
+        this.pause()
+      })
+      this.avSession?.on('setLoopMode', (mode: avSession.LoopMode) => {
+        this.repeatMode = AVSessionUtil.getRepeatModeFromAvSession(mode)
+        this.repeatMode = VideoOperateUtil.getRepeatMode(this.repeatMode)
+        AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
+      })
+    } catch (error) {
+      ToolsUtil.addLogger('set avSession state error', true)
+    }
+  }
+
+  playNextVideoProcess(pathStack: NavPathStack, windowClass: Promise<window.Window | undefined>) {
+    ToolsUtil.addLogger("开始播放下一个视频流程", false, pathStack)
+    const nextItem = this.playNextVideo(this.repeatMode)
+    ToolsUtil.addLogger("获取下一个视频项完成", false, pathStack)
+    if (nextItem) {
+      ToolsUtil.addLogger("存在下一个视频，开始播放", false, pathStack)
+      this.playChooseVideo(nextItem, pathStack, windowClass)
+    } else {
+      ToolsUtil.addLogger("无下一个视频，播放结束", false, pathStack)
+      ToolsUtil.showToast('播放完毕，已自动退出')
+      pathStack.pop()
+    }
+    ToolsUtil.addLogger("播放下一个视频前置流程完成", false, pathStack)
+  }
+
+  playChooseVideo(item: VideoMetadata, pathStack: NavPathStack, windowClass: Promise<window.Window | undefined>) {
+    ToolsUtil.addLogger("开始播放选择的视频", false)
+    VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying!, this.videoMetaDataList,
+      PathUtils.appContext!)
+    if (!PrivacySpaceUtil.getPrivacyMode()) {
+      RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
+      ToolsUtil.addLogger("添加到最近播放记录完成", false)
+    }
+    this.avPlayer?.off('subtitleUpdate')
+    this.reset()
+    this.nowPlaying = item as VideoMetadata
+    ToolsUtil.addLogger("设置当前播放视频完成", false)
+    this.getData(pathStack, windowClass)
+    ToolsUtil.addLogger("获取播放数据完成", false)
+    this.initAVSession()
+    ToolsUtil.addLogger("播放选择视频流程完成", false)
+  }
+
+  async getData(pathStack: NavPathStack, windowClass: Promise<window.Window | undefined>) {
+    ToolsUtil.addLogger("开始获取播放数据", false)
+    await this.init()
+    try {
+      if (this.avPlayer) {
+        try {
+          await PermissionUtil.activatePermission(this.nowPlaying?.uri)
+          this.avPlayer.fdSrc = fs.openSync(this.nowPlaying?.uri)
+        } catch (error) {
+          ToolsUtil.addLogger("打开视频文件失败：" + error, true)
+          ToolsUtil.showToast('视频打开失败，可能已失效：' + error)
+          pathStack.pop()
+        }
+        await VideoOperateUtil.getFrameTimePreprocess(this.nowPlaying!.uri)
+        this.setRotation()
+        ToolsUtil.addLogger("计算播放区域尺寸完成", false)
+        if (windowClass) {
+          this.playAreaWidth > this.playAreaHeight ?
+            WindowUtil.enableLandscapeMultiWindow(windowClass) :
+            WindowUtil.disableLandscapeMultiWindow(windowClass)
+        }
+        if (Setting.smartRotation && this.playAreaWidth > this.playAreaHeight &&
+          this.screenHeight > this.screenWidth) {
+          ToolsUtil.addLogger("智能旋转条件满足，开始设置方向", false)
+          const proportion =
+            Math.max(this.screenWidth, this.screenHeight) /
+            Math.min(this.screenWidth, this.screenHeight)
+          const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
+            : window.Orientation.AUTO_ROTATION_RESTRICTED;
+          (await windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
+            ToolsUtil.addLogger("设置窗口方向失败", true)
+          })
+          ToolsUtil.addLogger("设置窗口方向完成", false)
+        }
+      }
+    } catch (error) {
+      const errorText = '视频加载失败。原因是：' + error
+      ToolsUtil.showToast(errorText)
+      ToolsUtil.addLogger(errorText, true)
+      pathStack.pop()
+    }
+    ToolsUtil.addLogger("获取播放数据完成", false)
+  }
+
+  async setRotation() {
+    ToolsUtil.addLogger("开始执行setRotation方法", false)
+    if (!this.nowPlaying) {
+      return
+    }
+    ToolsUtil.addLogger("开始计算播放区域尺寸", false)
+    const nowWidth = this.nowPlaying.size[0]
+    const nowHeight = this.nowPlaying.size[1]
+    const aspectRatioNow = nowWidth / nowHeight
+    const screenAspectRatio = this.screenWidth / this.screenHeight
+    if (aspectRatioNow > screenAspectRatio) {
+      this.playAreaWidth = this.screenWidth
+      this.playAreaHeight = this.playAreaWidth * (nowHeight / nowWidth)
+    } else {
+      this.playAreaHeight = this.screenHeight
+      this.playAreaWidth = this.playAreaHeight * (nowWidth / nowHeight)
+    }
+    if (this.selectedText !== '原始比例') {
+      this.selectedText = '原始比例'
+    }
+    VideoInfoUtil.saveOriginalVideoWidthAndHeight(this.playAreaWidth, this.playAreaHeight)
+    ToolsUtil.addLogger("setRotation方法执行完成", false)
+  }
+
+  async init() {
+    this.avPlayer = await this.create()
   }
 }

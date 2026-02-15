@@ -17,6 +17,10 @@ export interface PlayerControllerInterface {
 
   release(): void
 
+  init(): void
+
+  create(): void
+
   seekTime(seekTime: number): void
 
   togglePlayback(): void
@@ -26,6 +30,12 @@ export interface PlayerControllerInterface {
   getAudioTrackList(): void
 
   selectAudioTrack(trackId: number): void
+
+  initAVSession(): void
+
+  setSessionListener(): void
+
+  setRotation(): void
 }
 
 // 真正的工厂 controller

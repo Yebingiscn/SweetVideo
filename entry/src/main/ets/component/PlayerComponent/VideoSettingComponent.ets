@@ -4,7 +4,6 @@ import { PathUtils } from '../../utils/PathUtils'
 import TimeUtil from '../../utils/TimeUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
-import { RepeatMode } from '../../common/enum/RepeatMode'
 import { deviceInfo } from '@kit.BasicServicesKit'
 
 @Component
@@ -12,8 +11,6 @@ export struct VideoSettingComponent {
   @Prop playTime: number
   @Prop nowPlaying: VideoMetadata
   @Prop videoMetaData: VideoMetadata[]
-  @Link angle: number
-  @Link repeatMode: RepeatMode
   @Link exitVideoTime: number
   @Link abCircleStatus: boolean
   @State startTime: string = '00:00'
@@ -39,6 +36,10 @@ export struct VideoSettingComponent {
   updatePointATime = (_time: number) => {
   }
   updatePointBTime = (_time: number) => {
+  }
+  onScreenMirror = () => {
+  }
+  setRepeatModeToOnce = () => {
   }
 
   aboutToAppear(): void {
@@ -83,7 +84,7 @@ export struct VideoSettingComponent {
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trapezoid_and_line_vertical')),
         content: '屏幕镜像'
       }).onClick(() => {
-        this.angle === 0 ? this.angle = 180 : this.angle = 0
+        this.onScreenMirror()
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.fast_forward')),
@@ -127,7 +128,7 @@ export struct VideoSettingComponent {
       }).onClick(() => {
         clearTimeout(this.exitVideoTime)
         ToolsUtil.showToast('设置成功，播完本集后自动关闭')
-        this.repeatMode = RepeatMode.ONCE
+        this.setRepeatModeToOnce()
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),

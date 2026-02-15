@@ -1,3 +1,4 @@
+import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 
@@ -10,9 +11,14 @@ class FastForwardInfo {
 export function FastForwardPanelBuilder(fastForwardInfo: FastForwardInfo) {
   Stack({ alignContent: Alignment.BottomEnd }) {
     Column() {
-      Text(VideoInfoUtil.optimizedFormat(fastForwardInfo.speed) + ' ⏩')
-        .fontColor($r('app.color.main_color')).fontSize(15)
-        .fontWeight(FontWeight.Bold)
+      Row() {
+        Text(VideoInfoUtil.optimizedFormat(fastForwardInfo.speed))
+          .fontColor($r('app.color.main_color')).fontSize(15)
+          .fontWeight(FontWeight.Bold)
+        SymbolGlyph($r('sys.symbol.fast_forward'))
+          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+      }
+
       Row() {
         if (SelectFileUtil.getPrevAndNextItem(VideoInfoUtil.optimizedFormat(fastForwardInfo.speed),
           VideoInfoUtil.getVideoSpeedTextList())[0] !== '') {

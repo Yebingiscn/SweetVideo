@@ -13,7 +13,7 @@ export struct VideoButtonsComponent {
   @Prop screenWidth: number
   @Prop playing: boolean
   @Prop speed: number
-  @Link repeatMode: RepeatMode
+  @Prop repeatMode: RepeatMode
   @Link sideBarStatusTmp: Visibility
   @Link sideBarStatus: boolean
   @BuilderParam AVCastPickerBuilderBridge: () => void
@@ -27,6 +27,8 @@ export struct VideoButtonsComponent {
   onPlayNextVideoClick = () => {
   }
   onSideBaClose = () => {
+  }
+  onChangeRepeatMode = (_repeatMode: RepeatMode) => {
   }
 
   build() {
@@ -97,9 +99,10 @@ export struct VideoButtonsComponent {
         .backgroundColor('#50000000')
         .onClick(() => {
           // LIST -> SINGLE -> RANDOM -> SEQUENCE -> 回到LIST
-          this.repeatMode = VideoOperateUtil.getRepeatMode(this.repeatMode)
-          ToolsUtil.showToast(this.getRepeatModeText())
+          const repeatMode = VideoOperateUtil.getRepeatMode(this.repeatMode)
+          ToolsUtil.showToast(this.getRepeatModeText(repeatMode))
           AVSessionUtil.updatePlaybackSessionState(this.player.playing, this.player.playTime, this.repeatMode)
+          this.onChangeRepeatMode(repeatMode)
         })
       }.span({ xs: 2, sm: 2, md: 2 })
 
@@ -175,8 +178,8 @@ export struct VideoButtonsComponent {
    * 获取当前播放模式对应的文本
    * @returns 播放模式文本
    */
-  private getRepeatModeText(): string {
-    switch (this.repeatMode) {
+  private getRepeatModeText(repeatMode: RepeatMode): string {
+    switch (repeatMode) {
       case RepeatMode.SINGLE:
         return '单曲循环'
       case RepeatMode.RANDOM:

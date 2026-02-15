@@ -2,7 +2,7 @@ import NavigationAddress, { PlayerParams } from '../../common/NavigationCommon'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import { PlayerControllerFactory } from '../../controller/PlayerControllerFactory'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
-import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { Privacy, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { WindowUtil } from '../../utils/WindowUtil'
@@ -21,10 +21,9 @@ import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent'
 import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder'
-import { RepeatMode } from '../../common/enum/RepeatMode'
 import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 import AVSessionUtil from '../../utils/AVSessionUtil'
-import { AVCastPicker, avSession } from '@kit.AVSessionKit'
+import { AVCastPicker } from '@kit.AVSessionKit'
 import { audio } from '@kit.AudioKit'
 import { window } from '@kit.ArkUI'
 import { AudioTrackComponent } from '../../component/PlayerComponent/AudioTrackComponent'
@@ -33,13 +32,30 @@ import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import { VideoTopComponent } from '../../component/PlayerComponent/VideoTopComponent'
 import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent'
 import { XComponents } from '../../component/PlayerComponent/XComponents'
+import { VideoLayoutComponent } from '../../component/PlayerComponent/VideoLayoutComponent'
+import {
+  LEFT_ZONE_DIVISION,
+  MAX_SCALE_FACTOR,
+  MAX_WIDTH_MULTIPLIER,
+  MIN_SCALE_FACTOR,
+  MIN_WIDTH_MULTIPLIER,
+  NO_BLUR_AMOUNT,
+  PINCH_SCALE_SENSITIVITY,
+  PRIVACY_BACKGROUND_BLUR_AMOUNT,
+  RIGHT_ZONE_DIVISION,
+  SCREEN_DIVISIONS,
+  SCREEN_HALF_DIVIDER,
+  SWIPE_THRESHOLD,
+  VERTICAL_PAN_SENSITIVITY,
+  VOLUME_PAN_MULTIPLIER,
+  VOLUME_STEP
+} from '../../common/Constants'
 
 @Component
 export struct MpvPlayer {
   xComponentController: XComponentController = new XComponentController()
   @State subtitleVisibility: Visibility = Visibility.Visible
   @State lockRotation: boolean = false
-  @State selectedText: string | undefined = '原始比例'
   @Consume('pathStack') pathStack: NavPathStack
   @Provide('MpvPlayer') mpv: MpvController = PlayerControllerFactory.createMpvController()
   @State @Watch('setScreen') showControl: boolean = false
@@ -52,12 +68,10 @@ export struct MpvPlayer {
   @State isAIAsrShown: boolean = false
   @State currentSpeedIndex: number = 0
   @State sideBarStatus: boolean = false
-  @State repeatMode: RepeatMode = RepeatMode.LIST
   @State sideBarStatusTmp: Visibility = Visibility.Hidden
   @State screenBrightness: number = 0
   @State audioTrackSelect: number = 0
   @State subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
-  @State angle: number = 0
 
   async aboutToAppear(): Promise<void> {
     this.mpv.prepare()
@@ -121,7 +135,7 @@ export struct MpvPlayer {
           xComponentId: 'xcomponentId',
           libraryName: 'mpvnative',
           choosePlayer: NavigationAddress.MPV_PLAYER,
-          angle: this.angle,
+          angle: this.mpv.angle,
           screenHeight: this.mpv.screenHeight,
           screenWidth: this.mpv.screenWidth,
           showControl: this.showControl,
@@ -132,7 +146,7 @@ export struct MpvPlayer {
             try {
               const file = fs.openSync(this.mpv!.nowPlaying!.uri)
               this.mpv.init(file.path, 0)
-              await this.initAVSession()
+              await this.mpv.initAVSession()
             } catch (error) {
               console.error('uri error:' + error)
             }
@@ -153,7 +167,7 @@ export struct MpvPlayer {
           onKeyCodeUpAndDown: (event: KeyEvent) => {
             this.mpv.volume = this.mpv.volumeActually
             const newVolume = VideoOperateUtil.changeVolume(this.mpv.volume,
-              event.keyCode === KeyCode.KEYCODE_DPAD_UP ? 0.5 : -0.5)
+              event.keyCode === KeyCode.KEYCODE_DPAD_UP ? VOLUME_STEP : -VOLUME_STEP)
             this.mpv.volume = newVolume
             this.mpv.volumeActually = newVolume
             VideoOperateUtil.lastVolume = newVolume
@@ -161,47 +175,20 @@ export struct MpvPlayer {
         })
 
         if (this.showControl && !this.isLock) {
-          Stack() {
-            Flex({
-              justifyContent: FlexAlign.SpaceBetween,
-              alignItems: ItemAlign.Center,
-              direction: FlexDirection.Column
-            }) { //顶栏
-              Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
-                this.VideoTop()
-              }
-              .height(85)
-              .transition(XAnimation.getAnimation('up', 0, false))
-              .width('100%')
-              .backgroundColor('#36ffffff')
-              .padding({
-                left: (this.mpv.screenHeight > this.mpv.screenWidth ? 5 : 5),
-                right: 20,
-                top: (this.showControl ? SafeHeight.topSafeHeight : 0),
-                bottom: 0
-              })
-
-              Stack() { //底栏
-                if (this.mpv.screenHeight > this.mpv.screenWidth) {
-                  Column({ space: 15 }) {
-                    this.VideoButtons()
-                    this.VideoSlider()
-                  }
-                } else {
-                  Row({ space: 15 }) {
-                    Column() {
-                      this.VideoSlider()
-                      this.VideoButtons()
-                    }
-                  }
-                }
-              }
-              .transition(XAnimation.getAnimation('bottom', 0, false))
-              .backgroundColor($r('sys.color.mask_fourth'))
-              .height(this.mpv.screenHeight > this.mpv.screenWidth ? 180 : 110)
-              .width('100%')
-            }.height('100%').width('100%')
-          }
+          VideoLayoutComponent({
+            screenHeight: this.mpv.screenHeight,
+            screenWidth: this.mpv.screenWidth,
+            showControl: this.showControl,
+            VideoTop: () => {
+              this.VideoTop()
+            },
+            VideoButtons: () => {
+              this.VideoButtons()
+            },
+            VideoSlider: () => {
+              this.VideoSlider()
+            },
+          })
         }
 
         if (this.longPress) {
@@ -245,12 +232,12 @@ export struct MpvPlayer {
               this.mpv.togglePlayback()
               return
             }
-            const zoneWidth = this.mpv.screenWidth / 5 // 屏幕五分之一宽度
-            if (tapX < zoneWidth) { // 左侧1/5区域：回退
+            const zoneWidth = this.mpv.screenWidth / SCREEN_DIVISIONS // 屏幕五分之一宽度
+            if (tapX < zoneWidth * LEFT_ZONE_DIVISION) { // 左侧1/5区域：回退
               this.mpv.backForward()
               return
             }
-            if (tapX > zoneWidth * 4) { // 右侧1/5区域：快进
+            if (tapX > zoneWidth * RIGHT_ZONE_DIVISION) { // 右侧1/5区域：快进
               this.mpv.fastForward()
               return
             }
@@ -271,20 +258,20 @@ export struct MpvPlayer {
             }
           },
           onVerticalPanStart: (tapX: number) => {
-            VideoOperateUtil.leftSideSwipe = tapX < this.mpv.screenWidth / 2
+            VideoOperateUtil.leftSideSwipe = tapX < this.mpv.screenWidth / SCREEN_HALF_DIVIDER
             VideoOperateUtil.screenBrightnessTmp = this.mpv.screenBrightness
             this.mpv.volume = this.mpv.volumeActually
             VideoOperateUtil.lastVolume = this.mpv.volume // 记录起始音量
           },
           onVerticalPanUpdate: (offsetY: number) => {
-            const deltaYScale = offsetY / this.mpv.screenHeight * 2.5
+            const deltaYScale = offsetY / this.mpv.screenHeight * VERTICAL_PAN_SENSITIVITY
             if (VideoOperateUtil.leftSideSwipe) {
               this.onSwipingBrightness = true
               this.mpv.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
               VideoOperateUtil.setBrightness(this.mpv.screenBrightness)
             } else {
               this.mpv.onSwipingVoice = true
-              const newVolume = VideoOperateUtil.lastVolume - deltaYScale * 20
+              const newVolume = VideoOperateUtil.lastVolume - deltaYScale * VOLUME_PAN_MULTIPLIER
               this.mpv.volume =
                 Math.min(Math.max(newVolume, VideoOperateUtil.minVolume), VideoOperateUtil.maxVolume)
             }
@@ -312,11 +299,11 @@ export struct MpvPlayer {
           },
           onPinchUpdate: (fingerDistance: number) => {
             const rawScale = fingerDistance / VideoOperateUtil.initPinchDistance
-            const adjustedScale = 1 + (rawScale - 1) * 0.007 // 计算调整后的缩放比例
-            const clampedScale = Math.min(Math.max(adjustedScale, 0.5), 2.0)
+            const adjustedScale = 1 + (rawScale - 1) * PINCH_SCALE_SENSITIVITY // 计算调整后的缩放比例
+            const clampedScale = Math.min(Math.max(adjustedScale, MIN_SCALE_FACTOR), MAX_SCALE_FACTOR)
             const scaledWidth = this.mpv.playAreaWidth * clampedScale // 计算缩放后的播放区域宽度
-            const maxAllowed = VideoInfoUtil.playAreaWidth * 3.0
-            const minAllowed = VideoInfoUtil.playAreaWidth * 0.5
+            const maxAllowed = VideoInfoUtil.playAreaWidth * MAX_WIDTH_MULTIPLIER
+            const minAllowed = VideoInfoUtil.playAreaWidth * MIN_WIDTH_MULTIPLIER
             if (scaledWidth > maxAllowed || scaledWidth < minAllowed) { // 检查缩放是否超出允许范围
               return
             }
@@ -347,7 +334,6 @@ export struct MpvPlayer {
           onLongPressPanUpdate: (tapX: number) => {
             if (this.longPress) { // 长按状态下的滑动处理
               const deltaX = tapX - VideoOperateUtil.longPressStartX
-              const SWIPE_THRESHOLD = 15
               if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
                 return
               }
@@ -379,7 +365,7 @@ export struct MpvPlayer {
       }.onAreaChange(async (_oldValue: Area, newValue: Area) => {
         this.mpv.screenWidth = Math.floor(new Number(newValue.width).valueOf())
         this.mpv.screenHeight = Math.floor(new Number(newValue.height).valueOf())
-        await this.mpv.getVideoSize()
+        await this.mpv.setRotation()
       })
       .height('100%')
       .width('100%')
@@ -425,7 +411,7 @@ export struct MpvPlayer {
       }
     })
     .hideTitleBar(true)
-    .blur(Privacy.isPrivacyBackground ? 1000 : 0)
+    .blur(Privacy.isPrivacyBackground ? PRIVACY_BACKGROUND_BLUR_AMOUNT : NO_BLUR_AMOUNT)
   }
 
   closeSideBar(_arg0: boolean) {
@@ -443,14 +429,14 @@ export struct MpvPlayer {
       subTitleVisibility: this.subtitleVisibility,
       subtitleSelected: this.mpv.subtitleSelected,
       isAIAsrShown: this.isAIAsrShown,
-      screenExtendSelectedText: this.selectedText,
+      screenExtendSelectedText: this.mpv.selectedText,
       screenWidth: this.mpv.screenWidth,
       screenHeight: this.mpv.screenHeight,
       audioTrackMenuBuilder: () => {
-        this.AudioTrackMenuBuilderBridge()
+        this.AudioTrackMenuBuilder()
       },
       subtitlePanelComponent: () => {
-        this.SubtitleMenuBuilderBridge()
+        this.SubtitleMenuBuilder()
       },
       lockRotation: this.lockRotation,
       playAreaHeight: this.mpv.playAreaHeight,
@@ -503,52 +489,16 @@ export struct MpvPlayer {
       onUniformScale: (scale: number) => {
         this.mpv.playAreaHeight = scale * VideoInfoUtil.playAreaHeight
         this.mpv.playAreaWidth = scale * VideoInfoUtil.playAreaWidth
-      }
+      },
+      onSelectedTextChange: (text: string) => {
+        this.mpv.selectedText = text
+      },
     })
   }
 
   exitVideo() {
     this.mpv.release()
     this.pathStack.pop()
-  }
-
-  async setSessionListener() {
-    try {
-      this.mpv.avSession?.on('play', () => {
-        this.mpv.play()
-      })
-      this.mpv.avSession?.on('pause', () => {
-        this.mpv.pause()
-      })
-      this.mpv.avSession?.on('seek', (position: number) => {
-        this.mpv.seekTime(position)
-      })
-      this.mpv.avSession?.on('fastForward', () => {
-        this.mpv.fastForward()
-      })
-      this.mpv.avSession?.on('rewind', () => {
-        this.mpv.backForward()
-      })
-      this.mpv.avSession?.on('outputDeviceChange', () => {
-        this.mpv.pause()
-      })
-      this.mpv.avSession?.on('setLoopMode', (mode: avSession.LoopMode) => {
-        this.repeatMode = AVSessionUtil.getRepeatModeFromAvSession(mode)
-        this.repeatMode = VideoOperateUtil.getRepeatMode(this.repeatMode)
-        AVSessionUtil.updatePlaybackSessionState(this.mpv.playing, this.mpv.playTime, this.repeatMode)
-      })
-    } catch (error) {
-      ToolsUtil.addLogger('set avSession state error', true, this.pathStack)
-    }
-  }
-
-  async initAVSession() {
-    if (Setting.allowBackgroundPlay) {
-      this.mpv.avSession = await AVSessionUtil.getAVSession()
-      await this.setSessionListener()
-      AVSessionUtil.setSessionInfo(this.mpv.nowPlaying!)
-      AVSessionUtil.updatePlaybackSessionState(this.mpv.playing, this.mpv.playTime, this.repeatMode)
-    }
   }
 
   @Builder
@@ -660,18 +610,8 @@ export struct MpvPlayer {
   }
 
   @Builder
-  SubtitleMenuBuilderBridge() {
-    this.SubtitleMenuBuilder()
-  }
-
-  @Builder
   AVCastPickerBuilderBridge() { // 桥接AVCastPickerBuilder避免crash
     AVCastPickerBuilder()
-  }
-
-  @Builder
-  AudioTrackMenuBuilderBridge() {
-    this.AudioTrackMenuBuilder()
   }
 
   @Builder

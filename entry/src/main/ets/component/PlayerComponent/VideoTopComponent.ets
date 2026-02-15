@@ -10,7 +10,7 @@ export struct VideoTopComponent {
   @Link subTitleVisibility: Visibility
   @Link isAIAsrShown: boolean
   @Prop subtitleSelected: SubtitleMode
-  @Link screenExtendSelectedText: string | undefined
+  @Prop screenExtendSelectedText: string | undefined
   @Prop screenWidth: number
   @Prop screenHeight: number
   @BuilderParam audioTrackMenuBuilder: () => void
@@ -33,6 +33,8 @@ export struct VideoTopComponent {
   onUniformScale = (_scale: number) => {
   }
   onSpecificVideoProportions = (_playAreaSize: number[]) => {
+  }
+  onSelectedTextChange = (_text: string) => {
   }
 
   build() {
@@ -72,8 +74,9 @@ export struct VideoTopComponent {
               .selected(VideoInfoUtil.screenExtendMap.indexOf(this.screenExtendSelectedText!))
               .fontColor($r('sys.color.white'))
               .onSelect((_index: number, text?: string | undefined) => {
-                this.screenExtendSelectedText = text
+                const selectedText = text
                 this.screenExtend(text!)
+                this.onSelectedTextChange(selectedText!)
               })
               .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
           }

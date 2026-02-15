@@ -41,6 +41,7 @@ export default class VideoOperateUtil {
   public static lastVolume: number = 0
   public static windowStage: window.WindowStage | undefined = undefined
   public static longPressStartX: number = 0
+  public static autoHideTimeout: boolean = false
   public static leftSideSwipe: boolean = true
   public static avImageGenerator: media.AVImageGenerator | undefined = undefined
   public static nowPlayingFile: fileIo.File | undefined = undefined

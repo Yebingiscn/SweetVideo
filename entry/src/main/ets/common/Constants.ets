@@ -2,6 +2,42 @@ import { media } from '@kit.MediaKit'
 
 export const DELAY_JUMP_TO_PLAYER: number = 450
 
+export const DEFAULT_ANGLE: number = 0
+
+export const MIRRORED_ANGLE: number = 180
+
+export const AUTO_HIDE_SHOW_CONTROL_TIME: number = 12000
+
+export const VOLUME_STEP: number = 0.5
+
+export const SWIPE_THRESHOLD: number = 15 // 滑动距离阈值
+
+export const SCREEN_DIVISIONS: number = 5 // 屏幕划分份数
+
+export const LEFT_ZONE_DIVISION: number = 1 // 左侧区域占1份
+
+export const RIGHT_ZONE_DIVISION: number = 4 // 右侧区域从第4份开始（即最后1份）
+
+export const VERTICAL_PAN_SENSITIVITY: number = 2.5 // 垂直滑动手势灵敏度
+
+export const VOLUME_PAN_MULTIPLIER: number = 20 // 音量手势调整倍率
+
+export const SCREEN_HALF_DIVIDER: number = 2 // 屏幕对半分界
+
+export const PINCH_SCALE_SENSITIVITY = 0.007 // 捏合缩放的敏感度
+
+export const MIN_SCALE_FACTOR = 0.5 // 最小缩放比例
+
+export const MAX_SCALE_FACTOR = 2.0 // 最大缩放比例
+
+export const MAX_WIDTH_MULTIPLIER = 3.0 // 最大宽度倍数（相对于原始宽度）
+
+export const MIN_WIDTH_MULTIPLIER = 0.5 // 最小宽度倍数（相对于原始宽度）
+
+export const PRIVACY_BACKGROUND_BLUR_AMOUNT = 1000; // 隐私背景下的模糊强度
+
+export const NO_BLUR_AMOUNT = 0; // 无模糊
+
 export const GB = 1024 * 1024 * 1024
 
 export const MB = 1024 * 1024

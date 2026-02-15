@@ -7,13 +7,14 @@ import { SubtitleMode } from '../../common/enum/SubtitleMode';
 import { PathUtils } from '../../utils/PathUtils';
 import VideoOperateUtil from '../../utils/VideoOperateUtil';
 import { MpvAudioTrack, MpvSubtitleTrack } from './MpvTypes';
-import { avSession as avSessionManager } from '@kit.AVSessionKit';
+import { avSession, avSession as avSessionManager } from '@kit.AVSessionKit';
 import { audio } from '@kit.AudioKit';
 import { WindowUtil } from '../../utils/WindowUtil';
 import { window } from '@kit.ArkUI';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
-import json from '@ohos.util.json';
+import { RepeatMode } from '../../common/enum/RepeatMode';
+import AVSessionUtil from '../../utils/AVSessionUtil';
 
 @Observed
 export class MpvController implements PlayerControllerInterface {
@@ -37,6 +38,9 @@ export class MpvController implements PlayerControllerInterface {
   @Track screenHeight: number = 0
   @Track playAreaHeight: number = 0
   @Track playAreaWidth: number = 0
+  @Track angle: number = 0
+  @Track repeatMode: RepeatMode = RepeatMode.LIST
+  @Track selectedText: string | undefined = '原始比例'
   avSession: avSessionManager.AVSession | undefined = undefined
   audioVolumeManager: audio.AudioVolumeManager | null = null
 
@@ -61,16 +65,12 @@ export class MpvController implements PlayerControllerInterface {
     }
   }
 
-  init(url: string, startPosition?: number): void {
+  init(url?: string, startPosition?: number): void {
     // 传递起始位置给 native（参考 mpv-android）
-    try {
-      if (startPosition !== undefined && startPosition > 0) {
-        mpv.loadVideo(this.mpvHandle, url, startPosition)
-      } else {
-        mpv.loadVideo(this.mpvHandle, url)
-      }
-    } catch (err) {
-      ToolsUtil.showToast("Mpv 播放失败：" + json.stringify(err))
+    if (startPosition !== undefined && startPosition > 0) {
+      mpv.loadVideo(this.mpvHandle, url, startPosition)
+    } else {
+      mpv.loadVideo(this.mpvHandle, url)
     }
     this.playTimeUpdateTag = setInterval(() => {
       this.playTime = mpv.getCurrentPosition(this.mpvHandle)
@@ -81,7 +81,7 @@ export class MpvController implements PlayerControllerInterface {
       this.getSubtitleTrackList()
       this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!))
       this.nowPlaying!.time = this.getDuration()
-      this.getVideoSize()
+      this.setRotation()
       if (Setting.smartRotation && this.playAreaWidth > this.playAreaHeight &&
         this.screenHeight > this.screenWidth) {
         ToolsUtil.addLogger("智能旋转条件满足，开始设置方向", false)
@@ -212,7 +212,7 @@ export class MpvController implements PlayerControllerInterface {
     mpv.selectSubtitle(this.mpvHandle, trackId)
   }
 
-  async getVideoSize() {
+  async setRotation() {
     let VideoWidth = this.getPlayAreaWidth() === 0 ? 1999 : this.getPlayAreaWidth()
     let VideoHeight = this.getPlayAreaHeight() === 0 ? 1999 : this.getPlayAreaHeight()
     const aspectRatioNow = VideoWidth / VideoHeight
@@ -233,6 +233,45 @@ export class MpvController implements PlayerControllerInterface {
       this.nowPlaying!.size[0] = VideoWidth
       this.nowPlaying!.size[1] = VideoHeight
       VideoOperateUtil.saveVideoWeightAndHeight(PathUtils.appContext!, this.nowPlaying)
+    }
+  }
+
+  async setSessionListener() {
+    try {
+      this.avSession?.on('play', () => {
+        this.play()
+      })
+      this.avSession?.on('pause', () => {
+        this.pause()
+      })
+      this.avSession?.on('seek', (position: number) => {
+        this.seekTime(position)
+      })
+      this.avSession?.on('fastForward', () => {
+        this.fastForward()
+      })
+      this.avSession?.on('rewind', () => {
+        this.backForward()
+      })
+      this.avSession?.on('outputDeviceChange', () => {
+        this.pause()
+      })
+      this.avSession?.on('setLoopMode', (mode: avSession.LoopMode) => {
+        this.repeatMode = AVSessionUtil.getRepeatModeFromAvSession(mode)
+        this.repeatMode = VideoOperateUtil.getRepeatMode(this.repeatMode)
+        AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
+      })
+    } catch (error) {
+      ToolsUtil.addLogger('set avSession state error', true)
+    }
+  }
+
+  async initAVSession() {
+    if (Setting.allowBackgroundPlay) {
+      this.avSession = await AVSessionUtil.getAVSession()
+      await this.setSessionListener()
+      AVSessionUtil.setSessionInfo(this.nowPlaying!)
+      AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
     }
   }
 }

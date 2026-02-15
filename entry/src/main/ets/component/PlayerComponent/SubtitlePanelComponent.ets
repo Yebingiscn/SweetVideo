@@ -15,7 +15,7 @@ export struct SubtitlePanelComponent {
   @Prop innerSubtitleData: MpvSubtitleTrack[] | []
   @State threeDSubtitleValue: string[] = ["不使用", "左/右", "上/下"]
   @State innerSubtitleMenu: InnerSubtitleDataSource = new InnerSubtitleDataSource([])
-  @ObjectLink mpv: MpvController | null
+  @ObjectLink mpv: MpvController
 
   aboutToAppear(): void {
     if (this.innerSubtitleData.length > 0) {

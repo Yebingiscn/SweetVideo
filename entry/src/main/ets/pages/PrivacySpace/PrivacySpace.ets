@@ -30,7 +30,7 @@ import { ListDisplayMode } from '../../common/enum/ListDisplayMode'
 import SubtitleUtil from '../../utils/SubtitleUtil'
 import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { SortComponent } from '../../component/VideoItemComponent/SortComponent'
-import { DELAY_JUMP_TO_PLAYER } from '../../common/Constants'
+import { DELAY_JUMP_TO_PLAYER, NO_BLUR_AMOUNT, PRIVACY_BACKGROUND_BLUR_AMOUNT } from '../../common/Constants'
 
 @Component
 export struct PrivacySpace { // 隐私空间页
@@ -517,7 +517,7 @@ export struct PrivacySpace { // 隐私空间页
         return false
       }
     })
-    .blur(Privacy.isPrivacyBackground ? 1000 : 0)
+    .blur(Privacy.isPrivacyBackground ? PRIVACY_BACKGROUND_BLUR_AMOUNT : NO_BLUR_AMOUNT)
     .onReady(() => {
       const privacySpaceParams = this.pathStack.getParamByName(NavigationAddress.PRIVACY_SPACE)[0] as PrivacySpaceParams
       if (privacySpaceParams?.needGotoSetting) {

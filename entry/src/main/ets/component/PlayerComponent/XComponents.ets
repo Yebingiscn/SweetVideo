@@ -13,7 +13,7 @@ export struct XComponents {
   @Prop subtitle: string
   @Prop screenWidth: number
   @Prop screenHeight: number
-  @Link angle: number
+  @Prop angle: number
   @Link showControl: boolean
   @Link subtitleVisibility: Visibility
   @Link subtitle3DMode: Subtitle3DMode
