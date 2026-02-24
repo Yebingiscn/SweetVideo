@@ -2,8 +2,6 @@ import { UIAbility, Want } from '@kit.AbilityKit';
 import { hiAppEvent, hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import WantProcessUtil from '../utils/WantProcessUtil';
-import { RedPlayerConfigBuilder, RedPlayerInitManager, RedPlayerPreload } from '@rte-xhs/redplayer';
-import LoggerImpl from '../controller/RedPlayerController/LoggerImpl';
 import { PathUtils } from '../utils/PathUtils';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import VideoOperateUtil from '../utils/VideoOperateUtil';
@@ -25,16 +23,6 @@ export default class EntryAbility extends UIAbility {
     PathUtils.init(this.context);
     WantProcessUtil.want = want
     this.crashWatcher()
-    this.initRedPlayer()
-  }
-
-  // 红薯播放器初始化
-  initRedPlayer() {
-    let configBuilder = new RedPlayerConfigBuilder()
-    configBuilder.cachePath = this.context.cacheDir + '/red_player'
-    configBuilder.logger = new LoggerImpl()
-    RedPlayerInitManager.initPlayer(configBuilder)
-    RedPlayerPreload.globalInit(this.context.cacheDir + '/red_player', 20, 4, 0)
   }
 
   //崩溃守卫

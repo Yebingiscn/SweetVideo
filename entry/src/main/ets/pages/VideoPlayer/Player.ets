@@ -24,7 +24,7 @@ import NavigationAddress, { PlayerParams } from '../../common/NavigationCommon'
 import { WindowUtil } from '../../utils/WindowUtil'
 import { KeyCode } from '@kit.InputKit'
 import { XAnimation } from '../../utils/AnimationUtil'
-import { AIAsr } from '../../component/PlayerComponent/AIAsrComponent'
+import { AISubtitleComponent } from '../../component/PlayerComponent/AIAsrComponent'
 import SubtitleUtil from '../../utils/SubtitleUtil'
 import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode'
 import { AVPlayerController } from '../../controller/AVPlayerController'
@@ -41,7 +41,6 @@ import { VideoLayoutComponent } from '../../component/PlayerComponent/VideoLayou
 import {
   AUTO_HIDE_SHOW_CONTROL_TIME,
   DEFAULT_ANGLE,
-  LEFT_ZONE_DIVISION,
   MAX_SCALE_FACTOR,
   MAX_WIDTH_MULTIPLIER,
   MIN_SCALE_FACTOR,
@@ -50,8 +49,6 @@ import {
   NO_BLUR_AMOUNT,
   PINCH_SCALE_SENSITIVITY,
   PRIVACY_BACKGROUND_BLUR_AMOUNT,
-  RIGHT_ZONE_DIVISION,
-  SCREEN_DIVISIONS,
   SCREEN_HALF_DIVIDER,
   SWIPE_THRESHOLD,
   VERTICAL_PAN_SENSITIVITY,
@@ -105,8 +102,7 @@ export struct Player { // 播放页
     ToolsUtil.addLogger("开始执行aboutToDisappear方法", false, this.pathStack)
     VideoOperateUtil.setBrightness(-1)
     Preferences.saveVideoSpeed(PathUtils.appContext!,
-      (VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).includes(this.player.speed) ? this.player.speed :
-        1) + 'x')
+      (VideoInfoUtil.videoSpeedListAll.includes(this.player.speed) ? this.player.speed : 1) + 'x')
     Preferences.saveRepeatModeState(PathUtils.appContext!, this.player.repeatMode)
     WindowUtil.setBarState(PathUtils.appContext!, true, true)
     clearTimeout(this.exitVideoTime)
@@ -324,8 +320,9 @@ export struct Player { // 播放页
             subtitle3DMode: this.subtitle3DMode,
             onXComponentLoad: async () => {
               this.player.surfaceID = this.xComponentController.getXComponentSurfaceId()
-              await this.player.getData(this.pathStack, this.windowClass)
+              await this.player.init()
               this.setAVPlayerCallback()
+              await this.player.getData(this.pathStack, this.windowClass)
             },
             onKeyCodeSpace: () => {
               this.player.togglePlayback()
@@ -404,20 +401,7 @@ export struct Player { // 播放页
             showControl: this.showControl,
             isLock: this.isLock,
             onDoubleClickAction: (tapX: number) => {
-              if (!Setting.allowDoubleFastForward) { // 非双击快进模式时执行暂停
-                this.player.togglePlayback()
-                return
-              }
-              const zoneWidth = this.player.screenWidth / SCREEN_DIVISIONS
-              if (tapX < zoneWidth * LEFT_ZONE_DIVISION) {
-                this.player.backForward()
-                return
-              }
-              if (tapX > zoneWidth * RIGHT_ZONE_DIVISION) {
-                this.player.fastForward()
-                return
-              }
-              this.player.togglePlayback()
+              this.player.onScreenDoubleClick(tapX)
             },
             onSingleClickAction: () => {
               if (this.sideBarStatus) {
@@ -498,8 +482,7 @@ export struct Player { // 播放页
                 this.longPress = true
                 VideoOperateUtil.lastSpeed = this.player.speed
                 this.player.updatePlaybackSpeed(Setting.longPressSpeed)
-                this.currentSpeedIndex =
-                  VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).indexOf(Setting.longPressSpeed)
+                this.currentSpeedIndex = VideoInfoUtil.videoSpeedListAll.indexOf(Setting.longPressSpeed)
               }
             },
             onLongPressEnd: () => {
@@ -517,29 +500,24 @@ export struct Player { // 播放页
                 }
                 const direction = Math.sign(deltaX)
                 const newIndex = this.currentSpeedIndex + direction // 计算新速度索引并限制在有效范围内
-                const clampedIndex = Math.max(0,
-                  Math.min(newIndex, VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).length - 1))
+                const clampedIndex = Math.max(0, Math.min(newIndex, VideoInfoUtil.videoSpeedListAll.length - 1))
                 if (clampedIndex === this.currentSpeedIndex) { // 索引变化时才更新播放速度
                   return
                 }
                 this.currentSpeedIndex = clampedIndex
-                this.player.updatePlaybackSpeed(VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER)[this.currentSpeedIndex])
+                this.player.updatePlaybackSpeed(VideoInfoUtil.videoSpeedListAll[this.currentSpeedIndex])
                 VideoOperateUtil.longPressStartX = tapX // 重置起始点实现分档切换效果
               }
             }
           })
             .hitTestBehavior(HitTestMode.Transparent)
 
-          AIAsr({
-            isShown: this.isAIAsrShown
+          AISubtitleComponent({
+            isAIAsrShown: this.isAIAsrShown,
+            showControl: this.showControl,
+            screenWidth: this.player.screenWidth,
+            screenHeight: this.player.screenHeight
           })
-            .visibility(this.showControl ? Visibility.None : Visibility.Visible)
-            .width('80%').height(80)
-            .offset({
-              x: 0,
-              y: this.player.screenWidth > this.player.screenHeight ? this.player.screenHeight / 2 - 40 :
-                this.player.screenHeight / 2 - 100
-            })
         }.onAreaChange((_oldValue: Area, newValue: Area) => {
           this.player.screenWidth = Math.floor(new Number(newValue.width).valueOf())
           this.player.screenHeight = Math.floor(new Number(newValue.height).valueOf())

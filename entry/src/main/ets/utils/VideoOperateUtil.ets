@@ -16,7 +16,7 @@ import ToolsUtil from './ToolsUtil'
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode'
 import PermissionUtil from './PermissionUtil'
 import { VideoSource } from '../common/enum/VideoSource'
-import { PlayerParams } from '../common/NavigationCommon'
+import NavigationAddress, { PlayerParams } from '../common/NavigationCommon'
 import { Setting } from './ObservedUtil'
 import DataSyncUtil from './DataSyncUtil'
 import { fileIo, fileUri, fileIo as fs } from '@kit.CoreFileKit'
@@ -26,6 +26,7 @@ import { image } from '@kit.ImageKit'
 import { XAnimation } from './AnimationUtil'
 import { WindowUtil } from './WindowUtil'
 import { SUPPORT_AUDIO_FORMAT } from '../common/Constants'
+import VideoInfoUtil from './VideoInfoUtil'
 
 const TAG = 'VideoOperateUtil'
 
@@ -456,5 +457,19 @@ export default class VideoOperateUtil {
       default:
         return RepeatMode.LIST
     }
+  }
+
+  static getPlayerNavigationAddress(defaultAddress: string, reverse: boolean = false) {
+    const isFirstPlayer = defaultAddress === VideoInfoUtil.playerList[0];
+    return (reverse ? !isFirstPlayer : isFirstPlayer)
+      ? NavigationAddress.AV_PLAYER
+      : NavigationAddress.MPV_PLAYER;
+  }
+
+  static getPlayerName(defaultAddress: string, reverse: boolean = false) {
+    const isFirstPlayer = defaultAddress === VideoInfoUtil.playerList[0];
+    return (reverse ? !isFirstPlayer : isFirstPlayer)
+      ? $r('app.string.AV_PLAYER')
+      : $r('app.string.MPV_Player');
   }
 }

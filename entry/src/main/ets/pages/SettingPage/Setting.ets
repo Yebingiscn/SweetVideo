@@ -12,6 +12,8 @@ import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { Markdown, MarkdownController } from '@luvi/lv-markdown-in'
 import { salmonLogger } from 'salmonlogger'
 
+const TAG = 'SettingsPage'
+
 @Component
 export struct SettingsPage { //设置页
   @State passwd: string = 'passwd'
@@ -147,14 +149,11 @@ export struct SettingsPage { //设置页
               rawfilePath: "Tips.md", // 资源文件地址
               callback: {
                 complete: () => {
-                  console.log("Markdown component load success.")
-                  salmonLogger.addLog(this.pathStack.getAllPathName()[0],
-                    "Markdown component load success.", false)
+                  salmonLogger.addLog(TAG, "Markdown component load success.", false)
                 },
                 fail: (code: number, message: string) => {
-                  console.error("Markdown component load error. code: " + code + ", message: " + message)
-                  salmonLogger.addLog(this.pathStack.getAllPathName()[0],
-                    "Markdown component load error. code: " + code + ", message: " + message, true)
+                  salmonLogger.addLog(TAG, "Markdown component load error. code: " + code + ", message: " + message,
+                    true)
                 }
               }
             })

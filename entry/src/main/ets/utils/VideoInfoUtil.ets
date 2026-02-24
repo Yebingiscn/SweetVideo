@@ -4,7 +4,6 @@ import { BusinessError } from '@kit.BasicServicesKit'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
 import { ConcurrentQueue } from './FileProcessorUtil'
-import NavigationAddress from '../common/NavigationCommon'
 import SelectFileUtil from './SelectFileUtil'
 import PermissionUtil from './PermissionUtil'
 import { GB, MB, SCREEN_EXTEND_LIST, VIDEO_SIZE_MAP, VIDEO_SPEED_MAP } from '../common/Constants'
@@ -18,14 +17,14 @@ export default class VideoInfoUtil {
   public static playAreaHeight: number = 0
   public static ASPECT_RATIO_MAP: Map<string, number> = new Map([[VideoInfoUtil.screenExtendMap[4], 16 / 9],
     [VideoInfoUtil.screenExtendMap[5], 4 / 3]])
-  private static readonly videoSpeedListAll: number[] = Array.from(VIDEO_SPEED_MAP.keys())
+  public static readonly videoSpeedListAll: number[] = Array.from(VIDEO_SPEED_MAP.keys())
     .filter(speed => speed >= 0.25)
     .sort((a, b) => a - b)
+  public static playerList = ['系统播放器', 'MPV播放器']
   // 反向映射：系统枚举 → 用户倍速
   private static REVERSE_SPEED_MAP = new Map<media.PlaybackSpeed, number>(
     Array.from(VIDEO_SPEED_MAP.entries()).map((entry) => [entry[1], entry[0]])
   )
-  private static readonly videoSpeedListRedPlayer: number[] = VideoInfoUtil.videoSpeedListAll.filter(s => s <= 2)
 
   // 设置存储的视频信息
   static async setVideoInfo(date: string, uri: string, file_name: string, metadata: media.AVMetadata,
@@ -158,12 +157,6 @@ export default class VideoInfoUtil {
       return userSpeed
     }
     return 1.0
-  }
-
-  static getVideoSpeedList(player: string): number[] {
-    return player === NavigationAddress.RED_PLAYER
-      ? VideoInfoUtil.videoSpeedListRedPlayer
-      : VideoInfoUtil.videoSpeedListAll
   }
 
   static getVideoSpeedTextList() {

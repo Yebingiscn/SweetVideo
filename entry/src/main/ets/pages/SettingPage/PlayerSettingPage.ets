@@ -1,4 +1,3 @@
-import NavigationAddress from '../../common/NavigationCommon'
 import { SettingSliderItem } from '../../component/SettingComponent/SettingSliderItem'
 import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuItem'
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
@@ -11,7 +10,6 @@ import VideoInfoUtil from '../../utils/VideoInfoUtil'
 @Component
 export struct PlayerSettingPage {
   private subtitleSizeList = ['19', '20', '21', '22', '23', '24', '25', '26']
-  private playerList = ['系统播放器', 'FFMpeg播放器', '红薯播放器', 'MPV播放器']
   private fastForwardSecond: FastForwardSecondInterface[] = [
     { label: '5秒', value: '5' },
     { label: '10秒', value: '10' },
@@ -114,10 +112,9 @@ export struct PlayerSettingPage {
             symbol: $r('sys.symbol.fast_forward'),
             message: '长按快进倍速',
             list: VideoInfoUtil.getVideoSpeedTextList(),
-            selected: VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER)
-              .findIndex(opt => opt === Setting.longPressSpeed),
+            selected: VideoInfoUtil.videoSpeedListAll.findIndex(opt => opt === Setting.longPressSpeed),
             onChange: (index: number) => {
-              Setting.longPressSpeed = VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER)[index]
+              Setting.longPressSpeed = VideoInfoUtil.videoSpeedListAll[index]
               Preferences.saveLongPressSpeed(PathUtils.appContext!, Setting.longPressSpeed)
             }
           })
@@ -126,11 +123,11 @@ export struct PlayerSettingPage {
         ListItem() {
           SettingsMenuItem({
             symbol: $r('sys.symbol.play_round_rectangle'),
-            message: '外链默认播放器',
-            list: this.playerList,
-            selected: this.playerList.findIndex(i => i == Setting.defaultPlayer),
+            message: '默认播放引擎',
+            list: VideoInfoUtil.playerList,
+            selected: Math.max(VideoInfoUtil.playerList.findIndex(i => i == Setting.defaultPlayer), 0),
             onChange: (index: number) => {
-              Setting.defaultPlayer = this.playerList[index]
+              Setting.defaultPlayer = VideoInfoUtil.playerList[index]
               Preferences.saveDefaultPlayer(PathUtils.appContext!, Setting.defaultPlayer)
             }
           })

@@ -60,7 +60,7 @@ export default class Preferences {
   }
 
   static getDefaultPlayer(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, "sweet_video", "defaultPlayer", 'MPV播放器') as string
+    return PreferencesUtil.getPreferencesValue(context, "sweet_video", "defaultPlayer", '系统播放器') as string
   }
 
   static getAllowDoubleFastForwardState(context: Context) {

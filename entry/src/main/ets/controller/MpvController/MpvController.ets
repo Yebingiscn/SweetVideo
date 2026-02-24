@@ -15,6 +15,7 @@ import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
 import { RepeatMode } from '../../common/enum/RepeatMode';
 import AVSessionUtil from '../../utils/AVSessionUtil';
+import { LEFT_ZONE_DIVISION, RIGHT_ZONE_DIVISION, SCREEN_DIVISIONS } from '../../common/Constants';
 
 @Observed
 export class MpvController implements PlayerControllerInterface {
@@ -82,18 +83,20 @@ export class MpvController implements PlayerControllerInterface {
       this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!))
       this.nowPlaying!.time = this.getDuration()
       this.setRotation()
-      if (Setting.smartRotation && this.playAreaWidth > this.playAreaHeight &&
-        this.screenHeight > this.screenWidth) {
-        ToolsUtil.addLogger("智能旋转条件满足，开始设置方向", false)
-        const proportion =
-          Math.max(this.screenWidth, this.screenHeight) / Math.min(this.screenWidth, this.screenHeight)
-        const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
-          : window.Orientation.AUTO_ROTATION_RESTRICTED;
-        (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
-          ToolsUtil.addLogger("设置窗口方向失败", true)
-        })
-        ToolsUtil.addLogger("设置窗口方向完成", false)
-      }
+      setTimeout(async () => {
+        if (Setting.smartRotation && this.playAreaWidth > this.playAreaHeight &&
+          this.screenHeight > this.screenWidth) {
+          ToolsUtil.addLogger("智能旋转条件满足，开始设置方向", false)
+          const proportion =
+            Math.max(this.screenWidth, this.screenHeight) / Math.min(this.screenWidth, this.screenHeight)
+          const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
+            : window.Orientation.AUTO_ROTATION_RESTRICTED;
+          (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
+            ToolsUtil.addLogger("设置窗口方向失败", true)
+          })
+          ToolsUtil.addLogger("设置窗口方向完成", false)
+        }
+      }, 500)
     }, 1000)
   }
 
@@ -273,5 +276,22 @@ export class MpvController implements PlayerControllerInterface {
       AVSessionUtil.setSessionInfo(this.nowPlaying!)
       AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
     }
+  }
+
+  onScreenDoubleClick(tapX: number) {
+    if (!Setting.allowDoubleFastForward) { // 非双击快进模式时执行暂停
+      this.togglePlayback()
+      return
+    }
+    const zoneWidth = this.screenWidth / SCREEN_DIVISIONS
+    if (tapX < zoneWidth * LEFT_ZONE_DIVISION) {
+      this.backForward()
+      return
+    }
+    if (tapX > zoneWidth * RIGHT_ZONE_DIVISION) {
+      this.fastForward()
+      return
+    }
+    this.togglePlayback()
   }
 }

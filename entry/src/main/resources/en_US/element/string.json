@@ -141,8 +141,8 @@
       "value": "Delete Selected"
     },
     {
-      "name": "FFMpeg_Player",
-      "value": "FFMpeg  Player"
+      "name": "MPV_Player",
+      "value": "MPV Player"
     },
     {
       "name": "re_import_info",
@@ -183,6 +183,10 @@
     {
       "name": "sort_by_datetime",
       "value": "sort by add datetime"
+    },
+    {
+      "name": "AV_PLAYER",
+      "value": "player"
     }
   ]
 }

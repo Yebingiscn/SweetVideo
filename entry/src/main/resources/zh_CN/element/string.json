@@ -141,8 +141,8 @@
       "value": "删除所选"
     },
     {
-      "name": "FFMpeg_Player",
-      "value": "FFMpeg 播放器"
+      "name": "MPV_Player",
+      "value": "MPV 播放器"
     },
     {
       "name": "re_import_info",
@@ -183,6 +183,10 @@
     {
       "name": "sort_by_datetime",
       "value": "按添加时间"
+    },
+    {
+      "name": "AV_PLAYER",
+      "value": "系统播放器"
     }
   ]
 }

@@ -12,7 +12,6 @@ import FileFolderUtil from './FileFolderUtil'
 import { PathUtils } from './PathUtils'
 import VideoInfoUtil from './VideoInfoUtil'
 import NavigationAddress, { PlayerParams } from '../common/NavigationCommon'
-import { media } from '@kit.MediaKit'
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import { UniversalDetector } from '@ohos/juniversalchardet'
 import { fileIo } from '@kit.CoreFileKit'
@@ -140,14 +139,6 @@ export default class ToolsUtil {
     // 没有长宽的视频/音频系统播放器播不了
     if (VideoInfoUtil.videoWidthAndHeightFormat(String(item?.size)) === '0 x 0') {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
-      uri = NavigationAddress.FFMPEG_PLAYER
-    }
-    // 红薯播放器不允许播放 HDR VIVID 视频，否则可能会导致卡屏
-    if (uri === NavigationAddress.RED_PLAYER && item.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID) {
-      ToolsUtil.showToast('该播放器不支持 HDR VIVID，已智能切换到合适播放器')
-      uri = NavigationAddress.AV_PLAYER
-    }
-    if (item.format === 'mkv') {
       uri = NavigationAddress.MPV_PLAYER
     }
     const playerParams = new PlayerParams(item, list, undefined)

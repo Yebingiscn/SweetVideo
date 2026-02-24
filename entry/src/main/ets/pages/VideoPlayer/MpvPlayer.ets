@@ -15,7 +15,6 @@ import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/Swi
 import { VolumeSwipingPanelBuilder } from '../../component/PlayerComponent/VolumeSwipingPanelBuilder'
 import { BrightnessSwipingBuilder } from '../../component/PlayerComponent/BrightnessSwipingBuilder'
 import { LockVideoBarComponent } from '../../component/PlayerComponent/LockVideoBarComponent'
-import { AIAsr } from '../../component/PlayerComponent/AIAsrComponent'
 import { GestureComponent } from '../../component/PlayerComponent/GestureComponent'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
@@ -34,7 +33,6 @@ import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/Play
 import { XComponents } from '../../component/PlayerComponent/XComponents'
 import { VideoLayoutComponent } from '../../component/PlayerComponent/VideoLayoutComponent'
 import {
-  LEFT_ZONE_DIVISION,
   MAX_SCALE_FACTOR,
   MAX_WIDTH_MULTIPLIER,
   MIN_SCALE_FACTOR,
@@ -42,14 +40,13 @@ import {
   NO_BLUR_AMOUNT,
   PINCH_SCALE_SENSITIVITY,
   PRIVACY_BACKGROUND_BLUR_AMOUNT,
-  RIGHT_ZONE_DIVISION,
-  SCREEN_DIVISIONS,
   SCREEN_HALF_DIVIDER,
   SWIPE_THRESHOLD,
   VERTICAL_PAN_SENSITIVITY,
   VOLUME_PAN_MULTIPLIER,
   VOLUME_STEP
 } from '../../common/Constants'
+import { AISubtitleComponent } from '../../component/PlayerComponent/AIAsrComponent'
 
 @Component
 export struct MpvPlayer {
@@ -228,20 +225,7 @@ export struct MpvPlayer {
           showControl: this.showControl,
           isLock: this.isLock,
           onDoubleClickAction: (tapX: number) => {
-            if (!Setting.allowDoubleFastForward) { // 非双击快进模式时执行暂停
-              this.mpv.togglePlayback()
-              return
-            }
-            const zoneWidth = this.mpv.screenWidth / SCREEN_DIVISIONS // 屏幕五分之一宽度
-            if (tapX < zoneWidth * LEFT_ZONE_DIVISION) { // 左侧1/5区域：回退
-              this.mpv.backForward()
-              return
-            }
-            if (tapX > zoneWidth * RIGHT_ZONE_DIVISION) { // 右侧1/5区域：快进
-              this.mpv.fastForward()
-              return
-            }
-            this.mpv.togglePlayback()
+            this.mpv.onScreenDoubleClick(tapX)
           },
           onSingleClickAction: () => {
             if (this.sideBarStatus) {
@@ -319,8 +303,7 @@ export struct MpvPlayer {
               this.longPress = true
               VideoOperateUtil.lastSpeed = this.mpv.speed
               this.mpv.updatePlaybackSpeed(Setting.longPressSpeed)
-              this.currentSpeedIndex =
-                VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).indexOf(Setting.longPressSpeed)
+              this.currentSpeedIndex = VideoInfoUtil.videoSpeedListAll.indexOf(Setting.longPressSpeed)
             }
           },
           onLongPressEnd: () => {
@@ -339,29 +322,24 @@ export struct MpvPlayer {
               }
               const direction = Math.sign(deltaX)
               const newIndex = this.currentSpeedIndex + direction // 计算新速度索引并限制在有效范围内
-              const clampedIndex = Math.max(0,
-                Math.min(newIndex, VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).length - 1))
+              const clampedIndex = Math.max(0, Math.min(newIndex, VideoInfoUtil.videoSpeedListAll.length - 1))
               if (clampedIndex === this.currentSpeedIndex) { // 索引变化时才更新播放速度
                 return
               }
               this.currentSpeedIndex = clampedIndex
-              this.mpv.updatePlaybackSpeed(VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER)[this.currentSpeedIndex])
+              this.mpv.updatePlaybackSpeed(VideoInfoUtil.videoSpeedListAll[this.currentSpeedIndex])
               VideoOperateUtil.longPressStartX = tapX // 重置起始点实现分档切换效果
             }
           }
         })
           .hitTestBehavior(HitTestMode.Transparent)
 
-        AIAsr({
-          isShown: this.isAIAsrShown
+        AISubtitleComponent({
+          isAIAsrShown: this.isAIAsrShown,
+          showControl: this.showControl,
+          screenWidth: this.mpv.screenWidth,
+          screenHeight: this.mpv.screenHeight
         })
-          .visibility(this.showControl ? Visibility.None : Visibility.Visible)
-          .width('80%').height(80)
-          .offset({
-            x: 0,
-            y: this.mpv.screenWidth > this.mpv.screenHeight ? this.mpv.screenHeight / 2 - 40 :
-              this.mpv.screenHeight / 2 - 100
-          })
       }.onAreaChange(async (_oldValue: Area, newValue: Area) => {
         this.mpv.screenWidth = Math.floor(new Number(newValue.width).valueOf())
         this.mpv.screenHeight = Math.floor(new Number(newValue.height).valueOf())

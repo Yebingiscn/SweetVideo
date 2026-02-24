@@ -6,13 +6,13 @@ import { PathUtils } from '../utils/PathUtils'
 import { VideoItemBuilder } from '../component/PlayerComponent/PlayerSideBarComponent'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { ButtonFancyModifier, DefaultDialogShadow, SymbolGlyphFancyModifier } from '../common/AttributeModifierConfig'
-import NavigationAddress from '../common/NavigationCommon'
 import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog'
 import DataSyncUtil from '../utils/DataSyncUtil'
 import SelectFileUtil from '../utils/SelectFileUtil'
 import { Context } from '@kit.AbilityKit'
 import { SafeHeight, Setting } from '../utils/ObservedUtil'
 import { DELAY_JUMP_TO_PLAYER } from '../common/Constants'
+import VideoOperateUtil from '../utils/VideoOperateUtil'
 
 @Component
 export struct RecentPlay { // 最近播放页
@@ -54,24 +54,13 @@ export struct RecentPlay { // 最近播放页
   @Builder
   MenuBuilder(item: VideoMetadata | undefined) {
     Menu() {
-      MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(() => {
-        setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          await this.clickItem(item, NavigationAddress.FFMPEG_PLAYER)
-        }, DELAY_JUMP_TO_PLAYER)
-      })
-
-      MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
-        setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          await this.clickItem(item, NavigationAddress.RED_PLAYER)
-        }, DELAY_JUMP_TO_PLAYER)
-      })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.play_round_triangle')),
-        content: 'MPV 播放器'
+        content: VideoOperateUtil.getPlayerName(Setting.defaultPlayer, true)
       })
         .onClick(() => {
           setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-            await this.clickItem(item, NavigationAddress.MPV_PLAYER)
+            await this.clickItem(item, VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayer, true))
           }, DELAY_JUMP_TO_PLAYER)
         })
       MenuItem({
@@ -133,7 +122,7 @@ export struct RecentPlay { // 最近播放页
               VideoItemBuilder({ item: item })
             }
             .onClick(async () => {
-              this.clickItem(item, NavigationAddress.AV_PLAYER)
+              await this.clickItem(item, VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayer))
             })
             .backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
               $r('app.color.start_window_background'))

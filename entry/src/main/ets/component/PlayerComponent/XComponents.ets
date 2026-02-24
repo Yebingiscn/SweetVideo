@@ -107,7 +107,7 @@ export struct MpvXComponent {
     }).focusable(true)
       .defaultFocus(true)
       .enableAnalyzer(true)
-      .onLoad(async () => {
+      .onLoad(() => {
         this.onMpvXComponent()
       })
   }

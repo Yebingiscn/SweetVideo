@@ -49,12 +49,12 @@ export class ImageFancyModifier implements AttributeModifier<ImageAttribute> {
       .draggable(false)// 禁止长按手势拖动
       .autoResize(true) // 重采样，可减少内存占用
       .opacity(0.98)
-      .shadow({
-        radius: 18,
-        type: ShadowType.BLUR,
-        color: 'primary',
-        fill: true
-      })
+    // .shadow({
+    //   radius: 18,
+    //   type: ShadowType.BLUR,
+    //   color: 'primary',
+    //   fill: true
+    // })
   }
 }
 

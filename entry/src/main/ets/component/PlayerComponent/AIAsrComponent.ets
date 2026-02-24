@@ -2,6 +2,27 @@ import { AICaptionComponent, AICaptionController, AICaptionOptions } from '@kit.
 import { BusinessError, deviceInfo } from '@kit.BasicServicesKit'
 
 @Component
+export struct AISubtitleComponent {
+  @Link isAIAsrShown: boolean
+  @Link showControl: boolean
+  @Prop screenWidth: number
+  @Prop screenHeight: number
+
+  build() {
+    AIAsr({
+      isShown: this.isAIAsrShown
+    })
+      .visibility(this.showControl ? Visibility.None : Visibility.Visible)
+      .width('80%').height(80)
+      .offset({
+        x: 0,
+        y: this.screenWidth > this.screenHeight ? this.screenHeight / 2 - 40 :
+          this.screenHeight / 2 - 100
+      })
+  }
+}
+
+@Component
 export struct AIAsr {
   @Link isShown: boolean
   private captionOption: AICaptionOptions = {

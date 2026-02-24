@@ -2,7 +2,6 @@ import { media } from '@kit.MediaKit'
 import { avSession, avSession as avSessionManager } from '@kit.AVSessionKit'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
 import { fileIo as fs } from '@kit.CoreFileKit'
-import NavigationAddress from '../common/NavigationCommon'
 import VideoInfoUtil from '../utils/VideoInfoUtil'
 import { AudioTrack } from '../interfaces/AudioTrackInterface'
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode'
@@ -16,7 +15,7 @@ import SelectFileUtil from '../utils/SelectFileUtil'
 import { RepeatMode } from '../common/enum/RepeatMode'
 import { Setting } from '../utils/ObservedUtil'
 import { PlayerControllerInterface } from './PlayerControllerFactory'
-import { IMAGE_ANALYZER_CONFIG } from '../common/Constants'
+import { IMAGE_ANALYZER_CONFIG, LEFT_ZONE_DIVISION, RIGHT_ZONE_DIVISION, SCREEN_DIVISIONS } from '../common/Constants'
 import { salmonLogger } from 'salmonlogger'
 import AVSessionUtil from '../utils/AVSessionUtil'
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil'
@@ -172,7 +171,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   updatePlaybackSpeed(speed: number): void {
-    if (!VideoInfoUtil.getVideoSpeedList(NavigationAddress.AV_PLAYER).includes(speed)) {
+    if (!VideoInfoUtil.videoSpeedListAll.includes(speed)) {
       speed = 1.0
     }
     const systemSpeed = VideoInfoUtil.mapToSystemSpeed(speed)
@@ -365,7 +364,6 @@ export class AVPlayerController implements PlayerControllerInterface {
 
   async getData(pathStack: NavPathStack, windowClass: Promise<window.Window | undefined>) {
     ToolsUtil.addLogger("开始获取播放数据", false)
-    await this.init()
     try {
       if (this.avPlayer) {
         try {
@@ -433,5 +431,22 @@ export class AVPlayerController implements PlayerControllerInterface {
 
   async init() {
     this.avPlayer = await this.create()
+  }
+
+  onScreenDoubleClick(tapX: number) {
+    if (!Setting.allowDoubleFastForward) { // 非双击快进模式时执行暂停
+      this.togglePlayback()
+      return
+    }
+    const zoneWidth = this.screenWidth / SCREEN_DIVISIONS
+    if (tapX < zoneWidth * LEFT_ZONE_DIVISION) {
+      this.backForward()
+      return
+    }
+    if (tapX > zoneWidth * RIGHT_ZONE_DIVISION) {
+      this.fastForward()
+      return
+    }
+    this.togglePlayback()
   }
 }

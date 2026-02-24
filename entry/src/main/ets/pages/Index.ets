@@ -10,13 +10,11 @@ import { EditFileFolderNameDialog } from '../component/Dialog/EditFileFolderName
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { SettingsPage } from './SettingPage/Setting'
 import { AboutApp } from './SettingPage/AboutApp'
-import { FFMpegPlayer } from './VideoPlayer/FFMpegPlayer'
 import { Player } from './VideoPlayer/Player'
 import { RecentPlay } from './RecentPlay'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
 import { PrivacySpace } from './PrivacySpace/PrivacySpace'
 import Preferences from '../database/Preferences'
-import { RedPlayer } from './VideoPlayer/RedPlayer'
 import { ButtonFancyModifier, DefaultDialogShadow, SymbolGlyphFancyModifier } from '../common/AttributeModifierConfig'
 import { FileProcessorUtil } from '../utils/FileProcessorUtil'
 import { PathUtils } from '../utils/PathUtils'
@@ -495,14 +493,10 @@ struct Index {
       AboutApp()
     } else if (name == NavigationAddress.AV_PLAYER) {
       Player()
-    } else if (name == NavigationAddress.FFMPEG_PLAYER) {
-      FFMpegPlayer()
     } else if (name == NavigationAddress.RECENT_PLAY) {
       RecentPlay()
     } else if (name == NavigationAddress.PRIVACY_SPACE) {
       PrivacySpace()
-    } else if (name == NavigationAddress.RED_PLAYER) {
-      RedPlayer()
     } else if (name == NavigationAddress.CRASH_PAGE) {
       CrashPage()
     } else if (name == NavigationAddress.PLAYER_SETTING_PAGE) {

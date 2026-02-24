@@ -10,7 +10,7 @@ export struct PlaybackSpeedMenuComponent {
   }
 
   aboutToAppear(): void {
-    this.speedDataSource = new SpeedDataSource(VideoInfoUtil.getVideoSpeedList(this.player))
+    this.speedDataSource = new SpeedDataSource(VideoInfoUtil.videoSpeedListAll)
   }
 
   build() {

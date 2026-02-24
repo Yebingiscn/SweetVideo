@@ -36,6 +36,8 @@ export interface PlayerControllerInterface {
   setSessionListener(): void
 
   setRotation(): void
+
+  onScreenDoubleClick(tapX: number): void
 }
 
 // 真正的工厂 controller

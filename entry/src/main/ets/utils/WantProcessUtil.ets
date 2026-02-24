@@ -106,20 +106,14 @@ export default class WantProcess {
   static getPlayer(context: Context, metadata: VideoMetadata) {
     const defaultPlayer = Preferences.getDefaultPlayer(context)
     // 系统分享（有长宽情况下）和 HDR VIVID 视频强制使用系统播放器
-    if ((defaultPlayer === '系统播放器' || WantProcess.isSystemShare ||
+    if ((defaultPlayer === VideoInfoUtil.playerList[0] || WantProcess.isSystemShare ||
       metadata.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID || metadata.format.toLowerCase() === 'mov') &&
       metadata.size[0] !== 0) {
       return NavigationAddress.AV_PLAYER
-    } else if (metadata.format === 'mkv') {
-      return NavigationAddress.MPV_PLAYER
-    } else if (defaultPlayer === '红薯播放器') {
-      return NavigationAddress.RED_PLAYER
-    } else if (defaultPlayer === 'FFMpeg播放器') {
-      return NavigationAddress.FFMPEG_PLAYER
-    } else if (defaultPlayer === 'MPV播放器') {
+    } else if (defaultPlayer === VideoInfoUtil.playerList[1]) {
       return NavigationAddress.MPV_PLAYER
     }
-    // 默认播放器
+    // 兜底播放器
     return NavigationAddress.MPV_PLAYER
   }
 

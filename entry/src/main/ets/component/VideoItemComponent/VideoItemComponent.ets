@@ -18,7 +18,6 @@ import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu'
 import { VideoMetaDataOperator } from '../../database/VideoMetaData'
 import VideoUtils from '../../utils/VideoUtil'
 import FileFolderUtil from '../../utils/FileFolderUtil'
-import NavigationAddress from '../../common/NavigationCommon'
 import { VideoDeleteDialog } from '../Dialog/VideoDeleteDialog'
 import { DeleteType } from '../../common/enum/DeleteType'
 import { ListDisplayMode } from '../../common/enum/ListDisplayMode'
@@ -26,6 +25,7 @@ import { XAnimation } from '../../utils/AnimationUtil'
 import { salmonLogger } from 'salmonlogger'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { DELAY_JUMP_TO_PLAYER } from '../../common/Constants'
+import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
 @Observed
 export class VideoListController {
@@ -90,7 +90,7 @@ export class VideoListController {
     const base = Math.floor(width / 500)
     this.listLine = listDisplayMode === ListDisplayMode.LIST_DISPLAY ? base + 1 : base + 2
     // 增加判断，旋转时保持滚动位置不变
-    if (this.listScroller.currentOffset()?.yOffset == -85) {
+    if (this.listScroller.currentOffset()?.yOffset == -90) {
       this.listScroller.scrollEdge(Edge.Top)
     }
   }
@@ -217,7 +217,7 @@ export struct VideoList {
               .onAction(async () => {
                 if (this.videoListController.multipleChooseState !== Visibility.Visible) {
                   const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
-                  await this.clickItem(videoItem, NavigationAddress.AV_PLAYER)
+                  await this.clickItem(videoItem, VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayer))
                   return
                 } else {
                   //已存在，标记置反
@@ -236,7 +236,7 @@ export struct VideoList {
       .clip(false)
       .padding({ left: 10, right: 10 })
       .cachedCount(12)
-      .contentStartOffset(SafeHeight.topSafeHeight + (this.file_folder_list.length > 1 ? 85 : 55))
+      .contentStartOffset(SafeHeight.topSafeHeight + (this.file_folder_list.length > 1 ? 90 : 65))
       .contentEndOffset(SafeHeight.bottomSafeHeight)
       .lanes(this.videoListController.listLine)
       .animation({ duration: 300, curve: Curve.Smooth })
@@ -254,7 +254,7 @@ export struct VideoList {
     } else {
       Scroll() {
         Column() {
-          Blank().height(SafeHeight.topSafeHeight + (this.file_folder_list.length > 1 ? 85 : 55))
+          Blank().height(SafeHeight.topSafeHeight + (this.file_folder_list.length > 1 ? 90 : 65))
           WaterFlow({
             scroller: this.videoListController.listScroller,
             layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW
@@ -300,7 +300,7 @@ export struct VideoList {
                 TapGesture({ count: 1, fingers: 1 })
                   .onAction(async () => {
                     if (this.videoListController.multipleChooseState !== Visibility.Visible) {
-                      await this.clickItem(item, NavigationAddress.AV_PLAYER)
+                      await this.clickItem(item, VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayer))
                       return
                     } else {
                       //已存在，标记置反
@@ -407,26 +407,14 @@ export struct VideoList {
             this.delMultipleList.push(item)
           }
         })
-      MenuItem({ startIcon: $r("app.media.ffmpeg"), content: $r('app.string.FFMpeg_Player') }).onClick(() => {
-        setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
-          await this.clickItem(videoItem, NavigationAddress.FFMPEG_PLAYER)
-        }, DELAY_JUMP_TO_PLAYER)
-      })
-      MenuItem({ startIcon: $r("app.media.RedPlayer"), content: '红薯播放器' }).onClick(() => {
-        setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-          const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
-          await this.clickItem(videoItem, NavigationAddress.RED_PLAYER)
-        }, DELAY_JUMP_TO_PLAYER)
-      })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.play_round_triangle')),
-        content: 'MPV 播放器'
+        content: VideoOperateUtil.getPlayerName(Setting.defaultPlayer, true)
       })
         .onClick(() => {
           setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
             const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
-            await this.clickItem(videoItem, NavigationAddress.MPV_PLAYER)
+            await this.clickItem(videoItem, VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayer, true))
           }, DELAY_JUMP_TO_PLAYER)
         })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })

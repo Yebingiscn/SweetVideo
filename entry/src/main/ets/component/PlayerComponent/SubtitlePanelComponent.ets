@@ -26,7 +26,7 @@ export struct SubtitlePanelComponent {
   build() {
     Menu() {
       MenuItem({
-        content: '内嵌字幕：' + (this.subTitleVisibility === Visibility.Visible ? '显示（如果有）' : '字幕隐藏'),
+        content: '内嵌字幕：' + (this.subTitleVisibility === Visibility.Visible ? '显示' : '字幕隐藏'),
         builder: this.InnerSubtitleMenu,
       })
         .contentFontColor(this.subtitleSelected === SubtitleMode.INNER_SUBTITLE ? $r('sys.color.white') :
@@ -37,7 +37,7 @@ export struct SubtitlePanelComponent {
         .width('100%')
 
       MenuItem({
-        content: '外挂字幕：' + (this.subTitleVisibility === Visibility.Visible ? '显示（如果有）' : '字幕隐藏')
+        content: '外挂字幕：' + (this.subTitleVisibility === Visibility.Visible ? '显示' : '字幕隐藏')
       })
         .contentFontColor(this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE ? $r('sys.color.white') :
           $r('app.color.text_color'))

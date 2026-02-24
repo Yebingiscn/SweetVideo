@@ -44,15 +44,15 @@ export function getFormattedTimeText(swipingPlayTimeValue: SwipingPlayTimeValue)
   if (!swipingPlayTimeValue) {
     return "00:00/00:00"
   }
-  const playTime = swipingPlayTimeValue.playTime || 0
-  const totalTime = swipingPlayTimeValue.totalTime || 0
-  const currentTime = TimeUtil.convertMSToHHMMSS(playTime)
-  const totalTimeStr = TimeUtil.convertMSToHHMMSS(totalTime)
-  if (swipingPlayTimeValue.isSliderPlayTimeChange) {
+  const playTime = swipingPlayTimeValue?.playTime || 0
+  const totalTime = swipingPlayTimeValue?.totalTime || 0
+  const currentTime = TimeUtil?.convertMSToHHMMSS(playTime)
+  const totalTimeStr = TimeUtil?.convertMSToHHMMSS(totalTime)
+  if (swipingPlayTimeValue?.isSliderPlayTimeChange) {
     return `${currentTime}/${totalTimeStr}`
   } else {
-    const lastPlayTime = typeof VideoOperateUtil.lastPlayTime === 'number'
-      ? VideoOperateUtil.lastPlayTime
+    const lastPlayTime = typeof VideoOperateUtil?.lastPlayTime === 'number'
+      ? VideoOperateUtil?.lastPlayTime
       : 0
     const timeDiff = Math.floor((playTime - lastPlayTime) / 1000)
     const sign = timeDiff > 0 ? '+' : ''

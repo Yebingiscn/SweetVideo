@@ -41,6 +41,8 @@ export struct GestureComponent {
         GestureGroup(GestureMode.Exclusive, // 将触摸事件跟滑动、长按分成两个手势组解绑互斥,触摸事件手势组为互斥事件
           GestureGroup(GestureMode.Exclusive, //双击事件组和单击事件组互斥独立
             TapGesture({ count: 2 })// 双击事件
+              .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
+                SourceTool.JOYSTICK])
               .onAction((event: GestureEvent) => {
                 if (this.isLock) {
                   return
@@ -52,6 +54,8 @@ export struct GestureComponent {
                 this.onDoubleClickAction(tapX)
               }),
             TapGesture({ count: 1 })// 单击事件
+              .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
+                SourceTool.JOYSTICK])
               .onAction(() => { //单击屏幕
                 this.onSingleClickAction()
               }),
@@ -84,6 +88,8 @@ export struct GestureComponent {
                 this.onVerticalPanEnd()
               }),
             PanGesture({ fingers: 1, direction: PanDirection.Horizontal })// 水平滑动事件滑动调整进度
+              .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
+                SourceTool.JOYSTICK])
               .onActionStart((_event: GestureEvent) => { // 长按且滑动屏幕
                 if (this.isLock) {
                   return
@@ -106,6 +112,8 @@ export struct GestureComponent {
                 this.onHorizonPanEnd()
               }),
             PinchGesture({ fingers: 2, distance: 2 })//手势缩放
+              .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
+                SourceTool.JOYSTICK])
               .onActionStart((event: GestureEvent) => {
                 if (this.isLock) {
                   return
@@ -136,6 +144,8 @@ export struct GestureComponent {
           ),
           GestureGroup(GestureMode.Parallel, // 不用互斥事件，会导致左右滑动调节倍速的功能失效
             LongPressGesture()// 长按手势
+              .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
+                SourceTool.JOYSTICK])
               .onAction(() => { //长按
                 if (this.isLock) {
                   return
@@ -152,6 +162,8 @@ export struct GestureComponent {
               fingers: 1,
               direction: PanDirection.Horizontal,
             })//水平滑动事件 长按加速滑动调整倍速
+              .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
+                SourceTool.JOYSTICK])
               .onActionStart((event: GestureEvent) => { // 长按且滑动屏幕
                 if (this.isLock) {
                   return
