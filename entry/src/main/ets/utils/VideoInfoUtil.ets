@@ -20,7 +20,7 @@ export default class VideoInfoUtil {
   public static readonly videoSpeedListAll: number[] = Array.from(VIDEO_SPEED_MAP.keys())
     .filter(speed => speed >= 0.25)
     .sort((a, b) => a - b)
-  public static playerList = ['系统播放器', 'MPV播放器']
+  public static playerEngineList = ['系统播放器', 'MPV播放器']
   // 反向映射：系统枚举 → 用户倍速
   private static REVERSE_SPEED_MAP = new Map<media.PlaybackSpeed, number>(
     Array.from(VIDEO_SPEED_MAP.entries()).map((entry) => [entry[1], entry[0]])
@@ -202,8 +202,8 @@ export default class VideoInfoUtil {
   }
 
   // 保存视频初始长宽，变更后视频长宽后使用
-  static saveOriginalVideoWidthAndHeight(play_area_width: number, play_area_height: number) {
-    VideoInfoUtil.playAreaWidth = play_area_width
-    VideoInfoUtil.playAreaHeight = play_area_height
+  static saveOriginalVideoWidthAndHeight(playAreaWidth: number, playAreaHeight: number) {
+    VideoInfoUtil.playAreaWidth = playAreaWidth
+    VideoInfoUtil.playAreaHeight = playAreaHeight
   }
 }

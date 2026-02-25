@@ -27,6 +27,7 @@ import { XAnimation } from './AnimationUtil'
 import { WindowUtil } from './WindowUtil'
 import { SUPPORT_AUDIO_FORMAT } from '../common/Constants'
 import VideoInfoUtil from './VideoInfoUtil'
+import PreferencesUtil from '../database/PreferencesUtil'
 
 const TAG = 'VideoOperateUtil'
 
@@ -300,7 +301,7 @@ export default class VideoOperateUtil {
     Setting.allowPlayBackExist = Preferences.getAllowPlayBackExistState(context)
     Setting.fastForwardSeconds = Preferences.getFastForwardSeconds(context)
     Setting.recentPlay = Preferences.getRecentPlayState(context)
-    Setting.defaultPlayer = Preferences.getDefaultPlayer(context)
+    Setting.defaultPlayerEngine = Preferences.getDefaultPlayerEngine(context)
     Setting.subtitleSize = Preferences.getSubtitleSize(context)
     Setting.allowDoubleFastForward = Preferences.getAllowDoubleFastForwardState(context)
     Setting.skipIntroTime = Preferences.getSkipIntroTime(context)
@@ -311,6 +312,7 @@ export default class VideoOperateUtil {
     Setting.allowGestureEntry = Preferences.getAllowGestureEntry(context)
     Setting.showFrameImgStatus = Preferences.getShowFrameTime(context)
     Setting.jumpToHistoryTimeStatus = Preferences.getJumpToHistoryTime(context)
+    PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'defaultPlayer')
   }
 
   // 封装获取屏幕亮度的方法
@@ -460,14 +462,14 @@ export default class VideoOperateUtil {
   }
 
   static getPlayerNavigationAddress(defaultAddress: string, reverse: boolean = false) {
-    const isFirstPlayer = defaultAddress === VideoInfoUtil.playerList[0];
+    const isFirstPlayer = defaultAddress === VideoInfoUtil.playerEngineList[0];
     return (reverse ? !isFirstPlayer : isFirstPlayer)
       ? NavigationAddress.AV_PLAYER
       : NavigationAddress.MPV_PLAYER;
   }
 
   static getPlayerName(defaultAddress: string, reverse: boolean = false) {
-    const isFirstPlayer = defaultAddress === VideoInfoUtil.playerList[0];
+    const isFirstPlayer = defaultAddress === VideoInfoUtil.playerEngineList[0];
     return (reverse ? !isFirstPlayer : isFirstPlayer)
       ? $r('app.string.AV_PLAYER')
       : $r('app.string.MPV_Player');

@@ -240,11 +240,11 @@ export struct PrivacySpace { // 隐私空间页
     Menu() {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.play_round_triangle')),
-        content: VideoOperateUtil.getPlayerName(Setting.defaultPlayer, true)
+        content: VideoOperateUtil.getPlayerName(Setting.defaultPlayerEngine, true)
       })
         .onClick(() => {
           setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-            await this.clickItem(item, VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayer, true))
+            await this.clickItem(item, VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine, true))
           }, DELAY_JUMP_TO_PLAYER)
         })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
@@ -420,7 +420,7 @@ export struct PrivacySpace { // 隐私空间页
             .width('100%')
             .height('auto')
             .onClick(async () => {
-              await this.clickItem(item, VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayer))
+              await this.clickItem(item, VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
             })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
               {

@@ -418,6 +418,7 @@ export struct MpvPlayer {
       playAreaHeight: this.mpv.playAreaHeight,
       playAreaWidth: this.mpv.playAreaWidth,
       onExitVideoClick: () => {
+        this.exitVideo()
         ToolsUtil.addLogger("点击退出视频按钮", false, this.pathStack)
       },
       onLockRotationClick: async () => {

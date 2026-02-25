@@ -124,11 +124,11 @@ export struct PlayerSettingPage {
           SettingsMenuItem({
             symbol: $r('sys.symbol.play_round_rectangle'),
             message: '默认播放引擎',
-            list: VideoInfoUtil.playerList,
-            selected: Math.max(VideoInfoUtil.playerList.findIndex(i => i == Setting.defaultPlayer), 0),
+            list: VideoInfoUtil.playerEngineList,
+            selected: Math.max(VideoInfoUtil.playerEngineList.findIndex(i => i == Setting.defaultPlayerEngine), 0),
             onChange: (index: number) => {
-              Setting.defaultPlayer = VideoInfoUtil.playerList[index]
-              Preferences.saveDefaultPlayer(PathUtils.appContext!, Setting.defaultPlayer)
+              Setting.defaultPlayerEngine = VideoInfoUtil.playerEngineList[index]
+              Preferences.saveDefaultPlayerEngine(PathUtils.appContext!, Setting.defaultPlayerEngine)
             }
           })
         }

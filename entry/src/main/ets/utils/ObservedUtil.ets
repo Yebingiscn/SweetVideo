@@ -10,7 +10,7 @@ class SettingUtil {
   public allowPlayBackExist: boolean = false
   public fastForwardSeconds: string = '15'
   public recentPlay: boolean = true
-  public defaultPlayer: string = '系统播放器'
+  public defaultPlayerEngine: string = '系统播放器'
   public subtitleSize: string = '22'
   public allowDoubleFastForward: boolean = true
   public skipIntroTime: string = '0'

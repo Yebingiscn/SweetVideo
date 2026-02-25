@@ -58,9 +58,7 @@ export struct XComponents {
         screenHeight: this.screenHeight,
         showControl: this.showControl,
         subTitleVisibility: this.subtitleVisibility,
-        subtitle3DMode: this.subtitle3DMode,
-        playAreaWidth: this.playAreaWidth,
-        playAreaHeight: this.playAreaHeight
+        subtitle3DMode: this.subtitle3DMode
       })
     }
     .onKeyEvent((event?: KeyEvent) => {

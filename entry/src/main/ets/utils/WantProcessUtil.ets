@@ -104,17 +104,17 @@ export default class WantProcess {
   }
 
   static getPlayer(context: Context, metadata: VideoMetadata) {
-    const defaultPlayer = Preferences.getDefaultPlayer(context)
+    const defaultPlayer = Preferences.getDefaultPlayerEngine(context)
     // 系统分享（有长宽情况下）和 HDR VIVID 视频强制使用系统播放器
-    if ((defaultPlayer === VideoInfoUtil.playerList[0] || WantProcess.isSystemShare ||
+    if ((defaultPlayer === VideoInfoUtil.playerEngineList[0] || WantProcess.isSystemShare ||
       metadata.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID || metadata.format.toLowerCase() === 'mov') &&
       metadata.size[0] !== 0) {
       return NavigationAddress.AV_PLAYER
-    } else if (defaultPlayer === VideoInfoUtil.playerList[1]) {
+    } else if (defaultPlayer === VideoInfoUtil.playerEngineList[1]) {
       return NavigationAddress.MPV_PLAYER
     }
     // 兜底播放器
-    return NavigationAddress.MPV_PLAYER
+    return NavigationAddress.AV_PLAYER
   }
 
   // 跳转外部网页

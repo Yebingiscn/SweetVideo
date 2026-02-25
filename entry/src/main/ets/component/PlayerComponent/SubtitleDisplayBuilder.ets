@@ -1,5 +1,6 @@
 import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import { Setting } from '../../utils/ObservedUtil'
+import VideoInfoUtil from '../../utils/VideoInfoUtil'
 
 class SubtitleDisplayValue {
   subtitle: string = ''
@@ -8,8 +9,6 @@ class SubtitleDisplayValue {
   showControl: boolean = false
   subTitleVisibility: Visibility = Visibility.None
   subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
-  playAreaWidth: number = 0
-  playAreaHeight: number = 0
 }
 
 @Builder
@@ -34,7 +33,7 @@ export function SubtitleDisplayBuilder(subtitleDisplayValue: SubtitleDisplayValu
       .justifyContent(FlexAlign.SpaceAround)
       .width("100%")
     } else if (subtitleDisplayValue.subtitle3DMode === Subtitle3DMode.TOP_AND_BOTTOM) {
-      Column({ space: subtitleDisplayValue.playAreaHeight / 2 }) {
+      Column({ space: VideoInfoUtil.playAreaHeight / 2 }) {
         Text(subtitleDisplayValue.subtitle)
           .subtitleTextExtend()
           .scale({
@@ -52,10 +51,10 @@ export function SubtitleDisplayBuilder(subtitleDisplayValue: SubtitleDisplayValu
   }
   .visibility(subtitleDisplayValue.subTitleVisibility)
   .align(Alignment.Center)
-  .width(subtitleDisplayValue.playAreaWidth)
+  .width(VideoInfoUtil.playAreaWidth)
   .offset(subtitleDisplayValue.subtitle3DMode === Subtitle3DMode.TOP_AND_BOTTOM ?
-    { x: 0, y: subtitleDisplayValue.playAreaHeight / 4 - 40 } :
-    { x: 0, y: subtitleDisplayValue.playAreaHeight / 2 - 40 }
+    { x: 0, y: VideoInfoUtil.playAreaHeight / 4 - 40 } :
+    { x: 0, y: VideoInfoUtil.playAreaHeight / 2 - 40 }
   )
   .animation({ duration: 300, curve: Curve.Smooth })
 }

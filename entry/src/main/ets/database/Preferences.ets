@@ -59,8 +59,8 @@ export default class Preferences {
     return PreferencesUtil.getPreferencesValue(context, "sweet_video", "fastForwardSeconds", '15') as string
   }
 
-  static getDefaultPlayer(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, "sweet_video", "defaultPlayer", '系统播放器') as string
+  static getDefaultPlayerEngine(context: Context) {
+    return PreferencesUtil.getPreferencesValue(context, "sweet_video", "defaultPlayerEngine", '系统播放器') as string
   }
 
   static getAllowDoubleFastForwardState(context: Context) {
@@ -141,8 +141,8 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'repeatMode', repeatMode)
   }
 
-  static saveDefaultPlayer(context: Context, defaultPlayer: string) {
-    PreferencesUtil.putPreferencesValue(context, "sweet_video", "defaultPlayer", defaultPlayer)
+  static saveDefaultPlayerEngine(context: Context, defaultPlayerEngine: string) {
+    PreferencesUtil.putPreferencesValue(context, "sweet_video", "defaultPlayerEngine", defaultPlayerEngine)
   }
 
   static saveSubtitleSize(context: Context, subtitleSize: string) {

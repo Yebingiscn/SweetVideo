@@ -137,7 +137,30 @@ class SubtitleUtil {
 
   async parseSubtitleProcess(path: string, format: string | undefined) {
     if (!format) {
-      return await this.parseSrtFile(path)
+      // 逐一尝试 SRT、ASS、VTT 解析
+      const formats = [SubtitleFormat.SRT, SubtitleFormat.ASS, SubtitleFormat.VTT]
+      for (const fmt of formats) {
+        let result = false
+        switch (fmt) {
+          case SubtitleFormat.SRT:
+            result = await this.parseSrtFile(path)
+            break
+          case SubtitleFormat.ASS:
+            result = await this.parseAssFile(path)
+            break
+          case SubtitleFormat.VTT:
+            result = await this.parseVttFile(path)
+            break
+          default:
+            continue
+        }
+        if (result) { // 假设解析成功返回真值
+          return result
+        }
+      }
+      // 所有尝试都失败
+      this.subtitles = [];
+      return false
     }
     switch (format) {
       case SubtitleFormat.SRT:

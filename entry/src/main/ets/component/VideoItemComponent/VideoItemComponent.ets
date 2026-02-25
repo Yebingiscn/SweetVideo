@@ -109,7 +109,6 @@ export class VideoListController {
 export struct VideoList {
   @Link searchValue: string
   @Link videoListController: VideoListController
-  @Consume fileFolderSource: FileFolderDataSource
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -151,6 +150,7 @@ export struct VideoList {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  @Consume fileFolderSource: FileFolderDataSource
   @Consume file_folder_list: FileFolder[]
   @Consume sideBarController: SideBarController
   searchController: SearchController = new SearchController()
@@ -217,7 +217,8 @@ export struct VideoList {
               .onAction(async () => {
                 if (this.videoListController.multipleChooseState !== Visibility.Visible) {
                   const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
-                  await this.clickItem(videoItem, VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayer))
+                  await this.clickItem(videoItem,
+                    VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
                   return
                 } else {
                   //已存在，标记置反
@@ -300,7 +301,8 @@ export struct VideoList {
                 TapGesture({ count: 1, fingers: 1 })
                   .onAction(async () => {
                     if (this.videoListController.multipleChooseState !== Visibility.Visible) {
-                      await this.clickItem(item, VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayer))
+                      await this.clickItem(item,
+                        VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
                       return
                     } else {
                       //已存在，标记置反
@@ -409,12 +411,13 @@ export struct VideoList {
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.play_round_triangle')),
-        content: VideoOperateUtil.getPlayerName(Setting.defaultPlayer, true)
+        content: VideoOperateUtil.getPlayerName(Setting.defaultPlayerEngine, true)
       })
         .onClick(() => {
           setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
             const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
-            await this.clickItem(videoItem, VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayer, true))
+            await this.clickItem(videoItem,
+              VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine, true))
           }, DELAY_JUMP_TO_PLAYER)
         })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
