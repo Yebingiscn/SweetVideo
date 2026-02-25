@@ -16,6 +16,7 @@ import ToolsUtil from '../../utils/ToolsUtil';
 import { RepeatMode } from '../../common/enum/RepeatMode';
 import AVSessionUtil from '../../utils/AVSessionUtil';
 import { LEFT_ZONE_DIVISION, RIGHT_ZONE_DIVISION, SCREEN_DIVISIONS } from '../../common/Constants';
+import { fileUri } from '@kit.CoreFileKit';
 
 @Observed
 export class MpvController implements PlayerControllerInterface {
@@ -71,7 +72,7 @@ export class MpvController implements PlayerControllerInterface {
     if (startPosition !== undefined && startPosition > 0) {
       mpv.loadVideo(this.mpvHandle, url, startPosition)
     } else {
-      mpv.loadVideo(this.mpvHandle, url)
+      mpv.loadVideo(this.mpvHandle, new fileUri.FileUri(url).path)
     }
     this.playTimeUpdateTag = setInterval(() => {
       this.playTime = mpv.getCurrentPosition(this.mpvHandle)

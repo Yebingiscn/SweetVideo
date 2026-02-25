@@ -8,7 +8,6 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { WindowUtil } from '../../utils/WindowUtil'
 import { KeyCode } from '@kit.InputKit'
 import PermissionUtil from '../../utils/PermissionUtil'
-import { fileIo as fs } from '@kit.CoreFileKit'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { FastForwardPanelBuilder } from '../../component/PlayerComponent/FastForwardPanelBuilder'
 import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/SwipingPlayTimePanelBuilder'
@@ -141,8 +140,7 @@ export struct MpvPlayer {
           onXComponentLoad: async () => {
             await PermissionUtil.activatePermission(this.mpv.nowPlaying?.uri)
             try {
-              const file = fs.openSync(this.mpv!.nowPlaying!.uri)
-              this.mpv.init(file.path, 0)
+              this.mpv.init(this.mpv.nowPlaying!.uri, 0)
               await this.mpv.initAVSession()
             } catch (error) {
               console.error('uri error:' + error)
@@ -360,6 +358,7 @@ export struct MpvPlayer {
       }
     })
     .onWillDisappear(async () => {
+      this.exitVideo()
       if (this.mpv.videoMetaDataList.length > 0 && this.mpv.playTime > 0) {
         VideoOperateUtil.saveVideoTime(this.mpv.playTime, this.mpv.nowPlaying!, this.mpv.videoMetaDataList,
           PathUtils.appContext!)
@@ -384,7 +383,6 @@ export struct MpvPlayer {
         this.lockVisibility = false
         return true
       } else {
-        this.exitVideo()
         return false
       }
     })
@@ -421,7 +419,6 @@ export struct MpvPlayer {
       playAreaWidth: this.mpv.playAreaWidth,
       onExitVideoClick: () => {
         ToolsUtil.addLogger("点击退出视频按钮", false, this.pathStack)
-        this.exitVideo()
       },
       onLockRotationClick: async () => {
         this.lockRotation = !this.lockRotation
