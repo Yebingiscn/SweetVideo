@@ -240,7 +240,7 @@ export class MpvController implements PlayerControllerInterface {
     }
   }
 
-  async setSessionListener() {
+  setSessionListener() {
     try {
       this.avSession?.on('play', () => {
         this.play()
@@ -273,8 +273,8 @@ export class MpvController implements PlayerControllerInterface {
   async initAVSession() {
     if (Setting.allowBackgroundPlay) {
       this.avSession = await AVSessionUtil.getAVSession()
-      await this.setSessionListener()
-      AVSessionUtil.setSessionInfo(this.nowPlaying!)
+      this.setSessionListener()
+      await AVSessionUtil.setSessionInfo(this.nowPlaying!)
       AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
     }
   }

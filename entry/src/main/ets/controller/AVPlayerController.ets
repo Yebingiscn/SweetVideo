@@ -293,13 +293,13 @@ export class AVPlayerController implements PlayerControllerInterface {
   async initAVSession() {
     if (Setting.allowBackgroundPlay) {
       this.avSession = await AVSessionUtil.getAVSession()
-      await this.setSessionListener()
-      AVSessionUtil.setSessionInfo(this.nowPlaying!)
+      this.setSessionListener()
+      await AVSessionUtil.setSessionInfo(this.nowPlaying!)
       AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
     }
   }
 
-  async setSessionListener() {
+  setSessionListener() {
     try {
       this.avSession?.on('play', () => {
         this.play()
@@ -329,7 +329,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     }
   }
 
-  playNextVideoProcess(pathStack: NavPathStack, windowClass: Promise<window.Window | undefined>) {
+  async playNextVideoProcess(pathStack: NavPathStack, windowClass: Promise<window.Window | undefined>) {
     ToolsUtil.addLogger("开始播放下一个视频流程", false, pathStack)
     const nextItem = this.playNextVideo(this.repeatMode)
     ToolsUtil.addLogger("获取下一个视频项完成", false, pathStack)
@@ -344,22 +344,25 @@ export class AVPlayerController implements PlayerControllerInterface {
     ToolsUtil.addLogger("播放下一个视频前置流程完成", false, pathStack)
   }
 
-  playChooseVideo(item: VideoMetadata, pathStack: NavPathStack, windowClass: Promise<window.Window | undefined>) {
+  async playChooseVideo(item: VideoMetadata, pathStack: NavPathStack, windowClass: Promise<window.Window | undefined>) {
     ToolsUtil.addLogger("开始播放选择的视频", false)
-    VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying!, this.videoMetaDataList,
-      PathUtils.appContext!)
+    VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying!, this.videoMetaDataList, PathUtils.appContext!)
     if (!PrivacySpaceUtil.getPrivacyMode()) {
       RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
       ToolsUtil.addLogger("添加到最近播放记录完成", false)
     }
     this.avPlayer?.off('subtitleUpdate')
+    console.error('test')
     this.reset()
+    console.error('test' + this.avPlayer?.state)
     this.nowPlaying = item as VideoMetadata
     ToolsUtil.addLogger("设置当前播放视频完成", false)
     this.getData(pathStack, windowClass)
     ToolsUtil.addLogger("获取播放数据完成", false)
-    this.initAVSession()
+    await this.initAVSession()
+    console.error('test2')
     ToolsUtil.addLogger("播放选择视频流程完成", false)
+    console.error('test' + this.avPlayer?.state)
   }
 
   async getData(pathStack: NavPathStack, windowClass: Promise<window.Window | undefined>) {

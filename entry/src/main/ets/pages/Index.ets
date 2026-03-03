@@ -1,4 +1,4 @@
-import DataSyncUtil, { OOBEVersion } from '../utils/DataSyncUtil'
+import DataSyncUtil from '../utils/DataSyncUtil'
 import { FileFolderDataSource } from '../utils/DataUtil'
 import ToolsUtil from '../utils/ToolsUtil'
 import SelectFileUtil from '../utils/SelectFileUtil'
@@ -36,7 +36,6 @@ import { DeleteType } from '../common/enum/DeleteType'
 import { PrivacySpaceErrorList } from './PrivacySpace/PrivacySpaceErrorList'
 import { WindowUtil } from '../utils/WindowUtil'
 import { XAnimation } from '../utils/AnimationUtil'
-import { PrivacyPolicyComponent } from '../component/VideoItemComponent/PrivacyPolicyComponent'
 import { MoreSettingPage } from './SettingPage/MoreSettingPage'
 import NavigationAddress from '../common/NavigationCommon'
 import { FolderSelectMenuBuilder } from '../component/FileFolderComponent/FileFolderSelectBuilder'
@@ -52,7 +51,6 @@ struct Index {
   @State totalItems: number = 0
   @Provide file_folder_list: FileFolder[] = []
   @State searchValue: string = ''
-  @State isPresent: boolean = false
   @StorageLink('screen_width') screen_width: number = 0
   @Provide videoListController: VideoListController = new VideoListController()
   @Provide fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
@@ -161,11 +159,6 @@ struct Index {
     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
     this.fileFolderSource?.updateData(this.file_folder_list)
     this.videoListController?.updateData(undefined, this.file_folder_list[0])
-    if (Preferences.getOOBEVersion(PathUtils.appContext!) < OOBEVersion) {
-      setTimeout(() => {
-        this.isPresent = true
-      }, 1000)
-    }
     checkUriProcess(Preferences.getFileFolder(PathUtils.appContext!), (re: Object) => {
       setTimeout(() => {
         const result = re as Array<VideoMetadata>
@@ -368,9 +361,6 @@ struct Index {
           }).animation({ duration: 300, curve: Curve.Ease })
           if (this.loading) {
             ImportProgressBuilder({ processedItems: this.processedItems, totalItems: this.totalItems })
-          }
-          if (this.isPresent) {
-            PrivacyPolicyComponent({ isPresent: this.isPresent })
           }
         }
         .backgroundColor(Setting.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))

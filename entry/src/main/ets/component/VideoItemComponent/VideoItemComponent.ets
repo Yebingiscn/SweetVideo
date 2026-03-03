@@ -109,6 +109,7 @@ export class VideoListController {
 export struct VideoList {
   @Link searchValue: string
   @Link videoListController: VideoListController
+  @Consume fileFolderSource: FileFolderDataSource
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -150,7 +151,6 @@ export struct VideoList {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @Consume fileFolderSource: FileFolderDataSource
   @Consume file_folder_list: FileFolder[]
   @Consume sideBarController: SideBarController
   searchController: SearchController = new SearchController()

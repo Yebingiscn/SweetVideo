@@ -20,9 +20,9 @@ export function SwipingPlayTimePanelBuilder(swipingPlayTimeValue: SwipingPlayTim
         .fontColor($r('sys.color.white'))
         .fontSize(25)
         .fontWeight(FontWeight.Bold)
-      if (Setting.showFrameImgStatus && swipingPlayTimeValue.player === NavigationAddress.AV_PLAYER) {
-        if (swipingPlayTimeValue.pixelMap) {
-          Image(swipingPlayTimeValue.pixelMap)
+      if (Setting?.showFrameImgStatus && swipingPlayTimeValue?.player === NavigationAddress.AV_PLAYER) {
+        if (swipingPlayTimeValue?.pixelMap) {
+          Image(swipingPlayTimeValue?.pixelMap)
             .attributeModifier(new ImageFancyModifier(16, 100, 100))
         }
       }

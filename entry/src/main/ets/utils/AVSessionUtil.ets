@@ -161,11 +161,11 @@ export default class AVSessionUtil {
             console.error(`Succeeded in Playback state changed: ${state}`)
           })
           if (currentDevice.supportedProtocols === avSession.ProtocolType.TYPE_CAST_PLUS_STREAM) {
-            AVSessionUtil.playItem(now_playing)
+            await AVSessionUtil.playItem(now_playing)
             // 此设备支持cast+投播协议
           } else if (currentDevice.supportedProtocols === avSession.ProtocolType.TYPE_DLNA) {
             // 此设备支持DLNA投播协议
-            AVSessionUtil.playItem(now_playing)
+            await AVSessionUtil.playItem(now_playing)
           }
         }
       })

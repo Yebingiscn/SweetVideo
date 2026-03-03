@@ -268,8 +268,7 @@ export struct Player { // 播放页
         case 'error':
           ToolsUtil.addLogger("进入error状态", false, this.pathStack)
           VideoOperateUtil.playErrorExecute(this.pathStack, this.player.videoMetaDataList,
-            this.player.nowPlaying?.date!,
-            NavigationAddress.MPV_PLAYER)
+            this.player.nowPlaying?.date!, NavigationAddress.MPV_PLAYER)
           ToolsUtil.addLogger("执行播放错误处理完成", false, this.pathStack)
           this.player.release()
           ToolsUtil.addLogger("释放播放器资源完成", false, this.pathStack)
