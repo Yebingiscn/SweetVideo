@@ -124,7 +124,7 @@ export class MpvController implements PlayerControllerInterface {
       return
     }
     this.playing = true
-    mpv.setPause(this.mpvHandle, this.playing)
+    mpv.play(this.mpvHandle)
   }
 
   pause(): void {
@@ -132,7 +132,7 @@ export class MpvController implements PlayerControllerInterface {
       return
     }
     this.playing = false
-    mpv.setPause(this.mpvHandle, this.playing)
+    mpv.pause(this.mpvHandle)
   }
 
   reset(): void {
