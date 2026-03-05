@@ -23,7 +23,7 @@ import NavigationAddress from '../../common/NavigationCommon'
 import Preferences from '../../database/Preferences'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
-import { SafeHeight } from '../../utils/ObservedUtil'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { SortComponent } from './SortComponent'
 
 @Component
@@ -161,7 +161,7 @@ export struct VideoView {
         }
         .width('100%')
 
-        if (this.file_folder_list.length > 1) {
+        if (Setting.showToast && this.file_folder_list.length > 1) {
           Scroll() {
             Row({ space: 15 }) {
               LazyForEach(this.fileFolderSource, (folder: FileFolder) => {

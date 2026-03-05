@@ -169,6 +169,10 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, "sweet_video", "recentPlay", isEnabled)
   }
 
+  static saveShowToast(context: Context, isEnabled: boolean) {
+    PreferencesUtil.putPreferencesValue(context, "sweet_video", "showToast", isEnabled)
+  }
+
   static savePassword(context: Context, password: string) {
     PreferencesUtil.putPreferencesValue(context, 'sweet_video', 'passwd', password)
   }
