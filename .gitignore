@@ -10,5 +10,3 @@
 /.clang-tidy
 **/.test
 /.appanalyzer
-/entry/src/main/cpp/*
-/entry/libs/*
