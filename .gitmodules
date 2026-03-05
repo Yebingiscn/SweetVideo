@@ -1,0 +1,3 @@
+[submodule "libmpvnative"]
+	path = libmpvnative
+	url = git@github.com:Yebingiscn/libmpvnative.git
