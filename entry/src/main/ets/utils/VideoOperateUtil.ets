@@ -301,6 +301,7 @@ export default class VideoOperateUtil {
     Setting.allowPlayBackExist = Preferences.getAllowPlayBackExistState(context)
     Setting.fastForwardSeconds = Preferences.getFastForwardSeconds(context)
     Setting.recentPlay = Preferences.getRecentPlayState(context)
+    Setting.showToast = Preferences.getShowToastState(context)
     Setting.defaultPlayerEngine = Preferences.getDefaultPlayerEngine(context)
     Setting.subtitleSize = Preferences.getSubtitleSize(context)
     Setting.allowDoubleFastForward = Preferences.getAllowDoubleFastForwardState(context)

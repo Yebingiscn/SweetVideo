@@ -43,6 +43,10 @@ export default class Preferences {
     return PreferencesUtil.getPreferencesValue(context, "sweet_video", "recentPlay", true) as boolean
   }
 
+  static getShowToastState(context: Context) {
+    return PreferencesUtil.getPreferencesValue(context, "sweet_video", "showToast", true) as boolean
+  }
+
   static getAllowBackgroundPlayState(context: Context) {
     return PreferencesUtil.getPreferencesValue(context, "sweet_video", "allowBackgroundPlay", true) as boolean
   }
