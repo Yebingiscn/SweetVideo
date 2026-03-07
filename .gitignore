@@ -10,3 +10,5 @@
 /.clang-tidy
 **/.test
 /.appanalyzer
+**/libmpvnative.so
+**/libmpv.so.2
