@@ -1,4 +1,3 @@
-import promptAction from '@ohos.promptAction'
 import { vibrator } from '@kit.SensorServiceKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -20,6 +19,9 @@ import { salmonLogger } from 'salmonlogger'
 import DataSyncUtil from './DataSyncUtil'
 import { VideoItemWithPinyin } from '../interfaces/VideoItemWithPinyinInterface'
 import { updateManager } from '@kit.AppGalleryKit'
+import { WindowUtil } from './WindowUtil'
+
+const TAG = 'ToolsUtil'
 
 // 工具类
 export default class ToolsUtil {
@@ -34,13 +36,13 @@ export default class ToolsUtil {
   // Toast设置
   static showToast(text: string) {
     try {
-      promptAction.showToast({
+      WindowUtil.windowClass?.getUIContext().getPromptAction().showToast({
         message: text,
         duration: 3500,
-        backgroundBlurStyle: BlurStyle.Regular,
+        backgroundBlurStyle: BlurStyle.Regular
       })
     } catch (error) {
-      console.error('show toast error：' + error)
+      salmonLogger.addLog(TAG, 'show toast error：' + error, true)
     }
   }
 
@@ -56,7 +58,8 @@ export default class ToolsUtil {
         usage: 'physicalFeedback'
       }, (error: BusinessError) => {
         if (error) {
-          console.error(`Failed to start vibration. Code: ${error.code}, message: ${error.message}`)
+          salmonLogger.addLog(TAG, `Failed to start vibration. Code: ${error.code}, message: ${error.message}` + error,
+            true)
         }
       })
     }
@@ -66,7 +69,7 @@ export default class ToolsUtil {
     try {
       return PathUtils.appContext!.resourceManager.getStringSync(resource)
     } catch (error) {
-      console.error('get String Resource error' + error)
+      salmonLogger.addLog(TAG, 'get String Resource error' + error, true)
       return '未知'
     }
   }
@@ -141,6 +144,7 @@ export default class ToolsUtil {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
       uri = NavigationAddress.MPV_PLAYER
     }
+    WindowUtil.setBarColor('#FFFFFF')
     const playerParams = new PlayerParams(item, list, undefined)
     pathStack.pushPathByName(uri, playerParams, true)
   }
@@ -156,7 +160,7 @@ export default class ToolsUtil {
         return '未知版本'
       }
     } catch (error) {
-      hilog.error(777, 'testFlag', "get bundleInfo failed, error is " + error)
+      salmonLogger.addLog(TAG, 'get bundleInfo failed, error is ' + error, true)
       return '未知版本'
     }
   }
@@ -168,18 +172,18 @@ export default class ToolsUtil {
         if (checkResult.updateAvailable == updateManager.UpdateAvailableCode.LATER_VERSION_EXIST) {
           updateManager.showUpdateDialog(PathUtils.appContext)
             .then((resultCode: updateManager.ShowUpdateResultCode) => {
-              hilog.info(0, 'TAG', "Succeeded in showing UpdateDialog resultCode:" + resultCode)
+              salmonLogger.addLog(TAG, 'showUpdateDialog resultCode:' + resultCode)
             })
           ?.catch((error: BusinessError) => {
             ToolsUtil.showToast('更新弹窗生成失败，原因是：' + error)
-            hilog.error(0, 'TAG', `showUpdateDialog onError.code is ${error.code}, message is ${error.message}`)
+            salmonLogger.addLog(TAG, `showUpdateDialog onError.code is ${error.code}, message is ${error.message}`)
           })
         } else {
           ToolsUtil.showToast('还没有新版本~')
         }
       })?.catch((error: BusinessError) => {
       ToolsUtil.showToast('检查更新失败，原因是：' + error)
-      hilog.error(0, 'TAG', `checkAppUpdate onError.code is ${error.code}, message is ${error.message}`)
+      salmonLogger.addLog(TAG, `checkAppUpdate onError.code is ${error.code}, message is ${error.message}`, true)
     })
   }
 
@@ -197,7 +201,7 @@ export default class ToolsUtil {
           break
       }
     } catch (error) {
-      console.error('set color mode errro: ' + error)
+      salmonLogger.addLog(TAG, 'set color mode error: ' + error, true)
     }
   }
 
@@ -211,7 +215,7 @@ export default class ToolsUtil {
       const encoding = await UniversalDetector.detectCharset(filePath)
       return encoding
     } catch (error) {
-      console.error('File encoding detection failed:', JSON.stringify(error))
+      salmonLogger.addLog(TAG, 'File encoding detection failed: ' + error, true)
       return ''
     }
   }
@@ -225,17 +229,15 @@ export default class ToolsUtil {
       let textDecoder = util.TextDecoder.create(decode, { ignoreBOM: true })
       let text = textDecoder.decodeToString(new Uint8Array(buffer), { stream: false })
       readStream.close()?.catch(() => {
-        throw new Error(`文件解码转换失败: ${'未知错误'}`)
+        salmonLogger.addLog(TAG, `文件解码转换失败: ${'未知错误'}`, true)
       })
       const writeStream = fileIo.createStreamSync(filePath, "w+")
       writeStream.writeSync(text, { encoding: 'utf-8' })
       writeStream.close()?.catch(() => {
-        throw new Error(`文件解码转换失败: ${'未知错误'}`)
+        salmonLogger.addLog(TAG, `文件解码转换失败: ${'未知错误'}`, true)
       })
     } catch (error) {
-      console.error("操作失败: " + JSON.stringify(error))
       salmonLogger.addLog('subtitle', 'decode failed: ' + error.code + ':' + error.message, true)
-      throw new Error(`文件解码转换失败: ${error.message || '未知错误'}`)
     }
   }
 

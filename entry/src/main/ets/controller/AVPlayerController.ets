@@ -97,21 +97,22 @@ export class AVPlayerController implements PlayerControllerInterface {
     let swipingVoiceTimer: number | null = null
     let changeVolumeByVolumeButton: boolean = false
     try {
-      this.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
-        clearTimeout(swipingVoiceTimer)
-        if (!this.onSwipingVoice) { // 这里复用手势音量调节提示
-          this.onSwipingVoice = !this.onSwipingVoice
-          changeVolumeByVolumeButton = true
-        }
-        this.volumeActually = volumeEvent.volume
-        ToolsUtil.startVibration()
-        swipingVoiceTimer = setTimeout(() => {
-          if (changeVolumeByVolumeButton) {
+      this.audioVolumeManager.on('streamVolumeChange', audio.StreamUsage.STREAM_USAGE_MUSIC,
+        (streamVolumeEvent: audio.StreamVolumeEvent) => {
+          clearTimeout(swipingVoiceTimer)
+          if (!this.onSwipingVoice) { // 这里复用手势音量调节提示
             this.onSwipingVoice = !this.onSwipingVoice
-            changeVolumeByVolumeButton = false
+            changeVolumeByVolumeButton = true
           }
-        }, 800)
-      })
+          this.volumeActually = streamVolumeEvent.volume
+          ToolsUtil.startVibration()
+          swipingVoiceTimer = setTimeout(() => {
+            if (changeVolumeByVolumeButton) {
+              this.onSwipingVoice = !this.onSwipingVoice
+              changeVolumeByVolumeButton = false
+            }
+          }, 800)
+        })
     } catch (error) {
       console.error('volumeChange error:' + error)
     }
