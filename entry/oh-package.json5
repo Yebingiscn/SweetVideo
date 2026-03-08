@@ -5,4 +5,7 @@
   "main": "",
   "author": "",
   "license": "",
+  "dependencies": {
+    "libmpvnative.so" :"file:./src/main/cpp/types/libmpvnative"
+  }
 }

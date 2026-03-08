@@ -1,0 +1,6 @@
+{
+  "name": "libmpvnative.so",
+  "types": "./Index.d.ts",
+  "version": "0.0.1",
+  "description": "libmpvnative"
+}
