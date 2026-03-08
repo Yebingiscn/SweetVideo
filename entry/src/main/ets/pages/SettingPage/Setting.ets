@@ -11,13 +11,13 @@ import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { Markdown, MarkdownController } from '@luvi/lv-markdown-in'
 import { salmonLogger } from 'salmonlogger'
+import { CoverLayoutMode, ListDisplayMode } from '../../common/enum/DisplayMode'
 
 const TAG = 'SettingsPage'
 
 @Component
 export struct SettingsPage { //设置页
   @State passwd: string = 'passwd'
-  @Consume('pathStack') pathStack: NavPathStack
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
     builder: EditPasswordDialog({
       confirm: (passwd: string | undefined) => {
@@ -31,8 +31,8 @@ export struct SettingsPage { //设置页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  @Consume('pathStack') pathStack: NavPathStack
   controller: MarkdownController = new MarkdownController()
-  private listDisplayModeList: ResourceStr[] = ['卡片', '列表', '网格']
 
   aboutToAppear(): void {
     this.controller
@@ -114,13 +114,28 @@ export struct SettingsPage { //设置页
 
         ListItem() {
           SettingsCheckboxItem({
-            symbol: $r('sys.symbol.grid'),
+            symbol: Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY ? $r('sys.symbol.list_bullet_square') :
+              $r('sys.symbol.grid'),
             message: '列表布局',
-            tips: this.listDisplayModeList,
+            tips: ['卡片', '列表', '网格'],
             tabSelectedIndexes: [Setting.listDisplayMode],
             onButtonClick: (tabSelectedIndexes: number) => {
               Setting.listDisplayMode = tabSelectedIndexes
               Preferences.saveListDisplayMode(PathUtils.appContext!, tabSelectedIndexes)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsCheckboxItem({
+            symbol: Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ?
+              $r('sys.symbol.rectangle_uphalf_inset_filled') : $r('sys.symbol.rectangle_lefthalf_inset_filled'),
+            message: '封面版式',
+            tips: ['竖版', '横板'],
+            tabSelectedIndexes: [Setting.coverLayout],
+            onButtonClick: (tabSelectedIndexes: number) => {
+              Setting.coverLayout = tabSelectedIndexes
+              Preferences.saveCoverLayoutMode(PathUtils.appContext!, tabSelectedIndexes)
             }
           })
         }

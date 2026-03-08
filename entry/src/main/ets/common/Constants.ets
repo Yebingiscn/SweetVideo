@@ -34,9 +34,13 @@ export const MAX_WIDTH_MULTIPLIER = 3.0 // 最大宽度倍数（相对于原始�
 
 export const MIN_WIDTH_MULTIPLIER = 0.5 // 最小宽度倍数（相对于原始宽度）
 
-export const PRIVACY_BACKGROUND_BLUR_AMOUNT = 1000; // 隐私背景下的模糊强度
+export const PRIVACY_BACKGROUND_BLUR_AMOUNT = 1000 // 隐私背景下的模糊强度
 
-export const NO_BLUR_AMOUNT = 0; // 无模糊
+export const LIGHT_MODE_BAR_COLOR = '#000000'
+
+export const DARK_MODE_BAR_COLOR = '#ffffff'
+
+export const NO_BLUR_AMOUNT = 0 // 无模糊
 
 export const GB = 1024 * 1024 * 1024
 

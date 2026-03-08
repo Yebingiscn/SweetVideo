@@ -6,7 +6,8 @@ import { PlayerSideBarSource } from '../../utils/DataUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { VideoInfoBuilder } from '../VideoItemComponent/VideoInfoBuilder'
 import { XAnimation } from '../../utils/AnimationUtil'
-import { SafeHeight } from '../../utils/ObservedUtil'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { CoverLayoutMode } from '../../common/enum/DisplayMode'
 
 @Component
 export struct PlayerSideBarComponent {
@@ -29,7 +30,8 @@ export struct PlayerSideBarComponent {
         ListItem() {
           VideoItemBuilder({
             item: item,
-            nowPlaying: this.nowPlaying
+            nowPlaying: this.nowPlaying,
+            showProgress: false
           })
         }
         .padding({ top: index === 0 ? 10 : 0 })
@@ -96,28 +98,32 @@ class VideoItemValue {
   item: VideoMetadata | undefined = undefined
   nowPlaying?: VideoMetadata | undefined = undefined
   longPressPreview?: boolean = false
+  showProgress: boolean = false
 }
 
 @Builder
 export function VideoItemBuilder(videoItemValue: VideoItemValue) {
   Row() {
     Image(fileUri.getUriFromPath(PathUtils.coverPath + videoItemValue.item?.date))
-      .attributeModifier(new ImageFancyModifier(16, 80, 120))
+      .attributeModifier(new ImageFancyModifier(16, Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 65 : 100,
+        Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 100 : 65))
     Column() {
-      Row() {
-        Text(VideoInfoUtil.getVideoTitle(videoItemValue.item!))
-          .fontSize(16)
-          .fontWeight(FontWeight.Bold)
-          .maxLines(4)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .width('100%')
-          .margin({ left: 5 })
-          .wordBreak(WordBreak.BREAK_ALL)
-          .fontColor(videoItemValue.nowPlaying && videoItemValue.nowPlaying?.date === videoItemValue.item?.date ?
-            $r('sys.color.white') : $r('app.color.text_color'))
-      }
+      Text(VideoInfoUtil.getVideoTitle(videoItemValue.item!))
+        .fontSize(16)
+        .fontWeight(FontWeight.Bold)
+        .maxLines(4)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .width('100%')
+        .margin({ left: 5 })
+        .wordBreak(WordBreak.BREAK_ALL)
+        .fontColor(videoItemValue.nowPlaying && videoItemValue.nowPlaying?.date === videoItemValue.item?.date ?
+          $r('sys.color.white') : $r('app.color.text_color'))
 
-      VideoInfoBuilder({ item: videoItemValue.item, showProgress: false, nowPlaying: videoItemValue.nowPlaying })
+      VideoInfoBuilder({
+        item: videoItemValue.item,
+        showProgress: videoItemValue.showProgress,
+        nowPlaying: videoItemValue.nowPlaying
+      })
     }.alignItems(HorizontalAlign.Start)
     .padding({ left: 15, right: 15 })
     .layoutWeight(1)

@@ -1,6 +1,6 @@
 import { UIUtils } from '@kit.ArkUI'
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
-import { ListDisplayMode } from '../common/enum/ListDisplayMode'
+import { CoverLayoutMode, ListDisplayMode } from '../common/enum/DisplayMode'
 
 class SettingUtil {
   public backgroundImageSrc: string = ''
@@ -16,6 +16,7 @@ class SettingUtil {
   public allowDoubleFastForward: boolean = true
   public skipIntroTime: string = '0'
   public listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
+  public coverLayout: CoverLayoutMode = CoverLayoutMode.VERTICAL_PLATE
   public smartRotation: boolean = true
   public longPressSpeed: number = 3
   public showSettingPageEntry: boolean = true
