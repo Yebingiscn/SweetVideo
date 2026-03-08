@@ -101,6 +101,7 @@ export struct Player { // 播放页
   async aboutToDisappear(): Promise<void> {
     ToolsUtil.addLogger("开始执行aboutToDisappear方法", false, this.pathStack)
     VideoOperateUtil.setBrightness(-1)
+    WindowUtil.recoveryBarColor()
     Preferences.saveVideoSpeed(PathUtils.appContext!,
       (VideoInfoUtil.videoSpeedListAll.includes(this.player.speed) ? this.player.speed : 1) + 'x')
     Preferences.saveRepeatModeState(PathUtils.appContext!, this.player.repeatMode)
@@ -109,12 +110,12 @@ export struct Player { // 播放页
     this.player.cancelSubscribe()
     AppStorage.delete('nowPlayingData')
     try {
-      this.player.audioVolumeManager?.off('volumeChange')
+      this.player.audioVolumeManager?.off('streamVolumeChange')
+      this.player.audioVolumeManager = null
       ToolsUtil.addLogger("取消音量变化监听完成", false, this.pathStack)
     } catch (error) {
       ToolsUtil.addLogger(`音量监听取消错误 ${error}`, true, this.pathStack)
     }
-    this.player.audioVolumeManager = null
     this.player.release()
     ToolsUtil.addLogger("释放播放器资源完成", false, this.pathStack)
     VideoOperateUtil.avImageGenerator?.release()?.catch(() => {

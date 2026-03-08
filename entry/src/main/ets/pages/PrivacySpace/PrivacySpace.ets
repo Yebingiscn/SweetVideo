@@ -26,7 +26,7 @@ import VideoListItem from '../../component/VideoItemComponent/VideoListItemCompo
 import VideoCardItem from '../../component/VideoItemComponent/VideoCardItemComponent'
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
-import { ListDisplayMode } from '../../common/enum/ListDisplayMode'
+import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import SubtitleUtil from '../../utils/SubtitleUtil'
 import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { SortComponent } from '../../component/VideoItemComponent/SortComponent'

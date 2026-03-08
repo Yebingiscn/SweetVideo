@@ -3,12 +3,17 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 import { BusinessError, deviceInfo, settings } from '@kit.BasicServicesKit'
 import { PathUtils } from './PathUtils'
 import { Pc, SafeHeight } from './ObservedUtil'
+import { ConfigurationConstant } from '@kit.AbilityKit'
+import { salmonLogger } from 'salmonlogger'
+import { DARK_MODE_BAR_COLOR, LIGHT_MODE_BAR_COLOR } from '../common/Constants'
+
+const TAG = 'WindowUtil'
 
 // 用于设置窗口状态
 export class WindowUtil {
+  public static windowClass: window.Window | null = null
   private static instance: WindowUtil
   private static windowStage?: window.WindowStage
-  private static windowClass: window.Window | null = null
   private static isInit: boolean = false
 
   public static getInstance() {
@@ -20,7 +25,7 @@ export class WindowUtil {
 
   public static async getWindow() {
     return await window.getLastWindow(PathUtils.appContext!)?.catch(() => {
-      console.error('window error')
+      salmonLogger.addLog(TAG, 'window error', true)
       return undefined
     })
   }
@@ -30,7 +35,7 @@ export class WindowUtil {
       try {
         return (await WindowUtil.getWindow())?.getWindowStatus()
       } catch (error) {
-        console.error('test window error' + error)
+        salmonLogger.addLog(TAG, 'get windows status error', true)
         return undefined
       }
     }
@@ -43,7 +48,7 @@ export class WindowUtil {
         (await windowClass)?.enableLandscapeMultiWindow()?.then(() => {
           AppStorage.setOrCreate('enableLandscapeMultiWindow', true)
         })?.catch(() => {
-          console.error('window error')
+          salmonLogger.addLog(TAG, 'enableLandscapeMultiWindow error', true)
         })
       }
     }
@@ -55,7 +60,7 @@ export class WindowUtil {
         (await windowClass)?.disableLandscapeMultiWindow()?.then(() => {
           AppStorage.setOrCreate('enableLandscapeMultiWindow', false)
         })?.catch(() => {
-          console.error('window error')
+          salmonLogger.addLog(TAG, 'disableLandscapeMultiWindow error', true)
         })
       }
     }
@@ -92,13 +97,32 @@ export class WindowUtil {
       : window.Orientation.AUTO_ROTATION_PORTRAIT
   }
 
+  public static setBarColor(color: string) {
+    WindowUtil.windowClass?.setWindowSystemBarProperties({
+      statusBarContentColor: color
+    }).catch(() => {
+      salmonLogger.addLog(TAG, 'setBarColor error', true)
+    })
+  }
+
+  public static recoveryBarColor() {
+    const currentColorMode = AppStorage.get('currentColorMode') as number
+    if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT) {
+      WindowUtil.setBarColor(LIGHT_MODE_BAR_COLOR)
+    } else if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK) {
+      WindowUtil.setBarColor(DARK_MODE_BAR_COLOR)
+    } else {
+      salmonLogger.addLog(TAG, 'currentColorMode is not valid', true)
+    }
+  }
+
   public static async maximize(): Promise<void> {
     if (canIUse('SystemCapability.Window.SessionManager')) {
       try {
         if ((await WindowUtil.getWindow())?.getWindowStatus() === window.WindowStatusType.FLOATING) {
           (await WindowUtil.getWindow())?.maximize()
             .then(() => {
-              hilog.info(0x0000, 'testTag', '%{public}s', `Succeed in maximizing the window.`)
+              salmonLogger.addLog(TAG, 'Succeed in maximizing the window.', false)
             })
           ?.catch((err: BusinessError) => {
             hilog.error(0x0000, 'testTag',
@@ -107,7 +131,7 @@ export class WindowUtil {
           })
         }
       } catch (error) {
-        console.error('window error' + error)
+        salmonLogger.addLog(TAG, 'maximize error', true)
       }
     }
   }
@@ -118,15 +142,14 @@ export class WindowUtil {
         if ((await WindowUtil.getWindow())?.getWindowStatus() === window.WindowStatusType.FULL_SCREEN) {
           (await WindowUtil.getWindow())?.recover()
             .then(() => {
-              hilog.info(0x0000, 'testTag', '%{public}s', `Succeed in recovering the window.`)
+              salmonLogger.addLog(TAG, 'Succeed in recovering the window.', false)
             })
           ?.catch((err: BusinessError) => {
-            hilog.error(0x0000, 'testTag', `Failed to recover the window. Code: ${err.code}, message: ${err.message}`,
-              JSON.stringify(err) ?? '')
+            salmonLogger.addLog(TAG, `Failed to recover the window. Code: ${err.code}, message: ${err.message}`, true)
           })
         }
       } catch (error) {
-        console.error('window error' + error)
+        salmonLogger.addLog(TAG, 'recover error', true)
       }
     }
   }
@@ -135,7 +158,7 @@ export class WindowUtil {
     WindowUtil.windowStage = windowStage
     WindowUtil.windowStage.getMainWindow((err, windowClass: window.Window) => {
       if (err.code) {
-        hilog.error(777, 'testFlag', `Failed to obtain the main window. Code:${err.code}, message:${err.message}`)
+        salmonLogger.addLog(TAG, `Failed to obtain the main window. Code:${err.code}, message:${err.message}`, true)
         return
       }
       try {
@@ -148,7 +171,7 @@ export class WindowUtil {
         AppStorage.setOrCreate('statusBarHeight', area.topRect.height)
         AppStorage.setOrCreate('navBarHeight', naviBarArea.bottomRect.height)
       } catch (error) {
-        console.error('window error' + error)
+        salmonLogger.addLog(TAG, 'window error', true)
       }
     })
   }
@@ -185,17 +208,17 @@ export class WindowUtil {
         }
       })
     } catch (error) {
-      console.error("Window initialization error:", error)
+      salmonLogger.addLog(TAG, 'Window initialization error', true)
     }
   }
 
   public static setKeepScreenStatus(context: Context, isOn: boolean) {
     window.getLastWindow(context).then((windowClass) => {
       windowClass.setWindowKeepScreenOn(isOn)?.catch(() => {
-        console.error('setWindowKeepScreenOn error')
+        salmonLogger.addLog(TAG, 'setWindowKeepScreenOn error', true)
       })
     })?.catch(() => {
-      console.error('getLastWindow error')
+      salmonLogger.addLog(TAG, 'getLastWindow error', true)
     })
   }
 
@@ -203,13 +226,13 @@ export class WindowUtil {
     if (canIUse('SystemCapability.Window.SessionManager')) {
       window.getLastWindow(context).then((windowClass) => {
         windowClass.setSpecificSystemBarEnabled('status', status, true)?.catch(() => {
-          console.error('status error')
+          salmonLogger.addLog(TAG, 'status error', true)
         })
         windowClass.setSpecificSystemBarEnabled('navigationIndicator', navigationIndicator, true)?.catch(() => {
-          console.error('navigationIndicator error')
+          salmonLogger.addLog(TAG, 'navigationIndicator error', true)
         })
       })?.catch(() => {
-        console.error('setBarState error')
+        salmonLogger.addLog(TAG, 'setBarState error', true)
       })
     }
   }
@@ -232,7 +255,7 @@ export class WindowUtil {
         // 'rightSafeHeight' uiContext?.px2vp(Math.max(cutOut.rightRect.width * 1.4, system.rightRect.width * 1.4))
       })
     } catch (error) {
-      console.error('updateAvoidArea error: ' + error)
+      salmonLogger.addLog(TAG, 'updateAvoidArea error', true)
     }
   }
 
@@ -267,7 +290,7 @@ export class WindowUtil {
       })
       WindowUtil.updateListEmpty(AppStorage.get('list_maximum_columns') as number)
     } catch (error) {
-      console.error('windowClass exception' + error)
+      salmonLogger.addLog(TAG, 'windowClass exception', true)
     }
   }
 

@@ -1,4 +1,4 @@
-import { UIAbility, Want } from '@kit.AbilityKit';
+import { Configuration, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hiAppEvent, hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import WantProcessUtil from '../utils/WantProcessUtil';
@@ -10,6 +10,7 @@ import PrivacySpaceUtil from '../utils/PrivacySpaceUtil';
 import Preferences from '../database/Preferences';
 import ToolsUtil from '../utils/ToolsUtil';
 import { Pc, Privacy } from '../utils/ObservedUtil';
+import { WindowUtil } from '../utils/WindowUtil';
 
 export default class EntryAbility extends UIAbility {
   watcher: hiAppEvent.Watcher | undefined = undefined
@@ -181,5 +182,16 @@ export default class EntryAbility extends UIAbility {
   onBackground(): void {
     // Ability has back to background
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onBackground');
+  }
+
+  onConfigurationUpdate(newConfig: Configuration): void {
+    let newColorMode = newConfig.colorMode
+    let currentColorMode = AppStorage.get<ConfigurationConstant.ColorMode>('currentColorMode')
+    if (newColorMode === currentColorMode) {
+      return
+    }
+    // 更新缓存中的颜色模式
+    AppStorage.setOrCreate('currentColorMode', newConfig.colorMode)
+    WindowUtil.recoveryBarColor()
   }
 }
