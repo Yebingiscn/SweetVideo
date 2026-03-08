@@ -13,7 +13,9 @@ export struct LockVideoBarComponent {
         .fontWeight(FontWeight.Bold)
         .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
         .fontColor(['#f0f0f0'])
+        .opacity(0.8)
     }
+    .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
     .zIndex(100)
     .attributeModifier(new ButtonFancyModifier(40, 40))
     .backgroundColor('#50000000')
@@ -22,6 +24,6 @@ export struct LockVideoBarComponent {
       this.isLock = !this.isLock
       this.showControl = true
     })
-    .position({ bottom: this.screenHeight / 2, left: this.screenHeight > this.screenWidth ? 30 : 50 })
+    .position({ bottom: this.screenHeight / 2, left: this.screenWidth - 80 })
   }
 }

@@ -22,12 +22,15 @@ export struct VideoLayoutComponent {
         }
         .transition(XAnimation.getAnimation('up', 0, false))
         .height(90)
-        .backgroundColor('#36ffffff')
+        .linearGradient({
+          angle: 0,
+          colors: [[Color.Transparent, 0], ['#90000000', 0.75]]
+        })
         .width('100%')
         .padding({
           left: (this.screenHeight > this.screenWidth ? 20 : 35),
           right: 20,
-          top: (this.showControl ? SafeHeight.topSafeHeight : 0),
+          top: SafeHeight.topSafeHeight,
           bottom: 0
         })
 
@@ -45,10 +48,15 @@ export struct VideoLayoutComponent {
               }
             }
           }
-        }.transition(XAnimation.getAnimation('bottom', 0, false))
-        .backgroundColor($r('sys.color.mask_fourth'))
-        .height(this.screenHeight > this.screenWidth ? 180 : 110)
+        }
+        .transition(XAnimation.getAnimation('bottom', 0, false))
+        .linearGradient({
+          angle: 180,
+          colors: [[Color.Transparent, 0], ['#90000000', 0.75]]
+        })
+        .height(this.screenHeight > this.screenWidth ? 180 : 'auto')
         .width('100%')
+        .padding({ bottom: SafeHeight.bottomSafeHeight })
       }.height('100%').width('100%')
     }
   }

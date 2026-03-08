@@ -20,12 +20,13 @@ import VideoUtils from '../../utils/VideoUtil'
 import FileFolderUtil from '../../utils/FileFolderUtil'
 import { VideoDeleteDialog } from '../Dialog/VideoDeleteDialog'
 import { DeleteType } from '../../common/enum/DeleteType'
-import { ListDisplayMode } from '../../common/enum/ListDisplayMode'
+import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { salmonLogger } from 'salmonlogger'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { DELAY_JUMP_TO_PLAYER } from '../../common/Constants'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
+import WantProcess from '../../utils/WantProcessUtil'
 
 @Observed
 export class VideoListController {
@@ -109,7 +110,6 @@ export class VideoListController {
 export struct VideoList {
   @Link searchValue: string
   @Link videoListController: VideoListController
-  @Consume fileFolderSource: FileFolderDataSource
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -132,6 +132,7 @@ export struct VideoList {
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  @Consume fileFolderSource: FileFolderDataSource
   delConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDeleteDialog({
       confirm: async (deleteType: DeleteType) => {
@@ -440,6 +441,13 @@ export struct VideoList {
               this.fileFolderSource)
             VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
           }
+        })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder_badge_arrow_left')),
+        content: '打开文件所在位置'
+      })
+        .onClick(async () => {
+          await WantProcess.linkToVideoSource(item!.uri)
         })
     }.attributeModifier(new MenuFancyModifier())
   }

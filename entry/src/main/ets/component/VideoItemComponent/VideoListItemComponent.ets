@@ -5,6 +5,8 @@ import { ImageFancyModifier, SymbolGlyphFancyModifier } from '../../common/Attri
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { VideoListController } from './VideoItemComponent'
 import { VideoInfoBuilder } from './VideoInfoBuilder'
+import { Setting } from '../../utils/ObservedUtil'
+import { CoverLayoutMode } from '../../common/enum/DisplayMode'
 
 @Reusable
 @Component
@@ -21,7 +23,8 @@ export default struct VideoListItem {
   build() {
     Row() {
       Image(fileUri.getUriFromPath(PathUtils.coverPath + this.item.date))
-        .attributeModifier(new ImageFancyModifier(16, 80, 120))
+        .attributeModifier(new ImageFancyModifier(16, Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 65 : 100,
+          Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 100 : 65))
       Column() {
         Row() {
           Text(VideoInfoUtil.getVideoTitle(this.item))

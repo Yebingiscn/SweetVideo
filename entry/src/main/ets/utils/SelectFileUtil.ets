@@ -23,7 +23,6 @@ import { SUPPORT_AUDIO_FORMAT, SUPPORT_VIDEO_FORMAT } from '../common/Constants'
 
 const TAG = 'SelectFileUtil'
 
-// 获取视频类
 export default class SelectFileUtil {
   public static fileFolderUri = ''
   public static videoSourcePath = new Map<number, string>([
@@ -72,7 +71,7 @@ export default class SelectFileUtil {
         ToolsUtil.showToast('自定义背景不存在')
       }
     })?.catch((err: BusinessError) => {
-      console.error("access failed with error message: " + err.message + ", error code: " + err.code)
+      salmonLogger.addLog(TAG, "access failed with error message: " + err.message + ", error code: " + err.code, true)
     })
   }
 
@@ -133,7 +132,7 @@ export default class SelectFileUtil {
       fs.closeSync(sourceFile)
       fs.closeSync(targetFile)
     } catch (error) {
-      console.error('File operation error:' + error)
+      salmonLogger.addLog(TAG, 'File operation error:' + error, true)
     }
   }
 
@@ -146,11 +145,12 @@ export default class SelectFileUtil {
       packer.packToFile(pixelMap, file1.fd, { format: 'image/webp', quality: 85 }).then(() => {
         fs.closeSync(file1)
       })?.catch((error: BusinessError) => {
-        console.error(`Failed to pack the image to file.code ${error.code},message is ${error.message}`)
+        salmonLogger.addLog(TAG, `Failed to pack the image to file.code ${error.code},message is ${error.message}`,
+          true)
         fs.closeSync(file1)
       })
     } catch (error) {
-      console.error('save cover error:' + error)
+      salmonLogger.addLog(TAG, 'save cover error:' + error, true)
     }
   }
 
@@ -175,7 +175,7 @@ export default class SelectFileUtil {
       Preferences.saveVideoMetaDataEncryption(context, video_meta_data_encryption)
       return videoInfo // 返回新创建的元数据对象
     } catch (error) {
-      console.error(`文件复制失败: ${uri}`, error)
+      salmonLogger.addLog(TAG, `文件复制失败: ${uri}: error ${error}`, true)
       throw new Error(`隐私空间复制失败: ${error.message}`)
     } finally {
       fs.closeSync(sourceFile)
@@ -300,7 +300,7 @@ export default class SelectFileUtil {
         })
       }
     })?.catch((err: BusinessError) => {
-      console.error("access failed with error message: " + err.message + ", error code: " + err.code)
+      salmonLogger.addLog(TAG, "access failed with error message: " + err.message + ", error code: " + err.code, true)
     })
   }
 
@@ -417,7 +417,6 @@ export default class SelectFileUtil {
       await fs.open(String(uri))
       return true
     } catch (e) {
-      console.error('file error' + e)
       if (showToast) {
         ToolsUtil.showToast(uri + '文件已经失效，请重新导入')
         salmonLogger.addLog('file error', 'file error: ' + e.code + ':' + e.message, true)
@@ -494,7 +493,7 @@ export default class SelectFileUtil {
           } finally {
             try {
               avMetadataExtractor.release?.()?.catch(() => {
-                console.error('avMetadataExtractor release error')
+                salmonLogger.addLog(TAG, 'avMetadataExtractor release error', true)
               })
               fs.closeSync(file)
             } catch (error) {
@@ -503,7 +502,7 @@ export default class SelectFileUtil {
           }
         })
       } catch (error) {
-        console.error('createAVMetadataExtractor 发生错误, 原因是：' + error)
+        salmonLogger.addLog(TAG, 'createAVMetadataExtractor 发生错误, 原因是：' + error, true)
       }
     }
   }
@@ -530,9 +529,9 @@ export default class SelectFileUtil {
     } catch (err) {
       const error = err as BusinessError
       if (error.code === 13900002) { // 文件或目录不存在错误码
-        console.warn('文件不存在')
+        salmonLogger.addLog(TAG, 'file not exist', false)
       } else {
-        console.error('delete failed: ' + error.code + ':' + error.message)
+        salmonLogger.addLog(TAG, 'delete failed: ' + error.code + ':' + error.message, true)
       }
       ToolsUtil.showToast('删除视频失败：' + title + '原因是：' + err)
     }
@@ -572,7 +571,7 @@ export default class SelectFileUtil {
       const result: photoAccessHelper.PhotoSelectResult = await picker.select(options)
       return result.photoUris || []
     } catch (error) {
-      console.error(`Error selecting media [${mimeType}]:`, error)
+      salmonLogger.addLog(TAG, `Error selecting media [${mimeType}]:${error}`, true)
       return []
     }
   }
@@ -655,16 +654,14 @@ export default class SelectFileUtil {
                 await dirPool.run(() => collectFiles(fullPath))
               }
             } catch (error) {
-              console.warn(`Failed to process ${fullPath}:`,
-                error instanceof Error ? error.message : 'Unknown error')
+              salmonLogger.addLog(TAG, `Failed to process ${fullPath}: ${error}`, true)
             }
           })
           // 等待当前批次完成，避免内存溢出
           await Promise.allSettled(batchPromises)
         }
       } catch (error) {
-        console.error(`Failed to list directory ${directory}:`,
-          error instanceof Error ? error.message : 'Unknown error')
+        salmonLogger.addLog(TAG, `Failed to list directory ${directory}: ${error}`, true)
       }
     }
     try {
@@ -673,7 +670,7 @@ export default class SelectFileUtil {
       // 去重并返回结果
       return Array.from(new Set(filePaths))
     } catch (error) {
-      console.error('Root directory processing failed:', error)
+      salmonLogger.addLog(TAG, `Root directory processing failed: ${error}`, true)
       return []
     }
   }

@@ -1,6 +1,5 @@
 import { AVCastPicker } from '@kit.AVSessionKit'
 import ToolsUtil from '../../utils/ToolsUtil'
-import { KeyCode } from '@kit.InputKit'
 import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import { RepeatMode } from '../../common/enum/RepeatMode'
 import AVSessionUtil from '../../utils/AVSessionUtil'
@@ -44,11 +43,6 @@ export struct VideoButtonsComponent {
         .onClick(() => {
           ToolsUtil.startVibration()
           this.onTogglePlaybackClick()
-        })
-        .onKeyEvent((event: KeyEvent) => {
-          if ((event.keyCode === KeyCode.KEYCODE_SPACE && event.type === KeyType.Down)) {
-            this.onTogglePlaybackClick()
-          }
         })
         .defaultFocus(true) // 自动获取键盘焦点
       }.span({ xs: 2, sm: 2, md: 2 })

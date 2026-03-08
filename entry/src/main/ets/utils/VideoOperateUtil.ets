@@ -313,6 +313,7 @@ export default class VideoOperateUtil {
     Setting.allowGestureEntry = Preferences.getAllowGestureEntry(context)
     Setting.showFrameImgStatus = Preferences.getShowFrameTime(context)
     Setting.jumpToHistoryTimeStatus = Preferences.getJumpToHistoryTime(context)
+    Setting.coverLayout = Preferences.getCoverLayoutMode(context)
     PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'defaultPlayer')
   }
 

@@ -5,17 +5,10 @@ import {
 
 @Component
 export struct SettingsCheckboxItem {
-  @State symbol: Resource | undefined = undefined
+  @Prop symbol: Resource | undefined = undefined
   @State message: ResourceStr = ''
-  @Prop tips: ResourceStr[]
-  @State tabOptions: SegmentButtonOptions = SegmentButtonOptions.tab({
-    buttons: [{ text: this.tips[0] }, { text: this.tips[1] }, {
-      text: this.tips[2]
-    }] as ItemRestriction<SegmentButtonTextItem>,
-    backgroundBlurStyle: BlurStyle.BACKGROUND_THICK,
-    selectedBackgroundColor: $r('app.color.main_color'),
-    selectedFontColor: $r('sys.color.white')
-  })
+  @Prop @Watch('onTipsChange') tips: ResourceStr[]
+  @State tabOptions: SegmentButtonOptions = this.createTabOptions()
   @State @Watch('onSegmentButtonChange') tabSelectedIndexes: number[] = [1]
 
   onSegmentButtonChange() {
@@ -57,5 +50,22 @@ export struct SettingsCheckboxItem {
       bottom: 10
     })
     .margin({ top: 5, bottom: 5 })
+  }
+
+  onTipsChange() {
+    this.tabOptions = this.createTabOptions()
+  }
+
+  private createTabOptions(): SegmentButtonOptions {
+    const buttonItems: SegmentButtonTextItem[] = this.tips.map((tip: ResourceStr) => {
+      const item: SegmentButtonTextItem = { text: tip }
+      return item
+    })
+    return SegmentButtonOptions.tab({
+      buttons: buttonItems as ItemRestriction<SegmentButtonTextItem>,
+      backgroundBlurStyle: BlurStyle.BACKGROUND_THICK,
+      selectedBackgroundColor: $r('app.color.main_color'),
+      selectedFontColor: $r('sys.color.white')
+    });
   }
 }

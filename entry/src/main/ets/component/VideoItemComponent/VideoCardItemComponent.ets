@@ -5,7 +5,7 @@ import { ImageFancyModifier, SymbolGlyphFancyModifier } from '../../common/Attri
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { VideoListController } from './VideoItemComponent'
 import { VideoInfoBuilder } from './VideoInfoBuilder'
-import { ListDisplayMode } from '../../common/enum/ListDisplayMode'
+import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import { Setting } from '../../utils/ObservedUtil'
 
 @Reusable

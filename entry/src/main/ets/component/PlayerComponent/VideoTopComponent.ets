@@ -39,33 +39,53 @@ export struct VideoTopComponent {
 
   build() {
     Row({ space: 8 }) {
-      SymbolGlyph($r('sys.symbol.chevron_left'))
-        .attributeModifier(new SymbolGlyphFancyModifier(40, '', ''))
-        .fontColor(['#f0f0f0'])
-        .onClick(() => {
-          this.onExitVideoClick()
-        })
-        .padding({ right: 5 })
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph($r('sys.symbol.chevron_left'))
+          .fontSize(27)
+          .fontColor(['#f0f0f0'])
+          .opacity(0.8)
+      }
+      .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
+      .attributeModifier(new ButtonFancyModifier(40, 40))
+      .backgroundColor('#50000000')
+      .onClick(() => {
+        this.onExitVideoClick()
+      })
+
       Row() {
         Text(this.videoTitle.slice(0, this.videoTitle?.lastIndexOf('.')))
-          .fontSize(20)
+          .fontSize(23)
           .fontWeight(FontWeight.Medium)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.MARQUEE })
           .fontColor($r('sys.color.white'))
-          .layoutWeight(1) // 关键布局属性
+          .opacity(0.8)
+          .layoutWeight(1)
         Row({ space: 12 }) {
-          SymbolGlyph(this.subTitleVisibility === Visibility.Visible ?
-            $r('sys.symbol.textformat_size_square_fill') : $r('sys.symbol.textformat_size_square'))
-            .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
-            .fontColor(['#f0f0f0'])
-            .bindMenu(this.subtitlePanelComponent, { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
-          if (this.screenWidth > this.screenHeight) {
-            SymbolGlyph($r('sys.symbol.opticaldisc'))
-              .attributeModifier(new SymbolGlyphFancyModifier(30, '', ''))
+          Button({ type: ButtonType.Circle, stateEffect: true }) {
+            SymbolGlyph(this.subTitleVisibility === Visibility.Visible ?
+              $r('sys.symbol.textformat_size_square_fill') : $r('sys.symbol.textformat_size_square'))
+              .fontSize(27)
               .fontColor(['#f0f0f0'])
-              .bindMenu(this.audioTrackMenuBuilder,
-                { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
+              .opacity(0.8)
+          }
+          .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
+          .attributeModifier(new ButtonFancyModifier(40, 40))
+          .backgroundColor('#50000000')
+          .bindMenu(this.subtitlePanelComponent, { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
+
+          if (this.screenWidth > this.screenHeight) {
+            Button({ type: ButtonType.Circle, stateEffect: true }) {
+              SymbolGlyph($r('sys.symbol.opticaldisc'))
+                .fontSize(27)
+                .fontColor(['#f0f0f0'])
+                .opacity(0.8)
+            }
+            .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
+            .attributeModifier(new ButtonFancyModifier(40, 40))
+            .backgroundColor('#50000000')
+            .bindMenu(this.audioTrackMenuBuilder,
+              { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
           }
           if (this.screenWidth > this.screenHeight) {
             Select(SCREEN_EXTEND_LIST)
@@ -87,7 +107,9 @@ export struct VideoTopComponent {
         SymbolGlyph(this.lockRotation ? $r('sys.symbol.lock_fill') : $r('sys.symbol.rotate_left'))
           .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
           .fontColor(['#f0f0f0'])
+          .opacity(0.8)
       }
+      .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
       .attributeModifier(new ButtonFancyModifier(35, 40))
       .backgroundColor('#50000000')
       .onClick(async () => {

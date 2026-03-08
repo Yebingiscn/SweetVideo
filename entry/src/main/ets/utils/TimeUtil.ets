@@ -1,8 +1,8 @@
 // 时间类，格式化时间
 export default class TimeUtil {
   static convertMSToHHMMSS(ms: number | undefined): string {
-    if (!ms) {
-      return '00:00'
+    if (ms === undefined || ms === null || isNaN(ms)) {
+      return '--:--'
     }
     // 计算总秒数
     const totalSeconds = Math.floor(ms / 1000) // 将毫秒转换为秒
@@ -19,7 +19,7 @@ export default class TimeUtil {
 
   static convertSSToMMSS(seconds: number | undefined): string {
     if (seconds === undefined || seconds === null || isNaN(seconds)) {
-      return '00:00'
+      return '--:--'
     }
     const totalSeconds = Math.floor(seconds)
     const minutes = Math.floor(totalSeconds / 60)
@@ -30,15 +30,13 @@ export default class TimeUtil {
     return `${mm}:${ss}`
   }
 
-  // 字幕时间格式化
-  static formatTime(ms: number): string {
-    const totalSeconds = Math.floor(ms / 1000)
-    const minutes = Math.floor(totalSeconds / 60)
-    const seconds = totalSeconds % 60
-    const milliseconds = ms % 1000
+  static getPlayTime(playTime: number, totalTime: number) {
+    return TimeUtil.convertMSToHHMMSS(Math.min(Math.max(playTime, 0), (totalTime ?? 0)))
+  }
 
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString()
-      .padStart(3, '0')}`
+  static getRemainTime(playTime: number, totalTime: number, playSpeed: number) {
+    return '-' + TimeUtil.convertMSToHHMMSS(Math.max(((totalTime ?? 0) - playTime) / (playSpeed ?? 1),
+      0))
   }
 
   static getTextByTime() {
