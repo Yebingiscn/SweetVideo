@@ -4,14 +4,20 @@ import { BusinessError, systemDateTime } from '@kit.BasicServicesKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import VideoUtil from './VideoInfoUtil'
 import VideoInfoUtil from './VideoInfoUtil'
-import { common, Context, OpenLinkOptions, Want } from '@kit.AbilityKit'
+import { bundleManager, common, Context, OpenLinkOptions, Want } from '@kit.AbilityKit'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import Preferences from '../database/Preferences'
 import { systemShare } from '@kit.ShareKit'
 import NavigationAddress, { PlayerParams } from '../common/NavigationCommon'
 import ToolsUtil from './ToolsUtil'
+import { WindowUtil } from './WindowUtil'
+import { VideoSource } from '../common/enum/VideoSource'
+import SelectFileUtil from './SelectFileUtil'
+import { salmonLogger } from 'salmonlogger'
+import { PathUtils } from './PathUtils'
 
-// 处理拉起应用传来的视频链接
+const TAG = 'WantProcess'
+
 export default class WantProcess {
   public static hasNewWant = false
   private static isSystemShare: boolean = false
@@ -127,6 +133,89 @@ export default class WantProcess {
     } catch (paramError) {
       hilog.error(777, 'testFlag', 'paramError' + paramError)
     }
+  }
+
+  static async linkToVideoSource(uri: string | undefined) {
+    if (!uri) {
+      ToolsUtil.showToast('文件地址异常')
+      salmonLogger.addLog(TAG, "file address failed", false)
+      return
+    }
+    if (SelectFileUtil.isPathFromSource(uri, VideoSource.PHOTO_SELECT_OPTION)) {
+      await WantProcess.linkToGallery(uri)
+      return
+    }
+    if (SelectFileUtil.isPathFromSource(uri, VideoSource.DOCUMENT_SELECT_OPTION) ||
+    SelectFileUtil.isPathFromSource(uri, VideoSource.EXTERNAL_DEVICE)) {
+      WantProcess.linkToFileManager(uri)
+      return
+    }
+    if (SelectFileUtil.isPathFromSource(uri, VideoSource.SWEET_VIDEO_DOWNLOAD_FILE)) {
+      WantProcess.linkToFileManager(`file://docs${uri}`)
+      return
+    }
+    ToolsUtil.showToast('不支持打开文件位置')
+  }
+
+  static async linkToGallery(uri: string) {
+    try {
+      let context = WindowUtil.windowClass?.getUIContext().getHostContext() as common.UIAbilityContext;
+      let bundleInfo: bundleManager.BundleInfo =
+        await bundleManager.getBundleInfoForSelf(bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION);
+      let wantInfo: Want = {
+        bundleName: 'com.huawei.hmos.photos',
+        abilityName: 'com.huawei.hmos.photos.MainAbility',
+        uri: uri,
+        parameters: {
+          pushParams: bundleInfo.name // app的bundleName也就是包名
+        }
+      }
+      context.startAbility(wantInfo).then(() => {
+        salmonLogger.addLog(TAG, "open gallery success", false)
+      }).catch(() => {
+        salmonLogger.addLog(TAG, "open gallery failed", true)
+      })
+    } catch (error) {
+      const err: BusinessError = error as BusinessError;
+      salmonLogger.addLog(TAG, "open gallery failed: " + err, true)
+    }
+  }
+
+  static linkToFileManager(uri: string) {
+    try {
+      let context: common.UIAbilityContext =
+        WindowUtil.windowClass?.getUIContext().getHostContext() as common.UIAbilityContext
+      let link: string = 'filemanager://openDirectory'
+      let openLinkOptions: OpenLinkOptions = {
+        parameters: {
+          'fileUri': uri
+        }
+      }
+      context.openLink(link, openLinkOptions)
+        .then(() => {
+          salmonLogger.addLog(TAG, "open file manager success", false)
+        }).catch((err: BusinessError) => {
+        salmonLogger.addLog(TAG, "open file manager failed: " + err, true)
+      })
+    } catch (error) {
+      salmonLogger.addLog(TAG, "open file manager failed: " + error, true)
+    }
+  }
+
+  static linkToAppGallery() {
+    const want: Want = {
+      action: 'ohos.want.action.appdetail',
+      // bundleName为需要拉起写评论页的应用包名，action隐式指定为write-review，表示进入详情页后，下一步将拉起写评论页。
+      uri: `store://appgallery.huawei.com/app/detail?id=${PathUtils.appContext!.abilityInfo.bundleName}&action=write-review`
+    }
+    PathUtils.appContext!.startAbility(want)
+      .then(() => {
+        salmonLogger.addLog(TAG, '成功打开应用市场评论页', false)
+      })
+    ?.catch((error: BusinessError) => {
+      ToolsUtil.showToast('打开应用市场失败，原因是：' + error)
+      salmonLogger.addLog(TAG, '打开应用市场评论页失败，原因是：' + error, true)
+    })
   }
 
   private static clearWantState() {
