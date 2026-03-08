@@ -119,7 +119,7 @@ export struct RecentPlay { // 最近播放页
         List({ scroller: this.listScroller, space: 10 }) {
           LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
             ListItem() {
-              VideoItemBuilder({ item: item })
+              VideoItemBuilder({ item: item, showProgress: true })
             }
             .onClick(async () => {
               await this.clickItem(item, VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
@@ -132,7 +132,7 @@ export struct RecentPlay { // 最近播放页
             .borderRadius(16)
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
               {
-                preview: VideoItemBuilder({ item: item, longPressPreview: this.longPressPreview }),
+                preview: VideoItemBuilder({ item: item, longPressPreview: this.longPressPreview, showProgress: true }),
                 previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 onAppear: () => {
@@ -145,7 +145,7 @@ export struct RecentPlay { // 最近播放页
               })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
               {
-                preview: VideoItemBuilder({ item: item, longPressPreview: this.longPressPreview }),
+                preview: VideoItemBuilder({ item: item, longPressPreview: this.longPressPreview, showProgress: true }),
                 previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 onAppear: () => {
