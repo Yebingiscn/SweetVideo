@@ -8,8 +8,8 @@
         <a href="https://img.shields.io/badge/OS-HarmonyOS Next-103fb6" style="text-decoration:none" >
             <img src="https://img.shields.io/badge/HarmonyOS-Next-103fb6" alt="HarmonyOS Version"/>
         </a>
-        <a href="https://img.shields.io/badge/API-17-lightgreen" style="text-decoration:none" >
-            <img src="https://img.shields.io/badge/API-17-lightgreen" alt="API Version"/>
+        <a href="https://img.shields.io/badge/API-21-lightgreen" style="text-decoration:none" >
+            <img src="https://img.shields.io/badge/API-21-lightgreen" alt="API Version"/>
         </a>
         <a href="https://img.shields.io/github/stars/Yebingiscn/SweetVideo?style=flat" style="text-decoration:none" >
             <img src="https://img.shields.io/github/stars/Yebingiscn/SweetVideo?style=flat" alt="GitHub all stars"/>
@@ -140,3 +140,5 @@ QQ群：973792610
 - 爱发电用户_wkjR
 - PhoenixYV
 - imgradeone
+- 綄羙
+- 爱发电用户_UkfQ

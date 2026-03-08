@@ -5,8 +5,9 @@
     "@ohos/pinyin4js": "^2.0.2",
     "salmonlogger": "feature/salmonlogger.har",
     "@ohos/juniversalchardet": "^2.0.3",
-    "@luvi/lv-markdown-in": "3.2.8",
-    "libmpvnative.so": "file:./libmpvnative/cpp/types/libmpvnative"
+    "@luvi/lv-markdown-in": "^3.2.9",
+    "libmpvnative.so": "file:./libmpvnative/cpp/types/libmpvnative",
+    "@hadss/scroll_components": "^1.0.0-rc.5"
   },
   "devDependencies": {
     "@ohos/hypium": "1.0.19",
