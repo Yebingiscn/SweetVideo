@@ -22,7 +22,6 @@ import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPicke
 import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 import AVSessionUtil from '../../utils/AVSessionUtil'
 import { AVCastPicker } from '@kit.AVSessionKit'
-import { audio } from '@kit.AudioKit'
 import { window } from '@kit.ArkUI'
 import { AudioTrackComponent } from '../../component/PlayerComponent/AudioTrackComponent'
 import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent'
@@ -80,40 +79,15 @@ export struct MpvPlayer {
       console.error('setPreferredOrientation error:' + error)
     }
     WindowUtil.enableLandscapeMultiWindow(this.mpv.windowClass)
-    this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
-    let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID
-    let audioManager = audio.getAudioManager()
-    this.mpv.audioVolumeManager = audioManager.getVolumeManager()
-    let volumeList = await VideoOperateUtil.getVolume(this.mpv.audioVolumeManager, groupId)
-    this.mpv.volume = volumeList.get('volume')!
-    this.mpv.volumeActually = this.mpv.volume
-    let changeVolumeByVolumeButton = false
-    let swipingVoiceTimer: number | null = null
-    try {
-      this.mpv.audioVolumeManager.on('volumeChange', (volumeEvent: audio.VolumeEvent) => {
-        clearTimeout(swipingVoiceTimer)
-        if (!this.mpv.onSwipingVoice) { // 这里复用手势音量调节提示
-          this.mpv.onSwipingVoice = !this.mpv.onSwipingVoice
-          changeVolumeByVolumeButton = true
-        }
-        this.mpv.volumeActually = volumeEvent.volume
-        ToolsUtil.startVibration()
-        swipingVoiceTimer = setTimeout(() => {
-          if (changeVolumeByVolumeButton) {
-            this.mpv.onSwipingVoice = !this.mpv.onSwipingVoice
-            changeVolumeByVolumeButton = false
-          }
-        }, 800)
-      })
-    } catch (error) {
-      console.error('volumeChange error:' + error)
-    }
+    this.mpv.initVolumeAndBrightness()
   }
 
   aboutToDisappear(): void {
     VideoOperateUtil.setBrightness(-1)
+    WindowUtil.recoveryBarColor()
     try {
-      this.mpv.audioVolumeManager?.off('volumeChange')
+      this.mpv.audioVolumeManager?.off('streamVolumeChange')
+      this.mpv.audioVolumeManager = null
       ToolsUtil.addLogger("取消音量变化监听完成", false, this.pathStack)
     } catch (error) {
       ToolsUtil.addLogger(`音量监听取消错误 ${error}`, true, this.pathStack)
@@ -447,10 +421,12 @@ export struct MpvPlayer {
         this.mpv.playAreaHeight = playAreaSize[1]
       },
       onOriginalRatio: () => {
-        this.mpv.playAreaHeight = this.mpv.playAreaHeight
-        this.mpv.playAreaWidth = this.mpv.playAreaWidth
+        this.mpv.setKeepAspectStatus(true)
+        this.mpv.playAreaHeight = VideoInfoUtil.playAreaHeight
+        this.mpv.playAreaWidth = VideoInfoUtil.playAreaWidth
       },
       onStretchedToFullScreen: () => {
+        this.mpv.setKeepAspectStatus(false)
         this.mpv.playAreaHeight = this.mpv.screenHeight
         this.mpv.playAreaWidth = this.mpv.screenWidth
       },

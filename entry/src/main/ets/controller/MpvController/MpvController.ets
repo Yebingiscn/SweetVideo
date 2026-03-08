@@ -17,6 +17,9 @@ import { RepeatMode } from '../../common/enum/RepeatMode';
 import AVSessionUtil from '../../utils/AVSessionUtil';
 import { LEFT_ZONE_DIVISION, RIGHT_ZONE_DIVISION, SCREEN_DIVISIONS } from '../../common/Constants';
 import { fileUri } from '@kit.CoreFileKit';
+import { salmonLogger } from 'salmonlogger';
+
+const TAG = 'MpvController'
 
 @Observed
 export class MpvController implements PlayerControllerInterface {
@@ -51,19 +54,16 @@ export class MpvController implements PlayerControllerInterface {
       console.error('[MpvPlayer] MPV already created, skipping')
       return
     }
-    console.error('[MpvPlayer] Creating mpv instance')
     try {
       this.mpvHandle = mpv.create()
-      console.error('[MpvPlayer] Create returned:', this.mpvHandle, 'type:', typeof this.mpvHandle)
       if (!this.mpvHandle) {
         console.error('[MpvPlayer] Failed to create mpv instance - handle is null/undefined')
       } else {
         console.error('[MpvPlayer] MPV instance created:', this.mpvHandle)
-        //  this.applyUserAgent()
       }
     } catch {
       console.error('[MpvPlayer] Exception during create')
-      ToolsUtil.showToast("Mpv 创建失败")
+      ToolsUtil.showToast("MPV 创建失败")
     }
   }
 
@@ -72,7 +72,7 @@ export class MpvController implements PlayerControllerInterface {
     if (startPosition !== undefined && startPosition > 0) {
       mpv.loadVideo(this.mpvHandle, url, startPosition)
     } else {
-      mpv.loadVideo(this.mpvHandle, new fileUri.FileUri(url).path)
+      mpv.loadVideo(this.mpvHandle, new fileUri.FileUri(url!).path)
     }
     this.playTimeUpdateTag = setInterval(() => {
       this.playTime = mpv.getCurrentPosition(this.mpvHandle)
@@ -173,7 +173,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   getDuration(): number {
-    const totalTime = mpv.getDuration(this.mpvHandle)
+    const totalTime = mpv.getDuration(this.mpvHandle) as number
     if (totalTime === 0) {
       return this.nowPlaying!.time
     }
@@ -240,6 +240,10 @@ export class MpvController implements PlayerControllerInterface {
     }
   }
 
+  setKeepAspectStatus(keepAspect: boolean) {
+    mpv.setKeepAspect(this.mpvHandle, keepAspect)
+  }
+
   setSessionListener() {
     try {
       this.avSession?.on('play', () => {
@@ -266,7 +270,7 @@ export class MpvController implements PlayerControllerInterface {
         AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
       })
     } catch (error) {
-      ToolsUtil.addLogger('set avSession state error', true)
+      salmonLogger.addLog(TAG, 'set avSession state error', true)
     }
   }
 
@@ -277,6 +281,38 @@ export class MpvController implements PlayerControllerInterface {
       await AVSessionUtil.setSessionInfo(this.nowPlaying!)
       AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
     }
+  }
+
+  async initVolumeAndBrightness() {
+    let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID
+    let audioManager = audio.getAudioManager()
+    this.audioVolumeManager = audioManager.getVolumeManager()
+    let volumeList = await VideoOperateUtil.getVolume(this.audioVolumeManager, groupId)
+    this.volume = volumeList.get('volume')!
+    this.volumeActually = this.volume
+    let swipingVoiceTimer: number | null = null
+    let changeVolumeByVolumeButton: boolean = false
+    try {
+      this.audioVolumeManager.on('streamVolumeChange', audio.StreamUsage.STREAM_USAGE_MUSIC,
+        (streamVolumeEvent: audio.StreamVolumeEvent) => {
+          clearTimeout(swipingVoiceTimer)
+          if (!this.onSwipingVoice) { // 这里复用手势音量调节提示
+            this.onSwipingVoice = !this.onSwipingVoice
+            changeVolumeByVolumeButton = true
+          }
+          this.volumeActually = streamVolumeEvent.volume
+          ToolsUtil.startVibration()
+          swipingVoiceTimer = setTimeout(() => {
+            if (changeVolumeByVolumeButton) {
+              this.onSwipingVoice = !this.onSwipingVoice
+              changeVolumeByVolumeButton = false
+            }
+          }, 800)
+        })
+    } catch (error) {
+      salmonLogger.addLog(TAG, 'volumeChange error', true)
+    }
+    this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
   }
 
   onScreenDoubleClick(tapX: number) {
