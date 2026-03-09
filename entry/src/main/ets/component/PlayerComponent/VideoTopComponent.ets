@@ -45,7 +45,7 @@ export struct VideoTopComponent {
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
-      .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
+      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
       .attributeModifier(new ButtonFancyModifier(40, 40))
       .backgroundColor('#50000000')
       .onClick(() => {
@@ -69,7 +69,7 @@ export struct VideoTopComponent {
               .fontColor(['#f0f0f0'])
               .opacity(0.8)
           }
-          .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
+          .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
           .attributeModifier(new ButtonFancyModifier(40, 40))
           .backgroundColor('#50000000')
           .bindMenu(this.subtitlePanelComponent, { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
@@ -81,7 +81,7 @@ export struct VideoTopComponent {
                 .fontColor(['#f0f0f0'])
                 .opacity(0.8)
             }
-            .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
+            .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
             .attributeModifier(new ButtonFancyModifier(40, 40))
             .backgroundColor('#50000000')
             .bindMenu(this.audioTrackMenuBuilder,
@@ -98,6 +98,7 @@ export struct VideoTopComponent {
                 this.screenExtend(text!)
                 this.onSelectedTextChange(selectedText!)
               })
+              .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
               .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
           }
         }.alignItems(VerticalAlign.Center)
@@ -109,7 +110,7 @@ export struct VideoTopComponent {
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
-      .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
+      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
       .attributeModifier(new ButtonFancyModifier(35, 40))
       .backgroundColor('#50000000')
       .onClick(async () => {

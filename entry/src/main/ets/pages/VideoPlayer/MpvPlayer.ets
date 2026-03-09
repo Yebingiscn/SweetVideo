@@ -462,8 +462,10 @@ export struct MpvPlayer {
             .fontSize(27)
             .fontColor(['#f0f0f0'])
             .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.mpv.playing))
+            .opacity(0.8)
         }
         .attributeModifier(new ButtonFancyModifier(40, 40))
+        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
         .backgroundColor('#50000000')
         .onClick(() => {
           ToolsUtil.startVibration()
@@ -476,8 +478,10 @@ export struct MpvPlayer {
           SymbolGlyph($r('sys.symbol.screen_rotation'))
             .fontSize(23)
             .fontColor(['#f0f0f0'])
+            .opacity(0.8)
         }
         .attributeModifier(new ButtonFancyModifier(40, 40))
+        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
         .backgroundColor('#50000000')
         .onClick(async () => {
           VideoOperateUtil.fullScreenOrRotateScreen(this.mpv.screenWidth, this.mpv.screenHeight, this.mpv.windowClass)
@@ -500,11 +504,11 @@ export struct MpvPlayer {
           Text(`${this.mpv.speed}x`)
             .fontSize(18)
             .fontColor($r('sys.color.white'))
-            .minFontSize(8)
-            .maxFontSize(18)
+            .opacity(0.8)
             .maxLines(1)
             .padding(5)
         }
+        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .bindMenu(this.PlaybackSpeedMenuBuilder,

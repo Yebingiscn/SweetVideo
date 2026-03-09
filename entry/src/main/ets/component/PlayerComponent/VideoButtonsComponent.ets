@@ -37,9 +37,11 @@ export struct VideoButtonsComponent {
           SymbolGlyph(this.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill'))
             .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
             .fontColor(['#f0f0f0'])
+            .opacity(0.8)
         }
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
+        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
         .onClick(() => {
           ToolsUtil.startVibration()
           this.onTogglePlaybackClick()
@@ -52,9 +54,11 @@ export struct VideoButtonsComponent {
           SymbolGlyph($r('sys.symbol.forward_end_fill'))
             .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
             .fontColor(['#f0f0f0'])
+            .opacity(0.8)
         }
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
+        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
         .onClick(() => {
           this.onPlayNextVideoClick()
         })
@@ -76,9 +80,11 @@ export struct VideoButtonsComponent {
           SymbolGlyph($r('sys.symbol.gearshape'))
             .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
             .fontColor(['#f0f0f0'])
+            .opacity(0.8)
         }
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
+        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
         .bindMenu(this.videoSettingBuilder,
           { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
       }.span({ xs: 2, sm: 2, md: 2 })
@@ -88,9 +94,11 @@ export struct VideoButtonsComponent {
           SymbolGlyph(this.getRepeatModeIcon())
             .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
             .fontColor(['#f0f0f0'])
+            .opacity(0.8)
         }
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
+        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
         .onClick(() => {
           // LIST -> SINGLE -> RANDOM -> SEQUENCE -> 回到LIST
           const repeatMode = VideoOperateUtil.getRepeatMode(this.repeatMode)
@@ -105,9 +113,11 @@ export struct VideoButtonsComponent {
           SymbolGlyph($r('sys.symbol.music_note_list'))
             .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
             .fontColor(['#f0f0f0'])
+            .opacity(0.8)
         }
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
+        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
         .onClick(() => {
           if (this.sideBarStatus) {
             this.onSideBaClose()
@@ -123,13 +133,13 @@ export struct VideoButtonsComponent {
           Text(`${this.speed}x`)
             .fontSize(18)
             .fontColor($r('sys.color.white'))
-            .minFontSize(8)
-            .maxFontSize(18)
             .maxLines(1)
             .padding(5)
+            .opacity(0.8)
         }
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
+        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
         .bindMenu(this.playbackSpeedMenu,
           { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
       }.span({ xs: 2, sm: 2, md: 2 })
@@ -139,8 +149,10 @@ export struct VideoButtonsComponent {
           SymbolGlyph($r('sys.symbol.fullscreen'))
             .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
             .fontColor(['#f0f0f0'])
+            .opacity(0.8)
         }
         .attributeModifier(new ButtonFancyModifier(40, 40))
+        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
         .backgroundColor('#50000000')
         .onClick(async () => {
           await this.onScreenRotationOrFullScreenClick()
