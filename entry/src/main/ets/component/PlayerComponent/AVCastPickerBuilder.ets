@@ -6,7 +6,9 @@ export function AVCastPickerBuilder(): void {
     SymbolGlyph($r('sys.symbol.dot_radiowaves_left_and_right'))
       .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
       .fontColor(['#f0f0f0'])
+      .opacity(0.8)
   }
   .attributeModifier(new ButtonFancyModifier(40, 40))
   .backgroundColor('#50000000')
+  .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
 }
