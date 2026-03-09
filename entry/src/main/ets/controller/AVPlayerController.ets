@@ -51,6 +51,9 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Track pixelMap: PixelMap | null = null
   @Track repeatMode: RepeatMode = RepeatMode.LIST
   @Track selectedText: string | undefined = '原始比例'
+  @Track onSwiping: boolean = false
+  @Track onSwipingBrightness: boolean = false
+  @Track isSliderPlayTimeChange: boolean = false
 
   async create() {
     try {
@@ -353,17 +356,13 @@ export class AVPlayerController implements PlayerControllerInterface {
       ToolsUtil.addLogger("添加到最近播放记录完成", false)
     }
     this.avPlayer?.off('subtitleUpdate')
-    console.error('test')
     this.reset()
-    console.error('test' + this.avPlayer?.state)
     this.nowPlaying = item as VideoMetadata
     ToolsUtil.addLogger("设置当前播放视频完成", false)
     this.getData(pathStack, windowClass)
     ToolsUtil.addLogger("获取播放数据完成", false)
     await this.initAVSession()
-    console.error('test2')
     ToolsUtil.addLogger("播放选择视频流程完成", false)
-    console.error('test' + this.avPlayer?.state)
   }
 
   async getData(pathStack: NavPathStack, windowClass: Promise<window.Window | undefined>) {

@@ -19,6 +19,8 @@ declare module 'libmpvnative.so' {
 
   export const destroy: (mpvHandle: number) => void;
 
+  export const reset: (mpvHandle: number) => void;
+
   export const command: (mpvHandle: number, args: Array<string>) => any;
 
   export const isInitialized: () => boolean;

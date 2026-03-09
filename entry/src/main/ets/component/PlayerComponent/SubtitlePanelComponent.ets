@@ -1,5 +1,6 @@
 import { deviceInfo } from '@kit.BasicServicesKit'
 import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode'
+import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import { MpvSubtitleTrack } from '../../controller/MpvController/MpvTypes'
 import { InnerSubtitleDataSource } from '../../utils/DataUtil'
@@ -15,7 +16,7 @@ export struct SubtitlePanelComponent {
   @Prop innerSubtitleData: MpvSubtitleTrack[] | []
   @State threeDSubtitleValue: string[] = ["不使用", "左/右", "上/下"]
   @State innerSubtitleMenu: InnerSubtitleDataSource = new InnerSubtitleDataSource([])
-  @ObjectLink mpv: MpvController
+  @Consume('player') player: AVPlayerController | MpvController
 
   aboutToAppear(): void {
     if (this.innerSubtitleData.length > 0) {
@@ -133,7 +134,9 @@ export struct SubtitlePanelComponent {
           VideoOperateUtil.getLanguageName(item.lang)
         })
           .onClick(() => {
-            this.mpv?.selectSubtitleTrack(item.id)
+            if (this.player instanceof MpvController) {
+              this.player?.selectSubtitleTrack(item.id)
+            }
           })
       }, (item: MpvSubtitleTrack) => item.title)
     }

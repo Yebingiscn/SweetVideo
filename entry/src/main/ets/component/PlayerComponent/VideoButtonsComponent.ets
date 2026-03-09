@@ -5,6 +5,7 @@ import { RepeatMode } from '../../common/enum/RepeatMode'
 import AVSessionUtil from '../../utils/AVSessionUtil'
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
+import { MpvController } from '../../controller/MpvController/MpvController'
 
 @Component
 export struct VideoButtonsComponent {
@@ -18,7 +19,7 @@ export struct VideoButtonsComponent {
   @BuilderParam AVCastPickerBuilderBridge: () => void
   @BuilderParam videoSettingBuilder: () => void
   @BuilderParam playbackSpeedMenu: () => void
-  @Consume('player') player: AVPlayerController
+  @Consume('player') player: AVPlayerController | MpvController
   onScreenRotationOrFullScreenClick = async () => {
   }
   onTogglePlaybackClick = () => {

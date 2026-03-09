@@ -35,7 +35,6 @@ import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/Swi
 import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent'
 import { Privacy, Setting } from '../../utils/ObservedUtil'
 import { PlayerControllerFactory } from '../../controller/PlayerControllerFactory'
-import { MpvController } from '../../controller/MpvController/MpvController'
 import { XComponents } from '../../component/PlayerComponent/XComponents'
 import { VideoLayoutComponent } from '../../component/PlayerComponent/VideoLayoutComponent'
 import {
@@ -59,21 +58,17 @@ import {
 @Component
 export struct Player { // 播放页
   @Provide('player') player: AVPlayerController = PlayerControllerFactory.createAVPlayerController()
-  @Provide('MpvPlayer') mpv: MpvController = PlayerControllerFactory.createMpvController()
   @State longPress: boolean = false
   @State @Watch('setScreen') showControl: boolean = false
   @State lockRotation: boolean = false
   xComponentController: XComponentController = new XComponentController()
   windowClass = WindowUtil.getWindow()
-  @State onSwiping: boolean = false
-  @State onSwipingBrightness: boolean = false
   @State audioTrackSelect: number = 0
   @State sideBarStatusTmp: Visibility = Visibility.Hidden
   @State sideBarStatus: boolean = false
   @State isLock: boolean = false
   @State lockVisibility: boolean = false
   @State isAIAsrShown: boolean = false
-  @State isSliderPlayTimeChange: boolean = false
   @State currentSpeedIndex: number = 0
   @State subtitleVisibility: Visibility = Visibility.Visible
   @State subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
@@ -125,7 +120,7 @@ export struct Player { // 播放页
 
   setAVPlayerCallback() {
     this.player.avPlayer?.on('timeUpdate', (duration) => {
-      if (!this.onSwiping) {
+      if (!this.player.onSwiping) {
         this.player.playTime = duration
       }
       AppStorage.setOrCreate('nowPlayingData',
@@ -212,8 +207,8 @@ export struct Player { // 播放页
           ToolsUtil.addLogger("更新播放速度完成", false, this.pathStack)
           this.showControl = false
           this.lockVisibility = false
-          this.isSliderPlayTimeChange = false
-          this.onSwiping = false
+          this.player.isSliderPlayTimeChange = false
+          this.player.onSwiping = false
           ToolsUtil.addLogger("界面控制状态重置完成", false, this.pathStack)
           break
         case 'completed':
@@ -370,9 +365,9 @@ export struct Player { // 播放页
               location: this.player.playAreaHeight,
             })
           }
-          if (this.onSwiping) {
+          if (this.player.onSwiping) {
             SwipingPlayTimePanelBuilder({
-              isSliderPlayTimeChange: this.isSliderPlayTimeChange,
+              isSliderPlayTimeChange: this.player.isSliderPlayTimeChange,
               playTime: this.player.playTime,
               totalTime: this.player.nowPlaying!.time,
               pixelMap: this.player.pixelMap,
@@ -386,7 +381,7 @@ export struct Player { // 播放页
             onSwipingVoice: this.player.onSwipingVoice
           })
 
-          if (this.onSwipingBrightness) {
+          if (this.player.onSwipingBrightness) {
             BrightnessSwipingBuilder({ screenBrightness: this.player.screenBrightness })
           }
           if (this.lockVisibility) {
@@ -426,7 +421,7 @@ export struct Player { // 播放页
             onVerticalPanUpdate: (offsetY: number) => {
               const deltaYScale = offsetY / this.player.screenHeight * VERTICAL_PAN_SENSITIVITY
               if (VideoOperateUtil.leftSideSwipe) {
-                this.onSwipingBrightness = true
+                this.player.onSwipingBrightness = true
                 this.player.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
                 VideoOperateUtil.setBrightness(this.player.screenBrightness)
               } else {
@@ -437,13 +432,13 @@ export struct Player { // 播放页
               }
             },
             onVerticalPanEnd: () => {
-              this.onSwiping = false
+              this.player.onSwiping = false
               this.player.onSwipingVoice = false
-              this.onSwipingBrightness = false
+              this.player.onSwipingBrightness = false
             },
             onHorizonPanStart: () => {
               VideoOperateUtil.lastPlayTime = this.player.playTime
-              this.onSwiping = true
+              this.player.onSwiping = true
               this.player.pixelMap = null
               this.player.getFrameByTime(this.player.playTime, true)
             },
@@ -455,7 +450,7 @@ export struct Player { // 播放页
             },
             onHorizonPanEnd: () => {
               this.player.seekTime(this.player.playTime)
-              this.onSwiping = false
+              this.player.onSwiping = false
             },
             onPinchStart: (fingerDistance: number) => {
               VideoOperateUtil.initPinchDistance = fingerDistance
@@ -560,15 +555,12 @@ export struct Player { // 播放页
         this.lockVisibility = false
         return true
       } else {
-        this.player.release()
-        ToolsUtil.addLogger("播放器资源已释放", false, this.pathStack)
-        VideoOperateUtil.saveLastPlayVideoIndex(this.player.videoMetaDataList, this.player.nowPlaying?.date)
-        ToolsUtil.addLogger("更新最后播放视频索引完成", false, this.pathStack)
         return false
       }
     })
     .onWillDisappear(async () => {
       ToolsUtil.addLogger("开始执行onWillDisappear生命周期", false, this.pathStack)
+      VideoOperateUtil.saveLastPlayVideoIndex(this.player.videoMetaDataList, this.player.nowPlaying?.date)
       if (this.player.videoMetaDataList.length > 0 && this.player.playTime > 0) {
         VideoOperateUtil.saveVideoTime(this.player.playTime, this.player.nowPlaying!, this.player.videoMetaDataList,
           PathUtils.appContext!)
@@ -585,6 +577,7 @@ export struct Player { // 播放页
         await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
         await this.player.avSession?.stopCasting()
         await VideoOperateUtil.releaseAVImageGenerator()
+        this.player.release()
       } catch (error) {
         ToolsUtil.addLogger(`onWillDisappear中发生错误：${error}`, true, this.pathStack)
       }
@@ -601,8 +594,6 @@ export struct Player { // 播放页
       ToolsUtil.showToast(timeOut > 0 ? '到设定的时间了，已自动退出' : '已退出')
       this.player.reset()
       ToolsUtil.addLogger("重置播放器完成", false, this.pathStack)
-      VideoOperateUtil.saveLastPlayVideoIndex(this.player.videoMetaDataList, this.player.nowPlaying?.date)
-      ToolsUtil.addLogger("更新最后播放视频索引完成", false, this.pathStack)
       this.pathStack.pop()
     }, timeOut)
     ToolsUtil.addLogger(`退出视频定时器设置完成，超时时间：${timeOut}`, false, this.pathStack)
@@ -692,15 +683,15 @@ export struct Player { // 播放页
       screenHeight: this.player.screenHeight,
       playSpeed: this.player.speed,
       onSliderChange: (value: number) => {
-        this.onSwiping = true
-        this.isSliderPlayTimeChange = true
+        this.player.onSwiping = true
+        this.player.isSliderPlayTimeChange = true
         this.player.playTime = value
       },
       onSliderTouch: (event: TouchEvent) => {
         if (event.type == TouchType.Up) {
           this.player.seekTime(this.player.playTime)
-          this.isSliderPlayTimeChange = false
-          this.onSwiping = false
+          this.player.isSliderPlayTimeChange = false
+          this.player.onSwiping = false
         }
       }
     })
@@ -831,7 +822,6 @@ export struct Player { // 播放页
       subtitle3DMode: this.subtitle3DMode,
       subtitleSelected: this.player.subtitleSelected,
       innerSubtitleData: [],
-      mpv: this.mpv
     })
   }
 

@@ -18,6 +18,9 @@ import AVSessionUtil from '../../utils/AVSessionUtil';
 import { LEFT_ZONE_DIVISION, RIGHT_ZONE_DIVISION, SCREEN_DIVISIONS } from '../../common/Constants';
 import { fileUri } from '@kit.CoreFileKit';
 import { salmonLogger } from 'salmonlogger';
+import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil';
+import RecentPlayUtil from '../../utils/RecentPlayUtil';
+import SelectFileUtil from '../../utils/SelectFileUtil';
 
 const TAG = 'MpvController'
 
@@ -46,8 +49,74 @@ export class MpvController implements PlayerControllerInterface {
   @Track angle: number = 0
   @Track repeatMode: RepeatMode = RepeatMode.LIST
   @Track selectedText: string | undefined = '原始比例'
+  @Track onSwiping: boolean = false
+  @Track onSwipingBrightness: boolean = false
+  @Track isSliderPlayTimeChange: boolean = false
   avSession: avSessionManager.AVSession | undefined = undefined
   audioVolumeManager: audio.AudioVolumeManager | null = null
+
+  async playChooseVideo(item: VideoMetadata) {
+    ToolsUtil.addLogger("开始播放选择的视频", false)
+    VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying!, this.videoMetaDataList, PathUtils.appContext!)
+    if (!PrivacySpaceUtil.getPrivacyMode()) {
+      RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
+      ToolsUtil.addLogger("添加到最近播放记录完成", false)
+    }
+    this.reset()
+    this.onSwiping = false
+    this.isSliderPlayTimeChange = false
+    this.nowPlaying = item as VideoMetadata
+    ToolsUtil.addLogger("设置当前播放视频完成", false)
+    this.init(item.uri)
+    ToolsUtil.addLogger("获取播放数据完成", false)
+    await this.initAVSession()
+    ToolsUtil.addLogger("播放选择视频流程完成", false)
+  }
+
+  async playNextVideoProcess(pathStack: NavPathStack) {
+    ToolsUtil.addLogger("开始播放下一个视频流程", false, pathStack)
+    const nextItem = this.playNextVideo(this.repeatMode)
+    ToolsUtil.addLogger("获取下一个视频项完成", false, pathStack)
+    if (nextItem) {
+      ToolsUtil.addLogger("存在下一个视频，开始播放", false, pathStack)
+      this.playChooseVideo(nextItem)
+    } else {
+      ToolsUtil.addLogger("无下一个视频，播放结束", false, pathStack)
+      ToolsUtil.showToast('播放完毕，已自动退出')
+      pathStack.pop()
+    }
+    ToolsUtil.addLogger("播放下一个视频前置流程完成", false, pathStack)
+  }
+
+  playNextVideo(repeatMode: RepeatMode): VideoMetadata | undefined {
+    if (this.videoMetaDataList.length === 0 || this.playTime <= 0) {
+      return undefined
+    }
+    let item = SelectFileUtil.getItem(this.videoMetaDataList, this.nowPlaying?.date || '') as VideoMetadata
+    if (!item) {
+      item = this.videoMetaDataList[0]
+    }
+    switch (repeatMode) {
+      case RepeatMode.RANDOM:
+        const availableVideos = this.videoMetaDataList.filter(v => v.date !== item.date)
+        return availableVideos.length > 0
+          ? availableVideos[Math.floor(Math.random() * availableVideos.length)]
+          : item
+      case RepeatMode.ONCE:
+        return undefined
+      case RepeatMode.SEQUENCE:
+        if (SelectFileUtil.isLastItem(this.videoMetaDataList, item.date)) {
+          return undefined
+        }
+        return SelectFileUtil.getNextItem(this.videoMetaDataList, item.date)
+      case RepeatMode.SINGLE:
+        return this.videoMetaDataList.find(v => v.date === this.nowPlaying?.date)!
+      case RepeatMode.LIST:
+        return SelectFileUtil.getNextItem(this.videoMetaDataList, item.date)
+      default:
+        return undefined
+    }
+  }
 
   create(): void {
     if (this.mpvHandle) {
@@ -136,7 +205,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   reset(): void {
-    throw new Error("Method not implemented.");
+    mpv.reset(this.mpvHandle)
   }
 
   release(): void {
@@ -177,9 +246,9 @@ export class MpvController implements PlayerControllerInterface {
     if (totalTime === 0) {
       return this.nowPlaying!.time
     }
-    if (this.nowPlaying?.time === 0) {
-      this.nowPlaying.time = totalTime
-      VideoOperateUtil.saveVideoTotalTime(PathUtils.appContext!, this.nowPlaying)
+    if (this.nowPlaying?.time === 0 || this.nowPlaying?.time !== totalTime) {
+      this.nowPlaying!.time = totalTime
+      VideoOperateUtil.saveVideoTotalTime(PathUtils.appContext!, this.nowPlaying!)
     }
     return totalTime
   }
