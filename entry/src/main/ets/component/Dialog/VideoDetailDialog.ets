@@ -35,6 +35,10 @@ export struct VideoDetailDialog {
         }.width('100%')
 
         ListItem() {
+          this.buildDetailItem('视频时长：', String(TimeUtil.convertMSToHHMMSS(this.metadata?.time)))
+        }.width('100%')
+
+        ListItem() {
           this.buildDetailItem('视频大小：', String(this.metadata?.video_size))
         }.width('100%')
 
