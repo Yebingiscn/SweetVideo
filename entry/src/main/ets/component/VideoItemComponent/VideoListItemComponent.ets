@@ -23,14 +23,14 @@ export default struct VideoListItem {
   build() {
     Row() {
       Image(fileUri.getUriFromPath(PathUtils.coverPath + this.item.date))
-        .attributeModifier(new ImageFancyModifier(16, Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 65 : 100,
-          Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 100 : 65))
+        .attributeModifier(new ImageFancyModifier(16, Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 75 : 100,
+          Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 100 : 75))
       Column() {
         Row() {
           Text(VideoInfoUtil.getVideoTitle(this.item))
             .fontSize(16)
             .fontWeight(FontWeight.Bold)
-            .maxLines(3)
+            .maxLines(2)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .layoutWeight(1)
             .wordBreak(WordBreak.BREAK_ALL)
