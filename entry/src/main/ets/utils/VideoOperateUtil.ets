@@ -76,45 +76,43 @@ export default class VideoOperateUtil {
     let volume_list: Map<string, number> = new Map()
     return new Promise((resolve, reject) => {
       audioVolumeManager.getVolumeGroupManager(groupId,
-        (err: BusinessError, audioVolumeGroupManager: audio.AudioVolumeGroupManager) => {
+        (err: BusinessError) => {
           if (err) {
             hilog.error(0x0000, 'AVPlayer', `Failed to obtain the volume group info list. ${err}`)
             return reject(err)
           }
           const volumePromises: Promise<void>[] = []
           volumePromises.push(new Promise((resolveVolume, rejectVolume) => {
-            audioVolumeGroupManager.getVolume(audio.AudioVolumeType.MEDIA, (err: BusinessError, volume: number) => {
-              if (err) {
-                hilog.error(0x0000, 'AVPlayer', `Failed to obtain the volume. ${err}`)
-                return rejectVolume(err)
-              }
+            try {
+              let volume: number =
+                audio.getAudioManager().getVolumeManager().getVolumeByStream(audio.StreamUsage.STREAM_USAGE_MUSIC)
               volume_list.set('volume', volume)
               resolveVolume()
-            })
+            } catch (error) {
+              return rejectVolume(err)
+            }
           }))
           volumePromises.push(new Promise((resolveMax, rejectMax) => {
-            audioVolumeGroupManager.getMaxVolume(audio.AudioVolumeType.MEDIA,
-              (err: BusinessError, maxVolume: number) => {
-                if (err) {
-                  hilog.error(0x0000, 'AVPlayer', `Failed to obtain the maximum volume. ${err}`)
-                  return rejectMax(err)
-                }
-                volume_list.set('max_volume', maxVolume)
-                VideoOperateUtil.maxVolume = maxVolume
-                resolveMax()
-              })
+            try {
+              let maxVolume: number =
+                audio.getAudioManager().getVolumeManager().getMaxVolumeByStream(audio.StreamUsage.STREAM_USAGE_MUSIC)
+              volume_list.set('max_volume', maxVolume)
+              VideoOperateUtil.maxVolume = maxVolume
+              resolveMax()
+            } catch (error) {
+              return rejectMax(err)
+            }
           }))
           volumePromises.push(new Promise((resolveMin, rejectMin) => {
-            audioVolumeGroupManager.getMinVolume(audio.AudioVolumeType.MEDIA,
-              (err: BusinessError, minVolume: number) => {
-                if (err) {
-                  hilog.error(0x0000, 'AVPlayer', `Failed to obtain the minimum volume. ${err}`)
-                  return rejectMin(err)
-                }
-                volume_list.set('min_volume', minVolume)
-                VideoOperateUtil.minVolume = minVolume
-                resolveMin()
-              })
+            try {
+              let minVolume: number =
+                audio.getAudioManager().getVolumeManager().getMinVolumeByStream(audio.StreamUsage.STREAM_USAGE_MUSIC)
+              volume_list.set('min_volume', minVolume)
+              VideoOperateUtil.minVolume = minVolume
+              resolveMin()
+            } catch (error) {
+              return rejectMin(err)
+            }
           }))
           Promise.all(volumePromises)
             .then(() => resolve(volume_list))// 所有音量均成功获取，返回 volume_list
