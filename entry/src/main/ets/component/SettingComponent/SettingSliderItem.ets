@@ -1,6 +1,5 @@
 import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import TimeUtil from '../../utils/TimeUtil'
-import ToolsUtil from '../../utils/ToolsUtil'
 
 @Component
 export struct SettingSliderItem {
@@ -9,7 +8,6 @@ export struct SettingSliderItem {
   @Prop selected: number = 0
   @State textSliderMode: boolean = false
   onChangeComplete = (_value: number) => {
-
   }
 
   build() {
@@ -32,23 +30,25 @@ export struct SettingSliderItem {
         }
       }
       .width('100%')
-      .justifyContent(FlexAlign.Start) // 文字区域两端对齐
+      .justifyContent(FlexAlign.Start)
 
       Slider({
         value: this.selected,
         min: 0,
         max: 300,
         style: SliderStyle.InSet
-      }).onChange((value) => {
-        this.selected = value
-        ToolsUtil.startVibration()
       })
+        .onChange((value) => {
+          this.selected = value
+        })
         .onTouch((event) => {
           if (event.type == TouchType.Up) {
             this.onChangeComplete(this.selected)
           }
         })
-        .selectedColor($r('app.color.main_color')).width('100%') // 进度条单独占满宽度
+        .selectedColor($r('app.color.main_color'))
+        .width('100%')
+        .enableHapticFeedback(true)
     }
     .align(Alignment.Center)
     .backgroundColor($r('app.color.start_window_background_blur'))

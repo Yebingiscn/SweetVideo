@@ -38,6 +38,12 @@ export interface PlayerControllerInterface {
   setRotation(): void
 
   onScreenDoubleClick(tapX: number): void
+
+  getSubtitleTrackList(): void
+
+  selectSubtitleTrack(trackId: number): void
+
+  initVolumeAndBrightness(): void
 }
 
 // 真正的工厂 controller

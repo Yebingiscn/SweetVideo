@@ -15,7 +15,7 @@ export struct LockVideoBarComponent {
         .fontColor(['#f0f0f0'])
         .opacity(0.8)
     }
-    .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
+    .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
     .zIndex(100)
     .attributeModifier(new ButtonFancyModifier(40, 40))
     .backgroundColor('#50000000')

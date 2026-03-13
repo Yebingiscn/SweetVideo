@@ -1,22 +1,20 @@
 import { SymbolGlyphModifier } from '@kit.ArkUI'
-import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { PathUtils } from '../../utils/PathUtils'
 import TimeUtil from '../../utils/TimeUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
-import { deviceInfo } from '@kit.BasicServicesKit'
+import { AVPlayerController } from '../../controller/AVPlayerController'
+import { MpvController } from '../../controller/MpvController/MpvController'
 
 @Component
 export struct VideoSettingComponent {
-  @Prop playTime: number
-  @Prop nowPlaying: VideoMetadata
-  @Prop videoMetaData: VideoMetadata[]
   @Link exitVideoTime: number
   @Link abCircleStatus: boolean
   @State startTime: string = '00:00'
   @State endTime: string = '00:00'
   @State pointA: string = '00:00'
   @State pointB: string = '00:00'
+  @Consume('player') player: AVPlayerController | MpvController
   forward_80_s = (_time: number) => {
   }
   closeAfter15min = (_time: number) => {
@@ -43,10 +41,10 @@ export struct VideoSettingComponent {
   }
 
   aboutToAppear(): void {
-    this.startTime = TimeUtil.convertMSToHHMMSS(this.nowPlaying.start_time)
-    this.endTime = TimeUtil.convertMSToHHMMSS(this.nowPlaying.end_time)
-    this.pointA = TimeUtil.convertMSToHHMMSS(this.nowPlaying.pointA)
-    this.pointB = TimeUtil.convertMSToHHMMSS(this.nowPlaying.pointB)
+    this.startTime = TimeUtil.convertMSToHHMMSS(this.player.nowPlaying?.start_time)
+    this.endTime = TimeUtil.convertMSToHHMMSS(this.player.nowPlaying?.end_time)
+    this.pointA = TimeUtil.convertMSToHHMMSS(this.player.nowPlaying?.pointA)
+    this.pointB = TimeUtil.convertMSToHHMMSS(this.player.nowPlaying?.pointB)
   }
 
   build() {
@@ -67,12 +65,31 @@ export struct VideoSettingComponent {
         builder: (): void => this.ABMenuExtend()
       })
       MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.fast_forward')),
+        content: '前进 80s'
+      }).onClick(() => {
+        this.forward_80_s(this.player.playTime + 80 * 1000)
+      })
+      MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.camera')),
         content: '截图并保存'
       }).onClick(() => {
         this.captureScreen()
       })
-      if (deviceInfo.sdkApiVersion >= 20) {
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trapezoid_and_line_vertical')),
+        content: '屏幕镜像'
+      }).onClick(() => {
+        this.onScreenMirror()
+      })
+      if (this.player instanceof AVPlayerController) {
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
+          content: '响度调节',
+          builder: (): void => this.VolumeLoudnessGainBuilder()
+        })
+      }
+      if (this.player instanceof AVPlayerController) {
         MenuItem({
           symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.headphones')),
           content: '听视频'
@@ -80,18 +97,16 @@ export struct VideoSettingComponent {
           this.toggleListenVideo()
         })
       }
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trapezoid_and_line_vertical')),
-        content: '屏幕镜像'
-      }).onClick(() => {
-        this.onScreenMirror()
-      })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.fast_forward')),
-        content: '前进 80s'
-      }).onClick(() => {
-        this.forward_80_s(this.playTime + 80 * 1000)
-      })
+      if (this.player instanceof AVPlayerController) {
+        MenuItem({
+          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
+          content: this.player.superResolution ? '关闭视频超分辨率' : '开启视频超分辨率',
+        }).onClick(() => {
+          if (this.player instanceof AVPlayerController) {
+            this.player.setSuperResolution(!this.player.superResolution)
+          }
+        })
+      }
     }
   }
 
@@ -147,31 +162,33 @@ export struct VideoSettingComponent {
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
         content: '设置片头时间：' + this.startTime,
       }).onClick(() => {
-        this.startTime = TimeUtil.convertMSToHHMMSS(this.playTime)
-        VideoOperateUtil.saveVideoStartTime(this.playTime, this.nowPlaying, PathUtils.appContext!)
-        ToolsUtil.showToast(this.nowPlaying.title + '成功设置片头时间为:' + TimeUtil.convertMSToHHMMSS(this.playTime))
-        this.updateStarTime(this.playTime)
+        this.startTime = TimeUtil.convertMSToHHMMSS(this.player.playTime)
+        VideoOperateUtil.saveVideoStartTime(this.player.playTime, this.player.nowPlaying!, PathUtils.appContext!)
+        ToolsUtil.showToast(this.player.nowPlaying?.title + '成功设置片头时间为:' +
+        TimeUtil.convertMSToHHMMSS(this.player.playTime))
+        this.updateStarTime(this.player.playTime)
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
         content: '设置片尾时间：' + this.endTime,
       }).onClick(() => {
-        this.endTime = TimeUtil.convertMSToHHMMSS(this.playTime)
-        VideoOperateUtil.saveVideoEndTime(this.playTime, this.nowPlaying, PathUtils.appContext!)
-        ToolsUtil.showToast(this.nowPlaying.title + '成功设置片尾时间为:' + TimeUtil.convertMSToHHMMSS(this.playTime))
-        this.updateEndTime(this.playTime)
+        this.endTime = TimeUtil.convertMSToHHMMSS(this.player.playTime)
+        VideoOperateUtil.saveVideoEndTime(this.player.playTime, this.player.nowPlaying!, PathUtils.appContext!)
+        ToolsUtil.showToast(this.player?.nowPlaying?.title + '成功设置片尾时间为:' +
+        TimeUtil.convertMSToHHMMSS(this.player.playTime))
+        this.updateEndTime(this.player.playTime)
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
         content: '取消片头片尾时间'
       }).onClick(() => {
         this.startTime = TimeUtil.convertMSToHHMMSS(0)
-        VideoOperateUtil.saveVideoStartTime(0, this.nowPlaying, PathUtils.appContext!)
-        this.endTime = TimeUtil.convertMSToHHMMSS(this.nowPlaying.time)
-        VideoOperateUtil.saveVideoEndTime(this.nowPlaying.time, this.nowPlaying, PathUtils.appContext!)
+        VideoOperateUtil.saveVideoStartTime(0, this.player.nowPlaying!, PathUtils.appContext!)
+        this.endTime = TimeUtil.convertMSToHHMMSS(this.player.nowPlaying?.time)
+        VideoOperateUtil.saveVideoEndTime(this.player!.nowPlaying!.time, this.player.nowPlaying!, PathUtils.appContext!)
         ToolsUtil.showToast('取消片头片尾时间成功')
         this.updateStarTime(0)
-        this.updateEndTime(this.nowPlaying.time)
+        this.updateEndTime(this.player.nowPlaying!.time)
       })
     }
   }
@@ -189,32 +206,79 @@ export struct VideoSettingComponent {
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
         content: '设置A点时间：' + this.pointA,
       }).onClick(() => {
-        this.pointA = TimeUtil.convertMSToHHMMSS(this.playTime)
-        VideoOperateUtil.saveVideoPointA(PathUtils.appContext!, this.nowPlaying, this.playTime)
-        ToolsUtil.showToast(this.nowPlaying.title + '成功设置A点时间为:' + TimeUtil.convertMSToHHMMSS(this.playTime))
-        this.updatePointATime(this.playTime)
+        this.pointA = TimeUtil.convertMSToHHMMSS(this.player.playTime)
+        VideoOperateUtil.saveVideoPointA(PathUtils.appContext!, this.player.nowPlaying!, this.player.playTime)
+        ToolsUtil.showToast(this.player.nowPlaying?.title + '成功设置A点时间为:' +
+        TimeUtil.convertMSToHHMMSS(this.player.playTime))
+        this.updatePointATime(this.player.playTime)
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
         content: '设置B点时间：' + this.pointB,
       }).onClick(() => {
-        this.pointB = TimeUtil.convertMSToHHMMSS(this.playTime)
-        VideoOperateUtil.saveVideoPointB(PathUtils.appContext!, this.nowPlaying, this.playTime)
-        ToolsUtil.showToast(this.nowPlaying.title + '成功设置B点时间为:' + TimeUtil.convertMSToHHMMSS(this.playTime))
-        this.updatePointBTime(this.playTime)
+        this.pointB = TimeUtil.convertMSToHHMMSS(this.player.playTime)
+        VideoOperateUtil.saveVideoPointB(PathUtils.appContext!, this.player.nowPlaying!, this.player.playTime)
+        ToolsUtil.showToast(this.player?.nowPlaying?.title + '成功设置B点时间为:' +
+        TimeUtil.convertMSToHHMMSS(this.player.playTime))
+        this.updatePointBTime(this.player.playTime)
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
         content: '取消AB点时间'
       }).onClick(() => {
         this.pointA = TimeUtil.convertMSToHHMMSS(0)
-        VideoOperateUtil.saveVideoPointA(PathUtils.appContext!, this.nowPlaying, 0)
-        this.pointB = TimeUtil.convertMSToHHMMSS(this.nowPlaying.time)
-        VideoOperateUtil.saveVideoPointB(PathUtils.appContext!, this.nowPlaying, this.nowPlaying.time)
+        VideoOperateUtil.saveVideoPointA(PathUtils.appContext!, this.player.nowPlaying!, 0)
+        this.pointB = TimeUtil.convertMSToHHMMSS(this.player.nowPlaying!.time)
+        VideoOperateUtil.saveVideoPointB(PathUtils.appContext!, this.player.nowPlaying!, this.player.nowPlaying!.time)
         ToolsUtil.showToast('取消AB点时间成功')
         this.updatePointATime(0)
-        this.updatePointBTime(this.nowPlaying.time)
+        this.updatePointBTime(this.player.nowPlaying!.time)
       })
+    }
+  }
+
+  @Builder
+  VolumeLoudnessGainBuilder() {
+    if (this.player instanceof AVPlayerController) {
+      Column() {
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph($r('sys.symbol.undo'))
+            .fontSize(20)
+            .fontColor([$r('app.color.text_color')])
+        }
+        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+        .height(40)
+        .width(80)
+        .backgroundColor($r('app.color.start_window_background_blur'))
+        .backdropBlur(150)
+        .onClick(() => {
+          if (this.player instanceof AVPlayerController) {
+            this.player.setLoudnessGain(0)
+          }
+        })
+
+        Slider({
+          value: this.player.volumeLoudnessGain,
+          min: -90,
+          max: 24,
+          step: 1,
+          style: SliderStyle.NONE,
+          direction: Axis.Vertical,
+          reverse: true
+        })
+          .onChange((value) => {
+            if (this.player instanceof AVPlayerController) {
+              this.player.setLoudnessGain(value)
+            }
+          })
+          .selectedColor($r('app.color.main_color'))
+          .enableHapticFeedback(true)
+          .width(40)
+          .height(160)
+          .trackThickness(40)
+          .selectedBorderRadius(16)
+          .padding({ top: 5 })
+      }.width(40).backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN).borderRadius(16)
     }
   }
 }

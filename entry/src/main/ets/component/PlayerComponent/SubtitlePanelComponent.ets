@@ -1,8 +1,8 @@
-import { deviceInfo } from '@kit.BasicServicesKit'
 import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode'
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import { MpvSubtitleTrack } from '../../controller/MpvController/MpvTypes'
+import { SubtitleTrack } from '../../interfaces/AudioTrackInterface'
 import { InnerSubtitleDataSource } from '../../utils/DataUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
@@ -13,7 +13,7 @@ export struct SubtitlePanelComponent {
   @Link isAIAsrShown: boolean
   @Link subtitle3DMode: Subtitle3DMode
   @Prop subtitleSelected: SubtitleMode
-  @Prop innerSubtitleData: MpvSubtitleTrack[] | []
+  @Prop innerSubtitleData: MpvSubtitleTrack[] | SubtitleTrack[]
   @State threeDSubtitleValue: string[] = ["不使用", "左/右", "上/下"]
   @State innerSubtitleMenu: InnerSubtitleDataSource = new InnerSubtitleDataSource([])
   @Consume('player') player: AVPlayerController | MpvController
@@ -54,7 +54,7 @@ export struct SubtitlePanelComponent {
         .borderRadius(16)
         .width('100%')
 
-      if (deviceInfo.sdkApiVersion >= 18 && canIUse('SystemCapability.AI.AICaption')) {
+      if (canIUse('SystemCapability.AI.AICaption')) {
         MenuItem({
           content: 'AI 字幕：' + (this.isAIAsrShown ? '显示' : '隐藏')
         })
@@ -128,7 +128,7 @@ export struct SubtitlePanelComponent {
   @Builder
   InnerSubtitleMenu() {
     Menu() {
-      LazyForEach(this.innerSubtitleMenu, (item: MpvSubtitleTrack) => {
+      LazyForEach(this.innerSubtitleMenu, (item: MpvSubtitleTrack | SubtitleTrack) => {
         MenuItem({
           content: item.id + " " + VideoOperateUtil.getLanguageName(item.title) + " " +
           VideoOperateUtil.getLanguageName(item.lang)
@@ -137,8 +137,11 @@ export struct SubtitlePanelComponent {
             if (this.player instanceof MpvController) {
               this.player?.selectSubtitleTrack(item.id)
             }
+            if (this.player instanceof AVPlayerController) {
+              this.player?.selectSubtitleTrack(item.id)
+            }
           })
-      }, (item: MpvSubtitleTrack) => item.title)
+      }, (item: MpvSubtitleTrack | SubtitleTrack) => item.title)
     }
   }
 }

@@ -9,7 +9,7 @@ import { FolderOperator, VideoMetaDataOperator } from '../database/VideoMetaData
 import RecentPlayUtil from './RecentPlayUtil'
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent'
 import VideoUtils from './VideoUtil'
-import { AudioTrack } from '../interfaces/AudioTrackInterface'
+import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
 import { DeleteType } from '../common/enum/DeleteType'
 import { fileManagerService } from '@kit.FileManagerServiceKit'
 import { BusinessError } from '@kit.BasicServicesKit'
@@ -94,7 +94,7 @@ export class PrivacySpaceErrorListDataSource extends BaseDataSource<String> {
 }
 
 @Observed
-export class InnerSubtitleDataSource extends BaseDataSource<MpvSubtitleTrack> {
+export class InnerSubtitleDataSource extends BaseDataSource<MpvSubtitleTrack | SubtitleTrack> {
 }
 
 // 具体实现类

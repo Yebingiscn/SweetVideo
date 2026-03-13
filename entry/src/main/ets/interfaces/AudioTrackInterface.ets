@@ -5,3 +5,14 @@ export interface AudioTrack {
   name: string
   mime: string
 }
+
+export interface SubtitleTrack {
+  /** 轨道 ID */
+  id: number;
+
+  /** 轨道标题 */
+  title: string;
+
+  /** 语言代码 (如 'en', 'zh', 'ja') */
+  lang: string;
+}

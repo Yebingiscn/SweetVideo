@@ -9,8 +9,6 @@ import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 
 @Component
 export struct PersonalizePage {
-  private backgroundColorDisplayMode: ResourceStr[] = ['自动', '浅色', '深色']
-
   build() {
     NavDestination() {
       List() {
@@ -18,7 +16,7 @@ export struct PersonalizePage {
           SettingsCheckboxItem({
             symbol: $r('sys.symbol.sun'),
             message: '显示模式',
-            tips: this.backgroundColorDisplayMode,
+            tips: ['自动', '浅色', '深色'],
             tabSelectedIndexes: [Setting.backgroundColorMode],
             onButtonClick: (tabSelectedIndexes: number) => {
               Setting.backgroundColorMode = tabSelectedIndexes

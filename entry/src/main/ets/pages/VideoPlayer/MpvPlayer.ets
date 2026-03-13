@@ -362,14 +362,10 @@ export struct MpvPlayer {
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
       WindowUtil.setBarState(PathUtils.appContext!, true, true)
       try {
+        await (await this.mpv.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
         await this.mpv.avSession?.stopCasting()
       } catch (error) {
-        console.error('stop cast fail')
-      }
-      try {
-        await (await this.mpv.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
-      } catch (error) {
-        console.error('setPreferredOrientation' + error)
+        ToolsUtil.addLogger(`onWillDisappear中发生错误：${error}`, true, this.pathStack)
       }
     })
     .onBackPressed(() => {
@@ -503,7 +499,6 @@ export struct MpvPlayer {
       },
       onTogglePlaybackClick: () => {
         this.mpv.togglePlayback()
-        ToolsUtil.addLogger("播放/暂停切换完成", false, this.pathStack)
       },
       onPlayNextVideoClick: () => {
         this.mpv.playNextVideoProcess(this.pathStack)
@@ -521,9 +516,6 @@ export struct MpvPlayer {
   @Builder
   VideoSettingBuilder() {
     VideoSettingComponent({
-      playTime: this.mpv.playTime,
-      nowPlaying: this.mpv.nowPlaying,
-      videoMetaData: this.mpv.videoMetaDataList,
       exitVideoTime: this.exitVideoTime,
       abCircleStatus: this.abCircleStatus,
       forward_80_s: (time: number) => {

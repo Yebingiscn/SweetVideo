@@ -3,7 +3,7 @@ import { avSession, avSession as avSessionManager } from '@kit.AVSessionKit'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import VideoInfoUtil from '../utils/VideoInfoUtil'
-import { AudioTrack } from '../interfaces/AudioTrackInterface'
+import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode'
 import ToolsUtil from '../utils/ToolsUtil'
 import { audio } from '@kit.AudioKit'
@@ -34,6 +34,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Track speed: number = 1.0
   @Track playTime: number = 0
   @Track audioTrack: AudioTrack[] = []
+  @Track subtitleTrack: SubtitleTrack[] = []
   @Track volume: number = 0
   @Track volumeActually: number = 0
   @Track screenBrightness: number = 0
@@ -54,6 +55,8 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Track onSwiping: boolean = false
   @Track onSwipingBrightness: boolean = false
   @Track isSliderPlayTimeChange: boolean = false
+  @Track volumeLoudnessGain: number = 0
+  @Track superResolution: boolean = false
 
   async create() {
     try {
@@ -100,7 +103,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     let swipingVoiceTimer: number | null = null
     let changeVolumeByVolumeButton: boolean = false
     try {
-      this.audioVolumeManager.on('streamVolumeChange', audio.StreamUsage.STREAM_USAGE_MUSIC,
+      this.audioVolumeManager.on('streamVolumeChange', audio.StreamUsage.STREAM_USAGE_MOVIE,
         (streamVolumeEvent: audio.StreamVolumeEvent) => {
           clearTimeout(swipingVoiceTimer)
           if (!this.onSwipingVoice) { // 这里复用手势音量调节提示
@@ -131,7 +134,6 @@ export class AVPlayerController implements PlayerControllerInterface {
           this.subtitleSelected = SubtitleMode.EXTERNAL_SUBTITLE : this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
       } catch (error) {
         this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
-        console.error('subtitle error' + error)
       }
     } else {
       this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
@@ -187,6 +189,16 @@ export class AVPlayerController implements PlayerControllerInterface {
     this.selectAudioTrack(this.audioTrack[0].index)
   }
 
+  async getSubtitleTrackList() {
+    this.subtitleTrack = await VideoOperateUtil.getInnerSubtitles(this.avPlayer!)
+  }
+
+  selectSubtitleTrack(index: number): void {
+    this.avPlayer?.selectTrack(index)?.catch(() => {
+      ToolsUtil.addLogger('selectTrack error', true)
+    })
+  }
+
   selectAudioTrack(index: number) {
     this.avPlayer?.selectTrack(index)?.catch(() => {
       ToolsUtil.addLogger('selectTrack error', true)
@@ -226,9 +238,9 @@ export class AVPlayerController implements PlayerControllerInterface {
 
   setListenVideoStatus() {
     this.avPlayer?.setMediaMuted(media.MediaType.MEDIA_TYPE_VID, this.isListenVideo)?.catch(() => {
-      ToolsUtil.addLogger('设置视频静音失败', true)
+      ToolsUtil.addLogger('设置听视频失败', true)
     })
-    ToolsUtil.addLogger(`视频静音状态设置为：${this.isListenVideo}`, false)
+    ToolsUtil.addLogger(`视频听视频设置为：${this.isListenVideo}`, false)
   }
 
   cancelSubscribe() {
@@ -434,6 +446,41 @@ export class AVPlayerController implements PlayerControllerInterface {
 
   async init() {
     this.avPlayer = await this.create()
+  }
+
+  setLoudnessGain(loudnessGain: number) {
+    this.volumeLoudnessGain = loudnessGain
+    this.avPlayer!.setLoudnessGain(loudnessGain)?.catch(() => {
+      ToolsUtil.addLogger("设置响度失败", true)
+    })
+  }
+
+  async setAVPlayerProperties() {
+    this.avPlayer!.surfaceId = this.surfaceID
+    this.avPlayer?.setPlaybackStrategy({
+      showFirstFrameOnPrepare: true,
+      enableSuperResolution: true,
+      preferredHdr: true
+    })?.catch(() => {
+      ToolsUtil.addLogger("设置播放策略失败", true)
+    })
+    this.setSuperResolution(true)
+    await this.setExternalSubtitle(this.nowPlaying!)
+  }
+
+  setSuperResolution(enable: boolean) {
+    this.avPlayer?.setSuperResolution(enable)
+      .then(() => {
+        ToolsUtil.showToast(enable ? '已开启视频超分' : '已关闭视频超分')
+        this.superResolution = enable
+      })
+    ?.catch(() => {
+      ToolsUtil.addLogger("设置超分失败", true)
+    })
+    this.avPlayer?.setVideoWindowSize(1920, 1080)
+    ?.catch(() => {
+      ToolsUtil.addLogger("设置超分失败", true)
+    })
   }
 
   onScreenDoubleClick(tapX: number) {

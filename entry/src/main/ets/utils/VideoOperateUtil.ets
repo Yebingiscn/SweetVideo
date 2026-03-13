@@ -5,7 +5,7 @@ import { BusinessError, settings } from '@kit.BasicServicesKit'
 import { media } from '@kit.MediaKit'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import SelectFileUtil from './SelectFileUtil'
-import { AudioTrack } from '../interfaces/AudioTrackInterface'
+import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
 import { common } from '@kit.AbilityKit'
 import Preferences from '../database/Preferences'
 import RecentPlayUtil from './RecentPlayUtil'
@@ -85,7 +85,7 @@ export default class VideoOperateUtil {
           volumePromises.push(new Promise((resolveVolume, rejectVolume) => {
             try {
               let volume: number =
-                audio.getAudioManager().getVolumeManager().getVolumeByStream(audio.StreamUsage.STREAM_USAGE_MUSIC)
+                audio.getAudioManager().getVolumeManager().getVolumeByStream(audio.StreamUsage.STREAM_USAGE_MOVIE)
               volume_list.set('volume', volume)
               resolveVolume()
             } catch (error) {
@@ -95,7 +95,7 @@ export default class VideoOperateUtil {
           volumePromises.push(new Promise((resolveMax, rejectMax) => {
             try {
               let maxVolume: number =
-                audio.getAudioManager().getVolumeManager().getMaxVolumeByStream(audio.StreamUsage.STREAM_USAGE_MUSIC)
+                audio.getAudioManager().getVolumeManager().getMaxVolumeByStream(audio.StreamUsage.STREAM_USAGE_MOVIE)
               volume_list.set('max_volume', maxVolume)
               VideoOperateUtil.maxVolume = maxVolume
               resolveMax()
@@ -106,7 +106,7 @@ export default class VideoOperateUtil {
           volumePromises.push(new Promise((resolveMin, rejectMin) => {
             try {
               let minVolume: number =
-                audio.getAudioManager().getVolumeManager().getMinVolumeByStream(audio.StreamUsage.STREAM_USAGE_MUSIC)
+                audio.getAudioManager().getVolumeManager().getMinVolumeByStream(audio.StreamUsage.STREAM_USAGE_MOVIE)
               volume_list.set('min_volume', minVolume)
               VideoOperateUtil.minVolume = minVolume
               resolveMin()
@@ -180,6 +180,44 @@ export default class VideoOperateUtil {
       return audioTracks // 返回包含音轨索引、语言和名称的对象数组
     } catch (error) {
       console.error("获取 audioTracks 失败:", error)
+      return [] // 返回空数组表示没有获取到音轨
+    }
+  }
+
+  // 获取字幕
+  static async getInnerSubtitles(avPlayer: media.AVPlayer | undefined | null): Promise<SubtitleTrack[]> {
+    if (!avPlayer) {
+      return []
+    }
+    const getTrackDescriptions = (): Promise<SubtitleTrack[]> => {
+      return new Promise((resolve, reject) => {
+        avPlayer.getTrackDescription((error: BusinessError, arrList: Array<media.MediaDescription>) => {
+          if (error || !arrList || arrList.length === 0) {
+            console.error(`Failed to get TrackDescription, error: ${error}`)
+            return reject(error || new Error("No subtitleTracks available"))
+          }
+          const subtitleTracks: SubtitleTrack[] = arrList
+            .filter(description =>
+            description[media.MediaDescriptionKey.MD_KEY_TRACK_TYPE] === media.MediaType.MEDIA_TYPE_SUBTITLE
+            )
+            .map((description): SubtitleTrack => {
+              console.error('description', JSON.stringify(description))
+              return {
+                id: description[media.MediaDescriptionKey.MD_KEY_TRACK_INDEX] as number,
+                lang: description[media.MediaDescriptionKey.MD_KEY_LANGUAGE] as string,
+                title: description[media.MediaDescriptionKey.MD_KEY_TRACK_NAME] as string
+              }
+            })
+          resolve(subtitleTracks)
+        })
+      })
+    }
+
+    try {
+      const subtitleTracks = await getTrackDescriptions()
+      return subtitleTracks // 返回包含字幕索引、语言和名称的对象数组
+    } catch (error) {
+      console.error("获取 subtitleTracks 失败:", error)
       return [] // 返回空数组表示没有获取到音轨
     }
   }

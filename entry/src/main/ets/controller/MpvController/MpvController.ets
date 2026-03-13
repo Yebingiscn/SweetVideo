@@ -362,7 +362,7 @@ export class MpvController implements PlayerControllerInterface {
     let swipingVoiceTimer: number | null = null
     let changeVolumeByVolumeButton: boolean = false
     try {
-      this.audioVolumeManager.on('streamVolumeChange', audio.StreamUsage.STREAM_USAGE_MUSIC,
+      this.audioVolumeManager.on('streamVolumeChange', audio.StreamUsage.STREAM_USAGE_MOVIE,
         (streamVolumeEvent: audio.StreamVolumeEvent) => {
           clearTimeout(swipingVoiceTimer)
           if (!this.onSwipingVoice) { // 这里复用手势音量调节提示

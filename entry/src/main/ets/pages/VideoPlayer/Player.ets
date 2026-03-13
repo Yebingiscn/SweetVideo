@@ -24,7 +24,6 @@ import NavigationAddress, { PlayerParams } from '../../common/NavigationCommon'
 import { WindowUtil } from '../../utils/WindowUtil'
 import { KeyCode } from '@kit.InputKit'
 import { XAnimation } from '../../utils/AnimationUtil'
-import { AISubtitleComponent } from '../../component/PlayerComponent/AIAsrComponent'
 import SubtitleUtil from '../../utils/SubtitleUtil'
 import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode'
 import { AVPlayerController } from '../../controller/AVPlayerController'
@@ -54,6 +53,7 @@ import {
   VOLUME_PAN_MULTIPLIER,
   VOLUME_STEP
 } from '../../common/Constants'
+import { AISubtitleComponent } from '../../component/PlayerComponent/AIAsrComponent'
 
 @Component
 export struct Player { // 播放页
@@ -184,13 +184,7 @@ export struct Player { // 播放页
         case 'initialized':
           ToolsUtil.addLogger("进入initialized状态", false, this.pathStack)
           if (this.player.avPlayer) {
-            this.player.avPlayer.surfaceId = this.player.surfaceID
-            this.player.avPlayer.setPlaybackStrategy({
-              showFirstFrameOnPrepare: true
-            })?.catch(() => {
-              ToolsUtil.addLogger("设置播放策略失败", true, this.pathStack)
-            })
-            await this.player.setExternalSubtitle(this.player.nowPlaying!)
+            await this.player.setAVPlayerProperties()
             this.player.prepare()
           }
           break
@@ -201,6 +195,7 @@ export struct Player { // 播放页
           this.player.play()
           ToolsUtil.addLogger("开始播放视频", false, this.pathStack)
           await this.player.getAudioTrackList()
+          await this.player.getSubtitleTrackList()
           ToolsUtil.addLogger("获取音频轨道完成", false, this.pathStack)
           await this.player.initVolumeAndBrightness()
           this.player.updatePlaybackSpeed(this.player.speed)
@@ -575,7 +570,7 @@ export struct Player { // 播放页
           ToolsUtil.addLogger("恢复系统栏显示完成", false, this.pathStack)
         }
         await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
-        await this.player.avSession?.stopCasting()
+        await this.player?.avSession?.stopCasting()
         await VideoOperateUtil.releaseAVImageGenerator()
         this.player.release()
       } catch (error) {
@@ -719,7 +714,6 @@ export struct Player { // 播放页
       },
       onTogglePlaybackClick: () => {
         this.player.togglePlayback()
-        ToolsUtil.addLogger("播放/暂停切换完成", false, this.pathStack)
       },
       onPlayNextVideoClick: () => {
         this.player.playNextVideoProcess(this.pathStack, this.windowClass)
@@ -741,7 +735,6 @@ export struct Player { // 播放页
       audioTrack: this.player.audioTrack,
       audioTrackSelected: this.audioTrackSelect,
       onSelect: (index: number) => {
-        ToolsUtil.addLogger(`选择音频轨道，索引：${index}`, false, this.pathStack)
         this.player?.selectAudioTrack(this.player?.audioTrack[index]?.index)
         this.audioTrackSelect = index
       }
@@ -751,9 +744,6 @@ export struct Player { // 播放页
   @Builder
   VideoSettingBuilder() {
     VideoSettingComponent({
-      playTime: this.player.playTime,
-      nowPlaying: this.player.nowPlaying,
-      videoMetaData: this.player.videoMetaDataList,
       exitVideoTime: this.exitVideoTime,
       abCircleStatus: this.abCircleStatus,
       forward_80_s: (time: number) => {
@@ -821,7 +811,7 @@ export struct Player { // 播放页
       isAIAsrShown: this.isAIAsrShown,
       subtitle3DMode: this.subtitle3DMode,
       subtitleSelected: this.player.subtitleSelected,
-      innerSubtitleData: [],
+      innerSubtitleData: this.player.subtitleTrack,
     })
   }
 

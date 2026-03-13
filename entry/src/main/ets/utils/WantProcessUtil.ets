@@ -120,7 +120,7 @@ export default class WantProcess {
       return NavigationAddress.MPV_PLAYER
     }
     // 兜底播放器
-    return NavigationAddress.AV_PLAYER
+    return NavigationAddress.MPV_PLAYER
   }
 
   // 跳转外部网页
