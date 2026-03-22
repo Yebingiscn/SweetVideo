@@ -427,7 +427,7 @@ export struct PrivacySpace { // 隐私空间页
               {
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 preview: VideoItemPreviewBuilder(item),
-                previewAnimationOptions: { hoverScale: [1.0, 1.2] },
+                previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2], hoverScaleInterruption: true },
                 onAppear: () => {
                   this.longPressPreview = true
                   ToolsUtil.startVibration()
@@ -440,7 +440,7 @@ export struct PrivacySpace { // 隐私空间页
               {
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 preview: VideoItemPreviewBuilder(item),
-                previewAnimationOptions: { hoverScale: [1.0, 1.2] },
+                previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2], hoverScaleInterruption: true },
                 onAppear: () => {
                   this.longPressPreview = true
                 },

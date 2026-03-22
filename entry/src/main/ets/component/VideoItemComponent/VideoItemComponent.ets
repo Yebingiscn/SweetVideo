@@ -111,6 +111,25 @@ export class VideoListController {
 export struct VideoList {
   @Link searchValue: string
   @Link videoListController: VideoListController
+  delConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: VideoDeleteDialog({
+      confirm: async (deleteType: DeleteType) => {
+        try {
+          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType,
+            DataSyncUtil.editingVideo!)
+          if (DataSyncUtil.delMultipleList.length > 0) {
+            await FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController,
+              this.fileFolderSource)
+          }
+          this.videoListController.closeMultipleChoose()
+        } catch (e) {
+          ToolsUtil.showToast(`删除失败:${e}`)
+        } finally {
+          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+        }
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -134,25 +153,6 @@ export struct VideoList {
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   @Consume fileFolderSource: FileFolderDataSource
-  delConfirmDialog: CustomDialogController = new CustomDialogController({
-    builder: VideoDeleteDialog({
-      confirm: async (deleteType: DeleteType) => {
-        try {
-          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType,
-            DataSyncUtil.editingVideo!)
-          if (DataSyncUtil.delMultipleList.length > 0) {
-            await FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController,
-              this.fileFolderSource)
-          }
-          this.videoListController.closeMultipleChoose()
-        } catch (e) {
-          ToolsUtil.showToast(`删除失败:${e}`)
-        } finally {
-          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
-        }
-      }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
   @Consume file_folder_list: FileFolder[]
   @Consume sideBarController: SideBarController
   searchController: SearchController = new SearchController()
@@ -193,7 +193,7 @@ export struct VideoList {
             {
               backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
               preview: VideoItemPreviewBuilder(item),
-              previewAnimationOptions: { hoverScale: [1.0, 1.2] },
+              previewAnimationOptions: { hoverScale: [1.0, 1.2], hoverScaleInterruption: true },
               onAppear: () => {
                 this.longPressPreview = true
                 ToolsUtil.startVibration()
@@ -206,7 +206,7 @@ export struct VideoList {
             {
               backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
               preview: VideoItemPreviewBuilder(item),
-              previewAnimationOptions: { hoverScale: [1.0, 1.2] },
+              previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2], hoverScaleInterruption: true },
               onAppear: () => {
                 this.longPressPreview = true
               },
@@ -278,7 +278,7 @@ export struct VideoList {
                 {
                   backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                   preview: VideoItemPreviewBuilder(item),
-                  previewAnimationOptions: { hoverScale: [1.0, 1.2] },
+                  previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2], hoverScaleInterruption: true },
                   onAppear: () => {
                     this.longPressPreview = true
                     ToolsUtil.startVibration()
@@ -291,7 +291,7 @@ export struct VideoList {
                 {
                   backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                   preview: VideoItemPreviewBuilder(item),
-                  previewAnimationOptions: { hoverScale: [1.0, 1.2] },
+                  previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2], hoverScaleInterruption: true },
                   onAppear: () => {
                     this.longPressPreview = true
                   },

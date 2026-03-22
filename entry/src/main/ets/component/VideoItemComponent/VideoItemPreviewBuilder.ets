@@ -1,4 +1,9 @@
+import { fileUri } from '@kit.CoreFileKit';
+import { ImageFancyModifier } from '../../common/AttributeModifierConfig';
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
+import { PathUtils } from '../../utils/PathUtils';
+import VideoInfoUtil from '../../utils/VideoInfoUtil';
+import { VideoInfoBuilder } from './VideoInfoBuilder';
 
 @Builder
 export function VideoItemPreviewBuilder(item: VideoMetadata) {

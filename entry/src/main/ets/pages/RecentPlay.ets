@@ -134,7 +134,7 @@ export struct RecentPlay { // 最近播放页
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
               {
                 preview: VideoItemPreviewBuilder(item),
-                previewAnimationOptions: { hoverScale: [1.0, 1.2] },
+                previewAnimationOptions: { hoverScale: [1.0, 1.2], hoverScaleInterruption: true },
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 onAppear: () => {
                   this.longPressPreview = true
@@ -147,7 +147,7 @@ export struct RecentPlay { // 最近播放页
             .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
               {
                 preview: VideoItemPreviewBuilder(item),
-                previewAnimationOptions: { hoverScale: [1.0, 1.2] },
+                previewAnimationOptions: { hoverScale: [1.0, 1.2], hoverScaleInterruption: true },
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 onAppear: () => {
                   this.longPressPreview = true
