@@ -32,17 +32,12 @@ import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { SortComponent } from '../../component/VideoItemComponent/SortComponent'
 import { DELAY_JUMP_TO_PLAYER, NO_BLUR_AMOUNT, PRIVACY_BACKGROUND_BLUR_AMOUNT } from '../../common/Constants'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
+import { VideoItemPreviewBuilder } from '../../component/VideoItemComponent/VideoItemPreviewBuilder'
 
 @Component
 export struct PrivacySpace { // 隐私空间页
   @State videoDataSource: VideoDataSource = new VideoDataSource([])
   @State video_meta_data_encryption: VideoMetadata[] = []
-  @State list_line: number = 1
-  @Consume('pathStack') pathStack: NavPathStack
-  @State totalItems: number = 0
-  @State processedItems: number = 0
-  @State loading: boolean = false
-  @State searchValue: string = ''
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -65,6 +60,12 @@ export struct PrivacySpace { // 隐私空间页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  @State list_line: number = 1
+  @Consume('pathStack') pathStack: NavPathStack
+  @State totalItems: number = 0
+  @State processedItems: number = 0
+  @State loading: boolean = false
+  @State searchValue: string = ''
   @State is_edit: boolean = false
   @State passwd: string = 'passwd'
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
@@ -308,7 +309,7 @@ export struct PrivacySpace { // 隐私空间页
       this.videoDataSource.updateData(this.video_meta_data_encryption)
       ToolsUtil.showToast(
         `${ToolsUtil.getStringResource($r('app.string.add_time_info').id)}${this.totalItems -
-        FileFolderUtil.duplicateVideo}${FileFolderUtil.duplicateVideo > 0 ?
+          FileFolderUtil.duplicateVideo}${FileFolderUtil.duplicateVideo > 0 ?
           '重复视频已经智能跳过，跳过视频数：' + FileFolderUtil.duplicateVideo : ''}`
       )
     } catch (error) {
@@ -425,7 +426,7 @@ export struct PrivacySpace { // 隐私空间页
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
               {
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-                preview: this.VideoItemBuilder(item),
+                preview: VideoItemPreviewBuilder(item),
                 previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                 onAppear: () => {
                   this.longPressPreview = true
@@ -438,7 +439,7 @@ export struct PrivacySpace { // 隐私空间页
             .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
               {
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-                preview: this.VideoItemBuilder(item),
+                preview: VideoItemPreviewBuilder(item),
                 previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                 onAppear: () => {
                   this.longPressPreview = true

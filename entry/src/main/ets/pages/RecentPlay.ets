@@ -13,6 +13,7 @@ import { Context } from '@kit.AbilityKit'
 import { SafeHeight, Setting } from '../utils/ObservedUtil'
 import { DELAY_JUMP_TO_PLAYER } from '../common/Constants'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
+import { VideoItemPreviewBuilder } from '../component/VideoItemComponent/VideoItemPreviewBuilder'
 
 @Component
 export struct RecentPlay { // 最近播放页
@@ -132,7 +133,7 @@ export struct RecentPlay { // 最近播放页
             .borderRadius(16)
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
               {
-                preview: VideoItemBuilder({ item: item, longPressPreview: this.longPressPreview, showProgress: true }),
+                preview: VideoItemPreviewBuilder(item),
                 previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 onAppear: () => {
@@ -145,7 +146,7 @@ export struct RecentPlay { // 最近播放页
               })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
               {
-                preview: VideoItemBuilder({ item: item, longPressPreview: this.longPressPreview, showProgress: true }),
+                preview: VideoItemPreviewBuilder(item),
                 previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 onAppear: () => {

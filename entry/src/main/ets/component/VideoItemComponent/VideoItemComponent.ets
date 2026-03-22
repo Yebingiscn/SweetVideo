@@ -27,6 +27,7 @@ import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { DELAY_JUMP_TO_PLAYER } from '../../common/Constants'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import WantProcess from '../../utils/WantProcessUtil'
+import { VideoItemPreviewBuilder } from './VideoItemPreviewBuilder'
 
 @Observed
 export class VideoListController {
@@ -191,7 +192,7 @@ export struct VideoList {
           .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
             {
               backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-              preview: this.VideoItemBuilder(item),
+              preview: VideoItemPreviewBuilder(item),
               previewAnimationOptions: { hoverScale: [1.0, 1.2] },
               onAppear: () => {
                 this.longPressPreview = true
@@ -204,7 +205,7 @@ export struct VideoList {
           .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
             {
               backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-              preview: this.VideoItemBuilder(item),
+              preview: VideoItemPreviewBuilder(item),
               previewAnimationOptions: { hoverScale: [1.0, 1.2] },
               onAppear: () => {
                 this.longPressPreview = true
@@ -233,7 +234,7 @@ export struct VideoList {
               })
           )
         }, (item: VideoMetadata) => item.date.toString() + item.last_play + item.title + item.size.toString() +
-        this.videoListController.folder.name + item.time)
+          this.videoListController.folder.name + item.time)
       }
       .clip(false)
       .padding({ left: 10, right: 10 })
@@ -276,7 +277,7 @@ export struct VideoList {
               .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
                 {
                   backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-                  preview: this.VideoItemBuilder(item),
+                  preview: VideoItemPreviewBuilder(item),
                   previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                   onAppear: () => {
                     this.longPressPreview = true
@@ -289,7 +290,7 @@ export struct VideoList {
               .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
                 {
                   backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-                  preview: this.VideoItemBuilder(item),
+                  preview: VideoItemPreviewBuilder(item),
                   previewAnimationOptions: { hoverScale: [1.0, 1.2] },
                   onAppear: () => {
                     this.longPressPreview = true
@@ -317,7 +318,7 @@ export struct VideoList {
                   })
               )
             }, (item: VideoMetadata) => item.date + item.last_play + item.title + item.size.toString() +
-            this.videoListController.folder.name + item.time)
+              this.videoListController.folder.name + item.time)
           }
           .clip(false)
           .columnsTemplate('1fr '.repeat(this.videoListController.listLine).trim())
