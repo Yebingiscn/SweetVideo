@@ -1,12 +1,10 @@
+import { AVPlayerController } from '../../controller/AVPlayerController'
+import { MpvController } from '../../controller/MpvController/MpvController'
 import TimeUtil from '../../utils/TimeUtil'
 
 @Component
 export struct VideoSliderComponent {
-  @Prop playTime: number
-  @Prop totalTime: number
-  @Prop screenWidth: number
-  @Prop screenHeight: number
-  @Prop playSpeed: number
+  @Consume('player') player: AVPlayerController | MpvController
   onSliderChange = (_value: number) => {
   }
   onSliderTouch = (_event: TouchEvent) => {
@@ -15,15 +13,15 @@ export struct VideoSliderComponent {
   build() {
     Column() {
       Row() {
-        Text(TimeUtil.getPlayTime(this.playTime, this.totalTime) + '/' +
-        TimeUtil.convertMSToHHMMSS(this.totalTime || 0))
+        Text(TimeUtil.getPlayTime(this.player.playTime, this.player.nowPlaying?.time) + '/' +
+          TimeUtil.convertMSToHHMMSS(this.player.nowPlaying?.time || 0))
           .fontWeight(FontWeight.Medium)
           .fontSize(16)
           .fontColor($r('sys.color.white'))
           .textAlign(TextAlign.Start)
           .opacity(0.8)
 
-        Text(TimeUtil.getRemainTime(this.playTime, this.totalTime, this.playSpeed))
+        Text(TimeUtil.getRemainTime(this.player.playTime, this.player.nowPlaying?.time || 0, this.player.speed))
           .fontWeight(FontWeight.Medium)
           .fontSize(16)
           .fontColor($r('sys.color.white'))
@@ -33,9 +31,9 @@ export struct VideoSliderComponent {
       .justifyContent(FlexAlign.SpaceBetween)
 
       Slider({
-        value: this.playTime,
+        value: this.player.playTime,
         min: 0,
-        max: this.totalTime,
+        max: this.player.nowPlaying?.time,
         style: SliderStyle.NONE
       })
         .trackThickness(12)

@@ -1,8 +1,3 @@
-import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
-import NavigationAddress from '../../common/NavigationCommon'
-import { Setting } from '../../utils/ObservedUtil'
-import TimeUtil from '../../utils/TimeUtil'
-import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
 class SwipingPlayTimeValue {
   isSliderPlayTimeChange: boolean = false
@@ -23,7 +18,10 @@ export function SwipingPlayTimePanelBuilder(swipingPlayTimeValue: SwipingPlayTim
       if (Setting?.showFrameImgStatus && swipingPlayTimeValue?.player === NavigationAddress.AV_PLAYER) {
         if (swipingPlayTimeValue?.pixelMap) {
           Image(swipingPlayTimeValue?.pixelMap)
-            .attributeModifier(new ImageFancyModifier(16, 100, 100))
+            .attributeModifier(new ImageFancyModifier(16, 160, 90))
+            .objectFit(ImageFit.Cover)
+            .borderRadius(16)
+            .clip(true)
         }
       }
     }

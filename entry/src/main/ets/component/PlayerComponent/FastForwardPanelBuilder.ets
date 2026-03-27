@@ -1,56 +1,93 @@
-import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
-import SelectFileUtil from '../../utils/SelectFileUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
+import { SpeedNeighborInterface } from '../../interfaces/SpeedNeighborInterface'
 
 class FastForwardInfo {
   speed: number = 1
   location: number = 0
 }
 
+// 获取相邻倍速信息
+function getNeighborSpeeds(currentSpeed: number): SpeedNeighborInterface {
+  const speeds = VideoInfoUtil.videoSpeedListAll
+  const currentIndex = speeds.findIndex((s: number) => Math.abs(s - currentSpeed) < 0.01)
+  return {
+    prev: currentIndex > 0 ? speeds[currentIndex - 1] : null,
+    current: currentSpeed,
+    next: currentIndex >= 0 && currentIndex < speeds.length - 1 ? speeds[currentIndex + 1] : null
+  }
+}
+
 @Builder
 export function FastForwardPanelBuilder(fastForwardInfo: FastForwardInfo) {
-  Stack({ alignContent: Alignment.BottomEnd }) {
-    Column() {
-      Row() {
-        Text(VideoInfoUtil.optimizedFormat(fastForwardInfo.speed))
-          .fontColor($r('app.color.main_color')).fontSize(15)
-          .fontWeight(FontWeight.Bold)
-        SymbolGlyph($r('sys.symbol.fast_forward'))
-          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-      }
+  Row({ space: 12 }) {
+    // 左侧：上一个倍速（最小倍速时隐藏）
+    if (fastForwardInfo.speed > VideoInfoUtil.videoSpeedListAll[0]) {
+      Text(`${getNeighborSpeeds(fastForwardInfo.speed).prev?.toFixed(2).replace(/\.?0+$/, '')}x`)
+        .fontColor('#60FFFFFF')
+        .fontSize(14)
+        .fontWeight(FontWeight.Medium)
+        .width(40)
+        .height(36)
+    } else {
+      // 占位保持布局稳定
+      Text('')
+        .width(40)
+        .height(36)
+    }
 
-      Row() {
-        if (SelectFileUtil.getPrevAndNextItem(VideoInfoUtil.optimizedFormat(fastForwardInfo.speed),
-          VideoInfoUtil.getVideoSpeedTextList())[0] !== '') {
-          Text(`← ${SelectFileUtil.getPrevAndNextItem(VideoInfoUtil.optimizedFormat(fastForwardInfo.speed),
-            VideoInfoUtil.getVideoSpeedTextList())[0]}`)
-            .fontColor($r('sys.color.white')).margin({ right: 10 }).fontSize(10)
-        }
-        if (SelectFileUtil.getPrevAndNextItem(VideoInfoUtil.optimizedFormat(fastForwardInfo.speed),
-          VideoInfoUtil.getVideoSpeedTextList())[1] !== '') {
-          Text(`${SelectFileUtil.getPrevAndNextItem(VideoInfoUtil.optimizedFormat(fastForwardInfo.speed),
-            VideoInfoUtil.getVideoSpeedTextList())[1]} →`)
-            .fontColor($r('sys.color.white')).fontSize(10)
-        }
-      }.justifyContent(FlexAlign.SpaceBetween).margin({ top: 5 })
+    // 中间：当前倍速（带边框高亮）
+    Row({ space: 2 }) {
+      Text(`${fastForwardInfo.speed.toFixed(2).replace(/\.?0+$/, '')}`)
+        .fontColor($r('sys.color.white'))
+        .fontSize(20)
+        .fontWeight(FontWeight.Bold)
+
+      Text('x')
+        .fontColor($r('sys.color.white'))
+        .fontSize(12)
+        .fontWeight(FontWeight.Medium)
+        .margin({ bottom: 4 })
+    }
+    .alignItems(VerticalAlign.Bottom)
+    .padding({
+      left: 12,
+      right: 12,
+      top: 4,
+      bottom: 4
+    })
+    .height(36)
+    .borderWidth(1.5)
+    .borderColor($r('app.color.main_color'))
+    .borderRadius(6)
+    .backgroundColor('#20FFFFFF')
+
+    // 右侧：下一个倍速（最大倍速时隐藏）
+    if (fastForwardInfo.speed < VideoInfoUtil.videoSpeedListAll[VideoInfoUtil.videoSpeedListAll.length - 1]) {
+      Text(`${getNeighborSpeeds(fastForwardInfo.speed).next?.toFixed(2).replace(/\.?0+$/, '')}x`)
+        .fontColor('#60FFFFFF')
+        .fontSize(14)
+        .fontWeight(FontWeight.Medium)
+        .width(40)
+        .height(36)
+    } else {
+      Text('')
+        .width(40)
+        .height(36)
     }
   }
+  .alignItems(VerticalAlign.Center)
   .padding({
-    left: 10,
-    right: 10,
-    top: 10,
-    bottom: 10
+    left: 16,
+    right: 16,
+    top: 12,
+    bottom: 12
   })
+  .borderRadius(16)
+  .backgroundColor('#30000000')
+  .backdropBlur(100)
   .offset({
     x: 0,
-    y: (fastForwardInfo.location === -160 || fastForwardInfo.location === -80) ?
-      fastForwardInfo.location :
-      (fastForwardInfo.location !== VideoInfoUtil.playAreaHeight && VideoInfoUtil.playAreaHeight !== 0 ?
-        0 - VideoInfoUtil.playAreaHeight / 2 + 20 :
-        0 - fastForwardInfo.location / 2 + 20)
+    y: -fastForwardInfo.location / 2.5
   })
-  .borderRadius(16) // 胶囊形状背景
-  .backgroundColor('#30000000') // 半透明黑色背景
-  .backdropBlur(100) // 背景模糊效果
-  .animation({ duration: 300, curve: Curve.Smooth })
+  .animation({ duration: 200, curve: Curve.EaseInOut })
 }

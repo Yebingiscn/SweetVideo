@@ -1,11 +1,12 @@
+import { AVPlayerController } from '../../controller/AVPlayerController'
+import { MpvController } from '../../controller/MpvController/MpvController'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { SafeHeight } from '../../utils/ObservedUtil'
 
 @Component
 export struct VideoLayoutComponent {
-  @Prop screenHeight: number
-  @Prop screenWidth: number
   @Link showControl: boolean
+  @Consume('player') player: AVPlayerController | MpvController
   @BuilderParam VideoTop: () => void
   @BuilderParam VideoButtons: () => void
   @BuilderParam VideoSlider: () => void
@@ -28,14 +29,14 @@ export struct VideoLayoutComponent {
         })
         .width('100%')
         .padding({
-          left: (this.screenHeight > this.screenWidth ? 20 : 35),
+          left: (this.player.screenHeight > this.player.screenWidth ? 20 : 35),
           right: 20,
           top: SafeHeight.topSafeHeight,
           bottom: 0
         })
 
         Stack() { //底栏
-          if (this.screenHeight / this.screenWidth > 1.4) {
+          if (this.player.screenHeight / this.player.screenWidth > 1.4) {
             Column({ space: 15 }) {
               this.VideoButtons()
               this.VideoSlider()
@@ -54,7 +55,7 @@ export struct VideoLayoutComponent {
           angle: 180,
           colors: [[Color.Transparent, 0], ['#90000000', 0.75]]
         })
-        .height(this.screenHeight > this.screenWidth ? 180 : 'auto')
+        .height(this.player.screenHeight > this.player.screenWidth ? 180 : 'auto')
         .width('100%')
         .padding({ bottom: SafeHeight.bottomSafeHeight })
       }.height('100%').width('100%')

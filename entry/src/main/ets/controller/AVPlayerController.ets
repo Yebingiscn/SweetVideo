@@ -56,7 +56,9 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Track onSwipingBrightness: boolean = false
   @Track isSliderPlayTimeChange: boolean = false
   @Track volumeLoudnessGain: number = 0
-  @Track superResolution: boolean = false
+  @Track superResolutionState: boolean = false
+  @Track pipOpenState: boolean = false
+  @Track audioTrackSelected: number = 0
 
   async create() {
     try {
@@ -80,7 +82,7 @@ export class AVPlayerController implements PlayerControllerInterface {
       }
       VideoOperateUtil.updatePix = false // 加锁
       try {
-        const img = await VideoOperateUtil.fetchFrameByTime(time)
+        const img = await VideoOperateUtil.fetchFrameByTime(time, this.nowPlaying?.size)
         if (img) {
           this.pixelMap = img
         }
@@ -345,7 +347,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     }
   }
 
-  async playNextVideoProcess(pathStack: NavPathStack, windowClass: Promise<window.Window | undefined>) {
+  async playNextVideoProcess(pathStack: NavPathStack, windowClass?: Promise<window.Window | undefined>) {
     ToolsUtil.addLogger("开始播放下一个视频流程", false, pathStack)
     const nextItem = this.playNextVideo(this.repeatMode)
     ToolsUtil.addLogger("获取下一个视频项完成", false, pathStack)
@@ -360,7 +362,8 @@ export class AVPlayerController implements PlayerControllerInterface {
     ToolsUtil.addLogger("播放下一个视频前置流程完成", false, pathStack)
   }
 
-  async playChooseVideo(item: VideoMetadata, pathStack: NavPathStack, windowClass: Promise<window.Window | undefined>) {
+  async playChooseVideo(item: VideoMetadata, pathStack?: NavPathStack,
+    windowClass?: Promise<window.Window | undefined>) {
     ToolsUtil.addLogger("开始播放选择的视频", false)
     VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying!, this.videoMetaDataList, PathUtils.appContext!)
     if (!PrivacySpaceUtil.getPrivacyMode()) {
@@ -371,7 +374,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     this.reset()
     this.nowPlaying = item as VideoMetadata
     ToolsUtil.addLogger("设置当前播放视频完成", false)
-    this.getData(pathStack, windowClass)
+    this.getData(pathStack!, windowClass!)
     ToolsUtil.addLogger("获取播放数据完成", false)
     await this.initAVSession()
     ToolsUtil.addLogger("播放选择视频流程完成", false)
@@ -402,7 +405,7 @@ export class AVPlayerController implements PlayerControllerInterface {
           ToolsUtil.addLogger("智能旋转条件满足，开始设置方向", false)
           const proportion =
             Math.max(this.screenWidth, this.screenHeight) /
-            Math.min(this.screenWidth, this.screenHeight)
+              Math.min(this.screenWidth, this.screenHeight)
           const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
             : window.Orientation.AUTO_ROTATION_RESTRICTED;
           (await windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
@@ -464,22 +467,24 @@ export class AVPlayerController implements PlayerControllerInterface {
     })?.catch(() => {
       ToolsUtil.addLogger("设置播放策略失败", true)
     })
-    this.setSuperResolution(true)
+    if (Setting.superResolutionState) {
+      this.setSuperResolutionState(true)
+    }
     await this.setExternalSubtitle(this.nowPlaying!)
   }
 
-  setSuperResolution(enable: boolean) {
+  setSuperResolutionState(enable: boolean) {
     this.avPlayer?.setSuperResolution(enable)
       .then(() => {
-        ToolsUtil.showToast(enable ? '已开启视频超分' : '已关闭视频超分')
-        this.superResolution = enable
+        ToolsUtil.showToast(enable ? '已开启视频超分辨率' : '已关闭视频超分辨率')
+        this.superResolutionState = enable
       })
-    ?.catch(() => {
-      ToolsUtil.addLogger("设置超分失败", true)
-    })
+      ?.catch(() => {
+        ToolsUtil.addLogger("设置超分失败", true)
+      })
     this.avPlayer?.setVideoWindowSize(1920, 1080)
     ?.catch(() => {
-      ToolsUtil.addLogger("设置超分失败", true)
+      ToolsUtil.addLogger("设置超分至目标分辨率失败", true)
     })
   }
 

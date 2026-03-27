@@ -1,8 +1,8 @@
 import { AudioTrack } from '../../interfaces/AudioTrackInterface'
-import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
 import { AudioTrackSource } from '../../utils/DataUtil'
-import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { MpvAudioTrack } from '../../controller/MpvController/MpvTypes'
+import { AVPlayerController } from '../../controller/AVPlayerController'
+import { MpvController } from '../../controller/MpvController/MpvController'
 
 // 定义联合类型
 type TrackType = AudioTrack | MpvAudioTrack
@@ -10,13 +10,12 @@ type TrackType = AudioTrack | MpvAudioTrack
 @Component
 export struct AudioTrackComponent {
   @State audioTrackDataSource: AudioTrackSource = new AudioTrackSource([])
-  @Prop audioTrack: TrackType[]
-  @Link audioTrackSelected: number
+  @Consume('player') player: AVPlayerController | MpvController
   onSelect = (_index: number) => {
   }
 
   aboutToAppear(): void {
-    this.audioTrackDataSource = new AudioTrackSource(this.audioTrack)
+    this.audioTrackDataSource = new AudioTrackSource(this.player.audioTrack)
   }
 
   // 检查是否是 AudioTrack
@@ -98,7 +97,7 @@ export struct AudioTrackComponent {
             .flexGrow(1)
             .flexShrink(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .fontColor(this.audioTrackSelected === index ? $r('sys.color.white') :
+            .fontColor(this.player.audioTrackSelected === index ? $r('sys.color.white') :
               $r('app.color.text_color'))
             .margin({ left: 5 })
           if (this.shouldShowAv3aIcon(item)) {
@@ -107,7 +106,7 @@ export struct AudioTrackComponent {
               .width(95)
           }
         }
-        .backgroundColor(this.audioTrackSelected === index ? $r('app.color.main_color') : '')
+        .backgroundColor(this.player.audioTrackSelected === index ? $r('app.color.main_color') : '')
         .borderRadius(16)
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .width('100%')

@@ -1,11 +1,6 @@
 import { window } from '@kit.ArkUI'
-import { hilog } from '@kit.PerformanceAnalysisKit'
-import { BusinessError, deviceInfo, settings } from '@kit.BasicServicesKit'
 import { PathUtils } from './PathUtils'
-import { Pc, SafeHeight } from './ObservedUtil'
-import { ConfigurationConstant } from '@kit.AbilityKit'
 import { salmonLogger } from 'salmonlogger'
-import { DARK_MODE_BAR_COLOR, LIGHT_MODE_BAR_COLOR } from '../common/Constants'
 
 const TAG = 'WindowUtil'
 
@@ -251,8 +246,6 @@ export class WindowUtil {
         }
         SafeHeight.bottomSafeHeight = uiContext?.px2vp(Math.max(nav.bottomRect.height, system.bottomRect.height * 1.4,
           cutOut.bottomRect.height * 1.4)) || 0
-        // 'leftSafeHeight' uiContext?.px2vp(Math.max(cutOut.leftRect.width * 1.4, system.leftRect.width * 1.4))
-        // 'rightSafeHeight' uiContext?.px2vp(Math.max(cutOut.rightRect.width * 1.4, system.rightRect.width * 1.4))
       })
     } catch (error) {
       salmonLogger.addLog(TAG, 'updateAvoidArea error', true)

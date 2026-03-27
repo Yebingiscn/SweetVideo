@@ -40,8 +40,7 @@ export default class TimeUtil {
   }
 
   static getTextByTime() {
-    const now = new Date()
-    const hours = now.getHours()
+    const hours = new Date().getHours()
     if (hours === 15) {
       return '流心，饮茶啦！'
     }

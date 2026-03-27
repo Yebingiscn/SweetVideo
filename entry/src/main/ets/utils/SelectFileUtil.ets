@@ -1,25 +1,15 @@
 import { common, Context } from '@kit.AbilityKit'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
-import { fileUri, fileIo as fs, picker } from '@kit.CoreFileKit'
-import VideoUtil from './VideoInfoUtil'
+import { fileIo as fs } from '@kit.CoreFileKit'
 import VideoInfoUtil from './VideoInfoUtil'
-import { BusinessError, systemDateTime } from '@kit.BasicServicesKit'
 import { media } from '@kit.MediaKit'
 import { SaveOptions, VideoMetadata } from '../interfaces/VideoMetadataInterface'
-import Preferences from '../database/Preferences'
-import PrivacySpaceUtil from './PrivacySpaceUtil'
 import { FileFolder } from '../interfaces/FileFolderInterface'
-import FileFolderUtil from './FileFolderUtil'
-import { PathUtils } from './PathUtils'
 import ToolsUtil from './ToolsUtil'
-import RecentPlayUtil from './RecentPlayUtil'
-import { ConcurrencyManagerUtil } from './FileProcessorUtil'
 import { image } from '@kit.ImageKit'
 import PermissionUtil from './PermissionUtil'
 import { VideoSource } from '../common/enum/VideoSource'
-import SubtitleUtil from './SubtitleUtil'
 import { salmonLogger } from 'salmonlogger'
-import { SUPPORT_AUDIO_FORMAT, SUPPORT_VIDEO_FORMAT } from '../common/Constants'
 
 const TAG = 'SelectFileUtil'
 
@@ -58,10 +48,10 @@ export default class SelectFileUtil {
     return SelectFileUtil.selectFromAlbum(photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE, 1)
   }
 
-  static async deletePhoto() {
-    fs.access(PathUtils.photoPath! + 'BackgroundImage').then((res: boolean) => {
+  static async deletePhoto(imageName: 'BackgroundImage' | 'BackgroundDarkImage') {
+    fs.access(PathUtils.photoPath! + imageName).then((res: boolean) => {
       if (res) {
-        fs.unlink(PathUtils.photoPath! + 'BackgroundImage', async (unlinkErr) => {
+        fs.unlink(PathUtils.photoPath! + imageName, async (unlinkErr) => {
           if (unlinkErr) {
             ToolsUtil.showToast('删除自定义背景失败，原因是：' + unlinkErr.message)
           }
@@ -112,17 +102,49 @@ export default class SelectFileUtil {
     }
   }
 
-  static getImageUri() {
+  static getImageUri(): string {
+    const currentColorMode = AppStorage.get('currentColorMode') as number
+    const basePhotoPath = PathUtils.photoPath!
+    // 辅助函数：安全地获取文件 URI
+    // 如果文件存在返回 URI，否则返回空字符串
+    const getSafeUri = (fileName: string): string => {
+      const fullPath = `${basePhotoPath}${fileName}`
+      try {
+        if (fs.accessSync(fullPath)) {
+          return fileUri.getUriFromPath(fullPath)
+        }
+      } catch (e) {
+        // accessSync 抛出异常通常意味着权限问题或路径严重错误，视为文件不存在
+        console.warn(`Failed to access image: ${fullPath}`, e)
+      }
+      return ''
+    }
     try {
-      const isExist = fs.accessSync(PathUtils.photoPath! + 'BackgroundImage')
-      return isExist ? fileUri.getUriFromPath(PathUtils.photoPath! + 'BackgroundImage') : ''
+      // 1. 处理亮色模式
+      if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT) {
+        return getSafeUri('BackgroundImage')
+      }
+      // 2. 处理暗色模式
+      if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK) {
+        // 优先尝试获取暗色背景
+        const darkUri = getSafeUri('BackgroundDarkImage')
+        if (darkUri) {
+          return darkUri
+        }
+        // 降级策略：如果暗色背景不存在，尝试返回亮色背景
+        return getSafeUri('BackgroundImage')
+      }
+      // 3. 其他未定义的模式，默认返回空或根据需求返回亮色图
+      return ''
     } catch (error) {
+      // 捕获顶层意外错误（如 AppStorage 读取失败等）
+      console.error('Unexpected error in getImageUri', error)
       return ''
     }
   }
 
-  static saveImageToPrivacySpace(sourceFileUri: string) {
-    const filePath = PathUtils.photoPath + 'BackgroundImage' // 定义完整文件路径
+  static saveImageToPrivacySpace(sourceFileUri: string, isDark: boolean) {
+    const filePath = PathUtils.photoPath + (isDark ? 'BackgroundDarkImage' : 'BackgroundImage') // 定义完整文件路径
     try {
       let sourceFile = fs.openSync(sourceFileUri, fs.OpenMode.READ_ONLY)
       let targetFile = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
@@ -302,18 +324,6 @@ export default class SelectFileUtil {
     })?.catch((err: BusinessError) => {
       salmonLogger.addLog(TAG, "access failed with error message: " + err.message + ", error code: " + err.code, true)
     })
-  }
-
-  static getPrevAndNextItem(targetItem: string, list: string[]) {
-    const listIndex = list.findIndex(i => i === targetItem)
-    if (listIndex === -1) {
-      return ['', ''] // 如果没找到，返回空字符串
-    }
-    // 如果是第一个元素（最小倍速），不显示左箭头
-    const prevItem = listIndex === 0 ? '' : list[listIndex - 1]
-    // 如果是最后一个元素（最大倍速），不显示右箭头
-    const nextItem = listIndex === list.length - 1 ? '' : list[listIndex + 1]
-    return [prevItem, nextItem]
   }
 
   static getItem(list: VideoMetadata[], item: string): VideoMetadata | undefined {
@@ -560,22 +570,6 @@ export default class SelectFileUtil {
     })
   }
 
-  private static async selectFromAlbum(mimeType: photoAccessHelper.PhotoViewMIMETypes,
-    maxSelect: number = Number.MAX_SAFE_INTEGER): Promise<string[]> {
-    const options = new photoAccessHelper.PhotoSelectOptions()
-    options.MIMEType = mimeType
-    options.maxSelectNumber = maxSelect
-    options.isPhotoTakingSupported = false
-    try {
-      const picker = new photoAccessHelper.PhotoViewPicker()
-      const result: photoAccessHelper.PhotoSelectResult = await picker.select(options)
-      return result.photoUris || []
-    } catch (error) {
-      salmonLogger.addLog(TAG, `Error selecting media [${mimeType}]:${error}`, true)
-      return []
-    }
-  }
-
   static async getDownloadFilesUri(): Promise<string[]> {
     const VIDEO_EXTENSIONS = new Set([
       ...SUPPORT_VIDEO_FORMAT,
@@ -671,6 +665,22 @@ export default class SelectFileUtil {
       return Array.from(new Set(filePaths))
     } catch (error) {
       salmonLogger.addLog(TAG, `Root directory processing failed: ${error}`, true)
+      return []
+    }
+  }
+
+  private static async selectFromAlbum(mimeType: photoAccessHelper.PhotoViewMIMETypes,
+    maxSelect: number = Number.MAX_SAFE_INTEGER): Promise<string[]> {
+    const options = new photoAccessHelper.PhotoSelectOptions()
+    options.MIMEType = mimeType
+    options.maxSelectNumber = maxSelect
+    options.isPhotoTakingSupported = false
+    try {
+      const picker = new photoAccessHelper.PhotoViewPicker()
+      const result: photoAccessHelper.PhotoSelectResult = await picker.select(options)
+      return result.photoUris || []
+    } catch (error) {
+      salmonLogger.addLog(TAG, `Error selecting media [${mimeType}]:${error}`, true)
       return []
     }
   }

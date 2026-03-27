@@ -1,12 +1,12 @@
-import { AICaptionComponent, AICaptionController, AICaptionOptions } from '@kit.SpeechKit';
-import { BusinessError } from '@kit.BasicServicesKit';
+import { AICaptionController, AICaptionOptions } from '@kit.SpeechKit';
+import { AVPlayerController } from '../../controller/AVPlayerController';
+import { MpvController } from '../../controller/MpvController/MpvController';
 
 @Component
 export struct AISubtitleComponent {
   @Link isAIAsrShown: boolean
   @Link showControl: boolean
-  @Prop screenWidth: number
-  @Prop screenHeight: number
+  @Consume('player') player: AVPlayerController | MpvController
   private captionOption?: AICaptionOptions
   private controller: AICaptionController = new AICaptionController()
 
@@ -25,7 +25,7 @@ export struct AISubtitleComponent {
   }
 
   build() {
-    if (this.showControl) {
+    if (this.isAIAsrShown) {
       if (canIUse('SystemCapability.AI.AICaption')) {
         Column() {
           AICaptionComponent({
@@ -37,13 +37,12 @@ export struct AISubtitleComponent {
             .height(80)
         }
         .justifyContent(FlexAlign.End)
-        .visibility(this.showControl ? Visibility.None : Visibility.Visible)
-        .width('80%')
+        .width('75%')
         .height(80)
         .offset({
           x: 0,
-          y: this.screenWidth > this.screenHeight ? this.screenHeight / 2 - 40 :
-            this.screenHeight / 2 - 100
+          y: this.showControl ? this.player.screenHeight / 2 - 150 :
+            this.player.screenHeight / 2 - 40
         })
       }
     }

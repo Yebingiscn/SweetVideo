@@ -5,11 +5,21 @@ import { Context } from '@kit.AbilityKit'
 import { RepeatMode } from '../common/enum/RepeatMode'
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import { CoverLayoutMode, ListDisplayMode } from '../common/enum/DisplayMode'
+import { MpvDecodingMethod } from '../controller/MpvController/MpvTypes'
 
 const DATA_BASE_NAME = 'sweet_video'
 
 // 存储类
 export default class Preferences {
+  static saveMpvDecodingMethod(context: Context, decodingMethod: MpvDecodingMethod) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpv_decoding_method', decodingMethod)
+  }
+
+  static getMpvDecodingMethod(context: Context) {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'mpv_decoding_method',
+      MpvDecodingMethod.HARDWARE) as MpvDecodingMethod
+  }
+
   // 首页视频数据
   static getVideoMetaData(context: Context) {
     return Preferences.getFileFolder(context)[0]?.video_list ?? [] as VideoMetadata[]
@@ -242,5 +252,13 @@ export default class Preferences {
 
   static saveJumpToHistoryTime(context: Context, jumpToHistoryTime: boolean) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'jumpToHistoryTime', jumpToHistoryTime)
+  }
+
+  static saveSuperResolutionState(context: Context, superResolutionState: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'superResolutionState', superResolutionState)
+  }
+
+  static getSuperResolutionState(context: Context): boolean {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'superResolutionState', false) as boolean
   }
 }

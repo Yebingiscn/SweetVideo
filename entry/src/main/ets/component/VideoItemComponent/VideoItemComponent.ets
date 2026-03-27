@@ -1,33 +1,20 @@
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
-import VideoCardItem from './VideoCardItemComponent'
-import VideoListItem from './VideoListItemComponent'
-import Preferences from '../../database/Preferences'
 import { FileFolderDataSource, VideoDataSource } from '../../utils/DataUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
 import SelectFileUtil from '../../utils/SelectFileUtil'
-import { SymbolGlyphModifier } from '@kit.ArkUI'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import { VideoDetailDialog } from '../../component/Dialog//VideoDetailDialog'
-import { DefaultDialogShadow, MenuFancyModifier } from '../../common/AttributeModifierConfig'
+import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
 import { EditMetadataDialog } from '../../component/Dialog//EditMetadataDialog'
-import SubtitleUtil from '../../utils/SubtitleUtil'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
 import { SideBarController } from '../SideBarComponent/SideBar'
-import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu'
 import { VideoMetaDataOperator } from '../../database/VideoMetaData'
 import VideoUtils from '../../utils/VideoUtil'
 import FileFolderUtil from '../../utils/FileFolderUtil'
 import { VideoDeleteDialog } from '../Dialog/VideoDeleteDialog'
 import { DeleteType } from '../../common/enum/DeleteType'
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
-import { XAnimation } from '../../utils/AnimationUtil'
-import { salmonLogger } from 'salmonlogger'
-import { SafeHeight, Setting } from '../../utils/ObservedUtil'
-import { DELAY_JUMP_TO_PLAYER } from '../../common/Constants'
-import VideoOperateUtil from '../../utils/VideoOperateUtil'
-import WantProcess from '../../utils/WantProcessUtil'
-import { VideoItemPreviewBuilder } from './VideoItemPreviewBuilder'
 
 @Observed
 export class VideoListController {
@@ -111,25 +98,6 @@ export class VideoListController {
 export struct VideoList {
   @Link searchValue: string
   @Link videoListController: VideoListController
-  delConfirmDialog: CustomDialogController = new CustomDialogController({
-    builder: VideoDeleteDialog({
-      confirm: async (deleteType: DeleteType) => {
-        try {
-          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType,
-            DataSyncUtil.editingVideo!)
-          if (DataSyncUtil.delMultipleList.length > 0) {
-            await FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController,
-              this.fileFolderSource)
-          }
-          this.videoListController.closeMultipleChoose()
-        } catch (e) {
-          ToolsUtil.showToast(`删除失败:${e}`)
-        } finally {
-          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
-        }
-      }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -153,6 +121,25 @@ export struct VideoList {
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   @Consume fileFolderSource: FileFolderDataSource
+  delConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: VideoDeleteDialog({
+      confirm: async (deleteType: DeleteType) => {
+        try {
+          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType,
+            DataSyncUtil.editingVideo!)
+          if (DataSyncUtil.delMultipleList.length > 0) {
+            await FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController,
+              this.fileFolderSource)
+          }
+          this.videoListController.closeMultipleChoose()
+        } catch (e) {
+          ToolsUtil.showToast(`删除失败:${e}`)
+        } finally {
+          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+        }
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
   @Consume file_folder_list: FileFolder[]
   @Consume sideBarController: SideBarController
   searchController: SearchController = new SearchController()
@@ -206,7 +193,7 @@ export struct VideoList {
             {
               backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
               preview: VideoItemPreviewBuilder(item),
-              previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2], hoverScaleInterruption: true },
+              previewAnimationOptions: { hoverScale: [1.0, 1.2], hoverScaleInterruption: true },
               onAppear: () => {
                 this.longPressPreview = true
               },
@@ -322,8 +309,8 @@ export struct VideoList {
           }
           .clip(false)
           .columnsTemplate('1fr '.repeat(this.videoListController.listLine).trim())
-          .columnsGap(22) // 列间距
-          .rowsGap(32) // 行间距
+          .columnsGap(16) // 列间距
+          .rowsGap(16) // 行间距
           .cachedCount(12)
           .scrollBar(BarState.Auto)
           .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })

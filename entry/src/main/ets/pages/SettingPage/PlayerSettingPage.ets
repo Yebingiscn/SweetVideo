@@ -1,6 +1,8 @@
+import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem'
 import { SettingSliderItem } from '../../component/SettingComponent/SettingSliderItem'
 import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuItem'
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
+import { MpvDecodingMethod } from '../../controller/MpvController/MpvTypes'
 import Preferences from '../../database/Preferences'
 import { FastForwardSecondInterface } from '../../interfaces/FastForwardSecondInterface'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
@@ -42,6 +44,33 @@ export struct PlayerSettingPage {
             onChange: (checked: boolean) => {
               Setting.allowPlayBackExist = !checked
               Preferences.saveAllowPlayBackExistState(PathUtils.appContext!, Setting.allowPlayBackExist)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsToggleItem({
+            symbol: $r('sys.symbol.camera_master_ai'),
+            message: '视频超分辨率',
+            enable: Setting.superResolutionState,
+            onChange: (checked: boolean) => {
+              Setting.superResolutionState = checked
+              Preferences.saveSuperResolutionState(PathUtils.appContext!, Setting.superResolutionState)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsCheckboxItem({
+            symbol: $r('sys.symbol.hardware'),
+            message: 'MPV 解码：' +
+              (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE ? '功耗低但少部分视频异常' :
+                '功耗高，画面一般正常'),
+            tips: ['硬解', '软解'],
+            tabSelectedIndexes: [Setting.mpvDecodingMethod],
+            onButtonClick: (tabSelectedIndexes: number) => {
+              Setting.mpvDecodingMethod = tabSelectedIndexes
+              Preferences.saveMpvDecodingMethod(PathUtils.appContext!, tabSelectedIndexes)
             }
           })
         }
@@ -94,17 +123,19 @@ export struct PlayerSettingPage {
           })
         }
 
-        ListItem() {
-          SettingsMenuItem({
-            symbol: $r('sys.symbol.hand_point_up_tap'),
-            message: '快进快退时长',
-            list: this.fastForwardSecond.map(opt => opt.label),
-            selected: this.fastForwardSecond.findIndex(opt => opt.value === Setting.fastForwardSeconds),
-            onChange: (index: number) => {
-              Setting.fastForwardSeconds = this.fastForwardSecond[index].value
-              Preferences.saveFastForwardSeconds(PathUtils.appContext!, Setting.fastForwardSeconds)
-            }
-          })
+        if (Setting.allowDoubleFastForward) {
+          ListItem() {
+            SettingsMenuItem({
+              symbol: $r('sys.symbol.hand_point_up_tap'),
+              message: '快进快退时长',
+              list: this.fastForwardSecond.map(opt => opt.label),
+              selected: this.fastForwardSecond.findIndex(opt => opt.value === Setting.fastForwardSeconds),
+              onChange: (index: number) => {
+                Setting.fastForwardSeconds = this.fastForwardSecond[index].value
+                Preferences.saveFastForwardSeconds(PathUtils.appContext!, Setting.fastForwardSeconds)
+              }
+            })
+          }
         }
 
         ListItem() {

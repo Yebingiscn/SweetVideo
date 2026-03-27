@@ -1,12 +1,31 @@
 import { PlayerControllerInterface } from '../PlayerControllerFactory';
-import * as mpv from 'libmpvnative.so';
+import {
+  create as mpvCreate,
+  destroy as mpvDestroy,
+  getAudioTracks as mpvGetAudioTracks,
+  getCurrentPosition as mpvGetCurrentPosition,
+  getDuration as mpvGetDuration,
+  getSubtitleTracks as mpvGetSubtitleTracks,
+  getVideoHeight as mpvGetVideoHeight,
+  getVideoWidth as mpvGetVideoWidth,
+  loadVideo as mpvLoadVideo,
+  pause as mpvPause,
+  play as mpvPlay,
+  reset as mpvReset,
+  seek as mpvSeek,
+  selectAudio as mpvSelectAudio,
+  selectSubtitle as mpvSelectSubtitle,
+  setDecodeType as mpvSetDecodeType,
+  setKeepAspect as mpvSetKeepAspect,
+  setSpeed as mpvSetSpeed
+} from 'libmpvnative.so';
 import { Setting } from '../../utils/ObservedUtil';
 import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode';
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
 import { SubtitleMode } from '../../common/enum/SubtitleMode';
 import { PathUtils } from '../../utils/PathUtils';
 import VideoOperateUtil from '../../utils/VideoOperateUtil';
-import { MpvAudioTrack, MpvSubtitleTrack } from './MpvTypes';
+import { MpvAudioTrack, MpvDecodingMethod, MpvSubtitleTrack } from './MpvTypes';
 import { avSession, avSession as avSessionManager } from '@kit.AVSessionKit';
 import { audio } from '@kit.AudioKit';
 import { WindowUtil } from '../../utils/WindowUtil';
@@ -16,11 +35,12 @@ import ToolsUtil from '../../utils/ToolsUtil';
 import { RepeatMode } from '../../common/enum/RepeatMode';
 import AVSessionUtil from '../../utils/AVSessionUtil';
 import { LEFT_ZONE_DIVISION, RIGHT_ZONE_DIVISION, SCREEN_DIVISIONS } from '../../common/Constants';
-import { fileUri } from '@kit.CoreFileKit';
+import { fileIo as fs, fileUri } from '@kit.CoreFileKit';
 import { salmonLogger } from 'salmonlogger';
 import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil';
 import RecentPlayUtil from '../../utils/RecentPlayUtil';
 import SelectFileUtil from '../../utils/SelectFileUtil';
+import SubtitleUtil from '../../utils/SubtitleUtil';
 
 const TAG = 'MpvController'
 
@@ -52,6 +72,8 @@ export class MpvController implements PlayerControllerInterface {
   @Track onSwiping: boolean = false
   @Track onSwipingBrightness: boolean = false
   @Track isSliderPlayTimeChange: boolean = false
+  @Track audioTrackSelected: number = 0
+  @Track pipOpenState: boolean = false
   avSession: avSessionManager.AVSession | undefined = undefined
   audioVolumeManager: audio.AudioVolumeManager | null = null
 
@@ -124,11 +146,22 @@ export class MpvController implements PlayerControllerInterface {
       return
     }
     try {
-      this.mpvHandle = mpv.create()
+      this.mpvHandle = mpvCreate()
       if (!this.mpvHandle) {
         console.error('[MpvPlayer] Failed to create mpv instance - handle is null/undefined')
       } else {
         console.error('[MpvPlayer] MPV instance created:', this.mpvHandle)
+        switch (Setting.mpvDecodingMethod) {
+          case MpvDecodingMethod.HARDWARE:
+            mpvSetDecodeType(0)
+            break
+          case MpvDecodingMethod.SOFTWARE:
+            mpvSetDecodeType(1)
+            break
+          default:
+            mpvSetDecodeType(0)
+            break
+        }
       }
     } catch {
       console.error('[MpvPlayer] Exception during create')
@@ -139,12 +172,12 @@ export class MpvController implements PlayerControllerInterface {
   init(url?: string, startPosition?: number): void {
     // 传递起始位置给 native（参考 mpv-android）
     if (startPosition !== undefined && startPosition > 0) {
-      mpv.loadVideo(this.mpvHandle, url, startPosition)
+      mpvLoadVideo(this.mpvHandle, url, startPosition)
     } else {
-      mpv.loadVideo(this.mpvHandle, new fileUri.FileUri(url!).path)
+      mpvLoadVideo(this.mpvHandle, new fileUri.FileUri(url!).path)
     }
     this.playTimeUpdateTag = setInterval(() => {
-      this.playTime = mpv.getCurrentPosition(this.mpvHandle)
+      this.playTime = mpvGetCurrentPosition(this.mpvHandle)
     }, 1000);
     this.playing = true
     setTimeout(async () => {
@@ -166,6 +199,7 @@ export class MpvController implements PlayerControllerInterface {
           })
           ToolsUtil.addLogger("设置窗口方向完成", false)
         }
+        await this.setExternalSubtitle(this.nowPlaying!)
       }, 500)
     }, 1000)
   }
@@ -174,14 +208,14 @@ export class MpvController implements PlayerControllerInterface {
     if (!this.mpvHandle) {
       return
     }
-    mpv.seek(this.mpvHandle, (this.playTime - Number(Setting.fastForwardSeconds) * 1000) / 1000, true)
+    mpvSeek(this.mpvHandle, (this.playTime - Number(Setting.fastForwardSeconds) * 1000) / 1000, true)
   }
 
   fastForward(): void {
     if (!this.mpvHandle) {
       return
     }
-    mpv.seek(this.mpvHandle, (this.playTime + Number(Setting.fastForwardSeconds) * 1000) / 1000, true)
+    mpvSeek(this.mpvHandle, (this.playTime + Number(Setting.fastForwardSeconds) * 1000) / 1000, true)
   }
 
   prepare(): void {
@@ -193,7 +227,7 @@ export class MpvController implements PlayerControllerInterface {
       return
     }
     this.playing = true
-    mpv.play(this.mpvHandle)
+    mpvPlay(this.mpvHandle)
   }
 
   pause(): void {
@@ -201,18 +235,18 @@ export class MpvController implements PlayerControllerInterface {
       return
     }
     this.playing = false
-    mpv.pause(this.mpvHandle)
+    mpvPause(this.mpvHandle)
   }
 
   reset(): void {
-    mpv.reset(this.mpvHandle)
+    mpvReset(this.mpvHandle)
   }
 
   release(): void {
     if (!this.mpvHandle) {
       return
     }
-    mpv.destroy(this.mpvHandle)
+    mpvDestroy(this.mpvHandle)
     clearInterval(this.playTimeUpdateTag)
     this.mpvHandle = null
   }
@@ -221,15 +255,15 @@ export class MpvController implements PlayerControllerInterface {
     if (!this.mpvHandle) {
       return
     }
-    mpv.seek(this.mpvHandle, seekTime / 1000, true)
+    mpvSeek(this.mpvHandle, seekTime / 1000, true)
   }
 
   getPlayAreaWidth(): number {
-    return mpv.getVideoWidth(this.mpvHandle)
+    return mpvGetVideoWidth(this.mpvHandle)
   }
 
   getPlayAreaHeight(): number {
-    return mpv.getVideoHeight(this.mpvHandle)
+    return mpvGetVideoHeight(this.mpvHandle)
   }
 
   togglePlayback(): void {
@@ -237,12 +271,12 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   updatePlaybackSpeed(speed: number) {
-    mpv.setSpeed(this.mpvHandle, speed)
+    mpvSetSpeed(this.mpvHandle, speed)
     this.speed = speed
   }
 
   getDuration(): number {
-    const totalTime = mpv.getDuration(this.mpvHandle) as number
+    const totalTime = mpvGetDuration(this.mpvHandle) as number
     if (totalTime === 0) {
       return this.nowPlaying!.time
     }
@@ -270,19 +304,19 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   getAudioTrackList() {
-    this.audioTrack = mpv.getAudioTracks(this.mpvHandle) as MpvAudioTrack[];
+    this.audioTrack = mpvGetAudioTracks(this.mpvHandle) as MpvAudioTrack[];
   }
 
   selectAudioTrack(trackId: number): void {
-    mpv.selectAudio(this.mpvHandle, trackId)
+    mpvSelectAudio(this.mpvHandle, trackId)
   }
 
   getSubtitleTrackList() {
-    this.subtitleTrack = mpv.getSubtitleTracks(this.mpvHandle) as MpvSubtitleTrack[]
+    this.subtitleTrack = mpvGetSubtitleTracks(this.mpvHandle) as MpvSubtitleTrack[]
   }
 
   selectSubtitleTrack(trackId: number): void {
-    mpv.selectSubtitle(this.mpvHandle, trackId)
+    mpvSelectSubtitle(this.mpvHandle, trackId)
   }
 
   async setRotation() {
@@ -310,7 +344,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   setKeepAspectStatus(keepAspect: boolean) {
-    mpv.setKeepAspect(this.mpvHandle, keepAspect)
+    mpvSetKeepAspect(this.mpvHandle, keepAspect)
   }
 
   setSessionListener() {
@@ -399,5 +433,19 @@ export class MpvController implements PlayerControllerInterface {
       return
     }
     this.togglePlayback()
+  }
+
+  async setExternalSubtitle(now_playing: VideoMetadata) {
+    if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, now_playing.date!)) {
+      try {
+        let subtitle = fs.openSync(PathUtils.subtitlePath! + now_playing.date, fs.OpenMode.READ_ONLY)
+        await SubtitleUtil.parseSubtitleProcess(subtitle.path, now_playing.external_subtitle_format) ?
+          this.subtitleSelected = SubtitleMode.EXTERNAL_SUBTITLE : this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
+      } catch (error) {
+        this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
+      }
+    } else {
+      this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
+    }
   }
 }

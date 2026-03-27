@@ -1,10 +1,10 @@
-import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
+import { AVPlayerController } from '../../controller/AVPlayerController'
+import { MpvController } from '../../controller/MpvController/MpvController'
 
 @Component
 export struct LockVideoBarComponent {
+  @Consume('player') player: AVPlayerController | MpvController
   @Link isLock: boolean
-  @Prop screenHeight: number
-  @Prop screenWidth: number
   @Link showControl: boolean
 
   build() {
@@ -24,6 +24,6 @@ export struct LockVideoBarComponent {
       this.isLock = !this.isLock
       this.showControl = true
     })
-    .position({ bottom: this.screenHeight / 2, left: this.screenWidth - 80 })
+    .position({ bottom: this.player.screenHeight / 2, left: this.player.screenWidth - 80 })
   }
 }

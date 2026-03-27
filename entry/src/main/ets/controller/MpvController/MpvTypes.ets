@@ -75,3 +75,8 @@ export interface MpvCommandResult {
   /** 错误信息 (仅在失败时存在) */
   error?: string;
 }
+
+export const enum MpvDecodingMethod {
+  HARDWARE = 0,
+  SOFTWARE = 1
+}

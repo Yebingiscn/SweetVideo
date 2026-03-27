@@ -1,27 +1,20 @@
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
-import { fileUri } from '@kit.CoreFileKit'
-import { PathUtils } from '../../utils/PathUtils'
-import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
 import { PlayerSideBarSource } from '../../utils/DataUtil'
-import VideoInfoUtil from '../../utils/VideoInfoUtil'
-import { VideoInfoBuilder } from '../VideoItemComponent/VideoInfoBuilder'
-import { XAnimation } from '../../utils/AnimationUtil'
-import { SafeHeight, Setting } from '../../utils/ObservedUtil'
-import { CoverLayoutMode } from '../../common/enum/DisplayMode'
+import { AVPlayerController } from '../../controller/AVPlayerController'
+import { MpvController } from '../../controller/MpvController/MpvController'
 
 @Component
 export struct PlayerSideBarComponent {
   @State playerSideBarSource: PlayerSideBarSource = new PlayerSideBarSource([])
   @Link @Watch('onSideBarVisibleChange') sideBarStatusTmp: Visibility
-  @State videoMetadata: VideoMetadata[] = []
-  @Prop nowPlaying: VideoMetadata | undefined
+  @Consume('player') player: AVPlayerController | MpvController
   @Link sideBarStatus: boolean
   private listScroller: Scroller = new Scroller()
   onItemClick = (_item: VideoMetadata) => {
   }
 
   aboutToAppear(): void {
-    this.playerSideBarSource = new PlayerSideBarSource(this.videoMetadata)
+    this.playerSideBarSource = new PlayerSideBarSource(this.player.videoMetaDataList)
   }
 
   build() {
@@ -30,7 +23,7 @@ export struct PlayerSideBarComponent {
         ListItem() {
           VideoItemBuilder({
             item: item,
-            nowPlaying: this.nowPlaying,
+            nowPlaying: this.player.nowPlaying,
             showProgress: false
           })
         }
@@ -40,7 +33,7 @@ export struct PlayerSideBarComponent {
           if (this.sideBarStatusTmp === Visibility.Hidden) {
             return
           }
-          this.nowPlaying?.date === item.date ? this.closeSideBar() : this.onItemClick(item)
+          this.player.nowPlaying?.date === item.date ? this.closeSideBar() : this.onItemClick(item)
         })
         .width('100%')
         .height('auto')
@@ -76,8 +69,8 @@ export struct PlayerSideBarComponent {
   onSideBarVisibleChange() {
     if (this.sideBarStatusTmp === Visibility.Visible) {
       setTimeout(() => {
-        const targetIndex = this.videoMetadata.findIndex(
-          item => item?.date === this.nowPlaying?.date
+        const targetIndex = this.player.videoMetaDataList.findIndex(
+          item => item?.date === this.player.nowPlaying?.date
         )
         if (targetIndex >= 0) {
           this.listScroller.scrollToIndex(targetIndex, false)

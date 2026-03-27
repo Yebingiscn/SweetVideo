@@ -2,18 +2,15 @@ import { KeyCode } from '@kit.InputKit'
 import { OPTIONS } from '../../common/Constants'
 import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import NavigationAddress from '../../common/NavigationCommon'
+import { AVPlayerController } from '../../controller/AVPlayerController'
+import { MpvController } from '../../controller/MpvController/MpvController'
 import { SubtitleDisplayBuilder } from './SubtitleDisplayBuilder'
 
 @Component
 export struct XComponents {
-  @Prop playAreaWidth: number
-  @Prop playAreaHeight: number
-  @Prop playTime: number
+  @Consume('player') player: AVPlayerController | MpvController
   @Prop choosePlayer: string
   @Prop subtitle: string
-  @Prop screenWidth: number
-  @Prop screenHeight: number
-  @Prop angle: number
   @Link showControl: boolean
   @Link subtitleVisibility: Visibility
   @Link subtitle3DMode: Subtitle3DMode
@@ -54,8 +51,8 @@ export struct XComponents {
       }
       SubtitleDisplayBuilder({
         subtitle: this.subtitle,
-        screenWidth: this.screenWidth,
-        screenHeight: this.screenHeight,
+        screenWidth: this.player.screenWidth,
+        screenHeight: this.player.screenHeight,
         showControl: this.showControl,
         subTitleVisibility: this.subtitleVisibility,
         subtitle3DMode: this.subtitle3DMode
@@ -81,10 +78,10 @@ export struct XComponents {
         this.onKeyCodeUpAndDown(event)
       }
     })
-    .width(this.playAreaWidth)
-    .height(this.playAreaHeight)
-    .animation({ duration: this.playTime > 300 ? 300 : 0, curve: Curve.Ease })
-    .rotate({ y: 2, angle: this.angle, perspective: 200 })
+    .width(this.player.playAreaWidth)
+    .height(this.player.playAreaHeight)
+    .animation({ duration: this.player.playTime > 300 ? 300 : 0, curve: Curve.Ease })
+    .rotate({ y: 2, angle: this.player.angle, perspective: 200 })
   }
 }
 
@@ -102,12 +99,14 @@ export struct MpvXComponent {
       controller: this.xComponentController,
       id: this.xComponentId,
       libraryname: this.libraryName,
-    }).focusable(true)
+    })
+      .focusable(true)
       .defaultFocus(true)
       .enableAnalyzer(true)
       .onLoad(() => {
         this.onMpvXComponent()
       })
+      .position({ x: 0, y: 0 })
   }
 }
 
@@ -122,10 +121,13 @@ export struct AVPlayerXComponent {
       type: XComponentType.SURFACE,
       controller: this.xComponentController,
       imageAIOptions: OPTIONS
-    }).onLoad(() => {
-      this.onAVPlayerComponentLoad()
-    }).focusable(true)
+    })
+      .onLoad(() => {
+        this.onAVPlayerComponentLoad()
+      })
+      .focusable(true)
       .defaultFocus(true)
       .enableAnalyzer(true)
+      .position({ x: 0, y: 0 })
   }
 }

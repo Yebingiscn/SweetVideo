@@ -1,11 +1,12 @@
+import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem'
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
-import SelectFileUtil from '../../utils/SelectFileUtil'
-import ToolsUtil from '../../utils/ToolsUtil'
-import { PathUtils } from '../../utils/PathUtils'
 import { SettingSliderItem } from '../../component/SettingComponent/SettingSliderItem'
 import Preferences from '../../database/Preferences'
-import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { PathUtils } from '../../utils/PathUtils'
+import SelectFileUtil from '../../utils/SelectFileUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { ConfigurationConstant } from '@kit.AbilityKit'
 
 @Component
 export struct PersonalizePage {
@@ -22,6 +23,11 @@ export struct PersonalizePage {
               Setting.backgroundColorMode = tabSelectedIndexes
               Preferences.saveBackgroundColorMode(PathUtils.appContext!, tabSelectedIndexes)
               ToolsUtil.setColorMode(PathUtils.appContext!, tabSelectedIndexes)
+              Setting.backgroundImageSrc = ''
+              setTimeout(() => {
+                Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
+                ToolsUtil.showToast('设置成功')
+              }, 100)
             }
           })
         }
@@ -29,7 +35,7 @@ export struct PersonalizePage {
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.picture'),
-            message: '自定义背景',
+            message: '自定义（浅色）背景',
             onPress: async () => {
               const imageUris = await SelectFileUtil.selectPhoto()
               if (imageUris.length === 0) {
@@ -37,7 +43,7 @@ export struct PersonalizePage {
                 return
               }
               Setting.backgroundImageSrc = ''
-              SelectFileUtil.saveImageToPrivacySpace(imageUris[0])
+              SelectFileUtil.saveImageToPrivacySpace(imageUris[0], false)
               setTimeout(() => {
                 Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
                 ToolsUtil.showToast('设置成功')
@@ -49,11 +55,54 @@ export struct PersonalizePage {
         if (Setting.backgroundImageSrc.length > 0) {
           ListItem() {
             SettingsClickItem({
-              symbol: $r('sys.symbol.picture_damage'),
-              message: '删除自定义背景',
+              symbol: $r('sys.symbol.picture'),
+              message: '自定义深色背景',
               onPress: async () => {
-                await SelectFileUtil.deletePhoto()
+                const imageUris = await SelectFileUtil.selectPhoto()
+                if (imageUris.length === 0) {
+                  ToolsUtil.showToast('没有照片被选择')
+                  return
+                }
                 Setting.backgroundImageSrc = ''
+                SelectFileUtil.saveImageToPrivacySpace(imageUris[0], true)
+                setTimeout(() => {
+                  Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
+                  ToolsUtil.showToast('设置成功')
+                }, 100)
+              }
+            })
+          }
+
+
+          ListItem() {
+            SettingsClickItem({
+              symbol: $r('sys.symbol.picture_damage'),
+              message: '删除（浅色）自定义背景',
+              onPress: async () => {
+                await SelectFileUtil.deletePhoto('BackgroundImage')
+                await SelectFileUtil.deletePhoto('BackgroundDarkImage')
+                Setting.backgroundImageSrc = ''
+                ToolsUtil.showToast('删除成功')
+                Preferences.saveBackgroundDropBlur(PathUtils.appContext!, 0)
+              }
+            })
+          }
+
+          ListItem() {
+            SettingsClickItem({
+              symbol: $r('sys.symbol.picture_damage'),
+              message: '删除（深色）自定义背景',
+              onPress: async () => {
+                await SelectFileUtil.deletePhoto('BackgroundDarkImage')
+                const currentColorMode = AppStorage.get('currentColorMode') as number
+                if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK) {
+                  Setting.backgroundImageSrc = ''
+                } else {
+                  Setting.backgroundImageSrc = ''
+                  setTimeout(() => {
+                    Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
+                  }, 100)
+                }
                 ToolsUtil.showToast('删除成功')
                 Preferences.saveBackgroundDropBlur(PathUtils.appContext!, 0)
               }

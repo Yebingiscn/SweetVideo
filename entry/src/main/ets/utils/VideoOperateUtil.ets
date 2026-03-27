@@ -1,33 +1,21 @@
 import { window } from '@kit.ArkUI'
-import { hilog } from '@kit.PerformanceAnalysisKit'
 import { audio } from '@kit.AudioKit'
-import { BusinessError, settings } from '@kit.BasicServicesKit'
+import { BusinessError } from '@kit.BasicServicesKit'
 import { media } from '@kit.MediaKit'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
-import SelectFileUtil from './SelectFileUtil'
 import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
 import { common } from '@kit.AbilityKit'
-import Preferences from '../database/Preferences'
-import RecentPlayUtil from './RecentPlayUtil'
-import PrivacySpaceUtil from './PrivacySpaceUtil'
 import { PathUtils } from './PathUtils'
-import { LanguageConfig } from '../common/LanguageConfig'
 import ToolsUtil from './ToolsUtil'
-import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode'
-import PermissionUtil from './PermissionUtil'
-import { VideoSource } from '../common/enum/VideoSource'
-import NavigationAddress, { PlayerParams } from '../common/NavigationCommon'
+import NavigationAddress from '../common/NavigationCommon'
 import { Setting } from './ObservedUtil'
-import DataSyncUtil from './DataSyncUtil'
-import { fileIo, fileUri, fileIo as fs } from '@kit.CoreFileKit'
+import { fileIo, fileUri } from '@kit.CoreFileKit'
 import { RepeatMode } from '../common/enum/RepeatMode'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { image } from '@kit.ImageKit'
-import { XAnimation } from './AnimationUtil'
-import { WindowUtil } from './WindowUtil'
-import { SUPPORT_AUDIO_FORMAT } from '../common/Constants'
 import VideoInfoUtil from './VideoInfoUtil'
-import PreferencesUtil from '../database/PreferencesUtil'
+import { salmonLogger } from 'salmonlogger'
+import { FrameSize } from '../interfaces/FrameSizeInterface'
 
 const TAG = 'VideoOperateUtil'
 
@@ -47,7 +35,7 @@ export default class VideoOperateUtil {
   public static leftSideSwipe: boolean = true
   public static avImageGenerator: media.AVImageGenerator | undefined = undefined
   public static nowPlayingFile: fileIo.File | undefined = undefined
-  public static updatePix: boolean = false
+  public static updatePix: boolean = true
   private static mainWin: window.Window | undefined = undefined
 
   // 设置亮度
@@ -225,6 +213,8 @@ export default class VideoOperateUtil {
   // 保存视频播放进度
   static saveVideoTime(play_time: number, nowPlaying: VideoMetadata,
     videoMetaData: VideoMetadata[], context: Context) {
+    // 保存文件数据
+    SelectFileUtil.saveData(context, nowPlaying!, { playTime: play_time })
     const recentPlay = Preferences.getRecentPlayState(context) // 判断最近播放开关是否开启
     if (recentPlay && !PrivacySpaceUtil.getPrivacyMode() &&
       !SelectFileUtil.isPathFromSource(nowPlaying.uri, VideoSource.PRIVACY_SPACE)) { // 最近播放开启且非隐私空间视频则添加到最近播放
@@ -233,8 +223,6 @@ export default class VideoOperateUtil {
         RecentPlayUtil.addPlayback(context, meta)
       }
     }
-    // 保存文件数据
-    SelectFileUtil.saveData(context, nowPlaying!, { playTime: play_time })
   }
 
   // 保存视频片头时间
@@ -299,13 +287,30 @@ export default class VideoOperateUtil {
     }
   }
 
-  static async fetchFrameByTime(time: number) {
+  static async fetchFrameByTime(time: number, videoSize?: number[]) {
     if (Setting.showFrameImgStatus) {
-      return await VideoOperateUtil.avImageGenerator?.fetchFrameByTime(time * 1000,
-        media.AVImageQueryOptions.AV_IMAGE_QUERY_CLOSEST, { width: 100, height: 100 })?.catch(() => {
-        ToolsUtil.addLogger('fetchFrameByTime error', true, undefined, TAG)
-      })
+      try {
+        let size: FrameSize
+        if (!videoSize) {
+          return undefined
+        }
+        // 这里需要排除掉音频文件
+        if (videoSize[0] === 0 || videoSize[1] === 0 || videoSize[0] === videoSize[1]) {
+          return undefined
+        }
+        if (videoSize.length >= 2) {
+          size = VideoOperateUtil.calculateFrameSize(videoSize[0], videoSize[1])
+        } else {
+          size = { width: 100, height: 100 }
+        }
+        return await VideoOperateUtil.avImageGenerator?.fetchFrameByTime(time * 1000,
+          media.AVImageQueryOptions.AV_IMAGE_QUERY_CLOSEST, size)
+      } catch (e) {
+        salmonLogger.addLog(TAG, 'fetchFrameByTime error', e)
+        return undefined
+      }
     }
+    return undefined
   }
 
   static async fullScreenOrRotateScreen(screenWidth: number, screenHeight: number,
@@ -350,6 +355,8 @@ export default class VideoOperateUtil {
     Setting.showFrameImgStatus = Preferences.getShowFrameTime(context)
     Setting.jumpToHistoryTimeStatus = Preferences.getJumpToHistoryTime(context)
     Setting.coverLayout = Preferences.getCoverLayoutMode(context)
+    Setting.superResolutionState = Preferences.getSuperResolutionState(context)
+    Setting.mpvDecodingMethod = Preferences.getMpvDecodingMethod(context)
     PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'defaultPlayer')
   }
 
@@ -476,9 +483,9 @@ export default class VideoOperateUtil {
             ToolsUtil.showToast('保存成功')
           }
         })
-      ?.catch((err: BusinessError) => {
-        ToolsUtil.addLogger(`packToFile failed: ${err.code}, ${err.message}`, true)
-      })
+        ?.catch((err: BusinessError) => {
+          ToolsUtil.addLogger(`packToFile failed: ${err.code}, ${err.message}`, true)
+        })
     } catch (e) {
       ToolsUtil.addLogger(`captureScreen failed: ${e.code}, ${e.message}`, true)
     }
@@ -511,5 +518,26 @@ export default class VideoOperateUtil {
     return (reverse ? !isFirstPlayer : isFirstPlayer)
       ? $r('app.string.AV_PLAYER')
       : $r('app.string.MPV_Player');
+  }
+
+  private static calculateFrameSize(videoWidth: number, videoHeight: number): FrameSize {
+    const maxSize = 200
+    const aspectRatio = videoWidth / videoHeight
+
+    if (aspectRatio >= 1) {
+      // 宽屏或正方形
+      const result: FrameSize = {
+        width: maxSize,
+        height: Math.round(maxSize / aspectRatio)
+      }
+      return result
+    } else {
+      // 竖屏
+      const result: FrameSize = {
+        width: Math.round(maxSize * aspectRatio),
+        height: maxSize
+      }
+      return result
+    }
   }
 }

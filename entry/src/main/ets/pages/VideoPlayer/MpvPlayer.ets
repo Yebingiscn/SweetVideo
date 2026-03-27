@@ -48,6 +48,7 @@ import { AISubtitleComponent } from '../../component/PlayerComponent/AIAsrCompon
 import { PlayerSideBarComponent } from '../../component/PlayerComponent/PlayerSideBarComponent'
 import { VideoButtonsComponent } from '../../component/PlayerComponent/VideoButtonsComponent'
 import { VideoSettingComponent } from '../../component/PlayerComponent/VideoSettingComponent'
+import PiPWindowUtil from '../../utils/PiPWindowUtil'
 
 @Component
 export struct MpvPlayer {
@@ -64,7 +65,6 @@ export struct MpvPlayer {
   @State currentSpeedIndex: number = 0
   @State sideBarStatus: boolean = false
   @State sideBarStatusTmp: Visibility = Visibility.Hidden
-  @State audioTrackSelect: number = 0
   @State subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
   @State exitVideoTime: number = 0
   @State abCircleStatus: boolean = false
@@ -100,8 +100,6 @@ export struct MpvPlayer {
       SideBarContainer(SideBarContainerType.Overlay) {
         PlayerSideBarComponent({
           sideBarStatusTmp: this.sideBarStatusTmp,
-          videoMetadata: this.mpv.videoMetaDataList,
-          nowPlaying: this.mpv.nowPlaying,
           sideBarStatus: this.sideBarStatus,
           onItemClick: async (item: VideoMetadata) => {
             this.mpv.playChooseVideo(item)
@@ -110,16 +108,10 @@ export struct MpvPlayer {
         })
         Stack() {
           XComponents({
-            playAreaHeight: this.mpv.playAreaHeight,
-            playAreaWidth: this.mpv.playAreaWidth,
-            playTime: this.mpv.playTime,
             xComponentController: this.xComponentController,
             xComponentId: 'xcomponentId',
             libraryName: 'mpvnative',
             choosePlayer: NavigationAddress.MPV_PLAYER,
-            angle: this.mpv.angle,
-            screenHeight: this.mpv.screenHeight,
-            screenWidth: this.mpv.screenWidth,
             showControl: this.showControl,
             subtitle3DMode: this.subtitle3DMode,
             subtitleVisibility: this.subtitleVisibility,
@@ -128,6 +120,7 @@ export struct MpvPlayer {
               try {
                 this.mpv.init(this.mpv.nowPlaying!.uri, 0)
                 await this.mpv.initAVSession()
+                PiPWindowUtil.createPipController(this.xComponentController, this.mpv)
               } catch (error) {
                 console.error('uri error:' + error)
               }
@@ -157,8 +150,6 @@ export struct MpvPlayer {
 
           if (this.showControl && !this.isLock) {
             VideoLayoutComponent({
-              screenHeight: this.mpv.screenHeight,
-              screenWidth: this.mpv.screenWidth,
               showControl: this.showControl,
               VideoTop: () => {
                 this.VideoTop()
@@ -200,9 +191,7 @@ export struct MpvPlayer {
           if (this.lockVisibility) {
             LockVideoBarComponent({
               isLock: this.isLock,
-              screenHeight: this.mpv.screenHeight,
-              screenWidth: this.mpv.screenWidth,
-              showControl: this.showControl,
+              showControl: this.showControl
             })
           }
           GestureComponent({
@@ -320,9 +309,7 @@ export struct MpvPlayer {
 
           AISubtitleComponent({
             isAIAsrShown: this.isAIAsrShown,
-            showControl: this.showControl,
-            screenWidth: this.mpv.screenWidth,
-            screenHeight: this.mpv.screenHeight
+            showControl: this.showControl
           })
         }.onAreaChange(async (_oldValue: Area, newValue: Area) => {
           this.mpv.screenWidth = Math.floor(new Number(newValue.width).valueOf())
@@ -361,6 +348,7 @@ export struct MpvPlayer {
       PermissionUtil.applyStopContinuousTask()
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
       WindowUtil.setBarState(PathUtils.appContext!, true, true)
+      PiPWindowUtil.destroyPipController()
       try {
         await (await this.mpv.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
         await this.mpv.avSession?.stopCasting()
@@ -399,13 +387,7 @@ export struct MpvPlayer {
   @Builder
   VideoTop() {
     VideoTopComponent({
-      videoTitle: this.mpv.nowPlaying?.title,
       subTitleVisibility: this.subtitleVisibility,
-      subtitleSelected: this.mpv.subtitleSelected,
-      isAIAsrShown: this.isAIAsrShown,
-      screenExtendSelectedText: this.mpv.selectedText,
-      screenWidth: this.mpv.screenWidth,
-      screenHeight: this.mpv.screenHeight,
       audioTrackMenuBuilder: () => {
         this.AudioTrackMenuBuilder()
       },
@@ -413,8 +395,6 @@ export struct MpvPlayer {
         this.SubtitleMenuBuilder()
       },
       lockRotation: this.lockRotation,
-      playAreaHeight: this.mpv.playAreaHeight,
-      playAreaWidth: this.mpv.playAreaWidth,
       onExitVideoClick: () => {
         this.exitVideo()
         ToolsUtil.addLogger("点击退出视频按钮", false, this.pathStack)
@@ -469,6 +449,10 @@ export struct MpvPlayer {
       onSelectedTextChange: (text: string) => {
         this.mpv.selectedText = text
       },
+      pipStateChange: () => {
+        PiPWindowUtil.enableAutoStart()
+        this.mpv.pipOpenState = true
+      }
     })
   }
 
@@ -480,10 +464,6 @@ export struct MpvPlayer {
   @Builder
   VideoButtons() {
     VideoButtonsComponent({
-      screenHeight: this.mpv.screenHeight,
-      screenWidth: this.mpv.screenWidth,
-      playing: this.mpv.playing,
-      speed: this.mpv.speed,
       AVCastPickerBuilderBridge: this.AVCastPickerBuilderBridge,
       videoSettingBuilder: () => {
         this.VideoSettingBuilder()
@@ -491,7 +471,6 @@ export struct MpvPlayer {
       playbackSpeedMenu: () => {
         this.PlaybackSpeedMenuBuilder()
       },
-      repeatMode: this.mpv.repeatMode,
       sideBarStatusTmp: this.sideBarStatusTmp,
       sideBarStatus: this.sideBarStatus,
       onScreenRotationOrFullScreenClick: async () => {
@@ -564,11 +543,6 @@ export struct MpvPlayer {
   @Builder
   VideoSlider() {
     VideoSliderComponent({
-      playTime: this.mpv.playTime,
-      totalTime: this.mpv.nowPlaying?.time,
-      screenWidth: this.mpv.screenWidth,
-      screenHeight: this.mpv.screenHeight,
-      playSpeed: this.mpv.speed,
       onSliderChange: (value: number) => {
         this.mpv.onSwiping = true
         this.mpv.isSliderPlayTimeChange = true
@@ -587,12 +561,10 @@ export struct MpvPlayer {
   @Builder
   AudioTrackMenuBuilder() {
     AudioTrackComponent({
-      audioTrack: this.mpv.audioTrack,
-      audioTrackSelected: this.audioTrackSelect,
       onSelect: (index: number) => {
         ToolsUtil.addLogger(`选择音频轨道，索引：${index}`, false, this.pathStack)
         this.mpv?.selectAudioTrack(this.mpv?.audioTrack[index]?.id)
-        this.audioTrackSelect = index
+        this.mpv.audioTrackSelected = index
       }
     })
   }
@@ -603,8 +575,6 @@ export struct MpvPlayer {
       subTitleVisibility: this.subtitleVisibility,
       isAIAsrShown: this.isAIAsrShown,
       subtitle3DMode: this.subtitle3DMode,
-      subtitleSelected: this.mpv.subtitleSelected,
-      innerSubtitleData: this.mpv.subtitleTrack,
     })
   }
 
@@ -616,8 +586,6 @@ export struct MpvPlayer {
   @Builder
   PlaybackSpeedMenuBuilder() {
     PlaybackSpeedMenuComponent({
-      speed: this.mpv.speed,
-      player: NavigationAddress.MPV_PLAYER,
       onSpeedChange: (speed: number) => {
         this.mpv.updatePlaybackSpeed(speed)
       }

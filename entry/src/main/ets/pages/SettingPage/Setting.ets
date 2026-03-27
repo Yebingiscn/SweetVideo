@@ -1,17 +1,9 @@
 import NavigationAddress from '../../common/NavigationCommon'
 import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog'
-import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
-import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
-import Preferences from '../../database/Preferences'
-import BiometricAccessUtil from '../../utils/BiometricAccessUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
-import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem'
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
-import { SafeHeight, Setting } from '../../utils/ObservedUtil'
-import { Markdown, MarkdownController } from '@luvi/lv-markdown-in'
-import { salmonLogger } from 'salmonlogger'
-import { CoverLayoutMode, ListDisplayMode } from '../../common/enum/DisplayMode'
+import { MarkdownController } from '@luvi/lv-markdown-in'
 
 const TAG = 'SettingsPage'
 
@@ -131,7 +123,7 @@ export struct SettingsPage { //设置页
             symbol: Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ?
               $r('sys.symbol.rectangle_uphalf_inset_filled') : $r('sys.symbol.rectangle_lefthalf_inset_filled'),
             message: '封面版式',
-            tips: ['竖版', '横板'],
+            tips: ['竖版', '横版'],
             tabSelectedIndexes: [Setting.coverLayout],
             onButtonClick: (tabSelectedIndexes: number) => {
               Setting.coverLayout = tabSelectedIndexes

@@ -1,19 +1,9 @@
-import { AVCastPicker } from '@kit.AVSessionKit'
-import ToolsUtil from '../../utils/ToolsUtil'
-import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import { RepeatMode } from '../../common/enum/RepeatMode'
-import AVSessionUtil from '../../utils/AVSessionUtil'
 import { AVPlayerController } from '../../controller/AVPlayerController'
-import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { MpvController } from '../../controller/MpvController/MpvController'
 
 @Component
 export struct VideoButtonsComponent {
-  @Prop screenHeight: number
-  @Prop screenWidth: number
-  @Prop playing: boolean
-  @Prop speed: number
-  @Prop repeatMode: RepeatMode
   @Link sideBarStatusTmp: Visibility
   @Link sideBarStatus: boolean
   @BuilderParam AVCastPickerBuilderBridge: () => void
@@ -32,10 +22,10 @@ export struct VideoButtonsComponent {
   }
 
   build() {
-    GridRow({ columns: this.screenHeight / this.screenWidth > 1.4 ? 8 : 16, gutter: 5 }) {
+    GridRow({ columns: this.player.screenHeight / this.player.screenWidth > 1.4 ? 8 : 16, gutter: 5 }) {
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 播放按钮
-          SymbolGlyph(this.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill'))
+          SymbolGlyph(this.player.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill'))
             .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
             .fontColor(['#f0f0f0'])
             .opacity(0.8)
@@ -102,9 +92,9 @@ export struct VideoButtonsComponent {
         .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
         .onClick(() => {
           // LIST -> SINGLE -> RANDOM -> SEQUENCE -> 回到LIST
-          const repeatMode = VideoOperateUtil.getRepeatMode(this.repeatMode)
+          const repeatMode = VideoOperateUtil.getRepeatMode(this.player.repeatMode)
           ToolsUtil.showToast(this.getRepeatModeText(repeatMode))
-          AVSessionUtil.updatePlaybackSessionState(this.player.playing, this.player.playTime, this.repeatMode)
+          AVSessionUtil.updatePlaybackSessionState(this.player.playing, this.player.playTime, this.player.repeatMode)
           this.onChangeRepeatMode(repeatMode)
         })
       }.span({ xs: 2, sm: 2, md: 2 })
@@ -131,7 +121,7 @@ export struct VideoButtonsComponent {
 
       GridCol() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { // 倍速调整按钮
-          Text(`${this.speed}x`)
+          Text(`${this.player.speed}x`)
             .fontSize(18)
             .fontColor($r('sys.color.white'))
             .maxLines(1)
@@ -167,7 +157,7 @@ export struct VideoButtonsComponent {
    * @returns 播放模式图标
    */
   private getRepeatModeIcon(): Resource {
-    switch (this.repeatMode) {
+    switch (this.player.repeatMode) {
       case RepeatMode.SINGLE:
         return $r('sys.symbol.repeat_1')
       case RepeatMode.RANDOM:

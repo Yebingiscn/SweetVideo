@@ -54,6 +54,7 @@ import {
   VOLUME_STEP
 } from '../../common/Constants'
 import { AISubtitleComponent } from '../../component/PlayerComponent/AIAsrComponent'
+import PiPWindowUtil from '../../utils/PiPWindowUtil'
 
 @Component
 export struct Player { // 播放页
@@ -63,7 +64,6 @@ export struct Player { // 播放页
   @State lockRotation: boolean = false
   xComponentController: XComponentController = new XComponentController()
   windowClass = WindowUtil.getWindow()
-  @State audioTrackSelect: number = 0
   @State sideBarStatusTmp: Visibility = Visibility.Hidden
   @State sideBarStatus: boolean = false
   @State isLock: boolean = false
@@ -284,8 +284,6 @@ export struct Player { // 播放页
       SideBarContainer(SideBarContainerType.Overlay) {
         PlayerSideBarComponent({
           sideBarStatusTmp: this.sideBarStatusTmp,
-          videoMetadata: this.player.videoMetaDataList,
-          nowPlaying: this.player.nowPlaying,
           sideBarStatus: this.sideBarStatus,
           onItemClick: (item: VideoMetadata) => {
             this.player.playChooseVideo(item, this.pathStack, this.windowClass)
@@ -297,14 +295,8 @@ export struct Player { // 播放页
         Stack() {
           XComponents({
             xComponentController: this.xComponentController,
-            playAreaWidth: this.player.playAreaWidth,
-            playAreaHeight: this.player.playAreaHeight,
-            playTime: this.player.playTime,
             subtitle: this.player.subtitle,
-            screenHeight: this.player.screenHeight,
-            screenWidth: this.player.screenWidth,
             choosePlayer: NavigationAddress.AV_PLAYER,
-            angle: this.player.angle,
             showControl: this.showControl,
             subtitleVisibility: this.subtitleVisibility,
             subtitle3DMode: this.subtitle3DMode,
@@ -313,6 +305,7 @@ export struct Player { // 播放页
               await this.player.init()
               this.setAVPlayerCallback()
               await this.player.getData(this.pathStack, this.windowClass)
+              PiPWindowUtil.createPipController(this.xComponentController, this.player)
             },
             onKeyCodeSpace: () => {
               this.player.togglePlayback()
@@ -339,8 +332,6 @@ export struct Player { // 播放页
 
           if (this.showControl && !this.isLock) {
             VideoLayoutComponent({
-              screenHeight: this.player.screenHeight,
-              screenWidth: this.player.screenWidth,
               showControl: this.showControl,
               VideoTop: () => {
                 this.VideoTop()
@@ -382,9 +373,7 @@ export struct Player { // 播放页
           if (this.lockVisibility) {
             LockVideoBarComponent({
               isLock: this.isLock,
-              screenHeight: this.player.screenHeight,
-              screenWidth: this.player.screenWidth,
-              showControl: this.showControl,
+              showControl: this.showControl
             })
           }
           GestureComponent({
@@ -505,8 +494,6 @@ export struct Player { // 播放页
           AISubtitleComponent({
             isAIAsrShown: this.isAIAsrShown,
             showControl: this.showControl,
-            screenWidth: this.player.screenWidth,
-            screenHeight: this.player.screenHeight
           })
         }.onAreaChange((_oldValue: Area, newValue: Area) => {
           this.player.screenWidth = Math.floor(new Number(newValue.width).valueOf())
@@ -524,12 +511,16 @@ export struct Player { // 播放页
       .divider({ strokeWidth: 0 })
     }
     .onHidden(() => {
-      this.player.isListenVideo = true
-      this.player.setListenVideoStatus()
+      if (!this.player.pipOpenState) {
+        this.player.isListenVideo = true
+        this.player.setListenVideoStatus()
+      }
     })
     .onShown(() => {
-      this.player.isListenVideo = false
-      this.player.setListenVideoStatus()
+      if (!this.player.pipOpenState) {
+        this.player.isListenVideo = false
+        this.player.setListenVideoStatus()
+      }
     })
     .onReady(() => {
       const playerParams: PlayerParams = this.pathStack.getParamByName(NavigationAddress.AV_PLAYER)[0] as PlayerParams
@@ -562,6 +553,7 @@ export struct Player { // 播放页
         ToolsUtil.addLogger("保存视频播放时间完成", false, this.pathStack)
       }
       PermissionUtil.applyStopContinuousTask()
+      PiPWindowUtil.destroyPipController()
       try {
         WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
         if (canIUse('SystemCapability.Window.SessionManager')) {
@@ -597,13 +589,7 @@ export struct Player { // 播放页
   @Builder
   VideoTop() {
     VideoTopComponent({
-      videoTitle: this.player.nowPlaying?.title,
       subTitleVisibility: this.subtitleVisibility,
-      subtitleSelected: this.player.subtitleSelected,
-      isAIAsrShown: this.isAIAsrShown,
-      screenExtendSelectedText: this.player.selectedText,
-      screenWidth: this.player.screenWidth,
-      screenHeight: this.player.screenHeight,
       audioTrackMenuBuilder: () => {
         this.AudioTrackMenuBuilder()
       },
@@ -611,8 +597,6 @@ export struct Player { // 播放页
         this.SubtitleMenuBuilder()
       },
       lockRotation: this.lockRotation,
-      playAreaHeight: this.player.playAreaHeight,
-      playAreaWidth: this.player.playAreaWidth,
       onExitVideoClick: () => {
         ToolsUtil.addLogger("点击退出视频按钮", false, this.pathStack)
         this.exitVideo(0)
@@ -666,17 +650,16 @@ export struct Player { // 播放页
       onSelectedTextChange: (text: string) => {
         this.player.selectedText = text
       },
+      pipStateChange: () => {
+        PiPWindowUtil.enableAutoStart()
+        this.player.pipOpenState = true
+      }
     })
   }
 
   @Builder
   VideoSlider() {
     VideoSliderComponent({
-      playTime: this.player.playTime,
-      totalTime: this.player.nowPlaying?.time,
-      screenWidth: this.player.screenWidth,
-      screenHeight: this.player.screenHeight,
-      playSpeed: this.player.speed,
       onSliderChange: (value: number) => {
         this.player.onSwiping = true
         this.player.isSliderPlayTimeChange = true
@@ -695,10 +678,6 @@ export struct Player { // 播放页
   @Builder
   VideoButtons() {
     VideoButtonsComponent({
-      screenHeight: this.player.screenHeight,
-      screenWidth: this.player.screenWidth,
-      playing: this.player.playing,
-      speed: this.player.speed,
       AVCastPickerBuilderBridge: this.AVCastPickerBuilderBridge,
       videoSettingBuilder: () => {
         this.VideoSettingBuilder()
@@ -706,7 +685,6 @@ export struct Player { // 播放页
       playbackSpeedMenu: () => {
         this.PlaybackSpeedMenuBuilder()
       },
-      repeatMode: this.player.repeatMode,
       sideBarStatusTmp: this.sideBarStatusTmp,
       sideBarStatus: this.sideBarStatus,
       onScreenRotationOrFullScreenClick: async () => {
@@ -732,11 +710,9 @@ export struct Player { // 播放页
   @Builder
   AudioTrackMenuBuilder() {
     AudioTrackComponent({
-      audioTrack: this.player.audioTrack,
-      audioTrackSelected: this.audioTrackSelect,
       onSelect: (index: number) => {
         this.player?.selectAudioTrack(this.player?.audioTrack[index]?.index)
-        this.audioTrackSelect = index
+        this.player.audioTrackSelected = index
       }
     })
   }
@@ -796,8 +772,6 @@ export struct Player { // 播放页
   @Builder
   PlaybackSpeedMenuBuilder() {
     PlaybackSpeedMenuComponent({
-      speed: this.player.speed,
-      player: NavigationAddress.AV_PLAYER,
       onSpeedChange: (speed: number) => {
         this.player.updatePlaybackSpeed(speed)
       }
@@ -810,8 +784,6 @@ export struct Player { // 播放页
       subTitleVisibility: this.subtitleVisibility,
       isAIAsrShown: this.isAIAsrShown,
       subtitle3DMode: this.subtitle3DMode,
-      subtitleSelected: this.player.subtitleSelected,
-      innerSubtitleData: this.player.subtitleTrack,
     })
   }
 

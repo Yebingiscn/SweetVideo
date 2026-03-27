@@ -1,8 +1,3 @@
-import { SymbolGlyphModifier } from '@kit.ArkUI'
-import { PathUtils } from '../../utils/PathUtils'
-import TimeUtil from '../../utils/TimeUtil'
-import ToolsUtil from '../../utils/ToolsUtil'
-import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 
@@ -100,10 +95,10 @@ export struct VideoSettingComponent {
       if (this.player instanceof AVPlayerController) {
         MenuItem({
           symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
-          content: this.player.superResolution ? '关闭视频超分辨率' : '开启视频超分辨率',
+          content: this.player.superResolutionState ? '关闭视频超分辨率' : '开启视频超分辨率',
         }).onClick(() => {
           if (this.player instanceof AVPlayerController) {
-            this.player.setSuperResolution(!this.player.superResolution)
+            this.player.setSuperResolutionState(!this.player.superResolutionState)
           }
         })
       }
@@ -165,7 +160,7 @@ export struct VideoSettingComponent {
         this.startTime = TimeUtil.convertMSToHHMMSS(this.player.playTime)
         VideoOperateUtil.saveVideoStartTime(this.player.playTime, this.player.nowPlaying!, PathUtils.appContext!)
         ToolsUtil.showToast(this.player.nowPlaying?.title + '成功设置片头时间为:' +
-        TimeUtil.convertMSToHHMMSS(this.player.playTime))
+          TimeUtil.convertMSToHHMMSS(this.player.playTime))
         this.updateStarTime(this.player.playTime)
       })
       MenuItem({
@@ -175,7 +170,7 @@ export struct VideoSettingComponent {
         this.endTime = TimeUtil.convertMSToHHMMSS(this.player.playTime)
         VideoOperateUtil.saveVideoEndTime(this.player.playTime, this.player.nowPlaying!, PathUtils.appContext!)
         ToolsUtil.showToast(this.player?.nowPlaying?.title + '成功设置片尾时间为:' +
-        TimeUtil.convertMSToHHMMSS(this.player.playTime))
+          TimeUtil.convertMSToHHMMSS(this.player.playTime))
         this.updateEndTime(this.player.playTime)
       })
       MenuItem({
@@ -209,7 +204,7 @@ export struct VideoSettingComponent {
         this.pointA = TimeUtil.convertMSToHHMMSS(this.player.playTime)
         VideoOperateUtil.saveVideoPointA(PathUtils.appContext!, this.player.nowPlaying!, this.player.playTime)
         ToolsUtil.showToast(this.player.nowPlaying?.title + '成功设置A点时间为:' +
-        TimeUtil.convertMSToHHMMSS(this.player.playTime))
+          TimeUtil.convertMSToHHMMSS(this.player.playTime))
         this.updatePointATime(this.player.playTime)
       })
       MenuItem({
@@ -219,7 +214,7 @@ export struct VideoSettingComponent {
         this.pointB = TimeUtil.convertMSToHHMMSS(this.player.playTime)
         VideoOperateUtil.saveVideoPointB(PathUtils.appContext!, this.player.nowPlaying!, this.player.playTime)
         ToolsUtil.showToast(this.player?.nowPlaying?.title + '成功设置B点时间为:' +
-        TimeUtil.convertMSToHHMMSS(this.player.playTime))
+          TimeUtil.convertMSToHHMMSS(this.player.playTime))
         this.updatePointBTime(this.player.playTime)
       })
       MenuItem({

@@ -20,6 +20,7 @@ import DataSyncUtil from './DataSyncUtil'
 import { VideoItemWithPinyin } from '../interfaces/VideoItemWithPinyinInterface'
 import { updateManager } from '@kit.AppGalleryKit'
 import { WindowUtil } from './WindowUtil'
+import { window } from '@kit.ArkUI'
 
 const TAG = 'ToolsUtil'
 
@@ -34,15 +35,21 @@ export default class ToolsUtil {
   })
 
   // Toast设置
-  static showToast(text: string) {
+  static showToast(text: string, duration: number = 3500) {
     try {
-      WindowUtil.windowClass?.getUIContext().getPromptAction().showToast({
-        message: text,
-        duration: 3500,
-        backgroundBlurStyle: BlurStyle.Regular
+      window.getLastWindow(PathUtils.appContext!).then((windowClass: window.Window) => {
+        windowClass.getUIContext().getPromptAction().showToast({
+          message: text,
+          duration: duration,
+          backgroundBlurStyle: BlurStyle.Regular,
+          alignment: Alignment.Bottom,
+          offset: { dx: 0, dy: -100 }
+        })
+      }).catch(() => {
+        salmonLogger.addLog(TAG, 'getLastWindow error', true)
       })
-    } catch (error) {
-      salmonLogger.addLog(TAG, 'show toast error：' + error, true)
+    } catch {
+      salmonLogger.addLog(TAG, 'show toast error', true)
     }
   }
 
@@ -174,17 +181,17 @@ export default class ToolsUtil {
             .then((resultCode: updateManager.ShowUpdateResultCode) => {
               salmonLogger.addLog(TAG, 'showUpdateDialog resultCode:' + resultCode)
             })
-          ?.catch((error: BusinessError) => {
-            ToolsUtil.showToast('更新弹窗生成失败，原因是：' + error)
-            salmonLogger.addLog(TAG, `showUpdateDialog onError.code is ${error.code}, message is ${error.message}`)
-          })
+            ?.catch((error: BusinessError) => {
+              ToolsUtil.showToast('更新弹窗生成失败，原因是：' + error)
+              salmonLogger.addLog(TAG, `showUpdateDialog onError.code is ${error.code}, message is ${error.message}`)
+            })
         } else {
           ToolsUtil.showToast('还没有新版本~')
         }
       })?.catch((error: BusinessError) => {
-      ToolsUtil.showToast('检查更新失败，原因是：' + error)
-      salmonLogger.addLog(TAG, `checkAppUpdate onError.code is ${error.code}, message is ${error.message}`, true)
-    })
+        ToolsUtil.showToast('检查更新失败，原因是：' + error)
+        salmonLogger.addLog(TAG, `checkAppUpdate onError.code is ${error.code}, message is ${error.message}`, true)
+      })
   }
 
   static setColorMode(context: Context, select: number) {

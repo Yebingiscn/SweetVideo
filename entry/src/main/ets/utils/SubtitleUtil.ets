@@ -1,6 +1,5 @@
 import ToolsUtil from './ToolsUtil'
 import { fileIo as fs, picker } from '@kit.CoreFileKit'
-import { BusinessError } from '@kit.BasicServicesKit'
 import { PathUtils } from './PathUtils'
 import { Parser, SubtitleItem } from '../interfaces/SubtitleInterface'
 import SubtitleFormat from '../common/SubtitleFormatConfig'
@@ -33,6 +32,7 @@ export class ParserAdapter<T> implements Parser<T> {
 
 class SubtitleUtil {
   private subtitles: SubtitleItem[] = [] // 存储所有字幕项（已按开始时间排序）
+  private offsetMillis: number = 0;
 
   // 获取外挂字幕
   async selectExternalSubtitles(sandbox_subtitle: string, date: string) {
@@ -137,6 +137,7 @@ class SubtitleUtil {
 
   async parseSubtitleProcess(path: string, format: string | undefined) {
     if (!format) {
+      this.offsetMillis = 0
       // 逐一尝试 SRT、ASS、VTT 解析
       const formats = [SubtitleFormat.SRT, SubtitleFormat.ASS, SubtitleFormat.VTT]
       for (const fmt of formats) {
@@ -246,52 +247,59 @@ class SubtitleUtil {
 
   getSubtitlesAtTime(timestamp: number): string {
     if (this.subtitles.length === 0) {
-      return ""
+      return "";
     }
-    const result: SubtitleItem[] = []
-    let left = 0
-    let right = this.subtitles.length - 1
-    let startIndex = -1
-    // 二分查找可能包含时间戳的字幕范围
+    // 应用偏移量：将播放器时间转换为字幕时间
+    const adjustedTimestamp = timestamp - this.offsetMillis;
+    // 如果偏移后的时间可能为负数，可以酌情处理
+    // 这里简单的将负数视为0，避免越界错误
+    const searchTimestamp = Math.max(adjustedTimestamp, 0);
+    const result: SubtitleItem[] = [];
+    let left = 0;
+    let right = this.subtitles.length - 1;
+    let startIndex = -1;
+    // 二分查找（使用调整后的时间戳）
     while (left <= right) {
-      const mid = Math.floor((left + right) / 2)
-      const sub = this.subtitles[mid]
-      if (sub.startTimestampMillis <= timestamp && sub.endTimestampMillis >= timestamp) {
-        startIndex = mid
-        break
-      } else if (sub.startTimestampMillis > timestamp) {
-        right = mid - 1
+      const mid = Math.floor((left + right) / 2);
+      const sub = this.subtitles[mid];
+      if (sub.startTimestampMillis <= searchTimestamp &&
+        sub.endTimestampMillis >= searchTimestamp) {
+        startIndex = mid;
+        break;
+      } else if (sub.startTimestampMillis > searchTimestamp) {
+        right = mid - 1;
       } else {
-        left = mid + 1
+        left = mid + 1;
       }
     }
     if (startIndex === -1) {
-      return "" // 没有找到包含该时间点的字幕
+      return "";
     }
-    // 从找到的位置向两边扩展，收集所有重叠的字幕
-    result.push(this.subtitles[startIndex])
+    // 收集重叠字幕（逻辑保持不变）
+    result.push(this.subtitles[startIndex]);
     // 向左查找
     for (let i = startIndex - 1; i >= 0; i--) {
-      if (this.subtitles[i].endTimestampMillis >= timestamp) {
-        result.unshift(this.subtitles[i])
+      if (this.subtitles[i].endTimestampMillis >= searchTimestamp) {
+        result.unshift(this.subtitles[i]);
       } else {
-        break
+        break;
       }
     }
     // 向右查找
     for (let i = startIndex + 1; i < this.subtitles.length; i++) {
-      if (this.subtitles[i].startTimestampMillis <= timestamp) {
-        result.push(this.subtitles[i])
+      if (this.subtitles[i].startTimestampMillis <= searchTimestamp) {
+        result.push(this.subtitles[i]);
       } else {
-        break
+        break;
       }
     }
+    // 格式化返回
     return result.map(sub =>
     sub.text
       .replace(/\\[Nn]/g, '\n')
       .replace(/\{[^}]*\}/g, '')
       .replace(/<[^>]*>/g, '')
-    ).join('\n')
+    ).join('\n');
   }
 
   // 统一解析字幕文件

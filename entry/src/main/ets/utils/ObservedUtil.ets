@@ -1,6 +1,7 @@
 import { UIUtils } from '@kit.ArkUI'
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import { CoverLayoutMode, ListDisplayMode } from '../common/enum/DisplayMode'
+import { MpvDecodingMethod } from '../controller/MpvController/MpvTypes'
 
 class SettingUtil {
   public backgroundImageSrc: string = ''
@@ -17,6 +18,8 @@ class SettingUtil {
   public skipIntroTime: string = '0'
   public listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
   public coverLayout: CoverLayoutMode = CoverLayoutMode.VERTICAL_PLATE
+  public mpvDecodingMethod: MpvDecodingMethod = MpvDecodingMethod.HARDWARE
+  public superResolutionState: boolean = false
   public smartRotation: boolean = true
   public longPressSpeed: number = 3
   public showSettingPageEntry: boolean = true
