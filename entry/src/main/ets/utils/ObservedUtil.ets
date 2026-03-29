@@ -7,6 +7,7 @@ class SettingUtil {
   public backgroundImageSrc: string = ''
   public backgroundDropBlur: number = 0
   public backgroundColorMode: BackgroundColorMode = BackgroundColorMode.AUTO
+  public enableBackgroundDarkImage: boolean = false
   public allowBackgroundPlay: boolean = true
   public allowPlayBackExist: boolean = false
   public fastForwardSeconds: string = '15'

@@ -46,6 +46,7 @@ export struct MoreSettingPage {
             onPress: async () => {
               PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'circle_play')
               PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'is_list_display')
+              PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'defaultPlayer')
               const coverFromSandbox = await fs.listFile(PathUtils.coverPath)?.catch(() => {
                 console.error('get cover fail')
               })

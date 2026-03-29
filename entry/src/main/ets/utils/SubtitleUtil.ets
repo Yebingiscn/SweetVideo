@@ -31,8 +31,8 @@ export class ParserAdapter<T> implements Parser<T> {
 }
 
 class SubtitleUtil {
+  public offsetMillis: number = 0;
   private subtitles: SubtitleItem[] = [] // 存储所有字幕项（已按开始时间排序）
-  private offsetMillis: number = 0;
 
   // 获取外挂字幕
   async selectExternalSubtitles(sandbox_subtitle: string, date: string) {

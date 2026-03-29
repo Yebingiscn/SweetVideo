@@ -234,6 +234,14 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'recent_play', recent_play_deque)
   }
 
+  static saveEnableBackgroundDarkImage(context: Context, enableBackgroundDarkImage: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'enableBackgroundDarkImage', enableBackgroundDarkImage)
+  }
+
+  static getEnableBackgroundDarkImage(context: Context) {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'enableBackgroundDarkImage', true) as boolean
+  }
+
   static saveListDisplayMode(context: Context, listDisplayMode: ListDisplayMode) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'listDisplayMode', listDisplayMode)
   }

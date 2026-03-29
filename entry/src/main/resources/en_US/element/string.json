@@ -70,15 +70,15 @@
     },
     {
       "name": "soft_del_confirm",
-      "value": "Just delete the video import record? Confirm deletion?"
+      "value": "Remove from playlist only. Video file remains on device."
     },
     {
       "name": "hard_del_confirm",
-      "value": "After deletion, the selected files cannot be recovered. Confirm deletion?"
+      "value": "Warning: Video file will be permanently deleted and cannot be recovered."
     },
     {
       "name": "recent_del_confirm",
-      "value": "After moving to the \"Recently Deleted\" folder in File Management, files will be retained for up to 30 days before being permanently deleted."
+      "value": "Video will be moved to system Recently Deleted and can be recovered within 30 days."
     },
     {
       "name": "edit",

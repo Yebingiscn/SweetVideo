@@ -2,6 +2,14 @@ import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { PlayerSideBarSource } from '../../utils/DataUtil'
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
+import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
+import { CoverLayoutMode } from '../../common/enum/DisplayMode'
+import { XAnimation } from '../../utils/AnimationUtil'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { PathUtils } from '../../utils/PathUtils'
+import VideoInfoUtil from '../../utils/VideoInfoUtil'
+import { VideoInfoBuilder } from '../VideoItemComponent/VideoInfoBuilder'
+import { fileUri } from '@kit.CoreFileKit'
 
 @Component
 export struct PlayerSideBarComponent {

@@ -1,16 +1,27 @@
-import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
+import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode'
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
+import { MpvSubtitleTrack } from '../../controller/MpvController/MpvTypes'
+import { SubtitleTrack } from '../../interfaces/AudioTrackInterface'
 import { InnerSubtitleDataSource } from '../../utils/DataUtil'
+import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
 @Component
 export struct SubtitlePanelComponent {
-  @Link subTitleVisibility: Visibility
+  @Link subtitleVisibility: Visibility
   @Link isAIAsrShown: boolean
   @Link subtitle3DMode: Subtitle3DMode
   @State threeDSubtitleValue: string[] = ["不使用", "左/右", "上/下"]
   @State innerSubtitleMenu: InnerSubtitleDataSource = new InnerSubtitleDataSource([])
   @Consume('player') player: AVPlayerController | MpvController
+  onSubtitleOffsetTime = () => {
+  }
+  onInnerSubtitleClick = () => {
+  }
+  onExternalSubtitleClick = () => {
+  }
+  onAIAsrClick = () => {
+  }
 
   aboutToAppear(): void {
     if (this.player.subtitleTrack.length > 0) {
@@ -18,11 +29,10 @@ export struct SubtitlePanelComponent {
     }
   }
 
-  // TODO: 此处有bug，需要暴露方法
   build() {
     Menu() {
       MenuItem({
-        content: '内嵌字幕：' + (this.subTitleVisibility === Visibility.Visible ? '显示' : '字幕隐藏'),
+        content: '内嵌字幕：' + (this.subtitleVisibility === Visibility.Visible ? '显示' : '字幕隐藏'),
         builder: this.InnerSubtitleMenu,
       })
         .contentFontColor(this.player.subtitleSelected === SubtitleMode.INNER_SUBTITLE ? $r('sys.color.white') :
@@ -33,17 +43,12 @@ export struct SubtitlePanelComponent {
         .width('100%')
 
       MenuItem({
-        content: '外挂字幕：' + (this.subTitleVisibility === Visibility.Visible ? '显示' : '字幕隐藏')
+        content: '外挂字幕：' + (this.subtitleVisibility === Visibility.Visible ? '显示' : '字幕隐藏')
       })
         .contentFontColor(this.player.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE ? $r('sys.color.white') :
           $r('app.color.text_color'))
         .onClick(() => {
-          this.isAIAsrShown = false
-          this.subTitleVisibility === Visibility.Visible &&
-            this.player.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE ?
-            this.subTitleVisibility = Visibility.None :
-            this.subTitleVisibility = Visibility.Visible
-          this.player.subtitleSelected = SubtitleMode.EXTERNAL_SUBTITLE
+          this.onExternalSubtitleClick()
         })
         .height(40)
         .backgroundColor(this.player.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE ? $r('app.color.main_color') :
@@ -58,18 +63,21 @@ export struct SubtitlePanelComponent {
           .contentFontColor(this.isAIAsrShown ? $r('sys.color.white') :
             $r('app.color.text_color'))
           .onClick(() => {
-            this.isAIAsrShown = !this.isAIAsrShown
-            if (this.isAIAsrShown) {
-              ToolsUtil.showToast('AI 字幕将在控制栏隐藏后出现')
-            }
-            this.subTitleVisibility = Visibility.None
-            this.player.subtitleSelected = SubtitleMode.AI_SUBTITLE
+            this.onAIAsrClick()
           })
           .height(40)
           .backgroundColor(this.isAIAsrShown ? $r('app.color.main_color') : '')
           .borderRadius(16)
           .width('100%')
       }
+
+      MenuItem({
+        content: "字幕偏移",
+      })
+        .contentFontColor($r('app.color.text_color'))
+        .onClick(() => {
+          this.onSubtitleOffsetTime()
+        })
 
       MenuItem({
         content: "3D 字幕",

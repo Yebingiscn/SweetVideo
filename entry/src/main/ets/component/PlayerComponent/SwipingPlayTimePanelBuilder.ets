@@ -1,3 +1,8 @@
+import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
+import NavigationAddress from '../../common/NavigationCommon'
+import { Setting } from '../../utils/ObservedUtil'
+import TimeUtil from '../../utils/TimeUtil'
+import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
 class SwipingPlayTimeValue {
   isSliderPlayTimeChange: boolean = false

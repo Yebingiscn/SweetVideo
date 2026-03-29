@@ -1,6 +1,6 @@
-import { common, Context } from '@kit.AbilityKit'
+import { common, ConfigurationConstant, Context } from '@kit.AbilityKit'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
-import { fileIo as fs } from '@kit.CoreFileKit'
+import { fileIo as fs, fileUri, picker } from '@kit.CoreFileKit'
 import VideoInfoUtil from './VideoInfoUtil'
 import { media } from '@kit.MediaKit'
 import { SaveOptions, VideoMetadata } from '../interfaces/VideoMetadataInterface'
@@ -10,6 +10,15 @@ import { image } from '@kit.ImageKit'
 import PermissionUtil from './PermissionUtil'
 import { VideoSource } from '../common/enum/VideoSource'
 import { salmonLogger } from 'salmonlogger'
+import { SUPPORT_AUDIO_FORMAT, SUPPORT_VIDEO_FORMAT } from '../common/Constants'
+import Preferences from '../database/Preferences'
+import FileFolderUtil from './FileFolderUtil'
+import { ConcurrencyManagerUtil } from './FileProcessorUtil'
+import { PathUtils } from './PathUtils'
+import PrivacySpaceUtil from './PrivacySpaceUtil'
+import RecentPlayUtil from './RecentPlayUtil'
+import SubtitleUtil from './SubtitleUtil'
+import { systemDateTime } from '@kit.BasicServicesKit'
 
 const TAG = 'SelectFileUtil'
 
@@ -58,7 +67,7 @@ export default class SelectFileUtil {
           ToolsUtil.showToast('删除自定义背景成功')
         })
       } else {
-        ToolsUtil.showToast('自定义背景不存在')
+        salmonLogger.addLog(TAG, "自定义背景不存在", true)
       }
     })?.catch((err: BusinessError) => {
       salmonLogger.addLog(TAG, "access failed with error message: " + err.message + ", error code: " + err.code, true)
@@ -159,20 +168,46 @@ export default class SelectFileUtil {
   }
 
   // 保存封面，封面获取后复制到应用私有目录下
-  static saveVideoImageToPrivacySpace(sandbox_path: string, date: string, pixelMap: image.PixelMap) {
-    let packer = image.createImagePacker()
+  static async saveVideoImageToSandBox(sandbox_path: string, date: string, pixelMap: image.PixelMap) {
+    const filePath = sandbox_path + date
+    let packer: image.ImagePacker | undefined = undefined
+    let file: fs.File | undefined = undefined
     try {
-      let file1 = fs.openSync(sandbox_path + date, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
-      // 设置为85平衡内存、导入速度以及图片质量
-      packer.packToFile(pixelMap, file1.fd, { format: 'image/webp', quality: 85 }).then(() => {
-        fs.closeSync(file1)
-      })?.catch((error: BusinessError) => {
-        salmonLogger.addLog(TAG, `Failed to pack the image to file.code ${error.code},message is ${error.message}`,
-          true)
-        fs.closeSync(file1)
-      })
+      packer = image.createImagePacker()
+      file = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
+      await packer.packToFile(pixelMap, file.fd, { format: 'image/webp', quality: 85 })
     } catch (error) {
-      salmonLogger.addLog(TAG, 'save cover error:' + error, true)
+      const err = error as BusinessError
+      salmonLogger.addLog(TAG, `Failed to save cover: code ${err.code}, message: ${err.message}`, true)
+      // 删除可能损坏的文件
+      try {
+        fs.accessSync(filePath) && fs.unlinkSync(filePath)
+      } catch {
+        // 忽略删除错误
+      }
+      // 不抛出异常，由调用方通过其他方式检测封面是否存在
+    } finally {
+      // 确保资源释放
+      if (file) {
+        try {
+          fs.closeSync(file)
+        } catch (e) {
+          salmonLogger.addLog(TAG, 'Failed to close file: ' + e, false)
+        }
+      }
+      if (packer) {
+        try {
+          packer.release()
+        } catch (e) {
+          salmonLogger.addLog(TAG, 'Failed to release packer: ' + e, false)
+        }
+      }
+      // 释放 pixelMap
+      try {
+        pixelMap.release()
+      } catch (e) {
+        salmonLogger.addLog(TAG, 'Failed to release pixelMap: ' + e, false)
+      }
     }
   }
 
@@ -485,7 +520,7 @@ export default class SelectFileUtil {
                     sandbox_path, systemDateTime.getTime(true).toString(), metadata, file)
                 } else {
                   const videoInfo =
-                    await VideoUtil.setVideoInfo(systemDateTime.getTime(true).toString(), uri, file.name, metadata,
+                    await VideoInfoUtil.setVideoInfo(systemDateTime.getTime(true).toString(), uri, file.name, metadata,
                       sandbox_video, sandbox_path)
                   if (file_folder) {
                     file_folder.video_list.push(videoInfo)

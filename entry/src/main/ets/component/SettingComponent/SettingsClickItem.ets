@@ -2,8 +2,8 @@ import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 
 @Component
 export struct SettingsClickItem {
-  @State symbol: Resource | undefined = undefined
-  @State message: ResourceStr = ''
+  @Prop symbol: Resource | undefined = undefined
+  @Prop message: ResourceStr = ''
   @Prop showArrow: boolean = true
   onPress = () => {
   }

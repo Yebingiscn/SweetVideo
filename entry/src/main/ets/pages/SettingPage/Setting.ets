@@ -3,13 +3,22 @@ import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog'
 import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
-import { MarkdownController } from '@luvi/lv-markdown-in'
+import { Markdown, MarkdownController } from '@luvi/lv-markdown-in'
+import { salmonLogger } from 'salmonlogger'
+import { CoverLayoutMode, ListDisplayMode } from '../../common/enum/DisplayMode'
+import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem'
+import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
+import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
+import Preferences from '../../database/Preferences'
+import BiometricAccessUtil from '../../utils/BiometricAccessUtil'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 
 const TAG = 'SettingsPage'
 
 @Component
 export struct SettingsPage { //设置页
   @State passwd: string = 'passwd'
+  @Consume('pathStack') pathStack: NavPathStack
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
     builder: EditPasswordDialog({
       confirm: (passwd: string | undefined) => {
@@ -23,7 +32,6 @@ export struct SettingsPage { //设置页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @Consume('pathStack') pathStack: NavPathStack
   controller: MarkdownController = new MarkdownController()
 
   aboutToAppear(): void {
@@ -137,7 +145,7 @@ export struct SettingsPage { //设置页
             symbol: $r('sys.symbol.doc_text_badge_clock'),
             message: '开启历史记录',
             enable: Setting.recentPlay,
-            onChange: async (checked: boolean) => {
+            onChange: (checked: boolean) => {
               Setting.recentPlay = checked
               if (!Setting.recentPlay) {
                 Preferences.saveRecentPlay(PathUtils.appContext!, [])
@@ -152,7 +160,7 @@ export struct SettingsPage { //设置页
             symbol: $r('sys.symbol.folder'),
             message: '开启面包屑',
             enable: Setting.showToast,
-            onChange: async (checked: boolean) => {
+            onChange: (checked: boolean) => {
               Setting.showToast = checked
               Preferences.saveShowToast(PathUtils.appContext!, Setting.showToast)
             }

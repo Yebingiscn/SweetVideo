@@ -1,6 +1,7 @@
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import { SpeedDataSource } from '../../utils/DataUtil'
+import VideoInfoUtil from '../../utils/VideoInfoUtil'
 
 @Component
 export struct PlaybackSpeedMenuComponent {

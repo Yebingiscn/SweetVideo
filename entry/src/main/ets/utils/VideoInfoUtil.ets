@@ -7,6 +7,9 @@ import { ConcurrentQueue } from './FileProcessorUtil'
 import SelectFileUtil from './SelectFileUtil'
 import PermissionUtil from './PermissionUtil'
 import { GB, MB, SCREEN_EXTEND_LIST, VIDEO_SIZE_MAP, VIDEO_SPEED_MAP } from '../common/Constants'
+import { salmonLogger } from 'salmonlogger'
+
+const TAG = 'VideoInfoUtil'
 
 // 视频信息类
 export default class VideoInfoUtil {
@@ -15,8 +18,8 @@ export default class VideoInfoUtil {
   public static playAreaWidth: number = 0
   // 播放器视频高度
   public static playAreaHeight: number = 0
-  public static ASPECT_RATIO_MAP: Map<string, number> = new Map([[VideoInfoUtil.screenExtendMap[4], 16 / 9],
-    [VideoInfoUtil.screenExtendMap[5], 4 / 3]])
+  public static ASPECT_RATIO_MAP: Map<string, number> = new Map([[VideoInfoUtil.screenExtendMap[5], 16 / 9],
+    [VideoInfoUtil.screenExtendMap[6], 4 / 3]])
   public static readonly videoSpeedListAll: number[] = Array.from(VIDEO_SPEED_MAP.keys())
     .filter(speed => speed >= 0.25)
     .sort((a, b) => a - b)
@@ -54,7 +57,7 @@ export default class VideoInfoUtil {
       pointA: 0,
       pointB: 0
     }
-    VideoInfoUtil.getVideoCover(sandbox_path, date, uri, targetVideo.size, parseInt(duration))
+    await VideoInfoUtil.getVideoCover(sandbox_path, date, uri, targetVideo.size, parseInt(duration))
     return targetVideo
   }
 
@@ -70,9 +73,8 @@ export default class VideoInfoUtil {
           file = fs.openSync(uri)
           avMetadataExtractor.fdSrc = file
           const pixelMap = await avMetadataExtractor.fetchAlbumCover()
-          SelectFileUtil.saveVideoImageToPrivacySpace(sandbox_path, date, pixelMap)
+          await SelectFileUtil.saveVideoImageToSandBox(sandbox_path, date, pixelMap)
         } catch (error) {
-          console.error(`AlbumCover failed: ${error.message}`)
           await VideoInfoUtil.getVideoImage(uri, size, date, sandbox_path, time)
         } finally {
           if (file) {
@@ -80,7 +82,7 @@ export default class VideoInfoUtil {
           }
           if (avMetadataExtractor) {
             avMetadataExtractor?.release()?.catch(() => {
-              console.error('release error')
+              salmonLogger.addLog(TAG, 'avMetadataExtractor release error', true)
             })
           }
         }
@@ -114,17 +116,17 @@ export default class VideoInfoUtil {
           width: size[0],
           height: size[1],
         }
-        avImageGenerator.fetchFrameByTime(timeUs, queryOption, param).then((pixelMap: PixelMap) => {
-          SelectFileUtil.saveVideoImageToPrivacySpace(sandbox_path, date, pixelMap)
+        avImageGenerator.fetchFrameByTime(timeUs, queryOption, param).then(async (pixelMap: PixelMap) => {
+          await SelectFileUtil.saveVideoImageToSandBox(sandbox_path, date, pixelMap)
           avImageGenerator.release()?.catch(() => {
-            console.error('release error')
+            salmonLogger.addLog(TAG, 'avImageGenerator release error', true)
           })
           fs.closeSync(file)
         })?.catch(() => {
-          console.error('fetch frame error')
+          salmonLogger.addLog(TAG, 'fetch frame error', true)
         })
       } catch (error) {
-        console.error('get video image error:' + error)
+        salmonLogger.addLog(TAG, 'get video image error:' + error, true)
       }
     }
   }
@@ -173,8 +175,8 @@ export default class VideoInfoUtil {
     const sizeKey = `${width}x${height}`
     // 匹配优先级
     return VIDEO_SIZE_MAP[sizeKey] || // 1. 精确匹配宽高
-    VIDEO_SIZE_MAP[height] || // 2. 标准高度命名
-    VIDEO_SIZE_MAP[width] || // 3. 特殊宽度标准
+      VIDEO_SIZE_MAP[height] || // 2. 标准高度命名
+      VIDEO_SIZE_MAP[width] || // 3. 特殊宽度标准
       `${width} x ${height}` // 4. 默认格式
   }
 
@@ -196,7 +198,7 @@ export default class VideoInfoUtil {
           }
         })
       } catch (error) {
-        console.error('size error:' + error)
+        salmonLogger.addLog(TAG, 'getVideoSize error:' + error, true)
       }
     })
   }

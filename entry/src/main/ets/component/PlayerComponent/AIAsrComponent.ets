@@ -1,4 +1,4 @@
-import { AICaptionController, AICaptionOptions } from '@kit.SpeechKit';
+import { AICaptionComponent, AICaptionController, AICaptionOptions } from '@kit.SpeechKit';
 import { AVPlayerController } from '../../controller/AVPlayerController';
 import { MpvController } from '../../controller/MpvController/MpvController';
 

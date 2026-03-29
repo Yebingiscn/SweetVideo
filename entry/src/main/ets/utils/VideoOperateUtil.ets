@@ -1,21 +1,34 @@
 import { window } from '@kit.ArkUI'
 import { audio } from '@kit.AudioKit'
-import { BusinessError } from '@kit.BasicServicesKit'
+import { BusinessError, settings } from '@kit.BasicServicesKit'
 import { media } from '@kit.MediaKit'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
 import { common } from '@kit.AbilityKit'
 import { PathUtils } from './PathUtils'
 import ToolsUtil from './ToolsUtil'
-import NavigationAddress from '../common/NavigationCommon'
+import NavigationAddress, { PlayerParams } from '../common/NavigationCommon'
 import { Setting } from './ObservedUtil'
-import { fileIo, fileUri } from '@kit.CoreFileKit'
+import { fileIo, fileIo as fs, fileUri } from '@kit.CoreFileKit'
 import { RepeatMode } from '../common/enum/RepeatMode'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { image } from '@kit.ImageKit'
 import VideoInfoUtil from './VideoInfoUtil'
 import { salmonLogger } from 'salmonlogger'
 import { FrameSize } from '../interfaces/FrameSizeInterface'
+import { SUPPORT_AUDIO_FORMAT } from '../common/Constants'
+import { VideoSource } from '../common/enum/VideoSource'
+import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode'
+import { LanguageConfig } from '../common/LanguageConfig'
+import Preferences from '../database/Preferences'
+import { XAnimation } from './AnimationUtil'
+import DataSyncUtil from './DataSyncUtil'
+import PermissionUtil from './PermissionUtil'
+import PrivacySpaceUtil from './PrivacySpaceUtil'
+import RecentPlayUtil from './RecentPlayUtil'
+import SelectFileUtil from './SelectFileUtil'
+import { WindowUtil } from './WindowUtil'
+import { hilog } from '@kit.PerformanceAnalysisKit'
 
 const TAG = 'VideoOperateUtil'
 
@@ -357,7 +370,7 @@ export default class VideoOperateUtil {
     Setting.coverLayout = Preferences.getCoverLayoutMode(context)
     Setting.superResolutionState = Preferences.getSuperResolutionState(context)
     Setting.mpvDecodingMethod = Preferences.getMpvDecodingMethod(context)
-    PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'defaultPlayer')
+    Setting.enableBackgroundDarkImage = Preferences.getEnableBackgroundDarkImage(context)
   }
 
   // 封装获取屏幕亮度的方法

@@ -7,6 +7,7 @@ import { PathUtils } from '../../utils/PathUtils'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { ConfigurationConstant } from '@kit.AbilityKit'
+import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
 
 @Component
 export struct PersonalizePage {
@@ -33,26 +34,50 @@ export struct PersonalizePage {
         }
 
         ListItem() {
+          SettingsToggleItem({
+            symbol: $r('sys.symbol.doc_text_badge_clock'),
+            message: '深浅色图片切换',
+            enable: Setting.enableBackgroundDarkImage,
+            onChange: async (checked: boolean) => {
+              Setting.enableBackgroundDarkImage = checked
+              if (!checked) {
+                await SelectFileUtil.deletePhoto('BackgroundDarkImage')
+                const currentColorMode = AppStorage.get('currentColorMode') as number
+                if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK) {
+                  Setting.backgroundImageSrc = ''
+                }
+              }
+              Preferences.saveEnableBackgroundDarkImage(PathUtils.appContext!, Setting.enableBackgroundDarkImage)
+            }
+          })
+        }
+
+        ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.picture'),
-            message: '自定义（浅色）背景',
+            message: Setting.enableBackgroundDarkImage ? '自定义浅色背景' : '自定义背景',
             onPress: async () => {
               const imageUris = await SelectFileUtil.selectPhoto()
               if (imageUris.length === 0) {
                 ToolsUtil.showToast('没有照片被选择')
                 return
               }
+              const currentColorMode = AppStorage.get('currentColorMode') as number
               Setting.backgroundImageSrc = ''
               SelectFileUtil.saveImageToPrivacySpace(imageUris[0], false)
               setTimeout(() => {
-                Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
-                ToolsUtil.showToast('设置成功')
+                if (!Setting.enableBackgroundDarkImage ||
+                  currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT) {
+                  Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
+                  ToolsUtil.showToast('设置成功')
+                }
               }, 100)
             }
           })
         }
 
-        if (Setting.backgroundImageSrc.length > 0) {
+
+        if (Setting.enableBackgroundDarkImage) {
           ListItem() {
             SettingsClickItem({
               symbol: $r('sys.symbol.picture'),
@@ -63,24 +88,27 @@ export struct PersonalizePage {
                   ToolsUtil.showToast('没有照片被选择')
                   return
                 }
+                const currentColorMode = AppStorage.get('currentColorMode') as number
                 Setting.backgroundImageSrc = ''
                 SelectFileUtil.saveImageToPrivacySpace(imageUris[0], true)
                 setTimeout(() => {
-                  Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
-                  ToolsUtil.showToast('设置成功')
+                  if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK) {
+                    Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
+                    ToolsUtil.showToast('设置成功')
+                  }
                 }, 100)
               }
             })
           }
+        }
 
-
+        if (Setting.backgroundImageSrc.length > 0) {
           ListItem() {
             SettingsClickItem({
               symbol: $r('sys.symbol.picture_damage'),
-              message: '删除（浅色）自定义背景',
+              message: Setting.enableBackgroundDarkImage ? '删除浅色自定义背景' : '删除自定义背景',
               onPress: async () => {
                 await SelectFileUtil.deletePhoto('BackgroundImage')
-                await SelectFileUtil.deletePhoto('BackgroundDarkImage')
                 Setting.backgroundImageSrc = ''
                 ToolsUtil.showToast('删除成功')
                 Preferences.saveBackgroundDropBlur(PathUtils.appContext!, 0)
@@ -88,27 +116,26 @@ export struct PersonalizePage {
             })
           }
 
-          ListItem() {
-            SettingsClickItem({
-              symbol: $r('sys.symbol.picture_damage'),
-              message: '删除（深色）自定义背景',
-              onPress: async () => {
-                await SelectFileUtil.deletePhoto('BackgroundDarkImage')
-                const currentColorMode = AppStorage.get('currentColorMode') as number
-                if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK) {
-                  Setting.backgroundImageSrc = ''
-                } else {
-                  Setting.backgroundImageSrc = ''
-                  setTimeout(() => {
-                    Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
-                  }, 100)
+          if (Setting.enableBackgroundDarkImage) {
+            ListItem() {
+              SettingsClickItem({
+                symbol: $r('sys.symbol.picture_damage'),
+                message: '删除深色自定义背景',
+                onPress: async () => {
+                  await SelectFileUtil.deletePhoto('BackgroundDarkImage')
+                  const currentColorMode = AppStorage.get('currentColorMode') as number
+                  if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK) {
+                    Setting.backgroundImageSrc = ''
+                  }
+                  ToolsUtil.showToast('删除成功')
+                  Preferences.saveBackgroundDropBlur(PathUtils.appContext!, 0)
                 }
-                ToolsUtil.showToast('删除成功')
-                Preferences.saveBackgroundDropBlur(PathUtils.appContext!, 0)
-              }
-            })
+              })
+            }
           }
+        }
 
+        if (Setting.backgroundImageSrc.length > 0) {
           ListItem() {
             SettingSliderItem({
               symbol: $r('sys.symbol.livephoto'),
@@ -122,6 +149,7 @@ export struct PersonalizePage {
             })
           }
         }
+
       }
       .align(Alignment.Top)
       .borderRadius(16)

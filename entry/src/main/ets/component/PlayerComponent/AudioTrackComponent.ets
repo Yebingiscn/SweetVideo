@@ -3,6 +3,8 @@ import { AudioTrackSource } from '../../utils/DataUtil'
 import { MpvAudioTrack } from '../../controller/MpvController/MpvTypes'
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
+import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
+import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
 // 定义联合类型
 type TrackType = AudioTrack | MpvAudioTrack

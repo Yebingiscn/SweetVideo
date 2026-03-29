@@ -32,6 +32,8 @@ export struct VideoTopComponent {
   }
   pipStateChange = () => {
   }
+  onOpenPersonalScreenExtend = () => {
+  }
 
   build() {
     Row({ space: 8 }) {
@@ -158,6 +160,8 @@ export struct VideoTopComponent {
       case VideoInfoUtil.screenExtendMap[3]: // 适应高度
         this.onFullScreenByHeight()
         break
+      case VideoInfoUtil.screenExtendMap[4]: // 自定义比例
+        this.onOpenPersonalScreenExtend()
       default:
         const scale = text ? SCALE_FACTORS.get(text) : undefined
         if (scale) {

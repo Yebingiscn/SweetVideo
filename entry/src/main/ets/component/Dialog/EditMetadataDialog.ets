@@ -14,29 +14,36 @@ export struct EditMetadataDialog {
   }
 
   build() {
-    Column({ space: 25 }) {
+    Column({ space: 20 }) {
       Text($r('app.string.rename'))
         .fontSize(25)
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)
-        .margin({ top: 10 })
+
       TextInput({ text: this.name?.slice(0, this.name?.lastIndexOf('.')) })
         .id('change_name')
-        .keyboardAppearance(KeyboardAppearance.IMMERSIVE)// 设置搜索框沉浸模式
+        .keyboardAppearance(KeyboardAppearance.IMMERSIVE)
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .onChange((input: string) => this.name = input + "." + this.name?.split('.')[this.name?.split('.').length - 1])
         .onAppear(() => {
           focusControl.requestFocus('change_name')
         })
+        .enableAutoSpacing(true)
+        .enterKeyType(EnterKeyType.Done)
+
       Flex({ justifyContent: FlexAlign.SpaceAround }) {
         Button({ type: ButtonType.Normal, stateEffect: true }) {
           Row({ space: 5 }) {
-            SymbolGlyph($r('sys.symbol.xmark')).fontSize(18).fontColor([$r('app.color.text_color')])
+            SymbolGlyph($r('sys.symbol.xmark'))
+              .fontSize(18)
+              .fontColor([$r('app.color.text_color')])
             Text($r('app.string.cancel'))
               .fontSize(18)
               .fontColor($r('app.color.text_color'))
               .fontWeight(FontWeight.Medium)
-          }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
+          }
+          .alignItems(VerticalAlign.Center)
+          .padding({ left: 12, right: 12 })
         }
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .backgroundColor($r('sys.color.titlebar_icon_background_color'))
@@ -46,9 +53,16 @@ export struct EditMetadataDialog {
 
         Button({ type: ButtonType.Normal, stateEffect: true }) {
           Row({ space: 5 }) {
-            SymbolGlyph($r('sys.symbol.checkmark')).fontSize(18).fontColor([$r('app.color.text_color')])
-            Text($r('app.string.sure')).fontSize(18).fontColor($r('app.color.text_color')).fontWeight(FontWeight.Medium)
-          }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
+            SymbolGlyph($r('sys.symbol.checkmark'))
+              .fontSize(18)
+              .fontColor([$r('app.color.text_color')])
+            Text($r('app.string.sure'))
+              .fontSize(18)
+              .fontColor($r('app.color.text_color'))
+              .fontWeight(FontWeight.Medium)
+          }
+          .alignItems(VerticalAlign.Center)
+          .padding({ left: 12, right: 12 })
         }
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .backgroundColor($r('sys.color.titlebar_icon_background_color'))
@@ -60,7 +74,8 @@ export struct EditMetadataDialog {
             this.confirm(this.name)
           }
         })
-      }.margin({ bottom: 10 })
-    }.padding(20)
+      }
+    }
+    .padding(20)
   }
 }

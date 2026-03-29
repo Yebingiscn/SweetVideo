@@ -1,4 +1,9 @@
 import { hiAppEvent } from '@kit.PerformanceAnalysisKit'
+import { salmonLogger, SalmonLogLine } from 'salmonlogger'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { PathUtils } from '../../utils/PathUtils'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { pasteboard } from '@kit.BasicServicesKit'
 
 @Component
 export struct CrashPage {

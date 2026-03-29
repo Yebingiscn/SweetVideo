@@ -9,8 +9,9 @@ import { BusinessError } from '@ohos.base'
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil'
 import Preferences from '../database/Preferences'
 import ToolsUtil from '../utils/ToolsUtil'
-import { Pc, Privacy } from '../utils/ObservedUtil'
+import { Pc, Privacy, Setting } from '../utils/ObservedUtil'
 import { WindowUtil } from '../utils/WindowUtil'
+import SelectFileUtil from '../utils/SelectFileUtil'
 
 export default class EntryAbility extends UIAbility {
   watcher: hiAppEvent.Watcher | undefined = undefined
@@ -114,9 +115,9 @@ export default class EntryAbility extends UIAbility {
             console.error('setWindowBackgroundColor error')
           }
         })
-      ?.catch(() => {
-        console.error('loadContent error')
-      })
+        ?.catch(() => {
+          console.error('loadContent error')
+        })
       hilog.info(0x0000, 'testTag', 'Succeeded in loading the content.')
     })
     // 是否进入后台
@@ -179,6 +180,10 @@ export default class EntryAbility extends UIAbility {
     if (newColorMode === currentColorMode) {
       return
     }
+    setTimeout(() => {
+      Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
+      ToolsUtil.showToast('设置成功')
+    }, 100)
     // 更新缓存中的颜色模式
     AppStorage.setOrCreate('currentColorMode', newConfig.colorMode)
     WindowUtil.recoveryBarColor()

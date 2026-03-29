@@ -25,19 +25,28 @@ export struct VideoDeleteDialog {
   }
 
   build() {
-    Column({ space: 25 }) {
-      Text(this.msg)
-        .fontSize(25)
+    Column({ space: 20 }) {
+      // 标题
+      Text('删除确认')
+        .fontSize(20)
         .fontColor($r('app.color.text_color'))
-        .fontWeight(FontWeight.Bold)
-        .margin({ top: 10 })
+        .fontWeight(FontWeight.Medium)
 
+      // 提示信息
+      Text(this.msg)
+        .fontSize(15)
+        .fontColor($r('app.color.text_color'))
+        .opacity(0.85)
+        .textAlign(TextAlign.Start)
+        .lineHeight(22)
+
+      // 选项区域
       if (this.moveToRecentVisibility) {
-        Flex({ justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
+        Column({ space: 12 }) {
           if (this.permanentDeleteVisibility) {
             Row() {
               Checkbox({ name: 'permanentDelete', group: 'deleteOptionsGroup' })
-                .selectedColor($r('app.color.main_color'))
+                .selectedColor('#FF4D4F')
                 .shape(CheckBoxShape.CIRCLE)
                 .onChange((checked: boolean) => {
                   if (checked) {
@@ -48,13 +57,22 @@ export struct VideoDeleteDialog {
                   }
                 })
                 .select($$this.isPermanentDelete)
-                .width(25)
-                .height(25)
-              Text('永久删除')
-                .fontSize(18)
-                .fontColor($r('app.color.text_color'))
-                .fontWeight(FontWeight.Medium)
+                .width(20)
+                .height(20)
+              Column() {
+                Text('彻底删除文件')
+                  .fontSize(15)
+                  .fontColor(this.isPermanentDelete ? '#FF4D4F' : $r('app.color.text_color'))
+                  .fontWeight(FontWeight.Medium)
+                Text('文件将从设备中永久删除，不可恢复')
+                  .fontSize(12)
+                  .fontColor('#FF4D4F')
+                  .opacity(0.8)
+              }
+              .alignItems(HorizontalAlign.Start)
+              .margin({ left: 8 })
             }
+            .width('100%')
           }
 
           Row() {
@@ -70,42 +88,60 @@ export struct VideoDeleteDialog {
                 }
               })
               .select($$this.isMoveToRecent)
-              .width(25)
-              .height(25)
-            Text('移动到最近删除')
-              .fontSize(18)
-              .fontColor($r('app.color.text_color'))
-              .fontWeight(FontWeight.Medium)
+              .width(20)
+              .height(20)
+            Column() {
+              Text('移至最近删除')
+                .fontSize(15)
+                .fontColor($r('app.color.text_color'))
+                .fontWeight(FontWeight.Medium)
+              Text('文件可在30天内从系统最近删除中恢复')
+                .fontSize(12)
+                .fontColor($r('app.color.text_color'))
+                .opacity(0.6)
+            }
+            .alignItems(HorizontalAlign.Start)
+            .margin({ left: 8 })
           }
+          .width('100%')
         }
+        .width('100%')
+        .padding({ left: 8, right: 8 })
       }
 
+      // 按钮区域
       Flex({ justifyContent: FlexAlign.SpaceAround }) {
         Button({ type: ButtonType.Normal, stateEffect: true }) {
           Row({ space: 5 }) {
-            SymbolGlyph($r('sys.symbol.xmark')).fontSize(18).fontColor([$r('app.color.text_color')])
+            SymbolGlyph($r('sys.symbol.xmark')).fontSize(16).fontColor([$r('app.color.text_color')])
             Text($r('app.string.cancel'))
-              .fontSize(18)
+              .fontSize(15)
               .fontColor($r('app.color.text_color'))
               .fontWeight(FontWeight.Medium)
           }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
         }
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .backgroundColor($r('sys.color.button_background_color_transparent'))
-        .borderRadius(16)
-        .height(40)
+        .borderRadius(12)
+        .height(36)
         .onClick(() => this.controller?.close())
 
         Button({ type: ButtonType.Normal, stateEffect: true }) {
           Row({ space: 5 }) {
-            SymbolGlyph($r('sys.symbol.checkmark')).fontSize(18).fontColor([$r('app.color.text_color')])
-            Text($r('app.string.sure')).fontSize(18).fontColor($r('app.color.text_color')).fontWeight(FontWeight.Medium)
+            SymbolGlyph($r('sys.symbol.trash_fill'))
+              .fontSize(16)
+              .fontColor(this.isPermanentDelete ? ['#FF4D4F'] : [$r('app.color.text_color')])
+            Text($r('app.string.sure'))
+              .fontSize(15)
+              .fontColor(this.isPermanentDelete ? '#FF4D4F' : $r('app.color.text_color'))
+              .fontWeight(FontWeight.Medium)
           }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
         }
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .backgroundColor($r('sys.color.button_background_color_transparent'))
-        .borderRadius(16)
-        .height(40)
+        .backgroundColor(this.isPermanentDelete ? 'rgba(255, 77, 79, 0.15)' :
+          $r('sys.color.button_background_color_transparent'))
+        .borderRadius(12)
+        .height(36)
         .onClick(() => {
           this.controller?.close()
           let deleteType = DeleteType.SOFT
@@ -116,8 +152,9 @@ export struct VideoDeleteDialog {
           }
           this.confirm?.(deleteType)
         })
-      }.margin({ bottom: 10 })
+      }.margin({ bottom: 5 })
     }.padding(20)
+    .width('85%')
   }
 
   private getPermanentDeleteVisibility() { // V2 时可用 @Computed

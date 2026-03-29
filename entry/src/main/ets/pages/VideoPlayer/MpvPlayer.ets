@@ -17,17 +17,10 @@ import { LockVideoBarComponent } from '../../component/PlayerComponent/LockVideo
 import { GestureComponent } from '../../component/PlayerComponent/GestureComponent'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
-import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent'
-import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder'
 import { window } from '@kit.ArkUI'
-import { AudioTrackComponent } from '../../component/PlayerComponent/AudioTrackComponent'
-import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent'
 import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
-import { VideoTopComponent } from '../../component/PlayerComponent/VideoTopComponent'
-import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent'
 import { XComponents } from '../../component/PlayerComponent/XComponents'
 import { VideoLayoutComponent } from '../../component/PlayerComponent/VideoLayoutComponent'
-import { RepeatMode } from '../../common/enum/RepeatMode'
 import {
   DEFAULT_ANGLE,
   MAX_SCALE_FACTOR,
@@ -46,9 +39,18 @@ import {
 } from '../../common/Constants'
 import { AISubtitleComponent } from '../../component/PlayerComponent/AIAsrComponent'
 import { PlayerSideBarComponent } from '../../component/PlayerComponent/PlayerSideBarComponent'
+import PiPWindowUtil from '../../utils/PiPWindowUtil'
+import { AudioTrackComponent } from '../../component/PlayerComponent/AudioTrackComponent'
+import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder'
+import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent'
+import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent'
 import { VideoButtonsComponent } from '../../component/PlayerComponent/VideoButtonsComponent'
 import { VideoSettingComponent } from '../../component/PlayerComponent/VideoSettingComponent'
-import PiPWindowUtil from '../../utils/PiPWindowUtil'
+import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent'
+import { VideoTopComponent } from '../../component/PlayerComponent/VideoTopComponent'
+import { RepeatMode } from '../../common/enum/RepeatMode'
+import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
+import { NumberInputDialog } from '../../component/Dialog/NumberInputDialog'
 
 @Component
 export struct MpvPlayer {
@@ -68,6 +70,20 @@ export struct MpvPlayer {
   @State subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
   @State exitVideoTime: number = 0
   @State abCircleStatus: boolean = false
+  personalScreenExtendDialog: CustomDialogController = new CustomDialogController({
+    builder: NumberInputDialog({
+      title: '自定义屏幕拓展比例',
+      placeholderColor: '输入范围：50-150',
+      confirm: (input: number) => {
+        if (input && input <= 150 && input >= 50) {
+          this.mpv.playAreaHeight = input / 100 * VideoInfoUtil.playAreaHeight
+          this.mpv.playAreaWidth = input / 100 * VideoInfoUtil.playAreaWidth
+        } else {
+          ToolsUtil.showToast('输入错误')
+        }
+      },
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
 
   async aboutToAppear(): Promise<void> {
     this.mpv.prepare()
@@ -340,7 +356,7 @@ export struct MpvPlayer {
       }
     })
     .onWillDisappear(async () => {
-      this.exitVideo()
+      this.exitVideo(false)
       if (this.mpv.videoMetaDataList.length > 0 && this.mpv.playTime > 0) {
         VideoOperateUtil.saveVideoTime(this.mpv.playTime, this.mpv.nowPlaying!, this.mpv.videoMetaDataList,
           PathUtils.appContext!)
@@ -396,7 +412,7 @@ export struct MpvPlayer {
       },
       lockRotation: this.lockRotation,
       onExitVideoClick: () => {
-        this.exitVideo()
+        this.exitVideo(true)
         ToolsUtil.addLogger("点击退出视频按钮", false, this.pathStack)
       },
       onLockRotationClick: async () => {
@@ -452,13 +468,18 @@ export struct MpvPlayer {
       pipStateChange: () => {
         PiPWindowUtil.enableAutoStart()
         this.mpv.pipOpenState = true
+      },
+      onOpenPersonalScreenExtend: () => {
+        this.personalScreenExtendDialog.open()
       }
     })
   }
 
-  exitVideo() {
+  exitVideo(shouldPop: boolean = true) {
     this.mpv.release()
-    this.pathStack.pop()
+    if (shouldPop) {
+      this.pathStack.pop()
+    }
   }
 
   @Builder
@@ -572,7 +593,7 @@ export struct MpvPlayer {
   @Builder
   SubtitleMenuBuilder() {
     SubtitlePanelComponent({
-      subTitleVisibility: this.subtitleVisibility,
+      subtitleVisibility: this.subtitleVisibility,
       isAIAsrShown: this.isAIAsrShown,
       subtitle3DMode: this.subtitle3DMode,
     })

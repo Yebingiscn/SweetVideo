@@ -49,18 +49,6 @@ export struct PlayerSettingPage {
         }
 
         ListItem() {
-          SettingsToggleItem({
-            symbol: $r('sys.symbol.camera_master_ai'),
-            message: '视频超分辨率',
-            enable: Setting.superResolutionState,
-            onChange: (checked: boolean) => {
-              Setting.superResolutionState = checked
-              Preferences.saveSuperResolutionState(PathUtils.appContext!, Setting.superResolutionState)
-            }
-          })
-        }
-
-        ListItem() {
           SettingsCheckboxItem({
             symbol: $r('sys.symbol.hardware'),
             message: 'MPV 解码：' +
@@ -89,18 +77,6 @@ export struct PlayerSettingPage {
 
         ListItem() {
           SettingsToggleItem({
-            symbol: $r('sys.symbol.hand_draw'),
-            message: '启用双击屏幕两边快进快退',
-            enable: Setting.allowDoubleFastForward,
-            onChange: (checked: boolean) => {
-              Setting.allowDoubleFastForward = checked
-              Preferences.saveAllowDoubleFastForwardState(PathUtils.appContext!, Setting.allowDoubleFastForward)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsToggleItem({
             symbol: $r('sys.symbol.resolution_video'),
             message: '展示进度条预览图',
             enable: Setting.showFrameImgStatus,
@@ -113,12 +89,36 @@ export struct PlayerSettingPage {
 
         ListItem() {
           SettingsToggleItem({
+            symbol: $r('sys.symbol.camera_master_ai'),
+            message: '视频超分辨率',
+            enable: Setting.superResolutionState,
+            onChange: (checked: boolean) => {
+              Setting.superResolutionState = checked
+              Preferences.saveSuperResolutionState(PathUtils.appContext!, Setting.superResolutionState)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsToggleItem({
             symbol: $r('sys.symbol.pin'),
             message: '自动跳转到上次播放时间',
             enable: Setting.jumpToHistoryTimeStatus,
             onChange: (checked: boolean) => {
               Setting.jumpToHistoryTimeStatus = checked
               Preferences.saveJumpToHistoryTime(PathUtils.appContext!, Setting.jumpToHistoryTimeStatus)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsToggleItem({
+            symbol: $r('sys.symbol.hand_draw'),
+            message: '启用双击屏幕两边快进快退',
+            enable: Setting.allowDoubleFastForward,
+            onChange: (checked: boolean) => {
+              Setting.allowDoubleFastForward = checked
+              Preferences.saveAllowDoubleFastForwardState(PathUtils.appContext!, Setting.allowDoubleFastForward)
             }
           })
         }

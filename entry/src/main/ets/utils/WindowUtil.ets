@@ -1,6 +1,11 @@
 import { window } from '@kit.ArkUI'
 import { PathUtils } from './PathUtils'
 import { salmonLogger } from 'salmonlogger'
+import { DARK_MODE_BAR_COLOR, LIGHT_MODE_BAR_COLOR } from '../common/Constants'
+import { Pc, SafeHeight } from './ObservedUtil'
+import { deviceInfo, settings } from '@kit.BasicServicesKit'
+import { ConfigurationConstant } from '@kit.AbilityKit'
+import { hilog } from '@kit.PerformanceAnalysisKit'
 
 const TAG = 'WindowUtil'
 
@@ -119,11 +124,11 @@ export class WindowUtil {
             .then(() => {
               salmonLogger.addLog(TAG, 'Succeed in maximizing the window.', false)
             })
-          ?.catch((err: BusinessError) => {
-            hilog.error(0x0000, 'testTag',
-              `Failed to maximize the window. Code: ${err.code}, message: ${err.message}`,
-              JSON.stringify(err) ?? '')
-          })
+            ?.catch((err: BusinessError) => {
+              hilog.error(0x0000, 'testTag',
+                `Failed to maximize the window. Code: ${err.code}, message: ${err.message}`,
+                JSON.stringify(err) ?? '')
+            })
         }
       } catch (error) {
         salmonLogger.addLog(TAG, 'maximize error', true)
@@ -139,9 +144,9 @@ export class WindowUtil {
             .then(() => {
               salmonLogger.addLog(TAG, 'Succeed in recovering the window.', false)
             })
-          ?.catch((err: BusinessError) => {
-            salmonLogger.addLog(TAG, `Failed to recover the window. Code: ${err.code}, message: ${err.message}`, true)
-          })
+            ?.catch((err: BusinessError) => {
+              salmonLogger.addLog(TAG, `Failed to recover the window. Code: ${err.code}, message: ${err.message}`, true)
+            })
         }
       } catch (error) {
         salmonLogger.addLog(TAG, 'recover error', true)

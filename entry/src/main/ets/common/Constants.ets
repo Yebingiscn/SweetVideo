@@ -78,6 +78,7 @@ export const SCREEN_EXTEND_LIST: Array<SelectOption> = [//屏幕扩展
   { value: '拉伸全屏' },
   { value: '按宽度全屏' },
   { value: '按高度全屏' },
+  { value: '自定义比例' },
   { value: '16:9' },
   { value: '4:3' },
   { value: '等比放大 110%' },

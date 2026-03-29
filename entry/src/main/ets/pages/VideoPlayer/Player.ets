@@ -55,10 +55,26 @@ import {
 } from '../../common/Constants'
 import { AISubtitleComponent } from '../../component/PlayerComponent/AIAsrComponent'
 import PiPWindowUtil from '../../utils/PiPWindowUtil'
+import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
+import { NumberInputDialog } from '../../component/Dialog/NumberInputDialog'
 
 @Component
 export struct Player { // 播放页
   @Provide('player') player: AVPlayerController = PlayerControllerFactory.createAVPlayerController()
+  personalScreenExtendDialog: CustomDialogController = new CustomDialogController({
+    builder: NumberInputDialog({
+      title: '自定义屏幕拓展比例',
+      placeholderColor: '输入范围：50-150',
+      confirm: (input: number) => {
+        if (input && input <= 150 && input >= 50) {
+          this.player.playAreaHeight = input / 100 * VideoInfoUtil.playAreaHeight
+          this.player.playAreaWidth = input / 100 * VideoInfoUtil.playAreaWidth
+        } else {
+          ToolsUtil.showToast('输入错误')
+        }
+      },
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
   @State longPress: boolean = false
   @State @Watch('setScreen') showControl: boolean = false
   @State lockRotation: boolean = false
@@ -75,6 +91,20 @@ export struct Player { // 播放页
   @Consume('pathStack') pathStack: NavPathStack
   @State exitVideoTime: number = 0
   @State abCircleStatus: boolean = false
+  subtitleTimestampInputDialog: CustomDialogController = new CustomDialogController({
+    builder: NumberInputDialog({
+      title: '外挂字幕偏移时间',
+      placeholderColor: '输入范围：-50000-50000' +
+        (SubtitleUtil.offsetMillis > 0 ? '：' + SubtitleUtil.offsetMillis : ''),
+      confirm: (input: number) => {
+        if (input && Math.abs(input || 0) <= 50000) {
+          SubtitleUtil.offsetMillis = input || 0
+        } else {
+          ToolsUtil.showToast('输入错误')
+        }
+      },
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
 
   async aboutToAppear(): Promise<void> {
     ToolsUtil.addLogger("开始执行aboutToAppear方法", false, this.pathStack)
@@ -119,7 +149,7 @@ export struct Player { // 播放页
   }
 
   setAVPlayerCallback() {
-    this.player.avPlayer?.on('timeUpdate', (duration) => {
+    this.player.avPlayer?.on('timeUpdate', async (duration) => {
       if (!this.player.onSwiping) {
         this.player.playTime = duration
       }
@@ -653,6 +683,9 @@ export struct Player { // 播放页
       pipStateChange: () => {
         PiPWindowUtil.enableAutoStart()
         this.player.pipOpenState = true
+      },
+      onOpenPersonalScreenExtend: () => {
+        this.personalScreenExtendDialog.open()
       }
     })
   }
@@ -781,9 +814,30 @@ export struct Player { // 播放页
   @Builder
   SubtitleMenuBuilder() {
     SubtitlePanelComponent({
-      subTitleVisibility: this.subtitleVisibility,
+      subtitleVisibility: this.subtitleVisibility,
       isAIAsrShown: this.isAIAsrShown,
       subtitle3DMode: this.subtitle3DMode,
+      onSubtitleOffsetTime: () => {
+        this.subtitleTimestampInputDialog.open()
+      },
+      onInnerSubtitleClick: () => {
+        this.subtitleVisibility = Visibility.Visible
+        this.isAIAsrShown = false
+        this.player.subtitleSelected = SubtitleMode.INNER_SUBTITLE
+      },
+      onExternalSubtitleClick: () => {
+        this.isAIAsrShown = false
+        this.subtitleVisibility === Visibility.Visible &&
+          this.player.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE ?
+          this.subtitleVisibility = Visibility.None :
+          this.subtitleVisibility = Visibility.Visible
+        this.player.subtitleSelected = SubtitleMode.EXTERNAL_SUBTITLE
+      },
+      onAIAsrClick: () => {
+        this.isAIAsrShown = !this.isAIAsrShown
+        this.subtitleVisibility = Visibility.None
+        this.player.subtitleSelected = SubtitleMode.AI_SUBTITLE
+      },
     })
   }
 
