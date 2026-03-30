@@ -380,7 +380,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     ToolsUtil.addLogger("播放选择视频流程完成", false)
   }
 
-  async getData(pathStack: NavPathStack, windowClass: Promise<window.Window | undefined>) {
+  async getData(pathStack?: NavPathStack, windowClass?: Promise<window.Window | undefined>) {
     ToolsUtil.addLogger("开始获取播放数据", false)
     try {
       if (this.avPlayer) {
@@ -390,7 +390,7 @@ export class AVPlayerController implements PlayerControllerInterface {
         } catch (error) {
           ToolsUtil.addLogger("打开视频文件失败：" + error, true)
           ToolsUtil.showToast('视频打开失败，可能已失效：' + error)
-          pathStack.pop()
+          pathStack && pathStack.pop()
         }
         await VideoOperateUtil.getFrameTimePreprocess(this.nowPlaying!.uri)
         this.setRotation()
@@ -418,7 +418,7 @@ export class AVPlayerController implements PlayerControllerInterface {
       const errorText = '视频加载失败。原因是：' + error
       ToolsUtil.showToast(errorText)
       ToolsUtil.addLogger(errorText, true)
-      pathStack.pop()
+      pathStack && pathStack.pop()
     }
     ToolsUtil.addLogger("获取播放数据完成", false)
   }

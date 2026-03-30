@@ -91,7 +91,7 @@ export class MpvController implements PlayerControllerInterface {
     ToolsUtil.addLogger("设置当前播放视频完成", false)
     this.init(item.uri)
     ToolsUtil.addLogger("获取播放数据完成", false)
-    await this.initAVSession()
+    this.initAVSession()
     ToolsUtil.addLogger("播放选择视频流程完成", false)
   }
 
@@ -176,32 +176,40 @@ export class MpvController implements PlayerControllerInterface {
     } else {
       mpvLoadVideo(this.mpvHandle, new fileUri.FileUri(url!).path)
     }
+    this.getData()
+  }
+
+  getData() {
+    // 立即设置播放状态和启动定时器
+    this.playing = true
+    // 立即启动定时器，不延迟
     this.playTimeUpdateTag = setInterval(() => {
       this.playTime = mpvGetCurrentPosition(this.mpvHandle)
     }, 1000);
-    this.playing = true
+    // 立即获取视频信息，不延迟
+    this.getAudioTrackList()
+    this.getSubtitleTrackList()
+    this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!))
+    this.nowPlaying!.time = this.getDuration()
+    this.setRotation()
+    // 智能旋转和外部字幕可以延迟执行，不影响播放
     setTimeout(async () => {
-      this.getAudioTrackList()
-      this.getSubtitleTrackList()
-      this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!))
-      this.nowPlaying!.time = this.getDuration()
-      this.setRotation()
-      setTimeout(async () => {
-        if (Setting.smartRotation && this.playAreaWidth > this.playAreaHeight &&
-          this.screenHeight > this.screenWidth) {
-          ToolsUtil.addLogger("智能旋转条件满足，开始设置方向", false)
-          const proportion =
-            Math.max(this.screenWidth, this.screenHeight) / Math.min(this.screenWidth, this.screenHeight)
-          const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
-            : window.Orientation.AUTO_ROTATION_RESTRICTED;
-          (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
-            ToolsUtil.addLogger("设置窗口方向失败", true)
-          })
-          ToolsUtil.addLogger("设置窗口方向完成", false)
-        }
-        await this.setExternalSubtitle(this.nowPlaying!)
-      }, 500)
-    }, 1000)
+      if (Setting.smartRotation &&
+        (this.playAreaWidth > this.playAreaHeight || this.nowPlaying!.size[0] > this.nowPlaying!.size[1]) &&
+        this.screenHeight > this.screenWidth) {
+        ToolsUtil.addLogger("智能旋转条件满足，开始设置方向", false)
+        const proportion =
+          Math.max(this.screenWidth, this.screenHeight) / Math.min(this.screenWidth, this.screenHeight)
+        const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
+          : window.Orientation.AUTO_ROTATION_RESTRICTED;
+        (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
+          ToolsUtil.addLogger("设置窗口方向失败", true)
+        })
+        console.error('test3')
+        ToolsUtil.addLogger("设置窗口方向完成", false)
+      }
+      await this.setExternalSubtitle(this.nowPlaying!)
+    }, 300) // 减少延迟到 300ms
   }
 
   backForward(): void {
@@ -239,7 +247,9 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   reset(): void {
+    clearInterval(this.playTimeUpdateTag)
     mpvReset(this.mpvHandle)
+    this.getData()
   }
 
   release(): void {

@@ -44,6 +44,8 @@ export interface PlayerControllerInterface {
   selectSubtitleTrack(trackId: number): void
 
   initVolumeAndBrightness(): void
+
+  getData(): void
 }
 
 // 真正的工厂 controller
