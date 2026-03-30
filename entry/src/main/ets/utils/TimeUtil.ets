@@ -42,19 +42,19 @@ export default class TimeUtil {
   static getTextByTime() {
     const hours = new Date().getHours()
     if (hours === 15) {
-      return '流心，饮茶啦！'
+      return '流心饮茶啦'
     }
     // 常规时间问候
     if (hours >= 0 && hours < 5) {
       return '流心晚安~'
     } else if (hours >= 5 && hours < 12) {
-      return '流心早上好！'
+      return '流心早上好'
     } else if (hours >= 12 && hours < 14) {
-      return '流心中午好！'
+      return '流心中午好'
     } else if (hours >= 14 && hours < 18) {
-      return '流心下午好！'
+      return '流心下午好'
     } else {
-      return '流心晚上好！'
+      return '流心晚上好'
     }
   }
 }

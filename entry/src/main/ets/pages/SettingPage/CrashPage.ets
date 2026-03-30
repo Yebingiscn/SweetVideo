@@ -130,7 +130,7 @@ export struct CrashPage {
                   `HiAppEvent eventInfo.params.hilog.size=${eventInfo.params['hilog']?.length}\n` +
                   `HiAppEvent eventInfo.params.external_log=${JSON.stringify(eventInfo.params['external_log'])}\n` +
                   `HiAppEvent eventInfo.params.log_over_limit=${eventInfo.params['log_over_limit']}\n` +
-                  `HiAppEvent eventInfo.params.test_data=${eventInfo.params['test_data']}`).width('auto').height('auto')
+                  `HiAppEvent eventInfo.params.test_data=${eventInfo.params['test_data']}`).width('80%').height('auto')
               }, (_eventInfo: hiAppEvent.AppEventInfo, index: number) => index.toString())
             }, (eventGroup: hiAppEvent.AppEventGroup, index: number) => eventGroup.name + index)
           }.backgroundColor($r('app.color.start_window_background_blur'))
