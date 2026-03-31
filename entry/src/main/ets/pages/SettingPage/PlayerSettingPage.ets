@@ -51,10 +51,8 @@ export struct PlayerSettingPage {
         ListItem() {
           SettingsCheckboxItem({
             symbol: $r('sys.symbol.hardware'),
-            message: 'MPV 解码：' +
-              (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE ? '功耗低但少部分视频异常' :
-                '功耗高，画面一般正常'),
-            tips: ['硬解', '软解'],
+            message: 'MPV 解码：' + this.getMPVDecodeInfo(Setting.mpvDecodingMethod),
+            tips: ['硬解（Buffer）', '软解', '硬解（Surface）'],
             tabSelectedIndexes: [Setting.mpvDecodingMethod],
             onButtonClick: (tabSelectedIndexes: number) => {
               Setting.mpvDecodingMethod = tabSelectedIndexes
@@ -208,5 +206,18 @@ export struct PlayerSettingPage {
     .backgroundImageSize(ImageSize.Cover)
     .backdropBlur(Setting.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
+  }
+
+  private getMPVDecodeInfo(decodingMethod: MpvDecodingMethod) {
+    switch (decodingMethod) {
+      case MpvDecodingMethod.HARDWARE_BUFFER:
+        return '功耗低但少部分视频异常'
+      case MpvDecodingMethod.SOFTWARE:
+        return '功耗高，画面一般正常'
+      case MpvDecodingMethod.HARDWARE_SURFACE:
+        return '性能最佳，不支持杜比P5'
+      default:
+        return 'Unknown'
+    }
   }
 }

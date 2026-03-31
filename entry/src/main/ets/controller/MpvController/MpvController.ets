@@ -157,17 +157,19 @@ export class MpvController implements PlayerControllerInterface {
       } else {
         console.error('[MpvPlayer] MPV instance created:', this.mpvHandle)
         switch (Setting.mpvDecodingMethod) {
-          case MpvDecodingMethod.HARDWARE:
+          case MpvDecodingMethod.HARDWARE_BUFFER:
             mpvSetDecodeType(0)
-            mpvSetHwdecMode(1)
+            mpvSetHwdecMode(0)
             break
           case MpvDecodingMethod.SOFTWARE:
             mpvSetDecodeType(1)
             break
-          default:
+          case MpvDecodingMethod.HARDWARE_SURFACE:
             mpvSetDecodeType(0)
-            mpvSetHwdecMode(0)
+            mpvSetHwdecMode(1)
             break
+          default:
+            mpvSetDecodeType(1)
         }
       }
     } catch {
@@ -184,6 +186,29 @@ export class MpvController implements PlayerControllerInterface {
       mpvLoadVideo(this.mpvHandle, new fileUri.FileUri(url!).path)
     }
     this.getData()
+    // 智能旋转和外部字幕可以延迟执行，不影响播放
+    setTimeout(async () => {
+      if (Setting.smartRotation &&
+        (this.playAreaWidth > this.playAreaHeight || this.nowPlaying!.size[0] > this.nowPlaying!.size[1]) &&
+        this.screenHeight > this.screenWidth) {
+        ToolsUtil.addLogger("智能旋转条件满足，开始设置方向", false)
+        const proportion =
+          Math.max(this.screenWidth, this.screenHeight) / Math.min(this.screenWidth, this.screenHeight)
+        const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
+          : window.Orientation.AUTO_ROTATION_RESTRICTED;
+        (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
+          ToolsUtil.addLogger("设置窗口方向失败", true)
+        })
+        ToolsUtil.addLogger("设置窗口方向完成", false)
+      }
+      // 获取信息需要有延迟，否则为空
+      this.getAudioTrackList()
+      this.getSubtitleTrackList()
+      this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!))
+      this.nowPlaying!.time = this.getDuration()
+      this.setRotation()
+      await this.setExternalSubtitle(this.nowPlaying!)
+    }, 500) // 减少延迟到 300ms
   }
 
   getData() {

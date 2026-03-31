@@ -77,6 +77,7 @@ export interface MpvCommandResult {
 }
 
 export const enum MpvDecodingMethod {
-  HARDWARE = 0,
-  SOFTWARE = 1
+  HARDWARE_BUFFER = 0,
+  SOFTWARE = 1,
+  HARDWARE_SURFACE = 2
 }

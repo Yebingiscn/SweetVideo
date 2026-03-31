@@ -19,7 +19,7 @@ class SettingUtil {
   public skipIntroTime: string = '0'
   public listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
   public coverLayout: CoverLayoutMode = CoverLayoutMode.VERTICAL_PLATE
-  public mpvDecodingMethod: MpvDecodingMethod = MpvDecodingMethod.HARDWARE
+  public mpvDecodingMethod: MpvDecodingMethod = MpvDecodingMethod.HARDWARE_BUFFER
   public superResolutionState: boolean = false
   public smartRotation: boolean = true
   public longPressSpeed: number = 3
