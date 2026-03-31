@@ -75,22 +75,18 @@ export struct Player { // 播放页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @State longPress: boolean = false
   @State @Watch('setScreen') showControl: boolean = false
   @State lockRotation: boolean = false
   xComponentController: XComponentController = new XComponentController()
   windowClass = WindowUtil.getWindow()
   @State sideBarStatusTmp: Visibility = Visibility.Hidden
   @State sideBarStatus: boolean = false
-  @State isLock: boolean = false
-  @State lockVisibility: boolean = false
   @State isAIAsrShown: boolean = false
   @State currentSpeedIndex: number = 0
   @State subtitleVisibility: Visibility = Visibility.Visible
   @State subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
   @Consume('pathStack') pathStack: NavPathStack
   @State exitVideoTime: number = 0
-  @State abCircleStatus: boolean = false
   subtitleTimestampInputDialog: CustomDialogController = new CustomDialogController({
     builder: NumberInputDialog({
       title: '外挂字幕偏移时间',
@@ -159,7 +155,7 @@ export struct Player { // 播放页
         if (!VideoOperateUtil.autoHideTimeout) {
           VideoOperateUtil.autoHideTimeout = true
           setTimeout(() => {
-            this.lockVisibility = false
+            this.player.lockVisibility = false
             this.showControl = false
             VideoOperateUtil.autoHideTimeout = false
           }, AUTO_HIDE_SHOW_CONTROL_TIME)
@@ -176,7 +172,7 @@ export struct Player { // 播放页
       if (this.player.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
         this.player.subtitle = SubtitleUtil.getSubtitlesAtTime(duration)
       }
-      if (this.abCircleStatus && this.player.playing) {
+      if (this.player.abCircleStatus && this.player.playing) {
         if (this.player.nowPlaying?.pointA !== undefined && this.player.nowPlaying?.pointB !== undefined) {
           const pointA = this.player.nowPlaying.pointA
           const pointB = this.player.nowPlaying.pointB
@@ -231,7 +227,7 @@ export struct Player { // 播放页
           this.player.updatePlaybackSpeed(this.player.speed)
           ToolsUtil.addLogger("更新播放速度完成", false, this.pathStack)
           this.showControl = false
-          this.lockVisibility = false
+          this.player.lockVisibility = false
           this.player.isSliderPlayTimeChange = false
           this.player.onSwiping = false
           ToolsUtil.addLogger("界面控制状态重置完成", false, this.pathStack)
@@ -288,10 +284,16 @@ export struct Player { // 播放页
           break
         case 'error':
           ToolsUtil.addLogger("进入error状态", false, this.pathStack)
-          VideoOperateUtil.playErrorExecute(this.pathStack, this.player.videoMetaDataList,
-            this.player.nowPlaying?.date!, NavigationAddress.MPV_PLAYER)
-          ToolsUtil.addLogger("执行播放错误处理完成", false, this.pathStack)
-          this.player.release()
+          try {
+            await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
+            VideoOperateUtil.playErrorExecute(this.pathStack, this.player.videoMetaDataList,
+              this.player.nowPlaying?.date!, NavigationAddress.MPV_PLAYER)
+            ToolsUtil.addLogger("执行播放错误处理完成", false, this.pathStack)
+          } catch (error) {
+            this.pathStack.pop()
+          } finally {
+            this.player.release()
+          }
           ToolsUtil.addLogger("释放播放器资源完成", false, this.pathStack)
           break
       }
@@ -360,9 +362,8 @@ export struct Player { // 播放页
             },
           })
 
-          if (this.showControl && !this.isLock) {
+          if (this.showControl && !this.player.isLock) {
             VideoLayoutComponent({
-              showControl: this.showControl,
               VideoTop: () => {
                 this.VideoTop()
               },
@@ -375,7 +376,7 @@ export struct Player { // 播放页
             })
           }
 
-          if (this.longPress) {
+          if (this.player.longPress) {
             FastForwardPanelBuilder({
               speed: this.player.speed,
               location: this.player.playAreaHeight,
@@ -400,15 +401,16 @@ export struct Player { // 播放页
           if (this.player.onSwipingBrightness) {
             BrightnessSwipingBuilder({ screenBrightness: this.player.screenBrightness })
           }
-          if (this.lockVisibility) {
+          if (this.player.lockVisibility) {
             LockVideoBarComponent({
-              isLock: this.isLock,
-              showControl: this.showControl
+              onLockClick: () => {
+                this.player.isLock = !this.player.isLock
+                this.showControl = true
+              }
             })
           }
           GestureComponent({
             showControl: this.showControl,
-            isLock: this.isLock,
             onDoubleClickAction: (tapX: number) => {
               this.player.onScreenDoubleClick(tapX)
             },
@@ -416,9 +418,9 @@ export struct Player { // 播放页
               if (this.sideBarStatus) {
                 this.closeSideBar(true)
               } else {
-                this.lockVisibility = !this.lockVisibility
+                this.player.lockVisibility = !this.player.lockVisibility
                 XAnimation.runWithAnimation(() => {
-                  if (this.isLock) {
+                  if (this.player.isLock) {
                     this.showControl = false
                   } else {
                     this.showControl = !this.showControl
@@ -488,21 +490,21 @@ export struct Player { // 播放页
             },
             onLongPressAction: () => {
               if (this.player.playing) {
-                this.longPress = true
+                this.player.longPress = true
                 VideoOperateUtil.lastSpeed = this.player.speed
                 this.player.updatePlaybackSpeed(Setting.longPressSpeed)
                 this.currentSpeedIndex = VideoInfoUtil.videoSpeedListAll.indexOf(Setting.longPressSpeed)
               }
             },
             onLongPressEnd: () => {
-              this.longPress = false
+              this.player.longPress = false
               this.player.updatePlaybackSpeed(VideoOperateUtil.lastSpeed)
             },
             onLongPressPanStart: (tapX: number) => {
               VideoOperateUtil.longPressStartX = tapX
             },
             onLongPressPanUpdate: (tapX: number) => {
-              if (this.longPress) { // 长按状态下的滑动处理
+              if (this.player.longPress) { // 长按状态下的滑动处理
                 const deltaX = tapX - VideoOperateUtil.longPressStartX
                 if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
                   return
@@ -568,7 +570,7 @@ export struct Player { // 播放页
       }
       if (this.showControl && !Setting.allowPlayBackExist) {
         this.showControl = false
-        this.lockVisibility = false
+        this.player.lockVisibility = false
         return true
       } else {
         return false
@@ -754,7 +756,6 @@ export struct Player { // 播放页
   VideoSettingBuilder() {
     VideoSettingComponent({
       exitVideoTime: this.exitVideoTime,
-      abCircleStatus: this.abCircleStatus,
       forward_80_s: (time: number) => {
         ToolsUtil.addLogger(`执行快进80秒操作，目标时间：${time}`, false, this.pathStack)
         this.player.seekTime(time)
@@ -798,6 +799,9 @@ export struct Player { // 播放页
       },
       setRepeatModeToOnce: () => {
         this.player.repeatMode = RepeatMode.ONCE
+      },
+      onABCircleStatusClick: () => {
+        this.player.abCircleStatus = !this.player.abCircleStatus
       },
     })
   }

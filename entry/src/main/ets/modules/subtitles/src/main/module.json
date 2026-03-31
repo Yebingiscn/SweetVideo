@@ -9,7 +9,12 @@
     "apiReleaseType": "Release",
     "compileSdkVersion": "5.0.0.71",
     "compileSdkType": "OpenHarmony",
-    "appEnvironments": [],
+    "appEnvironments": [
+      {
+        "name": "DFX_APPFREEZE_LOG_OPTIONS",
+        "value": "mainthread_sampling:enable"
+      }
+    ],
     "bundleType": "app",
     "buildMode": "release"
   },

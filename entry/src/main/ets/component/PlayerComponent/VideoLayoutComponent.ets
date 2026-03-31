@@ -5,7 +5,6 @@ import { SafeHeight } from '../../utils/ObservedUtil'
 
 @Component
 export struct VideoLayoutComponent {
-  @Link showControl: boolean
   @Consume('player') player: AVPlayerController | MpvController
   @BuilderParam VideoTop: () => void
   @BuilderParam VideoButtons: () => void

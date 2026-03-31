@@ -1,9 +1,11 @@
+import { AVPlayerController } from '../../controller/AVPlayerController'
+import { MpvController } from '../../controller/MpvController/MpvController'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
 @Component
 export struct GestureComponent {
   @Link showControl: boolean
-  @Link isLock: boolean
+  @Consume('player') player: AVPlayerController | MpvController
   onDoubleClickAction = (_tapX: number) => {
   }
   onSingleClickAction = () => {
@@ -44,7 +46,7 @@ export struct GestureComponent {
               .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
                 SourceTool.JOYSTICK])
               .onAction((event: GestureEvent) => {
-                if (this.isLock) {
+                if (this.player.isLock) {
                   return
                 }
                 const tapX = event.fingerList[0]?.localX
@@ -63,7 +65,7 @@ export struct GestureComponent {
               .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
                 SourceTool.JOYSTICK])
               .onActionStart((event: GestureEvent) => { // 滑动屏幕
-                if (this.isLock) {
+                if (this.player.isLock) {
                   return
                 }
                 const tapX = event.fingerList[0]?.localX
@@ -73,7 +75,7 @@ export struct GestureComponent {
                 this.onVerticalPanStart(tapX)
               })
               .onActionUpdate((event: GestureEvent) => {
-                if (this.isLock) {
+                if (this.player.isLock) {
                   return
                 }
                 if (event.fingerList?.length !== 1) {
@@ -82,7 +84,7 @@ export struct GestureComponent {
                 this.onVerticalPanUpdate(event?.offsetY)
               })
               .onActionEnd(() => {
-                if (this.isLock) {
+                if (this.player.isLock) {
                   return
                 }
                 this.onVerticalPanEnd()
@@ -91,13 +93,13 @@ export struct GestureComponent {
               .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
                 SourceTool.JOYSTICK])
               .onActionStart((_event: GestureEvent) => { // 长按且滑动屏幕
-                if (this.isLock) {
+                if (this.player.isLock) {
                   return
                 }
                 this.onHorizonPanStart()
               })
               .onActionUpdate((event: GestureEvent) => {
-                if (this.isLock) {
+                if (this.player.isLock) {
                   return
                 }
                 if (!VideoOperateUtil.checkLocalX(event?.fingerList?.[0]?.localX)) {
@@ -106,7 +108,7 @@ export struct GestureComponent {
                 this.onHorizonPanUpdate(event?.offsetX)
               })
               .onActionEnd(() => {
-                if (this.isLock) {
+                if (this.player.isLock) {
                   return
                 }
                 this.onHorizonPanEnd()
@@ -115,7 +117,7 @@ export struct GestureComponent {
               .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
                 SourceTool.JOYSTICK])
               .onActionStart((event: GestureEvent) => {
-                if (this.isLock) {
+                if (this.player.isLock) {
                   return
                 }
                 const finger1 = event.fingerList[0]
@@ -127,7 +129,7 @@ export struct GestureComponent {
                 this.onPinchStart(fingerDistance)
               })
               .onActionUpdate((event: GestureEvent) => {
-                if (this.isLock) {
+                if (this.player.isLock) {
                   return
                 }
                 const finger1 = event.fingerList[0]
@@ -147,13 +149,13 @@ export struct GestureComponent {
               .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
                 SourceTool.JOYSTICK])
               .onAction(() => { //长按
-                if (this.isLock) {
+                if (this.player.isLock) {
                   return
                 }
                 this.onLongPressAction()
               })
               .onActionEnd(() => {
-                if (this.isLock) {
+                if (this.player.isLock) {
                   return
                 }
                 this.onLongPressEnd()
@@ -165,7 +167,7 @@ export struct GestureComponent {
               .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
                 SourceTool.JOYSTICK])
               .onActionStart((event: GestureEvent) => { // 长按且滑动屏幕
-                if (this.isLock) {
+                if (this.player.isLock) {
                   return
                 }
                 const tapX = event.fingerList[0]?.localX
@@ -175,7 +177,7 @@ export struct GestureComponent {
                 this.onLongPressPanStart(tapX)
               })
               .onActionUpdate((event: GestureEvent) => {
-                if (this.isLock) {
+                if (this.player.isLock) {
                   return
                 }
                 const tapX = event.fingerList[0]?.localX

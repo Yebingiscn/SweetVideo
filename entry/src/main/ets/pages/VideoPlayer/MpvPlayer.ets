@@ -60,16 +60,12 @@ export struct MpvPlayer {
   @Consume('pathStack') pathStack: NavPathStack
   @Provide('player') mpv: MpvController = PlayerControllerFactory.createMpvController()
   @State @Watch('setScreen') showControl: boolean = false
-  @State longPress: boolean = false
-  @State isLock: boolean = false
-  @State lockVisibility: boolean = false
   @State isAIAsrShown: boolean = false
   @State currentSpeedIndex: number = 0
   @State sideBarStatus: boolean = false
   @State sideBarStatusTmp: Visibility = Visibility.Hidden
   @State subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
   @State exitVideoTime: number = 0
-  @State abCircleStatus: boolean = false
   personalScreenExtendDialog: CustomDialogController = new CustomDialogController({
     builder: NumberInputDialog({
       title: '自定义屏幕拓展比例',
@@ -164,9 +160,8 @@ export struct MpvPlayer {
             },
           })
 
-          if (this.showControl && !this.isLock) {
+          if (this.showControl && !this.mpv.isLock) {
             VideoLayoutComponent({
-              showControl: this.showControl,
               VideoTop: () => {
                 this.VideoTop()
               },
@@ -179,7 +174,7 @@ export struct MpvPlayer {
             })
           }
 
-          if (this.longPress) {
+          if (this.mpv.longPress) {
             FastForwardPanelBuilder({
               speed: this.mpv.speed,
               location: this.mpv.playAreaHeight,
@@ -204,15 +199,16 @@ export struct MpvPlayer {
           if (this.mpv.onSwipingBrightness) {
             BrightnessSwipingBuilder({ screenBrightness: this.mpv.screenBrightness })
           }
-          if (this.lockVisibility) {
+          if (this.mpv.lockVisibility) {
             LockVideoBarComponent({
-              isLock: this.isLock,
-              showControl: this.showControl
+              onLockClick: () => {
+                this.mpv.isLock = !this.mpv.isLock
+                this.showControl = true
+              }
             })
           }
           GestureComponent({
             showControl: this.showControl,
-            isLock: this.isLock,
             onDoubleClickAction: (tapX: number) => {
               this.mpv.onScreenDoubleClick(tapX)
             },
@@ -220,9 +216,9 @@ export struct MpvPlayer {
               if (this.sideBarStatus) {
                 this.closeSideBar(true)
               } else {
-                this.lockVisibility = !this.lockVisibility
+                this.mpv.lockVisibility = !this.mpv.lockVisibility
                 XAnimation.runWithAnimation(() => {
-                  if (this.isLock) {
+                  if (this.mpv.isLock) {
                     this.showControl = false
                   } else {
                     this.showControl = !this.showControl
@@ -289,14 +285,14 @@ export struct MpvPlayer {
             },
             onLongPressAction: () => {
               if (this.mpv.playing) {
-                this.longPress = true
+                this.mpv.longPress = true
                 VideoOperateUtil.lastSpeed = this.mpv.speed
                 this.mpv.updatePlaybackSpeed(Setting.longPressSpeed)
                 this.currentSpeedIndex = VideoInfoUtil.videoSpeedListAll.indexOf(Setting.longPressSpeed)
               }
             },
             onLongPressEnd: () => {
-              this.longPress = false
+              this.mpv.longPress = false
               this.mpv.speed = VideoOperateUtil.lastSpeed
               this.mpv.updatePlaybackSpeed(this.mpv.speed)
             },
@@ -304,7 +300,7 @@ export struct MpvPlayer {
               VideoOperateUtil.longPressStartX = tapX
             },
             onLongPressPanUpdate: (tapX: number) => {
-              if (this.longPress) { // 长按状态下的滑动处理
+              if (this.mpv.longPress) { // 长按状态下的滑动处理
                 const deltaX = tapX - VideoOperateUtil.longPressStartX
                 if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
                   return
@@ -330,7 +326,7 @@ export struct MpvPlayer {
         }.onAreaChange(async (_oldValue: Area, newValue: Area) => {
           this.mpv.screenWidth = Math.floor(new Number(newValue.width).valueOf())
           this.mpv.screenHeight = Math.floor(new Number(newValue.height).valueOf())
-          await this.mpv.setRotation()
+          this.mpv.setRotation()
         })
         .height('100%')
         .width('100%')
@@ -379,7 +375,7 @@ export struct MpvPlayer {
       }
       if (this.showControl && !Setting.allowPlayBackExist) {
         this.showControl = false
-        this.lockVisibility = false
+        this.mpv.lockVisibility = false
         return true
       } else {
         return false
@@ -517,7 +513,6 @@ export struct MpvPlayer {
   VideoSettingBuilder() {
     VideoSettingComponent({
       exitVideoTime: this.exitVideoTime,
-      abCircleStatus: this.abCircleStatus,
       forward_80_s: (time: number) => {
         ToolsUtil.addLogger(`执行快进80秒操作，目标时间：${time}`, false, this.pathStack)
         this.mpv.seekTime(time)

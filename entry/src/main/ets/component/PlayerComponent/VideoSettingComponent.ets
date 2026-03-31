@@ -9,7 +9,6 @@ import { SymbolGlyphModifier } from '@kit.ArkUI'
 @Component
 export struct VideoSettingComponent {
   @Link exitVideoTime: number
-  @Link abCircleStatus: boolean
   @State startTime: string = '00:00'
   @State endTime: string = '00:00'
   @State pointA: string = '00:00'
@@ -38,6 +37,8 @@ export struct VideoSettingComponent {
   onScreenMirror = () => {
   }
   setRepeatModeToOnce = () => {
+  }
+  onABCircleStatusClick = () => {
   }
 
   aboutToAppear(): void {
@@ -198,9 +199,9 @@ export struct VideoSettingComponent {
     Menu() {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
-        content: this.abCircleStatus ? '停止 AB 循环' : '启动 AB 循环'
+        content: this.player.abCircleStatus ? '停止 AB 循环' : '启动 AB 循环'
       }).onClick(() => {
-        this.abCircleStatus = !this.abCircleStatus
+        this.onABCircleStatusClick()
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),

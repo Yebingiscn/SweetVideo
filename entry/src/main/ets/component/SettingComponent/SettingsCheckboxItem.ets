@@ -6,7 +6,7 @@ import {
 @Component
 export struct SettingsCheckboxItem {
   @Prop symbol: Resource | undefined = undefined
-  @State message: ResourceStr = ''
+  @Prop message: ResourceStr = ''
   @Prop @Watch('onTipsChange') tips: ResourceStr[]
   @State tabOptions: SegmentButtonOptions = this.createTabOptions()
   @State @Watch('onSegmentButtonChange') tabSelectedIndexes: number[] = [1]

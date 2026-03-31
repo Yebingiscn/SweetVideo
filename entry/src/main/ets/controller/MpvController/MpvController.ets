@@ -17,7 +17,8 @@ import {
   selectSubtitle as mpvSelectSubtitle,
   setDecodeType as mpvSetDecodeType,
   setKeepAspect as mpvSetKeepAspect,
-  setSpeed as mpvSetSpeed
+  setSpeed as mpvSetSpeed,
+  setHwdecMode as mpvSetHwdecMode,
 } from 'libmpvnative.so';
 import { Setting } from '../../utils/ObservedUtil';
 import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode';
@@ -49,7 +50,6 @@ export class MpvController implements PlayerControllerInterface {
   windowClass = WindowUtil.getWindow()
   @Track mpvHandle: number | null = null
   surfaceId: string | null = null
-  playTimeUpdateTag: number | null = null
   @Track playTime: number = 0
   @Track playing: boolean = false
   @Track nowPlaying: VideoMetadata | undefined = undefined
@@ -74,8 +74,13 @@ export class MpvController implements PlayerControllerInterface {
   @Track isSliderPlayTimeChange: boolean = false
   @Track audioTrackSelected: number = 0
   @Track pipOpenState: boolean = false
+  @Track lockVisibility: boolean = false
+  @Track longPress: boolean = false
+  @Track isLock: boolean = false
+  @Track abCircleStatus: boolean = false
   avSession: avSessionManager.AVSession | undefined = undefined
   audioVolumeManager: audio.AudioVolumeManager | null = null
+  private playTimeUpdateTag: number | null = null
 
   async playChooseVideo(item: VideoMetadata) {
     ToolsUtil.addLogger("开始播放选择的视频", false)
@@ -154,12 +159,14 @@ export class MpvController implements PlayerControllerInterface {
         switch (Setting.mpvDecodingMethod) {
           case MpvDecodingMethod.HARDWARE:
             mpvSetDecodeType(0)
+            mpvSetHwdecMode(1)
             break
           case MpvDecodingMethod.SOFTWARE:
             mpvSetDecodeType(1)
             break
           default:
             mpvSetDecodeType(0)
+            mpvSetHwdecMode(0)
             break
         }
       }
@@ -186,30 +193,6 @@ export class MpvController implements PlayerControllerInterface {
     this.playTimeUpdateTag = setInterval(() => {
       this.playTime = mpvGetCurrentPosition(this.mpvHandle)
     }, 1000);
-    // 立即获取视频信息，不延迟
-    this.getAudioTrackList()
-    this.getSubtitleTrackList()
-    this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!))
-    this.nowPlaying!.time = this.getDuration()
-    this.setRotation()
-    // 智能旋转和外部字幕可以延迟执行，不影响播放
-    setTimeout(async () => {
-      if (Setting.smartRotation &&
-        (this.playAreaWidth > this.playAreaHeight || this.nowPlaying!.size[0] > this.nowPlaying!.size[1]) &&
-        this.screenHeight > this.screenWidth) {
-        ToolsUtil.addLogger("智能旋转条件满足，开始设置方向", false)
-        const proportion =
-          Math.max(this.screenWidth, this.screenHeight) / Math.min(this.screenWidth, this.screenHeight)
-        const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
-          : window.Orientation.AUTO_ROTATION_RESTRICTED;
-        (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
-          ToolsUtil.addLogger("设置窗口方向失败", true)
-        })
-        console.error('test3')
-        ToolsUtil.addLogger("设置窗口方向完成", false)
-      }
-      await this.setExternalSubtitle(this.nowPlaying!)
-    }, 300) // 减少延迟到 300ms
   }
 
   backForward(): void {
@@ -329,7 +312,8 @@ export class MpvController implements PlayerControllerInterface {
     mpvSelectSubtitle(this.mpvHandle, trackId)
   }
 
-  async setRotation() {
+  setRotation() {
+    // 这里需要有个默认值，否则会视频宽高为0，导致视频无法播放
     let VideoWidth = this.getPlayAreaWidth() === 0 ? 1999 : this.getPlayAreaWidth()
     let VideoHeight = this.getPlayAreaHeight() === 0 ? 1999 : this.getPlayAreaHeight()
     const aspectRatioNow = VideoWidth / VideoHeight

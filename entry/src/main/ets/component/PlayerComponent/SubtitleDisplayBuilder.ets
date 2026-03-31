@@ -54,7 +54,7 @@ export function SubtitleDisplayBuilder(subtitleDisplayValue: SubtitleDisplayValu
   .width(VideoInfoUtil.playAreaWidth)
   .offset(subtitleDisplayValue.subtitle3DMode === Subtitle3DMode.TOP_AND_BOTTOM ?
     { x: 0, y: VideoInfoUtil.playAreaHeight / 4 - 40 } :
-    { x: 0, y: VideoInfoUtil.playAreaHeight / 2 - 40 }
+    { x: 0, y: VideoInfoUtil.playAreaHeight / 2.5 }
   )
   .animation({ duration: 300, curve: Curve.Smooth })
 }

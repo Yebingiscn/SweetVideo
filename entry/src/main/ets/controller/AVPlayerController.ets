@@ -59,6 +59,10 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Track superResolutionState: boolean = false
   @Track pipOpenState: boolean = false
   @Track audioTrackSelected: number = 0
+  @Track lockVisibility: boolean = false
+  @Track longPress: boolean = false
+  @Track isLock: boolean = false
+  @Track abCircleStatus: boolean = false
 
   async create() {
     try {
@@ -423,7 +427,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     ToolsUtil.addLogger("获取播放数据完成", false)
   }
 
-  async setRotation() {
+  setRotation() {
     ToolsUtil.addLogger("开始执行setRotation方法", false)
     if (!this.nowPlaying) {
       return

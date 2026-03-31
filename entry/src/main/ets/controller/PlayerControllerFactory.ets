@@ -31,7 +31,7 @@ export interface PlayerControllerInterface {
 
   selectAudioTrack(trackId: number): void
 
-  initAVSession(): void
+  initAVSession(): Promise<void>
 
   setSessionListener(): void
 
@@ -43,7 +43,7 @@ export interface PlayerControllerInterface {
 
   selectSubtitleTrack(trackId: number): void
 
-  initVolumeAndBrightness(): void
+  initVolumeAndBrightness(): Promise<void>
 
   getData(): void
 }

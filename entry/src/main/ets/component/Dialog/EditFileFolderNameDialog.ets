@@ -24,9 +24,9 @@ export struct EditFileFolderNameDialog {
         .keyboardAppearance(KeyboardAppearance.IMMERSIVE)// 设置搜索框沉浸模式
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .onChange((input: string) => this.file_folder_name = input)
-        .id('input_name')
+        .id('new_folder_name')
         .onAppear(() => {
-          focusControl.requestFocus('input_name')
+          focusControl.requestFocus('new_folder_name')
         })
 
       Flex({ justifyContent: FlexAlign.SpaceAround }) {
