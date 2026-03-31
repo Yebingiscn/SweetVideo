@@ -484,6 +484,8 @@ export class AVPlayerController implements PlayerControllerInterface {
         this.superResolutionState = enable
       })
       ?.catch(() => {
+        ToolsUtil.showToast('当前视频不支持超分辨率')
+        this.superResolutionState = false
         ToolsUtil.addLogger("设置超分失败", true)
       })
     this.avPlayer?.setVideoWindowSize(1920, 1080)
