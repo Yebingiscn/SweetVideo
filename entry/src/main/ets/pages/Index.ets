@@ -435,7 +435,7 @@ struct Index {
               .width('100%')
               .height('auto')
               .align(Alignment.Start)
-              .margin({ top: 10 })
+              .margin({ top: 10,bottom: 10 })
               .backgroundColor($r('app.color.start_window_background_blur'))
             }.width('100%')
           }
