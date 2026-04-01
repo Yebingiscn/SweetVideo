@@ -49,12 +49,16 @@ export class VideoListController {
     this.videoDataSource = new VideoDataSource(this.videoMetaDataList)
   }
 
-  openSideBarTip() {
-    if (this.videoDataSource.totalCount() == 0) {
-      return true
-    } else {
+  openSideBarTip(searchValue: string = ''): boolean {
+    // 如果有搜索值但结果为空，是搜索无结果，不显示提示
+    if (searchValue.length > 0) {
       return false
     }
+    // 文件夹真正为空时显示提示
+    if (this.videoDataSource.totalCount() == 0) {
+      return true
+    }
+    return false
   }
 
   // 公共方法实现

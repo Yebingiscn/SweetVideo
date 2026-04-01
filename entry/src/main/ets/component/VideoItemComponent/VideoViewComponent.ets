@@ -90,7 +90,7 @@ export struct VideoView {
         searchValue: this.searchValue
       })
 
-      if (!this.loading && this.videoListController.openSideBarTip()) {
+      if (!this.loading && this.videoListController.openSideBarTip(this.searchValue)) {
         Row() { //顶栏
           Column() {
             Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
