@@ -41,6 +41,11 @@ export struct VideoView {
   private passwd: string = 'passwd'
   // 面包屑滚动控制器
   private breadcrumbScroller: Scroller = new Scroller()
+  // 面包屑滚动参数
+  private readonly BREADCRUMB_ITEM_ESTIMATED_WIDTH: number = 80  // 估算每个文件夹项宽度（vp）
+  private readonly BREADCRUMB_ITEM_SPACING: number = 15          // Row 中的 space 值
+  private readonly BREADCRUMB_CENTER_OFFSET: number = 100        // 居中偏移补偿值（vp）
+  private readonly BREADCRUMB_SCROLL_DURATION: number = 200      // 滚动动画时长（ms）
   // 监听文件夹切换，触发面包屑滚动
   @Watch('onScrollToFolder') @StorageLink('scrollToFolderDate') scrollToFolderDate: number = 0
 
@@ -63,15 +68,12 @@ export struct VideoView {
       return
     }
 
-    // 估算每个文件夹项的宽度（包含间距）
-    const estimatedItemWidth = 80 // 估算每个文件夹名称的平均宽度
-    const spacing = 15 // Row 中的 space: 15
-    const targetOffset = Math.max(0, folderIndex * (estimatedItemWidth + spacing) - 100)
+    const targetOffset = Math.max(0, folderIndex * (this.BREADCRUMB_ITEM_ESTIMATED_WIDTH + this.BREADCRUMB_ITEM_SPACING) - this.BREADCRUMB_CENTER_OFFSET)
 
     this.breadcrumbScroller.scrollTo({
       xOffset: targetOffset,
       yOffset: 0,
-      animation: { duration: 200, curve: Curve.Ease }
+      animation: { duration: this.BREADCRUMB_SCROLL_DURATION, curve: Curve.Ease }
     })
   }
 
