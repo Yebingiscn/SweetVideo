@@ -51,11 +51,11 @@ export default class VideoOperateUtil {
   public static avImageGenerator: media.AVImageGenerator | undefined = undefined
   public static nowPlayingFile: fileIo.File | undefined = undefined
   public static updatePix: boolean = true
-  private static mainWin: window.Window | undefined = undefined
   public static panMoveStartX: number = 0
   public static panMoveStartY: number = 0
   public static lastTranslateX: number = 0
   public static lastTranslateY: number = 0
+  private static mainWin: window.Window | undefined = undefined
 
   // 设置亮度
   static setBrightness(screenBrightness: number) {
@@ -129,9 +129,14 @@ export default class VideoOperateUtil {
   }
 
   // 播放器播放失败处理
-  static playErrorExecute(pathStack: NavPathStack, videoMetaData: VideoMetadata[], date: string, playerName: string) {
+  static playErrorExecute(pathStack: NavPathStack, videoMetaData: VideoMetadata[], date: string, playerName: string,
+    currentTime?: number) {
     ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
     const nowPlayItem = videoMetaData.find(item => item.date === date)
+    // 更新当前播放时间，确保跳转到MPV时能从正确位置继续播放
+    if (nowPlayItem && currentTime !== undefined) {
+      nowPlayItem.last_play = currentTime
+    }
     const playerParams = new PlayerParams(nowPlayItem, videoMetaData, undefined)
     pathStack.replacePathByName(playerName, playerParams, true)
   }
@@ -478,6 +483,7 @@ export default class VideoOperateUtil {
       const imagePackerApi = image.createImagePacker()
       const tempPath = PathUtils.tempPath + '/screenshot.png'
       const tempFile = fileIo.openSync(tempPath, fileIo.OpenMode.CREATE | fileIo.OpenMode.READ_WRITE)
+      console.error('test1')
       let srcUri: string
       imagePackerApi.packToFile(pixelMap, tempFile.fd, packOpts)
         .then(() => imagePackerApi.release())

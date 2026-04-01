@@ -287,7 +287,7 @@ export struct Player { // 播放页
           try {
             await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
             VideoOperateUtil.playErrorExecute(this.pathStack, this.player.videoMetaDataList,
-              this.player.nowPlaying?.date!, NavigationAddress.MPV_PLAYER)
+              this.player.nowPlaying?.date!, NavigationAddress.MPV_PLAYER, this.player.playTime)
             ToolsUtil.addLogger("执行播放错误处理完成", false, this.pathStack)
           } catch (error) {
             this.pathStack.pop()

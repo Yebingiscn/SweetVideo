@@ -217,7 +217,7 @@ export class MpvController implements PlayerControllerInterface {
           this.osdVisibility = true
         }, 500)
       }
-    }, 500)
+    }, 800)
   }
 
   getData() {

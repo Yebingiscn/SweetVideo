@@ -136,6 +136,7 @@ export struct MpvPlayer {
                 this.mpv.init(this.mpv.nowPlaying!.uri, 0)
                 await this.mpv.initAVSession()
                 PiPWindowUtil.createPipController(this.xComponentController, this.mpv)
+                this.mpv.surfaceId = this.xComponentController.getXComponentSurfaceId()
               } catch (error) {
                 console.error('uri error:' + error)
               }
@@ -575,7 +576,9 @@ export struct MpvPlayer {
         ToolsUtil.showToast('功能暂不可用')
       },
       captureScreen: () => {
+        console.error('test' + this.mpv.surfaceId)
         if (this.mpv.surfaceId) {
+          console.error('test')
           VideoOperateUtil.saveCaptureScreenToAlbum(this.mpv.surfaceId)
         }
       },

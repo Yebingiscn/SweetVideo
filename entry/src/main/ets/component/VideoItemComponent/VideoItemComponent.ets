@@ -111,6 +111,7 @@ export class VideoListController {
 export struct VideoList {
   @Link searchValue: string
   @Link videoListController: VideoListController
+  @Consume fileFolderSource: FileFolderDataSource
   delConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDeleteDialog({
       confirm: async (deleteType: DeleteType) => {
@@ -130,7 +131,6 @@ export struct VideoList {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @Consume fileFolderSource: FileFolderDataSource
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
