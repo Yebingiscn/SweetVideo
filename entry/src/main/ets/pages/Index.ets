@@ -74,6 +74,7 @@ struct Index {
     builder: DeletedVideosDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   private passwd: string = 'passwd'
+  private readonly SWIPE_ANGLE_THRESHOLD: number = 45
 
   /**
    * 获取当前文件夹在列表中的索引
@@ -142,13 +143,13 @@ struct Index {
       return
     }
 
-    const rotateAngle = event?.angle ?? 0
+    const rotateAngle = event.angle ?? 0
     const currentIndex = this.getCurrentFolderIndex()
     const isFirstFolder = currentIndex === 0
     const isLastFolder = currentIndex === this.file_folder_list.length - 1
 
     // 判断滑动方向：角度在 -45° ~ 45° 之间为向右滑
-    const isSwipeRight = rotateAngle > -45 && rotateAngle < 45
+    const isSwipeRight = rotateAngle > -this.SWIPE_ANGLE_THRESHOLD && rotateAngle < this.SWIPE_ANGLE_THRESHOLD
 
     if (isSwipeRight) {
       // 从左向右滑
@@ -514,7 +515,7 @@ struct Index {
       .divider({ strokeWidth: 0 })
       .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
         if (event) {
-          const rotateAngle = event?.angle
+          const rotateAngle = event.angle
           if (rotateAngle < -135 || rotateAngle > 135) {
             this.sideBarController.close(true)
           }
