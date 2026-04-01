@@ -98,8 +98,7 @@ struct Index {
       return
     }
 
-    // 清除搜索状态
-    this.searchValue = ''
+    // 保留搜索状态，在新文件夹中应用搜索过滤
 
     // 刷新文件夹列表（确保数据最新）
     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
@@ -108,12 +107,17 @@ struct Index {
     // 获取目标文件夹的最新数据
     const currentFolder = this.fileFolderSource.getFileFolder(targetFolder.name)
     if (currentFolder) {
+      // 如果有搜索值，在新文件夹中过滤视频
+      let filteredVideos = currentFolder.video_list
+      if (this.searchValue.length > 0) {
+        filteredVideos = SelectFileUtil.getItemFromSearch(currentFolder.video_list, this.searchValue)
+      }
       // 添加过渡动画
       animateToImmediately({
         duration: 200,
         curve: Curve.EaseInOut
       }, () => {
-        this.videoListController.videoDataSource.updateData(currentFolder.video_list)
+        this.videoListController.videoDataSource.updateData(filteredVideos)
         this.videoListController.updateData(
           this.videoListController.videoDataSource,
           currentFolder
@@ -129,11 +133,6 @@ struct Index {
    * 处理文件夹切换滑动手势
    */
   private handleFolderSwipe(event: GestureEvent): void {
-    // 搜索状态下禁止切换
-    if (this.searchValue.length > 0) {
-      return
-    }
-
     // 批量选择模式下禁止切换
     if (this.videoListController.multipleChooseState === Visibility.Visible) {
       return
