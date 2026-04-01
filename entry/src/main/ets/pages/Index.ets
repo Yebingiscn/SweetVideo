@@ -108,11 +108,17 @@ struct Index {
     // 获取目标文件夹的最新数据
     const currentFolder = this.fileFolderSource.getFileFolder(targetFolder.name)
     if (currentFolder) {
-      this.videoListController.videoDataSource.updateData(currentFolder.video_list)
-      this.videoListController.updateData(
-        this.videoListController.videoDataSource,
-        currentFolder
-      )
+      // 添加过渡动画
+      animateToImmediately({
+        duration: 200,
+        curve: Curve.EaseInOut
+      }, () => {
+        this.videoListController.videoDataSource.updateData(currentFolder.video_list)
+        this.videoListController.updateData(
+          this.videoListController.videoDataSource,
+          currentFolder
+        )
+      })
     }
 
     // 触发面包屑滚动（为 Task 2 预留）
@@ -133,8 +139,14 @@ struct Index {
       return
     }
 
-    // 侧边栏展开时不响应
+    // 侧边栏展开时：左滑关闭侧边栏，右滑不响应
     if (this.sideBarController.visibility === Visibility.Visible) {
+      const rotateAngle = event.angle ?? 0
+      const isSwipeRight = rotateAngle > -this.SWIPE_ANGLE_THRESHOLD && rotateAngle < this.SWIPE_ANGLE_THRESHOLD
+      if (!isSwipeRight) {
+        // 从右向左滑 -> 关闭侧边栏
+        this.sideBarController.close(true)
+      }
       return
     }
 
