@@ -236,10 +236,6 @@ export struct GestureComponent {
                 if (!this.player.isZoomed) {
                   return
                 }
-                const tapX = event.fingerList[0]?.localX
-                if (!VideoOperateUtil.checkLocalX(tapX)) {
-                  return
-                }
                 this.onPanMoveEnd()
               })
           )))
