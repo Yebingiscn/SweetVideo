@@ -257,6 +257,9 @@ export class AVPlayerController implements PlayerControllerInterface {
     this.avPlayer?.off('audioOutputDeviceChangeWithInfo')
     this.avPlayer?.off('subtitleUpdate')
     this.avPlayer?.off('stateChange')
+    if (Setting.superResolutionState) {
+      this.avPlayer?.off('superResolutionChanged')
+    }
   }
 
   playNextVideo(repeatMode: RepeatMode): VideoMetadata | undefined {
@@ -480,7 +483,6 @@ export class AVPlayerController implements PlayerControllerInterface {
   setSuperResolutionState(enable: boolean) {
     this.avPlayer?.setSuperResolution(enable)
       .then(() => {
-        ToolsUtil.showToast(enable ? '已开启视频超分辨率' : '已关闭视频超分辨率')
         this.superResolutionState = enable
       })
       ?.catch(() => {
@@ -492,6 +494,10 @@ export class AVPlayerController implements PlayerControllerInterface {
     ?.catch(() => {
       ToolsUtil.addLogger("设置超分至目标分辨率失败", true)
     })
+    this.avPlayer?.on('superResolutionChanged', (enabled: boolean) => {
+      ToolsUtil.showToast(enabled ? '视频超分辨率已开启' : '视频超分辨率已关闭')
+      this.superResolutionState = enabled
+    });
   }
 
   onScreenDoubleClick(tapX: number) {

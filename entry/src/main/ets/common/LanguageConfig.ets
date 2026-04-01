@@ -1,6 +1,7 @@
 export class LanguageConfig {
   // languageMap 中的键全部使用小写，不允许使用大写
   public static languageMap: Record<string, string> = {
+    'unknown': '未知',
     'und': '未知',
     'chi': '中文',
     'traditional': '繁体',

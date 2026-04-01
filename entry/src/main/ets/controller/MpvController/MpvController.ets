@@ -78,6 +78,7 @@ export class MpvController implements PlayerControllerInterface {
   @Track longPress: boolean = false
   @Track isLock: boolean = false
   @Track abCircleStatus: boolean = false
+  @Track osdVisibility: boolean = false
   avSession: avSessionManager.AVSession | undefined = undefined
   audioVolumeManager: audio.AudioVolumeManager | null = null
   private playTimeUpdateTag: number | null = null
@@ -157,16 +158,16 @@ export class MpvController implements PlayerControllerInterface {
       } else {
         console.error('[MpvPlayer] MPV instance created:', this.mpvHandle)
         switch (Setting.mpvDecodingMethod) {
-          case MpvDecodingMethod.HARDWARE_BUFFER:
+          case MpvDecodingMethod.HARDWARE_SURFACE:
             mpvSetDecodeType(0)
-            mpvSetHwdecMode(0)
+            mpvSetHwdecMode(1)
             break
           case MpvDecodingMethod.SOFTWARE:
             mpvSetDecodeType(1)
             break
-          case MpvDecodingMethod.HARDWARE_SURFACE:
+          case MpvDecodingMethod.HARDWARE_BUFFER:
             mpvSetDecodeType(0)
-            mpvSetHwdecMode(1)
+            mpvSetHwdecMode(0)
             break
           default:
             mpvSetDecodeType(1)
@@ -201,14 +202,19 @@ export class MpvController implements PlayerControllerInterface {
         })
         ToolsUtil.addLogger("设置窗口方向完成", false)
       }
-      // 获取信息需要有延迟，否则为空
+      // 获取信息需要有延迟，否则无法获取
       this.getAudioTrackList()
       this.getSubtitleTrackList()
       this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!))
       this.nowPlaying!.time = this.getDuration()
       this.setRotation()
       await this.setExternalSubtitle(this.nowPlaying!)
-    }, 500) // 减少延迟到 300ms
+      if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE) {
+        setTimeout(() => {
+          this.osdVisibility = true
+        }, 500)
+      }
+    }, 500)
   }
 
   getData() {
@@ -217,7 +223,7 @@ export class MpvController implements PlayerControllerInterface {
     // 立即启动定时器，不延迟
     this.playTimeUpdateTag = setInterval(() => {
       this.playTime = mpvGetCurrentPosition(this.mpvHandle)
-    }, 1000);
+    }, 1000)
   }
 
   backForward(): void {
@@ -322,7 +328,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   getAudioTrackList() {
-    this.audioTrack = mpvGetAudioTracks(this.mpvHandle) as MpvAudioTrack[];
+    this.audioTrack = mpvGetAudioTracks(this.mpvHandle) as MpvAudioTrack[]
   }
 
   selectAudioTrack(trackId: number): void {

@@ -17,7 +17,7 @@ export default class Preferences {
 
   static getMpvDecodingMethod(context: Context) {
     return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'mpv_decoding_method',
-      MpvDecodingMethod.HARDWARE_BUFFER) as MpvDecodingMethod
+      MpvDecodingMethod.HARDWARE_SURFACE) as MpvDecodingMethod
   }
 
   // 首页视频数据

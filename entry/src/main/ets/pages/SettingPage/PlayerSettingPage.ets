@@ -52,7 +52,7 @@ export struct PlayerSettingPage {
           SettingsCheckboxItem({
             symbol: $r('sys.symbol.hardware'),
             message: 'MPV 解码：' + this.getMPVDecodeInfo(Setting.mpvDecodingMethod),
-            tips: ['硬解（Buffer）', '软解', '硬解（Surface）'],
+            tips: ['硬解（Surface）', '软解', '硬解（Buffer）'],
             tabSelectedIndexes: [Setting.mpvDecodingMethod],
             onButtonClick: (tabSelectedIndexes: number) => {
               Setting.mpvDecodingMethod = tabSelectedIndexes

@@ -15,6 +15,8 @@ export struct XComponents {
   @Link subtitleVisibility: Visibility
   @Link subtitle3DMode: Subtitle3DMode
   xComponentController: XComponentController | undefined
+  osdXController: XComponentController | undefined
+  @Prop osdVisibility: boolean = false
   xComponentId: string | undefined
   libraryName: string | undefined
   onXComponentLoad = () => {
@@ -44,6 +46,8 @@ export struct XComponents {
           xComponentController: this.xComponentController,
           xComponentId: this.xComponentId,
           libraryName: this.libraryName,
+          osdXController: this.osdXController,
+          osdVisibility: this.osdVisibility,
           onMpvXComponent: () => {
             this.onXComponentLoad()
           },
@@ -90,23 +94,42 @@ export struct MpvXComponent {
   xComponentController: XComponentController | undefined
   xComponentId: string | undefined
   libraryName: string | undefined
+  osdXController: XComponentController | undefined
+  @Prop osdVisibility: boolean = false
   onMpvXComponent = () => {
   }
 
   build() {
-    XComponent({
-      type: XComponentType.SURFACE,
-      controller: this.xComponentController,
-      id: this.xComponentId,
-      libraryname: this.libraryName,
-    })
-      .focusable(true)
-      .defaultFocus(true)
-      .enableAnalyzer(true)
-      .onLoad(() => {
-        this.onMpvXComponent()
+    Column() {
+      XComponent({
+        type: XComponentType.SURFACE,
+        controller: this.xComponentController,
+        id: this.xComponentId,
+        libraryname: this.libraryName,
       })
-      .position({ x: 0, y: 0 })
+        .focusable(true)
+        .defaultFocus(true)
+        .enableAnalyzer(true)
+        .onLoad(() => {
+          this.onMpvXComponent()
+        })
+        .position({ x: 0, y: 0 })
+      // OSD 字幕叠加层 XComponent（Surface 模式下由 ohcodec-osd VO 渲染字幕）
+      // 注意：SURFACE 类型 XComponent 在首帧提交前是不透明的，会遮挡视频。
+      // 解决方案：初始为 None，视频开始播放后延迟 500ms 再变 Visible，
+      // 此时 ohos_osd_create 已提交透明帧，surface 不再是黑色覆盖层。
+      if (this.osdVisibility) {
+        XComponent({
+          id: "mpv_osd_surface",
+          type: XComponentType.SURFACE,
+          controller: this.osdXController
+        })
+          .backgroundColor(Color.Transparent)  // 声明透明背景，确保合成器使用 SRC_OVER 而非 SRC
+          .hitTestBehavior(HitTestMode.Transparent)
+          .position({ x: 0, y: 0 })
+      }
+    }
+
   }
 }
 

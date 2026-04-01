@@ -55,17 +55,11 @@ import { NumberInputDialog } from '../../component/Dialog/NumberInputDialog'
 @Component
 export struct MpvPlayer {
   xComponentController: XComponentController = new XComponentController()
+  osdXController: XComponentController = new XComponentController()
   @State subtitleVisibility: Visibility = Visibility.Visible
   @State lockRotation: boolean = false
   @Consume('pathStack') pathStack: NavPathStack
   @Provide('player') mpv: MpvController = PlayerControllerFactory.createMpvController()
-  @State @Watch('setScreen') showControl: boolean = false
-  @State isAIAsrShown: boolean = false
-  @State currentSpeedIndex: number = 0
-  @State sideBarStatus: boolean = false
-  @State sideBarStatusTmp: Visibility = Visibility.Hidden
-  @State subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
-  @State exitVideoTime: number = 0
   personalScreenExtendDialog: CustomDialogController = new CustomDialogController({
     builder: NumberInputDialog({
       title: '自定义屏幕拓展比例',
@@ -80,6 +74,13 @@ export struct MpvPlayer {
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  @State @Watch('setScreen') showControl: boolean = false
+  @State isAIAsrShown: boolean = false
+  @State currentSpeedIndex: number = 0
+  @State sideBarStatus: boolean = false
+  @State sideBarStatusTmp: Visibility = Visibility.Hidden
+  @State subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
+  @State exitVideoTime: number = 0
 
   async aboutToAppear(): Promise<void> {
     this.mpv.prepare()
@@ -127,6 +128,8 @@ export struct MpvPlayer {
             showControl: this.showControl,
             subtitle3DMode: this.subtitle3DMode,
             subtitleVisibility: this.subtitleVisibility,
+            osdXController: this.osdXController,
+            osdVisibility: this.mpv.osdVisibility,
             onXComponentLoad: async () => {
               await PermissionUtil.activatePermission(this.mpv.nowPlaying?.uri)
               try {
