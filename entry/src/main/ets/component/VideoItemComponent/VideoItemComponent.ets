@@ -61,6 +61,14 @@ export class VideoListController {
     return false
   }
 
+  /**
+   * 检查是否是搜索无结果状态
+   */
+  isSearchEmpty(searchValue: string): boolean {
+    // 有搜索值且结果为空
+    return searchValue.length > 0 && this.videoDataSource.totalCount() == 0
+  }
+
   // 公共方法实现
   registerDataChangeListener(listener: DataChangeListener): void {
     this.listeners.push(listener)

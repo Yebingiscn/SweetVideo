@@ -104,6 +104,22 @@ export struct VideoView {
         .height('100%')
         .animation({ duration: 150, curve: Curve.Ease })
       }
+
+      // 搜索无结果提示
+      if (!this.loading && this.videoListController.isSearchEmpty(this.searchValue)) {
+        Row() {
+          Column() {
+            Text('没有匹配结果').fontSize(25).fontWeight(FontWeight.Bold)
+            Text('当前文件夹没有匹配"' + this.searchValue + '"的视频')
+              .fontSize(15)
+              .textAlign(TextAlign.Center)
+              .fontWeight(FontWeight.Lighter)
+              .margin({ top: 20 })
+          }
+        }
+        .height('100%')
+        .animation({ duration: 150, curve: Curve.Ease })
+      }
       Column() {
         Row({ space: 15 }) {
           if (!this.is_edit && this.sideBarController.mode == SideBarContainerType.Overlay) {
