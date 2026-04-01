@@ -87,7 +87,7 @@ struct Index {
    */
   private getCurrentFolderIndex(): number {
     return this.file_folder_list.findIndex(
-      folder => folder.date === this.videoListController.folder.date
+      folder => folder.date === this.videoListController?.folder?.date
     )
   }
 
@@ -100,7 +100,7 @@ struct Index {
     }
 
     const targetFolder = this.file_folder_list[index]
-    if (this.videoListController.folder.date === targetFolder.date) {
+    if (this.videoListController.folder?.date === targetFolder.date) {
       return
     }
 
@@ -241,7 +241,7 @@ struct Index {
             this.videoListController.closeMultipleChoose()
             this.file_folder_list = FileFolderUtil.deleteFileFolder(PathUtils.appContext!, folder)
             let newFolder: FileFolder | undefined
-            if (this.videoListController.folder.date === folder.date) {
+            if (this.videoListController.folder?.date === folder.date) {
               newFolder = this.file_folder_list[0]
             } else {
               newFolder = this.videoListController.folder
@@ -304,6 +304,10 @@ struct Index {
     VideoMetaDataOperator.migrationRootVideoMetaToRootFolder()
     FileFolderUtil.fileFolderExistCheck()
     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
+    // 首次安装时如果没有文件夹，创建默认"首页"文件夹
+    if (this.file_folder_list.length === 0) {
+      this.file_folder_list = await FileFolderUtil.createNewFolder(PathUtils.appContext!, '首页')
+    }
     this.fileFolderSource?.updateData(this.file_folder_list)
     this.videoListController?.updateData(undefined, this.file_folder_list[0])
     checkUriProcess(Preferences.getFileFolder(PathUtils.appContext!), (re: Object) => {
@@ -312,12 +316,13 @@ struct Index {
         if (result.length > 0) {
           const idsToDelete = result
           idsToDelete.forEach(async item => {
-            await this.videoListController.videoDataSource.deleteUnExistFile(item, this.videoListController,
+            await this.videoListController.videoDataSource?.deleteUnExistFile(item, this.videoListController,
               this.fileFolderSource)
           })
-          const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
-      // 更新文件夹列表状态，确保面包屑等UI正确刷新
-      this.file_folder_list = updatedFolders
+          const targetFolder = this.videoListController.folder ?? this.file_folder_list[0]
+          const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, targetFolder)
+          // 更新文件夹列表状态，确保面包屑等UI正确刷新
+          this.file_folder_list = updatedFolders
           DataSyncUtil.deletedVideos = result
           this.deletedVideosDialogController.open()
         }
@@ -336,7 +341,7 @@ struct Index {
     try {
       await FileProcessorUtil.processFilesConcurrently(
         fileList, PathUtils.appContext!, PathUtils.videoPath, PathUtils.coverPath,
-        this.videoListController.videoDataSource.getAllData(),
+        this.videoListController.videoDataSource?.getAllData() ?? [],
         (increment: number) => {
           this.processedItems += increment
         },
@@ -351,7 +356,8 @@ struct Index {
       ToolsUtil.showToast('处理过程中发生意外错误:' + error)
     } finally {
       this.loading = false
-      const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+      const targetFolder = this.videoListController.folder ?? this.file_folder_list[0]
+      const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, targetFolder)
       // 更新文件夹列表状态，确保面包屑等UI正确刷新
       this.file_folder_list = updatedFolders
     }
@@ -415,7 +421,7 @@ struct Index {
                   }
                   .onClick(() => {
                     this.clearSearchValue()
-                    if (this.videoListController.folder.date === folder.date) {
+                    if (this.videoListController.folder?.date === folder.date) {
                       return
                     }
                     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
@@ -423,6 +429,8 @@ struct Index {
                     const currentFolder = this.fileFolderSource.getFileFolder(folder.name)
                     this.videoListController.videoDataSource.updateData(currentFolder.video_list)
                     this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder!)
+                    // 同步面包屑选中状态
+                    AppStorage.setOrCreate('scrollToFolderDate', folder.date)
                     this.sideBarController.close(true)
                   })
                   .bindContextMenu(this.FileFolderSelectMenu(folder), ResponseType.LongPress)
@@ -604,9 +612,10 @@ struct Index {
         if (this.videoListController.folder?.video_list) {
           const actualContentWidth = this.screen_width - DataSyncUtil.minContentWidth
           this.videoListController.refresh(actualContentWidth, Setting.listDisplayMode)
-          const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
-      // 更新文件夹列表状态，确保面包屑等UI正确刷新
-      this.file_folder_list = updatedFolders
+          const targetFolder = this.videoListController.folder ?? this.file_folder_list[0]
+          const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, targetFolder)
+          // 更新文件夹列表状态，确保面包屑等UI正确刷新
+          this.file_folder_list = updatedFolders
         }
         if (DataSyncUtil.lastPlayVideoIndex >= 0) {
           this.videoListController.listScroller.scrollToIndex(DataSyncUtil.lastPlayVideoIndex)

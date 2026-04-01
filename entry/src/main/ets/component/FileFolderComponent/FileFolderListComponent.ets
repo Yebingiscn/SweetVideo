@@ -11,22 +11,22 @@ class FileFolderListBuilderValue {
 export function FileFolderListBuilder(fileFolderListBuilderValue: FileFolderListBuilderValue) {
   Button({ type: ButtonType.Normal, stateEffect: true }) {
     Row() {
-      SymbolGlyph(fileFolderListBuilderValue.videoListController?.folder.date ===
+      SymbolGlyph(fileFolderListBuilderValue.videoListController?.folder?.date ===
         fileFolderListBuilderValue.folder?.date ?
         $r('sys.symbol.doc_plaintext_and_folder') : $r('sys.symbol.folder'))
         .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-        .fontColor(fileFolderListBuilderValue.videoListController?.folder.date ===
+        .fontColor(fileFolderListBuilderValue.videoListController?.folder?.date ===
           fileFolderListBuilderValue.folder?.date ?
           [$r('app.color.main_color'), $r('app.color.text_color')] : [$r('app.color.text_color')])
       Column() {
         Text(fileFolderListBuilderValue.folder?.name)
           .width('100%')
-          .fontColor(fileFolderListBuilderValue.videoListController?.folder.date ===
+          .fontColor(fileFolderListBuilderValue.videoListController?.folder?.date ===
             fileFolderListBuilderValue.folder?.date ?
             $r('app.color.main_color') : $r('app.color.text_color'))
-          .fontSize(fileFolderListBuilderValue.videoListController?.folder.date ===
+          .fontSize(fileFolderListBuilderValue.videoListController?.folder?.date ===
             fileFolderListBuilderValue.folder?.date ? 18 : 15)
-          .fontWeight(fileFolderListBuilderValue.videoListController?.folder.date ===
+          .fontWeight(fileFolderListBuilderValue.videoListController?.folder?.date ===
             fileFolderListBuilderValue.folder?.date ? FontWeight.Bold :
             FontWeight.Medium)
           .textAlign(TextAlign.Start)

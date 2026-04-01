@@ -79,7 +79,7 @@ export struct VideoView {
    * 获取当前文件夹在列表中的索引
    */
   private getCurrentFolderIndex(): number {
-    return this.file_folder_list.findIndex(f => f.date === this.videoListController.folder.date)
+    return this.file_folder_list.findIndex(f => f.date === this.videoListController?.folder?.date)
   }
 
   build() {
@@ -290,7 +290,7 @@ export struct VideoView {
       Row({ space: 8 }) {
         ForEach(this.file_folder_list, (folder: FileFolder, index: number) => {
           this.FolderTabItemBuilder(folder, index)
-        }, (folder: FileFolder) => folder.date.toString())
+        }, (folder: FileFolder, index: number) => folder.date.toString() + '_' + index + '_' + (this.currentFolderIndex === index))
       }
       .padding({ left: 6, right: 10 })
       .height(36)
@@ -348,7 +348,7 @@ export struct VideoView {
       console.error(`[VideoView] switchToFolderByIndex: folder at index ${index} is undefined`)
       return
     }
-    if (this.videoListController.folder.date === folder.date) {
+    if (this.videoListController?.folder?.date === folder.date) {
       return
     }
     // 保留搜索状态，在新文件夹中应用搜索过滤
@@ -375,6 +375,8 @@ export struct VideoView {
     // 滚动面包屑使当前文件夹可见
     this.scrollToCurrentFolder(index)
     this.sideBarController.close(true)
+    // 同步 scrollToFolderDate，触发 onFolderChanged 确保状态一致
+    AppStorage.setOrCreate('scrollToFolderDate', folder.date)
   }
 
   /**
