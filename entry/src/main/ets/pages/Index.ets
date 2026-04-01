@@ -68,7 +68,11 @@ struct Index {
   @Provide sideBarController: SideBarController = new SideBarController()
   @Provide('pathStack') pathStack: NavPathStack = new NavPathStack()
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
-    builder: AddFileFolderNameDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
+    builder: AddFileFolderNameDialog({
+      onFolderAdded: (folders: FileFolder[]) => {
+        this.file_folder_list = folders
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   deletedVideosDialogController: CustomDialogController = new CustomDialogController({
     builder: DeletedVideosDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
@@ -138,49 +142,62 @@ struct Index {
       return
     }
 
-    // 侧边栏展开时：左滑关闭侧边栏，右滑不响应
-    if (this.sideBarController.visibility === Visibility.Visible) {
+    // 侧边栏展开时（Overlay 模式）：左滑关闭侧边栏
+    // Embed 模式下侧边栏始终展开，但仍允许文件夹切换
+    if (this.sideBarController.visibility === Visibility.Visible &&
+      this.sideBarController.mode === SideBarContainerType.Overlay) {
       const rotateAngle = event.angle ?? 0
-      const isSwipeRight = rotateAngle > -this.SWIPE_ANGLE_THRESHOLD && rotateAngle < this.SWIPE_ANGLE_THRESHOLD
-      if (!isSwipeRight) {
-        // 从右向左滑 -> 关闭侧边栏
+      // 从右向左滑（手指从右往左移动，角度接近180/-180）-> 关闭侧边栏
+      if (rotateAngle < -135 || rotateAngle > 135) {
         this.sideBarController.close(true)
       }
       return
     }
 
     const rotateAngle = event.angle ?? 0
-    const isSwipeRight = rotateAngle > -this.SWIPE_ANGLE_THRESHOLD && rotateAngle < this.SWIPE_ANGLE_THRESHOLD
+    // 手势方向：手指移动方向
+    // 从左往右滑（右滑）：角度接近0度
+    // 从右往左滑（左滑）：角度接近180/-180度
+    const isSwipeRight = rotateAngle > -45 && rotateAngle < 45
+    const isSwipeLeft = rotateAngle < -135 || rotateAngle > 135
 
-    // 面包屑未开启时：只允许右滑打开侧边栏
+    // 面包屑未开启时：只允许右滑打开侧边栏（仅 Overlay 模式）
     if (!Setting.showToast) {
-      if (isSwipeRight) {
+      if (isSwipeRight && this.sideBarController.mode === SideBarContainerType.Overlay) {
         this.sideBarController.open()
       }
       return
     }
 
-    // 文件夹列表为空或只有一个时：右滑打开侧边栏，左滑不响应
+    // 文件夹列表为空或只有一个时：右滑打开侧边栏（仅 Overlay 模式），左滑不响应
     if (this.file_folder_list.length <= 1) {
-      if (isSwipeRight) {
+      if (isSwipeRight && this.sideBarController.mode === SideBarContainerType.Overlay) {
         this.sideBarController.open()
       }
       return
     }
     const currentIndex = this.getCurrentFolderIndex()
+    // 检查当前文件夹索引是否有效
+    if (currentIndex === -1) {
+      console.error(`[Index] handleFolderSwipe: current folder not found in list`)
+      return
+    }
     const isFirstFolder = currentIndex === 0
     const isLastFolder = currentIndex === this.file_folder_list.length - 1
 
     if (isSwipeRight) {
       // 从左向右滑
       if (isFirstFolder) {
-        // 第一个文件夹右滑 -> 打开侧边栏
-        this.sideBarController.open()
+        // 第一个文件夹右滑 -> 打开侧边栏（仅 Overlay 模式）
+        if (this.sideBarController.mode === SideBarContainerType.Overlay) {
+          this.sideBarController.open()
+        }
+        // Embed 模式下侧边栏已固定，无需操作
       } else {
         // 切换到上一个文件夹
         this.switchToFolder(currentIndex - 1)
       }
-    } else {
+    } else if (isSwipeLeft) {
       // 从右向左滑
       if (!isLastFolder) {
         this.switchToFolder(currentIndex + 1)

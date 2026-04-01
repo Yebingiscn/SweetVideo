@@ -33,7 +33,7 @@ export struct VideoView {
   @State is_edit: boolean = false
   @Link searchValue: string
   @Link videoListController: VideoListController
-  @Consume file_folder_list: FileFolder[]
+  @Consume @Watch('onFolderListChanged') file_folder_list: FileFolder[]
   @Consume sideBarController: SideBarController
   @Consume('pathStack') pathStack: NavPathStack
   @Consume fileFolderSource: FileFolderDataSource
@@ -41,40 +41,45 @@ export struct VideoView {
   private passwd: string = 'passwd'
   // 面包屑滚动控制器
   private breadcrumbScroller: Scroller = new Scroller()
-  // 面包屑滚动参数
-  private readonly BREADCRUMB_ITEM_ESTIMATED_WIDTH: number = 80  // 估算每个文件夹项宽度（vp）
-  private readonly BREADCRUMB_ITEM_SPACING: number = 15          // Row 中的 space 值
-  private readonly BREADCRUMB_CENTER_OFFSET: number = 100        // 居中偏移补偿值（vp）
-  private readonly BREADCRUMB_SCROLL_DURATION: number = 200      // 滚动动画时长（ms）
-  // 监听文件夹切换，触发面包屑滚动
-  @Watch('onScrollToFolder') @StorageLink('scrollToFolderDate') scrollToFolderDate: number = 0
+  // 当前选中文件夹索引
+  @State currentFolderIndex: number = 0
+  // 监听文件夹切换，同步面包屑选中状态
+  @Watch('onFolderChanged') @StorageLink('scrollToFolderDate') scrollToFolderDate: number = 0
+  // 标记是否正在处理切换，避免循环触发
+  private isHandlingChange: boolean = false
+
+  /**
+   * 文件夹切换时同步面包屑选中状态
+   */
+  onFolderChanged(): void {
+    const newIndex = this.getCurrentFolderIndex()
+    if (newIndex !== -1 && newIndex !== this.currentFolderIndex) {
+      this.currentFolderIndex = newIndex
+      // 滚动到当前文件夹
+      this.scrollToCurrentFolder(newIndex)
+    }
+  }
 
   SyncDelMultipleList() {
     DataSyncUtil.delMultipleList = this.delMultipleList
   }
 
-  onScrollToFolder(): void {
-    if (this.scrollToFolderDate > 0 && this.file_folder_list.length > 0) {
-      this.scrollBreadcrumbToFolder(this.scrollToFolderDate)
+  /**
+   * 文件夹列表变化时处理（如添加新文件夹）
+   */
+  onFolderListChanged(): void {
+    // 文件夹列表变化时，确保选中状态正确
+    const newIndex = this.getCurrentFolderIndex()
+    if (newIndex !== -1 && newIndex !== this.currentFolderIndex) {
+      this.currentFolderIndex = newIndex
     }
   }
 
   /**
-   * 滚动面包屑使指定文件夹居中显示
+   * 获取当前文件夹在列表中的索引
    */
-  scrollBreadcrumbToFolder(folderDate: number): void {
-    const folderIndex = this.file_folder_list.findIndex(f => f.date === folderDate.toString())
-    if (folderIndex === -1) {
-      return
-    }
-
-    const targetOffset = Math.max(0, folderIndex * (this.BREADCRUMB_ITEM_ESTIMATED_WIDTH + this.BREADCRUMB_ITEM_SPACING) - this.BREADCRUMB_CENTER_OFFSET)
-
-    this.breadcrumbScroller.scrollTo({
-      xOffset: targetOffset,
-      yOffset: 0,
-      animation: { duration: this.BREADCRUMB_SCROLL_DURATION, curve: Curve.Ease }
-    })
+  private getCurrentFolderIndex(): number {
+    return this.file_folder_list.findIndex(f => f.date === this.videoListController.folder.date)
   }
 
   build() {
@@ -210,7 +215,7 @@ export struct VideoView {
         }
         .width('100%')
 
-        // Tabs 样式面包屑导航
+        // 自定义面包屑导航
         if (Setting.showToast && this.file_folder_list.length > 1) {
           this.FolderTabsBuilder()
         }
@@ -281,64 +286,68 @@ export struct VideoView {
 
   @Builder
   FolderTabsBuilder() {
-    Tabs({ index: this.getCurrentFolderIndex() }) {
-      ForEach(this.file_folder_list, (folder: FileFolder, index: number) => {
-        TabContent() {
-          // 内容为空，实际内容在 VideoList 组件中
-          Column() {
-            Blank()
-          }
-        }
-        .tabBar(this.FolderTabBuilder(folder, index))
-      }, (folder: FileFolder) => folder.name + folder.date)
+    Scroll(this.breadcrumbScroller) {
+      Row({ space: 8 }) {
+        ForEach(this.file_folder_list, (folder: FileFolder, index: number) => {
+          this.FolderTabItemBuilder(folder, index)
+        }, (folder: FileFolder) => folder.date.toString())
+      }
+      .padding({ left: 6, right: 10 })
+      .height(36)
+      .margin({ top: -8 })
     }
     .width('100%')
-    .height(50)
-    .barMode(1)
-    .barWidth('100%')
-    .barHeight(50)
-    .scrollable(true)
-    .animationDuration(200)
-    .onChange((index: number) => {
-      if (index >= 0 && index < this.file_folder_list.length) {
-        const folder = this.file_folder_list[index]
-        if (this.videoListController.folder.date !== folder.date) {
-          // 触发文件夹切换
-          this.switchToFolderByIndex(index)
-        }
-      }
-    })
+    .height(36)
+    .scrollBar(BarState.Off)
+    .scrollable(ScrollDirection.Horizontal)
+    .edgeEffect(EdgeEffect.Spring)
   }
+
+  // 文件夹按钮尺寸配置
+  private readonly FOLDER_TAB_MIN_WIDTH: number = 64
+  private readonly FOLDER_TAB_HEIGHT: number = 28
 
   @Builder
-  FolderTabBuilder(folder: FileFolder, index: number) {
-    Column() {
+  FolderTabItemBuilder(folder: FileFolder, index: number) {
+    Row() {
       Text(folder.name)
-        .fontWeight(this.videoListController.folder.date === folder.date ? FontWeight.Bold : FontWeight.Medium)
-        .fontSize(this.videoListController.folder.date === folder.date ? 18 : 15)
-        .fontColor(this.videoListController.folder.date === folder.date ?
-          $r('app.color.main_color') : $r('app.color.text_color'))
-        .textOverflow({ overflow: TextOverflow.MARQUEE })
+        .fontSize(13)
+        .fontWeight(this.currentFolderIndex === index ? FontWeight.Bold : FontWeight.Medium)
+        .fontColor(this.currentFolderIndex === index ?
+          $r('sys.color.white') : $r('app.color.text_color'))
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
         .maxLines(1)
+        .padding({ left: 12, right: 12 })
     }
-    .width('auto')
-    .padding({ left: 12, right: 12 })
-    .height('100%')
+    .backgroundColor(this.currentFolderIndex === index ?
+      $r('app.color.main_color') : $r('app.color.start_window_background'))
+    .height(this.FOLDER_TAB_HEIGHT)
+    .constraintSize({ minWidth: this.FOLDER_TAB_MIN_WIDTH })
+    .borderRadius(14)
     .justifyContent(FlexAlign.Center)
-  }
-
-  /**
-   * 获取当前文件夹在列表中的索引
-   */
-  private getCurrentFolderIndex(): number {
-    return this.file_folder_list.findIndex(f => f.date === this.videoListController.folder.date)
+    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.95 })
+    .onClick(() => {
+      if (this.currentFolderIndex !== index) {
+        this.currentFolderIndex = index
+        this.switchToFolderByIndex(index)
+      }
+    })
   }
 
   /**
    * 通过索引切换文件夹
    */
   private switchToFolderByIndex(index: number): void {
+    // 边界检查
+    if (index < 0 || index >= this.file_folder_list.length) {
+      console.error(`[VideoView] switchToFolderByIndex: index ${index} out of bounds, length: ${this.file_folder_list.length}`)
+      return
+    }
     const folder = this.file_folder_list[index]
+    if (!folder) {
+      console.error(`[VideoView] switchToFolderByIndex: folder at index ${index} is undefined`)
+      return
+    }
     if (this.videoListController.folder.date === folder.date) {
       return
     }
@@ -363,9 +372,29 @@ export struct VideoView {
         )
       })
     }
-    // 触发面包屑滚动
-    AppStorage.setOrCreate('scrollToFolderDate', folder.date)
+    // 滚动面包屑使当前文件夹可见
+    this.scrollToCurrentFolder(index)
     this.sideBarController.close(true)
+  }
+
+  /**
+   * 滚动面包屑使当前文件夹可见
+   */
+  private scrollToCurrentFolder(index: number): void {
+    // 计算目标位置，使当前文件夹居中显示
+    const estimatedItemWidth = 80
+    const spacing = 8
+    const targetOffset = Math.max(0, index * (estimatedItemWidth + spacing) - 100)
+    animateToImmediately({
+      duration: 200,
+      curve: Curve.Ease
+    }, () => {
+      this.breadcrumbScroller.scrollTo({
+        xOffset: targetOffset,
+        yOffset: 0,
+        animation: { duration: 200, curve: Curve.Ease }
+      })
+    })
   }
 
   @Builder
