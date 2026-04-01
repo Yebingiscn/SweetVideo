@@ -149,16 +149,19 @@ struct Index {
       return
     }
 
-    // 面包屑未开启时不允许滑动切换文件夹
+    const rotateAngle = event.angle ?? 0
+    const isSwipeRight = rotateAngle > -this.SWIPE_ANGLE_THRESHOLD && rotateAngle < this.SWIPE_ANGLE_THRESHOLD
+
+    // 面包屑未开启时：只允许右滑打开侧边栏
     if (!Setting.showToast) {
+      if (isSwipeRight) {
+        this.sideBarController.open()
+      }
       return
     }
 
-    const rotateAngle = event.angle ?? 0
-
     // 文件夹列表为空或只有一个时：右滑打开侧边栏，左滑不响应
     if (this.file_folder_list.length <= 1) {
-      const isSwipeRight = rotateAngle > -this.SWIPE_ANGLE_THRESHOLD && rotateAngle < this.SWIPE_ANGLE_THRESHOLD
       if (isSwipeRight) {
         this.sideBarController.open()
       }
@@ -167,9 +170,6 @@ struct Index {
     const currentIndex = this.getCurrentFolderIndex()
     const isFirstFolder = currentIndex === 0
     const isLastFolder = currentIndex === this.file_folder_list.length - 1
-
-    // 判断滑动方向：角度在 -45° ~ 45° 之间为向右滑
-    const isSwipeRight = rotateAngle > -this.SWIPE_ANGLE_THRESHOLD && rotateAngle < this.SWIPE_ANGLE_THRESHOLD
 
     if (isSwipeRight) {
       // 从左向右滑
