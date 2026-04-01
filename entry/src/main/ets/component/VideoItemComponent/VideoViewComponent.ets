@@ -39,9 +39,40 @@ export struct VideoView {
   @Consume fileFolderSource: FileFolderDataSource
   @Watch('SyncDelMultipleList') @State delMultipleList: VideoMetadata[] = DataSyncUtil.delMultipleList
   private passwd: string = 'passwd'
+  // 面包屑滚动控制器
+  private breadcrumbScroller: Scroller = new Scroller()
+  // 监听文件夹切换，触发面包屑滚动
+  @Watch('onScrollToFolder') @StorageLink('scrollToFolderDate') scrollToFolderDate: number = 0
 
   SyncDelMultipleList() {
     DataSyncUtil.delMultipleList = this.delMultipleList
+  }
+
+  onScrollToFolder(): void {
+    if (this.scrollToFolderDate > 0 && this.file_folder_list.length > 0) {
+      this.scrollBreadcrumbToFolder(this.scrollToFolderDate)
+    }
+  }
+
+  /**
+   * 滚动面包屑使指定文件夹居中显示
+   */
+  scrollBreadcrumbToFolder(folderDate: number): void {
+    const folderIndex = this.file_folder_list.findIndex(f => f.date === folderDate.toString())
+    if (folderIndex === -1) {
+      return
+    }
+
+    // 估算每个文件夹项的宽度（包含间距）
+    const estimatedItemWidth = 80 // 估算每个文件夹名称的平均宽度
+    const spacing = 15 // Row 中的 space: 15
+    const targetOffset = Math.max(0, folderIndex * (estimatedItemWidth + spacing) - 100)
+
+    this.breadcrumbScroller.scrollTo({
+      xOffset: targetOffset,
+      yOffset: 0,
+      animation: { duration: 200, curve: Curve.Ease }
+    })
   }
 
   build() {
@@ -162,7 +193,7 @@ export struct VideoView {
         .width('100%')
 
         if (Setting.showToast && this.file_folder_list.length > 1) {
-          Scroll() {
+          Scroll(this.breadcrumbScroller) {
             Row({ space: 15 }) {
               LazyForEach(this.fileFolderSource, (folder: FileFolder) => {
                 Text(folder?.name)
