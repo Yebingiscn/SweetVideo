@@ -99,7 +99,7 @@ export struct VideoView {
               .textAlign(TextAlign.Center)
               .fontWeight(FontWeight.Lighter)
               .margin({ top: 20 })
-          }
+        }
         }
         .height('100%')
         .animation({ duration: 150, curve: Curve.Ease })
@@ -115,7 +115,7 @@ export struct VideoView {
               .textAlign(TextAlign.Center)
               .fontWeight(FontWeight.Lighter)
               .margin({ top: 20 })
-          }
+        }
         }
         .height('100%')
         .animation({ duration: 150, curve: Curve.Ease })
@@ -126,7 +126,7 @@ export struct VideoView {
             Button({ type: ButtonType.Circle, stateEffect: true }) {
               SymbolGlyph($r('sys.symbol.close_sidebar'))
                 .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-            }
+          }
             .attributeModifier(new ButtonFancyModifier(40, 40))
             .animation({ duration: 300, curve: Curve.Ease })
             .onClick(() => {
@@ -134,7 +134,7 @@ export struct VideoView {
             })
             .attributeModifier(new SearchShadowModifier())
             .transition(XAnimation.getAnimation('left', 0, false))
-          }
+        }
 
           SearchComponent({
             controller: this.searchController,
@@ -153,26 +153,26 @@ export struct VideoView {
                 this.videoListController.videoDataSource.updateData(videoMetaDataList)
                 this.videoListController.updateData(this.videoListController.videoDataSource,
                   this.videoListController.folder)
-              }
+            }
             },
             onSubmit: (value: string) => {
               if (value == '') {
                 if (this.videoListController.videoMetaDataList.length == 0) {
                   ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
                   return
-                }
+              }
                 this.searchController.stopEditing()
                 return
-              }
+            }
               if (value == this.passwd) {
                 ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
                 this.pathStack.pushPathByName(NavigationAddress.PRIVACY_SPACE, null)
                 this.searchValue = ''
                 return
-              }
+            }
               if (this.videoListController.videoMetaDataList.length == 0) {
                 ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
-              }
+            }
             },
             onEditChange: (isEditing: boolean) => {
               animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
@@ -181,14 +181,14 @@ export struct VideoView {
             },
             onSearchFocus: () => {
               this.passwd = Preferences.getPassword(PathUtils.appContext!)
-            }
+          }
           })
 
           if (!this.is_edit) {
             Button({ type: ButtonType.Circle, stateEffect: true }) {
               SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
                 .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-            }
+          }
             .attributeModifier(new ButtonFancyModifier(40, 40))
             .bindMenu(this.SortMenuBuilder,
               { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
@@ -199,49 +199,20 @@ export struct VideoView {
               Button({ type: ButtonType.Circle, stateEffect: true }) {
                 SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
                   .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-              }
+            }
               .attributeModifier(new ButtonFancyModifier(40, 40))
               .bindMenu(this.SelectItemMenuBuilder,
                 { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
               .attributeModifier(new SearchShadowModifier())
               .transition(XAnimation.getAnimation('right', 0, false))
-            }
           }
+        }
         }
         .width('100%')
 
+        // Tabs 样式面包屑导航
         if (Setting.showToast && this.file_folder_list.length > 1) {
-          Scroll(this.breadcrumbScroller) {
-            Row({ space: 15 }) {
-              LazyForEach(this.fileFolderSource, (folder: FileFolder) => {
-                Text(folder?.name)
-                  .fontWeight(this.videoListController.folder.date === folder?.date ? FontWeight.Bold :
-                    FontWeight.Medium)
-                  .fontSize(this.videoListController.folder.date === folder?.date ? 18 : 15)
-                  .fontColor(this.videoListController.folder.date === folder?.date ?
-                    $r('app.color.main_color') : $r('app.color.text_color'))
-                  .textAlign(TextAlign.Start)
-                  .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-                  .textOverflow({ overflow: TextOverflow.MARQUEE })
-                  .onClick(() => {
-                    if (this.videoListController.folder.date === folder.date) {
-                      return
-                    }
-                    this.searchValue = ''
-                    this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
-                    this.fileFolderSource.updateData(this.file_folder_list)
-                    const currentFolder = this.fileFolderSource.getFileFolder(folder.name)
-                    this.videoListController.videoDataSource.updateData(currentFolder.video_list)
-                    this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder!)
-                    this.sideBarController.close(true)
-                  })
-              }, (folder: FileFolder) => folder.name + folder.date + folder.video_list.toString())
-            }
-          }
-          .width('100%')
-          .scrollBar(BarState.Off)
-          .scrollable(ScrollDirection.Horizontal)
-          .edgeEffect(EdgeEffect.Spring) // 滚动边缘效果
+          this.FolderTabsBuilder()
         }
       }.width('100%').padding({ top: SafeHeight.topSafeHeight, left: 10, right: 10 })
     }.width('100%')
@@ -294,11 +265,11 @@ export struct VideoView {
             if (this.delMultipleList.length > 0) {
               await FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController,
                 this.fileFolderSource)
-            }
+          }
           } finally {
             VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
             this.videoListController.closeMultipleChoose()
-          }
+        }
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
@@ -306,6 +277,95 @@ export struct VideoView {
         builder: (): void => this.FileFolderMenuBuilder(undefined)
       })
     }.attributeModifier(new MenuFancyModifier())
+  }
+
+  @Builder
+  FolderTabsBuilder() {
+    Tabs({ index: this.getCurrentFolderIndex() }) {
+      ForEach(this.file_folder_list, (folder: FileFolder, index: number) => {
+        TabContent() {
+          // 内容为空，实际内容在 VideoList 组件中
+          Column() {
+            Blank()
+          }
+        }
+        .tabBar(this.FolderTabBuilder(folder, index))
+      }, (folder: FileFolder) => folder.name + folder.date)
+    }
+    .width('100%')
+    .height(50)
+    .barMode(1)
+    .barWidth('100%')
+    .barHeight(50)
+    .scrollable(true)
+    .animationDuration(200)
+    .onChange((index: number) => {
+      if (index >= 0 && index < this.file_folder_list.length) {
+        const folder = this.file_folder_list[index]
+        if (this.videoListController.folder.date !== folder.date) {
+          // 触发文件夹切换
+          this.switchToFolderByIndex(index)
+        }
+      }
+    })
+  }
+
+  @Builder
+  FolderTabBuilder(folder: FileFolder, index: number) {
+    Column() {
+      Text(folder.name)
+        .fontWeight(this.videoListController.folder.date === folder.date ? FontWeight.Bold : FontWeight.Medium)
+        .fontSize(this.videoListController.folder.date === folder.date ? 18 : 15)
+        .fontColor(this.videoListController.folder.date === folder.date ?
+          $r('app.color.main_color') : $r('app.color.text_color'))
+        .textOverflow({ overflow: TextOverflow.MARQUEE })
+        .maxLines(1)
+    }
+    .width('auto')
+    .padding({ left: 12, right: 12 })
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+  }
+
+  /**
+   * 获取当前文件夹在列表中的索引
+   */
+  private getCurrentFolderIndex(): number {
+    return this.file_folder_list.findIndex(f => f.date === this.videoListController.folder.date)
+  }
+
+  /**
+   * 通过索引切换文件夹
+   */
+  private switchToFolderByIndex(index: number): void {
+    const folder = this.file_folder_list[index]
+    if (this.videoListController.folder.date === folder.date) {
+      return
+    }
+    // 保留搜索状态，在新文件夹中应用搜索过滤
+    this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
+    this.fileFolderSource.updateData(this.file_folder_list)
+    const currentFolder = this.fileFolderSource.getFileFolder(folder.name)
+    if (currentFolder) {
+      // 如果有搜索值，在新文件夹中过滤视频
+      let filteredVideos = currentFolder.video_list
+      if (this.searchValue.length > 0) {
+        filteredVideos = SelectFileUtil.getItemFromSearch(currentFolder.video_list, this.searchValue)
+      }
+      animateToImmediately({
+        duration: 200,
+        curve: Curve.EaseInOut
+      }, () => {
+        this.videoListController.videoDataSource.updateData(filteredVideos)
+        this.videoListController.updateData(
+          this.videoListController.videoDataSource,
+          currentFolder
+        )
+      })
+    }
+    // 触发面包屑滚动
+    AppStorage.setOrCreate('scrollToFolderDate', folder.date)
+    this.sideBarController.close(true)
   }
 
   @Builder

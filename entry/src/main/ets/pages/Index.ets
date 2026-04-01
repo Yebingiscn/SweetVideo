@@ -149,6 +149,11 @@ struct Index {
       return
     }
 
+    // 面包屑未开启时不允许滑动切换文件夹
+    if (!Setting.showToast) {
+      return
+    }
+
     const rotateAngle = event.angle ?? 0
 
     // 文件夹列表为空或只有一个时：右滑打开侧边栏，左滑不响应
