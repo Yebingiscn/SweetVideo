@@ -257,7 +257,7 @@ export struct VideoList {
     } else {
       Scroll() {
         Column() {
-          Blank().height(SafeHeight.topSafeHeight + (this.file_folder_list.length > 1 ? 90 : 65))
+          Blank().height(SafeHeight.topSafeHeight + (Setting.showToast && this.file_folder_list.length > 1 ? 90 : 65))
           WaterFlow({
             scroller: this.videoListController.listScroller,
             layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW

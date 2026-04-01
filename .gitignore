@@ -1,9 +1,9 @@
 /node_modules
 /oh_modules
-/local.properties
 /.idea
 **/build
 /.hvigor
+**/.hvigor
 .cxx
 /.clangd
 /.clang-format
@@ -12,3 +12,8 @@
 /.appanalyzer
 **/libmpvnative.so
 **/libmpv.so.2
+
+# Claude Code
+/.claude/
+/memory/
+CLAUDE.md
