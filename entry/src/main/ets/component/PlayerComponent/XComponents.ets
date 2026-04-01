@@ -86,6 +86,7 @@ export struct XComponents {
     .height(this.player.playAreaHeight)
     .animation({ duration: this.player.playTime > 300 ? 300 : 0, curve: Curve.Ease })
     .rotate({ y: 2, angle: this.player.angle, perspective: 200 })
+    .translate({ x: this.player.translateX, y: this.player.translateY })
   }
 }
 
@@ -126,7 +127,6 @@ export struct MpvXComponent {
         })
           .backgroundColor(Color.Transparent)  // 声明透明背景，确保合成器使用 SRC_OVER 而非 SRC
           .hitTestBehavior(HitTestMode.Transparent)
-          .position({ x: 0, y: 0 })
       }
     }
 
@@ -151,6 +151,5 @@ export struct AVPlayerXComponent {
       .focusable(true)
       .defaultFocus(true)
       .enableAnalyzer(true)
-      .position({ x: 0, y: 0 })
   }
 }

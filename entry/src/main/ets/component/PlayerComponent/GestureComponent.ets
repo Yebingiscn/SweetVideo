@@ -26,6 +26,8 @@ export struct GestureComponent {
   }
   onPinchUpdate = (_fingerDistance: number) => {
   }
+  onPinchEnd = () => {
+  }
   onLongPressAction = () => {
   }
   onLongPressEnd = () => {
@@ -33,6 +35,12 @@ export struct GestureComponent {
   onLongPressPanStart = (_tapX: number) => {
   }
   onLongPressPanUpdate = (_tapX: number) => {
+  }
+  onPanMoveStart = (_event: GestureEvent) => {
+  }
+  onPanMoveUpdate = (_event: GestureEvent) => {
+  }
+  onPanMoveEnd = () => {
   }
 
   build() {
@@ -65,7 +73,7 @@ export struct GestureComponent {
               .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
                 SourceTool.JOYSTICK])
               .onActionStart((event: GestureEvent) => { // 滑动屏幕
-                if (this.player.isLock) {
+                if (this.player.isLock || this.player.isZoomed) {
                   return
                 }
                 const tapX = event.fingerList[0]?.localX
@@ -75,7 +83,7 @@ export struct GestureComponent {
                 this.onVerticalPanStart(tapX)
               })
               .onActionUpdate((event: GestureEvent) => {
-                if (this.player.isLock) {
+                if (this.player.isLock || this.player.isZoomed) {
                   return
                 }
                 if (event.fingerList?.length !== 1) {
@@ -84,7 +92,7 @@ export struct GestureComponent {
                 this.onVerticalPanUpdate(event?.offsetY)
               })
               .onActionEnd(() => {
-                if (this.player.isLock) {
+                if (this.player.isLock || this.player.isZoomed) {
                   return
                 }
                 this.onVerticalPanEnd()
@@ -93,13 +101,13 @@ export struct GestureComponent {
               .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
                 SourceTool.JOYSTICK])
               .onActionStart((_event: GestureEvent) => { // 长按且滑动屏幕
-                if (this.player.isLock) {
+                if (this.player.isLock || this.player.isZoomed) {
                   return
                 }
                 this.onHorizonPanStart()
               })
               .onActionUpdate((event: GestureEvent) => {
-                if (this.player.isLock) {
+                if (this.player.isLock || this.player.isZoomed) {
                   return
                 }
                 if (!VideoOperateUtil.checkLocalX(event?.fingerList?.[0]?.localX)) {
@@ -108,7 +116,7 @@ export struct GestureComponent {
                 this.onHorizonPanUpdate(event?.offsetX)
               })
               .onActionEnd(() => {
-                if (this.player.isLock) {
+                if (this.player.isLock || this.player.isZoomed) {
                   return
                 }
                 this.onHorizonPanEnd()
@@ -142,6 +150,12 @@ export struct GestureComponent {
                   return
                 }
                 this.onPinchUpdate(fingerDistance)
+              })
+              .onActionEnd(() => {
+                if (this.player.isLock) {
+                  return
+                }
+                this.onPinchEnd()
               })
           ),
           GestureGroup(GestureMode.Parallel, // 不用互斥事件，会导致左右滑动调节倍速的功能失效
@@ -185,6 +199,48 @@ export struct GestureComponent {
                   return
                 }
                 this.onLongPressPanUpdate(tapX)
+              }),
+            PanGesture({ fingers: 1, direction: PanDirection.All })// 拖拽移动画面(仅在放大后生效)
+              .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
+                SourceTool.JOYSTICK])
+              .onActionStart((event: GestureEvent) => {
+                if (this.player.isLock) {
+                  return
+                }
+                if (!this.player.isZoomed) {
+                  return
+                }
+                const tapX = event.fingerList[0]?.localX
+                if (!VideoOperateUtil.checkLocalX(tapX)) {
+                  return
+                }
+                this.onPanMoveStart(event)
+              })
+              .onActionUpdate((event: GestureEvent) => {
+                if (this.player.isLock) {
+                  return
+                }
+                if (!this.player.isZoomed) {
+                  return
+                }
+                const tapX = event.fingerList[0]?.localX
+                if (!VideoOperateUtil.checkLocalX(tapX)) {
+                  return
+                }
+                this.onPanMoveUpdate(event)
+              })
+              .onActionEnd(() => {
+                if (this.player.isLock) {
+                  return
+                }
+                if (!this.player.isZoomed) {
+                  return
+                }
+                const tapX = event.fingerList[0]?.localX
+                if (!VideoOperateUtil.checkLocalX(tapX)) {
+                  return
+                }
+                this.onPanMoveEnd()
               })
           )))
   }

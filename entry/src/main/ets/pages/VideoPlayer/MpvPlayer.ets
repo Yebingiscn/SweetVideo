@@ -268,6 +268,8 @@ export struct MpvPlayer {
             },
             onPinchStart: (fingerDistance: number) => {
               VideoOperateUtil.initPinchDistance = fingerDistance
+              this.mpv.translateX = 0
+              this.mpv.translateY = 0
             },
             onPinchUpdate: (fingerDistance: number) => {
               const rawScale = fingerDistance / VideoOperateUtil.initPinchDistance
@@ -281,10 +283,14 @@ export struct MpvPlayer {
               }
               this.mpv.playAreaWidth = scaledWidth
               this.mpv.playAreaHeight = this.mpv.playAreaHeight * clampedScale
+              this.mpv.isZoomed = clampedScale !== 1
               XAnimation.runWithAnimation(() => {
                 this.mpv.playAreaWidth = this.mpv.playAreaWidth
                 this.mpv.playAreaHeight = this.mpv.playAreaHeight
               })
+            },
+            onPinchEnd: () => {
+              this.mpv.isZoomed = this.mpv.playAreaWidth !== VideoInfoUtil.playAreaWidth
             },
             onLongPressAction: () => {
               if (this.mpv.playing) {
@@ -318,6 +324,23 @@ export struct MpvPlayer {
                 this.mpv.updatePlaybackSpeed(VideoInfoUtil.videoSpeedListAll[this.currentSpeedIndex])
                 VideoOperateUtil.longPressStartX = tapX // 重置起始点实现分档切换效果
               }
+            },
+            onPanMoveStart: (event: GestureEvent) => {
+              VideoOperateUtil.panStartX = event.fingerList[0]?.localX || 0
+              VideoOperateUtil.panStartY = event.fingerList[0]?.localY || 0
+            },
+            onPanMoveUpdate: (event: GestureEvent) => {
+              const currentX = event.fingerList[0]?.localX || 0
+              const currentY = event.fingerList[0]?.localY || 0
+              const deltaX = currentX - VideoOperateUtil.panStartX
+              const deltaY = currentY - VideoOperateUtil.panStartY
+              this.mpv.translateX += deltaX
+              this.mpv.translateY += deltaY
+              VideoOperateUtil.panStartX = currentX
+              VideoOperateUtil.panStartY = currentY
+            },
+            onPanMoveEnd: () => {
+              // 可选：添加边界检查或回弹效果
             }
           })
             .hitTestBehavior(HitTestMode.Transparent)
@@ -438,28 +461,46 @@ export struct MpvPlayer {
       onSpecificVideoProportions: (playAreaSize: number[]) => {
         this.mpv.playAreaWidth = playAreaSize[0]
         this.mpv.playAreaHeight = playAreaSize[1]
+        this.mpv.isZoomed = false
+        this.mpv.translateX = 0
+        this.mpv.translateY = 0
       },
       onOriginalRatio: () => {
         this.mpv.setKeepAspectStatus(true)
         this.mpv.playAreaHeight = VideoInfoUtil.playAreaHeight
         this.mpv.playAreaWidth = VideoInfoUtil.playAreaWidth
+        this.mpv.isZoomed = false
+        this.mpv.translateX = 0
+        this.mpv.translateY = 0
       },
       onStretchedToFullScreen: () => {
         this.mpv.setKeepAspectStatus(false)
         this.mpv.playAreaHeight = this.mpv.screenHeight
         this.mpv.playAreaWidth = this.mpv.screenWidth
+        this.mpv.isZoomed = false
+        this.mpv.translateX = 0
+        this.mpv.translateY = 0
       },
       onFullScreenByWidth: () => {
         this.mpv.playAreaWidth = this.mpv.screenWidth
         this.mpv.playAreaHeight = (VideoInfoUtil.playAreaHeight / VideoInfoUtil.playAreaWidth) * this.mpv.screenWidth
+        this.mpv.isZoomed = false
+        this.mpv.translateX = 0
+        this.mpv.translateY = 0
       },
       onFullScreenByHeight: () => {
         this.mpv.playAreaHeight = this.mpv.screenHeight
         this.mpv.playAreaWidth = (VideoInfoUtil.playAreaWidth / VideoInfoUtil.playAreaHeight) * this.mpv.screenHeight
+        this.mpv.isZoomed = false
+        this.mpv.translateX = 0
+        this.mpv.translateY = 0
       },
       onUniformScale: (scale: number) => {
         this.mpv.playAreaHeight = scale * VideoInfoUtil.playAreaHeight
         this.mpv.playAreaWidth = scale * VideoInfoUtil.playAreaWidth
+        this.mpv.isZoomed = false
+        this.mpv.translateX = 0
+        this.mpv.translateY = 0
       },
       onSelectedTextChange: (text: string) => {
         this.mpv.selectedText = text

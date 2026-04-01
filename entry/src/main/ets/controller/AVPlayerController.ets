@@ -63,6 +63,9 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Track longPress: boolean = false
   @Track isLock: boolean = false
   @Track abCircleStatus: boolean = false
+  @Track isZoomed: boolean = false
+  @Track translateX: number = 0
+  @Track translateY: number = 0
 
   async create() {
     try {
@@ -497,7 +500,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     this.avPlayer?.on('superResolutionChanged', (enabled: boolean) => {
       ToolsUtil.showToast(enabled ? '视频超分辨率已开启' : '视频超分辨率已关闭')
       this.superResolutionState = enabled
-    });
+    })
   }
 
   onScreenDoubleClick(tapX: number) {

@@ -470,6 +470,8 @@ export struct Player { // 播放页
             },
             onPinchStart: (fingerDistance: number) => {
               VideoOperateUtil.initPinchDistance = fingerDistance
+              this.player.translateX = 0
+              this.player.translateY = 0
             },
             onPinchUpdate: (fingerDistance: number) => {
               const rawScale = fingerDistance / VideoOperateUtil.initPinchDistance
@@ -483,10 +485,14 @@ export struct Player { // 播放页
               }
               this.player.playAreaWidth = scaledWidth
               this.player.playAreaHeight = this.player.playAreaHeight * clampedScale
+              this.player.isZoomed = clampedScale !== 1
               XAnimation.runWithAnimation(() => {
                 this.player.playAreaWidth = this.player.playAreaWidth
                 this.player.playAreaHeight = this.player.playAreaHeight
               })
+            },
+            onPinchEnd: () => {
+              this.player.isZoomed = this.player.playAreaWidth !== VideoInfoUtil.playAreaWidth
             },
             onLongPressAction: () => {
               if (this.player.playing) {
@@ -519,6 +525,23 @@ export struct Player { // 播放页
                 this.player.updatePlaybackSpeed(VideoInfoUtil.videoSpeedListAll[this.currentSpeedIndex])
                 VideoOperateUtil.longPressStartX = tapX // 重置起始点实现分档切换效果
               }
+            },
+            onPanMoveStart: (event: GestureEvent) => {
+              VideoOperateUtil.panStartX = event.fingerList[0]?.localX || 0
+              VideoOperateUtil.panStartY = event.fingerList[0]?.localY || 0
+            },
+            onPanMoveUpdate: (event: GestureEvent) => {
+              const currentX = event.fingerList[0]?.localX || 0
+              const currentY = event.fingerList[0]?.localY || 0
+              const deltaX = currentX - VideoOperateUtil.panStartX
+              const deltaY = currentY - VideoOperateUtil.panStartY
+              this.player.translateX += deltaX
+              this.player.translateY += deltaY
+              VideoOperateUtil.panStartX = currentX
+              VideoOperateUtil.panStartY = currentY
+            },
+            onPanMoveEnd: () => {
+              // 可选：添加边界检查或回弹效果
             }
           })
             .hitTestBehavior(HitTestMode.Transparent)
@@ -656,28 +679,46 @@ export struct Player { // 播放页
       onSpecificVideoProportions: (playAreaSize: number[]) => {
         this.player.playAreaWidth = playAreaSize[0]
         this.player.playAreaHeight = playAreaSize[1]
+        this.player.isZoomed = false
+        this.player.translateX = 0
+        this.player.translateY = 0
       },
       onOriginalRatio: () => {
         this.player.playAreaHeight = VideoInfoUtil.playAreaHeight
         this.player.playAreaWidth = VideoInfoUtil.playAreaWidth
+        this.player.isZoomed = false
+        this.player.translateX = 0
+        this.player.translateY = 0
       },
       onStretchedToFullScreen: () => {
         this.player.playAreaHeight = this.player.screenHeight
         this.player.playAreaWidth = this.player.screenWidth
+        this.player.isZoomed = false
+        this.player.translateX = 0
+        this.player.translateY = 0
       },
       onFullScreenByWidth: () => {
         this.player.playAreaWidth = this.player.screenWidth
         this.player.playAreaHeight =
           (VideoInfoUtil.playAreaHeight / VideoInfoUtil.playAreaWidth) * this.player.screenWidth
+        this.player.isZoomed = false
+        this.player.translateX = 0
+        this.player.translateY = 0
       },
       onFullScreenByHeight: () => {
         this.player.playAreaHeight = this.player.screenHeight
         this.player.playAreaWidth =
           (VideoInfoUtil.playAreaWidth / VideoInfoUtil.playAreaHeight) * this.player.screenHeight
+        this.player.isZoomed = false
+        this.player.translateX = 0
+        this.player.translateY = 0
       },
       onUniformScale: (scale: number) => {
         this.player.playAreaHeight = scale * VideoInfoUtil.playAreaHeight
         this.player.playAreaWidth = scale * VideoInfoUtil.playAreaWidth
+        this.player.isZoomed = false
+        this.player.translateX = 0
+        this.player.translateY = 0
       },
       onSelectedTextChange: (text: string) => {
         this.player.selectedText = text

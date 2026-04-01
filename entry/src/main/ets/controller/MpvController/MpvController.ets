@@ -79,6 +79,9 @@ export class MpvController implements PlayerControllerInterface {
   @Track isLock: boolean = false
   @Track abCircleStatus: boolean = false
   @Track osdVisibility: boolean = false
+  @Track isZoomed: boolean = false
+  @Track translateX: number = 0
+  @Track translateY: number = 0
   avSession: avSessionManager.AVSession | undefined = undefined
   audioVolumeManager: audio.AudioVolumeManager | null = null
   private playTimeUpdateTag: number | null = null

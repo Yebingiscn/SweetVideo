@@ -44,12 +44,18 @@ export default class VideoOperateUtil {
   public static lastVolume: number = 0
   public static windowStage: window.WindowStage | undefined = undefined
   public static longPressStartX: number = 0
+  public static panStartX: number = 0
+  public static panStartY: number = 0
   public static autoHideTimeout: boolean = false
   public static leftSideSwipe: boolean = true
   public static avImageGenerator: media.AVImageGenerator | undefined = undefined
   public static nowPlayingFile: fileIo.File | undefined = undefined
   public static updatePix: boolean = true
   private static mainWin: window.Window | undefined = undefined
+  public static panMoveStartX: number = 0
+  public static panMoveStartY: number = 0
+  public static lastTranslateX: number = 0
+  public static lastTranslateY: number = 0
 
   // 设置亮度
   static setBrightness(screenBrightness: number) {
