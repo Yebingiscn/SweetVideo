@@ -273,7 +273,9 @@ struct Index {
             await this.videoListController.videoDataSource.deleteUnExistFile(item, this.videoListController,
               this.fileFolderSource)
           })
-          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+          const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+      // 更新文件夹列表状态，确保面包屑等UI正确刷新
+      this.file_folder_list = updatedFolders
           DataSyncUtil.deletedVideos = result
           this.deletedVideosDialogController.open()
         }
@@ -307,7 +309,9 @@ struct Index {
       ToolsUtil.showToast('处理过程中发生意外错误:' + error)
     } finally {
       this.loading = false
-      VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+      const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+      // 更新文件夹列表状态，确保面包屑等UI正确刷新
+      this.file_folder_list = updatedFolders
     }
   }
 
@@ -558,7 +562,9 @@ struct Index {
         if (this.videoListController.folder?.video_list) {
           const actualContentWidth = this.screen_width - DataSyncUtil.minContentWidth
           this.videoListController.refresh(actualContentWidth, Setting.listDisplayMode)
-          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+          const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+      // 更新文件夹列表状态，确保面包屑等UI正确刷新
+      this.file_folder_list = updatedFolders
         }
         if (DataSyncUtil.lastPlayVideoIndex >= 0) {
           this.videoListController.listScroller.scrollToIndex(DataSyncUtil.lastPlayVideoIndex)
