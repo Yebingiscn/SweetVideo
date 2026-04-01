@@ -67,6 +67,8 @@ struct Index {
   })
   @Provide sideBarController: SideBarController = new SideBarController()
   @Provide('pathStack') pathStack: NavPathStack = new NavPathStack()
+  // 侧边栏滚动控制器
+  private sideBarScroller: Scroller = new Scroller()
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: AddFileFolderNameDialog({
       onFolderAdded: (folders: FileFolder[]) => {
@@ -131,6 +133,21 @@ struct Index {
 
     // 触发面包屑滚动（为 Task 2 预留）
     AppStorage.setOrCreate('scrollToFolderDate', targetFolder.date)
+
+    // 滚动侧边栏使当前文件夹可见
+    // 估算位置：AppInfoBuilder(100) + 导入按钮(60) + 添加文件夹按钮(60) + 间距(40) = 260
+    // 文件夹列表从约 260vp 开始，每个文件夹 70vp
+    const estimatedOffset = index > 0 ? 260 + (index - 1) * 70 : 0
+    animateToImmediately({
+      duration: 200,
+      curve: Curve.Ease
+    }, () => {
+      this.sideBarScroller.scrollTo({
+        xOffset: 0,
+        yOffset: estimatedOffset,
+        animation: { duration: 200, curve: Curve.Ease }
+      })
+    })
   }
 
   /**
@@ -344,7 +361,7 @@ struct Index {
     Navigation(this.pathStack) {
       SideBarContainer(this.sideBarController.mode) {
         Column() {
-          Scroll() {
+          Scroll(this.sideBarScroller) {
             Column() {
               AppInfoBuilder({ topSafeHeight: SafeHeight.topSafeHeight })
               Column() {
