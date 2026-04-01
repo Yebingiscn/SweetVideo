@@ -75,6 +75,98 @@ struct Index {
   })
   private passwd: string = 'passwd'
 
+  /**
+   * 获取当前文件夹在列表中的索引
+   */
+  private getCurrentFolderIndex(): number {
+    return this.file_folder_list.findIndex(
+      folder => folder.date === this.videoListController.folder.date
+    )
+  }
+
+  /**
+   * 切换到指定索引的文件夹
+   */
+  private switchToFolder(index: number): void {
+    if (index < 0 || index >= this.file_folder_list.length) {
+      return
+    }
+
+    const targetFolder = this.file_folder_list[index]
+    if (this.videoListController.folder.date === targetFolder.date) {
+      return
+    }
+
+    // 清除搜索状态
+    this.searchValue = ''
+
+    // 刷新文件夹列表（确保数据最新）
+    this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
+    this.fileFolderSource.updateData(this.file_folder_list)
+
+    // 获取目标文件夹的最新数据
+    const currentFolder = this.fileFolderSource.getFileFolder(targetFolder.name)
+    if (currentFolder) {
+      this.videoListController.videoDataSource.updateData(currentFolder.video_list)
+      this.videoListController.updateData(
+        this.videoListController.videoDataSource,
+        currentFolder
+      )
+    }
+
+    // 触发面包屑滚动（为 Task 2 预留）
+    AppStorage.setOrCreate('scrollToFolderDate', targetFolder.date)
+  }
+
+  /**
+   * 处理文件夹切换滑动手势
+   */
+  private handleFolderSwipe(event: GestureEvent): void {
+    // 搜索状态下禁止切换
+    if (this.searchValue.length > 0) {
+      return
+    }
+
+    // 批量选择模式下禁止切换
+    if (this.videoListController.multipleChooseState === Visibility.Visible) {
+      return
+    }
+
+    // 侧边栏展开时不响应
+    if (this.sideBarController.visibility === Visibility.Visible) {
+      return
+    }
+
+    // 文件夹列表为空或只有一个时不切换
+    if (this.file_folder_list.length <= 1) {
+      return
+    }
+
+    const rotateAngle = event?.angle ?? 0
+    const currentIndex = this.getCurrentFolderIndex()
+    const isFirstFolder = currentIndex === 0
+    const isLastFolder = currentIndex === this.file_folder_list.length - 1
+
+    // 判断滑动方向：角度在 -45° ~ 45° 之间为向右滑
+    const isSwipeRight = rotateAngle > -45 && rotateAngle < 45
+
+    if (isSwipeRight) {
+      // 从左向右滑
+      if (isFirstFolder) {
+        // 第一个文件夹右滑 -> 打开侧边栏
+        this.sideBarController.open()
+      } else {
+        // 切换到上一个文件夹
+        this.switchToFolder(currentIndex - 1)
+      }
+    } else {
+      // 从右向左滑
+      if (!isLastFolder) {
+        this.switchToFolder(currentIndex + 1)
+      }
+    }
+  }
+
   @Builder
   FileFolderSelectMenu(folder: FileFolder) {
     if (folder.name !== '首页') {
@@ -370,14 +462,7 @@ struct Index {
           this.videoListController.refresh(width, Setting.listDisplayMode)
         })
         .priorityGesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
-          if (this.sideBarController.visibility === Visibility.Visible) {
-            this.sideBarController.close(true)
-          } else {
-            const rotateAngle = event?.angle
-            if (rotateAngle > -45 && rotateAngle < 45) {
-              this.sideBarController.open()
-            }
-          }
+          this.handleFolderSwipe(event)
         }))
         .gesture(
           // 绑定二指触发的捏合手势
