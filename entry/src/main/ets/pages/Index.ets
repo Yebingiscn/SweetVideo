@@ -150,12 +150,16 @@ struct Index {
       return
     }
 
-    // 文件夹列表为空或只有一个时不切换
+    const rotateAngle = event.angle ?? 0
+
+    // 文件夹列表为空或只有一个时：右滑打开侧边栏，左滑不响应
     if (this.file_folder_list.length <= 1) {
+      const isSwipeRight = rotateAngle > -this.SWIPE_ANGLE_THRESHOLD && rotateAngle < this.SWIPE_ANGLE_THRESHOLD
+      if (isSwipeRight) {
+        this.sideBarController.open()
+      }
       return
     }
-
-    const rotateAngle = event.angle ?? 0
     const currentIndex = this.getCurrentFolderIndex()
     const isFirstFolder = currentIndex === 0
     const isLastFolder = currentIndex === this.file_folder_list.length - 1
