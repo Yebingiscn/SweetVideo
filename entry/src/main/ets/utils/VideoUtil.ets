@@ -7,7 +7,7 @@ import ToolsUtil from './ToolsUtil'
 
 export default class VideoUtils {
   static refresh(videoListController: VideoListController, fileFolderDataSource: FileFolderDataSource,
-    folder?: FileFolder) {
+    folder?: FileFolder): FileFolder[] {
     //获取最新的folders
     const folders: FileFolder[] = Preferences.getFileFolder(PathUtils.appContext!)
     //更新FileFolderDataSource
@@ -21,7 +21,7 @@ export default class VideoUtils {
     }
     if (!currentFolder) {
       ToolsUtil.showToast('出异常了：数据刷新失败')
-      return
+      return folders
     }
     if (videoListController?.folder?.video_list) {
       //更新videoDataSource
@@ -29,5 +29,6 @@ export default class VideoUtils {
       //更新VideoListController
       videoListController.updateData(videoListController.videoDataSource, currentFolder!)
     }
+    return folders
   }
 }

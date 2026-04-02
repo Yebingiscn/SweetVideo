@@ -1,6 +1,7 @@
 import { FileFolderDataSource } from '../../utils/DataUtil'
 import FileFolderUtil from '../../utils/FileFolderUtil'
 import { PathUtils } from '../../utils/PathUtils'
+import { FileFolder } from '../../interfaces/FileFolderInterface'
 
 // 添加文件夹弹窗
 @CustomDialog
@@ -8,6 +9,8 @@ export struct AddFileFolderNameDialog { //编辑元数据弹窗
   controller?: CustomDialogController
   file_folder_name: string | undefined = undefined
   @Consume fileFolderSource: FileFolderDataSource
+  // 添加成功后回调，用于刷新UI
+  onFolderAdded?: (folders: FileFolder[]) => void
 
   build() {
     Column({ space: 25 }) {
@@ -52,11 +55,15 @@ export struct AddFileFolderNameDialog { //编辑元数据弹窗
         .borderRadius(16)
         .height(40)
         .enabled(this.file_folder_name?.trim() != '')
-        .onClick(() => {
+        .onClick(async () => {
           if (!this.file_folder_name || this.file_folder_name.trim() == '') {
             return
           }
-          FileFolderUtil.createNewFolder(PathUtils.appContext!, this.file_folder_name, this.fileFolderSource)
+          const updatedFolders = await FileFolderUtil.createNewFolder(PathUtils.appContext!, this.file_folder_name, this.fileFolderSource)
+          // 回调通知父组件更新文件夹列表
+          if (this.onFolderAdded) {
+            this.onFolderAdded(updatedFolders)
+          }
           this.controller?.close()
         })
       }.margin({ bottom: 10 })
