@@ -11,6 +11,7 @@ export struct XComponents {
   @Consume('player') player: AVPlayerController | MpvController
   @Prop choosePlayer: string
   @Prop subtitle: string
+  @Prop hideSubtitle: boolean = false
   @Link showControl: boolean
   @Link subtitleVisibility: Visibility
   @Link subtitle3DMode: Subtitle3DMode
@@ -58,7 +59,7 @@ export struct XComponents {
         screenWidth: this.player.screenWidth,
         screenHeight: this.player.screenHeight,
         showControl: this.showControl,
-        subTitleVisibility: this.subtitleVisibility,
+        subTitleVisibility: this.hideSubtitle ? Visibility.None : this.subtitleVisibility,
         subtitle3DMode: this.subtitle3DMode
       })
     }

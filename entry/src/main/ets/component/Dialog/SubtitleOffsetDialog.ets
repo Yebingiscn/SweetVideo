@@ -1,6 +1,10 @@
 @CustomDialog
 export struct SubtitleOffsetDialog {
   confirm?: (value: number) => void
+  onOffsetPreview?: (offset: number) => void
+  onCloseButton?: () => void
+  onPrevSubtitle?: (currentOffset: number) => number | undefined
+  onNextSubtitle?: (currentOffset: number) => number | undefined
   controller?: CustomDialogController
   getCurrentValue?: () => number
   title: string = '外挂字幕偏移时间'
@@ -27,10 +31,28 @@ export struct SubtitleOffsetDialog {
   private stepBy(delta: number): void {
     const nextValue = this.getCurrentValueForStep() + delta
     this.inputText = nextValue.toString()
+    this.onOffsetPreview?.(nextValue)
   }
 
   private resetValue(): void {
     this.inputText = '0'
+    this.onOffsetPreview?.(0)
+  }
+
+  private setOffsetValue(nextOffset: number | undefined): void {
+    if (nextOffset === undefined || Number.isNaN(nextOffset)) {
+      return
+    }
+    this.inputText = nextOffset.toString()
+    this.onOffsetPreview?.(nextOffset)
+  }
+
+  private moveToPrevSubtitle(): void {
+    this.setOffsetValue(this.onPrevSubtitle?.(this.getCurrentValueForStep()))
+  }
+
+  private moveToNextSubtitle(): void {
+    this.setOffsetValue(this.onNextSubtitle?.(this.getCurrentValueForStep()))
   }
 
   private getParsedValue(): number {
@@ -79,7 +101,13 @@ export struct SubtitleOffsetDialog {
           .borderRadius(16)
           .width(36)
           .height(36)
-          .onClick(() => this.controller?.close())
+          .onClick(() => {
+            if (this.onCloseButton) {
+              this.onCloseButton()
+              return
+            }
+            this.controller?.close()
+          })
 
           Button({ type: ButtonType.Normal, stateEffect: true }) {
             SymbolGlyph($r('sys.symbol.checkmark'))
@@ -159,6 +187,33 @@ export struct SubtitleOffsetDialog {
           .padding({ left: 2, right: 2 })
           .onClick(() => {
             this.stepBy(1000)
+          })
+      }
+      .width('100%')
+
+      Row({ space: 6 }) {
+        Button('上一条字幕')
+          .fontSize(this.quickBtnFontSize)
+          .fontColor($r('app.color.text_color'))
+          .height(32)
+          .layoutWeight(1)
+          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
+          .borderRadius(12)
+          .padding({ left: 2, right: 2 })
+          .onClick(() => {
+            this.moveToPrevSubtitle()
+          })
+
+        Button('下一条字幕')
+          .fontSize(this.quickBtnFontSize)
+          .fontColor($r('app.color.text_color'))
+          .height(32)
+          .layoutWeight(1)
+          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
+          .borderRadius(12)
+          .padding({ left: 2, right: 2 })
+          .onClick(() => {
+            this.moveToNextSubtitle()
           })
       }
       .width('100%')

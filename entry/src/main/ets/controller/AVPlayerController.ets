@@ -35,6 +35,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Track playTime: number = 0
   @Track audioTrack: AudioTrack[] = []
   @Track subtitleTrack: SubtitleTrack[] = []
+  @Track subtitleTrackSelected: number = -1
   @Track volume: number = 0
   @Track volumeActually: number = 0
   @Track screenBrightness: number = 0
@@ -200,9 +201,11 @@ export class AVPlayerController implements PlayerControllerInterface {
 
   async getSubtitleTrackList() {
     this.subtitleTrack = await VideoOperateUtil.getInnerSubtitles(this.avPlayer!)
+    this.subtitleTrackSelected = this.subtitleTrack.length > 0 ? this.subtitleTrack[0].id : -1
   }
 
   selectSubtitleTrack(index: number): void {
+    this.subtitleTrackSelected = index
     this.avPlayer?.selectTrack(index)?.catch(() => {
       ToolsUtil.addLogger('selectTrack error', true)
     })

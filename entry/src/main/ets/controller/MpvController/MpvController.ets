@@ -59,6 +59,7 @@ export class MpvController implements PlayerControllerInterface {
   @Track volumeActually: number = 0
   @Track audioTrack: MpvAudioTrack[] = []
   @Track subtitleTrack: MpvSubtitleTrack[] = []
+  @Track subtitleTrackSelected: number = -1
   @Track screenBrightness: number = 0
   @Track onSwipingVoice: boolean = false
   @Track subtitleSelected: SubtitleMode = SubtitleMode.INNER_SUBTITLE
@@ -340,9 +341,11 @@ export class MpvController implements PlayerControllerInterface {
 
   getSubtitleTrackList() {
     this.subtitleTrack = mpvGetSubtitleTracks(this.mpvHandle) as MpvSubtitleTrack[]
+    this.subtitleTrackSelected = this.subtitleTrack.length > 0 ? this.subtitleTrack[0].id : -1
   }
 
   selectSubtitleTrack(trackId: number): void {
+    this.subtitleTrackSelected = trackId
     mpvSelectSubtitle(this.mpvHandle, trackId)
   }
 
