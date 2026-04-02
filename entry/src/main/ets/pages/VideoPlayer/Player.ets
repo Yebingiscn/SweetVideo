@@ -9,6 +9,7 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import Preferences from '../../database/Preferences'
 import { PathUtils } from '../../utils/PathUtils'
+import SelectFileUtil from '../../utils/SelectFileUtil'
 import { PlayerSideBarComponent } from '../../component/PlayerComponent/PlayerSideBarComponent'
 import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder'
 import { AudioTrackComponent } from '../../component/PlayerComponent/AudioTrackComponent'
@@ -86,12 +87,13 @@ export struct Player { // 播放页
   @State isAIAsrShown: boolean = false
   @State currentSpeedIndex: number = 0
   @State subtitleVisibility: Visibility = Visibility.Visible
-  @State subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
+  @State @Watch('onSubtitle3DModeChanged') subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
   @Consume('pathStack') pathStack: NavPathStack
   @State exitVideoTime: number = 0
   @State isAdjustingSubtitleOffset: boolean = false
   private subtitleOffsetPreviewBase: number = 0
   private subtitleOffsetShouldResumePlayback: boolean = false
+  private isApplyingSubtitleMetadata: boolean = false
 
   private isOffsetSubtitleOverlayActive(): boolean {
     return this.isAdjustingSubtitleOffset && this.player.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE
@@ -158,11 +160,145 @@ export struct Player { // 播放页
     this.subtitleVisibility = Visibility.Visible
     this.player.subtitleSelected = SubtitleMode.EXTERNAL_SUBTITLE
     this.refreshExternalSubtitleByPlaybackTime()
+    this.saveSubtitlePreferenceForCurrentVideo()
   }
 
   private turnOffSubtitleDisplay(): void {
     this.isAIAsrShown = false
     this.subtitleVisibility = Visibility.None
+    this.saveSubtitlePreferenceForCurrentVideo()
+  }
+
+  private onSubtitle3DModeChanged(): void {
+    if (this.isApplyingSubtitleMetadata) {
+      return
+    }
+    this.saveSubtitlePreferenceForCurrentVideo()
+  }
+
+  private normalizeSubtitleMode(subtitleMode?: number): SubtitleMode {
+    if (subtitleMode === SubtitleMode.EXTERNAL_SUBTITLE || subtitleMode === SubtitleMode.AI_SUBTITLE) {
+      return subtitleMode
+    }
+    return SubtitleMode.INNER_SUBTITLE
+  }
+
+  private normalizeSubtitle3DMode(subtitle3DMode?: number): Subtitle3DMode {
+    if (subtitle3DMode === Subtitle3DMode.SIDE_BY_SIDE || subtitle3DMode === Subtitle3DMode.TOP_AND_BOTTOM) {
+      return subtitle3DMode
+    }
+    return Subtitle3DMode.DISABLED
+  }
+
+  private hasSubtitlePreferenceMetadata(nowPlaying: VideoMetadata): boolean {
+    return nowPlaying.subtitle_mode !== undefined ||
+      nowPlaying.subtitle_visible !== undefined ||
+      nowPlaying.subtitle_ai_asr_shown !== undefined ||
+      nowPlaying.subtitle_3d_mode !== undefined ||
+      nowPlaying.subtitle_offset_millis !== undefined ||
+      nowPlaying.subtitle_track_id !== undefined
+  }
+
+  private hasInnerSubtitleTrack(): boolean {
+    return this.player.subtitleTrack.length > 0
+  }
+
+  private hasExternalSubtitle(): boolean {
+    return (this.player.nowPlaying?.external_subtitle_format?.length ?? 0) > 0
+  }
+
+  private applySubtitlePreferenceFromMetadata(): void {
+    const nowPlaying = this.player.nowPlaying
+    if (!nowPlaying) {
+      return
+    }
+    this.isApplyingSubtitleMetadata = true
+
+    if (!this.hasSubtitlePreferenceMetadata(nowPlaying)) {
+      this.isAIAsrShown = false
+      this.subtitle3DMode = Subtitle3DMode.DISABLED
+      SubtitleUtil.offsetMillis = 0
+
+      if (this.hasInnerSubtitleTrack()) {
+        this.subtitleVisibility = Visibility.Visible
+        this.player.subtitleSelected = SubtitleMode.INNER_SUBTITLE
+      } else if (this.hasExternalSubtitle()) {
+        this.subtitleVisibility = Visibility.Visible
+        this.player.subtitleSelected = SubtitleMode.EXTERNAL_SUBTITLE
+        this.refreshExternalSubtitleByPlaybackTime()
+      } else {
+        this.subtitleVisibility = Visibility.None
+        this.player.subtitleSelected = SubtitleMode.INNER_SUBTITLE
+      }
+      this.isApplyingSubtitleMetadata = false
+      this.saveSubtitlePreferenceForCurrentVideo()
+      return
+    }
+
+    const subtitleMode = this.normalizeSubtitleMode(nowPlaying.subtitle_mode)
+    const subtitleVisible = nowPlaying.subtitle_visible ?? true
+    const subtitleAIAsrShown = nowPlaying.subtitle_ai_asr_shown ?? false
+    const subtitle3DMode = this.normalizeSubtitle3DMode(nowPlaying.subtitle_3d_mode)
+    const subtitleTrackId = nowPlaying.subtitle_track_id ?? -1
+    let subtitleOffsetMillis = nowPlaying.subtitle_offset_millis ?? 0
+    subtitleOffsetMillis = Math.max(-50000, Math.min(50000, Math.round(subtitleOffsetMillis)))
+
+    this.subtitle3DMode = subtitle3DMode
+    SubtitleUtil.offsetMillis = subtitleOffsetMillis
+
+    if (subtitleAIAsrShown && canIUse('SystemCapability.AI.AICaption')) {
+      this.isAIAsrShown = true
+      this.subtitleVisibility = Visibility.None
+      this.player.subtitleSelected = SubtitleMode.AI_SUBTITLE
+      this.isApplyingSubtitleMetadata = false
+      this.saveSubtitlePreferenceForCurrentVideo()
+      return
+    }
+
+    this.isAIAsrShown = false
+    this.subtitleVisibility = subtitleVisible ? Visibility.Visible : Visibility.None
+    if (subtitleMode === SubtitleMode.EXTERNAL_SUBTITLE && this.hasExternalSubtitle()) {
+      this.player.subtitleSelected = SubtitleMode.EXTERNAL_SUBTITLE
+      this.refreshExternalSubtitleByPlaybackTime()
+    } else {
+      this.player.subtitleSelected = SubtitleMode.INNER_SUBTITLE
+      if (subtitleTrackId >= 0) {
+        const selectedTrack = this.player.subtitleTrack.find((track) => track.id === subtitleTrackId)
+        if (selectedTrack) {
+          this.player.selectSubtitleTrack(selectedTrack.id)
+        }
+      }
+    }
+    this.isApplyingSubtitleMetadata = false
+    this.saveSubtitlePreferenceForCurrentVideo()
+  }
+
+  private saveSubtitlePreferenceForCurrentVideo(): void {
+    if (!this.player.nowPlaying || !PathUtils.appContext) {
+      return
+    }
+    const subtitleMode = this.normalizeSubtitleMode(this.player.subtitleSelected)
+    const subtitleVisible = this.subtitleVisibility === Visibility.Visible
+    const subtitleAIAsrShown = this.isAIAsrShown
+    const subtitle3DMode = this.normalizeSubtitle3DMode(this.subtitle3DMode)
+    const subtitleOffsetMillis = Math.max(-50000, Math.min(50000, Math.round(SubtitleUtil.offsetMillis)))
+    const subtitleTrackId = this.player.subtitleTrackSelected
+
+    this.player.nowPlaying.subtitle_mode = subtitleMode
+    this.player.nowPlaying.subtitle_visible = subtitleVisible
+    this.player.nowPlaying.subtitle_ai_asr_shown = subtitleAIAsrShown
+    this.player.nowPlaying.subtitle_3d_mode = subtitle3DMode
+    this.player.nowPlaying.subtitle_offset_millis = subtitleOffsetMillis
+    this.player.nowPlaying.subtitle_track_id = subtitleTrackId
+
+    SelectFileUtil.saveData(PathUtils.appContext!, this.player.nowPlaying, {
+      subtitleMode,
+      subtitleVisible,
+      subtitleAIAsrShown,
+      subtitle3DMode,
+      subtitleOffsetMillis,
+      subtitleTrackId
+    })
   }
 
   subtitleTimestampInputDialog: CustomDialogController = new CustomDialogController({
@@ -190,6 +326,7 @@ export struct Player { // 播放页
           SubtitleUtil.offsetMillis = input
           this.refreshExternalSubtitlePreview(input)
           this.finishSubtitleOffsetSession()
+          this.saveSubtitlePreferenceForCurrentVideo()
           this.subtitleTimestampInputDialog.close()
         } else {
           ToolsUtil.showToast('输入错误：请输入 -50000 到 50000 的整数')
@@ -228,6 +365,7 @@ export struct Player { // 播放页
     Preferences.saveVideoSpeed(PathUtils.appContext!,
       (VideoInfoUtil.videoSpeedListAll.includes(this.player.speed) ? this.player.speed : 1) + 'x')
     Preferences.saveRepeatModeState(PathUtils.appContext!, this.player.repeatMode)
+    this.saveSubtitlePreferenceForCurrentVideo()
     WindowUtil.setBarState(PathUtils.appContext!, true, true)
     clearTimeout(this.exitVideoTime)
     this.player.cancelSubscribe()
@@ -325,6 +463,7 @@ export struct Player { // 播放页
           ToolsUtil.addLogger("开始播放视频", false, this.pathStack)
           await this.player.getAudioTrackList()
           await this.player.getSubtitleTrackList()
+          this.applySubtitlePreferenceFromMetadata()
           ToolsUtil.addLogger("获取音频轨道完成", false, this.pathStack)
           await this.player.initVolumeAndBrightness()
           this.player.updatePlaybackSpeed(this.player.speed)
@@ -727,6 +866,7 @@ export struct Player { // 播放页
     })
     .onWillDisappear(async () => {
       ToolsUtil.addLogger("开始执行onWillDisappear生命周期", false, this.pathStack)
+      this.saveSubtitlePreferenceForCurrentVideo()
       VideoOperateUtil.saveLastPlayVideoIndex(this.player.videoMetaDataList, this.player.nowPlaying?.date)
       if (this.player.videoMetaDataList.length > 0 && this.player.playTime > 0) {
         VideoOperateUtil.saveVideoTime(this.player.playTime, this.player.nowPlaying!, this.player.videoMetaDataList,
@@ -1006,6 +1146,7 @@ export struct Player { // 播放页
         this.subtitleVisibility = Visibility.Visible
         this.isAIAsrShown = false
         this.player.subtitleSelected = SubtitleMode.INNER_SUBTITLE
+        this.saveSubtitlePreferenceForCurrentVideo()
       },
       onExternalSubtitleClick: () => {
         this.activateExternalSubtitle()
@@ -1017,6 +1158,7 @@ export struct Player { // 播放页
         this.isAIAsrShown = !this.isAIAsrShown
         this.subtitleVisibility = Visibility.None
         this.player.subtitleSelected = SubtitleMode.AI_SUBTITLE
+        this.saveSubtitlePreferenceForCurrentVideo()
       },
     })
   }

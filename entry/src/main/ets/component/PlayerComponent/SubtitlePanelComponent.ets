@@ -224,13 +224,8 @@ export struct SubtitlePanelComponent {
             $r('app.color.text_color'))
           .backgroundColor(this.player.subtitleTrackSelected === item.id ? $r('app.color.main_color') : '')
           .onClick(() => {
+            this.player.selectSubtitleTrack(item.id)
             this.onInnerSubtitleClick()
-            if (this.player instanceof MpvController) {
-              this.player?.selectSubtitleTrack(item.id)
-            }
-            if (this.player instanceof AVPlayerController) {
-              this.player?.selectSubtitleTrack(item.id)
-            }
           })
       }, (item: MpvSubtitleTrack | SubtitleTrack) => `${item.id}`)
     }
