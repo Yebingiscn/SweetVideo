@@ -57,6 +57,7 @@ import { AISubtitleComponent } from '../../component/PlayerComponent/AIAsrCompon
 import PiPWindowUtil from '../../utils/PiPWindowUtil'
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
 import { NumberInputDialog } from '../../component/Dialog/NumberInputDialog'
+import { SubtitleOffsetDialog } from '../../component/Dialog/SubtitleOffsetDialog'
 
 @Component
 export struct Player { // 播放页
@@ -88,15 +89,17 @@ export struct Player { // 播放页
   @Consume('pathStack') pathStack: NavPathStack
   @State exitVideoTime: number = 0
   subtitleTimestampInputDialog: CustomDialogController = new CustomDialogController({
-    builder: NumberInputDialog({
-      title: '外挂字幕偏移时间',
-      placeholderColor: '输入范围：-50000-50000' +
-        (SubtitleUtil.offsetMillis > 0 ? '：' + SubtitleUtil.offsetMillis : ''),
+    builder: SubtitleOffsetDialog({
+      getCurrentValue: () => SubtitleUtil.offsetMillis,
       confirm: (input: number) => {
-        if (input && Math.abs(input || 0) <= 50000) {
-          SubtitleUtil.offsetMillis = input || 0
+        if (Number.isNaN(input)) {
+          ToolsUtil.showToast('未输入偏移')
+          this.subtitleTimestampInputDialog.close()
+        } else if (Math.abs(input) <= 50000) {
+          SubtitleUtil.offsetMillis = input
+          this.subtitleTimestampInputDialog.close()
         } else {
-          ToolsUtil.showToast('输入错误')
+          ToolsUtil.showToast('输入错误：请输入 -50000 到 50000 的整数')
         }
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow

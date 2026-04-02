@@ -250,7 +250,8 @@ class SubtitleUtil {
       return "";
     }
     // 应用偏移量：将播放器时间转换为字幕时间
-    const adjustedTimestamp = timestamp - this.offsetMillis;
+    // 约定：offset > 0 时，字幕会延迟显示（视频第 N 毫秒的时候显示第 N + offset 的时候的字幕）
+    const adjustedTimestamp = timestamp + this.offsetMillis;
     // 如果偏移后的时间可能为负数，可以酌情处理
     // 这里简单的将负数视为0，避免越界错误
     const searchTimestamp = Math.max(adjustedTimestamp, 0);
