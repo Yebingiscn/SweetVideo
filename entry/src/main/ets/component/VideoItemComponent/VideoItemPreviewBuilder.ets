@@ -3,7 +3,6 @@ import { ImageFancyModifier } from '../../common/AttributeModifierConfig';
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
 import { PathUtils } from '../../utils/PathUtils';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
-import { VideoInfoBuilder } from './VideoInfoBuilder';
 
 @Builder
 export function VideoItemPreviewBuilder(item: VideoMetadata) {
@@ -31,8 +30,6 @@ export function VideoItemPreviewBuilder(item: VideoMetadata) {
       .padding({ left: 5, right: 5, top: 10 })
       .width('100%')
       .height('auto')
-    // 视频信息
-    VideoInfoBuilder({ item: item, showProgress: true })
   }
   .width('100%')
   .constraintSize({ maxWidth: 360 })
