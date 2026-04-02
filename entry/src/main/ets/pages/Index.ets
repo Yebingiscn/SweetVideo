@@ -50,6 +50,13 @@ struct Index {
   @State processedItems: number = 0
   @State totalItems: number = 0
   @Provide file_folder_list: FileFolder[] = []
+  addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
+    builder: AddFileFolderNameDialog({
+      onFolderAdded: (folders: FileFolder[]) => {
+        this.file_folder_list = folders
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
   @State searchValue: string = ''
   @StorageLink('screen_width') screen_width: number = 0
   @Provide videoListController: VideoListController = new VideoListController()
@@ -67,160 +74,12 @@ struct Index {
   })
   @Provide sideBarController: SideBarController = new SideBarController()
   @Provide('pathStack') pathStack: NavPathStack = new NavPathStack()
-  // 侧边栏滚动控制器
-  private sideBarScroller: Scroller = new Scroller()
-  addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
-    builder: AddFileFolderNameDialog({
-      onFolderAdded: (folders: FileFolder[]) => {
-        this.file_folder_list = folders
-      }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
   deletedVideosDialogController: CustomDialogController = new CustomDialogController({
     builder: DeletedVideosDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  // 侧边栏滚动控制器
+  private sideBarScroller: Scroller = new Scroller()
   private passwd: string = 'passwd'
-  private readonly SWIPE_ANGLE_THRESHOLD: number = 45
-
-  /**
-   * 获取当前文件夹在列表中的索引
-   */
-  private getCurrentFolderIndex(): number {
-    return this.file_folder_list.findIndex(
-      folder => folder.date === this.videoListController?.folder?.date
-    )
-  }
-
-  /**
-   * 切换到指定索引的文件夹
-   */
-  private switchToFolder(index: number): void {
-    if (index < 0 || index >= this.file_folder_list.length) {
-      return
-    }
-
-    const targetFolder = this.file_folder_list[index]
-    if (this.videoListController.folder?.date === targetFolder.date) {
-      return
-    }
-
-    // 保留搜索状态，在新文件夹中应用搜索过滤
-
-    // 刷新文件夹列表（确保数据最新）
-    this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
-    this.fileFolderSource.updateData(this.file_folder_list)
-
-    // 获取目标文件夹的最新数据
-    const currentFolder = this.fileFolderSource.getFileFolder(targetFolder.name)
-    if (currentFolder) {
-      // 如果有搜索值，在新文件夹中过滤视频
-      let filteredVideos = currentFolder.video_list
-      if (this.searchValue.length > 0) {
-        filteredVideos = SelectFileUtil.getItemFromSearch(currentFolder.video_list, this.searchValue)
-      }
-      // 添加过渡动画
-      animateToImmediately({
-        duration: 200,
-        curve: Curve.EaseInOut
-      }, () => {
-        this.videoListController.videoDataSource.updateData(filteredVideos)
-        this.videoListController.updateData(
-          this.videoListController.videoDataSource,
-          currentFolder
-        )
-      })
-    }
-
-    // 触发面包屑滚动（为 Task 2 预留）
-    AppStorage.setOrCreate('scrollToFolderDate', targetFolder.date)
-
-    // 滚动侧边栏使当前文件夹可见
-    // 估算位置：AppInfoBuilder(100) + 导入按钮(60) + 添加文件夹按钮(60) + 间距(40) = 260
-    // 文件夹列表从约 260vp 开始，每个文件夹 70vp
-    const estimatedOffset = index > 0 ? 260 + (index - 1) * 70 : 0
-    animateToImmediately({
-      duration: 200,
-      curve: Curve.Ease
-    }, () => {
-      this.sideBarScroller.scrollTo({
-        xOffset: 0,
-        yOffset: estimatedOffset,
-        animation: { duration: 200, curve: Curve.Ease }
-      })
-    })
-  }
-
-  /**
-   * 处理文件夹切换滑动手势
-   */
-  private handleFolderSwipe(event: GestureEvent): void {
-    // 批量选择模式下禁止切换
-    if (this.videoListController.multipleChooseState === Visibility.Visible) {
-      return
-    }
-
-    // 侧边栏展开时（Overlay 模式）：左滑关闭侧边栏
-    // Embed 模式下侧边栏始终展开，但仍允许文件夹切换
-    if (this.sideBarController.visibility === Visibility.Visible &&
-      this.sideBarController.mode === SideBarContainerType.Overlay) {
-      const rotateAngle = event.angle ?? 0
-      // 从右向左滑（手指从右往左移动，角度接近180/-180）-> 关闭侧边栏
-      if (rotateAngle < -135 || rotateAngle > 135) {
-        this.sideBarController.close(true)
-      }
-      return
-    }
-
-    const rotateAngle = event.angle ?? 0
-    // 手势方向：手指移动方向
-    // 从左往右滑（右滑）：角度接近0度
-    // 从右往左滑（左滑）：角度接近180/-180度
-    const isSwipeRight = rotateAngle > -45 && rotateAngle < 45
-    const isSwipeLeft = rotateAngle < -135 || rotateAngle > 135
-
-    // 面包屑未开启时：只允许右滑打开侧边栏（仅 Overlay 模式）
-    if (!Setting.showToast) {
-      if (isSwipeRight && this.sideBarController.mode === SideBarContainerType.Overlay) {
-        this.sideBarController.open()
-      }
-      return
-    }
-
-    // 文件夹列表为空或只有一个时：右滑打开侧边栏（仅 Overlay 模式），左滑不响应
-    if (this.file_folder_list.length <= 1) {
-      if (isSwipeRight && this.sideBarController.mode === SideBarContainerType.Overlay) {
-        this.sideBarController.open()
-      }
-      return
-    }
-    const currentIndex = this.getCurrentFolderIndex()
-    // 检查当前文件夹索引是否有效
-    if (currentIndex === -1) {
-      console.error(`[Index] handleFolderSwipe: current folder not found in list`)
-      return
-    }
-    const isFirstFolder = currentIndex === 0
-    const isLastFolder = currentIndex === this.file_folder_list.length - 1
-
-    if (isSwipeRight) {
-      // 从左向右滑
-      if (isFirstFolder) {
-        // 第一个文件夹右滑 -> 打开侧边栏（仅 Overlay 模式）
-        if (this.sideBarController.mode === SideBarContainerType.Overlay) {
-          this.sideBarController.open()
-        }
-        // Embed 模式下侧边栏已固定，无需操作
-      } else {
-        // 切换到上一个文件夹
-        this.switchToFolder(currentIndex - 1)
-      }
-    } else if (isSwipeLeft) {
-      // 从右向左滑
-      if (!isLastFolder) {
-        this.switchToFolder(currentIndex + 1)
-      }
-    }
-  }
 
   @Builder
   FileFolderSelectMenu(folder: FileFolder) {
@@ -349,7 +208,7 @@ struct Index {
       )
       ToolsUtil.showToast(
         `${ToolsUtil.getStringResource($r('app.string.add_time_info').id)}${this.totalItems -
-        FileFolderUtil.duplicateVideo}${FileFolderUtil.duplicateVideo > 0 ?
+          FileFolderUtil.duplicateVideo}${FileFolderUtil.duplicateVideo > 0 ?
           '重复视频已经智能跳过，跳过视频数：' + FileFolderUtil.duplicateVideo : ''}`
       )
     } catch (error) {
@@ -443,7 +302,7 @@ struct Index {
               .width('100%')
               .height('auto')
               .align(Alignment.Start)
-              .margin({ top: 10,bottom: 10 })
+              .margin({ top: 10, bottom: 10 })
               .backgroundColor($r('app.color.start_window_background_blur'))
             }.width('100%')
           }
@@ -680,5 +539,145 @@ struct Index {
       return true
     }
     return false
+  }
+
+  /**
+   * 获取当前文件夹在列表中的索引
+   */
+  private getCurrentFolderIndex(): number {
+    return this.file_folder_list.findIndex(
+      folder => folder.date === this.videoListController?.folder?.date
+    )
+  }
+
+  /**
+   * 切换到指定索引的文件夹
+   */
+  private switchToFolder(index: number): void {
+    if (index < 0 || index >= this.file_folder_list.length) {
+      return
+    }
+
+    const targetFolder = this.file_folder_list[index]
+    if (this.videoListController.folder?.date === targetFolder.date) {
+      return
+    }
+
+    // 保留搜索状态，在新文件夹中应用搜索过滤
+
+    // 刷新文件夹列表（确保数据最新）
+    this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
+    this.fileFolderSource.updateData(this.file_folder_list)
+
+    // 获取目标文件夹的最新数据
+    const currentFolder = this.fileFolderSource.getFileFolder(targetFolder.name)
+    if (currentFolder) {
+      // 如果有搜索值，在新文件夹中过滤视频
+      let filteredVideos = currentFolder.video_list
+      if (this.searchValue.length > 0) {
+        filteredVideos = SelectFileUtil.getItemFromSearch(currentFolder.video_list, this.searchValue)
+      }
+      // 添加过渡动画
+      animateToImmediately({
+        duration: 200,
+        curve: Curve.EaseInOut
+      }, () => {
+        this.videoListController.videoDataSource.updateData(filteredVideos)
+        this.videoListController.updateData(
+          this.videoListController.videoDataSource,
+          currentFolder
+        )
+      })
+    }
+
+    // 触发面包屑滚动（为 Task 2 预留）
+    AppStorage.setOrCreate('scrollToFolderDate', targetFolder.date)
+
+    // 滚动侧边栏使当前文件夹可见
+    // 估算位置：AppInfoBuilder(100) + 导入按钮(60) + 添加文件夹按钮(60) + 间距(40) = 260
+    // 文件夹列表从约 260vp 开始，每个文件夹 70vp
+    const estimatedOffset = index > 0 ? 260 + (index - 1) * 70 : 0
+    animateToImmediately({
+      duration: 200,
+      curve: Curve.Ease
+    }, () => {
+      this.sideBarScroller.scrollTo({
+        xOffset: 0,
+        yOffset: estimatedOffset,
+        animation: { duration: 200, curve: Curve.Ease }
+      })
+    })
+  }
+
+  /**
+   * 处理文件夹切换滑动手势
+   */
+  private handleFolderSwipe(event: GestureEvent): void {
+    // 批量选择模式下禁止切换
+    if (this.videoListController.multipleChooseState === Visibility.Visible) {
+      return
+    }
+
+    // 侧边栏展开时（Overlay 模式）：左滑关闭侧边栏
+    // Embed 模式下侧边栏始终展开，但仍允许文件夹切换
+    if (this.sideBarController.visibility === Visibility.Visible &&
+      this.sideBarController.mode === SideBarContainerType.Overlay) {
+      const rotateAngle = event.angle ?? 0
+      // 从右向左滑（手指从右往左移动，角度接近180/-180）-> 关闭侧边栏
+      if (rotateAngle < -135 || rotateAngle > 135) {
+        this.sideBarController.close(true)
+      }
+      return
+    }
+
+    const rotateAngle = event.angle ?? 0
+    // 手势方向：手指移动方向
+    // 从左往右滑（右滑）：角度接近0度
+    // 从右往左滑（左滑）：角度接近180/-180度
+    const isSwipeRight = rotateAngle > -45 && rotateAngle < 45
+    const isSwipeLeft = rotateAngle < -135 || rotateAngle > 135
+
+    // 面包屑未开启时：只允许右滑打开侧边栏（仅 Overlay 模式）
+    if (!Setting.showToast) {
+      if (isSwipeRight && this.sideBarController.mode === SideBarContainerType.Overlay) {
+        this.sideBarController.open()
+      }
+      return
+    }
+
+    // 文件夹列表为空或只有一个时：右滑打开侧边栏（仅 Overlay 模式），左滑不响应
+    if (this.file_folder_list.length <= 1) {
+      if (isSwipeRight && this.sideBarController.mode === SideBarContainerType.Overlay) {
+        this.sideBarController.open()
+      }
+      return
+    }
+    const currentIndex = this.getCurrentFolderIndex()
+    // 检查当前文件夹索引是否有效
+    if (currentIndex === -1) {
+      console.error(`[Index] handleFolderSwipe: current folder not found in list`)
+      return
+    }
+    const isFirstFolder = currentIndex === 0
+    const isLastFolder = currentIndex === this.file_folder_list.length - 1
+
+    if (isSwipeRight) {
+      // 从左向右滑
+      if (isFirstFolder) {
+        // 第一个文件夹右滑 -> 打开侧边栏（仅 Overlay 模式）
+        if (this.sideBarController.mode === SideBarContainerType.Overlay) {
+          this.sideBarController.open()
+        }
+        // Embed 模式下侧边栏已固定，无需操作
+      } else {
+        // 切换到上一个文件夹
+        this.switchToFolder(currentIndex - 1)
+      }
+    } else if (isSwipeLeft) {
+      // 从右向左滑
+      if (!isLastFolder) {
+        this.switchToFolder(currentIndex + 1)
+      }
+    }
   }
 }

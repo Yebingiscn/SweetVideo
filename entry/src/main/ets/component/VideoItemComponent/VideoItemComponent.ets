@@ -203,27 +203,11 @@ export struct VideoList {
               backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
               preview: VideoItemPreviewBuilder(item),
               previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2] },
-              layoutRegionMargin: { left: 16, right: 16, top: 16, bottom: 4 },
-              aboutToAppear: () => {
-                salmonLogger.addLog('sweet_video', '菜单执行aboutToAppear', false)
-              },
-              onAppear: () => {
-                salmonLogger.addLog('sweet_video', '菜单执行onAppear', false)
-              },
-              onDidAppear: () => {
-                salmonLogger.addLog('sweet_video', '菜单执行onDidAppear', false)
-              },
-              onDidDisappear: () => {
-                salmonLogger.addLog('sweet_video', '菜单执行onDidDisappear', false)
-              },
-              onWillDisappear: () => {
-                salmonLogger.addLog('sweet_video', '菜单执行onWillDisappear', false)
-              },
-              onWillAppear: () => {
-                salmonLogger.addLog('sweet_video', '菜单执行onWillAppear', false)
-              },
-              onDisappear: () => {
-                salmonLogger.addLog('sweet_video', '菜单执行onDisappear', false)
+              layoutRegionMargin: {
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: 4
               },
               hapticFeedbackMode: HapticFeedbackMode.ENABLED
             })
@@ -232,7 +216,13 @@ export struct VideoList {
               backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
               preview: VideoItemPreviewBuilder(item),
               previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2] },
-              layoutRegionMargin: { left: 16, right: 16, top: 16, bottom: 4 },
+              layoutRegionMargin: {
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: 4
+              },
+              mask: true
             })
           .gesture(
             TapGesture({ count: 1, fingers: 1 })
@@ -299,15 +289,26 @@ export struct VideoList {
                   backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                   preview: VideoItemPreviewBuilder(item),
                   previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2] },
-                  layoutRegionMargin: { left: 16, right: 16, top: 16, bottom: 4 },
-                  hapticFeedbackMode: HapticFeedbackMode.ENABLED
+                  layoutRegionMargin: {
+                    left: 16,
+                    right: 16,
+                    top: 16,
+                    bottom: 4
+                  },
+                  hapticFeedbackMode: HapticFeedbackMode.ENABLED,
+                  mask: true
                 })
               .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
                 {
                   backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                   preview: VideoItemPreviewBuilder(item),
                   previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2] },
-                  layoutRegionMargin: { left: 16, right: 16, top: 16, bottom: 4 },
+                  layoutRegionMargin: {
+                    left: 16,
+                    right: 16,
+                    top: 16,
+                    bottom: 4
+                  },
                 })
               .gesture(
                 TapGesture({ count: 1, fingers: 1 })

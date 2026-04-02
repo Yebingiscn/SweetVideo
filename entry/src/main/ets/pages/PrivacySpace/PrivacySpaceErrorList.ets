@@ -11,7 +11,6 @@ import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
 export struct PrivacySpaceErrorList {
   @State errorListDataSource: PrivacySpaceErrorListDataSource = new PrivacySpaceErrorListDataSource([])
   @State videoList: String[] = []
-  @State longPressPreview: boolean = false
   @Consume('pathStack') pathStack: NavPathStack
   private listScroller: Scroller = new Scroller()
 
@@ -75,8 +74,7 @@ export struct PrivacySpaceErrorList {
       .padding({ left: 15, right: 15 })
       .layoutWeight(1)
     }
-    .backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
-      $r('app.color.start_window_background'))
+    .backgroundColor($r('app.color.start_window_background'))
     .justifyContent(FlexAlign.Center)
     .width('100%')
   }
@@ -102,26 +100,26 @@ export struct PrivacySpaceErrorList {
                 backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
                 preview: this.VideoItemBuilder(errorVideo),
                 previewAnimationOptions: { hoverScale: [1.0, 1.2] },
-                layoutRegionMargin: { left: 16, right: 16, top: 16, bottom: 4 },
-                onAppear: () => {
-                  this.longPressPreview = true
+                layoutRegionMargin: {
+                  left: 16,
+                  right: 16,
+                  top: 16,
+                  bottom: 4
                 },
-                aboutToDisappear: () => {
-                  this.longPressPreview = false
-                },
+                mask: true,
                 hapticFeedbackMode: HapticFeedbackMode.ENABLED
               })
               .bindContextMenu(this.MenuBuilder(errorVideo), ResponseType.RightClick, {
                 backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
                 preview: this.VideoItemBuilder(errorVideo),
                 previewAnimationOptions: { hoverScale: [1.0, 1.2] },
-                layoutRegionMargin: { left: 16, right: 16, top: 16, bottom: 4 },
-                onAppear: () => {
-                  this.longPressPreview = true
+                layoutRegionMargin: {
+                  left: 16,
+                  right: 16,
+                  top: 16,
+                  bottom: 4
                 },
-                aboutToDisappear: () => {
-                  this.longPressPreview = false
-                }
+                mask: true
               })
             }, (errorVideo: string) => errorVideo)
           }

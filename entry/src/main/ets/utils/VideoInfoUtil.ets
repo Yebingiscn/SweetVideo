@@ -98,7 +98,10 @@ export default class VideoInfoUtil {
     return speed ? speed.toFixed(2).replace(/\.?0+$/, '') + 'x' : '1x'
   }
 
-  static getVideoTitle(item: VideoMetadata) {
+  static getVideoTitle(item: VideoMetadata | undefined) {
+    if (!item) {
+      return ''
+    }
     return item.title.slice(0, item.title.lastIndexOf('.'))
   }
 
