@@ -17,7 +17,6 @@ export function VideoItemPreviewBuilder(item: VideoMetadata) {
         bottomRight: 16
       }, '', ''))
       .width('100%')
-      .height('auto')
       .aspectRatio(16 / 9)
       .objectFit(ImageFit.Cover)
       .clip(true)
@@ -36,7 +35,7 @@ export function VideoItemPreviewBuilder(item: VideoMetadata) {
     VideoInfoBuilder({ item: item, showProgress: true })
   }
   .width('100%')
-  .height('auto')
+  .constraintSize({ maxWidth: 360 })
   .backgroundColor($r('app.color.start_window_background'))
   .borderRadius(16)
   .padding({ bottom: 25 })

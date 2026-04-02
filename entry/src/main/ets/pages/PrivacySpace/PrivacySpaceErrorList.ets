@@ -102,6 +102,7 @@ export struct PrivacySpaceErrorList {
                 backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
                 preview: this.VideoItemBuilder(errorVideo),
                 previewAnimationOptions: { hoverScale: [1.0, 1.2] },
+                layoutRegionMargin: { left: 16, right: 16, top: 16, bottom: 4 },
                 onAppear: () => {
                   this.longPressPreview = true
                 },
@@ -114,6 +115,7 @@ export struct PrivacySpaceErrorList {
                 backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
                 preview: this.VideoItemBuilder(errorVideo),
                 previewAnimationOptions: { hoverScale: [1.0, 1.2] },
+                layoutRegionMargin: { left: 16, right: 16, top: 16, bottom: 4 },
                 onAppear: () => {
                   this.longPressPreview = true
                 },

@@ -426,6 +426,7 @@ export struct PrivacySpace { // 隐私空间页
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 preview: VideoItemPreviewBuilder(item),
                 previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2] },
+                layoutRegionMargin: { left: 16, right: 16, top: 16, bottom: 4 },
                 hapticFeedbackMode: HapticFeedbackMode.ENABLED
               })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
@@ -433,6 +434,7 @@ export struct PrivacySpace { // 隐私空间页
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 preview: VideoItemPreviewBuilder(item),
                 previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2] },
+                layoutRegionMargin: { left: 16, right: 16, top: 16, bottom: 4 },
               })
             .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
             .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
