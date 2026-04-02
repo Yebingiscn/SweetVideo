@@ -63,16 +63,14 @@ export struct PrivacySpaceErrorList {
       Image(fileUri.getUriFromPath(PathUtils.coverPath + errorVideo))
         .attributeModifier(new ImageFancyModifier(16, 80, 120))
       Column() {
-        Row() {
-          Text(errorVideo)
-            .fontSize(16)
-            .fontWeight(FontWeight.Bold)
-            .maxLines(4)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .width('100%')
-            .margin({ left: 5 })
-            .wordBreak(WordBreak.BREAK_ALL)
-        }
+        Text(errorVideo)
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .maxLines(4)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .width('100%')
+          .margin({ left: 5 })
+          .wordBreak(WordBreak.BREAK_ALL)
       }.alignItems(HorizontalAlign.Start)
       .padding({ left: 15, right: 15 })
       .layoutWeight(1)
@@ -109,7 +107,8 @@ export struct PrivacySpaceErrorList {
                 },
                 aboutToDisappear: () => {
                   this.longPressPreview = false
-                }
+                },
+                hapticFeedbackMode: HapticFeedbackMode.ENABLED
               })
               .bindContextMenu(this.MenuBuilder(errorVideo), ResponseType.RightClick, {
                 backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,

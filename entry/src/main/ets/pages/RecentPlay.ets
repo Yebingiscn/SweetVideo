@@ -19,7 +19,6 @@ import { VideoItemPreviewBuilder } from '../component/VideoItemComponent/VideoIt
 export struct RecentPlay { // 最近播放页
   @State videoDataSource: VideoDataSource = new VideoDataSource([])
   @State recent_video_meta_data: VideoMetadata[] = []
-  @State longPressPreview: boolean = false
   @Consume('pathStack') pathStack: NavPathStack
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
@@ -125,8 +124,7 @@ export struct RecentPlay { // 最近播放页
             .onClick(async () => {
               await this.clickItem(item, VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
             })
-            .backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
-              $r('app.color.start_window_background'))
+            .backgroundColor($r('app.color.start_window_background'))
             .width('100%')
             .height('auto')
             .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
@@ -134,27 +132,15 @@ export struct RecentPlay { // 最近播放页
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
               {
                 preview: VideoItemPreviewBuilder(item),
-                previewAnimationOptions: { hoverScale: [1.0, 1.2], hoverScaleInterruption: true },
+                previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2] },
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-                onAppear: () => {
-                  this.longPressPreview = true
-                  ToolsUtil.startVibration()
-                },
-                aboutToDisappear: () => {
-                  this.longPressPreview = false
-                }
+                hapticFeedbackMode: HapticFeedbackMode.ENABLED
               })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
               {
                 preview: VideoItemPreviewBuilder(item),
-                previewAnimationOptions: { hoverScale: [1.0, 1.2], hoverScaleInterruption: true },
+                previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2] },
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-                onAppear: () => {
-                  this.longPressPreview = true
-                },
-                aboutToDisappear: () => {
-                  this.longPressPreview = false
-                }
               })
           }, (item: VideoMetadata) => item.date + item.title + item.last_play + item.size.toString() + item.time)
         }

@@ -168,7 +168,6 @@ export struct VideoList {
   @Consume file_folder_list: FileFolder[]
   @Consume sideBarController: SideBarController
   searchController: SearchController = new SearchController()
-  @State longPressPreview: boolean = false
   @Consume('pathStack') pathStack: NavPathStack
   @Link delMultipleList: VideoMetadata[]
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
@@ -181,8 +180,7 @@ export struct VideoList {
     VideoListItem({
       item: item,
       delMultipleList: this.delMultipleList
-    }).backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
-      $r('app.color.start_window_background')).reuseId(`VideoListItem#${item.uri}`).borderRadius(16)
+    }).backgroundColor($r('app.color.start_window_background')).reuseId(`VideoListItem#${item.uri}`).borderRadius(16)
   }
 
   build() {
@@ -193,8 +191,7 @@ export struct VideoList {
             this.VideoItemBuilder(item)
           }
           .borderRadius(16)
-          .backgroundColor(this.longPressPreview || Setting.backgroundImageSrc.length > 0 ?
-            $r('app.color.start_window_background_blur') :
+          .backgroundColor(Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
             $r('app.color.start_window_background'))
           .margin({ bottom: 20 }) // 不知道动了哪里，挤在一起了，先这样改
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
@@ -205,26 +202,35 @@ export struct VideoList {
             {
               backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
               preview: VideoItemPreviewBuilder(item),
-              previewAnimationOptions: { hoverScale: [1.0, 1.2], hoverScaleInterruption: true },
-              onAppear: () => {
-                this.longPressPreview = true
-                ToolsUtil.startVibration()
+              previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2] },
+              aboutToAppear: () => {
+                salmonLogger.addLog('sweet_video', '菜单执行aboutToAppear', false)
               },
-              aboutToDisappear: () => {
-                this.longPressPreview = false
-              }
+              onAppear: () => {
+                salmonLogger.addLog('sweet_video', '菜单执行onAppear', false)
+              },
+              onDidAppear: () => {
+                salmonLogger.addLog('sweet_video', '菜单执行onDidAppear', false)
+              },
+              onDidDisappear: () => {
+                salmonLogger.addLog('sweet_video', '菜单执行onDidDisappear', false)
+              },
+              onWillDisappear: () => {
+                salmonLogger.addLog('sweet_video', '菜单执行onWillDisappear', false)
+              },
+              onWillAppear: () => {
+                salmonLogger.addLog('sweet_video', '菜单执行onWillAppear', false)
+              },
+              onDisappear: () => {
+                salmonLogger.addLog('sweet_video', '菜单执行onDisappear', false)
+              },
+              hapticFeedbackMode: HapticFeedbackMode.ENABLED
             })
           .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
             {
               backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
               preview: VideoItemPreviewBuilder(item),
-              previewAnimationOptions: { hoverScale: [1.0, 1.2], hoverScaleInterruption: true },
-              onAppear: () => {
-                this.longPressPreview = true
-              },
-              aboutToDisappear: () => {
-                this.longPressPreview = false
-              }
+              previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2] },
             })
           .gesture(
             TapGesture({ count: 1, fingers: 1 })
@@ -290,26 +296,14 @@ export struct VideoList {
                 {
                   backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                   preview: VideoItemPreviewBuilder(item),
-                  previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2], hoverScaleInterruption: true },
-                  onAppear: () => {
-                    this.longPressPreview = true
-                    ToolsUtil.startVibration()
-                  },
-                  aboutToDisappear: () => {
-                    this.longPressPreview = false
-                  }
+                  previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2] },
+                  hapticFeedbackMode: HapticFeedbackMode.ENABLED
                 })
               .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
                 {
                   backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                   preview: VideoItemPreviewBuilder(item),
-                  previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2], hoverScaleInterruption: true },
-                  onAppear: () => {
-                    this.longPressPreview = true
-                  },
-                  aboutToDisappear: () => {
-                    this.longPressPreview = false
-                  }
+                  previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2] },
                 })
               .gesture(
                 TapGesture({ count: 1, fingers: 1 })

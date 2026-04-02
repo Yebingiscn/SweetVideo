@@ -38,15 +38,16 @@ export struct VideoView {
   @Consume('pathStack') pathStack: NavPathStack
   @Consume fileFolderSource: FileFolderDataSource
   @Watch('SyncDelMultipleList') @State delMultipleList: VideoMetadata[] = DataSyncUtil.delMultipleList
-  private passwd: string = 'passwd'
-  // 面包屑滚动控制器
-  private breadcrumbScroller: Scroller = new Scroller()
   // 当前选中文件夹索引
   @State currentFolderIndex: number = 0
   // 监听文件夹切换，同步面包屑选中状态
   @Watch('onFolderChanged') @StorageLink('scrollToFolderDate') scrollToFolderDate: number = 0
-  // 标记是否正在处理切换，避免循环触发
-  private isHandlingChange: boolean = false
+  private passwd: string = 'passwd'
+  // 面包屑滚动控制器
+  private breadcrumbScroller: Scroller = new Scroller()
+  // 文件夹按钮尺寸配置
+  private readonly FOLDER_TAB_MIN_WIDTH: number = 64
+  private readonly FOLDER_TAB_HEIGHT: number = 28
 
   /**
    * 文件夹切换时同步面包屑选中状态
@@ -75,13 +76,6 @@ export struct VideoView {
     }
   }
 
-  /**
-   * 获取当前文件夹在列表中的索引
-   */
-  private getCurrentFolderIndex(): number {
-    return this.file_folder_list.findIndex(f => f.date === this.videoListController?.folder?.date)
-  }
-
   build() {
     Stack({ alignContent: Alignment.Top }) { // 内容区
       if (this.sideBarController.overlay &&
@@ -104,7 +98,7 @@ export struct VideoView {
               .textAlign(TextAlign.Center)
               .fontWeight(FontWeight.Lighter)
               .margin({ top: 20 })
-        }
+          }
         }
         .height('100%')
         .animation({ duration: 150, curve: Curve.Ease })
@@ -120,7 +114,7 @@ export struct VideoView {
               .textAlign(TextAlign.Center)
               .fontWeight(FontWeight.Lighter)
               .margin({ top: 20 })
-        }
+          }
         }
         .height('100%')
         .animation({ duration: 150, curve: Curve.Ease })
@@ -131,7 +125,7 @@ export struct VideoView {
             Button({ type: ButtonType.Circle, stateEffect: true }) {
               SymbolGlyph($r('sys.symbol.close_sidebar'))
                 .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-          }
+            }
             .attributeModifier(new ButtonFancyModifier(40, 40))
             .animation({ duration: 300, curve: Curve.Ease })
             .onClick(() => {
@@ -139,7 +133,7 @@ export struct VideoView {
             })
             .attributeModifier(new SearchShadowModifier())
             .transition(XAnimation.getAnimation('left', 0, false))
-        }
+          }
 
           SearchComponent({
             controller: this.searchController,
@@ -158,26 +152,26 @@ export struct VideoView {
                 this.videoListController.videoDataSource.updateData(videoMetaDataList)
                 this.videoListController.updateData(this.videoListController.videoDataSource,
                   this.videoListController.folder)
-            }
+              }
             },
             onSubmit: (value: string) => {
               if (value == '') {
                 if (this.videoListController.videoMetaDataList.length == 0) {
                   ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
                   return
-              }
+                }
                 this.searchController.stopEditing()
                 return
-            }
+              }
               if (value == this.passwd) {
                 ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
                 this.pathStack.pushPathByName(NavigationAddress.PRIVACY_SPACE, null)
                 this.searchValue = ''
                 return
-            }
+              }
               if (this.videoListController.videoMetaDataList.length == 0) {
                 ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
-            }
+              }
             },
             onEditChange: (isEditing: boolean) => {
               animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
@@ -186,14 +180,14 @@ export struct VideoView {
             },
             onSearchFocus: () => {
               this.passwd = Preferences.getPassword(PathUtils.appContext!)
-          }
+            }
           })
 
           if (!this.is_edit) {
             Button({ type: ButtonType.Circle, stateEffect: true }) {
               SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
                 .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-          }
+            }
             .attributeModifier(new ButtonFancyModifier(40, 40))
             .bindMenu(this.SortMenuBuilder,
               { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
@@ -204,14 +198,14 @@ export struct VideoView {
               Button({ type: ButtonType.Circle, stateEffect: true }) {
                 SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
                   .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-            }
+              }
               .attributeModifier(new ButtonFancyModifier(40, 40))
               .bindMenu(this.SelectItemMenuBuilder,
                 { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
               .attributeModifier(new SearchShadowModifier())
               .transition(XAnimation.getAnimation('right', 0, false))
+            }
           }
-        }
         }
         .width('100%')
 
@@ -270,11 +264,11 @@ export struct VideoView {
             if (this.delMultipleList.length > 0) {
               await FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController,
                 this.fileFolderSource)
-          }
+            }
           } finally {
             VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
             this.videoListController.closeMultipleChoose()
-        }
+          }
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
@@ -288,9 +282,10 @@ export struct VideoView {
   FolderTabsBuilder() {
     Scroll(this.breadcrumbScroller) {
       Row({ space: 8 }) {
-        ForEach(this.file_folder_list, (folder: FileFolder, index: number) => {
+        LazyForEach(this.fileFolderSource, (folder: FileFolder, index: number) => {
           this.FolderTabItemBuilder(folder, index)
-        }, (folder: FileFolder, index: number) => folder.date.toString() + '_' + index + '_' + (this.currentFolderIndex === index))
+        }, (folder: FileFolder, index: number) => folder.date.toString() + '_' + index + '_' +
+          (this.currentFolderIndex === index))
       }
       .padding({ left: 6, right: 10 })
       .height(36)
@@ -302,10 +297,6 @@ export struct VideoView {
     .scrollable(ScrollDirection.Horizontal)
     .edgeEffect(EdgeEffect.Spring)
   }
-
-  // 文件夹按钮尺寸配置
-  private readonly FOLDER_TAB_MIN_WIDTH: number = 64
-  private readonly FOLDER_TAB_HEIGHT: number = 28
 
   @Builder
   FolderTabItemBuilder(folder: FileFolder, index: number) {
@@ -332,6 +323,18 @@ export struct VideoView {
         this.switchToFolderByIndex(index)
       }
     })
+  }
+
+  @Builder
+  FileFolderMenuBuilder(video_item: VideoMetadata | undefined) {
+    FileFolderMenu({ video_item: video_item })
+  }
+
+  /**
+   * 获取当前文件夹在列表中的索引
+   */
+  private getCurrentFolderIndex(): number {
+    return this.file_folder_list.findIndex(f => f.date === this.videoListController?.folder?.date)
   }
 
   /**
@@ -397,10 +400,5 @@ export struct VideoView {
         animation: { duration: 200, curve: Curve.Ease }
       })
     })
-  }
-
-  @Builder
-  FileFolderMenuBuilder(video_item: VideoMetadata | undefined) {
-    FileFolderMenu({ video_item: video_item })
   }
 }

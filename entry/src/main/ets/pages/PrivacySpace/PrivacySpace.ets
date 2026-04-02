@@ -38,6 +38,12 @@ import { VideoItemPreviewBuilder } from '../../component/VideoItemComponent/Vide
 export struct PrivacySpace { // 隐私空间页
   @State videoDataSource: VideoDataSource = new VideoDataSource([])
   @State video_meta_data_encryption: VideoMetadata[] = []
+  @State list_line: number = 1
+  @Consume('pathStack') pathStack: NavPathStack
+  @State totalItems: number = 0
+  @State processedItems: number = 0
+  @State loading: boolean = false
+  @State searchValue: string = ''
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -60,12 +66,6 @@ export struct PrivacySpace { // 隐私空间页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @State list_line: number = 1
-  @Consume('pathStack') pathStack: NavPathStack
-  @State totalItems: number = 0
-  @State processedItems: number = 0
-  @State loading: boolean = false
-  @State searchValue: string = ''
   @State is_edit: boolean = false
   @State passwd: string = 'passwd'
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
@@ -80,7 +80,6 @@ export struct PrivacySpace { // 隐私空间页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @State longPressPreview: boolean = false
   @State delMultipleList: VideoMetadata[] = []
   @State isPresent: boolean = false
   searchController: SearchController = new SearchController()
@@ -354,8 +353,7 @@ export struct PrivacySpace { // 隐私空间页
     VideoListItem({
       item: item,
       delMultipleList: this.delMultipleList
-    }).backgroundColor(this.longPressPreview ? $r('app.color.start_window_background_blur') :
-      $r('app.color.start_window_background')).reuseId(`VideoListItem#${item.uri}`).borderRadius(16)
+    }).backgroundColor($r('app.color.start_window_background')).reuseId(`VideoListItem#${item.uri}`).borderRadius(16)
   }
 
   build() {
@@ -411,7 +409,7 @@ export struct PrivacySpace { // 隐私空间页
                 })
                   .width('95%')
                   .reuseId(`VideoCardItem#${item.uri}`)
-                  .backgroundColor(this.longPressPreview || Setting.backgroundImageSrc.length > 0 ?
+                  .backgroundColor(Setting.backgroundImageSrc.length > 0 ?
                     $r('app.color.start_window_background_blur') :
                     $r('app.color.start_window_background'))
                   .borderRadius(16)
@@ -427,26 +425,14 @@ export struct PrivacySpace { // 隐私空间页
               {
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 preview: VideoItemPreviewBuilder(item),
-                previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2], hoverScaleInterruption: true },
-                onAppear: () => {
-                  this.longPressPreview = true
-                  ToolsUtil.startVibration()
-                },
-                aboutToDisappear: () => {
-                  this.longPressPreview = false
-                }
+                previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2] },
+                hapticFeedbackMode: HapticFeedbackMode.ENABLED
               })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
               {
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 preview: VideoItemPreviewBuilder(item),
-                previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2], hoverScaleInterruption: true },
-                onAppear: () => {
-                  this.longPressPreview = true
-                },
-                aboutToDisappear: () => {
-                  this.longPressPreview = false
-                }
+                previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2] },
               })
             .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
             .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
