@@ -167,7 +167,7 @@ export default class VideoOperateUtil {
       return new Promise((resolve, reject) => {
         avPlayer.getTrackDescription((error: BusinessError, arrList: Array<media.MediaDescription>) => {
           if (error || !arrList || arrList.length === 0) {
-            console.error(`Failed to get TrackDescription, error: ${error}`)
+            salmonLogger.addLog(TAG, `Failed to get TrackDescription, error: ${error}`, true)
             return reject(error || new Error("No audio tracks available"))
           }
           const audioTracks: AudioTrack[] = arrList
@@ -191,7 +191,8 @@ export default class VideoOperateUtil {
       const audioTracks = await getTrackDescriptions()
       return audioTracks // 返回包含音轨索引、语言和名称的对象数组
     } catch (error) {
-      console.error("获取 audioTracks 失败:", error)
+      salmonLogger.addLog(TAG, `获取 audioTracks 失败: ${error}`, true)
+      ToolsUtil.showToast('获取音轨失败')
       return [] // 返回空数组表示没有获取到音轨
     }
   }
@@ -239,8 +240,7 @@ export default class VideoOperateUtil {
     videoMetaData: VideoMetadata[], context: Context) {
     // 保存文件数据
     SelectFileUtil.saveData(context, nowPlaying!, { playTime: play_time })
-    const recentPlay = Preferences.getRecentPlayState(context) // 判断最近播放开关是否开启
-    if (recentPlay && !PrivacySpaceUtil.getPrivacyMode() &&
+    if (Setting.recentPlay && !PrivacySpaceUtil.getPrivacyMode() &&
       !SelectFileUtil.isPathFromSource(nowPlaying.uri, VideoSource.PRIVACY_SPACE)) { // 最近播放开启且非隐私空间视频则添加到最近播放
       const meta = videoMetaData.find(i => i.date == nowPlaying?.date)
       if (meta) {
@@ -483,7 +483,6 @@ export default class VideoOperateUtil {
       const imagePackerApi = image.createImagePacker()
       const tempPath = PathUtils.tempPath + '/screenshot.png'
       const tempFile = fileIo.openSync(tempPath, fileIo.OpenMode.CREATE | fileIo.OpenMode.READ_WRITE)
-      console.error('test1')
       let srcUri: string
       imagePackerApi.packToFile(pixelMap, tempFile.fd, packOpts)
         .then(() => imagePackerApi.release())

@@ -3,7 +3,11 @@ import { salmonLogger, SalmonLogLine } from 'salmonlogger'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
-import { pasteboard } from '@kit.BasicServicesKit'
+import { fileIo as fs } from '@kit.CoreFileKit'
+import { systemShare } from '@kit.ShareKit'
+import { BusinessError } from '@kit.BasicServicesKit'
+import { uniformTypeDescriptor } from '@kit.ArkData'
+import { fileUri } from '@kit.CoreFileKit';
 
 @Component
 export struct CrashPage {
@@ -150,10 +154,10 @@ export struct CrashPage {
       .scrollable(ScrollDirection.Vertical) // 启用垂直滚动
       .edgeEffect(EdgeEffect.Spring) // 滚动边缘效果
 
-      Button('复制给开发者')
-        .onClick(() => {
-          this.appEventGroups.toString().length > 0 ? this.copyText(JSON.stringify(this.appEventGroups)) :
-            this.copyText(JSON.stringify(salmonLogger.logs))
+      Button('分享给开发者')
+        .onClick(async () => {
+          this.appEventGroups.toString().length > 0 ? await this.shareText(JSON.stringify(this.appEventGroups)) :
+            await this.shareText(JSON.stringify(salmonLogger.logs))
         })
         .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
         .fontColor($r('sys.color.white'))
@@ -176,19 +180,45 @@ export struct CrashPage {
     .backgroundImagePosition(Alignment.Center)
   }
 
-  copyText(text: string) {
-    const infoText = '反馈 QQ群 973792610，作者邮箱 1309932526@qq.com'
-    // Create clipboard content object
-    const pasteboardData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, infoText + '\n' + text)
-    // Get system clipboard object
-    const systemPasteboard = pasteboard.getSystemPasteboard()
-    systemPasteboard.setData(pasteboardData).then(() => {
-      ToolsUtil.showToast('日志复制成功' + infoText)
-      salmonLogger.addLog(this.pathStack.getAllPathName()[0], '复制日志成功', false)
-    })?.catch(() => {
-      this.pathStack.getAllPathName()[0]
-      salmonLogger.addLog(this.pathStack.getAllPathName()[0], '复制失败', true)
-      ToolsUtil.showToast('复制失败')
-    }) // Put data into clipboard
+  async shareText(text: string) {
+    const infoText = '反馈 QQ群 973792610'
+    const fullText = infoText + '\n' + text
+    try {
+      // 获取临时目录
+      const context = PathUtils.appContext
+      const tempDir = PathUtils.tempPath
+      // 创建临时文件路径
+      const timestamp = new Date().getTime()
+      const fileName = `crash_log_${timestamp}.txt`
+      const filePath = `${tempDir}/${fileName}`
+      salmonLogger.addLog(this.pathStack.getAllPathName()[0], '开始写入日志文件: ' + filePath, false)
+      // 写入临时文件
+      const file = fs.openSync(filePath, fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY | fs.OpenMode.TRUNC)
+      fs.writeSync(file.fd, fullText)
+      const filePathString = file.path
+      salmonLogger.addLog(this.pathStack.getAllPathName()[0], '文件写入完成: ' + filePathString, false)
+      let shareData = new systemShare.SharedData({
+        utd: uniformTypeDescriptor.UniformDataType.PLAIN_TEXT,
+        uri: fileUri.getUriFromPath(filePath),
+        title: fileName,
+        description: '流心播放器日志'
+      })
+      // 调用系统分享接口
+      let controller1 = new systemShare.ShareController(shareData)
+      await controller1.show(context, {
+        previewMode: systemShare.SharePreviewMode.DETAIL, // 详细预览模式
+        selectionMode: systemShare.SelectionMode.SINGLE   // 单选模式
+      })
+      fs.closeSync(file)
+      salmonLogger.addLog(this.pathStack.getAllPathName()[0], '日志分享成功', false)
+      ToolsUtil.showToast('日志分享成功')
+
+    } catch (error) {
+      const err = error as BusinessError
+      const errorMsg = `分享失败: code=${err.code}, message=${err.message}`
+      salmonLogger.addLog(this.pathStack.getAllPathName()[0], errorMsg, true)
+      console.error(errorMsg)
+      ToolsUtil.showToast('分享失败: ' + err.message)
+    }
   }
 }

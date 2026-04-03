@@ -496,9 +496,9 @@ export struct Player { // 播放页
             },
             onLongPressAction: () => {
               if (this.player.playing) {
-                this.player.longPress = true
                 VideoOperateUtil.lastSpeed = this.player.speed
                 this.player.updatePlaybackSpeed(Setting.longPressSpeed)
+                this.player.longPress = true
                 this.currentSpeedIndex = VideoInfoUtil.videoSpeedListAll.indexOf(Setting.longPressSpeed)
               }
             },

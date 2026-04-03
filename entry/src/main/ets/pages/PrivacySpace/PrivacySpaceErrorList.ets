@@ -99,7 +99,7 @@ export struct PrivacySpaceErrorList {
               .bindContextMenu(this.MenuBuilder(errorVideo), ResponseType.LongPress, {
                 backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
                 preview: this.VideoItemBuilder(errorVideo),
-                previewAnimationOptions: { hoverScale: [1.0, 1.2] },
+                previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
                 layoutRegionMargin: {
                   left: 16,
                   right: 16,

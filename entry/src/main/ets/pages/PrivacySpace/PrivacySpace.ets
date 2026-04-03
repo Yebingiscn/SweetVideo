@@ -425,7 +425,7 @@ export struct PrivacySpace { // 隐私空间页
               {
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 preview: VideoItemPreviewBuilder(item),
-                previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2] },
+                previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
                 layoutRegionMargin: { left: 16, right: 16, top: 16, bottom: 4 },
                 hapticFeedbackMode: HapticFeedbackMode.ENABLED,
                 mask: true
@@ -434,7 +434,7 @@ export struct PrivacySpace { // 隐私空间页
               {
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 preview: VideoItemPreviewBuilder(item),
-                previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2] },
+                previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
                 layoutRegionMargin: { left: 16, right: 16, top: 16, bottom: 4 },
                 mask: true
               })

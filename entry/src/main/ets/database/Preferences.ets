@@ -239,7 +239,7 @@ export default class Preferences {
   }
 
   static getEnableBackgroundDarkImage(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'enableBackgroundDarkImage', true) as boolean
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'enableBackgroundDarkImage', false) as boolean
   }
 
   static saveListDisplayMode(context: Context, listDisplayMode: ListDisplayMode) {

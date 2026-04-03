@@ -10,6 +10,7 @@ import { PathUtils } from './PathUtils'
 import { BusinessError, systemDateTime } from '@kit.BasicServicesKit'
 import { RepeatMode } from '../common/enum/RepeatMode'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
+import { Setting } from './ObservedUtil'
 
 // 播控中心设置类
 export default class AVSessionUtil {
@@ -58,12 +59,14 @@ export default class AVSessionUtil {
   }
 
   // 更新播控中心状态
-  static updatePlaybackSessionState(playing: boolean, play_time: number, repeatMode?: RepeatMode) {
-    let data: AvSessionState = {
-      playing: playing,
-      duration: play_time,
+  static updatePlaybackSessionState(playing: boolean, playTime: number, repeatMode?: RepeatMode) {
+    if (Setting.allowBackgroundPlay) {
+      let data: AvSessionState = {
+        playing: playing,
+        duration: playTime,
+      }
+      AVSessionUtil.updateSession(data, repeatMode)
     }
-    AVSessionUtil.updateSession(data, repeatMode)
   }
 
   static castOnStateChange(state: AVCastPickerState) {

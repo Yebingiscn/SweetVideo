@@ -38,5 +38,4 @@ export function VideoItemPreviewBuilder(item: VideoMetadata) {
   .constraintSize({ maxWidth: 360 })
   .backgroundColor($r('app.color.start_window_background'))
   .borderRadius(16)
-  .padding({ bottom: 25 })
 }

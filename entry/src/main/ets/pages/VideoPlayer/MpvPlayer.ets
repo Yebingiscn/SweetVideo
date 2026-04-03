@@ -295,9 +295,9 @@ export struct MpvPlayer {
             },
             onLongPressAction: () => {
               if (this.mpv.playing) {
-                this.mpv.longPress = true
                 VideoOperateUtil.lastSpeed = this.mpv.speed
                 this.mpv.updatePlaybackSpeed(Setting.longPressSpeed)
+                this.mpv.longPress = true
                 this.currentSpeedIndex = VideoInfoUtil.videoSpeedListAll.indexOf(Setting.longPressSpeed)
               }
             },

@@ -324,6 +324,8 @@ export class AVPlayerController implements PlayerControllerInterface {
       this.setSessionListener()
       await AVSessionUtil.setSessionInfo(this.nowPlaying!)
       AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
+    } else {
+      ToolsUtil.addLogger('未开启后台播放功能', false)
     }
   }
 

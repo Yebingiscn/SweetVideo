@@ -132,7 +132,7 @@ export struct RecentPlay { // 最近播放页
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
               {
                 preview: VideoItemPreviewBuilder(item),
-                previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2] },
+                previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
                 layoutRegionMargin: { left: 16, right: 16, top: 16, bottom: 4 },
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 hapticFeedbackMode: HapticFeedbackMode.ENABLED,
@@ -141,7 +141,7 @@ export struct RecentPlay { // 最近播放页
             .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
               {
                 preview: VideoItemPreviewBuilder(item),
-                previewAnimationOptions: { scale: [1.0, 0.8], hoverScale: [1.0, 1.2] },
+                previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
                 layoutRegionMargin: { left: 16, right: 16, top: 16, bottom: 4 },
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 mask: true
