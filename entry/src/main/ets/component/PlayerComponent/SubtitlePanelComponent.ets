@@ -22,8 +22,6 @@ export struct SubtitlePanelComponent {
   }
   onExternalSubtitleClick = () => {
   }
-  onExternalSubtitleOffClick = () => {
-  }
   onAIAsrClick = () => {
   }
 
@@ -99,6 +97,9 @@ export struct SubtitlePanelComponent {
         })
           .contentFontColor(this.isExternalSubtitleActive() ? $r('sys.color.white') :
             $r('app.color.text_color'))
+          .onClick(() => {
+            this.onExternalSubtitleClick()
+          })
           .height(40)
           .backgroundColor(this.isExternalSubtitleActive() ? $r('app.color.main_color') : '')
           .borderRadius(16)
@@ -148,18 +149,6 @@ export struct SubtitlePanelComponent {
   @Builder
   ExternalSubtitleSubmenu() {
     Menu() {
-      MenuItem({
-        content: this.isExternalSubtitleActive() ? "关闭外挂字幕" : "启用外挂字幕"
-      })
-        .menuItemExtend()
-        .onClick(() => {
-          if (this.isExternalSubtitleActive()) {
-            this.onExternalSubtitleOffClick()
-            return
-          }
-          this.onExternalSubtitleClick()
-        })
-
       MenuItem({
         content: "字幕偏移"
       })

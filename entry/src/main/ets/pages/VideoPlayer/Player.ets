@@ -1165,9 +1165,6 @@ export struct Player { // 播放页
       onExternalSubtitleClick: () => {
         this.activateExternalSubtitle()
       },
-      onExternalSubtitleOffClick: () => {
-        this.turnOffSubtitleDisplay()
-      },
       onAIAsrClick: () => {
         this.isAIAsrShown = !this.isAIAsrShown
         this.subtitleVisibility = Visibility.None
