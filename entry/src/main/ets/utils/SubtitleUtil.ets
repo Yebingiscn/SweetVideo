@@ -264,7 +264,7 @@ class SubtitleUtil {
       const mid = Math.floor((left + right) / 2);
       const sub = this.subtitles[mid];
       if (sub.startTimestampMillis <= searchTimestamp &&
-        sub.endTimestampMillis >= searchTimestamp) {
+        sub.endTimestampMillis > searchTimestamp) {
         startIndex = mid;
         break;
       } else if (sub.startTimestampMillis > searchTimestamp) {
@@ -280,7 +280,7 @@ class SubtitleUtil {
     result.push(this.subtitles[startIndex]);
     // 向左查找
     for (let i = startIndex - 1; i >= 0; i--) {
-      if (this.subtitles[i].endTimestampMillis >= searchTimestamp) {
+      if (this.subtitles[i].endTimestampMillis > searchTimestamp) {
         result.unshift(this.subtitles[i]);
       } else {
         break;
@@ -313,7 +313,7 @@ class SubtitleUtil {
     }
     const searchTimestamp = Math.max(playbackTimestamp - currentOffsetMillis, 0)
     const nextIndex = this.findFirstStartGreaterThan(searchTimestamp)
-    const activeIndex = (nextIndex > 0 && this.subtitles[nextIndex - 1].endTimestampMillis >= searchTimestamp)
+    const activeIndex = (nextIndex > 0 && this.subtitles[nextIndex - 1].endTimestampMillis > searchTimestamp)
       ? nextIndex - 1
       : -1
 
