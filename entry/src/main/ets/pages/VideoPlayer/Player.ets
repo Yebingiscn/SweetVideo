@@ -274,24 +274,38 @@ export struct Player { // 播放页
   }
 
   private saveSubtitlePreferenceForCurrentVideo(): void {
-    if (!this.player.nowPlaying || !PathUtils.appContext) {
+    const nowPlaying = this.player.nowPlaying
+    const appContext = PathUtils.appContext
+    if (!nowPlaying || !appContext) {
       return
     }
+
     const subtitleMode = this.normalizeSubtitleMode(this.player.subtitleSelected)
     const subtitleVisible = this.subtitleVisibility === Visibility.Visible
     const subtitleAIAsrShown = this.isAIAsrShown
     const subtitle3DMode = this.normalizeSubtitle3DMode(this.subtitle3DMode)
     const subtitleOffsetMillis = Math.max(-50000, Math.min(50000, Math.round(SubtitleUtil.offsetMillis)))
     const subtitleTrackId = this.player.subtitleTrackSelected
+    const hasPreferenceChanged =
+      nowPlaying.subtitle_mode !== subtitleMode ||
+      nowPlaying.subtitle_visible !== subtitleVisible ||
+      nowPlaying.subtitle_ai_asr_shown !== subtitleAIAsrShown ||
+      nowPlaying.subtitle_3d_mode !== subtitle3DMode ||
+      nowPlaying.subtitle_offset_millis !== subtitleOffsetMillis ||
+      nowPlaying.subtitle_track_id !== subtitleTrackId
 
-    this.player.nowPlaying.subtitle_mode = subtitleMode
-    this.player.nowPlaying.subtitle_visible = subtitleVisible
-    this.player.nowPlaying.subtitle_ai_asr_shown = subtitleAIAsrShown
-    this.player.nowPlaying.subtitle_3d_mode = subtitle3DMode
-    this.player.nowPlaying.subtitle_offset_millis = subtitleOffsetMillis
-    this.player.nowPlaying.subtitle_track_id = subtitleTrackId
+    if (!hasPreferenceChanged) {
+      return
+    }
 
-    SelectFileUtil.saveData(PathUtils.appContext!, this.player.nowPlaying, {
+    nowPlaying.subtitle_mode = subtitleMode
+    nowPlaying.subtitle_visible = subtitleVisible
+    nowPlaying.subtitle_ai_asr_shown = subtitleAIAsrShown
+    nowPlaying.subtitle_3d_mode = subtitle3DMode
+    nowPlaying.subtitle_offset_millis = subtitleOffsetMillis
+    nowPlaying.subtitle_track_id = subtitleTrackId
+
+    SelectFileUtil.saveData(appContext, nowPlaying, {
       subtitleMode,
       subtitleVisible,
       subtitleAIAsrShown,

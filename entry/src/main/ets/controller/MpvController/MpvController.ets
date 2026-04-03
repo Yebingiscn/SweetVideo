@@ -6,6 +6,7 @@ import {
   getCurrentPosition as mpvGetCurrentPosition,
   getDuration as mpvGetDuration,
   getSubtitleTracks as mpvGetSubtitleTracks,
+  getCurrentSubtitleTrack as mpvGetCurrentSubtitleTrack,
   getVideoHeight as mpvGetVideoHeight,
   getVideoWidth as mpvGetVideoWidth,
   loadVideo as mpvLoadVideo,
@@ -341,7 +342,14 @@ export class MpvController implements PlayerControllerInterface {
 
   getSubtitleTrackList() {
     this.subtitleTrack = mpvGetSubtitleTracks(this.mpvHandle) as MpvSubtitleTrack[]
-    this.subtitleTrackSelected = this.subtitleTrack.length > 0 ? this.subtitleTrack[0].id : -1
+    if (this.subtitleTrack.length === 0) {
+      this.subtitleTrackSelected = -1
+      return
+    }
+
+    const currentTrackId = mpvGetCurrentSubtitleTrack(this.mpvHandle)
+    const hasCurrentTrack = this.subtitleTrack.some((track) => track.id === currentTrackId)
+    this.subtitleTrackSelected = hasCurrentTrack ? currentTrackId : this.subtitleTrack[0].id
   }
 
   selectSubtitleTrack(trackId: number): void {
