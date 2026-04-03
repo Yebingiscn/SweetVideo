@@ -250,9 +250,8 @@ class SubtitleUtil {
       return "";
     }
     // 应用偏移量：将播放器时间转换为字幕时间
-    // 约定：offset > 0 时，字幕会延迟显示（视频第 N 毫秒的时候显示第 N + offset 的时候的字幕）
     const effectiveOffset = offsetOverride ?? this.offsetMillis
-    const adjustedTimestamp = timestamp + effectiveOffset;
+    const adjustedTimestamp = timestamp - effectiveOffset;
     // 如果偏移后的时间可能为负数，可以酌情处理
     // 这里简单的将负数视为0，避免越界错误
     const searchTimestamp = Math.max(adjustedTimestamp, 0);
@@ -312,7 +311,7 @@ class SubtitleUtil {
     if (this.subtitles.length === 0) {
       return undefined
     }
-    const searchTimestamp = Math.max(playbackTimestamp + currentOffsetMillis, 0)
+    const searchTimestamp = Math.max(playbackTimestamp - currentOffsetMillis, 0)
     const nextIndex = this.findFirstStartGreaterThan(searchTimestamp)
     const activeIndex = (nextIndex > 0 && this.subtitles[nextIndex - 1].endTimestampMillis >= searchTimestamp)
       ? nextIndex - 1
@@ -328,7 +327,7 @@ class SubtitleUtil {
     if (targetIndex < 0 || targetIndex >= this.subtitles.length) {
       return undefined
     }
-    return this.subtitles[targetIndex].startTimestampMillis - playbackTimestamp
+    return playbackTimestamp - this.subtitles[targetIndex].startTimestampMillis
   }
 
   // 统一解析字幕文件

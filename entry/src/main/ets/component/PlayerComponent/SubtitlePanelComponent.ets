@@ -118,7 +118,7 @@ export struct SubtitlePanelComponent {
 
       if (canIUse('SystemCapability.AI.AICaption')) {
         MenuItem({
-          content: 'AI 字幕：' + (this.isAIAsrShown ? '显示' : '隐藏')
+          content: 'AI 字幕'
         })
           .contentFontColor(this.isAIAsrShown ? $r('sys.color.white') :
             $r('app.color.text_color'))

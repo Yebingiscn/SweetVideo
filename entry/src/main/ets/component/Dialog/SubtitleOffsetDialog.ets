@@ -72,23 +72,32 @@ export struct SubtitleOffsetDialog {
         .margin({ top: 0, bottom: 5 })
 
       Row() {
-        TextInput({
-          text: this.inputText,
-          placeholder: `${this.getCurrentValue ? this.getCurrentValue() : 0}`,
-          controller: this.inputController
-        })
-          .keyboardAppearance(KeyboardAppearance.IMMERSIVE)
-          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-          .onChange((input: string) => this.inputText = input.trim())
-          .inputFilter('^[-+]?\\d*$')
-          .type(InputType.NUMBER_DECIMAL)
-          .enableAutoFill(true)
-          .id(this.inputId)
-          .height(36)
-          .layoutWeight(1)
-          .maxLength(10)
-          .maxLines(1)
-          .enterKeyType(EnterKeyType.Done)
+        Stack({ alignContent: Alignment.End }) {
+          TextInput({
+            text: this.inputText,
+            placeholder: `${this.getCurrentValue ? this.getCurrentValue() : 0}`,
+            controller: this.inputController
+          })
+            .keyboardAppearance(KeyboardAppearance.IMMERSIVE)
+            .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+            .onChange((input: string) => this.inputText = input.trim())
+            .inputFilter('^[-+]?\\d*$')
+            .type(InputType.NUMBER_DECIMAL)
+            .enableAutoFill(true)
+            .id(this.inputId)
+            .height(36)
+            .maxLength(10)
+            .maxLines(1)
+            .enterKeyType(EnterKeyType.Done)
+            .padding({ right: 26 })
+
+          Text('ms')
+            .fontSize(13)
+            .fontColor('#909399')
+            .margin({ right: 10 })
+        }
+        .height(36)
+        .layoutWeight(1)
 
         Row({ space: 6 }) {
           Button({ type: ButtonType.Normal, stateEffect: true }) {
