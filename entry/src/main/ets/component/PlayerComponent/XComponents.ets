@@ -4,6 +4,8 @@ import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import NavigationAddress from '../../common/NavigationCommon'
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
+import { PathUtils } from '../../utils/PathUtils'
+import { WindowUtil } from '../../utils/WindowUtil'
 import { SubtitleDisplayBuilder } from './SubtitleDisplayBuilder'
 
 @Component
@@ -12,7 +14,6 @@ export struct XComponents {
   @Prop choosePlayer: string
   @Prop subtitle: string
   @Prop hideSubtitle: boolean = false
-  @Link showControl: boolean
   @Link subtitleVisibility: Visibility
   @Link subtitle3DMode: Subtitle3DMode
   xComponentController: XComponentController | undefined
@@ -20,6 +21,7 @@ export struct XComponents {
   @Prop osdVisibility: boolean = false
   xComponentId: string | undefined
   libraryName: string | undefined
+  @Prop @Watch('setScreen') barState: boolean = false
   onXComponentLoad = () => {
   }
   onKeyCodeSpace = () => {
@@ -58,7 +60,7 @@ export struct XComponents {
         subtitle: this.subtitle,
         screenWidth: this.player.screenWidth,
         screenHeight: this.player.screenHeight,
-        showControl: this.showControl,
+        showControl: this.player.showControl,
         subTitleVisibility: this.hideSubtitle ? Visibility.None : this.subtitleVisibility,
         subtitle3DMode: this.subtitle3DMode
       })
@@ -88,6 +90,10 @@ export struct XComponents {
     .animation({ duration: this.player.playTime > 300 ? 300 : 0, curve: Curve.Ease })
     .rotate({ y: 2, angle: this.player.angle, perspective: 200 })
     .translate({ x: this.player.translateX, y: this.player.translateY })
+  }
+
+  setScreen() {
+    WindowUtil.setBarState(PathUtils.appContext!, this.barState, this.barState)
   }
 }
 

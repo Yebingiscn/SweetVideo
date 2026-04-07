@@ -5,7 +5,6 @@ import { MpvController } from '../../controller/MpvController/MpvController';
 @Component
 export struct AISubtitleComponent {
   @Link isAIAsrShown: boolean
-  @Link showControl: boolean
   @Consume('player') player: AVPlayerController | MpvController
   private captionOption?: AICaptionOptions
   private controller: AICaptionController = new AICaptionController()
@@ -41,7 +40,7 @@ export struct AISubtitleComponent {
         .height(80)
         .offset({
           x: 0,
-          y: this.showControl ? this.player.screenHeight / 2 - 150 :
+          y: this.player.showControl ? this.player.screenHeight / 2 - 150 :
             this.player.screenHeight / 2 - 40
         })
       }

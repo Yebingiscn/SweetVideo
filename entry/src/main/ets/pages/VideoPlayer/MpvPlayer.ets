@@ -51,6 +51,7 @@ import { VideoTopComponent } from '../../component/PlayerComponent/VideoTopCompo
 import { RepeatMode } from '../../common/enum/RepeatMode'
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
 import { NumberInputDialog } from '../../component/Dialog/NumberInputDialog'
+import Preferences from '../../database/Preferences'
 
 @Component
 export struct MpvPlayer {
@@ -74,7 +75,6 @@ export struct MpvPlayer {
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @State @Watch('setScreen') showControl: boolean = false
   @State isAIAsrShown: boolean = false
   @State currentSpeedIndex: number = 0
   @State sideBarStatus: boolean = false
@@ -85,7 +85,6 @@ export struct MpvPlayer {
   async aboutToAppear(): Promise<void> {
     this.mpv.prepare()
     PermissionUtil.applyContinuousTask()
-    this.setScreen()
     try {
       await (await this.mpv.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
@@ -99,6 +98,11 @@ export struct MpvPlayer {
   aboutToDisappear(): void {
     VideoOperateUtil.setBrightness(-1)
     WindowUtil.recoveryBarColor()
+    AppStorage.delete('nowPlayingData')
+    clearTimeout(this.exitVideoTime)
+    Preferences.saveVideoSpeed(PathUtils.appContext!,
+      (VideoInfoUtil.videoSpeedListAll.includes(this.mpv.speed) ? this.mpv.speed : 1) + 'x')
+    Preferences.saveRepeatModeState(PathUtils.appContext!, this.mpv.repeatMode)
     try {
       this.mpv.audioVolumeManager?.off('streamVolumeChange')
       this.mpv.audioVolumeManager = null
@@ -115,7 +119,7 @@ export struct MpvPlayer {
           sideBarStatusTmp: this.sideBarStatusTmp,
           sideBarStatus: this.sideBarStatus,
           onItemClick: async (item: VideoMetadata) => {
-            this.mpv.playChooseVideo(item)
+            await this.mpv.playChooseVideo(item, this.pathStack)
             this.closeSideBar(true)
           }
         })
@@ -125,7 +129,7 @@ export struct MpvPlayer {
             xComponentId: 'xcomponentId',
             libraryName: 'mpvnative',
             choosePlayer: NavigationAddress.MPV_PLAYER,
-            showControl: this.showControl,
+            barState: this.mpv.showControl,
             subtitle3DMode: this.subtitle3DMode,
             subtitleVisibility: this.subtitleVisibility,
             osdXController: this.osdXController,
@@ -133,7 +137,7 @@ export struct MpvPlayer {
             onXComponentLoad: async () => {
               await PermissionUtil.activatePermission(this.mpv.nowPlaying?.uri)
               try {
-                this.mpv.init(this.mpv.nowPlaying!.uri, 0)
+                this.mpv.init(this.mpv.nowPlaying!.uri, this.pathStack)
                 await this.mpv.initAVSession()
                 PiPWindowUtil.createPipController(this.xComponentController, this.mpv)
                 this.mpv.surfaceId = this.xComponentController.getXComponentSurfaceId()
@@ -164,7 +168,7 @@ export struct MpvPlayer {
             },
           })
 
-          if (this.showControl && !this.mpv.isLock) {
+          if (this.mpv.showControl && !this.mpv.isLock) {
             VideoLayoutComponent({
               VideoTop: () => {
                 this.VideoTop()
@@ -207,12 +211,11 @@ export struct MpvPlayer {
             LockVideoBarComponent({
               onLockClick: () => {
                 this.mpv.isLock = !this.mpv.isLock
-                this.showControl = true
+                this.mpv.showControl = true
               }
             })
           }
           GestureComponent({
-            showControl: this.showControl,
             onDoubleClickAction: (tapX: number) => {
               this.mpv.onScreenDoubleClick(tapX)
             },
@@ -223,9 +226,9 @@ export struct MpvPlayer {
                 this.mpv.lockVisibility = !this.mpv.lockVisibility
                 XAnimation.runWithAnimation(() => {
                   if (this.mpv.isLock) {
-                    this.showControl = false
+                    this.mpv.showControl = false
                   } else {
-                    this.showControl = !this.showControl
+                    this.mpv.showControl = !this.mpv.showControl
                   }
                 })
               }
@@ -348,7 +351,6 @@ export struct MpvPlayer {
 
           AISubtitleComponent({
             isAIAsrShown: this.isAIAsrShown,
-            showControl: this.showControl
           })
         }.onAreaChange(async (_oldValue: Area, newValue: Area) => {
           this.mpv.screenWidth = Math.floor(new Number(newValue.width).valueOf())
@@ -400,8 +402,8 @@ export struct MpvPlayer {
         this.closeSideBar(true)
         return true
       }
-      if (this.showControl && !Setting.allowPlayBackExist) {
-        this.showControl = false
+      if (this.mpv.showControl && !Setting.allowPlayBackExist) {
+        this.mpv.showControl = false
         this.mpv.lockVisibility = false
         return true
       } else {
@@ -417,10 +419,6 @@ export struct MpvPlayer {
     isPlayAnimation ? setTimeout(() => {
       this.sideBarStatus = false
     }, 400) : this.sideBarStatus = false
-  }
-
-  setScreen() {
-    WindowUtil.setBarState(PathUtils.appContext!, this.showControl, this.showControl)
   }
 
   @Builder

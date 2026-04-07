@@ -70,4 +70,9 @@ declare module 'libmpvnative.so' {
 
   // ==================== 网络 ====================
   export const getNetworkSpeed: (mpvHandle: number) => any;
+
+  // ==================== 播放完成事件 ====================
+  export const registerPlaybackCompleteCallback: (callback: () => void) => void;
+
+  export const unregisterPlaybackCompleteCallback: () => void;
 }

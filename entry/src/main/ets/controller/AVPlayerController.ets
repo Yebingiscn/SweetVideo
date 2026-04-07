@@ -67,6 +67,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Track isZoomed: boolean = false
   @Track translateX: number = 0
   @Track translateY: number = 0
+  @Track showControl: boolean = false
 
   async create() {
     try {

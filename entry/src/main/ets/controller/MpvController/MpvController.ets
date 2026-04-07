@@ -20,6 +20,8 @@ import {
   setKeepAspect as mpvSetKeepAspect,
   setSpeed as mpvSetSpeed,
   setHwdecMode as mpvSetHwdecMode,
+  registerPlaybackCompleteCallback as mpvRegisterPlaybackCompleteCallback,
+  unregisterPlaybackCompleteCallback as mpvUnregisterPlaybackCompleteCallback,
 } from 'libmpvnative.so';
 import { Setting } from '../../utils/ObservedUtil';
 import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode';
@@ -36,13 +38,20 @@ import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
 import { RepeatMode } from '../../common/enum/RepeatMode';
 import AVSessionUtil from '../../utils/AVSessionUtil';
-import { LEFT_ZONE_DIVISION, RIGHT_ZONE_DIVISION, SCREEN_DIVISIONS } from '../../common/Constants';
+import {
+  AUTO_HIDE_SHOW_CONTROL_TIME,
+  LEFT_ZONE_DIVISION,
+  RIGHT_ZONE_DIVISION,
+  SCREEN_DIVISIONS
+} from '../../common/Constants';
 import { fileIo as fs, fileUri } from '@kit.CoreFileKit';
 import { salmonLogger } from 'salmonlogger';
 import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil';
 import RecentPlayUtil from '../../utils/RecentPlayUtil';
 import SelectFileUtil from '../../utils/SelectFileUtil';
 import SubtitleUtil from '../../utils/SubtitleUtil';
+import { BaseListener } from '../../utils/BaseEventUtil';
+import PermissionUtil from '../../utils/PermissionUtil';
 
 const TAG = 'MpvController'
 
@@ -84,11 +93,15 @@ export class MpvController implements PlayerControllerInterface {
   @Track isZoomed: boolean = false
   @Track translateX: number = 0
   @Track translateY: number = 0
+  @Track subtitle: string = ''
+  @Track showControl: boolean = false
   avSession: avSessionManager.AVSession | undefined = undefined
   audioVolumeManager: audio.AudioVolumeManager | null = null
   private playTimeUpdateTag: number | null = null
+  private userListener: BaseListener<number> | null = null
+  private playbackCallbackRegistered: boolean = false
 
-  async playChooseVideo(item: VideoMetadata) {
+  async playChooseVideo(item: VideoMetadata, pathStack: NavPathStack) {
     ToolsUtil.addLogger("开始播放选择的视频", false)
     VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying!, this.videoMetaDataList, PathUtils.appContext!)
     if (!PrivacySpaceUtil.getPrivacyMode()) {
@@ -100,7 +113,8 @@ export class MpvController implements PlayerControllerInterface {
     this.isSliderPlayTimeChange = false
     this.nowPlaying = item as VideoMetadata
     ToolsUtil.addLogger("设置当前播放视频完成", false)
-    this.init(item.uri)
+    await PermissionUtil.activatePermission(item.uri)
+    this.init(item.uri, pathStack)
     ToolsUtil.addLogger("获取播放数据完成", false)
     this.initAVSession()
     ToolsUtil.addLogger("播放选择视频流程完成", false)
@@ -112,7 +126,7 @@ export class MpvController implements PlayerControllerInterface {
     ToolsUtil.addLogger("获取下一个视频项完成", false, pathStack)
     if (nextItem) {
       ToolsUtil.addLogger("存在下一个视频，开始播放", false, pathStack)
-      this.playChooseVideo(nextItem)
+      await this.playChooseVideo(nextItem, pathStack)
     } else {
       ToolsUtil.addLogger("无下一个视频，播放结束", false, pathStack)
       ToolsUtil.showToast('播放完毕，已自动退出')
@@ -122,7 +136,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   playNextVideo(repeatMode: RepeatMode): VideoMetadata | undefined {
-    if (this.videoMetaDataList.length === 0 || this.playTime <= 0) {
+    if (this.videoMetaDataList.length === 0) {
       return undefined
     }
     let item = SelectFileUtil.getItem(this.videoMetaDataList, this.nowPlaying?.date || '') as VideoMetadata
@@ -184,13 +198,13 @@ export class MpvController implements PlayerControllerInterface {
     }
   }
 
-  init(url?: string, startPosition?: number): void {
+  init(url?: string, pathStack?: NavPathStack): void {
     // 传递起始位置给 native（参考 mpv-android）
-    if (startPosition !== undefined && startPosition > 0) {
-      mpvLoadVideo(this.mpvHandle, url, startPosition)
-    } else {
-      mpvLoadVideo(this.mpvHandle, new fileUri.FileUri(url!).path)
-    }
+    mpvLoadVideo(this.mpvHandle, new fileUri.FileUri(url!).path)
+
+    // 注册播放完成回调（只注册一次）
+    this.registerPlaybackCompleteListener(pathStack!)
+    this.setPlayerCallback(pathStack!)
     this.getData()
     // 智能旋转和外部字幕可以延迟执行，不影响播放
     setTimeout(async () => {
@@ -219,15 +233,56 @@ export class MpvController implements PlayerControllerInterface {
           this.osdVisibility = true
         }, 500)
       }
-    }, 800)
+    }, 1200)
+  }
+
+  setPlayerCallback(pathStack: NavPathStack) {
+    this.userListener = new BaseListener<number>()
+    this.userListener.on('timeUpdate', (duration: number) => {
+      AppStorage.setOrCreate('nowPlayingData',
+        [this.playTime, this.nowPlaying!, this.videoMetaDataList])
+      if (this.showControl) {
+        if (!VideoOperateUtil.autoHideTimeout) {
+          VideoOperateUtil.autoHideTimeout = true
+          setTimeout(() => {
+            this.lockVisibility = false
+            this.showControl = false
+            VideoOperateUtil.autoHideTimeout = false
+          }, AUTO_HIDE_SHOW_CONTROL_TIME)
+        }
+      }
+      // 片尾跳过逻辑保留
+      const endTime = this.nowPlaying?.end_time
+      if (endTime != null && duration >= endTime && endTime > 0 && this.repeatMode !== RepeatMode.SINGLE) {
+        ToolsUtil.addLogger(`检测到视频片尾，准备播放下一个视频，满足条件为: endTime: ${endTime}, repeatMode: ${this.repeatMode}, duration: ${duration}`,
+          false)
+        this.playNextVideoProcess(pathStack)
+        this.userListener?.clear()
+        this.userListener = null
+        this.setPlayerCallback(pathStack)
+        ToolsUtil.showToast('已智能跳过片尾')
+      }
+      if (this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
+        this.subtitle = SubtitleUtil.getSubtitlesAtTime(duration)
+      }
+      if (this.abCircleStatus && this.playing) {
+        if (this.nowPlaying?.pointA !== undefined && this.nowPlaying?.pointB !== undefined) {
+          const pointA = this.nowPlaying.pointA
+          const pointB = this.nowPlaying.pointB
+          const playTime = this.playTime
+          if (playTime < pointA || playTime > pointB) {
+            this.seekTime(pointA)
+          }
+        }
+      }
+    })
   }
 
   getData() {
-    // 立即设置播放状态和启动定时器
     this.playing = true
-    // 立即启动定时器，不延迟
     this.playTimeUpdateTag = setInterval(() => {
       this.playTime = mpvGetCurrentPosition(this.mpvHandle)
+      this.userListener?.emit('timeUpdate', this.playTime)
     }, 1000)
   }
 
@@ -255,6 +310,7 @@ export class MpvController implements PlayerControllerInterface {
     }
     this.playing = true
     mpvPlay(this.mpvHandle)
+    AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
   }
 
   pause(): void {
@@ -263,6 +319,7 @@ export class MpvController implements PlayerControllerInterface {
     }
     this.playing = false
     mpvPause(this.mpvHandle)
+    AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
   }
 
   reset(): void {
@@ -275,9 +332,13 @@ export class MpvController implements PlayerControllerInterface {
     if (!this.mpvHandle) {
       return
     }
+    // 注销播放完成回调
+    mpvUnregisterPlaybackCompleteCallback()
+    this.playbackCallbackRegistered = false
     mpvDestroy(this.mpvHandle)
     clearInterval(this.playTimeUpdateTag)
     this.mpvHandle = null
+    this.userListener?.off('timeUpdate')
   }
 
   seekTime(seekTime: number): void {
@@ -333,7 +394,24 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   getAudioTrackList() {
-    this.audioTrack = mpvGetAudioTracks(this.mpvHandle) as MpvAudioTrack[]
+    const tracks = mpvGetAudioTracks(this.mpvHandle) as MpvAudioTrack[]
+    // ⭐ 修复：添加重试机制，如果第一次获取失败（空数组），延迟后重试
+    if (!tracks || tracks.length === 0) {
+      ToolsUtil.addLogger("首次获取音轨失败，1秒后重试", false)
+      setTimeout(() => {
+        const retryTracks = mpvGetAudioTracks(this.mpvHandle) as MpvAudioTrack[]
+        if (retryTracks && retryTracks.length > 0) {
+          this.audioTrack = retryTracks
+          ToolsUtil.addLogger(`重试获取音轨成功，共 ${retryTracks.length} 条音轨`, false)
+        } else {
+          this.audioTrack = retryTracks || []
+          ToolsUtil.addLogger("重试获取音轨仍然失败，可能文件没有音轨", false)
+        }
+      }, 1000)
+    } else {
+      this.audioTrack = tracks
+      ToolsUtil.addLogger(`获取音轨成功，共 ${tracks.length} 条音轨`, false)
+    }
   }
 
   selectAudioTrack(trackId: number): void {
@@ -485,6 +563,31 @@ export class MpvController implements PlayerControllerInterface {
       }
     } else {
       this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
+    }
+  }
+
+  // 注册播放完成监听器
+  private registerPlaybackCompleteListener(pathStack: NavPathStack) {
+    // 避免重复注册回调
+    if (this.playbackCallbackRegistered) {
+      ToolsUtil.addLogger("播放完成监听器已注册，跳过重复注册", false)
+      return
+    }
+
+    try {
+      mpvRegisterPlaybackCompleteCallback(() => {
+        ToolsUtil.addLogger("收到播放完成事件，准备播放下一个视频", false)
+        // ⭐ 修复：使用 replace 模式后，可以减少延迟时间
+        // replace 模式会自动处理状态切换，不需要长时间等待 MPV 状态稳定
+        // 100ms 延迟足够让 EOF 事件完全处理完成
+        setTimeout(() => {
+          this.playNextVideoProcess(pathStack)
+        }, 100)
+      })
+      this.playbackCallbackRegistered = true
+      ToolsUtil.addLogger("播放完成监听器注册成功", false)
+    } catch (error) {
+      ToolsUtil.addLogger("播放完成监听器注册失败: " + JSON.stringify(error), true)
     }
   }
 }

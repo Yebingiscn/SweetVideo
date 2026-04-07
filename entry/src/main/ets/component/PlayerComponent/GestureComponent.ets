@@ -4,7 +4,6 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
 @Component
 export struct GestureComponent {
-  @Link showControl: boolean
   @Consume('player') player: AVPlayerController | MpvController
   onDoubleClickAction = (_tapX: number) => {
   }
@@ -46,7 +45,7 @@ export struct GestureComponent {
   build() {
     Column()
       .width('100%')
-      .height(this.showControl ? '50%' : '80%')//触控区域
+      .height(this.player.showControl ? '50%' : '80%')//触控区域
       .gesture(
         GestureGroup(GestureMode.Exclusive, // 将触摸事件跟滑动、长按分成两个手势组解绑互斥,触摸事件手势组为互斥事件
           GestureGroup(GestureMode.Exclusive, //双击事件组和单击事件组互斥独立
