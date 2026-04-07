@@ -9,6 +9,7 @@
 #include "mpv/mpv_loader.h"
 #include "mpv/mpv_network.h"
 #include "mpv/mpv_config.h"
+#include "mpv/mpv_event_notifier.h"
 
 namespace {
     // Main entry point - called on any 'import' instruction or 'XComponent' with 'libraryname' "libmpvnative"
@@ -49,7 +50,7 @@ namespace {
             {"getCurrentSubtitleTrack", nullptr, GetCurrentSubtitleTrack, nullptr, nullptr, nullptr, napi_default, nullptr},
             {"seek", nullptr, Seek, nullptr, nullptr, nullptr, napi_default, nullptr},
             {"pause", nullptr, Pause, nullptr, nullptr, nullptr, napi_default, nullptr},
-            {"play", nullptr, Play, nullptr, nullptr, nullptr, napi_default, nullptr},            
+            {"play", nullptr, Play, nullptr, nullptr, nullptr, napi_default, nullptr},
             {"setSpeed", nullptr, SetSpeed, nullptr, nullptr, nullptr, napi_default, nullptr},
             {"getCurrentPosition", nullptr, GetCurrentPosition, nullptr, nullptr, nullptr, napi_default, nullptr},
             {"getDuration", nullptr, GetDuration, nullptr, nullptr, nullptr, napi_default, nullptr},
@@ -66,6 +67,8 @@ namespace {
             {"getDecodeType", nullptr, GetDecodeTypeNapi, nullptr, nullptr, nullptr, napi_default, nullptr},
             {"setCacheSize", nullptr, SetCacheSizeNapi, nullptr, nullptr, nullptr, napi_default, nullptr},
             {"getCacheSize", nullptr, GetCacheSizeNapi, nullptr, nullptr, nullptr, napi_default, nullptr},
+            {"registerPlaybackCompleteCallback", nullptr, RegisterPlaybackCompleteCallback, nullptr, nullptr, nullptr, napi_default, nullptr},
+            {"unregisterPlaybackCompleteCallback", nullptr, UnregisterPlaybackCompleteCallback, nullptr, nullptr, nullptr, napi_default, nullptr},
         };
         
         napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
