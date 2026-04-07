@@ -61,23 +61,25 @@ export struct CrashPage {
                   Column() {
                     Row() {
                       // 日志类型徽章
-                      Text(log.isError ? 'ERROR' : 'INFO')
-                        .fontSize(9)
-                        .fontColor(log.isError ? '#ff4d4f' : '#52c41a')
-                        .fontWeight(FontWeight.Bold)
-                        .padding({
-                          left: 6,
-                          right: 6,
-                          top: 2,
-                          bottom: 2
-                        })
-                        .backgroundColor(log.isError ? '#ff4d4f' : '#52c41a')
-                        .opacity(0.15)
+                      Stack() {
+                        Text(log.isError ? 'ERROR' : 'INFO')
+                          .fontSize(9)
+                          .fontColor($r('sys.color.white'))
+                          .fontWeight(FontWeight.Bold)
+                          .padding({
+                            left: 6,
+                            right: 6,
+                            top: 2,
+                            bottom: 2
+                          })
+                      }
+                        .backgroundColor(log.isError ? '#26ff4d4f' : '#2652c41a')
+                        .backdropBlur(12)
                         .borderRadius(4)
 
                       Text(`[${new Date(log.time).toLocaleTimeString(undefined, { hour12: false })}]`)
                         .fontSize(10)
-                        .fontColor(log.isError ? '#ff4d4f' : $r('app.color.text_color'))
+                        .fontColor($r('sys.color.white'))
                         .opacity(0.7)
                         .margin({ left: 8 })
 
@@ -92,7 +94,7 @@ export struct CrashPage {
 
                     Text(log.text)
                       .fontSize(12)
-                      .fontColor(log.isError ? '#ff4d4f' : $r('app.color.text_color'))
+                      .fontColor(log.isError ? '#ff4d4f' : $r('sys.color.white'))
                       .width('100%')
                       .wordBreak(WordBreak.BREAK_ALL)
                       .margin({ top: 6 })
@@ -115,9 +117,12 @@ export struct CrashPage {
           .borderRadius(16)
         } else {
           Column() {
-            Text('流心崩溃日志').margin(10)
+            Text('流心崩溃日志')
+              .fontColor($r('sys.color.white'))
+              .margin(10)
             ForEach(this.appEventGroups, (eventGroup: hiAppEvent.AppEventGroup) => {
               Text('事件名：' + eventGroup.name)
+                .fontColor($r('sys.color.white'))
               ForEach(eventGroup.appEventInfos, (eventInfo: hiAppEvent.AppEventInfo) => {
                 Text(`HiAppEvent eventInfo.domain=${eventInfo.domain}\n` +
                   `HiAppEvent eventInfo.name=${eventInfo.name}\n` +
@@ -134,7 +139,10 @@ export struct CrashPage {
                   `HiAppEvent eventInfo.params.hilog.size=${eventInfo.params['hilog']?.length}\n` +
                   `HiAppEvent eventInfo.params.external_log=${JSON.stringify(eventInfo.params['external_log'])}\n` +
                   `HiAppEvent eventInfo.params.log_over_limit=${eventInfo.params['log_over_limit']}\n` +
-                  `HiAppEvent eventInfo.params.test_data=${eventInfo.params['test_data']}`).width('80%').height('auto')
+                  `HiAppEvent eventInfo.params.test_data=${eventInfo.params['test_data']}`)
+                  .fontColor($r('sys.color.white'))
+                  .width('80%')
+                  .height('auto')
               }, (_eventInfo: hiAppEvent.AppEventInfo, index: number) => index.toString())
             }, (eventGroup: hiAppEvent.AppEventGroup, index: number) => eventGroup.name + index)
           }.backgroundColor($r('app.color.start_window_background_blur'))
