@@ -118,7 +118,7 @@ class SubtitleUtil {
       item!.external_subtitle_format = ''
     } else {
       const subtitleName = await this.selectExternalSubtitles(PathUtils.subtitlePath, item?.date!)
-      const subtitleNameFormat = subtitleName?.match(/[^.]+$/)?.[0] || ''
+      const subtitleNameFormat = subtitleName?.match(/[^.]+$/)?.[0]?.toLowerCase() || ''
       switch (subtitleNameFormat) {
         case SubtitleFormat.SRT:
           item!.external_subtitle_format = SubtitleFormat.SRT
@@ -245,12 +245,13 @@ class SubtitleUtil {
     }
   }
 
-  getSubtitlesAtTime(timestamp: number): string {
+  getSubtitlesAtTime(timestamp: number, offsetOverride?: number): string {
     if (this.subtitles.length === 0) {
       return "";
     }
     // 应用偏移量：将播放器时间转换为字幕时间
-    const adjustedTimestamp = timestamp - this.offsetMillis;
+    const effectiveOffset = offsetOverride ?? this.offsetMillis
+    const adjustedTimestamp = timestamp - effectiveOffset;
     // 如果偏移后的时间可能为负数，可以酌情处理
     // 这里简单的将负数视为0，避免越界错误
     const searchTimestamp = Math.max(adjustedTimestamp, 0);
@@ -263,7 +264,7 @@ class SubtitleUtil {
       const mid = Math.floor((left + right) / 2);
       const sub = this.subtitles[mid];
       if (sub.startTimestampMillis <= searchTimestamp &&
-        sub.endTimestampMillis >= searchTimestamp) {
+        sub.endTimestampMillis > searchTimestamp) {
         startIndex = mid;
         break;
       } else if (sub.startTimestampMillis > searchTimestamp) {
@@ -279,7 +280,7 @@ class SubtitleUtil {
     result.push(this.subtitles[startIndex]);
     // 向左查找
     for (let i = startIndex - 1; i >= 0; i--) {
-      if (this.subtitles[i].endTimestampMillis >= searchTimestamp) {
+      if (this.subtitles[i].endTimestampMillis > searchTimestamp) {
         result.unshift(this.subtitles[i]);
       } else {
         break;
@@ -302,6 +303,33 @@ class SubtitleUtil {
     ).join('\n');
   }
 
+  getAdjacentSubtitleOffset(
+    playbackTimestamp: number,
+    currentOffsetMillis: number,
+    direction: 'prev' | 'next'
+  ): number | undefined {
+    if (this.subtitles.length === 0) {
+      return undefined
+    }
+    const searchTimestamp = Math.max(playbackTimestamp - currentOffsetMillis, 0)
+    const nextIndex = this.findFirstStartGreaterThan(searchTimestamp)
+    const activeIndex = (nextIndex > 0 && this.subtitles[nextIndex - 1].endTimestampMillis > searchTimestamp)
+      ? nextIndex - 1
+      : -1
+
+    let targetIndex = -1
+    if (direction === 'prev') {
+      targetIndex = activeIndex >= 0 ? activeIndex - 1 : nextIndex - 1
+    } else {
+      targetIndex = activeIndex >= 0 ? activeIndex + 1 : nextIndex
+    }
+
+    if (targetIndex < 0 || targetIndex >= this.subtitles.length) {
+      return undefined
+    }
+    return playbackTimestamp - this.subtitles[targetIndex].startTimestampMillis
+  }
+
   // 统一解析字幕文件
   private async parseSubtitleFile<T>(
     parser: Parser<T>,
@@ -310,6 +338,20 @@ class SubtitleUtil {
     await parser.init()
     const lines = await parser.readLines()
     return lines.map(mapper)
+  }
+
+  private findFirstStartGreaterThan(timestamp: number): number {
+    let left = 0
+    let right = this.subtitles.length
+    while (left < right) {
+      const mid = Math.floor((left + right) / 2)
+      if (this.subtitles[mid].startTimestampMillis > timestamp) {
+        right = mid
+      } else {
+        left = mid + 1
+      }
+    }
+    return left
   }
 
   // 设置字幕数据

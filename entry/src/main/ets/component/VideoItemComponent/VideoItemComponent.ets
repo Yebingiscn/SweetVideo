@@ -444,6 +444,7 @@ export struct VideoList {
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat_size_square')), content: '导入或删除字幕'
       })
         .onClick(async () => {
+          DataSyncUtil.editingVideo = item!
           await SubtitleUtil.importOrDeleteSubtitleProcess(item!)
           const targetIndex = SelectFileUtil.getItemIndex(this.videoListController.videoMetaDataList, item!)
           if (targetIndex !== -1) {

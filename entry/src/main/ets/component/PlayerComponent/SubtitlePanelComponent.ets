@@ -5,15 +5,17 @@ import { MpvSubtitleTrack } from '../../controller/MpvController/MpvTypes'
 import { SubtitleTrack } from '../../interfaces/AudioTrackInterface'
 import { InnerSubtitleDataSource } from '../../utils/DataUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
 
 @Component
 export struct SubtitlePanelComponent {
   @Link subtitleVisibility: Visibility
   @Link isAIAsrShown: boolean
   @Link subtitle3DMode: Subtitle3DMode
-  @State threeDSubtitleValue: string[] = ["不使用", "左/右", "上/下"]
   @State innerSubtitleMenu: InnerSubtitleDataSource = new InnerSubtitleDataSource([])
   @Consume('player') player: AVPlayerController | MpvController
+  onSubtitleOffClick = () => {
+  }
   onSubtitleOffsetTime = () => {
   }
   onInnerSubtitleClick = () => {
@@ -24,41 +26,100 @@ export struct SubtitlePanelComponent {
   }
 
   aboutToAppear(): void {
-    if (this.player.subtitleTrack.length > 0) {
-      this.innerSubtitleMenu = new InnerSubtitleDataSource(this.player.subtitleTrack)
-    }
+    this.innerSubtitleMenu = new InnerSubtitleDataSource(this.player.subtitleTrack)
+  }
+
+  private hasExternalSubtitle(): boolean {
+    return (this.player.nowPlaying?.external_subtitle_format?.length ?? 0) > 0
+  }
+
+  private isExternalSubtitleActive(): boolean {
+    return this.subtitleVisibility === Visibility.Visible &&
+      this.player.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE
+  }
+
+  private isSubtitleOffActive(): boolean {
+    return this.subtitleVisibility === Visibility.None && !this.isAIAsrShown
+  }
+
+  private isInnerSubtitleActive(): boolean {
+    return this.subtitleVisibility === Visibility.Visible &&
+      this.player.subtitleSelected === SubtitleMode.INNER_SUBTITLE
   }
 
   build() {
     Menu() {
       MenuItem({
-        content: '内嵌字幕：' + (this.subtitleVisibility === Visibility.Visible ? '显示' : '字幕隐藏'),
-        builder: this.InnerSubtitleMenu,
+        content: '关闭字幕'
       })
-        .contentFontColor(this.player.subtitleSelected === SubtitleMode.INNER_SUBTITLE ? $r('sys.color.white') :
-          $r('app.color.text_color'))
-        .height(40)
-        .backgroundColor(this.player.subtitleSelected === SubtitleMode.INNER_SUBTITLE ? $r('app.color.main_color') : '')
-        .borderRadius(16)
-        .width('100%')
-
-      MenuItem({
-        content: '外挂字幕：' + (this.subtitleVisibility === Visibility.Visible ? '显示' : '字幕隐藏')
-      })
-        .contentFontColor(this.player.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE ? $r('sys.color.white') :
+        .contentFontColor(this.isSubtitleOffActive() ? $r('sys.color.white') :
           $r('app.color.text_color'))
         .onClick(() => {
-          this.onExternalSubtitleClick()
+          this.onSubtitleOffClick()
         })
         .height(40)
-        .backgroundColor(this.player.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE ? $r('app.color.main_color') :
+        .backgroundColor(this.isSubtitleOffActive() ? $r('app.color.main_color') :
           '')
         .borderRadius(16)
         .width('100%')
 
+      if (this.player.subtitleTrack.length > 0) {
+        MenuItem({
+          content: '内嵌字幕',
+          builder: this.InnerSubtitleMenu,
+        })
+          .contentFontColor(this.isInnerSubtitleActive() ? $r('sys.color.white') :
+            $r('app.color.text_color'))
+          .onClick(() => {
+            this.onInnerSubtitleClick()
+          })
+          .height(40)
+          .backgroundColor(this.isInnerSubtitleActive() ? $r('app.color.main_color') : '')
+          .borderRadius(16)
+          .width('100%')
+      } else {
+        MenuItem({
+          content: '无内嵌字幕'
+        })
+          .contentFontColor($r('app.color.text_color'))
+          .onClick(() => {
+            ToolsUtil.showToast('当前视频没有内嵌字幕')
+          })
+          .height(40)
+          .borderRadius(16)
+          .width('100%')
+      }
+
+      if (this.hasExternalSubtitle()) {
+        MenuItem({
+          content: '外挂字幕',
+          builder: this.ExternalSubtitleSubmenu
+        })
+          .contentFontColor(this.isExternalSubtitleActive() ? $r('sys.color.white') :
+            $r('app.color.text_color'))
+          .onClick(() => {
+            this.onExternalSubtitleClick()
+          })
+          .height(40)
+          .backgroundColor(this.isExternalSubtitleActive() ? $r('app.color.main_color') : '')
+          .borderRadius(16)
+          .width('100%')
+      } else {
+        MenuItem({
+          content: '无外挂字幕'
+        })
+          .contentFontColor($r('app.color.text_color'))
+          .onClick(() => {
+            ToolsUtil.showToast('当前视频没有外挂字幕')
+          })
+          .height(40)
+          .borderRadius(16)
+          .width('100%')
+      }
+
       if (canIUse('SystemCapability.AI.AICaption')) {
         MenuItem({
-          content: 'AI 字幕：' + (this.isAIAsrShown ? '显示' : '隐藏')
+          content: 'AI 字幕'
         })
           .contentFontColor(this.isAIAsrShown ? $r('sys.color.white') :
             $r('app.color.text_color'))
@@ -72,23 +133,32 @@ export struct SubtitlePanelComponent {
       }
 
       MenuItem({
-        content: "字幕偏移",
-      })
-        .contentFontColor($r('app.color.text_color'))
-        .onClick(() => {
-          this.onSubtitleOffsetTime()
-        })
-
-      MenuItem({
         content: "3D 字幕",
         builder: this.ThreeDSubtitleSubmenu,
       })
-        .contentFontColor($r('app.color.text_color'))
+        .contentFontColor(this.subtitle3DMode !== Subtitle3DMode.DISABLED ? $r('sys.color.white') :
+          $r('app.color.text_color'))
+        .backgroundColor(this.subtitle3DMode !== Subtitle3DMode.DISABLED ? $r('app.color.main_color') : '')
         .menuItemExtend()
     }
     .width(240)
     .height('auto')
     .subMenuExpandingMode(SubMenuExpandingMode.STACK_EXPAND)
+  }
+
+  @Builder
+  ExternalSubtitleSubmenu() {
+    Menu() {
+      MenuItem({
+        content: "字幕偏移"
+      })
+        .menuItemExtend()
+        .onClick(() => {
+          this.onSubtitleOffsetTime()
+        })
+    }
+    .width(140)
+    .height('auto')
   }
 
   @Builder
@@ -138,15 +208,15 @@ export struct SubtitlePanelComponent {
           content: item.id + " " + VideoOperateUtil.getLanguageName(item.title) + " " +
             VideoOperateUtil.getLanguageName(item.lang)
         })
+          .menuItemExtend()
+          .contentFontColor(this.player.subtitleTrackSelected === item.id ? $r('sys.color.white') :
+            $r('app.color.text_color'))
+          .backgroundColor(this.player.subtitleTrackSelected === item.id ? $r('app.color.main_color') : '')
           .onClick(() => {
-            if (this.player instanceof MpvController) {
-              this.player?.selectSubtitleTrack(item.id)
-            }
-            if (this.player instanceof AVPlayerController) {
-              this.player?.selectSubtitleTrack(item.id)
-            }
+            this.player.selectSubtitleTrack(item.id)
+            this.onInnerSubtitleClick()
           })
-      }, (item: MpvSubtitleTrack | SubtitleTrack) => item.title)
+      }, (item: MpvSubtitleTrack | SubtitleTrack) => `${item.id}`)
     }
   }
 }

@@ -286,6 +286,24 @@ export default class SelectFileUtil {
       if (options.pointB) {
         video.pointB = options.pointB
       }
+      if (options.subtitleMode !== undefined) {
+        video.subtitle_mode = options.subtitleMode
+      }
+      if (options.subtitleVisible !== undefined) {
+        video.subtitle_visible = options.subtitleVisible
+      }
+      if (options.subtitleAIAsrShown !== undefined) {
+        video.subtitle_ai_asr_shown = options.subtitleAIAsrShown
+      }
+      if (options.subtitle3DMode !== undefined) {
+        video.subtitle_3d_mode = options.subtitle3DMode
+      }
+      if (options.subtitleOffsetMillis !== undefined) {
+        video.subtitle_offset_millis = options.subtitleOffsetMillis
+      }
+      if (options.subtitleTrackId !== undefined) {
+        video.subtitle_track_id = options.subtitleTrackId
+      }
     }
     if (PrivacySpaceUtil.getPrivacyMode()) {
       ToolsUtil.addLogger('当前处于隐私空间，更新隐私空间数据', false, undefined, TAG)
