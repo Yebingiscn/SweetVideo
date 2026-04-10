@@ -88,9 +88,13 @@ export struct MpvPlayer {
     try {
       await (await this.mpv.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
+      WindowUtil.setBarState(PathUtils.appContext!, false, false)
     } catch (error) {
       console.error('setPreferredOrientation error:' + error)
     }
+    this.mpv.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
+    const videoSpeed = Preferences.getVideoSpeed(PathUtils.appContext!)
+    this.mpv.speed = parseFloat(videoSpeed?.replace('x', '') || '1')
     WindowUtil.enableLandscapeMultiWindow(this.mpv.windowClass)
     this.mpv.initVolumeAndBrightness()
   }
@@ -166,6 +170,10 @@ export struct MpvPlayer {
               this.mpv.volumeActually = newVolume
               VideoOperateUtil.lastVolume = newVolume
             },
+            onOsdSurfaceReady: (surfaceId: string) => {
+              this.mpv.osdSurfaceId = surfaceId
+              this.mpv.setOsdSurface(surfaceId, this.mpv.playAreaWidth, this.mpv.playAreaHeight)
+            },
           })
 
           if (this.mpv.showControl && !this.mpv.isLock) {
@@ -198,7 +206,6 @@ export struct MpvPlayer {
               player: NavigationAddress.MPV_PLAYER
             })
           }
-
           VolumeSwipingPanelBuilder({
             videoVolume: this.mpv.volume,
             videoVolumeShow: this.mpv.volumeActually,

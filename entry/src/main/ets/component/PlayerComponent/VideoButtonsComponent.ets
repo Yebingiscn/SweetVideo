@@ -27,134 +27,126 @@ export struct VideoButtonsComponent {
   }
 
   build() {
-    GridRow({ columns: this.player.screenHeight / this.player.screenWidth > 1.4 ? 8 : 16, gutter: 5 }) {
-      GridCol() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) { // 播放按钮
-          SymbolGlyph(this.player.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill'))
-            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-            .fontColor(['#f0f0f0'])
-            .opacity(0.8)
-        }
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundColor('#50000000')
-        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
-        .onClick(() => {
-          ToolsUtil.startVibration()
-          this.onTogglePlaybackClick()
-        })
-        .defaultFocus(true) // 自动获取键盘焦点
-      }.span({ xs: 2, sm: 2, md: 2 })
+    Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceEvenly }) {
+      // 播放按钮
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph(this.player.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill'))
+          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+          .fontColor(['#f0f0f0'])
+          .opacity(0.8)
+      }
+      .attributeModifier(new ButtonFancyModifier(40, 40))
+      .backgroundColor('#50000000')
+      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .onClick(() => {
+        ToolsUtil.startVibration()
+        this.onTogglePlaybackClick()
+      })
+      .defaultFocus(true)
 
-      GridCol() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) { // 下一首按钮
-          SymbolGlyph($r('sys.symbol.forward_end_fill'))
-            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-            .fontColor(['#f0f0f0'])
-            .opacity(0.8)
-        }
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundColor('#50000000')
-        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
-        .onClick(() => {
-          this.onPlayNextVideoClick()
-        })
-      }.span({ xs: 2, sm: 2, md: 2 })
+      // 下一首按钮
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph($r('sys.symbol.forward_end_fill'))
+          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+          .fontColor(['#f0f0f0'])
+          .opacity(0.8)
+      }
+      .attributeModifier(new ButtonFancyModifier(40, 40))
+      .backgroundColor('#50000000')
+      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .onClick(() => {
+        this.onPlayNextVideoClick()
+      })
 
-      GridCol() { // 投播
-        AVCastPicker({
-          normalColor: Color.White,
-          onStateChange: AVSessionUtil.castOnStateChange,
-          customPicker: () => this.AVCastPickerBuilderBridge()
-        })
-          .width(23)
-          .height(23)
-          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-      }.span({ xs: 2, sm: 2, md: 2 })
+      // 投播按钮
+      AVCastPicker({
+        normalColor: Color.White,
+        onStateChange: AVSessionUtil.castOnStateChange,
+        customPicker: () => this.AVCastPickerBuilderBridge()
+      })
+        .width(40)
+        .height(40)
+        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
 
-      GridCol() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph($r('sys.symbol.gearshape'))
-            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-            .fontColor(['#f0f0f0'])
-            .opacity(0.8)
-        }
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundColor('#50000000')
-        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
-        .bindMenu(this.videoSettingBuilder,
-          { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
-      }.span({ xs: 2, sm: 2, md: 2 })
+      // 设置按钮
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph($r('sys.symbol.gearshape'))
+          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+          .fontColor(['#f0f0f0'])
+          .opacity(0.8)
+      }
+      .attributeModifier(new ButtonFancyModifier(40, 40))
+      .backgroundColor('#50000000')
+      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .bindMenu(this.videoSettingBuilder,
+        { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
 
-      GridCol() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph(this.getRepeatModeIcon())
-            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-            .fontColor(['#f0f0f0'])
-            .opacity(0.8)
-        }
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundColor('#50000000')
-        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
-        .onClick(() => {
-          // LIST -> SINGLE -> RANDOM -> SEQUENCE -> 回到LIST
-          const repeatMode = VideoOperateUtil.getRepeatMode(this.player.repeatMode)
-          ToolsUtil.showToast(this.getRepeatModeText(repeatMode))
-          AVSessionUtil.updatePlaybackSessionState(this.player.playing, this.player.playTime, this.player.repeatMode)
-          this.onChangeRepeatMode(repeatMode)
-        })
-      }.span({ xs: 2, sm: 2, md: 2 })
+      // 循环模式按钮
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph(this.getRepeatModeIcon())
+          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+          .fontColor(['#f0f0f0'])
+          .opacity(0.8)
+      }
+      .attributeModifier(new ButtonFancyModifier(40, 40))
+      .backgroundColor('#50000000')
+      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .onClick(() => {
+        const repeatMode = VideoOperateUtil.getRepeatMode(this.player.repeatMode)
+        ToolsUtil.showToast(this.getRepeatModeText(repeatMode))
+        AVSessionUtil.updatePlaybackSessionState(this.player.playing, this.player.playTime, this.player.repeatMode)
+        this.onChangeRepeatMode(repeatMode)
+      })
 
-      GridCol() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) { //选集
-          SymbolGlyph($r('sys.symbol.music_note_list'))
-            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-            .fontColor(['#f0f0f0'])
-            .opacity(0.8)
+      // 选集按钮
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph($r('sys.symbol.music_note_list'))
+          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+          .fontColor(['#f0f0f0'])
+          .opacity(0.8)
+      }
+      .attributeModifier(new ButtonFancyModifier(40, 40))
+      .backgroundColor('#50000000')
+      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .onClick(() => {
+        if (this.sideBarStatus) {
+          this.onSideBaClose()
+        } else {
+          this.sideBarStatusTmp = Visibility.Visible
+          this.sideBarStatus = true
         }
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundColor('#50000000')
-        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
-        .onClick(() => {
-          if (this.sideBarStatus) {
-            this.onSideBaClose()
-          } else {
-            this.sideBarStatusTmp = Visibility.Visible
-            this.sideBarStatus = true
-          }
-        })
-      }.span({ xs: 2, sm: 2, md: 2 })
+      })
 
-      GridCol() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) { // 倍速调整按钮
-          Text(`${this.player.speed}x`)
-            .fontSize(18)
-            .fontColor($r('sys.color.white'))
-            .maxLines(1)
-            .padding(5)
-            .opacity(0.8)
-        }
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundColor('#50000000')
-        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
-        .bindMenu(this.playbackSpeedMenu,
-          { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
-      }.span({ xs: 2, sm: 2, md: 2 })
+      // 倍速调整按钮
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        Text(`${this.player.speed}x`)
+          .fontSize(18)
+          .fontColor($r('sys.color.white'))
+          .maxLines(1)
+          .padding(5)
+          .opacity(0.8)
+      }
+      .attributeModifier(new ButtonFancyModifier(40, 40))
+      .backgroundColor('#50000000')
+      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .bindMenu(this.playbackSpeedMenu,
+        { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
 
-      GridCol() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) { // 屏幕旋转按钮
-          SymbolGlyph($r('sys.symbol.fullscreen'))
-            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-            .fontColor(['#f0f0f0'])
-            .opacity(0.8)
-        }
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
-        .backgroundColor('#50000000')
-        .onClick(async () => {
-          await this.onScreenRotationOrFullScreenClick()
-        })
-      }.span({ xs: 2, sm: 2, md: 2 })
-    }.width('95%')
+      // 屏幕旋转按钮
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph($r('sys.symbol.fullscreen'))
+          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+          .fontColor(['#f0f0f0'])
+          .opacity(0.8)
+      }
+      .attributeModifier(new ButtonFancyModifier(40, 40))
+      .backgroundColor('#50000000')
+      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .onClick(async () => {
+        await this.onScreenRotationOrFullScreenClick()
+      })
+    }
+    .width('95%')
   }
 
   /**

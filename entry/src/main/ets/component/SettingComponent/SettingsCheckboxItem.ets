@@ -19,29 +19,33 @@ export struct SettingsCheckboxItem {
   }
 
   build() {
-    Row() {
-      Column() {
-        Row({ space: 10 }) {
-          SymbolGlyph(this.symbol)
-            .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
-            .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE))
-          Text(this.message)
-            .fontSize(17)
-            .fontWeight(FontWeight.Medium)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.MARQUEE })
-            .layoutWeight(1)
-        }.height('auto').width('100%').margin({ bottom: 10 })
+    Column({ space: 10 }) {
+      // 标题行
+      Row({ space: 10 }) {
+        SymbolGlyph(this.symbol)
+          .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
+          .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE))
+        Text(this.message)
+          .fontSize(17)
+          .fontWeight(FontWeight.Medium)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.MARQUEE })
+          .layoutWeight(1)
+      }
+      .width('100%')
+      .margin({ bottom: 10 })
 
-        SegmentButton({
-          options: this.tabOptions,
-          selectedIndexes: $tabSelectedIndexes,
-        })
-      }.height('100%').width('100%')
+      // Tab 切换
+      SegmentButton({
+        options: this.tabOptions,
+        selectedIndexes: $tabSelectedIndexes,
+      })
     }
-    .align(Alignment.Center)
+    .width('100%')
+    .height(100)
+    .alignItems(HorizontalAlign.Center)
+    .justifyContent(FlexAlign.Center)
     .backgroundColor($r('app.color.start_window_background_blur'))
-    .height(80)
     .borderRadius(16)
     .padding({
       right: 15,
@@ -66,6 +70,6 @@ export struct SettingsCheckboxItem {
       backgroundBlurStyle: BlurStyle.BACKGROUND_THICK,
       selectedBackgroundColor: $r('app.color.main_color'),
       selectedFontColor: $r('sys.color.white')
-    });
+    })
   }
 }

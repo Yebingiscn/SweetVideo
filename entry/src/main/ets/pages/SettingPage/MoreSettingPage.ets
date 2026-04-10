@@ -95,7 +95,7 @@ export struct MoreSettingPage {
                 })?.catch((error: BusinessError<Object>) => {
                   salmonLogger.addLog(this.pathStack.getAllPathName()[0],
                     `展示评论弹窗错误, Code: ${error.code}, message: ${error.message}`, true)
-                  WantProcess.linkToAppGallery()
+                  WantProcess.linkToAppGallery(PathUtils.appContext!.abilityInfo.bundleName)
                 })
               } catch (error) {
                 salmonLogger.addLog(this.pathStack.getAllPathName()[0],

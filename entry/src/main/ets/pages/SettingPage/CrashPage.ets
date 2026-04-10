@@ -8,9 +8,11 @@ import { systemShare } from '@kit.ShareKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { uniformTypeDescriptor } from '@kit.ArkData'
 import { fileUri } from '@kit.CoreFileKit';
+import { SweetLogDataSource } from '../../utils/DataUtil'
 
 @Component
 export struct CrashPage {
+  @State sweetLogDataSource: SweetLogDataSource = new SweetLogDataSource([])
   @Consume('pathStack') pathStack: NavPathStack
   private appEventGroups: Array<hiAppEvent.AppEventGroup> | [] = []
 
@@ -19,6 +21,7 @@ export struct CrashPage {
     if (crashLog) {
       this.appEventGroups = crashLog
     }
+    this.sweetLogDataSource = new SweetLogDataSource(salmonLogger.logs)
   }
 
   aboutToDisappear(): void {
@@ -44,6 +47,7 @@ export struct CrashPage {
                   .width(16)
                   .height(16)
                   .fill('#ffbd2e')
+                  .onClick(() => ToolsUtil.showToast("红色按钮清空日志，绿色按钮导出日志"))
                 Circle()
                   .width(16)
                   .height(16)
@@ -55,8 +59,8 @@ export struct CrashPage {
             .padding(12)
 
             // 日志列表，支持自动换行
-            List() {
-              ForEach(salmonLogger.logs, (log: SalmonLogLine) => {
+            List({ space: 10 }) {
+              LazyForEach(this.sweetLogDataSource, (log: SalmonLogLine) => {
                 ListItem() {
                   Column() {
                     Row() {
@@ -73,13 +77,13 @@ export struct CrashPage {
                             bottom: 2
                           })
                       }
-                        .backgroundColor(log.isError ? '#26ff4d4f' : '#2652c41a')
-                        .backdropBlur(12)
-                        .borderRadius(4)
+                      .backgroundColor(log.isError ? '#26ff4d4f' : '#2652c41a')
+                      .backdropBlur(12)
+                      .borderRadius(4)
 
                       Text(`[${new Date(log.time).toLocaleTimeString(undefined, { hour12: false })}]`)
                         .fontSize(10)
-                        .fontColor($r('sys.color.white'))
+                        .fontColor($r('app.color.text_color'))
                         .opacity(0.7)
                         .margin({ left: 8 })
 
@@ -94,15 +98,15 @@ export struct CrashPage {
 
                     Text(log.text)
                       .fontSize(12)
-                      .fontColor(log.isError ? '#ff4d4f' : $r('sys.color.white'))
+                      .fontColor(log.isError ? '#ff4d4f' : $r('app.color.text_color'))
                       .width('100%')
                       .wordBreak(WordBreak.BREAK_ALL)
                       .margin({ top: 6 })
-                  }
-                  .width('100%')
-                  .padding({ top: 8, bottom: 8 })
-                  .borderRadius(16)
-                }
+                      .align(Alignment.Start)
+                  }.margin({ right: 24 })
+                }.width('100%')
+                .padding({ top: 6, bottom: 6, right: 12 })
+                .borderRadius(16)
               }, (_log: SalmonLogLine, index: number) => index.toString())
             }
             .height('100%')
@@ -118,37 +122,58 @@ export struct CrashPage {
         } else {
           Column() {
             Text('流心崩溃日志')
-              .fontColor($r('sys.color.white'))
+              .fontColor($r('app.color.text_color'))
               .margin(10)
             ForEach(this.appEventGroups, (eventGroup: hiAppEvent.AppEventGroup) => {
               Text('事件名：' + eventGroup.name)
-                .fontColor($r('sys.color.white'))
+                .fontColor($r('app.color.text_color'))
               ForEach(eventGroup.appEventInfos, (eventInfo: hiAppEvent.AppEventInfo) => {
-                Text(`HiAppEvent eventInfo.domain=${eventInfo.domain}\n` +
-                  `HiAppEvent eventInfo.name=${eventInfo.name}\n` +
-                  `HiAppEvent eventInfo.eventType=${eventInfo.eventType}\n` +
-                  `HiAppEvent eventInfo.params.time=${eventInfo.params['time']}\n` +
-                  `HiAppEvent eventInfo.params.crash_type=${eventInfo.params['crash_type']}\n` +
-                  `HiAppEvent eventInfo.params.foreground=${eventInfo.params['foreground']}\n` +
-                  `HiAppEvent eventInfo.params.bundle_version=${eventInfo.params['bundle_version']}\n` +
-                  `HiAppEvent eventInfo.params.bundle_name=${eventInfo.params['bundle_name']}\n` +
-                  `HiAppEvent eventInfo.params.pid=${eventInfo.params['pid']}\n` +
-                  `HiAppEvent eventInfo.params.uid=${eventInfo.params['uid']}\n` +
-                  `HiAppEvent eventInfo.params.uuid=${eventInfo.params['uuid']}\n` +
-                  `HiAppEvent eventInfo.params.exception=${JSON.stringify(eventInfo.params['exception'])}\n` +
-                  `HiAppEvent eventInfo.params.hilog.size=${eventInfo.params['hilog']?.length}\n` +
-                  `HiAppEvent eventInfo.params.external_log=${JSON.stringify(eventInfo.params['external_log'])}\n` +
-                  `HiAppEvent eventInfo.params.log_over_limit=${eventInfo.params['log_over_limit']}\n` +
-                  `HiAppEvent eventInfo.params.test_data=${eventInfo.params['test_data']}`)
-                  .fontColor($r('sys.color.white'))
-                  .width('80%')
-                  .height('auto')
+                Column() {
+                  Text(`HiAppEvent eventInfo.domain=${eventInfo.domain}`).fontColor($r('app.color.text_color'))
+                  Text(`HiAppEvent eventInfo.name=${eventInfo.name}`).fontColor($r('app.color.text_color'))
+                  Text(`HiAppEvent eventInfo.eventType=${eventInfo.eventType}`).fontColor($r('app.color.text_color'))
+                  Text(`HiAppEvent eventInfo.params.time=${eventInfo.params['time']}`)
+                    .fontColor($r('app.color.text_color'))
+                  Text(`HiAppEvent eventInfo.params.crash_type=${eventInfo.params['crash_type']}`)
+                    .fontColor($r('app.color.text_color'))
+                  Text(`HiAppEvent eventInfo.params.foreground=${eventInfo.params['foreground']}`)
+                    .fontColor($r('app.color.text_color'))
+                  Text(`HiAppEvent eventInfo.params.bundle_version=${eventInfo.params['bundle_version']}`)
+                    .fontColor($r('app.color.text_color'))
+                  Text(`HiAppEvent eventInfo.params.bundle_name=${eventInfo.params['bundle_name']}`)
+                    .fontColor($r('app.color.text_color'))
+                  Text(`HiAppEvent eventInfo.params.pid=${eventInfo.params['pid']}`)
+                    .fontColor($r('app.color.text_color'))
+                  Text(`HiAppEvent eventInfo.params.uid=${eventInfo.params['uid']}`)
+                    .fontColor($r('app.color.text_color'))
+                  Text(`HiAppEvent eventInfo.params.uuid=${eventInfo.params['uuid']}`)
+                    .fontColor($r('app.color.text_color'))
+                  Text(`HiAppEvent eventInfo.params.exception=${JSON.stringify(eventInfo.params['exception'])}`)
+                    .fontColor($r('app.color.text_color'))
+                  Text(`HiAppEvent eventInfo.params.hilog.size=${eventInfo.params['hilog']?.length}`)
+                    .fontColor($r('app.color.text_color'))
+                  Text(`HiAppEvent eventInfo.params.external_log=${JSON.stringify(eventInfo.params['external_log'])}`)
+                    .fontColor($r('app.color.text_color'))
+                  Text(`HiAppEvent eventInfo.params.log_over_limit=${eventInfo.params['log_over_limit']}`)
+                    .fontColor($r('app.color.text_color'))
+                  Text(`HiAppEvent eventInfo.params.external_log=${JSON.stringify(eventInfo.params['external_log'])}`)
+                  Text(`HiAppEvent eventInfo.params.external_log=${JSON.stringify(eventInfo.params['external_log'])}`)
+                    .fontColor($r('app.color.text_color'))
+                  Text(`HiAppEvent eventInfo.params.log_over_limit=${eventInfo.params['log_over_limit']}`)
+                    .fontColor($r('app.color.text_color'))
+                  Text(`HiAppEvent eventInfo.params.test_data=${eventInfo.params['test_data']}`)
+                    .fontColor($r('app.color.text_color'))
+                  Text(`HiAppEvent eventInfo.params.test_data=${eventInfo.params['test_data']}`)
+                    .fontColor($r('app.color.text_color'))
+                }.width('80%')
               }, (_eventInfo: hiAppEvent.AppEventInfo, index: number) => index.toString())
             }, (eventGroup: hiAppEvent.AppEventGroup, index: number) => eventGroup.name + index)
-          }.backgroundColor($r('app.color.start_window_background_blur'))
+          }
+          .backgroundColor($r('app.color.start_window_background_blur'))
           .height('100%')
           .width('100%')
           .borderRadius(16)
+          .padding({ left: 12, right: 12 })
         }
       }
       .margin({ left: 16, right: 16, bottom: 16 })

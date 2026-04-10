@@ -1,7 +1,7 @@
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { media } from '@kit.MediaKit'
 import { BusinessError, systemDateTime } from '@kit.BasicServicesKit'
-import { fileIo as fs } from '@kit.CoreFileKit'
+import { fileIo as fs, fileUri } from '@kit.CoreFileKit'
 import VideoUtil from './VideoInfoUtil'
 import VideoInfoUtil from './VideoInfoUtil'
 import { bundleManager, common, Context, OpenLinkOptions, Want } from '@kit.AbilityKit'
@@ -146,12 +146,12 @@ export default class WantProcess {
       return
     }
     if (SelectFileUtil.isPathFromSource(uri, VideoSource.DOCUMENT_SELECT_OPTION) ||
-    SelectFileUtil.isPathFromSource(uri, VideoSource.EXTERNAL_DEVICE)) {
+      SelectFileUtil.isPathFromSource(uri, VideoSource.EXTERNAL_DEVICE)) {
       WantProcess.linkToFileManager(uri)
       return
     }
     if (SelectFileUtil.isPathFromSource(uri, VideoSource.SWEET_VIDEO_DOWNLOAD_FILE)) {
-      WantProcess.linkToFileManager(`file://docs${uri}`)
+      WantProcess.linkToFileManager(uri)
       return
     }
     ToolsUtil.showToast('不支持打开文件位置')
@@ -188,7 +188,7 @@ export default class WantProcess {
       let link: string = 'filemanager://openDirectory'
       let openLinkOptions: OpenLinkOptions = {
         parameters: {
-          'fileUri': uri
+          'fileUri': new fileUri.FileUri(uri).toString()
         }
       }
       context.openLink(link, openLinkOptions)
@@ -202,20 +202,20 @@ export default class WantProcess {
     }
   }
 
-  static linkToAppGallery() {
+  static linkToAppGallery(appName: string) {
     const want: Want = {
       action: 'ohos.want.action.appdetail',
       // bundleName为需要拉起写评论页的应用包名，action隐式指定为write-review，表示进入详情页后，下一步将拉起写评论页。
-      uri: `store://appgallery.huawei.com/app/detail?id=${PathUtils.appContext!.abilityInfo.bundleName}&action=write-review`
+      uri: `store://appgallery.huawei.com/app/detail?id=${appName}&action=write-review`
     }
     PathUtils.appContext!.startAbility(want)
       .then(() => {
         salmonLogger.addLog(TAG, '成功打开应用市场评论页', false)
       })
-    ?.catch((error: BusinessError) => {
-      ToolsUtil.showToast('打开应用市场失败，原因是：' + error)
-      salmonLogger.addLog(TAG, '打开应用市场评论页失败，原因是：' + error, true)
-    })
+      ?.catch((error: BusinessError) => {
+        ToolsUtil.showToast('打开应用市场失败，原因是：' + error)
+        salmonLogger.addLog(TAG, '打开应用市场评论页失败，原因是：' + error, true)
+      })
   }
 
   private static clearWantState() {

@@ -68,11 +68,24 @@ declare module 'libmpvnative.so' {
 
   export const setKeepAspect: (mpvHandle: number, keepAspect: boolean) => void;
 
+  // ==================== 缓存配置 ====================
+  export const setCacheSize: (size_mb: number) => void;
+
+  export const getCacheSize: () => number;
+
   // ==================== 网络 ====================
   export const getNetworkSpeed: (mpvHandle: number) => any;
+
+  // ==================== OSD Surface 配置 ====================
+  export const setOsdSurface: (surfaceId: string, width: number, height: number) => void;
 
   // ==================== 播放完成事件 ====================
   export const registerPlaybackCompleteCallback: (callback: () => void) => void;
 
   export const unregisterPlaybackCompleteCallback: () => void;
+
+  // ==================== 播放时间更新事件 ====================
+  export const registerTimeUpdateCallback: (callback: (timeMs: number) => void) => void;
+
+  export const unregisterTimeUpdateCallback: () => void;
 }

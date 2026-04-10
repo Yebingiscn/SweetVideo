@@ -243,8 +243,6 @@ export class WindowUtil {
       let system = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
       let nav = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR)
       const uiContext = WindowUtil.windowClass?.getUIContext()
-
-      // 移除 animateToImmediately，直接更新值，避免动画与布局冲突导致崩溃
       if (canIUse('SystemCapability.Window.SessionManager')) {
         SafeHeight.topSafeHeight = Math.max(uiContext?.px2vp(cutOut.topRect.height * 1.4)!,
           uiContext?.px2vp(system.topRect.height)!,
@@ -282,8 +280,6 @@ export class WindowUtil {
         uiContext?.px2vp(width || WindowUtil.windowClass?.getWindowProperties().windowRect.width) || 0
       const screen_height =
         uiContext?.px2vp(height || WindowUtil.windowClass?.getWindowProperties().windowRect.height) || 0
-
-      // 移除 animateToImmediately，直接更新值，避免动画与布局冲突导致崩溃
       AppStorage.setOrCreate('screen_width', screen_width)
       AppStorage.setOrCreate('screen_height', screen_height)
 

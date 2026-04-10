@@ -73,7 +73,7 @@ export struct Player { // 播放页
           this.player.playAreaHeight = input / 100 * VideoInfoUtil.playAreaHeight
           this.player.playAreaWidth = input / 100 * VideoInfoUtil.playAreaWidth
         } else {
-          ToolsUtil.showToast('输入错误')
+          ToolsUtil.showToast('输入错误，输入范围在50-150之间')
         }
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
@@ -142,7 +142,7 @@ export struct Player { // 播放页
       this.player.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
       const videoSpeed = Preferences.getVideoSpeed(PathUtils.appContext!)
       this.player.speed = parseFloat(videoSpeed?.replace('x', '') || '1')
-      ToolsUtil.addLogger("设置播放器速度完成", false, this.pathStack)
+      WindowUtil.setBarState(PathUtils.appContext!, false, false)
     } catch (error) {
       ToolsUtil.addLogger(`播放错误 ${error}`, true, this.pathStack)
     }

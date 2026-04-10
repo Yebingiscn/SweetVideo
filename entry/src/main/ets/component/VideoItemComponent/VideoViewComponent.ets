@@ -314,9 +314,9 @@ export struct VideoView {
       $r('app.color.main_color') : $r('app.color.start_window_background'))
     .height(this.FOLDER_TAB_HEIGHT)
     .constraintSize({ minWidth: this.FOLDER_TAB_MIN_WIDTH })
-    .borderRadius(14)
+    .borderRadius(16)
     .justifyContent(FlexAlign.Center)
-    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.95 })
+    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
     .onClick(() => {
       if (this.currentFolderIndex !== index) {
         this.currentFolderIndex = index

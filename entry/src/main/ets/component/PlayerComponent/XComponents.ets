@@ -4,6 +4,8 @@ import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import NavigationAddress from '../../common/NavigationCommon'
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
+import { MpvDecodingMethod } from '../../controller/MpvController/MpvTypes'
+import { Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import { WindowUtil } from '../../utils/WindowUtil'
 import { SubtitleDisplayBuilder } from './SubtitleDisplayBuilder'
@@ -34,6 +36,8 @@ export struct XComponents {
   }
   onKeyCodeUpAndDown = (_event: KeyEvent) => {
   }
+  onOsdSurfaceReady = (_surfaceId: string) => {
+  }
 
   build() {
     Stack() {
@@ -53,6 +57,9 @@ export struct XComponents {
           osdVisibility: this.osdVisibility,
           onMpvXComponent: () => {
             this.onXComponentLoad()
+          },
+          onOsdSurfaceReady: (surfaceId: string) => {
+            this.onOsdSurfaceReady(surfaceId)
           },
         })
       }
@@ -106,6 +113,8 @@ export struct MpvXComponent {
   @Prop osdVisibility: boolean = false
   onMpvXComponent = () => {
   }
+  onOsdSurfaceReady = (_surfaceId: string) => {
+  }
 
   build() {
     Column() {
@@ -126,7 +135,7 @@ export struct MpvXComponent {
       // 注意：SURFACE 类型 XComponent 在首帧提交前是不透明的，会遮挡视频。
       // 解决方案：初始为 None，视频开始播放后延迟 500ms 再变 Visible，
       // 此时 ohos_osd_create 已提交透明帧，surface 不再是黑色覆盖层。
-      if (this.osdVisibility) {
+      if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE) {
         XComponent({
           id: "mpv_osd_surface",
           type: XComponentType.SURFACE,
@@ -134,9 +143,22 @@ export struct MpvXComponent {
         })
           .backgroundColor(Color.Transparent)  // 声明透明背景，确保合成器使用 SRC_OVER 而非 SRC
           .hitTestBehavior(HitTestMode.Transparent)
+          .visibility(this.osdVisibility ? Visibility.Visible : Visibility.None)
+          .onLoad(() => {
+            try {
+              const surfaceId = this.osdXController?.getXComponentSurfaceId()
+              if (surfaceId) {
+                console.info('[OSD] OSD Surface created, ID: ' + surfaceId)
+                this.onOsdSurfaceReady(surfaceId)
+              } else {
+                console.error('[OSD] Failed to get OSD Surface ID')
+              }
+            } catch (error) {
+              console.error('[OSD] Error in OSD onLoad: ' + error)
+            }
+          })
       }
     }
-
   }
 }
 

@@ -133,7 +133,12 @@ export struct RecentPlay { // 最近播放页
               {
                 preview: VideoItemPreviewBuilder(item),
                 previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
-                layoutRegionMargin: { left: 16, right: 16, top: 16, bottom: 4 },
+                layoutRegionMargin: {
+                  left: 16,
+                  right: 16,
+                  top: 16,
+                  bottom: 4
+                },
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 hapticFeedbackMode: HapticFeedbackMode.ENABLED,
                 mask: true
@@ -142,12 +147,18 @@ export struct RecentPlay { // 最近播放页
               {
                 preview: VideoItemPreviewBuilder(item),
                 previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
-                layoutRegionMargin: { left: 16, right: 16, top: 16, bottom: 4 },
+                layoutRegionMargin: {
+                  left: 16,
+                  right: 16,
+                  top: 16,
+                  bottom: 4
+                },
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 mask: true
               })
           }, (item: VideoMetadata) => item.date + item.title + item.last_play + item.size.toString() + item.time)
         }
+        .fadingEdge(true)
         .clip(false)
         .layoutWeight(1)
         .padding({ left: 20, right: 20 })

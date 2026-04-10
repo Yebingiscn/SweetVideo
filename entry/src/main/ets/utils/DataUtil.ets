@@ -16,6 +16,7 @@ import { BusinessError } from '@kit.BasicServicesKit'
 import { fileUri, fileIo as fs } from '@kit.CoreFileKit'
 import ToolsUtil from './ToolsUtil'
 import { MpvAudioTrack, MpvSubtitleTrack } from '../controller/MpvController/MpvTypes'
+import { SalmonLogLine } from 'salmonlogger'
 
 // 基础数据源抽象类（泛型实现）
 abstract class BaseDataSource<T> implements IDataSource {
@@ -95,6 +96,10 @@ export class PrivacySpaceErrorListDataSource extends BaseDataSource<String> {
 
 @Observed
 export class InnerSubtitleDataSource extends BaseDataSource<MpvSubtitleTrack | SubtitleTrack> {
+}
+
+@Observed
+export class SweetLogDataSource extends BaseDataSource<SalmonLogLine> {
 }
 
 // 具体实现类

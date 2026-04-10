@@ -246,6 +246,7 @@ export struct VideoList {
         }, (item: VideoMetadata) => item.date.toString() + item.last_play + item.title + item.size.toString() +
           this.videoListController.folder.name + item.time)
       }
+      .fadingEdge(true)
       .clip(false)
       .padding({ left: 10, right: 10 })
       .cachedCount(12)
@@ -351,7 +352,7 @@ export struct VideoList {
           })
         }
         .clip(false)
-      }
+      }.fadingEdge(true)
       .clip(false)
       .scrollBar(BarState.Auto)
     }

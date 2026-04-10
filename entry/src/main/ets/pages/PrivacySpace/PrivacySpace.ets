@@ -426,7 +426,12 @@ export struct PrivacySpace { // 隐私空间页
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 preview: VideoItemPreviewBuilder(item),
                 previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
-                layoutRegionMargin: { left: 16, right: 16, top: 16, bottom: 4 },
+                layoutRegionMargin: {
+                  left: 16,
+                  right: 16,
+                  top: 16,
+                  bottom: 4
+                },
                 hapticFeedbackMode: HapticFeedbackMode.ENABLED,
                 mask: true
               })
@@ -435,7 +440,12 @@ export struct PrivacySpace { // 隐私空间页
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
                 preview: VideoItemPreviewBuilder(item),
                 previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
-                layoutRegionMargin: { left: 16, right: 16, top: 16, bottom: 4 },
+                layoutRegionMargin: {
+                  left: 16,
+                  right: 16,
+                  top: 16,
+                  bottom: 4
+                },
                 mask: true
               })
             .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
@@ -446,6 +456,7 @@ export struct PrivacySpace { // 隐私空间页
             })
           }, (item: VideoMetadata) => item.date + item.title + item.last_play + item.size.toString() + item.time)
         }
+        .fadingEdge(true)
         .clip(false)
         .cachedCount(3)
         .lanes(this.list_line)

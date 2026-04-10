@@ -3,7 +3,6 @@ import {
   create as mpvCreate,
   destroy as mpvDestroy,
   getAudioTracks as mpvGetAudioTracks,
-  getCurrentPosition as mpvGetCurrentPosition,
   getDuration as mpvGetDuration,
   getSubtitleTracks as mpvGetSubtitleTracks,
   getCurrentSubtitleTrack as mpvGetCurrentSubtitleTrack,
@@ -20,8 +19,11 @@ import {
   setKeepAspect as mpvSetKeepAspect,
   setSpeed as mpvSetSpeed,
   setHwdecMode as mpvSetHwdecMode,
+  setOsdSurface as mpvSetOsdSurface,
   registerPlaybackCompleteCallback as mpvRegisterPlaybackCompleteCallback,
   unregisterPlaybackCompleteCallback as mpvUnregisterPlaybackCompleteCallback,
+  registerTimeUpdateCallback as mpvRegisterTimeUpdateCallback,
+  unregisterTimeUpdateCallback as mpvUnregisterTimeUpdateCallback,
 } from 'libmpvnative.so';
 import { Setting } from '../../utils/ObservedUtil';
 import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode';
@@ -60,6 +62,7 @@ export class MpvController implements PlayerControllerInterface {
   windowClass = WindowUtil.getWindow()
   @Track mpvHandle: number | null = null
   surfaceId: string | null = null
+  osdSurfaceId: string | null = null
   @Track playTime: number = 0
   @Track playing: boolean = false
   @Track nowPlaying: VideoMetadata | undefined = undefined
@@ -97,9 +100,9 @@ export class MpvController implements PlayerControllerInterface {
   @Track showControl: boolean = false
   avSession: avSessionManager.AVSession | undefined = undefined
   audioVolumeManager: audio.AudioVolumeManager | null = null
-  private playTimeUpdateTag: number | null = null
   private userListener: BaseListener<number> | null = null
   private playbackCallbackRegistered: boolean = false
+  private timeUpdateCallbackRegistered: boolean = false
 
   async playChooseVideo(item: VideoMetadata, pathStack: NavPathStack) {
     ToolsUtil.addLogger("开始播放选择的视频", false)
@@ -108,6 +111,7 @@ export class MpvController implements PlayerControllerInterface {
       RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
       ToolsUtil.addLogger("添加到最近播放记录完成", false)
     }
+    this.osdVisibility = false
     this.reset()
     this.onSwiping = false
     this.isSliderPlayTimeChange = false
@@ -171,26 +175,34 @@ export class MpvController implements PlayerControllerInterface {
       return
     }
     try {
+      // 在创建 MPV 实例之前先设置解码模式
+      // 因为 mpvCreate() 会立即调用 ConfigureMPV()，此时需要正确的模式值
+      let decodeType = Setting.mpvDecodingMethod
+      // 通过简单视频名检测是否为杜比P5
+      if (this.nowPlaying?.title.includes('DV') && !this.nowPlaying?.title.includes('HDR')) {
+        decodeType = MpvDecodingMethod.HARDWARE_BUFFER
+      }
+      switch (decodeType) {
+        case MpvDecodingMethod.HARDWARE_SURFACE:
+          mpvSetDecodeType(0)
+          mpvSetHwdecMode(1)
+          break
+        case MpvDecodingMethod.SOFTWARE:
+          mpvSetDecodeType(1)
+          break
+        case MpvDecodingMethod.HARDWARE_BUFFER:
+          mpvSetDecodeType(0)
+          mpvSetHwdecMode(0)
+          break
+        default:
+          mpvSetDecodeType(1)
+      }
+      // 现在创建 MPV 实例，此时全局配置已正确设置
       this.mpvHandle = mpvCreate()
       if (!this.mpvHandle) {
         console.error('[MpvPlayer] Failed to create mpv instance - handle is null/undefined')
       } else {
         console.error('[MpvPlayer] MPV instance created:', this.mpvHandle)
-        switch (Setting.mpvDecodingMethod) {
-          case MpvDecodingMethod.HARDWARE_SURFACE:
-            mpvSetDecodeType(0)
-            mpvSetHwdecMode(1)
-            break
-          case MpvDecodingMethod.SOFTWARE:
-            mpvSetDecodeType(1)
-            break
-          case MpvDecodingMethod.HARDWARE_BUFFER:
-            mpvSetDecodeType(0)
-            mpvSetHwdecMode(0)
-            break
-          default:
-            mpvSetDecodeType(1)
-        }
       }
     } catch {
       console.error('[MpvPlayer] Exception during create')
@@ -206,6 +218,13 @@ export class MpvController implements PlayerControllerInterface {
     this.registerPlaybackCompleteListener(pathStack!)
     this.setPlayerCallback(pathStack!)
     this.getData()
+
+    // Surface 模式下立即显示 OSD Surface，避免首次选择字幕时闪烁
+    // 原因：OSD Surface 需要在首帧字幕提交前就准备好
+    if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE) {
+      this.osdVisibility = true
+    }
+
     // 智能旋转和外部字幕可以延迟执行，不影响播放
     setTimeout(async () => {
       if (Setting.smartRotation &&
@@ -221,6 +240,9 @@ export class MpvController implements PlayerControllerInterface {
         })
         ToolsUtil.addLogger("设置窗口方向完成", false)
       }
+      if (this.speed !== 1) {
+        this.updatePlaybackSpeed(this.speed)
+      }
       // 获取信息需要有延迟，否则无法获取
       this.getAudioTrackList()
       this.getSubtitleTrackList()
@@ -228,12 +250,11 @@ export class MpvController implements PlayerControllerInterface {
       this.nowPlaying!.time = this.getDuration()
       this.setRotation()
       await this.setExternalSubtitle(this.nowPlaying!)
-      if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE) {
-        setTimeout(() => {
-          this.osdVisibility = true
-        }, 500)
-      }
     }, 1200)
+  }
+
+  setOsdSurface(surfaceId: string, width: number, height: number): void {
+    mpvSetOsdSurface(surfaceId, width, height)
   }
 
   setPlayerCallback(pathStack: NavPathStack) {
@@ -280,10 +301,8 @@ export class MpvController implements PlayerControllerInterface {
 
   getData() {
     this.playing = true
-    this.playTimeUpdateTag = setInterval(() => {
-      this.playTime = mpvGetCurrentPosition(this.mpvHandle)
-      this.userListener?.emit('timeUpdate', this.playTime)
-    }, 1000)
+    // 注册播放时间更新回调（事件驱动，替代轮询）
+    this.registerTimeUpdateCallback()
   }
 
   backForward(): void {
@@ -323,7 +342,6 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   reset(): void {
-    clearInterval(this.playTimeUpdateTag)
     mpvReset(this.mpvHandle)
     this.getData()
   }
@@ -335,8 +353,10 @@ export class MpvController implements PlayerControllerInterface {
     // 注销播放完成回调
     mpvUnregisterPlaybackCompleteCallback()
     this.playbackCallbackRegistered = false
+    // 注销播放时间更新回调
+    mpvUnregisterTimeUpdateCallback()
+    this.timeUpdateCallbackRegistered = false
     mpvDestroy(this.mpvHandle)
-    clearInterval(this.playTimeUpdateTag)
     this.mpvHandle = null
     this.userListener?.off('timeUpdate')
   }
@@ -395,9 +415,7 @@ export class MpvController implements PlayerControllerInterface {
 
   getAudioTrackList() {
     const tracks = mpvGetAudioTracks(this.mpvHandle) as MpvAudioTrack[]
-    // ⭐ 修复：添加重试机制，如果第一次获取失败（空数组），延迟后重试
     if (!tracks || tracks.length === 0) {
-      ToolsUtil.addLogger("首次获取音轨失败，1秒后重试", false)
       setTimeout(() => {
         const retryTracks = mpvGetAudioTracks(this.mpvHandle) as MpvAudioTrack[]
         if (retryTracks && retryTracks.length > 0) {
@@ -457,6 +475,16 @@ export class MpvController implements PlayerControllerInterface {
       this.nowPlaying!.size[0] = VideoWidth
       this.nowPlaying!.size[1] = VideoHeight
       VideoOperateUtil.saveVideoWeightAndHeight(PathUtils.appContext!, this.nowPlaying)
+    }
+    if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE) {
+      if (!this.osdSurfaceId) {
+        return
+      }
+      this.setOsdSurface(
+        this.osdSurfaceId, // 需要保存 surfaceId
+        this.playAreaWidth,
+        this.playAreaHeight
+      )
     }
   }
 
@@ -566,6 +594,21 @@ export class MpvController implements PlayerControllerInterface {
     }
   }
 
+  private registerTimeUpdateCallback() {
+    if (this.timeUpdateCallbackRegistered) {
+      return
+    }
+    try {
+      mpvRegisterTimeUpdateCallback((timeMs: number) => {
+        this.playTime = timeMs
+        this.userListener?.emit('timeUpdate', this.playTime)
+      })
+      this.timeUpdateCallbackRegistered = true
+    } catch (error) {
+      salmonLogger.addLog(TAG, 'Failed to register time update callback', error)
+    }
+  }
+
   // 注册播放完成监听器
   private registerPlaybackCompleteListener(pathStack: NavPathStack) {
     // 避免重复注册回调
@@ -577,12 +620,7 @@ export class MpvController implements PlayerControllerInterface {
     try {
       mpvRegisterPlaybackCompleteCallback(() => {
         ToolsUtil.addLogger("收到播放完成事件，准备播放下一个视频", false)
-        // ⭐ 修复：使用 replace 模式后，可以减少延迟时间
-        // replace 模式会自动处理状态切换，不需要长时间等待 MPV 状态稳定
-        // 100ms 延迟足够让 EOF 事件完全处理完成
-        setTimeout(() => {
-          this.playNextVideoProcess(pathStack)
-        }, 100)
+        this.playNextVideoProcess(pathStack)
       })
       this.playbackCallbackRegistered = true
       ToolsUtil.addLogger("播放完成监听器注册成功", false)
