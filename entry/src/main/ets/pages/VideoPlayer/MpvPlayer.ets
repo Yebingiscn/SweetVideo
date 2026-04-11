@@ -193,7 +193,7 @@ export struct MpvPlayer {
           if (this.mpv.longPress) {
             FastForwardPanelBuilder({
               speed: this.mpv.speed,
-              location: this.mpv.playAreaHeight,
+              location: VideoInfoUtil.playAreaHeight,
             })
           }
 

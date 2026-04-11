@@ -409,7 +409,7 @@ export struct Player { // 播放页
           if (this.player.longPress) {
             FastForwardPanelBuilder({
               speed: this.player.speed,
-              location: this.player.playAreaHeight,
+              location: VideoInfoUtil.playAreaHeight,
             })
           }
           if (this.player.onSwiping) {
