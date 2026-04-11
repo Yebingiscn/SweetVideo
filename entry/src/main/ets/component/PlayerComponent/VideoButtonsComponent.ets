@@ -1,4 +1,4 @@
-import { SymbolGlyphFancyModifier, ButtonFancyModifier } from '../../common/AttributeModifierConfig'
+import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import { RepeatMode } from '../../common/enum/RepeatMode'
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
@@ -26,6 +26,13 @@ export struct VideoButtonsComponent {
   onChangeRepeatMode = (_repeatMode: RepeatMode) => {
   }
 
+  @Styles
+  circleButton() {
+    .attributeModifier(new ButtonFancyModifier(40, 40))
+    .backgroundColor('#50000000')
+    .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+  }
+
   build() {
     Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceEvenly }) {
       // 播放按钮
@@ -35,9 +42,7 @@ export struct VideoButtonsComponent {
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
-      .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .circleButton()
       .onClick(() => {
         ToolsUtil.startVibration()
         this.onTogglePlaybackClick()
@@ -51,9 +56,7 @@ export struct VideoButtonsComponent {
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
-      .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .circleButton()
       .onClick(() => {
         this.onPlayNextVideoClick()
       })
@@ -75,9 +78,7 @@ export struct VideoButtonsComponent {
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
-      .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .circleButton()
       .bindMenu(this.videoSettingBuilder,
         { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
 
@@ -88,9 +89,7 @@ export struct VideoButtonsComponent {
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
-      .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .circleButton()
       .onClick(() => {
         const repeatMode = VideoOperateUtil.getRepeatMode(this.player.repeatMode)
         ToolsUtil.showToast(this.getRepeatModeText(repeatMode))
@@ -105,9 +104,7 @@ export struct VideoButtonsComponent {
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
-      .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .circleButton()
       .onClick(() => {
         if (this.sideBarStatus) {
           this.onSideBaClose()
@@ -126,9 +123,7 @@ export struct VideoButtonsComponent {
           .padding(5)
           .opacity(0.8)
       }
-      .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .circleButton()
       .bindMenu(this.playbackSpeedMenu,
         { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
 
@@ -139,9 +134,7 @@ export struct VideoButtonsComponent {
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
-      .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .circleButton()
       .onClick(async () => {
         await this.onScreenRotationOrFullScreenClick()
       })
