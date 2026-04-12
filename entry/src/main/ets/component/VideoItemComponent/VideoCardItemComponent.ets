@@ -23,12 +23,7 @@ export default struct VideoCardItem {
   build() {
     Column() {
       Image(fileUri.getUriFromPath(PathUtils.coverPath + this.item.date))
-        .attributeModifier(new ImageFancyModifier({
-          topLeft: 16,
-          topRight: 16,
-          bottomLeft: 16,
-          bottomRight: 16
-        }, '', ''))
+        .attributeModifier(new ImageFancyModifier(16, '', ''))
         .width('100%')
         .height('auto')
         .constraintSize({
