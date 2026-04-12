@@ -15,19 +15,11 @@ export struct SettingSliderItem {
       Row({ space: 12 }) {
         SymbolGlyph(this.symbol)
           .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
-        if (this.textSliderMode) {
-          Text(this.message + '：' + (this.selected === 0 ? '关闭' : TimeUtil.convertSSToMMSS(this.selected)))
-            .fontSize(17)
-            .fontWeight(FontWeight.Medium)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.MARQUEE })
-        } else {
-          Text(this.message)
-            .fontSize(17)
-            .fontWeight(FontWeight.Medium)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.MARQUEE })
-        }
+        Text(this.getDisplayText())
+          .fontSize(17)
+          .fontWeight(FontWeight.Medium)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.MARQUEE })
       }
       .width('100%')
       .justifyContent(FlexAlign.Start)
@@ -61,5 +53,13 @@ export struct SettingSliderItem {
       bottom: 10
     })
     .margin({ top: 5, bottom: 5 })
+  }
+
+  private getDisplayText(): ResourceStr {
+    if (this.textSliderMode) {
+      const timeText = this.selected === 0 ? '关闭' : TimeUtil.convertSSToMMSS(this.selected);
+      return `${this.message}：${timeText}`;
+    }
+    return this.message;
   }
 }
