@@ -7,6 +7,14 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { AVCastPicker } from '@kit.AVSessionKit'
 
+@Builder
+function VideoControlIcon(icon: Resource) {
+  SymbolGlyph(icon)
+    .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+    .fontColor(['#f0f0f0'])
+    .opacity(0.8)
+}
+
 @Component
 export struct VideoButtonsComponent {
   @Link sideBarStatusTmp: Visibility
@@ -51,10 +59,7 @@ export struct VideoButtonsComponent {
 
       // 下一首按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph($r('sys.symbol.forward_end_fill'))
-          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-          .fontColor(['#f0f0f0'])
-          .opacity(0.8)
+        VideoControlIcon($r('sys.symbol.forward_end_fill'))
       }
       .circleButton()
       .onClick(() => {
@@ -73,10 +78,7 @@ export struct VideoButtonsComponent {
 
       // 设置按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph($r('sys.symbol.gearshape'))
-          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-          .fontColor(['#f0f0f0'])
-          .opacity(0.8)
+        VideoControlIcon($r('sys.symbol.gearshape'))
       }
       .circleButton()
       .bindMenu(this.videoSettingBuilder,
@@ -84,10 +86,7 @@ export struct VideoButtonsComponent {
 
       // 循环模式按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph(this.getRepeatModeIcon())
-          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-          .fontColor(['#f0f0f0'])
-          .opacity(0.8)
+        VideoControlIcon(this.getRepeatModeIcon())
       }
       .circleButton()
       .onClick(() => {
@@ -99,10 +98,7 @@ export struct VideoButtonsComponent {
 
       // 选集按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph($r('sys.symbol.music_note_list'))
-          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-          .fontColor(['#f0f0f0'])
-          .opacity(0.8)
+        VideoControlIcon($r('sys.symbol.music_note_list'))
       }
       .circleButton()
       .onClick(() => {
@@ -129,10 +125,7 @@ export struct VideoButtonsComponent {
 
       // 屏幕旋转按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph($r('sys.symbol.fullscreen'))
-          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-          .fontColor(['#f0f0f0'])
-          .opacity(0.8)
+        VideoControlIcon($r('sys.symbol.fullscreen'))
       }
       .circleButton()
       .onClick(async () => {
