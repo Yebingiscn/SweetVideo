@@ -2,7 +2,7 @@ import { FileFolder } from '../interfaces/FileFolderInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import PreferencesUtil from './PreferencesUtil'
 import { Context } from '@kit.AbilityKit'
-import { RepeatMode } from '../common/enum/RepeatMode'
+import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import { CoverLayoutMode, ListDisplayMode } from '../common/enum/DisplayMode'
 import { MpvDecodingMethod } from '../controller/MpvController/MpvTypes'
@@ -88,7 +88,8 @@ export default class Preferences {
   }
 
   static getRepeatModeState(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'repeatMode', RepeatMode.LIST) as RepeatMode
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'repeatMode',
+      SweetRepeatMode.LIST) as SweetRepeatMode
   }
 
   static getSkipIntroTime(context: Context) {
@@ -162,7 +163,7 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'video_speed', video_speed)
   }
 
-  static saveRepeatModeState(context: Context, repeatMode: RepeatMode) {
+  static saveRepeatModeState(context: Context, repeatMode: SweetRepeatMode) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'repeatMode', repeatMode)
   }
 

@@ -171,11 +171,17 @@ export default class VideoInfoUtil {
   }
 
   // 获取视频标签格式化
-  static videoWidthAndHeightFormat(size: string) {
+  static videoWidthAndHeightFormat(size: string, forceDefault: boolean = false) {
     const sizeArray = size.split(',')
     const width = sizeArray[0]
     const height = sizeArray[1]
     const sizeKey = `${width}x${height}`
+
+    // 如果 forceDefault 为真，则直接返回默认格式
+    if (forceDefault) {
+      return `${width} x ${height}`
+    }
+
     // 匹配优先级
     return VIDEO_SIZE_MAP[sizeKey] || // 1. 精确匹配宽高
       VIDEO_SIZE_MAP[height] || // 2. 标准高度命名

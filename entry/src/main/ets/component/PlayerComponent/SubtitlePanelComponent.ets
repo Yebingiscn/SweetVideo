@@ -29,24 +29,6 @@ export struct SubtitlePanelComponent {
     this.innerSubtitleMenu = new InnerSubtitleDataSource(this.player.subtitleTrack)
   }
 
-  private hasExternalSubtitle(): boolean {
-    return (this.player.nowPlaying?.external_subtitle_format?.length ?? 0) > 0
-  }
-
-  private isExternalSubtitleActive(): boolean {
-    return this.subtitleVisibility === Visibility.Visible &&
-      this.player.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE
-  }
-
-  private isSubtitleOffActive(): boolean {
-    return this.subtitleVisibility === Visibility.None && !this.isAIAsrShown
-  }
-
-  private isInnerSubtitleActive(): boolean {
-    return this.subtitleVisibility === Visibility.Visible &&
-      this.player.subtitleSelected === SubtitleMode.INNER_SUBTITLE
-  }
-
   build() {
     Menu() {
       MenuItem({
@@ -218,6 +200,24 @@ export struct SubtitlePanelComponent {
           })
       }, (item: MpvSubtitleTrack | SubtitleTrack) => `${item.id}`)
     }
+  }
+
+  private hasExternalSubtitle(): boolean {
+    return (this.player.nowPlaying?.external_subtitle_format?.length ?? 0) > 0
+  }
+
+  private isExternalSubtitleActive(): boolean {
+    return this.subtitleVisibility === Visibility.Visible &&
+      this.player.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE
+  }
+
+  private isSubtitleOffActive(): boolean {
+    return this.subtitleVisibility === Visibility.None && !this.isAIAsrShown
+  }
+
+  private isInnerSubtitleActive(): boolean {
+    return this.subtitleVisibility === Visibility.Visible &&
+      this.player.subtitleSelected === SubtitleMode.INNER_SUBTITLE
   }
 }
 

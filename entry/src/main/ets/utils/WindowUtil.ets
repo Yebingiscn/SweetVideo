@@ -1,4 +1,4 @@
-import { window } from '@kit.ArkUI'
+import { display, window } from '@kit.ArkUI'
 import { PathUtils } from './PathUtils'
 import { salmonLogger } from 'salmonlogger'
 import { DARK_MODE_BAR_COLOR, LIGHT_MODE_BAR_COLOR } from '../common/Constants'
@@ -12,6 +12,8 @@ const TAG = 'WindowUtil'
 // 用于设置窗口状态
 export class WindowUtil {
   public static windowClass: window.Window | null = null
+  public static deviceHeight: number = 0
+  public static deviceWidth: number = 0
   private static instance: WindowUtil
   private static windowStage?: window.WindowStage
   private static isInit: boolean = false
@@ -195,6 +197,7 @@ export class WindowUtil {
       WindowUtil.updateAvoidArea(WindowUtil.windowClass)
       const windowRect = WindowUtil.windowClass.getWindowProperties().windowRect
       WindowUtil.updateScreenSize(windowRect.width, windowRect.height)
+      WindowUtil.getScreenSize()
       WindowUtil.windowClass.on('windowSizeChange', (size) => {
         WindowUtil.updateScreenSize(size.width, size.height)
         WindowUtil.updateAvoidArea(WindowUtil.windowClass!)
@@ -234,6 +237,33 @@ export class WindowUtil {
       })?.catch(() => {
         salmonLogger.addLog(TAG, 'setBarState error', true)
       })
+    }
+  }
+
+  static async minimizeClick(context: Context) {
+    try {
+      let windowClass = await window.getLastWindow(context)
+      windowClass.minimize((err: BusinessError) => {
+        const errCode: number = err.code;
+        if (errCode) {
+          salmonLogger.addLog(TAG, `Failed to minimize the window. Code: ${err.code}, message: ${err.message}`, true)
+          return
+        }
+      })
+    } catch (error) {
+      salmonLogger.addLog(TAG, 'minimizeClick error', true)
+    }
+  }
+
+  private static getScreenSize() {
+    try {
+      let displayClass = display.getDefaultDisplaySync()
+      // 获取屏幕宽度（单位：px）
+      WindowUtil.deviceWidth = displayClass.width
+      // 获取屏幕高度（单位：px）
+      WindowUtil.deviceHeight = displayClass.height
+    } catch (error) {
+      salmonLogger.addLog(TAG, 'getScreenSize error', true)
     }
   }
 

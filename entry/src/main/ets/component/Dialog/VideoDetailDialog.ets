@@ -31,7 +31,7 @@ export struct VideoDetailDialog {
           this.buildDetailItem('视频分辨率：',
             VideoInfoUtil.videoWidthAndHeightFormat(this.metadata?.size.toString()!) === '0 x 0' ?
               ToolsUtil.getStringResource($r('app.string.unknown_resolution').id) :
-              VideoInfoUtil.videoWidthAndHeightFormat(this.metadata?.size.toString()!))
+              VideoInfoUtil.videoWidthAndHeightFormat(this.metadata?.size.toString()!, true))
         }.width('100%')
 
         ListItem() {

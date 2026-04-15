@@ -48,7 +48,7 @@ import { VideoButtonsComponent } from '../../component/PlayerComponent/VideoButt
 import { VideoSettingComponent } from '../../component/PlayerComponent/VideoSettingComponent'
 import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent'
 import { VideoTopComponent } from '../../component/PlayerComponent/VideoTopComponent'
-import { RepeatMode } from '../../common/enum/RepeatMode'
+import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
 import { NumberInputDialog } from '../../component/Dialog/NumberInputDialog'
 import Preferences from '../../database/Preferences'
@@ -170,7 +170,7 @@ export struct MpvPlayer {
               this.mpv.volumeActually = newVolume
               VideoOperateUtil.lastVolume = newVolume
             },
-            onOsdSurfaceReady: (surfaceId: string) => {
+            onOsdSurfaceLoad: (surfaceId: string) => {
               this.mpv.osdSurfaceId = surfaceId
               this.mpv.setOsdSurface(surfaceId, this.mpv.playAreaWidth, this.mpv.playAreaHeight)
             },
@@ -349,9 +349,6 @@ export struct MpvPlayer {
               this.mpv.translateY += deltaY
               VideoOperateUtil.panStartX = currentX
               VideoOperateUtil.panStartY = currentY
-            },
-            onPanMoveEnd: () => {
-              // 可选：添加边界检查或回弹效果
             }
           })
             .hitTestBehavior(HitTestMode.Transparent)
@@ -512,8 +509,8 @@ export struct MpvPlayer {
         this.mpv.selectedText = text
       },
       pipStateChange: () => {
-        PiPWindowUtil.enableAutoStart()
-        this.mpv.pipOpenState = true
+        PiPWindowUtil.startPip()
+        WindowUtil.minimizeClick(PathUtils.appContext!)
       },
       onOpenPersonalScreenExtend: () => {
         this.personalScreenExtendDialog.open()
@@ -553,7 +550,7 @@ export struct MpvPlayer {
       onSideBaClose: () => {
         this.closeSideBar(true)
       },
-      onChangeRepeatMode: (repeatMode: RepeatMode) => {
+      onChangeRepeatMode: (repeatMode: SweetRepeatMode) => {
         this.mpv.repeatMode = repeatMode
       }
     })
@@ -603,7 +600,7 @@ export struct MpvPlayer {
         this.mpv.angle === DEFAULT_ANGLE ? this.mpv.angle = MIRRORED_ANGLE : this.mpv.angle = DEFAULT_ANGLE
       },
       setRepeatModeToOnce: () => {
-        this.mpv.repeatMode = RepeatMode.ONCE
+        this.mpv.repeatMode = SweetRepeatMode.ONCE
       },
     })
   }

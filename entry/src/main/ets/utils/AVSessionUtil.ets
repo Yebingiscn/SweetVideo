@@ -8,7 +8,7 @@ import PrivacySpaceUtil from './PrivacySpaceUtil'
 import VideoInfoUtil from './VideoInfoUtil'
 import { PathUtils } from './PathUtils'
 import { BusinessError, systemDateTime } from '@kit.BasicServicesKit'
-import { RepeatMode } from '../common/enum/RepeatMode'
+import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { Setting } from './ObservedUtil'
 
@@ -18,18 +18,18 @@ export default class AVSessionUtil {
   static castController: avSession.AVCastController | undefined = undefined
   static pixelMap: image.PixelMap | undefined
   static imageSource: image.ImageSource | undefined
-  static repeatModeMapping: Map<RepeatMode, avSession.LoopMode> = new Map([
-    [RepeatMode.LIST, avSession.LoopMode.LOOP_MODE_LIST],
-    [RepeatMode.SINGLE, avSession.LoopMode.LOOP_MODE_SINGLE],
-    [RepeatMode.RANDOM, avSession.LoopMode.LOOP_MODE_SHUFFLE],
-    [RepeatMode.SEQUENCE, avSession.LoopMode.LOOP_MODE_SEQUENCE],
-    [RepeatMode.ONCE, avSession.LoopMode.LOOP_MODE_CUSTOM],
+  static repeatModeMapping: Map<SweetRepeatMode, avSession.LoopMode> = new Map([
+    [SweetRepeatMode.LIST, avSession.LoopMode.LOOP_MODE_LIST],
+    [SweetRepeatMode.SINGLE, avSession.LoopMode.LOOP_MODE_SINGLE],
+    [SweetRepeatMode.RANDOM, avSession.LoopMode.LOOP_MODE_SHUFFLE],
+    [SweetRepeatMode.SEQUENCE, avSession.LoopMode.LOOP_MODE_SEQUENCE],
+    [SweetRepeatMode.ONCE, avSession.LoopMode.LOOP_MODE_CUSTOM],
   ])
 
-  static getRepeatModeFromAvSession(loopMode: avSession.LoopMode): RepeatMode {
+  static getRepeatModeFromAvSession(loopMode: avSession.LoopMode): SweetRepeatMode {
     // 遍历重复模式映射表
     for (let entry of AVSessionUtil.repeatModeMapping.entries()) {
-      let key: RepeatMode = entry[0] // 目标重复模式
+      let key: SweetRepeatMode = entry[0] // 目标重复模式
       let value: avSession.LoopMode = entry[1] // AVSession循环模式
       // 如果找到匹配的AVSession循环模式，返回对应的重复模式
       if (value === loopMode) {
@@ -37,7 +37,7 @@ export default class AVSessionUtil {
       }
     }
     // 如果没有找到匹配项，返回默的列表循环模式
-    return RepeatMode.LIST
+    return SweetRepeatMode.LIST
   }
 
   static async getAVSession() {
@@ -59,7 +59,7 @@ export default class AVSessionUtil {
   }
 
   // 更新播控中心状态
-  static updatePlaybackSessionState(playing: boolean, playTime: number, repeatMode?: RepeatMode) {
+  static updatePlaybackSessionState(playing: boolean, playTime: number, repeatMode?: SweetRepeatMode) {
     if (Setting.allowBackgroundPlay) {
       let data: AvSessionState = {
         playing: playing,
@@ -115,7 +115,7 @@ export default class AVSessionUtil {
     await AVSessionUtil.getAVCastController(metadata)
   }
 
-  static updateSession(avSessionState: AvSessionState, repeatMode?: RepeatMode) {
+  static updateSession(avSessionState: AvSessionState, repeatMode?: SweetRepeatMode) {
     let playbackState: avSessionManager.AVPlaybackState = {
       state: avSessionState.playing ? avSessionManager.PlaybackState.PLAYBACK_STATE_PLAY :
         avSessionManager.PlaybackState.PLAYBACK_STATE_PAUSE,

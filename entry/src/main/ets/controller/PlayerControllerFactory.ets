@@ -1,5 +1,7 @@
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { AVPlayerController } from './AVPlayerController'
 import { MpvController } from './MpvController/MpvController'
+import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
 
 // 产品接口 interface
 export interface PlayerControllerInterface {
@@ -46,6 +48,18 @@ export interface PlayerControllerInterface {
   initVolumeAndBrightness(): Promise<void>
 
   getData(): void
+
+  setPlayerCallback(pathStack: NavPathStack): void
+
+  updatePlaybackSpeed(speed: number): void
+
+  playNextVideo(repeatMode: SweetRepeatMode): VideoMetadata | undefined
+
+  setExternalSubtitle(nowPlaying: VideoMetadata): void
+
+  playNextVideoProcess(pathStack: NavPathStack): void
+
+  playChooseVideo(item: VideoMetadata, pathStack: NavPathStack): void
 }
 
 // 真正的工厂 controller

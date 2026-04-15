@@ -1,4 +1,4 @@
-import { Configuration, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit'
+import { AbilityConstant, Configuration, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit'
 import { hiAppEvent, hilog } from '@kit.PerformanceAnalysisKit'
 import { window } from '@kit.ArkUI'
 import WantProcessUtil from '../utils/WantProcessUtil'
@@ -16,7 +16,7 @@ import SelectFileUtil from '../utils/SelectFileUtil'
 export default class EntryAbility extends UIAbility {
   watcher: hiAppEvent.Watcher | undefined = undefined
 
-  async onCreate(want: Want) {
+  async onCreate(want: Want, launchParam: AbilityConstant.LaunchParam) {
     const backgroundColorMode = Preferences.getBackgroundColorMode(this.context)
     ToolsUtil.setColorMode(this.context.getApplicationContext(), backgroundColorMode)
     //  PreferencesUtil.localPreferences(this.context, 'sweet_video')
@@ -25,6 +25,11 @@ export default class EntryAbility extends UIAbility {
     PathUtils.init(this.context)
     WantProcessUtil.want = want
     this.crashWatcher()
+    if (launchParam.launchReason === AbilityConstant.LaunchReason.CONTINUATION) {
+      if (want.parameters) {
+        // this.continueRestore(want);
+      }
+    }
   }
 
   //崩溃守卫
@@ -157,6 +162,10 @@ export default class EntryAbility extends UIAbility {
       VideoOperateUtil.saveVideoTime(nowPlayingData[0] as number, nowPlayingData[1] as VideoMetadata,
         nowPlayingData[2] as VideoMetadata[], PathUtils.appContext!)
     }
+  }
+
+  async onContinue(_wantParam: Record<string, Object>): Promise<AbilityConstant.OnContinueResult> {
+    return AbilityConstant.OnContinueResult.AGREE
   }
 
   onWindowStageDestroy(): void {

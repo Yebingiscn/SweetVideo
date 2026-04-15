@@ -24,6 +24,8 @@ import {
   unregisterPlaybackCompleteCallback as mpvUnregisterPlaybackCompleteCallback,
   registerTimeUpdateCallback as mpvRegisterTimeUpdateCallback,
   unregisterTimeUpdateCallback as mpvUnregisterTimeUpdateCallback,
+  registerVideoSizeChangedCallback as mpvRegisterVideoSizeChangedCallback,
+  unregisterVideoSizeChangedCallback as mpvUnregisterVideoSizeChangedCallback,
 } from 'libmpvnative.so';
 import { Setting } from '../../utils/ObservedUtil';
 import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode';
@@ -38,7 +40,7 @@ import { WindowUtil } from '../../utils/WindowUtil';
 import { window } from '@kit.ArkUI';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
-import { RepeatMode } from '../../common/enum/RepeatMode';
+import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode';
 import AVSessionUtil from '../../utils/AVSessionUtil';
 import {
   AUTO_HIDE_SHOW_CONTROL_TIME,
@@ -81,13 +83,12 @@ export class MpvController implements PlayerControllerInterface {
   @Track playAreaHeight: number = 0
   @Track playAreaWidth: number = 0
   @Track angle: number = 0
-  @Track repeatMode: RepeatMode = RepeatMode.LIST
+  @Track repeatMode: SweetRepeatMode = SweetRepeatMode.LIST
   @Track selectedText: string | undefined = '原始比例'
   @Track onSwiping: boolean = false
   @Track onSwipingBrightness: boolean = false
   @Track isSliderPlayTimeChange: boolean = false
   @Track audioTrackSelected: number = 0
-  @Track pipOpenState: boolean = false
   @Track lockVisibility: boolean = false
   @Track longPress: boolean = false
   @Track isLock: boolean = false
@@ -103,18 +104,17 @@ export class MpvController implements PlayerControllerInterface {
   private userListener: BaseListener<number> | null = null
   private playbackCallbackRegistered: boolean = false
   private timeUpdateCallbackRegistered: boolean = false
+  private videoSizeCallbackRegistered: boolean = false
 
   async playChooseVideo(item: VideoMetadata, pathStack: NavPathStack) {
+    this.osdVisibility = false
     ToolsUtil.addLogger("开始播放选择的视频", false)
     VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying!, this.videoMetaDataList, PathUtils.appContext!)
     if (!PrivacySpaceUtil.getPrivacyMode()) {
       RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
       ToolsUtil.addLogger("添加到最近播放记录完成", false)
     }
-    this.osdVisibility = false
     this.reset()
-    this.onSwiping = false
-    this.isSliderPlayTimeChange = false
     this.nowPlaying = item as VideoMetadata
     ToolsUtil.addLogger("设置当前播放视频完成", false)
     await PermissionUtil.activatePermission(item.uri)
@@ -139,7 +139,7 @@ export class MpvController implements PlayerControllerInterface {
     ToolsUtil.addLogger("播放下一个视频前置流程完成", false, pathStack)
   }
 
-  playNextVideo(repeatMode: RepeatMode): VideoMetadata | undefined {
+  playNextVideo(repeatMode: SweetRepeatMode): VideoMetadata | undefined {
     if (this.videoMetaDataList.length === 0) {
       return undefined
     }
@@ -148,21 +148,21 @@ export class MpvController implements PlayerControllerInterface {
       item = this.videoMetaDataList[0]
     }
     switch (repeatMode) {
-      case RepeatMode.RANDOM:
+      case SweetRepeatMode.RANDOM:
         const availableVideos = this.videoMetaDataList.filter(v => v.date !== item.date)
         return availableVideos.length > 0
           ? availableVideos[Math.floor(Math.random() * availableVideos.length)]
           : item
-      case RepeatMode.ONCE:
+      case SweetRepeatMode.ONCE:
         return undefined
-      case RepeatMode.SEQUENCE:
+      case SweetRepeatMode.SEQUENCE:
         if (SelectFileUtil.isLastItem(this.videoMetaDataList, item.date)) {
           return undefined
         }
         return SelectFileUtil.getNextItem(this.videoMetaDataList, item.date)
-      case RepeatMode.SINGLE:
+      case SweetRepeatMode.SINGLE:
         return this.videoMetaDataList.find(v => v.date === this.nowPlaying?.date)!
-      case RepeatMode.LIST:
+      case SweetRepeatMode.LIST:
         return SelectFileUtil.getNextItem(this.videoMetaDataList, item.date)
       default:
         return undefined
@@ -219,11 +219,10 @@ export class MpvController implements PlayerControllerInterface {
     this.setPlayerCallback(pathStack!)
     this.getData()
 
-    // Surface 模式下立即显示 OSD Surface，避免首次选择字幕时闪烁
-    // 原因：OSD Surface 需要在首帧字幕提交前就准备好
-    if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE) {
-      this.osdVisibility = true
-    }
+    // OSD 显示逻辑：
+    // 1. 首次播放：延迟显示 OSD，等待视频尺寸变化事件触发 syncOsdSurfaceSize()
+    // 2. 切换视频：OSD 保持可见，视频尺寸变化事件会自动同步 OSD 尺寸
+    // 3. 不再依赖固定的 1200ms 延迟，而是通过事件驱动
 
     // 智能旋转和外部字幕可以延迟执行，不影响播放
     setTimeout(async () => {
@@ -249,12 +248,35 @@ export class MpvController implements PlayerControllerInterface {
       this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!))
       this.nowPlaying!.time = this.getDuration()
       this.setRotation()
+      this.onSwiping = false
+      this.isSliderPlayTimeChange = false
+      // 首次播放时显示 OSD（切换视频时 OSD 保持可见）
+      if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE && !this.osdVisibility) {
+        this.osdVisibility = true
+      }
       await this.setExternalSubtitle(this.nowPlaying!)
     }, 1200)
   }
 
-  setOsdSurface(surfaceId: string, width: number, height: number): void {
-    mpvSetOsdSurface(surfaceId, width, height)
+  setOsdSurface(surfaceId: string, playAreaWidth: number, playAreaHeight: number): void {
+    // 使用实际的播放区域尺寸，而不是设备屏幕尺寸
+    // 这样 OSD Surface 尺寸会与 XComponent 的实际布局尺寸一致
+    mpvSetOsdSurface(surfaceId, playAreaWidth, playAreaHeight)
+  }
+
+  // 同步 OSD Surface 尺寸到视频原生分辨率
+  // 解决字幕模糊问题：使用视频原生分辨率而非显示区域尺寸
+  syncOsdSurfaceSize(): void {
+    if (!this.osdSurfaceId) {
+      return
+    }
+    // 使用视频原生分辨率，而不是 playAreaWidth/Height（显示区域尺寸）
+    const videoWidth = this.getPlayAreaWidth()
+    const videoHeight = this.getPlayAreaHeight()
+
+    if (videoWidth > 0 && videoHeight > 0) {
+      this.setOsdSurface(this.osdSurfaceId, videoWidth, videoHeight)
+    }
   }
 
   setPlayerCallback(pathStack: NavPathStack) {
@@ -274,7 +296,7 @@ export class MpvController implements PlayerControllerInterface {
       }
       // 片尾跳过逻辑保留
       const endTime = this.nowPlaying?.end_time
-      if (endTime != null && duration >= endTime && endTime > 0 && this.repeatMode !== RepeatMode.SINGLE) {
+      if (endTime != null && duration >= endTime && endTime > 0 && this.repeatMode !== SweetRepeatMode.SINGLE) {
         ToolsUtil.addLogger(`检测到视频片尾，准备播放下一个视频，满足条件为: endTime: ${endTime}, repeatMode: ${this.repeatMode}, duration: ${duration}`,
           false)
         this.playNextVideoProcess(pathStack)
@@ -303,6 +325,8 @@ export class MpvController implements PlayerControllerInterface {
     this.playing = true
     // 注册播放时间更新回调（事件驱动，替代轮询）
     this.registerTimeUpdateCallback()
+    // 注册视频尺寸变化回调
+    this.registerVideoSizeChangedCallback()
   }
 
   backForward(): void {
@@ -356,6 +380,9 @@ export class MpvController implements PlayerControllerInterface {
     // 注销播放时间更新回调
     mpvUnregisterTimeUpdateCallback()
     this.timeUpdateCallbackRegistered = false
+    // 注销视频尺寸变化回调
+    mpvUnregisterVideoSizeChangedCallback()
+    this.videoSizeCallbackRegistered = false
     mpvDestroy(this.mpvHandle)
     this.mpvHandle = null
     this.userListener?.off('timeUpdate')
@@ -477,14 +504,7 @@ export class MpvController implements PlayerControllerInterface {
       VideoOperateUtil.saveVideoWeightAndHeight(PathUtils.appContext!, this.nowPlaying)
     }
     if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE) {
-      if (!this.osdSurfaceId) {
-        return
-      }
-      this.setOsdSurface(
-        this.osdSurfaceId, // 需要保存 surfaceId
-        this.playAreaWidth,
-        this.playAreaHeight
-      )
+      this.syncOsdSurfaceSize() // 不加这里就会变得很模糊？？？
     }
   }
 
@@ -580,11 +600,11 @@ export class MpvController implements PlayerControllerInterface {
     this.togglePlayback()
   }
 
-  async setExternalSubtitle(now_playing: VideoMetadata) {
-    if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, now_playing.date!)) {
+  async setExternalSubtitle(nowPlaying: VideoMetadata) {
+    if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, nowPlaying.date!)) {
       try {
-        let subtitle = fs.openSync(PathUtils.subtitlePath! + now_playing.date, fs.OpenMode.READ_ONLY)
-        await SubtitleUtil.parseSubtitleProcess(subtitle.path, now_playing.external_subtitle_format) ?
+        let subtitle = fs.openSync(PathUtils.subtitlePath! + nowPlaying.date, fs.OpenMode.READ_ONLY)
+        await SubtitleUtil.parseSubtitleProcess(subtitle.path, nowPlaying.external_subtitle_format) ?
           this.subtitleSelected = SubtitleMode.EXTERNAL_SUBTITLE : this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
       } catch (error) {
         this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
@@ -606,6 +626,25 @@ export class MpvController implements PlayerControllerInterface {
       this.timeUpdateCallbackRegistered = true
     } catch (error) {
       salmonLogger.addLog(TAG, 'Failed to register time update callback', error)
+    }
+  }
+
+  // 注册视频尺寸变化回调
+  private registerVideoSizeChangedCallback() {
+    if (this.videoSizeCallbackRegistered) {
+      return
+    }
+    try {
+      mpvRegisterVideoSizeChangedCallback(() => {
+        console.info('[MpvController] Video size changed, syncing OSD surface size')
+        // 当视频尺寸变化时，同步 OSD Surface 尺寸
+        if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE) {
+          this.syncOsdSurfaceSize()
+        }
+      })
+      this.videoSizeCallbackRegistered = true
+    } catch (error) {
+      salmonLogger.addLog(TAG, 'Failed to register video size changed callback', error)
     }
   }
 

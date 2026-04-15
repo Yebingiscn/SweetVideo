@@ -24,6 +24,7 @@
         "startWindowIcon": "$media:foreground_start_up",
         "startWindowBackground": "$color:start_window_background",
         "exported": true,
+        "continuable": true,
         "orientation": "auto_rotation_restricted",
         "supportWindowMode": [
           "floating",

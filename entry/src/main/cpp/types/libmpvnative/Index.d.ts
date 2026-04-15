@@ -88,4 +88,9 @@ declare module 'libmpvnative.so' {
   export const registerTimeUpdateCallback: (callback: (timeMs: number) => void) => void;
 
   export const unregisterTimeUpdateCallback: () => void;
+
+  // ==================== 视频尺寸变化事件 ====================
+  export const registerVideoSizeChangedCallback: (callback: () => void) => void;
+
+  export const unregisterVideoSizeChangedCallback: () => void;
 }

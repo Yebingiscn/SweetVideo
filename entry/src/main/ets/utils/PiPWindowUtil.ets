@@ -1,4 +1,5 @@
 import { PiPWindow } from '@kit.ArkUI'
+import { salmonLogger } from 'salmonlogger'
 import { AVPlayerController } from '../controller/AVPlayerController'
 import { MpvController } from '../controller/MpvController/MpvController'
 import { PlayerControllerInterface } from '../controller/PlayerControllerFactory'
@@ -8,9 +9,19 @@ import ToolsUtil from './ToolsUtil'
 /***
  * 自动画中画工具类
  */
+const TAG = 'PiPWindowUtil'
+
 export default class PiPWindowUtil {
   static pipController?: PiPWindow.PiPController | undefined = undefined
   static playerController ?: PlayerControllerInterface | undefined = undefined
+
+  static startPip() {
+    if (PiPWindowUtil.pipController) {
+      PiPWindowUtil.pipController.startPiP().catch(() => {
+        salmonLogger.addLog(TAG, 'startPiP failed', true)
+      })
+    }
+  }
 
   static async createPipController(xComponentController: XComponentController,
     playerController ?: PlayerControllerInterface) {
@@ -19,6 +30,7 @@ export default class PiPWindowUtil {
         context: PathUtils.appContext!,
         componentController: xComponentController,
         templateType: PiPWindow.PiPTemplateType.VIDEO_PLAY,
+        controlGroups: [PiPWindow.VideoPlayControlGroup.FAST_FORWARD_BACKWARD],
         contentWidth: 480,
         contentHeight: 270
       })
@@ -74,16 +86,23 @@ export default class PiPWindowUtil {
     const controller = PiPWindowUtil.playerController
     switch (event) {
       case 'playbackStateChanged':
-        if (status === 0) {
+        if (status === PiPWindow.PiPControlStatus.PAUSE) {
           controller?.pause()
-        } else {
+        } else if (status === PiPWindow.PiPControlStatus.PLAY) {
           controller?.play()
         }
+        break
+      case 'fastForward':
+        // 视频进度快进
+        controller?.fastForward()
+        break;
+      case 'fastBackward':
+        // 视频进度后退
+        controller?.backForward()
         break
       default:
         break
     }
-    //  }
   }
 
   static onStateChange(state: PiPWindow.PiPState, _reason: string) {
