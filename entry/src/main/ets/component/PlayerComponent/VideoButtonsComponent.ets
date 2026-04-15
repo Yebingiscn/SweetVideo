@@ -7,6 +7,14 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { AVCastPicker } from '@kit.AVSessionKit'
 
+@Builder
+function VideoControlIcon(icon: Resource) {
+  SymbolGlyph(icon)
+    .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+    .fontColor(['#f0f0f0'])
+    .opacity(0.8)
+}
+
 @Component
 export struct VideoButtonsComponent {
   @Link sideBarStatusTmp: Visibility
@@ -26,6 +34,13 @@ export struct VideoButtonsComponent {
   onChangeRepeatMode = (_repeatMode: SweetRepeatMode) => {
   }
 
+  @Styles
+  circleButton() {
+    .attributeModifier(new ButtonFancyModifier(40, 40))
+    .backgroundColor('#50000000')
+    .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+  }
+
   build() {
     Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceEvenly }) {
       // 播放按钮
@@ -35,9 +50,7 @@ export struct VideoButtonsComponent {
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
-      .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .circleButton()
       .onClick(() => {
         ToolsUtil.startVibration()
         this.onTogglePlaybackClick()
@@ -46,14 +59,9 @@ export struct VideoButtonsComponent {
 
       // 下一首按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph($r('sys.symbol.forward_end_fill'))
-          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-          .fontColor(['#f0f0f0'])
-          .opacity(0.8)
+        VideoControlIcon($r('sys.symbol.forward_end_fill'))
       }
-      .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .circleButton()
       .onClick(() => {
         this.onPlayNextVideoClick()
       })
@@ -70,27 +78,17 @@ export struct VideoButtonsComponent {
 
       // 设置按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph($r('sys.symbol.gearshape'))
-          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-          .fontColor(['#f0f0f0'])
-          .opacity(0.8)
+        VideoControlIcon($r('sys.symbol.gearshape'))
       }
-      .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .circleButton()
       .bindMenu(this.videoSettingBuilder,
         { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
 
       // 循环模式按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph(this.getRepeatModeIcon())
-          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-          .fontColor(['#f0f0f0'])
-          .opacity(0.8)
+        VideoControlIcon(this.getRepeatModeIcon())
       }
-      .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .circleButton()
       .onClick(() => {
         const repeatMode = VideoOperateUtil.getRepeatMode(this.player.repeatMode)
         ToolsUtil.showToast(this.getRepeatModeText(repeatMode))
@@ -100,14 +98,9 @@ export struct VideoButtonsComponent {
 
       // 选集按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph($r('sys.symbol.music_note_list'))
-          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-          .fontColor(['#f0f0f0'])
-          .opacity(0.8)
+        VideoControlIcon($r('sys.symbol.music_note_list'))
       }
-      .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .circleButton()
       .onClick(() => {
         if (this.sideBarStatus) {
           this.onSideBaClose()
@@ -126,22 +119,15 @@ export struct VideoButtonsComponent {
           .padding(5)
           .opacity(0.8)
       }
-      .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .circleButton()
       .bindMenu(this.playbackSpeedMenu,
         { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
 
       // 屏幕旋转按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph($r('sys.symbol.fullscreen'))
-          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-          .fontColor(['#f0f0f0'])
-          .opacity(0.8)
+        VideoControlIcon($r('sys.symbol.fullscreen'))
       }
-      .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .circleButton()
       .onClick(async () => {
         await this.onScreenRotationOrFullScreenClick()
       })

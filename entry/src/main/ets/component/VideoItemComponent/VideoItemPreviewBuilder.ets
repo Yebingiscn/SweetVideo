@@ -10,12 +10,7 @@ export function VideoItemPreviewBuilder(item: VideoMetadata) {
   Column() {
     // 封面图区域：固定 16:9 宽高比
     Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
-      .attributeModifier(new ImageFancyModifier({
-        topLeft: 16,
-        topRight: 16,
-        bottomLeft: 16,
-        bottomRight: 16
-      }, '', ''))
+      .attributeModifier(new ImageFancyModifier(16, '', ''))
       .width('100%')
       .aspectRatio(16 / 9)
       .objectFit(ImageFit.Cover)
