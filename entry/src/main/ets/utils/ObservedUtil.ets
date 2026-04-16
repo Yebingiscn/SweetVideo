@@ -9,6 +9,7 @@ class SettingUtil {
   public backgroundColorMode: BackgroundColorMode = BackgroundColorMode.AUTO
   public enableBackgroundDarkImage: boolean = false
   public allowBackgroundPlay: boolean = true
+  public autoActivePip: boolean = false
   public allowPlayBackExist: boolean = false
   public fastForwardSeconds: string = '15'
   public recentPlay: boolean = true

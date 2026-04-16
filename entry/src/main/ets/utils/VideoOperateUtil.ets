@@ -380,6 +380,7 @@ export default class VideoOperateUtil {
     Setting.jumpToHistoryTimeStatus = Preferences.getJumpToHistoryTime(context)
     Setting.coverLayout = Preferences.getCoverLayoutMode(context)
     Setting.superResolutionState = Preferences.getSuperResolutionState(context)
+    Setting.autoActivePip = Preferences.getAutoActivePip(context)
     Setting.mpvDecodingMethod = Preferences.getMpvDecodingMethod(context)
     Setting.enableBackgroundDarkImage = Preferences.getEnableBackgroundDarkImage(context)
   }

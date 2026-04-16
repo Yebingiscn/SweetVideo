@@ -191,7 +191,6 @@ export default class EntryAbility extends UIAbility {
     }
     setTimeout(() => {
       Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
-      ToolsUtil.showToast('设置成功')
     }, 100)
     // 更新缓存中的颜色模式
     AppStorage.setOrCreate('currentColorMode', newConfig.colorMode)

@@ -3,8 +3,8 @@ import { salmonLogger } from 'salmonlogger'
 import { AVPlayerController } from '../controller/AVPlayerController'
 import { MpvController } from '../controller/MpvController/MpvController'
 import { PlayerControllerInterface } from '../controller/PlayerControllerFactory'
+import { Setting } from './ObservedUtil'
 import { PathUtils } from './PathUtils'
-import ToolsUtil from './ToolsUtil'
 
 /***
  * 自动画中画工具类
@@ -46,10 +46,9 @@ export default class PiPWindowUtil {
       (event: PiPWindow.PiPActionEventType, status?: number) => {
         PiPWindowUtil.onActionEvent(event, status)
       })
-    // 默认不开启自动进入画中画，由播放器在真正“播放中”时按需打开，
-    // 避免暂停或非播放页时返回桌面也自动触发画中画。
-    PiPWindowUtil.pipController?.setAutoStartEnabled(false)
-
+    if (Setting.autoActivePip) {
+      PiPWindowUtil.enableAutoStart()
+    }
   }
 
   /**
@@ -58,7 +57,6 @@ export default class PiPWindowUtil {
   static enableAutoStart() {
     if (PiPWindowUtil.pipController) {
       PiPWindowUtil.pipController.setAutoStartEnabled(true)
-      ToolsUtil.showToast('已开启画中画，退出到后台自动开启')
     }
   }
 

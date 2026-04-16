@@ -468,6 +468,18 @@ export struct Player { // 播放页
         return false
       }
     })
+    .onHidden(() => {
+      // if (!this.player.pipOpenState) {
+      //   this.player.isListenVideo = true
+      //   this.player.setListenVideoStatus()
+      // }
+    })
+    .onShown(() => {
+      // if (!this.player.pipOpenState) {
+      //   this.player.isListenVideo = false
+      //   this.player.setListenVideoStatus()
+      // }
+    })
     .onWillDisappear(async () => {
       ToolsUtil.addLogger("开始执行onWillDisappear生命周期", false, this.pathStack)
       this.saveSubtitlePreferenceForCurrentVideo()

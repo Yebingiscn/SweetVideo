@@ -191,6 +191,14 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, "allowBackgroundPlay", isEnabled)
   }
 
+  static saveAutoActivePip(context: Context, isEnabled: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, "autoActivePip", isEnabled)
+  }
+
+  static getAutoActivePip(context: Context) {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, "autoActivePip", false) as boolean
+  }
+
   static saveRecentPlayState(context: Context, isEnabled: boolean) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, "recentPlay", isEnabled)
   }

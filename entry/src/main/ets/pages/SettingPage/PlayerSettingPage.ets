@@ -38,6 +38,18 @@ export struct PlayerSettingPage {
 
         ListItem() {
           SettingsToggleItem({
+            symbol: $r('sys.symbol.rectangle_portrait_filled_on_rectangle_portrait'),
+            message: '回到后台自动启用小窗',
+            enable: Setting.autoActivePip,
+            onChange: (checked: boolean) => {
+              Setting.autoActivePip = checked
+              Preferences.saveAutoActivePip(PathUtils.appContext!, Setting.autoActivePip)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsToggleItem({
             symbol: $r('sys.symbol.arrow_left'),
             message: '播放时返回隐藏状态栏',
             enable: !Setting.allowPlayBackExist,
@@ -110,15 +122,17 @@ export struct PlayerSettingPage {
         }
 
         ListItem() {
-          SettingsToggleItem({
-            symbol: $r('sys.symbol.hand_draw'),
-            message: '启用双击屏幕两边快进快退',
-            enable: Setting.allowDoubleFastForward,
-            onChange: (checked: boolean) => {
-              Setting.allowDoubleFastForward = checked
-              Preferences.saveAllowDoubleFastForwardState(PathUtils.appContext!, Setting.allowDoubleFastForward)
-            }
-          })
+          Column() {
+            SettingsToggleItem({
+              symbol: $r('sys.symbol.hand_draw'),
+              message: '启用双击屏幕两边快进快退',
+              enable: Setting.allowDoubleFastForward,
+              onChange: (checked: boolean) => {
+                Setting.allowDoubleFastForward = checked
+                Preferences.saveAllowDoubleFastForwardState(PathUtils.appContext!, Setting.allowDoubleFastForward)
+              }
+            })
+          }
         }
 
         if (Setting.allowDoubleFastForward) {
