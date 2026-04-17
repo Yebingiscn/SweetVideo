@@ -1,9 +1,6 @@
 import { AbilityConstant, Configuration, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit'
 import { hiAppEvent, hilog } from '@kit.PerformanceAnalysisKit'
 import { window } from '@kit.ArkUI'
-import { relationalStore } from '@kit.ArkData'
-import { initORM, createRelationalStoreAdapter, LogLevel } from '@ibestservices/ibest-orm'
-import { SchemaMigrationHelper, DataMigrationHelper } from '../utils/MigrationHelper'
 import WantProcessUtil from '../utils/WantProcessUtil'
 import { PathUtils } from '../utils/PathUtils'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
@@ -98,14 +95,9 @@ export default class EntryAbility extends UIAbility {
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onDestroy')
   }
 
-  async onWindowStageCreate(windowStage: window.WindowStage): Promise<void> {
+  onWindowStageCreate(windowStage: window.WindowStage): void {
     // Main window is created, set main page for this ability
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onWindowStageCreate')
-
-    // ORM 改造：在窗口创建阶段初始化 ibest-orm 和关系型数据库适配器
-    // 必须在 UI 加载前完成，确保后续页面能正常访问数据库
-    await this.initializeORM()
-
     try {
       if (canIUse('SystemCapability.Window.SessionManager')) {
         windowStage.setDefaultDensityEnabled(true) // 设置窗口不跟随系统显示大小变化重新布局
@@ -167,7 +159,7 @@ export default class EntryAbility extends UIAbility {
     const nowPlayingData =
       AppStorage.get('nowPlayingData') as (number | VideoMetadata | VideoMetadata[])[]
     if (nowPlayingData) {
-      void VideoOperateUtil.saveVideoTime(nowPlayingData[0] as number, nowPlayingData[1] as VideoMetadata,
+      VideoOperateUtil.saveVideoTime(nowPlayingData[0] as number, nowPlayingData[1] as VideoMetadata,
         nowPlayingData[2] as VideoMetadata[], PathUtils.appContext!)
     }
   }
@@ -179,34 +171,6 @@ export default class EntryAbility extends UIAbility {
   onWindowStageDestroy(): void {
     // Main window is destroyed, release UI related resources
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onWindowStageDestroy')
-  }
-
-  // 初始化 ORM 数据库
-  // 注意：此处使用 ibest-orm 替代原有 Preferences 键值存储，数据库文件名为 sweet_video.db
-  private async initializeORM(): Promise<void> {
-    try {
-      const adapter = await createRelationalStoreAdapter(this.context, {
-        name: 'sweet_video.db',
-        securityLevel: relationalStore.SecurityLevel.S1
-      })
-      initORM({ adapter, logLevel: LogLevel.DEBUG })
-      hilog.info(0x0000, 'testTag', '%{public}s', 'ORM initialized successfully')
-
-      // 执行数据库表结构迁移
-      await SchemaMigrationHelper.migrateSchema(this.context)
-      hilog.info(0x0000, 'testTag', '%{public}s', 'Schema migration completed')
-
-      // 自动执行旧 Preferences 数据迁移（幂等）
-      const result = await DataMigrationHelper.migrateFromPreferences(this.context)
-      hilog.info(0x0000, 'testTag',
-        'Data migration completed: folders=%{public}d, recent=%{public}d, privacy=%{public}d, skipped=%{public}d',
-        result.folderVideos, result.recentPlays, result.privacyVideos, result.skipped)
-      if (result.folderVideos > 0 || result.recentPlays > 0 || result.privacyVideos > 0) {
-        AppStorage.setOrCreate('migrationNeedsRefresh', true)
-      }
-    } catch (error) {
-      hilog.error(0x0000, 'testTag', 'Failed to initialize ORM: %{public}s', JSON.stringify(error))
-    }
   }
 
   onForeground(): void {

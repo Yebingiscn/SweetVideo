@@ -1,5 +1,6 @@
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
+import Preferences from '../database/Preferences'
 import { PathUtils } from './PathUtils'
 import SubtitleUtil from '../utils/SubtitleUtil'
 import SelectFileUtil from '../utils/SelectFileUtil'
@@ -104,23 +105,20 @@ export class SweetLogDataSource extends BaseDataSource<SalmonLogLine> {
 // 具体实现类
 @Observed
 export class VideoDataSource extends BaseDataSource<VideoMetadata> {
-  // ORM 改造：refreshData 改为异步，从 FolderOperator 查询最新视频列表
-  public async refreshData(folder: FileFolder): Promise<void> {
-    const folderData = await FolderOperator.getFolderByName(folder.name)
-    const videoMetaData: VideoMetadata[] = folderData?.video_list || []
+  public refreshData(folder: FileFolder) {
+    const videoMetaData: VideoMetadata[] = FolderOperator.getFolderByName(folder.name).video_list
     this.updateData(videoMetaData)
   }
 
-  // ORM 改造：删除无效文件时，所有依赖的数据库/文件操作均已异步化，需按顺序 await 执行
   public async deleteUnExistFile(item: VideoMetadata | undefined, videoListController: VideoListController,
     fileFolderSource: FileFolderDataSource) {
     if (!item) {
       return
     }
     await this.deleteItem(DeleteType.SOFT, item)
-    await SelectFileUtil.deleteVideo(item)
+    SelectFileUtil.deleteVideo(item)
     await VideoMetaDataOperator.deleteItem(videoListController, fileFolderSource, DeleteType.SOFT, item)
-    await VideoUtils.refresh(videoListController, fileFolderSource, videoListController.folder)
+    VideoUtils.refresh(videoListController, fileFolderSource, videoListController.folder)
   }
 
   async deleteItem(deleteType: DeleteType, item: VideoMetadata): Promise<void> {
@@ -154,9 +152,7 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
 
 @Observed
 export class FileFolderDataSource extends BaseDataSource<FileFolder> {
-  // ORM 改造：FileFolderDataSource 不再直接访问 Preferences，而是依赖外部（如 Index/VideoView）
-  // 通过 updateData 注入从 FileFolderUtil.getAllFolderAsync 查询到的最新数据。
-  getFileFolder(fileFolderName: string): FileFolder | undefined {
-    return this.data.find(item => item.name === fileFolderName)
+  getFileFolder(fileFolderName: string): FileFolder {
+    return Preferences.getFileFolder(PathUtils.appContext!).find(item => item.name === fileFolderName)!
   }
 }

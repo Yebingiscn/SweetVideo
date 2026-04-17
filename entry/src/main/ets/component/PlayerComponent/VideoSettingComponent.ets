@@ -162,10 +162,9 @@ export struct VideoSettingComponent {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
         content: '设置片头时间：' + this.startTime,
-      // ORM 改造：所有 VideoOperateUtil.save* 方法已改为 async，确保片头/片尾/AB 点等数据正确写入数据库
-      }).onClick(async () => {
+      }).onClick(() => {
         this.startTime = TimeUtil.convertMSToHHMMSS(this.player.playTime)
-        await VideoOperateUtil.saveVideoStartTime(this.player.playTime, this.player.nowPlaying!, PathUtils.appContext!)
+        VideoOperateUtil.saveVideoStartTime(this.player.playTime, this.player.nowPlaying!, PathUtils.appContext!)
         ToolsUtil.showToast(this.player.nowPlaying?.title + '成功设置片头时间为:' +
           TimeUtil.convertMSToHHMMSS(this.player.playTime))
         this.updateStarTime(this.player.playTime)
@@ -173,9 +172,9 @@ export struct VideoSettingComponent {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
         content: '设置片尾时间：' + this.endTime,
-      }).onClick(async () => {
+      }).onClick(() => {
         this.endTime = TimeUtil.convertMSToHHMMSS(this.player.playTime)
-        await VideoOperateUtil.saveVideoEndTime(this.player.playTime, this.player.nowPlaying!, PathUtils.appContext!)
+        VideoOperateUtil.saveVideoEndTime(this.player.playTime, this.player.nowPlaying!, PathUtils.appContext!)
         ToolsUtil.showToast(this.player?.nowPlaying?.title + '成功设置片尾时间为:' +
           TimeUtil.convertMSToHHMMSS(this.player.playTime))
         this.updateEndTime(this.player.playTime)
@@ -183,11 +182,11 @@ export struct VideoSettingComponent {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
         content: '取消片头片尾时间'
-      }).onClick(async () => {
+      }).onClick(() => {
         this.startTime = TimeUtil.convertMSToHHMMSS(0)
-        await VideoOperateUtil.saveVideoStartTime(0, this.player.nowPlaying!, PathUtils.appContext!)
+        VideoOperateUtil.saveVideoStartTime(0, this.player.nowPlaying!, PathUtils.appContext!)
         this.endTime = TimeUtil.convertMSToHHMMSS(this.player.nowPlaying?.time)
-        await VideoOperateUtil.saveVideoEndTime(this.player!.nowPlaying!.time, this.player.nowPlaying!, PathUtils.appContext!)
+        VideoOperateUtil.saveVideoEndTime(this.player!.nowPlaying!.time, this.player.nowPlaying!, PathUtils.appContext!)
         ToolsUtil.showToast('取消片头片尾时间成功')
         this.updateStarTime(0)
         this.updateEndTime(this.player.nowPlaying!.time)
@@ -207,9 +206,9 @@ export struct VideoSettingComponent {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
         content: '设置A点时间：' + this.pointA,
-      }).onClick(async () => {
+      }).onClick(() => {
         this.pointA = TimeUtil.convertMSToHHMMSS(this.player.playTime)
-        await VideoOperateUtil.saveVideoPointA(PathUtils.appContext!, this.player.nowPlaying!, this.player.playTime)
+        VideoOperateUtil.saveVideoPointA(PathUtils.appContext!, this.player.nowPlaying!, this.player.playTime)
         ToolsUtil.showToast(this.player.nowPlaying?.title + '成功设置A点时间为:' +
           TimeUtil.convertMSToHHMMSS(this.player.playTime))
         this.updatePointATime(this.player.playTime)
@@ -217,9 +216,9 @@ export struct VideoSettingComponent {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
         content: '设置B点时间：' + this.pointB,
-      }).onClick(async () => {
+      }).onClick(() => {
         this.pointB = TimeUtil.convertMSToHHMMSS(this.player.playTime)
-        await VideoOperateUtil.saveVideoPointB(PathUtils.appContext!, this.player.nowPlaying!, this.player.playTime)
+        VideoOperateUtil.saveVideoPointB(PathUtils.appContext!, this.player.nowPlaying!, this.player.playTime)
         ToolsUtil.showToast(this.player?.nowPlaying?.title + '成功设置B点时间为:' +
           TimeUtil.convertMSToHHMMSS(this.player.playTime))
         this.updatePointBTime(this.player.playTime)
@@ -227,11 +226,11 @@ export struct VideoSettingComponent {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
         content: '取消AB点时间'
-      }).onClick(async () => {
+      }).onClick(() => {
         this.pointA = TimeUtil.convertMSToHHMMSS(0)
-        await VideoOperateUtil.saveVideoPointA(PathUtils.appContext!, this.player.nowPlaying!, 0)
+        VideoOperateUtil.saveVideoPointA(PathUtils.appContext!, this.player.nowPlaying!, 0)
         this.pointB = TimeUtil.convertMSToHHMMSS(this.player.nowPlaying!.time)
-        await VideoOperateUtil.saveVideoPointB(PathUtils.appContext!, this.player.nowPlaying!, this.player.nowPlaying!.time)
+        VideoOperateUtil.saveVideoPointB(PathUtils.appContext!, this.player.nowPlaying!, this.player.nowPlaying!.time)
         ToolsUtil.showToast('取消AB点时间成功')
         this.updatePointATime(0)
         this.updatePointBTime(this.player.nowPlaying!.time)

@@ -33,8 +33,7 @@ export struct VideoSliderComponent {
       Slider({
         value: this.player.playTime,
         min: 0,
-        // 防御性处理：当 time 为 0 或 undefined 时，默认 max 为 1，避免 Slider 组件因 max=0 出现渲染异常
-        max: this.player.nowPlaying?.time || 1,
+        max: this.player.nowPlaying?.time,
         style: SliderStyle.NONE
       })
         .trackThickness(12)

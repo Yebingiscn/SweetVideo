@@ -17,6 +17,7 @@ import { DeleteType } from '../../common/enum/DeleteType'
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import { salmonLogger } from 'salmonlogger'
 import { DELAY_JUMP_TO_PLAYER } from '../../common/Constants'
+import Preferences from '../../database/Preferences'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import SubtitleUtil from '../../utils/SubtitleUtil'
@@ -42,11 +43,9 @@ export class VideoListController {
     if (folder) {
       this.folder = folder
     } else {
-      // ORM 改造：不再在构造函数中同步读取 Preferences.getFileFolder（该 API 已废弃），
-      // 改为默认创建空文件夹占位对象，实际数据在页面 aboutToAppear / updateData 时异步注入。
-      this.folder = { name: '', date: '', video_list: [] }
+      this.folder = Preferences.getFileFolder(PathUtils.appContext!)[0]
     }
-    this.videoMetaDataList = this.folder.video_list || []
+    this.videoMetaDataList = this.folder?.video_list || []
     this.videoDataSource = new VideoDataSource(this.videoMetaDataList)
   }
 
@@ -129,7 +128,6 @@ export struct VideoList {
     builder: VideoDeleteDialog({
       confirm: async (deleteType: DeleteType) => {
         try {
-          // ORM 改造：删除操作已改为异步，确保数据库事务提交后再刷新 UI
           await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType,
             DataSyncUtil.editingVideo!)
           if (DataSyncUtil.delMultipleList.length > 0) {
@@ -140,18 +138,17 @@ export struct VideoList {
         } catch (e) {
           ToolsUtil.showToast(`删除失败:${e}`)
         } finally {
-          // 无论成功失败都从 ORM 重新拉取最新数据刷新列表，保证 UI 与数据库一致
-          await VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
         }
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
-      confirm: async (title: string | undefined) => {
+      confirm: (title: string | undefined) => {
         if (!title?.trim()) {
           return
-        }
+        } // 更严格的空值判断
         const editingVideo = DataSyncUtil.editingVideo!
         const targetIndex = SelectFileUtil.getItemIndex(this.videoListController.videoMetaDataList, editingVideo)
         if (targetIndex === -1) {
@@ -159,13 +156,12 @@ export struct VideoList {
         }
         if (this.videoListController.videoMetaDataList.some((v, index) => index !== targetIndex &&
           v.title === title.trim())) {
-          return // 标题重复检查
+          return // 这里直接用 some 来代替，没必要每次都 new 一个Set
         }
-        // ORM 改造：先更新内存中的列表保证 UI 即时响应，再异步写入数据库，最后重新拉取全量数据刷新
         this.videoListController.videoMetaDataList[targetIndex].title = title.trim()
         this.videoListController.videoDataSource.updateData(this.videoListController.videoMetaDataList)
-        await FileFolderUtil.updateVideoInFileFolder(PathUtils.appContext!, this.videoListController, this.fileFolderSource)
-        await VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+        FileFolderUtil.updateVideoInFileFolder(PathUtils.appContext!, this.videoListController, this.fileFolderSource)
+        VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -363,11 +359,7 @@ export struct VideoList {
   }
 
   async clickItem(item: VideoMetadata | undefined, choosePlayer: string) {
-    console.info(`[clickItem] item: ${item?.title}, date: ${item?.date}`)
-    console.info(`[clickItem] videoMetaDataList length: ${this.videoListController.videoMetaDataList.length}`)
-    console.info(`[clickItem] videoDataSource totalCount: ${this.videoListController.videoDataSource.totalCount()}`)
     if (!item || !this.videoListController.videoDataSource.getAllData().some(i => i.date == item?.date!)) {
-      console.info(`[clickItem] Item not found in data source, refreshing...`)
       ToolsUtil.showToast('数据正在加载中，请重试')
       this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
       return
@@ -459,9 +451,9 @@ export struct VideoList {
           if (targetIndex !== -1) {
             this.videoListController.videoMetaDataList[targetIndex] = item!
             this.videoListController.videoDataSource.updateData(this.videoListController.videoMetaDataList)
-            await FileFolderUtil.updateVideoInFileFolder(PathUtils.appContext!, this.videoListController,
+            FileFolderUtil.updateVideoInFileFolder(PathUtils.appContext!, this.videoListController,
               this.fileFolderSource)
-            await VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+            VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
           }
         })
       MenuItem({

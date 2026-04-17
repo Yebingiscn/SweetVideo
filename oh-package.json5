@@ -6,7 +6,7 @@
     "salmonlogger": "feature/salmonlogger.har",
     "@ohos/juniversalchardet": "^2.0.3",
     "@luvi/lv-markdown-in": "^3.3.1",
-    "@ibestservices/ibest-orm": "^2.0.4"
+    "@hadss/scroll_components": "^1.0.0-rc.5"
   },
   "devDependencies": {
     "@ohos/hypium": "1.0.19",

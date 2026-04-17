@@ -109,9 +109,9 @@ export class MpvController implements PlayerControllerInterface {
   async playChooseVideo(item: VideoMetadata, pathStack: NavPathStack) {
     this.osdVisibility = false
     ToolsUtil.addLogger("开始播放选择的视频", false)
-    await VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying!, this.videoMetaDataList, PathUtils.appContext!)
+    VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying!, this.videoMetaDataList, PathUtils.appContext!)
     if (!PrivacySpaceUtil.getPrivacyMode()) {
-      await RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
+      RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
       ToolsUtil.addLogger("添加到最近播放记录完成", false)
     }
     this.reset()

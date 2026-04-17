@@ -8,8 +8,6 @@ import SelectFileUtil from './SelectFileUtil'
 import PermissionUtil from './PermissionUtil'
 import { GB, MB, SCREEN_EXTEND_LIST, VIDEO_SIZE_MAP, VIDEO_SPEED_MAP } from '../common/Constants'
 import { salmonLogger } from 'salmonlogger'
-import { VideoRepository } from '../repository/VideoRepository'
-import { VideoEntity } from '../entity/VideoEntity'
 
 const TAG = 'VideoInfoUtil'
 
@@ -31,12 +29,9 @@ export default class VideoInfoUtil {
     Array.from(VIDEO_SPEED_MAP.entries()).map((entry) => [entry[1], entry[0]])
   )
 
-  // 构建视频元数据对象
-  // 导入优化：新增 skipCover 参数（默认 false）。当 skipCover=true 时跳过同步封面获取，
-  // 仅返回带有 'Unknown' video_size 的元数据，由调用方将封面获取任务加入后台队列异步处理。
-  // 这大幅减少了批量导入大文件时的 UI 阻塞时间。
+  // 设置存储的视频信息
   static async setVideoInfo(date: string, uri: string, file_name: string, metadata: media.AVMetadata,
-    sandbox_video: string, sandbox_path: string, skipCover: boolean = false): Promise<VideoMetadata> {
+    sandbox_video: string, sandbox_path: string) {
     let time = '0'
     let hdr_type = media.HdrType.AV_HDR_TYPE_NONE
     let duration = '0'
@@ -45,11 +40,6 @@ export default class VideoInfoUtil {
       duration = metadata.duration || '0'
       hdr_type = metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE
     }
-
-    // 导入优化：默认使用 'Unknown'，避免在导入主流程中同步调用 getVideoSize（I/O 阻塞）。
-    // 真实大小由后台异步任务 fetchCoverAndFileSizeAsync 更新到数据库。
-    const estimatedSize = 'Unknown'
-
     let targetVideo: VideoMetadata = {
       uri: PrivacySpaceUtil.getPrivacyMode()! ? sandbox_video + date : uri,
       title: file_name,
@@ -58,7 +48,8 @@ export default class VideoInfoUtil {
       time: parseInt(time),
       last_play: 0,
       format: VideoInfoUtil.getVideoFormat(file_name),
-      video_size: estimatedSize,
+      video_size: await VideoInfoUtil.getVideoSize(PrivacySpaceUtil.getPrivacyMode()! ? sandbox_video + date : uri,
+        true) as string,
       hdr_type: hdr_type,
       start_time: 0,
       end_time: 0,
@@ -66,39 +57,8 @@ export default class VideoInfoUtil {
       pointA: 0,
       pointB: 0
     }
-
-    // 仅非跳过模式下同步获取封面（如隐私空间导入仍需同步封面）
-    if (!skipCover) {
-      await VideoInfoUtil.getVideoCover(sandbox_path, date, uri, targetVideo.size, parseInt(duration))
-    }
-
+    await VideoInfoUtil.getVideoCover(sandbox_path, date, uri, targetVideo.size, parseInt(duration))
     return targetVideo
-  }
-
-  // 异步获取视频封面和真实文件大小，并更新数据库
-  // 使用场景：普通视频导入时 skipCover=true，导入完成后再由 SelectFileUtil.processPendingCoverTasks
-  // 在后台串行调用此方法，既避免阻塞导入流程，又能补全封面和文件大小信息。
-  static async fetchCoverAndFileSizeAsync(
-    videoEntity: VideoEntity,
-    sandbox_path: string,
-    uri: string
-  ): Promise<void> {
-    try {
-      // 异步获取封面
-      await VideoInfoUtil.getVideoCover(sandbox_path, videoEntity.date, uri, [videoEntity.width, videoEntity.height], videoEntity.duration)
-
-      // 异步获取真实文件大小
-      const actualSize = await VideoInfoUtil.getVideoSize(uri, true) as string
-
-      // ORM 改造：将补全后的 fileSize 写回数据库
-      const videoRepo = VideoRepository.getInstance()
-      videoEntity.fileSize = actualSize
-      await videoRepo.save(videoEntity)
-
-      salmonLogger.addLog(TAG, `异步更新视频信息完成: ${videoEntity.title}, size=${actualSize}`, false)
-    } catch (error) {
-      salmonLogger.addLog(TAG, `异步获取封面失败: ${videoEntity.title}, error=${error}`, true)
-    }
   }
 
   // 获取视频封面，需要控制并发，不然获取不了,这里实现一个队列来控制并发
@@ -145,16 +105,12 @@ export default class VideoInfoUtil {
     return item.title.slice(0, item.title.lastIndexOf('.'))
   }
 
-  // 视频没有封面时，获取指定时间帧的截图作为封面
-  // 修复：原代码使用 Promise.then 导致资源释放时机不可控，且未处理 await 异常；
-  //       现改为 async/await + finally 确保 avImageGenerator 和 file 总是被释放，防止 fd 泄漏。
+  // 视频没有封面设置获取指定时间的截图作为视频封面
   static async getVideoImage(uri: string, size: number[], date: string, sandbox_path: string, time: number) {
     if (canIUse('SystemCapability.Multimedia.Media.AVImageGenerator')) {
-      let avImageGenerator: media.AVImageGenerator | undefined = undefined
-      let file: fs.File | undefined = undefined
       try {
-        avImageGenerator = await media.createAVImageGenerator()
-        file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
+        let avImageGenerator: media.AVImageGenerator = await media.createAVImageGenerator()
+        let file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
         let avFileDescriptor: media.AVFileDescriptor = { fd: file.fd }
         avImageGenerator.fdSrc = avFileDescriptor
         let timeUs = (time > 0) ? time * 100 : 0 // 微秒
@@ -163,27 +119,17 @@ export default class VideoInfoUtil {
           width: size[0],
           height: size[1],
         }
-        // 使用 await 等待缩略图生成完成，确保在 finally 释放资源前 pixelMap 已就绪
-        const pixelMap = await avImageGenerator.fetchFrameByTime(timeUs, queryOption, param)
-        await SelectFileUtil.saveVideoImageToSandBox(sandbox_path, date, pixelMap)
+        avImageGenerator.fetchFrameByTime(timeUs, queryOption, param).then(async (pixelMap: PixelMap) => {
+          await SelectFileUtil.saveVideoImageToSandBox(sandbox_path, date, pixelMap)
+          avImageGenerator.release()?.catch(() => {
+            salmonLogger.addLog(TAG, 'avImageGenerator release error', true)
+          })
+          fs.closeSync(file)
+        })?.catch(() => {
+          salmonLogger.addLog(TAG, 'fetch frame error', true)
+        })
       } catch (error) {
         salmonLogger.addLog(TAG, 'get video image error:' + error, true)
-      } finally {
-        // 确保资源释放，避免文件描述符泄漏或内存占用
-        if (avImageGenerator) {
-          try {
-            await avImageGenerator.release()
-          } catch {
-            salmonLogger.addLog(TAG, 'avImageGenerator release error', true)
-          }
-        }
-        if (file) {
-          try {
-            fs.closeSync(file)
-          } catch (e) {
-            salmonLogger.addLog(TAG, 'Failed to close file: ' + e, false)
-          }
-        }
       }
     }
   }
