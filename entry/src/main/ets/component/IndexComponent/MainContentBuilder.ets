@@ -5,41 +5,35 @@ import { SideBarController } from '../SideBarComponent/SideBar'
 import { Setting } from '../../utils/ObservedUtil'
 
 /**
- * 主内容区构建参数
- */
-export interface MainContentBuilderParams {
-  loading: boolean
-  processedItems: number
-  totalItems: number
-  videoListController: VideoListController
-  sideBarController: SideBarController
-}
-
-/**
  * 主内容区组件
  * 包含 VideoView、导入进度遮罩
  */
 @Component
 export struct MainContentBuilder {
-  @ObjectLink params: MainContentBuilderParams
+  @Link loading: boolean
+  @Prop processedItems: number
+  @Prop totalItems: number
+  @Link videoListController: VideoListController
+  @Link sideBarController: SideBarController
+  @Link searchValue: string
 
   build() {
     Stack() {
       VideoView({
-        loading: this.params.loading,
-        searchValue: '',
-        videoListController: this.params.videoListController
+        loading: this.loading,
+        searchValue: this.searchValue,
+        videoListController: this.videoListController
       })
       .scale({
-        x: this.params.sideBarController.isShow === true ? 0.95 : 1,
-        y: this.params.sideBarController.isShow ? 0.95 : 1
+        x: this.sideBarController.isShow === true ? 0.95 : 1,
+        y: this.sideBarController.isShow ? 0.95 : 1
       })
       .animation({ duration: 300, curve: Curve.Ease })
 
-      if (this.params.loading) {
+      if (this.loading) {
         ImportProgressBuilder({
-          processedItems: this.params.processedItems,
-          totalItems: this.params.totalItems
+          processedItems: this.processedItems,
+          totalItems: this.totalItems
         })
       }
     }

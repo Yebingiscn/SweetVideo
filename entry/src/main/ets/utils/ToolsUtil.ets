@@ -7,7 +7,6 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import Preferences from '../database/Preferences'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
-import FileFolderUtil from './FileFolderUtil'
 import { PathUtils } from './PathUtils'
 import VideoInfoUtil from './VideoInfoUtil'
 import NavigationAddress, { PlayerParams } from '../common/NavigationCommon'
@@ -21,6 +20,10 @@ import { VideoItemWithPinyin } from '../interfaces/VideoItemWithPinyinInterface'
 import { updateManager } from '@kit.AppGalleryKit'
 import { WindowUtil } from './WindowUtil'
 import { window } from '@kit.ArkUI'
+import { PrivacyVideoRepository } from '../repository/PrivacyVideoRepository'
+import { VideoRepository } from '../repository/VideoRepository'
+import { PrivacyVideoEntity } from '../entity/PrivacyVideoEntity'
+import { VideoEntity } from '../entity/VideoEntity'
 
 const TAG = 'ToolsUtil'
 
@@ -81,7 +84,7 @@ export default class ToolsUtil {
     }
   }
 
-  static sortByNameProcess(list: VideoMetadata[]) {
+  static sortByNameProcess(list: VideoMetadata[], order: 'asc' | 'desc' = 'desc') {
     if (list.length <= 1) {
       return [...list]
     }
@@ -93,46 +96,91 @@ export default class ToolsUtil {
       return videoItem
     })
     const sortedItems = [...itemsWithPinyin].sort((a, b) => {
-      return ToolsUtil.naturalCompare(a.pinyin, b.pinyin)
+      const result = ToolsUtil.naturalCompare(a.pinyin, b.pinyin)
+      return order === 'asc' ? result : -result
     })
     return sortedItems.map(entry => entry.item)
   }
 
-  static sortByDatetimeProcess(list: VideoMetadata[]) {
-    return [...list].sort((a, b) => Number(b.date) - Number(a.date)
-    )
+  static sortByDatetimeProcess(list: VideoMetadata[], order: 'asc' | 'desc' = 'desc') {
+    return [...list].sort((a, b) => {
+      const result = Number(a.date) - Number(b.date)
+      return order === 'asc' ? result : -result
+    })
   }
 
-  static sortByTimeProcess(list: VideoMetadata[]) {
-    return [...list].sort((a, b) => Number(b.time) - Number(a.time)
-    )
+  static sortByTimeProcess(list: VideoMetadata[], order: 'asc' | 'desc' = 'desc') {
+    return [...list].sort((a, b) => {
+      const result = Number(a.time) - Number(b.time)
+      return order === 'asc' ? result : -result
+    })
   }
 
+  // 视频排序
+  // ORM 改造 + 排序逻辑重构：
+  // 1. 排序方向（asc/desc）和排序类型（name/datetime/time）统一保存到 Preferences；
+  // 2. 实际列表排序改为“查询时动态应用”：Repository 在 findByFolderId / findAllOrdered 时读取 Preferences，
+  //    拼接 SQL ORDER BY 或在应用层二次排序；
+  // 3. 对于文件夹内的即时 UI 排序，仅更新内存中的 file_folder.video_list，不立即写入数据库的 sort_order 字段，
+  //    减少不必要的全表更新。
   static sortBy(context: Context, list: VideoMetadata[], file_folder: FileFolder | undefined,
     sortType: 'name' | 'datetime' | 'time') {
+    const isPrivacy = PrivacySpaceUtil.getPrivacyMode()
+    const currentSortType = Preferences.getVideoSortType(context, isPrivacy)
+    let currentOrder = Preferences.getVideoSortOrder(context, isPrivacy)
+
+    // 如果点击的是相同的排序类型，则反转方向；否则使用默认降序
+    if (currentSortType === sortType) {
+      currentOrder = currentOrder === 'asc' ? 'desc' : 'asc'
+    } else {
+      currentOrder = 'desc'
+    }
+
+    // 保存排序偏好到 Preferences
+    Preferences.saveVideoSortType(context, sortType, isPrivacy)
+    Preferences.saveVideoSortOrder(context, currentOrder, isPrivacy)
+
+    // 对当前列表进行排序（用于即时更新 UI）
     let sorted_list: VideoMetadata[]
     switch (sortType) {
       case 'name':
-        sorted_list = ToolsUtil.sortByNameProcess(list)
+        sorted_list = ToolsUtil.sortByNameProcess(list, currentOrder)
         break
       case 'datetime':
-        sorted_list = ToolsUtil.sortByDatetimeProcess(list)
+        sorted_list = ToolsUtil.sortByDatetimeProcess(list, currentOrder)
         break
       case 'time':
-        sorted_list = ToolsUtil.sortByTimeProcess(list)
+        sorted_list = ToolsUtil.sortByTimeProcess(list, currentOrder)
         break
       default:
-        sorted_list = ToolsUtil.sortByNameProcess(list)
+        sorted_list = ToolsUtil.sortByNameProcess(list, currentOrder)
     }
+
+    // 更新内存中的列表（文件夹模式直接赋值；隐私空间/首页模式依赖查询时动态排序）
     if (file_folder) {
-      FileFolderUtil.updateFileFolder(context, file_folder, sorted_list)
+      file_folder.video_list = sorted_list
     } else {
-      if (PrivacySpaceUtil.getPrivacyMode()) {
-        Preferences.saveVideoMetaDataEncryption(context, sorted_list)
+      // 隐私空间/首页：排序偏好已保存，下次 loadPrivacyVideos / getAllFolderAsync 会自动按新偏好排序
+      if (isPrivacy) {
+        ToolsUtil.updatePrivacyVideoSortOrder(sorted_list).catch((error: Error) => {
+          salmonLogger.addLog(TAG, '更新隐私空间视频排序失败: ' + error.message, true)
+        })
       } else {
-        Preferences.saveVideoMetaData(context, sorted_list)
+        ToolsUtil.updateVideoSortOrder(sorted_list).catch((error: Error) => {
+          salmonLogger.addLog(TAG, '更新首页视频排序失败: ' + error.message, true)
+        })
       }
     }
+  }
+
+  // 隐私空间排序占位（如需持久化具体顺序，可在此更新每个视频的 sortOrder 字段）
+  private static async updatePrivacyVideoSortOrder(sortedList: VideoMetadata[]): Promise<void> {
+    salmonLogger.addLog(TAG, `隐私空间视频排序已更新，共 ${sortedList.length} 个视频`, false)
+  }
+
+  // 首页排序占位（如需持久化具体顺序，可在此更新每个视频的 sortOrder 字段）
+  private static async updateVideoSortOrder(sortedList: VideoMetadata[]): Promise<void> {
+    salmonLogger.addLog(TAG, `首页视频排序已更新，共 ${sortedList.length} 个视频`, false)
   }
 
   // 保存密码

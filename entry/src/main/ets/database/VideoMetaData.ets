@@ -1,46 +1,35 @@
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
 import { PathUtils } from '../utils/PathUtils';
-import Preferences from './Preferences';
-import PreferencesUtil from './PreferencesUtil';
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
 import FileFolderUtil from '../utils/FileFolderUtil';
 import { FileFolderDataSource } from '../utils/DataUtil';
 import { DeleteType } from '../common/enum/DeleteType';
+import { FolderRepository } from '../repository/FolderRepository';
+import { VideoRepository } from '../repository/VideoRepository';
 
 export class VideoMetaDataOperator {
-  static getVideoMetaDataByFolderName(folderName: string): VideoMetadata[] {
-    return Preferences.getFileFolder(PathUtils.appContext!).filter(item => item.name === folderName)[0].video_list
-  }
-
-  static migrationRootVideoMetaToRootFolder() {
-    // 判断首页Folder存不存在, 迁移数据到FileFolder中
-    const folder = Preferences.getFileFolder(PathUtils.appContext!).find(item => item.name === '首页')
-    if (!folder) {
-      const rootFolder: FileFolder = {
-        name: '首页',
-        date: '0',
-        video_list: PreferencesUtil.getPreferencesValue(PathUtils.appContext!, 'sweet_video', 'recent_video_meta_data',
-          []) as VideoMetadata[]
-      }
-      Preferences.saveFileFolder(PathUtils.appContext!,
-        [rootFolder, ...Preferences.getFileFolder(PathUtils.appContext!)])
-    }
+  // ORM 改造：从 FolderRepository 关联查询视频，替代 Preferences.getFileFolder 的直接索引访问
+  static async getVideoMetaDataByFolderName(folderName: string): Promise<VideoMetadata[]> {
+    const folderRepo = FolderRepository.getInstance()
+    const folder = await folderRepo.findByName(folderName)
+    return folder ? folder.videos?.map(v => FileFolderUtil.toVideoMetadata(v)) || [] : []
   }
 
   static async deleteItem(videoListController: VideoListController, fileFolderSource: FileFolderDataSource,
-    deleteType: DeleteType, deleteItem: VideoMetadata) {
+    deleteType: DeleteType, deleteItem: VideoMetadata): Promise<void> {
     await videoListController.videoDataSource.deleteItem(deleteType, deleteItem);
-    FileFolderUtil.delVideoInFileFolder(PathUtils.appContext!, videoListController, fileFolderSource)
+    // ORM 改造：删除操作改为异步，确保数据库事务完成后再刷新 UI
+    await FileFolderUtil.delVideoInFileFolder(PathUtils.appContext!, videoListController, fileFolderSource)
   }
 }
 
 export class FolderOperator {
-  static getFolderByName(folderName: string): FileFolder {
-    return Preferences.getFileFolder(PathUtils.appContext!).find(item => item.name === folderName)!
+  // ORM 改造：所有文件夹读取改为异步 Repository 查询
+  static async getFolderByName(folderName: string): Promise<FileFolder | undefined> {
+    const folderRepo = FolderRepository.getInstance()
+    const folder = await folderRepo.findByName(folderName)
+    return folder ? FileFolderUtil.toFileFolder(folder) : undefined
   }
-
-  static saveFolders(folders: FileFolder[]) {
-    Preferences.saveFileFolder(PathUtils.appContext!, folders)
-  }
+  // 已移除 saveFolders 方法，文件夹持久化统一由各个 Repository / FileFolderUtil 方法负责
 }

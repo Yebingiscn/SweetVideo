@@ -1,16 +1,20 @@
 import { Table, Column, PrimaryKey, NotNull, CreatedAt } from '@ibestservices/ibest-orm'
 
+// ORM 实体：隐私空间视频表
+// 说明：uri 字段存储的是应用私有目录下的 sandbox 路径（复制后的路径），
+//      originalUri 记录的是用户导入时的原始文件 URI，用于去重和导出。
+//      所有必填字段均设置默认值，避免实例化时触发类型错误。
 @Table()
 export class PrivacyVideoEntity {
   @PrimaryKey()
-  uri!: string
+  uri: string = ''
 
   @Column()
   @NotNull()
-  title!: string
+  title: string = ''
 
   @Column()
-  originalUri!: string
+  originalUri: string = ''
 
   @Column()
   width: number = 0
@@ -46,10 +50,10 @@ export class PrivacyVideoEntity {
   pointB: number = 0
 
   @Column()
-  importedAt!: string
+  importedAt: string = ''
 
   @Column()
-  date!: string
+  date: string = ''
 
   @CreatedAt()
   createdAt?: string

@@ -19,6 +19,24 @@ import PrivacySpaceUtil from './PrivacySpaceUtil'
 import RecentPlayUtil from './RecentPlayUtil'
 import SubtitleUtil from './SubtitleUtil'
 import { systemDateTime } from '@kit.BasicServicesKit'
+import { PrivacyVideoRepository } from '../repository/PrivacyVideoRepository'
+import { PrivacyVideoEntity } from '../entity/PrivacyVideoEntity'
+import { VideoRepository } from '../repository/VideoRepository'
+import { RecentPlayRepository } from '../repository/RecentPlayRepository'
+import { FolderRepository } from '../repository/FolderRepository'
+import { VideoEntity } from '../entity/VideoEntity'
+
+// ORM 改造 + 导入优化：引入异步封面获取任务队列
+// 原因：视频导入时同步获取封面会严重阻塞 UI，尤其是大文件或高并发场景。
+// 策略：导入流程中 skipCover=true 跳过封面生成，仅保存视频元数据到 ORM；
+//       将封面获取任务加入 pendingCoverTasks，由 processPendingCoverTasks 在后台串行异步处理。
+interface PendingCoverTask {
+  videoEntity: VideoEntity
+  sandbox_path: string
+  uri: string
+}
+
+const pendingCoverTasks: PendingCoverTask[] = []
 
 const TAG = 'SelectFileUtil'
 
@@ -103,10 +121,18 @@ export default class SelectFileUtil {
       ToolsUtil.showToast(`导出失败，原因是：${error}`)
     } finally {
       if (sourceFile) {
-        fs.closeSync(sourceFile.fd)
+        try {
+          fs.closeSync(sourceFile.fd)
+        } catch (e) {
+          console.error('关闭源文件失败', e)
+        }
       }
       if (targetFile) {
-        fs.closeSync(targetFile.fd)
+        try {
+          fs.closeSync(targetFile.fd)
+        } catch (e) {
+          console.error('关闭目标文件失败', e)
+        }
       }
     }
   }
@@ -211,32 +237,63 @@ export default class SelectFileUtil {
     }
   }
 
-  //复制视频进入隐私空间
+  // 复制视频进入隐私空间
+  // ORM 改造：将隐私空间视频元数据从 Preferences 迁移到 PrivacyVideoRepository
+  // 注意：privacyRepo.save 会根据主键自动判断 insert 或 update，无需手动维护数组
   static async copyFileToPrivacySpace(context: Context, video_meta_data_encryption: VideoMetadata[], uri: string,
     sandbox_video: string, sandbox_path: string, date: string, metadata: media.AVMetadata,
     file: fs.File): Promise<VideoMetadata> {
     let sourceFile: fs.File | null = null
     let targetFile: fs.File | null = null
     try {
-      const sourceFile = fs.openSync(uri, fs.OpenMode.READ_ONLY)
+      sourceFile = fs.openSync(uri, fs.OpenMode.READ_ONLY)
       const targetPath = `${sandbox_video}${date}`
-      const targetFile = fs.openSync(targetPath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
+      targetFile = fs.openSync(targetPath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
       await new Promise<void>((resolve, reject) => {
-        fs.copyFile(sourceFile.fd, targetFile.fd, (error) => {
+        // ✅ 修复：使用非空断言，因为前面已经赋值
+        fs.copyFile(sourceFile!.fd, targetFile!.fd, (error) => {
           error ? reject(error) : resolve()
         })
       })
       const videoInfo =
         await VideoInfoUtil.setVideoInfo(date, targetPath, file.name, metadata, sandbox_video, sandbox_path)
-      video_meta_data_encryption.push(videoInfo)
-      Preferences.saveVideoMetaDataEncryption(context, video_meta_data_encryption)
+
+      // 保存到 ORM
+      const privacyRepo = PrivacyVideoRepository.getInstance()
+      const entity = new PrivacyVideoEntity()
+      entity.uri = videoInfo.uri
+      entity.title = videoInfo.title
+      entity.originalUri = uri
+      entity.width = videoInfo.size[0] || 0
+      entity.height = videoInfo.size[1] || 0
+      entity.duration = videoInfo.time
+      entity.lastPosition = videoInfo.last_play
+      entity.format = videoInfo.format
+      entity.fileSize = videoInfo.video_size
+      entity.hdrType = videoInfo.hdr_type
+      entity.importedAt = new Date().toISOString()
+      await privacyRepo.save(entity)
+
       return videoInfo // 返回新创建的元数据对象
     } catch (error) {
       salmonLogger.addLog(TAG, `文件复制失败: ${uri}: error ${error}`, true)
       throw new Error(`隐私空间复制失败: ${error.message}`)
     } finally {
-      fs.closeSync(sourceFile)
-      fs.closeSync(targetFile)
+      // ✅ 修复：使用 != null 进行非空检查，避免类型问题
+      if (sourceFile != null) {
+        try {
+          fs.closeSync(sourceFile)
+        } catch (e) {
+          console.error('关闭源文件失败', e)
+        }
+      }
+      if (targetFile != null) {
+        try {
+          fs.closeSync(targetFile)
+        } catch (e) {
+          console.error('关闭目标文件失败', e)
+        }
+      }
     }
   }
 
@@ -245,7 +302,10 @@ export default class SelectFileUtil {
       == format ? title : title + '.' + format]
   }
 
-  static saveData(context: Context, target_data: VideoMetadata, options: SaveOptions) {
+  // 保存播放进度、AB 点、字幕等数据
+  // ORM 改造：分别更新隐私空间/普通视频/最近播放三张表
+  // 注意：不再通过 Preferences 保存整个数组，而是按 uri 精准定位单条记录并局部更新，避免并发覆盖问题
+  static async saveData(context: Context, target_data: VideoMetadata, options: SaveOptions): Promise<void> {
     ToolsUtil.addLogger('开始保存播放数据', false, undefined, TAG)
     let save_time: number = 0
     if (target_data.time === 0 && options.totalTime) {
@@ -264,114 +324,145 @@ export default class SelectFileUtil {
       }
       save_time = shouldMarkAsWatched ? totalDuration : options.playTime
     }
-    const updateVideo = (video: VideoMetadata) => {
+
+    const updateEntity = (entity: PrivacyVideoEntity | VideoEntity) => {
       if (options.playTime) {
-        video.last_play = save_time
+        entity.lastPosition = save_time
       }
       if (options.startTime) {
-        video.start_time = options.startTime
+        entity.startTime = options.startTime
       }
       if (options.endTime) {
-        video.end_time = options.endTime
+        entity.endTime = options.endTime
       }
-      if (options.size?.[0] && video.size[0] === 0) {
-        video.size = options.size
+      if (options.size?.[0]) {
+        entity.width = options.size[0]
+        entity.height = options.size[1]
       }
-      if (options.totalTime && video.time === 0) {
-        video.time = options.totalTime
+      if (options.totalTime && entity.duration === 0) {
+        entity.duration = options.totalTime
       }
       if (options.pointA) {
-        video.pointA = options.pointA
+        entity.pointA = options.pointA
       }
       if (options.pointB) {
-        video.pointB = options.pointB
+        entity.pointB = options.pointB
       }
       if (options.subtitleMode !== undefined) {
-        video.subtitle_mode = options.subtitleMode
+        entity.subtitle_mode = options.subtitleMode
       }
       if (options.subtitleVisible !== undefined) {
-        video.subtitle_visible = options.subtitleVisible
+        entity.subtitle_visible = options.subtitleVisible
       }
       if (options.subtitleAIAsrShown !== undefined) {
-        video.subtitle_ai_asr_shown = options.subtitleAIAsrShown
+        entity.subtitle_ai_asr_shown = options.subtitleAIAsrShown
       }
       if (options.subtitle3DMode !== undefined) {
-        video.subtitle_3d_mode = options.subtitle3DMode
+        entity.subtitle_3d_mode = options.subtitle3DMode
       }
       if (options.subtitleOffsetMillis !== undefined) {
-        video.subtitle_offset_millis = options.subtitleOffsetMillis
+        entity.subtitle_offset_millis = options.subtitleOffsetMillis
       }
       if (options.subtitleTrackId !== undefined) {
-        video.subtitle_track_id = options.subtitleTrackId
+        entity.subtitle_track_id = options.subtitleTrackId
       }
     }
+
     if (PrivacySpaceUtil.getPrivacyMode()) {
       ToolsUtil.addLogger('当前处于隐私空间，更新隐私空间数据', false, undefined, TAG)
-      const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(context)
-      const targetVideoMetaDataEncryption = videoMetaDataEncryption.find(v => v.date === target_data.date)
-      if (targetVideoMetaDataEncryption) {
-        updateVideo(targetVideoMetaDataEncryption)
-        Preferences.saveVideoMetaDataEncryption(context, videoMetaDataEncryption)
+      const privacyRepo = PrivacyVideoRepository.getInstance()
+      const entities = await privacyRepo.query().where({ uri: target_data.uri }).find()
+      const entity = entities.length > 0 ? entities[0] : undefined
+      if (entity) {
+        updateEntity(entity)
+        await privacyRepo.save(entity)
         ToolsUtil.addLogger('隐私空间数据更新完成', false, undefined, TAG)
       } else {
         ToolsUtil.addLogger('未在隐私空间中找到目标视频数据', true, undefined, TAG)
       }
       return
     }
+
     ToolsUtil.addLogger('更新文件夹中的视频数据', false, undefined, TAG)
-    const folders = Preferences.getFileFolder(context)
-    for (const folder of folders) {
-      const videoMetaData: VideoMetadata[] = folder.video_list
-      const targetVideoMetaData = videoMetaData.find(video => video.date === target_data.date)
-      if (targetVideoMetaData) {
-        updateVideo(targetVideoMetaData)
-      }
+    const videoRepo = VideoRepository.getInstance()
+    const entities = await videoRepo.query().where({ uri: target_data.uri }).find()
+    const entity = entities.length > 0 ? entities[0] : undefined
+    if (entity) {
+      updateEntity(entity)
+      await videoRepo.save(entity)
     }
-    Preferences.saveFileFolder(context, folders)
     ToolsUtil.addLogger('文件夹数据更新完成', false, undefined, TAG)
+
     ToolsUtil.addLogger('更新最近播放列表数据', false, undefined, TAG)
-    const recent_play_deque = Preferences.getRecentPlay(context)
-    const recentTargetVideoMetaData = recent_play_deque.find(video => video.date === target_data.date)
-    if (recentTargetVideoMetaData) {
-      updateVideo(recentTargetVideoMetaData)
+    const recentRepo = RecentPlayRepository.getInstance()
+    const recentEntities = await recentRepo.query().where({ uri: target_data.uri }).find()
+    const recentEntity = recentEntities.length > 0 ? recentEntities[0] : undefined
+    if (recentEntity) {
+      if (options.playTime) {
+        recentEntity.lastPosition = save_time
+      }
+      await recentRepo.save(recentEntity)
     }
-    Preferences.saveRecentPlay(context, recent_play_deque)
     ToolsUtil.addLogger('最近播放列表更新完成', false, undefined, TAG)
   }
 
-  static deleteVideo(videoMetaData: VideoMetadata) {
-    SelectFileUtil.deleteVideoFromFolder(videoMetaData)
+  static async deleteVideo(videoMetaData: VideoMetadata) {
+    await SelectFileUtil.deleteVideoFromFolder(videoMetaData)
     SelectFileUtil.deleteVideoEncryption(videoMetaData)
     RecentPlayUtil.delData(PathUtils.appContext!, videoMetaData.uri)
   }
 
-  static deleteVideoFromFolder(videoMetaData: VideoMetadata, currentFolder?: FileFolder) {
-    const context = PathUtils.appContext!
-    const folders = Preferences.getFileFolder(context)
-    if (!folders || folders.length === 0) {
-      return
+  // 从文件夹中删除指定视频
+  // ORM 改造：通过 VideoRepository 按实体删除，不再操作 Preferences 中的数组
+  static async deleteVideoFromFolder(videoMetaData: VideoMetadata, currentFolder?: FileFolder) {
+    const videoRepo = VideoRepository.getInstance()
+    const folderRepo = FolderRepository.getInstance()
+
+    if (currentFolder) {
+      // 如果有指定文件夹，只从该文件夹删除
+      const folder = await folderRepo.findByDate(currentFolder.date)
+      if (folder && folder.videos) {
+        const videoToDelete = folder.videos.find(v => v.date === videoMetaData.date)
+        if (videoToDelete) {
+          await videoRepo.delete(videoToDelete)
+        }
+      }
+    } else {
+      // 否则从所有文件夹中查找并删除
+      const folders = await folderRepo.findAllWithVideos()
+      for (const folder of folders) {
+        if (folder.videos) {
+          const videoToDelete = folder.videos.find(v => v.date === videoMetaData.date)
+          if (videoToDelete) {
+            await videoRepo.delete(videoToDelete)
+            break // 找到一个就删除并退出
+          }
+        }
+      }
     }
-    const targetFolders = currentFolder
-      ? folders.filter(f => f.name === currentFolder.name)
-      : folders
-    targetFolders.forEach(folder => {
-      folder.video_list = folder.video_list.filter(video => video.date !== videoMetaData.date)
-    })
-    Preferences.saveFileFolder(context, folders)
   }
 
-  static deleteVideoEncryption(videoMetaData: VideoMetadata) {
-    //更新隐私空间的数据
-    let videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-    videoMetaDataEncryption = videoMetaDataEncryption.filter(video => video.date !== videoMetaData.date)
-    Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, videoMetaDataEncryption)
+  static async deleteVideoEncryption(videoMetaData: VideoMetadata) {
+    // 更新隐私空间的数据 - 使用 Repository 删除
+    const privacyRepo = PrivacyVideoRepository.getInstance()
+    try {
+      // 根据 date 查找视频实体
+      const entities = await privacyRepo.query().where({ date: videoMetaData.date }).find()
+      if (entities.length > 0) {
+        await privacyRepo.delete(entities[0])
+        salmonLogger.addLog(TAG, `隐私空间视频已删除: ${videoMetaData.title}`, false)
+      }
+    } catch (error) {
+      salmonLogger.addLog(TAG, `删除隐私空间视频失败: ${error}`, true)
+    }
+
+    // 删除物理文件
     fs.access(PathUtils.videoPath + videoMetaData.date).then((res: boolean) => {
       if (res) {
         fs.unlink(PathUtils.videoPath + videoMetaData.date, async (unlinkErr) => {
           if (unlinkErr) {
             ToolsUtil.showToast('删除视频失败：' + videoMetaData.title + '原因是：' + unlinkErr.message)
           }
-          Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, videoMetaDataEncryption)
         })
       }
     })?.catch((err: BusinessError) => {
@@ -407,12 +498,13 @@ export default class SelectFileUtil {
     return foundItem
   }
 
-  public static getVideoListByVideoDate(videoDate: string): [VideoMetadata | undefined, VideoMetadata[]] {
-    const fileFolderList = Preferences.getFileFolder(PathUtils.appContext!)
-    for (const folder of fileFolderList) {
-      const targetVideo = folder.video_list.find(video => video.date === videoDate)
+  public static async getVideoListByVideoDate(videoDate: string): Promise<[VideoMetadata | undefined, VideoMetadata[]]> {
+    const folderRepo = FolderRepository.getInstance()
+    const folders = await folderRepo.findAllWithVideos()
+    for (const folder of folders) {
+      const targetVideo = folder.videos?.find(video => video.date === videoDate)
       if (targetVideo) {
-        return [targetVideo, folder.video_list]
+        return [FileFolderUtil.toVideoMetadata(targetVideo), folder.videos?.map(v => FileFolderUtil.toVideoMetadata(v)) ?? []]
       }
     }
     return [undefined, []]
@@ -488,16 +580,83 @@ export default class SelectFileUtil {
     }
   }
 
+  /**
+   * 解析视频应保存到的目标文件夹ID
+   * ORM 改造：原逻辑直接操作 Preferences 中的 folder.date；现改为通过 FolderRepository 查询或创建实体后返回 id。
+   * 增加了补偿机制参数 createdFoldersForCompensation，用于导入失败时回滚自动创建的文件夹。
+   */
+  private static async resolveTargetFolderId(
+    context: Context,
+    file_folder: FileFolder | undefined,
+    createdFoldersForCompensation: FileFolder[]
+  ): Promise<number> {
+    const folderRepo = FolderRepository.getInstance()
+
+    // 情况1: 有指定文件夹，尝试查找或创建
+    if (file_folder) {
+      // 先按 date 查找
+      const folderEntity = await folderRepo.findByDate(String(file_folder.date))
+      if (folderEntity?.id) {
+        return folderEntity.id
+      }
+
+      // 再按 name 查找
+      const folders = await folderRepo.findAll()
+      const matchedFolder = folders.find(f => f.name === file_folder.name)
+      if (matchedFolder?.id) {
+        return matchedFolder.id
+      }
+
+      // 都没找到，创建新文件夹
+      const newFolders = await FileFolderUtil.createNewFolder(context, file_folder.name)
+      const createdFolder = newFolders.find(f => f.name === file_folder.name)
+      if (createdFolder) {
+        createdFoldersForCompensation.push(createdFolder)
+      }
+      const createdEntity = createdFolder ? await folderRepo.findByDate(createdFolder.date) : undefined
+      return createdEntity?.id ?? 0
+    }
+
+    // 情况2: 无指定文件夹，使用”首页”
+    const folders = await folderRepo.findAll()
+    const rootFolder = folders.find(folder => folder.name === '首页')
+    if (rootFolder?.id) {
+      return rootFolder.id
+    }
+
+    // 没有”首页”，创建一个
+    const newFolders = await FileFolderUtil.createNewFolder(context, '首页')
+    const createdRootFolder = newFolders.find(folder => folder.name === '首页')
+    if (createdRootFolder) {
+      createdFoldersForCompensation.push(createdRootFolder)
+    }
+
+    const fallbackFolder = createdRootFolder
+      ? await folderRepo.findByDate(createdRootFolder.date)
+      : await folderRepo.findByDate(newFolders[0]?.date)
+    return fallbackFolder?.id ?? 0
+  }
+
+  // 单文件导入核心逻辑
+  // ORM 改造 + 并发优化：
+  // 1. 使用 ConcurrencyManagerUtil.getFileQueue 按 URI 串行化，避免同一文件被多个并发任务同时处理；
+  // 2. 使用 global_data 互斥锁保证数据库操作原子性；
+  // 3. 自动从文件路径提取文件夹名称并查找/创建；
+  // 4. skipCover=true 跳过同步封面获取，改为加入 pendingCoverTasks 后台异步处理；
+  // 5. 增加补偿机制：若视频保存失败，自动删除本次导入过程中新建的文件夹，避免脏数据。
   static async addFile(context: Context, sandbox_video: string, sandbox_path: string, uri: string,
     video_meta_data: VideoMetadata[], file_folder?: FileFolder) {
+    // 标准化URI（去掉查询参数等差异），确保相同文件在不同来源下被识别为同一个
+    const normalizedUri = ConcurrencyManagerUtil.normalizeUri(uri)
+
     if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
-      await PermissionUtil.persistPermission(uri)
+      await PermissionUtil.persistPermission(normalizedUri)
       try {
         const avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor()
         // 获取文件操作队列（按URI串行化），避免重复创建文件夹
-        const fileQueue = ConcurrencyManagerUtil.getFileQueue(uri)
+        const fileQueue = ConcurrencyManagerUtil.getFileQueue(normalizedUri)
         await fileQueue.run(async () => {
-          const file = await fs.open(uri)
+          const file = await fs.open(normalizedUri)
           try {
             avMetadataExtractor.fdSrc = file
             const metadata = await new Promise<media.AVMetadata>((resolve, reject) => {
@@ -509,44 +668,94 @@ export default class SelectFileUtil {
             const dataLock = ConcurrencyManagerUtil.getLock('global_data')
             await dataLock.acquire()
             try {
+              // 自动提取文件夹名称（如果没有指定）
               if (!file_folder) {
-                const folderName = FileFolderUtil.extractRootFolderNameFromUri(uri, file.name)
+                const folderName = FileFolderUtil.extractRootFolderNameFromUri(normalizedUri, file.name)
                 if (folderName) {
                   const folderLock = ConcurrencyManagerUtil.getLock(`folder_${folderName}`)
                   await folderLock.acquire()
                   try {
-                    // 每次获取最新数据，防止不同线程覆盖数据
-                    const latestFolders = Preferences.getFileFolder(context) as FileFolder[]
-                    if (!latestFolders.some(i => i.name === folderName)) {
-                      await FileFolderUtil.createNewFolder(context, folderName)
-                      // 创建后重新获取最新数据
-                      file_folder = (Preferences.getFileFolder(context) as FileFolder[])
-                        .find(item => item.name === folderName)
+                    const folderRepo = FolderRepository.getInstance()
+                    const latestFolders = await folderRepo.findAllWithVideos()
+                    const existingFolder = latestFolders.find(i => i.name === folderName)
+                    if (!existingFolder) {
+                      const newFolders = await FileFolderUtil.createNewFolder(context, folderName)
+                      file_folder = newFolders.find(item => item.name === folderName)
                     } else {
-                      file_folder = latestFolders.find(item => item.name === folderName)
+                      file_folder = FileFolderUtil.toFileFolder(existingFolder)
                     }
                   } finally {
                     folderLock.release()
                   }
                 }
               }
-              let isDuplicate = false
-              isDuplicate = FileFolderUtil.existsVideoInFolders(context, uri, file.name)
+
+              // 检查重复视频
+              const isDuplicate = await FileFolderUtil.existsVideoInFolders(context, normalizedUri, file.name)
+              salmonLogger.addLog(TAG, `isDuplicate=${isDuplicate}, file_folder=${JSON.stringify(file_folder)}`, false)
+
               if (!isDuplicate) {
-                if (PrivacySpaceUtil.getPrivacyMode()!) {
-                  await SelectFileUtil.copyFileToPrivacySpace(context, video_meta_data, uri, sandbox_video,
-                    sandbox_path, systemDateTime.getTime(true).toString(), metadata, file)
-                } else {
-                  const videoInfo =
-                    await VideoInfoUtil.setVideoInfo(systemDateTime.getTime(true).toString(), uri, file.name, metadata,
-                      sandbox_video, sandbox_path)
-                  if (file_folder) {
-                    file_folder.video_list.push(videoInfo)
-                    FileFolderUtil.updateFileFolder(context, file_folder, file_folder.video_list)
+                // 事务保护：记录本次创建的文件夹，失败时执行补偿删除
+                const createdFoldersForCompensation: FileFolder[] = []
+                try {
+                  if (PrivacySpaceUtil.getPrivacyMode()!) {
+                    await SelectFileUtil.copyFileToPrivacySpace(context, video_meta_data, normalizedUri, sandbox_video,
+                      sandbox_path, systemDateTime.getTime(true).toString(), metadata, file)
                   } else {
-                    const folders = Preferences.getFileFolder(context)
-                    folders[0].video_list.push(videoInfo)
-                    Preferences.saveFileFolder(context, folders)
+                    // 优化：skipCover=true 跳过封面获取，加快导入速度
+                    const videoInfo = await VideoInfoUtil.setVideoInfo(
+                      systemDateTime.getTime(true).toString(), normalizedUri, file.name, metadata,
+                      sandbox_video, sandbox_path, true
+                    )
+
+                    // 使用简化后的方法解析文件夹ID
+                    const targetFolderId = await SelectFileUtil.resolveTargetFolderId(
+                      context, file_folder, createdFoldersForCompensation
+                    )
+
+                    // 创建视频实体并保存到 ORM
+                    salmonLogger.addLog(TAG, `准备保存视频: targetFolderId=${targetFolderId}, videoTitle=${videoInfo.title}`, false)
+                    const videoEntity = FileFolderUtil.toVideoEntity(videoInfo, targetFolderId)
+                    salmonLogger.addLog(TAG, `视频实体: folderId=${videoEntity.folderId}, uri=${videoEntity.uri}`, false)
+
+                    const videoRepo = VideoRepository.getInstance()
+                    await videoRepo.insert(videoEntity)
+                    salmonLogger.addLog(TAG, `视频保存成功到文件夹id: ${targetFolderId}`, false)
+
+                    // 优化：将封面获取任务加入队列，后台异步处理，避免阻塞主线程和导入流程
+                    pendingCoverTasks.push({
+                      videoEntity: videoEntity,
+                      sandbox_path: sandbox_path,
+                      uri: normalizedUri
+                    })
+                    // 延迟执行封面获取，避免与当前导入事务竞争资源
+                    const timer = setTimeout(() => {
+                      SelectFileUtil.processPendingCoverTasks()
+                      clearTimeout(timer)
+                    }, 100)
+                  }
+                } catch (error) {
+                  // 补偿机制：视频保存失败时，删除本次导入过程中新建的文件夹，避免留下空文件夹脏数据
+                  if (createdFoldersForCompensation.length > 0) {
+                    salmonLogger.addLog(TAG, `视频保存失败，执行补偿删除: ${createdFoldersForCompensation.length} 个文件夹`, true)
+                    const folderRepo = FolderRepository.getInstance()
+                    for (const folder of createdFoldersForCompensation) {
+                      try {
+                        const folderEntity = await folderRepo.findByDate(folder.date)
+                        if (folderEntity) {
+                          await folderRepo.delete(folderEntity)
+                          salmonLogger.addLog(TAG, `补偿删除文件夹成功: ${folder.name}`, false)
+                        }
+                      } catch (cleanupError) {
+                        salmonLogger.addLog(TAG, `补偿删除文件夹失败: ${folder.name}, error: ${cleanupError}`, true)
+                      }
+                    }
+                  }
+                  // ArkTS 要求 throw 的值必须是 Error 类型
+                  if (error instanceof Error) {
+                    throw error
+                  } else {
+                    throw new Error(String(error))
                   }
                 }
               }
@@ -555,12 +764,17 @@ export default class SelectFileUtil {
             }
           } finally {
             try {
-              avMetadataExtractor.release?.()?.catch(() => {
-                salmonLogger.addLog(TAG, 'avMetadataExtractor release error', true)
-              })
+              // 先关闭文件，再释放提取器（符合资源依赖顺序）
               fs.closeSync(file)
             } catch (error) {
               console.error('关闭文件出错，原因是：' + error)
+            }
+            try {
+              avMetadataExtractor.release?.()?.catch(() => {
+                salmonLogger.addLog(TAG, 'avMetadataExtractor release error', true)
+              })
+            } catch (error) {
+              console.error('释放提取器出错，原因是：' + error)
             }
           }
         })
@@ -582,10 +796,20 @@ export default class SelectFileUtil {
     )
   }
 
-  static async deletePrivacyVideo(date: string, title: string, video_meta_data_encryption: VideoMetadata[]) {
+  static async deletePrivacyVideo(date: string, title: string) {
     await SelectFileUtil.deleteCover(date)
     await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, date)
-    Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, video_meta_data_encryption)
+    // 从 Repository 删除视频记录
+    const privacyRepo = PrivacyVideoRepository.getInstance()
+    try {
+      const entities = await privacyRepo.query().where({ date: date }).find()
+      if (entities.length > 0) {
+        await privacyRepo.delete(entities[0])
+        salmonLogger.addLog(TAG, `隐私空间视频记录已删除: ${title}`, false)
+      }
+    } catch (error) {
+      salmonLogger.addLog(TAG, `删除隐私空间视频记录失败: ${error}`, true)
+    }
     try {
       await fs.unlink(PathUtils.videoPath + date)
       ToolsUtil.showToast('删除成功')
@@ -735,6 +959,47 @@ export default class SelectFileUtil {
     } catch (error) {
       salmonLogger.addLog(TAG, `Error selecting media [${mimeType}]:${error}`, true)
       return []
+    }
+  }
+  // 异步处理封面获取任务队列
+  // 设计说明：封面提取是 CPU/IO 密集型操作，串行处理可避免内存峰值过高；
+  //         每个任务间隔 50ms，给主线程留出响应时间，防止 UI 卡顿。
+  private static isProcessingCovers = false
+
+  private static async processPendingCoverTasks(): Promise<void> {
+    if (SelectFileUtil.isProcessingCovers || pendingCoverTasks.length === 0) {
+      return
+    }
+
+    SelectFileUtil.isProcessingCovers = true
+    salmonLogger.addLog(TAG, `开始异步处理 ${pendingCoverTasks.length} 个封面任务`, false)
+
+    // 复制当前任务列表并清空原队列，防止处理过程中新任务被当前批次遗漏或重复处理
+    const tasks = [...pendingCoverTasks]
+    pendingCoverTasks.length = 0
+
+    // 串行处理封面任务，避免并发过高导致内存不足或 UI 卡顿
+    for (const task of tasks) {
+      try {
+        await VideoInfoUtil.fetchCoverAndFileSizeAsync(task.videoEntity, task.sandbox_path, task.uri)
+        // 每处理完一个任务延迟一下，避免阻塞主线程
+        await new Promise<void>(resolve => {
+          const timer = setTimeout(() => {
+            clearTimeout(timer)
+            resolve()
+          }, 50)
+        })
+      } catch (error) {
+        salmonLogger.addLog(TAG, `封面任务处理失败: ${task.videoEntity.title}, error=${error}`, true)
+      }
+    }
+
+    SelectFileUtil.isProcessingCovers = false
+    salmonLogger.addLog(TAG, '封面任务处理完成', false)
+
+    // 如果在处理过程中有新任务加入，继续处理
+    if (pendingCoverTasks.length > 0) {
+      SelectFileUtil.processPendingCoverTasks()
     }
   }
 }

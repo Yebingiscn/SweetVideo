@@ -13,6 +13,17 @@ import SelectFileUtil from '../utils/SelectFileUtil'
 import { DeleteType } from '../common/enum/DeleteType'
 import { Context } from '@kit.AbilityKit'
 
+// =============================================================================
+// Index 页面 ViewModel（新增）
+// =============================================================================
+// 架构重构：将 Index.ets 中原本超过 500 行的业务逻辑抽离到此 ViewModel，实现 UI 与业务分离。
+// 职责边界：
+//   - Index.ets         : 负责 UI 构建、手势响应、导航跳转、状态绑定
+//   - IndexViewModel    : 负责文件夹初始化、视频导入、删除检查、文件夹切换/删除/刷新
+//   - FileFolderUtil    : 负责具体的 ORM 数据操作
+// ORM 改造：所有数据操作均通过异步 Repository 完成，不再直接读写 Preferences。
+// =============================================================================
+
 /**
  * 进度回调类型
  */
@@ -49,16 +60,11 @@ export class IndexViewModel {
 
   /**
    * 初始化文件夹列表
-   * 1. 执行数据库迁移
-   * 2. 加载所有文件夹
-   * 3. 如果没有文件夹，创建默认"首页"文件夹
+   * 1. 加载所有文件夹
+   * 2. 如果没有文件夹，创建默认"首页"文件夹
    */
   async initializeFolders(): Promise<FileFolder[]> {
     console.info('[IndexViewModel] initializeFolders started')
-
-    // 数据库迁移
-    await VideoMetaDataOperator.migrationRootVideoMetaToRootFolder()
-    console.info('[IndexViewModel] migration completed')
 
     // 文件夹存在性检查
     FileFolderUtil.fileFolderExistCheck()

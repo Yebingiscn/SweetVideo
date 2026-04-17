@@ -387,9 +387,11 @@ export class AVPlayerController implements PlayerControllerInterface {
   async playChooseVideo(item: VideoMetadata, pathStack: NavPathStack,
     windowClass?: Promise<window.Window | undefined>) {
     ToolsUtil.addLogger("开始播放选择的视频", false)
-    VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying!, this.videoMetaDataList, PathUtils.appContext!)
+    // ORM 改造：保存播放进度和添加最近记录均已异步化，必须在切歌前 await 确保数据落库，
+    // 防止用户快速切歌或应用退后台时丢失上一条播放记录。
+    await VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying!, this.videoMetaDataList, PathUtils.appContext!)
     if (!PrivacySpaceUtil.getPrivacyMode()) {
-      RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
+      await RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
       ToolsUtil.addLogger("添加到最近播放记录完成", false)
     }
     this.avPlayer?.off('subtitleUpdate')

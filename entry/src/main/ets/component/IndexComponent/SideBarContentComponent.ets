@@ -279,24 +279,27 @@ export struct SideBarContentComponent {
   @Builder
   BottomNavBuilder() {
     Column() {
-      Button({ type: ButtonType.Normal, stateEffect: true }) {
-        Row() {
-          SymbolGlyph($r('sys.symbol.clock')).attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-          Text('最近播放')
-            .fontSize(15)
-            .fontColor($r('app.color.text_color'))
-            .margin({ left: 10, right: 12 })
-            .textOverflow({ overflow: TextOverflow.MARQUEE })
+      // 最近播放按钮：仅在用户开启 Setting.recentPlay 时显示，避免关闭最近播放功能后仍占用侧边栏空间
+      if (Setting.recentPlay) {
+        Button({ type: ButtonType.Normal, stateEffect: true }) {
+          Row() {
+            SymbolGlyph($r('sys.symbol.clock')).attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+            Text('最近播放')
+              .fontSize(15)
+              .fontColor($r('app.color.text_color'))
+              .margin({ left: 10, right: 12 })
+              .textOverflow({ overflow: TextOverflow.MARQUEE })
+          }
         }
+        .align(Alignment.Start)
+        .padding({ left: 15, right: 15 })
+        .attributeModifier(new ButtonFancyModifier('100%', 60))
+        .animation({ duration: 300, curve: Curve.Ease })
+        .onClick(async () => {
+          this.sideBarController.close(false)
+          this.onNavigateToRecent()
+        })
       }
-      .align(Alignment.Start)
-      .padding({ left: 15, right: 15 })
-      .attributeModifier(new ButtonFancyModifier('100%', 60))
-      .animation({ duration: 300, curve: Curve.Ease })
-      .onClick(async () => {
-        this.sideBarController.close(false)
-        this.onNavigateToRecent()
-      })
 
       Button({ type: ButtonType.Normal, stateEffect: true }) {
         Row() {
