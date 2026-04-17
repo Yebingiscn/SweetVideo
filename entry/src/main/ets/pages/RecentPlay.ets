@@ -28,7 +28,8 @@ export struct RecentPlay { // 最近播放页
 
   async aboutToAppear(): Promise<void> {
     if (Setting.recentPlay) {
-      this.recent_video_meta_data = RecentPlayUtil.getRecentPlaybacks()
+      // ORM 改造：RecentPlayUtil.getRecentPlaybacks 已改为异步，从 RecentPlayRepository 查询最多 30 条记录
+      this.recent_video_meta_data = await RecentPlayUtil.getRecentPlaybacks()
       this.videoDataSource = new VideoDataSource(this.recent_video_meta_data)
     }
   }
@@ -85,7 +86,8 @@ export struct RecentPlay { // 最近播放页
     }
     const isFileExist = await SelectFileUtil.isFileExist(item.uri, true)
     if (isFileExist) {
-      const originalList = SelectFileUtil.getVideoListByVideoDate(item.date)
+      // ORM 改造：SelectFileUtil.getVideoListByVideoDate 已改为异步，通过 FolderRepository 跨文件夹查找
+      const originalList = await SelectFileUtil.getVideoListByVideoDate(item.date)
       if (originalList[1].length > 0 && originalList[0]) {
         await ToolsUtil.routerWhere(this.pathStack, choosePlayer, originalList[0], originalList[1])
       } else {
@@ -97,9 +99,10 @@ export struct RecentPlay { // 最近播放页
     }
   }
 
-  delData(context: Context, item: VideoMetadata) {
+  async delData(context: Context, item: VideoMetadata) {
+    // 先更新 UI 再异步删除数据库记录，保证交互响应速度
     this.recent_video_meta_data = this.recent_video_meta_data.filter(i => i.date !== item.date)
-    RecentPlayUtil.delData(context, item.uri)
+    await RecentPlayUtil.delData(context, item.uri)
     this.videoDataSource.deleteData(this.videoDataSource.getAllData().indexOf(item))
   }
 
@@ -170,9 +173,10 @@ export struct RecentPlay { // 最近播放页
         .cachedCount(3)
       }
     }
-    .onShown(() => {
+    .onShown(async () => {
       if (Setting.recentPlay) {
-        this.recent_video_meta_data = RecentPlayUtil.getRecentPlaybacks()
+        // 每次页面显示时从 ORM 重新拉取最近播放记录，保证从播放器返回后数据最新
+        this.recent_video_meta_data = await RecentPlayUtil.getRecentPlaybacks()
         this.videoDataSource.updateData(this.recent_video_meta_data)
       }
     })

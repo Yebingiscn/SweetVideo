@@ -97,7 +97,6 @@ export struct XComponents {
     })
     .width(this.player.playAreaWidth)
     .height(this.player.playAreaHeight)
-    .animation({ duration: this.player.playTime > 300 ? 300 : 0, curve: Curve.Ease })
     .rotate({ y: 2, angle: this.player.angle, perspective: 200 })
     .translate({ x: this.player.translateX, y: this.player.translateY })
   }
@@ -134,6 +133,8 @@ export struct MpvXComponent {
           this.onMpvXComponent()
         })
         .position({ x: 0, y: 0 })
+        .width('100%')
+        .height('100%')
       // OSD 字幕叠加层 XComponent（Surface 模式下由 ohcodec-osd VO 渲染字幕）
       // 注意：SURFACE 类型 XComponent 在首帧提交前是不透明的，会遮挡视频。
       // 解决方案：初始为 None，视频开始播放后延迟 500ms 再变 Visible，
@@ -146,6 +147,9 @@ export struct MpvXComponent {
         })
           .backgroundColor(Color.Transparent)  // 声明透明背景，确保合成器使用 SRC_OVER 而非 SRC
           .hitTestBehavior(HitTestMode.Transparent)
+          .visibility(this.osdVisibility ? Visibility.Visible : Visibility.None)
+          .width('100%')
+          .height('100%')
           .onLoad(() => {
             try {
               const surfaceId = this.osdXController?.getXComponentSurfaceId()
@@ -160,6 +164,8 @@ export struct MpvXComponent {
           })
       }
     }
+    .width('100%')
+    .height('100%')
   }
 }
 

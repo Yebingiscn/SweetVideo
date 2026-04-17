@@ -17,6 +17,8 @@ import { LockVideoBarComponent } from '../../component/PlayerComponent/LockVideo
 import { GestureComponent } from '../../component/PlayerComponent/GestureComponent'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
+import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil'
+import RecentPlayUtil from '../../utils/RecentPlayUtil'
 import { window } from '@kit.ArkUI'
 import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import { XComponents } from '../../component/PlayerComponent/XComponents'
@@ -142,6 +144,10 @@ export struct MpvPlayer {
               await PermissionUtil.activatePermission(this.mpv.nowPlaying?.uri)
               try {
                 this.mpv.init(this.mpv.nowPlaying!.uri, this.pathStack)
+                // ORM 改造：MPV 播放器开始播放时异步写入最近播放记录（非隐私空间模式下）
+                if (Setting.recentPlay && this.mpv.nowPlaying && !PrivacySpaceUtil.getPrivacyMode()) {
+                  await RecentPlayUtil.addPlayback(PathUtils.appContext!, this.mpv.nowPlaying)
+                }
                 await this.mpv.initAVSession()
                 PiPWindowUtil.createPipController(this.xComponentController, this.mpv)
                 this.mpv.surfaceId = this.xComponentController.getXComponentSurfaceId()
@@ -387,7 +393,8 @@ export struct MpvPlayer {
     .onWillDisappear(async () => {
       this.exitVideo(false)
       if (this.mpv.videoMetaDataList.length > 0 && this.mpv.playTime > 0) {
-        VideoOperateUtil.saveVideoTime(this.mpv.playTime, this.mpv.nowPlaying!, this.mpv.videoMetaDataList,
+        // ORM 改造：页面退出时异步保存播放进度
+        await VideoOperateUtil.saveVideoTime(this.mpv.playTime, this.mpv.nowPlaying!, this.mpv.videoMetaDataList,
           PathUtils.appContext!)
       }
       PermissionUtil.applyStopContinuousTask()

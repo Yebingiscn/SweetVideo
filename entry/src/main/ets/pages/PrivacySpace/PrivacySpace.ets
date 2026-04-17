@@ -28,6 +28,9 @@ import { SettingsToggleItem } from '../../component/SettingComponent/SettingsTog
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import SubtitleUtil from '../../utils/SubtitleUtil'
+import { PrivacyVideoRepository } from '../../repository/PrivacyVideoRepository'
+import { PrivacyVideoEntity } from '../../entity/PrivacyVideoEntity'
+import { SortUtil } from '../../utils/SortUtil'
 import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { SortComponent } from '../../component/VideoItemComponent/SortComponent'
 import { DELAY_JUMP_TO_PLAYER, NO_BLUR_AMOUNT, PRIVACY_BACKGROUND_BLUR_AMOUNT } from '../../common/Constants'
@@ -39,6 +42,111 @@ export struct PrivacySpace { // 隐私空间页
   @State videoDataSource: VideoDataSource = new VideoDataSource([])
   @State video_meta_data_encryption: VideoMetadata[] = []
   @State list_line: number = 1
+
+  // ORM 改造：隐私空间数据从 Preferences 键值存储迁移到 PrivacyVideoRepository
+  // 注意：PrivacyVideoEntity 使用自增主键，uri 字段存储的是应用私有 sandbox 路径，
+  //       去重/删除时应使用 originalUri（原始文件 URI）或按 id 操作，避免误删。
+
+  // 转换 PrivacyVideoEntity 到 VideoMetadata，供 UI 层复用原有接口
+  private toVideoMetadata(entity: PrivacyVideoEntity): VideoMetadata {
+    return {
+      uri: entity.uri,
+      title: entity.title,
+      date: entity.importedAt,
+      size: [Number(entity.width) || 0, Number(entity.height) || 0],
+      time: Number(entity.duration) || 0,
+      last_play: Number(entity.lastPosition) || 0,
+      format: entity.format,
+      video_size: entity.fileSize,
+      hdr_type: Number(entity.hdrType) || 0,
+      start_time: Number(entity.startTime) || 0,
+      end_time: Number(entity.endTime) || 0,
+      external_subtitle_format: '',
+      pointA: Number(entity.pointA) || 0,
+      pointB: Number(entity.pointB) || 0
+    }
+  }
+
+  /**
+   * 获取当前排序图标（隐私空间）
+   * @returns 通用排序图标 Resource
+   */
+  private getSortIconResource(): Resource {
+    // 使用通用排序图标，不随排序类型变化
+    return $r('sys.symbol.text_and_arrow_down')
+  }
+
+  /**
+   * 获取当前排序方向（隐私空间）
+   * @returns 'asc' 升序（从小到大）或 'desc' 降序（从大到小）
+   */
+  private getSortOrder(): 'asc' | 'desc' {
+    return Preferences.getVideoSortOrder(PathUtils.appContext!, true)
+  }
+
+  // 从 ORM 加载隐私视频
+  // 说明：ibest-orm 的 ORDER BY 对中文拼音支持不佳，因此 name 排序在 SQL 查询后
+  //       通过 SortUtil.sortByPinyin 在应用层二次排序；time 排序同理做数字类型转换后重排。
+  private async loadPrivacyVideos(): Promise<void> {
+    const privacyRepo = PrivacyVideoRepository.getInstance()
+    // 获取排序偏好和方向
+    const sortType = Preferences.getVideoSortType(PathUtils.appContext!, true)
+    const sortOrder = Preferences.getVideoSortOrder(PathUtils.appContext!, true)
+    let entities = await privacyRepo.findAllOrdered(sortType, sortOrder)
+    // name 排序需要在应用层处理中文拼音，time 排序确保数字正确排序
+    if (sortType === 'name') {
+      entities = this.sortEntitiesByPinyin(entities, sortOrder)
+    } else if (sortType === 'time') {
+      entities = this.sortEntitiesByDuration(entities, sortOrder)
+    }
+    this.video_meta_data_encryption = entities.map(e => this.toVideoMetadata(e))
+    this.videoDataSource.updateData(this.video_meta_data_encryption)
+  }
+
+  /**
+   * 按拼音排序隐私视频实体（支持中文自然排序）
+   * 使用 SortUtil 通用排序工具
+   * @param entities 视频实体数组
+   * @param order 排序方向：'asc' 升序(A-Z)，'desc' 降序(Z-A)
+   * @returns 排序后的实体数组
+   */
+  private sortEntitiesByPinyin(entities: PrivacyVideoEntity[], order: 'asc' | 'desc' = 'desc'): PrivacyVideoEntity[] {
+    return SortUtil.sortByPinyin(entities, (e) => e.title, order)
+  }
+
+  /**
+   * 按时长排序隐私视频实体
+   * 使用 SortUtil 通用排序工具
+   * @param entities 视频实体数组
+   * @param order 排序方向：'asc' 升序(短→长)，'desc' 降序(长→短)
+   * @returns 排序后的实体数组
+   */
+  private sortEntitiesByDuration(entities: PrivacyVideoEntity[], order: 'asc' | 'desc' = 'desc'): PrivacyVideoEntity[] {
+    return SortUtil.sortByDuration(entities, (e) => e.duration, order)
+  }
+
+  // 保存隐私视频到 ORM
+  private async savePrivacyVideo(video: VideoMetadata, originalUri?: string): Promise<void> {
+    const privacyRepo = PrivacyVideoRepository.getInstance()
+    const entity = new PrivacyVideoEntity()
+    entity.uri = video.uri
+    entity.title = video.title
+    entity.originalUri = originalUri || video.uri
+    entity.width = video.size[0] || 0
+    entity.height = video.size[1] || 0
+    entity.duration = video.time
+    entity.lastPosition = video.last_play
+    entity.format = video.format
+    entity.fileSize = video.video_size
+    entity.hdrType = video.hdr_type
+    entity.startTime = video.start_time
+    entity.endTime = video.end_time
+    entity.pointA = video.pointA
+    entity.pointB = video.pointB
+    entity.importedAt = new Date().toISOString()
+    entity.date = video.date || new Date().toISOString()
+    await privacyRepo.save(entity)
+  }
   @Consume('pathStack') pathStack: NavPathStack
   @State totalItems: number = 0
   @State processedItems: number = 0
@@ -46,7 +154,7 @@ export struct PrivacySpace { // 隐私空间页
   @State searchValue: string = ''
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
-      confirm: (title: string | undefined) => {
+      confirm: async (title: string | undefined) => {
         if (!title?.trim()) {
           return
         }
@@ -58,10 +166,16 @@ export struct PrivacySpace { // 隐私空间页
         if (this.video_meta_data_encryption.some((v, index) => index !== targetIndex && v.title === title.trim())) {
           return // 这里直接用 some 来代替，隐私空间视频不多，没必要每次都 new 一个Set
         }
-        this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+        // 更新 ORM
+        const privacyRepo = PrivacyVideoRepository.getInstance()
+        const entity = await privacyRepo.query().where({ uri: editingVideo.uri }).find()
+        if (entity.length > 0) {
+          entity[0].title = title.trim()
+          await privacyRepo.save(entity[0])
+        }
+        // 更新本地数据
         this.video_meta_data_encryption[targetIndex].title = title.trim()
         this.videoDataSource.updateData(this.video_meta_data_encryption)
-        Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, this.video_meta_data_encryption)
         this.searchValue = ''
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
@@ -180,14 +294,7 @@ export struct PrivacySpace { // 隐私空间页
       .bindMenu(this.SelectFileMenuBuilder)
       .margin({ right: 10 })
 
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
-          .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-      }
-      .backdropBlur(150)
-      .attributeModifier(new ButtonFancyModifier(35, 35))
-      .animation({ duration: 300, curve: Curve.Ease })
-      .bindMenu(this.SortMenuBuilder)
+      this.SortButtonBuilder()
     }.margin({ right: 10, top: 10 })
   }
 
@@ -213,24 +320,49 @@ export struct PrivacySpace { // 隐私空间页
     }.attributeModifier(new MenuFancyModifier())
   }
 
+  /**
+   * 排序按钮 Builder
+   * 显示通用排序图标 + 升序指示器
+   * 点击后弹出排序菜单，可切换排序类型和方向
+   */
+  @Builder
+  SortButtonBuilder() {
+    Button({ type: ButtonType.Circle, stateEffect: true }) {
+      // 使用 Stack 叠加图标和方向指示
+      Stack({ alignContent: Alignment.BottomEnd }) {
+        // 主图标：通用排序图标（不随排序类型变化）
+        SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
+          .attributeModifier(new SymbolGlyphFancyModifier(20, '', ''))
+        // 排序方向指示器：仅升序时显示向上箭头，降序无指示（默认状态）
+        if (this.getSortOrder() === 'asc') {
+          SymbolGlyph($r('sys.symbol.arrow_up'))
+            .attributeModifier(new SymbolGlyphFancyModifier(10, '', ''))
+            .offset({ x: 6, y: 6 })
+        }
+      }
+      .width(22)
+      .height(22)
+    }
+    .backdropBlur(150)
+    .attributeModifier(new ButtonFancyModifier(35, 35))
+    .animation({ duration: 300, curve: Curve.Ease })
+    .bindMenu(this.SortMenuBuilder)
+  }
+
   @Builder
   SortMenuBuilder() {
     SortComponent({
-      onSortByName: () => {
-        ToolsUtil.sortBy(PathUtils.appContext!, this.video_meta_data_encryption, undefined, "name")
-        this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-        this.videoDataSource.updateData(this.video_meta_data_encryption)
+      onSortByName: async () => {
+        Preferences.saveVideoSortType(PathUtils.appContext!, 'name', true)
+        await this.loadPrivacyVideos()
       },
-      onSortByTime: () => {
-        ToolsUtil.sortBy(PathUtils.appContext!, this.video_meta_data_encryption, undefined, "time")
-        this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-        this.videoDataSource.updateData(this.video_meta_data_encryption)
+      onSortByTime: async () => {
+        Preferences.saveVideoSortType(PathUtils.appContext!, 'time', true)
+        await this.loadPrivacyVideos()
       },
-      onSortByDatetime: () => {
-        ToolsUtil.sortBy(PathUtils.appContext!, this.video_meta_data_encryption, undefined, "datetime")
-        this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-        this.videoDataSource.updateData(this.video_meta_data_encryption)
-
+      onSortByDatetime: async () => {
+        Preferences.saveVideoSortType(PathUtils.appContext!, 'datetime', true)
+        await this.loadPrivacyVideos()
       }
     })
   }
@@ -256,7 +388,7 @@ export struct PrivacySpace { // 隐私空间页
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
       })
         .onClick(async () => {
-          await this.deleteItem(item!.date, item!.title)
+          await this.deleteItem(item!.uri, item!.date)
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
@@ -278,12 +410,8 @@ export struct PrivacySpace { // 隐私空间页
       })
         .onClick(async () => {
           await SubtitleUtil.importOrDeleteSubtitleProcess(item!)
-          const targetIndex = SelectFileUtil.getItemIndex(this.video_meta_data_encryption, item!)
-          if (targetIndex !== -1) {
-            this.video_meta_data_encryption[targetIndex] = item!
-            this.videoDataSource.updateData(this.video_meta_data_encryption)
-            Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, this.video_meta_data_encryption)
-          }
+          // 重新加载隐私视频数据
+          await this.loadPrivacyVideos()
         })
     }.attributeModifier(new MenuFancyModifier())
   }
@@ -304,8 +432,8 @@ export struct PrivacySpace { // 隐私空间页
         },
         fileFolder
       )
-      this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-      this.videoDataSource.updateData(this.video_meta_data_encryption)
+      // 重新加载隐私视频
+      await this.loadPrivacyVideos()
       ToolsUtil.showToast(
         `${ToolsUtil.getStringResource($r('app.string.add_time_info').id)}${this.totalItems -
           FileFolderUtil.duplicateVideo}${FileFolderUtil.duplicateVideo > 0 ?
@@ -323,8 +451,7 @@ export struct PrivacySpace { // 隐私空间页
   }
 
   async aboutToAppear(): Promise<void> {
-    this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-    this.videoDataSource = new VideoDataSource(this.video_meta_data_encryption)
+    await this.loadPrivacyVideos()
     PrivacySpaceUtil.setPrivacyMode(true)
   }
 
@@ -338,14 +465,25 @@ export struct PrivacySpace { // 隐私空间页
     await SelectFileUtil.isFileExist(item?.uri!, true) ?
       ToolsUtil.routerWhere(this.pathStack, choosePlayer, item!,
         this.video_meta_data_encryption) :
-      await this.deleteItem(item!.date, item!.title)
+      await this.deleteItem(item!.uri, item!.date)
   }
 
-  async deleteItem(date: string, title: string) {
-    this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-    this.videoDataSource.deleteData(this.video_meta_data_encryption.findIndex(i => i.date === date))
-    this.video_meta_data_encryption = this.video_meta_data_encryption.filter(i => i.date !== date)
-    await SelectFileUtil.deletePrivacyVideo(date, title, this.video_meta_data_encryption)
+  async deleteItem(uri: string, date: string) {
+    // ORM 改造：使用 uri 作为唯一标识删除，避免依赖可能重复或不稳定的 time/date 字段
+    const privacyRepo = PrivacyVideoRepository.getInstance()
+    const entities = await privacyRepo.query().where({ uri: uri }).find()
+    if (entities.length > 0) {
+      await privacyRepo.delete(entities[0])
+      console.info(`[PrivacySpace] 删除隐私视频成功: ${uri}`)
+    } else {
+      console.warn(`[PrivacySpace] 未找到要删除的隐私视频: ${uri}`)
+    }
+    // 同步更新本地数据源，保证 UI 即时响应（即使 ORM 删除失败也不阻塞 UI 回退）
+    const deleteIndex = this.video_meta_data_encryption.findIndex(i => i.date === date)
+    if (deleteIndex !== -1) {
+      this.videoDataSource.deleteData(deleteIndex)
+      this.video_meta_data_encryption = this.video_meta_data_encryption.filter(i => i.date !== date)
+    }
   }
 
   @Builder
@@ -376,16 +514,15 @@ export struct PrivacySpace { // 隐私空间页
         SearchComponent({
           controller: this.searchController,
           searchValue: this.searchValue,
-          onChange: () => {
-            const newVideoList = SelectFileUtil.getItemFromSearch(
-              this.video_meta_data_encryption,
-              this.searchValue,
-            )
-            if (this.video_meta_data_encryption) {
-              this.searchValue === '' ?
-                this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-                : this.video_meta_data_encryption = newVideoList
-              this.videoDataSource.updateData(this.video_meta_data_encryption)
+          onChange: async () => {
+            if (this.searchValue === '') {
+              await this.loadPrivacyVideos()
+            } else {
+              const newVideoList = SelectFileUtil.getItemFromSearch(
+                this.video_meta_data_encryption,
+                this.searchValue,
+              )
+              this.videoDataSource.updateData(newVideoList)
             }
           },
           onEditChange: (isEditing: boolean) => {
@@ -481,9 +618,8 @@ export struct PrivacySpace { // 隐私空间页
     .onWillDisappear(() => {
       this.closePrivacyMode()
     })
-    .onShown(() => {
-      this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-      this.videoDataSource.updateData(this.video_meta_data_encryption)
+    .onShown(async () => {
+      await this.loadPrivacyVideos()
       if (DataSyncUtil.lastPlayVideoIndex >= 0) {
         this.listScroller.scrollToIndex(DataSyncUtil.lastPlayVideoIndex)
         DataSyncUtil.lastPlayVideoIndex = -1

@@ -11,7 +11,12 @@ import { salmonLogger } from 'salmonlogger'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import PreferencesUtil from '../../database/PreferencesUtil'
 import WantProcess from '../../utils/WantProcessUtil'
-
+import FileFolderUtil from '../../utils/FileFolderUtil'
+import { FolderRepository } from '../../repository/FolderRepository'
+import { PrivacyVideoRepository } from '../../repository/PrivacyVideoRepository'
+import { PrivacyVideoEntity } from '../../entity/PrivacyVideoEntity'
+import { FolderEntity } from '../../entity/FolderEntity'
+import { VideoEntity } from '../../entity/VideoEntity'
 @Component
 export struct MoreSettingPage {
   @Consume('pathStack') pathStack: NavPathStack
@@ -57,14 +62,17 @@ export struct MoreSettingPage {
                 console.error('get subtitle fail')
               })
               const subtitleFromSandboxArray = Array.isArray(subtitleFromSandbox) ? subtitleFromSandbox : []
-              const videoMetaData = Preferences.getVideoMetaData(PathUtils.appContext!)
-              const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-              const fileFolder = Preferences.getFileFolder(PathUtils.appContext!)
-              const existingItemsSet = new Set([
-                ...videoMetaData.map(v => v.date),
-                ...videoMetaDataEncryption.map(v => v.date),
-                ...fileFolder.flatMap(folder =>
-                folder.video_list?.map(item => item!.date) ?? []
+              // ORM 改造：清理失效封面/字幕时，从 Repository 读取所有视频日期，替代 Preferences.getVideoMetaData / getFileFolder
+              const folderRepo = FolderRepository.getInstance()
+              const privacyRepo = PrivacyVideoRepository.getInstance()
+              const folders = await folderRepo.findAllWithVideos()
+              const privacyVideos = await privacyRepo.findAllOrdered()
+
+              // 收集所有视频日期（隐私空间 + 普通文件夹）用于比对沙盒中的孤立文件
+              const existingItemsSet = new Set<string>([
+                ...privacyVideos.map((v: PrivacyVideoEntity) => v.date),
+                ...folders.flatMap((folder: FolderEntity) =>
+                  folder.videos?.map((video: VideoEntity) => video.date) ?? []
                 )
               ])
               const missingCoverFiles = coverFromSandboxArray.filter((file => !existingItemsSet.has(file)))
@@ -125,3 +133,4 @@ export struct MoreSettingPage {
     .backdropBlur(Setting.backgroundDropBlur)
   }
 }
+
