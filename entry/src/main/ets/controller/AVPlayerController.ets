@@ -12,10 +12,16 @@ import { PathUtils } from '../utils/PathUtils'
 import SubtitleUtil from '../utils/SubtitleUtil'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import SelectFileUtil from '../utils/SelectFileUtil'
-import { RepeatMode } from '../common/enum/RepeatMode'
+import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
 import { Setting } from '../utils/ObservedUtil'
 import { PlayerControllerInterface } from './PlayerControllerFactory'
-import { IMAGE_ANALYZER_CONFIG, LEFT_ZONE_DIVISION, RIGHT_ZONE_DIVISION, SCREEN_DIVISIONS } from '../common/Constants'
+import {
+  AUTO_HIDE_SHOW_CONTROL_TIME,
+  IMAGE_ANALYZER_CONFIG,
+  LEFT_ZONE_DIVISION,
+  RIGHT_ZONE_DIVISION,
+  SCREEN_DIVISIONS
+} from '../common/Constants'
 import { salmonLogger } from 'salmonlogger'
 import AVSessionUtil from '../utils/AVSessionUtil'
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil'
@@ -23,6 +29,7 @@ import RecentPlayUtil from '../utils/RecentPlayUtil'
 import PermissionUtil from '../utils/PermissionUtil'
 import { WindowUtil } from '../utils/WindowUtil'
 import { window } from '@kit.ArkUI'
+import NavigationAddress from '../common/NavigationCommon'
 
 @Observed
 export class AVPlayerController implements PlayerControllerInterface {
@@ -51,14 +58,13 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Track playAreaWidth: number = 0
   @Track angle: number = 0
   @Track pixelMap: PixelMap | null = null
-  @Track repeatMode: RepeatMode = RepeatMode.LIST
+  @Track repeatMode: SweetRepeatMode = SweetRepeatMode.LIST
   @Track selectedText: string | undefined = '原始比例'
   @Track onSwiping: boolean = false
   @Track onSwipingBrightness: boolean = false
   @Track isSliderPlayTimeChange: boolean = false
   @Track volumeLoudnessGain: number = 0
   @Track superResolutionState: boolean = false
-  @Track pipOpenState: boolean = false
   @Track audioTrackSelected: number = 0
   @Track lockVisibility: boolean = false
   @Track longPress: boolean = false
@@ -137,11 +143,11 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
 
-  async setExternalSubtitle(now_playing: VideoMetadata) {
-    if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, now_playing.date!)) {
+  async setExternalSubtitle(nowPlaying: VideoMetadata) {
+    if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, nowPlaying.date!)) {
       try {
-        let subtitle = fs.openSync(PathUtils.subtitlePath! + now_playing.date, fs.OpenMode.READ_ONLY)
-        await SubtitleUtil.parseSubtitleProcess(subtitle.path, now_playing.external_subtitle_format) ?
+        let subtitle = fs.openSync(PathUtils.subtitlePath! + nowPlaying.date, fs.OpenMode.READ_ONLY)
+        await SubtitleUtil.parseSubtitleProcess(subtitle.path, nowPlaying.external_subtitle_format) ?
           this.subtitleSelected = SubtitleMode.EXTERNAL_SUBTITLE : this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
       } catch (error) {
         this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
@@ -269,7 +275,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     }
   }
 
-  playNextVideo(repeatMode: RepeatMode): VideoMetadata | undefined {
+  playNextVideo(repeatMode: SweetRepeatMode): VideoMetadata | undefined {
     if (this.videoMetaDataList.length === 0 || this.playTime <= 0) {
       return undefined
     }
@@ -278,21 +284,21 @@ export class AVPlayerController implements PlayerControllerInterface {
       item = this.videoMetaDataList[0]
     }
     switch (repeatMode) {
-      case RepeatMode.RANDOM:
+      case SweetRepeatMode.RANDOM:
         const availableVideos = this.videoMetaDataList.filter(v => v.date !== item.date)
         return availableVideos.length > 0
           ? availableVideos[Math.floor(Math.random() * availableVideos.length)]
           : item
-      case RepeatMode.ONCE:
+      case SweetRepeatMode.ONCE:
         return undefined
-      case RepeatMode.SEQUENCE:
+      case SweetRepeatMode.SEQUENCE:
         if (SelectFileUtil.isLastItem(this.videoMetaDataList, item.date)) {
           return undefined
         }
         return SelectFileUtil.getNextItem(this.videoMetaDataList, item.date)
-      case RepeatMode.SINGLE:
+      case SweetRepeatMode.SINGLE:
         return this.videoMetaDataList.find(v => v.date === this.nowPlaying?.date)!
-      case RepeatMode.LIST:
+      case SweetRepeatMode.LIST:
         return SelectFileUtil.getNextItem(this.videoMetaDataList, item.date)
       default:
         return undefined
@@ -378,7 +384,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     ToolsUtil.addLogger("播放下一个视频前置流程完成", false, pathStack)
   }
 
-  async playChooseVideo(item: VideoMetadata, pathStack?: NavPathStack,
+  async playChooseVideo(item: VideoMetadata, pathStack: NavPathStack,
     windowClass?: Promise<window.Window | undefined>) {
     ToolsUtil.addLogger("开始播放选择的视频", false)
     VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying!, this.videoMetaDataList, PathUtils.appContext!)
@@ -524,5 +530,166 @@ export class AVPlayerController implements PlayerControllerInterface {
       return
     }
     this.togglePlayback()
+  }
+
+  setPlayerCallback(pathStack: NavPathStack, xComponentController?: XComponentController,
+    windowClass?: Promise<window.Window | undefined>) {
+    this.avPlayer?.on('timeUpdate', async (duration) => {
+      if (!this.onSwiping) {
+        this.playTime = duration
+      }
+      AppStorage.setOrCreate('nowPlayingData',
+        [this.playTime, this.nowPlaying!, this.videoMetaDataList])
+      if (this.showControl) {
+        if (!VideoOperateUtil.autoHideTimeout) {
+          VideoOperateUtil.autoHideTimeout = true
+          setTimeout(() => {
+            this.lockVisibility = false
+            this.showControl = false
+            VideoOperateUtil.autoHideTimeout = false
+          }, AUTO_HIDE_SHOW_CONTROL_TIME)
+        }
+      }
+      const endTime = this.nowPlaying?.end_time
+      if (endTime != null && duration >= endTime && endTime > 0 && this.repeatMode !== SweetRepeatMode.SINGLE) {
+        ToolsUtil.addLogger(`检测到视频片尾，准备播放下一个视频，满足条件为: endTime: ${endTime}, repeatMode: ${this.repeatMode}, duration: ${duration}`,
+          false, pathStack)
+        this.playNextVideoProcess(pathStack, windowClass)
+        this.setPlayerCallback(pathStack, xComponentController, windowClass)
+        ToolsUtil.showToast('已智能跳过片尾')
+      }
+      if (this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
+        this.subtitle = SubtitleUtil.getSubtitlesAtTime(duration)
+      }
+      if (this.abCircleStatus && this.playing) {
+        if (this.nowPlaying?.pointA !== undefined && this.nowPlaying?.pointB !== undefined) {
+          const pointA = this.nowPlaying.pointA
+          const pointB = this.nowPlaying.pointB
+          const playTime = this.playTime
+          if (playTime < pointA || playTime > pointB) {
+            this.seekTime(pointA)
+          }
+        }
+      }
+    })
+
+    this.avPlayer?.on('seekDone', (percent) => {
+      ToolsUtil.addLogger("播放器跳转完成", false, pathStack)
+      this.playTime = percent
+      AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
+      // this.refreshExternalSubtitleByPlaybackTime()
+      if (!this.playing) {
+        this.startImageAnalyzer(xComponentController!)
+      }
+    })
+
+    this.avPlayer?.on('speedDone', (systemEnum: media.PlaybackSpeed) => {
+      const actualSpeed = VideoInfoUtil.mapFromSystemSpeed(systemEnum)
+      this.speed = actualSpeed
+    })
+
+    this.avPlayer?.on('audioOutputDeviceChangeWithInfo', (data: audio.AudioStreamDeviceChangeInfo) => {
+      if (data.changeReason === audio.AudioStreamDeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) {
+        this.pause()
+      }
+    })
+
+    this.avPlayer?.on('stateChange', async (state) => {
+      ToolsUtil.addLogger(`播放器状态变更: ${state}`, false, pathStack)
+      switch (state) {
+        case 'initialized':
+          ToolsUtil.addLogger("进入initialized状态", false, pathStack)
+          if (this.avPlayer) {
+            await this.setAVPlayerProperties()
+            this.prepare()
+          }
+          break
+        case 'prepared':
+          ToolsUtil.addLogger("进入prepared状态", false, pathStack)
+          this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!))
+          ToolsUtil.addLogger("设置视频开始播放时间完成", false, pathStack)
+          this.play()
+          ToolsUtil.addLogger("开始播放视频", false, pathStack)
+          await this.getAudioTrackList()
+          await this.getSubtitleTrackList()
+          //     this.applySubtitlePreferenceFromMetadata()
+          ToolsUtil.addLogger("获取音频轨道完成", false, pathStack)
+          await this.initVolumeAndBrightness()
+          this.updatePlaybackSpeed(this.speed)
+          ToolsUtil.addLogger("更新播放速度完成", false, pathStack)
+          this.showControl = false
+          this.lockVisibility = false
+          this.isSliderPlayTimeChange = false
+          this.onSwiping = false
+          //  this.isAdjustingSubtitleOffset = false
+          // this.refreshExternalSubtitleByPlaybackTime()
+          ToolsUtil.addLogger("界面控制状态重置完成", false, pathStack)
+          break
+        case 'completed':
+          ToolsUtil.addLogger("进入completed状态", false, pathStack)
+          VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying!, this.videoMetaDataList,
+            PathUtils.appContext!)
+          ToolsUtil.addLogger("保存视频播放时间完成", false, pathStack)
+          const targetItem = this.videoMetaDataList.find(i => i.date == this.nowPlaying?.date)
+          if (targetItem) {
+            targetItem!.last_play = this.playTime
+            ToolsUtil.addLogger("更新当前视频最后播放时间完成", false, pathStack)
+          }
+          if (this.repeatMode === SweetRepeatMode.SINGLE) {
+            ToolsUtil.addLogger("单曲循环模式，重新开始播放", false, pathStack)
+            this.play()
+            this.avPlayer?.seek(0, media.SeekMode.SEEK_CLOSEST)
+          } else {
+            ToolsUtil.addLogger("播放下一视频", false, pathStack)
+            this.playNextVideoProcess(pathStack, windowClass)
+            this.setPlayerCallback(pathStack, xComponentController, windowClass)
+          }
+          break
+        case 'playing':
+          ToolsUtil.addLogger("进入playing状态", false, pathStack)
+          this.playing = true
+          this.initAVSession()
+          ToolsUtil.addLogger("初始化AVSession完成", false, pathStack)
+          AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
+          ToolsUtil.addLogger("更新播放会话状态完成", false, pathStack)
+          xComponentController!.stopImageAnalyzer()
+          ToolsUtil.addLogger("停止图像分析器完成", false, pathStack)
+          break
+        case 'paused':
+          ToolsUtil.addLogger("进入paused状态", false, pathStack)
+          this.playing = false
+          AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
+          ToolsUtil.addLogger("更新播放会话状态为暂停完成", false, pathStack)
+          setTimeout(() => {
+            this.startImageAnalyzer(xComponentController!)
+          }, 100)
+          break
+        case 'released':
+          ToolsUtil.addLogger("进入released状态", false, pathStack)
+          this.playing = false
+          AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
+          ToolsUtil.addLogger("更新播放会话状态为释放完成", false, pathStack)
+          break
+        case 'idle':
+          ToolsUtil.addLogger("进入idle状态", false, pathStack)
+          this.release()
+          ToolsUtil.addLogger("释放播放器资源完成", false, pathStack)
+          break
+        case 'error':
+          ToolsUtil.addLogger("进入error状态", false, pathStack)
+          try {
+            await (await windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
+            VideoOperateUtil.playErrorExecute(pathStack, this.videoMetaDataList,
+              this.nowPlaying?.date!, NavigationAddress.MPV_PLAYER, this.playTime)
+            ToolsUtil.addLogger("执行播放错误处理完成", false, pathStack)
+          } catch (error) {
+            pathStack.pop()
+          } finally {
+            this.release()
+          }
+          ToolsUtil.addLogger("释放播放器资源完成", false, pathStack)
+          break
+      }
+    })
   }
 }

@@ -15,6 +15,7 @@ export struct CrashPage {
   @State sweetLogDataSource: SweetLogDataSource = new SweetLogDataSource([])
   @Consume('pathStack') pathStack: NavPathStack
   private appEventGroups: Array<hiAppEvent.AppEventGroup> | [] = []
+  private listScroller: Scroller = new Scroller()
 
   aboutToAppear(): void {
     const crashLog = AppStorage.get('crashLog') as Array<hiAppEvent.AppEventGroup>
@@ -42,7 +43,10 @@ export struct CrashPage {
                   .width(16)
                   .height(16)
                   .fill('#ff5f56')
-                  .onClick(() => salmonLogger.clearLog())
+                  .onClick(() => {
+                    salmonLogger.clearLog()
+                    this.sweetLogDataSource.updateData(salmonLogger.logs)
+                  })
                 Circle()
                   .width(16)
                   .height(16)
@@ -59,7 +63,7 @@ export struct CrashPage {
             .padding(12)
 
             // 日志列表，支持自动换行
-            List({ space: 10 }) {
+            List({ scroller: this.listScroller, space: 10 }) {
               LazyForEach(this.sweetLogDataSource, (log: SalmonLogLine) => {
                 ListItem() {
                   Column() {
@@ -109,6 +113,14 @@ export struct CrashPage {
                 .borderRadius(16)
               }, (_log: SalmonLogLine, index: number) => index.toString())
             }
+            .onAppear(() => {
+              setTimeout(() => {
+                const targetIndex = salmonLogger.logs.length - 1
+                if (targetIndex >= 0) {
+                  this.listScroller.scrollToIndex(targetIndex, false)
+                }
+              }, 50)
+            })
             .height('100%')
             .width('100%')
             .layoutWeight(1)

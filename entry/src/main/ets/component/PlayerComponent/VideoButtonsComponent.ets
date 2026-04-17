@@ -1,5 +1,5 @@
-import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
-import { RepeatMode } from '../../common/enum/RepeatMode'
+import { SymbolGlyphFancyModifier, ButtonFancyModifier } from '../../common/AttributeModifierConfig'
+import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import AVSessionUtil from '../../utils/AVSessionUtil'
@@ -31,7 +31,7 @@ export struct VideoButtonsComponent {
   }
   onSideBaClose = () => {
   }
-  onChangeRepeatMode = (_repeatMode: RepeatMode) => {
+  onChangeRepeatMode = (_repeatMode: SweetRepeatMode) => {
   }
 
   @Styles
@@ -141,13 +141,13 @@ export struct VideoButtonsComponent {
    */
   private getRepeatModeIcon(): Resource {
     switch (this.player.repeatMode) {
-      case RepeatMode.SINGLE:
+      case SweetRepeatMode.SINGLE:
         return $r('sys.symbol.repeat_1')
-      case RepeatMode.RANDOM:
+      case SweetRepeatMode.RANDOM:
         return $r('sys.symbol.shuffle')
-      case RepeatMode.LIST:
+      case SweetRepeatMode.LIST:
         return $r('sys.symbol.repeat')
-      case RepeatMode.SEQUENCE:
+      case SweetRepeatMode.SEQUENCE:
         return $r('sys.symbol.order_play')
       default:
         return $r('sys.symbol.order_play')
@@ -158,15 +158,15 @@ export struct VideoButtonsComponent {
    * 获取当前播放模式对应的文本
    * @returns 播放模式文本
    */
-  private getRepeatModeText(repeatMode: RepeatMode): string {
+  private getRepeatModeText(repeatMode: SweetRepeatMode): string {
     switch (repeatMode) {
-      case RepeatMode.SINGLE:
+      case SweetRepeatMode.SINGLE:
         return '单曲循环'
-      case RepeatMode.RANDOM:
+      case SweetRepeatMode.RANDOM:
         return '随机播放'
-      case RepeatMode.LIST:
+      case SweetRepeatMode.LIST:
         return '列表循环'
-      case RepeatMode.SEQUENCE:
+      case SweetRepeatMode.SEQUENCE:
         return '顺序播放'
       default:
         return '列表循环'

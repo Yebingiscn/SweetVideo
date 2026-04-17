@@ -1,4 +1,4 @@
-export const enum RepeatMode {
+export const enum SweetRepeatMode {
   LIST,
   SINGLE,
   RANDOM,

@@ -10,7 +10,7 @@ import ToolsUtil from './ToolsUtil'
 import NavigationAddress, { PlayerParams } from '../common/NavigationCommon'
 import { Setting } from './ObservedUtil'
 import { fileIo, fileIo as fs, fileUri } from '@kit.CoreFileKit'
-import { RepeatMode } from '../common/enum/RepeatMode'
+import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { image } from '@kit.ImageKit'
 import VideoInfoUtil from './VideoInfoUtil'
@@ -380,6 +380,7 @@ export default class VideoOperateUtil {
     Setting.jumpToHistoryTimeStatus = Preferences.getJumpToHistoryTime(context)
     Setting.coverLayout = Preferences.getCoverLayoutMode(context)
     Setting.superResolutionState = Preferences.getSuperResolutionState(context)
+    Setting.autoActivePip = Preferences.getAutoActivePip(context)
     Setting.mpvDecodingMethod = Preferences.getMpvDecodingMethod(context)
     Setting.enableBackgroundDarkImage = Preferences.getEnableBackgroundDarkImage(context)
   }
@@ -515,18 +516,18 @@ export default class VideoOperateUtil {
     }
   }
 
-  static getRepeatMode(repeatMode: RepeatMode): RepeatMode {
+  static getRepeatMode(repeatMode: SweetRepeatMode): SweetRepeatMode {
     switch (repeatMode) {
-      case RepeatMode.LIST:
-        return RepeatMode.SINGLE
-      case RepeatMode.SINGLE:
-        return RepeatMode.RANDOM
-      case RepeatMode.RANDOM:
-        return RepeatMode.SEQUENCE
-      case RepeatMode.SEQUENCE:
-        return RepeatMode.LIST
+      case SweetRepeatMode.LIST:
+        return SweetRepeatMode.SINGLE
+      case SweetRepeatMode.SINGLE:
+        return SweetRepeatMode.RANDOM
+      case SweetRepeatMode.RANDOM:
+        return SweetRepeatMode.SEQUENCE
+      case SweetRepeatMode.SEQUENCE:
+        return SweetRepeatMode.LIST
       default:
-        return RepeatMode.LIST
+        return SweetRepeatMode.LIST
     }
   }
 
