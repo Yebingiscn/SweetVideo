@@ -7,22 +7,43 @@ import { VideoListController } from './VideoItemComponent'
 import { VideoInfoBuilder } from './VideoInfoBuilder'
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import { Setting } from '../../utils/ObservedUtil'
+import { coverEventBus, CoverUpdateEvent } from '../../utils/CoverEventUtil'
 
 @Reusable
 @Component
 export default struct VideoCardItem {
-  @Prop item: VideoMetadata
+  @Prop @Watch('onItemChange') item: VideoMetadata
   @Consume videoListController: VideoListController
   @State choose: boolean = false
+  @State coverUri: string = ''
   @Watch('checkChoose') @Link delMultipleList: VideoMetadata[]
+  private unsubscribeCoverEvent: (() => void) | null = null
 
   checkChoose() {
     this.choose = this.delMultipleList.some(item => item.date === this.item.date)
   }
 
+  onItemChange() {
+    this.coverUri = fileUri.getUriFromPath(PathUtils.coverPath + this.item.date)
+  }
+
+  aboutToAppear() {
+    this.coverUri = fileUri.getUriFromPath(PathUtils.coverPath + this.item.date)
+    this.unsubscribeCoverEvent = coverEventBus.on('coverReady', (event: CoverUpdateEvent) => {
+      if (event.date === this.item.date) {
+        this.coverUri = fileUri.getUriFromPath(PathUtils.coverPath + this.item.date) + '?t=' + Date.now()
+      }
+    })
+  }
+
+  aboutToDisappear() {
+    this.unsubscribeCoverEvent?.()
+    this.unsubscribeCoverEvent = null
+  }
+
   build() {
     Column() {
-      Image(fileUri.getUriFromPath(PathUtils.coverPath + this.item.date))
+      Image(this.coverUri)
         .attributeModifier(new ImageFancyModifier(16, '', ''))
         .width('100%')
         .height('auto')

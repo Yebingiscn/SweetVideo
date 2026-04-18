@@ -10,6 +10,7 @@ import { GB, MB, SCREEN_EXTEND_LIST, VIDEO_SIZE_MAP, VIDEO_SPEED_MAP } from '../
 import { salmonLogger } from 'salmonlogger'
 import { VideoRepository } from '../repository/VideoRepository'
 import { VideoEntity } from '../entity/VideoEntity'
+import { coverEventBus } from './CoverEventUtil'
 
 const TAG = 'VideoInfoUtil'
 
@@ -94,6 +95,9 @@ export default class VideoInfoUtil {
       const videoRepo = VideoRepository.getInstance()
       videoEntity.fileSize = actualSize
       await videoRepo.save(videoEntity)
+
+      // 通知 UI 封面已就绪，触发对应列表项刷新
+      coverEventBus.emit('coverReady', { date: videoEntity.date })
 
       salmonLogger.addLog(TAG, `异步更新视频信息完成: ${videoEntity.title}, size=${actualSize}`, false)
     } catch (error) {
