@@ -329,9 +329,17 @@ export default class FileFolderUtil {
   // 删除文件夹
   static async deleteFileFolder(context: Context, file_folder: FileFolder, fileDataSource?: FileFolderDataSource): Promise<FileFolder[]> {
     const folderRepo = FolderRepository.getInstance()
+    const videoRepo = VideoRepository.getInstance()
     const folder = await folderRepo.findByDate(file_folder.date)
 
     if (folder) {
+      // 级联删除：先删除该文件夹下的所有视频
+      if (folder.id !== undefined) {
+        const videos = await videoRepo.findByFolderId(folder.id)
+        for (const video of videos) {
+          await videoRepo.delete(video)
+        }
+      }
       await folderRepo.delete(folder)
     }
 
