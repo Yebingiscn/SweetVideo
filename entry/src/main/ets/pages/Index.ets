@@ -129,6 +129,7 @@ struct Index {
             this.fileFolderSource
           ) ?? this.file_folder_list
           this.file_folder_list = updatedFolders
+          this.gestureHandler?.updateFolderList(this.file_folder_list)
           this.deletedVideosDialogController.open()
         }
       }, 50)
@@ -182,6 +183,7 @@ struct Index {
     if (result?.success) {
       this.file_folder_list = await this.viewModel?.refreshFolders() ?? this.file_folder_list
       this.fileFolderSource.updateData(this.file_folder_list)
+      this.gestureHandler?.updateFolderList(this.file_folder_list)
     }
     this.loading = false
   }
@@ -196,12 +198,14 @@ struct Index {
       this.searchValue
     ) ?? this.file_folder_list
     this.file_folder_list = updatedFolders
+    this.gestureHandler?.updateFolderList(this.file_folder_list)
   }
 
   private async handleDeleteFolder(folder: FileFolder): Promise<void> {
     const updatedFolders = await this.viewModel?.deleteFolder(folder, this.videoListController) ?? this.file_folder_list
     this.file_folder_list = updatedFolders
     this.fileFolderSource.updateData(updatedFolders)
+    this.gestureHandler?.updateFolderList(this.file_folder_list)
   }
 
   // === 搜索处理 ===
@@ -397,6 +401,7 @@ struct Index {
           const targetFolder = this.videoListController.folder ?? this.file_folder_list[0]
           const updatedFolders = await this.viewModel?.refreshFolders() ?? this.file_folder_list
           this.file_folder_list = updatedFolders
+          this.gestureHandler?.updateFolderList(this.file_folder_list)
         }
         if (DataSyncUtil.lastPlayVideoIndex >= 0) {
           this.videoListController.listScroller.scrollToIndex(DataSyncUtil.lastPlayVideoIndex)

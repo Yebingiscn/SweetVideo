@@ -60,10 +60,7 @@ export class FileProcessorUtil {
     })
     await Promise.all(workers)
 
-    // ✅ 添加：导入完成后提示重复视频数量
-    if (FileFolderUtil.duplicateVideo > 0) {
-      ToolsUtil.showToast(`已跳过 ${FileFolderUtil.duplicateVideo} 个重复视频`)
-    }
+    // 重复视频提示由调用方（IndexViewModel）统一处理，避免双重 Toast
   }
 
   // 计算分块大小

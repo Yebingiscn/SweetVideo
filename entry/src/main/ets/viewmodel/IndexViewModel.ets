@@ -141,8 +141,14 @@ export class IndexViewModel {
       const importedCount = fileList.length - duplicateCount
 
       // 显示导入结果提示
-      const message = `${ToolsUtil.getStringResource($r('app.string.add_time_info').id)}${importedCount}${duplicateCount > 0 ?
-        '重复视频已经智能跳过，跳过视频数：' + duplicateCount : ''}`
+      let message: string
+      if (importedCount === 0 && duplicateCount > 0) {
+        message = `所选视频均已存在，共跳过 ${duplicateCount} 个重复视频`
+      } else if (importedCount > 0 && duplicateCount > 0) {
+        message = `成功导入 ${importedCount} 个视频，跳过 ${duplicateCount} 个重复视频`
+      } else {
+        message = `${ToolsUtil.getStringResource($r('app.string.add_time_info').id)}${importedCount}`
+      }
       ToolsUtil.showToast(message)
 
       // 刷新数据
