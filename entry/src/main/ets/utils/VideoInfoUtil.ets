@@ -1,10 +1,8 @@
 import { media } from '@kit.MediaKit'
-import { fileIo as fs } from '@kit.CoreFileKit'
-import { BusinessError } from '@kit.BasicServicesKit'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
 import SelectFileUtil from './SelectFileUtil'
-import { GB, MB, SCREEN_EXTEND_LIST, VIDEO_SIZE_MAP, VIDEO_SPEED_MAP } from '../common/Constants'
+import { SCREEN_EXTEND_LIST, VIDEO_SIZE_MAP } from '../common/Constants'
 import { salmonLogger } from 'salmonlogger'
 import { image } from '@kit.ImageKit'
 import { extractVideoFrameAsCoverInTaskPool } from './TaskpoolUtil'
@@ -12,7 +10,7 @@ import ToolsUtil from './ToolsUtil'
 
 const TAG = 'VideoInfoUtil'
 
-// 视频信息类
+
 export default class VideoInfoUtil {
   public static screenExtendMap: string[] = SCREEN_EXTEND_LIST.map(item => item.value as string)
   // 播放器视频宽度
@@ -21,14 +19,11 @@ export default class VideoInfoUtil {
   public static playAreaHeight: number = 0
   public static ASPECT_RATIO_MAP: Map<string, number> = new Map([[VideoInfoUtil.screenExtendMap[5], 16 / 9],
     [VideoInfoUtil.screenExtendMap[6], 4 / 3]])
-  public static readonly videoSpeedListAll: number[] = Array.from(VIDEO_SPEED_MAP.keys())
-    .filter(speed => speed >= 0.25)
-    .sort((a, b) => a - b)
+  public static readonly videoSpeedListAll: number[] = [
+    0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0,
+    2.25, 2.5, 2.75, 3.0, 3.25, 3.5, 3.75, 4.0
+  ]
   public static playerEngineList = ['系统播放器', 'MPV播放器']
-  // 反向映射：系统枚举 → 用户倍速
-  private static REVERSE_SPEED_MAP = new Map<media.PlaybackSpeed, number>(
-    Array.from(VIDEO_SPEED_MAP.entries()).map((entry) => [entry[1], entry[0]])
-  )
 
   // 设置存储的视频信息（优化版：减少文件打开次数）
   static async setVideoInfoOptimized(date: string, uri: string, file_name: string, metadata: media.AVMetadata,
@@ -104,24 +99,6 @@ export default class VideoInfoUtil {
     } else {
       return [0, 0]
     }
-  }
-
-  // 正向：用户倍速 → 系统枚举
-  static mapToSystemSpeed(userSpeed: number): media.PlaybackSpeed {
-    const systemSpeed = VIDEO_SPEED_MAP.get(userSpeed)
-    if (systemSpeed !== undefined) {
-      return systemSpeed
-    }
-    return media.PlaybackSpeed.SPEED_FORWARD_1_00_X
-  }
-
-  // 反向：系统枚举 → 用户倍速
-  static mapFromSystemSpeed(systemEnum: media.PlaybackSpeed): number {
-    const userSpeed = VideoInfoUtil.REVERSE_SPEED_MAP.get(systemEnum)
-    if (userSpeed !== undefined) {
-      return userSpeed
-    }
-    return 1.0
   }
 
   static getVideoSpeedTextList() {

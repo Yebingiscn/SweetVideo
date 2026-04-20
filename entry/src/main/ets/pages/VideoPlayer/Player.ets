@@ -261,11 +261,15 @@ export struct Player { // 播放页
           VolumeSwipingPanelBuilder({
             videoVolume: this.player.volume,
             videoVolumeShow: this.player.volumeActually,
-            onSwipingVoice: this.player.onSwipingVoice
+            onSwipingVoice: this.player.onSwipingVoice,
+            playAreaHeight: VideoInfoUtil.playAreaHeight
           })
 
           if (this.player.onSwipingBrightness) {
-            BrightnessSwipingBuilder({ screenBrightness: this.player.screenBrightness })
+            BrightnessSwipingBuilder({
+              screenBrightness: this.player.screenBrightness,
+              playAreaHeight: VideoInfoUtil.playAreaHeight
+            })
           }
           if (this.player.lockVisibility) {
             LockVideoBarComponent({

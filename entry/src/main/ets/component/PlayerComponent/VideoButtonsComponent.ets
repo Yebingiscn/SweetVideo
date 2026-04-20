@@ -1,4 +1,4 @@
-import { SymbolGlyphFancyModifier, ButtonFancyModifier } from '../../common/AttributeModifierConfig'
+import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
@@ -114,7 +114,7 @@ export struct VideoButtonsComponent {
       // 倍速调整按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
         Text(`${this.player.speed}x`)
-          .fontSize(18)
+          .fontSize(15)
           .fontColor($r('sys.color.white'))
           .maxLines(1)
           .padding(5)

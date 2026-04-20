@@ -21,8 +21,7 @@ export interface ProgressInfo {
 // 独立文件处理工具类
 export class FileProcessorUtil {
   // 获取视频封面和处理文件的最大并发数
-  // 提升到6以加快导入速度，根据实际测试优化
-  public static MAX_CONCURRENT = 6
+  public static MAX_CONCURRENT = 12
   // 失败文件列表
   public static failedFiles: string[] = []
 

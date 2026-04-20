@@ -133,7 +133,7 @@ struct Index {
   SelectFileMenuBuilder() {
     FolderSelectMenuBuilder([
       {
-        icon: $r("sys.symbol.folder"),
+        icon: $r("sys.symbol.resolution_video"),
         content: $r('app.string.import_from_videos'),
         onAction: async () => {
           this.sideBarController.close(false)

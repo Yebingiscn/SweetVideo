@@ -3,28 +3,30 @@ import {
   create as mpvCreate,
   destroy as mpvDestroy,
   getAudioTracks as mpvGetAudioTracks,
+  getCurrentSubtitleTrack as mpvGetCurrentSubtitleTrack,
   getDuration as mpvGetDuration,
   getSubtitleTracks as mpvGetSubtitleTracks,
-  getCurrentSubtitleTrack as mpvGetCurrentSubtitleTrack,
   getVideoHeight as mpvGetVideoHeight,
   getVideoWidth as mpvGetVideoWidth,
   loadVideo as mpvLoadVideo,
   pause as mpvPause,
   play as mpvPlay,
+  registerPlaybackCompleteCallback as mpvRegisterPlaybackCompleteCallback,
+  registerSurfaceModeErrorCallback as mpvRegisterSurfaceModeErrorCallback,
+  registerTimeUpdateCallback as mpvRegisterTimeUpdateCallback,
+  registerVideoSizeChangedCallback as mpvRegisterVideoSizeChangedCallback,
   reset as mpvReset,
   seek as mpvSeek,
   selectAudio as mpvSelectAudio,
   selectSubtitle as mpvSelectSubtitle,
   setDecodeType as mpvSetDecodeType,
-  setKeepAspect as mpvSetKeepAspect,
-  setSpeed as mpvSetSpeed,
   setHwdecMode as mpvSetHwdecMode,
+  setKeepAspect as mpvSetKeepAspect,
   setOsdSurface as mpvSetOsdSurface,
-  registerPlaybackCompleteCallback as mpvRegisterPlaybackCompleteCallback,
+  setSpeed as mpvSetSpeed,
   unregisterPlaybackCompleteCallback as mpvUnregisterPlaybackCompleteCallback,
-  registerTimeUpdateCallback as mpvRegisterTimeUpdateCallback,
+  unregisterSurfaceModeErrorCallback as mpvUnregisterSurfaceModeErrorCallback,
   unregisterTimeUpdateCallback as mpvUnregisterTimeUpdateCallback,
-  registerVideoSizeChangedCallback as mpvRegisterVideoSizeChangedCallback,
   unregisterVideoSizeChangedCallback as mpvUnregisterVideoSizeChangedCallback,
 } from 'libmpvnative.so';
 import { Setting } from '../../utils/ObservedUtil';
@@ -106,6 +108,9 @@ export class MpvController implements PlayerControllerInterface {
   private playbackCallbackRegistered: boolean = false
   private timeUpdateCallbackRegistered: boolean = false
   private videoSizeCallbackRegistered: boolean = false
+  private surfaceModeErrorCallbackRegistered: boolean = false
+  private isSwitchingToBufferMode: boolean = false // 防止重复切换
+  private isSwitchingToSoftwareMode: boolean = false // 防止重复切换到软解
 
   async playChooseVideo(item: VideoMetadata, pathStack: NavPathStack) {
     this.osdVisibility = false
@@ -341,6 +346,8 @@ export class MpvController implements PlayerControllerInterface {
     this.registerTimeUpdateCallback()
     // 注册视频尺寸变化回调
     this.registerVideoSizeChangedCallback()
+    // 注册Surface模式错误回调
+    this.registerSurfaceModeErrorCallback()
   }
 
   backForward(): void {
@@ -397,6 +404,9 @@ export class MpvController implements PlayerControllerInterface {
     // 注销视频尺寸变化回调
     mpvUnregisterVideoSizeChangedCallback()
     this.videoSizeCallbackRegistered = false
+    // 注销Surface模式错误回调
+    mpvUnregisterSurfaceModeErrorCallback()
+    this.surfaceModeErrorCallbackRegistered = false
     mpvDestroy(this.mpvHandle)
     this.mpvHandle = null
     this.userListener?.off('timeUpdate')
@@ -680,5 +690,174 @@ export class MpvController implements PlayerControllerInterface {
     } catch (error) {
       ToolsUtil.addLogger("播放完成监听器注册失败: " + JSON.stringify(error), true)
     }
+  }
+
+  // 注册Surface模式错误回调
+  private registerSurfaceModeErrorCallback() {
+    if (this.surfaceModeErrorCallbackRegistered) {
+      return
+    }
+    try {
+      mpvRegisterSurfaceModeErrorCallback((errorMessage: string) => {
+        salmonLogger.addLog(TAG, '[MpvController] Surface mode error detected: ' + errorMessage, true)
+        // 自动切换到Buffer模式
+        this.switchToBufferMode(errorMessage)
+      })
+      this.surfaceModeErrorCallbackRegistered = true
+    } catch (error) {
+      salmonLogger.addLog(TAG, 'Failed to register surface mode error callback', error)
+    }
+  }
+
+  // 统一的模式切换方法
+  private switchDecodingMode(
+    targetMode: 'buffer_hw' | 'buffer_sw',
+    errorMessage: string,
+    currentTime?: number,
+    wasPlaying?: boolean,
+    currentVideo?: VideoMetadata
+  ) {
+    // 防止重复切换
+    if (this.isSwitchingToBufferMode || this.isSwitchingToSoftwareMode) {
+      salmonLogger.addLog(TAG, '[MpvController] Already switching mode, skipping')
+      return
+    }
+
+    // 设置切换标志
+    if (targetMode === 'buffer_hw') {
+      this.isSwitchingToBufferMode = true
+    } else {
+      this.isSwitchingToSoftwareMode = true
+    }
+
+    const modeName = targetMode === 'buffer_hw' ? 'Buffer硬件解码' : '软件解码'
+    salmonLogger.addLog(TAG, `[MpvController] Switching to ${modeName} mode due to error: ${errorMessage}`, true)
+    ToolsUtil.showToast(`正在切换到${modeName}模式...`)
+
+    // 保存当前播放状态（如果未提供）
+    const savedTime = currentTime ?? this.playTime
+    const savedPlaying = wasPlaying ?? this.playing
+    const savedVideo = currentVideo ?? this.nowPlaying
+
+    // 销毁当前MPV实例
+    this.cleanupMpvInstance()
+
+    // 设置解码模式
+    if (targetMode === 'buffer_hw') {
+      mpvSetDecodeType(0) // DECODE_TYPE_HW
+      mpvSetHwdecMode(0) // HWDEC_MODE_BUFFER
+    } else {
+      mpvSetDecodeType(1) // DECODE_TYPE_SW
+      mpvSetHwdecMode(0) // HWDEC_MODE_BUFFER
+    }
+
+    // 创建新的MPV实例
+    this.mpvHandle = mpvCreate()
+    if (!this.mpvHandle) {
+      salmonLogger.addLog(TAG, `[MpvController] Failed to create MPV instance in ${modeName} mode`, true)
+
+      // 如果是Buffer硬件解码失败，尝试切换到软件解码
+      if (targetMode === 'buffer_hw') {
+        this.isSwitchingToBufferMode = false
+        this.switchDecodingMode('buffer_sw', 'Buffer硬件解码创建失败', savedTime, savedPlaying, savedVideo)
+      } else {
+        ToolsUtil.showToast('切换模式失败，请尝试其他视频')
+        this.isSwitchingToSoftwareMode = false
+      }
+      return
+    }
+
+    // 重新加载视频
+    if (savedVideo) {
+      mpvLoadVideo(this.mpvHandle, new fileUri.FileUri(savedVideo.uri).path)
+      this.getData()
+
+      // 延迟检查播放状态并恢复
+      setTimeout(() => {
+        this.verifyAndResumePlayback(targetMode, savedTime, savedPlaying, savedVideo, modeName)
+      }, 500)
+    } else {
+      this.resetSwitchingFlags()
+    }
+  }
+
+  // 清理MPV实例
+  private cleanupMpvInstance() {
+    if (this.mpvHandle) {
+      try {
+        mpvUnregisterPlaybackCompleteCallback()
+        mpvUnregisterTimeUpdateCallback()
+        mpvUnregisterVideoSizeChangedCallback()
+        mpvUnregisterSurfaceModeErrorCallback()
+        mpvDestroy(this.mpvHandle)
+      } catch (error) {
+        salmonLogger.addLog(TAG, '[MpvController] Error during cleanup: ' + JSON.stringify(error), true)
+      }
+      this.mpvHandle = null
+    }
+
+    // 重置回调注册标志
+    this.osdVisibility = false
+    this.playbackCallbackRegistered = false
+    this.timeUpdateCallbackRegistered = false
+    this.videoSizeCallbackRegistered = false
+    this.surfaceModeErrorCallbackRegistered = false
+  }
+
+  // 验证播放状态并恢复播放
+  private verifyAndResumePlayback(
+    targetMode: 'buffer_hw' | 'buffer_sw',
+    savedTime: number,
+    savedPlaying: boolean,
+    savedVideo: VideoMetadata | undefined,
+    modeName: string
+  ) {
+    // 检查是否成功播放（通过检查视频尺寸）
+    const videoWidth = this.getPlayAreaWidth()
+    const videoHeight = this.getPlayAreaHeight()
+
+    if (videoWidth === 0 || videoHeight === 0) {
+      // 播放失败
+      salmonLogger.addLog(TAG, `[MpvController] ${modeName} mode failed to play video`, true)
+
+      // 如果是Buffer硬件解码失败，尝试切换到软件解码
+      if (targetMode === 'buffer_hw') {
+        this.resetSwitchingFlags()
+        this.switchDecodingMode('buffer_sw', 'Buffer硬件解码播放失败', savedTime, savedPlaying, savedVideo)
+      } else {
+        ToolsUtil.showToast('播放失败，请尝试其他视频')
+        this.resetSwitchingFlags()
+      }
+      return
+    }
+
+    // 恢复播放位置和状态
+    if (savedTime > 0) {
+      this.seekTime(savedTime)
+    }
+    if (savedPlaying) {
+      this.play()
+    }
+
+    this.resetSwitchingFlags()
+    ToolsUtil.showToast(`已成功切换到${modeName}模式`)
+    salmonLogger.addLog(TAG, `[MpvController] Successfully switched to ${modeName} mode`)
+  }
+
+  // 重置切换标志
+  private resetSwitchingFlags() {
+    this.isSwitchingToBufferMode = false
+    this.isSwitchingToSoftwareMode = false
+  }
+
+  // 从Surface模式切换到Buffer模式（兼容旧接口）
+  private switchToBufferMode(errorMessage: string) {
+    // 检查当前是否为Surface模式
+    if (Setting.mpvDecodingMethod !== MpvDecodingMethod.HARDWARE_SURFACE) {
+      salmonLogger.addLog(TAG, '[MpvController] Not in surface mode, skipping switch')
+      return
+    }
+
+    this.switchDecodingMode('buffer_hw', errorMessage)
   }
 }

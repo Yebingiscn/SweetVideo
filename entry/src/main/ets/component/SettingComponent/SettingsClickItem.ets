@@ -1,4 +1,3 @@
-import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 
 @Component
 export struct SettingsClickItem {
@@ -34,9 +33,7 @@ export struct SettingsClickItem {
             .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
             .margin(5)
         }
-
       }.align(Alignment.Center)
-
     }
     .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.95 })
     .onClick(() => {

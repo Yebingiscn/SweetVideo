@@ -90,32 +90,35 @@ export struct AudioTrackComponent {
   }
 
   build() {
-    Flex({ direction: FlexDirection.Column, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center }) {
+    Column() {
       LazyForEach(this.audioTrackDataSource, (item: TrackType, index: number) => {
-        Row() { // 音轨
+        Row() {
           Text(`${this.getTrackIndex(item)} : ${this.getTrackName(item)}(${this.getLanguageName(item)})`)
             .fontSize(18)
             .height(40)
-            .flexGrow(1)
-            .flexShrink(1)
+            .layoutWeight(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .fontColor(this.player.audioTrackSelected === index ? $r('sys.color.white') :
               $r('app.color.text_color'))
-            .margin({ left: 5 })
+
           if (this.shouldShowAv3aIcon(item)) {
             Image($r('app.media.audio_vivid_icon'))
               .attributeModifier(new ImageFancyModifier(8, 85, 30))
               .width(95)
           }
         }
+        .padding(5)
+        .width('100%')
         .backgroundColor(this.player.audioTrackSelected === index ? $r('app.color.main_color') : '')
         .borderRadius(16)
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .width('100%')
         .onClick(() => {
           this.onSelect(index)
         })
       }, (item: TrackType) => this.getKey(item))
-    }.width(235)
+    }
+    .width(235)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
   }
 }

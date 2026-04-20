@@ -1,12 +1,12 @@
-import { PrivacySpaceErrorListDataSource } from '../../utils/DataUtil'
-import { fileUri, fileIo as fs } from '@kit.CoreFileKit'
-import { PathUtils } from '../../utils/PathUtils'
+import { salmonLogger } from 'salmonlogger'
 import { ImageFancyModifier, MenuFancyModifier } from '../../common/AttributeModifierConfig'
 import Preferences from '../../database/Preferences'
-import SelectFileUtil from '../../utils/SelectFileUtil'
-import { SymbolGlyphModifier } from '@kit.ArkUI'
+import { PrivacySpaceErrorListDataSource } from '../../utils/DataUtil'
 import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
-import { salmonLogger } from 'salmonlogger'
+import { PathUtils } from '../../utils/PathUtils'
+import SelectFileUtil from '../../utils/SelectFileUtil'
+import { fileIo, fileUri } from '@kit.CoreFileKit'
+import { SymbolGlyphModifier } from '@kit.ArkUI'
 
 const TAG = 'PrivacySpaceErrorList'
 
@@ -19,7 +19,7 @@ export struct PrivacySpaceErrorList {
 
   async aboutToAppear(): Promise<void> {
     const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-    const videoFromSandbox = await fs.listFile(PathUtils.videoPath)?.catch(() => {
+    const videoFromSandbox = await fileIo.listFile(PathUtils.videoPath)?.catch(() => {
       salmonLogger.addLog(TAG, 'get video fail', true)
     })
     // 确保 videoFromSandbox 是一个数组（如果出错则设为空数组）

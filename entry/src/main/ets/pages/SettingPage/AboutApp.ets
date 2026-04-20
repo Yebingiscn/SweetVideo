@@ -7,7 +7,7 @@ import { Markdown, MarkdownController } from '@luvi/lv-markdown-in'
 import { salmonLogger } from 'salmonlogger'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PrivacyPolicyComponent } from '../../component/VideoItemComponent/PrivacyPolicyComponent'
-import { LiqD } from '../../component/SettingComponent/LiqD'
+import { LiqD } from '../../component/common/LiqD'
 
 const TAG = 'AboutApp'
 

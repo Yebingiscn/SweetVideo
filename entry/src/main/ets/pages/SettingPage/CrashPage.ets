@@ -1,14 +1,12 @@
 import { hiAppEvent } from '@kit.PerformanceAnalysisKit'
 import { salmonLogger, SalmonLogLine } from 'salmonlogger'
+import { SweetLogDataSource } from '../../utils/DataUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
-import { fileIo as fs } from '@kit.CoreFileKit'
 import { systemShare } from '@kit.ShareKit'
-import { BusinessError } from '@kit.BasicServicesKit'
 import { uniformTypeDescriptor } from '@kit.ArkData'
-import { fileUri } from '@kit.CoreFileKit';
-import { SweetLogDataSource } from '../../utils/DataUtil'
+import { fileIo, fileUri } from '@kit.CoreFileKit'
 
 const TAG = 'CrashPage'
 
@@ -33,59 +31,54 @@ export struct CrashPage {
 
   build() {
     NavDestination() {
-      Scroll() {
+      Column() {
         if (this.appEventGroups.length === 0) {
-          // 简洁日志组件，支持自动换行
+          // 简洁日志组件
           Column() {
-            // Mac 风格标题栏
-            Row() {
-              // 红黄绿三个圆形按钮
-              Row({ space: 8 }) {
-                Circle()
-                  .width(16)
-                  .height(16)
-                  .fill('#ff5f56')
-                  .onClick(() => {
-                    salmonLogger.clearLog()
-                    this.sweetLogDataSource.updateData(salmonLogger.logs)
-                  })
-                Circle()
-                  .width(16)
-                  .height(16)
-                  .fill('#ffbd2e')
-                  .onClick(() => ToolsUtil.showToast("红色按钮清空日志，绿色按钮导出日志"))
-                Circle()
-                  .width(16)
-                  .height(16)
-                  .fill('#27c93f')
-                  .onClick(() => salmonLogger.exportLog('sweet_video', PathUtils.appContext!))
-              }
+            // Mac 风格标题栏 - 扁平化为一行
+            Row({ space: 8 }) {
+              Circle()
+                .width(16)
+                .height(16)
+                .fill('#ff5f56')
+                .onClick(() => {
+                  salmonLogger.clearLog()
+                  this.sweetLogDataSource.updateData(salmonLogger.logs)
+                })
+              Circle()
+                .width(16)
+                .height(16)
+                .fill('#ffbd2e')
+                .onClick(() => ToolsUtil.showToast("红色按钮清空日志，绿色按钮导出日志"))
+              Circle()
+                .width(16)
+                .height(16)
+                .fill('#27c93f')
+                .onClick(() => salmonLogger.exportLog('sweet_video', PathUtils.appContext!))
             }
             .width('100%')
             .padding(12)
 
-            // 日志列表，支持自动换行
+            // 日志列表
             List({ scroller: this.listScroller, space: 10 }) {
               LazyForEach(this.sweetLogDataSource, (log: SalmonLogLine) => {
                 ListItem() {
                   Column() {
                     Row() {
-                      // 日志类型徽章
-                      Stack() {
-                        Text(log.isError ? 'ERROR' : 'INFO')
-                          .fontSize(9)
-                          .fontColor($r('sys.color.white'))
-                          .fontWeight(FontWeight.Bold)
-                          .padding({
-                            left: 6,
-                            right: 6,
-                            top: 2,
-                            bottom: 2
-                          })
-                      }
-                      .backgroundColor(log.isError ? '#26ff4d4f' : '#2652c41a')
-                      .backdropBlur(12)
-                      .borderRadius(4)
+                      // 日志类型徽章 - 简化 Stack 为 Text
+                      Text(log.isError ? 'ERROR' : 'INFO')
+                        .fontSize(9)
+                        .fontColor($r('sys.color.white'))
+                        .fontWeight(FontWeight.Bold)
+                        .padding({
+                          left: 6,
+                          right: 6,
+                          top: 2,
+                          bottom: 2
+                        })
+                        .backgroundColor(log.isError ? '#26ff4d4f' : '#2652c41a')
+                        .backdropBlur(12)
+                        .borderRadius(4)
 
                       Text(`[${new Date(log.time).toLocaleTimeString(undefined, { hour12: false })}]`)
                         .fontSize(10)
@@ -109,12 +102,18 @@ export struct CrashPage {
                       .wordBreak(WordBreak.BREAK_ALL)
                       .margin({ top: 6 })
                       .align(Alignment.Start)
-                  }.margin({ right: 24 })
-                }.width('100%')
-                .padding({ top: 6, bottom: 6, right: 12 })
-                .borderRadius(16)
+                  }
+                  .width('100%')
+                  .padding({
+                    top: 6,
+                    bottom: 6,
+                    left: 12,
+                    right: 12
+                  })
+                }
               }, (_log: SalmonLogLine, index: number) => index.toString())
             }
+            .cachedCount(8)
             .onAppear(() => {
               setTimeout(() => {
                 const targetIndex = salmonLogger.logs.length - 1
@@ -123,99 +122,85 @@ export struct CrashPage {
                 }
               }, 50)
             })
+            .layoutWeight(1)
             .height('100%')
             .width('100%')
-            .layoutWeight(1)
-            .padding({ left: 12, right: 12, bottom: 12 })
+            .padding({ left: 8, right: 8, bottom: 8 })
             .scrollBar(BarState.Auto)
           }
           .width('100%')
-          .height('100%')
+          .layoutWeight(1)
           .backgroundColor($r('app.color.start_window_background_blur'))
           .borderRadius(16)
         } else {
-          Column() {
-            Text('流心崩溃日志')
-              .fontColor($r('app.color.text_color'))
-              .margin(10)
+          // 崩溃日志
+          List() {
             ForEach(this.appEventGroups, (eventGroup: hiAppEvent.AppEventGroup) => {
-              Text('事件名：' + eventGroup.name)
-                .fontColor($r('app.color.text_color'))
-              ForEach(eventGroup.appEventInfos, (eventInfo: hiAppEvent.AppEventInfo) => {
+              ListItem() {
                 Column() {
-                  Text(`HiAppEvent eventInfo.domain=${eventInfo.domain}`).fontColor($r('app.color.text_color'))
-                  Text(`HiAppEvent eventInfo.name=${eventInfo.name}`).fontColor($r('app.color.text_color'))
-                  Text(`HiAppEvent eventInfo.eventType=${eventInfo.eventType}`).fontColor($r('app.color.text_color'))
-                  Text(`HiAppEvent eventInfo.params.time=${eventInfo.params['time']}`)
+                  Text('事件名：' + eventGroup.name)
                     .fontColor($r('app.color.text_color'))
-                  Text(`HiAppEvent eventInfo.params.crash_type=${eventInfo.params['crash_type']}`)
-                    .fontColor($r('app.color.text_color'))
-                  Text(`HiAppEvent eventInfo.params.foreground=${eventInfo.params['foreground']}`)
-                    .fontColor($r('app.color.text_color'))
-                  Text(`HiAppEvent eventInfo.params.bundle_version=${eventInfo.params['bundle_version']}`)
-                    .fontColor($r('app.color.text_color'))
-                  Text(`HiAppEvent eventInfo.params.bundle_name=${eventInfo.params['bundle_name']}`)
-                    .fontColor($r('app.color.text_color'))
-                  Text(`HiAppEvent eventInfo.params.pid=${eventInfo.params['pid']}`)
-                    .fontColor($r('app.color.text_color'))
-                  Text(`HiAppEvent eventInfo.params.uid=${eventInfo.params['uid']}`)
-                    .fontColor($r('app.color.text_color'))
-                  Text(`HiAppEvent eventInfo.params.uuid=${eventInfo.params['uuid']}`)
-                    .fontColor($r('app.color.text_color'))
-                  Text(`HiAppEvent eventInfo.params.exception=${JSON.stringify(eventInfo.params['exception'])}`)
-                    .fontColor($r('app.color.text_color'))
-                  Text(`HiAppEvent eventInfo.params.hilog.size=${eventInfo.params['hilog']?.length}`)
-                    .fontColor($r('app.color.text_color'))
-                  Text(`HiAppEvent eventInfo.params.external_log=${JSON.stringify(eventInfo.params['external_log'])}`)
-                    .fontColor($r('app.color.text_color'))
-                  Text(`HiAppEvent eventInfo.params.log_over_limit=${eventInfo.params['log_over_limit']}`)
-                    .fontColor($r('app.color.text_color'))
-                  Text(`HiAppEvent eventInfo.params.external_log=${JSON.stringify(eventInfo.params['external_log'])}`)
-                  Text(`HiAppEvent eventInfo.params.external_log=${JSON.stringify(eventInfo.params['external_log'])}`)
-                    .fontColor($r('app.color.text_color'))
-                  Text(`HiAppEvent eventInfo.params.log_over_limit=${eventInfo.params['log_over_limit']}`)
-                    .fontColor($r('app.color.text_color'))
-                  Text(`HiAppEvent eventInfo.params.test_data=${eventInfo.params['test_data']}`)
-                    .fontColor($r('app.color.text_color'))
-                  Text(`HiAppEvent eventInfo.params.test_data=${eventInfo.params['test_data']}`)
-                    .fontColor($r('app.color.text_color'))
-                }.width('80%')
-              }, (_eventInfo: hiAppEvent.AppEventInfo, index: number) => index.toString())
+                    .fontSize(16)
+                    .fontWeight(FontWeight.Medium)
+                    .margin({ bottom: 8 })
+
+                  ForEach(eventGroup.appEventInfos, (eventInfo: hiAppEvent.AppEventInfo) => {
+                    Column() {
+                      this.EventInfoText('domain', eventInfo.domain)
+                      this.EventInfoText('name', eventInfo.name)
+                      this.EventInfoText('eventType', eventInfo.eventType)
+                      this.EventInfoText('time', eventInfo.params['time'])
+                      this.EventInfoText('crash_type', eventInfo.params['crash_type'])
+                      this.EventInfoText('foreground', eventInfo.params['foreground'])
+                      this.EventInfoText('bundle_version', eventInfo.params['bundle_version'])
+                      this.EventInfoText('bundle_name', eventInfo.params['bundle_name'])
+                      this.EventInfoText('pid', eventInfo.params['pid'])
+                      this.EventInfoText('uid', eventInfo.params['uid'])
+                      this.EventInfoText('uuid', eventInfo.params['uuid'])
+                      this.EventInfoText('exception', JSON.stringify(eventInfo.params['exception']))
+                      this.EventInfoText('hilog.size', eventInfo.params['hilog']?.length)
+                      this.EventInfoText('external_log', JSON.stringify(eventInfo.params['external_log']))
+                      this.EventInfoText('log_over_limit', eventInfo.params['log_over_limit'])
+                      this.EventInfoText('test_data', eventInfo.params['test_data'])
+                    }
+                    .width('100%')
+                    .padding(8)
+                    .margin({ top: 8 })
+                  }, (_eventInfo: hiAppEvent.AppEventInfo, index: number) => index.toString())
+                }
+                .width('100%')
+                .padding(12)
+              }
             }, (eventGroup: hiAppEvent.AppEventGroup, index: number) => eventGroup.name + index)
           }
-          .backgroundColor($r('app.color.start_window_background_blur'))
           .height('100%')
           .width('100%')
+          .layoutWeight(1)
+          .backgroundColor($r('app.color.start_window_background_blur'))
           .borderRadius(16)
-          .padding({ left: 12, right: 12 })
+          .padding({ left: 8, right: 8 })
+          .scrollBar(BarState.Auto)
         }
-      }
-      .margin({ left: 16, right: 16, bottom: 16 })
-      .layoutWeight(1)
-      .align(Alignment.Top)
-      .height('100%')
-      .width('100%')
-      .borderRadius(16)
-      .clip(true)
-      .scrollBar(BarState.Off)
-      .scrollable(ScrollDirection.Vertical) // 启用垂直滚动
-      .edgeEffect(EdgeEffect.Spring) // 滚动边缘效果
 
-      Button('分享给开发者')
-        .onClick(async () => {
-          this.appEventGroups.toString().length > 0 ? await this.shareText(JSON.stringify(this.appEventGroups)) :
-            await this.shareText(JSON.stringify(salmonLogger.logs))
-        })
-        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .fontColor($r('sys.color.white'))
-        .fontSize(17)
-        .linearGradient({
-          direction: GradientDirection.Right,
-          colors: [[$r('app.color.main_color'), 0.0], ['#ff48cdf6', 1.0]]
-        })
-        .width('40%')
-        .borderRadius(24)
-        .margin({ bottom: 15 })
+        Button('分享给开发者')
+          .onClick(async () => {
+            this.appEventGroups.toString().length > 0 ? await this.shareText(JSON.stringify(this.appEventGroups)) :
+              await this.shareText(JSON.stringify(salmonLogger.logs))
+          })
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+          .fontColor($r('sys.color.white'))
+          .fontSize(17)
+          .linearGradient({
+            direction: GradientDirection.Right,
+            colors: [[$r('app.color.main_color'), 0.0], ['#ff48cdf6', 1.0]]
+          })
+          .width('40%')
+          .borderRadius(24)
+          .margin({ top: 10, bottom: 15 })
+      }
+      .width('100%')
+      .height('100%')
+      .padding({ left: 16, right: 16 })
     }
     .hideToolBar(true)
     .title('流心运行日志')
@@ -225,6 +210,24 @@ export struct CrashPage {
     .backgroundImageSize(ImageSize.Cover)
     .backdropBlur(Setting.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
+  }
+
+  @Builder
+  EventInfoText(label: string, value: string | number) {
+    Row() {
+      Text(`${label}:`)
+        .fontSize(11)
+        .fontColor($r('app.color.text_color'))
+        .opacity(0.6)
+        .width(100)
+      Text(`${value}`)
+        .fontSize(11)
+        .fontColor($r('app.color.text_color'))
+        .layoutWeight(1)
+        .wordBreak(WordBreak.BREAK_ALL)
+    }
+    .width('100%')
+    .margin({ top: 4 })
   }
 
   async shareText(text: string) {
@@ -240,8 +243,9 @@ export struct CrashPage {
       const filePath = `${tempDir}/${fileName}`
       salmonLogger.addLog(this.pathStack.getAllPathName()[0], '开始写入日志文件: ' + filePath, false)
       // 写入临时文件
-      const file = fs.openSync(filePath, fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY | fs.OpenMode.TRUNC)
-      fs.writeSync(file.fd, fullText)
+      const file =
+        fileIo.openSync(filePath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC)
+      fileIo.writeSync(file.fd, fullText)
       const filePathString = file.path
       salmonLogger.addLog(this.pathStack.getAllPathName()[0], '文件写入完成: ' + filePathString, false)
       let shareData = new systemShare.SharedData({
@@ -256,7 +260,7 @@ export struct CrashPage {
         previewMode: systemShare.SharePreviewMode.DETAIL, // 详细预览模式
         selectionMode: systemShare.SelectionMode.SINGLE   // 单选模式
       })
-      fs.closeSync(file)
+      fileIo.closeSync(file)
       salmonLogger.addLog(this.pathStack.getAllPathName()[0], '日志分享成功', false)
       ToolsUtil.showToast('日志分享成功')
 

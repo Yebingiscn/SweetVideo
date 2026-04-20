@@ -1,20 +1,14 @@
 import { media } from '@kit.MediaKit'
 import { avSession, avSession as avSessionManager } from '@kit.AVSessionKit'
-import VideoOperateUtil from '../utils/VideoOperateUtil'
-import { fileIo as fs } from '@kit.CoreFileKit'
-import VideoInfoUtil from '../utils/VideoInfoUtil'
 import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
-import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode'
 import ToolsUtil from '../utils/ToolsUtil'
 import { audio } from '@kit.AudioKit'
 import { SubtitleMode } from '../common/enum/SubtitleMode'
-import { PathUtils } from '../utils/PathUtils'
-import SubtitleUtil from '../utils/SubtitleUtil'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
-import SelectFileUtil from '../utils/SelectFileUtil'
 import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
-import { Setting } from '../utils/ObservedUtil'
 import { PlayerControllerInterface } from './PlayerControllerFactory'
+import { salmonLogger } from 'salmonlogger'
+import { window } from '@kit.ArkUI'
 import {
   AUTO_HIDE_SHOW_CONTROL_TIME,
   IMAGE_ANALYZER_CONFIG,
@@ -22,16 +16,22 @@ import {
   RIGHT_ZONE_DIVISION,
   SCREEN_DIVISIONS
 } from '../common/Constants'
-import { salmonLogger } from 'salmonlogger'
-import AVSessionUtil from '../utils/AVSessionUtil'
-import PrivacySpaceUtil from '../utils/PrivacySpaceUtil'
-import RecentPlayUtil from '../utils/RecentPlayUtil'
-import PermissionUtil from '../utils/PermissionUtil'
-import { WindowUtil } from '../utils/WindowUtil'
-import { window } from '@kit.ArkUI'
+import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode'
 import NavigationAddress from '../common/NavigationCommon'
 import Preferences from '../database/Preferences'
+import AVSessionUtil from '../utils/AVSessionUtil'
 import { ThrottleUtil } from '../utils/DebounceUtil'
+import { Setting } from '../utils/ObservedUtil'
+import { PathUtils } from '../utils/PathUtils'
+import PermissionUtil from '../utils/PermissionUtil'
+import PrivacySpaceUtil from '../utils/PrivacySpaceUtil'
+import RecentPlayUtil from '../utils/RecentPlayUtil'
+import SelectFileUtil from '../utils/SelectFileUtil'
+import SubtitleUtil from '../utils/SubtitleUtil'
+import VideoInfoUtil from '../utils/VideoInfoUtil'
+import VideoOperateUtil from '../utils/VideoOperateUtil'
+import { WindowUtil } from '../utils/WindowUtil'
+import fileIo from '@ohos.file.fs'
 
 const TAG = 'AVPlayerController'
 
@@ -160,7 +160,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   async setExternalSubtitle(nowPlaying: VideoMetadata) {
     if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, nowPlaying.date!)) {
       try {
-        let subtitle = fs.openSync(PathUtils.subtitlePath! + nowPlaying.date, fs.OpenMode.READ_ONLY)
+        let subtitle = fileIo.openSync(PathUtils.subtitlePath! + nowPlaying.date, fileIo.OpenMode.READ_ONLY)
         await SubtitleUtil.parseSubtitleProcess(subtitle.path, nowPlaying.external_subtitle_format) ?
           this.subtitleSelected = SubtitleMode.EXTERNAL_SUBTITLE : this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
       } catch (error) {
@@ -208,11 +208,12 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   updatePlaybackSpeed(speed: number): void {
-    if (!VideoInfoUtil.videoSpeedListAll.includes(speed)) {
-      speed = 1.0
+    try {
+      this.avPlayer?.setPlaybackRate(speed)
+    } catch (error) {
+      salmonLogger.addLog(TAG, 'updatePlaybackSpeed error:' + error, true)
+      ToolsUtil.showToast('播放速度更新失败')
     }
-    const systemSpeed = VideoInfoUtil.mapToSystemSpeed(speed)
-    this.avPlayer?.setSpeed(systemSpeed)
   }
 
   async getAudioTrackList() {
@@ -280,7 +281,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     this.avPlayer?.off('subtitleUpdate')
     this.avPlayer?.off('timeUpdate')
     this.avPlayer?.off('seekDone')
-    this.avPlayer?.off('speedDone')
+    this.avPlayer?.off('playbackRateDone')
     this.avPlayer?.off('audioOutputDeviceChangeWithInfo')
     this.avPlayer?.off('subtitleUpdate')
     this.avPlayer?.off('stateChange')
@@ -435,7 +436,7 @@ export class AVPlayerController implements PlayerControllerInterface {
       if (this.avPlayer) {
         try {
           await PermissionUtil.activatePermission(this.nowPlaying?.uri)
-          this.avPlayer.fdSrc = fs.openSync(this.nowPlaying?.uri)
+          this.avPlayer.fdSrc = fileIo.openSync(this.nowPlaying?.uri)
         } catch (error) {
           ToolsUtil.addLogger("打开视频文件失败：" + error, true)
           ToolsUtil.showToast('视频打开失败，可能已失效：' + error)
@@ -613,9 +614,8 @@ export class AVPlayerController implements PlayerControllerInterface {
       }
     })
 
-    this.avPlayer?.on('speedDone', (systemEnum: media.PlaybackSpeed) => {
-      const actualSpeed = VideoInfoUtil.mapFromSystemSpeed(systemEnum)
-      this.speed = actualSpeed
+    this.avPlayer?.on('playbackRateDone', (rate: number) => {
+      this.speed = rate
     })
 
     this.avPlayer?.on('audioOutputDeviceChangeWithInfo', (data: audio.AudioStreamDeviceChangeInfo) => {

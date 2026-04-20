@@ -1,15 +1,15 @@
-import { FileFolder } from '../../interfaces/FileFolderInterface'
 import { FileFolderDataSource } from '../../utils/DataUtil'
-import { SymbolGlyphModifier } from '@kit.ArkUI'
-import DataSyncUtil from '../../utils/DataSyncUtil'
 import { VideoListController } from '../VideoItemComponent/VideoItemComponent'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
+import { AddFileFolderNameDialog } from '../Dialog/AddFileFolderNameDialog'
+import { DefaultDialogShadow, MenuFancyModifier } from '../../common/AttributeModifierConfig'
+import { FolderOperator } from '../../database/VideoMetaData'
+import { FileFolder } from '../../interfaces/FileFolderInterface'
+import DataSyncUtil from '../../utils/DataSyncUtil'
 import FileFolderUtil from '../../utils/FileFolderUtil'
 import { PathUtils } from '../../utils/PathUtils'
-import { FolderOperator } from '../../database/VideoMetaData'
-import { AddFileFolderNameDialog } from '../Dialog/AddFileFolderNameDialog'
 import VideoUtils from '../../utils/VideoUtil'
-import { DefaultDialogShadow, MenuFancyModifier } from '../../common/AttributeModifierConfig'
+import { SymbolGlyphModifier } from '@kit.ArkUI'
 
 
 @Component

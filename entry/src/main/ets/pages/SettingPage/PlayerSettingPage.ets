@@ -1,5 +1,5 @@
 import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem'
-import { SettingSliderItem } from '../../component/SettingComponent/SettingSliderItem'
+import { SettingsSliderItem } from '../../component/SettingComponent/SettingsSliderItem'
 import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuItem'
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
 import { MpvDecodingMethod } from '../../controller/MpvController/MpvTypes'
@@ -190,7 +190,7 @@ export struct PlayerSettingPage {
         }
 
         ListItem() {
-          SettingSliderItem({
+          SettingsSliderItem({
             symbol: $r('sys.symbol.forward_end_fill'),
             message: '跳过片头',
             selected: Number(Setting.skipIntroTime),

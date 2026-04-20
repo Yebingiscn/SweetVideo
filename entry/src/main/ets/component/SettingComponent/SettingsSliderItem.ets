@@ -2,7 +2,7 @@ import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import TimeUtil from '../../utils/TimeUtil'
 
 @Component
-export struct SettingSliderItem {
+export struct SettingsSliderItem {
   @State symbol: Resource | undefined = undefined
   @State message: ResourceStr = ''
   @Prop selected: number = 0

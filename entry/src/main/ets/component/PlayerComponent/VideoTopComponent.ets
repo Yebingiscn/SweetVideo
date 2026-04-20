@@ -1,9 +1,5 @@
-import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
-import { SCALE_FACTORS, SCREEN_EXTEND_LIST } from '../../common/Constants'
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
-import VideoInfoUtil from '../../utils/VideoInfoUtil'
-import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
 @Component
 export struct VideoTopComponent {

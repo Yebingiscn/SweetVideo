@@ -1,7 +1,7 @@
-import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import {
   ItemRestriction, SegmentButton, SegmentButtonOptions, SegmentButtonTextItem
 } from '@kit.ArkUI'
+import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 
 @Component
 export struct SettingsCheckboxItem {
@@ -32,10 +32,7 @@ export struct SettingsCheckboxItem {
           .textOverflow({ overflow: TextOverflow.MARQUEE })
           .layoutWeight(1)
       }
-      .width('100%')
-      .margin({ bottom: 10 })
 
-      // Tab 切换
       SegmentButton({
         options: this.tabOptions,
         selectedIndexes: $tabSelectedIndexes,

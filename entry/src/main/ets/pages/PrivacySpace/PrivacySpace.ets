@@ -153,7 +153,7 @@ export struct PrivacySpace { // 隐私空间页
   SelectFileMenuBuilder() {
     Menu() {
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder')),
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.resolution_video')),
         content: $r('app.string.import_from_videos')
       })
         .onClick(async () => {

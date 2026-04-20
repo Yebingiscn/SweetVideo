@@ -1,8 +1,5 @@
-import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
-import TimeUtil from '../../utils/TimeUtil'
-
 @Component
-export struct SettingTimeItem {
+export struct SettingsTimeItem {
   @State symbol: Resource | undefined = undefined
   @State message: ResourceStr = ''
   @State selectedIndex: number[] = [0, 0, 0, 0]

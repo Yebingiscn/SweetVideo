@@ -93,4 +93,9 @@ declare module 'libmpvnative.so' {
   export const registerVideoSizeChangedCallback: (callback: () => void) => void;
 
   export const unregisterVideoSizeChangedCallback: () => void;
+
+  // ==================== Surface模式错误事件 ====================
+  export const registerSurfaceModeErrorCallback: (callback: (errorMessage: string) => void) => void;
+
+  export const unregisterSurfaceModeErrorCallback: () => void;
 }

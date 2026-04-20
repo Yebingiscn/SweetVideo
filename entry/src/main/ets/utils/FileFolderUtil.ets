@@ -7,13 +7,13 @@ import { systemDateTime } from '@kit.BasicServicesKit'
 import DataSyncUtil from '../utils/DataSyncUtil'
 import { FileFolderDataSource } from './DataUtil'
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent'
-import PrivacySpaceUtil from './PrivacySpaceUtil'
 import SelectFileUtil from './SelectFileUtil'
 import RecentPlayUtil from './RecentPlayUtil'
 import { PathUtils } from './PathUtils'
 import SubtitleUtil from './SubtitleUtil'
-import { fileIo as fs } from '@kit.CoreFileKit'
 import { salmonLogger } from 'salmonlogger'
+import PrivacySpaceUtil from './PrivacySpaceUtil'
+import fileIo from '@ohos.file.fs'
 
 const TAG = 'FileFolderUtil'
 
@@ -229,8 +229,8 @@ export default class FileFolderUtil {
 
     paths.forEach(path => {
       try {
-        if (!fs.accessSync(path)) {
-          fs.mkdirSync(path)
+        if (!fileIo.accessSync(path)) {
+          fileIo.mkdirSync(path)
         }
       } catch (error) {
         salmonLogger.addLog(TAG, `Failed to create directory ${path}: ` + error, true)

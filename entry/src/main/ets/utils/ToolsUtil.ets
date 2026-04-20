@@ -1,27 +1,25 @@
-import { vibrator } from '@kit.SensorServiceKit'
-import { BusinessError } from '@kit.BasicServicesKit'
-import { hilog } from '@kit.PerformanceAnalysisKit'
 import { bundleManager, ConfigurationConstant } from '@kit.AbilityKit'
 import { pinyin4js } from '@ohos/pinyin4js'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { FileFolder } from '../interfaces/FileFolderInterface'
-import Preferences from '../database/Preferences'
-import PrivacySpaceUtil from './PrivacySpaceUtil'
-import FileFolderUtil from './FileFolderUtil'
 import { PathUtils } from './PathUtils'
-import VideoInfoUtil from './VideoInfoUtil'
-import NavigationAddress, { PlayerParams } from '../common/NavigationCommon'
-import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import { UniversalDetector } from '@ohos/juniversalchardet'
-import { fileIo } from '@kit.CoreFileKit'
-import { util } from '@kit.ArkTS'
 import { salmonLogger } from 'salmonlogger'
-import DataSyncUtil from './DataSyncUtil'
 import { VideoItemWithPinyin } from '../interfaces/VideoItemWithPinyinInterface'
-import { updateManager } from '@kit.AppGalleryKit'
-import { WindowUtil } from './WindowUtil'
-import { window } from '@kit.ArkUI'
 import { GB, MB } from '../common/Constants'
+import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
+import NavigationAddress, { PlayerParams } from '../common/NavigationCommon'
+import Preferences from '../database/Preferences'
+import DataSyncUtil from './DataSyncUtil'
+import FileFolderUtil from './FileFolderUtil'
+import PrivacySpaceUtil from './PrivacySpaceUtil'
+import VideoInfoUtil from './VideoInfoUtil'
+import { WindowUtil } from './WindowUtil'
+import fileIo from '@ohos.file.fs'
+import { util } from '@kit.ArkTS'
+import { updateManager } from '@kit.StoreKit'
+import { window } from '@kit.ArkUI'
+import { vibrator } from '@kit.SensorServiceKit'
 
 const TAG = 'ToolsUtil'
 
@@ -176,7 +174,6 @@ export default class ToolsUtil {
   static checkUpdate() {
     updateManager.checkAppUpdate(PathUtils.appContext)
       .then((checkResult: updateManager.CheckUpdateResult) => {
-        hilog.info(0, 'TAG', "Succeeded in checking Result updateAvailable:" + checkResult.updateAvailable)
         if (checkResult.updateAvailable == updateManager.UpdateAvailableCode.LATER_VERSION_EXIST) {
           updateManager.showUpdateDialog(PathUtils.appContext)
             .then((resultCode: updateManager.ShowUpdateResultCode) => {

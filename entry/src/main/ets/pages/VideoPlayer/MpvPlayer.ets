@@ -22,12 +22,10 @@ import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import { XComponents } from '../../component/PlayerComponent/XComponents'
 import { VideoLayoutComponent } from '../../component/PlayerComponent/VideoLayoutComponent'
 import {
-  DEFAULT_ANGLE,
   MAX_SCALE_FACTOR,
   MAX_WIDTH_MULTIPLIER,
   MIN_SCALE_FACTOR,
   MIN_WIDTH_MULTIPLIER,
-  MIRRORED_ANGLE,
   NO_BLUR_AMOUNT,
   PINCH_SCALE_SENSITIVITY,
   PRIVACY_BACKGROUND_BLUR_AMOUNT,
@@ -40,18 +38,8 @@ import {
 import { AISubtitleComponent } from '../../component/PlayerComponent/AIAsrComponent'
 import { PlayerSideBarComponent } from '../../component/PlayerComponent/PlayerSideBarComponent'
 import PiPWindowUtil from '../../utils/PiPWindowUtil'
-import { AudioTrackComponent } from '../../component/PlayerComponent/AudioTrackComponent'
-import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder'
-import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent'
-import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent'
-import { VideoButtonsComponent } from '../../component/PlayerComponent/VideoButtonsComponent'
-import { VideoSettingComponent } from '../../component/PlayerComponent/VideoSettingComponent'
-import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent'
-import { VideoTopComponent } from '../../component/PlayerComponent/VideoTopComponent'
-import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
 import { NumberInputDialog } from '../../component/Dialog/NumberInputDialog'
-import Preferences from '../../database/Preferences'
 import { salmonLogger } from 'salmonlogger'
 
 const TAG = 'MpvPlayer'
@@ -107,8 +95,7 @@ export struct MpvPlayer {
     WindowUtil.recoveryBarColor()
     AppStorage.delete('nowPlayingData')
     clearTimeout(this.exitVideoTime)
-    Preferences.saveVideoSpeed(PathUtils.appContext!,
-      (VideoInfoUtil.videoSpeedListAll.includes(this.mpv.speed) ? this.mpv.speed : 1) + 'x')
+    Preferences.saveVideoSpeed(PathUtils.appContext!, this.mpv.speed + 'x')
     Preferences.saveRepeatModeState(PathUtils.appContext!, this.mpv.repeatMode)
     try {
       this.mpv.audioVolumeManager?.off('streamVolumeChange')
@@ -212,10 +199,14 @@ export struct MpvPlayer {
           VolumeSwipingPanelBuilder({
             videoVolume: this.mpv.volume,
             videoVolumeShow: this.mpv.volumeActually,
-            onSwipingVoice: this.mpv.onSwipingVoice
+            onSwipingVoice: this.mpv.onSwipingVoice,
+            playAreaHeight: VideoInfoUtil.playAreaHeight,
           })
           if (this.mpv.onSwipingBrightness) {
-            BrightnessSwipingBuilder({ screenBrightness: this.mpv.screenBrightness })
+            BrightnessSwipingBuilder({
+              screenBrightness: this.mpv.screenBrightness,
+              playAreaHeight: VideoInfoUtil.playAreaHeight
+            })
           }
           if (this.mpv.lockVisibility) {
             LockVideoBarComponent({

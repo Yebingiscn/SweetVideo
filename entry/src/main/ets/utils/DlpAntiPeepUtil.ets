@@ -1,8 +1,8 @@
-import { WindowUtil } from './WindowUtil'
 import { dlpAntiPeep } from '@kit.DeviceSecurityKit'
+import { salmonLogger } from 'salmonlogger'
+import { WindowUtil } from './WindowUtil'
 import { window } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
-import { salmonLogger } from 'salmonlogger'
 
 const TAG = 'DlpAntiPeepUtil'
 

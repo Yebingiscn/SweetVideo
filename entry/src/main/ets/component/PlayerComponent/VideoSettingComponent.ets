@@ -5,6 +5,7 @@ import TimeUtil from '../../utils/TimeUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
+import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 
 @Component
 export struct VideoSettingComponent {
@@ -248,10 +249,9 @@ export struct VideoSettingComponent {
             .fontColor([$r('app.color.text_color')])
         }
         .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .height(40)
-        .width(80)
-        .backgroundColor($r('app.color.start_window_background_blur'))
-        .backdropBlur(150)
+        .attributeModifier(new ButtonFancyModifier(40, 40))
+        .backgroundColor('#50000000')
+        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
         .onClick(() => {
           if (this.player instanceof AVPlayerController) {
             this.player.setLoudnessGain(0)
@@ -277,6 +277,7 @@ export struct VideoSettingComponent {
           .width(40)
           .height(160)
           .trackThickness(40)
+          .trackBorderRadius(16)
           .selectedBorderRadius(16)
           .padding({ top: 5 })
       }.width(40).backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN).borderRadius(16)

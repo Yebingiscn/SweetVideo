@@ -5,7 +5,17 @@ import { VideoListController } from '../component/VideoItemComponent/VideoItemCo
 import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
 import { DeleteType } from '../common/enum/DeleteType'
 import { MpvAudioTrack, MpvSubtitleTrack } from '../controller/MpvController/MpvTypes'
-import { SalmonLogLine } from 'salmonlogger'
+import { salmonLogger, SalmonLogLine } from 'salmonlogger'
+import Preferences from '../database/Preferences'
+import { FolderOperator, VideoMetaDataOperator } from '../database/VideoMetaData'
+import { PathUtils } from './PathUtils'
+import RecentPlayUtil from './RecentPlayUtil'
+import SelectFileUtil from './SelectFileUtil'
+import SubtitleUtil from './SubtitleUtil'
+import ToolsUtil from './ToolsUtil'
+import VideoUtils from './VideoUtil'
+import { fileManagerService } from '@kit.FileManagerServiceKit'
+import { fileIo, fileUri } from '@kit.CoreFileKit'
 
 const TAG = 'DataUtil'
 
@@ -78,10 +88,6 @@ abstract class BaseDataSource<T> implements IDataSource {
 }
 
 @Observed
-export class SpeedDataSource extends BaseDataSource<number> {
-}
-
-@Observed
 export class AudioTrackSource extends BaseDataSource<AudioTrack | MpvAudioTrack> {
 }
 
@@ -131,7 +137,7 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
     await SelectFileUtil.deleteCover(item.date)
 
     if (deleteType == DeleteType.HARD) {
-      fs.unlink(item.uri, (err: BusinessError) => {
+      fileIo.unlink(item.uri, (err: BusinessError) => {
         if (err) {
           salmonLogger.addLog(TAG,
             "remove file failed with error message: " + err.message + ", error code: " + err.code, true)

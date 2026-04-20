@@ -1,8 +1,8 @@
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
+import DataSyncUtil from '../../utils/DataSyncUtil'
 import TimeUtil from '../../utils/TimeUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
-import DataSyncUtil from '../../utils/DataSyncUtil'
 
 // 视频详情弹窗
 @CustomDialog

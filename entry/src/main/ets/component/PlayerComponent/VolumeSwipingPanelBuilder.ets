@@ -6,51 +6,54 @@ class VolumeValue {
   videoVolume: number = 0
   videoVolumeShow: number = 0
   onSwipingVoice: boolean = false
+  playAreaHeight: number = 0
 }
 
 @Builder
 export function VolumeSwipingPanelBuilder(volumeValue: VolumeValue) {
-  Stack() { //音量提示
-    AVVolumePanel({
-      volumeLevel: volumeValue.videoVolume,
-      volumeParameter: {
-        position: {
-          x: -1,
-          y: -1
-        }
+  // AVVolumePanel 必须保留，用于系统音量联动
+  AVVolumePanel({
+    volumeLevel: volumeValue.videoVolume,
+    volumeParameter: {
+      position: {
+        x: -1,
+        y: -1
       }
-    }).visibility(Visibility.None)
-    if (volumeValue.onSwipingVoice) {
-      Column() {
-        SymbolGlyph(getVoiceIcon(volumeValue.videoVolumeShow))
-          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-          .fontColor(['#f0f0f0'])
-        Slider({
-          value: volumeValue.videoVolumeShow,
-          min: VideoOperateUtil.minVolume,
-          max: VideoOperateUtil.maxVolume,
-          step: 0.1,
-          style: SliderStyle.NONE,
-          direction: Axis.Horizontal,
-          reverse: false
-        })
-          .width(60)
-          .height(30)
-          .selectedColor($r('app.color.main_color'))
-          .trackColor(Color.Black)
-          .trackThickness(40)
-      }
-      .padding({
-        left: 25,
-        right: 25,
-        top: 10,
-        bottom: 10
-      })
-      .borderRadius(1000)
-      .backgroundColor('#30000000')
-      .backdropBlur(100)
-      .animation({ duration: 300, curve: Curve.Smooth })
     }
+  }).visibility(Visibility.None)
+
+  // 自定义音量提示面板（扁平化布局）
+  if (volumeValue.onSwipingVoice) {
+    Row() {
+      SymbolGlyph(getVoiceIcon(volumeValue.videoVolumeShow))
+        .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+        .fontColor(['#f0f0f0'])
+      Slider({
+        value: volumeValue.videoVolumeShow,
+        min: VideoOperateUtil.minVolume,
+        max: VideoOperateUtil.maxVolume,
+        step: 0.1,
+        style: SliderStyle.NONE,
+        direction: Axis.Horizontal,
+        reverse: false
+      })
+        .trackBorderRadius(16)
+        .selectedColor($r('app.color.main_color'))
+        .enableHapticFeedback(true)
+        .width(160)
+        .height(40)
+        .trackThickness(40)
+        .selectedBorderRadius(16)
+        .padding({ left: 5 })
+    }
+    .offset({
+      x: 0,
+      y: -volumeValue.playAreaHeight / 2.5
+    })
+    .borderRadius(16)
+    .backgroundColor('#30000000')
+    .backdropBlur(100)
+    .padding(5)
   }
 }
 

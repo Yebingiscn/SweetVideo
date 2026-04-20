@@ -1,5 +1,5 @@
-import { FileFolder } from '../../interfaces/FileFolderInterface'
 import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
+import { FileFolder } from '../../interfaces/FileFolderInterface'
 import { VideoListController } from '../VideoItemComponent/VideoItemComponent'
 
 class FileFolderListBuilderValue {

@@ -1,6 +1,6 @@
 import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem'
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
-import { SettingSliderItem } from '../../component/SettingComponent/SettingSliderItem'
+import { SettingsSliderItem } from '../../component/SettingComponent/SettingsSliderItem'
 import Preferences from '../../database/Preferences'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
@@ -136,7 +136,7 @@ export struct PersonalizePage {
 
         if (Setting.backgroundImageSrc.length > 0) {
           ListItem() {
-            SettingSliderItem({
+            SettingsSliderItem({
               symbol: $r('sys.symbol.livephoto'),
               message: '背景模糊',
               textSliderMode: false,

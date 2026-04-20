@@ -1,7 +1,7 @@
 import { AICaptionComponent, AICaptionController, AICaptionOptions } from '@kit.SpeechKit';
+import { salmonLogger } from 'salmonlogger';
 import { AVPlayerController } from '../../controller/AVPlayerController';
 import { MpvController } from '../../controller/MpvController/MpvController';
-import { salmonLogger } from 'salmonlogger'
 
 const TAG = 'AIAsrComponent'
 

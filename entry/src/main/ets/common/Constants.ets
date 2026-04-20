@@ -1,5 +1,3 @@
-import { media } from '@kit.MediaKit'
-
 export const DELAY_JUMP_TO_PLAYER: number = 450
 
 export const DEFAULT_ANGLE: number = 0
@@ -85,16 +83,6 @@ export const SCREEN_EXTEND_LIST: Array<SelectOption> = [//屏幕扩展
   { value: '等比放大 120%' },
   { value: '等比放大 130%' },
   { value: '等比放大 140%' }]
-
-// 倍速枚举，绑定系统倍速，倍速映射：用户倍速 ↔ 系统枚举
-export const VIDEO_SPEED_MAP =
-  new Map<number, media.PlaybackSpeed>([[0.125, media.PlaybackSpeed.SPEED_FORWARD_0_125_X],
-    [0.25, media.PlaybackSpeed.SPEED_FORWARD_0_25_X],
-    [0.5, media.PlaybackSpeed.SPEED_FORWARD_0_50_X],
-    [0.75, media.PlaybackSpeed.SPEED_FORWARD_0_75_X], [1, media.PlaybackSpeed.SPEED_FORWARD_1_00_X],
-    [1.25, media.PlaybackSpeed.SPEED_FORWARD_1_25_X], [1.5, media.PlaybackSpeed.SPEED_FORWARD_1_50_X],
-    [1.75, media.PlaybackSpeed.SPEED_FORWARD_1_75_X], [2, media.PlaybackSpeed.SPEED_FORWARD_2_00_X],
-    [3, media.PlaybackSpeed.SPEED_FORWARD_3_00_X]])
 
 export const VIDEO_SIZE_MAP: Record<string, string> = {
   '720': '720P HD',

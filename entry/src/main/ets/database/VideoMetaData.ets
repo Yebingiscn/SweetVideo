@@ -1,12 +1,12 @@
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
+import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
+import { FileFolderDataSource } from '../utils/DataUtil';
+import { DeleteType } from '../common/enum/DeleteType';
+import FileFolderUtil from '../utils/FileFolderUtil';
 import { PathUtils } from '../utils/PathUtils';
 import Preferences from './Preferences';
 import PreferencesUtil from './PreferencesUtil';
-import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
-import FileFolderUtil from '../utils/FileFolderUtil';
-import { FileFolderDataSource } from '../utils/DataUtil';
-import { DeleteType } from '../common/enum/DeleteType';
 
 export class VideoMetaDataOperator {
   static getVideoMetaDataByFolderName(folderName: string): VideoMetadata[] {

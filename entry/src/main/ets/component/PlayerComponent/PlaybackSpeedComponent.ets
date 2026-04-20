@@ -1,36 +1,36 @@
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
-import { SpeedDataSource } from '../../utils/DataUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 
 @Component
 export struct PlaybackSpeedMenuComponent {
-  @State speedDataSource: SpeedDataSource = new SpeedDataSource([])
   @Consume('player') player: AVPlayerController | MpvController
   onSpeedChange = (_speed: number) => {
   }
 
-  aboutToAppear(): void {
-    this.speedDataSource = new SpeedDataSource(VideoInfoUtil.videoSpeedListAll)
-  }
-
   build() {
-    List() {
-      LazyForEach(this.speedDataSource, (speedAvailable: number) => {
-        ListItem() {
-          Text(`${speedAvailable}x`).fontColor(this.player.speed && speedAvailable === this.player.speed ?
-            $r('sys.color.white') : $r('app.color.text_color'))
-        }
-        .onClick(() => {
-          this.onSpeedChange(speedAvailable) // 触发回调
-        })
+    Row() {
+      Text(`${this.player.speed}x`).fontColor($r('sys.color.white')).padding({ left: 5 })
+      Slider({
+        value: this.player.speed,
+        min: VideoInfoUtil.videoSpeedListAll[0],
+        max: VideoInfoUtil.videoSpeedListAll[VideoInfoUtil.videoSpeedListAll.length - 1],
+        step: 0.25,
+        style: SliderStyle.NONE,
+        direction: Axis.Horizontal,
+        reverse: false
+      })
+        .trackBorderRadius(16)
+        .selectedColor($r('app.color.main_color'))
+        .enableHapticFeedback(true)
+        .width(160)
         .height(40)
-        .backgroundColor(this.player.speed && speedAvailable === this.player.speed ?
-          $r('app.color.main_color') : '')
-        .borderRadius(16)
-        .width('100%')
-      }, (speedAvailable: number) => speedAvailable.toString())
-    }.cachedCount(2)
-    .width(100).height('auto').scrollBar(BarState.Off)
+        .trackThickness(40)
+        .selectedBorderRadius(16)
+        .onChange((value) => {
+          this.onSpeedChange(value)
+        })
+        .padding({ left: 5 })
+    }
   }
 }
