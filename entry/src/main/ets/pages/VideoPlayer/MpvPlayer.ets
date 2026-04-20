@@ -22,10 +22,12 @@ import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import { XComponents } from '../../component/PlayerComponent/XComponents'
 import { VideoLayoutComponent } from '../../component/PlayerComponent/VideoLayoutComponent'
 import {
+  DEFAULT_ANGLE,
   MAX_SCALE_FACTOR,
   MAX_WIDTH_MULTIPLIER,
   MIN_SCALE_FACTOR,
   MIN_WIDTH_MULTIPLIER,
+  MIRRORED_ANGLE,
   NO_BLUR_AMOUNT,
   PINCH_SCALE_SENSITIVITY,
   PRIVACY_BACKGROUND_BLUR_AMOUNT,
@@ -41,6 +43,16 @@ import PiPWindowUtil from '../../utils/PiPWindowUtil'
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
 import { NumberInputDialog } from '../../component/Dialog/NumberInputDialog'
 import { salmonLogger } from 'salmonlogger'
+import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
+import { AudioTrackComponent } from '../../component/PlayerComponent/AudioTrackComponent'
+import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder'
+import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent'
+import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent'
+import { VideoButtonsComponent } from '../../component/PlayerComponent/VideoButtonsComponent'
+import { VideoSettingComponent } from '../../component/PlayerComponent/VideoSettingComponent'
+import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent'
+import { VideoTopComponent } from '../../component/PlayerComponent/VideoTopComponent'
+import Preferences from '../../database/Preferences'
 
 const TAG = 'MpvPlayer'
 
