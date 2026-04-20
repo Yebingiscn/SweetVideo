@@ -1,6 +1,9 @@
 import { AICaptionComponent, AICaptionController, AICaptionOptions } from '@kit.SpeechKit';
 import { AVPlayerController } from '../../controller/AVPlayerController';
 import { MpvController } from '../../controller/MpvController/MpvController';
+import { salmonLogger } from 'salmonlogger'
+
+const TAG = 'AIAsrComponent'
 
 @Component
 export struct AISubtitleComponent {
@@ -14,10 +17,10 @@ export struct AISubtitleComponent {
       this.captionOption = {
         initialOpacity: 0.5,
         onPrepared: () => {
-          console.error('test AI字幕组件准备就绪')
+          salmonLogger.addLog(TAG, 'test AI字幕组件准备就绪', true)
         },
         onError: (error: BusinessError) => {
-          console.error(`test AI字幕组件错误。错误码: ${error.code}, 消息: ${error.message}`)
+          salmonLogger.addLog(TAG, `test AI字幕组件错误。错误码: ${error.code}, 消息: ${error.message}`, true)
         }
       }
     }

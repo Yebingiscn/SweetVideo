@@ -1,7 +1,7 @@
-import { UIUtils } from '@kit.ArkUI'
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import { CoverLayoutMode, ListDisplayMode } from '../common/enum/DisplayMode'
 import { MpvDecodingMethod } from '../controller/MpvController/MpvTypes'
+import { UIUtils } from '@kit.ArkUI'
 
 class SettingUtil {
   public backgroundImageSrc: string = ''
@@ -35,7 +35,7 @@ class SafeHeightUtil {
   public bottomSafeHeight: number = 0
 }
 
-class PrivacyBackgroundUtil {
+class PrivacySecureUtil {
   public isPrivacyBackground: boolean = false
 }
 
@@ -47,6 +47,6 @@ export const SafeHeight = UIUtils.makeObserved(new SafeHeightUtil())
 
 export const Setting = UIUtils.makeObserved(new SettingUtil())
 
-export const Privacy = UIUtils.makeObserved(new PrivacyBackgroundUtil())
+export const Privacy = UIUtils.makeObserved(new PrivacySecureUtil())
 
 export const Pc = UIUtils.makeObserved(new PcUtil())

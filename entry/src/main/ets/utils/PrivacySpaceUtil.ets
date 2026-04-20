@@ -1,3 +1,5 @@
+import DlpAntiPeepUtil from './DlpAntiPeepUtil'
+
 // 隐私空间工具类
 export default class PrivacySpaceUtil {
   // 标识当前是否激活隐私空间
@@ -9,5 +11,10 @@ export default class PrivacySpaceUtil {
 
   static getPrivacyMode() {
     return AppStorage.get<boolean>(PrivacySpaceUtil.PRIVATE_MODE_KEY)
+  }
+
+  static closePrivacyMode() {
+    PrivacySpaceUtil.setPrivacyMode(false)
+    DlpAntiPeepUtil.closeDlpAntiPeepStatus()
   }
 }

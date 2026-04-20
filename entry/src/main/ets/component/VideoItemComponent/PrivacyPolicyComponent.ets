@@ -3,6 +3,9 @@ import { OOBEVersion } from '../../utils/DataSyncUtil'
 import { SafeHeight } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
+import { salmonLogger } from 'salmonlogger'
+
+const TAG = 'PrivacyPolicyComponent'
 
 @Component
 export struct PrivacyPolicyComponent {
@@ -104,7 +107,7 @@ export struct PrivacyPolicyComponent {
           DismissSheetAction.reason == DismissReason.PRESS_BACK ||
           DismissSheetAction.reason == DismissReason.TOUCH_OUTSIDE) {
           PathUtils.appContext?.terminateSelf()?.catch(() => {
-            console.error('exit app error')
+            salmonLogger.addLog(TAG, 'exit app error', true)
           })
         }
       }),

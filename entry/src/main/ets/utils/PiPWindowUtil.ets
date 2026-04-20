@@ -36,7 +36,7 @@ export default class PiPWindowUtil {
       })
       PiPWindowUtil.playerController = playerController
     } catch (exception) {
-      console.log(`pipController init failed, Code:${exception.code}, message:${exception.message}`)
+      salmonLogger.addLog(TAG, `pipController init failed, Code:${exception.code}, message:${exception.message}`)
     }
     PiPWindowUtil.pipController?.on('stateChange', (State: PiPWindow.PiPState, reason: string) => {
       PiPWindowUtil.onStateChange(State, reason)

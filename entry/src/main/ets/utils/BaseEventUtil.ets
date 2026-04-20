@@ -1,5 +1,6 @@
 /**
- * 事件回调函数类型定义
+ const TAG = 'BaseEventUtil'
+  * 事件回调函数类型定义
  */
 type EventCallback<T> = (data: T) => void
 

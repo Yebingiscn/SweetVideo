@@ -89,12 +89,12 @@
       "value": "删除"
     },
     {
-      "name": "import_from_files",
-      "value": "从文件管理器导入"
+      "name": "import_from_videos",
+      "value": "导入视频"
     },
     {
-      "name": "import_from_album",
-      "value": "从相册导入"
+      "name": "import_from_music",
+      "value": "导入音频"
     },
     {
       "name": "open_side_bar_tip",
@@ -187,6 +187,10 @@
     {
       "name": "AV_PLAYER",
       "value": "系统播放器"
+    },
+    {
+      "name": "DLP_GET_HIDE_STATUS",
+      "value": "获取当前应用使用过程中屏幕被非机主本人窥视的状态信息"
     }
   ]
 }

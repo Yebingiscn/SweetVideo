@@ -1,4 +1,4 @@
-import { fileShare, fileIo as fs } from '@kit.CoreFileKit'
+import { fileIo as fs, fileShare } from '@kit.CoreFileKit'
 import { abilityAccessCtrl, common, Permissions, wantAgent } from '@kit.AbilityKit'
 import { backgroundTaskManager } from '@kit.BackgroundTasksKit'
 import { BusinessError } from '@kit.BasicServicesKit'
@@ -7,10 +7,15 @@ import { PathUtils } from './PathUtils'
 import AVSessionUtil from './AVSessionUtil'
 import { Setting } from './ObservedUtil'
 import json from '@ohos.util.json'
+import { salmonLogger } from 'salmonlogger'
+
+const TAG = 'PermissionUtil'
 
 //权限类
 export default class PermissionUtil {
   public static permissions: Permissions[] = ['ohos.permission.FILE_ACCESS_PERSIST', 'ohos.permission.VIBRATE']
+  // 权限缓存：避免重复持久化同一个URI的权限
+  private static permissionCache: Set<string> = new Set()
 
   static async activatePermission(uri: string | undefined): Promise<boolean> {
     if (!uri) {
@@ -23,30 +28,30 @@ export default class PermissionUtil {
       return true
     } catch (error) {
       // 直接访问失败，检查是否支持权限管理
-      if (!canIUse('SystemCapability.FileManagement.AppFileService.FolderAuthorization')) {
-        return false
-      }
-      try {
-        const policyInfo: fileShare.PolicyInfo = {
-          uri: uri,
-          operationMode: fileShare.OperationMode.READ_MODE | fileShare.OperationMode.WRITE_MODE,
+      if (canIUse('SystemCapability.FileManagement.AppFileService.FolderAuthorization')) {
+        try {
+          const policyInfo: fileShare.PolicyInfo = {
+            uri: uri,
+            operationMode: fileShare.OperationMode.READ_MODE | fileShare.OperationMode.WRITE_MODE,
+          }
+          const policies: fileShare.PolicyInfo[] = [policyInfo]
+          const results = await fileShare.checkPersistentPermission(policies)
+          const permissionsToActivate = results
+            .map((needActivate, index) => needActivate ? policies[index] : null)
+            .filter(Boolean)
+          if (permissionsToActivate.length > 0) {
+            await fileShare.activatePermission(permissionsToActivate)
+          }
+          // 验证权限是否真正生效
+          let fd = fs.openSync(uri)
+          fs.closeSync(fd)
+          return true
+        } catch (error) {
+          salmonLogger.addLog(TAG, 'Permission activation failed:' + error, true)
+          return false
         }
-        const policies: fileShare.PolicyInfo[] = [policyInfo]
-        const results = await fileShare.checkPersistentPermission(policies)
-        const permissionsToActivate = results
-          .map((needActivate, index) => needActivate ? policies[index] : null)
-          .filter(Boolean)
-        if (permissionsToActivate.length > 0) {
-          await fileShare.activatePermission(permissionsToActivate)
-        }
-        // 验证权限是否真正生效
-        let fd = fs.openSync(uri)
-        fs.closeSync(fd)
-        return true
-      } catch (error) {
-        console.error('Permission activation failed:', error)
-        return false
       }
+      return false
     }
   }
 
@@ -87,18 +92,23 @@ export default class PermissionUtil {
           hilog.error(777, 'testFlag', 'background play failed: ' + error)
         }
       })?.catch(() => {
-        console.error('getWantAgent error')
+        salmonLogger.addLog(TAG, 'getWantAgent error', true)
       })
     }
   }
 
   static stopContinuousTask() {
     backgroundTaskManager.stopBackgroundRunning(PathUtils.appContext!)?.catch(() => {
-      console.error('stopBackgroundRunning error')
+      salmonLogger.addLog(TAG, 'stopBackgroundRunning error', true)
     })
   }
 
   static async persistPermission(uri: string): Promise<boolean> {
+    // 检查缓存，避免重复持久化
+    if (PermissionUtil.permissionCache.has(uri)) {
+      return false
+    }
+
     try {
       if (canIUse('SystemCapability.FileManagement.AppFileService.FolderAuthorization')) {
         let policyInfo: fileShare.PolicyInfo = {
@@ -107,15 +117,22 @@ export default class PermissionUtil {
         }
         let policies: Array<fileShare.PolicyInfo> = [policyInfo]
         fileShare.persistPermission(policies)?.catch(() => {
-          console.error('persistPermission error')
+          salmonLogger.addLog(TAG, 'persistPermission error', true)
         })
         let fd = await fs.open(uri)
         await fs.close(fd)
+        // 持久化成功，添加到缓存
+        PermissionUtil.permissionCache.add(uri)
       }
     } catch (error) {
       return true
     }
     return false
+  }
+
+  // 清空权限缓存（在应用退出或需要刷新时调用）
+  static clearPermissionCache() {
+    PermissionUtil.permissionCache.clear()
   }
 
   // 重新申请权限
@@ -131,7 +148,7 @@ export default class PermissionUtil {
         }
       }
     })?.catch(() => {
-      console.error('requestPermissionsFromUser error')
+      salmonLogger.addLog(TAG, 'requestPermissionsFromUser error', true)
     })
   }
 }

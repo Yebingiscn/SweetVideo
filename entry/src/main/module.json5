@@ -7,7 +7,8 @@
     "deviceTypes": [
       "phone",
       "tablet",
-      "2in1"
+      "2in1",
+      "tv"
     ],
     "deliveryWithInstall": true,
     "installationFree": false,
@@ -128,6 +129,16 @@
       {
         "name": "ohos.permission.ACCESS_BIOMETRIC",
         "reason": "$string:BIOMETRIC_ACCESS_REASON",
+        "usedScene": {
+          "abilities": [
+            "EntryAbility"
+          ],
+          "when": "always"
+        }
+      },
+      {
+        "name": "ohos.permission.DLP_GET_HIDE_STATUS",
+        reason: "$string:DLP_GET_HIDE_STATUS",
         "usedScene": {
           "abilities": [
             "EntryAbility"

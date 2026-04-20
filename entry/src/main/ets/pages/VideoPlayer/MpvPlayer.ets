@@ -17,8 +17,6 @@ import { LockVideoBarComponent } from '../../component/PlayerComponent/LockVideo
 import { GestureComponent } from '../../component/PlayerComponent/GestureComponent'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
-import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil'
-import RecentPlayUtil from '../../utils/RecentPlayUtil'
 import { window } from '@kit.ArkUI'
 import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import { XComponents } from '../../component/PlayerComponent/XComponents'
@@ -54,6 +52,9 @@ import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
 import { NumberInputDialog } from '../../component/Dialog/NumberInputDialog'
 import Preferences from '../../database/Preferences'
+import { salmonLogger } from 'salmonlogger'
+
+const TAG = 'MpvPlayer'
 
 @Component
 export struct MpvPlayer {
@@ -92,7 +93,7 @@ export struct MpvPlayer {
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
       WindowUtil.setBarState(PathUtils.appContext!, false, false)
     } catch (error) {
-      console.error('setPreferredOrientation error:' + error)
+      salmonLogger.addLog(TAG, 'setPreferredOrientation error:' + error, true)
     }
     this.mpv.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
     const videoSpeed = Preferences.getVideoSpeed(PathUtils.appContext!)
@@ -144,15 +145,11 @@ export struct MpvPlayer {
               await PermissionUtil.activatePermission(this.mpv.nowPlaying?.uri)
               try {
                 this.mpv.init(this.mpv.nowPlaying!.uri, this.pathStack)
-                // ORM 改造：MPV 播放器开始播放时异步写入最近播放记录（非隐私空间模式下）
-                if (Setting.recentPlay && this.mpv.nowPlaying && !PrivacySpaceUtil.getPrivacyMode()) {
-                  await RecentPlayUtil.addPlayback(PathUtils.appContext!, this.mpv.nowPlaying)
-                }
                 await this.mpv.initAVSession()
                 PiPWindowUtil.createPipController(this.xComponentController, this.mpv)
                 this.mpv.surfaceId = this.xComponentController.getXComponentSurfaceId()
               } catch (error) {
-                console.error('uri error:' + error)
+                salmonLogger.addLog(TAG, 'uri error:' + error, true)
               }
             },
             onKeyCodeEscape: () => {
@@ -387,14 +384,13 @@ export struct MpvPlayer {
         this.mpv.nowPlaying = playerParams.metadata as VideoMetadata
         this.mpv.videoMetaDataList = playerParams.metadata_list as VideoMetadata[]
       } catch (e) {
-        console.error(e)
+        salmonLogger.addLog(TAG, String(e), true)
       }
     })
     .onWillDisappear(async () => {
       this.exitVideo(false)
       if (this.mpv.videoMetaDataList.length > 0 && this.mpv.playTime > 0) {
-        // ORM 改造：页面退出时异步保存播放进度
-        await VideoOperateUtil.saveVideoTime(this.mpv.playTime, this.mpv.nowPlaying!, this.mpv.videoMetaDataList,
+        VideoOperateUtil.saveVideoTime(this.mpv.playTime, this.mpv.nowPlaying!, this.mpv.videoMetaDataList,
           PathUtils.appContext!)
       }
       PermissionUtil.applyStopContinuousTask()
@@ -585,9 +581,9 @@ export struct MpvPlayer {
         ToolsUtil.showToast('功能暂不可用')
       },
       captureScreen: () => {
-        console.error('test' + this.mpv.surfaceId)
+        salmonLogger.addLog(TAG, 'test' + this.mpv.surfaceId, true)
         if (this.mpv.surfaceId) {
-          console.error('test')
+          salmonLogger.addLog(TAG, 'test', true)
           VideoOperateUtil.saveCaptureScreenToAlbum(this.mpv.surfaceId)
         }
       },

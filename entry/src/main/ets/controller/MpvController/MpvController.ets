@@ -56,6 +56,7 @@ import SelectFileUtil from '../../utils/SelectFileUtil';
 import SubtitleUtil from '../../utils/SubtitleUtil';
 import { BaseListener } from '../../utils/BaseEventUtil';
 import PermissionUtil from '../../utils/PermissionUtil';
+import Preferences from '../../database/Preferences';
 
 const TAG = 'MpvController'
 
@@ -109,14 +110,27 @@ export class MpvController implements PlayerControllerInterface {
   async playChooseVideo(item: VideoMetadata, pathStack: NavPathStack) {
     this.osdVisibility = false
     ToolsUtil.addLogger("开始播放选择的视频", false)
-    await VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying!, this.videoMetaDataList, PathUtils.appContext!)
+    VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying!, this.videoMetaDataList, PathUtils.appContext!)
     if (!PrivacySpaceUtil.getPrivacyMode()) {
-      await RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
+      RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
       ToolsUtil.addLogger("添加到最近播放记录完成", false)
     }
     this.reset()
     this.nowPlaying = item as VideoMetadata
     ToolsUtil.addLogger("设置当前播放视频完成", false)
+
+    // 更新播放列表数据，确保使用最新的数据
+    if (!PrivacySpaceUtil.getPrivacyMode()) {
+      const folders = Preferences.getFileFolder(PathUtils.appContext!)
+      const currentFolder = folders.find(f =>
+      f.video_list.some(v => v.date === item.date)
+      )
+      if (currentFolder) {
+        this.videoMetaDataList = currentFolder.video_list
+        ToolsUtil.addLogger("更新播放列表数据完成", false)
+      }
+    }
+
     await PermissionUtil.activatePermission(item.uri)
     this.init(item.uri, pathStack)
     ToolsUtil.addLogger("获取播放数据完成", false)
@@ -171,7 +185,7 @@ export class MpvController implements PlayerControllerInterface {
 
   create(): void {
     if (this.mpvHandle) {
-      console.error('[MpvPlayer] MPV already created, skipping')
+      salmonLogger.addLog(TAG, '[MpvPlayer] MPV already created, skipping', true)
       return
     }
     try {
@@ -200,12 +214,12 @@ export class MpvController implements PlayerControllerInterface {
       // 现在创建 MPV 实例，此时全局配置已正确设置
       this.mpvHandle = mpvCreate()
       if (!this.mpvHandle) {
-        console.error('[MpvPlayer] Failed to create mpv instance - handle is null/undefined')
+        salmonLogger.addLog(TAG, '[MpvPlayer] Failed to create mpv instance - handle is null/undefined', true)
       } else {
-        console.error('[MpvPlayer] MPV instance created:', this.mpvHandle)
+        salmonLogger.addLog(TAG, '[MpvPlayer] MPV instance created:' + this.mpvHandle, true)
       }
     } catch {
-      console.error('[MpvPlayer] Exception during create')
+      salmonLogger.addLog(TAG, '[MpvPlayer] Exception during create', true)
       ToolsUtil.showToast("MPV 创建失败")
     }
   }
@@ -636,7 +650,7 @@ export class MpvController implements PlayerControllerInterface {
     }
     try {
       mpvRegisterVideoSizeChangedCallback(() => {
-        console.info('[MpvController] Video size changed, syncing OSD surface size')
+        salmonLogger.addLog(TAG, '[MpvController] Video size changed, syncing OSD surface size')
         // 当视频尺寸变化时，同步 OSD Surface 尺寸
         if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE) {
           this.syncOsdSurfaceSize()

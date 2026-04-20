@@ -1,21 +1,13 @@
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
-import { PathUtils } from './PathUtils'
-import SubtitleUtil from '../utils/SubtitleUtil'
-import SelectFileUtil from '../utils/SelectFileUtil'
 
-import { FolderOperator, VideoMetaDataOperator } from '../database/VideoMetaData'
-import RecentPlayUtil from './RecentPlayUtil'
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent'
-import VideoUtils from './VideoUtil'
 import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
 import { DeleteType } from '../common/enum/DeleteType'
-import { fileManagerService } from '@kit.FileManagerServiceKit'
-import { BusinessError } from '@kit.BasicServicesKit'
-import { fileUri, fileIo as fs } from '@kit.CoreFileKit'
-import ToolsUtil from './ToolsUtil'
 import { MpvAudioTrack, MpvSubtitleTrack } from '../controller/MpvController/MpvTypes'
 import { SalmonLogLine } from 'salmonlogger'
+
+const TAG = 'DataUtil'
 
 // 基础数据源抽象类（泛型实现）
 abstract class BaseDataSource<T> implements IDataSource {
@@ -63,6 +55,14 @@ abstract class BaseDataSource<T> implements IDataSource {
     return [...this.data]
   }
 
+  // 增量更新单个项
+  updateItem(index: number, newItem: T): void {
+    if (index >= 0 && index < this.data.length) {
+      this.data[index] = newItem
+      this.notifyDataChange(index)
+    }
+  }
+
   // 通知方法
   protected notifyDataReloaded(): void {
     this.listeners.forEach(listener => listener.onDataReloaded())
@@ -70,6 +70,10 @@ abstract class BaseDataSource<T> implements IDataSource {
 
   protected notifyDataDelete(index: number): void {
     this.listeners.forEach(listener => listener.onDataDelete(index))
+  }
+
+  protected notifyDataChange(index: number): void {
+    this.listeners.forEach(listener => listener.onDataChange(index))
   }
 }
 
@@ -104,23 +108,20 @@ export class SweetLogDataSource extends BaseDataSource<SalmonLogLine> {
 // 具体实现类
 @Observed
 export class VideoDataSource extends BaseDataSource<VideoMetadata> {
-  // ORM 改造：refreshData 改为异步，从 FolderOperator 查询最新视频列表
-  public async refreshData(folder: FileFolder): Promise<void> {
-    const folderData = await FolderOperator.getFolderByName(folder.name)
-    const videoMetaData: VideoMetadata[] = folderData?.video_list || []
+  public refreshData(folder: FileFolder) {
+    const videoMetaData: VideoMetadata[] = FolderOperator.getFolderByName(folder.name).video_list
     this.updateData(videoMetaData)
   }
 
-  // ORM 改造：删除无效文件时，所有依赖的数据库/文件操作均已异步化，需按顺序 await 执行
   public async deleteUnExistFile(item: VideoMetadata | undefined, videoListController: VideoListController,
     fileFolderSource: FileFolderDataSource) {
     if (!item) {
       return
     }
     await this.deleteItem(DeleteType.SOFT, item)
-    await SelectFileUtil.deleteVideo(item)
+    SelectFileUtil.deleteVideo(item)
     await VideoMetaDataOperator.deleteItem(videoListController, fileFolderSource, DeleteType.SOFT, item)
-    await VideoUtils.refresh(videoListController, fileFolderSource, videoListController.folder)
+    VideoUtils.refresh(videoListController, fileFolderSource, videoListController.folder)
   }
 
   async deleteItem(deleteType: DeleteType, item: VideoMetadata): Promise<void> {
@@ -132,9 +133,10 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
     if (deleteType == DeleteType.HARD) {
       fs.unlink(item.uri, (err: BusinessError) => {
         if (err) {
-          console.error("remove file failed with error message: " + err.message + ", error code: " + err.code)
+          salmonLogger.addLog(TAG,
+            "remove file failed with error message: " + err.message + ", error code: " + err.code, true)
         } else {
-          console.info("remove file succeed")
+          salmonLogger.addLog(TAG, "remove file succeed")
         }
       })
     } else if (deleteType == DeleteType.RECENT) {
@@ -144,9 +146,9 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
         }
         ToolsUtil.showToast(item.title + ' 已经移动到回收站')
       } catch (error) {
-        console.error("test delete failed, errCode:" + error.code + ", errMessage:" + error.message)
+        salmonLogger.addLog(TAG, "test delete failed, errCode:" + error.code + ", errMessage:" + error.message, true)
         ToolsUtil.showToast('视频快捷方式已删除，但移动到最近回收失败，原因是：errCode:' + error.code + ", errMessage:" +
-        error.message)
+          error.message)
       }
     }
   }
@@ -154,9 +156,7 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
 
 @Observed
 export class FileFolderDataSource extends BaseDataSource<FileFolder> {
-  // ORM 改造：FileFolderDataSource 不再直接访问 Preferences，而是依赖外部（如 Index/VideoView）
-  // 通过 updateData 注入从 FileFolderUtil.getAllFolderAsync 查询到的最新数据。
-  getFileFolder(fileFolderName: string): FileFolder | undefined {
-    return this.data.find(item => item.name === fileFolderName)
+  getFileFolder(fileFolderName: string): FileFolder {
+    return Preferences.getFileFolder(PathUtils.appContext!).find(item => item.name === fileFolderName)!
   }
 }

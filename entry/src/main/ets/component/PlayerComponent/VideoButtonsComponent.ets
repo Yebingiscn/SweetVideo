@@ -7,9 +7,13 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { AVCastPicker } from '@kit.AVSessionKit'
 
+class VideoControlIconValue {
+  icon: Resource | undefined = undefined
+}
+
 @Builder
-function VideoControlIcon(icon: Resource) {
-  SymbolGlyph(icon)
+function VideoControlIcon(videoControlIconValue: VideoControlIconValue) {
+  SymbolGlyph(videoControlIconValue?.icon)
     .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
     .fontColor(['#f0f0f0'])
     .opacity(0.8)
@@ -45,10 +49,7 @@ export struct VideoButtonsComponent {
     Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceEvenly }) {
       // 播放按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph(this.player.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill'))
-          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-          .fontColor(['#f0f0f0'])
-          .opacity(0.8)
+        VideoControlIcon({ icon: this.player.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill') })
       }
       .circleButton()
       .onClick(() => {
@@ -59,7 +60,7 @@ export struct VideoButtonsComponent {
 
       // 下一首按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
-        VideoControlIcon($r('sys.symbol.forward_end_fill'))
+        VideoControlIcon({ icon: $r('sys.symbol.forward_end_fill') })
       }
       .circleButton()
       .onClick(() => {
@@ -78,7 +79,7 @@ export struct VideoButtonsComponent {
 
       // 设置按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
-        VideoControlIcon($r('sys.symbol.gearshape'))
+        VideoControlIcon({ icon: $r('sys.symbol.gearshape') })
       }
       .circleButton()
       .bindMenu(this.videoSettingBuilder,
@@ -86,7 +87,7 @@ export struct VideoButtonsComponent {
 
       // 循环模式按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
-        VideoControlIcon(this.getRepeatModeIcon())
+        VideoControlIcon({ icon: this.getRepeatModeIcon() })
       }
       .circleButton()
       .onClick(() => {
@@ -98,7 +99,7 @@ export struct VideoButtonsComponent {
 
       // 选集按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
-        VideoControlIcon($r('sys.symbol.music_note_list'))
+        VideoControlIcon({ icon: $r('sys.symbol.music_note_list') })
       }
       .circleButton()
       .onClick(() => {
@@ -125,7 +126,7 @@ export struct VideoButtonsComponent {
 
       // 屏幕旋转按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
-        VideoControlIcon($r('sys.symbol.fullscreen'))
+        VideoControlIcon({ icon: $r('sys.symbol.fullscreen') })
       }
       .circleButton()
       .onClick(async () => {

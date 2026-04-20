@@ -3,14 +3,12 @@ import { fileIo as fs } from '@kit.CoreFileKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
-import { ConcurrentQueue } from './FileProcessorUtil'
 import SelectFileUtil from './SelectFileUtil'
-import PermissionUtil from './PermissionUtil'
 import { GB, MB, SCREEN_EXTEND_LIST, VIDEO_SIZE_MAP, VIDEO_SPEED_MAP } from '../common/Constants'
 import { salmonLogger } from 'salmonlogger'
-import { VideoRepository } from '../repository/VideoRepository'
-import { VideoEntity } from '../entity/VideoEntity'
-import { coverEventBus } from './CoverEventUtil'
+import { image } from '@kit.ImageKit'
+import { extractVideoFrameAsCoverInTaskPool } from './TaskpoolUtil'
+import ToolsUtil from './ToolsUtil'
 
 const TAG = 'VideoInfoUtil'
 
@@ -32,12 +30,9 @@ export default class VideoInfoUtil {
     Array.from(VIDEO_SPEED_MAP.entries()).map((entry) => [entry[1], entry[0]])
   )
 
-  // 构建视频元数据对象
-  // 导入优化：新增 skipCover 参数（默认 false）。当 skipCover=true 时跳过同步封面获取，
-  // 仅返回带有 'Unknown' video_size 的元数据，由调用方将封面获取任务加入后台队列异步处理。
-  // 这大幅减少了批量导入大文件时的 UI 阻塞时间。
-  static async setVideoInfo(date: string, uri: string, file_name: string, metadata: media.AVMetadata,
-    sandbox_video: string, sandbox_path: string, skipCover: boolean = false): Promise<VideoMetadata> {
+  // 设置存储的视频信息（优化版：减少文件打开次数）
+  static async setVideoInfoOptimized(date: string, uri: string, file_name: string, metadata: media.AVMetadata,
+    sandbox_video: string, sandbox_path: string, fileSize: number, pixelMap: image.PixelMap | undefined) {
     let time = '0'
     let hdr_type = media.HdrType.AV_HDR_TYPE_NONE
     let duration = '0'
@@ -47,9 +42,7 @@ export default class VideoInfoUtil {
       hdr_type = metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE
     }
 
-    // 导入优化：默认使用 'Unknown'，避免在导入主流程中同步调用 getVideoSize（I/O 阻塞）。
-    // 真实大小由后台异步任务 fetchCoverAndFileSizeAsync 更新到数据库。
-    const estimatedSize = 'Unknown'
+    const video_size = ToolsUtil.formatFileSize(fileSize)
 
     let targetVideo: VideoMetadata = {
       uri: PrivacySpaceUtil.getPrivacyMode()! ? sandbox_video + date : uri,
@@ -59,7 +52,7 @@ export default class VideoInfoUtil {
       time: parseInt(time),
       last_play: 0,
       format: VideoInfoUtil.getVideoFormat(file_name),
-      video_size: estimatedSize,
+      video_size: video_size,
       hdr_type: hdr_type,
       start_time: 0,
       end_time: 0,
@@ -67,71 +60,23 @@ export default class VideoInfoUtil {
       pointA: 0,
       pointB: 0
     }
-
-    // 仅非跳过模式下同步获取封面（如隐私空间导入仍需同步封面）
-    if (!skipCover) {
-      await VideoInfoUtil.getVideoCover(sandbox_path, date, uri, targetVideo.size, parseInt(duration))
+    if (pixelMap) {
+      await SelectFileUtil.saveVideoImageToSandBox(sandbox_path, date, pixelMap)
+    } else {
+      // 使用 TaskPool 提取视频帧作为封面
+      const frameResult = await extractVideoFrameAsCoverInTaskPool(
+        uri,
+        targetVideo.size[0],
+        targetVideo.size[1],
+        parseInt(duration)
+      )
+      if (frameResult.success && frameResult.pixelMap) {
+        await SelectFileUtil.saveVideoImageToSandBox(sandbox_path, date, frameResult.pixelMap)
+      } else if (frameResult.error) {
+        salmonLogger.addLog(TAG, 'extract video frame as cover error: ' + frameResult.error, true)
+      }
     }
-
     return targetVideo
-  }
-
-  // 异步获取视频封面和真实文件大小，并更新数据库
-  // 使用场景：普通视频导入时 skipCover=true，导入完成后再由 SelectFileUtil.processPendingCoverTasks
-  // 在后台串行调用此方法，既避免阻塞导入流程，又能补全封面和文件大小信息。
-  static async fetchCoverAndFileSizeAsync(
-    videoEntity: VideoEntity,
-    sandbox_path: string,
-    uri: string
-  ): Promise<void> {
-    try {
-      // 异步获取封面
-      await VideoInfoUtil.getVideoCover(sandbox_path, videoEntity.date, uri, [videoEntity.width, videoEntity.height], videoEntity.duration)
-
-      // 异步获取真实文件大小
-      const actualSize = await VideoInfoUtil.getVideoSize(uri, true) as string
-
-      // ORM 改造：将补全后的 fileSize 写回数据库
-      const videoRepo = VideoRepository.getInstance()
-      videoEntity.fileSize = actualSize
-      await videoRepo.save(videoEntity)
-
-      // 通知 UI 封面已就绪，触发对应列表项刷新
-      coverEventBus.emit('coverReady', { date: videoEntity.date })
-
-      salmonLogger.addLog(TAG, `异步更新视频信息完成: ${videoEntity.title}, size=${actualSize}`, false)
-    } catch (error) {
-      salmonLogger.addLog(TAG, `异步获取封面失败: ${videoEntity.title}, error=${error}`, true)
-    }
-  }
-
-  // 获取视频封面，需要控制并发，不然获取不了,这里实现一个队列来控制并发
-  static async getVideoCover(sandbox_path: string, date: string, uri: string, size: number[], time: number) {
-    if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
-      return ConcurrentQueue.enqueue(async () => {
-        await PermissionUtil.persistPermission(uri)
-        let file: fs.File | undefined
-        let avMetadataExtractor: media.AVMetadataExtractor | undefined
-        try {
-          avMetadataExtractor = await media.createAVMetadataExtractor()
-          file = fs.openSync(uri)
-          avMetadataExtractor.fdSrc = file
-          const pixelMap = await avMetadataExtractor.fetchAlbumCover()
-          await SelectFileUtil.saveVideoImageToSandBox(sandbox_path, date, pixelMap)
-        } catch (error) {
-          await VideoInfoUtil.getVideoImage(uri, size, date, sandbox_path, time)
-        } finally {
-          if (file) {
-            fs.closeSync(file)
-          }
-          if (avMetadataExtractor) {
-            avMetadataExtractor?.release()?.catch(() => {
-              salmonLogger.addLog(TAG, 'avMetadataExtractor release error', true)
-            })
-          }
-        }
-      })
-    }
   }
 
   public static getVideoFormat(videoName: string) {
@@ -147,49 +92,6 @@ export default class VideoInfoUtil {
       return ''
     }
     return item.title.slice(0, item.title.lastIndexOf('.'))
-  }
-
-  // 视频没有封面时，获取指定时间帧的截图作为封面
-  // 修复：原代码使用 Promise.then 导致资源释放时机不可控，且未处理 await 异常；
-  //       现改为 async/await + finally 确保 avImageGenerator 和 file 总是被释放，防止 fd 泄漏。
-  static async getVideoImage(uri: string, size: number[], date: string, sandbox_path: string, time: number) {
-    if (canIUse('SystemCapability.Multimedia.Media.AVImageGenerator')) {
-      let avImageGenerator: media.AVImageGenerator | undefined = undefined
-      let file: fs.File | undefined = undefined
-      try {
-        avImageGenerator = await media.createAVImageGenerator()
-        file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
-        let avFileDescriptor: media.AVFileDescriptor = { fd: file.fd }
-        avImageGenerator.fdSrc = avFileDescriptor
-        let timeUs = (time > 0) ? time * 100 : 0 // 微秒
-        let queryOption = media.AVImageQueryOptions.AV_IMAGE_QUERY_CLOSEST
-        let param: media.PixelMapParams = {
-          width: size[0],
-          height: size[1],
-        }
-        // 使用 await 等待缩略图生成完成，确保在 finally 释放资源前 pixelMap 已就绪
-        const pixelMap = await avImageGenerator.fetchFrameByTime(timeUs, queryOption, param)
-        await SelectFileUtil.saveVideoImageToSandBox(sandbox_path, date, pixelMap)
-      } catch (error) {
-        salmonLogger.addLog(TAG, 'get video image error:' + error, true)
-      } finally {
-        // 确保资源释放，避免文件描述符泄漏或内存占用
-        if (avImageGenerator) {
-          try {
-            await avImageGenerator.release()
-          } catch {
-            salmonLogger.addLog(TAG, 'avImageGenerator release error', true)
-          }
-        }
-        if (file) {
-          try {
-            fs.closeSync(file)
-          } catch (e) {
-            salmonLogger.addLog(TAG, 'Failed to close file: ' + e, false)
-          }
-        }
-      }
-    }
   }
 
   // 获取视频长宽
@@ -256,9 +158,7 @@ export default class VideoInfoUtil {
           if (err) {
             reject('app.string.unknown_size')
           } else if (return_string) {
-            const size = stat.size > GB ?
-              (stat.size / GB).toFixed(2) + ' GB' :
-              (stat.size / MB).toFixed(2) + ' MB'
+            const size = ToolsUtil.formatFileSize(stat.size)
             resolve(size)
           } else {
             resolve(stat.size)

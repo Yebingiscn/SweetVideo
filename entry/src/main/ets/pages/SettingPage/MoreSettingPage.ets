@@ -11,12 +11,9 @@ import { salmonLogger } from 'salmonlogger'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import PreferencesUtil from '../../database/PreferencesUtil'
 import WantProcess from '../../utils/WantProcessUtil'
-import FileFolderUtil from '../../utils/FileFolderUtil'
-import { FolderRepository } from '../../repository/FolderRepository'
-import { PrivacyVideoRepository } from '../../repository/PrivacyVideoRepository'
-import { PrivacyVideoEntity } from '../../entity/PrivacyVideoEntity'
-import { FolderEntity } from '../../entity/FolderEntity'
-import { VideoEntity } from '../../entity/VideoEntity'
+
+const TAG = 'MoreSettingPage'
+
 @Component
 export struct MoreSettingPage {
   @Consume('pathStack') pathStack: NavPathStack
@@ -53,26 +50,23 @@ export struct MoreSettingPage {
               PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'is_list_display')
               PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'defaultPlayer')
               const coverFromSandbox = await fs.listFile(PathUtils.coverPath)?.catch(() => {
-                console.error('get cover fail')
+                salmonLogger.addLog(TAG, 'get cover fail', true)
               })
               const isNumericStart = (filename: string): boolean => /^\d/.test(filename)
               const coverFromSandboxArray = Array.isArray(coverFromSandbox)
                 ? coverFromSandbox.filter(file => isNumericStart(file)) : []
               const subtitleFromSandbox = await fs.listFile(PathUtils.subtitlePath)?.catch(() => {
-                console.error('get subtitle fail')
+                salmonLogger.addLog(TAG, 'get subtitle fail', true)
               })
               const subtitleFromSandboxArray = Array.isArray(subtitleFromSandbox) ? subtitleFromSandbox : []
-              // ORM 改造：清理失效封面/字幕时，从 Repository 读取所有视频日期，替代 Preferences.getVideoMetaData / getFileFolder
-              const folderRepo = FolderRepository.getInstance()
-              const privacyRepo = PrivacyVideoRepository.getInstance()
-              const folders = await folderRepo.findAllWithVideos()
-              const privacyVideos = await privacyRepo.findAllOrdered()
-
-              // 收集所有视频日期（隐私空间 + 普通文件夹）用于比对沙盒中的孤立文件
-              const existingItemsSet = new Set<string>([
-                ...privacyVideos.map((v: PrivacyVideoEntity) => v.date),
-                ...folders.flatMap((folder: FolderEntity) =>
-                  folder.videos?.map((video: VideoEntity) => video.date) ?? []
+              const videoMetaData = Preferences.getVideoMetaData(PathUtils.appContext!)
+              const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+              const fileFolder = Preferences.getFileFolder(PathUtils.appContext!)
+              const existingItemsSet = new Set([
+                ...videoMetaData.map(v => v.date),
+                ...videoMetaDataEncryption.map(v => v.date),
+                ...fileFolder.flatMap(folder =>
+                folder.video_list?.map(item => item!.date) ?? []
                 )
               ])
               const missingCoverFiles = coverFromSandboxArray.filter((file => !existingItemsSet.has(file)))
@@ -92,25 +86,27 @@ export struct MoreSettingPage {
           })
         }
 
-        ListItem() {
-          SettingsClickItem({
-            symbol: $r('sys.symbol.hand_thumbsup'),
-            message: '从夯到拉锐评下流心',
-            onPress: async () => {
-              try {
-                commentManager.showCommentDialog(PathUtils.appContext!).then(() => {
-                  salmonLogger.addLog(this.pathStack.getAllPathName()[0], '成功展示评论弹窗', false)
-                })?.catch((error: BusinessError<Object>) => {
+        if (canIUse('SystemCapability.AppGalleryService.Distribution.Comment')) {
+          ListItem() {
+            SettingsClickItem({
+              symbol: $r('sys.symbol.hand_thumbsup'),
+              message: '从夯到拉锐评下流心',
+              onPress: async () => {
+                try {
+                  commentManager.showCommentDialog(PathUtils.appContext!).then(() => {
+                    salmonLogger.addLog(this.pathStack.getAllPathName()[0], '成功展示评论弹窗', false)
+                  })?.catch((error: BusinessError<Object>) => {
+                    salmonLogger.addLog(this.pathStack.getAllPathName()[0],
+                      `展示评论弹窗错误, Code: ${error.code}, message: ${error.message}`, true)
+                    WantProcess.linkToAppGallery(PathUtils.appContext!.abilityInfo.bundleName)
+                  })
+                } catch (error) {
                   salmonLogger.addLog(this.pathStack.getAllPathName()[0],
                     `展示评论弹窗错误, Code: ${error.code}, message: ${error.message}`, true)
-                  WantProcess.linkToAppGallery(PathUtils.appContext!.abilityInfo.bundleName)
-                })
-              } catch (error) {
-                salmonLogger.addLog(this.pathStack.getAllPathName()[0],
-                  `展示评论弹窗错误, Code: ${error.code}, message: ${error.message}`, true)
+                }
               }
-            }
-          })
+            })
+          }
         }
       }
       .align(Alignment.Top)
@@ -133,4 +129,3 @@ export struct MoreSettingPage {
     .backdropBlur(Setting.backgroundDropBlur)
   }
 }
-

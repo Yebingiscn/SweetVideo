@@ -10,6 +10,8 @@ import { uniformTypeDescriptor } from '@kit.ArkData'
 import { fileUri } from '@kit.CoreFileKit';
 import { SweetLogDataSource } from '../../utils/DataUtil'
 
+const TAG = 'CrashPage'
+
 @Component
 export struct CrashPage {
   @State sweetLogDataSource: SweetLogDataSource = new SweetLogDataSource([])
@@ -262,7 +264,7 @@ export struct CrashPage {
       const err = error as BusinessError
       const errorMsg = `分享失败: code=${err.code}, message=${err.message}`
       salmonLogger.addLog(this.pathStack.getAllPathName()[0], errorMsg, true)
-      console.error(errorMsg)
+      salmonLogger.addLog(TAG, errorMsg, true)
       ToolsUtil.showToast('分享失败: ' + err.message)
     }
   }

@@ -89,12 +89,12 @@
       "value": "Delete"
     },
     {
-      "name": "import_from_files",
-      "value": "Import from files"
+      "name": "import_from_videos",
+      "value": "Import from videos"
     },
     {
-      "name": "import_from_album",
-      "value": "Import from albums"
+      "name": "import_from_music",
+      "value": "Import from music"
     },
     {
       "name": "open_side_bar_tip",
@@ -187,6 +187,10 @@
     {
       "name": "AV_PLAYER",
       "value": "player"
+    },
+    {
+      "name": "DLP_GET_HIDE_STATUS",
+      "value": "Get the status of the screen that is being viewed by the non-owner during the use of the application"
     }
   ]
 }

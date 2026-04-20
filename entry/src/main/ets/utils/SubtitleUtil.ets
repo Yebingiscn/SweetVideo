@@ -8,6 +8,8 @@ import { salmonLogger } from 'salmonlogger'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { SUPPORT_SUBTITLE_FORMAT } from '../common/Constants'
 
+const TAG = 'SubtitleUtil'
+
 // 实现 Parser 接口的适配器类
 export class ParserAdapter<T> implements Parser<T> {
   private initFn: () => Promise<void>
@@ -51,7 +53,7 @@ class SubtitleUtil {
         sourceFile = fs.openSync(uris[0], fs.OpenMode.READ_ONLY)
         targetFile = fs.openSync(`${sandbox_subtitle}${date}`, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
         await fs.copyFile(sourceFile.fd, targetFile.fd)?.catch(() => {
-          console.error('copy 失败')
+          salmonLogger.addLog(TAG, 'copy 失败', true)
         })
         const encode = await ToolsUtil.detectFileDecoder(targetFile.path)
         if (encode.length > 0 && encode.toLowerCase() !== 'utf-8') {
@@ -60,7 +62,7 @@ class SubtitleUtil {
         ToolsUtil.showToast(`导入字幕成功: ${sourceFile.name}`)
         return sourceFile.name
       } catch (error) {
-        console.error('import failed: ', error)
+        salmonLogger.addLog(TAG, 'import failed: ' + error, true)
         return ''
       } finally {
         // 确保文件描述符总是被关闭
@@ -72,7 +74,7 @@ class SubtitleUtil {
         }
       }
     } catch (error) {
-      console.error('import failed: ', error)
+      salmonLogger.addLog(TAG, 'import failed: ' + error, true)
       salmonLogger.addLog('subtitle', 'import failed: ' + error.code + ':' + error.message, true)
       return ''
     }
@@ -88,7 +90,7 @@ class SubtitleUtil {
           resolve(false)
         }
       })?.catch((err: BusinessError) => {
-        console.error("access failed with error message: " + err.message + ", error code: " + err.code)
+        salmonLogger.addLog(TAG, "access failed with error message: " + err.message + ", error code: " + err.code, true)
         salmonLogger.addLog('subtitle', 'delete failed: ' + err.code + ':' + err.message, false)
         resolve(false)
       })
@@ -103,10 +105,10 @@ class SubtitleUtil {
     } catch (err) {
       const error = err as BusinessError
       if (error.code === 13900002) { // 文件或目录不存在错误码
-        console.warn('文件不存在')
+        salmonLogger.addLog(TAG, '文件不存在')
       } else {
         ToolsUtil.showToast('删除失败')
-        console.error('delete failed: ' + error.code + ':' + error.message)
+        salmonLogger.addLog(TAG, 'delete failed: ' + error.code + ':' + error.message, true)
         salmonLogger.addLog('subtitle', 'delete failed: ' + error.code + ':' + error.message, true)
       }
     }
@@ -192,7 +194,7 @@ class SubtitleUtil {
       return true
     } catch (e) {
       const error: string = e
-      console.error('test' + e)
+      salmonLogger.addLog(TAG, 'test' + e, true)
       salmonLogger.addLog('subtitle', `SRT 外挂字幕加载失败，原因是：${error}`, true)
       return false
     }
@@ -218,7 +220,7 @@ class SubtitleUtil {
     } catch (e) {
       const error: string = e
       salmonLogger.addLog('subtitle', `ASS 外挂字幕加载失败，原因是：${error}`, true)
-      console.error('testASS解析诊断失败:', error)
+      salmonLogger.addLog(TAG, 'testASS解析诊断失败: ' + error, true)
       return false
     }
   }
@@ -239,7 +241,7 @@ class SubtitleUtil {
       return true
     } catch (e) {
       const error: string = e
-      console.error('test' + e)
+      salmonLogger.addLog(TAG, 'test' + e, true)
       salmonLogger.addLog('subtitle', `VTT 外挂字幕加载失败，原因是：${error}`, true)
       return false
     }

@@ -16,7 +16,7 @@ import SelectFileUtil from './SelectFileUtil'
 import { salmonLogger } from 'salmonlogger'
 import { PathUtils } from './PathUtils'
 
-const TAG = 'WantProcess'
+const TAG = 'WantProcessUtil'
 
 export default class WantProcess {
   public static hasNewWant = false
@@ -50,7 +50,7 @@ export default class WantProcess {
       }
     } catch (error) {
       const businessError = error as BusinessError
-      console.error(`Failed: Code ${businessError.code}, ${businessError.message}`)
+      salmonLogger.addLog(TAG, `Failed: Code ${businessError.code}, ${businessError.message}`, true)
     }
   }
 
@@ -62,10 +62,10 @@ export default class WantProcess {
       WantProcess.receiveWantUri = WantProcess.receiveWant.uri
       WantProcess.hasNewWant = true
     } else {
-      await WantProcess.getSystemShareWant(WantProcess.receiveWant)
       if (!WantProcess.receiveWantUri) {
         return
       }
+      await WantProcess.getSystemShareWant(WantProcess.receiveWant)
     }
     if (WantProcess.receiveWantUri != '') {
       WantProcess.clearWantState()
@@ -76,35 +76,50 @@ export default class WantProcess {
   // 处理拉起链接
   static async hasWant(context: Context, pathStack: NavPathStack) {
     if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
+      let avMetadataExtractor: media.AVMetadataExtractor | undefined
+      let file: fs.File | undefined
       try {
-        let avMetadataExtractor: media.AVMetadataExtractor = await media.createAVMetadataExtractor()
-        let file = fs.openSync(WantProcess.receiveWantUri)
+        avMetadataExtractor = await media.createAVMetadataExtractor()
+        file = fs.openSync(WantProcess.receiveWantUri)
         avMetadataExtractor.fdSrc = file
-        avMetadataExtractor.fetchMetadata(async (_error: BusinessError, metadata: media.AVMetadata) => {
-          let targetVideo: VideoMetadata = {
-            uri: WantProcess.receiveWantUri,
-            title: decodeURI(WantProcess.receiveWantUri.split('/')[WantProcess.receiveWantUri.split('/').length-1]),
-            date: systemDateTime.getTime(false).toString(),
-            size: VideoUtil.getVideoWidthAndHeight(metadata),
-            time: parseInt(metadata.duration || '0'),
-            last_play: 0,
-            format: VideoInfoUtil.getVideoFormat(WantProcess.receiveWantUri),
-            video_size: await VideoUtil.getVideoSize(WantProcess.receiveWantUri, true) as string,
-            hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
-            start_time: 0,
-            end_time: 0,
-            external_subtitle_format: '',
-            pointA: 0,
-            pointB: 0
-          }
-          // 获取默认播放器
-          let url = WantProcess.getPlayer(context, targetVideo)
-          const playerParams = new PlayerParams(targetVideo, [targetVideo], undefined)
-          WantProcess.receiveWantUri = ''
-          pathStack.pushPathByName(url, playerParams, true)
+        const metadata = await new Promise<media.AVMetadata>((resolve, reject) => {
+          avMetadataExtractor!.fetchMetadata((error: BusinessError, metadata: media.AVMetadata) => {
+            error ? reject(error) : resolve(metadata)
+          })
         })
+        let targetVideo: VideoMetadata = {
+          uri: WantProcess.receiveWantUri,
+          title: decodeURI(WantProcess.receiveWantUri.split('/')[WantProcess.receiveWantUri.split('/').length-1]),
+          date: systemDateTime.getTime(false).toString(),
+          size: VideoUtil.getVideoWidthAndHeight(metadata),
+          time: parseInt(metadata.duration || '0'),
+          last_play: 0,
+          format: VideoInfoUtil.getVideoFormat(WantProcess.receiveWantUri),
+          video_size: await VideoUtil.getVideoSize(WantProcess.receiveWantUri, true) as string,
+          hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
+          start_time: 0,
+          end_time: 0,
+          external_subtitle_format: '',
+          pointA: 0,
+          pointB: 0
+        }
+        // 获取默认播放器
+        let url = WantProcess.getPlayer(context, targetVideo)
+        const playerParams = new PlayerParams(targetVideo, [targetVideo], undefined)
+        WantProcess.receiveWantUri = ''
+        pathStack.pushPathByName(url, playerParams, true)
       } catch (error) {
-        console.error('want process error:' + error)
+        salmonLogger.addLog(TAG, 'want process error:' + error, true)
+      } finally {
+        // 确保释放资源
+        if (avMetadataExtractor) {
+          avMetadataExtractor.release()?.catch(() => {
+            salmonLogger.addLog(TAG, 'avMetadataExtractor release error', true)
+          })
+        }
+        if (file) {
+          fs.closeSync(file)
+        }
       }
     }
   }

@@ -12,7 +12,6 @@ import { SettingsToggleItem } from '../../component/SettingComponent/SettingsTog
 import Preferences from '../../database/Preferences'
 import BiometricAccessUtil from '../../utils/BiometricAccessUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
-import { RecentPlayRepository } from '../../repository/RecentPlayRepository'
 
 const TAG = 'SettingsPage'
 
@@ -149,8 +148,7 @@ export struct SettingsPage { //设置页
             onChange: (checked: boolean) => {
               Setting.recentPlay = checked
               if (!Setting.recentPlay) {
-                // ORM 改造：关闭历史记录时通过 RecentPlayRepository 清空数据库表，替代 Preferences.saveRecentPlay([], [])
-                RecentPlayRepository.getInstance().clearAll()
+                Preferences.saveRecentPlay(PathUtils.appContext!, [])
               }
               Preferences.saveRecentPlayState(PathUtils.appContext!, Setting.recentPlay)
             }

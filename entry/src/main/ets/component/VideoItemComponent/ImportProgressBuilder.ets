@@ -1,29 +1,83 @@
 export class ImportProgressBuilderParams {
   processedItems: number = 0
   totalItems: number = 0
+  currentFileName: string = '' // 当前处理的文件名
+  speed: number = 0 // 处理速度（个/秒）
+  elapsedTime: number = 0 // 已耗时（毫秒）
+  failedCount: number = 0 // 失败文件数
 }
 
 @Builder
 export function ImportProgressBuilder(params: ImportProgressBuilderParams) {
-  Stack() {
-    Column() {
-      Progress({ value: params.processedItems, total: params.totalItems, type: ProgressType.Ring })
-        .width(100)
-        .height(100)
-        .color(new LinearGradient([{ color: $r('app.color.sweet_music_color'), offset: 0.5 },
-          { color: $r('app.color.main_color'), offset: 1.0 }]))
-        .style({ strokeWidth: 15, enableSmoothEffect: true, shadow: true })
-        .margin({ bottom: 8 }) // 添加底部间距分隔文字
-      Text(params.processedItems + '/' + params.totalItems)
-        .fontSize(16)
-        .fontColor($r('app.color.main_color'))
+  Column() {
+    // 进度环
+    Progress({ value: params.processedItems, total: params.totalItems, type: ProgressType.Ring })
+      .width(100)
+      .height(100)
+      .color(new LinearGradient([{ color: $r('app.color.sweet_music_color'), offset: 0.5 },
+        { color: $r('app.color.main_color'), offset: 1.0 }]))
+      .style({ strokeWidth: 15, enableSmoothEffect: true, shadow: true })
+      .margin({ bottom: 8 })
+
+    // 进度数字
+    Text(params.processedItems + '/' + params.totalItems)
+      .fontSize(16)
+      .fontColor($r('app.color.main_color'))
+      .margin({ bottom: 8 })
+
+    // 当前文件名（如果有）
+    if (params.currentFileName) {
+      Text('正在处理: ' + params.currentFileName)
+        .fontSize(12)
+        .fontColor($r('app.color.text_color'))
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .width('80%')
+        .textAlign(TextAlign.Center)
+        .margin({ bottom: 4 })
     }
-    .animation({ duration: 150, curve: Curve.Sharp })
-    .padding(30)
-    .borderRadius(16)
-    .shadow({ radius: 26, color: $r('app.color.shadow_color') })
-    .backgroundColor($r('app.color.start_window_background_blur'))
-    .backdropBlur(150)
-  }.width('100%')
-  .height('100%')
+
+    // 处理速度和耗时
+    if (params.speed > 0 || params.elapsedTime > 0) {
+      Row() {
+        if (params.speed > 0) {
+          Text(`速度: ${params.speed.toFixed(1)} 个/秒`)
+            .fontSize(12)
+            .fontColor($r('app.color.text_color'))
+        }
+        if (params.elapsedTime > 0) {
+          Text(`耗时: ${formatTime(params.elapsedTime)}`)
+            .fontSize(12)
+            .fontColor($r('app.color.text_color'))
+            .margin({ left: params.speed > 0 ? 8 : 0 })
+        }
+      }
+      .margin({ bottom: 4 })
+    }
+
+    // 失败文件数（如果有）
+    if (params.failedCount > 0) {
+      Text(`失败: ${params.failedCount} 个`)
+        .fontSize(12)
+        .fontColor($r('app.color.text_color'))
+    }
+  }
+  .animation({ duration: 150, curve: Curve.Sharp })
+  .padding(30)
+  .borderRadius(16)
+  .shadow({ radius: 26, color: $r('app.color.shadow_color') })
+  .backgroundColor($r('app.color.start_window_background_blur'))
+  .backdropBlur(150)
+}
+
+// 格式化时间显示
+function formatTime(milliseconds: number): string {
+  const seconds = Math.floor(milliseconds / 1000)
+  if (seconds < 60) {
+    return `${seconds}秒`
+  } else {
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+    return `${minutes}分${remainingSeconds}秒`
+  }
 }

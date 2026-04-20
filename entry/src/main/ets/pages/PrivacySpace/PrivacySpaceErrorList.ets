@@ -2,11 +2,13 @@ import { PrivacySpaceErrorListDataSource } from '../../utils/DataUtil'
 import { fileUri, fileIo as fs } from '@kit.CoreFileKit'
 import { PathUtils } from '../../utils/PathUtils'
 import { ImageFancyModifier, MenuFancyModifier } from '../../common/AttributeModifierConfig'
+import Preferences from '../../database/Preferences'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
-import { PrivacyVideoRepository } from '../../repository/PrivacyVideoRepository'
-import { PrivacyVideoEntity } from '../../entity/PrivacyVideoEntity'
+import { salmonLogger } from 'salmonlogger'
+
+const TAG = 'PrivacySpaceErrorList'
 
 @Component
 export struct PrivacySpaceErrorList {
@@ -16,17 +18,15 @@ export struct PrivacySpaceErrorList {
   private listScroller: Scroller = new Scroller()
 
   async aboutToAppear(): Promise<void> {
-    // ORM 改造：从 PrivacyVideoRepository 查询隐私空间视频，替代 Preferences.getVideoMetaDataEncryption
-    const privacyRepo = PrivacyVideoRepository.getInstance()
-    const videoEntities: PrivacyVideoEntity[] = await privacyRepo.findAll()
+    const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
     const videoFromSandbox = await fs.listFile(PathUtils.videoPath)?.catch(() => {
-      console.error('get video fail')
+      salmonLogger.addLog(TAG, 'get video fail', true)
     })
     // 确保 videoFromSandbox 是一个数组（如果出错则设为空数组）
     const videoFromSandboxArray = Array.isArray(videoFromSandbox) ? videoFromSandbox : []
-    // 从 videoEntities 中提取所有 date 字段的值，用于比对沙盒中是否存在孤立文件
-    const existingDatesSet: Set<string> = new Set(videoEntities.map(item => item.date))
-    // 找出在 videoFromSandboxArray 中存在，但在 existingDates 中不存在的元素（即异常/孤立文件）
+    // 从 videoMetaDataEncryption 中提取所有 date 字段的值
+    const existingDatesSet: Set<string> = new Set(videoMetaDataEncryption.map(item => item.date))
+    // 找出在 videoFromSandboxArray 中存在，但在 existingDates 中不存在的元素
     this.videoList = videoFromSandboxArray.filter((item: string) =>
     !existingDatesSet.has(item)
     )
@@ -35,8 +35,7 @@ export struct PrivacySpaceErrorList {
 
   async delItem(date: string) {
     this.errorListDataSource.deleteData(this.videoList.findIndex(i => i === date))
-    // ORM 改造：deletePrivacyVideo 签名已简化，不再需要传入 Preferences 数组
-    await SelectFileUtil.deletePrivacyVideo(date, date)
+    await SelectFileUtil.deletePrivacyVideo(date, date, Preferences.getVideoMetaDataEncryption(PathUtils.appContext!))
   }
 
   @Builder
@@ -89,7 +88,7 @@ export struct PrivacySpaceErrorList {
         if (this.videoList.length === 0) {
           Text('没有异常，看起来一点 bug 也没有捏 (^人^)').textAlign(TextAlign.Center)
             .align(Alignment.Center)
-            .width('100%').height('100%')
+            .width('90%').height('100%')
         } else {
           List({ scroller: this.listScroller, space: 10 }) {
             LazyForEach(this.errorListDataSource, (errorVideo: string) => {

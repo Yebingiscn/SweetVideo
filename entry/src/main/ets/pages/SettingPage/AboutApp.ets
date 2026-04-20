@@ -7,6 +7,9 @@ import { Markdown, MarkdownController } from '@luvi/lv-markdown-in'
 import { salmonLogger } from 'salmonlogger'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PrivacyPolicyComponent } from '../../component/VideoItemComponent/PrivacyPolicyComponent'
+import { LiqD } from '../../component/SettingComponent/LiqD'
+
+const TAG = 'AboutApp'
 
 @Component
 export struct AboutApp {
@@ -167,12 +170,13 @@ export struct AboutApp {
               rawfilePath: "README.md", // 资源文件地址
               callback: {
                 complete: () => {
-                  console.log("Markdown component load success.")
+                  salmonLogger.addLog(TAG, "Markdown component load success.")
                   salmonLogger.addLog(this.pathStack.getAllPathName()[0],
                     "Markdown component load success.", false)
                 },
                 fail: (code: number, message: string) => {
-                  console.error("Markdown component load error. code: " + code + ", message: " + message)
+                  salmonLogger.addLog(TAG, "Markdown component load error. code: " + code + ", message: " + message,
+                    true)
                   salmonLogger.addLog(this.pathStack.getAllPathName()[0],
                     "Markdown component load error. code: " + code + ", message: " + message, true)
                 }
@@ -185,6 +189,8 @@ export struct AboutApp {
           .borderRadius(16)
           .width('100%')
           .backgroundColor($r('app.color.start_window_background_blur'))
+
+          LiqD()
 
           Text('郴州液态科技有限公司 版权所有 © 2025')
             .fontSize(14)

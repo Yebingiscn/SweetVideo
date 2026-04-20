@@ -1,3 +1,5 @@
+import { FileFolder } from '../interfaces/FileFolderInterface'
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import PreferencesUtil from './PreferencesUtil'
 import { Context } from '@kit.AbilityKit'
 import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
@@ -7,8 +9,7 @@ import { MpvDecodingMethod } from '../controller/MpvController/MpvTypes'
 
 const DATA_BASE_NAME = 'sweet_video'
 
-// 存储类 - ORM 改造后职责收缩：仅用于纯设置项（如播放器配置、主题、密码等）。
-// 视频元数据、文件夹、最近播放等结构化数据已迁移到各自的 Repository（ibest-orm），不再通过 Preferences 存储。
+// 存储类
 export default class Preferences {
   static saveMpvDecodingMethod(context: Context, decodingMethod: MpvDecodingMethod) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpv_decoding_method', decodingMethod)
@@ -17,6 +18,29 @@ export default class Preferences {
   static getMpvDecodingMethod(context: Context) {
     return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'mpv_decoding_method',
       MpvDecodingMethod.HARDWARE_SURFACE) as MpvDecodingMethod
+  }
+
+  // 首页视频数据
+  static getVideoMetaData(context: Context) {
+    return Preferences.getFileFolder(context)[0]?.video_list ?? [] as VideoMetadata[]
+  }
+
+  // 隐私空间视频数据
+  static getVideoMetaDataEncryption(context: Context) {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'video_meta_data_encryption',
+      []) as VideoMetadata[]
+  }
+
+  // 所有文件夹视频数据
+  static getFileFolder(context: Context) {
+    const folders = PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'file_folder', []) as FileFolder[]
+    folders.sort((a, b) => Number(a.date) - Number(b.date))
+    return folders
+  }
+
+  // 最近播放视频数据
+  static getRecentPlay(context: Context) {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'recent_play', []) as VideoMetadata[]
   }
 
   static getPassword(context: Context) {
@@ -195,6 +219,30 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, "smartRotation", smartRotationState)
   }
 
+  //保存首页 TODO 这里需要施工
+  static saveVideoMetaData(context: Context, video_meta_data: VideoMetadata[]) {
+    const folders = Preferences.getFileFolder(context)
+    const rootFolderIndex: number = folders.findIndex(i => i.name === '首页')
+    if (rootFolderIndex !== -1) {
+      folders[rootFolderIndex].video_list = video_meta_data
+      Preferences.saveFileFolder(context, folders)
+    }
+  }
+
+  static saveVideoMetaDataEncryption(context: Context, video_meta_data_encryption: VideoMetadata[]) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'video_meta_data_encryption',
+      video_meta_data_encryption)
+  }
+
+  // 保存所有文件夹视频数据
+  static saveFileFolder(context: Context, file_folder: FileFolder[]) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'file_folder', file_folder)
+  }
+
+  static saveRecentPlay(context: Context, recent_play_deque: VideoMetadata[]) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'recent_play', recent_play_deque)
+  }
+
   static saveEnableBackgroundDarkImage(context: Context, enableBackgroundDarkImage: boolean) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'enableBackgroundDarkImage', enableBackgroundDarkImage)
   }
@@ -229,34 +277,5 @@ export default class Preferences {
 
   static getSuperResolutionState(context: Context): boolean {
     return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'superResolutionState', false) as boolean
-  }
-
-  // ========== 视频排序偏好 ==========
-  // ORM 改造新增：排序类型与排序方向不再硬编码或依赖旧数据结构，
-  // 而是保存到 Preferences 中，供 Repository 查询时动态拼接 ORDER BY 条件。
-  // 区分普通模式与隐私空间模式，两者可独立设置排序偏好。
-  private static readonly VIDEO_SORT_NORMAL_KEY = 'video_sort_normal'
-  private static readonly VIDEO_SORT_PRIVACY_KEY = 'video_sort_privacy'
-  private static readonly VIDEO_SORT_NORMAL_ORDER_KEY = 'video_sort_normal_order'
-  private static readonly VIDEO_SORT_PRIVACY_ORDER_KEY = 'video_sort_privacy_order'
-
-  static getVideoSortType(context: Context, isPrivacy: boolean = false): 'name' | 'datetime' | 'time' {
-    const key = isPrivacy ? Preferences.VIDEO_SORT_PRIVACY_KEY : Preferences.VIDEO_SORT_NORMAL_KEY
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, key, 'name') as 'name' | 'datetime' | 'time'
-  }
-
-  static saveVideoSortType(context: Context, sortType: 'name' | 'datetime' | 'time', isPrivacy: boolean = false): void {
-    const key = isPrivacy ? Preferences.VIDEO_SORT_PRIVACY_KEY : Preferences.VIDEO_SORT_NORMAL_KEY
-    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, key, sortType)
-  }
-
-  static getVideoSortOrder(context: Context, isPrivacy: boolean = false): 'asc' | 'desc' {
-    const key = isPrivacy ? Preferences.VIDEO_SORT_PRIVACY_ORDER_KEY : Preferences.VIDEO_SORT_NORMAL_ORDER_KEY
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, key, 'desc') as 'asc' | 'desc'
-  }
-
-  static saveVideoSortOrder(context: Context, order: 'asc' | 'desc', isPrivacy: boolean = false): void {
-    const key = isPrivacy ? Preferences.VIDEO_SORT_PRIVACY_ORDER_KEY : Preferences.VIDEO_SORT_NORMAL_ORDER_KEY
-    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, key, order)
   }
 }

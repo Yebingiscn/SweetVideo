@@ -1,16 +1,12 @@
 import { AVCastPickerState, avSession, avSession as avSessionManager } from '@kit.AVSessionKit'
 import { image } from '@kit.ImageKit'
 import { AvSessionState } from '../interfaces/AvSessionStateInterface'
-import { fileIo as fs } from '@kit.CoreFileKit'
-import PermissionUtil from './PermissionUtil'
-import { media } from '@kit.MediaKit'
-import PrivacySpaceUtil from './PrivacySpaceUtil'
-import VideoInfoUtil from './VideoInfoUtil'
-import { PathUtils } from './PathUtils'
-import { BusinessError, systemDateTime } from '@kit.BasicServicesKit'
+import { BusinessError } from '@kit.BasicServicesKit'
 import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
-import { Setting } from './ObservedUtil'
+import { salmonLogger } from 'salmonlogger'
+
+const TAG = 'AVSessionUtil'
 
 // 播控中心设置类
 export default class AVSessionUtil {
@@ -53,7 +49,8 @@ export default class AVSessionUtil {
       return currentOutputDevice
     } catch (err) {
       let error = err as BusinessError
-      console.error(`getOutputDeviceSync error, error code: ${error.code}, error message: ${error.message}`)
+      salmonLogger.addLog(TAG, `getOutputDeviceSync error, error code: ${error.code}, error message: ${error.message}`,
+        true)
       return null
     }
   }
@@ -71,9 +68,9 @@ export default class AVSessionUtil {
 
   static castOnStateChange(state: AVCastPickerState) {
     if (state == AVCastPickerState.STATE_APPEARING) {
-      console.log('The picker starts showing.')
+      salmonLogger.addLog(TAG, 'The picker starts showing.')
     } else if (state == AVCastPickerState.STATE_DISAPPEARING) {
-      console.log('The picker finishes presenting.')
+      salmonLogger.addLog(TAG, 'The picker finishes presenting.')
     }
   }
 
@@ -82,10 +79,10 @@ export default class AVSessionUtil {
     try {
       AVSessionUtil.avSession = await avSessionManager.createAVSession(PathUtils.appContext!, 'sweet_video', type)
       AVSessionUtil.avSession.activate()?.catch(() => {
-        console.error('activate avSession erro')
+        salmonLogger.addLog(TAG, 'activate avSession erro', true)
       })
     } catch (error) {
-      console.error('create session error:' + error)
+      salmonLogger.addLog(TAG, 'create session error:' + error, true)
     }
   }
 
@@ -110,7 +107,7 @@ export default class AVSessionUtil {
       filter: avSession.ProtocolType.TYPE_CAST_PLUS_STREAM | avSession.ProtocolType.TYPE_DLNA,
     }
     AVSessionUtil.avSession?.setAVMetadata(session_metadata)?.catch(() => {
-      console.error('setAVMetadata error')
+      salmonLogger.addLog(TAG, 'setAVMetadata error', true)
     })
     await AVSessionUtil.getAVCastController(metadata)
   }
@@ -128,13 +125,13 @@ export default class AVSessionUtil {
         : avSession.LoopMode.LOOP_MODE_CUSTOM,
     }
     AVSessionUtil.avSession?.setAVPlaybackState(playbackState)?.catch(() => {
-      console.error('updateSession error')
+      salmonLogger.addLog(TAG, 'updateSession error', true)
     })
   }
 
   static destroySession() {
     AVSessionUtil.avSession?.destroy()?.catch(() => {
-      console.error('destroy Session error')
+      salmonLogger.addLog(TAG, 'destroy Session error', true)
     })
     AVSessionUtil.avSession = undefined
     AVSessionUtil.pixelMap?.release()
@@ -153,15 +150,15 @@ export default class AVSessionUtil {
         let currentDevice: avSession.DeviceInfo = device?.devices?.[0]
         if (currentDevice.castCategory === avSession.AVCastCategory.CATEGORY_REMOTE &&
           connectState === avSession.ConnectionState.STATE_CONNECTED) { // 设备连接成功
-          console.error(`Device connected: ${device}`)
-          console.error('Succeeded in getting a cast controller')
+          salmonLogger.addLog(TAG, `Device connected: ${device}`)
+          salmonLogger.addLog(TAG, 'Succeeded in getting a cast controller')
           // 查询当前播放的状态
           AVSessionUtil.castController = await AVSessionUtil.avSession?.getAVCastController()
           let avPlaybackState = await AVSessionUtil.castController?.getAVPlaybackState()
-          console.error(`Succeeded in AVPlaybackState resource obtained: ${avPlaybackState}`)
+          salmonLogger.addLog(TAG, `Succeeded in AVPlaybackState resource obtained: ${avPlaybackState}`)
           // 监听播放状态的变化
           AVSessionUtil.castController?.on('playbackStateChange', 'all', (state: avSession.AVPlaybackState) => {
-            console.error(`Succeeded in Playback state changed: ${state}`)
+            salmonLogger.addLog(TAG, `Succeeded in Playback state changed: ${state}`)
           })
           if (currentDevice.supportedProtocols === avSession.ProtocolType.TYPE_CAST_PLUS_STREAM) {
             await AVSessionUtil.playItem(now_playing)
@@ -173,7 +170,7 @@ export default class AVSessionUtil {
         }
       })
     } catch (error) {
-      console.error('getAVCastController error' + error)
+      salmonLogger.addLog(TAG, 'getAVCastController error' + error, true)
     }
   }
 
@@ -204,14 +201,14 @@ export default class AVSessionUtil {
       }
       // 准备播放，这个不会触发真正的播放，会进行加载和缓冲
       AVSessionUtil.castController?.prepare(playItem, () => {
-        console.info('Preparation done')
+        salmonLogger.addLog(TAG, 'Preparation done')
         // 启动播放，真正触发对端播放。请在Prepare成功后再调用start。
         AVSessionUtil.castController?.start(playItem, () => {
-          console.info('Playback started')
+          salmonLogger.addLog(TAG, 'Playback started')
         })
       })
     } catch (error) {
-      console.error('play item error:' + error)
+      salmonLogger.addLog(TAG, 'play item error:' + error, true)
     }
   }
 }

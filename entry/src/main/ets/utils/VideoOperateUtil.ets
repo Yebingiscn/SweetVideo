@@ -68,7 +68,8 @@ export default class VideoOperateUtil {
       }
       VideoOperateUtil.mainWin.setWindowBrightness(screenBrightness, (err) => {
         if (err && err.code !== 0) {
-          console.error(`Failed to obtain the main window. Cause code: ${err.code}, message: ${err.message}`)
+          salmonLogger.addLog(TAG, `Failed to obtain the main window. Cause code: ${err.code}, message: ${err.message}`,
+            true)
           hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness. Cause: ${JSON.stringify(err)}`)
           return
         }
@@ -206,7 +207,7 @@ export default class VideoOperateUtil {
       return new Promise((resolve, reject) => {
         avPlayer.getTrackDescription((error: BusinessError, arrList: Array<media.MediaDescription>) => {
           if (error || !arrList || arrList.length === 0) {
-            console.error(`Failed to get TrackDescription, error: ${error}`)
+            salmonLogger.addLog(TAG, `Failed to get TrackDescription, error: ${error}`, true)
             return reject(error || new Error("No subtitleTracks available"))
           }
           const subtitleTracks: SubtitleTrack[] = arrList
@@ -214,7 +215,6 @@ export default class VideoOperateUtil {
             description[media.MediaDescriptionKey.MD_KEY_TRACK_TYPE] === media.MediaType.MEDIA_TYPE_SUBTITLE
             )
             .map((description): SubtitleTrack => {
-              console.error('description', JSON.stringify(description))
               return {
                 id: description[media.MediaDescriptionKey.MD_KEY_TRACK_INDEX] as number,
                 lang: description[media.MediaDescriptionKey.MD_KEY_LANGUAGE] as string,
@@ -230,52 +230,50 @@ export default class VideoOperateUtil {
       const subtitleTracks = await getTrackDescriptions()
       return subtitleTracks // 返回包含字幕索引、语言和名称的对象数组
     } catch (error) {
-      console.error("获取 subtitleTracks 失败:", error)
+      salmonLogger.addLog(TAG, "获取 subtitleTracks 失败: " + error, true)
       return [] // 返回空数组表示没有获取到音轨
     }
   }
 
   // 保存视频播放进度
-  // ORM 改造：SelectFileUtil.saveData 和 RecentPlayUtil.addPlayback 已改为异步，
-  // 因此所有 save 方法都改为 async，确保数据库写入完成后再返回，避免应用切后台时数据丢失。
-  static async saveVideoTime(play_time: number, nowPlaying: VideoMetadata,
-    videoMetaData: VideoMetadata[], context: Context): Promise<void> {
+  static saveVideoTime(play_time: number, nowPlaying: VideoMetadata,
+    videoMetaData: VideoMetadata[], context: Context) {
     // 保存文件数据
-    await SelectFileUtil.saveData(context, nowPlaying!, { playTime: play_time })
+    SelectFileUtil.saveData(context, nowPlaying!, { playTime: play_time })
     if (Setting.recentPlay && !PrivacySpaceUtil.getPrivacyMode() &&
       !SelectFileUtil.isPathFromSource(nowPlaying.uri, VideoSource.PRIVACY_SPACE)) { // 最近播放开启且非隐私空间视频则添加到最近播放
       const meta = videoMetaData.find(i => i.date == nowPlaying?.date)
       if (meta) {
-        await RecentPlayUtil.addPlayback(context, meta)
+        RecentPlayUtil.addPlayback(context, meta)
       }
     }
   }
 
   // 保存视频片头时间
-  static async saveVideoStartTime(startTime: number, nowPlaying: VideoMetadata, context: Context): Promise<void> {
-    await SelectFileUtil.saveData(context, nowPlaying, { startTime: startTime })
+  static saveVideoStartTime(startTime: number, nowPlaying: VideoMetadata, context: Context) {
+    SelectFileUtil.saveData(context, nowPlaying, { startTime: startTime })
   }
 
   // 保存视频片尾时间
-  static async saveVideoEndTime(endTime: number, nowPlaying: VideoMetadata, context: Context): Promise<void> {
-    await SelectFileUtil.saveData(context, nowPlaying, { endTime: endTime })
+  static saveVideoEndTime(endTime: number, nowPlaying: VideoMetadata, context: Context) {
+    SelectFileUtil.saveData(context, nowPlaying, { endTime: endTime })
   }
 
   // 保存音视频宽高信息
-  static async saveVideoWeightAndHeight(context: Context, nowPlaying: VideoMetadata): Promise<void> {
-    await SelectFileUtil.saveData(context, nowPlaying!, { size: nowPlaying.size })
+  static saveVideoWeightAndHeight(context: Context, nowPlaying: VideoMetadata) {
+    SelectFileUtil.saveData(context, nowPlaying!, { size: nowPlaying.size })
   }
 
-  static async saveVideoTotalTime(context: Context, nowPlaying: VideoMetadata): Promise<void> {
-    await SelectFileUtil.saveData(context, nowPlaying!, { totalTime: nowPlaying.time })
+  static saveVideoTotalTime(context: Context, nowPlaying: VideoMetadata) {
+    SelectFileUtil.saveData(context, nowPlaying!, { totalTime: nowPlaying.time })
   }
 
-  static async saveVideoPointA(context: Context, nowPlaying: VideoMetadata, pointA?: number): Promise<void> {
-    await SelectFileUtil.saveData(context, nowPlaying!, { pointA: pointA })
+  static saveVideoPointA(context: Context, nowPlaying: VideoMetadata, pointA?: number) {
+    SelectFileUtil.saveData(context, nowPlaying!, { pointA: pointA })
   }
 
-  static async saveVideoPointB(context: Context, nowPlaying: VideoMetadata, pointB?: number): Promise<void> {
-    await SelectFileUtil.saveData(context, nowPlaying!, { pointB: pointB })
+  static saveVideoPointB(context: Context, nowPlaying: VideoMetadata, pointB?: number) {
+    SelectFileUtil.saveData(context, nowPlaying!, { pointB: pointB })
   }
 
   static saveLastPlayVideoIndex(list: VideoMetadata[], date: string | undefined) {
@@ -346,7 +344,7 @@ export default class VideoOperateUtil {
     if (orientation) {
       XAnimation.runWithAnimation(async () => {
         (await windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
-          console.error('setPreferredOrientation error')
+          salmonLogger.addLog(TAG, 'setPreferredOrientation error', true)
         })
       })
     }
