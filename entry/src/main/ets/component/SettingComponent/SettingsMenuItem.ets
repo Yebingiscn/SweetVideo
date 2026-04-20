@@ -44,5 +44,16 @@ export struct SettingsMenuItem {
         })
         .divider(null)
     }
+    .align(Alignment.Center)
+    .backgroundColor($r('app.color.start_window_background_blur'))
+    .height(65)
+    .borderRadius(16)
+    .padding({
+      right: 15,
+      left: 15,
+      top: 10,
+      bottom: 10
+    })
+    .margin({ top: 5, bottom: 5 })
   }
 }

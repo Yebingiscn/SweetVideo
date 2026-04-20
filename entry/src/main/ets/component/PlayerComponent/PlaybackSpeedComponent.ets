@@ -30,7 +30,7 @@ export struct PlaybackSpeedMenuComponent {
         .onChange((value) => {
           this.onSpeedChange(value)
         })
-        .padding({ left: 5 })
+        .padding({ left: 15 })
     }
   }
 }

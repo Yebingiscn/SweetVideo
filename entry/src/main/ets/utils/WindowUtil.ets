@@ -80,6 +80,11 @@ export class WindowUtil {
           AppStorage.get('enableLandscapeMultiWindow') ? WindowUtil.disableLandscapeMultiWindow(windowClass) :
             WindowUtil.enableLandscapeMultiWindow(windowClass)
           return undefined
+        case window.WindowStatusType.MAXIMIZE:
+          if (Pc.pcMode) {
+            await WindowUtil?.maximize?.()
+            return undefined
+          }
         case window.WindowStatusType.FULL_SCREEN:
           if (Pc.pcMode) {
             await WindowUtil?.recover?.()
@@ -121,14 +126,15 @@ export class WindowUtil {
   public static async maximize(): Promise<void> {
     if (canIUse('SystemCapability.Window.SessionManager')) {
       try {
-        if ((await WindowUtil.getWindow())?.getWindowStatus() === window.WindowStatusType.FLOATING) {
+        if ((await WindowUtil.getWindow())?.getWindowStatus() === window.WindowStatusType.FLOATING ||
+          (await WindowUtil.getWindow())?.getWindowStatus() === window.WindowStatusType.MAXIMIZE) {
           (await WindowUtil.getWindow())?.maximize()
             .then(() => {
-              salmonLogger.addLog(TAG, 'Succeed in maximizing the window.', false)
+              salmonLogger.addLog(TAG, 'test Succeed in maximizing the window.', false)
             })
             ?.catch((err: BusinessError) => {
               hilog.error(0x0000, 'testTag',
-                `Failed to maximize the window. Code: ${err.code}, message: ${err.message}`,
+                `test Failed to maximize the window. Code: ${err.code}, message: ${err.message}`,
                 JSON.stringify(err) ?? '')
             })
         }
@@ -141,13 +147,15 @@ export class WindowUtil {
   public static async recover(): Promise<void> {
     if (canIUse('SystemCapability.Window.SessionManager')) {
       try {
-        if ((await WindowUtil.getWindow())?.getWindowStatus() === window.WindowStatusType.FULL_SCREEN) {
+        if ((await WindowUtil.getWindow())?.getWindowStatus() === window.WindowStatusType.FULL_SCREEN ||
+          (await WindowUtil.getWindow())?.getWindowStatus() === window.WindowStatusType.MAXIMIZE) {
           (await WindowUtil.getWindow())?.recover()
             .then(() => {
-              salmonLogger.addLog(TAG, 'Succeed in recovering the window.', false)
+              salmonLogger.addLog(TAG, 'test Succeed in recovering the window.', false)
             })
             ?.catch((err: BusinessError) => {
-              salmonLogger.addLog(TAG, `Failed to recover the window. Code: ${err.code}, message: ${err.message}`, true)
+              salmonLogger.addLog(TAG, `test Failed to recover the window. Code: ${err.code}, message: ${err.message}`,
+                true)
             })
         }
       } catch (error) {
@@ -187,7 +195,7 @@ export class WindowUtil {
       WindowUtil.isInit = true
       await WindowUtil.windowClass.setWindowLayoutFullScreen(true)
       if (canIUse('SystemCapability.Window.SessionManager')) {
-        WindowUtil.windowClass.setWindowDecorVisible(false)
+        WindowUtil.windowClass.setWindowDecorVisible(true)
         if (canIUse('SystemCapability.Applications.Settings.Core')) {
           settings.registerKeyObserver(context, 'window_pcmode_switch_status',
             settings.domainName.USER_PROPERTY, () => WindowUtil.updatePCMode(context))
@@ -244,7 +252,7 @@ export class WindowUtil {
     try {
       let windowClass = await window.getLastWindow(context)
       windowClass.minimize((err: BusinessError) => {
-        const errCode: number = err.code;
+        const errCode: number = err.code
         if (errCode) {
           salmonLogger.addLog(TAG, `Failed to minimize the window. Code: ${err.code}, message: ${err.message}`, true)
           return
@@ -275,8 +283,7 @@ export class WindowUtil {
       const uiContext = WindowUtil.windowClass?.getUIContext()
       if (canIUse('SystemCapability.Window.SessionManager')) {
         SafeHeight.topSafeHeight = Math.max(uiContext?.px2vp(cutOut.topRect.height * 1.4)!,
-          uiContext?.px2vp(system.topRect.height)!,
-          windowClass.getWindowDecorHeight())
+          uiContext?.px2vp(system.topRect.height)!, Pc.pcMode ? 0 : windowClass.getWindowDecorHeight())
       }
       SafeHeight.bottomSafeHeight = uiContext?.px2vp(Math.max(nav.bottomRect.height, system.bottomRect.height * 1.4,
         cutOut.bottomRect.height * 1.4)) || 0

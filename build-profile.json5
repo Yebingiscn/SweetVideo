@@ -5,13 +5,13 @@
         "name": "default",
         "type": "HarmonyOS",
         "material": {
-          "certpath": "/Users/linjingjing/.ohos/config/default_SweetVideo_PFCdFWWtgeJBmj_QoqCVZE_FTisWA0O4t4ZBThTTwhk=.cer",
+          "certpath": "C:\\Users\\a1309\\.ohos\\config\\default_SweetVideo_mHFSh8UrYrDaKYjT_it6fLECWayrLvjj5My678w-RjQ=.cer",
           "keyAlias": "debugKey",
-          "keyPassword": "000000192F0C7FAF73959333949202B23BC0EF237456A926F2447B65F4193D0D00AE4E7CA46957C1AC",
-          "profile": "/Users/linjingjing/.ohos/config/default_SweetVideo_PFCdFWWtgeJBmj_QoqCVZE_FTisWA0O4t4ZBThTTwhk=.p7b",
+          "keyPassword": "0000001B8E6FFDE8CB313577804D46D649CFD907D6A3136B28CB8C9E5DAD76B924AB6D1D116DD0250EA929",
+          "profile": "C:\\Users\\a1309\\.ohos\\config\\default_SweetVideo_mHFSh8UrYrDaKYjT_it6fLECWayrLvjj5My678w-RjQ=.p7b",
           "signAlg": "SHA256withECDSA",
-          "storeFile": "/Users/linjingjing/.ohos/config/default_SweetVideo_PFCdFWWtgeJBmj_QoqCVZE_FTisWA0O4t4ZBThTTwhk=.p12",
-          "storePassword": "00000019365AC91027174702ADF8D827F1F8D3821AB34D598DB84C09777E1780142921F6EC85197F74"
+          "storeFile": "C:\\Users\\a1309\\.ohos\\config\\default_SweetVideo_mHFSh8UrYrDaKYjT_it6fLECWayrLvjj5My678w-RjQ=.p12",
+          "storePassword": "0000001B34DE37754AC8891D2226646C1324704D949783AC5E806AB3059C9A49A93A0C7832B2486E95D6B9"
         }
       }
     ],

@@ -1,3 +1,4 @@
+import { SymbolGlyphFancyModifier } from "../../common/AttributeModifierConfig"
 
 @Component
 export struct SettingsClickItem {

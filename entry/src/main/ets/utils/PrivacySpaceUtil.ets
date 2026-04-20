@@ -1,3 +1,4 @@
+import DlpAntiPeepUtil from './DlpAntiPeepUtil'
 
 // 隐私空间工具类
 export default class PrivacySpaceUtil {

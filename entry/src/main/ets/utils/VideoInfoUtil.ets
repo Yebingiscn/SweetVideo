@@ -7,6 +7,7 @@ import { salmonLogger } from 'salmonlogger'
 import { image } from '@kit.ImageKit'
 import { extractVideoFrameAsCoverInTaskPool } from './TaskpoolUtil'
 import ToolsUtil from './ToolsUtil'
+import fileIo from '@ohos.file.fs'
 
 const TAG = 'VideoInfoUtil'
 
@@ -130,8 +131,8 @@ export default class VideoInfoUtil {
   static async getVideoSize(uri: string, return_string: boolean): Promise<string | number> {
     return new Promise((resolve, reject) => {
       try {
-        let file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
-        fs.stat(file.fd, (err: BusinessError, stat: fs.Stat) => {
+        let file = fileIo.openSync(uri, fileIo.OpenMode.READ_ONLY)
+        fileIo.stat(file.fd, (err: BusinessError, stat: fileIo.Stat) => {
           if (err) {
             reject('app.string.unknown_size')
           } else if (return_string) {
