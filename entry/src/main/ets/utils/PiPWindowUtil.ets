@@ -14,11 +14,24 @@ const TAG = 'PiPWindowUtil'
 export default class PiPWindowUtil {
   static pipController?: PiPWindow.PiPController | undefined = undefined
   static playerController ?: PlayerControllerInterface | undefined = undefined
+  static pipOpenState: boolean = false
 
   static startPip() {
     if (PiPWindowUtil.pipController) {
-      PiPWindowUtil.pipController.startPiP().catch(() => {
+      PiPWindowUtil.pipController.startPiP().then(() => {
+        PiPWindowUtil.pipOpenState = true
+      }).catch(() => {
         salmonLogger.addLog(TAG, 'startPiP failed', true)
+      })
+    }
+  }
+
+  static stopPip() {
+    if (PiPWindowUtil.pipController) {
+      PiPWindowUtil.pipController.stopPiP().then(() => {
+        PiPWindowUtil.pipOpenState = false
+      }).catch(() => {
+        salmonLogger.addLog(TAG, 'stopPiP failed', true)
       })
     }
   }
@@ -64,6 +77,10 @@ export default class PiPWindowUtil {
     if (!PiPWindowUtil.pipController) {
       return
     }
+    if (PiPWindowUtil.pipOpenState) {
+      PiPWindowUtil.stopPip()
+    }
+    PiPWindowUtil.pipOpenState = false
     PiPWindowUtil.pipController.setAutoStartEnabled(false)
     PiPWindowUtil.pipController.off('stateChange')
     PiPWindowUtil.pipController.off('controlPanelActionEvent')
@@ -80,7 +97,6 @@ export default class PiPWindowUtil {
   }
 
   static onActionEvent(event: PiPWindow.PiPActionEventType, status?: number) {
-    // if (PiPWindowUtil.playerController instanceof AVPlayerController) {
     const controller = PiPWindowUtil.playerController
     switch (event) {
       case 'playbackStateChanged':

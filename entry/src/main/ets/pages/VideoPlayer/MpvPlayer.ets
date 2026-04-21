@@ -380,6 +380,11 @@ export struct MpvPlayer {
       .sideBarPosition(SideBarPosition.End)
       .divider({ strokeWidth: 0 })
     }
+    .onShown(() => {
+      if (PiPWindowUtil.pipOpenState) {
+        PiPWindowUtil.stopPip()
+      }
+    })
     .onReady(() => {
       const playerParams: PlayerParams =
         this.pathStack.getParamByName(NavigationAddress.MPV_PLAYER)[0] as PlayerParams

@@ -273,6 +273,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   setListenVideoStatus() {
     this.avPlayer?.setMediaMuted(media.MediaType.MEDIA_TYPE_VID, this.isListenVideo)?.catch(() => {
       ToolsUtil.addLogger('设置听视频失败', true)
+      this.isListenVideo = false
     })
     ToolsUtil.addLogger(`视频听视频设置为：${this.isListenVideo}`, false)
   }
