@@ -2,13 +2,11 @@ import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import TimeUtil from '../../utils/TimeUtil'
 
-@Component
+@ComponentV2
 export struct VideoSliderComponent {
-  @Consume('player') player: AVPlayerController | MpvController
-  onSliderChange = (_value: number) => {
-  }
-  onSliderTouch = (_event: TouchEvent) => {
-  }
+  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Event onSliderChange: (_value: number) => void = () => {}
+  @Event onSliderTouch: (_event: TouchEvent) => void = () => {}
 
   build() {
     Column() {

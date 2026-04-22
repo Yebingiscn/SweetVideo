@@ -7,9 +7,20 @@ import { salmonLogger } from 'salmonlogger'
 
 const TAG = 'PrivacyPolicyComponent'
 
-@Component
+@ComponentV2
 export struct PrivacyPolicyComponent {
-  @Link isPresent: boolean
+  @Param isPresent: boolean = false
+  @Event onIsPresentChange: (v: boolean) => void = () => {}
+  @Local localIsPresent: boolean = false
+
+  aboutToAppear(): void {
+    this.localIsPresent = this.isPresent
+  }
+
+  @Monitor('isPresent')
+  onIsPresentMonitor() {
+    this.localIsPresent = this.isPresent
+  }
 
   @Builder
   privacyInfoBuilder() {
@@ -73,7 +84,8 @@ export struct PrivacyPolicyComponent {
           .onClick(() => {
             ToolsUtil.startVibration()
             Preferences.saveOOBEVersion(PathUtils.appContext!, OOBEVersion)
-            this.isPresent = false // 直接关闭弹窗
+            this.localIsPresent = false // 直接关闭弹窗
+            this.onIsPresentChange(false)
           })
           .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
           .fontColor($r('sys.color.white'))
@@ -94,7 +106,7 @@ export struct PrivacyPolicyComponent {
 
   build() {
     Stack() {
-    }.bindSheet($$this.isPresent, this.privacyInfoBuilder, {
+    }.bindSheet(this.localIsPresent, this.privacyInfoBuilder, {
       detents: [SheetSize.FIT_CONTENT],
       height: SheetSize.LARGE,
       preferType: SheetType.CENTER,
@@ -106,6 +118,8 @@ export struct PrivacyPolicyComponent {
         if (DismissSheetAction.reason == DismissReason.SLIDE_DOWN ||
           DismissSheetAction.reason == DismissReason.PRESS_BACK ||
           DismissSheetAction.reason == DismissReason.TOUCH_OUTSIDE) {
+          this.localIsPresent = false
+          this.onIsPresentChange(false)
           PathUtils.appContext?.terminateSelf()?.catch(() => {
             salmonLogger.addLog(TAG, 'exit app error', true)
           })

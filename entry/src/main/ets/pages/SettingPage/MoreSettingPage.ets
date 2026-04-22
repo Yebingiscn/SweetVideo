@@ -14,9 +14,9 @@ import WantProcess from '../../utils/WantProcessUtil'
 
 const TAG = 'MoreSettingPage'
 
-@Component
+@ComponentV2
 export struct MoreSettingPage {
-  @Consume('pathStack') pathStack: NavPathStack
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
 
   build() {
     NavDestination() {

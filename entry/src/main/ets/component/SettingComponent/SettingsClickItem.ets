@@ -1,14 +1,12 @@
 import { SymbolGlyphFancyModifier } from "../../common/AttributeModifierConfig"
 
-@Component
+@ComponentV2
 export struct SettingsClickItem {
-  @Prop symbol: Resource | undefined = undefined
-  @Prop message: ResourceStr = ''
-  @Prop showArrow: boolean = true
-  onPress = () => {
-  }
-  onLongPress = () => {
-  }
+  @Param symbol: Resource | undefined = undefined
+  @Param message: ResourceStr = ''
+  @Param showArrow: boolean = true
+  @Event onPress: () => void = () => {}
+  @Event onLongPress: () => void = () => {}
 
   build() {
     Button({ type: ButtonType.Normal, stateEffect: true }) {

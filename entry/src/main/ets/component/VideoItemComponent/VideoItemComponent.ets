@@ -29,13 +29,13 @@ import { VideoItemPreviewBuilder } from './VideoItemPreviewBuilder'
 import VideoListItem from './VideoListItemComponent'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 
-@Observed
+@ObservedV2
 export class VideoListController {
-  public folder: FileFolder
+  @Trace public folder: FileFolder
   listScroller: ListScroller = new ListScroller()
-  videoMetaDataList: VideoMetadata[]
-  multipleChooseState: Visibility = Visibility.None
-  listLine: number = 1
+  @Trace videoMetaDataList: VideoMetadata[]
+  @Trace multipleChooseState: Visibility = Visibility.None
+  @Trace listLine: number = 1
   videoDataSource: VideoDataSource
   private listeners: DataChangeListener[] = []
 
@@ -119,11 +119,13 @@ export class VideoListController {
   }
 }
 
-@Component
+@ComponentV2
 export struct VideoList {
-  @Link searchValue: string
-  @Link videoListController: VideoListController
-  @Consume fileFolderSource: FileFolderDataSource
+  @Param searchValue: string = ''
+  @Event onSearchValueChange: (v: string) => void = () => {}
+  @Local _searchValue: string = ''
+  @Param videoListController: VideoListController = new VideoListController()
+  @Consumer() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   delConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDeleteDialog({
       confirm: async (deleteType: DeleteType) => {
@@ -166,22 +168,39 @@ export struct VideoList {
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @Consume file_folder_list: FileFolder[]
-  @Consume sideBarController: SideBarController
+  @Consumer() file_folder_list: FileFolder[] = []
+  @Consumer() sideBarController: SideBarController = new SideBarController()
   searchController: SearchController = new SearchController()
-  @Consume('pathStack') pathStack: NavPathStack
-  @Link delMultipleList: VideoMetadata[]
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
+  @Param delMultipleList: VideoMetadata[] = []
+  @Event onDelMultipleListChange: (v: VideoMetadata[]) => void = () => {}
+  @Local _delMultipleList: VideoMetadata[] = []
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
   })
 
+  aboutToAppear(): void {
+    this._searchValue = this.searchValue
+    this._delMultipleList = [...this.delMultipleList]
+  }
+
+  @Monitor('searchValue')
+  onSearchValueMonitor() {
+    this._searchValue = this.searchValue
+  }
+
+  @Monitor('delMultipleList')
+  onDelMultipleListMonitor() {
+    this._delMultipleList = [...this.delMultipleList]
+  }
+
   @Builder
   VideoItemBuilder(item: VideoMetadata) {
     VideoListItem({
       item: item,
-      delMultipleList: this.delMultipleList
-    }).backgroundColor($r('app.color.start_window_background')).reuseId(`VideoListItem#${item.uri}`).borderRadius(16)
+      delMultipleList: this._delMultipleList
+    }).backgroundColor($r('app.color.start_window_background')).borderRadius(16)
   }
 
   build() {
@@ -235,11 +254,13 @@ export struct VideoList {
                   return
                 } else {
                   //已存在，标记置反
-                  if (this.delMultipleList.some(video => video.date === item.date)) {
-                    this.delMultipleList =
-                      this.delMultipleList.filter(video => video.date !== item.date)
+                  if (this._delMultipleList.some(video => video.date === item.date)) {
+                    this._delMultipleList =
+                      this._delMultipleList.filter(video => video.date !== item.date)
+                    this.onDelMultipleListChange([...this._delMultipleList])
                   } else {
-                    this.delMultipleList.push(item)
+                    this._delMultipleList.push(item)
+                    this.onDelMultipleListChange([...this._delMultipleList])
                   }
                 }
               })
@@ -278,8 +299,8 @@ export struct VideoList {
               FlowItem() {
                 VideoCardItem({
                   item: item,
-                  delMultipleList: this.delMultipleList
-                }).width('100%').reuseId(`VideoCardItem#${item.uri}`)
+                  delMultipleList: this._delMultipleList
+                }).width('100%')
               }
               .backgroundColor(Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
                 $r('app.color.start_window_background'))
@@ -321,11 +342,13 @@ export struct VideoList {
                       return
                     } else {
                       //已存在，标记置反
-                      if (this.delMultipleList.some(video => video.date === item.date)) {
-                        this.delMultipleList =
-                          this.delMultipleList.filter(video => video.date !== item.date)
+                      if (this._delMultipleList.some(video => video.date === item.date)) {
+                        this._delMultipleList =
+                          this._delMultipleList.filter(video => video.date !== item.date)
+                        this.onDelMultipleListChange([...this._delMultipleList])
                       } else {
-                        this.delMultipleList.push(item)
+                        this._delMultipleList.push(item)
+                        this.onDelMultipleListChange([...this._delMultipleList])
                       }
                     }
                   })
@@ -371,10 +394,11 @@ export struct VideoList {
       salmonLogger.addLog(this.pathStack.getAllPathName()[0],
         'closeAllSwipeActions failed: ' + error.code + ':' + error.message, true)
     }
-    if (this.searchValue) {
+    if (this._searchValue) {
       setTimeout(() => {
-        AppStorage.setOrCreate('searchValue', this.searchValue)
-        this.searchValue = ''
+        AppStorage.setOrCreate('searchValue', this._searchValue)
+        this._searchValue = ''
+        this.onSearchValueChange('')
       }, 500)
     }
     await SelectFileUtil.isFileExist(item.uri, true) ?
@@ -421,7 +445,8 @@ export struct VideoList {
           DataSyncUtil.delMultipleList.length = 0
           // 选择当前项
           if (item) {
-            this.delMultipleList.push(item)
+            this._delMultipleList.push(item)
+            this.onDelMultipleListChange([...this._delMultipleList])
           }
         })
       MenuItem({

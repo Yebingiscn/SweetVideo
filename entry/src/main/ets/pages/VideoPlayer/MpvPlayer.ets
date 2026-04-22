@@ -56,14 +56,14 @@ import Preferences from '../../database/Preferences'
 
 const TAG = 'MpvPlayer'
 
-@Component
+@ComponentV2
 export struct MpvPlayer {
   xComponentController: XComponentController = new XComponentController()
   osdXController: XComponentController = new XComponentController()
-  @State subtitleVisibility: Visibility = Visibility.Visible
-  @State lockRotation: boolean = false
-  @Consume('pathStack') pathStack: NavPathStack
-  @Provide('player') mpv: MpvController = PlayerControllerFactory.createMpvController()
+  @Local subtitleVisibility: Visibility = Visibility.Visible
+  @Local lockRotation: boolean = false
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
+  @Provider('player') mpv: MpvController = PlayerControllerFactory.createMpvController()
   personalScreenExtendDialog: CustomDialogController = new CustomDialogController({
     builder: NumberInputDialog({
       title: '自定义屏幕拓展比例',
@@ -78,12 +78,12 @@ export struct MpvPlayer {
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @State isAIAsrShown: boolean = false
-  @State currentSpeedIndex: number = 0
-  @State sideBarStatus: boolean = false
-  @State sideBarStatusTmp: Visibility = Visibility.Hidden
-  @State subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
-  @State exitVideoTime: number = 0
+  @Local isAIAsrShown: boolean = false
+  @Local currentSpeedIndex: number = 0
+  @Local sideBarStatus: boolean = false
+  @Local sideBarStatusTmp: Visibility = Visibility.Hidden
+  @Local subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
+  @Local exitVideoTime: number = 0
 
   async aboutToAppear(): Promise<void> {
     this.mpv.prepare()
@@ -123,7 +123,9 @@ export struct MpvPlayer {
       SideBarContainer(SideBarContainerType.Overlay) {
         PlayerSideBarComponent({
           sideBarStatusTmp: this.sideBarStatusTmp,
+          onSideBarStatusTmpChange: (v: Visibility) => { this.sideBarStatusTmp = v },
           sideBarStatus: this.sideBarStatus,
+          onSideBarStatusChange: (v: boolean) => { this.sideBarStatus = v },
           onItemClick: async (item: VideoMetadata) => {
             await this.mpv.playChooseVideo(item, this.pathStack)
             this.closeSideBar(true)
@@ -361,6 +363,7 @@ export struct MpvPlayer {
 
           AISubtitleComponent({
             isAIAsrShown: this.isAIAsrShown,
+            player: this.mpv,
           })
         }.onAreaChange(async (_oldValue: Area, newValue: Area) => {
           this.mpv.screenWidth = Math.floor(new Number(newValue.width).valueOf())
@@ -547,7 +550,9 @@ export struct MpvPlayer {
         this.PlaybackSpeedMenuBuilder()
       },
       sideBarStatusTmp: this.sideBarStatusTmp,
+      onSideBarStatusTmpChange: (v: Visibility) => { this.sideBarStatusTmp = v },
       sideBarStatus: this.sideBarStatus,
+      onSideBarStatusChange: (v: boolean) => { this.sideBarStatus = v },
       onScreenRotationOrFullScreenClick: async () => {
         VideoOperateUtil.fullScreenOrRotateScreen(this.mpv.screenWidth, this.mpv.screenHeight, this.mpv.windowClass)
       },
@@ -651,6 +656,7 @@ export struct MpvPlayer {
       subtitleVisibility: this.subtitleVisibility,
       isAIAsrShown: this.isAIAsrShown,
       subtitle3DMode: this.subtitle3DMode,
+      onSubtitle3DModeChange: (v: Subtitle3DMode) => { this.subtitle3DMode = v }
     })
   }
 

@@ -48,28 +48,29 @@ import { salmonLogger } from 'salmonlogger'
 const TAG = 'Index'
 
 @Entry
-@Component
+@ComponentV2
 struct Index {
-  @State list_empty_item: string[] = ['']
-  @State loading: boolean = false
-  @State processedItems: number = 0
-  @State totalItems: number = 0
-  @State currentFileName: string = '' // 当前处理的文件名
-  @State importSpeed: number = 0 // 处理速度
-  @State elapsedTime: number = 0 // 已耗时
-  @State failedCount: number = 0 // 失败文件数
-  @Provide file_folder_list: FileFolder[] = []
+  @Local list_empty_item: string[] = ['']
+  @Local loading: boolean = false
+  @Local processedItems: number = 0
+  @Local totalItems: number = 0
+  @Local currentFileName: string = '' // 当前处理的文件名
+  @Local importSpeed: number = 0 // 处理速度
+  @Local elapsedTime: number = 0 // 已耗时
+  @Local failedCount: number = 0 // 失败文件数
+  @Provider() file_folder_list: FileFolder[] = []
+  @Local searchValue: string = ''
+  @Local screen_width: number = AppStorage.get('screen_width') as number ?? 0
+  @Provider() videoListController: VideoListController = new VideoListController()
+  @Provider() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: AddFileFolderNameDialog({
+      fileFolderSource: this.fileFolderSource,
       onFolderAdded: (folders: FileFolder[]) => {
         this.file_folder_list = folders
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @State searchValue: string = ''
-  @StorageLink('screen_width') screen_width: number = 0
-  @Provide videoListController: VideoListController = new VideoListController()
-  @Provide fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   editFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: EditFileFolderNameDialog({
       confirm: async (newFolderName: string | undefined) => {
@@ -81,8 +82,9 @@ struct Index {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @Provide sideBarController: SideBarController = new SideBarController()
-  @Provide('pathStack') pathStack: NavPathStack = new NavPathStack()
+  @Provider() sideBarController: SideBarController = new SideBarController()
+  @Provider('pathStack') pathStack: NavPathStack = new NavPathStack()
+  @Local scrollToFolderDate: string = ''
   deletedVideosDialogController: CustomDialogController = new CustomDialogController({
     builder: DeletedVideosDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -334,7 +336,7 @@ struct Index {
                     this.videoListController.videoDataSource.updateData(currentFolder.video_list)
                     this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder!)
                     // 同步面包屑选中状态
-                    AppStorage.setOrCreate('scrollToFolderDate', folder.date)
+                    this.scrollToFolderDate = folder.date
                     this.sideBarController.close(true)
                   })
                   .bindContextMenu(this.FileFolderSelectMenu(folder), ResponseType.LongPress)
@@ -417,7 +419,10 @@ struct Index {
           VideoView({
             loading: this.loading,
             searchValue: this.searchValue,
-            videoListController: this.videoListController
+            onSearchValueChange: (v: string) => { this.searchValue = v },
+            videoListController: this.videoListController,
+            scrollToFolderDate: this.scrollToFolderDate,
+            onScrollToFolderDateChange: (v: string) => { this.scrollToFolderDate = v }
           }).scale({
             x: this.sideBarController.isShow === true ? 0.95 : 1,
             y: this.sideBarController.isShow ? 0.95 : 1
@@ -643,7 +648,7 @@ struct Index {
     }
 
     // 触发面包屑滚动（为 Task 2 预留）
-    AppStorage.setOrCreate('scrollToFolderDate', targetFolder.date)
+    this.scrollToFolderDate = targetFolder.date
 
     // 滚动侧边栏使当前文件夹可见
     // 估算位置：AppInfoBuilder(100) + 导入按钮(60) + 添加文件夹按钮(60) + 间距(40) = 260

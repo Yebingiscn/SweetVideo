@@ -1,19 +1,26 @@
 import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 
-@Component
+@ComponentV2
 export struct SettingsMenuItem {
-  @State symbol: Resource | undefined = undefined
-  @State message: ResourceStr = ''
-  @Prop selected: number = 0
-  @State list: ResourceStr[] = []
-  @State private select: SelectOption[] = []
-  onChange = (_index: number) => {
+  @Param symbol: Resource | undefined = undefined
+  @Param message: ResourceStr = ''
+  @Param selected: number = 0
+  @Local _selected: number = 0
+  @Param list: ResourceStr[] = []
+  @Local private select: SelectOption[] = []
+  @Event onChange: (_index: number) => void = () => {
   }
 
   aboutToAppear(): void {
+    this._selected = this.selected
     for (let text of this.list) {
       this.select.push({ value: text })
     }
+  }
+
+  @Monitor('selected')
+  onSelectedMonitor() {
+    this._selected = this.selected
   }
 
   build() {
@@ -31,15 +38,15 @@ export struct SettingsMenuItem {
       .layoutWeight(1)
 
       Select(this.select)
-        .selected(this.selected)
-        .value(this.list[this.selected])
+        .selected(this._selected)
+        .value(this.list[this._selected])
         .selectedOptionFont({ weight: FontWeight.Medium })
         .selectedOptionFontColor($r('app.color.text_color'))
         .selectedOptionBgColor($r('app.color.main_color'))
         .selectedOptionFontColor($r('sys.color.white'))
         .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
         .onSelect((index: number) => {
-          this.selected = index
+          this._selected = index
           this.onChange(index)
         })
         .divider(null)

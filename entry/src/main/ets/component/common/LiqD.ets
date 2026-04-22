@@ -5,11 +5,11 @@ const commands =
   `M 72.91 15.95 Q 86.19 0.44 99.12 15.37 Q 39.53 69.56 66 107 Q 86 135 120 127 Q 112 133 106 135 Q 87 142 67 135 Q 34 121 32 85 Q 31.51 55.81 72.18 16.56 M 97 29 Q 104 23 111 29 Q 145.74 61.4 143 85 Q 141.51 96.77 136 104 Q 133.24 99.92 130.12 96.73 Q 133.57 90.3 134 85 Q 136.55 66.78 109 41 Q 104 38 100 41 Q 70.59 68.91 74.9 85.5 Q 78 105 98 111 Q 109.25 112 114 110 Q 114.3 115.21 117.31 118.24 Q 108.47 120.85 104.92 120.53 Q 96.75 120.72 89.71 117.74 Q 65.85 106.49 65 82 Q 64.37 59.12 97 29 M 123.03 96.52 Q 125.69 93.38 128.27 96.54 Q 136.4 104.37 136.25 110.45 Q 135.69 117.41 128.96 120.14 Q 124.55 121.22 121.98 119.96 Q 115.76 117.41 115.06 110.63 Q 114.33 105.26 122.98 96.5`
 const TAG = "LiqD"
 
-@Observed
+@ObservedV2
 class bool {
-  @Track size: number = this.random(300, 800)
-  @Track position: Position = { x: 0, y: 0 }
-  @Track color: ResourceColor = this.rdColor()
+  @Trace size: number = this.random(300, 800)
+  @Trace position: Position = { x: 0, y: 0 }
+  @Trace color: ResourceColor = this.rdColor()
 
   updateP(re: Size) {
     this.position = { x: this.random(0, re.width) / 2, y: this.random(0, re.height) - re.height / 2 }
@@ -30,9 +30,9 @@ class bool {
   }
 }
 
-@Component
+@ComponentV2
 export struct LiqD {
-  @State bs: bool[] = []
+  @Local bs: bool[] = []
   timer = 0
   sc = 1
   of: Position = { x: 0, y: 0 }
@@ -143,15 +143,15 @@ export struct LiqD {
 }
 
 
-@Component
+@ComponentV2
 export struct BlurText {
-  @Prop Text: ResourceStr
-  @Prop FontSize: number
-  @Prop MaxLines: number | undefined = 1
-  @Prop FontWeight: FontWeight | number = FontWeight.Bolder
-  @Prop TextAlign: TextAlign = TextAlign.Start
-  @Prop Opacity: number = 1
-  @Prop effect: BackgroundEffectOptions = {
+  @Param @Require Text: ResourceStr
+  @Param @Require FontSize: number
+  @Param MaxLines: number | undefined = 1
+  @Param FontWeight: FontWeight | number = FontWeight.Bolder
+  @Param TextAlign: TextAlign = TextAlign.Start
+  @Param Opacity: number = 1
+  @Param effect: BackgroundEffectOptions = {
     radius: 40,
     saturation: 1.3,
     brightness: 1.4,

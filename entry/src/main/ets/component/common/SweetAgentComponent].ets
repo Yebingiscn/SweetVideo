@@ -4,11 +4,11 @@ import { salmonLogger } from 'salmonlogger';
 
 const TAG = 'SweetAgentComponent'
 
-@Component
+@ComponentV2
 export struct SweetAgentComponent {
-  @Prop queryText: string = ''
-  @Prop title: string = ''
-  @State isAgentSupport: boolean = false
+  @Param queryText: string = ''
+  @Param title: string = ''
+  @Local isAgentSupport: boolean = false
   private controller: FunctionController = new FunctionController()
   private agentId: string = 'agenta368cef7304a45a9a9e18935030de62e' // 智能体对应的 agent id，由小艺智能体平台在创建智能体时指定
 

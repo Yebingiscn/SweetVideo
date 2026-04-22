@@ -1,20 +1,29 @@
 import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 
-@Component
+@ComponentV2
 export struct SettingsToggleItem {
-  @State symbol: Resource | undefined = undefined
-  @State symbol1: Resource | undefined = undefined
-  @State message: ResourceStr = ''
-  @State enable: boolean = false
-  onChange = (_checked: boolean) => {
+  @Param symbol: Resource | undefined = undefined
+  @Param symbol1: Resource | undefined = undefined
+  @Param message: ResourceStr = ''
+  @Param enable: boolean = false
+  @Local _enable: boolean = false
+  @Event onChange: (_checked: boolean) => void = () => {}
+
+  aboutToAppear(): void {
+    this._enable = this.enable
+  }
+
+  @Monitor('enable')
+  onEnableMonitor() {
+    this._enable = this.enable
   }
 
   build() {
     Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
       Row({ space: 10 }) {
-        SymbolGlyph(this.enable && this.symbol1 ? this.symbol1 : this.symbol)
+        SymbolGlyph(this._enable && this.symbol1 ? this.symbol1 : this.symbol)
           .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
-          .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this.enable))
+          .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this._enable))
         Text(this.message)
           .fontSize(17)
           .fontWeight(FontWeight.Medium)
@@ -23,9 +32,9 @@ export struct SettingsToggleItem {
           .layoutWeight(1)
       }.layoutWeight(1)
 
-      Toggle({ type: ToggleType.Switch, isOn: this.enable })
+      Toggle({ type: ToggleType.Switch, isOn: this._enable })
         .onChange((checked: boolean) => {
-          this.enable = checked
+          this._enable = checked
           this.onChange(checked)
         })
         .selectedColor($r('app.color.main_color'))

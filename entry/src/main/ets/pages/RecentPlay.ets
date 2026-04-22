@@ -15,11 +15,11 @@ import { DELAY_JUMP_TO_PLAYER } from '../common/Constants'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
 import { VideoItemPreviewBuilder } from '../component/VideoItemComponent/VideoItemPreviewBuilder'
 
-@Component
+@ComponentV2
 export struct RecentPlay { // 最近播放页
-  @State videoDataSource: VideoDataSource = new VideoDataSource([])
-  @State recent_video_meta_data: VideoMetadata[] = []
-  @Consume('pathStack') pathStack: NavPathStack
+  @Local videoDataSource: VideoDataSource = new VideoDataSource([])
+  @Local recent_video_meta_data: VideoMetadata[] = []
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow

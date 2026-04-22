@@ -33,12 +33,12 @@ export function AppInfoBuilder(params: AppInfoBuilderParams) {
   })
 }
 
-@Observed
+@ObservedV2
 export class SideBarController {
-  mode: SideBarContainerType = SideBarContainerType.Embed
-  visibility: Visibility = Visibility.Hidden
-  overlay: boolean = false
-  isShow: boolean = false
+  @Trace mode: SideBarContainerType = SideBarContainerType.Embed
+  @Trace visibility: Visibility = Visibility.Hidden
+  @Trace overlay: boolean = false
+  @Trace isShow: boolean = false
 
   public open() {
     if (this.mode === SideBarContainerType.Overlay) {

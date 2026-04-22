@@ -9,7 +9,7 @@ import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 
-@Component
+@ComponentV2
 export struct PlayerSettingPage {
   private subtitleSizeList = ['19', '20', '21', '22', '23', '24', '25', '26']
   private fastForwardSecond: FastForwardSecondInterface[] = [
@@ -65,10 +65,10 @@ export struct PlayerSettingPage {
             symbol: $r('sys.symbol.hardware'),
             message: 'MPV 解码：' + this.getMPVDecodeInfo(Setting.mpvDecodingMethod),
             tips: ['硬解（Surface）', '软解', '硬解（Buffer）'],
-            tabSelectedIndexes: [Setting.mpvDecodingMethod],
-            onButtonClick: (tabSelectedIndexes: number) => {
-              Setting.mpvDecodingMethod = tabSelectedIndexes
-              Preferences.saveMpvDecodingMethod(PathUtils.appContext!, tabSelectedIndexes)
+            tabSelectedIndex: Setting.mpvDecodingMethod,
+            onButtonClick: (tabSelectedIndex: number) => {
+              Setting.mpvDecodingMethod = tabSelectedIndex
+              Preferences.saveMpvDecodingMethod(PathUtils.appContext!, tabSelectedIndex)
             }
           })
         }

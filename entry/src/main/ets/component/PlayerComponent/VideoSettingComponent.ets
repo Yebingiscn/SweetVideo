@@ -7,40 +7,27 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 
-@Component
+@ComponentV2
 export struct VideoSettingComponent {
-  @Link exitVideoTime: number
-  @State startTime: string = '00:00'
-  @State endTime: string = '00:00'
-  @State pointA: string = '00:00'
-  @State pointB: string = '00:00'
-  @Consume('player') player: AVPlayerController | MpvController
-  forward_80_s = (_time: number) => {
-  }
-  closeAfter15min = (_time: number) => {
-  }
-  closeAfter30min = (_time: number) => {
-  }
-  closeAfter60min = (_time: number) => {
-  }
-  toggleListenVideo = () => {
-  }
-  captureScreen = () => {
-  }
-  updateStarTime = (_time: number) => {
-  }
-  updateEndTime = (_time: number) => {
-  }
-  updatePointATime = (_time: number) => {
-  }
-  updatePointBTime = (_time: number) => {
-  }
-  onScreenMirror = () => {
-  }
-  setRepeatModeToOnce = () => {
-  }
-  onABCircleStatusClick = () => {
-  }
+  @Param exitVideoTime: number = 0
+  @Local startTime: string = '00:00'
+  @Local endTime: string = '00:00'
+  @Local pointA: string = '00:00'
+  @Local pointB: string = '00:00'
+  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Event forward_80_s: (_time: number) => void = () => {}
+  @Event closeAfter15min: (_time: number) => void = () => {}
+  @Event closeAfter30min: (_time: number) => void = () => {}
+  @Event closeAfter60min: (_time: number) => void = () => {}
+  @Event toggleListenVideo: () => void = () => {}
+  @Event captureScreen: () => void = () => {}
+  @Event updateStarTime: (_time: number) => void = () => {}
+  @Event updateEndTime: (_time: number) => void = () => {}
+  @Event updatePointATime: (_time: number) => void = () => {}
+  @Event updatePointBTime: (_time: number) => void = () => {}
+  @Event onScreenMirror: () => void = () => {}
+  @Event setRepeatModeToOnce: () => void = () => {}
+  @Event onABCircleStatusClick: () => void = () => {}
 
   aboutToAppear(): void {
     this.startTime = TimeUtil.convertMSToHHMMSS(this.player.nowPlaying?.start_time)

@@ -1,9 +1,9 @@
-@Component
+@ComponentV2
 export struct SettingsTimeItem {
-  @State symbol: Resource | undefined = undefined
-  @State message: ResourceStr = ''
-  @State selectedIndex: number[] = [0, 0, 0, 0]
-  @Prop selected: number = 0
+  @Local symbol: Resource | undefined = undefined
+  @Local message: ResourceStr = ''
+  @Local selectedIndex: number[] = [0, 0, 0, 0]
+  @Param selected: number = 0
   private TenthsOfMinutes: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
   private UnitOfTMinutes: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
   private TenthsOfSecond: string[] = ['0', '1', '2', '3', '4', '5']

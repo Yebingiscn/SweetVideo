@@ -11,18 +11,34 @@ import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { VideoInfoBuilder } from '../VideoItemComponent/VideoInfoBuilder'
 import { fileUri } from '@kit.CoreFileKit'
 
-@Component
+@ComponentV2
 export struct PlayerSideBarComponent {
-  @State playerSideBarSource: PlayerSideBarSource = new PlayerSideBarSource([])
-  @Link @Watch('onSideBarVisibleChange') sideBarStatusTmp: Visibility
-  @Consume('player') player: AVPlayerController | MpvController
-  @Link sideBarStatus: boolean
+  @Local playerSideBarSource: PlayerSideBarSource = new PlayerSideBarSource([])
+  @Param sideBarStatusTmp: Visibility = Visibility.Hidden
+  @Event onSideBarStatusTmpChange: (v: Visibility) => void = () => {}
+  @Local _sideBarStatusTmp: Visibility = Visibility.Hidden
+  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Param sideBarStatus: boolean = false
+  @Event onSideBarStatusChange: (v: boolean) => void = () => {}
+  @Local _sideBarStatus: boolean = false
   private listScroller: Scroller = new Scroller()
-  onItemClick = (_item: VideoMetadata) => {
+  @Event onItemClick: (_item: VideoMetadata) => void = () => {
   }
 
   aboutToAppear(): void {
     this.playerSideBarSource = new PlayerSideBarSource(this.player.videoMetaDataList)
+    this._sideBarStatusTmp = this.sideBarStatusTmp
+    this._sideBarStatus = this.sideBarStatus
+  }
+
+  @Monitor('sideBarStatusTmp')
+  onSideBarStatusTmpMonitor() {
+    this._sideBarStatusTmp = this.sideBarStatusTmp
+  }
+
+  @Monitor('sideBarStatus')
+  onSideBarStatusMonitor() {
+    this._sideBarStatus = this.sideBarStatus
   }
 
   build() {
@@ -38,7 +54,7 @@ export struct PlayerSideBarComponent {
         .padding({ top: index === 0 ? 10 : 0 })
         .borderRadius(16)
         .onClick(() => {
-          if (this.sideBarStatusTmp === Visibility.Hidden) {
+          if (this._sideBarStatusTmp === Visibility.Hidden) {
             return
           }
           this.player.nowPlaying?.date === item.date ? this.closeSideBar() : this.onItemClick(item)
@@ -60,7 +76,7 @@ export struct PlayerSideBarComponent {
         this.closeSideBar()
       }
     }))
-    .visibility(this.sideBarStatusTmp)
+    .visibility(this._sideBarStatusTmp)
     .width('100%')
     .height('100%')
     .backgroundColor($r('app.color.start_window_background'))
@@ -74,8 +90,9 @@ export struct PlayerSideBarComponent {
     .cachedCount(6)
   }
 
+  @Monitor('_sideBarStatusTmp')
   onSideBarVisibleChange() {
-    if (this.sideBarStatusTmp === Visibility.Visible) {
+    if (this._sideBarStatusTmp === Visibility.Visible) {
       setTimeout(() => {
         const targetIndex = this.player.videoMetaDataList.findIndex(
           item => item?.date === this.player.nowPlaying?.date
@@ -88,9 +105,11 @@ export struct PlayerSideBarComponent {
   }
 
   private closeSideBar() {
-    this.sideBarStatusTmp = Visibility.Hidden
+    this._sideBarStatusTmp = Visibility.Hidden
+    this.onSideBarStatusTmpChange(Visibility.Hidden)
     setTimeout(() => {
-      this.sideBarStatus = false
+      this._sideBarStatus = false
+      this.onSideBarStatusChange(false)
     }, 250)
   }
 }

@@ -3,7 +3,7 @@
 export struct InfoConfirmDialog {
   confirm?: () => void
   controller?: CustomDialogController
-  @Prop textInfo: ResourceStr = ''
+  textInfo: ResourceStr = ''
 
   build() {
     Column({ space: 25 }) {

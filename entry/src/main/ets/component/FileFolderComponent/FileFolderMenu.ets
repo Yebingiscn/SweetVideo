@@ -12,14 +12,20 @@ import VideoUtils from '../../utils/VideoUtil'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 
 
-@Component
+@ComponentV2
 export struct FileFolderMenu {
-  @Consume fileFolderSource: FileFolderDataSource
-  @Consume videoListController: VideoListController
-  @Prop video_item: VideoMetadata
-  addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
-    builder: AddFileFolderNameDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
+  @Consumer() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
+  @Consumer() videoListController: VideoListController = new VideoListController()
+  @Param video_item: VideoMetadata | undefined = undefined
+  addFileFolderNameDialogController?: CustomDialogController
+
+  aboutToAppear(): void {
+    this.addFileFolderNameDialogController = new CustomDialogController({
+      builder: AddFileFolderNameDialog({
+        fileFolderSource: this.fileFolderSource,
+      }), cornerRadius: 20, shadow: DefaultDialogShadow
+    })
+  }
 
   build() {
     Menu() {
@@ -27,7 +33,7 @@ export struct FileFolderMenu {
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder_badge_plus')),
         content: '添加文件夹'
       }).onClick(() => {
-        this.addFileFolderNameDialogController.open()
+        this.addFileFolderNameDialogController?.open()
       })
       LazyForEach(this.fileFolderSource, (item: FileFolder) => {
         if (item.date !== this.videoListController.folder.date) {
@@ -39,7 +45,7 @@ export struct FileFolderMenu {
                 folders = FileFolderUtil.transferVideosToFileFolder(PathUtils.appContext!, DataSyncUtil.delMultipleList,
                   this.videoListController.folder.date, item.date)
               } else { //非批量操作
-                folders = FileFolderUtil.transferVideosToFileFolder(PathUtils.appContext!, [this.video_item],
+                folders = FileFolderUtil.transferVideosToFileFolder(PathUtils.appContext!, [this.video_item!],
                   this.videoListController.folder.date, item.date)
               }
               this.fileFolderSource.updateData(folders)

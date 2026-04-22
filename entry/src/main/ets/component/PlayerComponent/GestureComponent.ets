@@ -2,44 +2,44 @@ import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
-@Component
+@ComponentV2
 export struct GestureComponent {
-  @Consume('player') player: AVPlayerController | MpvController
-  onDoubleClickAction = (_tapX: number) => {
+  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Event onDoubleClickAction: (_tapX: number) => void = () => {
   }
-  onSingleClickAction = () => {
+  @Event onSingleClickAction: () => void = () => {
   }
-  onVerticalPanStart = (_tapX: number) => {
+  @Event onVerticalPanStart: (_tapX: number) => void = () => {
   }
-  onVerticalPanUpdate = (_offsetY: number) => {
+  @Event onVerticalPanUpdate: (_offsetY: number) => void = () => {
   }
-  onVerticalPanEnd = () => {
+  @Event onVerticalPanEnd: () => void = () => {
   }
-  onHorizonPanStart = () => {
+  @Event onHorizonPanStart: () => void = () => {
   }
-  onHorizonPanUpdate = (_offsetY: number) => {
+  @Event onHorizonPanUpdate: (_offsetY: number) => void = () => {
   }
-  onHorizonPanEnd = () => {
+  @Event onHorizonPanEnd: () => void = () => {
   }
-  onPinchStart = (_fingerDistance: number) => {
+  @Event onPinchStart: (_fingerDistance: number) => void = () => {
   }
-  onPinchUpdate = (_fingerDistance: number) => {
+  @Event onPinchUpdate: (_fingerDistance: number) => void = () => {
   }
-  onPinchEnd = () => {
+  @Event onPinchEnd: () => void = () => {
   }
-  onLongPressAction = () => {
+  @Event onLongPressAction: () => void = () => {
   }
-  onLongPressEnd = () => {
+  @Event onLongPressEnd: () => void = () => {
   }
-  onLongPressPanStart = (_tapX: number) => {
+  @Event onLongPressPanStart: (_tapX: number) => void = () => {
   }
-  onLongPressPanUpdate = (_tapX: number) => {
+  @Event onLongPressPanUpdate: (_tapX: number) => void = () => {
   }
-  onPanMoveStart = (_event: GestureEvent) => {
+  @Event onPanMoveStart: (_event: GestureEvent) => void = () => {
   }
-  onPanMoveUpdate = (_event: GestureEvent) => {
+  @Event onPanMoveUpdate: (_event: GestureEvent) => void = () => {
   }
-  onPanMoveEnd = () => {
+  @Event onPanMoveEnd: () => void = () => {
   }
 
   build() {

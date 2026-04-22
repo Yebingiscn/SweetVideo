@@ -4,7 +4,7 @@ import { DeletedVideosDataSource } from '../../utils/DataUtil'
 
 @CustomDialog
 export struct DeletedVideosDialog {
-  @State deletedVideosDataSource: DeletedVideosDataSource = new DeletedVideosDataSource([])
+  deletedVideosDataSource: DeletedVideosDataSource = new DeletedVideosDataSource([])
   controller?: CustomDialogController
   private metadata: VideoMetadata[] = []
 

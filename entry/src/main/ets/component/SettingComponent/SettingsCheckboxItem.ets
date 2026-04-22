@@ -1,21 +1,22 @@
-import {
-  ItemRestriction, SegmentButton, SegmentButtonOptions, SegmentButtonTextItem
-} from '@kit.ArkUI'
 import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 
-@Component
+@ComponentV2
 export struct SettingsCheckboxItem {
-  @Prop symbol: Resource | undefined = undefined
-  @Prop message: ResourceStr = ''
-  @Prop @Watch('onTipsChange') tips: ResourceStr[]
-  @State tabOptions: SegmentButtonOptions = this.createTabOptions()
-  @State @Watch('onSegmentButtonChange') tabSelectedIndexes: number[] = [1]
+  @Param symbol: Resource | undefined = undefined
+  @Param message: ResourceStr = ''
+  @Param tips: ResourceStr[] = []
+  @Param tabSelectedIndex: number = 0
+  @Local _tabSelectedIndex: number = 0
 
-  onSegmentButtonChange() {
-    this.onButtonClick(Number(this.tabSelectedIndexes.toString()))
+  @Event onButtonClick: (_tabSelectedIndex: number) => void = () => {}
+
+  aboutToAppear(): void {
+    this._tabSelectedIndex = this.tabSelectedIndex
   }
 
-  onButtonClick = (_tabSelectedIndexes: number) => {
+  @Monitor('tabSelectedIndex')
+  onTabSelectedIndexMonitor() {
+    this._tabSelectedIndex = this.tabSelectedIndex
   }
 
   build() {
@@ -32,11 +33,26 @@ export struct SettingsCheckboxItem {
           .textOverflow({ overflow: TextOverflow.MARQUEE })
           .layoutWeight(1)
       }
+      .width('100%')
 
-      SegmentButton({
-        options: this.tabOptions,
-        selectedIndexes: $tabSelectedIndexes,
-      })
+      Row({ space: 8 }) {
+        ForEach(this.tips, (tip: ResourceStr, index: number) => {
+          Button(tip)
+            .fontSize(14)
+            .fontWeight(this._tabSelectedIndex === index ? FontWeight.Medium : FontWeight.Regular)
+            .fontColor(this._tabSelectedIndex === index ? $r('sys.color.white') : $r('app.color.text_color'))
+            .backgroundColor(this._tabSelectedIndex === index ? $r('app.color.main_color') :
+              $r('app.color.start_window_background'))
+            .borderRadius(12)
+            .height(32)
+            .layoutWeight(1)
+            .onClick(() => {
+              this._tabSelectedIndex = index
+              this.onButtonClick(index)
+            })
+        }, (tip: ResourceStr, index: number) => index.toString())
+      }
+      .width('100%')
     }
     .width('100%')
     .height(100)
@@ -51,22 +67,5 @@ export struct SettingsCheckboxItem {
       bottom: 10
     })
     .margin({ top: 5, bottom: 5 })
-  }
-
-  onTipsChange() {
-    this.tabOptions = this.createTabOptions()
-  }
-
-  private createTabOptions(): SegmentButtonOptions {
-    const buttonItems: SegmentButtonTextItem[] = this.tips.map((tip: ResourceStr) => {
-      const item: SegmentButtonTextItem = { text: tip }
-      return item
-    })
-    return SegmentButtonOptions.tab({
-      buttons: buttonItems as ItemRestriction<SegmentButtonTextItem>,
-      backgroundBlurStyle: BlurStyle.BACKGROUND_THICK,
-      selectedBackgroundColor: $r('app.color.main_color'),
-      selectedFontColor: $r('sys.color.white')
-    })
   }
 }

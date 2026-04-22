@@ -1,13 +1,23 @@
 import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import TimeUtil from '../../utils/TimeUtil'
 
-@Component
+@ComponentV2
 export struct SettingsSliderItem {
-  @State symbol: Resource | undefined = undefined
-  @State message: ResourceStr = ''
-  @Prop selected: number = 0
-  @State textSliderMode: boolean = false
-  onChangeComplete = (_value: number) => {
+  @Param symbol: Resource | undefined = undefined
+  @Param message: ResourceStr = ''
+  @Param selected: number = 0
+  @Local _selected: number = 0
+  @Param textSliderMode: boolean = false
+  @Event onChangeComplete: (_value: number) => void = () => {
+  }
+
+  aboutToAppear(): void {
+    this._selected = this.selected
+  }
+
+  @Monitor('selected')
+  onSelectedMonitor() {
+    this._selected = this.selected
   }
 
   build() {
@@ -25,17 +35,17 @@ export struct SettingsSliderItem {
       .justifyContent(FlexAlign.Start)
 
       Slider({
-        value: this.selected,
+        value: this._selected,
         min: 0,
         max: 300,
         style: SliderStyle.InSet
       })
         .onChange((value) => {
-          this.selected = value
+          this._selected = value
         })
         .onTouch((event) => {
           if (event.type == TouchType.Up) {
-            this.onChangeComplete(this.selected)
+            this.onChangeComplete(this._selected)
           }
         })
         .selectedColor($r('app.color.main_color'))
@@ -57,7 +67,7 @@ export struct SettingsSliderItem {
 
   private getDisplayText(): ResourceStr {
     if (this.textSliderMode) {
-      const timeText = this.selected === 0 ? '关闭' : TimeUtil.convertSSToMMSS(this.selected);
+      const timeText = this._selected === 0 ? '关闭' : TimeUtil.convertSSToMMSS(this._selected);
       return `${this.message}：${timeText}`;
     }
     return this.message;

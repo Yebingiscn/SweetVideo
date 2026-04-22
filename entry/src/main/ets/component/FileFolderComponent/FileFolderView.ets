@@ -12,9 +12,9 @@ import { FileFolderListBuilder } from './FileFolderListComponent'
 import { DeleteType } from '../../common/enum/DeleteType'
 import { DefaultDialogShadow, MenuFancyModifier } from '../../common/AttributeModifierConfig'
 
-@Component
+@ComponentV2
 export struct FileFolderView {
-  @Consume fileFolderSource: FileFolderDataSource
+  @Consumer() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   editFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: EditFileFolderNameDialog({
       confirm: async (file_folder: string | undefined) => {
@@ -27,9 +27,9 @@ export struct FileFolderView {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @State fileFolderList: FileFolder[] = this.fileFolderSource.getAllData()
-  @Consume videoListController: VideoListController
-  @Consume sideBarController: SideBarController
+  @Local fileFolderList: FileFolder[] = this.fileFolderSource.getAllData()
+  @Consumer() videoListController: VideoListController = new VideoListController()
+  @Consumer() sideBarController: SideBarController = new SideBarController()
 
   build() {
     List() {

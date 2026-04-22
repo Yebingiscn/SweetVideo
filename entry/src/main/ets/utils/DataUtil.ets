@@ -20,8 +20,9 @@ import { fileIo, fileUri } from '@kit.CoreFileKit'
 const TAG = 'DataUtil'
 
 // 基础数据源抽象类（泛型实现）
+@ObservedV2
 abstract class BaseDataSource<T> implements IDataSource {
-  protected data: T[]
+  @Trace protected data: T[]
   private listeners: DataChangeListener[] = []
 
   constructor(data: T[]) {
@@ -87,32 +88,32 @@ abstract class BaseDataSource<T> implements IDataSource {
   }
 }
 
-@Observed
+@ObservedV2
 export class AudioTrackSource extends BaseDataSource<AudioTrack | MpvAudioTrack> {
 }
 
-@Observed
+@ObservedV2
 export class PlayerSideBarSource extends BaseDataSource<VideoMetadata> {
 }
 
-@Observed
+@ObservedV2
 export class DeletedVideosDataSource extends BaseDataSource<VideoMetadata> {
 }
 
-@Observed
+@ObservedV2
 export class PrivacySpaceErrorListDataSource extends BaseDataSource<String> {
 }
 
-@Observed
+@ObservedV2
 export class InnerSubtitleDataSource extends BaseDataSource<MpvSubtitleTrack | SubtitleTrack> {
 }
 
-@Observed
+@ObservedV2
 export class SweetLogDataSource extends BaseDataSource<SalmonLogLine> {
 }
 
 // 具体实现类
-@Observed
+@ObservedV2
 export class VideoDataSource extends BaseDataSource<VideoMetadata> {
   public refreshData(folder: FileFolder) {
     const videoMetaData: VideoMetadata[] = FolderOperator.getFolderByName(folder.name).video_list
@@ -160,7 +161,7 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
   }
 }
 
-@Observed
+@ObservedV2
 export class FileFolderDataSource extends BaseDataSource<FileFolder> {
   getFileFolder(fileFolderName: string): FileFolder {
     return Preferences.getFileFolder(PathUtils.appContext!).find(item => item.name === fileFolderName)!

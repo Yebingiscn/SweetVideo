@@ -1,13 +1,13 @@
 import { MenuFancyModifier } from '../../common/AttributeModifierConfig'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 
-@Component
+@ComponentV2
 export struct SortComponent {
-  onSortByName = () => {
+  @Event onSortByName: () => void = () => {
   }
-  onSortByTime = () => {
+  @Event onSortByTime: () => void = () => {
   }
-  onSortByDatetime = () => {
+  @Event onSortByDatetime: () => void = () => {
   }
 
   build() {

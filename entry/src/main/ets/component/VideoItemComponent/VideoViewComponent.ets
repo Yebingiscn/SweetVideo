@@ -30,33 +30,39 @@ import { salmonLogger } from 'salmonlogger'
 
 const TAG = 'VideoViewComponent'
 
-@Component
+@ComponentV2
 export struct VideoView {
   searchController: SearchController = new SearchController()
-  @Link loading: boolean
-  @State is_edit: boolean = false
-  @Link searchValue: string
-  @Link videoListController: VideoListController
-  @Consume @Watch('onFolderListChanged') file_folder_list: FileFolder[]
-  @Consume sideBarController: SideBarController
-  @Consume('pathStack') pathStack: NavPathStack
-  @Consume fileFolderSource: FileFolderDataSource
-  @Watch('SyncDelMultipleList') @State delMultipleList: VideoMetadata[] = DataSyncUtil.delMultipleList
+  @Param loading: boolean = false
+  @Local is_edit: boolean = false
+  @Param searchValue: string = ''
+  @Event onSearchValueChange: (v: string) => void = () => {}
+  @Local _searchValue: string = ''
+  @Param videoListController: VideoListController = new VideoListController()
+  @Consumer() file_folder_list: FileFolder[] = []
+  @Monitor('file_folder_list')
+  onFolderListChanged() {
+    // 文件夹列表变化时，确保选中状态正确
+    const newIndex = this.getCurrentFolderIndex()
+    if (newIndex !== -1 && newIndex !== this.currentFolderIndex) {
+      this.currentFolderIndex = newIndex
+    }
+  }
+  @Consumer() sideBarController: SideBarController = new SideBarController()
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
+  @Consumer() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
+  @Local delMultipleList: VideoMetadata[] = DataSyncUtil.delMultipleList
+  @Monitor('delMultipleList')
+  SyncDelMultipleList() {
+    DataSyncUtil.delMultipleList = this.delMultipleList
+  }
   // 当前选中文件夹索引
-  @State currentFolderIndex: number = 0
+  @Local currentFolderIndex: number = 0
   // 监听文件夹切换，同步面包屑选中状态
-  @Watch('onFolderChanged') @StorageLink('scrollToFolderDate') scrollToFolderDate: number = 0
-  private passwd: string = 'passwd'
-  // 面包屑滚动控制器
-  private breadcrumbScroller: Scroller = new Scroller()
-  // 文件夹按钮尺寸配置
-  private readonly FOLDER_TAB_MIN_WIDTH: number = 64
-  private readonly FOLDER_TAB_HEIGHT: number = 28
-
-  /**
-   * 文件夹切换时同步面包屑选中状态
-   */
-  onFolderChanged(): void {
+  @Param scrollToFolderDate: string = ''
+  @Event onScrollToFolderDateChange: (v: string) => void = () => {}
+  @Monitor('scrollToFolderDate')
+  onFolderChanged() {
     const newIndex = this.getCurrentFolderIndex()
     if (newIndex !== -1 && newIndex !== this.currentFolderIndex) {
       this.currentFolderIndex = newIndex
@@ -64,20 +70,20 @@ export struct VideoView {
       this.scrollToCurrentFolder(newIndex)
     }
   }
+  private passwd: string = 'passwd'
+  // 面包屑滚动控制器
+  private breadcrumbScroller: Scroller = new Scroller()
+  // 文件夹按钮尺寸配置
+  private readonly FOLDER_TAB_MIN_WIDTH: number = 64
+  private readonly FOLDER_TAB_HEIGHT: number = 28
 
-  SyncDelMultipleList() {
-    DataSyncUtil.delMultipleList = this.delMultipleList
+  aboutToAppear(): void {
+    this._searchValue = this.searchValue
   }
 
-  /**
-   * 文件夹列表变化时处理（如添加新文件夹）
-   */
-  onFolderListChanged(): void {
-    // 文件夹列表变化时，确保选中状态正确
-    const newIndex = this.getCurrentFolderIndex()
-    if (newIndex !== -1 && newIndex !== this.currentFolderIndex) {
-      this.currentFolderIndex = newIndex
-    }
+  @Monitor('searchValue')
+  onSearchValueMonitor() {
+    this._searchValue = this.searchValue
   }
 
   build() {
@@ -90,10 +96,15 @@ export struct VideoView {
       VideoList({
         videoListController: this.videoListController,
         delMultipleList: this.delMultipleList,
-        searchValue: this.searchValue
+        onDelMultipleListChange: (v: VideoMetadata[]) => { this.delMultipleList = v },
+        searchValue: this._searchValue,
+        onSearchValueChange: (v: string) => {
+          this._searchValue = v
+          this.onSearchValueChange(v)
+        }
       })
 
-      if (!this.loading && this.videoListController.openSideBarTip(this.searchValue)) {
+      if (!this.loading && this.videoListController.openSideBarTip(this._searchValue)) {
         Row() { //顶栏
           Column() {
             Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
@@ -109,11 +120,11 @@ export struct VideoView {
       }
 
       // 搜索无结果提示
-      if (!this.loading && this.videoListController.isSearchEmpty(this.searchValue)) {
+      if (!this.loading && this.videoListController.isSearchEmpty(this._searchValue)) {
         Row() {
           Column() {
             Text('没有匹配结果').fontSize(25).fontWeight(FontWeight.Bold)
-            Text('当前文件夹没有匹配"' + this.searchValue + '"的视频')
+            Text('当前文件夹没有匹配"' + this._searchValue + '"的视频')
               .fontSize(15)
               .textAlign(TextAlign.Center)
               .fontWeight(FontWeight.Lighter)
@@ -141,11 +152,15 @@ export struct VideoView {
 
           SearchComponent({
             controller: this.searchController,
-            searchValue: this.searchValue,
+            searchValue: this._searchValue,
+            onSearchValueChange: (v: string) => {
+              this._searchValue = v
+              this.onSearchValueChange(v)
+            },
             onChange: () => {
               // 使用防抖，避免快速输入时频繁过滤
               DebounceUtil.debounce('search', () => {
-                if (this.searchValue === '') {
+                if (this._searchValue === '') {
                   const videoMetaDataList: VideoMetadata[] =
                     FolderOperator.getFolderByName(this.videoListController.folder.name).video_list
                   this.videoListController.videoDataSource.updateData(videoMetaDataList)
@@ -154,7 +169,7 @@ export struct VideoView {
                 } else {
                   const videoMetaDataList: VideoMetadata[] =
                     SelectFileUtil.getItemFromSearch(FolderOperator.getFolderByName(this.videoListController.folder.name)
-                      .video_list, this.searchValue)
+                      .video_list, this._searchValue)
                   this.videoListController.videoDataSource.updateData(videoMetaDataList)
                   this.videoListController.updateData(this.videoListController.videoDataSource,
                     this.videoListController.folder)
@@ -173,7 +188,8 @@ export struct VideoView {
               if (value == this.passwd) {
                 ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
                 this.pathStack.pushPathByName(NavigationAddress.PRIVACY_SPACE, null)
-                this.searchValue = ''
+                this._searchValue = ''
+                this.onSearchValueChange('')
                 return
               }
               if (this.videoListController.videoMetaDataList.length == 0) {
@@ -376,8 +392,8 @@ export struct VideoView {
     if (currentFolder) {
       // 如果有搜索值，在新文件夹中过滤视频
       let filteredVideos = currentFolder.video_list
-      if (this.searchValue.length > 0) {
-        filteredVideos = SelectFileUtil.getItemFromSearch(currentFolder.video_list, this.searchValue)
+      if (this._searchValue.length > 0) {
+        filteredVideos = SelectFileUtil.getItemFromSearch(currentFolder.video_list, this._searchValue)
       }
       animateToImmediately({
         duration: 200,
@@ -394,7 +410,7 @@ export struct VideoView {
     this.scrollToCurrentFolder(index)
     this.sideBarController.close(true)
     // 同步 scrollToFolderDate，触发 onFolderChanged 确保状态一致
-    AppStorage.setOrCreate('scrollToFolderDate', folder.date)
+    this.onScrollToFolderDateChange(folder.date)
   }
 
   /**

@@ -34,9 +34,9 @@ import { VideoItemPreviewBuilder } from '../../component/VideoItemComponent/Vide
 import { PrivacySpaceSettingComponent } from '../../component/PrivacySpaceComponent/PrivacySpaceSettingComponent'
 import DlpAntiPeepUtil from '../../utils/DlpAntiPeepUtil'
 
-@Component
+@ComponentV2
 export struct PrivacySpace { // 隐私空间页
-  @State videoDataSource: VideoDataSource = new VideoDataSource([])
+  @Local videoDataSource: VideoDataSource = new VideoDataSource([])
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -59,19 +59,19 @@ export struct PrivacySpace { // 隐私空间页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @State video_meta_data_encryption: VideoMetadata[] = []
-  @State list_line: number = 1
-  @Consume('pathStack') pathStack: NavPathStack
-  @State totalItems: number = 0
-  @State processedItems: number = 0
-  @State loading: boolean = false
-  @State currentFileName: string = '' // 当前处理的文件名
-  @State importSpeed: number = 0 // 处理速度
-  @State elapsedTime: number = 0 // 已耗时
-  @State failedCount: number = 0 // 失败文件数
-  @State searchValue: string = ''
-  @State is_edit: boolean = false
-  @State passwd: string = 'passwd'
+  @Local video_meta_data_encryption: VideoMetadata[] = []
+  @Local list_line: number = 1
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
+  @Local totalItems: number = 0
+  @Local processedItems: number = 0
+  @Local loading: boolean = false
+  @Local currentFileName: string = '' // 当前处理的文件名
+  @Local importSpeed: number = 0 // 处理速度
+  @Local elapsedTime: number = 0 // 已耗时
+  @Local failedCount: number = 0 // 失败文件数
+  @Local searchValue: string = ''
+  @Local is_edit: boolean = false
+  @Local passwd: string = 'passwd'
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
     builder: EditPasswordDialog({
       confirm: (passwd: string | undefined) => {
@@ -84,8 +84,8 @@ export struct PrivacySpace { // 隐私空间页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @State delMultipleList: VideoMetadata[] = []
-  @State isPresent: boolean = false
+  @Local delMultipleList: VideoMetadata[] = []
+  @Local isPresent: boolean = false
   searchController: SearchController = new SearchController()
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
@@ -114,7 +114,7 @@ export struct PrivacySpace { // 隐私空间页
       .backdropBlur(150)
       .attributeModifier(new ButtonFancyModifier(35, 35))
       .animation({ duration: 300, curve: Curve.Ease })
-      .bindSheet($$this.isPresent, this.PrivacySpaceSettingBuilder, {
+      .bindSheet(this.isPresent, this.PrivacySpaceSettingBuilder, {
         detents: [SheetSize.FIT_CONTENT],
         height: SheetSize.MEDIUM,
         preferType: SheetType.CENTER,
@@ -122,6 +122,9 @@ export struct PrivacySpace { // 隐私空间页
         dragBar: true,
         showClose: true,
         title: { title: '隐私空间设置' },
+        onWillDismiss: () => {
+          this.isPresent = false
+        }
       })
       .onClick(() => {
         this.isPresent = !this.isPresent
@@ -318,7 +321,7 @@ export struct PrivacySpace { // 隐私空间页
     VideoListItem({
       item: item,
       delMultipleList: this.delMultipleList
-    }).backgroundColor($r('app.color.start_window_background')).reuseId(`VideoListItem#${item.uri}`).borderRadius(16)
+    }).backgroundColor($r('app.color.start_window_background')).borderRadius(16)
   }
 
   build() {
@@ -341,6 +344,7 @@ export struct PrivacySpace { // 隐私空间页
         SearchComponent({
           controller: this.searchController,
           searchValue: this.searchValue,
+          onSearchValueChange: (v: string) => { this.searchValue = v },
           onChange: () => {
             const newVideoList = SelectFileUtil.getItemFromSearch(
               this.video_meta_data_encryption,
@@ -380,7 +384,6 @@ export struct PrivacySpace { // 隐私空间页
                   delMultipleList: this.delMultipleList
                 })
                   .width('95%')
-                  .reuseId(`VideoCardItem#${item.uri}`)
                   .backgroundColor(Setting.backgroundImageSrc.length > 0 ?
                     $r('app.color.start_window_background_blur') :
                     $r('app.color.start_window_background'))

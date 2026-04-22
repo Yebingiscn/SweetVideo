@@ -11,11 +11,11 @@ import { LiqD } from '../../component/common/LiqD'
 
 const TAG = 'AboutApp'
 
-@Component
+@ComponentV2
 export struct AboutApp {
-  @State version_code: string = ''
-  @State isPresent: boolean = false
-  @Consume('pathStack') pathStack: NavPathStack
+  @Local version_code: string = ''
+  @Local isPresent: boolean = false
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   controller: MarkdownController = new MarkdownController()
   private GITHUB_HOME_LINK: string = "https://github.com/Yebingiscn/SweetVideo" // 项目主页
   private QQ_GROUP_LINK: string = 'https://qm.qq.com/q/ejj8jbUDBu'
@@ -200,7 +200,10 @@ export struct AboutApp {
             .margin({ top: 10 })
 
           if (this.isPresent) {
-            PrivacyPolicyComponent({ isPresent: this.isPresent })
+            PrivacyPolicyComponent({
+              isPresent: this.isPresent,
+              onIsPresentChange: (v: boolean) => { this.isPresent = v }
+            })
           }
         }
       }

@@ -9,7 +9,7 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import { ConfigurationConstant } from '@kit.AbilityKit'
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
 
-@Component
+@ComponentV2
 export struct PersonalizePage {
   build() {
     NavDestination() {
@@ -19,11 +19,11 @@ export struct PersonalizePage {
             symbol: $r('sys.symbol.sun'),
             message: '显示模式',
             tips: ['自动', '浅色', '深色'],
-            tabSelectedIndexes: [Setting.backgroundColorMode],
-            onButtonClick: (tabSelectedIndexes: number) => {
-              Setting.backgroundColorMode = tabSelectedIndexes
-              Preferences.saveBackgroundColorMode(PathUtils.appContext!, tabSelectedIndexes)
-              ToolsUtil.setColorMode(PathUtils.appContext!, tabSelectedIndexes)
+            tabSelectedIndex: Setting.backgroundColorMode,
+            onButtonClick: (tabSelectedIndex: number) => {
+              Setting.backgroundColorMode = tabSelectedIndex
+              Preferences.saveBackgroundColorMode(PathUtils.appContext!, tabSelectedIndex)
+              ToolsUtil.setColorMode(PathUtils.appContext!, tabSelectedIndex)
               Setting.backgroundImageSrc = ''
               setTimeout(() => {
                 Setting.backgroundImageSrc = SelectFileUtil.getImageUri()

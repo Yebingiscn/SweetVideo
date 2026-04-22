@@ -5,10 +5,10 @@ import { MpvController } from '../../controller/MpvController/MpvController';
 
 const TAG = 'AIAsrComponent'
 
-@Component
+@ComponentV2
 export struct AISubtitleComponent {
-  @Link isAIAsrShown: boolean
-  @Consume('player') player: AVPlayerController | MpvController
+  @Param isAIAsrShown: boolean = false
+  @Param player: AVPlayerController | MpvController = new AVPlayerController()
   private captionOption?: AICaptionOptions
   private controller: AICaptionController = new AICaptionController()
 
@@ -30,13 +30,15 @@ export struct AISubtitleComponent {
     if (this.isAIAsrShown) {
       if (canIUse('SystemCapability.AI.AICaption')) {
         Column() {
-          AICaptionComponent({
-            isShown: this.isAIAsrShown,
-            controller: this.controller,
-            options: this.captionOption
-          })
-            .width('100%')
-            .height(80)
+          // TODO: AICaptionComponent 内部使用 @Link，V2 组件暂无法直接调用。
+          // 等待 HarmonyOS SDK 更新支持后恢复以下代码：
+          // AICaptionComponent({
+          //   isShown: this.isAIAsrShown!!,
+          //   controller: this.controller,
+          //   options: this.captionOption
+          // })
+          //   .width('100%')
+          //   .height(80)
         }
         .justifyContent(FlexAlign.End)
         .width('75%')

@@ -5,12 +5,14 @@ import { PathUtils } from '../../utils/PathUtils'
 import { SettingsClickItem } from '../SettingComponent/SettingsClickItem'
 import { SettingsToggleItem } from '../SettingComponent/SettingsToggleItem'
 
-@Component
+@ComponentV2
 export struct PrivacySpaceSettingComponent {
-  @Link isPresent: boolean
-  @Link passwd: string
-  @Consume('pathStack') pathStack: NavPathStack
-  onEditPasswdDialogOpen = () => {
+  @Param isPresent: boolean = false
+  @Event onIsPresentChange: (v: boolean) => void = () => {}
+  @Param passwd: string = ''
+  @Event onPasswdChange: (v: string) => void = () => {}
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
+  @Event onEditPasswdDialogOpen: () => void = () => {
   }
 
   build() {
@@ -19,8 +21,8 @@ export struct PrivacySpaceSettingComponent {
         symbol: $r('sys.symbol.lock'),
         message: '重设密码',
         onPress: () => {
-          this.isPresent = false
-          this.passwd = Preferences.getPassword(PathUtils.appContext!)
+          this.onIsPresentChange(false)
+          this.onPasswdChange(Preferences.getPassword(PathUtils.appContext!))
           this.onEditPasswdDialogOpen()
         }
       })
@@ -49,7 +51,7 @@ export struct PrivacySpaceSettingComponent {
         symbol: $r('sys.symbol.staroflife_rectangle'),
         message: '有视频不见了？点这里，这里是异常数据列表',
         onPress: () => {
-          this.isPresent = false
+          this.onIsPresentChange(false)
           this.pathStack.pushPathByName(NavigationAddress.PRIVACY_ERROR_LIST, true)
         }
       })

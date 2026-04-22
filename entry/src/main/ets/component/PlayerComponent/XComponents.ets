@@ -13,34 +13,27 @@ import { SubtitleDisplayBuilder } from './SubtitleDisplayBuilder'
 
 const TAG = 'XComponents'
 
-@Component
+@ComponentV2
 export struct XComponents {
-  @Consume('player') player: AVPlayerController | MpvController
-  @Prop choosePlayer: string
-  @Prop subtitle: string
-  @Prop hideSubtitle: boolean = false
-  @Link subtitleVisibility: Visibility
-  @Link subtitle3DMode: Subtitle3DMode
-  xComponentController: XComponentController | undefined
-  osdXController: XComponentController | undefined
-  @Prop osdVisibility: boolean = false
-  xComponentId: string | undefined
-  libraryName: string | undefined
-  @Prop @Watch('setScreen') barState: boolean = false
-  onXComponentLoad = () => {
-  }
-  onKeyCodeSpace = () => {
-  }
-  onKeyCodeEscape = () => {
-  }
-  onKeyCodeRight = () => {
-  }
-  onKeyCodeLeft = () => {
-  }
-  onKeyCodeUpAndDown = (_event: KeyEvent) => {
-  }
-  onOsdSurfaceLoad = (_surfaceId: string) => {
-  }
+  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Param choosePlayer: string = ''
+  @Param subtitle: string = ''
+  @Param hideSubtitle: boolean = false
+  @Param subtitleVisibility: Visibility = Visibility.None
+  @Param subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
+  @Param xComponentController: XComponentController | undefined = undefined
+  @Param osdXController: XComponentController | undefined = undefined
+  @Param osdVisibility: boolean = false
+  @Param xComponentId: string | undefined = undefined
+  @Param libraryName: string | undefined = undefined
+  @Param barState: boolean = false
+  @Event onXComponentLoad: () => void = () => {}
+  @Event onKeyCodeSpace: () => void = () => {}
+  @Event onKeyCodeEscape: () => void = () => {}
+  @Event onKeyCodeRight: () => void = () => {}
+  @Event onKeyCodeLeft: () => void = () => {}
+  @Event onKeyCodeUpAndDown: (_event: KeyEvent) => void = () => {}
+  @Event onOsdSurfaceLoad: (_surfaceId: string) => void = () => {}
 
   build() {
     Stack() {
@@ -102,22 +95,21 @@ export struct XComponents {
     .translate({ x: this.player.translateX, y: this.player.translateY })
   }
 
+  @Monitor('barState')
   setScreen() {
     WindowUtil.setBarState(PathUtils.appContext!, this.barState, this.barState)
   }
 }
 
-@Component
+@ComponentV2
 export struct MpvXComponent {
-  xComponentController: XComponentController | undefined
-  xComponentId: string | undefined
-  libraryName: string | undefined
-  osdXController: XComponentController | undefined
-  @Prop osdVisibility: boolean = false
-  onMpvXComponent = () => {
-  }
-  onOsdSurfaceLoad = (_surfaceId: string) => {
-  }
+  @Param xComponentController: XComponentController | undefined = undefined
+  @Param xComponentId: string | undefined = undefined
+  @Param libraryName: string | undefined = undefined
+  @Param osdXController: XComponentController | undefined = undefined
+  @Param osdVisibility: boolean = false
+  @Event onMpvXComponent: () => void = () => {}
+  @Event onOsdSurfaceLoad: (_surfaceId: string) => void = () => {}
 
   build() {
     Column() {
@@ -163,11 +155,11 @@ export struct MpvXComponent {
   }
 }
 
-@Component
+@ComponentV2
 export struct AVPlayerXComponent {
-  xComponentController: XComponentController | undefined
-  onAVPlayerComponentLoad = () => {
-  }
+  @Param xComponentController: XComponentController | undefined = undefined
+  @Event onAVPlayerComponentLoad: () => void = () => {}
+
 
   build() {
     XComponent({

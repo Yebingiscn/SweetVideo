@@ -7,26 +7,34 @@ import { InnerSubtitleDataSource } from '../../utils/DataUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 
-@Component
+@ComponentV2
 export struct SubtitlePanelComponent {
-  @Link subtitleVisibility: Visibility
-  @Link isAIAsrShown: boolean
-  @Link subtitle3DMode: Subtitle3DMode
-  @State innerSubtitleMenu: InnerSubtitleDataSource = new InnerSubtitleDataSource([])
-  @Consume('player') player: AVPlayerController | MpvController
-  onSubtitleOffClick = () => {
+  @Param subtitleVisibility: Visibility = Visibility.None
+  @Param isAIAsrShown: boolean = false
+  @Param subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
+  @Event onSubtitle3DModeChange: (v: Subtitle3DMode) => void = () => {}
+  @Local _subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
+  @Local innerSubtitleMenu: InnerSubtitleDataSource = new InnerSubtitleDataSource([])
+  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Event onSubtitleOffClick: () => void = () => {
   }
-  onSubtitleOffsetTime = () => {
+  @Event onSubtitleOffsetTime: () => void = () => {
   }
-  onInnerSubtitleClick = () => {
+  @Event onInnerSubtitleClick: () => void = () => {
   }
-  onExternalSubtitleClick = () => {
+  @Event onExternalSubtitleClick: () => void = () => {
   }
-  onAIAsrClick = () => {
+  @Event onAIAsrClick: () => void = () => {
   }
 
   aboutToAppear(): void {
     this.innerSubtitleMenu = new InnerSubtitleDataSource(this.player.subtitleTrack)
+    this._subtitle3DMode = this.subtitle3DMode
+  }
+
+  @Monitor('subtitle3DMode')
+  onSubtitle3DModeMonitor() {
+    this._subtitle3DMode = this.subtitle3DMode
   }
 
   build() {
@@ -118,9 +126,9 @@ export struct SubtitlePanelComponent {
         content: "3D 字幕",
         builder: this.ThreeDSubtitleSubmenu,
       })
-        .contentFontColor(this.subtitle3DMode !== Subtitle3DMode.DISABLED ? $r('sys.color.white') :
+        .contentFontColor(this._subtitle3DMode !== Subtitle3DMode.DISABLED ? $r('sys.color.white') :
           $r('app.color.text_color'))
-        .backgroundColor(this.subtitle3DMode !== Subtitle3DMode.DISABLED ? $r('app.color.main_color') : '')
+        .backgroundColor(this._subtitle3DMode !== Subtitle3DMode.DISABLED ? $r('app.color.main_color') : '')
         .menuItemExtend()
     }
     .width(240)
@@ -150,34 +158,37 @@ export struct SubtitlePanelComponent {
         content: "不使用"
       })
         .menuItemExtend()
-        .contentFontColor(this.subtitle3DMode === Subtitle3DMode.DISABLED ? $r('sys.color.white') :
+        .contentFontColor(this._subtitle3DMode === Subtitle3DMode.DISABLED ? $r('sys.color.white') :
           $r('app.color.text_color'))
         .onClick(() => {
-          this.subtitle3DMode = Subtitle3DMode.DISABLED
+          this._subtitle3DMode = Subtitle3DMode.DISABLED
+          this.onSubtitle3DModeChange(Subtitle3DMode.DISABLED)
         })
-        .backgroundColor(this.subtitle3DMode === Subtitle3DMode.DISABLED ? $r('app.color.main_color') : '')
+        .backgroundColor(this._subtitle3DMode === Subtitle3DMode.DISABLED ? $r('app.color.main_color') : '')
 
       MenuItem({
         content: "左/右"
       })
         .menuItemExtend()
-        .contentFontColor(this.subtitle3DMode === Subtitle3DMode.SIDE_BY_SIDE ? $r('sys.color.white') :
+        .contentFontColor(this._subtitle3DMode === Subtitle3DMode.SIDE_BY_SIDE ? $r('sys.color.white') :
           $r('app.color.text_color'))
         .onClick(() => {
-          this.subtitle3DMode = Subtitle3DMode.SIDE_BY_SIDE
+          this._subtitle3DMode = Subtitle3DMode.SIDE_BY_SIDE
+          this.onSubtitle3DModeChange(Subtitle3DMode.SIDE_BY_SIDE)
         })
-        .backgroundColor(this.subtitle3DMode === Subtitle3DMode.SIDE_BY_SIDE ? $r('app.color.main_color') : '')
+        .backgroundColor(this._subtitle3DMode === Subtitle3DMode.SIDE_BY_SIDE ? $r('app.color.main_color') : '')
 
       MenuItem({
         content: "上/下"
       })
         .menuItemExtend()
-        .contentFontColor(this.subtitle3DMode === Subtitle3DMode.TOP_AND_BOTTOM ? $r('sys.color.white') :
+        .contentFontColor(this._subtitle3DMode === Subtitle3DMode.TOP_AND_BOTTOM ? $r('sys.color.white') :
           $r('app.color.text_color'))
         .onClick(() => {
-          this.subtitle3DMode = Subtitle3DMode.TOP_AND_BOTTOM;
+          this._subtitle3DMode = Subtitle3DMode.TOP_AND_BOTTOM
+          this.onSubtitle3DModeChange(Subtitle3DMode.TOP_AND_BOTTOM)
         })
-        .backgroundColor(this.subtitle3DMode === Subtitle3DMode.TOP_AND_BOTTOM ? $r('app.color.main_color') : '')
+        .backgroundColor(this._subtitle3DMode === Subtitle3DMode.TOP_AND_BOTTOM ? $r('app.color.main_color') : '')
     }
     .width(100).height('auto')
   }

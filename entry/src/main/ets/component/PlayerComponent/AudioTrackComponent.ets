@@ -9,12 +9,11 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 // 定义联合类型
 type TrackType = AudioTrack | MpvAudioTrack
 
-@Component
+@ComponentV2
 export struct AudioTrackComponent {
-  @State audioTrackDataSource: AudioTrackSource = new AudioTrackSource([])
-  @Consume('player') player: AVPlayerController | MpvController
-  onSelect = (_index: number) => {
-  }
+  @Local audioTrackDataSource: AudioTrackSource = new AudioTrackSource([])
+  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Event onSelect: (_index: number) => void = () => {}
 
   aboutToAppear(): void {
     this.audioTrackDataSource = new AudioTrackSource(this.player.audioTrack)

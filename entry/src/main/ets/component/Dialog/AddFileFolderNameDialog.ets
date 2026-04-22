@@ -8,7 +8,7 @@ import { FileFolder } from '../../interfaces/FileFolderInterface'
 export struct AddFileFolderNameDialog { //编辑元数据弹窗
   controller?: CustomDialogController
   file_folder_name: string | undefined = undefined
-  @Consume fileFolderSource: FileFolderDataSource
+  fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   // 添加成功后回调，用于刷新UI
   onFolderAdded?: (folders: FileFolder[]) => void
 

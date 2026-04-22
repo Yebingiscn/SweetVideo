@@ -2,11 +2,10 @@ import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 
-@Component
+@ComponentV2
 export struct PlaybackSpeedMenuComponent {
-  @Consume('player') player: AVPlayerController | MpvController
-  onSpeedChange = (_speed: number) => {
-  }
+  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Event onSpeedChange: (_speed: number) => void = () => {}
 
   build() {
     Row() {

@@ -10,10 +10,10 @@ import { fileIo, fileUri } from '@kit.CoreFileKit'
 
 const TAG = 'CrashPage'
 
-@Component
+@ComponentV2
 export struct CrashPage {
-  @State sweetLogDataSource: SweetLogDataSource = new SweetLogDataSource([])
-  @Consume('pathStack') pathStack: NavPathStack
+  @Local sweetLogDataSource: SweetLogDataSource = new SweetLogDataSource([])
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   private appEventGroups: Array<hiAppEvent.AppEventGroup> | [] = []
   private listScroller: Scroller = new Scroller()
 

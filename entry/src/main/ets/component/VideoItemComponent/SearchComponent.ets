@@ -1,23 +1,24 @@
 import { SearchShadowModifier } from "../../common/AttributeModifierConfig"
 
-@Component
+@ComponentV2
 export struct SearchComponent {
-  @Link searchValue: string
-  controller: SearchController | undefined = undefined
-  onChange = () => {
+  @Param searchValue: string = ''
+  @Event onSearchValueChange: (value: string) => void = () => {}
+  @Param controller: SearchController | undefined = undefined
+  @Event onChange: () => void = () => {
   }
-  onSubmit = (_value: string) => {
+  @Event onSubmit: (_value: string) => void = () => {
   }
-  onEditChange = ((_isEditing: boolean) => {
-  })
-  onSearchFocus = () => {
+  @Event onEditChange: (_isEditing: boolean) => void = () => {
+  }
+  @Event onSearchFocus: () => void = () => {
   }
 
   build() {
     Search({
       controller: this.controller,
       placeholder: $r('app.string.search_placeholder'),
-      value: $$this.searchValue
+      value: this.searchValue
     })
       .layoutWeight(1)
       .height(40)
@@ -25,7 +26,8 @@ export struct SearchComponent {
       .animation({ duration: 300, curve: Curve.Ease })
       .attributeModifier(new SearchShadowModifier())
       .keyboardAppearance(KeyboardAppearance.IMMERSIVE)// 设置搜索框沉浸模式
-      .onChange(() => {
+      .onChange((value: string) => {
+        this.onSearchValueChange(value)
         this.onChange()
       })
       .onSubmit((value: string) => {

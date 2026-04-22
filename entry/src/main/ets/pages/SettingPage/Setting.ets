@@ -15,10 +15,10 @@ import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 
 const TAG = 'SettingsPage'
 
-@Component
+@ComponentV2
 export struct SettingsPage { //设置页
-  @State passwd: string = 'passwd'
-  @Consume('pathStack') pathStack: NavPathStack
+  @Local passwd: string = 'passwd'
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
     builder: EditPasswordDialog({
       confirm: (passwd: string | undefined) => {
@@ -118,10 +118,10 @@ export struct SettingsPage { //设置页
               $r('sys.symbol.grid'),
             message: '列表布局',
             tips: ['卡片', '列表', '网格'],
-            tabSelectedIndexes: [Setting.listDisplayMode],
-            onButtonClick: (tabSelectedIndexes: number) => {
-              Setting.listDisplayMode = tabSelectedIndexes
-              Preferences.saveListDisplayMode(PathUtils.appContext!, tabSelectedIndexes)
+            tabSelectedIndex: Setting.listDisplayMode,
+            onButtonClick: (tabSelectedIndex: number) => {
+              Setting.listDisplayMode = tabSelectedIndex
+              Preferences.saveListDisplayMode(PathUtils.appContext!, tabSelectedIndex)
             }
           })
         }
@@ -132,10 +132,10 @@ export struct SettingsPage { //设置页
               $r('sys.symbol.rectangle_uphalf_inset_filled') : $r('sys.symbol.rectangle_lefthalf_inset_filled'),
             message: '封面版式',
             tips: ['竖版', '横版'],
-            tabSelectedIndexes: [Setting.coverLayout],
-            onButtonClick: (tabSelectedIndexes: number) => {
-              Setting.coverLayout = tabSelectedIndexes
-              Preferences.saveCoverLayoutMode(PathUtils.appContext!, tabSelectedIndexes)
+            tabSelectedIndex: Setting.coverLayout,
+            onButtonClick: (tabSelectedIndex: number) => {
+              Setting.coverLayout = tabSelectedIndex
+              Preferences.saveCoverLayoutMode(PathUtils.appContext!, tabSelectedIndex)
             }
           })
         }

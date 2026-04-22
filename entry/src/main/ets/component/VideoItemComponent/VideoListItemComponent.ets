@@ -8,13 +8,13 @@ import { VideoInfoBuilder } from './VideoInfoBuilder'
 import { Setting } from '../../utils/ObservedUtil'
 import { CoverLayoutMode } from '../../common/enum/DisplayMode'
 
-@Reusable
-@Component
+@ReusableV2
+@ComponentV2
 export default struct VideoListItem {
-  @Prop item: VideoMetadata
-  @Consume videoListController: VideoListController
-  @State choose: boolean = false
-  @Watch('checkChoose') @Link delMultipleList: VideoMetadata[]
+  @Param @Require item: VideoMetadata
+  @Consumer() videoListController: VideoListController = new VideoListController()
+  @Local choose: boolean = false
+  @Param delMultipleList: VideoMetadata[] = []
 
   // 组件复用时的生命周期回调
   aboutToReuse(): void {

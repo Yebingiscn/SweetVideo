@@ -3,9 +3,9 @@ import { MpvController } from '../../controller/MpvController/MpvController'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { SafeHeight } from '../../utils/ObservedUtil'
 
-@Component
+@ComponentV2
 export struct VideoLayoutComponent {
-  @Consume('player') player: AVPlayerController | MpvController
+  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
   @BuilderParam VideoTop: () => void
   @BuilderParam VideoButtons: () => void
   @BuilderParam VideoSlider: () => void

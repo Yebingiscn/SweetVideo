@@ -2,10 +2,10 @@ import { SymbolGlyphFancyModifier, ButtonFancyModifier } from '../../common/Attr
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 
-@Component
+@ComponentV2
 export struct LockVideoBarComponent {
-  @Consume('player') player: AVPlayerController | MpvController
-  onLockClick = () => {
+  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Event onLockClick: () => void = () => {
   }
 
   build() {

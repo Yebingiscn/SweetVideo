@@ -19,23 +19,42 @@ function VideoControlIcon(videoControlIconValue: VideoControlIconValue) {
     .opacity(0.8)
 }
 
-@Component
+@ComponentV2
 export struct VideoButtonsComponent {
-  @Link sideBarStatusTmp: Visibility
-  @Link sideBarStatus: boolean
+  @Param sideBarStatusTmp: Visibility = Visibility.Hidden
+  @Event onSideBarStatusTmpChange: (v: Visibility) => void = () => {}
+  @Local _sideBarStatusTmp: Visibility = Visibility.Hidden
+  @Param sideBarStatus: boolean = false
+  @Event onSideBarStatusChange: (v: boolean) => void = () => {}
+  @Local _sideBarStatus: boolean = false
   @BuilderParam AVCastPickerBuilderBridge: () => void
   @BuilderParam videoSettingBuilder: () => void
   @BuilderParam playbackSpeedMenu: () => void
-  @Consume('player') player: AVPlayerController | MpvController
-  onScreenRotationOrFullScreenClick = async () => {
+  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  aboutToAppear(): void {
+    this._sideBarStatusTmp = this.sideBarStatusTmp
+    this._sideBarStatus = this.sideBarStatus
   }
-  onTogglePlaybackClick = () => {
+
+  @Monitor('sideBarStatusTmp')
+  onSideBarStatusTmpMonitor() {
+    this._sideBarStatusTmp = this.sideBarStatusTmp
   }
-  onPlayNextVideoClick = () => {
+
+  @Monitor('sideBarStatus')
+  onSideBarStatusMonitor() {
+    this._sideBarStatus = this.sideBarStatus
   }
-  onSideBaClose = () => {
+
+  @Event onScreenRotationOrFullScreenClick: () => Promise<void> = async () => {
   }
-  onChangeRepeatMode = (_repeatMode: SweetRepeatMode) => {
+  @Event onTogglePlaybackClick: () => void = () => {
+  }
+  @Event onPlayNextVideoClick: () => void = () => {
+  }
+  @Event onSideBaClose: () => void = () => {
+  }
+  @Event onChangeRepeatMode: (_repeatMode: SweetRepeatMode) => void = () => {
   }
 
   @Styles
@@ -103,11 +122,13 @@ export struct VideoButtonsComponent {
       }
       .circleButton()
       .onClick(() => {
-        if (this.sideBarStatus) {
+        if (this._sideBarStatus) {
           this.onSideBaClose()
         } else {
-          this.sideBarStatusTmp = Visibility.Visible
-          this.sideBarStatus = true
+          this._sideBarStatusTmp = Visibility.Visible
+          this.onSideBarStatusTmpChange(Visibility.Visible)
+          this._sideBarStatus = true
+          this.onSideBarStatusChange(true)
         }
       })
 

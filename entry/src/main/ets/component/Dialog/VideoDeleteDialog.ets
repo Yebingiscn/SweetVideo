@@ -12,11 +12,11 @@ function itemUri() {
 export struct VideoDeleteDialog {
   confirm?: (deleteType: DeleteType) => void
   controller?: CustomDialogController
-  @State isPermanentDelete: boolean = false
-  @State isMoveToRecent: boolean = false
-  @State permanentDeleteVisibility: boolean = false
-  @State moveToRecentVisibility: boolean = false
-  @State msg: ResourceStr = this.generateMessage()
+  isPermanentDelete: boolean = false
+  isMoveToRecent: boolean = false
+  permanentDeleteVisibility: boolean = false
+  moveToRecentVisibility: boolean = false
+  msg: ResourceStr = ''
   private uri: string = itemUri()
 
   aboutToAppear(): void {
@@ -56,7 +56,7 @@ export struct VideoDeleteDialog {
                     this.msg = $r('app.string.soft_del_confirm')
                   }
                 })
-                .select($$this.isPermanentDelete)
+                .select(this.isPermanentDelete!!)
                 .width(20)
                 .height(20)
               Column() {
@@ -87,7 +87,7 @@ export struct VideoDeleteDialog {
                   this.msg = $r('app.string.soft_del_confirm')
                 }
               })
-              .select($$this.isMoveToRecent)
+              .select(this.isMoveToRecent!!)
               .width(20)
               .height(20)
             Column() {

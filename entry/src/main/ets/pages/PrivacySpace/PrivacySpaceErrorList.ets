@@ -10,11 +10,11 @@ import { SymbolGlyphModifier } from '@kit.ArkUI'
 
 const TAG = 'PrivacySpaceErrorList'
 
-@Component
+@ComponentV2
 export struct PrivacySpaceErrorList {
-  @State errorListDataSource: PrivacySpaceErrorListDataSource = new PrivacySpaceErrorListDataSource([])
-  @State videoList: String[] = []
-  @Consume('pathStack') pathStack: NavPathStack
+  @Local errorListDataSource: PrivacySpaceErrorListDataSource = new PrivacySpaceErrorListDataSource([])
+  @Local videoList: String[] = []
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   private listScroller: Scroller = new Scroller()
 
   async aboutToAppear(): Promise<void> {

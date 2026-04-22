@@ -5,34 +5,34 @@ import { MpvController } from '../../controller/MpvController/MpvController'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
-@Component
+@ComponentV2
 export struct VideoTopComponent {
-  @Consume('player') player: AVPlayerController | MpvController
-  @Link subTitleVisibility: Visibility
+  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Param subTitleVisibility: Visibility = Visibility.None
   @BuilderParam audioTrackMenuBuilder: () => void
   @BuilderParam subtitlePanelComponent: () => void
-  @Link lockRotation: boolean
-  onLockRotationClick = async () => {
+  @Param lockRotation: boolean = false
+  @Event onLockRotationClick: () => Promise<void> = async () => {
   }
-  onExitVideoClick = () => {
+  @Event onExitVideoClick: () => void = () => {
   }
-  onOriginalRatio = () => {
+  @Event onOriginalRatio: () => void = () => {
   }
-  onStretchedToFullScreen = () => {
+  @Event onStretchedToFullScreen: () => void = () => {
   }
-  onFullScreenByWidth = () => {
+  @Event onFullScreenByWidth: () => void = () => {
   }
-  onFullScreenByHeight = () => {
+  @Event onFullScreenByHeight: () => void = () => {
   }
-  onUniformScale = (_scale: number) => {
+  @Event onUniformScale: (_scale: number) => void = () => {
   }
-  onSpecificVideoProportions = (_playAreaSize: number[]) => {
+  @Event onSpecificVideoProportions: (_playAreaSize: number[]) => void = () => {
   }
-  onSelectedTextChange = (_text: string) => {
+  @Event onSelectedTextChange: (_text: string) => void = () => {
   }
-  pipStateChange = () => {
+  @Event pipStateChange: () => void = () => {
   }
-  onOpenPersonalScreenExtend = () => {
+  @Event onOpenPersonalScreenExtend: () => void = () => {
   }
 
   build() {
