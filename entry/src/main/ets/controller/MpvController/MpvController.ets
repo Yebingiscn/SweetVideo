@@ -221,7 +221,7 @@ export class MpvController implements PlayerControllerInterface {
       if (!this.mpvHandle) {
         salmonLogger.addLog(TAG, '[MpvPlayer] Failed to create mpv instance - handle is null/undefined', true)
       } else {
-        salmonLogger.addLog(TAG, '[MpvPlayer] MPV instance created:' + this.mpvHandle, true)
+        salmonLogger.addLog(TAG, '[MpvPlayer] MPV instance created:' + this.mpvHandle, false)
       }
     } catch {
       salmonLogger.addLog(TAG, '[MpvPlayer] Exception during create', true)

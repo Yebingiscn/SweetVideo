@@ -1,5 +1,6 @@
 import TimeUtil from '../../utils/TimeUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
+import { SweetAgentComponent } from '../common/SweetAgentComponent]'
 
 
 export class AppInfoBuilderParams {
@@ -20,6 +21,7 @@ export function AppInfoBuilder(params: AppInfoBuilderParams) {
       .fontColor($r('app.color.text_color'))
       .margin({ left: 5, right: 12 })
       .textOverflow({ overflow: TextOverflow.MARQUEE })
+    SweetAgentComponent()
   }
   .width('100%')
   .justifyContent(FlexAlign.Center)

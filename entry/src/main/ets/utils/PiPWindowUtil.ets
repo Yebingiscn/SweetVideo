@@ -128,12 +128,16 @@ export default class PiPWindowUtil {
         let status: PiPWindow.PiPControlStatus =
           controller.playing ? PiPWindow.PiPControlStatus.PLAY : PiPWindow.PiPControlStatus.PAUSE
         PiPWindowUtil.pipController?.updatePiPControlStatus(PiPWindow.PiPControlType.VIDEO_PLAY_PAUSE, status)
+        PiPWindowUtil.pipOpenState = true
         break
       case PiPWindow.PiPState.ABOUT_TO_STOP:
+        PiPWindowUtil.pipOpenState = false
         break
       case PiPWindow.PiPState.STOPPED:
+        PiPWindowUtil.pipOpenState = false
         break
       case PiPWindow.PiPState.ABOUT_TO_RESTORE:
+        PiPWindowUtil.pipOpenState = false
         break
       case PiPWindow.PiPState.ERROR:
         break

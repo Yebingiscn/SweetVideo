@@ -194,8 +194,7 @@ class SubtitleUtil {
       return true
     } catch (e) {
       const error: string = e
-      salmonLogger.addLog(TAG, 'test' + e, true)
-      salmonLogger.addLog('subtitle', `SRT 外挂字幕加载失败，原因是：${error}`, true)
+      salmonLogger.addLog(TAG, `SRT 外挂字幕加载失败，原因是：${error}`, true)
       return false
     }
   }
@@ -219,8 +218,7 @@ class SubtitleUtil {
       return true
     } catch (e) {
       const error: string = e
-      salmonLogger.addLog('subtitle', `ASS 外挂字幕加载失败，原因是：${error}`, true)
-      salmonLogger.addLog(TAG, 'testASS解析诊断失败: ' + error, true)
+      salmonLogger.addLog(TAG, `ASS 外挂字幕加载失败，原因是：${error}`, true)
       return false
     }
   }
@@ -241,8 +239,7 @@ class SubtitleUtil {
       return true
     } catch (e) {
       const error: string = e
-      salmonLogger.addLog(TAG, 'test' + e, true)
-      salmonLogger.addLog('subtitle', `VTT 外挂字幕加载失败，原因是：${error}`, true)
+      salmonLogger.addLog(TAG, `VTT 外挂字幕加载失败，原因是：${error}`, true)
       return false
     }
   }
