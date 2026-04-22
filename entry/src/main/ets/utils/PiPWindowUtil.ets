@@ -10,6 +10,19 @@ import { PathUtils } from './PathUtils'
  * 自动画中画工具类
  */
 const TAG = 'PiPWindowUtil'
+const PIP_BASE_SIZE = 480
+const PIP_DEFAULT_WIDTH = 480
+const PIP_DEFAULT_HEIGHT = 270
+
+class PipContentSize {
+  width: number = 0
+  height: number = 0
+
+  constructor(width: number, height: number) {
+    this.width = width
+    this.height = height
+  }
+}
 
 export default class PiPWindowUtil {
   static pipController?: PiPWindow.PiPController | undefined = undefined
@@ -36,16 +49,42 @@ export default class PiPWindowUtil {
     }
   }
 
+  private static calculatePipContentSize(videoWidth: number, videoHeight: number): PipContentSize {
+    if (videoWidth <= 0 || videoHeight <= 0) {
+      return new PipContentSize(PIP_DEFAULT_WIDTH, PIP_DEFAULT_HEIGHT)
+    }
+    if (videoWidth >= videoHeight) {
+      return new PipContentSize(PIP_BASE_SIZE, Math.round(PIP_BASE_SIZE * videoHeight / videoWidth))
+    }
+    return new PipContentSize(Math.round(PIP_BASE_SIZE * videoWidth / videoHeight), PIP_BASE_SIZE)
+  }
+
+  static updateContentSize() {
+    const controller = PiPWindowUtil.playerController as AVPlayerController | MpvController | undefined
+    const videoWidth = controller && controller.nowPlaying && controller.nowPlaying.size[0] ? controller.nowPlaying.size[0] : 0
+    const videoHeight = controller && controller.nowPlaying && controller.nowPlaying.size[1] ? controller.nowPlaying.size[1] : 0
+    const size = PiPWindowUtil.calculatePipContentSize(videoWidth, videoHeight)
+    try {
+      PiPWindowUtil.pipController?.updateContentSize(size.width, size.height)
+    } catch (exception) {
+      salmonLogger.addLog(TAG, `updateContentSize failed, Code:${exception.code}, message:${exception.message}`)
+    }
+  }
+
   static async createPipController(xComponentController: XComponentController,
     playerController ?: PlayerControllerInterface) {
+    const controller = playerController as AVPlayerController | MpvController | undefined
+    const videoWidth = controller && controller.nowPlaying && controller.nowPlaying.size[0] ? controller.nowPlaying.size[0] : 0
+    const videoHeight = controller && controller.nowPlaying && controller.nowPlaying.size[1] ? controller.nowPlaying.size[1] : 0
+    const size = PiPWindowUtil.calculatePipContentSize(videoWidth, videoHeight)
     try {
       PiPWindowUtil.pipController = await PiPWindow.create({
         context: PathUtils.appContext!,
         componentController: xComponentController,
         templateType: PiPWindow.PiPTemplateType.VIDEO_PLAY,
         controlGroups: [PiPWindow.VideoPlayControlGroup.FAST_FORWARD_BACKWARD],
-        contentWidth: 480,
-        contentHeight: 270
+        contentWidth: size.width,
+        contentHeight: size.height
       })
       PiPWindowUtil.playerController = playerController
     } catch (exception) {

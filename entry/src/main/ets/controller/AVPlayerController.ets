@@ -2,6 +2,7 @@ import { media } from '@kit.MediaKit'
 import { avSession, avSession as avSessionManager } from '@kit.AVSessionKit'
 import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
 import ToolsUtil from '../utils/ToolsUtil'
+import PiPWindowUtil from '../utils/PiPWindowUtil'
 import { audio } from '@kit.AudioKit'
 import { SubtitleMode } from '../common/enum/SubtitleMode'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
@@ -471,6 +472,7 @@ export class AVPlayerController implements PlayerControllerInterface {
       ToolsUtil.addLogger(errorText, true)
       pathStack && pathStack.pop()
     }
+    PiPWindowUtil.updateContentSize()
     ToolsUtil.addLogger("获取播放数据完成", false)
   }
 

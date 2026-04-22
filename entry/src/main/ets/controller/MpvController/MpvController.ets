@@ -42,6 +42,7 @@ import { WindowUtil } from '../../utils/WindowUtil';
 import { window } from '@kit.ArkUI';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
+import PiPWindowUtil from '../../utils/PiPWindowUtil';
 import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode';
 import AVSessionUtil from '../../utils/AVSessionUtil';
 import {
@@ -530,6 +531,7 @@ export class MpvController implements PlayerControllerInterface {
     if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE) {
       this.syncOsdSurfaceSize() // 不加这里就会变得很模糊？？？
     }
+    PiPWindowUtil.updateContentSize()
   }
 
   setKeepAspectStatus(keepAspect: boolean) {
