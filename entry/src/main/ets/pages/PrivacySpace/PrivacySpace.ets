@@ -53,6 +53,7 @@ export struct PrivacySpace { // 隐私空间页
         }
         this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
         this.video_meta_data_encryption[targetIndex].title = title.trim()
+        this.allVideos = [...this.video_meta_data_encryption]
         this.videoDataSource.updateData(this.video_meta_data_encryption)
         Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, this.video_meta_data_encryption)
         this.searchValue = ''
@@ -60,6 +61,7 @@ export struct PrivacySpace { // 隐私空间页
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   @Local video_meta_data_encryption: VideoMetadata[] = []
+  @Local allVideos: VideoMetadata[] = [] // 保存完整数据用于搜索
   @Local list_line: number = 1
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   @Local totalItems: number = 0
@@ -71,6 +73,8 @@ export struct PrivacySpace { // 隐私空间页
   @Local failedCount: number = 0 // 失败文件数
   @Local searchValue: string = ''
   @Local is_edit: boolean = false
+  @Local currentSortField: 'name' | 'datetime' | 'time' | '' = ''
+  @Local currentSortAsc: boolean = true
   @Local passwd: string = 'passwd'
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
     builder: EditPasswordDialog({
@@ -92,6 +96,13 @@ export struct PrivacySpace { // 隐私空间页
     shadow: DefaultDialogShadow
   })
   private listScroller: Scroller = new Scroller()
+
+  private applySearch() {
+    this.video_meta_data_encryption = this.searchValue.trim()
+      ? SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue)
+      : this.allVideos
+    this.videoDataSource.updateData(this.video_meta_data_encryption)
+  }
 
   @Builder
   PrivacySpaceSettingBuilder() {
@@ -178,20 +189,40 @@ export struct PrivacySpace { // 隐私空间页
   SortMenuBuilder() {
     SortComponent({
       onSortByName: () => {
-        ToolsUtil.sortBy(PathUtils.appContext!, this.video_meta_data_encryption, undefined, "name")
-        this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-        this.videoDataSource.updateData(this.video_meta_data_encryption)
+        const defaultAsc = true
+        if (this.currentSortField === 'name') {
+          this.currentSortAsc = !this.currentSortAsc
+        } else {
+          this.currentSortField = 'name'
+          this.currentSortAsc = defaultAsc
+        }
+        ToolsUtil.sortBy(PathUtils.appContext!, this.allVideos, undefined, "name", this.currentSortAsc)
+        this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+        this.applySearch()
       },
       onSortByTime: () => {
-        ToolsUtil.sortBy(PathUtils.appContext!, this.video_meta_data_encryption, undefined, "time")
-        this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-        this.videoDataSource.updateData(this.video_meta_data_encryption)
+        const defaultAsc = false
+        if (this.currentSortField === 'time') {
+          this.currentSortAsc = !this.currentSortAsc
+        } else {
+          this.currentSortField = 'time'
+          this.currentSortAsc = defaultAsc
+        }
+        ToolsUtil.sortBy(PathUtils.appContext!, this.allVideos, undefined, "time", this.currentSortAsc)
+        this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+        this.applySearch()
       },
       onSortByDatetime: () => {
-        ToolsUtil.sortBy(PathUtils.appContext!, this.video_meta_data_encryption, undefined, "datetime")
-        this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-        this.videoDataSource.updateData(this.video_meta_data_encryption)
-
+        const defaultAsc = false
+        if (this.currentSortField === 'datetime') {
+          this.currentSortAsc = !this.currentSortAsc
+        } else {
+          this.currentSortField = 'datetime'
+          this.currentSortAsc = defaultAsc
+        }
+        ToolsUtil.sortBy(PathUtils.appContext!, this.allVideos, undefined, "datetime", this.currentSortAsc)
+        this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+        this.applySearch()
       }
     })
   }
@@ -239,12 +270,16 @@ export struct PrivacySpace { // 隐私空间页
       })
         .onClick(async () => {
           await SubtitleUtil.importOrDeleteSubtitleProcess(item!)
-          const targetIndex = SelectFileUtil.getItemIndex(this.video_meta_data_encryption, item!)
+          const targetIndex = SelectFileUtil.getItemIndex(this.allVideos, item!)
           if (targetIndex !== -1) {
-            this.video_meta_data_encryption[targetIndex] = item!
+            this.allVideos[targetIndex] = item!
             // 使用增量更新而不是全量重载，提升性能
-            this.videoDataSource.updateItem(targetIndex, item!)
-            Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, this.video_meta_data_encryption)
+            const displayIndex = SelectFileUtil.getItemIndex(this.video_meta_data_encryption, item!)
+            if (displayIndex !== -1) {
+              this.video_meta_data_encryption[displayIndex] = item!
+              this.videoDataSource.updateItem(displayIndex, item!)
+            }
+            Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, this.allVideos)
           }
         })
     }.attributeModifier(new MenuFancyModifier())
@@ -274,7 +309,10 @@ export struct PrivacySpace { // 隐私空间页
         },
         fileFolder
       )
-      this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+      this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+      this.video_meta_data_encryption = this.searchValue.trim()
+        ? SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue)
+        : this.allVideos
       this.videoDataSource.updateData(this.video_meta_data_encryption)
       ToolsUtil.showToast(
         `${ToolsUtil.getStringResource($r('app.string.add_time_info').id)}${this.totalItems -
@@ -290,7 +328,8 @@ export struct PrivacySpace { // 隐私空间页
   }
 
   async aboutToAppear(): Promise<void> {
-    this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+    this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+    this.video_meta_data_encryption = this.allVideos
     this.videoDataSource = new VideoDataSource(this.video_meta_data_encryption)
     PrivacySpaceUtil.setPrivacyMode(true)
     DlpAntiPeepUtil.checkDlpAntiPeepStatus()
@@ -310,10 +349,14 @@ export struct PrivacySpace { // 隐私空间页
   }
 
   async deleteItem(date: string, title: string) {
-    this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-    this.videoDataSource.deleteData(this.video_meta_data_encryption.findIndex(i => i.date === date))
-    this.video_meta_data_encryption = this.video_meta_data_encryption.filter(i => i.date !== date)
-    await SelectFileUtil.deletePrivacyVideo(date, title, this.video_meta_data_encryption)
+    this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+    this.videoDataSource.deleteData(this.allVideos.findIndex(i => i.date === date))
+    this.allVideos = this.allVideos.filter(i => i.date !== date)
+    this.video_meta_data_encryption = this.searchValue.trim()
+      ? SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue)
+      : this.allVideos
+    this.videoDataSource.updateData(this.video_meta_data_encryption)
+    await SelectFileUtil.deletePrivacyVideo(date, title, this.allVideos)
   }
 
   @Builder
@@ -327,35 +370,17 @@ export struct PrivacySpace { // 隐私空间页
   build() {
     NavDestination() {
       Column() {
-        if (this.video_meta_data_encryption.length == 0 && !this.loading) {
-          Row() { //顶栏
-            Column() {
-              Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
-              Text($r('app.string.privacy_space_info'))
-                .fontSize(15)
-                .textAlign(TextAlign.Center)
-                .fontWeight(FontWeight.Lighter)
-                .margin({ top: 20 })
-            }
-          }.height('100%')
-          .animation({ duration: 150, curve: Curve.Ease })
-        }
-
         SearchComponent({
           controller: this.searchController,
           searchValue: this.searchValue,
           onSearchValueChange: (v: string) => { this.searchValue = v },
           onChange: () => {
-            const newVideoList = SelectFileUtil.getItemFromSearch(
-              this.video_meta_data_encryption,
-              this.searchValue,
-            )
-            if (this.video_meta_data_encryption) {
-              this.searchValue === '' ?
-                this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-                : this.video_meta_data_encryption = newVideoList
-              this.videoDataSource.updateData(this.video_meta_data_encryption)
+            if (this.searchValue.trim() === '') {
+              this.video_meta_data_encryption = this.allVideos
+            } else {
+              this.video_meta_data_encryption = SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue)
             }
+            this.videoDataSource.updateData(this.video_meta_data_encryption)
           },
           onEditChange: (isEditing: boolean) => {
             animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
@@ -373,7 +398,25 @@ export struct PrivacySpace { // 隐私空间页
             failedCount: this.failedCount
           })
         }
-        List({ scroller: this.listScroller, space: 10 }) {
+        if (this.video_meta_data_encryption.length == 0 && !this.loading) {
+          Row() {
+            Column() {
+              if (this.searchValue.trim() !== '') {
+                Text('未找到相关视频').fontSize(25).fontWeight(FontWeight.Bold)
+              } else {
+                Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
+                Text($r('app.string.privacy_space_info'))
+                  .fontSize(15)
+                  .textAlign(TextAlign.Center)
+                  .fontWeight(FontWeight.Lighter)
+                  .margin({ top: 20 })
+              }
+            }
+          }.layoutWeight(1)
+          .justifyContent(FlexAlign.Center)
+          .animation({ duration: 150, curve: Curve.Ease })
+        } else {
+          List({ scroller: this.listScroller, space: 10 }) {
           LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
             ListItem() {
               if (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY) {
@@ -443,6 +486,7 @@ export struct PrivacySpace { // 隐私空间页
         .chainAnimation(true)
         .scrollBar(BarState.Off)
       }
+    }
       .width('100%')
       .height('100%')
       .onAreaChange(async (_oldValue: Area, newValue: Area) => {
@@ -457,7 +501,10 @@ export struct PrivacySpace { // 隐私空间页
       PrivacySpaceUtil.closePrivacyMode()
     })
     .onShown(() => {
-      this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+      this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+      this.video_meta_data_encryption = this.searchValue.trim()
+        ? SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue)
+        : this.allVideos
       this.videoDataSource.updateData(this.video_meta_data_encryption)
       if (DataSyncUtil.lastPlayVideoIndex >= 0) {
         this.listScroller.scrollToIndex(DataSyncUtil.lastPlayVideoIndex)
@@ -480,6 +527,8 @@ export struct PrivacySpace { // 隐私空间页
     .onBackPressed(() => {
       if (this.searchValue.length > 0) {
         this.searchValue = ''
+        this.video_meta_data_encryption = this.allVideos
+        this.videoDataSource.updateData(this.video_meta_data_encryption)
         return true
       } else {
         return false

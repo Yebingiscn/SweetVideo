@@ -186,7 +186,6 @@ export struct VideoView {
                 return
               }
               if (value == this.passwd) {
-                ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
                 this.pathStack.pushPathByName(NavigationAddress.PRIVACY_SPACE, null)
                 this._searchValue = ''
                 this.onSearchValueChange('')

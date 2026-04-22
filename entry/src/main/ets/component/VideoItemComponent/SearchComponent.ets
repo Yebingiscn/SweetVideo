@@ -3,6 +3,7 @@ import { SearchShadowModifier } from "../../common/AttributeModifierConfig"
 @ComponentV2
 export struct SearchComponent {
   @Param searchValue: string = ''
+  @Local localSearchValue: string = ''
   @Event onSearchValueChange: (value: string) => void = () => {}
   @Param controller: SearchController | undefined = undefined
   @Event onChange: () => void = () => {
@@ -14,11 +15,20 @@ export struct SearchComponent {
   @Event onSearchFocus: () => void = () => {
   }
 
+  aboutToAppear(): void {
+    this.localSearchValue = this.searchValue
+  }
+
+  @Monitor('searchValue')
+  onSearchValueMonitor(monitor: IMonitor) {
+    this.localSearchValue = monitor.value<string>()?.now ?? ''
+  }
+
   build() {
     Search({
       controller: this.controller,
       placeholder: $r('app.string.search_placeholder'),
-      value: this.searchValue
+      value: this.localSearchValue
     })
       .layoutWeight(1)
       .height(40)
@@ -27,6 +37,7 @@ export struct SearchComponent {
       .attributeModifier(new SearchShadowModifier())
       .keyboardAppearance(KeyboardAppearance.IMMERSIVE)// 设置搜索框沉浸模式
       .onChange((value: string) => {
+        this.localSearchValue = value
         this.onSearchValueChange(value)
         this.onChange()
       })

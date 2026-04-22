@@ -80,7 +80,7 @@ export default class ToolsUtil {
     }
   }
 
-  static sortByNameProcess(list: VideoMetadata[]) {
+  static sortByNameProcess(list: VideoMetadata[], ascending: boolean = true) {
     if (list.length <= 1) {
       return [...list]
     }
@@ -92,36 +92,41 @@ export default class ToolsUtil {
       return videoItem
     })
     const sortedItems = [...itemsWithPinyin].sort((a, b) => {
-      return ToolsUtil.naturalCompare(a.pinyin, b.pinyin)
+      const cmp = ToolsUtil.naturalCompare(a.pinyin, b.pinyin)
+      return ascending ? cmp : -cmp
     })
     return sortedItems.map(entry => entry.item)
   }
 
-  static sortByDatetimeProcess(list: VideoMetadata[]) {
-    return [...list].sort((a, b) => Number(b.date) - Number(a.date)
-    )
+  static sortByDatetimeProcess(list: VideoMetadata[], ascending: boolean = false) {
+    return [...list].sort((a, b) => {
+      const cmp = Number(a.date) - Number(b.date)
+      return ascending ? cmp : -cmp
+    })
   }
 
-  static sortByTimeProcess(list: VideoMetadata[]) {
-    return [...list].sort((a, b) => Number(b.time) - Number(a.time)
-    )
+  static sortByTimeProcess(list: VideoMetadata[], ascending: boolean = false) {
+    return [...list].sort((a, b) => {
+      const cmp = Number(a.time) - Number(b.time)
+      return ascending ? cmp : -cmp
+    })
   }
 
   static sortBy(context: Context, list: VideoMetadata[], file_folder: FileFolder | undefined,
-    sortType: 'name' | 'datetime' | 'time') {
+    sortType: 'name' | 'datetime' | 'time', ascending?: boolean) {
     let sorted_list: VideoMetadata[]
     switch (sortType) {
       case 'name':
-        sorted_list = ToolsUtil.sortByNameProcess(list)
+        sorted_list = ToolsUtil.sortByNameProcess(list, ascending)
         break
       case 'datetime':
-        sorted_list = ToolsUtil.sortByDatetimeProcess(list)
+        sorted_list = ToolsUtil.sortByDatetimeProcess(list, ascending)
         break
       case 'time':
-        sorted_list = ToolsUtil.sortByTimeProcess(list)
+        sorted_list = ToolsUtil.sortByTimeProcess(list, ascending)
         break
       default:
-        sorted_list = ToolsUtil.sortByNameProcess(list)
+        sorted_list = ToolsUtil.sortByNameProcess(list, ascending)
     }
     if (file_folder) {
       FileFolderUtil.updateFileFolder(context, file_folder, sorted_list)
