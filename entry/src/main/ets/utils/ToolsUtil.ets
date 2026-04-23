@@ -18,7 +18,7 @@ import fileIo from '@ohos.file.fs'
 import { util } from '@kit.ArkTS'
 import { window } from '@kit.ArkUI'
 import { vibrator } from '@kit.SensorServiceKit'
-import { pinyin } from 'pinyin-pro'
+import { pinyin4js } from '@ohos/pinyin4js'
 import { updateManager } from '@kit.AppGalleryKit'
 
 const TAG = 'ToolsUtil'
@@ -87,7 +87,7 @@ export default class ToolsUtil {
     const itemsWithPinyin: VideoItemWithPinyin[] = list.map(item => {
       const videoItem: VideoItemWithPinyin = {
         item: item,
-        pinyin: pinyin(item.title || "")
+        pinyin: pinyin4js.getShortPinyin(item.title || "")
       }
       return videoItem
     })
