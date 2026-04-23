@@ -28,6 +28,9 @@ declare module 'libmpvnative.so' {
   // ==================== 视频加载 ====================
   export const loadVideo: (mpvHandle: number, url: string, startPosition?: number) => void;
 
+  // ==================== 蓝光设备配置（ISO文件播放）====================
+  export const setBlurayDevice: (mpvHandle: number, isoPath: string) => void;
+
   // ==================== 播放控制 ====================
   export const seek: (mpvHandle: number, seconds: number, exact: boolean) => void;
 

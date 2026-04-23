@@ -33,8 +33,8 @@ export default class WantProcess {
   }
 
   static async getSystemShareWant(want: Want) {
-    try {
-      if (canIUse("SystemCapability.Collaboration.SystemShare")) {
+    if (canIUse("SystemCapability.Collaboration.SystemShare")) {
+      try {
         const data = await systemShare.getSharedData(want)
         const records = data.getRecords()
         for (const record of records) {
@@ -45,12 +45,12 @@ export default class WantProcess {
             break
           }
         }
-      } else {
-        ToolsUtil.showToast('系统不支持该功能')
+      } catch (error) {
+        const businessError = error as BusinessError
+        salmonLogger.addLog(TAG, `Failed: Code ${businessError.code}, ${businessError.message}`, true)
       }
-    } catch (error) {
-      const businessError = error as BusinessError
-      salmonLogger.addLog(TAG, `Failed: Code ${businessError.code}, ${businessError.message}`, true)
+    } else {
+      ToolsUtil.showToast('系统不支持该功能')
     }
   }
 

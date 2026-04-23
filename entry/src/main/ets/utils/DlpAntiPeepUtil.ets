@@ -74,27 +74,28 @@ export default class DlpAntiPeepUtil {
   }
 
   private static async setMaskLayer(): Promise<void> {
-    try {
-      if (!WindowUtil.windowClass) {
-        salmonLogger.addLog(TAG, 'WindowUtil.windowClass is null', true)
-        return
-      }
-      const context = WindowUtil.windowClass.getUIContext().getHostContext() as common.UIAbilityContext
-      if (!context) {
-        salmonLogger.addLog(TAG, 'Failed to get UIAbilityContext', true)
-        return
-      }
-      const windowClass = await window.getLastWindow(context)
-      const windowId = windowClass.getWindowProperties().id
-      if (canIUse("SystemCapability.Security.DlpAntiPeep")) {
+    if (canIUse("SystemCapability.Security.DlpAntiPeep")) {
+      try {
+        if (!WindowUtil.windowClass) {
+          salmonLogger.addLog(TAG, 'WindowUtil.windowClass is null', true)
+          return
+        }
+        const context = WindowUtil.windowClass.getUIContext().getHostContext() as common.UIAbilityContext
+        if (!context) {
+          salmonLogger.addLog(TAG, 'Failed to get UIAbilityContext', true)
+          return
+        }
+        const windowClass = await window.getLastWindow(context)
+        const windowId = windowClass.getWindowProperties().id
         await dlpAntiPeep.setAntiPeepMaskLayer(windowId)
-      } else {
-        // Fallback: 系统不支持防窥功能,可以考虑其他保护方案
-        salmonLogger.addLog(TAG, 'SystemCapability.Security.DlpAntiPeep not supported')
+        DlpAntiPeepUtil.isDlpAntiPeepStatus = true
+      } catch (error) {
+        salmonLogger.addLog(TAG, `Failed to set AntiPeep MaskLayer. Code: ${error.code}, message: ${error.message}`,
+          true)
       }
-      DlpAntiPeepUtil.isDlpAntiPeepStatus = true
-    } catch (error) {
-      salmonLogger.addLog(TAG, `Failed to set AntiPeep MaskLayer. Code: ${error.code}, message: ${error.message}`, true)
+    } else {
+      // Fallback: 系统不支持防窥功能,可以考虑其他保护方案
+      salmonLogger.addLog(TAG, 'SystemCapability.Security.DlpAntiPeep not supported', false)
     }
   }
 }

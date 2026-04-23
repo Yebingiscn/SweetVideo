@@ -181,9 +181,13 @@ export struct Player { // 播放页
       SideBarContainer(SideBarContainerType.Overlay) {
         PlayerSideBarComponent({
           sideBarStatusTmp: this.sideBarStatusTmp,
-          onSideBarStatusTmpChange: (v: Visibility) => { this.sideBarStatusTmp = v },
+          onSideBarStatusTmpChange: (v: Visibility) => {
+            this.sideBarStatusTmp = v
+          },
           sideBarStatus: this.sideBarStatus,
-          onSideBarStatusChange: (v: boolean) => { this.sideBarStatus = v },
+          onSideBarStatusChange: (v: boolean) => {
+            this.sideBarStatus = v
+          },
           onItemClick: (item: VideoMetadata) => {
             this.player.playChooseVideo(item, this.pathStack, this.windowClass)
             this.player.setPlayerCallback(this.pathStack, this.xComponentController, this.windowClass)
@@ -644,9 +648,13 @@ export struct Player { // 播放页
         this.PlaybackSpeedMenuBuilder()
       },
       sideBarStatusTmp: this.sideBarStatusTmp,
-      onSideBarStatusTmpChange: (v: Visibility) => { this.sideBarStatusTmp = v },
+      onSideBarStatusTmpChange: (v: Visibility) => {
+        this.sideBarStatusTmp = v
+      },
       sideBarStatus: this.sideBarStatus,
-      onSideBarStatusChange: (v: boolean) => { this.sideBarStatus = v },
+      onSideBarStatusChange: (v: boolean) => {
+        this.sideBarStatus = v
+      },
       onScreenRotationOrFullScreenClick: async () => {
         VideoOperateUtil.fullScreenOrRotateScreen(this.player.screenWidth, this.player.screenHeight, this.windowClass)
       },
@@ -746,7 +754,9 @@ export struct Player { // 播放页
       subtitleVisibility: this.subtitleVisibility,
       isAIAsrShown: this.isAIAsrShown,
       subtitle3DMode: this.subtitle3DMode,
-      onSubtitle3DModeChange: (v: Subtitle3DMode) => { this.subtitle3DMode = v },
+      onSubtitle3DModeChange: (v: Subtitle3DMode) => {
+        this.subtitle3DMode = v
+      },
       onSubtitleOffClick: () => {
         this.turnOffSubtitleDisplay()
       },

@@ -1,5 +1,4 @@
 import { bundleManager, ConfigurationConstant } from '@kit.AbilityKit'
-import { pinyin4js } from '@ohos/pinyin4js'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { PathUtils } from './PathUtils'
@@ -17,9 +16,10 @@ import VideoInfoUtil from './VideoInfoUtil'
 import { WindowUtil } from './WindowUtil'
 import fileIo from '@ohos.file.fs'
 import { util } from '@kit.ArkTS'
-import { updateManager } from '@kit.StoreKit'
 import { window } from '@kit.ArkUI'
 import { vibrator } from '@kit.SensorServiceKit'
+import { pinyin } from 'pinyin-pro'
+import { updateManager } from '@kit.AppGalleryKit'
 
 const TAG = 'ToolsUtil'
 
@@ -87,7 +87,7 @@ export default class ToolsUtil {
     const itemsWithPinyin: VideoItemWithPinyin[] = list.map(item => {
       const videoItem: VideoItemWithPinyin = {
         item: item,
-        pinyin: pinyin4js.getShortPinyin(item.title || "")
+        pinyin: pinyin(item.title || "")
       }
       return videoItem
     })
