@@ -11,6 +11,7 @@ import { EditFileFolderNameDialog } from '../../component/Dialog/EditFileFolderN
 import { FileFolderListBuilder } from './FileFolderListComponent'
 import { DeleteType } from '../../common/enum/DeleteType'
 import { DefaultDialogShadow, MenuFancyModifier } from '../../common/AttributeModifierConfig'
+import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
 
 @ComponentV2
 export struct FileFolderView {
@@ -30,6 +31,26 @@ export struct FileFolderView {
   @Local fileFolderList: FileFolder[] = this.fileFolderSource.getAllData()
   @Consumer() videoListController: VideoListController = new VideoListController()
   @Consumer() sideBarController: SideBarController = new SideBarController()
+  @Local folderDeleteConfirmText: ResourceStr = ''
+  delConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: InfoConfirmDialog({
+      textInfo: this.folderDeleteConfirmText,
+      confirm: async () => {
+        const folderToDelete = DataSyncUtil.editingFolder
+        if (!folderToDelete) {
+          return
+        }
+        const videosToDelete = Array.from(folderToDelete.video_list)
+        const deletePromises = videosToDelete.map(async item => {
+          await this.videoListController.videoDataSource.deleteItem(DeleteType.SOFT, item)
+        })
+        await Promise.all(deletePromises)
+        this.fileFolderSource.deleteData(this.fileFolderList.findIndex(i => i.date === folderToDelete.date))
+        this.fileFolderList = FileFolderUtil.deleteFileFolder(PathUtils.appContext!, folderToDelete)
+        this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
 
   build() {
     List() {
@@ -66,16 +87,10 @@ export struct FileFolderView {
         symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.trash_fill")),
         content: $r('app.string.delete')
       })
-        .onClick(async () => {
-          DataSyncUtil.delMultipleList = Array.from(file_folder.video_list)
-          const deletePromises = DataSyncUtil.delMultipleList.map(async item => {
-            await this.videoListController.videoDataSource.deleteItem(DeleteType.SOFT, item)
-          })
-          await Promise.all(deletePromises)
-          this.videoListController.closeMultipleChoose()
-          this.fileFolderSource.deleteData(this.fileFolderList.findIndex(i => i.date === file_folder.date))
-          this.fileFolderList = FileFolderUtil.deleteFileFolder(PathUtils.appContext!, file_folder)
-          this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
+        .onClick(() => {
+          DataSyncUtil.editingFolder = file_folder
+          this.folderDeleteConfirmText = `确定要删除文件夹 "${file_folder.name}" 吗？\n其中包含 ${file_folder.video_list.length} 个视频。`
+          this.delConfirmDialog.open()
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),

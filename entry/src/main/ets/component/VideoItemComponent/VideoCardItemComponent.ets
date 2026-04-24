@@ -22,6 +22,7 @@ export default struct VideoCardItem {
     this.choose = this.delMultipleList.some(item => item.date === this.item.date)
   }
 
+  @Monitor('delMultipleList')
   checkChoose() {
     this.choose = this.delMultipleList.some(item => item.date === this.item.date)
   }
