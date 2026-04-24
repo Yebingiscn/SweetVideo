@@ -1,3 +1,6 @@
+import { SymbolGlyphFancyModifier } from "../../common/AttributeModifierConfig"
+import TimeUtil from "../../utils/TimeUtil"
+
 @ComponentV2
 export struct SettingsTimeItem {
   @Local symbol: Resource | undefined = undefined

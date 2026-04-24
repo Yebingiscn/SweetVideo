@@ -1,4 +1,4 @@
-import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem'
+import { SettingsSegmentButtonItem } from '../../component/SettingComponent/SettingsSegmentButtonItem'
 import { SettingsSliderItem } from '../../component/SettingComponent/SettingsSliderItem'
 import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuItem'
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
@@ -61,7 +61,7 @@ export struct PlayerSettingPage {
         }
 
         ListItem() {
-          SettingsCheckboxItem({
+          SettingsSegmentButtonItem({
             symbol: $r('sys.symbol.hardware'),
             message: 'MPV 解码：' + this.getMPVDecodeInfo(Setting.mpvDecodingMethod),
             tips: ['硬解（Surface）', '软解', '硬解（Buffer）'],

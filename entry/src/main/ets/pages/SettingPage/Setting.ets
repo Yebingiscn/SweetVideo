@@ -5,13 +5,13 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
 import { Markdown, MarkdownController } from '@luvi/lv-markdown-in'
 import { salmonLogger } from 'salmonlogger'
-import { CoverLayoutMode, ListDisplayMode } from '../../common/enum/DisplayMode'
-import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem'
+import { ListDisplayMode, CoverLayoutMode } from '../../common/enum/DisplayMode'
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
+import { SettingsSegmentButtonItem } from '../../component/SettingComponent/SettingsSegmentButtonItem'
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
 import Preferences from '../../database/Preferences'
 import BiometricAccessUtil from '../../utils/BiometricAccessUtil'
-import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { Setting, SafeHeight } from '../../utils/ObservedUtil'
 
 const TAG = 'SettingsPage'
 
@@ -113,7 +113,7 @@ export struct SettingsPage { //设置页
         }
 
         ListItem() {
-          SettingsCheckboxItem({
+          SettingsSegmentButtonItem({
             symbol: Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY ? $r('sys.symbol.list_bullet_square') :
               $r('sys.symbol.grid'),
             message: '列表布局',
@@ -127,7 +127,7 @@ export struct SettingsPage { //设置页
         }
 
         ListItem() {
-          SettingsCheckboxItem({
+          SettingsSegmentButtonItem({
             symbol: Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ?
               $r('sys.symbol.rectangle_uphalf_inset_filled') : $r('sys.symbol.rectangle_lefthalf_inset_filled'),
             message: '封面版式',

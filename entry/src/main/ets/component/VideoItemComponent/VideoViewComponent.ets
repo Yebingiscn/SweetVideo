@@ -36,10 +36,26 @@ export struct VideoView {
   @Param loading: boolean = false
   @Local is_edit: boolean = false
   @Param searchValue: string = ''
-  @Event onSearchValueChange: (v: string) => void = () => {}
   @Local _searchValue: string = ''
   @Param videoListController: VideoListController = new VideoListController()
   @Consumer() file_folder_list: FileFolder[] = []
+  @Consumer() sideBarController: SideBarController = new SideBarController()
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
+  @Consumer() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
+  @Local delMultipleList: VideoMetadata[] = DataSyncUtil.delMultipleList
+  // 当前选中文件夹索引
+  @Local currentFolderIndex: number = 0
+  // 监听文件夹切换，同步面包屑选中状态
+  @Param scrollToFolderDate: string = ''
+  private passwd: string = 'passwd'
+  // 面包屑滚动控制器
+  private breadcrumbScroller: Scroller = new Scroller()
+  // 文件夹按钮尺寸配置
+  private readonly FOLDER_TAB_MIN_WIDTH: number = 64
+  private readonly FOLDER_TAB_HEIGHT: number = 28
+  @Event onSearchValueChange: (v: string) => void = () => {
+  }
+
   @Monitor('file_folder_list')
   onFolderListChanged() {
     // 文件夹列表变化时，确保选中状态正确
@@ -48,19 +64,15 @@ export struct VideoView {
       this.currentFolderIndex = newIndex
     }
   }
-  @Consumer() sideBarController: SideBarController = new SideBarController()
-  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
-  @Consumer() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
-  @Local delMultipleList: VideoMetadata[] = DataSyncUtil.delMultipleList
+
   @Monitor('delMultipleList')
   SyncDelMultipleList() {
     DataSyncUtil.delMultipleList = this.delMultipleList
   }
-  // 当前选中文件夹索引
-  @Local currentFolderIndex: number = 0
-  // 监听文件夹切换，同步面包屑选中状态
-  @Param scrollToFolderDate: string = ''
-  @Event onScrollToFolderDateChange: (v: string) => void = () => {}
+
+  @Event onScrollToFolderDateChange: (v: string) => void = () => {
+  }
+
   @Monitor('scrollToFolderDate')
   onFolderChanged() {
     const newIndex = this.getCurrentFolderIndex()
@@ -70,12 +82,6 @@ export struct VideoView {
       this.scrollToCurrentFolder(newIndex)
     }
   }
-  private passwd: string = 'passwd'
-  // 面包屑滚动控制器
-  private breadcrumbScroller: Scroller = new Scroller()
-  // 文件夹按钮尺寸配置
-  private readonly FOLDER_TAB_MIN_WIDTH: number = 64
-  private readonly FOLDER_TAB_HEIGHT: number = 28
 
   aboutToAppear(): void {
     this._searchValue = this.searchValue
@@ -96,7 +102,9 @@ export struct VideoView {
       VideoList({
         videoListController: this.videoListController,
         delMultipleList: this.delMultipleList,
-        onDelMultipleListChange: (v: VideoMetadata[]) => { this.delMultipleList = v },
+        onDelMultipleListChange: (v: VideoMetadata[]) => {
+          this.delMultipleList = v
+        },
         searchValue: this._searchValue,
         onSearchValueChange: (v: string) => {
           this._searchValue = v

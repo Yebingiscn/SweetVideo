@@ -1,13 +1,13 @@
-import { SettingsCheckboxItem } from '../../component/SettingComponent/SettingsCheckboxItem'
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
+import { SettingsSegmentButtonItem } from '../../component/SettingComponent/SettingsSegmentButtonItem'
 import { SettingsSliderItem } from '../../component/SettingComponent/SettingsSliderItem'
+import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
 import Preferences from '../../database/Preferences'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { ConfigurationConstant } from '@kit.AbilityKit'
-import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
 
 @ComponentV2
 export struct PersonalizePage {
@@ -15,7 +15,7 @@ export struct PersonalizePage {
     NavDestination() {
       List() {
         ListItem() {
-          SettingsCheckboxItem({
+          SettingsSegmentButtonItem({
             symbol: $r('sys.symbol.sun'),
             message: '显示模式',
             tips: ['自动', '浅色', '深色'],
