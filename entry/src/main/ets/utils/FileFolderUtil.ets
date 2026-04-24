@@ -14,6 +14,9 @@ import SubtitleUtil from './SubtitleUtil'
 import { salmonLogger } from 'salmonlogger'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
 import fileIo from '@ohos.file.fs'
+import { fileUri } from '@kit.CoreFileKit'
+import { fileManagerService } from '@kit.FileManagerServiceKit'
+import { DeleteType } from '../common/enum/DeleteType'
 
 const TAG = 'FileFolderUtil'
 
@@ -83,7 +86,7 @@ export default class FileFolderUtil {
   }
 
   static async delVideosFileFolder(context: Context, videoListController: VideoListController,
-    folderDataSource: FileFolderDataSource) {
+    folderDataSource: FileFolderDataSource, deleteType: DeleteType = DeleteType.SOFT) {
     let folders = Preferences.getFileFolder(context) as FileFolder[]
     let folderIndex = folders.findIndex(i => i.date === videoListController.folder.date)
     const folder = folders[folderIndex]
@@ -98,6 +101,26 @@ export default class FileFolderUtil {
       RecentPlayUtil.delData(PathUtils.appContext!, item.uri)
       await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date)
       await SelectFileUtil.deleteCover(item.date)
+
+      if (deleteType == DeleteType.HARD) {
+        try {
+          await fileIo.unlink(item.uri)
+          salmonLogger.addLog('BatchDelete', 'remove file succeed: ' + item.uri)
+        } catch (err) {
+          salmonLogger.addLog('BatchDelete',
+            'remove file failed: ' + (err as Error).message, true)
+        }
+      } else if (deleteType == DeleteType.RECENT) {
+        try {
+          if (canIUse('SystemCapability.FileManagement.FileManagerService.Core')) {
+            await fileManagerService.deleteToTrash(fileUri.getUriFromPath(item.uri))
+          }
+        } catch (error) {
+          salmonLogger.addLog('BatchDelete',
+            'move to trash failed: ' + (error as Error).message, true)
+        }
+      }
+
       surviveVideo.delete(item.uri)
     }
     folder.video_list = Array.from(surviveVideo.values())
