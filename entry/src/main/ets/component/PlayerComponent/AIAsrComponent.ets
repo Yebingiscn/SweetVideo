@@ -1,14 +1,13 @@
 import { AICaptionComponent, AICaptionController, AICaptionOptions } from '@kit.SpeechKit';
 import { salmonLogger } from 'salmonlogger';
-import { AVPlayerController } from '../../controller/AVPlayerController';
-import { MpvController } from '../../controller/MpvController/MpvController';
 
 const TAG = 'AIAsrComponent'
 
-@ComponentV2
+@Component
 export struct AISubtitleComponent {
-  @Param isAIAsrShown: boolean = false
-  @Param player: AVPlayerController | MpvController = new AVPlayerController()
+  @Prop isAIAsrShown: boolean
+  @Prop showControl: boolean = false
+  @Prop screenHeight: number = 0
   private captionOption?: AICaptionOptions
   private controller: AICaptionController = new AICaptionController()
 
@@ -32,21 +31,21 @@ export struct AISubtitleComponent {
         Column() {
           // TODO: AICaptionComponent 内部使用 @Link，V2 组件暂无法直接调用。
           // 等待 HarmonyOS SDK 更新支持后恢复以下代码：
-          // AICaptionComponent({
-          //   isShown: this.isAIAsrShown!!,
-          //   controller: this.controller,
-          //   options: this.captionOption
-          // })
-          //   .width('100%')
-          //   .height(80)
+          AICaptionComponent({
+            isShown: this.isAIAsrShown,
+            controller: this.controller,
+            options: this.captionOption
+          })
+            .width('100%')
+            .height(80)
         }
         .justifyContent(FlexAlign.End)
         .width('75%')
         .height(80)
         .offset({
           x: 0,
-          y: this.player.showControl ? this.player.screenHeight / 2 - 150 :
-            this.player.screenHeight / 2 - 40
+          y: this.showControl ? this.screenHeight / 2 - 150 :
+            this.screenHeight / 2 - 40
         })
       }
     }

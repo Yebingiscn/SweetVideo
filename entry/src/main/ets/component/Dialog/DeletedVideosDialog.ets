@@ -15,19 +15,16 @@ export struct DeletedVideosDialog {
   }
 
   build() {
-    Column() {
-      Column() {
-        Text('已失效视频')
-          .fontSize(25)
-          .fontColor($r('app.color.text_color'))
-          .fontWeight(FontWeight.Bold)
-        Text(`视频已失效，请重新导入，共 ${this.deletedVideosDataSource.totalCount()} 项`)
-          .fontSize(14)
-          .fontColor($r('app.color.text_color'))
-          .margin({ top: 4 })
-      }
-      .alignItems(HorizontalAlign.Start)
-      .padding({ bottom: 12 })
+    Column({ space: 10 }) {
+      Text('已失效视频')
+        .fontSize(25)
+        .fontColor($r('app.color.text_color'))
+        .fontWeight(FontWeight.Bold)
+        .margin({ top: 5 })
+
+      Text(`视频已失效，请重新导入，共 ${this.deletedVideosDataSource.totalCount()} 项`)
+        .fontSize(14)
+        .fontColor($r('app.color.text_color'))
 
       List({ space: 8 }) {
         LazyForEach(this.deletedVideosDataSource, (item: VideoMetadata) => {
@@ -35,20 +32,20 @@ export struct DeletedVideosDialog {
             Text(item?.title)
               .fontSize(14)
               .fontColor($r('app.color.text_color'))
-              .margin({ bottom: 4 })
+              .padding({ top: 8, bottom: 8 })
               .width('100%')
           }.reuseId(item?.title)
         }, (item: VideoMetadata) => item.uri)
       }
       .cachedCount(12)
-      .width('auto')
-      .height('auto')
+      .width('100%')
+      .height('100%')
+      .layoutWeight(1)
       .divider({ strokeWidth: 0 })
-      .scrollBar(BarState.Off) // 动态显示滚动条
+      .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring)
-      .layoutWeight(1) // 确保列表区域自动扩展
 
-      Button({ type: ButtonType.Capsule, stateEffect: true }) {
+      Button({ type: ButtonType.Normal, stateEffect: true }) {
         Text($r('app.string.cancel'))
           .fontSize(18)
           .fontColor($r('app.color.text_color'))
@@ -56,13 +53,20 @@ export struct DeletedVideosDialog {
       .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
       .backgroundColor($r('sys.color.button_background_color_transparent'))
       .borderRadius(16)
-      .height(60)
-      .width(80)
-      .margin({ bottom: 10 })
+      .height(50)
+      .width(120)
       .onClick(() => {
         this.controller?.close()
       })
+      .margin({ top: 5, bottom: 5 })
     }
-    .padding(20)
+    .width('100%')
+    .height('100%')
+    .padding({
+      left: 20,
+      right: 20,
+      top: 10,
+      bottom: 10
+    })
   }
 }

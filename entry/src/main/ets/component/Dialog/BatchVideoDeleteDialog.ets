@@ -2,41 +2,16 @@ import { DeleteType } from '../../common/enum/DeleteType'
 import { VideoSource } from '../../common/enum/VideoSource'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import SelectFileUtil from '../../utils/SelectFileUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
 
 @CustomDialog
 export struct BatchVideoDeleteDialog {
   confirm?: (deleteType: DeleteType) => void
   controller?: CustomDialogController
-  videoList: VideoMetadata[] = []
-  isPermanentDelete: boolean = false
-  isMoveToRecent: boolean = false
-  msg: ResourceStr = ''
-
-  aboutToAppear(): void {
-    this.msg = $r('app.string.soft_del_confirm')
-  }
-
-  private getPermanentDeleteVisibility(): boolean {
-    for (let i = 0; i < this.videoList.length; i++) {
-      if (!SelectFileUtil.isPathFromSource(this.videoList[i].uri, VideoSource.SWEET_VIDEO_DOWNLOAD_FILE)) {
-        return false
-      }
-    }
-    return true
-  }
-
-  private getMoveToRecentVisibility(): boolean {
-    for (let i = 0; i < this.videoList.length; i++) {
-      if (SelectFileUtil.isPathFromSource(this.videoList[i].uri, VideoSource.PHOTO_SELECT_OPTION)) {
-        return false
-      }
-    }
-    return true
-  }
-
-  private getDeleteCountText(): string {
-    return `确定要删除选中的 ${this.videoList.length} 个视频吗？`
-  }
+  @State videoList: VideoMetadata[] = []
+  @State isPermanentDelete: boolean = false
+  @State isMoveToRecent: boolean = false
+  @State msg: ResourceStr = ToolsUtil.getDeleteDialogMessage(this.isPermanentDelete, this.isMoveToRecent)
 
   build() {
     Column({ space: 20 }) {
@@ -172,5 +147,27 @@ export struct BatchVideoDeleteDialog {
       }.margin({ bottom: 5 })
     }.padding(20)
     .width('85%')
+  }
+
+  private getPermanentDeleteVisibility(): boolean {
+    for (let i = 0; i < this.videoList.length; i++) {
+      if (!SelectFileUtil.isPathFromSource(this.videoList[i].uri, VideoSource.SWEET_VIDEO_DOWNLOAD_FILE)) {
+        return false
+      }
+    }
+    return true
+  }
+
+  private getMoveToRecentVisibility(): boolean {
+    for (let i = 0; i < this.videoList.length; i++) {
+      if (SelectFileUtil.isPathFromSource(this.videoList[i].uri, VideoSource.PHOTO_SELECT_OPTION)) {
+        return false
+      }
+    }
+    return true
+  }
+
+  private getDeleteCountText(): string {
+    return `确定要删除选中的 ${this.videoList.length} 个视频吗？`
   }
 }

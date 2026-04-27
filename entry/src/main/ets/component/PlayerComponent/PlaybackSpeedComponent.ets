@@ -9,7 +9,10 @@ export struct PlaybackSpeedMenuComponent {
 
   build() {
     Row() {
-      Text(`${this.player.speed}x`).fontColor($r('sys.color.white')).padding({ left: 5 })
+      Text(`${this.player.speed}x`)
+        .fontColor($r('sys.color.white'))
+        .width(50)
+        .textAlign(TextAlign.Center)
       Slider({
         value: this.player.speed,
         min: VideoInfoUtil.videoSpeedListAll[0],
@@ -29,7 +32,6 @@ export struct PlaybackSpeedMenuComponent {
         .onChange((value) => {
           this.onSpeedChange(value)
         })
-        .padding({ left: 15 })
     }
   }
 }

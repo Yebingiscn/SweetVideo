@@ -440,7 +440,8 @@ export struct Player { // 播放页
 
           AISubtitleComponent({
             isAIAsrShown: this.isAIAsrShown,
-            player: this.player,
+            showControl: this.player.showControl,
+            screenHeight: this.player.screenHeight,
           })
         }.onAreaChange((_oldValue: Area, newValue: Area) => {
           this.player.screenWidth = Math.floor(new Number(newValue.width).valueOf())

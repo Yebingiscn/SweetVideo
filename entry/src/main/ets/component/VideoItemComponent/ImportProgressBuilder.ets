@@ -2,6 +2,7 @@ export class ImportProgressBuilderParams {
   processedItems: number = 0
   totalItems: number = 0
   currentFileName: string = '' // 当前处理的文件名
+  currentStage: 'extracting' | 'cover' | 'saving' = 'extracting' // 当前处理阶段
   speed: number = 0 // 处理速度（个/秒）
   elapsedTime: number = 0 // 已耗时（毫秒）
   failedCount: number = 0 // 失败文件数
@@ -27,7 +28,7 @@ export function ImportProgressBuilder(params: ImportProgressBuilderParams) {
 
     // 当前文件名（如果有）
     if (params.currentFileName) {
-      Text('正在处理: ' + params.currentFileName)
+      Text(getStageText(params.currentStage) + params.currentFileName)
         .fontSize(12)
         .fontColor($r('app.color.text_color'))
         .maxLines(1)
@@ -79,5 +80,19 @@ function formatTime(milliseconds: number): string {
     const minutes = Math.floor(seconds / 60)
     const remainingSeconds = seconds % 60
     return `${minutes}分${remainingSeconds}秒`
+  }
+}
+
+// 获取阶段文本
+function getStageText(stage: 'extracting' | 'cover' | 'saving'): string {
+  switch (stage) {
+    case 'extracting':
+      return '正在提取: '
+    case 'cover':
+      return '正在生成封面: '
+    case 'saving':
+      return '正在保存: '
+    default:
+      return '正在处理: '
   }
 }

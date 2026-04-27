@@ -1,5 +1,5 @@
 import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
-import { SCREEN_EXTEND_LIST, SCALE_FACTORS } from '../../common/Constants'
+import { SCALE_FACTORS, SCREEN_EXTEND_LIST } from '../../common/Constants'
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
@@ -131,6 +131,20 @@ export struct VideoTopComponent {
       .onClick(async () => {
         await this.onLockRotationClick()
       })
+
+      // 7. 播放器类型标识
+      Text(this.player instanceof MpvController ? 'MPV播放器' : '系统播放器')
+        .fontSize(14)
+        .fontColor($r('sys.color.white'))
+        .opacity(0.6)
+        .padding({
+          left: 6,
+          right: 6,
+          top: 2,
+          bottom: 2
+        })
+        .borderRadius(4)
+        .backgroundColor($r('app.color.main_color'))
     }
     .padding({ left: 8, right: 8 })
     .width('100%')

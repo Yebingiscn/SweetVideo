@@ -123,9 +123,13 @@ export struct MpvPlayer {
       SideBarContainer(SideBarContainerType.Overlay) {
         PlayerSideBarComponent({
           sideBarStatusTmp: this.sideBarStatusTmp,
-          onSideBarStatusTmpChange: (v: Visibility) => { this.sideBarStatusTmp = v },
+          onSideBarStatusTmpChange: (v: Visibility) => {
+            this.sideBarStatusTmp = v
+          },
           sideBarStatus: this.sideBarStatus,
-          onSideBarStatusChange: (v: boolean) => { this.sideBarStatus = v },
+          onSideBarStatusChange: (v: boolean) => {
+            this.sideBarStatus = v
+          },
           onItemClick: async (item: VideoMetadata) => {
             await this.mpv.playChooseVideo(item, this.pathStack)
             this.closeSideBar(true)
@@ -363,7 +367,8 @@ export struct MpvPlayer {
 
           AISubtitleComponent({
             isAIAsrShown: this.isAIAsrShown,
-            player: this.mpv,
+            showControl: this.mpv.showControl,
+            screenHeight: this.mpv.screenHeight,
           })
         }.onAreaChange(async (_oldValue: Area, newValue: Area) => {
           this.mpv.screenWidth = Math.floor(new Number(newValue.width).valueOf())
@@ -550,9 +555,13 @@ export struct MpvPlayer {
         this.PlaybackSpeedMenuBuilder()
       },
       sideBarStatusTmp: this.sideBarStatusTmp,
-      onSideBarStatusTmpChange: (v: Visibility) => { this.sideBarStatusTmp = v },
+      onSideBarStatusTmpChange: (v: Visibility) => {
+        this.sideBarStatusTmp = v
+      },
       sideBarStatus: this.sideBarStatus,
-      onSideBarStatusChange: (v: boolean) => { this.sideBarStatus = v },
+      onSideBarStatusChange: (v: boolean) => {
+        this.sideBarStatus = v
+      },
       onScreenRotationOrFullScreenClick: async () => {
         VideoOperateUtil.fullScreenOrRotateScreen(this.mpv.screenWidth, this.mpv.screenHeight, this.mpv.windowClass)
       },
@@ -656,7 +665,9 @@ export struct MpvPlayer {
       subtitleVisibility: this.subtitleVisibility,
       isAIAsrShown: this.isAIAsrShown,
       subtitle3DMode: this.subtitle3DMode,
-      onSubtitle3DModeChange: (v: Subtitle3DMode) => { this.subtitle3DMode = v }
+      onSubtitle3DModeChange: (v: Subtitle3DMode) => {
+        this.subtitle3DMode = v
+      }
     })
   }
 

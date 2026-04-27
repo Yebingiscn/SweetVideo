@@ -24,7 +24,7 @@ export struct VideoDetailDialog {
         .fontWeight(FontWeight.Bold)
         .margin({ top: 5 })
 
-      SweetAgentComponent({ queryText: `视频名称：${this.metadata?.title}`, title: '问问小艺' })
+      SweetAgentComponent({ queryText: `介绍下视频：${this.metadata?.title}`, title: '问问小艺' })
 
       List() {
         ListItem() {

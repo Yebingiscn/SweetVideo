@@ -58,6 +58,7 @@ struct Index {
   @Local importSpeed: number = 0 // 处理速度
   @Local elapsedTime: number = 0 // 已耗时
   @Local failedCount: number = 0 // 失败文件数
+  @Local currentStage: 'extracting' | 'cover' | 'saving' = 'extracting' // 当前处理阶段
   @Provider() file_folder_list: FileFolder[] = []
   @Local searchValue: string = ''
   @Local screen_width: number = AppStorage.get('screen_width') as number ?? 0
@@ -246,6 +247,7 @@ struct Index {
         (info: ProgressInfo) => {
           this.processedItems = info.current
           this.currentFileName = info.fileName
+          this.currentStage = info.stage
           this.importSpeed = info.speed
           this.elapsedTime = info.elapsedTime
           this.failedCount = info.failedCount
@@ -432,6 +434,7 @@ struct Index {
               processedItems: this.processedItems,
               totalItems: this.totalItems,
               currentFileName: this.currentFileName,
+              currentStage: this.currentStage,
               speed: this.importSpeed,
               elapsedTime: this.elapsedTime,
               failedCount: this.failedCount

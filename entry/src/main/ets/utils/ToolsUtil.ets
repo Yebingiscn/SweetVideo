@@ -259,6 +259,16 @@ export default class ToolsUtil {
     }
   }
 
+  static getDeleteDialogMessage(isPermanentDelete: boolean, isMoveToRecent: boolean) { // V2 时可用 @Computed
+    if (isPermanentDelete) {
+      return $r('app.string.hard_del_confirm')
+    } else if (isMoveToRecent) {
+      return $r('app.string.recent_del_confirm')
+    } else {
+      return $r('app.string.soft_del_confirm')
+    }
+  }
+
   private static naturalCompare(a: string, b: string): number {
     const aParts = a.split(ToolsUtil.splitRegex).filter(Boolean)
     const bParts = b.split(ToolsUtil.splitRegex).filter(Boolean)
