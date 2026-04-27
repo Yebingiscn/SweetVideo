@@ -33,7 +33,7 @@ import {
 import { Setting } from '../../utils/ObservedUtil';
 import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode';
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
-import { SubtitleMode } from '../../common/enum/SubtitleMode';
+import { SubtitleMode, Subtitle3DMode } from '../../common/enum/SubtitleMode';
 import { PathUtils } from '../../utils/PathUtils';
 import VideoOperateUtil from '../../utils/VideoOperateUtil';
 import { MpvAudioTrack, MpvDecodingMethod, MpvSubtitleTrack } from './MpvTypes';
@@ -57,7 +57,7 @@ import { salmonLogger } from 'salmonlogger';
 import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil';
 import RecentPlayUtil from '../../utils/RecentPlayUtil';
 import SelectFileUtil from '../../utils/SelectFileUtil';
-import SubtitleUtil from '../../utils/SubtitleUtil';
+import SubtitleUtil, { SubtitleUtil as SubtitleUtilClass } from '../../utils/SubtitleUtil';
 import { BaseListener } from '../../utils/BaseEventUtil';
 import PermissionUtil from '../../utils/PermissionUtil';
 import Preferences from '../../database/Preferences';
@@ -651,8 +651,13 @@ export class MpvController implements PlayerControllerInterface {
     if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, nowPlaying.date!)) {
       try {
         let subtitle = fs.openSync(PathUtils.subtitlePath! + nowPlaying.date, fs.OpenMode.READ_ONLY)
-        await SubtitleUtil.parseSubtitleProcess(subtitle.path, nowPlaying.external_subtitle_format) ?
-          this.subtitleSelected = SubtitleMode.EXTERNAL_SUBTITLE : this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
+        const success = await SubtitleUtil.parseSubtitleProcess(subtitle.path, nowPlaying.external_subtitle_format)
+        if (success) {
+          this.subtitleSelected = SubtitleMode.EXTERNAL_SUBTITLE
+          this.subtitle = SubtitleUtil.getSubtitlesAtTime(this.playTime)
+        } else {
+          this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
+        }
       } catch (error) {
         this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
       }
@@ -892,5 +897,92 @@ export class MpvController implements PlayerControllerInterface {
     }
 
     this.switchDecodingMode('buffer_hw', errorMessage)
+  }
+
+  refreshExternalSubtitlePreview(offset: number): void {
+    if (this.subtitleSelected !== SubtitleMode.EXTERNAL_SUBTITLE) {
+      return
+    }
+    this.subtitle = SubtitleUtil.getSubtitlesAtTime(this.playTime, offset)
+  }
+
+  refreshExternalSubtitleByPlaybackTime(isAdjustingSubtitleOffset: boolean, subtitleVisibility: Visibility): void {
+    if (isAdjustingSubtitleOffset) {
+      return
+    }
+    if (this.subtitleSelected !== SubtitleMode.EXTERNAL_SUBTITLE) {
+      return
+    }
+    if (subtitleVisibility !== Visibility.Visible) {
+      return
+    }
+    this.subtitle = SubtitleUtil.getSubtitlesAtTime(this.playTime)
+  }
+
+  getAdjacentSubtitleOffset(direction: 'prev' | 'next', currentOffset: number): number | undefined {
+    const targetOffset = SubtitleUtil.getAdjacentSubtitleOffset(this.playTime, currentOffset, direction)
+    if (targetOffset === undefined) {
+      ToolsUtil.showToast(direction === 'prev' ? '没有上一条字幕' : '没有下一条字幕')
+      return undefined
+    }
+    if (Math.abs(targetOffset) > 50000) {
+      ToolsUtil.showToast('目标字幕超出偏移范围：-50000 到 50000')
+      return undefined
+    }
+    return Math.round(targetOffset)
+  }
+
+  hasInnerSubtitleTrack(): boolean {
+    return this.subtitleTrack.length > 0
+  }
+
+  hasExternalSubtitle(): boolean {
+    return (this.nowPlaying?.external_subtitle_format?.length ?? 0) > 0
+  }
+
+  saveSubtitlePreferenceForCurrentVideo(
+    subtitleVisibility: Visibility,
+    isAIAsrShown: boolean,
+    subtitle3DMode: Subtitle3DMode
+  ): void {
+    const nowPlaying = this.nowPlaying
+    const appContext = PathUtils.appContext
+    if (!nowPlaying || !appContext) {
+      return
+    }
+
+    const subtitleMode = SubtitleUtilClass.normalizeSubtitleMode(this.subtitleSelected)
+    const subtitleVisible = subtitleVisibility === Visibility.Visible
+    const subtitleAIAsrShown = isAIAsrShown
+    const subtitle3DModeValue = SubtitleUtilClass.normalizeSubtitle3DMode(subtitle3DMode)
+    const subtitleOffsetMillis = Math.max(-50000, Math.min(50000, Math.round(SubtitleUtil.offsetMillis)))
+    const subtitleTrackId = this.subtitleTrackSelected
+    const hasPreferenceChanged =
+      nowPlaying.subtitle_mode !== subtitleMode ||
+        nowPlaying.subtitle_visible !== subtitleVisible ||
+        nowPlaying.subtitle_ai_asr_shown !== subtitleAIAsrShown ||
+        nowPlaying.subtitle_3d_mode !== subtitle3DModeValue ||
+        nowPlaying.subtitle_offset_millis !== subtitleOffsetMillis ||
+        nowPlaying.subtitle_track_id !== subtitleTrackId
+
+    if (!hasPreferenceChanged) {
+      return
+    }
+
+    nowPlaying.subtitle_mode = subtitleMode
+    nowPlaying.subtitle_visible = subtitleVisible
+    nowPlaying.subtitle_ai_asr_shown = subtitleAIAsrShown
+    nowPlaying.subtitle_3d_mode = subtitle3DModeValue
+    nowPlaying.subtitle_offset_millis = subtitleOffsetMillis
+    nowPlaying.subtitle_track_id = subtitleTrackId
+
+    SelectFileUtil.saveData(appContext, nowPlaying, {
+      subtitleMode,
+      subtitleVisible,
+      subtitleAIAsrShown,
+      subtitle3DMode: subtitle3DModeValue,
+      subtitleOffsetMillis,
+      subtitleTrackId
+    })
   }
 }

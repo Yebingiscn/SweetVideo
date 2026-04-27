@@ -7,6 +7,7 @@ import { AssEvent, ParseAss, ParseSrt, ParseVtt, SrtLine, VttLine } from '../mod
 import { salmonLogger } from 'salmonlogger'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { SUPPORT_SUBTITLE_FORMAT } from '../common/Constants'
+import { Subtitle3DMode, SubtitleMode } from '../common/enum/SubtitleMode'
 
 const TAG = 'SubtitleUtil'
 
@@ -35,6 +36,29 @@ export class ParserAdapter<T> implements Parser<T> {
 class SubtitleUtil {
   public offsetMillis: number = 0;
   private subtitles: SubtitleItem[] = [] // 存储所有字幕项（已按开始时间排序）
+
+  static normalizeSubtitleMode(subtitleMode?: SubtitleMode): SubtitleMode {
+    if (subtitleMode === SubtitleMode.EXTERNAL_SUBTITLE || subtitleMode === SubtitleMode.AI_SUBTITLE) {
+      return subtitleMode
+    }
+    return SubtitleMode.INNER_SUBTITLE
+  }
+
+  static normalizeSubtitle3DMode(subtitle3DMode?: Subtitle3DMode): Subtitle3DMode {
+    if (subtitle3DMode === Subtitle3DMode.SIDE_BY_SIDE || subtitle3DMode === Subtitle3DMode.TOP_AND_BOTTOM) {
+      return subtitle3DMode
+    }
+    return Subtitle3DMode.DISABLED
+  }
+
+  static hasSubtitlePreferenceMetadata(nowPlaying: VideoMetadata): boolean {
+    return nowPlaying.subtitle_mode !== undefined ||
+      nowPlaying.subtitle_visible !== undefined ||
+      nowPlaying.subtitle_ai_asr_shown !== undefined ||
+      nowPlaying.subtitle_3d_mode !== undefined ||
+      nowPlaying.subtitle_offset_millis !== undefined ||
+      nowPlaying.subtitle_track_id !== undefined
+  }
 
   // 获取外挂字幕
   async selectExternalSubtitles(sandbox_subtitle: string, date: string) {
@@ -359,4 +383,8 @@ class SubtitleUtil {
   }
 }
 
-export default new SubtitleUtil()
+const subtitleUtilInstance = new SubtitleUtil()
+
+export default subtitleUtilInstance
+
+export { SubtitleUtil }

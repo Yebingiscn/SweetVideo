@@ -13,10 +13,12 @@ class SubtitleDisplayValue {
 
 @Builder
 export function SubtitleDisplayBuilder(subtitleDisplayValue: SubtitleDisplayValue) {
-  Stack({ alignContent: Alignment.BottomEnd }) { //字幕
+  Column() {
+    Blank()
     if (subtitleDisplayValue.subtitle3DMode === Subtitle3DMode.DISABLED) {
       Text(subtitleDisplayValue.subtitle)
         .subtitleTextExtend()
+        .margin({ bottom: 20 })
     } else if (subtitleDisplayValue.subtitle3DMode === Subtitle3DMode.SIDE_BY_SIDE) {
       Row() {
         Text(subtitleDisplayValue.subtitle)
@@ -32,30 +34,31 @@ export function SubtitleDisplayBuilder(subtitleDisplayValue: SubtitleDisplayValu
       }
       .justifyContent(FlexAlign.SpaceAround)
       .width("100%")
+      .margin({ bottom: 20 })
     } else if (subtitleDisplayValue.subtitle3DMode === Subtitle3DMode.TOP_AND_BOTTOM) {
-      Column({ space: VideoInfoUtil.playAreaHeight / 2 }) {
+      Column() {
         Text(subtitleDisplayValue.subtitle)
           .subtitleTextExtend()
           .scale({
             y: 0.5
           })
+        Blank()
         Text(subtitleDisplayValue.subtitle)
           .subtitleTextExtend()
           .scale({
             y: 0.5
           })
       }
-      .justifyContent(FlexAlign.Start)
+      .justifyContent(FlexAlign.SpaceBetween)
       .width("100%")
+      .height(VideoInfoUtil.playAreaHeight)
     }
   }
   .visibility(subtitleDisplayValue.subTitleVisibility)
-  .align(Alignment.Center)
   .width(VideoInfoUtil.playAreaWidth)
-  .offset(subtitleDisplayValue.subtitle3DMode === Subtitle3DMode.TOP_AND_BOTTOM ?
-    { x: 0, y: VideoInfoUtil.playAreaHeight / 4 - 40 } :
-    { x: 0, y: VideoInfoUtil.playAreaHeight / 2.5 }
-  )
+  .height(subtitleDisplayValue.subtitle3DMode === Subtitle3DMode.TOP_AND_BOTTOM ?
+    VideoInfoUtil.playAreaHeight : VideoInfoUtil.playAreaHeight)
+  .justifyContent(FlexAlign.End)
   .animation({ duration: 300, curve: Curve.Smooth })
 }
 

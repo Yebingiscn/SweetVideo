@@ -13,6 +13,7 @@ import { VideoMetaDataOperator } from '../../database/VideoMetaData'
 import VideoUtils from '../../utils/VideoUtil'
 import FileFolderUtil from '../../utils/FileFolderUtil'
 import { VideoDeleteDialog } from '../Dialog/VideoDeleteDialog'
+import { BatchVideoDeleteDialog } from '../Dialog/BatchVideoDeleteDialog'
 import { DeleteType } from '../../common/enum/DeleteType'
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import { salmonLogger } from 'salmonlogger'
@@ -168,9 +169,27 @@ export struct VideoList {
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   @Param delMultipleList: VideoMetadata[] = []
   @Local _delMultipleList: VideoMetadata[] = []
+  @Local batchDelList: VideoMetadata[] = []
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
+  })
+  batchDelConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: BatchVideoDeleteDialog({
+      videoList: this.batchDelList,
+      confirm: async (deleteType: DeleteType) => {
+        try {
+          DataSyncUtil.delMultipleList = this.batchDelList
+          await FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController,
+            this.fileFolderSource, deleteType)
+        } catch (e) {
+          ToolsUtil.showToast(`删除失败:${e}`)
+        } finally {
+          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+          this.videoListController.closeMultipleChoose()
+        }
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   @Event onSearchValueChange: (v: string) => void = () => {
   }
@@ -425,9 +444,20 @@ export struct VideoList {
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
       })
         .onClick(() => {
-          // 将这个item传递给editingVideo
-          DataSyncUtil.editingVideo = item!
-          this.delConfirmDialog.open()
+          if (this.videoListController.multipleChooseState === Visibility.Visible) {
+            const isSelected = this._delMultipleList.some(v => v.uri === item?.uri)
+            if (isSelected) {
+              this.batchDelList = [...this._delMultipleList]
+            } else {
+              this.batchDelList = [...this._delMultipleList, item!]
+              this._delMultipleList = this.batchDelList
+              this.onDelMultipleListChange([...this._delMultipleList])
+            }
+            this.batchDelConfirmDialog.open()
+          } else {
+            DataSyncUtil.editingVideo = item!
+            this.delConfirmDialog.open()
+          }
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.checkmark_square_on_square')),
