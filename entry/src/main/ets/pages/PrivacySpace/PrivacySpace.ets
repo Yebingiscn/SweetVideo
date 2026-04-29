@@ -33,7 +33,7 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { VideoItemPreviewBuilder } from '../../component/VideoItemComponent/VideoItemPreviewBuilder'
 import { PrivacySpaceSettingComponent } from '../../component/PrivacySpaceComponent/PrivacySpaceSettingComponent'
 import DlpAntiPeepUtil from '../../utils/DlpAntiPeepUtil'
-import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
+import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 
 @ComponentV2
 export struct PrivacySpace { // 隐私空间页
@@ -106,6 +106,9 @@ export struct PrivacySpace { // 隐私空间页
       passwd: this.passwd,
       onEditPasswdDialogOpen: () => {
         this.editPasswdDialogController.open()
+      },
+      onIsPresentChange: (isPresent: boolean) => {
+        this.isPresent = isPresent
       }
     })
   }
@@ -146,7 +149,7 @@ export struct PrivacySpace { // 隐私空间页
         this.isPresent = !this.isPresent
       })
       .margin({ right: 10 })
-    }.justifyContent(FlexAlign.End).width('100%')
+    }.justifyContent(FlexAlign.End).width('100%').height('auto')
   }
 
   @Builder
@@ -212,42 +215,11 @@ export struct PrivacySpace { // 隐私空间页
   @Builder
   SortMenuBuilder() {
     SortComponent({
-      onSortByName: () => {
-        const defaultAsc = true
-        if (this.currentSortField === 'name') {
-          this.currentSortAsc = !this.currentSortAsc
-        } else {
-          this.currentSortField = 'name'
-          this.currentSortAsc = defaultAsc
-        }
-        ToolsUtil.sortBy(PathUtils.appContext!, this.allVideos, undefined, "name", this.currentSortAsc)
-        this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-        this.applySearch()
-      },
-      onSortByTime: () => {
-        const defaultAsc = false
-        if (this.currentSortField === 'time') {
-          this.currentSortAsc = !this.currentSortAsc
-        } else {
-          this.currentSortField = 'time'
-          this.currentSortAsc = defaultAsc
-        }
-        ToolsUtil.sortBy(PathUtils.appContext!, this.allVideos, undefined, "time", this.currentSortAsc)
-        this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-        this.applySearch()
-      },
-      onSortByDatetime: () => {
-        const defaultAsc = false
-        if (this.currentSortField === 'datetime') {
-          this.currentSortAsc = !this.currentSortAsc
-        } else {
-          this.currentSortField = 'datetime'
-          this.currentSortAsc = defaultAsc
-        }
-        ToolsUtil.sortBy(PathUtils.appContext!, this.allVideos, undefined, "datetime", this.currentSortAsc)
-        this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-        this.applySearch()
-      }
+      currentSortField: this.currentSortField,
+      currentSortAsc: this.currentSortAsc,
+      onSortByName: (): void => this.handleSort('name', true),
+      onSortByTime: (): void => this.handleSort('time', false),
+      onSortByDatetime: (): void => this.handleSort('datetime', false)
     })
   }
 
@@ -424,7 +396,6 @@ export struct PrivacySpace { // 隐私空间页
           .justifyContent(FlexAlign.Center)
           .animation({ duration: 150, curve: Curve.Ease })
         } else {
-          Blank().height(SafeHeight.topSafeHeight + 80).width('100%')
           List({ scroller: this.listScroller, space: 10 }) {
             LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
               ListItem() {
@@ -483,14 +454,13 @@ export struct PrivacySpace { // 隐私空间页
               })
             }, (item: VideoMetadata) => item.date + item.title + item.last_play + item.size.toString() + item.time)
           }
-          .fadingEdge(true)
           .clip(false)
           .cachedCount(3)
           .lanes(this.list_line)
           .layoutWeight(1)
           .padding({ left: 10, right: 10 })
           .width('100%')
-          .height('auto')
+          .height('100%')
           .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
           .chainAnimation(true)
           .scrollBar(BarState.Off)
@@ -526,33 +496,62 @@ export struct PrivacySpace { // 隐私空间页
       }
     })
     .titleBar({
+      enableComponentSafeArea: true, // 将标题栏设置为组件级安全区，内容区可避让标题栏
       padding: {
-        start: LengthMetrics.vp(2),
-        end: LengthMetrics.vp(2)
+        start: LengthMetrics.vp(5),
+        end: LengthMetrics.vp(5)
       },
       style: {
+        // 设置导航组件标题栏样式，推荐使用默认样式
+        // 标题栏动态模糊样式，包括是否使能滚动动态模糊，动态模糊类型，动态模糊生效的滚动距离等
         scrollEffectOpts: {
           enableScrollEffect: true,
-          scrollEffectType: ScrollEffectType.GRADUAL_BLUR,
+          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
           blurEffectiveStartOffset: LengthMetrics.vp(0),
           blurEffectiveEndOffset: LengthMetrics.vp(20)
         },
         originalStyle: {
+          // 内容区滚动前初始样式设置
           backgroundStyle: {
-            backgroundColor: $r('app.color.start_window_background'),
+            // 标题栏背板样式设置
+            backgroundColor: $r('sys.color.ohos_id_color_background'),
           },
           contentStyle: {
-            titleStyle: { mainTitleColor: $r('sys.color.font_primary') },
+            // 标题栏内容区样式设置，包括标题区域，菜单区域，返回按钮区域
+            titleStyle: {
+              mainTitleColor: $r('sys.color.font_primary'),
+              subTitleColor: $r('sys.color.font_secondary')
+            },
             menuStyle: {
-              backgroundColor: $r('app.color.start_window_background'),
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
               iconColor: $r('sys.color.icon_primary')
             },
             backIconStyle: {
-              backgroundColor: $r('app.color.start_window_background'),
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
               iconColor: $r('sys.color.icon_primary')
             }
           }
         },
+        scrollEffectStyle: {
+          // 内容区滚动超过blurEffectiveEndOffset后样式设置
+          backgroundStyle: {
+            backgroundColor: $r('sys.color.ohos_id_color_background_transparent'),
+          },
+          contentStyle: {
+            titleStyle: {
+              mainTitleColor: $r('sys.color.font_primary'),
+              subTitleColor: $r('sys.color.font_secondary')
+            },
+            menuStyle: {
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
+              iconColor: $r('sys.color.icon_primary')
+            },
+            backIconStyle: {
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
+              iconColor: $r('sys.color.icon_primary')
+            }
+          }
+        }
       },
       content: {
         title: {
@@ -578,6 +577,7 @@ export struct PrivacySpace { // 隐私空间页
         return false
       }
     })
+    .bindToScrollable([this.listScroller]) // 绑定导航组件和可滚动容器组件
     .blur(Privacy.isPrivacyBackground ? PRIVACY_BACKGROUND_BLUR_AMOUNT : NO_BLUR_AMOUNT)
     .onReady(() => {
       const privacySpaceParams =
@@ -586,8 +586,13 @@ export struct PrivacySpace { // 隐私空间页
         this.isPresent = true
       }
     })
+    .dynamicHideTitleBar({
+      hideTitleArea: true,
+      hideBottomBuilder: true,
+      hideStatusBar: false,
+      mode: HideMode.SCROLL_UP_TO
+    })
     .hideBackButton(false)
-    .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.TOP, LayoutSafeAreaEdge.BOTTOM])
   }
 
   @Builder
@@ -600,6 +605,18 @@ export struct PrivacySpace { // 隐私空间页
           await SelectFileUtil.exportFile(item!.uri, item!.title, item!.format, PathUtils.appContext!)
         })
     }.padding({ left: 15, right: 15 }).justifyContent(FlexAlign.SpaceEvenly)
+  }
+
+  private handleSort(field: 'name' | 'time' | 'datetime', defaultAsc: boolean) {
+    if (this.currentSortField === field) {
+      this.currentSortAsc = !this.currentSortAsc
+    } else {
+      this.currentSortField = field
+      this.currentSortAsc = defaultAsc
+    }
+    ToolsUtil.sortBy(PathUtils.appContext!, this.allVideos, undefined, field, this.currentSortAsc)
+    this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+    this.applySearch()
   }
 
   private applySearch() {

@@ -33,9 +33,11 @@ export class ParserAdapter<T> implements Parser<T> {
   }
 }
 
-class SubtitleUtil {
-  public offsetMillis: number = 0;
-  private subtitles: SubtitleItem[] = [] // 存储所有字幕项（已按开始时间排序）
+export default class SubtitleUtil {
+  public static offsetMillis: number = 0
+  private static subtitles: SubtitleItem[] = []
+
+  // 存储所有字幕项（已按开始时间排序）
 
   static normalizeSubtitleMode(subtitleMode?: SubtitleMode): SubtitleMode {
     if (subtitleMode === SubtitleMode.EXTERNAL_SUBTITLE || subtitleMode === SubtitleMode.AI_SUBTITLE) {
@@ -61,7 +63,7 @@ class SubtitleUtil {
   }
 
   // 获取外挂字幕
-  async selectExternalSubtitles(sandbox_subtitle: string, date: string) {
+  static async selectExternalSubtitles(sandbox_subtitle: string, date: string) {
     const documentSelectOptions = new picker.DocumentSelectOptions()
     documentSelectOptions.fileSuffixFilters = SUPPORT_SUBTITLE_FORMAT
     documentSelectOptions.maxSelectNumber = 1
@@ -105,7 +107,7 @@ class SubtitleUtil {
   }
 
   // 检查字幕是否存在
-  async isSubtitleExist(sandbox_subtitle: string, date: string): Promise<boolean> {
+  static async isSubtitleExist(sandbox_subtitle: string, date: string): Promise<boolean> {
     return new Promise((resolve) => {
       fs.access(sandbox_subtitle + date).then((res: boolean) => {
         if (res) {
@@ -122,7 +124,7 @@ class SubtitleUtil {
   }
 
   // 删除字幕
-  async deleteSubtitle(sandboxDir: string, fileName: string) {
+  static async deleteSubtitle(sandboxDir: string, fileName: string) {
     try {
       await fs.unlink(sandboxDir + fileName)
       ToolsUtil.showToast('删除成功')
@@ -138,12 +140,12 @@ class SubtitleUtil {
     }
   }
 
-  async importOrDeleteSubtitleProcess(item: VideoMetadata) {
-    if (await this.isSubtitleExist(PathUtils.subtitlePath, item?.date!)) {
-      await this.deleteSubtitle(PathUtils.subtitlePath, item?.date!)
+  static async importOrDeleteSubtitleProcess(item: VideoMetadata) {
+    if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath, item?.date!)) {
+      await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item?.date!)
       item!.external_subtitle_format = ''
     } else {
-      const subtitleName = await this.selectExternalSubtitles(PathUtils.subtitlePath, item?.date!)
+      const subtitleName = await SubtitleUtil.selectExternalSubtitles(PathUtils.subtitlePath, item?.date!)
       const subtitleNameFormat = subtitleName?.match(/[^.]+$/)?.[0]?.toLowerCase() || ''
       switch (subtitleNameFormat) {
         case SubtitleFormat.SRT:
@@ -161,22 +163,22 @@ class SubtitleUtil {
     }
   }
 
-  async parseSubtitleProcess(path: string, format: string | undefined) {
+  static async parseSubtitleProcess(path: string, format: string | undefined) {
     if (!format) {
-      this.offsetMillis = 0
+      SubtitleUtil.offsetMillis = 0
       // 逐一尝试 SRT、ASS、VTT 解析
       const formats = [SubtitleFormat.SRT, SubtitleFormat.ASS, SubtitleFormat.VTT]
       for (const fmt of formats) {
         let result = false
         switch (fmt) {
           case SubtitleFormat.SRT:
-            result = await this.parseSrtFile(path)
+            result = await SubtitleUtil.parseSrtFile(path)
             break
           case SubtitleFormat.ASS:
-            result = await this.parseAssFile(path)
+            result = await SubtitleUtil.parseAssFile(path)
             break
           case SubtitleFormat.VTT:
-            result = await this.parseVttFile(path)
+            result = await SubtitleUtil.parseVttFile(path)
             break
           default:
             continue
@@ -186,27 +188,27 @@ class SubtitleUtil {
         }
       }
       // 所有尝试都失败
-      this.subtitles = [];
+      SubtitleUtil.subtitles = [];
       return false
     }
     switch (format) {
       case SubtitleFormat.SRT:
-        return await this.parseSrtFile(path)
+        return await SubtitleUtil.parseSrtFile(path)
       case SubtitleFormat.ASS:
-        return await this.parseAssFile(path)
+        return await SubtitleUtil.parseAssFile(path)
       case SubtitleFormat.VTT:
-        return await this.parseVttFile(path)
+        return await SubtitleUtil.parseVttFile(path)
       default:
-        this.subtitles = []
+        SubtitleUtil.subtitles = []
         return false
     }
   }
 
   // 解析SRT文件
-  async parseSrtFile(filePath: string) {
+  static async parseSrtFile(filePath: string) {
     try {
       const parser = new ParseSrt(filePath)
-      const items = await this.parseSubtitleFile<SrtLine>(
+      const items = await SubtitleUtil.parseSubtitleFile<SrtLine>(
         parser,
         (line: SrtLine) => ({
           startTimestampMillis: line.startTimestampMillis,
@@ -214,7 +216,7 @@ class SubtitleUtil {
           text: line.text
         })
       )
-      this.setSubtitles(items)
+      SubtitleUtil.setSubtitles(items)
       return true
     } catch (e) {
       const error: string = e
@@ -224,21 +226,21 @@ class SubtitleUtil {
   }
 
   // 解析ASS文件
-  async parseAssFile(filePath: string) {
+  static async parseAssFile(filePath: string) {
     try {
       const parser = new ParseAss(filePath)
       const parserAdapter = new ParserAdapter<AssEvent>(
         async () => await parser.init(),
         async () => await parser.readEvents()
       )
-      const items = await this.parseSubtitleFile<AssEvent>(
+      const items = await SubtitleUtil.parseSubtitleFile<AssEvent>(
         parserAdapter,
         (line: AssEvent) => ({
           startTimestampMillis: line.startTimestampMillis,
           endTimestampMillis: line.endTimestampMillis,
           text: line.text
         }))
-      this.setSubtitles(items)
+      SubtitleUtil.setSubtitles(items)
       return true
     } catch (e) {
       const error: string = e
@@ -248,10 +250,10 @@ class SubtitleUtil {
   }
 
   // 解析VTT文件
-  async parseVttFile(filePath: string) {
+  static async parseVttFile(filePath: string) {
     try {
       const parser = new ParseVtt(filePath)
-      const items = await this.parseSubtitleFile<VttLine>(
+      const items = await SubtitleUtil.parseSubtitleFile<VttLine>(
         parser,
         (line: VttLine) => ({
           startTimestampMillis: line.startTimestampMillis,
@@ -259,7 +261,7 @@ class SubtitleUtil {
           text: line.text
         })
       )
-      this.setSubtitles(items)
+      SubtitleUtil.setSubtitles(items)
       return true
     } catch (e) {
       const error: string = e
@@ -268,53 +270,53 @@ class SubtitleUtil {
     }
   }
 
-  getSubtitlesAtTime(timestamp: number, offsetOverride?: number): string {
-    if (this.subtitles.length === 0) {
-      return "";
+  static getSubtitlesAtTime(timestamp: number, offsetOverride?: number): string {
+    if (SubtitleUtil.subtitles.length === 0) {
+      return ""
     }
     // 应用偏移量：将播放器时间转换为字幕时间
-    const effectiveOffset = offsetOverride ?? this.offsetMillis
-    const adjustedTimestamp = timestamp - effectiveOffset;
+    const effectiveOffset = offsetOverride ?? SubtitleUtil.offsetMillis
+    const adjustedTimestamp = timestamp - effectiveOffset
     // 如果偏移后的时间可能为负数，可以酌情处理
     // 这里简单的将负数视为0，避免越界错误
-    const searchTimestamp = Math.max(adjustedTimestamp, 0);
-    const result: SubtitleItem[] = [];
-    let left = 0;
-    let right = this.subtitles.length - 1;
-    let startIndex = -1;
+    const searchTimestamp = Math.max(adjustedTimestamp, 0)
+    const result: SubtitleItem[] = []
+    let left = 0
+    let right = SubtitleUtil.subtitles.length - 1
+    let startIndex = -1
     // 二分查找（使用调整后的时间戳）
     while (left <= right) {
-      const mid = Math.floor((left + right) / 2);
-      const sub = this.subtitles[mid];
+      const mid = Math.floor((left + right) / 2)
+      const sub = SubtitleUtil.subtitles[mid]
       if (sub.startTimestampMillis <= searchTimestamp &&
         sub.endTimestampMillis > searchTimestamp) {
-        startIndex = mid;
+        startIndex = mid
         break;
       } else if (sub.startTimestampMillis > searchTimestamp) {
-        right = mid - 1;
+        right = mid - 1
       } else {
-        left = mid + 1;
+        left = mid + 1
       }
     }
     if (startIndex === -1) {
-      return "";
+      return ""
     }
     // 收集重叠字幕（逻辑保持不变）
-    result.push(this.subtitles[startIndex]);
+    result.push(SubtitleUtil.subtitles[startIndex])
     // 向左查找
     for (let i = startIndex - 1; i >= 0; i--) {
-      if (this.subtitles[i].endTimestampMillis > searchTimestamp) {
-        result.unshift(this.subtitles[i]);
+      if (SubtitleUtil.subtitles[i].endTimestampMillis > searchTimestamp) {
+        result.unshift(SubtitleUtil.subtitles[i])
       } else {
-        break;
+        break
       }
     }
     // 向右查找
-    for (let i = startIndex + 1; i < this.subtitles.length; i++) {
-      if (this.subtitles[i].startTimestampMillis <= searchTimestamp) {
-        result.push(this.subtitles[i]);
+    for (let i = startIndex + 1; i < SubtitleUtil.subtitles.length; i++) {
+      if (SubtitleUtil.subtitles[i].startTimestampMillis <= searchTimestamp) {
+        result.push(SubtitleUtil.subtitles[i])
       } else {
-        break;
+        break
       }
     }
     // 格式化返回
@@ -323,20 +325,20 @@ class SubtitleUtil {
       .replace(/\\[Nn]/g, '\n')
       .replace(/\{[^}]*\}/g, '')
       .replace(/<[^>]*>/g, '')
-    ).join('\n');
+    ).join('\n')
   }
 
-  getAdjacentSubtitleOffset(
+  static getAdjacentSubtitleOffset(
     playbackTimestamp: number,
     currentOffsetMillis: number,
     direction: 'prev' | 'next'
   ): number | undefined {
-    if (this.subtitles.length === 0) {
+    if (SubtitleUtil.subtitles.length === 0) {
       return undefined
     }
     const searchTimestamp = Math.max(playbackTimestamp - currentOffsetMillis, 0)
-    const nextIndex = this.findFirstStartGreaterThan(searchTimestamp)
-    const activeIndex = (nextIndex > 0 && this.subtitles[nextIndex - 1].endTimestampMillis > searchTimestamp)
+    const nextIndex = SubtitleUtil.findFirstStartGreaterThan(searchTimestamp)
+    const activeIndex = (nextIndex > 0 && SubtitleUtil.subtitles[nextIndex - 1].endTimestampMillis > searchTimestamp)
       ? nextIndex - 1
       : -1
 
@@ -347,14 +349,14 @@ class SubtitleUtil {
       targetIndex = activeIndex >= 0 ? activeIndex + 1 : nextIndex
     }
 
-    if (targetIndex < 0 || targetIndex >= this.subtitles.length) {
+    if (targetIndex < 0 || targetIndex >= SubtitleUtil.subtitles.length) {
       return undefined
     }
-    return playbackTimestamp - this.subtitles[targetIndex].startTimestampMillis
+    return playbackTimestamp - SubtitleUtil.subtitles[targetIndex].startTimestampMillis
   }
 
   // 统一解析字幕文件
-  private async parseSubtitleFile<T>(
+  static async parseSubtitleFile<T>(
     parser: Parser<T>,
     mapper: (item: T) => SubtitleItem
   ): Promise<SubtitleItem[]> {
@@ -363,12 +365,12 @@ class SubtitleUtil {
     return lines.map(mapper)
   }
 
-  private findFirstStartGreaterThan(timestamp: number): number {
+  static findFirstStartGreaterThan(timestamp: number): number {
     let left = 0
-    let right = this.subtitles.length
+    let right = SubtitleUtil.subtitles.length
     while (left < right) {
       const mid = Math.floor((left + right) / 2)
-      if (this.subtitles[mid].startTimestampMillis > timestamp) {
+      if (SubtitleUtil.subtitles[mid].startTimestampMillis > timestamp) {
         right = mid
       } else {
         left = mid + 1
@@ -378,13 +380,7 @@ class SubtitleUtil {
   }
 
   // 设置字幕数据
-  private setSubtitles(items: SubtitleItem[]) {
-    this.subtitles = items.sort((a, b) => a.startTimestampMillis - b.startTimestampMillis)
+  private static setSubtitles(items: SubtitleItem[]) {
+    SubtitleUtil.subtitles = items.sort((a, b) => a.startTimestampMillis - b.startTimestampMillis)
   }
 }
-
-const subtitleUtilInstance = new SubtitleUtil()
-
-export default subtitleUtilInstance
-
-export { SubtitleUtil }

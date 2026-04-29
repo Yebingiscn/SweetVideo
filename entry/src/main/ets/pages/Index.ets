@@ -44,6 +44,9 @@ import { MpvPlayer } from './VideoPlayer/MpvPlayer'
 import { Player } from './VideoPlayer/Player'
 import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData'
 import { salmonLogger } from 'salmonlogger'
+import IntellectualGripPostureUtil from '../utils/IntellectualGripPostureUtil'
+import { HdsNavigation, HideMode, ScrollEffectType } from '@hms.hds.hdsBaseComponent'
+import { LengthMetrics } from '@kit.ArkUI'
 
 const TAG = 'Index'
 
@@ -193,6 +196,8 @@ struct Index {
     }
     this.fileFolderSource?.updateData(this.file_folder_list)
     this.videoListController?.updateData(undefined, this.file_folder_list[0])
+    IntellectualGripPostureUtil.createHoldingHandStatus()
+    IntellectualGripPostureUtil.createOperatingHandStatus()
     checkUriProcess(Preferences.getFileFolder(PathUtils.appContext!), (re: Object) => {
       const result = re as Array<VideoMetadata>
       if (result.length > 0) {
@@ -272,7 +277,7 @@ struct Index {
   }
 
   build() {
-    Navigation(this.pathStack) {
+    HdsNavigation(this.pathStack) {
       SideBarContainer(this.sideBarController.mode) {
         Column() {
           Scroll(this.sideBarScroller) {
@@ -364,13 +369,12 @@ struct Index {
           .scrollBar(BarState.Off)
           .width('100%')
           .height('100%')
-          .fadingEdge(true)
 
           Column() {
             Button({ type: ButtonType.Normal, stateEffect: true }) {
               Row() {
                 SymbolGlyph($r('sys.symbol.clock')).attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                Text('最近播放')
+                Text($r('app.string.recent_play'))
                   .fontSize(15)
                   .fontColor($r('app.color.text_color'))
                   .margin({ left: 10, right: 12 })
@@ -421,10 +425,14 @@ struct Index {
           VideoView({
             loading: this.loading,
             searchValue: this.searchValue,
-            onSearchValueChange: (v: string) => { this.searchValue = v },
+            onSearchValueChange: (v: string) => {
+              this.searchValue = v
+            },
             videoListController: this.videoListController,
             scrollToFolderDate: this.scrollToFolderDate,
-            onScrollToFolderDateChange: (v: string) => { this.scrollToFolderDate = v }
+            onScrollToFolderDateChange: (v: string) => {
+              this.scrollToFolderDate = v
+            }
           }).scale({
             x: this.sideBarController.isShow === true ? 0.95 : 1,
             y: this.sideBarController.isShow ? 0.95 : 1
@@ -514,6 +522,72 @@ struct Index {
     .hideTitleBar(true)
     .mode(NavigationMode.Stack)
     .navDestination(this.Pages)
+    .bindToScrollable([this.videoListController.listScroller]) // 绑定导航组件和可滚动容器组件
+    .dynamicHideTitleBar({
+      hideTitleArea: true,
+      hideBottomBuilder: true,
+      hideStatusBar: false,
+      mode: HideMode.SCROLL_UP_TO
+    })
+    .titleBar({
+      enableComponentSafeArea: true, // 将标题栏设置为组件级安全区，内容区可避让标题栏
+      padding: {
+        start: LengthMetrics.vp(5),
+        end: LengthMetrics.vp(5)
+      },
+      style: {
+        // 设置导航组件标题栏样式，推荐使用默认样式
+        // 标题栏动态模糊样式，包括是否使能滚动动态模糊，动态模糊类型，动态模糊生效的滚动距离等
+        scrollEffectOpts: {
+          enableScrollEffect: true,
+          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
+          blurEffectiveStartOffset: LengthMetrics.vp(0),
+          blurEffectiveEndOffset: LengthMetrics.vp(20)
+        },
+        originalStyle: {
+          // 内容区滚动前初始样式设置
+          backgroundStyle: {
+            // 标题栏背板样式设置
+            backgroundColor: $r('sys.color.ohos_id_color_background'),
+          },
+          contentStyle: {
+            // 标题栏内容区样式设置，包括标题区域，菜单区域，返回按钮区域
+            titleStyle: {
+              mainTitleColor: $r('sys.color.font_primary'),
+              subTitleColor: $r('sys.color.font_secondary')
+            },
+            menuStyle: {
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
+              iconColor: $r('sys.color.icon_primary')
+            },
+            backIconStyle: {
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
+              iconColor: $r('sys.color.icon_primary')
+            }
+          }
+        },
+        scrollEffectStyle: {
+          // 内容区滚动超过blurEffectiveEndOffset后样式设置
+          backgroundStyle: {
+            backgroundColor: $r('sys.color.ohos_id_color_background_transparent'),
+          },
+          contentStyle: {
+            titleStyle: {
+              mainTitleColor: $r('sys.color.font_primary'),
+              subTitleColor: $r('sys.color.font_secondary')
+            },
+            menuStyle: {
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
+              iconColor: $r('sys.color.icon_primary')
+            },
+            backIconStyle: {
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
+              iconColor: $r('sys.color.icon_primary')
+            }
+          }
+        }
+      },
+    })
     .onDrop((dragEvent: DragEvent) => {
       let records: Array<unifiedDataChannel.UnifiedRecord> = []
       try {

@@ -28,7 +28,7 @@ import PermissionUtil from '../utils/PermissionUtil'
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil'
 import RecentPlayUtil from '../utils/RecentPlayUtil'
 import SelectFileUtil from '../utils/SelectFileUtil'
-import SubtitleUtil, { SubtitleUtil as SubtitleUtilClass } from '../utils/SubtitleUtil'
+import SubtitleUtil from '../utils/SubtitleUtil'
 import VideoInfoUtil from '../utils/VideoInfoUtil'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
 import { WindowUtil } from '../utils/WindowUtil'
@@ -770,10 +770,10 @@ export class AVPlayerController implements PlayerControllerInterface {
       return
     }
 
-    const subtitleMode = SubtitleUtilClass.normalizeSubtitleMode(this.subtitleSelected)
+    const subtitleMode = SubtitleUtil.normalizeSubtitleMode(this.subtitleSelected)
     const subtitleVisible = subtitleVisibility === Visibility.Visible
     const subtitleAIAsrShown = isAIAsrShown
-    const subtitle3DModeValue = SubtitleUtilClass.normalizeSubtitle3DMode(subtitle3DMode)
+    const subtitle3DModeValue = SubtitleUtil.normalizeSubtitle3DMode(subtitle3DMode)
     const subtitleOffsetMillis = Math.max(-50000, Math.min(50000, Math.round(SubtitleUtil.offsetMillis)))
     const subtitleTrackId = this.subtitleTrackSelected
     const hasPreferenceChanged =

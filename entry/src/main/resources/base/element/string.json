@@ -191,6 +191,14 @@
     {
       "name": "DLP_GET_HIDE_STATUS",
       "value": "Get the status of the screen that is being viewed by the non-owner during the use of the application"
+    },
+    {
+      "name": "DETECT_GESTURE",
+      "value": "Get the hand that holds"
+    },
+    {
+      "name": "recent_play",
+      "value": "Recent Play"
     }
   ]
 }

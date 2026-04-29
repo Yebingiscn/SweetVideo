@@ -191,6 +191,14 @@
     {
       "name": "DLP_GET_HIDE_STATUS",
       "value": "获取当前应用使用过程中屏幕被非机主本人窥视的状态信息"
+    },
+    {
+      "name": "DETECT_GESTURE",
+      "value": "获取用户握持手"
+    },
+    {
+      "name": "recent_play",
+      "value": "最近播放"
     }
   ]
 }

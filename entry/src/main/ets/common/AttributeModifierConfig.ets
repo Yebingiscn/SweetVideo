@@ -1,5 +1,6 @@
 import { CommonModifier } from '@kit.ArkUI';
 import { ShadowFancy } from '../interfaces/ShadowFancyInterface';
+import { hdsEffect } from '@kit.UIDesignKit';
 
 export class ShadowModifier extends CommonModifier {
   constructor() {
@@ -116,4 +117,15 @@ export const DefaultDialogShadow: ShadowFancy = {
   color: $r('app.color.shadow_color'),
   offsetX: 0,
   offsetY: 0
-};
+}
+
+@ObservedV2
+export class HdsGL {
+  @Trace static lightIntensity: number = 10;
+  @Trace static illuminatedType: hdsEffect.PointLightIlluminatedType[] =
+    [hdsEffect.PointLightIlluminatedType.NONE, hdsEffect.PointLightIlluminatedType.BORDER,
+      hdsEffect.PointLightIlluminatedType.CONTENT, hdsEffect.PointLightIlluminatedType.BORDER_CONTENT,
+      hdsEffect.PointLightIlluminatedType.DEFAULT_FEATHERING_BORDER];
+  @Trace static sourceTypes: hdsEffect.PointLightSourceType[] =
+    [hdsEffect.PointLightSourceType.NONE, hdsEffect.PointLightSourceType.SOFT, hdsEffect.PointLightSourceType.BRIGHT]
+}

@@ -4,8 +4,8 @@ import ToolsUtil from '../utils/ToolsUtil'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { PathUtils } from '../utils/PathUtils'
 import { VideoItemBuilder } from '../component/PlayerComponent/PlayerSideBarComponent'
-import { SymbolGlyphModifier } from '@kit.ArkUI'
-import { ButtonFancyModifier, DefaultDialogShadow, SymbolGlyphFancyModifier } from '../common/AttributeModifierConfig'
+import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
+import { DefaultDialogShadow } from '../common/AttributeModifierConfig'
 import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog'
 import DataSyncUtil from '../utils/DataSyncUtil'
 import SelectFileUtil from '../utils/SelectFileUtil'
@@ -14,6 +14,7 @@ import { SafeHeight, Setting } from '../utils/ObservedUtil'
 import { DELAY_JUMP_TO_PLAYER } from '../common/Constants'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
 import { VideoItemPreviewBuilder } from '../component/VideoItemComponent/VideoItemPreviewBuilder'
+import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 
 @ComponentV2
 export struct RecentPlay { // 最近播放页
@@ -31,24 +32,6 @@ export struct RecentPlay { // 最近播放页
       this.recent_video_meta_data = RecentPlayUtil.getRecentPlaybacks()
       this.videoDataSource = new VideoDataSource(this.recent_video_meta_data)
     }
-  }
-
-  @Builder
-  NavigationMenus() {
-    Row() {
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph($r('sys.symbol.ohos_trash'))
-          .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-      }
-      .backdropBlur(150)
-      .attributeModifier(new ButtonFancyModifier(35, 35))
-      .animation({ duration: 300, curve: Curve.Ease })
-      .onClick(() => {
-        for (const element of this.recent_video_meta_data ?? []) {
-          this.delData(PathUtils.appContext!, element)
-        }
-      })
-    }.margin({ right: 10, top: 10 })
   }
 
   @Builder
@@ -104,7 +87,7 @@ export struct RecentPlay { // 最近播放页
   }
 
   build() {
-    NavDestination() {
+    HdsNavDestination() {
       Column() {
         if (this.recent_video_meta_data.length === 0) {
           Text($r('app.string.nothing'))
@@ -158,7 +141,6 @@ export struct RecentPlay { // 最近播放页
               })
           }, (item: VideoMetadata) => item.date + item.title + item.last_play + item.size.toString() + item.time)
         }
-        .fadingEdge(true)
         .clip(false)
         .layoutWeight(1)
         .padding({ left: 20, right: 20 })
@@ -176,13 +158,96 @@ export struct RecentPlay { // 最近播放页
         this.videoDataSource.updateData(this.recent_video_meta_data)
       }
     })
-    .menus(this.NavigationMenus)
-    .title('最近播放')
+    .titleBar({
+      enableComponentSafeArea: true, // 将标题栏设置为组件级安全区，内容区可避让标题栏
+      padding: {
+        start: LengthMetrics.vp(5),
+        end: LengthMetrics.vp(5)
+      },
+      content: {
+        title: {
+          mainTitle: $r('app.string.recent_play'),
+        },
+        menu: {
+          value: [{
+            content: {
+              label: '',
+              icon: $r('sys.symbol.ohos_trash'),
+              isEnabled: true,
+              action: () => {
+                for (const element of this.recent_video_meta_data ?? []) {
+                  this.delData(PathUtils.appContext!, element)
+                }
+              }
+            }
+          }]
+        }
+      },
+      style: {
+        // 设置导航组件标题栏样式，推荐使用默认样式
+        // 标题栏动态模糊样式，包括是否使能滚动动态模糊，动态模糊类型，动态模糊生效的滚动距离等
+        scrollEffectOpts: {
+          enableScrollEffect: true,
+          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
+          blurEffectiveStartOffset: LengthMetrics.vp(0),
+          blurEffectiveEndOffset: LengthMetrics.vp(20)
+        },
+        originalStyle: {
+          // 内容区滚动前初始样式设置
+          backgroundStyle: {
+            // 标题栏背板样式设置
+            backgroundColor: $r('sys.color.ohos_id_color_background'),
+          },
+          contentStyle: {
+            // 标题栏内容区样式设置，包括标题区域，菜单区域，返回按钮区域
+            titleStyle: {
+              mainTitleColor: $r('sys.color.font_primary'),
+              subTitleColor: $r('sys.color.font_secondary')
+            },
+            menuStyle: {
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
+              iconColor: $r('sys.color.icon_primary')
+            },
+            backIconStyle: {
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
+              iconColor: $r('sys.color.icon_primary')
+            }
+          }
+        },
+        scrollEffectStyle: {
+          // 内容区滚动超过blurEffectiveEndOffset后样式设置
+          backgroundStyle: {
+            backgroundColor: $r('sys.color.ohos_id_color_background_transparent'),
+          },
+          contentStyle: {
+            titleStyle: {
+              mainTitleColor: $r('sys.color.font_primary'),
+              subTitleColor: $r('sys.color.font_secondary')
+            },
+            menuStyle: {
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
+              iconColor: $r('sys.color.icon_primary')
+            },
+            backIconStyle: {
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
+              iconColor: $r('sys.color.icon_primary')
+            }
+          }
+        }
+      },
+    })
     .padding({ top: SafeHeight.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
     .backgroundImage(Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backdropBlur(Setting.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
+    .bindToScrollable([this.listScroller]) // 绑定导航组件和可滚动容器组件
+    .dynamicHideTitleBar({
+      hideTitleArea: true,
+      hideBottomBuilder: true,
+      hideStatusBar: false,
+      mode: HideMode.SCROLL_UP_TO
+    })
   }
 }

@@ -145,6 +145,16 @@
           ],
           "when": "always"
         }
+      },
+      {
+        "name": "ohos.permission.DETECT_GESTURE",
+        "reason": "$string:DETECT_GESTURE",
+        "usedScene": {
+          "abilities": [
+            "EntryAbility"
+          ],
+          "when": "always"
+        }
       }
     ]
   }

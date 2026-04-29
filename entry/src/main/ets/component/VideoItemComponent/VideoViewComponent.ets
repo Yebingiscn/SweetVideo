@@ -46,32 +46,6 @@ export struct VideoView {
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   @Consumer() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   @Local delMultipleList: VideoMetadata[] = DataSyncUtil.delMultipleList
-  // 当前选中文件夹索引
-  @Local currentFolderIndex: number = 0
-  // 监听文件夹切换，同步面包屑选中状态
-  @Param scrollToFolderDate: string = ''
-  private passwd: string = 'passwd'
-  // 面包屑滚动控制器
-  private breadcrumbScroller: Scroller = new Scroller()
-  // 文件夹按钮尺寸配置
-  private readonly FOLDER_TAB_MIN_WIDTH: number = 64
-  private readonly FOLDER_TAB_HEIGHT: number = 28
-  @Event onSearchValueChange: (v: string) => void = () => {
-  }
-
-  @Monitor('file_folder_list')
-  onFolderListChanged() {
-    // 文件夹列表变化时，确保选中状态正确
-    const newIndex = this.getCurrentFolderIndex()
-    if (newIndex !== -1 && newIndex !== this.currentFolderIndex) {
-      this.currentFolderIndex = newIndex
-    }
-  }
-
-  @Monitor('delMultipleList')
-  SyncDelMultipleList() {
-    DataSyncUtil.delMultipleList = this.delMultipleList
-  }
   batchDelConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: BatchVideoDeleteDialog({
       videoList: this.delMultipleList,
@@ -88,6 +62,35 @@ export struct VideoView {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  @Local currentSortField: 'name' | 'datetime' | 'time' | '' = ''
+  @Local currentSortAsc: boolean = true
+  // 当前选中文件夹索引
+  @Local currentFolderIndex: number = 0
+  // 监听文件夹切换，同步面包屑选中状态
+  @Param scrollToFolderDate: string = ''
+  private passwd: string = 'passwd'
+  // 面包屑滚动控制器
+  private breadcrumbScroller: Scroller = new Scroller()
+  // 文件夹按钮尺寸配置
+  private readonly FOLDER_TAB_MIN_WIDTH: number = 64
+  private readonly FOLDER_TAB_HEIGHT: number = 28
+
+  @Event onSearchValueChange: (v: string) => void = () => {
+  }
+
+  @Monitor('file_folder_list')
+  onFolderListChanged() {
+    // 文件夹列表变化时，确保选中状态正确
+    const newIndex = this.getCurrentFolderIndex()
+    if (newIndex !== -1 && newIndex !== this.currentFolderIndex) {
+      this.currentFolderIndex = newIndex
+    }
+  }
+
+  @Monitor('delMultipleList')
+  SyncDelMultipleList() {
+    DataSyncUtil.delMultipleList = this.delMultipleList
+  }
 
   @Event onScrollToFolderDateChange: (v: string) => void = () => {
   }
@@ -275,21 +278,11 @@ export struct VideoView {
   @Builder
   SortMenuBuilder() {
     SortComponent({
-      onSortByName: () => {
-        ToolsUtil.sortBy(PathUtils.appContext!, this.videoListController.videoMetaDataList,
-          this.videoListController.folder, "name")
-        VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
-      },
-      onSortByTime: () => {
-        ToolsUtil.sortBy(PathUtils.appContext!, this.videoListController.videoMetaDataList,
-          this.videoListController.folder, "time")
-        VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
-      },
-      onSortByDatetime: () => {
-        ToolsUtil.sortBy(PathUtils.appContext!, this.videoListController.videoMetaDataList,
-          this.videoListController.folder, "datetime")
-        VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
-      }
+      currentSortField: this.currentSortField,
+      currentSortAsc: this.currentSortAsc,
+      onSortByName: (): void => this.handleSort('name', true),
+      onSortByTime: (): void => this.handleSort('time', false),
+      onSortByDatetime: (): void => this.handleSort('datetime', false)
     })
   }
 
@@ -384,6 +377,18 @@ export struct VideoView {
   @Builder
   FileFolderMenuBuilder(video_item: VideoMetadata | undefined) {
     FileFolderMenu({ video_item: video_item })
+  }
+
+  private handleSort(field: 'name' | 'time' | 'datetime', defaultAsc: boolean) {
+    if (this.currentSortField === field) {
+      this.currentSortAsc = !this.currentSortAsc
+    } else {
+      this.currentSortField = field
+      this.currentSortAsc = defaultAsc
+    }
+    ToolsUtil.sortBy(PathUtils.appContext!, this.videoListController.videoMetaDataList,
+      this.videoListController.folder, field, this.currentSortAsc)
+    VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
   }
 
   /**

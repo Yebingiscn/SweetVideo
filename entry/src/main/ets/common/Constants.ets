@@ -44,6 +44,23 @@ export const GB = 1024 * 1024 * 1024
 
 export const MB = 1024 * 1024
 
+export enum LoginWithHWErrorCode {
+  // 账号未登录
+  ERROR_CODE_LOGIN_OUT = 1001502001,
+  // 网络错误
+  ERROR_CODE_NETWORK_ERROR = 1001502005,
+  // 内部错误
+  ERROR_CODE_INTERNAL_ERROR = 1001502009,
+  // 用户取消授权
+  ERROR_CODE_USER_CANCEL = 1001502012,
+  // 系统服务异常
+  ERROR_CODE_SYSTEM_SERVICE = 12300001,
+  // 用户未同意用户协议
+  ERROR_CODE_AGREEMENT_STATUS_NOT_ACCEPTED = 1005300001,
+  // 重复请求
+  ERROR_CODE_REQUEST_REFUSE = 1001500002
+}
+
 export const IMAGE_ANALYZER_CONFIG: ImageAnalyzerConfig = {
   types: [ImageAnalyzerType.SUBJECT, ImageAnalyzerType.TEXT]
 }
