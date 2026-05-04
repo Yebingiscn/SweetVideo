@@ -38,6 +38,7 @@ export struct VideoView {
   searchController: SearchController = new SearchController()
   @Param loading: boolean = false
   @Local is_edit: boolean = false
+  @Local searchBarVisible: boolean = true
   @Param searchValue: string = ''
   @Local _searchValue: string = ''
   @Param videoListController: VideoListController = new VideoListController()
@@ -131,6 +132,21 @@ export struct VideoView {
         onSearchValueChange: (v: string) => {
           this._searchValue = v
           this.onSearchValueChange(v)
+        },
+        searchBarVisible: this.searchBarVisible,
+        onScrollUp: () => {
+          if (this.searchBarVisible) {
+            animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
+              this.searchBarVisible = false
+            })
+          }
+        },
+        onScrollDown: () => {
+          if (!this.searchBarVisible) {
+            animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
+              this.searchBarVisible = true
+            })
+          }
         }
       })
 
@@ -188,7 +204,6 @@ export struct VideoView {
               this.onSearchValueChange(v)
             },
             onChange: () => {
-              // 使用防抖，避免快速输入时频繁过滤
               DebounceUtil.debounce('search', () => {
                 if (this._searchValue === '') {
                   const videoMetaDataList: VideoMetadata[] =
@@ -267,11 +282,15 @@ export struct VideoView {
         }
         .width('100%')
 
-        // 自定义面包屑导航
         if (Setting.showToast && this.file_folder_list.length > 1) {
           this.FolderTabsBuilder()
         }
-      }.width('100%').padding({ top: SafeHeight.topSafeHeight, left: 10, right: 10 })
+      }
+      .width('100%')
+      .padding({ top: SafeHeight.topSafeHeight, left: 10, right: 10 })
+      .translate({ y: this.searchBarVisible ? 0 : -(SafeHeight.topSafeHeight + 65) })
+      .opacity(this.searchBarVisible ? 1 : 0)
+      .animation({ duration: 300, curve: Curve.Ease })
     }.width('100%')
   }
 

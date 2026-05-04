@@ -14,7 +14,7 @@ export default struct VideoCardItem {
   @Param @Require item: VideoMetadata
   @Consumer() videoListController: VideoListController = new VideoListController()
   @Local choose: boolean = false
-  @Param @Once delMultipleList: VideoMetadata[] = []
+  @Param delMultipleList: VideoMetadata[] = []
 
   // 组件复用时的生命周期回调
   aboutToReuse(): void {
