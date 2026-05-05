@@ -4,6 +4,26 @@ export default class IntellectualGripPostureUtil {
   private static operatingHandCallback: Callback<motion.OperatingHandStatus> | null = null
   private static holdingHandCallback: Callback<motion.HoldingHandStatus> | null = null
 
+  static isLeftOperateHand(status: motion.OperatingHandStatus | null): boolean {
+    if (status === null) {
+      return false
+    }
+    if (canIUse('SystemCapability.MultimodalAwareness.Motion')) {
+      return status === motion.OperatingHandStatus.LEFT_HAND_OPERATED
+    }
+    return false
+  }
+
+  static isLeftHoldHand(status: motion.HoldingHandStatus | null): boolean {
+    if (status === null) {
+      return false
+    }
+    if (canIUse('SystemCapability.MultimodalAwareness.Motion')) {
+      return status === motion.HoldingHandStatus.LEFT_HAND_HELD
+    }
+    return false
+  }
+
   static createOperatingHandStatus(callback?: Callback<motion.OperatingHandStatus>) {
     if (canIUse('SystemCapability.MultimodalAwareness.Motion')) {
       IntellectualGripPostureUtil.operatingHandCallback = callback ?? ((data: motion.OperatingHandStatus) => {

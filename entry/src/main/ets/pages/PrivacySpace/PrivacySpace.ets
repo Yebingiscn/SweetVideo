@@ -34,6 +34,8 @@ import { VideoItemPreviewBuilder } from '../../component/VideoItemComponent/Vide
 import { PrivacySpaceSettingComponent } from '../../component/PrivacySpaceComponent/PrivacySpaceSettingComponent'
 import DlpAntiPeepUtil from '../../utils/DlpAntiPeepUtil'
 import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
+import { motion } from '@kit.MultimodalAwarenessKit'
+import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil'
 
 @ComponentV2
 export struct PrivacySpace { // 隐私空间页
@@ -97,6 +99,7 @@ export struct PrivacySpace { // 隐私空间页
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
   })
+  @Local operatingHand: motion.HoldingHandStatus | null = null
   private listScroller: Scroller = new Scroller()
 
   @Builder
@@ -197,6 +200,7 @@ export struct PrivacySpace { // 隐私空间页
           })
         }
       })
+
       if (!this.is_edit) {
         Button({ type: ButtonType.Circle, stateEffect: true }) {
           SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
@@ -210,6 +214,8 @@ export struct PrivacySpace { // 隐私空间页
     }
     .width('95%')
     .justifyContent(FlexAlign.Start)
+    .reverse(IntellectualGripPostureUtil.isLeftHoldHand(this.operatingHand))
+    .animation({ duration: 300, curve: Curve.Ease })
   }
 
   @Builder
@@ -477,6 +483,7 @@ export struct PrivacySpace { // 隐私空间页
       })
     }
     .onWillDisappear(() => {
+      IntellectualGripPostureUtil.destroyOperatingHandStatus()
       PrivacySpaceUtil.closePrivacyMode()
     })
     .onShown(() => {
@@ -585,6 +592,9 @@ export struct PrivacySpace { // 隐私空间页
       if (privacySpaceParams?.needGotoSetting) {
         this.isPresent = true
       }
+      IntellectualGripPostureUtil.createHoldingHandStatus((data: motion.HoldingHandStatus) => {
+        this.operatingHand = data
+      })
     })
     .dynamicHideTitleBar({
       hideTitleArea: true,

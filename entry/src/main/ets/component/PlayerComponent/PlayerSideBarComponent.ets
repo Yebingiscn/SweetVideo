@@ -15,13 +15,15 @@ import { fileUri } from '@kit.CoreFileKit'
 export struct PlayerSideBarComponent {
   @Local playerSideBarSource: PlayerSideBarSource = new PlayerSideBarSource([])
   @Param sideBarStatusTmp: Visibility = Visibility.Hidden
-  @Event onSideBarStatusTmpChange: (v: Visibility) => void = () => {}
   @Local _sideBarStatusTmp: Visibility = Visibility.Hidden
   @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
   @Param sideBarStatus: boolean = false
-  @Event onSideBarStatusChange: (v: boolean) => void = () => {}
   @Local _sideBarStatus: boolean = false
   private listScroller: Scroller = new Scroller()
+  @Event onSideBarStatusTmpChange: (v: Visibility) => void = () => {
+  }
+  @Event onSideBarStatusChange: (v: boolean) => void = () => {
+  }
   @Event onItemClick: (_item: VideoMetadata) => void = () => {
   }
 
@@ -125,8 +127,8 @@ class VideoItemValue {
 export function VideoItemBuilder(videoItemValue: VideoItemValue) {
   Row() {
     Image(fileUri.getUriFromPath(PathUtils.coverPath + videoItemValue.item?.date))
-      .attributeModifier(new ImageFancyModifier(16, Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 65 : 100,
-        Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 100 : 65))
+      .attributeModifier(new ImageFancyModifier(16, Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 75 : 100,
+        Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 100 : 75))
     Column() {
       Text(VideoInfoUtil.getVideoTitle(videoItemValue.item!))
         .fontSize(16)

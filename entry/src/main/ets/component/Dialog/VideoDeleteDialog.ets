@@ -21,6 +21,9 @@ export struct VideoDeleteDialog {
   aboutToAppear(): void {
     this.permanentDeleteVisibility = this.getPermanentDeleteVisibility()
     this.moveToRecentVisibility = this.getMoveToRecentVisibility()
+    if (this.moveToRecentVisibility) {
+      this.deleteOption = 'recent'
+    }
   }
 
   build() {

@@ -1,6 +1,6 @@
-import { FunctionComponent, FunctionController } from '@kit.AgentFrameworkKit'
-import { salmonLogger } from 'salmonlogger'
-import { common } from '@kit.AbilityKit'
+import { salmonLogger } from "salmonlogger"
+import { FunctionComponent, FunctionController } from "@kit.AgentFrameworkKit"
+import { common } from "@kit.AbilityKit"
 
 const TAG = 'SweetAgentComponent'
 
