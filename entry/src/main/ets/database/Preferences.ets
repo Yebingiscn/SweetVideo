@@ -278,4 +278,20 @@ export default class Preferences {
   static getSuperResolutionState(context: Context): boolean {
     return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'superResolutionState', false) as boolean
   }
+
+  static getSortField(context: Context): string {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'sortField', '') as string
+  }
+
+  static saveSortField(context: Context, sortField: string) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'sortField', sortField)
+  }
+
+  static getSortAsc(context: Context): boolean {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'sortAsc', true) as boolean
+  }
+
+  static saveSortAsc(context: Context, sortAsc: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'sortAsc', sortAsc)
+  }
 }

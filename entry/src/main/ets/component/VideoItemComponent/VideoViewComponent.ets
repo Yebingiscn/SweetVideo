@@ -38,7 +38,6 @@ export struct VideoView {
   searchController: SearchController = new SearchController()
   @Param loading: boolean = false
   @Local is_edit: boolean = false
-  @Local searchBarVisible: boolean = true
   @Param searchValue: string = ''
   @Local _searchValue: string = ''
   @Param videoListController: VideoListController = new VideoListController()
@@ -108,6 +107,11 @@ export struct VideoView {
 
   aboutToAppear(): void {
     this._searchValue = this.searchValue
+    const savedField = Preferences.getSortField(PathUtils.appContext!)
+    if (savedField === 'name' || savedField === 'datetime' || savedField === 'time') {
+      this.currentSortField = savedField
+    }
+    this.currentSortAsc = Preferences.getSortAsc(PathUtils.appContext!)
   }
 
   @Monitor('searchValue')
@@ -133,21 +137,8 @@ export struct VideoView {
           this._searchValue = v
           this.onSearchValueChange(v)
         },
-        searchBarVisible: this.searchBarVisible,
-        onScrollUp: () => {
-          if (this.searchBarVisible) {
-            animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
-              this.searchBarVisible = false
-            })
-          }
-        },
-        onScrollDown: () => {
-          if (!this.searchBarVisible) {
-            animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
-              this.searchBarVisible = true
-            })
-          }
-        }
+        currentSortField: this.currentSortField,
+        currentSortAsc: this.currentSortAsc
       })
 
       if (!this.loading && this.videoListController.openSideBarTip(this._searchValue)) {
@@ -288,9 +279,6 @@ export struct VideoView {
       }
       .width('100%')
       .padding({ top: SafeHeight.topSafeHeight, left: 10, right: 10 })
-      .translate({ y: this.searchBarVisible ? 0 : -(SafeHeight.topSafeHeight + 65) })
-      .opacity(this.searchBarVisible ? 1 : 0)
-      .animation({ duration: 300, curve: Curve.Ease })
     }.width('100%')
   }
 
@@ -405,6 +393,8 @@ export struct VideoView {
       this.currentSortField = field
       this.currentSortAsc = defaultAsc
     }
+    Preferences.saveSortField(PathUtils.appContext!, this.currentSortField)
+    Preferences.saveSortAsc(PathUtils.appContext!, this.currentSortAsc)
     ToolsUtil.sortBy(PathUtils.appContext!, this.videoListController.videoMetaDataList,
       this.videoListController.folder, field, this.currentSortAsc)
     VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)

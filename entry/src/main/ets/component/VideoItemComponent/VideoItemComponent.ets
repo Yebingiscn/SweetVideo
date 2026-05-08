@@ -29,6 +29,12 @@ import VideoCardItem from './VideoCardItemComponent'
 import { VideoItemPreviewBuilder } from './VideoItemPreviewBuilder'
 import VideoListItem from './VideoListItemComponent'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
+import { pinyin4js } from '@ohos/pinyin4js'
+
+const FULL_ALPHABET: string[] = [
+  '#', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+  'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
+]
 
 @ObservedV2
 export class VideoListController {
@@ -124,9 +130,11 @@ export class VideoListController {
 export struct VideoList {
   @Param searchValue: string = ''
   @Local _searchValue: string = ''
-  @Param searchBarVisible: boolean = true
+  @Param currentSortField: 'name' | 'datetime' | 'time' | '' = ''
+  @Param currentSortAsc: boolean = true
   @Param videoListController: VideoListController = new VideoListController()
-  @Consumer() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
+  @Local activeAlphabet: string[] = []
+  @Local indexerSelected: number = 0
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -150,6 +158,7 @@ export struct VideoList {
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  @Consumer() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   delConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDeleteDialog({
       confirm: async (deleteType: DeleteType) => {
@@ -196,10 +205,6 @@ export struct VideoList {
   }
   @Event onDelMultipleListChange: (v: VideoMetadata[]) => void = () => {
   }
-  @Event onScrollUp: () => void = () => {
-  }
-  @Event onScrollDown: () => void = () => {
-  }
 
   aboutToAppear(): void {
     this._searchValue = this.searchValue
@@ -215,6 +220,15 @@ export struct VideoList {
     this._delMultipleList = [...this.delMultipleList]
   }
 
+  @Monitor('videoListController.videoMetaDataList', 'currentSortField', 'currentSortAsc')
+  onVideoListChanged() {
+    if (this.currentSortField === 'name') {
+      this.updateActiveAlphabet()
+    } else {
+      this.activeAlphabet = []
+    }
+  }
+
   @Builder
   VideoItemBuilder(item: VideoMetadata) {
     VideoListItem({
@@ -225,121 +239,20 @@ export struct VideoList {
 
   build() {
     if (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY) {
-      List({ scroller: this.videoListController.listScroller }) {
-        LazyForEach(this.videoListController.videoDataSource, (item: VideoMetadata) => { // 加载视频列表
-          ListItem() {
-            this.VideoItemBuilder(item)
-          }
-          .borderRadius(16)
-          .backgroundColor(Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
-            $r('app.color.start_window_background'))
-          .margin({ bottom: 20 }) // 不知道动了哪里，挤在一起了，先这样改
-          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-          .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
-          .width(this.videoListController.listLine === 1 ? '100%' : '95%')
-          .height('auto')
-          .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
-            {
-              backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-              preview: VideoItemPreviewBuilder(item),
-              previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
-              layoutRegionMargin: {
-                left: 16,
-                right: 16,
-                top: 16,
-                bottom: 4
-              },
-              hapticFeedbackMode: HapticFeedbackMode.ENABLED
-            })
-          .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
-            {
-              backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-              preview: VideoItemPreviewBuilder(item),
-              previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
-              layoutRegionMargin: {
-                left: 16,
-                right: 16,
-                top: 16,
-                bottom: 4
-              },
-              mask: true
-            })
-          .gesture(
-            TapGesture({ count: 1, fingers: 1 })
-              .onAction(async () => {
-                if (this.videoListController.multipleChooseState !== Visibility.Visible) {
-                  const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
-                  await this.clickItem(videoItem,
-                    VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
-                  return
-                } else {
-                  //已存在，标记置反
-                  if (this._delMultipleList.some(video => video.date === item.date)) {
-                    this._delMultipleList =
-                      this._delMultipleList.filter(video => video.date !== item.date)
-                    this.onDelMultipleListChange([...this._delMultipleList])
-                  } else {
-                    this._delMultipleList.push(item)
-                    this.onDelMultipleListChange([...this._delMultipleList])
-                  }
-                }
-              })
-          )
-        }, (item: VideoMetadata) => item.date.toString() + item.last_play + item.title + item.size.toString() +
-          this.videoListController.folder.name + item.time)
-      }
-      .clip(false)
-      .padding({ left: 10, right: 10 })
-      .cachedCount(12)
-      .contentStartOffset(this.searchBarVisible ?
-        SafeHeight.topSafeHeight + (Setting.showToast && this.file_folder_list.length > 1 ? 90 : 65) : 0)
-      .contentEndOffset(SafeHeight.bottomSafeHeight)
-      .lanes(this.videoListController.listLine)
-      .animation({ duration: 300, curve: Curve.Smooth })
-      .scrollBar(BarState.Auto)
-      .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
-      .chainAnimation(true)
-      .width('100%')
-      .height('100%')
-      .fadingEdge(true)
-      .onScrollFrameBegin((offset: number) => {
-        const yOffset = Math.abs(this.videoListController.listScroller.currentOffset()?.yOffset ?? 0)
-        if (yOffset <= 5) {
-          this.onScrollDown()
-        } else if (offset > 0) {
-          this.onScrollUp()
-        } else if (offset < 0) {
-          this.onScrollDown()
-        }
-        return { offsetRemain: offset }
-      })
-      .onTouch(() => {
-        this.searchController.stopEditing()
-      })
-      .onAppear(() => {
-        this.videoListController.listScroller.scrollEdge(Edge.Top)
-      })
-    } else {
-      Column() {
-        Blank()
-          .height(this.searchBarVisible ?
-            SafeHeight.topSafeHeight + (Setting.showToast && this.file_folder_list.length > 1 ? 90 : 65) : 0)
-        WaterFlow({
-          scroller: this.videoListController.listScroller,
-          layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW
-        }) {
-          LazyForEach(this.videoListController.videoDataSource, (item: VideoMetadata) => {
-            FlowItem() {
-              VideoCardItem({
-                item: item,
-                delMultipleList: this._delMultipleList
-              }).width('100%')
+      Flex({ direction: FlexDirection.Row, alignItems: ItemAlign.Start }) {
+        List({ scroller: this.videoListController.listScroller }) {
+          LazyForEach(this.videoListController.videoDataSource, (item: VideoMetadata) => { // 加载视频列表
+            ListItem() {
+              this.VideoItemBuilder(item)
             }
+            .borderRadius(16)
             .backgroundColor(Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
               $r('app.color.start_window_background'))
-            .borderRadius(16)
-            .width('100%')
+            .margin({ bottom: 20 }) // 不知道动了哪里，挤在一起了，先这样改
             .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+            .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
+            .width(this.videoListController.listLine === 1 ? '100%' : '95%')
+            .height('auto')
             .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
               {
                 backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
@@ -351,8 +264,7 @@ export struct VideoList {
                   top: 16,
                   bottom: 4
                 },
-                hapticFeedbackMode: HapticFeedbackMode.ENABLED,
-                mask: true
+                hapticFeedbackMode: HapticFeedbackMode.ENABLED
               })
             .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
               {
@@ -365,12 +277,14 @@ export struct VideoList {
                   top: 16,
                   bottom: 4
                 },
+                mask: true
               })
             .gesture(
               TapGesture({ count: 1, fingers: 1 })
                 .onAction(async () => {
                   if (this.videoListController.multipleChooseState !== Visibility.Visible) {
-                    await this.clickItem(item,
+                    const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
+                    await this.clickItem(videoItem,
                       VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
                     return
                   } else {
@@ -386,41 +300,173 @@ export struct VideoList {
                   }
                 })
             )
-          }, (item: VideoMetadata) => item.date + item.last_play + item.title + item.size.toString() +
+          }, (item: VideoMetadata) => item.date.toString() + item.last_play + item.title + item.size.toString() +
             this.videoListController.folder.name + item.time)
         }
-        .fadingEdge(true)
         .clip(false)
-        .columnsTemplate('1fr '.repeat(this.videoListController.listLine).trim())
-        .columnsGap(16) // 列间距
-        .rowsGap(16) // 行间距
+        .padding({ left: 10, right: 10 })
         .cachedCount(12)
-        .scrollBar(BarState.Auto)
-        .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
-        .onTouch(() => this.searchController.stopEditing())
+        .contentStartOffset(SafeHeight.topSafeHeight +
+          (Setting.showToast && this.file_folder_list.length > 1 ? 90 : 65))
+        .contentEndOffset(SafeHeight.bottomSafeHeight)
+        .lanes(this.videoListController.listLine)
+        .animation({ duration: 300, curve: Curve.Smooth })
+        .scrollBar(this.currentSortField === 'name' ? BarState.Off : BarState.Auto)
+        .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
+        .chainAnimation(true)
+        .layoutWeight(1)
         .width('100%')
         .height('100%')
-        .padding({ left: 10, right: 10 })
+        .fadingEdge(true)
+        .onTouch(() => {
+          this.searchController.stopEditing()
+        })
         .onAppear(() => {
           this.videoListController.listScroller.scrollEdge(Edge.Top)
         })
-        .onScrollFrameBegin((offset: number) => {
-          const yOffset = Math.abs(this.videoListController.listScroller.currentOffset()?.yOffset ?? 0)
-          if (yOffset <= 5) {
-            this.onScrollDown()
-          } else if (offset > 0) {
-            this.onScrollUp()
-          } else if (offset < 0) {
-            this.onScrollDown()
+        .onScrollIndex((start: number, _end: number, _center: number) => {
+          if (this.currentSortField === 'name') {
+            this.updateIndexerOnScroll(start)
           }
-          return { offsetRemain: offset }
         })
-        .nestedScroll({
-          scrollForward: NestedScrollMode.PARENT_FIRST,
-          scrollBackward: NestedScrollMode.SELF_FIRST
-        })
+
+        if (this.currentSortField === 'name' && this.activeAlphabet.length > 0) {
+          AlphabetIndexer({ arrayValue: this.activeAlphabet, selected: this.indexerSelected })
+            .onSelect((index: number) => {
+              this.scrollToLetter(this.activeAlphabet[index])
+            })
+            .align(Alignment.End)
+            .color($r('app.color.text_color'))
+            .selectedColor($r('sys.color.white'))
+            .popupColor($r('app.color.main_color'))
+            .selectedBackgroundColor($r('app.color.main_color'))
+            .popupBackground($r('app.color.start_window_background'))
+            .itemSize(20)
+            .height('100%')
+            .margin({ right: 2 })
+        }
       }
-      .clip(false)
+      .width('100%')
+      .height('100%')
+    } else {
+      Flex({ direction: FlexDirection.Row, alignItems: ItemAlign.Start }) {
+        Scroll() {
+          Column() {
+            Blank().height(SafeHeight.topSafeHeight + (Setting.showToast && this.file_folder_list.length > 1 ? 90 : 65))
+            WaterFlow({
+              scroller: this.videoListController.listScroller,
+              layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW
+            }) {
+              LazyForEach(this.videoListController.videoDataSource, (item: VideoMetadata) => {
+                FlowItem() {
+                  VideoCardItem({
+                    item: item,
+                    delMultipleList: this._delMultipleList
+                  }).width('100%')
+                }
+                .backgroundColor(Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
+                  $r('app.color.start_window_background'))
+                .borderRadius(16)
+                .width('100%')
+                .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+                .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
+                  {
+                    backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+                    preview: VideoItemPreviewBuilder(item),
+                    previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
+                    layoutRegionMargin: {
+                      left: 16,
+                      right: 16,
+                      top: 16,
+                      bottom: 4
+                    },
+                    hapticFeedbackMode: HapticFeedbackMode.ENABLED,
+                    mask: true
+                  })
+                .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
+                  {
+                    backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+                    preview: VideoItemPreviewBuilder(item),
+                    previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
+                    layoutRegionMargin: {
+                      left: 16,
+                      right: 16,
+                      top: 16,
+                      bottom: 4
+                    },
+                  })
+                .gesture(
+                  TapGesture({ count: 1, fingers: 1 })
+                    .onAction(async () => {
+                      if (this.videoListController.multipleChooseState !== Visibility.Visible) {
+                        await this.clickItem(item,
+                          VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
+                        return
+                      } else {
+                        //已存在，标记置反
+                        if (this._delMultipleList.some(video => video.date === item.date)) {
+                          this._delMultipleList =
+                            this._delMultipleList.filter(video => video.date !== item.date)
+                          this.onDelMultipleListChange([...this._delMultipleList])
+                        } else {
+                          this._delMultipleList.push(item)
+                          this.onDelMultipleListChange([...this._delMultipleList])
+                        }
+                      }
+                    })
+                )
+              }, (item: VideoMetadata) => item.date + item.last_play + item.title + item.size.toString() +
+                this.videoListController.folder.name + item.time)
+            }
+            .clip(false)
+            .columnsTemplate('1fr '.repeat(this.videoListController.listLine).trim())
+            .columnsGap(16) // 列间距
+            .rowsGap(16) // 行间距
+            .cachedCount(12)
+            .scrollBar(BarState.Auto)
+            .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+            .onTouch(() => this.searchController.stopEditing())
+            .width('100%')
+            .height('100%')
+            .padding({ left: 10, right: 10 })
+            .onAppear(() => {
+              this.videoListController.listScroller.scrollEdge(Edge.Top)
+            })
+            .nestedScroll({
+              scrollForward: NestedScrollMode.PARENT_FIRST,
+              scrollBackward: NestedScrollMode.SELF_FIRST
+            })
+            .onScrollIndex((first: number) => {
+              if (this.currentSortField === 'name') {
+                this.updateIndexerOnScroll(first)
+              }
+            })
+          }
+          .clip(false)
+        }
+        .clip(false)
+        .scrollBar(this.currentSortField === 'name' ? BarState.Off : BarState.Auto)
+        .layoutWeight(1)
+        .height('100%')
+
+        if (this.currentSortField === 'name' && this.activeAlphabet.length > 0) {
+          AlphabetIndexer({ arrayValue: this.activeAlphabet, selected: this.indexerSelected })
+            .onSelect((index: number) => {
+              this.scrollToLetter(this.activeAlphabet[index])
+            })
+            .align(Alignment.End)
+            .color($r('app.color.text_color'))
+            .selectedColor($r('sys.color.white'))
+            .popupColor($r('app.color.main_color'))
+            .selectedBackgroundColor($r('app.color.main_color'))
+            .popupBackground($r('app.color.start_window_background'))
+            .itemSize(20)
+            .height('100%')
+            .margin({ right: 2 })
+        }
+      }
+      .width('100%')
+      .height('100%')
     }
   }
 
@@ -545,5 +591,55 @@ export struct VideoList {
   @Builder
   FileFolderMenuBuilder(video_item: VideoMetadata | undefined) {
     FileFolderMenu({ video_item: video_item })
+  }
+
+  private getFirstLetter(title: string): string {
+    if (!title || title.length === 0) {
+      return '#'
+    }
+    const pinyin = pinyin4js.getShortPinyin(title) as string
+    if (pinyin.length === 0) {
+      return '#'
+    }
+    const first = pinyin[0].toUpperCase()
+    if (first >= 'A' && first <= 'Z') {
+      return first
+    }
+    return '#'
+  }
+
+  private updateActiveAlphabet(): void {
+    const list = this.videoListController.videoDataSource.getAllData()
+    const letterSet = new Set<string>()
+    for (const item of list) {
+      letterSet.add(this.getFirstLetter(item.title || ''))
+    }
+    let alphabet = FULL_ALPHABET.filter(letter => letterSet.has(letter))
+    if (!this.currentSortAsc) {
+      alphabet = alphabet.reverse()
+    }
+    this.activeAlphabet = alphabet
+  }
+
+  private scrollToLetter(letter: string): void {
+    const list = this.videoListController.videoDataSource.getAllData()
+    for (let i = 0; i < list.length; i++) {
+      if (this.getFirstLetter(list[i].title || '') === letter) {
+        this.videoListController.listScroller.scrollToIndex(i)
+        return
+      }
+    }
+  }
+
+  private updateIndexerOnScroll(index: number): void {
+    const list = this.videoListController.videoDataSource.getAllData()
+    if (index < 0 || index >= list.length) {
+      return
+    }
+    const letter = this.getFirstLetter(list[index].title || '')
+    const targetIndex = this.activeAlphabet.indexOf(letter)
+    if (targetIndex !== -1 && targetIndex !== this.indexerSelected) {
+      this.indexerSelected = targetIndex
+    }
   }
 }
