@@ -23,8 +23,8 @@ export default class PermissionUtil {
     }
     try {
       // 首先尝试直接访问
-      let fd = fs.openSync(uri)
-      fs.closeSync(fd)
+      let fd = await fs.open(uri)
+      await fs.close(fd)
       return true
     } catch (error) {
       // 直接访问失败，检查是否支持权限管理
@@ -43,8 +43,8 @@ export default class PermissionUtil {
             await fileShare.activatePermission(permissionsToActivate)
           }
           // 验证权限是否真正生效
-          let fd = fs.openSync(uri)
-          fs.closeSync(fd)
+          let fd = await fs.open(uri)
+          await fs.close(fd)
           return true
         } catch (error) {
           salmonLogger.addLog(TAG, 'Permission activation failed:' + error, true)
