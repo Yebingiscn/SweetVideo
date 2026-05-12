@@ -2,7 +2,6 @@ import { DeleteType } from '../../common/enum/DeleteType'
 import { VideoSource } from '../../common/enum/VideoSource'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import SelectFileUtil from '../../utils/SelectFileUtil'
-import ToolsUtil from '../../utils/ToolsUtil'
 
 function itemUri() {
   const item = DataSyncUtil.editingVideo

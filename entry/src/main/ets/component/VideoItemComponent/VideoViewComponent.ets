@@ -1,6 +1,8 @@
 import { VideoList, VideoListController } from './VideoItemComponent'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { SideBarController } from '../SideBarComponent/SideBar'
+import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil'
+import { motion } from '@kit.MultimodalAwarenessKit'
 import {
   ButtonFancyModifier,
   DefaultDialogShadow,
@@ -37,6 +39,7 @@ const TAG = 'VideoViewComponent'
 export struct VideoView {
   searchController: SearchController = new SearchController()
   @Param loading: boolean = false
+  @Param holdingHand: motion.HoldingHandStatus | null = null
   @Local is_edit: boolean = false
   @Param searchValue: string = ''
   @Local _searchValue: string = ''
@@ -74,7 +77,6 @@ export struct VideoView {
   // 文件夹按钮尺寸配置
   private readonly FOLDER_TAB_MIN_WIDTH: number = 64
   private readonly FOLDER_TAB_HEIGHT: number = 28
-
   @Event onSearchValueChange: (v: string) => void = () => {
   }
 
@@ -128,6 +130,7 @@ export struct VideoView {
       }
       VideoList({
         videoListController: this.videoListController,
+        holdingHand: this.holdingHand,
         delMultipleList: this.delMultipleList,
         onDelMultipleListChange: (v: VideoMetadata[]) => {
           this.delMultipleList = v
@@ -363,8 +366,10 @@ export struct VideoView {
         .maxLines(1)
         .padding({ left: 12, right: 12 })
     }
+    .backgroundEffect({ radius: 100 })
+    .useEffect(true, EffectType.WINDOW_EFFECT)
     .backgroundColor(this.currentFolderIndex === index ?
-      $r('app.color.main_color') : $r('app.color.start_window_background'))
+      $r('app.color.main_color') : $r('app.color.search_component_blur'))
     .height(this.FOLDER_TAB_HEIGHT)
     .constraintSize({ minWidth: this.FOLDER_TAB_MIN_WIDTH })
     .borderRadius(16)

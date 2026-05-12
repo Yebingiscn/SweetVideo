@@ -26,7 +26,7 @@ export default class RecentPlayUtil {
       const removed = RecentPlayUtil.deque.pop()!
       RecentPlayUtil.videoIdMap.delete(removed.uri)
     }
-    RecentPlayUtil.updateMapIndicesAfterAdd() // 增量更新替代全量重建
+    RecentPlayUtil.updateMapIndices()
     RecentPlayUtil.persistData(context)
   }
 
@@ -67,15 +67,6 @@ export default class RecentPlayUtil {
 
   private static persistData(context: Context) {
     Preferences.saveRecentPlay(context, RecentPlayUtil.deque)
-  }
-
-  // 增量更新索引（替代全量重建）
-  private static updateMapIndicesAfterAdd() {
-    // 新插入项索引为0，后续元素索引+1
-    RecentPlayUtil.videoIdMap.set(RecentPlayUtil.deque[0].uri, 0)
-    for (let i = 1; i < RecentPlayUtil.deque.length; i++) {
-      RecentPlayUtil.videoIdMap.set(RecentPlayUtil.deque[i].uri, i)
-    }
   }
 
   private static loadData(context: Context) {

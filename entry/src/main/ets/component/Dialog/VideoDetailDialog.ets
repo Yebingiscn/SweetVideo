@@ -45,6 +45,10 @@ export struct VideoDetailDialog {
         }
 
         ListItem() {
+          this.buildDetailItem('视频帧数：', `${this.metadata?.frame_rate ?? '未知'} fps`)
+        }
+
+        ListItem() {
           this.buildDetailItem('视频时长：', String(TimeUtil.convertMSToHHMMSS(this.metadata?.time)))
         }
 

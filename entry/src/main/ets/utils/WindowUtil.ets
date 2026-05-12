@@ -44,28 +44,26 @@ export class WindowUtil {
     return undefined
   }
 
-  public static async enableLandscapeMultiWindow(windowClass: Promise<window.Window | undefined>) {
+  public static async setLandscapeMultiWindow(windowClass: Promise<window.Window | undefined>, enable: boolean) {
     if (canIUse("SystemCapability.Window.SessionManager")) {
       if (windowClass) {
-        (await windowClass)?.enableLandscapeMultiWindow()?.then(() => {
-          AppStorage.setOrCreate('enableLandscapeMultiWindow', true)
+        const win = await windowClass
+        const operation = enable ? win?.enableLandscapeMultiWindow() : win?.disableLandscapeMultiWindow()
+        operation?.then(() => {
+          AppStorage.setOrCreate('enableLandscapeMultiWindow', enable)
         })?.catch(() => {
-          salmonLogger.addLog(TAG, 'enableLandscapeMultiWindow error', true)
+          salmonLogger.addLog(TAG, `${enable ? 'enable' : 'disable'}LandscapeMultiWindow error`, true)
         })
       }
     }
   }
 
+  public static async enableLandscapeMultiWindow(windowClass: Promise<window.Window | undefined>) {
+    await WindowUtil.setLandscapeMultiWindow(windowClass, true)
+  }
+
   public static async disableLandscapeMultiWindow(windowClass: Promise<window.Window | undefined>) {
-    if (canIUse("SystemCapability.Window.SessionManager")) {
-      if (windowClass) {
-        (await windowClass)?.disableLandscapeMultiWindow()?.then(() => {
-          AppStorage.setOrCreate('enableLandscapeMultiWindow', false)
-        })?.catch(() => {
-          salmonLogger.addLog(TAG, 'disableLandscapeMultiWindow error', true)
-        })
-      }
-    }
+    await WindowUtil.setLandscapeMultiWindow(windowClass, false)
   }
 
   public static async fullScreenOperate(screen_height: number, screen_width: number,

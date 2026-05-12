@@ -67,7 +67,7 @@ export struct PersonalizePage {
               }
               const currentColorMode = AppStorage.get('currentColorMode') as number
               Setting.backgroundImageSrc = ''
-              SelectFileUtil.saveImageToPrivacySpace(imageUris[0], false)
+              SelectFileUtil.saveImageToSandBox(imageUris[0], 'BackgroundImage')
               setTimeout(() => {
                 if (!Setting.enableBackgroundDarkImage ||
                   currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT) {
@@ -93,7 +93,7 @@ export struct PersonalizePage {
                 }
                 const currentColorMode = AppStorage.get('currentColorMode') as number
                 Setting.backgroundImageSrc = ''
-                SelectFileUtil.saveImageToPrivacySpace(imageUris[0], true)
+                SelectFileUtil.saveImageToSandBox(imageUris[0], 'BackgroundDarkImage')
                 setTimeout(() => {
                   if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK) {
                     Setting.backgroundImageSrc = SelectFileUtil.getImageUri()

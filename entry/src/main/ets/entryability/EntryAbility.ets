@@ -102,8 +102,18 @@ export default class EntryAbility extends UIAbility {
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onWindowStageCreate')
     try {
       if (canIUse('SystemCapability.Window.SessionManager')) {
-        windowStage.setDefaultDensityEnabled(true) // 设置窗口不跟随系统显示大小变化重新布局
+        windowStage.setDefaultDensityEnabled(false) // 设置窗口跟随系统显示大小变化重新布局
       }
+      // 窗口尺寸自动保存
+      let promise = windowStage.setWindowRectAutoSave(true).catch(() => {
+        salmonLogger.addLog(TAG, `Failed to set window rect auto-save`, true)
+      })
+      promise.then(() => {
+        salmonLogger.addLog(TAG, `Succeeded in setting window rect auto-save`)
+      }).catch((err: BusinessError) => {
+        salmonLogger.addLog(TAG,
+          `Failed to set window rect auto-save. Cause code: ${err.code}, message: ${err.message}`, true)
+      });
     } catch (exception) {
       salmonLogger.addLog(TAG,
         `Failed to set default density enabled. Cause code: ${exception.code}, message: ${exception.message}`, true)

@@ -8,6 +8,7 @@
  */
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { salmonLogger } from 'salmonlogger';
+import ToolsUtil from './ToolsUtil';
 
 const TAG = 'IsoFileUtil';
 
@@ -154,15 +155,6 @@ export default class IsoFileUtil {
    * @returns 格式化字符串
    */
   static formatIsoSize(bytes: number): string {
-    const GB = 1024 * 1024 * 1024;
-    const MB = 1024 * 1024;
-
-    if (bytes >= GB) {
-      return `${(bytes / GB).toFixed(2)} GB`;
-    } else if (bytes >= MB) {
-      return `${(bytes / MB).toFixed(2)} MB`;
-    } else {
-      return `${(bytes / 1024).toFixed(2)} KB`;
-    }
+    return ToolsUtil.formatFileSize(bytes)
   }
 }

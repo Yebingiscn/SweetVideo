@@ -155,6 +155,16 @@
           ],
           "when": "always"
         }
+      },
+      {
+        "name": "ohos.permission.INTERNET",
+        "reason": "$string:INTERNET_PERMISSION",
+        "usedScene": {
+          "abilities": [
+            "EntryAbility"
+          ],
+          "when": "always"
+        }
       }
     ]
   }

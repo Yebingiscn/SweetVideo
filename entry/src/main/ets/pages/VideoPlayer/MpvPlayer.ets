@@ -537,11 +537,13 @@ export struct MpvPlayer {
     })
   }
 
-  exitVideo(shouldPop: boolean = true) {
-    this.mpv.release()
-    if (shouldPop) {
-      this.pathStack.pop()
-    }
+  exitVideo(shouldPop: boolean = true, timeOut?: number) {
+    this.exitVideoTime = setTimeout(() => {
+      this.mpv.release()
+      if (shouldPop) {
+        this.pathStack.pop()
+      }
+    }, timeOut ? timeOut : 0)
   }
 
   @Builder
@@ -589,23 +591,17 @@ export struct MpvPlayer {
         ToolsUtil.addLogger(`执行快进80秒操作，目标时间：${time}`, false, this.pathStack)
         this.mpv.seekTime(time)
       },
-      closeAfter15min: (_time: number) => {
-        ToolsUtil.showToast('功能暂不可用')
-
+      closeAfter15min: (time: number) => {
+        this.exitVideo(true, time)
       },
-      closeAfter30min: (_time: number) => {
-        ToolsUtil.showToast('功能暂不可用')
+      closeAfter30min: (time: number) => {
+        this.exitVideo(true, time)
       },
-      closeAfter60min: (_time: number) => {
-        ToolsUtil.showToast('功能暂不可用')
-      },
-      toggleListenVideo: () => {
-        ToolsUtil.showToast('功能暂不可用')
+      closeAfter60min: (time: number) => {
+        this.exitVideo(true, time)
       },
       captureScreen: () => {
-        salmonLogger.addLog(TAG, 'test' + this.mpv.surfaceId, true)
         if (this.mpv.surfaceId) {
-          salmonLogger.addLog(TAG, 'test', true)
           VideoOperateUtil.saveCaptureScreenToAlbum(this.mpv.surfaceId)
         }
       },

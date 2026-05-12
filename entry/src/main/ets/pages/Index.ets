@@ -7,7 +7,7 @@ import { FileFolder } from '../interfaces/FileFolderInterface'
 import { ButtonFancyModifier, DefaultDialogShadow, SymbolGlyphFancyModifier } from '../common/AttributeModifierConfig'
 import { PathUtils } from '../utils/PathUtils'
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent'
-import { AppInfoBuilder, SideBarController } from '../component/SideBarComponent/SideBar'
+import { SideBarController } from '../component/SideBarComponent/SideBar'
 import { DeletedVideosDialog } from '../component/Dialog/DeletedVideosDialog'
 import { DeleteType } from '../common/enum/DeleteType'
 import NavigationAddress from '../common/NavigationCommon'
@@ -45,8 +45,12 @@ import { Player } from './VideoPlayer/Player'
 import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData'
 import { salmonLogger } from 'salmonlogger'
 import IntellectualGripPostureUtil from '../utils/IntellectualGripPostureUtil'
+import { motion } from '@kit.MultimodalAwarenessKit'
 import { HdsNavigation, HideMode, ScrollEffectType } from '@hms.hds.hdsBaseComponent'
 import { LengthMetrics } from '@kit.ArkUI'
+import { userData, userLoginBuilder } from '../component/common/UserLoginComponent'
+import TimeUtil from '../utils/TimeUtil'
+import AccountUtil from '../utils/AccountUtil'
 
 const TAG = 'Index'
 
@@ -62,9 +66,11 @@ struct Index {
   @Local elapsedTime: number = 0 // 已耗时
   @Local failedCount: number = 0 // 失败文件数
   @Local currentStage: 'extracting' | 'cover' | 'saving' = 'extracting' // 当前处理阶段
+  @Local isLogin: boolean = false
   @Provider() file_folder_list: FileFolder[] = []
   @Local searchValue: string = ''
   @Local screen_width: number = AppStorage.get('screen_width') as number ?? 0
+  @Local holdingHand: motion.HoldingHandStatus | null = null
   @Provider() videoListController: VideoListController = new VideoListController()
   @Provider() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
@@ -148,21 +154,30 @@ struct Index {
         },
       },
       {
-        icon: $r('sys.symbol.music'),
-        content: $r('app.string.import_from_music'),
-        onAction: async () => {
-          this.sideBarController.close(false)
-          await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "audio"),
-            this.videoListController.folder)
-        },
-      },
-      {
         icon: $r('sys.symbol.folder_badge_eye'),
         content: `从下载文件夹导入（路径：Download/${ToolsUtil.getStringResource($r('app.string.EntryAbility_label')
           .id)}）`,
         onAction: async () => {
           this.sideBarController.close(false)
           await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), undefined)
+        },
+      },
+      {
+        icon: $r('sys.symbol.picture_2'),
+        content: $r('app.string.import_from_album'),
+        onAction: async () => {
+          this.sideBarController.close(false)
+          await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "album"),
+            this.videoListController.folder)
+        },
+      },
+      {
+        icon: $r('sys.symbol.music'),
+        content: $r('app.string.import_from_music'),
+        onAction: async () => {
+          this.sideBarController.close(false)
+          await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "audio"),
+            this.videoListController.folder)
         },
       },
     ])
@@ -189,6 +204,7 @@ struct Index {
     VideoOperateUtil.initSetting(PathUtils.appContext!)
     VideoMetaDataOperator.migrationRootVideoMetaToRootFolder()
     FileFolderUtil.fileFolderExistCheck()
+    AccountUtil.initAccount()
     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
     // 首次安装时如果没有文件夹，创建默认"首页"文件夹
     if (this.file_folder_list.length === 0) {
@@ -196,7 +212,9 @@ struct Index {
     }
     this.fileFolderSource?.updateData(this.file_folder_list)
     this.videoListController?.updateData(undefined, this.file_folder_list[0])
-    IntellectualGripPostureUtil.createHoldingHandStatus()
+    IntellectualGripPostureUtil.createHoldingHandStatus((data: motion.HoldingHandStatus) => {
+      this.holdingHand = data
+    })
     IntellectualGripPostureUtil.createOperatingHandStatus()
     checkUriProcess(Preferences.getFileFolder(PathUtils.appContext!), (re: Object) => {
       const result = re as Array<VideoMetadata>
@@ -213,7 +231,6 @@ struct Index {
             salmonLogger.addLog(TAG, `清理视频资源失败: ${item.uri} ` + error)
           }
         })
-
         // 删除视频并刷新列表
         setTimeout(() => {
           result.forEach(async item => {
@@ -224,7 +241,6 @@ struct Index {
           const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, targetFolder)
           // 更新文件夹列表状态，确保面包屑等UI正确刷新
           this.file_folder_list = updatedFolders
-
           // 显示删除视频弹框
           DataSyncUtil.deletedVideos = result
           this.deletedVideosDialogController.open()
@@ -282,7 +298,65 @@ struct Index {
         Column() {
           Scroll(this.sideBarScroller) {
             Column() {
-              AppInfoBuilder({ topSafeHeight: SafeHeight.topSafeHeight })
+              Row() {
+                Text($r('app.string.EntryAbility_label'))
+                  .fontSize(20)
+                  .fontColor($r('app.color.text_color'))
+                  .fontWeight(FontWeight.Bold)
+                  .textOverflow({ overflow: TextOverflow.MARQUEE })
+                Text(TimeUtil.getTextByTime())
+                  .fontSize(15)
+                  .fontColor($r('app.color.text_color'))
+                  .textOverflow({ overflow: TextOverflow.MARQUEE })
+                  .margin({ left: 5, right: 12 })
+              }
+              .alignItems(VerticalAlign.Bottom)
+              .width('100%')
+              .justifyContent(FlexAlign.Start)
+              .margin({ top: SafeHeight.topSafeHeight })
+              .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
+              .onClick(() => {
+                ToolsUtil.startVibration()
+                ToolsUtil.showToast('不管多么难熬，人生都要眉开眼笑 ( •̀ ω •́ )✧')
+              })
+
+              Row() {
+                Image(userData?.userAvatar || $r("app.media.Foreground"))
+                  .width(50)
+                  .height(50)
+                  .borderRadius(25)
+                  .interpolation(ImageInterpolation.Medium)// 用于重采样后的抗锯齿
+                  .draggable(false)// 禁止长按手势拖动
+                  .autoResize(true) // 重采样，可减少内存占用
+                  .margin({ left: 10 })
+                Text(userData.nickName ?? '点击登录')
+                  .width('100%')
+                  .fontSize(15)
+                  .margin({ left: 10, right: 12 })
+                  .textOverflow({ overflow: TextOverflow.MARQUEE })
+              }
+              .height(65)
+              .onClick(() => {
+                this.isLogin = true
+              })
+              .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
+              .margin({ top: 10 })
+              .justifyContent(FlexAlign.Start)
+              .backgroundColor($r('app.color.start_window_background_blur'))
+              .borderRadius(16)
+              .bindSheet(this.isLogin, userLoginBuilder, {
+                detents: [SheetSize.FIT_CONTENT],
+                height: SheetSize.MEDIUM,
+                preferType: SheetType.CENTER,
+                enableOutsideInteractive: false,
+                dragBar: true,
+                showClose: true,
+                title: { title: '账号信息' },
+                onWillDismiss: () => {
+                  this.isLogin = false
+                }
+              })
+
               Column() {
                 Button({ type: ButtonType.Normal, stateEffect: true }) {
                   Row() {
@@ -351,7 +425,7 @@ struct Index {
                   .height(60)
                 }, (folder: FileFolder) => folder.name + folder.date + folder.video_list.toString())
               }
-              .cachedCount(1)
+              .cachedCount(3)
               .borderRadius(16)
               .width('100%')
               .height('auto')
@@ -425,6 +499,7 @@ struct Index {
           VideoView({
             loading: this.loading,
             searchValue: this.searchValue,
+            holdingHand: this.holdingHand,
             onSearchValueChange: (v: string) => {
               this.searchValue = v
             },

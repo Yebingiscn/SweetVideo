@@ -1,11 +1,14 @@
 import { loginComponentManager, LoginWithHuaweiIDButton } from '@kit.AccountKit';
-import { LoginWithHWErrorCode } from '../../common/Constants';
-import ToolsUtil from '../../utils/ToolsUtil';
 import { FunctionalButton, functionalButtonComponentManager } from '@kit.ScenarioFusionKit';
 import { XAnimation } from '../../utils/AnimationUtil';
 import { hdsEffect } from '@kit.UIDesignKit';
 import { HdsGL } from '../../common/AttributeModifierConfig';
 import { curves } from '@kit.ArkUI';
+import { PathUtils } from '../../utils/PathUtils';
+import Preferences from '../../database/Preferences';
+import AccountUtil from '../../utils/AccountUtil';
+import SelectFileUtil from '../../utils/SelectFileUtil';
+import { SafeHeight } from '../../utils/ObservedUtil';
 
 @Builder
 export function userLoginBuilder() {
@@ -13,7 +16,7 @@ export function userLoginBuilder() {
 }
 
 @ObservedV2
-export class UserData {
+export default class UserInfoData {
   @Trace isLogin: boolean = false
   @Trace userAvatar: ResourceStr = ''
   @Trace nickName: string | undefined
@@ -23,33 +26,34 @@ export class UserData {
   @Trace idToken: string = ''
 }
 
+export let userData: UserInfoData = new UserInfoData()
+
 @ComponentV2
 struct userLoginComponent {
-  @Consumer('UserData') userData: UserData = new UserData()
-  @Local button_gradient_state: hdsEffect.PressShadowType = hdsEffect.PressShadowType.NONE;
+  userData: UserInfoData = userData
+  @Local button_gradient_state: hdsEffect.PressShadowType = hdsEffect.PressShadowType.NONE
   @Local button_Light_state: hdsEffect.PointLightSourceType = HdsGL.sourceTypes[0]
   controller: loginComponentManager.LoginWithHuaweiIDButtonController =
     new loginComponentManager.LoginWithHuaweiIDButtonController()
       .setAgreementStatus(loginComponentManager.AgreementStatus.NOT_ACCEPTED)
       .onClickLoginWithHuaweiIDButton((error: BusinessError, response: loginComponentManager.HuaweiIDCredential) => {
         if (error) {
-          this.dealAllError(error)
+          AccountUtil.dealAllError(error)
           return
         }
         if (response) {
           // 获取到Authorization Code
-          // PreferencesUtil.putPreferencesValue("ownWorld", "authorizationCode", response.authorizationCode);
-          // PreferencesUtil.putPreferencesValue("ownWorld", "unionID", response.unionID);
-          // PreferencesUtil.putPreferencesValue("ownWorld", "openID", response.openID);
-          // PreferencesUtil.putPreferencesValue("ownWorld", "idToken", response.idToken!);
-          // PreferencesUtil.putPreferencesValue("ownWorld", "isLogin", true);
-          // console.log(`Liquid:Succeeded in getting response.`);
-          // getAvatarFromHuaweiAccount()
-          // __User__.isLogin = true
-          // __User__.authorizationCode = response.authorizationCode;
-          // __User__.unionID = response.unionID;
-          // __User__.openID = response.openID;
-          // __User__.idToken = response.idToken!;
+          Preferences.saveUserAuthorizationCode(PathUtils.appContext!, response.authorizationCode)
+          Preferences.saveUserUnionID(PathUtils.appContext!, response.unionID)
+          Preferences.saveUserOpenID(PathUtils.appContext!, response.openID)
+          Preferences.saveUserIdToken(PathUtils.appContext!, response.idToken!)
+          Preferences.saveUserIsLogin(PathUtils.appContext!, true)
+          AccountUtil.getAvatarFromHuaweiAccount()
+          userData.isLogin = true
+          userData.authorizationCode = response.authorizationCode
+          userData.unionID = response.unionID
+          userData.openID = response.openID
+          userData.idToken = response.idToken!
           return
         }
       })
@@ -71,7 +75,7 @@ struct userLoginComponent {
                   .backgroundImageSize(ImageSize.Contain)
                   .width(150)
                   .height(150)
-                  .backgroundColor('#E5E5E5')
+                  .backgroundColor($r('sys.color.scrollbar_color_foreground'))
               },
             },
             // When OpenType is set to CHOOSE_AVATAR, the callback must be onChooseAvatar.
@@ -79,42 +83,71 @@ struct userLoginComponent {
               data) => {
               if (err) {
                 // Error processing.
-                return;
+                return
               }
               try {
                 this.userData.userAvatar = data.avatarUri!
-
-
+                const pixelMap = await AccountUtil.fileToPixelMap(data.avatarUri!)
+                const localAvatarUri = await SelectFileUtil.savePixelMapToFile(PathUtils.photoPath!, 'avatar', pixelMap)
+                Preferences.saveUserAvatar(PathUtils.appContext!, localAvatarUri)
               } catch (err) {
+                AccountUtil.dealAllError(err)
               }
-              // Success processing.
             })
           })
-            .transition(XAnimation.getAnimation('bottom'))
-            .backgroundColor(Color.Transparent)
-            .borderRadius('100%')
-            .visualEffect(new hdsEffect.HdsEffectBuilder()
-              .pressShadow(this.button_gradient_state)
-              .pointLight({ sourceType: this.button_Light_state, illuminatedType: HdsGL.illuminatedType[1] })
-              .buildEffect()
-            )
-            .onTouch((event: TouchEvent) => {
-              this.getUIContext().animateTo({ duration: 300, curve: curves.responsiveSpringMotion(0.4, 0.75) }, () => {
-                if (event.type === TouchType.Down) {
-                  this.button_gradient_state = hdsEffect.PressShadowType.NONE;
-                  this.button_Light_state = HdsGL.sourceTypes[2]
-                } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-                  this.button_gradient_state = hdsEffect.PressShadowType.NONE;
-                  this.button_Light_state = HdsGL.sourceTypes[0]
-                }
-              })
-            })
         }
+        .transition(XAnimation.getAnimation('bottom'))
+        .backgroundColor(Color.Transparent)
+        .borderRadius('100%')
+        .visualEffect(new hdsEffect.HdsEffectBuilder()
+          .pressShadow(this.button_gradient_state)
+          .pointLight({ sourceType: this.button_Light_state, illuminatedType: HdsGL.illuminatedType[1] })
+          .buildEffect()
+        )
+        .onTouch((event: TouchEvent) => {
+          this.getUIContext().animateTo({ duration: 300, curve: curves.responsiveSpringMotion(0.4, 0.75) }, () => {
+            if (event.type === TouchType.Down) {
+              this.button_gradient_state = hdsEffect.PressShadowType.NONE
+              this.button_Light_state = HdsGL.sourceTypes[2]
+            } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+              this.button_gradient_state = hdsEffect.PressShadowType.NONE
+              this.button_Light_state = HdsGL.sourceTypes[0]
+            }
+          })
+        })
 
         Column() {
-          Text('用户昵称：' + this.userData.nickName)
+          Text(this.userData.nickName)
+            .padding({ top: 3, bottom: 5 })
+            .borderRadius(20)
+            .transition(XAnimation.getAnimation('bottom'))
+            .visualEffect(new hdsEffect.HdsEffectBuilder().pointLight({ illuminatedType: HdsGL.illuminatedType[1] })
+              .buildEffect())
           Button('退出登录')
-        }
+            .fontColor(Color.White)
+            .fontSize(15)
+            .backgroundColor('#FF4D4F')
+            .align(Alignment.Center)
+            .margin({ top: 10, bottom: 10 })
+            .onClick(async () => {
+              userData.isLogin = false
+              userData.authorizationCode = ''
+              userData.unionID = ''
+              userData.openID = ''
+              userData.nickName = undefined
+              userData.idToken = ''
+              await SelectFileUtil.deletePhoto('avatar')
+              Preferences.saveUserIsLogin(PathUtils.appContext!, false)
+              Preferences.saveUserAvatar(PathUtils.appContext!, '')
+              Preferences.saveUserAuthorizationCode(PathUtils.appContext!, '')
+              Preferences.saveUserUnionID(PathUtils.appContext!, '')
+              Preferences.saveUserOpenID(PathUtils.appContext!, '')
+              Preferences.saveUserIdToken(PathUtils.appContext!, '')
+              Preferences.saveUserNickName(PathUtils.appContext!, '')
+              userData.userAvatar = ''
+              this.controller.setAgreementStatus(loginComponentManager.AgreementStatus.NOT_ACCEPTED)
+            })
+        }.padding({ bottom: SafeHeight.bottomSafeHeight })
 
       }
     } else {
@@ -176,37 +209,8 @@ struct userLoginComponent {
               }
             })
           Text('我已阅读并同意')
-        }
+        }.padding({ bottom: SafeHeight.bottomSafeHeight })
       }
-    }
-  }
-
-  // 错误处理
-  dealAllError(error: BusinessError): void {
-    console.log(`Liquid:Failed to login, errorCode=${error.code}, errorMsg=${error.message}`)
-    // 在应用登录涉及UI交互场景下，建议按照如下错误码指导提示用户
-    if (error.code === LoginWithHWErrorCode.ERROR_CODE_LOGIN_OUT) {
-      // 用户未登录华为账号，请登录华为账号并重试或者尝试使用其他方式登录
-      ToolsUtil.showToast('用户未登录华为账号，请登录华为账号并重试或者尝试使用其他方式登录')
-    } else if (error.code === LoginWithHWErrorCode.ERROR_CODE_NETWORK_ERROR) {
-      // 网络异常，请检查当前网络状态并重试或者尝试使用其他方式登录
-      ToolsUtil.showToast('网络异常，请检查当前网络状态并重试或者尝试使用其他方式登录')
-    } else if (error.code === LoginWithHWErrorCode.ERROR_CODE_INTERNAL_ERROR) {
-      // 登录失败，请尝试使用其他方式登录
-      ToolsUtil.showToast('登录失败，请尝试使用其他方式登录')
-    } else if (error.code === LoginWithHWErrorCode.ERROR_CODE_USER_CANCEL) {
-      // 用户取消授权
-      ToolsUtil.showToast('用户取消授权')
-    } else if (error.code === LoginWithHWErrorCode.ERROR_CODE_SYSTEM_SERVICE) {
-      ToolsUtil.showToast('系统服务异常，请稍后重试或者尝试使用其他方式登录')
-    } else if (error.code === LoginWithHWErrorCode.ERROR_CODE_REQUEST_REFUSE) {
-      // 重复请求，应用无需处理
-    } else if (error.code === LoginWithHWErrorCode.ERROR_CODE_AGREEMENT_STATUS_NOT_ACCEPTED) {
-      // 用户未同意协议
-      // this.startAnimation()
-    } else {
-      ToolsUtil.showToast('应用登录失败，请尝试使用其他方式登录')
-      // 应用登录失败，请尝试使用其他方式登录
     }
   }
 }

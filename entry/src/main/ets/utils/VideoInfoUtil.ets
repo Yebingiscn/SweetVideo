@@ -1,13 +1,20 @@
 import { media } from '@kit.MediaKit'
+import { salmonLogger } from 'salmonlogger'
+import { SCREEN_EXTEND_LIST, VIDEO_SIZE_MAP } from '../common/Constants'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
-import SelectFileUtil from './SelectFileUtil'
-import { SCREEN_EXTEND_LIST, VIDEO_SIZE_MAP } from '../common/Constants'
-import { salmonLogger } from 'salmonlogger'
-import { image } from '@kit.ImageKit'
+import SelectFileUtil, { SavePixelMapOptions } from './SelectFileUtil'
 import { extractVideoFrameAsCoverInTaskPool } from './TaskpoolUtil'
 import ToolsUtil from './ToolsUtil'
-import fileIo from '@ohos.file.fs'
+import { image } from '@kit.ImageKit'
+import { fileIo } from '@kit.CoreFileKit'
+
+
+interface AspectRatioSize {
+  width: number
+  height: number
+}
+
 
 const TAG = 'VideoInfoUtil'
 
@@ -49,15 +56,17 @@ export default class VideoInfoUtil {
       last_play: 0,
       format: VideoInfoUtil.getVideoFormat(file_name),
       video_size: video_size,
+      frame_rate: VideoInfoUtil.getVideoFrame(metadata),
       hdr_type: hdr_type,
       start_time: 0,
       end_time: 0,
       external_subtitle_format: '',
       pointA: 0,
-      pointB: 0
+      pointB: 0,
     }
+    const saveCoverOptions: SavePixelMapOptions = { releasePixelMap: true, deleteOnFail: true }
     if (pixelMap) {
-      await SelectFileUtil.saveVideoImageToSandBox(sandbox_path, date, pixelMap)
+      await SelectFileUtil.savePixelMapToFile(sandbox_path, date, pixelMap, saveCoverOptions)
     } else {
       // 使用 TaskPool 提取视频帧作为封面
       const frameResult = await extractVideoFrameAsCoverInTaskPool(
@@ -67,7 +76,7 @@ export default class VideoInfoUtil {
         parseInt(duration)
       )
       if (frameResult.success && frameResult.pixelMap) {
-        await SelectFileUtil.saveVideoImageToSandBox(sandbox_path, date, frameResult.pixelMap)
+        await SelectFileUtil.savePixelMapToFile(sandbox_path, date, frameResult.pixelMap, saveCoverOptions)
       } else if (frameResult.error) {
         salmonLogger.addLog(TAG, 'extract video frame as cover error: ' + frameResult.error, true)
       }
@@ -88,6 +97,18 @@ export default class VideoInfoUtil {
       return ''
     }
     return item.title.slice(0, item.title.lastIndexOf('.'))
+  }
+
+  static getVideoFrame(metadata: media.AVMetadata) {
+    if (metadata?.tracks) {
+      for (let i = 0; i < metadata.tracks.length; i++) {
+        const track = metadata.tracks[i]
+        if (track && track.frame_rate !== undefined) {
+          return Math.round(track.frame_rate as number / 100)
+        }
+      }
+    }
+    return 0
   }
 
   // 获取视频长宽
@@ -152,5 +173,19 @@ export default class VideoInfoUtil {
   static saveOriginalVideoWidthAndHeight(playAreaWidth: number, playAreaHeight: number) {
     VideoInfoUtil.playAreaWidth = playAreaWidth
     VideoInfoUtil.playAreaHeight = playAreaHeight
+  }
+
+  static calculateAspectRatioSize(videoWidth: number, videoHeight: number, maxSize: number): AspectRatioSize {
+    if (videoWidth <= 0 || videoHeight <= 0) {
+      const result: AspectRatioSize = { width: maxSize, height: maxSize }
+      return result
+    }
+    const aspectRatio = videoWidth / videoHeight
+    if (aspectRatio >= 1) {
+      const result: AspectRatioSize = { width: maxSize, height: Math.round(maxSize / aspectRatio) }
+      return result
+    }
+    const result: AspectRatioSize = { width: Math.round(maxSize * aspectRatio), height: maxSize }
+    return result
   }
 }

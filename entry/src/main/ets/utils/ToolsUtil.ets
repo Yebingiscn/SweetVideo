@@ -5,7 +5,7 @@ import { PathUtils } from './PathUtils'
 import { UniversalDetector } from '@ohos/juniversalchardet'
 import { salmonLogger } from 'salmonlogger'
 import { VideoItemWithPinyin } from '../interfaces/VideoItemWithPinyinInterface'
-import { GB, MB } from '../common/Constants'
+import { GB, KB, MB } from '../common/Constants'
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import NavigationAddress, { PlayerParams } from '../common/NavigationCommon'
 import Preferences from '../database/Preferences'
@@ -98,18 +98,28 @@ export default class ToolsUtil {
     return sortedItems.map(entry => entry.item)
   }
 
-  static sortByDatetimeProcess(list: VideoMetadata[], ascending: boolean = false) {
+  static sortByNumericProperty(list: VideoMetadata[], key: 'date' | 'time', ascending: boolean = false) {
     return [...list].sort((a, b) => {
-      const cmp = Number(a.date) - Number(b.date)
+      let aVal: number
+      let bVal: number
+      if (key === 'date') {
+        aVal = Number(a.date)
+        bVal = Number(b.date)
+      } else {
+        aVal = Number(a.time)
+        bVal = Number(b.time)
+      }
+      const cmp = aVal - bVal
       return ascending ? cmp : -cmp
     })
   }
 
-  static sortByTimeProcess(list: VideoMetadata[], ascending: boolean = false) {
-    return [...list].sort((a, b) => {
-      const cmp = Number(a.time) - Number(b.time)
-      return ascending ? cmp : -cmp
-    })
+  static sortByDatetimeProcess(list: VideoMetadata[], ascending: boolean = false): VideoMetadata[] {
+    return ToolsUtil.sortByNumericProperty(list, 'date', ascending)
+  }
+
+  static sortByTimeProcess(list: VideoMetadata[], ascending: boolean = false): VideoMetadata[] {
+    return ToolsUtil.sortByNumericProperty(list, 'time', ascending)
   }
 
   static sortBy(context: Context, list: VideoMetadata[], file_folder: FileFolder | undefined,
@@ -137,6 +147,21 @@ export default class ToolsUtil {
         Preferences.saveVideoMetaData(context, sorted_list)
       }
     }
+  }
+
+  static getFirstLetter(title: string): string {
+    if (!title || title.length === 0) {
+      return '#'
+    }
+    const pinyin = pinyin4js.getShortPinyin(title) as string
+    if (pinyin.length === 0) {
+      return '#'
+    }
+    const first = pinyin[0].toUpperCase()
+    if (first >= 'A' && first <= 'Z') {
+      return first
+    }
+    return '#'
   }
 
   // 保存密码
@@ -254,8 +279,10 @@ export default class ToolsUtil {
   static formatFileSize(bytes: number) {
     if (bytes >= GB) {
       return (bytes / GB).toFixed(2) + ' GB';
-    } else {
+    } else if (bytes >= MB) {
       return (bytes / MB).toFixed(2) + ' MB';
+    } else {
+      return (bytes / KB).toFixed(2) + ' KB';
     }
   }
 

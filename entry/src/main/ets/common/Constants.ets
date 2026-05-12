@@ -44,6 +44,8 @@ export const GB = 1024 * 1024 * 1024
 
 export const MB = 1024 * 1024
 
+export const KB = 1024
+
 export enum LoginWithHWErrorCode {
   // 账号未登录
   ERROR_CODE_LOGIN_OUT = 1001502001,
@@ -113,9 +115,14 @@ export const VIDEO_SIZE_MAP: Record<string, string> = {
   '1800': 'QHD+',
   '1960': '1080P FHD',
   '2560': '2K QHD',
-  '3840': '4K Ultra HD',
-  '4096': '4K Ultra HD',
-  '7680': '8K Ultra HD',
+  '3840': '4K UHD',
+  '4096': '4K UHD',
+  '7680': '8K UHD',
   '2720x1530': 'FHD+',
   '1216x2160': 'FHD+',
 }
+
+export const FULL_ALPHABET: string[] = [
+  '#', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+  'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
+]

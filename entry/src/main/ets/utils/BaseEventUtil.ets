@@ -147,8 +147,7 @@ export class BaseListener<T> {
    * @param eventName 事件名称
    */
   clearEvent(eventName: string): void {
-    this.dataEvents.delete(eventName)
-    // this.voidEvents.delete(eventName)
+    this.off(eventName)
   }
 
   /**

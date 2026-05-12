@@ -29,10 +29,9 @@ export struct SettingsSliderItem {
           .fontSize(17)
           .fontWeight(FontWeight.Medium)
           .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.MARQUEE })
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .constraintSize({ maxWidth: 160 })
       }
-      .width('100%')
-      .justifyContent(FlexAlign.Start)
 
       Slider({
         value: this._selected,
@@ -49,7 +48,7 @@ export struct SettingsSliderItem {
           }
         })
         .selectedColor($r('app.color.main_color'))
-        .width('100%')
+        .layoutWeight(1)
         .enableHapticFeedback(true)
     }
     .align(Alignment.Center)

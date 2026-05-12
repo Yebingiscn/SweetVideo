@@ -22,15 +22,20 @@ function VideoControlIcon(videoControlIconValue: VideoControlIconValue) {
 @ComponentV2
 export struct VideoButtonsComponent {
   @Param sideBarStatusTmp: Visibility = Visibility.Hidden
-  @Event onSideBarStatusTmpChange: (v: Visibility) => void = () => {}
   @Local _sideBarStatusTmp: Visibility = Visibility.Hidden
   @Param sideBarStatus: boolean = false
-  @Event onSideBarStatusChange: (v: boolean) => void = () => {}
   @Local _sideBarStatus: boolean = false
   @BuilderParam AVCastPickerBuilderBridge: () => void
   @BuilderParam videoSettingBuilder: () => void
   @BuilderParam playbackSpeedMenu: () => void
   @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Event onScreenRotationOrFullScreenClick: () => Promise<void> = async () => {
+  }
+  @Event onSideBarStatusTmpChange: (v: Visibility) => void = () => {
+  }
+  @Event onSideBarStatusChange: (v: boolean) => void = () => {
+  }
+
   aboutToAppear(): void {
     this._sideBarStatusTmp = this.sideBarStatusTmp
     this._sideBarStatus = this.sideBarStatus
@@ -46,8 +51,6 @@ export struct VideoButtonsComponent {
     this._sideBarStatus = this.sideBarStatus
   }
 
-  @Event onScreenRotationOrFullScreenClick: () => Promise<void> = async () => {
-  }
   @Event onTogglePlaybackClick: () => void = () => {
   }
   @Event onPlayNextVideoClick: () => void = () => {
@@ -143,7 +146,7 @@ export struct VideoButtonsComponent {
       }
       .circleButton()
       .bindMenu(this.playbackSpeedMenu,
-        { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
+        { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THICK })
 
       // 屏幕旋转按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {

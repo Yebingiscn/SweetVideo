@@ -96,12 +96,13 @@ export default class WantProcess {
           last_play: 0,
           format: VideoInfoUtil.getVideoFormat(WantProcess.receiveWantUri),
           video_size: await VideoUtil.getVideoSize(WantProcess.receiveWantUri, true) as string,
+          frame_rate: VideoInfoUtil.getVideoFrame(metadata),
           hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
           start_time: 0,
           end_time: 0,
           external_subtitle_format: '',
           pointA: 0,
-          pointB: 0
+          pointB: 0,
         }
         // 获取默认播放器
         let url = WantProcess.getPlayer(context, targetVideo)

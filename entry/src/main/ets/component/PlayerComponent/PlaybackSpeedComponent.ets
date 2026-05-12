@@ -5,12 +5,13 @@ import VideoInfoUtil from '../../utils/VideoInfoUtil'
 @ComponentV2
 export struct PlaybackSpeedMenuComponent {
   @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
-  @Event onSpeedChange: (_speed: number) => void = () => {}
+  @Event onSpeedChange: (_speed: number) => void = () => {
+  }
 
   build() {
     Row() {
       Text(`${this.player.speed}x`)
-        .fontColor($r('sys.color.white'))
+        .fontColor($r('app.color.main_color'))
         .width(50)
         .textAlign(TextAlign.Center)
       Slider({

@@ -29,11 +29,7 @@ export class DebounceUtil {
    * @param func 要执行的函数
    */
   static immediate(key: string, func: Function): void {
-    const existingTimer = DebounceUtil.timers.get(key)
-    if (existingTimer !== undefined) {
-      clearTimeout(existingTimer)
-      DebounceUtil.timers.delete(key)
-    }
+    DebounceUtil.cancel(key)
     func()
   }
 

@@ -199,6 +199,14 @@
     {
       "name": "recent_play",
       "value": "最近播放"
+    },
+    {
+      "name": "import_from_album",
+      "value": "从图库导入"
+    },
+    {
+      "name": "INTERNET_PERMISSION",
+      "value": "获取网络资源"
     }
   ]
 }

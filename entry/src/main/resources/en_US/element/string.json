@@ -199,6 +199,14 @@
     {
       "name": "recent_play",
       "value": "Recent Play"
+    },
+    {
+      "name": "import_from_album",
+      "value": "Import from album"
+    },
+    {
+      "name": "INTERNET_PERMISSION",
+      "value": "Get network resource"
     }
   ]
 }

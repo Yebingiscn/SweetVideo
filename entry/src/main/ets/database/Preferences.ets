@@ -294,4 +294,60 @@ export default class Preferences {
   static saveSortAsc(context: Context, sortAsc: boolean) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'sortAsc', sortAsc)
   }
+
+  static getUserIsLogin(context: Context): boolean {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'userIsLogin', false) as boolean
+  }
+
+  static saveUserIsLogin(context: Context, isLogin: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'userIsLogin', isLogin)
+  }
+
+  static getUserAvatar(context: Context): string {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'userAvatar', '') as string
+  }
+
+  static saveUserAvatar(context: Context, userAvatar: string) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'userAvatar', userAvatar)
+  }
+
+  static getUserNickName(context: Context): string {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'userNickName', '') as string
+  }
+
+  static saveUserNickName(context: Context, nickName: string) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'userNickName', nickName)
+  }
+
+  static getUserAuthorizationCode(context: Context): string {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'userAuthorizationCode', '') as string
+  }
+
+  static saveUserAuthorizationCode(context: Context, authorizationCode: string) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'userAuthorizationCode', authorizationCode)
+  }
+
+  static getUserUnionID(context: Context): string {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'userUnionID', '') as string
+  }
+
+  static saveUserUnionID(context: Context, unionID: string) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'userUnionID', unionID)
+  }
+
+  static getUserOpenID(context: Context): string {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'userOpenID', '') as string
+  }
+
+  static saveUserOpenID(context: Context, openID: string) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'userOpenID', openID)
+  }
+
+  static getUserIdToken(context: Context): string {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'userIdToken', '') as string
+  }
+
+  static saveUserIdToken(context: Context, idToken: string) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'userIdToken', idToken)
+  }
 }

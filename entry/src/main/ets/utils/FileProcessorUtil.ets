@@ -64,11 +64,11 @@ export class FileProcessorUtil {
           })
 
           try {
-            await SelectFileUtil.processSingleFile(
-              uri,
+            await SelectFileUtil.addFile(
               context,
               sandbox_video,
               sandbox_path,
+              uri,
               video_meta_data,
               fileFolder
             )

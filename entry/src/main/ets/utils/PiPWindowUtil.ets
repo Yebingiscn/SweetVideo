@@ -5,6 +5,7 @@ import { MpvController } from '../controller/MpvController/MpvController'
 import { PlayerControllerInterface } from '../controller/PlayerControllerFactory'
 import { Setting } from './ObservedUtil'
 import { PathUtils } from './PathUtils'
+import VideoInfoUtil from './VideoInfoUtil'
 
 /***
  * 自动画中画工具类
@@ -50,13 +51,8 @@ export default class PiPWindowUtil {
   }
 
   private static calculatePipContentSize(videoWidth: number, videoHeight: number): PipContentSize {
-    if (videoWidth <= 0 || videoHeight <= 0) {
-      return new PipContentSize(PIP_DEFAULT_WIDTH, PIP_DEFAULT_HEIGHT)
-    }
-    if (videoWidth >= videoHeight) {
-      return new PipContentSize(PIP_BASE_SIZE, Math.round(PIP_BASE_SIZE * videoHeight / videoWidth))
-    }
-    return new PipContentSize(Math.round(PIP_BASE_SIZE * videoWidth / videoHeight), PIP_BASE_SIZE)
+    const size = VideoInfoUtil.calculateAspectRatioSize(videoWidth, videoHeight, PIP_BASE_SIZE)
+    return new PipContentSize(size.width, size.height)
   }
 
   static updateContentSize() {

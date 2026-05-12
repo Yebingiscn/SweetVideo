@@ -57,7 +57,7 @@ export struct GestureComponent {
                   return
                 }
                 const tapX = event.fingerList[0]?.localX
-                if (!VideoOperateUtil.checkLocalX(tapX)) {
+                if (typeof tapX !== 'number') {
                   return
                 }
                 this.onDoubleClickAction(tapX)
@@ -76,7 +76,7 @@ export struct GestureComponent {
                   return
                 }
                 const tapX = event.fingerList[0]?.localX
-                if (!VideoOperateUtil.checkLocalX(tapX)) {
+                if (typeof tapX !== 'number') {
                   return
                 }
                 this.onVerticalPanStart(tapX)
@@ -109,7 +109,7 @@ export struct GestureComponent {
                 if (this.player.isLock || this.player.isZoomed) {
                   return
                 }
-                if (!VideoOperateUtil.checkLocalX(event?.fingerList?.[0]?.localX)) {
+                if (typeof event?.fingerList?.[0]?.localX !== 'number') {
                   return
                 }
                 this.onHorizonPanUpdate(event?.offsetX)
@@ -184,7 +184,7 @@ export struct GestureComponent {
                   return
                 }
                 const tapX = event.fingerList[0]?.localX
-                if (!VideoOperateUtil.checkLocalX(tapX)) {
+                if (typeof tapX !== 'number') {
                   return
                 }
                 this.onLongPressPanStart(tapX)
@@ -194,7 +194,7 @@ export struct GestureComponent {
                   return
                 }
                 const tapX = event.fingerList[0]?.localX
-                if (!VideoOperateUtil.checkLocalX(tapX)) {
+                if (typeof tapX !== 'number') {
                   return
                 }
                 this.onLongPressPanUpdate(tapX)
@@ -210,7 +210,7 @@ export struct GestureComponent {
                   return
                 }
                 const tapX = event.fingerList[0]?.localX
-                if (!VideoOperateUtil.checkLocalX(tapX)) {
+                if (typeof tapX !== 'number') {
                   return
                 }
                 this.onPanMoveStart(event)
@@ -223,7 +223,7 @@ export struct GestureComponent {
                   return
                 }
                 const tapX = event.fingerList[0]?.localX
-                if (!VideoOperateUtil.checkLocalX(tapX)) {
+                if (typeof tapX !== 'number') {
                   return
                 }
                 this.onPanMoveUpdate(event)

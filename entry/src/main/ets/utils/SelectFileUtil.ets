@@ -23,6 +23,11 @@ import { systemDateTime } from '@kit.BasicServicesKit'
 
 const TAG = 'SelectFileUtil'
 
+export interface SavePixelMapOptions {
+  releasePixelMap?: boolean
+  deleteOnFail?: boolean
+}
+
 export default class SelectFileUtil {
   public static fileFolderUri = ''
   public static videoSourcePath = new Map<number, string>([
@@ -34,7 +39,7 @@ export default class SelectFileUtil {
   ])
   private static queryCache = new WeakMap<VideoMetadata[], Map<string, VideoMetadata>>()
 
-  static async selectFromFileManager(uri?: string, mode: 'video' | 'audio' | 'both' = 'both'): Promise<string[]> {
+  static async selectFromFileManager(uri?: string, mode: 'video' | 'audio' | 'album' = 'video'): Promise<string[]> {
     const documentSelectOptions = new picker.DocumentSelectOptions()
     if (uri) {
       documentSelectOptions.defaultFilePathUri = uri
@@ -47,9 +52,9 @@ export default class SelectFileUtil {
       case 'audio':
         documentSelectOptions.fileSuffixFilters = SUPPORT_AUDIO_FORMAT
         break
-      case 'both':
+      case 'album':
       default:
-        documentSelectOptions.fileSuffixFilters = SUPPORT_VIDEO_FORMAT.concat(SUPPORT_AUDIO_FORMAT)
+        documentSelectOptions.fileSuffixFilters = SUPPORT_VIDEO_FORMAT
         break
     }
     // 如果没有指定uri，根据模式设置合并模式
@@ -61,11 +66,8 @@ export default class SelectFileUtil {
         case 'audio':
           documentSelectOptions.mergeMode = picker.MergeTypeMode.AUDIO
           break
-        case 'both':
-        default:
-        // 对于both模式，可以选择不设置mergeMode或设置为一个默认值
-        // 根据你的需求调整
-          break
+        case 'album':
+          return SelectFileUtil.selectVideosFromAlbum()
       }
     }
     const documentViewPicker = new picker.DocumentViewPicker(PathUtils.appContext!)
@@ -78,21 +80,25 @@ export default class SelectFileUtil {
     }
   }
 
+  static async selectVideosFromAlbum(): Promise<string[]> {
+    return SelectFileUtil.selectFromAlbum(photoAccessHelper.PhotoViewMIMETypes.VIDEO_TYPE)
+  }
+
   static async selectPhoto(): Promise<string[]> {
     return SelectFileUtil.selectFromAlbum(photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE, 1)
   }
 
-  static async deletePhoto(imageName: 'BackgroundImage' | 'BackgroundDarkImage') {
+  static async deletePhoto(imageName: 'BackgroundImage' | 'BackgroundDarkImage' | 'avatar') {
     fs.access(PathUtils.photoPath! + imageName).then((res: boolean) => {
       if (res) {
         fs.unlink(PathUtils.photoPath! + imageName, async (unlinkErr) => {
           if (unlinkErr) {
-            ToolsUtil.showToast('删除自定义背景失败，原因是：' + unlinkErr.message)
+            ToolsUtil.showToast('删除失败，原因是：' + unlinkErr.message)
           }
-          ToolsUtil.showToast('删除自定义背景成功')
+          ToolsUtil.showToast('删除成功')
         })
       } else {
-        salmonLogger.addLog(TAG, "自定义背景不存在", true)
+        salmonLogger.addLog(TAG, "照片不存在", true)
       }
     })?.catch((err: BusinessError) => {
       salmonLogger.addLog(TAG, "access failed with error message: " + err.message + ", error code: " + err.code, true)
@@ -177,8 +183,8 @@ export default class SelectFileUtil {
     }
   }
 
-  static saveImageToPrivacySpace(sourceFileUri: string, isDark: boolean) {
-    const filePath = PathUtils.photoPath + (isDark ? 'BackgroundDarkImage' : 'BackgroundImage') // 定义完整文件路径
+  static saveImageToSandBox(sourceFileUri: string, imageName: string) {
+    const filePath = PathUtils.photoPath + imageName // 定义完整文件路径
     try {
       let sourceFile = fs.openSync(sourceFileUri, fs.OpenMode.READ_ONLY)
       let targetFile = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
@@ -192,27 +198,27 @@ export default class SelectFileUtil {
     }
   }
 
-  // 保存封面，封面获取后复制到应用私有目录下
-  static async saveVideoImageToSandBox(sandbox_path: string, date: string, pixelMap: image.PixelMap) {
-    const filePath = sandbox_path + date
+  static async savePixelMapToFile(basePath: string, fileName: string, pixelMap: image.PixelMap,
+    options?: SavePixelMapOptions): Promise<string> {
+    const filePath = basePath + fileName
     let packer: image.ImagePacker | undefined = undefined
     let file: fs.File | undefined = undefined
     try {
       packer = image.createImagePacker()
       file = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
       await packer.packToFile(pixelMap, file.fd, { format: 'image/webp', quality: 85 })
+      return filePath
     } catch (error) {
-      const err = error as BusinessError
-      salmonLogger.addLog(TAG, `Failed to save cover: code ${err.code}, message: ${err.message}`, true)
-      // 删除可能损坏的文件
-      try {
-        fs.accessSync(filePath) && fs.unlinkSync(filePath)
-      } catch {
-        // 忽略删除错误
+      const errMsg = error instanceof Error ? error.message : String(error)
+      salmonLogger.addLog(TAG, `Failed to save pixelMap to ${filePath}: ${errMsg}`, true)
+      if (options?.deleteOnFail) {
+        try {
+          fs.accessSync(filePath) && fs.unlinkSync(filePath)
+        } catch {
+        }
       }
-      // 不抛出异常，由调用方通过其他方式检测封面是否存在
+      return ''
     } finally {
-      // 确保资源释放
       if (file) {
         try {
           fs.closeSync(file)
@@ -227,11 +233,12 @@ export default class SelectFileUtil {
           salmonLogger.addLog(TAG, 'Failed to release packer: ' + e, false)
         }
       }
-      // 释放 pixelMap
-      try {
-        pixelMap.release()
-      } catch (e) {
-        salmonLogger.addLog(TAG, 'Failed to release pixelMap: ' + e, false)
+      if (options?.releasePixelMap) {
+        try {
+          pixelMap.release()
+        } catch (e) {
+          salmonLogger.addLog(TAG, 'Failed to release pixelMap: ' + e, false)
+        }
       }
     }
   }
@@ -596,18 +603,6 @@ export default class SelectFileUtil {
         salmonLogger.addLog(TAG, '导入视频发生错误, 原因是：' + error, true)
       }
     }
-  }
-
-  static async processSingleFile(uri: string, context: Context, sandbox_video: string, sandbox_path: string,
-    video_meta_data: VideoMetadata[], fileFolder?: FileFolder): Promise<void> {
-    await SelectFileUtil.addFile(
-      context,
-      sandbox_video,
-      sandbox_path,
-      uri,
-      video_meta_data,
-      fileFolder
-    )
   }
 
   static async deletePrivacyVideo(date: string, title: string, video_meta_data_encryption: VideoMetadata[]) {

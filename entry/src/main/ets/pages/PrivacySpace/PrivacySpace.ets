@@ -28,7 +28,12 @@ import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import SubtitleUtil from '../../utils/SubtitleUtil'
 import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { SortComponent } from '../../component/VideoItemComponent/SortComponent'
-import { DELAY_JUMP_TO_PLAYER, NO_BLUR_AMOUNT, PRIVACY_BACKGROUND_BLUR_AMOUNT } from '../../common/Constants'
+import {
+  DELAY_JUMP_TO_PLAYER,
+  FULL_ALPHABET,
+  NO_BLUR_AMOUNT,
+  PRIVACY_BACKGROUND_BLUR_AMOUNT
+} from '../../common/Constants'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { VideoItemPreviewBuilder } from '../../component/VideoItemComponent/VideoItemPreviewBuilder'
 import { PrivacySpaceSettingComponent } from '../../component/PrivacySpaceComponent/PrivacySpaceSettingComponent'
@@ -37,11 +42,7 @@ import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { motion } from '@kit.MultimodalAwarenessKit'
 import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil'
 import { pinyin4js } from '@ohos/pinyin4js'
-
-const FULL_ALPHABET: string[] = [
-  '#', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-  'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
-]
+import { ScrollBarBuilder } from '../../component/VideoItemComponent/ScrollBarBuilder'
 
 @ComponentV2
 export struct PrivacySpace { // 隐私空间页
@@ -107,7 +108,7 @@ export struct PrivacySpace { // 隐私空间页
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
   })
-  @Local operatingHand: motion.HoldingHandStatus | null = null
+  @Local HoldingHand: motion.HoldingHandStatus | null = null
   private listScroller: Scroller = new Scroller()
 
   @Builder
@@ -175,6 +176,15 @@ export struct PrivacySpace { // 隐私空间页
           await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "video"))
         })
       MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.picture_2')),
+        content: $r('app.string.import_from_album')
+      })
+        .onClick(async () => {
+          this.isPresent = false
+          await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "album"))
+        })
+
+      MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.music')),
         content: $r('app.string.import_from_music')
       })
@@ -222,7 +232,7 @@ export struct PrivacySpace { // 隐私空间页
     }
     .width('95%')
     .justifyContent(FlexAlign.Start)
-    .reverse(IntellectualGripPostureUtil.isLeftHoldHand(this.operatingHand))
+    .reverse(IntellectualGripPostureUtil.isLeftHoldHand(this.HoldingHand))
     .animation({ duration: 300, curve: Curve.Ease })
   }
 
@@ -415,7 +425,10 @@ export struct PrivacySpace { // 隐私空间页
           .justifyContent(FlexAlign.Center)
           .animation({ duration: 150, curve: Curve.Ease })
         } else {
-          Flex({ direction: FlexDirection.Row, alignItems: ItemAlign.Start }) {
+          Stack({
+            alignContent: IntellectualGripPostureUtil.isLeftHoldHand(this.HoldingHand) ? Alignment.TopStart :
+              Alignment.TopEnd
+          }) {
             List({ scroller: this.listScroller, space: 10 }) {
               LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
                 ListItem() {
@@ -495,7 +508,6 @@ export struct PrivacySpace { // 隐私空间页
                 .onSelect((index: number) => {
                   this.scrollToLetter(this.activeAlphabet[index])
                 })
-                .align(Alignment.End)
                 .color($r('app.color.text_color'))
                 .selectedColor($r('sys.color.white'))
                 .popupColor($r('app.color.main_color'))
@@ -503,9 +515,17 @@ export struct PrivacySpace { // 隐私空间页
                 .popupBackground($r('app.color.start_window_background'))
                 .itemSize(20)
                 .height('100%')
-                .margin({ right: 2 })
+                .margin(IntellectualGripPostureUtil.isLeftHoldHand(this.HoldingHand) ? { left: 2 } : { right: 2 })
+            }
+
+            if (this.currentSortField !== 'name') {
+              ScrollBarBuilder({
+                videoListController: this.listScroller,
+                fileFolderLength: 0
+              })
             }
           }
+          .animation({ duration: 300, curve: Curve.Ease })
           .layoutWeight(1)
           .width('100%')
         }
@@ -521,7 +541,7 @@ export struct PrivacySpace { // 隐私空间页
       })
     }
     .onWillDisappear(() => {
-      IntellectualGripPostureUtil.destroyOperatingHandStatus()
+      IntellectualGripPostureUtil.destroyHoldingHandStatus()
       PrivacySpaceUtil.closePrivacyMode()
     })
     .onShown(() => {
@@ -631,7 +651,7 @@ export struct PrivacySpace { // 隐私空间页
         this.isPresent = true
       }
       IntellectualGripPostureUtil.createHoldingHandStatus((data: motion.HoldingHandStatus) => {
-        this.operatingHand = data
+        this.HoldingHand = data
       })
     })
     .dynamicHideTitleBar({
@@ -653,6 +673,15 @@ export struct PrivacySpace { // 隐私空间页
           await SelectFileUtil.exportFile(item!.uri, item!.title, item!.format, PathUtils.appContext!)
         })
     }.padding({ left: 15, right: 15 }).justifyContent(FlexAlign.SpaceEvenly)
+  }
+
+  @Monitor('video_meta_data_encryption', 'currentSortField', 'currentSortAsc')
+  onVideoListChanged() {
+    if (this.currentSortField === 'name') {
+      this.updateActiveAlphabet()
+    } else {
+      this.activeAlphabet = []
+    }
   }
 
   private getFirstLetter(title: string): string {
@@ -724,14 +753,5 @@ export struct PrivacySpace { // 隐私空间页
       ? SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue)
       : this.allVideos
     this.videoDataSource.updateData(this.video_meta_data_encryption)
-  }
-
-  @Monitor('video_meta_data_encryption', 'currentSortField', 'currentSortAsc')
-  onVideoListChanged() {
-    if (this.currentSortField === 'name') {
-      this.updateActiveAlphabet()
-    } else {
-      this.activeAlphabet = []
-    }
   }
 }

@@ -5,51 +5,51 @@ export default class IntellectualGripPostureUtil {
   private static holdingHandCallback: Callback<motion.HoldingHandStatus> | null = null
 
   static isLeftOperateHand(status: motion.OperatingHandStatus | null): boolean {
-    if (status === null) {
-      return false
-    }
-    if (canIUse('SystemCapability.MultimodalAwareness.Motion')) {
-      return status === motion.OperatingHandStatus.LEFT_HAND_OPERATED
-    }
-    return false
+    return IntellectualGripPostureUtil.isLeftHand(status, motion.OperatingHandStatus.LEFT_HAND_OPERATED)
   }
 
   static isLeftHoldHand(status: motion.HoldingHandStatus | null): boolean {
-    if (status === null) {
-      return false
-    }
-    if (canIUse('SystemCapability.MultimodalAwareness.Motion')) {
-      return status === motion.HoldingHandStatus.LEFT_HAND_HELD
-    }
-    return false
+    return IntellectualGripPostureUtil.isLeftHand(status, motion.HoldingHandStatus.LEFT_HAND_HELD)
   }
 
   static createOperatingHandStatus(callback?: Callback<motion.OperatingHandStatus>) {
-    if (canIUse('SystemCapability.MultimodalAwareness.Motion')) {
-      IntellectualGripPostureUtil.operatingHandCallback = callback ?? ((data: motion.OperatingHandStatus) => {
-        console.info('operatingHandChanged: ' + data)
+    IntellectualGripPostureUtil.createHandStatus(callback, 'operatingHandChanged',
+      (cb) => {
+        IntellectualGripPostureUtil.operatingHandCallback = cb
+      },
+      (cb) => {
+        motion.on('operatingHandChanged', cb)
       })
-      try {
-        motion.on('operatingHandChanged', IntellectualGripPostureUtil.operatingHandCallback)
-        console.info("operatingHandChanged on succeeded")
-      } catch (err) {
-        let error = err as BusinessError
-        console.error("Failed on and err code is " + error.code)
-      }
-    }
+  }
+
+  static createHoldingHandStatus(callback?: Callback<motion.HoldingHandStatus>) {
+    IntellectualGripPostureUtil.createHandStatus(callback, 'holdingHandChanged',
+      (cb) => {
+        IntellectualGripPostureUtil.holdingHandCallback = cb
+      },
+      (cb) => {
+        motion.on('holdingHandChanged', cb)
+      })
   }
 
   static destroyOperatingHandStatus() {
-    if (canIUse('SystemCapability.MultimodalAwareness.Motion')) {
-      try {
+    IntellectualGripPostureUtil.destroyHandStatus('operatingHandChanged',
+      () => {
         motion.off('operatingHandChanged')
+      },
+      () => {
         IntellectualGripPostureUtil.operatingHandCallback = null
-        console.info("operatingHandChanged off succeeded")
-      } catch (err) {
-        let error = err as BusinessError
-        console.error("Failed off and err code is " + error.code)
-      }
-    }
+      })
+  }
+
+  static destroyHoldingHandStatus() {
+    IntellectualGripPostureUtil.destroyHandStatus('holdingHandChanged',
+      () => {
+        motion.off('holdingHandChanged')
+      },
+      () => {
+        IntellectualGripPostureUtil.holdingHandCallback = null
+      })
   }
 
   static getOperatingHandStatus(): motion.OperatingHandStatus | null {
@@ -67,14 +67,26 @@ export default class IntellectualGripPostureUtil {
     return null
   }
 
-  static createHoldingHandStatus(callback?: Callback<motion.HoldingHandStatus>) {
+  private static isLeftHand<T>(status: T | null, leftValue: T): boolean {
+    if (status === null) {
+      return false
+    }
     if (canIUse('SystemCapability.MultimodalAwareness.Motion')) {
-      IntellectualGripPostureUtil.holdingHandCallback = callback ?? ((data: motion.HoldingHandStatus) => {
-        console.info('holdingHandChanged: ' + data)
+      return status === leftValue
+    }
+    return false
+  }
+
+  private static createHandStatus<T>(callback: Callback<T> | undefined, defaultLog: string,
+    callbackSetter: (cb: Callback<T> | null) => void, register: (cb: Callback<T>) => void) {
+    if (canIUse('SystemCapability.MultimodalAwareness.Motion')) {
+      const cb = callback ?? ((data: T) => {
+        console.info(`${defaultLog}: ` + data)
       })
+      callbackSetter(cb)
       try {
-        motion.on('holdingHandChanged', IntellectualGripPostureUtil.holdingHandCallback)
-        console.info("holdingHandChanged on succeeded")
+        register(cb)
+        console.info(`${defaultLog} on succeeded`)
       } catch (err) {
         let error = err as BusinessError
         console.error("Failed on and err code is " + error.code)
@@ -82,12 +94,12 @@ export default class IntellectualGripPostureUtil {
     }
   }
 
-  static destroyHoldingHandStatus() {
+  private static destroyHandStatus(logName: string, unregister: () => void, callbackSetter: () => void) {
     if (canIUse('SystemCapability.MultimodalAwareness.Motion')) {
       try {
-        motion.off('holdingHandChanged')
-        IntellectualGripPostureUtil.holdingHandCallback = null
-        console.info("holdingHandChanged off succeeded")
+        unregister()
+        callbackSetter()
+        console.info(`${logName} off succeeded`)
       } catch (err) {
         let error = err as BusinessError
         console.error("Failed off and err code is " + error.code)

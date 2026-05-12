@@ -5,7 +5,9 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import { VideoDetailDialog } from '../../component/Dialog//VideoDetailDialog'
-import { DefaultDialogShadow, MenuFancyModifier } from '../../common/AttributeModifierConfig'
+import {
+  DefaultDialogShadow, MenuFancyModifier
+} from '../../common/AttributeModifierConfig'
 import { EditMetadataDialog } from '../../component/Dialog//EditMetadataDialog'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
 import { SideBarController } from '../SideBarComponent/SideBar'
@@ -17,10 +19,12 @@ import { BatchVideoDeleteDialog } from '../Dialog/BatchVideoDeleteDialog'
 import { DeleteType } from '../../common/enum/DeleteType'
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import { salmonLogger } from 'salmonlogger'
-import { DELAY_JUMP_TO_PLAYER } from '../../common/Constants'
+import { DELAY_JUMP_TO_PLAYER, FULL_ALPHABET } from '../../common/Constants'
 import Preferences from '../../database/Preferences'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil'
+import { motion } from '@kit.MultimodalAwarenessKit'
 import SubtitleUtil from '../../utils/SubtitleUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import WantProcess from '../../utils/WantProcessUtil'
@@ -29,12 +33,7 @@ import VideoCardItem from './VideoCardItemComponent'
 import { VideoItemPreviewBuilder } from './VideoItemPreviewBuilder'
 import VideoListItem from './VideoListItemComponent'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
-import { pinyin4js } from '@ohos/pinyin4js'
-
-const FULL_ALPHABET: string[] = [
-  '#', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-  'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
-]
+import { ScrollBarBuilder } from './ScrollBarBuilder'
 
 @ObservedV2
 export class VideoListController {
@@ -132,9 +131,11 @@ export struct VideoList {
   @Local _searchValue: string = ''
   @Param currentSortField: 'name' | 'datetime' | 'time' | '' = ''
   @Param currentSortAsc: boolean = true
+  @Param holdingHand: motion.HoldingHandStatus | null = null
   @Param videoListController: VideoListController = new VideoListController()
   @Local activeAlphabet: string[] = []
   @Local indexerSelected: number = 0
+  @Consumer() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -158,7 +159,6 @@ export struct VideoList {
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @Consumer() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   delConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDeleteDialog({
       confirm: async (deleteType: DeleteType) => {
@@ -229,21 +229,19 @@ export struct VideoList {
     }
   }
 
-  @Builder
-  VideoItemBuilder(item: VideoMetadata) {
-    VideoListItem({
-      item: item,
-      delMultipleList: this._delMultipleList
-    }).backgroundColor($r('app.color.start_window_background')).borderRadius(16)
-  }
-
   build() {
     if (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY) {
-      Flex({ direction: FlexDirection.Row, alignItems: ItemAlign.Start }) {
+      Stack({
+        alignContent: IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand) ? Alignment.TopStart :
+          Alignment.TopEnd
+      }) {
         List({ scroller: this.videoListController.listScroller }) {
           LazyForEach(this.videoListController.videoDataSource, (item: VideoMetadata) => { // 加载视频列表
             ListItem() {
-              this.VideoItemBuilder(item)
+              VideoListItem({
+                item: item,
+                delMultipleList: this._delMultipleList
+              })
             }
             .borderRadius(16)
             .backgroundColor(Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
@@ -311,20 +309,17 @@ export struct VideoList {
         .contentEndOffset(SafeHeight.bottomSafeHeight)
         .lanes(this.videoListController.listLine)
         .animation({ duration: 300, curve: Curve.Smooth })
-        .scrollBar(this.currentSortField === 'name' ? BarState.Off : BarState.Auto)
+        .scrollBar(BarState.Off)
         .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
         .chainAnimation(true)
-        .layoutWeight(1)
+        .syncLoad(false)
         .width('100%')
         .height('100%')
         .fadingEdge(true)
-        .onTouch(() => {
-          this.searchController.stopEditing()
-        })
         .onAppear(() => {
           this.videoListController.listScroller.scrollEdge(Edge.Top)
         })
-        .onScrollIndex((start: number, _end: number, _center: number) => {
+        .onScrollIndex((start: number) => {
           if (this.currentSortField === 'name') {
             this.updateIndexerOnScroll(start)
           }
@@ -335,7 +330,6 @@ export struct VideoList {
             .onSelect((index: number) => {
               this.scrollToLetter(this.activeAlphabet[index])
             })
-            .align(Alignment.End)
             .color($r('app.color.text_color'))
             .selectedColor($r('sys.color.white'))
             .popupColor($r('app.color.main_color'))
@@ -343,13 +337,24 @@ export struct VideoList {
             .popupBackground($r('app.color.start_window_background'))
             .itemSize(20)
             .height('100%')
-            .margin({ right: 2 })
+            .margin(IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand) ? { left: 2 } : { right: 2 })
+        }
+
+        if (this.currentSortField !== 'name') {
+          ScrollBarBuilder({
+            videoListController: this.videoListController.listScroller,
+            fileFolderLength: this.file_folder_list.length
+          })
         }
       }
       .width('100%')
       .height('100%')
+      .animation({ duration: 300, curve: Curve.Ease })
     } else {
-      Flex({ direction: FlexDirection.Row, alignItems: ItemAlign.Start }) {
+      Stack({
+        alignContent: IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand) ? Alignment.TopStart :
+          Alignment.TopEnd
+      }) {
         Scroll() {
           Column() {
             Blank().height(SafeHeight.topSafeHeight + (Setting.showToast && this.file_folder_list.length > 1 ? 90 : 65))
@@ -423,9 +428,8 @@ export struct VideoList {
             .columnsGap(16) // 列间距
             .rowsGap(16) // 行间距
             .cachedCount(12)
-            .scrollBar(BarState.Auto)
+            .scrollBar(BarState.Off)
             .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
-            .onTouch(() => this.searchController.stopEditing())
             .width('100%')
             .height('100%')
             .padding({ left: 10, right: 10 })
@@ -445,8 +449,8 @@ export struct VideoList {
           .clip(false)
         }
         .clip(false)
-        .scrollBar(this.currentSortField === 'name' ? BarState.Off : BarState.Auto)
-        .layoutWeight(1)
+        .scrollBar(BarState.Off)
+        .width('100%')
         .height('100%')
 
         if (this.currentSortField === 'name' && this.activeAlphabet.length > 0) {
@@ -454,7 +458,6 @@ export struct VideoList {
             .onSelect((index: number) => {
               this.scrollToLetter(this.activeAlphabet[index])
             })
-            .align(Alignment.End)
             .color($r('app.color.text_color'))
             .selectedColor($r('sys.color.white'))
             .popupColor($r('app.color.main_color'))
@@ -462,11 +465,19 @@ export struct VideoList {
             .popupBackground($r('app.color.start_window_background'))
             .itemSize(20)
             .height('100%')
-            .margin({ right: 2 })
+            .margin(IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand) ? { left: 2 } : { right: 2 })
+        }
+
+        if (this.currentSortField !== 'name') {
+          ScrollBarBuilder({
+            videoListController: this.videoListController.listScroller,
+            fileFolderLength: this.file_folder_list.length
+          })
         }
       }
       .width('100%')
       .height('100%')
+      .animation({ duration: 300, curve: Curve.Ease })
     }
   }
 
@@ -593,26 +604,11 @@ export struct VideoList {
     FileFolderMenu({ video_item: video_item })
   }
 
-  private getFirstLetter(title: string): string {
-    if (!title || title.length === 0) {
-      return '#'
-    }
-    const pinyin = pinyin4js.getShortPinyin(title) as string
-    if (pinyin.length === 0) {
-      return '#'
-    }
-    const first = pinyin[0].toUpperCase()
-    if (first >= 'A' && first <= 'Z') {
-      return first
-    }
-    return '#'
-  }
-
   private updateActiveAlphabet(): void {
     const list = this.videoListController.videoDataSource.getAllData()
     const letterSet = new Set<string>()
     for (const item of list) {
-      letterSet.add(this.getFirstLetter(item.title || ''))
+      letterSet.add(ToolsUtil.getFirstLetter(item.title || ''))
     }
     let alphabet = FULL_ALPHABET.filter(letter => letterSet.has(letter))
     if (!this.currentSortAsc) {
@@ -624,7 +620,7 @@ export struct VideoList {
   private scrollToLetter(letter: string): void {
     const list = this.videoListController.videoDataSource.getAllData()
     for (let i = 0; i < list.length; i++) {
-      if (this.getFirstLetter(list[i].title || '') === letter) {
+      if (ToolsUtil.getFirstLetter(list[i].title || '') === letter) {
         this.videoListController.listScroller.scrollToIndex(i)
         return
       }
@@ -636,7 +632,7 @@ export struct VideoList {
     if (index < 0 || index >= list.length) {
       return
     }
-    const letter = this.getFirstLetter(list[index].title || '')
+    const letter = ToolsUtil.getFirstLetter(list[index].title || '')
     const targetIndex = this.activeAlphabet.indexOf(letter)
     if (targetIndex !== -1 && targetIndex !== this.indexerSelected) {
       this.indexerSelected = targetIndex

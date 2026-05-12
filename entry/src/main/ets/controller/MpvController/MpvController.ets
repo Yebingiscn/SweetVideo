@@ -1,67 +1,12 @@
 import { PlayerControllerInterface } from '../PlayerControllerFactory';
-import {
-  create as mpvCreate,
-  destroy as mpvDestroy,
-  getAudioTracks as mpvGetAudioTracks,
-  getCurrentSubtitleTrack as mpvGetCurrentSubtitleTrack,
-  getDuration as mpvGetDuration,
-  getSubtitleTracks as mpvGetSubtitleTracks,
-  getVideoHeight as mpvGetVideoHeight,
-  getVideoWidth as mpvGetVideoWidth,
-  loadVideo as mpvLoadVideo,
-  pause as mpvPause,
-  play as mpvPlay,
-  registerPlaybackCompleteCallback as mpvRegisterPlaybackCompleteCallback,
-  registerSurfaceModeErrorCallback as mpvRegisterSurfaceModeErrorCallback,
-  registerTimeUpdateCallback as mpvRegisterTimeUpdateCallback,
-  registerVideoSizeChangedCallback as mpvRegisterVideoSizeChangedCallback,
-  reset as mpvReset,
-  seek as mpvSeek,
-  selectAudio as mpvSelectAudio,
-  selectSubtitle as mpvSelectSubtitle,
-  setBlurayDevice as mpvSetBlurayDevice,
-  setDecodeType as mpvSetDecodeType,
-  setHwdecMode as mpvSetHwdecMode,
-  setKeepAspect as mpvSetKeepAspect,
-  setOsdSurface as mpvSetOsdSurface,
-  setSpeed as mpvSetSpeed,
-  unregisterPlaybackCompleteCallback as mpvUnregisterPlaybackCompleteCallback,
-  unregisterSurfaceModeErrorCallback as mpvUnregisterSurfaceModeErrorCallback,
-  unregisterTimeUpdateCallback as mpvUnregisterTimeUpdateCallback,
-  unregisterVideoSizeChangedCallback as mpvUnregisterVideoSizeChangedCallback,
-} from 'libmpvnative.so';
-import { Setting } from '../../utils/ObservedUtil';
-import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode';
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
 import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode';
-import { PathUtils } from '../../utils/PathUtils';
-import VideoOperateUtil from '../../utils/VideoOperateUtil';
-import { MpvAudioTrack, MpvDecodingMethod, MpvSubtitleTrack } from './MpvTypes';
-import { avSession, avSession as avSessionManager } from '@kit.AVSessionKit';
+import { MpvAudioTrack, MpvSubtitleTrack } from './MpvTypes';
+import { avSession as avSessionManager } from '@kit.AVSessionKit';
 import { audio } from '@kit.AudioKit';
 import { WindowUtil } from '../../utils/WindowUtil';
-import { window } from '@kit.ArkUI';
-import VideoInfoUtil from '../../utils/VideoInfoUtil';
-import ToolsUtil from '../../utils/ToolsUtil';
-import PiPWindowUtil from '../../utils/PiPWindowUtil';
 import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode';
-import AVSessionUtil from '../../utils/AVSessionUtil';
-import {
-  AUTO_HIDE_SHOW_CONTROL_TIME,
-  LEFT_ZONE_DIVISION,
-  RIGHT_ZONE_DIVISION,
-  SCREEN_DIVISIONS
-} from '../../common/Constants';
-import { fileIo as fs, fileUri } from '@kit.CoreFileKit';
-import { salmonLogger } from 'salmonlogger';
-import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil';
-import RecentPlayUtil from '../../utils/RecentPlayUtil';
-import SelectFileUtil from '../../utils/SelectFileUtil';
-import SubtitleUtil from '../../utils/SubtitleUtil';
 import { BaseListener } from '../../utils/BaseEventUtil';
-import PermissionUtil from '../../utils/PermissionUtil';
-import Preferences from '../../database/Preferences';
-import IsoFileUtil from '../../utils/IsoFileUtil';
 
 const TAG = 'MpvController'
 
@@ -850,7 +795,7 @@ export class MpvController implements PlayerControllerInterface {
     ToolsUtil.showToast(`正在切换到${modeName}模式...`)
 
     // 保存当前播放状态（如果未提供）
-    const savedTime = currentTime ?? this.playTime
+    const savedTime = currentTime || this.nowPlaying?.last_play || 0
     const savedPlaying = wasPlaying ?? this.playing
     const savedVideo = currentVideo ?? this.nowPlaying
 
@@ -937,7 +882,6 @@ export class MpvController implements PlayerControllerInterface {
     savedVideo: VideoMetadata | undefined,
     modeName: string
   ) {
-    // 检查是否成功播放（通过检查视频尺寸）
     const videoWidth = this.getPlayAreaWidth()
     const videoHeight = this.getPlayAreaHeight()
 
@@ -955,10 +899,10 @@ export class MpvController implements PlayerControllerInterface {
       }
       return
     }
-
-    // 恢复播放位置和状态
     if (savedTime > 0) {
-      this.seekTime(savedTime)
+      setTimeout(() => {
+        this.seekTime(savedTime)
+      }, 1500)
     }
     if (savedPlaying) {
       this.play()
@@ -983,6 +927,6 @@ export class MpvController implements PlayerControllerInterface {
       return
     }
 
-    this.switchDecodingMode('buffer_hw', errorMessage)
+    this.switchDecodingMode('buffer_hw', errorMessage, this.playTime)
   }
 }
