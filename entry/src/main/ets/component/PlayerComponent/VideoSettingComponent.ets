@@ -1,11 +1,5 @@
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
-import { PathUtils } from '../../utils/PathUtils'
-import TimeUtil from '../../utils/TimeUtil'
-import ToolsUtil from '../../utils/ToolsUtil'
-import VideoOperateUtil from '../../utils/VideoOperateUtil'
-import { SymbolGlyphModifier } from '@kit.ArkUI'
-import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 
 @ComponentV2
 export struct VideoSettingComponent {
@@ -15,19 +9,32 @@ export struct VideoSettingComponent {
   @Local pointA: string = '00:00'
   @Local pointB: string = '00:00'
   @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
-  @Event forward_80_s: (_time: number) => void = () => {}
-  @Event closeAfter15min: (_time: number) => void = () => {}
-  @Event closeAfter30min: (_time: number) => void = () => {}
-  @Event closeAfter60min: (_time: number) => void = () => {}
-  @Event toggleListenVideo: () => void = () => {}
-  @Event captureScreen: () => void = () => {}
-  @Event updateStarTime: (_time: number) => void = () => {}
-  @Event updateEndTime: (_time: number) => void = () => {}
-  @Event updatePointATime: (_time: number) => void = () => {}
-  @Event updatePointBTime: (_time: number) => void = () => {}
-  @Event onScreenMirror: () => void = () => {}
-  @Event setRepeatModeToOnce: () => void = () => {}
-  @Event onABCircleStatusClick: () => void = () => {}
+  @Event forward_80_s: (_time: number) => void = () => {
+  }
+  @Event closeAfter15min: (_time: number) => void = () => {
+  }
+  @Event closeAfter30min: (_time: number) => void = () => {
+  }
+  @Event closeAfter60min: (_time: number) => void = () => {
+  }
+  @Event toggleListenVideo: () => void = () => {
+  }
+  @Event captureScreen: () => void = () => {
+  }
+  @Event updateStarTime: (_time: number) => void = () => {
+  }
+  @Event updateEndTime: (_time: number) => void = () => {
+  }
+  @Event updatePointATime: (_time: number) => void = () => {
+  }
+  @Event updatePointBTime: (_time: number) => void = () => {
+  }
+  @Event onScreenMirror: () => void = () => {
+  }
+  @Event setRepeatModeToOnce: () => void = () => {
+  }
+  @Event onABCircleStatusClick: () => void = () => {
+  }
 
   aboutToAppear(): void {
     this.startTime = TimeUtil.convertMSToHHMMSS(this.player.nowPlaying?.start_time)
@@ -71,13 +78,11 @@ export struct VideoSettingComponent {
       }).onClick(() => {
         this.onScreenMirror()
       })
-      if (this.player instanceof AVPlayerController) {
-        MenuItem({
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
-          content: '响度调节',
-          builder: (): void => this.VolumeLoudnessGainBuilder()
-        })
-      }
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
+        content: '响度调节',
+        builder: (): void => this.VolumeLoudnessGainBuilder()
+      })
       if (this.player instanceof AVPlayerController) {
         MenuItem({
           symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.headphones')),
@@ -228,46 +233,40 @@ export struct VideoSettingComponent {
 
   @Builder
   VolumeLoudnessGainBuilder() {
-    if (this.player instanceof AVPlayerController) {
-      Column() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph($r('sys.symbol.undo'))
-            .fontSize(20)
-            .fontColor([$r('app.color.text_color')])
-        }
-        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundColor('#50000000')
-        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
-        .onClick(() => {
-          if (this.player instanceof AVPlayerController) {
-            this.player.setLoudnessGain(0)
-          }
-        })
+    Column() {
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph($r('sys.symbol.undo'))
+          .fontSize(20)
+          .fontColor([$r('app.color.text_color')])
+      }
+      .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+      .attributeModifier(new ButtonFancyModifier(40, 40))
+      .backgroundColor('#50000000')
+      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .onClick(() => {
+        this.player.setLoudnessGain(0)
+      })
 
-        Slider({
-          value: this.player.volumeLoudnessGain,
-          min: -90,
-          max: 24,
-          step: 1,
-          style: SliderStyle.NONE,
-          direction: Axis.Vertical,
-          reverse: true
+      Slider({
+        value: this.player.volumeLoudnessGain,
+        min: -90,
+        max: 24,
+        step: 1,
+        style: SliderStyle.NONE,
+        direction: Axis.Vertical,
+        reverse: true
+      })
+        .onChange((value) => {
+          this.player.setLoudnessGain(value)
         })
-          .onChange((value) => {
-            if (this.player instanceof AVPlayerController) {
-              this.player.setLoudnessGain(value)
-            }
-          })
-          .selectedColor($r('app.color.main_color'))
-          .enableHapticFeedback(true)
-          .width(40)
-          .height(160)
-          .trackThickness(40)
-          .trackBorderRadius(16)
-          .selectedBorderRadius(16)
-          .padding({ top: 5 })
-      }.width(40).backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN).borderRadius(16)
-    }
+        .selectedColor($r('app.color.main_color'))
+        .enableHapticFeedback(true)
+        .width(40)
+        .height(160)
+        .trackThickness(40)
+        .trackBorderRadius(16)
+        .selectedBorderRadius(16)
+        .padding({ top: 5 })
+    }.width(40).backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN).borderRadius(16)
   }
 }

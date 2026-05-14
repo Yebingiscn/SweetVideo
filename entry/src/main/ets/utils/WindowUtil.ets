@@ -48,7 +48,11 @@ export class WindowUtil {
     if (canIUse("SystemCapability.Window.SessionManager")) {
       if (windowClass) {
         const win = await windowClass
-        const operation = enable ? win?.enableLandscapeMultiWindow() : win?.disableLandscapeMultiWindow()
+        const operation = enable ? win?.enableLandscapeMultiWindow().catch(() => {
+          salmonLogger.addLog(TAG, 'enableLandscapeMultiWindow error', true)
+        }) : win?.disableLandscapeMultiWindow().catch(() => {
+          salmonLogger.addLog(TAG, 'disableLandscapeMultiWindow error', true)
+        })
         operation?.then(() => {
           AppStorage.setOrCreate('enableLandscapeMultiWindow', enable)
         })?.catch(() => {

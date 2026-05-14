@@ -62,6 +62,8 @@ declare module 'libmpvnative.so' {
 
   export const getCurrentAudioTrack: (mpvHandle: number) => number;
 
+  export const setLoudnessGain: (mpvHandle: number, loudnessGain: number) => boolean;
+
   // ==================== 视频信息 ====================
   export const getHardwareDecoder: (mpvHandle: number) => string;
 

@@ -87,6 +87,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onDestroy(): void {
+    this.savePlayData()
     try {
       if (this.watcher) {
         hiAppEvent.removeWatcher(this.watcher)
@@ -128,45 +129,53 @@ export default class EntryAbility extends UIAbility {
       hilog.info(0x0000, 'testTag', 'Succeeded in loading the content.')
     })
     // 是否进入后台
-    try {
-      windowStage.on('windowStageEvent', async (windowEvent) => {
-        if (!PrivacySpaceUtil.getPrivacyMode()) {
-          return
-        }
-        switch (windowEvent) {
-          case window.WindowStageEventType.SHOWN:
-          case window.WindowStageEventType.ACTIVE:
-          case window.WindowStageEventType.RESUMED: {
-            Privacy.isPrivacyBackground = false
-            break
+    if (VideoOperateUtil.windowStage) {
+      try {
+        VideoOperateUtil.windowStage.on('windowStageEvent', async (windowEvent) => {
+          if (!PrivacySpaceUtil.getPrivacyMode()) {
+            return
           }
-          case window.WindowStageEventType.HIDDEN:
-          case window.WindowStageEventType.PAUSED: {
-            Privacy.isPrivacyBackground = true
-            break
+          switch (windowEvent) {
+            case window.WindowStageEventType.SHOWN:
+            case window.WindowStageEventType.ACTIVE:
+            case window.WindowStageEventType.RESUMED: {
+              Privacy.isPrivacyBackground = false
+              break
+            }
+            case window.WindowStageEventType.HIDDEN:
+            case window.WindowStageEventType.PAUSED: {
+              Privacy.isPrivacyBackground = true
+              break
+            }
+            // pc 模式下窗口失焦隐私空间模糊，手机平板分屏、悬浮窗下不模糊
+            case window.WindowStageEventType.INACTIVE: {
+              Privacy.isPrivacyBackground = Pc.pcMode
+            }
           }
-          // pc 模式下窗口失焦隐私空间模糊，手机平板分屏、悬浮窗下不模糊
-          case window.WindowStageEventType.INACTIVE: {
-            Privacy.isPrivacyBackground = Pc.pcMode
-          }
-        }
-      })
-    } catch (error) {
-      salmonLogger.addLog(TAG, 'windowStageEvent error' + error, true)
+        })
+      } catch (error) {
+        salmonLogger.addLog(TAG, 'windowStageEvent error' + error, true)
+      }
     }
   }
 
   onWindowStageWillDestroy(): void {
-    // 杀掉应用时保存播放记录
-    const nowPlayingData =
-      AppStorage.get('nowPlayingData') as (number | VideoMetadata | VideoMetadata[])[]
-    if (nowPlayingData) {
-      VideoOperateUtil.saveVideoTime(nowPlayingData[0] as number, nowPlayingData[1] as VideoMetadata,
-        nowPlayingData[2] as VideoMetadata[], PathUtils.appContext!)
+    this.savePlayData()
+    try {
+      if (VideoOperateUtil.windowStage) {
+        VideoOperateUtil.windowStage.off('windowStageEvent');
+      }
+    } catch (err) {
+      let code = (err as BusinessError).code;
+      let message = (err as BusinessError).message;
+      salmonLogger.addLog(TAG, `Failed to remove windowStageEvent. Cause code: ${code}, message: ${message}`, true)
     }
   }
 
-  async onContinue(_wantParam: Record<string, Object>): Promise<AbilityConstant.OnContinueResult> {
+  async onContinue(wantParam: Record<string, Object>): Promise<AbilityConstant.OnContinueResult> {
+    const nowPlayingData =
+      AppStorage.get('nowPlayingData') as (number | VideoMetadata | VideoMetadata[])[]
+    wantParam['data'] = nowPlayingData[1] as VideoMetadata
     return AbilityConstant.OnContinueResult.AGREE
   }
 
@@ -197,5 +206,15 @@ export default class EntryAbility extends UIAbility {
     // 更新缓存中的颜色模式
     AppStorage.setOrCreate('currentColorMode', newConfig.colorMode)
     WindowUtil.recoveryBarColor()
+  }
+
+  private savePlayData() {
+    // 杀掉应用时保存播放记录
+    const nowPlayingData =
+      AppStorage.get('nowPlayingData') as (number | VideoMetadata | VideoMetadata[])[]
+    if (nowPlayingData) {
+      VideoOperateUtil.saveVideoTime(nowPlayingData[0] as number, nowPlayingData[1] as VideoMetadata,
+        nowPlayingData[2] as VideoMetadata[], PathUtils.appContext!)
+    }
   }
 }

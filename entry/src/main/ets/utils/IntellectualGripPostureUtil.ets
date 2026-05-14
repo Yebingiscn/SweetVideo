@@ -1,54 +1,90 @@
 import { motion } from '@kit.MultimodalAwarenessKit';
+import { salmonLogger } from 'salmonlogger';
+
+const TAG = 'IntellectualGripPostureUtil'
 
 export default class IntellectualGripPostureUtil {
-  private static operatingHandCallback: Callback<motion.OperatingHandStatus> | null = null
-  private static holdingHandCallback: Callback<motion.HoldingHandStatus> | null = null
-
   static isLeftOperateHand(status: motion.OperatingHandStatus | null): boolean {
-    return IntellectualGripPostureUtil.isLeftHand(status, motion.OperatingHandStatus.LEFT_HAND_OPERATED)
+    if (canIUse("SystemCapability.MultimodalAwareness.Motion")) {
+      return IntellectualGripPostureUtil.isLeftHand(status, motion.OperatingHandStatus.LEFT_HAND_OPERATED)
+    } else {
+      return false
+    }
   }
 
   static isLeftHoldHand(status: motion.HoldingHandStatus | null): boolean {
-    return IntellectualGripPostureUtil.isLeftHand(status, motion.HoldingHandStatus.LEFT_HAND_HELD)
+    if (canIUse("SystemCapability.MultimodalAwareness.Motion")) {
+      return IntellectualGripPostureUtil.isLeftHand(status, motion.HoldingHandStatus.LEFT_HAND_HELD)
+    } else {
+      return false
+    }
   }
 
   static createOperatingHandStatus(callback?: Callback<motion.OperatingHandStatus>) {
     IntellectualGripPostureUtil.createHandStatus(callback, 'operatingHandChanged',
-      (cb) => {
-        IntellectualGripPostureUtil.operatingHandCallback = cb
+      () => {
       },
       (cb) => {
-        motion.on('operatingHandChanged', cb)
+        if (canIUse("SystemCapability.MultimodalAwareness.Motion")) {
+          try {
+            motion.on('operatingHandChanged', cb)
+          } catch (error) {
+            salmonLogger.addLog(TAG, 'operatingHandChanged error' + error, true)
+          }
+        } else {
+          salmonLogger.addLog(TAG, 'unsupported SystemCapability', true)
+        }
       })
   }
 
   static createHoldingHandStatus(callback?: Callback<motion.HoldingHandStatus>) {
     IntellectualGripPostureUtil.createHandStatus(callback, 'holdingHandChanged',
-      (cb) => {
-        IntellectualGripPostureUtil.holdingHandCallback = cb
+      () => {
       },
       (cb) => {
-        motion.on('holdingHandChanged', cb)
+        if (canIUse("SystemCapability.MultimodalAwareness.Motion")) {
+          try {
+            motion.on('holdingHandChanged', cb)
+          } catch (error) {
+            salmonLogger.addLog(TAG, 'holdingHandChanged error' + error, true)
+          }
+        } else {
+          salmonLogger.addLog(TAG, 'unsupported SystemCapability', true)
+        }
       })
   }
 
   static destroyOperatingHandStatus() {
     IntellectualGripPostureUtil.destroyHandStatus('operatingHandChanged',
       () => {
-        motion.off('operatingHandChanged')
+        if (canIUse("SystemCapability.MultimodalAwareness.Motion")) {
+          try {
+            motion.off('operatingHandChanged')
+          } catch (error) {
+            salmonLogger.addLog(TAG, 'operatingHandChanged error' + error, true)
+          }
+        } else {
+          salmonLogger.addLog(TAG, 'unsupported SystemCapability', true)
+        }
       },
       () => {
-        IntellectualGripPostureUtil.operatingHandCallback = null
       })
   }
 
   static destroyHoldingHandStatus() {
     IntellectualGripPostureUtil.destroyHandStatus('holdingHandChanged',
       () => {
-        motion.off('holdingHandChanged')
+        if (canIUse("SystemCapability.MultimodalAwareness.Motion")) {
+          try {
+            motion.off('holdingHandChanged')
+          } catch (error) {
+            salmonLogger.addLog(TAG, 'holdingHandChanged error' + error, true)
+          }
+        } else {
+          salmonLogger.addLog(TAG, 'unsupported SystemCapability', true)
+        }
       },
       () => {
-        IntellectualGripPostureUtil.holdingHandCallback = null
       })
   }
 

@@ -1,4 +1,8 @@
+import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
+import TimeUtil from '../../utils/TimeUtil'
+import VideoInfoUtil from '../../utils/VideoInfoUtil'
+import { media } from '@kit.MediaKit'
 
 class VideoInfoBuilderParams {
   item: VideoMetadata | undefined = undefined

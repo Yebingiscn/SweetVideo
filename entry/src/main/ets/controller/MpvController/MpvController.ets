@@ -1,12 +1,68 @@
 import { PlayerControllerInterface } from '../PlayerControllerFactory';
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
 import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode';
-import { MpvAudioTrack, MpvSubtitleTrack } from './MpvTypes';
-import { avSession as avSessionManager } from '@kit.AVSessionKit';
+import { MpvAudioTrack, MpvDecodingMethod, MpvSubtitleTrack } from './MpvTypes';
+import { avSession, avSession as avSessionManager } from '@kit.AVSessionKit';
 import { audio } from '@kit.AudioKit';
 import { WindowUtil } from '../../utils/WindowUtil';
 import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode';
 import { BaseListener } from '../../utils/BaseEventUtil';
+import { salmonLogger } from 'salmonlogger';
+import {
+  create as mpvCreate,
+  destroy as mpvDestroy,
+  getAudioTracks as mpvGetAudioTracks,
+  getCurrentSubtitleTrack as mpvGetCurrentSubtitleTrack,
+  getDuration as mpvGetDuration,
+  getSubtitleTracks as mpvGetSubtitleTracks,
+  getVideoHeight as mpvGetVideoHeight,
+  getVideoWidth as mpvGetVideoWidth,
+  loadVideo as mpvLoadVideo,
+  pause as mpvPause,
+  play as mpvPlay,
+  registerPlaybackCompleteCallback as mpvRegisterPlaybackCompleteCallback,
+  registerSurfaceModeErrorCallback as mpvRegisterSurfaceModeErrorCallback,
+  registerTimeUpdateCallback as mpvRegisterTimeUpdateCallback,
+  registerVideoSizeChangedCallback as mpvRegisterVideoSizeChangedCallback,
+  reset as mpvReset,
+  seek as mpvSeek,
+  selectAudio as mpvSelectAudio,
+  selectSubtitle as mpvSelectSubtitle,
+  setBlurayDevice as mpvSetBlurayDevice,
+  setDecodeType as mpvSetDecodeType,
+  setHwdecMode as mpvSetHwdecMode,
+  setKeepAspect as mpvSetKeepAspect,
+  setLoudnessGain as mpvSetLoudnessGain,
+  setOsdSurface as mpvSetOsdSurface,
+  setSpeed as mpvSetSpeed,
+  unregisterPlaybackCompleteCallback as mpvUnregisterPlaybackCompleteCallback,
+  unregisterSurfaceModeErrorCallback as mpvUnregisterSurfaceModeErrorCallback,
+  unregisterTimeUpdateCallback as mpvUnregisterTimeUpdateCallback,
+  unregisterVideoSizeChangedCallback as mpvUnregisterVideoSizeChangedCallback,
+} from 'libmpvnative.so';
+import {
+  AUTO_HIDE_SHOW_CONTROL_TIME,
+  LEFT_ZONE_DIVISION,
+  RIGHT_ZONE_DIVISION,
+  SCREEN_DIVISIONS
+} from '../../common/Constants';
+import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode';
+import Preferences from '../../database/Preferences';
+import AVSessionUtil from '../../utils/AVSessionUtil';
+import IsoFileUtil from '../../utils/IsoFileUtil';
+import { Setting } from '../../utils/ObservedUtil';
+import { PathUtils } from '../../utils/PathUtils';
+import PermissionUtil from '../../utils/PermissionUtil';
+import PiPWindowUtil from '../../utils/PiPWindowUtil';
+import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil';
+import RecentPlayUtil from '../../utils/RecentPlayUtil';
+import SelectFileUtil from '../../utils/SelectFileUtil';
+import SubtitleUtil from '../../utils/SubtitleUtil';
+import ToolsUtil from '../../utils/ToolsUtil';
+import VideoInfoUtil from '../../utils/VideoInfoUtil';
+import VideoOperateUtil from '../../utils/VideoOperateUtil';
+import { fileIo, fileUri } from '@kit.CoreFileKit';
+import { window } from '@kit.ArkUI';
 
 const TAG = 'MpvController'
 
@@ -40,6 +96,7 @@ export class MpvController implements PlayerControllerInterface {
   @Trace onSwipingBrightness: boolean = false
   @Trace isSliderPlayTimeChange: boolean = false
   @Trace audioTrackSelected: number = 0
+  @Trace volumeLoudnessGain: number = 0
   @Trace lockVisibility: boolean = false
   @Trace longPress: boolean = false
   @Trace isLock: boolean = false
@@ -454,6 +511,13 @@ export class MpvController implements PlayerControllerInterface {
     mpvSelectAudio(this.mpvHandle, trackId)
   }
 
+  setLoudnessGain(loudnessGain: number) {
+    this.volumeLoudnessGain = loudnessGain
+    if (this.mpvHandle) {
+      mpvSetLoudnessGain(this.mpvHandle, loudnessGain)
+    }
+  }
+
   getSubtitleTrackList() {
     this.subtitleTrack = mpvGetSubtitleTracks(this.mpvHandle) as MpvSubtitleTrack[]
     if (this.subtitleTrack.length === 0) {
@@ -595,7 +659,7 @@ export class MpvController implements PlayerControllerInterface {
   async setExternalSubtitle(nowPlaying: VideoMetadata) {
     if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, nowPlaying.date!)) {
       try {
-        let subtitle = fs.openSync(PathUtils.subtitlePath! + nowPlaying.date, fs.OpenMode.READ_ONLY)
+        let subtitle = fileIo.openSync(PathUtils.subtitlePath! + nowPlaying.date, fileIo.OpenMode.READ_ONLY)
         const success = await SubtitleUtil.parseSubtitleProcess(subtitle.path, nowPlaying.external_subtitle_format)
         if (success) {
           this.subtitleSelected = SubtitleMode.EXTERNAL_SUBTITLE

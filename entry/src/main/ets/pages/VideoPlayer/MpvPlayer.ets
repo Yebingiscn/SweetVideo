@@ -413,6 +413,7 @@ export struct MpvPlayer {
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
       WindowUtil.setBarState(PathUtils.appContext!, true, true)
       PiPWindowUtil.destroyPipController()
+      WindowUtil.disableLandscapeMultiWindow(this.mpv.windowClass)
       try {
         await (await this.mpv.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
         await this.mpv.avSession?.stopCasting()

@@ -495,6 +495,7 @@ export struct Player { // 播放页
       }
       PermissionUtil.applyStopContinuousTask()
       PiPWindowUtil.destroyPipController()
+      WindowUtil.disableLandscapeMultiWindow(this.windowClass)
       try {
         WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
         if (canIUse('SystemCapability.Window.SessionManager')) {

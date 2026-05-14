@@ -514,7 +514,7 @@ export class AVPlayerController implements PlayerControllerInterface {
 
   setLoudnessGain(loudnessGain: number) {
     this.volumeLoudnessGain = loudnessGain
-    this.avPlayer!.setLoudnessGain(loudnessGain)?.catch(() => {
+    this.avPlayer?.setLoudnessGain(loudnessGain)?.catch(() => {
       ToolsUtil.addLogger("设置响度失败", true)
     })
   }
