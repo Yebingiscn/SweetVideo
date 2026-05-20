@@ -13,6 +13,7 @@ import { FileFolder } from '../../interfaces/FileFolderInterface'
 import { SideBarController } from '../SideBarComponent/SideBar'
 import { VideoMetaDataOperator } from '../../database/VideoMetaData'
 import VideoUtils from '../../utils/VideoUtil'
+import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
 import FileFolderUtil from '../../utils/FileFolderUtil'
 import { VideoDeleteDialog } from '../Dialog/VideoDeleteDialog'
 import { BatchVideoDeleteDialog } from '../Dialog/BatchVideoDeleteDialog'
@@ -201,6 +202,16 @@ export struct VideoList {
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
   })
+  invalidFileDialog: CustomDialogController = new CustomDialogController({
+    builder: InfoConfirmDialog({
+      textInfo: '该视频文件已失效，是否清除？',
+      confirm: async () => {
+        await this.videoListController.videoDataSource.deleteUnExistFile(this._invalidItem!, this.videoListController,
+          this.fileFolderSource)
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  private _invalidItem: VideoMetadata | null = null
   @Event onSearchValueChange: (v: string) => void = () => {
   }
   @Event onDelMultipleListChange: (v: VideoMetadata[]) => void = () => {
@@ -500,11 +511,13 @@ export struct VideoList {
         this.onSearchValueChange('')
       }, 500)
     }
-    await SelectFileUtil.isFileExist(item.uri, true) ?
+    if (await SelectFileUtil.isFileExist(item.uri, true)) {
       ToolsUtil.routerWhere(this.pathStack, choosePlayer, item,
-        this.videoListController.videoDataSource.getAllData()) :
-      await this.videoListController.videoDataSource.deleteUnExistFile(item, this.videoListController,
-        this.fileFolderSource)
+        this.videoListController.videoDataSource.getAllData())
+    } else {
+      this._invalidItem = item
+      this.invalidFileDialog.open()
+    }
   }
 
   @Builder

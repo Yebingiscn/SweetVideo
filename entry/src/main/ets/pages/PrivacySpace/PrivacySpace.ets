@@ -20,6 +20,7 @@ import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog'
 import { SearchComponent } from '../../component/VideoItemComponent/SearchComponent'
 import NavigationAddress, { PrivacySpaceParams } from '../../common/NavigationCommon'
 import { EditMetadataDialog } from '../../component/Dialog/EditMetadataDialog'
+import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
 import FileFolderUtil from '../../utils/FileFolderUtil'
 import { ImportProgressBuilder } from '../../component/VideoItemComponent/ImportProgressBuilder'
 import VideoListItem from '../../component/VideoItemComponent/VideoListItemComponent'
@@ -48,6 +49,18 @@ import { ScrollBarBuilder } from '../../component/VideoItemComponent/ScrollBarBu
 export struct PrivacySpace { // 隐私空间页
   @Local videoDataSource: VideoDataSource = new VideoDataSource([])
   @Local video_meta_data_encryption: VideoMetadata[] = []
+  @Local allVideos: VideoMetadata[] = [] // 保存完整数据用于搜索
+  @Local list_line: number = 1
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
+  @Local totalItems: number = 0
+  @Local processedItems: number = 0
+  @Local loading: boolean = false
+  @Local currentFileName: string = '' // 当前处理的文件名
+  @Local importSpeed: number = 0 // 处理速度
+  @Local elapsedTime: number = 0 // 已耗时
+  @Local failedCount: number = 0 // 失败文件数
+  @Local currentStage: 'extracting' | 'cover' | 'saving' = 'extracting' // 当前处理阶段
+  @Local searchValue: string = ''
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -71,18 +84,6 @@ export struct PrivacySpace { // 隐私空间页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @Local allVideos: VideoMetadata[] = [] // 保存完整数据用于搜索
-  @Local list_line: number = 1
-  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
-  @Local totalItems: number = 0
-  @Local processedItems: number = 0
-  @Local loading: boolean = false
-  @Local currentFileName: string = '' // 当前处理的文件名
-  @Local importSpeed: number = 0 // 处理速度
-  @Local elapsedTime: number = 0 // 已耗时
-  @Local failedCount: number = 0 // 失败文件数
-  @Local currentStage: 'extracting' | 'cover' | 'saving' = 'extracting' // 当前处理阶段
-  @Local searchValue: string = ''
   @Local is_edit: boolean = false
   @Local currentSortField: 'name' | 'datetime' | 'time' | '' = ''
   @Local currentSortAsc: boolean = true
@@ -108,6 +109,17 @@ export struct PrivacySpace { // 隐私空间页
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
   })
+  deleteConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: InfoConfirmDialog({
+      textInfo: '确定删除该视频吗？',
+      confirm: () => {
+        if (this.pendingDeleteItem) {
+          this.deleteItem(this.pendingDeleteItem.date, this.pendingDeleteItem.title)
+        }
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  private pendingDeleteItem: VideoMetadata | null = null
   @Local HoldingHand: motion.HoldingHandStatus | null = null
   private listScroller: Scroller = new Scroller()
 
@@ -267,8 +279,9 @@ export struct PrivacySpace { // 隐私空间页
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
       })
-        .onClick(async () => {
-          await this.deleteItem(item!.date, item!.title)
+        .onClick(() => {
+          this.pendingDeleteItem = item!
+          this.deleteConfirmDialog.open()
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),

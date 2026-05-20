@@ -30,9 +30,11 @@ import {
   selectSubtitle as mpvSelectSubtitle,
   setBlurayDevice as mpvSetBlurayDevice,
   setDecodeType as mpvSetDecodeType,
+  setGlslShaders as mpvSetGlslShaders,
   setHwdecMode as mpvSetHwdecMode,
   setKeepAspect as mpvSetKeepAspect,
   setLoudnessGain as mpvSetLoudnessGain,
+  setOsdLevel as mpvSetOsdLevel,
   setOsdSurface as mpvSetOsdSurface,
   setSpeed as mpvSetSpeed,
   unregisterPlaybackCompleteCallback as mpvUnregisterPlaybackCompleteCallback,
@@ -66,8 +68,35 @@ import { window } from '@kit.ArkUI';
 
 const TAG = 'MpvController'
 
+class ShaderConfig {
+  rawDir: string
+  files: string[]
+
+  constructor(rawDir: string, files: string[]) {
+    this.rawDir = rawDir
+    this.files = files
+  }
+}
+
 @ObservedV2
 export class MpvController implements PlayerControllerInterface {
+  private static readonly SHADER_MODE_NAMES: string[] = ['关闭', 'Anime4K (动漫)', 'ArtCNN (通用)']
+  private static readonly SHADER_CONFIGS: Map<number, ShaderConfig> = new Map<number, ShaderConfig>([
+    [1, new ShaderConfig(
+      'shaders/Anime4K',
+      [
+        'Anime4K_Clamp_Highlights.glsl',
+        'Anime4K_Restore_CNN_M.glsl',
+        'Anime4K_Upscale_CNN_x2_M.glsl',
+        'Anime4K_AutoDownscalePre_x2.glsl',
+        'Anime4K_AutoDownscalePre_x4.glsl',
+      ]
+    )],
+    [2, new ShaderConfig(
+      'shaders/ArtCNN',
+      ['ArtCNN_C4F16.glsl']
+    )]
+  ])
   windowClass = WindowUtil.getWindow()
   @Trace mpvHandle: number | null = null
   surfaceId: string | null = null
@@ -102,6 +131,7 @@ export class MpvController implements PlayerControllerInterface {
   @Trace isLock: boolean = false
   @Trace abCircleStatus: boolean = false
   @Trace osdVisibility: boolean = false
+  @Trace debugInfoVisible: boolean = false
   @Trace isZoomed: boolean = false
   @Trace translateX: number = 0
   @Trace translateY: number = 0
@@ -116,6 +146,10 @@ export class MpvController implements PlayerControllerInterface {
   private surfaceModeErrorCallbackRegistered: boolean = false
   private isSwitchingToBufferMode: boolean = false // 防止重复切换
   private isSwitchingToSoftwareMode: boolean = false // 防止重复切换到软解
+
+  static getShaderModeNames(): string[] {
+    return MpvController.SHADER_MODE_NAMES
+  }
 
   async playChooseVideo(item: VideoMetadata, pathStack: NavPathStack) {
     this.osdVisibility = false
@@ -236,26 +270,36 @@ export class MpvController implements PlayerControllerInterface {
 
   init(url?: string, pathStack?: NavPathStack): void {
     // 处理ISO文件
-    let playUrl = url!;
+    let playUrl = url!
     if (IsoFileUtil.isIsoFile(url!)) {
-      salmonLogger.addLog(TAG, '检测到ISO文件，使用bd://协议播放', false);
+      salmonLogger.addLog(TAG, '检测到ISO文件，使用bd://协议播放', false)
 
       // ISO文件：保留完整的file:// URI格式
       // bluray-device 需要完整的URI，而不是纯路径
-      const isoPath = url!; // 保留原始URI，包含file://前缀
+      const isoPath = url! // 保留原始URI，包含file://前缀
 
       // 设置bluray-device选项
-      mpvSetBlurayDevice(this.mpvHandle, isoPath);
+      mpvSetBlurayDevice(this.mpvHandle, isoPath)
 
       // 使用bd://longest协议播放最长的标题
-      playUrl = 'bd://longest';
+      playUrl = 'bd://longest'
     } else {
       // 非ISO文件，需要转换file:// URI为本地路径
-      playUrl = new fileUri.FileUri(url!).path;
+      playUrl = new fileUri.FileUri(url!).path
     }
 
     // 传递起始位置给 native（参考 mpv-android）
     mpvLoadVideo(this.mpvHandle, playUrl)
+
+    // 延迟应用 shader，避免编译期间阻塞主线程（shader 编译持有 mpv 核心锁）
+    const shaderMode = Setting.mpvShaderMode
+    salmonLogger.addLog(TAG, `[MpvController] shader mode=${shaderMode}, will apply=${shaderMode > 0}`, false)
+    if (shaderMode > 0) {
+      setTimeout(() => {
+        salmonLogger.addLog(TAG, `[MpvController] applying shader mode=${shaderMode}`, false)
+        this.applyShaderMode(shaderMode)
+      }, 3000)
+    }
 
     // 注册播放完成回调（只注册一次）
     this.registerPlaybackCompleteListener(pathStack!)
@@ -307,7 +351,6 @@ export class MpvController implements PlayerControllerInterface {
     mpvSetOsdSurface(surfaceId, playAreaWidth, playAreaHeight)
   }
 
-  // 同步 OSD Surface 尺寸到视频原生分辨率
   // 解决字幕模糊问题：使用视频原生分辨率而非显示区域尺寸
   syncOsdSurfaceSize(): void {
     if (!this.osdSurfaceId) {
@@ -340,7 +383,8 @@ export class MpvController implements PlayerControllerInterface {
       // 片尾跳过逻辑保留
       const endTime = this.nowPlaying?.end_time
       if (endTime != null && duration >= endTime && endTime > 0 && this.repeatMode !== SweetRepeatMode.SINGLE) {
-        ToolsUtil.addLogger(`检测到视频片尾，准备播放下一个视频，满足条件为: endTime: ${endTime}, repeatMode: ${this.repeatMode}, duration: ${duration}`,
+        ToolsUtil.addLogger(
+          `检测到视频片尾，准备播放下一个视频，满足条件为: endTime: ${endTime}, repeatMode: ${this.repeatMode}, duration: ${duration}`,
           false)
         this.playNextVideoProcess(pathStack)
         this.userListener?.clear()
@@ -516,6 +560,60 @@ export class MpvController implements PlayerControllerInterface {
     if (this.mpvHandle) {
       mpvSetLoudnessGain(this.mpvHandle, loudnessGain)
     }
+  }
+
+  applyShaderMode(mode: number) {
+    if (!this.mpvHandle) {
+      return
+    }
+    if (mode > 0 && (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE ||
+      Setting.mpvDecodingMethod === MpvDecodingMethod.SOFTWARE)) {
+      Setting.mpvShaderMode = 0
+      mpvSetGlslShaders([])
+      return
+    }
+    if (mode === 0) {
+      mpvSetGlslShaders([])
+      return
+    }
+    const config = MpvController.SHADER_CONFIGS.get(mode)
+    if (!config) {
+      return
+    }
+    const sandboxDir = PathUtils.sandboxPath + '/shaders/'
+    try {
+      fileIo.mkdirSync(sandboxDir)
+    } catch (_) {
+    }
+    let shaderPaths: string[] = []
+    for (const file of config.files) {
+      const targetPath = sandboxDir + file
+      try {
+        const content = PathUtils.appContext!.resourceManager.getRawFileContentSync(config.rawDir + '/' + file)
+        const targetFd =
+          fileIo.openSync(targetPath, fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC | fileIo.OpenMode.READ_WRITE)
+        fileIo.writeSync(targetFd.fd, content.buffer)
+        fileIo.closeSync(targetFd)
+        shaderPaths.push(targetPath!)
+      } catch (e) {
+        salmonLogger.addLog(TAG, `Shader copy failed: ${file} ${e}`, true)
+      }
+    }
+    if (shaderPaths.length > 0) {
+      const result = mpvSetGlslShaders(shaderPaths)
+      if (result) {
+        ToolsUtil.showToast(`已启用${MpvController.SHADER_MODE_NAMES[mode]}`)
+      } else {
+        ToolsUtil.showToast('Shader 加载失败，请确认使用 Buffer 硬解模式')
+      }
+    } else {
+      ToolsUtil.showToast('Shader 文件拷贝失败')
+    }
+  }
+
+  toggleDebugInfo() {
+    this.debugInfoVisible = !this.debugInfoVisible
+    mpvSetOsdLevel(this.debugInfoVisible ? 3 : 1)
   }
 
   getSubtitleTrackList() {

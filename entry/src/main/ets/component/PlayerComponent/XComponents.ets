@@ -1,7 +1,6 @@
 import { KeyCode } from '@kit.InputKit'
 import { salmonLogger } from 'salmonlogger'
 import { OPTIONS } from '../../common/Constants'
-import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import NavigationAddress from '../../common/NavigationCommon'
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
@@ -9,7 +8,6 @@ import { MpvDecodingMethod } from '../../controller/MpvController/MpvTypes'
 import { Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import { WindowUtil } from '../../utils/WindowUtil'
-import { SubtitleDisplayBuilder } from './SubtitleDisplayBuilder'
 
 const TAG = 'XComponents'
 
@@ -17,10 +15,6 @@ const TAG = 'XComponents'
 export struct XComponents {
   @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
   @Param choosePlayer: string = ''
-  @Param subtitle: string = ''
-  @Param hideSubtitle: boolean = false
-  @Param subtitleVisibility: Visibility = Visibility.None
-  @Param subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
   @Param xComponentController: XComponentController | undefined = undefined
   @Param osdXController: XComponentController | undefined = undefined
   @Param osdVisibility: boolean = false
@@ -59,14 +53,6 @@ export struct XComponents {
           },
         })
       }
-      SubtitleDisplayBuilder({
-        subtitle: this.subtitle,
-        screenWidth: this.player.screenWidth,
-        screenHeight: this.player.screenHeight,
-        showControl: this.player.showControl,
-        subTitleVisibility: this.hideSubtitle ? Visibility.None : this.subtitleVisibility,
-        subtitle3DMode: this.subtitle3DMode
-      })
     }
     .onKeyEvent((event?: KeyEvent) => {
       if (!event || event.type !== KeyType.Down) {

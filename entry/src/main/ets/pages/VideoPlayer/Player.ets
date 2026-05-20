@@ -4,42 +4,30 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
-import Preferences from '../../database/Preferences'
 import { PathUtils } from '../../utils/PathUtils'
 import { PlayerSideBarComponent } from '../../component/PlayerComponent/PlayerSideBarComponent'
-import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder'
-import { AudioTrackComponent } from '../../component/PlayerComponent/AudioTrackComponent'
-import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent'
 import { LockVideoBarComponent } from '../../component/PlayerComponent/LockVideoBarComponent'
-import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent'
 import { GestureComponent } from '../../component/PlayerComponent/GestureComponent'
-import { VideoTopComponent } from '../../component/PlayerComponent/VideoTopComponent'
-import { VideoButtonsComponent } from '../../component/PlayerComponent/VideoButtonsComponent'
-import { VideoSettingComponent } from '../../component/PlayerComponent/VideoSettingComponent'
-import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
 import NavigationAddress, { PlayerParams } from '../../common/NavigationCommon'
 import { WindowUtil } from '../../utils/WindowUtil'
 import { KeyCode } from '@kit.InputKit'
 import { XAnimation } from '../../utils/AnimationUtil'
-import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode'
+import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { BrightnessSwipingBuilder } from '../../component/PlayerComponent/BrightnessSwipingBuilder'
 import { FastForwardPanelBuilder } from '../../component/PlayerComponent/FastForwardPanelBuilder'
 import { VolumeSwipingPanelBuilder } from '../../component/PlayerComponent/VolumeSwipingPanelBuilder'
 import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/SwipingPlayTimePanelBuilder'
-import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent'
 import { SubtitleDisplayBuilder } from '../../component/PlayerComponent/SubtitleDisplayBuilder'
 import { Privacy, Setting } from '../../utils/ObservedUtil'
 import { PlayerControllerFactory } from '../../controller/PlayerControllerFactory'
 import { XComponents } from '../../component/PlayerComponent/XComponents'
 import { VideoLayoutComponent } from '../../component/PlayerComponent/VideoLayoutComponent'
 import {
-  DEFAULT_ANGLE,
   MAX_SCALE_FACTOR,
   MAX_WIDTH_MULTIPLIER,
   MIN_SCALE_FACTOR,
   MIN_WIDTH_MULTIPLIER,
-  MIRRORED_ANGLE,
   NO_BLUR_AMOUNT,
   PINCH_SCALE_SENSITIVITY,
   PRIVACY_BACKGROUND_BLUR_AMOUNT,
@@ -67,6 +55,8 @@ export struct Player { // 播放页
         if (input && input <= 150 && input >= 50) {
           this.player.playAreaHeight = input / 100 * VideoInfoUtil.playAreaHeight
           this.player.playAreaWidth = input / 100 * VideoInfoUtil.playAreaWidth
+          this.subtitleAreaWidth = this.player.playAreaWidth
+          this.subtitleAreaHeight = this.player.playAreaHeight
         } else {
           ToolsUtil.showToast('输入错误，输入范围在50-150之间')
         }
@@ -122,6 +112,8 @@ export struct Player { // 播放页
       this.cancelSubtitleOffsetSession()
     }
   })
+  @Local subtitleAreaWidth: number = 0
+  @Local subtitleAreaHeight: number = 0
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   @Local exitVideoTime: number = 0
   @Local isAdjustingSubtitleOffset: boolean = false
@@ -138,6 +130,7 @@ export struct Player { // 播放页
       this.player.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
       const videoSpeed = Preferences.getVideoSpeed(PathUtils.appContext!)
       this.player.speed = parseFloat(videoSpeed?.replace('x', '') || '1')
+      this.player.selectedText = Preferences.getScreenExtend(PathUtils.appContext!)
       WindowUtil.setBarState(PathUtils.appContext!, false, false)
     } catch (error) {
       ToolsUtil.addLogger(`播放错误 ${error}`, true, this.pathStack)
@@ -198,11 +191,7 @@ export struct Player { // 播放页
         Stack() {
           XComponents({
             xComponentController: this.xComponentController,
-            subtitle: this.player.subtitle,
             choosePlayer: NavigationAddress.AV_PLAYER,
-            hideSubtitle: this.isOffsetSubtitleOverlayActive(),
-            subtitleVisibility: this.subtitleVisibility,
-            subtitle3DMode: this.subtitle3DMode,
             barState: this.player.showControl,
             onXComponentLoad: async () => {
               this.player.surfaceID = this.xComponentController.getXComponentSurfaceId()
@@ -232,6 +221,17 @@ export struct Player { // 播放页
               this.player.volumeActually = newVolume
               VideoOperateUtil.lastVolume = newVolume
             },
+          })
+
+          SubtitleDisplayBuilder({
+            subtitle: this.player.subtitle,
+            screenWidth: this.player.screenWidth,
+            screenHeight: this.player.screenHeight,
+            showControl: this.player.showControl,
+            subTitleVisibility: this.isOffsetSubtitleOverlayActive() ? Visibility.None : this.subtitleVisibility,
+            subtitle3DMode: this.subtitle3DMode,
+            areaWidth: this.subtitleAreaWidth,
+            areaHeight: this.subtitleAreaHeight
           })
 
           if (this.player.showControl && !this.player.isLock) {
@@ -425,7 +425,9 @@ export struct Player { // 播放页
                 screenHeight: this.player.screenHeight,
                 showControl: this.player.showControl,
                 subTitleVisibility: this.subtitleVisibility,
-                subtitle3DMode: this.subtitle3DMode
+                subtitle3DMode: this.subtitle3DMode,
+                areaWidth: this.player.playAreaWidth,
+                areaHeight: this.player.playAreaHeight
               })
             }
             .width(this.player.playAreaWidth)
@@ -446,6 +448,7 @@ export struct Player { // 播放页
           this.player.screenWidth = Math.floor(new Number(newValue.width).valueOf())
           this.player.screenHeight = Math.floor(new Number(newValue.height).valueOf())
           this.player.setRotation()
+          this.applyScreenExtend()
         }).backgroundColor($r('sys.color.black'))
       }
       .showControlButton(false)
@@ -566,6 +569,8 @@ export struct Player { // 播放页
       onSpecificVideoProportions: (playAreaSize: number[]) => {
         this.player.playAreaWidth = playAreaSize[0]
         this.player.playAreaHeight = playAreaSize[1]
+        this.subtitleAreaWidth = playAreaSize[0]
+        this.subtitleAreaHeight = playAreaSize[1]
         this.player.isZoomed = false
         this.player.translateX = 0
         this.player.translateY = 0
@@ -573,6 +578,8 @@ export struct Player { // 播放页
       onOriginalRatio: () => {
         this.player.playAreaHeight = VideoInfoUtil.playAreaHeight
         this.player.playAreaWidth = VideoInfoUtil.playAreaWidth
+        this.subtitleAreaWidth = VideoInfoUtil.playAreaWidth
+        this.subtitleAreaHeight = VideoInfoUtil.playAreaHeight
         this.player.isZoomed = false
         this.player.translateX = 0
         this.player.translateY = 0
@@ -580,6 +587,8 @@ export struct Player { // 播放页
       onStretchedToFullScreen: () => {
         this.player.playAreaHeight = this.player.screenHeight
         this.player.playAreaWidth = this.player.screenWidth
+        this.subtitleAreaWidth = this.player.screenWidth
+        this.subtitleAreaHeight = this.player.screenHeight
         this.player.isZoomed = false
         this.player.translateX = 0
         this.player.translateY = 0
@@ -588,6 +597,8 @@ export struct Player { // 播放页
         this.player.playAreaWidth = this.player.screenWidth
         this.player.playAreaHeight =
           (VideoInfoUtil.playAreaHeight / VideoInfoUtil.playAreaWidth) * this.player.screenWidth
+        this.subtitleAreaWidth = this.player.playAreaWidth
+        this.subtitleAreaHeight = this.player.playAreaHeight
         this.player.isZoomed = false
         this.player.translateX = 0
         this.player.translateY = 0
@@ -596,6 +607,8 @@ export struct Player { // 播放页
         this.player.playAreaHeight = this.player.screenHeight
         this.player.playAreaWidth =
           (VideoInfoUtil.playAreaWidth / VideoInfoUtil.playAreaHeight) * this.player.screenHeight
+        this.subtitleAreaWidth = this.player.playAreaWidth
+        this.subtitleAreaHeight = this.player.playAreaHeight
         this.player.isZoomed = false
         this.player.translateX = 0
         this.player.translateY = 0
@@ -603,12 +616,15 @@ export struct Player { // 播放页
       onUniformScale: (scale: number) => {
         this.player.playAreaHeight = scale * VideoInfoUtil.playAreaHeight
         this.player.playAreaWidth = scale * VideoInfoUtil.playAreaWidth
+        this.subtitleAreaWidth = this.player.playAreaWidth
+        this.subtitleAreaHeight = this.player.playAreaHeight
         this.player.isZoomed = false
         this.player.translateX = 0
         this.player.translateY = 0
       },
       onSelectedTextChange: (text: string) => {
         this.player.selectedText = text
+        Preferences.saveScreenExtend(PathUtils.appContext!, text)
       },
       pipStateChange: () => {
         PiPWindowUtil.startPip()
@@ -795,6 +811,41 @@ export struct Player { // 播放页
   @Builder
   AVCastPickerBuilderBridge() {
     AVCastPickerBuilder()
+  }
+
+  private applyScreenExtend() {
+    const text = this.player.selectedText
+    if (!text || text === '原始比例') {
+      this.subtitleAreaWidth = this.player.playAreaWidth
+      this.subtitleAreaHeight = this.player.playAreaHeight
+      return
+    }
+    if (VideoInfoUtil.ASPECT_RATIO_MAP.has(text)) {
+      const playAreaSize = VideoOperateUtil.setVideoAspectRatio(
+        VideoInfoUtil.ASPECT_RATIO_MAP.get(text)!,
+        VideoInfoUtil.playAreaWidth, VideoInfoUtil.playAreaHeight)
+      this.player.playAreaWidth = playAreaSize[0]
+      this.player.playAreaHeight = playAreaSize[1]
+    } else if (text === '拉伸全屏') {
+      this.player.playAreaWidth = this.player.screenWidth
+      this.player.playAreaHeight = this.player.screenHeight
+    } else if (text === '按宽度全屏') {
+      this.player.playAreaWidth = this.player.screenWidth
+      this.player.playAreaHeight =
+        (VideoInfoUtil.playAreaHeight / VideoInfoUtil.playAreaWidth) * this.player.screenWidth
+    } else if (text === '按高度全屏') {
+      this.player.playAreaHeight = this.player.screenHeight
+      this.player.playAreaWidth =
+        (VideoInfoUtil.playAreaWidth / VideoInfoUtil.playAreaHeight) * this.player.screenHeight
+    } else {
+      const scale = SCALE_FACTORS.get(text)
+      if (scale) {
+        this.player.playAreaWidth = scale * VideoInfoUtil.playAreaWidth
+        this.player.playAreaHeight = scale * VideoInfoUtil.playAreaHeight
+      }
+    }
+    this.subtitleAreaWidth = this.player.playAreaWidth
+    this.subtitleAreaHeight = this.player.playAreaHeight
   }
 
   private isOffsetSubtitleOverlayActive(): boolean {

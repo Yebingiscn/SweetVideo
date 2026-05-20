@@ -84,6 +84,14 @@ declare module 'libmpvnative.so' {
   // ==================== OSD Surface 配置 ====================
   export const setOsdSurface: (surfaceId: string, width: number, height: number) => void;
 
+  // ==================== OSD 等级 ====================
+  // 0=关闭, 1=进度条, 2=进度条+状态, 3=全部(含帧时间等调试信息)
+  export const setOsdLevel: (level: number) => void;
+
+  export const getOsdLevel: () => number;
+
+  export const setGlslShaders: (shaders: string[]) => boolean;
+
   // ==================== 播放完成事件 ====================
   export const registerPlaybackCompleteCallback: (callback: () => void) => void;
 

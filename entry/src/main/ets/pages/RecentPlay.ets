@@ -7,6 +7,7 @@ import { VideoItemBuilder } from '../component/PlayerComponent/PlayerSideBarComp
 import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
 import { DefaultDialogShadow } from '../common/AttributeModifierConfig'
 import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog'
+import { InfoConfirmDialog } from '../component/Dialog/InfoConfirmDialog'
 import DataSyncUtil from '../utils/DataSyncUtil'
 import SelectFileUtil from '../utils/SelectFileUtil'
 import { Context } from '@kit.AbilityKit'
@@ -25,6 +26,27 @@ export struct RecentPlay { // 最近播放页
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
   })
+  deleteConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: InfoConfirmDialog({
+      textInfo: '确定删除该播放记录吗？',
+      confirm: () => {
+        if (this.pendingDeleteItem) {
+          this.delData(PathUtils.appContext!, this.pendingDeleteItem)
+        }
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  deleteAllConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: InfoConfirmDialog({
+      textInfo: '确定清空所有播放记录吗？',
+      confirm: () => {
+        for (const element of this.recent_video_meta_data ?? []) {
+          this.delData(PathUtils.appContext!, element)
+        }
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  private pendingDeleteItem: VideoMetadata | null = null
   private listScroller: Scroller = new Scroller()
 
   async aboutToAppear(): Promise<void> {
@@ -50,7 +72,8 @@ export struct RecentPlay { // 最近播放页
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')),
         content: $r('app.string.delete')
       }).onClick(() => {
-        this.delData(PathUtils.appContext!, item!)
+        this.pendingDeleteItem = item!
+        this.deleteConfirmDialog.open()
       })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
         .onClick(() => {
@@ -175,9 +198,7 @@ export struct RecentPlay { // 最近播放页
               icon: $r('sys.symbol.ohos_trash'),
               isEnabled: true,
               action: () => {
-                for (const element of this.recent_video_meta_data ?? []) {
-                  this.delData(PathUtils.appContext!, element)
-                }
+                this.deleteAllConfirmDialog.open()
               }
             }
           }]

@@ -20,6 +20,7 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import { window } from '@kit.ArkUI'
 import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import { XComponents } from '../../component/PlayerComponent/XComponents'
+import { SubtitleDisplayBuilder } from '../../component/PlayerComponent/SubtitleDisplayBuilder'
 import { VideoLayoutComponent } from '../../component/PlayerComponent/VideoLayoutComponent'
 import {
   DEFAULT_ANGLE,
@@ -35,7 +36,8 @@ import {
   SWIPE_THRESHOLD,
   VERTICAL_PAN_SENSITIVITY,
   VOLUME_PAN_MULTIPLIER,
-  VOLUME_STEP
+  VOLUME_STEP,
+  SCALE_FACTORS
 } from '../../common/Constants'
 import { AISubtitleComponent } from '../../component/PlayerComponent/AIAsrComponent'
 import { PlayerSideBarComponent } from '../../component/PlayerComponent/PlayerSideBarComponent'
@@ -61,6 +63,8 @@ export struct MpvPlayer {
   xComponentController: XComponentController = new XComponentController()
   osdXController: XComponentController = new XComponentController()
   @Local subtitleVisibility: Visibility = Visibility.Visible
+  @Local subtitleAreaWidth: number = 0
+  @Local subtitleAreaHeight: number = 0
   @Local lockRotation: boolean = false
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   @Provider('player') mpv: MpvController = PlayerControllerFactory.createMpvController()
@@ -72,6 +76,8 @@ export struct MpvPlayer {
         if (input && input <= 150 && input >= 50) {
           this.mpv.playAreaHeight = input / 100 * VideoInfoUtil.playAreaHeight
           this.mpv.playAreaWidth = input / 100 * VideoInfoUtil.playAreaWidth
+          this.subtitleAreaWidth = this.mpv.playAreaWidth
+          this.subtitleAreaHeight = this.mpv.playAreaHeight
         } else {
           ToolsUtil.showToast('输入错误')
         }
@@ -84,6 +90,39 @@ export struct MpvPlayer {
   @Local sideBarStatusTmp: Visibility = Visibility.Hidden
   @Local subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
   @Local exitVideoTime: number = 0
+
+  private applyScreenExtend() {
+    const text = this.mpv.selectedText
+    if (!text || text === '原始比例') {
+      this.subtitleAreaWidth = this.mpv.playAreaWidth
+      this.subtitleAreaHeight = this.mpv.playAreaHeight
+      return
+    }
+    if (VideoInfoUtil.ASPECT_RATIO_MAP.has(text)) {
+      const playAreaSize = VideoOperateUtil.setVideoAspectRatio(
+        VideoInfoUtil.ASPECT_RATIO_MAP.get(text)!,
+        VideoInfoUtil.playAreaWidth, VideoInfoUtil.playAreaHeight)
+      this.mpv.playAreaWidth = playAreaSize[0]
+      this.mpv.playAreaHeight = playAreaSize[1]
+    } else if (text === '拉伸全屏') {
+      this.mpv.playAreaWidth = this.mpv.screenWidth
+      this.mpv.playAreaHeight = this.mpv.screenHeight
+    } else if (text === '按宽度全屏') {
+      this.mpv.playAreaWidth = this.mpv.screenWidth
+      this.mpv.playAreaHeight = (VideoInfoUtil.playAreaHeight / VideoInfoUtil.playAreaWidth) * this.mpv.screenWidth
+    } else if (text === '按高度全屏') {
+      this.mpv.playAreaHeight = this.mpv.screenHeight
+      this.mpv.playAreaWidth = (VideoInfoUtil.playAreaWidth / VideoInfoUtil.playAreaHeight) * this.mpv.screenHeight
+    } else {
+      const scale = SCALE_FACTORS.get(text)
+      if (scale) {
+        this.mpv.playAreaWidth = scale * VideoInfoUtil.playAreaWidth
+        this.mpv.playAreaHeight = scale * VideoInfoUtil.playAreaHeight
+      }
+    }
+    this.subtitleAreaWidth = this.mpv.playAreaWidth
+    this.subtitleAreaHeight = this.mpv.playAreaHeight
+  }
 
   async aboutToAppear(): Promise<void> {
     this.mpv.prepare()
@@ -98,6 +137,7 @@ export struct MpvPlayer {
     this.mpv.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
     const videoSpeed = Preferences.getVideoSpeed(PathUtils.appContext!)
     this.mpv.speed = parseFloat(videoSpeed?.replace('x', '') || '1')
+    this.mpv.selectedText = Preferences.getScreenExtend(PathUtils.appContext!)
     WindowUtil.enableLandscapeMultiWindow(this.mpv.windowClass)
     this.mpv.initVolumeAndBrightness()
   }
@@ -142,8 +182,6 @@ export struct MpvPlayer {
             libraryName: 'mpvnative',
             choosePlayer: NavigationAddress.MPV_PLAYER,
             barState: this.mpv.showControl,
-            subtitle3DMode: this.subtitle3DMode,
-            subtitleVisibility: this.subtitleVisibility,
             osdXController: this.osdXController,
             osdVisibility: this.mpv.osdVisibility,
             onXComponentLoad: async () => {
@@ -182,6 +220,17 @@ export struct MpvPlayer {
               this.mpv.osdSurfaceId = surfaceId
               this.mpv.setOsdSurface(surfaceId, this.mpv.playAreaWidth, this.mpv.playAreaHeight)
             },
+          })
+
+          SubtitleDisplayBuilder({
+            subtitle: this.mpv.subtitle,
+            screenWidth: this.mpv.screenWidth,
+            screenHeight: this.mpv.screenHeight,
+            showControl: this.mpv.showControl,
+            subTitleVisibility: this.subtitleVisibility,
+            subtitle3DMode: this.subtitle3DMode,
+            areaWidth: this.subtitleAreaWidth,
+            areaHeight: this.subtitleAreaHeight
           })
 
           if (this.mpv.showControl && !this.mpv.isLock) {
@@ -374,6 +423,7 @@ export struct MpvPlayer {
           this.mpv.screenWidth = Math.floor(new Number(newValue.width).valueOf())
           this.mpv.screenHeight = Math.floor(new Number(newValue.height).valueOf())
           this.mpv.setRotation()
+          this.applyScreenExtend()
         })
         .height('100%')
         .width('100%')
@@ -484,6 +534,8 @@ export struct MpvPlayer {
       onSpecificVideoProportions: (playAreaSize: number[]) => {
         this.mpv.playAreaWidth = playAreaSize[0]
         this.mpv.playAreaHeight = playAreaSize[1]
+        this.subtitleAreaWidth = playAreaSize[0]
+        this.subtitleAreaHeight = playAreaSize[1]
         this.mpv.isZoomed = false
         this.mpv.translateX = 0
         this.mpv.translateY = 0
@@ -492,6 +544,8 @@ export struct MpvPlayer {
         this.mpv.setKeepAspectStatus(true)
         this.mpv.playAreaHeight = VideoInfoUtil.playAreaHeight
         this.mpv.playAreaWidth = VideoInfoUtil.playAreaWidth
+        this.subtitleAreaWidth = VideoInfoUtil.playAreaWidth
+        this.subtitleAreaHeight = VideoInfoUtil.playAreaHeight
         this.mpv.isZoomed = false
         this.mpv.translateX = 0
         this.mpv.translateY = 0
@@ -500,6 +554,8 @@ export struct MpvPlayer {
         this.mpv.setKeepAspectStatus(false)
         this.mpv.playAreaHeight = this.mpv.screenHeight
         this.mpv.playAreaWidth = this.mpv.screenWidth
+        this.subtitleAreaWidth = this.mpv.screenWidth
+        this.subtitleAreaHeight = this.mpv.screenHeight
         this.mpv.isZoomed = false
         this.mpv.translateX = 0
         this.mpv.translateY = 0
@@ -507,6 +563,8 @@ export struct MpvPlayer {
       onFullScreenByWidth: () => {
         this.mpv.playAreaWidth = this.mpv.screenWidth
         this.mpv.playAreaHeight = (VideoInfoUtil.playAreaHeight / VideoInfoUtil.playAreaWidth) * this.mpv.screenWidth
+        this.subtitleAreaWidth = this.mpv.playAreaWidth
+        this.subtitleAreaHeight = this.mpv.playAreaHeight
         this.mpv.isZoomed = false
         this.mpv.translateX = 0
         this.mpv.translateY = 0
@@ -514,6 +572,8 @@ export struct MpvPlayer {
       onFullScreenByHeight: () => {
         this.mpv.playAreaHeight = this.mpv.screenHeight
         this.mpv.playAreaWidth = (VideoInfoUtil.playAreaWidth / VideoInfoUtil.playAreaHeight) * this.mpv.screenHeight
+        this.subtitleAreaWidth = this.mpv.playAreaWidth
+        this.subtitleAreaHeight = this.mpv.playAreaHeight
         this.mpv.isZoomed = false
         this.mpv.translateX = 0
         this.mpv.translateY = 0
@@ -521,12 +581,15 @@ export struct MpvPlayer {
       onUniformScale: (scale: number) => {
         this.mpv.playAreaHeight = scale * VideoInfoUtil.playAreaHeight
         this.mpv.playAreaWidth = scale * VideoInfoUtil.playAreaWidth
+        this.subtitleAreaWidth = this.mpv.playAreaWidth
+        this.subtitleAreaHeight = this.mpv.playAreaHeight
         this.mpv.isZoomed = false
         this.mpv.translateX = 0
         this.mpv.translateY = 0
       },
       onSelectedTextChange: (text: string) => {
         this.mpv.selectedText = text
+        Preferences.saveScreenExtend(PathUtils.appContext!, text)
       },
       pipStateChange: () => {
         PiPWindowUtil.startPip()

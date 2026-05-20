@@ -185,7 +185,10 @@ export class AVPlayerController implements PlayerControllerInterface {
       }
       if (this.subtitleSelected === SubtitleMode.INNER_SUBTITLE) {
         if (info) {
-          const text = info.text ?? ''
+          const text = (info.text ?? '')
+            .replace(/\\[Nn]/g, '\n')
+            .replace(/\{[^}]*\}/g, '')
+            .replace(/<[^>]*>/g, '')
           const duration = info.duration ?? 0
           this.subtitle = text
           if (duration > 0) {
@@ -501,9 +504,6 @@ export class AVPlayerController implements PlayerControllerInterface {
       this.playAreaHeight = this.screenHeight
       this.playAreaWidth = this.playAreaHeight * (nowWidth / nowHeight)
     }
-    if (this.selectedText !== '原始比例') {
-      this.selectedText = '原始比例'
-    }
     VideoInfoUtil.saveOriginalVideoWidthAndHeight(this.playAreaWidth, this.playAreaHeight)
     ToolsUtil.addLogger("setRotation方法执行完成", false)
   }
@@ -522,6 +522,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   async setAVPlayerProperties() {
     this.avPlayer!.surfaceId = this.surfaceID
     this.avPlayer?.setPlaybackStrategy({
+      preferredBufferDurationForPlaying: 20,
       showFirstFrameOnPrepare: true,
       enableSuperResolution: true,
       preferredHdr: true
@@ -594,7 +595,8 @@ export class AVPlayerController implements PlayerControllerInterface {
       }
       const endTime = this.nowPlaying?.end_time
       if (endTime != null && duration >= endTime && endTime > 0 && this.repeatMode !== SweetRepeatMode.SINGLE) {
-        ToolsUtil.addLogger(`检测到视频片尾，准备播放下一个视频，满足条件为: endTime: ${endTime}, repeatMode: ${this.repeatMode}, duration: ${duration}`,
+        ToolsUtil.addLogger(
+          `检测到视频片尾，准备播放下一个视频，满足条件为: endTime: ${endTime}, repeatMode: ${this.repeatMode}, duration: ${duration}`,
           false, pathStack)
         this.playNextVideoProcess(pathStack, windowClass)
         this.setPlayerCallback(pathStack, xComponentController, windowClass)

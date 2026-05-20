@@ -1,7 +1,8 @@
+import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuItem'
 import { SettingsSegmentButtonItem } from '../../component/SettingComponent/SettingsSegmentButtonItem'
 import { SettingsSliderItem } from '../../component/SettingComponent/SettingsSliderItem'
-import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuItem'
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
+import { MpvController } from '../../controller/MpvController/MpvController'
 import { MpvDecodingMethod } from '../../controller/MpvController/MpvTypes'
 import Preferences from '../../database/Preferences'
 import { FastForwardSecondInterface } from '../../interfaces/FastForwardSecondInterface'
@@ -108,6 +109,19 @@ export struct PlayerSettingPage {
             onChange: (checked: boolean) => {
               Setting.superResolutionState = checked
               Preferences.saveSuperResolutionState(PathUtils.appContext!, Setting.superResolutionState)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsSegmentButtonItem({
+            symbol: $r('sys.symbol.wand_and_stars'),
+            message: 'MPV 画质增强（surface 模式下不可用）',
+            tips: MpvController.getShaderModeNames(),
+            tabSelectedIndex: Setting.mpvShaderMode,
+            onButtonClick: (tabSelectedIndex: number) => {
+              Setting.mpvShaderMode = tabSelectedIndex
+              Preferences.saveMpvShaderMode(PathUtils.appContext!, tabSelectedIndex)
             }
           })
         }

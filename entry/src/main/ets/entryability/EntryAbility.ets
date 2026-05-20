@@ -127,11 +127,9 @@ export default class EntryAbility extends UIAbility {
       }
       VideoOperateUtil.windowStage = windowStage
       hilog.info(0x0000, 'testTag', 'Succeeded in loading the content.')
-    })
-    // 是否进入后台
-    if (VideoOperateUtil.windowStage) {
+      // 是否进入后台
       try {
-        VideoOperateUtil.windowStage.on('windowStageEvent', async (windowEvent) => {
+        windowStage.on('windowStageEvent', async (windowEvent) => {
           if (!PrivacySpaceUtil.getPrivacyMode()) {
             return
           }
@@ -156,7 +154,7 @@ export default class EntryAbility extends UIAbility {
       } catch (error) {
         salmonLogger.addLog(TAG, 'windowStageEvent error' + error, true)
       }
-    }
+    })
   }
 
   onWindowStageWillDestroy(): void {

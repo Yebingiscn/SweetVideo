@@ -279,6 +279,14 @@ export default class Preferences {
     return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'superResolutionState', false) as boolean
   }
 
+  static saveMpvShaderMode(context: Context, mpvShaderMode: number) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpvShaderMode', mpvShaderMode)
+  }
+
+  static getMpvShaderMode(context: Context): number {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'mpvShaderMode', 0) as number
+  }
+
   static getSortField(context: Context): string {
     return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'sortField', '') as string
   }
@@ -349,5 +357,13 @@ export default class Preferences {
 
   static saveUserIdToken(context: Context, idToken: string) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'userIdToken', idToken)
+  }
+
+  static saveScreenExtend(context: Context, screenExtend: string) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'screenExtend', screenExtend)
+  }
+
+  static getScreenExtend(context: Context): string {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'screenExtend', '原始比例') as string
   }
 }

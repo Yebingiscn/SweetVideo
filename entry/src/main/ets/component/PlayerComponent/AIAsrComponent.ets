@@ -16,10 +16,10 @@ export struct AISubtitleComponent {
       this.captionOption = {
         initialOpacity: 0.5,
         onPrepared: () => {
-          salmonLogger.addLog(TAG, 'test AI字幕组件准备就绪', true)
+          salmonLogger.addLog(TAG, '流心 ASREngine准备就绪', true)
         },
         onError: (error: BusinessError) => {
-          salmonLogger.addLog(TAG, `test AI字幕组件错误。错误码: ${error.code}, 消息: ${error.message}`, true)
+          salmonLogger.addLog(TAG, `流心 ASREngine错误。错误码: ${error.code}, 消息: ${error.message}`, true)
         }
       }
     }

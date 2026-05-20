@@ -1,6 +1,5 @@
 import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import { Setting } from '../../utils/ObservedUtil'
-import VideoInfoUtil from '../../utils/VideoInfoUtil'
 
 class SubtitleDisplayValue {
   subtitle: string = ''
@@ -9,6 +8,8 @@ class SubtitleDisplayValue {
   showControl: boolean = false
   subTitleVisibility: Visibility = Visibility.None
   subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
+  areaWidth: number = 0
+  areaHeight: number = 0
 }
 
 @Builder
@@ -51,14 +52,14 @@ export function SubtitleDisplayBuilder(subtitleDisplayValue: SubtitleDisplayValu
       }
       .justifyContent(FlexAlign.SpaceBetween)
       .width("100%")
-      .height(VideoInfoUtil.playAreaHeight)
+      .height("100%")
     }
   }
   .visibility(subtitleDisplayValue.subTitleVisibility)
-  .width(VideoInfoUtil.playAreaWidth)
-  .height(subtitleDisplayValue.subtitle3DMode === Subtitle3DMode.TOP_AND_BOTTOM ?
-    VideoInfoUtil.playAreaHeight : VideoInfoUtil.playAreaHeight)
+  .width(subtitleDisplayValue.areaWidth)
+  .height(subtitleDisplayValue.areaHeight)
   .justifyContent(FlexAlign.End)
+  .hitTestBehavior(HitTestMode.Transparent)
   .animation({ duration: 300, curve: Curve.Smooth })
 }
 
@@ -68,7 +69,7 @@ function subtitleTextExtend() {
   .fontSize(Setting.subtitleSize)
   .fontWeight(FontWeight.Medium)
   .textAlign(TextAlign.Center)
-  .fontWeight(FontWeight.Normal) // 常规字重更清晰
+  .fontWeight(FontWeight.Normal)
   .textShadow({ color: Color.Black, type: ShadowType.BLUR, radius: 6 })
-  .opacity(0.95) // 轻微透明度
+  .opacity(0.95)
 }

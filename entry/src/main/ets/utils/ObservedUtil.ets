@@ -21,6 +21,7 @@ class SettingUtil {
   public listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
   public coverLayout: CoverLayoutMode = CoverLayoutMode.VERTICAL_PLATE
   public mpvDecodingMethod: MpvDecodingMethod = MpvDecodingMethod.HARDWARE_SURFACE
+  public mpvShaderMode: number = 0
   public superResolutionState: boolean = false
   public smartRotation: boolean = true
   public longPressSpeed: number = 3

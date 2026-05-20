@@ -67,8 +67,8 @@ QQ群：973792610
 
 | 系统播放器(avplayer)         | MPV 播放器     |
 |-------------------------|-------------|
-| 支持格式较少，不支持杜比/DTS 音轨     | 支持内嵌字幕，格式丰富 | 
-| 支持 HDR/Audio Vivid，流畅省电 | 部分功能尚不支持    | 
+| 支持格式较少，不支持杜比/DTS 音轨     | 部分功能支持不完全   | 
+| 支持 HDR/Audio Vivid，流畅省电 | 支持内嵌字幕，格式丰富 | 
 
 ## 支持的视频 / 音乐格式
 
@@ -103,6 +103,9 @@ QQ群：973792610
 - Fpark
 - hrbattery
 - frezs
+- ErBW_s
+- MMMMIE
+- luhongwei123
 
 ## 流心播放器由以下开源项目或开源组件提供支持
 
@@ -116,7 +119,8 @@ QQ群：973792610
 - [REDPlayer](https://github.com/RTE-Dev/REDPlayer)
 - [subtitles](https://ohpm.openharmony.cn/#/cn/detail/@dove%2Fsubtitles)
 - [juniversalchardet](https://ohpm.openharmony.cn/#/cn/detail/@ohos%2Fjuniversalchardet)
-- mpv
+- [mpv](https://github.com/dex2oat/mpv)
+- [kazumi](https://github.com/ErBWs/Kazumi)
 
 ## 赞助作者
 
@@ -126,6 +130,9 @@ QQ群：973792610
 
 ### 赞助感谢
 
+- 爱发电用户_8d309
+- teemo
+- 爱发电用户_9b80c
 - CowBoy
 - 羽
 - 无名

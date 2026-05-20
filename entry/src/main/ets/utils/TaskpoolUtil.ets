@@ -21,6 +21,9 @@ async function checkUriAvailable(fileFolderList: FileFolder[]): Promise<VideoMet
       if (SelectFileUtil.isPathFromSource(video.uri, VideoSource.EXTERNAL_DEVICE)) {
         continue
       }
+      if (/^https?:\/\//i.test(video.uri) || /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(video.uri)) {
+        continue
+      }
       videosToCheck.push(video)
     }
   }

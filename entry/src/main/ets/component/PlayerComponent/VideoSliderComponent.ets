@@ -5,8 +5,10 @@ import TimeUtil from '../../utils/TimeUtil'
 @ComponentV2
 export struct VideoSliderComponent {
   @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
-  @Event onSliderChange: (_value: number) => void = () => {}
-  @Event onSliderTouch: (_event: TouchEvent) => void = () => {}
+  @Event onSliderChange: (_value: number) => void = () => {
+  }
+  @Event onSliderTouch: (_event: TouchEvent) => void = () => {
+  }
 
   build() {
     Column() {
@@ -17,14 +19,16 @@ export struct VideoSliderComponent {
           .fontSize(16)
           .fontColor($r('sys.color.white'))
           .textAlign(TextAlign.Start)
-          .opacity(0.8)
+          .opacity(0.9)
+          .textShadow({ color: Color.Black, type: ShadowType.BLUR, radius: 4 })
 
         Text(TimeUtil.getRemainTime(this.player.playTime, this.player.nowPlaying?.time || 0, this.player.speed))
           .fontWeight(FontWeight.Medium)
           .fontSize(16)
           .fontColor($r('sys.color.white'))
           .textAlign(TextAlign.End)
-          .opacity(0.8)
+          .opacity(0.9)
+          .textShadow({ color: Color.Black, type: ShadowType.BLUR, radius: 4 })
       }.width('100%').height('auto')
       .justifyContent(FlexAlign.SpaceBetween)
 
@@ -47,7 +51,7 @@ export struct VideoSliderComponent {
         .selectedColor('#e0e0e0')
         .height('auto')
         .width('100%')
-        .opacity(0.8)
+        .opacity(0.9)
     }.height('auto').width('90%')
   }
 }

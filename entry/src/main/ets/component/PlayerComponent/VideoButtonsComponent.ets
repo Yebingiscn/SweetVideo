@@ -142,7 +142,8 @@ export struct VideoButtonsComponent {
           .fontColor($r('sys.color.white'))
           .maxLines(1)
           .padding(5)
-          .opacity(0.8)
+          .opacity(0.9)
+          .textShadow({ color: Color.Black, type: ShadowType.BLUR, radius: 3 })
       }
       .circleButton()
       .bindMenu(this.playbackSpeedMenu,
