@@ -22,7 +22,7 @@ const TAG = 'DataUtil'
 // 基础数据源抽象类（泛型实现）
 @ObservedV2
 abstract class BaseDataSource<T> implements IDataSource {
-  @Trace protected data: T[]
+  @Trace public data: T[]
   private listeners: DataChangeListener[] = []
 
   constructor(data: T[]) {
@@ -101,7 +101,7 @@ export class DeletedVideosDataSource extends BaseDataSource<VideoMetadata> {
 }
 
 @ObservedV2
-export class PrivacySpaceErrorListDataSource extends BaseDataSource<String> {
+export class PrivacySpaceErrorListDataSource extends BaseDataSource<string> {
 }
 
 @ObservedV2

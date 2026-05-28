@@ -1,21 +1,10 @@
 import { VideoDataSource } from '../utils/DataUtil'
-import RecentPlayUtil from '../utils/RecentPlayUtil'
-import ToolsUtil from '../utils/ToolsUtil'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { PathUtils } from '../utils/PathUtils'
-import { VideoItemBuilder } from '../component/PlayerComponent/PlayerSideBarComponent'
-import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
 import { DefaultDialogShadow } from '../common/AttributeModifierConfig'
 import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog'
 import { InfoConfirmDialog } from '../component/Dialog/InfoConfirmDialog'
-import DataSyncUtil from '../utils/DataSyncUtil'
-import SelectFileUtil from '../utils/SelectFileUtil'
 import { Context } from '@kit.AbilityKit'
-import { SafeHeight, Setting } from '../utils/ObservedUtil'
-import { DELAY_JUMP_TO_PLAYER } from '../common/Constants'
-import VideoOperateUtil from '../utils/VideoOperateUtil'
-import { VideoItemPreviewBuilder } from '../component/VideoItemComponent/VideoItemPreviewBuilder'
-import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 
 @ComponentV2
 export struct RecentPlay { // 最近播放页
@@ -25,16 +14,6 @@ export struct RecentPlay { // 最近播放页
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
-  })
-  deleteConfirmDialog: CustomDialogController = new CustomDialogController({
-    builder: InfoConfirmDialog({
-      textInfo: '确定删除该播放记录吗？',
-      confirm: () => {
-        if (this.pendingDeleteItem) {
-          this.delData(PathUtils.appContext!, this.pendingDeleteItem)
-        }
-      }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   deleteAllConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog({
@@ -47,6 +26,16 @@ export struct RecentPlay { // 最近播放页
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   private pendingDeleteItem: VideoMetadata | null = null
+  deleteConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: InfoConfirmDialog({
+      textInfo: '确定删除该播放记录吗？',
+      confirm: () => {
+        if (this.pendingDeleteItem) {
+          this.delData(PathUtils.appContext!, this.pendingDeleteItem)
+        }
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
   private listScroller: Scroller = new Scroller()
 
   async aboutToAppear(): Promise<void> {
@@ -123,46 +112,52 @@ export struct RecentPlay { // 最近播放页
         }
 
         List({ scroller: this.listScroller, space: 10 }) {
-          LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
-            ListItem() {
-              VideoItemBuilder({ item: item, showProgress: true })
-            }
-            .onClick(async () => {
-              await this.clickItem(item, VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
+          Repeat<VideoMetadata>(this.videoDataSource.data)
+            .each((repeatItem: RepeatItem<VideoMetadata>) => {
+              ListItem() {
+                VideoItemBuilder({ item: repeatItem.item, showProgress: true })
+              }
+              .onClick(async () => {
+                await this.clickItem(repeatItem.item,
+                  VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
+              })
+              .backgroundColor($r('app.color.start_window_background'))
+              .width('100%')
+              .height('auto')
+              .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
+              .borderRadius(16)
+              .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress,
+                {
+                  preview: VideoItemPreviewBuilder(repeatItem.item),
+                  previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
+                  layoutRegionMargin: {
+                    left: 16,
+                    right: 16,
+                    top: 16,
+                    bottom: 4
+                  },
+                  backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+                  hapticFeedbackMode: HapticFeedbackMode.ENABLED,
+                  mask: true
+                })
+              .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.RightClick,
+                {
+                  preview: VideoItemPreviewBuilder(repeatItem.item),
+                  previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
+                  layoutRegionMargin: {
+                    left: 16,
+                    right: 16,
+                    top: 16,
+                    bottom: 4
+                  },
+                  backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+                  mask: true
+                })
             })
-            .backgroundColor($r('app.color.start_window_background'))
-            .width('100%')
-            .height('auto')
-            .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
-            .borderRadius(16)
-            .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
-              {
-                preview: VideoItemPreviewBuilder(item),
-                previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
-                layoutRegionMargin: {
-                  left: 16,
-                  right: 16,
-                  top: 16,
-                  bottom: 4
-                },
-                backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-                hapticFeedbackMode: HapticFeedbackMode.ENABLED,
-                mask: true
-              })
-            .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
-              {
-                preview: VideoItemPreviewBuilder(item),
-                previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
-                layoutRegionMargin: {
-                  left: 16,
-                  right: 16,
-                  top: 16,
-                  bottom: 4
-                },
-                backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-                mask: true
-              })
-          }, (item: VideoMetadata) => item.date + item.title + item.last_play + item.size.toString() + item.time)
+            .key(
+              (item: VideoMetadata, _index: number) => item.date + item.title + item.last_play + item.size.toString() +
+                item.time)
+            .virtualScroll()
         }
         .clip(false)
         .layoutWeight(1)
@@ -172,7 +167,6 @@ export struct RecentPlay { // 最近播放页
         .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
         .chainAnimation(true)
         .scrollBar(BarState.Off)
-        .cachedCount(3)
       }
     }
     .onShown(() => {
@@ -259,9 +253,10 @@ export struct RecentPlay { // 最近播放页
     })
     .padding({ top: SafeHeight.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
-    .backgroundImage(Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(
+      Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ? Setting.backgroundBlurImageSrc :
+        Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
-    .backdropBlur(Setting.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
     .bindToScrollable([this.listScroller]) // 绑定导航组件和可滚动容器组件
     .dynamicHideTitleBar({

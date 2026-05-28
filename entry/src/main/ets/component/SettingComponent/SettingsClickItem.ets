@@ -1,12 +1,13 @@
-import { SymbolGlyphFancyModifier } from "../../common/AttributeModifierConfig"
 
 @ComponentV2
 export struct SettingsClickItem {
   @Param symbol: Resource | undefined = undefined
   @Param message: ResourceStr = ''
   @Param showArrow: boolean = true
-  @Event onPress: () => void = () => {}
-  @Event onLongPress: () => void = () => {}
+  @Event onPress: () => void = () => {
+  }
+  @Event onLongPress: () => void = () => {
+  }
 
   build() {
     Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -20,10 +21,7 @@ export struct SettingsClickItem {
             Stack()
           }
           Text(this.message)
-            .fontSize(17)
-            .fontWeight(FontWeight.Medium)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.MARQUEE })
+            .attributeModifier(new SettingsTitleModifier())
             .layoutWeight(1)
         }.layoutWeight(1)
 
@@ -41,15 +39,7 @@ export struct SettingsClickItem {
     .gesture(LongPressGesture().onAction(() => {
       this.onLongPress()
     }))
-    .backgroundColor($r('app.color.start_window_background_blur'))
+    .attributeModifier(new SettingsItemModifier())
     .height(55)
-    .borderRadius(16)
-    .padding({
-      right: 15,
-      left: 15,
-      top: 10,
-      bottom: 10
-    })
-    .margin({ top: 5, bottom: 5 })
   }
 }

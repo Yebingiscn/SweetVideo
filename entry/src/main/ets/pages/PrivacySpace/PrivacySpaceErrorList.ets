@@ -1,20 +1,11 @@
-import { salmonLogger } from 'salmonlogger'
-import { ImageFancyModifier, MenuFancyModifier } from '../../common/AttributeModifierConfig'
-import Preferences from '../../database/Preferences'
 import { PrivacySpaceErrorListDataSource } from '../../utils/DataUtil'
-import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
-import { PathUtils } from '../../utils/PathUtils'
-import SelectFileUtil from '../../utils/SelectFileUtil'
-import { fileIo, fileUri } from '@kit.CoreFileKit'
-import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
-import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 
 const TAG = 'PrivacySpaceErrorList'
 
 @ComponentV2
 export struct PrivacySpaceErrorList {
   @Local errorListDataSource: PrivacySpaceErrorListDataSource = new PrivacySpaceErrorListDataSource([])
-  @Local videoList: String[] = []
+  @Local videoList: string[] = []
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   private listScroller: Scroller = new Scroller()
 
@@ -92,43 +83,45 @@ export struct PrivacySpaceErrorList {
             .width('90%').height('100%')
         } else {
           List({ scroller: this.listScroller, space: 10 }) {
-            LazyForEach(this.errorListDataSource, (errorVideo: string) => {
-              ListItem() {
-                this.VideoItemBuilder(errorVideo)
-              }
-              .width('100%')
-              .height('auto')
-              .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-              .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
-              .bindContextMenu(this.MenuBuilder(errorVideo), ResponseType.LongPress, {
-                backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
-                preview: this.VideoItemBuilder(errorVideo),
-                previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
-                layoutRegionMargin: {
-                  left: 16,
-                  right: 16,
-                  top: 16,
-                  bottom: 4
-                },
-                mask: true,
-                hapticFeedbackMode: HapticFeedbackMode.ENABLED
+            Repeat<string>(this.errorListDataSource.data)
+              .each((repeatItem: RepeatItem<string>) => {
+                ListItem() {
+                  this.VideoItemBuilder(repeatItem.item)
+                }
+                .width('100%')
+                .height('auto')
+                .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+                .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
+                .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress, {
+                  backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
+                  preview: this.VideoItemBuilder(repeatItem.item),
+                  previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
+                  layoutRegionMargin: {
+                    left: 16,
+                    right: 16,
+                    top: 16,
+                    bottom: 4
+                  },
+                  mask: true,
+                  hapticFeedbackMode: HapticFeedbackMode.ENABLED
+                })
+                .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.RightClick, {
+                  backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
+                  preview: this.VideoItemBuilder(repeatItem.item),
+                  previewAnimationOptions: { hoverScale: [1.0, 1.2] },
+                  layoutRegionMargin: {
+                    left: 16,
+                    right: 16,
+                    top: 16,
+                    bottom: 4
+                  },
+                  mask: true
+                })
               })
-              .bindContextMenu(this.MenuBuilder(errorVideo), ResponseType.RightClick, {
-                backgroundBlurStyle: BlurStyle.BACKGROUND_ULTRA_THICK,
-                preview: this.VideoItemBuilder(errorVideo),
-                previewAnimationOptions: { hoverScale: [1.0, 1.2] },
-                layoutRegionMargin: {
-                  left: 16,
-                  right: 16,
-                  top: 16,
-                  bottom: 4
-                },
-                mask: true
-              })
-            }, (errorVideo: string) => errorVideo)
+              .key((item: string, _index: number) => item)
+              .virtualScroll()
           }
           .clip(false)
-          .cachedCount(3)
           .layoutWeight(1)
           .padding({ left: 20, right: 20 })
           .width('100%')
@@ -206,10 +199,11 @@ export struct PrivacySpaceErrorList {
     })
     .padding({ top: SafeHeight.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
-    .backgroundImage(Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(
+      Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ? Setting.backgroundBlurImageSrc :
+        Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)
-    .backdropBlur(Setting.backgroundDropBlur)
     .blur(Privacy.isPrivacyBackground ? 1000 : 0)
     .dynamicHideTitleBar({
       hideTitleArea: true,

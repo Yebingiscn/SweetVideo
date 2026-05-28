@@ -11,6 +11,7 @@ export struct VideoTopComponent {
   @Param subTitleVisibility: Visibility = Visibility.None
   @BuilderParam audioTrackMenuBuilder: () => void
   @BuilderParam subtitlePanelComponent: () => void
+  @BuilderParam chapterMenuBuilder: () => void
   @Param lockRotation: boolean = false
   @Event onLockRotationClick: () => Promise<void> = async () => {
   }
@@ -102,6 +103,20 @@ export struct VideoTopComponent {
           { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
       }
 
+      if (this.player instanceof MpvController && this.player.chapterList.length > 0) {
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph($r('sys.symbol.list_bullet'))
+            .fontSize(27)
+            .fontColor(['#f0f0f0'])
+            .opacity(0.8)
+        }
+        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+        .attributeModifier(new ButtonFancyModifier(40, 40))
+        .backgroundColor('#50000000')
+        .bindMenu(this.chapterMenuBuilder,
+          { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
+      }
+
       // 5. 屏幕扩展选择器 (仅在横屏显示)
       if (this.player.screenWidth > this.player.screenHeight) {
         Select(SCREEN_EXTEND_LIST)
@@ -131,20 +146,6 @@ export struct VideoTopComponent {
       .onClick(async () => {
         await this.onLockRotationClick()
       })
-
-      // 7. 播放器类型标识
-      Text(this.player instanceof MpvController ? 'MPV播放器' : '系统播放器')
-        .fontSize(14)
-        .fontColor($r('sys.color.white'))
-        .opacity(0.6)
-        .padding({
-          left: 6,
-          right: 6,
-          top: 2,
-          bottom: 2
-        })
-        .borderRadius(4)
-        .backgroundColor($r('app.color.main_color'))
     }
     .padding({ left: 8, right: 8 })
     .width('100%')

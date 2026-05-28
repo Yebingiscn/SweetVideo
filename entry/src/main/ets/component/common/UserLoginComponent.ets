@@ -8,6 +8,7 @@ import { PathUtils } from '../../utils/PathUtils';
 import Preferences from '../../database/Preferences';
 import AccountUtil from '../../utils/AccountUtil';
 import SelectFileUtil from '../../utils/SelectFileUtil';
+import { DANGER_COLOR } from '../../common/Constants';
 import { SafeHeight } from '../../utils/ObservedUtil';
 
 @Builder
@@ -126,7 +127,7 @@ struct userLoginComponent {
           Button('退出登录')
             .fontColor(Color.White)
             .fontSize(15)
-            .backgroundColor('#FF4D4F')
+            .backgroundColor(DANGER_COLOR)
             .align(Alignment.Center)
             .margin({ top: 10, bottom: 10 })
             .onClick(async () => {

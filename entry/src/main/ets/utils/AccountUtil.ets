@@ -14,7 +14,6 @@ import fileUri from '@ohos.file.fileuri'
 export default class AccountUtil {
   // 错误处理
   static dealAllError(error: BusinessError): void {
-    console.log(`Liquid:Failed to login, errorCode=${error.code}, errorMsg=${error.message}`)
     // 在应用登录涉及UI交互场景下，建议按照如下错误码指导提示用户
     if (error.code === LoginWithHWErrorCode.ERROR_CODE_LOGIN_OUT) {
       // 用户未登录华为账号，请登录华为账号并重试或者尝试使用其他方式登录
@@ -24,7 +23,7 @@ export default class AccountUtil {
       ToolsUtil.showToast('网络异常，请检查当前网络状态并重试或者尝试使用其他方式登录')
     } else if (error.code === LoginWithHWErrorCode.ERROR_CODE_INTERNAL_ERROR) {
       // 登录失败，请尝试使用其他方式登录
-      ToolsUtil.showToast('登录失败，请尝试使用其他方式登录')
+      ToolsUtil.showToast('登录失败，请重试')
     } else if (error.code === LoginWithHWErrorCode.ERROR_CODE_USER_CANCEL) {
       // 用户取消授权
       ToolsUtil.showToast('用户取消授权')
@@ -37,8 +36,7 @@ export default class AccountUtil {
       ToolsUtil.showToast('请阅读并同意华为账号协议')
       // this.startAnimation()
     } else {
-      ToolsUtil.showToast('应用登录失败，请尝试使用其他方式登录')
-      // 应用登录失败，请尝试使用其他方式登录
+      ToolsUtil.showToast('应用登录失败，请重试')
     }
   }
 
@@ -61,10 +59,8 @@ export default class AccountUtil {
         const authorizationWithHuaweiIDResponse = data as authentication.AuthorizationWithHuaweiIDResponse
         const state = authorizationWithHuaweiIDResponse.state
         if (state && authRequest.state !== state) {
-          console.log(`Liquid:Failed to authorize. The state is different, response state: ${state}`)
           return
         }
-        console.log(`Liquid:Succeeded in authentication.`)
         const authorizationWithHuaweiIDCredential = authorizationWithHuaweiIDResponse?.data
         const avatarUri = authorizationWithHuaweiIDCredential?.avatarUri
         const nickName = authorizationWithHuaweiIDCredential?.nickName
@@ -90,7 +86,6 @@ export default class AccountUtil {
         expectDataType: http.HttpDataType.ARRAY_BUFFER
       }, (error: BusinessError, data: http.HttpResponse) => {
         if (error) {
-          console.error(`请求失败: ${error.code}, ${error.message}`)
           reject(error)
         } else {
           let imgData: ArrayBuffer = data.result as ArrayBuffer

@@ -5,6 +5,7 @@ import { UIUtils } from '@kit.ArkUI'
 
 class SettingUtil {
   public backgroundImageSrc: string = ''
+  public backgroundBlurImageSrc: string = ''
   public backgroundDropBlur: number = 0
   public backgroundColorMode: BackgroundColorMode = BackgroundColorMode.AUTO
   public enableBackgroundDarkImage: boolean = false

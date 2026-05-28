@@ -3,16 +3,13 @@ export interface AudioTrack {
   index: number
   language: string
   name: string
-  mime: string
+  mime: string,
+  channelCount: number,
 }
 
 export interface SubtitleTrack {
-  /** 轨道 ID */
-  id: number;
-
-  /** 轨道标题 */
-  title: string;
-
-  /** 语言代码 (如 'en', 'zh', 'ja') */
-  lang: string;
+  id: number
+  title: string
+  lang: string
+  external?: boolean
 }

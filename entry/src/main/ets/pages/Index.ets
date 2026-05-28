@@ -4,53 +4,12 @@ import { AddFileFolderNameDialog } from '../component/Dialog/AddFileFolderNameDi
 import FileFolderUtil from '../utils/FileFolderUtil'
 import { EditFileFolderNameDialog } from '../component/Dialog/EditFileFolderNameDialog'
 import { FileFolder } from '../interfaces/FileFolderInterface'
-import { ButtonFancyModifier, DefaultDialogShadow, SymbolGlyphFancyModifier } from '../common/AttributeModifierConfig'
+import { DefaultDialogShadow } from '../common/AttributeModifierConfig'
 import { PathUtils } from '../utils/PathUtils'
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent'
 import { SideBarController } from '../component/SideBarComponent/SideBar'
 import { DeletedVideosDialog } from '../component/Dialog/DeletedVideosDialog'
-import { DeleteType } from '../common/enum/DeleteType'
-import NavigationAddress from '../common/NavigationCommon'
-import { FileFolderListBuilder } from '../component/FileFolderComponent/FileFolderListComponent'
-import { FolderSelectMenuBuilder } from '../component/FileFolderComponent/FileFolderSelectBuilder'
-import { ImportProgressBuilder } from '../component/VideoItemComponent/ImportProgressBuilder'
-import { VideoView } from '../component/VideoItemComponent/VideoViewComponent'
-import Preferences from '../database/Preferences'
-import { VideoMetaDataOperator } from '../database/VideoMetaData'
-import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
-import { XAnimation } from '../utils/AnimationUtil'
-import BiometricAccessUtil from '../utils/BiometricAccessUtil'
-import { FileProcessorUtil, ProgressInfo } from '../utils/FileProcessorUtil'
-import { SafeHeight, Setting } from '../utils/ObservedUtil'
-import RecentPlayUtil from '../utils/RecentPlayUtil'
-import SelectFileUtil from '../utils/SelectFileUtil'
-import SubtitleUtil from '../utils/SubtitleUtil'
-import { checkUriProcess } from '../utils/TaskpoolUtil'
-import ToolsUtil from '../utils/ToolsUtil'
-import VideoOperateUtil from '../utils/VideoOperateUtil'
-import VideoUtils from '../utils/VideoUtil'
-import WantProcessUtil from '../utils/WantProcessUtil'
-import { WindowUtil } from '../utils/WindowUtil'
-import { PrivacySpace } from './PrivacySpace/PrivacySpace'
-import { PrivacySpaceErrorList } from './PrivacySpace/PrivacySpaceErrorList'
-import { RecentPlay } from './RecentPlay'
-import { AboutApp } from './SettingPage/AboutApp'
-import { CrashPage } from './SettingPage/CrashPage'
-import { MoreSettingPage } from './SettingPage/MoreSettingPage'
-import { PersonalizePage } from './SettingPage/PersonalizePage'
-import { PlayerSettingPage } from './SettingPage/PlayerSettingPage'
-import { SettingsPage } from './SettingPage/Setting'
-import { MpvPlayer } from './VideoPlayer/MpvPlayer'
-import { Player } from './VideoPlayer/Player'
-import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData'
-import { salmonLogger } from 'salmonlogger'
-import IntellectualGripPostureUtil from '../utils/IntellectualGripPostureUtil'
 import { motion } from '@kit.MultimodalAwarenessKit'
-import { HdsNavigation, HideMode, ScrollEffectType } from '@hms.hds.hdsBaseComponent'
-import { LengthMetrics } from '@kit.ArkUI'
-import { userData, userLoginBuilder } from '../component/common/UserLoginComponent'
-import TimeUtil from '../utils/TimeUtil'
-import AccountUtil from '../utils/AccountUtil'
 
 const TAG = 'Index'
 
@@ -68,19 +27,18 @@ struct Index {
   @Local currentStage: 'extracting' | 'cover' | 'saving' = 'extracting' // 当前处理阶段
   @Local isLogin: boolean = false
   @Provider() file_folder_list: FileFolder[] = []
-  @Local searchValue: string = ''
-  @Local screen_width: number = AppStorage.get('screen_width') as number ?? 0
-  @Local holdingHand: motion.HoldingHandStatus | null = null
-  @Provider() videoListController: VideoListController = new VideoListController()
-  @Provider() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: AddFileFolderNameDialog({
-      fileFolderSource: this.fileFolderSource,
       onFolderAdded: (folders: FileFolder[]) => {
         this.file_folder_list = folders
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  @Local searchValue: string = ''
+  @Local contentWidth: number = 0
+  @Local holdingHand: motion.HoldingHandStatus | null = null
+  @Provider() videoListController: VideoListController = new VideoListController()
+  @Provider() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   editFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: EditFileFolderNameDialog({
       confirm: async (newFolderName: string | undefined) => {
@@ -101,6 +59,11 @@ struct Index {
   // 侧边栏滚动控制器
   private sideBarScroller: Scroller = new Scroller()
   private passwd: string = 'passwd'
+
+  @Monitor('file_folder_list')
+  onFileFolderListChanged() {
+    this.fileFolderSource.updateData(this.file_folder_list)
+  }
 
   @Builder
   FileFolderSelectMenu(folder: FileFolder) {
@@ -126,6 +89,9 @@ struct Index {
               newFolder = this.videoListController.folder
             }
             this.videoListController.folder = newFolder
+            if (newFolder) {
+              this.scrollToFolderDate = newFolder.date
+            }
             VideoUtils.refresh(this.videoListController, this.fileFolderSource, newFolder)
           },
         },
@@ -185,13 +151,16 @@ struct Index {
 
   async onPageShow(): Promise<void> {
     await WantProcessUtil.checkWant(PathUtils.appContext!, this.pathStack)
-    // 从播放器返回时刷新数据源，确保播放进度更新
+    // 从其他页面返回时，用内容区实际宽度重新计算列数
+    // 覆盖场景：设置页修改了 listDisplayMode、屏幕方向变化后返回
+    if (this.contentWidth > 0) {
+      this.videoListController.refresh(this.contentWidth, Setting.listDisplayMode)
+    }
     const currentFolder = this.videoListController.folder
     if (currentFolder) {
       const updatedFolders = Preferences.getFileFolder(PathUtils.appContext!)
       const updatedFolder = updatedFolders.find(f => f.name === currentFolder.name)
       if (updatedFolder) {
-        // 使用增量更新而不是全量重载
         this.videoListController.videoDataSource.updateData(updatedFolder.video_list)
         this.videoListController.updateData(this.videoListController.videoDataSource, updatedFolder)
       }
@@ -210,7 +179,6 @@ struct Index {
     if (this.file_folder_list.length === 0) {
       this.file_folder_list = await FileFolderUtil.createNewFolder(PathUtils.appContext!, '首页')
     }
-    this.fileFolderSource?.updateData(this.file_folder_list)
     this.videoListController?.updateData(undefined, this.file_folder_list[0])
     IntellectualGripPostureUtil.createHoldingHandStatus((data: motion.HoldingHandStatus) => {
       this.holdingHand = data
@@ -250,46 +218,30 @@ struct Index {
   }
 
   async toMetaData(fileList: string[], fileFolder?: FileFolder) {
-    if (fileList.length === 0) {
-      ToolsUtil.showToast('没有任何文件被导入哦~')
-      return
-    }
-    this.loading = true
-    this.totalItems = fileList.length
-    this.processedItems = 0
-    this.currentFileName = ''
-    this.importSpeed = 0
-    this.elapsedTime = 0
-    this.failedCount = 0
-    try {
-      await FileProcessorUtil.processFilesConcurrently(
-        fileList, PathUtils.appContext!, PathUtils.videoPath, PathUtils.coverPath,
-        this.videoListController.videoDataSource?.getAllData() ?? [],
-        (info: ProgressInfo) => {
-          this.processedItems = info.current
-          this.currentFileName = info.fileName
-          this.currentStage = info.stage
-          this.importSpeed = info.speed
-          this.elapsedTime = info.elapsedTime
-          this.failedCount = info.failedCount
-        },
-        fileFolder
-      )
-      ToolsUtil.showToast(
-        `${ToolsUtil.getStringResource($r('app.string.add_time_info').id)}${this.totalItems -
-          FileFolderUtil.duplicateVideo - FileProcessorUtil.failedFiles.length}${
-        FileFolderUtil.duplicateVideo > 0 ? '，跳过重复视频：' + FileFolderUtil.duplicateVideo : ''}${
-        FileProcessorUtil.failedFiles.length > 0 ? '，失败：' + FileProcessorUtil.failedFiles.length : ''}`
-      )
-    } catch (error) {
-      ToolsUtil.showToast('处理过程中发生意外错误:' + error)
-    } finally {
-      this.loading = false
-      const targetFolder = this.videoListController.folder ?? this.file_folder_list[0]
-      const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, targetFolder)
-      // 更新文件夹列表状态，确保面包屑等UI正确刷新
-      this.file_folder_list = updatedFolders
-    }
+    await importAndProcessFiles(
+      fileList,
+      this.videoListController.videoDataSource?.getAllData() ?? [],
+      (info: ProgressInfo) => {
+        this.processedItems = info.current
+        this.currentFileName = info.fileName
+        this.currentStage = info.stage
+        this.importSpeed = info.speed
+        this.elapsedTime = info.elapsedTime
+        this.failedCount = info.failedCount
+      },
+      (loading: boolean) => {
+        this.loading = loading
+      },
+      (totalItems: number) => {
+        this.totalItems = totalItems
+      },
+      fileFolder,
+      () => {
+        const targetFolder = this.videoListController.folder ?? this.file_folder_list[0]
+        const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, targetFolder)
+        this.file_folder_list = updatedFolders
+      }
+    )
   }
 
   build() {
@@ -399,33 +351,34 @@ struct Index {
 
               //文件夹列表
               List() {
-                LazyForEach(this.fileFolderSource, (folder: FileFolder) => {
-                  ListItem() {
-                    FileFolderListBuilder({
-                      folder: folder,
-                      videoListController: this.videoListController
-                    })
-                  }
-                  .onClick(() => {
-                    this.clearSearchValue()
-                    if (this.videoListController.folder?.date === folder.date) {
-                      return
+                Repeat<FileFolder>(this.fileFolderSource.data)
+                  .each((repeatItem: RepeatItem<FileFolder>) => {
+                    ListItem() {
+                      FileFolderListBuilder({
+                        folder: repeatItem.item,
+                        videoListController: this.videoListController
+                      })
                     }
-                    this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
-                    this.fileFolderSource.updateData(this.file_folder_list)
-                    const currentFolder = this.fileFolderSource.getFileFolder(folder.name)
-                    this.videoListController.videoDataSource.updateData(currentFolder.video_list)
-                    this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder!)
-                    // 同步面包屑选中状态
-                    this.scrollToFolderDate = folder.date
-                    this.sideBarController.close(true)
+                    .onClick(() => {
+                      this.clearSearchValue()
+                      if (this.videoListController.folder?.date === repeatItem.item.date) {
+                        return
+                      }
+                      this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
+                      const currentFolder = this.fileFolderSource.getFileFolder(repeatItem.item.name)
+                      this.videoListController.videoDataSource.updateData(currentFolder.video_list)
+                      this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder!)
+                      // 同步面包屑选中状态
+                      this.scrollToFolderDate = repeatItem.item.date
+                      this.sideBarController.close(true)
+                    })
+                    .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.LongPress)
+                    .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.RightClick)
+                    .height(60)
                   })
-                  .bindContextMenu(this.FileFolderSelectMenu(folder), ResponseType.LongPress)
-                  .bindContextMenu(this.FileFolderSelectMenu(folder), ResponseType.RightClick)
-                  .height(60)
-                }, (folder: FileFolder) => folder.name + folder.date + folder.video_list.toString())
+                  .key((item: FileFolder, _index: number) => item.name + item.date + item.video_list.toString())
+                  .virtualScroll()
               }
-              .cachedCount(3)
               .borderRadius(16)
               .width('100%')
               .height('auto')
@@ -527,7 +480,7 @@ struct Index {
         .backgroundColor(Setting.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
           const width = Number(newValue.width)
-          // 增加判断，旋转时保持滚动位置不变
+          this.contentWidth = width
           this.videoListController.refresh(width, Setting.listDisplayMode)
         })
         .priorityGesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
@@ -551,12 +504,14 @@ struct Index {
                     if (isSuccess) { // 认证成功进入隐私空间
                       this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null)
                     } else {
-                      ToolsUtil.showToast('验证失败，请从首页搜索框输入密码进入隐私空间') // 认证失败显示提示
+                      ToolsUtil.showToast(
+                        ToolsUtil.getStringResource($r('app.string.privacy_auth_failed').id)) // 认证失败显示提示
                     }
                   })
                   return
                 }
-                ToolsUtil.showToast('请从首页搜索框输入密码进入隐私空间') // 设备不支持生物认证的提示
+                ToolsUtil.showToast(
+                  ToolsUtil.getStringResource($r('app.string.privacy_enter_via_password').id)) // 设备不支持生物认证的提示
               }
             })
         )
@@ -590,9 +545,10 @@ struct Index {
         }
       }))
     }
-    .backgroundImage(Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(
+      Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ? Setting.backgroundBlurImageSrc :
+        Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
-    .backdropBlur(Setting.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
     .hideTitleBar(true)
     .mode(NavigationMode.Stack)
@@ -676,9 +632,11 @@ struct Index {
     })
     .onNavBarStateChange(async (isVisible: boolean) => {
       if (isVisible) {
-        // 增加判断，旋转时保持滚动位置不变
         if (this.videoListController.folder?.video_list) {
-          const actualContentWidth = this.screen_width - DataSyncUtil.minContentWidth
+          const currentScreenWidth = AppStorage.get('screen_width') as number ?? 0
+          const actualContentWidth = this.sideBarController.mode === SideBarContainerType.Embed
+            ? currentScreenWidth - DataSyncUtil.minContentWidth
+            : currentScreenWidth
           this.videoListController.refresh(actualContentWidth, Setting.listDisplayMode)
           const targetFolder = this.videoListController.folder ?? this.file_folder_list[0]
           const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, targetFolder)
@@ -763,57 +721,20 @@ struct Index {
    * 切换到指定索引的文件夹
    */
   private switchToFolder(index: number): void {
-    if (index < 0 || index >= this.file_folder_list.length) {
+    const result = VideoUtils.switchFolder(
+      index, this.file_folder_list, this.videoListController, this.fileFolderSource, this.searchValue
+    )
+    if (!result) {
       return
     }
-
-    const targetFolder = this.file_folder_list[index]
-    if (this.videoListController.folder?.date === targetFolder.date) {
-      return
-    }
-
-    // 保留搜索状态，在新文件夹中应用搜索过滤
-
-    // 刷新文件夹列表（确保数据最新）
-    this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
-    this.fileFolderSource.updateData(this.file_folder_list)
-
-    // 获取目标文件夹的最新数据
-    const currentFolder = this.fileFolderSource.getFileFolder(targetFolder.name)
-    if (currentFolder) {
-      // 如果有搜索值，在新文件夹中过滤视频
-      let filteredVideos = currentFolder.video_list
-      if (this.searchValue.length > 0) {
-        filteredVideos = SelectFileUtil.getItemFromSearch(currentFolder.video_list, this.searchValue)
-      }
-      // 添加过渡动画
-      animateToImmediately({
-        duration: 200,
-        curve: Curve.EaseInOut
-      }, () => {
-        this.videoListController.videoDataSource.updateData(filteredVideos)
-        this.videoListController.updateData(
-          this.videoListController.videoDataSource,
-          currentFolder
-        )
-      })
-    }
-
-    // 触发面包屑滚动（为 Task 2 预留）
-    this.scrollToFolderDate = targetFolder.date
-
-    // 滚动侧边栏使当前文件夹可见
-    // 估算位置：AppInfoBuilder(100) + 导入按钮(60) + 添加文件夹按钮(60) + 间距(40) = 260
-    // 文件夹列表从约 260vp 开始，每个文件夹 70vp
+    this.file_folder_list = result.refreshedFolders
+    this.scrollToFolderDate = result.currentFolder!.date
     const estimatedOffset = index > 0 ? 260 + (index - 1) * 70 : 0
-    animateToImmediately({
-      duration: 200,
-      curve: Curve.Ease
-    }, () => {
+    XAnimation.runWithAnimation(() => {
       this.sideBarScroller.scrollTo({
         xOffset: 0,
         yOffset: estimatedOffset,
-        animation: { duration: 200, curve: Curve.Ease }
+        animation: { duration: 300, curve: Curve.Ease }
       })
     })
   }
@@ -871,20 +792,19 @@ struct Index {
     const isLastFolder = currentIndex === this.file_folder_list.length - 1
 
     if (isSwipeRight) {
-      // 从左向右滑
       if (isFirstFolder) {
-        // 第一个文件夹右滑 -> 打开侧边栏（仅 Overlay 模式）
         if (this.sideBarController.mode === SideBarContainerType.Overlay) {
           this.sideBarController.open()
+        } else {
+          this.switchToFolder(this.file_folder_list.length - 1)
         }
-        // Embed 模式下侧边栏已固定，无需操作
       } else {
-        // 切换到上一个文件夹
         this.switchToFolder(currentIndex - 1)
       }
     } else if (isSwipeLeft) {
-      // 从右向左滑
-      if (!isLastFolder) {
+      if (isLastFolder) {
+        this.switchToFolder(0)
+      } else {
         this.switchToFolder(currentIndex + 1)
       }
     }

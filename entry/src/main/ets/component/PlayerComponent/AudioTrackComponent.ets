@@ -11,9 +11,22 @@ type TrackType = AudioTrack | MpvAudioTrack
 
 @ComponentV2
 export struct AudioTrackComponent {
+  private static readonly CHANNEL_MAP: Record<number, string> = {
+    1: 'Mono',
+    2: '2.0',
+    3: '2.1',
+    4: '3.1',
+    5: '4.0',
+    6: '5.1',
+    7: '6.1',
+    8: '7.1',
+    10: '5.1.4',
+    12: '7.1.4'
+  }
   @Local audioTrackDataSource: AudioTrackSource = new AudioTrackSource([])
   @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
-  @Event onSelect: (_index: number) => void = () => {}
+  @Event onSelect: (_index: number) => void = () => {
+  }
 
   aboutToAppear(): void {
     this.audioTrackDataSource = new AudioTrackSource(this.player.audioTrack)
@@ -41,12 +54,35 @@ export struct AudioTrackComponent {
     return 0
   }
 
-  // 获取轨道名称
-  getTrackName(item: TrackType): string {
+  getFormattedTrackName(item: TrackType): string {
+    const langName = this.getLanguageName(item)
+    if (this.isMpvAudioTrack(item)) {
+      const track = item as MpvAudioTrack
+      const parts: string[] = []
+      if (track.title) {
+        parts.push(track.title)
+      }
+      if (track.channels) {
+        parts.push(AudioTrackComponent.CHANNEL_MAP[track.channels] ?? `${track.channels}ch`)
+      }
+      if (langName) {
+        parts.push(langName)
+      }
+      return parts.length > 0 ? parts.join(' · ') : `Track ${track.id}`
+    }
     if (this.isAudioTrack(item)) {
-      return (item as AudioTrack).name
-    } else if (this.isMpvAudioTrack(item)) {
-      return (item as MpvAudioTrack).title
+      const track = item as AudioTrack
+      const parts: string[] = []
+      if (track.name) {
+        parts.push(track.name)
+      }
+      if (track.channelCount) {
+        parts.push(AudioTrackComponent.CHANNEL_MAP[track.channelCount] ?? `${track.channelCount}ch`)
+      }
+      if (langName) {
+        parts.push(langName)
+      }
+      return parts.length > 0 ? parts.join(' · ') : `Track ${track.index}`
     }
     return ''
   }
@@ -90,31 +126,34 @@ export struct AudioTrackComponent {
 
   build() {
     Column() {
-      LazyForEach(this.audioTrackDataSource, (item: TrackType, index: number) => {
-        Row() {
-          Text(`${this.getTrackIndex(item)} : ${this.getTrackName(item)}(${this.getLanguageName(item)})`)
-            .fontSize(18)
-            .height(40)
-            .layoutWeight(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .fontColor(this.player.audioTrackSelected === index ? $r('sys.color.white') :
-              $r('app.color.text_color'))
+      Repeat<TrackType>(this.audioTrackDataSource.data)
+        .each((repeatItem: RepeatItem<TrackType>) => {
+          Row() {
+            Text(`${this.getTrackIndex(repeatItem.item)} : ${this.getFormattedTrackName(repeatItem.item)}`)
+              .fontSize(18)
+              .height(40)
+              .layoutWeight(1)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.MARQUEE })
+              .fontColor(this.player.audioTrackSelected === repeatItem.index ? $r('sys.color.white') :
+                $r('app.color.text_color'))
 
-          if (this.shouldShowAv3aIcon(item)) {
-            Image($r('app.media.audio_vivid_icon'))
-              .attributeModifier(new ImageFancyModifier(8, 85, 30))
-              .width(95)
+            if (this.shouldShowAv3aIcon(repeatItem.item)) {
+              Image($r('app.media.audio_vivid_icon'))
+                .attributeModifier(new ImageFancyModifier(8, 85, 30))
+                .width(95)
+            }
           }
-        }
-        .padding(5)
-        .width('100%')
-        .backgroundColor(this.player.audioTrackSelected === index ? $r('app.color.main_color') : '')
-        .borderRadius(16)
-        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .onClick(() => {
-          this.onSelect(index)
+          .padding(5)
+          .width('100%')
+          .backgroundColor(this.player.audioTrackSelected === repeatItem.index ? $r('app.color.main_color') : '')
+          .borderRadius(16)
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+          .onClick(() => {
+            this.onSelect(repeatItem.index ?? 0)
+          })
         })
-      }, (item: TrackType) => this.getKey(item))
+        .key((item: TrackType, _index: number) => this.getKey(item))
     }
     .width(235)
     .justifyContent(FlexAlign.Center)

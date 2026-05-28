@@ -1,18 +1,3 @@
-import NavigationAddress from '../../common/NavigationCommon'
-import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
-import Preferences from '../../database/Preferences'
-import { PathUtils } from '../../utils/PathUtils'
-import SelectFileUtil from '../../utils/SelectFileUtil'
-import SubtitleUtil from '../../utils/SubtitleUtil'
-import ToolsUtil from '../../utils/ToolsUtil'
-import { fileIo as fs } from '@kit.CoreFileKit'
-import { commentManager } from '@kit.AppGalleryKit'
-import { salmonLogger } from 'salmonlogger'
-import { SafeHeight, Setting } from '../../utils/ObservedUtil'
-import PreferencesUtil from '../../database/PreferencesUtil'
-import WantProcess from '../../utils/WantProcessUtil'
-import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
-import { LengthMetrics } from '@kit.ArkUI'
 
 const TAG = 'MoreSettingPage'
 
@@ -189,10 +174,11 @@ export struct MoreSettingPage {
     })
     .backgroundColor($r('app.color.start_window_background'))
     .padding({ top: SafeHeight.topSafeHeight })
-    .backgroundImage(Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(
+      Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ? Setting.backgroundBlurImageSrc :
+        Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)
-    .backdropBlur(Setting.backgroundDropBlur)
     .hideBackButton(false)
     .bindToScrollable([this.listScroller]) // 绑定导航组件和可滚动容器组件
   }

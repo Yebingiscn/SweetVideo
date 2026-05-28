@@ -29,7 +29,7 @@ export default class FileFolderUtil {
   }
 
   //新建文件夹
-  static async createNewFolder(context: Context, folder_name: string, fileFolderSource?: FileFolderDataSource) {
+  static async createNewFolder(context: Context, folder_name: string) {
     const new_folder: FileFolder = {
       name: folder_name,
       date: systemDateTime.getTime(false).toString(), // 这里不需要使用纳秒
@@ -41,9 +41,6 @@ export default class FileFolderUtil {
       Preferences.saveFileFolder(context, file_folder_list)
     } else {
       ToolsUtil.showToast('添加失败，已存在相同文件夹')
-    }
-    if (fileFolderSource) {
-      fileFolderSource.updateData(file_folder_list)
     }
     return file_folder_list
   }

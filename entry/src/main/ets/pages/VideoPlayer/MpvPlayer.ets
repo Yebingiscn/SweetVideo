@@ -18,7 +18,7 @@ import { GestureComponent } from '../../component/PlayerComponent/GestureCompone
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { window } from '@kit.ArkUI'
-import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
+import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode'
 import { XComponents } from '../../component/PlayerComponent/XComponents'
 import { SubtitleDisplayBuilder } from '../../component/PlayerComponent/SubtitleDisplayBuilder'
 import { VideoLayoutComponent } from '../../component/PlayerComponent/VideoLayoutComponent'
@@ -32,12 +32,12 @@ import {
   NO_BLUR_AMOUNT,
   PINCH_SCALE_SENSITIVITY,
   PRIVACY_BACKGROUND_BLUR_AMOUNT,
+  SCALE_FACTORS,
   SCREEN_HALF_DIVIDER,
   SWIPE_THRESHOLD,
   VERTICAL_PAN_SENSITIVITY,
   VOLUME_PAN_MULTIPLIER,
-  VOLUME_STEP,
-  SCALE_FACTORS
+  VOLUME_STEP
 } from '../../common/Constants'
 import { AISubtitleComponent } from '../../component/PlayerComponent/AIAsrComponent'
 import { PlayerSideBarComponent } from '../../component/PlayerComponent/PlayerSideBarComponent'
@@ -54,6 +54,7 @@ import { VideoButtonsComponent } from '../../component/PlayerComponent/VideoButt
 import { VideoSettingComponent } from '../../component/PlayerComponent/VideoSettingComponent'
 import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent'
 import { VideoTopComponent } from '../../component/PlayerComponent/VideoTopComponent'
+import { ChapterListComponent } from '../../component/PlayerComponent/ChapterListComponent'
 import Preferences from '../../database/Preferences'
 
 const TAG = 'MpvPlayer'
@@ -91,39 +92,6 @@ export struct MpvPlayer {
   @Local subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
   @Local exitVideoTime: number = 0
 
-  private applyScreenExtend() {
-    const text = this.mpv.selectedText
-    if (!text || text === '原始比例') {
-      this.subtitleAreaWidth = this.mpv.playAreaWidth
-      this.subtitleAreaHeight = this.mpv.playAreaHeight
-      return
-    }
-    if (VideoInfoUtil.ASPECT_RATIO_MAP.has(text)) {
-      const playAreaSize = VideoOperateUtil.setVideoAspectRatio(
-        VideoInfoUtil.ASPECT_RATIO_MAP.get(text)!,
-        VideoInfoUtil.playAreaWidth, VideoInfoUtil.playAreaHeight)
-      this.mpv.playAreaWidth = playAreaSize[0]
-      this.mpv.playAreaHeight = playAreaSize[1]
-    } else if (text === '拉伸全屏') {
-      this.mpv.playAreaWidth = this.mpv.screenWidth
-      this.mpv.playAreaHeight = this.mpv.screenHeight
-    } else if (text === '按宽度全屏') {
-      this.mpv.playAreaWidth = this.mpv.screenWidth
-      this.mpv.playAreaHeight = (VideoInfoUtil.playAreaHeight / VideoInfoUtil.playAreaWidth) * this.mpv.screenWidth
-    } else if (text === '按高度全屏') {
-      this.mpv.playAreaHeight = this.mpv.screenHeight
-      this.mpv.playAreaWidth = (VideoInfoUtil.playAreaWidth / VideoInfoUtil.playAreaHeight) * this.mpv.screenHeight
-    } else {
-      const scale = SCALE_FACTORS.get(text)
-      if (scale) {
-        this.mpv.playAreaWidth = scale * VideoInfoUtil.playAreaWidth
-        this.mpv.playAreaHeight = scale * VideoInfoUtil.playAreaHeight
-      }
-    }
-    this.subtitleAreaWidth = this.mpv.playAreaWidth
-    this.subtitleAreaHeight = this.mpv.playAreaHeight
-  }
-
   async aboutToAppear(): Promise<void> {
     this.mpv.prepare()
     PermissionUtil.applyContinuousTask()
@@ -147,6 +115,7 @@ export struct MpvPlayer {
     WindowUtil.recoveryBarColor()
     AppStorage.delete('nowPlayingData')
     clearTimeout(this.exitVideoTime)
+    this.mpv.release()
     Preferences.saveVideoSpeed(PathUtils.appContext!, this.mpv.speed + 'x')
     Preferences.saveRepeatModeState(PathUtils.appContext!, this.mpv.repeatMode)
     try {
@@ -310,24 +279,32 @@ export struct MpvPlayer {
             onVerticalPanUpdate: (offsetY: number) => {
               const deltaYScale = offsetY / this.mpv.screenHeight * VERTICAL_PAN_SENSITIVITY
               if (VideoOperateUtil.leftSideSwipe) {
-                this.mpv.onSwipingBrightness = true
+                XAnimation.runWithAnimation(() => {
+                  this.mpv.onSwipingBrightness = true
+                })
                 this.mpv.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
                 VideoOperateUtil.setBrightness(this.mpv.screenBrightness)
               } else {
-                this.mpv.onSwipingVoice = true
+                XAnimation.runWithAnimation(() => {
+                  this.mpv.onSwipingVoice = true
+                })
                 const newVolume = VideoOperateUtil.lastVolume - deltaYScale * VOLUME_PAN_MULTIPLIER
                 this.mpv.volume =
                   Math.min(Math.max(newVolume, VideoOperateUtil.minVolume), VideoOperateUtil.maxVolume)
               }
             },
             onVerticalPanEnd: () => {
-              this.mpv.onSwiping = false
-              this.mpv.onSwipingVoice = false
-              this.mpv.onSwipingBrightness = false
+              XAnimation.runWithAnimation(() => {
+                this.mpv.onSwiping = false
+                this.mpv.onSwipingVoice = false
+                this.mpv.onSwipingBrightness = false
+              })
             },
             onHorizonPanStart: () => {
               VideoOperateUtil.lastPlayTime = this.mpv.playTime
-              this.mpv.onSwiping = true
+              XAnimation.runWithAnimation(() => {
+                this.mpv.onSwiping = true
+              })
             },
             onHorizonPanUpdate: (offsetX: number) => {
               const timePerPixel = VideoOperateUtil.getTimePixel(this.mpv.screenWidth, this.mpv.nowPlaying?.time!)
@@ -336,7 +313,9 @@ export struct MpvPlayer {
             },
             onHorizonPanEnd: () => {
               this.mpv.seekTime(this.mpv.playTime)
-              this.mpv.onSwiping = false
+              XAnimation.runWithAnimation(() => {
+                this.mpv.onSwiping = false
+              })
             },
             onPinchStart: (fingerDistance: number) => {
               VideoOperateUtil.initPinchDistance = fingerDistance
@@ -368,12 +347,16 @@ export struct MpvPlayer {
               if (this.mpv.playing) {
                 VideoOperateUtil.lastSpeed = this.mpv.speed
                 this.mpv.updatePlaybackSpeed(Setting.longPressSpeed)
-                this.mpv.longPress = true
+                XAnimation.runWithAnimation(() => {
+                  this.mpv.longPress = true
+                })
                 this.currentSpeedIndex = VideoInfoUtil.videoSpeedListAll.indexOf(Setting.longPressSpeed)
               }
             },
             onLongPressEnd: () => {
-              this.mpv.longPress = false
+              XAnimation.runWithAnimation(() => {
+                this.mpv.longPress = false
+              })
               this.mpv.speed = VideoOperateUtil.lastSpeed
               this.mpv.updatePlaybackSpeed(this.mpv.speed)
             },
@@ -504,6 +487,9 @@ export struct MpvPlayer {
       },
       subtitlePanelComponent: () => {
         this.SubtitleMenuBuilder()
+      },
+      chapterMenuBuilder: () => {
+        this.ChapterMenuBuilder()
       },
       lockRotation: this.lockRotation,
       onExitVideoClick: () => {
@@ -720,6 +706,15 @@ export struct MpvPlayer {
   }
 
   @Builder
+  ChapterMenuBuilder() {
+    ChapterListComponent({
+      onSelect: (index: number) => {
+        this.mpv.seekToChapter(index)
+      }
+    })
+  }
+
+  @Builder
   SubtitleMenuBuilder() {
     SubtitlePanelComponent({
       subtitleVisibility: this.subtitleVisibility,
@@ -727,7 +722,21 @@ export struct MpvPlayer {
       subtitle3DMode: this.subtitle3DMode,
       onSubtitle3DModeChange: (v: Subtitle3DMode) => {
         this.subtitle3DMode = v
-      }
+      },
+      onAIAsrClick: () => {
+        this.isAIAsrShown = !this.isAIAsrShown
+        this.subtitleVisibility = Visibility.None
+        this.mpv.subtitleSelected = SubtitleMode.AI_SUBTITLE
+        this.mpv.saveSubtitlePreferenceForCurrentVideo(this.subtitleVisibility, this.isAIAsrShown,
+          this.subtitle3DMode)
+      },
+      onInnerSubtitleClick: () => {
+        this.subtitleVisibility = Visibility.None
+        this.isAIAsrShown = false
+        this.mpv.subtitleSelected = SubtitleMode.INNER_SUBTITLE
+        this.mpv.saveSubtitlePreferenceForCurrentVideo(this.subtitleVisibility, this.isAIAsrShown,
+          this.subtitle3DMode)
+      },
     })
   }
 
@@ -743,6 +752,39 @@ export struct MpvPlayer {
         this.mpv.updatePlaybackSpeed(speed)
       }
     })
+  }
+
+  private applyScreenExtend() {
+    const text = this.mpv.selectedText
+    if (!text || text === '原始比例') {
+      this.subtitleAreaWidth = this.mpv.playAreaWidth
+      this.subtitleAreaHeight = this.mpv.playAreaHeight
+      return
+    }
+    if (VideoInfoUtil.ASPECT_RATIO_MAP.has(text)) {
+      const playAreaSize = VideoOperateUtil.setVideoAspectRatio(
+        VideoInfoUtil.ASPECT_RATIO_MAP.get(text)!,
+        VideoInfoUtil.playAreaWidth, VideoInfoUtil.playAreaHeight)
+      this.mpv.playAreaWidth = playAreaSize[0]
+      this.mpv.playAreaHeight = playAreaSize[1]
+    } else if (text === '拉伸全屏') {
+      this.mpv.playAreaWidth = this.mpv.screenWidth
+      this.mpv.playAreaHeight = this.mpv.screenHeight
+    } else if (text === '按宽度全屏') {
+      this.mpv.playAreaWidth = this.mpv.screenWidth
+      this.mpv.playAreaHeight = (VideoInfoUtil.playAreaHeight / VideoInfoUtil.playAreaWidth) * this.mpv.screenWidth
+    } else if (text === '按高度全屏') {
+      this.mpv.playAreaHeight = this.mpv.screenHeight
+      this.mpv.playAreaWidth = (VideoInfoUtil.playAreaWidth / VideoInfoUtil.playAreaHeight) * this.mpv.screenHeight
+    } else {
+      const scale = SCALE_FACTORS.get(text)
+      if (scale) {
+        this.mpv.playAreaWidth = scale * VideoInfoUtil.playAreaWidth
+        this.mpv.playAreaHeight = scale * VideoInfoUtil.playAreaHeight
+      }
+    }
+    this.subtitleAreaWidth = this.mpv.playAreaWidth
+    this.subtitleAreaHeight = this.mpv.playAreaHeight
   }
 }
 

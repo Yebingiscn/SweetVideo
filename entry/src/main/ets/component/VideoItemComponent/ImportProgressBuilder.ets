@@ -1,3 +1,5 @@
+import TimeUtil from '../../utils/TimeUtil'
+
 export class ImportProgressBuilderParams {
   processedItems: number = 0
   totalItems: number = 0
@@ -47,7 +49,7 @@ export function ImportProgressBuilder(params: ImportProgressBuilderParams) {
             .fontColor($r('app.color.text_color'))
         }
         if (params.elapsedTime > 0) {
-          Text(`耗时: ${formatTime(params.elapsedTime)}`)
+          Text(`耗时: ${TimeUtil.convertMSToChinese(params.elapsedTime)}`)
             .fontSize(12)
             .fontColor($r('app.color.text_color'))
             .margin({ left: params.speed > 0 ? 8 : 0 })
@@ -69,18 +71,6 @@ export function ImportProgressBuilder(params: ImportProgressBuilderParams) {
   .shadow({ radius: 26, color: $r('app.color.shadow_color') })
   .backgroundColor($r('app.color.start_window_background_blur'))
   .backdropBlur(150)
-}
-
-// 格式化时间显示
-function formatTime(milliseconds: number): string {
-  const seconds = Math.floor(milliseconds / 1000)
-  if (seconds < 60) {
-    return `${seconds}秒`
-  } else {
-    const minutes = Math.floor(seconds / 60)
-    const remainingSeconds = seconds % 60
-    return `${minutes}分${remainingSeconds}秒`
-  }
 }
 
 // 获取阶段文本

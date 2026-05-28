@@ -3,6 +3,7 @@ import NavigationAddress from '../../common/NavigationCommon'
 import { Setting } from '../../utils/ObservedUtil'
 import TimeUtil from '../../utils/TimeUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
+import { DIALOG_TITLE_FONT_SIZE } from '../../common/Constants'
 
 class SwipingPlayTimeValue {
   isSliderPlayTimeChange: boolean = false
@@ -18,7 +19,7 @@ export function SwipingPlayTimePanelBuilder(swipingPlayTimeValue: SwipingPlayTim
     Column() { // 滑动控制栏
       Text(getFormattedTimeText(swipingPlayTimeValue))
         .fontColor($r('sys.color.white'))
-        .fontSize(25)
+        .fontSize(DIALOG_TITLE_FONT_SIZE)
         .fontWeight(FontWeight.Bold)
       if (Setting?.showFrameImgStatus && swipingPlayTimeValue?.player === NavigationAddress.AV_PLAYER) {
         if (swipingPlayTimeValue?.pixelMap) {
@@ -39,7 +40,7 @@ export function SwipingPlayTimePanelBuilder(swipingPlayTimeValue: SwipingPlayTim
     .borderRadius(16)
     .backgroundColor('#30000000')
     .backdropBlur(100)
-    .animation({ duration: 300, curve: Curve.Smooth })
+    .animation({ duration: 300, curve: Curve.Friction })
   }
 }
 

@@ -1,6 +1,7 @@
 import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil'
+import { DIALOG_TITLE_FONT_SIZE } from '../../common/Constants'
+import { DialogButtonBar } from './DialogButtonBar'
 
-// 重设密码弹窗
 @CustomDialog
 export struct EditPasswordDialog {
   confirm?: (name: string | undefined) => void
@@ -10,12 +11,12 @@ export struct EditPasswordDialog {
   build() {
     Column({ space: 25 }) {
       Text(PrivacySpaceUtil.getPrivacyMode() ? '修改密码 (/▽＼)' : $r('app.string.set_passwd'))
-        .fontSize(25)
+        .fontSize(DIALOG_TITLE_FONT_SIZE)
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)
         .margin({ top: 10 })
       TextInput()
-        .keyboardAppearance(KeyboardAppearance.IMMERSIVE)// 设置搜索框沉浸模式
+        .keyboardAppearance(KeyboardAppearance.IMMERSIVE)
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .onChange((input: string) => this.passwd = input)
         .type(InputType.NEW_PASSWORD)
@@ -25,39 +26,17 @@ export struct EditPasswordDialog {
           focusControl.requestFocus('input_pwd')
         })
 
-      Flex({ justifyContent: FlexAlign.SpaceAround }) {
-        Button({ type: ButtonType.Normal, stateEffect: true }) {
-          Row({ space: 5 }) {
-            SymbolGlyph($r('sys.symbol.xmark')).fontSize(18).fontColor([$r('app.color.text_color')])
-            Text($r('app.string.cancel'))
-              .fontSize(18)
-              .fontColor($r('app.color.text_color'))
-              .fontWeight(FontWeight.Medium)
-          }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
-        }
-        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-        .borderRadius(16)
-        .height(40)
-        .onClick(() => this.controller?.close())
-
-        Button({ type: ButtonType.Normal, stateEffect: true }) {
-          Row({ space: 5 }) {
-            SymbolGlyph($r('sys.symbol.checkmark')).fontSize(18).fontColor([$r('app.color.text_color')])
-            Text($r('app.string.sure')).fontSize(18).fontColor($r('app.color.text_color')).fontWeight(FontWeight.Medium)
-          }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
-        }
-        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-        .borderRadius(16)
-        .height(40)
-        .onClick(() => {
+      DialogButtonBar(
+        () => {
+          this.controller?.close()
+        },
+        () => {
           this.controller?.close()
           if (this.confirm) {
             this.confirm(this.passwd)
           }
-        })
-      }.margin({ bottom: 10 })
+        }
+      )
     }.padding(20)
   }
 }

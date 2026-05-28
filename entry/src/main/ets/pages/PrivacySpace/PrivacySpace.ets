@@ -3,64 +3,37 @@ import SelectFileUtil from '../../utils/SelectFileUtil'
 import { VideoDataSource } from '../../utils/DataUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import DataSyncUtil from '../../utils/DataSyncUtil'
-import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
+import { LengthMetrics } from '@kit.ArkUI'
 import { VideoDetailDialog } from '../../component/Dialog/VideoDetailDialog'
 import Preferences from '../../database/Preferences'
 import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
 import {
-  ButtonFancyModifier,
-  DefaultDialogShadow,
-  MenuFancyModifier,
-  SymbolGlyphFancyModifier
+  DefaultDialogShadow
 } from '../../common/AttributeModifierConfig'
-import { FileProcessorUtil, ProgressInfo } from '../../utils/FileProcessorUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog'
-import { SearchComponent } from '../../component/VideoItemComponent/SearchComponent'
 import NavigationAddress, { PrivacySpaceParams } from '../../common/NavigationCommon'
 import { EditMetadataDialog } from '../../component/Dialog/EditMetadataDialog'
 import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
-import FileFolderUtil from '../../utils/FileFolderUtil'
 import { ImportProgressBuilder } from '../../component/VideoItemComponent/ImportProgressBuilder'
-import VideoListItem from '../../component/VideoItemComponent/VideoListItemComponent'
 import VideoCardItem from '../../component/VideoItemComponent/VideoCardItemComponent'
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
-import SubtitleUtil from '../../utils/SubtitleUtil'
 import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
-import { SortComponent } from '../../component/VideoItemComponent/SortComponent'
 import {
-  DELAY_JUMP_TO_PLAYER,
-  FULL_ALPHABET,
-  NO_BLUR_AMOUNT,
-  PRIVACY_BACKGROUND_BLUR_AMOUNT
+  NO_BLUR_AMOUNT, PRIVACY_BACKGROUND_BLUR_AMOUNT
 } from '../../common/Constants'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { VideoItemPreviewBuilder } from '../../component/VideoItemComponent/VideoItemPreviewBuilder'
-import { PrivacySpaceSettingComponent } from '../../component/PrivacySpaceComponent/PrivacySpaceSettingComponent'
-import DlpAntiPeepUtil from '../../utils/DlpAntiPeepUtil'
 import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { motion } from '@kit.MultimodalAwarenessKit'
 import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil'
-import { pinyin4js } from '@ohos/pinyin4js'
 import { ScrollBarBuilder } from '../../component/VideoItemComponent/ScrollBarBuilder'
 
 @ComponentV2
 export struct PrivacySpace { // 隐私空间页
   @Local videoDataSource: VideoDataSource = new VideoDataSource([])
   @Local video_meta_data_encryption: VideoMetadata[] = []
-  @Local allVideos: VideoMetadata[] = [] // 保存完整数据用于搜索
-  @Local list_line: number = 1
-  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
-  @Local totalItems: number = 0
-  @Local processedItems: number = 0
-  @Local loading: boolean = false
-  @Local currentFileName: string = '' // 当前处理的文件名
-  @Local importSpeed: number = 0 // 处理速度
-  @Local elapsedTime: number = 0 // 已耗时
-  @Local failedCount: number = 0 // 失败文件数
-  @Local currentStage: 'extracting' | 'cover' | 'saving' = 'extracting' // 当前处理阶段
-  @Local searchValue: string = ''
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -84,6 +57,18 @@ export struct PrivacySpace { // 隐私空间页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  @Local allVideos: VideoMetadata[] = [] // 保存完整数据用于搜索
+  @Local list_line: number = 1
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
+  @Local totalItems: number = 0
+  @Local processedItems: number = 0
+  @Local loading: boolean = false
+  @Local currentFileName: string = '' // 当前处理的文件名
+  @Local importSpeed: number = 0 // 处理速度
+  @Local elapsedTime: number = 0 // 已耗时
+  @Local failedCount: number = 0 // 失败文件数
+  @Local currentStage: 'extracting' | 'cover' | 'saving' = 'extracting' // 当前处理阶段
+  @Local searchValue: string = ''
   @Local is_edit: boolean = false
   @Local currentSortField: 'name' | 'datetime' | 'time' | '' = ''
   @Local currentSortAsc: boolean = true
@@ -109,6 +94,8 @@ export struct PrivacySpace { // 隐私空间页
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
   })
+  @Local HoldingHand: motion.HoldingHandStatus | null = null
+  private pendingDeleteItem: VideoMetadata | null = null
   deleteConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog({
       textInfo: '确定删除该视频吗？',
@@ -119,8 +106,6 @@ export struct PrivacySpace { // 隐私空间页
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  private pendingDeleteItem: VideoMetadata | null = null
-  @Local HoldingHand: motion.HoldingHandStatus | null = null
   private listScroller: Scroller = new Scroller()
 
   @Builder
@@ -225,7 +210,7 @@ export struct PrivacySpace { // 隐私空间页
           this.videoDataSource.updateData(this.video_meta_data_encryption)
         },
         onEditChange: (isEditing: boolean) => {
-          animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
+          XAnimation.runWithAnimation(() => {
             this.is_edit = isEditing
           })
         }
@@ -319,46 +304,32 @@ export struct PrivacySpace { // 隐私空间页
   }
 
   async toMetaData(fileList: string[], fileFolder?: FileFolder) {
-    if (fileList.length === 0) {
-      ToolsUtil.showToast('没有任何文件被导入哦~')
-      return
-    }
-    this.loading = true
-    this.totalItems = fileList.length
-    this.processedItems = 0
-    this.currentFileName = ''
-    this.importSpeed = 0
-    this.elapsedTime = 0
-    this.failedCount = 0
-    try {
-      await FileProcessorUtil.processFilesConcurrently(
-        fileList, PathUtils.appContext!, PathUtils.videoPath, PathUtils.coverPath, this.video_meta_data_encryption,
-        (info: ProgressInfo) => {
-          this.processedItems = info.current
-          this.currentFileName = info.fileName
-          this.currentStage = info.stage
-          this.importSpeed = info.speed
-          this.elapsedTime = info.elapsedTime
-          this.failedCount = info.failedCount
-        },
-        fileFolder
-      )
-      this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-      this.video_meta_data_encryption = this.searchValue.trim()
-        ? SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue)
-        : this.allVideos
-      this.videoDataSource.updateData(this.video_meta_data_encryption)
-      ToolsUtil.showToast(
-        `${ToolsUtil.getStringResource($r('app.string.add_time_info').id)}${this.totalItems -
-          FileFolderUtil.duplicateVideo - FileProcessorUtil.failedFiles.length}${
-        FileFolderUtil.duplicateVideo > 0 ? '，跳过重复视频：' + FileFolderUtil.duplicateVideo : ''}${
-        FileProcessorUtil.failedFiles.length > 0 ? '，失败：' + FileProcessorUtil.failedFiles.length : ''}`
-      )
-    } catch (error) {
-      ToolsUtil.showToast('处理过程中发生意外错误:' + error)
-    } finally {
-      this.loading = false
-    }
+    await importAndProcessFiles(
+      fileList,
+      this.video_meta_data_encryption,
+      (info: ProgressInfo) => {
+        this.processedItems = info.current
+        this.currentFileName = info.fileName
+        this.currentStage = info.stage
+        this.importSpeed = info.speed
+        this.elapsedTime = info.elapsedTime
+        this.failedCount = info.failedCount
+      },
+      (loading: boolean) => {
+        this.loading = loading
+      },
+      (totalItems: number) => {
+        this.totalItems = totalItems
+      },
+      fileFolder,
+      () => {
+        this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+        this.video_meta_data_encryption = this.searchValue.trim()
+          ? SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue)
+          : this.allVideos
+        this.videoDataSource.updateData(this.video_meta_data_encryption)
+      }
+    )
   }
 
   async aboutToAppear(): Promise<void> {
@@ -443,65 +414,69 @@ export struct PrivacySpace { // 隐私空间页
               Alignment.TopEnd
           }) {
             List({ scroller: this.listScroller, space: 10 }) {
-              LazyForEach(this.videoDataSource, (item: VideoMetadata) => {
-                ListItem() {
-                  if (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY) {
-                    this.VideoItemBuilder(item)
-                  } else {
-                    VideoCardItem({
-                      item: item,
-                      delMultipleList: this.delMultipleList
-                    })
-                      .width('95%')
-                      .backgroundColor(Setting.backgroundImageSrc.length > 0 ?
-                        $r('app.color.start_window_background_blur') :
-                        $r('app.color.start_window_background'))
-                      .borderRadius(16)
-                      .height('auto')
+              Repeat<VideoMetadata>(this.videoDataSource.data)
+                .each((repeatItem: RepeatItem<VideoMetadata>) => {
+                  ListItem() {
+                    if (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY) {
+                      this.VideoItemBuilder(repeatItem.item)
+                    } else {
+                      VideoCardItem({
+                        item: repeatItem.item,
+                        delMultipleList: this.delMultipleList
+                      })
+                        .width('95%')
+                        .backgroundColor(Setting.backgroundImageSrc.length > 0 ?
+                          $r('app.color.start_window_background_blur') :
+                          $r('app.color.start_window_background'))
+                        .borderRadius(16)
+                        .height('auto')
+                    }
                   }
-                }
-                .width('100%')
-                .height('auto')
-                .onClick(async () => {
-                  await this.clickItem(item, VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
-                })
-                .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
-                  {
-                    backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-                    preview: VideoItemPreviewBuilder(item),
-                    previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
-                    layoutRegionMargin: {
-                      left: 16,
-                      right: 16,
-                      top: 16,
-                      bottom: 4
-                    },
-                    hapticFeedbackMode: HapticFeedbackMode.ENABLED,
-                    mask: true
+                  .width('100%')
+                  .height('auto')
+                  .onClick(async () => {
+                    await this.clickItem(repeatItem.item,
+                      VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
                   })
-                .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
-                  {
-                    backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-                    preview: VideoItemPreviewBuilder(item),
-                    previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
-                    layoutRegionMargin: {
-                      left: 16,
-                      right: 16,
-                      top: 16,
-                      bottom: 4
-                    },
-                    mask: true
+                  .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress,
+                    {
+                      backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+                      preview: VideoItemPreviewBuilder(repeatItem.item),
+                      previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
+                      layoutRegionMargin: {
+                        left: 16,
+                        right: 16,
+                        top: 16,
+                        bottom: 4
+                      },
+                      hapticFeedbackMode: HapticFeedbackMode.ENABLED,
+                      mask: true
+                    })
+                  .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.RightClick,
+                    {
+                      backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+                      preview: VideoItemPreviewBuilder(repeatItem.item),
+                      previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
+                      layoutRegionMargin: {
+                        left: 16,
+                        right: 16,
+                        top: 16,
+                        bottom: 4
+                      },
+                      mask: true
+                    })
+                  .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+                  .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
+                  .swipeAction({
+                    end: this.itemEnd(repeatItem.item),
+                    edgeEffect: SwipeEdgeEffect.Spring
                   })
-                .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-                .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
-                .swipeAction({
-                  end: this.itemEnd(item),
-                  edgeEffect: SwipeEdgeEffect.Spring
                 })
-              }, (item: VideoMetadata) => item.date + item.title + item.last_play + item.size.toString() + item.time)
+                .key((item: VideoMetadata, _index: number) => item.date + item.title + item.last_play +
+                  item.size.toString() + item.time)
+                .virtualScroll()
             }
             .clip(false)
-            .cachedCount(3)
             .lanes(this.list_line)
             .layoutWeight(1)
             .padding({ left: 10, right: 10 })
@@ -641,10 +616,11 @@ export struct PrivacySpace { // 隐私空间页
     })
     .padding({ top: SafeHeight.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
-    .backgroundImage(Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(
+      Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ? Setting.backgroundBlurImageSrc :
+        Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)
-    .backdropBlur(Setting.backgroundDropBlur)
     .onBackPressed(() => {
       if (this.searchValue.length > 0) {
         this.searchValue = ''

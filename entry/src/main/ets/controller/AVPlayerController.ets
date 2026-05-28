@@ -43,6 +43,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   surfaceID: string = ''
   @Trace nowPlaying: VideoMetadata | undefined = undefined
   @Trace playing: boolean = false
+  isResetting: boolean = false
   @Trace speed: number = 1.0
   @Trace playTime: number = 0
   @Trace audioTrack: AudioTrack[] = []
@@ -258,10 +259,14 @@ export class AVPlayerController implements PlayerControllerInterface {
     this.avPlayer = undefined
   }
 
-  reset() {
-    this.avPlayer?.reset()?.catch(() => {
+  async reset() {
+    this.isResetting = true
+    try {
+      await this.avPlayer?.reset()
+    } catch (e) {
+      this.isResetting = false
       ToolsUtil.addLogger('reset error', true)
-    })
+    }
   }
 
   prepare() {
@@ -304,33 +309,10 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   playNextVideo(repeatMode: SweetRepeatMode): VideoMetadata | undefined {
-    if (this.videoMetaDataList.length === 0 || this.playTime <= 0) {
+    if (this.playTime <= 0) {
       return undefined
     }
-    let item = SelectFileUtil.getItem(this.videoMetaDataList, this.nowPlaying?.date || '') as VideoMetadata
-    if (!item) {
-      item = this.videoMetaDataList[0]
-    }
-    switch (repeatMode) {
-      case SweetRepeatMode.RANDOM:
-        const availableVideos = this.videoMetaDataList.filter(v => v.date !== item.date)
-        return availableVideos.length > 0
-          ? availableVideos[Math.floor(Math.random() * availableVideos.length)]
-          : item
-      case SweetRepeatMode.ONCE:
-        return undefined
-      case SweetRepeatMode.SEQUENCE:
-        if (SelectFileUtil.isLastItem(this.videoMetaDataList, item.date)) {
-          return undefined
-        }
-        return SelectFileUtil.getNextItem(this.videoMetaDataList, item.date)
-      case SweetRepeatMode.SINGLE:
-        return this.videoMetaDataList.find(v => v.date === this.nowPlaying?.date)!
-      case SweetRepeatMode.LIST:
-        return SelectFileUtil.getNextItem(this.videoMetaDataList, item.date)
-      default:
-        return undefined
-    }
+    return VideoOperateUtil.computeNextVideo(this.videoMetaDataList, this.nowPlaying, repeatMode)
   }
 
   togglePlayback() {
@@ -403,10 +385,10 @@ export class AVPlayerController implements PlayerControllerInterface {
     ToolsUtil.addLogger("获取下一个视频项完成", false, pathStack)
     if (nextItem) {
       ToolsUtil.addLogger("存在下一个视频，开始播放", false, pathStack)
-      this.playChooseVideo(nextItem, pathStack, windowClass)
+      await this.playChooseVideo(nextItem, pathStack, windowClass)
     } else {
       ToolsUtil.addLogger("无下一个视频，播放结束", false, pathStack)
-      ToolsUtil.showToast('播放完毕，已自动退出')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.play_finished_auto_exit').id))
       pathStack.pop()
     }
     ToolsUtil.addLogger("播放下一个视频前置流程完成", false, pathStack)
@@ -421,7 +403,7 @@ export class AVPlayerController implements PlayerControllerInterface {
       ToolsUtil.addLogger("添加到最近播放记录完成", false)
     }
     this.avPlayer?.off('subtitleUpdate')
-    this.reset()
+    await this.reset()
     this.nowPlaying = item as VideoMetadata
     ToolsUtil.addLogger("设置当前播放视频完成", false)
 
@@ -598,9 +580,9 @@ export class AVPlayerController implements PlayerControllerInterface {
         ToolsUtil.addLogger(
           `检测到视频片尾，准备播放下一个视频，满足条件为: endTime: ${endTime}, repeatMode: ${this.repeatMode}, duration: ${duration}`,
           false, pathStack)
-        this.playNextVideoProcess(pathStack, windowClass)
+        await this.playNextVideoProcess(pathStack, windowClass)
         this.setPlayerCallback(pathStack, xComponentController, windowClass)
-        ToolsUtil.showToast('已智能跳过片尾')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_video_ending').id))
       }
       if (this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
         this.subtitle = SubtitleUtil.getSubtitlesAtTime(duration)
@@ -642,6 +624,7 @@ export class AVPlayerController implements PlayerControllerInterface {
       switch (state) {
         case 'initialized':
           ToolsUtil.addLogger("进入initialized状态", false, pathStack)
+          this.isResetting = false
           if (this.avPlayer) {
             await this.setAVPlayerProperties()
             this.prepare()
@@ -679,7 +662,7 @@ export class AVPlayerController implements PlayerControllerInterface {
             this.avPlayer?.seek(0, media.SeekMode.SEEK_CLOSEST)
           } else {
             ToolsUtil.addLogger("播放下一视频", false, pathStack)
-            this.playNextVideoProcess(pathStack, windowClass)
+            await this.playNextVideoProcess(pathStack, windowClass)
             this.setPlayerCallback(pathStack, xComponentController, windowClass)
           }
           break
@@ -710,8 +693,12 @@ export class AVPlayerController implements PlayerControllerInterface {
           break
         case 'idle':
           ToolsUtil.addLogger("进入idle状态", false, pathStack)
-          this.release()
-          ToolsUtil.addLogger("释放播放器资源完成", false, pathStack)
+          if (!this.isResetting) {
+            this.release()
+            ToolsUtil.addLogger("释放播放器资源完成", false, pathStack)
+          } else {
+            ToolsUtil.addLogger("正在重置，跳过idle状态释放", false, pathStack)
+          }
           break
         case 'error':
           ToolsUtil.addLogger("进入error状态", false, pathStack)
@@ -752,16 +739,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   getAdjacentSubtitleOffset(direction: 'prev' | 'next', currentOffset: number): number | undefined {
-    const targetOffset = SubtitleUtil.getAdjacentSubtitleOffset(this.playTime, currentOffset, direction)
-    if (targetOffset === undefined) {
-      ToolsUtil.showToast(direction === 'prev' ? '没有上一条字幕' : '没有下一条字幕')
-      return undefined
-    }
-    if (Math.abs(targetOffset) > 50000) {
-      ToolsUtil.showToast('目标字幕超出偏移范围：-50000 到 50000')
-      return undefined
-    }
-    return Math.round(targetOffset)
+    return VideoOperateUtil.getAdjacentSubtitleOffset(this.playTime, currentOffset, direction)
   }
 
   saveSubtitlePreferenceForCurrentVideo(
@@ -769,44 +747,9 @@ export class AVPlayerController implements PlayerControllerInterface {
     isAIAsrShown: boolean,
     subtitle3DMode: Subtitle3DMode
   ): void {
-    const nowPlaying = this.nowPlaying
-    const appContext = PathUtils.appContext
-    if (!nowPlaying || !appContext) {
-      return
-    }
-
-    const subtitleMode = SubtitleUtil.normalizeSubtitleMode(this.subtitleSelected)
-    const subtitleVisible = subtitleVisibility === Visibility.Visible
-    const subtitleAIAsrShown = isAIAsrShown
-    const subtitle3DModeValue = SubtitleUtil.normalizeSubtitle3DMode(subtitle3DMode)
-    const subtitleOffsetMillis = Math.max(-50000, Math.min(50000, Math.round(SubtitleUtil.offsetMillis)))
-    const subtitleTrackId = this.subtitleTrackSelected
-    const hasPreferenceChanged =
-      nowPlaying.subtitle_mode !== subtitleMode ||
-        nowPlaying.subtitle_visible !== subtitleVisible ||
-        nowPlaying.subtitle_ai_asr_shown !== subtitleAIAsrShown ||
-        nowPlaying.subtitle_3d_mode !== subtitle3DModeValue ||
-        nowPlaying.subtitle_offset_millis !== subtitleOffsetMillis ||
-        nowPlaying.subtitle_track_id !== subtitleTrackId
-
-    if (!hasPreferenceChanged) {
-      return
-    }
-
-    nowPlaying.subtitle_mode = subtitleMode
-    nowPlaying.subtitle_visible = subtitleVisible
-    nowPlaying.subtitle_ai_asr_shown = subtitleAIAsrShown
-    nowPlaying.subtitle_3d_mode = subtitle3DModeValue
-    nowPlaying.subtitle_offset_millis = subtitleOffsetMillis
-    nowPlaying.subtitle_track_id = subtitleTrackId
-
-    SelectFileUtil.saveData(appContext, nowPlaying, {
-      subtitleMode,
-      subtitleVisible,
-      subtitleAIAsrShown,
-      subtitle3DMode: subtitle3DModeValue,
-      subtitleOffsetMillis,
-      subtitleTrackId
-    })
+    VideoOperateUtil.saveSubtitlePreference(
+      this.nowPlaying, this.subtitleSelected, this.subtitleTrackSelected,
+      subtitleVisibility, isAIAsrShown, subtitle3DMode
+    )
   }
 }

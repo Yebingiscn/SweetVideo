@@ -63,59 +63,60 @@ export struct CrashPage {
 
             // 日志列表
             List({ scroller: this.listScroller, space: 10 }) {
-              LazyForEach(this.sweetLogDataSource, (log: SalmonLogLine) => {
-                ListItem() {
-                  Column() {
-                    Row() {
-                      // 日志类型徽章 - 简化 Stack 为 Text
-                      Text(log.isError ? 'ERROR' : 'INFO')
-                        .fontSize(9)
-                        .fontColor($r('sys.color.white'))
-                        .fontWeight(FontWeight.Bold)
-                        .padding({
-                          left: 6,
-                          right: 6,
-                          top: 2,
-                          bottom: 2
-                        })
-                        .backgroundColor(log.isError ? '#26ff4d4f' : '#2652c41a')
-                        .backdropBlur(12)
-                        .borderRadius(4)
+              Repeat<SalmonLogLine>(this.sweetLogDataSource.data)
+                .each((repeatItem: RepeatItem<SalmonLogLine>) => {
+                  ListItem() {
+                    Column() {
+                      Row() {
+                        Text(repeatItem.item.isError ? 'ERROR' : 'INFO')
+                          .fontSize(9)
+                          .fontColor($r('sys.color.white'))
+                          .fontWeight(FontWeight.Bold)
+                          .padding({
+                            left: 6,
+                            right: 6,
+                            top: 2,
+                            bottom: 2
+                          })
+                          .backgroundColor(repeatItem.item.isError ? '#26ff4d4f' : '#2652c41a')
+                          .backdropBlur(12)
+                          .borderRadius(4)
 
-                      Text(`[${new Date(log.time).toLocaleTimeString(undefined, { hour12: false })}]`)
-                        .fontSize(10)
-                        .fontColor($r('app.color.text_color'))
-                        .opacity(0.7)
-                        .margin({ left: 8 })
+                        Text(`[${new Date(repeatItem.item.time).toLocaleTimeString(undefined, { hour12: false })}]`)
+                          .fontSize(10)
+                          .fontColor($r('app.color.text_color'))
+                          .opacity(0.7)
+                          .margin({ left: 8 })
 
-                      Text(log.tag)
-                        .fontSize(10)
-                        .fontColor(log.isError ? '#ff4d4f' : $r('app.color.text_color'))
-                        .opacity(0.6)
-                        .layoutWeight(1)
-                        .margin({ left: 8 })
+                        Text(repeatItem.item.tag)
+                          .fontSize(10)
+                          .fontColor(repeatItem.item.isError ? '#ff4d4f' : $r('app.color.text_color'))
+                          .opacity(0.6)
+                          .layoutWeight(1)
+                          .margin({ left: 8 })
+                      }
+                      .width('100%')
+
+                      Text(repeatItem.item.text)
+                        .fontSize(12)
+                        .fontColor(repeatItem.item.isError ? '#ff4d4f' : $r('app.color.text_color'))
+                        .width('100%')
+                        .wordBreak(WordBreak.BREAK_ALL)
+                        .margin({ top: 6 })
+                        .align(Alignment.Start)
                     }
                     .width('100%')
-
-                    Text(log.text)
-                      .fontSize(12)
-                      .fontColor(log.isError ? '#ff4d4f' : $r('app.color.text_color'))
-                      .width('100%')
-                      .wordBreak(WordBreak.BREAK_ALL)
-                      .margin({ top: 6 })
-                      .align(Alignment.Start)
+                    .padding({
+                      top: 6,
+                      bottom: 6,
+                      left: 12,
+                      right: 12
+                    })
                   }
-                  .width('100%')
-                  .padding({
-                    top: 6,
-                    bottom: 6,
-                    left: 12,
-                    right: 12
-                  })
-                }
-              }, (_log: SalmonLogLine, index: number) => index.toString())
+                })
+                .key((_item: SalmonLogLine, index: number) => index.toString())
+                .virtualScroll()
             }
-            .cachedCount(8)
             .onAppear(() => {
               setTimeout(() => {
                 const targetIndex = salmonLogger.logs.length - 1
@@ -137,43 +138,48 @@ export struct CrashPage {
         } else {
           // 崩溃日志
           List() {
-            ForEach(this.appEventGroups, (eventGroup: hiAppEvent.AppEventGroup) => {
-              ListItem() {
-                Column() {
-                  Text('事件名：' + eventGroup.name)
-                    .fontColor($r('app.color.text_color'))
-                    .fontSize(16)
-                    .fontWeight(FontWeight.Medium)
-                    .margin({ bottom: 8 })
+            Repeat<hiAppEvent.AppEventGroup>(this.appEventGroups)
+              .each((repeatItem: RepeatItem<hiAppEvent.AppEventGroup>) => {
+                ListItem() {
+                  Column() {
+                    Text('事件名：' + repeatItem.item.name)
+                      .fontColor($r('app.color.text_color'))
+                      .fontSize(16)
+                      .fontWeight(FontWeight.Medium)
+                      .margin({ bottom: 8 })
 
-                  ForEach(eventGroup.appEventInfos, (eventInfo: hiAppEvent.AppEventInfo) => {
-                    Column() {
-                      this.EventInfoText('domain', eventInfo.domain)
-                      this.EventInfoText('name', eventInfo.name)
-                      this.EventInfoText('eventType', eventInfo.eventType)
-                      this.EventInfoText('time', eventInfo.params['time'])
-                      this.EventInfoText('crash_type', eventInfo.params['crash_type'])
-                      this.EventInfoText('foreground', eventInfo.params['foreground'])
-                      this.EventInfoText('bundle_version', eventInfo.params['bundle_version'])
-                      this.EventInfoText('bundle_name', eventInfo.params['bundle_name'])
-                      this.EventInfoText('pid', eventInfo.params['pid'])
-                      this.EventInfoText('uid', eventInfo.params['uid'])
-                      this.EventInfoText('uuid', eventInfo.params['uuid'])
-                      this.EventInfoText('exception', JSON.stringify(eventInfo.params['exception']))
-                      this.EventInfoText('hilog.size', eventInfo.params['hilog']?.length)
-                      this.EventInfoText('external_log', JSON.stringify(eventInfo.params['external_log']))
-                      this.EventInfoText('log_over_limit', eventInfo.params['log_over_limit'])
-                      this.EventInfoText('test_data', eventInfo.params['test_data'])
-                    }
-                    .width('100%')
-                    .padding(8)
-                    .margin({ top: 8 })
-                  }, (_eventInfo: hiAppEvent.AppEventInfo, index: number) => index.toString())
+                    Repeat<hiAppEvent.AppEventInfo>(repeatItem.item.appEventInfos)
+                      .each((repeatItem2: RepeatItem<hiAppEvent.AppEventInfo>) => {
+                        Column() {
+                          this.EventInfoText('domain', repeatItem2.item.domain)
+                          this.EventInfoText('name', repeatItem2.item.name)
+                          this.EventInfoText('eventType', repeatItem2.item.eventType)
+                          this.EventInfoText('time', repeatItem2.item.params['time'])
+                          this.EventInfoText('crash_type', repeatItem2.item.params['crash_type'])
+                          this.EventInfoText('foreground', repeatItem2.item.params['foreground'])
+                          this.EventInfoText('bundle_version', repeatItem2.item.params['bundle_version'])
+                          this.EventInfoText('bundle_name', repeatItem2.item.params['bundle_name'])
+                          this.EventInfoText('pid', repeatItem2.item.params['pid'])
+                          this.EventInfoText('uid', repeatItem2.item.params['uid'])
+                          this.EventInfoText('uuid', repeatItem2.item.params['uuid'])
+                          this.EventInfoText('exception', JSON.stringify(repeatItem2.item.params['exception']))
+                          this.EventInfoText('hilog.size', repeatItem2.item.params['hilog']?.length)
+                          this.EventInfoText('external_log', JSON.stringify(repeatItem2.item.params['external_log']))
+                          this.EventInfoText('log_over_limit', repeatItem2.item.params['log_over_limit'])
+                          this.EventInfoText('test_data', repeatItem2.item.params['test_data'])
+                        }
+                        .width('100%')
+                        .padding(8)
+                        .margin({ top: 8 })
+                      })
+                      .key((_item: hiAppEvent.AppEventInfo, index2: number) => index2.toString())
+                  }
+                  .width('100%')
+                  .padding(12)
                 }
-                .width('100%')
-                .padding(12)
-              }
-            }, (eventGroup: hiAppEvent.AppEventGroup, index: number) => eventGroup.name + index)
+              })
+              .key((item: hiAppEvent.AppEventGroup, index: number) => item.name + (index ?? 0))
+              .virtualScroll()
           }
           .height('100%')
           .width('100%')
@@ -271,9 +277,10 @@ export struct CrashPage {
     })
     .backgroundColor($r('app.color.start_window_background'))
     .padding({ top: SafeHeight.topSafeHeight, bottom: SafeHeight.bottomSafeHeight })
-    .backgroundImage(Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(
+      Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ? Setting.backgroundBlurImageSrc :
+        Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
-    .backdropBlur(Setting.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
     .hideBackButton(false)
     .bindToScrollable([this.listScroller]) // 绑定导航组件和可滚动容器组件

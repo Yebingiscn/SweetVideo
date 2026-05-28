@@ -1,7 +1,6 @@
 import { VideoList, VideoListController } from './VideoItemComponent'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { SideBarController } from '../SideBarComponent/SideBar'
-import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil'
 import { motion } from '@kit.MultimodalAwarenessKit'
 import {
   ButtonFancyModifier,
@@ -29,11 +28,8 @@ import { FileFolder } from '../../interfaces/FileFolderInterface'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { SortComponent } from './SortComponent'
 import { DebounceUtil } from '../../utils/DebounceUtil'
-import { salmonLogger } from 'salmonlogger'
 import { BatchVideoDeleteDialog } from '../Dialog/BatchVideoDeleteDialog'
 import { DeleteType } from '../../common/enum/DeleteType'
-
-const TAG = 'VideoViewComponent'
 
 @ComponentV2
 export struct VideoView {
@@ -67,26 +63,13 @@ export struct VideoView {
   })
   @Local currentSortField: 'name' | 'datetime' | 'time' | '' = ''
   @Local currentSortAsc: boolean = true
-  // 当前选中文件夹索引
-  @Local currentFolderIndex: number = 0
-  // 监听文件夹切换，同步面包屑选中状态
   @Param scrollToFolderDate: string = ''
   private passwd: string = 'passwd'
-  // 面包屑滚动控制器
   private breadcrumbScroller: Scroller = new Scroller()
   // 文件夹按钮尺寸配置
   private readonly FOLDER_TAB_MIN_WIDTH: number = 64
   private readonly FOLDER_TAB_HEIGHT: number = 28
   @Event onSearchValueChange: (v: string) => void = () => {
-  }
-
-  @Monitor('file_folder_list')
-  onFolderListChanged() {
-    // 文件夹列表变化时，确保选中状态正确
-    const newIndex = this.getCurrentFolderIndex()
-    if (newIndex !== -1 && newIndex !== this.currentFolderIndex) {
-      this.currentFolderIndex = newIndex
-    }
   }
 
   @Monitor('delMultipleList')
@@ -99,10 +82,8 @@ export struct VideoView {
 
   @Monitor('scrollToFolderDate')
   onFolderChanged() {
-    const newIndex = this.getCurrentFolderIndex()
-    if (newIndex !== -1 && newIndex !== this.currentFolderIndex) {
-      this.currentFolderIndex = newIndex
-      // 滚动到当前文件夹
+    const newIndex = this.file_folder_list.findIndex(f => f.date === this.scrollToFolderDate)
+    if (newIndex !== -1) {
       this.scrollToCurrentFolder(newIndex)
     }
   }
@@ -207,8 +188,9 @@ export struct VideoView {
                     this.videoListController.folder)
                 } else {
                   const videoMetaDataList: VideoMetadata[] =
-                    SelectFileUtil.getItemFromSearch(FolderOperator.getFolderByName(this.videoListController.folder.name)
-                      .video_list, this._searchValue)
+                    SelectFileUtil.getItemFromSearch(
+                      FolderOperator.getFolderByName(this.videoListController.folder.name)
+                        .video_list, this._searchValue)
                   this.videoListController.videoDataSource.updateData(videoMetaDataList)
                   this.videoListController.updateData(this.videoListController.videoDataSource,
                     this.videoListController.folder)
@@ -235,7 +217,7 @@ export struct VideoView {
               }
             },
             onEditChange: (isEditing: boolean) => {
-              animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
+              XAnimation.runWithAnimation(() => {
                 this.is_edit = isEditing
               })
             },
@@ -338,10 +320,11 @@ export struct VideoView {
   FolderTabsBuilder() {
     Scroll(this.breadcrumbScroller) {
       Row({ space: 8 }) {
-        LazyForEach(this.fileFolderSource, (folder: FileFolder, index: number) => {
-          this.FolderTabItemBuilder(folder, index)
-        }, (folder: FileFolder, index: number) => folder.date.toString() + '_' + index + '_' +
-          (this.currentFolderIndex === index))
+        Repeat<FileFolder>(this.fileFolderSource.data)
+          .each((repeatItem: RepeatItem<FileFolder>) => {
+            this.FolderTabItemBuilder(repeatItem.item, repeatItem.index)
+          })
+          .key((item: FileFolder) => item.date.toString() + item.name)
       }
       .padding({ left: 6, right: 10 })
       .height(36)
@@ -359,8 +342,8 @@ export struct VideoView {
     Row() {
       Text(folder.name)
         .fontSize(13)
-        .fontWeight(this.currentFolderIndex === index ? FontWeight.Bold : FontWeight.Medium)
-        .fontColor(this.currentFolderIndex === index ?
+        .fontWeight(this.videoListController?.folder?.date === folder.date ? FontWeight.Bold : FontWeight.Medium)
+        .fontColor(this.videoListController?.folder?.date === folder.date ?
           $r('sys.color.white') : $r('app.color.text_color'))
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .maxLines(1)
@@ -368,7 +351,7 @@ export struct VideoView {
     }
     .backgroundEffect({ radius: 100 })
     .useEffect(true, EffectType.WINDOW_EFFECT)
-    .backgroundColor(this.currentFolderIndex === index ?
+    .backgroundColor(this.videoListController?.folder?.date === folder.date ?
       $r('app.color.main_color') : $r('app.color.search_component_blur'))
     .height(this.FOLDER_TAB_HEIGHT)
     .constraintSize({ minWidth: this.FOLDER_TAB_MIN_WIDTH })
@@ -379,8 +362,7 @@ export struct VideoView {
       if (this.videoListController.multipleChooseState === Visibility.Visible) {
         return
       }
-      if (this.currentFolderIndex !== index) {
-        this.currentFolderIndex = index
+      if (this.videoListController?.folder?.date !== folder.date) {
         this.switchToFolderByIndex(index)
       }
     })
@@ -406,57 +388,19 @@ export struct VideoView {
   }
 
   /**
-   * 获取当前文件夹在列表中的索引
-   */
-  private getCurrentFolderIndex(): number {
-    return this.file_folder_list.findIndex(f => f.date === this.videoListController?.folder?.date)
-  }
-
-  /**
    * 通过索引切换文件夹
    */
   private switchToFolderByIndex(index: number): void {
-    // 边界检查
-    if (index < 0 || index >= this.file_folder_list.length) {
-      salmonLogger.addLog(TAG,
-        `[VideoView] switchToFolderByIndex: index ${index} out of bounds, length: ${this.file_folder_list.length}`,
-        true)
+    const result = VideoUtils.switchFolder(
+      index, this.file_folder_list, this.videoListController, this.fileFolderSource, this._searchValue
+    )
+    if (!result) {
       return
     }
-    const folder = this.file_folder_list[index]
-    if (!folder) {
-      salmonLogger.addLog(TAG, `[VideoView] switchToFolderByIndex: folder at index ${index} is undefined`, true)
-      return
-    }
-    if (this.videoListController?.folder?.date === folder.date) {
-      return
-    }
-    // 保留搜索状态，在新文件夹中应用搜索过滤
-    this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
-    this.fileFolderSource.updateData(this.file_folder_list)
-    const currentFolder = this.fileFolderSource.getFileFolder(folder.name)
-    if (currentFolder) {
-      // 如果有搜索值，在新文件夹中过滤视频
-      let filteredVideos = currentFolder.video_list
-      if (this._searchValue.length > 0) {
-        filteredVideos = SelectFileUtil.getItemFromSearch(currentFolder.video_list, this._searchValue)
-      }
-      animateToImmediately({
-        duration: 200,
-        curve: Curve.EaseInOut
-      }, () => {
-        this.videoListController.videoDataSource.updateData(filteredVideos)
-        this.videoListController.updateData(
-          this.videoListController.videoDataSource,
-          currentFolder
-        )
-      })
-    }
-    // 滚动面包屑使当前文件夹可见
+    this.file_folder_list = result.refreshedFolders
     this.scrollToCurrentFolder(index)
     this.sideBarController.close(true)
-    // 同步 scrollToFolderDate，触发 onFolderChanged 确保状态一致
-    this.onScrollToFolderDateChange(folder.date)
+    this.onScrollToFolderDateChange(result.currentFolder!.date)
   }
 
   /**
@@ -467,10 +411,7 @@ export struct VideoView {
     const estimatedItemWidth = 80
     const spacing = 8
     const targetOffset = Math.max(0, index * (estimatedItemWidth + spacing) - 100)
-    animateToImmediately({
-      duration: 200,
-      curve: Curve.Ease
-    }, () => {
+    XAnimation.runWithAnimation(() => {
       this.breadcrumbScroller.scrollTo({
         xOffset: targetOffset,
         yOffset: 0,

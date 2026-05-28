@@ -1,21 +1,21 @@
-import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode'
+import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import { MpvSubtitleTrack } from '../../controller/MpvController/MpvTypes'
 import { SubtitleTrack } from '../../interfaces/AudioTrackInterface'
 import { InnerSubtitleDataSource } from '../../utils/DataUtil'
-import VideoOperateUtil from '../../utils/VideoOperateUtil'
-import ToolsUtil from '../../utils/ToolsUtil'
 
 @ComponentV2
 export struct SubtitlePanelComponent {
   @Param subtitleVisibility: Visibility = Visibility.None
   @Param isAIAsrShown: boolean = false
   @Param subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
-  @Event onSubtitle3DModeChange: (v: Subtitle3DMode) => void = () => {}
   @Local _subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
   @Local innerSubtitleMenu: InnerSubtitleDataSource = new InnerSubtitleDataSource([])
   @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
+  @Event onSubtitle3DModeChange: (v: Subtitle3DMode) => void = () => {
+  }
   @Event onSubtitleOffClick: () => void = () => {
   }
   @Event onSubtitleOffsetTime: () => void = () => {
@@ -130,6 +130,17 @@ export struct SubtitlePanelComponent {
           $r('app.color.text_color'))
         .backgroundColor(this._subtitle3DMode !== Subtitle3DMode.DISABLED ? $r('app.color.main_color') : '')
         .menuItemExtend()
+
+      if (this.player instanceof AVPlayerController) {
+        MenuItem({
+          content: '内嵌字幕未显示？切换至 MPV 核心'
+        })
+          .menuItemExtend()
+          .contentFontColor($r('app.color.text_color'))
+          .onClick(() => {
+            this.switchToMpvPlayer()
+          })
+      }
     }
     .width(240)
     .height('auto')
@@ -196,25 +207,47 @@ export struct SubtitlePanelComponent {
   @Builder
   InnerSubtitleMenu() {
     Menu() {
-      LazyForEach(this.innerSubtitleMenu, (item: MpvSubtitleTrack | SubtitleTrack) => {
-        MenuItem({
-          content: item.id + " " + VideoOperateUtil.getLanguageName(item.title) + " " +
-            VideoOperateUtil.getLanguageName(item.lang)
-        })
-          .menuItemExtend()
-          .contentFontColor(this.player.subtitleTrackSelected === item.id ? $r('sys.color.white') :
-            $r('app.color.text_color'))
-          .backgroundColor(this.player.subtitleTrackSelected === item.id ? $r('app.color.main_color') : '')
-          .onClick(() => {
-            this.player.selectSubtitleTrack(item.id)
-            this.onInnerSubtitleClick()
+      Repeat<MpvSubtitleTrack | SubtitleTrack>(this.innerSubtitleMenu.data)
+        .each((repeatItem: RepeatItem<MpvSubtitleTrack | SubtitleTrack>) => {
+          MenuItem({
+            content: `${repeatItem.item.id} : ${this.getFormattedSubtitleName(repeatItem.item)}`
           })
-      }, (item: MpvSubtitleTrack | SubtitleTrack) => `${item.id}`)
+            .menuItemExtend()
+            .contentFontColor(this.player.subtitleTrackSelected === repeatItem.item.id ? $r('sys.color.white') :
+              $r('app.color.text_color'))
+            .backgroundColor(this.player.subtitleTrackSelected === repeatItem.item.id ? $r('app.color.main_color') : '')
+            .onClick(() => {
+              this.player.selectSubtitleTrack(repeatItem.item.id)
+              this.onInnerSubtitleClick()
+            })
+        })
+        .key((item: MpvSubtitleTrack | SubtitleTrack, _index: number) => `${item.id}`)
     }
+  }
+
+  private getFormattedSubtitleName(item: MpvSubtitleTrack | SubtitleTrack): string {
+    const langName = VideoOperateUtil.getLanguageName(item.lang)
+    const titleName = VideoOperateUtil.getLanguageName(item.title)
+    if (titleName && titleName !== '未知' && titleName !== langName) {
+      return titleName + (langName ? ` (${langName})` : '')
+    }
+    if (langName) {
+      return langName
+    }
+    if (item.title) {
+      return item.title
+    }
+    return `Track ${item.id}`
   }
 
   private hasExternalSubtitle(): boolean {
     return (this.player.nowPlaying?.external_subtitle_format?.length ?? 0) > 0
+  }
+
+  private switchToMpvPlayer(): void {
+    const avPlayer = this.player as AVPlayerController
+    VideoOperateUtil.playErrorExecute(this.pathStack, avPlayer.videoMetaDataList,
+      avPlayer.nowPlaying?.date!, NavigationAddress.MPV_PLAYER, avPlayer.playTime)
   }
 
   private isExternalSubtitleActive(): boolean {

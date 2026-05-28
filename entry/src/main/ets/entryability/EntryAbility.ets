@@ -198,8 +198,11 @@ export default class EntryAbility extends UIAbility {
     if (newColorMode === currentColorMode) {
       return
     }
-    setTimeout(() => {
+    setTimeout(async () => {
       Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
+      if (Setting.backgroundDropBlur > 0 && Setting.backgroundImageSrc.length > 0) {
+        await SelectFileUtil.updateBlurBackground(Setting.backgroundDropBlur)
+      }
     }, 100)
     // 更新缓存中的颜色模式
     AppStorage.setOrCreate('currentColorMode', newConfig.colorMode)

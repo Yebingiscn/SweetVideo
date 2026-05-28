@@ -111,4 +111,7 @@ declare module 'libmpvnative.so' {
   export const registerSurfaceModeErrorCallback: (callback: (errorMessage: string) => void) => void;
 
   export const unregisterSurfaceModeErrorCallback: () => void;
+
+  // ==================== 章节 ====================
+  export const getChapterList: (mpvHandle: number) => Array<{ index: number; title: string; time: number }>;
 }

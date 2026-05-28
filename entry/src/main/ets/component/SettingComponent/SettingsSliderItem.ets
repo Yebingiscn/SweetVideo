@@ -1,4 +1,4 @@
-import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
+import { SettingsTitleModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import TimeUtil from '../../utils/TimeUtil'
 
 @ComponentV2
@@ -9,6 +9,8 @@ export struct SettingsSliderItem {
   @Local _selected: number = 0
   @Param textSliderMode: boolean = false
   @Event onChangeComplete: (_value: number) => void = () => {
+  }
+  @Event onChange: (_value: number) => void = () => {
   }
 
   aboutToAppear(): void {
@@ -26,10 +28,7 @@ export struct SettingsSliderItem {
         SymbolGlyph(this.symbol)
           .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
         Text(this.getDisplayText())
-          .fontSize(17)
-          .fontWeight(FontWeight.Medium)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .attributeModifier(new SettingsTitleModifier())
           .constraintSize({ maxWidth: 160 })
       }
 
@@ -41,6 +40,7 @@ export struct SettingsSliderItem {
       })
         .onChange((value) => {
           this._selected = value
+          this.onChange(value)
         })
         .onTouch((event) => {
           if (event.type == TouchType.Up) {

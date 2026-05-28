@@ -14,11 +14,13 @@ import { SUPPORT_AUDIO_FORMAT, SUPPORT_VIDEO_FORMAT } from '../common/Constants'
 import Preferences from '../database/Preferences'
 import FileFolderUtil from './FileFolderUtil'
 import { ConcurrencyManagerUtil } from './FileProcessorUtil'
+import { Setting } from './ObservedUtil'
 import { PathUtils } from './PathUtils'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
 import RecentPlayUtil from './RecentPlayUtil'
 import SubtitleUtil from './SubtitleUtil'
 import { extractVideoMetadataInTaskPool } from './TaskpoolUtil'
+import { effectKit } from '@kit.ArkGraphics2D'
 import { systemDateTime } from '@kit.BasicServicesKit'
 
 const TAG = 'SelectFileUtil'
@@ -103,6 +105,13 @@ export default class SelectFileUtil {
     })?.catch((err: BusinessError) => {
       salmonLogger.addLog(TAG, "access failed with error message: " + err.message + ", error code: " + err.code, true)
     })
+    try {
+      const blurPath = PathUtils.photoPath! + imageName + '_blur'
+      if (fs.accessSync(blurPath)) {
+        fs.unlinkSync(blurPath)
+      }
+    } catch (e) {
+    }
   }
 
   // 获取下载文件夹路径
@@ -145,8 +154,6 @@ export default class SelectFileUtil {
   static getImageUri(): string {
     const currentColorMode = AppStorage.get('currentColorMode') as number
     const basePhotoPath = PathUtils.photoPath!
-    // 辅助函数：安全地获取文件 URI
-    // 如果文件存在返回 URI，否则返回空字符串
     const getSafeUri = (fileName: string): string => {
       const fullPath = `${basePhotoPath}${fileName}`
       try {
@@ -154,7 +161,6 @@ export default class SelectFileUtil {
           return fileUri.getUriFromPath(fullPath)
         }
       } catch (e) {
-        // accessSync 抛出异常通常意味着权限问题或路径严重错误，视为文件不存在
         salmonLogger.addLog(TAG, `Failed to access image: ${fullPath} ` + e)
       }
       return ''
@@ -183,6 +189,59 @@ export default class SelectFileUtil {
     }
   }
 
+  static getExistingBlurImageUri(): string {
+    const imageName = SelectFileUtil.getCurrentBackgroundImageName()
+    const blurPath = PathUtils.photoPath + imageName + '_blur'
+    try {
+      if (fs.accessSync(blurPath)) {
+        return fileUri.getUriFromPath(blurPath)
+      }
+    } catch (e) {
+    }
+    return ''
+  }
+
+  static async updateBlurBackground(blurRadius: number, forceRegenerate: boolean = false): Promise<string> {
+    if (blurRadius <= 0) {
+      Setting.backgroundBlurImageSrc = ''
+      return ''
+    }
+    const imageName = SelectFileUtil.getCurrentBackgroundImageName()
+    const blurFileName = imageName + '_blur'
+    const blurPath = PathUtils.photoPath + blurFileName
+    if (!forceRegenerate) {
+      try {
+        if (fs.accessSync(blurPath)) {
+          const blurUri = fileUri.getUriFromPath(blurPath)
+          Setting.backgroundBlurImageSrc = blurUri
+          return blurUri
+        }
+      } catch (e) {
+      }
+    }
+    const blurUri = await SelectFileUtil.generateBlurredBackground(imageName, blurRadius)
+    Setting.backgroundBlurImageSrc = blurUri
+    return blurUri
+  }
+
+  static getCurrentBackgroundImageName(): string {
+    const currentColorMode = AppStorage.get('currentColorMode') as number
+    if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT) {
+      return 'BackgroundImage'
+    }
+    if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK) {
+      const darkPath = PathUtils.photoPath + 'BackgroundDarkImage'
+      try {
+        if (fs.accessSync(darkPath)) {
+          return 'BackgroundDarkImage'
+        }
+      } catch (e) {
+      }
+      return 'BackgroundImage'
+    }
+    return 'BackgroundImage'
+  }
+
   static saveImageToSandBox(sourceFileUri: string, imageName: string) {
     const filePath = PathUtils.photoPath + imageName // 定义完整文件路径
     try {
@@ -206,7 +265,7 @@ export default class SelectFileUtil {
     try {
       packer = image.createImagePacker()
       file = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
-      await packer.packToFile(pixelMap, file.fd, { format: 'image/webp', quality: 85 })
+      await packer.packToFile(pixelMap, file.fd, { format: 'image/jpeg', quality: 85 })
       return filePath
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
@@ -239,6 +298,41 @@ export default class SelectFileUtil {
         } catch (e) {
           salmonLogger.addLog(TAG, 'Failed to release pixelMap: ' + e, false)
         }
+      }
+    }
+  }
+
+  static async generateBlurredBackground(imageName: string, blurRadius: number): Promise<string> {
+    if (blurRadius <= 0) {
+      return ''
+    }
+    const sourcePath = PathUtils.photoPath + imageName
+    const blurFileName = imageName + '_blur'
+    const blurPath = PathUtils.photoPath + blurFileName
+    let sourceFile: fs.File | undefined = undefined
+    let imageSource: image.ImageSource | undefined = undefined
+    let pixelMap: image.PixelMap | undefined = undefined
+    try {
+      sourceFile = fs.openSync(sourcePath, fs.OpenMode.READ_ONLY)
+      imageSource = image.createImageSource(sourceFile.fd)
+      pixelMap = await imageSource.createPixelMap()
+      const effect = effectKit.createEffect(pixelMap)
+      const blurredPixelMap = await effect.blur(blurRadius).getEffectPixelMap()
+      await SelectFileUtil.savePixelMapToFile(PathUtils.photoPath!, blurFileName, blurredPixelMap!, {
+        releasePixelMap: true
+      })
+      return fileUri.getUriFromPath(blurPath)
+    } catch (error) {
+      salmonLogger.addLog(TAG, `Failed to generate blurred background: ${error}`, true)
+      return ''
+    } finally {
+      try {
+        pixelMap?.release()
+        imageSource?.release()
+        if (sourceFile) {
+          fs.closeSync(sourceFile)
+        }
+      } catch (e) {
       }
     }
   }

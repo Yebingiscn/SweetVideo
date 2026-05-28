@@ -91,21 +91,21 @@ export struct LiqD {
   build() {
     Stack() {
       RelativeContainer() {
-        ForEach(this.bs, (b: bool) => {
-          Row()
-            .zIndex(-b.size)
-            .backgroundColor(b.color)
-            .aspectRatio(1)
-            .width(b.size)
-            .offset(b.position)
-            .clipShape(new CircleShape({ width: b.size, height: b.size }))
-            .alignRules({
-              top: { anchor: "__container__", align: VerticalAlign.Top },
-              left: { anchor: "__container__", align: HorizontalAlign.Start }
-            })
-        }, (b: bool, index: number) => {
-          return `${b.color}${b.size}${index}`
-        })
+        Repeat<bool>(this.bs)
+          .each((repeatItem: RepeatItem<bool>) => {
+            Row()
+              .zIndex(-repeatItem.item.size)
+              .backgroundColor(repeatItem.item.color)
+              .aspectRatio(1)
+              .width(repeatItem.item.size)
+              .offset(repeatItem.item.position)
+              .clipShape(new CircleShape({ width: repeatItem.item.size, height: repeatItem.item.size }))
+              .alignRules({
+                top: { anchor: "__container__", align: VerticalAlign.Top },
+                left: { anchor: "__container__", align: HorizontalAlign.Start }
+              })
+          })
+          .key((item: bool, index: number) => `${item.color}${item.size}${index}`)
       }
       .layoutWeight(1)
       .foregroundBlurStyle(BlurStyle.Thin)

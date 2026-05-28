@@ -1,8 +1,4 @@
-import {
-  CapsuleSegmentButtonV2, ColorMetrics, SegmentButtonV2ItemOptions, SegmentButtonV2Items
-} from '@kit.ArkUI'
-import { salmonLogger } from 'salmonlogger'
-import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
+import { ColorMetrics, SegmentButtonV2Items } from '@kit.ArkUI'
 
 const TAG = 'SettingsSegmentButtonItem'
 
@@ -41,10 +37,7 @@ export struct SettingsSegmentButtonItem {
           .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
           .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE))
         Text(this.message)
-          .fontSize(17)
-          .fontWeight(FontWeight.Medium)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.MARQUEE })
+          .attributeModifier(new SettingsTitleModifier())
           .layoutWeight(1)
       }
 
@@ -60,15 +53,7 @@ export struct SettingsSegmentButtonItem {
     .height(100)
     .alignItems(HorizontalAlign.Center)
     .justifyContent(FlexAlign.Center)
-    .backgroundColor($r('app.color.start_window_background_blur'))
-    .borderRadius(16)
-    .padding({
-      right: 15,
-      left: 15,
-      top: 10,
-      bottom: 10
-    })
-    .margin({ top: 5, bottom: 5 })
+    .attributeModifier(new SettingsItemModifier())
   }
 
   private getColor() {

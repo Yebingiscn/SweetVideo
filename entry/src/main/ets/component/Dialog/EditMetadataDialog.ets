@@ -1,5 +1,6 @@
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import DataSyncUtil from '../../utils/DataSyncUtil'
+import { DIALOG_TITLE_FONT_SIZE } from '../../common/Constants'
 
 // 重命名视频弹窗
 @CustomDialog
@@ -16,7 +17,7 @@ export struct EditMetadataDialog {
   build() {
     Column({ space: 20 }) {
       Text($r('app.string.rename'))
-        .fontSize(25)
+        .fontSize(DIALOG_TITLE_FONT_SIZE)
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)
 

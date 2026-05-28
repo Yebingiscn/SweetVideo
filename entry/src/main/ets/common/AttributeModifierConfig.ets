@@ -2,6 +2,33 @@ import { CommonModifier } from '@kit.ArkUI';
 import { ShadowFancy } from '../interfaces/ShadowFancyInterface';
 import { hdsEffect } from '@kit.UIDesignKit';
 
+export class SettingsItemModifier extends CommonModifier {
+  constructor() {
+    super()
+  }
+
+  applyNormalAttribute(instance: CommonAttribute): void {
+    instance.backgroundColor($r('app.color.start_window_background_blur'))
+      .borderRadius(16)
+      .padding({
+        right: 15,
+        left: 15,
+        top: 10,
+        bottom: 10
+      })
+      .margin({ top: 5, bottom: 5 })
+  }
+}
+
+export class SettingsTitleModifier implements AttributeModifier<TextAttribute> {
+  applyNormalAttribute(instance: TextAttribute): void {
+    instance.fontSize(17)
+      .fontWeight(FontWeight.Medium)
+      .maxLines(1)
+      .textOverflow({ overflow: TextOverflow.MARQUEE })
+  }
+}
+
 export class ShadowModifier extends CommonModifier {
   constructor() {
     super()

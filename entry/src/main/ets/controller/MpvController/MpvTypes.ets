@@ -1,21 +1,10 @@
+import { SubtitleTrack } from '../../interfaces/AudioTrackInterface'
+
 export interface MpvPlayerOptions {
   videoUrl: string;
 }
 
-/**
- * 字幕轨道信息
- */
-export interface MpvSubtitleTrack {
-  /** 轨道 ID */
-  id: number;
-
-  /** 轨道标题 */
-  title: string;
-
-  /** 语言代码 (如 'en', 'zh', 'ja') */
-  lang: string;
-
-  /** 是否为外部字幕 */
+export interface MpvSubtitleTrack extends SubtitleTrack {
   external: boolean;
 }
 
@@ -80,4 +69,10 @@ export const enum MpvDecodingMethod {
   HARDWARE_SURFACE = 0,
   SOFTWARE = 1,
   HARDWARE_BUFFER = 2
+}
+
+export interface MpvChapter {
+  index: number;
+  title: string;
+  time: number;
 }

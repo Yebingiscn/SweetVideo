@@ -18,9 +18,18 @@ export struct VideoSliderComponent {
           .fontWeight(FontWeight.Medium)
           .fontSize(16)
           .fontColor($r('sys.color.white'))
-          .textAlign(TextAlign.Start)
           .opacity(0.9)
           .textShadow({ color: Color.Black, type: ShadowType.BLUR, radius: 4 })
+
+        Text(this.player instanceof MpvController ? $r('app.string.MPV_Player') : $r('app.string.AV_PLAYER'))
+          .fontWeight(FontWeight.Medium)
+          .fontSize(16)
+          .fontColor($r('sys.color.white'))
+          .opacity(0.9)
+          .textShadow({ color: Color.Black, type: ShadowType.BLUR, radius: 4 })
+          .margin({ left: 8 })
+
+        Blank() // 将剩余时间推至右侧
 
         Text(TimeUtil.getRemainTime(this.player.playTime, this.player.nowPlaying?.time || 0, this.player.speed))
           .fontWeight(FontWeight.Medium)
@@ -29,13 +38,13 @@ export struct VideoSliderComponent {
           .textAlign(TextAlign.End)
           .opacity(0.9)
           .textShadow({ color: Color.Black, type: ShadowType.BLUR, radius: 4 })
-      }.width('100%').height('auto')
-      .justifyContent(FlexAlign.SpaceBetween)
+      }
+      .width('100%')
+      .height('auto')
 
       Slider({
         value: this.player.playTime,
         min: 0,
-        // 防御性处理：当 time 为 0 或 undefined 时，默认 max 为 1，避免 Slider 组件因 max=0 出现渲染异常
         max: this.player.nowPlaying?.time || 1,
         style: SliderStyle.NONE
       })
@@ -52,6 +61,8 @@ export struct VideoSliderComponent {
         .height('auto')
         .width('100%')
         .opacity(0.9)
-    }.height('auto').width('90%')
+    }
+    .height('auto')
+    .width('90%')
   }
 }

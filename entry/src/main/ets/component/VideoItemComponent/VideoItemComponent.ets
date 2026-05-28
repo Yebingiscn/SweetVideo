@@ -6,7 +6,7 @@ import SelectFileUtil from '../../utils/SelectFileUtil'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import { VideoDetailDialog } from '../../component/Dialog//VideoDetailDialog'
 import {
-  DefaultDialogShadow, MenuFancyModifier
+  DefaultDialogShadow
 } from '../../common/AttributeModifierConfig'
 import { EditMetadataDialog } from '../../component/Dialog//EditMetadataDialog'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
@@ -19,22 +19,7 @@ import { VideoDeleteDialog } from '../Dialog/VideoDeleteDialog'
 import { BatchVideoDeleteDialog } from '../Dialog/BatchVideoDeleteDialog'
 import { DeleteType } from '../../common/enum/DeleteType'
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
-import { salmonLogger } from 'salmonlogger'
-import { DELAY_JUMP_TO_PLAYER, FULL_ALPHABET } from '../../common/Constants'
-import Preferences from '../../database/Preferences'
-import { XAnimation } from '../../utils/AnimationUtil'
-import { SafeHeight, Setting } from '../../utils/ObservedUtil'
-import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil'
 import { motion } from '@kit.MultimodalAwarenessKit'
-import SubtitleUtil from '../../utils/SubtitleUtil'
-import VideoOperateUtil from '../../utils/VideoOperateUtil'
-import WantProcess from '../../utils/WantProcessUtil'
-import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu'
-import VideoCardItem from './VideoCardItemComponent'
-import { VideoItemPreviewBuilder } from './VideoItemPreviewBuilder'
-import VideoListItem from './VideoListItemComponent'
-import { SymbolGlyphModifier } from '@kit.ArkUI'
-import { ScrollBarBuilder } from './ScrollBarBuilder'
 
 @ObservedV2
 export class VideoListController {
@@ -160,6 +145,23 @@ export struct VideoList {
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  batchDelConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: BatchVideoDeleteDialog({
+      videoList: this.batchDelList,
+      confirm: async (deleteType: DeleteType) => {
+        try {
+          DataSyncUtil.delMultipleList = this.batchDelList
+          await FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController,
+            this.fileFolderSource, deleteType)
+        } catch (e) {
+          ToolsUtil.showToast(`删除失败:${e}`)
+        } finally {
+          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+          this.videoListController.closeMultipleChoose()
+        }
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
   delConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDeleteDialog({
       confirm: async (deleteType: DeleteType) => {
@@ -181,27 +183,11 @@ export struct VideoList {
   @Param delMultipleList: VideoMetadata[] = []
   @Local _delMultipleList: VideoMetadata[] = []
   @Local batchDelList: VideoMetadata[] = []
-  batchDelConfirmDialog: CustomDialogController = new CustomDialogController({
-    builder: BatchVideoDeleteDialog({
-      videoList: this.batchDelList,
-      confirm: async (deleteType: DeleteType) => {
-        try {
-          DataSyncUtil.delMultipleList = this.batchDelList
-          await FileFolderUtil.delVideosFileFolder(PathUtils.appContext!, this.videoListController,
-            this.fileFolderSource, deleteType)
-        } catch (e) {
-          ToolsUtil.showToast(`删除失败:${e}`)
-        } finally {
-          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
-          this.videoListController.closeMultipleChoose()
-        }
-      }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
   })
+  private _invalidItem: VideoMetadata | null = null
   invalidFileDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog({
       textInfo: '该视频文件已失效，是否清除？',
@@ -211,7 +197,7 @@ export struct VideoList {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  private _invalidItem: VideoMetadata | null = null
+
   @Event onSearchValueChange: (v: string) => void = () => {
   }
   @Event onDelMultipleListChange: (v: VideoMetadata[]) => void = () => {
@@ -247,74 +233,77 @@ export struct VideoList {
           Alignment.TopEnd
       }) {
         List({ scroller: this.videoListController.listScroller }) {
-          LazyForEach(this.videoListController.videoDataSource, (item: VideoMetadata) => { // 加载视频列表
-            ListItem() {
-              VideoListItem({
-                item: item,
-                delMultipleList: this._delMultipleList
-              })
-            }
-            .borderRadius(16)
-            .backgroundColor(Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
-              $r('app.color.start_window_background'))
-            .margin({ bottom: 20 }) // 不知道动了哪里，挤在一起了，先这样改
-            .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-            .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
-            .width(this.videoListController.listLine === 1 ? '100%' : '95%')
-            .height('auto')
-            .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
-              {
-                backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-                preview: VideoItemPreviewBuilder(item),
-                previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
-                layoutRegionMargin: {
-                  left: 16,
-                  right: 16,
-                  top: 16,
-                  bottom: 4
-                },
-                hapticFeedbackMode: HapticFeedbackMode.ENABLED
-              })
-            .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
-              {
-                backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-                preview: VideoItemPreviewBuilder(item),
-                previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
-                layoutRegionMargin: {
-                  left: 16,
-                  right: 16,
-                  top: 16,
-                  bottom: 4
-                },
-                mask: true
-              })
-            .gesture(
-              TapGesture({ count: 1, fingers: 1 })
-                .onAction(async () => {
-                  if (this.videoListController.multipleChooseState !== Visibility.Visible) {
-                    const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
-                    await this.clickItem(videoItem,
-                      VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
-                    return
-                  } else {
-                    //已存在，标记置反
-                    if (this._delMultipleList.some(video => video.date === item.date)) {
-                      this._delMultipleList =
-                        this._delMultipleList.filter(video => video.date !== item.date)
-                      this.onDelMultipleListChange([...this._delMultipleList])
-                    } else {
-                      this._delMultipleList.push(item)
-                      this.onDelMultipleListChange([...this._delMultipleList])
-                    }
-                  }
+          Repeat<VideoMetadata>(this.videoListController.videoDataSource.data)
+            .each((repeatItem: RepeatItem<VideoMetadata>) => {
+              ListItem() {
+                VideoListItem({
+                  item: repeatItem.item,
+                  delMultipleList: this._delMultipleList
                 })
-            )
-          }, (item: VideoMetadata) => item.date.toString() + item.last_play + item.title + item.size.toString() +
-            this.videoListController.folder.name + item.time)
+              }
+              .borderRadius(16)
+              .backgroundColor(Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
+                $r('app.color.start_window_background'))
+              .margin({ bottom: 20 })
+              .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+              .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
+              .width(this.videoListController.listLine === 1 ? '100%' : '95%')
+              .height('auto')
+              .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress,
+                {
+                  backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+                  preview: VideoItemPreviewBuilder(repeatItem.item),
+                  previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
+                  layoutRegionMargin: {
+                    left: 16,
+                    right: 16,
+                    top: 16,
+                    bottom: 4
+                  },
+                  hapticFeedbackMode: HapticFeedbackMode.ENABLED
+                })
+              .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.RightClick,
+                {
+                  backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+                  preview: VideoItemPreviewBuilder(repeatItem.item),
+                  previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
+                  layoutRegionMargin: {
+                    left: 16,
+                    right: 16,
+                    top: 16,
+                    bottom: 4
+                  },
+                  mask: true
+                })
+              .gesture(
+                TapGesture({ count: 1, fingers: 1 })
+                  .onAction(async () => {
+                    if (this.videoListController.multipleChooseState !== Visibility.Visible) {
+                      const videoItem =
+                        SelectFileUtil.getItem(this.videoListController.videoMetaDataList, repeatItem.item?.date!)
+                      await this.clickItem(videoItem,
+                        VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
+                      return
+                    } else {
+                      if (this._delMultipleList.some(video => video.date === repeatItem.item.date)) {
+                        this._delMultipleList =
+                          this._delMultipleList.filter(video => video.date !== repeatItem.item.date)
+                        this.onDelMultipleListChange([...this._delMultipleList])
+                      } else {
+                        this._delMultipleList.push(repeatItem.item)
+                        this.onDelMultipleListChange([...this._delMultipleList])
+                      }
+                    }
+                  })
+              )
+            })
+            .key((item: VideoMetadata, _index: number) => item.date.toString() + item.last_play + item.title +
+              item.size.toString() +
+              this.videoListController.folder.name + item.time)
+            .virtualScroll()
         }
         .clip(false)
         .padding({ left: 10, right: 10 })
-        .cachedCount(12)
         .contentStartOffset(SafeHeight.topSafeHeight +
           (Setting.showToast && this.file_folder_list.length > 1 ? 90 : 65))
         .contentEndOffset(SafeHeight.bottomSafeHeight)
@@ -373,72 +362,75 @@ export struct VideoList {
               scroller: this.videoListController.listScroller,
               layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW
             }) {
-              LazyForEach(this.videoListController.videoDataSource, (item: VideoMetadata) => {
-                FlowItem() {
-                  VideoCardItem({
-                    item: item,
-                    delMultipleList: this._delMultipleList
-                  }).width('100%')
-                }
-                .backgroundColor(Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
-                  $r('app.color.start_window_background'))
-                .borderRadius(16)
-                .width('100%')
-                .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-                .bindContextMenu(this.MenuBuilder(item), ResponseType.LongPress,
-                  {
-                    backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-                    preview: VideoItemPreviewBuilder(item),
-                    previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
-                    layoutRegionMargin: {
-                      left: 16,
-                      right: 16,
-                      top: 16,
-                      bottom: 4
-                    },
-                    hapticFeedbackMode: HapticFeedbackMode.ENABLED,
-                    mask: true
-                  })
-                .bindContextMenu(this.MenuBuilder(item), ResponseType.RightClick,
-                  {
-                    backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-                    preview: VideoItemPreviewBuilder(item),
-                    previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
-                    layoutRegionMargin: {
-                      left: 16,
-                      right: 16,
-                      top: 16,
-                      bottom: 4
-                    },
-                  })
-                .gesture(
-                  TapGesture({ count: 1, fingers: 1 })
-                    .onAction(async () => {
-                      if (this.videoListController.multipleChooseState !== Visibility.Visible) {
-                        await this.clickItem(item,
-                          VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
-                        return
-                      } else {
-                        //已存在，标记置反
-                        if (this._delMultipleList.some(video => video.date === item.date)) {
-                          this._delMultipleList =
-                            this._delMultipleList.filter(video => video.date !== item.date)
-                          this.onDelMultipleListChange([...this._delMultipleList])
-                        } else {
-                          this._delMultipleList.push(item)
-                          this.onDelMultipleListChange([...this._delMultipleList])
-                        }
-                      }
+              Repeat<VideoMetadata>(this.videoListController.videoDataSource.data)
+                .each((repeatItem: RepeatItem<VideoMetadata>) => {
+                  FlowItem() {
+                    VideoCardItem({
+                      item: repeatItem.item,
+                      delMultipleList: this._delMultipleList
+                    }).width('100%')
+                  }
+                  .backgroundColor(
+                    Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
+                      $r('app.color.start_window_background'))
+                  .borderRadius(16)
+                  .width('100%')
+                  .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+                  .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress,
+                    {
+                      backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+                      preview: VideoItemPreviewBuilder(repeatItem.item),
+                      previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
+                      layoutRegionMargin: {
+                        left: 16,
+                        right: 16,
+                        top: 16,
+                        bottom: 4
+                      },
+                      hapticFeedbackMode: HapticFeedbackMode.ENABLED,
+                      mask: true
                     })
-                )
-              }, (item: VideoMetadata) => item.date + item.last_play + item.title + item.size.toString() +
-                this.videoListController.folder.name + item.time)
+                  .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.RightClick,
+                    {
+                      backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+                      preview: VideoItemPreviewBuilder(repeatItem.item),
+                      previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
+                      layoutRegionMargin: {
+                        left: 16,
+                        right: 16,
+                        top: 16,
+                        bottom: 4
+                      },
+                    })
+                  .gesture(
+                    TapGesture({ count: 1, fingers: 1 })
+                      .onAction(async () => {
+                        if (this.videoListController.multipleChooseState !== Visibility.Visible) {
+                          await this.clickItem(repeatItem.item,
+                            VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
+                          return
+                        } else {
+                          if (this._delMultipleList.some(video => video.date === repeatItem.item.date)) {
+                            this._delMultipleList =
+                              this._delMultipleList.filter(video => video.date !== repeatItem.item.date)
+                            this.onDelMultipleListChange([...this._delMultipleList])
+                          } else {
+                            this._delMultipleList.push(repeatItem.item)
+                            this.onDelMultipleListChange([...this._delMultipleList])
+                          }
+                        }
+                      })
+                  )
+                })
+                .key((item: VideoMetadata, _index: number) => item.date + item.last_play + item.title +
+                  item.size.toString() +
+                  this.videoListController.folder.name + item.time)
+                .virtualScroll()
             }
             .clip(false)
             .columnsTemplate('1fr '.repeat(this.videoListController.listLine).trim())
             .columnsGap(16) // 列间距
             .rowsGap(16) // 行间距
-            .cachedCount(12)
             .scrollBar(BarState.Off)
             .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
             .width('100%')

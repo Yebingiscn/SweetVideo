@@ -12,7 +12,7 @@ import NavigationAddress, { PlayerParams } from '../../common/NavigationCommon'
 import { WindowUtil } from '../../utils/WindowUtil'
 import { KeyCode } from '@kit.InputKit'
 import { XAnimation } from '../../utils/AnimationUtil'
-import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
+import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode'
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { BrightnessSwipingBuilder } from '../../component/PlayerComponent/BrightnessSwipingBuilder'
 import { FastForwardPanelBuilder } from '../../component/PlayerComponent/FastForwardPanelBuilder'
@@ -24,13 +24,16 @@ import { PlayerControllerFactory } from '../../controller/PlayerControllerFactor
 import { XComponents } from '../../component/PlayerComponent/XComponents'
 import { VideoLayoutComponent } from '../../component/PlayerComponent/VideoLayoutComponent'
 import {
+  DEFAULT_ANGLE,
   MAX_SCALE_FACTOR,
   MAX_WIDTH_MULTIPLIER,
   MIN_SCALE_FACTOR,
   MIN_WIDTH_MULTIPLIER,
+  MIRRORED_ANGLE,
   NO_BLUR_AMOUNT,
   PINCH_SCALE_SENSITIVITY,
   PRIVACY_BACKGROUND_BLUR_AMOUNT,
+  SCALE_FACTORS,
   SCREEN_HALF_DIVIDER,
   SWIPE_THRESHOLD,
   VERTICAL_PAN_SENSITIVITY,
@@ -43,6 +46,16 @@ import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
 import { NumberInputDialog } from '../../component/Dialog/NumberInputDialog'
 import { SubtitleOffsetDialog } from '../../component/Dialog/SubtitleOffsetDialog'
 import SubtitleUtil from '../../utils/SubtitleUtil'
+import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
+import { AudioTrackComponent } from '../../component/PlayerComponent/AudioTrackComponent'
+import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder'
+import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent'
+import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent'
+import { VideoButtonsComponent } from '../../component/PlayerComponent/VideoButtonsComponent'
+import { VideoSettingComponent } from '../../component/PlayerComponent/VideoSettingComponent'
+import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent'
+import { VideoTopComponent } from '../../component/PlayerComponent/VideoTopComponent'
+import Preferences from '../../database/Preferences'
 
 @ComponentV2
 export struct Player { // 播放页
@@ -63,15 +76,6 @@ export struct Player { // 播放页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @Local lockRotation: boolean = false
-  xComponentController: XComponentController = new XComponentController()
-  windowClass = WindowUtil.getWindow()
-  @Local sideBarStatusTmp: Visibility = Visibility.Hidden
-  @Local sideBarStatus: boolean = false
-  @Local isAIAsrShown: boolean = false
-  @Local currentSpeedIndex: number = 0
-  @Local subtitleVisibility: Visibility = Visibility.Visible
-  @Local subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
   subtitleTimestampInputDialog: CustomDialogController = new CustomDialogController({
     builder: SubtitleOffsetDialog({
       getCurrentValue: () => SubtitleUtil.offsetMillis,
@@ -112,6 +116,15 @@ export struct Player { // 播放页
       this.cancelSubtitleOffsetSession()
     }
   })
+  @Local lockRotation: boolean = false
+  xComponentController: XComponentController = new XComponentController()
+  windowClass = WindowUtil.getWindow()
+  @Local sideBarStatusTmp: Visibility = Visibility.Hidden
+  @Local sideBarStatus: boolean = false
+  @Local isAIAsrShown: boolean = false
+  @Local currentSpeedIndex: number = 0
+  @Local subtitleVisibility: Visibility = Visibility.Visible
+  @Local subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
   @Local subtitleAreaWidth: number = 0
   @Local subtitleAreaHeight: number = 0
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
@@ -312,24 +325,32 @@ export struct Player { // 播放页
             onVerticalPanUpdate: (offsetY: number) => {
               const deltaYScale = offsetY / this.player.screenHeight * VERTICAL_PAN_SENSITIVITY
               if (VideoOperateUtil.leftSideSwipe) {
-                this.player.onSwipingBrightness = true
+                XAnimation.runWithAnimation(() => {
+                  this.player.onSwipingBrightness = true
+                })
                 this.player.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
                 VideoOperateUtil.setBrightness(this.player.screenBrightness)
               } else {
-                this.player.onSwipingVoice = true
+                XAnimation.runWithAnimation(() => {
+                  this.player.onSwipingVoice = true
+                })
                 const newVolume = VideoOperateUtil.lastVolume - deltaYScale * VOLUME_PAN_MULTIPLIER
                 this.player.volume =
                   Math.min(Math.max(newVolume, VideoOperateUtil.minVolume), VideoOperateUtil.maxVolume)
               }
             },
             onVerticalPanEnd: () => {
-              this.player.onSwiping = false
-              this.player.onSwipingVoice = false
-              this.player.onSwipingBrightness = false
+              XAnimation.runWithAnimation(() => {
+                this.player.onSwiping = false
+                this.player.onSwipingVoice = false
+                this.player.onSwipingBrightness = false
+              })
             },
             onHorizonPanStart: () => {
               VideoOperateUtil.lastPlayTime = this.player.playTime
-              this.player.onSwiping = true
+              XAnimation.runWithAnimation(() => {
+                this.player.onSwiping = true
+              })
               this.player.getFrameByTime(this.player.playTime, true)
             },
             onHorizonPanUpdate: (offsetX: number) => {
@@ -340,7 +361,9 @@ export struct Player { // 播放页
             },
             onHorizonPanEnd: () => {
               this.player.seekTime(this.player.playTime)
-              this.player.onSwiping = false
+              XAnimation.runWithAnimation(() => {
+                this.player.onSwiping = false
+              })
             },
             onPinchStart: (fingerDistance: number) => {
               VideoOperateUtil.initPinchDistance = fingerDistance
@@ -372,12 +395,16 @@ export struct Player { // 播放页
               if (this.player.playing) {
                 VideoOperateUtil.lastSpeed = this.player.speed
                 this.player.updatePlaybackSpeed(Setting.longPressSpeed)
-                this.player.longPress = true
+                XAnimation.runWithAnimation(() => {
+                  this.player.longPress = true
+                })
                 this.currentSpeedIndex = VideoInfoUtil.videoSpeedListAll.indexOf(Setting.longPressSpeed)
               }
             },
             onLongPressEnd: () => {
-              this.player.longPress = false
+              XAnimation.runWithAnimation(() => {
+                this.player.longPress = false
+              })
               this.player.updatePlaybackSpeed(VideoOperateUtil.lastSpeed)
             },
             onLongPressPanStart: (tapX: number) => {
@@ -521,10 +548,10 @@ export struct Player { // 播放页
 
   exitVideo(timeOut: number) {
     ToolsUtil.addLogger("开始设置退出视频定时器", false, this.pathStack)
-    this.exitVideoTime = setTimeout(() => {
+    this.exitVideoTime = setTimeout(async () => {
       ToolsUtil.addLogger("退出视频定时器触发" + timeOut, false, this.pathStack)
       ToolsUtil.showToast(timeOut > 0 ? '到设定的时间了，已自动退出' : '已退出')
-      this.player.reset()
+      await this.player.reset()
       ToolsUtil.addLogger("重置播放器完成", false, this.pathStack)
       this.pathStack.pop()
     }, timeOut)
@@ -540,6 +567,8 @@ export struct Player { // 播放页
       },
       subtitlePanelComponent: () => {
         this.SubtitleMenuBuilder()
+      },
+      chapterMenuBuilder: () => {
       },
       lockRotation: this.lockRotation,
       onExitVideoClick: () => {
@@ -678,8 +707,8 @@ export struct Player { // 播放页
       onTogglePlaybackClick: () => {
         this.player.togglePlayback()
       },
-      onPlayNextVideoClick: () => {
-        this.player.playNextVideoProcess(this.pathStack, this.windowClass)
+      onPlayNextVideoClick: async () => {
+        await this.player.playNextVideoProcess(this.pathStack, this.windowClass)
         this.player.setPlayerCallback(this.pathStack, this.xComponentController, this.windowClass)
         ToolsUtil.addLogger("播放下一个视频请求已发送", false, this.pathStack)
       },

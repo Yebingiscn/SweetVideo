@@ -28,6 +28,8 @@ import PrivacySpaceUtil from './PrivacySpaceUtil'
 import RecentPlayUtil from './RecentPlayUtil'
 import SelectFileUtil from './SelectFileUtil'
 import { WindowUtil } from './WindowUtil'
+import SubtitleUtil from './SubtitleUtil'
+import { Subtitle3DMode } from '../common/enum/SubtitleMode'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 const TAG = 'VideoOperateUtil'
@@ -158,22 +160,6 @@ export default class VideoOperateUtil {
     return Math.sqrt(dx * dx + dy * dy)
   }
 
-  private static async getTracksByType<T>(avPlayer: media.AVPlayer, trackType: media.MediaType,
-    mapper: (desc: media.MediaDescription) => T, errorLabel: string): Promise<T[]> {
-    return new Promise((resolve, reject) => {
-      avPlayer.getTrackDescription((error: BusinessError, arrList: Array<media.MediaDescription>) => {
-        if (error || !arrList || arrList.length === 0) {
-          salmonLogger.addLog(TAG, `Failed to get TrackDescription, error: ${error}`, true)
-          return reject(error || new Error(`No ${errorLabel} available`))
-        }
-        const tracks: T[] = arrList
-          .filter(desc => desc[media.MediaDescriptionKey.MD_KEY_TRACK_TYPE] === trackType)
-          .map(mapper)
-        resolve(tracks)
-      })
-    })
-  }
-
   static async getAudioTracks(avPlayer: media.AVPlayer): Promise<AudioTrack[]> {
     try {
       return await VideoOperateUtil.getTracksByType<AudioTrack>(avPlayer, media.MediaType.MEDIA_TYPE_AUD,
@@ -181,7 +167,8 @@ export default class VideoOperateUtil {
           index: desc[media.MediaDescriptionKey.MD_KEY_TRACK_INDEX] as number,
           language: desc[media.MediaDescriptionKey.MD_KEY_LANGUAGE] as string,
           name: desc[media.MediaDescriptionKey.MD_KEY_TRACK_NAME] as string,
-          mime: desc[media.MediaDescriptionKey.MD_KEY_CODEC_MIME] as string
+          mime: desc[media.MediaDescriptionKey.MD_KEY_CODEC_MIME] as string,
+          channelCount: desc[media.MediaDescriptionKey.MD_KEY_AUD_CHANNEL_COUNT] as number,
         }), 'audioTracks')
     } catch (error) {
       salmonLogger.addLog(TAG, `获取 audioTracks 失败: ${error}`, true)
@@ -333,6 +320,9 @@ export default class VideoOperateUtil {
     PermissionUtil.reqPermissionsFromUser(PermissionUtil.permissions, context)
     Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
     Setting.backgroundDropBlur = Preferences.getBackgroundDropBlur(context)
+    if (Setting.backgroundDropBlur > 0 && Setting.backgroundImageSrc.length > 0) {
+      Setting.backgroundBlurImageSrc = SelectFileUtil.getExistingBlurImageUri()
+    }
     Setting.backgroundColorMode = Preferences.getBackgroundColorMode(context)
     Setting.allowBackgroundPlay = Preferences.getAllowBackgroundPlayState(context)
     Setting.allowPlayBackExist = Preferences.getAllowPlayBackExistState(context)
@@ -516,6 +506,118 @@ export default class VideoOperateUtil {
     return (reverse ? !isFirstPlayer : isFirstPlayer)
       ? $r('app.string.AV_PLAYER')
       : $r('app.string.MPV_Player');
+  }
+
+  private static async getTracksByType<T>(avPlayer: media.AVPlayer, trackType: media.MediaType,
+    mapper: (desc: media.MediaDescription) => T, errorLabel: string): Promise<T[]> {
+    return new Promise((resolve, reject) => {
+      avPlayer.getTrackDescription((error: BusinessError, arrList: Array<media.MediaDescription>) => {
+        if (error || !arrList || arrList.length === 0) {
+          salmonLogger.addLog(TAG, `Failed to get TrackDescription, error: ${error}`, true)
+          return reject(error || new Error(`No ${errorLabel} available`))
+        }
+        const tracks: T[] = arrList
+          .filter(desc => desc[media.MediaDescriptionKey.MD_KEY_TRACK_TYPE] === trackType)
+          .map(mapper)
+        resolve(tracks)
+      })
+    })
+  }
+
+  static computeNextVideo(
+    videoMetaDataList: VideoMetadata[],
+    nowPlaying: VideoMetadata | undefined,
+    repeatMode: SweetRepeatMode
+  ): VideoMetadata | undefined {
+    if (videoMetaDataList.length === 0) {
+      return undefined
+    }
+    let item = SelectFileUtil.getItem(videoMetaDataList, nowPlaying?.date || '') as VideoMetadata
+    if (!item) {
+      item = videoMetaDataList[0]
+    }
+    switch (repeatMode) {
+      case SweetRepeatMode.RANDOM:
+        const availableVideos = videoMetaDataList.filter(v => v.date !== item.date)
+        return availableVideos.length > 0
+          ? availableVideos[Math.floor(Math.random() * availableVideos.length)]
+          : item
+      case SweetRepeatMode.ONCE:
+        return undefined
+      case SweetRepeatMode.SEQUENCE:
+        if (SelectFileUtil.isLastItem(videoMetaDataList, item.date)) {
+          return undefined
+        }
+        return SelectFileUtil.getNextItem(videoMetaDataList, item.date)
+      case SweetRepeatMode.SINGLE:
+        return videoMetaDataList.find(v => v.date === nowPlaying?.date)!
+      case SweetRepeatMode.LIST:
+        return SelectFileUtil.getNextItem(videoMetaDataList, item.date)
+      default:
+        return undefined
+    }
+  }
+
+  static saveSubtitlePreference(
+    nowPlaying: VideoMetadata | undefined,
+    subtitleSelected: number,
+    subtitleTrackSelected: number,
+    subtitleVisibility: Visibility,
+    isAIAsrShown: boolean,
+    subtitle3DMode: Subtitle3DMode
+  ): void {
+    const appContext = PathUtils.appContext
+    if (!nowPlaying || !appContext) {
+      return
+    }
+
+    const subtitleMode = SubtitleUtil.normalizeSubtitleMode(subtitleSelected)
+    const subtitleVisible = subtitleVisibility === Visibility.Visible
+    const subtitleAIAsrShown = isAIAsrShown
+    const subtitle3DModeValue = SubtitleUtil.normalizeSubtitle3DMode(subtitle3DMode)
+    const subtitleOffsetMillis = Math.max(-50000, Math.min(50000, Math.round(SubtitleUtil.offsetMillis)))
+    const subtitleTrackId = subtitleTrackSelected
+    const hasPreferenceChanged =
+      nowPlaying.subtitle_mode !== subtitleMode ||
+        nowPlaying.subtitle_visible !== subtitleVisible ||
+        nowPlaying.subtitle_ai_asr_shown !== subtitleAIAsrShown ||
+        nowPlaying.subtitle_3d_mode !== subtitle3DModeValue ||
+        nowPlaying.subtitle_offset_millis !== subtitleOffsetMillis ||
+        nowPlaying.subtitle_track_id !== subtitleTrackId
+
+    if (!hasPreferenceChanged) {
+      return
+    }
+
+    nowPlaying.subtitle_mode = subtitleMode
+    nowPlaying.subtitle_visible = subtitleVisible
+    nowPlaying.subtitle_ai_asr_shown = subtitleAIAsrShown
+    nowPlaying.subtitle_3d_mode = subtitle3DModeValue
+    nowPlaying.subtitle_offset_millis = subtitleOffsetMillis
+    nowPlaying.subtitle_track_id = subtitleTrackId
+
+    SelectFileUtil.saveData(appContext, nowPlaying, {
+      subtitleMode,
+      subtitleVisible,
+      subtitleAIAsrShown,
+      subtitle3DMode: subtitle3DModeValue,
+      subtitleOffsetMillis,
+      subtitleTrackId
+    })
+  }
+
+  static getAdjacentSubtitleOffset(playTime: number, currentOffset: number,
+    direction: 'prev' | 'next'): number | undefined {
+    const targetOffset = SubtitleUtil.getAdjacentSubtitleOffset(playTime, currentOffset, direction)
+    if (targetOffset === undefined) {
+      ToolsUtil.showToast(direction === 'prev' ? '没有上一条字幕' : '没有下一条字幕')
+      return undefined
+    }
+    if (Math.abs(targetOffset) > 50000) {
+      ToolsUtil.showToast('目标字幕超出偏移范围：-50000 到 50000')
+      return undefined
+    }
+    return Math.round(targetOffset)
   }
 
   private static calculateFrameSize(videoWidth: number, videoHeight: number): FrameSize {

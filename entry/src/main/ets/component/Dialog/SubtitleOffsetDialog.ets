@@ -8,7 +8,7 @@ export struct SubtitleOffsetDialog {
   controller?: CustomDialogController
   getCurrentValue?: () => number
   title: string = '外挂字幕偏移时间'
-  inputText: string = ''
+  @State inputText: string = ''
   inputController: TextInputController = new TextInputController()
   minOffset: number = -50000
   maxOffset: number = 50000

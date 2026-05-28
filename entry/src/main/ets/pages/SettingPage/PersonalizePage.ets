@@ -1,15 +1,3 @@
-import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
-import { SettingsSegmentButtonItem } from '../../component/SettingComponent/SettingsSegmentButtonItem'
-import { SettingsSliderItem } from '../../component/SettingComponent/SettingsSliderItem'
-import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
-import Preferences from '../../database/Preferences'
-import { SafeHeight, Setting } from '../../utils/ObservedUtil'
-import { PathUtils } from '../../utils/PathUtils'
-import SelectFileUtil from '../../utils/SelectFileUtil'
-import ToolsUtil from '../../utils/ToolsUtil'
-import { ConfigurationConstant } from '@kit.AbilityKit'
-import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
-import { LengthMetrics } from '@kit.ArkUI'
 
 @ComponentV2
 export struct PersonalizePage {
@@ -29,8 +17,11 @@ export struct PersonalizePage {
               Preferences.saveBackgroundColorMode(PathUtils.appContext!, tabSelectedIndex)
               ToolsUtil.setColorMode(PathUtils.appContext!, tabSelectedIndex)
               Setting.backgroundImageSrc = ''
-              setTimeout(() => {
+              setTimeout(async () => {
                 Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
+                if (Setting.backgroundDropBlur > 0 && Setting.backgroundImageSrc.length > 0) {
+                  await SelectFileUtil.updateBlurBackground(Setting.backgroundDropBlur)
+                }
               }, 100)
             }
           })
@@ -60,21 +51,10 @@ export struct PersonalizePage {
             symbol: $r('sys.symbol.picture'),
             message: Setting.enableBackgroundDarkImage ? '自定义浅色背景' : '自定义背景',
             onPress: async () => {
-              const imageUris = await SelectFileUtil.selectPhoto()
-              if (imageUris.length === 0) {
-                ToolsUtil.showToast('没有照片被选择')
-                return
-              }
               const currentColorMode = AppStorage.get('currentColorMode') as number
-              Setting.backgroundImageSrc = ''
-              SelectFileUtil.saveImageToSandBox(imageUris[0], 'BackgroundImage')
-              setTimeout(() => {
-                if (!Setting.enableBackgroundDarkImage ||
-                  currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT) {
-                  Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
-                  ToolsUtil.showToast('设置成功')
-                }
-              }, 100)
+              await this.selectAndSetBackgroundImage('BackgroundImage',
+                () => !Setting.enableBackgroundDarkImage ||
+                  currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT)
             }
           })
         }
@@ -86,20 +66,9 @@ export struct PersonalizePage {
               symbol: $r('sys.symbol.picture'),
               message: '自定义深色背景',
               onPress: async () => {
-                const imageUris = await SelectFileUtil.selectPhoto()
-                if (imageUris.length === 0) {
-                  ToolsUtil.showToast('没有照片被选择')
-                  return
-                }
                 const currentColorMode = AppStorage.get('currentColorMode') as number
-                Setting.backgroundImageSrc = ''
-                SelectFileUtil.saveImageToSandBox(imageUris[0], 'BackgroundDarkImage')
-                setTimeout(() => {
-                  if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK) {
-                    Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
-                    ToolsUtil.showToast('设置成功')
-                  }
-                }, 100)
+                await this.selectAndSetBackgroundImage('BackgroundDarkImage',
+                  () => currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK)
               }
             })
           }
@@ -113,6 +82,8 @@ export struct PersonalizePage {
               onPress: async () => {
                 await SelectFileUtil.deletePhoto('BackgroundImage')
                 Setting.backgroundImageSrc = ''
+                Setting.backgroundBlurImageSrc = ''
+                Setting.backgroundDropBlur = 0
                 ToolsUtil.showToast('删除成功')
                 Preferences.saveBackgroundDropBlur(PathUtils.appContext!, 0)
               }
@@ -129,6 +100,8 @@ export struct PersonalizePage {
                   const currentColorMode = AppStorage.get('currentColorMode') as number
                   if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK) {
                     Setting.backgroundImageSrc = ''
+                    Setting.backgroundBlurImageSrc = ''
+                    Setting.backgroundDropBlur = 0
                   }
                   ToolsUtil.showToast('删除成功')
                   Preferences.saveBackgroundDropBlur(PathUtils.appContext!, 0)
@@ -145,9 +118,13 @@ export struct PersonalizePage {
               message: '背景模糊',
               textSliderMode: false,
               selected: Setting.backgroundDropBlur,
-              onChangeComplete: (value: number) => {
+              onChange: (value: number) => {
+                Setting.backgroundDropBlur = value
+              },
+              onChangeComplete: async (value: number) => {
                 Setting.backgroundDropBlur = value
                 Preferences.saveBackgroundDropBlur(PathUtils.appContext!, Setting.backgroundDropBlur)
+                await SelectFileUtil.updateBlurBackground(value, true)
               }
             })
           }
@@ -231,11 +208,33 @@ export struct PersonalizePage {
     })
     .backgroundColor($r('app.color.start_window_background'))
     .padding({ top: SafeHeight.topSafeHeight })
-    .backgroundImage(Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(
+      Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ? Setting.backgroundBlurImageSrc :
+        Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
+    .backdropBlur(
+      Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length === 0 ? Setting.backgroundDropBlur : 0)
     .backgroundImagePosition(Alignment.Center)
-    .backdropBlur(Setting.backgroundDropBlur)
     .hideBackButton(false)
     .bindToScrollable([this.listScroller]) // 绑定导航组件和可滚动容器组件
+  }
+
+  private async selectAndSetBackgroundImage(imageName: string, shouldApply: () => boolean) {
+    const imageUris = await SelectFileUtil.selectPhoto()
+    if (imageUris.length === 0) {
+      ToolsUtil.showToast('没有照片被选择')
+      return
+    }
+    Setting.backgroundImageSrc = ''
+    SelectFileUtil.saveImageToSandBox(imageUris[0], imageName)
+    setTimeout(async () => {
+      if (shouldApply()) {
+        Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
+        if (Setting.backgroundDropBlur > 0) {
+          await SelectFileUtil.updateBlurBackground(Setting.backgroundDropBlur, true)
+        }
+        ToolsUtil.showToast('设置成功')
+      }
+    }, 100)
   }
 }

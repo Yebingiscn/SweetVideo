@@ -4,6 +4,7 @@ import TimeUtil from '../../utils/TimeUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { SweetAgentComponent } from '../common/SweetAgentComponent'
+import { DIALOG_TITLE_FONT_SIZE } from '../../common/Constants'
 
 // 视频详情弹窗
 @CustomDialog
@@ -19,12 +20,12 @@ export struct VideoDetailDialog {
   build() {
     Column({ space: 10 }) {
       Text('详情')
-        .fontSize(25)
+        .fontSize(DIALOG_TITLE_FONT_SIZE)
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)
         .margin({ top: 5 })
 
-      SweetAgentComponent({ queryText: `介绍下视频：${this.metadata?.title}`, title: '问问小艺' })
+      SweetAgentComponent({ queryText: `介绍下音视频：${this.metadata?.title}`, title: '问问小艺了解更多' })
 
       List() {
         ListItem() {

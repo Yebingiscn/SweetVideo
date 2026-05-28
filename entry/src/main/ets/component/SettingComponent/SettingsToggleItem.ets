@@ -1,4 +1,3 @@
-import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 
 @ComponentV2
 export struct SettingsToggleItem {
@@ -7,7 +6,8 @@ export struct SettingsToggleItem {
   @Param message: ResourceStr = ''
   @Param enable: boolean = false
   @Local _enable: boolean = false
-  @Event onChange: (_checked: boolean) => void = () => {}
+  @Event onChange: (_checked: boolean) => void = () => {
+  }
 
   aboutToAppear(): void {
     this._enable = this.enable
@@ -25,10 +25,7 @@ export struct SettingsToggleItem {
           .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
           .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this._enable))
         Text(this.message)
-          .fontSize(17)
-          .fontWeight(FontWeight.Medium)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.MARQUEE })
+          .attributeModifier(new SettingsTitleModifier())
           .layoutWeight(1)
       }.layoutWeight(1)
 
@@ -42,15 +39,7 @@ export struct SettingsToggleItem {
         .height(27)
     }
     .align(Alignment.Center)
-    .backgroundColor($r('app.color.start_window_background_blur'))
+    .attributeModifier(new SettingsItemModifier())
     .height(55)
-    .borderRadius(16)
-    .padding({
-      right: 15,
-      left: 15,
-      top: 10,
-      bottom: 10
-    })
-    .margin({ top: 5, bottom: 5 })
   }
 }

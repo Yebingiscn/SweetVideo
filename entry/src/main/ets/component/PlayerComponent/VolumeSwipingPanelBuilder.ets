@@ -22,10 +22,10 @@ export function VolumeSwipingPanelBuilder(volumeValue: VolumeValue) {
     }
   }).visibility(Visibility.None)
 
-  // 自定义音量提示面板（扁平化布局）
+  // 自定义音量提示面板
   if (volumeValue.onSwipingVoice) {
     Row() {
-      SymbolGlyph(getVoiceIcon(volumeValue.videoVolumeShow))
+      SymbolGlyph(getVolumeIcon(volumeValue.videoVolumeShow))
         .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
         .fontColor(['#f0f0f0'])
       Slider({
@@ -46,6 +46,7 @@ export function VolumeSwipingPanelBuilder(volumeValue: VolumeValue) {
         .selectedBorderRadius(16)
         .padding({ left: 5 })
     }
+    .animation({ duration: 300, curve: Curve.Friction })
     .offset({
       x: 0,
       y: -volumeValue.playAreaHeight / 2.5
@@ -57,7 +58,7 @@ export function VolumeSwipingPanelBuilder(volumeValue: VolumeValue) {
   }
 }
 
-export function getVoiceIcon(videoVolume: number) {
+export function getVolumeIcon(videoVolume: number) {
   if (videoVolume <= VideoOperateUtil.minVolume) {
     return $r('sys.symbol.speaker_slash') // 静音
   }

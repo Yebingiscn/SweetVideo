@@ -3,17 +3,7 @@ import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog'
 import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
-import { Markdown, MarkdownController } from '@luvi/lv-markdown-in'
-import { salmonLogger } from 'salmonlogger'
-import { CoverLayoutMode, ListDisplayMode } from '../../common/enum/DisplayMode'
-import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
-import { SettingsSegmentButtonItem } from '../../component/SettingComponent/SettingsSegmentButtonItem'
-import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
-import Preferences from '../../database/Preferences'
-import BiometricAccessUtil from '../../utils/BiometricAccessUtil'
-import { SafeHeight, Setting } from '../../utils/ObservedUtil'
-import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
-import { LengthMetrics } from '@kit.ArkUI'
+import { MarkdownController } from '@luvi/lv-markdown-in'
 
 const TAG = 'SettingsPage'
 
@@ -76,10 +66,11 @@ export struct SettingsPage { //设置页
                     this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null)
                     return
                   }
-                  ToolsUtil.showToast('验证失败，请从首页搜索框输入密码进入隐私空间') // 认证失败显示提示
+                  ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.privacy_auth_failed').id)) // 认证失败显示提示
                   return
                 }
-                ToolsUtil.showToast('请从首页搜索框输入密码进入隐私空间') // 设备不支持生物认证的提示
+                ToolsUtil.showToast(
+                  ToolsUtil.getStringResource($r('app.string.privacy_enter_via_password').id)) // 设备不支持生物认证的提示
               }
             })
           }
@@ -272,9 +263,10 @@ export struct SettingsPage { //设置页
     })
     .backgroundColor($r('app.color.start_window_background'))
     .padding({ top: SafeHeight.topSafeHeight })
-    .backgroundImage(Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(
+      Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ? Setting.backgroundBlurImageSrc :
+        Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
-    .backdropBlur(Setting.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
     .hideBackButton(false)
     .bindToScrollable([this.listScroller]) // 绑定导航组件和可滚动容器组件

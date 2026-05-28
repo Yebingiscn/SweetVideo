@@ -1,6 +1,7 @@
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import { DeletedVideosDataSource } from '../../utils/DataUtil'
+import { DIALOG_TITLE_FONT_SIZE } from '../../common/Constants'
 
 @CustomDialog
 export struct DeletedVideosDialog {
@@ -17,7 +18,7 @@ export struct DeletedVideosDialog {
   build() {
     Column({ space: 10 }) {
       Text('已失效视频')
-        .fontSize(25)
+        .fontSize(DIALOG_TITLE_FONT_SIZE)
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)
         .margin({ top: 5 })
@@ -27,17 +28,19 @@ export struct DeletedVideosDialog {
         .fontColor($r('app.color.text_color'))
 
       List({ space: 8 }) {
-        LazyForEach(this.deletedVideosDataSource, (item: VideoMetadata) => {
-          ListItem() {
-            Text(item?.title)
-              .fontSize(14)
-              .fontColor($r('app.color.text_color'))
-              .padding({ top: 8, bottom: 8 })
-              .width('100%')
-          }.reuseId(item?.title)
-        }, (item: VideoMetadata) => item.uri)
+        Repeat<VideoMetadata>(this.deletedVideosDataSource.data)
+          .each((repeatItem: RepeatItem<VideoMetadata>) => {
+            ListItem() {
+              Text(repeatItem.item?.title)
+                .fontSize(14)
+                .fontColor($r('app.color.text_color'))
+                .padding({ top: 8, bottom: 8 })
+                .width('100%')
+            }
+          })
+          .key((item: VideoMetadata, _index: number) => item.uri)
+          .virtualScroll()
       }
-      .cachedCount(12)
       .width('100%')
       .height('100%')
       .layoutWeight(1)

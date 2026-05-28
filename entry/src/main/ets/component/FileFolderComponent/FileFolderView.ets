@@ -54,22 +54,25 @@ export struct FileFolderView {
 
   build() {
     List() {
-      LazyForEach(this.fileFolderSource, (item: FileFolder) => {
-        ListItem() {
-          FileFolderListBuilder({
-            folder: item,
-            videoListController: this.videoListController
+      Repeat<FileFolder>(this.fileFolderSource.data)
+        .each((repeatItem: RepeatItem<FileFolder>) => {
+          ListItem() {
+            FileFolderListBuilder({
+              folder: repeatItem.item,
+              videoListController: this.videoListController
+            })
+          }
+          .onClick(() => {
+            const video_list = repeatItem.item.video_list || []
+            this.videoListController.updateData(new VideoDataSource(video_list), repeatItem.item)
+            this.sideBarController.close(true)
           })
-        }
-        .onClick(() => {
-          const video_list = item.video_list || []
-          this.videoListController.updateData(new VideoDataSource(video_list), item)
-          this.sideBarController.close(true)
+          .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.LongPress)
+          .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.RightClick)
+          .height(60)
         })
-        .bindContextMenu(this.FileFolderSelectMenu(item), ResponseType.LongPress)
-        .bindContextMenu(this.FileFolderSelectMenu(item), ResponseType.RightClick)
-        .height(60)
-      }, (item: FileFolder) => item.date)
+        .key((item: FileFolder, _index: number) => item.date)
+        .virtualScroll()
     }
     .borderRadius(16)
     .width('100%')
@@ -77,7 +80,6 @@ export struct FileFolderView {
     .align(Alignment.Start)
     .margin({ top: 10 })
     .backgroundColor($r('app.color.start_window_background_blur'))
-    .cachedCount(2)
   }
 
   @Builder

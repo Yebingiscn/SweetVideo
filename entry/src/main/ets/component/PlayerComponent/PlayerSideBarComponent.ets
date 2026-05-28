@@ -2,14 +2,6 @@ import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { PlayerSideBarSource } from '../../utils/DataUtil'
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
-import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
-import { CoverLayoutMode } from '../../common/enum/DisplayMode'
-import { XAnimation } from '../../utils/AnimationUtil'
-import { SafeHeight, Setting } from '../../utils/ObservedUtil'
-import { PathUtils } from '../../utils/PathUtils'
-import VideoInfoUtil from '../../utils/VideoInfoUtil'
-import { VideoInfoBuilder } from '../VideoItemComponent/VideoInfoBuilder'
-import { fileUri } from '@kit.CoreFileKit'
 
 @ComponentV2
 export struct PlayerSideBarComponent {
@@ -45,26 +37,30 @@ export struct PlayerSideBarComponent {
 
   build() {
     List({ scroller: this.listScroller, space: 10 }) {
-      LazyForEach(this.playerSideBarSource, (item: VideoMetadata, index: number) => {
-        ListItem() {
-          VideoItemBuilder({
-            item: item,
-            nowPlaying: this.player.nowPlaying,
-            showProgress: false
-          })
-        }
-        .padding({ top: index === 0 ? 10 : 0 })
-        .borderRadius(16)
-        .onClick(() => {
-          if (this._sideBarStatusTmp === Visibility.Hidden) {
-            return
+      Repeat<VideoMetadata>(this.playerSideBarSource.data)
+        .each((repeatItem: RepeatItem<VideoMetadata>) => {
+          ListItem() {
+            VideoItemBuilder({
+              item: repeatItem.item,
+              nowPlaying: this.player.nowPlaying,
+              showProgress: false
+            })
           }
-          this.player.nowPlaying?.date === item.date ? this.closeSideBar() : this.onItemClick(item)
+          .padding({ top: repeatItem.index === 0 ? 10 : 0 })
+          .borderRadius(16)
+          .onClick(() => {
+            if (this._sideBarStatusTmp === Visibility.Hidden) {
+              return
+            }
+            this.player.nowPlaying?.date === repeatItem.item.date ? this.closeSideBar() :
+              this.onItemClick(repeatItem.item)
+          })
+          .width('100%')
+          .height('auto')
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.9 })
         })
-        .width('100%')
-        .height('auto')
-        .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.9 })
-      }, (item: VideoMetadata) => item.date)
+        .key((item: VideoMetadata, _index: number) => item.date)
+        .virtualScroll()
     }
     .clip(false)
     .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
@@ -89,7 +85,6 @@ export struct PlayerSideBarComponent {
     })
     .transition(TransitionEffect.translate({ x: 300 }).animation(XAnimation.getAnimationCurve()))
     .borderRadius(16)
-    .cachedCount(6)
   }
 
   @Monitor('_sideBarStatusTmp')

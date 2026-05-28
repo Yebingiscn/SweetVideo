@@ -1,15 +1,8 @@
-import ToolsUtil from '../../utils/ToolsUtil'
 import WantProcessUtil from '../../utils/WantProcessUtil'
 import { PathUtils } from '../../utils/PathUtils'
-import { DefaultDialogShadow, ImageFancyModifier } from '../../common/AttributeModifierConfig'
+import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
 import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
-import { Markdown, MarkdownController } from '@luvi/lv-markdown-in'
-import { salmonLogger } from 'salmonlogger'
-import { SafeHeight, Setting } from '../../utils/ObservedUtil'
-import { PrivacyPolicyComponent } from '../../component/VideoItemComponent/PrivacyPolicyComponent'
-import { LiqD } from '../../component/common/LiqD'
-import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
-import { LengthMetrics } from '@kit.ArkUI'
+import { MarkdownController } from '@luvi/lv-markdown-in'
 
 const TAG = 'AboutApp'
 
@@ -290,9 +283,10 @@ export struct AboutApp {
       },
     })
     .backgroundColor($r('app.color.start_window_background'))
-    .backgroundImage(Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImage(
+      Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ? Setting.backgroundBlurImageSrc :
+        Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
-    .backdropBlur(Setting.backgroundDropBlur)
     .backgroundImagePosition(Alignment.Center)
     .hideBackButton(false)
     .bindToScrollable([this.listScroller]) // 绑定导航组件和可滚动容器组件

@@ -207,6 +207,34 @@
     {
       "name": "INTERNET_PERMISSION",
       "value": "Get network resource"
+    },
+    {
+      "name": "play_finished_auto_exit",
+      "value": "Playback finished, auto-exited"
+    },
+    {
+      "name": "skipped_video_ending",
+      "value": "Smart-skipped video ending"
+    },
+    {
+      "name": "no_files_imported",
+      "value": "No files were imported~"
+    },
+    {
+      "name": "privacy_auth_failed",
+      "value": "Authentication failed. Enter password in the search box to access privacy space"
+    },
+    {
+      "name": "privacy_enter_via_password",
+      "value": "Enter password in the search box to access privacy space"
+    },
+    {
+      "name": "delete_success",
+      "value": "Deleted successfully"
+    },
+    {
+      "name": "processing_error",
+      "value": "An unexpected error occurred during processing:"
     }
   ]
 }

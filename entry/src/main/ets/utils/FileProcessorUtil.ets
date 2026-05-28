@@ -1,6 +1,7 @@
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import FileFolderUtil from './FileFolderUtil'
+import { PathUtils } from './PathUtils'
 import SelectFileUtil from './SelectFileUtil'
 import ToolsUtil from './ToolsUtil'
 import { salmonLogger } from 'salmonlogger'
@@ -210,5 +211,52 @@ class MutexLock {
     } else {
       this.locked = false
     }
+  }
+}
+
+export async function importAndProcessFiles(
+  fileList: string[],
+  existingVideos: VideoMetadata[],
+  onProgressUpdate: (info: ProgressInfo) => void,
+  onLoadingChange: (loading: boolean) => void,
+  onTotalItemsChange: (totalItems: number) => void,
+  fileFolder?: FileFolder,
+  onFinally?: () => void
+): Promise<void> {
+  if (fileList.length === 0) {
+    ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.no_files_imported').id))
+    return
+  }
+  onLoadingChange(true)
+  const totalItems = fileList.length
+  onTotalItemsChange(totalItems)
+  onProgressUpdate({
+    current: 0,
+    total: totalItems,
+    fileName: '',
+    stage: 'extracting',
+    speed: 0,
+    elapsedTime: 0,
+    failedCount: 0
+  })
+  try {
+    await FileProcessorUtil.processFilesConcurrently(
+      fileList, PathUtils.appContext!, PathUtils.videoPath, PathUtils.coverPath, existingVideos,
+      (info: ProgressInfo) => {
+        onProgressUpdate(info)
+      },
+      fileFolder
+    )
+    ToolsUtil.showToast(
+      `${ToolsUtil.getStringResource($r('app.string.add_time_info').id)}${totalItems -
+        FileFolderUtil.duplicateVideo - FileProcessorUtil.failedFiles.length}${
+      FileFolderUtil.duplicateVideo > 0 ? '，跳过重复视频：' + FileFolderUtil.duplicateVideo : ''}${
+      FileProcessorUtil.failedFiles.length > 0 ? '，失败：' + FileProcessorUtil.failedFiles.length : ''}`
+    )
+  } catch (error) {
+    ToolsUtil.showToast($r('app.string.processing_error') + error)
+  } finally {
+    onLoadingChange(false)
+    onFinally?.()
   }
 }

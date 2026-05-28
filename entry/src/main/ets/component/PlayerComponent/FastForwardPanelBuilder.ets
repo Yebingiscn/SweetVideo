@@ -22,7 +22,7 @@ export function FastForwardPanelBuilder(fastForwardInfo: FastForwardInfo) {
   Row({ space: 12 }) {
     // 左侧：上一个倍速（最小倍速时隐藏）
     if (fastForwardInfo.speed > VideoInfoUtil.videoSpeedListAll[0]) {
-      Text(`${getNeighborSpeeds(fastForwardInfo.speed).prev?.toFixed(2).replace(/\.?0+$/, '')}x`)
+      Text(`${VideoInfoUtil.optimizedFormat(getNeighborSpeeds(fastForwardInfo.speed).prev!).replace('x', '')}x`)
         .fontColor('#60FFFFFF')
         .fontSize(14)
         .fontWeight(FontWeight.Medium)
@@ -37,7 +37,7 @@ export function FastForwardPanelBuilder(fastForwardInfo: FastForwardInfo) {
 
     // 中间：当前倍速（带边框高亮）
     Row({ space: 2 }) {
-      Text(`${fastForwardInfo.speed.toFixed(2).replace(/\.?0+$/, '')}`)
+      Text(`${VideoInfoUtil.optimizedFormat(fastForwardInfo.speed).replace('x', '')}`)
         .fontColor($r('sys.color.white'))
         .fontSize(20)
         .fontWeight(FontWeight.Bold)
@@ -63,7 +63,7 @@ export function FastForwardPanelBuilder(fastForwardInfo: FastForwardInfo) {
 
     // 右侧：下一个倍速（最大倍速时隐藏）
     if (fastForwardInfo.speed < VideoInfoUtil.videoSpeedListAll[VideoInfoUtil.videoSpeedListAll.length - 1]) {
-      Text(`${getNeighborSpeeds(fastForwardInfo.speed).next?.toFixed(2).replace(/\.?0+$/, '')}x`)
+      Text(`${VideoInfoUtil.optimizedFormat(getNeighborSpeeds(fastForwardInfo.speed).next!).replace('x', '')}x`)
         .fontColor('#60FFFFFF')
         .fontSize(14)
         .fontWeight(FontWeight.Medium)
@@ -89,5 +89,5 @@ export function FastForwardPanelBuilder(fastForwardInfo: FastForwardInfo) {
     x: 0,
     y: -fastForwardInfo.location / 2.5
   })
-  .animation({ duration: 200, curve: Curve.EaseInOut })
+  .animation({ duration: 300, curve: Curve.Friction })
 }

@@ -39,6 +39,33 @@ export default class TimeUtil {
       0))
   }
 
+  static convertSSToHHMMSS(seconds: number | undefined): string {
+    if (seconds === undefined || seconds === null || isNaN(seconds)) {
+      return '--:--'
+    }
+    const totalSeconds = Math.floor(seconds)
+    const hours = Math.floor(totalSeconds / 3600)
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const remainingSeconds = totalSeconds % 60
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
+    }
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+  }
+
+  static convertMSToChinese(ms: number | undefined): string {
+    if (ms === undefined || ms === null || isNaN(ms) || ms <= 0) {
+      return '0秒'
+    }
+    const seconds = Math.floor(ms / 1000)
+    if (seconds < 60) {
+      return `${seconds}秒`
+    }
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+    return `${minutes}分${remainingSeconds}秒`
+  }
+
   static getTextByTime() {
     const hours = new Date().getHours()
     if (hours === 15) {

@@ -15,15 +15,14 @@ import { SymbolGlyphModifier } from '@kit.ArkUI'
 @ComponentV2
 export struct FileFolderMenu {
   @Consumer() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
+  @Consumer() file_folder_list: FileFolder[] = []
   @Consumer() videoListController: VideoListController = new VideoListController()
   @Param video_item: VideoMetadata | undefined = undefined
   addFileFolderNameDialogController?: CustomDialogController
 
   aboutToAppear(): void {
     this.addFileFolderNameDialogController = new CustomDialogController({
-      builder: AddFileFolderNameDialog({
-        fileFolderSource: this.fileFolderSource,
-      }), cornerRadius: 20, shadow: DefaultDialogShadow
+      builder: AddFileFolderNameDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
     })
   }
 
@@ -35,30 +34,34 @@ export struct FileFolderMenu {
       }).onClick(() => {
         this.addFileFolderNameDialogController?.open()
       })
-      LazyForEach(this.fileFolderSource, (item: FileFolder) => {
-        if (item.date !== this.videoListController.folder.date) {
-          MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.folder")), content: item.name })
-            .onClick(async () => {
-              //批量移动
-              let folders: FileFolder[] = []
-              if (DataSyncUtil.delMultipleList.length > 0) {
-                folders = FileFolderUtil.transferVideosToFileFolder(PathUtils.appContext!, DataSyncUtil.delMultipleList,
-                  this.videoListController.folder.date, item.date)
-              } else { //非批量操作
-                folders = FileFolderUtil.transferVideosToFileFolder(PathUtils.appContext!, [this.video_item!],
-                  this.videoListController.folder.date, item.date)
-              }
-              this.fileFolderSource.updateData(folders)
-              this.videoListController.videoDataSource.updateData(FolderOperator.getFolderByName(this.videoListController.folder.name)
-                .video_list)
-              this.videoListController.updateData(this.videoListController.videoDataSource,
-                this.videoListController.folder)
+      Repeat<FileFolder>(this.fileFolderSource.data)
+        .each((repeatItem: RepeatItem<FileFolder>) => {
+          if (repeatItem.item.date !== this.videoListController.folder.date) {
+            MenuItem(
+              { symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.folder")), content: repeatItem.item.name })
+              .onClick(async () => {
+                let folders: FileFolder[] = []
+                if (DataSyncUtil.delMultipleList.length > 0) {
+                  folders =
+                    FileFolderUtil.transferVideosToFileFolder(PathUtils.appContext!, DataSyncUtil.delMultipleList,
+                      this.videoListController.folder.date, repeatItem.item.date)
+                } else {
+                  folders = FileFolderUtil.transferVideosToFileFolder(PathUtils.appContext!, [this.video_item!],
+                    this.videoListController.folder.date, repeatItem.item.date)
+                }
+                this.file_folder_list = folders
+                this.videoListController.videoDataSource.updateData(
+                  FolderOperator.getFolderByName(this.videoListController.folder.name)
+                    .video_list)
+                this.videoListController.updateData(this.videoListController.videoDataSource,
+                  this.videoListController.folder)
 
-              VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
-              this.videoListController.closeMultipleChoose()
-            })
-        }
-      }, (item: FileFolder) => item.date + item.name + item.video_list.toString())
+                VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+                this.videoListController.closeMultipleChoose()
+              })
+          }
+        })
+        .key((item: FileFolder, _index: number) => item.date + item.name + item.video_list.toString())
     }.attributeModifier(new MenuFancyModifier())
   }
 }

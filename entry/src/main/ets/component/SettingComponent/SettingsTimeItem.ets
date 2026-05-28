@@ -1,5 +1,3 @@
-import { SymbolGlyphFancyModifier } from "../../common/AttributeModifierConfig"
-import TimeUtil from "../../utils/TimeUtil"
 
 @ComponentV2
 export struct SettingsTimeItem {
@@ -9,9 +7,10 @@ export struct SettingsTimeItem {
   @Param selected: number = 0
   private TenthsOfMinutes: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
   private UnitOfTMinutes: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+  private multi: string[][] = [this.TenthsOfMinutes, this.UnitOfTMinutes, this.TenthsOfSecond, this.UnitOfSecond]
   private TenthsOfSecond: string[] = ['0', '1', '2', '3', '4', '5']
   private UnitOfSecond: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-  private multi: string[][] = [this.TenthsOfMinutes, this.UnitOfTMinutes, this.TenthsOfSecond, this.UnitOfSecond]
+
   onChange = (_value: number) => {
   }
 
@@ -26,13 +25,9 @@ export struct SettingsTimeItem {
         SymbolGlyph(this.symbol)
           .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
         Text(this.message + ':')
-          .fontSize(17)
-          .fontWeight(FontWeight.Medium)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.MARQUEE })
+          .attributeModifier(new SettingsTitleModifier())
         Text(this.selected === 0 ? '不跳过' : TimeUtil.convertSSToMMSS(this.selected))
-          .fontSize(17)
-          .fontWeight(FontWeight.Medium)
+          .attributeModifier(new SettingsTitleModifier())
           .width('100%') // 宽度充满父容器
       }
       .width('100%')
@@ -51,8 +46,7 @@ export struct SettingsTimeItem {
         })
         .divider(null)
     }
-    .backgroundColor($r('app.color.start_window_background_blur'))
-    .borderRadius(16)
+    .attributeModifier(new SettingsItemModifier())
     .padding(15) // 统一内边距
     .margin({ top: 5, bottom: 5 })
   }

@@ -122,6 +122,16 @@ export const VIDEO_SIZE_MAP: Record<string, string> = {
   '1216x2160': 'FHD+',
 }
 
+export const DANGER_COLOR = '#FF4D4F'
+
+export const DANGER_COLOR_ALPHA_15 = 'rgba(255, 77, 79, 0.15)'
+
+export const WARNING_COLOR = '#FAAD14'
+
+export const WARNING_COLOR_ALPHA_15 = 'rgba(250, 173, 20, 0.15)'
+
+export const DIALOG_TITLE_FONT_SIZE: number = 25
+
 export const FULL_ALPHABET: string[] = [
   '#', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
   'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'

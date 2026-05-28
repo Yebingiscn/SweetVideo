@@ -31,6 +31,7 @@ export function BrightnessSwipingBuilder(brightnessValue: BrightnessValue) {
       .selectedBorderRadius(16)
       .padding({ left: 5 })
   }
+  .animation({ duration: 300, curve: Curve.Friction })
   .offset({
     x: 0,
     y: -brightnessValue.playAreaHeight / 2.5
