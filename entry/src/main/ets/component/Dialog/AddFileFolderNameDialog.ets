@@ -1,4 +1,8 @@
+import { DIALOG_TITLE_FONT_SIZE } from '../../common/Constants'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
+import FileFolderUtil from '../../utils/FileFolderUtil'
+import { PathUtils } from '../../utils/PathUtils'
+import { DialogButtonBar } from './DialogButtonBar'
 
 @CustomDialog
 export struct AddFileFolderNameDialog {

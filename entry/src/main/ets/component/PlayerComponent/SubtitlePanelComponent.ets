@@ -1,9 +1,12 @@
-import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
+import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode'
+import NavigationAddress from '../../common/NavigationCommon'
 import { AVPlayerController } from '../../controller/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import { MpvSubtitleTrack } from '../../controller/MpvController/MpvTypes'
 import { SubtitleTrack } from '../../interfaces/AudioTrackInterface'
 import { InnerSubtitleDataSource } from '../../utils/DataUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
+import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
 @ComponentV2
 export struct SubtitlePanelComponent {

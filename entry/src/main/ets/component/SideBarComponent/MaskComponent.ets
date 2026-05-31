@@ -1,5 +1,6 @@
 import { curves } from '@kit.ArkUI'
 import { SideBarController } from './SideBar'
+import { Setting } from '../../utils/ObservedUtil'
 
 class SideBarValue {
   sideBarController: SideBarController | undefined = undefined
@@ -10,7 +11,7 @@ export function MaskComponent(sideBarValue: SideBarValue) {
   Column()
     .height('100%')
     .width('100%')
-    .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+    .backdropBlur(Setting.backgroundDropBlur > 0 ? Setting.backgroundDropBlur : 20)
     .transition(TransitionEffect.OPACITY.animation({
       curve: curves.springMotion(0, 1)
     }))

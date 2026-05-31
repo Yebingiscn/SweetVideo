@@ -1,8 +1,15 @@
 import WantProcessUtil from '../../utils/WantProcessUtil'
 import { PathUtils } from '../../utils/PathUtils'
-import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
+import { DefaultDialogShadow, ImageFancyModifier } from '../../common/AttributeModifierConfig'
 import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
-import { MarkdownController } from '@luvi/lv-markdown-in'
+import { Markdown, MarkdownController } from '@luvi/lv-markdown-in'
+import { salmonLogger } from 'salmonlogger'
+import { LiqD } from '../../component/common/LiqD'
+import { PrivacyPolicyComponent } from '../../component/VideoItemComponent/PrivacyPolicyComponent'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { LengthMetrics } from '@kit.ArkUI'
+import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 
 const TAG = 'AboutApp'
 

@@ -1,3 +1,15 @@
+import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
+import { SettingsSegmentButtonItem } from '../../component/SettingComponent/SettingsSegmentButtonItem'
+import { SettingsSliderItem } from '../../component/SettingComponent/SettingsSliderItem'
+import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
+import Preferences from '../../database/Preferences'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { PathUtils } from '../../utils/PathUtils'
+import SelectFileUtil from '../../utils/SelectFileUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { LengthMetrics } from '@kit.ArkUI'
+import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
+import { ConfigurationConstant } from '@kit.AbilityKit'
 
 @ComponentV2
 export struct PersonalizePage {

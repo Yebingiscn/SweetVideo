@@ -1,3 +1,18 @@
+import { salmonLogger } from 'salmonlogger'
+import NavigationAddress from '../../common/NavigationCommon'
+import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
+import Preferences from '../../database/Preferences'
+import PreferencesUtil from '../../database/PreferencesUtil'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { PathUtils } from '../../utils/PathUtils'
+import SelectFileUtil from '../../utils/SelectFileUtil'
+import SubtitleUtil from '../../utils/SubtitleUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
+import WantProcess from '../../utils/WantProcessUtil'
+import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
+import fileIo from '@ohos.file.fs'
+import { commentManager } from '@kit.AppGalleryKit'
+import { LengthMetrics } from '@kit.ArkUI'
 
 const TAG = 'MoreSettingPage'
 
@@ -37,13 +52,13 @@ export struct MoreSettingPage {
               PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'circle_play')
               PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'is_list_display')
               PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'defaultPlayer')
-              const coverFromSandbox = await fs.listFile(PathUtils.coverPath)?.catch(() => {
+              const coverFromSandbox = await fileIo.listFile(PathUtils.coverPath)?.catch(() => {
                 salmonLogger.addLog(TAG, 'get cover fail', true)
               })
               const isNumericStart = (filename: string): boolean => /^\d/.test(filename)
               const coverFromSandboxArray = Array.isArray(coverFromSandbox)
                 ? coverFromSandbox.filter(file => isNumericStart(file)) : []
-              const subtitleFromSandbox = await fs.listFile(PathUtils.subtitlePath)?.catch(() => {
+              const subtitleFromSandbox = await fileIo.listFile(PathUtils.subtitlePath)?.catch(() => {
                 salmonLogger.addLog(TAG, 'get subtitle fail', true)
               })
               const subtitleFromSandboxArray = Array.isArray(subtitleFromSandbox) ? subtitleFromSandbox : []

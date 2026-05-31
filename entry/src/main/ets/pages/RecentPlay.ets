@@ -5,6 +5,17 @@ import { DefaultDialogShadow } from '../common/AttributeModifierConfig'
 import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog'
 import { InfoConfirmDialog } from '../component/Dialog/InfoConfirmDialog'
 import { Context } from '@kit.AbilityKit'
+import { DELAY_JUMP_TO_PLAYER } from '../common/Constants'
+import { VideoItemBuilder } from '../component/PlayerComponent/PlayerSideBarComponent'
+import { VideoItemPreviewBuilder } from '../component/VideoItemComponent/VideoItemPreviewBuilder'
+import DataSyncUtil from '../utils/DataSyncUtil'
+import { Setting, SafeHeight } from '../utils/ObservedUtil'
+import RecentPlayUtil from '../utils/RecentPlayUtil'
+import SelectFileUtil from '../utils/SelectFileUtil'
+import ToolsUtil from '../utils/ToolsUtil'
+import VideoOperateUtil from '../utils/VideoOperateUtil'
+import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
+import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
 
 @ComponentV2
 export struct RecentPlay { // 最近播放页

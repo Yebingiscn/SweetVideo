@@ -1,3 +1,5 @@
+import { DIALOG_TITLE_FONT_SIZE } from "../../common/Constants"
+import { DialogButtonBar } from "./DialogButtonBar"
 
 @CustomDialog
 export struct InfoConfirmDialog {

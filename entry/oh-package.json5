@@ -6,6 +6,7 @@
   "author": "",
   "license": "",
   "dependencies": {
-    "libmpvnative.so" :"file:./src/main/cpp/types/libmpvnative"
+    "libmpvnative.so" :"file:./src/main/cpp/types/libmpvnative",
+    "@dove/subtitles": "file:./src/main/ets/modules/subtitles"
   }
 }

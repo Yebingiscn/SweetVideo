@@ -3,7 +3,17 @@ import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog'
 import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
-import { MarkdownController } from '@luvi/lv-markdown-in'
+import { Markdown, MarkdownController } from '@luvi/lv-markdown-in'
+import { salmonLogger } from 'salmonlogger'
+import { CoverLayoutMode, ListDisplayMode } from '../../common/enum/DisplayMode'
+import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
+import { SettingsSegmentButtonItem } from '../../component/SettingComponent/SettingsSegmentButtonItem'
+import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
+import Preferences from '../../database/Preferences'
+import BiometricAccessUtil from '../../utils/BiometricAccessUtil'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { LengthMetrics } from '@kit.ArkUI'
+import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 
 const TAG = 'SettingsPage'
 
@@ -34,6 +44,7 @@ export struct SettingsPage { //设置页
       .setTableTitleBackgroundColor($r('app.color.start_window_background_blur'))
       .setQuoteBackgroundColor($r('app.color.start_window_background_blur'))
       .setTableBackgroundColor($r('app.color.start_window_background_blur'))
+      .setLazyRender(true)
   }
 
   build() {

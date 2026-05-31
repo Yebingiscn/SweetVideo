@@ -1,5 +1,8 @@
 import { DeleteType } from '../../common/enum/DeleteType'
+import { VideoSource } from '../../common/enum/VideoSource'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
+import SelectFileUtil from '../../utils/SelectFileUtil'
+import { DeleteOptionsGroup } from './DeleteOptionsGroup'
 
 @CustomDialog
 export struct BatchVideoDeleteDialog {

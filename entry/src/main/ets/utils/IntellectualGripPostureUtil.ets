@@ -1,4 +1,5 @@
 import { motion } from '@kit.MultimodalAwarenessKit';
+import { salmonLogger } from 'salmonlogger';
 
 const TAG = 'IntellectualGripPostureUtil'
 

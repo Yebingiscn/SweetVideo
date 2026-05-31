@@ -30,7 +30,9 @@ import SelectFileUtil from './SelectFileUtil'
 import { WindowUtil } from './WindowUtil'
 import SubtitleUtil from './SubtitleUtil'
 import { Subtitle3DMode } from '../common/enum/SubtitleMode'
+import { DeleteType } from '../common/enum/DeleteType'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { fileManagerService } from '@kit.FileManagerServiceKit'
 
 const TAG = 'VideoOperateUtil'
 
@@ -508,22 +510,6 @@ export default class VideoOperateUtil {
       : $r('app.string.MPV_Player');
   }
 
-  private static async getTracksByType<T>(avPlayer: media.AVPlayer, trackType: media.MediaType,
-    mapper: (desc: media.MediaDescription) => T, errorLabel: string): Promise<T[]> {
-    return new Promise((resolve, reject) => {
-      avPlayer.getTrackDescription((error: BusinessError, arrList: Array<media.MediaDescription>) => {
-        if (error || !arrList || arrList.length === 0) {
-          salmonLogger.addLog(TAG, `Failed to get TrackDescription, error: ${error}`, true)
-          return reject(error || new Error(`No ${errorLabel} available`))
-        }
-        const tracks: T[] = arrList
-          .filter(desc => desc[media.MediaDescriptionKey.MD_KEY_TRACK_TYPE] === trackType)
-          .map(mapper)
-        resolve(tracks)
-      })
-    })
-  }
-
   static computeNextVideo(
     videoMetaDataList: VideoMetadata[],
     nowPlaying: VideoMetadata | undefined,
@@ -618,6 +604,49 @@ export default class VideoOperateUtil {
       return undefined
     }
     return Math.round(targetOffset)
+  }
+
+  static async deleteVideoFiles(items: VideoMetadata[], deleteType: DeleteType): Promise<void> {
+    for (const item of items) {
+      if (!item.date) {
+        continue
+      }
+      RecentPlayUtil.delData(PathUtils.appContext!, item.uri)
+      await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date)
+      await SelectFileUtil.deleteCover(item.date)
+      if (deleteType === DeleteType.HARD) {
+        try {
+          await fileIo.unlink(item.uri)
+          salmonLogger.addLog('BatchDelete', 'remove file succeed: ' + item.uri)
+        } catch (err) {
+          salmonLogger.addLog('BatchDelete', 'remove file failed: ' + (err as Error).message, true)
+        }
+      } else if (deleteType === DeleteType.RECENT) {
+        try {
+          if (canIUse('SystemCapability.FileManagement.FileManagerService.Core')) {
+            await fileManagerService.deleteToTrash(fileUri.getUriFromPath(item.uri))
+          }
+        } catch (error) {
+          salmonLogger.addLog('BatchDelete', 'move to trash failed: ' + (error as Error).message, true)
+        }
+      }
+    }
+  }
+
+  private static async getTracksByType<T>(avPlayer: media.AVPlayer, trackType: media.MediaType,
+    mapper: (desc: media.MediaDescription) => T, errorLabel: string): Promise<T[]> {
+    return new Promise((resolve, reject) => {
+      avPlayer.getTrackDescription((error: BusinessError, arrList: Array<media.MediaDescription>) => {
+        if (error || !arrList || arrList.length === 0) {
+          salmonLogger.addLog(TAG, `Failed to get TrackDescription, error: ${error}`, true)
+          return reject(error || new Error(`No ${errorLabel} available`))
+        }
+        const tracks: T[] = arrList
+          .filter(desc => desc[media.MediaDescriptionKey.MD_KEY_TRACK_TYPE] === trackType)
+          .map(mapper)
+        resolve(tracks)
+      })
+    })
   }
 
   private static calculateFrameSize(videoWidth: number, videoHeight: number): FrameSize {

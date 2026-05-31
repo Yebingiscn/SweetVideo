@@ -3,13 +3,16 @@ import SelectFileUtil from '../../utils/SelectFileUtil'
 import { VideoDataSource } from '../../utils/DataUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import DataSyncUtil from '../../utils/DataSyncUtil'
-import { LengthMetrics } from '@kit.ArkUI'
+import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
 import { VideoDetailDialog } from '../../component/Dialog/VideoDetailDialog'
 import Preferences from '../../database/Preferences'
 import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
 import {
-  DefaultDialogShadow
+  ButtonFancyModifier,
+  DefaultDialogShadow,
+  MenuFancyModifier,
+  SymbolGlyphFancyModifier
 } from '../../common/AttributeModifierConfig'
 import { PathUtils } from '../../utils/PathUtils'
 import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog'
@@ -19,8 +22,11 @@ import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
 import { ImportProgressBuilder } from '../../component/VideoItemComponent/ImportProgressBuilder'
 import VideoCardItem from '../../component/VideoItemComponent/VideoCardItemComponent'
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
+import { DeleteType } from '../../common/enum/DeleteType'
 import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
 import {
+  DELAY_JUMP_TO_PLAYER,
+  FULL_ALPHABET,
   NO_BLUR_AMOUNT, PRIVACY_BACKGROUND_BLUR_AMOUNT
 } from '../../common/Constants'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
@@ -29,6 +35,16 @@ import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { motion } from '@kit.MultimodalAwarenessKit'
 import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil'
 import { ScrollBarBuilder } from '../../component/VideoItemComponent/ScrollBarBuilder'
+import { pinyin4js } from '@ohos/pinyin4js'
+import { PrivacySpaceSettingComponent } from '../../component/PrivacySpaceComponent/PrivacySpaceSettingComponent'
+import { SearchComponent } from '../../component/VideoItemComponent/SearchComponent'
+import { SortComponent } from '../../component/VideoItemComponent/SortComponent'
+import VideoListItem from '../../component/VideoItemComponent/VideoListItemComponent'
+import { XAnimation } from '../../utils/AnimationUtil'
+import { VideoListController } from '../../component/VideoItemComponent/VideoItemComponent'
+import DlpAntiPeepUtil from '../../utils/DlpAntiPeepUtil'
+import { importAndProcessFiles, ProgressInfo } from '../../utils/FileProcessorUtil'
+import SubtitleUtil from '../../utils/SubtitleUtil'
 
 @ComponentV2
 export struct PrivacySpace { // 隐私空间页
@@ -88,6 +104,9 @@ export struct PrivacySpace { // 隐私空间页
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   @Local delMultipleList: VideoMetadata[] = []
+  @Local multipleChooseState: Visibility = Visibility.None
+  @Provider('videoListController') privacyVideoListController: VideoListController =
+    new VideoListController()
   @Local isPresent: boolean = false
   searchController: SearchController = new SearchController()
   VideoDetailDialog: CustomDialogController = new CustomDialogController({
@@ -103,6 +122,15 @@ export struct PrivacySpace { // 隐私空间页
         if (this.pendingDeleteItem) {
           this.deleteItem(this.pendingDeleteItem.date, this.pendingDeleteItem.title)
         }
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  batchDeleteConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: InfoConfirmDialog({
+      textInfo: '确定永久删除选中的视频吗？此操作不可恢复',
+      confirm: async () => {
+        await this.batchDeleteItems()
+        this.closeMultipleChoose()
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -217,14 +245,25 @@ export struct PrivacySpace { // 隐私空间页
       })
 
       if (!this.is_edit) {
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
-            .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+        if (this.multipleChooseState === Visibility.Visible) {
+          Button({ type: ButtonType.Circle, stateEffect: true }) {
+            SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
+              .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+          }
+          .backdropBlur(150)
+          .attributeModifier(new ButtonFancyModifier(35, 35))
+          .animation({ duration: 300, curve: Curve.Ease })
+          .bindMenu(this.SelectItemMenuBuilder, { showInSubWindow: false })
+        } else {
+          Button({ type: ButtonType.Circle, stateEffect: true }) {
+            SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
+              .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+          }
+          .backdropBlur(150)
+          .attributeModifier(new ButtonFancyModifier(35, 35))
+          .animation({ duration: 300, curve: Curve.Ease })
+          .bindMenu(this.SortMenuBuilder, { showInSubWindow: false })
         }
-        .backdropBlur(150)
-        .attributeModifier(new ButtonFancyModifier(35, 35))
-        .animation({ duration: 300, curve: Curve.Ease })
-        .bindMenu(this.SortMenuBuilder, { showInSubWindow: false })
       }
     }
     .width('95%')
@@ -242,6 +281,28 @@ export struct PrivacySpace { // 隐私空间页
       onSortByTime: (): void => this.handleSort('time', false),
       onSortByDatetime: (): void => this.handleSort('datetime', false)
     })
+  }
+
+  @Builder
+  SelectItemMenuBuilder() {
+    Menu() {
+      MenuItem({ content: $r('app.string.cancel') })
+        .onClick(() => { this.closeMultipleChoose() })
+      MenuItem({
+        content: this.delMultipleList.length === this.video_meta_data_encryption.length &&
+          this.video_meta_data_encryption.length > 0 ? '取消全选' : $r('app.string.select_all')
+      })
+        .onClick(() => {
+          if (this.delMultipleList.length === this.video_meta_data_encryption.length &&
+            this.video_meta_data_encryption.length > 0) {
+            this.delMultipleList = []
+          } else {
+            this.delMultipleList = [...this.video_meta_data_encryption]
+          }
+        })
+      MenuItem({ content: $r('app.string.delete_selected') })
+        .onClick(() => { this.batchDeleteConfirmDialog.open() })
+    }.attributeModifier(new MenuFancyModifier())
   }
 
   @Builder
@@ -265,8 +326,28 @@ export struct PrivacySpace { // 隐私空间页
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
       })
         .onClick(() => {
-          this.pendingDeleteItem = item!
-          this.deleteConfirmDialog.open()
+          if (this.multipleChooseState === Visibility.Visible) {
+            const isSelected = this.delMultipleList.some(v => v.uri === item?.uri)
+            if (!isSelected) {
+              this.delMultipleList = [...this.delMultipleList, item!]
+            }
+            this.batchDeleteConfirmDialog.open()
+          } else {
+            this.pendingDeleteItem = item!
+            this.deleteConfirmDialog.open()
+          }
+        })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.checkmark_square_on_square')),
+        content: this.multipleChooseState === Visibility.Visible ? '取消多选' :
+          $r('app.string.multiple_choice')
+      })
+        .onClick(() => {
+          XAnimation.runWithAnimation(() => {
+            this.multipleChooseState =
+              this.multipleChooseState === Visibility.None ? Visibility.Visible : Visibility.None
+          })
+          this.delMultipleList = item ? [item] : []
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
@@ -332,6 +413,11 @@ export struct PrivacySpace { // 隐私空间页
     )
   }
 
+  @Monitor('multipleChooseState')
+  onMultipleChooseStateChanged() {
+    this.privacyVideoListController.multipleChooseState = this.multipleChooseState
+  }
+
   async aboutToAppear(): Promise<void> {
     this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
     this.video_meta_data_encryption = this.allVideos
@@ -367,6 +453,29 @@ export struct PrivacySpace { // 隐私空间页
       : this.allVideos
     this.videoDataSource.updateData(this.video_meta_data_encryption)
     await SelectFileUtil.deletePrivacyVideo(date, title, this.allVideos)
+  }
+
+  private closeMultipleChoose() {
+    XAnimation.runWithAnimation(() => {
+      this.multipleChooseState = Visibility.None
+    })
+    this.delMultipleList = []
+  }
+
+  private async batchDeleteItems() {
+    if (this.delMultipleList.length === 0) {
+      return
+    }
+    await VideoOperateUtil.deleteVideoFiles(this.delMultipleList, DeleteType.HARD)
+    const deleteDates = new Set(this.delMultipleList.map(v => v.date))
+    this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+      .filter(v => !deleteDates.has(v.date))
+    Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, this.allVideos)
+    this.video_meta_data_encryption = this.searchValue.trim()
+      ? SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue)
+      : this.allVideos
+    this.videoDataSource.updateData(this.video_meta_data_encryption)
+    ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_success').id))
   }
 
   @Builder
@@ -435,8 +544,16 @@ export struct PrivacySpace { // 隐私空间页
                   .width('100%')
                   .height('auto')
                   .onClick(async () => {
-                    await this.clickItem(repeatItem.item,
-                      VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
+                    if (this.multipleChooseState === Visibility.Visible) {
+                      if (this.delMultipleList.some(v => v.date === repeatItem.item.date)) {
+                        this.delMultipleList = this.delMultipleList.filter(v => v.date !== repeatItem.item.date)
+                      } else {
+                        this.delMultipleList = [...this.delMultipleList, repeatItem.item]
+                      }
+                    } else {
+                      await this.clickItem(repeatItem.item,
+                        VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
+                    }
                   })
                   .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress,
                     {

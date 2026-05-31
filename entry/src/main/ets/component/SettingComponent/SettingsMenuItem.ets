@@ -1,3 +1,8 @@
+import {
+  SymbolGlyphFancyModifier,
+  SettingsTitleModifier,
+  SettingsItemModifier
+} from "../../common/AttributeModifierConfig"
 
 @ComponentV2
 export struct SettingsMenuItem {
