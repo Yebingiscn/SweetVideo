@@ -170,7 +170,7 @@ export struct Player { // 播放页
     } catch (error) {
       ToolsUtil.addLogger(`音量监听取消错误 ${error}`, true, this.pathStack)
     }
-    this.player.release()
+    await this.player.release()
     ToolsUtil.addLogger("释放播放器资源完成", false, this.pathStack)
     ToolsUtil.addLogger("aboutToDisappear方法执行完成", false, this.pathStack)
   }
@@ -536,7 +536,7 @@ export struct Player { // 播放页
         await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
         await this.player?.avSession?.stopCasting()
         await VideoOperateUtil.releaseAVImageGenerator()
-        this.player.release()
+        await this.player.release()
       } catch (error) {
         ToolsUtil.addLogger(`onWillDisappear中发生错误：${error}`, true, this.pathStack)
       }

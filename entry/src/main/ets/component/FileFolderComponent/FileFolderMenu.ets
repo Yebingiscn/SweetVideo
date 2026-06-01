@@ -22,7 +22,11 @@ export struct FileFolderMenu {
 
   aboutToAppear(): void {
     this.addFileFolderNameDialogController = new CustomDialogController({
-      builder: AddFileFolderNameDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
+      builder: AddFileFolderNameDialog({
+        onFolderAdded: (folders: FileFolder[]) => {
+          this.file_folder_list = folders
+        }
+      }), cornerRadius: 20, shadow: DefaultDialogShadow
     })
   }
 
@@ -61,7 +65,7 @@ export struct FileFolderMenu {
               })
           }
         })
-        .key((item: FileFolder, _index: number) => item.date + item.name + item.video_list.toString())
+        .key((item: FileFolder) => item.date + item.name + item.video_list.toString())
     }.attributeModifier(new MenuFancyModifier())
   }
 }

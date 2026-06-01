@@ -209,15 +209,15 @@ export default class ToolsUtil {
             .then((resultCode: updateManager.ShowUpdateResultCode) => {
               salmonLogger.addLog(TAG, 'showUpdateDialog resultCode:' + resultCode)
             })
-            ?.catch((error: BusinessError) => {
-              ToolsUtil.showToast('更新弹窗生成失败，原因是：' + error)
+            .catch((error: BusinessError) => {
+              ToolsUtil.showToast('更新弹窗生成失败，原因是：' + error.message)
               salmonLogger.addLog(TAG, `showUpdateDialog onError.code is ${error.code}, message is ${error.message}`)
             })
         } else {
           ToolsUtil.showToast('还没有新版本~')
         }
-      })?.catch((error: BusinessError) => {
-        ToolsUtil.showToast('检查更新失败，原因是：' + error)
+      }).catch((error: BusinessError) => {
+        ToolsUtil.showToast('检查更新失败，原因是：' + error.message)
         salmonLogger.addLog(TAG, `checkAppUpdate onError.code is ${error.code}, message is ${error.message}`, true)
       })
   }

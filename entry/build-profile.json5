@@ -39,28 +39,32 @@
                 "path": [
                   "./**/*"
                 ],
-                // All files in the specified resource directory
                 "size": [
                   [
                     0,
                     '1000k'
                   ]
                 ],
-                // Files with a specified size of less than 1000k
-                // Pictures with a resolution smaller than 3000 x 3000
                 "resolution": [
                   [
                     {
                       "width": 0,
                       "height": 0
                     },
-                    // minimum width and height
                     {
                       "width": 3000,
                       "height": 3000
                     }
-                    // Maximum width and height
                   ]
+                ]
+              },
+              "exclude": {
+                "path": [
+                  "./**/layered_image.json",
+                  "./**/Foreground.png",
+                  "./**/Background.png",
+                  "./**/foreground_start_up.png",
+                  "./**/startIcon.png"
                 ]
               }
             }

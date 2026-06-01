@@ -311,7 +311,9 @@ export struct VideoView {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
         content: $r('app.string.move_to_folder'),
-        builder: (): void => this.FileFolderMenuBuilder(undefined)
+        builder: () => {
+          FileFolderMenu({ video_item: undefined })
+        }
       })
     }.attributeModifier(new MenuFancyModifier())
   }
@@ -322,7 +324,34 @@ export struct VideoView {
       Row({ space: 8 }) {
         Repeat<FileFolder>(this.fileFolderSource.data)
           .each((repeatItem: RepeatItem<FileFolder>) => {
-            this.FolderTabItemBuilder(repeatItem.item, repeatItem.index)
+            Row() {
+              Text(repeatItem.item.name)
+                .fontSize(13)
+                .fontWeight(this.videoListController?.folder?.date === repeatItem.item.date ? FontWeight.Bold :
+                  FontWeight.Medium)
+                .fontColor(this.videoListController?.folder?.date === repeatItem.item.date ?
+                  $r('sys.color.white') : $r('app.color.text_color'))
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+                .maxLines(1)
+                .padding({ left: 12, right: 12 })
+            }
+            .backgroundEffect({ radius: 100 })
+            .useEffect(true, EffectType.WINDOW_EFFECT)
+            .backgroundColor(this.videoListController?.folder?.date === repeatItem.item.date ?
+              $r('app.color.main_color') : $r('app.color.search_component_blur'))
+            .height(this.FOLDER_TAB_HEIGHT)
+            .constraintSize({ minWidth: this.FOLDER_TAB_MIN_WIDTH })
+            .borderRadius(16)
+            .justifyContent(FlexAlign.Center)
+            .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+            .onClick(() => {
+              if (this.videoListController.multipleChooseState === Visibility.Visible) {
+                return
+              }
+              if (this.videoListController?.folder?.date !== repeatItem.item.date) {
+                this.switchToFolderByIndex(repeatItem.index)
+              }
+            })
           })
           .key((item: FileFolder) => item.date.toString() + item.name)
       }
@@ -337,41 +366,6 @@ export struct VideoView {
     .edgeEffect(EdgeEffect.Spring)
   }
 
-  @Builder
-  FolderTabItemBuilder(folder: FileFolder, index: number) {
-    Row() {
-      Text(folder.name)
-        .fontSize(13)
-        .fontWeight(this.videoListController?.folder?.date === folder.date ? FontWeight.Bold : FontWeight.Medium)
-        .fontColor(this.videoListController?.folder?.date === folder.date ?
-          $r('sys.color.white') : $r('app.color.text_color'))
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-        .maxLines(1)
-        .padding({ left: 12, right: 12 })
-    }
-    .backgroundEffect({ radius: 100 })
-    .useEffect(true, EffectType.WINDOW_EFFECT)
-    .backgroundColor(this.videoListController?.folder?.date === folder.date ?
-      $r('app.color.main_color') : $r('app.color.search_component_blur'))
-    .height(this.FOLDER_TAB_HEIGHT)
-    .constraintSize({ minWidth: this.FOLDER_TAB_MIN_WIDTH })
-    .borderRadius(16)
-    .justifyContent(FlexAlign.Center)
-    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-    .onClick(() => {
-      if (this.videoListController.multipleChooseState === Visibility.Visible) {
-        return
-      }
-      if (this.videoListController?.folder?.date !== folder.date) {
-        this.switchToFolderByIndex(index)
-      }
-    })
-  }
-
-  @Builder
-  FileFolderMenuBuilder(video_item: VideoMetadata | undefined) {
-    FileFolderMenu({ video_item: video_item })
-  }
 
   private handleSort(field: 'name' | 'time' | 'datetime', defaultAsc: boolean) {
     if (this.currentSortField === field) {

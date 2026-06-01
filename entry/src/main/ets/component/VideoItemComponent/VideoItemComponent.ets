@@ -154,7 +154,7 @@ export struct VideoList {
       confirm: (title: string | undefined) => {
         if (!title?.trim()) {
           return
-        } // 更严格的空值判断
+        }
         const editingVideo = DataSyncUtil.editingVideo!
         const targetIndex = SelectFileUtil.getItemIndex(this.videoListController.videoMetaDataList, editingVideo)
         if (targetIndex === -1) {
@@ -162,12 +162,35 @@ export struct VideoList {
         }
         if (this.videoListController.videoMetaDataList.some((v, index) => index !== targetIndex &&
           v.title === title.trim())) {
-          return // 这里直接用 some 来代替，没必要每次都 new 一个Set
+          return
         }
-        this.videoListController.videoMetaDataList[targetIndex].title = title.trim()
-        // 使用增量更新而不是全量重载，提升性能
-        this.videoListController.videoDataSource.updateItem(targetIndex,
-          this.videoListController.videoMetaDataList[targetIndex])
+        const original = this.videoListController.videoMetaDataList[targetIndex]
+        const updatedVideo: VideoMetadata = {
+          uri: original.uri,
+          title: title.trim() as string,
+          date: original.date,
+          size: original.size,
+          time: original.time,
+          last_play: original.last_play,
+          format: original.format,
+          video_size: original.video_size,
+          hdr_type: original.hdr_type,
+          frame_rate: original.frame_rate,
+          start_time: original.start_time,
+          end_time: original.end_time,
+          external_subtitle_format: original.external_subtitle_format,
+          pointA: original.pointA,
+          pointB: original.pointB,
+          subtitle_mode: original.subtitle_mode,
+          subtitle_visible: original.subtitle_visible,
+          subtitle_ai_asr_shown: original.subtitle_ai_asr_shown,
+          subtitle_3d_mode: original.subtitle_3d_mode,
+          subtitle_offset_millis: original.subtitle_offset_millis,
+          subtitle_track_id: original.subtitle_track_id
+        }
+        this.videoListController.videoMetaDataList[targetIndex] = updatedVideo
+        DataSyncUtil.editingVideo = updatedVideo
+        this.videoListController.videoDataSource.updateItem(targetIndex, updatedVideo)
         FileFolderUtil.updateVideoInFileFolder(PathUtils.appContext!, this.videoListController, this.fileFolderSource)
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow

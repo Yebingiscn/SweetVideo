@@ -43,18 +43,18 @@ struct userLoginComponent {
           return
         }
         if (response) {
-          // 获取到Authorization Code
           Preferences.saveUserAuthorizationCode(PathUtils.appContext!, response.authorizationCode)
           Preferences.saveUserUnionID(PathUtils.appContext!, response.unionID)
           Preferences.saveUserOpenID(PathUtils.appContext!, response.openID)
           Preferences.saveUserIdToken(PathUtils.appContext!, response.idToken!)
           Preferences.saveUserIsLogin(PathUtils.appContext!, true)
-          AccountUtil.getAvatarFromHuaweiAccount()
-          userData.isLogin = true
           userData.authorizationCode = response.authorizationCode
           userData.unionID = response.unionID
           userData.openID = response.openID
           userData.idToken = response.idToken!
+          AccountUtil.getAvatarFromHuaweiAccount(() => {
+            userData.isLogin = true
+          })
           return
         }
       })

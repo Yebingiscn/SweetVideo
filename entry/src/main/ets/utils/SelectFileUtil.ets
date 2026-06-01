@@ -28,6 +28,7 @@ const TAG = 'SelectFileUtil'
 export interface SavePixelMapOptions {
   releasePixelMap?: boolean
   deleteOnFail?: boolean
+  format?: string
 }
 
 export default class SelectFileUtil {
@@ -265,7 +266,7 @@ export default class SelectFileUtil {
     try {
       packer = image.createImagePacker()
       file = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
-      await packer.packToFile(pixelMap, file.fd, { format: 'image/jpeg', quality: 85 })
+      await packer.packToFile(pixelMap, file.fd, { format: options?.format ?? 'image/webp', quality: 85 })
       return filePath
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
@@ -319,7 +320,7 @@ export default class SelectFileUtil {
       const effect = effectKit.createEffect(pixelMap)
       const blurredPixelMap = await effect.blur(blurRadius).getEffectPixelMap()
       await SelectFileUtil.savePixelMapToFile(PathUtils.photoPath!, blurFileName, blurredPixelMap!, {
-        releasePixelMap: true
+        releasePixelMap: true, format: 'image/jpeg'
       })
       return fileUri.getUriFromPath(blurPath)
     } catch (error) {

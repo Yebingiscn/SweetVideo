@@ -27,7 +27,8 @@ import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
 import {
   DELAY_JUMP_TO_PLAYER,
   FULL_ALPHABET,
-  NO_BLUR_AMOUNT, PRIVACY_BACKGROUND_BLUR_AMOUNT
+  NO_BLUR_AMOUNT,
+  PRIVACY_BACKGROUND_BLUR_AMOUNT
 } from '../../common/Constants'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { VideoItemPreviewBuilder } from '../../component/VideoItemComponent/VideoItemPreviewBuilder'
@@ -50,6 +51,7 @@ import SubtitleUtil from '../../utils/SubtitleUtil'
 export struct PrivacySpace { // 隐私空间页
   @Local videoDataSource: VideoDataSource = new VideoDataSource([])
   @Local video_meta_data_encryption: VideoMetadata[] = []
+  @Local allVideos: VideoMetadata[] = [] // 保存完整数据用于搜索
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -62,10 +64,35 @@ export struct PrivacySpace { // 隐私空间页
           return
         }
         if (this.video_meta_data_encryption.some((v, index) => index !== targetIndex && v.title === title.trim())) {
-          return // 这里直接用 some 来代替，隐私空间视频不多，没必要每次都 new 一个Set
+          return
         }
         this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-        this.video_meta_data_encryption[targetIndex].title = title.trim()
+        const original = this.video_meta_data_encryption[targetIndex]
+        const updatedVideo: VideoMetadata = {
+          uri: original.uri,
+          title: title.trim() as string,
+          date: original.date,
+          size: original.size,
+          time: original.time,
+          last_play: original.last_play,
+          format: original.format,
+          video_size: original.video_size,
+          hdr_type: original.hdr_type,
+          frame_rate: original.frame_rate,
+          start_time: original.start_time,
+          end_time: original.end_time,
+          external_subtitle_format: original.external_subtitle_format,
+          pointA: original.pointA,
+          pointB: original.pointB,
+          subtitle_mode: original.subtitle_mode,
+          subtitle_visible: original.subtitle_visible,
+          subtitle_ai_asr_shown: original.subtitle_ai_asr_shown,
+          subtitle_3d_mode: original.subtitle_3d_mode,
+          subtitle_offset_millis: original.subtitle_offset_millis,
+          subtitle_track_id: original.subtitle_track_id
+        }
+        this.video_meta_data_encryption[targetIndex] = updatedVideo
+        DataSyncUtil.editingVideo = updatedVideo
         this.allVideos = [...this.video_meta_data_encryption]
         this.videoDataSource.updateData(this.video_meta_data_encryption)
         Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, this.video_meta_data_encryption)
@@ -73,7 +100,6 @@ export struct PrivacySpace { // 隐私空间页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @Local allVideos: VideoMetadata[] = [] // 保存完整数据用于搜索
   @Local list_line: number = 1
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   @Local totalItems: number = 0
@@ -114,6 +140,15 @@ export struct PrivacySpace { // 隐私空间页
     shadow: DefaultDialogShadow
   })
   @Local HoldingHand: motion.HoldingHandStatus | null = null
+  batchDeleteConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: InfoConfirmDialog({
+      textInfo: '确定永久删除选中的视频吗？此操作不可恢复',
+      confirm: async () => {
+        await this.batchDeleteItems()
+        this.closeMultipleChoose()
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
   private pendingDeleteItem: VideoMetadata | null = null
   deleteConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog({
@@ -122,15 +157,6 @@ export struct PrivacySpace { // 隐私空间页
         if (this.pendingDeleteItem) {
           this.deleteItem(this.pendingDeleteItem.date, this.pendingDeleteItem.title)
         }
-      }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
-  batchDeleteConfirmDialog: CustomDialogController = new CustomDialogController({
-    builder: InfoConfirmDialog({
-      textInfo: '确定永久删除选中的视频吗？此操作不可恢复',
-      confirm: async () => {
-        await this.batchDeleteItems()
-        this.closeMultipleChoose()
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -245,6 +271,15 @@ export struct PrivacySpace { // 隐私空间页
       })
 
       if (!this.is_edit) {
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
+            .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+        }
+        .backdropBlur(150)
+        .attributeModifier(new ButtonFancyModifier(35, 35))
+        .transition(XAnimation.getAnimation('right', 0, false))
+        .bindMenu(this.SortMenuBuilder, { showInSubWindow: false })
+
         if (this.multipleChooseState === Visibility.Visible) {
           Button({ type: ButtonType.Circle, stateEffect: true }) {
             SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
@@ -252,17 +287,8 @@ export struct PrivacySpace { // 隐私空间页
           }
           .backdropBlur(150)
           .attributeModifier(new ButtonFancyModifier(35, 35))
-          .animation({ duration: 300, curve: Curve.Ease })
+          .transition(XAnimation.getAnimation('right', 0, false))
           .bindMenu(this.SelectItemMenuBuilder, { showInSubWindow: false })
-        } else {
-          Button({ type: ButtonType.Circle, stateEffect: true }) {
-            SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
-              .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-          }
-          .backdropBlur(150)
-          .attributeModifier(new ButtonFancyModifier(35, 35))
-          .animation({ duration: 300, curve: Curve.Ease })
-          .bindMenu(this.SortMenuBuilder, { showInSubWindow: false })
         }
       }
     }
@@ -287,7 +313,9 @@ export struct PrivacySpace { // 隐私空间页
   SelectItemMenuBuilder() {
     Menu() {
       MenuItem({ content: $r('app.string.cancel') })
-        .onClick(() => { this.closeMultipleChoose() })
+        .onClick(() => {
+          this.closeMultipleChoose()
+        })
       MenuItem({
         content: this.delMultipleList.length === this.video_meta_data_encryption.length &&
           this.video_meta_data_encryption.length > 0 ? '取消全选' : $r('app.string.select_all')
@@ -301,7 +329,9 @@ export struct PrivacySpace { // 隐私空间页
           }
         })
       MenuItem({ content: $r('app.string.delete_selected') })
-        .onClick(() => { this.batchDeleteConfirmDialog.open() })
+        .onClick(() => {
+          this.batchDeleteConfirmDialog.open()
+        })
     }.attributeModifier(new MenuFancyModifier())
   }
 
@@ -453,29 +483,6 @@ export struct PrivacySpace { // 隐私空间页
       : this.allVideos
     this.videoDataSource.updateData(this.video_meta_data_encryption)
     await SelectFileUtil.deletePrivacyVideo(date, title, this.allVideos)
-  }
-
-  private closeMultipleChoose() {
-    XAnimation.runWithAnimation(() => {
-      this.multipleChooseState = Visibility.None
-    })
-    this.delMultipleList = []
-  }
-
-  private async batchDeleteItems() {
-    if (this.delMultipleList.length === 0) {
-      return
-    }
-    await VideoOperateUtil.deleteVideoFiles(this.delMultipleList, DeleteType.HARD)
-    const deleteDates = new Set(this.delMultipleList.map(v => v.date))
-    this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-      .filter(v => !deleteDates.has(v.date))
-    Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, this.allVideos)
-    this.video_meta_data_encryption = this.searchValue.trim()
-      ? SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue)
-      : this.allVideos
-    this.videoDataSource.updateData(this.video_meta_data_encryption)
-    ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_success').id))
   }
 
   @Builder
@@ -739,6 +746,10 @@ export struct PrivacySpace { // 隐私空间页
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)
     .onBackPressed(() => {
+      if (this.multipleChooseState === Visibility.Visible) {
+        this.closeMultipleChoose()
+        return true
+      }
       if (this.searchValue.length > 0) {
         this.searchValue = ''
         this.video_meta_data_encryption = this.allVideos
@@ -788,6 +799,29 @@ export struct PrivacySpace { // 隐私空间页
     } else {
       this.activeAlphabet = []
     }
+  }
+
+  private closeMultipleChoose() {
+    XAnimation.runWithAnimation(() => {
+      this.multipleChooseState = Visibility.None
+    })
+    this.delMultipleList = []
+  }
+
+  private async batchDeleteItems() {
+    if (this.delMultipleList.length === 0) {
+      return
+    }
+    await VideoOperateUtil.deleteVideoFiles(this.delMultipleList, DeleteType.HARD)
+    const deleteDates = new Set(this.delMultipleList.map(v => v.date))
+    this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+      .filter(v => !deleteDates.has(v.date))
+    Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, this.allVideos)
+    this.video_meta_data_encryption = this.searchValue.trim()
+      ? SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue)
+      : this.allVideos
+    this.videoDataSource.updateData(this.video_meta_data_encryption)
+    ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_success').id))
   }
 
   private getFirstLetter(title: string): string {

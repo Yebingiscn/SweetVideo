@@ -27,7 +27,6 @@ import { PathUtils } from '../utils/PathUtils'
 import PermissionUtil from '../utils/PermissionUtil'
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil'
 import RecentPlayUtil from '../utils/RecentPlayUtil'
-import SelectFileUtil from '../utils/SelectFileUtil'
 import SubtitleUtil from '../utils/SubtitleUtil'
 import VideoInfoUtil from '../utils/VideoInfoUtil'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
@@ -252,10 +251,20 @@ export class AVPlayerController implements PlayerControllerInterface {
     })
   }
 
-  release() {
-    this.avPlayer?.release()?.catch(() => {
+  async release() {
+    if (!this.avPlayer) {
+      return
+    }
+    try {
+      await this.avPlayer?.reset()
+    } catch (e) {
+      ToolsUtil.addLogger('release reset error', true)
+    }
+    const releasePromise = this.avPlayer?.release()?.catch(() => {
       ToolsUtil.addLogger('release error', true)
     })
+    const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 3000))
+    await Promise.race([releasePromise, timeoutPromise])
     this.avPlayer = undefined
   }
 
@@ -694,7 +703,7 @@ export class AVPlayerController implements PlayerControllerInterface {
         case 'idle':
           ToolsUtil.addLogger("进入idle状态", false, pathStack)
           if (!this.isResetting) {
-            this.release()
+            await this.release()
             ToolsUtil.addLogger("释放播放器资源完成", false, pathStack)
           } else {
             ToolsUtil.addLogger("正在重置，跳过idle状态释放", false, pathStack)
@@ -710,7 +719,7 @@ export class AVPlayerController implements PlayerControllerInterface {
           } catch (error) {
             pathStack.pop()
           } finally {
-            this.release()
+            await this.release()
           }
           ToolsUtil.addLogger("释放播放器资源完成", false, pathStack)
           break

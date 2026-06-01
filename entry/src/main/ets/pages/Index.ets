@@ -88,6 +88,9 @@ struct Index {
         }
         await FileFolderUtil.changeFileFolderName(PathUtils.appContext!,
           DataSyncUtil.editingFolder!, newFolderName, this.fileFolderSource)
+        const updatedFolders = Preferences.getFileFolder(PathUtils.appContext!) as FileFolder[]
+        this.file_folder_list = updatedFolders
+        this.fileFolderSource.updateData(updatedFolders)
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -322,7 +325,7 @@ struct Index {
                   .draggable(false)// 禁止长按手势拖动
                   .autoResize(true) // 重采样，可减少内存占用
                   .margin({ left: 10 })
-                Text(userData.nickName ?? '点击登录')
+                Text(userData.isLogin ? (userData.nickName || '已登录') : '点击登录')
                   .width('100%')
                   .fontSize(15)
                   .margin({ left: 10, right: 12 })
