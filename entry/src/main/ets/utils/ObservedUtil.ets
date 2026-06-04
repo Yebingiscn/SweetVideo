@@ -30,6 +30,7 @@ class SettingUtil {
   public allowGestureEntry: boolean = true
   public showFrameImgStatus: boolean = true
   public jumpToHistoryTimeStatus: boolean = true
+  public enableAiPrivacyAntiPeep: boolean = false // AI隐私防窥开关，控制是否在隐私空间检查并引导用户设置
 }
 
 class SafeHeightUtil {

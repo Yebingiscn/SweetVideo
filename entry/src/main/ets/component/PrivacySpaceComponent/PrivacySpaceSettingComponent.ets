@@ -1,9 +1,10 @@
-import NavigationAddress from "../../common/NavigationCommon"
-import Preferences from "../../database/Preferences"
-import { Setting } from "../../utils/ObservedUtil"
-import { PathUtils } from "../../utils/PathUtils"
-import { SettingsClickItem } from "../SettingComponent/SettingsClickItem"
-import { SettingsToggleItem } from "../SettingComponent/SettingsToggleItem"
+import NavigationAddress from '../../common/NavigationCommon'
+import Preferences from '../../database/Preferences'
+import DlpAntiPeepUtil from "../../utils/DlpAntiPeepUtil"
+import { Setting } from '../../utils/ObservedUtil'
+import { PathUtils } from '../../utils/PathUtils'
+import { SettingsClickItem } from '../SettingComponent/SettingsClickItem'
+import { SettingsToggleItem } from '../SettingComponent/SettingsToggleItem'
 
 @ComponentV2
 export struct PrivacySpaceSettingComponent {
@@ -43,6 +44,21 @@ export struct PrivacySpaceSettingComponent {
         onChange: (checked: boolean) => {
           Setting.allowGestureEntry = checked
           Preferences.saveAllowGestureEntry(PathUtils.appContext!, Setting.allowGestureEntry)
+        }
+      })
+
+      SettingsToggleItem({
+        symbol: $r('sys.symbol.private_browsing_mode'),
+        message: 'AI隐私防窥',
+        enable: Setting.enableAiPrivacyAntiPeep,
+        onChange: (checked: boolean) => {
+          Setting.enableAiPrivacyAntiPeep = checked
+          Preferences.saveEnableAiPrivacyAntiPeep(PathUtils.appContext!, Setting.enableAiPrivacyAntiPeep)
+          if (checked) {
+            DlpAntiPeepUtil.checkDlpAntiPeepStatus()
+          } else {
+            DlpAntiPeepUtil.closeDlpAntiPeepStatus()
+          }
         }
       })
 

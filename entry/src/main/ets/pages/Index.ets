@@ -33,6 +33,7 @@ import SubtitleUtil from '../utils/SubtitleUtil'
 import { checkUriProcess } from '../utils/TaskpoolUtil'
 import TimeUtil from '../utils/TimeUtil'
 import ToolsUtil from '../utils/ToolsUtil'
+import { SortField } from '../common/enum/SortField'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
 import VideoUtils from '../utils/VideoUtil'
 import WantProcessUtil from '../utils/WantProcessUtil'
@@ -51,6 +52,7 @@ import { Player } from './VideoPlayer/Player'
 import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData'
 import { HdsNavigation, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { LengthMetrics } from '@kit.ArkUI'
+import { ListDisplayMode } from '../common/enum/DisplayMode'
 
 const TAG = 'Index'
 
@@ -198,7 +200,29 @@ struct Index {
     // 从其他页面返回时，用内容区实际宽度重新计算列数
     // 覆盖场景：设置页修改了 listDisplayMode、屏幕方向变化后返回
     if (this.contentWidth > 0) {
-      this.videoListController.refresh(this.contentWidth, Setting.listDisplayMode)
+      // 获取当前状态
+      const currentScreenWidth = AppStorage.get('screen_width') as number ?? 0
+      const currentScreenHeight = AppStorage.get('screen_height') as number ?? 0
+      const currentIsLandscape = currentScreenWidth > currentScreenHeight
+      const currentListDisplayMode = Setting.listDisplayMode
+
+      // 获取保存的状态
+      const savedIsLandscape = AppStorage.get('saved_is_landscape') as boolean | undefined
+      const savedListDisplayMode = AppStorage.get('saved_list_display_mode') as ListDisplayMode | undefined
+      const savedListLine = AppStorage.get('saved_list_line') as number | undefined
+
+      // 判断是否需要重新计算：三者都一致则不计算
+      const needRefresh = savedIsLandscape === undefined ||
+        savedListDisplayMode === undefined ||
+        savedListLine === undefined ||
+        currentIsLandscape !== savedIsLandscape ||
+        currentListDisplayMode !== savedListDisplayMode ||
+        this.videoListController.listLine !== savedListLine
+
+      if (needRefresh) {
+        // 有不一致项，重新计算
+        this.videoListController.refresh(this.contentWidth, Setting.listDisplayMode)
+      }
     }
     const currentFolder = this.videoListController.folder
     if (currentFolder) {
@@ -209,6 +233,17 @@ struct Index {
         this.videoListController.updateData(this.videoListController.videoDataSource, updatedFolder)
       }
     }
+  }
+
+  onPageHide(): void {
+    // 保存当前状态到 AppStorage
+    const currentScreenWidth = AppStorage.get('screen_width') as number ?? 0
+    const currentScreenHeight = AppStorage.get('screen_height') as number ?? 0
+    const currentIsLandscape = currentScreenWidth > currentScreenHeight
+
+    AppStorage.setOrCreate('saved_is_landscape', currentIsLandscape)
+    AppStorage.setOrCreate('saved_list_display_mode', Setting.listDisplayMode)
+    AppStorage.setOrCreate('saved_list_line', this.videoListController.listLine)
   }
 
   async aboutToAppear(): Promise<void> {
@@ -282,6 +317,11 @@ struct Index {
       fileFolder,
       () => {
         const targetFolder = this.videoListController.folder ?? this.file_folder_list[0]
+        const sortField = Preferences.getSortField(PathUtils.appContext!) as SortField
+        if (sortField) {
+          const sortAsc = Preferences.getSortAsc(PathUtils.appContext!)
+          ToolsUtil.sortBy(PathUtils.appContext!, targetFolder.video_list, targetFolder, sortField, sortAsc)
+        }
         const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, targetFolder)
         this.file_folder_list = updatedFolders
       }
@@ -410,7 +450,13 @@ struct Index {
                       }
                       this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
                       const currentFolder = this.fileFolderSource.getFileFolder(repeatItem.item.name)
-                      this.videoListController.videoDataSource.updateData(currentFolder.video_list)
+                      let folderVideos: VideoMetadata[] = currentFolder.video_list
+                      const sortField = Preferences.getSortField(PathUtils.appContext!) as SortField
+                      if (sortField) {
+                        const sortAsc = Preferences.getSortAsc(PathUtils.appContext!)
+                        ToolsUtil.sortBy(PathUtils.appContext!, folderVideos, currentFolder, sortField, sortAsc)
+                      }
+                      this.videoListController.videoDataSource.updateData(folderVideos)
                       this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder!)
                       // 同步面包屑选中状态
                       this.scrollToFolderDate = repeatItem.item.date

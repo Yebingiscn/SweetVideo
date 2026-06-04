@@ -23,6 +23,7 @@ import { ImportProgressBuilder } from '../../component/VideoItemComponent/Import
 import VideoCardItem from '../../component/VideoItemComponent/VideoCardItemComponent'
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import { DeleteType } from '../../common/enum/DeleteType'
+import { SortField } from '../../common/enum/SortField'
 import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
 import {
   DELAY_JUMP_TO_PLAYER,
@@ -112,7 +113,7 @@ export struct PrivacySpace { // 隐私空间页
   @Local currentStage: 'extracting' | 'cover' | 'saving' = 'extracting' // 当前处理阶段
   @Local searchValue: string = ''
   @Local is_edit: boolean = false
-  @Local currentSortField: 'name' | 'datetime' | 'time' | '' = ''
+  @Local currentSortField: SortField | '' = ''
   @Local currentSortAsc: boolean = true
   @Local activeAlphabet: string[] = []
   @Local indexerSelected: number = 0
@@ -303,9 +304,9 @@ export struct PrivacySpace { // 隐私空间页
     SortComponent({
       currentSortField: this.currentSortField,
       currentSortAsc: this.currentSortAsc,
-      onSortByName: (): void => this.handleSort('name', true),
-      onSortByTime: (): void => this.handleSort('time', false),
-      onSortByDatetime: (): void => this.handleSort('datetime', false)
+      onSortByName: (): void => this.handleSort(SortField.NAME, true),
+      onSortByTime: (): void => this.handleSort(SortField.TIME, false),
+      onSortByDatetime: (): void => this.handleSort(SortField.DATETIME, false)
     })
   }
 
@@ -438,6 +439,11 @@ export struct PrivacySpace { // 隐私空间页
         this.video_meta_data_encryption = this.searchValue.trim()
           ? SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue)
           : this.allVideos
+        const sortField = Preferences.getSortField(PathUtils.appContext!) as SortField
+        if (sortField) {
+          const sortAsc = Preferences.getSortAsc(PathUtils.appContext!)
+          ToolsUtil.sortBy(PathUtils.appContext!, this.video_meta_data_encryption, undefined, sortField, sortAsc)
+        }
         this.videoDataSource.updateData(this.video_meta_data_encryption)
       }
     )
@@ -453,10 +459,13 @@ export struct PrivacySpace { // 隐私空间页
     this.video_meta_data_encryption = this.allVideos
     this.videoDataSource = new VideoDataSource(this.video_meta_data_encryption)
     PrivacySpaceUtil.setPrivacyMode(true)
-    DlpAntiPeepUtil.checkDlpAntiPeepStatus()
+    // 只有当 AI隐私防窥 开关开启时才检查并引导用户设置
+    if (Setting.enableAiPrivacyAntiPeep) {
+      DlpAntiPeepUtil.checkDlpAntiPeepStatus()
+    }
     const savedField = Preferences.getSortField(PathUtils.appContext!)
-    if (savedField === 'name' || savedField === 'datetime' || savedField === 'time') {
-      this.currentSortField = savedField
+    if (savedField === SortField.NAME || savedField === SortField.DATETIME || savedField === SortField.TIME) {
+      this.currentSortField = savedField as SortField
     }
     this.currentSortAsc = Preferences.getSortAsc(PathUtils.appContext!)
   }
@@ -610,7 +619,7 @@ export struct PrivacySpace { // 隐私空间页
             .chainAnimation(true)
             .scrollBar(BarState.Off)
             .onScrollIndex((start: number, _end: number, _center: number) => {
-              if (this.currentSortField === 'name') {
+              if (this.currentSortField === SortField.NAME) {
                 this.updateIndexerOnScroll(start)
               }
             })
@@ -630,7 +639,7 @@ export struct PrivacySpace { // 隐私空间页
                 .margin(IntellectualGripPostureUtil.isLeftHoldHand(this.HoldingHand) ? { left: 2 } : { right: 2 })
             }
 
-            if (this.currentSortField !== 'name') {
+            if (this.currentSortField !== SortField.NAME) {
               ScrollBarBuilder({
                 videoListController: this.listScroller,
                 fileFolderLength: 0
@@ -794,7 +803,7 @@ export struct PrivacySpace { // 隐私空间页
 
   @Monitor('video_meta_data_encryption', 'currentSortField', 'currentSortAsc')
   onVideoListChanged() {
-    if (this.currentSortField === 'name') {
+    if (this.currentSortField === SortField.NAME) {
       this.updateActiveAlphabet()
     } else {
       this.activeAlphabet = []
@@ -874,7 +883,7 @@ export struct PrivacySpace { // 隐私空间页
     }
   }
 
-  private handleSort(field: 'name' | 'time' | 'datetime', defaultAsc: boolean) {
+  private handleSort(field: SortField, defaultAsc: boolean) {
     if (this.currentSortField === field) {
       this.currentSortAsc = !this.currentSortAsc
     } else {

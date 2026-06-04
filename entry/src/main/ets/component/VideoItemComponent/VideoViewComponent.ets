@@ -30,6 +30,7 @@ import { SortComponent } from './SortComponent'
 import { DebounceUtil } from '../../utils/DebounceUtil'
 import { BatchVideoDeleteDialog } from '../Dialog/BatchVideoDeleteDialog'
 import { DeleteType } from '../../common/enum/DeleteType'
+import { SortField } from '../../common/enum/SortField'
 
 @ComponentV2
 export struct VideoView {
@@ -61,7 +62,7 @@ export struct VideoView {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @Local currentSortField: 'name' | 'datetime' | 'time' | '' = ''
+  @Local currentSortField: SortField | '' = ''
   @Local currentSortAsc: boolean = true
   @Param scrollToFolderDate: string = ''
   private passwd: string = 'passwd'
@@ -91,8 +92,8 @@ export struct VideoView {
   aboutToAppear(): void {
     this._searchValue = this.searchValue
     const savedField = Preferences.getSortField(PathUtils.appContext!)
-    if (savedField === 'name' || savedField === 'datetime' || savedField === 'time') {
-      this.currentSortField = savedField
+    if (savedField === SortField.NAME || savedField === SortField.DATETIME || savedField === SortField.TIME) {
+      this.currentSortField = savedField as SortField
     }
     this.currentSortAsc = Preferences.getSortAsc(PathUtils.appContext!)
   }
@@ -272,9 +273,9 @@ export struct VideoView {
     SortComponent({
       currentSortField: this.currentSortField,
       currentSortAsc: this.currentSortAsc,
-      onSortByName: (): void => this.handleSort('name', true),
-      onSortByTime: (): void => this.handleSort('time', false),
-      onSortByDatetime: (): void => this.handleSort('datetime', false)
+      onSortByName: (): void => this.handleSort(SortField.NAME, true),
+      onSortByTime: (): void => this.handleSort(SortField.TIME, false),
+      onSortByDatetime: (): void => this.handleSort(SortField.DATETIME, false)
     })
   }
 
@@ -311,11 +312,14 @@ export struct VideoView {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
         content: $r('app.string.move_to_folder'),
-        builder: () => {
-          FileFolderMenu({ video_item: undefined })
-        }
+        builder: (): void => this.MoveToFolderMenuBuilder()
       })
     }.attributeModifier(new MenuFancyModifier())
+  }
+
+  @Builder
+  MoveToFolderMenuBuilder() {
+    FileFolderMenu({ video_item: undefined })
   }
 
   @Builder
@@ -367,7 +371,7 @@ export struct VideoView {
   }
 
 
-  private handleSort(field: 'name' | 'time' | 'datetime', defaultAsc: boolean) {
+  private handleSort(field: SortField, defaultAsc: boolean) {
     if (this.currentSortField === field) {
       this.currentSortAsc = !this.currentSortAsc
     } else {

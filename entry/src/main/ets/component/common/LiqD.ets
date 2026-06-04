@@ -131,7 +131,7 @@ export struct LiqD {
     .id("LiqD")
     .alignContent(Alignment.Center)
     .clip(true)
-    .borderRadius(25)
+    .borderRadius(16)
     .size({ width: "100%", height: 130 })
     .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
     .onClick(() => {

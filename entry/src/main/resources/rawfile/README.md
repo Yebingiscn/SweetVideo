@@ -5,41 +5,18 @@
 
 QQ群：973792610
 
-## 欢迎安装流心播放器
-
-**流心播放器已经上架华为应用市场**
-
-- [安装链接](https://appgallery.huawei.com/app/detail?id=com.example.sweetvideo&channelId=SHARE&source=appshare)
-
-## 功能排期
-
-- [ ] 字幕速度、颜色，阴影调节
-- [ ] 视频标签（点击标签即可跳转该视频对应时间）
-- [ ] 播放器移植
-- [ ] WebDAV 支持
-- [ ] Emby 支持
-- [ ] SMB 支持
-- [ ] FTP 支持
-
 ## 简介
 
 - 一款运行在 HarmonyOS Next 上精致、简约的视频（音乐）原生播放器，使用 ArkTS 语言开发，具有美观的设计和优雅的动画。
 - 基于开源项目`流心播放器` https://gitee.com/lqsxy/sweetvideo/tree/master
 - 本应用根据原作者授权并基于 MIT 协议二次开发而来。
 
-### 流心项目 AI 解读
-
-- https://deepwiki.com/Yebingiscn/SweetVideo
-  （英文，可以精准提问）
-- https://zread.ai/Yebingiscn/SweetVideo
-  （中文，只能简单提问（需登录））
-
 ## 内置播放引擎
 
 | 系统播放器(avplayer)         | MPV 播放器     |
 |-------------------------|-------------|
-| 支持格式较少，不支持杜比/DTS 音轨     | 支持内嵌字幕，格式丰富 | 
-| 支持 HDR/Audio Vivid，流畅省电 | 目前只支持软解     | 
+| 支持格式较少，不支持杜比/DTS 音轨     | 部分功能支持不完全   | 
+| 支持 HDR/Audio Vivid，流畅省电 | 支持内嵌字幕，格式丰富 | 
 
 ## 支持的视频 / 音乐格式
 
@@ -53,7 +30,7 @@ QQ群：973792610
 | 类型         | 格式列表                 |
 |------------|----------------------|
 | 外挂字幕（标准格式） | `srt`, `vtt`,  `ass` |
-| 内嵌字幕       | MPV 播放器支持选择内嵌字幕      |  
+| 内嵌字幕       | mpv 下支持              |  
 | AI 字幕      | 需鸿蒙 6 及以上            |
 
 ## 特别鸣谢 && 欢迎参与共建及须知
@@ -69,11 +46,14 @@ QQ群：973792610
 - 折叠屏适配：微车游
 - AloePlayer 作者：Aloereed
 - 浑天编辑器作者：向着星辰与深渊 ⭐︎
+- HosPlayer作者：5en
 - kimufly
 - Fpark
 - hrbattery
 - frezs
-- 5en
+- ErBW_s
+- MMMMIE
+- luhongwei123
 
 ## 流心播放器由以下开源项目或开源组件提供支持
 
@@ -87,7 +67,8 @@ QQ群：973792610
 - [REDPlayer](https://github.com/RTE-Dev/REDPlayer)
 - [subtitles](https://ohpm.openharmony.cn/#/cn/detail/@dove%2Fsubtitles)
 - [juniversalchardet](https://ohpm.openharmony.cn/#/cn/detail/@ohos%2Fjuniversalchardet)
-- mpv
+- [mpv](https://github.com/dex2oat/mpv)
+- [kazumi](https://github.com/ErBWs/Kazumi)
 
 ## 赞助作者
 
@@ -97,6 +78,9 @@ QQ群：973792610
 
 ### 赞助感谢
 
+- 爱发电用户_8d309
+- teemo
+- 爱发电用户_9b80c
 - CowBoy
 - 羽
 - 无名
@@ -114,3 +98,5 @@ QQ群：973792610
 - 綄羙
 - 爱发电用户_UkfQ
 - 刘乐
+- 爱发电用户_08ae7
+- 爱发电用户_fQqB

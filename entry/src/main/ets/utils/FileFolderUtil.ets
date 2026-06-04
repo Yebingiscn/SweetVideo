@@ -8,16 +8,13 @@ import DataSyncUtil from '../utils/DataSyncUtil'
 import { FileFolderDataSource } from './DataUtil'
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent'
 import SelectFileUtil from './SelectFileUtil'
-import RecentPlayUtil from './RecentPlayUtil'
 import { PathUtils } from './PathUtils'
-import SubtitleUtil from './SubtitleUtil'
 import { salmonLogger } from 'salmonlogger'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
 import VideoOperateUtil from './VideoOperateUtil'
 import fileIo from '@ohos.file.fs'
-import { fileUri } from '@kit.CoreFileKit'
-import { fileManagerService } from '@kit.FileManagerServiceKit'
 import { DeleteType } from '../common/enum/DeleteType'
+import { SortField } from '../common/enum/SortField'
 
 const TAG = 'FileFolderUtil'
 
@@ -78,6 +75,20 @@ export default class FileFolderUtil {
     // 批量添加新视频（过滤已存在的）
     const newVideos = videos.filter(v => !targetVideoSet.has(v.date))
     targetFolder.video_list.push(...newVideos)
+    // 按目标文件夹当前排序规则重新排序
+    const sortField = Preferences.getSortField(context) as SortField
+    const sortAsc = Preferences.getSortAsc(context)
+    switch (sortField) {
+      case SortField.NAME:
+        targetFolder.video_list = ToolsUtil.sortByNameProcess(targetFolder.video_list, sortAsc)
+        break
+      case SortField.DATETIME:
+        targetFolder.video_list = ToolsUtil.sortByDatetimeProcess(targetFolder.video_list, sortAsc)
+        break
+      case SortField.TIME:
+        targetFolder.video_list = ToolsUtil.sortByTimeProcess(targetFolder.video_list, sortAsc)
+        break
+    }
     // 保存并返回
     Preferences.saveFileFolder(context, folders)
     return folders

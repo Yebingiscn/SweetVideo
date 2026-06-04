@@ -3,6 +3,7 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { PathUtils } from './PathUtils'
 import { UniversalDetector } from '@ohos/juniversalchardet'
+import { SortField } from '../common/enum/SortField'
 import { salmonLogger } from 'salmonlogger'
 import { VideoItemWithPinyin } from '../interfaces/VideoItemWithPinyinInterface'
 import { GB, KB, MB } from '../common/Constants'
@@ -123,16 +124,16 @@ export default class ToolsUtil {
   }
 
   static sortBy(context: Context, list: VideoMetadata[], file_folder: FileFolder | undefined,
-    sortType: 'name' | 'datetime' | 'time', ascending?: boolean) {
+    sortType: SortField | '', ascending?: boolean) {
     let sorted_list: VideoMetadata[]
     switch (sortType) {
-      case 'name':
+      case SortField.NAME:
         sorted_list = ToolsUtil.sortByNameProcess(list, ascending)
         break
-      case 'datetime':
+      case SortField.DATETIME:
         sorted_list = ToolsUtil.sortByDatetimeProcess(list, ascending)
         break
-      case 'time':
+      case SortField.TIME:
         sorted_list = ToolsUtil.sortByTimeProcess(list, ascending)
         break
       default:

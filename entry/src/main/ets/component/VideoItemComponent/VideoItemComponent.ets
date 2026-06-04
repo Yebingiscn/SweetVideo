@@ -3,6 +3,7 @@ import { FileFolderDataSource, VideoDataSource } from '../../utils/DataUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
 import SelectFileUtil from '../../utils/SelectFileUtil'
+import { SortField } from '../../common/enum/SortField'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import { VideoDetailDialog } from '../../component/Dialog//VideoDetailDialog'
 import { DefaultDialogShadow, MenuFancyModifier } from '../../common/AttributeModifierConfig'
@@ -128,7 +129,7 @@ export class VideoListController {
 export struct VideoList {
   @Param searchValue: string = ''
   @Local _searchValue: string = ''
-  @Param currentSortField: 'name' | 'datetime' | 'time' | '' = ''
+  @Param currentSortField: SortField | '' = ''
   @Param currentSortAsc: boolean = true
   @Param holdingHand: motion.HoldingHandStatus | null = null
   @Param videoListController: VideoListController = new VideoListController()
@@ -254,7 +255,7 @@ export struct VideoList {
 
   @Monitor('videoListController.videoMetaDataList', 'currentSortField', 'currentSortAsc')
   onVideoListChanged() {
-    if (this.currentSortField === 'name') {
+    if (this.currentSortField === SortField.NAME) {
       this.updateActiveAlphabet()
     } else {
       this.activeAlphabet = []
@@ -355,7 +356,7 @@ export struct VideoList {
           this.videoListController.listScroller.scrollEdge(Edge.Top)
         })
         .onScrollIndex((start: number) => {
-          if (this.currentSortField === 'name') {
+          if (this.currentSortField === SortField.NAME) {
             this.updateIndexerOnScroll(start)
           }
         })
@@ -375,7 +376,7 @@ export struct VideoList {
             .margin(IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand) ? { left: 2 } : { right: 2 })
         }
 
-        if (this.currentSortField !== 'name') {
+        if (this.currentSortField !== SortField.NAME) {
           ScrollBarBuilder({
             videoListController: this.videoListController.listScroller,
             fileFolderLength: this.file_folder_list.length
@@ -479,7 +480,7 @@ export struct VideoList {
               scrollBackward: NestedScrollMode.SELF_FIRST
             })
             .onScrollIndex((first: number) => {
-              if (this.currentSortField === 'name') {
+              if (this.currentSortField === SortField.NAME) {
                 this.updateIndexerOnScroll(first)
               }
             })
@@ -506,7 +507,7 @@ export struct VideoList {
             .margin(IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand) ? { left: 2 } : { right: 2 })
         }
 
-        if (this.currentSortField !== 'name') {
+        if (this.currentSortField !== SortField.NAME) {
           ScrollBarBuilder({
             videoListController: this.videoListController.listScroller,
             fileFolderLength: this.file_folder_list.length

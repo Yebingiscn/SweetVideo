@@ -3,6 +3,9 @@ import { salmonLogger } from 'salmonlogger'
 import { WindowUtil } from './WindowUtil'
 import { window } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
+import { Setting } from './ObservedUtil'
+import Preferences from '../database/Preferences'
+import { PathUtils } from './PathUtils'
 
 const TAG = 'DlpAntiPeepUtil'
 
@@ -53,6 +56,11 @@ export default class DlpAntiPeepUtil {
           if (result === dlpAntiPeep.AntiPeepOptionsResult.SUCCESS ||
             result === dlpAntiPeep.AntiPeepOptionsResult.ALREADY_ON) { // 表示防窥保护开关开启成功或已开启
             dlpAntiPeep.on('dlpAntiPeep', DlpAntiPeepUtil.onStatusChange)
+          } else {
+            // 引导用户设置失败
+            Setting.enableAiPrivacyAntiPeep = false
+            Preferences.saveEnableAiPrivacyAntiPeep(PathUtils.appContext!, Setting.enableAiPrivacyAntiPeep)
+            salmonLogger.addLog(TAG, 'Failed to requestAntiPeepOptions', true)
           }
         }
       } catch (error) {

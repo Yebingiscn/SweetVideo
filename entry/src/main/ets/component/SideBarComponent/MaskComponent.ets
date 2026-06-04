@@ -9,8 +9,9 @@ class SideBarValue {
 @Builder
 export function MaskComponent(sideBarValue: SideBarValue) {
   Column()
-    .height('100%')
-    .width('100%')
+  // 遮罩需要大于屏幕宽高，否则会在边缘露出小鸡脚
+    .height('200%')
+    .width('200%')
     .backdropBlur(Setting.backgroundDropBlur > 0 ? Setting.backgroundDropBlur : 20)
     .transition(TransitionEffect.OPACITY.animation({
       curve: curves.springMotion(0, 1)

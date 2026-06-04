@@ -366,4 +366,12 @@ export default class Preferences {
   static getScreenExtend(context: Context): string {
     return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'screenExtend', '原始比例') as string
   }
+
+  static saveEnableAiPrivacyAntiPeep(context: Context, enableAiPrivacyAntiPeep: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'enableAiPrivacyAntiPeep', enableAiPrivacyAntiPeep)
+  }
+
+  static getEnableAiPrivacyAntiPeep(context: Context): boolean {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'enableAiPrivacyAntiPeep', false) as boolean
+  }
 }

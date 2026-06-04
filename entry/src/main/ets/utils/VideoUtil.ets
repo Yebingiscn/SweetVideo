@@ -7,6 +7,7 @@ import { FileFolderDataSource } from './DataUtil'
 import { PathUtils } from './PathUtils'
 import SelectFileUtil from './SelectFileUtil'
 import ToolsUtil from './ToolsUtil'
+import { SortField } from '../common/enum/SortField'
 
 export interface SwitchFolderResult {
   refreshedFolders: FileFolder[]
@@ -29,7 +30,13 @@ export default class VideoUtils {
       return folders
     }
     if (videoListController?.folder?.video_list) {
-      videoListController.videoDataSource.updateData(currentFolder.video_list || [])
+      let videos: VideoMetadata[] = currentFolder.video_list || []
+      const sortField = Preferences.getSortField(PathUtils.appContext!) as SortField
+      if (sortField) {
+        const sortAsc = Preferences.getSortAsc(PathUtils.appContext!)
+        ToolsUtil.sortBy(PathUtils.appContext!, videos, currentFolder, sortField, sortAsc)
+      }
+      videoListController.videoDataSource.updateData(videos)
       videoListController.updateData(videoListController.videoDataSource, currentFolder!)
     }
     return folders
@@ -58,6 +65,11 @@ export default class VideoUtils {
     let filteredVideos: VideoMetadata[] = currentFolder.video_list
     if (searchValue.length > 0) {
       filteredVideos = SelectFileUtil.getItemFromSearch(currentFolder.video_list, searchValue)
+    }
+    const sortField = Preferences.getSortField(PathUtils.appContext!) as SortField
+    if (sortField) {
+      const sortAsc = Preferences.getSortAsc(PathUtils.appContext!)
+      ToolsUtil.sortBy(PathUtils.appContext!, filteredVideos, currentFolder, sortField, sortAsc)
     }
     XAnimation.runWithAnimation(() => {
       videoListController.videoDataSource.updateData(filteredVideos)
