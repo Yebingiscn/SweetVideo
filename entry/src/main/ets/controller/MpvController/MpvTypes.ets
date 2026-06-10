@@ -1,4 +1,4 @@
-import { SubtitleTrack } from '../../interfaces/AudioTrackInterface'
+import { SubtitleTrack } from '../../interfaces/AudioTrackInterface';
 
 export interface MpvPlayerOptions {
   videoUrl: string;

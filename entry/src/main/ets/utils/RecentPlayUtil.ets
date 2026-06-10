@@ -1,6 +1,6 @@
 import { Context } from '@kit.AbilityKit'
-import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import Preferences from '../database/Preferences'
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { PathUtils } from './PathUtils'
 
 // 最近播放类
@@ -11,8 +11,9 @@ export default class RecentPlayUtil {
   private static initialized = false
 
   static addPlayback(context: Context, item: VideoMetadata): void {
+    RecentPlayUtil.loadData(context)
     if (!RecentPlayUtil.initialized) {
-      RecentPlayUtil.init(context)
+      RecentPlayUtil.initialized = true
     }
     if (item?.uri == null) {
       return

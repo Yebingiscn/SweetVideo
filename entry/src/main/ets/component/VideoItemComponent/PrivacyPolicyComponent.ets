@@ -10,8 +10,10 @@ const TAG = 'PrivacyPolicyComponent'
 @ComponentV2
 export struct PrivacyPolicyComponent {
   @Param isPresent: boolean = false
-  @Event onIsPresentChange: (v: boolean) => void = () => {}
   @Local localIsPresent: boolean = false
+
+  @Event onIsPresentChange: (v: boolean) => void = () => {
+  }
 
   aboutToAppear(): void {
     this.localIsPresent = this.isPresent

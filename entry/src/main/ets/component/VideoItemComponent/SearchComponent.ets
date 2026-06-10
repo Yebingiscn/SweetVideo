@@ -1,11 +1,14 @@
-import { SearchShadowModifier } from "../../common/AttributeModifierConfig"
+import { SearchShadowModifier } from '../../common/AttributeModifierConfig'
 
 @ComponentV2
 export struct SearchComponent {
   @Param searchValue: string = ''
   @Local localSearchValue: string = ''
-  @Event onSearchValueChange: (value: string) => void = () => {}
   @Param controller: SearchController | undefined = undefined
+
+  @Event onSearchValueChange: (value: string) => void = () => {
+  }
+
   @Event onChange: () => void = () => {
   }
   @Event onSubmit: (_value: string) => void = () => {

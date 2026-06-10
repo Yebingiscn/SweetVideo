@@ -6,9 +6,9 @@
  * MPV播放ISO文件需要使用 bd:// 协议：
  * mpv --bluray-device=/path/to/file.iso bd://longest
  */
-import { fileIo as fs } from '@kit.CoreFileKit';
-import { salmonLogger } from 'salmonlogger';
-import ToolsUtil from './ToolsUtil';
+import { salmonLogger } from "salmonlogger";
+import ToolsUtil from "./ToolsUtil";
+import fileIo from "@ohos.file.fs";
 
 const TAG = 'IsoFileUtil';
 
@@ -25,11 +25,11 @@ export enum IsoFileType {
  * ISO文件信息接口
  */
 export interface IsoFileInfo {
-  type: IsoFileType; // ISO类型
-  originalPath: string; // 原始ISO文件路径
-  playablePath: string; // 可播放路径 (bd://longest)
-  title?: string; // 光盘标题
-  hasMenu: boolean; // 是否有菜单
+  type: IsoFileType // ISO类型
+  originalPath: string // 原始ISO文件路径
+  playablePath: string // 可播放路径 (bd://longest)
+  title?: string // 光盘标题
+  hasMenu: boolean // 是否有菜单
 }
 
 /**
@@ -43,23 +43,23 @@ export default class IsoFileUtil {
    */
   static async detectIsoType(isoPath: string): Promise<IsoFileType> {
     try {
-      salmonLogger.addLog(TAG, `检测ISO文件类型: ${isoPath}`, false);
+      salmonLogger.addLog(TAG, `检测ISO文件类型: ${isoPath}`, false)
 
       // 获取文件扩展名
-      const extension = isoPath.toLowerCase().split('.').pop();
+      const extension = isoPath.toLowerCase().split('.').pop()
       if (extension !== 'iso') {
-        salmonLogger.addLog(TAG, '文件不是ISO格式', true);
-        return IsoFileType.UNKNOWN;
+        salmonLogger.addLog(TAG, '文件不是ISO格式', true)
+        return IsoFileType.UNKNOWN
       }
 
       // 默认返回蓝光类型，MPV会自动检测
       // 如果蓝光播放失败，可以尝试DVD格式
-      salmonLogger.addLog(TAG, 'ISO文件将使用bd://协议播放（如失败可尝试dvd://）', false);
-      return IsoFileType.BLURAY;
+      salmonLogger.addLog(TAG, 'ISO文件将使用bd://协议播放（如失败可尝试dvd://）', false)
+      return IsoFileType.BLURAY
 
     } catch (error) {
-      salmonLogger.addLog(TAG, `检测ISO类型失败: ${error}`, true);
-      return IsoFileType.UNKNOWN;
+      salmonLogger.addLog(TAG, `检测ISO类型失败: ${error}`, true)
+      return IsoFileType.UNKNOWN
     }
   }
 
@@ -71,28 +71,28 @@ export default class IsoFileUtil {
    */
   static async getPlayablePath(isoPath: string, type?: IsoFileType): Promise<string> {
     try {
-      salmonLogger.addLog(TAG, `获取ISO可播放路径: ${isoPath}`, false);
+      salmonLogger.addLog(TAG, `获取ISO可播放路径: ${isoPath}`, false)
 
       // 根据类型选择协议
-      const isoType = type || await IsoFileUtil.detectIsoType(isoPath);
+      const isoType = type || await IsoFileUtil.detectIsoType(isoPath)
 
-      let playablePath: string;
+      let playablePath: string
       if (isoType === IsoFileType.DVD) {
         // DVD使用 dvd:// 协议
-        playablePath = 'dvd://';
-        salmonLogger.addLog(TAG, `使用DVD协议: ${playablePath}`, false);
+        playablePath = 'dvd://'
+        salmonLogger.addLog(TAG, `使用DVD协议: ${playablePath}`, false)
       } else {
         // 蓝光使用 bd:// 协议
         // bd://longest 表示播放最长的标题（通常是主电影）
-        playablePath = 'bd://longest';
-        salmonLogger.addLog(TAG, `使用蓝光协议: ${playablePath}`, false);
+        playablePath = 'bd://longest'
+        salmonLogger.addLog(TAG, `使用蓝光协议: ${playablePath}`, false)
       }
 
-      return playablePath;
+      return playablePath
 
     } catch (error) {
-      salmonLogger.addLog(TAG, `获取ISO可播放路径失败: ${error}`, true);
-      return 'bd://longest';
+      salmonLogger.addLog(TAG, `获取ISO可播放路径失败: ${error}`, true)
+      return 'bd://longest'
     }
   }
 
@@ -107,8 +107,8 @@ export default class IsoFileUtil {
       const playablePath = await IsoFileUtil.getPlayablePath(isoPath);
 
       // 从文件名提取标题
-      const fileName = isoPath.split('/').pop() || '';
-      const title = fileName.replace(/\.[^/.]+$/, ''); // 移除扩展名
+      const fileName = isoPath.split('/').pop() || ''
+      const title = fileName.replace(/\.[^/.]+$/, '') // 移除扩展名
 
       return {
         type: type,
@@ -119,8 +119,8 @@ export default class IsoFileUtil {
       };
 
     } catch (error) {
-      salmonLogger.addLog(TAG, `获取ISO信息失败: ${error}`, true);
-      return null;
+      salmonLogger.addLog(TAG, `获取ISO信息失败: ${error}`, true)
+      return null
     }
   }
 
@@ -130,8 +130,8 @@ export default class IsoFileUtil {
    * @returns 是否为ISO文件
    */
   static isIsoFile(filePath: string): boolean {
-    const extension = filePath.toLowerCase().split('.').pop();
-    return extension === 'iso';
+    const extension = filePath.toLowerCase().split('.').pop()
+    return extension === 'iso'
   }
 
   /**
@@ -141,11 +141,11 @@ export default class IsoFileUtil {
    */
   static async getIsoSize(isoPath: string): Promise<number> {
     try {
-      const stat = await fs.stat(isoPath);
-      return stat.size;
+      const stat = await fileIo.stat(isoPath)
+      return stat.size
     } catch (error) {
-      salmonLogger.addLog(TAG, `获取ISO文件大小失败: ${error}`, true);
-      return 0;
+      salmonLogger.addLog(TAG, `获取ISO文件大小失败: ${error}`, true)
+      return 0
     }
   }
 

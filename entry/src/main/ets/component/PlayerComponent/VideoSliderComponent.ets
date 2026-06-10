@@ -1,4 +1,4 @@
-import { AVPlayerController } from '../../controller/AVPlayerController'
+import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import TimeUtil from '../../utils/TimeUtil'
 

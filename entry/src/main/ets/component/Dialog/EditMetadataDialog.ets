@@ -1,6 +1,6 @@
-import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
-import DataSyncUtil from '../../utils/DataSyncUtil'
-import { DIALOG_TITLE_FONT_SIZE } from '../../common/Constants'
+import { DIALOG_TITLE_FONT_SIZE } from "../../common/Constants"
+import { VideoMetadata } from "../../interfaces/VideoMetadataInterface"
+import DataSyncUtil from "../../utils/DataSyncUtil"
 
 // 重命名视频弹窗
 @CustomDialog

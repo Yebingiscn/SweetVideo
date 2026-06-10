@@ -1,43 +1,33 @@
-import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode'
+import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import NavigationAddress from '../../common/NavigationCommon'
-import { AVPlayerController } from '../../controller/AVPlayerController'
+import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import { MpvSubtitleTrack } from '../../controller/MpvController/MpvTypes'
 import { SubtitleTrack } from '../../interfaces/AudioTrackInterface'
 import { InnerSubtitleDataSource } from '../../utils/DataUtil'
+import { SubtitleManager } from '../../utils/SubtitleManager'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
 @ComponentV2
 export struct SubtitlePanelComponent {
-  @Param subtitleVisibility: Visibility = Visibility.None
-  @Param isAIAsrShown: boolean = false
-  @Param subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
+  @Param subtitleManager: SubtitleManager = new SubtitleManager(new AVPlayerController())
   @Local _subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
   @Local innerSubtitleMenu: InnerSubtitleDataSource = new InnerSubtitleDataSource([])
   @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
-  @Event onSubtitle3DModeChange: (v: Subtitle3DMode) => void = () => {
-  }
-  @Event onSubtitleOffClick: () => void = () => {
-  }
   @Event onSubtitleOffsetTime: () => void = () => {
-  }
-  @Event onInnerSubtitleClick: () => void = () => {
-  }
-  @Event onExternalSubtitleClick: () => void = () => {
-  }
-  @Event onAIAsrClick: () => void = () => {
   }
 
   aboutToAppear(): void {
+    this.subtitleManager.syncFromPlayer()
     this.innerSubtitleMenu = new InnerSubtitleDataSource(this.player.subtitleTrack)
-    this._subtitle3DMode = this.subtitle3DMode
+    this._subtitle3DMode = this.subtitleManager.subtitle3DMode
   }
 
-  @Monitor('subtitle3DMode')
+  @Monitor('subtitleManager.subtitle3DMode')
   onSubtitle3DModeMonitor() {
-    this._subtitle3DMode = this.subtitle3DMode
+    this._subtitle3DMode = this.subtitleManager.subtitle3DMode
   }
 
   build() {
@@ -45,14 +35,14 @@ export struct SubtitlePanelComponent {
       MenuItem({
         content: '关闭字幕'
       })
-        .contentFontColor(this.isSubtitleOffActive() ? $r('sys.color.white') :
+        .contentFontColor(this.subtitleManager.isSubtitleOff ? $r('sys.color.white') :
           $r('app.color.text_color'))
         .onClick(() => {
-          this.onSubtitleOffClick()
+          this.subtitleManager.switchToNone()
         })
         .height(40)
-        .backgroundColor(this.isSubtitleOffActive() ? $r('app.color.main_color') :
-          '')
+        .backgroundColor(this.subtitleManager.isSubtitleOff ? $r('app.color.main_color') :
+          Color.Transparent)
         .borderRadius(16)
         .width('100%')
 
@@ -61,13 +51,13 @@ export struct SubtitlePanelComponent {
           content: '内嵌字幕',
           builder: this.InnerSubtitleMenu,
         })
-          .contentFontColor(this.isInnerSubtitleActive() ? $r('sys.color.white') :
+          .contentFontColor(this.subtitleManager.isInnerSubtitleActive ? $r('sys.color.white') :
             $r('app.color.text_color'))
           .onClick(() => {
-            this.onInnerSubtitleClick()
+            this.subtitleManager.switchToInner()
           })
           .height(40)
-          .backgroundColor(this.isInnerSubtitleActive() ? $r('app.color.main_color') : '')
+          .backgroundColor(this.subtitleManager.isInnerSubtitleActive ? $r('app.color.main_color') : Color.Transparent)
           .borderRadius(16)
           .width('100%')
       } else {
@@ -88,13 +78,14 @@ export struct SubtitlePanelComponent {
           content: '外挂字幕',
           builder: this.ExternalSubtitleSubmenu
         })
-          .contentFontColor(this.isExternalSubtitleActive() ? $r('sys.color.white') :
+          .contentFontColor(this.subtitleManager.isExternalSubtitleActive ? $r('sys.color.white') :
             $r('app.color.text_color'))
           .onClick(() => {
-            this.onExternalSubtitleClick()
+            this.subtitleManager.switchToExternal()
           })
           .height(40)
-          .backgroundColor(this.isExternalSubtitleActive() ? $r('app.color.main_color') : '')
+          .backgroundColor(
+            this.subtitleManager.isExternalSubtitleActive ? $r('app.color.main_color') : Color.Transparent)
           .borderRadius(16)
           .width('100%')
       } else {
@@ -114,25 +105,28 @@ export struct SubtitlePanelComponent {
         MenuItem({
           content: 'AI 字幕'
         })
-          .contentFontColor(this.isAIAsrShown ? $r('sys.color.white') :
+          .contentFontColor(this.subtitleManager.isAIAsrShown ? $r('sys.color.white') :
             $r('app.color.text_color'))
           .onClick(() => {
-            this.onAIAsrClick()
+            this.subtitleManager.switchToAI()
           })
           .height(40)
-          .backgroundColor(this.isAIAsrShown ? $r('app.color.main_color') : '')
+          .backgroundColor(this.subtitleManager.isAIAsrShown ? $r('app.color.main_color') : Color.Transparent)
           .borderRadius(16)
           .width('100%')
       }
 
-      MenuItem({
-        content: "3D 字幕",
-        builder: this.ThreeDSubtitleSubmenu,
-      })
-        .contentFontColor(this._subtitle3DMode !== Subtitle3DMode.DISABLED ? $r('sys.color.white') :
-          $r('app.color.text_color'))
-        .backgroundColor(this._subtitle3DMode !== Subtitle3DMode.DISABLED ? $r('app.color.main_color') : '')
-        .menuItemExtend()
+      if (this.subtitleManager.subtitleVisibility === Visibility.Visible) {
+        MenuItem({
+          content: "3D 字幕",
+          builder: this.ThreeDSubtitleSubmenu,
+        })
+          .contentFontColor(this._subtitle3DMode !== Subtitle3DMode.DISABLED ? $r('sys.color.white') :
+            $r('app.color.text_color'))
+          .backgroundColor(
+            this._subtitle3DMode !== Subtitle3DMode.DISABLED ? $r('app.color.main_color') : Color.Transparent)
+          .menuItemExtend()
+      }
 
       if (this.player instanceof AVPlayerController) {
         MenuItem({
@@ -176,9 +170,10 @@ export struct SubtitlePanelComponent {
           $r('app.color.text_color'))
         .onClick(() => {
           this._subtitle3DMode = Subtitle3DMode.DISABLED
-          this.onSubtitle3DModeChange(Subtitle3DMode.DISABLED)
+          this.subtitleManager.set3DMode(Subtitle3DMode.DISABLED)
         })
-        .backgroundColor(this._subtitle3DMode === Subtitle3DMode.DISABLED ? $r('app.color.main_color') : '')
+        .backgroundColor(
+          this._subtitle3DMode === Subtitle3DMode.DISABLED ? $r('app.color.main_color') : Color.Transparent)
 
       MenuItem({
         content: "左/右"
@@ -188,9 +183,10 @@ export struct SubtitlePanelComponent {
           $r('app.color.text_color'))
         .onClick(() => {
           this._subtitle3DMode = Subtitle3DMode.SIDE_BY_SIDE
-          this.onSubtitle3DModeChange(Subtitle3DMode.SIDE_BY_SIDE)
+          this.subtitleManager.set3DMode(Subtitle3DMode.SIDE_BY_SIDE)
         })
-        .backgroundColor(this._subtitle3DMode === Subtitle3DMode.SIDE_BY_SIDE ? $r('app.color.main_color') : '')
+        .backgroundColor(
+          this._subtitle3DMode === Subtitle3DMode.SIDE_BY_SIDE ? $r('app.color.main_color') : Color.Transparent)
 
       MenuItem({
         content: "上/下"
@@ -200,9 +196,10 @@ export struct SubtitlePanelComponent {
           $r('app.color.text_color'))
         .onClick(() => {
           this._subtitle3DMode = Subtitle3DMode.TOP_AND_BOTTOM
-          this.onSubtitle3DModeChange(Subtitle3DMode.TOP_AND_BOTTOM)
+          this.subtitleManager.set3DMode(Subtitle3DMode.TOP_AND_BOTTOM)
         })
-        .backgroundColor(this._subtitle3DMode === Subtitle3DMode.TOP_AND_BOTTOM ? $r('app.color.main_color') : '')
+        .backgroundColor(
+          this._subtitle3DMode === Subtitle3DMode.TOP_AND_BOTTOM ? $r('app.color.main_color') : Color.Transparent)
     }
     .width(100).height('auto')
   }
@@ -210,18 +207,31 @@ export struct SubtitlePanelComponent {
   @Builder
   InnerSubtitleMenu() {
     Menu() {
+      MenuItem({
+        content: '关闭'
+      })
+        .menuItemExtend()
+        .contentFontColor(!this.subtitleManager.isInnerSubtitleActive ? $r('sys.color.white') :
+          $r('app.color.text_color'))
+        .backgroundColor(!this.subtitleManager.isInnerSubtitleActive ? $r('app.color.main_color') : Color.Transparent)
+        .onClick(() => {
+          this.subtitleManager.switchToNone()
+        })
+
       Repeat<MpvSubtitleTrack | SubtitleTrack>(this.innerSubtitleMenu.data)
         .each((repeatItem: RepeatItem<MpvSubtitleTrack | SubtitleTrack>) => {
           MenuItem({
             content: `${repeatItem.item.id} : ${this.getFormattedSubtitleName(repeatItem.item)}`
           })
             .menuItemExtend()
-            .contentFontColor(this.player.subtitleTrackSelected === repeatItem.item.id ? $r('sys.color.white') :
+            .contentFontColor(this.subtitleManager.isInnerSubtitleActive &&
+              this.player.subtitleTrackSelected === repeatItem.item.id ? $r('sys.color.white') :
               $r('app.color.text_color'))
-            .backgroundColor(this.player.subtitleTrackSelected === repeatItem.item.id ? $r('app.color.main_color') : '')
+            .backgroundColor(this.subtitleManager.isInnerSubtitleActive &&
+              this.player.subtitleTrackSelected === repeatItem.item.id ? $r('app.color.main_color') : Color.Transparent)
             .onClick(() => {
               this.player.selectSubtitleTrack(repeatItem.item.id)
-              this.onInnerSubtitleClick()
+              this.subtitleManager.switchToInner()
             })
         })
         .key((item: MpvSubtitleTrack | SubtitleTrack, _index: number) => `${item.id}`)
@@ -251,20 +261,6 @@ export struct SubtitlePanelComponent {
     const avPlayer = this.player as AVPlayerController
     VideoOperateUtil.playErrorExecute(this.pathStack, avPlayer.videoMetaDataList,
       avPlayer.nowPlaying?.date!, NavigationAddress.MPV_PLAYER, avPlayer.playTime)
-  }
-
-  private isExternalSubtitleActive(): boolean {
-    return this.subtitleVisibility === Visibility.Visible &&
-      this.player.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE
-  }
-
-  private isSubtitleOffActive(): boolean {
-    return this.subtitleVisibility === Visibility.None && !this.isAIAsrShown
-  }
-
-  private isInnerSubtitleActive(): boolean {
-    return this.subtitleVisibility === Visibility.Visible &&
-      this.player.subtitleSelected === SubtitleMode.INNER_SUBTITLE
   }
 }
 

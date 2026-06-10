@@ -2,6 +2,7 @@ import { PlayerControllerInterface } from '../PlayerControllerFactory';
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
 import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode';
 import { MpvAudioTrack, MpvChapter, MpvDecodingMethod, MpvSubtitleTrack } from './MpvTypes';
+import { MpvPlayerState } from './MpvPlayerState';
 import { avSession, avSession as avSessionManager } from '@kit.AVSessionKit';
 import { audio } from '@kit.AudioKit';
 import { WindowUtil } from '../../utils/WindowUtil';
@@ -21,6 +22,7 @@ import {
   loadVideo as mpvLoadVideo,
   pause as mpvPause,
   play as mpvPlay,
+  registerBufferingStateCallback as mpvRegisterBufferingStateCallback,
   registerPlaybackCompleteCallback as mpvRegisterPlaybackCompleteCallback,
   registerSurfaceModeErrorCallback as mpvRegisterSurfaceModeErrorCallback,
   registerTimeUpdateCallback as mpvRegisterTimeUpdateCallback,
@@ -38,6 +40,7 @@ import {
   setOsdLevel as mpvSetOsdLevel,
   setOsdSurface as mpvSetOsdSurface,
   setSpeed as mpvSetSpeed,
+  unregisterBufferingStateCallback as mpvUnregisterBufferingStateCallback,
   unregisterPlaybackCompleteCallback as mpvUnregisterPlaybackCompleteCallback,
   unregisterSurfaceModeErrorCallback as mpvUnregisterSurfaceModeErrorCallback,
   unregisterTimeUpdateCallback as mpvUnregisterTimeUpdateCallback,
@@ -56,10 +59,11 @@ import AVSessionUtil from '../../utils/AVSessionUtil';
 import IsoFileUtil from '../../utils/IsoFileUtil';
 import { Setting } from '../../utils/ObservedUtil';
 import { PathUtils } from '../../utils/PathUtils';
+import SelectFileUtil from '../../utils/SelectFileUtil';
 import PermissionUtil from '../../utils/PermissionUtil';
 import PiPWindowUtil from '../../utils/PiPWindowUtil';
 import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil';
-import RecentPlayUtil from '../../utils/RecentPlayUtil';
+
 import SubtitleUtil from '../../utils/SubtitleUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
@@ -115,7 +119,7 @@ export class MpvController implements PlayerControllerInterface {
   @Trace subtitleTrackSelected: number = -1
   @Trace screenBrightness: number = 0
   @Trace onSwipingVoice: boolean = false
-  @Trace subtitleSelected: SubtitleMode = SubtitleMode.INNER_SUBTITLE
+  @Trace subtitleSelected: SubtitleMode = SubtitleMode.NONE
   @Trace screenWidth: number = 0
   @Trace screenHeight: number = 0
   @Trace playAreaHeight: number = 0
@@ -136,40 +140,61 @@ export class MpvController implements PlayerControllerInterface {
   @Trace osdVisibility: boolean = false
   @Trace debugInfoVisible: boolean = false
   @Trace isZoomed: boolean = false
+  @Trace isGesturing: boolean = false
   @Trace translateX: number = 0
   @Trace translateY: number = 0
   @Trace subtitle: string = ''
   @Trace showControl: boolean = false
+  @Trace pixelMap: PixelMap | null = null
   avSession: avSessionManager.AVSession | undefined = undefined
   audioVolumeManager: audio.AudioVolumeManager | null = null
+  @Trace playerState: MpvPlayerState = MpvPlayerState.IDLE
   private userListener: BaseListener<number> | null = null
   private playbackCallbackRegistered: boolean = false
   private timeUpdateCallbackRegistered: boolean = false
   private videoSizeCallbackRegistered: boolean = false
   private surfaceModeErrorCallbackRegistered: boolean = false
-  private isSwitchingToBufferMode: boolean = false // 防止重复切换
-  private isSwitchingToSoftwareMode: boolean = false // 防止重复切换到软解
-  private isReleased: boolean = false // 实例是否已释放，防止降级竞态
-  private decodingModeVerifyTimer: number = 0 // 降级后验证定时器
-  private decodingModeSeekTimer: number = 0 // 降级后 seek 定时器
-  private currentPathStack: NavPathStack | null = null // 保存pathStack用于降级后重新注册回调
+  private bufferingStateCallbackRegistered: boolean = false
+  private stateChangeResolvers: Map<string, ((value: void) => void)> = new Map()
+  private decodingModeVerifyTimer: number = 0
+  private decodingModeSeekTimer: number = 0
+  private currentPathStack: NavPathStack | null = null
+  private activeHwdecMode: MpvDecodingMethod = MpvDecodingMethod.HARDWARE_SURFACE
+  private lastFrameFetchTime: number = 0
+  private readonly FRAME_FETCH_INTERVAL: number = 200
+  private lastFrameFetchPlayTime: number = -1
+  private pendingFrameTime: number = -1
 
   static getShaderModeNames(): string[] {
     return MpvController.SHADER_MODE_NAMES
   }
 
+  waitForState(targetState: MpvPlayerState, timeoutMs: number = 10000): Promise<void> {
+    if (this.playerState === targetState) {
+      return Promise.resolve()
+    }
+    return new Promise<void>((resolve, reject) => {
+      const key = MpvPlayerState[targetState]
+      this.stateChangeResolvers.set(key, resolve)
+      setTimeout(() => {
+        if (this.stateChangeResolvers.has(key)) {
+          this.stateChangeResolvers.delete(key)
+          reject(new Error(`等待状态${key}超时`))
+        }
+      }, timeoutMs)
+    })
+  }
+
+  isInState(state: MpvPlayerState): boolean {
+    return this.playerState === state
+  }
+
   async playChooseVideo(item: VideoMetadata, pathStack: NavPathStack) {
     this.osdVisibility = false
-    ToolsUtil.addLogger("开始播放选择的视频", false)
-    VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying!, this.videoMetaDataList, PathUtils.appContext!)
-    if (!PrivacySpaceUtil.getPrivacyMode()) {
-      RecentPlayUtil.addPlayback(PathUtils.appContext!, item)
-      ToolsUtil.addLogger("添加到最近播放记录完成", false)
-    }
-    this.reset()
-    this.nowPlaying = item as VideoMetadata
-    ToolsUtil.addLogger("设置当前播放视频完成", false)
+    salmonLogger.addLog(TAG, "开始播放选择的视频", false)
+    VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying!, PathUtils.appContext!)
 
+    this.reset()
     // 更新播放列表数据，确保使用最新的数据
     if (!PrivacySpaceUtil.getPrivacyMode()) {
       const folders = Preferences.getFileFolder(PathUtils.appContext!)
@@ -178,30 +203,41 @@ export class MpvController implements PlayerControllerInterface {
       )
       if (currentFolder) {
         this.videoMetaDataList = currentFolder.video_list
-        ToolsUtil.addLogger("更新播放列表数据完成", false)
+        const latestItem = currentFolder.video_list.find(v => v.date === item.date)
+        if (latestItem) {
+          this.nowPlaying = latestItem
+        } else {
+          this.nowPlaying = item as VideoMetadata
+        }
+        salmonLogger.addLog(TAG, "更新播放列表数据完成", false)
+      } else {
+        this.nowPlaying = item as VideoMetadata
       }
+    } else {
+      this.nowPlaying = item as VideoMetadata
     }
+    salmonLogger.addLog(TAG, "设置当前播放视频完成", false)
 
     await PermissionUtil.activatePermission(item.uri)
     this.init(item.uri, pathStack)
-    ToolsUtil.addLogger("获取播放数据完成", false)
+    salmonLogger.addLog(TAG, "获取播放数据完成", false)
     this.initAVSession()
-    ToolsUtil.addLogger("播放选择视频流程完成", false)
+    salmonLogger.addLog(TAG, "播放选择视频流程完成", false)
   }
 
   async playNextVideoProcess(pathStack: NavPathStack) {
-    ToolsUtil.addLogger("开始播放下一个视频流程", false, pathStack)
+    salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "开始播放下一个视频流程", false)
     const nextItem = this.playNextVideo(this.repeatMode)
-    ToolsUtil.addLogger("获取下一个视频项完成", false, pathStack)
+    salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "获取下一个视频项完成", false)
     if (nextItem) {
-      ToolsUtil.addLogger("存在下一个视频，开始播放", false, pathStack)
+      salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "存在下一个视频，开始播放", false)
       await this.playChooseVideo(nextItem, pathStack)
     } else {
-      ToolsUtil.addLogger("无下一个视频，播放结束", false, pathStack)
+      salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "无下一个视频，播放结束", false)
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.play_finished_auto_exit').id))
       pathStack.pop()
     }
-    ToolsUtil.addLogger("播放下一个视频前置流程完成", false, pathStack)
+    salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "播放下一个视频前置流程完成", false)
   }
 
   playNextVideo(repeatMode: SweetRepeatMode): VideoMetadata | undefined {
@@ -213,21 +249,80 @@ export class MpvController implements PlayerControllerInterface {
       salmonLogger.addLog(TAG, '[MpvPlayer] MPV already created, skipping', true)
       return
     }
+
     try {
       this.mpvHandle = mpvCreate()
       if (!this.mpvHandle) {
         salmonLogger.addLog(TAG, '[MpvPlayer] Failed to create mpv instance - handle is null/undefined', true)
+        this.transitionTo(MpvPlayerState.ERROR)
       } else {
         salmonLogger.addLog(TAG, '[MpvPlayer] MPV instance created:' + this.mpvHandle, false)
+        this.activeHwdecMode = Setting.mpvDecodingMethod
+        this.transitionTo(MpvPlayerState.IDLE)
       }
     } catch {
       salmonLogger.addLog(TAG, '[MpvPlayer] Exception during create', true)
       ToolsUtil.showToast("MPV 创建失败")
+      this.transitionTo(MpvPlayerState.ERROR)
+    }
+  }
+
+  async getFrameByTime(time: number, isFirstFrame: boolean) {
+    if (Setting.showFrameImgStatus) {
+      const now = Date.now()
+      if (!isFirstFrame && now - this.lastFrameFetchTime < this.FRAME_FETCH_INTERVAL) {
+        this.pendingFrameTime = time
+        return
+      }
+      if (!isFirstFrame && Math.floor(time) === Math.floor(this.lastFrameFetchPlayTime)) {
+        return
+      }
+      this.lastFrameFetchTime = now
+      this.lastFrameFetchPlayTime = time
+
+      if (!VideoOperateUtil.updatePix) {
+        this.pendingFrameTime = time
+        return
+      }
+      VideoOperateUtil.updatePix = false
+      try {
+        const img = await VideoOperateUtil.fetchFrameByTime(time, this.nowPlaying?.size)
+        if (img && Math.abs(this.playTime - time) < 3000) {
+          this.pixelMap = img
+        }
+      } catch (error) {
+        salmonLogger.addLog(TAG, '获取视频帧失败:' + error, true)
+      } finally {
+        VideoOperateUtil.updatePix = true
+        if (this.pendingFrameTime >= 0 && this.pendingFrameTime !== this.lastFrameFetchPlayTime) {
+          const nextTime = this.pendingFrameTime
+          this.pendingFrameTime = -1
+          this.getFrameByTime(nextTime, false)
+        }
+      }
     }
   }
 
   init(url?: string, pathStack?: NavPathStack): void {
+    const requiredMode = this.computeDecodeType()
+    if (this.mpvHandle && requiredMode !== this.activeHwdecMode) {
+      salmonLogger.addLog(TAG,
+        `[MpvController] Decode mode mismatch: active=${this.activeHwdecMode}, required=${requiredMode}, recreating instance`,
+        true)
+      this.cleanupMpvInstance()
+    }
     this.applyDecodeType()
+    if (!this.mpvHandle) {
+      this.mpvHandle = mpvCreate()
+      if (!this.mpvHandle) {
+        salmonLogger.addLog(TAG, '[MpvPlayer] Failed to create mpv instance during init', true)
+        this.transitionTo(MpvPlayerState.ERROR)
+        return
+      }
+      salmonLogger.addLog(TAG, '[MpvPlayer] MPV instance created:' + this.mpvHandle, false)
+    }
+    this.activeHwdecMode = requiredMode
+    this.transitionTo(MpvPlayerState.LOADING)
     // 处理ISO文件
     let playUrl = url!
     if (IsoFileUtil.isIsoFile(url!)) {
@@ -249,6 +344,9 @@ export class MpvController implements PlayerControllerInterface {
 
     // 传递起始位置给 native（参考 mpv-android）
     mpvLoadVideo(this.mpvHandle, playUrl)
+
+    // 初始化 AVImageGenerator 用于进度条预览图（方案A，不支持格式时静默降级）
+    VideoOperateUtil.getFrameTimePreprocess(url!)
 
     // 延迟应用 shader，避免编译期间阻塞主线程（shader 编译持有 mpv 核心锁）
     const shaderMode = Setting.mpvShaderMode
@@ -275,15 +373,15 @@ export class MpvController implements PlayerControllerInterface {
       if (Setting.smartRotation &&
         (this.playAreaWidth > this.playAreaHeight || this.nowPlaying!.size[0] > this.nowPlaying!.size[1]) &&
         this.screenHeight > this.screenWidth) {
-        ToolsUtil.addLogger("智能旋转条件满足，开始设置方向", false)
+        salmonLogger.addLog(TAG, "智能旋转条件满足，开始设置方向", false)
         const proportion =
           Math.max(this.screenWidth, this.screenHeight) / Math.min(this.screenWidth, this.screenHeight)
         const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
           : window.Orientation.AUTO_ROTATION_RESTRICTED;
         (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
-          ToolsUtil.addLogger("设置窗口方向失败", true)
+          salmonLogger.addLog(TAG, "设置窗口方向失败", true)
         })
-        ToolsUtil.addLogger("设置窗口方向完成", false)
+        salmonLogger.addLog(TAG, "设置窗口方向完成", false)
       }
       if (this.speed !== 1) {
         this.updatePlaybackSpeed(this.speed)
@@ -329,7 +427,7 @@ export class MpvController implements PlayerControllerInterface {
     this.userListener = new BaseListener<number>()
     this.userListener.on('timeUpdate', (duration: number) => {
       AppStorage.setOrCreate('nowPlayingData',
-        [this.playTime, this.nowPlaying!, this.videoMetaDataList])
+        [this.playTime, this.nowPlaying!])
       if (this.showControl) {
         if (!VideoOperateUtil.autoHideTimeout) {
           VideoOperateUtil.autoHideTimeout = true
@@ -343,7 +441,7 @@ export class MpvController implements PlayerControllerInterface {
       // 片尾跳过逻辑保留
       const endTime = this.nowPlaying?.end_time
       if (endTime != null && duration >= endTime && endTime > 0 && this.repeatMode !== SweetRepeatMode.SINGLE) {
-        ToolsUtil.addLogger(
+        salmonLogger.addLog(TAG,
           `检测到视频片尾，准备播放下一个视频，满足条件为: endTime: ${endTime}, repeatMode: ${this.repeatMode}, duration: ${duration}`,
           false)
         this.playNextVideoProcess(pathStack)
@@ -369,13 +467,11 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   getData() {
-    this.playing = true
-    // 注册播放时间更新回调（事件驱动，替代轮询）
+    this.transitionTo(MpvPlayerState.PLAYING)
     this.registerTimeUpdateCallback()
-    // 注册视频尺寸变化回调
     this.registerVideoSizeChangedCallback()
-    // 注册Surface模式错误回调
     this.registerSurfaceModeErrorCallback()
+    this.registerBufferingStateCallback()
   }
 
   backForward(): void {
@@ -400,7 +496,7 @@ export class MpvController implements PlayerControllerInterface {
     if (!this.mpvHandle) {
       return
     }
-    this.playing = true
+    this.transitionTo(MpvPlayerState.PLAYING)
     mpvPlay(this.mpvHandle)
     AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
   }
@@ -409,7 +505,7 @@ export class MpvController implements PlayerControllerInterface {
     if (!this.mpvHandle) {
       return
     }
-    this.playing = false
+    this.transitionTo(MpvPlayerState.PAUSED)
     mpvPause(this.mpvHandle)
     AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
   }
@@ -420,9 +516,8 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   release(): void {
-    this.isReleased = true
+    this.transitionTo(MpvPlayerState.RELEASING)
     this.cancelDecodingModeTimers()
-    this.resetSwitchingFlags()
     if (!this.mpvHandle) {
       return
     }
@@ -434,9 +529,12 @@ export class MpvController implements PlayerControllerInterface {
     this.videoSizeCallbackRegistered = false
     mpvUnregisterSurfaceModeErrorCallback()
     this.surfaceModeErrorCallbackRegistered = false
+    mpvUnregisterBufferingStateCallback()
+    this.bufferingStateCallbackRegistered = false
     mpvDestroy(this.mpvHandle)
     this.mpvHandle = null
     this.userListener?.off('timeUpdate')
+    this.transitionTo(MpvPlayerState.IDLE)
   }
 
   seekTime(seekTime: number): void {
@@ -498,20 +596,33 @@ export class MpvController implements PlayerControllerInterface {
         const retryTracks = mpvGetAudioTracks(this.mpvHandle) as MpvAudioTrack[]
         if (retryTracks && retryTracks.length > 0) {
           this.audioTrack = retryTracks
-          ToolsUtil.addLogger(`重试获取音轨成功，共 ${retryTracks.length} 条音轨`, false)
+          this.restoreAudioTrackPreference()
+          salmonLogger.addLog(TAG, `重试获取音轨成功，共 ${retryTracks.length} 条音轨`, false)
         } else {
           this.audioTrack = retryTracks || []
-          ToolsUtil.addLogger("重试获取音轨仍然失败，可能文件没有音轨", false)
+          salmonLogger.addLog(TAG, "重试获取音轨仍然失败，可能文件没有音轨", false)
         }
       }, 1000)
     } else {
       this.audioTrack = tracks
-      ToolsUtil.addLogger(`获取音轨成功，共 ${tracks.length} 条音轨`, false)
+      this.restoreAudioTrackPreference()
+      salmonLogger.addLog(TAG, `获取音轨成功，共 ${tracks.length} 条音轨`, false)
     }
   }
 
   selectAudioTrack(trackId: number): void {
     mpvSelectAudio(this.mpvHandle, trackId)
+  }
+
+  restoreAudioTrackPreference(): void {
+    if (!this.nowPlaying || this.audioTrack.length <= 1) {
+      return
+    }
+    const audioTrackId = this.nowPlaying.audio_track_id
+    if (audioTrackId !== undefined && audioTrackId > 0 && audioTrackId < this.audioTrack.length) {
+      this.selectAudioTrack(this.audioTrack[audioTrackId].id)
+      this.audioTrackSelected = audioTrackId
+    }
   }
 
   setLoudnessGain(loudnessGain: number) {
@@ -731,22 +842,63 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   async setExternalSubtitle(nowPlaying: VideoMetadata) {
+    let externalSubtitleLoaded = false
     if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, nowPlaying.date!)) {
       try {
         let subtitle = fileIo.openSync(PathUtils.subtitlePath! + nowPlaying.date, fileIo.OpenMode.READ_ONLY)
         const success = await SubtitleUtil.parseSubtitleProcess(subtitle.path, nowPlaying.external_subtitle_format)
         if (success) {
-          this.subtitleSelected = SubtitleMode.EXTERNAL_SUBTITLE
+          externalSubtitleLoaded = true
           this.subtitle = SubtitleUtil.getSubtitlesAtTime(this.playTime)
-        } else {
-          this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
         }
-      } catch (error) {
-        this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
+      } catch (_error) {
+      }
+    }
+
+    const hasPreference = SubtitleUtil.hasSubtitlePreferenceMetadata(nowPlaying)
+    if (hasPreference) {
+      const preferredMode = nowPlaying.subtitle_mode as SubtitleMode | undefined
+      if (preferredMode === SubtitleMode.EXTERNAL_SUBTITLE && !externalSubtitleLoaded) {
+        this.subtitleSelected = SubtitleMode.NONE
+        this.resetSubtitlePreference(nowPlaying)
+
+      } else if (preferredMode !== undefined && preferredMode >= SubtitleMode.NONE) {
+        if (preferredMode === SubtitleMode.INNER_SUBTITLE) {
+          if (this.subtitleTrack.length === 0) {
+            this.subtitleSelected = SubtitleMode.NONE
+            return
+          }
+          if (nowPlaying.subtitle_track_id !== undefined) {
+            this.subtitleTrackSelected = nowPlaying.subtitle_track_id
+          }
+        }
+        if (nowPlaying.subtitle_offset_millis !== undefined) {
+          SubtitleUtil.offsetMillis = nowPlaying.subtitle_offset_millis
+        }
+        this.subtitleSelected = preferredMode
+      } else {
+        this.subtitleSelected = SubtitleMode.NONE
       }
     } else {
-      this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
+      this.subtitleSelected = externalSubtitleLoaded ? SubtitleMode.EXTERNAL_SUBTITLE : SubtitleMode.NONE
     }
+  }
+
+  private resetSubtitlePreference(nowPlaying: VideoMetadata): void {
+    nowPlaying.subtitle_mode = SubtitleMode.NONE
+    nowPlaying.subtitle_visible = false
+    nowPlaying.subtitle_ai_asr_shown = false
+    nowPlaying.subtitle_3d_mode = Subtitle3DMode.DISABLED
+    nowPlaying.subtitle_offset_millis = 0
+    nowPlaying.subtitle_track_id = -1
+    SelectFileUtil.saveData(PathUtils.appContext!, nowPlaying, {
+      subtitleMode: SubtitleMode.NONE,
+      subtitleVisible: false,
+      subtitleAIAsrShown: false,
+      subtitle3DMode: Subtitle3DMode.DISABLED,
+      subtitleOffsetMillis: 0,
+      subtitleTrackId: -1
+    })
   }
 
   refreshExternalSubtitlePreview(offset: number): void {
@@ -792,13 +944,37 @@ export class MpvController implements PlayerControllerInterface {
     )
   }
 
-  private applyDecodeType(): void {
+  private transitionTo(newState: MpvPlayerState): void {
+    const oldState = this.playerState
+    if (oldState === newState) {
+      return
+    }
+    salmonLogger.addLog(TAG, `播放器状态转换: ${MpvPlayerState[oldState]} -> ${MpvPlayerState[newState]}`, false)
+    this.playerState = newState
+    this.playing = newState === MpvPlayerState.PLAYING
+    const key = MpvPlayerState[newState]
+    const resolver = this.stateChangeResolvers.get(key)
+    if (resolver) {
+      resolver()
+      this.stateChangeResolvers.delete(key)
+    }
+  }
+
+  private computeDecodeType(): MpvDecodingMethod {
     let decodeType = Setting.mpvDecodingMethod
     if (this.nowPlaying && SUPPORT_AUDIO_FORMAT.includes(this.nowPlaying.format.toLowerCase())) {
       decodeType = MpvDecodingMethod.HARDWARE_BUFFER
-      salmonLogger.addLog(TAG, '[MpvPlayer] Audio file detected, using Buffer hardware decode mode')
     } else if (this.nowPlaying?.title.includes('DV') && !this.nowPlaying?.title.includes('HDR')) {
       decodeType = MpvDecodingMethod.HARDWARE_BUFFER
+    }
+    return decodeType
+  }
+
+  private applyDecodeType(): void {
+    const decodeType = this.computeDecodeType()
+    if (decodeType === MpvDecodingMethod.HARDWARE_BUFFER &&
+      this.nowPlaying && SUPPORT_AUDIO_FORMAT.includes(this.nowPlaying.format.toLowerCase())) {
+      salmonLogger.addLog(TAG, '[MpvPlayer] Audio file detected, using Buffer hardware decode mode')
     }
     switch (decodeType) {
       case MpvDecodingMethod.HARDWARE_SURFACE:
@@ -856,7 +1032,7 @@ export class MpvController implements PlayerControllerInterface {
     this.currentPathStack = pathStack
     // 避免重复注册回调
     if (this.playbackCallbackRegistered) {
-      ToolsUtil.addLogger("播放完成监听器已注册，跳过重复注册", false)
+      salmonLogger.addLog(TAG, "播放完成监听器已注册，跳过重复注册", false)
       return
     }
 
@@ -870,15 +1046,16 @@ export class MpvController implements PlayerControllerInterface {
             true)
           return
         }
-        ToolsUtil.addLogger("收到播放完成事件，准备播放下一个视频", false)
+        salmonLogger.addLog(TAG, "收到播放完成事件，准备播放下一个视频", false)
+        this.transitionTo(MpvPlayerState.COMPLETED)
         this.playNextVideoProcess(pathStack)
         this.playbackCallbackRegistered = false
         this.registerPlaybackCompleteListener(pathStack)
       })
       this.playbackCallbackRegistered = true
-      ToolsUtil.addLogger("播放完成监听器注册成功", false)
+      salmonLogger.addLog(TAG, "播放完成监听器注册成功", false)
     } catch (error) {
-      ToolsUtil.addLogger("播放完成监听器注册失败: " + JSON.stringify(error), true)
+      salmonLogger.addLog(TAG, "播放完成监听器注册失败: " + JSON.stringify(error), true)
     }
   }
 
@@ -889,8 +1066,12 @@ export class MpvController implements PlayerControllerInterface {
     }
     try {
       mpvRegisterSurfaceModeErrorCallback((errorMessage: string) => {
-        if (this.isReleased) {
+        if (this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
           salmonLogger.addLog(TAG, '[MpvController] Instance released, ignoring surface mode error', true)
+          return
+        }
+        if (!errorMessage || errorMessage.trim().length === 0) {
+          salmonLogger.addLog(TAG, '[MpvController] Empty surface mode error, ignoring', true)
           return
         }
         salmonLogger.addLog(TAG, '[MpvController] Surface mode error detected: ' + errorMessage, true)
@@ -902,6 +1083,27 @@ export class MpvController implements PlayerControllerInterface {
     }
   }
 
+  private registerBufferingStateCallback() {
+    if (this.bufferingStateCallbackRegistered) {
+      return
+    }
+    try {
+      mpvRegisterBufferingStateCallback((buffering: boolean) => {
+        if (this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
+          return
+        }
+        if (buffering) {
+          this.transitionTo(MpvPlayerState.BUFFERING)
+        } else if (this.isInState(MpvPlayerState.BUFFERING)) {
+          this.transitionTo(this.playing ? MpvPlayerState.PLAYING : MpvPlayerState.PAUSED)
+        }
+      })
+      this.bufferingStateCallbackRegistered = true
+    } catch (error) {
+      salmonLogger.addLog(TAG, 'Failed to register buffering state callback', error)
+    }
+  }
+
   // 统一的模式切换方法
   private switchDecodingMode(
     targetMode: 'buffer_hw' | 'buffer_sw',
@@ -910,20 +1112,16 @@ export class MpvController implements PlayerControllerInterface {
     wasPlaying?: boolean,
     currentVideo?: VideoMetadata
   ) {
-    if (this.isReleased) {
+    if (this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
       salmonLogger.addLog(TAG, '[MpvController] Instance released, aborting decoding mode switch', true)
       return
     }
-    if (this.isSwitchingToBufferMode || this.isSwitchingToSoftwareMode) {
+    if (this.isInState(MpvPlayerState.SWITCHING_MODE)) {
       salmonLogger.addLog(TAG, '[MpvController] Already switching mode, skipping')
       return
     }
 
-    if (targetMode === 'buffer_hw') {
-      this.isSwitchingToBufferMode = true
-    } else {
-      this.isSwitchingToSoftwareMode = true
-    }
+    this.transitionTo(MpvPlayerState.SWITCHING_MODE)
 
     const modeName = targetMode === 'buffer_hw' ? 'Buffer硬件解码' : '软件解码'
     salmonLogger.addLog(TAG, `[MpvController] Switching to ${modeName} mode due to error: ${errorMessage}`, true)
@@ -948,14 +1146,15 @@ export class MpvController implements PlayerControllerInterface {
       salmonLogger.addLog(TAG, `[MpvController] Failed to create MPV instance in ${modeName} mode`, true)
 
       if (targetMode === 'buffer_hw') {
-        this.isSwitchingToBufferMode = false
         this.switchDecodingMode('buffer_sw', 'Buffer硬件解码创建失败', savedTime, savedPlaying, savedVideo)
       } else {
         ToolsUtil.showToast('切换模式失败，请尝试其他视频')
-        this.isSwitchingToSoftwareMode = false
+        this.transitionTo(MpvPlayerState.ERROR)
       }
       return
     }
+
+    this.activeHwdecMode = targetMode === 'buffer_hw' ? MpvDecodingMethod.HARDWARE_BUFFER : MpvDecodingMethod.SOFTWARE
 
     if (savedVideo) {
       let reloadUrl = savedVideo.uri;
@@ -978,7 +1177,7 @@ export class MpvController implements PlayerControllerInterface {
         this.verifyAndResumePlayback(targetMode, savedTime, savedPlaying, savedVideo, modeName)
       }, 500)
     } else {
-      this.resetSwitchingFlags()
+      this.transitionTo(MpvPlayerState.IDLE)
     }
   }
 
@@ -990,6 +1189,7 @@ export class MpvController implements PlayerControllerInterface {
         mpvUnregisterTimeUpdateCallback()
         mpvUnregisterVideoSizeChangedCallback()
         mpvUnregisterSurfaceModeErrorCallback()
+        mpvUnregisterBufferingStateCallback()
         mpvDestroy(this.mpvHandle)
       } catch (error) {
         salmonLogger.addLog(TAG, '[MpvController] Error during cleanup: ' + JSON.stringify(error), true)
@@ -1003,9 +1203,9 @@ export class MpvController implements PlayerControllerInterface {
     this.timeUpdateCallbackRegistered = false
     this.videoSizeCallbackRegistered = false
     this.surfaceModeErrorCallbackRegistered = false
+    this.bufferingStateCallbackRegistered = false
   }
 
-  // 验证播放状态并恢复播放
   private verifyAndResumePlayback(
     targetMode: 'buffer_hw' | 'buffer_sw',
     savedTime: number,
@@ -1013,9 +1213,8 @@ export class MpvController implements PlayerControllerInterface {
     savedVideo: VideoMetadata | undefined,
     modeName: string
   ) {
-    if (this.isReleased) {
+    if (this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
       salmonLogger.addLog(TAG, '[MpvController] Instance released, aborting verifyAndResumePlayback', true)
-      this.resetSwitchingFlags()
       return
     }
 
@@ -1031,11 +1230,10 @@ export class MpvController implements PlayerControllerInterface {
         salmonLogger.addLog(TAG, `[MpvController] ${modeName} mode failed to play video`, true)
 
         if (targetMode === 'buffer_hw') {
-          this.resetSwitchingFlags()
           this.switchDecodingMode('buffer_sw', 'Buffer硬件解码播放失败', savedTime, savedPlaying, savedVideo)
         } else {
           ToolsUtil.showToast('播放失败，请尝试其他视频')
-          this.resetSwitchingFlags()
+          this.transitionTo(MpvPlayerState.ERROR)
         }
         return
       }
@@ -1048,18 +1246,14 @@ export class MpvController implements PlayerControllerInterface {
     }
     if (savedPlaying) {
       this.play()
+    } else {
+      this.transitionTo(MpvPlayerState.PAUSED)
     }
 
-    this.resetSwitchingFlags()
     ToolsUtil.showToast(`已成功切换到${modeName}模式`)
     salmonLogger.addLog(TAG, `[MpvController] Successfully switched to ${modeName} mode`)
   }
 
-  // 重置切换标志
-  private resetSwitchingFlags() {
-    this.isSwitchingToBufferMode = false
-    this.isSwitchingToSoftwareMode = false
-  }
 
   private cancelDecodingModeTimers() {
     if (this.decodingModeVerifyTimer) {
@@ -1073,11 +1267,11 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   private switchToBufferMode(errorMessage: string) {
-    if (this.isReleased) {
+    if (this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
       salmonLogger.addLog(TAG, '[MpvController] Instance released, skipping buffer mode switch', true)
       return
     }
-    if (Setting.mpvDecodingMethod !== MpvDecodingMethod.HARDWARE_SURFACE) {
+    if (this.activeHwdecMode !== MpvDecodingMethod.HARDWARE_SURFACE) {
       salmonLogger.addLog(TAG, '[MpvController] Not in surface mode, skipping switch')
       return
     }

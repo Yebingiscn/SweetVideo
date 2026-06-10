@@ -10,15 +10,17 @@ import { VideoListController } from '../component/VideoItemComponent/VideoItemCo
 import { SideBarController } from '../component/SideBarComponent/SideBar'
 import { DeletedVideosDialog } from '../component/Dialog/DeletedVideosDialog'
 import { motion } from '@kit.MultimodalAwarenessKit'
+import Preferences from '../database/Preferences'
 import { salmonLogger } from 'salmonlogger'
 import { DeleteType } from '../common/enum/DeleteType'
+import { ListDisplayMode } from '../common/enum/DisplayMode'
+import { SortField } from '../common/enum/SortField'
 import NavigationAddress from '../common/NavigationCommon'
 import { userData, userLoginBuilder } from '../component/common/UserLoginComponent'
 import { FileFolderListBuilder } from '../component/FileFolderComponent/FileFolderListComponent'
 import { FolderSelectMenuBuilder } from '../component/FileFolderComponent/FileFolderSelectBuilder'
 import { ImportProgressBuilder } from '../component/VideoItemComponent/ImportProgressBuilder'
 import { VideoView } from '../component/VideoItemComponent/VideoViewComponent'
-import Preferences from '../database/Preferences'
 import { VideoMetaDataOperator } from '../database/VideoMetaData'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import AccountUtil from '../utils/AccountUtil'
@@ -33,7 +35,6 @@ import SubtitleUtil from '../utils/SubtitleUtil'
 import { checkUriProcess } from '../utils/TaskpoolUtil'
 import TimeUtil from '../utils/TimeUtil'
 import ToolsUtil from '../utils/ToolsUtil'
-import { SortField } from '../common/enum/SortField'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
 import VideoUtils from '../utils/VideoUtil'
 import WantProcessUtil from '../utils/WantProcessUtil'
@@ -49,10 +50,9 @@ import { PlayerSettingPage } from './SettingPage/PlayerSettingPage'
 import { SettingsPage } from './SettingPage/Setting'
 import { MpvPlayer } from './VideoPlayer/MpvPlayer'
 import { Player } from './VideoPlayer/Player'
-import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData'
 import { HdsNavigation, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
+import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData'
 import { LengthMetrics } from '@kit.ArkUI'
-import { ListDisplayMode } from '../common/enum/DisplayMode'
 
 const TAG = 'Index'
 
@@ -197,33 +197,6 @@ struct Index {
 
   async onPageShow(): Promise<void> {
     await WantProcessUtil.checkWant(PathUtils.appContext!, this.pathStack)
-    // 从其他页面返回时，用内容区实际宽度重新计算列数
-    // 覆盖场景：设置页修改了 listDisplayMode、屏幕方向变化后返回
-    if (this.contentWidth > 0) {
-      // 获取当前状态
-      const currentScreenWidth = AppStorage.get('screen_width') as number ?? 0
-      const currentScreenHeight = AppStorage.get('screen_height') as number ?? 0
-      const currentIsLandscape = currentScreenWidth > currentScreenHeight
-      const currentListDisplayMode = Setting.listDisplayMode
-
-      // 获取保存的状态
-      const savedIsLandscape = AppStorage.get('saved_is_landscape') as boolean | undefined
-      const savedListDisplayMode = AppStorage.get('saved_list_display_mode') as ListDisplayMode | undefined
-      const savedListLine = AppStorage.get('saved_list_line') as number | undefined
-
-      // 判断是否需要重新计算：三者都一致则不计算
-      const needRefresh = savedIsLandscape === undefined ||
-        savedListDisplayMode === undefined ||
-        savedListLine === undefined ||
-        currentIsLandscape !== savedIsLandscape ||
-        currentListDisplayMode !== savedListDisplayMode ||
-        this.videoListController.listLine !== savedListLine
-
-      if (needRefresh) {
-        // 有不一致项，重新计算
-        this.videoListController.refresh(this.contentWidth, Setting.listDisplayMode)
-      }
-    }
     const currentFolder = this.videoListController.folder
     if (currentFolder) {
       const updatedFolders = Preferences.getFileFolder(PathUtils.appContext!)
@@ -233,17 +206,6 @@ struct Index {
         this.videoListController.updateData(this.videoListController.videoDataSource, updatedFolder)
       }
     }
-  }
-
-  onPageHide(): void {
-    // 保存当前状态到 AppStorage
-    const currentScreenWidth = AppStorage.get('screen_width') as number ?? 0
-    const currentScreenHeight = AppStorage.get('screen_height') as number ?? 0
-    const currentIsLandscape = currentScreenWidth > currentScreenHeight
-
-    AppStorage.setOrCreate('saved_is_landscape', currentIsLandscape)
-    AppStorage.setOrCreate('saved_list_display_mode', Setting.listDisplayMode)
-    AppStorage.setOrCreate('saved_list_line', this.videoListController.listLine)
   }
 
   async aboutToAppear(): Promise<void> {
@@ -378,8 +340,14 @@ struct Index {
               .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
               .margin({ top: 10 })
               .justifyContent(FlexAlign.Start)
-              .backgroundColor($r('app.color.start_window_background_blur'))
+              .backgroundColor($r('app.color.list_item_background'))
               .borderRadius(16)
+              .shadow({
+                radius: 4,
+                color: $r('app.color.shadow_color'),
+                offsetX: 0,
+                offsetY: 1
+              })
               .bindSheet(this.isLogin, userLoginBuilder, {
                 detents: [SheetSize.FIT_CONTENT],
                 height: SheetSize.MEDIUM,
@@ -407,6 +375,7 @@ struct Index {
                 .align(Alignment.Start)
                 .padding({ left: 15, right: 15 })
                 .attributeModifier(new ButtonFancyModifier('100%', 60))
+                .backgroundColor(Color.Transparent)
                 .animation({ duration: 300, curve: Curve.Ease })
                 .bindMenu(this.SelectFileMenuBuilder)
                 .width('100%')
@@ -424,14 +393,22 @@ struct Index {
                 .align(Alignment.Start)
                 .padding({ left: 15, right: 15 })
                 .attributeModifier(new ButtonFancyModifier('100%', 60))
+                .backgroundColor(Color.Transparent)
                 .animation({ duration: 300, curve: Curve.Ease })
                 .onClick(() => {
                   this.addFileFolderNameDialogController.open()
                 })
-              }.margin({ top: 10 })
+              }
+              .margin({ top: 10 })
               .justifyContent(FlexAlign.Start)
-              .backgroundColor($r('app.color.start_window_background_blur'))
+              .backgroundColor($r('app.color.list_item_background'))
               .borderRadius(16)
+              .shadow({
+                radius: 4,
+                color: $r('app.color.shadow_color'),
+                offsetX: 0,
+                offsetY: 1
+              })
 
               //文件夹列表
               List() {
@@ -474,14 +451,20 @@ struct Index {
               .height('auto')
               .align(Alignment.Start)
               .margin({ top: 10, bottom: 10 })
-              .backgroundColor($r('app.color.start_window_background_blur'))
+              .backgroundColor($r('app.color.list_item_background'))
+              .shadow({
+                radius: 4,
+                color: $r('app.color.shadow_color'),
+                offsetX: 0,
+                offsetY: 1
+              })
             }.width('100%')
           }
+          .fadingEdge(true)
           .margin({ top: 10 })
           .padding({ left: 20, right: 20 })
           .layoutWeight(1)
           .align(Alignment.Top)
-          .scrollable(ScrollDirection.Vertical) // 启用垂直滚动
           .edgeEffect(EdgeEffect.Spring) // 滚动边缘效果
           .scrollBar(BarState.Off)
           .width('100%')
@@ -501,6 +484,7 @@ struct Index {
             .align(Alignment.Start)
             .padding({ left: 15, right: 15 })
             .attributeModifier(new ButtonFancyModifier('100%', 60))
+            .backgroundColor(Color.Transparent)
             .animation({ duration: 300, curve: Curve.Ease })
             .onClick(async () => {
               this.sideBarController.close(false)
@@ -520,6 +504,7 @@ struct Index {
             .align(Alignment.Start)
             .padding({ left: 15, right: 15 })
             .attributeModifier(new ButtonFancyModifier('100%', 60))
+            .backgroundColor(Color.Transparent)
             .animation({ duration: 300, curve: Curve.Ease })
             .onClick(() => {
               this.sideBarController.close(false)
@@ -528,13 +513,21 @@ struct Index {
           }
           .margin({ bottom: SafeHeight.bottomSafeHeight === 0 ? 15 : SafeHeight.bottomSafeHeight, left: 20, right: 20 })
           .justifyContent(FlexAlign.Start)
-          .backgroundColor($r('app.color.start_window_background_blur'))
+          .backgroundColor($r('app.color.list_item_background'))
           .borderRadius(16)
+          .shadow({
+            radius: 4,
+            color: $r('app.color.shadow_color'),
+            offsetX: 0,
+            offsetY: 1
+          })
         }
         .width('100%')
         .justifyContent(FlexAlign.Start)
-        .backgroundColor(Setting.backgroundImageSrc.length > 0 ? '' : $r('app.color.start_window_background'))
-        .transition(TransitionEffect.translate({ x: -300 }).animation(XAnimation.getAnimationCurve()))
+        .backgroundColor(Setting.backgroundImageSrc.length > 0 ? '' : $r('app.color.sidebar_background_color'))
+        .transition(TransitionEffect.translate({ x: -300 })
+          .combine(TransitionEffect.OPACITY)
+          .animation(XAnimation.getAnimationCurve()))
         .visibility(this.sideBarController.visibility)
         .borderRadius(this.sideBarController.mode === SideBarContainerType.Overlay ? 16 : 0)
 
@@ -720,8 +713,40 @@ struct Index {
       WantProcessUtil.wantUri = video?.uri
       WantProcessUtil.hasWant(PathUtils.appContext!, this.pathStack)
     })
-    .onNavBarStateChange(async (isVisible: boolean) => {
+    .onNavBarStateChange((isVisible: boolean) => {
       if (isVisible) {
+        // 从其他页面返回时，用内容区实际宽度重新计算列数
+        // 覆盖场景：设置页修改了 listDisplayMode、屏幕方向变化后返回
+        if (this.contentWidth > 0) {
+          // 获取当前状态
+          const currentScreenWidth = AppStorage.get('screen_width') as number ?? 0
+          const currentScreenHeight = AppStorage.get('screen_height') as number ?? 0
+          const currentIsLandscape = currentScreenWidth > currentScreenHeight
+          const currentListDisplayMode = Setting.listDisplayMode
+
+          // 获取保存的状态
+          const savedIsLandscape = AppStorage.get('saved_is_landscape') as boolean | undefined
+          const savedListDisplayMode = AppStorage.get('saved_list_display_mode') as ListDisplayMode | undefined
+          const savedListLine = AppStorage.get('saved_list_line') as number | undefined
+
+          salmonLogger.addLog(TAG,
+            `保存的状态：[${this.passwd}] saved_is_landscape: ${savedIsLandscape}, saved_list_display_mode: ${savedListDisplayMode}, saved_list_line: ${savedListLine}`)
+          salmonLogger.addLog(TAG,
+            `当前的状态[${this.passwd}] current_is_landscape: ${currentIsLandscape}, current_list_display_mode: ${currentListDisplayMode}, current_list_line: ${this.videoListController.listLine}`)
+          // 判断是否需要重新计算：三者都一致则不计算
+          const needRefresh = savedIsLandscape === undefined ||
+            savedListDisplayMode === undefined ||
+            savedListLine === undefined ||
+            currentIsLandscape !== savedIsLandscape ||
+            currentListDisplayMode !== savedListDisplayMode ||
+            this.videoListController.listLine !== savedListLine
+
+          if (needRefresh) {
+            // 有不一致项，重新计算
+            this.videoListController.refresh(this.contentWidth, Setting.listDisplayMode)
+          }
+        }
+
         if (this.videoListController.folder?.video_list) {
           const currentScreenWidth = AppStorage.get('screen_width') as number ?? 0
           const actualContentWidth = this.sideBarController.mode === SideBarContainerType.Embed
@@ -742,6 +767,15 @@ struct Index {
           this.searchValue = value
           AppStorage.set('searchValue', '')
         }
+      } else {
+        // 保存当前状态到 AppStorage
+        const currentScreenWidth = AppStorage.get('screen_width') as number ?? 0
+        const currentScreenHeight = AppStorage.get('screen_height') as number ?? 0
+        const currentIsLandscape = currentScreenWidth > currentScreenHeight
+
+        AppStorage.setOrCreate('saved_is_landscape', currentIsLandscape)
+        AppStorage.setOrCreate('saved_list_display_mode', Setting.listDisplayMode)
+        AppStorage.setOrCreate('saved_list_line', this.videoListController.listLine)
       }
     })
   }

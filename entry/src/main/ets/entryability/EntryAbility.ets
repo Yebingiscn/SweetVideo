@@ -4,7 +4,7 @@ import { window } from '@kit.ArkUI'
 import { salmonLogger } from 'salmonlogger'
 import Preferences from '../database/Preferences'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
-import { Pc, Privacy, Setting } from '../utils/ObservedUtil'
+import { Privacy, Pc, Setting } from '../utils/ObservedUtil'
 import { PathUtils } from '../utils/PathUtils'
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil'
 import SelectFileUtil from '../utils/SelectFileUtil'
@@ -172,7 +172,7 @@ export default class EntryAbility extends UIAbility {
 
   async onContinue(wantParam: Record<string, Object>): Promise<AbilityConstant.OnContinueResult> {
     const nowPlayingData =
-      AppStorage.get('nowPlayingData') as (number | VideoMetadata | VideoMetadata[])[]
+      AppStorage.get('nowPlayingData') as (number | VideoMetadata)[]
     wantParam['data'] = nowPlayingData[1] as VideoMetadata
     return AbilityConstant.OnContinueResult.AGREE
   }
@@ -212,10 +212,10 @@ export default class EntryAbility extends UIAbility {
   private savePlayData() {
     // 杀掉应用时保存播放记录
     const nowPlayingData =
-      AppStorage.get('nowPlayingData') as (number | VideoMetadata | VideoMetadata[])[]
+      AppStorage.get('nowPlayingData') as (number | VideoMetadata)[]
     if (nowPlayingData) {
       VideoOperateUtil.saveVideoTime(nowPlayingData[0] as number, nowPlayingData[1] as VideoMetadata,
-        nowPlayingData[2] as VideoMetadata[], PathUtils.appContext!)
+        PathUtils.appContext!)
     }
   }
 }

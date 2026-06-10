@@ -159,7 +159,7 @@ export default class SelectFileUtil {
       const fullPath = `${basePhotoPath}${fileName}`
       try {
         if (fs.accessSync(fullPath)) {
-          return fileUri.getUriFromPath(fullPath)
+          return PathUtils.pathToUri(fullPath)
         }
       } catch (e) {
         salmonLogger.addLog(TAG, `Failed to access image: ${fullPath} ` + e)
@@ -195,7 +195,7 @@ export default class SelectFileUtil {
     const blurPath = PathUtils.photoPath + imageName + '_blur'
     try {
       if (fs.accessSync(blurPath)) {
-        return fileUri.getUriFromPath(blurPath)
+        return PathUtils.pathToUri(blurPath)
       }
     } catch (e) {
     }
@@ -213,7 +213,7 @@ export default class SelectFileUtil {
     if (!forceRegenerate) {
       try {
         if (fs.accessSync(blurPath)) {
-          const blurUri = fileUri.getUriFromPath(blurPath)
+          const blurUri = PathUtils.pathToUri(blurPath)
           Setting.backgroundBlurImageSrc = blurUri
           return blurUri
         }
@@ -322,7 +322,7 @@ export default class SelectFileUtil {
       await SelectFileUtil.savePixelMapToFile(PathUtils.photoPath!, blurFileName, blurredPixelMap!, {
         releasePixelMap: true, format: 'image/jpeg'
       })
-      return fileUri.getUriFromPath(blurPath)
+      return PathUtils.pathToUri(blurPath)
     } catch (error) {
       salmonLogger.addLog(TAG, `Failed to generate blurred background: ${error}`, true)
       return ''
@@ -374,7 +374,7 @@ export default class SelectFileUtil {
   }
 
   static saveData(context: Context, target_data: VideoMetadata, options: SaveOptions) {
-    ToolsUtil.addLogger('开始保存播放数据', false, undefined, TAG)
+    salmonLogger.addLog(TAG, '开始保存播放数据', false)
     let save_time: number = 0
     if (target_data.time === 0 && options.totalTime) {
       target_data.time = options.totalTime
@@ -385,10 +385,10 @@ export default class SelectFileUtil {
       let shouldMarkAsWatched = false
       if (totalDuration && options.playTime > totalDuration * 0.95) {
         shouldMarkAsWatched = true
-        ToolsUtil.addLogger('播放进度超过95%，标记为已观看', false, undefined, TAG)
+        salmonLogger.addLog(TAG, '播放进度超过95%，标记为已观看', false)
       } else if (endTime > 0 && options.playTime >= endTime) {
         shouldMarkAsWatched = true
-        ToolsUtil.addLogger('播放至指定结束时间，标记为已观看', false, undefined, TAG)
+        salmonLogger.addLog(TAG, '播放至指定结束时间，标记为已观看', false)
       }
       save_time = shouldMarkAsWatched ? totalDuration : options.playTime
     }
@@ -432,26 +432,30 @@ export default class SelectFileUtil {
       if (options.subtitleTrackId !== undefined) {
         video.subtitle_track_id = options.subtitleTrackId
       }
+      if (options.audioTrackId !== undefined) {
+        if (options.audioTrackId === null) {
+          video.audio_track_id = undefined
+        } else {
+          video.audio_track_id = options.audioTrackId
+        }
+      }
     }
     if (PrivacySpaceUtil.getPrivacyMode()) {
-      ToolsUtil.addLogger('当前处于隐私空间，更新隐私空间数据', false, undefined, TAG)
+      salmonLogger.addLog(TAG, '当前处于隐私空间，更新隐私空间数据', false)
       const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(context)
       const targetVideoMetaDataEncryption = videoMetaDataEncryption.find(v => v.date === target_data.date)
       if (targetVideoMetaDataEncryption) {
         updateVideo(targetVideoMetaDataEncryption)
         Preferences.saveVideoMetaDataEncryption(context, videoMetaDataEncryption)
-        ToolsUtil.addLogger('隐私空间数据更新完成', false, undefined, TAG)
+        salmonLogger.addLog(TAG, '隐私空间数据更新完成', false)
       } else {
-        ToolsUtil.addLogger('未在隐私空间中找到目标视频数据', true, undefined, TAG)
+        salmonLogger.addLog(TAG, '未在隐私空间中找到目标视频数据', true)
       }
       return
     }
-    ToolsUtil.addLogger('更新文件夹中的视频数据', false, undefined, TAG)
-    // 一次性读取所有数据，避免竞态条件
+    salmonLogger.addLog(TAG, '更新文件夹中的视频数据', false)
     const folders = Preferences.getFileFolder(context)
-    const recent_play_deque = Preferences.getRecentPlay(context)
 
-    // 更新文件夹中的视频
     for (const folder of folders) {
       const videoMetaData: VideoMetadata[] = folder.video_list
       const targetVideoMetaData = videoMetaData.find(video => video.date === target_data.date)
@@ -459,17 +463,8 @@ export default class SelectFileUtil {
         updateVideo(targetVideoMetaData)
       }
     }
-
-    // 更新最近播放列表
-    const recentTargetVideoMetaData = recent_play_deque.find(video => video.date === target_data.date)
-    if (recentTargetVideoMetaData) {
-      updateVideo(recentTargetVideoMetaData)
-    }
-
-    // 一次性保存所有数据，确保数据一致性
     Preferences.saveFileFolder(context, folders)
-    Preferences.saveRecentPlay(context, recent_play_deque)
-    ToolsUtil.addLogger('文件夹和最近播放列表数据更新完成', false, undefined, TAG)
+    salmonLogger.addLog(TAG, '文件夹数据更新完成', false)
   }
 
   static deleteVideo(videoMetaData: VideoMetadata) {

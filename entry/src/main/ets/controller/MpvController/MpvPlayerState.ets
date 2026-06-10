@@ -1,0 +1,11 @@
+export enum MpvPlayerState {
+  IDLE,
+  LOADING,
+  BUFFERING,
+  PLAYING,
+  PAUSED,
+  COMPLETED,
+  SWITCHING_MODE,
+  ERROR,
+  RELEASING
+}

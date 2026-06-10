@@ -64,7 +64,6 @@
                   "./**/Foreground.png",
                   "./**/Background.png",
                   "./**/foreground_start_up.png",
-                  "./**/startIcon.png"
                 ]
               }
             }

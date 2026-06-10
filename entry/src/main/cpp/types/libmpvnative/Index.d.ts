@@ -112,6 +112,11 @@ declare module 'libmpvnative.so' {
 
   export const unregisterSurfaceModeErrorCallback: () => void;
 
+  // ==================== 缓冲状态变化事件 ====================
+  export const registerBufferingStateCallback: (callback: (buffering: boolean) => void) => void;
+
+  export const unregisterBufferingStateCallback: () => void;
+
   // ==================== 章节 ====================
   export const getChapterList: (mpvHandle: number) => Array<{ index: number; title: string; time: number }>;
 }

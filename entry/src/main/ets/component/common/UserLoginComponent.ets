@@ -1,15 +1,15 @@
 import { loginComponentManager, LoginWithHuaweiIDButton } from '@kit.AccountKit';
-import { FunctionalButton, functionalButtonComponentManager } from '@kit.ScenarioFusionKit';
-import { XAnimation } from '../../utils/AnimationUtil';
 import { hdsEffect } from '@kit.UIDesignKit';
 import { HdsGL } from '../../common/AttributeModifierConfig';
-import { curves } from '@kit.ArkUI';
 import { PathUtils } from '../../utils/PathUtils';
 import Preferences from '../../database/Preferences';
 import AccountUtil from '../../utils/AccountUtil';
-import SelectFileUtil from '../../utils/SelectFileUtil';
 import { DANGER_COLOR } from '../../common/Constants';
+import { XAnimation } from '../../utils/AnimationUtil';
 import { SafeHeight } from '../../utils/ObservedUtil';
+import SelectFileUtil from '../../utils/SelectFileUtil';
+import { FunctionalButton, functionalButtonComponentManager } from '@kit.ScenarioFusionKit';
+import { curves } from '@kit.ArkUI';
 
 @Builder
 export function userLoginBuilder() {

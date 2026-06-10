@@ -85,7 +85,7 @@ export default class VideoInfoUtil {
   }
 
   public static getVideoFormat(videoName: string) {
-    return videoName.split('.')[videoName.split('.').length-1]
+    return videoName.split('.')[videoName.split('.').length - 1]
   }
 
   public static optimizedFormat(speed: number): string {

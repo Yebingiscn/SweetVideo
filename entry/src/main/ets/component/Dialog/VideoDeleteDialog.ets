@@ -1,6 +1,5 @@
 import { DeleteType } from '../../common/enum/DeleteType'
 import { VideoSource } from '../../common/enum/VideoSource'
-import { DIALOG_TITLE_FONT_SIZE } from '../../common/Constants'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import { DeleteOptionsGroup } from './DeleteOptionsGroup'

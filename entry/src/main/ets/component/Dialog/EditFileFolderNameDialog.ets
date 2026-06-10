@@ -1,7 +1,7 @@
-import { DIALOG_TITLE_FONT_SIZE } from "../../common/Constants"
-import { FileFolder } from "../../interfaces/FileFolderInterface"
-import DataSyncUtil from "../../utils/DataSyncUtil"
-import { DialogButtonBar } from "./DialogButtonBar"
+import { DIALOG_TITLE_FONT_SIZE } from '../../common/Constants'
+import { FileFolder } from '../../interfaces/FileFolderInterface'
+import DataSyncUtil from '../../utils/DataSyncUtil'
+import { DialogButtonBar } from './DialogButtonBar'
 
 @CustomDialog
 export struct EditFileFolderNameDialog {

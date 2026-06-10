@@ -1,10 +1,10 @@
+import { salmonLogger } from 'salmonlogger'
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import FileFolderUtil from './FileFolderUtil'
 import { PathUtils } from './PathUtils'
 import SelectFileUtil from './SelectFileUtil'
 import ToolsUtil from './ToolsUtil'
-import { salmonLogger } from 'salmonlogger'
 
 const TAG = 'FileProcessorUtil'
 

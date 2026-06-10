@@ -218,9 +218,9 @@ export default class ToolsUtil {
           ToolsUtil.showToast('还没有新版本~')
         }
       }).catch((error: BusinessError) => {
-        ToolsUtil.showToast('检查更新失败，原因是：' + error.message)
-        salmonLogger.addLog(TAG, `checkAppUpdate onError.code is ${error.code}, message is ${error.message}`, true)
-      })
+      ToolsUtil.showToast('检查更新失败，原因是：' + error.message)
+      salmonLogger.addLog(TAG, `checkAppUpdate onError.code is ${error.code}, message is ${error.message}`, true)
+    })
   }
 
   static setColorMode(context: Context, select: number) {
@@ -239,11 +239,6 @@ export default class ToolsUtil {
     } catch (error) {
       salmonLogger.addLog(TAG, 'set color mode error: ' + error, true)
     }
-  }
-
-  static addLogger(text: string, isError: boolean, pathStack?: NavPathStack, className?: string) {
-    const title = pathStack?.getAllPathName()[0] ?? className ?? 'sweet_video'
-    salmonLogger.addLog(title, text, isError)
   }
 
   static async detectFileDecoder(filePath: string) {

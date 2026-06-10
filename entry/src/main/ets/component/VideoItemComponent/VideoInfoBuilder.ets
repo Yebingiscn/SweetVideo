@@ -7,7 +7,6 @@ import { media } from '@kit.MediaKit'
 class VideoInfoBuilderParams {
   item: VideoMetadata | undefined = undefined
   nowPlaying?: VideoMetadata | undefined = undefined
-  showProgress: boolean = true
 }
 
 @Builder
@@ -64,13 +63,11 @@ export function VideoInfoBuilder(params: VideoInfoBuilderParams) {
       .fontColor(params.nowPlaying && params.nowPlaying?.date === params.item?.date ?
         $r('sys.color.white') : $r('app.color.text_color'))
 
-    if (params.showProgress) {
-      Progress({ value: params.item?.last_play, total: params.item?.time, type: ProgressType.Ring })
-        .width(30)
-        .color($r('app.color.main_color'))
-        .height(30)
-        .style({ strokeWidth: 5, shadow: true, enableSmoothEffect: true })
-    }
+    Progress({ value: params.item?.last_play, total: params.item?.time, type: ProgressType.Ring })
+      .width(30)
+      .color($r('app.color.main_color'))
+      .height(30)
+      .style({ strokeWidth: 5, shadow: true, enableSmoothEffect: true })
   }
   .justifyContent(FlexAlign.Start)
   .alignItems(VerticalAlign.Center)

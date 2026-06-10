@@ -1,6 +1,6 @@
 import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
-import { SCALE_FACTORS, SCREEN_EXTEND_LIST } from '../../common/Constants'
-import { AVPlayerController } from '../../controller/AVPlayerController'
+import { SCREEN_EXTEND_LIST, SCALE_FACTORS } from '../../common/Constants'
+import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
@@ -8,7 +8,7 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 @ComponentV2
 export struct VideoTopComponent {
   @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
-  @Param subTitleVisibility: Visibility = Visibility.None
+  @Param isAnySubtitleActive: boolean = false
   @BuilderParam audioTrackMenuBuilder: () => void
   @BuilderParam subtitlePanelComponent: () => void
   @BuilderParam chapterMenuBuilder: () => void
@@ -77,7 +77,7 @@ export struct VideoTopComponent {
 
       // 3. 字幕按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph(this.subTitleVisibility === Visibility.Visible ?
+        SymbolGlyph(this.isAnySubtitleActive ?
           $r('sys.symbol.textformat_size_square_fill') : $r('sys.symbol.textformat_size_square'))
           .fontSize(27)
           .fontColor(['#f0f0f0'])

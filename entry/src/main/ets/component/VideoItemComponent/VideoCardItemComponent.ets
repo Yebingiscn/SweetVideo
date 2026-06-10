@@ -6,7 +6,6 @@ import { PathUtils } from '../../utils/PathUtils'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { VideoInfoBuilder } from './VideoInfoBuilder'
 import { VideoListController } from './VideoItemComponent'
-import { fileUri } from '@kit.CoreFileKit'
 
 @ComponentV2
 export default struct VideoCardItem {
@@ -22,7 +21,7 @@ export default struct VideoCardItem {
 
   build() {
     Column() {
-      Image(fileUri.getUriFromPath(PathUtils.coverPath + this.item.date))
+      Image(PathUtils.coverUri(this.item.date))
         .attributeModifier(new ImageFancyModifier(16, '', ''))
         .width('100%')
         .height('auto')
@@ -51,7 +50,7 @@ export default struct VideoCardItem {
       .width('100%')
       .padding({ top: 5, left: 5 })
 
-      VideoInfoBuilder({ item: this.item, showProgress: true })
+      VideoInfoBuilder({ item: this.item })
     }
     .width('100%')
     .height('auto')

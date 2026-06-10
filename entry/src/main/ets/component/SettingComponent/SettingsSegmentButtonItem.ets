@@ -1,9 +1,9 @@
 import { CapsuleSegmentButtonV2, ColorMetrics, SegmentButtonV2ItemOptions, SegmentButtonV2Items } from '@kit.ArkUI'
 import { salmonLogger } from 'salmonlogger'
 import {
-  SymbolGlyphFancyModifier,
+  SettingsItemModifier,
   SettingsTitleModifier,
-  SettingsItemModifier
+  SymbolGlyphFancyModifier
 } from '../../common/AttributeModifierConfig'
 
 const TAG = 'SettingsSegmentButtonItem'

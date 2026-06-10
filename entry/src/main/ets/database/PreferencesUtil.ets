@@ -1,5 +1,8 @@
 import preferences from '@ohos.data.preferences'
+import { salmonLogger } from 'salmonlogger'
 import ToolsUtil from '../utils/ToolsUtil'
+
+const TAG = 'PreferencesUtil'
 
 // 存储类
 export default class PreferencesUtil {
@@ -10,7 +13,7 @@ export default class PreferencesUtil {
       })
       pref.putSync(key, value)
       pref.flush()?.catch(() => {
-        ToolsUtil.addLogger('flush error', true)
+        salmonLogger.addLog(TAG, 'flush error', true)
       })
     } catch (e) {
       ToolsUtil.showToast(`数据库异常，保存失败，原因是:${e}，ValueType: ${value}，获取参数为 ${name}}: ${key}`)
@@ -36,14 +39,14 @@ export default class PreferencesUtil {
       })
       const value = pref.getSync(key, 'DEFAULT_VALUE');
       if (value === 'DEFAULT_VALUE') {
-        ToolsUtil.addLogger(`Key "${key}" not found, skip deletion`, false)
+        salmonLogger.addLog(TAG, `Key "${key}" not found, skip deletion`, false)
         return; // 键不存在时提前返回
       }
       pref.delete(key)?.catch(() => {
-        ToolsUtil.addLogger(`delete error`, true)
+        salmonLogger.addLog(TAG, `delete error`, true)
       })
       pref.flush()?.catch(() => {
-        ToolsUtil.addLogger(`flush error`, true)
+        salmonLogger.addLog(TAG, `flush error`, true)
       })
     } catch (e) {
       ToolsUtil.showToast(`数据库异常，删除失败，原因是 ${e} 删除${key}:${name}失败`)

@@ -9,7 +9,7 @@ import { PathUtils } from './PathUtils'
 import ToolsUtil from './ToolsUtil'
 import NavigationAddress, { PlayerParams } from '../common/NavigationCommon'
 import { Setting } from './ObservedUtil'
-import { fileIo, fileIo as fs, fileUri } from '@kit.CoreFileKit'
+import { fileIo, fileIo as fs } from '@kit.CoreFileKit'
 import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { image } from '@kit.ImageKit'
@@ -41,6 +41,8 @@ export default class VideoOperateUtil {
   public static maxVolume: number = 0
   public static minVolume: number = 0
   public static initPinchDistance: number = 0
+  public static initPinchWidth: number = 0
+  public static initPinchHeight: number = 0
   public static clearSubtitleTimer: number | null = null
   public static screenBrightnessTmp: number = 0
   public static lastSpeed: number = 1
@@ -55,10 +57,6 @@ export default class VideoOperateUtil {
   public static avImageGenerator: media.AVImageGenerator | undefined = undefined
   public static nowPlayingFile: fileIo.File | undefined = undefined
   public static updatePix: boolean = true
-  public static panMoveStartX: number = 0
-  public static panMoveStartY: number = 0
-  public static lastTranslateX: number = 0
-  public static lastTranslateY: number = 0
   private static mainWin: window.Window | undefined = undefined
 
   // 设置亮度
@@ -201,15 +199,17 @@ export default class VideoOperateUtil {
     SelectFileUtil.saveData(context, nowPlaying!, options)
   }
 
-  static saveVideoTime(play_time: number, nowPlaying: VideoMetadata,
-    videoMetaData: VideoMetadata[], context: Context) {
+  static saveVideoTime(play_time: number, nowPlaying: VideoMetadata, context: Context) {
     VideoOperateUtil.saveVideoProperty(context, nowPlaying, { playTime: play_time })
     if (Setting.recentPlay && !PrivacySpaceUtil.getPrivacyMode() &&
       !SelectFileUtil.isPathFromSource(nowPlaying.uri, VideoSource.PRIVACY_SPACE)) {
-      const meta = videoMetaData.find(i => i.date == nowPlaying?.date)
-      if (meta) {
-        RecentPlayUtil.addPlayback(context, meta)
+      const folders = Preferences.getFileFolder(context)
+      let meta: VideoMetadata | undefined
+      for (const folder of folders) {
+        meta = folder.video_list.find(v => v.date === nowPlaying?.date)
+        if (meta) break
       }
+      RecentPlayUtil.addPlayback(context, meta ?? nowPlaying!)
     }
   }
 
@@ -257,7 +257,7 @@ export default class VideoOperateUtil {
         let avFileDescriptor: media.AVFileDescriptor = { fd: VideoOperateUtil.nowPlayingFile.fd }
         VideoOperateUtil.avImageGenerator.fdSrc = avFileDescriptor
       } catch (error) {
-        ToolsUtil.addLogger('getFrameTimePreprocess error' + error, true, undefined, TAG)
+        salmonLogger.addLog(TAG, 'getFrameTimePreprocess error' + error, true)
       }
     }
   }
@@ -265,7 +265,7 @@ export default class VideoOperateUtil {
   static async releaseAVImageGenerator() {
     if (Setting.showFrameImgStatus) {
       VideoOperateUtil.avImageGenerator?.release()?.catch(() => {
-        ToolsUtil.addLogger('releaseAVImageGenerator error', true, undefined, TAG)
+        salmonLogger.addLog(TAG, 'releaseAVImageGenerator error', true)
       })
       VideoOperateUtil.nowPlayingFile = undefined
       VideoOperateUtil.updatePix = false
@@ -456,7 +456,7 @@ export default class VideoOperateUtil {
         .then(async () => {
           fileIo.closeSync(tempFile)
           // 2. 用系统对话框保存到相册
-          srcUri = fileUri.getUriFromPath(tempPath)
+          srcUri = PathUtils.pathToUri(tempPath)
           const helper = photoAccessHelper.getPhotoAccessHelper(PathUtils.appContext)
           return await helper.showAssetsCreationDialog(
             [srcUri],
@@ -475,10 +475,10 @@ export default class VideoOperateUtil {
           }
         })
         ?.catch((err: BusinessError) => {
-          ToolsUtil.addLogger(`packToFile failed: ${err.code}, ${err.message}`, true)
+          salmonLogger.addLog(TAG, `packToFile failed: ${err.code}, ${err.message}`, true)
         })
     } catch (e) {
-      ToolsUtil.addLogger(`captureScreen failed: ${e.code}, ${e.message}`, true)
+      salmonLogger.addLog(TAG, `captureScreen failed: ${e.code}, ${e.message}`, true)
     }
   }
 
@@ -593,6 +593,33 @@ export default class VideoOperateUtil {
     })
   }
 
+  static saveAudioTrackPreference(
+    nowPlaying: VideoMetadata | undefined,
+    audioTrackSelected: number,
+    audioTrackCount: number
+  ): void {
+    const appContext = PathUtils.appContext
+    if (!nowPlaying || !appContext) {
+      return
+    }
+    if (audioTrackCount <= 1) {
+      return
+    }
+    if (audioTrackSelected === 0) {
+      if (nowPlaying.audio_track_id !== undefined) {
+        nowPlaying.audio_track_id = undefined
+        SelectFileUtil.saveData(appContext, nowPlaying, { audioTrackId: null })
+      }
+      return
+    }
+    const audioTrackId = audioTrackSelected
+    if (nowPlaying.audio_track_id === audioTrackId) {
+      return
+    }
+    nowPlaying.audio_track_id = audioTrackId
+    SelectFileUtil.saveData(appContext, nowPlaying, { audioTrackId })
+  }
+
   static getAdjacentSubtitleOffset(playTime: number, currentOffset: number,
     direction: 'prev' | 'next'): number | undefined {
     const targetOffset = SubtitleUtil.getAdjacentSubtitleOffset(playTime, currentOffset, direction)
@@ -625,7 +652,7 @@ export default class VideoOperateUtil {
       } else if (deleteType === DeleteType.RECENT) {
         try {
           if (canIUse('SystemCapability.FileManagement.FileManagerService.Core')) {
-            await fileManagerService.deleteToTrash(fileUri.getUriFromPath(item.uri))
+            await fileManagerService.deleteToTrash(PathUtils.pathToUri(item.uri))
           }
         } catch (error) {
           salmonLogger.addLog('BatchDelete', 'move to trash failed: ' + (error as Error).message, true)

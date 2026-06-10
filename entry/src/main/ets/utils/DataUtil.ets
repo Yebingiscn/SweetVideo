@@ -15,7 +15,7 @@ import SubtitleUtil from './SubtitleUtil'
 import ToolsUtil from './ToolsUtil'
 import VideoUtils from './VideoUtil'
 import { fileManagerService } from '@kit.FileManagerServiceKit'
-import { fileIo, fileUri } from '@kit.CoreFileKit'
+import { fileIo } from '@kit.CoreFileKit'
 
 const TAG = 'DataUtil'
 
@@ -149,7 +149,7 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
     } else if (deleteType == DeleteType.RECENT) {
       try {
         if (canIUse('SystemCapability.FileManagement.FileManagerService.Core')) {
-          await fileManagerService.deleteToTrash(fileUri.getUriFromPath(item.uri))
+          await fileManagerService.deleteToTrash(PathUtils.pathToUri(item.uri))
         }
         ToolsUtil.showToast(item.title + ' 已经移动到回收站')
       } catch (error) {

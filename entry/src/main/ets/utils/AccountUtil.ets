@@ -9,7 +9,6 @@ import { http } from '@kit.NetworkKit'
 import { util } from '@kit.ArkTS'
 import { authentication } from '@kit.AccountKit'
 import fileIo from '@ohos.file.fs'
-import fileUri from '@ohos.file.fileuri'
 
 export default class AccountUtil {
   // 错误处理
@@ -121,7 +120,7 @@ export default class AccountUtil {
 
   static ISHasAvatar(avatarPath: string): ResourceStr {
     try {
-      return fileIo.accessSync(avatarPath) ? fileUri.getUriFromPath(avatarPath) : ''
+      return fileIo.accessSync(avatarPath) ? PathUtils.pathToUri(avatarPath) : ''
     } catch (error) {
       return ''
     }

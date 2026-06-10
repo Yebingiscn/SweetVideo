@@ -1,5 +1,5 @@
 import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
-import { AVPlayerController } from '../../controller/AVPlayerController'
+import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import { PathUtils } from '../../utils/PathUtils'
 import TimeUtil from '../../utils/TimeUtil'

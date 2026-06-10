@@ -6,7 +6,7 @@ import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { systemShare } from '@kit.ShareKit'
 import { uniformTypeDescriptor } from '@kit.ArkData'
-import { fileIo, fileUri } from '@kit.CoreFileKit'
+import { fileIo } from '@kit.CoreFileKit'
 import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { LengthMetrics } from '@kit.ArkUI'
 
@@ -117,6 +117,7 @@ export struct CrashPage {
                 .key((_item: SalmonLogLine, index: number) => index.toString())
                 .virtualScroll()
             }
+            .chainAnimation(true)
             .onAppear(() => {
               setTimeout(() => {
                 const targetIndex = salmonLogger.logs.length - 1
@@ -188,6 +189,7 @@ export struct CrashPage {
           .borderRadius(16)
           .padding({ left: 8, right: 8 })
           .scrollBar(BarState.Auto)
+          .chainAnimation(true)
         }
 
         Button('分享给开发者')
@@ -324,7 +326,7 @@ export struct CrashPage {
       salmonLogger.addLog(this.pathStack.getAllPathName()[0], '文件写入完成: ' + filePathString, false)
       let shareData = new systemShare.SharedData({
         utd: uniformTypeDescriptor.UniformDataType.PLAIN_TEXT,
-        uri: fileUri.getUriFromPath(filePath),
+        uri: PathUtils.pathToUri(filePath),
         title: fileName,
         description: '流心播放器日志'
       })

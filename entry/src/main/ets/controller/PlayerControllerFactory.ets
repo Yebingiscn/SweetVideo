@@ -1,7 +1,8 @@
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
-import { AVPlayerController } from './AVPlayerController'
+import { AVPlayerController } from './AVPlayerController/AVPlayerController'
 import { MpvController } from './MpvController/MpvController'
 import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
+import { window } from '@kit.ArkUI'
 
 // 产品接口 interface
 export interface PlayerControllerInterface {
@@ -57,9 +58,11 @@ export interface PlayerControllerInterface {
 
   setExternalSubtitle(nowPlaying: VideoMetadata): void
 
-  playNextVideoProcess(pathStack: NavPathStack): void
+  playNextVideoProcess(pathStack: NavPathStack, windowClass?: Promise<window.Window | undefined>,
+    xComponentController?: XComponentController): void
 
-  playChooseVideo(item: VideoMetadata, pathStack: NavPathStack): void
+  playChooseVideo(item: VideoMetadata, pathStack: NavPathStack,
+    windowClass?: Promise<window.Window | undefined>, xComponentController?: XComponentController): void
 }
 
 // 真正的工厂 controller

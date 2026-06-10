@@ -9,7 +9,7 @@ import { DELAY_JUMP_TO_PLAYER } from '../common/Constants'
 import { VideoItemBuilder } from '../component/PlayerComponent/PlayerSideBarComponent'
 import { VideoItemPreviewBuilder } from '../component/VideoItemComponent/VideoItemPreviewBuilder'
 import DataSyncUtil from '../utils/DataSyncUtil'
-import { Setting, SafeHeight } from '../utils/ObservedUtil'
+import { SafeHeight, Setting } from '../utils/ObservedUtil'
 import RecentPlayUtil from '../utils/RecentPlayUtil'
 import SelectFileUtil from '../utils/SelectFileUtil'
 import ToolsUtil from '../utils/ToolsUtil'
@@ -21,11 +21,6 @@ import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
 export struct RecentPlay { // 最近播放页
   @Local videoDataSource: VideoDataSource = new VideoDataSource([])
   @Local recent_video_meta_data: VideoMetadata[] = []
-  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
-  VideoDetailDialog: CustomDialogController = new CustomDialogController({
-    builder: VideoDetailDialog(), cornerRadius: 20,
-    shadow: DefaultDialogShadow
-  })
   deleteAllConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog({
       textInfo: '确定清空所有播放记录吗？',
@@ -35,6 +30,11 @@ export struct RecentPlay { // 最近播放页
         }
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
+  VideoDetailDialog: CustomDialogController = new CustomDialogController({
+    builder: VideoDetailDialog(), cornerRadius: 20,
+    shadow: DefaultDialogShadow
   })
   private pendingDeleteItem: VideoMetadata | null = null
   deleteConfirmDialog: CustomDialogController = new CustomDialogController({
@@ -122,21 +122,27 @@ export struct RecentPlay { // 最近播放页
             .width('100%')
         }
 
-        List({ scroller: this.listScroller, space: 10 }) {
+        List({ scroller: this.listScroller, space: 6 }) {
           Repeat<VideoMetadata>(this.videoDataSource.data)
             .each((repeatItem: RepeatItem<VideoMetadata>) => {
               ListItem() {
-                VideoItemBuilder({ item: repeatItem.item, showProgress: true })
+                VideoItemBuilder({ item: repeatItem.item })
               }
               .onClick(async () => {
                 await this.clickItem(repeatItem.item,
                   VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
               })
-              .backgroundColor($r('app.color.start_window_background'))
+              .backgroundColor($r('app.color.list_item_background'))
               .width('100%')
               .height('auto')
               .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
               .borderRadius(16)
+              .shadow({
+                radius: 4,
+                color: $r('app.color.shadow_color'),
+                offsetX: 0,
+                offsetY: 1
+              })
               .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress,
                 {
                   preview: VideoItemPreviewBuilder(repeatItem.item),
@@ -172,7 +178,7 @@ export struct RecentPlay { // 最近播放页
         }
         .clip(false)
         .layoutWeight(1)
-        .padding({ left: 20, right: 20 })
+        .padding({ left: 12, right: 12 })
         .width('100%')
         .height('100%')
         .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果

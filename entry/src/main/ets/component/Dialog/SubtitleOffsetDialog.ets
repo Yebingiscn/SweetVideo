@@ -20,49 +20,6 @@ export struct SubtitleOffsetDialog {
     this.inputText = currentOffset.toString()
   }
 
-  private getCurrentValueForStep(): number {
-    const currentInput = this.getParsedValue()
-    if (!Number.isNaN(currentInput)) {
-      return currentInput
-    }
-    return this.getCurrentValue ? this.getCurrentValue() : 0
-  }
-
-  private stepBy(delta: number): void {
-    const nextValue = this.getCurrentValueForStep() + delta
-    this.inputText = nextValue.toString()
-    this.onOffsetPreview?.(nextValue)
-  }
-
-  private resetValue(): void {
-    this.inputText = '0'
-    this.onOffsetPreview?.(0)
-  }
-
-  private setOffsetValue(nextOffset: number | undefined): void {
-    if (nextOffset === undefined || Number.isNaN(nextOffset)) {
-      return
-    }
-    this.inputText = nextOffset.toString()
-    this.onOffsetPreview?.(nextOffset)
-  }
-
-  private moveToPrevSubtitle(): void {
-    this.setOffsetValue(this.onPrevSubtitle?.(this.getCurrentValueForStep()))
-  }
-
-  private moveToNextSubtitle(): void {
-    this.setOffsetValue(this.onNextSubtitle?.(this.getCurrentValueForStep()))
-  }
-
-  private getParsedValue(): number {
-    const value = this.inputText.trim()
-    if (value.length === 0 || value === '-' || value === '+') {
-      return Number.NaN
-    }
-    return parseInt(value, 10)
-  }
-
   build() {
     Column({ space: 8 }) {
       Text(this.title)
@@ -233,5 +190,48 @@ export struct SubtitleOffsetDialog {
       left: 15,
       right: 15
     })
+  }
+
+  private getCurrentValueForStep(): number {
+    const currentInput = this.getParsedValue()
+    if (!Number.isNaN(currentInput)) {
+      return currentInput
+    }
+    return this.getCurrentValue ? this.getCurrentValue() : 0
+  }
+
+  private stepBy(delta: number): void {
+    const nextValue = this.getCurrentValueForStep() + delta
+    this.inputText = nextValue.toString()
+    this.onOffsetPreview?.(nextValue)
+  }
+
+  private resetValue(): void {
+    this.inputText = '0'
+    this.onOffsetPreview?.(0)
+  }
+
+  private setOffsetValue(nextOffset: number | undefined): void {
+    if (nextOffset === undefined || Number.isNaN(nextOffset)) {
+      return
+    }
+    this.inputText = nextOffset.toString()
+    this.onOffsetPreview?.(nextOffset)
+  }
+
+  private moveToPrevSubtitle(): void {
+    this.setOffsetValue(this.onPrevSubtitle?.(this.getCurrentValueForStep()))
+  }
+
+  private moveToNextSubtitle(): void {
+    this.setOffsetValue(this.onNextSubtitle?.(this.getCurrentValueForStep()))
+  }
+
+  private getParsedValue(): number {
+    const value = this.inputText.trim()
+    if (value.length === 0 || value === '-' || value === '+') {
+      return Number.NaN
+    }
+    return parseInt(value, 10)
   }
 }

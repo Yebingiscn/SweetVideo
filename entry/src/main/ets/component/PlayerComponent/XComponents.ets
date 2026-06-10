@@ -1,13 +1,13 @@
-import { KeyCode } from '@kit.InputKit'
 import { salmonLogger } from 'salmonlogger'
 import { OPTIONS } from '../../common/Constants'
 import NavigationAddress from '../../common/NavigationCommon'
-import { AVPlayerController } from '../../controller/AVPlayerController'
+import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import { MpvDecodingMethod } from '../../controller/MpvController/MpvTypes'
 import { Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import { WindowUtil } from '../../utils/WindowUtil'
+import { KeyCode } from '@kit.InputKit'
 
 const TAG = 'XComponents'
 
@@ -21,13 +21,20 @@ export struct XComponents {
   @Param xComponentId: string | undefined = undefined
   @Param libraryName: string | undefined = undefined
   @Param barState: boolean = false
-  @Event onXComponentLoad: () => void = () => {}
-  @Event onKeyCodeSpace: () => void = () => {}
-  @Event onKeyCodeEscape: () => void = () => {}
-  @Event onKeyCodeRight: () => void = () => {}
-  @Event onKeyCodeLeft: () => void = () => {}
-  @Event onKeyCodeUpAndDown: (_event: KeyEvent) => void = () => {}
-  @Event onOsdSurfaceLoad: (_surfaceId: string) => void = () => {}
+  @Event onXComponentLoad: () => void = () => {
+  }
+  @Event onKeyCodeSpace: () => void = () => {
+  }
+  @Event onKeyCodeEscape: () => void = () => {
+  }
+  @Event onKeyCodeRight: () => void = () => {
+  }
+  @Event onKeyCodeLeft: () => void = () => {
+  }
+  @Event onKeyCodeUpAndDown: (_event: KeyEvent) => void = () => {
+  }
+  @Event onOsdSurfaceLoad: (_surfaceId: string) => void = () => {
+  }
 
   build() {
     Stack() {
@@ -74,11 +81,12 @@ export struct XComponents {
         this.onKeyCodeUpAndDown(event)
       }
     })
-    .width(this.player.playAreaWidth)
-    .height(this.player.playAreaHeight)
-    .animation({ duration: this.player.playTime > 300 ? 300 : 0, curve: Curve.Ease })
-    .rotate({ y: 2, angle: this.player.angle, perspective: 200 })
-    .translate({ x: this.player.translateX, y: this.player.translateY })
+    .width(this.player?.playAreaWidth ?? '100%')
+    .height(this.player?.playAreaHeight ?? '100%')
+    .animation(this.player?.isGesturing ? undefined :
+      { duration: (this.player?.playTime ?? 0) > 300 ? 300 : 0, curve: Curve.Ease })
+    .rotate({ y: 2, angle: this.player?.angle ?? 0, perspective: 200 })
+    .translate({ x: this.player?.translateX ?? 0, y: this.player?.translateY ?? 0 })
   }
 
   @Monitor('barState')
@@ -94,8 +102,10 @@ export struct MpvXComponent {
   @Param libraryName: string | undefined = undefined
   @Param osdXController: XComponentController | undefined = undefined
   @Param osdVisibility: boolean = false
-  @Event onMpvXComponent: () => void = () => {}
-  @Event onOsdSurfaceLoad: (_surfaceId: string) => void = () => {}
+  @Event onMpvXComponent: () => void = () => {
+  }
+  @Event onOsdSurfaceLoad: (_surfaceId: string) => void = () => {
+  }
 
   build() {
     Column() {
@@ -144,8 +154,8 @@ export struct MpvXComponent {
 @ComponentV2
 export struct AVPlayerXComponent {
   @Param xComponentController: XComponentController | undefined = undefined
-  @Event onAVPlayerComponentLoad: () => void = () => {}
-
+  @Event onAVPlayerComponentLoad: () => void = () => {
+  }
 
   build() {
     XComponent({

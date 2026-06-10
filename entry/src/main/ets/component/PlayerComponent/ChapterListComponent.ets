@@ -1,6 +1,6 @@
-import { MpvChapter } from '../../controller/MpvController/MpvTypes'
 import { MpvController } from '../../controller/MpvController/MpvController'
-import { AVPlayerController } from '../../controller/AVPlayerController'
+import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
+import { MpvChapter } from '../../controller/MpvController/MpvTypes'
 import TimeUtil from '../../utils/TimeUtil'
 
 @ComponentV2

@@ -22,7 +22,7 @@ export const VOLUME_PAN_MULTIPLIER: number = 20 // 音量手势调整倍率
 
 export const SCREEN_HALF_DIVIDER: number = 2 // 屏幕对半分界
 
-export const PINCH_SCALE_SENSITIVITY = 0.007 // 捏合缩放的敏感度
+export const PINCH_SCALE_SENSITIVITY = 0.5 // 捏合缩放的敏感度
 
 export const MIN_SCALE_FACTOR = 0.5 // 最小缩放比例
 

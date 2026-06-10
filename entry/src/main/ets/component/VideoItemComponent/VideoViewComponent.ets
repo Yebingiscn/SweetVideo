@@ -10,27 +10,27 @@ import {
   SymbolGlyphFancyModifier
 } from '../../common/AttributeModifierConfig'
 import { PathUtils } from '../../utils/PathUtils'
-import SelectFileUtil from '../../utils/SelectFileUtil'
-import ToolsUtil from '../../utils/ToolsUtil'
-import { SymbolGlyphModifier } from '@kit.ArkUI'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import { FileFolderDataSource } from '../../utils/DataUtil'
-import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu'
-import { MaskComponent } from '../SideBarComponent/MaskComponent'
-import { SearchComponent } from './SearchComponent'
-import { FolderOperator } from '../../database/VideoMetaData'
 import VideoUtils from '../../utils/VideoUtil'
 import FileFolderUtil from '../../utils/FileFolderUtil'
-import NavigationAddress from '../../common/NavigationCommon'
-import Preferences from '../../database/Preferences'
-import { XAnimation } from '../../utils/AnimationUtil'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
-import { SafeHeight, Setting } from '../../utils/ObservedUtil'
-import { SortComponent } from './SortComponent'
-import { DebounceUtil } from '../../utils/DebounceUtil'
 import { BatchVideoDeleteDialog } from '../Dialog/BatchVideoDeleteDialog'
 import { DeleteType } from '../../common/enum/DeleteType'
 import { SortField } from '../../common/enum/SortField'
+import NavigationAddress from '../../common/NavigationCommon'
+import Preferences from '../../database/Preferences'
+import { FolderOperator } from '../../database/VideoMetaData'
+import { XAnimation } from '../../utils/AnimationUtil'
+import { DebounceUtil } from '../../utils/DebounceUtil'
+import { Setting, SafeHeight } from '../../utils/ObservedUtil'
+import SelectFileUtil from '../../utils/SelectFileUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu'
+import { MaskComponent } from '../SideBarComponent/MaskComponent'
+import { SearchComponent } from './SearchComponent'
+import { SortComponent } from './SortComponent'
+import { SymbolGlyphModifier } from '@kit.ArkUI'
 
 @ComponentV2
 export struct VideoView {
@@ -369,7 +369,6 @@ export struct VideoView {
     .scrollable(ScrollDirection.Horizontal)
     .edgeEffect(EdgeEffect.Spring)
   }
-
 
   private handleSort(field: SortField, defaultAsc: boolean) {
     if (this.currentSortField === field) {

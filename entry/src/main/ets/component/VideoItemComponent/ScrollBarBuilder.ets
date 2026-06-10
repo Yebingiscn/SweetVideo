@@ -1,5 +1,5 @@
-import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
-import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { SymbolGlyphFancyModifier, ButtonFancyModifier } from "../../common/AttributeModifierConfig"
+import { SafeHeight, Setting } from "../../utils/ObservedUtil"
 
 export class ScrollBarBuilderValue {
   videoListController: Scroller | null = null

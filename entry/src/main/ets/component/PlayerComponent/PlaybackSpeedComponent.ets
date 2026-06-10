@@ -1,38 +1,61 @@
-import { AVPlayerController } from '../../controller/AVPlayerController'
-import { MpvController } from '../../controller/MpvController/MpvController'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
+import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
+import { MpvController } from '../../controller/MpvController/MpvController'
 
 @ComponentV2
 export struct PlaybackSpeedMenuComponent {
   @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  private speedList: number[] = VideoInfoUtil.videoSpeedListAll
+  private scroller: Scroller = new Scroller()
   @Event onSpeedChange: (_speed: number) => void = () => {
   }
 
+  aboutToAppear(): void {
+    setTimeout(() => {
+      const currentIndex = this.speedList.findIndex(speed => speed === this.player.speed)
+      if (currentIndex >= 0) {
+        this.scroller.scrollToIndex(currentIndex)
+      }
+    }, 50)
+  }
+
   build() {
-    Row() {
-      Text(`${this.player.speed}x`)
-        .fontColor($r('app.color.main_color'))
-        .width(50)
-        .textAlign(TextAlign.Center)
-      Slider({
-        value: this.player.speed,
-        min: VideoInfoUtil.videoSpeedListAll[0],
-        max: VideoInfoUtil.videoSpeedListAll[VideoInfoUtil.videoSpeedListAll.length - 1],
-        step: 0.25,
-        style: SliderStyle.NONE,
-        direction: Axis.Horizontal,
-        reverse: false
-      })
-        .trackBorderRadius(16)
-        .selectedColor($r('app.color.main_color'))
-        .enableHapticFeedback(true)
-        .width(160)
-        .height(40)
-        .trackThickness(40)
-        .selectedBorderRadius(16)
-        .onChange((value) => {
-          this.onSpeedChange(value)
+    List({ space: 2, scroller: this.scroller }) {
+      Repeat<number>(this.speedList)
+        .each((repeatItem: RepeatItem<number>) => {
+          ListItem() {
+            Row() {
+              Text(`${repeatItem.item}x`)
+                .fontSize(16)
+                .height(36)
+                .layoutWeight(1)
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.MARQUEE })
+                .textAlign(TextAlign.Center)
+                .fontColor(repeatItem.item === this.player.speed ? $r('sys.color.white') :
+                  $r('app.color.text_color'))
+            }
+            .width('100%')
+            .padding({
+              left: 8,
+              right: 8,
+              top: 4,
+              bottom: 4
+            })
+            .backgroundColor(repeatItem.item === this.player.speed ? $r('app.color.main_color') : Color.Transparent)
+            .borderRadius(16)
+            .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+            .onClick(() => {
+              this.onSpeedChange(repeatItem.item)
+            })
+          }
         })
+        .key((item: number, _index: number) => item.toString()).virtualScroll()
     }
+    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+    .chainAnimation(true)
+    .scrollBar(BarState.Off)
+    .width(100)
+    .height('50%')
   }
 }

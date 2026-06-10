@@ -1,6 +1,6 @@
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { PlayerSideBarSource } from '../../utils/DataUtil'
-import { AVPlayerController } from '../../controller/AVPlayerController'
+import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
 import { CoverLayoutMode } from '../../common/enum/DisplayMode'
@@ -9,7 +9,6 @@ import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { VideoInfoBuilder } from '../VideoItemComponent/VideoInfoBuilder'
-import { fileUri } from '@kit.CoreFileKit'
 
 @ComponentV2
 export struct PlayerSideBarComponent {
@@ -44,17 +43,16 @@ export struct PlayerSideBarComponent {
   }
 
   build() {
-    List({ scroller: this.listScroller, space: 10 }) {
+    List({ scroller: this.listScroller, space: 6 }) {
       Repeat<VideoMetadata>(this.playerSideBarSource.data)
         .each((repeatItem: RepeatItem<VideoMetadata>) => {
           ListItem() {
             VideoItemBuilder({
               item: repeatItem.item,
               nowPlaying: this.player.nowPlaying,
-              showProgress: false
             })
           }
-          .padding({ top: repeatItem.index === 0 ? 10 : 0 })
+          .padding({ top: repeatItem.index === 0 ? 6 : 0 })
           .borderRadius(16)
           .onClick(() => {
             if (this._sideBarStatusTmp === Visibility.Hidden) {
@@ -85,19 +83,22 @@ export struct PlayerSideBarComponent {
     .visibility(this._sideBarStatusTmp)
     .width('100%')
     .height('100%')
-    .backgroundColor($r('app.color.start_window_background'))
+    .backgroundColor($r('app.color.sidebar_background_color'))
     .padding({
-      left: 10,
-      right: 5,
+      left: 8,
+      right: 8,
       top: SafeHeight.topSafeHeight,
     })
-    .transition(TransitionEffect.translate({ x: 300 }).animation(XAnimation.getAnimationCurve()))
+    .transition(TransitionEffect.translate({ x: 300 })
+      .combine(TransitionEffect.OPACITY)
+      .animation(XAnimation.getAnimationCurve()))
     .borderRadius(16)
   }
 
   @Monitor('_sideBarStatusTmp')
   onSideBarVisibleChange() {
     if (this._sideBarStatusTmp === Visibility.Visible) {
+      this.playerSideBarSource.updateData(this.player.videoMetaDataList)
       setTimeout(() => {
         const targetIndex = this.player.videoMetaDataList.findIndex(
           item => item?.date === this.player.nowPlaying?.date
@@ -122,21 +123,19 @@ export struct PlayerSideBarComponent {
 class VideoItemValue {
   item: VideoMetadata | undefined = undefined
   nowPlaying?: VideoMetadata | undefined = undefined
-  longPressPreview?: boolean = false
-  showProgress: boolean = false
 }
 
 @Builder
 export function VideoItemBuilder(videoItemValue: VideoItemValue) {
   Row() {
-    Image(fileUri.getUriFromPath(PathUtils.coverPath + videoItemValue.item?.date))
+    Image(PathUtils.coverUri(videoItemValue.item?.date ?? ''))
       .attributeModifier(new ImageFancyModifier(16, Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 75 : 100,
         Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 100 : 75))
     Column() {
       Text(VideoInfoUtil.getVideoTitle(videoItemValue.item!))
         .fontSize(16)
         .fontWeight(FontWeight.Bold)
-        .maxLines(4)
+        .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .width('100%')
         .margin({ left: 5 })
@@ -146,21 +145,33 @@ export function VideoItemBuilder(videoItemValue: VideoItemValue) {
 
       VideoInfoBuilder({
         item: videoItemValue.item,
-        showProgress: videoItemValue.showProgress,
         nowPlaying: videoItemValue.nowPlaying
       })
     }.alignItems(HorizontalAlign.Start)
-    .padding({ left: 15, right: 15 })
+    .padding({ left: 12, right: 12 })
     .layoutWeight(1)
   }
   .backgroundColor(
-    videoItemValue.longPressPreview
-      ? $r('app.color.start_window_background_blur')
-      : videoItemValue.nowPlaying && videoItemValue.nowPlaying?.date === videoItemValue.item?.date
+    videoItemValue.nowPlaying && videoItemValue.nowPlaying?.date === videoItemValue.item?.date
       ? $r('app.color.main_color')
-      : $r('app.color.start_window_background')
+      : $r('app.color.list_item_background')
   )
   .justifyContent(FlexAlign.Center)
   .width('100%')
   .borderRadius(16)
+  .shadow(
+    videoItemValue.nowPlaying && videoItemValue.nowPlaying?.date === videoItemValue.item?.date
+      ? {
+      radius: 8,
+      color: '#3315559a',
+      offsetX: 0,
+      offsetY: 2
+    }
+      : {
+      radius: 4,
+      color: $r('app.color.shadow_color'),
+      offsetX: 0,
+      offsetY: 1
+    }
+  )
 }

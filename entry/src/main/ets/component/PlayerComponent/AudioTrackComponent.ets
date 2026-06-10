@@ -1,7 +1,7 @@
 import { AudioTrack } from '../../interfaces/AudioTrackInterface'
 import { AudioTrackSource } from '../../utils/DataUtil'
 import { MpvAudioTrack } from '../../controller/MpvController/MpvTypes'
-import { AVPlayerController } from '../../controller/AVPlayerController'
+import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
@@ -144,9 +144,15 @@ export struct AudioTrackComponent {
                 .width(95)
             }
           }
-          .padding(5)
+          .padding({
+            left: 8,
+            right: 8,
+            top: 4,
+            bottom: 4
+          })
           .width('100%')
-          .backgroundColor(this.player.audioTrackSelected === repeatItem.index ? $r('app.color.main_color') : '')
+          .backgroundColor(
+            this.player.audioTrackSelected === repeatItem.index ? $r('app.color.main_color') : Color.Transparent)
           .borderRadius(16)
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .onClick(() => {

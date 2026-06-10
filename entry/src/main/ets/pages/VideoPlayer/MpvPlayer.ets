@@ -18,7 +18,9 @@ import { GestureComponent } from '../../component/PlayerComponent/GestureCompone
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { window } from '@kit.ArkUI'
-import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode'
+import { SubtitleManager } from '../../utils/SubtitleManager'
+import SubtitleUtil from '../../utils/SubtitleUtil'
+import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import { XComponents } from '../../component/PlayerComponent/XComponents'
 import { SubtitleDisplayBuilder } from '../../component/PlayerComponent/SubtitleDisplayBuilder'
 import { VideoLayoutComponent } from '../../component/PlayerComponent/VideoLayoutComponent'
@@ -48,13 +50,13 @@ import { salmonLogger } from 'salmonlogger'
 import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
 import { AudioTrackComponent } from '../../component/PlayerComponent/AudioTrackComponent'
 import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder'
+import { ChapterListComponent } from '../../component/PlayerComponent/ChapterListComponent'
 import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent'
 import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent'
 import { VideoButtonsComponent } from '../../component/PlayerComponent/VideoButtonsComponent'
 import { VideoSettingComponent } from '../../component/PlayerComponent/VideoSettingComponent'
 import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent'
 import { VideoTopComponent } from '../../component/PlayerComponent/VideoTopComponent'
-import { ChapterListComponent } from '../../component/PlayerComponent/ChapterListComponent'
 import Preferences from '../../database/Preferences'
 
 const TAG = 'MpvPlayer'
@@ -63,7 +65,6 @@ const TAG = 'MpvPlayer'
 export struct MpvPlayer {
   xComponentController: XComponentController = new XComponentController()
   osdXController: XComponentController = new XComponentController()
-  @Local subtitleVisibility: Visibility = Visibility.Visible
   @Local subtitleAreaWidth: number = 0
   @Local subtitleAreaHeight: number = 0
   @Local lockRotation: boolean = false
@@ -85,11 +86,28 @@ export struct MpvPlayer {
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @Local isAIAsrShown: boolean = false
+  subtitleManager: SubtitleManager = new SubtitleManager(this.mpv)
+  @Local subtitlePreferenceRestored: boolean = false
   @Local currentSpeedIndex: number = 0
+
+  @Monitor('mpv.subtitleSelected')
+  onSubtitleSelectedChange() {
+    this.subtitleManager.subtitleMode = this.mpv.subtitleSelected
+    if (!this.subtitlePreferenceRestored) {
+      const nowPlaying = this.mpv.nowPlaying
+      if (nowPlaying && SubtitleUtil.hasSubtitlePreferenceMetadata(nowPlaying)) {
+        if (nowPlaying.subtitle_3d_mode !== undefined &&
+          [Subtitle3DMode.DISABLED, Subtitle3DMode.SIDE_BY_SIDE, Subtitle3DMode.TOP_AND_BOTTOM]
+            .includes(nowPlaying.subtitle_3d_mode)) {
+          this.subtitleManager.subtitle3DMode = nowPlaying.subtitle_3d_mode as Subtitle3DMode
+        }
+      }
+      this.subtitlePreferenceRestored = true
+    }
+    this.subtitleManager.syncMpvSubtitleVisibility()
+  }
   @Local sideBarStatus: boolean = false
   @Local sideBarStatusTmp: Visibility = Visibility.Hidden
-  @Local subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
   @Local exitVideoTime: number = 0
 
   async aboutToAppear(): Promise<void> {
@@ -121,9 +139,9 @@ export struct MpvPlayer {
     try {
       this.mpv.audioVolumeManager?.off('streamVolumeChange')
       this.mpv.audioVolumeManager = null
-      ToolsUtil.addLogger("取消音量变化监听完成", false, this.pathStack)
+      salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "取消音量变化监听完成", false)
     } catch (error) {
-      ToolsUtil.addLogger(`音量监听取消错误 ${error}`, true, this.pathStack)
+      salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, `音量监听取消错误 ${error}`, true)
     }
   }
 
@@ -196,8 +214,8 @@ export struct MpvPlayer {
             screenWidth: this.mpv.screenWidth,
             screenHeight: this.mpv.screenHeight,
             showControl: this.mpv.showControl,
-            subTitleVisibility: this.subtitleVisibility,
-            subtitle3DMode: this.subtitle3DMode,
+            subTitleVisibility: this.subtitleManager.subtitleVisibility,
+            subtitle3DMode: this.subtitleManager.effective3DMode,
             areaWidth: this.subtitleAreaWidth,
             areaHeight: this.subtitleAreaHeight
           })
@@ -228,8 +246,8 @@ export struct MpvPlayer {
               isSliderPlayTimeChange: this.mpv.isSliderPlayTimeChange,
               playTime: this.mpv.playTime,
               totalTime: this.mpv.nowPlaying!.time,
-              pixelMap: null,
-              player: NavigationAddress.MPV_PLAYER
+              pixelMap: this.mpv.pixelMap,
+
             })
           }
           VolumeSwipingPanelBuilder({
@@ -274,74 +292,69 @@ export struct MpvPlayer {
               VideoOperateUtil.leftSideSwipe = tapX < this.mpv.screenWidth / SCREEN_HALF_DIVIDER
               VideoOperateUtil.screenBrightnessTmp = this.mpv.screenBrightness
               this.mpv.volume = this.mpv.volumeActually
-              VideoOperateUtil.lastVolume = this.mpv.volume // 记录起始音量
+              VideoOperateUtil.lastVolume = this.mpv.volume
+              if (VideoOperateUtil.leftSideSwipe) {
+                this.mpv.onSwipingBrightness = true
+              } else {
+                this.mpv.onSwipingVoice = true
+              }
             },
             onVerticalPanUpdate: (offsetY: number) => {
               const deltaYScale = offsetY / this.mpv.screenHeight * VERTICAL_PAN_SENSITIVITY
               if (VideoOperateUtil.leftSideSwipe) {
-                XAnimation.runWithAnimation(() => {
-                  this.mpv.onSwipingBrightness = true
-                })
                 this.mpv.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
                 VideoOperateUtil.setBrightness(this.mpv.screenBrightness)
               } else {
-                XAnimation.runWithAnimation(() => {
-                  this.mpv.onSwipingVoice = true
-                })
                 const newVolume = VideoOperateUtil.lastVolume - deltaYScale * VOLUME_PAN_MULTIPLIER
                 this.mpv.volume =
                   Math.min(Math.max(newVolume, VideoOperateUtil.minVolume), VideoOperateUtil.maxVolume)
               }
             },
             onVerticalPanEnd: () => {
-              XAnimation.runWithAnimation(() => {
-                this.mpv.onSwiping = false
-                this.mpv.onSwipingVoice = false
-                this.mpv.onSwipingBrightness = false
-              })
+              this.mpv.onSwiping = false
+              this.mpv.onSwipingVoice = false
+              this.mpv.onSwipingBrightness = false
             },
             onHorizonPanStart: () => {
               VideoOperateUtil.lastPlayTime = this.mpv.playTime
-              XAnimation.runWithAnimation(() => {
-                this.mpv.onSwiping = true
-              })
+              this.mpv.onSwiping = true
+              this.mpv.getFrameByTime(this.mpv.playTime, true)
             },
             onHorizonPanUpdate: (offsetX: number) => {
               const timePerPixel = VideoOperateUtil.getTimePixel(this.mpv.screenWidth, this.mpv.nowPlaying?.time!)
               this.mpv.playTime = Math.max(0,
                 Math.min(VideoOperateUtil.lastPlayTime + (offsetX * timePerPixel), this.mpv.nowPlaying?.time!))
+              this.mpv.getFrameByTime(this.mpv.playTime, false)
             },
             onHorizonPanEnd: () => {
               this.mpv.seekTime(this.mpv.playTime)
-              XAnimation.runWithAnimation(() => {
-                this.mpv.onSwiping = false
-              })
+              this.mpv.onSwiping = false
             },
             onPinchStart: (fingerDistance: number) => {
               VideoOperateUtil.initPinchDistance = fingerDistance
+              VideoOperateUtil.initPinchWidth = this.mpv.playAreaWidth
+              VideoOperateUtil.initPinchHeight = this.mpv.playAreaHeight
               this.mpv.translateX = 0
               this.mpv.translateY = 0
+              this.mpv.isGesturing = true
             },
             onPinchUpdate: (fingerDistance: number) => {
               const rawScale = fingerDistance / VideoOperateUtil.initPinchDistance
-              const adjustedScale = 1 + (rawScale - 1) * PINCH_SCALE_SENSITIVITY // 计算调整后的缩放比例
+              const adjustedScale = 1 + (rawScale - 1) * PINCH_SCALE_SENSITIVITY
               const clampedScale = Math.min(Math.max(adjustedScale, MIN_SCALE_FACTOR), MAX_SCALE_FACTOR)
-              const scaledWidth = this.mpv.playAreaWidth * clampedScale // 计算缩放后的播放区域宽度
+              const scaledWidth = VideoOperateUtil.initPinchWidth * clampedScale
               const maxAllowed = VideoInfoUtil.playAreaWidth * MAX_WIDTH_MULTIPLIER
               const minAllowed = VideoInfoUtil.playAreaWidth * MIN_WIDTH_MULTIPLIER
-              if (scaledWidth > maxAllowed || scaledWidth < minAllowed) { // 检查缩放是否超出允许范围
+              if (scaledWidth > maxAllowed || scaledWidth < minAllowed) {
                 return
               }
               this.mpv.playAreaWidth = scaledWidth
-              this.mpv.playAreaHeight = this.mpv.playAreaHeight * clampedScale
+              this.mpv.playAreaHeight = VideoOperateUtil.initPinchHeight * clampedScale
               this.mpv.isZoomed = clampedScale !== 1
-              XAnimation.runWithAnimation(() => {
-                this.mpv.playAreaWidth = this.mpv.playAreaWidth
-                this.mpv.playAreaHeight = this.mpv.playAreaHeight
-              })
             },
             onPinchEnd: () => {
               this.mpv.isZoomed = this.mpv.playAreaWidth !== VideoInfoUtil.playAreaWidth
+              this.mpv.isGesturing = false
             },
             onLongPressAction: () => {
               if (this.mpv.playing) {
@@ -383,6 +396,7 @@ export struct MpvPlayer {
             onPanMoveStart: (event: GestureEvent) => {
               VideoOperateUtil.panStartX = event.fingerList[0]?.localX || 0
               VideoOperateUtil.panStartY = event.fingerList[0]?.localY || 0
+              this.mpv.isGesturing = true
             },
             onPanMoveUpdate: (event: GestureEvent) => {
               const currentX = event.fingerList[0]?.localX || 0
@@ -393,12 +407,15 @@ export struct MpvPlayer {
               this.mpv.translateY += deltaY
               VideoOperateUtil.panStartX = currentX
               VideoOperateUtil.panStartY = currentY
+            },
+            onPanMoveEnd: () => {
+              this.mpv.isGesturing = false
             }
           })
             .hitTestBehavior(HitTestMode.Transparent)
 
           AISubtitleComponent({
-            isAIAsrShown: this.isAIAsrShown,
+            isAIAsrShown: this.subtitleManager.isAIAsrShown,
             showControl: this.mpv.showControl,
             screenHeight: this.mpv.screenHeight,
           })
@@ -439,7 +456,7 @@ export struct MpvPlayer {
     .onWillDisappear(async () => {
       this.exitVideo(false)
       if (this.mpv.videoMetaDataList.length > 0 && this.mpv.playTime > 0) {
-        VideoOperateUtil.saveVideoTime(this.mpv.playTime, this.mpv.nowPlaying!, this.mpv.videoMetaDataList,
+        VideoOperateUtil.saveVideoTime(this.mpv.playTime, this.mpv.nowPlaying!,
           PathUtils.appContext!)
       }
       PermissionUtil.applyStopContinuousTask()
@@ -451,7 +468,7 @@ export struct MpvPlayer {
         await (await this.mpv.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
         await this.mpv.avSession?.stopCasting()
       } catch (error) {
-        ToolsUtil.addLogger(`onWillDisappear中发生错误：${error}`, true, this.pathStack)
+        salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, `onWillDisappear中发生错误：${error}`, true)
       }
     })
     .onBackPressed(() => {
@@ -481,7 +498,7 @@ export struct MpvPlayer {
   @Builder
   VideoTop() {
     VideoTopComponent({
-      subTitleVisibility: this.subtitleVisibility,
+      isAnySubtitleActive: this.subtitleManager.isAnySubtitleActive,
       audioTrackMenuBuilder: () => {
         this.AudioTrackMenuBuilder()
       },
@@ -494,11 +511,12 @@ export struct MpvPlayer {
       lockRotation: this.lockRotation,
       onExitVideoClick: () => {
         this.exitVideo(true)
-        ToolsUtil.addLogger("点击退出视频按钮", false, this.pathStack)
+        salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "点击退出视频按钮", false)
       },
       onLockRotationClick: async () => {
         this.lockRotation = !this.lockRotation
-        ToolsUtil.addLogger(`锁定旋转状态切换为：${this.lockRotation}`, false, this.pathStack)
+        salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, `锁定旋转状态切换为：${this.lockRotation}`,
+          false)
         const orientation = this.lockRotation ?
           (this.mpv.screenWidth > this.mpv.screenHeight ? window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED
             : window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
@@ -506,16 +524,17 @@ export struct MpvPlayer {
         try {
           XAnimation.runWithAnimation(async () => {
             await (await this.mpv.windowClass)?.setPreferredOrientation(orientation)
-            ToolsUtil.addLogger("窗口方向设置成功", false, this.pathStack)
+            salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "窗口方向设置成功", false)
           })
         } catch (error) {
-          ToolsUtil.addLogger(`屏幕旋转异常: ${error.code}:${error.message}`, true, this.pathStack)
+          salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG,
+            `屏幕旋转异常: ${error.code}:${error.message}`, true)
         }
         const toastMessage = this.lockRotation
           ? ToolsUtil.getStringResource($r('app.string.open_rotation_lock').id)
           : ToolsUtil.getStringResource($r('app.string.close_rotation_lock').id)
         ToolsUtil.showToast(toastMessage)
-        ToolsUtil.addLogger(`显示旋转锁定提示：${toastMessage}`, false, this.pathStack)
+        salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, `显示旋转锁定提示：${toastMessage}`, false)
       },
       onSpecificVideoProportions: (playAreaSize: number[]) => {
         this.mpv.playAreaWidth = playAreaSize[0]
@@ -622,7 +641,7 @@ export struct MpvPlayer {
       },
       onPlayNextVideoClick: () => {
         this.mpv.playNextVideoProcess(this.pathStack)
-        ToolsUtil.addLogger("播放下一个视频请求已发送", false, this.pathStack)
+        salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "播放下一个视频请求已发送", false)
       },
       onSideBaClose: () => {
         this.closeSideBar(true)
@@ -638,7 +657,7 @@ export struct MpvPlayer {
     VideoSettingComponent({
       exitVideoTime: this.exitVideoTime,
       forward_80_s: (time: number) => {
-        ToolsUtil.addLogger(`执行快进80秒操作，目标时间：${time}`, false, this.pathStack)
+        salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, `执行快进80秒操作，目标时间：${time}`, false)
         this.mpv.seekTime(time)
       },
       closeAfter15min: (time: number) => {
@@ -698,9 +717,10 @@ export struct MpvPlayer {
   AudioTrackMenuBuilder() {
     AudioTrackComponent({
       onSelect: (index: number) => {
-        ToolsUtil.addLogger(`选择音频轨道，索引：${index}`, false, this.pathStack)
+        salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, `选择音频轨道，索引：${index}`, false)
         this.mpv?.selectAudioTrack(this.mpv?.audioTrack[index]?.id)
         this.mpv.audioTrackSelected = index
+        VideoOperateUtil.saveAudioTrackPreference(this.mpv?.nowPlaying, index, this.mpv?.audioTrack.length ?? 0)
       }
     })
   }
@@ -717,26 +737,7 @@ export struct MpvPlayer {
   @Builder
   SubtitleMenuBuilder() {
     SubtitlePanelComponent({
-      subtitleVisibility: this.subtitleVisibility,
-      isAIAsrShown: this.isAIAsrShown,
-      subtitle3DMode: this.subtitle3DMode,
-      onSubtitle3DModeChange: (v: Subtitle3DMode) => {
-        this.subtitle3DMode = v
-      },
-      onAIAsrClick: () => {
-        this.isAIAsrShown = !this.isAIAsrShown
-        this.subtitleVisibility = Visibility.None
-        this.mpv.subtitleSelected = SubtitleMode.AI_SUBTITLE
-        this.mpv.saveSubtitlePreferenceForCurrentVideo(this.subtitleVisibility, this.isAIAsrShown,
-          this.subtitle3DMode)
-      },
-      onInnerSubtitleClick: () => {
-        this.subtitleVisibility = Visibility.None
-        this.isAIAsrShown = false
-        this.mpv.subtitleSelected = SubtitleMode.INNER_SUBTITLE
-        this.mpv.saveSubtitlePreferenceForCurrentVideo(this.subtitleVisibility, this.isAIAsrShown,
-          this.subtitle3DMode)
-      },
+      subtitleManager: this.subtitleManager,
     })
   }
 

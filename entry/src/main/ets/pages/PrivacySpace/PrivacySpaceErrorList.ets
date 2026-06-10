@@ -7,7 +7,7 @@ import { PathUtils } from '../../utils/PathUtils'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
-import { fileIo, fileUri } from '@kit.CoreFileKit'
+import { fileIo } from '@kit.CoreFileKit'
 
 const TAG = 'PrivacySpaceErrorList'
 
@@ -53,7 +53,7 @@ export struct PrivacySpaceErrorList {
         content: '导出'
       })
         .onClick(async () => {
-          await SelectFileUtil.exportFile(fileUri.getUriFromPath(PathUtils.videoPath + item), item, '',
+          await SelectFileUtil.exportFile(PathUtils.videoUri(item), item, '',
             PathUtils.appContext!)
         })
     }
@@ -63,7 +63,7 @@ export struct PrivacySpaceErrorList {
   @Builder
   VideoItemBuilder(errorVideo: string) {
     Row() {
-      Image(fileUri.getUriFromPath(PathUtils.coverPath + errorVideo))
+      Image(PathUtils.coverUri(errorVideo))
         .attributeModifier(new ImageFancyModifier(16, 80, 120))
       Column() {
         Text(errorVideo)

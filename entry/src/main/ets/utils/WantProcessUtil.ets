@@ -89,7 +89,7 @@ export default class WantProcess {
         })
         let targetVideo: VideoMetadata = {
           uri: WantProcess.receiveWantUri,
-          title: decodeURI(WantProcess.receiveWantUri.split('/')[WantProcess.receiveWantUri.split('/').length-1]),
+          title: decodeURI(WantProcess.receiveWantUri.split('/')[WantProcess.receiveWantUri.split('/').length - 1]),
           date: systemDateTime.getTime(false).toString(),
           size: VideoUtil.getVideoWidthAndHeight(metadata),
           time: parseInt(metadata.duration || '0'),

@@ -53,6 +53,17 @@ export struct PrivacySpace { // 隐私空间页
   @Local videoDataSource: VideoDataSource = new VideoDataSource([])
   @Local video_meta_data_encryption: VideoMetadata[] = []
   @Local allVideos: VideoMetadata[] = [] // 保存完整数据用于搜索
+  @Local list_line: number = 1
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
+  @Local totalItems: number = 0
+  @Local processedItems: number = 0
+  @Local loading: boolean = false
+  @Local currentFileName: string = '' // 当前处理的文件名
+  @Local importSpeed: number = 0 // 处理速度
+  @Local elapsedTime: number = 0 // 已耗时
+  @Local failedCount: number = 0 // 失败文件数
+  @Local currentStage: 'extracting' | 'cover' | 'saving' = 'extracting' // 当前处理阶段
+  @Local searchValue: string = ''
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -101,17 +112,6 @@ export struct PrivacySpace { // 隐私空间页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @Local list_line: number = 1
-  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
-  @Local totalItems: number = 0
-  @Local processedItems: number = 0
-  @Local loading: boolean = false
-  @Local currentFileName: string = '' // 当前处理的文件名
-  @Local importSpeed: number = 0 // 处理速度
-  @Local elapsedTime: number = 0 // 已耗时
-  @Local failedCount: number = 0 // 失败文件数
-  @Local currentStage: 'extracting' | 'cover' | 'saving' = 'extracting' // 当前处理阶段
-  @Local searchValue: string = ''
   @Local is_edit: boolean = false
   @Local currentSortField: SortField | '' = ''
   @Local currentSortAsc: boolean = true
@@ -494,14 +494,6 @@ export struct PrivacySpace { // 隐私空间页
     await SelectFileUtil.deletePrivacyVideo(date, title, this.allVideos)
   }
 
-  @Builder
-  VideoItemBuilder(item: VideoMetadata) {
-    VideoListItem({
-      item: item,
-      delMultipleList: this.delMultipleList
-    }).backgroundColor($r('app.color.start_window_background')).borderRadius(16)
-  }
-
   build() {
     HdsNavDestination() {
       Column() {
@@ -543,7 +535,10 @@ export struct PrivacySpace { // 隐私空间页
                 .each((repeatItem: RepeatItem<VideoMetadata>) => {
                   ListItem() {
                     if (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY) {
-                      this.VideoItemBuilder(repeatItem.item)
+                      VideoListItem({
+                        item: repeatItem.item,
+                        delMultipleList: this.delMultipleList
+                      }).backgroundColor($r('app.color.start_window_background')).borderRadius(16)
                     } else {
                       VideoCardItem({
                         item: repeatItem.item,

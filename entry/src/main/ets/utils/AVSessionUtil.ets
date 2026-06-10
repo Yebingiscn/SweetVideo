@@ -9,8 +9,9 @@ import { Setting } from './ObservedUtil'
 import { PathUtils } from './PathUtils'
 import PermissionUtil from './PermissionUtil'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
+import ToolsUtil from './ToolsUtil'
 import VideoInfoUtil from './VideoInfoUtil'
-import fileIo from '@ohos.file.fs'
+import { fileIo } from '@kit.CoreFileKit'
 import { media } from '@kit.MediaKit'
 
 const TAG = 'AVSessionUtil'
@@ -137,6 +138,9 @@ export default class AVSessionUtil {
   }
 
   static destroySession() {
+    if (!AVSessionUtil.avSession) {
+      return
+    }
     AVSessionUtil.avSession?.destroy()?.catch(() => {
       salmonLogger.addLog(TAG, 'destroy Session error', true)
     })
@@ -203,7 +207,7 @@ export default class AVSessionUtil {
           albumCoverUri: PathUtils.coverPath + now_playing.date,
           albumTitle: '',
           fdSrc: avFileDescriptor,
-          appName: PathUtils.appContext!.resourceManager.getStringSync($r('app.string.EntryAbility_label').id),
+          appName: ToolsUtil.getStringResource(($r('app.string.EntryAbility_label').id))
         }
       }
       // 准备播放，这个不会触发真正的播放，会进行加载和缓冲

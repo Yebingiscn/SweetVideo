@@ -1,6 +1,6 @@
 import NavigationAddress from '../../common/NavigationCommon'
 import Preferences from '../../database/Preferences'
-import DlpAntiPeepUtil from "../../utils/DlpAntiPeepUtil"
+import DlpAntiPeepUtil from '../../utils/DlpAntiPeepUtil'
 import { Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import { SettingsClickItem } from '../SettingComponent/SettingsClickItem'

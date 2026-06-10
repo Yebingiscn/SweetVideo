@@ -1,0 +1,10 @@
+export enum PlayerState {
+  IDLE,
+  LOADING,
+  PREPARING,
+  PLAYING,
+  PAUSED,
+  COMPLETED,
+  RELEASING,
+  ERROR
+}

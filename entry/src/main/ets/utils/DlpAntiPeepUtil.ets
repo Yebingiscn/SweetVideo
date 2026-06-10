@@ -1,11 +1,11 @@
 import { dlpAntiPeep } from '@kit.DeviceSecurityKit'
 import { salmonLogger } from 'salmonlogger'
+import Preferences from '../database/Preferences'
+import { Setting } from './ObservedUtil'
+import { PathUtils } from './PathUtils'
 import { WindowUtil } from './WindowUtil'
 import { window } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
-import { Setting } from './ObservedUtil'
-import Preferences from '../database/Preferences'
-import { PathUtils } from './PathUtils'
 
 const TAG = 'DlpAntiPeepUtil'
 

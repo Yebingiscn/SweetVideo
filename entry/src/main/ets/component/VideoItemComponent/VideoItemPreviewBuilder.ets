@@ -1,4 +1,3 @@
-import { fileUri } from '@kit.CoreFileKit';
 import { ImageFancyModifier } from '../../common/AttributeModifierConfig';
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
 import { PathUtils } from '../../utils/PathUtils';
@@ -9,7 +8,7 @@ import { VideoInfoBuilder } from './VideoInfoBuilder';
 export function VideoItemPreviewBuilder(item: VideoMetadata) {
   Column() {
     // 封面图区域：固定 16:9 宽高比
-    Image(fileUri.getUriFromPath(PathUtils.coverPath + item.date))
+    Image(PathUtils.coverUri(item.date))
       .attributeModifier(new ImageFancyModifier(16, '', ''))
       .width('100%')
       .aspectRatio(16 / 9)
@@ -27,7 +26,7 @@ export function VideoItemPreviewBuilder(item: VideoMetadata) {
       .width('100%')
       .height('auto')
     // 视频信息
-    VideoInfoBuilder({ item: item, showProgress: true })
+    VideoInfoBuilder({ item: item })
   }
   .width('100%')
   .constraintSize({ maxWidth: 360 })

@@ -1,35 +1,26 @@
 import { MenuFancyModifier } from '../../common/AttributeModifierConfig'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
-import { PathUtils } from '../../utils/PathUtils'
 import { SortField } from '../../common/enum/SortField'
+import ToolsUtil from '../../utils/ToolsUtil'
 
 @ComponentV2
 export struct SortComponent {
   @Param currentSortField: SortField | '' = ''
   @Param currentSortAsc: boolean = true
-
   private sortByNameText: string = '按名称排序'
   private sortByDatetimeText: string = '按导入时间排序'
   private sortByTimeText: string = '按时长排序'
-
   @Event onSortByName: () => void = () => {
   }
-
   @Event onSortByTime: () => void = () => {
   }
-
   @Event onSortByDatetime: () => void = () => {
   }
 
   aboutToAppear(): void {
-    try {
-      this.sortByNameText = PathUtils.appContext!.resourceManager.getStringSync($r('app.string.sort_by_name').id)
-      this.sortByDatetimeText =
-        PathUtils.appContext!.resourceManager.getStringSync($r('app.string.sort_by_datetime').id)
-      this.sortByTimeText = PathUtils.appContext!.resourceManager.getStringSync($r('app.string.sort_by_time').id)
-    } catch (e) {
-      // 使用默认值
-    }
+    this.sortByNameText = ToolsUtil.getStringResource($r('app.string.sort_by_name').id)
+    this.sortByDatetimeText = ToolsUtil.getStringResource($r('app.string.sort_by_datetime').id)
+    this.sortByTimeText = ToolsUtil.getStringResource($r('app.string.sort_by_time').id)
   }
 
   build() {

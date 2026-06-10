@@ -52,5 +52,6 @@ export function FileFolderListBuilder(fileFolderListBuilderValue: FileFolderList
   .align(Alignment.Start)
   .padding({ left: 15, right: 15 })
   .attributeModifier(new ButtonFancyModifier('100%', 60))
+  .backgroundColor(Color.Transparent)
   .animation({ duration: 300, curve: Curve.Ease })
 }

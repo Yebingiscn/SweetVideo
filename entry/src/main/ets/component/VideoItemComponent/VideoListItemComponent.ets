@@ -1,6 +1,5 @@
 import { PathUtils } from '../../utils/PathUtils'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
-import { fileUri } from '@kit.CoreFileKit'
 import { ImageFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { VideoListController } from './VideoItemComponent'
@@ -22,7 +21,7 @@ export default struct VideoListItem {
 
   build() {
     Row() {
-      Image(fileUri.getUriFromPath(PathUtils.coverPath + this.item.date))
+      Image(PathUtils.coverUri(this.item.date))
         .attributeModifier(new ImageFancyModifier(16, Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 75 : 100,
           Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 100 : 75))
       Column() {
@@ -43,7 +42,7 @@ export default struct VideoListItem {
           }
         }.padding({ left: 5 })
 
-        VideoInfoBuilder({ item: this.item, showProgress: true })
+        VideoInfoBuilder({ item: this.item })
       }
       .alignItems(HorizontalAlign.Start)
       .padding({ left: 15, right: 15 })

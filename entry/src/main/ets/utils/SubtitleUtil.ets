@@ -39,16 +39,10 @@ export default class SubtitleUtil {
 
   // 存储所有字幕项（已按开始时间排序）
 
-  private static normalizeEnum<T>(value: T | undefined, validValues: T[], defaultValue: T): T {
-    if (value !== undefined && validValues.includes(value)) {
-      return value
-    }
-    return defaultValue
-  }
-
   static normalizeSubtitleMode(subtitleMode?: SubtitleMode): SubtitleMode {
     return SubtitleUtil.normalizeEnum(subtitleMode,
-      [SubtitleMode.EXTERNAL_SUBTITLE, SubtitleMode.AI_SUBTITLE], SubtitleMode.INNER_SUBTITLE)
+      [SubtitleMode.NONE, SubtitleMode.INNER_SUBTITLE, SubtitleMode.EXTERNAL_SUBTITLE, SubtitleMode.AI_SUBTITLE],
+      SubtitleMode.NONE)
   }
 
   static normalizeSubtitle3DMode(subtitle3DMode?: Subtitle3DMode): Subtitle3DMode {
@@ -380,6 +374,13 @@ export default class SubtitleUtil {
       }
     }
     return left
+  }
+
+  private static normalizeEnum<T>(value: T | undefined, validValues: T[], defaultValue: T): T {
+    if (value !== undefined && validValues.includes(value)) {
+      return value
+    }
+    return defaultValue
   }
 
   // 设置字幕数据

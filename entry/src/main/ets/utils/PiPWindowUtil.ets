@@ -1,6 +1,6 @@
 import { PiPWindow } from '@kit.ArkUI'
 import { salmonLogger } from 'salmonlogger'
-import { AVPlayerController } from '../controller/AVPlayerController'
+import { AVPlayerController } from '../controller/AVPlayerController/AVPlayerController'
 import { MpvController } from '../controller/MpvController/MpvController'
 import { PlayerControllerInterface } from '../controller/PlayerControllerFactory'
 import { Setting } from './ObservedUtil'
@@ -12,8 +12,6 @@ import VideoInfoUtil from './VideoInfoUtil'
  */
 const TAG = 'PiPWindowUtil'
 const PIP_BASE_SIZE = 480
-const PIP_DEFAULT_WIDTH = 480
-const PIP_DEFAULT_HEIGHT = 270
 
 class PipContentSize {
   width: number = 0
@@ -50,15 +48,12 @@ export default class PiPWindowUtil {
     }
   }
 
-  private static calculatePipContentSize(videoWidth: number, videoHeight: number): PipContentSize {
-    const size = VideoInfoUtil.calculateAspectRatioSize(videoWidth, videoHeight, PIP_BASE_SIZE)
-    return new PipContentSize(size.width, size.height)
-  }
-
   static updateContentSize() {
     const controller = PiPWindowUtil.playerController as AVPlayerController | MpvController | undefined
-    const videoWidth = controller && controller.nowPlaying && controller.nowPlaying.size[0] ? controller.nowPlaying.size[0] : 0
-    const videoHeight = controller && controller.nowPlaying && controller.nowPlaying.size[1] ? controller.nowPlaying.size[1] : 0
+    const videoWidth =
+      controller && controller.nowPlaying && controller.nowPlaying.size[0] ? controller.nowPlaying.size[0] : 0
+    const videoHeight =
+      controller && controller.nowPlaying && controller.nowPlaying.size[1] ? controller.nowPlaying.size[1] : 0
     const size = PiPWindowUtil.calculatePipContentSize(videoWidth, videoHeight)
     try {
       PiPWindowUtil.pipController?.updateContentSize(size.width, size.height)
@@ -70,8 +65,10 @@ export default class PiPWindowUtil {
   static async createPipController(xComponentController: XComponentController,
     playerController ?: PlayerControllerInterface) {
     const controller = playerController as AVPlayerController | MpvController | undefined
-    const videoWidth = controller && controller.nowPlaying && controller.nowPlaying.size[0] ? controller.nowPlaying.size[0] : 0
-    const videoHeight = controller && controller.nowPlaying && controller.nowPlaying.size[1] ? controller.nowPlaying.size[1] : 0
+    const videoWidth =
+      controller && controller.nowPlaying && controller.nowPlaying.size[0] ? controller.nowPlaying.size[0] : 0
+    const videoHeight =
+      controller && controller.nowPlaying && controller.nowPlaying.size[1] ? controller.nowPlaying.size[1] : 0
     const size = PiPWindowUtil.calculatePipContentSize(videoWidth, videoHeight)
     try {
       PiPWindowUtil.pipController = await PiPWindow.create({
@@ -179,5 +176,10 @@ export default class PiPWindowUtil {
       default:
         break
     }
+  }
+
+  private static calculatePipContentSize(videoWidth: number, videoHeight: number): PipContentSize {
+    const size = VideoInfoUtil.calculateAspectRatioSize(videoWidth, videoHeight, PIP_BASE_SIZE)
+    return new PipContentSize(size.width, size.height)
   }
 }

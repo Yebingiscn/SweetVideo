@@ -21,6 +21,7 @@ export interface VideoMetadata {
   subtitle_3d_mode?: number
   subtitle_offset_millis?: number
   subtitle_track_id?: number
+  audio_track_id?: number
 }
 
 // 保存数据
@@ -38,4 +39,5 @@ export interface SaveOptions {
   subtitle3DMode?: number
   subtitleOffsetMillis?: number
   subtitleTrackId?: number
+  audioTrackId?: number | null
 }

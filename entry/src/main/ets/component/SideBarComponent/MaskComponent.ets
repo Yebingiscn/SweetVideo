@@ -1,6 +1,6 @@
-import { curves } from '@kit.ArkUI'
-import { SideBarController } from './SideBar'
 import { Setting } from '../../utils/ObservedUtil'
+import { SideBarController } from './SideBar'
+import { curves } from '@kit.ArkUI'
 
 class SideBarValue {
   sideBarController: SideBarController | undefined = undefined

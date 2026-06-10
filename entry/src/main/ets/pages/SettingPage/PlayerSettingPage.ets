@@ -116,7 +116,7 @@ export struct PlayerSettingPage {
         ListItem() {
           SettingsSegmentButtonItem({
             symbol: $r('sys.symbol.wand_and_stars'),
-            message: 'MPV 画质增强（surface 模式下不可用）',
+            message: 'MPV 画质增强（Surface 模式下不可用）',
             tips: MpvController.getShaderModeNames(),
             tabSelectedIndex: Setting.mpvShaderMode,
             onButtonClick: (tabSelectedIndex: number) => {

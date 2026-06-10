@@ -1,8 +1,8 @@
 import {
-  SymbolGlyphFancyModifier,
+  SettingsItemModifier,
   SettingsTitleModifier,
-  SettingsItemModifier
-} from "../../common/AttributeModifierConfig"
+  SymbolGlyphFancyModifier
+} from '../../common/AttributeModifierConfig'
 
 @ComponentV2
 export struct SettingsClickItem {
