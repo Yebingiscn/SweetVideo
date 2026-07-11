@@ -4,5 +4,6 @@ import { VideoMetadata } from './VideoMetadataInterface';
 export interface FileFolder {
   name: string,
   date: string,
-  video_list: VideoMetadata[]
+  video_list: VideoMetadata[],
+  parent_date: string | null
 }

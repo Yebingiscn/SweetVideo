@@ -8,6 +8,7 @@ import {
 export struct SettingsClickItem {
   @Param symbol: Resource | undefined = undefined
   @Param message: ResourceStr = ''
+  @Param tag: ResourceStr | undefined = undefined
   @Param showArrow: boolean = true
   @Event onPress: () => void = () => {
   }
@@ -22,12 +23,24 @@ export struct SettingsClickItem {
             SymbolGlyph(this.symbol)
               .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
               .visibility(this.symbol ? Visibility.Visible : Visibility.None)
-          } else {
-            Stack()
           }
           Text(this.message)
             .attributeModifier(new SettingsTitleModifier())
-            .layoutWeight(1)
+            .constraintSize({ maxWidth: '85%' })
+            .textOverflow({ overflow: TextOverflow.MARQUEE })
+          if (this.tag) {
+            Text(this.tag)
+              .fontSize(12)
+              .fontColor(Color.White)
+              .backgroundColor($r('app.color.main_color'))
+              .borderRadius(6)
+              .padding({
+                left: 4,
+                right: 4,
+                top: 1,
+                bottom: 1
+              })
+          }
         }.layoutWeight(1)
 
         if (this.showArrow) {

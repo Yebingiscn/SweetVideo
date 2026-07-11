@@ -1,3 +1,4 @@
+import { SortField } from '../common/enum/SortField'
 import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent'
 import Preferences from '../database/Preferences'
 import { FileFolder } from '../interfaces/FileFolderInterface'
@@ -7,7 +8,6 @@ import { FileFolderDataSource } from './DataUtil'
 import { PathUtils } from './PathUtils'
 import SelectFileUtil from './SelectFileUtil'
 import ToolsUtil from './ToolsUtil'
-import { SortField } from '../common/enum/SortField'
 
 export interface SwitchFolderResult {
   refreshedFolders: FileFolder[]
@@ -21,7 +21,7 @@ export default class VideoUtils {
     fileFolderDataSource.updateData([...folders])
     let currentFolder: FileFolder | undefined
     if (folder) {
-      currentFolder = folders.find(item => item.name === folder.name)
+      currentFolder = folders.find(item => item.date === folder.date)
     } else {
       currentFolder = folders[0]
     }
@@ -34,7 +34,7 @@ export default class VideoUtils {
       const sortField = Preferences.getSortField(PathUtils.appContext!) as SortField
       if (sortField) {
         const sortAsc = Preferences.getSortAsc(PathUtils.appContext!)
-        ToolsUtil.sortBy(PathUtils.appContext!, videos, currentFolder, sortField, sortAsc)
+        videos = ToolsUtil.sortBy(PathUtils.appContext!, videos, currentFolder, sortField, sortAsc)
       }
       videoListController.videoDataSource.updateData(videos)
       videoListController.updateData(videoListController.videoDataSource, currentFolder!)
@@ -58,7 +58,7 @@ export default class VideoUtils {
     }
     const refreshedFolders = Preferences.getFileFolder(PathUtils.appContext!)
     fileFolderSource.updateData(refreshedFolders)
-    const currentFolder = fileFolderSource.getFileFolder(targetFolder.name)
+    const currentFolder = refreshedFolders.find(item => item.date === targetFolder.date)
     if (!currentFolder) {
       return undefined
     }
@@ -69,7 +69,7 @@ export default class VideoUtils {
     const sortField = Preferences.getSortField(PathUtils.appContext!) as SortField
     if (sortField) {
       const sortAsc = Preferences.getSortAsc(PathUtils.appContext!)
-      ToolsUtil.sortBy(PathUtils.appContext!, filteredVideos, currentFolder, sortField, sortAsc)
+      filteredVideos = ToolsUtil.sortBy(PathUtils.appContext!, filteredVideos, currentFolder, sortField, sortAsc)
     }
     XAnimation.runWithAnimation(() => {
       videoListController.videoDataSource.updateData(filteredVideos)

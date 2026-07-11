@@ -1,20 +1,20 @@
 import { PlayerControllerInterface } from '../PlayerControllerFactory';
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
 import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode';
-import { MpvAudioTrack, MpvChapter, MpvDecodingMethod, MpvSubtitleTrack } from './MpvTypes';
+import { MpvAudioChannelMode, MpvAudioTrack, MpvChapter, MpvDecodingMethod, MpvSubtitleTrack } from './MpvTypes';
 import { MpvPlayerState } from './MpvPlayerState';
 import { avSession, avSession as avSessionManager } from '@kit.AVSessionKit';
 import { audio } from '@kit.AudioKit';
 import { WindowUtil } from '../../utils/WindowUtil';
 import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode';
 import { BaseListener } from '../../utils/BaseEventUtil';
-import { salmonLogger } from 'salmonlogger';
 import {
   create as mpvCreate,
   destroy as mpvDestroy,
   getAudioTracks as mpvGetAudioTracks,
   getChapterList as mpvGetChapterList,
   getCurrentSubtitleTrack as mpvGetCurrentSubtitleTrack,
+  getDolbyVisionProfile as mpvGetDolbyVisionProfile,
   getDuration as mpvGetDuration,
   getSubtitleTracks as mpvGetSubtitleTracks,
   getVideoHeight as mpvGetVideoHeight,
@@ -31,6 +31,7 @@ import {
   seek as mpvSeek,
   selectAudio as mpvSelectAudio,
   selectSubtitle as mpvSelectSubtitle,
+  setAudioChannel as mpvSetAudioChannel,
   setBlurayDevice as mpvSetBlurayDevice,
   setDecodeType as mpvSetDecodeType,
   setGlslShaders as mpvSetGlslShaders,
@@ -46,6 +47,8 @@ import {
   unregisterTimeUpdateCallback as mpvUnregisterTimeUpdateCallback,
   unregisterVideoSizeChangedCallback as mpvUnregisterVideoSizeChangedCallback,
 } from 'libmpvnative.so';
+import { window } from '@kit.ArkUI';
+import { salmonLogger } from 'salmonlogger';
 import {
   AUTO_HIDE_SHOW_CONTROL_TIME,
   LEFT_ZONE_DIVISION,
@@ -59,18 +62,15 @@ import AVSessionUtil from '../../utils/AVSessionUtil';
 import IsoFileUtil from '../../utils/IsoFileUtil';
 import { Setting } from '../../utils/ObservedUtil';
 import { PathUtils } from '../../utils/PathUtils';
-import SelectFileUtil from '../../utils/SelectFileUtil';
 import PermissionUtil from '../../utils/PermissionUtil';
 import PiPWindowUtil from '../../utils/PiPWindowUtil';
 import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil';
-
+import SelectFileUtil from '../../utils/SelectFileUtil';
 import SubtitleUtil from '../../utils/SubtitleUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import VideoOperateUtil from '../../utils/VideoOperateUtil';
 import { fileIo, fileUri } from '@kit.CoreFileKit';
-import { window } from '@kit.ArkUI';
-import { JSON } from '@kit.ArkTS';
 
 const TAG = 'MpvController'
 
@@ -132,6 +132,7 @@ export class MpvController implements PlayerControllerInterface {
   @Trace isSliderPlayTimeChange: boolean = false
   @Trace audioTrackSelected: number = 0
   @Trace volumeLoudnessGain: number = 0
+  @Trace audioChannelMode: MpvAudioChannelMode = MpvAudioChannelMode.STEREO
   @Trace chapterList: MpvChapter[] = []
   @Trace lockVisibility: boolean = false
   @Trace longPress: boolean = false
@@ -145,6 +146,7 @@ export class MpvController implements PlayerControllerInterface {
   @Trace translateY: number = 0
   @Trace subtitle: string = ''
   @Trace showControl: boolean = false
+  skipHistory: boolean = false
   @Trace pixelMap: PixelMap | null = null
   avSession: avSessionManager.AVSession | undefined = undefined
   audioVolumeManager: audio.AudioVolumeManager | null = null
@@ -158,6 +160,7 @@ export class MpvController implements PlayerControllerInterface {
   private stateChangeResolvers: Map<string, ((value: void) => void)> = new Map()
   private decodingModeVerifyTimer: number = 0
   private decodingModeSeekTimer: number = 0
+  private smartRotationTimer: number = 0
   private currentPathStack: NavPathStack | null = null
   private activeHwdecMode: MpvDecodingMethod = MpvDecodingMethod.HARDWARE_SURFACE
   private lastFrameFetchTime: number = 0
@@ -189,30 +192,28 @@ export class MpvController implements PlayerControllerInterface {
     return this.playerState === state
   }
 
-  async playChooseVideo(item: VideoMetadata, pathStack: NavPathStack) {
+  async playChooseVideo(item: VideoMetadata, pathStack: NavPathStack,
+    _windowClass?: Promise<window.Window | undefined>, _xComponentController?: XComponentController) {
     this.osdVisibility = false
     salmonLogger.addLog(TAG, "开始播放选择的视频", false)
-    VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying!, PathUtils.appContext!)
+    if (!this.skipHistory) {
+      VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying!, PathUtils.appContext!)
+    }
 
     this.reset()
+    this.audioChannelMode = MpvAudioChannelMode.STEREO
     // 更新播放列表数据，确保使用最新的数据
     if (!PrivacySpaceUtil.getPrivacyMode()) {
-      const folders = Preferences.getFileFolder(PathUtils.appContext!)
-      const currentFolder = folders.find(f =>
-      f.video_list.some(v => v.date === item.date)
-      )
-      if (currentFolder) {
-        this.videoMetaDataList = currentFolder.video_list
-        const latestItem = currentFolder.video_list.find(v => v.date === item.date)
-        if (latestItem) {
-          this.nowPlaying = latestItem
-        } else {
-          this.nowPlaying = item as VideoMetadata
-        }
-        salmonLogger.addLog(TAG, "更新播放列表数据完成", false)
+      const findResult = Preferences.findVideoByDate(PathUtils.appContext!, item.date)
+      const latestItem = findResult[0]
+      const videoList = findResult[1]
+      if (latestItem && videoList.length > 0) {
+        this.videoMetaDataList = videoList
+        this.nowPlaying = latestItem
       } else {
         this.nowPlaying = item as VideoMetadata
       }
+      salmonLogger.addLog(TAG, "更新播放列表数据完成", false)
     } else {
       this.nowPlaying = item as VideoMetadata
     }
@@ -225,7 +226,8 @@ export class MpvController implements PlayerControllerInterface {
     salmonLogger.addLog(TAG, "播放选择视频流程完成", false)
   }
 
-  async playNextVideoProcess(pathStack: NavPathStack) {
+  async playNextVideoProcess(pathStack: NavPathStack, _windowClass?: Promise<window.Window | undefined>,
+    _xComponentController?: XComponentController) {
     salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "开始播放下一个视频流程", false)
     const nextItem = this.playNextVideo(this.repeatMode)
     salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "获取下一个视频项完成", false)
@@ -251,6 +253,7 @@ export class MpvController implements PlayerControllerInterface {
     }
 
     try {
+      this.applyDecodeType()
       this.mpvHandle = mpvCreate()
       if (!this.mpvHandle) {
         salmonLogger.addLog(TAG, '[MpvPlayer] Failed to create mpv instance - handle is null/undefined', true)
@@ -309,6 +312,7 @@ export class MpvController implements PlayerControllerInterface {
       salmonLogger.addLog(TAG,
         `[MpvController] Decode mode mismatch: active=${this.activeHwdecMode}, required=${requiredMode}, recreating instance`,
         true)
+      this.transitionTo(MpvPlayerState.SWITCHING_MODE)
       this.cleanupMpvInstance()
     }
     this.applyDecodeType()
@@ -369,7 +373,10 @@ export class MpvController implements PlayerControllerInterface {
     // 3. 不再依赖固定的 1200ms 延迟，而是通过事件驱动
 
     // 智能旋转和外部字幕可以延迟执行，不影响播放
-    setTimeout(async () => {
+    this.smartRotationTimer = setTimeout(async () => {
+      if (!this.mpvHandle || this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
+        return
+      }
       if (Setting.smartRotation &&
         (this.playAreaWidth > this.playAreaHeight || this.nowPlaying!.size[0] > this.nowPlaying!.size[1]) &&
         this.screenHeight > this.screenWidth) {
@@ -386,11 +393,17 @@ export class MpvController implements PlayerControllerInterface {
       if (this.speed !== 1) {
         this.updatePlaybackSpeed(this.speed)
       }
+      // 检测杜比视界 Profile，P5/P7 需要使用 Buffer 模式
+      this.checkDolbyVisionAndSwitch()
       // 获取信息需要有延迟，否则无法获取
       this.getAudioTrackList()
       this.getSubtitleTrackList()
       this.getChapterListFromMpv()
-      this.videoStartPlayTime(VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!))
+      const mpvSeekMode = VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!)
+      salmonLogger.addLog(TAG,
+        `恢复播放进度: last_play=${this.nowPlaying?.last_play}, time=${this.nowPlaying?.time}, start_time=${this.nowPlaying?.start_time}, seekMode=${mpvSeekMode}`,
+        false)
+      this.videoStartPlayTime(mpvSeekMode)
       this.nowPlaying!.time = this.getDuration()
       this.setRotation()
       this.onSwiping = false
@@ -423,11 +436,12 @@ export class MpvController implements PlayerControllerInterface {
     }
   }
 
-  setPlayerCallback(pathStack: NavPathStack) {
+  setPlayerCallback(pathStack: NavPathStack, _xComponentController?: XComponentController,
+    _windowClass?: Promise<window.Window | undefined>) {
     this.userListener = new BaseListener<number>()
     this.userListener.on('timeUpdate', (duration: number) => {
       AppStorage.setOrCreate('nowPlayingData',
-        [this.playTime, this.nowPlaying!])
+        [this.playTime, this.nowPlaying!, this.skipHistory])
       if (this.showControl) {
         if (!VideoOperateUtil.autoHideTimeout) {
           VideoOperateUtil.autoHideTimeout = true
@@ -518,6 +532,7 @@ export class MpvController implements PlayerControllerInterface {
   release(): void {
     this.transitionTo(MpvPlayerState.RELEASING)
     this.cancelDecodingModeTimers()
+    this.cancelSubscribe()
     if (!this.mpvHandle) {
       return
     }
@@ -535,6 +550,16 @@ export class MpvController implements PlayerControllerInterface {
     this.mpvHandle = null
     this.userListener?.off('timeUpdate')
     this.transitionTo(MpvPlayerState.IDLE)
+  }
+
+  cancelSubscribe(): void {
+    AppStorage.delete('nowPlayingData')
+    try {
+      this.audioVolumeManager?.off('streamVolumeChange')
+      this.audioVolumeManager = null
+    } catch (error) {
+      salmonLogger.addLog(TAG, `取消音量监听错误 ${error}`, true)
+    }
   }
 
   seekTime(seekTime: number): void {
@@ -612,6 +637,17 @@ export class MpvController implements PlayerControllerInterface {
 
   selectAudioTrack(trackId: number): void {
     mpvSelectAudio(this.mpvHandle, trackId)
+    this.resetAudioChannelMode()
+  }
+
+  selectAudioTrackByIndex(index: number): void {
+    if (index >= 0 && index < this.audioTrack.length) {
+      this.selectAudioTrack(this.audioTrack[index].id)
+    }
+  }
+
+  getAudioTrackCount(): number {
+    return this.audioTrack.length
   }
 
   restoreAudioTrackPreference(): void {
@@ -629,6 +665,20 @@ export class MpvController implements PlayerControllerInterface {
     this.volumeLoudnessGain = loudnessGain
     if (this.mpvHandle) {
       mpvSetLoudnessGain(this.mpvHandle, loudnessGain)
+    }
+  }
+
+  setAudioChannelMode(mode: MpvAudioChannelMode) {
+    this.audioChannelMode = mode
+    if (this.mpvHandle) {
+      mpvSetAudioChannel(this.mpvHandle, mode)
+    }
+  }
+
+  resetAudioChannelMode() {
+    this.audioChannelMode = MpvAudioChannelMode.STEREO
+    if (this.mpvHandle) {
+      mpvSetAudioChannel(this.mpvHandle, MpvAudioChannelMode.STEREO)
     }
   }
 
@@ -743,6 +793,7 @@ export class MpvController implements PlayerControllerInterface {
       this.nowPlaying!.size[1] = VideoHeight
       VideoOperateUtil.saveVideoWeightAndHeight(PathUtils.appContext!, this.nowPlaying)
     }
+    this.applyScreenExtend()
     if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE) {
       this.syncOsdSurfaceSize() // 不加这里就会变得很模糊？？？
     }
@@ -801,6 +852,7 @@ export class MpvController implements PlayerControllerInterface {
     this.volumeActually = this.volume
     let swipingVoiceTimer: number | null = null
     let changeVolumeByVolumeButton: boolean = false
+
     try {
       this.audioVolumeManager.on('streamVolumeChange', audio.StreamUsage.STREAM_USAGE_MOVIE,
         (streamVolumeEvent: audio.StreamVolumeEvent) => {
@@ -822,6 +874,7 @@ export class MpvController implements PlayerControllerInterface {
       salmonLogger.addLog(TAG, 'volumeChange error', true)
     }
     this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
+
   }
 
   onScreenDoubleClick(tapX: number) {
@@ -869,7 +922,7 @@ export class MpvController implements PlayerControllerInterface {
             return
           }
           if (nowPlaying.subtitle_track_id !== undefined) {
-            this.subtitleTrackSelected = nowPlaying.subtitle_track_id
+            this.selectSubtitleTrack(nowPlaying.subtitle_track_id)
           }
         }
         if (nowPlaying.subtitle_offset_millis !== undefined) {
@@ -882,23 +935,6 @@ export class MpvController implements PlayerControllerInterface {
     } else {
       this.subtitleSelected = externalSubtitleLoaded ? SubtitleMode.EXTERNAL_SUBTITLE : SubtitleMode.NONE
     }
-  }
-
-  private resetSubtitlePreference(nowPlaying: VideoMetadata): void {
-    nowPlaying.subtitle_mode = SubtitleMode.NONE
-    nowPlaying.subtitle_visible = false
-    nowPlaying.subtitle_ai_asr_shown = false
-    nowPlaying.subtitle_3d_mode = Subtitle3DMode.DISABLED
-    nowPlaying.subtitle_offset_millis = 0
-    nowPlaying.subtitle_track_id = -1
-    SelectFileUtil.saveData(PathUtils.appContext!, nowPlaying, {
-      subtitleMode: SubtitleMode.NONE,
-      subtitleVisible: false,
-      subtitleAIAsrShown: false,
-      subtitle3DMode: Subtitle3DMode.DISABLED,
-      subtitleOffsetMillis: 0,
-      subtitleTrackId: -1
-    })
   }
 
   refreshExternalSubtitlePreview(offset: number): void {
@@ -944,6 +980,142 @@ export class MpvController implements PlayerControllerInterface {
     )
   }
 
+  cancelSmartRotationTimer() {
+    if (this.smartRotationTimer) {
+      clearTimeout(this.smartRotationTimer)
+      this.smartRotationTimer = 0
+    }
+  }
+
+  isMpvPlayer(): boolean {
+    return true
+  }
+
+  getWindowClass(): Promise<window.Window | undefined> | undefined {
+    return this.windowClass
+  }
+
+  prepareIfNeeded(): void {
+    this.prepare()
+  }
+
+  onPlayerReady(): void {
+    WindowUtil.enableLandscapeMultiWindow(this.windowClass)
+    this.initVolumeAndBrightness()
+  }
+
+  savePlayerSpeed(context: Context): void {
+    Preferences.saveVideoSpeed(context, this.speed + 'x')
+  }
+
+  onDisappearSaveSubtitlePreference(_subtitleVisibility: Visibility, _isAIAsrShown: boolean,
+    _subtitle3DMode: Subtitle3DMode): void {
+  }
+
+  onDisappearCleanup(): void {
+    AppStorage.delete('nowPlayingData')
+  }
+
+  async onDisappearRelease(): Promise<void> {
+    this.release()
+    try {
+      this.audioVolumeManager?.off('streamVolumeChange')
+      this.audioVolumeManager = null
+    } catch (error) {
+      salmonLogger.addLog(TAG, `音量监听取消错误 ${error}`, true)
+    }
+  }
+
+  async onSurfaceLoad(xComponentController: XComponentController, pathStack: NavPathStack,
+    _windowClass?: Promise<window.Window | undefined>): Promise<void> {
+    PermissionUtil.activatePermission(this.nowPlaying?.uri)
+    try {
+      this.init(this.nowPlaying!.uri, pathStack)
+      this.initAVSession()
+      PiPWindowUtil.createPipController(xComponentController, this)
+      this.surfaceId = xComponentController.getXComponentSurfaceId()
+    } catch (error) {
+      salmonLogger.addLog(TAG, 'uri error:' + error, true)
+    }
+  }
+
+  onOsdSurfaceLoad(surfaceId: string): void {
+    this.osdSurfaceId = surfaceId
+    this.setOsdSurface(surfaceId, this.playAreaWidth, this.playAreaHeight)
+  }
+
+  restoreSpeedAfterLongPress(lastSpeed: number): void {
+    this.speed = lastSpeed
+    this.updatePlaybackSpeed(this.speed)
+  }
+
+  async restoreSystemBars(_windowClass?: Promise<window.Window | undefined>): Promise<void> {
+    WindowUtil.setBarState(PathUtils.appContext!, true, true)
+  }
+
+  onWillDisappearCleanup(): void {
+    this.cancelSmartRotationTimer()
+  }
+
+  async onWillDisappearRelease(_windowClass?: Promise<window.Window | undefined>): Promise<void> {
+  }
+
+  hasChapterSupport(): boolean {
+    return true
+  }
+
+  resetAspectRatio(): void {
+    this.setKeepAspectStatus(true)
+  }
+
+  stretchToFullScreen(): void {
+    this.setKeepAspectStatus(false)
+  }
+
+  async exitPlayback(_timeout: number): Promise<void> {
+    this.release()
+  }
+
+  toggleListenVideo(): void {
+  }
+
+  getXComponentId(): string | undefined {
+    return 'xcomponentId'
+  }
+
+  getLibraryName(): string | undefined {
+    return 'mpvnative'
+  }
+
+  getOsdVisibility(): boolean {
+    return this.osdVisibility
+  }
+
+  private applyScreenExtend() {
+    const size = VideoOperateUtil.calcScreenExtendSize(this.selectedText, this.screenWidth, this.screenHeight)
+    if (size) {
+      this.playAreaWidth = size[0]
+      this.playAreaHeight = size[1]
+    }
+  }
+
+  private resetSubtitlePreference(nowPlaying: VideoMetadata): void {
+    nowPlaying.subtitle_mode = SubtitleMode.NONE
+    nowPlaying.subtitle_visible = false
+    nowPlaying.subtitle_ai_asr_shown = false
+    nowPlaying.subtitle_3d_mode = Subtitle3DMode.DISABLED
+    nowPlaying.subtitle_offset_millis = 0
+    nowPlaying.subtitle_track_id = -1
+    SelectFileUtil.saveData(PathUtils.appContext!, nowPlaying, {
+      subtitleMode: SubtitleMode.NONE,
+      subtitleVisible: false,
+      subtitleAIAsrShown: false,
+      subtitle3DMode: Subtitle3DMode.DISABLED,
+      subtitleOffsetMillis: 0,
+      subtitleTrackId: -1
+    })
+  }
+
   private transitionTo(newState: MpvPlayerState): void {
     const oldState = this.playerState
     if (oldState === newState) {
@@ -964,8 +1136,7 @@ export class MpvController implements PlayerControllerInterface {
     let decodeType = Setting.mpvDecodingMethod
     if (this.nowPlaying && SUPPORT_AUDIO_FORMAT.includes(this.nowPlaying.format.toLowerCase())) {
       decodeType = MpvDecodingMethod.HARDWARE_BUFFER
-    } else if (this.nowPlaying?.title.includes('DV') && !this.nowPlaying?.title.includes('HDR')) {
-      decodeType = MpvDecodingMethod.HARDWARE_BUFFER
+
     }
     return decodeType
   }
@@ -1038,6 +1209,12 @@ export class MpvController implements PlayerControllerInterface {
 
     try {
       mpvRegisterPlaybackCompleteCallback(() => {
+        if (this.isInState(MpvPlayerState.SWITCHING_MODE) || this.isInState(MpvPlayerState.RELEASING)) {
+          salmonLogger.addLog(TAG,
+            `[MpvController] Ignoring playback complete: state=${this.playerState}, mode switch in progress`,
+            true)
+          return
+        }
         const duration = this.getDuration()
         const minPlayTime = Math.min(duration * 0.5, 5000)
         if (this.playTime < minPlayTime && duration > 0) {
@@ -1048,6 +1225,13 @@ export class MpvController implements PlayerControllerInterface {
         }
         salmonLogger.addLog(TAG, "收到播放完成事件，准备播放下一个视频", false)
         this.transitionTo(MpvPlayerState.COMPLETED)
+        if (!this.skipHistory) {
+          const completedPlayTime = this.nowPlaying!.time || this.playTime
+          salmonLogger.addLog(TAG,
+            `播放完成，保存进度: playTime=${this.playTime}, totalTime=${this.nowPlaying!.time}, savedTime=${completedPlayTime}`,
+            false)
+          VideoOperateUtil.saveVideoTime(completedPlayTime, this.nowPlaying!, PathUtils.appContext!)
+        }
         this.playNextVideoProcess(pathStack)
         this.playbackCallbackRegistered = false
         this.registerPlaybackCompleteListener(pathStack)
@@ -1121,14 +1305,14 @@ export class MpvController implements PlayerControllerInterface {
       return
     }
 
+    const savedTime = currentTime ?? 0
+    const savedPlaying = wasPlaying ?? this.playing
+
     this.transitionTo(MpvPlayerState.SWITCHING_MODE)
 
     const modeName = targetMode === 'buffer_hw' ? 'Buffer硬件解码' : '软件解码'
     salmonLogger.addLog(TAG, `[MpvController] Switching to ${modeName} mode due to error: ${errorMessage}`, true)
     ToolsUtil.showToast(`正在切换到${modeName}模式...`)
-
-    const savedTime = currentTime || this.nowPlaying?.last_play || 0
-    const savedPlaying = wasPlaying ?? this.playing
     const savedVideo = currentVideo ?? this.nowPlaying
 
     this.cleanupMpvInstance()
@@ -1199,6 +1383,7 @@ export class MpvController implements PlayerControllerInterface {
 
     // 重置回调注册标志
     this.osdVisibility = false
+    this.playTime = 0
     this.playbackCallbackRegistered = false
     this.timeUpdateCallbackRegistered = false
     this.videoSizeCallbackRegistered = false
@@ -1254,7 +1439,6 @@ export class MpvController implements PlayerControllerInterface {
     salmonLogger.addLog(TAG, `[MpvController] Successfully switched to ${modeName} mode`)
   }
 
-
   private cancelDecodingModeTimers() {
     if (this.decodingModeVerifyTimer) {
       clearTimeout(this.decodingModeVerifyTimer)
@@ -1263,6 +1447,43 @@ export class MpvController implements PlayerControllerInterface {
     if (this.decodingModeSeekTimer) {
       clearTimeout(this.decodingModeSeekTimer)
       this.decodingModeSeekTimer = 0
+    }
+    this.cancelSmartRotationTimer()
+  }
+
+  private checkDolbyVisionAndSwitch() {
+    if (!this.mpvHandle) {
+      return
+    }
+    try {
+      const profile = mpvGetDolbyVisionProfile(this.mpvHandle)
+
+      if (profile !== 0) {
+        const profileLabel = profile > 0 ? `Profile ${profile}` : '未知 Profile'
+        salmonLogger.addLog(TAG, `[MpvController] Detected Dolby Vision ${profileLabel}`, false)
+        if (this.activeHwdecMode !== MpvDecodingMethod.HARDWARE_BUFFER) {
+          salmonLogger.addLog(TAG,
+            `[MpvController] DV ${profileLabel} requires Buffer mode, current mode=${this.activeHwdecMode}, switching...`,
+            true)
+          this.switchDecodingMode('buffer_hw', `检测到杜比视界 ${profileLabel}，切换到Buffer模式`, this.playTime)
+        }
+      }
+    } catch (error) {
+      salmonLogger.addLog(TAG, '[MpvController] Failed to detect Dolby Vision profile: ' + JSON.stringify(error), true)
+    }
+    try {
+      const profile = mpvGetDolbyVisionProfile(this.mpvHandle)
+      if (profile === 5 || profile === 7) {
+        salmonLogger.addLog(TAG, `[MpvController] Detected Dolby Vision Profile ${profile}`, false)
+        if (this.activeHwdecMode !== MpvDecodingMethod.HARDWARE_BUFFER) {
+          salmonLogger.addLog(TAG,
+            `[MpvController] DV P${profile} requires Buffer mode, current mode=${this.activeHwdecMode}, switching...`,
+            true)
+          this.switchDecodingMode('buffer_hw', `检测到杜比视界 Profile ${profile}，切换到Buffer模式`, this.playTime)
+        }
+      }
+    } catch (error) {
+      salmonLogger.addLog(TAG, '[MpvController] Failed to detect Dolby Vision profile: ' + JSON.stringify(error), true)
     }
   }
 

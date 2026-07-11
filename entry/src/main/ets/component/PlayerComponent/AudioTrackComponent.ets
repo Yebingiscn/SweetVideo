@@ -1,10 +1,11 @@
 import { AudioTrack } from '../../interfaces/AudioTrackInterface'
 import { AudioTrackSource } from '../../utils/DataUtil'
 import { MpvAudioTrack } from '../../controller/MpvController/MpvTypes'
-import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
+import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { MpvController } from '../../controller/MpvController/MpvController'
-import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
+import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
+import { AudioChannelComponent } from './AudioChannelComponent'
 
 // 定义联合类型
 type TrackType = AudioTrack | MpvAudioTrack
@@ -24,8 +25,19 @@ export struct AudioTrackComponent {
     12: '7.1.4'
   }
   @Local audioTrackDataSource: AudioTrackSource = new AudioTrackSource([])
-  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Consumer('player') player: PlayerControllerInterface =
+    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
   @Event onSelect: (_index: number) => void = () => {
+  }
+
+  isCurrentTrackStereo(): boolean {
+    if (this.player instanceof MpvController) {
+      const selectedIdx = this.player.audioTrackSelected
+      if (selectedIdx >= 0 && selectedIdx < this.player.audioTrack.length) {
+        return this.player.audioTrack[selectedIdx].channels === 2
+      }
+    }
+    return false
   }
 
   aboutToAppear(): void {
@@ -35,13 +47,13 @@ export struct AudioTrackComponent {
   // 检查是否是 AudioTrack
   isAudioTrack(item: TrackType): boolean {
     const track = item as AudioTrack
-    return track.index !== undefined && track.language !== undefined
+    return track.index != undefined && track.language != undefined
   }
 
   // 检查是否是 MpvAudioTrack
   isMpvAudioTrack(item: TrackType): boolean {
     const track = item as MpvAudioTrack
-    return track.id !== undefined && track.lang !== undefined
+    return track.id != undefined && track.lang != undefined
   }
 
   // 获取轨道索引
@@ -139,9 +151,33 @@ export struct AudioTrackComponent {
                 $r('app.color.text_color'))
 
             if (this.shouldShowAv3aIcon(repeatItem.item)) {
-              Image($r('app.media.audio_vivid_icon'))
-                .attributeModifier(new ImageFancyModifier(8, 85, 30))
-                .width(95)
+              Row() {
+                SymbolGlyph($r('sys.symbol.hdr'))
+                  .fontSize(14)
+                  .fontColor([$r('sys.color.white')])
+
+                Text('AUDIO Vivid')
+                  .fontSize(10)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor($r('sys.color.white'))  // 文字固定黑色，确保高对比
+                  .margin({ left: 2 }) // 图标与文字间距
+              }
+              .padding({
+                left: 5,
+                right: 5,
+                top: 2,
+                bottom: 2
+              })
+              .linearGradient({
+                direction: GradientDirection.Right, // 渐变方向
+                repeating: false,
+                colors: [['#ef2f4e', 0.0], ['#d53b61', 0.3], ['#954e89', 0.5], ['#4766bd', 0.7],
+                  ['#1677dc', 0.9]]
+              })
+              .borderRadius(8)
+              .alignItems(VerticalAlign.Center)
+              .width('auto')
+              .height(22)
             }
           }
           .padding({
@@ -160,6 +196,57 @@ export struct AudioTrackComponent {
           })
         })
         .key((item: TrackType, _index: number) => this.getKey(item))
+      if (this.isCurrentTrackStereo()) {
+        AudioChannelComponent({
+          onSelect: (mode: number) => {
+            if (this.player instanceof MpvController) {
+              this.player.setAudioChannelMode(mode)
+            }
+          }
+        }).padding({ top: 8 })
+      }
+      Row() {
+        Text('响度')
+          .fontSize(16)
+          .fontColor($r('app.color.text_color'))
+          .width(35)
+        Slider({
+          value: this.player.volumeLoudnessGain,
+          min: -90,
+          max: 24,
+          step: 1,
+          style: SliderStyle.NONE
+        })
+          .onChange((value) => {
+            this.player.setLoudnessGain(value)
+          })
+          .selectedColor($r('app.color.main_color'))
+          .enableHapticFeedback(true)
+          .layoutWeight(1)
+          .trackBorderRadius(16)
+          .selectedColor($r('app.color.main_color'))
+          .enableHapticFeedback(true)
+          .trackThickness(20)
+          .selectedBorderRadius(16)
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph($r('sys.symbol.undo'))
+            .fontSize(16)
+            .fontColor([$r('app.color.text_color')])
+        }
+        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+        .attributeModifier(new ButtonFancyModifier(28, 28))
+        .backgroundColor(Color.Transparent)
+        .onClick(() => {
+          this.player.setLoudnessGain(0)
+        })
+      }
+      .padding({
+        left: 8,
+        right: 8,
+        top: 4,
+        bottom: 4
+      })
+      .width('100%')
     }
     .width(235)
     .justifyContent(FlexAlign.Center)

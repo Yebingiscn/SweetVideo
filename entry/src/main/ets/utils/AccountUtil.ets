@@ -1,14 +1,15 @@
-import { LoginWithHWErrorCode } from '../common/Constants'
-import { userData } from '../component/common/UserLoginComponent'
-import Preferences from '../database/Preferences'
-import { PathUtils } from './PathUtils'
-import SelectFileUtil from './SelectFileUtil'
-import ToolsUtil from './ToolsUtil'
-import { image } from '@kit.ImageKit'
-import { http } from '@kit.NetworkKit'
-import { util } from '@kit.ArkTS'
-import { authentication } from '@kit.AccountKit'
-import fileIo from '@ohos.file.fs'
+import { LoginWithHWErrorCode } from "../common/Constants"
+import { userData } from "../component/common/UserLoginComponent"
+import Preferences from "../database/Preferences"
+import { IapVerifyUtil } from "./IapVerifyUtil"
+import { PathUtils } from "./PathUtils"
+import SelectFileUtil from "./SelectFileUtil"
+import ToolsUtil from "./ToolsUtil"
+import { fileIo } from "@kit.CoreFileKit"
+import { image } from "@kit.ImageKit"
+import { http } from "@kit.NetworkKit"
+import { authentication } from "@kit.AccountKit"
+import { util } from "@kit.ArkTS"
 
 export default class AccountUtil {
   // 错误处理
@@ -100,7 +101,7 @@ export default class AccountUtil {
   static async bufferToPixelMap(imgData: ArrayBuffer): Promise<PixelMap> {
     let imageSource = image.createImageSource(imgData)
     let options: image.DecodingOptions = {
-      desiredSize: { width: 100, height: 100 }, // 可选：指定目标尺寸
+      desiredSize: { width: 512, height: 512 }, // 可选：指定目标尺寸
       desiredPixelFormat: image.PixelMapFormat.RGBA_8888 // 指定像素格式
     }
     return await imageSource.createPixelMap(options)
@@ -115,6 +116,8 @@ export default class AccountUtil {
       userData.idToken = Preferences.getUserIdToken(PathUtils.appContext!)
       userData.authorizationCode = Preferences.getUserAuthorizationCode(PathUtils.appContext!)
       userData.openID = Preferences.getUserOpenID(PathUtils.appContext!)
+      userData.isVip = Preferences.getUserIsVip(PathUtils.appContext!)
+      IapVerifyUtil.verifyPurchaseStatus(PathUtils.appContext!)
     }
   }
 

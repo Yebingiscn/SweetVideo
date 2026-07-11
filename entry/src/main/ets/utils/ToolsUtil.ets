@@ -5,7 +5,7 @@ import { PathUtils } from './PathUtils'
 import { UniversalDetector } from '@ohos/juniversalchardet'
 import { SortField } from '../common/enum/SortField'
 import { salmonLogger } from 'salmonlogger'
-import { VideoItemWithPinyin } from '../interfaces/VideoItemWithPinyinInterface'
+import { ItemWithPinyin } from '../interfaces/VideoItemWithPinyinInterface'
 import { GB, KB, MB } from '../common/Constants'
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import NavigationAddress, { PlayerParams } from '../common/NavigationCommon'
@@ -14,6 +14,7 @@ import DataSyncUtil from './DataSyncUtil'
 import FileFolderUtil from './FileFolderUtil'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
 import VideoInfoUtil from './VideoInfoUtil'
+import VideoOperateUtil from './VideoOperateUtil'
 import { WindowUtil } from './WindowUtil'
 import fileIo from '@ohos.file.fs'
 import { util } from '@kit.ArkTS'
@@ -26,6 +27,8 @@ const TAG = 'ToolsUtil'
 
 // 工具类
 export default class ToolsUtil {
+  static BASE64_PADDING_MOD: number = 4;
+  static BASE64_PADDING_INVALID: number = 1;
   private static splitRegex = /(\d+)/g
   private static readonly COLLATOR = new Intl.Collator("zh-CN", {
     sensitivity: "variant",
@@ -81,22 +84,12 @@ export default class ToolsUtil {
     }
   }
 
-  static sortByNameProcess(list: VideoMetadata[], ascending: boolean = true) {
-    if (list.length <= 1) {
-      return [...list]
-    }
-    const itemsWithPinyin: VideoItemWithPinyin[] = list.map(item => {
-      const videoItem: VideoItemWithPinyin = {
-        item: item,
-        pinyin: pinyin4js.getShortPinyin(item.title || "")
-      }
-      return videoItem
-    })
-    const sortedItems = [...itemsWithPinyin].sort((a, b) => {
-      const cmp = ToolsUtil.naturalCompare(a.pinyin, b.pinyin)
-      return ascending ? cmp : -cmp
-    })
-    return sortedItems.map(entry => entry.item)
+  static sortByNameProcess(list: VideoMetadata[], ascending: boolean = true, pinyinSort: boolean = true) {
+    return ToolsUtil.sortByName(list, item => item.title || '', ascending, pinyinSort)
+  }
+
+  static sortFolderByNameProcess(list: FileFolder[], ascending: boolean = true, pinyinSort: boolean = true) {
+    return ToolsUtil.sortByName(list, item => item.name || '', ascending, pinyinSort)
   }
 
   static sortByNumericProperty(list: VideoMetadata[], key: 'date' | 'time', ascending: boolean = false) {
@@ -124,11 +117,11 @@ export default class ToolsUtil {
   }
 
   static sortBy(context: Context, list: VideoMetadata[], file_folder: FileFolder | undefined,
-    sortType: SortField | '', ascending?: boolean) {
+    sortType: SortField | '', ascending?: boolean, pinyinSort?: boolean): VideoMetadata[] {
     let sorted_list: VideoMetadata[]
     switch (sortType) {
       case SortField.NAME:
-        sorted_list = ToolsUtil.sortByNameProcess(list, ascending)
+        sorted_list = ToolsUtil.sortByNameProcess(list, ascending, pinyinSort)
         break
       case SortField.DATETIME:
         sorted_list = ToolsUtil.sortByDatetimeProcess(list, ascending)
@@ -148,6 +141,7 @@ export default class ToolsUtil {
         Preferences.saveVideoMetaData(context, sorted_list)
       }
     }
+    return sorted_list
   }
 
   static getFirstLetter(title: string): string {
@@ -172,18 +166,19 @@ export default class ToolsUtil {
   }
 
   // 点击视频跳转到播放器
-  static async routerWhere(pathStack: NavPathStack, uri: string, item: VideoMetadata, list: VideoMetadata[]) {
-    if (uri === NavigationAddress.AV_PLAYER) {
-      DataSyncUtil.lastPlayVideoIndex = list.findIndex(i => i.date === item?.date)
-    }
-    // 没有长宽的视频/音频系统播放器播不了
+  static async routerWhere(pathStack: NavPathStack, item: VideoMetadata, list: VideoMetadata[],
+    reverse: boolean = false, skipHistory: boolean = false, isSystemShare: boolean = false) {
+    const uri = VideoOperateUtil.resolvePlayerType(item, reverse, isSystemShare)
+    DataSyncUtil.lastPlayVideoIndex = list.findIndex(i => i.date === item?.date)
     if (VideoInfoUtil.videoWidthAndHeightFormat(String(item?.size)) === '0 x 0') {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
-      uri = NavigationAddress.MPV_PLAYER
     }
     WindowUtil.setBarColor('#FFFFFF')
-    const playerParams = new PlayerParams(item, list, undefined)
-    pathStack.pushPathByName(uri, playerParams, true)
+    const findResult = Preferences.findVideoByDate(PathUtils.appContext!, item.date)
+    const latestItem = findResult[0] ?? item
+    const folder_date = findResult[2]
+    const playerParams = new PlayerParams(latestItem, undefined, undefined, skipHistory, uri, folder_date)
+    pathStack.pushPathByName(NavigationAddress.VIDEO_PLAYER, playerParams, true)
   }
 
   // 获取版本号
@@ -289,6 +284,59 @@ export default class ToolsUtil {
       return $r('app.string.recent_del_confirm')
     } else {
       return $r('app.string.soft_del_confirm')
+    }
+  }
+
+  static decodeJwsObj(data: string): string {
+    const jws: string[] = data.split('.')
+    let result: string = ''
+    if (jws.length < 3) {
+      return result
+    }
+    try {
+      const textDecoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
+      const base64 = new util.Base64Helper()
+      let payload = jws[1]
+      const centerLineRegex: RegExp = new RegExp('-', 'g')
+      const underLineRegex: RegExp = new RegExp('_', 'g')
+      payload = payload.replace(centerLineRegex, '+').replace(underLineRegex, '/')
+      const pad = payload.length % ToolsUtil.BASE64_PADDING_MOD
+      if (pad) {
+        if (pad === ToolsUtil.BASE64_PADDING_INVALID) {
+          throw new Error('InvalidLengthError: Input base64 string is the wrong length to determine padding')
+        }
+        payload += new Array(ToolsUtil.BASE64_PADDING_MOD - pad + 1).join('=')
+      }
+      result = textDecoder.decodeToString(base64.decodeSync(payload))
+    } catch (err) {
+      salmonLogger.addLog(TAG, `decodeJwsObj parse err: ${JSON.stringify(err)}`, true)
+    }
+    return result
+  }
+
+  private static sortByName<T>(list: T[], nameExtractor: (item: T) => string, ascending: boolean = true,
+    pinyinSort: boolean = true): T[] {
+    if (list.length <= 1) {
+      return [...list]
+    }
+    if (pinyinSort) {
+      const itemsWithPinyin: ItemWithPinyin<T>[] = list.map(item => {
+        const entry: ItemWithPinyin<T> = {
+          item: item,
+          pinyin: pinyin4js.getShortPinyin(nameExtractor(item))
+        }
+        return entry
+      })
+      const sortedItems = [...itemsWithPinyin].sort((a, b) => {
+        const cmp = ToolsUtil.naturalCompare(a.pinyin, b.pinyin)
+        return ascending ? cmp : -cmp
+      })
+      return sortedItems.map(entry => entry.item)
+    } else {
+      return [...list].sort((a, b) => {
+        const cmp = ToolsUtil.COLLATOR.compare(nameExtractor(a), nameExtractor(b))
+        return ascending ? cmp : -cmp
+      })
     }
   }
 

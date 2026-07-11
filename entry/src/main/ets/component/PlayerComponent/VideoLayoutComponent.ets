@@ -1,11 +1,11 @@
-import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
-import { MpvController } from '../../controller/MpvController/MpvController'
+import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { SafeHeight } from '../../utils/ObservedUtil'
 
 @ComponentV2
 export struct VideoLayoutComponent {
-  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Consumer('player') player: PlayerControllerInterface =
+    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
   @BuilderParam VideoTop: () => void
   @BuilderParam VideoButtons: () => void
   @BuilderParam VideoSlider: () => void

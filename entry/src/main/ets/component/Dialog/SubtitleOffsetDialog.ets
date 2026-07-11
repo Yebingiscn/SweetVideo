@@ -212,7 +212,7 @@ export struct SubtitleOffsetDialog {
   }
 
   private setOffsetValue(nextOffset: number | undefined): void {
-    if (nextOffset === undefined || Number.isNaN(nextOffset)) {
+    if (nextOffset == undefined || Number.isNaN(nextOffset)) {
       return
     }
     this.inputText = nextOffset.toString()

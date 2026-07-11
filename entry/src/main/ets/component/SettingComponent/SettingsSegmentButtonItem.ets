@@ -12,6 +12,7 @@ const TAG = 'SettingsSegmentButtonItem'
 export struct SettingsSegmentButtonItem {
   @Param symbol: Resource | undefined = undefined
   @Param message: ResourceStr = ''
+  @Param tag: ResourceStr | undefined = undefined
   @Param tips: ResourceStr[] = []
   @Param @Once tabSelectedIndex: number = 0
   @Local _tabSelectedIndex: number = 0
@@ -44,8 +45,17 @@ export struct SettingsSegmentButtonItem {
           .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE))
         Text(this.message)
           .attributeModifier(new SettingsTitleModifier())
-          .layoutWeight(1)
+          .constraintSize({ maxWidth: '100%' })
+        if (this.tag) {
+          Text(this.tag)
+            .fontSize(12)
+            .fontColor(Color.White)
+            .backgroundColor($r('app.color.main_color'))
+            .borderRadius(6)
+            .padding({ left: 4, right: 4, top: 1, bottom: 1 })
+        }
       }
+      .width('100%')
 
       CapsuleSegmentButtonV2({
         items: this.textItems,

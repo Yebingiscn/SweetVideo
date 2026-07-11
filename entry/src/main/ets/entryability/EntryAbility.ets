@@ -4,7 +4,7 @@ import { window } from '@kit.ArkUI'
 import { salmonLogger } from 'salmonlogger'
 import Preferences from '../database/Preferences'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
-import { Privacy, Pc, Setting } from '../utils/ObservedUtil'
+import { Pc, Privacy, Setting } from '../utils/ObservedUtil'
 import { PathUtils } from '../utils/PathUtils'
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil'
 import SelectFileUtil from '../utils/SelectFileUtil'
@@ -103,7 +103,8 @@ export default class EntryAbility extends UIAbility {
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onWindowStageCreate')
     try {
       if (canIUse('SystemCapability.Window.SessionManager')) {
-        windowStage.setDefaultDensityEnabled(false) // 设置窗口跟随系统显示大小变化重新布局
+        const defaultDensityEnabled = Preferences.getDefaultDensityEnabled(this.context)
+        windowStage.setDefaultDensityEnabled(defaultDensityEnabled)
       }
       // 窗口尺寸自动保存
       let promise = windowStage.setWindowRectAutoSave(true).catch(() => {
@@ -172,7 +173,7 @@ export default class EntryAbility extends UIAbility {
 
   async onContinue(wantParam: Record<string, Object>): Promise<AbilityConstant.OnContinueResult> {
     const nowPlayingData =
-      AppStorage.get('nowPlayingData') as (number | VideoMetadata)[]
+      AppStorage.get('nowPlayingData') as (number | VideoMetadata | boolean)[]
     wantParam['data'] = nowPlayingData[1] as VideoMetadata
     return AbilityConstant.OnContinueResult.AGREE
   }
@@ -210,10 +211,9 @@ export default class EntryAbility extends UIAbility {
   }
 
   private savePlayData() {
-    // 杀掉应用时保存播放记录
     const nowPlayingData =
-      AppStorage.get('nowPlayingData') as (number | VideoMetadata)[]
-    if (nowPlayingData) {
+      AppStorage.get('nowPlayingData') as (number | VideoMetadata | boolean)[]
+    if (nowPlayingData && !nowPlayingData[2]) {
       VideoOperateUtil.saveVideoTime(nowPlayingData[0] as number, nowPlayingData[1] as VideoMetadata,
         PathUtils.appContext!)
     }

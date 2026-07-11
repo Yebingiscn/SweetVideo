@@ -1,11 +1,12 @@
 import { MpvController } from '../../controller/MpvController/MpvController'
-import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
 import { MpvChapter } from '../../controller/MpvController/MpvTypes'
+import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import TimeUtil from '../../utils/TimeUtil'
 
 @ComponentV2
 export struct ChapterListComponent {
-  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Consumer('player') player: PlayerControllerInterface =
+    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
   @Event onSelect: (_index: number) => void = () => {
   }
 

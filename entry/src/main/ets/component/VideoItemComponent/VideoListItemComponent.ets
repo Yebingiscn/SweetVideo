@@ -22,8 +22,8 @@ export default struct VideoListItem {
   build() {
     Row() {
       Image(PathUtils.coverUri(this.item.date))
-        .attributeModifier(new ImageFancyModifier(16, Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 75 : 100,
-          Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 100 : 75))
+        .attributeModifier(new ImageFancyModifier(12, Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 85 : 110,
+          Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 110 : 85))
       Column() {
         Row() {
           Text(VideoInfoUtil.getVideoTitle(this.item))
@@ -45,7 +45,7 @@ export default struct VideoListItem {
         VideoInfoBuilder({ item: this.item })
       }
       .alignItems(HorizontalAlign.Start)
-      .padding({ left: 15, right: 15 })
+      .padding({ left: 16, right: 16 })
       .layoutWeight(1)
     }
     .justifyContent(FlexAlign.Center)

@@ -1,7 +1,6 @@
 import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
-import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
-import { MpvController } from '../../controller/MpvController/MpvController'
+import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import AVSessionUtil from '../../utils/AVSessionUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
@@ -28,7 +27,8 @@ export struct VideoButtonsComponent {
   @BuilderParam AVCastPickerBuilderBridge: () => void
   @BuilderParam videoSettingBuilder: () => void
   @BuilderParam playbackSpeedMenu: () => void
-  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Consumer('player') player: PlayerControllerInterface =
+    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
   @Event onScreenRotationOrFullScreenClick: () => Promise<void> = async () => {
   }
   @Event onSideBarStatusTmpChange: (v: Visibility) => void = () => {
@@ -105,7 +105,7 @@ export struct VideoButtonsComponent {
       }
       .circleButton()
       .bindMenu(this.videoSettingBuilder,
-        { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
+        { backgroundBlurStyle: BlurStyle.COMPONENT_THIN })
 
       // 循环模式按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
@@ -147,7 +147,7 @@ export struct VideoButtonsComponent {
       }
       .circleButton()
       .bindMenu(this.playbackSpeedMenu,
-        { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THICK })
+        { backgroundBlurStyle: BlurStyle.COMPONENT_THIN })
 
       // 屏幕旋转按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {

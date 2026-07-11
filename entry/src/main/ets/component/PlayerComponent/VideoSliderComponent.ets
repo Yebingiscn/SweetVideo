@@ -1,10 +1,10 @@
-import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
-import { MpvController } from '../../controller/MpvController/MpvController'
+import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import TimeUtil from '../../utils/TimeUtil'
 
 @ComponentV2
 export struct VideoSliderComponent {
-  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Consumer('player') player: PlayerControllerInterface =
+    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
   @Event onSliderChange: (_value: number) => void = () => {
   }
   @Event onSliderTouch: (_event: TouchEvent) => void = () => {
@@ -21,7 +21,7 @@ export struct VideoSliderComponent {
           .opacity(0.9)
           .textShadow({ color: Color.Black, type: ShadowType.BLUR, radius: 4 })
 
-        Text(this.player instanceof MpvController ? $r('app.string.MPV_Player') : $r('app.string.AV_PLAYER'))
+        Text(this.player.isMpvPlayer() ? $r('app.string.MPV_Player') : $r('app.string.AV_PLAYER'))
           .fontWeight(FontWeight.Medium)
           .fontSize(16)
           .fontColor($r('sys.color.white'))

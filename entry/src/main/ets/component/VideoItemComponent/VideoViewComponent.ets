@@ -23,13 +23,13 @@ import Preferences from '../../database/Preferences'
 import { FolderOperator } from '../../database/VideoMetaData'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { DebounceUtil } from '../../utils/DebounceUtil'
-import { Setting, SafeHeight } from '../../utils/ObservedUtil'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu'
 import { MaskComponent } from '../SideBarComponent/MaskComponent'
 import { SearchComponent } from './SearchComponent'
-import { SortComponent } from './SortComponent'
+import { SortMenuComponent } from '../common/SortMenuComponent'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 
 @ComponentV2
@@ -64,6 +64,7 @@ export struct VideoView {
   })
   @Local currentSortField: SortField | '' = ''
   @Local currentSortAsc: boolean = true
+  @Local pinyinSort: boolean = true
   @Param scrollToFolderDate: string = ''
   private passwd: string = 'passwd'
   private breadcrumbScroller: Scroller = new Scroller()
@@ -83,7 +84,8 @@ export struct VideoView {
 
   @Monitor('scrollToFolderDate')
   onFolderChanged() {
-    const newIndex = this.file_folder_list.findIndex(f => f.date === this.scrollToFolderDate)
+    const treeFolders = FileFolderUtil.flattenTree(this.file_folder_list)
+    const newIndex = treeFolders.findIndex(f => f.date === this.scrollToFolderDate)
     if (newIndex !== -1) {
       this.scrollToCurrentFolder(newIndex)
     }
@@ -96,6 +98,7 @@ export struct VideoView {
       this.currentSortField = savedField as SortField
     }
     this.currentSortAsc = Preferences.getSortAsc(PathUtils.appContext!)
+    this.pinyinSort = Preferences.getPinyinSort(PathUtils.appContext!)
   }
 
   @Monitor('searchValue')
@@ -123,7 +126,8 @@ export struct VideoView {
           this.onSearchValueChange(v)
         },
         currentSortField: this.currentSortField,
-        currentSortAsc: this.currentSortAsc
+        currentSortAsc: this.currentSortAsc,
+        pinyinSort: this.pinyinSort
       })
 
       if (!this.loading && this.videoListController.openSideBarTip(this._searchValue)) {
@@ -183,14 +187,14 @@ export struct VideoView {
               DebounceUtil.debounce('search', () => {
                 if (this._searchValue === '') {
                   const videoMetaDataList: VideoMetadata[] =
-                    FolderOperator.getFolderByName(this.videoListController.folder.name).video_list
+                    FolderOperator.getFolderByDate(this.videoListController.folder.date)!.video_list
                   this.videoListController.videoDataSource.updateData(videoMetaDataList)
                   this.videoListController.updateData(this.videoListController.videoDataSource,
                     this.videoListController.folder)
                 } else {
                   const videoMetaDataList: VideoMetadata[] =
                     SelectFileUtil.getItemFromSearch(
-                      FolderOperator.getFolderByName(this.videoListController.folder.name)
+                      FolderOperator.getFolderByDate(this.videoListController.folder.date)!
                         .video_list, this._searchValue)
                   this.videoListController.videoDataSource.updateData(videoMetaDataList)
                   this.videoListController.updateData(this.videoListController.videoDataSource,
@@ -264,18 +268,38 @@ export struct VideoView {
         }
       }
       .width('100%')
-      .padding({ top: SafeHeight.topSafeHeight, left: 10, right: 10 })
+      .padding({ top: SafeHeight.topSafeHeight, left: 16, right: 16 })
     }.width('100%')
   }
 
   @Builder
   SortMenuBuilder() {
-    SortComponent({
+    SortMenuComponent({
       currentSortField: this.currentSortField,
       currentSortAsc: this.currentSortAsc,
-      onSortByName: (): void => this.handleSort(SortField.NAME, true),
-      onSortByTime: (): void => this.handleSort(SortField.TIME, false),
-      onSortByDatetime: (): void => this.handleSort(SortField.DATETIME, false)
+      pinyinSort: this.pinyinSort,
+      pinyinSortField: SortField.NAME,
+      items: [
+        {
+          field: SortField.DATETIME,
+          icon: $r('sys.symbol.calendar'),
+          textResource: $r('app.string.sort_by_datetime'),
+          onAction: (): void => this.handleSort(SortField.DATETIME, false)
+        },
+        {
+          field: SortField.TIME,
+          icon: $r('sys.symbol.clock'),
+          textResource: $r('app.string.sort_by_time'),
+          onAction: (): void => this.handleSort(SortField.TIME, false)
+        },
+        {
+          field: SortField.NAME,
+          icon: $r('sys.symbol.textformat'),
+          textResource: $r('app.string.sort_by_name'),
+          onAction: (): void => this.handleSort(SortField.NAME, true)
+        }
+      ],
+      onPinyinSortChange: (value: boolean): void => this.handlePinyinSortChange(value)
     })
   }
 
@@ -326,7 +350,7 @@ export struct VideoView {
   FolderTabsBuilder() {
     Scroll(this.breadcrumbScroller) {
       Row({ space: 8 }) {
-        Repeat<FileFolder>(this.fileFolderSource.data)
+        Repeat<FileFolder>(FileFolderUtil.flattenTree(this.file_folder_list))
           .each((repeatItem: RepeatItem<FileFolder>) => {
             Row() {
               Text(repeatItem.item.name)
@@ -337,7 +361,7 @@ export struct VideoView {
                   $r('sys.color.white') : $r('app.color.text_color'))
                 .textOverflow({ overflow: TextOverflow.Ellipsis })
                 .maxLines(1)
-                .padding({ left: 12, right: 12 })
+                .padding({ left: 16, right: 16 })
             }
             .backgroundEffect({ radius: 100 })
             .useEffect(true, EffectType.WINDOW_EFFECT)
@@ -353,13 +377,17 @@ export struct VideoView {
                 return
               }
               if (this.videoListController?.folder?.date !== repeatItem.item.date) {
-                this.switchToFolderByIndex(repeatItem.index)
+                const treeFolders = FileFolderUtil.flattenTree(this.file_folder_list)
+                const targetIndex = treeFolders.findIndex(f => f.date === repeatItem.item.date)
+                if (targetIndex !== -1) {
+                  this.switchToFolderByIndex(targetIndex)
+                }
               }
             })
           })
           .key((item: FileFolder) => item.date.toString() + item.name)
       }
-      .padding({ left: 6, right: 10 })
+      .padding({ left: 16, right: 16 })
       .height(36)
       .margin({ top: -8 })
     }
@@ -379,17 +407,38 @@ export struct VideoView {
     }
     Preferences.saveSortField(PathUtils.appContext!, this.currentSortField)
     Preferences.saveSortAsc(PathUtils.appContext!, this.currentSortAsc)
-    ToolsUtil.sortBy(PathUtils.appContext!, this.videoListController.videoMetaDataList,
-      this.videoListController.folder, field, this.currentSortAsc)
-    VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+    const currentFolderDate = this.videoListController.folder?.date
+    const latestFolders = Preferences.getFileFolder(PathUtils.appContext!)
+    const latestFolder = currentFolderDate
+      ? latestFolders.find(f => f.date === currentFolderDate) ?? latestFolders[0]
+      : latestFolders[0]
+    latestFolder.video_list = ToolsUtil.sortBy(PathUtils.appContext!, latestFolder.video_list,
+      latestFolder, field, this.currentSortAsc, this.pinyinSort)
+    VideoUtils.refresh(this.videoListController, this.fileFolderSource, latestFolder)
+  }
+
+  private handlePinyinSortChange(value: boolean) {
+    this.pinyinSort = value
+    Preferences.savePinyinSort(PathUtils.appContext!, this.pinyinSort)
+    if (this.currentSortField === SortField.NAME) {
+      const currentFolderDate = this.videoListController.folder?.date
+      const latestFolders = Preferences.getFileFolder(PathUtils.appContext!)
+      const latestFolder = currentFolderDate
+        ? latestFolders.find(f => f.date === currentFolderDate) ?? latestFolders[0]
+        : latestFolders[0]
+      latestFolder.video_list = ToolsUtil.sortBy(PathUtils.appContext!, latestFolder.video_list,
+        latestFolder, SortField.NAME, this.currentSortAsc, this.pinyinSort)
+      VideoUtils.refresh(this.videoListController, this.fileFolderSource, latestFolder)
+    }
   }
 
   /**
    * 通过索引切换文件夹
    */
   private switchToFolderByIndex(index: number): void {
+    const treeFolders = FileFolderUtil.flattenTree(this.file_folder_list)
     const result = VideoUtils.switchFolder(
-      index, this.file_folder_list, this.videoListController, this.fileFolderSource, this._searchValue
+      index, treeFolders, this.videoListController, this.fileFolderSource, this._searchValue
     )
     if (!result) {
       return

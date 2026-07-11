@@ -1,4 +1,3 @@
-import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import TimeUtil from '../../utils/TimeUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
@@ -13,10 +12,33 @@ class VideoInfoBuilderParams {
 export function VideoInfoBuilder(params: VideoInfoBuilderParams) {
   Row() {
     if (params.item?.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID) {
-      Image($r("app.media.hdr_vivid_icon"))
-        .attributeModifier(new ImageFancyModifier(8, 65, 25))
-        .height(22)
-        .width('auto')
+      Row() {
+        SymbolGlyph($r('sys.symbol.hdr'))
+          .fontSize(14)
+          .fontColor([$r('sys.color.white')])
+
+        Text('HDR Vivid')
+          .fontSize(10)
+          .fontWeight(FontWeight.Bold)
+          .fontColor($r('sys.color.white'))  // 文字固定黑色，确保高对比
+          .margin({ left: 2 }) // 图标与文字间距
+      }
+      .padding({
+        left: 5,
+        right: 5,
+        top: 2,
+        bottom: 2
+      })
+      .linearGradient({
+        direction: GradientDirection.Right, // 渐变方向
+        repeating: false,
+        colors: [['#ef2f4e', 0.0], ['#d53b61', 0.3], ['#954e89', 0.5], ['#4766bd', 0.7],
+          ['#1677dc', 0.9]]
+      })
+      .borderRadius(8)
+      .alignItems(VerticalAlign.Center)
+      .width('auto')
+      .height(22)
     } else if (VideoInfoUtil.videoWidthAndHeightFormat(params.item!.size.toString()).includes('HD')) {
       Text(VideoInfoUtil.videoWidthAndHeightFormat(params.item!.size.toString()) +
         (params.item!.frame_rate >= 60 ? ` ${params.item!.frame_rate} fps` : ''))
@@ -60,13 +82,16 @@ export function VideoInfoBuilder(params: VideoInfoBuilderParams) {
     Text("  " + TimeUtil.convertMSToHHMMSS(params.item!.time))
       .fontSize(15)
       .opacity(0.8)
+      .maxLines(1)
+      .textOverflow({ overflow: TextOverflow.Ellipsis })
       .fontColor(params.nowPlaying && params.nowPlaying?.date === params.item?.date ?
         $r('sys.color.white') : $r('app.color.text_color'))
 
     Progress({ value: params.item?.last_play, total: params.item?.time, type: ProgressType.Ring })
       .width(30)
-      .color($r('app.color.main_color'))
       .height(30)
+      .flexShrink(0)
+      .color($r('app.color.main_color'))
       .style({ strokeWidth: 5, shadow: true, enableSmoothEffect: true })
   }
   .justifyContent(FlexAlign.Start)

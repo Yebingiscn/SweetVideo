@@ -25,6 +25,7 @@ export struct EditFileFolderNameDialog {
         .keyboardAppearance(KeyboardAppearance.IMMERSIVE)
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .onChange((input: string) => this.file_folder_name = input)
+        .borderRadius(16)
         .id('new_folder_name')
         .onAppear(() => {
           focusControl.requestFocus('new_folder_name')

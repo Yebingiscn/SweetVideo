@@ -103,7 +103,7 @@ export default class VideoInfoUtil {
     if (metadata?.tracks) {
       for (let i = 0; i < metadata.tracks.length; i++) {
         const track = metadata.tracks[i]
-        if (track && track.frame_rate !== undefined) {
+        if (track && track.frame_rate != undefined) {
           return Math.round(track.frame_rate as number / 100)
         }
       }

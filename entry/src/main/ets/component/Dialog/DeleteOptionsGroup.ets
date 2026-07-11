@@ -17,6 +17,9 @@ export struct DeleteOptionsGroup {
     Column({ space: 12 }) {
       Row() {
         Radio({ value: 'soft', group: 'deleteOptionsGroup' })
+          .radioStyle({
+            checkedBackgroundColor: $r('app.color.main_color')
+          })
           .checked(this.deleteOption === 'soft')
           .onChange((checked: boolean) => {
             if (checked) {
@@ -44,6 +47,9 @@ export struct DeleteOptionsGroup {
       if (this.permanentDeleteVisibility) {
         Row() {
           Radio({ value: 'hard', group: 'deleteOptionsGroup' })
+            .radioStyle({
+              checkedBackgroundColor: DANGER_COLOR
+            })
             .checked(this.deleteOption === 'hard')
             .onChange((checked: boolean) => {
               if (checked) {
@@ -72,6 +78,9 @@ export struct DeleteOptionsGroup {
       if (this.moveToRecentVisibility) {
         Row() {
           Radio({ value: 'recent', group: 'deleteOptionsGroup' })
+            .radioStyle({
+              checkedBackgroundColor: WARNING_COLOR
+            })
             .checked(this.deleteOption === 'recent')
             .onChange((checked: boolean) => {
               if (checked) {

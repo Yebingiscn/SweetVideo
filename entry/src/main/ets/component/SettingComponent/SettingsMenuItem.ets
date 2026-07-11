@@ -8,6 +8,7 @@ import {
 export struct SettingsMenuItem {
   @Param symbol: Resource | undefined = undefined
   @Param message: ResourceStr = ''
+  @Param tag: ResourceStr | undefined = undefined
   @Param selected: number = 0
   @Local _selected: number = 0
   @Param list: ResourceStr[] = []
@@ -34,7 +35,15 @@ export struct SettingsMenuItem {
           .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
         Text(this.message)
           .attributeModifier(new SettingsTitleModifier())
-          .layoutWeight(1)
+          .constraintSize({ maxWidth: '100%' })
+        if (this.tag) {
+          Text(this.tag)
+            .fontSize(12)
+            .fontColor(Color.White)
+            .backgroundColor($r('app.color.main_color'))
+            .borderRadius(6)
+            .padding({ left: 4, right: 4, top: 1, bottom: 1 })
+        }
       }
       .layoutWeight(1)
 

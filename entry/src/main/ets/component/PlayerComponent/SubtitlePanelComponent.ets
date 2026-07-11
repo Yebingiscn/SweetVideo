@@ -1,11 +1,11 @@
 import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
-import NavigationAddress from '../../common/NavigationCommon'
+import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
-import { MpvController } from '../../controller/MpvController/MpvController'
 import { MpvSubtitleTrack } from '../../controller/MpvController/MpvTypes'
 import { SubtitleTrack } from '../../interfaces/AudioTrackInterface'
 import { InnerSubtitleDataSource } from '../../utils/DataUtil'
 import { SubtitleManager } from '../../utils/SubtitleManager'
+import { PlayerEngine } from '../../common/NavigationCommon'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
@@ -14,7 +14,8 @@ export struct SubtitlePanelComponent {
   @Param subtitleManager: SubtitleManager = new SubtitleManager(new AVPlayerController())
   @Local _subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
   @Local innerSubtitleMenu: InnerSubtitleDataSource = new InnerSubtitleDataSource([])
-  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Consumer('player') player: PlayerControllerInterface =
+    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   @Event onSubtitleOffsetTime: () => void = () => {
   }
@@ -260,7 +261,7 @@ export struct SubtitlePanelComponent {
   private switchToMpvPlayer(): void {
     const avPlayer = this.player as AVPlayerController
     VideoOperateUtil.playErrorExecute(this.pathStack, avPlayer.videoMetaDataList,
-      avPlayer.nowPlaying?.date!, NavigationAddress.MPV_PLAYER, avPlayer.playTime)
+      avPlayer.nowPlaying?.date!, PlayerEngine.MPV_PLAYER, avPlayer.playTime)
   }
 }
 

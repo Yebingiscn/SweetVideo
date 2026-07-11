@@ -131,25 +131,12 @@ export struct VideoList {
   @Local _searchValue: string = ''
   @Param currentSortField: SortField | '' = ''
   @Param currentSortAsc: boolean = true
+  @Param pinyinSort: boolean = true
   @Param holdingHand: motion.HoldingHandStatus | null = null
   @Param videoListController: VideoListController = new VideoListController()
   @Local activeAlphabet: string[] = []
   @Local indexerSelected: number = 0
   @Consumer() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
-  delConfirmDialog: CustomDialogController = new CustomDialogController({
-    builder: VideoDeleteDialog({
-      confirm: async (deleteType: DeleteType) => {
-        try {
-          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType,
-            DataSyncUtil.editingVideo!)
-        } catch (e) {
-          ToolsUtil.showToast(`删除失败:${e}`)
-        } finally {
-          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
-        }
-      }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: EditMetadataDialog({
       confirm: (title: string | undefined) => {
@@ -196,6 +183,20 @@ export struct VideoList {
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  delConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: VideoDeleteDialog({
+      confirm: async (deleteType: DeleteType) => {
+        try {
+          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType,
+            DataSyncUtil.editingVideo!)
+        } catch (e) {
+          ToolsUtil.showToast(`删除失败:${e}`)
+        } finally {
+          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+        }
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
   @Consumer() file_folder_list: FileFolder[] = []
   @Consumer() sideBarController: SideBarController = new SideBarController()
   searchController: SearchController = new SearchController()
@@ -234,6 +235,7 @@ export struct VideoList {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+
   @Event onSearchValueChange: (v: string) => void = () => {
   }
   @Event onDelMultipleListChange: (v: VideoMetadata[]) => void = () => {
@@ -253,9 +255,9 @@ export struct VideoList {
     this._delMultipleList = [...this.delMultipleList]
   }
 
-  @Monitor('videoListController.videoMetaDataList', 'currentSortField', 'currentSortAsc')
+  @Monitor('videoListController.videoMetaDataList', 'currentSortField', 'currentSortAsc', 'pinyinSort')
   onVideoListChanged() {
-    if (this.currentSortField === SortField.NAME) {
+    if (this.currentSortField === SortField.NAME && this.pinyinSort) {
       this.updateActiveAlphabet()
     } else {
       this.activeAlphabet = []
@@ -277,7 +279,7 @@ export struct VideoList {
                   delMultipleList: this._delMultipleList
                 })
               }
-              .borderRadius(16)
+              .borderRadius(12)
               .backgroundColor(Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
                 $r('app.color.start_window_background'))
               .margin({ bottom: 20 })
@@ -317,8 +319,7 @@ export struct VideoList {
                     if (this.videoListController.multipleChooseState !== Visibility.Visible) {
                       const videoItem =
                         SelectFileUtil.getItem(this.videoListController.videoMetaDataList, repeatItem.item?.date!)
-                      await this.clickItem(videoItem,
-                        VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
+                      await this.clickItem(videoItem)
                       return
                     } else {
                       if (this._delMultipleList.some(video => video.date === repeatItem.item.date)) {
@@ -339,7 +340,7 @@ export struct VideoList {
             .virtualScroll()
         }
         .clip(false)
-        .padding({ left: 10, right: 10 })
+        .padding({ left: 16, right: 16 })
         .contentStartOffset(SafeHeight.topSafeHeight +
           (Setting.showToast && this.file_folder_list.length > 1 ? 90 : 65))
         .contentEndOffset(SafeHeight.bottomSafeHeight)
@@ -356,12 +357,12 @@ export struct VideoList {
           this.videoListController.listScroller.scrollEdge(Edge.Top)
         })
         .onScrollIndex((start: number) => {
-          if (this.currentSortField === SortField.NAME) {
+          if (this.currentSortField === SortField.NAME && this.pinyinSort) {
             this.updateIndexerOnScroll(start)
           }
         })
 
-        if (this.currentSortField === 'name' && this.activeAlphabet.length > 0) {
+        if (this.currentSortField === 'name' && this.pinyinSort && this.activeAlphabet.length > 0) {
           AlphabetIndexer({ arrayValue: this.activeAlphabet, selected: this.indexerSelected })
             .onSelect((index: number) => {
               this.scrollToLetter(this.activeAlphabet[index])
@@ -376,7 +377,7 @@ export struct VideoList {
             .margin(IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand) ? { left: 2 } : { right: 2 })
         }
 
-        if (this.currentSortField !== SortField.NAME) {
+        if (this.currentSortField !== SortField.NAME || !this.pinyinSort) {
           ScrollBarBuilder({
             videoListController: this.videoListController.listScroller,
             fileFolderLength: this.file_folder_list.length
@@ -409,7 +410,7 @@ export struct VideoList {
                   .backgroundColor(
                     Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
                       $r('app.color.start_window_background'))
-                  .borderRadius(16)
+                  .borderRadius(12)
                   .width('100%')
                   .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
                   .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress,
@@ -442,8 +443,7 @@ export struct VideoList {
                     TapGesture({ count: 1, fingers: 1 })
                       .onAction(async () => {
                         if (this.videoListController.multipleChooseState !== Visibility.Visible) {
-                          await this.clickItem(repeatItem.item,
-                            VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
+                          await this.clickItem(repeatItem.item)
                           return
                         } else {
                           if (this._delMultipleList.some(video => video.date === repeatItem.item.date)) {
@@ -471,7 +471,7 @@ export struct VideoList {
             .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
             .width('100%')
             .height('100%')
-            .padding({ left: 10, right: 10 })
+            .padding({ left: 16, right: 16 })
             .onAppear(() => {
               this.videoListController.listScroller.scrollEdge(Edge.Top)
             })
@@ -480,7 +480,7 @@ export struct VideoList {
               scrollBackward: NestedScrollMode.SELF_FIRST
             })
             .onScrollIndex((first: number) => {
-              if (this.currentSortField === SortField.NAME) {
+              if (this.currentSortField === SortField.NAME && this.pinyinSort) {
                 this.updateIndexerOnScroll(first)
               }
             })
@@ -492,7 +492,7 @@ export struct VideoList {
         .width('100%')
         .height('100%')
 
-        if (this.currentSortField === 'name' && this.activeAlphabet.length > 0) {
+        if (this.currentSortField === 'name' && this.pinyinSort && this.activeAlphabet.length > 0) {
           AlphabetIndexer({ arrayValue: this.activeAlphabet, selected: this.indexerSelected })
             .onSelect((index: number) => {
               this.scrollToLetter(this.activeAlphabet[index])
@@ -507,7 +507,7 @@ export struct VideoList {
             .margin(IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand) ? { left: 2 } : { right: 2 })
         }
 
-        if (this.currentSortField !== SortField.NAME) {
+        if (this.currentSortField !== SortField.NAME || !this.pinyinSort) {
           ScrollBarBuilder({
             videoListController: this.videoListController.listScroller,
             fileFolderLength: this.file_folder_list.length
@@ -520,7 +520,7 @@ export struct VideoList {
     }
   }
 
-  async clickItem(item: VideoMetadata | undefined, choosePlayer: string) {
+  async clickItem(item: VideoMetadata | undefined, reverse: boolean = false) {
     if (!item || !this.videoListController.videoDataSource.getAllData().some(i => i.date == item?.date!)) {
       ToolsUtil.showToast('数据正在加载中，请重试')
       this.videoListController.videoDataSource.refreshData(this.videoListController.folder)
@@ -540,8 +540,8 @@ export struct VideoList {
       }, 500)
     }
     if (await SelectFileUtil.isFileExist(item.uri, true)) {
-      ToolsUtil.routerWhere(this.pathStack, choosePlayer, item,
-        this.videoListController.videoDataSource.getAllData())
+      ToolsUtil.routerWhere(this.pathStack, item,
+        this.videoListController.videoDataSource.getAllData(), reverse)
     } else {
       this._invalidItem = item
       this.invalidFileDialog.open()
@@ -604,8 +604,7 @@ export struct VideoList {
         .onClick(() => {
           setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
             const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
-            await this.clickItem(videoItem,
-              VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine, true))
+            await this.clickItem(videoItem, true)
           }, DELAY_JUMP_TO_PLAYER)
         })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })

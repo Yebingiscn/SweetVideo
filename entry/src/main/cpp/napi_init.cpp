@@ -59,6 +59,7 @@ namespace {
             {"getVideoWidth", nullptr, GetVideoWidth, nullptr, nullptr, nullptr, napi_default, nullptr},
             {"getVideoHeight", nullptr, GetVideoHeight, nullptr, nullptr, nullptr, napi_default, nullptr},
             {"setKeepAspect", nullptr, SetKeepAspect, nullptr, nullptr, nullptr, napi_default, nullptr},
+            {"getDolbyVisionProfile", nullptr, GetDolbyVisionProfile, nullptr, nullptr, nullptr, napi_default, nullptr},
             {"command", nullptr, Command, nullptr, nullptr, nullptr, napi_default, nullptr},
             {"getNetworkSpeed", nullptr, GetNetworkSpeed, nullptr, nullptr, nullptr, napi_default, nullptr},
             {"setHwdecMode", nullptr, SetHwdecModeNapi, nullptr, nullptr, nullptr, napi_default, nullptr},

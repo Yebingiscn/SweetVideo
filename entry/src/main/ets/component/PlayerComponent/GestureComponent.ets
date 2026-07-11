@@ -1,10 +1,10 @@
-import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
-import { MpvController } from '../../controller/MpvController/MpvController'
+import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
 @ComponentV2
 export struct GestureComponent {
-  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Consumer('player') player: PlayerControllerInterface =
+    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
   @Event onDoubleClickAction: (_tapX: number) => void = () => {
   }
   @Event onSingleClickAction: () => void = () => {

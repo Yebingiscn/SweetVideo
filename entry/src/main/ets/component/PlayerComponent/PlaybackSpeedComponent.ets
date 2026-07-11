@@ -1,10 +1,10 @@
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
-import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
-import { MpvController } from '../../controller/MpvController/MpvController'
+import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 
 @ComponentV2
 export struct PlaybackSpeedMenuComponent {
-  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Consumer('player') player: PlayerControllerInterface =
+    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
   private speedList: number[] = VideoInfoUtil.videoSpeedListAll
   private scroller: Scroller = new Scroller()
   @Event onSpeedChange: (_speed: number) => void = () => {

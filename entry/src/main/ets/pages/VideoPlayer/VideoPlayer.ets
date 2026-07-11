@@ -8,20 +8,19 @@ import { PathUtils } from '../../utils/PathUtils'
 import { PlayerSideBarComponent } from '../../component/PlayerComponent/PlayerSideBarComponent'
 import { LockVideoBarComponent } from '../../component/PlayerComponent/LockVideoBarComponent'
 import { GestureComponent } from '../../component/PlayerComponent/GestureComponent'
-import NavigationAddress, { PlayerParams } from '../../common/NavigationCommon'
+import NavigationAddress, { PlayerEngine, PlayerParams } from '../../common/NavigationCommon'
 import { WindowUtil } from '../../utils/WindowUtil'
 import { KeyCode } from '@kit.InputKit'
 import { XAnimation } from '../../utils/AnimationUtil'
-import { SubtitleMode } from '../../common/enum/SubtitleMode'
+import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import { SubtitleManager } from '../../utils/SubtitleManager'
-import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
 import { BrightnessSwipingBuilder } from '../../component/PlayerComponent/BrightnessSwipingBuilder'
 import { FastForwardPanelBuilder } from '../../component/PlayerComponent/FastForwardPanelBuilder'
 import { VolumeSwipingPanelBuilder } from '../../component/PlayerComponent/VolumeSwipingPanelBuilder'
 import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/SwipingPlayTimePanelBuilder'
 import { SubtitleDisplayBuilder } from '../../component/PlayerComponent/SubtitleDisplayBuilder'
 import { Privacy, Setting } from '../../utils/ObservedUtil'
-import { PlayerControllerFactory } from '../../controller/PlayerControllerFactory'
+import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { XComponents } from '../../component/PlayerComponent/XComponents'
 import { VideoLayoutComponent } from '../../component/PlayerComponent/VideoLayoutComponent'
 import {
@@ -34,7 +33,6 @@ import {
   NO_BLUR_AMOUNT,
   PINCH_SCALE_SENSITIVITY,
   PRIVACY_BACKGROUND_BLUR_AMOUNT,
-  SCALE_FACTORS,
   SCREEN_HALF_DIVIDER,
   SWIPE_THRESHOLD,
   VERTICAL_PAN_SENSITIVITY,
@@ -47,10 +45,10 @@ import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
 import { NumberInputDialog } from '../../component/Dialog/NumberInputDialog'
 import { SubtitleOffsetDialog } from '../../component/Dialog/SubtitleOffsetDialog'
 import SubtitleUtil from '../../utils/SubtitleUtil'
-import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
 import { AudioTrackComponent } from '../../component/PlayerComponent/AudioTrackComponent'
 import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder'
+import { ChapterListComponent } from '../../component/PlayerComponent/ChapterListComponent'
 import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent'
 import { SubtitlePanelComponent } from '../../component/PlayerComponent/SubtitlePanelComponent'
 import { VideoButtonsComponent } from '../../component/PlayerComponent/VideoButtonsComponent'
@@ -59,47 +57,51 @@ import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSlide
 import { VideoTopComponent } from '../../component/PlayerComponent/VideoTopComponent'
 import Preferences from '../../database/Preferences'
 import { salmonLogger } from 'salmonlogger'
+import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil'
 
-const TAG = 'Player'
+const TAG = 'VideoPlayer'
+
+type PlayerType = PlayerControllerInterface
 
 @ComponentV2
-export struct Player { // 播放页
-  @Provider('player') player: AVPlayerController = PlayerControllerFactory.createAVPlayerController()
-  subtitleManager: SubtitleManager = new SubtitleManager(this.player)
-  subtitlePreferenceRestored: boolean = false
+export struct VideoPlayer {
+  @Local playerType: string = PlayerEngine.AV_PLAYER
+  @Provider('player') player: PlayerType = PlayerControllerFactory.createAVPlayerController() as PlayerType
+  personalScreenExtendDialog: CustomDialogController = new CustomDialogController({
+    builder: NumberInputDialog({
+      title: '自定义屏幕拓展比例',
+      placeholderColor: '输入范围：50-150',
+      confirm: (input: number): void => {
+        if (input && input <= 150 && input >= 50) {
+          this.player.selectedText = `自定义比例:${input}`
+          Preferences.saveScreenExtend(PathUtils.appContext!, this.player.selectedText)
+          this.player.playAreaHeight = input / 100 * VideoInfoUtil.playAreaHeight
+          this.player.playAreaWidth = input / 100 * VideoInfoUtil.playAreaWidth
 
-  @Monitor('player.subtitleSelected')
-  onSubtitleSelectedChange() {
-    this.subtitleManager.subtitleMode = this.player.subtitleSelected
-    if (!this.subtitlePreferenceRestored) {
-      const nowPlaying = this.player.nowPlaying
-      if (nowPlaying && SubtitleUtil.hasSubtitlePreferenceMetadata(nowPlaying)) {
-        if (nowPlaying.subtitle_3d_mode !== undefined &&
-          [Subtitle3DMode.DISABLED, Subtitle3DMode.SIDE_BY_SIDE, Subtitle3DMode.TOP_AND_BOTTOM]
-            .includes(nowPlaying.subtitle_3d_mode)) {
-          this.subtitleManager.subtitle3DMode = nowPlaying.subtitle_3d_mode as Subtitle3DMode
+        } else {
+          ToolsUtil.showToast('输入错误，输入范围在50-150之间')
         }
-      }
-      this.subtitlePreferenceRestored = true
-    }
-  }
+      },
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  subtitleManager: SubtitleManager = new SubtitleManager(this.player)
   subtitleTimestampInputDialog: CustomDialogController = new CustomDialogController({
     builder: SubtitleOffsetDialog({
-      getCurrentValue: () => SubtitleUtil.offsetMillis,
-      onOffsetPreview: (offset: number) => {
+      getCurrentValue: (): number => SubtitleUtil.offsetMillis,
+      onOffsetPreview: (offset: number): void => {
         this.player.refreshExternalSubtitlePreview(offset)
       },
-      onCloseButton: () => {
+      onCloseButton: (): void => {
         this.cancelSubtitleOffsetSession()
         this.subtitleTimestampInputDialog.close()
       },
-      onPrevSubtitle: (currentOffset: number) => {
+      onPrevSubtitle: (currentOffset: number): number | undefined => {
         return this.player.getAdjacentSubtitleOffset('prev', currentOffset)
       },
-      onNextSubtitle: (currentOffset: number) => {
+      onNextSubtitle: (currentOffset: number): number | undefined => {
         return this.player.getAdjacentSubtitleOffset('next', currentOffset)
       },
-      confirm: (input: number) => {
+      confirm: (input: number): void => {
         if (Number.isNaN(input)) {
           ToolsUtil.showToast('未输入偏移')
           this.cancelSubtitleOffsetSession()
@@ -118,34 +120,18 @@ export struct Player { // 播放页
     cornerRadius: 20,
     shadow: DefaultDialogShadow,
     maskColor: '#00000000',
-    cancel: () => {
+    cancel: (): void => {
       this.cancelSubtitleOffsetSession()
     }
   })
+  @Local subtitlePreferenceRestored: boolean = false
   @Local lockRotation: boolean = false
   xComponentController: XComponentController = new XComponentController()
-  windowClass = WindowUtil.getWindow()
+  osdXController: XComponentController = new XComponentController()
+  windowClass: Promise<window.Window | undefined> = WindowUtil.getWindow()
   @Local sideBarStatusTmp: Visibility = Visibility.Hidden
   @Local sideBarStatus: boolean = false
   @Local currentSpeedIndex: number = 0
-  @Local subtitleAreaWidth: number = 0
-  @Local subtitleAreaHeight: number = 0
-  personalScreenExtendDialog: CustomDialogController = new CustomDialogController({
-    builder: NumberInputDialog({
-      title: '自定义屏幕拓展比例',
-      placeholderColor: '输入范围：50-150',
-      confirm: (input: number) => {
-        if (input && input <= 150 && input >= 50) {
-          this.player.playAreaHeight = input / 100 * VideoInfoUtil.playAreaHeight
-          this.player.playAreaWidth = input / 100 * VideoInfoUtil.playAreaWidth
-          this.subtitleAreaWidth = this.player.playAreaWidth
-          this.subtitleAreaHeight = this.player.playAreaHeight
-        } else {
-          ToolsUtil.showToast('输入错误，输入范围在50-150之间')
-        }
-      },
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   @Local exitVideoTime: number = 0
   @Local isAdjustingSubtitleOffset: boolean = false
@@ -154,18 +140,25 @@ export struct Player { // 播放页
 
   async aboutToAppear(): Promise<void> {
     salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "开始执行aboutToAppear方法", false)
+    this.player.prepareIfNeeded()
     PermissionUtil.applyContinuousTask()
     try {
-      await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
+      await (await this.getWindowClass())?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
       this.player.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
       const videoSpeed = Preferences.getVideoSpeed(PathUtils.appContext!)
       this.player.speed = parseFloat(videoSpeed?.replace('x', '') || '1')
       this.player.selectedText = Preferences.getScreenExtend(PathUtils.appContext!)
+
       WindowUtil.setBarState(PathUtils.appContext!, false, false)
+      if (Setting.defaultBrightness > 0) {
+        VideoOperateUtil.setBrightness(Setting.defaultBrightness / 100)
+      }
+
     } catch (error) {
       salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, `播放错误 ${error}`, true)
     }
+    this.player.onPlayerReady()
     salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "aboutToAppear方法执行完成", false)
   }
 
@@ -173,15 +166,13 @@ export struct Player { // 播放页
     salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "开始执行aboutToDisappear方法", false)
     VideoOperateUtil.setBrightness(-1)
     WindowUtil.recoveryBarColor()
-    Preferences.saveVideoSpeed(PathUtils.appContext!,
-      (VideoInfoUtil.videoSpeedListAll.includes(this.player.speed) ? this.player.speed : 1) + 'x')
+    this.player.savePlayerSpeed(PathUtils.appContext!)
     Preferences.saveRepeatModeState(PathUtils.appContext!, this.player.repeatMode)
-    this.player.saveSubtitlePreferenceForCurrentVideo(this.subtitleManager.subtitleVisibility,
+    this.player.onDisappearSaveSubtitlePreference(this.subtitleManager.subtitleVisibility,
       this.subtitleManager.isAIAsrShown, this.subtitleManager.subtitle3DMode)
-    WindowUtil.setBarState(PathUtils.appContext!, true, true)
+    this.player.onDisappearCleanup()
     clearTimeout(this.exitVideoTime)
-    this.player.cancelSubscribe()
-    await this.player.release()
+    await this.player.onDisappearRelease()
     salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "释放播放器资源完成", false)
     salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "aboutToDisappear方法执行完成", false)
   }
@@ -205,7 +196,7 @@ export struct Player { // 播放页
           onSideBarStatusChange: (v: boolean) => {
             this.sideBarStatus = v
           },
-          onItemClick: (item: VideoMetadata) => {
+          onItemClick: async (item: VideoMetadata) => {
             this.player.playChooseVideo(item, this.pathStack, this.windowClass, this.xComponentController)
             this.player.setPlayerCallback(this.pathStack, this.xComponentController, this.windowClass)
             this.closeSideBar(true)
@@ -215,21 +206,21 @@ export struct Player { // 播放页
         Stack() {
           XComponents({
             xComponentController: this.xComponentController,
-            choosePlayer: NavigationAddress.AV_PLAYER,
+            xComponentId: this.player.getXComponentId(),
+            libraryName: this.player.getLibraryName(),
+            choosePlayer: this.player.isMpvPlayer() ? PlayerEngine.MPV_PLAYER : PlayerEngine.AV_PLAYER,
             barState: this.player.showControl,
+            osdXController: this.player.isMpvPlayer() ? this.osdXController : undefined,
+            osdVisibility: this.player.getOsdVisibility(),
             onXComponentLoad: async () => {
-              this.player.surfaceID = this.xComponentController.getXComponentSurfaceId()
-              await this.player.init()
-              this.player.setPlayerCallback(this.pathStack, this.xComponentController, this.windowClass)
-              await this.player.getData(this.pathStack, this.windowClass)
-              PiPWindowUtil.createPipController(this.xComponentController, this.player)
+              await this.player.onSurfaceLoad(this.xComponentController, this.pathStack, this.windowClass)
             },
             onKeyCodeSpace: () => {
               this.player.togglePlayback()
             },
             onKeyCodeEscape: () => {
               VideoOperateUtil.fullScreenOrRotateScreen(this.player.screenWidth, this.player.screenHeight,
-                this.windowClass)
+                this.getWindowClass())
             },
             onKeyCodeLeft: () => {
               this.player.backForward()
@@ -245,18 +236,9 @@ export struct Player { // 播放页
               this.player.volumeActually = newVolume
               VideoOperateUtil.lastVolume = newVolume
             },
-          })
-
-          SubtitleDisplayBuilder({
-            subtitle: this.player.subtitle,
-            screenWidth: this.player.screenWidth,
-            screenHeight: this.player.screenHeight,
-            showControl: this.player.showControl,
-            subTitleVisibility: this.isOffsetSubtitleOverlayActive() ? Visibility.None :
-              this.subtitleManager.subtitleVisibility,
-            subtitle3DMode: this.subtitleManager.effective3DMode,
-            areaWidth: this.subtitleAreaWidth,
-            areaHeight: this.subtitleAreaHeight
+            onOsdSurfaceLoad: (surfaceId: string) => {
+              this.player.onOsdSurfaceLoad(surfaceId)
+            },
           })
 
           if (this.player.showControl && !this.player.isLock) {
@@ -317,8 +299,8 @@ export struct Player { // 播放页
               if (this.sideBarStatus) {
                 this.closeSideBar(true)
               } else {
-                this.player.lockVisibility = !this.player.lockVisibility
                 XAnimation.runWithAnimation(() => {
+                  this.player.lockVisibility = !this.player.lockVisibility
                   if (this.player.isLock) {
                     this.player.showControl = false
                   } else {
@@ -402,6 +384,7 @@ export struct Player { // 播放页
                 XAnimation.runWithAnimation(() => {
                   this.player.longPress = true
                 })
+                ToolsUtil.startVibration()
                 this.currentSpeedIndex = VideoInfoUtil.videoSpeedListAll.indexOf(Setting.longPressSpeed)
               }
             },
@@ -409,26 +392,28 @@ export struct Player { // 播放页
               XAnimation.runWithAnimation(() => {
                 this.player.longPress = false
               })
-              this.player.updatePlaybackSpeed(VideoOperateUtil.lastSpeed)
+              this.player.restoreSpeedAfterLongPress(VideoOperateUtil.lastSpeed)
             },
             onLongPressPanStart: (tapX: number) => {
               VideoOperateUtil.longPressStartX = tapX
+              ToolsUtil.startVibration()
             },
             onLongPressPanUpdate: (tapX: number) => {
-              if (this.player.longPress) { // 长按状态下的滑动处理
+              if (this.player.longPress) {
                 const deltaX = tapX - VideoOperateUtil.longPressStartX
-                if (Math.abs(deltaX) <= SWIPE_THRESHOLD) { // 未达到滑动阈值则直接返回
+                if (Math.abs(deltaX) <= SWIPE_THRESHOLD) {
                   return
                 }
                 const direction = Math.sign(deltaX)
-                const newIndex = this.currentSpeedIndex + direction // 计算新速度索引并限制在有效范围内
+                const newIndex = this.currentSpeedIndex + direction
                 const clampedIndex = Math.max(0, Math.min(newIndex, VideoInfoUtil.videoSpeedListAll.length - 1))
-                if (clampedIndex === this.currentSpeedIndex) { // 索引变化时才更新播放速度
+                if (clampedIndex === this.currentSpeedIndex) {
                   return
                 }
                 this.currentSpeedIndex = clampedIndex
                 this.player.updatePlaybackSpeed(VideoInfoUtil.videoSpeedListAll[this.currentSpeedIndex])
-                VideoOperateUtil.longPressStartX = tapX // 重置起始点实现分档切换效果
+                VideoOperateUtil.longPressStartX = tapX
+                ToolsUtil.startVibration()
               }
             },
             onPanMoveStart: (event: GestureEvent) => {
@@ -452,39 +437,35 @@ export struct Player { // 播放页
           })
             .hitTestBehavior(HitTestMode.Transparent)
 
-          if (this.isOffsetSubtitleOverlayActive()) {
-            Stack() {
-              SubtitleDisplayBuilder({
-                subtitle: this.player.subtitle,
-                screenWidth: this.player.screenWidth,
-                screenHeight: this.player.screenHeight,
-                showControl: this.player.showControl,
-                subTitleVisibility: this.subtitleManager.subtitleVisibility,
-                subtitle3DMode: this.subtitleManager.effective3DMode,
-                areaWidth: this.player.playAreaWidth,
-                areaHeight: this.player.playAreaHeight
-              })
-            }
-            .width(this.player.playAreaWidth)
-            .height(this.player.playAreaHeight)
-            .animation({ duration: this.player.playTime > 300 ? 300 : 0, curve: Curve.Ease })
-            .rotate({ y: 2, angle: this.player.angle, perspective: 200 })
-            .translate({ x: this.player.translateX, y: this.player.translateY })
-            .hitTestBehavior(HitTestMode.Transparent)
-            .zIndex(1000)
-          }
+          SubtitleDisplayBuilder({
+            subtitle: this.player.subtitle,
+            screenWidth: this.player.screenWidth,
+            screenHeight: this.player.screenHeight,
+            showControl: this.player.showControl,
+            subTitleVisibility: this.subtitleManager.subtitleVisibility,
+            subtitle3DMode: this.subtitleManager.effective3DMode,
+            areaWidth: this.player.playAreaWidth,
+            areaHeight: this.player.playAreaHeight,
+            angle: this.player.angle,
+            translateX: this.player.translateX,
+            translateY: this.player.translateY,
+            animDuration: this.player.playTime > 300 ? 300 : 0
+          })
 
           AISubtitleComponent({
             isAIAsrShown: this.subtitleManager.isAIAsrShown,
             showControl: this.player.showControl,
             screenHeight: this.player.screenHeight,
           })
-        }.onAreaChange((_oldValue: Area, newValue: Area) => {
+        }.onAreaChange(async (_oldValue: Area, newValue: Area) => {
           this.player.screenWidth = Math.floor(new Number(newValue.width).valueOf())
           this.player.screenHeight = Math.floor(new Number(newValue.height).valueOf())
           this.player.setRotation()
-          this.applyScreenExtend()
-        }).backgroundColor($r('sys.color.black'))
+
+        })
+        .height('100%')
+        .width('100%')
+        .backgroundColor($r('sys.color.black'))
       }
       .showControlButton(false)
       .onChange((value: boolean) => {
@@ -496,10 +477,42 @@ export struct Player { // 播放页
       .divider({ strokeWidth: 0 })
     }
     .onReady(() => {
-      const playerParams: PlayerParams = this.pathStack.getParamByName(NavigationAddress.AV_PLAYER)[0] as PlayerParams
+      let playerParams: PlayerParams | undefined
+      const videoPlayerParams: PlayerParams[] =
+        this.pathStack.getParamByName(NavigationAddress.VIDEO_PLAYER) as PlayerParams[]
+      if (videoPlayerParams.length > 0) {
+        playerParams = videoPlayerParams[0]
+      }
+      if (!playerParams) {
+        return
+      }
       try {
-        this.player.nowPlaying = playerParams.metadata as VideoMetadata
-        this.player.videoMetaDataList = playerParams.metadata_list as VideoMetadata[]
+        this.playerType = playerParams.playerType ?? PlayerEngine.AV_PLAYER
+        if (this.playerType === PlayerEngine.MPV_PLAYER) {
+          this.player = PlayerControllerFactory.createMpvController() as PlayerType
+        } else {
+          this.player = PlayerControllerFactory.createAVPlayerController() as PlayerType
+        }
+
+        this.subtitleManager = new SubtitleManager(this.player)
+        const metadata = playerParams.metadata as VideoMetadata
+        if (metadata && !PrivacySpaceUtil.getPrivacyMode()) {
+          const findResult = Preferences.findVideoByDate(PathUtils.appContext!, metadata.date)
+          this.player.nowPlaying = findResult[0] ?? metadata
+        } else {
+          this.player.nowPlaying = metadata
+        }
+        if (playerParams.metadata_list) {
+          this.player.videoMetaDataList = playerParams.metadata_list as VideoMetadata[]
+        } else if (playerParams!.folder_date) {
+          const folders = Preferences.getFileFolder(PathUtils.appContext!)
+          const folder = folders.find(f => f.date === playerParams!.folder_date)
+          if (folder) {
+            this.player.videoMetaDataList = folder.video_list
+          }
+        }
+        this.player.skipHistory = playerParams.skipHistory
+        this.restoreSubtitlePreference()
       } catch (e) {
         salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, e, true)
       }
@@ -521,50 +534,46 @@ export struct Player { // 播放页
       if (PiPWindowUtil.pipOpenState) {
         PiPWindowUtil.stopPip()
       }
+      WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
     })
     .onWillDisappear(async () => {
       salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "开始执行onWillDisappear生命周期", false)
       this.player.saveSubtitlePreferenceForCurrentVideo(this.subtitleManager.subtitleVisibility,
         this.subtitleManager.isAIAsrShown, this.subtitleManager.subtitle3DMode)
       VideoOperateUtil.saveLastPlayVideoIndex(this.player.videoMetaDataList, this.player.nowPlaying?.date)
-      if (this.player.videoMetaDataList.length > 0 && this.player.playTime > 0) {
-        VideoOperateUtil.saveVideoTime(this.player.playTime, this.player.nowPlaying!,
-          PathUtils.appContext!)
-        salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "保存视频播放时间完成", false)
+      if (this.player.videoMetaDataList.length > 0 && this.player.playTime > 0 && !this.player.skipHistory) {
+        const nowPlaying = this.player.nowPlaying!
+        const totalTime = nowPlaying.time ?? 0
+        const lastPlay = nowPlaying.last_play ?? 0
+        const isAlreadyWatched = totalTime > 0 && lastPlay >= totalTime * 0.95
+        const isCurrentEarlier = this.player.playTime < lastPlay
+        if (isAlreadyWatched && isCurrentEarlier) {
+          salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG,
+            `跳过保存: 视频已标记为已观看(last_play=${lastPlay}), 当前playTime=${this.player.playTime}更小`, false)
+        } else {
+          VideoOperateUtil.saveVideoTime(this.player.playTime, nowPlaying,
+            PathUtils.appContext!)
+          salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "保存视频播放时间完成", false)
+        }
       }
       PermissionUtil.applyStopContinuousTask()
       PiPWindowUtil.destroyPipController()
-      WindowUtil.disableLandscapeMultiWindow(this.windowClass)
+      WindowUtil.disableLandscapeMultiWindow(this.getWindowClass())
       try {
         WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
-        if (canIUse('SystemCapability.Window.SessionManager')) {
-          await (await this.windowClass)?.setSpecificSystemBarEnabled('status', true)
-          await (await this.windowClass)?.setSpecificSystemBarEnabled('navigationIndicator', true)
-          salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "恢复系统栏显示完成", false)
-        }
-        await (await this.windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
-        await this.player?.avSession?.stopCasting()
-        await VideoOperateUtil.releaseAVImageGenerator()
-        await this.player.release()
+        await this.player.restoreSystemBars(this.windowClass)
+        this.player.onWillDisappearCleanup()
+        await (await this.getWindowClass())?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
+        await this.player.avSession?.stopCasting()
+        await this.player.onWillDisappearRelease(this.windowClass)
       } catch (error) {
         salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, `onWillDisappear中发生错误：${error}`, true)
       }
       salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "onWillDisappear生命周期执行完成", false)
     })
     .hideTitleBar(true)
-    .blur(Privacy.isPrivacyBackground ? PRIVACY_BACKGROUND_BLUR_AMOUNT : NO_BLUR_AMOUNT)
-  }
 
-  exitVideo(timeOut: number) {
-    salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "开始设置退出视频定时器", false)
-    this.exitVideoTime = setTimeout(async () => {
-      salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "退出视频定时器触发" + timeOut, false)
-      ToolsUtil.showToast(timeOut > 0 ? '到设定的时间了，已自动退出' : '已退出')
-      await this.player.reset()
-      salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "重置播放器完成", false)
-      this.pathStack.pop()
-    }, timeOut)
-    salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, `退出视频定时器设置完成，超时时间：${timeOut}`, false)
+    .blur(Privacy.isPrivacyBackground ? PRIVACY_BACKGROUND_BLUR_AMOUNT : NO_BLUR_AMOUNT)
   }
 
   @Builder
@@ -577,7 +586,9 @@ export struct Player { // 播放页
       subtitlePanelComponent: () => {
         this.SubtitleMenuBuilder()
       },
-      chapterMenuBuilder: () => {
+      chapterMenuBuilder: this.player.hasChapterSupport() ? () => {
+        this.ChapterMenuBuilder()
+      } : () => {
       },
       lockRotation: this.lockRotation,
       onExitVideoClick: () => {
@@ -594,7 +605,7 @@ export struct Player { // 播放页
           : window.Orientation.AUTO_ROTATION_RESTRICTED
         try {
           XAnimation.runWithAnimation(async () => {
-            await (await this.windowClass)?.setPreferredOrientation(orientation)
+            await (await this.getWindowClass())?.setPreferredOrientation(orientation)
             salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "窗口方向设置成功", false)
           })
         } catch (error) {
@@ -609,26 +620,22 @@ export struct Player { // 播放页
       onSpecificVideoProportions: (playAreaSize: number[]) => {
         this.player.playAreaWidth = playAreaSize[0]
         this.player.playAreaHeight = playAreaSize[1]
-        this.subtitleAreaWidth = playAreaSize[0]
-        this.subtitleAreaHeight = playAreaSize[1]
         this.player.isZoomed = false
         this.player.translateX = 0
         this.player.translateY = 0
       },
       onOriginalRatio: () => {
+        this.player.resetAspectRatio()
         this.player.playAreaHeight = VideoInfoUtil.playAreaHeight
         this.player.playAreaWidth = VideoInfoUtil.playAreaWidth
-        this.subtitleAreaWidth = VideoInfoUtil.playAreaWidth
-        this.subtitleAreaHeight = VideoInfoUtil.playAreaHeight
         this.player.isZoomed = false
         this.player.translateX = 0
         this.player.translateY = 0
       },
       onStretchedToFullScreen: () => {
+        this.player.stretchToFullScreen()
         this.player.playAreaHeight = this.player.screenHeight
         this.player.playAreaWidth = this.player.screenWidth
-        this.subtitleAreaWidth = this.player.screenWidth
-        this.subtitleAreaHeight = this.player.screenHeight
         this.player.isZoomed = false
         this.player.translateX = 0
         this.player.translateY = 0
@@ -637,8 +644,6 @@ export struct Player { // 播放页
         this.player.playAreaWidth = this.player.screenWidth
         this.player.playAreaHeight =
           (VideoInfoUtil.playAreaHeight / VideoInfoUtil.playAreaWidth) * this.player.screenWidth
-        this.subtitleAreaWidth = this.player.playAreaWidth
-        this.subtitleAreaHeight = this.player.playAreaHeight
         this.player.isZoomed = false
         this.player.translateX = 0
         this.player.translateY = 0
@@ -647,8 +652,6 @@ export struct Player { // 播放页
         this.player.playAreaHeight = this.player.screenHeight
         this.player.playAreaWidth =
           (VideoInfoUtil.playAreaWidth / VideoInfoUtil.playAreaHeight) * this.player.screenHeight
-        this.subtitleAreaWidth = this.player.playAreaWidth
-        this.subtitleAreaHeight = this.player.playAreaHeight
         this.player.isZoomed = false
         this.player.translateX = 0
         this.player.translateY = 0
@@ -656,8 +659,6 @@ export struct Player { // 播放页
       onUniformScale: (scale: number) => {
         this.player.playAreaHeight = scale * VideoInfoUtil.playAreaHeight
         this.player.playAreaWidth = scale * VideoInfoUtil.playAreaWidth
-        this.subtitleAreaWidth = this.player.playAreaWidth
-        this.subtitleAreaHeight = this.player.playAreaHeight
         this.player.isZoomed = false
         this.player.translateX = 0
         this.player.translateY = 0
@@ -713,13 +714,14 @@ export struct Player { // 播放页
         this.sideBarStatus = v
       },
       onScreenRotationOrFullScreenClick: async () => {
-        VideoOperateUtil.fullScreenOrRotateScreen(this.player.screenWidth, this.player.screenHeight, this.windowClass)
+        VideoOperateUtil.fullScreenOrRotateScreen(this.player.screenWidth, this.player.screenHeight,
+          this.getWindowClass())
       },
       onTogglePlaybackClick: () => {
         this.player.togglePlayback()
       },
       onPlayNextVideoClick: async () => {
-        await this.player.playNextVideoProcess(this.pathStack, this.windowClass, this.xComponentController)
+        this.player.playNextVideoProcess(this.pathStack, this.windowClass, this.xComponentController)
         this.player.setPlayerCallback(this.pathStack, this.xComponentController, this.windowClass)
         salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "播放下一个视频请求已发送", false)
       },
@@ -736,9 +738,18 @@ export struct Player { // 播放页
   AudioTrackMenuBuilder() {
     AudioTrackComponent({
       onSelect: (index: number) => {
-        this.player?.selectAudioTrack(this.player?.audioTrack[index]?.index)
+        this.player.selectAudioTrackByIndex(index)
         this.player.audioTrackSelected = index
-        VideoOperateUtil.saveAudioTrackPreference(this.player?.nowPlaying, index, this.player?.audioTrack.length ?? 0)
+        VideoOperateUtil.saveAudioTrackPreference(this.player.nowPlaying, index, this.player.getAudioTrackCount())
+      }
+    })
+  }
+
+  @Builder
+  ChapterMenuBuilder() {
+    ChapterListComponent({
+      onSelect: (index: number) => {
+        this.player.seekToChapter(index)
       }
     })
   }
@@ -752,26 +763,21 @@ export struct Player { // 播放页
         this.player.seekTime(time)
       },
       closeAfter15min: (time: number) => {
-        salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "设置15分钟后关闭播放器", false)
         this.exitVideo(time)
       },
       closeAfter30min: (time: number) => {
-        salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "设置30分钟后关闭播放器", false)
         this.exitVideo(time)
       },
       closeAfter60min: (time: number) => {
-        salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "设置60分钟后关闭播放器", false)
         this.exitVideo(time)
       },
       toggleListenVideo: () => {
-        salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "切换只听视频模式", false)
-        this.player.isListenVideo = !this.player.isListenVideo
-        this.player.isListenVideo ? ToolsUtil.showToast('只听视频模式已开启') :
-          ToolsUtil.showToast('只听视频模式已关闭')
-        this.player.setListenVideoStatus()
+        this.player.toggleListenVideo()
       },
       captureScreen: () => {
-        VideoOperateUtil.saveCaptureScreenToAlbum(this.player.surfaceID)
+        if (this.player.surfaceId) {
+          VideoOperateUtil.saveCaptureScreenToAlbum(this.player.surfaceId)
+        }
       },
       updateStarTime: (time: number) => {
         this.player.nowPlaying!.start_time = time
@@ -829,43 +835,34 @@ export struct Player { // 播放页
     AVCastPickerBuilder()
   }
 
-  private applyScreenExtend() {
-    const text = this.player.selectedText
-    if (!text || text === '原始比例') {
-      this.subtitleAreaWidth = this.player.playAreaWidth
-      this.subtitleAreaHeight = this.player.playAreaHeight
+  private restoreSubtitlePreference() {
+    if (this.subtitlePreferenceRestored) {
       return
     }
-    if (VideoInfoUtil.ASPECT_RATIO_MAP.has(text)) {
-      const playAreaSize = VideoOperateUtil.setVideoAspectRatio(
-        VideoInfoUtil.ASPECT_RATIO_MAP.get(text)!,
-        VideoInfoUtil.playAreaWidth, VideoInfoUtil.playAreaHeight)
-      this.player.playAreaWidth = playAreaSize[0]
-      this.player.playAreaHeight = playAreaSize[1]
-    } else if (text === '拉伸全屏') {
-      this.player.playAreaWidth = this.player.screenWidth
-      this.player.playAreaHeight = this.player.screenHeight
-    } else if (text === '按宽度全屏') {
-      this.player.playAreaWidth = this.player.screenWidth
-      this.player.playAreaHeight =
-        (VideoInfoUtil.playAreaHeight / VideoInfoUtil.playAreaWidth) * this.player.screenWidth
-    } else if (text === '按高度全屏') {
-      this.player.playAreaHeight = this.player.screenHeight
-      this.player.playAreaWidth =
-        (VideoInfoUtil.playAreaWidth / VideoInfoUtil.playAreaHeight) * this.player.screenHeight
-    } else {
-      const scale = SCALE_FACTORS.get(text)
-      if (scale) {
-        this.player.playAreaWidth = scale * VideoInfoUtil.playAreaWidth
-        this.player.playAreaHeight = scale * VideoInfoUtil.playAreaHeight
+    const nowPlaying: VideoMetadata | undefined = this.player.nowPlaying
+    if (nowPlaying && SubtitleUtil.hasSubtitlePreferenceMetadata(nowPlaying)) {
+      if (nowPlaying.subtitle_3d_mode !== undefined &&
+        [Subtitle3DMode.DISABLED, Subtitle3DMode.SIDE_BY_SIDE, Subtitle3DMode.TOP_AND_BOTTOM]
+          .includes(nowPlaying.subtitle_3d_mode)) {
+        this.subtitleManager.subtitle3DMode = nowPlaying.subtitle_3d_mode as Subtitle3DMode
       }
     }
-    this.subtitleAreaWidth = this.player.playAreaWidth
-    this.subtitleAreaHeight = this.player.playAreaHeight
+    this.subtitlePreferenceRestored = true
+    this.subtitleManager.syncMpvSubtitleVisibility()
   }
 
-  private isOffsetSubtitleOverlayActive(): boolean {
-    return this.isAdjustingSubtitleOffset && this.subtitleManager.subtitleMode === SubtitleMode.EXTERNAL_SUBTITLE
+  private getWindowClass(): Promise<window.Window | undefined> {
+    return this.player.getWindowClass() ?? this.windowClass
+  }
+
+  private exitVideo(timeOut: number) {
+    salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "开始设置退出视频定时器", false)
+    this.exitVideoTime = setTimeout(async () => {
+      salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "退出视频定时器触发" + timeOut, false)
+      await this.player.exitPlayback(timeOut)
+      this.pathStack.pop()
+    }, timeOut)
+    salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, `退出视频定时器设置完成，超时时间：${timeOut}`, false)
   }
 
   private resumePlaybackAfterSubtitleOffsetIfNeeded(): void {

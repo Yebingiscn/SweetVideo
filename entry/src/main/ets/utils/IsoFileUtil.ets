@@ -6,9 +6,9 @@
  * MPV播放ISO文件需要使用 bd:// 协议：
  * mpv --bluray-device=/path/to/file.iso bd://longest
  */
-import { salmonLogger } from "salmonlogger";
-import ToolsUtil from "./ToolsUtil";
-import fileIo from "@ohos.file.fs";
+import { salmonLogger } from 'salmonlogger';
+import ToolsUtil from './ToolsUtil';
+import fileIo from '@ohos.file.fs';
 
 const TAG = 'IsoFileUtil';
 

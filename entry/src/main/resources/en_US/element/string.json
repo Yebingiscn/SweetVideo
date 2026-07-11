@@ -125,6 +125,10 @@
       "value": "By name"
     },
     {
+      "name": "pinyin_sort",
+      "value": "Pinyin mixed sort"
+    },
+    {
       "name": "sort_by_time",
       "value": "By add time"
     },
@@ -175,6 +179,10 @@
     {
       "name": "move_to_folder",
       "value": "Move to folder"
+    },
+    {
+      "name": "move_folder",
+      "value": "Move folder"
     },
     {
       "name": "READ_WRITE_DOWNLOAD_DIRECTORY_REASON",
@@ -235,6 +243,18 @@
     {
       "name": "processing_error",
       "value": "An unexpected error occurred during processing:"
+    },
+    {
+      "name": "sort_folder_by_name",
+      "value": "Sort by name"
+    },
+    {
+      "name": "sort_folder_by_datetime",
+      "value": "Sort by created time"
+    },
+    {
+      "name": "sort_folder_by_count",
+      "value": "Sort by video count"
     }
   ]
 }

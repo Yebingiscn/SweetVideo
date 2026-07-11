@@ -1,13 +1,12 @@
-import { fileIo as fs, fileShare } from '@kit.CoreFileKit'
 import { abilityAccessCtrl, common, Permissions, wantAgent } from '@kit.AbilityKit'
-import { backgroundTaskManager } from '@kit.BackgroundTasksKit'
-import { BusinessError } from '@kit.BasicServicesKit'
-import { hilog } from '@kit.PerformanceAnalysisKit'
-import { PathUtils } from './PathUtils'
+import { salmonLogger } from 'salmonlogger'
 import AVSessionUtil from './AVSessionUtil'
 import { Setting } from './ObservedUtil'
+import { PathUtils } from './PathUtils'
 import json from '@ohos.util.json'
-import { salmonLogger } from 'salmonlogger'
+import fileIo from '@ohos.file.fs'
+import { fileShare } from '@kit.CoreFileKit'
+import { backgroundTaskManager } from '@kit.BackgroundTasksKit'
 
 const TAG = 'PermissionUtil'
 
@@ -23,8 +22,8 @@ export default class PermissionUtil {
     }
     try {
       // 首先尝试直接访问
-      let fd = await fs.open(uri)
-      await fs.close(fd)
+      let fd = await fileIo.open(uri)
+      await fileIo.close(fd)
       return true
     } catch (error) {
       // 直接访问失败，检查是否支持权限管理
@@ -43,8 +42,8 @@ export default class PermissionUtil {
             await fileShare.activatePermission(permissionsToActivate)
           }
           // 验证权限是否真正生效
-          let fd = await fs.open(uri)
-          await fs.close(fd)
+          let fd = await fileIo.open(uri)
+          await fileIo.close(fd)
           return true
         } catch (error) {
           salmonLogger.addLog(TAG, 'Permission activation failed:' + error, true)
@@ -86,10 +85,10 @@ export default class PermissionUtil {
           backgroundTaskManager.startBackgroundRunning(PathUtils.appContext!,
             backgroundTaskManager.BackgroundMode.AUDIO_PLAYBACK, wantAgentObj).then(() => {
           })?.catch((error: BusinessError) => {
-            hilog.error(777, 'testFlag', 'background play failed BusinessError: ' + json.stringify(error))
+            salmonLogger.addLog(TAG, 'background play failed BusinessError: ' + json.stringify(error), true)
           })
         } catch (error) {
-          hilog.error(777, 'testFlag', 'background play failed: ' + error)
+          salmonLogger.addLog(TAG, 'getWantAgent error', true)
         }
       })?.catch(() => {
         salmonLogger.addLog(TAG, 'getWantAgent error', true)
@@ -119,8 +118,8 @@ export default class PermissionUtil {
         fileShare.persistPermission(policies)?.catch(() => {
           salmonLogger.addLog(TAG, 'persistPermission error', true)
         })
-        let fd = await fs.open(uri)
-        await fs.close(fd)
+        let fd = await fileIo.open(uri)
+        await fileIo.close(fd)
         // 持久化成功，添加到缓存
         PermissionUtil.permissionCache.add(uri)
       }

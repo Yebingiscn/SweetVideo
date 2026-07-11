@@ -83,11 +83,15 @@ export default class AVSessionUtil {
   }
 
   static async createSession() {
-    let type: avSessionManager.AVSessionType = 'audio'
+    let type: avSessionManager.AVSessionType = 'video'
     try {
       AVSessionUtil.avSession = await avSessionManager.createAVSession(PathUtils.appContext!, 'sweet_video', type)
+      AVSessionUtil.avSession?.setBackgroundPlayMode(avSession.BackgroundPlayMode.ENABLE_BACKGROUND_PLAY).catch(
+        () => {
+          salmonLogger.addLog(TAG, 'setBackgroundPlayMode error', true)
+        })
       AVSessionUtil.avSession.activate()?.catch(() => {
-        salmonLogger.addLog(TAG, 'activate avSession erro', true)
+        salmonLogger.addLog(TAG, 'activate avSession error', true)
       })
     } catch (error) {
       salmonLogger.addLog(TAG, 'create session error:' + error, true)

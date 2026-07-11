@@ -8,6 +8,7 @@ import SelectFileUtil from '../../utils/SelectFileUtil'
 import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
 import { fileIo } from '@kit.CoreFileKit'
+import { CoverLayoutMode } from '../../common/enum/DisplayMode'
 
 const TAG = 'PrivacySpaceErrorList'
 
@@ -64,7 +65,8 @@ export struct PrivacySpaceErrorList {
   VideoItemBuilder(errorVideo: string) {
     Row() {
       Image(PathUtils.coverUri(errorVideo))
-        .attributeModifier(new ImageFancyModifier(16, 80, 120))
+        .attributeModifier(new ImageFancyModifier(12, Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 85 : 110,
+          Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 110 : 85))
       Column() {
         Text(errorVideo)
           .fontSize(16)
@@ -75,7 +77,7 @@ export struct PrivacySpaceErrorList {
           .margin({ left: 5 })
           .wordBreak(WordBreak.BREAK_ALL)
       }.alignItems(HorizontalAlign.Start)
-      .padding({ left: 15, right: 15 })
+      .padding({ left: 16, right: 16 })
       .layoutWeight(1)
     }
     .backgroundColor($r('app.color.start_window_background'))
@@ -132,7 +134,7 @@ export struct PrivacySpaceErrorList {
           }
           .clip(false)
           .layoutWeight(1)
-          .padding({ left: 20, right: 20 })
+          .padding({ left: 16, right: 16 })
           .width('100%')
           .height('auto')
           .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果

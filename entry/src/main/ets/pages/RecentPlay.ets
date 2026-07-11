@@ -9,7 +9,7 @@ import { DELAY_JUMP_TO_PLAYER } from '../common/Constants'
 import { VideoItemBuilder } from '../component/PlayerComponent/PlayerSideBarComponent'
 import { VideoItemPreviewBuilder } from '../component/VideoItemComponent/VideoItemPreviewBuilder'
 import DataSyncUtil from '../utils/DataSyncUtil'
-import { SafeHeight, Setting } from '../utils/ObservedUtil'
+import { Setting, SafeHeight } from '../utils/ObservedUtil'
 import RecentPlayUtil from '../utils/RecentPlayUtil'
 import SelectFileUtil from '../utils/SelectFileUtil'
 import ToolsUtil from '../utils/ToolsUtil'
@@ -65,7 +65,7 @@ export struct RecentPlay { // 最近播放页
       })
         .onClick(() => {
           setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-            await this.clickItem(item, VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine, true))
+            await this.clickItem(item, true)
           }, DELAY_JUMP_TO_PLAYER)
         })
       MenuItem({
@@ -85,7 +85,7 @@ export struct RecentPlay { // 最近播放页
     }
   }
 
-  async clickItem(item: VideoMetadata | undefined, choosePlayer: string) {
+  async clickItem(item: VideoMetadata | undefined, reverse: boolean = false) {
     if (!item) {
       return
     }
@@ -93,7 +93,7 @@ export struct RecentPlay { // 最近播放页
     if (isFileExist) {
       const originalList = SelectFileUtil.getVideoListByVideoDate(item.date)
       if (originalList[1].length > 0 && originalList[0]) {
-        await ToolsUtil.routerWhere(this.pathStack, choosePlayer, originalList[0], originalList[1])
+        await ToolsUtil.routerWhere(this.pathStack, originalList[0], originalList[1], reverse)
       } else {
         ToolsUtil.showToast('数据异常，已移除该数据')
         this.delData(PathUtils.appContext!, item)
@@ -129,8 +129,7 @@ export struct RecentPlay { // 最近播放页
                 VideoItemBuilder({ item: repeatItem.item })
               }
               .onClick(async () => {
-                await this.clickItem(repeatItem.item,
-                  VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
+                await this.clickItem(repeatItem.item)
               })
               .backgroundColor($r('app.color.list_item_background'))
               .width('100%')
@@ -178,7 +177,7 @@ export struct RecentPlay { // 最近播放页
         }
         .clip(false)
         .layoutWeight(1)
-        .padding({ left: 12, right: 12 })
+        .padding({ left: 16, right: 16 })
         .width('100%')
         .height('100%')
         .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果

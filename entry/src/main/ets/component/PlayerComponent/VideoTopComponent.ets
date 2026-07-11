@@ -1,13 +1,13 @@
 import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
-import { SCREEN_EXTEND_LIST, SCALE_FACTORS } from '../../common/Constants'
-import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
-import { MpvController } from '../../controller/MpvController/MpvController'
+import { SCALE_FACTORS, SCREEN_EXTEND_LIST } from '../../common/Constants'
+import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
 @ComponentV2
 export struct VideoTopComponent {
-  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Consumer('player') player: PlayerControllerInterface =
+    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
   @Param isAnySubtitleActive: boolean = false
   @BuilderParam audioTrackMenuBuilder: () => void
   @BuilderParam subtitlePanelComponent: () => void
@@ -100,10 +100,10 @@ export struct VideoTopComponent {
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .bindMenu(this.audioTrackMenuBuilder,
-          { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
+          { backgroundBlurStyle: BlurStyle.COMPONENT_THIN })
       }
 
-      if (this.player instanceof MpvController && this.player.chapterList.length > 0) {
+      if (this.player.hasChapterSupport() && this.player.chapterList.length > 0) {
         Button({ type: ButtonType.Circle, stateEffect: true }) {
           SymbolGlyph($r('sys.symbol.list_bullet'))
             .fontSize(27)
@@ -114,15 +114,16 @@ export struct VideoTopComponent {
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor('#50000000')
         .bindMenu(this.chapterMenuBuilder,
-          { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
+          { backgroundBlurStyle: BlurStyle.COMPONENT_THIN })
       }
 
       // 5. 屏幕扩展选择器 (仅在横屏显示)
       if (this.player.screenWidth > this.player.screenHeight) {
         Select(SCREEN_EXTEND_LIST)
           .font({ size: 18, weight: FontWeight.Medium })
-          .value(this.player.selectedText)
-          .selected(VideoInfoUtil.screenExtendMap.indexOf(this.player.selectedText!))
+          .value(this.player.selectedText?.startsWith('自定义比例:') ? '自定义比例' : this.player.selectedText)
+          .selected(this.player.selectedText?.startsWith('自定义比例:') ? 4 :
+            VideoInfoUtil.screenExtendMap.indexOf(this.player.selectedText!))
           .fontColor($r('sys.color.white'))
           .onSelect((_index: number, text?: string | undefined) => {
             const selectedText = text
@@ -130,7 +131,7 @@ export struct VideoTopComponent {
             this.onSelectedTextChange(selectedText!)
           })
           .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
-          .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
+          .menuBackgroundBlurStyle(BlurStyle.COMPONENT_THIN)
       }
 
       // 6. 旋转锁定按钮

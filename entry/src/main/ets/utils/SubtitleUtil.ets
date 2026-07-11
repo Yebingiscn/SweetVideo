@@ -51,12 +51,12 @@ export default class SubtitleUtil {
   }
 
   static hasSubtitlePreferenceMetadata(nowPlaying: VideoMetadata): boolean {
-    return nowPlaying.subtitle_mode !== undefined ||
-      nowPlaying.subtitle_visible !== undefined ||
-      nowPlaying.subtitle_ai_asr_shown !== undefined ||
-      nowPlaying.subtitle_3d_mode !== undefined ||
-      nowPlaying.subtitle_offset_millis !== undefined ||
-      nowPlaying.subtitle_track_id !== undefined
+    return nowPlaying.subtitle_mode != undefined ||
+      nowPlaying.subtitle_visible != undefined ||
+      nowPlaying.subtitle_ai_asr_shown != undefined ||
+      nowPlaying.subtitle_3d_mode != undefined ||
+      nowPlaying.subtitle_offset_millis != undefined ||
+      nowPlaying.subtitle_track_id != undefined
   }
 
   // 获取外挂字幕
@@ -121,18 +121,23 @@ export default class SubtitleUtil {
   }
 
   // 删除字幕
-  static async deleteSubtitle(sandboxDir: string, fileName: string) {
+  static async deleteSubtitle(sandboxDir: string, fileName: string, silent: boolean = false) {
     try {
       await fs.unlink(sandboxDir + fileName)
-      ToolsUtil.showToast('删除成功')
-    } catch (err) {
-      const error = err as BusinessError
-      if (error.code === 13900002) { // 文件或目录不存在错误码
-        salmonLogger.addLog(TAG, '文件不存在')
+      if (!silent) {
+        ToolsUtil.showToast('删除成功')
+      }
+    } catch (error) {
+      if (error.code === 13900002) {
+        if (!silent) {
+          salmonLogger.addLog(TAG, '文件不存在')
+        }
       } else {
-        ToolsUtil.showToast('删除失败')
+        if (!silent) {
+          ToolsUtil.showToast('删除失败')
+        }
         salmonLogger.addLog(TAG, 'delete failed: ' + error.code + ':' + error.message, true)
-        salmonLogger.addLog('subtitle', 'delete failed: ' + error.code + ':' + error.message, true)
+        throw new Error('delete failed: ' + error.code + ':' + error.message)
       }
     }
   }

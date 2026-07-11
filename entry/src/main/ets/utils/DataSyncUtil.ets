@@ -5,6 +5,7 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 class DataSyncUtil {
   public editingVideo: VideoMetadata | undefined = undefined
   public editingFolder: FileFolder | undefined = undefined
+  public movingFolderDate: string = ''
   public deletedVideos: VideoMetadata[] = []
   public delMultipleList: VideoMetadata[] = []
   public minSideBarWidth: number = 150 // 最小侧边栏宽度

@@ -15,14 +15,17 @@ const TAG = 'CrashPage'
 @ComponentV2
 export struct CrashPage {
   @Local sweetLogDataSource: SweetLogDataSource = new SweetLogDataSource([])
+  @Local currentTabIndex: number = 0
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   private appEventGroups: Array<hiAppEvent.AppEventGroup> | [] = []
   private listScroller: Scroller = new Scroller()
+  private tabsController: TabsController = new TabsController()
 
   aboutToAppear(): void {
     const crashLog = AppStorage.get('crashLog') as Array<hiAppEvent.AppEventGroup>
     if (crashLog) {
       this.appEventGroups = crashLog
+      this.currentTabIndex = 1
     }
     this.sweetLogDataSource = new SweetLogDataSource(salmonLogger.logs)
   }
@@ -34,168 +37,183 @@ export struct CrashPage {
   build() {
     HdsNavDestination() {
       Column() {
-        if (this.appEventGroups.length === 0) {
-          // 简洁日志组件
-          Column() {
-            // Mac 风格标题栏 - 扁平化为一行
-            Row({ space: 8 }) {
-              Circle()
-                .width(16)
-                .height(16)
-                .fill('#ff5f56')
-                .onClick(() => {
-                  salmonLogger.clearLog()
-                  this.sweetLogDataSource.updateData(salmonLogger.logs)
-                })
-              Circle()
-                .width(16)
-                .height(16)
-                .fill('#ffbd2e')
-                .onClick(() => ToolsUtil.showToast("红色按钮清空日志，绿色按钮导出日志"))
-              Circle()
-                .width(16)
-                .height(16)
-                .fill('#27c93f')
-                .onClick(() => salmonLogger.exportLog('sweet_video', PathUtils.appContext!))
-            }
-            .width('100%')
-            .padding(12)
+        Tabs({ index: this.currentTabIndex, controller: this.tabsController }) {
+          TabContent() {
+            Column() {
+              Row({ space: 8 }) {
+                Circle()
+                  .width(16)
+                  .height(16)
+                  .fill('#ff5f56')
+                  .onClick(() => {
+                    salmonLogger.clearLog()
+                    this.sweetLogDataSource.updateData(salmonLogger.logs)
+                  })
+                Circle()
+                  .width(16)
+                  .height(16)
+                  .fill('#ffbd2e')
+                  .onClick(() => ToolsUtil.showToast("红色按钮清空日志，绿色按钮导出日志"))
+                Circle()
+                  .width(16)
+                  .height(16)
+                  .fill('#27c93f')
+                  .onClick(() => salmonLogger.exportLog('sweet_video', PathUtils.appContext!))
+              }
+              .width('100%')
+              .padding(12)
 
-            // 日志列表
-            List({ scroller: this.listScroller, space: 10 }) {
-              Repeat<SalmonLogLine>(this.sweetLogDataSource.data)
-                .each((repeatItem: RepeatItem<SalmonLogLine>) => {
-                  ListItem() {
-                    Column() {
-                      Row() {
-                        Text(repeatItem.item.isError ? 'ERROR' : 'INFO')
-                          .fontSize(9)
-                          .fontColor($r('sys.color.white'))
-                          .fontWeight(FontWeight.Bold)
-                          .padding({
-                            left: 6,
-                            right: 6,
-                            top: 2,
-                            bottom: 2
-                          })
-                          .backgroundColor(repeatItem.item.isError ? '#26ff4d4f' : '#2652c41a')
-                          .backdropBlur(12)
-                          .borderRadius(4)
+              List({ scroller: this.listScroller, space: 10 }) {
+                Repeat<SalmonLogLine>(this.sweetLogDataSource.data)
+                  .each((repeatItem: RepeatItem<SalmonLogLine>) => {
+                    ListItem() {
+                      Column() {
+                        Row() {
+                          Text(repeatItem.item.isError ? 'ERROR' : 'INFO')
+                            .fontSize(9)
+                            .fontColor($r('sys.color.white'))
+                            .fontWeight(FontWeight.Bold)
+                            .padding({
+                              left: 6,
+                              right: 6,
+                              top: 2,
+                              bottom: 2
+                            })
+                            .backgroundColor(repeatItem.item.isError ? '#26ff4d4f' : '#2652c41a')
+                            .backdropBlur(12)
+                            .borderRadius(4)
 
-                        Text(`[${new Date(repeatItem.item.time).toLocaleTimeString(undefined, { hour12: false })}]`)
-                          .fontSize(10)
-                          .fontColor($r('app.color.text_color'))
-                          .opacity(0.7)
-                          .margin({ left: 8 })
+                          Text(`[${new Date(repeatItem.item.time).toLocaleTimeString(undefined, { hour12: false })}]`)
+                            .fontSize(10)
+                            .fontColor($r('app.color.text_color'))
+                            .opacity(0.7)
+                            .margin({ left: 8 })
 
-                        Text(repeatItem.item.tag)
-                          .fontSize(10)
-                          .fontColor(repeatItem.item.isError ? '#ff4d4f' : $r('app.color.text_color'))
-                          .opacity(0.6)
-                          .layoutWeight(1)
-                          .margin({ left: 8 })
-                      }
-                      .width('100%')
-
-                      Text(repeatItem.item.text)
-                        .fontSize(12)
-                        .fontColor(repeatItem.item.isError ? '#ff4d4f' : $r('app.color.text_color'))
-                        .width('100%')
-                        .wordBreak(WordBreak.BREAK_ALL)
-                        .margin({ top: 6 })
-                        .align(Alignment.Start)
-                    }
-                    .width('100%')
-                    .padding({
-                      top: 6,
-                      bottom: 6,
-                      left: 12,
-                      right: 12
-                    })
-                  }
-                })
-                .key((_item: SalmonLogLine, index: number) => index.toString())
-                .virtualScroll()
-            }
-            .chainAnimation(true)
-            .onAppear(() => {
-              setTimeout(() => {
-                const targetIndex = salmonLogger.logs.length - 1
-                if (targetIndex >= 0) {
-                  this.listScroller.scrollToIndex(targetIndex, false)
-                }
-              }, 50)
-            })
-            .layoutWeight(1)
-            .height('100%')
-            .width('100%')
-            .padding({ left: 8, right: 8, bottom: 8 })
-            .scrollBar(BarState.Auto)
-          }
-          .width('100%')
-          .layoutWeight(1)
-          .backgroundColor($r('app.color.start_window_background_blur'))
-          .borderRadius(16)
-        } else {
-          // 崩溃日志
-          List() {
-            Repeat<hiAppEvent.AppEventGroup>(this.appEventGroups)
-              .each((repeatItem: RepeatItem<hiAppEvent.AppEventGroup>) => {
-                ListItem() {
-                  Column() {
-                    Text('事件名：' + repeatItem.item.name)
-                      .fontColor($r('app.color.text_color'))
-                      .fontSize(16)
-                      .fontWeight(FontWeight.Medium)
-                      .margin({ bottom: 8 })
-
-                    Repeat<hiAppEvent.AppEventInfo>(repeatItem.item.appEventInfos)
-                      .each((repeatItem2: RepeatItem<hiAppEvent.AppEventInfo>) => {
-                        Column() {
-                          this.EventInfoText('domain', repeatItem2.item.domain)
-                          this.EventInfoText('name', repeatItem2.item.name)
-                          this.EventInfoText('eventType', repeatItem2.item.eventType)
-                          this.EventInfoText('time', repeatItem2.item.params['time'])
-                          this.EventInfoText('crash_type', repeatItem2.item.params['crash_type'])
-                          this.EventInfoText('foreground', repeatItem2.item.params['foreground'])
-                          this.EventInfoText('bundle_version', repeatItem2.item.params['bundle_version'])
-                          this.EventInfoText('bundle_name', repeatItem2.item.params['bundle_name'])
-                          this.EventInfoText('pid', repeatItem2.item.params['pid'])
-                          this.EventInfoText('uid', repeatItem2.item.params['uid'])
-                          this.EventInfoText('uuid', repeatItem2.item.params['uuid'])
-                          this.EventInfoText('exception', JSON.stringify(repeatItem2.item.params['exception']))
-                          this.EventInfoText('hilog.size', repeatItem2.item.params['hilog']?.length)
-                          this.EventInfoText('external_log', JSON.stringify(repeatItem2.item.params['external_log']))
-                          this.EventInfoText('log_over_limit', repeatItem2.item.params['log_over_limit'])
-                          this.EventInfoText('test_data', repeatItem2.item.params['test_data'])
+                          Text(repeatItem.item.tag)
+                            .fontSize(10)
+                            .fontColor(repeatItem.item.isError ? '#ff4d4f' : $r('app.color.text_color'))
+                            .opacity(0.6)
+                            .layoutWeight(1)
+                            .margin({ left: 8 })
                         }
                         .width('100%')
-                        .padding(8)
-                        .margin({ top: 8 })
+
+                        Text(repeatItem.item.text)
+                          .fontSize(12)
+                          .fontColor(repeatItem.item.isError ? '#ff4d4f' : $r('app.color.text_color'))
+                          .width('100%')
+                          .wordBreak(WordBreak.BREAK_ALL)
+                          .margin({ top: 6 })
+                          .align(Alignment.Start)
+                      }
+                      .width('100%')
+                      .padding({
+                        top: 6,
+                        bottom: 6,
+                        left: 12,
+                        right: 12
                       })
-                      .key((_item: hiAppEvent.AppEventInfo, index2: number) => index2.toString())
+                    }
+                  })
+                  .key((_item: SalmonLogLine, index: number) => index.toString())
+                  .virtualScroll()
+              }
+              .chainAnimation(true)
+              .onAppear(() => {
+                setTimeout(() => {
+                  const targetIndex = salmonLogger.logs.length - 1
+                  if (targetIndex >= 0) {
+                    this.listScroller.scrollToIndex(targetIndex, false)
                   }
-                  .width('100%')
-                  .padding(12)
-                }
+                }, 50)
               })
-              .key((item: hiAppEvent.AppEventGroup, index: number) => item.name + (index ?? 0))
-              .virtualScroll()
+              .layoutWeight(1)
+              .width('100%')
+              .height('100%')
+              .padding({ left: 8, right: 8, bottom: 8 })
+              .scrollBar(BarState.Auto)
+            }.backgroundColor($r('app.color.start_window_background_blur'))
+            .borderRadius(16)
+            .width('100%')
+            .height('100%')
           }
-          .height('100%')
-          .width('100%')
-          .layoutWeight(1)
-          .backgroundColor($r('app.color.start_window_background_blur'))
-          .borderRadius(16)
-          .padding({ left: 8, right: 8 })
-          .scrollBar(BarState.Auto)
-          .chainAnimation(true)
+          .tabBar('运行日志')
+
+          if (this.appEventGroups.length > 0) {
+            TabContent() {
+              List() {
+                Repeat<hiAppEvent.AppEventGroup>(this.appEventGroups)
+                  .each((repeatItem: RepeatItem<hiAppEvent.AppEventGroup>) => {
+                    ListItem() {
+                      Column() {
+                        Text('事件名：' + repeatItem.item.name)
+                          .fontColor($r('app.color.text_color'))
+                          .fontSize(16)
+                          .fontWeight(FontWeight.Medium)
+                          .margin({ bottom: 8 })
+
+                        Repeat<hiAppEvent.AppEventInfo>(repeatItem.item.appEventInfos)
+                          .each((repeatItem2: RepeatItem<hiAppEvent.AppEventInfo>) => {
+                            Column() {
+                              this.EventInfoText('domain', repeatItem2.item.domain)
+                              this.EventInfoText('name', repeatItem2.item.name)
+                              this.EventInfoText('eventType', repeatItem2.item.eventType)
+                              this.EventInfoText('time', repeatItem2.item.params['time'])
+                              this.EventInfoText('crash_type', repeatItem2.item.params['crash_type'])
+                              this.EventInfoText('foreground', repeatItem2.item.params['foreground'])
+                              this.EventInfoText('bundle_version', repeatItem2.item.params['bundle_version'])
+                              this.EventInfoText('bundle_name', repeatItem2.item.params['bundle_name'])
+                              this.EventInfoText('pid', repeatItem2.item.params['pid'])
+                              this.EventInfoText('uid', repeatItem2.item.params['uid'])
+                              this.EventInfoText('uuid', repeatItem2.item.params['uuid'])
+                              this.EventInfoText('exception', JSON.stringify(repeatItem2.item.params['exception']))
+                              this.EventInfoText('hilog.size', repeatItem2.item.params['hilog']?.length)
+                              this.EventInfoText('external_log',
+                                JSON.stringify(repeatItem2.item.params['external_log']))
+                              this.EventInfoText('log_over_limit', repeatItem2.item.params['log_over_limit'])
+                              this.EventInfoText('test_data', repeatItem2.item.params['test_data'])
+                            }
+                            .width('100%')
+                            .padding(8)
+                            .margin({ top: 8 })
+                          })
+                          .key((_item: hiAppEvent.AppEventInfo, index2: number) => index2.toString())
+                      }
+                      .width('100%')
+                      .padding(12)
+                    }
+                  })
+                  .key((item: hiAppEvent.AppEventGroup, index: number) => item.name + (index ?? 0))
+                  .virtualScroll()
+              }
+              .backgroundColor($r('app.color.start_window_background_blur'))
+              .borderRadius(16)
+              .width('100%')
+              .height('100%')
+              .padding({ left: 8, right: 8 })
+              .scrollBar(BarState.Auto)
+              .chainAnimation(true)
+            }
+            .tabBar('崩溃日志')
+          }
         }
+        .barPosition(BarPosition.Start)
+        .scrollable(true)
+        .barMode(BarMode.Fixed)
+        .layoutWeight(1)
+        .width('100%')
+        .onChange((index: number) => {
+          this.currentTabIndex = index
+        })
 
         Button('分享给开发者')
           .onClick(async () => {
-            this.appEventGroups.toString().length > 0 ? await this.shareText(JSON.stringify(this.appEventGroups)) :
-              await this.shareText(JSON.stringify(salmonLogger.logs))
+            let logText = ''
+            if (this.appEventGroups.length > 0) {
+              logText += '=== 崩溃日志 ===\n' + JSON.stringify(this.appEventGroups) + '\n\n'
+            }
+            logText += '=== 运行日志 ===\n' + JSON.stringify(salmonLogger.logs)
+            await this.shareText(logText)
           })
           .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
           .fontColor($r('sys.color.white'))
@@ -214,14 +232,12 @@ export struct CrashPage {
     }
     .hideToolBar(true)
     .titleBar({
-      enableComponentSafeArea: true, // 将标题栏设置为组件级安全区，内容区可避让标题栏
+      enableComponentSafeArea: true,
       padding: {
         start: LengthMetrics.vp(5),
         end: LengthMetrics.vp(5)
       },
       style: {
-        // 设置导航组件标题栏样式，推荐使用默认样式
-        // 标题栏动态模糊样式，包括是否使能滚动动态模糊，动态模糊类型，动态模糊生效的滚动距离等
         scrollEffectOpts: {
           enableScrollEffect: true,
           scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
@@ -229,13 +245,10 @@ export struct CrashPage {
           blurEffectiveEndOffset: LengthMetrics.vp(20)
         },
         originalStyle: {
-          // 内容区滚动前初始样式设置
           backgroundStyle: {
-            // 标题栏背板样式设置
             backgroundColor: $r('sys.color.ohos_id_color_background'),
           },
           contentStyle: {
-            // 标题栏内容区样式设置，包括标题区域，菜单区域，返回按钮区域
             titleStyle: {
               mainTitleColor: $r('sys.color.font_primary'),
               subTitleColor: $r('sys.color.font_secondary')
@@ -251,7 +264,6 @@ export struct CrashPage {
           }
         },
         scrollEffectStyle: {
-          // 内容区滚动超过blurEffectiveEndOffset后样式设置
           backgroundStyle: {
             backgroundColor: $r('sys.color.ohos_id_color_background_transparent'),
           },
@@ -285,7 +297,7 @@ export struct CrashPage {
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)
     .hideBackButton(false)
-    .bindToScrollable([this.listScroller]) // 绑定导航组件和可滚动容器组件
+    .bindToScrollable([this.listScroller])
   }
 
   @Builder
@@ -310,15 +322,12 @@ export struct CrashPage {
     const infoText = '反馈 QQ群 973792610'
     const fullText = infoText + '\n' + text
     try {
-      // 获取临时目录
       const context = PathUtils.appContext
       const tempDir = PathUtils.tempPath
-      // 创建临时文件路径
       const timestamp = new Date().getTime()
       const fileName = `crash_log_${timestamp}.txt`
       const filePath = `${tempDir}/${fileName}`
       salmonLogger.addLog(this.pathStack.getAllPathName()[0], '开始写入日志文件: ' + filePath, false)
-      // 写入临时文件
       const file =
         fileIo.openSync(filePath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC)
       fileIo.writeSync(file.fd, fullText)
@@ -330,11 +339,10 @@ export struct CrashPage {
         title: fileName,
         description: '流心播放器日志'
       })
-      // 调用系统分享接口
       let controller1 = new systemShare.ShareController(shareData)
       await controller1.show(context, {
-        previewMode: systemShare.SharePreviewMode.DETAIL, // 详细预览模式
-        selectionMode: systemShare.SelectionMode.SINGLE   // 单选模式
+        previewMode: systemShare.SharePreviewMode.DETAIL,
+        selectionMode: systemShare.SelectionMode.SINGLE
       })
       fileIo.closeSync(file)
       salmonLogger.addLog(this.pathStack.getAllPathName()[0], '日志分享成功', false)

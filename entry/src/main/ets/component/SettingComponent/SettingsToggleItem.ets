@@ -1,14 +1,15 @@
 import {
-  SymbolGlyphFancyModifier,
+  SettingsItemModifier,
   SettingsTitleModifier,
-  SettingsItemModifier
-} from "../../common/AttributeModifierConfig"
+  SymbolGlyphFancyModifier
+} from '../../common/AttributeModifierConfig'
 
 @ComponentV2
 export struct SettingsToggleItem {
   @Param symbol: Resource | undefined = undefined
   @Param symbol1: Resource | undefined = undefined
   @Param message: ResourceStr = ''
+  @Param tag: ResourceStr | undefined = undefined
   @Param enable: boolean = false
   @Local _enable: boolean = false
   @Event onChange: (_checked: boolean) => void = () => {
@@ -31,7 +32,20 @@ export struct SettingsToggleItem {
           .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this._enable))
         Text(this.message)
           .attributeModifier(new SettingsTitleModifier())
-          .layoutWeight(1)
+          .constraintSize({ maxWidth: this.tag ? '65%' : '100%' })
+        if (this.tag) {
+          Text(this.tag)
+            .fontSize(12)
+            .fontColor(Color.White)
+            .backgroundColor($r('app.color.main_color'))
+            .borderRadius(6)
+            .padding({
+              left: 4,
+              right: 4,
+              top: 1,
+              bottom: 1
+            })
+        }
       }.layoutWeight(1)
 
       Toggle({ type: ToggleType.Switch, isOn: this._enable })

@@ -1,5 +1,5 @@
-import { salmonLogger } from 'salmonlogger'
 import { FunctionComponent, FunctionController } from '@kit.AgentFrameworkKit'
+import { salmonLogger } from 'salmonlogger'
 import { common } from '@kit.AbilityKit'
 
 const TAG = 'SweetAgentComponent'

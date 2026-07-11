@@ -64,6 +64,8 @@ declare module 'libmpvnative.so' {
 
   export const setLoudnessGain: (mpvHandle: number, loudnessGain: number) => boolean;
 
+  export const setAudioChannel: (mpvHandle: number, channelMode: number) => boolean;
+
   // ==================== 视频信息 ====================
   export const getHardwareDecoder: (mpvHandle: number) => string;
 
@@ -72,6 +74,10 @@ declare module 'libmpvnative.so' {
   export const getVideoHeight: (mpvHandle: number) => number;
 
   export const setKeepAspect: (mpvHandle: number, keepAspect: boolean) => void;
+
+  // ==================== 杜比视界 Profile 检测 ====================
+  // 0 = 非杜比视界, 5 = Profile 5, 7 = Profile 7, 8 = Profile 8, -1 = 其他杜比视界 Profile
+  export const getDolbyVisionProfile: (mpvHandle: number) => number;
 
   // ==================== 缓存配置 ====================
   export const setCacheSize: (size_mb: number) => void;

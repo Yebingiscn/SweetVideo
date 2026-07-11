@@ -1,9 +1,8 @@
 import { salmonLogger } from 'salmonlogger'
 import { OPTIONS } from '../../common/Constants'
-import NavigationAddress from '../../common/NavigationCommon'
-import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
-import { MpvController } from '../../controller/MpvController/MpvController'
+import { PlayerEngine } from '../../common/NavigationCommon'
 import { MpvDecodingMethod } from '../../controller/MpvController/MpvTypes'
+import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import { WindowUtil } from '../../utils/WindowUtil'
@@ -13,7 +12,8 @@ const TAG = 'XComponents'
 
 @ComponentV2
 export struct XComponents {
-  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Consumer('player') player: PlayerControllerInterface =
+    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
   @Param choosePlayer: string = ''
   @Param xComponentController: XComponentController | undefined = undefined
   @Param osdXController: XComponentController | undefined = undefined
@@ -38,7 +38,7 @@ export struct XComponents {
 
   build() {
     Stack() {
-      if (this.choosePlayer === NavigationAddress.AV_PLAYER) {
+      if (this.choosePlayer === PlayerEngine.AV_PLAYER) {
         AVPlayerXComponent({
           xComponentController: this.xComponentController,
           onAVPlayerComponentLoad: () => {

@@ -1,4 +1,4 @@
-import { SymbolGlyphFancyModifier } from "../../common/AttributeModifierConfig"
+import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 
 class BrightnessValue {
   screenBrightness: number = 100

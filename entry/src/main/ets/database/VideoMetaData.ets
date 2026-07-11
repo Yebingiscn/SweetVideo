@@ -10,21 +10,22 @@ import PreferencesUtil from './PreferencesUtil';
 
 export class VideoMetaDataOperator {
   static getVideoMetaDataByFolderName(folderName: string): VideoMetadata[] {
-    return Preferences.getFileFolder(PathUtils.appContext!).filter(item => item.name === folderName)[0].video_list
+    const folders = Preferences.getFileFolder(PathUtils.appContext!)
+    return folders.find(item => item.name === folderName)?.video_list ?? []
   }
 
   static migrationRootVideoMetaToRootFolder() {
-    // 判断首页Folder存不存在, 迁移数据到FileFolder中
-    const folder = Preferences.getFileFolder(PathUtils.appContext!).find(item => item.name === '首页')
+    const folders = Preferences.getFileFolder(PathUtils.appContext!)
+    const folder = folders.find(item => item.name === '首页')
     if (!folder) {
       const rootFolder: FileFolder = {
         name: '首页',
         date: '0',
         video_list: PreferencesUtil.getPreferencesValue(PathUtils.appContext!, 'sweet_video', 'recent_video_meta_data',
-          []) as VideoMetadata[]
+          []) as VideoMetadata[],
+        parent_date: null
       }
-      Preferences.saveFileFolder(PathUtils.appContext!,
-        [rootFolder, ...Preferences.getFileFolder(PathUtils.appContext!)])
+      Preferences.saveFileFolder(PathUtils.appContext!, [rootFolder, ...folders])
     }
   }
 
@@ -38,6 +39,10 @@ export class VideoMetaDataOperator {
 export class FolderOperator {
   static getFolderByName(folderName: string): FileFolder {
     return Preferences.getFileFolder(PathUtils.appContext!).find(item => item.name === folderName)!
+  }
+
+  static getFolderByDate(folderDate: string): FileFolder | undefined {
+    return Preferences.getFileFolder(PathUtils.appContext!).find(item => item.date === folderDate)
   }
 
   static saveFolders(folders: FileFolder[]) {

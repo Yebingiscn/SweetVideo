@@ -1,10 +1,11 @@
-import { SymbolGlyphFancyModifier, ButtonFancyModifier } from '../../common/AttributeModifierConfig'
-import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
-import { MpvController } from '../../controller/MpvController/MpvController'
+import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
+import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
+import { XAnimation } from '../../utils/AnimationUtil'
 
 @ComponentV2
 export struct LockVideoBarComponent {
-  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Consumer('player') player: PlayerControllerInterface =
+    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
   @Event onLockClick: () => void = () => {
   }
 
@@ -25,5 +26,8 @@ export struct LockVideoBarComponent {
       this.onLockClick()
     })
     .position({ bottom: this.player.screenHeight / 2, left: this.player.screenWidth - 80 })
+    .transition(TransitionEffect.translate({ x: 80 })
+      .combine(TransitionEffect.OPACITY)
+      .animation(XAnimation.getAnimationCurve()))
   }
 }

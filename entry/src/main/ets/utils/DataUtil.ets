@@ -116,7 +116,7 @@ export class SweetLogDataSource extends BaseDataSource<SalmonLogLine> {
 @ObservedV2
 export class VideoDataSource extends BaseDataSource<VideoMetadata> {
   public refreshData(folder: FileFolder) {
-    const videoMetaData: VideoMetadata[] = FolderOperator.getFolderByName(folder.name).video_list
+    const videoMetaData: VideoMetadata[] = FolderOperator.getFolderByDate(folder.date)!.video_list
     this.updateData(videoMetaData)
   }
 
@@ -165,5 +165,9 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
 export class FileFolderDataSource extends BaseDataSource<FileFolder> {
   getFileFolder(fileFolderName: string): FileFolder {
     return Preferences.getFileFolder(PathUtils.appContext!).find(item => item.name === fileFolderName)!
+  }
+
+  getFileFolderByDate(folderDate: string): FileFolder | undefined {
+    return Preferences.getFileFolder(PathUtils.appContext!).find(item => item.date === folderDate)
   }
 }

@@ -1,7 +1,6 @@
 import { PiPWindow } from '@kit.ArkUI'
 import { salmonLogger } from 'salmonlogger'
-import { AVPlayerController } from '../controller/AVPlayerController/AVPlayerController'
-import { MpvController } from '../controller/MpvController/MpvController'
+
 import { PlayerControllerInterface } from '../controller/PlayerControllerFactory'
 import { Setting } from './ObservedUtil'
 import { PathUtils } from './PathUtils'
@@ -49,7 +48,7 @@ export default class PiPWindowUtil {
   }
 
   static updateContentSize() {
-    const controller = PiPWindowUtil.playerController as AVPlayerController | MpvController | undefined
+    const controller = PiPWindowUtil.playerController
     const videoWidth =
       controller && controller.nowPlaying && controller.nowPlaying.size[0] ? controller.nowPlaying.size[0] : 0
     const videoHeight =
@@ -64,7 +63,7 @@ export default class PiPWindowUtil {
 
   static async createPipController(xComponentController: XComponentController,
     playerController ?: PlayerControllerInterface) {
-    const controller = playerController as AVPlayerController | MpvController | undefined
+    const controller = playerController
     const videoWidth =
       controller && controller.nowPlaying && controller.nowPlaying.size[0] ? controller.nowPlaying.size[0] : 0
     const videoHeight =
@@ -156,9 +155,9 @@ export default class PiPWindowUtil {
       case PiPWindow.PiPState.ABOUT_TO_START:
         break
       case PiPWindow.PiPState.STARTED:
-        const controller = PiPWindowUtil.playerController as AVPlayerController | MpvController
+        const controller = PiPWindowUtil.playerController
         let status: PiPWindow.PiPControlStatus =
-          controller.playing ? PiPWindow.PiPControlStatus.PLAY : PiPWindow.PiPControlStatus.PAUSE
+          controller?.playing ? PiPWindow.PiPControlStatus.PLAY : PiPWindow.PiPControlStatus.PAUSE
         PiPWindowUtil.pipController?.updatePiPControlStatus(PiPWindow.PiPControlType.VIDEO_PLAY_PAUSE, status)
         PiPWindowUtil.pipOpenState = true
         break

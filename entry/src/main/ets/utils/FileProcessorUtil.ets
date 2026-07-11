@@ -14,8 +14,6 @@ export interface ProgressInfo {
   total: number // 总文件数
   fileName: string // 当前处理的文件名
   stage: 'extracting' | 'cover' | 'saving' // 当前阶段
-  speed: number // 处理速度（个/秒）
-  elapsedTime: number // 已耗时（毫秒）
   failedCount: number // 失败文件数
 }
 
@@ -43,7 +41,6 @@ export class FileProcessorUtil {
     FileFolderUtil.duplicateVideo = 0 // 这里重置重复视频数
     FileProcessorUtil.failedFiles = [] // 重置失败文件列表
 
-    const startTime = Date.now()
     let processedCount = 0
     let failedCount = 0
 
@@ -59,8 +56,6 @@ export class FileProcessorUtil {
             total: fileList.length,
             fileName: fileName,
             stage: 'extracting',
-            speed: processedCount / ((Date.now() - startTime) / 1000),
-            elapsedTime: Date.now() - startTime,
             failedCount: failedCount
           })
 
@@ -88,8 +83,6 @@ export class FileProcessorUtil {
             total: fileList.length,
             fileName: fileName,
             stage: 'saving',
-            speed: processedCount / ((Date.now() - startTime) / 1000),
-            elapsedTime: Date.now() - startTime,
             failedCount: failedCount
           })
         }
@@ -235,8 +228,6 @@ export async function importAndProcessFiles(
     total: totalItems,
     fileName: '',
     stage: 'extracting',
-    speed: 0,
-    elapsedTime: 0,
     failedCount: 0
   })
   try {

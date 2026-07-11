@@ -21,6 +21,7 @@ export struct EditPasswordDialog {
         .onChange((input: string) => this.passwd = input)
         .type(InputType.NEW_PASSWORD)
         .enableAutoFill(true)
+        .borderRadius(16)
         .id('input_pwd')
         .onAppear(() => {
           focusControl.requestFocus('input_pwd')

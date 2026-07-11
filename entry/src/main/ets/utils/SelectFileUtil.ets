@@ -20,8 +20,8 @@ import PrivacySpaceUtil from './PrivacySpaceUtil'
 import RecentPlayUtil from './RecentPlayUtil'
 import SubtitleUtil from './SubtitleUtil'
 import { extractVideoMetadataInTaskPool } from './TaskpoolUtil'
-import { effectKit } from '@kit.ArkGraphics2D'
 import { systemDateTime } from '@kit.BasicServicesKit'
+import { effectKit } from '@kit.ArkGraphics2D'
 
 const TAG = 'SelectFileUtil'
 
@@ -270,7 +270,7 @@ export default class SelectFileUtil {
       return filePath
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error)
-      salmonLogger.addLog(TAG, `Failed to save pixelMap to ${filePath}: ${errMsg}`, true)
+      salmonLogger.addLog(TAG, `Failed to save pixelMap to ${filePath}: ${JSON.stringify(errMsg)}`, true)
       if (options?.deleteOnFail) {
         try {
           fs.accessSync(filePath) && fs.unlinkSync(filePath)
@@ -374,7 +374,7 @@ export default class SelectFileUtil {
   }
 
   static saveData(context: Context, target_data: VideoMetadata, options: SaveOptions) {
-    salmonLogger.addLog(TAG, '开始保存播放数据', false)
+    salmonLogger.addLog(TAG, `开始保存播放数据: playTime=${options.playTime}, totalTime=${options.totalTime}, target_time=${target_data.time}, last_play=${target_data.last_play}`, false)
     let save_time: number = 0
     if (target_data.time === 0 && options.totalTime) {
       target_data.time = options.totalTime
@@ -386,7 +386,7 @@ export default class SelectFileUtil {
       if (totalDuration && options.playTime > totalDuration * 0.95) {
         shouldMarkAsWatched = true
         salmonLogger.addLog(TAG, '播放进度超过95%，标记为已观看', false)
-      } else if (endTime > 0 && options.playTime >= endTime) {
+      } else if (endTime > 0 && options.playTime >= endTime - 1000) {
         shouldMarkAsWatched = true
         salmonLogger.addLog(TAG, '播放至指定结束时间，标记为已观看', false)
       }
@@ -456,14 +456,19 @@ export default class SelectFileUtil {
     salmonLogger.addLog(TAG, '更新文件夹中的视频数据', false)
     const folders = Preferences.getFileFolder(context)
 
+    let found = false
     for (const folder of folders) {
       const videoMetaData: VideoMetadata[] = folder.video_list
       const targetVideoMetaData = videoMetaData.find(video => video.date === target_data.date)
       if (targetVideoMetaData) {
         updateVideo(targetVideoMetaData)
+        found = true
+        break
       }
     }
-    Preferences.saveFileFolder(context, folders)
+    if (found) {
+      Preferences.saveFileFolder(context, folders)
+    }
     salmonLogger.addLog(TAG, '文件夹数据更新完成', false)
   }
 
@@ -480,7 +485,7 @@ export default class SelectFileUtil {
       return
     }
     const targetFolders = currentFolder
-      ? folders.filter(f => f.name === currentFolder.name)
+      ? folders.filter(f => f.date === currentFolder.date)
       : folders
     targetFolders.forEach(folder => {
       folder.video_list = folder.video_list.filter(video => video.date !== videoMetaData.date)
@@ -535,15 +540,8 @@ export default class SelectFileUtil {
     return foundItem
   }
 
-  public static getVideoListByVideoDate(videoDate: string): [VideoMetadata | undefined, VideoMetadata[]] {
-    const fileFolderList = Preferences.getFileFolder(PathUtils.appContext!)
-    for (const folder of fileFolderList) {
-      const targetVideo = folder.video_list.find(video => video.date === videoDate)
-      if (targetVideo) {
-        return [targetVideo, folder.video_list]
-      }
-    }
-    return [undefined, []]
+  public static getVideoListByVideoDate(videoDate: string): [VideoMetadata | undefined, VideoMetadata[], string | undefined] {
+    return Preferences.findVideoByDate(PathUtils.appContext!, videoDate)
   }
 
   // 获取下一个视频
@@ -645,21 +643,12 @@ export default class SelectFileUtil {
           await dataLock.acquire()
           try {
             if (!file_folder) {
-              const folderName = FileFolderUtil.extractRootFolderNameFromUri(uri, fileName)
-              if (folderName) {
-                const folderLock = ConcurrencyManagerUtil.getLock(`folder_${folderName}`)
+              const folderPathParts = FileFolderUtil.extractFolderPathFromUri(uri, fileName)
+              if (folderPathParts && folderPathParts.length > 0) {
+                const folderLock = ConcurrencyManagerUtil.getLock(`folder_${folderPathParts.join('/')}`)
                 await folderLock.acquire()
                 try {
-                  // 每次获取最新数据，防止不同线程覆盖数据
-                  const latestFolders = Preferences.getFileFolder(context) as FileFolder[]
-                  if (!latestFolders.some(i => i.name === folderName)) {
-                    await FileFolderUtil.createNewFolder(context, folderName)
-                    // 创建后重新获取最新数据
-                    file_folder = (Preferences.getFileFolder(context) as FileFolder[])
-                      .find(item => item.name === folderName)
-                  } else {
-                    file_folder = latestFolders.find(item => item.name === folderName)
-                  }
+                  file_folder = await FileFolderUtil.createFolderPath(context, folderPathParts)
                 } finally {
                   folderLock.release()
                 }
@@ -827,7 +816,6 @@ export default class SelectFileUtil {
     try {
       await collectFiles(SelectFileUtil.fileFolderUri)
       await dirPool.drain() // 等待所有目录遍历任务完成
-      // 去重并返回结果
       return Array.from(new Set(filePaths))
     } catch (error) {
       salmonLogger.addLog(TAG, `Root directory processing failed: ${error}`, true)

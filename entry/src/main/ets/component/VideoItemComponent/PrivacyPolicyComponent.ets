@@ -1,9 +1,9 @@
-import Preferences from '../../database/Preferences'
-import { OOBEVersion } from '../../utils/DataSyncUtil'
-import { SafeHeight } from '../../utils/ObservedUtil'
-import { PathUtils } from '../../utils/PathUtils'
-import ToolsUtil from '../../utils/ToolsUtil'
-import { salmonLogger } from 'salmonlogger'
+import { salmonLogger } from "salmonlogger"
+import Preferences from "../../database/Preferences"
+import { OOBEVersion } from "../../utils/DataSyncUtil"
+import { SafeHeight } from "../../utils/ObservedUtil"
+import { PathUtils } from "../../utils/PathUtils"
+import ToolsUtil from "../../utils/ToolsUtil"
 
 const TAG = 'PrivacyPolicyComponent'
 
@@ -11,7 +11,6 @@ const TAG = 'PrivacyPolicyComponent'
 export struct PrivacyPolicyComponent {
   @Param isPresent: boolean = false
   @Local localIsPresent: boolean = false
-
   @Event onIsPresentChange: (v: boolean) => void = () => {
   }
 
@@ -67,7 +66,7 @@ export struct PrivacyPolicyComponent {
         }
         .fontSize(15)
         .fontColor($r('app.color.text_color'))
-      }.scrollBar(BarState.Off).width('100%').height('85%').padding({ left: 15, right: 15 })
+      }.scrollBar(BarState.Off).width('100%').height('85%').padding({ left: 16, right: 16 })
 
       Row() {
         Button('拒绝并退出')

@@ -1,19 +1,18 @@
 import { Subtitle3DMode, SubtitleMode } from '../common/enum/SubtitleMode'
-import { AVPlayerController } from '../controller/AVPlayerController/AVPlayerController'
-import { MpvController } from '../controller/MpvController/MpvController'
+import { PlayerControllerInterface } from '../controller/PlayerControllerFactory'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 
 @ObservedV2
 export class SubtitleManager {
   @Trace subtitleMode: SubtitleMode = SubtitleMode.NONE
   @Trace subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
-  private player: AVPlayerController | MpvController | undefined
+  private player: PlayerControllerInterface | undefined
   private isMpv: boolean = false
 
-  constructor(player?: AVPlayerController | MpvController) {
+  constructor(player?: PlayerControllerInterface) {
     if (player) {
       this.player = player
-      this.isMpv = player instanceof MpvController
+      this.isMpv = player.isMpvPlayer()
       this.subtitleMode = player.subtitleSelected
     }
   }
@@ -133,15 +132,6 @@ export class SubtitleManager {
     this.syncMpvSubtitleVisibility()
   }
 
-  private resetSubtitleMetadata(nowPlaying: VideoMetadata): void {
-    nowPlaying.subtitle_mode = SubtitleMode.NONE
-    nowPlaying.subtitle_visible = false
-    nowPlaying.subtitle_ai_asr_shown = false
-    nowPlaying.subtitle_3d_mode = Subtitle3DMode.DISABLED
-    nowPlaying.subtitle_offset_millis = 0
-    nowPlaying.subtitle_track_id = -1
-  }
-
   syncFromPlayer(): void {
     if (this.player) {
       this.subtitleMode = this.player.subtitleSelected
@@ -149,17 +139,25 @@ export class SubtitleManager {
   }
 
   syncMpvSubtitleVisibility(): void {
-    if (!this.isMpv) {
+    if (!this.isMpv || !this.player) {
       return
     }
-    const mpv = this.player as MpvController
     if (this.subtitleMode === SubtitleMode.INNER_SUBTITLE) {
-      if (mpv.subtitleTrackSelected >= 0) {
-        mpv.selectSubtitleTrack(mpv.subtitleTrackSelected)
+      if (this.player.subtitleTrackSelected >= 0) {
+        this.player.selectSubtitleTrack(this.player.subtitleTrackSelected)
       }
     } else {
-      mpv.selectSubtitleTrack(-1)
+      this.player.selectSubtitleTrack(-1)
     }
+  }
+
+  private resetSubtitleMetadata(nowPlaying: VideoMetadata): void {
+    nowPlaying.subtitle_mode = SubtitleMode.NONE
+    nowPlaying.subtitle_visible = false
+    nowPlaying.subtitle_ai_asr_shown = false
+    nowPlaying.subtitle_3d_mode = Subtitle3DMode.DISABLED
+    nowPlaying.subtitle_offset_millis = 0
+    nowPlaying.subtitle_track_id = -1
   }
 
   private setMode(mode: SubtitleMode): void {

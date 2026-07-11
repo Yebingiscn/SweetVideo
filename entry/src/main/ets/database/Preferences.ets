@@ -6,11 +6,87 @@ import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import { CoverLayoutMode, ListDisplayMode } from '../common/enum/DisplayMode'
 import { MpvDecodingMethod } from '../controller/MpvController/MpvTypes'
+import { SortField } from '../common/enum/SortField'
+import ToolsUtil from '../utils/ToolsUtil'
 
 const DATA_BASE_NAME = 'sweet_video'
 
 // 存储类
 export default class Preferences {
+  private static fileFolderCache: FileFolder[] | null = null
+  private static videoDateToFolderDate: Map<string, string> | null = null
+  private static cacheDirty: boolean = false
+
+  private static deepCopyFileFolders(source: FileFolder[]): FileFolder[] {
+    const result: FileFolder[] = []
+    for (const f of source) {
+      const videos: VideoMetadata[] = []
+      for (const v of f.video_list) {
+        const copy: VideoMetadata = {
+          uri: v.uri,
+          title: v.title,
+          date: v.date,
+          size: v.size,
+          time: v.time,
+          last_play: v.last_play,
+          format: v.format,
+          video_size: v.video_size,
+          hdr_type: v.hdr_type,
+          frame_rate: v.frame_rate,
+          start_time: v.start_time,
+          end_time: v.end_time,
+          external_subtitle_format: v.external_subtitle_format,
+          pointA: v.pointA,
+          pointB: v.pointB,
+          subtitle_mode: v.subtitle_mode,
+          subtitle_visible: v.subtitle_visible,
+          subtitle_ai_asr_shown: v.subtitle_ai_asr_shown,
+          subtitle_3d_mode: v.subtitle_3d_mode,
+          subtitle_offset_millis: v.subtitle_offset_millis,
+          subtitle_track_id: v.subtitle_track_id,
+          audio_track_id: v.audio_track_id
+        }
+        videos.push(copy)
+      }
+      const folder: FileFolder = {
+        name: f.name,
+        date: f.date,
+        video_list: videos,
+        parent_date: f.parent_date
+      }
+      result.push(folder)
+    }
+    return result
+  }
+
+  static invalidateFileFolderCache() {
+    Preferences.fileFolderCache = null
+    Preferences.videoDateToFolderDate = null
+    Preferences.cacheDirty = false
+  }
+
+  static findVideoByDate(context: Context, videoDate: string):
+    [VideoMetadata | undefined, VideoMetadata[], string | undefined] {
+    const folders = Preferences.getFileFolder(context)
+    if (!Preferences.videoDateToFolderDate) {
+      const map = new Map<string, string>()
+      for (const folder of folders) {
+        for (const video of folder.video_list) {
+          map.set(video.date, folder.date)
+        }
+      }
+      Preferences.videoDateToFolderDate = map
+    }
+    const folderDate = Preferences.videoDateToFolderDate.get(videoDate)
+    if (folderDate) {
+      const folder = folders.find(f => f.date === folderDate)
+      if (folder) {
+        return [folder.video_list.find(v => v.date === videoDate), folder.video_list, folderDate]
+      }
+    }
+    return [undefined, [], undefined]
+  }
+
   static saveMpvDecodingMethod(context: Context, decodingMethod: MpvDecodingMethod) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpv_decoding_method', decodingMethod)
   }
@@ -33,9 +109,59 @@ export default class Preferences {
 
   // 所有文件夹视频数据
   static getFileFolder(context: Context) {
+    if (Preferences.fileFolderCache !== null) {
+      if (Preferences.cacheDirty) {
+        Preferences.fileFolderCache = Preferences.deepCopyFileFolders(Preferences.fileFolderCache!)
+        Preferences.cacheDirty = false
+      }
+      return Preferences.fileFolderCache!
+    }
     const folders = PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'file_folder', []) as FileFolder[]
-    folders.sort((a, b) => Number(a.date) - Number(b.date))
-    return folders
+    folders.forEach(f => {
+      if (f.parent_date == undefined) {
+        f.parent_date = null
+      }
+    })
+    const allDates = new Set(folders.map(f => f.date))
+    const orphanIndices: number[] = []
+    folders.forEach((f, index) => {
+      if (f.parent_date != null && !allDates.has(f.parent_date)) {
+        orphanIndices.push(index)
+      }
+    })
+    if (orphanIndices.length > 0) {
+      for (let i = orphanIndices.length - 1; i >= 0; i--) {
+        folders.splice(orphanIndices[i], 1)
+      }
+      PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'file_folder', folders)
+    }
+    const folderSortField = Preferences.getFolderSortField(context) as SortField
+    const folderSortAsc = Preferences.getFolderSortAsc(context)
+    const folderPinyinSort = Preferences.getPinyinSort(context)
+    const homeFolder = folders.find(f => f.name === '首页' && f.parent_date === null)
+    let otherFolders = folders.filter(f => f.name !== '首页')
+    switch (folderSortField) {
+      case SortField.FOLDER_NAME:
+        otherFolders = ToolsUtil.sortFolderByNameProcess(otherFolders, folderSortAsc, folderPinyinSort)
+        break
+      case SortField.FOLDER_DATETIME:
+        otherFolders.sort((a, b) => {
+          const cmp = Number(a.date) - Number(b.date)
+          return folderSortAsc ? cmp : -cmp
+        })
+        break
+      case SortField.FOLDER_COUNT:
+        otherFolders.sort((a, b) => {
+          const cmp = a.video_list.length - b.video_list.length
+          return folderSortAsc ? cmp : -cmp
+        })
+        break
+      default:
+        otherFolders.sort((a, b) => Number(a.date) - Number(b.date))
+    }
+    const result = homeFolder ? [homeFolder, ...otherFolders] : otherFolders
+    Preferences.fileFolderCache = result
+    return result
   }
 
   // 最近播放视频数据
@@ -237,6 +363,9 @@ export default class Preferences {
   // 保存所有文件夹视频数据
   static saveFileFolder(context: Context, file_folder: FileFolder[]) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'file_folder', file_folder)
+    Preferences.fileFolderCache = file_folder
+    Preferences.videoDateToFolderDate = null
+    Preferences.cacheDirty = true
   }
 
   static saveRecentPlay(context: Context, recent_play_deque: VideoMetadata[]) {
@@ -301,6 +430,33 @@ export default class Preferences {
 
   static saveSortAsc(context: Context, sortAsc: boolean) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'sortAsc', sortAsc)
+  }
+
+  static getFolderSortField(context: Context): string {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'folderSortField', '') as string
+  }
+
+  static saveFolderSortField(context: Context, sortField: string) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'folderSortField', sortField)
+    Preferences.invalidateFileFolderCache()
+  }
+
+  static getFolderSortAsc(context: Context): boolean {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'folderSortAsc', true) as boolean
+  }
+
+  static saveFolderSortAsc(context: Context, sortAsc: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'folderSortAsc', sortAsc)
+    Preferences.invalidateFileFolderCache()
+  }
+
+  static getPinyinSort(context: Context): boolean {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'pinyinSort', true) as boolean
+  }
+
+  static savePinyinSort(context: Context, pinyinSort: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'pinyinSort', pinyinSort)
+    Preferences.invalidateFileFolderCache()
   }
 
   static getUserIsLogin(context: Context): boolean {
@@ -373,5 +529,30 @@ export default class Preferences {
 
   static getEnableAiPrivacyAntiPeep(context: Context): boolean {
     return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'enableAiPrivacyAntiPeep', false) as boolean
+  }
+
+  static saveUserIsVip(context: Context, isVip: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'userIsVip', isVip)
+  }
+
+  static getUserIsVip(context: Context): boolean {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'userIsVip', false) as boolean
+  }
+
+  static saveDefaultBrightness(context: Context, defaultBrightness: number) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'defaultBrightness', defaultBrightness)
+  }
+
+  static getDefaultBrightness(context: Context): number {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'defaultBrightness', 0) as number
+  }
+
+
+  static saveDefaultDensityEnabled(context: Context, defaultDensityEnabled: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'defaultDensityEnabled', defaultDensityEnabled)
+  }
+
+  static getDefaultDensityEnabled(context: Context): boolean {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'defaultDensityEnabled', true) as boolean
   }
 }

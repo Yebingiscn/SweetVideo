@@ -13,7 +13,7 @@ export class DebounceUtil {
    */
   static debounce(key: string, func: Function, delay: number = 300): void {
     const existingTimer = DebounceUtil.timers.get(key)
-    if (existingTimer !== undefined) {
+    if (existingTimer != undefined) {
       clearTimeout(existingTimer)
     }
     const timer = setTimeout(() => {
@@ -39,7 +39,7 @@ export class DebounceUtil {
    */
   static cancel(key: string): void {
     const existingTimer = DebounceUtil.timers.get(key)
-    if (existingTimer !== undefined) {
+    if (existingTimer != undefined) {
       clearTimeout(existingTimer)
       DebounceUtil.timers.delete(key)
     }

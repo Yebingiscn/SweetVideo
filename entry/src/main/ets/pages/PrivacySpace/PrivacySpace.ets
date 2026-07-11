@@ -22,14 +22,12 @@ import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
 import { ImportProgressBuilder } from '../../component/VideoItemComponent/ImportProgressBuilder'
 import VideoCardItem from '../../component/VideoItemComponent/VideoCardItemComponent'
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
-import { DeleteType } from '../../common/enum/DeleteType'
 import { SortField } from '../../common/enum/SortField'
 import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
 import {
   DELAY_JUMP_TO_PLAYER,
   FULL_ALPHABET,
-  NO_BLUR_AMOUNT,
-  PRIVACY_BACKGROUND_BLUR_AMOUNT
+  NO_BLUR_AMOUNT, PRIVACY_BACKGROUND_BLUR_AMOUNT
 } from '../../common/Constants'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { VideoItemPreviewBuilder } from '../../component/VideoItemComponent/VideoItemPreviewBuilder'
@@ -37,13 +35,15 @@ import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { motion } from '@kit.MultimodalAwarenessKit'
 import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil'
 import { ScrollBarBuilder } from '../../component/VideoItemComponent/ScrollBarBuilder'
+import VideoListItem from '../../component/VideoItemComponent/VideoListItemComponent'
+import { VideoListController } from '../../component/VideoItemComponent/VideoItemComponent'
 import { pinyin4js } from '@ohos/pinyin4js'
+import { DeleteType } from '../../common/enum/DeleteType'
+import { SortMenuComponent } from '../../component/common/SortMenuComponent'
+import { FolderSelectMenuBuilder } from '../../component/FileFolderComponent/FileFolderSelectBuilder'
 import { PrivacySpaceSettingComponent } from '../../component/PrivacySpaceComponent/PrivacySpaceSettingComponent'
 import { SearchComponent } from '../../component/VideoItemComponent/SearchComponent'
-import { SortComponent } from '../../component/VideoItemComponent/SortComponent'
-import VideoListItem from '../../component/VideoItemComponent/VideoListItemComponent'
 import { XAnimation } from '../../utils/AnimationUtil'
-import { VideoListController } from '../../component/VideoItemComponent/VideoItemComponent'
 import DlpAntiPeepUtil from '../../utils/DlpAntiPeepUtil'
 import { importAndProcessFiles, ProgressInfo } from '../../utils/FileProcessorUtil'
 import SubtitleUtil from '../../utils/SubtitleUtil'
@@ -115,6 +115,7 @@ export struct PrivacySpace { // 隐私空间页
   @Local is_edit: boolean = false
   @Local currentSortField: SortField | '' = ''
   @Local currentSortAsc: boolean = true
+  @Local pinyinSort: boolean = true
   @Local activeAlphabet: string[] = []
   @Local indexerSelected: number = 0
   @Local passwd: string = 'passwd'
@@ -218,33 +219,32 @@ export struct PrivacySpace { // 隐私空间页
 
   @Builder
   SelectFileMenuBuilder() {
-    Menu() {
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.resolution_video')),
-        content: $r('app.string.import_from_videos')
-      })
-        .onClick(async () => {
+    FolderSelectMenuBuilder([
+      {
+        icon: $r('sys.symbol.resolution_video'),
+        content: $r('app.string.import_from_videos'),
+        onAction: async () => {
           this.isPresent = false
           await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "video"))
-        })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.picture_2')),
-        content: $r('app.string.import_from_album')
-      })
-        .onClick(async () => {
+        }
+      },
+      {
+        icon: $r('sys.symbol.picture_2'),
+        content: $r('app.string.import_from_album'),
+        onAction: async () => {
           this.isPresent = false
           await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "album"))
-        })
-
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.music')),
-        content: $r('app.string.import_from_music')
-      })
-        .onClick(async () => {
+        }
+      },
+      {
+        icon: $r('sys.symbol.music'),
+        content: $r('app.string.import_from_music'),
+        onAction: async () => {
           this.isPresent = false
           await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "audio"))
-        })
-    }.attributeModifier(new MenuFancyModifier())
+        }
+      }
+    ])
   }
 
   @Builder
@@ -301,12 +301,32 @@ export struct PrivacySpace { // 隐私空间页
 
   @Builder
   SortMenuBuilder() {
-    SortComponent({
+    SortMenuComponent({
       currentSortField: this.currentSortField,
       currentSortAsc: this.currentSortAsc,
-      onSortByName: (): void => this.handleSort(SortField.NAME, true),
-      onSortByTime: (): void => this.handleSort(SortField.TIME, false),
-      onSortByDatetime: (): void => this.handleSort(SortField.DATETIME, false)
+      pinyinSort: this.pinyinSort,
+      pinyinSortField: SortField.NAME,
+      items: [
+        {
+          field: SortField.DATETIME,
+          icon: $r('sys.symbol.calendar'),
+          textResource: $r('app.string.sort_by_datetime'),
+          onAction: (): void => this.handleSort(SortField.DATETIME, false)
+        },
+        {
+          field: SortField.TIME,
+          icon: $r('sys.symbol.clock'),
+          textResource: $r('app.string.sort_by_time'),
+          onAction: (): void => this.handleSort(SortField.TIME, false)
+        },
+        {
+          field: SortField.NAME,
+          icon: $r('sys.symbol.textformat'),
+          textResource: $r('app.string.sort_by_name'),
+          onAction: (): void => this.handleSort(SortField.NAME, true)
+        }
+      ],
+      onPinyinSortChange: (value: boolean): void => this.handlePinyinSortChange(value)
     })
   }
 
@@ -345,7 +365,7 @@ export struct PrivacySpace { // 隐私空间页
       })
         .onClick(() => {
           setTimeout(async () => { //延迟跳转，确保弹窗关闭，防止系统误识别为子窗口导致播放器异常
-            await this.clickItem(item, VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine, true))
+            await this.clickItem(item, true)
           }, DELAY_JUMP_TO_PLAYER)
         })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
@@ -442,7 +462,8 @@ export struct PrivacySpace { // 隐私空间页
         const sortField = Preferences.getSortField(PathUtils.appContext!) as SortField
         if (sortField) {
           const sortAsc = Preferences.getSortAsc(PathUtils.appContext!)
-          ToolsUtil.sortBy(PathUtils.appContext!, this.video_meta_data_encryption, undefined, sortField, sortAsc)
+          this.video_meta_data_encryption =
+            ToolsUtil.sortBy(PathUtils.appContext!, this.video_meta_data_encryption, undefined, sortField, sortAsc)
         }
         this.videoDataSource.updateData(this.video_meta_data_encryption)
       }
@@ -468,9 +489,10 @@ export struct PrivacySpace { // 隐私空间页
       this.currentSortField = savedField as SortField
     }
     this.currentSortAsc = Preferences.getSortAsc(PathUtils.appContext!)
+    this.pinyinSort = Preferences.getPinyinSort(PathUtils.appContext!)
   }
 
-  async clickItem(item: VideoMetadata | undefined, choosePlayer: string) {
+  async clickItem(item: VideoMetadata | undefined, reverse: boolean = false) {
     if (this.searchValue) {
       setTimeout(() => {
         AppStorage.setOrCreate('searchValue', this.searchValue)
@@ -478,8 +500,8 @@ export struct PrivacySpace { // 隐私空间页
       }, 500)
     }
     await SelectFileUtil.isFileExist(item?.uri!, true) ?
-      ToolsUtil.routerWhere(this.pathStack, choosePlayer, item!,
-        this.video_meta_data_encryption) :
+      ToolsUtil.routerWhere(this.pathStack, item!,
+        this.video_meta_data_encryption, reverse) :
       await this.deleteItem(item!.date, item!.title)
   }
 
@@ -538,7 +560,7 @@ export struct PrivacySpace { // 隐私空间页
                       VideoListItem({
                         item: repeatItem.item,
                         delMultipleList: this.delMultipleList
-                      }).backgroundColor($r('app.color.start_window_background')).borderRadius(16)
+                      }).backgroundColor($r('app.color.start_window_background')).borderRadius(12)
                     } else {
                       VideoCardItem({
                         item: repeatItem.item,
@@ -548,7 +570,7 @@ export struct PrivacySpace { // 隐私空间页
                         .backgroundColor(Setting.backgroundImageSrc.length > 0 ?
                           $r('app.color.start_window_background_blur') :
                           $r('app.color.start_window_background'))
-                        .borderRadius(16)
+                        .borderRadius(12)
                         .height('auto')
                     }
                   }
@@ -562,8 +584,7 @@ export struct PrivacySpace { // 隐私空间页
                         this.delMultipleList = [...this.delMultipleList, repeatItem.item]
                       }
                     } else {
-                      await this.clickItem(repeatItem.item,
-                        VideoOperateUtil.getPlayerNavigationAddress(Setting.defaultPlayerEngine))
+                      await this.clickItem(repeatItem.item)
                     }
                   })
                   .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress,
@@ -607,19 +628,19 @@ export struct PrivacySpace { // 隐私空间页
             .clip(false)
             .lanes(this.list_line)
             .layoutWeight(1)
-            .padding({ left: 10, right: 10 })
+            .padding({ left: 16, right: 16 })
             .width('100%')
             .height('100%')
             .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
             .chainAnimation(true)
             .scrollBar(BarState.Off)
             .onScrollIndex((start: number, _end: number, _center: number) => {
-              if (this.currentSortField === SortField.NAME) {
+              if (this.currentSortField === SortField.NAME && this.pinyinSort) {
                 this.updateIndexerOnScroll(start)
               }
             })
 
-            if (this.currentSortField === 'name' && this.activeAlphabet.length > 0) {
+            if (this.currentSortField === 'name' && this.pinyinSort && this.activeAlphabet.length > 0) {
               AlphabetIndexer({ arrayValue: this.activeAlphabet, selected: this.indexerSelected })
                 .onSelect((index: number) => {
                   this.scrollToLetter(this.activeAlphabet[index])
@@ -634,7 +655,7 @@ export struct PrivacySpace { // 隐私空间页
                 .margin(IntellectualGripPostureUtil.isLeftHoldHand(this.HoldingHand) ? { left: 2 } : { right: 2 })
             }
 
-            if (this.currentSortField !== SortField.NAME) {
+            if (this.currentSortField !== SortField.NAME || !this.pinyinSort) {
               ScrollBarBuilder({
                 videoListController: this.listScroller,
                 fileFolderLength: 0
@@ -793,12 +814,12 @@ export struct PrivacySpace { // 隐私空间页
         .onClick(async () => {
           await SelectFileUtil.exportFile(item!.uri, item!.title, item!.format, PathUtils.appContext!)
         })
-    }.padding({ left: 15, right: 15 }).justifyContent(FlexAlign.SpaceEvenly)
+    }.padding({ left: 16, right: 16 }).justifyContent(FlexAlign.SpaceEvenly)
   }
 
-  @Monitor('video_meta_data_encryption', 'currentSortField', 'currentSortAsc')
+  @Monitor('video_meta_data_encryption', 'currentSortField', 'currentSortAsc', 'pinyinSort')
   onVideoListChanged() {
-    if (this.currentSortField === SortField.NAME) {
+    if (this.currentSortField === SortField.NAME && this.pinyinSort) {
       this.updateActiveAlphabet()
     } else {
       this.activeAlphabet = []
@@ -887,9 +908,22 @@ export struct PrivacySpace { // 隐私空间页
     }
     Preferences.saveSortField(PathUtils.appContext!, this.currentSortField)
     Preferences.saveSortAsc(PathUtils.appContext!, this.currentSortAsc)
-    ToolsUtil.sortBy(PathUtils.appContext!, this.allVideos, undefined, field, this.currentSortAsc)
+    this.allVideos =
+      ToolsUtil.sortBy(PathUtils.appContext!, this.allVideos, undefined, field, this.currentSortAsc, this.pinyinSort)
     this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
     this.applySearch()
+  }
+
+  private handlePinyinSortChange(value: boolean) {
+    this.pinyinSort = value
+    Preferences.savePinyinSort(PathUtils.appContext!, this.pinyinSort)
+    if (this.currentSortField === SortField.NAME) {
+      this.allVideos =
+        ToolsUtil.sortBy(PathUtils.appContext!, this.allVideos, undefined, SortField.NAME, this.currentSortAsc,
+          this.pinyinSort)
+      this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+      this.applySearch()
+    }
   }
 
   private applySearch() {

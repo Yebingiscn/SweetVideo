@@ -1,4 +1,4 @@
-import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
+import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import { PathUtils } from '../../utils/PathUtils'
@@ -14,7 +14,8 @@ export struct VideoSettingComponent {
   @Local endTime: string = '00:00'
   @Local pointA: string = '00:00'
   @Local pointB: string = '00:00'
-  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Consumer('player') player: PlayerControllerInterface =
+    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
   @Event forward_80_s: (_time: number) => void = () => {
   }
   @Event closeAfter15min: (_time: number) => void = () => {
@@ -84,11 +85,7 @@ export struct VideoSettingComponent {
       }).onClick(() => {
         this.onScreenMirror()
       })
-      MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
-        content: '响度调节',
-        builder: (): void => this.VolumeLoudnessGainBuilder()
-      })
+
       if (this.player instanceof AVPlayerController) {
         MenuItem({
           symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.headphones')),
@@ -245,44 +242,5 @@ export struct VideoSettingComponent {
         this.updatePointBTime(this.player.nowPlaying!.time)
       })
     }
-  }
-
-  @Builder
-  VolumeLoudnessGainBuilder() {
-    Column() {
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph($r('sys.symbol.undo'))
-          .fontSize(20)
-          .fontColor([$r('app.color.text_color')])
-      }
-      .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
-      .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
-      .onClick(() => {
-        this.player.setLoudnessGain(0)
-      })
-
-      Slider({
-        value: this.player.volumeLoudnessGain,
-        min: -90,
-        max: 24,
-        step: 1,
-        style: SliderStyle.NONE,
-        direction: Axis.Vertical,
-        reverse: true
-      })
-        .onChange((value) => {
-          this.player.setLoudnessGain(value)
-        })
-        .selectedColor($r('app.color.main_color'))
-        .enableHapticFeedback(true)
-        .width(40)
-        .height(160)
-        .trackThickness(40)
-        .trackBorderRadius(16)
-        .selectedBorderRadius(16)
-        .padding({ top: 5 })
-    }.width(40).backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN).borderRadius(16)
   }
 }

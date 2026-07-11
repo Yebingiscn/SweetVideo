@@ -5,10 +5,8 @@ export struct SearchComponent {
   @Param searchValue: string = ''
   @Local localSearchValue: string = ''
   @Param controller: SearchController | undefined = undefined
-
   @Event onSearchValueChange: (value: string) => void = () => {
   }
-
   @Event onChange: () => void = () => {
   }
   @Event onSubmit: (_value: string) => void = () => {

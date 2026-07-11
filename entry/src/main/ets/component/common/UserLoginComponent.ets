@@ -4,6 +4,7 @@ import { HdsGL } from '../../common/AttributeModifierConfig';
 import { PathUtils } from '../../utils/PathUtils';
 import Preferences from '../../database/Preferences';
 import AccountUtil from '../../utils/AccountUtil';
+import { IapVerifyUtil } from '../../utils/IapVerifyUtil';
 import { DANGER_COLOR } from '../../common/Constants';
 import { XAnimation } from '../../utils/AnimationUtil';
 import { SafeHeight } from '../../utils/ObservedUtil';
@@ -12,8 +13,8 @@ import { FunctionalButton, functionalButtonComponentManager } from '@kit.Scenari
 import { curves } from '@kit.ArkUI';
 
 @Builder
-export function userLoginBuilder() {
-  userLoginComponent()
+export function userLoginBuilder(onNavigateToVip: () => void) {
+  userLoginComponent({ onNavigateToVip: onNavigateToVip })
 }
 
 @ObservedV2
@@ -25,6 +26,7 @@ export default class UserInfoData {
   @Trace unionID: string = ''
   @Trace openID: string = ''
   @Trace idToken: string = ''
+  @Trace isVip: boolean = false
 }
 
 export let userData: UserInfoData = new UserInfoData()
@@ -34,6 +36,7 @@ struct userLoginComponent {
   userData: UserInfoData = userData
   @Local button_gradient_state: hdsEffect.PressShadowType = hdsEffect.PressShadowType.NONE
   @Local button_Light_state: hdsEffect.PointLightSourceType = HdsGL.sourceTypes[0]
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   controller: loginComponentManager.LoginWithHuaweiIDButtonController =
     new loginComponentManager.LoginWithHuaweiIDButtonController()
       .setAgreementStatus(loginComponentManager.AgreementStatus.NOT_ACCEPTED)
@@ -54,10 +57,14 @@ struct userLoginComponent {
           userData.idToken = response.idToken!
           AccountUtil.getAvatarFromHuaweiAccount(() => {
             userData.isLogin = true
+            userData.isVip = Preferences.getUserIsVip(PathUtils.appContext!)
+            IapVerifyUtil.verifyPurchaseStatus(PathUtils.appContext!)
           })
           return
         }
       })
+  @Event onNavigateToVip: () => void = () => {
+  }
 
   build() {
     if (this.userData.isLogin) {
@@ -124,12 +131,38 @@ struct userLoginComponent {
             .transition(XAnimation.getAnimation('bottom'))
             .visualEffect(new hdsEffect.HdsEffectBuilder().pointLight({ illuminatedType: HdsGL.illuminatedType[1] })
               .buildEffect())
+          if (this.userData.isVip) {
+            Text('VIP')
+              .fontSize(10)
+              .fontColor($r('sys.color.white'))
+              .backgroundColor($r('app.color.main_color'))
+              .fontWeight(FontWeight.Bold)
+              .borderRadius(6)
+              .padding({
+                left: 5,
+                right: 5,
+                top: 2,
+                bottom: 2
+              })
+          } else {
+            Button('开通VIP')
+              .fontColor(Color.White)
+              .fontSize(15)
+              .backgroundColor($r('app.color.main_color'))
+              .align(Alignment.Center)
+              .margin({ top: 10 })
+              .borderRadius(16)
+              .onClick(() => {
+                this.onNavigateToVip()
+              })
+          }
           Button('退出登录')
             .fontColor(Color.White)
             .fontSize(15)
             .backgroundColor(DANGER_COLOR)
             .align(Alignment.Center)
             .margin({ top: 10, bottom: 10 })
+            .borderRadius(16)
             .onClick(async () => {
               userData.isLogin = false
               userData.authorizationCode = ''

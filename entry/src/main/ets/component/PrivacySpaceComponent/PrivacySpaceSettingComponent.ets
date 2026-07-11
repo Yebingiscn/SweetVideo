@@ -29,7 +29,7 @@ export struct PrivacySpaceSettingComponent {
 
       SettingsToggleItem({
         symbol: $r('sys.symbol.checkmark_shield'),
-        message: '设置中显示隐私空间入口',
+        message: '设置中显示入口',
         enable: Setting.showSettingPageEntry,
         onChange: (checked: boolean) => {
           Setting.showSettingPageEntry = checked
@@ -39,7 +39,7 @@ export struct PrivacySpaceSettingComponent {
 
       SettingsToggleItem({
         symbol: $r('sys.symbol.arrow_up_left_and_arrow_down_right'),
-        message: '首页双指捏合往外划开进入隐私空间',
+        message: '首页双指捏合往外划开进入',
         enable: Setting.allowGestureEntry,
         onChange: (checked: boolean) => {
           Setting.allowGestureEntry = checked
@@ -64,7 +64,7 @@ export struct PrivacySpaceSettingComponent {
 
       SettingsClickItem({
         symbol: $r('sys.symbol.staroflife_rectangle'),
-        message: '有视频不见了？点这里，这里是异常数据列表',
+        message: '有视频不见了？点这里',
         onPress: () => {
           this.onIsPresentChange(false)
           this.pathStack.pushPathByName(NavigationAddress.PRIVACY_ERROR_LIST, true)

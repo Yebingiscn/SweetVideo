@@ -5,9 +5,14 @@ import TimeUtil from '../../utils/TimeUtil'
 export struct SettingsSliderItem {
   @Param symbol: Resource | undefined = undefined
   @Param message: ResourceStr = ''
+  @Param tag: ResourceStr | undefined = undefined
   @Param selected: number = 0
   @Local _selected: number = 0
   @Param textSliderMode: boolean = false
+  @Param min: number = 0
+  @Param max: number = 300
+  @Param zeroText: ResourceStr = '关闭'
+  @Param valueSuffix: ResourceStr = ''
   @Event onChangeComplete: (_value: number) => void = () => {
   }
   @Event onChange: (_value: number) => void = () => {
@@ -30,12 +35,25 @@ export struct SettingsSliderItem {
         Text(this.getDisplayText())
           .attributeModifier(new SettingsTitleModifier())
           .constraintSize({ maxWidth: 160 })
+        if (this.tag) {
+          Text(this.tag)
+            .fontSize(12)
+            .fontColor(Color.White)
+            .backgroundColor($r('app.color.main_color'))
+            .borderRadius(6)
+            .padding({
+              left: 4,
+              right: 4,
+              top: 1,
+              bottom: 1
+            })
+        }
       }
 
       Slider({
         value: this._selected,
-        min: 0,
-        max: 300,
+        min: this.min,
+        max: this.max,
         style: SliderStyle.InSet
       })
         .onChange((value) => {
@@ -66,8 +84,12 @@ export struct SettingsSliderItem {
 
   private getDisplayText(): ResourceStr {
     if (this.textSliderMode) {
-      const timeText = this._selected === 0 ? '关闭' : TimeUtil.convertSSToMMSS(this._selected);
+      const timeText = this._selected === 0 ? this.zeroText : TimeUtil.convertSSToMMSS(this._selected);
       return `${this.message}：${timeText}`;
+    }
+    if (typeof this.valueSuffix === 'string' && this.valueSuffix.length > 0) {
+      const valueText = this._selected === 0 ? this.zeroText : `${this._selected}${this.valueSuffix}`;
+      return `${this.message}：${valueText}`;
     }
     return this.message;
   }

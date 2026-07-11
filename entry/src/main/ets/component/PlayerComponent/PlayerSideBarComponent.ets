@@ -1,7 +1,6 @@
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { PlayerSideBarSource } from '../../utils/DataUtil'
-import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
-import { MpvController } from '../../controller/MpvController/MpvController'
+import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
 import { CoverLayoutMode } from '../../common/enum/DisplayMode'
 import { XAnimation } from '../../utils/AnimationUtil'
@@ -15,7 +14,8 @@ export struct PlayerSideBarComponent {
   @Local playerSideBarSource: PlayerSideBarSource = new PlayerSideBarSource([])
   @Param sideBarStatusTmp: Visibility = Visibility.Hidden
   @Local _sideBarStatusTmp: Visibility = Visibility.Hidden
-  @Consumer('player') player: AVPlayerController | MpvController = new AVPlayerController()
+  @Consumer('player') player: PlayerControllerInterface =
+    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
   @Param sideBarStatus: boolean = false
   @Local _sideBarStatus: boolean = false
   private listScroller: Scroller = new Scroller()
@@ -129,7 +129,7 @@ class VideoItemValue {
 export function VideoItemBuilder(videoItemValue: VideoItemValue) {
   Row() {
     Image(PathUtils.coverUri(videoItemValue.item?.date ?? ''))
-      .attributeModifier(new ImageFancyModifier(16, Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 75 : 100,
+      .attributeModifier(new ImageFancyModifier(12, Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 75 : 100,
         Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 100 : 75))
     Column() {
       Text(VideoInfoUtil.getVideoTitle(videoItemValue.item!))
@@ -158,7 +158,7 @@ export function VideoItemBuilder(videoItemValue: VideoItemValue) {
   )
   .justifyContent(FlexAlign.Center)
   .width('100%')
-  .borderRadius(16)
+  .borderRadius(12)
   .shadow(
     videoItemValue.nowPlaying && videoItemValue.nowPlaying?.date === videoItemValue.item?.date
       ? {

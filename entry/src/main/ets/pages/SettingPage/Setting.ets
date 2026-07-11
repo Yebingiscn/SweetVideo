@@ -14,12 +14,14 @@ import BiometricAccessUtil from '../../utils/BiometricAccessUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { LengthMetrics } from '@kit.ArkUI'
 import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
+import { IapVerifyUtil } from '../../utils/IapVerifyUtil'
 
 const TAG = 'SettingsPage'
 
 @ComponentV2
 export struct SettingsPage { //设置页
   @Local passwd: string = 'passwd'
+  @Local showVipPage: boolean = true
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
     builder: EditPasswordDialog({
@@ -37,27 +39,27 @@ export struct SettingsPage { //设置页
   controller: MarkdownController = new MarkdownController()
   private listScroller: Scroller = new Scroller()
 
-  aboutToAppear(): void {
-    this.controller
-      .setTitleColor($r("app.color.text_color"))
-      .setTextColor($r("app.color.text_color"))
-      .setTableTitleBackgroundColor($r('app.color.start_window_background_blur'))
-      .setQuoteBackgroundColor($r('app.color.start_window_background_blur'))
-      .setTableBackgroundColor($r('app.color.start_window_background_blur'))
-      .setLazyRender(true)
+  async aboutToAppear(): Promise<void> {
+    this.controller.setTitleColor($r("app.color.text_color"))
+    this.controller.setTextColor($r("app.color.text_color"))
+    this.controller.setQuoteBackgroundColor($r('app.color.start_window_background_blur'))
+    this.controller.setLazyRender(true)
+    this.showVipPage = await IapVerifyUtil.queryEnvironmentStatus()
   }
 
   build() {
     HdsNavDestination() {
       List({ scroller: this.listScroller }) {
-        ListItem() {
-          SettingsClickItem({
-            symbol: $r('sys.symbol.info_circle'),
-            message: '关于此应用',
-            onPress: () => {
-              this.pathStack.pushPathByName(NavigationAddress.ABOUT_PAGE, true)
-            }
-          })
+        if (this.showVipPage) {
+          ListItem() {
+            SettingsClickItem({
+              symbol: $r('sys.symbol.crown_fill'),
+              message: '获取VIP',
+              onPress: () => {
+                this.pathStack.pushPathByName(NavigationAddress.VIP_PAGE, true)
+              }
+            })
+          }
         }
 
         if (Setting.showSettingPageEntry) {

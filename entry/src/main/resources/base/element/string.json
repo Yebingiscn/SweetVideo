@@ -125,6 +125,10 @@
       "value": "Sort by name"
     },
     {
+      "name": "pinyin_sort",
+      "value": "Pinyin mixed sort"
+    },
+    {
       "name": "sort_by_time",
       "value": "Sort by add time"
     },
@@ -175,6 +179,10 @@
     {
       "name": "move_to_folder",
       "value": "Move to folder"
+    },
+    {
+      "name": "move_folder",
+      "value": "Move folder"
     },
     {
       "name": "READ_WRITE_DOWNLOAD_DIRECTORY_REASON",
@@ -235,6 +243,18 @@
     {
       "name": "processing_error",
       "value": "处理过程中发生意外错误:"
+    },
+    {
+      "name": "sort_folder_by_name",
+      "value": "按名称排序"
+    },
+    {
+      "name": "sort_folder_by_datetime",
+      "value": "按创建时间排序"
+    },
+    {
+      "name": "sort_folder_by_count",
+      "value": "按视频数量排序"
     }
   ]
 }

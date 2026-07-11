@@ -10,6 +10,10 @@ class SubtitleDisplayValue {
   subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
   areaWidth: number = 0
   areaHeight: number = 0
+  angle: number = 0
+  translateX: number = 0
+  translateY: number = 0
+  animDuration: number = 300
 }
 
 @Builder
@@ -60,7 +64,9 @@ export function SubtitleDisplayBuilder(subtitleDisplayValue: SubtitleDisplayValu
   .height(subtitleDisplayValue.areaHeight)
   .justifyContent(FlexAlign.End)
   .hitTestBehavior(HitTestMode.Transparent)
-  .animation({ duration: 300, curve: Curve.Smooth })
+  .rotate({ y: 2, angle: subtitleDisplayValue.angle, perspective: 200 })
+  .translate({ x: subtitleDisplayValue.translateX, y: subtitleDisplayValue.translateY })
+  .animation({ duration: subtitleDisplayValue.animDuration, curve: Curve.Ease })
 }
 
 @Extend(Text)

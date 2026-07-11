@@ -1,20 +1,17 @@
-import { hilog } from '@kit.PerformanceAnalysisKit'
 import { media } from '@kit.MediaKit'
-import { BusinessError, systemDateTime } from '@kit.BasicServicesKit'
-import { fileIo as fs, fileUri } from '@kit.CoreFileKit'
-import VideoUtil from './VideoInfoUtil'
 import VideoInfoUtil from './VideoInfoUtil'
-import { bundleManager, common, Context, OpenLinkOptions, Want } from '@kit.AbilityKit'
+import { bundleManager, common, OpenLinkOptions, Want } from '@kit.AbilityKit'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
-import Preferences from '../database/Preferences'
-import { systemShare } from '@kit.ShareKit'
-import NavigationAddress, { PlayerParams } from '../common/NavigationCommon'
+import { salmonLogger } from 'salmonlogger'
+import { VideoSource } from '../common/enum/VideoSource'
+import { PathUtils } from './PathUtils'
+import SelectFileUtil from './SelectFileUtil'
 import ToolsUtil from './ToolsUtil'
 import { WindowUtil } from './WindowUtil'
-import { VideoSource } from '../common/enum/VideoSource'
-import SelectFileUtil from './SelectFileUtil'
-import { salmonLogger } from 'salmonlogger'
-import { PathUtils } from './PathUtils'
+import fileIo from '@ohos.file.fs'
+import { systemDateTime } from '@kit.BasicServicesKit'
+import { fileUri } from '@kit.CoreFileKit'
+import { systemShare } from '@kit.ShareKit'
 
 const TAG = 'WantProcessUtil'
 
@@ -51,36 +48,34 @@ export default class WantProcess {
       }
     } else {
       ToolsUtil.showToast('系统不支持该功能')
+      salmonLogger.addLog(TAG, '系统不支持处理 system share', true)
     }
   }
 
-  static async checkWant(context: Context, pathStack: NavPathStack) {
+  static async checkWant(pathStack: NavPathStack) {
     if (!WantProcess.receiveWant) {
       return
     }
     if (WantProcess.receiveWant.uri) {
       WantProcess.receiveWantUri = WantProcess.receiveWant.uri
       WantProcess.hasNewWant = true
-    } else {
-      if (!WantProcess.receiveWantUri) {
-        return
-      }
+    } else if (WantProcess.receiveWant.action === 'ohos.want.action.sendData') {
       await WantProcess.getSystemShareWant(WantProcess.receiveWant)
     }
     if (WantProcess.receiveWantUri != '') {
       WantProcess.clearWantState()
-      WantProcess.hasWant(context, pathStack)
+      WantProcess.hasWant(pathStack)
     }
   }
 
   // 处理拉起链接
-  static async hasWant(context: Context, pathStack: NavPathStack) {
+  static async hasWant(pathStack: NavPathStack) {
     if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
       let avMetadataExtractor: media.AVMetadataExtractor | undefined
-      let file: fs.File | undefined
+      let file: fileIo.File | undefined
       try {
         avMetadataExtractor = await media.createAVMetadataExtractor()
-        file = fs.openSync(WantProcess.receiveWantUri)
+        file = fileIo.openSync(WantProcess.receiveWantUri)
         avMetadataExtractor.fdSrc = file
         const metadata = await new Promise<media.AVMetadata>((resolve, reject) => {
           avMetadataExtractor!.fetchMetadata((error: BusinessError, metadata: media.AVMetadata) => {
@@ -91,11 +86,11 @@ export default class WantProcess {
           uri: WantProcess.receiveWantUri,
           title: decodeURI(WantProcess.receiveWantUri.split('/')[WantProcess.receiveWantUri.split('/').length - 1]),
           date: systemDateTime.getTime(false).toString(),
-          size: VideoUtil.getVideoWidthAndHeight(metadata),
+          size: VideoInfoUtil.getVideoWidthAndHeight(metadata),
           time: parseInt(metadata.duration || '0'),
           last_play: 0,
           format: VideoInfoUtil.getVideoFormat(WantProcess.receiveWantUri),
-          video_size: await VideoUtil.getVideoSize(WantProcess.receiveWantUri, true) as string,
+          video_size: await VideoInfoUtil.getVideoSize(WantProcess.receiveWantUri, true) as string,
           frame_rate: VideoInfoUtil.getVideoFrame(metadata),
           hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
           start_time: 0,
@@ -104,11 +99,9 @@ export default class WantProcess {
           pointA: 0,
           pointB: 0,
         }
-        // 获取默认播放器
-        let url = WantProcess.getPlayer(context, targetVideo)
-        const playerParams = new PlayerParams(targetVideo, [targetVideo], undefined)
         WantProcess.receiveWantUri = ''
-        pathStack.pushPathByName(url, playerParams, true)
+
+        await ToolsUtil.routerWhere(pathStack, targetVideo, [targetVideo], false, true, WantProcess.isSystemShare)
       } catch (error) {
         salmonLogger.addLog(TAG, 'want process error:' + error, true)
       } finally {
@@ -119,25 +112,12 @@ export default class WantProcess {
           })
         }
         if (file) {
-          fs.closeSync(file)
+          fileIo.closeSync(file)
         }
       }
     }
   }
 
-  static getPlayer(context: Context, metadata: VideoMetadata) {
-    const defaultPlayer = Preferences.getDefaultPlayerEngine(context)
-    // 系统分享（有长宽情况下）和 HDR VIVID 视频强制使用系统播放器
-    if ((defaultPlayer === VideoInfoUtil.playerEngineList[0] || WantProcess.isSystemShare ||
-      metadata.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID || metadata.format.toLowerCase() === 'mov') &&
-      metadata.size[0] !== 0) {
-      return NavigationAddress.AV_PLAYER
-    } else if (defaultPlayer === VideoInfoUtil.playerEngineList[1]) {
-      return NavigationAddress.MPV_PLAYER
-    }
-    // 兜底播放器
-    return NavigationAddress.MPV_PLAYER
-  }
 
   // 跳转外部网页
   static linkToWeb(context: common.UIAbilityContext, link: string) {
@@ -147,7 +127,7 @@ export default class WantProcess {
     try {
       context.openLink(link, openLinkOptions)
     } catch (paramError) {
-      hilog.error(777, 'testFlag', 'paramError' + paramError)
+      salmonLogger.addLog(TAG, 'linkToWeb error:' + paramError, true)
     }
   }
 

@@ -22,7 +22,12 @@ export default struct VideoCardItem {
   build() {
     Column() {
       Image(PathUtils.coverUri(this.item.date))
-        .attributeModifier(new ImageFancyModifier(16, '', ''))
+        .attributeModifier(new ImageFancyModifier(Setting.backgroundImageSrc.length > 0 ? {
+          topLeft: 12,
+          topRight: 12,
+          bottomLeft: 0,
+          bottomRight: 0
+        } : 12, '', ''))
         .width('100%')
         .height('auto')
         .constraintSize({

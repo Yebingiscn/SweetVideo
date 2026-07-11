@@ -9,8 +9,9 @@ import { FastForwardSecondInterface } from '../../interfaces/FastForwardSecondIn
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
-import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
+import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { LengthMetrics } from '@kit.ArkUI'
+import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 
 @ComponentV2
 export struct PlayerSettingPage {
@@ -218,6 +219,30 @@ export struct PlayerSettingPage {
             }
           })
         }
+
+        ListItem() {
+          SettingsSliderItem({
+            symbol: $r('sys.symbol.sun_max'),
+            message: '默认亮度',
+            selected: Setting.defaultBrightness,
+            min: 0,
+            max: 100,
+            zeroText: '自动',
+            valueSuffix: '%',
+            onChange: (value: number) => {
+              if (value > 0) {
+                VideoOperateUtil.setBrightness(value / 100)
+              }
+            },
+            onChangeComplete: (value: number) => {
+              Setting.defaultBrightness = value
+              Preferences.saveDefaultBrightness(PathUtils.appContext!, value)
+              VideoOperateUtil.setBrightness(-1)
+            }
+          })
+        }
+
+
       }
       .align(Alignment.Top)
       .borderRadius(16)
@@ -308,7 +333,7 @@ export struct PlayerSettingPage {
   private getMPVDecodeInfo(decodingMethod: MpvDecodingMethod) {
     switch (decodingMethod) {
       case MpvDecodingMethod.HARDWARE_BUFFER:
-        return '支持杜比P5，无法点亮HDR'
+        return '支持杜比P5，性能稍差'
       case MpvDecodingMethod.SOFTWARE:
         return '功耗高，画面一般正常'
       case MpvDecodingMethod.HARDWARE_SURFACE:

@@ -71,7 +71,7 @@ export class WindowUtil {
   }
 
   public static async fullScreenOperate(screen_height: number, screen_width: number,
-    windowClass: Promise<window.Window | undefined>): Promise<window.Orientation.AUTO_ROTATION_PORTRAIT | window.Orientation.AUTO_ROTATION_LANDSCAPE | undefined> {
+    windowClass: Promise<window.Window | undefined>): Promise<window.Orientation.AUTO_ROTATION_RESTRICTED | window.Orientation.AUTO_ROTATION_LANDSCAPE | undefined> {
     if (canIUse('SystemCapability.Window.SessionManager')) {
       switch (await WindowUtil.getWindowsStatus()) {
         case window.WindowStatusType.FLOATING:
@@ -103,7 +103,7 @@ export class WindowUtil {
   public static getWindowOrientation(screen_height: number, screen_width: number) {
     return screen_height > screen_width
       ? window.Orientation.AUTO_ROTATION_LANDSCAPE
-      : window.Orientation.AUTO_ROTATION_PORTRAIT
+      : window.Orientation.AUTO_ROTATION_RESTRICTED
   }
 
   public static setBarColor(color: string) {

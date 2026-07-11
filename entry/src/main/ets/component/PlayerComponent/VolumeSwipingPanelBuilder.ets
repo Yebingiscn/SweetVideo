@@ -7,6 +7,7 @@ class VolumeValue {
   videoVolumeShow: number = 0
   onSwipingVoice: boolean = false
   playAreaHeight: number = 0
+
 }
 
 @Builder

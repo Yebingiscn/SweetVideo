@@ -71,6 +71,12 @@ export const enum MpvDecodingMethod {
   HARDWARE_BUFFER = 2
 }
 
+export const enum MpvAudioChannelMode {
+  STEREO = 0,
+  LEFT_ONLY = 1,
+  RIGHT_ONLY = 2
+}
+
 export interface MpvChapter {
   index: number;
   title: string;

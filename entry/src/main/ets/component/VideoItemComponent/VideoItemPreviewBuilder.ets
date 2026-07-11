@@ -9,7 +9,12 @@ export function VideoItemPreviewBuilder(item: VideoMetadata) {
   Column() {
     // 封面图区域：固定 16:9 宽高比
     Image(PathUtils.coverUri(item.date))
-      .attributeModifier(new ImageFancyModifier(16, '', ''))
+      .attributeModifier(new ImageFancyModifier({
+        topLeft: 12,
+        topRight: 12,
+        bottomLeft: 0,
+        bottomRight: 0
+      }, '', ''))
       .width('100%')
       .aspectRatio(16 / 9)
       .objectFit(ImageFit.Cover)
@@ -31,5 +36,5 @@ export function VideoItemPreviewBuilder(item: VideoMetadata) {
   .width('100%')
   .constraintSize({ maxWidth: 360 })
   .backgroundColor($r('app.color.start_window_background'))
-  .borderRadius(16)
+  .borderRadius(12)
 }

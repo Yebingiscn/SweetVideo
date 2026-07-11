@@ -2,37 +2,26 @@ import { FileFolder } from '../../interfaces/FileFolderInterface'
 import FileFolderUtil from '../../utils/FileFolderUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import Preferences from '../../database/Preferences'
+import DataSyncUtil from '../../utils/DataSyncUtil'
 import { DialogButtonBar } from './DialogButtonBar'
 
 @CustomDialog
-export struct AddFileFolderNameDialog {
+export struct MoveFileFolderDialog {
   controller?: CustomDialogController = undefined
-  file_folder_name: string | undefined = undefined
   @State selected_parent_date: string | null = null
-  onFolderAdded?: (folders: FileFolder[]) => void
+  onFolderMoved?: (folders: FileFolder[]) => void
 
   build() {
     Column({ space: 20 }) {
-      Text('新建文件夹')
+      Text($r('app.string.move_folder'))
         .fontSize(20)
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)
 
-      TextInput({ placeholder: '请输入文件夹名称' })
-        .keyboardAppearance(KeyboardAppearance.IMMERSIVE)
-        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .borderRadius(16)
-        .height(44)
-        .onChange((input: string) => this.file_folder_name = input)
-        .id('input_name')
-        .onAppear(() => {
-          focusControl.requestFocus('input_name')
-        })
-
       List({ space: 4 }) {
         ListItem() {
           Row({ space: 10 }) {
-            Radio({ value: '__root__', group: 'parent_folder' })
+            Radio({ value: '__root__', group: 'move_parent_folder' })
               .radioStyle({
                 checkedBackgroundColor: $r('app.color.main_color')
               })
@@ -66,7 +55,7 @@ export struct AddFileFolderNameDialog {
                 if (FileFolderUtil.getFolderDepth(PathUtils.appContext!, repeatItem.item.date) > 0) {
                   Row().width(FileFolderUtil.getFolderDepth(PathUtils.appContext!, repeatItem.item.date) * 12)
                 }
-                Radio({ value: repeatItem.item.date, group: 'parent_folder' })
+                Radio({ value: repeatItem.item.date, group: 'move_parent_folder' })
                   .radioStyle({
                     checkedBackgroundColor: $r('app.color.main_color')
                   })
@@ -92,29 +81,43 @@ export struct AddFileFolderNameDialog {
                 this.selected_parent_date = repeatItem.item.date
               })
             }
+            .visibility(repeatItem.item.date === DataSyncUtil.movingFolderDate ||
+              this.isDescendant(DataSyncUtil.movingFolderDate, repeatItem.item.date,
+                Preferences.getFileFolder(PathUtils.appContext!)) ?
+              Visibility.None : Visibility.Visible)
           })
           .key((item: FileFolder) => item.date)
       }.scrollBar(BarState.Off)
-      .height(150)
+      .height(200)
       .width('100%')
 
       DialogButtonBar(
         () => {
           this.controller?.close()
         },
-        async () => {
-          if (!this.file_folder_name || this.file_folder_name.trim() == '') {
-            return
-          }
+        () => {
           const updatedFolders =
-            await FileFolderUtil.createNewFolder(PathUtils.appContext!, this.file_folder_name,
+            FileFolderUtil.moveFileFolder(PathUtils.appContext!, DataSyncUtil.movingFolderDate,
               this.selected_parent_date)
-          if (this.onFolderAdded) {
-            this.onFolderAdded(updatedFolders)
+          if (this.onFolderMoved) {
+            this.onFolderMoved(updatedFolders)
           }
           this.controller?.close()
         }
       )
     }.padding(20)
+  }
+
+  private isDescendant(folderDate: string, checkDate: string, folders: FileFolder[]): boolean {
+    const children = folders.filter(f => f.parent_date === folderDate)
+    for (const child of children) {
+      if (child.date === checkDate) {
+        return true
+      }
+      if (this.isDescendant(child.date, checkDate, folders)) {
+        return true
+      }
+    }
+    return false
   }
 }

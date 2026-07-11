@@ -3,6 +3,7 @@ import { Setting } from '../../utils/ObservedUtil'
 import TimeUtil from '../../utils/TimeUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { DIALOG_TITLE_FONT_SIZE } from '../../common/Constants'
+import { salmonLogger } from 'salmonlogger'
 
 class SwipingPlayTimeValue {
   isSliderPlayTimeChange: boolean = false
@@ -10,6 +11,9 @@ class SwipingPlayTimeValue {
   totalTime: number = 0
   pixelMap: PixelMap | null = null
 }
+
+const DEFAULT_TIME_TEXT = '00:00/00:00'
+const DEFAULT_TIME = '00:00'
 
 @Builder
 export function SwipingPlayTimePanelBuilder(swipingPlayTimeValue: SwipingPlayTimeValue) {
@@ -43,21 +47,28 @@ export function SwipingPlayTimePanelBuilder(swipingPlayTimeValue: SwipingPlayTim
 }
 
 export function getFormattedTimeText(swipingPlayTimeValue: SwipingPlayTimeValue): string {
-  if (!swipingPlayTimeValue) {
-    return "00:00/00:00"
-  }
-  const playTime = swipingPlayTimeValue?.playTime || 0
-  const totalTime = swipingPlayTimeValue?.totalTime || 0
-  const currentTime = TimeUtil?.convertMSToHHMMSS(playTime)
-  const totalTimeStr = TimeUtil?.convertMSToHHMMSS(totalTime)
-  if (swipingPlayTimeValue?.isSliderPlayTimeChange) {
-    return `${currentTime}/${totalTimeStr}`
-  } else {
-    const lastPlayTime = typeof VideoOperateUtil?.lastPlayTime === 'number'
-      ? VideoOperateUtil?.lastPlayTime
-      : 0
-    const timeDiff = Math.floor((playTime - lastPlayTime) / 1000)
-    const sign = timeDiff > 0 ? '+' : ''
-    return `${sign}${timeDiff}s : ${currentTime}/${totalTimeStr}`
+  try {
+    if (!swipingPlayTimeValue) {
+      return DEFAULT_TIME_TEXT
+    }
+    if (swipingPlayTimeValue.playTime == null || swipingPlayTimeValue.totalTime == null) {
+      return DEFAULT_TIME_TEXT
+    }
+    const playTime = swipingPlayTimeValue.playTime || 0
+    const totalTime = swipingPlayTimeValue.totalTime || 0
+    const currentTime = TimeUtil.convertMSToHHMMSS(playTime) ?? DEFAULT_TIME
+    const totalTimeStr = TimeUtil.convertMSToHHMMSS(totalTime) ?? DEFAULT_TIME
+
+    if (swipingPlayTimeValue.isSliderPlayTimeChange) {
+      return `${currentTime}/${totalTimeStr}`
+    } else {
+      const lastPlayTime = typeof VideoOperateUtil?.lastPlayTime === 'number' ? VideoOperateUtil.lastPlayTime : 0
+      const timeDiff = Math.floor((playTime - lastPlayTime) / 1000)
+      const sign = timeDiff > 0 ? '+' : ''
+      return `${sign}${timeDiff}s : ${currentTime}/${totalTimeStr}`
+    }
+  } catch (error) {
+    salmonLogger.addLog('getFormattedTimeText', error, true)
+    return DEFAULT_TIME_TEXT
   }
 }

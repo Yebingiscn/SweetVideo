@@ -1,19 +1,32 @@
-import { SettingsClickItem } from "../../component/SettingComponent/SettingsClickItem"
-import { SettingsSegmentButtonItem } from "../../component/SettingComponent/SettingsSegmentButtonItem"
-import { SettingsSliderItem } from "../../component/SettingComponent/SettingsSliderItem"
-import { SettingsToggleItem } from "../../component/SettingComponent/SettingsToggleItem"
-import Preferences from "../../database/Preferences"
-import { Setting, SafeHeight } from "../../utils/ObservedUtil"
-import { PathUtils } from "../../utils/PathUtils"
-import SelectFileUtil from "../../utils/SelectFileUtil"
-import ToolsUtil from "../../utils/ToolsUtil"
-import { HdsNavDestination, ScrollEffectType } from "@kit.UIDesignKit"
-import { LengthMetrics } from "@kit.ArkUI"
-import { ConfigurationConstant } from "@kit.AbilityKit"
+import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
+import { SettingsSegmentButtonItem } from '../../component/SettingComponent/SettingsSegmentButtonItem'
+import { SettingsSliderItem } from '../../component/SettingComponent/SettingsSliderItem'
+import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
+import Preferences from '../../database/Preferences'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { PathUtils } from '../../utils/PathUtils'
+import SelectFileUtil from '../../utils/SelectFileUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
+import { LengthMetrics } from '@kit.ArkUI'
+import { ConfigurationConstant } from '@kit.AbilityKit'
+import { appInfoManager } from '@kit.AppGalleryKit'
+import { BusinessError } from '@kit.BasicServicesKit'
+import { salmonLogger } from 'salmonlogger'
+
+const TAG = 'PersonalizePage'
 
 @ComponentV2
 export struct PersonalizePage {
+  @Local dynamicIconList: appInfoManager.DynamicIconInfo[] = []
+  @Local currentEnabledIconId: string = ''
+  @Local dynamicIconSupported: boolean = false
+  @Local dynamicIconDialogOpen: boolean = false
   private listScroller: Scroller = new Scroller()
+
+  aboutToAppear(): void {
+    this.queryDynamicIcons()
+  }
 
   build() {
     HdsNavDestination() {
@@ -39,11 +52,27 @@ export struct PersonalizePage {
           })
         }
 
+        if (this.dynamicIconSupported) {
+          ListItem() {
+            SettingsClickItem({
+              symbol: $r('sys.symbol.icloud'),
+              message: '切换应用图标',
+              onPress: () => {
+                this.dynamicIconDialogOpen = false
+                setTimeout(() => {
+                  this.dynamicIconDialogOpen = true
+                }, 50)
+              }
+            })
+          }
+        }
+
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.doc_text_badge_clock'),
             message: '深浅色图片切换',
             enable: Setting.enableBackgroundDarkImage,
+            tag: '试用',
             onChange: async (checked: boolean) => {
               Setting.enableBackgroundDarkImage = checked
               if (!checked) {
@@ -229,6 +258,158 @@ export struct PersonalizePage {
     .backgroundImagePosition(Alignment.Center)
     .hideBackButton(false)
     .bindToScrollable([this.listScroller]) // 绑定导航组件和可滚动容器组件
+    .bindSheet(this.dynamicIconDialogOpen, this.dynamicIconCoverBuilder(), {
+      detents: [SheetSize.LARGE, SheetSize.MEDIUM],
+      showClose: true,
+      dragBar: true,
+      backgroundColor: $r('app.color.start_window_background'),
+      title: { title: '应用图标' },
+    })
+  }
+
+  @Builder
+  dynamicIconCoverBuilder() {
+    Grid() {
+      GridItem() {
+        Column() {
+          Image($r('app.media.sweet_video'))
+            .width(96)
+            .height(96)
+            .borderRadius(24)
+            .shadow(this.currentEnabledIconId.length === 0 ?
+              {
+                radius: 8,
+                color: $r('app.color.main_color'),
+                offsetX: 0,
+                offsetY: 0
+              } :
+              {
+                radius: 0,
+                color: Color.Transparent,
+                offsetX: 0,
+                offsetY: 0
+              })
+            .border({
+              width: 3,
+              color: this.currentEnabledIconId.length === 0 ? $r('app.color.main_color') : Color.Transparent
+            })
+        }
+        .justifyContent(FlexAlign.Center)
+        .padding(8)
+        .borderRadius(16)
+        .onClick(() => {
+          if (this.currentEnabledIconId.length > 0) {
+            this.disableDynamicIcon()
+            this.dynamicIconDialogOpen = false
+          }
+        })
+      }
+
+      Repeat(this.dynamicIconList)
+        .each((ri: RepeatItem<appInfoManager.DynamicIconInfo>) => {
+          GridItem() {
+            Column() {
+              Image(ri.item.iconUrl)
+                .width(96)
+                .height(96)
+                .borderRadius(24)
+                .shadow(ri.item.iconId === this.currentEnabledIconId ?
+                  {
+                    radius: 8,
+                    color: $r('app.color.main_color'),
+                    offsetX: 0,
+                    offsetY: 0
+                  } :
+                  {
+                    radius: 0,
+                    color: Color.Transparent,
+                    offsetX: 0,
+                    offsetY: 0
+                  })
+                .border({
+                  width: 3,
+                  color: ri.item.iconId === this.currentEnabledIconId ? $r('app.color.main_color') : Color.Transparent
+                })
+            }
+            .justifyContent(FlexAlign.Center)
+            .padding(8)
+            .borderRadius(16)
+            .onClick(() => {
+              if (ri.item.iconId !== this.currentEnabledIconId) {
+                this.selectDynamicIcon(ri.item.iconId)
+              }
+              this.dynamicIconDialogOpen = false
+            })
+          }
+        })
+        .key((item: appInfoManager.DynamicIconInfo) => item.iconId)
+    }
+    .columnsTemplate('1fr 1fr')
+    .rowsGap(12)
+    .columnsGap(12)
+    .width('100%')
+    .height('100%')
+    .scrollBar(BarState.Off)
+    .padding({
+      left: 20,
+      right: 20,
+      top: 12,
+      bottom: 20
+    })
+  }
+
+  private queryDynamicIcons() {
+    try {
+      appInfoManager.queryDynamicIcons().then((queryResult: appInfoManager.DynamicIconInfo[]) => {
+        this.dynamicIconList = queryResult
+        this.dynamicIconSupported = queryResult.length > 0
+        for (const icon of queryResult) {
+          if (icon.enabled) {
+            this.currentEnabledIconId = icon.iconId
+            break
+          }
+        }
+        salmonLogger.addLog(TAG, `查询动态图标成功, 数量: ${queryResult.length}`, false)
+      }).catch((error: BusinessError) => {
+        this.dynamicIconSupported = false
+        salmonLogger.addLog(TAG, `查询动态图标失败, code: ${error.code}, message: ${error.message}`, true)
+      })
+    } catch (error) {
+      this.dynamicIconSupported = false
+      salmonLogger.addLog(TAG, `查询动态图标异常, code: ${error.code}, message: ${error.message}`, true)
+    }
+  }
+
+  private selectDynamicIcon(iconId: string) {
+    try {
+      appInfoManager.selectDynamicIcon(iconId).then(() => {
+        this.currentEnabledIconId = iconId
+        ToolsUtil.showToast('图标切换成功')
+        salmonLogger.addLog(TAG, `切换动态图标成功, iconId: ${iconId}`, false)
+      }).catch((error: BusinessError) => {
+        ToolsUtil.showToast('图标切换失败')
+        salmonLogger.addLog(TAG, `切换动态图标失败, code: ${error.code}, message: ${error.message}`, true)
+      })
+    } catch (error) {
+      ToolsUtil.showToast('图标切换失败')
+      salmonLogger.addLog(TAG, `切换动态图标异常, code: ${error.code}, message: ${error.message}`, true)
+    }
+  }
+
+  private disableDynamicIcon() {
+    try {
+      appInfoManager.disableDynamicIcon().then(() => {
+        this.currentEnabledIconId = ''
+        ToolsUtil.showToast('已恢复默认图标')
+        salmonLogger.addLog(TAG, '禁用动态图标成功', false)
+      }).catch((error: BusinessError) => {
+        ToolsUtil.showToast('恢复默认图标失败')
+        salmonLogger.addLog(TAG, `禁用动态图标失败, code: ${error.code}, message: ${error.message}`, true)
+      })
+    } catch (error) {
+      ToolsUtil.showToast('恢复默认图标失败')
+      salmonLogger.addLog(TAG, `禁用动态图标异常, code: ${error.code}, message: ${error.message}`, true)
+    }
   }
 
   private async selectAndSetBackgroundImage(imageName: string, shouldApply: () => boolean) {

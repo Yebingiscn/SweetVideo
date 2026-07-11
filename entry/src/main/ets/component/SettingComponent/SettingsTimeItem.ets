@@ -1,7 +1,15 @@
+import {
+  SettingsItemModifier,
+  SettingsTitleModifier,
+  SymbolGlyphFancyModifier
+} from '../../common/AttributeModifierConfig'
+import TimeUtil from '../../utils/TimeUtil'
+
 @ComponentV2
 export struct SettingsTimeItem {
   @Local symbol: Resource | undefined = undefined
   @Local message: ResourceStr = ''
+  @Param tag: ResourceStr | undefined = undefined
   @Local selectedIndex: number[] = [0, 0, 0, 0]
   @Param selected: number = 0
   private TenthsOfMinutes: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
@@ -9,7 +17,6 @@ export struct SettingsTimeItem {
   private TenthsOfSecond: string[] = ['0', '1', '2', '3', '4', '5']
   private UnitOfSecond: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
   private multi: string[][] = [this.TenthsOfMinutes, this.UnitOfTMinutes, this.TenthsOfSecond, this.UnitOfSecond]
-
   onChange = (_value: number) => {
   }
 
@@ -23,9 +30,22 @@ export struct SettingsTimeItem {
       Row({ space: 10 }) {
         SymbolGlyph(this.symbol)
           .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
-        Text(this.message + ':')
+        Text(this.message)
           .attributeModifier(new SettingsTitleModifier())
-        Text(this.selected === 0 ? '不跳过' : TimeUtil.convertSSToMMSS(this.selected))
+        if (this.tag) {
+          Text(this.tag)
+            .fontSize(12)
+            .fontColor(Color.White)
+            .backgroundColor($r('app.color.main_color'))
+            .borderRadius(6)
+            .padding({
+              left: 4,
+              right: 4,
+              top: 1,
+              bottom: 1
+            })
+        }
+        Text(': ' + (this.selected === 0 ? '不跳过' : TimeUtil.convertSSToMMSS(this.selected)))
           .attributeModifier(new SettingsTitleModifier())
           .width('100%') // 宽度充满父容器
       }

@@ -1,18 +1,17 @@
 import { salmonLogger } from 'salmonlogger'
 import NavigationAddress from '../../common/NavigationCommon'
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
+import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
 import Preferences from '../../database/Preferences'
 import PreferencesUtil from '../../database/PreferencesUtil'
+import FileFolderUtil from '../../utils/FileFolderUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
-import SelectFileUtil from '../../utils/SelectFileUtil'
-import SubtitleUtil from '../../utils/SubtitleUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import WantProcess from '../../utils/WantProcessUtil'
-import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
-import fileIo from '@ohos.file.fs'
-import { commentManager } from '@kit.AppGalleryKit'
 import { LengthMetrics } from '@kit.ArkUI'
+import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
+import { commentManager } from '@kit.AppGalleryKit'
 
 const TAG = 'MoreSettingPage'
 
@@ -24,6 +23,16 @@ export struct MoreSettingPage {
   build() {
     HdsNavDestination() {
       List({ scroller: this.listScroller }) {
+        ListItem() {
+          SettingsClickItem({
+            symbol: $r('sys.symbol.info_circle'),
+            message: '关于此应用',
+            onPress: () => {
+              this.pathStack.pushPathByName(NavigationAddress.ABOUT_PAGE, true)
+            }
+          })
+        }
+
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.doc_plaintext'),
@@ -52,41 +61,28 @@ export struct MoreSettingPage {
               PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'circle_play')
               PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'is_list_display')
               PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'defaultPlayer')
-              const coverFromSandbox = await fileIo.listFile(PathUtils.coverPath)?.catch(() => {
-                salmonLogger.addLog(TAG, 'get cover fail', true)
-              })
-              const isNumericStart = (filename: string): boolean => /^\d/.test(filename)
-              const coverFromSandboxArray = Array.isArray(coverFromSandbox)
-                ? coverFromSandbox.filter(file => isNumericStart(file)) : []
-              const subtitleFromSandbox = await fileIo.listFile(PathUtils.subtitlePath)?.catch(() => {
-                salmonLogger.addLog(TAG, 'get subtitle fail', true)
-              })
-              const subtitleFromSandboxArray = Array.isArray(subtitleFromSandbox) ? subtitleFromSandbox : []
-              const videoMetaData = Preferences.getVideoMetaData(PathUtils.appContext!)
-              const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-              const fileFolder = Preferences.getFileFolder(PathUtils.appContext!)
-              const existingItemsSet = new Set([
-                ...videoMetaData.map(v => v.date),
-                ...videoMetaDataEncryption.map(v => v.date),
-                ...fileFolder.flatMap(folder =>
-                folder.video_list?.map(item => item!.date) ?? []
-                )
-              ])
-              const missingCoverFiles = coverFromSandboxArray.filter((file => !existingItemsSet.has(file)))
-              salmonLogger.addLog(this.pathStack.getAllPathName()[0],
-                `检测到失效封面文件数：${missingCoverFiles.length}，内容：${missingCoverFiles.toString()}`, false)
-              const missingSubtitleFiles = subtitleFromSandboxArray.filter(file => !existingItemsSet.has(file))
-              salmonLogger.addLog(this.pathStack.getAllPathName()[0],
-                `检测到失效字幕文件数：${missingSubtitleFiles.length}，内容：${missingSubtitleFiles.toString()}`, false)
-              const missingFileSum = missingCoverFiles.length + missingSubtitleFiles.length
-              await Promise.all([
-                ...missingCoverFiles.map((file): Promise<void> => SelectFileUtil.deleteCover(file)),
-                ...missingSubtitleFiles.map((file): Promise<void> => SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath,
-                  file))
-              ])
+              const missingFileSum = await FileFolderUtil.cleanInvalidFiles(PathUtils.appContext!)
               ToolsUtil.showToast(missingFileSum > 0 ? '删除了 ' + missingFileSum + ' 项文件' : '没有找到失效文件')
             }
           })
+        }
+
+        if (canIUse('SystemCapability.Window.SessionManager')) {
+          ListItem() {
+            SettingsToggleItem({
+              symbol: $r('sys.symbol.display'),
+              message: '固定缩放（关闭可能导致UI异常）',
+              tag: '试用',
+              enable: Setting.defaultDensityEnabled,
+              onChange: (checked: boolean) => {
+                if (!checked) {
+                  ToolsUtil.showToast('重启生效，关闭可能导致UI异常')
+                }
+                Setting.defaultDensityEnabled = checked
+                Preferences.saveDefaultDensityEnabled(PathUtils.appContext!, Setting.defaultDensityEnabled)
+              }
+            })
+          }
         }
 
         if (canIUse('SystemCapability.AppGalleryService.Distribution.Comment')) {
@@ -97,15 +93,14 @@ export struct MoreSettingPage {
               onPress: async () => {
                 try {
                   commentManager.showCommentDialog(PathUtils.appContext!).then(() => {
-                    salmonLogger.addLog(this.pathStack.getAllPathName()[0], '成功展示评论弹窗', false)
+                    salmonLogger.addLog(TAG, '成功展示评论弹窗', false)
                   })?.catch((error: BusinessError<Object>) => {
-                    salmonLogger.addLog(this.pathStack.getAllPathName()[0],
+                    salmonLogger.addLog(TAG,
                       `展示评论弹窗错误, Code: ${error.code}, message: ${error.message}`, true)
                     WantProcess.linkToAppGallery(PathUtils.appContext!.abilityInfo.bundleName)
                   })
                 } catch (error) {
-                  salmonLogger.addLog(this.pathStack.getAllPathName()[0],
-                    `展示评论弹窗错误, Code: ${error.code}, message: ${error.message}`, true)
+                  salmonLogger.addLog(TAG, `展示评论弹窗错误, Code: ${error.code}, message: ${error.message}`, true)
                 }
               }
             })

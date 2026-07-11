@@ -5,8 +5,6 @@ export class ImportProgressBuilderParams {
   totalItems: number = 0
   currentFileName: string = '' // 当前处理的文件名
   currentStage: 'extracting' | 'cover' | 'saving' = 'extracting' // 当前处理阶段
-  speed: number = 0 // 处理速度（个/秒）
-  elapsedTime: number = 0 // 已耗时（毫秒）
   failedCount: number = 0 // 失败文件数
 }
 
@@ -38,24 +36,6 @@ export function ImportProgressBuilder(params: ImportProgressBuilderParams) {
         .width('80%')
         .textAlign(TextAlign.Center)
         .margin({ bottom: 4 })
-    }
-
-    // 处理速度和耗时
-    if (params.speed > 0 || params.elapsedTime > 0) {
-      Row() {
-        if (params.speed > 0) {
-          Text(`速度: ${params.speed.toFixed(1)} 个/秒`)
-            .fontSize(12)
-            .fontColor($r('app.color.text_color'))
-        }
-        if (params.elapsedTime > 0) {
-          Text(`耗时: ${TimeUtil.convertMSToChinese(params.elapsedTime)}`)
-            .fontSize(12)
-            .fontColor($r('app.color.text_color'))
-            .margin({ left: params.speed > 0 ? 8 : 0 })
-        }
-      }
-      .margin({ bottom: 4 })
     }
 
     // 失败文件数（如果有）

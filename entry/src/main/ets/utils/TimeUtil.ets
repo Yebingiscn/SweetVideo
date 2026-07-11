@@ -1,7 +1,7 @@
 // 时间类，格式化时间
 export default class TimeUtil {
   static convertMSToHHMMSS(ms: number | undefined): string {
-    if (ms === undefined || ms === null || isNaN(ms)) {
+    if (ms == undefined || Number.isNaN(ms)) {
       return '--:--'
     }
     // 计算总秒数
@@ -18,7 +18,7 @@ export default class TimeUtil {
   }
 
   static convertSSToMMSS(seconds: number | undefined): string {
-    if (seconds === undefined || seconds === null || isNaN(seconds)) {
+    if (seconds == undefined || Number.isNaN(seconds)) {
       return '--:--'
     }
     const totalSeconds = Math.floor(seconds)
@@ -40,7 +40,7 @@ export default class TimeUtil {
   }
 
   static convertSSToHHMMSS(seconds: number | undefined): string {
-    if (seconds === undefined || seconds === null || isNaN(seconds)) {
+    if (seconds == undefined || Number.isNaN(seconds)) {
       return '--:--'
     }
     const totalSeconds = Math.floor(seconds)
@@ -54,7 +54,7 @@ export default class TimeUtil {
   }
 
   static convertMSToChinese(ms: number | undefined): string {
-    if (ms === undefined || ms === null || isNaN(ms) || ms <= 0) {
+    if (ms == undefined || Number.isNaN(ms) || ms <= 0) {
       return '0秒'
     }
     const seconds = Math.floor(ms / 1000)

@@ -7,16 +7,18 @@ import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
 import { common } from '@kit.AbilityKit'
 import { PathUtils } from './PathUtils'
 import ToolsUtil from './ToolsUtil'
-import NavigationAddress, { PlayerParams } from '../common/NavigationCommon'
+import NavigationAddress, { PlayerEngine, PlayerParams } from '../common/NavigationCommon'
 import { Setting } from './ObservedUtil'
-import { fileIo, fileIo as fs } from '@kit.CoreFileKit'
+import { fileIo } from '@kit.CoreFileKit'
 import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { image } from '@kit.ImageKit'
 import VideoInfoUtil from './VideoInfoUtil'
 import { salmonLogger } from 'salmonlogger'
 import { FrameSize } from '../interfaces/FrameSizeInterface'
-import { SUPPORT_AUDIO_FORMAT } from '../common/Constants'
+import { Subtitle3DMode } from '../common/enum/SubtitleMode'
+import { DeleteType } from '../common/enum/DeleteType'
+import { SCALE_FACTORS, SUPPORT_AUDIO_FORMAT } from '../common/Constants'
 import { VideoSource } from '../common/enum/VideoSource'
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode'
 import { LanguageConfig } from '../common/LanguageConfig'
@@ -27,11 +29,8 @@ import PermissionUtil from './PermissionUtil'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
 import RecentPlayUtil from './RecentPlayUtil'
 import SelectFileUtil from './SelectFileUtil'
-import { WindowUtil } from './WindowUtil'
 import SubtitleUtil from './SubtitleUtil'
-import { Subtitle3DMode } from '../common/enum/SubtitleMode'
-import { DeleteType } from '../common/enum/DeleteType'
-import { hilog } from '@kit.PerformanceAnalysisKit'
+import { WindowUtil } from './WindowUtil'
 import { fileManagerService } from '@kit.FileManagerServiceKit'
 
 const TAG = 'VideoOperateUtil'
@@ -72,12 +71,10 @@ export default class VideoOperateUtil {
         if (err && err.code !== 0) {
           salmonLogger.addLog(TAG, `Failed to obtain the main window. Cause code: ${err.code}, message: ${err.message}`,
             true)
-          hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness. Cause: ${JSON.stringify(err)}`)
-          return
         }
       })
     } catch (exception) {
-      hilog.error(0x0000, 'AVPlayer', `Failed to set the brightness.`)
+      salmonLogger.addLog(TAG, `Failed to obtain the main window.`, true)
     }
   }
 
@@ -88,7 +85,9 @@ export default class VideoOperateUtil {
       audioVolumeManager.getVolumeGroupManager(groupId,
         (err: BusinessError) => {
           if (err) {
-            hilog.error(0x0000, 'AVPlayer', `Failed to obtain the volume group info list. ${err}`)
+            salmonLogger.addLog(TAG,
+              `Failed to obtain the volume group info list. Cause code: ${err.code}, message: ${err.message}`,
+              true)
             return reject(err)
           }
           const volumePromises: Promise<void>[] = []
@@ -136,22 +135,21 @@ export default class VideoOperateUtil {
     currentTime?: number) {
     ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
     const nowPlayItem = videoMetaData.find(item => item.date === date)
-    // 更新当前播放时间，确保跳转到MPV时能从正确位置继续播放
-    if (nowPlayItem && currentTime !== undefined && currentTime > 0) {
+    if (nowPlayItem && currentTime != undefined && currentTime > 0) {
       nowPlayItem.last_play = currentTime
     }
-    const playerParams = new PlayerParams(nowPlayItem, videoMetaData, undefined)
-    pathStack.replacePathByName(playerName, playerParams, true)
+    const playerParams = new PlayerParams(nowPlayItem, videoMetaData, undefined, undefined, playerName)
+    pathStack.replacePathByName(NavigationAddress.VIDEO_PLAYER, playerParams, true)
   }
 
   // 计算手指移动距离
   static calcFingerDistance(f1: FingerInfo, f2: FingerInfo): number {
     // 检查坐标是否存在
     if (
-      typeof f1?.localX !== 'number' ||
-        typeof f1?.localY !== 'number' ||
-        typeof f2?.localX !== 'number' ||
-        typeof f2?.localY !== 'number'
+      typeof f1?.localX != 'number' ||
+        typeof f1?.localY != 'number' ||
+        typeof f2?.localX != 'number' ||
+        typeof f2?.localY != 'number'
     ) {
       return -1
     }
@@ -203,13 +201,8 @@ export default class VideoOperateUtil {
     VideoOperateUtil.saveVideoProperty(context, nowPlaying, { playTime: play_time })
     if (Setting.recentPlay && !PrivacySpaceUtil.getPrivacyMode() &&
       !SelectFileUtil.isPathFromSource(nowPlaying.uri, VideoSource.PRIVACY_SPACE)) {
-      const folders = Preferences.getFileFolder(context)
-      let meta: VideoMetadata | undefined
-      for (const folder of folders) {
-        meta = folder.video_list.find(v => v.date === nowPlaying?.date)
-        if (meta) break
-      }
-      RecentPlayUtil.addPlayback(context, meta ?? nowPlaying!)
+      const result = Preferences.findVideoByDate(context, nowPlaying.date)
+      RecentPlayUtil.addPlayback(context, result[0] ?? nowPlaying!)
     }
   }
 
@@ -253,7 +246,7 @@ export default class VideoOperateUtil {
     if (Setting.showFrameImgStatus) {
       try {
         VideoOperateUtil.avImageGenerator = await media.createAVImageGenerator()
-        VideoOperateUtil.nowPlayingFile = fs.openSync(uri, fs.OpenMode.READ_ONLY)
+        VideoOperateUtil.nowPlayingFile = fileIo.openSync(uri, fileIo.OpenMode.READ_ONLY)
         let avFileDescriptor: media.AVFileDescriptor = { fd: VideoOperateUtil.nowPlayingFile.fd }
         VideoOperateUtil.avImageGenerator.fdSrc = avFileDescriptor
       } catch (error) {
@@ -312,9 +305,9 @@ export default class VideoOperateUtil {
   }
 
   static changeVolume(currentVolume: number, step: number) {
-    const newVolume = currentVolume + step;
+    const newVolume = currentVolume + step
     // 确保音量在有效范围内
-    return Math.min(Math.max(newVolume, VideoOperateUtil.minVolume), VideoOperateUtil.maxVolume);
+    return Math.min(Math.max(newVolume, VideoOperateUtil.minVolume), VideoOperateUtil.maxVolume)
   }
 
   // 启动时初始化已保存的设置项
@@ -349,6 +342,9 @@ export default class VideoOperateUtil {
     Setting.mpvDecodingMethod = Preferences.getMpvDecodingMethod(context)
     Setting.enableBackgroundDarkImage = Preferences.getEnableBackgroundDarkImage(context)
     Setting.enableAiPrivacyAntiPeep = Preferences.getEnableAiPrivacyAntiPeep(context)
+    Setting.defaultBrightness = Preferences.getDefaultBrightness(context)
+
+    Setting.defaultDensityEnabled = Preferences.getDefaultDensityEnabled(context)
   }
 
   // 封装获取屏幕亮度的方法
@@ -374,6 +370,36 @@ export default class VideoOperateUtil {
     }
     const lowerCode = code.toLowerCase()
     return LanguageConfig.languageMap[lowerCode] || code
+  }
+
+  static calcScreenExtendSize(text: string | undefined, screenWidth: number, screenHeight: number): number[] | null {
+    if (!text || text === '原始比例') {
+      return null
+    }
+    if (VideoInfoUtil.ASPECT_RATIO_MAP.has(text)) {
+      return VideoOperateUtil.setVideoAspectRatio(
+        VideoInfoUtil.ASPECT_RATIO_MAP.get(text)!,
+        VideoInfoUtil.playAreaWidth, VideoInfoUtil.playAreaHeight)
+    }
+    if (text === '拉伸全屏') {
+      return [screenWidth, screenHeight]
+    }
+    if (text === '按宽度全屏') {
+      return [screenWidth, (VideoInfoUtil.playAreaHeight / VideoInfoUtil.playAreaWidth) * screenWidth]
+    }
+    if (text === '按高度全屏') {
+      return [(VideoInfoUtil.playAreaWidth / VideoInfoUtil.playAreaHeight) * screenHeight, screenHeight]
+    }
+    let scale: number | undefined
+    if (text.startsWith('自定义比例:')) {
+      scale = parseInt(text.split(':')[1]) / 100
+    } else {
+      scale = SCALE_FACTORS.get(text)
+    }
+    if (scale !== undefined) {
+      return [scale * VideoInfoUtil.playAreaWidth, scale * VideoInfoUtil.playAreaHeight]
+    }
+    return null
   }
 
   static setVideoAspectRatio(targetRatio: number, containerWidth: number, containerHeight: number) {
@@ -497,11 +523,22 @@ export default class VideoOperateUtil {
     }
   }
 
-  static getPlayerNavigationAddress(defaultAddress: string, reverse: boolean = false) {
-    const isFirstPlayer = defaultAddress === VideoInfoUtil.playerEngineList[0];
-    return (reverse ? !isFirstPlayer : isFirstPlayer)
-      ? NavigationAddress.AV_PLAYER
-      : NavigationAddress.MPV_PLAYER;
+  static resolvePlayerType(metadata: VideoMetadata, reverse: boolean = false, isSystemShare: boolean = false) {
+    const defaultPlayer = Preferences.getDefaultPlayerEngine(PathUtils.appContext!)
+    const isAv3a = metadata.title?.toLowerCase().includes('av3a') || metadata.format?.toLowerCase().includes('av3a')
+    const hasSize = VideoInfoUtil.videoWidthAndHeightFormat(String(metadata.size)) !== '0 x 0'
+    if (isAv3a && hasSize) {
+      return PlayerEngine.AV_PLAYER
+    }
+    if (!hasSize) {
+      return PlayerEngine.MPV_PLAYER
+    }
+    if (isSystemShare || metadata.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID ||
+      metadata.format?.toLowerCase() === 'mov') {
+      return PlayerEngine.AV_PLAYER
+    }
+    const isFirstPlayer = defaultPlayer === VideoInfoUtil.playerEngineList[0]
+    return (reverse ? !isFirstPlayer : isFirstPlayer) ? PlayerEngine.AV_PLAYER : PlayerEngine.MPV_PLAYER
   }
 
   static getPlayerName(defaultAddress: string, reverse: boolean = false) {
@@ -623,7 +660,7 @@ export default class VideoOperateUtil {
   static getAdjacentSubtitleOffset(playTime: number, currentOffset: number,
     direction: 'prev' | 'next'): number | undefined {
     const targetOffset = SubtitleUtil.getAdjacentSubtitleOffset(playTime, currentOffset, direction)
-    if (targetOffset === undefined) {
+    if (targetOffset == undefined) {
       ToolsUtil.showToast(direction === 'prev' ? '没有上一条字幕' : '没有下一条字幕')
       return undefined
     }

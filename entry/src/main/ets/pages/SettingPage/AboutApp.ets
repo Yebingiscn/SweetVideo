@@ -8,8 +8,8 @@ import { salmonLogger } from 'salmonlogger'
 import { LiqD } from '../../component/common/LiqD'
 import { PrivacyPolicyComponent } from '../../component/VideoItemComponent/PrivacyPolicyComponent'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
-import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { LengthMetrics } from '@kit.ArkUI'
+import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 
 const TAG = 'AboutApp'
 
@@ -54,12 +54,17 @@ export struct AboutApp {
   private listScroller: Scroller = new Scroller()
 
   aboutToAppear(): void {
-    this.controller
-      .setTitleColor($r("app.color.text_color"))
-      .setTextColor($r("app.color.text_color"))
-      .setTableTitleBackgroundColor($r('app.color.start_window_background_blur'))
-      .setQuoteBackgroundColor($r('app.color.start_window_background_blur'))
-      .setTableBackgroundColor($r('app.color.start_window_background_blur'))
+    this.controller.setTitleColor($r("app.color.text_color"))
+    this.controller.setTextColor($r("app.color.text_color"))
+    this.controller.setTableTitleBackgroundColor($r('app.color.start_window_background_blur'))
+    this.controller.setQuoteBackgroundColor($r('app.color.start_window_background_blur'))
+    this.controller.setTableBackgroundColor($r('app.color.start_window_background_blur'))
+    this.controller.setTableInterleaveBackgroundColor($r('app.color.start_window_background_blur'))
+    this.controller.setTableTitleTextColor($r("app.color.text_color"))
+    this.controller.setTableInterleaveTextColor($r("app.color.text_color"))
+    this.controller.setTableNormalTextColor($r("app.color.text_color"))
+    this.controller.setTableBorderRadius(16)
+    this.controller.setLazyRender(true)
   }
 
   // 链接按钮构建器
@@ -167,6 +172,7 @@ export struct AboutApp {
           }
         }
       }
+      .clip(false)
       .margin({ left: 16, right: 16 })
       .layoutWeight(1)
       .height('100%')
@@ -218,6 +224,12 @@ export struct AboutApp {
         }
       },
       content: { title: { mainTitle: '关于此应用' } }
+    })
+    .dynamicHideTitleBar({
+      hideTitleArea: true,
+      hideBottomBuilder: true,
+      hideStatusBar: false,
+      mode: HideMode.SCROLL_UP
     })
     .backgroundColor($r('app.color.start_window_background'))
     .backgroundImage(

@@ -1,14 +1,14 @@
 import { FileFolderDataSource } from '../../utils/DataUtil'
 import { VideoListController } from '../VideoItemComponent/VideoItemComponent'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
-import { AddFileFolderNameDialog } from '../Dialog/AddFileFolderNameDialog'
+import { FileFolder } from '../../interfaces/FileFolderInterface'
 import { DefaultDialogShadow, MenuFancyModifier } from '../../common/AttributeModifierConfig'
 import { FolderOperator } from '../../database/VideoMetaData'
-import { FileFolder } from '../../interfaces/FileFolderInterface'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import FileFolderUtil from '../../utils/FileFolderUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import VideoUtils from '../../utils/VideoUtil'
+import { AddFileFolderNameDialog } from '../Dialog/AddFileFolderNameDialog'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 
 
@@ -38,11 +38,14 @@ export struct FileFolderMenu {
       }).onClick(() => {
         this.addFileFolderNameDialogController?.open()
       })
-      Repeat<FileFolder>(this.fileFolderSource.data)
+      Repeat<FileFolder>(FileFolderUtil.flattenTree(this.file_folder_list))
         .each((repeatItem: RepeatItem<FileFolder>) => {
           if (repeatItem.item.date !== this.videoListController.folder.date) {
             MenuItem(
-              { symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.folder")), content: repeatItem.item.name })
+              {
+                symbolStartIcon: new SymbolGlyphModifier($r("sys.symbol.folder")),
+                content: repeatItem.item.name
+              })
               .onClick(async () => {
                 let folders: FileFolder[] = []
                 if (DataSyncUtil.delMultipleList.length > 0) {
@@ -55,7 +58,7 @@ export struct FileFolderMenu {
                 }
                 this.file_folder_list = folders
                 this.videoListController.videoDataSource.updateData(
-                  FolderOperator.getFolderByName(this.videoListController.folder.name)
+                  FolderOperator.getFolderByDate(this.videoListController.folder.date)!
                     .video_list)
                 this.videoListController.updateData(this.videoListController.videoDataSource,
                   this.videoListController.folder)
