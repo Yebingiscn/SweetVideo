@@ -106,10 +106,9 @@ export class VideoListController {
   }
 
   public refresh(width: number, listDisplayMode: ListDisplayMode) {
-    // TODO 这里的处理太粗暴了，应该定义每个元素的MaxWidth 来计算格子，或者根据尺寸做响应式布局
     const base = Math.floor(Math.abs(width) / 500)
-    this.listLine = listDisplayMode === ListDisplayMode.LIST_DISPLAY ? base + 1 : base + 2
-    // 增加判断，旋转时保持滚动位置不变
+    let listLine = listDisplayMode === ListDisplayMode.LIST_DISPLAY ? base + 1 : base + 2
+    this.listLine = Math.min(listLine, Setting.maxListLine)
     if (this.listScroller.currentOffset()?.yOffset == -90) {
       this.listScroller.scrollEdge(Edge.Top)
     }
@@ -132,6 +131,7 @@ export struct VideoList {
   @Param currentSortField: SortField | '' = ''
   @Param currentSortAsc: boolean = true
   @Param pinyinSort: boolean = true
+  @Param searchBarHidden: boolean = false
   @Param holdingHand: motion.HoldingHandStatus | null = null
   @Param videoListController: VideoListController = new VideoListController()
   @Local activeAlphabet: string[] = []
@@ -163,6 +163,7 @@ export struct VideoList {
           format: original.format,
           video_size: original.video_size,
           hdr_type: original.hdr_type,
+          audio_type: original.audio_type,
           frame_rate: original.frame_rate,
           start_time: original.start_time,
           end_time: original.end_time,
@@ -225,6 +226,7 @@ export struct VideoList {
     builder: VideoDetailDialog(), cornerRadius: 20,
     shadow: DefaultDialogShadow
   })
+  private outerScroller: Scroller = new Scroller()
   private _invalidItem: VideoMetadata | null = null
   invalidFileDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog({
@@ -235,10 +237,11 @@ export struct VideoList {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-
   @Event onSearchValueChange: (v: string) => void = () => {
   }
   @Event onDelMultipleListChange: (v: VideoMetadata[]) => void = () => {
+  }
+  @Event onScrollDirectionChange: (isUp: boolean) => void = () => {
   }
 
   aboutToAppear(): void {
@@ -341,15 +344,14 @@ export struct VideoList {
         }
         .clip(false)
         .padding({ left: 16, right: 16 })
-        .contentStartOffset(SafeHeight.topSafeHeight +
-          (Setting.showToast && this.file_folder_list.length > 1 ? 90 : 65))
+        .contentStartOffset(this.searchBarHidden ? SafeHeight.topSafeHeight :
+          SafeHeight.topSafeHeight + (Setting.showToast && this.file_folder_list.length > 1 ? 90 : 65))
         .contentEndOffset(SafeHeight.bottomSafeHeight)
         .lanes(this.videoListController.listLine)
         .animation({ duration: 300, curve: Curve.Smooth })
         .scrollBar(BarState.Off)
         .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
         .chainAnimation(true)
-        .syncLoad(false)
         .width('100%')
         .height('100%')
         .fadingEdge(true)
@@ -360,6 +362,21 @@ export struct VideoList {
           if (this.currentSortField === SortField.NAME && this.pinyinSort) {
             this.updateIndexerOnScroll(start)
           }
+        })
+        .onDidScroll((scrollOffset: number, _scrollState: ScrollState) => {
+          const offset = this.videoListController.listScroller.currentOffset()
+          if (offset.yOffset <= 5) {
+            this.onScrollDirectionChange(false)
+            return
+          }
+          if (scrollOffset > 1) {
+            this.onScrollDirectionChange(true)
+          } else if (scrollOffset < -1) {
+            this.onScrollDirectionChange(false)
+          }
+        })
+        .onReachStart(() => {
+          this.onScrollDirectionChange(false)
         })
 
         if (this.currentSortField === 'name' && this.pinyinSort && this.activeAlphabet.length > 0) {
@@ -392,9 +409,10 @@ export struct VideoList {
         alignContent: IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand) ? Alignment.TopStart :
           Alignment.TopEnd
       }) {
-        Scroll() {
+        Scroll(this.outerScroller) {
           Column() {
-            Blank().height(SafeHeight.topSafeHeight + (Setting.showToast && this.file_folder_list.length > 1 ? 90 : 65))
+            Blank().height(this.searchBarHidden ? SafeHeight.topSafeHeight :
+              SafeHeight.topSafeHeight + (Setting.showToast && this.file_folder_list.length > 1 ? 90 : 65))
             WaterFlow({
               scroller: this.videoListController.listScroller,
               layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW
@@ -491,6 +509,23 @@ export struct VideoList {
         .scrollBar(BarState.Off)
         .width('100%')
         .height('100%')
+        .onDidScroll((scrollOffset: number, _scrollState: ScrollState) => {
+          const offset = this.outerScroller.currentOffset()
+          if (offset.yOffset <= 5) {
+            this.onScrollDirectionChange(false)
+            return
+          }
+          if (scrollOffset > 1) {
+            this.onScrollDirectionChange(true)
+          } else if (scrollOffset < -1) {
+            this.onScrollDirectionChange(false)
+          }
+        })
+        .onScrollEdge((edge: Edge) => {
+          if (edge === Edge.Top) {
+            this.onScrollDirectionChange(false)
+          }
+        })
 
         if (this.currentSortField === 'name' && this.pinyinSort && this.activeAlphabet.length > 0) {
           AlphabetIndexer({ arrayValue: this.activeAlphabet, selected: this.indexerSelected })

@@ -34,6 +34,7 @@ class bool {
 export struct LiqD {
   @Local bs: bool[] = []
   timer = 0
+  private isVisible: boolean = true
   sc = 1
   of: Position = { x: 0, y: 0 }
   effect: BackgroundEffectOptions = {
@@ -48,6 +49,9 @@ export struct LiqD {
       this.bs.push(new bool())
     }
     this.timer = setInterval(() => {
+      if (!this.isVisible) {
+        return
+      }
       this.bs.forEach((b, index) => {
         setTimeout(() => {
           try {
@@ -64,7 +68,7 @@ export struct LiqD {
           }
         }, 100 * index)
       })
-    }, 2000)
+    }, 4000)
 
     try {
       this.sc = display.getDefaultDisplaySync().densityDPI / 300
@@ -133,6 +137,9 @@ export struct LiqD {
     .clip(true)
     .borderRadius(16)
     .size({ width: "100%", height: 130 })
+    .onVisibleAreaChange([0.0, 1.0], (isVisible: boolean) => {
+      this.isVisible = isVisible
+    })
     .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
     .onClick(() => {
       this.getUIContext().animateTo({ duration: 500 }, () => {

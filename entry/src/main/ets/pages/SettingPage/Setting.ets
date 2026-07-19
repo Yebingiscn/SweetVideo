@@ -1,5 +1,6 @@
 import NavigationAddress from '../../common/NavigationCommon'
 import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog'
+import { DefaultStartupFolderDialog } from '../../component/Dialog/DefaultStartupFolderDialog'
 import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
@@ -9,6 +10,7 @@ import { CoverLayoutMode, ListDisplayMode } from '../../common/enum/DisplayMode'
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
 import { SettingsSegmentButtonItem } from '../../component/SettingComponent/SettingsSegmentButtonItem'
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
+import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuItem'
 import Preferences from '../../database/Preferences'
 import BiometricAccessUtil from '../../utils/BiometricAccessUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
@@ -22,6 +24,7 @@ const TAG = 'SettingsPage'
 export struct SettingsPage { //设置页
   @Local passwd: string = 'passwd'
   @Local showVipPage: boolean = true
+  @Local defaultStartupFolderName: string = ''
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
     builder: EditPasswordDialog({
@@ -36,6 +39,13 @@ export struct SettingsPage { //设置页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  defaultStartupFolderDialogController: CustomDialogController = new CustomDialogController({
+    builder: DefaultStartupFolderDialog({
+      onFolderSelected: (folderDate: string) => {
+        this.updateDefaultStartupFolderName(folderDate)
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
   controller: MarkdownController = new MarkdownController()
   private listScroller: Scroller = new Scroller()
 
@@ -45,6 +55,8 @@ export struct SettingsPage { //设置页
     this.controller.setQuoteBackgroundColor($r('app.color.start_window_background_blur'))
     this.controller.setLazyRender(true)
     this.showVipPage = await IapVerifyUtil.queryEnvironmentStatus()
+    const savedFolderDate = Preferences.getDefaultStartupFolder(PathUtils.appContext!)
+    this.updateDefaultStartupFolderName(savedFolderDate)
   }
 
   build() {
@@ -134,6 +146,20 @@ export struct SettingsPage { //设置页
         }
 
         ListItem() {
+          SettingsMenuItem({
+            symbol: $r('sys.symbol.list_number'),
+            message: '最大列表数',
+            tag: '试用',
+            selected: Setting.maxListLine - 1,
+            list: ['1', '2', '3', '4', '5', '6', '7', '8'],
+            onChange: (index: number) => {
+              Setting.maxListLine = index + 1
+              Preferences.saveMaxListLine(PathUtils.appContext!, Setting.maxListLine)
+            }
+          })
+        }
+
+        ListItem() {
           SettingsSegmentButtonItem({
             symbol: Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ?
               $r('sys.symbol.rectangle_uphalf_inset_filled') : $r('sys.symbol.rectangle_lefthalf_inset_filled'),
@@ -170,6 +196,17 @@ export struct SettingsPage { //设置页
             onChange: (checked: boolean) => {
               Setting.showToast = checked
               Preferences.saveShowToast(PathUtils.appContext!, Setting.showToast)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsClickItem({
+            symbol: $r('sys.symbol.folder_badge_plus'),
+            message: '默认启动文件夹：' + this.defaultStartupFolderName,
+            showArrow: true,
+            onPress: () => {
+              this.defaultStartupFolderDialogController.open()
             }
           })
         }
@@ -283,5 +320,15 @@ export struct SettingsPage { //设置页
     .backgroundImagePosition(Alignment.Center)
     .hideBackButton(false)
     .bindToScrollable([this.listScroller]) // 绑定导航组件和可滚动容器组件
+  }
+
+  private updateDefaultStartupFolderName(folderDate: string) {
+    if (folderDate === '') {
+      this.defaultStartupFolderName = '默认（首页）'
+      return
+    }
+    const folders = Preferences.getFileFolder(PathUtils.appContext!)
+    const folder = folders.find(f => f.date === folderDate)
+    this.defaultStartupFolderName = folder?.name ?? '默认（首页）'
   }
 }

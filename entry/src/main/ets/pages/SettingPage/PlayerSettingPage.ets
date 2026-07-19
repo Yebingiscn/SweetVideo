@@ -55,6 +55,18 @@ export struct PlayerSettingPage {
 
         ListItem() {
           SettingsToggleItem({
+            symbol: $r('sys.symbol.play_circle'),
+            message: '从后台返回自动播放',
+            enable: Setting.autoResumeOnReturn,
+            onChange: (checked: boolean) => {
+              Setting.autoResumeOnReturn = checked
+              Preferences.saveAutoResumeOnReturn(PathUtils.appContext!, Setting.autoResumeOnReturn)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsToggleItem({
             symbol: $r('sys.symbol.arrow_left'),
             message: '播放时返回隐藏状态栏',
             enable: !Setting.allowPlayBackExist,

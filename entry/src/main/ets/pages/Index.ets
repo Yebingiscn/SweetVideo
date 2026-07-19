@@ -90,25 +90,29 @@ struct Index {
 
   async aboutToAppear(): Promise<void> {
     await WindowUtil.init(PathUtils.appContext!)
-    SelectFileUtil.getDownloadUri()
     VideoOperateUtil.initSetting(PathUtils.appContext!)
-    VideoMetaDataOperator.migrationRootVideoMetaToRootFolder()
-    FileFolderUtil.fileFolderExistCheck()
-    AccountUtil.initAccount()
     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
-    // 首次安装时如果没有文件夹，创建默认"首页"文件夹
     if (this.file_folder_list.length === 0) {
       this.file_folder_list = await FileFolderUtil.createNewFolder(PathUtils.appContext!, '首页')
     }
-    this.videoListController?.updateData(undefined, this.file_folder_list[0])
-    IntellectualGripPostureUtil.createHoldingHandStatus((data: motion.HoldingHandStatus) => {
-      this.holdingHand = data
-    })
-    IntellectualGripPostureUtil.createOperatingHandStatus()
-    checkUriProcess(Preferences.getFileFolder(PathUtils.appContext!), (re: Object) => {
+    const defaultStartupFolderDate = Preferences.getDefaultStartupFolder(PathUtils.appContext!)
+    const defaultFolder = defaultStartupFolderDate
+      ? this.file_folder_list.find(f => f.date === defaultStartupFolderDate) ?? this.file_folder_list[0]
+      : this.file_folder_list[0]
+    this.videoListController?.updateData(undefined, defaultFolder)
+    setTimeout(() => {
+      SelectFileUtil.getDownloadUri()
+      VideoMetaDataOperator.migrationRootVideoMetaToRootFolder()
+      FileFolderUtil.fileFolderExistCheck()
+      AccountUtil.initAccount()
+      IntellectualGripPostureUtil.createHoldingHandStatus((data: motion.HoldingHandStatus) => {
+        this.holdingHand = data
+      })
+      IntellectualGripPostureUtil.createOperatingHandStatus()
+    }, 0)
+    checkUriProcess(this.file_folder_list, (re: Object) => {
       const result = re as Array<VideoMetadata>
       if (result.length > 0) {
-        // 在主线程中清理资源（字幕、历史记录、封面）
         result.forEach(async (item: VideoMetadata) => {
           try {
             await Promise.all([
@@ -120,7 +124,6 @@ struct Index {
             salmonLogger.addLog(TAG, `清理视频资源失败: ${item.uri} ` + error)
           }
         })
-        // 删除视频并刷新列表
         setTimeout(() => {
           result.forEach(async item => {
             await this.videoListController.videoDataSource?.deleteUnExistFile(item, this.videoListController,
@@ -128,9 +131,7 @@ struct Index {
           })
           const targetFolder = this.videoListController.folder ?? this.file_folder_list[0]
           const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, targetFolder)
-          // 更新文件夹列表状态，确保面包屑等UI正确刷新
           this.file_folder_list = updatedFolders
-          // 显示删除视频弹框
           DataSyncUtil.deletedVideos = result
           this.deletedVideosDialogController.open()
         }, 100)
@@ -396,12 +397,15 @@ struct Index {
             const savedIsLandscape = AppStorage.get('saved_is_landscape') as boolean | undefined
             const savedListDisplayMode = AppStorage.get('saved_list_display_mode') as ListDisplayMode | undefined
             const savedListLine = AppStorage.get('saved_list_line') as number | undefined
+            const savedMaxListLine = AppStorage.get('saved_max_list_line') as number | undefined
             const needRefresh = savedIsLandscape == undefined ||
               savedListDisplayMode == undefined ||
               savedListLine == undefined ||
+              savedMaxListLine == undefined ||
               currentIsLandscape != savedIsLandscape ||
               currentListDisplayMode != savedListDisplayMode ||
-              this.videoListController.listLine != savedListLine
+              this.videoListController.listLine != savedListLine ||
+              Setting.maxListLine != savedMaxListLine
             if (needRefresh) {
               this.videoListController.refresh(this.contentWidth, Setting.listDisplayMode)
             }
@@ -428,6 +432,7 @@ struct Index {
         AppStorage.setOrCreate('saved_is_landscape', currentIsLandscape)
         AppStorage.setOrCreate('saved_list_display_mode', Setting.listDisplayMode)
         AppStorage.setOrCreate('saved_list_line', this.videoListController.listLine)
+        AppStorage.setOrCreate('saved_max_list_line', Setting.maxListLine)
       }
     })
   }

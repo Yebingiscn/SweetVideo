@@ -26,56 +26,41 @@ export class XAnimation {
   public static getAnimation(dir: 'left' | 'right' | 'up' | 'bottom',
     delay: number = 0,
     hasAnimate: boolean = true) {
-    // 从上方进入的动画效果：透明度渐显 + 向上平移
-    const MoveFromTop: object =
-      TransitionEffect.OPACITY.animation(hasAnimate ? { duration: 200, curve: Curve.Ease, delay: delay } : undefined)
-        .combine(TransitionEffect.translate({ x: 0, y: -100 })
-          .animation(hasAnimate ? { curve: Curves.responsiveSpringMotion(0.4, 0.75), delay: delay } : undefined))
+    const opacityAnim: AnimateParam | undefined = hasAnimate ? { duration: 200, curve: Curve.Ease, delay: delay } : undefined
+    const springAnim: AnimateParam | undefined = hasAnimate ? { curve: Curves.responsiveSpringMotion(0.4, 0.75), delay: delay } : undefined
 
-    // 从下方进入的动画效果：透明度渐显 + 向下平移
-    const MoveFromBottom: object =
-      TransitionEffect.OPACITY.animation(hasAnimate ? { duration: 200, curve: Curve.Ease, delay: delay } : undefined)
-        .combine(TransitionEffect.translate({ x: 0, y: 100 })
-          .animation(hasAnimate ? { curve: Curves.responsiveSpringMotion(0.4, 0.75), delay: delay } : undefined))
-
-    // 从起始位置进入的动画效果：透明度渐显 + 向左平移
-    const MoveFromStart: object =
-      TransitionEffect.OPACITY.animation(hasAnimate ? { duration: 200, curve: Curve.Ease, delay: delay } : undefined)
-        .combine(TransitionEffect.translate({ x: -100, y: 0 })
-          .animation(hasAnimate ? { curve: Curves.responsiveSpringMotion(0.4, 0.75), delay: delay } : undefined))
-
-    // 从结束位置进入的动画效果：透明度渐显 + 向右平移
-    const MoveFromEnd: object =
-      TransitionEffect.OPACITY.animation(hasAnimate ? { duration: 200, curve: Curve.Ease, delay: delay } : undefined)
-        .combine(TransitionEffect.translate({ x: 100, y: 0 })
-          .animation(hasAnimate ? { curve: Curves.responsiveSpringMotion(0.4, 0.75), delay: delay } : undefined))
-
-    // 根据当前模式返回相应的动画效果
     switch (XAnimation.mode) {
       case 'auto': {
-        // 自动模式：根据传入的方向选择对应动画
         switch (dir) {
           case 'up':
-            return MoveFromTop
+            return TransitionEffect.OPACITY.animation(opacityAnim)
+              .combine(TransitionEffect.translate({ x: 0, y: -100 }).animation(springAnim))
           case 'bottom':
-            return MoveFromBottom
+            return TransitionEffect.OPACITY.animation(opacityAnim)
+              .combine(TransitionEffect.translate({ x: 0, y: 100 }).animation(springAnim))
           case 'left':
-            return MoveFromStart
+            return TransitionEffect.OPACITY.animation(opacityAnim)
+              .combine(TransitionEffect.translate({ x: -100, y: 0 }).animation(springAnim))
           case 'right':
-            return MoveFromEnd
+            return TransitionEffect.OPACITY.animation(opacityAnim)
+              .combine(TransitionEffect.translate({ x: 100, y: 0 }).animation(springAnim))
         }
       }
-      // 固定模式：无论传入什么方向，都返回指定的动画效果
       case 'up':
-        return MoveFromBottom
+        return TransitionEffect.OPACITY.animation(opacityAnim)
+          .combine(TransitionEffect.translate({ x: 0, y: 100 }).animation(springAnim))
       case 'bottom':
-        return MoveFromTop
+        return TransitionEffect.OPACITY.animation(opacityAnim)
+          .combine(TransitionEffect.translate({ x: 0, y: -100 }).animation(springAnim))
       case 'left':
-        return MoveFromEnd
+        return TransitionEffect.OPACITY.animation(opacityAnim)
+          .combine(TransitionEffect.translate({ x: 100, y: 0 }).animation(springAnim))
       case 'right':
-        return MoveFromStart
+        return TransitionEffect.OPACITY.animation(opacityAnim)
+          .combine(TransitionEffect.translate({ x: -100, y: 0 }).animation(springAnim))
       default:
-        return MoveFromBottom
+        return TransitionEffect.OPACITY.animation(opacityAnim)
+          .combine(TransitionEffect.translate({ x: 0, y: 100 }).animation(springAnim))
     }
   }
 

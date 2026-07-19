@@ -27,9 +27,9 @@ export default class PiPWindowUtil {
   static playerController ?: PlayerControllerInterface | undefined = undefined
   static pipOpenState: boolean = false
 
-  static startPip() {
+  static async startPip() {
     if (PiPWindowUtil.pipController) {
-      PiPWindowUtil.pipController.startPiP().then(() => {
+      await PiPWindowUtil.pipController.startPiP().then(() => {
         PiPWindowUtil.pipOpenState = true
       }).catch(() => {
         salmonLogger.addLog(TAG, 'startPiP failed', true)
@@ -37,9 +37,9 @@ export default class PiPWindowUtil {
     }
   }
 
-  static stopPip() {
+  static async stopPip() {
     if (PiPWindowUtil.pipController) {
-      PiPWindowUtil.pipController.stopPiP().then(() => {
+      await PiPWindowUtil.pipController.stopPiP().then(() => {
         PiPWindowUtil.pipOpenState = false
       }).catch(() => {
         salmonLogger.addLog(TAG, 'stopPiP failed', true)
@@ -63,6 +63,7 @@ export default class PiPWindowUtil {
 
   static async createPipController(xComponentController: XComponentController,
     playerController ?: PlayerControllerInterface) {
+    await PiPWindowUtil.destroyPipController()
     const controller = playerController
     const videoWidth =
       controller && controller.nowPlaying && controller.nowPlaying.size[0] ? controller.nowPlaying.size[0] : 0
@@ -99,17 +100,17 @@ export default class PiPWindowUtil {
    * 在需要时（例如播放器进入播放状态）打开自动画中画。
    */
   static enableAutoStart() {
-    if (PiPWindowUtil.pipController) {
+    if (PiPWindowUtil.pipController && Setting.autoActivePip) {
       PiPWindowUtil.pipController.setAutoStartEnabled(true)
     }
   }
 
-  static destroyPipController() {
+  static async destroyPipController() {
     if (!PiPWindowUtil.pipController) {
       return
     }
     if (PiPWindowUtil.pipOpenState) {
-      PiPWindowUtil.stopPip()
+      await PiPWindowUtil.stopPip()
     }
     PiPWindowUtil.pipOpenState = false
     PiPWindowUtil.pipController.setAutoStartEnabled(false)
@@ -140,7 +141,7 @@ export default class PiPWindowUtil {
       case 'fastForward':
         // 视频进度快进
         controller?.fastForward()
-        break;
+        break
       case 'fastBackward':
         // 视频进度后退
         controller?.backForward()

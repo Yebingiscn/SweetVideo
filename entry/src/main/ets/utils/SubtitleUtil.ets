@@ -36,6 +36,8 @@ export class ParserAdapter<T> implements Parser<T> {
 export default class SubtitleUtil {
   public static offsetMillis: number = 0
   private static subtitles: SubtitleItem[] = []
+  private static subtitleCacheKey: number = -1
+  private static subtitleCacheValue: string = ''
 
   // 存储所有字幕项（已按开始时间排序）
 
@@ -168,7 +170,18 @@ export default class SubtitleUtil {
   static async parseSubtitleProcess(path: string, format: string | undefined) {
     if (!format) {
       SubtitleUtil.offsetMillis = 0
-      // 逐一尝试 SRT、ASS、VTT 解析
+      const ext = path.split('.').pop()?.toLowerCase()
+      switch (ext) {
+        case 'srt':
+          return await SubtitleUtil.parseSrtFile(path)
+        case 'ass':
+        case 'ssa':
+          return await SubtitleUtil.parseAssFile(path)
+        case 'vtt':
+          return await SubtitleUtil.parseVttFile(path)
+        default:
+          break
+      }
       const formats = [SubtitleFormat.SRT, SubtitleFormat.ASS, SubtitleFormat.VTT]
       for (const fmt of formats) {
         let result = false
@@ -185,11 +198,10 @@ export default class SubtitleUtil {
           default:
             continue
         }
-        if (result) { // 假设解析成功返回真值
+        if (result) {
           return result
         }
       }
-      // 所有尝试都失败
       SubtitleUtil.subtitles = [];
       return false
     }
@@ -276,12 +288,13 @@ export default class SubtitleUtil {
     if (SubtitleUtil.subtitles.length === 0) {
       return ""
     }
-    // 应用偏移量：将播放器时间转换为字幕时间
     const effectiveOffset = offsetOverride ?? SubtitleUtil.offsetMillis
     const adjustedTimestamp = timestamp - effectiveOffset
-    // 如果偏移后的时间可能为负数，可以酌情处理
-    // 这里简单的将负数视为0，避免越界错误
     const searchTimestamp = Math.max(adjustedTimestamp, 0)
+    const cacheKey = Math.floor(searchTimestamp / 1000)
+    if (cacheKey === SubtitleUtil.subtitleCacheKey) {
+      return SubtitleUtil.subtitleCacheValue
+    }
     const result: SubtitleItem[] = []
     let left = 0
     let right = SubtitleUtil.subtitles.length - 1
@@ -321,13 +334,16 @@ export default class SubtitleUtil {
         break
       }
     }
-    // 格式化返回
-    return result.map(sub =>
+
+    const value = result.map(sub =>
     sub.text
       .replace(/\\[Nn]/g, '\n')
       .replace(/\{[^}]*\}/g, '')
       .replace(/<[^>]*>/g, '')
     ).join('\n')
+    SubtitleUtil.subtitleCacheKey = cacheKey
+    SubtitleUtil.subtitleCacheValue = value
+    return value
   }
 
   static getAdjacentSubtitleOffset(
@@ -390,6 +406,17 @@ export default class SubtitleUtil {
 
   // 设置字幕数据
   private static setSubtitles(items: SubtitleItem[]) {
-    SubtitleUtil.subtitles = items.sort((a, b) => a.startTimestampMillis - b.startTimestampMillis)
+    SubtitleUtil.subtitleCacheKey = -1
+    SubtitleUtil.subtitleCacheValue = ''
+    let needsSort = false
+    for (let i = 1; i < items.length; i++) {
+      if (items[i].startTimestampMillis < items[i - 1].startTimestampMillis) {
+        needsSort = true
+        break
+      }
+    }
+    SubtitleUtil.subtitles = needsSort
+      ? items.sort((a, b) => a.startTimestampMillis - b.startTimestampMillis)
+      : items
   }
 }

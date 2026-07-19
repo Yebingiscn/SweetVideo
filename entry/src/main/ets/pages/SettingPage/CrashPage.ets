@@ -8,7 +8,7 @@ import { systemShare } from '@kit.ShareKit'
 import { uniformTypeDescriptor } from '@kit.ArkData'
 import { fileIo } from '@kit.CoreFileKit'
 import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
-import { LengthMetrics } from '@kit.ArkUI'
+import { CapsuleSegmentButtonV2, ColorMetrics, SegmentButtonV2ItemOptions, SegmentButtonV2Items, LengthMetrics } from '@kit.ArkUI'
 
 const TAG = 'CrashPage'
 
@@ -16,10 +16,12 @@ const TAG = 'CrashPage'
 export struct CrashPage {
   @Local sweetLogDataSource: SweetLogDataSource = new SweetLogDataSource([])
   @Local currentTabIndex: number = 0
+  @Local segmentItems: SegmentButtonV2Items = new SegmentButtonV2Items([])
+  @Local itemSelectedBackgroundColor: ColorMetrics | undefined = undefined
+  @Local itemSelectedFontColor: ColorMetrics | undefined = undefined
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   private appEventGroups: Array<hiAppEvent.AppEventGroup> | [] = []
   private listScroller: Scroller = new Scroller()
-  private tabsController: TabsController = new TabsController()
 
   aboutToAppear(): void {
     const crashLog = AppStorage.get('crashLog') as Array<hiAppEvent.AppEventGroup>
@@ -28,6 +30,8 @@ export struct CrashPage {
       this.currentTabIndex = 1
     }
     this.sweetLogDataSource = new SweetLogDataSource(salmonLogger.logs)
+    this.initSegmentItems()
+    this.getColor()
   }
 
   aboutToDisappear(): void {
@@ -37,110 +41,119 @@ export struct CrashPage {
   build() {
     HdsNavDestination() {
       Column() {
-        Tabs({ index: this.currentTabIndex, controller: this.tabsController }) {
-          TabContent() {
-            Column() {
-              Row({ space: 8 }) {
-                Circle()
-                  .width(16)
-                  .height(16)
-                  .fill('#ff5f56')
-                  .onClick(() => {
-                    salmonLogger.clearLog()
-                    this.sweetLogDataSource.updateData(salmonLogger.logs)
-                  })
-                Circle()
-                  .width(16)
-                  .height(16)
-                  .fill('#ffbd2e')
-                  .onClick(() => ToolsUtil.showToast("红色按钮清空日志，绿色按钮导出日志"))
-                Circle()
-                  .width(16)
-                  .height(16)
-                  .fill('#27c93f')
-                  .onClick(() => salmonLogger.exportLog('sweet_video', PathUtils.appContext!))
-              }
-              .width('100%')
-              .padding(12)
+        CapsuleSegmentButtonV2({
+          items: this.segmentItems,
+          selectedIndex: this.currentTabIndex,
+          buttonBackgroundBlurStyle: BlurStyle.BACKGROUND_THICK,
+          itemSelectedFontColor: this.itemSelectedFontColor,
+          itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
+          onItemClicked: (index: number) => {
+            this.currentTabIndex = index
+          }
+        })
+          .margin({ top: 8, bottom: 8 })
 
-              List({ scroller: this.listScroller, space: 10 }) {
-                Repeat<SalmonLogLine>(this.sweetLogDataSource.data)
-                  .each((repeatItem: RepeatItem<SalmonLogLine>) => {
-                    ListItem() {
-                      Column() {
-                        Row() {
-                          Text(repeatItem.item.isError ? 'ERROR' : 'INFO')
-                            .fontSize(9)
-                            .fontColor($r('sys.color.white'))
-                            .fontWeight(FontWeight.Bold)
-                            .padding({
-                              left: 6,
-                              right: 6,
-                              top: 2,
-                              bottom: 2
-                            })
-                            .backgroundColor(repeatItem.item.isError ? '#26ff4d4f' : '#2652c41a')
-                            .backdropBlur(12)
-                            .borderRadius(4)
+        Swiper() {
+          Column() {
+            Row({ space: 8 }) {
+              Circle()
+                .width(16)
+                .height(16)
+                .fill('#ff5f56')
+                .onClick(() => {
+                  salmonLogger.clearLog()
+                  this.sweetLogDataSource.updateData(salmonLogger.logs)
+                })
+              Circle()
+                .width(16)
+                .height(16)
+                .fill('#ffbd2e')
+                .onClick(() => ToolsUtil.showToast("红色按钮清空日志，绿色按钮导出日志"))
+              Circle()
+                .width(16)
+                .height(16)
+                .fill('#27c93f')
+                .onClick(() => salmonLogger.exportLog('sweet_video', PathUtils.appContext!))
+            }
+            .width('100%')
+            .padding(12)
 
-                          Text(`[${new Date(repeatItem.item.time).toLocaleTimeString(undefined, { hour12: false })}]`)
-                            .fontSize(10)
-                            .fontColor($r('app.color.text_color'))
-                            .opacity(0.7)
-                            .margin({ left: 8 })
+            List({ scroller: this.listScroller, space: 10 }) {
+              Repeat<SalmonLogLine>(this.sweetLogDataSource.data)
+                .each((repeatItem: RepeatItem<SalmonLogLine>) => {
+                  ListItem() {
+                    Column() {
+                      Row() {
+                        Text(repeatItem.item.isError ? 'ERROR' : 'INFO')
+                          .fontSize(9)
+                          .fontColor($r('sys.color.white'))
+                          .fontWeight(FontWeight.Bold)
+                          .padding({
+                            left: 6,
+                            right: 6,
+                            top: 2,
+                            bottom: 2
+                          })
+                          .backgroundColor(repeatItem.item.isError ? '#26ff4d4f' : '#2652c41a')
+                          .backdropBlur(12)
+                          .borderRadius(4)
 
-                          Text(repeatItem.item.tag)
-                            .fontSize(10)
-                            .fontColor(repeatItem.item.isError ? '#ff4d4f' : $r('app.color.text_color'))
-                            .opacity(0.6)
-                            .layoutWeight(1)
-                            .margin({ left: 8 })
-                        }
-                        .width('100%')
+                        Text(`[${new Date(repeatItem.item.time).toLocaleTimeString(undefined, { hour12: false })}]`)
+                          .fontSize(10)
+                          .fontColor($r('app.color.text_color'))
+                          .opacity(0.7)
+                          .margin({ left: 8 })
 
-                        Text(repeatItem.item.text)
-                          .fontSize(12)
+                        Text(repeatItem.item.tag)
+                          .fontSize(10)
                           .fontColor(repeatItem.item.isError ? '#ff4d4f' : $r('app.color.text_color'))
-                          .width('100%')
-                          .wordBreak(WordBreak.BREAK_ALL)
-                          .margin({ top: 6 })
-                          .align(Alignment.Start)
+                          .opacity(0.6)
+                          .layoutWeight(1)
+                          .margin({ left: 8 })
                       }
                       .width('100%')
-                      .padding({
-                        top: 6,
-                        bottom: 6,
-                        left: 12,
-                        right: 12
-                      })
+
+                      Text(repeatItem.item.text)
+                        .fontSize(12)
+                        .fontColor(repeatItem.item.isError ? '#ff4d4f' : $r('app.color.text_color'))
+                        .width('100%')
+                        .wordBreak(WordBreak.BREAK_ALL)
+                        .margin({ top: 6 })
+                        .align(Alignment.Start)
                     }
-                  })
-                  .key((_item: SalmonLogLine, index: number) => index.toString())
-                  .virtualScroll()
-              }
-              .chainAnimation(true)
-              .onAppear(() => {
-                setTimeout(() => {
-                  const targetIndex = salmonLogger.logs.length - 1
-                  if (targetIndex >= 0) {
-                    this.listScroller.scrollToIndex(targetIndex, false)
+                    .width('100%')
+                    .padding({
+                      top: 6,
+                      bottom: 6,
+                      left: 12,
+                      right: 12
+                    })
                   }
-                }, 50)
-              })
-              .layoutWeight(1)
-              .width('100%')
-              .height('100%')
-              .padding({ left: 8, right: 8, bottom: 8 })
-              .scrollBar(BarState.Auto)
-            }.backgroundColor($r('app.color.start_window_background_blur'))
-            .borderRadius(16)
+                })
+                .key((_item: SalmonLogLine, index: number) => index.toString())
+                .virtualScroll()
+            }
+            .chainAnimation(true)
+            .onAppear(() => {
+              setTimeout(() => {
+                const targetIndex = salmonLogger.logs.length - 1
+                if (targetIndex >= 0) {
+                  this.listScroller.scrollToIndex(targetIndex, false)
+                }
+              }, 50)
+            })
+            .layoutWeight(1)
             .width('100%')
             .height('100%')
-          }
-          .tabBar('运行日志')
+            .padding({ left: 8, right: 8, bottom: 8 })
+            .scrollBar(BarState.Auto)
+          }.backgroundColor($r('app.color.start_window_background_blur'))
+          .borderRadius(16)
+          .width('100%')
+          .height('100%')
 
           if (this.appEventGroups.length > 0) {
-            TabContent() {
+            Column() {
               List() {
                 Repeat<hiAppEvent.AppEventGroup>(this.appEventGroups)
                   .each((repeatItem: RepeatItem<hiAppEvent.AppEventGroup>) => {
@@ -189,17 +202,16 @@ export struct CrashPage {
               .backgroundColor($r('app.color.start_window_background_blur'))
               .borderRadius(16)
               .width('100%')
-              .height('100%')
+              .layoutWeight(1)
               .padding({ left: 8, right: 8 })
               .scrollBar(BarState.Auto)
               .chainAnimation(true)
-            }
-            .tabBar('崩溃日志')
+            }.width('100%')
+            .height('100%')
           }
         }
-        .barPosition(BarPosition.Start)
-        .scrollable(true)
-        .barMode(BarMode.Fixed)
+        .index(this.currentTabIndex)
+        .indicator(false)
         .layoutWeight(1)
         .width('100%')
         .onChange((index: number) => {
@@ -298,6 +310,25 @@ export struct CrashPage {
     .backgroundImagePosition(Alignment.Center)
     .hideBackButton(false)
     .bindToScrollable([this.listScroller])
+  }
+
+  private initSegmentItems() {
+    const tips: ResourceStr[] = this.appEventGroups.length > 0
+      ? ['运行日志', '崩溃日志']
+      : ['运行日志']
+    const buttonItems: SegmentButtonV2ItemOptions[] = tips.map((tip: ResourceStr) =>
+    ({ text: tip } as SegmentButtonV2ItemOptions)
+    )
+    this.segmentItems = new SegmentButtonV2Items(buttonItems)
+  }
+
+  private getColor() {
+    try {
+      this.itemSelectedBackgroundColor = ColorMetrics.resourceColor($r('app.color.main_color'))
+      this.itemSelectedFontColor = ColorMetrics.resourceColor($r('sys.color.white'))
+    } catch (error) {
+      salmonLogger.addLog(TAG, 'getColor error', true)
+    }
   }
 
   @Builder

@@ -73,33 +73,41 @@ export interface MetadataExtractionResult {
 async function extractVideoMetadataTask(uri: string): Promise<MetadataExtractionResult> {
   let avMetadataExtractor: media.AVMetadataExtractor | undefined
   let file: fs.File | undefined
+  let fileSize = 0
+  let fileName = ''
 
   try {
-    // 创建元数据提取器
+    // 获取文件信息（使用独立的fd，不与AVMetadataExtractor共用同一fd）
+    let statFile: fs.File | undefined
+    try {
+      statFile = fs.openSync(uri, fs.OpenMode.READ_ONLY)
+      fileName = statFile.name
+      const stat = fs.statSync(statFile.fd)
+      fileSize = stat.size
+    } catch (error) {
+      console.error('获取文件信息失败:', error)
+    } finally {
+      if (statFile) {
+        fs.closeSync(statFile)
+      }
+    }
+
+    // 创建元数据提取器（使用新的fd，确保不与stat共用）
     avMetadataExtractor = await media.createAVMetadataExtractor()
+    file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
+    let avFileDescriptor: media.AVFileDescriptor = { fd: file.fd }
+    avMetadataExtractor.fdSrc = avFileDescriptor
 
-    // 打开文件
-    file = fs.openSync(uri)
-    const fileName = file.name
-
-    // 获取文件大小
-    const stat = fs.statSync(file.fd)
-    const fileSize = stat.size
-
-    // 设置文件源并提取元数据
-    avMetadataExtractor.fdSrc = file
     const metadata = await new Promise<media.AVMetadata>((resolve, reject) => {
       avMetadataExtractor!.fetchMetadata((error: BusinessError, metadata: media.AVMetadata) => {
         error ? reject(error) : resolve(metadata)
       })
     })
 
-    // 尝试提取封面
     let pixelMap: image.PixelMap | undefined
     try {
       pixelMap = await avMetadataExtractor.fetchAlbumCover()
     } catch (coverError) {
-      // 封面提取失败，返回 undefined（不使用 salmonLogger，TaskPool 中无法访问）
       console.error('fetchAlbumCover failed:', coverError)
     }
 
@@ -120,20 +128,19 @@ async function extractVideoMetadataTask(uri: string): Promise<MetadataExtraction
       error: String(error)
     }
   } finally {
-    // 确保释放资源
+    // 先释放AVMetadataExtractor，再关闭fd，避免释放时访问已关闭的fd
+    if (avMetadataExtractor) {
+      try {
+        await avMetadataExtractor.release()
+      } catch (error) {
+        console.error('释放元数据提取器失败:', error)
+      }
+    }
     if (file) {
       try {
         fs.closeSync(file)
       } catch (error) {
         console.error('关闭文件失败:', error)
-      }
-    }
-    if (avMetadataExtractor) {
-      try {
-        avMetadataExtractor.release?.().catch(() => {
-        })
-      } catch (error) {
-        console.error('释放元数据提取器失败:', error)
       }
     }
   }
@@ -202,12 +209,10 @@ async function extractVideoFrameAsCoverTask(
       error: String(error)
     }
   } finally {
-    // 确保释放资源
+    // 先释放AVImageGenerator，再关闭fd，避免释放时访问已关闭的fd
     if (avImageGenerator) {
       try {
-        avImageGenerator.release()?.catch(() => {
-          console.error('avImageGenerator release error')
-        })
+        await avImageGenerator.release()
       } catch (error) {
         console.error('释放 AVImageGenerator 失败:', error)
       }

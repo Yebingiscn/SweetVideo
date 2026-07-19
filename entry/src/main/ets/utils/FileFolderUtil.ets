@@ -75,19 +75,28 @@ export default class FileFolderUtil {
   static flattenTree(folders: FileFolder[]): FileFolder[] {
     const result: FileFolder[] = []
     const visited = new Set<string>()
-    const stack: (string | null)[] = [null]
-    while (stack.length > 0) {
-      const parentDate = stack.pop()!
-      const children = folders.filter(f => f.parent_date === parentDate)
+    const childrenMap = new Map<string | null, FileFolder[]>()
+    for (const f of folders) {
+      const key = f.parent_date
+      if (!childrenMap.has(key)) {
+        childrenMap.set(key, [])
+      }
+      childrenMap.get(key)!.push(f)
+    }
+
+    const dfs = (parentDate: string | null) => {
+      const children = childrenMap.get(parentDate) ?? []
       for (const child of children) {
         if (visited.has(child.date)) {
           continue
         }
         visited.add(child.date)
         result.push(child)
-        stack.push(child.date)
+        dfs(child.date)
       }
     }
+
+    dfs(null)
     return result
   }
 
@@ -365,10 +374,7 @@ export default class FileFolderUtil {
       const videoMetaData = Preferences.getVideoMetaDataEncryption(context) || []
       exists = videoMetaData.some(item => item.title === title)
     } else {
-      const folders = Preferences.getFileFolder(context) || []
-      exists = folders.some(folder =>
-      folder.video_list?.some(video => video.uri === uri)
-      )
+      exists = Preferences.getVideoUriSet(context).has(uri)
     }
     if (exists) {
       FileFolderUtil.duplicateVideo++

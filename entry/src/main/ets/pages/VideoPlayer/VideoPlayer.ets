@@ -39,7 +39,6 @@ import {
   VOLUME_PAN_MULTIPLIER,
   VOLUME_STEP
 } from '../../common/Constants'
-import { AISubtitleComponent } from '../../component/PlayerComponent/AIAsrComponent'
 import PiPWindowUtil from '../../utils/PiPWindowUtil'
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
 import { NumberInputDialog } from '../../component/Dialog/NumberInputDialog'
@@ -57,7 +56,7 @@ import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSlide
 import { VideoTopComponent } from '../../component/PlayerComponent/VideoTopComponent'
 import Preferences from '../../database/Preferences'
 import { salmonLogger } from 'salmonlogger'
-import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil'
+import { AISubtitleComponent } from '../../component/PlayerComponent/AIAsrComponent'
 
 const TAG = 'VideoPlayer'
 
@@ -138,27 +137,17 @@ export struct VideoPlayer {
   private subtitleOffsetPreviewBase: number = 0
   private subtitleOffsetShouldResumePlayback: boolean = false
 
-  async aboutToAppear(): Promise<void> {
+  aboutToAppear(): void {
     salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "开始执行aboutToAppear方法", false)
-    this.player.prepareIfNeeded()
     PermissionUtil.applyContinuousTask()
-    try {
-      await (await this.getWindowClass())?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
-      WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
-      this.player.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
-      const videoSpeed = Preferences.getVideoSpeed(PathUtils.appContext!)
-      this.player.speed = parseFloat(videoSpeed?.replace('x', '') || '1')
-      this.player.selectedText = Preferences.getScreenExtend(PathUtils.appContext!)
-
-      WindowUtil.setBarState(PathUtils.appContext!, false, false)
-      if (Setting.defaultBrightness > 0) {
-        VideoOperateUtil.setBrightness(Setting.defaultBrightness / 100)
-      }
-
-    } catch (error) {
-      salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, `播放错误 ${error}`, true)
+    this.getWindowClass()?.then(
+      w => w?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)?.catch(() => {
+      }))
+    WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
+    WindowUtil.setBarState(PathUtils.appContext!, false, false)
+    if (Setting.defaultBrightness > 0) {
+      VideoOperateUtil.setBrightness(Setting.defaultBrightness / 100)
     }
-    this.player.onPlayerReady()
     salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "aboutToAppear方法执行完成", false)
   }
 
@@ -259,6 +248,7 @@ export struct VideoPlayer {
             FastForwardPanelBuilder({
               speed: this.player.speed,
               location: VideoInfoUtil.playAreaHeight,
+              speedLocked: this.player.speedLocked,
             })
           }
           if (this.player.onSwiping) {
@@ -380,6 +370,7 @@ export struct VideoPlayer {
             onLongPressAction: () => {
               if (this.player.playing) {
                 VideoOperateUtil.lastSpeed = this.player.speed
+                this.player.speedLocked = false
                 this.player.updatePlaybackSpeed(Setting.longPressSpeed)
                 XAnimation.runWithAnimation(() => {
                   this.player.longPress = true
@@ -392,7 +383,10 @@ export struct VideoPlayer {
               XAnimation.runWithAnimation(() => {
                 this.player.longPress = false
               })
-              this.player.restoreSpeedAfterLongPress(VideoOperateUtil.lastSpeed)
+              if (!this.player.speedLocked) {
+                this.player.restoreSpeedAfterLongPress(VideoOperateUtil.lastSpeed)
+              }
+              this.player.speedLocked = false
             },
             onLongPressPanStart: (tapX: number) => {
               VideoOperateUtil.longPressStartX = tapX
@@ -412,7 +406,14 @@ export struct VideoPlayer {
                 }
                 this.currentSpeedIndex = clampedIndex
                 this.player.updatePlaybackSpeed(VideoInfoUtil.videoSpeedListAll[this.currentSpeedIndex])
+                this.player.speedLocked = false
                 VideoOperateUtil.longPressStartX = tapX
+                ToolsUtil.startVibration()
+              }
+            },
+            onLongPressVerticalPanUpdate: (offsetY: number) => {
+              if (this.player.longPress && !this.player.speedLocked && offsetY < -SWIPE_THRESHOLD) {
+                this.player.speedLocked = true
                 ToolsUtil.startVibration()
               }
             },
@@ -496,23 +497,25 @@ export struct VideoPlayer {
 
         this.subtitleManager = new SubtitleManager(this.player)
         const metadata = playerParams.metadata as VideoMetadata
-        if (metadata && !PrivacySpaceUtil.getPrivacyMode()) {
-          const findResult = Preferences.findVideoByDate(PathUtils.appContext!, metadata.date)
-          this.player.nowPlaying = findResult[0] ?? metadata
-        } else {
-          this.player.nowPlaying = metadata
-        }
+        this.player.nowPlaying = metadata
         if (playerParams.metadata_list) {
           this.player.videoMetaDataList = playerParams.metadata_list as VideoMetadata[]
         } else if (playerParams!.folder_date) {
-          const folders = Preferences.getFileFolder(PathUtils.appContext!)
-          const folder = folders.find(f => f.date === playerParams!.folder_date)
-          if (folder) {
-            this.player.videoMetaDataList = folder.video_list
-          }
+          setTimeout(() => {
+            const folders = Preferences.getFileFolder(PathUtils.appContext!)
+            const folder = folders.find(f => f.date === playerParams!.folder_date)
+            if (folder) {
+              this.player.videoMetaDataList = folder.video_list
+            }
+          }, 0)
         }
         this.player.skipHistory = playerParams.skipHistory
+        this.player.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
+        const videoSpeed = Preferences.getVideoSpeed(PathUtils.appContext!)
+        this.player.speed = parseFloat(videoSpeed?.replace('x', '') || '1')
+        this.player.selectedText = Preferences.getScreenExtend(PathUtils.appContext!)
         this.restoreSubtitlePreference()
+        this.player.onPlayerReady()
       } catch (e) {
         salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, e, true)
       }
@@ -535,6 +538,9 @@ export struct VideoPlayer {
         PiPWindowUtil.stopPip()
       }
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
+      if (Setting.autoResumeOnReturn && !this.player.playing) {
+        this.player.play()
+      }
     })
     .onWillDisappear(async () => {
       salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "开始执行onWillDisappear生命周期", false)
@@ -557,7 +563,7 @@ export struct VideoPlayer {
         }
       }
       PermissionUtil.applyStopContinuousTask()
-      PiPWindowUtil.destroyPipController()
+      await PiPWindowUtil.destroyPipController()
       WindowUtil.disableLandscapeMultiWindow(this.getWindowClass())
       try {
         WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
@@ -667,8 +673,8 @@ export struct VideoPlayer {
         this.player.selectedText = text
         Preferences.saveScreenExtend(PathUtils.appContext!, text)
       },
-      pipStateChange: () => {
-        PiPWindowUtil.startPip()
+      pipStateChange: async () => {
+        await PiPWindowUtil.startPip()
         WindowUtil.minimizeClick(PathUtils.appContext!)
       },
       onOpenPersonalScreenExtend: () => {

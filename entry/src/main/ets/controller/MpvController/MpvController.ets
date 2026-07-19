@@ -12,11 +12,13 @@ import {
   create as mpvCreate,
   destroy as mpvDestroy,
   getAudioTracks as mpvGetAudioTracks,
+  getAudioType as mpvGetAudioType,
   getChapterList as mpvGetChapterList,
   getCurrentSubtitleTrack as mpvGetCurrentSubtitleTrack,
   getDolbyVisionProfile as mpvGetDolbyVisionProfile,
   getDuration as mpvGetDuration,
   getSubtitleTracks as mpvGetSubtitleTracks,
+  getVideoHdrType as mpvGetVideoHdrType,
   getVideoHeight as mpvGetVideoHeight,
   getVideoWidth as mpvGetVideoWidth,
   loadVideo as mpvLoadVideo,
@@ -67,6 +69,7 @@ import PiPWindowUtil from '../../utils/PiPWindowUtil';
 import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil';
 import SelectFileUtil from '../../utils/SelectFileUtil';
 import SubtitleUtil from '../../utils/SubtitleUtil';
+import { ThrottleUtil } from '../../utils/DebounceUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import VideoOperateUtil from '../../utils/VideoOperateUtil';
@@ -136,6 +139,7 @@ export class MpvController implements PlayerControllerInterface {
   @Trace chapterList: MpvChapter[] = []
   @Trace lockVisibility: boolean = false
   @Trace longPress: boolean = false
+  @Trace speedLocked: boolean = false
   @Trace isLock: boolean = false
   @Trace abCircleStatus: boolean = false
   @Trace osdVisibility: boolean = false
@@ -145,8 +149,10 @@ export class MpvController implements PlayerControllerInterface {
   @Trace translateX: number = 0
   @Trace translateY: number = 0
   @Trace subtitle: string = ''
+  private lastSubtitle: string = ''
   @Trace showControl: boolean = false
   skipHistory: boolean = false
+  private lastAppStorageUpdateTime: number = 0
   @Trace pixelMap: PixelMap | null = null
   avSession: avSessionManager.AVSession | undefined = undefined
   audioVolumeManager: audio.AudioVolumeManager | null = null
@@ -167,6 +173,7 @@ export class MpvController implements PlayerControllerInterface {
   private readonly FRAME_FETCH_INTERVAL: number = 200
   private lastFrameFetchPlayTime: number = -1
   private pendingFrameTime: number = -1
+  private postLoadTasksExecuted: boolean = false
 
   static getShaderModeNames(): string[] {
     return MpvController.SHADER_MODE_NAMES
@@ -314,6 +321,7 @@ export class MpvController implements PlayerControllerInterface {
         true)
       this.transitionTo(MpvPlayerState.SWITCHING_MODE)
       this.cleanupMpvInstance()
+      this.cancelDecodingModeTimers()
     }
     this.applyDecodeType()
     if (!this.mpvHandle) {
@@ -367,53 +375,7 @@ export class MpvController implements PlayerControllerInterface {
     this.setPlayerCallback(pathStack!)
     this.getData()
 
-    // OSD 显示逻辑：
-    // 1. 首次播放：延迟显示 OSD，等待视频尺寸变化事件触发 syncOsdSurfaceSize()
-    // 2. 切换视频：OSD 保持可见，视频尺寸变化事件会自动同步 OSD 尺寸
-    // 3. 不再依赖固定的 1200ms 延迟，而是通过事件驱动
-
-    // 智能旋转和外部字幕可以延迟执行，不影响播放
-    this.smartRotationTimer = setTimeout(async () => {
-      if (!this.mpvHandle || this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
-        return
-      }
-      if (Setting.smartRotation &&
-        (this.playAreaWidth > this.playAreaHeight || this.nowPlaying!.size[0] > this.nowPlaying!.size[1]) &&
-        this.screenHeight > this.screenWidth) {
-        salmonLogger.addLog(TAG, "智能旋转条件满足，开始设置方向", false)
-        const proportion =
-          Math.max(this.screenWidth, this.screenHeight) / Math.min(this.screenWidth, this.screenHeight)
-        const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
-          : window.Orientation.AUTO_ROTATION_RESTRICTED;
-        (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
-          salmonLogger.addLog(TAG, "设置窗口方向失败", true)
-        })
-        salmonLogger.addLog(TAG, "设置窗口方向完成", false)
-      }
-      if (this.speed !== 1) {
-        this.updatePlaybackSpeed(this.speed)
-      }
-      // 检测杜比视界 Profile，P5/P7 需要使用 Buffer 模式
-      this.checkDolbyVisionAndSwitch()
-      // 获取信息需要有延迟，否则无法获取
-      this.getAudioTrackList()
-      this.getSubtitleTrackList()
-      this.getChapterListFromMpv()
-      const mpvSeekMode = VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!)
-      salmonLogger.addLog(TAG,
-        `恢复播放进度: last_play=${this.nowPlaying?.last_play}, time=${this.nowPlaying?.time}, start_time=${this.nowPlaying?.start_time}, seekMode=${mpvSeekMode}`,
-        false)
-      this.videoStartPlayTime(mpvSeekMode)
-      this.nowPlaying!.time = this.getDuration()
-      this.setRotation()
-      this.onSwiping = false
-      this.isSliderPlayTimeChange = false
-      // 首次播放时显示 OSD（切换视频时 OSD 保持可见）
-      if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE && !this.osdVisibility) {
-        this.osdVisibility = true
-      }
-      await this.setExternalSubtitle(this.nowPlaying!)
-    }, 1200)
+    this.schedulePostLoadTasks()
   }
 
   setOsdSurface(surfaceId: string, playAreaWidth: number, playAreaHeight: number): void {
@@ -440,8 +402,12 @@ export class MpvController implements PlayerControllerInterface {
     _windowClass?: Promise<window.Window | undefined>) {
     this.userListener = new BaseListener<number>()
     this.userListener.on('timeUpdate', (duration: number) => {
-      AppStorage.setOrCreate('nowPlayingData',
-        [this.playTime, this.nowPlaying!, this.skipHistory])
+      const now = Date.now()
+      if (now - this.lastAppStorageUpdateTime >= 200) {
+        this.lastAppStorageUpdateTime = now
+        AppStorage.setOrCreate('nowPlayingData',
+          [this.playTime, this.nowPlaying!, this.skipHistory])
+      }
       if (this.showControl) {
         if (!VideoOperateUtil.autoHideTimeout) {
           VideoOperateUtil.autoHideTimeout = true
@@ -465,7 +431,11 @@ export class MpvController implements PlayerControllerInterface {
         ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_video_ending').id))
       }
       if (this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
-        this.subtitle = SubtitleUtil.getSubtitlesAtTime(duration)
+        const newSubtitle = SubtitleUtil.getSubtitlesAtTime(duration)
+        if (newSubtitle !== this.lastSubtitle) {
+          this.lastSubtitle = newSubtitle
+          this.subtitle = newSubtitle
+        }
       }
       if (this.abCircleStatus && this.playing) {
         if (this.nowPlaying?.pointA !== undefined && this.nowPlaying?.pointB !== undefined) {
@@ -510,6 +480,7 @@ export class MpvController implements PlayerControllerInterface {
     if (!this.mpvHandle) {
       return
     }
+    PiPWindowUtil.enableAutoStart()
     this.transitionTo(MpvPlayerState.PLAYING)
     mpvPlay(this.mpvHandle)
     AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
@@ -519,6 +490,7 @@ export class MpvController implements PlayerControllerInterface {
     if (!this.mpvHandle) {
       return
     }
+    PiPWindowUtil.disableAutoStart()
     this.transitionTo(MpvPlayerState.PAUSED)
     mpvPause(this.mpvHandle)
     AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
@@ -844,15 +816,14 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   async initVolumeAndBrightness() {
-    let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID
     let audioManager = audio.getAudioManager()
     this.audioVolumeManager = audioManager.getVolumeManager()
-    let volumeList = await VideoOperateUtil.getVolume(this.audioVolumeManager, groupId)
+    let volumeList = VideoOperateUtil.getVolume()
     this.volume = volumeList.get('volume')!
+    console.error('test666' + volumeList.get('volume'))
     this.volumeActually = this.volume
     let swipingVoiceTimer: number | null = null
     let changeVolumeByVolumeButton: boolean = false
-
     try {
       this.audioVolumeManager.on('streamVolumeChange', audio.StreamUsage.STREAM_USAGE_MOVIE,
         (streamVolumeEvent: audio.StreamVolumeEvent) => {
@@ -874,7 +845,6 @@ export class MpvController implements PlayerControllerInterface {
       salmonLogger.addLog(TAG, 'volumeChange error', true)
     }
     this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
-
   }
 
   onScreenDoubleClick(tapX: number) {
@@ -1001,7 +971,9 @@ export class MpvController implements PlayerControllerInterface {
 
   onPlayerReady(): void {
     WindowUtil.enableLandscapeMultiWindow(this.windowClass)
-    this.initVolumeAndBrightness()
+    this.initVolumeAndBrightness().catch((err: Error) => {
+      salmonLogger.addLog(TAG, 'initVolumeAndBrightness failed: ' + err, true)
+    })
   }
 
   savePlayerSpeed(context: Context): void {
@@ -1032,7 +1004,7 @@ export class MpvController implements PlayerControllerInterface {
     try {
       this.init(this.nowPlaying!.uri, pathStack)
       this.initAVSession()
-      PiPWindowUtil.createPipController(xComponentController, this)
+      await PiPWindowUtil.createPipController(xComponentController, this)
       this.surfaceId = xComponentController.getXComponentSurfaceId()
     } catch (error) {
       salmonLogger.addLog(TAG, 'uri error:' + error, true)
@@ -1089,6 +1061,64 @@ export class MpvController implements PlayerControllerInterface {
 
   getOsdVisibility(): boolean {
     return this.osdVisibility
+  }
+
+  private schedulePostLoadTasks() {
+    this.postLoadTasksExecuted = false
+    this.userListener?.on('videoSizeReady', (_data: number) => {
+      if (this.postLoadTasksExecuted) {
+        return
+      }
+      this.executePostLoadTasks()
+    })
+    this.smartRotationTimer = setTimeout(() => {
+      if (!this.postLoadTasksExecuted) {
+        this.executePostLoadTasks()
+      }
+    }, 1500) as number
+  }
+
+  private async executePostLoadTasks() {
+    if (this.postLoadTasksExecuted) {
+      return
+    }
+    this.postLoadTasksExecuted = true
+    clearTimeout(this.smartRotationTimer)
+    this.userListener?.off('videoSizeReady')
+
+    if (!this.mpvHandle || this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
+      return
+    }
+    if (Setting.smartRotation &&
+      (this.playAreaWidth > this.playAreaHeight || this.nowPlaying!.size[0] > this.nowPlaying!.size[1]) &&
+      this.screenHeight > this.screenWidth) {
+      salmonLogger.addLog(TAG, "智能旋转条件满足，开始设置方向", false)
+      const proportion =
+        Math.max(this.screenWidth, this.screenHeight) / Math.min(this.screenWidth, this.screenHeight)
+      const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
+        : window.Orientation.AUTO_ROTATION_RESTRICTED;
+      (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
+        salmonLogger.addLog(TAG, "设置窗口方向失败", true)
+      })
+    }
+    if (this.speed !== 1) {
+      this.updatePlaybackSpeed(this.speed)
+    }
+    this.checkDolbyVisionAndSwitch()
+    this.detectAndUpdateHdrType()
+    this.getAudioTrackList()
+    this.getSubtitleTrackList()
+    this.getChapterListFromMpv()
+    const mpvSeekMode = VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!)
+    this.videoStartPlayTime(mpvSeekMode)
+    this.nowPlaying!.time = this.getDuration()
+    this.setRotation()
+    this.onSwiping = false
+    this.isSliderPlayTimeChange = false
+    if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE && !this.osdVisibility) {
+      this.osdVisibility = true
+    }
+    this.setExternalSubtitle(this.nowPlaying!)
   }
 
   private applyScreenExtend() {
@@ -1170,7 +1200,11 @@ export class MpvController implements PlayerControllerInterface {
     }
     try {
       mpvRegisterTimeUpdateCallback((timeMs: number) => {
-        this.playTime = timeMs
+        if (!this.onSwiping) {
+          ThrottleUtil.throttle('playTime', () => {
+            this.playTime = timeMs
+          }, 100)
+        }
         this.userListener?.emit('timeUpdate', this.playTime)
       })
       this.timeUpdateCallbackRegistered = true
@@ -1187,10 +1221,10 @@ export class MpvController implements PlayerControllerInterface {
     try {
       mpvRegisterVideoSizeChangedCallback(() => {
         salmonLogger.addLog(TAG, '[MpvController] Video size changed, syncing OSD surface size')
-        // 当视频尺寸变化时，同步 OSD Surface 尺寸
         if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE) {
           this.syncOsdSurfaceSize()
         }
+        this.userListener?.emit('videoSizeReady', 0)
       })
       this.videoSizeCallbackRegistered = true
     } catch (error) {
@@ -1498,5 +1532,86 @@ export class MpvController implements PlayerControllerInterface {
     }
 
     this.switchDecodingMode('buffer_hw', errorMessage, this.playTime)
+  }
+
+  private detectAndUpdateHdrType() {
+    if (!this.mpvHandle || !this.nowPlaying) {
+      salmonLogger.addLog(TAG, '[MpvController] detectAndUpdateHdrType skipped: no mpvHandle or nowPlaying', true)
+      return
+    }
+    if (this.nowPlaying.hdr_type === 1) {
+      salmonLogger.addLog(TAG, '[MpvController] detectAndUpdateHdrType skipped: current is HDR Vivid', false)
+      return
+    }
+    try {
+      const detectedVideoHdr: number = mpvGetVideoHdrType(this.mpvHandle)
+      salmonLogger.addLog(TAG,
+        `[MpvController] detectAndUpdateHdrType: video_hdr=${detectedVideoHdr}, current=${this.nowPlaying.hdr_type}`,
+        false)
+      if (detectedVideoHdr !== 0 && detectedVideoHdr !== this.nowPlaying.hdr_type) {
+        salmonLogger.addLog(TAG,
+          `[MpvController] Updating hdr_type from ${this.nowPlaying.hdr_type} to ${detectedVideoHdr}`, false)
+        this.nowPlaying.hdr_type = detectedVideoHdr
+        VideoOperateUtil.saveVideoHdrType(PathUtils.appContext!, this.nowPlaying, detectedVideoHdr)
+      } else if (detectedVideoHdr === 0 && this.nowPlaying.hdr_type === 0) {
+        setTimeout(() => {
+          if (!this.mpvHandle || !this.nowPlaying) {
+            return
+          }
+          try {
+            const retryHdr: number = mpvGetVideoHdrType(this.mpvHandle)
+            salmonLogger.addLog(TAG,
+              `[MpvController] detectAndUpdateHdrType retry: video_hdr=${retryHdr}`, false)
+            if (retryHdr !== 0 && retryHdr !== this.nowPlaying.hdr_type) {
+              this.nowPlaying.hdr_type = retryHdr
+              VideoOperateUtil.saveVideoHdrType(PathUtils.appContext!, this.nowPlaying, retryHdr)
+            }
+          } catch (error) {
+            salmonLogger.addLog(TAG, '[MpvController] Failed to retry detect video HDR type: ' + JSON.stringify(error),
+              true)
+          }
+        }, 1500)
+      }
+    } catch (error) {
+      salmonLogger.addLog(TAG, '[MpvController] Failed to detect video HDR type: ' + JSON.stringify(error), true)
+    }
+    try {
+      const detectedAudio: number = mpvGetAudioType(this.mpvHandle)
+      salmonLogger.addLog(TAG,
+        `[MpvController] detectAndUpdateAudioType: audio_type=${detectedAudio}, current=${this.nowPlaying.audio_type}`,
+        false)
+      if (this.nowPlaying.audio_type === 3) {
+        salmonLogger.addLog(TAG, '[MpvController] detectAndUpdateAudioType skipped: current is AUDIO_VIVID', false)
+      } else if (detectedAudio !== 0 && detectedAudio !== this.nowPlaying.audio_type) {
+        salmonLogger.addLog(TAG,
+          `[MpvController] Updating audio_type from ${this.nowPlaying.audio_type} to ${detectedAudio}`, false)
+        this.nowPlaying.audio_type = detectedAudio
+        VideoOperateUtil.saveVideoAudioType(PathUtils.appContext!, this.nowPlaying, detectedAudio)
+      } else if (detectedAudio === 0 && this.nowPlaying.audio_type === 0) {
+        setTimeout(() => {
+          if (!this.mpvHandle || !this.nowPlaying) {
+            return
+          }
+          if (this.nowPlaying.audio_type === 3) {
+            return
+          }
+          try {
+            const retryAudio: number = mpvGetAudioType(this.mpvHandle)
+            salmonLogger.addLog(TAG,
+              `[MpvController] detectAndUpdateAudioType retry: audio_type=${retryAudio}`, false)
+            if (retryAudio !== 0 && retryAudio !== this.nowPlaying.audio_type) {
+              this.nowPlaying.audio_type = retryAudio
+              VideoOperateUtil.saveVideoAudioType(PathUtils.appContext!, this.nowPlaying, retryAudio)
+            }
+          } catch (error) {
+            salmonLogger.addLog(TAG, '[MpvController] Failed to retry detect audio type: ' + JSON.stringify(error),
+              true)
+          }
+        }, 1500)
+      }
+    } catch (error) {
+      salmonLogger.addLog(TAG, '[MpvController] Failed to detect audio type: ' + JSON.stringify(error), true)
+    }
+
   }
 }

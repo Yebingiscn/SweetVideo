@@ -38,6 +38,7 @@ export struct VideoView {
   @Param loading: boolean = false
   @Param holdingHand: motion.HoldingHandStatus | null = null
   @Local is_edit: boolean = false
+  @Local searchBarHidden: boolean = false
   @Param searchValue: string = ''
   @Local _searchValue: string = ''
   @Param videoListController: VideoListController = new VideoListController()
@@ -127,7 +128,14 @@ export struct VideoView {
         },
         currentSortField: this.currentSortField,
         currentSortAsc: this.currentSortAsc,
-        pinyinSort: this.pinyinSort
+        pinyinSort: this.pinyinSort,
+        searchBarHidden: this.searchBarHidden,
+        onScrollDirectionChange: (isUp: boolean) => {
+          if (this.is_edit) return
+          animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
+            this.searchBarHidden = isUp
+          })
+        }
       })
 
       if (!this.loading && this.videoListController.openSideBarTip(this._searchValue)) {
@@ -225,6 +233,11 @@ export struct VideoView {
               XAnimation.runWithAnimation(() => {
                 this.is_edit = isEditing
               })
+              if (isEditing && this.searchBarHidden) {
+                animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
+                  this.searchBarHidden = false
+                })
+              }
             },
             onSearchFocus: () => {
               this.passwd = Preferences.getPassword(PathUtils.appContext!)
@@ -269,6 +282,8 @@ export struct VideoView {
       }
       .width('100%')
       .padding({ top: SafeHeight.topSafeHeight, left: 16, right: 16 })
+      .translate({ y: this.searchBarHidden ? -(SafeHeight.topSafeHeight + 100) : 0 })
+      .animation({ duration: 300, curve: Curve.Ease })
     }.width('100%')
   }
 

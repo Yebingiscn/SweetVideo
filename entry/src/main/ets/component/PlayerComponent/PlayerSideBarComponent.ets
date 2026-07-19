@@ -129,8 +129,8 @@ class VideoItemValue {
 export function VideoItemBuilder(videoItemValue: VideoItemValue) {
   Row() {
     Image(PathUtils.coverUri(videoItemValue.item?.date ?? ''))
-      .attributeModifier(new ImageFancyModifier(12, Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 75 : 100,
-        Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 100 : 75))
+      .attributeModifier(new ImageFancyModifier(12, Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 85 : 110,
+        Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 110 : 85))
     Column() {
       Text(VideoInfoUtil.getVideoTitle(videoItemValue.item!))
         .fontSize(16)

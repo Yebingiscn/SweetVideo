@@ -6,6 +6,9 @@ import { MpvController } from '../../controller/MpvController/MpvController'
 import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { AudioChannelComponent } from './AudioChannelComponent'
+import { AUDIO_TYPE } from '../../common/enum/HDR_TYPE'
+import { PathUtils } from '../../utils/PathUtils'
+import { GradientTagBuilder, SolidColorTagBuilder } from '../common/MediaTagBuilder'
 
 // 定义联合类型
 type TrackType = AudioTrack | MpvAudioTrack
@@ -115,13 +118,38 @@ export struct AudioTrackComponent {
     return VideoOperateUtil.getLanguageName(language)
   }
 
-  // 检查是否显示 AV3A 图标
-  shouldShowAv3aIcon(item: TrackType): boolean {
+  getTrackAudioType(item: TrackType): number {
     if (this.isAudioTrack(item)) {
       const track = item as AudioTrack
-      return track?.mime?.split('/')[1] === 'av3a'
+      const codec = track?.mime?.split('/')[1] ?? ''
+      if (codec === 'av3a') {
+        if (this.player.nowPlaying && this.player.nowPlaying.audio_type !== AUDIO_TYPE.AUDIO_VIVID) {
+          this.player.nowPlaying.audio_type = AUDIO_TYPE.AUDIO_VIVID
+          VideoOperateUtil.saveVideoAudioType(PathUtils.appContext!, this.player.nowPlaying, AUDIO_TYPE.AUDIO_VIVID)
+        }
+        return AUDIO_TYPE.AUDIO_VIVID
+      }
+      if (codec === 'truehd' || codec === 'eac3') {
+        return AUDIO_TYPE.DOLBY_AUDIO
+      }
+      if (codec === 'dts' || codec === 'dca') {
+        return AUDIO_TYPE.DTS
+      }
     }
-    return false
+    if (this.isMpvAudioTrack(item)) {
+      const track = item as MpvAudioTrack
+      const codec = (track?.codec ?? '').toLowerCase()
+      if (codec === 'av3a') {
+        return AUDIO_TYPE.AUDIO_VIVID
+      }
+      if (codec.includes('truehd') || codec.includes('eac3')) {
+        return AUDIO_TYPE.DOLBY_AUDIO
+      }
+      if (codec.includes('dts') || codec.includes('dca')) {
+        return AUDIO_TYPE.DTS
+      }
+    }
+    return AUDIO_TYPE.NONE
   }
 
   // 获取唯一键
@@ -150,34 +178,12 @@ export struct AudioTrackComponent {
               .fontColor(this.player.audioTrackSelected === repeatItem.index ? $r('sys.color.white') :
                 $r('app.color.text_color'))
 
-            if (this.shouldShowAv3aIcon(repeatItem.item)) {
-              Row() {
-                SymbolGlyph($r('sys.symbol.hdr'))
-                  .fontSize(14)
-                  .fontColor([$r('sys.color.white')])
-
-                Text('AUDIO Vivid')
-                  .fontSize(10)
-                  .fontWeight(FontWeight.Bold)
-                  .fontColor($r('sys.color.white'))  // 文字固定黑色，确保高对比
-                  .margin({ left: 2 }) // 图标与文字间距
-              }
-              .padding({
-                left: 5,
-                right: 5,
-                top: 2,
-                bottom: 2
-              })
-              .linearGradient({
-                direction: GradientDirection.Right, // 渐变方向
-                repeating: false,
-                colors: [['#ef2f4e', 0.0], ['#d53b61', 0.3], ['#954e89', 0.5], ['#4766bd', 0.7],
-                  ['#1677dc', 0.9]]
-              })
-              .borderRadius(8)
-              .alignItems(VerticalAlign.Center)
-              .width('auto')
-              .height(22)
+            if (this.getTrackAudioType(repeatItem.item) === AUDIO_TYPE.AUDIO_VIVID) {
+              GradientTagBuilder({ symbol: $r('sys.symbol.hdr'), label: 'AUDIO Vivid', height: 22, paddingH: 5, marginLeft: 0, marginRight: 0, marginBottom: 0 })
+            } else if (this.getTrackAudioType(repeatItem.item) === AUDIO_TYPE.DOLBY_AUDIO) {
+              SolidColorTagBuilder({ symbol: $r('sys.symbol.dolby_fill'), label: 'DOLBY AUDIO', symbolSize: 16, height: 22, paddingH: 5, marginLeft: 0, marginRight: 0, marginBottom: 0 })
+            } else if (this.getTrackAudioType(repeatItem.item) === AUDIO_TYPE.DTS) {
+              SolidColorTagBuilder({ symbol: $r('sys.symbol.dts_circle'), label: 'DTS', bgColor: '#dd403d', height: 22, paddingH: 5, marginLeft: 0, marginRight: 0, marginBottom: 0 })
             }
           }
           .padding({

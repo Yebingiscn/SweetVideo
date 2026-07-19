@@ -33,6 +33,62 @@ export default class VideoInfoUtil {
   ]
   public static playerEngineList = ['系统播放器', 'MPV播放器']
 
+  static buildVideoMetadata(date: string, uri: string, file_name: string, metadata: media.AVMetadata,
+    sandbox_video: string, fileSize: number): VideoMetadata {
+    let time = '0'
+    let hdr_type = media.HdrType.AV_HDR_TYPE_NONE
+    if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
+      time = metadata.duration || '0'
+      hdr_type = metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE
+    }
+
+    const video_size = ToolsUtil.formatFileSize(fileSize)
+
+    return {
+      uri: PrivacySpaceUtil.getPrivacyMode()! ? sandbox_video + date : uri,
+      title: file_name,
+      date: date,
+      size: VideoInfoUtil.getVideoWidthAndHeight(metadata),
+      time: parseInt(time),
+      last_play: 0,
+      format: VideoInfoUtil.getVideoFormat(file_name),
+      video_size: video_size,
+      frame_rate: VideoInfoUtil.getVideoFrame(metadata),
+      hdr_type: hdr_type,
+      audio_type: 0,
+      start_time: 0,
+      end_time: 0,
+      external_subtitle_format: '',
+      pointA: 0,
+      pointB: 0,
+    }
+  }
+
+  static async saveCoverDeferred(uri: string, sandbox_path: string, date: string,
+    metadata: media.AVMetadata, pixelMap: image.PixelMap | undefined) {
+    const saveCoverOptions: SavePixelMapOptions = { releasePixelMap: true, deleteOnFail: true }
+    let saved = false
+    if (pixelMap) {
+      const result = await SelectFileUtil.savePixelMapToFile(sandbox_path, date, pixelMap, saveCoverOptions)
+      saved = result !== ''
+    }
+    if (!saved) {
+      const duration = metadata.duration || '0'
+      const size = VideoInfoUtil.getVideoWidthAndHeight(metadata)
+      const frameResult = await extractVideoFrameAsCoverInTaskPool(
+        uri,
+        size[0],
+        size[1],
+        parseInt(duration)
+      )
+      if (frameResult.success && frameResult.pixelMap) {
+        await SelectFileUtil.savePixelMapToFile(sandbox_path, date, frameResult.pixelMap, saveCoverOptions)
+      } else if (frameResult.error) {
+        salmonLogger.addLog(TAG, 'extract video frame as cover error: ' + frameResult.error, true)
+      }
+    }
+  }
+
   // 设置存储的视频信息（优化版：减少文件打开次数）
   static async setVideoInfoOptimized(date: string, uri: string, file_name: string, metadata: media.AVMetadata,
     sandbox_video: string, sandbox_path: string, fileSize: number, pixelMap: image.PixelMap | undefined) {
@@ -58,6 +114,7 @@ export default class VideoInfoUtil {
       video_size: video_size,
       frame_rate: VideoInfoUtil.getVideoFrame(metadata),
       hdr_type: hdr_type,
+      audio_type: 0,
       start_time: 0,
       end_time: 0,
       external_subtitle_format: '',
@@ -150,23 +207,22 @@ export default class VideoInfoUtil {
 
   // 获取视频大小
   static async getVideoSize(uri: string, return_string: boolean): Promise<string | number> {
-    return new Promise((resolve, reject) => {
-      try {
-        let file = fileIo.openSync(uri, fileIo.OpenMode.READ_ONLY)
-        fileIo.stat(file.fd, (err: BusinessError, stat: fileIo.Stat) => {
-          if (err) {
-            reject('app.string.unknown_size')
-          } else if (return_string) {
-            const size = ToolsUtil.formatFileSize(stat.size)
-            resolve(size)
-          } else {
-            resolve(stat.size)
-          }
-        })
-      } catch (error) {
-        salmonLogger.addLog(TAG, 'getVideoSize error:' + error, true)
+    let file: fileIo.File | undefined
+    try {
+      file = fileIo.openSync(uri, fileIo.OpenMode.READ_ONLY)
+      const stat = fileIo.statSync(file.fd)
+      if (return_string) {
+        return ToolsUtil.formatFileSize(stat.size)
       }
-    })
+      return stat.size
+    } catch (error) {
+      salmonLogger.addLog(TAG, 'getVideoSize error:' + error, true)
+      return 'app.string.unknown_size'
+    } finally {
+      if (file) {
+        fileIo.closeSync(file)
+      }
+    }
   }
 
   // 保存视频初始长宽，变更后视频长宽后使用

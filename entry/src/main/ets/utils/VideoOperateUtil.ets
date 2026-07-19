@@ -11,6 +11,10 @@ import NavigationAddress, { PlayerEngine, PlayerParams } from '../common/Navigat
 import { Setting } from './ObservedUtil'
 import { fileIo } from '@kit.CoreFileKit'
 import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
+import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
+import { CoverLayoutMode, ListDisplayMode } from '../common/enum/DisplayMode'
+import { MpvDecodingMethod } from '../controller/MpvController/MpvTypes'
+import preferences from '@ohos.data.preferences'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { image } from '@kit.ImageKit'
 import VideoInfoUtil from './VideoInfoUtil'
@@ -23,6 +27,7 @@ import { VideoSource } from '../common/enum/VideoSource'
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode'
 import { LanguageConfig } from '../common/LanguageConfig'
 import Preferences from '../database/Preferences'
+import PreferencesUtil from '../database/PreferencesUtil'
 import { XAnimation } from './AnimationUtil'
 import DataSyncUtil from './DataSyncUtil'
 import PermissionUtil from './PermissionUtil'
@@ -79,66 +84,45 @@ export default class VideoOperateUtil {
   }
 
   // 获取系统音量
-  static async getVolume(audioVolumeManager: audio.AudioVolumeManager, groupId: number): Promise<Map<string, number>> {
+  static getVolume(): Map<string, number> {
     let volume_list: Map<string, number> = new Map()
-    return new Promise((resolve, reject) => {
-      audioVolumeManager.getVolumeGroupManager(groupId,
-        (err: BusinessError) => {
-          if (err) {
-            salmonLogger.addLog(TAG,
-              `Failed to obtain the volume group info list. Cause code: ${err.code}, message: ${err.message}`,
-              true)
-            return reject(err)
-          }
-          const volumePromises: Promise<void>[] = []
-          volumePromises.push(new Promise((resolveVolume, rejectVolume) => {
-            try {
-              let volume: number =
-                audio.getAudioManager().getVolumeManager().getVolumeByStream(audio.StreamUsage.STREAM_USAGE_MOVIE)
-              volume_list.set('volume', volume)
-              resolveVolume()
-            } catch (error) {
-              return rejectVolume(err)
-            }
-          }))
-          volumePromises.push(new Promise((resolveMax, rejectMax) => {
-            try {
-              let maxVolume: number =
-                audio.getAudioManager().getVolumeManager().getMaxVolumeByStream(audio.StreamUsage.STREAM_USAGE_MOVIE)
-              volume_list.set('max_volume', maxVolume)
-              VideoOperateUtil.maxVolume = maxVolume
-              resolveMax()
-            } catch (error) {
-              return rejectMax(err)
-            }
-          }))
-          volumePromises.push(new Promise((resolveMin, rejectMin) => {
-            try {
-              let minVolume: number =
-                audio.getAudioManager().getVolumeManager().getMinVolumeByStream(audio.StreamUsage.STREAM_USAGE_MOVIE)
-              volume_list.set('min_volume', minVolume)
-              VideoOperateUtil.minVolume = minVolume
-              resolveMin()
-            } catch (error) {
-              return rejectMin(err)
-            }
-          }))
-          Promise.all(volumePromises)
-            .then(() => resolve(volume_list))// 所有音量均成功获取，返回 volume_list
-            .catch(reject) // 如果有任何一个 Promise 失败，拒绝整个 Promise
-        })
-    })
+    try {
+      const volumeManager = audio.getAudioManager().getVolumeManager()
+      const volume: number = volumeManager.getVolumeByStream(audio.StreamUsage.STREAM_USAGE_MOVIE)
+      volume_list.set('volume', volume)
+      const maxVolume: number = volumeManager.getMaxVolumeByStream(audio.StreamUsage.STREAM_USAGE_MOVIE)
+      volume_list.set('max_volume', maxVolume)
+      VideoOperateUtil.maxVolume = maxVolume
+      const minVolume: number = volumeManager.getMinVolumeByStream(audio.StreamUsage.STREAM_USAGE_MOVIE)
+      volume_list.set('min_volume', minVolume)
+      VideoOperateUtil.minVolume = minVolume
+    } catch (error) {
+      salmonLogger.addLog(TAG, `Failed to get volume: ${error}`, true)
+    }
+    return volume_list
   }
 
   // 播放器播放失败处理
-  static playErrorExecute(pathStack: NavPathStack, videoMetaData: VideoMetadata[], date: string, playerName: string,
-    currentTime?: number) {
+  static playErrorExecute(pathStack: NavPathStack, videoMetaData: VideoMetadata[], date: string | undefined,
+    playerName: string,
+    currentTime?: number, nowPlaying?: VideoMetadata) {
     ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
-    const nowPlayItem = videoMetaData.find(item => item.date === date)
-    if (nowPlayItem && currentTime != undefined && currentTime > 0) {
+    let nowPlayItem = date ? videoMetaData.find(item => item.date === date) : undefined
+    if (!nowPlayItem && videoMetaData.length > 0) {
+      nowPlayItem = videoMetaData[0]
+    }
+    if (!nowPlayItem && nowPlaying) {
+      nowPlayItem = nowPlaying
+    }
+    if (!nowPlayItem) {
+      pathStack.pop()
+      return
+    }
+    if (currentTime != undefined && currentTime > 0) {
       nowPlayItem.last_play = currentTime
     }
-    const playerParams = new PlayerParams(nowPlayItem, videoMetaData, undefined, undefined, playerName)
+    const playerParams = new PlayerParams(nowPlayItem, videoMetaData.length > 0 ? videoMetaData : undefined,
+      undefined, undefined, playerName)
     pathStack.replacePathByName(NavigationAddress.VIDEO_PLAYER, playerParams, true)
   }
 
@@ -230,6 +214,14 @@ export default class VideoOperateUtil {
     VideoOperateUtil.saveVideoProperty(context, nowPlaying, { pointB: pointB })
   }
 
+  static saveVideoHdrType(context: Context, nowPlaying: VideoMetadata, hdrType: number) {
+    VideoOperateUtil.saveVideoProperty(context, nowPlaying, { hdrType: hdrType })
+  }
+
+  static saveVideoAudioType(context: Context, nowPlaying: VideoMetadata, audioType: number) {
+    VideoOperateUtil.saveVideoProperty(context, nowPlaying, { audioType: audioType })
+  }
+
   static saveLastPlayVideoIndex(list: VideoMetadata[], date: string | undefined) {
     if (!date) {
       return
@@ -314,37 +306,76 @@ export default class VideoOperateUtil {
   static initSetting(context: common.UIAbilityContext) {
     PermissionUtil.reqPermissionsFromUser(PermissionUtil.permissions, context)
     Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
-    Setting.backgroundDropBlur = Preferences.getBackgroundDropBlur(context)
+    const settingDefaults: Record<string, preferences.ValueType> = {
+      'backgroundDropBlur': 0,
+      'backgroundColorMode': BackgroundColorMode.AUTO,
+      'allowBackgroundPlay': true,
+      'allowPlayBackExist': false,
+      'fastForwardSeconds': '15',
+      'recentPlay': true,
+      'showToast': true,
+      'defaultPlayerEngine': '系统播放器',
+      'subtitleSize': '22',
+      'allowDoubleFastForward': true,
+      'skipIntroTime': '0',
+      'listDisplayMode': ListDisplayMode.LIST_DISPLAY,
+      'smartRotation': true,
+      'longPressSpeed': 3,
+      'showSettingPageEntry': true,
+      'allowGestureEntry': true,
+      'showFrameTime': true,
+      'jumpToHistoryTime': true,
+      'coverLayoutMode': CoverLayoutMode.VERTICAL_PLATE,
+      'superResolutionState': false,
+      'mpvShaderMode': 0,
+      'autoActivePip': false,
+      'autoResumeOnReturn': false,
+      'mpv_decoding_method': MpvDecodingMethod.HARDWARE_SURFACE,
+      'enableBackgroundDarkImage': false,
+      'enableAiPrivacyAntiPeep': false,
+      'defaultBrightness': 0,
+      'defaultDensityEnabled': true,
+      'maxListLine': 5
+    }
+    const keys = Object.keys(settingDefaults)
+    const defaults = Object.values(settingDefaults)
+    const values = PreferencesUtil.batchGetPreferencesValue(context, 'sweet_video', keys, defaults)
+    const valueMap: Record<string, preferences.ValueType> = {}
+    keys.forEach((key, i) => {
+      valueMap[key] = values[i]
+    })
+    Setting.backgroundDropBlur = valueMap['backgroundDropBlur'] as number
     if (Setting.backgroundDropBlur > 0 && Setting.backgroundImageSrc.length > 0) {
       Setting.backgroundBlurImageSrc = SelectFileUtil.getExistingBlurImageUri()
     }
-    Setting.backgroundColorMode = Preferences.getBackgroundColorMode(context)
-    Setting.allowBackgroundPlay = Preferences.getAllowBackgroundPlayState(context)
-    Setting.allowPlayBackExist = Preferences.getAllowPlayBackExistState(context)
-    Setting.fastForwardSeconds = Preferences.getFastForwardSeconds(context)
-    Setting.recentPlay = Preferences.getRecentPlayState(context)
-    Setting.showToast = Preferences.getShowToastState(context)
-    Setting.defaultPlayerEngine = Preferences.getDefaultPlayerEngine(context)
-    Setting.subtitleSize = Preferences.getSubtitleSize(context)
-    Setting.allowDoubleFastForward = Preferences.getAllowDoubleFastForwardState(context)
-    Setting.skipIntroTime = Preferences.getSkipIntroTime(context)
-    Setting.listDisplayMode = Preferences.getListDisplayMode(context)
-    Setting.smartRotation = Preferences.getSmartRotationState(context)
-    Setting.longPressSpeed = Preferences.getLongPressSpeed(context)
-    Setting.showSettingPageEntry = Preferences.getShowSettingPageEntry(context)
-    Setting.allowGestureEntry = Preferences.getAllowGestureEntry(context)
-    Setting.showFrameImgStatus = Preferences.getShowFrameTime(context)
-    Setting.jumpToHistoryTimeStatus = Preferences.getJumpToHistoryTime(context)
-    Setting.coverLayout = Preferences.getCoverLayoutMode(context)
-    Setting.superResolutionState = Preferences.getSuperResolutionState(context)
-    Setting.mpvShaderMode = Preferences.getMpvShaderMode(context)
-    Setting.autoActivePip = Preferences.getAutoActivePip(context)
-    Setting.mpvDecodingMethod = Preferences.getMpvDecodingMethod(context)
-    Setting.enableBackgroundDarkImage = Preferences.getEnableBackgroundDarkImage(context)
-    Setting.enableAiPrivacyAntiPeep = Preferences.getEnableAiPrivacyAntiPeep(context)
-    Setting.defaultBrightness = Preferences.getDefaultBrightness(context)
-
-    Setting.defaultDensityEnabled = Preferences.getDefaultDensityEnabled(context)
+    Setting.backgroundColorMode = valueMap['backgroundColorMode'] as BackgroundColorMode
+    Setting.allowBackgroundPlay = valueMap['allowBackgroundPlay'] as boolean
+    Setting.allowPlayBackExist = valueMap['allowPlayBackExist'] as boolean
+    Setting.fastForwardSeconds = valueMap['fastForwardSeconds'] as string
+    Setting.recentPlay = valueMap['recentPlay'] as boolean
+    Setting.showToast = valueMap['showToast'] as boolean
+    Setting.defaultPlayerEngine = valueMap['defaultPlayerEngine'] as string
+    Setting.subtitleSize = valueMap['subtitleSize'] as string
+    Setting.allowDoubleFastForward = valueMap['allowDoubleFastForward'] as boolean
+    Setting.skipIntroTime = valueMap['skipIntroTime'] as string
+    Setting.listDisplayMode = valueMap['listDisplayMode'] as ListDisplayMode
+    Setting.smartRotation = valueMap['smartRotation'] as boolean
+    Setting.longPressSpeed = valueMap['longPressSpeed'] as number
+    Setting.showSettingPageEntry = valueMap['showSettingPageEntry'] as boolean
+    Setting.allowGestureEntry = valueMap['allowGestureEntry'] as boolean
+    Setting.showFrameImgStatus = valueMap['showFrameTime'] as boolean
+    Setting.jumpToHistoryTimeStatus = valueMap['jumpToHistoryTime'] as boolean
+    Setting.coverLayout = valueMap['coverLayoutMode'] as CoverLayoutMode
+    Setting.superResolutionState = valueMap['superResolutionState'] as boolean
+    Setting.mpvShaderMode = valueMap['mpvShaderMode'] as number
+    Setting.autoActivePip = valueMap['autoActivePip'] as boolean
+    Setting.autoResumeOnReturn = valueMap['autoResumeOnReturn'] as boolean
+    Setting.mpvDecodingMethod = valueMap['mpv_decoding_method'] as MpvDecodingMethod
+    Setting.enableBackgroundDarkImage = valueMap['enableBackgroundDarkImage'] as boolean
+    Setting.enableAiPrivacyAntiPeep = valueMap['enableAiPrivacyAntiPeep'] as boolean
+    Setting.defaultBrightness = valueMap['defaultBrightness'] as number
+    Setting.defaultDensityEnabled = valueMap['defaultDensityEnabled'] as boolean
+    Setting.maxListLine = valueMap['maxListLine'] as number
   }
 
   // 封装获取屏幕亮度的方法
@@ -526,11 +557,19 @@ export default class VideoOperateUtil {
   static resolvePlayerType(metadata: VideoMetadata, reverse: boolean = false, isSystemShare: boolean = false) {
     const defaultPlayer = Preferences.getDefaultPlayerEngine(PathUtils.appContext!)
     const isAv3a = metadata.title?.toLowerCase().includes('av3a') || metadata.format?.toLowerCase().includes('av3a')
+    const titleLower = metadata.title?.toLowerCase() ?? ''
+    const formatLower = metadata.format?.toLowerCase() ?? ''
+    const isDolbyAudio = titleLower.includes('eac3') || titleLower.includes('ddp') ||
+      titleLower.includes('atmos') || titleLower.includes('truehd') ||
+      formatLower.includes('eac3') || formatLower.includes('ddp')
     const hasSize = VideoInfoUtil.videoWidthAndHeightFormat(String(metadata.size)) !== '0 x 0'
     if (isAv3a && hasSize) {
       return PlayerEngine.AV_PLAYER
     }
     if (!hasSize) {
+      return PlayerEngine.MPV_PLAYER
+    }
+    if (isDolbyAudio) {
       return PlayerEngine.MPV_PLAYER
     }
     if (isSystemShare || metadata.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID ||

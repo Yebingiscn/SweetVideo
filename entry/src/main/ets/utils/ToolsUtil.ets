@@ -18,7 +18,7 @@ import VideoOperateUtil from './VideoOperateUtil'
 import { WindowUtil } from './WindowUtil'
 import fileIo from '@ohos.file.fs'
 import { util } from '@kit.ArkTS'
-import { window } from '@kit.ArkUI'
+import { PromptAction, window } from '@kit.ArkUI'
 import { vibrator } from '@kit.SensorServiceKit'
 import { pinyin4js } from '@ohos/pinyin4js'
 import { updateManager } from '@kit.AppGalleryKit'
@@ -36,12 +36,23 @@ export default class ToolsUtil {
     ignorePunctuation: false,
     caseFirst: "upper"
   })
+  private static cachedPromptAction: PromptAction | null = null
 
-  // Toast设置
   static showToast(text: string, duration: number = 3500) {
     try {
+      if (ToolsUtil.cachedPromptAction) {
+        ToolsUtil.cachedPromptAction.showToast({
+          message: text,
+          duration: duration,
+          backgroundBlurStyle: BlurStyle.Regular,
+          alignment: Alignment.Bottom,
+          offset: { dx: 0, dy: -100 }
+        })
+        return
+      }
       window.getLastWindow(PathUtils.appContext!).then((windowClass: window.Window) => {
-        windowClass.getUIContext().getPromptAction().showToast({
+        ToolsUtil.cachedPromptAction = windowClass.getUIContext().getPromptAction()
+        ToolsUtil.cachedPromptAction.showToast({
           message: text,
           duration: duration,
           backgroundBlurStyle: BlurStyle.Regular,
@@ -131,6 +142,11 @@ export default class ToolsUtil {
         break
       default:
         sorted_list = ToolsUtil.sortByNameProcess(list, ascending)
+    }
+    const isSameOrder = list.length === sorted_list.length &&
+      list.every((item, i) => item.date === sorted_list[i].date)
+    if (isSameOrder) {
+      return sorted_list
     }
     if (file_folder) {
       FileFolderUtil.updateFileFolder(context, file_folder, sorted_list)

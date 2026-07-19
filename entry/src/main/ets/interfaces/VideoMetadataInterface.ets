@@ -9,6 +9,7 @@ export interface VideoMetadata {
   format: string
   video_size: string
   hdr_type: number
+  audio_type: number
   frame_rate: number
   start_time: number
   end_time: number
@@ -40,4 +41,6 @@ export interface SaveOptions {
   subtitleOffsetMillis?: number
   subtitleTrackId?: number
   audioTrackId?: number | null
+  hdrType?: number
+  audioType?: number
 }

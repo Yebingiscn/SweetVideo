@@ -119,6 +119,20 @@ export struct VideoButtonsComponent {
         this.onChangeRepeatMode(repeatMode)
       })
 
+      // 倍速调整按钮
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        Text(`${this.player.speed}x`)
+          .fontSize(15)
+          .fontColor($r('sys.color.white'))
+          .maxLines(1)
+          .padding(5)
+          .opacity(0.9)
+          .textShadow({ color: Color.Black, type: ShadowType.BLUR, radius: 3 })
+      }
+      .circleButton()
+      .bindMenu(this.playbackSpeedMenu,
+        { backgroundBlurStyle: BlurStyle.COMPONENT_THIN })
+
       // 选集按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
         VideoControlIcon({ icon: $r('sys.symbol.music_note_list') })
@@ -134,20 +148,6 @@ export struct VideoButtonsComponent {
           this.onSideBarStatusChange(true)
         }
       })
-
-      // 倍速调整按钮
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
-        Text(`${this.player.speed}x`)
-          .fontSize(15)
-          .fontColor($r('sys.color.white'))
-          .maxLines(1)
-          .padding(5)
-          .opacity(0.9)
-          .textShadow({ color: Color.Black, type: ShadowType.BLUR, radius: 3 })
-      }
-      .circleButton()
-      .bindMenu(this.playbackSpeedMenu,
-        { backgroundBlurStyle: BlurStyle.COMPONENT_THIN })
 
       // 屏幕旋转按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {

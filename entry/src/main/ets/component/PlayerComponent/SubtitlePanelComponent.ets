@@ -261,7 +261,7 @@ export struct SubtitlePanelComponent {
   private switchToMpvPlayer(): void {
     const avPlayer = this.player as AVPlayerController
     VideoOperateUtil.playErrorExecute(this.pathStack, avPlayer.videoMetaDataList,
-      avPlayer.nowPlaying?.date!, PlayerEngine.MPV_PLAYER, avPlayer.playTime)
+      avPlayer.nowPlaying?.date!, PlayerEngine.MPV_PLAYER, avPlayer.playTime, avPlayer.nowPlaying)
   }
 }
 

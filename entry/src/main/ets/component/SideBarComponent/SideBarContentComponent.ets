@@ -41,6 +41,7 @@ export struct SideBarContentComponent {
   @Param scrollToFolderDate: string = ''
   @Local isLogin: boolean = false
   @Local expandedFolderDates: Set<string> = new Set()
+  @Local collapsedFolderDates: Set<string> = new Set()
   @Local folderSortField: SortField | '' = ''
   @Local folderSortAsc: boolean = true
   @Local folderPinyinSort: boolean = true
@@ -94,21 +95,23 @@ export struct SideBarContentComponent {
     }
     this.folderSortAsc = Preferences.getFolderSortAsc(PathUtils.appContext!)
     this.folderPinyinSort = Preferences.getPinyinSort(PathUtils.appContext!)
-    const newSet = new Set<string>()
-    for (const folder of this.file_folder_list) {
-      if (FileFolderUtil.getChildFolders(PathUtils.appContext!, folder.date).length > 0) {
-        newSet.add(folder.date)
-      }
-    }
-    this.expandedFolderDates = newSet
+    this.collapsedFolderDates = new Set(Preferences.getCollapsedFolderDates(PathUtils.appContext!))
+    this.recomputeExpandedFolderDates()
   }
 
   @Monitor('file_folder_list')
   onFileFolderListChanged() {
     this.fileFolderSource.updateData(this.file_folder_list)
-    const newSet = new Set(this.expandedFolderDates)
+    const allFolderDates = new Set(this.file_folder_list.map(f => f.date))
+    this.collapsedFolderDates = new Set(Array.from(this.collapsedFolderDates).filter(d => allFolderDates.has(d)))
+    this.recomputeExpandedFolderDates()
+  }
+
+  private recomputeExpandedFolderDates() {
+    const newSet = new Set<string>()
     for (const folder of this.file_folder_list) {
-      if (FileFolderUtil.getChildFolders(PathUtils.appContext!, folder.date).length > 0) {
+      if (FileFolderUtil.getChildFolders(PathUtils.appContext!, folder.date).length > 0 &&
+        !this.collapsedFolderDates.has(folder.date)) {
         newSet.add(folder.date)
       }
     }
@@ -480,13 +483,19 @@ export struct SideBarContentComponent {
                       .length > 0,
                     isExpanded: this.expandedFolderDates.has(repeatItem.item.date),
                     onToggleExpand: (folderDate: string) => {
-                      const newSet = new Set(this.expandedFolderDates)
-                      if (newSet.has(folderDate)) {
-                        newSet.delete(folderDate)
+                      const newExpandedSet = new Set(this.expandedFolderDates)
+                      const newCollapsedSet = new Set(this.collapsedFolderDates)
+                      if (newExpandedSet.has(folderDate)) {
+                        newExpandedSet.delete(folderDate)
+                        newCollapsedSet.add(folderDate)
                       } else {
-                        newSet.add(folderDate)
+                        newExpandedSet.add(folderDate)
+                        newCollapsedSet.delete(folderDate)
                       }
-                      this.expandedFolderDates = newSet
+                      this.expandedFolderDates = newExpandedSet
+                      this.collapsedFolderDates = newCollapsedSet
+                      Preferences.saveCollapsedFolderDates(PathUtils.appContext!,
+                        Array.from(this.collapsedFolderDates))
                     }
                   })
                 }
@@ -516,7 +525,7 @@ export struct SideBarContentComponent {
                 .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.LongPress)
                 .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.RightClick)
               })
-              .key((item: FileFolder, _index: number) => item.name + item.date + item.video_list.toString())
+              .key((item: FileFolder, _index: number) => item.name + item.date + item.video_list.length)
               .virtualScroll()
           }
           .shadow({
@@ -619,9 +628,8 @@ export struct SideBarContentComponent {
     const folders = this.fileFolderSource.data
     const result: FileFolder[] = []
     const visited = new Set<string>()
-    const stack: (string | null)[] = [null]
-    while (stack.length > 0) {
-      const parentDate = stack.pop()!
+
+    const dfs = (parentDate: string | null) => {
       const children = folders.filter(f => f.parent_date === parentDate)
       for (const child of children) {
         if (visited.has(child.date)) {
@@ -630,10 +638,12 @@ export struct SideBarContentComponent {
         visited.add(child.date)
         result.push(child)
         if (this.expandedFolderDates.has(child.date)) {
-          stack.push(child.date)
+          dfs(child.date)
         }
       }
     }
+
+    dfs(null)
     return result
   }
 

@@ -79,6 +79,14 @@ declare module 'libmpvnative.so' {
   // 0 = 非杜比视界, 5 = Profile 5, 7 = Profile 7, 8 = Profile 8, -1 = 其他杜比视界 Profile
   export const getDolbyVisionProfile: (mpvHandle: number) => number;
 
+  // ==================== 视频 HDR 类型检测 ====================
+  // 0=NONE, 1=HDR_VIVID, 2=HDR10, 3=DOLBY_VISION
+  export const getVideoHdrType: (mpvHandle: number) => number;
+
+  // ==================== 音频类型检测 ====================
+  // 0=NONE, 1=DTS, 2=DOLBY_AUDIO, 3=AUDIO_VIVID
+  export const getAudioType: (mpvHandle: number) => number;
+
   // ==================== 缓存配置 ====================
   export const setCacheSize: (size_mb: number) => void;
 

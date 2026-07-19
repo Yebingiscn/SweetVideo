@@ -1,9 +1,11 @@
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { SpeedNeighborInterface } from '../../interfaces/SpeedNeighborInterface'
+import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 
 class FastForwardInfo {
   speed: number = 1
   location: number = 0
+  speedLocked: boolean = false
 }
 
 // 获取相邻倍速信息
@@ -47,6 +49,13 @@ export function FastForwardPanelBuilder(fastForwardInfo: FastForwardInfo) {
         .fontSize(12)
         .fontWeight(FontWeight.Medium)
         .margin({ bottom: 4 })
+
+      if (fastForwardInfo.speedLocked) {
+        SymbolGlyph($r('sys.symbol.lock_fill'))
+          .attributeModifier(new SymbolGlyphFancyModifier(12, '', ''))
+          .fontColor([$r('sys.color.white')])
+          .margin({ left: 2, bottom: 4 })
+      }
     }
     .alignItems(VerticalAlign.Bottom)
     .padding({

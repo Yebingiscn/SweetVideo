@@ -20,6 +20,10 @@ export default class WantProcess {
   private static isSystemShare: boolean = false
   private static receiveWant: Want | undefined = undefined
   private static receiveWantUri: string = ''
+  private static isContinue: boolean = false
+  private static continueData: VideoMetadata | undefined = undefined
+  private static continueTime: number = 0
+  private static continueSkipHistory: boolean = false
 
   public static set wantUri(value: string) {
     WantProcess.receiveWantUri = value
@@ -35,6 +39,7 @@ export default class WantProcess {
         const data = await systemShare.getSharedData(want)
         const records = data.getRecords()
         for (const record of records) {
+          console.error('testTAG WantProcess.receiveWantUri：' + record.uri)
           if (record.uri) {
             WantProcess.receiveWantUri = record.uri
             WantProcess.isSystemShare = true
@@ -53,6 +58,10 @@ export default class WantProcess {
   }
 
   static async checkWant(pathStack: NavPathStack) {
+    if (WantProcess.isContinue) {
+      await WantProcess.checkContinue(pathStack)
+      return
+    }
     if (!WantProcess.receiveWant) {
       return
     }
@@ -63,9 +72,36 @@ export default class WantProcess {
       await WantProcess.getSystemShareWant(WantProcess.receiveWant)
     }
     if (WantProcess.receiveWantUri != '') {
-      WantProcess.clearWantState()
-      WantProcess.hasWant(pathStack)
+      await WantProcess.hasWant(pathStack)
     }
+  }
+
+  static restoreContinueData(want: Want) {
+    if (!want.parameters) {
+      salmonLogger.addLog(TAG, 'missing parameters in restoreContinueData', true)
+      return
+    }
+    WantProcess.continueTime = want.parameters.continueTime as number
+    WantProcess.continueData = want.parameters.data as VideoMetadata
+    WantProcess.continueSkipHistory = want.parameters.skipHistory as boolean ?? false
+    WantProcess.isContinue = true
+  }
+
+  static async checkContinue(pathStack: NavPathStack) {
+    if (!WantProcess.isContinue) {
+      return
+    }
+    WantProcess.isContinue = false
+    const data = WantProcess.continueData
+    if (data) {
+      if (WantProcess.continueTime !== undefined && WantProcess.continueTime > 0) {
+        data.last_play = WantProcess.continueTime
+      }
+      await ToolsUtil.routerWhere(pathStack, data, [data], WantProcess.continueSkipHistory)
+    }
+    WantProcess.continueData = undefined
+    WantProcess.continueTime = 0
+    WantProcess.continueSkipHistory = false
   }
 
   // 处理拉起链接
@@ -93,19 +129,25 @@ export default class WantProcess {
           video_size: await VideoInfoUtil.getVideoSize(WantProcess.receiveWantUri, true) as string,
           frame_rate: VideoInfoUtil.getVideoFrame(metadata),
           hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
+          audio_type: 0,
           start_time: 0,
           end_time: 0,
           external_subtitle_format: '',
           pointA: 0,
           pointB: 0,
         }
+        WantProcess.clearWantState()
+        const wasSystemShare = WantProcess.isSystemShare
         WantProcess.receiveWantUri = ''
-
-        await ToolsUtil.routerWhere(pathStack, targetVideo, [targetVideo], false, true, WantProcess.isSystemShare)
+        WantProcess.isSystemShare = false
+        await ToolsUtil.routerWhere(pathStack, targetVideo, [targetVideo], false, true, wasSystemShare)
       } catch (error) {
         salmonLogger.addLog(TAG, 'want process error:' + error, true)
+        WantProcess.clearWantState()
+        WantProcess.receiveWantUri = ''
+        WantProcess.isSystemShare = false
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
       } finally {
-        // 确保释放资源
         if (avMetadataExtractor) {
           avMetadataExtractor.release()?.catch(() => {
             salmonLogger.addLog(TAG, 'avMetadataExtractor release error', true)

@@ -20,13 +20,15 @@ export default class PermissionUtil {
     if (!uri) {
       return false
     }
+    if (PermissionUtil.permissionCache.has(uri)) {
+      return true
+    }
     try {
-      // 首先尝试直接访问
       let fd = await fileIo.open(uri)
       await fileIo.close(fd)
+      PermissionUtil.permissionCache.add(uri)
       return true
     } catch (error) {
-      // 直接访问失败，检查是否支持权限管理
       if (canIUse('SystemCapability.FileManagement.AppFileService.FolderAuthorization')) {
         try {
           const policyInfo: fileShare.PolicyInfo = {
@@ -41,9 +43,9 @@ export default class PermissionUtil {
           if (permissionsToActivate.length > 0) {
             await fileShare.activatePermission(permissionsToActivate)
           }
-          // 验证权限是否真正生效
           let fd = await fileIo.open(uri)
           await fileIo.close(fd)
+          PermissionUtil.permissionCache.add(uri)
           return true
         } catch (error) {
           salmonLogger.addLog(TAG, 'Permission activation failed:' + error, true)
@@ -103,7 +105,6 @@ export default class PermissionUtil {
   }
 
   static async persistPermission(uri: string): Promise<boolean> {
-    // 检查缓存，避免重复持久化
     if (PermissionUtil.permissionCache.has(uri)) {
       return false
     }
@@ -118,9 +119,6 @@ export default class PermissionUtil {
         fileShare.persistPermission(policies)?.catch(() => {
           salmonLogger.addLog(TAG, 'persistPermission error', true)
         })
-        let fd = await fileIo.open(uri)
-        await fileIo.close(fd)
-        // 持久化成功，添加到缓存
         PermissionUtil.permissionCache.add(uri)
       }
     } catch (error) {

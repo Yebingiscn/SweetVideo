@@ -56,6 +56,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Trace onSwipingVoice: boolean = false
   @Trace subtitleSelected: SubtitleMode = SubtitleMode.NONE
   @Trace subtitle: string = ''
+  private lastSubtitle: string = ''
   @Trace videoMetaDataList: VideoMetadata[] = []
   audioVolumeManager: audio.AudioVolumeManager | null = null
   @Trace isListenVideo: boolean = false
@@ -76,6 +77,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Trace audioTrackSelected: number = 0
   @Trace lockVisibility: boolean = false
   @Trace longPress: boolean = false
+  @Trace speedLocked: boolean = false
   @Trace isLock: boolean = false
   @Trace abCircleStatus: boolean = false
   @Trace chapterList: MpvChapter[] = []
@@ -85,6 +87,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Trace translateY: number = 0
   @Trace showControl: boolean = false
   skipHistory: boolean = false
+  private lastAppStorageUpdateTime: number = 0
   private playerState: PlayerState = PlayerState.IDLE
   private stateChangeResolvers: Map<string, ((value: void) => void)> = new Map()
   // 视频帧预览节流控制
@@ -92,6 +95,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   private readonly FRAME_FETCH_INTERVAL: number = 200 // 200ms 获取一次预览帧
   private lastFrameFetchPlayTime: number = -1 // 上次获取帧的播放时间，避免同时间重复获取导致闪烁
   private pendingFrameTime: number = -1 // 待处理的最新帧请求时间
+  private stateChangeRejectors: Map<string, ((reason: Error) => void)> = new Map()
 
   get surfaceId(): string | null {
     return this.surfaceID
@@ -153,10 +157,9 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   async initVolumeAndBrightness() {
-    let groupId: number = audio.DEFAULT_VOLUME_GROUP_ID
     let audioManager = audio.getAudioManager()
     this.audioVolumeManager = audioManager.getVolumeManager()
-    let volumeList = await VideoOperateUtil.getVolume(this.audioVolumeManager, groupId)
+    let volumeList = VideoOperateUtil.getVolume()
     this.volume = volumeList.get('volume')!
     this.volumeActually = this.volume
     let swipingVoiceTimer: number | null = null
@@ -178,46 +181,14 @@ export class AVPlayerController implements PlayerControllerInterface {
             }
           }, 800)
         })
-     } catch (error) {
-       salmonLogger.addLog(TAG, 'volumeChange error:' + error, true)
-     }
-      this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
-   }
-
-
-  async setExternalSubtitle(nowPlaying: VideoMetadata) {
-    let externalSubtitleLoaded = false
-    if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, nowPlaying.date!)) {
-      try {
-        let subtitle = fileIo.openSync(PathUtils.subtitlePath! + nowPlaying.date, fileIo.OpenMode.READ_ONLY)
-        const success = await SubtitleUtil.parseSubtitleProcess(subtitle.path, nowPlaying.external_subtitle_format)
-        if (success) {
-          externalSubtitleLoaded = true
-          this.subtitle = SubtitleUtil.getSubtitlesAtTime(this.playTime)
-        }
-      } catch (_error) {
-      }
+    } catch (error) {
+      salmonLogger.addLog(TAG, 'volumeChange error:' + error, true)
     }
+    this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
+  }
 
-    const hasPreference = SubtitleUtil.hasSubtitlePreferenceMetadata(nowPlaying)
-    if (hasPreference) {
-      const preferredMode = nowPlaying.subtitle_mode as SubtitleMode | undefined
-      if (preferredMode === SubtitleMode.EXTERNAL_SUBTITLE && !externalSubtitleLoaded) {
-        this.subtitleSelected = SubtitleMode.NONE
-        this.resetSubtitlePreference(nowPlaying)
-      } else if (preferredMode !== undefined && preferredMode >= SubtitleMode.NONE) {
-        if (nowPlaying.subtitle_offset_millis !== undefined) {
-          SubtitleUtil.offsetMillis = nowPlaying.subtitle_offset_millis
-        }
-        this.subtitleSelected = preferredMode
-      } else {
-        this.subtitleSelected = SubtitleMode.NONE
-      }
-    } else {
-      this.subtitleSelected = externalSubtitleLoaded ? SubtitleMode.EXTERNAL_SUBTITLE : SubtitleMode.NONE
-    }
-
-    this.avPlayer?.on('subtitleUpdate', async (info: media.SubtitleInfo) => { // 需要进入prepare状态前完成注册
+  registerSubtitleListener() {
+    this.avPlayer?.on('subtitleUpdate', async (info: media.SubtitleInfo) => {
       if (VideoOperateUtil.clearSubtitleTimer !== null) {
         clearTimeout(VideoOperateUtil.clearSubtitleTimer)
         VideoOperateUtil.clearSubtitleTimer = null
@@ -238,6 +209,28 @@ export class AVPlayerController implements PlayerControllerInterface {
         } else {
           this.subtitle = ''
         }
+      }
+    })
+  }
+
+  setExternalSubtitle(nowPlaying: VideoMetadata) {
+    SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, nowPlaying.date!).then(exists => {
+      if (!exists) {
+        this.applySubtitlePreference(nowPlaying, false)
+        return
+      }
+      try {
+        let subtitle = fileIo.openSync(PathUtils.subtitlePath! + nowPlaying.date, fileIo.OpenMode.READ_ONLY)
+        SubtitleUtil.parseSubtitleProcess(subtitle.path, nowPlaying.external_subtitle_format).then(success => {
+          if (success) {
+            this.subtitle = SubtitleUtil.getSubtitlesAtTime(this.playTime)
+            this.applySubtitlePreference(nowPlaying, true)
+          } else {
+            this.applySubtitlePreference(nowPlaying, false)
+          }
+        })
+      } catch (_error) {
+        this.applySubtitlePreference(nowPlaying, false)
       }
     })
   }
@@ -347,12 +340,14 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   pause() {
+    PiPWindowUtil.disableAutoStart()
     this.avPlayer?.pause()?.catch(() => {
       salmonLogger.addLog(TAG, `pause error`, true)
     })
   }
 
   play() {
+    PiPWindowUtil.enableAutoStart()
     this.avPlayer?.play()?.catch(() => {
       salmonLogger.addLog(TAG, `play error`, true)
     })
@@ -625,7 +620,8 @@ export class AVPlayerController implements PlayerControllerInterface {
     if (Setting.superResolutionState) {
       this.setSuperResolutionState(true)
     }
-    await this.setExternalSubtitle(this.nowPlaying!)
+    this.registerSubtitleListener()
+    this.setExternalSubtitle(this.nowPlaying!)
   }
 
   setSuperResolutionState(enable: boolean) {
@@ -671,48 +667,55 @@ export class AVPlayerController implements PlayerControllerInterface {
     if (!player) {
       return
     }
-    setTimeout(() => {
-      player.on('timeUpdate', async (duration) => {
-        if (!this.onSwiping) {
-          ThrottleUtil.throttle('playTime', () => {
-            this.playTime = duration
-          }, 100)
-        }
+    player.on('timeUpdate', async (duration) => {
+      if (!this.onSwiping) {
+        ThrottleUtil.throttle('playTime', () => {
+          this.playTime = duration
+        }, 100)
+      }
+      const now = Date.now()
+      if (now - this.lastAppStorageUpdateTime >= 200) {
+        this.lastAppStorageUpdateTime = now
         AppStorage.setOrCreate('nowPlayingData',
           [this.playTime, this.nowPlaying!, this.skipHistory])
-        if (this.showControl) {
-          if (!VideoOperateUtil.autoHideTimeout) {
-            VideoOperateUtil.autoHideTimeout = true
-            setTimeout(() => {
-              this.lockVisibility = false
-              this.showControl = false
-              VideoOperateUtil.autoHideTimeout = false
-            }, AUTO_HIDE_SHOW_CONTROL_TIME)
+      }
+      if (this.showControl) {
+        if (!VideoOperateUtil.autoHideTimeout) {
+          VideoOperateUtil.autoHideTimeout = true
+          setTimeout(() => {
+            this.lockVisibility = false
+            this.showControl = false
+            VideoOperateUtil.autoHideTimeout = false
+          }, AUTO_HIDE_SHOW_CONTROL_TIME)
+        }
+      }
+      const endTime = this.nowPlaying?.end_time
+      if (endTime != null && duration >= endTime && endTime > 0 && this.repeatMode !== SweetRepeatMode.SINGLE) {
+        salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG,
+          `检测到视频片尾，准备播放下一个视频，满足条件为: endTime: ${endTime}, repeatMode: ${this.repeatMode}, duration: ${duration}`,
+          false)
+        await this.playNextVideoProcess(pathStack, windowClass, xComponentController)
+        this.setPlayerCallback(pathStack, xComponentController, windowClass)
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_video_ending').id))
+      }
+      if (this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
+        const newSubtitle = SubtitleUtil.getSubtitlesAtTime(duration)
+        if (newSubtitle !== this.lastSubtitle) {
+          this.lastSubtitle = newSubtitle
+          this.subtitle = newSubtitle
+        }
+      }
+      if (this.abCircleStatus && this.playing) {
+        if (this.nowPlaying?.pointA !== undefined && this.nowPlaying?.pointB !== undefined) {
+          const pointA = this.nowPlaying.pointA
+          const pointB = this.nowPlaying.pointB
+          const playTime = this.playTime
+          if (playTime < pointA || playTime > pointB) {
+            this.seekTime(pointA)
           }
         }
-        const endTime = this.nowPlaying?.end_time
-        if (endTime != null && duration >= endTime && endTime > 0 && this.repeatMode !== SweetRepeatMode.SINGLE) {
-          salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG,
-            `检测到视频片尾，准备播放下一个视频，满足条件为: endTime: ${endTime}, repeatMode: ${this.repeatMode}, duration: ${duration}`,
-            false)
-          await this.playNextVideoProcess(pathStack, windowClass, xComponentController)
-          this.setPlayerCallback(pathStack, xComponentController, windowClass)
-          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_video_ending').id))
-        }
-        if (this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
-          this.subtitle = SubtitleUtil.getSubtitlesAtTime(duration)
-        }
-        if (this.abCircleStatus && this.playing) {
-          if (this.nowPlaying?.pointA !== undefined && this.nowPlaying?.pointB !== undefined) {
-            const pointA = this.nowPlaying.pointA
-            const pointB = this.nowPlaying.pointB
-            const playTime = this.playTime
-            if (playTime < pointA || playTime > pointB) {
-              this.seekTime(pointA)
-            }
-          }
-        }
-      })
+      }
+    })
 
       player.on('seekDone', (percent) => {
         salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "播放器跳转完成", false)
@@ -752,14 +755,15 @@ export class AVPlayerController implements PlayerControllerInterface {
               `恢复播放进度: last_play=${this.nowPlaying?.last_play}, time=${this.nowPlaying?.time}, start_time=${this.nowPlaying?.start_time}, seekMode=${seekMode}`,
               false)
             this.videoStartPlayTime(seekMode)
-            salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "设置视频开始播放时间完成", false)
             this.play()
             salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "开始播放视频", false)
-            await this.getAudioTrackList()
-            await this.getSubtitleTrackList()
+            await Promise.all([
+              this.getAudioTrackList(),
+              this.getSubtitleTrackList(),
+              this.initVolumeAndBrightness()
+            ])
             this.restoreInnerSubtitlePreference(this.nowPlaying!)
             salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "获取音频轨道完成", false)
-            await this.initVolumeAndBrightness()
             this.updatePlaybackSpeed(this.speed)
             salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "更新播放速度完成", false)
             this.showControl = false
@@ -783,7 +787,7 @@ export class AVPlayerController implements PlayerControllerInterface {
             if (this.repeatMode === SweetRepeatMode.SINGLE) {
               salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "单曲循环模式，重新开始播放", false)
               this.play()
-              this.avPlayer?.seek(0, media.SeekMode.SEEK_CLOSEST)
+              this.seekTime(0)
             } else {
               salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "播放下一视频", false)
               await this.playNextVideoProcess(pathStack, windowClass, xComponentController)
@@ -834,7 +838,7 @@ export class AVPlayerController implements PlayerControllerInterface {
             try {
               await (await windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
               VideoOperateUtil.playErrorExecute(pathStack, this.videoMetaDataList,
-                this.nowPlaying?.date!, PlayerEngine.MPV_PLAYER, this.playTime)
+                this.nowPlaying?.date!, PlayerEngine.MPV_PLAYER, this.playTime, this.nowPlaying)
               salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "执行播放错误处理完成", false)
             } catch (error) {
               pathStack.pop()
@@ -845,7 +849,7 @@ export class AVPlayerController implements PlayerControllerInterface {
             break
         }
       })
-    }, 0)
+
   }
 
   refreshExternalSubtitlePreview(offset: number): void {
@@ -954,10 +958,58 @@ export class AVPlayerController implements PlayerControllerInterface {
   async onSurfaceLoad(xComponentController: XComponentController, pathStack: NavPathStack,
     windowClass?: Promise<window.Window | undefined>): Promise<void> {
     this.surfaceId = xComponentController.getXComponentSurfaceId()
+    const permissionPromise = PermissionUtil.activatePermission(this.nowPlaying?.uri)
     await this.init()
     this.setPlayerCallback(pathStack, xComponentController, windowClass)
-    await this.getData(pathStack, windowClass)
-    PiPWindowUtil.createPipController(xComponentController, this)
+    try {
+      await permissionPromise
+      if (this.avPlayer) {
+        this.avPlayer.fdSrc = fileIo.openSync(this.nowPlaying?.uri)
+      }
+    } catch (error) {
+      salmonLogger.addLog(TAG, "打开视频文件失败：" + error, true)
+      ToolsUtil.showToast('视频打开失败，可能已失效：' + error)
+      pathStack.pop()
+      return
+    }
+    VideoOperateUtil.getFrameTimePreprocess(this.nowPlaying!.uri)?.catch(() => {
+    })
+    this.setRotation()
+    if (windowClass) {
+      this.playAreaWidth > this.playAreaHeight ?
+        WindowUtil.enableLandscapeMultiWindow(windowClass) :
+        WindowUtil.disableLandscapeMultiWindow(windowClass)
+    }
+    if (Setting.smartRotation && this.playAreaWidth > this.playAreaHeight &&
+      this.screenHeight > this.screenWidth) {
+      windowClass?.then(w => {
+        const proportion =
+          Math.max(this.screenWidth, this.screenHeight) /
+            Math.min(this.screenWidth, this.screenHeight)
+        const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
+          : window.Orientation.AUTO_ROTATION_RESTRICTED
+        w?.setPreferredOrientation(orientation)?.catch(() => {
+          salmonLogger.addLog(TAG, "设置窗口方向失败", true)
+        })
+      })
+    }
+    await PiPWindowUtil.createPipController(xComponentController, this)
+
+    this.transitionTo(PlayerState.PREPARING)
+    try {
+      await this.waitForState(PlayerState.PLAYING, 10000)
+    } catch (e) {
+      salmonLogger.addLog(TAG, "onSurfaceLoad等待PLAYING状态超时，降级到MPV: " + e, true)
+      try {
+        await (await windowClass)?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
+        VideoOperateUtil.playErrorExecute(pathStack, this.videoMetaDataList,
+          this.nowPlaying?.date!, PlayerEngine.MPV_PLAYER, this.playTime, this.nowPlaying)
+      } catch (error) {
+        pathStack.pop()
+      } finally {
+        await this.release()
+      }
+    }
   }
 
   onOsdSurfaceLoad(_surfaceId: string): void {
@@ -1024,6 +1076,26 @@ export class AVPlayerController implements PlayerControllerInterface {
     return false
   }
 
+  private applySubtitlePreference(nowPlaying: VideoMetadata, externalSubtitleLoaded: boolean) {
+    const hasPreference = SubtitleUtil.hasSubtitlePreferenceMetadata(nowPlaying)
+    if (hasPreference) {
+      const preferredMode = nowPlaying.subtitle_mode as SubtitleMode | undefined
+      if (preferredMode === SubtitleMode.EXTERNAL_SUBTITLE && !externalSubtitleLoaded) {
+        this.subtitleSelected = SubtitleMode.NONE
+        this.resetSubtitlePreference(nowPlaying)
+      } else if (preferredMode !== undefined && preferredMode >= SubtitleMode.NONE) {
+        if (nowPlaying.subtitle_offset_millis !== undefined) {
+          SubtitleUtil.offsetMillis = nowPlaying.subtitle_offset_millis
+        }
+        this.subtitleSelected = preferredMode
+      } else {
+        this.subtitleSelected = SubtitleMode.NONE
+      }
+    } else {
+      this.subtitleSelected = externalSubtitleLoaded ? SubtitleMode.EXTERNAL_SUBTITLE : SubtitleMode.NONE
+    }
+  }
+
   private applyScreenExtend() {
     const size = VideoOperateUtil.calcScreenExtendSize(this.selectedText, this.screenWidth, this.screenHeight)
     if (size) {
@@ -1074,6 +1146,17 @@ export class AVPlayerController implements PlayerControllerInterface {
     if (resolver) {
       resolver()
       this.stateChangeResolvers.delete(key)
+      this.stateChangeRejectors.delete(key)
+    }
+    if (newState === PlayerState.ERROR) {
+      this.stateChangeResolvers.forEach((_, k) => {
+        const rejector = this.stateChangeRejectors.get(k)
+        if (rejector) {
+          rejector(new Error(`播放器进入错误状态，等待${k}被取消`))
+        }
+      })
+      this.stateChangeResolvers.clear()
+      this.stateChangeRejectors.clear()
     }
   }
 
@@ -1084,9 +1167,11 @@ export class AVPlayerController implements PlayerControllerInterface {
     return new Promise<void>((resolve, reject) => {
       const key = PlayerState[targetState]
       this.stateChangeResolvers.set(key, resolve)
+      this.stateChangeRejectors.set(key, reject)
       setTimeout(() => {
         if (this.stateChangeResolvers.has(key)) {
           this.stateChangeResolvers.delete(key)
+          this.stateChangeRejectors.delete(key)
           reject(new Error(`等待状态${key}超时`))
         }
       }, timeoutMs)
@@ -1136,6 +1221,6 @@ export class AVPlayerController implements PlayerControllerInterface {
     PiPWindowUtil.updateContentSize()
     salmonLogger.addLog(TAG, "fdSrc设置完成，等待PLAYING状态", false)
     this.transitionTo(PlayerState.PREPARING)
-    await this.waitForState(PlayerState.PLAYING, 15000)
+    await this.waitForState(PlayerState.PLAYING, 10000)
   }
 }

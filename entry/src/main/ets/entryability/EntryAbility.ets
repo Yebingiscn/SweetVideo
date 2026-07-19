@@ -29,7 +29,7 @@ export default class EntryAbility extends UIAbility {
     this.crashWatcher()
     if (launchParam.launchReason === AbilityConstant.LaunchReason.CONTINUATION) {
       if (want.parameters) {
-        // this.continueRestore(want);
+        WantProcessUtil.restoreContinueData(want);
       }
     }
   }
@@ -81,9 +81,14 @@ export default class EntryAbility extends UIAbility {
   }
 
   // 应用在后台，接收外部应用拉起或者华为分享拉起
-  async onNewWant(want: Want) {
+  async onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam) {
     WantProcessUtil.want = want
     salmonLogger.addLog(TAG, `onNewWant, want: ${want.abilityName}`)
+    if (launchParam.launchReason === AbilityConstant.LaunchReason.CONTINUATION) {
+      if (want.parameters) {
+        WantProcessUtil.restoreContinueData(want)
+      }
+    }
   }
 
   onDestroy(): void {
@@ -174,9 +179,14 @@ export default class EntryAbility extends UIAbility {
   async onContinue(wantParam: Record<string, Object>): Promise<AbilityConstant.OnContinueResult> {
     const nowPlayingData =
       AppStorage.get('nowPlayingData') as (number | VideoMetadata | boolean)[]
-    wantParam['data'] = nowPlayingData[1] as VideoMetadata
+    if (nowPlayingData && nowPlayingData[1]) {
+      wantParam['continueTime'] = nowPlayingData[0] as number
+      wantParam['data'] = nowPlayingData[1] as VideoMetadata
+      wantParam['skipHistory'] = nowPlayingData[2] as boolean
+    }
     return AbilityConstant.OnContinueResult.AGREE
   }
+
 
   onWindowStageDestroy(): void {
     // Main window is destroyed, release UI related resources

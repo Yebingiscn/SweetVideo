@@ -17,6 +17,9 @@ export class WindowUtil {
   private static instance: WindowUtil
   private static windowStage?: window.WindowStage
   private static isInit: boolean = false
+  private static trackedWindowStatus: window.WindowStatusType = window.WindowStatusType.FLOATING
+  private static previousTrackedWindowStatus: window.WindowStatusType = window.WindowStatusType.FLOATING
+  private static lastStatusChangeTime: number = 0
 
   public static getInstance() {
     if (!WindowUtil.instance) {
@@ -73,25 +76,32 @@ export class WindowUtil {
   public static async fullScreenOperate(screen_height: number, screen_width: number,
     windowClass: Promise<window.Window | undefined>): Promise<window.Orientation.AUTO_ROTATION_RESTRICTED | window.Orientation.AUTO_ROTATION_LANDSCAPE | undefined> {
     if (canIUse('SystemCapability.Window.SessionManager')) {
-      switch (await WindowUtil.getWindowsStatus()) {
-        case window.WindowStatusType.FLOATING:
-          if (Pc.pcMode) {
+      if (Pc.pcMode) {
+        const timeSinceLastChange = Date.now() - WindowUtil.lastStatusChangeTime
+        if (WindowUtil.previousTrackedWindowStatus !== window.WindowStatusType.FLOATING &&
+          WindowUtil.trackedWindowStatus === window.WindowStatusType.FLOATING &&
+          timeSinceLastChange < 500) {
+          return undefined
+        }
+        switch (WindowUtil.trackedWindowStatus) {
+          case window.WindowStatusType.FLOATING:
             await WindowUtil?.maximize?.()
             return undefined
-          }
+          case window.WindowStatusType.MAXIMIZE:
+          case window.WindowStatusType.FULL_SCREEN:
+            await WindowUtil?.recover?.()
+            return undefined
+          default:
+            return undefined
+        }
+      }
+      switch (await WindowUtil.getWindowsStatus()) {
+        case window.WindowStatusType.FLOATING:
           AppStorage.get('enableLandscapeMultiWindow') ? WindowUtil.disableLandscapeMultiWindow(windowClass) :
             WindowUtil.enableLandscapeMultiWindow(windowClass)
           return undefined
         case window.WindowStatusType.MAXIMIZE:
-          if (Pc.pcMode) {
-            await WindowUtil?.maximize?.()
-            return undefined
-          }
         case window.WindowStatusType.FULL_SCREEN:
-          if (Pc.pcMode) {
-            await WindowUtil?.recover?.()
-            return undefined
-          }
         case window.WindowStatusType.UNDEFINED:
         default:
           return WindowUtil.getWindowOrientation(screen_height, screen_width)
@@ -128,8 +138,8 @@ export class WindowUtil {
   public static async maximize(): Promise<void> {
     if (canIUse('SystemCapability.Window.SessionManager')) {
       try {
-        if ((await WindowUtil.getWindow())?.getWindowStatus() === window.WindowStatusType.FLOATING ||
-          (await WindowUtil.getWindow())?.getWindowStatus() === window.WindowStatusType.MAXIMIZE) {
+        if (WindowUtil.trackedWindowStatus === window.WindowStatusType.FLOATING ||
+          WindowUtil.trackedWindowStatus === window.WindowStatusType.MAXIMIZE) {
           (await WindowUtil.getWindow())?.maximize()
             .then(() => {
               salmonLogger.addLog(TAG, 'test Succeed in maximizing the window.', false)
@@ -149,8 +159,8 @@ export class WindowUtil {
   public static async recover(): Promise<void> {
     if (canIUse('SystemCapability.Window.SessionManager')) {
       try {
-        if ((await WindowUtil.getWindow())?.getWindowStatus() === window.WindowStatusType.FULL_SCREEN ||
-          (await WindowUtil.getWindow())?.getWindowStatus() === window.WindowStatusType.MAXIMIZE) {
+        if (WindowUtil.trackedWindowStatus === window.WindowStatusType.FULL_SCREEN ||
+          WindowUtil.trackedWindowStatus === window.WindowStatusType.MAXIMIZE) {
           (await WindowUtil.getWindow())?.recover()
             .then(() => {
               salmonLogger.addLog(TAG, 'test Succeed in recovering the window.', false)
@@ -220,6 +230,19 @@ export class WindowUtil {
           AppStorage.setOrCreate('main_blur', 0)
         }
       })
+      if (canIUse('SystemCapability.Window.SessionManager')) {
+        try {
+          WindowUtil.trackedWindowStatus =
+            WindowUtil.windowClass.getWindowStatus() ?? window.WindowStatusType.FLOATING
+        } catch (e) {
+          WindowUtil.trackedWindowStatus = window.WindowStatusType.FLOATING
+        }
+        WindowUtil.windowClass.on('windowStatusChange', (status: window.WindowStatusType) => {
+          WindowUtil.previousTrackedWindowStatus = WindowUtil.trackedWindowStatus
+          WindowUtil.trackedWindowStatus = status
+          WindowUtil.lastStatusChangeTime = Date.now()
+        })
+      }
     } catch (error) {
       salmonLogger.addLog(TAG, 'Window initialization error', true)
     }

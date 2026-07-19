@@ -19,12 +19,11 @@ export interface ProgressInfo {
 
 // 独立文件处理工具类
 export class FileProcessorUtil {
-  // 获取视频封面和处理文件的最大并发数
   public static MAX_CONCURRENT = 12
-  // 失败文件列表
   public static failedFiles: string[] = []
+  private static lastProgressTime: number = 0
+  private static readonly PROGRESS_THROTTLE_MS = 100
 
-  // 分块处理，将文件列表分成多个块，每个块内的文件串行处理，不同块之间并行执行，通过MAX_CONCURRENT控制最大并发数
   public static async processFilesConcurrently(
     fileList: string[],
     context: Context,
@@ -38,11 +37,23 @@ export class FileProcessorUtil {
       ToolsUtil.showToast('没有任何文件被导入哦~')
       return
     }
-    FileFolderUtil.duplicateVideo = 0 // 这里重置重复视频数
-    FileProcessorUtil.failedFiles = [] // 重置失败文件列表
+    FileFolderUtil.duplicateVideo = 0
+    FileProcessorUtil.failedFiles = []
+    FileProcessorUtil.lastProgressTime = 0
 
     let processedCount = 0
     let failedCount = 0
+    let lastEmittedInfo: ProgressInfo | null = null
+
+    const throttledProgressCallback = (info: ProgressInfo) => {
+      lastEmittedInfo = info
+      const now = Date.now()
+      if (now - FileProcessorUtil.lastProgressTime >= FileProcessorUtil.PROGRESS_THROTTLE_MS ||
+          info.current === info.total) {
+        FileProcessorUtil.lastProgressTime = now
+        progressCallback(info)
+      }
+    }
 
     const chunks = FileProcessorUtil.splitListIntoChunks(fileList)
     const workers = chunks.map((chunk): Promise<void> => {
@@ -50,8 +61,7 @@ export class FileProcessorUtil {
         for (const uri of chunk) {
           const fileName = uri.split('/')[uri.split('/').length - 1]
 
-          // 更新进度：开始提取元数据
-          progressCallback({
+          throttledProgressCallback({
             current: processedCount + 1,
             total: fileList.length,
             fileName: fileName,
@@ -69,7 +79,6 @@ export class FileProcessorUtil {
               fileFolder
             )
           } catch (error) {
-            // 记录失败文件，继续处理其他文件
             FileProcessorUtil.failedFiles.push(uri)
             failedCount++
             salmonLogger.addLog(TAG, `处理文件失败: ${fileName}, 错误: ${error}`, true)
@@ -77,8 +86,7 @@ export class FileProcessorUtil {
 
           processedCount++
 
-          // 更新进度：完成一个文件
-          progressCallback({
+          throttledProgressCallback({
             current: processedCount,
             total: fileList.length,
             fileName: fileName,
@@ -89,6 +97,15 @@ export class FileProcessorUtil {
       })()
     })
     await Promise.all(workers)
+    if (lastEmittedInfo !== null && (lastEmittedInfo as ProgressInfo).current !== fileList.length) {
+      progressCallback({
+        current: processedCount,
+        total: fileList.length,
+        fileName: '',
+        stage: 'saving',
+        failedCount: failedCount
+      })
+    }
   }
 
   // 智能分块算法：按文件大小和数量优化分块，提高负载均衡

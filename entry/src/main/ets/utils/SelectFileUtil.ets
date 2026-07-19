@@ -22,6 +22,7 @@ import SubtitleUtil from './SubtitleUtil'
 import { extractVideoMetadataInTaskPool } from './TaskpoolUtil'
 import { systemDateTime } from '@kit.BasicServicesKit'
 import { effectKit } from '@kit.ArkGraphics2D'
+import { JSON } from '@kit.ArkTS'
 
 const TAG = 'SelectFileUtil'
 
@@ -92,26 +93,33 @@ export default class SelectFileUtil {
   }
 
   static async deletePhoto(imageName: 'BackgroundImage' | 'BackgroundDarkImage' | 'avatar') {
-    fs.access(PathUtils.photoPath! + imageName).then((res: boolean) => {
+    try {
+      const res = await fs.access(PathUtils.photoPath! + imageName)
       if (res) {
-        fs.unlink(PathUtils.photoPath! + imageName, async (unlinkErr) => {
-          if (unlinkErr) {
-            ToolsUtil.showToast('删除失败，原因是：' + unlinkErr.message)
-          }
-          ToolsUtil.showToast('删除成功')
+        await new Promise<void>((resolve, reject) => {
+          fs.unlink(PathUtils.photoPath! + imageName, (unlinkErr) => {
+            if (unlinkErr) {
+              ToolsUtil.showToast('删除失败，原因是：' + unlinkErr.message)
+              reject(unlinkErr)
+            } else {
+              ToolsUtil.showToast('删除成功')
+              resolve()
+            }
+          })
         })
       } else {
         salmonLogger.addLog(TAG, "照片不存在", true)
       }
-    })?.catch((err: BusinessError) => {
+    } catch (err) {
       salmonLogger.addLog(TAG, "access failed with error message: " + err.message + ", error code: " + err.code, true)
-    })
+    }
     try {
       const blurPath = PathUtils.photoPath! + imageName + '_blur'
       if (fs.accessSync(blurPath)) {
         fs.unlinkSync(blurPath)
       }
     } catch (e) {
+      salmonLogger.addLog(TAG, `Failed to delete blur image: ${e}`, true)
     }
   }
 
@@ -198,6 +206,7 @@ export default class SelectFileUtil {
         return PathUtils.pathToUri(blurPath)
       }
     } catch (e) {
+      salmonLogger.addLog(TAG, `Failed to access blur image: ${blurPath} ` + e, true)
     }
     return ''
   }
@@ -218,6 +227,7 @@ export default class SelectFileUtil {
           return blurUri
         }
       } catch (e) {
+        salmonLogger.addLog(TAG, `Failed to access blur image: ${blurPath} ` + e, true)
       }
     }
     const blurUri = await SelectFileUtil.generateBlurredBackground(imageName, blurRadius)
@@ -237,6 +247,7 @@ export default class SelectFileUtil {
           return 'BackgroundDarkImage'
         }
       } catch (e) {
+        salmonLogger.addLog(TAG, `Failed to access dark background image: ${darkPath} ` + e, true)
       }
       return 'BackgroundImage'
     }
@@ -268,9 +279,8 @@ export default class SelectFileUtil {
       file = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
       await packer.packToFile(pixelMap, file.fd, { format: options?.format ?? 'image/webp', quality: 85 })
       return filePath
-    } catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
-      salmonLogger.addLog(TAG, `Failed to save pixelMap to ${filePath}: ${JSON.stringify(errMsg)}`, true)
+    } catch (err) {
+      salmonLogger.addLog(TAG, `Failed to save pixelMap to ${filePath}: ${JSON.stringify(err)} :${err.message}`, true)
       if (options?.deleteOnFail) {
         try {
           fs.accessSync(filePath) && fs.unlinkSync(filePath)
@@ -334,6 +344,7 @@ export default class SelectFileUtil {
           fs.closeSync(sourceFile)
         }
       } catch (e) {
+        salmonLogger.addLog(TAG, `Failed to release resources in generateBlurredBackground: ${e}`, true)
       }
     }
   }
@@ -345,11 +356,11 @@ export default class SelectFileUtil {
     let sourceFile: fs.File | null = null
     let targetFile: fs.File | null = null
     try {
-      const sourceFile = fs.openSync(uri, fs.OpenMode.READ_ONLY)
+      sourceFile = fs.openSync(uri, fs.OpenMode.READ_ONLY)
       const targetPath = `${sandbox_video}${date}`
-      const targetFile = fs.openSync(targetPath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
+      targetFile = fs.openSync(targetPath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
       await new Promise<void>((resolve, reject) => {
-        fs.copyFile(sourceFile.fd, targetFile.fd, (error) => {
+        fs.copyFile(sourceFile!.fd, targetFile!.fd, (error) => {
           error ? reject(error) : resolve()
         })
       })
@@ -363,8 +374,12 @@ export default class SelectFileUtil {
       salmonLogger.addLog(TAG, `文件复制失败: ${uri}: error ${error}`, true)
       throw new Error(`隐私空间复制失败: ${error.message}`)
     } finally {
-      fs.closeSync(sourceFile)
-      fs.closeSync(targetFile)
+      if (sourceFile) {
+        fs.closeSync(sourceFile)
+      }
+      if (targetFile) {
+        fs.closeSync(targetFile)
+      }
     }
   }
 
@@ -374,7 +389,9 @@ export default class SelectFileUtil {
   }
 
   static saveData(context: Context, target_data: VideoMetadata, options: SaveOptions) {
-    salmonLogger.addLog(TAG, `开始保存播放数据: playTime=${options.playTime}, totalTime=${options.totalTime}, target_time=${target_data.time}, last_play=${target_data.last_play}`, false)
+    salmonLogger.addLog(TAG,
+      `开始保存播放数据: playTime=${options.playTime}, totalTime=${options.totalTime}, target_time=${target_data.time}, last_play=${target_data.last_play}`,
+      false)
     let save_time: number = 0
     if (target_data.time === 0 && options.totalTime) {
       target_data.time = options.totalTime
@@ -439,6 +456,12 @@ export default class SelectFileUtil {
           video.audio_track_id = options.audioTrackId
         }
       }
+      if (options.hdrType !== undefined) {
+        video.hdr_type = options.hdrType
+      }
+      if (options.audioType !== undefined) {
+        video.audio_type = options.audioType
+      }
     }
     if (PrivacySpaceUtil.getPrivacyMode()) {
       salmonLogger.addLog(TAG, '当前处于隐私空间，更新隐私空间数据', false)
@@ -454,19 +477,12 @@ export default class SelectFileUtil {
       return
     }
     salmonLogger.addLog(TAG, '更新文件夹中的视频数据', false)
-    const folders = Preferences.getFileFolder(context)
+    const findResult = Preferences.findVideoByDate(context, target_data.date)
+    const targetVideoMetaData = findResult[0]
 
-    let found = false
-    for (const folder of folders) {
-      const videoMetaData: VideoMetadata[] = folder.video_list
-      const targetVideoMetaData = videoMetaData.find(video => video.date === target_data.date)
-      if (targetVideoMetaData) {
-        updateVideo(targetVideoMetaData)
-        found = true
-        break
-      }
-    }
-    if (found) {
+    if (targetVideoMetaData) {
+      updateVideo(targetVideoMetaData)
+      const folders = Preferences.getFileFolder(context)
       Preferences.saveFileFolder(context, folders)
     }
     salmonLogger.addLog(TAG, '文件夹数据更新完成', false)
@@ -540,7 +556,8 @@ export default class SelectFileUtil {
     return foundItem
   }
 
-  public static getVideoListByVideoDate(videoDate: string): [VideoMetadata | undefined, VideoMetadata[], string | undefined] {
+  public static getVideoListByVideoDate(
+    videoDate: string): [VideoMetadata | undefined, VideoMetadata[], string | undefined] {
     return Preferences.findVideoByDate(PathUtils.appContext!, videoDate)
   }
 
@@ -638,9 +655,14 @@ export default class SelectFileUtil {
         // 3. 数据处理和保存（主线程）
         const fileQueue = ConcurrencyManagerUtil.getFileQueue(uri)
         await fileQueue.run(async () => {
-          // 获取全局数据锁（保证原子操作）
           const dataLock = ConcurrencyManagerUtil.getLock('global_data')
           await dataLock.acquire()
+          let shouldSaveCover = false
+          let coverUri = ''
+          let coverSandboxPath = ''
+          let coverDate = ''
+          let coverMetadata: media.AVMetadata | undefined
+          let coverPixelMap: image.PixelMap | undefined
           try {
             if (!file_folder) {
               const folderPathParts = FileFolderUtil.extractFolderPathFromUri(uri, fileName)
@@ -654,16 +676,15 @@ export default class SelectFileUtil {
                 }
               }
             }
-            let isDuplicate = false
-            isDuplicate = FileFolderUtil.existsVideoInFolders(context, uri, fileName)
+            const isDuplicate = FileFolderUtil.existsVideoInFolders(context, uri, fileName)
             if (!isDuplicate) {
               if (PrivacySpaceUtil.getPrivacyMode()!) {
                 await SelectFileUtil.copyFileToPrivacySpace(context, video_meta_data, uri, sandbox_video,
                   sandbox_path, systemDateTime.getTime(true).toString(), metadata!, fileName, fileSize, pixelMap)
               } else {
-                const videoInfo =
-                  await VideoInfoUtil.setVideoInfoOptimized(systemDateTime.getTime(true).toString(), uri, fileName,
-                    metadata!, sandbox_video, sandbox_path, fileSize, pixelMap)
+                const date = systemDateTime.getTime(true).toString()
+                const videoInfo = VideoInfoUtil.buildVideoMetadata(date, uri, fileName, metadata!,
+                  sandbox_video, fileSize)
                 if (file_folder) {
                   file_folder.video_list.push(videoInfo)
                   FileFolderUtil.updateFileFolder(context, file_folder, file_folder.video_list)
@@ -672,10 +693,19 @@ export default class SelectFileUtil {
                   folders[0].video_list.push(videoInfo)
                   Preferences.saveFileFolder(context, folders)
                 }
+                shouldSaveCover = true
+                coverUri = uri
+                coverSandboxPath = sandbox_path
+                coverDate = date
+                coverMetadata = metadata
+                coverPixelMap = pixelMap
               }
             }
           } finally {
             dataLock.release()
+          }
+          if (shouldSaveCover) {
+            await VideoInfoUtil.saveCoverDeferred(coverUri, coverSandboxPath, coverDate, coverMetadata!, coverPixelMap)
           }
         })
       } catch (error) {
@@ -735,13 +765,13 @@ export default class SelectFileUtil {
       private active = 0
       private pending: Array<() => void> = []
       private concurrency: number
+      private drainResolvers: Array<() => void> = []
 
       constructor(concurrency: number) {
         this.concurrency = concurrency
       }
 
       async run<T>(task: () => Promise<T>): Promise<T> {
-        // 如果当前活跃任务数达到并发上限，等待
         if (this.active >= this.concurrency) {
           await new Promise<void>(resolve => {
             this.pending.push(resolve)
@@ -752,15 +782,24 @@ export default class SelectFileUtil {
           return await task()
         } finally {
           this.active--
-          // 唤醒下一个等待的任务
           this.pending.shift()?.()
+          this.notifyDrain()
         }
       }
 
       async drain() {
-        // 等待所有活跃任务完成
-        while (this.active > 0 || this.pending.length > 0) {
-          await new Promise<void>((resolve) => setTimeout(resolve, 10))
+        if (this.active === 0 && this.pending.length === 0) {
+          return
+        }
+        await new Promise<void>(resolve => {
+          this.drainResolvers.push(() => resolve())
+        })
+      }
+
+      private notifyDrain() {
+        if (this.active === 0 && this.pending.length === 0) {
+          this.drainResolvers.forEach(r => r())
+          this.drainResolvers = []
         }
       }
     }

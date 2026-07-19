@@ -27,7 +27,8 @@ import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
 import {
   DELAY_JUMP_TO_PLAYER,
   FULL_ALPHABET,
-  NO_BLUR_AMOUNT, PRIVACY_BACKGROUND_BLUR_AMOUNT
+  NO_BLUR_AMOUNT,
+  PRIVACY_BACKGROUND_BLUR_AMOUNT
 } from '../../common/Constants'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { VideoItemPreviewBuilder } from '../../component/VideoItemComponent/VideoItemPreviewBuilder'
@@ -59,8 +60,6 @@ export struct PrivacySpace { // 隐私空间页
   @Local processedItems: number = 0
   @Local loading: boolean = false
   @Local currentFileName: string = '' // 当前处理的文件名
-  @Local importSpeed: number = 0 // 处理速度
-  @Local elapsedTime: number = 0 // 已耗时
   @Local failedCount: number = 0 // 失败文件数
   @Local currentStage: 'extracting' | 'cover' | 'saving' = 'extracting' // 当前处理阶段
   @Local searchValue: string = ''
@@ -90,6 +89,7 @@ export struct PrivacySpace { // 隐私空间页
           format: original.format,
           video_size: original.video_size,
           hdr_type: original.hdr_type,
+          audio_type: original.audio_type,
           frame_rate: original.frame_rate,
           start_time: original.start_time,
           end_time: original.end_time,
@@ -443,8 +443,6 @@ export struct PrivacySpace { // 隐私空间页
         this.processedItems = info.current
         this.currentFileName = info.fileName
         this.currentStage = info.stage
-        this.importSpeed = info.speed
-        this.elapsedTime = info.elapsedTime
         this.failedCount = info.failedCount
       },
       (loading: boolean) => {
@@ -525,8 +523,6 @@ export struct PrivacySpace { // 隐私空间页
             totalItems: this.totalItems,
             currentFileName: this.currentFileName,
             currentStage: this.currentStage,
-            speed: this.importSpeed,
-            elapsedTime: this.elapsedTime,
             failedCount: this.failedCount
           })
         }

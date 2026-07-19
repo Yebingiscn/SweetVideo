@@ -3,8 +3,8 @@ import DataSyncUtil from '../../utils/DataSyncUtil'
 import TimeUtil from '../../utils/TimeUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
-import { SweetAgentComponent } from '../common/SweetAgentComponent'
 import { DIALOG_TITLE_FONT_SIZE } from '../../common/Constants'
+import { SweetAgentComponent } from '../common/SweetAgentComponent'
 
 // 视频详情弹窗
 @CustomDialog

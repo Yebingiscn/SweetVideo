@@ -35,6 +35,8 @@ export struct GestureComponent {
   }
   @Event onLongPressPanUpdate: (_tapX: number) => void = () => {
   }
+  @Event onLongPressVerticalPanUpdate: (_offsetY: number) => void = () => {
+  }
   @Event onPanMoveStart: (_event: GestureEvent) => void = () => {
   }
   @Event onPanMoveUpdate: (_event: GestureEvent) => void = () => {
@@ -72,7 +74,7 @@ export struct GestureComponent {
               .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
                 SourceTool.JOYSTICK])
               .onActionStart((event: GestureEvent) => { // 滑动屏幕
-                if (this.player.isLock || this.player.isZoomed) {
+                if (this.player.isLock) {
                   return
                 }
                 const tapX = event.fingerList[0]?.localX
@@ -82,7 +84,7 @@ export struct GestureComponent {
                 this.onVerticalPanStart(tapX)
               })
               .onActionUpdate((event: GestureEvent) => {
-                if (this.player.isLock || this.player.isZoomed) {
+                if (this.player.isLock) {
                   return
                 }
                 if (event.fingerList?.length !== 1) {
@@ -91,7 +93,7 @@ export struct GestureComponent {
                 this.onVerticalPanUpdate(event?.offsetY)
               })
               .onActionEnd(() => {
-                if (this.player.isLock || this.player.isZoomed) {
+                if (this.player.isLock) {
                   return
                 }
                 this.onVerticalPanEnd()
@@ -100,13 +102,13 @@ export struct GestureComponent {
               .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
                 SourceTool.JOYSTICK])
               .onActionStart((_event: GestureEvent) => { // 长按且滑动屏幕
-                if (this.player.isLock || this.player.isZoomed) {
+                if (this.player.isLock) {
                   return
                 }
                 this.onHorizonPanStart()
               })
               .onActionUpdate((event: GestureEvent) => {
-                if (this.player.isLock || this.player.isZoomed) {
+                if (this.player.isLock) {
                   return
                 }
                 if (typeof event?.fingerList?.[0]?.localX !== 'number') {
@@ -115,7 +117,7 @@ export struct GestureComponent {
                 this.onHorizonPanUpdate(event?.offsetX)
               })
               .onActionEnd(() => {
-                if (this.player.isLock || this.player.isZoomed) {
+                if (this.player.isLock) {
                   return
                 }
                 this.onHorizonPanEnd()
@@ -199,7 +201,19 @@ export struct GestureComponent {
                 }
                 this.onLongPressPanUpdate(tapX)
               }),
-            PanGesture({ fingers: 1, direction: PanDirection.All })// 拖拽移动画面(仅在放大后生效)
+            PanGesture({
+              fingers: 1,
+              direction: PanDirection.Vertical,
+            })//长按状态下垂直滑动 锁定倍速
+              .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
+                SourceTool.JOYSTICK])
+              .onActionUpdate((event: GestureEvent) => {
+                if (this.player.isLock) {
+                  return
+                }
+                this.onLongPressVerticalPanUpdate(event?.offsetY)
+              }),
+            PanGesture({ fingers: 2, direction: PanDirection.All })// 双指拖拽移动画面(仅在放大后生效)
               .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
                 SourceTool.JOYSTICK])
               .onActionStart((event: GestureEvent) => {

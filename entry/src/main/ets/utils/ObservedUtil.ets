@@ -11,6 +11,7 @@ class SettingUtil {
   public enableBackgroundDarkImage: boolean = false
   public allowBackgroundPlay: boolean = true
   public autoActivePip: boolean = false
+  public autoResumeOnReturn: boolean = false
   public allowPlayBackExist: boolean = false
   public fastForwardSeconds: string = '15'
   public recentPlay: boolean = true
@@ -33,6 +34,7 @@ class SettingUtil {
   public enableAiPrivacyAntiPeep: boolean = false
   public defaultBrightness: number = 0
 
+  public maxListLine: number = 5
   public defaultDensityEnabled: boolean = true
 }
 

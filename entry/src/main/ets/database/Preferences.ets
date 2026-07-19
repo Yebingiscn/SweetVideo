@@ -11,27 +11,27 @@ import ToolsUtil from '../utils/ToolsUtil'
 
 const DATA_BASE_NAME = 'sweet_video'
 
-// 存储类
 export default class Preferences {
   private static fileFolderCache: FileFolder[] | null = null
   private static videoDateToFolderDate: Map<string, string> | null = null
-  private static cacheDirty: boolean = false
+  private static videoUriSet: Set<string> | null = null
 
   private static deepCopyFileFolders(source: FileFolder[]): FileFolder[] {
     const result: FileFolder[] = []
-    for (const f of source) {
-      const videos: VideoMetadata[] = []
-      for (const v of f.video_list) {
-        const copy: VideoMetadata = {
+    for (const folder of source) {
+      const copiedVideos: VideoMetadata[] = []
+      for (const v of folder.video_list) {
+        const copiedVideo: VideoMetadata = {
           uri: v.uri,
           title: v.title,
           date: v.date,
-          size: v.size,
+          size: v.size.slice(),
           time: v.time,
           last_play: v.last_play,
           format: v.format,
           video_size: v.video_size,
           hdr_type: v.hdr_type,
+          audio_type: v.audio_type,
           frame_rate: v.frame_rate,
           start_time: v.start_time,
           end_time: v.end_time,
@@ -46,15 +46,15 @@ export default class Preferences {
           subtitle_track_id: v.subtitle_track_id,
           audio_track_id: v.audio_track_id
         }
-        videos.push(copy)
+        copiedVideos.push(copiedVideo)
       }
-      const folder: FileFolder = {
-        name: f.name,
-        date: f.date,
-        video_list: videos,
-        parent_date: f.parent_date
+      const copiedFolder: FileFolder = {
+        name: folder.name,
+        date: folder.date,
+        video_list: copiedVideos,
+        parent_date: folder.parent_date
       }
-      result.push(folder)
+      result.push(copiedFolder)
     }
     return result
   }
@@ -62,22 +62,16 @@ export default class Preferences {
   static invalidateFileFolderCache() {
     Preferences.fileFolderCache = null
     Preferences.videoDateToFolderDate = null
-    Preferences.cacheDirty = false
+    Preferences.videoUriSet = null
   }
 
   static findVideoByDate(context: Context, videoDate: string):
     [VideoMetadata | undefined, VideoMetadata[], string | undefined] {
     const folders = Preferences.getFileFolder(context)
     if (!Preferences.videoDateToFolderDate) {
-      const map = new Map<string, string>()
-      for (const folder of folders) {
-        for (const video of folder.video_list) {
-          map.set(video.date, folder.date)
-        }
-      }
-      Preferences.videoDateToFolderDate = map
+      Preferences.buildVideoDateIndex(folders)
     }
-    const folderDate = Preferences.videoDateToFolderDate.get(videoDate)
+    const folderDate = Preferences.videoDateToFolderDate!.get(videoDate)
     if (folderDate) {
       const folder = folders.find(f => f.date === folderDate)
       if (folder) {
@@ -85,6 +79,35 @@ export default class Preferences {
       }
     }
     return [undefined, [], undefined]
+  }
+
+  private static buildVideoDateIndex(folders: FileFolder[]) {
+    const map = new Map<string, string>()
+    for (const folder of folders) {
+      for (const video of folder.video_list) {
+        map.set(video.date, folder.date)
+      }
+    }
+    Preferences.videoDateToFolderDate = map
+  }
+
+  private static buildVideoUriSet(folders: FileFolder[]) {
+    const set = new Set<string>()
+    for (const folder of folders) {
+      for (const video of folder.video_list) {
+        set.add(video.uri)
+      }
+    }
+    Preferences.videoUriSet = set
+  }
+
+  static getVideoUriSet(context: Context): Set<string> {
+    if (Preferences.videoUriSet !== null) {
+      return Preferences.videoUriSet!
+    }
+    const folders = Preferences.getFileFolder(context)
+    Preferences.buildVideoUriSet(folders)
+    return Preferences.videoUriSet!
   }
 
   static saveMpvDecodingMethod(context: Context, decodingMethod: MpvDecodingMethod) {
@@ -110,10 +133,7 @@ export default class Preferences {
   // 所有文件夹视频数据
   static getFileFolder(context: Context) {
     if (Preferences.fileFolderCache !== null) {
-      if (Preferences.cacheDirty) {
-        Preferences.fileFolderCache = Preferences.deepCopyFileFolders(Preferences.fileFolderCache!)
-        Preferences.cacheDirty = false
-      }
+
       return Preferences.fileFolderCache!
     }
     const folders = PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'file_folder', []) as FileFolder[]
@@ -325,6 +345,14 @@ export default class Preferences {
     return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, "autoActivePip", false) as boolean
   }
 
+  static saveAutoResumeOnReturn(context: Context, isEnabled: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, "autoResumeOnReturn", isEnabled)
+  }
+
+  static getAutoResumeOnReturn(context: Context) {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, "autoResumeOnReturn", false) as boolean
+  }
+
   static saveRecentPlayState(context: Context, isEnabled: boolean) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, "recentPlay", isEnabled)
   }
@@ -362,10 +390,11 @@ export default class Preferences {
 
   // 保存所有文件夹视频数据
   static saveFileFolder(context: Context, file_folder: FileFolder[]) {
-    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'file_folder', file_folder)
-    Preferences.fileFolderCache = file_folder
-    Preferences.videoDateToFolderDate = null
-    Preferences.cacheDirty = true
+    const copied = Preferences.deepCopyFileFolders(file_folder)
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'file_folder', copied)
+    Preferences.fileFolderCache = copied
+    Preferences.buildVideoDateIndex(copied)
+    Preferences.buildVideoUriSet(copied)
   }
 
   static saveRecentPlay(context: Context, recent_play_deque: VideoMetadata[]) {
@@ -554,5 +583,29 @@ export default class Preferences {
 
   static getDefaultDensityEnabled(context: Context): boolean {
     return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'defaultDensityEnabled', true) as boolean
+  }
+
+  static saveCollapsedFolderDates(context: Context, dates: string[]) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'collapsedFolderDates', dates)
+  }
+
+  static getCollapsedFolderDates(context: Context): string[] {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'collapsedFolderDates', []) as string[]
+  }
+
+  static saveDefaultStartupFolder(context: Context, folderDate: string) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'defaultStartupFolder', folderDate)
+  }
+
+  static getDefaultStartupFolder(context: Context): string {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'defaultStartupFolder', '') as string
+  }
+
+  static saveMaxListLine(context: Context, maxListLine: number) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'maxListLine', maxListLine)
+  }
+
+  static getMaxListLine(context: Context): number {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'maxListLine', 5) as number
   }
 }

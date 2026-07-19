@@ -35,6 +35,7 @@ export interface PlayerControllerInterface {
   lockVisibility: boolean
   isLock: boolean
   longPress: boolean
+  speedLocked: boolean
   isZoomed: boolean
   isGesturing: boolean
   translateX: number
