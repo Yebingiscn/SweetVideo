@@ -10,6 +10,7 @@ class SettingUtil {
   public backgroundColorMode: BackgroundColorMode = BackgroundColorMode.AUTO
   public enableBackgroundDarkImage: boolean = false
   public allowBackgroundPlay: boolean = true
+  public allowConcurrentPlay: boolean = false
   public autoActivePip: boolean = false
   public autoResumeOnReturn: boolean = false
   public allowPlayBackExist: boolean = false
@@ -20,6 +21,7 @@ class SettingUtil {
   public subtitleSize: string = '22'
   public allowDoubleFastForward: boolean = true
   public skipIntroTime: string = '0'
+  public skipOutroTime: string = '0'
   public listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
   public coverLayout: CoverLayoutMode = CoverLayoutMode.VERTICAL_PLATE
   public mpvDecodingMethod: MpvDecodingMethod = MpvDecodingMethod.HARDWARE_SURFACE
@@ -33,6 +35,7 @@ class SettingUtil {
   public jumpToHistoryTimeStatus: boolean = true
   public enableAiPrivacyAntiPeep: boolean = false
   public defaultBrightness: number = 0
+  public listItemBackgroundBlur: boolean = false
 
   public maxListLine: number = 5
   public defaultDensityEnabled: boolean = true

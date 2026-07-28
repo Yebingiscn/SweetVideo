@@ -17,12 +17,13 @@ import {
 import { PathUtils } from '../../utils/PathUtils'
 import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog'
 import NavigationAddress, { PrivacySpaceParams } from '../../common/NavigationCommon'
-import { EditMetadataDialog } from '../../component/Dialog/EditMetadataDialog'
+import { RenameDialog } from '../../component/Dialog/RenameDialog'
 import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
 import { ImportProgressBuilder } from '../../component/VideoItemComponent/ImportProgressBuilder'
 import VideoCardItem from '../../component/VideoItemComponent/VideoCardItemComponent'
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import { SortField } from '../../common/enum/SortField'
+import ShareUtil from '../../utils/ShareUtil'
 import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
 import {
   DELAY_JUMP_TO_PLAYER,
@@ -64,24 +65,24 @@ export struct PrivacySpace { // 隐私空间页
   @Local currentStage: 'extracting' | 'cover' | 'saving' = 'extracting' // 当前处理阶段
   @Local searchValue: string = ''
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
-    builder: EditMetadataDialog({
-      confirm: (title: string | undefined) => {
-        if (!title?.trim()) {
-          return
-        }
+    builder: RenameDialog({
+      title: $r('app.string.rename'),
+      renameTarget: 'video',
+      preserveExtension: true,
+      onConfirm: (title: string) => {
         const editingVideo = DataSyncUtil.editingVideo!
         const targetIndex = SelectFileUtil.getItemIndex(this.video_meta_data_encryption, editingVideo)
         if (targetIndex === -1) {
           return
         }
-        if (this.video_meta_data_encryption.some((v, index) => index !== targetIndex && v.title === title.trim())) {
+        if (this.video_meta_data_encryption.some((v, index) => index !== targetIndex && v.title === title)) {
           return
         }
         this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
         const original = this.video_meta_data_encryption[targetIndex]
         const updatedVideo: VideoMetadata = {
           uri: original.uri,
-          title: title.trim() as string,
+          title: title as string,
           date: original.date,
           size: original.size,
           time: original.time,
@@ -162,7 +163,8 @@ export struct PrivacySpace { // 隐私空间页
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  private listScroller: Scroller = new Scroller()
+  private listScroller: ListScroller = new ListScroller()
+
 
   @Builder
   PrivacySpaceSettingBuilder() {
@@ -423,7 +425,6 @@ export struct PrivacySpace { // 隐私空间页
           const targetIndex = SelectFileUtil.getItemIndex(this.allVideos, item!)
           if (targetIndex !== -1) {
             this.allVideos[targetIndex] = item!
-            // 使用增量更新而不是全量重载，提升性能
             const displayIndex = SelectFileUtil.getItemIndex(this.video_meta_data_encryption, item!)
             if (displayIndex !== -1) {
               this.video_meta_data_encryption[displayIndex] = item!
@@ -431,6 +432,13 @@ export struct PrivacySpace { // 隐私空间页
             }
             Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, this.allVideos)
           }
+        })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.share')),
+        content: $r('app.string.share')
+      })
+        .onClick(async () => {
+          await ShareUtil.shareVideo(item!.uri, item!.title)
         })
     }.attributeModifier(new MenuFancyModifier())
   }
@@ -527,140 +535,238 @@ export struct PrivacySpace { // 隐私空间页
           })
         }
         if (this.video_meta_data_encryption.length == 0 && !this.loading) {
-          Row() {
-            Column() {
-              if (this.searchValue.trim() !== '') {
-                Text('未找到相关视频').fontSize(25).fontWeight(FontWeight.Bold)
-              } else {
-                Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
-                Text($r('app.string.privacy_space_info'))
-                  .fontSize(15)
-                  .textAlign(TextAlign.Center)
-                  .fontWeight(FontWeight.Lighter)
-                  .margin({ top: 20 })
-              }
+          Column() {
+            if (this.searchValue.trim() !== '') {
+              Text('未找到相关视频').fontSize(25).fontWeight(FontWeight.Bold)
+            } else {
+              Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
+              Text($r('app.string.privacy_space_info'))
+                .fontSize(15)
+                .textAlign(TextAlign.Center)
+                .fontWeight(FontWeight.Lighter)
+                .margin({ top: 20 })
             }
-          }.layoutWeight(1)
+          }
+          .layoutWeight(1)
           .justifyContent(FlexAlign.Center)
           .animation({ duration: 150, curve: Curve.Ease })
         } else {
-          Stack({
-            alignContent: IntellectualGripPostureUtil.isLeftHoldHand(this.HoldingHand) ? Alignment.TopStart :
-              Alignment.TopEnd
-          }) {
-            List({ scroller: this.listScroller, space: 10 }) {
-              Repeat<VideoMetadata>(this.videoDataSource.data)
-                .each((repeatItem: RepeatItem<VideoMetadata>) => {
-                  ListItem() {
-                    if (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY) {
+          if (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY) {
+            Stack({
+              alignContent: IntellectualGripPostureUtil.isLeftHoldHand(this.HoldingHand) ? Alignment.TopStart :
+                Alignment.TopEnd
+            }) {
+              List({ scroller: this.listScroller, space: 10 }) {
+                Repeat<VideoMetadata>(this.videoDataSource.data)
+                  .each((repeatItem: RepeatItem<VideoMetadata>) => {
+                    ListItem() {
                       VideoListItem({
                         item: repeatItem.item,
                         delMultipleList: this.delMultipleList
-                      }).backgroundColor($r('app.color.start_window_background')).borderRadius(12)
-                    } else {
+                      })
+                    }
+                    .backgroundColor(Setting.listItemBackgroundBlur ? undefined :
+                      $r('app.color.start_window_background'))
+                    .borderRadius(12)
+                    .width('100%')
+                    .height('auto')
+                    .onClick(async () => {
+                      if (this.multipleChooseState === Visibility.Visible) {
+                        if (this.delMultipleList.some(v => v.date === repeatItem.item.date)) {
+                          this.delMultipleList = this.delMultipleList.filter(v => v.date !== repeatItem.item.date)
+                        } else {
+                          this.delMultipleList = [...this.delMultipleList, repeatItem.item]
+                        }
+                      } else {
+                        await this.clickItem(repeatItem.item)
+                      }
+                    })
+                    .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress,
+                      {
+                        backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+                        preview: VideoItemPreviewBuilder(repeatItem.item),
+                        previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
+                        layoutRegionMargin: {
+                          left: 16,
+                          right: 16,
+                          top: 16,
+                          bottom: 4
+                        },
+                        hapticFeedbackMode: HapticFeedbackMode.ENABLED,
+                        mask: true
+                      })
+                    .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.RightClick,
+                      {
+                        backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+                        preview: VideoItemPreviewBuilder(repeatItem.item),
+                        previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
+                        layoutRegionMargin: {
+                          left: 16,
+                          right: 16,
+                          top: 16,
+                          bottom: 4
+                        },
+                        mask: true
+                      })
+                    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+                    .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
+                    .swipeAction({
+                      end: this.itemEnd(repeatItem.item),
+                      edgeEffect: SwipeEdgeEffect.Spring
+                    })
+                  })
+                  .key((item: VideoMetadata, _index: number) => item.date + item.title + item.last_play +
+                    item.size.toString() + item.time)
+                  .virtualScroll()
+              }
+              .clip(false)
+              .lanes(this.list_line)
+              .layoutWeight(1)
+              .padding({ left: 16, right: 16 })
+              .width('100%')
+              .height('100%')
+              .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+              .chainAnimation(true)
+              .scrollBar(BarState.Off)
+              .onScrollIndex((start: number, _end: number, _center: number) => {
+                if (this.currentSortField === SortField.NAME && this.pinyinSort) {
+                  this.updateIndexerOnScroll(start)
+                }
+              })
+
+              if (this.currentSortField === 'name' && this.pinyinSort && this.activeAlphabet.length > 0) {
+                AlphabetIndexer({ arrayValue: this.activeAlphabet, selected: this.indexerSelected })
+                  .onSelect((index: number) => {
+                    this.scrollToLetter(this.activeAlphabet[index])
+                  })
+                  .color($r('app.color.text_color'))
+                  .selectedColor($r('sys.color.white'))
+                  .popupColor($r('app.color.main_color'))
+                  .selectedBackgroundColor($r('app.color.main_color'))
+                  .popupBackground($r('app.color.start_window_background'))
+                  .itemSize(20)
+                  .height('100%')
+                  .margin(IntellectualGripPostureUtil.isLeftHoldHand(this.HoldingHand) ? { left: 2 } : { right: 2 })
+              }
+
+              if (this.currentSortField !== SortField.NAME || !this.pinyinSort) {
+                ScrollBarBuilder({
+                  videoListController: this.listScroller,
+                  fileFolderLength: 0
+                })
+              }
+            }
+            .animation({ duration: 300, curve: Curve.Ease })
+            .layoutWeight(1)
+            .width('100%')
+          } else {
+            Stack({
+              alignContent: IntellectualGripPostureUtil.isLeftHoldHand(this.HoldingHand) ? Alignment.TopStart :
+                Alignment.TopEnd
+            }) {
+              WaterFlow({
+                scroller: this.listScroller,
+                layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW
+              }) {
+                Repeat<VideoMetadata>(this.videoDataSource.data)
+                  .each((repeatItem: RepeatItem<VideoMetadata>) => {
+                    FlowItem() {
                       VideoCardItem({
                         item: repeatItem.item,
                         delMultipleList: this.delMultipleList
-                      })
-                        .width('95%')
-                        .backgroundColor(Setting.backgroundImageSrc.length > 0 ?
-                          $r('app.color.start_window_background_blur') :
-                          $r('app.color.start_window_background'))
-                        .borderRadius(12)
-                        .height('auto')
+                      }).width('100%')
                     }
-                  }
-                  .width('100%')
-                  .height('auto')
-                  .onClick(async () => {
-                    if (this.multipleChooseState === Visibility.Visible) {
-                      if (this.delMultipleList.some(v => v.date === repeatItem.item.date)) {
-                        this.delMultipleList = this.delMultipleList.filter(v => v.date !== repeatItem.item.date)
+                    .backgroundColor(Setting.listItemBackgroundBlur ? undefined :
+                      (Setting.backgroundImageSrc.length > 0 ?
+                        $r('app.color.start_window_background_blur') :
+                        $r('app.color.start_window_background')))
+                    .borderRadius(12)
+                    .width('100%')
+                    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+                    .onClick(async () => {
+                      if (this.multipleChooseState === Visibility.Visible) {
+                        if (this.delMultipleList.some(v => v.date === repeatItem.item.date)) {
+                          this.delMultipleList = this.delMultipleList.filter(v => v.date !== repeatItem.item.date)
+                        } else {
+                          this.delMultipleList = [...this.delMultipleList, repeatItem.item]
+                        }
                       } else {
-                        this.delMultipleList = [...this.delMultipleList, repeatItem.item]
+                        await this.clickItem(repeatItem.item)
                       }
-                    } else {
-                      await this.clickItem(repeatItem.item)
-                    }
-                  })
-                  .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress,
-                    {
-                      backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-                      preview: VideoItemPreviewBuilder(repeatItem.item),
-                      previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
-                      layoutRegionMargin: {
-                        left: 16,
-                        right: 16,
-                        top: 16,
-                        bottom: 4
-                      },
-                      hapticFeedbackMode: HapticFeedbackMode.ENABLED,
-                      mask: true
                     })
-                  .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.RightClick,
-                    {
-                      backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
-                      preview: VideoItemPreviewBuilder(repeatItem.item),
-                      previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
-                      layoutRegionMargin: {
-                        left: 16,
-                        right: 16,
-                        top: 16,
-                        bottom: 4
-                      },
-                      mask: true
-                    })
-                  .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-                  .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
-                  .swipeAction({
-                    end: this.itemEnd(repeatItem.item),
-                    edgeEffect: SwipeEdgeEffect.Spring
+                    .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress,
+                      {
+                        backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+                        preview: VideoItemPreviewBuilder(repeatItem.item),
+                        previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
+                        layoutRegionMargin: {
+                          left: 16,
+                          right: 16,
+                          top: 16,
+                          bottom: 4
+                        },
+                        hapticFeedbackMode: HapticFeedbackMode.ENABLED,
+                        mask: true
+                      })
+                    .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.RightClick,
+                      {
+                        backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+                        preview: VideoItemPreviewBuilder(repeatItem.item),
+                        previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
+                        layoutRegionMargin: {
+                          left: 16,
+                          right: 16,
+                          top: 16,
+                          bottom: 4
+                        },
+                        mask: true
+                      })
                   })
-                })
-                .key((item: VideoMetadata, _index: number) => item.date + item.title + item.last_play +
-                  item.size.toString() + item.time)
-                .virtualScroll()
-            }
-            .clip(false)
-            .lanes(this.list_line)
-            .layoutWeight(1)
-            .padding({ left: 16, right: 16 })
-            .width('100%')
-            .height('100%')
-            .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
-            .chainAnimation(true)
-            .scrollBar(BarState.Off)
-            .onScrollIndex((start: number, _end: number, _center: number) => {
-              if (this.currentSortField === SortField.NAME && this.pinyinSort) {
-                this.updateIndexerOnScroll(start)
+                  .key((item: VideoMetadata, _index: number) => item.date + item.title + item.last_play +
+                    item.size.toString() + item.time)
+                  .virtualScroll()
               }
-            })
-
-            if (this.currentSortField === 'name' && this.pinyinSort && this.activeAlphabet.length > 0) {
-              AlphabetIndexer({ arrayValue: this.activeAlphabet, selected: this.indexerSelected })
-                .onSelect((index: number) => {
-                  this.scrollToLetter(this.activeAlphabet[index])
-                })
-                .color($r('app.color.text_color'))
-                .selectedColor($r('sys.color.white'))
-                .popupColor($r('app.color.main_color'))
-                .selectedBackgroundColor($r('app.color.main_color'))
-                .popupBackground($r('app.color.start_window_background'))
-                .itemSize(20)
-                .height('100%')
-                .margin(IntellectualGripPostureUtil.isLeftHoldHand(this.HoldingHand) ? { left: 2 } : { right: 2 })
-            }
-
-            if (this.currentSortField !== SortField.NAME || !this.pinyinSort) {
-              ScrollBarBuilder({
-                videoListController: this.listScroller,
-                fileFolderLength: 0
+              .clip(false)
+              .columnsTemplate('1fr '.repeat(this.list_line).trim())
+              .columnsGap(16)
+              .rowsGap(16)
+              .scrollBar(BarState.Off)
+              .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+              .width('100%')
+              .layoutWeight(1)
+              .padding({ left: 16, right: 16 })
+              .onScrollIndex((first: number) => {
+                if (this.currentSortField === SortField.NAME && this.pinyinSort) {
+                  this.updateIndexerOnScroll(first)
+                }
               })
+
+              if (this.currentSortField === 'name' && this.pinyinSort && this.activeAlphabet.length > 0) {
+                AlphabetIndexer({ arrayValue: this.activeAlphabet, selected: this.indexerSelected })
+                  .onSelect((index: number) => {
+                    this.scrollToLetter(this.activeAlphabet[index])
+                  })
+                  .color($r('app.color.text_color'))
+                  .selectedColor($r('sys.color.white'))
+                  .popupColor($r('app.color.main_color'))
+                  .selectedBackgroundColor($r('app.color.main_color'))
+                  .popupBackground($r('app.color.start_window_background'))
+                  .itemSize(20)
+                  .height('100%')
+                  .margin(IntellectualGripPostureUtil.isLeftHoldHand(this.HoldingHand) ? { left: 2 } : { right: 2 })
+              }
+
+              if (this.currentSortField !== SortField.NAME || !this.pinyinSort) {
+                ScrollBarBuilder({
+                  videoListController: this.listScroller,
+                  fileFolderLength: 0
+                })
+              }
             }
+            .animation({ duration: 300, curve: Curve.Ease })
+            .layoutWeight(1)
+            .width('100%')
           }
-          .animation({ duration: 300, curve: Curve.Ease })
-          .layoutWeight(1)
-          .width('100%')
         }
       }
       .width('100%')
@@ -780,7 +886,7 @@ export struct PrivacySpace { // 隐私空间页
         return false
       }
     })
-    .bindToScrollable([this.listScroller]) // 绑定导航组件和可滚动容器组件
+    .bindToScrollable([this.listScroller])
     .blur(Privacy.isPrivacyBackground ? PRIVACY_BACKGROUND_BLUR_AMOUNT : NO_BLUR_AMOUNT)
     .onReady(() => {
       const privacySpaceParams =

@@ -8,7 +8,13 @@ import { systemShare } from '@kit.ShareKit'
 import { uniformTypeDescriptor } from '@kit.ArkData'
 import { fileIo } from '@kit.CoreFileKit'
 import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
-import { CapsuleSegmentButtonV2, ColorMetrics, SegmentButtonV2ItemOptions, SegmentButtonV2Items, LengthMetrics } from '@kit.ArkUI'
+import {
+  CapsuleSegmentButtonV2,
+  ColorMetrics,
+  LengthMetrics,
+  SegmentButtonV2ItemOptions,
+  SegmentButtonV2Items
+} from '@kit.ArkUI'
 
 const TAG = 'CrashPage'
 
@@ -202,6 +208,7 @@ export struct CrashPage {
               .backgroundColor($r('app.color.start_window_background_blur'))
               .borderRadius(16)
               .width('100%')
+              .height('100%')
               .layoutWeight(1)
               .padding({ left: 8, right: 8 })
               .scrollBar(BarState.Auto)
@@ -312,25 +319,6 @@ export struct CrashPage {
     .bindToScrollable([this.listScroller])
   }
 
-  private initSegmentItems() {
-    const tips: ResourceStr[] = this.appEventGroups.length > 0
-      ? ['运行日志', '崩溃日志']
-      : ['运行日志']
-    const buttonItems: SegmentButtonV2ItemOptions[] = tips.map((tip: ResourceStr) =>
-    ({ text: tip } as SegmentButtonV2ItemOptions)
-    )
-    this.segmentItems = new SegmentButtonV2Items(buttonItems)
-  }
-
-  private getColor() {
-    try {
-      this.itemSelectedBackgroundColor = ColorMetrics.resourceColor($r('app.color.main_color'))
-      this.itemSelectedFontColor = ColorMetrics.resourceColor($r('sys.color.white'))
-    } catch (error) {
-      salmonLogger.addLog(TAG, 'getColor error', true)
-    }
-  }
-
   @Builder
   EventInfoText(label: string, value: string | number) {
     Row() {
@@ -385,6 +373,25 @@ export struct CrashPage {
       salmonLogger.addLog(this.pathStack.getAllPathName()[0], errorMsg, true)
       salmonLogger.addLog(TAG, errorMsg, true)
       ToolsUtil.showToast('分享失败: ' + err.message)
+    }
+  }
+
+  private initSegmentItems() {
+    const tips: ResourceStr[] = this.appEventGroups.length > 0
+      ? ['运行日志', '崩溃日志']
+      : ['运行日志']
+    const buttonItems: SegmentButtonV2ItemOptions[] = tips.map((tip: ResourceStr) =>
+    ({ text: tip } as SegmentButtonV2ItemOptions)
+    )
+    this.segmentItems = new SegmentButtonV2Items(buttonItems)
+  }
+
+  private getColor() {
+    try {
+      this.itemSelectedBackgroundColor = ColorMetrics.resourceColor($r('app.color.main_color'))
+      this.itemSelectedFontColor = ColorMetrics.resourceColor($r('sys.color.white'))
+    } catch (error) {
+      salmonLogger.addLog(TAG, 'getColor error', true)
     }
   }
 }

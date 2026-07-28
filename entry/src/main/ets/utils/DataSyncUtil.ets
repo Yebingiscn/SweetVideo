@@ -1,15 +1,14 @@
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 
-// 数据类
 class DataSyncUtil {
   public editingVideo: VideoMetadata | undefined = undefined
   public editingFolder: FileFolder | undefined = undefined
   public movingFolderDate: string = ''
   public deletedVideos: VideoMetadata[] = []
   public delMultipleList: VideoMetadata[] = []
-  public minSideBarWidth: number = 150 // 最小侧边栏宽度
-  public minContentWidth: number = 325 // 最小内容区宽度
+  public minSideBarWidth: number = 150
+  public minContentWidth: number = 325
   public lastPlayVideoIndex: number = -1
 }
 

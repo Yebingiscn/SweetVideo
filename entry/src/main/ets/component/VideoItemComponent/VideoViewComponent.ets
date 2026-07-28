@@ -69,7 +69,6 @@ export struct VideoView {
   @Param scrollToFolderDate: string = ''
   private passwd: string = 'passwd'
   private breadcrumbScroller: Scroller = new Scroller()
-  // 文件夹按钮尺寸配置
   private readonly FOLDER_TAB_MIN_WIDTH: number = 64
   private readonly FOLDER_TAB_HEIGHT: number = 28
   @Event onSearchValueChange: (v: string) => void = () => {
@@ -108,7 +107,7 @@ export struct VideoView {
   }
 
   build() {
-    Stack({ alignContent: Alignment.Top }) { // 内容区
+    Stack({ alignContent: Alignment.Top }) {
       if (this.sideBarController.overlay &&
         this.sideBarController.visibility !== Visibility.Hidden &&
         this.sideBarController.mode === SideBarContainerType.Overlay) {
@@ -131,7 +130,9 @@ export struct VideoView {
         pinyinSort: this.pinyinSort,
         searchBarHidden: this.searchBarHidden,
         onScrollDirectionChange: (isUp: boolean) => {
-          if (this.is_edit) return
+          if (this.is_edit) {
+            return
+          }
           animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
             this.searchBarHidden = isUp
           })
@@ -139,46 +140,52 @@ export struct VideoView {
       })
 
       if (!this.loading && this.videoListController.openSideBarTip(this._searchValue)) {
-        Row() { //顶栏
-          Column() {
-            Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
-            Text($r('app.string.open_side_bar_tip'))
-              .fontSize(15)
-              .textAlign(TextAlign.Center)
-              .fontWeight(FontWeight.Lighter)
-              .margin({ top: 20 })
-          }
+        Column() {
+          Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
+          Text($r('app.string.open_side_bar_tip'))
+            .fontSize(15)
+            .textAlign(TextAlign.Center)
+            .fontWeight(FontWeight.Lighter)
+            .margin({ top: 20 })
         }
         .height('100%')
+        .justifyContent(FlexAlign.Center)
         .animation({ duration: 150, curve: Curve.Ease })
       }
 
       // 搜索无结果提示
       if (!this.loading && this.videoListController.isSearchEmpty(this._searchValue)) {
-        Row() {
-          Column() {
-            Text('没有匹配结果').fontSize(25).fontWeight(FontWeight.Bold)
-            Text('当前文件夹没有匹配"' + this._searchValue + '"的视频')
-              .fontSize(15)
-              .textAlign(TextAlign.Center)
-              .fontWeight(FontWeight.Lighter)
-              .margin({ top: 20 })
-          }
+        Column() {
+          Text('没有匹配结果').fontSize(25).fontWeight(FontWeight.Bold)
+          Text('当前文件夹没有匹配"' + this._searchValue + '"的视频')
+            .fontSize(15)
+            .textAlign(TextAlign.Center)
+            .fontWeight(FontWeight.Lighter)
+            .margin({ top: 20 })
         }
         .height('100%')
+        .justifyContent(FlexAlign.Center)
         .animation({ duration: 150, curve: Curve.Ease })
       }
       Column() {
         Row({ space: 15 }) {
-          if (!this.is_edit && this.sideBarController.mode == SideBarContainerType.Overlay) {
+          if (!this.is_edit) {
             Button({ type: ButtonType.Circle, stateEffect: true }) {
-              SymbolGlyph($r('sys.symbol.close_sidebar'))
+              SymbolGlyph(
+                this.sideBarController.isShow ? $r('sys.symbol.indentation_left') : $r('sys.symbol.close_sidebar'))
                 .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
             }
             .attributeModifier(new ButtonFancyModifier(40, 40))
             .animation({ duration: 300, curve: Curve.Ease })
             .onClick(() => {
-              this.sideBarController.open()
+              if (this.sideBarController.isShow) {
+                this.sideBarController.close(false)
+              } else {
+                this.sideBarController.open()
+              }
+              if (this.sideBarController.mode === SideBarContainerType.Embed) {
+                Preferences.saveEmbedSidebarVisible(PathUtils.appContext!, this.sideBarController.isShow)
+              }
             })
             .attributeModifier(new SearchShadowModifier())
             .transition(XAnimation.getAnimation('left', 0, false))

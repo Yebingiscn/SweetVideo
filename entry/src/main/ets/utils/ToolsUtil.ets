@@ -193,7 +193,8 @@ export default class ToolsUtil {
     const findResult = Preferences.findVideoByDate(PathUtils.appContext!, item.date)
     const latestItem = findResult[0] ?? item
     const folder_date = findResult[2]
-    const playerParams = new PlayerParams(latestItem, undefined, undefined, skipHistory, uri, folder_date)
+    const metadata_list = folder_date ? undefined : list
+    const playerParams = new PlayerParams(latestItem, metadata_list, undefined, skipHistory, uri, folder_date)
     pathStack.pushPathByName(NavigationAddress.VIDEO_PLAYER, playerParams, true)
   }
 
@@ -380,5 +381,11 @@ export default class ToolsUtil {
       }
     }
     return aParts.length - bParts.length
+  }
+
+  static isNetworkUrl(uri: string | undefined): boolean {
+    if (!uri) return false
+    return uri.startsWith('http://') || uri.startsWith('https://') ||
+      uri.startsWith('rtmp://') || uri.startsWith('rtsp://') || uri.startsWith('rtp://')
   }
 }

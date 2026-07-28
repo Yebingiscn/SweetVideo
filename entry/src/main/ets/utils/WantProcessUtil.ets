@@ -39,7 +39,6 @@ export default class WantProcess {
         const data = await systemShare.getSharedData(want)
         const records = data.getRecords()
         for (const record of records) {
-          console.error('testTAG WantProcess.receiveWantUri：' + record.uri)
           if (record.uri) {
             WantProcess.receiveWantUri = record.uri
             WantProcess.isSystemShare = true

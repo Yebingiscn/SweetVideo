@@ -36,6 +36,12 @@ export struct VideoTopComponent {
   @Event onOpenPersonalScreenExtend: () => void = () => {
   }
 
+  private get displayTitle(): string {
+    const title = this.player.nowPlaying?.title ?? ''
+    const dotIndex = title.lastIndexOf('.')
+    return dotIndex > 0 ? title.slice(0, dotIndex) : title
+  }
+
   build() {
     Row({ space: 8 }) {
       // 1. 返回按钮
@@ -66,7 +72,7 @@ export struct VideoTopComponent {
       })
 
       // 2. 视频标题 (占据中间主要空间)
-      Text(this.player.nowPlaying?.title.slice(0, this.player.nowPlaying?.title.lastIndexOf('.')))
+      Text(this.displayTitle)
         .fontSize(23)
         .fontWeight(FontWeight.Medium)
         .maxLines(1)

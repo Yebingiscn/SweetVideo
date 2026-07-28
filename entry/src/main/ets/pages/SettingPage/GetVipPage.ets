@@ -404,9 +404,9 @@ export struct GetVipPage {
   PurchaseSuccessView() {
     Column({ space: 20 }) {
       Column({ space: 12 }) {
-        SymbolGlyph($r('sys.symbol.checkmark_circle_fill'))
+        SymbolGlyph($r('sys.symbol.crown'))
           .fontSize(72)
-          .fontColor([$r('app.color.main_color')])
+          .fontColor(['#FFE46D'])
         Text('购买成功')
           .fontSize(28)
           .fontWeight(FontWeight.Bold)

@@ -12,6 +12,7 @@ import DataSyncUtil from '../utils/DataSyncUtil'
 import { Setting, SafeHeight } from '../utils/ObservedUtil'
 import RecentPlayUtil from '../utils/RecentPlayUtil'
 import SelectFileUtil from '../utils/SelectFileUtil'
+import Preferences from '../database/Preferences'
 import ToolsUtil from '../utils/ToolsUtil'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
 import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
@@ -89,14 +90,19 @@ export struct RecentPlay { // 最近播放页
     if (!item) {
       return
     }
-    const isFileExist = await SelectFileUtil.isFileExist(item.uri, true)
-    if (isFileExist) {
-      const originalList = SelectFileUtil.getVideoListByVideoDate(item.date)
-      if (originalList[1].length > 0 && originalList[0]) {
-        await ToolsUtil.routerWhere(this.pathStack, originalList[0], originalList[1], reverse)
+    const isNetwork = ToolsUtil.isNetworkUrl(item.uri)
+    if (isNetwork || await SelectFileUtil.isFileExist(item.uri, true)) {
+      if (isNetwork) {
+        const streams = Preferences.getNetworkStreams(PathUtils.appContext!)
+        await ToolsUtil.routerWhere(this.pathStack, item, streams, reverse, true)
       } else {
-        ToolsUtil.showToast('数据异常，已移除该数据')
-        this.delData(PathUtils.appContext!, item)
+        const originalList = SelectFileUtil.getVideoListByVideoDate(item.date)
+        if (originalList[1].length > 0 && originalList[0]) {
+          await ToolsUtil.routerWhere(this.pathStack, originalList[0], originalList[1], reverse)
+        } else {
+          ToolsUtil.showToast('数据异常，已移除该数据')
+          this.delData(PathUtils.appContext!, item)
+        }
       }
     } else {
       this.delData(PathUtils.appContext!, item)
@@ -131,7 +137,9 @@ export struct RecentPlay { // 最近播放页
               .onClick(async () => {
                 await this.clickItem(repeatItem.item)
               })
-              .backgroundColor($r('app.color.list_item_background'))
+              .backgroundColor(Setting.listItemBackgroundBlur ? undefined :
+                $r('app.color.list_item_background'))
+
               .width('100%')
               .height('auto')
               .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })

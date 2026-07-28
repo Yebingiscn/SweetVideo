@@ -44,6 +44,7 @@ import { PersonalizePage } from './SettingPage/PersonalizePage'
 import { PlayerSettingPage } from './SettingPage/PlayerSettingPage'
 import { SettingsPage } from './SettingPage/Setting'
 import { VideoPlayer } from './VideoPlayer/VideoPlayer'
+import { StreamPage } from './StreamPage/StreamPage'
 import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData'
 import { LengthMetrics } from '@kit.ArkUI'
 import { HdsNavigation, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
@@ -60,6 +61,7 @@ struct Index {
   @Local currentFileName: string = '' // 当前处理的文件名
   @Local failedCount: number = 0 // 失败文件数
   @Local currentStage: 'extracting' | 'cover' | 'saving' = 'extracting'
+  @Local isSizeInitialized: boolean = false
   @Provider() file_folder_list: FileFolder[] = []
   @Local searchValue: string = ''
   @Local contentWidth: number = 0
@@ -277,14 +279,20 @@ struct Index {
       .allowDrop([uniformTypeDescriptor.UniformDataType.PLAIN_TEXT, uniformTypeDescriptor.UniformDataType.VIDEO])
       .onSizeChange((_oldValue: SizeResult, newValue: SizeResult) => {
         if (newValue.width >= DataSyncUtil.minSideBarWidth + DataSyncUtil.minContentWidth) {
-          this.sideBarController.mode = SideBarContainerType.Embed
-          this.sideBarController.visibility = Visibility.Visible
-          this.sideBarController.isShow = true
+          if (!this.isSizeInitialized || this.sideBarController.mode !== SideBarContainerType.Embed) {
+            this.sideBarController.mode = SideBarContainerType.Embed
+            const visible = Preferences.getEmbedSidebarVisible(PathUtils.appContext!)
+            this.sideBarController.visibility = visible ? Visibility.Visible : Visibility.Hidden
+            this.sideBarController.isShow = visible
+          }
         } else {
-          this.sideBarController.mode = SideBarContainerType.Overlay
-          this.sideBarController.visibility = Visibility.Hidden
-          this.sideBarController.isShow = false
+          if (!this.isSizeInitialized || this.sideBarController.mode !== SideBarContainerType.Overlay) {
+            this.sideBarController.mode = SideBarContainerType.Overlay
+            this.sideBarController.visibility = Visibility.Hidden
+            this.sideBarController.isShow = false
+          }
         }
+        this.isSizeInitialized = true
       })
       .onChange((value: boolean) => {
         this.sideBarController.isShow = value
@@ -461,6 +469,8 @@ struct Index {
       VideoPlayer()
     } else if (name == NavigationAddress.VIP_PAGE) {
       GetVipPage()
+    } else if (name == NavigationAddress.STREAM_PAGE) {
+      StreamPage()
     }
   }
 

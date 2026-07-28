@@ -79,12 +79,6 @@ export class ImageFancyModifier implements AttributeModifier<ImageAttribute> {
       .opacity(0.98)
       .dynamicRangeMode(DynamicRangeMode.HIGH)
       .contentTransition(ContentTransitionEffect.OPACITY)
-    // .shadow({
-    //   radius: 18,
-    //   type: ShadowType.BLUR,
-    //   color: 'primary',
-    //   fill: true
-    // })
   }
 }
 

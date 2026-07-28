@@ -1,11 +1,14 @@
 import { FileFolderDataSource } from '../../utils/DataUtil'
 import { AddFileFolderNameDialog } from '../Dialog/AddFileFolderNameDialog'
-import { EditFileFolderNameDialog } from '../Dialog/EditFileFolderNameDialog'
+import { RenameDialog } from '../Dialog/RenameDialog'
 import { MoveFileFolderDialog } from '../Dialog/MoveFileFolderDialog'
+import { AddNetworkStreamDialog } from '../Dialog/AddNetworkStreamDialog'
+
 import { FileFolder } from '../../interfaces/FileFolderInterface'
 import {
   ButtonFancyModifier,
   DefaultDialogShadow,
+  ImageFancyModifier,
   SymbolGlyphFancyModifier
 } from '../../common/AttributeModifierConfig'
 import { PathUtils } from '../../utils/PathUtils'
@@ -30,6 +33,7 @@ import TimeUtil from '../../utils/TimeUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoUtils from '../../utils/VideoUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { CapsuleSegmentButtonV2, ColorMetrics, SegmentButtonV2ItemOptions, SegmentButtonV2Items } from '@kit.ArkUI'
 
 @ComponentV2
 export struct SideBarContentComponent {
@@ -46,6 +50,19 @@ export struct SideBarContentComponent {
   @Local folderSortAsc: boolean = true
   @Local folderPinyinSort: boolean = true
   @Param sideBarScroller: Scroller = new Scroller()
+  @Local currentSourceTab: number = 0
+  @Local segmentItems: SegmentButtonV2Items = new SegmentButtonV2Items([
+    { text: '本地' } as SegmentButtonV2ItemOptions,
+    { text: '网络' } as SegmentButtonV2ItemOptions
+  ])
+  @Local itemSelectedBackgroundColor: ColorMetrics | undefined = undefined
+  @Local itemSelectedFontColor: ColorMetrics | undefined = undefined
+  addNetworkStreamDialogController: CustomDialogController = new CustomDialogController({
+    builder: AddNetworkStreamDialog({
+      onStreamAdded: () => {
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
   @Event fileFolderListChange: (folders: FileFolder[]) => void = () => {
   }
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
@@ -56,11 +73,10 @@ export struct SideBarContentComponent {
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   editFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
-    builder: EditFileFolderNameDialog({
-      confirm: async (newFolderName: string | undefined) => {
-        if (!newFolderName || newFolderName.trim() == '') {
-          return
-        }
+    builder: RenameDialog({
+      title: '修改新文件夹名',
+      renameTarget: 'folder',
+      onConfirm: async (newFolderName: string) => {
         await FileFolderUtil.changeFileFolderName(PathUtils.appContext!,
           DataSyncUtil.editingFolder!, newFolderName, this.fileFolderSource)
         const updatedFolders = Preferences.getFileFolder(PathUtils.appContext!) as FileFolder[]
@@ -96,7 +112,13 @@ export struct SideBarContentComponent {
     this.folderSortAsc = Preferences.getFolderSortAsc(PathUtils.appContext!)
     this.folderPinyinSort = Preferences.getPinyinSort(PathUtils.appContext!)
     this.collapsedFolderDates = new Set(Preferences.getCollapsedFolderDates(PathUtils.appContext!))
+
     this.recomputeExpandedFolderDates()
+    try {
+      this.itemSelectedBackgroundColor = ColorMetrics.resourceColor($r('app.color.main_color'))
+      this.itemSelectedFontColor = ColorMetrics.resourceColor($r('sys.color.white'))
+    } catch (_error) {
+    }
   }
 
   @Monitor('file_folder_list')
@@ -105,17 +127,6 @@ export struct SideBarContentComponent {
     const allFolderDates = new Set(this.file_folder_list.map(f => f.date))
     this.collapsedFolderDates = new Set(Array.from(this.collapsedFolderDates).filter(d => allFolderDates.has(d)))
     this.recomputeExpandedFolderDates()
-  }
-
-  private recomputeExpandedFolderDates() {
-    const newSet = new Set<string>()
-    for (const folder of this.file_folder_list) {
-      if (FileFolderUtil.getChildFolders(PathUtils.appContext!, folder.date).length > 0 &&
-        !this.collapsedFolderDates.has(folder.date)) {
-        newSet.add(folder.date)
-      }
-    }
-    this.expandedFolderDates = newSet
   }
 
   @Builder
@@ -305,117 +316,332 @@ export struct SideBarContentComponent {
 
   build() {
     Column() {
-      Scroll(this.sideBarScroller) {
-        Column() {
-          Row() {
-            Text($r('app.string.EntryAbility_label'))
-              .fontSize(20)
-              .fontColor($r('app.color.text_color'))
-              .fontWeight(FontWeight.Bold)
-              .textOverflow({ overflow: TextOverflow.MARQUEE })
-            Text(TimeUtil.getTextByTime())
-              .fontSize(15)
-              .fontColor($r('app.color.text_color'))
-              .textOverflow({ overflow: TextOverflow.MARQUEE })
-              .margin({ left: 5, right: 12 })
-          }
-          .alignItems(VerticalAlign.Bottom)
-          .width('100%')
-          .justifyContent(FlexAlign.Start)
-          .margin({ top: SafeHeight.topSafeHeight })
-          .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
-          .onClick(() => {
-            ToolsUtil.startVibration()
-            ToolsUtil.showToast('不管多么难熬，人生都要眉开眼笑 ( •̀ ω •́ )✧')
-          })
+      // 头部固定区域：标题 + 用户卡片 + 快捷入口 + 分段按钮
+      Column() {
+        Row() {
+          Text($r('app.string.EntryAbility_label'))
+            .fontSize(20)
+            .fontColor($r('app.color.text_color'))
+            .fontWeight(FontWeight.Bold)
+            .textOverflow({ overflow: TextOverflow.MARQUEE })
+          Text(TimeUtil.getTextByTime())
+            .fontSize(15)
+            .fontColor($r('app.color.text_color'))
+            .textOverflow({ overflow: TextOverflow.MARQUEE })
+            .margin({ left: 5, right: 12 })
+        }
+        .alignItems(VerticalAlign.Bottom)
+        .width('100%')
+        .justifyContent(FlexAlign.Start)
+        .margin({ top: SafeHeight.topSafeHeight })
+        .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
+        .onClick(() => {
+          ToolsUtil.startVibration()
+          ToolsUtil.showToast('不管多么难熬，人生都要眉开眼笑 ( •̀ ω •́ )✧')
+        })
 
-          Row() {
-            Image(userData?.userAvatar || $r("app.media.Foreground"))
-              .width(50)
-              .height(50)
-              .borderRadius(25)
-              .interpolation(ImageInterpolation.High)
-              .draggable(false)
-              .autoResize(true)
-              .margin({ left: 10 })
-            Column({ space: 2 }) {
-              Text(userData.isLogin ? (userData.nickName || '已登录') : '点击登录')
-                .fontSize(15)
-                .textOverflow({ overflow: TextOverflow.MARQUEE })
-              if (userData.isLogin) {
-                Text(userData.isVip ? 'VIP' : '非VIP')
-                  .fontSize(10)
-                  .fontColor(userData.isVip ? $r('sys.color.white') : $r('sys.color.black'))
-                  .backgroundColor(userData.isVip ? $r('app.color.main_color') : '#c1b2a3')
-                  .fontWeight(userData.isVip ? FontWeight.Bold : FontWeight.Normal)
-                  .borderRadius(6)
-                  .padding({
-                    left: 5,
-                    right: 5,
-                    top: 2,
-                    bottom: 2
-                  })
-              }
+        Row() {
+          Image(userData?.userAvatar || $r("app.media.Foreground"))
+            .attributeModifier(new ImageFancyModifier(20, 45, 45))
+            .margin({ left: 10 })
+          Column({ space: 2 }) {
+            Text(userData.isLogin ? (userData.nickName || '已登录') : '点击登录')
+              .fontColor($r('app.color.text_color'))
+              .fontSize(15)
+              .textOverflow({ overflow: TextOverflow.MARQUEE })
+            if (userData.isLogin) {
+              Text(userData.isVip ? 'VIP' : '非VIP')
+                .fontSize(10)
+                .fontColor(userData.isVip ? $r('sys.color.white') : $r('sys.color.black'))
+                .backgroundColor(userData.isVip ? $r('app.color.main_color') : '#c1b2a3')
+                .fontWeight(userData.isVip ? FontWeight.Bold : FontWeight.Normal)
+                .borderRadius(6)
+                .padding({
+                  left: 5,
+                  right: 5,
+                  top: 2,
+                  bottom: 2
+                })
             }
-            .alignItems(HorizontalAlign.Start)
-            .layoutWeight(1)
-            .margin({ left: 10, right: 12 })
           }
-          .height(65)
-          .onClick(() => {
-            this.isLogin = true
-          })
-          .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
-          .margin({ top: 10 })
-          .justifyContent(FlexAlign.Start)
-          .backgroundColor($r('app.color.list_item_background'))
-          .borderRadius(16)
-          .shadow({
-            radius: 4,
-            color: $r('app.color.shadow_color'),
-            offsetX: 0,
-            offsetY: 1
-          })
-          .bindSheet(this.isLogin, userLoginBuilder(() => {
+          .alignItems(HorizontalAlign.Start)
+          .layoutWeight(1)
+          .margin({ left: 10, right: 12 })
+        }
+        .height(65)
+        .onClick(() => {
+          this.isLogin = true
+        })
+        .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
+        .margin({ top: 10 })
+        .justifyContent(FlexAlign.Start)
+        .backgroundColor($r('app.color.list_item_background'))
+        .borderRadius(16)
+        .shadow({
+          radius: 4,
+          color: $r('app.color.shadow_color'),
+          offsetX: 0,
+          offsetY: 1
+        })
+        .bindSheet(this.isLogin, userLoginBuilder(() => {
+          this.isLogin = false
+          this.pathStack.pushPathByName(NavigationAddress.VIP_PAGE, true)
+        }), {
+          detents: [SheetSize.FIT_CONTENT],
+          height: SheetSize.MEDIUM,
+          preferType: SheetType.CENTER,
+          enableOutsideInteractive: false,
+          dragBar: true,
+          showClose: true,
+          title: { title: '账号信息' },
+          onWillDismiss: () => {
             this.isLogin = false
-            this.pathStack.pushPathByName(NavigationAddress.VIP_PAGE, true)
-          }), {
-            detents: [SheetSize.FIT_CONTENT],
-            height: SheetSize.MEDIUM,
-            preferType: SheetType.CENTER,
-            enableOutsideInteractive: false,
-            dragBar: true,
-            showClose: true,
-            title: { title: '账号信息' },
-            onWillDismiss: () => {
-              this.isLogin = false
-            }
+          }
+        })
+
+        // 快捷入口：设置 + 最近播放（从底部移到顶部）
+        Row() {
+          Column() {
+            SymbolGlyph($r('sys.symbol.gearshape'))
+              .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
+            Text($r('app.string.setting'))
+              .fontSize(11)
+              .fontColor($r('app.color.text_color'))
+              .margin({ top: 4 })
+          }
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+          .layoutWeight(1)
+          .padding({ top: 12, bottom: 12 })
+          .alignItems(HorizontalAlign.Center)
+          .onClick(() => {
+            this.sideBarController.close(false)
+            this.pathStack.pushPathByName(NavigationAddress.SETTING_PAGE, null)
           })
 
           Column() {
-            Button({ type: ButtonType.Normal, stateEffect: true }) {
-              Row() {
-                SymbolGlyph($r('sys.symbol.plus_square'))
-                  .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                Text($r('app.string.import_from_videos'))
-                  .fontSize(15)
-                  .margin({ left: 10, right: 12 })
-                  .textOverflow({ overflow: TextOverflow.MARQUEE })
-              }
-            }
-            .align(Alignment.Start)
-            .padding({ left: 16, right: 16 })
-            .attributeModifier(new ButtonFancyModifier('100%', 60))
-            .backgroundColor(Color.Transparent)
-            .animation({ duration: 300, curve: Curve.Ease })
-            .bindMenu(this.SelectFileMenuBuilder)
-            .width('100%')
+            SymbolGlyph($r('sys.symbol.clock'))
+              .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
+            Text($r('app.string.recent_play'))
+              .fontSize(11)
+              .fontColor($r('app.color.text_color'))
+              .margin({ top: 4 })
+          }
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+          .layoutWeight(1)
+          .padding({ top: 12, bottom: 12 })
+          .alignItems(HorizontalAlign.Center)
+          .onClick(() => {
+            this.sideBarController.close(false)
+            this.pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, true)
+          })
+        }
+        .width('100%')
+        .margin({ top: 10 })
+        .backgroundColor($r('app.color.list_item_background'))
+        .borderRadius(16)
+        .shadow({
+          radius: 4,
+          color: $r('app.color.shadow_color'),
+          offsetX: 0,
+          offsetY: 1
+        })
 
+        // 本地/网络切换 - CapsuleSegmentButtonV2
+        CapsuleSegmentButtonV2({
+          items: this.segmentItems,
+          selectedIndex: this.currentSourceTab,
+          buttonBackgroundBlurStyle: BlurStyle.BACKGROUND_THICK,
+          itemSelectedFontColor: this.itemSelectedFontColor,
+          itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
+          onItemClicked: (index: number) => {
+            this.currentSourceTab = index
+          }
+        })
+          .margin({ top: 10, bottom: 6 })
+      }
+      .width('100%')
+      .padding({ left: 16, right: 16 })
+
+      // 内容区域：Swiper 切换本地/网络
+      Swiper() {
+        // Tab 0: 本地
+        Scroll(this.sideBarScroller) {
+          Column() {
+            // 导入操作区
+            Column() {
+              Button({ type: ButtonType.Normal, stateEffect: true }) {
+                Row() {
+                  SymbolGlyph($r('sys.symbol.plus_square'))
+                    .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                  Text($r('app.string.import_from_videos'))
+                    .fontSize(15)
+                    .margin({ left: 10, right: 12 })
+                    .textOverflow({ overflow: TextOverflow.MARQUEE })
+                }
+              }
+              .align(Alignment.Start)
+              .padding({ left: 16, right: 16 })
+              .attributeModifier(new ButtonFancyModifier('100%', 60))
+              .backgroundColor(Color.Transparent)
+              .animation({ duration: 300, curve: Curve.Ease })
+              .bindMenu(this.SelectFileMenuBuilder)
+              .width('100%')
+
+              Button({ type: ButtonType.Normal, stateEffect: true }) {
+                Row() {
+                  SymbolGlyph($r('sys.symbol.folder_badge_plus'))
+                    .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                  Text('添加文件夹')
+                    .fontSize(15)
+                    .margin({ left: 10, right: 12 })
+                    .textOverflow({ overflow: TextOverflow.MARQUEE })
+                }
+              }
+              .align(Alignment.Start)
+              .padding({ left: 16, right: 16 })
+              .attributeModifier(new ButtonFancyModifier('100%', 60))
+              .backgroundColor(Color.Transparent)
+              .animation({ duration: 300, curve: Curve.Ease })
+              .onClick(() => {
+                this.addFileFolderNameDialogController.open()
+              })
+            }
+            .justifyContent(FlexAlign.Start)
+            .backgroundColor($r('app.color.list_item_background'))
+            .borderRadius(16)
+            .shadow({
+              radius: 4,
+              color: $r('app.color.shadow_color'),
+              offsetX: 0,
+              offsetY: 1
+            })
+
+            // 文件夹标题行 + 排序
+            Row() {
+              Text('文件夹')
+                .fontSize(14)
+                .fontColor($r('sys.color.font_tertiary'))
+                .fontWeight(FontWeight.Medium)
+                .margin({ left: 4 })
+                .textOverflow({ overflow: TextOverflow.MARQUEE })
+              Blank()
+              Button({ type: ButtonType.Circle, stateEffect: true }) {
+                SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
+                  .fontSize(16)
+                  .fontColor([$r('sys.color.font_tertiary')])
+              }
+              .width(28)
+              .height(28)
+              .backgroundColor(Color.Transparent)
+              .bindMenu(this.FolderSortMenuBuilder,
+                {
+                  backgroundBlurStyle: BlurStyle.Regular,
+                  hapticFeedbackMode: HapticFeedbackMode.ENABLED
+                })
+              .margin({ right: 4 })
+            }
+            .width('100%')
+            .height(32)
+            .alignItems(VerticalAlign.Center)
+            .padding({ left: 16, right: 16 })
+
+            // 文件夹列表
+            List({ space: 2 }) {
+              Repeat<FileFolder>(this.getFlattenedTreeFolders())
+                .each((repeatItem: RepeatItem<FileFolder>) => {
+                  ListItem() {
+                    FileFolderListBuilder({
+                      folder: repeatItem.item,
+                      videoListController: this.videoListController,
+                      fileFolderSource: this.fileFolderSource,
+                      expandedFolderDates: this.expandedFolderDates,
+                      depth: FileFolderUtil.getFolderDepth(PathUtils.appContext!, repeatItem.item.date),
+                      hasChildren: FileFolderUtil.getChildFolders(PathUtils.appContext!, repeatItem.item.date)
+                        .length > 0,
+                      isExpanded: this.expandedFolderDates.has(repeatItem.item.date),
+                      onToggleExpand: (folderDate: string) => {
+                        const newExpandedSet = new Set(this.expandedFolderDates)
+                        const newCollapsedSet = new Set(this.collapsedFolderDates)
+                        if (newExpandedSet.has(folderDate)) {
+                          newExpandedSet.delete(folderDate)
+                          newCollapsedSet.add(folderDate)
+                        } else {
+                          newExpandedSet.add(folderDate)
+                          newCollapsedSet.delete(folderDate)
+                        }
+                        this.expandedFolderDates = newExpandedSet
+                        this.collapsedFolderDates = newCollapsedSet
+                        Preferences.saveCollapsedFolderDates(PathUtils.appContext!,
+                          Array.from(this.collapsedFolderDates))
+                      }
+                    })
+                  }
+                  .onClick(() => {
+                    this.searchValueClear()
+                    if (this.videoListController.folder?.date === repeatItem.item.date) {
+                      return
+                    }
+                    const currentFolders = Preferences.getFileFolder(PathUtils.appContext!)
+                    this.fileFolderListChange(currentFolders)
+                    const currentFolder = currentFolders.find(f => f.date === repeatItem.item.date)
+                    if (!currentFolder) {
+                      return
+                    }
+                    let folderVideos: VideoMetadata[] = currentFolder.video_list
+                    const sortField = Preferences.getSortField(PathUtils.appContext!) as SortField
+                    if (sortField) {
+                      const sortAsc = Preferences.getSortAsc(PathUtils.appContext!)
+                      folderVideos =
+                        ToolsUtil.sortBy(PathUtils.appContext!, folderVideos, currentFolder, sortField, sortAsc)
+                    }
+                    this.videoListController.videoDataSource.updateData(folderVideos)
+                    this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder!)
+                    this.scrollToFolderDateChange(repeatItem.item.date)
+                    this.sideBarController.close(true)
+                  })
+                  .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.LongPress)
+                  .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.RightClick)
+                })
+                .key((item: FileFolder, _index: number) => item.name + item.date + item.video_list.length)
+                .virtualScroll()
+            }
+            .shadow({
+              radius: 4,
+              color: $r('app.color.shadow_color'),
+              offsetX: 0,
+              offsetY: 1
+            })
+            .scrollBar(BarState.Off)
+            .borderRadius(12)
+            .width('100%')
+            .height('auto')
+            .align(Alignment.Start)
+            .padding({
+              left: 8,
+              right: 8,
+              top: 4,
+              bottom: 4
+            })
+            .backgroundColor($r('app.color.list_item_background'))
+          }
+          .width('100%')
+        }
+        .fadingEdge(true)
+        .padding({ left: 16, right: 16 })
+        .align(Alignment.Top)
+        .edgeEffect(EdgeEffect.Spring)
+        .scrollBar(BarState.Off)
+        .width('100%')
+        .height('100%')
+
+        // Tab 1: 网络
+        Scroll() {
+          Column({ space: 8 }) {
             Button({ type: ButtonType.Normal, stateEffect: true }) {
               Row() {
-                SymbolGlyph($r('sys.symbol.folder_badge_plus'))
+                SymbolGlyph($r('sys.symbol.wifi'))
                   .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                Text('添加文件夹')
+                Text('串流')
                   .fontSize(15)
                   .margin({ left: 10, right: 12 })
                   .textOverflow({ overflow: TextOverflow.MARQUEE })
@@ -427,191 +653,27 @@ export struct SideBarContentComponent {
             .backgroundColor(Color.Transparent)
             .animation({ duration: 300, curve: Curve.Ease })
             .onClick(() => {
-              this.addFileFolderNameDialogController.open()
+              this.sideBarController.close(false)
+              this.pathStack.pushPathByName(NavigationAddress.STREAM_PAGE, null)
             })
-          }
-          .margin({ top: 10 })
-          .justifyContent(FlexAlign.Start)
-          .backgroundColor($r('app.color.list_item_background'))
-          .borderRadius(16)
-          .shadow({
-            radius: 4,
-            color: $r('app.color.shadow_color'),
-            offsetX: 0,
-            offsetY: 1
-          })
 
-          Row() {
-            Text('文件夹')
-              .fontSize(14)
-              .fontColor($r('sys.color.font_tertiary'))
-              .fontWeight(FontWeight.Medium)
-              .margin({ left: 4 })
-              .textOverflow({ overflow: TextOverflow.MARQUEE })
-            Blank()
-            Button({ type: ButtonType.Circle, stateEffect: true }) {
-              SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
-                .fontSize(16)
-                .fontColor([$r('sys.color.font_tertiary')])
-            }
-            .width(28)
-            .height(28)
-            .backgroundColor(Color.Transparent)
-            .bindMenu(this.FolderSortMenuBuilder,
-              {
-                backgroundBlurStyle: BlurStyle.Regular,
-                hapticFeedbackMode: HapticFeedbackMode.ENABLED
-              })
-            .margin({ right: 4 })
-          }
-          .width('100%')
-          .height(32)
-          .alignItems(VerticalAlign.Center)
-          .padding({ left: 16, right: 16 })
-
-          List({ space: 2 }) {
-            Repeat<FileFolder>(this.getFlattenedTreeFolders())
-              .each((repeatItem: RepeatItem<FileFolder>) => {
-                ListItem() {
-                  FileFolderListBuilder({
-                    folder: repeatItem.item,
-                    videoListController: this.videoListController,
-                    fileFolderSource: this.fileFolderSource,
-                    expandedFolderDates: this.expandedFolderDates,
-                    depth: FileFolderUtil.getFolderDepth(PathUtils.appContext!, repeatItem.item.date),
-                    hasChildren: FileFolderUtil.getChildFolders(PathUtils.appContext!, repeatItem.item.date)
-                      .length > 0,
-                    isExpanded: this.expandedFolderDates.has(repeatItem.item.date),
-                    onToggleExpand: (folderDate: string) => {
-                      const newExpandedSet = new Set(this.expandedFolderDates)
-                      const newCollapsedSet = new Set(this.collapsedFolderDates)
-                      if (newExpandedSet.has(folderDate)) {
-                        newExpandedSet.delete(folderDate)
-                        newCollapsedSet.add(folderDate)
-                      } else {
-                        newExpandedSet.add(folderDate)
-                        newCollapsedSet.delete(folderDate)
-                      }
-                      this.expandedFolderDates = newExpandedSet
-                      this.collapsedFolderDates = newCollapsedSet
-                      Preferences.saveCollapsedFolderDates(PathUtils.appContext!,
-                        Array.from(this.collapsedFolderDates))
-                    }
-                  })
-                }
-                .onClick(() => {
-                  this.searchValueClear()
-                  if (this.videoListController.folder?.date === repeatItem.item.date) {
-                    return
-                  }
-                  const currentFolders = Preferences.getFileFolder(PathUtils.appContext!)
-                  this.fileFolderListChange(currentFolders)
-                  const currentFolder = currentFolders.find(f => f.date === repeatItem.item.date)
-                  if (!currentFolder) {
-                    return
-                  }
-                  let folderVideos: VideoMetadata[] = currentFolder.video_list
-                  const sortField = Preferences.getSortField(PathUtils.appContext!) as SortField
-                  if (sortField) {
-                    const sortAsc = Preferences.getSortAsc(PathUtils.appContext!)
-                    folderVideos =
-                      ToolsUtil.sortBy(PathUtils.appContext!, folderVideos, currentFolder, sortField, sortAsc)
-                  }
-                  this.videoListController.videoDataSource.updateData(folderVideos)
-                  this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder!)
-                  this.scrollToFolderDateChange(repeatItem.item.date)
-                  this.sideBarController.close(true)
-                })
-                .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.LongPress)
-                .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.RightClick)
-              })
-              .key((item: FileFolder, _index: number) => item.name + item.date + item.video_list.length)
-              .virtualScroll()
-          }
-          .shadow({
-            radius: 4,
-            color: $r('app.color.shadow_color'),
-            offsetX: 0,
-            offsetY: 1
-          })
-          .scrollBar(BarState.Off)
-          .borderRadius(12)
-          .width('100%')
-          .height('auto')
-          .align(Alignment.Start)
-          .padding({
-            left: 8,
-            right: 8,
-            top: 4,
-            bottom: 4
-          })
-          .backgroundColor($r('app.color.list_item_background'))
-        }.width('100%')
+          }.backgroundColor($r('app.color.list_item_background'))
+          .width('100%').borderRadius(16)
+          .padding({ top: 4, bottom: 4 })
+        }
+        .padding({ left: 16, right: 16 })
+        .align(Alignment.Top)
+        .edgeEffect(EdgeEffect.Spring)
+        .scrollBar(BarState.Off)
+        .width('100%')
+        .height('100%')
       }
-      .fadingEdge(true)
-      .margin({ top: 10 })
-      .padding({ left: 16, right: 16 })
+      .index(this.currentSourceTab)
+      .indicator(false)
       .layoutWeight(1)
-      .align(Alignment.Top)
-      .edgeEffect(EdgeEffect.Spring)
-      .scrollBar(BarState.Off)
       .width('100%')
-      .height('100%')
-
-      Column() {
-        Button({ type: ButtonType.Normal, stateEffect: true }) {
-          Row() {
-            SymbolGlyph($r('sys.symbol.clock')).attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-            Text($r('app.string.recent_play'))
-              .fontSize(15)
-              .fontColor($r('app.color.text_color'))
-              .margin({ left: 10, right: 12 })
-              .textOverflow({ overflow: TextOverflow.MARQUEE })
-          }
-        }
-        .align(Alignment.Start)
-        .padding({ left: 16, right: 16 })
-        .attributeModifier(new ButtonFancyModifier('100%', 60))
-        .backgroundColor(Color.Transparent)
-        .animation({ duration: 300, curve: Curve.Ease })
-        .onClick(async () => {
-          this.sideBarController.close(false)
-          this.pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, true)
-        })
-
-        Button({ type: ButtonType.Normal, stateEffect: true }) {
-          Row() {
-            SymbolGlyph($r('sys.symbol.gearshape'))
-              .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-            Text($r('app.string.setting'))
-              .fontSize(15)
-              .margin({ left: 10, right: 12 })
-              .textOverflow({ overflow: TextOverflow.MARQUEE })
-          }
-        }
-        .align(Alignment.Start)
-        .padding({ left: 16, right: 16 })
-        .attributeModifier(new ButtonFancyModifier('100%', 60))
-        .backgroundColor(Color.Transparent)
-        .animation({ duration: 300, curve: Curve.Ease })
-        .onClick(() => {
-          this.sideBarController.close(false)
-          this.pathStack.pushPathByName(NavigationAddress.SETTING_PAGE, null)
-        })
-      }
-      .margin({
-        bottom: SafeHeight.bottomSafeHeight === 0 ? 15 : SafeHeight.bottomSafeHeight,
-        left: 20,
-        right: 20
-      })
-      .justifyContent(FlexAlign.Start)
-      .backgroundColor($r('app.color.list_item_background'))
-      .borderRadius(16)
-      .shadow({
-        radius: 4,
-        color: $r('app.color.shadow_color'),
-        offsetX: 0,
-        offsetY: 1
+      .onChange((index: number) => {
+        this.currentSourceTab = index
       })
     }
     .width('100%')
@@ -622,6 +684,17 @@ export struct SideBarContentComponent {
       .animation(XAnimation.getAnimationCurve()))
     .visibility(this.sideBarController.visibility)
     .borderRadius(this.sideBarController.mode === SideBarContainerType.Overlay ? 16 : 0)
+  }
+
+  private recomputeExpandedFolderDates() {
+    const newSet = new Set<string>()
+    for (const folder of this.file_folder_list) {
+      if (FileFolderUtil.getChildFolders(PathUtils.appContext!, folder.date).length > 0 &&
+        !this.collapsedFolderDates.has(folder.date)) {
+        newSet.add(folder.date)
+      }
+    }
+    this.expandedFolderDates = newSet
   }
 
   private getFlattenedTreeFolders(): FileFolder[] {

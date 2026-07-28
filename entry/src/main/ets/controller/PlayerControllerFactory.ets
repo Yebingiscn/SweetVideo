@@ -38,6 +38,7 @@ export interface PlayerControllerInterface {
   speedLocked: boolean
   isZoomed: boolean
   isGesturing: boolean
+  scaleFactor: number
   translateX: number
   translateY: number
   angle: number
@@ -111,7 +112,7 @@ export interface PlayerControllerInterface {
   setExternalSubtitle(nowPlaying: VideoMetadata): void
 
   playNextVideoProcess(pathStack: NavPathStack, windowClass?: Promise<window.Window | undefined>,
-    xComponentController?: XComponentController): void
+    xComponentController?: XComponentController, overrideRepeatMode?: SweetRepeatMode): void
 
   playChooseVideo(item: VideoMetadata, pathStack: NavPathStack,
     windowClass?: Promise<window.Window | undefined>, xComponentController?: XComponentController): void

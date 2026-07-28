@@ -43,6 +43,12 @@ export struct GestureComponent {
   }
   @Event onPanMoveEnd: () => void = () => {
   }
+  @Event onScrollAxisBegin: (_isLeftSide: boolean) => void = () => {
+  }
+  @Event onScrollAxisUpdate: (_axisValue: number, _isLeftSide: boolean) => void = () => {
+  }
+  @Event onScrollAxisEnd: () => void = () => {
+  }
 
   build() {
     Column()
@@ -71,7 +77,7 @@ export struct GestureComponent {
                 this.onSingleClickAction()
               }),
             PanGesture({ fingers: 1, direction: PanDirection.Vertical })// 垂直滑动
-              .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
+              .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.TOUCHPAD,
                 SourceTool.JOYSTICK])
               .onActionStart((event: GestureEvent) => { // 滑动屏幕
                 if (this.player.isLock) {
@@ -205,7 +211,7 @@ export struct GestureComponent {
               fingers: 1,
               direction: PanDirection.Vertical,
             })//长按状态下垂直滑动 锁定倍速
-              .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
+              .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.TOUCHPAD,
                 SourceTool.JOYSTICK])
               .onActionUpdate((event: GestureEvent) => {
                 if (this.player.isLock) {
@@ -251,6 +257,25 @@ export struct GestureComponent {
                 }
                 this.onPanMoveEnd()
               })
-          )))
+           )))
+      .onAxisEvent((event: AxisEvent) => {
+        if (this.player.isLock) {
+          return
+        }
+        const isLeftSide = event.x < this.player.screenWidth / 2
+
+        if (event.action === AxisAction.BEGIN) {
+          this.onScrollAxisBegin(isLeftSide)
+        }
+        if (event.action === AxisAction.BEGIN || event.action === AxisAction.UPDATE) {
+          const axisValue = event.axisVertical
+          if (axisValue !== undefined && axisValue !== 0) {
+            this.onScrollAxisUpdate(axisValue, isLeftSide)
+          }
+        }
+        if (event.action === AxisAction.END || event.action === AxisAction.CANCEL) {
+          this.onScrollAxisEnd()
+        }
+      })
   }
 }

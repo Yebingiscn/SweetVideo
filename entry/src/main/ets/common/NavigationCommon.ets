@@ -18,6 +18,7 @@ export default class NavigationAddress {
   static PRIVACY_ERROR_LIST = 'PrivacySpaceErrorList'
   static MORE_SETTING_PAGE = 'MoreSettingPage'
   static VIP_PAGE = 'GetVipPage'
+  static STREAM_PAGE = 'StreamPage'
 }
 
 export class PrivacySpaceParams {

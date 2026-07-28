@@ -130,11 +130,21 @@ export default class AccountUtil {
   }
 
   static async fileToPixelMap(url: string): Promise<PixelMap> {
+    let file: fileIo.File | undefined = undefined
     try {
-      let file = fileIo.openSync(url!, fileIo.OpenMode.READ_ONLY)
+      file = fileIo.openSync(url!, fileIo.OpenMode.READ_ONLY)
       const imageSource: image.ImageSource = image.createImageSource(file.fd)
-      return await imageSource.createPixelMap()
+      const pixelMap = await imageSource.createPixelMap()
+      await imageSource.release()
+      fileIo.closeSync(file)
+      return pixelMap
     } catch (error) {
+      if (file) {
+        try {
+          fileIo.closeSync(file)
+        } catch (_e) {
+        }
+      }
       return Promise.reject(error)
     }
   }

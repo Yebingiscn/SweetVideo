@@ -68,6 +68,11 @@ export struct PlayerSideBarComponent {
         .key((item: VideoMetadata, _index: number) => item.date)
         .virtualScroll()
     }
+    .backgroundImage(
+      Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ? Setting.backgroundBlurImageSrc :
+        Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
+    .backgroundImageSize(ImageSize.Cover)
+    .backgroundImagePosition(Alignment.Center)
     .clip(false)
     .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
     .chainAnimation(true)
@@ -83,7 +88,7 @@ export struct PlayerSideBarComponent {
     .visibility(this._sideBarStatusTmp)
     .width('100%')
     .height('100%')
-    .backgroundColor($r('app.color.sidebar_background_color'))
+    // .backgroundColor($r('app.color.sidebar_background_color'))
     .padding({
       left: 8,
       right: 8,
@@ -151,10 +156,11 @@ export function VideoItemBuilder(videoItemValue: VideoItemValue) {
     .padding({ left: 12, right: 12 })
     .layoutWeight(1)
   }
-  .backgroundColor(
+  .backdropBlur(Setting.listItemBackgroundBlur ? 150 : 0)
+  .backgroundColor(Setting.listItemBackgroundBlur ? undefined : (
     videoItemValue.nowPlaying && videoItemValue.nowPlaying?.date === videoItemValue.item?.date
       ? $r('app.color.main_color')
-      : $r('app.color.list_item_background')
+      : $r('app.color.list_item_background'))
   )
   .justifyContent(FlexAlign.Center)
   .width('100%')

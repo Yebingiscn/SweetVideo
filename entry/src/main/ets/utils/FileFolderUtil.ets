@@ -412,14 +412,15 @@ export default class FileFolderUtil {
     const subtitleResult = await fileIo.listFile(PathUtils.subtitlePath)?.catch(() => {
       salmonLogger.addLog(TAG, 'get subtitle fail', true)
     })
-    const numericStartRegex = /^\d/
+    const validFileRegex = /^(\d|stream_)/
     const coverFromSandboxArray: string[] = Array.isArray(coverResult)
-      ? coverResult.filter(file => numericStartRegex.test(file)) : []
+      ? coverResult.filter(file => validFileRegex.test(file)) : []
     const subtitleFromSandboxArray: string[] = Array.isArray(subtitleResult)
-      ? subtitleResult.filter(file => numericStartRegex.test(file)) : []
+      ? subtitleResult.filter(file => validFileRegex.test(file)) : []
     const videoMetaData = Preferences.getVideoMetaData(context)
     const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(context)
     const fileFolder = Preferences.getFileFolder(context)
+    const networkStreams = Preferences.getNetworkStreams(context)
     const existingItemsSet = new Set<string>()
     for (const v of videoMetaData) {
       existingItemsSet.add(v.date as string)
@@ -434,6 +435,11 @@ export default class FileFolderUtil {
             existingItemsSet.add(item.date as string)
           }
         }
+      }
+    }
+    for (const s of networkStreams) {
+      if (s?.date) {
+        existingItemsSet.add(s.date as string)
       }
     }
     const missingCoverFiles = coverFromSandboxArray.filter(file => !existingItemsSet.has(file))

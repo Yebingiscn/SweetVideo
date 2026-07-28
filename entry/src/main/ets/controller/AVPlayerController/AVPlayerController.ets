@@ -83,6 +83,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Trace chapterList: MpvChapter[] = []
   @Trace isZoomed: boolean = false
   @Trace isGesturing: boolean = false
+  @Trace scaleFactor: number = 1
   @Trace translateX: number = 0
   @Trace translateY: number = 0
   @Trace showControl: boolean = false
@@ -222,12 +223,22 @@ export class AVPlayerController implements PlayerControllerInterface {
       try {
         let subtitle = fileIo.openSync(PathUtils.subtitlePath! + nowPlaying.date, fileIo.OpenMode.READ_ONLY)
         SubtitleUtil.parseSubtitleProcess(subtitle.path, nowPlaying.external_subtitle_format).then(success => {
+          try {
+            fileIo.closeSync(subtitle)
+          } catch (_e) {
+          }
           if (success) {
             this.subtitle = SubtitleUtil.getSubtitlesAtTime(this.playTime)
             this.applySubtitlePreference(nowPlaying, true)
           } else {
             this.applySubtitlePreference(nowPlaying, false)
           }
+        }).catch(() => {
+          try {
+            fileIo.closeSync(subtitle)
+          } catch (_e) {
+          }
+          this.applySubtitlePreference(nowPlaying, false)
         })
       } catch (_error) {
         this.applySubtitlePreference(nowPlaying, false)
@@ -421,6 +432,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   async initAVSession() {
+    AVSessionUtil.applyAudioConcurrencyMode()
     if (Setting.allowBackgroundPlay) {
       this.avSession = await AVSessionUtil.getAVSession()
       this.setSessionListener()
@@ -462,9 +474,10 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   async playNextVideoProcess(pathStack: NavPathStack, windowClass?: Promise<window.Window | undefined>,
-    xComponentController?: XComponentController) {
+    xComponentController?: XComponentController, overrideRepeatMode?: SweetRepeatMode) {
     salmonLogger.addLog(TAG, "开始播放下一个视频前置流程", false)
-    const nextItem = this.playNextVideo(this.repeatMode)
+    const effectiveRepeatMode = overrideRepeatMode ?? this.repeatMode
+    const nextItem = this.playNextVideo(effectiveRepeatMode)
     salmonLogger.addLog(TAG, "获取下一个视频项", false)
     if (nextItem) {
       salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "存在下一个视频，开始播放", false)
@@ -529,15 +542,21 @@ export class AVPlayerController implements PlayerControllerInterface {
       if (this.avPlayer) {
         try {
           await PermissionUtil.activatePermission(this.nowPlaying?.uri)
-          this.avPlayer.fdSrc = fileIo.openSync(this.nowPlaying?.uri)
+          if (ToolsUtil.isNetworkUrl(this.nowPlaying?.uri)) {
+            this.avPlayer.url = this.nowPlaying?.uri
+          } else {
+            this.avPlayer.fdSrc = fileIo.openSync(this.nowPlaying?.uri)
+          }
         } catch (error) {
           salmonLogger.addLog(TAG, "打开视频文件失败：" + error, true)
           ToolsUtil.showToast('视频打开失败，可能已失效：' + error)
           pathStack && pathStack.pop()
           return
         }
-        VideoOperateUtil.getFrameTimePreprocess(this.nowPlaying!.uri)?.catch(() => {
-        })
+        if (!ToolsUtil.isNetworkUrl(this.nowPlaying?.uri)) {
+          VideoOperateUtil.getFrameTimePreprocess(this.nowPlaying!.uri)?.catch(() => {
+          })
+        }
         this.setRotation()
         salmonLogger.addLog(TAG, "计算播放区域尺寸完成", false)
         if (windowClass) {
@@ -609,6 +628,7 @@ export class AVPlayerController implements PlayerControllerInterface {
 
   async setAVPlayerProperties() {
     this.avPlayer!.surfaceId = this.surfaceID
+    this.avPlayer!.audioInterruptMode = AVSessionUtil.getInterruptMode()
     this.avPlayer?.setPlaybackStrategy({
       preferredBufferDurationForPlaying: 20,
       showFirstFrameOnPrepare: true,
@@ -622,6 +642,30 @@ export class AVPlayerController implements PlayerControllerInterface {
     }
     this.registerSubtitleListener()
     this.setExternalSubtitle(this.nowPlaying!)
+    this.registerAudioInterruptListener()
+  }
+
+  registerAudioInterruptListener() {
+    this.avPlayer?.on('audioInterrupt', async (interruptEvent: audio.InterruptEvent) => {
+      if (interruptEvent.forceType === audio.InterruptForceType.INTERRUPT_FORCE) {
+        switch (interruptEvent.hintType) {
+          case audio.InterruptHint.INTERRUPT_HINT_PAUSE:
+          case audio.InterruptHint.INTERRUPT_HINT_STOP:
+            this.pause()
+            break
+          default:
+            break
+        }
+      } else if (interruptEvent.forceType === audio.InterruptForceType.INTERRUPT_SHARE) {
+        switch (interruptEvent.hintType) {
+          case audio.InterruptHint.INTERRUPT_HINT_RESUME:
+            this.play()
+            break
+          default:
+            break
+        }
+      }
+    })
   }
 
   setSuperResolutionState(enable: boolean) {
@@ -697,6 +741,19 @@ export class AVPlayerController implements PlayerControllerInterface {
         await this.playNextVideoProcess(pathStack, windowClass, xComponentController)
         this.setPlayerCallback(pathStack, xComponentController, windowClass)
         ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_video_ending').id))
+      }
+      const skipOutroSeconds = Number(Setting.skipOutroTime)
+      if (skipOutroSeconds > 0 && (endTime == null || endTime === 0)) {
+        const totalTime = this.nowPlaying?.time ?? 0
+        const skipOutroMs = skipOutroSeconds * 1000
+        if (totalTime > 0 && duration >= totalTime - skipOutroMs && this.repeatMode !== SweetRepeatMode.SINGLE) {
+          salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG,
+            `检测到视频片尾（全局），准备播放下一个视频，满足条件为: skipOutroTime: ${skipOutroSeconds}s, totalTime: ${totalTime}, duration: ${duration}`,
+            false)
+          await this.playNextVideoProcess(pathStack, windowClass, xComponentController)
+          this.setPlayerCallback(pathStack, xComponentController, windowClass)
+          ToolsUtil.showToast('已跳过片尾')
+        }
       }
       if (this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
         const newSubtitle = SubtitleUtil.getSubtitlesAtTime(duration)
@@ -798,7 +855,7 @@ export class AVPlayerController implements PlayerControllerInterface {
             salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "进入playing状态", false)
             this.transitionTo(PlayerState.PLAYING)
             this.playing = true
-            this.initAVSession()
+            await this.initAVSession()
             salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "初始化AVSession完成", false)
             AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
             salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "更新播放会话状态完成", false)
@@ -964,7 +1021,11 @@ export class AVPlayerController implements PlayerControllerInterface {
     try {
       await permissionPromise
       if (this.avPlayer) {
-        this.avPlayer.fdSrc = fileIo.openSync(this.nowPlaying?.uri)
+        if (ToolsUtil.isNetworkUrl(this.nowPlaying?.uri)) {
+          this.avPlayer.url = this.nowPlaying?.uri
+        } else {
+          this.avPlayer.fdSrc = fileIo.openSync(this.nowPlaying?.uri)
+        }
       }
     } catch (error) {
       salmonLogger.addLog(TAG, "打开视频文件失败：" + error, true)
@@ -972,8 +1033,10 @@ export class AVPlayerController implements PlayerControllerInterface {
       pathStack.pop()
       return
     }
-    VideoOperateUtil.getFrameTimePreprocess(this.nowPlaying!.uri)?.catch(() => {
-    })
+    if (!ToolsUtil.isNetworkUrl(this.nowPlaying?.uri)) {
+      VideoOperateUtil.getFrameTimePreprocess(this.nowPlaying!.uri)?.catch(() => {
+      })
+    }
     this.setRotation()
     if (windowClass) {
       this.playAreaWidth > this.playAreaHeight ?
@@ -1189,15 +1252,21 @@ export class AVPlayerController implements PlayerControllerInterface {
     }
     try {
       await PermissionUtil.activatePermission(this.nowPlaying?.uri)
-      this.avPlayer.fdSrc = fileIo.openSync(this.nowPlaying?.uri)
+      if (ToolsUtil.isNetworkUrl(this.nowPlaying?.uri)) {
+        this.avPlayer.url = this.nowPlaying?.uri
+      } else {
+        this.avPlayer.fdSrc = fileIo.openSync(this.nowPlaying?.uri)
+      }
     } catch (error) {
       salmonLogger.addLog(TAG, "打开视频文件失败：" + error, true)
       ToolsUtil.showToast('视频打开失败，可能已失效：' + error)
       pathStack.pop()
       throw new Error('打开视频文件失败：' + error)
     }
-    VideoOperateUtil.getFrameTimePreprocess(this.nowPlaying!.uri)?.catch(() => {
-    })
+    if (!ToolsUtil.isNetworkUrl(this.nowPlaying?.uri)) {
+      VideoOperateUtil.getFrameTimePreprocess(this.nowPlaying!.uri)?.catch(() => {
+      })
+    }
     this.setRotation()
     salmonLogger.addLog(TAG, "计算播放区域尺寸完成", false)
     if (windowClass) {
@@ -1223,4 +1292,5 @@ export class AVPlayerController implements PlayerControllerInterface {
     this.transitionTo(PlayerState.PREPARING)
     await this.waitForState(PlayerState.PLAYING, 10000)
   }
+
 }

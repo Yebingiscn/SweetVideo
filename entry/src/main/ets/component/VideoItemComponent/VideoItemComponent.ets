@@ -7,7 +7,7 @@ import { SortField } from '../../common/enum/SortField'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import { VideoDetailDialog } from '../../component/Dialog//VideoDetailDialog'
 import { DefaultDialogShadow, MenuFancyModifier } from '../../common/AttributeModifierConfig'
-import { EditMetadataDialog } from '../../component/Dialog//EditMetadataDialog'
+import { RenameDialog } from '../../component/Dialog/RenameDialog'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
 import { SideBarController } from '../SideBarComponent/SideBar'
 import { VideoMetaDataOperator } from '../../database/VideoMetaData'
@@ -28,6 +28,7 @@ import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import SubtitleUtil from '../../utils/SubtitleUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import WantProcess from '../../utils/WantProcessUtil'
+import ShareUtil from '../../utils/ShareUtil'
 import { FileFolderMenu } from '../FileFolderComponent/FileFolderMenu'
 import { ScrollBarBuilder } from './ScrollBarBuilder'
 import VideoCardItem from './VideoCardItemComponent'
@@ -138,24 +139,24 @@ export struct VideoList {
   @Local indexerSelected: number = 0
   @Consumer() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
-    builder: EditMetadataDialog({
-      confirm: (title: string | undefined) => {
-        if (!title?.trim()) {
-          return
-        }
+    builder: RenameDialog({
+      title: $r('app.string.rename'),
+      renameTarget: 'video',
+      preserveExtension: true,
+      onConfirm: (title: string) => {
         const editingVideo = DataSyncUtil.editingVideo!
         const targetIndex = SelectFileUtil.getItemIndex(this.videoListController.videoMetaDataList, editingVideo)
         if (targetIndex === -1) {
           return
         }
         if (this.videoListController.videoMetaDataList.some((v, index) => index !== targetIndex &&
-          v.title === title.trim())) {
+          v.title === title)) {
           return
         }
         const original = this.videoListController.videoMetaDataList[targetIndex]
         const updatedVideo: VideoMetadata = {
           uri: original.uri,
-          title: title.trim() as string,
+          title: title as string,
           date: original.date,
           size: original.size,
           time: original.time,
@@ -283,8 +284,10 @@ export struct VideoList {
                 })
               }
               .borderRadius(12)
-              .backgroundColor(Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
-                $r('app.color.start_window_background'))
+              .backgroundColor(Setting.listItemBackgroundBlur ? undefined :
+                (Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
+                  $r('app.color.start_window_background')))
+
               .margin({ bottom: 20 })
               .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
               .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
@@ -426,8 +429,10 @@ export struct VideoList {
                     }).width('100%')
                   }
                   .backgroundColor(
-                    Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
-                      $r('app.color.start_window_background'))
+                    Setting.listItemBackgroundBlur ? undefined :
+                      (Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
+                        $r('app.color.start_window_background')))
+
                   .borderRadius(12)
                   .width('100%')
                   .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
@@ -481,6 +486,7 @@ export struct VideoList {
                   this.videoListController.folder.name + item.time)
                 .virtualScroll()
             }
+            .fadingEdge(true)
             .clip(false)
             .columnsTemplate('1fr '.repeat(this.videoListController.listLine).trim())
             .columnsGap(16) // 列间距
@@ -574,7 +580,7 @@ export struct VideoList {
         this.onSearchValueChange('')
       }, 500)
     }
-    if (await SelectFileUtil.isFileExist(item.uri, true)) {
+    if (ToolsUtil.isNetworkUrl(item.uri) || await SelectFileUtil.isFileExist(item.uri, true)) {
       ToolsUtil.routerWhere(this.pathStack, item,
         this.videoListController.videoDataSource.getAllData(), reverse)
     } else {
@@ -671,6 +677,13 @@ export struct VideoList {
         .onClick(async () => {
           await WantProcess.linkToVideoSource(item!.uri)
         })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.share')),
+        content: $r('app.string.share')
+      })
+        .onClick(async () => {
+          await ShareUtil.shareVideo(item!.uri, item!.title)
+        })
     }.attributeModifier(new MenuFancyModifier())
   }
 
@@ -713,4 +726,5 @@ export struct VideoList {
       this.indexerSelected = targetIndex
     }
   }
+
 }

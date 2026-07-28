@@ -47,6 +47,7 @@ export default class VideoOperateUtil {
   public static initPinchDistance: number = 0
   public static initPinchWidth: number = 0
   public static initPinchHeight: number = 0
+  public static initScaleFactor: number = 1
   public static clearSubtitleTimer: number | null = null
   public static screenBrightnessTmp: number = 0
   public static lastSpeed: number = 1
@@ -190,6 +191,23 @@ export default class VideoOperateUtil {
     }
   }
 
+  static saveVideoPlayTimeIfNeed(playTime: number, nowPlaying: VideoMetadata | undefined,
+    skipHistory: boolean, context: Context): void {
+    if (!nowPlaying || playTime <= 0 || skipHistory) {
+      return
+    }
+    const totalTime = nowPlaying.time ?? 0
+    const lastPlay = nowPlaying.last_play ?? 0
+    const isAlreadyWatched = totalTime > 0 && lastPlay >= totalTime * 0.95
+    const isCurrentEarlier = playTime < lastPlay
+    if (isAlreadyWatched && isCurrentEarlier) {
+      salmonLogger.addLog(TAG, `跳过保存: 视频已标记为已观看(last_play=${lastPlay}), 当前playTime=${playTime}更小`, false)
+    } else {
+      VideoOperateUtil.saveVideoTime(playTime, nowPlaying, context)
+      salmonLogger.addLog(TAG, `保存视频播放时间完成`, false)
+    }
+  }
+
   static saveVideoStartTime(startTime: number, nowPlaying: VideoMetadata, context: Context) {
     VideoOperateUtil.saveVideoProperty(context, nowPlaying, { startTime: startTime })
   }
@@ -252,6 +270,12 @@ export default class VideoOperateUtil {
       VideoOperateUtil.avImageGenerator?.release()?.catch(() => {
         salmonLogger.addLog(TAG, 'releaseAVImageGenerator error', true)
       })
+      if (VideoOperateUtil.nowPlayingFile) {
+        try {
+          fileIo.closeSync(VideoOperateUtil.nowPlayingFile)
+        } catch (_e) {
+        }
+      }
       VideoOperateUtil.nowPlayingFile = undefined
       VideoOperateUtil.updatePix = false
     }
@@ -310,6 +334,7 @@ export default class VideoOperateUtil {
       'backgroundDropBlur': 0,
       'backgroundColorMode': BackgroundColorMode.AUTO,
       'allowBackgroundPlay': true,
+      'allowConcurrentPlay': false,
       'allowPlayBackExist': false,
       'fastForwardSeconds': '15',
       'recentPlay': true,
@@ -318,6 +343,7 @@ export default class VideoOperateUtil {
       'subtitleSize': '22',
       'allowDoubleFastForward': true,
       'skipIntroTime': '0',
+      'skipOutroTime': '0',
       'listDisplayMode': ListDisplayMode.LIST_DISPLAY,
       'smartRotation': true,
       'longPressSpeed': 3,
@@ -335,7 +361,8 @@ export default class VideoOperateUtil {
       'enableAiPrivacyAntiPeep': false,
       'defaultBrightness': 0,
       'defaultDensityEnabled': true,
-      'maxListLine': 5
+      'maxListLine': 5,
+      'listItemBackgroundBlur': false
     }
     const keys = Object.keys(settingDefaults)
     const defaults = Object.values(settingDefaults)
@@ -350,6 +377,7 @@ export default class VideoOperateUtil {
     }
     Setting.backgroundColorMode = valueMap['backgroundColorMode'] as BackgroundColorMode
     Setting.allowBackgroundPlay = valueMap['allowBackgroundPlay'] as boolean
+    Setting.allowConcurrentPlay = valueMap['allowConcurrentPlay'] as boolean
     Setting.allowPlayBackExist = valueMap['allowPlayBackExist'] as boolean
     Setting.fastForwardSeconds = valueMap['fastForwardSeconds'] as string
     Setting.recentPlay = valueMap['recentPlay'] as boolean
@@ -358,6 +386,7 @@ export default class VideoOperateUtil {
     Setting.subtitleSize = valueMap['subtitleSize'] as string
     Setting.allowDoubleFastForward = valueMap['allowDoubleFastForward'] as boolean
     Setting.skipIntroTime = valueMap['skipIntroTime'] as string
+    Setting.skipOutroTime = valueMap['skipOutroTime'] as string
     Setting.listDisplayMode = valueMap['listDisplayMode'] as ListDisplayMode
     Setting.smartRotation = valueMap['smartRotation'] as boolean
     Setting.longPressSpeed = valueMap['longPressSpeed'] as number
@@ -376,6 +405,7 @@ export default class VideoOperateUtil {
     Setting.defaultBrightness = valueMap['defaultBrightness'] as number
     Setting.defaultDensityEnabled = valueMap['defaultDensityEnabled'] as boolean
     Setting.maxListLine = valueMap['maxListLine'] as number
+    Setting.listItemBackgroundBlur = valueMap['listItemBackgroundBlur'] as boolean
   }
 
   // 封装获取屏幕亮度的方法

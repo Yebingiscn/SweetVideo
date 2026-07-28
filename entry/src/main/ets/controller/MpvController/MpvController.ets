@@ -146,6 +146,7 @@ export class MpvController implements PlayerControllerInterface {
   @Trace debugInfoVisible: boolean = false
   @Trace isZoomed: boolean = false
   @Trace isGesturing: boolean = false
+  @Trace scaleFactor: number = 1
   @Trace translateX: number = 0
   @Trace translateY: number = 0
   @Trace subtitle: string = ''
@@ -229,14 +230,15 @@ export class MpvController implements PlayerControllerInterface {
     await PermissionUtil.activatePermission(item.uri)
     this.init(item.uri, pathStack)
     salmonLogger.addLog(TAG, "获取播放数据完成", false)
-    this.initAVSession()
+    await this.initAVSession()
     salmonLogger.addLog(TAG, "播放选择视频流程完成", false)
   }
 
   async playNextVideoProcess(pathStack: NavPathStack, _windowClass?: Promise<window.Window | undefined>,
-    _xComponentController?: XComponentController) {
+    _xComponentController?: XComponentController, overrideRepeatMode?: SweetRepeatMode) {
     salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "开始播放下一个视频流程", false)
-    const nextItem = this.playNextVideo(this.repeatMode)
+    const effectiveRepeatMode = overrideRepeatMode ?? this.repeatMode
+    const nextItem = this.playNextVideo(effectiveRepeatMode)
     salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "获取下一个视频项完成", false)
     if (nextItem) {
       salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "存在下一个视频，开始播放", false)
@@ -339,26 +341,20 @@ export class MpvController implements PlayerControllerInterface {
     let playUrl = url!
     if (IsoFileUtil.isIsoFile(url!)) {
       salmonLogger.addLog(TAG, '检测到ISO文件，使用bd://协议播放', false)
-
-      // ISO文件：保留完整的file:// URI格式
-      // bluray-device 需要完整的URI，而不是纯路径
-      const isoPath = url! // 保留原始URI，包含file://前缀
-
-      // 设置bluray-device选项
+      const isoPath = url!
       mpvSetBlurayDevice(this.mpvHandle, isoPath)
-
-      // 使用bd://longest协议播放最长的标题
       playUrl = 'bd://longest'
+    } else if (ToolsUtil.isNetworkUrl(url!)) {
+      playUrl = url!
     } else {
-      // 非ISO文件，需要转换file:// URI为本地路径
       playUrl = new fileUri.FileUri(url!).path
     }
 
-    // 传递起始位置给 native（参考 mpv-android）
     mpvLoadVideo(this.mpvHandle, playUrl)
 
-    // 初始化 AVImageGenerator 用于进度条预览图（方案A，不支持格式时静默降级）
-    VideoOperateUtil.getFrameTimePreprocess(url!)
+    if (!ToolsUtil.isNetworkUrl(url!)) {
+      VideoOperateUtil.getFrameTimePreprocess(url!)
+    }
 
     // 延迟应用 shader，避免编译期间阻塞主线程（shader 编译持有 mpv 核心锁）
     const shaderMode = Setting.mpvShaderMode
@@ -429,6 +425,21 @@ export class MpvController implements PlayerControllerInterface {
         this.userListener = null
         this.setPlayerCallback(pathStack)
         ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_video_ending').id))
+      }
+      const skipOutroSeconds = Number(Setting.skipOutroTime)
+      if (skipOutroSeconds > 0 && (endTime == null || endTime === 0)) {
+        const totalTime = this.nowPlaying?.time ?? 0
+        const skipOutroMs = skipOutroSeconds * 1000
+        if (totalTime > 0 && duration >= totalTime - skipOutroMs && this.repeatMode !== SweetRepeatMode.SINGLE) {
+          salmonLogger.addLog(TAG,
+            `检测到视频片尾（全局），准备播放下一个视频，满足条件为: skipOutroTime: ${skipOutroSeconds}s, totalTime: ${totalTime}, duration: ${duration}`,
+            false)
+          this.playNextVideoProcess(pathStack)
+          this.userListener?.clear()
+          this.userListener = null
+          this.setPlayerCallback(pathStack)
+          ToolsUtil.showToast('已跳过片尾')
+        }
       }
       if (this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
         const newSubtitle = SubtitleUtil.getSubtitlesAtTime(duration)
@@ -807,6 +818,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   async initAVSession() {
+    AVSessionUtil.applyAudioConcurrencyMode()
     if (Setting.allowBackgroundPlay) {
       this.avSession = await AVSessionUtil.getAVSession()
       this.setSessionListener()
@@ -820,7 +832,6 @@ export class MpvController implements PlayerControllerInterface {
     this.audioVolumeManager = audioManager.getVolumeManager()
     let volumeList = VideoOperateUtil.getVolume()
     this.volume = volumeList.get('volume')!
-    console.error('test666' + volumeList.get('volume'))
     this.volumeActually = this.volume
     let swipingVoiceTimer: number | null = null
     let changeVolumeByVolumeButton: boolean = false
@@ -870,6 +881,10 @@ export class MpvController implements PlayerControllerInterface {
       try {
         let subtitle = fileIo.openSync(PathUtils.subtitlePath! + nowPlaying.date, fileIo.OpenMode.READ_ONLY)
         const success = await SubtitleUtil.parseSubtitleProcess(subtitle.path, nowPlaying.external_subtitle_format)
+        try {
+          fileIo.closeSync(subtitle)
+        } catch (_e) {
+        }
         if (success) {
           externalSubtitleLoaded = true
           this.subtitle = SubtitleUtil.getSubtitlesAtTime(this.playTime)
@@ -1003,7 +1018,7 @@ export class MpvController implements PlayerControllerInterface {
     PermissionUtil.activatePermission(this.nowPlaying?.uri)
     try {
       this.init(this.nowPlaying!.uri, pathStack)
-      this.initAVSession()
+      await this.initAVSession()
       await PiPWindowUtil.createPipController(xComponentController, this)
       this.surfaceId = xComponentController.getXComponentSurfaceId()
     } catch (error) {
@@ -1089,18 +1104,7 @@ export class MpvController implements PlayerControllerInterface {
     if (!this.mpvHandle || this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
       return
     }
-    if (Setting.smartRotation &&
-      (this.playAreaWidth > this.playAreaHeight || this.nowPlaying!.size[0] > this.nowPlaying!.size[1]) &&
-      this.screenHeight > this.screenWidth) {
-      salmonLogger.addLog(TAG, "智能旋转条件满足，开始设置方向", false)
-      const proportion =
-        Math.max(this.screenWidth, this.screenHeight) / Math.min(this.screenWidth, this.screenHeight)
-      const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
-        : window.Orientation.AUTO_ROTATION_RESTRICTED;
-      (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
-        salmonLogger.addLog(TAG, "设置窗口方向失败", true)
-      })
-    }
+    this.setRotation()
     if (this.speed !== 1) {
       this.updatePlaybackSpeed(this.speed)
     }
@@ -1112,7 +1116,18 @@ export class MpvController implements PlayerControllerInterface {
     const mpvSeekMode = VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!)
     this.videoStartPlayTime(mpvSeekMode)
     this.nowPlaying!.time = this.getDuration()
-    this.setRotation()
+    if (Setting.smartRotation &&
+      this.playAreaWidth > this.playAreaHeight &&
+      this.screenHeight > this.screenWidth) {
+      salmonLogger.addLog(TAG, "智能旋转条件满足，开始设置方向", false)
+      const proportion =
+        Math.max(this.screenWidth, this.screenHeight) / Math.min(this.screenWidth, this.screenHeight)
+      const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
+        : window.Orientation.AUTO_ROTATION_RESTRICTED;
+      (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
+        salmonLogger.addLog(TAG, "设置窗口方向失败", true)
+      })
+    }
     this.onSwiping = false
     this.isSliderPlayTimeChange = false
     if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE && !this.osdVisibility) {
@@ -1225,6 +1240,18 @@ export class MpvController implements PlayerControllerInterface {
           this.syncOsdSurfaceSize()
         }
         this.userListener?.emit('videoSizeReady', 0)
+        if (this.postLoadTasksExecuted) {
+          this.setRotation()
+          if (Setting.smartRotation &&
+            this.playAreaWidth > this.playAreaHeight &&
+            this.screenHeight > this.screenWidth) {
+            const proportion =
+              Math.max(this.screenWidth, this.screenHeight) / Math.min(this.screenWidth, this.screenHeight)
+            const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
+              : window.Orientation.AUTO_ROTATION_RESTRICTED
+            this.windowClass?.then(w => w?.setPreferredOrientation(orientation)?.catch(() => {}))
+          }
+        }
       })
       this.videoSizeCallbackRegistered = true
     } catch (error) {
@@ -1254,6 +1281,12 @@ export class MpvController implements PlayerControllerInterface {
         if (this.playTime < minPlayTime && duration > 0) {
           salmonLogger.addLog(TAG,
             `[MpvController] Ignoring playback complete: playTime=${this.playTime}ms < minPlayTime=${minPlayTime}ms, likely decode error`,
+            true)
+          return
+        }
+        if (duration > 0 && this.playTime < duration * 0.95) {
+          salmonLogger.addLog(TAG,
+            `[MpvController] Ignoring playback complete: playTime=${this.playTime}ms < 95% of duration=${duration}ms, likely premature EOF`,
             true)
           return
         }
@@ -1614,4 +1647,5 @@ export class MpvController implements PlayerControllerInterface {
     }
 
   }
+
 }

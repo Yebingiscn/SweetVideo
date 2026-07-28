@@ -14,12 +14,12 @@ import { KeyCode } from '@kit.InputKit'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import { SubtitleManager } from '../../utils/SubtitleManager'
-import { BrightnessSwipingBuilder } from '../../component/PlayerComponent/BrightnessSwipingBuilder'
 import { FastForwardPanelBuilder } from '../../component/PlayerComponent/FastForwardPanelBuilder'
-import { VolumeSwipingPanelBuilder } from '../../component/PlayerComponent/VolumeSwipingPanelBuilder'
+import { SwipingPanelBuilder } from '../../component/PlayerComponent/SwipingPanelBuilder'
 import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/SwipingPlayTimePanelBuilder'
 import { SubtitleDisplayBuilder } from '../../component/PlayerComponent/SubtitleDisplayBuilder'
 import { Privacy, Setting } from '../../utils/ObservedUtil'
+import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
 import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { XComponents } from '../../component/PlayerComponent/XComponents'
 import { VideoLayoutComponent } from '../../component/PlayerComponent/VideoLayoutComponent'
@@ -34,6 +34,8 @@ import {
   PINCH_SCALE_SENSITIVITY,
   PRIVACY_BACKGROUND_BLUR_AMOUNT,
   SCREEN_HALF_DIVIDER,
+  SCROLL_BRIGHTNESS_SENSITIVITY,
+  SCROLL_VOLUME_SENSITIVITY,
   SWIPE_THRESHOLD,
   VERTICAL_PAN_SENSITIVITY,
   VOLUME_PAN_MULTIPLIER,
@@ -65,6 +67,7 @@ type PlayerType = PlayerControllerInterface
 @ComponentV2
 export struct VideoPlayer {
   @Local playerType: string = PlayerEngine.AV_PLAYER
+  @Local autoListenVideoEnabled: boolean = false
   @Provider('player') player: PlayerType = PlayerControllerFactory.createAVPlayerController() as PlayerType
   personalScreenExtendDialog: CustomDialogController = new CustomDialogController({
     builder: NumberInputDialog({
@@ -76,6 +79,7 @@ export struct VideoPlayer {
           Preferences.saveScreenExtend(PathUtils.appContext!, this.player.selectedText)
           this.player.playAreaHeight = input / 100 * VideoInfoUtil.playAreaHeight
           this.player.playAreaWidth = input / 100 * VideoInfoUtil.playAreaWidth
+          this.player.scaleFactor = 1
 
         } else {
           ToolsUtil.showToast('输入错误，输入范围在50-150之间')
@@ -136,9 +140,10 @@ export struct VideoPlayer {
   @Local isAdjustingSubtitleOffset: boolean = false
   private subtitleOffsetPreviewBase: number = 0
   private subtitleOffsetShouldResumePlayback: boolean = false
+  private scrollAxisTimeout: number = 0
 
   aboutToAppear(): void {
-    salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "开始执行aboutToAppear方法", false)
+    salmonLogger.addLog(TAG, "开始执行aboutToAppear方法", false)
     PermissionUtil.applyContinuousTask()
     this.getWindowClass()?.then(
       w => w?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)?.catch(() => {
@@ -148,11 +153,11 @@ export struct VideoPlayer {
     if (Setting.defaultBrightness > 0) {
       VideoOperateUtil.setBrightness(Setting.defaultBrightness / 100)
     }
-    salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "aboutToAppear方法执行完成", false)
+    salmonLogger.addLog(TAG, "aboutToAppear方法执行完成", false)
   }
 
   async aboutToDisappear(): Promise<void> {
-    salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "开始执行aboutToDisappear方法", false)
+    salmonLogger.addLog(TAG, "开始执行aboutToDisappear方法", false)
     VideoOperateUtil.setBrightness(-1)
     WindowUtil.recoveryBarColor()
     this.player.savePlayerSpeed(PathUtils.appContext!)
@@ -161,9 +166,10 @@ export struct VideoPlayer {
       this.subtitleManager.isAIAsrShown, this.subtitleManager.subtitle3DMode)
     this.player.onDisappearCleanup()
     clearTimeout(this.exitVideoTime)
+    clearTimeout(this.scrollAxisTimeout)
     await this.player.onDisappearRelease()
-    salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "释放播放器资源完成", false)
-    salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "aboutToDisappear方法执行完成", false)
+    salmonLogger.addLog(TAG, "释放播放器资源完成", false)
+    salmonLogger.addLog(TAG, "aboutToDisappear方法执行完成", false)
   }
 
   closeSideBar(isPlayAnimation: boolean) {
@@ -260,19 +266,14 @@ export struct VideoPlayer {
             })
           }
 
-          VolumeSwipingPanelBuilder({
+          SwipingPanelBuilder({
             videoVolume: this.player.volume,
             videoVolumeShow: this.player.volumeActually,
             onSwipingVoice: this.player.onSwipingVoice,
+            onSwipingBrightness: this.player.onSwipingBrightness,
+            screenBrightness: this.player.screenBrightness,
             playAreaHeight: VideoInfoUtil.playAreaHeight
           })
-
-          if (this.player.onSwipingBrightness) {
-            BrightnessSwipingBuilder({
-              screenBrightness: this.player.screenBrightness,
-              playAreaHeight: VideoInfoUtil.playAreaHeight
-            })
-          }
           if (this.player.lockVisibility) {
             LockVideoBarComponent({
               onLockClick: () => {
@@ -343,8 +344,7 @@ export struct VideoPlayer {
             },
             onPinchStart: (fingerDistance: number) => {
               VideoOperateUtil.initPinchDistance = fingerDistance
-              VideoOperateUtil.initPinchWidth = this.player.playAreaWidth
-              VideoOperateUtil.initPinchHeight = this.player.playAreaHeight
+              VideoOperateUtil.initScaleFactor = this.player.scaleFactor
               this.player.translateX = 0
               this.player.translateY = 0
               this.player.isGesturing = true
@@ -352,19 +352,19 @@ export struct VideoPlayer {
             onPinchUpdate: (fingerDistance: number) => {
               const rawScale = fingerDistance / VideoOperateUtil.initPinchDistance
               const adjustedScale = 1 + (rawScale - 1) * PINCH_SCALE_SENSITIVITY
-              const clampedScale = Math.min(Math.max(adjustedScale, MIN_SCALE_FACTOR), MAX_SCALE_FACTOR)
-              const scaledWidth = VideoOperateUtil.initPinchWidth * clampedScale
+              const newScaleFactor = VideoOperateUtil.initScaleFactor * adjustedScale
+              const clampedScaleFactor = Math.min(Math.max(newScaleFactor, MIN_SCALE_FACTOR), MAX_SCALE_FACTOR)
+              const effectiveWidth = VideoInfoUtil.playAreaWidth * clampedScaleFactor
               const maxAllowed = VideoInfoUtil.playAreaWidth * MAX_WIDTH_MULTIPLIER
               const minAllowed = VideoInfoUtil.playAreaWidth * MIN_WIDTH_MULTIPLIER
-              if (scaledWidth > maxAllowed || scaledWidth < minAllowed) {
+              if (effectiveWidth > maxAllowed || effectiveWidth < minAllowed) {
                 return
               }
-              this.player.playAreaWidth = scaledWidth
-              this.player.playAreaHeight = VideoOperateUtil.initPinchHeight * clampedScale
-              this.player.isZoomed = clampedScale !== 1
+              this.player.scaleFactor = clampedScaleFactor
+              this.player.isZoomed = clampedScaleFactor !== 1
             },
             onPinchEnd: () => {
-              this.player.isZoomed = this.player.playAreaWidth !== VideoInfoUtil.playAreaWidth
+              this.player.isZoomed = this.player.scaleFactor !== 1
               this.player.isGesturing = false
             },
             onLongPressAction: () => {
@@ -434,6 +434,41 @@ export struct VideoPlayer {
             },
             onPanMoveEnd: () => {
               this.player.isGesturing = false
+            },
+            onScrollAxisBegin: (isLeftSide: boolean) => {
+              clearTimeout(this.scrollAxisTimeout)
+              if (isLeftSide) {
+                this.player.onSwipingVoice = false
+                VideoOperateUtil.screenBrightnessTmp = this.player.screenBrightness
+                this.player.onSwipingBrightness = true
+              } else {
+                this.player.onSwipingBrightness = false
+                this.player.volume = this.player.volumeActually
+                VideoOperateUtil.lastVolume = this.player.volume
+                this.player.onSwipingVoice = true
+              }
+            },
+            onScrollAxisUpdate: (axisValue: number, isLeftSide: boolean) => {
+              const delta = -axisValue
+              if (isLeftSide) {
+                const brightnessStep = delta * SCROLL_BRIGHTNESS_SENSITIVITY
+                const newBrightness = this.player.screenBrightness + brightnessStep
+                this.player.screenBrightness = Math.min(Math.max(newBrightness, 0), 1)
+                VideoOperateUtil.setBrightness(this.player.screenBrightness)
+              } else {
+                const volumeStep = delta * SCROLL_VOLUME_SENSITIVITY
+                const newVolume = this.player.volume + volumeStep
+                this.player.volume =
+                  Math.min(Math.max(newVolume, VideoOperateUtil.minVolume), VideoOperateUtil.maxVolume)
+                this.player.volumeActually = this.player.volume
+                VideoOperateUtil.lastVolume = this.player.volume
+              }
+            },
+            onScrollAxisEnd: () => {
+              this.scrollAxisTimeout = setTimeout(() => {
+                this.player.onSwipingVoice = false
+                this.player.onSwipingBrightness = false
+              }, 1500)
             }
           })
             .hitTestBehavior(HitTestMode.Transparent)
@@ -448,6 +483,7 @@ export struct VideoPlayer {
             areaWidth: this.player.playAreaWidth,
             areaHeight: this.player.playAreaHeight,
             angle: this.player.angle,
+            scaleFactor: this.player.scaleFactor,
             translateX: this.player.translateX,
             translateY: this.player.translateY,
             animDuration: this.player.playTime > 300 ? 300 : 0
@@ -458,7 +494,8 @@ export struct VideoPlayer {
             showControl: this.player.showControl,
             screenHeight: this.player.screenHeight,
           })
-        }.onAreaChange(async (_oldValue: Area, newValue: Area) => {
+        }
+        .onAreaChange(async (_oldValue: Area, newValue: Area) => {
           this.player.screenWidth = Math.floor(new Number(newValue.width).valueOf())
           this.player.screenHeight = Math.floor(new Number(newValue.height).valueOf())
           this.player.setRotation()
@@ -517,7 +554,7 @@ export struct VideoPlayer {
         this.restoreSubtitlePreference()
         this.player.onPlayerReady()
       } catch (e) {
-        salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, e, true)
+        salmonLogger.addLog(TAG, e, true)
       }
     })
     .onBackPressed(() => {
@@ -538,30 +575,34 @@ export struct VideoPlayer {
         PiPWindowUtil.stopPip()
       }
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
+      if (this.autoListenVideoEnabled) {
+        if (this.player instanceof AVPlayerController && this.player.isListenVideo) {
+          this.player.isListenVideo = false
+          this.player.setListenVideoStatus()
+        }
+        this.autoListenVideoEnabled = false
+      }
       if (Setting.autoResumeOnReturn && !this.player.playing) {
         this.player.play()
       }
     })
+    .onWillHide(() => {
+      VideoOperateUtil.saveVideoPlayTimeIfNeed(this.player.playTime, this.player.nowPlaying,
+        this.player.skipHistory, PathUtils.appContext!)
+      if (this.player instanceof AVPlayerController && !PiPWindowUtil.pipOpenState &&
+        !Setting.autoActivePip && !this.player.isListenVideo) {
+        this.player.isListenVideo = true
+        this.player.setListenVideoStatus()
+        this.autoListenVideoEnabled = true
+      }
+    })
     .onWillDisappear(async () => {
-      salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "开始执行onWillDisappear生命周期", false)
+      salmonLogger.addLog(TAG, "开始执行onWillDisappear生命周期", false)
       this.player.saveSubtitlePreferenceForCurrentVideo(this.subtitleManager.subtitleVisibility,
         this.subtitleManager.isAIAsrShown, this.subtitleManager.subtitle3DMode)
       VideoOperateUtil.saveLastPlayVideoIndex(this.player.videoMetaDataList, this.player.nowPlaying?.date)
-      if (this.player.videoMetaDataList.length > 0 && this.player.playTime > 0 && !this.player.skipHistory) {
-        const nowPlaying = this.player.nowPlaying!
-        const totalTime = nowPlaying.time ?? 0
-        const lastPlay = nowPlaying.last_play ?? 0
-        const isAlreadyWatched = totalTime > 0 && lastPlay >= totalTime * 0.95
-        const isCurrentEarlier = this.player.playTime < lastPlay
-        if (isAlreadyWatched && isCurrentEarlier) {
-          salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG,
-            `跳过保存: 视频已标记为已观看(last_play=${lastPlay}), 当前playTime=${this.player.playTime}更小`, false)
-        } else {
-          VideoOperateUtil.saveVideoTime(this.player.playTime, nowPlaying,
-            PathUtils.appContext!)
-          salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "保存视频播放时间完成", false)
-        }
-      }
+      VideoOperateUtil.saveVideoPlayTimeIfNeed(this.player.playTime, this.player.nowPlaying,
+        this.player.skipHistory, PathUtils.appContext!)
       PermissionUtil.applyStopContinuousTask()
       await PiPWindowUtil.destroyPipController()
       WindowUtil.disableLandscapeMultiWindow(this.getWindowClass())
@@ -573,9 +614,9 @@ export struct VideoPlayer {
         await this.player.avSession?.stopCasting()
         await this.player.onWillDisappearRelease(this.windowClass)
       } catch (error) {
-        salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, `onWillDisappear中发生错误：${error}`, true)
+        salmonLogger.addLog(TAG, `onWillDisappear中发生错误：${error}`, true)
       }
-      salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "onWillDisappear生命周期执行完成", false)
+      salmonLogger.addLog(TAG, "onWillDisappear生命周期执行完成", false)
     })
     .hideTitleBar(true)
 
@@ -598,12 +639,12 @@ export struct VideoPlayer {
       },
       lockRotation: this.lockRotation,
       onExitVideoClick: () => {
-        salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "点击退出视频按钮", false)
+        salmonLogger.addLog(TAG, "点击退出视频按钮", false)
         this.exitVideo(0)
       },
       onLockRotationClick: async () => {
         this.lockRotation = !this.lockRotation
-        salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, `锁定旋转状态切换为：${this.lockRotation}`,
+        salmonLogger.addLog(TAG, `锁定旋转状态切换为：${this.lockRotation}`,
           false)
         const orientation = this.lockRotation ?
           (this.player.screenWidth > this.player.screenHeight ? window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED
@@ -612,10 +653,10 @@ export struct VideoPlayer {
         try {
           XAnimation.runWithAnimation(async () => {
             await (await this.getWindowClass())?.setPreferredOrientation(orientation)
-            salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "窗口方向设置成功", false)
+            salmonLogger.addLog(TAG, "窗口方向设置成功", false)
           })
         } catch (error) {
-          salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG,
+          salmonLogger.addLog(TAG,
             `屏幕旋转异常: ${error.code}:${error.message}`, true)
         }
         const toastMessage = this.lockRotation
@@ -627,6 +668,7 @@ export struct VideoPlayer {
         this.player.playAreaWidth = playAreaSize[0]
         this.player.playAreaHeight = playAreaSize[1]
         this.player.isZoomed = false
+        this.player.scaleFactor = 1
         this.player.translateX = 0
         this.player.translateY = 0
       },
@@ -635,6 +677,7 @@ export struct VideoPlayer {
         this.player.playAreaHeight = VideoInfoUtil.playAreaHeight
         this.player.playAreaWidth = VideoInfoUtil.playAreaWidth
         this.player.isZoomed = false
+        this.player.scaleFactor = 1
         this.player.translateX = 0
         this.player.translateY = 0
       },
@@ -643,6 +686,7 @@ export struct VideoPlayer {
         this.player.playAreaHeight = this.player.screenHeight
         this.player.playAreaWidth = this.player.screenWidth
         this.player.isZoomed = false
+        this.player.scaleFactor = 1
         this.player.translateX = 0
         this.player.translateY = 0
       },
@@ -651,6 +695,7 @@ export struct VideoPlayer {
         this.player.playAreaHeight =
           (VideoInfoUtil.playAreaHeight / VideoInfoUtil.playAreaWidth) * this.player.screenWidth
         this.player.isZoomed = false
+        this.player.scaleFactor = 1
         this.player.translateX = 0
         this.player.translateY = 0
       },
@@ -659,6 +704,7 @@ export struct VideoPlayer {
         this.player.playAreaWidth =
           (VideoInfoUtil.playAreaWidth / VideoInfoUtil.playAreaHeight) * this.player.screenHeight
         this.player.isZoomed = false
+        this.player.scaleFactor = 1
         this.player.translateX = 0
         this.player.translateY = 0
       },
@@ -666,6 +712,7 @@ export struct VideoPlayer {
         this.player.playAreaHeight = scale * VideoInfoUtil.playAreaHeight
         this.player.playAreaWidth = scale * VideoInfoUtil.playAreaWidth
         this.player.isZoomed = false
+        this.player.scaleFactor = 1
         this.player.translateX = 0
         this.player.translateY = 0
       },
@@ -687,11 +734,13 @@ export struct VideoPlayer {
   VideoSlider() {
     VideoSliderComponent({
       onSliderChange: (value: number) => {
-        this.player.onSwiping = true
         this.player.isSliderPlayTimeChange = true
         this.player.playTime = value
       },
       onSliderTouch: (event: TouchEvent) => {
+        if (event.type == TouchType.Down) {
+          this.player.onSwiping = true
+        }
         if (event.type == TouchType.Up) {
           this.player.seekTime(this.player.playTime)
           this.player.isSliderPlayTimeChange = false
@@ -727,9 +776,11 @@ export struct VideoPlayer {
         this.player.togglePlayback()
       },
       onPlayNextVideoClick: async () => {
-        this.player.playNextVideoProcess(this.pathStack, this.windowClass, this.xComponentController)
+        const nextRepeatMode =
+          this.player.repeatMode === SweetRepeatMode.SINGLE ? SweetRepeatMode.LIST : this.player.repeatMode
+        this.player.playNextVideoProcess(this.pathStack, this.windowClass, this.xComponentController, nextRepeatMode)
         this.player.setPlayerCallback(this.pathStack, this.xComponentController, this.windowClass)
-        salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "播放下一个视频请求已发送", false)
+        salmonLogger.addLog(TAG, "播放下一个视频请求已发送", false)
       },
       onSideBaClose: () => {
         this.closeSideBar(true)
@@ -765,7 +816,7 @@ export struct VideoPlayer {
     VideoSettingComponent({
       exitVideoTime: this.exitVideoTime,
       forward_80_s: (time: number) => {
-        salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, `执行快进80秒操作，目标时间：${time}`, false)
+        salmonLogger.addLog(TAG, `执行快进80秒操作，目标时间：${time}`, false)
         this.player.seekTime(time)
       },
       closeAfter15min: (time: number) => {
@@ -862,13 +913,13 @@ export struct VideoPlayer {
   }
 
   private exitVideo(timeOut: number) {
-    salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "开始设置退出视频定时器", false)
+    salmonLogger.addLog(TAG, "开始设置退出视频定时器", false)
     this.exitVideoTime = setTimeout(async () => {
-      salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, "退出视频定时器触发" + timeOut, false)
+      salmonLogger.addLog(TAG, "退出视频定时器触发" + timeOut, false)
       await this.player.exitPlayback(timeOut)
       this.pathStack.pop()
     }, timeOut)
-    salmonLogger.addLog(this.pathStack?.getAllPathName()[0] ?? TAG, `退出视频定时器设置完成，超时时间：${timeOut}`, false)
+    salmonLogger.addLog(TAG, `退出视频定时器设置完成，超时时间：${timeOut}`, false)
   }
 
   private resumePlaybackAfterSubtitleOffsetIfNeeded(): void {

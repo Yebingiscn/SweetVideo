@@ -87,6 +87,21 @@ export struct PersonalizePage {
           })
         }
 
+        if (Setting.backgroundImageSrc.length > 0) {
+          ListItem() {
+            SettingsToggleItem({
+              symbol: $r('sys.symbol.blur_bar'),
+              message: '列表项背景模糊',
+              tag: '试用',
+              enable: Setting.listItemBackgroundBlur,
+              onChange: (checked: boolean) => {
+                Setting.listItemBackgroundBlur = checked
+                Preferences.saveListItemBackgroundBlur(PathUtils.appContext!, Setting.listItemBackgroundBlur)
+              }
+            })
+          }
+        }
+
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.picture'),
@@ -125,8 +140,10 @@ export struct PersonalizePage {
                 Setting.backgroundImageSrc = ''
                 Setting.backgroundBlurImageSrc = ''
                 Setting.backgroundDropBlur = 0
+                Setting.listItemBackgroundBlur = false
                 ToolsUtil.showToast('删除成功')
                 Preferences.saveBackgroundDropBlur(PathUtils.appContext!, 0)
+                Preferences.saveListItemBackgroundBlur(PathUtils.appContext!, false)
               }
             })
           }
@@ -143,6 +160,8 @@ export struct PersonalizePage {
                     Setting.backgroundImageSrc = ''
                     Setting.backgroundBlurImageSrc = ''
                     Setting.backgroundDropBlur = 0
+                    Setting.listItemBackgroundBlur = false
+                    Preferences.saveListItemBackgroundBlur(PathUtils.appContext!, false)
                   }
                   ToolsUtil.showToast('删除成功')
                   Preferences.saveBackgroundDropBlur(PathUtils.appContext!, 0)

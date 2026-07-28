@@ -75,14 +75,7 @@ export function VideoInfoBuilder(params: VideoInfoBuilderParams) {
     })
 
     Row() {
-      Text(params.item?.format)
-        .fontSize(15)
-        .opacity(0.8)
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-        .fontColor(params.nowPlaying && params.nowPlaying?.date === params.item?.date ?
-          $r('sys.color.white') : $r('app.color.text_color'))
-      Text("  " + TimeUtil.convertMSToHHMMSS(params.item!.time))
+      Text((params.item?.format ? params.item.format + ' ' : '') + TimeUtil.convertMSToHHMMSS(params.item!.time))
         .fontSize(15)
         .opacity(0.8)
         .maxLines(1)

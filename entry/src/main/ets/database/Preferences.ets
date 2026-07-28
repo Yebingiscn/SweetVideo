@@ -1,5 +1,6 @@
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
+
 import PreferencesUtil from './PreferencesUtil'
 import { Context } from '@kit.AbilityKit'
 import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
@@ -15,49 +16,6 @@ export default class Preferences {
   private static fileFolderCache: FileFolder[] | null = null
   private static videoDateToFolderDate: Map<string, string> | null = null
   private static videoUriSet: Set<string> | null = null
-
-  private static deepCopyFileFolders(source: FileFolder[]): FileFolder[] {
-    const result: FileFolder[] = []
-    for (const folder of source) {
-      const copiedVideos: VideoMetadata[] = []
-      for (const v of folder.video_list) {
-        const copiedVideo: VideoMetadata = {
-          uri: v.uri,
-          title: v.title,
-          date: v.date,
-          size: v.size.slice(),
-          time: v.time,
-          last_play: v.last_play,
-          format: v.format,
-          video_size: v.video_size,
-          hdr_type: v.hdr_type,
-          audio_type: v.audio_type,
-          frame_rate: v.frame_rate,
-          start_time: v.start_time,
-          end_time: v.end_time,
-          external_subtitle_format: v.external_subtitle_format,
-          pointA: v.pointA,
-          pointB: v.pointB,
-          subtitle_mode: v.subtitle_mode,
-          subtitle_visible: v.subtitle_visible,
-          subtitle_ai_asr_shown: v.subtitle_ai_asr_shown,
-          subtitle_3d_mode: v.subtitle_3d_mode,
-          subtitle_offset_millis: v.subtitle_offset_millis,
-          subtitle_track_id: v.subtitle_track_id,
-          audio_track_id: v.audio_track_id
-        }
-        copiedVideos.push(copiedVideo)
-      }
-      const copiedFolder: FileFolder = {
-        name: folder.name,
-        date: folder.date,
-        video_list: copiedVideos,
-        parent_date: folder.parent_date
-      }
-      result.push(copiedFolder)
-    }
-    return result
-  }
 
   static invalidateFileFolderCache() {
     Preferences.fileFolderCache = null
@@ -81,26 +39,6 @@ export default class Preferences {
     return [undefined, [], undefined]
   }
 
-  private static buildVideoDateIndex(folders: FileFolder[]) {
-    const map = new Map<string, string>()
-    for (const folder of folders) {
-      for (const video of folder.video_list) {
-        map.set(video.date, folder.date)
-      }
-    }
-    Preferences.videoDateToFolderDate = map
-  }
-
-  private static buildVideoUriSet(folders: FileFolder[]) {
-    const set = new Set<string>()
-    for (const folder of folders) {
-      for (const video of folder.video_list) {
-        set.add(video.uri)
-      }
-    }
-    Preferences.videoUriSet = set
-  }
-
   static getVideoUriSet(context: Context): Set<string> {
     if (Preferences.videoUriSet !== null) {
       return Preferences.videoUriSet!
@@ -112,11 +50,6 @@ export default class Preferences {
 
   static saveMpvDecodingMethod(context: Context, decodingMethod: MpvDecodingMethod) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpv_decoding_method', decodingMethod)
-  }
-
-  static getMpvDecodingMethod(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'mpv_decoding_method',
-      MpvDecodingMethod.HARDWARE_SURFACE) as MpvDecodingMethod
   }
 
   // 首页视频数据
@@ -193,40 +126,8 @@ export default class Preferences {
     return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'passwd', '') as string
   }
 
-  static getOOBEVersion(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, "OOBEVersion", -1) as number
-  }
-
-  static getRecentPlayState(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, "recentPlay", true) as boolean
-  }
-
-  static getShowToastState(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, "showToast", true) as boolean
-  }
-
-  static getAllowBackgroundPlayState(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, "allowBackgroundPlay", true) as boolean
-  }
-
-  static getAllowPlayBackExistState(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, "allowPlayBackExist", false) as boolean
-  }
-
-  static getSubtitleSize(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, "subtitleSize", '22') as string
-  }
-
-  static getFastForwardSeconds(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, "fastForwardSeconds", '15') as string
-  }
-
   static getDefaultPlayerEngine(context: Context) {
     return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, "defaultPlayerEngine", '系统播放器') as string
-  }
-
-  static getAllowDoubleFastForwardState(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, "allowDoubleFastForward", true) as boolean
   }
 
   static getVideoSpeed(context: Context) {
@@ -238,51 +139,9 @@ export default class Preferences {
       SweetRepeatMode.LIST) as SweetRepeatMode
   }
 
-  static getSkipIntroTime(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'skipIntroTime', '0') as string
-  }
-
-  static getListDisplayMode(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'listDisplayMode',
-      ListDisplayMode.LIST_DISPLAY) as ListDisplayMode
-  }
-
-  static getSmartRotationState(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, "smartRotation", true) as boolean
-  }
-
-  static getLongPressSpeed(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'longPressSpeed', 3) as number
-  }
-
-  static getBackgroundDropBlur(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'backgroundDropBlur', 0) as number
-  }
-
-  static getShowSettingPageEntry(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'showSettingPageEntry', true) as boolean
-  }
-
   static getBackgroundColorMode(context: Context) {
     return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'backgroundColorMode',
       BackgroundColorMode.AUTO) as BackgroundColorMode
-  }
-
-  static getAllowGestureEntry(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'allowGestureEntry', true) as boolean
-  }
-
-  static getShowFrameTime(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'showFrameTime', true) as boolean
-  }
-
-  static getJumpToHistoryTime(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'jumpToHistoryTime', true) as boolean
-  }
-
-  static getCoverLayoutMode(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'coverLayoutMode',
-      CoverLayoutMode.VERTICAL_PLATE) as CoverLayoutMode
   }
 
   static saveCoverLayoutMode(context: Context, coverLayoutMode: CoverLayoutMode) {
@@ -303,6 +162,10 @@ export default class Preferences {
 
   static saveSkipIntroTime(context: Context, skipIntroTime: string) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'skipIntroTime', skipIntroTime)
+  }
+
+  static saveSkipOutroTime(context: Context, skipOutroTime: string) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'skipOutroTime', skipOutroTime)
   }
 
   static saveVideoSpeed(context: Context, video_speed: string) {
@@ -337,12 +200,12 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, "allowBackgroundPlay", isEnabled)
   }
 
-  static saveAutoActivePip(context: Context, isEnabled: boolean) {
-    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, "autoActivePip", isEnabled)
+  static saveAllowConcurrentPlayState(context: Context, isEnabled: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, "allowConcurrentPlay", isEnabled)
   }
 
-  static getAutoActivePip(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, "autoActivePip", false) as boolean
+  static saveAutoActivePip(context: Context, isEnabled: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, "autoActivePip", isEnabled)
   }
 
   static saveAutoResumeOnReturn(context: Context, isEnabled: boolean) {
@@ -405,8 +268,8 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'enableBackgroundDarkImage', enableBackgroundDarkImage)
   }
 
-  static getEnableBackgroundDarkImage(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'enableBackgroundDarkImage', false) as boolean
+  static saveListItemBackgroundBlur(context: Context, listItemBackgroundBlur: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'listItemBackgroundBlur', listItemBackgroundBlur)
   }
 
   static saveListDisplayMode(context: Context, listDisplayMode: ListDisplayMode) {
@@ -433,16 +296,8 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'superResolutionState', superResolutionState)
   }
 
-  static getSuperResolutionState(context: Context): boolean {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'superResolutionState', false) as boolean
-  }
-
   static saveMpvShaderMode(context: Context, mpvShaderMode: number) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpvShaderMode', mpvShaderMode)
-  }
-
-  static getMpvShaderMode(context: Context): number {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'mpvShaderMode', 0) as number
   }
 
   static getSortField(context: Context): string {
@@ -556,10 +411,6 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'enableAiPrivacyAntiPeep', enableAiPrivacyAntiPeep)
   }
 
-  static getEnableAiPrivacyAntiPeep(context: Context): boolean {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'enableAiPrivacyAntiPeep', false) as boolean
-  }
-
   static saveUserIsVip(context: Context, isVip: boolean) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'userIsVip', isVip)
   }
@@ -571,11 +422,6 @@ export default class Preferences {
   static saveDefaultBrightness(context: Context, defaultBrightness: number) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'defaultBrightness', defaultBrightness)
   }
-
-  static getDefaultBrightness(context: Context): number {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'defaultBrightness', 0) as number
-  }
-
 
   static saveDefaultDensityEnabled(context: Context, defaultDensityEnabled: boolean) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'defaultDensityEnabled', defaultDensityEnabled)
@@ -593,6 +439,14 @@ export default class Preferences {
     return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'collapsedFolderDates', []) as string[]
   }
 
+  static saveEmbedSidebarVisible(context: Context, visible: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'embedSidebarVisible', visible)
+  }
+
+  static getEmbedSidebarVisible(context: Context): boolean {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'embedSidebarVisible', true) as boolean
+  }
+
   static saveDefaultStartupFolder(context: Context, folderDate: string) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'defaultStartupFolder', folderDate)
   }
@@ -605,7 +459,74 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'maxListLine', maxListLine)
   }
 
-  static getMaxListLine(context: Context): number {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'maxListLine', 5) as number
+  static getNetworkStreams(context: Context): VideoMetadata[] {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'network_streams', []) as VideoMetadata[]
+  }
+
+  static saveNetworkStreams(context: Context, streams: VideoMetadata[]) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'network_streams', streams)
+  }
+
+  private static deepCopyFileFolders(source: FileFolder[]): FileFolder[] {
+    const result: FileFolder[] = []
+    for (const folder of source) {
+      const copiedVideos: VideoMetadata[] = []
+      for (const v of folder.video_list) {
+        const copiedVideo: VideoMetadata = {
+          uri: v.uri,
+          title: v.title,
+          date: v.date,
+          size: v.size.slice(),
+          time: v.time,
+          last_play: v.last_play,
+          format: v.format,
+          video_size: v.video_size,
+          hdr_type: v.hdr_type,
+          audio_type: v.audio_type,
+          frame_rate: v.frame_rate,
+          start_time: v.start_time,
+          end_time: v.end_time,
+          external_subtitle_format: v.external_subtitle_format,
+          pointA: v.pointA,
+          pointB: v.pointB,
+          subtitle_mode: v.subtitle_mode,
+          subtitle_visible: v.subtitle_visible,
+          subtitle_ai_asr_shown: v.subtitle_ai_asr_shown,
+          subtitle_3d_mode: v.subtitle_3d_mode,
+          subtitle_offset_millis: v.subtitle_offset_millis,
+          subtitle_track_id: v.subtitle_track_id,
+          audio_track_id: v.audio_track_id
+        }
+        copiedVideos.push(copiedVideo)
+      }
+      const copiedFolder: FileFolder = {
+        name: folder.name,
+        date: folder.date,
+        video_list: copiedVideos,
+        parent_date: folder.parent_date
+      }
+      result.push(copiedFolder)
+    }
+    return result
+  }
+
+  private static buildVideoDateIndex(folders: FileFolder[]) {
+    const map = new Map<string, string>()
+    for (const folder of folders) {
+      for (const video of folder.video_list) {
+        map.set(video.date, folder.date)
+      }
+    }
+    Preferences.videoDateToFolderDate = map
+  }
+
+  private static buildVideoUriSet(folders: FileFolder[]) {
+    const set = new Set<string>()
+    for (const folder of folders) {
+      for (const video of folder.video_list) {
+        set.add(video.uri)
+      }
+    }
+    Preferences.videoUriSet = set
   }
 }

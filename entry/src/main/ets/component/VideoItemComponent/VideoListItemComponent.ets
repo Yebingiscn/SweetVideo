@@ -48,8 +48,11 @@ export default struct VideoListItem {
       .padding({ left: 16, right: 16 })
       .layoutWeight(1)
     }
+    .borderRadius(12)
     .justifyContent(FlexAlign.Center)
-    .width('100%').height('auto')
+    .width('100%')
+    .height('auto')
+    .backdropBlur(Setting.listItemBackgroundBlur ? 150 : 0)
   }
 }
 

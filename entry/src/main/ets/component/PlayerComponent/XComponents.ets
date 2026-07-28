@@ -86,6 +86,7 @@ export struct XComponents {
     .animation(this.player?.isGesturing ? undefined :
       { duration: (this.player?.playTime ?? 0) > 300 ? 300 : 0, curve: Curve.Ease })
     .rotate({ y: 2, angle: this.player?.angle ?? 0, perspective: 200 })
+    .scale({ x: this.player?.scaleFactor ?? 1, y: this.player?.scaleFactor ?? 1 })
     .translate({ x: this.player?.translateX ?? 0, y: this.player?.translateY ?? 0 })
   }
 

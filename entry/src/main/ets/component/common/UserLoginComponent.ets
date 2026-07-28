@@ -126,6 +126,7 @@ struct userLoginComponent {
 
         Column() {
           Text(this.userData.nickName)
+            .fontColor(userData.isVip ? '#FFD87C' : $r('app.color.text_color'))
             .padding({ top: 3, bottom: 5 })
             .borderRadius(20)
             .transition(XAnimation.getAnimation('bottom'))

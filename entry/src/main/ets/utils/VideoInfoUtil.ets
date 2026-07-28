@@ -153,7 +153,8 @@ export default class VideoInfoUtil {
     if (!item) {
       return ''
     }
-    return item.title.slice(0, item.title.lastIndexOf('.'))
+    const dotIndex = item.title.lastIndexOf('.')
+    return dotIndex > 0 ? item.title.slice(0, dotIndex) : item.title
   }
 
   static getVideoFrame(metadata: media.AVMetadata) {

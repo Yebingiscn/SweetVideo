@@ -8,6 +8,7 @@ import Preferences from '../../database/Preferences'
 import { FastForwardSecondInterface } from '../../interfaces/FastForwardSecondInterface'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
+import AVSessionUtil from '../../utils/AVSessionUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { LengthMetrics } from '@kit.ArkUI'
@@ -37,6 +38,20 @@ export struct PlayerSettingPage {
             onChange: (checked: boolean) => {
               Setting.allowBackgroundPlay = checked
               Preferences.saveAllowBackgroundPlayState(PathUtils.appContext!, Setting.allowBackgroundPlay)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsToggleItem({
+            symbol: $r('sys.symbol.play_gobackward'),
+            message: '与其他应用同时播放',
+            tag: '试用',
+            enable: Setting.allowConcurrentPlay,
+            onChange: (checked: boolean) => {
+              Setting.allowConcurrentPlay = checked
+              Preferences.saveAllowConcurrentPlayState(PathUtils.appContext!, Setting.allowConcurrentPlay)
+              AVSessionUtil.applyAudioConcurrencyMode()
             }
           })
         }
@@ -142,7 +157,7 @@ export struct PlayerSettingPage {
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.pin'),
-            message: '自动跳转到上次播放时间',
+            message: '记住播放进度',
             enable: Setting.jumpToHistoryTimeStatus,
             onChange: (checked: boolean) => {
               Setting.jumpToHistoryTimeStatus = checked
@@ -234,6 +249,19 @@ export struct PlayerSettingPage {
 
         ListItem() {
           SettingsSliderItem({
+            symbol: $r('sys.symbol.backward_end_fill'),
+            message: '跳过片尾',
+            selected: Number(Setting.skipOutroTime),
+            textSliderMode: true,
+            onChangeComplete: (value: number) => {
+              Setting.skipOutroTime = value.toString()
+              Preferences.saveSkipOutroTime(PathUtils.appContext!, Setting.skipOutroTime)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsSliderItem({
             symbol: $r('sys.symbol.sun_max'),
             message: '默认亮度',
             selected: Setting.defaultBrightness,
@@ -253,7 +281,6 @@ export struct PlayerSettingPage {
             }
           })
         }
-
 
       }
       .align(Alignment.Top)
@@ -347,9 +374,9 @@ export struct PlayerSettingPage {
       case MpvDecodingMethod.HARDWARE_BUFFER:
         return '支持杜比P5，性能稍差'
       case MpvDecodingMethod.SOFTWARE:
-        return '功耗高，画面一般正常'
+        return '画面兼容最佳，功耗高'
       case MpvDecodingMethod.HARDWARE_SURFACE:
-        return 'HDR 正常，不支持杜比P5'
+        return '性能最佳，不支持杜比P5'
       default:
         return 'Unknown'
     }

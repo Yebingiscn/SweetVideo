@@ -9,6 +9,7 @@ import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
 import { fileIo } from '@kit.CoreFileKit'
 import { CoverLayoutMode } from '../../common/enum/DisplayMode'
+import ShareUtil from '../../utils/ShareUtil'
 
 const TAG = 'PrivacySpaceErrorList'
 
@@ -56,6 +57,13 @@ export struct PrivacySpaceErrorList {
         .onClick(async () => {
           await SelectFileUtil.exportFile(PathUtils.videoUri(item), item, '',
             PathUtils.appContext!)
+        })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.share')),
+        content: $r('app.string.share')
+      })
+        .onClick(async () => {
+          await ShareUtil.shareVideo(PathUtils.videoUri(item), item)
         })
     }
     .attributeModifier(new MenuFancyModifier())

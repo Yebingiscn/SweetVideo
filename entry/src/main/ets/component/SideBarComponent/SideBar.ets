@@ -5,24 +5,24 @@ export class SideBarController {
   @Trace overlay: boolean = false
   @Trace isShow: boolean = false
 
+
   public open() {
+    this.visibility = Visibility.Visible
+    this.isShow = true
     if (this.mode === SideBarContainerType.Overlay) {
-      this.visibility = Visibility.Visible
       this.overlay = true
-      this.isShow = true
-    }
-    if (this.visibility == Visibility.Hidden) {
-      this.overlay = false
     }
   }
 
   public close(isPlayAnimation: boolean) {
+    this.visibility = Visibility.Hidden
     if (this.mode === SideBarContainerType.Overlay) {
-      this.visibility = Visibility.Hidden
       isPlayAnimation ? setTimeout(() => {
         this.isShow = false
         this.overlay = false
       }, 200) : this.isShow = false
+    } else {
+      this.isShow = false
     }
     this.overlay = false
   }

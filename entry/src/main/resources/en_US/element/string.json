@@ -255,6 +255,10 @@
     {
       "name": "sort_folder_by_count",
       "value": "Sort by video count"
+    },
+    {
+      "name": "share",
+      "value": "Share"
     }
   ]
 }

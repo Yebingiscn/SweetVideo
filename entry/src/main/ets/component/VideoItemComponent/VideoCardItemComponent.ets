@@ -57,7 +57,9 @@ export default struct VideoCardItem {
 
       VideoInfoBuilder({ item: this.item })
     }
+    .borderRadius(12)
     .width('100%')
     .height('auto')
+    .backdropBlur(Setting.listItemBackgroundBlur ? 150 : 0)
   }
 }

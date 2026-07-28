@@ -2,19 +2,19 @@ import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { AVVolumePanel } from '@kit.AudioKit'
 
-class VolumeValue {
+class SwipingPanelValue {
   videoVolume: number = 0
   videoVolumeShow: number = 0
   onSwipingVoice: boolean = false
+  onSwipingBrightness: boolean = false
+  screenBrightness: number = 0
   playAreaHeight: number = 0
-
 }
 
 @Builder
-export function VolumeSwipingPanelBuilder(volumeValue: VolumeValue) {
-  // AVVolumePanel 必须保留，用于系统音量联动
+export function SwipingPanelBuilder(value: SwipingPanelValue) {
   AVVolumePanel({
-    volumeLevel: volumeValue.videoVolume,
+    volumeLevel: value.videoVolume,
     volumeParameter: {
       position: {
         x: -1,
@@ -23,16 +23,23 @@ export function VolumeSwipingPanelBuilder(volumeValue: VolumeValue) {
     }
   }).visibility(Visibility.None)
 
-  // 自定义音量提示面板
-  if (volumeValue.onSwipingVoice) {
+  if (value.onSwipingVoice || value.onSwipingBrightness) {
     Row() {
-      SymbolGlyph(getVolumeIcon(volumeValue.videoVolumeShow))
-        .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
-        .fontColor(['#f0f0f0'])
+      if (value.onSwipingVoice) {
+        SymbolGlyph(getVolumeIcon(value.videoVolumeShow))
+          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+          .fontColor(['#f0f0f0'])
+      } else {
+        SymbolGlyph($r('sys.symbol.sun_max'))
+          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+          .fontColor(['#f0f0f0'])
+          .rotate({ angle: value.screenBrightness * 360 })
+          .animation({ duration: 300, curve: Curve.Smooth })
+      }
       Slider({
-        value: volumeValue.videoVolumeShow,
-        min: VideoOperateUtil.minVolume,
-        max: VideoOperateUtil.maxVolume,
+        value: value.onSwipingVoice ? value.videoVolumeShow : value.screenBrightness,
+        min: value.onSwipingVoice ? VideoOperateUtil.minVolume : 0,
+        max: value.onSwipingVoice ? VideoOperateUtil.maxVolume : 1,
         step: 0.1,
         style: SliderStyle.NONE,
         direction: Axis.Horizontal,
@@ -50,7 +57,7 @@ export function VolumeSwipingPanelBuilder(volumeValue: VolumeValue) {
     .animation({ duration: 300, curve: Curve.Friction })
     .offset({
       x: 0,
-      y: -volumeValue.playAreaHeight / 2.5
+      y: -value.playAreaHeight / 2.5
     })
     .borderRadius(16)
     .backgroundColor('#30000000')
@@ -61,13 +68,13 @@ export function VolumeSwipingPanelBuilder(volumeValue: VolumeValue) {
 
 export function getVolumeIcon(videoVolume: number) {
   if (videoVolume <= VideoOperateUtil.minVolume) {
-    return $r('sys.symbol.speaker_slash') // 静音
+    return $r('sys.symbol.speaker_slash')
   }
   if (videoVolume >= VideoOperateUtil.maxVolume * 2 / 3) {
-    return $r('sys.symbol.speaker_wave_3') // 高音量
+    return $r('sys.symbol.speaker_wave_3')
   }
   if (videoVolume >= VideoOperateUtil.maxVolume * 1 / 3) {
-    return $r('sys.symbol.speaker_wave_2') // 中音量
+    return $r('sys.symbol.speaker_wave_2')
   }
-  return $r('sys.symbol.speaker_wave_1') // 低音量
+  return $r('sys.symbol.speaker_wave_1')
 }

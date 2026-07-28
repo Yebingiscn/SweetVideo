@@ -11,6 +11,7 @@ class SubtitleDisplayValue {
   areaWidth: number = 0
   areaHeight: number = 0
   angle: number = 0
+  scaleFactor: number = 1
   translateX: number = 0
   translateY: number = 0
   animDuration: number = 300
@@ -65,6 +66,7 @@ export function SubtitleDisplayBuilder(subtitleDisplayValue: SubtitleDisplayValu
   .justifyContent(FlexAlign.End)
   .hitTestBehavior(HitTestMode.Transparent)
   .rotate({ y: 2, angle: subtitleDisplayValue.angle, perspective: 200 })
+  .scale({ x: subtitleDisplayValue.scaleFactor, y: subtitleDisplayValue.scaleFactor })
   .translate({ x: subtitleDisplayValue.translateX, y: subtitleDisplayValue.translateY })
   .animation({ duration: subtitleDisplayValue.animDuration, curve: Curve.Ease })
 }

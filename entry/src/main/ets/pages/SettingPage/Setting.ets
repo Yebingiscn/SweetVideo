@@ -3,7 +3,7 @@ import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog'
 import { DefaultStartupFolderDialog } from '../../component/Dialog/DefaultStartupFolderDialog'
 import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
-import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
+import { DefaultDialogShadow, ImageFancyModifier } from '../../common/AttributeModifierConfig'
 import { Markdown, MarkdownController } from '@luvi/lv-markdown-in'
 import { salmonLogger } from 'salmonlogger'
 import { CoverLayoutMode, ListDisplayMode } from '../../common/enum/DisplayMode'
@@ -17,15 +17,13 @@ import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { LengthMetrics } from '@kit.ArkUI'
 import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { IapVerifyUtil } from '../../utils/IapVerifyUtil'
+import { userData } from '../../component/common/UserLoginComponent'
 
 const TAG = 'SettingsPage'
 
 @ComponentV2
 export struct SettingsPage { //设置页
   @Local passwd: string = 'passwd'
-  @Local showVipPage: boolean = true
-  @Local defaultStartupFolderName: string = ''
-  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
     builder: EditPasswordDialog({
       confirm: (passwd: string | undefined) => {
@@ -39,6 +37,9 @@ export struct SettingsPage { //设置页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  @Local showVipPage: boolean = true
+  @Local defaultStartupFolderName: string = ''
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   defaultStartupFolderDialogController: CustomDialogController = new CustomDialogController({
     builder: DefaultStartupFolderDialog({
       onFolderSelected: (folderDate: string) => {
@@ -64,12 +65,50 @@ export struct SettingsPage { //设置页
       List({ scroller: this.listScroller }) {
         if (this.showVipPage) {
           ListItem() {
-            SettingsClickItem({
-              symbol: $r('sys.symbol.crown_fill'),
-              message: '获取VIP',
-              onPress: () => {
-                this.pathStack.pushPathByName(NavigationAddress.VIP_PAGE, true)
+            Button({ type: ButtonType.Normal, stateEffect: true }) {
+              Row({ space: 12 }) {
+                Image(userData.userAvatar || $r('app.media.Foreground'))
+                  .attributeModifier(new ImageFancyModifier(22, 42, 42))
+                Text(userData.isLogin ? (userData.nickName || '已登录') : '未登录')
+                  .fontSize(16)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor(Color.White)
+                  .textOverflow({ overflow: TextOverflow.MARQUEE })
+                  .maxLines(1)
+                  .layoutWeight(1)
+                  .constraintSize({ maxWidth: '80%' })
+
+                Row({ space: 4 }) {
+                  SymbolGlyph($r('sys.symbol.diamond'))
+                    .fontSize(18)
+                    .fontColor(['#ffd87c'])
+                  Text('VIP')
+                    .fontSize(20)
+                    .fontColor('#ffd87c')
+                    .fontWeight(FontWeight.Bold)
+                }
               }
+              .width('100%')
+              .alignItems(VerticalAlign.Center)
+            }
+            .height(78)
+            .borderRadius(16)
+            .padding({ left: 14, right: 14 })
+            .linearGradient({
+              direction: GradientDirection.Right,
+              colors: userData.isVip ?
+                [['#FFD87C', 0], [$r('app.color.main_color'), 1]] :
+                [[$r('app.color.main_color'), 0], ['#4A2C7D', 1]]
+            })
+            .shadow({
+              radius: 6,
+              color: userData.isVip ? '#33ffd87c' : $r('app.color.shadow_color'),
+              offsetX: 0,
+              offsetY: 2
+            })
+            .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.95 })
+            .onClick(() => {
+              this.pathStack.pushPathByName(NavigationAddress.VIP_PAGE, true)
             })
           }
         }
