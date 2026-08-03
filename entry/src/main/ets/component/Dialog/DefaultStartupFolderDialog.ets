@@ -12,7 +12,7 @@ export struct DefaultStartupFolderDialog {
 
   aboutToAppear(): void {
     const savedDate = Preferences.getDefaultStartupFolder(PathUtils.appContext!)
-    if (savedDate !== '') {
+    if (savedDate !== '' && savedDate !== '__stream__') {
       const folders = Preferences.getFileFolder(PathUtils.appContext!)
       if (!folders.some(f => f.date === savedDate)) {
         Preferences.saveDefaultStartupFolder(PathUtils.appContext!, '')
@@ -25,7 +25,7 @@ export struct DefaultStartupFolderDialog {
 
   build() {
     Column({ space: 20 }) {
-      Text('选择默认启动文件夹')
+      Text('选择默认启动页面')
         .fontSize(20)
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)
@@ -57,6 +57,35 @@ export struct DefaultStartupFolderDialog {
           .borderRadius(12)
           .onClick(() => {
             this.selectedFolderDate = ''
+          })
+        }
+
+        ListItem() {
+          Row({ space: 10 }) {
+            Radio({ value: '__stream__', group: 'default_startup_folder' })
+              .radioStyle({
+                checkedBackgroundColor: $r('app.color.main_color')
+              })
+              .checked(this.selectedFolderDate === '__stream__')
+              .onChange((isChecked: boolean) => {
+                if (isChecked) {
+                  this.selectedFolderDate = '__stream__'
+                }
+              })
+            Text('串流页')
+              .fontSize(14)
+              .fontColor($r('app.color.text_color'))
+          }
+          .width('100%')
+          .padding({
+            left: 12,
+            right: 12,
+            top: 8,
+            bottom: 8
+          })
+          .borderRadius(12)
+          .onClick(() => {
+            this.selectedFolderDate = '__stream__'
           })
         }
 

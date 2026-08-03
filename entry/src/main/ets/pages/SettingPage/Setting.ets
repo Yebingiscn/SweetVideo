@@ -242,7 +242,7 @@ export struct SettingsPage { //设置页
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.folder_badge_plus'),
-            message: '默认启动文件夹：' + this.defaultStartupFolderName,
+            message: '默认启动页面：' + this.defaultStartupFolderName,
             showArrow: true,
             onPress: () => {
               this.defaultStartupFolderDialogController.open()
@@ -364,6 +364,10 @@ export struct SettingsPage { //设置页
   private updateDefaultStartupFolderName(folderDate: string) {
     if (folderDate === '') {
       this.defaultStartupFolderName = '默认（首页）'
+      return
+    }
+    if (folderDate === '__stream__') {
+      this.defaultStartupFolderName = '串流页'
       return
     }
     const folders = Preferences.getFileFolder(PathUtils.appContext!)

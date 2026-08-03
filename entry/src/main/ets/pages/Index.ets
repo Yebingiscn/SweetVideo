@@ -8,6 +8,7 @@ import { motion } from '@kit.MultimodalAwarenessKit'
 import { salmonLogger } from 'salmonlogger'
 import { ListDisplayMode } from '../common/enum/DisplayMode'
 import { SortField } from '../common/enum/SortField'
+import { VideoSource } from '../common/enum/VideoSource'
 import NavigationAddress from '../common/NavigationCommon'
 import { SideBarContentComponent } from '../component/SideBarComponent/SideBarContentComponent'
 import { ImportProgressBuilder } from '../component/VideoItemComponent/ImportProgressBuilder'
@@ -24,6 +25,7 @@ import { importAndProcessFiles, ProgressInfo } from '../utils/FileProcessorUtil'
 import IntellectualGripPostureUtil from '../utils/IntellectualGripPostureUtil'
 import { Setting } from '../utils/ObservedUtil'
 import { PathUtils } from '../utils/PathUtils'
+import PermissionUtil from '../utils/PermissionUtil'
 import RecentPlayUtil from '../utils/RecentPlayUtil'
 import SelectFileUtil from '../utils/SelectFileUtil'
 import SubtitleUtil from '../utils/SubtitleUtil'
@@ -76,6 +78,7 @@ struct Index {
   })
   sideBarScroller: Scroller = new Scroller()
   private passwd: string = 'passwd'
+  private videoValidityCheckRunning: boolean = false
 
   async onPageShow(): Promise<void> {
     await WantProcessUtil.checkWant(this.pathStack)
@@ -98,10 +101,17 @@ struct Index {
       this.file_folder_list = await FileFolderUtil.createNewFolder(PathUtils.appContext!, '首页')
     }
     const defaultStartupFolderDate = Preferences.getDefaultStartupFolder(PathUtils.appContext!)
-    const defaultFolder = defaultStartupFolderDate
+    const isStreamStartup = defaultStartupFolderDate === '__stream__'
+    const defaultFolder = (defaultStartupFolderDate && !isStreamStartup)
       ? this.file_folder_list.find(f => f.date === defaultStartupFolderDate) ?? this.file_folder_list[0]
       : this.file_folder_list[0]
     this.videoListController?.updateData(undefined, defaultFolder)
+    if (isStreamStartup) {
+      setTimeout(() => {
+        this.pathStack.pushPathByName(NavigationAddress.STREAM_PAGE, null)
+      }, 0)
+    }
+    void this.applySavedFolderSort()
     setTimeout(() => {
       SelectFileUtil.getDownloadUri()
       VideoMetaDataOperator.migrationRootVideoMetaToRootFolder()
@@ -112,33 +122,7 @@ struct Index {
       })
       IntellectualGripPostureUtil.createOperatingHandStatus()
     }, 0)
-    checkUriProcess(this.file_folder_list, (re: Object) => {
-      const result = re as Array<VideoMetadata>
-      if (result.length > 0) {
-        result.forEach(async (item: VideoMetadata) => {
-          try {
-            await Promise.all([
-              SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date!),
-              RecentPlayUtil.delData(PathUtils.appContext!, item.uri),
-              SelectFileUtil.deleteCover(item.date!)
-            ])
-          } catch (error) {
-            salmonLogger.addLog(TAG, `清理视频资源失败: ${item.uri} ` + error)
-          }
-        })
-        setTimeout(() => {
-          result.forEach(async item => {
-            await this.videoListController.videoDataSource?.deleteUnExistFile(item, this.videoListController,
-              this.fileFolderSource)
-          })
-          const targetFolder = this.videoListController.folder ?? this.file_folder_list[0]
-          const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, targetFolder)
-          this.file_folder_list = updatedFolders
-          DataSyncUtil.deletedVideos = result
-          this.deletedVideosDialogController.open()
-        }, 100)
-      }
-    })
+    void this.checkInvalidVideos(this.file_folder_list)
   }
 
   async toMetaData(fileList: string[], fileFolder?: FileFolder) {
@@ -497,6 +481,104 @@ struct Index {
       return true
     }
     return false
+  }
+
+  private async checkInvalidVideos(folders: FileFolder[]): Promise<void> {
+    if (this.videoValidityCheckRunning) {
+      return
+    }
+    this.videoValidityCheckRunning = true
+    try {
+      await this.doCheckInvalidVideos(folders)
+    } catch (error) {
+      salmonLogger.addLog(TAG, '检查视频有效性失败: ' + error, true)
+    } finally {
+      this.videoValidityCheckRunning = false
+    }
+  }
+
+  private async doCheckInvalidVideos(folders: FileFolder[]): Promise<void> {
+    const videosToCheck: VideoMetadata[] = []
+    folders.forEach(folder => {
+      folder.video_list.forEach(video => {
+        const isExternalDevice = SelectFileUtil.isPathFromSource(video.uri, VideoSource.EXTERNAL_DEVICE)
+        const normalizedUri = video.uri.toLowerCase()
+        const isNetworkVideo = ToolsUtil.isNetworkUrl(normalizedUri) ||
+          /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(normalizedUri)
+        if (!isExternalDevice && !isNetworkVideo) {
+          videosToCheck.push(video)
+        }
+      })
+    })
+
+    // 文档与媒体 URI 的持久化权限需要在 UI 线程激活；真正的文件探测仍放在 TaskPool 中。
+    const batchSize = 8
+    for (let start = 0; start < videosToCheck.length; start += batchSize) {
+      const batch = videosToCheck.slice(start, start + batchSize)
+      await Promise.all(batch.map(async (video: VideoMetadata) => {
+        const needsPermissionActivation =
+          SelectFileUtil.isPathFromSource(video.uri, VideoSource.DOCUMENT_SELECT_OPTION) ||
+            SelectFileUtil.isPathFromSource(video.uri, VideoSource.PHOTO_SELECT_OPTION)
+        if (needsPermissionActivation) {
+          await PermissionUtil.activatePermission(video.uri)
+        }
+      }))
+    }
+
+    const invalidVideos = await checkUriProcess(videosToCheck)
+    const invalidDates = new Set<string>()
+    const result: VideoMetadata[] = []
+    invalidVideos.forEach(video => {
+      if (!invalidDates.has(video.date)) {
+        invalidDates.add(video.date)
+        result.push(video)
+      }
+    })
+    if (result.length === 0) {
+      return
+    }
+
+    const updatedFolders = Preferences.getFileFolder(PathUtils.appContext!)
+    updatedFolders.forEach(folder => {
+      folder.video_list = folder.video_list.filter(item => !invalidDates.has(item.date))
+    })
+    Preferences.saveFileFolder(PathUtils.appContext!, updatedFolders)
+
+    await Promise.all(result.map(async (item: VideoMetadata) => {
+      try {
+        await Promise.all([
+          SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date),
+          SelectFileUtil.deleteCover(item.date)
+        ])
+        RecentPlayUtil.delData(PathUtils.appContext!, item.uri)
+      } catch (error) {
+        salmonLogger.addLog(TAG, `清理视频资源失败: ${item.uri} ` + error, true)
+      }
+    }))
+
+    const targetFolder = updatedFolders.find(folder => folder.date === this.videoListController.folder?.date) ??
+      updatedFolders[0]
+    this.file_folder_list = VideoUtils.refresh(this.videoListController, this.fileFolderSource, targetFolder)
+    DataSyncUtil.deletedVideos = result
+    setTimeout(() => {
+      this.deletedVideosDialogController.open()
+    }, 100)
+  }
+
+  private async applySavedFolderSort(): Promise<void> {
+    const field = Preferences.getFolderSortField(PathUtils.appContext!) as SortField
+    if (field !== SortField.FOLDER_NAME) {
+      return
+    }
+    const source = this.file_folder_list
+    const homeFolder = source.find(f => f.name === '首页' && f.parent_date === null)
+    const others = source.filter(f => f.date !== homeFolder?.date)
+    const sorted = await ToolsUtil.sortFoldersByNameInTaskPool(
+      others, Preferences.getFolderSortAsc(PathUtils.appContext!), Preferences.getPinyinSort(PathUtils.appContext!)
+    )
+    if (source === this.file_folder_list) {
+      this.file_folder_list = homeFolder ? [homeFolder, ...sorted] : sorted
+    }
   }
 
   /**

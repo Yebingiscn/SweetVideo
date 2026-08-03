@@ -181,12 +181,14 @@ export default class SelectFileUtil {
       }
       // 2. 处理暗色模式
       if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK) {
-        // 优先尝试获取暗色背景
-        const darkUri = getSafeUri('BackgroundDarkImage')
-        if (darkUri) {
-          return darkUri
+        // 检查深浅色图片切换开关，仅在开关开启时使用深色背景
+        if (Setting.enableBackgroundDarkImage) {
+          const darkUri = getSafeUri('BackgroundDarkImage')
+          if (darkUri) {
+            return darkUri
+          }
         }
-        // 降级策略：如果暗色背景不存在，尝试返回亮色背景
+        // 开关关闭或深色背景不存在，降级返回浅色背景
         return getSafeUri('BackgroundImage')
       }
       // 3. 其他未定义的模式，默认返回空或根据需求返回亮色图
@@ -241,13 +243,16 @@ export default class SelectFileUtil {
       return 'BackgroundImage'
     }
     if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK) {
-      const darkPath = PathUtils.photoPath + 'BackgroundDarkImage'
-      try {
-        if (fs.accessSync(darkPath)) {
-          return 'BackgroundDarkImage'
+      // 仅在深浅色图片切换开关开启时使用深色背景
+      if (Setting.enableBackgroundDarkImage) {
+        const darkPath = PathUtils.photoPath + 'BackgroundDarkImage'
+        try {
+          if (fs.accessSync(darkPath)) {
+            return 'BackgroundDarkImage'
+          }
+        } catch (e) {
+          salmonLogger.addLog(TAG, `Failed to access dark background image: ${darkPath} ` + e, true)
         }
-      } catch (e) {
-        salmonLogger.addLog(TAG, `Failed to access dark background image: ${darkPath} ` + e, true)
       }
       return 'BackgroundImage'
     }
@@ -619,8 +624,9 @@ export default class SelectFileUtil {
       ToolsUtil.showToast('文件需要重新授权才能继续播放，请点击确定予以授权')
       await SelectFileUtil.selectFromFileManager(uri)
     }
+    let file: fs.File | undefined
     try {
-      await fs.open(String(uri))
+      file = await fs.open(String(uri))
       return true
     } catch (e) {
       if (showToast) {
@@ -628,6 +634,14 @@ export default class SelectFileUtil {
         salmonLogger.addLog('file error', 'file error: ' + e.code + ':' + e.message, true)
       }
       return false
+    } finally {
+      if (file) {
+        try {
+          fs.closeSync(file)
+        } catch (error) {
+          salmonLogger.addLog(TAG, '关闭视频文件失败: ' + error, true)
+        }
+      }
     }
   }
 

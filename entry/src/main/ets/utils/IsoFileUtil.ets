@@ -11,6 +11,8 @@ import ToolsUtil from './ToolsUtil';
 import fileIo from '@ohos.file.fs';
 
 const TAG = 'IsoFileUtil';
+const ISO_SCAN_CHUNK_SIZE: number = 1024 * 1024;
+const ISO_SCAN_LIMIT: number = 64 * 1024 * 1024;
 
 /**
  * ISO文件类型枚举
@@ -37,6 +39,96 @@ export interface IsoFileInfo {
  */
 export default class IsoFileUtil {
   /**
+   * 在ISO/UDF目录数据中匹配ASCII标记。返回-1表示已经完整匹配。
+   * matched参数用于保留跨读取块的部分匹配状态。
+   */
+  private static scanMarker(bytes: Uint8Array, length: number, marker: string, matched: number): number {
+    for (let index = 0; index < length; index++) {
+      let value = bytes[index]
+      if (value >= 97 && value <= 122) {
+        value -= 32
+      }
+
+      const expected = marker.charCodeAt(matched)
+      if (value === expected) {
+        matched++
+        if (matched === marker.length) {
+          return -1
+        }
+      } else {
+        matched = value === marker.charCodeAt(0) ? 1 : 0
+      }
+    }
+    return matched
+  }
+
+  /**
+   * 同步识别ISO镜像类型。
+   *
+   * UDF/ISO目录记录会保存BDMV或VIDEO_TS名称。这里只扫描镜像前64 MiB，
+   * 避免为了识别类型读取整个大型镜像。
+   */
+  static detectIsoTypeSync(isoPath: string): IsoFileType {
+    let file: fileIo.File | undefined
+    try {
+      salmonLogger.addLog(TAG, `开始识别ISO类型: ${isoPath}`, false)
+      file = fileIo.openSync(isoPath, fileIo.OpenMode.READ_ONLY)
+      const fileSize = fileIo.statSync(file.fd).size
+      const scanSize = Math.min(fileSize, ISO_SCAN_LIMIT)
+      const buffer = new ArrayBuffer(ISO_SCAN_CHUNK_SIZE)
+      const bytes = new Uint8Array(buffer)
+      let scanned = 0
+      let blurayMatched = 0
+      let dvdMatched = 0
+
+      while (scanned < scanSize) {
+        const requested = Math.min(ISO_SCAN_CHUNK_SIZE, scanSize - scanned)
+        const bytesRead = fileIo.readSync(file.fd, buffer, { length: requested })
+        if (bytesRead <= 0) {
+          break
+        }
+
+        blurayMatched = IsoFileUtil.scanMarker(bytes, bytesRead, 'BDMV', blurayMatched)
+        if (blurayMatched === -1) {
+          salmonLogger.addLog(TAG, `ISO识别为Blu-ray，找到BDMV标记，已扫描${scanned + bytesRead}字节`, false)
+          return IsoFileType.BLURAY
+        }
+
+        dvdMatched = IsoFileUtil.scanMarker(bytes, bytesRead, 'VIDEO_TS', dvdMatched)
+        if (dvdMatched === -1) {
+          salmonLogger.addLog(TAG, `ISO识别为DVD，找到VIDEO_TS标记，已扫描${scanned + bytesRead}字节`, false)
+          return IsoFileType.DVD
+        }
+        scanned += bytesRead
+      }
+
+      const lowerPath = isoPath.toLowerCase()
+      if (lowerPath.includes('dvd') || lowerPath.includes('video_ts')) {
+        salmonLogger.addLog(TAG, 'ISO目录标记未找到，根据文件名识别为DVD', true)
+        return IsoFileType.DVD
+      }
+      if (lowerPath.includes('bluray') || lowerPath.includes('blu-ray') || lowerPath.includes('bdmv')) {
+        salmonLogger.addLog(TAG, 'ISO目录标记未找到，根据文件名识别为Blu-ray', true)
+        return IsoFileType.BLURAY
+      }
+
+      salmonLogger.addLog(TAG, `扫描${scanned}字节后仍无法识别ISO类型`, true)
+      return IsoFileType.UNKNOWN
+    } catch (error) {
+      salmonLogger.addLog(TAG, `读取ISO并识别类型失败: ${error}`, true)
+      return IsoFileType.UNKNOWN
+    } finally {
+      if (file) {
+        try {
+          fileIo.closeSync(file)
+        } catch (error) {
+          salmonLogger.addLog(TAG, `关闭ISO文件失败: ${error}`, true)
+        }
+      }
+    }
+  }
+
+  /**
    * 检测ISO文件类型
    * @param isoPath ISO文件路径
    * @returns ISO文件类型
@@ -52,10 +144,7 @@ export default class IsoFileUtil {
         return IsoFileType.UNKNOWN
       }
 
-      // 默认返回蓝光类型，MPV会自动检测
-      // 如果蓝光播放失败，可以尝试DVD格式
-      salmonLogger.addLog(TAG, 'ISO文件将使用bd://协议播放（如失败可尝试dvd://）', false)
-      return IsoFileType.BLURAY
+      return IsoFileUtil.detectIsoTypeSync(isoPath)
 
     } catch (error) {
       salmonLogger.addLog(TAG, `检测ISO类型失败: ${error}`, true)

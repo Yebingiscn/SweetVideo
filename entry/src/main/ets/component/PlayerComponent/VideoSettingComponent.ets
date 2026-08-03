@@ -6,6 +6,7 @@ import TimeUtil from '../../utils/TimeUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
+import { PlayerEngine } from '../../common/NavigationCommon'
 
 @ComponentV2
 export struct VideoSettingComponent {
@@ -41,6 +42,8 @@ export struct VideoSettingComponent {
   @Event setRepeatModeToOnce: () => void = () => {
   }
   @Event onABCircleStatusClick: () => void = () => {
+  }
+  @Event onSwitchPlayerEngine: (_targetEngine: string) => void = () => {
   }
 
   aboutToAppear(): void {
@@ -84,6 +87,12 @@ export struct VideoSettingComponent {
         content: '屏幕镜像'
       }).onClick(() => {
         this.onScreenMirror()
+      })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_left_arrow_right')),
+        content: this.player.isMpvPlayer() ? '切换到系统播放器' : '切换到 MPV 播放器'
+      }).onClick(() => {
+        this.onSwitchPlayerEngine(this.player.isMpvPlayer() ? PlayerEngine.AV_PLAYER : PlayerEngine.MPV_PLAYER)
       })
 
       if (this.player instanceof AVPlayerController) {

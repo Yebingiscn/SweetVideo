@@ -17,7 +17,6 @@ const TAG = 'WantProcessUtil'
 
 export default class WantProcess {
   public static hasNewWant = false
-  private static isSystemShare: boolean = false
   private static receiveWant: Want | undefined = undefined
   private static receiveWantUri: string = ''
   private static isContinue: boolean = false
@@ -41,7 +40,6 @@ export default class WantProcess {
         for (const record of records) {
           if (record.uri) {
             WantProcess.receiveWantUri = record.uri
-            WantProcess.isSystemShare = true
             WantProcess.hasNewWant = true
             break
           }
@@ -136,15 +134,12 @@ export default class WantProcess {
           pointB: 0,
         }
         WantProcess.clearWantState()
-        const wasSystemShare = WantProcess.isSystemShare
         WantProcess.receiveWantUri = ''
-        WantProcess.isSystemShare = false
-        await ToolsUtil.routerWhere(pathStack, targetVideo, [targetVideo], false, true, wasSystemShare)
+        await ToolsUtil.routerWhere(pathStack, targetVideo, [targetVideo], false, true)
       } catch (error) {
         salmonLogger.addLog(TAG, 'want process error:' + error, true)
         WantProcess.clearWantState()
         WantProcess.receiveWantUri = ''
-        WantProcess.isSystemShare = false
         ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
       } finally {
         if (avMetadataExtractor) {

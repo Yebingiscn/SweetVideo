@@ -13,6 +13,7 @@ import { ConfigurationConstant } from '@kit.AbilityKit'
 import { appInfoManager } from '@kit.AppGalleryKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { salmonLogger } from 'salmonlogger'
+import { BackgroundColorMode } from '../../common/enum/BackgroundColorMode'
 
 const TAG = 'PersonalizePage'
 
@@ -41,6 +42,12 @@ export struct PersonalizePage {
               Setting.backgroundColorMode = tabSelectedIndex
               Preferences.saveBackgroundColorMode(PathUtils.appContext!, tabSelectedIndex)
               ToolsUtil.setColorMode(PathUtils.appContext!, tabSelectedIndex)
+              // 主动同步 currentColorMode，避免 onConfigurationUpdate 异步回调时序竞态导致显示错误背景
+              if (tabSelectedIndex === BackgroundColorMode.LIGHT) {
+                AppStorage.setOrCreate('currentColorMode', ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT)
+              } else if (tabSelectedIndex === BackgroundColorMode.DARK) {
+                AppStorage.setOrCreate('currentColorMode', ConfigurationConstant.ColorMode.COLOR_MODE_DARK)
+              }
               Setting.backgroundImageSrc = ''
               setTimeout(async () => {
                 Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
@@ -75,13 +82,15 @@ export struct PersonalizePage {
             tag: '试用',
             onChange: async (checked: boolean) => {
               Setting.enableBackgroundDarkImage = checked
-              if (!checked) {
-                await SelectFileUtil.deletePhoto('BackgroundDarkImage')
-                const currentColorMode = AppStorage.get('currentColorMode') as number
-                if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK) {
-                  Setting.backgroundImageSrc = ''
+              // 不删除深色背景文件，以便重新打开开关时可以恢复
+              // 重新加载背景，getImageUri 会根据开关状态决定是否使用深色背景
+              Setting.backgroundImageSrc = ''
+              setTimeout(async () => {
+                Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
+                if (Setting.backgroundDropBlur > 0 && Setting.backgroundImageSrc.length > 0) {
+                  await SelectFileUtil.updateBlurBackground(Setting.backgroundDropBlur, true)
                 }
-              }
+              }, 100)
               Preferences.saveEnableBackgroundDarkImage(PathUtils.appContext!, Setting.enableBackgroundDarkImage)
             }
           })

@@ -7,8 +7,6 @@ import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import { CoverLayoutMode, ListDisplayMode } from '../common/enum/DisplayMode'
 import { MpvDecodingMethod } from '../controller/MpvController/MpvTypes'
-import { SortField } from '../common/enum/SortField'
-import ToolsUtil from '../utils/ToolsUtil'
 
 const DATA_BASE_NAME = 'sweet_video'
 
@@ -88,31 +86,10 @@ export default class Preferences {
       }
       PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'file_folder', folders)
     }
-    const folderSortField = Preferences.getFolderSortField(context) as SortField
-    const folderSortAsc = Preferences.getFolderSortAsc(context)
-    const folderPinyinSort = Preferences.getPinyinSort(context)
+    // 读取持久化数据必须保持轻量：排序属于展示层，不能阻塞启动首帧。
+    // 仍保持首页在首位，兼容依赖 folders[0] 的既有调用方。
     const homeFolder = folders.find(f => f.name === '首页' && f.parent_date === null)
-    let otherFolders = folders.filter(f => f.name !== '首页')
-    switch (folderSortField) {
-      case SortField.FOLDER_NAME:
-        otherFolders = ToolsUtil.sortFolderByNameProcess(otherFolders, folderSortAsc, folderPinyinSort)
-        break
-      case SortField.FOLDER_DATETIME:
-        otherFolders.sort((a, b) => {
-          const cmp = Number(a.date) - Number(b.date)
-          return folderSortAsc ? cmp : -cmp
-        })
-        break
-      case SortField.FOLDER_COUNT:
-        otherFolders.sort((a, b) => {
-          const cmp = a.video_list.length - b.video_list.length
-          return folderSortAsc ? cmp : -cmp
-        })
-        break
-      default:
-        otherFolders.sort((a, b) => Number(a.date) - Number(b.date))
-    }
-    const result = homeFolder ? [homeFolder, ...otherFolders] : otherFolders
+    const result = homeFolder ? [homeFolder, ...folders.filter(f => f.date !== homeFolder.date)] : folders
     Preferences.fileFolderCache = result
     return result
   }

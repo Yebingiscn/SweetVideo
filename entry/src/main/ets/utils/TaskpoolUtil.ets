@@ -1,61 +1,110 @@
 import { taskpool } from '@kit.ArkTS'
-import { VideoSource } from '../common/enum/VideoSource'
-import { FileFolder } from '../interfaces/FileFolderInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
-import SelectFileUtil from './SelectFileUtil'
 import { media } from '@kit.MediaKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { image } from '@kit.ImageKit'
 import { BusinessError } from '@kit.BasicServicesKit'
+import { pinyin4js } from '@ohos/pinyin4js'
 
-@Concurrent
-async function checkUriAvailable(fileFolderList: FileFolder[]): Promise<VideoMetadata[]> {
-  const deletedVideos: VideoMetadata[] = []
-  const videosToCheck: VideoMetadata[] = []
+export class FolderNameSortItem {
+  date: string
+  name: string
+  index: number
+  parts: string[] = []
 
-  // 收集需要检查的视频
-  for (let folderIndex = 0; folderIndex < fileFolderList.length; folderIndex++) {
-    const folder = fileFolderList[folderIndex]
-    for (let videoIndex = 0; videoIndex < folder.video_list.length; videoIndex++) {
-      const video = folder.video_list[videoIndex]
-      if (SelectFileUtil.isPathFromSource(video.uri, VideoSource.EXTERNAL_DEVICE)) {
-        continue
-      }
-      if (/^https?:\/\//i.test(video.uri) || /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(video.uri)) {
-        continue
-      }
-      videosToCheck.push(video)
-    }
+  constructor(date: string, name: string, index: number) {
+    this.date = date
+    this.name = name
+    this.index = index
   }
-
-  // 并行检查视频是否存在
-  const checkPromises = videosToCheck.map(async (video: VideoMetadata) => {
-    try {
-      let exists = false
-      try {
-        exists = await SelectFileUtil.isFileExist(video.uri, false)
-      } catch (isExistError) {
-        console.error('调用isFileExist失败:', isExistError)
-        exists = false
-      }
-      if (!exists) {
-        deletedVideos.push(video)
-      }
-    } catch (error) {
-      console.warn(`检查文件存在性失败: ${video.uri}`, error)
-    }
-  })
-
-  await Promise.all(checkPromises)
-  return deletedVideos
 }
 
-export function checkUriProcess(param: FileFolder[], callback: (re: Object) => void) {
-  taskpool.execute(new taskpool.Task(checkUriAvailable, param), taskpool.Priority.HIGH).then((result: Object) => {
-    callback(result)
-  })?.catch((err: string) => {
-    console.error("taskPoolTest test occur error: " + err)
+@Concurrent
+async function sortFolderNamesTask(items: FolderNameSortItem[], ascending: boolean,
+  pinyinSort: boolean): Promise<string[]> {
+  const collator = new Intl.Collator('zh-CN', {
+    sensitivity: 'variant',
+    numeric: true,
+    ignorePunctuation: false,
+    caseFirst: 'upper'
   })
+  const splitRegex = /(\d+)/g
+  items.forEach(item => {
+    // 拼音只生成一次；旧实现会在排序比较阶段重复拆分和比较字符串。
+    item.parts = (pinyinSort ? pinyin4js.getShortPinyin(item.name || '') as string : item.name || '')
+      .split(splitRegex).filter(Boolean)
+  })
+  items.sort((left, right) => {
+    const leftParts = left.parts
+    const rightParts = right.parts
+    for (let i = 0; i < Math.min(leftParts.length, rightParts.length); i++) {
+      const a = leftParts[i]
+      const b = rightParts[i]
+      const aIsNumber = /^\d+$/.test(a)
+      const bIsNumber = /^\d+$/.test(b)
+      let compare = 0
+      if (aIsNumber && bIsNumber) {
+        compare = Number(a) - Number(b)
+      } else {
+        compare = collator.compare(a, b)
+      }
+      if (compare !== 0) {
+        return ascending ? compare : -compare
+      }
+    }
+    const compare = leftParts.length - rightParts.length
+    if (compare !== 0) {
+      return ascending ? compare : -compare
+    }
+    // 明确稳定排序，避免同名文件夹在每次刷新时无意义跳动。
+    return left.index - right.index
+  })
+  return items.map(item => item.date)
+}
+
+export async function sortFolderNamesInTaskPool(items: FolderNameSortItem[], ascending: boolean = true,
+  pinyinSort: boolean = true): Promise<string[]> {
+  try {
+    const result = await taskpool.execute(
+      new taskpool.Task(sortFolderNamesTask, items, ascending, pinyinSort),
+      taskpool.Priority.HIGH
+    )
+    return result as string[]
+  } catch (error) {
+    return []
+  }
+}
+
+@Concurrent
+async function checkUriAvailable(videos: VideoMetadata[]): Promise<VideoMetadata[]> {
+  const invalidVideos: VideoMetadata[] = []
+  await Promise.all(videos.map(async (video: VideoMetadata) => {
+    let file: fs.File | undefined
+    try {
+      file = await fs.open(video.uri, fs.OpenMode.READ_ONLY)
+    } catch {
+      invalidVideos.push(video)
+    } finally {
+      if (file) {
+        try {
+          fs.closeSync(file)
+        } catch {}
+      }
+    }
+  }))
+  return invalidVideos
+}
+
+export async function checkUriProcess(videos: VideoMetadata[]): Promise<VideoMetadata[]> {
+  try {
+    const result = await taskpool.execute(
+      new taskpool.Task(checkUriAvailable, videos),
+      taskpool.Priority.HIGH
+    )
+    return result as VideoMetadata[]
+  } catch (error) {
+    return []
+  }
 }
 
 // 元数据提取结果接口
@@ -235,8 +284,9 @@ export async function extractVideoFrameAsCoverInTaskPool(
   duration: number
 ): Promise<VideoFrameExtractionResult> {
   try {
-    // 计算提取帧的时间点（微秒）
-    const timeUs = (duration > 0) ? duration * 100 : 0
+    // 1小时以下截取第一帧，1小时以上截取第3分钟（微秒）
+    const oneHourMs = 3600000
+    const timeUs = (duration >= oneHourMs) ? 180000000 : 0
 
     const result = await taskpool.execute(
       new taskpool.Task(extractVideoFrameAsCoverTask, uri, width, height, timeUs),

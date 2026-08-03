@@ -13,7 +13,6 @@ import Preferences from '../database/Preferences'
 import DataSyncUtil from './DataSyncUtil'
 import FileFolderUtil from './FileFolderUtil'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
-import VideoInfoUtil from './VideoInfoUtil'
 import VideoOperateUtil from './VideoOperateUtil'
 import { WindowUtil } from './WindowUtil'
 import fileIo from '@ohos.file.fs'
@@ -22,6 +21,7 @@ import { PromptAction, window } from '@kit.ArkUI'
 import { vibrator } from '@kit.SensorServiceKit'
 import { pinyin4js } from '@ohos/pinyin4js'
 import { updateManager } from '@kit.AppGalleryKit'
+import { FolderNameSortItem, sortFolderNamesInTaskPool } from './TaskpoolUtil'
 
 const TAG = 'ToolsUtil'
 
@@ -101,6 +101,33 @@ export default class ToolsUtil {
 
   static sortFolderByNameProcess(list: FileFolder[], ascending: boolean = true, pinyinSort: boolean = true) {
     return ToolsUtil.sortByName(list, item => item.name || '', ascending, pinyinSort)
+  }
+
+  static async sortFoldersByNameInTaskPool(list: FileFolder[], ascending: boolean = true,
+    pinyinSort: boolean = true): Promise<FileFolder[]> {
+    if (list.length <= 1) {
+      return [...list]
+    }
+    const items: FolderNameSortItem[] = list.map((folder, index) =>
+    new FolderNameSortItem(folder.date, folder.name || '', index)
+    )
+    try {
+      const dates = await sortFolderNamesInTaskPool(items, ascending, pinyinSort)
+      const foldersByDate = new Map<string, FileFolder>()
+      list.forEach(folder => foldersByDate.set(folder.date, folder))
+      const sortedFolders: FileFolder[] = []
+      dates.forEach(date => {
+        const folder = foldersByDate.get(date)
+        if (folder) {
+          sortedFolders.push(folder)
+        }
+      })
+      return sortedFolders
+    } catch (error) {
+      salmonLogger.addLog(TAG, `folder name sort task failed: ${error}`, true)
+      // 任务失败时保留当前顺序，绝不退回 UI 线程的同步拼音排序。
+      return [...list]
+    }
   }
 
   static sortByNumericProperty(list: VideoMetadata[], key: 'date' | 'time', ascending: boolean = false) {
@@ -183,12 +210,9 @@ export default class ToolsUtil {
 
   // 点击视频跳转到播放器
   static async routerWhere(pathStack: NavPathStack, item: VideoMetadata, list: VideoMetadata[],
-    reverse: boolean = false, skipHistory: boolean = false, isSystemShare: boolean = false) {
-    const uri = VideoOperateUtil.resolvePlayerType(item, reverse, isSystemShare)
+    reverse: boolean = false, skipHistory: boolean = false) {
+    const uri = VideoOperateUtil.resolvePlayerType(item, reverse)
     DataSyncUtil.lastPlayVideoIndex = list.findIndex(i => i.date === item?.date)
-    if (VideoInfoUtil.videoWidthAndHeightFormat(String(item?.size)) === '0 x 0') {
-      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
-    }
     WindowUtil.setBarColor('#FFFFFF')
     const findResult = Preferences.findVideoByDate(PathUtils.appContext!, item.date)
     const latestItem = findResult[0] ?? item
@@ -331,6 +355,14 @@ export default class ToolsUtil {
     return result
   }
 
+  static isNetworkUrl(uri: string | undefined): boolean {
+    if (!uri) {
+      return false
+    }
+    return uri.startsWith('http://') || uri.startsWith('https://') ||
+      uri.startsWith('rtmp://') || uri.startsWith('rtsp://') || uri.startsWith('rtp://')
+  }
+
   private static sortByName<T>(list: T[], nameExtractor: (item: T) => string, ascending: boolean = true,
     pinyinSort: boolean = true): T[] {
     if (list.length <= 1) {
@@ -381,11 +413,5 @@ export default class ToolsUtil {
       }
     }
     return aParts.length - bParts.length
-  }
-
-  static isNetworkUrl(uri: string | undefined): boolean {
-    if (!uri) return false
-    return uri.startsWith('http://') || uri.startsWith('https://') ||
-      uri.startsWith('rtmp://') || uri.startsWith('rtsp://') || uri.startsWith('rtp://')
   }
 }

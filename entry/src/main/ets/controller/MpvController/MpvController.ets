@@ -1,4 +1,4 @@
-import { PlayerControllerInterface } from '../PlayerControllerFactory';
+import { PlayerControllerInterface, PlayerEngineSwitchHandler } from '../PlayerControllerFactory';
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
 import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode';
 import { MpvAudioChannelMode, MpvAudioTrack, MpvChapter, MpvDecodingMethod, MpvSubtitleTrack } from './MpvTypes';
@@ -9,8 +9,6 @@ import { WindowUtil } from '../../utils/WindowUtil';
 import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode';
 import { BaseListener } from '../../utils/BaseEventUtil';
 import {
-  create as mpvCreate,
-  destroy as mpvDestroy,
   getAudioTracks as mpvGetAudioTracks,
   getAudioType as mpvGetAudioType,
   getChapterList as mpvGetChapterList,
@@ -21,7 +19,6 @@ import {
   getVideoHdrType as mpvGetVideoHdrType,
   getVideoHeight as mpvGetVideoHeight,
   getVideoWidth as mpvGetVideoWidth,
-  loadVideo as mpvLoadVideo,
   pause as mpvPause,
   play as mpvPlay,
   registerBufferingStateCallback as mpvRegisterBufferingStateCallback,
@@ -29,12 +26,12 @@ import {
   registerSurfaceModeErrorCallback as mpvRegisterSurfaceModeErrorCallback,
   registerTimeUpdateCallback as mpvRegisterTimeUpdateCallback,
   registerVideoSizeChangedCallback as mpvRegisterVideoSizeChangedCallback,
-  reset as mpvReset,
   seek as mpvSeek,
   selectAudio as mpvSelectAudio,
   selectSubtitle as mpvSelectSubtitle,
   setAudioChannel as mpvSetAudioChannel,
   setBlurayDevice as mpvSetBlurayDevice,
+  setDvdDevice as mpvSetDvdDevice,
   setDecodeType as mpvSetDecodeType,
   setGlslShaders as mpvSetGlslShaders,
   setHwdecMode as mpvSetHwdecMode,
@@ -61,7 +58,7 @@ import {
 import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode';
 import Preferences from '../../database/Preferences';
 import AVSessionUtil from '../../utils/AVSessionUtil';
-import IsoFileUtil from '../../utils/IsoFileUtil';
+import IsoFileUtil, { IsoFileType } from '../../utils/IsoFileUtil';
 import { Setting } from '../../utils/ObservedUtil';
 import { PathUtils } from '../../utils/PathUtils';
 import PermissionUtil from '../../utils/PermissionUtil';
@@ -74,6 +71,7 @@ import ToolsUtil from '../../utils/ToolsUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import VideoOperateUtil from '../../utils/VideoOperateUtil';
 import { fileIo, fileUri } from '@kit.CoreFileKit';
+import { MpvPlayerEngineAdapter } from '../engine/MpvPlayerEngineAdapter';
 
 const TAG = 'MpvController'
 
@@ -107,12 +105,14 @@ export class MpvController implements PlayerControllerInterface {
     )]
   ])
   windowClass = WindowUtil.getWindow()
-  @Trace mpvHandle: number | null = null
+  private engineAdapter: MpvPlayerEngineAdapter = new MpvPlayerEngineAdapter()
   surfaceId: string | null = null
   osdSurfaceId: string | null = null
   @Trace playTime: number = 0
   @Trace playing: boolean = false
   @Trace nowPlaying: VideoMetadata | undefined = undefined
+  initialPlayTime: number | undefined = undefined
+  initialPlaying: boolean | undefined = undefined
   @Trace videoMetaDataList: VideoMetadata[] = []
   @Trace speed: number = 1.0
   @Trace volume: number = 0
@@ -153,6 +153,7 @@ export class MpvController implements PlayerControllerInterface {
   private lastSubtitle: string = ''
   @Trace showControl: boolean = false
   skipHistory: boolean = false
+  private isSkippingEnding: boolean = false
   private lastAppStorageUpdateTime: number = 0
   @Trace pixelMap: PixelMap | null = null
   avSession: avSessionManager.AVSession | undefined = undefined
@@ -164,9 +165,9 @@ export class MpvController implements PlayerControllerInterface {
   private videoSizeCallbackRegistered: boolean = false
   private surfaceModeErrorCallbackRegistered: boolean = false
   private bufferingStateCallbackRegistered: boolean = false
+  private resumeAfterBuffering: boolean = false
   private stateChangeResolvers: Map<string, ((value: void) => void)> = new Map()
   private decodingModeVerifyTimer: number = 0
-  private decodingModeSeekTimer: number = 0
   private smartRotationTimer: number = 0
   private currentPathStack: NavPathStack | null = null
   private activeHwdecMode: MpvDecodingMethod = MpvDecodingMethod.HARDWARE_SURFACE
@@ -175,6 +176,13 @@ export class MpvController implements PlayerControllerInterface {
   private lastFrameFetchPlayTime: number = -1
   private pendingFrameTime: number = -1
   private postLoadTasksExecuted: boolean = false
+  private initialStartHandledByLoad: boolean = false
+  private initialSmartRotationRequested: boolean = false
+  private engineSwitchHandler: PlayerEngineSwitchHandler | undefined = undefined
+
+  private get mpvHandle(): number | null {
+    return this.engineAdapter.handle
+  }
 
   static getShaderModeNames(): string[] {
     return MpvController.SHADER_MODE_NAMES
@@ -208,7 +216,9 @@ export class MpvController implements PlayerControllerInterface {
       VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying!, PathUtils.appContext!)
     }
 
-    this.reset()
+    this.playTime = 0
+    this.isSkippingEnding = false
+    await this.reset()
     this.audioChannelMode = MpvAudioChannelMode.STEREO
     // 更新播放列表数据，确保使用最新的数据
     if (!PrivacySpaceUtil.getPrivacyMode()) {
@@ -228,7 +238,8 @@ export class MpvController implements PlayerControllerInterface {
     salmonLogger.addLog(TAG, "设置当前播放视频完成", false)
 
     await PermissionUtil.activatePermission(item.uri)
-    this.init(item.uri, pathStack)
+    await this.prepareInitialSmartRotation()
+    await this.init(item.uri, pathStack)
     salmonLogger.addLog(TAG, "获取播放数据完成", false)
     await this.initAVSession()
     salmonLogger.addLog(TAG, "播放选择视频流程完成", false)
@@ -255,7 +266,7 @@ export class MpvController implements PlayerControllerInterface {
     return VideoOperateUtil.computeNextVideo(this.videoMetaDataList, this.nowPlaying, repeatMode)
   }
 
-  create(): void {
+  async create(): Promise<void> {
     if (this.mpvHandle) {
       salmonLogger.addLog(TAG, '[MpvPlayer] MPV already created, skipping', true)
       return
@@ -263,7 +274,7 @@ export class MpvController implements PlayerControllerInterface {
 
     try {
       this.applyDecodeType()
-      this.mpvHandle = mpvCreate()
+      this.engineAdapter.create()
       if (!this.mpvHandle) {
         salmonLogger.addLog(TAG, '[MpvPlayer] Failed to create mpv instance - handle is null/undefined', true)
         this.transitionTo(MpvPlayerState.ERROR)
@@ -315,7 +326,68 @@ export class MpvController implements PlayerControllerInterface {
     }
   }
 
-  init(url?: string, pathStack?: NavPathStack): void {
+  private preparePlayUrl(url: string): string {
+    if (ToolsUtil.isNetworkUrl(url)) {
+      return url
+    }
+
+    const localPath = new fileUri.FileUri(url).path
+    if (!IsoFileUtil.isIsoFile(url)) {
+      return localPath
+    }
+
+    const isoType = IsoFileUtil.detectIsoTypeSync(url)
+    if (isoType === IsoFileType.DVD) {
+      const configured = mpvSetDvdDevice(this.mpvHandle, localPath)
+      salmonLogger.addLog(TAG,
+        `[DiscRouting] type=DVD, device=${localPath}, configured=${configured}, protocol=dvd://`,
+        !configured)
+      return 'dvd://'
+    }
+
+    const configured = mpvSetBlurayDevice(this.mpvHandle, localPath)
+    const detectedType = isoType === IsoFileType.BLURAY ? 'BLURAY' : 'UNKNOWN(default BLURAY)'
+    salmonLogger.addLog(TAG,
+      `[DiscRouting] type=${detectedType}, device=${localPath}, configured=${configured}, protocol=bd://longest`,
+      !configured || isoType === IsoFileType.UNKNOWN)
+    return 'bd://longest'
+  }
+
+  private consumeInitialStartPositionMs(): number | undefined {
+    if (this.initialPlayTime !== undefined) {
+      const resumeTime = Math.max(0, this.initialPlayTime)
+      this.initialPlayTime = undefined
+      salmonLogger.addLog(TAG, `切换引擎时由 loadfile 恢复播放进度: ${resumeTime}`, false)
+      return resumeTime
+    }
+
+    const mode = VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!)
+    switch (mode) {
+      case VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME:
+        return Math.max(0, this.nowPlaying?.last_play || 0)
+      case VideoStartTimeMode.SEEK_TO_START_TIME:
+        return Math.max(0, this.nowPlaying?.start_time || 0)
+      case VideoStartTimeMode.SEEK_TO_INTRO_TIME:
+        return Math.max(0, Number(Setting.skipIntroTime) * 1000)
+      case VideoStartTimeMode.SEEK_TO_BEGINNING:
+        return 0
+      default:
+        return undefined
+    }
+  }
+
+  private getInitialSubtitleTrackId(): number | undefined {
+    if (!this.nowPlaying || !SubtitleUtil.hasSubtitlePreferenceMetadata(this.nowPlaying)) {
+      return undefined
+    }
+    if (this.nowPlaying.subtitle_mode === SubtitleMode.INNER_SUBTITLE &&
+      this.nowPlaying.subtitle_track_id !== undefined && this.nowPlaying.subtitle_track_id >= 0) {
+      return this.nowPlaying.subtitle_track_id
+    }
+    return -1
+  }
+
+  async init(url?: string, pathStack?: NavPathStack): Promise<void> {
     const requiredMode = this.computeDecodeType()
     if (this.mpvHandle && requiredMode !== this.activeHwdecMode) {
       salmonLogger.addLog(TAG,
@@ -327,7 +399,7 @@ export class MpvController implements PlayerControllerInterface {
     }
     this.applyDecodeType()
     if (!this.mpvHandle) {
-      this.mpvHandle = mpvCreate()
+      this.engineAdapter.create()
       if (!this.mpvHandle) {
         salmonLogger.addLog(TAG, '[MpvPlayer] Failed to create mpv instance during init', true)
         this.transitionTo(MpvPlayerState.ERROR)
@@ -337,20 +409,17 @@ export class MpvController implements PlayerControllerInterface {
     }
     this.activeHwdecMode = requiredMode
     this.transitionTo(MpvPlayerState.LOADING)
-    // 处理ISO文件
-    let playUrl = url!
-    if (IsoFileUtil.isIsoFile(url!)) {
-      salmonLogger.addLog(TAG, '检测到ISO文件，使用bd://协议播放', false)
-      const isoPath = url!
-      mpvSetBlurayDevice(this.mpvHandle, isoPath)
-      playUrl = 'bd://longest'
-    } else if (ToolsUtil.isNetworkUrl(url!)) {
-      playUrl = url!
-    } else {
-      playUrl = new fileUri.FileUri(url!).path
-    }
-
-    mpvLoadVideo(this.mpvHandle, playUrl)
+    const playUrl = this.preparePlayUrl(url!)
+    const initialStartPositionMs = this.consumeInitialStartPositionMs()
+    this.initialStartHandledByLoad = initialStartPositionMs !== undefined
+    const startPositionSeconds = initialStartPositionMs !== undefined && initialStartPositionMs > 0 ?
+      initialStartPositionMs / 1000 : undefined
+    const initialSubtitleTrackId = this.getInitialSubtitleTrackId()
+    // Surface decode failures can happen immediately after load. Register first so
+    // native fallback notifications cannot be lost during decoder startup.
+    this.registerPlaybackCompleteListener(pathStack!)
+    this.registerSurfaceModeErrorCallback()
+    this.engineAdapter.load(playUrl, startPositionSeconds, initialSubtitleTrackId)
 
     if (!ToolsUtil.isNetworkUrl(url!)) {
       VideoOperateUtil.getFrameTimePreprocess(url!)
@@ -366,10 +435,8 @@ export class MpvController implements PlayerControllerInterface {
       }, 3000)
     }
 
-    // 注册播放完成回调（只注册一次）
-    this.registerPlaybackCompleteListener(pathStack!)
     this.setPlayerCallback(pathStack!)
-    this.getData()
+    await this.getData()
 
     this.schedulePostLoadTasks()
   }
@@ -415,26 +482,41 @@ export class MpvController implements PlayerControllerInterface {
         }
       }
       // 片尾跳过逻辑保留
+      const totalTime = this.nowPlaying?.time ?? 0
+      const startTime = this.nowPlaying?.start_time
       const endTime = this.nowPlaying?.end_time
-      if (endTime != null && duration >= endTime && endTime > 0 && this.repeatMode !== SweetRepeatMode.SINGLE) {
+      const skipIntroMs = Number(Setting.skipIntroTime) * 1000
+      const skipOutroSeconds = Number(Setting.skipOutroTime)
+      const skipOutroMs = skipOutroSeconds * 1000
+      // 单视频片尾跳过：片尾<=总时长 且 片尾>片头（片头+片尾<=总时长）
+      if (endTime != null && endTime > 0 && (totalTime <= 0 || endTime <= totalTime)
+        && (startTime == null || startTime <= 0 || endTime > startTime)
+        && duration >= endTime && this.repeatMode !== SweetRepeatMode.SINGLE
+        && !this.isSkippingEnding) {
+        this.isSkippingEnding = true
         salmonLogger.addLog(TAG,
           `检测到视频片尾，准备播放下一个视频，满足条件为: endTime: ${endTime}, repeatMode: ${this.repeatMode}, duration: ${duration}`,
           false)
-        this.playNextVideoProcess(pathStack)
+        this.playNextVideoProcess(pathStack).catch((error: Error) => {
+          salmonLogger.addLog(TAG, `play next video failed: ${error.message}`, true)
+        })
         this.userListener?.clear()
         this.userListener = null
         this.setPlayerCallback(pathStack)
         ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_video_ending').id))
       }
-      const skipOutroSeconds = Number(Setting.skipOutroTime)
+      // 全局片尾跳过：片尾<=总时长 且 片头+片尾<=总时长
       if (skipOutroSeconds > 0 && (endTime == null || endTime === 0)) {
-        const totalTime = this.nowPlaying?.time ?? 0
-        const skipOutroMs = skipOutroSeconds * 1000
-        if (totalTime > 0 && duration >= totalTime - skipOutroMs && this.repeatMode !== SweetRepeatMode.SINGLE) {
+        if (totalTime > 0 && skipOutroMs <= totalTime && skipIntroMs + skipOutroMs <= totalTime
+          && duration >= totalTime - skipOutroMs && this.repeatMode !== SweetRepeatMode.SINGLE
+          && !this.isSkippingEnding) {
+          this.isSkippingEnding = true
           salmonLogger.addLog(TAG,
             `检测到视频片尾（全局），准备播放下一个视频，满足条件为: skipOutroTime: ${skipOutroSeconds}s, totalTime: ${totalTime}, duration: ${duration}`,
             false)
-          this.playNextVideoProcess(pathStack)
+          this.playNextVideoProcess(pathStack).catch((error: Error) => {
+            salmonLogger.addLog(TAG, `play next video failed: ${error.message}`, true)
+          })
           this.userListener?.clear()
           this.userListener = null
           this.setPlayerCallback(pathStack)
@@ -461,7 +543,7 @@ export class MpvController implements PlayerControllerInterface {
     })
   }
 
-  getData() {
+  async getData(): Promise<void> {
     this.transitionTo(MpvPlayerState.PLAYING)
     this.registerTimeUpdateCallback()
     this.registerVideoSizeChangedCallback()
@@ -484,7 +566,9 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   prepare(): void {
-    this.create()
+    this.create().catch(() => {
+      salmonLogger.addLog(TAG, 'prepare create failed', true)
+    })
   }
 
   play(): void {
@@ -507,31 +591,24 @@ export class MpvController implements PlayerControllerInterface {
     AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
   }
 
-  reset(): void {
-    mpvReset(this.mpvHandle)
-    this.getData()
+  async reset(): Promise<void> {
+    this.engineAdapter.reset()
+    await this.getData()
   }
 
-  release(): void {
+  async release(): Promise<void> {
     this.transitionTo(MpvPlayerState.RELEASING)
     this.cancelDecodingModeTimers()
     this.cancelSubscribe()
-    if (!this.mpvHandle) {
+    if (!this.engineAdapter.isCreated()) {
+      await this.engineAdapter.release()
+      this.transitionTo(MpvPlayerState.IDLE)
       return
     }
-    mpvUnregisterPlaybackCompleteCallback()
-    this.playbackCallbackRegistered = false
-    mpvUnregisterTimeUpdateCallback()
-    this.timeUpdateCallbackRegistered = false
-    mpvUnregisterVideoSizeChangedCallback()
-    this.videoSizeCallbackRegistered = false
-    mpvUnregisterSurfaceModeErrorCallback()
-    this.surfaceModeErrorCallbackRegistered = false
-    mpvUnregisterBufferingStateCallback()
-    this.bufferingStateCallbackRegistered = false
-    mpvDestroy(this.mpvHandle)
-    this.mpvHandle = null
-    this.userListener?.off('timeUpdate')
+    await this.engineAdapter.release(() => {
+      this.unregisterNativeCallbacks()
+      this.userListener?.off('timeUpdate')
+    })
     this.transitionTo(MpvPlayerState.IDLE)
   }
 
@@ -592,12 +669,15 @@ export class MpvController implements PlayerControllerInterface {
       case VideoStartTimeMode.SEEK_TO_INTRO_TIME:
         this.seekTime(this.playTime + Number(Setting.skipIntroTime) * 1000)
         break
+      case VideoStartTimeMode.SEEK_TO_BEGINNING:
+        this.seekTime(0)
+        break
       default:
         return
     }
   }
 
-  getAudioTrackList() {
+  async getAudioTrackList(): Promise<void> {
     const tracks = mpvGetAudioTracks(this.mpvHandle) as MpvAudioTrack[]
     if (!tracks || tracks.length === 0) {
       setTimeout(() => {
@@ -736,7 +816,7 @@ export class MpvController implements PlayerControllerInterface {
     mpvSetOsdLevel(this.debugInfoVisible ? 3 : 1)
   }
 
-  getSubtitleTrackList() {
+  async getSubtitleTrackList(): Promise<void> {
     this.subtitleTrack = mpvGetSubtitleTracks(this.mpvHandle) as MpvSubtitleTrack[]
     if (this.subtitleTrack.length === 0) {
       this.subtitleTrackSelected = -1
@@ -907,7 +987,10 @@ export class MpvController implements PlayerControllerInterface {
             return
           }
           if (nowPlaying.subtitle_track_id !== undefined) {
-            this.selectSubtitleTrack(nowPlaying.subtitle_track_id)
+            this.subtitleTrackSelected = nowPlaying.subtitle_track_id
+            if (mpvGetCurrentSubtitleTrack(this.mpvHandle) !== nowPlaying.subtitle_track_id) {
+              this.selectSubtitleTrack(nowPlaying.subtitle_track_id)
+            }
           }
         }
         if (nowPlaying.subtitle_offset_millis !== undefined) {
@@ -1003,8 +1086,8 @@ export class MpvController implements PlayerControllerInterface {
     AppStorage.delete('nowPlayingData')
   }
 
-  async onDisappearRelease(): Promise<void> {
-    this.release()
+  async dispose(): Promise<void> {
+    await this.release()
     try {
       this.audioVolumeManager?.off('streamVolumeChange')
       this.audioVolumeManager = null
@@ -1013,16 +1096,46 @@ export class MpvController implements PlayerControllerInterface {
     }
   }
 
+  async onDisappearRelease(): Promise<void> {
+    await this.dispose()
+  }
+
   async onSurfaceLoad(xComponentController: XComponentController, pathStack: NavPathStack,
     _windowClass?: Promise<window.Window | undefined>): Promise<void> {
     PermissionUtil.activatePermission(this.nowPlaying?.uri)
     try {
-      this.init(this.nowPlaying!.uri, pathStack)
+      this.surfaceId = xComponentController.getXComponentSurfaceId()
+      await this.prepareInitialSmartRotation()
+      await this.init(this.nowPlaying!.uri, pathStack)
       await this.initAVSession()
       await PiPWindowUtil.createPipController(xComponentController, this)
-      this.surfaceId = xComponentController.getXComponentSurfaceId()
     } catch (error) {
       salmonLogger.addLog(TAG, 'uri error:' + error, true)
+    }
+  }
+
+  private async prepareInitialSmartRotation(): Promise<void> {
+    this.initialSmartRotationRequested = false
+    const videoWidth = this.nowPlaying?.size[0] || 0
+    const videoHeight = this.nowPlaying?.size[1] || 0
+    if (!Setting.smartRotation || videoWidth <= videoHeight ||
+      this.screenWidth <= 0 || this.screenHeight <= this.screenWidth) {
+      return
+    }
+
+    const proportion = this.screenHeight / this.screenWidth
+    const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
+      : window.Orientation.AUTO_ROTATION_RESTRICTED
+    try {
+      const targetWindow = await this.windowClass
+      if (!targetWindow) {
+        return
+      }
+      await targetWindow.setPreferredOrientation(orientation)
+      this.initialSmartRotationRequested = true
+      salmonLogger.addLog(TAG, '已在 loadfile 前请求智能横屏', false)
+    } catch (error) {
+      salmonLogger.addLog(TAG, `起播前设置窗口方向失败: ${error}`, true)
     }
   }
 
@@ -1045,6 +1158,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   async onWillDisappearRelease(_windowClass?: Promise<window.Window | undefined>): Promise<void> {
+    await this.dispose()
   }
 
   hasChapterSupport(): boolean {
@@ -1060,7 +1174,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   async exitPlayback(_timeout: number): Promise<void> {
-    this.release()
+    await this.release()
   }
 
   toggleListenVideo(): void {
@@ -1076,6 +1190,18 @@ export class MpvController implements PlayerControllerInterface {
 
   getOsdVisibility(): boolean {
     return this.osdVisibility
+  }
+
+  setEngineSwitchHandler(handler: PlayerEngineSwitchHandler | undefined): void {
+    this.engineSwitchHandler = handler
+  }
+
+  async requestEngineSwitch(targetEngine: string, reason: string, resumePlayback?: boolean): Promise<void> {
+    if (!this.engineSwitchHandler) {
+      salmonLogger.addLog(TAG, `Ignore engine switch without handler: ${reason}`, true)
+      return
+    }
+    await this.engineSwitchHandler(targetEngine, reason, resumePlayback)
   }
 
   private schedulePostLoadTasks() {
@@ -1110,13 +1236,18 @@ export class MpvController implements PlayerControllerInterface {
     }
     this.checkDolbyVisionAndSwitch()
     this.detectAndUpdateHdrType()
-    this.getAudioTrackList()
-    this.getSubtitleTrackList()
+    await Promise.all([
+      this.getAudioTrackList(),
+      this.getSubtitleTrackList()
+    ])
     this.getChapterListFromMpv()
-    const mpvSeekMode = VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!)
-    this.videoStartPlayTime(mpvSeekMode)
+    if (!this.initialStartHandledByLoad) {
+      const mpvSeekMode = VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!)
+      this.videoStartPlayTime(mpvSeekMode)
+    }
+    this.initialStartHandledByLoad = false
     this.nowPlaying!.time = this.getDuration()
-    if (Setting.smartRotation &&
+    if (!this.initialSmartRotationRequested && Setting.smartRotation &&
       this.playAreaWidth > this.playAreaHeight &&
       this.screenHeight > this.screenWidth) {
       salmonLogger.addLog(TAG, "智能旋转条件满足，开始设置方向", false)
@@ -1134,6 +1265,10 @@ export class MpvController implements PlayerControllerInterface {
       this.osdVisibility = true
     }
     this.setExternalSubtitle(this.nowPlaying!)
+    if (this.initialPlaying === false) {
+      this.pause()
+    }
+    this.initialPlaying = undefined
   }
 
   private applyScreenExtend() {
@@ -1242,7 +1377,7 @@ export class MpvController implements PlayerControllerInterface {
         this.userListener?.emit('videoSizeReady', 0)
         if (this.postLoadTasksExecuted) {
           this.setRotation()
-          if (Setting.smartRotation &&
+          if (!this.initialSmartRotationRequested && Setting.smartRotation &&
             this.playAreaWidth > this.playAreaHeight &&
             this.screenHeight > this.screenWidth) {
             const proportion =
@@ -1292,6 +1427,7 @@ export class MpvController implements PlayerControllerInterface {
         }
         salmonLogger.addLog(TAG, "收到播放完成事件，准备播放下一个视频", false)
         this.transitionTo(MpvPlayerState.COMPLETED)
+        this.playTime = this.nowPlaying?.time || this.playTime
         if (!this.skipHistory) {
           const completedPlayTime = this.nowPlaying!.time || this.playTime
           salmonLogger.addLog(TAG,
@@ -1299,7 +1435,9 @@ export class MpvController implements PlayerControllerInterface {
             false)
           VideoOperateUtil.saveVideoTime(completedPlayTime, this.nowPlaying!, PathUtils.appContext!)
         }
-        this.playNextVideoProcess(pathStack)
+        this.playNextVideoProcess(pathStack).catch((error: Error) => {
+          salmonLogger.addLog(TAG, `play next video failed: ${error.message}`, true)
+        })
         this.playbackCallbackRegistered = false
         this.registerPlaybackCompleteListener(pathStack)
       })
@@ -1344,9 +1482,14 @@ export class MpvController implements PlayerControllerInterface {
           return
         }
         if (buffering) {
+          if (!this.isInState(MpvPlayerState.BUFFERING)) {
+            this.resumeAfterBuffering = this.isInState(MpvPlayerState.PLAYING)
+          }
           this.transitionTo(MpvPlayerState.BUFFERING)
         } else if (this.isInState(MpvPlayerState.BUFFERING)) {
-          this.transitionTo(this.playing ? MpvPlayerState.PLAYING : MpvPlayerState.PAUSED)
+          const targetState = this.resumeAfterBuffering ? MpvPlayerState.PLAYING : MpvPlayerState.PAUSED
+          this.resumeAfterBuffering = false
+          this.transitionTo(targetState)
         }
       })
       this.bufferingStateCallbackRegistered = true
@@ -1367,7 +1510,10 @@ export class MpvController implements PlayerControllerInterface {
       salmonLogger.addLog(TAG, '[MpvController] Instance released, aborting decoding mode switch', true)
       return
     }
-    if (this.isInState(MpvPlayerState.SWITCHING_MODE)) {
+    // A Buffer-HW failure is detected while this state is still active. Allow
+    // that internal continuation to advance to Buffer-SW instead of treating it
+    // as an unrelated re-entrant request.
+    if (this.isInState(MpvPlayerState.SWITCHING_MODE) && targetMode !== 'buffer_sw') {
       salmonLogger.addLog(TAG, '[MpvController] Already switching mode, skipping')
       return
     }
@@ -1392,7 +1538,7 @@ export class MpvController implements PlayerControllerInterface {
       mpvSetHwdecMode(0)
     }
 
-    this.mpvHandle = mpvCreate()
+    this.engineAdapter.create()
     if (!this.mpvHandle) {
       salmonLogger.addLog(TAG, `[MpvController] Failed to create MPV instance in ${modeName} mode`, true)
 
@@ -1408,16 +1554,16 @@ export class MpvController implements PlayerControllerInterface {
     this.activeHwdecMode = targetMode === 'buffer_hw' ? MpvDecodingMethod.HARDWARE_BUFFER : MpvDecodingMethod.SOFTWARE
 
     if (savedVideo) {
-      let reloadUrl = savedVideo.uri;
-      if (IsoFileUtil.isIsoFile(savedVideo.uri)) {
-        const isoPath = savedVideo.uri;
-        mpvSetBlurayDevice(this.mpvHandle, isoPath);
-        reloadUrl = 'bd://longest';
-      } else {
-        reloadUrl = new fileUri.FileUri(savedVideo.uri).path;
+      const reloadUrl = this.preparePlayUrl(savedVideo.uri)
+      this.registerSurfaceModeErrorCallback()
+      const reloadStartSeconds = savedTime > 0 ? savedTime / 1000 : undefined
+      if (reloadStartSeconds !== undefined) {
+        this.initialStartHandledByLoad = true
       }
-      mpvLoadVideo(this.mpvHandle, reloadUrl)
-      this.getData()
+      this.engineAdapter.load(reloadUrl, reloadStartSeconds, this.getInitialSubtitleTrackId())
+      this.getData().catch(() => {
+        salmonLogger.addLog(TAG, 'reload callbacks failed', true)
+      })
 
       if (this.currentPathStack) {
         this.registerPlaybackCompleteListener(this.currentPathStack)
@@ -1436,16 +1582,10 @@ export class MpvController implements PlayerControllerInterface {
   private cleanupMpvInstance() {
     if (this.mpvHandle) {
       try {
-        mpvUnregisterPlaybackCompleteCallback()
-        mpvUnregisterTimeUpdateCallback()
-        mpvUnregisterVideoSizeChangedCallback()
-        mpvUnregisterSurfaceModeErrorCallback()
-        mpvUnregisterBufferingStateCallback()
-        mpvDestroy(this.mpvHandle)
+        this.engineAdapter.destroy(() => this.unregisterNativeCallbacks())
       } catch (error) {
         salmonLogger.addLog(TAG, '[MpvController] Error during cleanup: ' + JSON.stringify(error), true)
       }
-      this.mpvHandle = null
     }
 
     // 重置回调注册标志
@@ -1456,6 +1596,27 @@ export class MpvController implements PlayerControllerInterface {
     this.videoSizeCallbackRegistered = false
     this.surfaceModeErrorCallbackRegistered = false
     this.bufferingStateCallbackRegistered = false
+  }
+
+  private unregisterNativeCallbacks(): void {
+    this.unregisterNativeCallback(() => mpvUnregisterPlaybackCompleteCallback(), 'playbackComplete')
+    this.unregisterNativeCallback(() => mpvUnregisterTimeUpdateCallback(), 'timeUpdate')
+    this.unregisterNativeCallback(() => mpvUnregisterVideoSizeChangedCallback(), 'videoSizeChanged')
+    this.unregisterNativeCallback(() => mpvUnregisterSurfaceModeErrorCallback(), 'surfaceModeError')
+    this.unregisterNativeCallback(() => mpvUnregisterBufferingStateCallback(), 'bufferingState')
+    this.playbackCallbackRegistered = false
+    this.timeUpdateCallbackRegistered = false
+    this.videoSizeCallbackRegistered = false
+    this.surfaceModeErrorCallbackRegistered = false
+    this.bufferingStateCallbackRegistered = false
+  }
+
+  private unregisterNativeCallback(action: () => void, callbackName: string): void {
+    try {
+      action()
+    } catch (error) {
+      salmonLogger.addLog(TAG, `Failed to unregister ${callbackName}: ${error}`, true)
+    }
   }
 
   private verifyAndResumePlayback(
@@ -1490,12 +1651,6 @@ export class MpvController implements PlayerControllerInterface {
         return
       }
     }
-    if (savedTime > 0) {
-      this.decodingModeSeekTimer = setTimeout(() => {
-        this.decodingModeSeekTimer = 0
-        this.seekTime(savedTime)
-      }, 1500)
-    }
     if (savedPlaying) {
       this.play()
     } else {
@@ -1510,10 +1665,6 @@ export class MpvController implements PlayerControllerInterface {
     if (this.decodingModeVerifyTimer) {
       clearTimeout(this.decodingModeVerifyTimer)
       this.decodingModeVerifyTimer = 0
-    }
-    if (this.decodingModeSeekTimer) {
-      clearTimeout(this.decodingModeSeekTimer)
-      this.decodingModeSeekTimer = 0
     }
     this.cancelSmartRotationTimer()
   }
@@ -1564,7 +1715,16 @@ export class MpvController implements PlayerControllerInterface {
       return
     }
 
-    this.switchDecodingMode('buffer_hw', errorMessage, this.playTime)
+    let resumeTime = this.playTime
+    if (resumeTime <= 0 && this.nowPlaying) {
+      const lastPlay = this.nowPlaying.last_play
+      if (lastPlay && lastPlay > 0) {
+        resumeTime = lastPlay
+        salmonLogger.addLog(TAG,
+          `[MpvController] playTime=0 on surface error, using last_play=${lastPlay}ms as resume position`, false)
+      }
+    }
+    this.switchDecodingMode('buffer_hw', errorMessage, resumeTime)
   }
 
   private detectAndUpdateHdrType() {

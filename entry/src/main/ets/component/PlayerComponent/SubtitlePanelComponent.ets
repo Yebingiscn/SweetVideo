@@ -16,8 +16,9 @@ export struct SubtitlePanelComponent {
   @Local innerSubtitleMenu: InnerSubtitleDataSource = new InnerSubtitleDataSource([])
   @Consumer('player') player: PlayerControllerInterface =
     PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
-  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   @Event onSubtitleOffsetTime: () => void = () => {
+  }
+  @Event onSwitchPlayerEngine: (_targetEngine: string) => void = () => {
   }
 
   aboutToAppear(): void {
@@ -136,7 +137,7 @@ export struct SubtitlePanelComponent {
           .menuItemExtend()
           .contentFontColor($r('app.color.text_color'))
           .onClick(() => {
-            this.switchToMpvPlayer()
+            this.onSwitchPlayerEngine(PlayerEngine.MPV_PLAYER)
           })
       }
     }
@@ -258,11 +259,6 @@ export struct SubtitlePanelComponent {
     return (this.player.nowPlaying?.external_subtitle_format?.length ?? 0) > 0
   }
 
-  private switchToMpvPlayer(): void {
-    const avPlayer = this.player as AVPlayerController
-    VideoOperateUtil.playErrorExecute(this.pathStack, avPlayer.videoMetaDataList,
-      avPlayer.nowPlaying?.date!, PlayerEngine.MPV_PLAYER, avPlayer.playTime, avPlayer.nowPlaying)
-  }
 }
 
 @Extend(MenuItem)

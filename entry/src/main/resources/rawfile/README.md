@@ -65,6 +65,7 @@ QQ群：973792610
 - [juniversalchardet](https://ohpm.openharmony.cn/#/cn/detail/@ohos%2Fjuniversalchardet)
 - [mpv](https://github.com/dex2oat/mpv)
 - [kazumi](https://github.com/ErBWs/Kazumi)
+- [mpvArk](https://github.com/mpv-ohos/mpv-arkts/)
 
 ## 赞助作者
 
@@ -96,3 +97,4 @@ QQ群：973792610
 - 刘乐
 - 爱发电用户_08ae7
 - 爱发电用户_fQqB
+- 各位 VIP 用户

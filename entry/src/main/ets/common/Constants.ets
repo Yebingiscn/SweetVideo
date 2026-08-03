@@ -76,9 +76,10 @@ export const OPTIONS: ImageAIOptions = {
   aiController: new ImageAnalyzerController()
 }
 
-export const SUPPORT_VIDEO_FORMAT: string[] = ['视频|.mpv,.mkv,.mp4,.mov,.rmvb,.wmv,.avi,.m4v,.iso,.webm,.flv,.ts,.pmp',
-  'mp4', 'flv', 'mkv', 'ts', 'mov', 'rmvb', 'wmv', 'avi', 'm4v', 'iso', 'webm', 'pmp'
-]
+export const SUPPORT_VIDEO_FORMAT: string[] =
+  ['视频|.mpv,.mkv,.mp4,.mov,.rmvb,.wmv,.avi,.m4v,.iso,.webm,.flv,.ts,.vob,.m2ts,.pmp',
+    'mp4', 'flv', 'mkv', 'ts', 'vob', 'm2ts', 'mov', 'rmvb', 'wmv', 'avi', 'm4v', 'iso', 'webm', 'pmp'
+  ]
 
 export const SUPPORT_AUDIO_FORMAT: string[] =
   ['音频|.mp3,.wav,.flac,.dsf,.dsd,.dff,.m4a,.ape,.aac,.ogg,.amr,.aif,.aiff,.dts,.wma,.av3a',

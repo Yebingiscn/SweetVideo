@@ -1,13 +1,13 @@
 import { window } from '@kit.ArkUI'
 import { audio } from '@kit.AudioKit'
-import { BusinessError, settings } from '@kit.BasicServicesKit'
+import { BusinessError, deviceInfo, settings } from '@kit.BasicServicesKit'
 import { media } from '@kit.MediaKit'
 import { SaveOptions, VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
 import { common } from '@kit.AbilityKit'
 import { PathUtils } from './PathUtils'
 import ToolsUtil from './ToolsUtil'
-import NavigationAddress, { PlayerEngine, PlayerParams } from '../common/NavigationCommon'
+import { PlayerEngine } from '../common/NavigationCommon'
 import { Setting } from './ObservedUtil'
 import { fileIo } from '@kit.CoreFileKit'
 import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
@@ -62,6 +62,7 @@ export default class VideoOperateUtil {
   public static avImageGenerator: media.AVImageGenerator | undefined = undefined
   public static nowPlayingFile: fileIo.File | undefined = undefined
   public static updatePix: boolean = true
+  private static avImageGeneratorLifecycleTask: Promise<void> = Promise.resolve()
   private static mainWin: window.Window | undefined = undefined
 
   // 设置亮度
@@ -101,30 +102,6 @@ export default class VideoOperateUtil {
       salmonLogger.addLog(TAG, `Failed to get volume: ${error}`, true)
     }
     return volume_list
-  }
-
-  // 播放器播放失败处理
-  static playErrorExecute(pathStack: NavPathStack, videoMetaData: VideoMetadata[], date: string | undefined,
-    playerName: string,
-    currentTime?: number, nowPlaying?: VideoMetadata) {
-    ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
-    let nowPlayItem = date ? videoMetaData.find(item => item.date === date) : undefined
-    if (!nowPlayItem && videoMetaData.length > 0) {
-      nowPlayItem = videoMetaData[0]
-    }
-    if (!nowPlayItem && nowPlaying) {
-      nowPlayItem = nowPlaying
-    }
-    if (!nowPlayItem) {
-      pathStack.pop()
-      return
-    }
-    if (currentTime != undefined && currentTime > 0) {
-      nowPlayItem.last_play = currentTime
-    }
-    const playerParams = new PlayerParams(nowPlayItem, videoMetaData.length > 0 ? videoMetaData : undefined,
-      undefined, undefined, playerName)
-    pathStack.replacePathByName(NavigationAddress.VIDEO_PLAYER, playerParams, true)
   }
 
   // 计算手指移动距离
@@ -193,19 +170,12 @@ export default class VideoOperateUtil {
 
   static saveVideoPlayTimeIfNeed(playTime: number, nowPlaying: VideoMetadata | undefined,
     skipHistory: boolean, context: Context): void {
+    salmonLogger.addLog(TAG, `保存视频播放时间开始${playTime}, ${nowPlaying?.date}`, false)
     if (!nowPlaying || playTime <= 0 || skipHistory) {
       return
     }
-    const totalTime = nowPlaying.time ?? 0
-    const lastPlay = nowPlaying.last_play ?? 0
-    const isAlreadyWatched = totalTime > 0 && lastPlay >= totalTime * 0.95
-    const isCurrentEarlier = playTime < lastPlay
-    if (isAlreadyWatched && isCurrentEarlier) {
-      salmonLogger.addLog(TAG, `跳过保存: 视频已标记为已观看(last_play=${lastPlay}), 当前playTime=${playTime}更小`, false)
-    } else {
-      VideoOperateUtil.saveVideoTime(playTime, nowPlaying, context)
-      salmonLogger.addLog(TAG, `保存视频播放时间完成`, false)
-    }
+    VideoOperateUtil.saveVideoTime(playTime, nowPlaying, context)
+    salmonLogger.addLog(TAG, `保存视频播放时间完成`, false)
   }
 
   static saveVideoStartTime(startTime: number, nowPlaying: VideoMetadata, context: Context) {
@@ -253,37 +223,58 @@ export default class VideoOperateUtil {
   }
 
   static async getFrameTimePreprocess(uri: string) {
-    if (Setting.showFrameImgStatus) {
+    if (!Setting.showFrameImgStatus) {
+      return
+    }
+    const previousTask = VideoOperateUtil.avImageGeneratorLifecycleTask
+    const task = previousTask.catch(() => {
+    }).then(async () => {
+      await VideoOperateUtil.releaseAVImageGeneratorNow()
+      if (!Setting.showFrameImgStatus) {
+        return
+      }
+      let generator: media.AVImageGenerator | undefined
+      let file: fileIo.File | undefined
       try {
-        VideoOperateUtil.avImageGenerator = await media.createAVImageGenerator()
-        VideoOperateUtil.nowPlayingFile = fileIo.openSync(uri, fileIo.OpenMode.READ_ONLY)
-        let avFileDescriptor: media.AVFileDescriptor = { fd: VideoOperateUtil.nowPlayingFile.fd }
-        VideoOperateUtil.avImageGenerator.fdSrc = avFileDescriptor
+        generator = await media.createAVImageGenerator()
+        file = fileIo.openSync(uri, fileIo.OpenMode.READ_ONLY)
+        const avFileDescriptor: media.AVFileDescriptor = { fd: file.fd }
+        generator.fdSrc = avFileDescriptor
+        VideoOperateUtil.avImageGenerator = generator
+        VideoOperateUtil.nowPlayingFile = file
+        VideoOperateUtil.updatePix = true
       } catch (error) {
         salmonLogger.addLog(TAG, 'getFrameTimePreprocess error' + error, true)
-      }
-    }
-  }
-
-  static async releaseAVImageGenerator() {
-    if (Setting.showFrameImgStatus) {
-      VideoOperateUtil.avImageGenerator?.release()?.catch(() => {
-        salmonLogger.addLog(TAG, 'releaseAVImageGenerator error', true)
-      })
-      if (VideoOperateUtil.nowPlayingFile) {
         try {
-          fileIo.closeSync(VideoOperateUtil.nowPlayingFile)
-        } catch (_e) {
+          await generator?.release()
+        } catch (_error) {
+        }
+        if (file) {
+          try {
+            fileIo.closeSync(file)
+          } catch (_error) {
+          }
         }
       }
-      VideoOperateUtil.nowPlayingFile = undefined
-      VideoOperateUtil.updatePix = false
-    }
+    })
+    VideoOperateUtil.avImageGeneratorLifecycleTask = task
+    await task
+  }
+
+  static async releaseAVImageGenerator(): Promise<void> {
+    const previousTask = VideoOperateUtil.avImageGeneratorLifecycleTask
+    const task = previousTask.catch(() => {
+    }).then(async () => {
+      await VideoOperateUtil.releaseAVImageGeneratorNow()
+    })
+    VideoOperateUtil.avImageGeneratorLifecycleTask = task
+    await task
   }
 
   static async fetchFrameByTime(time: number, videoSize?: number[]) {
     if (Setting.showFrameImgStatus) {
       try {
+        await VideoOperateUtil.avImageGeneratorLifecycleTask
         let size: FrameSize
         if (!videoSize) {
           return undefined
@@ -392,7 +383,7 @@ export default class VideoOperateUtil {
     Setting.longPressSpeed = valueMap['longPressSpeed'] as number
     Setting.showSettingPageEntry = valueMap['showSettingPageEntry'] as boolean
     Setting.allowGestureEntry = valueMap['allowGestureEntry'] as boolean
-    Setting.showFrameImgStatus = valueMap['showFrameTime'] as boolean
+    Setting.showFrameImgStatus = deviceInfo.osFullName.includes('7.0.0') ? false : valueMap['showFrameTime'] as boolean
     Setting.jumpToHistoryTimeStatus = valueMap['jumpToHistoryTime'] as boolean
     Setting.coverLayout = valueMap['coverLayoutMode'] as CoverLayoutMode
     Setting.superResolutionState = valueMap['superResolutionState'] as boolean
@@ -489,10 +480,15 @@ export default class VideoOperateUtil {
     const last_play = nowPlaying.last_play ?? 0
     const time = nowPlaying.time ?? 0
     const title = nowPlaying.title
-    // 条件1：若设置了片头时间（start_time > 0）
-    if (start_time != null && start_time > 0) {
+    const isAlmostComplete = time > 0 && last_play >= time * 0.95
+    // 已观看完成的视频再次打开时显式跳到开头，避免播放器沿用末尾位置后立即触发 completed。
+    if (isAlmostComplete && (start_time == null || start_time <= 0)) {
+      return VideoStartTimeMode.SEEK_TO_BEGINNING
+    }
+    // 条件1：若设置了片头时间（start_time > 0），且片头<=总时长 且 片头<片尾（片头+片尾<=总时长）
+    if (start_time != null && start_time > 0 && (time <= 0 || start_time <= time)
+      && (end_time == null || end_time <= 0 || end_time > start_time)) {
       const isBeforeStart = last_play < start_time
-      const isAlmostComplete = last_play > time * 0.95
       const isBeyondEnd = end_time != null && end_time > 0 && last_play >= end_time
       if (isBeforeStart || isAlmostComplete || isBeyondEnd) {
         ToolsUtil.showToast('已跳过片头')
@@ -508,7 +504,8 @@ export default class VideoOperateUtil {
     const skipIntroSeconds = Number(Setting.skipIntroTime)
     if (skipIntroSeconds > 0) {
       const skipIntroMs = skipIntroSeconds * 1000
-      if (skipIntroMs < time && title != null) {
+      const skipOutroMs = Number(Setting.skipOutroTime) * 1000
+      if (skipIntroMs < time && skipIntroMs + skipOutroMs <= time && title != null) {
         const parts = title.split('.')
         const fileExt = parts.length > 0 ? parts[parts.length - 1].toLowerCase() : ''
         if (fileExt !== '' && !SUPPORT_AUDIO_FORMAT.includes(fileExt)) {
@@ -584,7 +581,10 @@ export default class VideoOperateUtil {
     }
   }
 
-  static resolvePlayerType(metadata: VideoMetadata, reverse: boolean = false, isSystemShare: boolean = false) {
+  static resolvePlayerType(metadata: VideoMetadata, reverse: boolean = false) {
+    if (deviceInfo.osFullName.includes('7.0')) {
+      return PlayerEngine.MPV_PLAYER
+    }
     const defaultPlayer = Preferences.getDefaultPlayerEngine(PathUtils.appContext!)
     const isAv3a = metadata.title?.toLowerCase().includes('av3a') || metadata.format?.toLowerCase().includes('av3a')
     const titleLower = metadata.title?.toLowerCase() ?? ''
@@ -597,14 +597,11 @@ export default class VideoOperateUtil {
       return PlayerEngine.AV_PLAYER
     }
     if (!hasSize) {
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
       return PlayerEngine.MPV_PLAYER
     }
     if (isDolbyAudio) {
       return PlayerEngine.MPV_PLAYER
-    }
-    if (isSystemShare || metadata.hdr_type === media.HdrType.AV_HDR_TYPE_VIVID ||
-      metadata.format?.toLowerCase() === 'mov') {
-      return PlayerEngine.AV_PLAYER
     }
     const isFirstPlayer = defaultPlayer === VideoInfoUtil.playerEngineList[0]
     return (reverse ? !isFirstPlayer : isFirstPlayer) ? PlayerEngine.AV_PLAYER : PlayerEngine.MPV_PLAYER
@@ -763,6 +760,27 @@ export default class VideoOperateUtil {
         } catch (error) {
           salmonLogger.addLog('BatchDelete', 'move to trash failed: ' + (error as Error).message, true)
         }
+      }
+    }
+  }
+
+  private static async releaseAVImageGeneratorNow(): Promise<void> {
+    const generator = VideoOperateUtil.avImageGenerator
+    const file = VideoOperateUtil.nowPlayingFile
+    VideoOperateUtil.avImageGenerator = undefined
+    VideoOperateUtil.nowPlayingFile = undefined
+    VideoOperateUtil.updatePix = false
+    if (generator) {
+      try {
+        await generator.release()
+      } catch (error) {
+        salmonLogger.addLog(TAG, `releaseAVImageGenerator error: ${error}`, true)
+      }
+    }
+    if (file) {
+      try {
+        fileIo.closeSync(file)
+      } catch (_error) {
       }
     }
   }

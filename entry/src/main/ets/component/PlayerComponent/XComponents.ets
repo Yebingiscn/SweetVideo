@@ -21,7 +21,8 @@ export struct XComponents {
   @Param xComponentId: string | undefined = undefined
   @Param libraryName: string | undefined = undefined
   @Param barState: boolean = false
-  @Event onXComponentLoad: () => void = () => {
+  @Event onXComponentLoad:
+    (_controller: XComponentController | undefined, _engine: string) => void = () => {
   }
   @Event onKeyCodeSpace: () => void = () => {
   }
@@ -42,7 +43,7 @@ export struct XComponents {
         AVPlayerXComponent({
           xComponentController: this.xComponentController,
           onAVPlayerComponentLoad: () => {
-            this.onXComponentLoad()
+            this.onXComponentLoad(this.xComponentController, PlayerEngine.AV_PLAYER)
           },
         })
       } else {
@@ -53,7 +54,7 @@ export struct XComponents {
           osdXController: this.osdXController,
           osdVisibility: this.osdVisibility,
           onMpvXComponent: () => {
-            this.onXComponentLoad()
+            this.onXComponentLoad(this.xComponentController, PlayerEngine.MPV_PLAYER)
           },
           onOsdSurfaceLoad: (surfaceId: string) => {
             this.onOsdSurfaceLoad(surfaceId)

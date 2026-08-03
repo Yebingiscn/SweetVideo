@@ -1,8 +1,8 @@
 // Type declarations for libmpvnative native module
 declare module 'libmpvnative.so' {
   // ==================== 硬件解码模式 ====================
-  // 0 = HWDEC_MODE_BUFFER (gpu-next + ohcodec-copy，默认，支持后处理)
-  // 1 = HWDEC_MODE_SURFACE (ohcodec + ohcodec，零拷贝，性能最优)
+  // 0 = HWDEC_MODE_BUFFER (gpu-next + OpenGL ES + OHCodec Surface-to-GPU，默认，支持后处理)
+  // 1 = HWDEC_MODE_SURFACE (ohcodec-osd + ohcodec，零拷贝，性能最优)
   export const setHwdecMode: (mode: number) => void;
 
   export const getHwdecMode: () => number;
@@ -26,10 +26,12 @@ declare module 'libmpvnative.so' {
   export const isInitialized: () => boolean;
 
   // ==================== 视频加载 ====================
-  export const loadVideo: (mpvHandle: number, url: string, startPosition?: number) => void;
+  export const loadVideo: (mpvHandle: number, url: string, startPosition?: number,
+    subtitleTrackId?: number) => void;
 
-  // ==================== 蓝光设备配置（ISO文件播放）====================
-  export const setBlurayDevice: (mpvHandle: number, isoPath: string) => void;
+  // ==================== 光盘设备配置（ISO文件播放）====================
+  export const setBlurayDevice: (mpvHandle: number, isoPath: string) => boolean;
+  export const setDvdDevice: (mpvHandle: number, isoPath: string) => boolean;
 
   // ==================== 播放控制 ====================
   export const seek: (mpvHandle: number, seconds: number, exact: boolean) => void;

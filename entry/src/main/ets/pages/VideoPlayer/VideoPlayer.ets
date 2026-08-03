@@ -21,6 +21,7 @@ import { SubtitleDisplayBuilder } from '../../component/PlayerComponent/Subtitle
 import { Privacy, Setting } from '../../utils/ObservedUtil'
 import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
 import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
+import { PlaybackSessionController } from '../../controller/PlaybackSessionController'
 import { XComponents } from '../../component/PlayerComponent/XComponents'
 import { VideoLayoutComponent } from '../../component/PlayerComponent/VideoLayoutComponent'
 import {
@@ -69,24 +70,6 @@ export struct VideoPlayer {
   @Local playerType: string = PlayerEngine.AV_PLAYER
   @Local autoListenVideoEnabled: boolean = false
   @Provider('player') player: PlayerType = PlayerControllerFactory.createAVPlayerController() as PlayerType
-  personalScreenExtendDialog: CustomDialogController = new CustomDialogController({
-    builder: NumberInputDialog({
-      title: '自定义屏幕拓展比例',
-      placeholderColor: '输入范围：50-150',
-      confirm: (input: number): void => {
-        if (input && input <= 150 && input >= 50) {
-          this.player.selectedText = `自定义比例:${input}`
-          Preferences.saveScreenExtend(PathUtils.appContext!, this.player.selectedText)
-          this.player.playAreaHeight = input / 100 * VideoInfoUtil.playAreaHeight
-          this.player.playAreaWidth = input / 100 * VideoInfoUtil.playAreaWidth
-          this.player.scaleFactor = 1
-
-        } else {
-          ToolsUtil.showToast('输入错误，输入范围在50-150之间')
-        }
-      },
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
   subtitleManager: SubtitleManager = new SubtitleManager(this.player)
   subtitleTimestampInputDialog: CustomDialogController = new CustomDialogController({
     builder: SubtitleOffsetDialog({
@@ -127,6 +110,25 @@ export struct VideoPlayer {
       this.cancelSubtitleOffsetSession()
     }
   })
+  @Local isPlayerConfigured: boolean = false
+  personalScreenExtendDialog: CustomDialogController = new CustomDialogController({
+    builder: NumberInputDialog({
+      title: '自定义屏幕拓展比例',
+      placeholderColor: '输入范围：50-150',
+      confirm: (input: number): void => {
+        if (input && input <= 150 && input >= 50) {
+          this.player.selectedText = `自定义比例:${input}`
+          Preferences.saveScreenExtend(PathUtils.appContext!, this.player.selectedText)
+          this.player.playAreaHeight = input / 100 * VideoInfoUtil.playAreaHeight
+          this.player.playAreaWidth = input / 100 * VideoInfoUtil.playAreaWidth
+          this.player.scaleFactor = 1
+
+        } else {
+          ToolsUtil.showToast('输入错误，输入范围在50-150之间')
+        }
+      },
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
   @Local subtitlePreferenceRestored: boolean = false
   @Local lockRotation: boolean = false
   xComponentController: XComponentController = new XComponentController()
@@ -138,11 +140,17 @@ export struct VideoPlayer {
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   @Local exitVideoTime: number = 0
   @Local isAdjustingSubtitleOffset: boolean = false
+  private playbackSession: PlaybackSessionController = new PlaybackSessionController()
+  private engineSwitchTask: Promise<void> | undefined = undefined
+  private playerDisposeTask: Promise<void> | undefined = undefined
+  private isPlaybackSessionDisposed: boolean = false
+  private isPageDisappearing: boolean = false
   private subtitleOffsetPreviewBase: number = 0
   private subtitleOffsetShouldResumePlayback: boolean = false
   private scrollAxisTimeout: number = 0
 
   aboutToAppear(): void {
+    this.isPageDisappearing = false
     salmonLogger.addLog(TAG, "开始执行aboutToAppear方法", false)
     PermissionUtil.applyContinuousTask()
     this.getWindowClass()?.then(
@@ -157,6 +165,7 @@ export struct VideoPlayer {
   }
 
   async aboutToDisappear(): Promise<void> {
+    this.isPageDisappearing = true
     salmonLogger.addLog(TAG, "开始执行aboutToDisappear方法", false)
     VideoOperateUtil.setBrightness(-1)
     WindowUtil.recoveryBarColor()
@@ -167,7 +176,7 @@ export struct VideoPlayer {
     this.player.onDisappearCleanup()
     clearTimeout(this.exitVideoTime)
     clearTimeout(this.scrollAxisTimeout)
-    await this.player.onDisappearRelease()
+    await this.disposePlaybackSession()
     salmonLogger.addLog(TAG, "释放播放器资源完成", false)
     salmonLogger.addLog(TAG, "aboutToDisappear方法执行完成", false)
   }
@@ -192,49 +201,58 @@ export struct VideoPlayer {
             this.sideBarStatus = v
           },
           onItemClick: async (item: VideoMetadata) => {
-            this.player.playChooseVideo(item, this.pathStack, this.windowClass, this.xComponentController)
+            await this.player.playChooseVideo(item, this.pathStack, this.windowClass, this.xComponentController)
             this.player.setPlayerCallback(this.pathStack, this.xComponentController, this.windowClass)
             this.closeSideBar(true)
           }
         })
 
         Stack() {
-          XComponents({
-            xComponentController: this.xComponentController,
-            xComponentId: this.player.getXComponentId(),
-            libraryName: this.player.getLibraryName(),
-            choosePlayer: this.player.isMpvPlayer() ? PlayerEngine.MPV_PLAYER : PlayerEngine.AV_PLAYER,
-            barState: this.player.showControl,
-            osdXController: this.player.isMpvPlayer() ? this.osdXController : undefined,
-            osdVisibility: this.player.getOsdVisibility(),
-            onXComponentLoad: async () => {
-              await this.player.onSurfaceLoad(this.xComponentController, this.pathStack, this.windowClass)
-            },
-            onKeyCodeSpace: () => {
-              this.player.togglePlayback()
-            },
-            onKeyCodeEscape: () => {
-              VideoOperateUtil.fullScreenOrRotateScreen(this.player.screenWidth, this.player.screenHeight,
-                this.getWindowClass())
-            },
-            onKeyCodeLeft: () => {
-              this.player.backForward()
-            },
-            onKeyCodeRight: () => {
-              this.player.fastForward()
-            },
-            onKeyCodeUpAndDown: (event: KeyEvent) => {
-              this.player.volume = this.player.volumeActually
-              const newVolume = VideoOperateUtil.changeVolume(this.player.volume,
-                event.keyCode === KeyCode.KEYCODE_DPAD_UP ? VOLUME_STEP : -VOLUME_STEP)
-              this.player.volume = newVolume
-              this.player.volumeActually = newVolume
-              VideoOperateUtil.lastVolume = newVolume
-            },
-            onOsdSurfaceLoad: (surfaceId: string) => {
-              this.player.onOsdSurfaceLoad(surfaceId)
-            },
-          })
+          if (this.isPlayerConfigured) {
+            XComponents({
+              xComponentController: this.xComponentController,
+              xComponentId: this.player.getXComponentId(),
+              libraryName: this.player.getLibraryName(),
+              choosePlayer: this.player.isMpvPlayer() ? PlayerEngine.MPV_PLAYER : PlayerEngine.AV_PLAYER,
+              barState: this.player.showControl,
+              osdXController: this.player.isMpvPlayer() ? this.osdXController : undefined,
+              osdVisibility: this.player.getOsdVisibility(),
+              onXComponentLoad: async (surfaceController: XComponentController | undefined,
+                surfaceEngine: string) => {
+                const surfacePlayer = this.player
+                const currentEngine =
+                  surfacePlayer.isMpvPlayer() ? PlayerEngine.MPV_PLAYER : PlayerEngine.AV_PLAYER
+                if (!surfaceController || currentEngine !== surfaceEngine) {
+                  return
+                }
+                await surfacePlayer.onSurfaceLoad(surfaceController, this.pathStack, this.windowClass)
+              },
+              onKeyCodeSpace: () => {
+                this.player.togglePlayback()
+              },
+              onKeyCodeEscape: () => {
+                VideoOperateUtil.fullScreenOrRotateScreen(this.player.screenWidth, this.player.screenHeight,
+                  this.getWindowClass())
+              },
+              onKeyCodeLeft: () => {
+                this.player.backForward()
+              },
+              onKeyCodeRight: () => {
+                this.player.fastForward()
+              },
+              onKeyCodeUpAndDown: (event: KeyEvent) => {
+                this.player.volume = this.player.volumeActually
+                const newVolume = VideoOperateUtil.changeVolume(this.player.volume,
+                  event.keyCode === KeyCode.KEYCODE_DPAD_UP ? VOLUME_STEP : -VOLUME_STEP)
+                this.player.volume = newVolume
+                this.player.volumeActually = newVolume
+                VideoOperateUtil.lastVolume = newVolume
+              },
+              onOsdSurfaceLoad: (surfaceId: string) => {
+                this.player.onOsdSurfaceLoad(surfaceId)
+              },
+            })
+          }
 
           if (this.player.showControl && !this.player.isLock) {
             VideoLayoutComponent({
@@ -515,6 +533,9 @@ export struct VideoPlayer {
       .divider({ strokeWidth: 0 })
     }
     .onReady(() => {
+      this.isPageDisappearing = false
+      this.isPlaybackSessionDisposed = false
+      this.isPlayerConfigured = false
       let playerParams: PlayerParams | undefined
       const videoPlayerParams: PlayerParams[] =
         this.pathStack.getParamByName(NavigationAddress.VIDEO_PLAYER) as PlayerParams[]
@@ -526,12 +547,9 @@ export struct VideoPlayer {
       }
       try {
         this.playerType = playerParams.playerType ?? PlayerEngine.AV_PLAYER
-        if (this.playerType === PlayerEngine.MPV_PLAYER) {
-          this.player = PlayerControllerFactory.createMpvController() as PlayerType
-        } else {
-          this.player = PlayerControllerFactory.createAVPlayerController() as PlayerType
-        }
+        this.player = PlayerControllerFactory.createController(this.playerType) as PlayerType
 
+        this.bindEngineSwitchHandler(this.player)
         this.subtitleManager = new SubtitleManager(this.player)
         const metadata = playerParams.metadata as VideoMetadata
         this.player.nowPlaying = metadata
@@ -553,6 +571,7 @@ export struct VideoPlayer {
         this.player.selectedText = Preferences.getScreenExtend(PathUtils.appContext!)
         this.restoreSubtitlePreference()
         this.player.onPlayerReady()
+        this.isPlayerConfigured = true
       } catch (e) {
         salmonLogger.addLog(TAG, e, true)
       }
@@ -586,7 +605,8 @@ export struct VideoPlayer {
         this.player.play()
       }
     })
-    .onWillHide(() => {
+    .onHidden(() => {
+      salmonLogger.addLog(TAG, "开始执行onHidden生命周期", false)
       VideoOperateUtil.saveVideoPlayTimeIfNeed(this.player.playTime, this.player.nowPlaying,
         this.player.skipHistory, PathUtils.appContext!)
       if (this.player instanceof AVPlayerController && !PiPWindowUtil.pipOpenState &&
@@ -597,6 +617,7 @@ export struct VideoPlayer {
       }
     })
     .onWillDisappear(async () => {
+      this.isPageDisappearing = true
       salmonLogger.addLog(TAG, "开始执行onWillDisappear生命周期", false)
       this.player.saveSubtitlePreferenceForCurrentVideo(this.subtitleManager.subtitleVisibility,
         this.subtitleManager.isAIAsrShown, this.subtitleManager.subtitle3DMode)
@@ -612,7 +633,7 @@ export struct VideoPlayer {
         this.player.onWillDisappearCleanup()
         await (await this.getWindowClass())?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
         await this.player.avSession?.stopCasting()
-        await this.player.onWillDisappearRelease(this.windowClass)
+        await this.disposePlaybackSession()
       } catch (error) {
         salmonLogger.addLog(TAG, `onWillDisappear中发生错误：${error}`, true)
       }
@@ -779,6 +800,9 @@ export struct VideoPlayer {
         const nextRepeatMode =
           this.player.repeatMode === SweetRepeatMode.SINGLE ? SweetRepeatMode.LIST : this.player.repeatMode
         this.player.playNextVideoProcess(this.pathStack, this.windowClass, this.xComponentController, nextRepeatMode)
+          .catch((error: Error) => {
+            salmonLogger.addLog(TAG, `play next video failed: ${error.message}`, true)
+          })
         this.player.setPlayerCallback(this.pathStack, this.xComponentController, this.windowClass)
         salmonLogger.addLog(TAG, "播放下一个视频请求已发送", false)
       },
@@ -857,6 +881,10 @@ export struct VideoPlayer {
       onABCircleStatusClick: () => {
         this.player.abCircleStatus = !this.player.abCircleStatus
       },
+      onSwitchPlayerEngine: (targetEngine: string) => {
+        this.switchPlayerEngine(targetEngine, 'manual switch').catch(() => {
+        })
+      },
     })
   }
 
@@ -884,12 +912,118 @@ export struct VideoPlayer {
         this.player.refreshExternalSubtitlePreview(this.subtitleOffsetPreviewBase)
         this.subtitleTimestampInputDialog.open()
       },
+      onSwitchPlayerEngine: (targetEngine: string) => {
+        this.switchPlayerEngine(targetEngine, 'subtitle compatibility').catch(() => {
+        })
+      },
     })
   }
 
   @Builder
   AVCastPickerBuilderBridge() {
     AVCastPickerBuilder()
+  }
+
+  private bindEngineSwitchHandler(player: PlayerControllerInterface): void {
+    player.setEngineSwitchHandler(async (targetEngine: string, reason: string,
+      resumePlayback?: boolean): Promise<void> => {
+      if (this.player !== player || this.isPageDisappearing) {
+        return
+      }
+      await this.switchPlayerEngine(targetEngine, reason, resumePlayback)
+    })
+  }
+
+  private async disposePlaybackSession(): Promise<void> {
+    if (this.isPlaybackSessionDisposed) {
+      return
+    }
+    if (this.playerDisposeTask) {
+      await this.playerDisposeTask
+      return
+    }
+    const task = this.performPlaybackSessionDispose()
+    this.playerDisposeTask = task
+    try {
+      await task
+      this.isPlaybackSessionDisposed = true
+    } finally {
+      if (this.playerDisposeTask === task) {
+        this.playerDisposeTask = undefined
+      }
+    }
+  }
+
+  private async performPlaybackSessionDispose(): Promise<void> {
+    if (this.engineSwitchTask) {
+      try {
+        await this.engineSwitchTask
+      } catch (_error) {
+      }
+    }
+    this.player.setEngineSwitchHandler(undefined)
+    await this.player.dispose()
+  }
+
+  private async switchPlayerEngine(targetEngine: string, reason: string,
+    resumePlayback?: boolean): Promise<void> {
+    const currentEngine = this.player.isMpvPlayer() ? PlayerEngine.MPV_PLAYER : PlayerEngine.AV_PLAYER
+    if (currentEngine === targetEngine || this.isPageDisappearing) {
+      return
+    }
+    if (this.engineSwitchTask) {
+      await this.engineSwitchTask
+      return
+    }
+    const task = this.performEngineSwitch(targetEngine, reason, resumePlayback)
+    this.engineSwitchTask = task
+    try {
+      await task
+    } finally {
+      if (this.engineSwitchTask === task) {
+        this.engineSwitchTask = undefined
+      }
+    }
+  }
+
+  private async performEngineSwitch(targetEngine: string, reason: string,
+    resumePlayback?: boolean): Promise<void> {
+    const oldPlayer = this.player
+    const subtitleMode = this.subtitleManager.subtitleMode
+    const subtitle3DMode = this.subtitleManager.subtitle3DMode
+    oldPlayer.saveSubtitlePreferenceForCurrentVideo(this.subtitleManager.subtitleVisibility,
+      this.subtitleManager.isAIAsrShown, subtitle3DMode)
+    try {
+      await PiPWindowUtil.destroyPipController()
+      await VideoOperateUtil.releaseAVImageGenerator()
+      const nextPlayer = await this.playbackSession.switchEngine(oldPlayer, targetEngine, resumePlayback)
+      if (this.isPageDisappearing || this.player !== oldPlayer) {
+        await nextPlayer.release()
+        return
+      }
+
+      this.xComponentController = new XComponentController()
+      this.osdXController = new XComponentController()
+      this.playerType = targetEngine
+      this.player = nextPlayer
+      this.bindEngineSwitchHandler(nextPlayer)
+
+      const nextSubtitleManager = new SubtitleManager(nextPlayer)
+      nextSubtitleManager.subtitleMode = subtitleMode
+      nextSubtitleManager.subtitle3DMode = subtitle3DMode
+      nextPlayer.subtitleSelected = subtitleMode
+      this.subtitleManager = nextSubtitleManager
+      this.subtitlePreferenceRestored = true
+      nextPlayer.onPlayerReady()
+      salmonLogger.addLog(TAG,
+        `原地切换播放引擎完成: ${oldPlayer.isMpvPlayer() ? PlayerEngine.MPV_PLAYER : PlayerEngine.AV_PLAYER}` +
+          ` -> ${targetEngine}, reason=${reason}`,
+        false)
+    } catch (error) {
+      salmonLogger.addLog(TAG, `切换播放引擎失败: ${error}`, true)
+      ToolsUtil.showToast('切换播放引擎失败')
+      throw new Error(`切换播放引擎失败: ${error}`)
+    }
   }
 
   private restoreSubtitlePreference() {

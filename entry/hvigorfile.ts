@@ -14,7 +14,7 @@ const entryLibsPath = path.join(entryPath, 'libs/arm64-v8a');
  */
 function copyLibmpvSo() {
   // libmpv.so.2 源路径（预编译库）
-  const libmpvSoSource = path.join(libmpvnativePath, 'libs/arm64-v8a/libmpv.so.2');
+  const libmpvSoSource = path.join(libmpvnativePath, 'libs/arm64-v8a/libmpv.so');
 
   // 确保 entry/libs/arm64-v8a 目录存在
   if (!fs.existsSync(entryLibsPath)) {
@@ -24,7 +24,7 @@ function copyLibmpvSo() {
 
   // 复制 libmpv.so.2
   if (fs.existsSync(libmpvSoSource)) {
-    const libmpvSoTarget = path.join(entryLibsPath, 'libmpv.so.2');
+    const libmpvSoTarget = path.join(entryLibsPath, 'libmpv.so');
     fs.copyFileSync(libmpvSoSource, libmpvSoTarget);
     console.log(`[libmpvnative] 已复制 libmpv.so.2 到 entry/libs/arm64-v8a/`);
   } else {

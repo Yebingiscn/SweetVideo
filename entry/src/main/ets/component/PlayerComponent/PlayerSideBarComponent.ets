@@ -88,7 +88,7 @@ export struct PlayerSideBarComponent {
     .visibility(this._sideBarStatusTmp)
     .width('100%')
     .height('100%')
-    // .backgroundColor($r('app.color.sidebar_background_color'))
+    .backgroundColor(Setting.backgroundImageSrc.length > 0 ? '' : $r('app.color.sidebar_background_color'))
     .padding({
       left: 8,
       right: 8,

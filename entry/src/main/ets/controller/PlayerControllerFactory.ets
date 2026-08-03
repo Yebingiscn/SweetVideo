@@ -7,12 +7,18 @@ import { avSession as avSessionManager } from '@kit.AVSessionKit'
 import { window } from '@kit.ArkUI'
 import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
 import { MpvAudioTrack, MpvChapter, MpvSubtitleTrack } from './MpvController/MpvTypes'
+import { PlayerEngine } from '../common/NavigationCommon'
+
+export type PlayerEngineSwitchHandler =
+  (targetEngine: string, reason: string, resumePlayback?: boolean) => Promise<void>
 
 export interface PlayerControllerInterface {
   surfaceId: string | null
   avSession: avSessionManager.AVSession | undefined
   nowPlaying: VideoMetadata | undefined
   videoMetaDataList: VideoMetadata[]
+  initialPlayTime: number | undefined
+  initialPlaying: boolean | undefined
   skipHistory: boolean
   selectedText: string | undefined
   playAreaHeight: number
@@ -63,13 +69,15 @@ export interface PlayerControllerInterface {
 
   pause(): void
 
-  reset(): void
+  reset(): Promise<void>
 
-  release(): void
+  release(): Promise<void>
 
-  init(): void
+  dispose(): Promise<void>
 
-  create(): void
+  init(): Promise<void>
+
+  create(): Promise<void>
 
   seekTime(seekTime: number): void
 
@@ -77,7 +85,7 @@ export interface PlayerControllerInterface {
 
   videoStartPlayTime(seekMode: number): void
 
-  getAudioTrackList(): void
+  getAudioTrackList(): Promise<void>
 
   selectAudioTrack(trackId: number): void
 
@@ -93,14 +101,14 @@ export interface PlayerControllerInterface {
 
   onScreenDoubleClick(tapX: number): void
 
-  getSubtitleTrackList(): void
+  getSubtitleTrackList(): Promise<void>
 
   selectSubtitleTrack(trackId: number): void
 
   initVolumeAndBrightness(): Promise<void>
 
 
-  getData(): void
+  getData(): Promise<void>
 
   setPlayerCallback(pathStack: NavPathStack, xComponentController?: XComponentController,
     windowClass?: Promise<window.Window | undefined>): void
@@ -112,10 +120,10 @@ export interface PlayerControllerInterface {
   setExternalSubtitle(nowPlaying: VideoMetadata): void
 
   playNextVideoProcess(pathStack: NavPathStack, windowClass?: Promise<window.Window | undefined>,
-    xComponentController?: XComponentController, overrideRepeatMode?: SweetRepeatMode): void
+    xComponentController?: XComponentController, overrideRepeatMode?: SweetRepeatMode): Promise<void>
 
   playChooseVideo(item: VideoMetadata, pathStack: NavPathStack,
-    windowClass?: Promise<window.Window | undefined>, xComponentController?: XComponentController): void
+    windowClass?: Promise<window.Window | undefined>, xComponentController?: XComponentController): Promise<void>
 
   refreshExternalSubtitlePreview(offset: number): void
 
@@ -149,6 +157,7 @@ export interface PlayerControllerInterface {
 
   onDisappearCleanup(): void
 
+  // 兼容旧调用；新页面生命周期统一使用 dispose()。
   onDisappearRelease(): Promise<void>
 
   onSurfaceLoad(xComponentController: XComponentController, pathStack: NavPathStack,
@@ -162,6 +171,7 @@ export interface PlayerControllerInterface {
 
   onWillDisappearCleanup(): void
 
+  // 兼容旧调用；新页面生命周期统一使用 dispose()。
   onWillDisappearRelease(windowClass?: Promise<window.Window | undefined>): Promise<void>
 
   hasChapterSupport(): boolean
@@ -181,10 +191,20 @@ export interface PlayerControllerInterface {
   getLibraryName(): string | undefined
 
   getOsdVisibility(): boolean
+
+  setEngineSwitchHandler(handler: PlayerEngineSwitchHandler | undefined): void
+
+  requestEngineSwitch(targetEngine: string, reason: string, resumePlayback?: boolean): Promise<void>
 }
 
 // 真正的工厂 controller
 export class PlayerControllerFactory {
+  static createController(playerEngine: string): PlayerControllerInterface {
+    return playerEngine === PlayerEngine.MPV_PLAYER ?
+      PlayerControllerFactory.createMpvController() :
+      PlayerControllerFactory.createAVPlayerController()
+  }
+
   static createAVPlayerController(): AVPlayerController {
     return new AVPlayerController()
   }

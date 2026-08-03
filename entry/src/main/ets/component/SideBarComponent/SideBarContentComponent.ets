@@ -57,6 +57,7 @@ export struct SideBarContentComponent {
   ])
   @Local itemSelectedBackgroundColor: ColorMetrics | undefined = undefined
   @Local itemSelectedFontColor: ColorMetrics | undefined = undefined
+  private folderSortRequestId: number = 0
   addNetworkStreamDialogController: CustomDialogController = new CustomDialogController({
     builder: AddNetworkStreamDialog({
       onStreamAdded: () => {
@@ -231,10 +232,7 @@ export struct SideBarContentComponent {
         this.folderPinyinSort = value
         Preferences.savePinyinSort(PathUtils.appContext!, this.folderPinyinSort)
         if (this.folderSortField === SortField.FOLDER_NAME) {
-          const homeFolder = this.file_folder_list.find(f => f.name === '首页' && f.parent_date === null)
-          let otherFolders = this.file_folder_list.filter(f => f.name !== '首页')
-          otherFolders = ToolsUtil.sortFolderByNameProcess(otherFolders, this.folderSortAsc, this.folderPinyinSort)
-          this.fileFolderListChange(homeFolder ? [homeFolder, ...otherFolders] : otherFolders)
+          void this.sortFoldersByName()
         }
       }
     })
@@ -721,6 +719,8 @@ export struct SideBarContentComponent {
   }
 
   private handleFolderSort(field: SortField, defaultAsc: boolean) {
+    // 使先前仍在运行的名称排序结果失效。
+    this.folderSortRequestId++
     if (this.folderSortField === field) {
       this.folderSortAsc = !this.folderSortAsc
     } else {
@@ -729,12 +729,13 @@ export struct SideBarContentComponent {
     }
     Preferences.saveFolderSortField(PathUtils.appContext!, this.folderSortField)
     Preferences.saveFolderSortAsc(PathUtils.appContext!, this.folderSortAsc)
+    if (field === SortField.FOLDER_NAME) {
+      void this.sortFoldersByName()
+      return
+    }
     const homeFolder = this.file_folder_list.find(f => f.name === '首页' && f.parent_date === null)
-    let otherFolders = this.file_folder_list.filter(f => f.name !== '首页')
+    let otherFolders = this.file_folder_list.filter(f => f.date !== homeFolder?.date)
     switch (field) {
-      case SortField.FOLDER_NAME:
-        otherFolders = ToolsUtil.sortFolderByNameProcess(otherFolders, this.folderSortAsc, this.folderPinyinSort)
-        break
       case SortField.FOLDER_DATETIME:
         otherFolders.sort((a, b) => {
           const cmp = Number(a.date) - Number(b.date)
@@ -749,5 +750,19 @@ export struct SideBarContentComponent {
         break
     }
     this.fileFolderListChange(homeFolder ? [homeFolder, ...otherFolders] : otherFolders)
+  }
+
+  private async sortFoldersByName(): Promise<void> {
+    const requestId = ++this.folderSortRequestId
+    const source = this.file_folder_list
+    const homeFolder = source.find(f => f.name === '首页' && f.parent_date === null)
+    const otherFolders = source.filter(f => f.date !== homeFolder?.date)
+    const sorted = await ToolsUtil.sortFoldersByNameInTaskPool(otherFolders, this.folderSortAsc, this.folderPinyinSort)
+    // 用户在任务运行期间切换了文件夹或排序规则时，丢弃过期结果。
+    if (requestId !== this.folderSortRequestId || source !== this.file_folder_list ||
+      this.folderSortField !== SortField.FOLDER_NAME) {
+      return
+    }
+    this.fileFolderListChange(homeFolder ? [homeFolder, ...sorted] : sorted)
   }
 }
