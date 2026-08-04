@@ -582,9 +582,6 @@ export default class VideoOperateUtil {
   }
 
   static resolvePlayerType(metadata: VideoMetadata, reverse: boolean = false) {
-    if (deviceInfo.osFullName.includes('7.0')) {
-      return PlayerEngine.MPV_PLAYER
-    }
     const defaultPlayer = Preferences.getDefaultPlayerEngine(PathUtils.appContext!)
     const isAv3a = metadata.title?.toLowerCase().includes('av3a') || metadata.format?.toLowerCase().includes('av3a')
     const titleLower = metadata.title?.toLowerCase() ?? ''
