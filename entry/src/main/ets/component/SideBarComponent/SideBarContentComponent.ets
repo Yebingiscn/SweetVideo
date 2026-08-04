@@ -245,7 +245,7 @@ export struct SideBarContentComponent {
         icon: $r("sys.symbol.resolution_video"),
         content: $r('app.string.import_from_videos'),
         onAction: async () => {
-          this.sideBarController.close(false)
+          this.sideBarController.closeIfOverlay(false)
           await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "video"),
             this.videoListController.folder)
         },
@@ -255,7 +255,7 @@ export struct SideBarContentComponent {
         content: `从下载文件夹导入（路径：Download/${ToolsUtil.getStringResource($r('app.string.EntryAbility_label')
           .id)}）`,
         onAction: async () => {
-          this.sideBarController.close(false)
+          this.sideBarController.closeIfOverlay(false)
           await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), undefined)
         },
       },
@@ -263,7 +263,7 @@ export struct SideBarContentComponent {
         icon: $r('sys.symbol.picture_2'),
         content: $r('app.string.import_from_album'),
         onAction: async () => {
-          this.sideBarController.close(false)
+          this.sideBarController.closeIfOverlay(false)
           await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "album"),
             this.videoListController.folder)
         },
@@ -272,7 +272,7 @@ export struct SideBarContentComponent {
         icon: $r('sys.symbol.music'),
         content: $r('app.string.import_from_music'),
         onAction: async () => {
-          this.sideBarController.close(false)
+          this.sideBarController.closeIfOverlay(false)
           await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "audio"),
             this.videoListController.folder)
         },
@@ -412,8 +412,8 @@ export struct SideBarContentComponent {
           .padding({ top: 12, bottom: 12 })
           .alignItems(HorizontalAlign.Center)
           .onClick(() => {
-            this.sideBarController.close(false)
-            this.pathStack.pushPathByName(NavigationAddress.SETTING_PAGE, null)
+             this.sideBarController.closeIfOverlay(false)
+             this.pathStack.pushPathByName(NavigationAddress.SETTING_PAGE, null)
           })
 
           Column() {
@@ -429,8 +429,8 @@ export struct SideBarContentComponent {
           .padding({ top: 12, bottom: 12 })
           .alignItems(HorizontalAlign.Center)
           .onClick(() => {
-            this.sideBarController.close(false)
-            this.pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, true)
+             this.sideBarController.closeIfOverlay(false)
+             this.pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, true)
           })
         }
         .width('100%')
@@ -595,7 +595,7 @@ export struct SideBarContentComponent {
                     this.videoListController.videoDataSource.updateData(folderVideos)
                     this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder!)
                     this.scrollToFolderDateChange(repeatItem.item.date)
-                    this.sideBarController.close(true)
+                    this.sideBarController.closeIfOverlay(true)
                   })
                   .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.LongPress)
                   .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.RightClick)
@@ -651,8 +651,8 @@ export struct SideBarContentComponent {
             .backgroundColor(Color.Transparent)
             .animation({ duration: 300, curve: Curve.Ease })
             .onClick(() => {
-              this.sideBarController.close(false)
-              this.pathStack.pushPathByName(NavigationAddress.STREAM_PAGE, null)
+               this.sideBarController.closeIfOverlay(false)
+               this.pathStack.pushPathByName(NavigationAddress.STREAM_PAGE, null)
             })
 
           }.backgroundColor($r('app.color.list_item_background'))

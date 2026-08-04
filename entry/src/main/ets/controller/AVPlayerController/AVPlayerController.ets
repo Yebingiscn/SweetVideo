@@ -41,7 +41,6 @@ const TAG = 'AVPlayerController'
 
 @ObservedV2
 export class AVPlayerController implements PlayerControllerInterface {
-  private engineAdapter: AVPlayerEngineAdapter = new AVPlayerEngineAdapter()
   avSession: avSessionManager.AVSession | undefined = undefined
   surfaceID: string = ''
   @Trace nowPlaying: VideoMetadata | undefined = undefined
@@ -90,6 +89,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Trace translateY: number = 0
   @Trace showControl: boolean = false
   skipHistory: boolean = false
+  private engineAdapter: AVPlayerEngineAdapter = new AVPlayerEngineAdapter()
   private isSkippingEnding: boolean = false
   private lastSubtitle: string = ''
   private lastAppStorageUpdateTime: number = 0
@@ -105,10 +105,6 @@ export class AVPlayerController implements PlayerControllerInterface {
   private stateChangeRejectors: Map<string, ((reason: Error) => void)> = new Map()
   private engineSwitchHandler: PlayerEngineSwitchHandler | undefined = undefined
 
-  private get avPlayer(): media.AVPlayer | undefined {
-    return this.engineAdapter.player
-  }
-
   get surfaceId(): string | null {
     return this.surfaceID
   }
@@ -117,6 +113,10 @@ export class AVPlayerController implements PlayerControllerInterface {
     if (value !== null) {
       this.surfaceID = value
     }
+  }
+
+  private get avPlayer(): media.AVPlayer | undefined {
+    return this.engineAdapter.player
   }
 
   async create(): Promise<void> {
@@ -168,15 +168,21 @@ export class AVPlayerController implements PlayerControllerInterface {
     let audioManager = audio.getAudioManager()
     this.audioVolumeManager = audioManager.getVolumeManager()
     let volumeList = VideoOperateUtil.getVolume()
-    this.volume = volumeList.get('volume')!
-    this.volumeActually = this.volume
+    if (this.volume === 0) {
+      this.volume = volumeList.get('volume')!
+      this.volumeActually = this.volume
+    }
+    try {
+      this.audioVolumeManager.off('streamVolumeChange')
+    } catch (_error) {
+    }
     let swipingVoiceTimer: number | null = null
     let changeVolumeByVolumeButton: boolean = false
     try {
       this.audioVolumeManager.on('streamVolumeChange', audio.StreamUsage.STREAM_USAGE_MOVIE,
         (streamVolumeEvent: audio.StreamVolumeEvent) => {
           clearTimeout(swipingVoiceTimer)
-          if (!this.onSwipingVoice) { // 这里复用手势音量调节提示
+          if (!this.onSwipingVoice) {
             this.onSwipingVoice = !this.onSwipingVoice
             changeVolumeByVolumeButton = true
           }
@@ -192,7 +198,9 @@ export class AVPlayerController implements PlayerControllerInterface {
     } catch (error) {
       salmonLogger.addLog(TAG, 'volumeChange error:' + error, true)
     }
-    this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
+    if (this.screenBrightness === 0) {
+      this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
+    }
   }
 
   registerSubtitleListener() {
@@ -324,42 +332,6 @@ export class AVPlayerController implements PlayerControllerInterface {
       this.selectAudioTrack(this.audioTrack[audioTrackId].index)
       this.audioTrackSelected = audioTrackId
     }
-  }
-
-  private clearAudioVolumeSubscription(): void {
-    try {
-      this.audioVolumeManager?.off('streamVolumeChange')
-      this.audioVolumeManager = null
-      salmonLogger.addLog(TAG, "取消音量监听完成", false)
-    } catch (error) {
-      salmonLogger.addLog(TAG, `取消音量监听错误 ${error}`, true)
-    }
-  }
-
-  private clearPlayerSubscription(action: () => void, eventName: string): void {
-    try {
-      action()
-    } catch (error) {
-      salmonLogger.addLog(TAG, `取消${eventName}监听错误 ${error}`, true)
-    }
-  }
-
-  private clearPlayerSubscriptions(player: media.AVPlayer): void {
-    // 先移除状态回调，避免 reset/release 的状态通知再次进入销毁流程。
-    this.clearPlayerSubscription(() => player.off('stateChange'), 'stateChange')
-    this.clearPlayerSubscription(() => player.off('timeUpdate'), 'timeUpdate')
-    this.clearPlayerSubscription(() => player.off('seekDone'), 'seekDone')
-    this.clearPlayerSubscription(() => player.off('playbackRateDone'), 'playbackRateDone')
-    this.clearPlayerSubscription(() => player.off('audioOutputDeviceChangeWithInfo'),
-      'audioOutputDeviceChangeWithInfo')
-    this.clearPlayerSubscription(() => player.off('audioInterrupt'), 'audioInterrupt')
-    this.clearPlayerSubscription(() => player.off('superResolutionChanged'), 'superResolutionChanged')
-    // subtitleUpdate 会进入系统的 SetSubtitleCbDfxStatus，必须在 reset 开始前调用。
-    this.clearPlayerSubscription(() => player.off('subtitleUpdate'), 'subtitleUpdate')
-    if (this.callbackPlayer === player) {
-      this.callbackPlayer = undefined
-    }
-    salmonLogger.addLog(TAG, "取消播放器监听完成", false)
   }
 
   async release(): Promise<void> {
@@ -658,14 +630,14 @@ export class AVPlayerController implements PlayerControllerInterface {
     this.avPlayer?.setPlaybackStrategy({
       preferredBufferDurationForPlaying: 20,
       showFirstFrameOnPrepare: true,
-      enableSuperResolution: true,
+      // enableSuperResolution: true,
       preferredHdr: true
     })?.catch(() => {
       salmonLogger.addLog(TAG, "设置播放策略失败", true)
     })
-    if (Setting.superResolutionState) {
-      this.setSuperResolutionState(true)
-    }
+    // if (Setting.superResolutionState) {
+    //   this.setSuperResolutionState(true)
+    // }
     this.registerSubtitleListener()
     this.setExternalSubtitle(this.nowPlaying!)
     this.registerAudioInterruptListener()
@@ -931,8 +903,9 @@ export class AVPlayerController implements PlayerControllerInterface {
         case 'idle':
           salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG,
             `进入idle状态, 应用状态: ${PlayerState[this.playerState]}`, false)
-          if (this.isInState(PlayerState.LOADING) || this.isInState(PlayerState.IDLE)) {
-            salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "正在加载或空闲，跳过idle状态释放", false)
+          if (this.isInState(PlayerState.LOADING) || this.isInState(PlayerState.IDLE)
+            || this.isInState(PlayerState.PREPARING)) {
+            salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "正在加载、空闲或准备中，跳过idle状态释放", false)
           } else {
             await this.release()
             salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "释放播放器资源完成", false)
@@ -953,29 +926,6 @@ export class AVPlayerController implements PlayerControllerInterface {
       }
     })
 
-  }
-
-  private initializePlaybackDetails(player: media.AVPlayer, pathStack: NavPathStack): void {
-    if (this.playbackDetailsInitialized) {
-      return
-    }
-    this.playbackDetailsInitialized = true
-    Promise.all([
-      this.getAudioTrackList(),
-      this.getSubtitleTrackList(),
-      this.initVolumeAndBrightness()
-    ]).then(() => {
-      if (!this.engineAdapter.isCurrent(player)) {
-        return
-      }
-      this.restoreInnerSubtitlePreference(this.nowPlaying!)
-      salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "获取音频和字幕轨道完成", false)
-    }).catch((error: Error) => {
-      if (this.engineAdapter.isCurrent(player)) {
-        this.playbackDetailsInitialized = false
-        salmonLogger.addLog(TAG, `初始化音频和字幕轨道失败: ${error.message}`, true)
-      }
-    })
   }
 
   refreshExternalSubtitlePreview(offset: number): void {
@@ -1025,6 +975,9 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   onPlayerReady(): void {
+    this.initVolumeAndBrightness().catch((err: Error) => {
+      salmonLogger.addLog(TAG, 'initVolumeAndBrightness failed: ' + err, true)
+    })
   }
 
   savePlayerSpeed(context: Context): void {
@@ -1183,6 +1136,65 @@ export class AVPlayerController implements PlayerControllerInterface {
       return
     }
     await this.engineSwitchHandler(targetEngine, reason, resumePlayback)
+  }
+
+  private clearAudioVolumeSubscription(): void {
+    try {
+      this.audioVolumeManager?.off('streamVolumeChange')
+      this.audioVolumeManager = null
+      salmonLogger.addLog(TAG, "取消音量监听完成", false)
+    } catch (error) {
+      salmonLogger.addLog(TAG, `取消音量监听错误 ${error}`, true)
+    }
+  }
+
+  private clearPlayerSubscription(action: () => void, eventName: string): void {
+    try {
+      action()
+    } catch (error) {
+      salmonLogger.addLog(TAG, `取消${eventName}监听错误 ${error}`, true)
+    }
+  }
+
+  private clearPlayerSubscriptions(player: media.AVPlayer): void {
+    // 先移除状态回调，避免 reset/release 的状态通知再次进入销毁流程。
+    this.clearPlayerSubscription(() => player.off('stateChange'), 'stateChange')
+    this.clearPlayerSubscription(() => player.off('timeUpdate'), 'timeUpdate')
+    this.clearPlayerSubscription(() => player.off('seekDone'), 'seekDone')
+    this.clearPlayerSubscription(() => player.off('playbackRateDone'), 'playbackRateDone')
+    this.clearPlayerSubscription(() => player.off('audioOutputDeviceChangeWithInfo'),
+      'audioOutputDeviceChangeWithInfo')
+    this.clearPlayerSubscription(() => player.off('audioInterrupt'), 'audioInterrupt')
+    this.clearPlayerSubscription(() => player.off('superResolutionChanged'), 'superResolutionChanged')
+    // subtitleUpdate 会进入系统的 SetSubtitleCbDfxStatus，必须在 reset 开始前调用。
+    this.clearPlayerSubscription(() => player.off('subtitleUpdate'), 'subtitleUpdate')
+    if (this.callbackPlayer === player) {
+      this.callbackPlayer = undefined
+    }
+    salmonLogger.addLog(TAG, "取消播放器监听完成", false)
+  }
+
+  private initializePlaybackDetails(player: media.AVPlayer, pathStack: NavPathStack): void {
+    if (this.playbackDetailsInitialized) {
+      return
+    }
+    this.playbackDetailsInitialized = true
+    Promise.all([
+      this.getAudioTrackList(),
+      this.getSubtitleTrackList(),
+      this.initVolumeAndBrightness()
+    ]).then(() => {
+      if (!this.engineAdapter.isCurrent(player)) {
+        return
+      }
+      this.restoreInnerSubtitlePreference(this.nowPlaying!)
+      salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "获取音频和字幕轨道完成", false)
+    }).catch((error: Error) => {
+      if (this.engineAdapter.isCurrent(player)) {
+        this.playbackDetailsInitialized = false
+        salmonLogger.addLog(TAG, `初始化音频和字幕轨道失败: ${error.message}`, true)
+      }
+    })
   }
 
   private applySubtitlePreference(nowPlaying: VideoMetadata, externalSubtitleLoaded: boolean) {

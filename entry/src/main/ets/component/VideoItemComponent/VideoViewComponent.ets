@@ -467,7 +467,7 @@ export struct VideoView {
     }
     this.file_folder_list = result.refreshedFolders
     this.scrollToCurrentFolder(index)
-    this.sideBarController.close(true)
+    this.sideBarController.closeIfOverlay(true)
     this.onScrollToFolderDateChange(result.currentFolder!.date)
   }
 

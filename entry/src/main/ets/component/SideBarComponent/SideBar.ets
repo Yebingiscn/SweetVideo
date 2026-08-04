@@ -26,4 +26,10 @@ export class SideBarController {
     }
     this.overlay = false
   }
+
+  public closeIfOverlay(isPlayAnimation: boolean) {
+    if (this.mode === SideBarContainerType.Overlay) {
+      this.close(isPlayAnimation)
+    }
+  }
 }

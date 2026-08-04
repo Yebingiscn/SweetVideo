@@ -911,15 +911,21 @@ export class MpvController implements PlayerControllerInterface {
     let audioManager = audio.getAudioManager()
     this.audioVolumeManager = audioManager.getVolumeManager()
     let volumeList = VideoOperateUtil.getVolume()
-    this.volume = volumeList.get('volume')!
-    this.volumeActually = this.volume
+    if (this.volume === 0) {
+      this.volume = volumeList.get('volume')!
+      this.volumeActually = this.volume
+    }
+    try {
+      this.audioVolumeManager.off('streamVolumeChange')
+    } catch (_error) {
+    }
     let swipingVoiceTimer: number | null = null
     let changeVolumeByVolumeButton: boolean = false
     try {
       this.audioVolumeManager.on('streamVolumeChange', audio.StreamUsage.STREAM_USAGE_MOVIE,
         (streamVolumeEvent: audio.StreamVolumeEvent) => {
           clearTimeout(swipingVoiceTimer)
-          if (!this.onSwipingVoice) { // 这里复用手势音量调节提示
+          if (!this.onSwipingVoice) {
             this.onSwipingVoice = !this.onSwipingVoice
             changeVolumeByVolumeButton = true
           }
@@ -935,7 +941,9 @@ export class MpvController implements PlayerControllerInterface {
     } catch (error) {
       salmonLogger.addLog(TAG, 'volumeChange error', true)
     }
-    this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
+    if (this.screenBrightness === 0) {
+      this.screenBrightness = await VideoOperateUtil.getScreenBrightness()
+    }
   }
 
   onScreenDoubleClick(tapX: number) {
@@ -1717,11 +1725,50 @@ export class MpvController implements PlayerControllerInterface {
 
     let resumeTime = this.playTime
     if (resumeTime <= 0 && this.nowPlaying) {
-      const lastPlay = this.nowPlaying.last_play
-      if (lastPlay && lastPlay > 0) {
-        resumeTime = lastPlay
-        salmonLogger.addLog(TAG,
-          `[MpvController] playTime=0 on surface error, using last_play=${lastPlay}ms as resume position`, false)
+      if (this.initialStartHandledByLoad) {
+        const mode = VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying)
+        if (mode === VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME) {
+          const lastPlay = this.nowPlaying.last_play
+          if (lastPlay && lastPlay > 0) {
+            resumeTime = lastPlay
+            salmonLogger.addLog(TAG,
+              `[MpvController] playTime=0 on surface error, initial start failed, using last_play=${lastPlay}ms`, false)
+          } else {
+            resumeTime = 0
+            salmonLogger.addLog(TAG,
+              '[MpvController] playTime=0 on surface error, no last_play, resume from 0', false)
+          }
+        } else {
+          resumeTime = 0
+          salmonLogger.addLog(TAG,
+            '[MpvController] playTime=0 on surface error, initial start handled but mode not SEEK_TO_LAST_PLAY_TIME, resume from 0', false)
+        }
+      } else {
+        const mode = VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying)
+        if (mode === VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME) {
+          const lastPlay = this.nowPlaying.last_play
+          if (lastPlay && lastPlay > 0) {
+            resumeTime = lastPlay
+            salmonLogger.addLog(TAG,
+              `[MpvController] playTime=0 on surface error, using last_play=${lastPlay}ms as resume position`, false)
+          }
+        } else if (mode === VideoStartTimeMode.SEEK_TO_BEGINNING) {
+          salmonLogger.addLog(TAG,
+            '[MpvController] playTime=0 on surface error, video nearly complete, resume from 0', false)
+          resumeTime = 0
+        } else if (mode === VideoStartTimeMode.SEEK_TO_START_TIME) {
+          resumeTime = Math.max(0, this.nowPlaying.start_time || 0)
+          salmonLogger.addLog(TAG,
+            `[MpvController] playTime=0 on surface error, seeking to start_time=${resumeTime}ms`, false)
+        } else if (mode === VideoStartTimeMode.SEEK_TO_INTRO_TIME) {
+          resumeTime = Math.max(0, Number(Setting.skipIntroTime) * 1000)
+          salmonLogger.addLog(TAG,
+            `[MpvController] playTime=0 on surface error, seeking to intro_time=${resumeTime}ms`, false)
+        } else {
+          resumeTime = 0
+          salmonLogger.addLog(TAG,
+            '[MpvController] playTime=0 on surface error, no specific start mode, resume from 0', false)
+        }
       }
     }
     this.switchDecodingMode('buffer_hw', errorMessage, resumeTime)

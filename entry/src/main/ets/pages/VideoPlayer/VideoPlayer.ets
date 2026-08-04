@@ -134,6 +134,8 @@ export struct VideoPlayer {
   xComponentController: XComponentController = new XComponentController()
   osdXController: XComponentController = new XComponentController()
   windowClass: Promise<window.Window | undefined> = WindowUtil.getWindow()
+  private containerWidth: number = 0
+  private containerHeight: number = 0
   @Local sideBarStatusTmp: Visibility = Visibility.Hidden
   @Local sideBarStatus: boolean = false
   @Local currentSpeedIndex: number = 0
@@ -514,10 +516,11 @@ export struct VideoPlayer {
           })
         }
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
-          this.player.screenWidth = Math.floor(new Number(newValue.width).valueOf())
-          this.player.screenHeight = Math.floor(new Number(newValue.height).valueOf())
+          this.containerWidth = Math.floor(new Number(newValue.width).valueOf())
+          this.containerHeight = Math.floor(new Number(newValue.height).valueOf())
+          this.player.screenWidth = this.containerWidth
+          this.player.screenHeight = this.containerHeight
           this.player.setRotation()
-
         })
         .height('100%')
         .width('100%')
@@ -1015,6 +1018,11 @@ export struct VideoPlayer {
       this.subtitleManager = nextSubtitleManager
       this.subtitlePreferenceRestored = true
       nextPlayer.onPlayerReady()
+      if (this.containerWidth > 0 && this.containerHeight > 0) {
+        nextPlayer.screenWidth = this.containerWidth
+        nextPlayer.screenHeight = this.containerHeight
+        nextPlayer.setRotation()
+      }
       salmonLogger.addLog(TAG,
         `原地切换播放引擎完成: ${oldPlayer.isMpvPlayer() ? PlayerEngine.MPV_PLAYER : PlayerEngine.AV_PLAYER}` +
           ` -> ${targetEngine}, reason=${reason}`,

@@ -404,6 +404,7 @@ export default class SelectFileUtil {
     if (options.playTime) {
       const totalDuration = target_data?.time
       const endTime = target_data?.end_time
+      const skipOutroMs = Number(Setting.skipOutroTime) * 1000
       let shouldMarkAsWatched = false
       if (totalDuration && options.playTime > totalDuration * 0.95) {
         shouldMarkAsWatched = true
@@ -411,6 +412,9 @@ export default class SelectFileUtil {
       } else if (endTime > 0 && options.playTime >= endTime - 1000) {
         shouldMarkAsWatched = true
         salmonLogger.addLog(TAG, '播放至指定结束时间，标记为已观看', false)
+      } else if (totalDuration && skipOutroMs > 0 && options.playTime >= totalDuration - skipOutroMs) {
+        shouldMarkAsWatched = true
+        salmonLogger.addLog(TAG, '播放至全局片尾跳过区域，标记为已观看', false)
       }
       save_time = shouldMarkAsWatched ? totalDuration : options.playTime
     }

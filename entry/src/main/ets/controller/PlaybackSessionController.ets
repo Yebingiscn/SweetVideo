@@ -20,8 +20,6 @@ class PlaybackSessionSnapshot {
   subtitleSelected: SubtitleMode = SubtitleMode.NONE
   screenWidth: number = 0
   screenHeight: number = 0
-  playAreaWidth: number = 0
-  playAreaHeight: number = 0
   angle: number = 0
   scaleFactor: number = 1
   translateX: number = 0
@@ -29,6 +27,9 @@ class PlaybackSessionSnapshot {
   showControl: boolean = false
   lockVisibility: boolean = false
   isLock: boolean = false
+  volume: number = 0
+  volumeActually: number = 0
+  screenBrightness: number = 0
 
   static capture(player: PlayerControllerInterface, resumePlayback?: boolean): PlaybackSessionSnapshot {
     const snapshot = new PlaybackSessionSnapshot()
@@ -43,8 +44,6 @@ class PlaybackSessionSnapshot {
     snapshot.subtitleSelected = player.subtitleSelected
     snapshot.screenWidth = player.screenWidth
     snapshot.screenHeight = player.screenHeight
-    snapshot.playAreaWidth = player.playAreaWidth
-    snapshot.playAreaHeight = player.playAreaHeight
     snapshot.angle = player.angle
     snapshot.scaleFactor = player.scaleFactor
     snapshot.translateX = player.translateX
@@ -52,6 +51,9 @@ class PlaybackSessionSnapshot {
     snapshot.showControl = player.showControl
     snapshot.lockVisibility = player.lockVisibility
     snapshot.isLock = player.isLock
+    snapshot.volume = player.volume
+    snapshot.volumeActually = player.volumeActually
+    snapshot.screenBrightness = player.screenBrightness
     return snapshot
   }
 
@@ -68,8 +70,6 @@ class PlaybackSessionSnapshot {
     player.subtitleSelected = this.subtitleSelected
     player.screenWidth = this.screenWidth
     player.screenHeight = this.screenHeight
-    player.playAreaWidth = this.playAreaWidth
-    player.playAreaHeight = this.playAreaHeight
     player.angle = this.angle
     player.scaleFactor = this.scaleFactor
     player.translateX = this.translateX
@@ -77,6 +77,9 @@ class PlaybackSessionSnapshot {
     player.showControl = this.showControl
     player.lockVisibility = this.lockVisibility
     player.isLock = this.isLock
+    player.volume = this.volume
+    player.volumeActually = this.volumeActually
+    player.screenBrightness = this.screenBrightness
   }
 }
 
@@ -107,7 +110,6 @@ export class PlaybackSessionController {
     const snapshot = PlaybackSessionSnapshot.capture(currentPlayer, resumePlayback)
     currentPlayer.setEngineSwitchHandler(undefined)
     await this.releaseCurrentPlayer(currentPlayer)
-
     const nextPlayer = PlayerControllerFactory.createController(targetEngine)
     snapshot.apply(nextPlayer)
     return nextPlayer
