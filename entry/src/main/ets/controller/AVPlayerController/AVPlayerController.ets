@@ -481,6 +481,7 @@ export class AVPlayerController implements PlayerControllerInterface {
       VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying!, PathUtils.appContext!)
     }
 
+    this.pixelMap = null
     const player = this.avPlayer
     if (player) {
       await this.engineAdapter.waitForReset(player)
@@ -648,8 +649,16 @@ export class AVPlayerController implements PlayerControllerInterface {
       if (interruptEvent.forceType === audio.InterruptForceType.INTERRUPT_FORCE) {
         switch (interruptEvent.hintType) {
           case audio.InterruptHint.INTERRUPT_HINT_PAUSE:
+            this.pause()
+            break
           case audio.InterruptHint.INTERRUPT_HINT_STOP:
             this.pause()
+            break
+          case audio.InterruptHint.INTERRUPT_HINT_DUCK:
+            salmonLogger.addLog(TAG, 'Audio interrupted: ducked', false)
+            break
+          case audio.InterruptHint.INTERRUPT_HINT_UNDUCK:
+            salmonLogger.addLog(TAG, 'Audio interrupted: unducked', false)
             break
           default:
             break

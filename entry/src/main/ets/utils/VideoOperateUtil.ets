@@ -1,6 +1,6 @@
 import { window } from '@kit.ArkUI'
 import { audio } from '@kit.AudioKit'
-import { BusinessError, deviceInfo, settings } from '@kit.BasicServicesKit'
+import { BusinessError, settings } from '@kit.BasicServicesKit'
 import { media } from '@kit.MediaKit'
 import { SaveOptions, VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
@@ -383,7 +383,7 @@ export default class VideoOperateUtil {
     Setting.longPressSpeed = valueMap['longPressSpeed'] as number
     Setting.showSettingPageEntry = valueMap['showSettingPageEntry'] as boolean
     Setting.allowGestureEntry = valueMap['allowGestureEntry'] as boolean
-    Setting.showFrameImgStatus = deviceInfo.osFullName.includes('7.0.0') ? false : valueMap['showFrameTime'] as boolean
+    Setting.showFrameImgStatus = valueMap['showFrameTime'] as boolean
     Setting.jumpToHistoryTimeStatus = valueMap['jumpToHistoryTime'] as boolean
     Setting.coverLayout = valueMap['coverLayoutMode'] as CoverLayoutMode
     Setting.superResolutionState = valueMap['superResolutionState'] as boolean

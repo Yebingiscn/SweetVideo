@@ -151,10 +151,7 @@ export struct VideoView {
         .height('100%')
         .justifyContent(FlexAlign.Center)
         .animation({ duration: 150, curve: Curve.Ease })
-      }
-
-      // 搜索无结果提示
-      if (!this.loading && this.videoListController.isSearchEmpty(this._searchValue)) {
+      } else if (!this.loading && this.videoListController.isSearchEmpty(this._searchValue)) {
         Column() {
           Text('没有匹配结果').fontSize(25).fontWeight(FontWeight.Bold)
           Text('当前文件夹没有匹配"' + this._searchValue + '"的视频')
@@ -167,131 +164,136 @@ export struct VideoView {
         .justifyContent(FlexAlign.Center)
         .animation({ duration: 150, curve: Curve.Ease })
       }
-      Column() {
-        Row({ space: 15 }) {
-          if (!this.is_edit) {
-            Button({ type: ButtonType.Circle, stateEffect: true }) {
-              SymbolGlyph(
-                this.sideBarController.isShow ? $r('sys.symbol.indentation_left') : $r('sys.symbol.close_sidebar'))
-                .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-            }
-            .attributeModifier(new ButtonFancyModifier(40, 40))
-            .animation({ duration: 300, curve: Curve.Ease })
-            .onClick(() => {
-              if (this.sideBarController.isShow) {
-                this.sideBarController.close(false)
-              } else {
-                this.sideBarController.open()
-              }
-              if (this.sideBarController.mode === SideBarContainerType.Embed) {
-                Preferences.saveEmbedSidebarVisible(PathUtils.appContext!, this.sideBarController.isShow)
-              }
-            })
-            .attributeModifier(new SearchShadowModifier())
-            .transition(XAnimation.getAnimation('left', 0, false))
-          }
+      this.TopToolBarBuilder()
+    }.width('100%')
+  }
 
-          SearchComponent({
-            controller: this.searchController,
-            searchValue: this._searchValue,
-            onSearchValueChange: (v: string) => {
-              this._searchValue = v
-              this.onSearchValueChange(v)
-            },
-            onChange: () => {
-              DebounceUtil.debounce('search', () => {
-                if (this._searchValue === '') {
-                  const videoMetaDataList: VideoMetadata[] =
-                    FolderOperator.getFolderByDate(this.videoListController.folder.date)!.video_list
-                  this.videoListController.videoDataSource.updateData(videoMetaDataList)
-                  this.videoListController.updateData(this.videoListController.videoDataSource,
-                    this.videoListController.folder)
-                } else {
-                  const videoMetaDataList: VideoMetadata[] =
-                    SelectFileUtil.getItemFromSearch(
-                      FolderOperator.getFolderByDate(this.videoListController.folder.date)!
-                        .video_list, this._searchValue)
-                  this.videoListController.videoDataSource.updateData(videoMetaDataList)
-                  this.videoListController.updateData(this.videoListController.videoDataSource,
-                    this.videoListController.folder)
-                }
-              }, 300)
-            },
-            onSubmit: (value: string) => {
-              if (value == '') {
-                if (this.videoListController.videoMetaDataList.length == 0) {
-                  ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
-                  return
-                }
-                this.searchController.stopEditing()
-                return
-              }
-              if (value == this.passwd) {
-                this.pathStack.pushPathByName(NavigationAddress.PRIVACY_SPACE, null)
-                this._searchValue = ''
-                this.onSearchValueChange('')
-                return
-              }
-              if (this.videoListController.videoMetaDataList.length == 0) {
-                ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
-              }
-            },
-            onEditChange: (isEditing: boolean) => {
-              XAnimation.runWithAnimation(() => {
-                this.is_edit = isEditing
-              })
-              if (isEditing && this.searchBarHidden) {
-                animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
-                  this.searchBarHidden = false
-                })
-              }
-            },
-            onSearchFocus: () => {
-              this.passwd = Preferences.getPassword(PathUtils.appContext!)
+  @Builder
+  TopToolBarBuilder() {
+    Column() {
+      Row({ space: 15 }) {
+        if (!this.is_edit) {
+          Button({ type: ButtonType.Circle, stateEffect: true }) {
+            SymbolGlyph(
+              this.sideBarController.isShow ? $r('sys.symbol.indentation_left') : $r('sys.symbol.close_sidebar'))
+              .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+          }
+          .attributeModifier(new ButtonFancyModifier(40, 40))
+          .animation({ duration: 300, curve: Curve.Ease })
+          .onClick(() => {
+            if (this.sideBarController.isShow) {
+              this.sideBarController.close(false)
+            } else {
+              this.sideBarController.open()
+            }
+            if (this.sideBarController.mode === SideBarContainerType.Embed) {
+              Preferences.saveEmbedSidebarVisible(PathUtils.appContext!, this.sideBarController.isShow)
             }
           })
+          .attributeModifier(new SearchShadowModifier())
+          .transition(XAnimation.getAnimation('left', 0, false))
+        }
 
-          if (!this.is_edit) {
+        SearchComponent({
+          controller: this.searchController,
+          searchValue: this._searchValue,
+          onSearchValueChange: (v: string) => {
+            this._searchValue = v
+            this.onSearchValueChange(v)
+          },
+          onChange: () => {
+            DebounceUtil.debounce('search', () => {
+              if (this._searchValue === '') {
+                const videoMetaDataList: VideoMetadata[] =
+                  FolderOperator.getFolderByDate(this.videoListController.folder.date)!.video_list
+                this.videoListController.videoDataSource.updateData(videoMetaDataList)
+                this.videoListController.updateData(this.videoListController.videoDataSource,
+                  this.videoListController.folder)
+              } else {
+                const videoMetaDataList: VideoMetadata[] =
+                  SelectFileUtil.getItemFromSearch(
+                    FolderOperator.getFolderByDate(this.videoListController.folder.date)!
+                      .video_list, this._searchValue)
+                this.videoListController.videoDataSource.updateData(videoMetaDataList)
+                this.videoListController.updateData(this.videoListController.videoDataSource,
+                  this.videoListController.folder)
+              }
+            }, 300)
+          },
+          onSubmit: (value: string) => {
+            if (value == '') {
+              if (this.videoListController.videoMetaDataList.length == 0) {
+                ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
+                return
+              }
+              this.searchController.stopEditing()
+              return
+            }
+            if (value == this.passwd) {
+              this.pathStack.pushPathByName(NavigationAddress.PRIVACY_SPACE, null)
+              this._searchValue = ''
+              this.onSearchValueChange('')
+              return
+            }
+            if (this.videoListController.videoMetaDataList.length == 0) {
+              ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
+            }
+          },
+          onEditChange: (isEditing: boolean) => {
+            XAnimation.runWithAnimation(() => {
+              this.is_edit = isEditing
+            })
+            if (isEditing && this.searchBarHidden) {
+              animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
+                this.searchBarHidden = false
+              })
+            }
+          },
+          onSearchFocus: () => {
+            this.passwd = Preferences.getPassword(PathUtils.appContext!)
+          }
+        })
+
+        if (!this.is_edit) {
+          Button({ type: ButtonType.Circle, stateEffect: true }) {
+            SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
+              .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+          }
+          .attributeModifier(new ButtonFancyModifier(40, 40))
+          .bindMenu(this.SortMenuBuilder,
+            {
+              backgroundBlurStyle: BlurStyle.Regular,
+              hapticFeedbackMode: HapticFeedbackMode.ENABLED
+            })
+          .attributeModifier(new SearchShadowModifier())
+          .transition(XAnimation.getAnimation('right', 0, false))
+
+          if (this.videoListController.multipleChooseState === Visibility.Visible) {
             Button({ type: ButtonType.Circle, stateEffect: true }) {
-              SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
+              SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
                 .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
             }
             .attributeModifier(new ButtonFancyModifier(40, 40))
-            .bindMenu(this.SortMenuBuilder,
+            .bindMenu(this.SelectItemMenuBuilder,
               {
                 backgroundBlurStyle: BlurStyle.Regular,
                 hapticFeedbackMode: HapticFeedbackMode.ENABLED
               })
             .attributeModifier(new SearchShadowModifier())
             .transition(XAnimation.getAnimation('right', 0, false))
-
-            if (this.videoListController.multipleChooseState === Visibility.Visible) {
-              Button({ type: ButtonType.Circle, stateEffect: true }) {
-                SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
-                  .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-              }
-              .attributeModifier(new ButtonFancyModifier(40, 40))
-              .bindMenu(this.SelectItemMenuBuilder,
-                {
-                  backgroundBlurStyle: BlurStyle.Regular,
-                  hapticFeedbackMode: HapticFeedbackMode.ENABLED
-                })
-              .attributeModifier(new SearchShadowModifier())
-              .transition(XAnimation.getAnimation('right', 0, false))
-            }
           }
-        }
-        .width('100%')
-
-        if (Setting.showToast && this.file_folder_list.length > 1) {
-          this.FolderTabsBuilder()
         }
       }
       .width('100%')
-      .padding({ top: SafeHeight.topSafeHeight, left: 16, right: 16 })
-      .translate({ y: this.searchBarHidden ? -(SafeHeight.topSafeHeight + 100) : 0 })
-      .animation({ duration: 300, curve: Curve.Ease })
-    }.width('100%')
+
+      if (Setting.showToast && this.file_folder_list.length > 1) {
+        this.FolderTabsBuilder()
+      }
+    }
+    .width('100%')
+    .padding({ top: SafeHeight.topSafeHeight, left: 16, right: 16 })
+    .translate({ y: this.searchBarHidden ? -(SafeHeight.topSafeHeight + 100) : 0 })
+    .animation({ duration: 300, curve: Curve.Ease })
   }
 
   @Builder

@@ -167,6 +167,7 @@ export default class PiPWindowUtil {
         break
       case PiPWindow.PiPState.STOPPED:
         PiPWindowUtil.pipOpenState = false
+        PiPWindowUtil.playerController?.pause()
         break
       case PiPWindow.PiPState.ABOUT_TO_RESTORE:
         PiPWindowUtil.pipOpenState = false

@@ -22,6 +22,7 @@ import {
   pause as mpvPause,
   play as mpvPlay,
   registerBufferingStateCallback as mpvRegisterBufferingStateCallback,
+  registerPauseStateCallback as mpvRegisterPauseStateCallback,
   registerPlaybackCompleteCallback as mpvRegisterPlaybackCompleteCallback,
   registerSurfaceModeErrorCallback as mpvRegisterSurfaceModeErrorCallback,
   registerTimeUpdateCallback as mpvRegisterTimeUpdateCallback,
@@ -31,8 +32,8 @@ import {
   selectSubtitle as mpvSelectSubtitle,
   setAudioChannel as mpvSetAudioChannel,
   setBlurayDevice as mpvSetBlurayDevice,
-  setDvdDevice as mpvSetDvdDevice,
   setDecodeType as mpvSetDecodeType,
+  setDvdDevice as mpvSetDvdDevice,
   setGlslShaders as mpvSetGlslShaders,
   setHwdecMode as mpvSetHwdecMode,
   setKeepAspect as mpvSetKeepAspect,
@@ -41,6 +42,7 @@ import {
   setOsdSurface as mpvSetOsdSurface,
   setSpeed as mpvSetSpeed,
   unregisterBufferingStateCallback as mpvUnregisterBufferingStateCallback,
+  unregisterPauseStateCallback as mpvUnregisterPauseStateCallback,
   unregisterPlaybackCompleteCallback as mpvUnregisterPlaybackCompleteCallback,
   unregisterSurfaceModeErrorCallback as mpvUnregisterSurfaceModeErrorCallback,
   unregisterTimeUpdateCallback as mpvUnregisterTimeUpdateCallback,
@@ -105,7 +107,6 @@ export class MpvController implements PlayerControllerInterface {
     )]
   ])
   windowClass = WindowUtil.getWindow()
-  private engineAdapter: MpvPlayerEngineAdapter = new MpvPlayerEngineAdapter()
   surfaceId: string | null = null
   osdSurfaceId: string | null = null
   @Trace playTime: number = 0
@@ -150,21 +151,25 @@ export class MpvController implements PlayerControllerInterface {
   @Trace translateX: number = 0
   @Trace translateY: number = 0
   @Trace subtitle: string = ''
-  private lastSubtitle: string = ''
   @Trace showControl: boolean = false
   skipHistory: boolean = false
-  private isSkippingEnding: boolean = false
-  private lastAppStorageUpdateTime: number = 0
   @Trace pixelMap: PixelMap | null = null
   avSession: avSessionManager.AVSession | undefined = undefined
   audioVolumeManager: audio.AudioVolumeManager | null = null
   @Trace playerState: MpvPlayerState = MpvPlayerState.IDLE
+  private engineAdapter: MpvPlayerEngineAdapter = new MpvPlayerEngineAdapter()
+  private lastSubtitle: string = ''
+  private isSkippingEnding: boolean = false
+  private lastAppStorageUpdateTime: number = 0
+  private audioSessionManager: audio.AudioSessionManager | null = null
   private userListener: BaseListener<number> | null = null
   private playbackCallbackRegistered: boolean = false
   private timeUpdateCallbackRegistered: boolean = false
   private videoSizeCallbackRegistered: boolean = false
   private surfaceModeErrorCallbackRegistered: boolean = false
   private bufferingStateCallbackRegistered: boolean = false
+  private pauseStateCallbackRegistered: boolean = false
+  private audioInterruptRegistered: boolean = false
   private resumeAfterBuffering: boolean = false
   private stateChangeResolvers: Map<string, ((value: void) => void)> = new Map()
   private decodingModeVerifyTimer: number = 0
@@ -217,6 +222,7 @@ export class MpvController implements PlayerControllerInterface {
     }
 
     this.playTime = 0
+    this.pixelMap = null
     this.isSkippingEnding = false
     await this.reset()
     this.audioChannelMode = MpvAudioChannelMode.STEREO
@@ -324,67 +330,6 @@ export class MpvController implements PlayerControllerInterface {
         }
       }
     }
-  }
-
-  private preparePlayUrl(url: string): string {
-    if (ToolsUtil.isNetworkUrl(url)) {
-      return url
-    }
-
-    const localPath = new fileUri.FileUri(url).path
-    if (!IsoFileUtil.isIsoFile(url)) {
-      return localPath
-    }
-
-    const isoType = IsoFileUtil.detectIsoTypeSync(url)
-    if (isoType === IsoFileType.DVD) {
-      const configured = mpvSetDvdDevice(this.mpvHandle, localPath)
-      salmonLogger.addLog(TAG,
-        `[DiscRouting] type=DVD, device=${localPath}, configured=${configured}, protocol=dvd://`,
-        !configured)
-      return 'dvd://'
-    }
-
-    const configured = mpvSetBlurayDevice(this.mpvHandle, localPath)
-    const detectedType = isoType === IsoFileType.BLURAY ? 'BLURAY' : 'UNKNOWN(default BLURAY)'
-    salmonLogger.addLog(TAG,
-      `[DiscRouting] type=${detectedType}, device=${localPath}, configured=${configured}, protocol=bd://longest`,
-      !configured || isoType === IsoFileType.UNKNOWN)
-    return 'bd://longest'
-  }
-
-  private consumeInitialStartPositionMs(): number | undefined {
-    if (this.initialPlayTime !== undefined) {
-      const resumeTime = Math.max(0, this.initialPlayTime)
-      this.initialPlayTime = undefined
-      salmonLogger.addLog(TAG, `切换引擎时由 loadfile 恢复播放进度: ${resumeTime}`, false)
-      return resumeTime
-    }
-
-    const mode = VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!)
-    switch (mode) {
-      case VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME:
-        return Math.max(0, this.nowPlaying?.last_play || 0)
-      case VideoStartTimeMode.SEEK_TO_START_TIME:
-        return Math.max(0, this.nowPlaying?.start_time || 0)
-      case VideoStartTimeMode.SEEK_TO_INTRO_TIME:
-        return Math.max(0, Number(Setting.skipIntroTime) * 1000)
-      case VideoStartTimeMode.SEEK_TO_BEGINNING:
-        return 0
-      default:
-        return undefined
-    }
-  }
-
-  private getInitialSubtitleTrackId(): number | undefined {
-    if (!this.nowPlaying || !SubtitleUtil.hasSubtitlePreferenceMetadata(this.nowPlaying)) {
-      return undefined
-    }
-    if (this.nowPlaying.subtitle_mode === SubtitleMode.INNER_SUBTITLE &&
-      this.nowPlaying.subtitle_track_id !== undefined && this.nowPlaying.subtitle_track_id >= 0) {
-      return this.nowPlaying.subtitle_track_id
-    }
-    return -1
   }
 
   async init(url?: string, pathStack?: NavPathStack): Promise<void> {
@@ -549,6 +494,7 @@ export class MpvController implements PlayerControllerInterface {
     this.registerVideoSizeChangedCallback()
     this.registerSurfaceModeErrorCallback()
     this.registerBufferingStateCallback()
+    this.registerPauseStateCallback()
   }
 
   backForward(): void {
@@ -579,6 +525,7 @@ export class MpvController implements PlayerControllerInterface {
     this.transitionTo(MpvPlayerState.PLAYING)
     mpvPlay(this.mpvHandle)
     AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
+    this.reactivateAudioSessionIfNeeded()
   }
 
   pause(): void {
@@ -619,6 +566,14 @@ export class MpvController implements PlayerControllerInterface {
       this.audioVolumeManager = null
     } catch (error) {
       salmonLogger.addLog(TAG, `取消音量监听错误 ${error}`, true)
+    }
+    try {
+      this.audioSessionManager?.off('audioSessionDeactivated')
+      this.audioSessionManager?.off('audioSessionStateChanged')
+      this.audioSessionManager = null
+      this.audioInterruptRegistered = false
+    } catch (error) {
+      salmonLogger.addLog(TAG, `取消音频中断监听错误 ${error}`, true)
     }
   }
 
@@ -899,11 +854,14 @@ export class MpvController implements PlayerControllerInterface {
 
   async initAVSession() {
     AVSessionUtil.applyAudioConcurrencyMode()
+    this.registerAudioInterruptListener()
     if (Setting.allowBackgroundPlay) {
       this.avSession = await AVSessionUtil.getAVSession()
       this.setSessionListener()
       await AVSessionUtil.setSessionInfo(this.nowPlaying!)
-      AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
+      const initialPosition = this.playTime > 0 ? this.playTime :
+        (this.nowPlaying?.last_play || 0)
+      AVSessionUtil.updatePlaybackSessionState(this.playing, initialPosition, this.repeatMode)
     }
   }
 
@@ -1102,6 +1060,14 @@ export class MpvController implements PlayerControllerInterface {
     } catch (error) {
       salmonLogger.addLog(TAG, `音量监听取消错误 ${error}`, true)
     }
+    try {
+      this.audioSessionManager?.off('audioSessionDeactivated')
+      this.audioSessionManager?.off('audioSessionStateChanged')
+      this.audioSessionManager = null
+      this.audioInterruptRegistered = false
+    } catch (error) {
+      salmonLogger.addLog(TAG, `音频中断监听取消错误 ${error}`, true)
+    }
   }
 
   async onDisappearRelease(): Promise<void> {
@@ -1119,31 +1085,6 @@ export class MpvController implements PlayerControllerInterface {
       await PiPWindowUtil.createPipController(xComponentController, this)
     } catch (error) {
       salmonLogger.addLog(TAG, 'uri error:' + error, true)
-    }
-  }
-
-  private async prepareInitialSmartRotation(): Promise<void> {
-    this.initialSmartRotationRequested = false
-    const videoWidth = this.nowPlaying?.size[0] || 0
-    const videoHeight = this.nowPlaying?.size[1] || 0
-    if (!Setting.smartRotation || videoWidth <= videoHeight ||
-      this.screenWidth <= 0 || this.screenHeight <= this.screenWidth) {
-      return
-    }
-
-    const proportion = this.screenHeight / this.screenWidth
-    const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
-      : window.Orientation.AUTO_ROTATION_RESTRICTED
-    try {
-      const targetWindow = await this.windowClass
-      if (!targetWindow) {
-        return
-      }
-      await targetWindow.setPreferredOrientation(orientation)
-      this.initialSmartRotationRequested = true
-      salmonLogger.addLog(TAG, '已在 loadfile 前请求智能横屏', false)
-    } catch (error) {
-      salmonLogger.addLog(TAG, `起播前设置窗口方向失败: ${error}`, true)
     }
   }
 
@@ -1210,6 +1151,92 @@ export class MpvController implements PlayerControllerInterface {
       return
     }
     await this.engineSwitchHandler(targetEngine, reason, resumePlayback)
+  }
+
+  private preparePlayUrl(url: string): string {
+    if (ToolsUtil.isNetworkUrl(url)) {
+      return url
+    }
+
+    const localPath = new fileUri.FileUri(url).path
+    if (!IsoFileUtil.isIsoFile(url)) {
+      return localPath
+    }
+
+    const isoType = IsoFileUtil.detectIsoTypeSync(url)
+    if (isoType === IsoFileType.DVD) {
+      const configured = mpvSetDvdDevice(this.mpvHandle, localPath)
+      salmonLogger.addLog(TAG,
+        `[DiscRouting] type=DVD, device=${localPath}, configured=${configured}, protocol=dvd://`,
+        !configured)
+      return 'dvd://'
+    }
+
+    const configured = mpvSetBlurayDevice(this.mpvHandle, localPath)
+    const detectedType = isoType === IsoFileType.BLURAY ? 'BLURAY' : 'UNKNOWN(default BLURAY)'
+    salmonLogger.addLog(TAG,
+      `[DiscRouting] type=${detectedType}, device=${localPath}, configured=${configured}, protocol=bd://longest`,
+      !configured || isoType === IsoFileType.UNKNOWN)
+    return 'bd://longest'
+  }
+
+  private consumeInitialStartPositionMs(): number | undefined {
+    if (this.initialPlayTime !== undefined) {
+      const resumeTime = Math.max(0, this.initialPlayTime)
+      this.initialPlayTime = undefined
+      salmonLogger.addLog(TAG, `切换引擎时由 loadfile 恢复播放进度: ${resumeTime}`, false)
+      return resumeTime
+    }
+
+    const mode = VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying!)
+    switch (mode) {
+      case VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME:
+        return Math.max(0, this.nowPlaying?.last_play || 0)
+      case VideoStartTimeMode.SEEK_TO_START_TIME:
+        return Math.max(0, this.nowPlaying?.start_time || 0)
+      case VideoStartTimeMode.SEEK_TO_INTRO_TIME:
+        return Math.max(0, Number(Setting.skipIntroTime) * 1000)
+      case VideoStartTimeMode.SEEK_TO_BEGINNING:
+        return 0
+      default:
+        return undefined
+    }
+  }
+
+  private getInitialSubtitleTrackId(): number | undefined {
+    if (!this.nowPlaying || !SubtitleUtil.hasSubtitlePreferenceMetadata(this.nowPlaying)) {
+      return undefined
+    }
+    if (this.nowPlaying.subtitle_mode === SubtitleMode.INNER_SUBTITLE &&
+      this.nowPlaying.subtitle_track_id !== undefined && this.nowPlaying.subtitle_track_id >= 0) {
+      return this.nowPlaying.subtitle_track_id
+    }
+    return -1
+  }
+
+  private async prepareInitialSmartRotation(): Promise<void> {
+    this.initialSmartRotationRequested = false
+    const videoWidth = this.nowPlaying?.size[0] || 0
+    const videoHeight = this.nowPlaying?.size[1] || 0
+    if (!Setting.smartRotation || videoWidth <= videoHeight ||
+      this.screenWidth <= 0 || this.screenHeight <= this.screenWidth) {
+      return
+    }
+
+    const proportion = this.screenHeight / this.screenWidth
+    const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
+      : window.Orientation.AUTO_ROTATION_RESTRICTED
+    try {
+      const targetWindow = await this.windowClass
+      if (!targetWindow) {
+        return
+      }
+      await targetWindow.setPreferredOrientation(orientation)
+      this.initialSmartRotationRequested = true
+      salmonLogger.addLog(TAG, '已在 loadfile 前请求智能横屏', false)
+    } catch (error) {
+      salmonLogger.addLog(TAG, `起播前设置窗口方向失败: ${error}`, true)
+    }
   }
 
   private schedulePostLoadTasks() {
@@ -1364,6 +1391,9 @@ export class MpvController implements PlayerControllerInterface {
           }, 100)
         }
         this.userListener?.emit('timeUpdate', this.playTime)
+        ThrottleUtil.throttle('avSessionPosition', () => {
+          AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
+        }, 1000)
       })
       this.timeUpdateCallbackRegistered = true
     } catch (error) {
@@ -1392,7 +1422,8 @@ export class MpvController implements PlayerControllerInterface {
               Math.max(this.screenWidth, this.screenHeight) / Math.min(this.screenWidth, this.screenHeight)
             const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
               : window.Orientation.AUTO_ROTATION_RESTRICTED
-            this.windowClass?.then(w => w?.setPreferredOrientation(orientation)?.catch(() => {}))
+            this.windowClass?.then(w => w?.setPreferredOrientation(orientation)?.catch(() => {
+            }))
           }
         }
       })
@@ -1506,6 +1537,103 @@ export class MpvController implements PlayerControllerInterface {
     }
   }
 
+  private registerPauseStateCallback(): void {
+    if (this.pauseStateCallbackRegistered) {
+      return
+    }
+    try {
+      mpvRegisterPauseStateCallback((paused: boolean) => {
+        if (this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
+          return
+        }
+        if (paused && this.isInState(MpvPlayerState.PLAYING)) {
+          salmonLogger.addLog(TAG, '[MpvController] mpv pause property changed to true (external interruption)', false)
+          this.transitionTo(MpvPlayerState.PAUSED)
+        } else if (!paused && this.isInState(MpvPlayerState.PAUSED)) {
+          this.transitionTo(MpvPlayerState.PLAYING)
+        }
+      })
+      this.pauseStateCallbackRegistered = true
+    } catch (error) {
+      salmonLogger.addLog(TAG, 'Failed to register pause state callback', error)
+    }
+  }
+
+  private registerAudioInterruptListener(): void {
+    if (this.audioInterruptRegistered) {
+      return
+    }
+    try {
+      const sessionManager = audio.getAudioManager().getSessionManager()
+      this.audioSessionManager = sessionManager
+      sessionManager.on('audioSessionDeactivated', (deactivatedEvent: audio.AudioSessionDeactivatedEvent) => {
+        if (this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
+          return
+        }
+        salmonLogger.addLog(TAG,
+          `[MpvController] AudioSession deactivated, reason: ${deactivatedEvent.reason}, pausing`, false)
+        this.pause()
+      })
+      sessionManager.on('audioSessionStateChanged', (stateChangedEvent: audio.AudioSessionStateChangedEvent) => {
+        if (this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
+          return
+        }
+        switch (stateChangedEvent.stateChangeHint) {
+          case audio.AudioSessionStateChangeHint.AUDIO_SESSION_STATE_CHANGE_HINT_RESUME:
+            if (this.isInState(MpvPlayerState.PAUSED)) {
+              salmonLogger.addLog(TAG, '[MpvController] AudioSession focus restored, reactivating and resuming', false)
+              const strategy: audio.AudioSessionStrategy = {
+                concurrencyMode: Setting.allowConcurrentPlay ?
+                  audio.AudioConcurrencyMode.CONCURRENCY_MIX_WITH_OTHERS :
+                  audio.AudioConcurrencyMode.CONCURRENCY_DEFAULT
+              }
+              sessionManager.activateAudioSession(strategy).then(() => {
+                this.play()
+              }).catch((err: BusinessError) => {
+                salmonLogger.addLog(TAG, `reactivateAudioSession error: ${err.code} ${err.message}`, true)
+              })
+            }
+            break
+          case audio.AudioSessionStateChangeHint.AUDIO_SESSION_STATE_CHANGE_HINT_PAUSE:
+          case audio.AudioSessionStateChangeHint.AUDIO_SESSION_STATE_CHANGE_HINT_STOP:
+          case audio.AudioSessionStateChangeHint.AUDIO_SESSION_STATE_CHANGE_HINT_TIME_OUT_STOP:
+            salmonLogger.addLog(TAG,
+              `[MpvController] AudioSession state changed: ${stateChangedEvent.stateChangeHint}, pausing`, false)
+            this.pause()
+            break
+          case audio.AudioSessionStateChangeHint.AUDIO_SESSION_STATE_CHANGE_HINT_DUCK:
+          case audio.AudioSessionStateChangeHint.AUDIO_SESSION_STATE_CHANGE_HINT_UNDUCK:
+            salmonLogger.addLog(TAG,
+              `[MpvController] AudioSession state changed: ${stateChangedEvent.stateChangeHint}`, false)
+            break
+          default:
+            break
+        }
+      })
+      this.audioInterruptRegistered = true
+    } catch (error) {
+      salmonLogger.addLog(TAG, 'Failed to register audio interrupt listener', error)
+    }
+  }
+
+  private reactivateAudioSessionIfNeeded(): void {
+    if (!this.audioSessionManager) {
+      return
+    }
+    if (!this.audioSessionManager.isAudioSessionActivated()) {
+      const strategy: audio.AudioSessionStrategy = {
+        concurrencyMode: Setting.allowConcurrentPlay ?
+          audio.AudioConcurrencyMode.CONCURRENCY_MIX_WITH_OTHERS :
+          audio.AudioConcurrencyMode.CONCURRENCY_DEFAULT
+      }
+      this.audioSessionManager.activateAudioSession(strategy).then(() => {
+        salmonLogger.addLog(TAG, '[MpvController] AudioSession reactivated on play', false)
+      }).catch((err: BusinessError) => {
+        salmonLogger.addLog(TAG, `reactivateAudioSession error: ${err.code} ${err.message}`, true)
+      })
+    }
+  }
+
   // 统一的模式切换方法
   private switchDecodingMode(
     targetMode: 'buffer_hw' | 'buffer_sw',
@@ -1604,6 +1732,7 @@ export class MpvController implements PlayerControllerInterface {
     this.videoSizeCallbackRegistered = false
     this.surfaceModeErrorCallbackRegistered = false
     this.bufferingStateCallbackRegistered = false
+    this.pauseStateCallbackRegistered = false
   }
 
   private unregisterNativeCallbacks(): void {
@@ -1612,6 +1741,7 @@ export class MpvController implements PlayerControllerInterface {
     this.unregisterNativeCallback(() => mpvUnregisterVideoSizeChangedCallback(), 'videoSizeChanged')
     this.unregisterNativeCallback(() => mpvUnregisterSurfaceModeErrorCallback(), 'surfaceModeError')
     this.unregisterNativeCallback(() => mpvUnregisterBufferingStateCallback(), 'bufferingState')
+    this.unregisterNativeCallback(() => mpvUnregisterPauseStateCallback(), 'pauseState')
     this.playbackCallbackRegistered = false
     this.timeUpdateCallbackRegistered = false
     this.videoSizeCallbackRegistered = false
@@ -1741,7 +1871,8 @@ export class MpvController implements PlayerControllerInterface {
         } else {
           resumeTime = 0
           salmonLogger.addLog(TAG,
-            '[MpvController] playTime=0 on surface error, initial start handled but mode not SEEK_TO_LAST_PLAY_TIME, resume from 0', false)
+            '[MpvController] playTime=0 on surface error, initial start handled but mode not SEEK_TO_LAST_PLAY_TIME, resume from 0',
+            false)
         }
       } else {
         const mode = VideoOperateUtil.getVideoStartPlayTimeMode(this.nowPlaying)
@@ -1854,5 +1985,4 @@ export class MpvController implements PlayerControllerInterface {
     }
 
   }
-
 }

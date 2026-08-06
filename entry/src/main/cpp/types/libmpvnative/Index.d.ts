@@ -133,6 +133,11 @@ declare module 'libmpvnative.so' {
 
   export const unregisterBufferingStateCallback: () => void;
 
+  // ==================== 暂停状态变化事件 ====================
+  export const registerPauseStateCallback: (callback: (paused: boolean) => void) => void;
+
+  export const unregisterPauseStateCallback: () => void;
+
   // ==================== 章节 ====================
   export const getChapterList: (mpvHandle: number) => Array<{ index: number; title: string; time: number }>;
 }

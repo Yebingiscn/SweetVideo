@@ -301,7 +301,7 @@ struct Index {
     .hideTitleBar(true)
     .mode(NavigationMode.Stack)
     .navDestination(this.Pages)
-    .bindToScrollable([this.videoListController.listScroller]) // 绑定导航组件和可滚动容器组件
+    .bindToScrollable([this.videoListController.listScroller, this.videoListController.waterFlowScroller]) // 绑定导航组件和可滚动容器组件
     .dynamicHideTitleBar({
       hideTitleArea: true,
       hideBottomBuilder: true,
@@ -407,7 +407,7 @@ struct Index {
           this.file_folder_list = updatedFolders
         }
         if (DataSyncUtil.lastPlayVideoIndex >= 0) {
-          this.videoListController.listScroller.scrollToIndex(DataSyncUtil.lastPlayVideoIndex)
+          this.videoListController.getActiveScroller().scrollToIndex(DataSyncUtil.lastPlayVideoIndex)
           DataSyncUtil.lastPlayVideoIndex = -1
         }
         const value: string | undefined = AppStorage.get('searchValue')

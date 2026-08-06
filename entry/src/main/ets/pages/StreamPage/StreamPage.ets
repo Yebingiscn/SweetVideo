@@ -312,7 +312,7 @@ export struct StreamPage {
             .height('100%')
             .width('100%')
             .layoutWeight(1)
-            .padding({ left: 16, right: 16 })
+            .padding({ left: 16, right: 16, bottom: SafeHeight.bottomSafeHeight })
             .scrollBar(BarState.Off)
             .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
             .chainAnimation(true)
@@ -376,7 +376,7 @@ export struct StreamPage {
             .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
             .width('100%')
             .layoutWeight(1)
-            .padding({ left: 16, right: 16 })
+            .padding({ left: 16, right: 16, bottom: SafeHeight.bottomSafeHeight })
           }
         }
       }

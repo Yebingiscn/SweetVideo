@@ -40,6 +40,7 @@ import { SymbolGlyphModifier } from '@kit.ArkUI'
 export class VideoListController {
   @Trace public folder: FileFolder
   listScroller: ListScroller = new ListScroller()
+  waterFlowScroller: ListScroller = new ListScroller()
   @Trace videoMetaDataList: VideoMetadata[]
   @Trace multipleChooseState: Visibility = Visibility.None
   @Trace listLine: number = 1
@@ -54,6 +55,10 @@ export class VideoListController {
     }
     this.videoMetaDataList = this.folder?.video_list || []
     this.videoDataSource = new VideoDataSource(this.videoMetaDataList)
+  }
+
+  getActiveScroller(): ListScroller {
+    return Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY ? this.listScroller : this.waterFlowScroller
   }
 
   openSideBarTip(searchValue: string = ''): boolean {
@@ -110,8 +115,13 @@ export class VideoListController {
     const base = Math.floor(Math.abs(width) / 500)
     let listLine = listDisplayMode === ListDisplayMode.LIST_DISPLAY ? base + 1 : base + 2
     this.listLine = Math.min(listLine, Setting.maxListLine)
-    if (this.listScroller.currentOffset()?.yOffset == -90) {
-      this.listScroller.scrollEdge(Edge.Top)
+    try {
+      const scroller = this.getActiveScroller()
+      if (scroller.currentOffset()?.yOffset == -90) {
+        scroller.scrollEdge(Edge.Top)
+      }
+    } catch (_error) {
+      // scroller 未绑定组件时 currentOffset 可能异常，忽略
     }
   }
 
@@ -138,6 +148,20 @@ export struct VideoList {
   @Local activeAlphabet: string[] = []
   @Local indexerSelected: number = 0
   @Consumer() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
+  delConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: VideoDeleteDialog({
+      confirm: async (deleteType: DeleteType) => {
+        try {
+          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType,
+            DataSyncUtil.editingVideo!)
+        } catch (e) {
+          ToolsUtil.showToast(`删除失败:${e}`)
+        } finally {
+          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
+        }
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: RenameDialog({
       title: $r('app.string.rename'),
@@ -183,20 +207,6 @@ export struct VideoList {
         this.videoListController.videoDataSource.updateItem(targetIndex, updatedVideo)
         FileFolderUtil.updateVideoInFileFolder(PathUtils.appContext!, this.videoListController, this.fileFolderSource)
       },
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
-  delConfirmDialog: CustomDialogController = new CustomDialogController({
-    builder: VideoDeleteDialog({
-      confirm: async (deleteType: DeleteType) => {
-        try {
-          await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, deleteType,
-            DataSyncUtil.editingVideo!)
-        } catch (e) {
-          ToolsUtil.showToast(`删除失败:${e}`)
-        } finally {
-          VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
-        }
-      }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   @Consumer() file_folder_list: FileFolder[] = []
@@ -347,7 +357,7 @@ export struct VideoList {
         }
         .clip(false)
         .padding({ left: 16, right: 16 })
-        .contentStartOffset(this.searchBarHidden ? SafeHeight.topSafeHeight :
+        .contentStartOffset(
           SafeHeight.topSafeHeight + (Setting.showToast && this.file_folder_list.length > 1 ? 90 : 65))
         .contentEndOffset(SafeHeight.bottomSafeHeight)
         .lanes(this.videoListController.listLine)
@@ -414,10 +424,9 @@ export struct VideoList {
       }) {
         Scroll(this.outerScroller) {
           Column() {
-            Blank().height(this.searchBarHidden ? SafeHeight.topSafeHeight :
-              SafeHeight.topSafeHeight + (Setting.showToast && this.file_folder_list.length > 1 ? 90 : 65))
+            Blank().height(SafeHeight.topSafeHeight + (Setting.showToast && this.file_folder_list.length > 1 ? 90 : 65))
             WaterFlow({
-              scroller: this.videoListController.listScroller,
+              scroller: this.videoListController.waterFlowScroller,
               layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW
             }) {
               Repeat<VideoMetadata>(this.videoListController.videoDataSource.data)
@@ -497,7 +506,7 @@ export struct VideoList {
             .height('100%')
             .padding({ left: 16, right: 16 })
             .onAppear(() => {
-              this.videoListController.listScroller.scrollEdge(Edge.Top)
+              this.videoListController.waterFlowScroller.scrollEdge(Edge.Top)
             })
             .nestedScroll({
               scrollForward: NestedScrollMode.PARENT_FIRST,
@@ -550,7 +559,7 @@ export struct VideoList {
 
         if (this.currentSortField !== SortField.NAME || !this.pinyinSort) {
           ScrollBarBuilder({
-            videoListController: this.videoListController.listScroller,
+            videoListController: this.videoListController.waterFlowScroller,
             fileFolderLength: this.file_folder_list.length
           })
         }
@@ -568,7 +577,9 @@ export struct VideoList {
       return
     }
     try {
-      this.videoListController.listScroller.closeAllSwipeActions()
+      if (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY) {
+        this.videoListController.listScroller.closeAllSwipeActions()
+      }
     } catch (error) {
       salmonLogger.addLog(this.pathStack.getAllPathName()[0],
         'closeAllSwipeActions failed: ' + error.code + ':' + error.message, true)
@@ -709,7 +720,7 @@ export struct VideoList {
     const list = this.videoListController.videoDataSource.getAllData()
     for (let i = 0; i < list.length; i++) {
       if (ToolsUtil.getFirstLetter(list[i].title || '') === letter) {
-        this.videoListController.listScroller.scrollToIndex(i)
+        this.videoListController.getActiveScroller().scrollToIndex(i)
         return
       }
     }
@@ -726,5 +737,4 @@ export struct VideoList {
       this.indexerSelected = targetIndex
     }
   }
-
 }

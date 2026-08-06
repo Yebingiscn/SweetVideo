@@ -164,6 +164,7 @@ export struct PrivacySpace { // 隐私空间页
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   private listScroller: ListScroller = new ListScroller()
+  private waterFlowScroller: ListScroller = new ListScroller()
 
 
   @Builder
@@ -665,7 +666,7 @@ export struct PrivacySpace { // 隐私空间页
                 Alignment.TopEnd
             }) {
               WaterFlow({
-                scroller: this.listScroller,
+                scroller: this.waterFlowScroller,
                 layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW
               }) {
                 Repeat<VideoMetadata>(this.videoDataSource.data)
@@ -758,7 +759,7 @@ export struct PrivacySpace { // 隐私空间页
 
               if (this.currentSortField !== SortField.NAME || !this.pinyinSort) {
                 ScrollBarBuilder({
-                  videoListController: this.listScroller,
+                  videoListController: this.waterFlowScroller,
                   fileFolderLength: 0
                 })
               }
@@ -790,7 +791,9 @@ export struct PrivacySpace { // 隐私空间页
         : this.allVideos
       this.videoDataSource.updateData(this.video_meta_data_encryption)
       if (DataSyncUtil.lastPlayVideoIndex >= 0) {
-        this.listScroller.scrollToIndex(DataSyncUtil.lastPlayVideoIndex)
+        const activeScroller = Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY
+          ? this.listScroller : this.waterFlowScroller
+        activeScroller.scrollToIndex(DataSyncUtil.lastPlayVideoIndex)
         DataSyncUtil.lastPlayVideoIndex = -1
       }
       const value: string | undefined = AppStorage.get('searchValue')
@@ -886,7 +889,7 @@ export struct PrivacySpace { // 隐私空间页
         return false
       }
     })
-    .bindToScrollable([this.listScroller])
+    .bindToScrollable([this.listScroller, this.waterFlowScroller])
     .blur(Privacy.isPrivacyBackground ? PRIVACY_BACKGROUND_BLUR_AMOUNT : NO_BLUR_AMOUNT)
     .onReady(() => {
       const privacySpaceParams =
@@ -983,7 +986,9 @@ export struct PrivacySpace { // 隐私空间页
     const list = this.videoDataSource.getAllData()
     for (let i = 0; i < list.length; i++) {
       if (this.getFirstLetter(list[i].title || '') === letter) {
-        this.listScroller.scrollToIndex(i)
+        const activeScroller = Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY
+          ? this.listScroller : this.waterFlowScroller
+        activeScroller.scrollToIndex(i)
         return
       }
     }

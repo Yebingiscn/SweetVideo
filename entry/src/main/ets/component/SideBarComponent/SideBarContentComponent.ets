@@ -621,6 +621,11 @@ export struct SideBarContentComponent {
               bottom: 4
             })
             .backgroundColor($r('app.color.list_item_background'))
+            .nestedScroll({
+              scrollForward: NestedScrollMode.PARENT_FIRST,
+              scrollBackward: NestedScrollMode.SELF_FIRST
+            })
+            .edgeEffect(EdgeEffect.None)
           }
           .width('100%')
         }

@@ -15,6 +15,7 @@ import {
   SegmentButtonV2ItemOptions,
   SegmentButtonV2Items
 } from '@kit.ArkUI'
+import { deviceInfo } from '@kit.BasicServicesKit'
 
 const TAG = 'CrashPage'
 
@@ -338,7 +339,9 @@ export struct CrashPage {
   }
 
   async shareText(text: string) {
-    const infoText = '反馈 QQ群 973792610'
+    const appVersion = await ToolsUtil.getVersionName()
+    const infoText =
+      `反馈 QQ群 973792610，系统版本: ${deviceInfo.osFullName}，应用版本：${appVersion}，型号：${deviceInfo.productModel}，API版本：${deviceInfo.sdkApiVersion}`
     const fullText = infoText + '\n' + text
     try {
       const context = PathUtils.appContext
