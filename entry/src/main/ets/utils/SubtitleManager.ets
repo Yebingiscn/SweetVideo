@@ -22,7 +22,7 @@ export class SubtitleManager {
       return Visibility.None
     }
     if (this.isMpv && this.subtitleMode === SubtitleMode.INNER_SUBTITLE) {
-      return Visibility.None
+      return this.subtitle3DMode === Subtitle3DMode.DISABLED ? Visibility.None : Visibility.Visible
     }
     return Visibility.Visible
   }
@@ -76,7 +76,10 @@ export class SubtitleManager {
   }
 
   set3DMode(mode: Subtitle3DMode): void {
-    this.subtitle3DMode = mode
+    this.subtitle3DMode = mode !== Subtitle3DMode.DISABLED && this.isMpv &&
+      this.subtitleMode === SubtitleMode.INNER_SUBTITLE && !this.player?.supportsSubtitle3D() ?
+      Subtitle3DMode.DISABLED : mode
+    this.player?.setSubtitle3DMode(this.subtitle3DMode)
     this.savePreference()
   }
 
@@ -129,6 +132,11 @@ export class SubtitleManager {
       this.player!.subtitleTrackSelected = subtitleTrackId
     }
 
+    if (this.isMpv && this.subtitleMode === SubtitleMode.INNER_SUBTITLE &&
+      this.subtitle3DMode !== Subtitle3DMode.DISABLED && !this.player!.supportsSubtitle3D()) {
+      this.subtitle3DMode = Subtitle3DMode.DISABLED
+    }
+
     this.syncMpvSubtitleVisibility()
   }
 
@@ -148,7 +156,9 @@ export class SubtitleManager {
       }
     } else {
       this.player.selectSubtitleTrack(-1)
+      this.player.selectSecondarySubtitleTrack(-1)
     }
+    this.player.setSubtitle3DMode(this.subtitle3DMode)
   }
 
   private resetSubtitleMetadata(nowPlaying: VideoMetadata): void {

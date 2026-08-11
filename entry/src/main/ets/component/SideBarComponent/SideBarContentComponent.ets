@@ -3,6 +3,7 @@ import { AddFileFolderNameDialog } from '../Dialog/AddFileFolderNameDialog'
 import { RenameDialog } from '../Dialog/RenameDialog'
 import { MoveFileFolderDialog } from '../Dialog/MoveFileFolderDialog'
 import { AddNetworkStreamDialog } from '../Dialog/AddNetworkStreamDialog'
+import { FolderOpeningEndingDialog } from '../Dialog/FolderOpeningEndingDialog'
 
 import { FileFolder } from '../../interfaces/FileFolderInterface'
 import {
@@ -22,7 +23,7 @@ import { userData, userLoginBuilder } from '../common/UserLoginComponent'
 import { FileFolderListBuilder } from '../FileFolderComponent/FileFolderListComponent'
 import { FolderSelectMenuBuilder } from '../FileFolderComponent/FileFolderSelectBuilder'
 import { SortMenuComponent } from '../common/SortMenuComponent'
-import { VideoMetaDataOperator } from '../../database/VideoMetaData'
+import { FolderOperator, VideoMetaDataOperator } from '../../database/VideoMetaData'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import FileFolderUtil from '../../utils/FileFolderUtil'
@@ -57,15 +58,24 @@ export struct SideBarContentComponent {
   ])
   @Local itemSelectedBackgroundColor: ColorMetrics | undefined = undefined
   @Local itemSelectedFontColor: ColorMetrics | undefined = undefined
-  private folderSortRequestId: number = 0
   addNetworkStreamDialogController: CustomDialogController = new CustomDialogController({
     builder: AddNetworkStreamDialog({
       onStreamAdded: () => {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  folderOpeningEndingDialogController: CustomDialogController = new CustomDialogController({
+    builder: FolderOpeningEndingDialog({
+      onConfirm: (folderDate: string, startTime: number, endTime: number) => {
+        this.updateFolderOpeningEndingTimes(folderDate, startTime, endTime)
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  private folderSortRequestId: number = 0
+
   @Event fileFolderListChange: (folders: FileFolder[]) => void = () => {
   }
+
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: AddFileFolderNameDialog({
       onFolderAdded: (folders: FileFolder[]) => {
@@ -94,6 +104,7 @@ export struct SideBarContentComponent {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+
   @Event scrollToFolderDateChange: (date: string) => void = () => {
   }
   @Event searchValueClear: () => boolean = () => false
@@ -134,6 +145,13 @@ export struct SideBarContentComponent {
   FileFolderSelectMenu(folder: FileFolder) {
     if (folder.name !== '首页') {
       FolderSelectMenuBuilder([
+        {
+          icon: $r('sys.symbol.time_lapse'),
+          content: '设置片头片尾',
+          onAction: () => {
+            this.openFolderOpeningEndingDialog(folder)
+          },
+        },
         {
           icon: $r("sys.symbol.trash_fill"),
           content: $r('app.string.delete'),
@@ -195,6 +213,16 @@ export struct SideBarContentComponent {
           onAction: () => {
             DataSyncUtil.movingFolderDate = folder.date
             this.moveFileFolderDialogController.open()
+          },
+        },
+      ])
+    } else {
+      FolderSelectMenuBuilder([
+        {
+          icon: $r('sys.symbol.time_lapse'),
+          content: '设置片头片尾',
+          onAction: () => {
+            this.openFolderOpeningEndingDialog(folder)
           },
         },
       ])
@@ -412,8 +440,8 @@ export struct SideBarContentComponent {
           .padding({ top: 12, bottom: 12 })
           .alignItems(HorizontalAlign.Center)
           .onClick(() => {
-             this.sideBarController.closeIfOverlay(false)
-             this.pathStack.pushPathByName(NavigationAddress.SETTING_PAGE, null)
+            this.sideBarController.closeIfOverlay(false)
+            this.pathStack.pushPathByName(NavigationAddress.SETTING_PAGE, null)
           })
 
           Column() {
@@ -429,8 +457,8 @@ export struct SideBarContentComponent {
           .padding({ top: 12, bottom: 12 })
           .alignItems(HorizontalAlign.Center)
           .onClick(() => {
-             this.sideBarController.closeIfOverlay(false)
-             this.pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, true)
+            this.sideBarController.closeIfOverlay(false)
+            this.pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, true)
           })
         }
         .width('100%')
@@ -656,13 +684,21 @@ export struct SideBarContentComponent {
             .backgroundColor(Color.Transparent)
             .animation({ duration: 300, curve: Curve.Ease })
             .onClick(() => {
-               this.sideBarController.closeIfOverlay(false)
-               this.pathStack.pushPathByName(NavigationAddress.STREAM_PAGE, null)
+              this.sideBarController.closeIfOverlay(false)
+              this.pathStack.pushPathByName(NavigationAddress.STREAM_PAGE, null)
             })
 
-          }.backgroundColor($r('app.color.list_item_background'))
-          .width('100%').borderRadius(16)
+          }
+          .backgroundColor($r('app.color.list_item_background'))
+          .width('100%')
+          .borderRadius(16)
           .padding({ top: 4, bottom: 4 })
+          .shadow({
+            radius: 4,
+            color: $r('app.color.shadow_color'),
+            offsetX: 0,
+            offsetY: 1
+          })
         }
         .padding({ left: 16, right: 16 })
         .align(Alignment.Top)
@@ -721,6 +757,33 @@ export struct SideBarContentComponent {
 
     dfs(null)
     return result
+  }
+
+  private openFolderOpeningEndingDialog(folder: FileFolder): void {
+    if (folder.video_list.length === 0) {
+      ToolsUtil.showToast('该文件夹内没有视频')
+      return
+    }
+    DataSyncUtil.editingFolder = folder
+    this.folderOpeningEndingDialogController.open()
+  }
+
+  private updateFolderOpeningEndingTimes(folderDate: string, startTime: number, endTime: number): void {
+    const updatedFolders = FolderOperator.updateFolderOpeningEndingTimes(folderDate, startTime, endTime)
+    const updatedFolder = updatedFolders.find(folder => folder.date === folderDate)
+    if (!updatedFolder) {
+      ToolsUtil.showToast('文件夹不存在，设置失败')
+      return
+    }
+    this.fileFolderSource.updateData(updatedFolders)
+    this.fileFolderListChange(updatedFolders)
+    if (this.videoListController.folder?.date === folderDate) {
+      const visibleVideoDates = new Set(this.videoListController.videoDataSource.getAllData().map(video => video.date))
+      const visibleVideos = updatedFolder.video_list.filter(video => visibleVideoDates.has(video.date))
+      this.videoListController.videoDataSource.updateData(visibleVideos)
+      this.videoListController.updateData(this.videoListController.videoDataSource, updatedFolder)
+    }
+    ToolsUtil.showToast(`已更新 ${updatedFolder.video_list.length} 个视频的片头片尾时间`)
   }
 
   private handleFolderSort(field: SortField, defaultAsc: boolean) {

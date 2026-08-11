@@ -6,6 +6,12 @@ export interface MpvPlayerOptions {
 
 export interface MpvSubtitleTrack extends SubtitleTrack {
   external: boolean;
+  codec?: string;
+}
+
+export interface MpvSubtitleTexts {
+  primary: string;
+  secondary: string;
 }
 
 /**
@@ -18,14 +24,35 @@ export interface MpvSubtitleStyle {
   /** 字体颜色 (16进制, 如 '#FFFFFF') */
   color?: string;
 
-  /** 字幕位置 ('bottom' | 'center' | 'top') */
-  position?: string;
+  /** 是否使用粗体 */
+  bold?: boolean;
+
+  /** 是否使用斜体 */
+  italic?: boolean;
+
+  /** 字幕位置（0-100，从顶部到底部） */
+  position?: number;
 
   /** 字体边框宽度 */
-  borderWidth?: number;
+  borderSize?: number;
 
-  /** 字体背景透明度 (0-1) */
-  alpha?: number;
+  /** 描边颜色 */
+  borderColor?: string;
+
+  /** 是否启用阴影 */
+  shadowEnabled?: boolean;
+
+  /** 阴影偏移 */
+  shadowOffset?: number;
+
+  /** 阴影颜色 */
+  shadowColor?: string;
+
+  /** 字幕背景颜色 */
+  backgroundColor?: string;
+
+  /** 字体背景透明度 (0-100) */
+  backgroundOpacity?: number;
 }
 
 /**

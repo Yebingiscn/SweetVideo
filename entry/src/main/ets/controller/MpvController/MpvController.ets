@@ -1,7 +1,14 @@
 import { PlayerControllerInterface, PlayerEngineSwitchHandler } from '../PlayerControllerFactory';
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
 import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode';
-import { MpvAudioChannelMode, MpvAudioTrack, MpvChapter, MpvDecodingMethod, MpvSubtitleTrack } from './MpvTypes';
+import {
+  MpvAudioChannelMode,
+  MpvAudioTrack,
+  MpvChapter,
+  MpvDecodingMethod,
+  MpvSubtitleTexts,
+  MpvSubtitleTrack
+} from './MpvTypes';
 import { MpvPlayerState } from './MpvPlayerState';
 import { avSession, avSession as avSessionManager } from '@kit.AVSessionKit';
 import { audio } from '@kit.AudioKit';
@@ -12,7 +19,9 @@ import {
   getAudioTracks as mpvGetAudioTracks,
   getAudioType as mpvGetAudioType,
   getChapterList as mpvGetChapterList,
+  getCurrentSecondarySubtitleTrack as mpvGetCurrentSecondarySubtitleTrack,
   getCurrentSubtitleTrack as mpvGetCurrentSubtitleTrack,
+  getSubtitleTexts as mpvGetSubtitleTexts,
   getDolbyVisionProfile as mpvGetDolbyVisionProfile,
   getDuration as mpvGetDuration,
   getSubtitleTracks as mpvGetSubtitleTracks,
@@ -22,6 +31,7 @@ import {
   pause as mpvPause,
   play as mpvPlay,
   registerBufferingStateCallback as mpvRegisterBufferingStateCallback,
+  registerNetworkStateCallback as mpvRegisterNetworkStateCallback,
   registerPauseStateCallback as mpvRegisterPauseStateCallback,
   registerPlaybackCompleteCallback as mpvRegisterPlaybackCompleteCallback,
   registerSurfaceModeErrorCallback as mpvRegisterSurfaceModeErrorCallback,
@@ -29,6 +39,7 @@ import {
   registerVideoSizeChangedCallback as mpvRegisterVideoSizeChangedCallback,
   seek as mpvSeek,
   selectAudio as mpvSelectAudio,
+  selectSecondarySubtitle as mpvSelectSecondarySubtitle,
   selectSubtitle as mpvSelectSubtitle,
   setAudioChannel as mpvSetAudioChannel,
   setBlurayDevice as mpvSetBlurayDevice,
@@ -40,8 +51,12 @@ import {
   setLoudnessGain as mpvSetLoudnessGain,
   setOsdLevel as mpvSetOsdLevel,
   setOsdSurface as mpvSetOsdSurface,
+  setSubtitleDelay as mpvSetSubtitleDelay,
+  setSubtitleRenderVisibility as mpvSetSubtitleRenderVisibility,
+  setSubtitleStyle as mpvSetSubtitleStyle,
   setSpeed as mpvSetSpeed,
   unregisterBufferingStateCallback as mpvUnregisterBufferingStateCallback,
+  unregisterNetworkStateCallback as mpvUnregisterNetworkStateCallback,
   unregisterPauseStateCallback as mpvUnregisterPauseStateCallback,
   unregisterPlaybackCompleteCallback as mpvUnregisterPlaybackCompleteCallback,
   unregisterSurfaceModeErrorCallback as mpvUnregisterSurfaceModeErrorCallback,
@@ -68,6 +83,7 @@ import PiPWindowUtil from '../../utils/PiPWindowUtil';
 import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil';
 import SelectFileUtil from '../../utils/SelectFileUtil';
 import SubtitleUtil from '../../utils/SubtitleUtil';
+import SubtitleStyleUtil from '../../utils/SubtitleStyleUtil';
 import { ThrottleUtil } from '../../utils/DebounceUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
@@ -111,6 +127,11 @@ export class MpvController implements PlayerControllerInterface {
   osdSurfaceId: string | null = null
   @Trace playTime: number = 0
   @Trace playing: boolean = false
+  @Trace networkPlaybackActive: boolean = false
+  @Trace networkSpeedText: string = '0 KB/s'
+  @Trace networkBufferPercent: number = 0
+  @Trace networkCacheDuration: number = 0
+  @Trace networkBuffering: boolean = false
   @Trace nowPlaying: VideoMetadata | undefined = undefined
   initialPlayTime: number | undefined = undefined
   initialPlaying: boolean | undefined = undefined
@@ -121,6 +142,7 @@ export class MpvController implements PlayerControllerInterface {
   @Trace audioTrack: MpvAudioTrack[] = []
   @Trace subtitleTrack: MpvSubtitleTrack[] = []
   @Trace subtitleTrackSelected: number = -1
+  @Trace secondarySubtitleTrackSelected: number = -1
   @Trace screenBrightness: number = 0
   @Trace onSwipingVoice: boolean = false
   @Trace subtitleSelected: SubtitleMode = SubtitleMode.NONE
@@ -136,6 +158,8 @@ export class MpvController implements PlayerControllerInterface {
   @Trace isSliderPlayTimeChange: boolean = false
   @Trace audioTrackSelected: number = 0
   @Trace volumeLoudnessGain: number = 0
+  @Trace subtitlePosition: number = Setting.subtitlePosition
+  @Trace subtitleSize: number = Number(Setting.subtitleSize)
   @Trace audioChannelMode: MpvAudioChannelMode = MpvAudioChannelMode.STEREO
   @Trace chapterList: MpvChapter[] = []
   @Trace lockVisibility: boolean = false
@@ -159,6 +183,7 @@ export class MpvController implements PlayerControllerInterface {
   @Trace playerState: MpvPlayerState = MpvPlayerState.IDLE
   private engineAdapter: MpvPlayerEngineAdapter = new MpvPlayerEngineAdapter()
   private lastSubtitle: string = ''
+  private mpvSubtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
   private isSkippingEnding: boolean = false
   private lastAppStorageUpdateTime: number = 0
   private audioSessionManager: audio.AudioSessionManager | null = null
@@ -168,6 +193,7 @@ export class MpvController implements PlayerControllerInterface {
   private videoSizeCallbackRegistered: boolean = false
   private surfaceModeErrorCallbackRegistered: boolean = false
   private bufferingStateCallbackRegistered: boolean = false
+  private networkStateCallbackRegistered: boolean = false
   private pauseStateCallbackRegistered: boolean = false
   private audioInterruptRegistered: boolean = false
   private resumeAfterBuffering: boolean = false
@@ -355,6 +381,7 @@ export class MpvController implements PlayerControllerInterface {
     this.activeHwdecMode = requiredMode
     this.transitionTo(MpvPlayerState.LOADING)
     const playUrl = this.preparePlayUrl(url!)
+    this.configureNetworkStateSubscription(url!)
     const initialStartPositionMs = this.consumeInitialStartPositionMs()
     this.initialStartHandledByLoad = initialStartPositionMs !== undefined
     const startPositionSeconds = initialStartPositionMs !== undefined && initialStartPositionMs > 0 ?
@@ -365,6 +392,7 @@ export class MpvController implements PlayerControllerInterface {
     this.registerPlaybackCompleteListener(pathStack!)
     this.registerSurfaceModeErrorCallback()
     this.engineAdapter.load(playUrl, startPositionSeconds, initialSubtitleTrackId)
+    this.applySubtitleStyle()
 
     if (!ToolsUtil.isNetworkUrl(url!)) {
       VideoOperateUtil.getFrameTimePreprocess(url!)
@@ -775,17 +803,38 @@ export class MpvController implements PlayerControllerInterface {
     this.subtitleTrack = mpvGetSubtitleTracks(this.mpvHandle) as MpvSubtitleTrack[]
     if (this.subtitleTrack.length === 0) {
       this.subtitleTrackSelected = -1
+      this.secondarySubtitleTrackSelected = -1
       return
     }
 
     const currentTrackId = mpvGetCurrentSubtitleTrack(this.mpvHandle)
     const hasCurrentTrack = this.subtitleTrack.some((track) => track.id === currentTrackId)
     this.subtitleTrackSelected = hasCurrentTrack ? currentTrackId : this.subtitleTrack[0].id
+    const currentSecondaryTrackId = mpvGetCurrentSecondarySubtitleTrack(this.mpvHandle)
+    const hasCurrentSecondaryTrack = this.subtitleTrack.some((track) =>
+      track.id === currentSecondaryTrackId && track.id !== this.subtitleTrackSelected)
+    this.secondarySubtitleTrackSelected = hasCurrentSecondaryTrack ? currentSecondaryTrackId : -1
+    if (currentSecondaryTrackId >= 0 && !hasCurrentSecondaryTrack) {
+      mpvSelectSecondarySubtitle(this.mpvHandle, -1)
+    }
   }
 
   selectSubtitleTrack(trackId: number): void {
+    if (trackId >= 0 && trackId === this.secondarySubtitleTrackSelected) {
+      this.selectSecondarySubtitleTrack(-1)
+    }
     this.subtitleTrackSelected = trackId
     mpvSelectSubtitle(this.mpvHandle, trackId)
+    this.updateMpvSubtitlePresentation()
+  }
+
+  selectSecondarySubtitleTrack(trackId: number): void {
+    if (trackId >= 0 && trackId === this.subtitleTrackSelected) {
+      return
+    }
+    this.secondarySubtitleTrackSelected = trackId
+    mpvSelectSecondarySubtitle(this.mpvHandle, trackId)
+    this.updateMpvSubtitlePresentation()
   }
 
   setRotation() {
@@ -815,6 +864,7 @@ export class MpvController implements PlayerControllerInterface {
     if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE) {
       this.syncOsdSurfaceSize() // 不加这里就会变得很模糊？？？
     }
+    this.applySubtitleStyle()
     PiPWindowUtil.updateContentSize()
   }
 
@@ -922,6 +972,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   async setExternalSubtitle(nowPlaying: VideoMetadata) {
+    SubtitleUtil.offsetMillis = nowPlaying.subtitle_offset_millis ?? 0
     let externalSubtitleLoaded = false
     if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, nowPlaying.date!)) {
       try {
@@ -945,6 +996,7 @@ export class MpvController implements PlayerControllerInterface {
       if (preferredMode === SubtitleMode.EXTERNAL_SUBTITLE && !externalSubtitleLoaded) {
         this.subtitleSelected = SubtitleMode.NONE
         this.resetSubtitlePreference(nowPlaying)
+        SubtitleUtil.offsetMillis = 0
 
       } else if (preferredMode !== undefined && preferredMode >= SubtitleMode.NONE) {
         if (preferredMode === SubtitleMode.INNER_SUBTITLE) {
@@ -969,6 +1021,11 @@ export class MpvController implements PlayerControllerInterface {
     } else {
       this.subtitleSelected = externalSubtitleLoaded ? SubtitleMode.EXTERNAL_SUBTITLE : SubtitleMode.NONE
     }
+    this.setSubtitleOffset(SubtitleUtil.offsetMillis)
+    const saved3DMode = nowPlaying.subtitle_3d_mode
+    this.setSubtitle3DMode(saved3DMode !== undefined &&
+      [Subtitle3DMode.DISABLED, Subtitle3DMode.SIDE_BY_SIDE, Subtitle3DMode.TOP_AND_BOTTOM].includes(saved3DMode) ?
+      saved3DMode as Subtitle3DMode : Subtitle3DMode.DISABLED)
   }
 
   refreshExternalSubtitlePreview(offset: number): void {
@@ -976,6 +1033,38 @@ export class MpvController implements PlayerControllerInterface {
       return
     }
     this.subtitle = SubtitleUtil.getSubtitlesAtTime(this.playTime, offset)
+  }
+
+  setSubtitleOffset(offsetMillis: number): void {
+    const clampedOffset = Math.max(-50000, Math.min(50000, Math.round(offsetMillis)))
+    if (this.mpvHandle) {
+      mpvSetSubtitleDelay(this.mpvHandle, clampedOffset)
+    }
+    this.refreshExternalSubtitlePreview(clampedOffset)
+  }
+
+  setSubtitle3DMode(mode: Subtitle3DMode): void {
+    const canUseMpv3D = mode !== Subtitle3DMode.DISABLED &&
+      this.subtitleSelected === SubtitleMode.INNER_SUBTITLE && this.supportsSubtitle3D()
+    this.mpvSubtitle3DMode = canUseMpv3D ? mode : Subtitle3DMode.DISABLED
+    this.updateMpvSubtitlePresentation()
+  }
+
+  supportsSubtitle3D(): boolean {
+    if (this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
+      return true
+    }
+    const primaryTrack = this.subtitleTrack.find((track: MpvSubtitleTrack) =>
+      track.id === this.subtitleTrackSelected)
+    if (!primaryTrack || this.isBitmapSubtitleTrack(primaryTrack)) {
+      return false
+    }
+    if (this.secondarySubtitleTrackSelected >= 0) {
+      const secondaryTrack = this.subtitleTrack.find((track: MpvSubtitleTrack) =>
+        track.id === this.secondarySubtitleTrackSelected)
+      return secondaryTrack !== undefined && !this.isBitmapSubtitleTrack(secondaryTrack)
+    }
+    return true
   }
 
   refreshExternalSubtitleByPlaybackTime(isAdjustingSubtitleOffset: boolean, subtitleVisibility: Visibility): void {
@@ -1090,7 +1179,34 @@ export class MpvController implements PlayerControllerInterface {
 
   onOsdSurfaceLoad(surfaceId: string): void {
     this.osdSurfaceId = surfaceId
-    this.setOsdSurface(surfaceId, this.playAreaWidth, this.playAreaHeight)
+    // The video-size event normally arrives before the lazily-created OSD
+    // XComponent is loaded. Use the current video resolution here as well so
+    // the first subtitle frame is not rendered into a smaller play-area-sized
+    // buffer and then enlarged by the compositor. A later size event will keep
+    // it in sync; the play-area size is only a startup fallback.
+    const videoWidth = this.getPlayAreaWidth()
+    const videoHeight = this.getPlayAreaHeight()
+    if (videoWidth > 0 && videoHeight > 0) {
+      this.setOsdSurface(surfaceId, videoWidth, videoHeight)
+    } else if (this.playAreaWidth > 0 && this.playAreaHeight > 0) {
+      this.setOsdSurface(surfaceId, this.playAreaWidth, this.playAreaHeight)
+    }
+  }
+
+  setSubtitlePosition(position: number): void {
+    this.subtitlePosition = Math.max(5, Math.min(95, Math.round(position)))
+    if (this.mpvHandle) {
+      mpvSetSubtitleStyle(this.mpvHandle,
+        SubtitleStyleUtil.getMpvStyle(this.subtitlePosition, this.subtitleSize, this.playAreaHeight))
+    }
+  }
+
+  setSubtitleSize(size: number): void {
+    this.subtitleSize = Math.max(14, Math.min(48, Math.round(size)))
+    if (this.mpvHandle) {
+      mpvSetSubtitleStyle(this.mpvHandle,
+        SubtitleStyleUtil.getMpvStyle(this.subtitlePosition, this.subtitleSize, this.playAreaHeight))
+    }
   }
 
   restoreSpeedAfterLongPress(lastSpeed: number): void {
@@ -1394,6 +1510,12 @@ export class MpvController implements PlayerControllerInterface {
         ThrottleUtil.throttle('avSessionPosition', () => {
           AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
         }, 1000)
+        if (this.mpvSubtitle3DMode !== Subtitle3DMode.DISABLED &&
+          this.subtitleSelected === SubtitleMode.INNER_SUBTITLE) {
+          ThrottleUtil.throttle('mpv3DSubtitleText', () => {
+            this.refreshMpv3DSubtitleText()
+          }, 100)
+        }
       })
       this.timeUpdateCallbackRegistered = true
     } catch (error) {
@@ -1462,6 +1584,7 @@ export class MpvController implements PlayerControllerInterface {
           salmonLogger.addLog(TAG,
             `[MpvController] Ignoring playback complete: playTime=${this.playTime}ms < 95% of duration=${duration}ms, likely premature EOF`,
             true)
+          ToolsUtil.showToast('视频文件可能未下载完整或已损坏，请检查文件完整性')
           return
         }
         salmonLogger.addLog(TAG, "收到播放完成事件，准备播放下一个视频", false)
@@ -1690,6 +1813,7 @@ export class MpvController implements PlayerControllerInterface {
     this.activeHwdecMode = targetMode === 'buffer_hw' ? MpvDecodingMethod.HARDWARE_BUFFER : MpvDecodingMethod.SOFTWARE
 
     if (savedVideo) {
+      this.configureNetworkStateSubscription(savedVideo.uri)
       const reloadUrl = this.preparePlayUrl(savedVideo.uri)
       this.registerSurfaceModeErrorCallback()
       const reloadStartSeconds = savedTime > 0 ? savedTime / 1000 : undefined
@@ -1697,6 +1821,7 @@ export class MpvController implements PlayerControllerInterface {
         this.initialStartHandledByLoad = true
       }
       this.engineAdapter.load(reloadUrl, reloadStartSeconds, this.getInitialSubtitleTrackId())
+      this.applySubtitleStyle()
       this.getData().catch(() => {
         salmonLogger.addLog(TAG, 'reload callbacks failed', true)
       })
@@ -1714,6 +1839,100 @@ export class MpvController implements PlayerControllerInterface {
     }
   }
 
+  private configureNetworkStateSubscription(url: string): void {
+    this.networkPlaybackActive = ToolsUtil.isNetworkUrl(url)
+    this.networkSpeedText = '0 KB/s'
+    this.networkBufferPercent = 0
+    this.networkCacheDuration = 0
+    this.networkBuffering = false
+
+    if (!this.networkPlaybackActive) {
+      if (this.networkStateCallbackRegistered) {
+        this.unregisterNativeCallback(() => mpvUnregisterNetworkStateCallback(), 'networkState')
+        this.networkStateCallbackRegistered = false
+      }
+      return
+    }
+    if (this.networkStateCallbackRegistered) {
+      return
+    }
+    try {
+      mpvRegisterNetworkStateCallback((state) => {
+        if (!this.networkPlaybackActive || this.isInState(MpvPlayerState.RELEASING) ||
+          this.isInState(MpvPlayerState.IDLE)) {
+          return
+        }
+        this.networkSpeedText = state.speedStr
+        this.networkBufferPercent = state.bufferPercent
+        this.networkCacheDuration = state.cacheDuration
+        this.networkBuffering = state.buffering
+      })
+      this.networkStateCallbackRegistered = true
+    } catch (error) {
+      salmonLogger.addLog(TAG, 'Failed to register network state callback: ' + JSON.stringify(error), true)
+    }
+  }
+
+  private applySubtitleStyle(): void {
+    if (!this.mpvHandle) {
+      return
+    }
+    mpvSetSubtitleStyle(this.mpvHandle,
+      SubtitleStyleUtil.getMpvStyle(this.subtitlePosition, this.subtitleSize, this.playAreaHeight))
+  }
+
+  private updateMpvSubtitlePresentation(): void {
+    if (!this.mpvHandle) {
+      return
+    }
+    const useArkUi3D = this.mpvSubtitle3DMode !== Subtitle3DMode.DISABLED &&
+      this.subtitleSelected === SubtitleMode.INNER_SUBTITLE && this.supportsSubtitle3D()
+    if (useArkUi3D) {
+      mpvSetSubtitleRenderVisibility(this.mpvHandle, false, false)
+      this.refreshMpv3DSubtitleText()
+      return
+    }
+
+    if (this.mpvSubtitle3DMode !== Subtitle3DMode.DISABLED && !this.supportsSubtitle3D()) {
+      this.mpvSubtitle3DMode = Subtitle3DMode.DISABLED
+    }
+    const showMpvSubtitle = this.subtitleSelected === SubtitleMode.INNER_SUBTITLE &&
+      this.subtitleTrackSelected >= 0
+    mpvSetSubtitleRenderVisibility(this.mpvHandle, showMpvSubtitle,
+      showMpvSubtitle && this.secondarySubtitleTrackSelected >= 0)
+    if (this.subtitleSelected === SubtitleMode.INNER_SUBTITLE) {
+      this.subtitle = ''
+      this.lastSubtitle = ''
+    }
+  }
+
+  private refreshMpv3DSubtitleText(): void {
+    if (!this.mpvHandle || this.mpvSubtitle3DMode === Subtitle3DMode.DISABLED) {
+      return
+    }
+    const texts = mpvGetSubtitleTexts(this.mpvHandle) as MpvSubtitleTexts
+    const lines: string[] = []
+    const secondaryText = texts.secondary?.trim() ?? ''
+    const primaryText = texts.primary?.trim() ?? ''
+    if (secondaryText.length > 0) {
+      lines.push(secondaryText)
+    }
+    if (primaryText.length > 0) {
+      lines.push(primaryText)
+    }
+    const subtitleText = lines.join('\n')
+    if (subtitleText !== this.lastSubtitle) {
+      this.lastSubtitle = subtitleText
+      this.subtitle = subtitleText
+    }
+  }
+
+  private isBitmapSubtitleTrack(track: MpvSubtitleTrack): boolean {
+    const codec = (track.codec ?? '').toLowerCase()
+    return codec.includes('pgs') || codec.includes('dvd_subtitle') ||
+      codec.includes('dvb_subtitle') || codec.includes('xsub')
+  }
+
   // 清理MPV实例
   private cleanupMpvInstance() {
     if (this.mpvHandle) {
@@ -1727,11 +1946,20 @@ export class MpvController implements PlayerControllerInterface {
     // 重置回调注册标志
     this.osdVisibility = false
     this.playTime = 0
+    this.mpvSubtitle3DMode = Subtitle3DMode.DISABLED
+    this.subtitle = ''
+    this.lastSubtitle = ''
     this.playbackCallbackRegistered = false
     this.timeUpdateCallbackRegistered = false
     this.videoSizeCallbackRegistered = false
     this.surfaceModeErrorCallbackRegistered = false
     this.bufferingStateCallbackRegistered = false
+    this.networkStateCallbackRegistered = false
+    this.networkPlaybackActive = false
+    this.networkSpeedText = '0 KB/s'
+    this.networkBufferPercent = 0
+    this.networkCacheDuration = 0
+    this.networkBuffering = false
     this.pauseStateCallbackRegistered = false
   }
 
@@ -1741,12 +1969,14 @@ export class MpvController implements PlayerControllerInterface {
     this.unregisterNativeCallback(() => mpvUnregisterVideoSizeChangedCallback(), 'videoSizeChanged')
     this.unregisterNativeCallback(() => mpvUnregisterSurfaceModeErrorCallback(), 'surfaceModeError')
     this.unregisterNativeCallback(() => mpvUnregisterBufferingStateCallback(), 'bufferingState')
+    this.unregisterNativeCallback(() => mpvUnregisterNetworkStateCallback(), 'networkState')
     this.unregisterNativeCallback(() => mpvUnregisterPauseStateCallback(), 'pauseState')
     this.playbackCallbackRegistered = false
     this.timeUpdateCallbackRegistered = false
     this.videoSizeCallbackRegistered = false
     this.surfaceModeErrorCallbackRegistered = false
     this.bufferingStateCallbackRegistered = false
+    this.networkStateCallbackRegistered = false
   }
 
   private unregisterNativeCallback(action: () => void, callbackName: string): void {

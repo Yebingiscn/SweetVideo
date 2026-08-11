@@ -1,5 +1,6 @@
 import PermissionUtil from '../../utils/PermissionUtil'
 import { window } from '@kit.ArkUI'
+import { pointer } from '@kit.InputKit'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
@@ -18,7 +19,7 @@ import { FastForwardPanelBuilder } from '../../component/PlayerComponent/FastFor
 import { SwipingPanelBuilder } from '../../component/PlayerComponent/SwipingPanelBuilder'
 import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/SwipingPlayTimePanelBuilder'
 import { SubtitleDisplayBuilder } from '../../component/PlayerComponent/SubtitleDisplayBuilder'
-import { Privacy, Setting } from '../../utils/ObservedUtil'
+import { Pc, Privacy, Setting } from '../../utils/ObservedUtil'
 import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
 import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { PlaybackSessionController } from '../../controller/PlaybackSessionController'
@@ -75,7 +76,7 @@ export struct VideoPlayer {
     builder: SubtitleOffsetDialog({
       getCurrentValue: (): number => SubtitleUtil.offsetMillis,
       onOffsetPreview: (offset: number): void => {
-        this.player.refreshExternalSubtitlePreview(offset)
+        this.player.setSubtitleOffset(offset)
       },
       onCloseButton: (): void => {
         this.cancelSubtitleOffsetSession()
@@ -87,6 +88,7 @@ export struct VideoPlayer {
       onNextSubtitle: (currentOffset: number): number | undefined => {
         return this.player.getAdjacentSubtitleOffset('next', currentOffset)
       },
+      showSubtitleNavigation: (): boolean => !this.isAdjustingMpvSubtitleOffset,
       confirm: (input: number): void => {
         if (Number.isNaN(input)) {
           ToolsUtil.showToast('未输入偏移')
@@ -94,7 +96,7 @@ export struct VideoPlayer {
           this.subtitleTimestampInputDialog.close()
         } else if (Math.abs(input) <= 50000) {
           SubtitleUtil.offsetMillis = input
-          this.player.refreshExternalSubtitlePreview(input)
+          this.player.setSubtitleOffset(input)
           this.finishSubtitleOffsetSession()
           this.subtitleManager.savePreference()
           this.subtitleTimestampInputDialog.close()
@@ -149,7 +151,20 @@ export struct VideoPlayer {
   private isPageDisappearing: boolean = false
   private subtitleOffsetPreviewBase: number = 0
   private subtitleOffsetShouldResumePlayback: boolean = false
+  private isAdjustingMpvSubtitleOffset: boolean = false
   private scrollAxisTimeout: number = 0
+
+  @Monitor('player.showControl')
+  onShowControlMonitor() {
+    if (!Pc.pcMode) {
+      return
+    }
+    try {
+      pointer.setPointerVisible(this.player.showControl)
+    } catch (error) {
+      salmonLogger.addLog(TAG, `setPointerVisible failed: ${JSON.stringify(error)}`, true)
+    }
+  }
 
   aboutToAppear(): void {
     this.isPageDisappearing = false
@@ -171,6 +186,13 @@ export struct VideoPlayer {
     salmonLogger.addLog(TAG, "开始执行aboutToDisappear方法", false)
     VideoOperateUtil.setBrightness(-1)
     WindowUtil.recoveryBarColor()
+    if (Pc.pcMode) {
+      try {
+        pointer.setPointerVisible(true)
+      } catch (error) {
+        salmonLogger.addLog(TAG, `restore pointer visible failed: ${JSON.stringify(error)}`, true)
+      }
+    }
     this.player.savePlayerSpeed(PathUtils.appContext!)
     Preferences.saveRepeatModeState(PathUtils.appContext!, this.player.repeatMode)
     this.player.onDisappearSaveSubtitlePreference(this.subtitleManager.subtitleVisibility,
@@ -299,6 +321,11 @@ export struct VideoPlayer {
               onLockClick: () => {
                 this.player.isLock = !this.player.isLock
                 this.player.showControl = true
+              },
+              onCaptureScreen: () => {
+                if (this.player.surfaceId) {
+                  VideoOperateUtil.saveCaptureScreenToAlbum(this.player.surfaceId)
+                }
               }
             })
           }
@@ -500,6 +527,8 @@ export struct VideoPlayer {
             showControl: this.player.showControl,
             subTitleVisibility: this.subtitleManager.subtitleVisibility,
             subtitle3DMode: this.subtitleManager.effective3DMode,
+            subtitlePosition: this.player.subtitlePosition,
+            subtitleSize: this.player.subtitleSize,
             areaWidth: this.player.playAreaWidth,
             areaHeight: this.player.playAreaHeight,
             angle: this.player.angle,
@@ -904,15 +933,20 @@ export struct VideoPlayer {
   SubtitleMenuBuilder() {
     SubtitlePanelComponent({
       subtitleManager: this.subtitleManager,
-      onSubtitleOffsetTime: () => {
-        this.subtitleManager.switchToExternal()
+      onSubtitleOffsetTime: (useMpvSubtitle: boolean) => {
+        if (useMpvSubtitle) {
+          this.subtitleManager.switchToInner()
+        } else {
+          this.subtitleManager.switchToExternal()
+        }
+        this.isAdjustingMpvSubtitleOffset = useMpvSubtitle
         this.subtitleOffsetShouldResumePlayback = this.player.playing
         if (this.subtitleOffsetShouldResumePlayback) {
           this.player.pause()
         }
         this.subtitleOffsetPreviewBase = SubtitleUtil.offsetMillis
         this.isAdjustingSubtitleOffset = true
-        this.player.refreshExternalSubtitlePreview(this.subtitleOffsetPreviewBase)
+        this.player.setSubtitleOffset(this.subtitleOffsetPreviewBase)
         this.subtitleTimestampInputDialog.open()
       },
       onSwitchPlayerEngine: (targetEngine: string) => {
@@ -1076,6 +1110,7 @@ export struct VideoPlayer {
 
   private finishSubtitleOffsetSession(): void {
     this.isAdjustingSubtitleOffset = false
+    this.isAdjustingMpvSubtitleOffset = false
     this.resumePlaybackAfterSubtitleOffsetIfNeeded()
   }
 
@@ -1083,7 +1118,7 @@ export struct VideoPlayer {
     if (!this.isAdjustingSubtitleOffset) {
       return
     }
-    this.player.refreshExternalSubtitlePreview(this.subtitleOffsetPreviewBase)
+    this.player.setSubtitleOffset(this.subtitleOffsetPreviewBase)
     this.finishSubtitleOffsetSession()
   }
 }

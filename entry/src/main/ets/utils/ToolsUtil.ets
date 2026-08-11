@@ -37,6 +37,8 @@ export default class ToolsUtil {
     caseFirst: "upper"
   })
   private static cachedPromptAction: PromptAction | null = null
+  // 震动设置
+  private static vibrationEnabled: boolean = true
 
   static showToast(text: string, duration: number = 3500) {
     try {
@@ -67,8 +69,14 @@ export default class ToolsUtil {
     }
   }
 
-  // 震动设置
+  static setVibrationEnabled(enabled: boolean) {
+    ToolsUtil.vibrationEnabled = enabled
+  }
+
   static startVibration() {
+    if (!ToolsUtil.vibrationEnabled) {
+      return
+    }
     if (canIUse("SystemCapability.Sensors.MiscDevice")) {
       vibrator.startVibration({
         type: 'preset',

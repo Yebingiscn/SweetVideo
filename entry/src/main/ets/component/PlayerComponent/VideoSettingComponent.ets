@@ -77,12 +77,6 @@ export struct VideoSettingComponent {
         this.forward_80_s(this.player.playTime + 80 * 1000)
       })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.camera')),
-        content: '截图并保存'
-      }).onClick(() => {
-        this.captureScreen()
-      })
-      MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trapezoid_and_line_vertical')),
         content: '屏幕镜像'
       }).onClick(() => {

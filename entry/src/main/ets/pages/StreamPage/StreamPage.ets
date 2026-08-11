@@ -304,15 +304,15 @@ export struct StreamPage {
                       mask: true
                     })
                 })
-                .key((item: VideoMetadata) => item.date + item.last_play + item.title)
+                .key((item: VideoMetadata) => item.date + item.title)
                 .virtualScroll()
             }
             .clip(false)
             .lanes(this.list_line)
-            .height('100%')
-            .width('100%')
             .layoutWeight(1)
-            .padding({ left: 16, right: 16, bottom: SafeHeight.bottomSafeHeight })
+            .padding({ left: 16, right: 16 })
+            .width('100%')
+            .height('100%')
             .scrollBar(BarState.Off)
             .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
             .chainAnimation(true)
@@ -365,23 +365,24 @@ export struct StreamPage {
                       mask: true
                     })
                 })
-                .key((item: VideoMetadata) => item.date + item.last_play + item.title)
+                .key((item: VideoMetadata) => item.date + item.title)
                 .virtualScroll()
             }
             .clip(false)
             .columnsTemplate('1fr '.repeat(this.list_line).trim())
             .columnsGap(16)
             .rowsGap(16)
+            .layoutWeight(1)
+            .padding({ left: 16, right: 16 })
             .scrollBar(BarState.Off)
             .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
             .width('100%')
-            .layoutWeight(1)
-            .padding({ left: 16, right: 16, bottom: SafeHeight.bottomSafeHeight })
+            .height('100%')
           }
         }
-      }
+      }.padding({ bottom: SafeHeight.bottomSafeHeight })
       .width('100%')
-      .height('100%')
+
       .onAreaChange(async (_oldValue: Area, newValue: Area) => {
         const width = Number(newValue.width)
         const base = Math.floor(width / 500)
@@ -496,7 +497,8 @@ export struct StreamPage {
       this.allStreams = [...streams]
       this.applySearch()
       RecentPlayUtil.delData(PathUtils.appContext!, stream.uri)
-      await SelectFileUtil.deleteCover(stream.date as string).catch(() => {})
+      await SelectFileUtil.deleteCover(stream.date as string).catch(() => {
+      })
     }
   }
 

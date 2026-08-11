@@ -73,7 +73,7 @@ export struct PlayerSideBarComponent {
         Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)
-    .clip(false)
+    .clip(true)
     .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
     .chainAnimation(true)
     .scrollBar(BarState.Off)
@@ -92,8 +92,8 @@ export struct PlayerSideBarComponent {
     .padding({
       left: 8,
       right: 8,
-      top: SafeHeight.topSafeHeight,
     })
+    .contentStartOffset(SafeHeight.topSafeHeight)
     .transition(TransitionEffect.translate({ x: 300 })
       .combine(TransitionEffect.OPACITY)
       .animation(XAnimation.getAnimationCurve()))

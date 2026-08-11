@@ -53,11 +53,19 @@ export interface PlayerControllerInterface {
   abCircleStatus: boolean
   subtitleSelected: SubtitleMode
   subtitleTrackSelected: number
+  secondarySubtitleTrackSelected: number
   audioTrack: AudioTrack[] | MpvAudioTrack[]
   chapterList: MpvChapter[]
   volumeLoudnessGain: number
+  subtitlePosition: number
+  subtitleSize: number
   audioChannelMode: number
   subtitleTrack: SubtitleTrack[] | MpvSubtitleTrack[]
+  networkPlaybackActive: boolean
+  networkSpeedText: string
+  networkBufferPercent: number
+  networkCacheDuration: number
+  networkBuffering: boolean
 
   backForward(): void
 
@@ -105,6 +113,8 @@ export interface PlayerControllerInterface {
 
   selectSubtitleTrack(trackId: number): void
 
+  selectSecondarySubtitleTrack(trackId: number): void
+
   initVolumeAndBrightness(): Promise<void>
 
 
@@ -127,6 +137,12 @@ export interface PlayerControllerInterface {
 
   refreshExternalSubtitlePreview(offset: number): void
 
+  setSubtitleOffset(offsetMillis: number): void
+
+  setSubtitle3DMode(mode: Subtitle3DMode): void
+
+  supportsSubtitle3D(): boolean
+
   refreshExternalSubtitleByPlaybackTime(isAdjustingSubtitleOffset: boolean, subtitleVisibility: Visibility): void
 
   getAdjacentSubtitleOffset(direction: 'prev' | 'next', currentOffset: number): number | undefined
@@ -139,6 +155,10 @@ export interface PlayerControllerInterface {
   getFrameByTime(time: number, isFirstFrame: boolean): void
 
   setLoudnessGain(loudnessGain: number): void
+
+  setSubtitlePosition(position: number): void
+
+  setSubtitleSize(size: number): void
 
   setAudioChannelMode(mode: number): void
 

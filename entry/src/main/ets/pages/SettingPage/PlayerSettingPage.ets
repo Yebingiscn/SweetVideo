@@ -2,6 +2,8 @@ import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuI
 import { SettingsSegmentButtonItem } from '../../component/SettingComponent/SettingsSegmentButtonItem'
 import { SettingsSliderItem } from '../../component/SettingComponent/SettingsSliderItem'
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
+import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
+import NavigationAddress from '../../common/NavigationCommon'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import { MpvDecodingMethod } from '../../controller/MpvController/MpvTypes'
 import Preferences from '../../database/Preferences'
@@ -16,7 +18,7 @@ import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 
 @ComponentV2
 export struct PlayerSettingPage {
-  private subtitleSizeList = ['19', '20', '21', '22', '23', '24', '25', '26']
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   private fastForwardSecond: FastForwardSecondInterface[] = [
     { label: '5秒', value: '5' },
     { label: '10秒', value: '10' },
@@ -30,6 +32,16 @@ export struct PlayerSettingPage {
   build() {
     HdsNavDestination() {
       List({ scroller: this.listScroller }) {
+        ListItem() {
+          SettingsClickItem({
+            symbol: $r('sys.symbol.textformat_size_square'),
+            message: '字幕样式',
+            onPress: () => {
+              this.pathStack.pushPathByName(NavigationAddress.SUBTITLE_SETTING_PAGE, true)
+            }
+          })
+        }
+
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.play'),
@@ -93,6 +105,19 @@ export struct PlayerSettingPage {
         }
 
         ListItem() {
+          SettingsMenuItem({
+            symbol: $r('sys.symbol.play_round_rectangle'),
+            message: '默认播放引擎',
+            list: VideoInfoUtil.playerEngineList,
+            selected: Math.max(VideoInfoUtil.playerEngineList.findIndex(i => i == Setting.defaultPlayerEngine), 0),
+            onChange: (index: number) => {
+              Setting.defaultPlayerEngine = VideoInfoUtil.playerEngineList[index]
+              Preferences.saveDefaultPlayerEngine(PathUtils.appContext!, Setting.defaultPlayerEngine)
+            }
+          })
+        }
+
+        ListItem() {
           SettingsSegmentButtonItem({
             symbol: $r('sys.symbol.hardware'),
             message: 'MPV 解码：' + this.getMPVDecodeInfo(Setting.mpvDecodingMethod),
@@ -104,6 +129,20 @@ export struct PlayerSettingPage {
             }
           })
         }
+
+        ListItem() {
+          SettingsSegmentButtonItem({
+            symbol: $r('sys.symbol.wand_and_stars'),
+            message: 'MPV 画质增强（Surface 模式下不可用）',
+            tips: MpvController.getShaderModeNames(),
+            tabSelectedIndex: Setting.mpvShaderMode,
+            onButtonClick: (tabSelectedIndex: number) => {
+              Setting.mpvShaderMode = tabSelectedIndex
+              Preferences.saveMpvShaderMode(PathUtils.appContext!, tabSelectedIndex)
+            }
+          })
+        }
+
 
         ListItem() {
           SettingsToggleItem({
@@ -137,19 +176,6 @@ export struct PlayerSettingPage {
             onChange: (checked: boolean) => {
               Setting.superResolutionState = checked
               Preferences.saveSuperResolutionState(PathUtils.appContext!, Setting.superResolutionState)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsSegmentButtonItem({
-            symbol: $r('sys.symbol.wand_and_stars'),
-            message: 'MPV 画质增强（Surface 模式下不可用）',
-            tips: MpvController.getShaderModeNames(),
-            tabSelectedIndex: Setting.mpvShaderMode,
-            onButtonClick: (tabSelectedIndex: number) => {
-              Setting.mpvShaderMode = tabSelectedIndex
-              Preferences.saveMpvShaderMode(PathUtils.appContext!, tabSelectedIndex)
             }
           })
         }
@@ -204,32 +230,6 @@ export struct PlayerSettingPage {
             onChange: (index: number) => {
               Setting.longPressSpeed = VideoInfoUtil.videoSpeedListAll[index]
               Preferences.saveLongPressSpeed(PathUtils.appContext!, Setting.longPressSpeed)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsMenuItem({
-            symbol: $r('sys.symbol.play_round_rectangle'),
-            message: '默认播放引擎',
-            list: VideoInfoUtil.playerEngineList,
-            selected: Math.max(VideoInfoUtil.playerEngineList.findIndex(i => i == Setting.defaultPlayerEngine), 0),
-            onChange: (index: number) => {
-              Setting.defaultPlayerEngine = VideoInfoUtil.playerEngineList[index]
-              Preferences.saveDefaultPlayerEngine(PathUtils.appContext!, Setting.defaultPlayerEngine)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsMenuItem({
-            symbol: $r('sys.symbol.textformat_size_square'),
-            message: '字幕字体大小',
-            list: this.subtitleSizeList,
-            selected: this.subtitleSizeList.findIndex(i => i == Setting.subtitleSize),
-            onChange: (index: number) => {
-              Setting.subtitleSize = this.subtitleSizeList[index]
-              Preferences.saveSubtitleSize(PathUtils.appContext!, Setting.subtitleSize)
             }
           })
         }

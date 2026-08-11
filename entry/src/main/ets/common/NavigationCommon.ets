@@ -15,6 +15,7 @@ export default class NavigationAddress {
   static CRASH_PAGE = 'CrashPage'
   static PERSONALIZE_PAGE = 'PersonalizePage'
   static PLAYER_SETTING_PAGE = 'PlayerSettingPage'
+  static SUBTITLE_SETTING_PAGE = 'SubtitleSettingPage'
   static PRIVACY_ERROR_LIST = 'PrivacySpaceErrorList'
   static MORE_SETTING_PAGE = 'MoreSettingPage'
   static VIP_PAGE = 'GetVipPage'

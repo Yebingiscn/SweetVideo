@@ -5,24 +5,65 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { DIALOG_TITLE_FONT_SIZE } from '../../common/Constants'
 import { salmonLogger } from 'salmonlogger'
 
+@ObservedV2
 class SwipingPlayTimeValue {
-  isSliderPlayTimeChange: boolean = false
-  playTime: number = 0
-  totalTime: number = 0
-  pixelMap: PixelMap | null = null
+  @Trace isSliderPlayTimeChange: boolean = false
+  @Trace playTime: number = 0
+  @Trace totalTime: number = 0
+  @Trace pixelMap: PixelMap | null = null
 }
 
-const DEFAULT_TIME_TEXT = '00:00/00:00'
 const DEFAULT_TIME = '00:00'
 
 @Builder
 export function SwipingPlayTimePanelBuilder(swipingPlayTimeValue: SwipingPlayTimeValue) {
   if (swipingPlayTimeValue) {
-    Column() { // 滑动控制栏
-      Text(getFormattedTimeText(swipingPlayTimeValue))
-        .fontColor($r('sys.color.white'))
-        .fontSize(DIALOG_TITLE_FONT_SIZE)
-        .fontWeight(FontWeight.Bold)
+    Column() {
+      Row() {
+        if (!swipingPlayTimeValue.isSliderPlayTimeChange) {
+          Text(timeDiffSign(swipingPlayTimeValue))
+            .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
+          Text(timeDiffSeconds(swipingPlayTimeValue).toString())
+            .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
+            .contentTransition({ flipDirection: FlipDirection.DOWN, enableBlur: true })
+          Text('s : ')
+            .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
+        }
+        if (swipingPlayTimeValue.totalTime >= 3600000) {
+          Text(Math.floor(Math.floor(swipingPlayTimeValue.playTime / 1000) / 3600).toString().padStart(2, '0'))
+            .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
+            .contentTransition({ flipDirection: FlipDirection.DOWN, enableBlur: true })
+          Text(':').fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
+        }
+        Text(Math.floor((Math.floor(swipingPlayTimeValue.playTime / 1000) % 3600) / 60).toString().padStart(2, '0'))
+          .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
+          .contentTransition({ flipDirection: FlipDirection.DOWN, enableBlur: true })
+        Text(':').fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
+        Text((Math.floor(swipingPlayTimeValue.playTime / 1000) % 60).toString().padStart(2, '0'))
+          .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
+          .contentTransition({ flipDirection: FlipDirection.DOWN, enableBlur: true })
+        Text(' / ').fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
+        if (swipingPlayTimeValue.totalTime >= 3600000) {
+          Text(Math.floor(Math.floor(swipingPlayTimeValue.totalTime / 1000) / 3600).toString().padStart(2, '0'))
+            .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
+            .contentTransition({ flipDirection: FlipDirection.DOWN, enableBlur: true })
+          Text(':').fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
+        }
+        Text(Math.floor((Math.floor(swipingPlayTimeValue.totalTime / 1000) % 3600) / 60).toString().padStart(2, '0'))
+          .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
+          .contentTransition({ flipDirection: FlipDirection.DOWN, enableBlur: true })
+        Text(':').fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
+        Text((Math.floor(swipingPlayTimeValue.totalTime / 1000) % 60).toString().padStart(2, '0'))
+          .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
+          .contentTransition({ flipDirection: FlipDirection.DOWN, enableBlur: true })
+        Text('  ')
+        Text(percentValue(swipingPlayTimeValue).toString())
+          .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
+          .contentTransition({ flipDirection: FlipDirection.DOWN, enableBlur: true })
+        Text('%')
+          .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
+      }
+
       if (Setting?.showFrameImgStatus) {
         if (swipingPlayTimeValue?.pixelMap) {
           Image(swipingPlayTimeValue?.pixelMap)
@@ -46,13 +87,32 @@ export function SwipingPlayTimePanelBuilder(swipingPlayTimeValue: SwipingPlayTim
   }
 }
 
+function timeDiffSign(v: SwipingPlayTimeValue): string {
+  const playTime = v.playTime || 0
+  const lastPlayTime = typeof VideoOperateUtil?.lastPlayTime === 'number' ? VideoOperateUtil.lastPlayTime : 0
+  const diff = Math.floor((playTime - lastPlayTime) / 1000)
+  return diff > 0 ? '+' : diff < 0 ? '-' : ''
+}
+
+function timeDiffSeconds(v: SwipingPlayTimeValue): number {
+  const playTime = v.playTime || 0
+  const lastPlayTime = typeof VideoOperateUtil?.lastPlayTime === 'number' ? VideoOperateUtil.lastPlayTime : 0
+  return Math.abs(Math.floor((playTime - lastPlayTime) / 1000))
+}
+
+function percentValue(v: SwipingPlayTimeValue): number {
+  const playTime = v.playTime || 0
+  const totalTime = v.totalTime || 0
+  return totalTime > 0 ? Math.floor(playTime / totalTime * 100) : 0
+}
+
 export function getFormattedTimeText(swipingPlayTimeValue: SwipingPlayTimeValue): string {
   try {
     if (!swipingPlayTimeValue) {
-      return DEFAULT_TIME_TEXT
+      return '00:00/00:00'
     }
     if (swipingPlayTimeValue.playTime == null || swipingPlayTimeValue.totalTime == null) {
-      return DEFAULT_TIME_TEXT
+      return '00:00/00:00'
     }
     const playTime = swipingPlayTimeValue.playTime || 0
     const totalTime = swipingPlayTimeValue.totalTime || 0
@@ -69,6 +129,6 @@ export function getFormattedTimeText(swipingPlayTimeValue: SwipingPlayTimeValue)
     }
   } catch (error) {
     salmonLogger.addLog('getFormattedTimeText', error, true)
-    return DEFAULT_TIME_TEXT
+    return '00:00/00:00'
   }
 }

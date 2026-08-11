@@ -1,17 +1,16 @@
-import TimeUtil from '../../utils/TimeUtil'
-
+@ObservedV2
 export class ImportProgressBuilderParams {
-  processedItems: number = 0
-  totalItems: number = 0
-  currentFileName: string = '' // 当前处理的文件名
-  currentStage: 'extracting' | 'cover' | 'saving' = 'extracting' // 当前处理阶段
-  failedCount: number = 0 // 失败文件数
+  @Trace processedItems: number = 0
+  @Trace totalItems: number = 0
+  @Trace currentFileName: string = ''
+  @Trace currentStage: 'extracting' | 'cover' | 'saving' = 'extracting'
+  @Trace failedCount: number = 0
 }
+
 
 @Builder
 export function ImportProgressBuilder(params: ImportProgressBuilderParams) {
   Column() {
-    // 进度环
     Progress({ value: params.processedItems, total: params.totalItems, type: ProgressType.Ring })
       .width(100)
       .height(100)
@@ -20,13 +19,21 @@ export function ImportProgressBuilder(params: ImportProgressBuilderParams) {
       .style({ strokeWidth: 15, enableSmoothEffect: true, shadow: true })
       .margin({ bottom: 8 })
 
-    // 进度数字
-    Text(params.processedItems + '/' + params.totalItems)
-      .fontSize(16)
-      .fontColor($r('app.color.main_color'))
-      .margin({ bottom: 8 })
+    Row() {
+      Text(params.processedItems.toString())
+        .fontSize(16)
+        .fontColor($r('app.color.main_color'))
+        .contentTransition({ flipDirection: FlipDirection.DOWN, enableBlur: true })
+      Text('/')
+        .fontSize(16)
+        .fontColor($r('app.color.main_color'))
+      Text(params.totalItems.toString())
+        .fontSize(16)
+        .fontColor($r('app.color.main_color'))
+        .contentTransition({ flipDirection: FlipDirection.DOWN, enableBlur: true })
+    }
+    .margin({ bottom: 8 })
 
-    // 当前文件名（如果有）
     if (params.currentFileName) {
       Text(getStageText(params.currentStage) + params.currentFileName)
         .fontSize(12)
@@ -38,7 +45,6 @@ export function ImportProgressBuilder(params: ImportProgressBuilderParams) {
         .margin({ bottom: 4 })
     }
 
-    // 失败文件数（如果有）
     if (params.failedCount > 0) {
       Text(`失败: ${params.failedCount} 个`)
         .fontSize(12)
@@ -53,7 +59,6 @@ export function ImportProgressBuilder(params: ImportProgressBuilderParams) {
   .backdropBlur(150)
 }
 
-// 获取阶段文本
 function getStageText(stage: 'extracting' | 'cover' | 'saving'): string {
   switch (stage) {
     case 'extracting':

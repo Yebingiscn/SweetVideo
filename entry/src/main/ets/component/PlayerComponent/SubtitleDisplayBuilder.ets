@@ -1,5 +1,6 @@
 import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import { Setting } from '../../utils/ObservedUtil'
+import SubtitleStyleUtil from '../../utils/SubtitleStyleUtil'
 
 class SubtitleDisplayValue {
   subtitle: string = ''
@@ -8,6 +9,8 @@ class SubtitleDisplayValue {
   showControl: boolean = false
   subTitleVisibility: Visibility = Visibility.None
   subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
+  subtitlePosition: number = 90
+  subtitleSize: number = 22
   areaWidth: number = 0
   areaHeight: number = 0
   angle: number = 0
@@ -23,34 +26,36 @@ export function SubtitleDisplayBuilder(subtitleDisplayValue: SubtitleDisplayValu
     Blank()
     if (subtitleDisplayValue.subtitle3DMode === Subtitle3DMode.DISABLED) {
       Text(subtitleDisplayValue.subtitle)
-        .subtitleTextExtend()
-        .margin({ bottom: 20 })
+        .subtitleTextExtend(subtitleDisplayValue.subtitleSize)
+        .margin({ bottom: getSubtitleBottomMargin(subtitleDisplayValue.areaHeight,
+          subtitleDisplayValue.subtitlePosition) })
     } else if (subtitleDisplayValue.subtitle3DMode === Subtitle3DMode.SIDE_BY_SIDE) {
       Row() {
         Text(subtitleDisplayValue.subtitle)
-          .subtitleTextExtend()
+          .subtitleTextExtend(subtitleDisplayValue.subtitleSize)
           .scale({
             x: 0.5
           })
         Text(subtitleDisplayValue.subtitle)
-          .subtitleTextExtend()
+          .subtitleTextExtend(subtitleDisplayValue.subtitleSize)
           .scale({
             x: 0.5
           })
       }
       .justifyContent(FlexAlign.SpaceAround)
       .width("100%")
-      .margin({ bottom: 20 })
+      .margin({ bottom: getSubtitleBottomMargin(subtitleDisplayValue.areaHeight,
+        subtitleDisplayValue.subtitlePosition) })
     } else if (subtitleDisplayValue.subtitle3DMode === Subtitle3DMode.TOP_AND_BOTTOM) {
       Column() {
         Text(subtitleDisplayValue.subtitle)
-          .subtitleTextExtend()
+          .subtitleTextExtend(subtitleDisplayValue.subtitleSize)
           .scale({
             y: 0.5
           })
         Blank()
         Text(subtitleDisplayValue.subtitle)
-          .subtitleTextExtend()
+          .subtitleTextExtend(subtitleDisplayValue.subtitleSize)
           .scale({
             y: 0.5
           })
@@ -72,12 +77,41 @@ export function SubtitleDisplayBuilder(subtitleDisplayValue: SubtitleDisplayValu
 }
 
 @Extend(Text)
-function subtitleTextExtend() {
-  .fontColor('#F0F0F0')
-  .fontSize(Setting.subtitleSize)
-  .fontWeight(FontWeight.Medium)
+function subtitleTextExtend(subtitleSize: number) {
+  .fontColor(Setting.subtitleColor)
+  .fontSize(subtitleSize)
   .textAlign(TextAlign.Center)
-  .fontWeight(FontWeight.Normal)
-  .textShadow({ color: Color.Black, type: ShadowType.BLUR, radius: 6 })
+  .fontWeight(Setting.subtitleBold ? FontWeight.Bold : FontWeight.Normal)
+  .fontStyle(Setting.subtitleItalic ? FontStyle.Italic : FontStyle.Normal)
+  .textShadow(getSubtitleShadow())
+
+  .backgroundColor(SubtitleStyleUtil.getAppBackgroundColor())
+  .borderRadius(4)
+  .padding({ left: 8, right: 8, top: 2, bottom: 2 })
   .opacity(0.95)
+}
+
+function getSubtitleShadow(): ShadowOptions[] {
+  const shadows: ShadowOptions[] = []
+  if (Setting.subtitleBorderSize > 0) {
+    shadows.push({
+      color: Setting.subtitleBorderColor,
+      type: ShadowType.BLUR,
+      radius: Setting.subtitleBorderSize
+    })
+  }
+  if (Setting.subtitleShadowEnabled && Setting.subtitleShadowSize > 0) {
+    shadows.push({
+      color: Setting.subtitleShadowColor,
+      type: ShadowType.BLUR,
+      radius: Setting.subtitleShadowSize,
+      offsetX: 2,
+      offsetY: 2
+    })
+  }
+  return shadows
+}
+
+function getSubtitleBottomMargin(areaHeight: number, subtitlePosition: number): number {
+  return Math.max(12, Math.round(areaHeight * (100 - subtitlePosition) / 100))
 }

@@ -19,6 +19,16 @@ class SettingUtil {
   public showToast: boolean = true
   public defaultPlayerEngine: string = '系统播放器'
   public subtitleSize: string = '22'
+  public subtitlePosition: number = 90
+  public subtitleColor: string = '#F0F0F0'
+  public subtitleBold: boolean = false
+  public subtitleItalic: boolean = false
+  public subtitleBorderSize: number = 1
+  public subtitleBorderColor: string = '#000000'
+  public subtitleShadowEnabled: boolean = true
+  public subtitleShadowSize: number = 6
+  public subtitleShadowColor: string = '#000000'
+  public subtitleBackgroundOpacity: number = 0
   public allowDoubleFastForward: boolean = true
   public skipIntroTime: string = '0'
   public skipOutroTime: string = '0'
@@ -36,7 +46,6 @@ class SettingUtil {
   public enableAiPrivacyAntiPeep: boolean = false
   public defaultBrightness: number = 0
   public listItemBackgroundBlur: boolean = false
-
   public maxListLine: number = 5
   public defaultDensityEnabled: boolean = true
 }

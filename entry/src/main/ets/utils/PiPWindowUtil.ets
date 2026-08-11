@@ -26,6 +26,7 @@ export default class PiPWindowUtil {
   static pipController?: PiPWindow.PiPController | undefined = undefined
   static playerController ?: PlayerControllerInterface | undefined = undefined
   static pipOpenState: boolean = false
+  static isRestoring: boolean = false
 
   static async startPip() {
     if (PiPWindowUtil.pipController) {
@@ -167,10 +168,14 @@ export default class PiPWindowUtil {
         break
       case PiPWindow.PiPState.STOPPED:
         PiPWindowUtil.pipOpenState = false
-        PiPWindowUtil.playerController?.pause()
+        if (!PiPWindowUtil.isRestoring) {
+          PiPWindowUtil.playerController?.pause()
+        }
+        PiPWindowUtil.isRestoring = false
         break
       case PiPWindow.PiPState.ABOUT_TO_RESTORE:
         PiPWindowUtil.pipOpenState = false
+        PiPWindowUtil.isRestoring = true
         break
       case PiPWindow.PiPState.ERROR:
         break

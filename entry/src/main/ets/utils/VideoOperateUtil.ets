@@ -332,6 +332,16 @@ export default class VideoOperateUtil {
       'showToast': true,
       'defaultPlayerEngine': '系统播放器',
       'subtitleSize': '22',
+      'subtitlePosition': 90,
+      'subtitleColor': '#F0F0F0',
+      'subtitleBold': false,
+      'subtitleItalic': false,
+      'subtitleBorderSize': 1,
+      'subtitleBorderColor': '#000000',
+      'subtitleShadowEnabled': true,
+      'subtitleShadowSize': 6,
+      'subtitleShadowColor': '#000000',
+      'subtitleBackgroundOpacity': 0,
       'allowDoubleFastForward': true,
       'skipIntroTime': '0',
       'skipOutroTime': '0',
@@ -375,6 +385,16 @@ export default class VideoOperateUtil {
     Setting.showToast = valueMap['showToast'] as boolean
     Setting.defaultPlayerEngine = valueMap['defaultPlayerEngine'] as string
     Setting.subtitleSize = valueMap['subtitleSize'] as string
+    Setting.subtitlePosition = valueMap['subtitlePosition'] as number
+    Setting.subtitleColor = valueMap['subtitleColor'] as string
+    Setting.subtitleBold = valueMap['subtitleBold'] as boolean
+    Setting.subtitleItalic = valueMap['subtitleItalic'] as boolean
+    Setting.subtitleBorderSize = valueMap['subtitleBorderSize'] as number
+    Setting.subtitleBorderColor = valueMap['subtitleBorderColor'] as string
+    Setting.subtitleShadowEnabled = valueMap['subtitleShadowEnabled'] as boolean
+    Setting.subtitleShadowSize = valueMap['subtitleShadowSize'] as number
+    Setting.subtitleShadowColor = valueMap['subtitleShadowColor'] as string
+    Setting.subtitleBackgroundOpacity = valueMap['subtitleBackgroundOpacity'] as number
     Setting.allowDoubleFastForward = valueMap['allowDoubleFastForward'] as boolean
     Setting.skipIntroTime = valueMap['skipIntroTime'] as string
     Setting.skipOutroTime = valueMap['skipOutroTime'] as string

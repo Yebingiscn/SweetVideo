@@ -53,9 +53,33 @@ declare module 'libmpvnative.so' {
 
   export const selectSubtitle: (mpvHandle: number, trackId: number) => void;
 
-  export const setSubtitleStyle: (mpvHandle: number, style: any) => void;
+  export const selectSecondarySubtitle: (mpvHandle: number, trackId: number) => boolean;
+
+  export const setSubtitleDelay: (mpvHandle: number, delayMillis: number) => boolean;
+
+  export const setSubtitleRenderVisibility: (mpvHandle: number, primaryVisible: boolean,
+    secondaryVisible: boolean) => boolean;
+
+  export const getSubtitleTexts: (mpvHandle: number) => { primary: string; secondary: string };
+
+  export const setSubtitleStyle: (mpvHandle: number, style: {
+    fontSize?: number;
+    color?: string;
+    bold?: boolean;
+    italic?: boolean;
+    borderSize?: number;
+    borderColor?: string;
+    shadowEnabled?: boolean;
+    shadowOffset?: number;
+    shadowColor?: string;
+    backgroundColor?: string;
+    backgroundOpacity?: number;
+    position?: number;
+  }) => boolean;
 
   export const getCurrentSubtitleTrack: (mpvHandle: number) => number;
+
+  export const getCurrentSecondarySubtitleTrack: (mpvHandle: number) => number;
 
   // ==================== 音频 ====================
   export const getAudioTracks: (mpvHandle: number) => Array<any>;
@@ -95,7 +119,21 @@ declare module 'libmpvnative.so' {
   export const getCacheSize: () => number;
 
   // ==================== 网络 ====================
-  export const getNetworkSpeed: (mpvHandle: number) => any;
+  export interface NetworkSpeedInfo {
+    speed: number;
+    speedStr: string;
+    /** mpv cache buffering state (0-100). Kept for API compatibility. */
+    cacheSizeKB: number;
+    bufferPercent: number;
+    cacheDuration: number;
+    buffering: boolean;
+    /** Whether the current source is a network stream. */
+    active: boolean;
+  }
+
+  export const getNetworkSpeed: (mpvHandle: number) => NetworkSpeedInfo;
+  export const registerNetworkStateCallback: (callback: (state: NetworkSpeedInfo) => void) => boolean;
+  export const unregisterNetworkStateCallback: () => boolean;
 
   // ==================== OSD Surface 配置 ====================
   export const setOsdSurface: (surfaceId: string, width: number, height: number) => void;

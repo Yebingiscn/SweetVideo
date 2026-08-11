@@ -30,6 +30,8 @@ class PlaybackSessionSnapshot {
   volume: number = 0
   volumeActually: number = 0
   screenBrightness: number = 0
+  subtitlePosition: number = 90
+  subtitleSize: number = 22
 
   static capture(player: PlayerControllerInterface, resumePlayback?: boolean): PlaybackSessionSnapshot {
     const snapshot = new PlaybackSessionSnapshot()
@@ -54,6 +56,8 @@ class PlaybackSessionSnapshot {
     snapshot.volume = player.volume
     snapshot.volumeActually = player.volumeActually
     snapshot.screenBrightness = player.screenBrightness
+    snapshot.subtitlePosition = player.subtitlePosition
+    snapshot.subtitleSize = player.subtitleSize
     return snapshot
   }
 
@@ -80,6 +84,8 @@ class PlaybackSessionSnapshot {
     player.volume = this.volume
     player.volumeActually = this.volumeActually
     player.screenBrightness = this.screenBrightness
+    player.subtitlePosition = this.subtitlePosition
+    player.subtitleSize = this.subtitleSize
   }
 }
 

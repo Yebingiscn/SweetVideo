@@ -15,31 +15,41 @@ export struct VideoTopComponent {
   @Param lockRotation: boolean = false
   @Event onLockRotationClick: () => Promise<void> = async () => {
   }
-  @Event onExitVideoClick: () => void = () => {
-  }
-  @Event onOriginalRatio: () => void = () => {
-  }
-  @Event onStretchedToFullScreen: () => void = () => {
-  }
-  @Event onFullScreenByWidth: () => void = () => {
-  }
-  @Event onFullScreenByHeight: () => void = () => {
-  }
-  @Event onUniformScale: (_scale: number) => void = () => {
-  }
-  @Event onSpecificVideoProportions: (_playAreaSize: number[]) => void = () => {
-  }
-  @Event onSelectedTextChange: (_text: string) => void = () => {
-  }
-  @Event pipStateChange: () => void = () => {
-  }
-  @Event onOpenPersonalScreenExtend: () => void = () => {
-  }
 
   private get displayTitle(): string {
     const title = this.player.nowPlaying?.title ?? ''
     const dotIndex = title.lastIndexOf('.')
     return dotIndex > 0 ? title.slice(0, dotIndex) : title
+  }
+
+  @Event onExitVideoClick: () => void = () => {
+  }
+
+  @Event onOriginalRatio: () => void = () => {
+  }
+
+  @Event onStretchedToFullScreen: () => void = () => {
+  }
+
+  @Event onFullScreenByWidth: () => void = () => {
+  }
+
+  @Event onFullScreenByHeight: () => void = () => {
+  }
+
+  @Event onUniformScale: (_scale: number) => void = () => {
+  }
+
+  @Event onSpecificVideoProportions: (_playAreaSize: number[]) => void = () => {
+  }
+
+  @Event onSelectedTextChange: (_text: string) => void = () => {
+  }
+
+  @Event pipStateChange: () => void = () => {
+  }
+
+  @Event onOpenPersonalScreenExtend: () => void = () => {
   }
 
   build() {
@@ -79,7 +89,7 @@ export struct VideoTopComponent {
         .textOverflow({ overflow: TextOverflow.MARQUEE })
         .fontColor($r('sys.color.white'))
         .opacity(0.8)
-        .layoutWeight(1) // 关键：使Text占据剩余空间，将右侧按钮组“推”到最右
+        .layoutWeight(1)
 
       // 3. 字幕按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {

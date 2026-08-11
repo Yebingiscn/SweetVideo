@@ -5,9 +5,10 @@ export struct SubtitleOffsetDialog {
   onCloseButton?: () => void
   onPrevSubtitle?: (currentOffset: number) => number | undefined
   onNextSubtitle?: (currentOffset: number) => number | undefined
+  showSubtitleNavigation?: () => boolean
   controller?: CustomDialogController
   getCurrentValue?: () => number
-  title: string = '外挂字幕偏移时间'
+  title: string = '字幕偏移时间'
   @State inputText: string = ''
   inputController: TextInputController = new TextInputController()
   minOffset: number = -50000
@@ -157,32 +158,34 @@ export struct SubtitleOffsetDialog {
       }
       .width('100%')
 
-      Row({ space: 6 }) {
-        Button('上一条字幕')
-          .fontSize(this.quickBtnFontSize)
-          .fontColor($r('app.color.text_color'))
-          .height(32)
-          .layoutWeight(1)
-          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          .borderRadius(12)
-          .padding({ left: 2, right: 2 })
-          .onClick(() => {
-            this.moveToPrevSubtitle()
-          })
+      if (this.showSubtitleNavigation?.() ?? true) {
+        Row({ space: 6 }) {
+          Button('上一条字幕')
+            .fontSize(this.quickBtnFontSize)
+            .fontColor($r('app.color.text_color'))
+            .height(32)
+            .layoutWeight(1)
+            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
+            .borderRadius(12)
+            .padding({ left: 2, right: 2 })
+            .onClick(() => {
+              this.moveToPrevSubtitle()
+            })
 
-        Button('下一条字幕')
-          .fontSize(this.quickBtnFontSize)
-          .fontColor($r('app.color.text_color'))
-          .height(32)
-          .layoutWeight(1)
-          .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          .borderRadius(12)
-          .padding({ left: 2, right: 2 })
-          .onClick(() => {
-            this.moveToNextSubtitle()
-          })
+          Button('下一条字幕')
+            .fontSize(this.quickBtnFontSize)
+            .fontColor($r('app.color.text_color'))
+            .height(32)
+            .layoutWeight(1)
+            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
+            .borderRadius(12)
+            .padding({ left: 2, right: 2 })
+            .onClick(() => {
+              this.moveToNextSubtitle()
+            })
+        }
+        .width('100%')
       }
-      .width('100%')
     }
     .padding({
       top: 10,

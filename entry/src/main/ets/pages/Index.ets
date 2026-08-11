@@ -44,6 +44,7 @@ import { GetVipPage } from './SettingPage/GetVipPage'
 import { MoreSettingPage } from './SettingPage/MoreSettingPage'
 import { PersonalizePage } from './SettingPage/PersonalizePage'
 import { PlayerSettingPage } from './SettingPage/PlayerSettingPage'
+import { SubtitleSettingPage } from './SettingPage/SubtitleSettingPage'
 import { SettingsPage } from './SettingPage/Setting'
 import { VideoPlayer } from './VideoPlayer/VideoPlayer'
 import { StreamPage } from './StreamPage/StreamPage'
@@ -443,6 +444,8 @@ struct Index {
       CrashPage()
     } else if (name == NavigationAddress.PLAYER_SETTING_PAGE) {
       PlayerSettingPage()
+    } else if (name == NavigationAddress.SUBTITLE_SETTING_PAGE) {
+      SubtitleSettingPage()
     } else if (name == NavigationAddress.PERSONALIZE_PAGE) {
       PersonalizePage()
     } else if (name == NavigationAddress.PRIVACY_ERROR_LIST) {

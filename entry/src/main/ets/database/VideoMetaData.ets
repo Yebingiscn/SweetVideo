@@ -48,4 +48,18 @@ export class FolderOperator {
   static saveFolders(folders: FileFolder[]) {
     Preferences.saveFileFolder(PathUtils.appContext!, folders)
   }
+
+  static updateFolderOpeningEndingTimes(folderDate: string, startTime: number, endTime: number): FileFolder[] {
+    const folders = Preferences.getFileFolder(PathUtils.appContext!)
+    const targetFolder = folders.find(item => item.date === folderDate)
+    if (!targetFolder) {
+      return folders
+    }
+    targetFolder.video_list.forEach(video => {
+      video.start_time = startTime
+      video.end_time = endTime
+    })
+    Preferences.saveFileFolder(PathUtils.appContext!, folders)
+    return Preferences.getFileFolder(PathUtils.appContext!)
+  }
 }

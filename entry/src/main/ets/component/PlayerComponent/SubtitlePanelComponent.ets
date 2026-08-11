@@ -1,6 +1,7 @@
 import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
+import { MpvController } from '../../controller/MpvController/MpvController'
 import { MpvSubtitleTrack } from '../../controller/MpvController/MpvTypes'
 import { SubtitleTrack } from '../../interfaces/AudioTrackInterface'
 import { InnerSubtitleDataSource } from '../../utils/DataUtil'
@@ -8,6 +9,8 @@ import { SubtitleManager } from '../../utils/SubtitleManager'
 import { PlayerEngine } from '../../common/NavigationCommon'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
+import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
+import { Setting } from '../../utils/ObservedUtil'
 
 @ComponentV2
 export struct SubtitlePanelComponent {
@@ -16,7 +19,7 @@ export struct SubtitlePanelComponent {
   @Local innerSubtitleMenu: InnerSubtitleDataSource = new InnerSubtitleDataSource([])
   @Consumer('player') player: PlayerControllerInterface =
     PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
-  @Event onSubtitleOffsetTime: () => void = () => {
+  @Event onSubtitleOffsetTime: (_useMpvSubtitle: boolean) => void = (_useMpvSubtitle: boolean) => {
   }
   @Event onSwitchPlayerEngine: (_targetEngine: string) => void = () => {
   }
@@ -55,11 +58,9 @@ export struct SubtitlePanelComponent {
         })
           .contentFontColor(this.subtitleManager.isInnerSubtitleActive ? $r('sys.color.white') :
             $r('app.color.text_color'))
-          .onClick(() => {
-            this.subtitleManager.switchToInner()
-          })
           .height(40)
-          .backgroundColor(this.subtitleManager.isInnerSubtitleActive ? $r('app.color.main_color') : Color.Transparent)
+          .backgroundColor(
+            this.subtitleManager.isInnerSubtitleActive ? $r('app.color.main_color') : Color.Transparent)
           .borderRadius(16)
           .width('100%')
       } else {
@@ -75,10 +76,23 @@ export struct SubtitlePanelComponent {
           .width('100%')
       }
 
+      if (this.player instanceof MpvController && this.player.subtitleTrack.length > 1) {
+        MenuItem({
+          content: '副字幕',
+          builder: this.SecondarySubtitleMenu,
+        })
+          .contentFontColor(this.player.secondarySubtitleTrackSelected >= 0 ? $r('sys.color.white') :
+            $r('app.color.text_color'))
+          .height(40)
+          .backgroundColor(this.player.secondarySubtitleTrackSelected >= 0 ?
+            $r('app.color.main_color') : Color.Transparent)
+          .borderRadius(16)
+          .width('100%')
+      }
+
       if (this.hasExternalSubtitle()) {
         MenuItem({
           content: '外挂字幕',
-          builder: this.ExternalSubtitleSubmenu
         })
           .contentFontColor(this.subtitleManager.isExternalSubtitleActive ? $r('sys.color.white') :
             $r('app.color.text_color'))
@@ -118,7 +132,7 @@ export struct SubtitlePanelComponent {
           .width('100%')
       }
 
-      if (this.subtitleManager.subtitleVisibility === Visibility.Visible) {
+      if (this.canShow3DSubtitleMenu()) {
         MenuItem({
           content: "3D 字幕",
           builder: this.ThreeDSubtitleSubmenu,
@@ -128,6 +142,18 @@ export struct SubtitlePanelComponent {
           .backgroundColor(
             this._subtitle3DMode !== Subtitle3DMode.DISABLED ? $r('app.color.main_color') : Color.Transparent)
           .menuItemExtend()
+      }
+
+      if (this.hasExternalSubtitle() ||
+        (this.player instanceof MpvController && this.player.subtitleTrack.length > 0)) {
+        MenuItem({
+          content: '字幕偏移'
+        })
+          .menuItemExtend()
+          .contentFontColor($r('app.color.text_color'))
+          .onClick(() => {
+            this.onSubtitleOffsetTime(this.shouldAdjustMpvSubtitle())
+          })
       }
 
       if (this.player instanceof AVPlayerController) {
@@ -140,25 +166,104 @@ export struct SubtitlePanelComponent {
             this.onSwitchPlayerEngine(PlayerEngine.MPV_PLAYER)
           })
       }
+
+      MenuItemGroup({
+        header: this.SubtitlePositionSlider,
+        footer: this.SubtitleSizeSlider
+      }) {
+      }
     }
-    .width(240)
+    .width(270)
     .height('auto')
     .subMenuExpandingMode(SubMenuExpandingMode.STACK_EXPAND)
   }
 
   @Builder
-  ExternalSubtitleSubmenu() {
-    Menu() {
-      MenuItem({
-        content: "字幕偏移"
+  SubtitlePositionSlider() {
+    Row() {
+      Text(`位置 ${Math.round(this.player.subtitlePosition)}%`)
+        .fontSize(14)
+        .fontColor($r('app.color.text_color'))
+        .width(68)
+      Slider({
+        value: this.player.subtitlePosition,
+        min: 5,
+        max: 95,
+        step: 1,
+        style: SliderStyle.NONE
       })
-        .menuItemExtend()
-        .onClick(() => {
-          this.onSubtitleOffsetTime()
+        .onChange((value: number) => {
+          this.player.setSubtitlePosition(value)
         })
+        .selectedColor($r('app.color.main_color'))
+        .enableHapticFeedback(true)
+        .layoutWeight(1)
+        .trackBorderRadius(16)
+        .trackThickness(20)
+        .selectedBorderRadius(16)
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph($r('sys.symbol.undo'))
+          .fontSize(16)
+          .fontColor([$r('app.color.text_color')])
+      }
+      .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+      .attributeModifier(new ButtonFancyModifier(28, 28))
+      .backgroundColor(Color.Transparent)
+      .onClick(() => {
+        this.player.setSubtitlePosition(Setting.subtitlePosition)
+      })
     }
-    .width(140)
-    .height('auto')
+    .padding({
+      left: 8,
+      right: 8,
+      top: 4,
+      bottom: 4
+    })
+    .width('100%')
+  }
+
+  @Builder
+  SubtitleSizeSlider() {
+    Row() {
+      Text(`大小 ${Math.round(this.player.subtitleSize)}号`)
+        .fontSize(14)
+        .fontColor($r('app.color.text_color'))
+        .width(68)
+      Slider({
+        value: this.player.subtitleSize,
+        min: 14,
+        max: 48,
+        step: 1,
+        style: SliderStyle.NONE
+      })
+        .onChange((value: number) => {
+          this.player.setSubtitleSize(value)
+        })
+        .selectedColor($r('app.color.main_color'))
+        .enableHapticFeedback(true)
+        .layoutWeight(1)
+        .trackBorderRadius(16)
+        .trackThickness(20)
+        .selectedBorderRadius(16)
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph($r('sys.symbol.undo'))
+          .fontSize(16)
+          .fontColor([$r('app.color.text_color')])
+      }
+      .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+      .attributeModifier(new ButtonFancyModifier(28, 28))
+      .backgroundColor(Color.Transparent)
+      .onClick(() => {
+        this.player.setSubtitleSize(Number(Setting.subtitleSize))
+      })
+    }
+    .padding({
+      left: 8,
+      right: 8,
+      top: 4,
+      bottom: 4
+    })
+    .width('100%')
   }
 
   @Builder
@@ -234,9 +339,51 @@ export struct SubtitlePanelComponent {
             .onClick(() => {
               this.player.selectSubtitleTrack(repeatItem.item.id)
               this.subtitleManager.switchToInner()
+              if (!this.player.supportsSubtitle3D()) {
+                this.subtitleManager.set3DMode(Subtitle3DMode.DISABLED)
+              }
             })
         })
         .key((item: MpvSubtitleTrack | SubtitleTrack, _index: number) => `${item.id}`)
+    }
+  }
+
+  @Builder
+  SecondarySubtitleMenu() {
+    Menu() {
+      MenuItem({
+        content: '关闭'
+      })
+        .menuItemExtend()
+        .contentFontColor(this.player.secondarySubtitleTrackSelected < 0 ? $r('sys.color.white') :
+          $r('app.color.text_color'))
+        .backgroundColor(this.player.secondarySubtitleTrackSelected < 0 ?
+          $r('app.color.main_color') : Color.Transparent)
+        .onClick(() => {
+          this.player.selectSecondarySubtitleTrack(-1)
+        })
+
+      Repeat<MpvSubtitleTrack | SubtitleTrack>(this.innerSubtitleMenu.data)
+        .each((repeatItem: RepeatItem<MpvSubtitleTrack | SubtitleTrack>) => {
+          if (repeatItem.item.id !== this.player.subtitleTrackSelected) {
+            MenuItem({
+              content: `${repeatItem.item.id} : ${this.getFormattedSubtitleName(repeatItem.item)}`
+            })
+              .menuItemExtend()
+              .contentFontColor(this.player.secondarySubtitleTrackSelected === repeatItem.item.id ?
+                $r('sys.color.white') : $r('app.color.text_color'))
+              .backgroundColor(this.player.secondarySubtitleTrackSelected === repeatItem.item.id ?
+                $r('app.color.main_color') : Color.Transparent)
+              .onClick(() => {
+                this.subtitleManager.switchToInner()
+                this.player.selectSecondarySubtitleTrack(repeatItem.item.id)
+                if (!this.player.supportsSubtitle3D()) {
+                  this.subtitleManager.set3DMode(Subtitle3DMode.DISABLED)
+                }
+              })
+          }
+        })
+        .key((item: MpvSubtitleTrack | SubtitleTrack, _index: number) => `secondary-${item.id}`)
     }
   }
 
@@ -259,6 +406,17 @@ export struct SubtitlePanelComponent {
     return (this.player.nowPlaying?.external_subtitle_format?.length ?? 0) > 0
   }
 
+  private shouldAdjustMpvSubtitle(): boolean {
+    return this.player instanceof MpvController &&
+      (this.subtitleManager.isInnerSubtitleActive || !this.hasExternalSubtitle())
+  }
+
+  private canShow3DSubtitleMenu(): boolean {
+    if (this.player instanceof MpvController && this.subtitleManager.isInnerSubtitleActive) {
+      return this.player.supportsSubtitle3D()
+    }
+    return this.subtitleManager.subtitleVisibility === Visibility.Visible
+  }
 }
 
 @Extend(MenuItem)

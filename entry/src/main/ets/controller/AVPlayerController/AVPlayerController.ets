@@ -47,11 +47,17 @@ export class AVPlayerController implements PlayerControllerInterface {
   initialPlayTime: number | undefined = undefined
   initialPlaying: boolean | undefined = undefined
   @Trace playing: boolean = false
+  @Trace networkPlaybackActive: boolean = false
+  @Trace networkSpeedText: string = '0 KB/s'
+  @Trace networkBufferPercent: number = 0
+  @Trace networkCacheDuration: number = 0
+  @Trace networkBuffering: boolean = false
   @Trace speed: number = 1.0
   @Trace playTime: number = 0
   @Trace audioTrack: AudioTrack[] = []
   @Trace subtitleTrack: SubtitleTrack[] = []
   @Trace subtitleTrackSelected: number = -1
+  @Trace secondarySubtitleTrackSelected: number = -1
   @Trace volume: number = 0
   @Trace volumeActually: number = 0
   @Trace screenBrightness: number = 0
@@ -73,6 +79,8 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Trace onSwipingBrightness: boolean = false
   @Trace isSliderPlayTimeChange: boolean = false
   @Trace volumeLoudnessGain: number = 0
+  @Trace subtitlePosition: number = Setting.subtitlePosition
+  @Trace subtitleSize: number = Number(Setting.subtitleSize)
   @Trace audioChannelMode: number = 0
   @Trace superResolutionState: boolean = false
   @Trace audioTrackSelected: number = 0
@@ -230,6 +238,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   setExternalSubtitle(nowPlaying: VideoMetadata) {
+    SubtitleUtil.offsetMillis = nowPlaying.subtitle_offset_millis ?? 0
     SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, nowPlaying.date!).then(exists => {
       if (!exists) {
         this.applySubtitlePreference(nowPlaying, false)
@@ -622,6 +631,18 @@ export class AVPlayerController implements PlayerControllerInterface {
     })
   }
 
+  selectSecondarySubtitleTrack(_trackId: number): void {
+    this.secondarySubtitleTrackSelected = -1
+  }
+
+  setSubtitlePosition(position: number): void {
+    this.subtitlePosition = Math.max(5, Math.min(95, Math.round(position)))
+  }
+
+  setSubtitleSize(size: number): void {
+    this.subtitleSize = Math.max(14, Math.min(48, Math.round(size)))
+  }
+
   setAudioChannelMode(_mode: number): void {
   }
 
@@ -944,6 +965,17 @@ export class AVPlayerController implements PlayerControllerInterface {
     this.subtitle = SubtitleUtil.getSubtitlesAtTime(this.playTime, offset)
   }
 
+  setSubtitleOffset(offsetMillis: number): void {
+    this.refreshExternalSubtitlePreview(offsetMillis)
+  }
+
+  setSubtitle3DMode(_mode: Subtitle3DMode): void {
+  }
+
+  supportsSubtitle3D(): boolean {
+    return true
+  }
+
   refreshExternalSubtitleByPlaybackTime(isAdjustingSubtitleOffset: boolean, subtitleVisibility: Visibility): void {
     if (isAdjustingSubtitleOffset) {
       return
@@ -1213,6 +1245,7 @@ export class AVPlayerController implements PlayerControllerInterface {
       if (preferredMode === SubtitleMode.EXTERNAL_SUBTITLE && !externalSubtitleLoaded) {
         this.subtitleSelected = SubtitleMode.NONE
         this.resetSubtitlePreference(nowPlaying)
+        SubtitleUtil.offsetMillis = 0
       } else if (preferredMode !== undefined && preferredMode >= SubtitleMode.NONE) {
         if (nowPlaying.subtitle_offset_millis !== undefined) {
           SubtitleUtil.offsetMillis = nowPlaying.subtitle_offset_millis

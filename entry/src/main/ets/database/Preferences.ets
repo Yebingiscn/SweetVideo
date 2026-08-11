@@ -161,6 +161,46 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, "subtitleSize", subtitleSize)
   }
 
+  static saveSubtitlePosition(context: Context, value: number) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'subtitlePosition', value)
+  }
+
+  static saveSubtitleColor(context: Context, value: string) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'subtitleColor', value)
+  }
+
+  static saveSubtitleBold(context: Context, value: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'subtitleBold', value)
+  }
+
+  static saveSubtitleItalic(context: Context, value: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'subtitleItalic', value)
+  }
+
+  static saveSubtitleBorderSize(context: Context, value: number) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'subtitleBorderSize', value)
+  }
+
+  static saveSubtitleBorderColor(context: Context, value: string) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'subtitleBorderColor', value)
+  }
+
+  static saveSubtitleShadowEnabled(context: Context, value: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'subtitleShadowEnabled', value)
+  }
+
+  static saveSubtitleShadowSize(context: Context, value: number) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'subtitleShadowSize', value)
+  }
+
+  static saveSubtitleShadowColor(context: Context, value: string) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'subtitleShadowColor', value)
+  }
+
+  static saveSubtitleBackgroundOpacity(context: Context, value: number) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'subtitleBackgroundOpacity', value)
+  }
+
   static saveFastForwardSeconds(context: Context, fastForwardSeconds: string) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, "fastForwardSeconds", fastForwardSeconds)
   }
