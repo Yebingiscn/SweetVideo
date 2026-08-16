@@ -6,9 +6,15 @@ import { Context } from '@kit.AbilityKit'
 import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import { CoverLayoutMode, ListDisplayMode } from '../common/enum/DisplayMode'
-import { MpvDecodingMethod } from '../controller/MpvController/MpvTypes'
+import { MpvDecodingMethod, MpvGpuApi } from '../controller/MpvController/MpvTypes'
+import { IPTVSource } from '../interfaces/IPTVInterface'
+import { fileIo as fs } from '@kit.CoreFileKit'
+import { PathUtils } from '../utils/PathUtils'
+import { salmonLogger } from 'salmonlogger'
+import { util } from '@kit.ArkTS'
 
 const DATA_BASE_NAME = 'sweet_video'
+const MAX_PREFERENCES_STRING_BYTES = 16 * 1024 * 1024
 
 export default class Preferences {
   private static fileFolderCache: FileFolder[] | null = null
@@ -48,6 +54,10 @@ export default class Preferences {
 
   static saveMpvDecodingMethod(context: Context, decodingMethod: MpvDecodingMethod) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpv_decoding_method', decodingMethod)
+  }
+
+  static saveMpvGpuApi(context: Context, gpuApi: MpvGpuApi) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpv_gpu_api', gpuApi)
   }
 
   // 首页视频数据
@@ -155,6 +165,10 @@ export default class Preferences {
 
   static saveDefaultPlayerEngine(context: Context, defaultPlayerEngine: string) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, "defaultPlayerEngine", defaultPlayerEngine)
+  }
+
+  static saveShortVideoMode(context: Context, enabled: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'shortVideoMode', enabled)
   }
 
   static saveSubtitleSize(context: Context, subtitleSize: string) {
@@ -482,6 +496,67 @@ export default class Preferences {
 
   static saveNetworkStreams(context: Context, streams: VideoMetadata[]) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'network_streams', streams)
+  }
+
+  static getIPTVSources(context: Context): IPTVSource[] {
+    try {
+      const path = Preferences.getIPTVCachePath()
+      if (path && fs.accessSync(path)) {
+        return JSON.parse(fs.readTextSync(path)) as IPTVSource[]
+      }
+      const value = PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'iptv_sources', '[]') as string
+      return JSON.parse(value) as IPTVSource[]
+    } catch (error) {
+      salmonLogger.addLog('Preferences', `read IPTV sources failed: ${String(error)}`, true)
+      return []
+    }
+  }
+
+  static saveIPTVSources(context: Context, sources: IPTVSource[]) {
+    try {
+      const path = Preferences.getIPTVCachePath()
+      if (!path) {
+        return
+      }
+      const tempPath = `${path}.tmp`
+      const file = fs.openSync(tempPath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
+      fs.writeSync(file.fd, JSON.stringify(sources), { encoding: 'utf-8' })
+      fs.closeSync(file)
+      if (fs.accessSync(path)) {
+        fs.unlinkSync(path)
+      }
+      fs.renameSync(tempPath, path)
+      const summaries = sources.map(source => ({
+        id: source.id,
+        name: source.name,
+        sourceType: source.sourceType,
+        location: source.location,
+        userAgent: source.userAgent,
+        epgUrl: source.epgUrl,
+        channels: [],
+        channelCount: source.channelCount,
+        groupCount: source.groupCount,
+        createdTime: source.createdTime,
+        updatedTime: source.updatedTime,
+        lastRefreshTime: source.lastRefreshTime,
+        lastRefreshStatus: source.lastRefreshStatus,
+        lastError: source.lastError,
+        epgMatchedCount: source.epgMatchedCount
+      } as IPTVSource))
+      const summaryText = JSON.stringify(summaries)
+      const summaryBytes = new util.TextEncoder().encodeInto(summaryText).byteLength
+      if (summaryBytes <= MAX_PREFERENCES_STRING_BYTES) {
+        PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'iptv_sources', summaryText)
+      } else {
+        PreferencesUtil.delPreferencesValue(context, DATA_BASE_NAME, 'iptv_sources')
+      }
+    } catch (error) {
+      salmonLogger.addLog('Preferences', `save IPTV sources failed: ${String(error)}`, true)
+    }
+  }
+
+  private static getIPTVCachePath(): string {
+    return PathUtils.sandboxPath ? `${PathUtils.sandboxPath}/iptv_sources.json` : ''
   }
 
   private static deepCopyFileFolders(source: FileFolder[]): FileFolder[] {

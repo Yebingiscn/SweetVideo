@@ -30,9 +30,9 @@ export class MpvPlayerEngineAdapter implements PlayerEngineAdapter {
     }
   }
 
-  load(url: string, startPosition?: number, subtitleTrackId?: number): void {
+  load(url: string, startPosition?: number, subtitleTrackId?: number, userAgent?: string): void {
     if (this.nativeHandle) {
-      mpvLoadVideo(this.nativeHandle, url, startPosition, subtitleTrackId)
+      mpvLoadVideo(this.nativeHandle, url, startPosition, subtitleTrackId, userAgent)
     }
   }
 

@@ -1,7 +1,7 @@
 // Type declarations for libmpvnative native module
 declare module 'libmpvnative.so' {
   // ==================== 硬件解码模式 ====================
-  // 0 = HWDEC_MODE_BUFFER (gpu-next + OpenGL ES + OHCodec Surface-to-GPU，默认，支持后处理)
+  // 0 = HWDEC_MODE_BUFFER (gpu-next + OpenGL ES/Vulkan + OHCodec Surface-to-GPU，支持后处理)
   // 1 = HWDEC_MODE_SURFACE (ohcodec-osd + ohcodec，零拷贝，性能最优)
   export const setHwdecMode: (mode: number) => void;
 
@@ -13,6 +13,11 @@ declare module 'libmpvnative.so' {
   export const setDecodeType: (type: number) => void;
 
   export const getDecodeType: () => number;
+
+  // 0 = OpenGL ES (default), 1 = Vulkan. Only used by Buffer mode.
+  export const setGpuApi: (api: number) => void;
+
+  export const getGpuApi: () => number;
 
   // ==================== 核心函数 ====================
   export const create: () => number | null;
@@ -27,7 +32,7 @@ declare module 'libmpvnative.so' {
 
   // ==================== 视频加载 ====================
   export const loadVideo: (mpvHandle: number, url: string, startPosition?: number,
-    subtitleTrackId?: number) => void;
+    subtitleTrackId?: number, userAgent?: string) => void;
 
   // ==================== 光盘设备配置（ISO文件播放）====================
   export const setBlurayDevice: (mpvHandle: number, isoPath: string) => boolean;
@@ -62,6 +67,12 @@ declare module 'libmpvnative.so' {
 
   export const getSubtitleTexts: (mpvHandle: number) => { primary: string; secondary: string };
 
+  export const loadExternalSubtitle: (mpvHandle: number, options: {
+    path: string;
+    lang?: string;
+    select?: boolean;
+  }) => boolean;
+
   export const setSubtitleStyle: (mpvHandle: number, style: {
     fontSize?: number;
     color?: string;
@@ -75,6 +86,9 @@ declare module 'libmpvnative.so' {
     backgroundColor?: string;
     backgroundOpacity?: number;
     position?: number;
+    preserveAssStyle?: boolean;
+    preserveSecondaryAssStyle?: boolean;
+    scale?: number;
   }) => boolean;
 
   export const getCurrentSubtitleTrack: (mpvHandle: number) => number;

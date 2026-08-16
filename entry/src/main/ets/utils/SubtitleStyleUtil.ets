@@ -17,8 +17,10 @@ export default class SubtitleStyleUtil {
   }
 
   static getMpvStyle(positionOverride?: number, sizeOverride?: number,
-    playAreaHeight?: number): MpvSubtitleStyle {
+    playAreaHeight?: number, preserveAssStyle: boolean = false,
+    preserveSecondaryAssStyle: boolean = false): MpvSubtitleStyle {
     const arkUiFontSize = sizeOverride ?? Number(Setting.subtitleSize)
+    const defaultFontSize = Math.max(1, Number(Setting.subtitleSize))
     return {
       fontSize: SubtitleStyleUtil.getMpvFontSize(arkUiFontSize, playAreaHeight),
       color: Setting.subtitleColor,
@@ -31,7 +33,10 @@ export default class SubtitleStyleUtil {
       shadowColor: Setting.subtitleShadowColor,
       backgroundColor: '#000000',
       backgroundOpacity: Setting.subtitleBackgroundOpacity,
-      position: positionOverride ?? Setting.subtitlePosition
+      position: positionOverride ?? Setting.subtitlePosition,
+      preserveAssStyle: preserveAssStyle,
+      preserveSecondaryAssStyle: preserveSecondaryAssStyle,
+      scale: Math.max(0.25, Math.min(4, arkUiFontSize / defaultFontSize))
     }
   }
 

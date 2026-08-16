@@ -61,6 +61,7 @@ import { VideoTopComponent } from '../../component/PlayerComponent/VideoTopCompo
 import Preferences from '../../database/Preferences'
 import { salmonLogger } from 'salmonlogger'
 import { AISubtitleComponent } from '../../component/PlayerComponent/AIAsrComponent'
+import AVSessionUtil from '../../utils/AVSessionUtil'
 
 const TAG = 'VideoPlayer'
 
@@ -153,6 +154,7 @@ export struct VideoPlayer {
   private subtitleOffsetShouldResumePlayback: boolean = false
   private isAdjustingMpvSubtitleOffset: boolean = false
   private scrollAxisTimeout: number = 0
+  private orientationRequestVersion: number = 0
 
   @Monitor('player.showControl')
   onShowControlMonitor() {
@@ -168,11 +170,15 @@ export struct VideoPlayer {
 
   aboutToAppear(): void {
     this.isPageDisappearing = false
+    const requestVersion = ++this.orientationRequestVersion
     salmonLogger.addLog(TAG, "开始执行aboutToAppear方法", false)
     PermissionUtil.applyContinuousTask()
-    this.getWindowClass()?.then(
-      w => w?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)?.catch(() => {
-      }))
+    this.getWindowClass()?.then(w => {
+      if (!this.isPageDisappearing && requestVersion === this.orientationRequestVersion) {
+        w?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)?.catch(() => {
+        })
+      }
+    })
     WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
     WindowUtil.setBarState(PathUtils.appContext!, false, false)
     if (Setting.defaultBrightness > 0) {
@@ -183,6 +189,9 @@ export struct VideoPlayer {
 
   async aboutToDisappear(): Promise<void> {
     this.isPageDisappearing = true
+    this.orientationRequestVersion++
+    this.player.onWillDisappearCleanup()
+    this.restoreAutomaticOrientation()
     salmonLogger.addLog(TAG, "开始执行aboutToDisappear方法", false)
     VideoOperateUtil.setBrightness(-1)
     WindowUtil.recoveryBarColor()
@@ -243,10 +252,16 @@ export struct VideoPlayer {
               osdVisibility: this.player.getOsdVisibility(),
               onXComponentLoad: async (surfaceController: XComponentController | undefined,
                 surfaceEngine: string) => {
+                if (this.isPageDisappearing) {
+                  return
+                }
                 const surfacePlayer = this.player
                 const currentEngine =
                   surfacePlayer.isMpvPlayer() ? PlayerEngine.MPV_PLAYER : PlayerEngine.AV_PLAYER
                 if (!surfaceController || currentEngine !== surfaceEngine) {
+                  return
+                }
+                if (this.isPageDisappearing) {
                   return
                 }
                 await surfacePlayer.onSurfaceLoad(surfaceController, this.pathStack, this.windowClass)
@@ -272,8 +287,8 @@ export struct VideoPlayer {
                 this.player.volumeActually = newVolume
                 VideoOperateUtil.lastVolume = newVolume
               },
-              onOsdSurfaceLoad: (surfaceId: string) => {
-                this.player.onOsdSurfaceLoad(surfaceId)
+              onOsdSurfaceLoad: (surfaceId: string, surfaceWidth: number, surfaceHeight: number) => {
+                this.player.onOsdSurfaceLoad(surfaceId, surfaceWidth, surfaceHeight)
               },
             })
           }
@@ -565,7 +580,9 @@ export struct VideoPlayer {
       .divider({ strokeWidth: 0 })
     }
     .onReady(() => {
-      this.isPageDisappearing = false
+      if (this.isPageDisappearing) {
+        return
+      }
       this.isPlaybackSessionDisposed = false
       this.isPlayerConfigured = false
       let playerParams: PlayerParams | undefined
@@ -602,6 +619,10 @@ export struct VideoPlayer {
         this.player.speed = parseFloat(videoSpeed?.replace('x', '') || '1')
         this.player.selectedText = Preferences.getScreenExtend(PathUtils.appContext!)
         this.restoreSubtitlePreference()
+        if (this.isPageDisappearing) {
+          this.player.onWillDisappearCleanup()
+          return
+        }
         this.player.onPlayerReady()
         this.isPlayerConfigured = true
       } catch (e) {
@@ -650,30 +671,42 @@ export struct VideoPlayer {
     })
     .onWillDisappear(async () => {
       this.isPageDisappearing = true
+      this.orientationRequestVersion++
+      this.player.onWillDisappearCleanup()
+      const orientationRestore = this.restoreAutomaticOrientation()
       salmonLogger.addLog(TAG, "开始执行onWillDisappear生命周期", false)
-      this.player.saveSubtitlePreferenceForCurrentVideo(this.subtitleManager.subtitleVisibility,
-        this.subtitleManager.isAIAsrShown, this.subtitleManager.subtitle3DMode)
-      VideoOperateUtil.saveLastPlayVideoIndex(this.player.videoMetaDataList, this.player.nowPlaying?.date)
-      VideoOperateUtil.saveVideoPlayTimeIfNeed(this.player.playTime, this.player.nowPlaying,
-        this.player.skipHistory, PathUtils.appContext!)
-      PermissionUtil.applyStopContinuousTask()
-      await PiPWindowUtil.destroyPipController()
-      WindowUtil.disableLandscapeMultiWindow(this.getWindowClass())
       try {
+        this.player.saveSubtitlePreferenceForCurrentVideo(this.subtitleManager.subtitleVisibility,
+          this.subtitleManager.isAIAsrShown, this.subtitleManager.subtitle3DMode)
+        VideoOperateUtil.saveLastPlayVideoIndex(this.player.videoMetaDataList, this.player.nowPlaying?.date)
+        VideoOperateUtil.saveVideoPlayTimeIfNeed(this.player.playTime, this.player.nowPlaying,
+          this.player.skipHistory, PathUtils.appContext!)
+        // stopCasting 必须发生在 applyStopContinuousTask 销毁 AVSession 之前。
+        await AVSessionUtil.stopCastingIfActive()
+        PermissionUtil.applyStopContinuousTask()
+        await PiPWindowUtil.destroyPipController()
+        WindowUtil.disableLandscapeMultiWindow(this.getWindowClass())
         WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
         await this.player.restoreSystemBars(this.windowClass)
-        this.player.onWillDisappearCleanup()
-        await (await this.getWindowClass())?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
-        await this.player.avSession?.stopCasting()
-        await this.disposePlaybackSession()
+        await orientationRestore
       } catch (error) {
         salmonLogger.addLog(TAG, `onWillDisappear中发生错误：${error}`, true)
+      } finally {
+        await this.disposePlaybackSession()
       }
       salmonLogger.addLog(TAG, "onWillDisappear生命周期执行完成", false)
     })
     .hideTitleBar(true)
 
     .blur(Privacy.isPrivacyBackground ? PRIVACY_BACKGROUND_BLUR_AMOUNT : NO_BLUR_AMOUNT)
+  }
+
+  private async restoreAutomaticOrientation(): Promise<void> {
+    try {
+      await (await this.getWindowClass())?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
+    } catch (error) {
+      salmonLogger.addLog(TAG, `恢复自动旋转失败：${error}`, true)
+    }
   }
 
   @Builder
@@ -789,10 +822,12 @@ export struct VideoPlayer {
       onSliderChange: (value: number) => {
         this.player.isSliderPlayTimeChange = true
         this.player.playTime = value
+        this.player.getFrameByTime(value, false)
       },
       onSliderTouch: (event: TouchEvent) => {
         if (event.type == TouchType.Down) {
           this.player.onSwiping = true
+          this.player.getFrameByTime(this.player.playTime, true)
         }
         if (event.type == TouchType.Up) {
           this.player.seekTime(this.player.playTime)
@@ -828,6 +863,18 @@ export struct VideoPlayer {
       onTogglePlaybackClick: () => {
         this.player.togglePlayback()
       },
+      onPlayPreviousVideoClick: async () => {
+        const previousRepeatMode =
+          this.player.repeatMode === SweetRepeatMode.SINGLE ? SweetRepeatMode.LIST : this.player.repeatMode
+        const previousItem = this.player.playAdjacentVideo(previousRepeatMode, 'previous')
+        if (!previousItem) {
+          ToolsUtil.showToast('没有上一首')
+          return
+        }
+        await this.player.playChooseVideo(previousItem, this.pathStack, this.windowClass, this.xComponentController)
+        this.player.setPlayerCallback(this.pathStack, this.xComponentController, this.windowClass)
+        salmonLogger.addLog(TAG, '播放上一首视频请求已发送', false)
+      },
       onPlayNextVideoClick: async () => {
         const nextRepeatMode =
           this.player.repeatMode === SweetRepeatMode.SINGLE ? SweetRepeatMode.LIST : this.player.repeatMode
@@ -840,9 +887,6 @@ export struct VideoPlayer {
       },
       onSideBaClose: () => {
         this.closeSideBar(true)
-      },
-      onChangeRepeatMode: (repeatMode: SweetRepeatMode) => {
-        this.player.repeatMode = repeatMode
       }
     })
   }

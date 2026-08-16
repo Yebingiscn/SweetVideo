@@ -8,6 +8,7 @@ export class PlayerEngine {
 
 export default class NavigationAddress {
   static VIDEO_PLAYER = 'VideoPlayer'
+  static SHORT_VIDEO = 'ShortVideo'
   static SETTING_PAGE = 'SettingsPage'
   static ABOUT_PAGE = 'AboutPage'
   static RECENT_PLAY = 'RecentPlay'
@@ -20,6 +21,8 @@ export default class NavigationAddress {
   static MORE_SETTING_PAGE = 'MoreSettingPage'
   static VIP_PAGE = 'GetVipPage'
   static STREAM_PAGE = 'StreamPage'
+  static IPTV_SOURCE_PAGE = 'IPTVSourcePage'
+  static IPTV_CHANNEL_PAGE = 'IPTVChannelPage'
 }
 
 export class PrivacySpaceParams {
@@ -47,5 +50,25 @@ export class PlayerParams {
       this.playerType = playerType
     }
     this.folder_date = folder_date
+  }
+}
+
+export class ShortVideoParams {
+  public metadataList: VideoMetadata[] = []
+  public initialIndex: number = 0
+  public skipHistory: boolean = false
+
+  constructor(metadataList: VideoMetadata[], initialIndex: number, skipHistory: boolean = false) {
+    this.metadataList = metadataList
+    this.initialIndex = initialIndex
+    this.skipHistory = skipHistory
+  }
+}
+
+export class IPTVChannelParams {
+  public sourceId: string = ''
+
+  constructor(sourceId: string) {
+    this.sourceId = sourceId
   }
 }

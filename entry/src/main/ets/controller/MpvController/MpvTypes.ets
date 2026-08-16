@@ -53,6 +53,15 @@ export interface MpvSubtitleStyle {
 
   /** 字体背景透明度 (0-100) */
   backgroundOpacity?: number;
+
+  /** 保留 ASS 文件自带样式，只应用缩放和垂直位置 */
+  preserveAssStyle?: boolean;
+
+  /** 淇濈暀 MPV 鍓瓧骞曠殑 ASS 鏍峰紡 */
+  preserveSecondaryAssStyle?: boolean;
+
+  /** 相对于默认字号的缩放比例 */
+  scale?: number;
 }
 
 /**
@@ -96,6 +105,11 @@ export const enum MpvDecodingMethod {
   HARDWARE_SURFACE = 0,
   SOFTWARE = 1,
   HARDWARE_BUFFER = 2
+}
+
+export const enum MpvGpuApi {
+  OPENGL = 0,
+  VULKAN = 1
 }
 
 export const enum MpvAudioChannelMode {

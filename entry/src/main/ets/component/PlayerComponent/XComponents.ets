@@ -34,7 +34,7 @@ export struct XComponents {
   }
   @Event onKeyCodeUpAndDown: (_event: KeyEvent) => void = () => {
   }
-  @Event onOsdSurfaceLoad: (_surfaceId: string) => void = () => {
+  @Event onOsdSurfaceLoad: (_surfaceId: string, _surfaceWidth: number, _surfaceHeight: number) => void = () => {
   }
 
   build() {
@@ -56,8 +56,8 @@ export struct XComponents {
           onMpvXComponent: () => {
             this.onXComponentLoad(this.xComponentController, PlayerEngine.MPV_PLAYER)
           },
-          onOsdSurfaceLoad: (surfaceId: string) => {
-            this.onOsdSurfaceLoad(surfaceId)
+          onOsdSurfaceLoad: (surfaceId: string, surfaceWidth: number, surfaceHeight: number) => {
+            this.onOsdSurfaceLoad(surfaceId, surfaceWidth, surfaceHeight)
           },
         })
       }
@@ -106,7 +106,20 @@ export struct MpvXComponent {
   @Param osdVisibility: boolean = false
   @Event onMpvXComponent: () => void = () => {
   }
-  @Event onOsdSurfaceLoad: (_surfaceId: string) => void = () => {
+  @Event onOsdSurfaceLoad: (_surfaceId: string, _surfaceWidth: number, _surfaceHeight: number) => void = () => {
+  }
+
+  private notifyOsdSurface(surfaceId: string): void {
+    try {
+      const surfaceRect = this.osdXController?.getXComponentSurfaceRect()
+      const surfaceWidth = Math.round(surfaceRect?.surfaceWidth ?? 0)
+      const surfaceHeight = Math.round(surfaceRect?.surfaceHeight ?? 0)
+      if (surfaceWidth > 0 && surfaceHeight > 0) {
+        this.onOsdSurfaceLoad(surfaceId, surfaceWidth, surfaceHeight)
+      }
+    } catch (error) {
+      salmonLogger.addLog(TAG, '[OSD] Failed to query OSD Surface geometry: ' + error, true)
+    }
   }
 
   build() {
@@ -140,12 +153,18 @@ export struct MpvXComponent {
             try {
               const surfaceId = this.osdXController?.getXComponentSurfaceId()
               if (surfaceId) {
-                this.onOsdSurfaceLoad(surfaceId)
+                this.notifyOsdSurface(surfaceId)
               } else {
                 salmonLogger.addLog(TAG, '[OSD] Failed to get OSD Surface ID', false)
               }
             } catch (error) {
               salmonLogger.addLog(TAG, '[OSD] Error in OSD onLoad: ' + error, true)
+            }
+          })
+          .onSizeChange((_oldValue: SizeOptions, _newValue: SizeOptions) => {
+            const surfaceId = this.osdXController?.getXComponentSurfaceId()
+            if (surfaceId) {
+              this.notifyOsdSurface(surfaceId)
             }
           })
       }

@@ -1,6 +1,6 @@
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import { CoverLayoutMode, ListDisplayMode } from '../common/enum/DisplayMode'
-import { MpvDecodingMethod } from '../controller/MpvController/MpvTypes'
+import { MpvDecodingMethod, MpvGpuApi } from '../controller/MpvController/MpvTypes'
 import { UIUtils } from '@kit.ArkUI'
 
 class SettingUtil {
@@ -18,6 +18,7 @@ class SettingUtil {
   public recentPlay: boolean = true
   public showToast: boolean = true
   public defaultPlayerEngine: string = '系统播放器'
+  public shortVideoMode: boolean = false
   public subtitleSize: string = '22'
   public subtitlePosition: number = 90
   public subtitleColor: string = '#F0F0F0'
@@ -35,6 +36,7 @@ class SettingUtil {
   public listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
   public coverLayout: CoverLayoutMode = CoverLayoutMode.VERTICAL_PLATE
   public mpvDecodingMethod: MpvDecodingMethod = MpvDecodingMethod.HARDWARE_SURFACE
+  public mpvGpuApi: MpvGpuApi = MpvGpuApi.OPENGL
   public mpvShaderMode: number = 0
   public superResolutionState: boolean = false
   public smartRotation: boolean = true

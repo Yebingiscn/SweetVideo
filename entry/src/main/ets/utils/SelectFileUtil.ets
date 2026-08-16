@@ -570,29 +570,33 @@ export default class SelectFileUtil {
     return Preferences.findVideoByDate(PathUtils.appContext!, videoDate)
   }
 
-  // 获取下一个视频
-  static getNextItem(list: VideoMetadata[], date: string) {
+  // 根据方向获取相邻视频
+  static getAdjacentItem(list: VideoMetadata[], date: string,
+    direction: 'previous' | 'next', wrap: boolean): VideoMetadata | undefined {
+    if (list.length === 0) {
+      return undefined
+    }
     const currentIndex = list.findIndex(i => i.date === date)
     if (currentIndex === -1) {
       return list[0]
-    } // 如果没有找到当前项，返回 第一项
-    let nextIndex = (currentIndex + 1) % list.length
+    }
+    const step = direction === 'next' ? 1 : -1
+    let adjacentIndex = currentIndex + step
+    const directAdjacentIndex = wrap
+      ? (adjacentIndex + list.length) % list.length
+      : adjacentIndex
     for (let i = 0; i < list.length; i++) {
-      if (VideoInfoUtil.videoWidthAndHeightFormat(String(list[nextIndex].size)) !== '0 x 0') {
-        return list[nextIndex]
+      if (wrap) {
+        adjacentIndex = (adjacentIndex + list.length) % list.length
+      } else if (adjacentIndex < 0 || adjacentIndex >= list.length) {
+        return undefined
       }
-      nextIndex = (nextIndex + 1) % list.length // 移动到下一个索引
+      if (VideoInfoUtil.videoWidthAndHeightFormat(String(list[adjacentIndex].size)) !== '0 x 0') {
+        return list[adjacentIndex]
+      }
+      adjacentIndex += step
     }
-    return list[(currentIndex + 1) % list.length] // 如果没有找到有效项，返回下一个项，0x0会自动调用其他播放核心
-  }
-
-  // 判断是否为最后一个视频
-  static isLastItem(list: VideoMetadata[], date: string) {
-    const currentIndex = list.findIndex(i => i.date === date)
-    if (currentIndex === -1) {
-      return true
-    }
-    return (list.length - 1) === currentIndex
+    return list[directAdjacentIndex]
   }
 
   static getItemFromSearch(list: VideoMetadata[], value: string): VideoMetadata[] {

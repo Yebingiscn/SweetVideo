@@ -688,6 +688,26 @@ export struct SideBarContentComponent {
               this.pathStack.pushPathByName(NavigationAddress.STREAM_PAGE, null)
             })
 
+            Button({ type: ButtonType.Normal, stateEffect: true }) {
+              Row() {
+                SymbolGlyph($r('sys.symbol.dot_radiowaves_left_and_right'))
+                  .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                Text('IPTV')
+                  .fontSize(15)
+                  .margin({ left: 10, right: 12 })
+                  .textOverflow({ overflow: TextOverflow.MARQUEE })
+              }
+            }
+            .align(Alignment.Start)
+            .padding({ left: 16, right: 16 })
+            .attributeModifier(new ButtonFancyModifier('100%', 60))
+            .backgroundColor(Color.Transparent)
+            .animation({ duration: 300, curve: Curve.Ease })
+            .onClick(() => {
+              this.sideBarController.closeIfOverlay(false)
+              this.pathStack.pushPathByName(NavigationAddress.IPTV_SOURCE_PAGE, null)
+            })
+
           }
           .backgroundColor($r('app.color.list_item_background'))
           .width('100%')

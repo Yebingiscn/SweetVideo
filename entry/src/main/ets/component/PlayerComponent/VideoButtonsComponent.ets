@@ -1,9 +1,7 @@
 import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
-import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
 import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import AVSessionUtil from '../../utils/AVSessionUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
-import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { AVCastPicker } from '@kit.AVSessionKit'
 
 class VideoControlIconValue {
@@ -53,13 +51,12 @@ export struct VideoButtonsComponent {
 
   @Event onTogglePlaybackClick: () => void = () => {
   }
+  @Event onPlayPreviousVideoClick: () => void = () => {
+  }
   @Event onPlayNextVideoClick: () => void = () => {
   }
   @Event onSideBaClose: () => void = () => {
   }
-  @Event onChangeRepeatMode: (_repeatMode: SweetRepeatMode) => void = () => {
-  }
-
   @Styles
   circleButton() {
     .attributeModifier(new ButtonFancyModifier(40, 40))
@@ -69,6 +66,15 @@ export struct VideoButtonsComponent {
 
   build() {
     Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceEvenly }) {
+      // 上一首按钮
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        VideoControlIcon({ icon: $r('sys.symbol.backward_end_fill') })
+      }
+      .circleButton()
+      .onClick(() => {
+        this.onPlayPreviousVideoClick()
+      })
+
       // 播放按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
         VideoControlIcon({ icon: this.player.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill') })
@@ -106,18 +112,6 @@ export struct VideoButtonsComponent {
       .circleButton()
       .bindMenu(this.videoSettingBuilder,
         { backgroundBlurStyle: BlurStyle.COMPONENT_THIN })
-
-      // 循环模式按钮
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
-        VideoControlIcon({ icon: this.getRepeatModeIcon() })
-      }
-      .circleButton()
-      .onClick(() => {
-        const repeatMode = VideoOperateUtil.getRepeatMode(this.player.repeatMode)
-        ToolsUtil.showToast(this.getRepeatModeText(repeatMode))
-        AVSessionUtil.updatePlaybackSessionState(this.player.playing, this.player.playTime, this.player.repeatMode)
-        this.onChangeRepeatMode(repeatMode)
-      })
 
       // 倍速调整按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
@@ -161,41 +155,4 @@ export struct VideoButtonsComponent {
     .width('95%')
   }
 
-  /**
-   * 获取当前播放模式对应的图标
-   * @returns 播放模式图标
-   */
-  private getRepeatModeIcon(): Resource {
-    switch (this.player.repeatMode) {
-      case SweetRepeatMode.SINGLE:
-        return $r('sys.symbol.repeat_1')
-      case SweetRepeatMode.RANDOM:
-        return $r('sys.symbol.shuffle')
-      case SweetRepeatMode.LIST:
-        return $r('sys.symbol.repeat')
-      case SweetRepeatMode.SEQUENCE:
-        return $r('sys.symbol.order_play')
-      default:
-        return $r('sys.symbol.order_play')
-    }
-  }
-
-  /**
-   * 获取当前播放模式对应的文本
-   * @returns 播放模式文本
-   */
-  private getRepeatModeText(repeatMode: SweetRepeatMode): string {
-    switch (repeatMode) {
-      case SweetRepeatMode.SINGLE:
-        return '单曲循环'
-      case SweetRepeatMode.RANDOM:
-        return '随机播放'
-      case SweetRepeatMode.LIST:
-        return '列表循环'
-      case SweetRepeatMode.SEQUENCE:
-        return '顺序播放'
-      default:
-        return '列表循环'
-    }
-  }
 }

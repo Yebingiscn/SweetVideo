@@ -113,6 +113,8 @@ export interface PlayerControllerInterface {
 
   selectSubtitleTrack(trackId: number): void
 
+  selectExternalSubtitleTrack(): void
+
   selectSecondarySubtitleTrack(trackId: number): void
 
   initVolumeAndBrightness(): Promise<void>
@@ -125,7 +127,8 @@ export interface PlayerControllerInterface {
 
   updatePlaybackSpeed(speed: number): void
 
-  playNextVideo(repeatMode: SweetRepeatMode): VideoMetadata | undefined
+  playAdjacentVideo(repeatMode: SweetRepeatMode,
+    direction: 'previous' | 'next'): VideoMetadata | undefined
 
   setExternalSubtitle(nowPlaying: VideoMetadata): void
 
@@ -183,7 +186,7 @@ export interface PlayerControllerInterface {
   onSurfaceLoad(xComponentController: XComponentController, pathStack: NavPathStack,
     windowClass?: Promise<window.Window | undefined>): Promise<void>
 
-  onOsdSurfaceLoad(surfaceId: string): void
+  onOsdSurfaceLoad(surfaceId: string, surfaceWidth: number, surfaceHeight: number): void
 
   restoreSpeedAfterLongPress(lastSpeed: number): void
 

@@ -21,6 +21,9 @@ export class SubtitleManager {
     if (this.subtitleMode === SubtitleMode.NONE || this.subtitleMode === SubtitleMode.AI_SUBTITLE) {
       return Visibility.None
     }
+    if (this.isMpv && this.subtitleMode === SubtitleMode.EXTERNAL_SUBTITLE) {
+      return Visibility.None
+    }
     if (this.isMpv && this.subtitleMode === SubtitleMode.INNER_SUBTITLE) {
       return this.subtitle3DMode === Subtitle3DMode.DISABLED ? Visibility.None : Visibility.Visible
     }
@@ -154,6 +157,8 @@ export class SubtitleManager {
       if (this.player.subtitleTrackSelected >= 0) {
         this.player.selectSubtitleTrack(this.player.subtitleTrackSelected)
       }
+    } else if (this.subtitleMode === SubtitleMode.EXTERNAL_SUBTITLE) {
+      this.player.selectExternalSubtitleTrack()
     } else {
       this.player.selectSubtitleTrack(-1)
       this.player.selectSecondarySubtitleTrack(-1)

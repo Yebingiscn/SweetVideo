@@ -21,6 +21,7 @@ import {
   getChapterList as mpvGetChapterList,
   getCurrentSecondarySubtitleTrack as mpvGetCurrentSecondarySubtitleTrack,
   getCurrentSubtitleTrack as mpvGetCurrentSubtitleTrack,
+  getHardwareDecoder as mpvGetHardwareDecoder,
   getSubtitleTexts as mpvGetSubtitleTexts,
   getDolbyVisionProfile as mpvGetDolbyVisionProfile,
   getDuration as mpvGetDuration,
@@ -28,6 +29,7 @@ import {
   getVideoHdrType as mpvGetVideoHdrType,
   getVideoHeight as mpvGetVideoHeight,
   getVideoWidth as mpvGetVideoWidth,
+  loadExternalSubtitle as mpvLoadExternalSubtitle,
   pause as mpvPause,
   play as mpvPlay,
   registerBufferingStateCallback as mpvRegisterBufferingStateCallback,
@@ -46,6 +48,7 @@ import {
   setDecodeType as mpvSetDecodeType,
   setDvdDevice as mpvSetDvdDevice,
   setGlslShaders as mpvSetGlslShaders,
+  setGpuApi as mpvSetGpuApi,
   setHwdecMode as mpvSetHwdecMode,
   setKeepAspect as mpvSetKeepAspect,
   setLoudnessGain as mpvSetLoudnessGain,
@@ -92,6 +95,8 @@ import { fileIo, fileUri } from '@kit.CoreFileKit';
 import { MpvPlayerEngineAdapter } from '../engine/MpvPlayerEngineAdapter';
 
 const TAG = 'MpvController'
+const LOCAL_DECODING_MODE_TIMEOUT_MS = 500
+const NETWORK_DECODING_MODE_INACTIVITY_TIMEOUT_MS = 15000
 
 class ShaderConfig {
   rawDir: string
@@ -100,6 +105,31 @@ class ShaderConfig {
   constructor(rawDir: string, files: string[]) {
     this.rawDir = rawDir
     this.files = files
+  }
+}
+
+class DecodingModeVerification {
+  targetMode: 'buffer_hw' | 'buffer_sw'
+  savedTime: number
+  savedPlaying: boolean
+  savedVideo: VideoMetadata
+  modeName: string
+  token: number
+  isNetworkStream: boolean
+  lastNetworkSpeed: number = 0
+  lastBufferPercent: number = -1
+  lastCacheDuration: number = -1
+  lastBuffering: boolean = false
+
+  constructor(targetMode: 'buffer_hw' | 'buffer_sw', savedTime: number, savedPlaying: boolean,
+    savedVideo: VideoMetadata, modeName: string, token: number) {
+    this.targetMode = targetMode
+    this.savedTime = savedTime
+    this.savedPlaying = savedPlaying
+    this.savedVideo = savedVideo
+    this.modeName = modeName
+    this.token = token
+    this.isNetworkStream = ToolsUtil.isNetworkUrl(savedVideo.uri)
   }
 }
 
@@ -125,6 +155,8 @@ export class MpvController implements PlayerControllerInterface {
   windowClass = WindowUtil.getWindow()
   surfaceId: string | null = null
   osdSurfaceId: string | null = null
+  private osdSurfaceWidth: number = 0
+  private osdSurfaceHeight: number = 0
   @Trace playTime: number = 0
   @Trace playing: boolean = false
   @Trace networkPlaybackActive: boolean = false
@@ -143,6 +175,8 @@ export class MpvController implements PlayerControllerInterface {
   @Trace subtitleTrack: MpvSubtitleTrack[] = []
   @Trace subtitleTrackSelected: number = -1
   @Trace secondarySubtitleTrackSelected: number = -1
+  private externalSubtitleTrackSelected: number = -1
+  private externalSubtitleCodec: string = ''
   @Trace screenBrightness: number = 0
   @Trace onSwipingVoice: boolean = false
   @Trace subtitleSelected: SubtitleMode = SubtitleMode.NONE
@@ -199,6 +233,8 @@ export class MpvController implements PlayerControllerInterface {
   private resumeAfterBuffering: boolean = false
   private stateChangeResolvers: Map<string, ((value: void) => void)> = new Map()
   private decodingModeVerifyTimer: number = 0
+  private decodingModeVerifyToken: number = 0
+  private pendingDecodingModeVerification: DecodingModeVerification | undefined = undefined
   private smartRotationTimer: number = 0
   private currentPathStack: NavPathStack | null = null
   private activeHwdecMode: MpvDecodingMethod = MpvDecodingMethod.HARDWARE_SURFACE
@@ -206,9 +242,11 @@ export class MpvController implements PlayerControllerInterface {
   private readonly FRAME_FETCH_INTERVAL: number = 200
   private lastFrameFetchPlayTime: number = -1
   private pendingFrameTime: number = -1
+  private frameFetchTimer: number = 0
   private postLoadTasksExecuted: boolean = false
   private initialStartHandledByLoad: boolean = false
   private initialSmartRotationRequested: boolean = false
+  private smartRotationAllowed: boolean = true
   private engineSwitchHandler: PlayerEngineSwitchHandler | undefined = undefined
 
   private get mpvHandle(): number | null {
@@ -281,7 +319,7 @@ export class MpvController implements PlayerControllerInterface {
     _xComponentController?: XComponentController, overrideRepeatMode?: SweetRepeatMode) {
     salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "开始播放下一个视频流程", false)
     const effectiveRepeatMode = overrideRepeatMode ?? this.repeatMode
-    const nextItem = this.playNextVideo(effectiveRepeatMode)
+    const nextItem = this.playAdjacentVideo(effectiveRepeatMode, 'next')
     salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "获取下一个视频项完成", false)
     if (nextItem) {
       salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "存在下一个视频，开始播放", false)
@@ -294,8 +332,9 @@ export class MpvController implements PlayerControllerInterface {
     salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "播放下一个视频前置流程完成", false)
   }
 
-  playNextVideo(repeatMode: SweetRepeatMode): VideoMetadata | undefined {
-    return VideoOperateUtil.computeNextVideo(this.videoMetaDataList, this.nowPlaying, repeatMode)
+  playAdjacentVideo(repeatMode: SweetRepeatMode,
+    direction: 'previous' | 'next'): VideoMetadata | undefined {
+    return VideoOperateUtil.computeAdjacentVideo(this.videoMetaDataList, this.nowPlaying, repeatMode, direction)
   }
 
   async create(): Promise<void> {
@@ -323,42 +362,64 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   async getFrameByTime(time: number, isFirstFrame: boolean) {
-    if (Setting.showFrameImgStatus) {
-      const now = Date.now()
-      if (!isFirstFrame && now - this.lastFrameFetchTime < this.FRAME_FETCH_INTERVAL) {
-        this.pendingFrameTime = time
-        return
+    if (!Setting.showFrameImgStatus) {
+      return
+    }
+    this.pendingFrameTime = time
+    if (isFirstFrame) {
+      if (this.frameFetchTimer) {
+        clearTimeout(this.frameFetchTimer)
+        this.frameFetchTimer = 0
       }
-      if (!isFirstFrame && Math.floor(time) === Math.floor(this.lastFrameFetchPlayTime)) {
-        return
-      }
-      this.lastFrameFetchTime = now
-      this.lastFrameFetchPlayTime = time
+      await this.fetchPendingFrame()
+      return
+    }
+    this.schedulePendingFrameFetch()
+  }
 
-      if (!VideoOperateUtil.updatePix) {
-        this.pendingFrameTime = time
-        return
+  private schedulePendingFrameFetch(): void {
+    if (this.pendingFrameTime < 0 || !VideoOperateUtil.updatePix || this.frameFetchTimer) {
+      return
+    }
+    const remaining = this.FRAME_FETCH_INTERVAL - (Date.now() - this.lastFrameFetchTime)
+    if (remaining <= 0) {
+      this.fetchPendingFrame()
+      return
+    }
+    this.frameFetchTimer = setTimeout(() => {
+      this.frameFetchTimer = 0
+      this.fetchPendingFrame()
+    }, remaining)
+  }
+
+  private async fetchPendingFrame(): Promise<void> {
+    if (this.pendingFrameTime < 0 || !VideoOperateUtil.updatePix) {
+      return
+    }
+    const time = this.pendingFrameTime
+    this.pendingFrameTime = -1
+    if (Math.floor(time) === Math.floor(this.lastFrameFetchPlayTime)) {
+      this.schedulePendingFrameFetch()
+      return
+    }
+    this.lastFrameFetchTime = Date.now()
+    this.lastFrameFetchPlayTime = time
+    VideoOperateUtil.updatePix = false
+    try {
+      const img = await VideoOperateUtil.fetchFrameByTime(time, this.nowPlaying?.size)
+      if (img && Math.abs(this.playTime - time) < 3000) {
+        this.pixelMap = img
       }
-      VideoOperateUtil.updatePix = false
-      try {
-        const img = await VideoOperateUtil.fetchFrameByTime(time, this.nowPlaying?.size)
-        if (img && Math.abs(this.playTime - time) < 3000) {
-          this.pixelMap = img
-        }
-      } catch (error) {
-        salmonLogger.addLog(TAG, '获取视频帧失败:' + error, true)
-      } finally {
-        VideoOperateUtil.updatePix = true
-        if (this.pendingFrameTime >= 0 && this.pendingFrameTime !== this.lastFrameFetchPlayTime) {
-          const nextTime = this.pendingFrameTime
-          this.pendingFrameTime = -1
-          this.getFrameByTime(nextTime, false)
-        }
-      }
+    } catch (error) {
+      salmonLogger.addLog(TAG, '获取视频帧失败:' + error, true)
+    } finally {
+      VideoOperateUtil.updatePix = true
+      this.schedulePendingFrameFetch()
     }
   }
 
   async init(url?: string, pathStack?: NavPathStack): Promise<void> {
+    this.cancelDecodingModeVerification()
     const requiredMode = this.computeDecodeType()
     if (this.mpvHandle && requiredMode !== this.activeHwdecMode) {
       salmonLogger.addLog(TAG,
@@ -391,7 +452,8 @@ export class MpvController implements PlayerControllerInterface {
     // native fallback notifications cannot be lost during decoder startup.
     this.registerPlaybackCompleteListener(pathStack!)
     this.registerSurfaceModeErrorCallback()
-    this.engineAdapter.load(playUrl, startPositionSeconds, initialSubtitleTrackId)
+    this.engineAdapter.load(playUrl, startPositionSeconds, initialSubtitleTrackId,
+      this.nowPlaying?.network_user_agent)
     this.applySubtitleStyle()
 
     if (!ToolsUtil.isNetworkUrl(url!)) {
@@ -414,24 +476,17 @@ export class MpvController implements PlayerControllerInterface {
     this.schedulePostLoadTasks()
   }
 
-  setOsdSurface(surfaceId: string, playAreaWidth: number, playAreaHeight: number): void {
-    // 使用实际的播放区域尺寸，而不是设备屏幕尺寸
-    // 这样 OSD Surface 尺寸会与 XComponent 的实际布局尺寸一致
-    mpvSetOsdSurface(surfaceId, playAreaWidth, playAreaHeight)
+  setOsdSurface(surfaceId: string, surfaceWidth: number, surfaceHeight: number): void {
+    mpvSetOsdSurface(surfaceId, surfaceWidth, surfaceHeight)
   }
 
-  // 解决字幕模糊问题：使用视频原生分辨率而非显示区域尺寸
+  // OSD 始终按 XComponent 的实际 Surface 像素尺寸渲染，避免 4K/8K
+  // 视频触发同分辨率 BGRA 全帧绘制和复制。
   syncOsdSurfaceSize(): void {
-    if (!this.osdSurfaceId) {
+    if (!this.osdSurfaceId || this.osdSurfaceWidth <= 0 || this.osdSurfaceHeight <= 0) {
       return
     }
-    // 使用视频原生分辨率，而不是 playAreaWidth/Height（显示区域尺寸）
-    const videoWidth = this.getPlayAreaWidth()
-    const videoHeight = this.getPlayAreaHeight()
-
-    if (videoWidth > 0 && videoHeight > 0) {
-      this.setOsdSurface(this.osdSurfaceId, videoWidth, videoHeight)
-    }
+    this.setOsdSurface(this.osdSurfaceId, this.osdSurfaceWidth, this.osdSurfaceHeight)
   }
 
   setPlayerCallback(pathStack: NavPathStack, _xComponentController?: XComponentController,
@@ -496,13 +551,6 @@ export class MpvController implements PlayerControllerInterface {
           ToolsUtil.showToast('已跳过片尾')
         }
       }
-      if (this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
-        const newSubtitle = SubtitleUtil.getSubtitlesAtTime(duration)
-        if (newSubtitle !== this.lastSubtitle) {
-          this.lastSubtitle = newSubtitle
-          this.subtitle = newSubtitle
-        }
-      }
       if (this.abCircleStatus && this.playing) {
         if (this.nowPlaying?.pointA !== undefined && this.nowPlaying?.pointB !== undefined) {
           const pointA = this.nowPlaying.pointA
@@ -540,6 +588,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   prepare(): void {
+    this.smartRotationAllowed = true
     this.create().catch(() => {
       salmonLogger.addLog(TAG, 'prepare create failed', true)
     })
@@ -800,16 +849,30 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   async getSubtitleTrackList(): Promise<void> {
-    this.subtitleTrack = mpvGetSubtitleTracks(this.mpvHandle) as MpvSubtitleTrack[]
+    const allSubtitleTracks = mpvGetSubtitleTracks(this.mpvHandle) as MpvSubtitleTrack[]
+    const externalTracks = allSubtitleTracks.filter((track: MpvSubtitleTrack) => track.external)
+    if (externalTracks.length > 0) {
+      const selectedExternalTrack = externalTracks.find((track: MpvSubtitleTrack) =>
+        track.id === this.externalSubtitleTrackSelected) ?? externalTracks[externalTracks.length - 1]
+      this.externalSubtitleTrackSelected = selectedExternalTrack.id
+      this.externalSubtitleCodec = selectedExternalTrack.codec ?? ''
+    } else {
+      this.externalSubtitleTrackSelected = -1
+      this.externalSubtitleCodec = ''
+    }
+    this.subtitleTrack = allSubtitleTracks.filter((track: MpvSubtitleTrack) => !track.external)
     if (this.subtitleTrack.length === 0) {
       this.subtitleTrackSelected = -1
       this.secondarySubtitleTrackSelected = -1
       return
     }
 
+    const previousTrackId = this.subtitleTrackSelected
     const currentTrackId = mpvGetCurrentSubtitleTrack(this.mpvHandle)
     const hasCurrentTrack = this.subtitleTrack.some((track) => track.id === currentTrackId)
-    this.subtitleTrackSelected = hasCurrentTrack ? currentTrackId : this.subtitleTrack[0].id
+    const hasPreviousTrack = this.subtitleTrack.some((track) => track.id === previousTrackId)
+    this.subtitleTrackSelected = hasCurrentTrack ? currentTrackId :
+      (hasPreviousTrack ? previousTrackId : this.subtitleTrack[0].id)
     const currentSecondaryTrackId = mpvGetCurrentSecondarySubtitleTrack(this.mpvHandle)
     const hasCurrentSecondaryTrack = this.subtitleTrack.some((track) =>
       track.id === currentSecondaryTrackId && track.id !== this.subtitleTrackSelected)
@@ -825,6 +888,14 @@ export class MpvController implements PlayerControllerInterface {
     }
     this.subtitleTrackSelected = trackId
     mpvSelectSubtitle(this.mpvHandle, trackId)
+    this.applySubtitleStyle()
+    this.updateMpvSubtitlePresentation()
+  }
+
+  selectExternalSubtitleTrack(): void {
+    this.selectSecondarySubtitleTrack(-1)
+    mpvSelectSubtitle(this.mpvHandle, this.externalSubtitleTrackSelected)
+    this.applySubtitleStyle()
     this.updateMpvSubtitlePresentation()
   }
 
@@ -834,6 +905,7 @@ export class MpvController implements PlayerControllerInterface {
     }
     this.secondarySubtitleTrackSelected = trackId
     mpvSelectSecondarySubtitle(this.mpvHandle, trackId)
+    this.applySubtitleStyle()
     this.updateMpvSubtitlePresentation()
   }
 
@@ -861,9 +933,6 @@ export class MpvController implements PlayerControllerInterface {
       VideoOperateUtil.saveVideoWeightAndHeight(PathUtils.appContext!, this.nowPlaying)
     }
     this.applyScreenExtend()
-    if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE) {
-      this.syncOsdSurfaceSize() // 不加这里就会变得很模糊？？？
-    }
     this.applySubtitleStyle()
     PiPWindowUtil.updateContentSize()
   }
@@ -974,17 +1043,34 @@ export class MpvController implements PlayerControllerInterface {
   async setExternalSubtitle(nowPlaying: VideoMetadata) {
     SubtitleUtil.offsetMillis = nowPlaying.subtitle_offset_millis ?? 0
     let externalSubtitleLoaded = false
+    this.externalSubtitleTrackSelected = -1
+    this.externalSubtitleCodec = ''
+    this.subtitle = ''
+    this.lastSubtitle = ''
     if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, nowPlaying.date!)) {
       try {
+        const existingExternalTrackIds = (mpvGetSubtitleTracks(this.mpvHandle) as MpvSubtitleTrack[])
+          .filter((track: MpvSubtitleTrack) => track.external)
+          .map((track: MpvSubtitleTrack) => track.id)
         let subtitle = fileIo.openSync(PathUtils.subtitlePath! + nowPlaying.date, fileIo.OpenMode.READ_ONLY)
-        const success = await SubtitleUtil.parseSubtitleProcess(subtitle.path, nowPlaying.external_subtitle_format)
+        externalSubtitleLoaded = mpvLoadExternalSubtitle(this.mpvHandle, {
+          path: subtitle.path,
+          lang: 'unknown',
+          select: false
+        })
         try {
           fileIo.closeSync(subtitle)
         } catch (_e) {
         }
-        if (success) {
-          externalSubtitleLoaded = true
-          this.subtitle = SubtitleUtil.getSubtitlesAtTime(this.playTime)
+        if (externalSubtitleLoaded) {
+          const updatedTracks = mpvGetSubtitleTracks(this.mpvHandle) as MpvSubtitleTrack[]
+          const addedTrack = updatedTracks.filter((track: MpvSubtitleTrack) => track.external &&
+            !existingExternalTrackIds.includes(track.id)).pop()
+          if (addedTrack) {
+            this.externalSubtitleTrackSelected = addedTrack.id
+            this.externalSubtitleCodec = addedTrack.codec ?? ''
+          }
+          await this.getSubtitleTrackList()
         }
       } catch (_error) {
       }
@@ -999,40 +1085,45 @@ export class MpvController implements PlayerControllerInterface {
         SubtitleUtil.offsetMillis = 0
 
       } else if (preferredMode !== undefined && preferredMode >= SubtitleMode.NONE) {
-        if (preferredMode === SubtitleMode.INNER_SUBTITLE) {
-          if (this.subtitleTrack.length === 0) {
-            this.subtitleSelected = SubtitleMode.NONE
-            return
-          }
-          if (nowPlaying.subtitle_track_id !== undefined) {
+        if (preferredMode === SubtitleMode.INNER_SUBTITLE && this.subtitleTrack.length === 0) {
+          this.subtitleSelected = SubtitleMode.NONE
+        } else {
+          if (preferredMode === SubtitleMode.INNER_SUBTITLE && nowPlaying.subtitle_track_id !== undefined &&
+            this.subtitleTrack.some((track: MpvSubtitleTrack) => track.id === nowPlaying.subtitle_track_id)) {
             this.subtitleTrackSelected = nowPlaying.subtitle_track_id
             if (mpvGetCurrentSubtitleTrack(this.mpvHandle) !== nowPlaying.subtitle_track_id) {
-              this.selectSubtitleTrack(nowPlaying.subtitle_track_id)
+              mpvSelectSubtitle(this.mpvHandle, nowPlaying.subtitle_track_id)
             }
           }
+          if (nowPlaying.subtitle_offset_millis !== undefined) {
+            SubtitleUtil.offsetMillis = nowPlaying.subtitle_offset_millis
+          }
+          this.subtitleSelected = preferredMode
         }
-        if (nowPlaying.subtitle_offset_millis !== undefined) {
-          SubtitleUtil.offsetMillis = nowPlaying.subtitle_offset_millis
-        }
-        this.subtitleSelected = preferredMode
       } else {
         this.subtitleSelected = SubtitleMode.NONE
       }
     } else {
       this.subtitleSelected = externalSubtitleLoaded ? SubtitleMode.EXTERNAL_SUBTITLE : SubtitleMode.NONE
     }
+    if (this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
+      this.selectExternalSubtitleTrack()
+    } else if (this.subtitleSelected === SubtitleMode.INNER_SUBTITLE && this.subtitleTrackSelected >= 0) {
+      this.selectSubtitleTrack(this.subtitleTrackSelected)
+    } else {
+      mpvSelectSubtitle(this.mpvHandle, -1)
+      this.selectSecondarySubtitleTrack(-1)
+    }
     this.setSubtitleOffset(SubtitleUtil.offsetMillis)
+    this.applySubtitleStyle()
     const saved3DMode = nowPlaying.subtitle_3d_mode
     this.setSubtitle3DMode(saved3DMode !== undefined &&
       [Subtitle3DMode.DISABLED, Subtitle3DMode.SIDE_BY_SIDE, Subtitle3DMode.TOP_AND_BOTTOM].includes(saved3DMode) ?
       saved3DMode as Subtitle3DMode : Subtitle3DMode.DISABLED)
   }
 
-  refreshExternalSubtitlePreview(offset: number): void {
-    if (this.subtitleSelected !== SubtitleMode.EXTERNAL_SUBTITLE) {
-      return
-    }
-    this.subtitle = SubtitleUtil.getSubtitlesAtTime(this.playTime, offset)
+  refreshExternalSubtitlePreview(_offset: number): void {
+    // MPV applies the delay directly while rendering the external subtitle.
   }
 
   setSubtitleOffset(offsetMillis: number): void {
@@ -1067,17 +1158,9 @@ export class MpvController implements PlayerControllerInterface {
     return true
   }
 
-  refreshExternalSubtitleByPlaybackTime(isAdjustingSubtitleOffset: boolean, subtitleVisibility: Visibility): void {
-    if (isAdjustingSubtitleOffset) {
-      return
-    }
-    if (this.subtitleSelected !== SubtitleMode.EXTERNAL_SUBTITLE) {
-      return
-    }
-    if (subtitleVisibility !== Visibility.Visible) {
-      return
-    }
-    this.subtitle = SubtitleUtil.getSubtitlesAtTime(this.playTime)
+  refreshExternalSubtitleByPlaybackTime(_isAdjustingSubtitleOffset: boolean,
+    _subtitleVisibility: Visibility): void {
+    // MPV owns cue timing and rendering for external subtitles.
   }
 
   getAdjacentSubtitleOffset(direction: 'prev' | 'next', currentOffset: number): number | undefined {
@@ -1177,36 +1260,21 @@ export class MpvController implements PlayerControllerInterface {
     }
   }
 
-  onOsdSurfaceLoad(surfaceId: string): void {
+  onOsdSurfaceLoad(surfaceId: string, surfaceWidth: number, surfaceHeight: number): void {
     this.osdSurfaceId = surfaceId
-    // The video-size event normally arrives before the lazily-created OSD
-    // XComponent is loaded. Use the current video resolution here as well so
-    // the first subtitle frame is not rendered into a smaller play-area-sized
-    // buffer and then enlarged by the compositor. A later size event will keep
-    // it in sync; the play-area size is only a startup fallback.
-    const videoWidth = this.getPlayAreaWidth()
-    const videoHeight = this.getPlayAreaHeight()
-    if (videoWidth > 0 && videoHeight > 0) {
-      this.setOsdSurface(surfaceId, videoWidth, videoHeight)
-    } else if (this.playAreaWidth > 0 && this.playAreaHeight > 0) {
-      this.setOsdSurface(surfaceId, this.playAreaWidth, this.playAreaHeight)
-    }
+    this.osdSurfaceWidth = surfaceWidth
+    this.osdSurfaceHeight = surfaceHeight
+    this.syncOsdSurfaceSize()
   }
 
   setSubtitlePosition(position: number): void {
     this.subtitlePosition = Math.max(5, Math.min(95, Math.round(position)))
-    if (this.mpvHandle) {
-      mpvSetSubtitleStyle(this.mpvHandle,
-        SubtitleStyleUtil.getMpvStyle(this.subtitlePosition, this.subtitleSize, this.playAreaHeight))
-    }
+    this.applySubtitleStyle()
   }
 
   setSubtitleSize(size: number): void {
     this.subtitleSize = Math.max(14, Math.min(48, Math.round(size)))
-    if (this.mpvHandle) {
-      mpvSetSubtitleStyle(this.mpvHandle,
-        SubtitleStyleUtil.getMpvStyle(this.subtitlePosition, this.subtitleSize, this.playAreaHeight))
-    }
+    this.applySubtitleStyle()
   }
 
   restoreSpeedAfterLongPress(lastSpeed: number): void {
@@ -1219,7 +1287,9 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   onWillDisappearCleanup(): void {
+    this.smartRotationAllowed = false
     this.cancelSmartRotationTimer()
+    this.userListener?.off('videoSizeReady')
   }
 
   async onWillDisappearRelease(_windowClass?: Promise<window.Window | undefined>): Promise<void> {
@@ -1334,7 +1404,7 @@ export class MpvController implements PlayerControllerInterface {
     this.initialSmartRotationRequested = false
     const videoWidth = this.nowPlaying?.size[0] || 0
     const videoHeight = this.nowPlaying?.size[1] || 0
-    if (!Setting.smartRotation || videoWidth <= videoHeight ||
+    if (!this.smartRotationAllowed || !Setting.smartRotation || videoWidth <= videoHeight ||
       this.screenWidth <= 0 || this.screenHeight <= this.screenWidth) {
       return
     }
@@ -1344,7 +1414,7 @@ export class MpvController implements PlayerControllerInterface {
       : window.Orientation.AUTO_ROTATION_RESTRICTED
     try {
       const targetWindow = await this.windowClass
-      if (!targetWindow) {
+      if (!targetWindow || !this.smartRotationAllowed) {
         return
       }
       await targetWindow.setPreferredOrientation(orientation)
@@ -1371,14 +1441,15 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   private async executePostLoadTasks() {
-    if (this.postLoadTasksExecuted) {
+    if (this.postLoadTasksExecuted || !this.smartRotationAllowed) {
       return
     }
     this.postLoadTasksExecuted = true
     clearTimeout(this.smartRotationTimer)
     this.userListener?.off('videoSizeReady')
 
-    if (!this.mpvHandle || this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
+    if (!this.smartRotationAllowed || !this.mpvHandle || this.isInState(MpvPlayerState.RELEASING) ||
+      this.isInState(MpvPlayerState.IDLE)) {
       return
     }
     this.setRotation()
@@ -1398,7 +1469,7 @@ export class MpvController implements PlayerControllerInterface {
     }
     this.initialStartHandledByLoad = false
     this.nowPlaying!.time = this.getDuration()
-    if (!this.initialSmartRotationRequested && Setting.smartRotation &&
+    if (this.smartRotationAllowed && !this.initialSmartRotationRequested && Setting.smartRotation &&
       this.playAreaWidth > this.playAreaHeight &&
       this.screenHeight > this.screenWidth) {
       salmonLogger.addLog(TAG, "智能旋转条件满足，开始设置方向", false)
@@ -1415,7 +1486,7 @@ export class MpvController implements PlayerControllerInterface {
     if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE && !this.osdVisibility) {
       this.osdVisibility = true
     }
-    this.setExternalSubtitle(this.nowPlaying!)
+    await this.setExternalSubtitle(this.nowPlaying!)
     if (this.initialPlaying === false) {
       this.pause()
     }
@@ -1474,6 +1545,7 @@ export class MpvController implements PlayerControllerInterface {
 
   private applyDecodeType(): void {
     const decodeType = this.computeDecodeType()
+    mpvSetGpuApi(Setting.mpvGpuApi)
     if (decodeType === MpvDecodingMethod.HARDWARE_BUFFER &&
       this.nowPlaying && SUPPORT_AUDIO_FORMAT.includes(this.nowPlaying.format.toLowerCase())) {
       salmonLogger.addLog(TAG, '[MpvPlayer] Audio file detected, using Buffer hardware decode mode')
@@ -1485,6 +1557,7 @@ export class MpvController implements PlayerControllerInterface {
         break
       case MpvDecodingMethod.SOFTWARE:
         mpvSetDecodeType(1)
+        mpvSetHwdecMode(0)
         break
       case MpvDecodingMethod.HARDWARE_BUFFER:
         mpvSetDecodeType(0)
@@ -1492,6 +1565,7 @@ export class MpvController implements PlayerControllerInterface {
         break
       default:
         mpvSetDecodeType(1)
+        mpvSetHwdecMode(0)
     }
   }
 
@@ -1530,10 +1604,11 @@ export class MpvController implements PlayerControllerInterface {
     }
     try {
       mpvRegisterVideoSizeChangedCallback(() => {
-        salmonLogger.addLog(TAG, '[MpvController] Video size changed, syncing OSD surface size')
-        if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE) {
-          this.syncOsdSurfaceSize()
+        this.completeDecodingModeVerificationOnVideoSize()
+        if (!this.smartRotationAllowed) {
+          return
         }
+        salmonLogger.addLog(TAG, '[MpvController] Video size changed, syncing OSD surface size')
         this.userListener?.emit('videoSizeReady', 0)
         if (this.postLoadTasksExecuted) {
           this.setRotation()
@@ -1776,6 +1851,7 @@ export class MpvController implements PlayerControllerInterface {
       salmonLogger.addLog(TAG, '[MpvController] Already switching mode, skipping')
       return
     }
+    this.cancelDecodingModeVerification()
 
     const savedTime = currentTime ?? 0
     const savedPlaying = wasPlaying ?? this.playing
@@ -1788,6 +1864,7 @@ export class MpvController implements PlayerControllerInterface {
     const savedVideo = currentVideo ?? this.nowPlaying
 
     this.cleanupMpvInstance()
+    mpvSetGpuApi(Setting.mpvGpuApi)
 
     if (targetMode === 'buffer_hw') {
       mpvSetDecodeType(0)
@@ -1820,7 +1897,10 @@ export class MpvController implements PlayerControllerInterface {
       if (reloadStartSeconds !== undefined) {
         this.initialStartHandledByLoad = true
       }
-      this.engineAdapter.load(reloadUrl, reloadStartSeconds, this.getInitialSubtitleTrackId())
+      this.registerVideoSizeChangedCallback()
+      this.startDecodingModeVerification(targetMode, savedTime, savedPlaying, savedVideo, modeName)
+      this.engineAdapter.load(reloadUrl, reloadStartSeconds, this.getInitialSubtitleTrackId(),
+        savedVideo.network_user_agent)
       this.applySubtitleStyle()
       this.getData().catch(() => {
         salmonLogger.addLog(TAG, 'reload callbacks failed', true)
@@ -1830,10 +1910,6 @@ export class MpvController implements PlayerControllerInterface {
         this.registerPlaybackCompleteListener(this.currentPathStack)
       }
 
-      this.decodingModeVerifyTimer = setTimeout(() => {
-        this.decodingModeVerifyTimer = 0
-        this.verifyAndResumePlayback(targetMode, savedTime, savedPlaying, savedVideo, modeName)
-      }, 500)
     } else {
       this.transitionTo(MpvPlayerState.IDLE)
     }
@@ -1866,6 +1942,7 @@ export class MpvController implements PlayerControllerInterface {
         this.networkBufferPercent = state.bufferPercent
         this.networkCacheDuration = state.cacheDuration
         this.networkBuffering = state.buffering
+        this.handleDecodingModeNetworkState(state.speed, state.bufferPercent, state.cacheDuration, state.buffering)
       })
       this.networkStateCallbackRegistered = true
     } catch (error) {
@@ -1878,7 +1955,8 @@ export class MpvController implements PlayerControllerInterface {
       return
     }
     mpvSetSubtitleStyle(this.mpvHandle,
-      SubtitleStyleUtil.getMpvStyle(this.subtitlePosition, this.subtitleSize, this.playAreaHeight))
+      SubtitleStyleUtil.getMpvStyle(this.subtitlePosition, this.subtitleSize, this.playAreaHeight,
+        this.shouldPreserveCurrentAssStyle(), this.shouldPreserveSecondaryAssStyle()))
   }
 
   private updateMpvSubtitlePresentation(): void {
@@ -1896,14 +1974,44 @@ export class MpvController implements PlayerControllerInterface {
     if (this.mpvSubtitle3DMode !== Subtitle3DMode.DISABLED && !this.supportsSubtitle3D()) {
       this.mpvSubtitle3DMode = Subtitle3DMode.DISABLED
     }
-    const showMpvSubtitle = this.subtitleSelected === SubtitleMode.INNER_SUBTITLE &&
-      this.subtitleTrackSelected >= 0
+    const showMpvSubtitle = (this.subtitleSelected === SubtitleMode.INNER_SUBTITLE &&
+      this.subtitleTrackSelected >= 0) || (this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE &&
+      this.externalSubtitleTrackSelected >= 0)
     mpvSetSubtitleRenderVisibility(this.mpvHandle, showMpvSubtitle,
       showMpvSubtitle && this.secondarySubtitleTrackSelected >= 0)
-    if (this.subtitleSelected === SubtitleMode.INNER_SUBTITLE) {
+    if (this.subtitleSelected === SubtitleMode.INNER_SUBTITLE ||
+      this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
       this.subtitle = ''
       this.lastSubtitle = ''
     }
+  }
+
+  private shouldPreserveCurrentAssStyle(): boolean {
+    if (this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
+      return this.isAssCodec(this.externalSubtitleCodec) ||
+        this.isAssCodec(this.nowPlaying?.external_subtitle_format ?? '')
+    }
+    if (this.subtitleSelected !== SubtitleMode.INNER_SUBTITLE) {
+      return false
+    }
+    const selectedTrack = this.subtitleTrack.find((track: MpvSubtitleTrack) =>
+      track.id === this.subtitleTrackSelected)
+    return this.isAssCodec(selectedTrack?.codec ?? '')
+  }
+
+  private isAssCodec(codec: string): boolean {
+    const normalizedCodec = codec.trim().toLowerCase().replace('.', '')
+    return normalizedCodec === 'ass' || normalizedCodec === 'ssa'
+  }
+
+  private shouldPreserveSecondaryAssStyle(): boolean {
+    if (this.subtitleSelected !== SubtitleMode.INNER_SUBTITLE ||
+      this.secondarySubtitleTrackSelected < 0) {
+      return false
+    }
+    const selectedTrack = this.subtitleTrack.find((track: MpvSubtitleTrack) =>
+      track.id === this.secondarySubtitleTrackSelected)
+    return this.isAssCodec(selectedTrack?.codec ?? '')
   }
 
   private refreshMpv3DSubtitleText(): void {
@@ -1987,54 +2095,134 @@ export class MpvController implements PlayerControllerInterface {
     }
   }
 
-  private verifyAndResumePlayback(
-    targetMode: 'buffer_hw' | 'buffer_sw',
-    savedTime: number,
-    savedPlaying: boolean,
-    savedVideo: VideoMetadata | undefined,
-    modeName: string
-  ) {
-    if (this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
-      salmonLogger.addLog(TAG, '[MpvController] Instance released, aborting verifyAndResumePlayback', true)
+  private startDecodingModeVerification(targetMode: 'buffer_hw' | 'buffer_sw', savedTime: number,
+    savedPlaying: boolean, savedVideo: VideoMetadata, modeName: string): void {
+    const verification = new DecodingModeVerification(targetMode, savedTime, savedPlaying, savedVideo, modeName,
+      this.decodingModeVerifyToken)
+    this.pendingDecodingModeVerification = verification
+    this.scheduleDecodingModeInactivityTimeout(verification)
+    this.completeDecodingModeVerificationOnVideoSize()
+  }
+
+  private completeDecodingModeVerificationOnVideoSize(): void {
+    const verification = this.pendingDecodingModeVerification
+    if (!verification || verification.token !== this.decodingModeVerifyToken ||
+      this.getPlayAreaWidth() <= 0 || this.getPlayAreaHeight() <= 0) {
       return
     }
+    this.finishDecodingModeVerification(verification)
+  }
 
-    const videoWidth = this.getPlayAreaWidth()
-    const videoHeight = this.getPlayAreaHeight()
+  private handleDecodingModeNetworkState(speed: number, bufferPercent: number, cacheDuration: number,
+    buffering: boolean): void {
+    this.completeDecodingModeVerificationOnVideoSize()
+    const verification = this.pendingDecodingModeVerification
+    if (!verification || !verification.isNetworkStream || verification.token !== this.decodingModeVerifyToken) {
+      return
+    }
+    const hasProgress = speed > 0 || bufferPercent > verification.lastBufferPercent ||
+      cacheDuration > verification.lastCacheDuration || buffering !== verification.lastBuffering
+    verification.lastNetworkSpeed = speed
+    verification.lastBufferPercent = bufferPercent
+    verification.lastCacheDuration = cacheDuration
+    verification.lastBuffering = buffering
+    if (hasProgress) {
+      this.scheduleDecodingModeInactivityTimeout(verification)
+    }
+  }
 
-    const isAudioFile = savedVideo ? SUPPORT_AUDIO_FORMAT.includes(savedVideo.format.toLowerCase()) : false
+  private scheduleDecodingModeInactivityTimeout(verification: DecodingModeVerification): void {
+    if (this.decodingModeVerifyTimer) {
+      clearTimeout(this.decodingModeVerifyTimer)
+    }
+    const timeout = verification.isNetworkStream ? NETWORK_DECODING_MODE_INACTIVITY_TIMEOUT_MS :
+      LOCAL_DECODING_MODE_TIMEOUT_MS
+    this.decodingModeVerifyTimer = setTimeout(() => {
+      this.decodingModeVerifyTimer = 0
+      this.handleDecodingModeInactivityTimeout(verification.token)
+    }, timeout)
+  }
 
-    if (videoWidth === 0 || videoHeight === 0) {
-      if (isAudioFile) {
-        salmonLogger.addLog(TAG, `[MpvController] ${modeName} mode: audio file has no video size, treating as success`)
-      } else {
-        salmonLogger.addLog(TAG, `[MpvController] ${modeName} mode failed to play video`, true)
-
-        if (targetMode === 'buffer_hw') {
-          this.switchDecodingMode('buffer_sw', 'Buffer硬件解码播放失败', savedTime, savedPlaying, savedVideo)
-        } else {
-          ToolsUtil.showToast('播放失败，请尝试其他视频')
-          this.transitionTo(MpvPlayerState.ERROR)
-        }
+  private handleDecodingModeInactivityTimeout(verificationToken: number): void {
+    const verification = this.pendingDecodingModeVerification
+    if (!verification || verification.token !== verificationToken ||
+      verificationToken !== this.decodingModeVerifyToken ||
+      this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
+      return
+    }
+    if (this.getPlayAreaWidth() > 0 && this.getPlayAreaHeight() > 0) {
+      this.finishDecodingModeVerification(verification)
+      return
+    }
+    const isAudioFile = SUPPORT_AUDIO_FORMAT.includes(verification.savedVideo.format.toLowerCase())
+    if (isAudioFile) {
+      salmonLogger.addLog(TAG,
+        `[MpvController] ${verification.modeName} mode: audio file has no video size, treating as success`)
+      this.finishDecodingModeVerification(verification)
+      return
+    }
+    if (verification.isNetworkStream) {
+      if (verification.targetMode === 'buffer_hw') {
+        salmonLogger.addLog(TAG,
+          `[MpvController] ${verification.modeName} network stream made no progress; ` +
+          'falling back to software decoding without reporting playback failure', true)
+        this.switchDecodingMode('buffer_sw', 'Buffer硬件解码串流加载无进展', verification.savedTime,
+          verification.savedPlaying, verification.savedVideo)
         return
       }
+      salmonLogger.addLog(TAG,
+        `[MpvController] ${verification.modeName} network stream made no progress; ` +
+        'keeping software playback active and deferring final failure detection to MPV', false)
+      this.cancelDecodingModeVerification()
+      if (verification.savedPlaying) {
+        this.play()
+      } else {
+        this.transitionTo(MpvPlayerState.PAUSED)
+      }
+      return
     }
-    if (savedPlaying) {
+    if (verification.targetMode === 'buffer_hw') {
+      this.switchDecodingMode('buffer_sw', 'Buffer硬件解码播放失败', verification.savedTime,
+        verification.savedPlaying, verification.savedVideo)
+    } else {
+      this.cancelDecodingModeVerification()
+      ToolsUtil.showToast('播放失败，请尝试其他视频')
+      this.transitionTo(MpvPlayerState.ERROR)
+    }
+  }
+
+  private finishDecodingModeVerification(verification: DecodingModeVerification): void {
+    if (verification.token !== this.decodingModeVerifyToken) {
+      return
+    }
+    this.cancelDecodingModeVerification()
+    if (verification.savedPlaying) {
       this.play()
     } else {
       this.transitionTo(MpvPlayerState.PAUSED)
     }
-
-    ToolsUtil.showToast(`已成功切换到${modeName}模式`)
-    salmonLogger.addLog(TAG, `[MpvController] Successfully switched to ${modeName} mode`)
+    const hardwareDecoder = verification.targetMode === 'buffer_hw' ? mpvGetHardwareDecoder(this.mpvHandle) : 'no'
+    if (verification.targetMode === 'buffer_hw' && hardwareDecoder === 'no') {
+      ToolsUtil.showToast('当前视频不支持硬件解码，已自动回退到软件解码')
+      salmonLogger.addLog(TAG, '[MpvController] Hardware decoding unavailable, fell back to software decoding', true)
+    } else {
+      ToolsUtil.showToast(`已成功切换到${verification.modeName}模式`)
+    }
+    salmonLogger.addLog(TAG, `[MpvController] Successfully switched to ${verification.modeName} mode`)
   }
 
   private cancelDecodingModeTimers() {
+    this.cancelDecodingModeVerification()
+    this.cancelSmartRotationTimer()
+  }
+
+  private cancelDecodingModeVerification(): void {
     if (this.decodingModeVerifyTimer) {
       clearTimeout(this.decodingModeVerifyTimer)
       this.decodingModeVerifyTimer = 0
     }
-    this.cancelSmartRotationTimer()
+    this.pendingDecodingModeVerification = undefined
+    this.decodingModeVerifyToken++
   }
 
   private checkDolbyVisionAndSwitch() {
@@ -2044,28 +2232,13 @@ export class MpvController implements PlayerControllerInterface {
     try {
       const profile = mpvGetDolbyVisionProfile(this.mpvHandle)
 
-      if (profile !== 0) {
-        const profileLabel = profile > 0 ? `Profile ${profile}` : '未知 Profile'
-        salmonLogger.addLog(TAG, `[MpvController] Detected Dolby Vision ${profileLabel}`, false)
+      if (profile === 5) {
+        salmonLogger.addLog(TAG, '[MpvController] Detected Dolby Vision Profile 5', false)
         if (this.activeHwdecMode !== MpvDecodingMethod.HARDWARE_BUFFER) {
           salmonLogger.addLog(TAG,
-            `[MpvController] DV ${profileLabel} requires Buffer mode, current mode=${this.activeHwdecMode}, switching...`,
+            `[MpvController] DV P5 requires Buffer mode, current mode=${this.activeHwdecMode}, switching...`,
             true)
-          this.switchDecodingMode('buffer_hw', `检测到杜比视界 ${profileLabel}，切换到Buffer模式`, this.playTime)
-        }
-      }
-    } catch (error) {
-      salmonLogger.addLog(TAG, '[MpvController] Failed to detect Dolby Vision profile: ' + JSON.stringify(error), true)
-    }
-    try {
-      const profile = mpvGetDolbyVisionProfile(this.mpvHandle)
-      if (profile === 5 || profile === 7) {
-        salmonLogger.addLog(TAG, `[MpvController] Detected Dolby Vision Profile ${profile}`, false)
-        if (this.activeHwdecMode !== MpvDecodingMethod.HARDWARE_BUFFER) {
-          salmonLogger.addLog(TAG,
-            `[MpvController] DV P${profile} requires Buffer mode, current mode=${this.activeHwdecMode}, switching...`,
-            true)
-          this.switchDecodingMode('buffer_hw', `检测到杜比视界 Profile ${profile}，切换到Buffer模式`, this.playTime)
+          this.switchDecodingMode('buffer_hw', '检测到杜比视界 Profile 5，切换到Buffer模式', this.playTime)
         }
       }
     } catch (error) {

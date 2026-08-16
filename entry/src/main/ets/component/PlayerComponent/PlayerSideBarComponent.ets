@@ -8,6 +8,10 @@ import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { VideoInfoBuilder } from '../VideoItemComponent/VideoInfoBuilder'
+import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
+import VideoOperateUtil from '../../utils/VideoOperateUtil'
+import AVSessionUtil from '../../utils/AVSessionUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
 
 @ComponentV2
 export struct PlayerSideBarComponent {
@@ -44,6 +48,36 @@ export struct PlayerSideBarComponent {
 
   build() {
     List({ scroller: this.listScroller, space: 6 }) {
+      ListItem() {
+        Row({ space: 10 }) {
+          SymbolGlyph(this.getRepeatModeIcon())
+            .fontSize(22)
+            .fontColor([$r('app.color.text_color')])
+          Text(this.getRepeatModeText(this.player.repeatMode))
+            .fontSize(16)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.text_color'))
+          Blank()
+          Text('点击切换')
+            .fontSize(13)
+            .fontColor($r('app.color.text_color'))
+            .opacity(0.6)
+        }
+        .width('100%')
+        .height(48)
+        .padding({ left: 16, right: 16 })
+        .borderRadius(12)
+        .backgroundColor($r('app.color.list_item_background'))
+      }
+      .padding({ top: 6 })
+      .onClick(() => {
+        const repeatMode = VideoOperateUtil.getRepeatMode(this.player.repeatMode)
+        this.player.repeatMode = repeatMode
+        AVSessionUtil.updatePlaybackSessionState(this.player.playing, this.player.playTime, repeatMode)
+        ToolsUtil.showToast(this.getRepeatModeText(repeatMode))
+      })
+      .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.96 })
+
       Repeat<VideoMetadata>(this.playerSideBarSource.data)
         .each((repeatItem: RepeatItem<VideoMetadata>) => {
           ListItem() {
@@ -122,6 +156,36 @@ export struct PlayerSideBarComponent {
       this._sideBarStatus = false
       this.onSideBarStatusChange(false)
     }, 250)
+  }
+
+  private getRepeatModeIcon(): Resource {
+    switch (this.player.repeatMode) {
+      case SweetRepeatMode.SINGLE:
+        return $r('sys.symbol.repeat_1')
+      case SweetRepeatMode.RANDOM:
+        return $r('sys.symbol.shuffle')
+      case SweetRepeatMode.LIST:
+        return $r('sys.symbol.repeat')
+      case SweetRepeatMode.SEQUENCE:
+        return $r('sys.symbol.order_play')
+      default:
+        return $r('sys.symbol.order_play')
+    }
+  }
+
+  private getRepeatModeText(repeatMode: SweetRepeatMode): string {
+    switch (repeatMode) {
+      case SweetRepeatMode.SINGLE:
+        return '单曲循环'
+      case SweetRepeatMode.RANDOM:
+        return '随机播放'
+      case SweetRepeatMode.LIST:
+        return '列表循环'
+      case SweetRepeatMode.SEQUENCE:
+        return '顺序播放'
+      default:
+        return '列表循环'
+    }
   }
 }
 

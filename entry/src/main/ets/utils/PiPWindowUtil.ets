@@ -1,7 +1,7 @@
 import { PiPWindow } from '@kit.ArkUI'
 import { salmonLogger } from 'salmonlogger'
 
-import { PlayerControllerInterface } from '../controller/PlayerControllerFactory'
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { Setting } from './ObservedUtil'
 import { PathUtils } from './PathUtils'
 import VideoInfoUtil from './VideoInfoUtil'
@@ -11,6 +11,15 @@ import VideoInfoUtil from './VideoInfoUtil'
  */
 const TAG = 'PiPWindowUtil'
 const PIP_BASE_SIZE = 480
+
+export interface PiPPlayerController {
+  readonly nowPlaying: VideoMetadata | undefined
+  readonly playing: boolean
+  play(): void
+  pause(): void
+  fastForward(): void
+  backForward(): void
+}
 
 class PipContentSize {
   width: number = 0
@@ -24,7 +33,7 @@ class PipContentSize {
 
 export default class PiPWindowUtil {
   static pipController?: PiPWindow.PiPController | undefined = undefined
-  static playerController ?: PlayerControllerInterface | undefined = undefined
+  static playerController ?: PiPPlayerController | undefined = undefined
   static pipOpenState: boolean = false
   static isRestoring: boolean = false
 
@@ -63,7 +72,7 @@ export default class PiPWindowUtil {
   }
 
   static async createPipController(xComponentController: XComponentController,
-    playerController ?: PlayerControllerInterface) {
+    playerController ?: PiPPlayerController) {
     await PiPWindowUtil.destroyPipController()
     const controller = playerController
     const videoWidth =

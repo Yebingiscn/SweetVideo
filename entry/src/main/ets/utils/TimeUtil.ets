@@ -1,5 +1,15 @@
 // 时间类，格式化时间
 export default class TimeUtil {
+  static formatDateTime(timestamp: number): string {
+    const date = new Date(timestamp)
+    const year = date.getFullYear()
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const day = date.getDate().toString().padStart(2, '0')
+    const hour = date.getHours().toString().padStart(2, '0')
+    const minute = date.getMinutes().toString().padStart(2, '0')
+    return `${year}-${month}-${day} ${hour}:${minute}`
+  }
+
   static convertMSToHHMMSS(ms: number | undefined): string {
     if (ms == undefined || Number.isNaN(ms)) {
       return '--:--'

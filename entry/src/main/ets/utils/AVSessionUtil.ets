@@ -54,6 +54,18 @@ export default class AVSessionUtil {
     return AVSessionUtil.avSession
   }
 
+  static async stopCastingIfActive(): Promise<void> {
+    const session = AVSessionUtil.avSession
+    if (!session || !AVSessionUtil.castController) {
+      return
+    }
+    try {
+      await session.stopCasting()
+    } catch (error) {
+      salmonLogger.addLog(TAG, `stopCasting ignored during cleanup: ${error}`, false)
+    }
+  }
+
   static async checkOtherCast(avSession: avSessionManager.AVSession) {
     try {
       let currentOutputDevice: avSession.OutputDeviceInfo = avSession.getOutputDeviceSync()

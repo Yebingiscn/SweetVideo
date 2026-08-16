@@ -47,7 +47,10 @@ import { PlayerSettingPage } from './SettingPage/PlayerSettingPage'
 import { SubtitleSettingPage } from './SettingPage/SubtitleSettingPage'
 import { SettingsPage } from './SettingPage/Setting'
 import { VideoPlayer } from './VideoPlayer/VideoPlayer'
+import { ShortVideoPage } from './ShortVideo/ShortVideoPage'
 import { StreamPage } from './StreamPage/StreamPage'
+import { IPTVSourcePage } from './IPTV/IPTVSourcePage'
+import { IPTVChannelPage } from './IPTV/IPTVChannelPage'
 import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData'
 import { LengthMetrics } from '@kit.ArkUI'
 import { HdsNavigation, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
@@ -302,7 +305,8 @@ struct Index {
     .hideTitleBar(true)
     .mode(NavigationMode.Stack)
     .navDestination(this.Pages)
-    .bindToScrollable([this.videoListController.listScroller, this.videoListController.waterFlowScroller]) // 绑定导航组件和可滚动容器组件
+    .bindToScrollable(
+      [this.videoListController.listScroller, this.videoListController.waterFlowScroller]) // 绑定导航组件和可滚动容器组件
     .dynamicHideTitleBar({
       hideTitleArea: true,
       hideBottomBuilder: true,
@@ -454,10 +458,16 @@ struct Index {
       MoreSettingPage()
     } else if (name == NavigationAddress.VIDEO_PLAYER) {
       VideoPlayer()
+    } else if (name == NavigationAddress.SHORT_VIDEO) {
+      ShortVideoPage()
     } else if (name == NavigationAddress.VIP_PAGE) {
       GetVipPage()
     } else if (name == NavigationAddress.STREAM_PAGE) {
       StreamPage()
+    } else if (name == NavigationAddress.IPTV_SOURCE_PAGE) {
+      IPTVSourcePage()
+    } else if (name == NavigationAddress.IPTV_CHANNEL_PAGE) {
+      IPTVChannelPage()
     }
   }
 

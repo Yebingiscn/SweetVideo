@@ -13,7 +13,7 @@ import { fileIo } from '@kit.CoreFileKit'
 import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import { CoverLayoutMode, ListDisplayMode } from '../common/enum/DisplayMode'
-import { MpvDecodingMethod } from '../controller/MpvController/MpvTypes'
+import { MpvDecodingMethod, MpvGpuApi } from '../controller/MpvController/MpvTypes'
 import preferences from '@ohos.data.preferences'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { image } from '@kit.ImageKit'
@@ -289,7 +289,7 @@ export default class VideoOperateUtil {
           size = { width: 100, height: 100 }
         }
         return await VideoOperateUtil.avImageGenerator?.fetchFrameByTime(time * 1000,
-          media.AVImageQueryOptions.AV_IMAGE_QUERY_CLOSEST, size)
+          media.AVImageQueryOptions.AV_IMAGE_QUERY_PREVIOUS_SYNC, size)
       } catch (e) {
         salmonLogger.addLog(TAG, 'fetchFrameByTime error', e)
         return undefined
@@ -331,6 +331,7 @@ export default class VideoOperateUtil {
       'recentPlay': true,
       'showToast': true,
       'defaultPlayerEngine': '系统播放器',
+      'shortVideoMode': false,
       'subtitleSize': '22',
       'subtitlePosition': 90,
       'subtitleColor': '#F0F0F0',
@@ -358,6 +359,7 @@ export default class VideoOperateUtil {
       'autoActivePip': false,
       'autoResumeOnReturn': false,
       'mpv_decoding_method': MpvDecodingMethod.HARDWARE_SURFACE,
+      'mpv_gpu_api': MpvGpuApi.OPENGL,
       'enableBackgroundDarkImage': false,
       'enableAiPrivacyAntiPeep': false,
       'defaultBrightness': 0,
@@ -384,6 +386,7 @@ export default class VideoOperateUtil {
     Setting.recentPlay = valueMap['recentPlay'] as boolean
     Setting.showToast = valueMap['showToast'] as boolean
     Setting.defaultPlayerEngine = valueMap['defaultPlayerEngine'] as string
+    Setting.shortVideoMode = valueMap['shortVideoMode'] as boolean
     Setting.subtitleSize = valueMap['subtitleSize'] as string
     Setting.subtitlePosition = valueMap['subtitlePosition'] as number
     Setting.subtitleColor = valueMap['subtitleColor'] as string
@@ -411,6 +414,7 @@ export default class VideoOperateUtil {
     Setting.autoActivePip = valueMap['autoActivePip'] as boolean
     Setting.autoResumeOnReturn = valueMap['autoResumeOnReturn'] as boolean
     Setting.mpvDecodingMethod = valueMap['mpv_decoding_method'] as MpvDecodingMethod
+    Setting.mpvGpuApi = valueMap['mpv_gpu_api'] as MpvGpuApi
     Setting.enableBackgroundDarkImage = valueMap['enableBackgroundDarkImage'] as boolean
     Setting.enableAiPrivacyAntiPeep = valueMap['enableAiPrivacyAntiPeep'] as boolean
     Setting.defaultBrightness = valueMap['defaultBrightness'] as number
@@ -490,7 +494,7 @@ export default class VideoOperateUtil {
     return [finalWidth, finalHeight]
   }
 
-  static getVideoStartPlayTimeMode(nowPlaying: VideoMetadata): number {
+  static getVideoStartPlayTimeMode(nowPlaying: VideoMetadata, showToast: boolean = true): number {
     // 先判断 nowPlaying 是否有效
     if (!nowPlaying) {
       return -1
@@ -511,13 +515,17 @@ export default class VideoOperateUtil {
       const isBeforeStart = last_play < start_time
       const isBeyondEnd = end_time != null && end_time > 0 && last_play >= end_time
       if (isBeforeStart || isAlmostComplete || isBeyondEnd) {
-        ToolsUtil.showToast('已跳过片头')
+        if (showToast) {
+          ToolsUtil.showToast('已跳过片头')
+        }
         return VideoStartTimeMode.SEEK_TO_START_TIME
       }
     }
     // 条件2：若有有效播放记录（且未接近结尾），则跳转到上次播放位置
     if (last_play !== 0 && last_play < time * 0.95 && Setting.jumpToHistoryTimeStatus) {
-      ToolsUtil.showToast('已跳到上次播放时间')
+      if (showToast) {
+        ToolsUtil.showToast('已跳到上次播放时间')
+      }
       return VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME
     }
     // 条件3：若无播放记录，但全局设置了统一片头跳过时间（仅适用于视频）
@@ -529,7 +537,9 @@ export default class VideoOperateUtil {
         const parts = title.split('.')
         const fileExt = parts.length > 0 ? parts[parts.length - 1].toLowerCase() : ''
         if (fileExt !== '' && !SUPPORT_AUDIO_FORMAT.includes(fileExt)) {
-          ToolsUtil.showToast('已跳过统一的片头时间')
+          if (showToast) {
+            ToolsUtil.showToast('已跳过统一的片头时间')
+          }
           return VideoStartTimeMode.SEEK_TO_INTRO_TIME
         }
       }
@@ -614,7 +624,6 @@ export default class VideoOperateUtil {
       return PlayerEngine.AV_PLAYER
     }
     if (!hasSize) {
-      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
       return PlayerEngine.MPV_PLAYER
     }
     if (isDolbyAudio) {
@@ -631,10 +640,11 @@ export default class VideoOperateUtil {
       : $r('app.string.MPV_Player');
   }
 
-  static computeNextVideo(
+  static computeAdjacentVideo(
     videoMetaDataList: VideoMetadata[],
     nowPlaying: VideoMetadata | undefined,
-    repeatMode: SweetRepeatMode
+    repeatMode: SweetRepeatMode,
+    direction: 'previous' | 'next'
   ): VideoMetadata | undefined {
     if (videoMetaDataList.length === 0) {
       return undefined
@@ -652,14 +662,11 @@ export default class VideoOperateUtil {
       case SweetRepeatMode.ONCE:
         return undefined
       case SweetRepeatMode.SEQUENCE:
-        if (SelectFileUtil.isLastItem(videoMetaDataList, item.date)) {
-          return undefined
-        }
-        return SelectFileUtil.getNextItem(videoMetaDataList, item.date)
+        return SelectFileUtil.getAdjacentItem(videoMetaDataList, item.date, direction, false)
       case SweetRepeatMode.SINGLE:
-        return videoMetaDataList.find(v => v.date === nowPlaying?.date)!
+        return videoMetaDataList.find(v => v.date === nowPlaying?.date)
       case SweetRepeatMode.LIST:
-        return SelectFileUtil.getNextItem(videoMetaDataList, item.date)
+        return SelectFileUtil.getAdjacentItem(videoMetaDataList, item.date, direction, true)
       default:
         return undefined
     }

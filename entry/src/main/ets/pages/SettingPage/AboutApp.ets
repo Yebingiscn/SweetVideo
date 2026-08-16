@@ -109,9 +109,7 @@ export struct AboutApp {
               .zIndex(1)
             Row() {
               Image($r("app.media.Foreground"))
-                .width(60).height(60)
-                .autoResize(true)
-                .interpolation(ImageInterpolation.Low)
+              .attributeModifier(new ImageFancyModifier(16, 60, 60))
               Text(`${ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id)}${this.version_code}`)
                 .fontSize(20)
                 .fontColor($r('sys.color.white'))

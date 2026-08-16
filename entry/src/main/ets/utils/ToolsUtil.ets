@@ -8,11 +8,12 @@ import { salmonLogger } from 'salmonlogger'
 import { ItemWithPinyin } from '../interfaces/VideoItemWithPinyinInterface'
 import { GB, KB, MB } from '../common/Constants'
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
-import NavigationAddress, { PlayerParams } from '../common/NavigationCommon'
+import NavigationAddress, { PlayerParams, ShortVideoParams } from '../common/NavigationCommon'
 import Preferences from '../database/Preferences'
 import DataSyncUtil from './DataSyncUtil'
 import FileFolderUtil from './FileFolderUtil'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
+import { Setting } from './ObservedUtil'
 import VideoOperateUtil from './VideoOperateUtil'
 import { WindowUtil } from './WindowUtil'
 import fileIo from '@ohos.file.fs'
@@ -225,6 +226,13 @@ export default class ToolsUtil {
     const findResult = Preferences.findVideoByDate(PathUtils.appContext!, item.date)
     const latestItem = findResult[0] ?? item
     const folder_date = findResult[2]
+    if (Setting.shortVideoMode && !reverse) {
+      const latestList = list.map(video => video.date === latestItem.date ? latestItem : video)
+      const initialIndex = Math.max(0, latestList.findIndex(video => video.date === latestItem.date))
+      pathStack.pushPathByName(NavigationAddress.SHORT_VIDEO,
+        new ShortVideoParams(latestList, initialIndex, skipHistory), true)
+      return
+    }
     const metadata_list = folder_date ? undefined : list
     const playerParams = new PlayerParams(latestItem, metadata_list, undefined, skipHistory, uri, folder_date)
     pathStack.pushPathByName(NavigationAddress.VIDEO_PLAYER, playerParams, true)
@@ -367,8 +375,7 @@ export default class ToolsUtil {
     if (!uri) {
       return false
     }
-    return uri.startsWith('http://') || uri.startsWith('https://') ||
-      uri.startsWith('rtmp://') || uri.startsWith('rtsp://') || uri.startsWith('rtp://')
+    return /^(https?|rtmps?|rtsp|rtp|udp|srt|hls):\/\//i.test(uri.trim())
   }
 
   private static sortByName<T>(list: T[], nameExtractor: (item: T) => string, ascending: boolean = true,

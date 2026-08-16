@@ -8,7 +8,8 @@
       "phone",
       "tablet",
       "2in1",
-      "tv"
+      "tv",
+      "car"
     ],
     "deliveryWithInstall": true,
     "installationFree": false,

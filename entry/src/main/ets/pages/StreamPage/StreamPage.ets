@@ -17,7 +17,7 @@ import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { SortMenuComponent } from '../../component/common/SortMenuComponent'
 
 import { SearchComponent } from '../../component/VideoItemComponent/SearchComponent'
-import { RenameDialog } from '../../component/Dialog/RenameDialog'
+import { EditStreamDialog } from '../../component/Dialog/EditStreamDialog'
 import { AddNetworkStreamDialog } from '../../component/Dialog/AddNetworkStreamDialog'
 import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
 import { VideoItemPreviewBuilder } from '../../component/VideoItemComponent/VideoItemPreviewBuilder'
@@ -28,7 +28,6 @@ import ShareUtil from '../../utils/ShareUtil'
 import VideoCardItem from '../../component/VideoItemComponent/VideoCardItemComponent'
 import VideoListItem from '../../component/VideoItemComponent/VideoListItemComponent'
 import { VideoListController } from '../../component/VideoItemComponent/VideoItemComponent'
-import { VideoDataSource } from '../../utils/DataUtil'
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import RecentPlayUtil from '../../utils/RecentPlayUtil'
 
@@ -37,10 +36,8 @@ export struct StreamPage {
   @Local networkStreams: VideoMetadata[] = []
   @Local allStreams: VideoMetadata[] = []
   editStreamDialogController: CustomDialogController = new CustomDialogController({
-    builder: RenameDialog({
-      title: '重命名',
-      renameTarget: 'video',
-      onConfirm: (newName: string) => {
+    builder: EditStreamDialog({
+      onConfirm: (newName: string, newUrl: string) => {
         const stream = DataSyncUtil.editingVideo
         if (!stream) {
           return
@@ -49,6 +46,7 @@ export struct StreamPage {
         const target = streams.find(s => s.date === stream.date)
         if (target) {
           target.title = newName
+          target.uri = newUrl
           Preferences.saveNetworkStreams(PathUtils.appContext!, streams)
           this.allStreams = [...streams]
           this.applySearch()
@@ -71,7 +69,6 @@ export struct StreamPage {
   @Local pinyinSort: boolean = true
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   searchController: SearchController = new SearchController()
-  @Local videoDataSource: VideoDataSource = new VideoDataSource([])
   @Local list_line: number = 1
   @Provider('videoListController') streamVideoListController: VideoListController = new VideoListController()
   @Local delMultipleList: VideoMetadata[] = []
@@ -98,7 +95,6 @@ export struct StreamPage {
   aboutToAppear(): void {
     this.allStreams = Preferences.getNetworkStreams(PathUtils.appContext!)
     this.networkStreams = this.allStreams
-    this.videoDataSource = new VideoDataSource(this.networkStreams)
     const savedField = Preferences.getSortField(PathUtils.appContext!)
     if (savedField === SortField.NAME || savedField === SortField.DATETIME || savedField === SortField.TIME) {
       this.currentSortField = savedField as SortField
@@ -208,7 +204,7 @@ export struct StreamPage {
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
-        content: '改名'
+        content: '编辑'
       })
         .onClick(() => {
           DataSyncUtil.editingVideo = item
@@ -304,7 +300,7 @@ export struct StreamPage {
                       mask: true
                     })
                 })
-                .key((item: VideoMetadata) => item.date + item.title)
+                .key((item: VideoMetadata) => item.date)
                 .virtualScroll()
             }
             .clip(false)
@@ -365,7 +361,7 @@ export struct StreamPage {
                       mask: true
                     })
                 })
-                .key((item: VideoMetadata) => item.date + item.title)
+                .key((item: VideoMetadata) => item.date)
                 .virtualScroll()
             }
             .clip(false)
@@ -391,11 +387,6 @@ export struct StreamPage {
           : base + 2
       })
     }
-    .onShown(() => {
-      this.allStreams = Preferences.getNetworkStreams(PathUtils.appContext!)
-      this.applySearch()
-      this.videoDataSource.updateData(this.networkStreams)
-    })
     .titleBar({
       enableComponentSafeArea: true,
       padding: {
@@ -479,6 +470,14 @@ export struct StreamPage {
       mode: HideMode.SCROLL_UP
     })
     .hideBackButton(false)
+    .onShown(() => {
+      this.allStreams = Preferences.getNetworkStreams(PathUtils.appContext!)
+      this.applySearch()
+      if (DataSyncUtil.lastPlayVideoIndex >= 0) {
+        this.listScroller.scrollToIndex(DataSyncUtil.lastPlayVideoIndex)
+        DataSyncUtil.lastPlayVideoIndex = -1
+      }
+    })
   }
 
   private playStream(stream: VideoMetadata, reverse: boolean = false) {
@@ -506,7 +505,6 @@ export struct StreamPage {
     this.networkStreams = this.searchValue.trim()
       ? SelectFileUtil.getItemFromSearch(this.allStreams, this.searchValue)
       : this.allStreams
-    this.videoDataSource.updateData(this.networkStreams)
   }
 
   private handleSort(field: SortField, defaultAsc: boolean) {

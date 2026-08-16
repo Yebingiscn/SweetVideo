@@ -5,7 +5,7 @@ import { SettingsToggleItem } from '../../component/SettingComponent/SettingsTog
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
 import NavigationAddress from '../../common/NavigationCommon'
 import { MpvController } from '../../controller/MpvController/MpvController'
-import { MpvDecodingMethod } from '../../controller/MpvController/MpvTypes'
+import { MpvDecodingMethod, MpvGpuApi } from '../../controller/MpvController/MpvTypes'
 import Preferences from '../../database/Preferences'
 import { FastForwardSecondInterface } from '../../interfaces/FastForwardSecondInterface'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
@@ -132,6 +132,19 @@ export struct PlayerSettingPage {
 
         ListItem() {
           SettingsSegmentButtonItem({
+            symbol: $r('sys.symbol.rectangle_3_group'),
+            message: 'MPV GPU 后端（Buffer 模式）',
+            tips: ['OpenGL', 'Vulkan'],
+            tabSelectedIndex: Setting.mpvGpuApi,
+            onButtonClick: (tabSelectedIndex: number) => {
+              Setting.mpvGpuApi = tabSelectedIndex as MpvGpuApi
+              Preferences.saveMpvGpuApi(PathUtils.appContext!, Setting.mpvGpuApi)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsSegmentButtonItem({
             symbol: $r('sys.symbol.wand_and_stars'),
             message: 'MPV 画质增强（Surface 模式下不可用）',
             tips: MpvController.getShaderModeNames(),
@@ -139,6 +152,18 @@ export struct PlayerSettingPage {
             onButtonClick: (tabSelectedIndex: number) => {
               Setting.mpvShaderMode = tabSelectedIndex
               Preferences.saveMpvShaderMode(PathUtils.appContext!, tabSelectedIndex)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsToggleItem({
+            symbol: $r('sys.symbol.rectangle_portrait_filled_on_rectangle_portrait'),
+            message: '短视频模式',
+            enable: Setting.shortVideoMode,
+            onChange: (checked: boolean) => {
+              Setting.shortVideoMode = checked
+              Preferences.saveShortVideoMode(PathUtils.appContext!, checked)
             }
           })
         }

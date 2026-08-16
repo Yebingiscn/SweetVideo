@@ -23,6 +23,7 @@ export interface VideoMetadata {
   subtitle_offset_millis?: number
   subtitle_track_id?: number
   audio_track_id?: number
+  network_user_agent?: string
 }
 
 // 保存数据
