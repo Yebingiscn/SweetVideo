@@ -2,8 +2,8 @@
   "app": {
     "bundleName": "com.example.sweetvideo",
     "vendor": "example",
-    "versionCode": 1000065,
-    "versionName": "1.4.3",
+    "versionCode": 1000067,
+    "versionName": "1.5.1",
     "icon": "$media:layered_image",
     "label": "$string:app_name",
     "multiAppMode": {

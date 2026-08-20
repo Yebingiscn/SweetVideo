@@ -97,7 +97,6 @@ export struct IPTVSourcePage {
     HdsNavDestination() {
       if (this.sources.length === 0) {
         Column({ space: 10 }) {
-          SymbolGlyph($r('sys.symbol.dot_radiowaves_left_and_right')).fontSize(48).opacity(0.35)
           Text('暂无 IPTV 节目源')
             .fontSize(18)
             .fontColor($r('app.color.text_color'))
@@ -174,6 +173,7 @@ export struct IPTVSourcePage {
                     new IPTVChannelParams(item.item.id), true)
                 }
               })
+              .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
               .bindContextMenu(this.SourceMenu(item.item), ResponseType.LongPress,
                 {
                   backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
@@ -184,7 +184,6 @@ export struct IPTVSourcePage {
             })
             .key((item: IPTVSource) => `${item.id}_${item.updatedTime}_${item.lastRefreshStatus}`)
         }
-        .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
         .padding({ left: 16, right: 16 })
         .contentEndOffset(SafeHeight.bottomSafeHeight)
         .scrollBar(BarState.Off)
@@ -245,12 +244,12 @@ export struct IPTVSourcePage {
       },
       content: { title: { mainTitle: 'IPTV' }, stackBuilder: (): void => this.NavigationMenus() }
     })
-
     .padding({ top: SafeHeight.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
     .backgroundImage(Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ?
       Setting.backgroundBlurImageSrc : Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
+    .backgroundImagePosition(Alignment.Center)
     .bindToScrollable([this.listScroller])
     .dynamicHideTitleBar({
       hideTitleArea: true,

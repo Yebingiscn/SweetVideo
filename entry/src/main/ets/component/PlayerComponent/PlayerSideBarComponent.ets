@@ -47,29 +47,22 @@ export struct PlayerSideBarComponent {
   }
 
   build() {
-    List({ scroller: this.listScroller, space: 6 }) {
-      ListItem() {
-        Row({ space: 10 }) {
-          SymbolGlyph(this.getRepeatModeIcon())
-            .fontSize(22)
-            .fontColor([$r('app.color.text_color')])
-          Text(this.getRepeatModeText(this.player.repeatMode))
-            .fontSize(16)
-            .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.text_color'))
-          Blank()
-          Text('点击切换')
-            .fontSize(13)
-            .fontColor($r('app.color.text_color'))
-            .opacity(0.6)
-        }
-        .width('100%')
-        .height(48)
-        .padding({ left: 16, right: 16 })
-        .borderRadius(12)
-        .backgroundColor($r('app.color.list_item_background'))
+    Column() {
+      Row({ space: 10 }) {
+        SymbolGlyph(this.getRepeatModeIcon())
+          .fontSize(22)
+          .fontColor([$r('app.color.text_color')])
+        Text(this.getRepeatModeText(this.player.repeatMode))
+          .fontSize(16)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.text_color'))
       }
-      .padding({ top: 6 })
+      .width('100%')
+      .height(48)
+      .padding({ left: 16, right: 16 })
+      .borderRadius(12)
+      .backgroundColor($r('app.color.list_item_background'))
+      .margin({ top: 6, bottom: 6 })
       .onClick(() => {
         const repeatMode = VideoOperateUtil.getRepeatMode(this.player.repeatMode)
         this.player.repeatMode = repeatMode
@@ -78,29 +71,38 @@ export struct PlayerSideBarComponent {
       })
       .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.96 })
 
-      Repeat<VideoMetadata>(this.playerSideBarSource.data)
-        .each((repeatItem: RepeatItem<VideoMetadata>) => {
-          ListItem() {
-            VideoItemBuilder({
-              item: repeatItem.item,
-              nowPlaying: this.player.nowPlaying,
-            })
-          }
-          .padding({ top: repeatItem.index === 0 ? 6 : 0 })
-          .borderRadius(16)
-          .onClick(() => {
-            if (this._sideBarStatusTmp === Visibility.Hidden) {
-              return
+      List({ scroller: this.listScroller, space: 6 }) {
+        Repeat<VideoMetadata>(this.playerSideBarSource.data)
+          .each((repeatItem: RepeatItem<VideoMetadata>) => {
+            ListItem() {
+              VideoItemBuilder({
+                item: repeatItem.item,
+                nowPlaying: this.player.nowPlaying,
+              })
             }
-            this.player.nowPlaying?.date === repeatItem.item.date ? this.closeSideBar() :
-              this.onItemClick(repeatItem.item)
+            .borderRadius(16)
+            .onClick(() => {
+              if (this._sideBarStatusTmp === Visibility.Hidden) {
+                return
+              }
+              this.player.nowPlaying?.date === repeatItem.item.date ? this.closeSideBar() :
+                this.onItemClick(repeatItem.item)
+            })
+            .width('100%')
+            .height('auto')
+            .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.9 })
           })
-          .width('100%')
-          .height('auto')
-          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.9 })
-        })
-        .key((item: VideoMetadata, _index: number) => item.date)
-        .virtualScroll()
+          .key((item: VideoMetadata, _index: number) => item.date)
+          .virtualScroll()
+      }
+      .layoutWeight(1)
+      .width('100%')
+      .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
+      .chainAnimation(true)
+      .scrollBar(BarState.Off)
+      .onAppear(() => {
+        this.onSideBarVisibleChange()
+      })
     }
     .backgroundImage(
       Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ? Setting.backgroundBlurImageSrc :
@@ -108,12 +110,6 @@ export struct PlayerSideBarComponent {
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)
     .clip(true)
-    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
-    .chainAnimation(true)
-    .scrollBar(BarState.Off)
-    .onAppear(() => {
-      this.onSideBarVisibleChange()
-    })
     .gesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
       if (event) {
         this.closeSideBar()
@@ -126,8 +122,8 @@ export struct PlayerSideBarComponent {
     .padding({
       left: 8,
       right: 8,
+      top: SafeHeight.topSafeHeight,
     })
-    .contentStartOffset(SafeHeight.topSafeHeight)
     .transition(TransitionEffect.translate({ x: 300 })
       .combine(TransitionEffect.OPACITY)
       .animation(XAnimation.getAnimationCurve()))

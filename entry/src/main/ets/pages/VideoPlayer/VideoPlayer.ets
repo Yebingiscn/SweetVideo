@@ -337,10 +337,28 @@ export struct VideoPlayer {
                 this.player.isLock = !this.player.isLock
                 this.player.showControl = true
               },
-              onCaptureScreen: () => {
-                if (this.player.surfaceId) {
-                  VideoOperateUtil.saveCaptureScreenToAlbum(this.player.surfaceId)
+              lockRotation: this.lockRotation,
+              onLockRotationClick: async () => {
+                this.lockRotation = !this.lockRotation
+                salmonLogger.addLog(TAG, `锁定旋转状态切换为：${this.lockRotation}`,
+                  false)
+                const orientation = this.lockRotation ?
+                  (this.player.screenWidth > this.player.screenHeight ? window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED
+                    : window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
+                  : window.Orientation.AUTO_ROTATION_RESTRICTED
+                try {
+                  XAnimation.runWithAnimation(async () => {
+                    await (await this.getWindowClass())?.setPreferredOrientation(orientation)
+                    salmonLogger.addLog(TAG, "窗口方向设置成功", false)
+                  })
+                } catch (error) {
+                  salmonLogger.addLog(TAG,
+                    `屏幕旋转异常: ${error.code}:${error.message}`, true)
                 }
+                const toastMessage = this.lockRotation
+                  ? ToolsUtil.getStringResource($r('app.string.open_rotation_lock').id)
+                  : ToolsUtil.getStringResource($r('app.string.close_rotation_lock').id)
+                ToolsUtil.showToast(toastMessage)
               }
             })
           }
@@ -723,32 +741,14 @@ export struct VideoPlayer {
         this.ChapterMenuBuilder()
       } : () => {
       },
-      lockRotation: this.lockRotation,
       onExitVideoClick: () => {
         salmonLogger.addLog(TAG, "点击退出视频按钮", false)
         this.exitVideo(0)
       },
-      onLockRotationClick: async () => {
-        this.lockRotation = !this.lockRotation
-        salmonLogger.addLog(TAG, `锁定旋转状态切换为：${this.lockRotation}`,
-          false)
-        const orientation = this.lockRotation ?
-          (this.player.screenWidth > this.player.screenHeight ? window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED
-            : window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
-          : window.Orientation.AUTO_ROTATION_RESTRICTED
-        try {
-          XAnimation.runWithAnimation(async () => {
-            await (await this.getWindowClass())?.setPreferredOrientation(orientation)
-            salmonLogger.addLog(TAG, "窗口方向设置成功", false)
-          })
-        } catch (error) {
-          salmonLogger.addLog(TAG,
-            `屏幕旋转异常: ${error.code}:${error.message}`, true)
+      onCaptureScreen: () => {
+        if (this.player.surfaceId) {
+          VideoOperateUtil.saveCaptureScreenToAlbum(this.player.surfaceId)
         }
-        const toastMessage = this.lockRotation
-          ? ToolsUtil.getStringResource($r('app.string.open_rotation_lock').id)
-          : ToolsUtil.getStringResource($r('app.string.close_rotation_lock').id)
-        ToolsUtil.showToast(toastMessage)
       },
       onSpecificVideoProportions: (playAreaSize: number[]) => {
         this.player.playAreaWidth = playAreaSize[0]

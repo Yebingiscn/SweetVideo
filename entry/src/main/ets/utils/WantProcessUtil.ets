@@ -59,6 +59,15 @@ export default class WantProcess {
       await WantProcess.checkContinue(pathStack)
       return
     }
+    // 检查快捷方式参数（如 testKey: "RecentPlay"）
+    if (WantProcess.receiveWant?.parameters?.testKey) {
+      const shortCutKey = WantProcess.receiveWant.parameters.testKey as string
+      if (shortCutKey === 'RecentPlay') {
+        pathStack.pushPathByName('RecentPlay', null)
+        WantProcess.clearWantState()
+        return
+      }
+    }
     if (!WantProcess.receiveWant) {
       return
     }

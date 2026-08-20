@@ -39,6 +39,12 @@
           "fullscreen",
           "split"
         ],
+        "metadata": [
+          {
+            "name": "ohos.ability.shortcuts",  // 配置快捷方式，该值固定为ohos.ability.shortcuts
+            "resource": "$profile:shortcuts_config"  // 指定shortcuts信息的资源位置
+          }
+        ],
         "preferMultiWindowOrientation": "landscape_auto",
         "backgroundModes": [
           "audioPlayback"

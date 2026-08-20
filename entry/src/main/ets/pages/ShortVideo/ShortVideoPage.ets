@@ -14,6 +14,7 @@ import { PlaybackSpeedListComponent } from '../../component/PlayerComponent/Play
 import TimeUtil from '../../utils/TimeUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/SwipingPlayTimePanelBuilder'
+import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
 @ComponentV2
 export struct ShortVideoPage {
@@ -27,6 +28,8 @@ export struct ShortVideoPage {
   private skipHistory: boolean = false
   private disposed: boolean = false
   private swiperController: SwiperController = new SwiperController()
+  @Local containerWidth: number = 0
+  @Local containerHeight: number = 0
 
   aboutToAppear(): void {
     this.disposed = false
@@ -34,7 +37,7 @@ export struct ShortVideoPage {
     WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
     WindowUtil.setBarState(PathUtils.appContext!, false, false)
     WindowUtil.getWindow().then((windowClass: window.Window | undefined) => {
-      windowClass?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
+      windowClass?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
         .catch((_error: BusinessError) => {
         })
     }).catch((_error: BusinessError) => {
@@ -98,6 +101,16 @@ export struct ShortVideoPage {
           showInSubWindow: false,
           backgroundBlurStyle: BlurStyle.COMPONENT_THIN
         })
+
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph($r('sys.symbol.fullscreen'))
+            .fontSize(21)
+            .fontColor([Color.White])
+        }
+        .width(40)
+        .height(40)
+        .backgroundColor('#55000000')
+        .onClick(() => this.toggleFullScreen())
       }
       .width('100%')
 
@@ -208,6 +221,10 @@ export struct ShortVideoPage {
       .width('100%')
       .height('100%')
       .backgroundColor(Color.Black)
+      .onAreaChange((_oldValue: Area, newValue: Area) => {
+        this.containerWidth = Math.floor(new Number(newValue.width).valueOf())
+        this.containerHeight = Math.floor(new Number(newValue.height).valueOf())
+      })
     }
     .hideTitleBar(true)
     .onReady(() => {
@@ -248,6 +265,11 @@ export struct ShortVideoPage {
         this.manager.pauseAll()
       }
     })
+  }
+
+  private async toggleFullScreen(): Promise<void> {
+    VideoOperateUtil.fullScreenOrRotateScreen(this.containerWidth, this.containerHeight,
+      WindowUtil.getWindow())
   }
 
   private async openPip(): Promise<void> {

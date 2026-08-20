@@ -238,6 +238,18 @@ export default class ToolsUtil {
     pathStack.pushPathByName(NavigationAddress.VIDEO_PLAYER, playerParams, true)
   }
 
+  // 以短视频模式播放：忽略 shortVideoMode 开关，直接跳转短视频页面
+  static async routerToShortVideo(pathStack: NavPathStack, item: VideoMetadata, list: VideoMetadata[],
+    skipHistory: boolean = false) {
+    const findResult = Preferences.findVideoByDate(PathUtils.appContext!, item.date)
+    const latestItem = findResult[0] ?? item
+    const latestList = list.map(video => video.date === latestItem.date ? latestItem : video)
+    const initialIndex = Math.max(0, latestList.findIndex(video => video.date === latestItem.date))
+    WindowUtil.setBarColor('#FFFFFF')
+    pathStack.pushPathByName(NavigationAddress.SHORT_VIDEO,
+      new ShortVideoParams(latestList, initialIndex, skipHistory), true)
+  }
+
   // 获取版本号
   static async getVersionName() {
     try {

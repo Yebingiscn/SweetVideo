@@ -70,6 +70,17 @@ export struct RecentPlay { // 最近播放页
           }, DELAY_JUMP_TO_PLAYER)
         })
       MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.play_round_rectangle')),
+        content: '短视频模式播放'
+      })
+        .onClick(() => {
+          setTimeout(async () => {
+            if (item) {
+              await ToolsUtil.routerToShortVideo(this.pathStack, item, this.recent_video_meta_data)
+            }
+          }, DELAY_JUMP_TO_PLAYER)
+        })
+      MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')),
         content: $r('app.string.delete')
       }).onClick(() => {

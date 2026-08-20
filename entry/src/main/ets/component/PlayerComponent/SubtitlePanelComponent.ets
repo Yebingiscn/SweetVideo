@@ -188,7 +188,7 @@ export struct SubtitlePanelComponent {
       Slider({
         value: this.player.subtitlePosition,
         min: 5,
-        max: 95,
+        max: 100,
         step: 1,
         style: SliderStyle.NONE
       })

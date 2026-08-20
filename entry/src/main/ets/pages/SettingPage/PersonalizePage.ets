@@ -333,44 +333,47 @@ export struct PersonalizePage {
         })
       }
 
-      Repeat(this.dynamicIconList)
-        .each((ri: RepeatItem<appInfoManager.DynamicIconInfo>) => {
-          GridItem() {
-            Column() {
-              Image(ri.item.iconUrl)
-                .width(96)
-                .height(96)
-                .borderRadius(24)
-                .shadow(ri.item.iconId === this.currentEnabledIconId ?
-                  {
-                    radius: 8,
-                    color: $r('app.color.main_color'),
-                    offsetX: 0,
-                    offsetY: 0
-                  } :
-                  {
-                    radius: 0,
-                    color: Color.Transparent,
-                    offsetX: 0,
-                    offsetY: 0
+      if (canIUse("SystemCapability.AppGalleryService.AppInfoManager")) {
+        Repeat(this.dynamicIconList)
+          .each((ri: RepeatItem<appInfoManager.DynamicIconInfo>) => {
+            GridItem() {
+              Column() {
+                Image(ri.item.iconUrl)
+                  .width(96)
+                  .height(96)
+                  .borderRadius(24)
+                  .shadow(ri.item.iconId === this.currentEnabledIconId ?
+                    {
+                      radius: 8,
+                      color: $r('app.color.main_color'),
+                      offsetX: 0,
+                      offsetY: 0
+                    } :
+                    {
+                      radius: 0,
+                      color: Color.Transparent,
+                      offsetX: 0,
+                      offsetY: 0
+                    })
+                  .border({
+                    width: 3,
+                    color: ri.item.iconId === this.currentEnabledIconId ? $r('app.color.main_color') :
+                      Color.Transparent
                   })
-                .border({
-                  width: 3,
-                  color: ri.item.iconId === this.currentEnabledIconId ? $r('app.color.main_color') : Color.Transparent
-                })
-            }
-            .justifyContent(FlexAlign.Center)
-            .padding(8)
-            .borderRadius(16)
-            .onClick(() => {
-              if (ri.item.iconId !== this.currentEnabledIconId) {
-                this.selectDynamicIcon(ri.item.iconId)
               }
-              this.dynamicIconDialogOpen = false
-            })
-          }
-        })
-        .key((item: appInfoManager.DynamicIconInfo) => item.iconId)
+              .justifyContent(FlexAlign.Center)
+              .padding(8)
+              .borderRadius(16)
+              .onClick(() => {
+                if (ri.item.iconId !== this.currentEnabledIconId) {
+                  this.selectDynamicIcon(ri.item.iconId)
+                }
+                this.dynamicIconDialogOpen = false
+              })
+            }
+          })
+          .key((item: appInfoManager.DynamicIconInfo) => item.iconId)
+      }
     }
     .columnsTemplate('1fr 1fr')
     .rowsGap(12)
@@ -388,20 +391,24 @@ export struct PersonalizePage {
 
   private queryDynamicIcons() {
     try {
-      appInfoManager.queryDynamicIcons().then((queryResult: appInfoManager.DynamicIconInfo[]) => {
-        this.dynamicIconList = queryResult
-        this.dynamicIconSupported = queryResult.length > 0
-        for (const icon of queryResult) {
-          if (icon.enabled) {
-            this.currentEnabledIconId = icon.iconId
-            break
+      if (canIUse("SystemCapability.AppGalleryService.AppInfoManager")) {
+        appInfoManager.queryDynamicIcons().then((queryResult: appInfoManager.DynamicIconInfo[]) => {
+          this.dynamicIconList = queryResult
+          this.dynamicIconSupported = queryResult.length > 0
+          for (const icon of queryResult) {
+            if (icon.enabled) {
+              this.currentEnabledIconId = icon.iconId
+              break
+            }
           }
-        }
-        salmonLogger.addLog(TAG, `查询动态图标成功, 数量: ${queryResult.length}`, false)
-      }).catch((error: BusinessError) => {
-        this.dynamicIconSupported = false
-        salmonLogger.addLog(TAG, `查询动态图标失败, code: ${error.code}, message: ${error.message}`, true)
-      })
+          salmonLogger.addLog(TAG, `查询动态图标成功, 数量: ${queryResult.length}`, false)
+        }).catch((error: BusinessError) => {
+          this.dynamicIconSupported = false
+          salmonLogger.addLog(TAG, `查询动态图标失败, code: ${error.code}, message: ${error.message}`, true)
+        })
+      } else {
+        ToolsUtil.showToast('设备能力不支持')
+      }
     } catch (error) {
       this.dynamicIconSupported = false
       salmonLogger.addLog(TAG, `查询动态图标异常, code: ${error.code}, message: ${error.message}`, true)
@@ -410,14 +417,18 @@ export struct PersonalizePage {
 
   private selectDynamicIcon(iconId: string) {
     try {
-      appInfoManager.selectDynamicIcon(iconId).then(() => {
-        this.currentEnabledIconId = iconId
-        ToolsUtil.showToast('图标切换成功')
-        salmonLogger.addLog(TAG, `切换动态图标成功, iconId: ${iconId}`, false)
-      }).catch((error: BusinessError) => {
-        ToolsUtil.showToast('图标切换失败')
-        salmonLogger.addLog(TAG, `切换动态图标失败, code: ${error.code}, message: ${error.message}`, true)
-      })
+      if (canIUse("SystemCapability.AppGalleryService.AppInfoManager")) {
+        appInfoManager.selectDynamicIcon(iconId).then(() => {
+          this.currentEnabledIconId = iconId
+          ToolsUtil.showToast('图标切换成功')
+          salmonLogger.addLog(TAG, `切换动态图标成功, iconId: ${iconId}`, false)
+        }).catch((error: BusinessError) => {
+          ToolsUtil.showToast('图标切换失败')
+          salmonLogger.addLog(TAG, `切换动态图标失败, code: ${error.code}, message: ${error.message}`, true)
+        })
+      } else {
+        ToolsUtil.showToast('设备能力不支持')
+      }
     } catch (error) {
       ToolsUtil.showToast('图标切换失败')
       salmonLogger.addLog(TAG, `切换动态图标异常, code: ${error.code}, message: ${error.message}`, true)
@@ -426,14 +437,18 @@ export struct PersonalizePage {
 
   private disableDynamicIcon() {
     try {
-      appInfoManager.disableDynamicIcon().then(() => {
-        this.currentEnabledIconId = ''
-        ToolsUtil.showToast('已恢复默认图标')
-        salmonLogger.addLog(TAG, '禁用动态图标成功', false)
-      }).catch((error: BusinessError) => {
-        ToolsUtil.showToast('恢复默认图标失败')
-        salmonLogger.addLog(TAG, `禁用动态图标失败, code: ${error.code}, message: ${error.message}`, true)
-      })
+      if (canIUse("SystemCapability.AppGalleryService.AppInfoManager")) {
+        appInfoManager.disableDynamicIcon().then(() => {
+          this.currentEnabledIconId = ''
+          ToolsUtil.showToast('已恢复默认图标')
+          salmonLogger.addLog(TAG, '禁用动态图标成功', false)
+        }).catch((error: BusinessError) => {
+          ToolsUtil.showToast('恢复默认图标失败')
+          salmonLogger.addLog(TAG, `禁用动态图标失败, code: ${error.code}, message: ${error.message}`, true)
+        })
+      } else {
+        ToolsUtil.showToast('设备能力不支持')
+      }
     } catch (error) {
       ToolsUtil.showToast('恢复默认图标失败')
       salmonLogger.addLog(TAG, `禁用动态图标异常, code: ${error.code}, message: ${error.message}`, true)

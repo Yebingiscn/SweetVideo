@@ -155,47 +155,6 @@ export class AVPlayerController implements PlayerControllerInterface {
     this.schedulePendingFrameFetch()
   }
 
-  private schedulePendingFrameFetch(): void {
-    if (this.pendingFrameTime < 0 || !VideoOperateUtil.updatePix || this.frameFetchTimer) {
-      return
-    }
-    const remaining = this.FRAME_FETCH_INTERVAL - (Date.now() - this.lastFrameFetchTime)
-    if (remaining <= 0) {
-      this.fetchPendingFrame()
-      return
-    }
-    this.frameFetchTimer = setTimeout(() => {
-      this.frameFetchTimer = 0
-      this.fetchPendingFrame()
-    }, remaining)
-  }
-
-  private async fetchPendingFrame(): Promise<void> {
-    if (this.pendingFrameTime < 0 || !VideoOperateUtil.updatePix) {
-      return
-    }
-    const time = this.pendingFrameTime
-    this.pendingFrameTime = -1
-    if (Math.floor(time) === Math.floor(this.lastFrameFetchPlayTime)) {
-      this.schedulePendingFrameFetch()
-      return
-    }
-    this.lastFrameFetchTime = Date.now()
-    this.lastFrameFetchPlayTime = time
-    VideoOperateUtil.updatePix = false
-    try {
-      const img = await VideoOperateUtil.fetchFrameByTime(time, this.nowPlaying?.size)
-      if (img && Math.abs(this.playTime - time) < 3000) {
-        this.pixelMap = img
-      }
-    } catch (error) {
-      salmonLogger.addLog(TAG, '获取视频帧失败:' + error, true)
-    } finally {
-      VideoOperateUtil.updatePix = true
-      this.schedulePendingFrameFetch()
-    }
-  }
-
   async initVolumeAndBrightness() {
     let audioManager = audio.getAudioManager()
     this.audioVolumeManager = audioManager.getVolumeManager()
@@ -687,7 +646,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   setSubtitlePosition(position: number): void {
-    this.subtitlePosition = Math.max(5, Math.min(95, Math.round(position)))
+    this.subtitlePosition = Math.max(5, Math.min(100, Math.round(position)))
   }
 
   setSubtitleSize(size: number): void {
@@ -703,14 +662,14 @@ export class AVPlayerController implements PlayerControllerInterface {
     this.avPlayer?.setPlaybackStrategy({
       preferredBufferDurationForPlaying: 20,
       showFirstFrameOnPrepare: true,
-      // enableSuperResolution: true,
+      enableSuperResolution: true,
       preferredHdr: true
     })?.catch(() => {
       salmonLogger.addLog(TAG, "设置播放策略失败", true)
     })
-    // if (Setting.superResolutionState) {
-    //   this.setSuperResolutionState(true)
-    // }
+    if (Setting.superResolutionState) {
+      this.setSuperResolutionState(true)
+    }
     this.registerSubtitleListener()
     this.setExternalSubtitle(this.nowPlaying!)
     this.registerAudioInterruptListener()
@@ -1236,6 +1195,47 @@ export class AVPlayerController implements PlayerControllerInterface {
       return
     }
     await this.engineSwitchHandler(targetEngine, reason, resumePlayback)
+  }
+
+  private schedulePendingFrameFetch(): void {
+    if (this.pendingFrameTime < 0 || !VideoOperateUtil.updatePix || this.frameFetchTimer) {
+      return
+    }
+    const remaining = this.FRAME_FETCH_INTERVAL - (Date.now() - this.lastFrameFetchTime)
+    if (remaining <= 0) {
+      this.fetchPendingFrame()
+      return
+    }
+    this.frameFetchTimer = setTimeout(() => {
+      this.frameFetchTimer = 0
+      this.fetchPendingFrame()
+    }, remaining)
+  }
+
+  private async fetchPendingFrame(): Promise<void> {
+    if (this.pendingFrameTime < 0 || !VideoOperateUtil.updatePix) {
+      return
+    }
+    const time = this.pendingFrameTime
+    this.pendingFrameTime = -1
+    if (Math.floor(time) === Math.floor(this.lastFrameFetchPlayTime)) {
+      this.schedulePendingFrameFetch()
+      return
+    }
+    this.lastFrameFetchTime = Date.now()
+    this.lastFrameFetchPlayTime = time
+    VideoOperateUtil.updatePix = false
+    try {
+      const img = await VideoOperateUtil.fetchFrameByTime(time, this.nowPlaying?.size)
+      if (img && Math.abs(this.playTime - time) < 3000) {
+        this.pixelMap = img
+      }
+    } catch (error) {
+      salmonLogger.addLog(TAG, '获取视频帧失败:' + error, true)
+    } finally {
+      VideoOperateUtil.updatePix = true
+      this.schedulePendingFrameFetch()
+    }
   }
 
   private clearAudioVolumeSubscription(): void {

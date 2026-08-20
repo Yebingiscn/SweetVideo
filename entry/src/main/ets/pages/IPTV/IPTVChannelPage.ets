@@ -121,6 +121,7 @@ export struct IPTVChannelPage {
     .backgroundImage(Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ?
       Setting.backgroundBlurImageSrc : Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
+    .backgroundImagePosition(Alignment.Center)
     .onShown(() => this.loadSource())
     .bindToScrollable([this.groupScroller, this.channelScroller]) // 绑定导航组件和可滚动容器组件
     .dynamicHideTitleBar({
@@ -169,6 +170,7 @@ export struct IPTVChannelPage {
               .maxLines(1)
           }
           .onClick(() => this.scrollToGroup(item.item))
+          .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.96 })
         })
         .key((group: string) => group)
     }
@@ -189,6 +191,7 @@ export struct IPTVChannelPage {
             this.ChannelCard({ channel: item.item })
           }
           .onClick(() => this.play(item.item))
+          .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
         })
         .key((item: IPTVChannel) => item.id)
         .virtualScroll()

@@ -659,6 +659,19 @@ export struct VideoList {
             await this.clickItem(videoItem, true)
           }, DELAY_JUMP_TO_PLAYER)
         })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.play_round_rectangle')),
+        content: '短视频模式播放'
+      })
+        .onClick(() => {
+          setTimeout(async () => {
+            const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
+            if (videoItem) {
+              await ToolsUtil.routerToShortVideo(this.pathStack, videoItem,
+                this.videoListController.videoDataSource.getAllData())
+            }
+          }, DELAY_JUMP_TO_PLAYER)
+        })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
         .onClick(() => {
           setTimeout(() => {

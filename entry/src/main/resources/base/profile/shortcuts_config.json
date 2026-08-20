@@ -1,0 +1,19 @@
+{
+  "shortcuts": [
+    {
+      "shortcutId": "id_test1",
+      "label": "$string:recent_play",
+      "icon": "$media:sweet_video_alt",
+      "wants": [
+        {
+          "bundleName": "com.example.sweetvideo",
+          "moduleName": "entry",
+          "abilityName": "EntryAbility",
+          "parameters": {
+            "testKey": "RecentPlay"
+          }
+        }
+      ]
+    }
+  ]
+}

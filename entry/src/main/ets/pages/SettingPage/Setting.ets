@@ -215,7 +215,7 @@ export struct SettingsPage { //设置页
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.doc_text_badge_clock'),
-            message: '开启历史记录',
+            message: '开启最近播放',
             enable: Setting.recentPlay,
             onChange: (checked: boolean) => {
               Setting.recentPlay = checked
@@ -230,7 +230,7 @@ export struct SettingsPage { //设置页
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.folder'),
-            message: '开启首页显示顶部文件夹列表',
+            message: '首页显示顶部文件夹列表',
             enable: Setting.showToast,
             onChange: (checked: boolean) => {
               Setting.showToast = checked
@@ -277,14 +277,14 @@ export struct SettingsPage { //设置页
         }
       }
       .clip(false)
-      .align(Alignment.Top)
+      .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
+      .chainAnimation(true)
       .borderRadius(16)
       .margin({ left: 16, right: 16 })
       .scrollBar(BarState.Off)
       .height('100%')
       .width('95%')
       .layoutWeight(1)
-      .contentEndOffset(SafeHeight.bottomSafeHeight)
     }
     .titleBar({
       enableComponentSafeArea: true, // 将标题栏设置为组件级安全区，内容区可避让标题栏
@@ -368,6 +368,17 @@ export struct SettingsPage { //设置页
     }
     if (folderDate === '__stream__') {
       this.defaultStartupFolderName = '串流页'
+      return
+    }
+    if (folderDate === '__iptv__') {
+      this.defaultStartupFolderName = 'IPTV源列表'
+      return
+    }
+    if (folderDate.startsWith('__iptv_src__')) {
+      const sourceId = folderDate.substring('__iptv_src__'.length)
+      const sources = Preferences.getIPTVSources(PathUtils.appContext!)
+      const source = sources.find(s => s.id === sourceId)
+      this.defaultStartupFolderName = source ? `IPTV - ${source.name}` : 'IPTV源列表'
       return
     }
     const folders = Preferences.getFileFolder(PathUtils.appContext!)

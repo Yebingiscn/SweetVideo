@@ -1268,7 +1268,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   setSubtitlePosition(position: number): void {
-    this.subtitlePosition = Math.max(5, Math.min(95, Math.round(position)))
+    this.subtitlePosition = Math.max(5, Math.min(100, Math.round(position)))
     this.applySubtitleStyle()
   }
 

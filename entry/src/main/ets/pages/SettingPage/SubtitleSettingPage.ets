@@ -9,6 +9,8 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import { LengthMetrics } from '@kit.ArkUI'
 import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 
+const SUBTITLE_PREVIEW_HEIGHT: number = 220
+
 interface SubtitleColorOption {
   name: string
   value: string
@@ -69,7 +71,7 @@ export struct SubtitleSettingPage {
             message: '垂直位置',
             selected: Setting.subtitlePosition,
             min: 5,
-            max: 95,
+            max: 100,
             valueSuffix: '%',
             onChange: (value: number) => {
               Setting.subtitlePosition = Math.round(value)
@@ -311,26 +313,31 @@ export struct SubtitleSettingPage {
       .alignItems(HorizontalAlign.Center)
       .margin({ top: 45 })
 
-      Text('做最优质的播放器\nSweet Video')
-        .fontSize(Number(Setting.subtitleSize))
-        .fontColor(Setting.subtitleColor)
-        .fontWeight(Setting.subtitleBold ? FontWeight.Bold : FontWeight.Normal)
-        .fontStyle(Setting.subtitleItalic ? FontStyle.Italic : FontStyle.Normal)
-        .textAlign(TextAlign.Center)
-        .textShadow(this.getPreviewShadow())
-        .backgroundColor(SubtitleStyleUtil.getAppBackgroundColor())
-        .borderRadius(4)
-        .padding({
-          left: 8,
-          right: 8,
-          top: 2,
-          bottom: 2
-        })
-        .width('90%')
-        .position({ x: '5%', y: this.getPreviewTop() })
+      Stack({ alignContent: Alignment.Bottom }) {
+        Text('做最优质的播放器\nSweet Video')
+          .fontSize(Number(Setting.subtitleSize))
+          .fontColor(Setting.subtitleColor)
+          .fontWeight(Setting.subtitleBold ? FontWeight.Bold : FontWeight.Normal)
+          .fontStyle(Setting.subtitleItalic ? FontStyle.Italic : FontStyle.Normal)
+          .textAlign(TextAlign.Center)
+          .textShadow(this.getPreviewShadow())
+          .backgroundColor(SubtitleStyleUtil.getAppBackgroundColor())
+          .borderRadius(4)
+          .padding({
+            left: 8,
+            right: 8,
+            top: 2,
+            bottom: 2
+          })
+          .width('90%')
+          .margin({ bottom: SubtitleStyleUtil.getSubtitleBottomMargin(SUBTITLE_PREVIEW_HEIGHT,
+            Setting.subtitlePosition) })
+      }
+      .width('100%')
+      .height('100%')
     }
     .width('100%')
-    .height(220)
+    .height(SUBTITLE_PREVIEW_HEIGHT)
     .borderRadius(20)
     .clip(true)
     .backgroundColor('#202530')
@@ -405,10 +412,6 @@ export struct SubtitleSettingPage {
     .padding(16)
     .borderRadius(16)
     .backgroundColor($r('app.color.start_window_background_blur'))
-  }
-
-  private getPreviewTop(): number {
-    return 24 + Math.round(Setting.subtitlePosition * 1.55)
   }
 
   private getColorName(colors: SubtitleColorOption[], selected: string): string {

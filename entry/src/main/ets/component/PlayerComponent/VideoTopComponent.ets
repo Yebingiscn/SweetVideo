@@ -1,4 +1,4 @@
-import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
+import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 import { SCALE_FACTORS, SCREEN_EXTEND_LIST } from '../../common/Constants'
 import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
@@ -12,8 +12,7 @@ export struct VideoTopComponent {
   @BuilderParam audioTrackMenuBuilder: () => void
   @BuilderParam subtitlePanelComponent: () => void
   @BuilderParam chapterMenuBuilder: () => void
-  @Param lockRotation: boolean = false
-  @Event onLockRotationClick: () => Promise<void> = async () => {
+  @Event onCaptureScreen: () => void = () => {
   }
 
   private get displayTitle(): string {
@@ -150,18 +149,18 @@ export struct VideoTopComponent {
           .menuBackgroundBlurStyle(BlurStyle.COMPONENT_THIN)
       }
 
-      // 6. 旋转锁定按钮
+      // 6. 截屏按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph(this.lockRotation ? $r('sys.symbol.lock_fill') : $r('sys.symbol.rotate_left'))
-          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+        SymbolGlyph($r('sys.symbol.camera'))
+          .fontSize(27)
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
       .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
-      .attributeModifier(new ButtonFancyModifier(35, 40))
+      .attributeModifier(new ButtonFancyModifier(40, 40))
       .backgroundColor('#50000000')
-      .onClick(async () => {
-        await this.onLockRotationClick()
+      .onClick(() => {
+        this.onCaptureScreen()
       })
     }
     .padding({ left: 8, right: 8 })

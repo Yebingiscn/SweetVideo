@@ -371,6 +371,17 @@ export struct PrivacySpace { // 隐私空间页
             await this.clickItem(item, true)
           }, DELAY_JUMP_TO_PLAYER)
         })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.play_round_rectangle')),
+        content: '短视频模式播放'
+      })
+        .onClick(() => {
+          setTimeout(async () => {
+            if (item) {
+              await ToolsUtil.routerToShortVideo(this.pathStack, item, this.video_meta_data_encryption)
+            }
+          }, DELAY_JUMP_TO_PLAYER)
+        })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
         .onClick(() => {
           DataSyncUtil.editingVideo = item

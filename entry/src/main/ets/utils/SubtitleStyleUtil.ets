@@ -7,6 +7,11 @@ import {
 } from 'libmpvnative.so'
 
 export default class SubtitleStyleUtil {
+  static getSubtitleBottomMargin(areaHeight: number, position: number): number {
+    const normalizedPosition = Math.max(0, Math.min(100, position))
+    return Math.max(8, Math.round(areaHeight * (100 - normalizedPosition) / 100))
+  }
+
   static getAppBackgroundColor(): string {
     const alpha = Math.round(Math.max(0, Math.min(100, Setting.subtitleBackgroundOpacity)) * 255 / 100)
     let alphaHex = alpha.toString(16).toUpperCase()

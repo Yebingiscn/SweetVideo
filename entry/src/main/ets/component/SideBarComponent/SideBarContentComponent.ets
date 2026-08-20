@@ -72,10 +72,8 @@ export struct SideBarContentComponent {
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   private folderSortRequestId: number = 0
-
   @Event fileFolderListChange: (folders: FileFolder[]) => void = () => {
   }
-
   addFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: AddFileFolderNameDialog({
       onFolderAdded: (folders: FileFolder[]) => {
@@ -104,7 +102,6 @@ export struct SideBarContentComponent {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-
   @Event scrollToFolderDateChange: (date: string) => void = () => {
   }
   @Event searchValueClear: () => boolean = () => false
@@ -670,7 +667,7 @@ export struct SideBarContentComponent {
           Column({ space: 8 }) {
             Button({ type: ButtonType.Normal, stateEffect: true }) {
               Row() {
-                SymbolGlyph($r('sys.symbol.wifi'))
+                SymbolGlyph($r('sys.symbol.switch_TV'))
                   .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
                 Text('串流')
                   .fontSize(15)
@@ -690,7 +687,7 @@ export struct SideBarContentComponent {
 
             Button({ type: ButtonType.Normal, stateEffect: true }) {
               Row() {
-                SymbolGlyph($r('sys.symbol.dot_radiowaves_left_and_right'))
+                SymbolGlyph($r('sys.symbol.TV_tv'))
                   .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
                 Text('IPTV')
                   .fontSize(15)

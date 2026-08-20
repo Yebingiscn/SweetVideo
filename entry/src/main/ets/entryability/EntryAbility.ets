@@ -89,6 +89,7 @@ export default class EntryAbility extends UIAbility {
         WantProcessUtil.restoreContinueData(want)
       }
     }
+
   }
 
   onDestroy(): void {

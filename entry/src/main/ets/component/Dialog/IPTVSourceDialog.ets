@@ -1,4 +1,5 @@
 import { fileIo as fs, picker } from '@kit.CoreFileKit'
+import { CapsuleSegmentButtonV2, ColorMetrics, SegmentButtonV2ItemOptions, SegmentButtonV2Items } from '@kit.ArkUI'
 import { IPTVSource, IPTVSourceType } from '../../interfaces/IPTVInterface'
 import IPTVUtil from '../../utils/IPTVUtil'
 import { PathUtils } from '../../utils/PathUtils'
@@ -18,9 +19,27 @@ export struct IPTVSourceDialog {
   @State saving: boolean = false
   @State testMessage: string = ''
   @State testSuccess: boolean = false
+  onSaved?: (source: IPTVSource) => void
   private preparedSource: IPTVSource | undefined = undefined
   private preparedSignature: string = ''
-  onSaved?: (source: IPTVSource) => void
+  private segmentItems: SegmentButtonV2Items = new SegmentButtonV2Items([
+    { text: 'URL' } as SegmentButtonV2ItemOptions,
+    { text: '本地文件' } as SegmentButtonV2ItemOptions
+  ])
+  private itemSelectedBackgroundColor: ColorMetrics | undefined = undefined
+  private itemSelectedFontColor: ColorMetrics | undefined = undefined
+
+  private static fileDisplayName(uri: string): string {
+    try {
+      const file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
+      const name = file.name
+      fs.closeSync(file)
+      return name
+    } catch (_error) {
+      const parts = uri.split('/')
+      return decodeURIComponent(parts[parts.length - 1] || uri)
+    }
+  }
 
   aboutToAppear(): void {
     const editing = IPTVUtil.editingSource
@@ -43,6 +62,8 @@ export struct IPTVSourceDialog {
     this.testSuccess = false
     this.preparedSource = undefined
     this.preparedSignature = ''
+    this.itemSelectedBackgroundColor = ColorMetrics.resourceColor($r('app.color.main_color'))
+    this.itemSelectedFontColor = ColorMetrics.resourceColor($r('sys.color.white'))
   }
 
   build() {
@@ -54,10 +75,18 @@ export struct IPTVSourceDialog {
           .fontWeight(FontWeight.Bold)
           .width('100%')
 
-        Row({ space: 10 }) {
-          this.TypeButton('url', 'URL')
-          this.TypeButton('file', '本地文件')
-        }.width('100%')
+        CapsuleSegmentButtonV2({
+          items: this.segmentItems,
+          selectedIndex: this.sourceType === 'url' ? 0 : 1,
+          buttonBackgroundBlurStyle: BlurStyle.BACKGROUND_THICK,
+          itemSelectedFontColor: this.itemSelectedFontColor,
+          itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
+          onItemClicked: (index: number) => {
+            this.switchType(index === 0 ? 'url' : 'file')
+          }
+        })
+          .width('100%')
+
 
         TextInput({ placeholder: '节目源名称', text: this.sourceName })
           .height(44)
@@ -68,7 +97,7 @@ export struct IPTVSourceDialog {
           })
 
         if (this.sourceType === 'url') {
-          TextArea({ placeholder: 'M3U/M3U8 节目源地址', text: this.location })
+          TextArea({ placeholder: 'M3U/M3U8/TXT 节目源地址', text: this.location })
             .borderRadius(16)
             .height(80)
             .onChange((value: string) => {
@@ -78,7 +107,10 @@ export struct IPTVSourceDialog {
         } else {
           Button({ type: ButtonType.Normal, stateEffect: true }) {
             Row() {
-              SymbolGlyph($r('sys.symbol.doc_plaintext')).fontSize(22)
+              SymbolGlyph($r('sys.symbol.doc_plaintext'))
+                .fontSize(22)
+                .margin({ left: 10 })
+                .fontColor([$r('app.color.text_color')])
               Text(this.fileName || '选择 M3U/M3U8/TXT 文件')
                 .fontSize(15)
                 .fontColor($r('app.color.text_color'))
@@ -132,6 +164,7 @@ export struct IPTVSourceDialog {
             .layoutWeight(1)
             .height(44)
             .borderRadius(16)
+            .backgroundColor($r('app.color.sweet_music_color'))
             .enabled(!this.testing && !this.saving)
             .onClick(async () => await this.test())
           Button(this.saving ? '保存中…' : '保存')
@@ -151,21 +184,15 @@ export struct IPTVSourceDialog {
     .constraintSize({ maxHeight: '90%' })
   }
 
-  @Builder
-  TypeButton(type: IPTVSourceType, label: string) {
-    Button(label)
-      .layoutWeight(1)
-      .height(40)
-      .borderRadius(14)
-      .backgroundColor(this.sourceType === type ? $r('app.color.main_color') :
-        $r('sys.color.button_background_color_transparent'))
-      .fontColor(this.sourceType === type ? Color.White : $r('app.color.text_color'))
-      .onClick(() => {
-        this.sourceType = type
-        this.location = ''
-        this.fileName = ''
-        this.invalidatePreparedSource()
-      })
+
+  private switchType(type: IPTVSourceType): void {
+    if (this.sourceType === type) {
+      return
+    }
+    this.sourceType = type
+    this.location = ''
+    this.fileName = ''
+    this.invalidatePreparedSource()
   }
 
   private async selectFile(): Promise<void> {
@@ -278,17 +305,5 @@ export struct IPTVSourceDialog {
       source.userAgent ?? '',
       source.epgUrl ?? ''
     ])
-  }
-
-  private static fileDisplayName(uri: string): string {
-    try {
-      const file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
-      const name = file.name
-      fs.closeSync(file)
-      return name
-    } catch (_error) {
-      const parts = uri.split('/')
-      return decodeURIComponent(parts[parts.length - 1] || uri)
-    }
   }
 }

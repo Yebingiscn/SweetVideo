@@ -132,7 +132,7 @@ export struct PlayerSettingPage {
 
         ListItem() {
           SettingsSegmentButtonItem({
-            symbol: $r('sys.symbol.rectangle_3_group'),
+            symbol: $r('sys.symbol.rays'),
             message: 'MPV GPU 后端（Buffer 模式）',
             tips: ['OpenGL', 'Vulkan'],
             tabSelectedIndex: Setting.mpvGpuApi,
@@ -158,7 +158,7 @@ export struct PlayerSettingPage {
 
         ListItem() {
           SettingsToggleItem({
-            symbol: $r('sys.symbol.rectangle_portrait_filled_on_rectangle_portrait'),
+            symbol: $r('sys.symbol.music_note_phone'),
             message: '短视频模式',
             enable: Setting.shortVideoMode,
             onChange: (checked: boolean) => {

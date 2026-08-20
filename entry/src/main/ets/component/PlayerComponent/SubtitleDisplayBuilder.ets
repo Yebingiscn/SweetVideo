@@ -9,7 +9,7 @@ class SubtitleDisplayValue {
   showControl: boolean = false
   subTitleVisibility: Visibility = Visibility.None
   subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
-  subtitlePosition: number = 90
+  subtitlePosition: number = 95
   subtitleSize: number = 22
   areaWidth: number = 0
   areaHeight: number = 0
@@ -27,7 +27,7 @@ export function SubtitleDisplayBuilder(subtitleDisplayValue: SubtitleDisplayValu
     if (subtitleDisplayValue.subtitle3DMode === Subtitle3DMode.DISABLED) {
       Text(subtitleDisplayValue.subtitle)
         .subtitleTextExtend(subtitleDisplayValue.subtitleSize)
-        .margin({ bottom: getSubtitleBottomMargin(subtitleDisplayValue.areaHeight,
+        .margin({ bottom: SubtitleStyleUtil.getSubtitleBottomMargin(subtitleDisplayValue.areaHeight,
           subtitleDisplayValue.subtitlePosition) })
     } else if (subtitleDisplayValue.subtitle3DMode === Subtitle3DMode.SIDE_BY_SIDE) {
       Row() {
@@ -44,7 +44,7 @@ export function SubtitleDisplayBuilder(subtitleDisplayValue: SubtitleDisplayValu
       }
       .justifyContent(FlexAlign.SpaceAround)
       .width("100%")
-      .margin({ bottom: getSubtitleBottomMargin(subtitleDisplayValue.areaHeight,
+      .margin({ bottom: SubtitleStyleUtil.getSubtitleBottomMargin(subtitleDisplayValue.areaHeight,
         subtitleDisplayValue.subtitlePosition) })
     } else if (subtitleDisplayValue.subtitle3DMode === Subtitle3DMode.TOP_AND_BOTTOM) {
       Column() {
@@ -110,8 +110,4 @@ function getSubtitleShadow(): ShadowOptions[] {
     })
   }
   return shadows
-}
-
-function getSubtitleBottomMargin(areaHeight: number, subtitlePosition: number): number {
-  return Math.max(12, Math.round(areaHeight * (100 - subtitlePosition) / 100))
 }

@@ -9,7 +9,7 @@ import { salmonLogger } from 'salmonlogger'
 import { ListDisplayMode } from '../common/enum/DisplayMode'
 import { SortField } from '../common/enum/SortField'
 import { VideoSource } from '../common/enum/VideoSource'
-import NavigationAddress from '../common/NavigationCommon'
+import NavigationAddress, { IPTVChannelParams } from '../common/NavigationCommon'
 import { SideBarContentComponent } from '../component/SideBarComponent/SideBarContentComponent'
 import { ImportProgressBuilder } from '../component/VideoItemComponent/ImportProgressBuilder'
 import { VideoView } from '../component/VideoItemComponent/VideoViewComponent'
@@ -106,13 +106,27 @@ struct Index {
     }
     const defaultStartupFolderDate = Preferences.getDefaultStartupFolder(PathUtils.appContext!)
     const isStreamStartup = defaultStartupFolderDate === '__stream__'
-    const defaultFolder = (defaultStartupFolderDate && !isStreamStartup)
+    const isIptvStartup = defaultStartupFolderDate === '__iptv__'
+    const isIptvSourceStartup = defaultStartupFolderDate.startsWith('__iptv_src__')
+    const defaultFolder = (defaultStartupFolderDate && !isStreamStartup && !isIptvStartup && !isIptvSourceStartup)
       ? this.file_folder_list.find(f => f.date === defaultStartupFolderDate) ?? this.file_folder_list[0]
       : this.file_folder_list[0]
     this.videoListController?.updateData(undefined, defaultFolder)
     if (isStreamStartup) {
       setTimeout(() => {
         this.pathStack.pushPathByName(NavigationAddress.STREAM_PAGE, null)
+      }, 0)
+    }
+    if (isIptvStartup) {
+      setTimeout(() => {
+        this.pathStack.pushPathByName(NavigationAddress.IPTV_SOURCE_PAGE, null)
+      }, 0)
+    }
+    if (isIptvSourceStartup) {
+      const iptvSourceId = defaultStartupFolderDate.substring('__iptv_src__'.length)
+      setTimeout(() => {
+        this.pathStack.pushPathByName(NavigationAddress.IPTV_CHANNEL_PAGE,
+          new IPTVChannelParams(iptvSourceId), true)
       }, 0)
     }
     void this.applySavedFolderSort()
