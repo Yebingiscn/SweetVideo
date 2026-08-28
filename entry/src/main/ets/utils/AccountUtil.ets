@@ -1,15 +1,15 @@
-import { LoginWithHWErrorCode } from "../common/Constants"
-import { userData } from "../component/common/UserLoginComponent"
-import Preferences from "../database/Preferences"
-import { IapVerifyUtil } from "./IapVerifyUtil"
-import { PathUtils } from "./PathUtils"
-import SelectFileUtil from "./SelectFileUtil"
-import ToolsUtil from "./ToolsUtil"
-import { fileIo } from "@kit.CoreFileKit"
-import { image } from "@kit.ImageKit"
-import { http } from "@kit.NetworkKit"
-import { authentication } from "@kit.AccountKit"
-import { util } from "@kit.ArkTS"
+import { LoginWithHWErrorCode } from '../common/Constants'
+import { userData } from '../component/common/UserLoginComponent'
+import Preferences from '../database/Preferences'
+import { IapVerifyUtil } from './IapVerifyUtil'
+import { PathUtils } from './PathUtils'
+import SelectFileUtil from './SelectFileUtil'
+import ToolsUtil from './ToolsUtil'
+import { fileIo } from '@kit.CoreFileKit'
+import { image } from '@kit.ImageKit'
+import { http } from '@kit.NetworkKit'
+import { authentication } from '@kit.AccountKit'
+import { util } from '@kit.ArkTS'
 
 export default class AccountUtil {
   // 错误处理
@@ -59,9 +59,10 @@ export default class AccountUtil {
         const avatarUri = authorizationWithHuaweiIDCredential?.avatarUri
         const nickName = authorizationWithHuaweiIDCredential?.nickName
         const pixelMap = await AccountUtil.requestImage(avatarUri!)
-        userData.userAvatar = avatarUri ?? ''
         userData.nickName = nickName ?? ''
-        const localAvatarUri = await SelectFileUtil.savePixelMapToFile(PathUtils.photoPath!, 'avatar', pixelMap)
+        const localAvatarUri = await SelectFileUtil.savePixelMapToFile(PathUtils.photoPath!, 'avatar', pixelMap,
+          { releasePixelMap: true })
+        userData.userAvatar = AccountUtil.ISHasAvatar(localAvatarUri)
         Preferences.saveUserAvatar(PathUtils.appContext!, localAvatarUri)
         Preferences.saveUserNickName(PathUtils.appContext!, nickName ?? '')
         if (onComplete) {
@@ -83,7 +84,7 @@ export default class AccountUtil {
 
   static async requestImage(url: string): Promise<PixelMap> {
     return new Promise((resolve, reject) => {
-      let httpRequest = http.createHttp()
+      const httpRequest = http.createHttp()
       httpRequest.request(url, {
         method: http.RequestMethod.GET,
         expectDataType: http.HttpDataType.ARRAY_BUFFER
@@ -91,7 +92,7 @@ export default class AccountUtil {
         if (error) {
           reject(error)
         } else {
-          let imgData: ArrayBuffer = data.result as ArrayBuffer
+          const imgData = data.result as ArrayBuffer
           AccountUtil.bufferToPixelMap(imgData).then(resolve).catch(reject)
         }
       })
@@ -99,10 +100,10 @@ export default class AccountUtil {
   }
 
   static async bufferToPixelMap(imgData: ArrayBuffer): Promise<PixelMap> {
-    let imageSource = image.createImageSource(imgData)
-    let options: image.DecodingOptions = {
-      desiredSize: { width: 512, height: 512 }, // 可选：指定目标尺寸
-      desiredPixelFormat: image.PixelMapFormat.RGBA_8888 // 指定像素格式
+    const imageSource = image.createImageSource(imgData)
+    const options: image.DecodingOptions = {
+      desiredSize: { width: 512, height: 512 },
+      desiredPixelFormat: image.PixelMapFormat.RGBA_8888
     }
     return await imageSource.createPixelMap(options)
   }

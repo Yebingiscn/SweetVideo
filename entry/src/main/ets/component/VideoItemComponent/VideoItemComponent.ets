@@ -183,6 +183,8 @@ export struct VideoList {
           title: title as string,
           date: original.date,
           size: original.size,
+          cover_size: original.cover_size,
+          has_video_track: original.has_video_track,
           time: original.time,
           last_play: original.last_play,
           format: original.format,

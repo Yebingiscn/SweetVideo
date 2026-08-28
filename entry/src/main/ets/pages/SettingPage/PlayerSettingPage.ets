@@ -2,23 +2,21 @@ import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuI
 import { SettingsSegmentButtonItem } from '../../component/SettingComponent/SettingsSegmentButtonItem'
 import { SettingsSliderItem } from '../../component/SettingComponent/SettingsSliderItem'
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
-import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
-import NavigationAddress from '../../common/NavigationCommon'
+import { SettingsSectionHeaderBuilder } from '../../component/SettingComponent/SettingsSectionHeader'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import { MpvDecodingMethod, MpvGpuApi } from '../../controller/MpvController/MpvTypes'
 import Preferences from '../../database/Preferences'
 import { FastForwardSecondInterface } from '../../interfaces/FastForwardSecondInterface'
+import AVSessionUtil from '../../utils/AVSessionUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
-import AVSessionUtil from '../../utils/AVSessionUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { LengthMetrics } from '@kit.ArkUI'
-import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
+import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 
 @ComponentV2
 export struct PlayerSettingPage {
-  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   private fastForwardSecond: FastForwardSecondInterface[] = [
     { label: '5秒', value: '5' },
     { label: '10秒', value: '10' },
@@ -33,13 +31,7 @@ export struct PlayerSettingPage {
     HdsNavDestination() {
       List({ scroller: this.listScroller }) {
         ListItem() {
-          SettingsClickItem({
-            symbol: $r('sys.symbol.textformat_size_square'),
-            message: '字幕样式',
-            onPress: () => {
-              this.pathStack.pushPathByName(NavigationAddress.SUBTITLE_SETTING_PAGE, true)
-            }
-          })
+          SettingsSectionHeaderBuilder('基础播放', '后台、小窗与返回行为')
         }
 
         ListItem() {
@@ -105,6 +97,10 @@ export struct PlayerSettingPage {
         }
 
         ListItem() {
+          SettingsSectionHeaderBuilder('解码与画质', '播放引擎、MPV 解码与画质增强')
+        }
+
+        ListItem() {
           SettingsMenuItem({
             symbol: $r('sys.symbol.play_round_rectangle'),
             message: '默认播放引擎',
@@ -154,6 +150,10 @@ export struct PlayerSettingPage {
               Preferences.saveMpvShaderMode(PathUtils.appContext!, tabSelectedIndex)
             }
           })
+        }
+
+        ListItem() {
+          SettingsSectionHeaderBuilder('播放体验', '显示方式、横屏与进度记录')
         }
 
         ListItem() {
@@ -215,6 +215,10 @@ export struct PlayerSettingPage {
               Preferences.saveJumpToHistoryTime(PathUtils.appContext!, Setting.jumpToHistoryTimeStatus)
             }
           })
+        }
+
+        ListItem() {
+          SettingsSectionHeaderBuilder('手势与默认值', '快进、片头片尾与默认亮度')
         }
 
         ListItem() {
@@ -320,19 +324,21 @@ export struct PlayerSettingPage {
     }
     .hideToolBar(true)
     .titleBar({
-      enableComponentSafeArea: true, // 将标题栏设置为组件级安全区，内容区可避让标题栏
-      padding: {
-        start: LengthMetrics.vp(5),
-        end: LengthMetrics.vp(5)
-      },
+      avoidLayoutSafeArea: true,
+      enableComponentSafeArea: true,
+      padding: { start: LengthMetrics.vp(5), end: LengthMetrics.vp(5) },
       style: {
         // 设置导航组件标题栏样式，推荐使用默认样式
         // 标题栏动态模糊样式，包括是否使能滚动动态模糊，动态模糊类型，动态模糊生效的滚动距离等
         scrollEffectOpts: {
           enableScrollEffect: true,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
+          scrollEffectType: ScrollEffectType.IMMERSIVE_GRADIENT_BLUR,
           blurEffectiveStartOffset: LengthMetrics.vp(0),
           blurEffectiveEndOffset: LengthMetrics.vp(20)
+        },
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
         },
         originalStyle: {
           // 内容区滚动前初始样式设置
@@ -384,7 +390,6 @@ export struct PlayerSettingPage {
       },
     })
     .backgroundColor($r('app.color.start_window_background'))
-    .padding({ top: SafeHeight.topSafeHeight })
     .backgroundImage(
       Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ? Setting.backgroundBlurImageSrc :
         Setting.backgroundImageSrc, ImageRepeat.NoRepeat)

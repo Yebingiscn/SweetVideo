@@ -36,6 +36,8 @@ export struct XComponents {
   }
   @Event onOsdSurfaceLoad: (_surfaceId: string, _surfaceWidth: number, _surfaceHeight: number) => void = () => {
   }
+  @Event onOsdSurfaceDestroy: (_surfaceId: string) => void = () => {
+  }
 
   build() {
     Stack() {
@@ -59,6 +61,9 @@ export struct XComponents {
           onOsdSurfaceLoad: (surfaceId: string, surfaceWidth: number, surfaceHeight: number) => {
             this.onOsdSurfaceLoad(surfaceId, surfaceWidth, surfaceHeight)
           },
+          onOsdSurfaceDestroy: (surfaceId: string) => {
+            this.onOsdSurfaceDestroy(surfaceId)
+          }
         })
       }
     }
@@ -108,6 +113,10 @@ export struct MpvXComponent {
   }
   @Event onOsdSurfaceLoad: (_surfaceId: string, _surfaceWidth: number, _surfaceHeight: number) => void = () => {
   }
+  @Event onOsdSurfaceDestroy: (_surfaceId: string) => void = () => {
+  }
+
+  private activeOsdSurfaceId: string = ''
 
   private notifyOsdSurface(surfaceId: string): void {
     try {
@@ -115,6 +124,7 @@ export struct MpvXComponent {
       const surfaceWidth = Math.round(surfaceRect?.surfaceWidth ?? 0)
       const surfaceHeight = Math.round(surfaceRect?.surfaceHeight ?? 0)
       if (surfaceWidth > 0 && surfaceHeight > 0) {
+        this.activeOsdSurfaceId = surfaceId
         this.onOsdSurfaceLoad(surfaceId, surfaceWidth, surfaceHeight)
       }
     } catch (error) {
@@ -137,10 +147,7 @@ export struct MpvXComponent {
           this.onMpvXComponent()
         })
         .position({ x: 0, y: 0 })
-      // OSD 字幕叠加层 XComponent（Surface 模式下由 ohcodec-osd VO 渲染字幕）
-      // 注意：SURFACE 类型 XComponent 在首帧提交前是不透明的，会遮挡视频。
-      // 解决方案：初始为 None，视频开始播放后延迟 500ms 再变 Visible，
-      // 此时 ohos_osd_create 已提交透明帧，surface 不再是黑色覆盖层。
+      // OSD 字幕叠加层：libass 小位图直接由 EGL/GLES 绘制并与视频 Surface 合成。
       if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE && this.osdVisibility) {
         XComponent({
           id: "mpv_osd_surface",
@@ -165,6 +172,13 @@ export struct MpvXComponent {
             const surfaceId = this.osdXController?.getXComponentSurfaceId()
             if (surfaceId) {
               this.notifyOsdSurface(surfaceId)
+            }
+          })
+          .onDestroy(() => {
+            const surfaceId = this.activeOsdSurfaceId
+            this.activeOsdSurfaceId = ''
+            if (surfaceId) {
+              this.onOsdSurfaceDestroy(surfaceId)
             }
           })
       }

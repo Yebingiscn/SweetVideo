@@ -1,3 +1,4 @@
+import { media } from '@kit.MediaKit'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { AVPlayerController } from './AVPlayerController/AVPlayerController'
 import { MpvController } from './MpvController/MpvController'
@@ -188,6 +189,8 @@ export interface PlayerControllerInterface {
 
   onOsdSurfaceLoad(surfaceId: string, surfaceWidth: number, surfaceHeight: number): void
 
+  onOsdSurfaceDestroy(surfaceId: string): void
+
   restoreSpeedAfterLongPress(lastSpeed: number): void
 
   restoreSystemBars(windowClass?: Promise<window.Window | undefined>): Promise<void>
@@ -198,6 +201,11 @@ export interface PlayerControllerInterface {
   onWillDisappearRelease(windowClass?: Promise<window.Window | undefined>): Promise<void>
 
   hasChapterSupport(): boolean
+
+
+  onMetricsEvent(callback: (info: Array<media.AVMetricsEvent>) => void): void
+
+  offMetricsEvent(callback?: (info: Array<media.AVMetricsEvent>) => void): void
 
   seekToChapter(chapterIndex: number): void
 

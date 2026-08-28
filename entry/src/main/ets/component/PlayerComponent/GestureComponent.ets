@@ -1,6 +1,7 @@
 import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
+
 @ComponentV2
 export struct GestureComponent {
   @Consumer('player') player: PlayerControllerInterface =
@@ -179,6 +180,11 @@ export struct GestureComponent {
                 if (this.player.isLock) {
                   return
                 }
+                this.onLongPressEnd()
+              })
+              .onActionCancel(() => {
+                // Parallel Pan/Pinch recognition can cancel LongPress without
+                // delivering onActionEnd. Restore temporary speed immediately.
                 this.onLongPressEnd()
               }),
             PanGesture({

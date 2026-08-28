@@ -19,50 +19,8 @@ const DEFAULT_TIME = '00:00'
 export function SwipingPlayTimePanelBuilder(swipingPlayTimeValue: SwipingPlayTimeValue) {
   if (swipingPlayTimeValue) {
     Column() {
-      Row() {
-        if (!swipingPlayTimeValue.isSliderPlayTimeChange) {
-          Text(timeDiffSign(swipingPlayTimeValue))
-            .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
-          Text(timeDiffSeconds(swipingPlayTimeValue).toString())
-            .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
-            .contentTransition({ flipDirection: FlipDirection.DOWN, enableBlur: true })
-          Text('s : ')
-            .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
-        }
-        if (swipingPlayTimeValue.totalTime >= 3600000) {
-          Text(Math.floor(Math.floor(swipingPlayTimeValue.playTime / 1000) / 3600).toString().padStart(2, '0'))
-            .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
-            .contentTransition({ flipDirection: FlipDirection.DOWN, enableBlur: true })
-          Text(':').fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
-        }
-        Text(Math.floor((Math.floor(swipingPlayTimeValue.playTime / 1000) % 3600) / 60).toString().padStart(2, '0'))
-          .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
-          .contentTransition({ flipDirection: FlipDirection.DOWN, enableBlur: true })
-        Text(':').fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
-        Text((Math.floor(swipingPlayTimeValue.playTime / 1000) % 60).toString().padStart(2, '0'))
-          .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
-          .contentTransition({ flipDirection: FlipDirection.DOWN, enableBlur: true })
-        Text(' / ').fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
-        if (swipingPlayTimeValue.totalTime >= 3600000) {
-          Text(Math.floor(Math.floor(swipingPlayTimeValue.totalTime / 1000) / 3600).toString().padStart(2, '0'))
-            .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
-            .contentTransition({ flipDirection: FlipDirection.DOWN, enableBlur: true })
-          Text(':').fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
-        }
-        Text(Math.floor((Math.floor(swipingPlayTimeValue.totalTime / 1000) % 3600) / 60).toString().padStart(2, '0'))
-          .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
-          .contentTransition({ flipDirection: FlipDirection.DOWN, enableBlur: true })
-        Text(':').fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
-        Text((Math.floor(swipingPlayTimeValue.totalTime / 1000) % 60).toString().padStart(2, '0'))
-          .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
-          .contentTransition({ flipDirection: FlipDirection.DOWN, enableBlur: true })
-        Text('  ')
-        Text(percentValue(swipingPlayTimeValue).toString())
-          .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
-          .contentTransition({ flipDirection: FlipDirection.DOWN, enableBlur: true })
-        Text('%')
-          .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
-      }
+      Text(buildSwipingTimeText(swipingPlayTimeValue))
+        .fontColor($r('sys.color.white')).fontSize(DIALOG_TITLE_FONT_SIZE).fontWeight(FontWeight.Bold)
 
       if (Setting?.showFrameImgStatus) {
         if (swipingPlayTimeValue?.pixelMap) {
@@ -104,6 +62,28 @@ function percentValue(v: SwipingPlayTimeValue): number {
   const playTime = v.playTime || 0
   const totalTime = v.totalTime || 0
   return totalTime > 0 ? Math.floor(playTime / totalTime * 100) : 0
+}
+
+function buildSwipingTimeText(v: SwipingPlayTimeValue): string {
+  let text = ''
+  if (!v.isSliderPlayTimeChange) {
+    text += `${timeDiffSign(v)}${timeDiffSeconds(v)}s : `
+  }
+  const playSec = Math.floor((v.playTime || 0) / 1000)
+  const totalSec = Math.floor((v.totalTime || 0) / 1000)
+  if (v.totalTime >= 3600000) {
+    text += `${Math.floor(playSec / 3600).toString().padStart(2, '0')}:`
+  }
+  text += `${Math.floor((playSec % 3600) / 60).toString().padStart(2, '0')}:${(playSec % 60).toString()
+    .padStart(2, '0')}`
+  text += ' / '
+  if (v.totalTime >= 3600000) {
+    text += `${Math.floor(totalSec / 3600).toString().padStart(2, '0')}:`
+  }
+  text += `${Math.floor((totalSec % 3600) / 60).toString().padStart(2, '0')}:${(totalSec % 60).toString()
+    .padStart(2, '0')}`
+  text += `  ${percentValue(v)}%`
+  return text
 }
 
 export function getFormattedTimeText(swipingPlayTimeValue: SwipingPlayTimeValue): string {

@@ -121,7 +121,7 @@ export struct AudioTrackComponent {
   getTrackAudioType(item: TrackType): number {
     if (this.isAudioTrack(item)) {
       const track = item as AudioTrack
-      const codec = track?.mime?.split('/')[1] ?? ''
+      const codec = (track?.mime?.split('/')[1] ?? '').toLowerCase()
       if (codec === 'av3a') {
         if (this.player.nowPlaying && this.player.nowPlaying.audio_type !== AUDIO_TYPE.AUDIO_VIVID) {
           this.player.nowPlaying.audio_type = AUDIO_TYPE.AUDIO_VIVID
@@ -129,7 +129,7 @@ export struct AudioTrackComponent {
         }
         return AUDIO_TYPE.AUDIO_VIVID
       }
-      if (codec === 'truehd' || codec === 'eac3') {
+      if (this.isDolbyAudioCodec(codec)) {
         return AUDIO_TYPE.DOLBY_AUDIO
       }
       if (codec === 'dts' || codec === 'dca') {
@@ -142,7 +142,7 @@ export struct AudioTrackComponent {
       if (codec === 'av3a') {
         return AUDIO_TYPE.AUDIO_VIVID
       }
-      if (codec.includes('truehd') || codec.includes('eac3')) {
+      if (this.isDolbyAudioCodec(codec)) {
         return AUDIO_TYPE.DOLBY_AUDIO
       }
       if (codec.includes('dts') || codec.includes('dca')) {
@@ -150,6 +150,12 @@ export struct AudioTrackComponent {
       }
     }
     return AUDIO_TYPE.NONE
+  }
+
+  private isDolbyAudioCodec(codec: string): boolean {
+    return codec.includes('truehd') || codec.includes('mlp') ||
+      codec.includes('eac3') || codec.includes('e-ac-3') || codec.includes('ec-3') ||
+      codec === 'ac3' || codec.includes('ac3_') || codec.includes('ac-3')
   }
 
   // 获取唯一键

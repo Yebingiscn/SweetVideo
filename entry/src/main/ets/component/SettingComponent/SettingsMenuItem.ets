@@ -1,8 +1,8 @@
 import {
-  SymbolGlyphFancyModifier,
+  SettingsItemModifier,
   SettingsTitleModifier,
-  SettingsItemModifier
-} from "../../common/AttributeModifierConfig"
+  SymbolGlyphFancyModifier
+} from '../../common/AttributeModifierConfig'
 
 @ComponentV2
 export struct SettingsMenuItem {
@@ -42,7 +42,12 @@ export struct SettingsMenuItem {
             .fontColor(Color.White)
             .backgroundColor($r('app.color.main_color'))
             .borderRadius(6)
-            .padding({ left: 4, right: 4, top: 1, bottom: 1 })
+            .padding({
+              left: 4,
+              right: 4,
+              top: 1,
+              bottom: 1
+            })
         }
       }
       .layoutWeight(1)

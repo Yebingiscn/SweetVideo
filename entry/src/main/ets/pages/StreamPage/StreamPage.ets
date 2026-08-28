@@ -13,7 +13,7 @@ import {
 } from '../../common/AttributeModifierConfig'
 import { SortField } from '../../common/enum/SortField'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
-import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
+import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { SortMenuComponent } from '../../component/common/SortMenuComponent'
 
 import { SearchComponent } from '../../component/VideoItemComponent/SearchComponent'
@@ -35,6 +35,14 @@ import RecentPlayUtil from '../../utils/RecentPlayUtil'
 export struct StreamPage {
   @Local networkStreams: VideoMetadata[] = []
   @Local allStreams: VideoMetadata[] = []
+  addNetworkStreamDialogController: CustomDialogController = new CustomDialogController({
+    builder: AddNetworkStreamDialog({
+      onStreamAdded: () => {
+        this.allStreams = Preferences.getNetworkStreams(PathUtils.appContext!)
+        this.applySearch()
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
   editStreamDialogController: CustomDialogController = new CustomDialogController({
     builder: EditStreamDialog({
       onConfirm: (newName: string, newUrl: string) => {
@@ -51,14 +59,6 @@ export struct StreamPage {
           this.allStreams = [...streams]
           this.applySearch()
         }
-      }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
-  addNetworkStreamDialogController: CustomDialogController = new CustomDialogController({
-    builder: AddNetworkStreamDialog({
-      onStreamAdded: () => {
-        this.allStreams = Preferences.getNetworkStreams(PathUtils.appContext!)
-        this.applySearch()
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -388,17 +388,21 @@ export struct StreamPage {
       })
     }
     .titleBar({
+      avoidLayoutSafeArea: true,
       enableComponentSafeArea: true,
-      padding: {
-        start: LengthMetrics.vp(5),
-        end: LengthMetrics.vp(5)
-      },
+      padding: { start: LengthMetrics.vp(5), end: LengthMetrics.vp(5) },
       style: {
+        // 设置导航组件标题栏样式，推荐使用默认样式
+        // 标题栏动态模糊样式，包括是否使能滚动动态模糊，动态模糊类型，动态模糊生效的滚动距离等
         scrollEffectOpts: {
           enableScrollEffect: true,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
+          scrollEffectType: ScrollEffectType.IMMERSIVE_GRADIENT_BLUR,
           blurEffectiveStartOffset: LengthMetrics.vp(0),
           blurEffectiveEndOffset: LengthMetrics.vp(20)
+        },
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
         },
         originalStyle: {
           backgroundStyle: {
@@ -452,7 +456,6 @@ export struct StreamPage {
         Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)
-    .padding({ top: SafeHeight.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
     .bindToScrollable([this.listScroller]) // 绑定导航组件和可滚动容器组件
     .onBackPressed(() => {

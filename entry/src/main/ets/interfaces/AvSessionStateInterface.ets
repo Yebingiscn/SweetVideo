@@ -2,4 +2,5 @@
 export interface AvSessionState {
   playing: boolean
   duration: number
+  speed: number
 }

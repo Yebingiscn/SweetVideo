@@ -1,13 +1,13 @@
 import { hiAppEvent } from '@kit.PerformanceAnalysisKit'
 import { salmonLogger, SalmonLogLine } from 'salmonlogger'
 import { SweetLogDataSource } from '../../utils/DataUtil'
-import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { systemShare } from '@kit.ShareKit'
 import { uniformTypeDescriptor } from '@kit.ArkData'
 import { fileIo } from '@kit.CoreFileKit'
-import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
+import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import {
   CapsuleSegmentButtonV2,
   ColorMetrics,
@@ -252,17 +252,21 @@ export struct CrashPage {
     }
     .hideToolBar(true)
     .titleBar({
+      avoidLayoutSafeArea: true,
       enableComponentSafeArea: true,
-      padding: {
-        start: LengthMetrics.vp(5),
-        end: LengthMetrics.vp(5)
-      },
+      padding: { start: LengthMetrics.vp(5), end: LengthMetrics.vp(5) },
       style: {
+        // 设置导航组件标题栏样式，推荐使用默认样式
+        // 标题栏动态模糊样式，包括是否使能滚动动态模糊，动态模糊类型，动态模糊生效的滚动距离等
         scrollEffectOpts: {
           enableScrollEffect: true,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
+          scrollEffectType: ScrollEffectType.IMMERSIVE_GRADIENT_BLUR,
           blurEffectiveStartOffset: LengthMetrics.vp(0),
           blurEffectiveEndOffset: LengthMetrics.vp(20)
+        },
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
         },
         originalStyle: {
           backgroundStyle: {
@@ -310,7 +314,6 @@ export struct CrashPage {
       },
     })
     .backgroundColor($r('app.color.start_window_background'))
-    .padding({ top: SafeHeight.topSafeHeight, bottom: SafeHeight.bottomSafeHeight })
     .backgroundImage(
       Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ? Setting.backgroundBlurImageSrc :
         Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
@@ -339,43 +342,46 @@ export struct CrashPage {
   }
 
   async shareText(text: string) {
-    const appVersion = await ToolsUtil.getVersionName()
-    const infoText =
-      `反馈 QQ群 973792610，系统版本: ${deviceInfo.osFullName}，应用版本：${appVersion}，型号：${deviceInfo.productModel}，API版本：${deviceInfo.sdkApiVersion}`
-    const fullText = infoText + '\n' + text
-    try {
-      const context = PathUtils.appContext
-      const tempDir = PathUtils.tempPath
-      const timestamp = new Date().getTime()
-      const fileName = `crash_log_${timestamp}.txt`
-      const filePath = `${tempDir}/${fileName}`
-      salmonLogger.addLog(this.pathStack.getAllPathName()[0], '开始写入日志文件: ' + filePath, false)
-      const file =
-        fileIo.openSync(filePath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC)
-      fileIo.writeSync(file.fd, fullText)
-      const filePathString = file.path
-      salmonLogger.addLog(this.pathStack.getAllPathName()[0], '文件写入完成: ' + filePathString, false)
-      let shareData = new systemShare.SharedData({
-        utd: uniformTypeDescriptor.UniformDataType.PLAIN_TEXT,
-        uri: PathUtils.pathToUri(filePath),
-        title: fileName,
-        description: '流心播放器日志'
-      })
-      let controller1 = new systemShare.ShareController(shareData)
-      await controller1.show(context, {
-        previewMode: systemShare.SharePreviewMode.DETAIL,
-        selectionMode: systemShare.SelectionMode.SINGLE
-      })
-      fileIo.closeSync(file)
-      salmonLogger.addLog(this.pathStack.getAllPathName()[0], '日志分享成功', false)
-      ToolsUtil.showToast('日志分享成功')
-
-    } catch (error) {
-      const err = error as BusinessError
-      const errorMsg = `分享失败: code=${err.code}, message=${err.message}`
-      salmonLogger.addLog(this.pathStack.getAllPathName()[0], errorMsg, true)
-      salmonLogger.addLog(TAG, errorMsg, true)
-      ToolsUtil.showToast('分享失败: ' + err.message)
+    if (canIUse('SystemCapability.Collaboration.SystemShare')) {
+      const appVersion = await ToolsUtil.getVersionName()
+      const infoText =
+        `反馈 QQ群 973792610，系统版本: ${deviceInfo.osFullName}，应用版本：${appVersion}，型号：${deviceInfo.productModel}，API版本：${deviceInfo.sdkApiVersion}，热挡位：${ToolsUtil.getThermalLevel()}`
+      const fullText = infoText + '\n' + text
+      try {
+        const context = PathUtils.appContext
+        const tempDir = PathUtils.tempPath
+        const timestamp = new Date().getTime()
+        const fileName = `crash_log_${timestamp}.txt`
+        const filePath = `${tempDir}/${fileName}`
+        salmonLogger.addLog(this.pathStack.getAllPathName()[0], '开始写入日志文件: ' + filePath, false)
+        const file =
+          fileIo.openSync(filePath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC)
+        fileIo.writeSync(file.fd, fullText)
+        const filePathString = file.path
+        salmonLogger.addLog(this.pathStack.getAllPathName()[0], '文件写入完成: ' + filePathString, false)
+        let shareData = new systemShare.SharedData({
+          utd: uniformTypeDescriptor.UniformDataType.PLAIN_TEXT,
+          uri: PathUtils.pathToUri(filePath),
+          title: fileName,
+          description: '流心播放器日志'
+        })
+        let controller1 = new systemShare.ShareController(shareData)
+        await controller1.show(context, {
+          previewMode: systemShare.SharePreviewMode.DETAIL,
+          selectionMode: systemShare.SelectionMode.SINGLE
+        })
+        fileIo.closeSync(file)
+        salmonLogger.addLog(this.pathStack.getAllPathName()[0], '日志分享成功', false)
+        ToolsUtil.showToast('日志分享成功')
+      } catch (error) {
+        const err = error as BusinessError
+        const errorMsg = `分享失败: code=${err.code}, message=${err.message}`
+        salmonLogger.addLog(this.pathStack.getAllPathName()[0], errorMsg, true)
+        salmonLogger.addLog(TAG, errorMsg, true)
+        ToolsUtil.showToast('分享失败: ' + err.message)
+      }
+    } else {
+      ToolsUtil.showToast('系统不支持该功能')
     }
   }
 

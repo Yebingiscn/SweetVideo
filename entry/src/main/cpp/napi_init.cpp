@@ -82,7 +82,7 @@ namespace {
             .nm_flags = 0U,
             .nm_filename = nullptr,
             .nm_register_func = &Invoke,
-            .nm_modname = "libmpvnative",
+            .nm_modname = "mpvnative",
             .nm_priv = nullptr,
             .reserved = {}
         };

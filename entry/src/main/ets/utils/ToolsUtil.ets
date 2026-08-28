@@ -2,27 +2,28 @@ import { bundleManager, ConfigurationConstant } from '@kit.AbilityKit'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { PathUtils } from './PathUtils'
-import { UniversalDetector } from '@ohos/juniversalchardet'
 import { SortField } from '../common/enum/SortField'
 import { salmonLogger } from 'salmonlogger'
-import { ItemWithPinyin } from '../interfaces/VideoItemWithPinyinInterface'
 import { GB, KB, MB } from '../common/Constants'
+import { PromptAction, window } from '@kit.ArkUI'
+import { pinyin4js } from '@ohos/pinyin4js'
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import NavigationAddress, { PlayerParams, ShortVideoParams } from '../common/NavigationCommon'
 import Preferences from '../database/Preferences'
+import { ItemWithPinyin } from '../interfaces/VideoItemWithPinyinInterface'
 import DataSyncUtil from './DataSyncUtil'
 import FileFolderUtil from './FileFolderUtil'
-import PrivacySpaceUtil from './PrivacySpaceUtil'
 import { Setting } from './ObservedUtil'
+import PrivacySpaceUtil from './PrivacySpaceUtil'
+import { FolderNameSortItem, sortFolderNamesInTaskPool } from './TaskpoolUtil'
 import VideoOperateUtil from './VideoOperateUtil'
 import { WindowUtil } from './WindowUtil'
-import fileIo from '@ohos.file.fs'
-import { util } from '@kit.ArkTS'
-import { PromptAction, window } from '@kit.ArkUI'
-import { vibrator } from '@kit.SensorServiceKit'
-import { pinyin4js } from '@ohos/pinyin4js'
 import { updateManager } from '@kit.AppGalleryKit'
-import { FolderNameSortItem, sortFolderNamesInTaskPool } from './TaskpoolUtil'
+import { util } from '@kit.ArkTS'
+import { fileIo } from '@kit.CoreFileKit'
+import { vibrator } from '@kit.SensorServiceKit'
+import { thermal } from '@kit.BasicServicesKit'
+
 
 const TAG = 'ToolsUtil'
 
@@ -267,24 +268,28 @@ export default class ToolsUtil {
   }
 
   static checkUpdate() {
-    updateManager.checkAppUpdate(PathUtils.appContext)
-      .then((checkResult: updateManager.CheckUpdateResult) => {
-        if (checkResult.updateAvailable == updateManager.UpdateAvailableCode.LATER_VERSION_EXIST) {
-          updateManager.showUpdateDialog(PathUtils.appContext)
-            .then((resultCode: updateManager.ShowUpdateResultCode) => {
-              salmonLogger.addLog(TAG, 'showUpdateDialog resultCode:' + resultCode)
-            })
-            .catch((error: BusinessError) => {
-              ToolsUtil.showToast('更新弹窗生成失败，原因是：' + error.message)
-              salmonLogger.addLog(TAG, `showUpdateDialog onError.code is ${error.code}, message is ${error.message}`)
-            })
-        } else {
-          ToolsUtil.showToast('还没有新版本~')
-        }
-      }).catch((error: BusinessError) => {
-      ToolsUtil.showToast('检查更新失败，原因是：' + error.message)
-      salmonLogger.addLog(TAG, `checkAppUpdate onError.code is ${error.code}, message is ${error.message}`, true)
-    })
+    if (canIUse("SystemCapability.AppGalleryService.Distribution.Update")) {
+      updateManager.checkAppUpdate(PathUtils.appContext)
+        .then((checkResult: updateManager.CheckUpdateResult) => {
+          if (checkResult.updateAvailable == updateManager.UpdateAvailableCode.LATER_VERSION_EXIST) {
+            updateManager.showUpdateDialog(PathUtils.appContext)
+              .then((resultCode: updateManager.ShowUpdateResultCode) => {
+                salmonLogger.addLog(TAG, 'showUpdateDialog resultCode:' + resultCode)
+              })
+              .catch((error: BusinessError) => {
+                ToolsUtil.showToast('更新弹窗生成失败，原因是：' + error.message)
+                salmonLogger.addLog(TAG, `showUpdateDialog onError.code is ${error.code}, message is ${error.message}`)
+              })
+          } else {
+            ToolsUtil.showToast('还没有新版本~')
+          }
+        }).catch((error: BusinessError) => {
+        ToolsUtil.showToast('检查更新失败，原因是：' + error.message)
+        salmonLogger.addLog(TAG, `checkAppUpdate onError.code is ${error.code}, message is ${error.message}`, true)
+      })
+    } else {
+      ToolsUtil.showToast('不支持该功能')
+    }
   }
 
   static setColorMode(context: Context, select: number) {
@@ -305,15 +310,6 @@ export default class ToolsUtil {
     }
   }
 
-  static async detectFileDecoder(filePath: string) {
-    try {
-      const encoding = await UniversalDetector.detectCharset(filePath)
-      return encoding
-    } catch (error) {
-      salmonLogger.addLog(TAG, 'File encoding detection failed: ' + error, true)
-      return ''
-    }
-  }
 
   static transFileDecodeAsUTF8(filePath: string, decode: string) {
     try {
@@ -346,7 +342,7 @@ export default class ToolsUtil {
     }
   }
 
-  static getDeleteDialogMessage(isPermanentDelete: boolean, isMoveToRecent: boolean) { // V2 时可用 @Computed
+  static getDeleteDialogMessage(isPermanentDelete: boolean, isMoveToRecent: boolean) {
     if (isPermanentDelete) {
       return $r('app.string.hard_del_confirm')
     } else if (isMoveToRecent) {
@@ -383,11 +379,37 @@ export default class ToolsUtil {
     return result
   }
 
+  static getThermalLevel() {
+    return thermal.getLevel()
+  }
+
   static isNetworkUrl(uri: string | undefined): boolean {
     if (!uri) {
       return false
     }
     return /^(https?|rtmps?|rtsp|rtp|udp|srt|hls):\/\//i.test(uri.trim())
+  }
+
+  static safeDecodeURI(uri: string | undefined): string {
+    if (!uri) {
+      return ''
+    }
+    try {
+      return decodeURI(uri)
+    } catch (e) {
+      return uri
+    }
+  }
+
+  static safeDecodeURIComponent(uri: string | undefined): string {
+    if (!uri) {
+      return ''
+    }
+    try {
+      return decodeURIComponent(uri)
+    } catch (e) {
+      return uri
+    }
   }
 
   private static sortByName<T>(list: T[], nameExtractor: (item: T) => string, ascending: boolean = true,

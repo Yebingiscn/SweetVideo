@@ -2,10 +2,9 @@ import { DialogButtonBar } from './DialogButtonBar'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import Preferences from '../../database/Preferences'
 import { PathUtils } from '../../utils/PathUtils'
-import { media } from '@kit.MediaKit'
-import { image } from '@kit.ImageKit'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import { salmonLogger } from 'salmonlogger'
+import FFmpegThumbnailUtil from '../../utils/FFmpegThumbnailUtil'
 
 const TAG = 'AddNetworkStreamDialog'
 
@@ -88,15 +87,12 @@ export struct AddNetworkStreamDialog {
 
   private async fetchThumbnailAndSave(url: string, date: string): Promise<void> {
     try {
-      const extractor = await media.createAVMetadataExtractor()
-      extractor.setUrlSource(url)
-      const timeUs: number = 0
-      const queryOption: media.AVImageQueryOptions = media.AVImageQueryOptions.AV_IMAGE_QUERY_PREVIOUS_SYNC
-      const param: media.PixelMapParams = { width: 300, height: 300 }
-      const pixelMap: image.PixelMap = await extractor.fetchFrameByTime(timeUs, queryOption, param)
-      await extractor.release()
-      if (pixelMap) {
-        await SelectFileUtil.savePixelMapToFile(PathUtils.coverPath, date, pixelMap, { releasePixelMap: true })
+      const result = await FFmpegThumbnailUtil.extractNetworkCover(url, 300)
+      if (result.success && result.pixelMap) {
+        await SelectFileUtil.savePixelMapToFile(PathUtils.coverPath, date, result.pixelMap,
+          { releasePixelMap: true })
+      } else if (result.error) {
+        salmonLogger.addLog(TAG, `FFmpeg fetchThumbnail failed: ${result.error}`, false)
       }
     } catch (e) {
       salmonLogger.addLog(TAG, `fetchThumbnail failed: ${e}`, false)

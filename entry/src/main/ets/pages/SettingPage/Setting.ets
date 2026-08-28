@@ -1,25 +1,17 @@
 import NavigationAddress from '../../common/NavigationCommon'
 import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog'
-import { DefaultStartupFolderDialog } from '../../component/Dialog/DefaultStartupFolderDialog'
 import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { DefaultDialogShadow, ImageFancyModifier } from '../../common/AttributeModifierConfig'
-import { Markdown, MarkdownController } from '@luvi/lv-markdown-in'
-import { salmonLogger } from 'salmonlogger'
-import { CoverLayoutMode, ListDisplayMode } from '../../common/enum/DisplayMode'
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
-import { SettingsSegmentButtonItem } from '../../component/SettingComponent/SettingsSegmentButtonItem'
-import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
-import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuItem'
+import { SettingsSectionHeaderBuilder } from '../../component/SettingComponent/SettingsSectionHeader'
 import Preferences from '../../database/Preferences'
 import BiometricAccessUtil from '../../utils/BiometricAccessUtil'
-import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { Setting } from '../../utils/ObservedUtil'
 import { LengthMetrics } from '@kit.ArkUI'
-import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
+import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { IapVerifyUtil } from '../../utils/IapVerifyUtil'
 import { userData } from '../../component/common/UserLoginComponent'
-
-const TAG = 'SettingsPage'
 
 @ComponentV2
 export struct SettingsPage { //设置页
@@ -38,26 +30,11 @@ export struct SettingsPage { //设置页
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   @Local showVipPage: boolean = true
-  @Local defaultStartupFolderName: string = ''
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
-  defaultStartupFolderDialogController: CustomDialogController = new CustomDialogController({
-    builder: DefaultStartupFolderDialog({
-      onFolderSelected: (folderDate: string) => {
-        this.updateDefaultStartupFolderName(folderDate)
-      }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
-  controller: MarkdownController = new MarkdownController()
   private listScroller: Scroller = new Scroller()
 
   async aboutToAppear(): Promise<void> {
-    this.controller.setTitleColor($r("app.color.text_color"))
-    this.controller.setTextColor($r("app.color.text_color"))
-    this.controller.setQuoteBackgroundColor($r('app.color.start_window_background_blur'))
-    this.controller.setLazyRender(true)
     this.showVipPage = await IapVerifyUtil.queryEnvironmentStatus()
-    const savedFolderDate = Preferences.getDefaultStartupFolder(PathUtils.appContext!)
-    this.updateDefaultStartupFolderName(savedFolderDate)
   }
 
   build() {
@@ -113,7 +90,55 @@ export struct SettingsPage { //设置页
           }
         }
 
+        ListItem() {
+          SettingsSectionHeaderBuilder('常用设置', '按功能进入对应设置')
+        }
+
+        ListItem() {
+          SettingsClickItem({
+            symbol: $r('sys.symbol.paintpalette'),
+            message: '外观与首页',
+            onPress: () => {
+              this.pathStack.pushPathByName(NavigationAddress.PERSONALIZE_PAGE, true)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsClickItem({
+            symbol: $r('sys.symbol.play_round_rectangle'),
+            message: '播放设置',
+            onPress: () => {
+              this.pathStack.pushPathByName(NavigationAddress.PLAYER_SETTING_PAGE, true)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsClickItem({
+            symbol: $r('sys.symbol.textformat_size_square'),
+            message: '字幕样式',
+            onPress: () => {
+              this.pathStack.pushPathByName(NavigationAddress.SUBTITLE_SETTING_PAGE, true)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsClickItem({
+            symbol: $r('sys.symbol.square_grid_2x2'),
+            message: '应用与支持',
+            onPress: () => {
+              this.pathStack.pushPathByName(NavigationAddress.MORE_SETTING_PAGE, true)
+            }
+          })
+        }
+
         if (Setting.showSettingPageEntry) {
+          ListItem() {
+            SettingsSectionHeaderBuilder('隐私与安全', '保护私密内容与访问权限')
+          }
+
           ListItem() {
             SettingsClickItem({
               symbol: $r('sys.symbol.lock'),
@@ -140,141 +165,6 @@ export struct SettingsPage { //设置页
           }
         }
 
-        ListItem() {
-          SettingsClickItem({
-            symbol: $r('sys.symbol.paintpalette'),
-            message: '个性化',
-            onPress: () => {
-              this.pathStack.pushPathByName(NavigationAddress.PERSONALIZE_PAGE, true)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsClickItem({
-            symbol: $r('sys.symbol.play_round_rectangle'),
-            message: '播放设置',
-            onPress: () => {
-              this.pathStack.pushPathByName(NavigationAddress.PLAYER_SETTING_PAGE, true)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsClickItem({
-            symbol: $r('sys.symbol.square_grid_2x2'),
-            message: '更多设置',
-            onPress: () => {
-              this.pathStack.pushPathByName(NavigationAddress.MORE_SETTING_PAGE, true)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsSegmentButtonItem({
-            symbol: Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY ? $r('sys.symbol.list_bullet_square') :
-              $r('sys.symbol.grid'),
-            message: '列表布局',
-            tips: ['卡片', '列表', '网格'],
-            tabSelectedIndex: Setting.listDisplayMode,
-            onButtonClick: (tabSelectedIndex: number) => {
-              Setting.listDisplayMode = tabSelectedIndex
-              Preferences.saveListDisplayMode(PathUtils.appContext!, tabSelectedIndex)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsMenuItem({
-            symbol: $r('sys.symbol.list_number'),
-            message: '最大列表数',
-            tag: '试用',
-            selected: Setting.maxListLine - 1,
-            list: ['1', '2', '3', '4', '5', '6', '7', '8'],
-            onChange: (index: number) => {
-              Setting.maxListLine = index + 1
-              Preferences.saveMaxListLine(PathUtils.appContext!, Setting.maxListLine)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsSegmentButtonItem({
-            symbol: Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ?
-              $r('sys.symbol.rectangle_uphalf_inset_filled') : $r('sys.symbol.rectangle_lefthalf_inset_filled'),
-            message: '封面版式',
-            tips: ['竖版', '横版'],
-            tabSelectedIndex: Setting.coverLayout,
-            onButtonClick: (tabSelectedIndex: number) => {
-              Setting.coverLayout = tabSelectedIndex
-              Preferences.saveCoverLayoutMode(PathUtils.appContext!, tabSelectedIndex)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsToggleItem({
-            symbol: $r('sys.symbol.doc_text_badge_clock'),
-            message: '开启最近播放',
-            enable: Setting.recentPlay,
-            onChange: (checked: boolean) => {
-              Setting.recentPlay = checked
-              if (!Setting.recentPlay) {
-                Preferences.saveRecentPlay(PathUtils.appContext!, [])
-              }
-              Preferences.saveRecentPlayState(PathUtils.appContext!, Setting.recentPlay)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsToggleItem({
-            symbol: $r('sys.symbol.folder'),
-            message: '首页显示顶部文件夹列表',
-            enable: Setting.showToast,
-            onChange: (checked: boolean) => {
-              Setting.showToast = checked
-              Preferences.saveShowToast(PathUtils.appContext!, Setting.showToast)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsClickItem({
-            symbol: $r('sys.symbol.folder_badge_plus'),
-            message: '默认启动页面：' + this.defaultStartupFolderName,
-            showArrow: true,
-            onPress: () => {
-              this.defaultStartupFolderDialogController.open()
-            }
-          })
-        }
-
-        ListItem() {
-          Column() {
-            Markdown({
-              controller: this.controller,
-              mode: "rawfile",
-              context: PathUtils.appContext!, // 资源文件模式必填参数
-              rawfilePath: "Tips.md", // 资源文件地址
-              callback: {
-                complete: () => {
-                  salmonLogger.addLog(TAG, "Markdown component load success.", false)
-                },
-                fail: (code: number, message: string) => {
-                  salmonLogger.addLog(TAG, "Markdown component load error. code: " + code + ", message: " + message,
-                    true)
-                }
-              }
-            })
-          }
-          .margin({ top: 10 })
-          .padding(15)
-          .alignItems(HorizontalAlign.Start)
-          .borderRadius(16)
-          .width('100%')
-          .backgroundColor($r('app.color.start_window_background_blur'))
-        }
       }
       .clip(false)
       .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
@@ -287,19 +177,21 @@ export struct SettingsPage { //设置页
       .layoutWeight(1)
     }
     .titleBar({
-      enableComponentSafeArea: true, // 将标题栏设置为组件级安全区，内容区可避让标题栏
-      padding: {
-        start: LengthMetrics.vp(5),
-        end: LengthMetrics.vp(5)
-      },
+      avoidLayoutSafeArea: true,
+      enableComponentSafeArea: true,
+      padding: { start: LengthMetrics.vp(5), end: LengthMetrics.vp(5) },
       style: {
         // 设置导航组件标题栏样式，推荐使用默认样式
         // 标题栏动态模糊样式，包括是否使能滚动动态模糊，动态模糊类型，动态模糊生效的滚动距离等
         scrollEffectOpts: {
           enableScrollEffect: true,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
+          scrollEffectType: ScrollEffectType.IMMERSIVE_GRADIENT_BLUR,
           blurEffectiveStartOffset: LengthMetrics.vp(0),
           blurEffectiveEndOffset: LengthMetrics.vp(20)
+        },
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
         },
         originalStyle: {
           // 内容区滚动前初始样式设置
@@ -351,7 +243,6 @@ export struct SettingsPage { //设置页
       },
     })
     .backgroundColor($r('app.color.start_window_background'))
-    .padding({ top: SafeHeight.topSafeHeight })
     .backgroundImage(
       Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ? Setting.backgroundBlurImageSrc :
         Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
@@ -361,28 +252,4 @@ export struct SettingsPage { //设置页
     .bindToScrollable([this.listScroller]) // 绑定导航组件和可滚动容器组件
   }
 
-  private updateDefaultStartupFolderName(folderDate: string) {
-    if (folderDate === '') {
-      this.defaultStartupFolderName = '默认（首页）'
-      return
-    }
-    if (folderDate === '__stream__') {
-      this.defaultStartupFolderName = '串流页'
-      return
-    }
-    if (folderDate === '__iptv__') {
-      this.defaultStartupFolderName = 'IPTV源列表'
-      return
-    }
-    if (folderDate.startsWith('__iptv_src__')) {
-      const sourceId = folderDate.substring('__iptv_src__'.length)
-      const sources = Preferences.getIPTVSources(PathUtils.appContext!)
-      const source = sources.find(s => s.id === sourceId)
-      this.defaultStartupFolderName = source ? `IPTV - ${source.name}` : 'IPTV源列表'
-      return
-    }
-    const folders = Preferences.getFileFolder(PathUtils.appContext!)
-    const folder = folders.find(f => f.date === folderDate)
-    this.defaultStartupFolderName = folder?.name ?? '默认（首页）'
-  }
 }

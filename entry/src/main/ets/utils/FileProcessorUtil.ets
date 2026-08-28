@@ -70,7 +70,7 @@ export class FileProcessorUtil {
           })
 
           try {
-            await SelectFileUtil.addFile(
+            const handled = await SelectFileUtil.addFile(
               context,
               sandbox_video,
               sandbox_path,
@@ -78,6 +78,10 @@ export class FileProcessorUtil {
               video_meta_data,
               fileFolder
             )
+            if (!handled) {
+              FileProcessorUtil.failedFiles.push(uri)
+              failedCount++
+            }
           } catch (error) {
             FileProcessorUtil.failedFiles.push(uri)
             failedCount++
@@ -255,6 +259,10 @@ export async function importAndProcessFiles(
       },
       fileFolder
     )
+    salmonLogger.addLog(TAG,
+      `导入完成: total=${totalItems}, imported=${totalItems - FileFolderUtil.duplicateVideo -
+        FileProcessorUtil.failedFiles.length}, duplicate=${FileFolderUtil.duplicateVideo}, ` +
+        `failed=${FileProcessorUtil.failedFiles.length}`, true)
     ToolsUtil.showToast(
       `${ToolsUtil.getStringResource($r('app.string.add_time_info').id)}${totalItems -
         FileFolderUtil.duplicateVideo - FileProcessorUtil.failedFiles.length}${

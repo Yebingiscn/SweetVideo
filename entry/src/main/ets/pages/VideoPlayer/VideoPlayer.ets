@@ -1,6 +1,6 @@
 import PermissionUtil from '../../utils/PermissionUtil'
 import { window } from '@kit.ArkUI'
-import { pointer } from '@kit.InputKit'
+import { KeyCode, pointer } from '@kit.InputKit'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
@@ -11,7 +11,6 @@ import { LockVideoBarComponent } from '../../component/PlayerComponent/LockVideo
 import { GestureComponent } from '../../component/PlayerComponent/GestureComponent'
 import NavigationAddress, { PlayerEngine, PlayerParams } from '../../common/NavigationCommon'
 import { WindowUtil } from '../../utils/WindowUtil'
-import { KeyCode } from '@kit.InputKit'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
 import { SubtitleManager } from '../../utils/SubtitleManager'
@@ -73,6 +72,49 @@ export struct VideoPlayer {
   @Local autoListenVideoEnabled: boolean = false
   @Provider('player') player: PlayerType = PlayerControllerFactory.createAVPlayerController() as PlayerType
   subtitleManager: SubtitleManager = new SubtitleManager(this.player)
+  personalScreenExtendDialog: CustomDialogController = new CustomDialogController({
+    builder: NumberInputDialog({
+      title: '自定义屏幕拓展比例',
+      placeholderColor: '输入范围：50-150',
+      confirm: (input: number): void => {
+        if (input && input <= 150 && input >= 50) {
+          this.player.selectedText = `自定义比例:${input}`
+          Preferences.saveScreenExtend(PathUtils.appContext!, this.player.selectedText)
+          this.player.playAreaHeight = input / 100 * VideoInfoUtil.playAreaHeight
+          this.player.playAreaWidth = input / 100 * VideoInfoUtil.playAreaWidth
+          this.player.scaleFactor = 1
+
+        } else {
+          ToolsUtil.showToast('输入错误，输入范围在50-150之间')
+        }
+      },
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  @Local isPlayerConfigured: boolean = false
+  @Local subtitlePreferenceRestored: boolean = false
+  @Local lockRotation: boolean = false
+  xComponentController: XComponentController = new XComponentController()
+  osdXController: XComponentController = new XComponentController()
+  windowClass: Promise<window.Window | undefined> = WindowUtil.getWindow()
+  @Local sideBarStatusTmp: Visibility = Visibility.Hidden
+  @Local sideBarStatus: boolean = false
+  @Local currentSpeedIndex: number = 0
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
+  @Local exitVideoTime: number = 0
+  @Local isAdjustingSubtitleOffset: boolean = false
+  private containerWidth: number = 0
+  private containerHeight: number = 0
+  private longPressSpeedSession: number = 0
+  private activeLongPressSpeedSession: number = 0
+  private longPressBaseSpeed: number = 1
+  private playbackSession: PlaybackSessionController = new PlaybackSessionController()
+  private engineSwitchTask: Promise<void> | undefined = undefined
+  private playerDisposeTask: Promise<void> | undefined = undefined
+  private isPlaybackSessionDisposed: boolean = false
+  private isPageDisappearing: boolean = false
+  private subtitleOffsetPreviewBase: number = 0
+  private subtitleOffsetShouldResumePlayback: boolean = false
+  private isAdjustingMpvSubtitleOffset: boolean = false
   subtitleTimestampInputDialog: CustomDialogController = new CustomDialogController({
     builder: SubtitleOffsetDialog({
       getCurrentValue: (): number => SubtitleUtil.offsetMillis,
@@ -113,46 +155,6 @@ export struct VideoPlayer {
       this.cancelSubtitleOffsetSession()
     }
   })
-  @Local isPlayerConfigured: boolean = false
-  personalScreenExtendDialog: CustomDialogController = new CustomDialogController({
-    builder: NumberInputDialog({
-      title: '自定义屏幕拓展比例',
-      placeholderColor: '输入范围：50-150',
-      confirm: (input: number): void => {
-        if (input && input <= 150 && input >= 50) {
-          this.player.selectedText = `自定义比例:${input}`
-          Preferences.saveScreenExtend(PathUtils.appContext!, this.player.selectedText)
-          this.player.playAreaHeight = input / 100 * VideoInfoUtil.playAreaHeight
-          this.player.playAreaWidth = input / 100 * VideoInfoUtil.playAreaWidth
-          this.player.scaleFactor = 1
-
-        } else {
-          ToolsUtil.showToast('输入错误，输入范围在50-150之间')
-        }
-      },
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
-  @Local subtitlePreferenceRestored: boolean = false
-  @Local lockRotation: boolean = false
-  xComponentController: XComponentController = new XComponentController()
-  osdXController: XComponentController = new XComponentController()
-  windowClass: Promise<window.Window | undefined> = WindowUtil.getWindow()
-  private containerWidth: number = 0
-  private containerHeight: number = 0
-  @Local sideBarStatusTmp: Visibility = Visibility.Hidden
-  @Local sideBarStatus: boolean = false
-  @Local currentSpeedIndex: number = 0
-  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
-  @Local exitVideoTime: number = 0
-  @Local isAdjustingSubtitleOffset: boolean = false
-  private playbackSession: PlaybackSessionController = new PlaybackSessionController()
-  private engineSwitchTask: Promise<void> | undefined = undefined
-  private playerDisposeTask: Promise<void> | undefined = undefined
-  private isPlaybackSessionDisposed: boolean = false
-  private isPageDisappearing: boolean = false
-  private subtitleOffsetPreviewBase: number = 0
-  private subtitleOffsetShouldResumePlayback: boolean = false
-  private isAdjustingMpvSubtitleOffset: boolean = false
   private scrollAxisTimeout: number = 0
   private orientationRequestVersion: number = 0
 
@@ -161,10 +163,10 @@ export struct VideoPlayer {
     if (!Pc.pcMode) {
       return
     }
-    try {
-      pointer.setPointerVisible(this.player.showControl)
-    } catch (error) {
-      salmonLogger.addLog(TAG, `setPointerVisible failed: ${JSON.stringify(error)}`, true)
+    if (canIUse("SystemCapability.MultimodalInput.Input.Pointer")) {
+      pointer.setPointerVisible(this.player.showControl).catch(() => {
+        salmonLogger.addLog(TAG, `setPointerVisible failed`, true)
+      })
     }
   }
 
@@ -191,15 +193,16 @@ export struct VideoPlayer {
     this.isPageDisappearing = true
     this.orientationRequestVersion++
     this.player.onWillDisappearCleanup()
+    VideoOperateUtil.cancelControlAutoHide()
     this.restoreAutomaticOrientation()
     salmonLogger.addLog(TAG, "开始执行aboutToDisappear方法", false)
     VideoOperateUtil.setBrightness(-1)
     WindowUtil.recoveryBarColor()
     if (Pc.pcMode) {
-      try {
-        pointer.setPointerVisible(true)
-      } catch (error) {
-        salmonLogger.addLog(TAG, `restore pointer visible failed: ${JSON.stringify(error)}`, true)
+      if (canIUse("SystemCapability.MultimodalInput.Input.Pointer")) {
+        pointer.setPointerVisible(true).catch(() => {
+          salmonLogger.addLog(TAG, `restore pointer visible failed`, true)
+        })
       }
     }
     this.player.savePlayerSpeed(PathUtils.appContext!)
@@ -290,6 +293,9 @@ export struct VideoPlayer {
               onOsdSurfaceLoad: (surfaceId: string, surfaceWidth: number, surfaceHeight: number) => {
                 this.player.onOsdSurfaceLoad(surfaceId, surfaceWidth, surfaceHeight)
               },
+              onOsdSurfaceDestroy: (surfaceId: string) => {
+                this.player.onOsdSurfaceDestroy(surfaceId)
+              },
             })
           }
 
@@ -343,7 +349,8 @@ export struct VideoPlayer {
                 salmonLogger.addLog(TAG, `锁定旋转状态切换为：${this.lockRotation}`,
                   false)
                 const orientation = this.lockRotation ?
-                  (this.player.screenWidth > this.player.screenHeight ? window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED
+                  (this.player.screenWidth > this.player.screenHeight ?
+                    window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED
                     : window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
                   : window.Orientation.AUTO_ROTATION_RESTRICTED
                 try {
@@ -448,23 +455,32 @@ export struct VideoPlayer {
               this.player.isGesturing = false
             },
             onLongPressAction: () => {
-              if (this.player.playing) {
-                VideoOperateUtil.lastSpeed = this.player.speed
-                this.player.speedLocked = false
-                this.player.updatePlaybackSpeed(Setting.longPressSpeed)
-                XAnimation.runWithAnimation(() => {
-                  this.player.longPress = true
-                })
-                ToolsUtil.startVibration()
-                this.currentSpeedIndex = VideoInfoUtil.videoSpeedListAll.indexOf(Setting.longPressSpeed)
+              if (!this.player.playing || this.activeLongPressSpeedSession !== 0) {
+                return
               }
+              this.activeLongPressSpeedSession = ++this.longPressSpeedSession
+              this.longPressBaseSpeed = this.player.speed
+              this.player.speedLocked = false
+              this.player.updatePlaybackSpeed(Setting.longPressSpeed)
+              XAnimation.runWithAnimation(() => {
+                this.player.longPress = true
+              })
+              ToolsUtil.startVibration()
+              this.currentSpeedIndex = VideoInfoUtil.videoSpeedListAll.indexOf(Setting.longPressSpeed)
             },
             onLongPressEnd: () => {
+              if (this.activeLongPressSpeedSession === 0) {
+                return
+              }
+              this.activeLongPressSpeedSession = 0
               XAnimation.runWithAnimation(() => {
                 this.player.longPress = false
               })
               if (!this.player.speedLocked) {
-                this.player.restoreSpeedAfterLongPress(VideoOperateUtil.lastSpeed)
+                // Restore the media clock before running any UI animation.
+                // Late callbacks from the parallel Pan recognizers are ignored
+                // because the active session was invalidated above.
+                this.player.restoreSpeedAfterLongPress(this.longPressBaseSpeed)
               }
               this.player.speedLocked = false
             },
@@ -473,7 +489,7 @@ export struct VideoPlayer {
               ToolsUtil.startVibration()
             },
             onLongPressPanUpdate: (tapX: number) => {
-              if (this.player.longPress) {
+              if (this.activeLongPressSpeedSession !== 0 && this.player.longPress) {
                 const deltaX = tapX - VideoOperateUtil.longPressStartX
                 if (Math.abs(deltaX) <= SWIPE_THRESHOLD) {
                   return
@@ -492,7 +508,8 @@ export struct VideoPlayer {
               }
             },
             onLongPressVerticalPanUpdate: (offsetY: number) => {
-              if (this.player.longPress && !this.player.speedLocked && offsetY < -SWIPE_THRESHOLD) {
+              if (this.activeLongPressSpeedSession !== 0 && this.player.longPress &&
+                !this.player.speedLocked && offsetY < -SWIPE_THRESHOLD) {
                 this.player.speedLocked = true
                 ToolsUtil.startVibration()
               }
@@ -587,6 +604,18 @@ export struct VideoPlayer {
         .height('100%')
         .width('100%')
         .backgroundColor($r('sys.color.black'))
+        .onMouse((event: MouseEvent) => {
+          if (!Pc.pcMode || event.action !== MouseAction.Move) {
+            return
+          }
+          if (!this.player.showControl) {
+            this.player.showControl = true
+          }
+          VideoOperateUtil.scheduleControlAutoHide(() => {
+            this.player.lockVisibility = false
+            this.player.showControl = false
+          })
+        })
       }
       .showControlButton(false)
       .onChange((value: boolean) => {
@@ -661,6 +690,10 @@ export struct VideoPlayer {
       }
     })
     .onShown(() => {
+      this.player.onSwiping = false
+      this.player.isSliderPlayTimeChange = false
+      this.player.onSwipingVoice = false
+      this.player.onSwipingBrightness = false
       if (PiPWindowUtil.pipOpenState) {
         PiPWindowUtil.stopPip()
       }
@@ -678,6 +711,10 @@ export struct VideoPlayer {
     })
     .onHidden(() => {
       salmonLogger.addLog(TAG, "开始执行onHidden生命周期", false)
+      this.player.onSwiping = false
+      this.player.isSliderPlayTimeChange = false
+      this.player.onSwipingVoice = false
+      this.player.onSwipingBrightness = false
       VideoOperateUtil.saveVideoPlayTimeIfNeed(this.player.playTime, this.player.nowPlaying,
         this.player.skipHistory, PathUtils.appContext!)
       if (this.player instanceof AVPlayerController && !PiPWindowUtil.pipOpenState &&
@@ -717,14 +754,6 @@ export struct VideoPlayer {
     .hideTitleBar(true)
 
     .blur(Privacy.isPrivacyBackground ? PRIVACY_BACKGROUND_BLUR_AMOUNT : NO_BLUR_AMOUNT)
-  }
-
-  private async restoreAutomaticOrientation(): Promise<void> {
-    try {
-      await (await this.getWindowClass())?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
-    } catch (error) {
-      salmonLogger.addLog(TAG, `恢复自动旋转失败：${error}`, true)
-    }
   }
 
   @Builder
@@ -1005,6 +1034,14 @@ export struct VideoPlayer {
     AVCastPickerBuilder()
   }
 
+  private async restoreAutomaticOrientation(): Promise<void> {
+    try {
+      await (await this.getWindowClass())?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
+    } catch (error) {
+      salmonLogger.addLog(TAG, `恢复自动旋转失败：${error}`, true)
+    }
+  }
+
   private bindEngineSwitchHandler(player: PlayerControllerInterface): void {
     player.setEngineSwitchHandler(async (targetEngine: string, reason: string,
       resumePlayback?: boolean): Promise<void> => {
@@ -1076,7 +1113,7 @@ export struct VideoPlayer {
       this.subtitleManager.isAIAsrShown, subtitle3DMode)
     try {
       await PiPWindowUtil.destroyPipController()
-      await VideoOperateUtil.releaseAVImageGenerator()
+      await VideoOperateUtil.releaseFrameExtractor()
       const nextPlayer = await this.playbackSession.switchEngine(oldPlayer, targetEngine, resumePlayback)
       if (this.isPageDisappearing || this.player !== oldPlayer) {
         await nextPlayer.release()

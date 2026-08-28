@@ -9,10 +9,13 @@ import {
   IPTVParseResult,
   IPTVProgram,
   IPTVSource,
-  IPTVTestResult
+  IPTVTestResult,
+  IPTVUrlOptions
 } from '../interfaces/IPTVInterface'
 import { PathUtils } from './PathUtils'
 import PermissionUtil from './PermissionUtil'
+import ToolsUtil from './ToolsUtil'
+import TextEncodingUtil from './TextEncodingUtil'
 
 const TAG = 'IPTVUtil'
 const DEFAULT_GROUP = '未分组'
@@ -21,11 +24,6 @@ const MAX_EPG_SIZE = 40 * 1024 * 1024
 
 interface XMLTVProgram extends IPTVProgram {
   channelKey: string
-}
-
-interface IPTVUrlOptions {
-  url: string
-  userAgent: string
 }
 
 export default class IPTVUtil {
@@ -73,6 +71,18 @@ export default class IPTVUtil {
     }
   }
 
+  static async refreshEpg(source: IPTVSource): Promise<IPTVSource> {
+    const refreshed = IPTVUtil.copySource(source)
+    const epgUrl = refreshed.epgUrl?.trim()
+    if (!epgUrl || refreshed.channels.length === 0) {
+      return refreshed
+    }
+    const epg = await IPTVUtil.requestText(epgUrl, refreshed.userAgent, MAX_EPG_SIZE)
+    refreshed.epgMatchedCount = IPTVUtil.applyXmlTv(refreshed.channels, epg)
+    refreshed.lastEpgRefreshTime = Date.now()
+    return refreshed
+  }
+
   static async loadAndParse(source: IPTVSource): Promise<IPTVParseResult> {
     const content = source.sourceType === 'url' ?
       await IPTVUtil.requestText(source.location, source.userAgent, MAX_SOURCE_SIZE) :
@@ -105,6 +115,7 @@ export default class IPTVUtil {
       try {
         const epg = await IPTVUtil.requestText(source.epgUrl.trim(), source.userAgent, MAX_EPG_SIZE)
         result.epgMatchedCount = IPTVUtil.applyXmlTv(result.channels, epg)
+        result.epgRefreshTime = Date.now()
       } catch (error) {
         salmonLogger.addLog(TAG, `EPG load failed: ${IPTVUtil.errorMessage(error)}`, true)
       }
@@ -324,6 +335,7 @@ export default class IPTVUtil {
     prepared.channelCount = result.channels.length
     prepared.groupCount = result.groupCount
     prepared.epgMatchedCount = result.epgMatchedCount
+    prepared.lastEpgRefreshTime = source.epgUrl?.trim() ? result.epgRefreshTime : undefined
     prepared.lastRefreshTime = now
     prepared.updatedTime = now
     prepared.lastRefreshStatus = 'success'
@@ -399,11 +411,7 @@ export default class IPTVUtil {
       }
       const key = item.substring(0, separator).trim().toLowerCase()
       if (key === 'user-agent' || key === 'user_agent' || key === 'ua') {
-        try {
-          userAgent = decodeURIComponent(item.substring(separator + 1).trim())
-        } catch (_error) {
-          userAgent = item.substring(separator + 1).trim()
-        }
+        userAgent = ToolsUtil.safeDecodeURIComponent(item.substring(separator + 1).trim())
       }
     }
     const result: IPTVUrlOptions = { url: parts[0].trim(), userAgent: userAgent }
@@ -445,6 +453,8 @@ export default class IPTVUtil {
     let matched = 0
     const unmatchedChannels: string[] = []
     channels.forEach(channel => {
+      channel.currentProgram = undefined
+      channel.nextProgram = undefined
       const keys = [channel.tvgId, channel.tvgName, channel.name]
         .filter(key => !!key)
         .map(key => IPTVUtil.normalizeEpgKey(key!))
@@ -562,7 +572,7 @@ export default class IPTVUtil {
 
   private static async requestText(url: string, userAgent: string | undefined, maxSize: number): Promise<string> {
     if (!/^https?:\/\//i.test(url.trim())) {
-      throw new Error('仅支持 HTTP/HTTPS 节目源和 EPG 地址')
+      throw new Error('仅支持 HTTP/HTTPS/远程TXT 节目源和 EPG 地址')
     }
     return new Promise((resolve, reject) => {
       const request = http.createHttp()
@@ -638,14 +648,16 @@ export default class IPTVUtil {
       throw new Error('解压后文件过大，已停止读取')
     }
     const bytes = new Uint8Array(decodedBuffer)
-    let encoding = 'utf-8'
-    if (bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) {
-      encoding = 'utf-16le'
-    } else if (!IPTVUtil.isValidUtf8(bytes)) {
-      encoding = 'gb18030'
+    const detectedEncoding = TextEncodingUtil.detectBufferEncoding(decodedBuffer)
+    const encoding = detectedEncoding || 'UTF-8'
+    try {
+      const decoder = util.TextDecoder.create(encoding, { ignoreBOM: true })
+      return decoder.decodeToString(bytes, { stream: false })
+    } catch (error) {
+      salmonLogger.addLog(TAG, `Decode ${encoding} text failed, fallback to UTF-8: ${IPTVUtil.errorMessage(error)}`, true)
+      const fallbackDecoder = util.TextDecoder.create('UTF-8', { ignoreBOM: true })
+      return fallbackDecoder.decodeToString(bytes, { stream: false })
     }
-    const decoder = util.TextDecoder.create(encoding, { ignoreBOM: true })
-    return decoder.decodeToString(bytes, { stream: false })
   }
 
   private static isGzipBuffer(buffer: ArrayBuffer): boolean {
@@ -728,37 +740,6 @@ export default class IPTVUtil {
     }
   }
 
-  private static isValidUtf8(bytes: Uint8Array): boolean {
-    let index = 0
-    while (index < bytes.length) {
-      const value = bytes[index]
-      if (value <= 0x7F) {
-        index++
-        continue
-      }
-      let continuationCount = 0
-      if ((value & 0xE0) === 0xC0) {
-        continuationCount = 1
-      } else if ((value & 0xF0) === 0xE0) {
-        continuationCount = 2
-      } else if ((value & 0xF8) === 0xF0) {
-        continuationCount = 3
-      } else {
-        return false
-      }
-      if (index + continuationCount >= bytes.length) {
-        return false
-      }
-      for (let offset = 1; offset <= continuationCount; offset++) {
-        if ((bytes[index + offset] & 0xC0) !== 0x80) {
-          return false
-        }
-      }
-      index += continuationCount + 1
-    }
-    return true
-  }
-
   private static hash(value: string): string {
     let hash = 0
     for (let index = 0; index < value.length; index++) {
@@ -781,6 +762,7 @@ export default class IPTVUtil {
       createdTime: source.createdTime,
       updatedTime: source.updatedTime,
       lastRefreshTime: source.lastRefreshTime,
+      lastEpgRefreshTime: source.lastEpgRefreshTime,
       lastRefreshStatus: source.lastRefreshStatus,
       lastError: source.lastError,
       epgMatchedCount: source.epgMatchedCount,

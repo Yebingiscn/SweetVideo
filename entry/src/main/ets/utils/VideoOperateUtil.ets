@@ -22,7 +22,7 @@ import { salmonLogger } from 'salmonlogger'
 import { FrameSize } from '../interfaces/FrameSizeInterface'
 import { Subtitle3DMode } from '../common/enum/SubtitleMode'
 import { DeleteType } from '../common/enum/DeleteType'
-import { SCALE_FACTORS, SUPPORT_AUDIO_FORMAT } from '../common/Constants'
+import { AUTO_HIDE_SHOW_CONTROL_TIME, SCALE_FACTORS, SUPPORT_AUDIO_FORMAT } from '../common/Constants'
 import { VideoSource } from '../common/enum/VideoSource'
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode'
 import { LanguageConfig } from '../common/LanguageConfig'
@@ -37,6 +37,7 @@ import SelectFileUtil from './SelectFileUtil'
 import SubtitleUtil from './SubtitleUtil'
 import { WindowUtil } from './WindowUtil'
 import { fileManagerService } from '@kit.FileManagerServiceKit'
+import FFmpegThumbnailUtil from './FFmpegThumbnailUtil'
 
 const TAG = 'VideoOperateUtil'
 
@@ -57,12 +58,28 @@ export default class VideoOperateUtil {
   public static longPressStartX: number = 0
   public static panStartX: number = 0
   public static panStartY: number = 0
-  public static autoHideTimeout: boolean = false
+  public static autoHideTimerId: number = -1
+
+  static scheduleControlAutoHide(onHide: () => void): void {
+    if (VideoOperateUtil.autoHideTimerId !== -1) {
+      clearTimeout(VideoOperateUtil.autoHideTimerId)
+    }
+    VideoOperateUtil.autoHideTimerId = setTimeout(() => {
+      VideoOperateUtil.autoHideTimerId = -1
+      onHide()
+    }, AUTO_HIDE_SHOW_CONTROL_TIME)
+  }
+
+  static cancelControlAutoHide(): void {
+    if (VideoOperateUtil.autoHideTimerId !== -1) {
+      clearTimeout(VideoOperateUtil.autoHideTimerId)
+      VideoOperateUtil.autoHideTimerId = -1
+    }
+  }
   public static leftSideSwipe: boolean = true
-  public static avImageGenerator: media.AVImageGenerator | undefined = undefined
-  public static nowPlayingFile: fileIo.File | undefined = undefined
+  public static frameExtractorId: number | undefined = undefined
   public static updatePix: boolean = true
-  private static avImageGeneratorLifecycleTask: Promise<void> = Promise.resolve()
+  private static frameExtractorLifecycleTask: Promise<void> = Promise.resolve()
   private static mainWin: window.Window | undefined = undefined
 
   // 设置亮度
@@ -226,61 +243,46 @@ export default class VideoOperateUtil {
     if (!Setting.showFrameImgStatus) {
       return
     }
-    const previousTask = VideoOperateUtil.avImageGeneratorLifecycleTask
+    const previousTask = VideoOperateUtil.frameExtractorLifecycleTask
     const task = previousTask.catch(() => {
     }).then(async () => {
-      await VideoOperateUtil.releaseAVImageGeneratorNow()
+      await VideoOperateUtil.releaseFrameExtractorNow()
       if (!Setting.showFrameImgStatus) {
         return
       }
-      let generator: media.AVImageGenerator | undefined
-      let file: fileIo.File | undefined
+      let extractorId: number | undefined
       try {
-        generator = await media.createAVImageGenerator()
-        file = fileIo.openSync(uri, fileIo.OpenMode.READ_ONLY)
-        const avFileDescriptor: media.AVFileDescriptor = { fd: file.fd }
-        generator.fdSrc = avFileDescriptor
-        VideoOperateUtil.avImageGenerator = generator
-        VideoOperateUtil.nowPlayingFile = file
+        extractorId = FFmpegThumbnailUtil.createLocalExtractor(uri)
+        VideoOperateUtil.frameExtractorId = extractorId
         VideoOperateUtil.updatePix = true
       } catch (error) {
         salmonLogger.addLog(TAG, 'getFrameTimePreprocess error' + error, true)
-        try {
-          await generator?.release()
-        } catch (_error) {
-        }
-        if (file) {
-          try {
-            fileIo.closeSync(file)
-          } catch (_error) {
-          }
-        }
+        FFmpegThumbnailUtil.releaseExtractor(extractorId)
       }
     })
-    VideoOperateUtil.avImageGeneratorLifecycleTask = task
+    VideoOperateUtil.frameExtractorLifecycleTask = task
     await task
   }
 
-  static async releaseAVImageGenerator(): Promise<void> {
-    const previousTask = VideoOperateUtil.avImageGeneratorLifecycleTask
+  static async releaseFrameExtractor(): Promise<void> {
+    const previousTask = VideoOperateUtil.frameExtractorLifecycleTask
     const task = previousTask.catch(() => {
     }).then(async () => {
-      await VideoOperateUtil.releaseAVImageGeneratorNow()
+      await VideoOperateUtil.releaseFrameExtractorNow()
     })
-    VideoOperateUtil.avImageGeneratorLifecycleTask = task
+    VideoOperateUtil.frameExtractorLifecycleTask = task
     await task
   }
 
-  static async fetchFrameByTime(time: number, videoSize?: number[]) {
+  static async fetchFrameByTime(time: number, videoSize?: number[], hasVideoTrack: boolean = true) {
     if (Setting.showFrameImgStatus) {
       try {
-        await VideoOperateUtil.avImageGeneratorLifecycleTask
+        await VideoOperateUtil.frameExtractorLifecycleTask
         let size: FrameSize
-        if (!videoSize) {
+        if (!videoSize || !hasVideoTrack) {
           return undefined
         }
-        // 这里需要排除掉音频文件
-        if (videoSize[0] === 0 || videoSize[1] === 0 || videoSize[0] === videoSize[1]) {
+        if (videoSize[0] <= 0 || videoSize[1] <= 0) {
           return undefined
         }
         if (videoSize.length >= 2) {
@@ -288,8 +290,15 @@ export default class VideoOperateUtil {
         } else {
           size = { width: 100, height: 100 }
         }
-        return await VideoOperateUtil.avImageGenerator?.fetchFrameByTime(time * 1000,
-          media.AVImageQueryOptions.AV_IMAGE_QUERY_PREVIOUS_SYNC, size)
+        const extractorId = VideoOperateUtil.frameExtractorId
+        if (extractorId === undefined) {
+          return undefined
+        }
+        const result = await FFmpegThumbnailUtil.extractFrame(extractorId, time * 1000, size.width, size.height)
+        if (!result.success && result.error) {
+          salmonLogger.addLog(TAG, 'FFmpeg fetchFrameByTime error: ' + result.error, true)
+        }
+        return result.pixelMap
       } catch (e) {
         salmonLogger.addLog(TAG, 'fetchFrameByTime error', e)
         return undefined
@@ -611,14 +620,20 @@ export default class VideoOperateUtil {
     }
   }
 
+  private static containsDolbyAudioCodec(value: string): boolean {
+    return value.includes('truehd') || value.includes('mlp') ||
+      value.includes('eac3') || value.includes('e-ac-3') || value.includes('ec-3') ||
+      value.includes('ddp') || value.includes('dolby') ||
+      value.includes('ac3') || value.includes('ac-3')
+  }
+
   static resolvePlayerType(metadata: VideoMetadata, reverse: boolean = false) {
     const defaultPlayer = Preferences.getDefaultPlayerEngine(PathUtils.appContext!)
     const isAv3a = metadata.title?.toLowerCase().includes('av3a') || metadata.format?.toLowerCase().includes('av3a')
     const titleLower = metadata.title?.toLowerCase() ?? ''
     const formatLower = metadata.format?.toLowerCase() ?? ''
-    const isDolbyAudio = titleLower.includes('eac3') || titleLower.includes('ddp') ||
-      titleLower.includes('atmos') || titleLower.includes('truehd') ||
-      formatLower.includes('eac3') || formatLower.includes('ddp')
+    const isDolbyAudio = VideoOperateUtil.containsDolbyAudioCodec(titleLower) ||
+      VideoOperateUtil.containsDolbyAudioCodec(formatLower) || titleLower.includes('atmos')
     const hasSize = VideoInfoUtil.videoWidthAndHeightFormat(String(metadata.size)) !== '0 x 0'
     if (isAv3a && hasSize) {
       return PlayerEngine.AV_PLAYER
@@ -788,24 +803,14 @@ export default class VideoOperateUtil {
     }
   }
 
-  private static async releaseAVImageGeneratorNow(): Promise<void> {
-    const generator = VideoOperateUtil.avImageGenerator
-    const file = VideoOperateUtil.nowPlayingFile
-    VideoOperateUtil.avImageGenerator = undefined
-    VideoOperateUtil.nowPlayingFile = undefined
+  private static async releaseFrameExtractorNow(): Promise<void> {
+    const extractorId = VideoOperateUtil.frameExtractorId
+    VideoOperateUtil.frameExtractorId = undefined
     VideoOperateUtil.updatePix = false
-    if (generator) {
-      try {
-        await generator.release()
-      } catch (error) {
-        salmonLogger.addLog(TAG, `releaseAVImageGenerator error: ${error}`, true)
-      }
-    }
-    if (file) {
-      try {
-        fileIo.closeSync(file)
-      } catch (_error) {
-      }
+    try {
+      FFmpegThumbnailUtil.releaseExtractor(extractorId)
+    } catch (error) {
+      salmonLogger.addLog(TAG, `releaseFrameExtractor error: ${error}`, true)
     }
   }
 

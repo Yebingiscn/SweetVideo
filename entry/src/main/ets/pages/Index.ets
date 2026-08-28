@@ -39,8 +39,8 @@ import { PrivacySpace } from './PrivacySpace/PrivacySpace'
 import { PrivacySpaceErrorList } from './PrivacySpace/PrivacySpaceErrorList'
 import { RecentPlay } from './RecentPlay'
 import { AboutApp } from './SettingPage/AboutApp'
-import { CrashPage } from './SettingPage/CrashPage'
 import { GetVipPage } from './SettingPage/GetVipPage'
+import { CrashPage } from './SettingPage/CrashPage'
 import { MoreSettingPage } from './SettingPage/MoreSettingPage'
 import { PersonalizePage } from './SettingPage/PersonalizePage'
 import { PlayerSettingPage } from './SettingPage/PlayerSettingPage'
@@ -53,7 +53,7 @@ import { IPTVSourcePage } from './IPTV/IPTVSourcePage'
 import { IPTVChannelPage } from './IPTV/IPTVChannelPage'
 import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData'
 import { LengthMetrics } from '@kit.ArkUI'
-import { HdsNavigation, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
+import { hdsMaterial, HdsNavigation, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 
 const TAG = 'Index'
 
@@ -328,19 +328,21 @@ struct Index {
       mode: HideMode.SCROLL_UP_TO
     })
     .titleBar({
-      enableComponentSafeArea: true, // 将标题栏设置为组件级安全区，内容区可避让标题栏
-      padding: {
-        start: LengthMetrics.vp(5),
-        end: LengthMetrics.vp(5)
-      },
+      avoidLayoutSafeArea: true,
+      enableComponentSafeArea: true,
+      padding: { start: LengthMetrics.vp(5), end: LengthMetrics.vp(5) },
       style: {
         // 设置导航组件标题栏样式，推荐使用默认样式
         // 标题栏动态模糊样式，包括是否使能滚动动态模糊，动态模糊类型，动态模糊生效的滚动距离等
         scrollEffectOpts: {
           enableScrollEffect: true,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
+          scrollEffectType: ScrollEffectType.IMMERSIVE_GRADIENT_BLUR,
           blurEffectiveStartOffset: LengthMetrics.vp(0),
           blurEffectiveEndOffset: LengthMetrics.vp(20)
+        },
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
         },
         originalStyle: {
           // 内容区滚动前初始样式设置

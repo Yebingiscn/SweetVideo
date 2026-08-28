@@ -4,6 +4,10 @@ export interface VideoMetadata {
   title: string
   date: string
   size: number[]
+  /** 内嵌封面的原始分辨率；纯音频的 size 同样使用此值。 */
+  cover_size?: number[]
+  /** 是否存在真正的视频轨；内嵌封面不计为视频轨。 */
+  has_video_track?: boolean
   time: number
   last_play: number
   format: string

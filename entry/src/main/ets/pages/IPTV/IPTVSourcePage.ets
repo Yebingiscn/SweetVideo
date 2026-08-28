@@ -16,7 +16,7 @@ import TimeUtil from '../../utils/TimeUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
-import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
+import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 
 @ComponentV2
 export struct IPTVSourcePage {
@@ -194,14 +194,21 @@ export struct IPTVSourcePage {
       }
     }
     .titleBar({
+      avoidLayoutSafeArea: true,
       enableComponentSafeArea: true,
       padding: { start: LengthMetrics.vp(5), end: LengthMetrics.vp(5) },
       style: {
+        // 设置导航组件标题栏样式，推荐使用默认样式
+        // 标题栏动态模糊样式，包括是否使能滚动动态模糊，动态模糊类型，动态模糊生效的滚动距离等
         scrollEffectOpts: {
           enableScrollEffect: true,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
+          scrollEffectType: ScrollEffectType.IMMERSIVE_GRADIENT_BLUR,
           blurEffectiveStartOffset: LengthMetrics.vp(0),
           blurEffectiveEndOffset: LengthMetrics.vp(20)
+        },
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
         },
         originalStyle: {
           backgroundStyle: {
@@ -244,7 +251,6 @@ export struct IPTVSourcePage {
       },
       content: { title: { mainTitle: 'IPTV' }, stackBuilder: (): void => this.NavigationMenus() }
     })
-    .padding({ top: SafeHeight.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
     .backgroundImage(Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ?
       Setting.backgroundBlurImageSrc : Setting.backgroundImageSrc, ImageRepeat.NoRepeat)

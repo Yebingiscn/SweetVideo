@@ -1,6 +1,8 @@
 import { salmonLogger } from 'salmonlogger'
+import { Markdown, MarkdownController } from '@luvi/lv-markdown-in'
 import NavigationAddress from '../../common/NavigationCommon'
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
+import { SettingsSectionHeaderBuilder } from '../../component/SettingComponent/SettingsSectionHeader'
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
 import Preferences from '../../database/Preferences'
 import PreferencesUtil from '../../database/PreferencesUtil'
@@ -10,7 +12,7 @@ import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
 import WantProcess from '../../utils/WantProcessUtil'
 import { LengthMetrics } from '@kit.ArkUI'
-import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
+import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { commentManager } from '@kit.AppGalleryKit'
 
 const TAG = 'MoreSettingPage'
@@ -19,10 +21,22 @@ const TAG = 'MoreSettingPage'
 export struct MoreSettingPage {
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   private listScroller: Scroller = new Scroller()
+  controller: MarkdownController = new MarkdownController()
+
+  aboutToAppear(): void {
+    this.controller.setTitleColor($r('app.color.text_color'))
+    this.controller.setTextColor($r('app.color.text_color'))
+    this.controller.setQuoteBackgroundColor($r('app.color.start_window_background_blur'))
+    this.controller.setLazyRender(true)
+  }
 
   build() {
     HdsNavDestination() {
       List({ scroller: this.listScroller }) {
+        ListItem() {
+          SettingsSectionHeaderBuilder('应用信息', '关于、版本更新与应用评价')
+        }
+
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.info_circle'),
@@ -35,20 +49,46 @@ export struct MoreSettingPage {
 
         ListItem() {
           SettingsClickItem({
-            symbol: $r('sys.symbol.doc_plaintext'),
-            message: '流心运行日志',
-            onPress: () => {
-              this.pathStack.pushPathByName(NavigationAddress.CRASH_PAGE, true)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsClickItem({
             symbol: $r('sys.symbol.arrow_up_circle'),
             message: '检查更新',
             onPress: () => {
               ToolsUtil.checkUpdate()
+            }
+          })
+        }
+
+        if (canIUse('SystemCapability.AppGalleryService.Distribution.Comment')) {
+          ListItem() {
+            SettingsClickItem({
+              symbol: $r('sys.symbol.hand_thumbsup'),
+              message: '从夯到拉锐评下流心',
+              onPress: async () => {
+                try {
+                  commentManager.showCommentDialog(PathUtils.appContext!).then(() => {
+                    salmonLogger.addLog(TAG, '成功展示评论弹窗', false)
+                  })?.catch((error: BusinessError<Object>) => {
+                    salmonLogger.addLog(TAG,
+                      `展示评论弹窗错误, Code: ${error.code}, message: ${error.message}`, true)
+                    WantProcess.linkToAppGallery(PathUtils.appContext!.abilityInfo.bundleName)
+                  })
+                } catch (error) {
+                  salmonLogger.addLog(TAG, `展示评论弹窗错误, Code: ${error.code}, message: ${error.message}`, true)
+                }
+              }
+            })
+          }
+        }
+
+        ListItem() {
+          SettingsSectionHeaderBuilder('维护与诊断', '运行日志、文件清理与界面兼容')
+        }
+
+        ListItem() {
+          SettingsClickItem({
+            symbol: $r('sys.symbol.doc_plaintext'),
+            message: '流心运行日志',
+            onPress: () => {
+              this.pathStack.pushPathByName(NavigationAddress.CRASH_PAGE, true)
             }
           })
         }
@@ -85,27 +125,36 @@ export struct MoreSettingPage {
           }
         }
 
-        if (canIUse('SystemCapability.AppGalleryService.Distribution.Comment')) {
-          ListItem() {
-            SettingsClickItem({
-              symbol: $r('sys.symbol.hand_thumbsup'),
-              message: '从夯到拉锐评下流心',
-              onPress: async () => {
-                try {
-                  commentManager.showCommentDialog(PathUtils.appContext!).then(() => {
-                    salmonLogger.addLog(TAG, '成功展示评论弹窗', false)
-                  })?.catch((error: BusinessError<Object>) => {
-                    salmonLogger.addLog(TAG,
-                      `展示评论弹窗错误, Code: ${error.code}, message: ${error.message}`, true)
-                    WantProcess.linkToAppGallery(PathUtils.appContext!.abilityInfo.bundleName)
-                  })
-                } catch (error) {
-                  salmonLogger.addLog(TAG, `展示评论弹窗错误, Code: ${error.code}, message: ${error.message}`, true)
+        ListItem() {
+          SettingsSectionHeaderBuilder('使用技巧', '快速了解手势与常用功能')
+        }
+
+        ListItem() {
+          Column() {
+            Markdown({
+              controller: this.controller,
+              mode: 'rawfile',
+              context: PathUtils.appContext!,
+              rawfilePath: 'Tips.md',
+              callback: {
+                complete: () => {
+                  salmonLogger.addLog(TAG, 'Markdown component load success.', false)
+                },
+                fail: (code: number, message: string) => {
+                  salmonLogger.addLog(TAG,
+                    'Markdown component load error. code: ' + code + ', message: ' + message, true)
                 }
               }
             })
           }
+          .margin({ top: 10 })
+          .padding(15)
+          .alignItems(HorizontalAlign.Start)
+          .borderRadius(16)
+          .width('100%')
+          .backgroundColor($r('app.color.start_window_background_blur'))
         }
+
       }
       .align(Alignment.Top)
       .borderRadius(16)
@@ -119,19 +168,21 @@ export struct MoreSettingPage {
     }
     .hideToolBar(true)
     .titleBar({
-      enableComponentSafeArea: true, // 将标题栏设置为组件级安全区，内容区可避让标题栏
-      padding: {
-        start: LengthMetrics.vp(5),
-        end: LengthMetrics.vp(5)
-      },
+      avoidLayoutSafeArea: true,
+      enableComponentSafeArea: true,
+      padding: { start: LengthMetrics.vp(5), end: LengthMetrics.vp(5) },
       style: {
         // 设置导航组件标题栏样式，推荐使用默认样式
         // 标题栏动态模糊样式，包括是否使能滚动动态模糊，动态模糊类型，动态模糊生效的滚动距离等
         scrollEffectOpts: {
           enableScrollEffect: true,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
+          scrollEffectType: ScrollEffectType.IMMERSIVE_GRADIENT_BLUR,
           blurEffectiveStartOffset: LengthMetrics.vp(0),
           blurEffectiveEndOffset: LengthMetrics.vp(20)
+        },
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
         },
         originalStyle: {
           // 内容区滚动前初始样式设置
@@ -178,12 +229,11 @@ export struct MoreSettingPage {
       },
       content: {
         title: {
-          mainTitle: '更多设置',
+          mainTitle: '应用与支持',
         }
       },
     })
     .backgroundColor($r('app.color.start_window_background'))
-    .padding({ top: SafeHeight.topSafeHeight })
     .backgroundImage(
       Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ? Setting.backgroundBlurImageSrc :
         Setting.backgroundImageSrc, ImageRepeat.NoRepeat)

@@ -9,7 +9,7 @@ import { LiqD } from '../../component/common/LiqD'
 import { PrivacyPolicyComponent } from '../../component/VideoItemComponent/PrivacyPolicyComponent'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { LengthMetrics } from '@kit.ArkUI'
-import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
+import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 
 const TAG = 'AboutApp'
 
@@ -109,7 +109,7 @@ export struct AboutApp {
               .zIndex(1)
             Row() {
               Image($r("app.media.Foreground"))
-              .attributeModifier(new ImageFancyModifier(16, 60, 60))
+                .attributeModifier(new ImageFancyModifier(16, 60, 60))
               Text(`${ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id)}${this.version_code}`)
                 .fontSize(20)
                 .fontColor($r('sys.color.white'))
@@ -181,16 +181,22 @@ export struct AboutApp {
       .padding({ bottom: SafeHeight.bottomSafeHeight })
     }
     .hideToolBar(true)
-    .padding({ top: SafeHeight.topSafeHeight })
     .titleBar({
+      avoidLayoutSafeArea: true,
       enableComponentSafeArea: true,
       padding: { start: LengthMetrics.vp(5), end: LengthMetrics.vp(5) },
       style: {
+        // 设置导航组件标题栏样式，推荐使用默认样式
+        // 标题栏动态模糊样式，包括是否使能滚动动态模糊，动态模糊类型，动态模糊生效的滚动距离等
         scrollEffectOpts: {
           enableScrollEffect: true,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
+          scrollEffectType: ScrollEffectType.IMMERSIVE_GRADIENT_BLUR,
           blurEffectiveStartOffset: LengthMetrics.vp(0),
           blurEffectiveEndOffset: LengthMetrics.vp(20)
+        },
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
         },
         originalStyle: {
           backgroundStyle: { backgroundColor: $r('sys.color.ohos_id_color_background') },

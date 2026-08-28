@@ -25,6 +25,7 @@ export default class AVSessionUtil {
   static pixelMap: image.PixelMap | undefined
   static imageSource: image.ImageSource | undefined
   static isOutputDeviceListenerRegistered: boolean = false
+  static playbackSpeed: number = 1
   static repeatModeMapping: Map<SweetRepeatMode, avSession.LoopMode> = new Map([
     [SweetRepeatMode.LIST, avSession.LoopMode.LOOP_MODE_LIST],
     [SweetRepeatMode.SINGLE, avSession.LoopMode.LOOP_MODE_SINGLE],
@@ -79,11 +80,16 @@ export default class AVSessionUtil {
   }
 
   // 更新播控中心状态
-  static updatePlaybackSessionState(playing: boolean, playTime: number, repeatMode?: SweetRepeatMode) {
+  static updatePlaybackSessionState(playing: boolean, playTime: number,
+    repeatMode?: SweetRepeatMode, speed?: number) {
     if (Setting.allowBackgroundPlay) {
+      if (speed !== undefined && speed > 0) {
+        AVSessionUtil.playbackSpeed = speed
+      }
       let data: AvSessionState = {
         playing: playing,
-        duration: playTime,
+        duration: Math.max(0, playTime),
+        speed: AVSessionUtil.playbackSpeed,
       }
       AVSessionUtil.updateSession(data, repeatMode)
     }
@@ -144,9 +150,13 @@ export default class AVSessionUtil {
       }
       AVSessionUtil.pixelMap = AVSessionUtil.imageSource.createPixelMapSync(decodingOptions)
     } catch (e) {
-      const resourceMgr = PathUtils.appContext!.resourceManager.getMediaContentSync($r('app.media.sweet_video').id)
-      const defaultImageSource = image.createImageSource(resourceMgr.buffer)
-      AVSessionUtil.pixelMap = defaultImageSource.createPixelMapSync()
+      try {
+        const resourceMgr = PathUtils.appContext!.resourceManager.getMediaContentSync($r('app.media.sweet_video').id)
+        const defaultImageSource = image.createImageSource(resourceMgr.buffer)
+        AVSessionUtil.pixelMap = defaultImageSource.createPixelMapSync()
+      } catch (error) {
+        salmonLogger.addLog(TAG, 'setSessionInfo error', true)
+      }
     }
     let session_metadata: avSessionManager.AVMetadata = {
       assetId: metadata.date,
@@ -166,6 +176,7 @@ export default class AVSessionUtil {
     let playbackState: avSessionManager.AVPlaybackState = {
       state: avSessionState.playing ? avSessionManager.PlaybackState.PLAYBACK_STATE_PLAY :
         avSessionManager.PlaybackState.PLAYBACK_STATE_PAUSE,
+      speed: avSessionState.speed,
       position: {
         elapsedTime: avSessionState.duration,
         updateTime: systemDateTime.getTime(false),
@@ -184,20 +195,21 @@ export default class AVSessionUtil {
       return
     }
     if (AVSessionUtil.isOutputDeviceListenerRegistered) {
-        try {
-          AVSessionUtil.avSession?.off('outputDeviceChange')
-        } catch (e) {
-          salmonLogger.addLog(TAG, 'off outputDeviceChange error: ' + e, true)
-        }
-        AVSessionUtil.isOutputDeviceListenerRegistered = false
-      }
       try {
-        AVSessionUtil.castController?.off('playbackStateChange')
+        AVSessionUtil.avSession?.off('outputDeviceChange')
       } catch (e) {
-        salmonLogger.addLog(TAG, 'off playbackStateChange error: ' + e, true)
+        salmonLogger.addLog(TAG, 'off outputDeviceChange error: ' + e, true)
       }
-      AVSessionUtil.castController = undefined
+      AVSessionUtil.isOutputDeviceListenerRegistered = false
+    }
+    try {
+      AVSessionUtil.castController?.off('playbackStateChange')
+    } catch (e) {
+      salmonLogger.addLog(TAG, 'off playbackStateChange error: ' + e, true)
+    }
+    AVSessionUtil.castController = undefined
     AVSessionUtil.currentNowPlaying = undefined
+    AVSessionUtil.playbackSpeed = 1
     AVSessionUtil.avSession?.destroy()?.catch(() => {
       salmonLogger.addLog(TAG, 'destroy Session error', true)
     })

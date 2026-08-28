@@ -5,12 +5,17 @@ import { PathUtils } from '../../utils/PathUtils'
 import { Setting } from '../../utils/ObservedUtil'
 import { FastForwardPanelBuilder } from '../PlayerComponent/FastForwardPanelBuilder'
 
+
 @ComponentV2
 export struct ShortVideoItem {
   @Param @Require item: VideoMetadata
   @Param index: number = 0
   @Param currentIndex: number = 0
   @Param manager: ShortVideoPlayerManager = new ShortVideoPlayerManager()
+  @Event onSingleTap: () => void = () => {
+  }
+  @Event onDoubleTap: (_tapX: number) => void = () => {
+  }
   @Local player: ShortVideoPlayer | undefined = undefined
   @Local isLongPressing: boolean = false
   @Local containerWidth: number = 0
@@ -123,10 +128,23 @@ export struct ShortVideoItem {
       this.containerHeight = Number(newValue.height)
     })
     .gesture(GestureGroup(GestureMode.Exclusive,
+      TapGesture({ count: 2 })
+        .allowedTypes([SourceTool.Unknown, SourceTool.Finger, SourceTool.MOUSE, SourceTool.TOUCHPAD,
+          SourceTool.JOYSTICK])
+        .onAction((event: GestureEvent) => {
+          if (this.index !== this.currentIndex) {
+            return
+          }
+          const tapX = event.fingerList[0]?.localX
+          if (typeof tapX !== 'number') {
+            return
+          }
+          this.onDoubleTap(tapX)
+        }),
       TapGesture({ count: 1 })
         .onAction(() => {
           if (this.index === this.currentIndex) {
-            this.manager.toggle(this.index)
+            this.onSingleTap()
           }
         }),
       LongPressGesture({ repeat: false })

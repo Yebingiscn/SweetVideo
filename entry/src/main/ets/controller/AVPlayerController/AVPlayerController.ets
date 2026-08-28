@@ -13,12 +13,9 @@ import { window } from '@kit.ArkUI'
 
 import { PlayerState } from './AVPlayerState'
 import {
-  AUTO_HIDE_SHOW_CONTROL_TIME,
-  IMAGE_ANALYZER_CONFIG,
-  LEFT_ZONE_DIVISION,
-  RIGHT_ZONE_DIVISION,
-  SCREEN_DIVISIONS
+  IMAGE_ANALYZER_CONFIG
 } from '../../common/Constants'
+import { handleScreenDoubleClick } from '../../common/GestureUtil'
 import { VideoStartTimeMode } from '../../common/enum/VideoStartTimeMode'
 import { PlayerEngine } from '../../common/NavigationCommon'
 import Preferences from '../../database/Preferences'
@@ -297,12 +294,14 @@ export class AVPlayerController implements PlayerControllerInterface {
     this.avPlayer?.selectTrack(index)?.catch(() => {
       salmonLogger.addLog(TAG, 'selectTrack error', true)
     })
+    AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode, this.speed)
   }
 
   selectAudioTrack(index: number) {
     this.avPlayer?.selectTrack(index)?.catch(() => {
       salmonLogger.addLog(TAG, 'selectTrack error', true)
     })
+    AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode, this.speed)
   }
 
   selectAudioTrackByIndex(index: number): void {
@@ -418,7 +417,7 @@ export class AVPlayerController implements PlayerControllerInterface {
       this.avSession = await AVSessionUtil.getAVSession()
       this.setSessionListener()
       await AVSessionUtil.setSessionInfo(this.nowPlaying!)
-      AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
+      AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode, this.speed)
     } else {
       salmonLogger.addLog(TAG, '未开启后台播放功能', false)
     }
@@ -447,7 +446,7 @@ export class AVPlayerController implements PlayerControllerInterface {
       this.avSession?.on('setLoopMode', (mode: avSession.LoopMode) => {
         this.repeatMode = AVSessionUtil.getRepeatModeFromAvSession(mode)
         this.repeatMode = VideoOperateUtil.getRepeatMode(this.repeatMode)
-        AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
+        AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode, this.speed)
       })
     } catch (error) {
       salmonLogger.addLog(TAG, 'set avSession state error', true)
@@ -659,15 +658,15 @@ export class AVPlayerController implements PlayerControllerInterface {
   async setAVPlayerProperties() {
     this.avPlayer!.surfaceId = this.surfaceID
     this.avPlayer!.audioInterruptMode = AVSessionUtil.getInterruptMode()
-    this.avPlayer?.setPlaybackStrategy({
-      preferredBufferDurationForPlaying: 20,
-      showFirstFrameOnPrepare: true,
-      enableSuperResolution: true,
-      preferredHdr: true
-    })?.catch(() => {
-      salmonLogger.addLog(TAG, "设置播放策略失败", true)
-    })
     if (Setting.superResolutionState) {
+      this.avPlayer?.setPlaybackStrategy({
+        preferredBufferDurationForPlaying: 20,
+        showFirstFrameOnPrepare: true,
+        enableSuperResolution: true,
+        preferredHdr: true
+      })?.catch(() => {
+        salmonLogger.addLog(TAG, "设置播放策略失败", true)
+      })
       this.setSuperResolutionState(true)
     }
     this.registerSubtitleListener()
@@ -726,21 +725,11 @@ export class AVPlayerController implements PlayerControllerInterface {
     })
   }
 
-  onScreenDoubleClick(tapX: number) {
-    if (!Setting.allowDoubleFastForward) { // 非双击快进模式时执行暂停
-      this.togglePlayback()
-      return
-    }
-    const zoneWidth = this.screenWidth / SCREEN_DIVISIONS
-    if (tapX < zoneWidth * LEFT_ZONE_DIVISION) {
-      this.backForward()
-      return
-    }
-    if (tapX > zoneWidth * RIGHT_ZONE_DIVISION) {
-      this.fastForward()
-      return
-    }
-    this.togglePlayback()
+  onScreenDoubleClick(tapX: number): void {
+    handleScreenDoubleClick(tapX, this.screenWidth,
+      (): void => this.togglePlayback(),
+      (): void => this.backForward(),
+      (): void => this.fastForward())
   }
 
   setPlayerCallback(pathStack: NavPathStack, xComponentController?: XComponentController,
@@ -766,13 +755,11 @@ export class AVPlayerController implements PlayerControllerInterface {
           [this.playTime, this.nowPlaying!, this.skipHistory])
       }
       if (this.showControl) {
-        if (!VideoOperateUtil.autoHideTimeout) {
-          VideoOperateUtil.autoHideTimeout = true
-          setTimeout(() => {
+        if (VideoOperateUtil.autoHideTimerId === -1) {
+          VideoOperateUtil.scheduleControlAutoHide(() => {
             this.lockVisibility = false
             this.showControl = false
-            VideoOperateUtil.autoHideTimeout = false
-          }, AUTO_HIDE_SHOW_CONTROL_TIME)
+          })
         }
       }
       const totalTime = this.nowPlaying?.time ?? 0
@@ -830,7 +817,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     player.on('seekDone', (percent) => {
       salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "播放器跳转完成", false)
       this.playTime = percent
-      AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
+      AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode, this.speed)
       if (!this.playing) {
         this.startImageAnalyzer(xComponentController!)
       }
@@ -838,11 +825,18 @@ export class AVPlayerController implements PlayerControllerInterface {
 
     player.on('playbackRateDone', (rate: number) => {
       this.speed = rate
+      AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode, this.speed)
     })
 
     player.on('audioOutputDeviceChangeWithInfo', (data: audio.AudioStreamDeviceChangeInfo) => {
       if (data.changeReason === audio.AudioStreamDeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) {
         this.pause()
+      }
+    })
+
+    player.onMetricsEvent((info: Array<media.AVMetricsEvent>) => {
+      if (info && info.length > 0) {
+        salmonLogger.addLog(TAG, `metrics event: ${JSON.stringify(info)}`, false)
       }
     })
 
@@ -919,7 +913,7 @@ export class AVPlayerController implements PlayerControllerInterface {
           await this.initAVSession()
           salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "初始化AVSession完成", false)
           this.initializePlaybackDetails(player, pathStack)
-          AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
+          AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode, this.speed)
           salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "更新播放会话状态完成", false)
           xComponentController!.stopImageAnalyzer()
           salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "停止图像分析器完成", false)
@@ -935,7 +929,7 @@ export class AVPlayerController implements PlayerControllerInterface {
           salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "进入paused状态", false)
           this.transitionTo(PlayerState.PAUSED)
           this.playing = false
-          AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
+          AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode, this.speed)
           salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "更新播放会话状态为暂停完成", false)
           setTimeout(() => {
             this.startImageAnalyzer(xComponentController!)
@@ -945,7 +939,7 @@ export class AVPlayerController implements PlayerControllerInterface {
           salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "进入released状态", false)
           this.transitionTo(PlayerState.RELEASING)
           this.playing = false
-          AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode)
+          AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode, this.speed)
           salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "更新播放会话状态为释放完成", false)
           break
         case 'idle':
@@ -963,7 +957,7 @@ export class AVPlayerController implements PlayerControllerInterface {
           salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "进入error状态", false)
           this.transitionTo(PlayerState.ERROR)
           try {
-            await VideoOperateUtil.releaseAVImageGenerator()
+            await VideoOperateUtil.releaseFrameExtractor()
             await this.requestEngineSwitch(PlayerEngine.MPV_PLAYER, 'AVPlayer state error', true)
             salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "执行播放错误处理完成", false)
           } catch (error) {
@@ -1054,7 +1048,7 @@ export class AVPlayerController implements PlayerControllerInterface {
 
   async dispose(): Promise<void> {
     AppStorage.delete('nowPlayingData')
-    await VideoOperateUtil.releaseAVImageGenerator()
+    await VideoOperateUtil.releaseFrameExtractor()
     await this.release()
   }
 
@@ -1114,7 +1108,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     } catch (e) {
       salmonLogger.addLog(TAG, "onSurfaceLoad等待PLAYING状态超时，降级到MPV: " + e, true)
       try {
-        await VideoOperateUtil.releaseAVImageGenerator()
+        await VideoOperateUtil.releaseFrameExtractor()
         await this.requestEngineSwitch(PlayerEngine.MPV_PLAYER, 'AVPlayer start timeout', true)
       } catch (error) {
         salmonLogger.addLog(TAG, `AVPlayer timeout fallback failed: ${error}`, true)
@@ -1123,6 +1117,9 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   onOsdSurfaceLoad(_surfaceId: string, _surfaceWidth: number, _surfaceHeight: number): void {
+  }
+
+  onOsdSurfaceDestroy(_surfaceId: string): void {
   }
 
   restoreSpeedAfterLongPress(lastSpeed: number): void {
@@ -1150,6 +1147,15 @@ export class AVPlayerController implements PlayerControllerInterface {
 
   hasChapterSupport(): boolean {
     return false
+  }
+
+
+  onMetricsEvent(callback: (info: Array<media.AVMetricsEvent>) => void): void {
+    this.avPlayer?.onMetricsEvent(callback)
+  }
+
+  offMetricsEvent(callback?: (info: Array<media.AVMetricsEvent>) => void): void {
+    this.avPlayer?.offMetricsEvent(callback)
   }
 
   seekToChapter(_chapterIndex: number): void {
@@ -1226,7 +1232,8 @@ export class AVPlayerController implements PlayerControllerInterface {
     this.lastFrameFetchPlayTime = time
     VideoOperateUtil.updatePix = false
     try {
-      const img = await VideoOperateUtil.fetchFrameByTime(time, this.nowPlaying?.size)
+      const img = await VideoOperateUtil.fetchFrameByTime(
+        time, this.nowPlaying?.size, VideoInfoUtil.hasVideoTrack(this.nowPlaying))
       if (img && Math.abs(this.playTime - time) < 3000) {
         this.pixelMap = img
       }
@@ -1268,6 +1275,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     this.clearPlayerSubscription(() => player.off('superResolutionChanged'), 'superResolutionChanged')
     // subtitleUpdate 会进入系统的 SetSubtitleCbDfxStatus，必须在 reset 开始前调用。
     this.clearPlayerSubscription(() => player.off('subtitleUpdate'), 'subtitleUpdate')
+    this.clearPlayerSubscription(() => player.offMetricsEvent(), 'metricsEvent')
     if (this.callbackPlayer === player) {
       this.callbackPlayer = undefined
     }

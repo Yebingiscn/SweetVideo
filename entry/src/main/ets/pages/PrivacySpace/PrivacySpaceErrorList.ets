@@ -5,7 +5,7 @@ import { PrivacySpaceErrorListDataSource } from '../../utils/DataUtil'
 import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import SelectFileUtil from '../../utils/SelectFileUtil'
-import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
+import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
 import { fileIo } from '@kit.CoreFileKit'
 import { CoverLayoutMode } from '../../common/enum/DisplayMode'
@@ -153,19 +153,21 @@ export struct PrivacySpaceErrorList {
       .height('100%')
     }
     .titleBar({
-      enableComponentSafeArea: true, // 将标题栏设置为组件级安全区，内容区可避让标题栏
-      padding: {
-        start: LengthMetrics.vp(5),
-        end: LengthMetrics.vp(5)
-      },
+      avoidLayoutSafeArea: true,
+      enableComponentSafeArea: true,
+      padding: { start: LengthMetrics.vp(5), end: LengthMetrics.vp(5) },
       style: {
         // 设置导航组件标题栏样式，推荐使用默认样式
         // 标题栏动态模糊样式，包括是否使能滚动动态模糊，动态模糊类型，动态模糊生效的滚动距离等
         scrollEffectOpts: {
           enableScrollEffect: true,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
+          scrollEffectType: ScrollEffectType.IMMERSIVE_GRADIENT_BLUR,
           blurEffectiveStartOffset: LengthMetrics.vp(0),
           blurEffectiveEndOffset: LengthMetrics.vp(20)
+        },
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
         },
         originalStyle: {
           // 内容区滚动前初始样式设置

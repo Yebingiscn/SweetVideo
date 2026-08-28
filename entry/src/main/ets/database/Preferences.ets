@@ -67,8 +67,10 @@ export default class Preferences {
 
   // 隐私空间视频数据
   static getVideoMetaDataEncryption(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'video_meta_data_encryption',
+    const videos = PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'video_meta_data_encryption',
       []) as VideoMetadata[]
+    videos.forEach(video => Preferences.normalizePlayableResolution(video))
+    return videos
   }
 
   // 所有文件夹视频数据
@@ -82,6 +84,7 @@ export default class Preferences {
       if (f.parent_date == undefined) {
         f.parent_date = null
       }
+      f.video_list.forEach(video => Preferences.normalizePlayableResolution(video))
     })
     const allDates = new Set(folders.map(f => f.date))
     const orphanIndices: number[] = []
@@ -106,7 +109,9 @@ export default class Preferences {
 
   // 最近播放视频数据
   static getRecentPlay(context: Context) {
-    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'recent_play', []) as VideoMetadata[]
+    const videos = PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'recent_play', []) as VideoMetadata[]
+    videos.forEach(video => Preferences.normalizePlayableResolution(video))
+    return videos
   }
 
   static getPassword(context: Context) {
@@ -539,6 +544,7 @@ export default class Preferences {
         createdTime: source.createdTime,
         updatedTime: source.updatedTime,
         lastRefreshTime: source.lastRefreshTime,
+        lastEpgRefreshTime: source.lastEpgRefreshTime,
         lastRefreshStatus: source.lastRefreshStatus,
         lastError: source.lastError,
         epgMatchedCount: source.epgMatchedCount
@@ -568,7 +574,9 @@ export default class Preferences {
           uri: v.uri,
           title: v.title,
           date: v.date,
-          size: v.size.slice(),
+          size: Preferences.resolvePlayableResolution(v),
+          cover_size: v.cover_size ? v.cover_size.slice() : undefined,
+          has_video_track: v.has_video_track,
           time: v.time,
           last_play: v.last_play,
           format: v.format,
@@ -600,6 +608,21 @@ export default class Preferences {
       result.push(copiedFolder)
     }
     return result
+  }
+
+  private static resolvePlayableResolution(video: VideoMetadata): number[] {
+    if (video.size && video.size.length >= 2 && video.size[0] > 0 && video.size[1] > 0) {
+      return video.size.slice()
+    }
+    if (video.cover_size && video.cover_size.length >= 2 &&
+      video.cover_size[0] > 0 && video.cover_size[1] > 0) {
+      return video.cover_size.slice()
+    }
+    return [1, 1]
+  }
+
+  private static normalizePlayableResolution(video: VideoMetadata): void {
+    video.size = Preferences.resolvePlayableResolution(video)
   }
 
   private static buildVideoDateIndex(folders: FileFolder[]) {

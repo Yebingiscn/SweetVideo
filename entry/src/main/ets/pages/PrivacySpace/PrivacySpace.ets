@@ -24,7 +24,7 @@ import VideoCardItem from '../../component/VideoItemComponent/VideoCardItemCompo
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import { SortField } from '../../common/enum/SortField'
 import ShareUtil from '../../utils/ShareUtil'
-import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { Privacy, Setting } from '../../utils/ObservedUtil'
 import {
   DELAY_JUMP_TO_PLAYER,
   FULL_ALPHABET,
@@ -33,7 +33,7 @@ import {
 } from '../../common/Constants'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { VideoItemPreviewBuilder } from '../../component/VideoItemComponent/VideoItemPreviewBuilder'
-import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
+import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { motion } from '@kit.MultimodalAwarenessKit'
 import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil'
 import { ScrollBarBuilder } from '../../component/VideoItemComponent/ScrollBarBuilder'
@@ -85,6 +85,8 @@ export struct PrivacySpace { // 隐私空间页
           title: title as string,
           date: original.date,
           size: original.size,
+          cover_size: original.cover_size,
+          has_video_track: original.has_video_track,
           time: original.time,
           last_play: original.last_play,
           format: original.format,
@@ -165,7 +167,6 @@ export struct PrivacySpace { // 隐私空间页
   })
   private listScroller: ListScroller = new ListScroller()
   private waterFlowScroller: ListScroller = new ListScroller()
-
 
   @Builder
   PrivacySpaceSettingBuilder() {
@@ -814,19 +815,21 @@ export struct PrivacySpace { // 隐私空间页
       }
     })
     .titleBar({
-      enableComponentSafeArea: true, // 将标题栏设置为组件级安全区，内容区可避让标题栏
-      padding: {
-        start: LengthMetrics.vp(5),
-        end: LengthMetrics.vp(5)
-      },
+      avoidLayoutSafeArea: true,
+      enableComponentSafeArea: true,
+      padding: { start: LengthMetrics.vp(5), end: LengthMetrics.vp(5) },
       style: {
         // 设置导航组件标题栏样式，推荐使用默认样式
         // 标题栏动态模糊样式，包括是否使能滚动动态模糊，动态模糊类型，动态模糊生效的滚动距离等
         scrollEffectOpts: {
           enableScrollEffect: true,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
+          scrollEffectType: ScrollEffectType.IMMERSIVE_GRADIENT_BLUR,
           blurEffectiveStartOffset: LengthMetrics.vp(0),
           blurEffectiveEndOffset: LengthMetrics.vp(20)
+        },
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
         },
         originalStyle: {
           // 内容区滚动前初始样式设置
@@ -879,7 +882,6 @@ export struct PrivacySpace { // 隐私空间页
         bottomBuilder: { builder: (): void => this.SearchBuilder() },
       },
     })
-    .padding({ top: SafeHeight.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
     .backgroundImage(
       Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ? Setting.backgroundBlurImageSrc :

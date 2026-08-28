@@ -1,5 +1,5 @@
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
-import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
+import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { LengthMetrics } from '@kit.ArkUI'
 import { userData, userLoginBuilder } from '../../component/common/UserLoginComponent'
 import { iap } from '@kit.IAPKit'
@@ -39,14 +39,21 @@ export struct GetVipPage {
       }
     }
     .titleBar({
+      avoidLayoutSafeArea: true,
       enableComponentSafeArea: true,
       padding: { start: LengthMetrics.vp(5), end: LengthMetrics.vp(5) },
       style: {
+        // 设置导航组件标题栏样式，推荐使用默认样式
+        // 标题栏动态模糊样式，包括是否使能滚动动态模糊，动态模糊类型，动态模糊生效的滚动距离等
         scrollEffectOpts: {
           enableScrollEffect: true,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
+          scrollEffectType: ScrollEffectType.IMMERSIVE_GRADIENT_BLUR,
           blurEffectiveStartOffset: LengthMetrics.vp(0),
           blurEffectiveEndOffset: LengthMetrics.vp(20)
+        },
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
         },
         originalStyle: {
           backgroundStyle: { backgroundColor: $r('sys.color.ohos_id_color_background') },
@@ -80,7 +87,6 @@ export struct GetVipPage {
       content: { title: { mainTitle: '获取VIP' } }
     })
     .backgroundColor($r('app.color.start_window_background'))
-    .padding({ top: SafeHeight.topSafeHeight })
     .backgroundImage(
       Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ?
         Setting.backgroundBlurImageSrc : Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
@@ -215,7 +221,11 @@ export struct GetVipPage {
             .backgroundColor($r('app.color.main_color'))
             .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.95 })
             .onClick(() => {
-              this.createPurchase(iap.ProductType.NONCONSUMABLE, 'sweet_vip_forever')
+              if (canIUse("SystemCapability.Payment.IAP")) {
+                this.createPurchase(iap.ProductType.NONCONSUMABLE, 'sweet_vip_forever')
+              } else {
+                ToolsUtil.showToast('系统不支持')
+              }
             })
 
           Button('¥5.9 / 1月')
@@ -228,7 +238,11 @@ export struct GetVipPage {
             .fontColor($r('app.color.text_color'))
             .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.95 })
             .onClick(() => {
-              this.createPurchase(iap.ProductType.AUTORENEWABLE, 'sweet_vip_month')
+              if (canIUse("SystemCapability.Payment.IAP")) {
+                this.createPurchase(iap.ProductType.AUTORENEWABLE, 'sweet_vip_month')
+              } else {
+                ToolsUtil.showToast('系统不支持')
+              }
             })
 
           Button('恢复购买')
@@ -263,16 +277,20 @@ export struct GetVipPage {
           .fontColor($r('sys.color.font_tertiary'))
           .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.9 })
           .onClick(() => {
-            const uiWindowParameter: iap.UIWindowParameter = {
-              windowScreenMode: iap.WindowScreenMode.DIALOG_BOX
+            if (canIUse('SystemCapability.Payment.IAP')) {
+              const uiWindowParameter: iap.UIWindowParameter = {
+                windowScreenMode: iap.WindowScreenMode.DIALOG_BOX
+              }
+              const groupId = '4E0F8D3546AA4E66A2C0C3E020130B2A'
+              iap.showManagedSubscriptions(this.getUIContext().getHostContext() as common.UIAbilityContext,
+                uiWindowParameter, groupId).then(() => {
+              }).catch((err: BusinessError) => {
+                salmonLogger.addLog(
+                  'Failed to show subscription page. Code is ' + err.code + ', message is ' + err.message)
+              })
+            } else {
+              ToolsUtil.showToast('系统不支持')
             }
-            const groupId = '4E0F8D3546AA4E66A2C0C3E020130B2A'
-            iap.showManagedSubscriptions(this.getUIContext().getHostContext() as common.UIAbilityContext,
-              uiWindowParameter, groupId).then(() => {
-            }).catch((err: BusinessError) => {
-              salmonLogger.addLog(
-                'Failed to show subscription page. Code is ' + err.code + ', message is ' + err.message)
-            })
           })
       }
       .width('100%')
@@ -435,16 +453,20 @@ export struct GetVipPage {
         .fontColor($r('sys.color.font_tertiary'))
         .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.9 })
         .onClick(() => {
-          const uiWindowParameter: iap.UIWindowParameter = {
-            windowScreenMode: iap.WindowScreenMode.DIALOG_BOX
+          if (canIUse('SystemCapability.Payment.IAP')) {
+            const uiWindowParameter: iap.UIWindowParameter = {
+              windowScreenMode: iap.WindowScreenMode.DIALOG_BOX
+            }
+            const groupId = '4E0F8D3546AA4E66A2C0C3E020130B2A'
+            iap.showManagedSubscriptions(this.getUIContext().getHostContext() as common.UIAbilityContext,
+              uiWindowParameter, groupId).then(() => {
+            }).catch((err: BusinessError) => {
+              salmonLogger.addLog(
+                'Failed to show subscription page. Code is ' + err.code + ', message is ' + err.message)
+            })
+          } else {
+            ToolsUtil.showToast('系统不支持')
           }
-          const groupId = '4E0F8D3546AA4E66A2C0C3E020130B2A'
-          iap.showManagedSubscriptions(this.getUIContext().getHostContext() as common.UIAbilityContext,
-            uiWindowParameter, groupId).then(() => {
-          }).catch((err: BusinessError) => {
-            salmonLogger.addLog(
-              'Failed to show subscription page. Code is ' + err.code + ', message is ' + err.message)
-          })
         })
     }
     .width('100%')
@@ -454,26 +476,30 @@ export struct GetVipPage {
   }
 
   private createPurchase(productType: iap.ProductType, productId: string) {
-    if (!this.isAgreed) {
-      this.pendingProductType = productType
-      this.pendingProductId = productId
-      this.showAgreementSheet = true
-      return
-    }
-    const createPurchaseParam: iap.PurchaseParameter = {
-      productType: productType,
-      productId: productId
-    }
-    iap.createPurchase(PathUtils.appContext, createPurchaseParam).then((result) => {
-      if (productType === iap.ProductType.AUTORENEWABLE) {
-        this.dealSubscriptionPurchaseResult(result)
-      } else {
-        this.onPurchaseSuccess()
+    if (canIUse("SystemCapability.Payment.IAP")) {
+      if (!this.isAgreed) {
+        this.pendingProductType = productType
+        this.pendingProductId = productId
+        this.showAgreementSheet = true
+        return
       }
-    }).catch((err: BusinessError) => {
-      salmonLogger.addLog(TAG, 'createPurchase error: ' + JSON.stringify(err), true)
-      this.dealPurchaseError(err)
-    })
+      const createPurchaseParam: iap.PurchaseParameter = {
+        productType: productType,
+        productId: productId
+      }
+      iap.createPurchase(PathUtils.appContext, createPurchaseParam).then((result) => {
+        if (productType === iap.ProductType.AUTORENEWABLE) {
+          this.dealSubscriptionPurchaseResult(result)
+        } else {
+          this.onPurchaseSuccess()
+        }
+      }).catch((err: BusinessError) => {
+        salmonLogger.addLog(TAG, 'createPurchase error: ' + JSON.stringify(err), true)
+        this.dealPurchaseError(err)
+      })
+    } else {
+      ToolsUtil.showToast('系统不支持')
+    }
   }
 
   private restorePurchase() {
@@ -497,9 +523,13 @@ export struct GetVipPage {
   }
 
   private dealSubscriptionPurchaseResult(result: iap.CreatePurchaseResult) {
-    const checkResult = IapVerifyUtil.dealSubscriptionPurchaseResult(result.purchaseData)
-    if (checkResult.purchaseOrderPayload) {
-      this.finishPurchase(checkResult.purchaseOrderPayload)
+    if (canIUse("SystemCapability.Payment.IAP")) {
+      const checkResult = IapVerifyUtil.dealSubscriptionPurchaseResult(result.purchaseData)
+      if (checkResult.purchaseOrderPayload) {
+        this.finishPurchase(checkResult.purchaseOrderPayload)
+      }
+    } else {
+      ToolsUtil.showToast('系统不支持')
     }
   }
 
@@ -510,21 +540,25 @@ export struct GetVipPage {
   }
 
   private dealPurchaseError(err: BusinessError) {
-    if (err.code === iap.IAPErrorCode.PRODUCT_OWNED || err.code === iap.IAPErrorCode.SYSTEM_ERROR) {
-      IapVerifyUtil.queryPurchases(this.getUIContext().getHostContext() as common.UIAbilityContext, {
-        onHasPurchase: () => {
-          this.onPurchaseSuccess()
-        },
-        onNoPurchase: () => {
-          ToolsUtil.showToast('查询购买记录失败')
-        },
-        onError: () => {
-          ToolsUtil.showToast('查询购买记录失败')
-        }
-      })
-      return
+    if (canIUse("SystemCapability.Payment.IAP")) {
+      if (err.code === iap.IAPErrorCode.PRODUCT_OWNED || err.code === iap.IAPErrorCode.SYSTEM_ERROR) {
+        IapVerifyUtil.queryPurchases(this.getUIContext().getHostContext() as common.UIAbilityContext, {
+          onHasPurchase: () => {
+            this.onPurchaseSuccess()
+          },
+          onNoPurchase: () => {
+            ToolsUtil.showToast('查询购买记录失败')
+          },
+          onError: () => {
+            ToolsUtil.showToast('查询购买记录失败')
+          }
+        })
+        return
+      }
+      ToolsUtil.showToast('购买失败，错误码：' + err.code + ', 原因是：' + errorMessages.get(err.code))
+      salmonLogger.addLog(TAG, 'Purchase failed. Code is ' + err.code + ', message is ' + err.message, true)
+    } else {
+      ToolsUtil.showToast('系统不支持')
     }
-    ToolsUtil.showToast('购买失败，错误码：' + err.code + ', 原因是：' + errorMessages.get(err.code))
-    salmonLogger.addLog(TAG, 'Purchase failed. Code is ' + err.code + ', message is ' + err.message, true)
   }
 }

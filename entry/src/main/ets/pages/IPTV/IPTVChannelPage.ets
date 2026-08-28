@@ -6,13 +6,14 @@ import IPTVUtil from '../../utils/IPTVUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { LengthMetrics } from '@kit.ArkUI'
-import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
+import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { salmonLogger } from 'salmonlogger'
 import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
 import { SearchComponent } from '../../component/VideoItemComponent/SearchComponent'
 
 const ALL_CHANNELS = '全部频道'
 const TAG = 'IPTVChannelPage'
+const EPG_REFRESH_INTERVAL = 30 * 60 * 1000
 
 class IPTVChannelCardParams {
   channel: IPTVChannel | undefined = undefined
@@ -30,9 +31,12 @@ export struct IPTVChannelPage {
   private groupScroller: Scroller = new Scroller()
   private searchController: SearchController = new SearchController()
   private syncingFromGroup: boolean = false
+  private targetChannelIndex: number = -1
+  private epgRefreshRunning: boolean = false
 
   aboutToAppear(): void {
     this.loadSource()
+    this.refreshEpgIfNeeded()
   }
 
   build() {
@@ -52,11 +56,12 @@ export struct IPTVChannelPage {
           .width('100%')
           .alignItems(VerticalAlign.Top)
         }
-      }.clip(false)
+      }
       .width('100%')
       .height('100%')
     }
     .titleBar({
+      avoidLayoutSafeArea: true,
       enableComponentSafeArea: true,
       padding: { start: LengthMetrics.vp(5), end: LengthMetrics.vp(5) },
       style: {
@@ -64,9 +69,13 @@ export struct IPTVChannelPage {
         // 标题栏动态模糊样式，包括是否使能滚动动态模糊，动态模糊类型，动态模糊生效的滚动距离等
         scrollEffectOpts: {
           enableScrollEffect: true,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
+          scrollEffectType: ScrollEffectType.IMMERSIVE_GRADIENT_BLUR,
           blurEffectiveStartOffset: LengthMetrics.vp(0),
           blurEffectiveEndOffset: LengthMetrics.vp(20)
+        },
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
         },
         originalStyle: {
           // 内容区滚动前初始样式设置
@@ -116,13 +125,23 @@ export struct IPTVChannelPage {
         bottomBuilder: { builder: (): void => this.SearchBuilder() }
       }
     })
-    .padding({ top: SafeHeight.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
     .backgroundImage(Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ?
       Setting.backgroundBlurImageSrc : Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)
-    .onShown(() => this.loadSource())
+    .onShown(() => {
+      this.loadSource()
+      this.refreshEpgIfNeeded()
+    })
+    .onBackPressed(() => {
+      if (this.searchValue.length > 0) {
+        this.searchValue = ''
+        this.rebuildChannels()
+        return true
+      }
+      return false
+    })
     .bindToScrollable([this.groupScroller, this.channelScroller]) // 绑定导航组件和可滚动容器组件
     .dynamicHideTitleBar({
       hideTitleArea: false,
@@ -174,10 +193,12 @@ export struct IPTVChannelPage {
         })
         .key((group: string) => group)
     }
+    .clip(false)
     .borderRadius(12)
     .width(124)
     .height('100%')
-    .padding({ left: 10, right: 6, bottom: SafeHeight.bottomSafeHeight })
+    .padding({ left: 10, right: 6 })
+    .contentEndOffset(SafeHeight.bottomSafeHeight)
     .scrollBar(BarState.Off)
     .backgroundColor($r('app.color.list_item_background'))
   }
@@ -196,6 +217,7 @@ export struct IPTVChannelPage {
         .key((item: IPTVChannel) => item.id)
         .virtualScroll()
     }
+    .clip(false)
     .borderRadius(16)
     .layoutWeight(1)
     .width('100%')
@@ -204,7 +226,8 @@ export struct IPTVChannelPage {
     .contentEndOffset(SafeHeight.bottomSafeHeight)
     .scrollBar(BarState.Off)
     .edgeEffect(EdgeEffect.Spring)
-    .onScrollIndex((start: number) => this.syncGroupFromScroll(start))
+    .onScrollIndex((start: number, end: number) => this.syncGroupFromScroll(start, end))
+    .onScrollStop(() => this.finishGroupScroll())
   }
 
   @Builder
@@ -223,21 +246,21 @@ export struct IPTVChannelPage {
           .fontSize(16)
           .fontWeight(FontWeight.Medium)
           .fontColor($r('app.color.text_color'))
-          .maxLines(1)
+          .maxLines(3)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
 
         if (params.channel!.currentProgram && params.channel!.currentProgram!.endTime > Date.now()) {
-          Text(`正在播放  ${params.channel!.currentProgram!.title}`)
+          Text(`正在播放：${params.channel!.currentProgram!.title}`)
             .fontSize(13)
-            .fontColor($r('app.color.main_color'))
+            .fontColor($r('app.color.text_color'))
             .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .textOverflow({ overflow: TextOverflow.MARQUEE })
           Progress({ value: this.programProgress(params.channel!), total: 100, type: ProgressType.Linear })
             .height(3).color($r('app.color.main_color')).width('100%')
         } else if (params.channel!.nextProgram && params.channel!.nextProgram!.startTime > Date.now()) {
-          Text(`下一节目  ${params.channel!.nextProgram!.title}`)
-            .fontSize(12).opacity(0.45).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text(`下一节目：${params.channel!.nextProgram!.title}`)
+            .fontSize(12).opacity(0.45).maxLines(1).textOverflow({ overflow: TextOverflow.MARQUEE })
         } else {
           Text('暂无节目单信息')
             .fontSize(12).opacity(0.45).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -306,12 +329,82 @@ export struct IPTVChannelPage {
       this.source.groupCount = new Set(deduplicated.map(channel => channel.groupName)).size
       Preferences.saveIPTVSources(PathUtils.appContext!, sources)
     }
+    this.promoteCachedPrograms()
     const uniqueGroups = Array.from(new Set(this.source.channels.map(channel => channel.groupName)))
     this.groups = [ALL_CHANNELS, ...uniqueGroups]
     if (!this.groups.includes(this.selectedGroup)) {
       this.selectedGroup = ALL_CHANNELS
     }
     this.rebuildChannels()
+  }
+
+  private promoteCachedPrograms(): void {
+    if (!this.source) {
+      return
+    }
+    const now = Date.now()
+    this.source.channels.forEach(channel => {
+      const current = channel.currentProgram
+      if (!current || current.startTime > now || current.endTime <= now) {
+        channel.currentProgram = undefined
+        const next = channel.nextProgram
+        if (next && next.startTime <= now && next.endTime > now) {
+          channel.currentProgram = next
+          channel.nextProgram = undefined
+        } else if (next && next.endTime <= now) {
+          channel.nextProgram = undefined
+        }
+      }
+    })
+  }
+
+  private refreshEpgIfNeeded(): void {
+    const source = this.source
+    if (!source?.epgUrl?.trim() || source.channels.length === 0 || this.epgRefreshRunning ||
+      !this.shouldRefreshEpg(source)) {
+      return
+    }
+    this.epgRefreshRunning = true
+    IPTVUtil.refreshEpg(source).then(refreshed => {
+      const sources = Preferences.getIPTVSources(PathUtils.appContext!)
+      const savedSource = sources.find(item => item.id === refreshed.id)
+      if (!savedSource || savedSource.epgUrl?.trim() !== refreshed.epgUrl?.trim()) {
+        return
+      }
+      const refreshedChannels = new Map<string, IPTVChannel>()
+      refreshed.channels.forEach(channel => refreshedChannels.set(channel.id, channel))
+      savedSource.channels.forEach(channel => {
+        const epgChannel = refreshedChannels.get(channel.id)
+        if (epgChannel) {
+          channel.currentProgram = epgChannel.currentProgram
+          channel.nextProgram = epgChannel.nextProgram
+        }
+      })
+      savedSource.epgMatchedCount = refreshed.epgMatchedCount
+      savedSource.lastEpgRefreshTime = refreshed.lastEpgRefreshTime
+      Preferences.saveIPTVSources(PathUtils.appContext!, sources)
+      if (this.source?.id === savedSource.id) {
+        this.source = savedSource
+        this.promoteCachedPrograms()
+        this.rebuildChannels()
+      }
+    }).catch((error: Error) => {
+      salmonLogger.addLog(TAG, `EPG refresh failed: ${error.message}`, true)
+    }).finally(() => {
+      this.epgRefreshRunning = false
+    })
+  }
+
+  private shouldRefreshEpg(source: IPTVSource): boolean {
+    const now = Date.now()
+    if (!source.lastEpgRefreshTime || now - source.lastEpgRefreshTime >= EPG_REFRESH_INTERVAL) {
+      return true
+    }
+    const availableCount = source.channels.filter(channel =>
+    !!channel.currentProgram && channel.currentProgram.endTime > now ||
+      !!channel.nextProgram && channel.nextProgram.endTime > now).length
+    const matchedCount = source.epgMatchedCount ?? 0
+    return matchedCount > 0 && availableCount * 4 < matchedCount * 3
   }
 
   private rebuildChannels(): void {
@@ -340,12 +433,18 @@ export struct IPTVChannelPage {
       return
     }
     this.syncingFromGroup = true
-    this.channelScroller.scrollToIndex(index, true, ScrollAlign.START)
-    setTimeout(() => this.syncingFromGroup = false, 350)
+    this.targetChannelIndex = index
+    this.channelScroller.scrollToIndex(index, false, ScrollAlign.START)
   }
 
-  private syncGroupFromScroll(start: number): void {
-    if (this.syncingFromGroup || start < 0 || start >= this.visibleChannels.length) {
+  private syncGroupFromScroll(start: number, end: number): void {
+    if (start < 0 || start >= this.visibleChannels.length) {
+      return
+    }
+    if (this.syncingFromGroup) {
+      if (this.targetChannelIndex >= start && this.targetChannelIndex <= end) {
+        this.finishGroupScroll()
+      }
       return
     }
     const group = this.visibleChannels[start].groupName
@@ -353,9 +452,14 @@ export struct IPTVChannelPage {
       this.selectedGroup = group
       const groupIndex = this.groups.indexOf(group)
       if (groupIndex >= 0) {
-        this.groupScroller.scrollToIndex(groupIndex, true, ScrollAlign.CENTER)
+        this.groupScroller.scrollToIndex(groupIndex, false, ScrollAlign.CENTER)
       }
     }
+  }
+
+  private finishGroupScroll(): void {
+    this.syncingFromGroup = false
+    this.targetChannelIndex = -1
   }
 
   private firstVisibleGroup(): string {

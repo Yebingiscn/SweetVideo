@@ -8,13 +8,21 @@ import { PathUtils } from '../../utils/PathUtils'
 import { WindowUtil } from '../../utils/WindowUtil'
 import PermissionUtil from '../../utils/PermissionUtil'
 import PiPWindowUtil from '../../utils/PiPWindowUtil'
-import { Setting } from '../../utils/ObservedUtil'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { PlaybackSpeedListComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent'
-import TimeUtil from '../../utils/TimeUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/SwipingPlayTimePanelBuilder'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
+import { RepeatModeButtonComponent } from '../../component/PlayerComponent/RepeatModeButtonComponent'
+import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
+import {
+  AnimatedPlaybackTimeBuilder,
+  PlaybackProgressSliderComponent
+} from '../../component/PlayerComponent/PlaybackProgressComponent'
+import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
+import { XAnimation } from '../../utils/AnimationUtil'
+import { AUTO_HIDE_SHOW_CONTROL_TIME } from '../../common/Constants'
 
 @ComponentV2
 export struct ShortVideoPage {
@@ -22,14 +30,13 @@ export struct ShortVideoPage {
   @Local items: VideoMetadata[] = []
   @Local currentIndex: number = 0
   @Local ready: boolean = false
-  @Local seekingTime: number = 0
-  @Local isSeeking: boolean = false
-  private manager: ShortVideoPlayerManager = new ShortVideoPlayerManager()
+  @Local manager: ShortVideoPlayerManager = new ShortVideoPlayerManager()
+  @Local containerWidth: number = 0
+  @Local containerHeight: number = 0
   private skipHistory: boolean = false
   private disposed: boolean = false
   private swiperController: SwiperController = new SwiperController()
-  @Local containerWidth: number = 0
-  @Local containerHeight: number = 0
+  private showControlTimer: number = 0
 
   aboutToAppear(): void {
     this.disposed = false
@@ -48,6 +55,7 @@ export struct ShortVideoPage {
     await this.dispose()
     PermissionUtil.applyStopContinuousTask()
     WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
+    WindowUtil.setBarState(PathUtils.appContext!, true, true)
     WindowUtil.recoveryBarColor()
     WindowUtil.getWindow().then((windowClass: window.Window | undefined) => {
       windowClass?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
@@ -102,6 +110,14 @@ export struct ShortVideoPage {
           backgroundBlurStyle: BlurStyle.COMPONENT_THIN
         })
 
+        RepeatModeButtonComponent({
+          repeatMode: this.manager.repeatMode,
+          playing: this.manager.playing,
+          playTime: this.manager.currentTime,
+          compact: true,
+          onRepeatModeChange: (repeatMode) => this.manager.selectRepeatMode(repeatMode)
+        })
+
         Button({ type: ButtonType.Circle, stateEffect: true }) {
           SymbolGlyph($r('sys.symbol.fullscreen'))
             .fontSize(21)
@@ -114,39 +130,43 @@ export struct ShortVideoPage {
       }
       .width('100%')
 
-      Text(`${TimeUtil.convertMSToHHMMSS(this.isSeeking ? this.seekingTime :
-        (this.manager.onSwiping ? this.manager.swipingTime : (this.manager.currentPlayer?.currentTime ?? 0)))} / ${
-        TimeUtil.convertMSToHHMMSS(
-        this.manager.currentPlayer?.duration || this.items[this.currentIndex]?.time || 0)}`)
-        .fontSize(12)
-        .fontColor('#CCFFFFFF')
-        .margin({ top: 6, bottom: 8 })
-        .width('100%')
-
-      Slider({
-        value: this.isSeeking ? this.seekingTime : (this.manager.currentPlayer?.currentTime ?? 0),
-        min: 0,
-        max: Math.max(this.manager.currentPlayer?.duration || this.items[this.currentIndex]?.time || 0, 1),
-        style: SliderStyle.NONE
-      })
-        .trackThickness(4)
-        .selectedColor(Color.White)
-        .blockColor(Color.White)
-        .onChange((value: number, mode: SliderChangeMode) => {
-          this.seekingTime = value
-          this.isSeeking = mode !== SliderChangeMode.End
-          if (mode === SliderChangeMode.End) {
-            this.manager.seek(this.currentIndex, value)
-          }
+      Row() {
+        AnimatedPlaybackTimeBuilder({
+          playTime: this.manager.currentTime,
+          totalTime: this.manager.duration,
+          fontSize: 12,
+          fontColor: '#CCFFFFFF'
         })
+      }
+      .margin({ top: 6, bottom: 8 })
+      .width('100%')
+
+      PlaybackProgressSliderComponent({
+        playTime: this.manager.currentTime,
+        totalTime: this.manager.duration,
+        onSliderChange: (value: number) => this.manager.previewProgressSeek(value),
+        onSliderTouch: (event: TouchEvent) => {
+          if (event.type === TouchType.Down) {
+            this.manager.beginProgressSeek()
+          } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+            this.manager.endProgressSeek()
+          }
+        }
+      })
         .width('100%')
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 28, bottom: 22 })
+    .padding({
+      left: 16,
+      right: 16,
+      top: 28,
+      bottom: SafeHeight.bottomSafeHeight === 0 ? 22 : SafeHeight.bottomSafeHeight
+    })
     .linearGradient({
       angle: 180,
       colors: [[Color.Transparent, 0], ['#90000000', 0.75]]
     })
+    .transition(XAnimation.getAnimation('bottom', 0, false))
   }
 
   build() {
@@ -160,7 +180,10 @@ export struct ShortVideoPage {
                   item: repeatItem.item,
                   index: repeatItem.index,
                   currentIndex: this.currentIndex,
-                  manager: this.manager
+                  manager: this.manager,
+                  onSingleTap: () => this.toggleShowControl(),
+                  onDoubleTap: (tapX: number) => this.manager.onScreenDoubleClick(repeatItem.index, tapX,
+                    this.containerWidth)
                 })
               })
               .key((item: VideoMetadata) => item.date)
@@ -168,15 +191,14 @@ export struct ShortVideoPage {
           }
           .index(this.currentIndex)
           .vertical(true)
-          .loop(false)
+          .loop(this.shouldLoopSwiper())
           .indicator(false)
           .cachedCount(3)
           .duration(300)
           .curve(Curve.Ease)
           .onChange((index: number) => {
-            this.currentIndex = index
-            this.isSeeking = false
             this.manager.activate(index)
+            this.currentIndex = index
           })
           .width('100%')
           .height('100%')
@@ -187,16 +209,16 @@ export struct ShortVideoPage {
             .alignSelf(ItemAlign.Center)
         }
 
-        if (this.ready && this.items.length > 0) {
+        if (this.manager.showControl && this.ready && this.items.length > 0) {
           this.BottomControls()
         }
 
-        if (this.manager.onSwiping && this.manager.currentPlayer) {
+        if (this.manager.onSwiping && this.manager.duration > 0) {
           Row() {
             SwipingPlayTimePanelBuilder({
               isSliderPlayTimeChange: false,
               playTime: this.manager.swipingTime,
-              totalTime: this.manager.currentPlayer.duration,
+              totalTime: this.manager.duration,
               pixelMap: null
             })
           }
@@ -207,16 +229,20 @@ export struct ShortVideoPage {
           .hitTestBehavior(HitTestMode.Transparent)
         }
 
-        Button({ type: ButtonType.Circle }) {
-          SymbolGlyph($r('sys.symbol.xmark'))
-            .fontSize(20)
-            .fontColor([Color.White])
+        if (this.manager.showControl) {
+          Button({ type: ButtonType.Circle, stateEffect: true }) {
+            SymbolGlyph($r('sys.symbol.xmark'))
+              .fontSize(22)
+              .fontColor(['#f0f0f0'])
+              .opacity(0.8)
+          }
+          .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+          .attributeModifier(new ButtonFancyModifier(40, 40))
+          .backgroundColor('#50000000')
+          .position({ x: 14, y: 14 + SafeHeight.topSafeHeight })
+          .transition(XAnimation.getAnimation('up', 0, false))
+          .onClick(() => this.pathStack.pop())
         }
-        .width(40)
-        .height(40)
-        .backgroundColor('#55000000')
-        .position({ x: 14, y: 14 })
-        .onClick(() => this.pathStack.pop())
       }
       .width('100%')
       .height('100%')
@@ -232,18 +258,18 @@ export struct ShortVideoPage {
       const params = paramsList[0]
       if (!params) {
         this.ready = true
+        this.showControls()
         return
       }
       this.items = params.metadataList
       this.currentIndex = Math.max(0, Math.min(params.initialIndex, Math.max(this.items.length - 1, 0)))
       this.skipHistory = params.skipHistory
-      this.manager.configure(this.items, this.skipHistory, (completedIndex: number) => {
-        if (completedIndex < this.items.length - 1) {
-          this.swiperController.changeIndex(completedIndex + 1, true)
-        }
+      this.manager.configure(this.items, this.skipHistory, (targetIndex: number) => {
+        this.swiperController.changeIndex(targetIndex, true)
       })
       this.ready = true
       this.manager.activate(this.currentIndex)
+      this.showControls()
     })
     .onHidden(() => {
       this.manager.saveCurrentHistory()
@@ -267,6 +293,41 @@ export struct ShortVideoPage {
     })
   }
 
+  private shouldLoopSwiper(): boolean {
+    return this.manager.repeatMode === SweetRepeatMode.LIST ||
+      this.manager.repeatMode === SweetRepeatMode.RANDOM
+  }
+
+  private toggleShowControl(): void {
+    if (this.manager.showControl) {
+      this.clearShowControlTimer()
+      this.updateShowControl(false)
+      return
+    }
+    this.showControls()
+  }
+
+  private showControls(): void {
+    this.clearShowControlTimer()
+    this.updateShowControl(true)
+    this.showControlTimer = setTimeout(() => {
+      this.showControlTimer = 0
+      this.updateShowControl(false)
+    }, AUTO_HIDE_SHOW_CONTROL_TIME)
+  }
+
+  private updateShowControl(showControl: boolean): void {
+    XAnimation.runWithAnimation(() => this.manager.showControl = showControl)
+    WindowUtil.setBarState(PathUtils.appContext!, showControl, showControl)
+  }
+
+  private clearShowControlTimer(): void {
+    if (this.showControlTimer !== 0) {
+      clearTimeout(this.showControlTimer)
+      this.showControlTimer = 0
+    }
+  }
+
   private async toggleFullScreen(): Promise<void> {
     VideoOperateUtil.fullScreenOrRotateScreen(this.containerWidth, this.containerHeight,
       WindowUtil.getWindow())
@@ -285,6 +346,7 @@ export struct ShortVideoPage {
       return
     }
     this.disposed = true
+    this.clearShowControlTimer()
     await this.manager.releaseAll()
   }
 }

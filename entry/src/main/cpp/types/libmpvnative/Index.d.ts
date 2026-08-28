@@ -192,4 +192,76 @@ declare module 'libmpvnative.so' {
 
   // ==================== 章节 ====================
   export const getChapterList: (mpvHandle: number) => Array<{ index: number; title: string; time: number }>;
+
+  // ==================== FFmpeg 缩略图 ====================
+  export interface FFmpegMediaInfo {
+    /** 已按容器旋转信息交换后的显示宽高。 */
+    sourceWidth: number;
+    sourceHeight: number;
+    /** 内嵌封面的原始显示宽高；没有封面时为 0。 */
+    coverWidth: number;
+    coverHeight: number;
+    /** 0、90、180 或 270。 */
+    rotation: number;
+    durationMs: number;
+    frameRate: number;
+    bitRate: number;
+    /** 0=NONE, 1=HDR_VIVID/HLG, 2=HDR10, 3=DOLBY_VISION */
+    hdrType: number;
+    /** 0=非杜比视界，-1=未知 Profile，其余为 Profile 编号。 */
+    dolbyVisionProfile: number;
+    /** 0=NONE, 1=DTS, 2=DOLBY_AUDIO, 3=AUDIO_VIVID */
+    audioType: number;
+    audioStreamCount: number;
+    subtitleStreamCount: number;
+    hasEmbeddedCover: boolean;
+    formatName: string;
+    formatLongName: string;
+    videoCodec: string;
+    audioCodec: string;
+    title: string;
+    artist: string;
+    album: string;
+    comment: string;
+    creationTime: string;
+    /** FFmpeg 标签原始字节，由 ArkTS 的 UniversalDetector 识别编码。 */
+    titleData: ArrayBuffer;
+    artistData: ArrayBuffer;
+    albumData: ArrayBuffer;
+    commentData: ArrayBuffer;
+    creationTimeData: ArrayBuffer;
+  }
+
+  export interface FFmpegThumbnailFrame {
+    data: ArrayBuffer;
+    width: number;
+    height: number;
+    stride: number;
+    sourceWidth: number;
+    sourceHeight: number;
+    coverWidth: number;
+    coverHeight: number;
+    durationMs: number;
+    frameRate: number;
+    /** 0=NONE, 1=HDR_VIVID/HLG, 2=HDR10, 3=DOLBY_VISION */
+    hdrType: number;
+    /** 0=非杜比视界，-1=未知 Profile，其余为 Profile 编号。 */
+    dolbyVisionProfile: number;
+    /** 0=NONE, 1=DTS, 2=DOLBY_AUDIO, 3=AUDIO_VIVID */
+    audioType: number;
+    colorManaged: boolean;
+  }
+
+  /**
+   * 创建可复用的缩略图会话。source 可以是本地 fd 或网络 URL；本地 fd 会在 native 内复制。
+   */
+  export const createThumbnailExtractor: (source: number | string, offset?: number, length?: number) => number;
+
+  /** 只解析容器和轨道信息，不打开解码器或解码视频帧。 */
+  export const getMediaInfo: (extractorId: number) => Promise<FFmpegMediaInfo>;
+
+  export const extractThumbnailFrame: (extractorId: number, timeUs: number,
+    maxWidth: number, maxHeight: number, preferEmbeddedCover?: boolean) => Promise<FFmpegThumbnailFrame>;
+
+  export const releaseThumbnailExtractor: (extractorId: number) => boolean;
 }

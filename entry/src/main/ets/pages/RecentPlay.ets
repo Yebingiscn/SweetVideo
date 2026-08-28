@@ -9,13 +9,13 @@ import { DELAY_JUMP_TO_PLAYER } from '../common/Constants'
 import { VideoItemBuilder } from '../component/PlayerComponent/PlayerSideBarComponent'
 import { VideoItemPreviewBuilder } from '../component/VideoItemComponent/VideoItemPreviewBuilder'
 import DataSyncUtil from '../utils/DataSyncUtil'
-import { Setting, SafeHeight } from '../utils/ObservedUtil'
+import { Setting } from '../utils/ObservedUtil'
 import RecentPlayUtil from '../utils/RecentPlayUtil'
 import SelectFileUtil from '../utils/SelectFileUtil'
 import Preferences from '../database/Preferences'
 import ToolsUtil from '../utils/ToolsUtil'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
-import { HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
+import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
 
 @ComponentV2
@@ -212,6 +212,7 @@ export struct RecentPlay { // 最近播放页
     })
     .titleBar({
       enableComponentSafeArea: true, // 将标题栏设置为组件级安全区，内容区可避让标题栏
+      avoidLayoutSafeArea: true,
       padding: {
         start: LengthMetrics.vp(5),
         end: LengthMetrics.vp(5)
@@ -238,9 +239,13 @@ export struct RecentPlay { // 最近播放页
         // 标题栏动态模糊样式，包括是否使能滚动动态模糊，动态模糊类型，动态模糊生效的滚动距离等
         scrollEffectOpts: {
           enableScrollEffect: true,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
+          scrollEffectType: ScrollEffectType.IMMERSIVE_GRADIENT_BLUR,
           blurEffectiveStartOffset: LengthMetrics.vp(0),
           blurEffectiveEndOffset: LengthMetrics.vp(20)
+        },
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
         },
         originalStyle: {
           // 内容区滚动前初始样式设置
@@ -286,7 +291,6 @@ export struct RecentPlay { // 最近播放页
         }
       },
     })
-    .padding({ top: SafeHeight.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
     .backgroundImage(
       Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ? Setting.backgroundBlurImageSrc :

@@ -4,7 +4,7 @@
   "dependencies": {
     "salmonlogger": "feature/salmonlogger.har",
     "@ohos/juniversalchardet": "^2.0.3",
-    "@luvi/lv-markdown-in": "^3.4.5",
+    "@luvi/lv-markdown-in": "^3.4.6",
     "@ohos/pinyin4js": "^2.0.2",
     "@dove/subtitles": "entry/src/main/ets/modules/subtitles"
   },

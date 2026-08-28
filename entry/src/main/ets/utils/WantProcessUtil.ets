@@ -1,5 +1,5 @@
-import { media } from '@kit.MediaKit'
 import VideoInfoUtil from './VideoInfoUtil'
+import FFmpegThumbnailUtil from './FFmpegThumbnailUtil'
 import { bundleManager, common, OpenLinkOptions, Want } from '@kit.AbilityKit'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { salmonLogger } from 'salmonlogger'
@@ -8,7 +8,6 @@ import { PathUtils } from './PathUtils'
 import SelectFileUtil from './SelectFileUtil'
 import ToolsUtil from './ToolsUtil'
 import { WindowUtil } from './WindowUtil'
-import fileIo from '@ohos.file.fs'
 import { systemDateTime } from '@kit.BasicServicesKit'
 import { fileUri } from '@kit.CoreFileKit'
 import { systemShare } from '@kit.ShareKit'
@@ -112,54 +111,42 @@ export default class WantProcess {
 
   // 处理拉起链接
   static async hasWant(pathStack: NavPathStack) {
-    if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
-      let avMetadataExtractor: media.AVMetadataExtractor | undefined
-      let file: fileIo.File | undefined
-      try {
-        avMetadataExtractor = await media.createAVMetadataExtractor()
-        file = fileIo.openSync(WantProcess.receiveWantUri)
-        avMetadataExtractor.fdSrc = file
-        const metadata = await new Promise<media.AVMetadata>((resolve, reject) => {
-          avMetadataExtractor!.fetchMetadata((error: BusinessError, metadata: media.AVMetadata) => {
-            error ? reject(error) : resolve(metadata)
-          })
-        })
-        let targetVideo: VideoMetadata = {
-          uri: WantProcess.receiveWantUri,
-          title: decodeURI(WantProcess.receiveWantUri.split('/')[WantProcess.receiveWantUri.split('/').length - 1]),
-          date: systemDateTime.getTime(false).toString(),
-          size: VideoInfoUtil.getVideoWidthAndHeight(metadata),
-          time: parseInt(metadata.duration || '0'),
-          last_play: 0,
-          format: VideoInfoUtil.getVideoFormat(WantProcess.receiveWantUri),
-          video_size: await VideoInfoUtil.getVideoSize(WantProcess.receiveWantUri, true) as string,
-          frame_rate: VideoInfoUtil.getVideoFrame(metadata),
-          hdr_type: metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE,
-          audio_type: 0,
-          start_time: 0,
-          end_time: 0,
-          external_subtitle_format: '',
-          pointA: 0,
-          pointB: 0,
-        }
-        WantProcess.clearWantState()
-        WantProcess.receiveWantUri = ''
-        await ToolsUtil.routerWhere(pathStack, targetVideo, [targetVideo], false, true)
-      } catch (error) {
-        salmonLogger.addLog(TAG, 'want process error:' + error, true)
-        WantProcess.clearWantState()
-        WantProcess.receiveWantUri = ''
-        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
-      } finally {
-        if (avMetadataExtractor) {
-          avMetadataExtractor.release()?.catch(() => {
-            salmonLogger.addLog(TAG, 'avMetadataExtractor release error', true)
-          })
-        }
-        if (file) {
-          fileIo.closeSync(file)
-        }
+    try {
+      const uri = WantProcess.receiveWantUri
+      const probeResult = await FFmpegThumbnailUtil.probeUri(uri)
+      if (!probeResult.success || !probeResult.probe) {
+        throw new Error(probeResult.error || 'FFmpeg media probing failed')
       }
+      const probe = probeResult.probe
+      const fileName = ToolsUtil.safeDecodeURI(uri.split('/')[uri.split('/').length - 1])
+      const targetVideo: VideoMetadata = {
+        uri: uri,
+        title: VideoInfoUtil.resolveImportedTitle(fileName, probe),
+        date: systemDateTime.getTime(false).toString(),
+        size: VideoInfoUtil.getPlayableResolution(probe),
+        cover_size: [probe.coverWidth, probe.coverHeight],
+        has_video_track: VideoInfoUtil.probeHasVideoTrack(probe),
+        time: Math.round(probe.durationMs),
+        last_play: 0,
+        format: VideoInfoUtil.getVideoFormat(uri),
+        video_size: await VideoInfoUtil.getVideoSize(uri, true) as string,
+        frame_rate: Math.round(probe.frameRate),
+        hdr_type: probe.hdrType,
+        audio_type: probe.audioType,
+        start_time: 0,
+        end_time: 0,
+        external_subtitle_format: '',
+        pointA: 0,
+        pointB: 0,
+      }
+      WantProcess.clearWantState()
+      WantProcess.receiveWantUri = ''
+      await ToolsUtil.routerWhere(pathStack, targetVideo, [targetVideo], false, true)
+    } catch (error) {
+      salmonLogger.addLog(TAG, 'want process error:' + error, true)
+      WantProcess.clearWantState()
+      WantProcess.receiveWantUri = ''
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_error').id))
     }
   }
 

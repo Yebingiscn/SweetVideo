@@ -2,7 +2,6 @@ import { common, ConfigurationConstant, Context } from '@kit.AbilityKit'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { fileIo as fs, fileUri, picker } from '@kit.CoreFileKit'
 import VideoInfoUtil from './VideoInfoUtil'
-import { media } from '@kit.MediaKit'
 import { SaveOptions, VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import ToolsUtil from './ToolsUtil'
@@ -19,10 +18,11 @@ import { PathUtils } from './PathUtils'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
 import RecentPlayUtil from './RecentPlayUtil'
 import SubtitleUtil from './SubtitleUtil'
-import { extractVideoMetadataInTaskPool } from './TaskpoolUtil'
+import { extractVideoFileInfoInTaskPool } from './TaskpoolUtil'
 import { systemDateTime } from '@kit.BasicServicesKit'
 import { effectKit } from '@kit.ArkGraphics2D'
 import { JSON } from '@kit.ArkTS'
+import FFmpegThumbnailUtil, { FFmpegMediaProbe } from './FFmpegThumbnailUtil'
 
 const TAG = 'SelectFileUtil'
 
@@ -281,7 +281,7 @@ export default class SelectFileUtil {
     let file: fs.File | undefined = undefined
     try {
       packer = image.createImagePacker()
-      file = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
+      file = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
       await packer.packToFile(pixelMap, file.fd, { format: options?.format ?? 'image/webp', quality: 85 })
       return filePath
     } catch (err) {
@@ -356,8 +356,9 @@ export default class SelectFileUtil {
 
   //复制视频进入隐私空间（优化版：减少文件打开次数）
   static async copyFileToPrivacySpace(context: Context, video_meta_data_encryption: VideoMetadata[], uri: string,
-    sandbox_video: string, sandbox_path: string, date: string, metadata: media.AVMetadata,
-    fileName: string, fileSize: number, pixelMap: image.PixelMap | undefined): Promise<VideoMetadata> {
+    sandbox_video: string, sandbox_path: string, date: string, fileName: string, fileSize: number,
+    pixelMap: image.PixelMap | undefined,
+    probe?: FFmpegMediaProbe): Promise<VideoMetadata> {
     let sourceFile: fs.File | null = null
     let targetFile: fs.File | null = null
     try {
@@ -370,8 +371,8 @@ export default class SelectFileUtil {
         })
       })
       const videoInfo =
-        await VideoInfoUtil.setVideoInfoOptimized(date, targetPath, fileName, metadata, sandbox_video, sandbox_path,
-          fileSize, pixelMap)
+        await VideoInfoUtil.setVideoInfoOptimized(date, targetPath, fileName, sandbox_video, sandbox_path, fileSize,
+          pixelMap, probe)
       video_meta_data_encryption.push(videoInfo)
       Preferences.saveVideoMetaDataEncryption(context, video_meta_data_encryption)
       return videoInfo // 返回新创建的元数据对象
@@ -428,7 +429,9 @@ export default class SelectFileUtil {
       if (options.endTime) {
         video.end_time = options.endTime
       }
-      if (options.size?.[0] && video.size[0] === 0) {
+      const hasFallbackVideoSize = VideoInfoUtil.hasVideoTrack(video) &&
+        video.size[0] <= 1 && video.size[1] <= 1
+      if (options.size?.[0] && (video.size[0] === 0 || hasFallbackVideoSize)) {
         video.size = options.size
       }
       if (options.totalTime && video.time === 0) {
@@ -591,7 +594,7 @@ export default class SelectFileUtil {
       } else if (adjacentIndex < 0 || adjacentIndex >= list.length) {
         return undefined
       }
-      if (VideoInfoUtil.videoWidthAndHeightFormat(String(list[adjacentIndex].size)) !== '0 x 0') {
+      if (VideoInfoUtil.hasVideoTrack(list[adjacentIndex])) {
         return list[adjacentIndex]
       }
       adjacentIndex += step
@@ -605,9 +608,11 @@ export default class SelectFileUtil {
       return []
     }
     const lowerValue = trimmedValue.toLowerCase()
-    return list.filter(item =>
-    item.title.toLowerCase().includes(lowerValue)
-    )
+    return list.filter(item => {
+      const uriFileName = ToolsUtil.safeDecodeURIComponent(
+        item.uri.substring(item.uri.lastIndexOf('/') + 1)).toLowerCase()
+      return item.title.toLowerCase().includes(lowerValue) || uriFileName.includes(lowerValue)
+    })
   }
 
   static getItemIndex(list: VideoMetadata[], tmp: VideoMetadata) {
@@ -654,85 +659,97 @@ export default class SelectFileUtil {
   }
 
   static async addFile(context: Context, sandbox_video: string, sandbox_path: string, uri: string,
-    video_meta_data: VideoMetadata[], file_folder?: FileFolder) {
-    if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
-      // 1. 权限持久化（主线程）
-      await PermissionUtil.persistPermission(uri)
+    video_meta_data: VideoMetadata[], file_folder?: FileFolder): Promise<boolean> {
+    // 权限持久化必须留在主线程；媒体内容随后全部交给 FFmpeg。
+    await PermissionUtil.persistPermission(uri)
 
-      try {
-        // 2. 使用 TaskPool 提取元数据（后台线程，性能优化）
-        const extractionResult = await extractVideoMetadataInTaskPool(uri)
-
-        if (!extractionResult.success) {
-          salmonLogger.addLog(TAG, 'TaskPool 元数据提取失败: ' + extractionResult.error, true)
-          return
-        }
-
-        // 不使用解构赋值，逐个获取属性
-        const metadata = extractionResult.metadata
-        const pixelMap = extractionResult.pixelMap
-        const fileSize = extractionResult.fileSize
-        const fileName = extractionResult.fileName
-
-        // 3. 数据处理和保存（主线程）
-        const fileQueue = ConcurrencyManagerUtil.getFileQueue(uri)
-        await fileQueue.run(async () => {
-          const dataLock = ConcurrencyManagerUtil.getLock('global_data')
-          await dataLock.acquire()
-          let shouldSaveCover = false
-          let coverUri = ''
-          let coverSandboxPath = ''
-          let coverDate = ''
-          let coverMetadata: media.AVMetadata | undefined
-          let coverPixelMap: image.PixelMap | undefined
-          try {
-            if (!file_folder) {
-              const folderPathParts = FileFolderUtil.extractFolderPathFromUri(uri, fileName)
-              if (folderPathParts && folderPathParts.length > 0) {
-                const folderLock = ConcurrencyManagerUtil.getLock(`folder_${folderPathParts.join('/')}`)
-                await folderLock.acquire()
-                try {
-                  file_folder = await FileFolderUtil.createFolderPath(context, folderPathParts)
-                } finally {
-                  folderLock.release()
-                }
-              }
-            }
-            const isDuplicate = FileFolderUtil.existsVideoInFolders(context, uri, fileName)
-            if (!isDuplicate) {
-              if (PrivacySpaceUtil.getPrivacyMode()!) {
-                await SelectFileUtil.copyFileToPrivacySpace(context, video_meta_data, uri, sandbox_video,
-                  sandbox_path, systemDateTime.getTime(true).toString(), metadata!, fileName, fileSize, pixelMap)
-              } else {
-                const date = systemDateTime.getTime(true).toString()
-                const videoInfo = VideoInfoUtil.buildVideoMetadata(date, uri, fileName, metadata!,
-                  sandbox_video, fileSize)
-                if (file_folder) {
-                  file_folder.video_list.push(videoInfo)
-                  FileFolderUtil.updateFileFolder(context, file_folder, file_folder.video_list)
-                } else {
-                  const folders = Preferences.getFileFolder(context)
-                  folders[0].video_list.push(videoInfo)
-                  Preferences.saveFileFolder(context, folders)
-                }
-                shouldSaveCover = true
-                coverUri = uri
-                coverSandboxPath = sandbox_path
-                coverDate = date
-                coverMetadata = metadata
-                coverPixelMap = pixelMap
-              }
-            }
-          } finally {
-            dataLock.release()
-          }
-          if (shouldSaveCover) {
-            await VideoInfoUtil.saveCoverDeferred(coverUri, coverSandboxPath, coverDate, coverMetadata!, coverPixelMap)
-          }
-        })
-      } catch (error) {
-        salmonLogger.addLog(TAG, '导入视频发生错误, 原因是：' + error, true)
+    try {
+      const fileInfoResult = await extractVideoFileInfoInTaskPool(uri)
+      if (!fileInfoResult.success) {
+        salmonLogger.addLog(TAG, '读取视频文件信息失败: ' + fileInfoResult.error, true)
+        return false
       }
+
+      const fileSize = fileInfoResult.fileSize
+      const fileName = fileInfoResult.fileName
+      // 同一 FFmpeg 会话先读取文字元数据，再解一张封面。
+      const mediaResult = await FFmpegThumbnailUtil.probeAndExtractCover(uri)
+      const mediaProbe = mediaResult.probe
+      if (!mediaProbe) {
+        // 媒体探测失败不能阻止用户导入；基础条目仍使用文件名和安全尺寸创建。
+        salmonLogger.addLog(TAG,
+          `FFmpeg 元数据提取失败，按文件信息导入 ${fileName}: ${mediaResult.thumbnail.error}`, true)
+      }
+      const pixelMap = mediaResult.thumbnail.success ? mediaResult.thumbnail.pixelMap : undefined
+      if (mediaProbe && !mediaResult.thumbnail.success && mediaResult.thumbnail.error) {
+        salmonLogger.addLog(TAG, 'FFmpeg 封面提取失败: ' + mediaResult.thumbnail.error, true)
+      }
+
+      const fileQueue = ConcurrencyManagerUtil.getFileQueue(uri)
+      let importHandled = false
+      await fileQueue.run(async () => {
+        const dataLock = ConcurrencyManagerUtil.getLock('global_data')
+        await dataLock.acquire()
+        let shouldSaveCover = false
+        let coverUri = ''
+        let coverSandboxPath = ''
+        let coverDate = ''
+        let coverDurationMs = 0
+        let coverPixelMap: image.PixelMap | undefined
+        try {
+          if (!file_folder) {
+            const folderPathParts = FileFolderUtil.extractFolderPathFromUri(uri, fileName)
+            if (folderPathParts && folderPathParts.length > 0) {
+              const folderLock = ConcurrencyManagerUtil.getLock(`folder_${folderPathParts.join('/')}`)
+              await folderLock.acquire()
+              try {
+                file_folder = await FileFolderUtil.createFolderPath(context, folderPathParts)
+              } finally {
+                folderLock.release()
+              }
+            }
+          }
+          const isDuplicate = FileFolderUtil.existsVideoInFolders(context, uri, fileName)
+          if (!isDuplicate) {
+            if (PrivacySpaceUtil.getPrivacyMode()!) {
+              await SelectFileUtil.copyFileToPrivacySpace(context, video_meta_data, uri, sandbox_video,
+                sandbox_path, systemDateTime.getTime(true).toString(), fileName, fileSize, pixelMap, mediaProbe)
+            } else {
+              const date = systemDateTime.getTime(true).toString()
+              const videoInfo = VideoInfoUtil.buildVideoMetadata(
+                date, uri, fileName, sandbox_video, fileSize, mediaProbe)
+              if (file_folder) {
+                file_folder.video_list.push(videoInfo)
+                await FileFolderUtil.updateFileFolder(context, file_folder, file_folder.video_list)
+              } else {
+                const folders = Preferences.getFileFolder(context)
+                folders[0].video_list.push(videoInfo)
+                Preferences.saveFileFolder(context, folders)
+              }
+              shouldSaveCover = true
+              coverUri = uri
+              coverSandboxPath = sandbox_path
+              coverDate = date
+              coverDurationMs = mediaProbe?.durationMs || 0
+              coverPixelMap = pixelMap
+            }
+            importHandled = true
+          } else {
+            importHandled = true
+            salmonLogger.addLog(TAG, `跳过已导入文件: ${fileName}`, true)
+          }
+        } finally {
+          dataLock.release()
+        }
+        if (shouldSaveCover) {
+          await VideoInfoUtil.saveCoverDeferred(
+            coverUri, coverSandboxPath, coverDate, coverDurationMs, coverPixelMap)
+        }
+      })
+      return importHandled
+    } catch (error) {
+      salmonLogger.addLog(TAG, '导入视频发生错误, 原因是：' + error, true)
+      return false
     }
   }
 

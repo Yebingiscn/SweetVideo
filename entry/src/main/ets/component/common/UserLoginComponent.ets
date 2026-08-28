@@ -94,9 +94,10 @@ struct userLoginComponent {
                 return
               }
               try {
-                this.userData.userAvatar = data.avatarUri!
                 const pixelMap = await AccountUtil.fileToPixelMap(data.avatarUri!)
-                const localAvatarUri = await SelectFileUtil.savePixelMapToFile(PathUtils.photoPath!, 'avatar', pixelMap)
+                const localAvatarUri = await SelectFileUtil.savePixelMapToFile(PathUtils.photoPath!, 'avatar', pixelMap,
+                  { releasePixelMap: true })
+                this.userData.userAvatar = AccountUtil.ISHasAvatar(localAvatarUri)
                 Preferences.saveUserAvatar(PathUtils.appContext!, localAvatarUri)
               } catch (err) {
                 AccountUtil.dealAllError(err)

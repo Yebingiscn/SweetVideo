@@ -1,13 +1,7 @@
-import { media } from '@kit.MediaKit'
-import { salmonLogger } from 'salmonlogger'
 import { SCREEN_EXTEND_LIST, VIDEO_SIZE_MAP } from '../common/Constants'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
-import PrivacySpaceUtil from './PrivacySpaceUtil'
-import SelectFileUtil, { SavePixelMapOptions } from './SelectFileUtil'
-import { extractVideoFrameAsCoverInTaskPool } from './TaskpoolUtil'
-import ToolsUtil from './ToolsUtil'
+import { FFmpegMediaProbe } from './FFmpegThumbnailUtil'
 import { image } from '@kit.ImageKit'
-import { fileIo } from '@kit.CoreFileKit'
 
 
 interface AspectRatioSize {
@@ -33,29 +27,25 @@ export default class VideoInfoUtil {
   ]
   public static playerEngineList = ['系统播放器', 'MPV播放器']
 
-  static buildVideoMetadata(date: string, uri: string, file_name: string, metadata: media.AVMetadata,
-    sandbox_video: string, fileSize: number): VideoMetadata {
-    let time = '0'
-    let hdr_type = media.HdrType.AV_HDR_TYPE_NONE
-    if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
-      time = metadata.duration || '0'
-      hdr_type = metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE
-    }
-
+  static buildVideoMetadata(date: string, uri: string, file_name: string, sandbox_video: string,
+    fileSize: number, probe?: FFmpegMediaProbe): VideoMetadata {
+    const videoDimensions = VideoInfoUtil.getPlayableResolution(probe)
     const video_size = ToolsUtil.formatFileSize(fileSize)
 
     return {
       uri: PrivacySpaceUtil.getPrivacyMode()! ? sandbox_video + date : uri,
-      title: file_name,
+      title: VideoInfoUtil.resolveImportedTitle(file_name, probe),
       date: date,
-      size: VideoInfoUtil.getVideoWidthAndHeight(metadata),
-      time: parseInt(time),
+      size: videoDimensions,
+      cover_size: [probe?.coverWidth || 0, probe?.coverHeight || 0],
+      has_video_track: VideoInfoUtil.probeHasVideoTrack(probe),
+      time: Math.round(probe?.durationMs || 0),
       last_play: 0,
       format: VideoInfoUtil.getVideoFormat(file_name),
       video_size: video_size,
-      frame_rate: VideoInfoUtil.getVideoFrame(metadata),
-      hdr_type: hdr_type,
-      audio_type: 0,
+      frame_rate: Math.round(probe?.frameRate || 0),
+      hdr_type: probe?.hdrType || 0,
+      audio_type: probe?.audioType || 0,
       start_time: 0,
       end_time: 0,
       external_subtitle_format: '',
@@ -64,8 +54,66 @@ export default class VideoInfoUtil {
     }
   }
 
-  static async saveCoverDeferred(uri: string, sandbox_path: string, date: string,
-    metadata: media.AVMetadata, pixelMap: image.PixelMap | undefined) {
+  static resolveImportedTitle(fileName: string, probe?: FFmpegMediaProbe): string {
+    const embeddedTitle = probe ? probe.title.trim() : ''
+    if (!TextEncodingUtil.isUsable(embeddedTitle)) {
+      return fileName
+    }
+    if (VideoInfoUtil.probeHasVideoTrack(probe) &&
+      VideoInfoUtil.isAudioTrackLabel(embeddedTitle)) {
+      return fileName
+    }
+    return embeddedTitle
+  }
+
+  /**
+   * AVPlayer 的布局初始化需要非零宽高。视频使用真实视频轨尺寸，
+   * 纯音频使用内嵌封面的原始尺寸；两者都缺失时以 1:1 安全值兜底。
+   */
+  static getPlayableResolution(probe: FFmpegMediaProbe | undefined): number[] {
+    const sourceWidth = probe?.sourceWidth || 0
+    const sourceHeight = probe?.sourceHeight || 0
+    if (sourceWidth > 0 && sourceHeight > 0) {
+      return [sourceWidth, sourceHeight]
+    }
+    const coverWidth = probe?.coverWidth || 0
+    const coverHeight = probe?.coverHeight || 0
+    if (coverWidth > 0 && coverHeight > 0) {
+      return [coverWidth, coverHeight]
+    }
+    return [1, 1]
+  }
+
+  static probeHasVideoTrack(probe: FFmpegMediaProbe | undefined): boolean {
+    if (!probe) {
+      return false
+    }
+    return probe.sourceWidth > 0 || probe.sourceHeight > 0 || probe.videoCodec.trim().length > 0
+  }
+
+  static hasVideoTrack(metadata: VideoMetadata | undefined): boolean {
+    if (!metadata) {
+      return false
+    }
+    if (metadata.has_video_track !== undefined) {
+      return metadata.has_video_track
+    }
+    // 兼容升级前没有该字段的记录。
+    return !SUPPORT_AUDIO_FORMAT.includes(metadata.format.toLowerCase())
+  }
+
+  static getDisplayResolution(metadata: VideoMetadata | undefined): number[] {
+    if (metadata?.size && metadata.size[0] > 0 && metadata.size[1] > 0) {
+      return metadata.size
+    }
+    if (metadata?.cover_size && metadata.cover_size[0] > 0 && metadata.cover_size[1] > 0) {
+      return metadata.cover_size
+    }
+    return [0, 0]
+  }
+
+  static async saveCoverDeferred(uri: string, sandbox_path: string, date: string, durationMs: number,
+    pixelMap: image.PixelMap | undefined) {
     const saveCoverOptions: SavePixelMapOptions = { releasePixelMap: true, deleteOnFail: true }
     let saved = false
     if (pixelMap) {
@@ -73,14 +121,7 @@ export default class VideoInfoUtil {
       saved = result !== ''
     }
     if (!saved) {
-      const duration = metadata.duration || '0'
-      const size = VideoInfoUtil.getVideoWidthAndHeight(metadata)
-      const frameResult = await extractVideoFrameAsCoverInTaskPool(
-        uri,
-        size[0],
-        size[1],
-        parseInt(duration)
-      )
+      const frameResult = await FFmpegThumbnailUtil.extractCover(uri, durationMs)
       if (frameResult.success && frameResult.pixelMap) {
         await SelectFileUtil.savePixelMapToFile(sandbox_path, date, frameResult.pixelMap, saveCoverOptions)
       } else if (frameResult.error) {
@@ -90,49 +131,35 @@ export default class VideoInfoUtil {
   }
 
   // 设置存储的视频信息（优化版：减少文件打开次数）
-  static async setVideoInfoOptimized(date: string, uri: string, file_name: string, metadata: media.AVMetadata,
-    sandbox_video: string, sandbox_path: string, fileSize: number, pixelMap: image.PixelMap | undefined) {
-    let time = '0'
-    let hdr_type = media.HdrType.AV_HDR_TYPE_NONE
-    let duration = '0'
-    if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
-      time = metadata.duration || '0'
-      duration = metadata.duration || '0'
-      hdr_type = metadata.hdrType ? media.HdrType.AV_HDR_TYPE_VIVID : media.HdrType.AV_HDR_TYPE_NONE
-    }
-
-    const video_size = ToolsUtil.formatFileSize(fileSize)
-
-    let targetVideo: VideoMetadata = {
-      uri: PrivacySpaceUtil.getPrivacyMode()! ? sandbox_video + date : uri,
-      title: file_name,
-      date: date,
-      size: VideoInfoUtil.getVideoWidthAndHeight(metadata),
-      time: parseInt(time),
-      last_play: 0,
-      format: VideoInfoUtil.getVideoFormat(file_name),
-      video_size: video_size,
-      frame_rate: VideoInfoUtil.getVideoFrame(metadata),
-      hdr_type: hdr_type,
-      audio_type: 0,
-      start_time: 0,
-      end_time: 0,
-      external_subtitle_format: '',
-      pointA: 0,
-      pointB: 0,
-    }
+  static async setVideoInfoOptimized(date: string, uri: string, file_name: string, sandbox_video: string,
+    sandbox_path: string, fileSize: number, pixelMap: image.PixelMap | undefined,
+    probe?: FFmpegMediaProbe): Promise<VideoMetadata> {
+    const targetVideo = VideoInfoUtil.buildVideoMetadata(
+      date, uri, file_name, sandbox_video, fileSize, probe)
     const saveCoverOptions: SavePixelMapOptions = { releasePixelMap: true, deleteOnFail: true }
     if (pixelMap) {
       await SelectFileUtil.savePixelMapToFile(sandbox_path, date, pixelMap, saveCoverOptions)
     } else {
-      // 使用 TaskPool 提取视频帧作为封面
-      const frameResult = await extractVideoFrameAsCoverInTaskPool(
-        uri,
-        targetVideo.size[0],
-        targetVideo.size[1],
-        parseInt(duration)
-      )
+      const frameResult = await FFmpegThumbnailUtil.extractCover(uri, probe?.durationMs || 0)
       if (frameResult.success && frameResult.pixelMap) {
+        targetVideo.hdr_type = frameResult.hdrType
+        targetVideo.audio_type = frameResult.audioType
+        if (frameResult.sourceWidth > 0 && frameResult.sourceHeight > 0) {
+          targetVideo.has_video_track = true
+          targetVideo.size = [frameResult.sourceWidth, frameResult.sourceHeight]
+        }
+        if (frameResult.coverWidth > 0 && frameResult.coverHeight > 0) {
+          targetVideo.cover_size = [frameResult.coverWidth, frameResult.coverHeight]
+          if (!targetVideo.has_video_track) {
+            targetVideo.size = [frameResult.coverWidth, frameResult.coverHeight]
+          }
+        }
+        if (targetVideo.time <= 0 && frameResult.durationMs > 0) {
+          targetVideo.time = frameResult.durationMs
+        }
+        if (targetVideo.frame_rate <= 0 && frameResult.frameRate > 0) {
+          targetVideo.frame_rate = Math.round(frameResult.frameRate)
+        }
         await SelectFileUtil.savePixelMapToFile(sandbox_path, date, frameResult.pixelMap, saveCoverOptions)
       } else if (frameResult.error) {
         salmonLogger.addLog(TAG, 'extract video frame as cover error: ' + frameResult.error, true)
@@ -155,30 +182,6 @@ export default class VideoInfoUtil {
     }
     const dotIndex = item.title.lastIndexOf('.')
     return dotIndex > 0 ? item.title.slice(0, dotIndex) : item.title
-  }
-
-  static getVideoFrame(metadata: media.AVMetadata) {
-    if (metadata?.tracks) {
-      for (let i = 0; i < metadata.tracks.length; i++) {
-        const track = metadata.tracks[i]
-        if (track && track.frame_rate != undefined) {
-          return Math.round(track.frame_rate as number / 100)
-        }
-      }
-    }
-    return 0
-  }
-
-  // 获取视频长宽
-  static getVideoWidthAndHeight(metadata: media.AVMetadata) {
-    if (canIUse('SystemCapability.Multimedia.Media.AVMetadataExtractor')) {
-      const isPortrait = metadata.videoOrientation === '90' || metadata.videoOrientation === '270'
-      const width = parseInt(String(isPortrait ? metadata.videoHeight : metadata.videoWidth)) || 0
-      const height = parseInt(String(isPortrait ? metadata.videoWidth : metadata.videoHeight)) || 0
-      return [width, height]
-    } else {
-      return [0, 0]
-    }
   }
 
   static getVideoSpeedTextList() {
@@ -244,5 +247,20 @@ export default class VideoInfoUtil {
     }
     const result: AspectRatioSize = { width: Math.round(maxSize * aspectRatio), height: maxSize }
     return result
+  }
+
+  private static isAudioTrackLabel(value: string): boolean {
+    const compact = value.toLowerCase().replace(/\s/g, '')
+    const exactLabels: string[] = [
+      '中文普通话', '普通话', '国语', '中文', '粤语', '英语', '日语', '韩语',
+      'mandarin', 'chinese', 'english', 'japanese', 'korean',
+      'audiotrack', 'audio', 'stereo', '立体声'
+    ]
+    if (exactLabels.includes(compact)) {
+      return true
+    }
+    return compact.length <= 32 &&
+      (compact.startsWith('中文普通话') || compact.startsWith('mandarin') ||
+        compact.startsWith('chineseaudio'))
   }
 }

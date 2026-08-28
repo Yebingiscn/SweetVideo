@@ -8,16 +8,22 @@ import PiPWindowUtil, { PiPPlayerController } from '../../utils/PiPWindowUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { ShortVideoPlayer } from './ShortVideoPlayer'
+import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
+import { handleScreenDoubleClick } from '../../common/GestureUtil'
 
 @ObservedV2
 export class ShortVideoPlayerManager implements PiPPlayerController {
   @Trace selectedSpeed: number = 1
   @Trace onSwiping: boolean = false
   @Trace swipingTime: number = 0
+  @Trace repeatMode: SweetRepeatMode = SweetRepeatMode.LIST
+  @Trace currentIndex: number = -1
+  @Trace currentTime: number = 0
+  @Trace duration: number = 0
+  @Trace showControl: boolean = true
   private players: Map<number, ShortVideoPlayer> = new Map()
   private surfaceControllers: Map<number, XComponentController> = new Map()
   private items: VideoMetadata[] = []
-  private currentIndex: number = -1
   private generation: number = 0
   private skipHistory: boolean = false
   private avSession: avSession.AVSession | undefined = undefined
@@ -25,6 +31,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   private sessionMetadataIndex: number = -1
   private lastSessionPosition: number = -1
   private lastSessionPlaying: boolean = false
+  private progressSeeking: boolean = false
   private onCompleted: (index: number) => void = (_index: number) => {
   }
 
@@ -46,6 +53,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     this.onCompleted = onCompleted
     const savedSpeed = parseFloat(Preferences.getVideoSpeed(PathUtils.appContext!).replace('x', ''))
     this.selectedSpeed = VideoInfoUtil.videoSpeedListAll.includes(savedSpeed) ? savedSpeed : 1
+    this.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
     AVSessionUtil.applyAudioConcurrencyMode()
   }
 
@@ -85,11 +93,16 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     if (index < 0 || index >= this.items.length) {
       return
     }
+    this.onSwiping = false
+    this.swipingTime = 0
+    this.progressSeeking = false
     const generation = ++this.generation
     const oldIndex = this.currentIndex
     const target = this.getOrCreate(index)
     target?.setPlaybackRate(this.selectedSpeed)
     this.currentIndex = index
+    this.currentTime = target?.currentTime || 0
+    this.duration = target?.duration || this.items[index]?.time || 0
     const oldPlayer = this.players.get(oldIndex)
     if (oldPlayer && oldIndex !== index) {
       oldPlayer.setPlaybackRate(this.selectedSpeed)
@@ -118,14 +131,14 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   fastForward(): void {
     const player = this.players.get(this.currentIndex)
     if (player) {
-      player.seek(player.currentTime + Number(Setting.fastForwardSeconds) * 1000)
+      this.seek(this.currentIndex, player.currentTime + Number(Setting.fastForwardSeconds) * 1000)
     }
   }
 
   backForward(): void {
     const player = this.players.get(this.currentIndex)
     if (player) {
-      player.seek(player.currentTime - Number(Setting.fastForwardSeconds) * 1000)
+      this.seek(this.currentIndex, player.currentTime - Number(Setting.fastForwardSeconds) * 1000)
     }
   }
 
@@ -139,6 +152,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     }
     VideoOperateUtil.lastPlayTime = player.currentTime
     this.swipingTime = player.currentTime
+    this.currentTime = player.currentTime
     this.onSwiping = true
   }
 
@@ -153,14 +167,41 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     const timePerPixel = VideoOperateUtil.getTimePixel(screenWidth, player.duration)
     this.swipingTime = Math.max(0,
       Math.min(VideoOperateUtil.lastPlayTime + offsetX * timePerPixel, player.duration))
+    this.currentTime = this.swipingTime
   }
 
   endHorizontalSeek(index: number): void {
     if (!this.onSwiping || index !== this.currentIndex) {
       return
     }
-    this.players.get(index)?.seek(this.swipingTime)
+    const target = this.swipingTime
     this.onSwiping = false
+    this.seek(index, target)
+  }
+
+  beginProgressSeek(): void {
+    const player = this.players.get(this.currentIndex)
+    if (!player || player.duration <= 0) {
+      return
+    }
+    this.progressSeeking = true
+    this.currentTime = player.currentTime
+  }
+
+  previewProgressSeek(position: number): void {
+    if (!this.progressSeeking || this.duration <= 0) {
+      return
+    }
+    this.currentTime = Math.max(0, Math.min(position, this.duration))
+  }
+
+  endProgressSeek(): void {
+    if (!this.progressSeeking) {
+      return
+    }
+    const target = this.currentTime
+    this.progressSeeking = false
+    this.seek(this.currentIndex, target)
   }
 
   async startPip(): Promise<boolean> {
@@ -178,8 +219,24 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     await this.players.get(index)?.toggle()
   }
 
+  onScreenDoubleClick(index: number, tapX: number, screenWidth: number): void {
+    handleScreenDoubleClick(tapX, screenWidth,
+      () => this.toggle(index),
+      () => this.backForward(),
+      () => this.fastForward())
+  }
+
   seek(index: number, position: number): void {
-    this.players.get(index)?.seek(position)
+    const player = this.players.get(index)
+    if (!player) {
+      return
+    }
+    const target = Math.max(0, player.duration > 0 ? Math.min(position, player.duration) : position)
+    player.seek(target)
+    if (index === this.currentIndex) {
+      this.lastSessionPosition = target
+      AVSessionUtil.updatePlaybackSessionState(this.playing, target, this.repeatMode, this.selectedSpeed)
+    }
   }
 
   selectSpeed(speed: number): void {
@@ -188,16 +245,27 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     }
     this.selectedSpeed = speed
     this.players.get(this.currentIndex)?.setPlaybackRate(speed)
+    AVSessionUtil.updatePlaybackSessionState(this.playing, this.currentTime, this.repeatMode, speed)
+  }
+
+  selectRepeatMode(repeatMode: SweetRepeatMode): void {
+    this.repeatMode = repeatMode
   }
 
   beginLongPress(index: number): void {
     if (index === this.currentIndex) {
       this.players.get(index)?.setPlaybackRate(Setting.longPressSpeed)
+      AVSessionUtil.updatePlaybackSessionState(this.playing, this.currentTime,
+        this.repeatMode, Setting.longPressSpeed)
     }
   }
 
   endLongPress(index: number): void {
     this.players.get(index)?.setPlaybackRate(this.selectedSpeed)
+    if (index === this.currentIndex) {
+      AVSessionUtil.updatePlaybackSessionState(this.playing, this.currentTime,
+        this.repeatMode, this.selectedSpeed)
+    }
   }
 
   saveCurrentHistory(): void {
@@ -214,6 +282,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   async releaseAll(): Promise<void> {
     ++this.generation
     Preferences.saveVideoSpeed(PathUtils.appContext!, `${this.selectedSpeed}x`)
+    Preferences.saveRepeatModeState(PathUtils.appContext!, this.repeatMode)
     await PiPWindowUtil.destroyPipController()
     const players = Array.from(this.players.values())
     this.players.clear()
@@ -225,14 +294,31 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     this.lastSessionPlaying = false
     this.onSwiping = false
     this.swipingTime = 0
+    this.progressSeeking = false
+    this.currentTime = 0
+    this.duration = 0
+    this.showControl = false
     AppStorage.delete('nowPlayingData')
     await Promise.all(players.map(player => player.release(this.skipHistory)))
   }
 
   private handleCompleted(index: number): void {
-    if (index === this.currentIndex) {
-      this.onCompleted(index)
+    if (index !== this.currentIndex) {
+      return
     }
+    const nextItem = VideoOperateUtil.computeAdjacentVideo(this.items, this.items[index], this.repeatMode, 'next')
+    if (!nextItem) {
+      return
+    }
+    const nextIndex = this.items.findIndex((item: VideoMetadata) => item.date === nextItem.date)
+    if (nextIndex < 0) {
+      return
+    }
+    if (nextIndex === index) {
+      this.players.get(index)?.setActive(true)
+      return
+    }
+    this.onCompleted(nextIndex)
   }
 
   private handlePlaybackStateChanged(index: number, playing: boolean, currentTime: number): void {
@@ -240,15 +326,18 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
       return
     }
     const item = this.items[index]
+    if (!this.progressSeeking && !this.onSwiping) {
+      this.currentTime = currentTime
+    }
+    this.duration = this.players.get(index)?.duration || item?.time || 0
     if (item) {
       AppStorage.setOrCreate('nowPlayingData', [currentTime, item, this.skipHistory])
     }
     const playbackStateChanged = playing !== this.lastSessionPlaying
-    const positionElapsed = Math.abs(currentTime - this.lastSessionPosition) >= 1000
-    if (playbackStateChanged || positionElapsed || this.lastSessionPosition < 0) {
+    if (playbackStateChanged || this.lastSessionPosition < 0) {
       this.lastSessionPlaying = playing
       this.lastSessionPosition = currentTime
-      AVSessionUtil.updatePlaybackSessionState(playing, currentTime)
+      AVSessionUtil.updatePlaybackSessionState(playing, currentTime, this.repeatMode, this.selectedSpeed)
     }
   }
 
@@ -267,7 +356,8 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
       await AVSessionUtil.setSessionInfo(this.items[index])
     }
     const player = this.players.get(index)
-    AVSessionUtil.updatePlaybackSessionState(player?.state === 'playing', player?.currentTime || 0)
+    AVSessionUtil.updatePlaybackSessionState(player?.state === 'playing', player?.currentTime || 0,
+      this.repeatMode, this.selectedSpeed)
   }
 
   private setSessionListeners(): void {
@@ -278,6 +368,12 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
       this.avSession?.on('fastForward', () => this.fastForward())
       this.avSession?.on('rewind', () => this.backForward())
       this.avSession?.on('outputDeviceChange', () => this.pause())
+      this.avSession?.on('setLoopMode', (mode: avSession.LoopMode) => {
+        this.repeatMode = AVSessionUtil.getRepeatModeFromAvSession(mode)
+        Preferences.saveRepeatModeState(PathUtils.appContext!, this.repeatMode)
+        AVSessionUtil.updatePlaybackSessionState(this.playing, this.currentPlayer?.currentTime || 0,
+          this.repeatMode, this.selectedSpeed)
+      })
       this.sessionListenersRegistered = true
     } catch (_error) {
       this.sessionListenersRegistered = false

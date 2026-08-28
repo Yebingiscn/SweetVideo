@@ -37,7 +37,7 @@ export struct IPTVSourceDialog {
       return name
     } catch (_error) {
       const parts = uri.split('/')
-      return decodeURIComponent(parts[parts.length - 1] || uri)
+      return ToolsUtil.safeDecodeURIComponent(parts[parts.length - 1] || uri)
     }
   }
 
@@ -95,6 +95,7 @@ export struct IPTVSourceDialog {
             this.sourceName = value
             this.invalidatePreparedSource()
           })
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
 
         if (this.sourceType === 'url') {
           TextArea({ placeholder: 'M3U/M3U8/TXT 节目源地址', text: this.location })
@@ -104,6 +105,7 @@ export struct IPTVSourceDialog {
               this.location = value
               this.invalidatePreparedSource()
             })
+            .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         } else {
           Button({ type: ButtonType.Normal, stateEffect: true }) {
             Row() {
@@ -133,6 +135,7 @@ export struct IPTVSourceDialog {
             this.userAgent = value
             this.invalidatePreparedSource()
           })
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
 
         TextInput({ placeholder: 'XMLTV EPG URL（可选）', text: this.epgUrl })
           .height(44)
@@ -141,6 +144,7 @@ export struct IPTVSourceDialog {
             this.epgUrl = value
             this.invalidatePreparedSource()
           })
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
 
         if (this.testMessage) {
           Text(this.testMessage)
@@ -233,6 +237,7 @@ export struct IPTVSourceDialog {
       createdTime: editing?.createdTime ?? now,
       updatedTime: now,
       lastRefreshTime: editing?.lastRefreshTime,
+      lastEpgRefreshTime: editing?.lastEpgRefreshTime,
       lastRefreshStatus: editing?.lastRefreshStatus ?? 'idle',
       lastError: editing?.lastError,
       epgMatchedCount: editing?.epgMatchedCount

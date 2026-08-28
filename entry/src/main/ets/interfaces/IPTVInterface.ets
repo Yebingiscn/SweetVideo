@@ -40,6 +40,7 @@ export interface IPTVSource {
   createdTime: number
   updatedTime: number
   lastRefreshTime?: number
+  lastEpgRefreshTime?: number
   lastRefreshStatus: 'idle' | 'success' | 'failed'
   lastError?: string
   epgMatchedCount?: number
@@ -50,6 +51,7 @@ export interface IPTVParseResult {
   groupCount: number
   invalidCount: number
   epgMatchedCount: number
+  epgRefreshTime?: number
 }
 
 export interface IPTVTestResult {
@@ -60,4 +62,9 @@ export interface IPTVTestResult {
   invalidCount: number
   epgMatchedCount: number
   preparedSource?: IPTVSource
+}
+
+export interface IPTVUrlOptions {
+  url: string
+  userAgent: string
 }

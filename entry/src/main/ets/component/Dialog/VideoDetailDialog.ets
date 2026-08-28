@@ -30,7 +30,7 @@ export struct VideoDetailDialog {
       List() {
         ListItem() {
           Row() {
-            this.buildDetailItem('视频名称：', decodeURI(this.metadata?.title || ''))
+            this.buildDetailItem('视频名称：', ToolsUtil.safeDecodeURI(this.metadata?.title))
           }
         }
 
@@ -40,9 +40,11 @@ export struct VideoDetailDialog {
 
         ListItem() {
           this.buildDetailItem('视频分辨率：',
-            VideoInfoUtil.videoWidthAndHeightFormat(this.metadata?.size.toString()!) === '0 x 0' ?
+            VideoInfoUtil.videoWidthAndHeightFormat(
+              VideoInfoUtil.getDisplayResolution(this.metadata).toString()) === '0 x 0' ?
               ToolsUtil.getStringResource($r('app.string.unknown_resolution').id) :
-              VideoInfoUtil.videoWidthAndHeightFormat(this.metadata?.size.toString()!, true))
+              VideoInfoUtil.videoWidthAndHeightFormat(
+                VideoInfoUtil.getDisplayResolution(this.metadata).toString(), true))
         }
 
         ListItem() {
@@ -70,7 +72,7 @@ export struct VideoDetailDialog {
         }
 
         ListItem() {
-          this.buildDetailItem('视频路径：', decodeURI(this.metadata?.uri || ''))
+          this.buildDetailItem('视频路径：', ToolsUtil.safeDecodeURI(this.metadata?.uri))
         }
 
         ListItem() {

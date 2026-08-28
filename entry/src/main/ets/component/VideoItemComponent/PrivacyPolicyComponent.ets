@@ -1,9 +1,9 @@
-import { salmonLogger } from "salmonlogger"
-import Preferences from "../../database/Preferences"
-import { OOBEVersion } from "../../utils/DataSyncUtil"
-import { SafeHeight } from "../../utils/ObservedUtil"
-import { PathUtils } from "../../utils/PathUtils"
-import ToolsUtil from "../../utils/ToolsUtil"
+import { salmonLogger } from 'salmonlogger'
+import Preferences from '../../database/Preferences'
+import { OOBEVersion } from '../../utils/DataSyncUtil'
+import { SafeHeight } from '../../utils/ObservedUtil'
+import { PathUtils } from '../../utils/PathUtils'
+import ToolsUtil from '../../utils/ToolsUtil'
 
 const TAG = 'PrivacyPolicyComponent'
 

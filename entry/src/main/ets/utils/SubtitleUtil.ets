@@ -1,4 +1,5 @@
 import ToolsUtil from './ToolsUtil'
+import TextEncodingUtil from './TextEncodingUtil'
 import { fileIo as fs, picker } from '@kit.CoreFileKit'
 import { PathUtils } from './PathUtils'
 import { Parser, SubtitleItem } from '../interfaces/SubtitleInterface'
@@ -80,7 +81,7 @@ export default class SubtitleUtil {
         await fs.copyFile(sourceFile.fd, targetFile.fd)?.catch(() => {
           salmonLogger.addLog(TAG, 'copy 失败', true)
         })
-        const encode = await ToolsUtil.detectFileDecoder(targetFile.path)
+        const encode = await TextEncodingUtil.detectFileEncoding(targetFile.path)
         if (encode.length > 0 && encode.toLowerCase() !== 'utf-8') {
           ToolsUtil.transFileDecodeAsUTF8(targetFile.path, encode)
         }

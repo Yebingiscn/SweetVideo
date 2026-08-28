@@ -7,7 +7,7 @@ import { PathUtils } from '../../utils/PathUtils'
 import SubtitleStyleUtil from '../../utils/SubtitleStyleUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { LengthMetrics } from '@kit.ArkUI'
-import { HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
+import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 
 const SUBTITLE_PREVIEW_HEIGHT: number = 220
 
@@ -229,17 +229,21 @@ export struct SubtitleSettingPage {
     }
     .hideToolBar(true)
     .titleBar({
+      avoidLayoutSafeArea: true,
       enableComponentSafeArea: true,
-      padding: {
-        start: LengthMetrics.vp(5),
-        end: LengthMetrics.vp(5)
-      },
+      padding: { start: LengthMetrics.vp(5), end: LengthMetrics.vp(5) },
       style: {
+        // 设置导航组件标题栏样式，推荐使用默认样式
+        // 标题栏动态模糊样式，包括是否使能滚动动态模糊，动态模糊类型，动态模糊生效的滚动距离等
         scrollEffectOpts: {
           enableScrollEffect: true,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
+          scrollEffectType: ScrollEffectType.IMMERSIVE_GRADIENT_BLUR,
           blurEffectiveStartOffset: LengthMetrics.vp(0),
           blurEffectiveEndOffset: LengthMetrics.vp(20)
+        },
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
         },
         originalStyle: {
           backgroundStyle: {
@@ -288,7 +292,6 @@ export struct SubtitleSettingPage {
       }
     })
     .backgroundColor($r('app.color.start_window_background'))
-    .padding({ top: SafeHeight.topSafeHeight })
     .backgroundImage(
       Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ? Setting.backgroundBlurImageSrc :
         Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
@@ -330,8 +333,10 @@ export struct SubtitleSettingPage {
             bottom: 2
           })
           .width('90%')
-          .margin({ bottom: SubtitleStyleUtil.getSubtitleBottomMargin(SUBTITLE_PREVIEW_HEIGHT,
-            Setting.subtitlePosition) })
+          .margin({
+            bottom: SubtitleStyleUtil.getSubtitleBottomMargin(SUBTITLE_PREVIEW_HEIGHT,
+              Setting.subtitlePosition)
+          })
       }
       .width('100%')
       .height('100%')
@@ -448,7 +453,6 @@ export struct SubtitleSettingPage {
       return Setting.subtitleShadowColor
     }
   }
-
 
   private selectColor(target: number, value: string): void {
     if (target === 0) {

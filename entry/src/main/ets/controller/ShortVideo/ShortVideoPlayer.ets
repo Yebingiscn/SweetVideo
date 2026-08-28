@@ -90,7 +90,11 @@ export class ShortVideoPlayer {
     this.active = active
     if (!active) {
       await this.pause()
+      const restartFromBeginning = this.hasReachedWatchedThreshold()
       this.saveHistory()
+      if (restartFromBeginning) {
+        this.resetToBeginning()
+      }
       return
     }
     this.hasBeenActive = true
@@ -116,7 +120,7 @@ export class ShortVideoPlayer {
       return
     }
     if (this.state === 'completed') {
-      this.player.seek(0, media.SeekMode.SEEK_CLOSEST)
+      this.resetToBeginning()
     }
     try {
       await this.player.play()
@@ -134,7 +138,7 @@ export class ShortVideoPlayer {
         await this.player.pause()
       } else {
         if (this.state === 'completed') {
-          this.player.seek(0, media.SeekMode.SEEK_CLOSEST)
+          this.resetToBeginning()
         }
         await this.player.play()
       }
@@ -149,6 +153,7 @@ export class ShortVideoPlayer {
     }
     const target = Math.max(0, Math.min(position, this.duration))
     this.currentTime = target
+    this.onPlaybackStateChanged(this.state === 'playing', target)
     try {
       this.player.seek(target, media.SeekMode.SEEK_CLOSEST)
     } catch (error) {
@@ -337,6 +342,22 @@ export class ShortVideoPlayer {
     this.currentTime = position
     if (position > 0) {
       player.seek(position, media.SeekMode.SEEK_CLOSEST)
+    }
+  }
+
+  private hasReachedWatchedThreshold(): boolean {
+    const totalTime = this.duration || this.item.time
+    return totalTime > 0 && this.currentTime > totalTime * 0.95
+  }
+
+  private resetToBeginning(): void {
+    this.currentTime = 0
+    this.lastSavedTime = -1
+    this.onPlaybackStateChanged(false, 0)
+    try {
+      this.player?.seek(0, media.SeekMode.SEEK_CLOSEST)
+    } catch (error) {
+      salmonLogger.addLog(TAG, `reset to beginning failed: ${error}`, true)
     }
   }
 
