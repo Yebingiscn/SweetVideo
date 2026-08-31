@@ -12,7 +12,7 @@ export struct SweetAgentComponent {
   private controller: FunctionController = new FunctionController()
   private agentId: string = 'agenta368cef7304a45a9a9e18935030de62e' // 智能体对应的 agent id，由小艺智能体平台在创建智能体时指定
 
-  async aboutToAppear() {
+  async aboutToAppear(): Promise<void> {
     await this.checkAgentSupport()
     this.initListeners()
   }
@@ -38,7 +38,7 @@ export struct SweetAgentComponent {
     }
   }
 
-  async checkAgentSupport() {
+  async checkAgentSupport(): Promise<void> {
     if (canIUse("SystemCapability.AI.Agent.AgentKit")) {
       try {
         let context = this.getUIContext()?.getHostContext() as common.UIAbilityContext

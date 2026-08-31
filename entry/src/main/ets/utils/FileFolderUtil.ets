@@ -28,7 +28,7 @@ export default class FileFolderUtil {
   }
 
   //新建文件夹
-  static async createNewFolder(context: Context, folder_name: string, parent_date: string | null = null) {
+  static createNewFolder(context: Context, folder_name: string, parent_date: string | null = null): FileFolder[] {
     const new_folder: FileFolder = {
       name: folder_name,
       date: systemDateTime.getTime(false).toString(),
@@ -55,7 +55,7 @@ export default class FileFolderUtil {
     const latestFolders = Preferences.getFileFolder(context) as FileFolder[]
     let existingFolder = latestFolders.find(i => i.name === currentName && i.parent_date === parent_date)
     if (!existingFolder) {
-      await FileFolderUtil.createNewFolder(context, currentName, parent_date)
+      FileFolderUtil.createNewFolder(context, currentName, parent_date)
       const updatedFolders = Preferences.getFileFolder(context) as FileFolder[]
       existingFolder = updatedFolders.find(i => i.name === currentName && i.parent_date === parent_date)
     }
@@ -344,7 +344,7 @@ export default class FileFolderUtil {
   }
 
   // 更新文件夹内视频
-  static async updateFileFolder(context: Context, folder: FileFolder, newVideoMetaDataList: VideoMetadata[]) {
+  static updateFileFolder(context: Context, folder: FileFolder, newVideoMetaDataList: VideoMetadata[]): void {
     let folders = Preferences.getFileFolder(context) as FileFolder[]
     let folderIndex = folders.findIndex(i => i.date === folder.date)
     if (folderIndex === -1) {
@@ -368,9 +368,10 @@ export default class FileFolderUtil {
     Preferences.saveFileFolder(context, file_folder_list)
   }
 
-  static existsVideoInFolders(context: Context, uri: string, title: string): boolean {
+  static existsVideoInFolders(context: Context, uri: string, title: string,
+    privateMode: boolean = PrivacySpaceUtil.getPrivacyMode() === true): boolean {
     let exists: boolean
-    if (PrivacySpaceUtil.getPrivacyMode()) {
+    if (privateMode) {
       const videoMetaData = Preferences.getVideoMetaDataEncryption(context) || []
       exists = videoMetaData.some(item => item.title === title)
     } else {

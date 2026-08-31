@@ -12,8 +12,10 @@ import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
+import { MediaSmartGestureSession } from '../../utils/MediaSmartGestureUtil'
 import { LengthMetrics } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
 @ComponentV2
 export struct PlayerSettingPage {
@@ -27,6 +29,7 @@ export struct PlayerSettingPage {
   ]
   private listScroller: Scroller = new Scroller()
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   build() {
     HdsNavDestination() {
       List({ scroller: this.listScroller }) {
@@ -221,6 +224,29 @@ export struct PlayerSettingPage {
           SettingsSectionHeaderBuilder('手势与默认值', '快进、片头片尾与默认亮度')
         }
 
+        if (MediaSmartGestureSession.isSupported()) {
+          ListItem() {
+            Column() {
+              SettingsToggleItem({
+                symbol: $r('sys.symbol.hand_point_up_tap'),
+                message: '智慧手势',
+                tag: '试用',
+                enable: Setting.smartGestureEnabled,
+                onChange: (checked: boolean) => {
+                  Setting.smartGestureEnabled = checked
+                  Preferences.saveSmartGestureEnabled(PathUtils.appContext!, checked)
+                }
+              })
+              Text(
+                '敲一敲播放/暂停；划一划在普通播放中快进，在短视频中切换下一条。需设备支持并开启系统智慧手势，翻腕返回不受此开关影响。')
+                .fontSize(12)
+                .fontColor($r('sys.color.font_secondary'))
+                .width('100%')
+                .padding({ left: 16, right: 16, bottom: 12 })
+            }
+          }
+        }
+
         ListItem() {
           Column() {
             SettingsToggleItem({
@@ -235,7 +261,7 @@ export struct PlayerSettingPage {
           }
         }
 
-        if (Setting.allowDoubleFastForward) {
+        if (Setting.allowDoubleFastForward || (MediaSmartGestureSession.isSupported() && Setting.smartGestureEnabled)) {
           ListItem() {
             SettingsMenuItem({
               symbol: $r('sys.symbol.hand_point_up_tap'),

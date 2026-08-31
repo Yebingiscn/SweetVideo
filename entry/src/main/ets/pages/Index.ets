@@ -23,7 +23,7 @@ import DataSyncUtil from '../utils/DataSyncUtil'
 import FileFolderUtil from '../utils/FileFolderUtil'
 import { importAndProcessFiles, ProgressInfo } from '../utils/FileProcessorUtil'
 import IntellectualGripPostureUtil from '../utils/IntellectualGripPostureUtil'
-import { Setting } from '../utils/ObservedUtil'
+import { Privacy, Setting } from '../utils/ObservedUtil'
 import { PathUtils } from '../utils/PathUtils'
 import PermissionUtil from '../utils/PermissionUtil'
 import RecentPlayUtil from '../utils/RecentPlayUtil'
@@ -54,6 +54,12 @@ import { IPTVChannelPage } from './IPTV/IPTVChannelPage'
 import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData'
 import { LengthMetrics } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavigation, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
+import KnockShareUtil, {
+  KNOCK_SHARE_INDEX_OWNER,
+  KnockCoordinate,
+  KnockReceivePayload
+} from '../utils/KnockShareUtil'
+import KnockReceiveStorage from '../utils/KnockReceiveStorage'
 
 const TAG = 'Index'
 
@@ -85,6 +91,7 @@ struct Index {
   private videoValidityCheckRunning: boolean = false
 
   async onPageShow(): Promise<void> {
+    this.activateKnockShareProvider()
     await WantProcessUtil.checkWant(this.pathStack)
     const currentFolder = this.videoListController.folder
     if (currentFolder) {
@@ -99,10 +106,14 @@ struct Index {
 
   async aboutToAppear(): Promise<void> {
     await WindowUtil.init(PathUtils.appContext!)
+    this.activateKnockShareProvider()
+    KnockShareUtil.setReceiveHandler(async (payload: KnockReceivePayload): Promise<void> => {
+      await this.handleKnockReceive(payload)
+    })
     VideoOperateUtil.initSetting(PathUtils.appContext!)
     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
     if (this.file_folder_list.length === 0) {
-      this.file_folder_list = await FileFolderUtil.createNewFolder(PathUtils.appContext!, '首页')
+      this.file_folder_list = FileFolderUtil.createNewFolder(PathUtils.appContext!, '首页')
     }
     const defaultStartupFolderDate = Preferences.getDefaultStartupFolder(PathUtils.appContext!)
     const isStreamStartup = defaultStartupFolderDate === '__stream__'
@@ -176,6 +187,97 @@ struct Index {
         this.file_folder_list = updatedFolders
       }
     )
+  }
+
+  private activateKnockShareProvider(): void {
+    KnockShareUtil.setShareProvider(KNOCK_SHARE_INDEX_OWNER,
+      (_coordinate: KnockCoordinate | undefined): VideoMetadata[] => {
+        return DataSyncUtil.delMultipleList.length > 0 ? [...DataSyncUtil.delMultipleList] : []
+      }, (): boolean => this.pathStack.size() === 0)
+  }
+
+  private async handleKnockReceive(payload: KnockReceivePayload): Promise<void> {
+    if (payload.uris.length === 0) {
+      return
+    }
+    if (payload.privateMode) {
+      let failedCount = 0
+      for (const uri of payload.uris) {
+        const privateVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+        const oldDates = new Set<string>(privateVideos.map((video: VideoMetadata) => video.date))
+        const handled = await SelectFileUtil.addFile(PathUtils.appContext!, PathUtils.videoPath,
+          PathUtils.coverPath, uri, privateVideos, undefined, true, true)
+        if (handled && privateVideos.some((video: VideoMetadata) => !oldDates.has(video.date))) {
+          await KnockReceiveStorage.removeReceivedSource(uri, payload.receivePath)
+        } else {
+          // 不能删除尚未真正保存的接收文件。
+          failedCount++
+        }
+      }
+      Privacy.receivedFilesVersion++
+      ToolsUtil.showToast(failedCount === 0 ? '碰一碰文件已存入隐私空间' :
+        `${failedCount} 个文件未导入隐私空间，接收原文件已保留`)
+      return
+    }
+    const currentFolderDate = this.videoListController.folder?.date
+    const folders = Preferences.getFileFolder(PathUtils.appContext!)
+    const targetFolder = currentFolderDate ?
+      folders.find((folder: FileFolder) => folder.date === currentFolderDate) ?? folders[0] : folders[0]
+    if (!targetFolder) {
+      throw new Error('未找到碰一碰文件的目标文件夹')
+    }
+
+    const existingDates = new Set<string>(targetFolder.video_list.map((video: VideoMetadata) => video.date))
+    this.loading = true
+    this.totalItems = payload.uris.length
+    this.processedItems = 0
+    this.failedCount = 0
+    try {
+      for (const uri of payload.uris) {
+        this.currentFileName = ToolsUtil.safeDecodeURIComponent(uri.substring(uri.lastIndexOf('/') + 1))
+        this.currentStage = 'extracting'
+        const handled = await SelectFileUtil.addFile(PathUtils.appContext!, PathUtils.videoPath,
+          PathUtils.coverPath, uri, targetFolder.video_list, targetFolder, false)
+        if (!handled) {
+          this.failedCount++
+        }
+        this.currentStage = 'saving'
+        this.processedItems++
+      }
+    } finally {
+      this.loading = false
+    }
+    if (this.failedCount > 0) {
+      ToolsUtil.showToast('文件已保存，但有文件未能导入媒体库')
+    }
+
+    const latestFolders = Preferences.getFileFolder(PathUtils.appContext!)
+    const latestTarget = latestFolders.find((folder: FileFolder) => folder.date === targetFolder.date)
+    if (!latestTarget) {
+      return
+    }
+    const receivedOrder = new Map<string, number>()
+    payload.uris.forEach((uri: string, index: number) => receivedOrder.set(uri, index))
+    const imported = latestTarget.video_list.filter((video: VideoMetadata) =>
+      !existingDates.has(video.date) && receivedOrder.has(video.uri))
+    imported.sort((left: VideoMetadata, right: VideoMetadata) =>
+      (receivedOrder.get(left.uri) ?? 0) - (receivedOrder.get(right.uri) ?? 0))
+    if (imported.length === 0) {
+      return
+    }
+
+    const importedDates = new Set<string>(imported.map((video: VideoMetadata) => video.date))
+    const orderedVideos = latestTarget.video_list.filter((video: VideoMetadata) => !importedDates.has(video.date))
+    const anchorIndex = payload.anchorVideoDate ?
+      orderedVideos.findIndex((video: VideoMetadata) => video.date === payload.anchorVideoDate) : -1
+    if (anchorIndex >= 0) {
+      orderedVideos.splice(anchorIndex + 1, 0, ...imported)
+    } else {
+      orderedVideos.push(...imported)
+    }
+    latestTarget.video_list = orderedVideos
+    FileFolderUtil.updateFileFolder(PathUtils.appContext!, latestTarget, orderedVideos)
+    this.file_folder_list = VideoUtils.refresh(this.videoListController, this.fileFolderSource, latestTarget)
   }
 
   build() {

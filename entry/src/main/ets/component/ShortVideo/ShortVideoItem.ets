@@ -4,6 +4,7 @@ import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { PathUtils } from '../../utils/PathUtils'
 import { Setting } from '../../utils/ObservedUtil'
 import { FastForwardPanelBuilder } from '../PlayerComponent/FastForwardPanelBuilder'
+import { MediaSmartGestureModifier } from '../../utils/MediaSmartGestureUtil'
 
 
 @ComponentV2
@@ -120,6 +121,8 @@ export struct ShortVideoItem {
       }
 
     }
+    .id(`short_video_smart_gesture_${this.item.date}`)
+    .attributeModifier(new MediaSmartGestureModifier(Setting.smartGestureEnabled && this.index === this.currentIndex))
     .width('100%')
     .height('100%')
     .backgroundColor(Color.Black)

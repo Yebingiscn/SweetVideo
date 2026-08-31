@@ -12,6 +12,7 @@ import { fileIo as fs } from '@kit.CoreFileKit'
 import { PathUtils } from '../utils/PathUtils'
 import { salmonLogger } from 'salmonlogger'
 import { util } from '@kit.ArkTS'
+import { SubtitlePreferredLanguage } from '../common/enum/SubtitleLanguage'
 
 const DATA_BASE_NAME = 'sweet_video'
 const MAX_PREFERENCES_STRING_BYTES = 16 * 1024 * 1024
@@ -184,6 +185,10 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'subtitlePosition', value)
   }
 
+  static saveSubtitlePreferredLanguage(context: Context, value: SubtitlePreferredLanguage) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'subtitlePreferredLanguage', value)
+  }
+
   static saveSubtitleColor(context: Context, value: string) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'subtitleColor', value)
   }
@@ -222,6 +227,10 @@ export default class Preferences {
 
   static saveFastForwardSeconds(context: Context, fastForwardSeconds: string) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, "fastForwardSeconds", fastForwardSeconds)
+  }
+
+  static saveSmartGestureEnabled(context: Context, enabled: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'smartGestureEnabled', enabled)
   }
 
   static saveAllowDoubleFastForwardState(context: Context, isEnabled: boolean) {

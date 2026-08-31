@@ -102,12 +102,12 @@ export struct AddFileFolderNameDialog {
         () => {
           this.controller?.close()
         },
-        async () => {
+        () => {
           if (!this.file_folder_name || this.file_folder_name.trim() == '') {
             return
           }
           const updatedFolders =
-            await FileFolderUtil.createNewFolder(PathUtils.appContext!, this.file_folder_name,
+            FileFolderUtil.createNewFolder(PathUtils.appContext!, this.file_folder_name,
               this.selected_parent_date)
           if (this.onFolderAdded) {
             this.onFolderAdded(updatedFolders)

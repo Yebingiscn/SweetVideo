@@ -1,6 +1,6 @@
 import { window } from '@kit.ArkUI'
 import { audio } from '@kit.AudioKit'
-import { BusinessError, settings } from '@kit.BasicServicesKit'
+import { BusinessError, settings, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { media } from '@kit.MediaKit'
 import { SaveOptions, VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
@@ -38,6 +38,8 @@ import SubtitleUtil from './SubtitleUtil'
 import { WindowUtil } from './WindowUtil'
 import { fileManagerService } from '@kit.FileManagerServiceKit'
 import FFmpegThumbnailUtil from './FFmpegThumbnailUtil'
+import { SubtitlePreferredLanguage } from '../common/enum/SubtitleLanguage'
+import SubtitleLanguageUtil from './SubtitleLanguageUtil'
 
 const TAG = 'VideoOperateUtil'
 
@@ -83,6 +85,7 @@ export default class VideoOperateUtil {
   private static mainWin: window.Window | undefined = undefined
 
   // 设置亮度
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   static setBrightness(screenBrightness: number) {
     if (!VideoOperateUtil.windowStage) {
       return
@@ -307,6 +310,7 @@ export default class VideoOperateUtil {
     return undefined
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   static async fullScreenOrRotateScreen(screenWidth: number, screenHeight: number,
     windowClass: Promise<window.Window | undefined>) {
     const orientation =
@@ -337,12 +341,14 @@ export default class VideoOperateUtil {
       'allowConcurrentPlay': false,
       'allowPlayBackExist': false,
       'fastForwardSeconds': '15',
+      'smartGestureEnabled': false,
       'recentPlay': true,
       'showToast': true,
       'defaultPlayerEngine': '系统播放器',
       'shortVideoMode': false,
       'subtitleSize': '22',
       'subtitlePosition': 90,
+      'subtitlePreferredLanguage': SubtitlePreferredLanguage.SIMPLIFIED_CHINESE,
       'subtitleColor': '#F0F0F0',
       'subtitleBold': false,
       'subtitleItalic': false,
@@ -392,12 +398,15 @@ export default class VideoOperateUtil {
     Setting.allowConcurrentPlay = valueMap['allowConcurrentPlay'] as boolean
     Setting.allowPlayBackExist = valueMap['allowPlayBackExist'] as boolean
     Setting.fastForwardSeconds = valueMap['fastForwardSeconds'] as string
+    Setting.smartGestureEnabled = valueMap['smartGestureEnabled'] as boolean
     Setting.recentPlay = valueMap['recentPlay'] as boolean
     Setting.showToast = valueMap['showToast'] as boolean
     Setting.defaultPlayerEngine = valueMap['defaultPlayerEngine'] as string
     Setting.shortVideoMode = valueMap['shortVideoMode'] as boolean
     Setting.subtitleSize = valueMap['subtitleSize'] as string
     Setting.subtitlePosition = valueMap['subtitlePosition'] as number
+    Setting.subtitlePreferredLanguage = SubtitleLanguageUtil.normalizeLanguage(
+      valueMap['subtitlePreferredLanguage'] as number)
     Setting.subtitleColor = valueMap['subtitleColor'] as string
     Setting.subtitleBold = valueMap['subtitleBold'] as boolean
     Setting.subtitleItalic = valueMap['subtitleItalic'] as boolean
@@ -436,11 +445,12 @@ export default class VideoOperateUtil {
   static async getScreenBrightness(): Promise<number> {
     if (canIUse('SystemCapability.Applications.Settings.Core')) {
       try {
-        const value = await settings.getValue(
+        const brightnessTask: Promise<string> = settings.getValue(
           PathUtils.appContext!,
           settings.display.SCREEN_BRIGHTNESS_STATUS,
           settings.domainName.DEVICE_SHARED
         )
+        const value = await brightnessTask
         return Number(value) / 255
       } catch (error) {
         return 0
@@ -661,30 +671,59 @@ export default class VideoOperateUtil {
     repeatMode: SweetRepeatMode,
     direction: 'previous' | 'next'
   ): VideoMetadata | undefined {
-    if (videoMetaDataList.length === 0) {
-      return undefined
+    const total = videoMetaDataList.length
+    const currentId = nowPlaying?.date || ''
+    const currentIndex = currentId ? videoMetaDataList.findIndex(v => v.date === currentId) : -1
+    const modeName = repeatMode === SweetRepeatMode.LIST ? 'list' :
+      repeatMode === SweetRepeatMode.SEQUENCE ? 'sequence' :
+        repeatMode === SweetRepeatMode.SINGLE ? 'single' :
+          repeatMode === SweetRepeatMode.RANDOM ? 'random' :
+            repeatMode === SweetRepeatMode.ONCE ? 'once' : 'unknown'
+    let nextItem: VideoMetadata | undefined = undefined
+    let wrapped = false
+    let reason = total === 0 ? 'empty-list' : 'unsupported-mode'
+    if (total > 0) {
+      // Keep the existing first-item anchor when the current item is absent,
+      // but make that recovery visible instead of silently looking like EOF wrap.
+      const anchorIndex = currentIndex >= 0 ? currentIndex : 0
+      const item = videoMetaDataList[anchorIndex]
+      switch (repeatMode) {
+        case SweetRepeatMode.RANDOM:
+          const availableVideos = videoMetaDataList.filter(v => v.date !== item.date)
+          nextItem = availableVideos.length > 0
+            ? availableVideos[Math.floor(Math.random() * availableVideos.length)]
+            : item
+          reason = 'random'
+          break
+        case SweetRepeatMode.ONCE:
+          reason = 'play-once'
+          break
+        case SweetRepeatMode.SEQUENCE:
+          nextItem = SelectFileUtil.getAdjacentItem(videoMetaDataList, item.date, direction, false)
+          reason = nextItem ? 'adjacent' : 'list-boundary'
+          break
+        case SweetRepeatMode.SINGLE:
+          nextItem = currentIndex >= 0 ? videoMetaDataList[currentIndex] : undefined
+          reason = 'repeat-current'
+          break
+        case SweetRepeatMode.LIST:
+          nextItem = SelectFileUtil.getAdjacentItem(videoMetaDataList, item.date, direction, true)
+          wrapped = direction === 'next' ? anchorIndex === total - 1 : anchorIndex === 0
+          reason = wrapped ? (direction === 'next' ? 'wrap-to-start' : 'wrap-to-end') : 'adjacent'
+          break
+      }
+      if (currentIndex < 0 && repeatMode !== SweetRepeatMode.ONCE && modeName !== 'unknown') {
+        reason = 'current-not-found'
+      }
     }
-    let item = SelectFileUtil.getItem(videoMetaDataList, nowPlaying?.date || '') as VideoMetadata
-    if (!item) {
-      item = videoMetaDataList[0]
-    }
-    switch (repeatMode) {
-      case SweetRepeatMode.RANDOM:
-        const availableVideos = videoMetaDataList.filter(v => v.date !== item.date)
-        return availableVideos.length > 0
-          ? availableVideos[Math.floor(Math.random() * availableVideos.length)]
-          : item
-      case SweetRepeatMode.ONCE:
-        return undefined
-      case SweetRepeatMode.SEQUENCE:
-        return SelectFileUtil.getAdjacentItem(videoMetaDataList, item.date, direction, false)
-      case SweetRepeatMode.SINGLE:
-        return videoMetaDataList.find(v => v.date === nowPlaying?.date)
-      case SweetRepeatMode.LIST:
-        return SelectFileUtil.getAdjacentItem(videoMetaDataList, item.date, direction, true)
-      default:
-        return undefined
-    }
+    const nextIndex = nextItem ? videoMetaDataList.indexOf(nextItem) : -1
+    // One record per selection, shared by automatic EOF, buttons and both
+    // player engines. Indexes are zero-based; no URL or per-frame logging.
+    salmonLogger.addLog('PlaybackQueue',
+      `select direction=${direction} mode=${modeName} currentIndex=${currentIndex} nextIndex=${nextIndex} ` +
+        `total=${total} currentId=${currentId || 'none'} nextId=${nextItem?.date || 'none'} ` +
+        `wrapped=${wrapped} reason=${reason}`, total > 0 && currentIndex < 0)
+    return nextItem
   }
 
   static saveSubtitlePreference(

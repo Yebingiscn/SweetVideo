@@ -28,7 +28,8 @@ export class AVPlayerEngineAdapter implements PlayerEngineAdapter {
 
   async create(): Promise<media.AVPlayer | undefined> {
     if (this.releaseTask) {
-      await this.releaseTask
+      const releaseTask: Promise<void> = this.releaseTask
+      await releaseTask
     }
     if (!this.nativePlayer) {
       try {
@@ -41,16 +42,16 @@ export class AVPlayerEngineAdapter implements PlayerEngineAdapter {
     return this.nativePlayer
   }
 
-  async waitForReset(player: media.AVPlayer): Promise<void> {
+  waitForReset(player: media.AVPlayer): Promise<void> {
     if (this.resetTask && this.resetTarget === player) {
-      await this.resetTask
+      return this.resetTask
     }
+    return Promise.resolve()
   }
 
   async reset(): Promise<void> {
     if (this.releaseTask) {
-      await this.releaseTask
-      return
+      return this.releaseTask
     }
     const player = this.nativePlayer
     if (!player) {
@@ -61,8 +62,7 @@ export class AVPlayerEngineAdapter implements PlayerEngineAdapter {
 
   async release(beforeNativeRelease?: EngineReleaseHook): Promise<void> {
     if (this.releaseTask) {
-      await this.releaseTask
-      return
+      return this.releaseTask
     }
     const player = this.nativePlayer
     if (!player) {
@@ -82,11 +82,11 @@ export class AVPlayerEngineAdapter implements PlayerEngineAdapter {
 
   private async resetPlayer(player: media.AVPlayer, errorMessage: string): Promise<void> {
     if (this.resetTask && this.resetTarget === player) {
-      await this.resetTask
-      return
+      return this.resetTask
     }
     if (this.resetTask) {
-      await this.resetTask
+      const resetTask: Promise<void> = this.resetTask
+      await resetTask
     }
     const task = player.reset().catch(() => {
       salmonLogger.addLog(TAG, errorMessage, true)
@@ -104,9 +104,10 @@ export class AVPlayerEngineAdapter implements PlayerEngineAdapter {
   }
 
   private async releasePlayer(player: media.AVPlayer, beforeNativeRelease?: EngineReleaseHook): Promise<void> {
+    // Let release() publish releaseTask before any reset or release hook runs.
     await Promise.resolve()
     if (this.resetTask && this.resetTarget === player) {
-      await this.resetTask
+      await this.waitForReset(player)
       this.runReleaseHook(beforeNativeRelease)
     } else {
       this.runReleaseHook(beforeNativeRelease)

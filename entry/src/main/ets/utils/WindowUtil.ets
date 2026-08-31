@@ -3,7 +3,7 @@ import { PathUtils } from './PathUtils'
 import { salmonLogger } from 'salmonlogger'
 import { DARK_MODE_BAR_COLOR, LIGHT_MODE_BAR_COLOR } from '../common/Constants'
 import { Pc, SafeHeight } from './ObservedUtil'
-import { deviceInfo, settings } from '@kit.BasicServicesKit'
+import { deviceInfo, settings, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { ConfigurationConstant } from '@kit.AbilityKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
@@ -116,6 +116,7 @@ export class WindowUtil {
       : window.Orientation.AUTO_ROTATION_RESTRICTED
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   public static setBarColor(color: string) {
     WindowUtil.windowClass?.setWindowSystemBarProperties({
       statusBarContentColor: color
@@ -198,6 +199,7 @@ export class WindowUtil {
     })
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   public static async init(context: Context) {
     if (WindowUtil.isInit) {
       return
@@ -258,6 +260,7 @@ export class WindowUtil {
     })
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   public static setBarState(context: Context, status: boolean, navigationIndicator: boolean) {
     if (canIUse('SystemCapability.Window.SessionManager')) {
       window.getLastWindow(context).then((windowClass) => {
@@ -300,6 +303,7 @@ export class WindowUtil {
     }
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   private static updateAvoidArea(windowClass: window.Window) {
     try {
       let cutOut = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_CUTOUT)

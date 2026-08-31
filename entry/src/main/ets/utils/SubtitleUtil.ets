@@ -63,7 +63,7 @@ export default class SubtitleUtil {
   }
 
   // 获取外挂字幕
-  static async selectExternalSubtitles(sandbox_subtitle: string, date: string) {
+  static async selectExternalSubtitles(sandbox_subtitle: string, date: string): Promise<string> {
     const documentSelectOptions = new picker.DocumentSelectOptions()
     documentSelectOptions.fileSuffixFilters = SUPPORT_SUBTITLE_FORMAT
     documentSelectOptions.maxSelectNumber = 1
@@ -220,7 +220,7 @@ export default class SubtitleUtil {
   }
 
   // 解析SRT文件
-  static async parseSrtFile(filePath: string) {
+  static async parseSrtFile(filePath: string): Promise<boolean> {
     try {
       const parser = new ParseSrt(filePath)
       const items = await SubtitleUtil.parseSubtitleFile<SrtLine>(
@@ -241,7 +241,7 @@ export default class SubtitleUtil {
   }
 
   // 解析ASS文件
-  static async parseAssFile(filePath: string) {
+  static async parseAssFile(filePath: string): Promise<boolean> {
     try {
       const parser = new ParseAss(filePath)
       const parserAdapter = new ParserAdapter<AssEvent>(
@@ -265,7 +265,7 @@ export default class SubtitleUtil {
   }
 
   // 解析VTT文件
-  static async parseVttFile(filePath: string) {
+  static async parseVttFile(filePath: string): Promise<boolean> {
     try {
       const parser = new ParseVtt(filePath)
       const items = await SubtitleUtil.parseSubtitleFile<VttLine>(

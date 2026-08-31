@@ -17,6 +17,7 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
 @ComponentV2
 export struct IPTVSourcePage {
@@ -93,6 +94,7 @@ export struct IPTVSourcePage {
     }.attributeModifier(new MenuFancyModifier())
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   build() {
     HdsNavDestination() {
       if (this.sources.length === 0) {

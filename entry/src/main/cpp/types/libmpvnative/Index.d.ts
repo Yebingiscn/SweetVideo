@@ -24,15 +24,19 @@ declare module 'libmpvnative.so' {
 
   export const destroy: (mpvHandle: number) => void;
 
-  export const reset: (mpvHandle: number) => void;
+  export const reset: (mpvHandle: number) => number | null;
 
   export const command: (mpvHandle: number, args: Array<string>) => any;
 
   export const isInitialized: () => boolean;
+  export const isCoreAlive: () => boolean;
+  export const registerMpvLogCallback: (callback: (prefix: string, level: number, text: string,
+    timestampMs: number) => void) => boolean;
+  export const unregisterMpvLogCallback: () => void;
 
   // ==================== 视频加载 ====================
   export const loadVideo: (mpvHandle: number, url: string, startPosition?: number,
-    subtitleTrackId?: number, userAgent?: string) => void;
+    subtitleTrackId?: number, userAgent?: string) => number;
 
   // ==================== 光盘设备配置（ISO文件播放）====================
   export const setBlurayDevice: (mpvHandle: number, isoPath: string) => boolean;
@@ -161,7 +165,7 @@ declare module 'libmpvnative.so' {
   export const setGlslShaders: (shaders: string[]) => boolean;
 
   // ==================== 播放完成事件 ====================
-  export const registerPlaybackCompleteCallback: (callback: () => void) => void;
+  export const registerPlaybackCompleteCallback: (callback: (requestId: number) => void) => void;
 
   export const unregisterPlaybackCompleteCallback: () => void;
 
@@ -189,6 +193,12 @@ declare module 'libmpvnative.so' {
   export const registerPauseStateCallback: (callback: (paused: boolean) => void) => void;
 
   export const unregisterPauseStateCallback: () => void;
+
+  // ==================== 媒体加载状态事件 ====================
+  export const registerMediaLoadCallback: (callback: (loaded: boolean, errorCode: number,
+    requestId: number) => void) => void;
+
+  export const unregisterMediaLoadCallback: () => void;
 
   // ==================== 章节 ====================
   export const getChapterList: (mpvHandle: number) => Array<{ index: number; title: string; time: number }>;

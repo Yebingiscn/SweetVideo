@@ -1,6 +1,7 @@
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
 import { SettingsSliderItem } from '../../component/SettingComponent/SettingsSliderItem'
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
+import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuItem'
 import Preferences from '../../database/Preferences'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
@@ -8,6 +9,7 @@ import SubtitleStyleUtil from '../../utils/SubtitleStyleUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { LengthMetrics } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
+import { SubtitlePreferredLanguage } from '../../common/enum/SubtitleLanguage'
 
 const SUBTITLE_PREVIEW_HEIGHT: number = 220
 
@@ -19,6 +21,7 @@ interface SubtitleColorOption {
 @ComponentV2
 export struct SubtitleSettingPage {
   private listScroller: Scroller = new Scroller()
+  private subtitleLanguages: ResourceStr[] = ['简体中文', '繁体中文', '英语']
   private textColors: SubtitleColorOption[] = [
     { name: '柔白', value: '#F0F0F0' },
     { name: '纯白', value: '#FFFFFF' },
@@ -40,6 +43,23 @@ export struct SubtitleSettingPage {
       List({ scroller: this.listScroller, space: 6 }) {
         ListItem() {
           this.PreviewCard()
+        }
+
+        ListItem() {
+          this.SectionTitle('自动选择', '仅在视频未保存字幕选择时生效，外挂字幕优先')
+        }
+
+        ListItem() {
+          SettingsMenuItem({
+            symbol: $r('sys.symbol.textformat_size_square'),
+            message: '自动选择字幕语言',
+            list: this.subtitleLanguages,
+            selected: Setting.subtitlePreferredLanguage,
+            onChange: (index: number) => {
+              Setting.subtitlePreferredLanguage = index as SubtitlePreferredLanguage
+              Preferences.saveSubtitlePreferredLanguage(PathUtils.appContext!, Setting.subtitlePreferredLanguage)
+            }
+          })
         }
 
         ListItem() {

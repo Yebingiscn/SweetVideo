@@ -106,7 +106,8 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     const oldPlayer = this.players.get(oldIndex)
     if (oldPlayer && oldIndex !== index) {
       oldPlayer.setPlaybackRate(this.selectedSpeed)
-      await oldPlayer.setActive(false)
+      const deactivateTask: Promise<void> = oldPlayer.setActive(false)
+      await deactivateTask
     }
     if (oldIndex !== index || target?.state !== 'playing') {
       await target?.setActive(true)
@@ -216,7 +217,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   }
 
   async toggle(index: number): Promise<void> {
-    await this.players.get(index)?.toggle()
+    return this.players.get(index)?.toggle()
   }
 
   onScreenDoubleClick(index: number, tapX: number, screenWidth: number): void {

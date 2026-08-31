@@ -1,7 +1,13 @@
-import { SCREEN_EXTEND_LIST, VIDEO_SIZE_MAP } from '../common/Constants'
+import { SCREEN_EXTEND_LIST, SUPPORT_AUDIO_FORMAT, VIDEO_SIZE_MAP } from '../common/Constants'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
-import { FFmpegMediaProbe } from './FFmpegThumbnailUtil'
+import FFmpegThumbnailUtil, { FFmpegMediaProbe } from './FFmpegThumbnailUtil'
 import { image } from '@kit.ImageKit'
+import { salmonLogger } from 'salmonlogger'
+import PrivacySpaceUtil from './PrivacySpaceUtil'
+import SelectFileUtil, { SavePixelMapOptions } from './SelectFileUtil'
+import TextEncodingUtil from './TextEncodingUtil'
+import ToolsUtil from './ToolsUtil'
+import { fileIo } from '@kit.CoreFileKit'
 
 
 interface AspectRatioSize {
@@ -224,7 +230,11 @@ export default class VideoInfoUtil {
       return 'app.string.unknown_size'
     } finally {
       if (file) {
-        fileIo.closeSync(file)
+        try {
+          fileIo.closeSync(file)
+        } catch (error) {
+          salmonLogger.addLog(TAG, 'getVideoSize close file error:' + error, true)
+        }
       }
     }
   }

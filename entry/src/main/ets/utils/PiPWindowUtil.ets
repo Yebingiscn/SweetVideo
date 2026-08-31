@@ -5,6 +5,7 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { Setting } from './ObservedUtil'
 import { PathUtils } from './PathUtils'
 import VideoInfoUtil from './VideoInfoUtil'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
 /***
  * 自动画中画工具类
@@ -37,7 +38,8 @@ export default class PiPWindowUtil {
   static pipOpenState: boolean = false
   static isRestoring: boolean = false
 
-  static async startPip() {
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
+  static async startPip(): Promise<void> {
     if (PiPWindowUtil.pipController) {
       await PiPWindowUtil.pipController.startPiP().then(() => {
         PiPWindowUtil.pipOpenState = true
@@ -47,7 +49,8 @@ export default class PiPWindowUtil {
     }
   }
 
-  static async stopPip() {
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
+  static async stopPip(): Promise<void> {
     if (PiPWindowUtil.pipController) {
       await PiPWindowUtil.pipController.stopPiP().then(() => {
         PiPWindowUtil.pipOpenState = false
@@ -57,6 +60,7 @@ export default class PiPWindowUtil {
     }
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   static updateContentSize() {
     const controller = PiPWindowUtil.playerController
     const videoWidth =
@@ -71,8 +75,9 @@ export default class PiPWindowUtil {
     }
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   static async createPipController(xComponentController: XComponentController,
-    playerController ?: PiPPlayerController) {
+    playerController ?: PiPPlayerController): Promise<void> {
     await PiPWindowUtil.destroyPipController()
     const controller = playerController
     const videoWidth =
@@ -109,13 +114,15 @@ export default class PiPWindowUtil {
   /**
    * 在需要时（例如播放器进入播放状态）打开自动画中画。
    */
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   static enableAutoStart() {
     if (PiPWindowUtil.pipController && Setting.autoActivePip) {
       PiPWindowUtil.pipController.setAutoStartEnabled(true)
     }
   }
 
-  static async destroyPipController() {
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
+  static async destroyPipController(): Promise<void> {
     if (!PiPWindowUtil.pipController) {
       return
     }
@@ -132,6 +139,7 @@ export default class PiPWindowUtil {
   /**
    * 在不希望触发画中画的场景（暂停、停止、离开页面等）关闭自动画中画。
    */
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   static disableAutoStart() {
     if (PiPWindowUtil.pipController) {
       PiPWindowUtil.pipController.setAutoStartEnabled(false)
@@ -161,6 +169,7 @@ export default class PiPWindowUtil {
     }
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   static onStateChange(state: PiPWindow.PiPState, _reason: string) {
     switch (state) {
       case PiPWindow.PiPState.ABOUT_TO_START:

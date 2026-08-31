@@ -1,5 +1,5 @@
-import { window } from '@kit.ArkUI'
-import { BusinessError } from '@kit.BasicServicesKit'
+import { window, BaseGestureHandlingProposal, PageSwitchActionProposal } from '@kit.ArkUI'
+import { BusinessError, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { ShortVideoItem } from '../../component/ShortVideo/ShortVideoItem'
 import NavigationAddress, { ShortVideoParams } from '../../common/NavigationCommon'
 import { ShortVideoPlayerManager } from '../../controller/ShortVideo/ShortVideoPlayerManager'
@@ -23,6 +23,12 @@ import {
 import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { AUTO_HIDE_SHOW_CONTROL_TIME } from '../../common/Constants'
+import { MediaSmartGestureSession, SHORT_VIDEO_SMART_SWIPER_ID } from '../../utils/MediaSmartGestureUtil'
+import { salmonLogger } from 'salmonlogger'
+import KnockShareUtil, {
+  KNOCK_SHARE_VIDEO_PLAYER_OWNER,
+  KnockCoordinate
+} from '../../utils/KnockShareUtil'
 
 @ComponentV2
 export struct ShortVideoPage {
@@ -37,9 +43,27 @@ export struct ShortVideoPage {
   private disposed: boolean = false
   private swiperController: SwiperController = new SwiperController()
   private showControlTimer: number = 0
+  private isSwiperAnimating: boolean = false
+  private isSpeedMenuOpen: boolean = false
+  private isProgressSeeking: boolean = false
+  private smartTapPending: boolean = false
+  private smartGestures: MediaSmartGestureSession = new MediaSmartGestureSession({
+    canHandle: (): boolean => this.ready && !this.disposed && this.items.length > 0 &&
+      !PiPWindowUtil.pipOpenState && !this.isSwiperAnimating && !this.isSpeedMenuOpen &&
+      !this.isProgressSeeking && !this.manager.onSwiping && !this.smartTapPending,
+    onTap: (): void => {
+      void this.togglePlaybackFromSmartGesture()
+    },
+    onSlide: (): BaseGestureHandlingProposal | undefined => this.createSmartSwipeProposal()
+  })
 
   aboutToAppear(): void {
     this.disposed = false
+    KnockShareUtil.setShareProvider(KNOCK_SHARE_VIDEO_PLAYER_OWNER,
+      (_coordinate: KnockCoordinate | undefined): VideoMetadata[] => {
+        const currentVideo = this.items[this.currentIndex]
+        return currentVideo ? [currentVideo] : []
+      })
     PermissionUtil.applyContinuousTask()
     WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
     WindowUtil.setBarState(PathUtils.appContext!, false, false)
@@ -52,6 +76,8 @@ export struct ShortVideoPage {
   }
 
   async aboutToDisappear(): Promise<void> {
+    this.smartGestures.hide()
+    KnockShareUtil.clearShareProvider(KNOCK_SHARE_VIDEO_PLAYER_OWNER)
     await this.dispose()
     PermissionUtil.applyStopContinuousTask()
     WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
@@ -107,7 +133,9 @@ export struct ShortVideoPage {
         .bindMenu(this.PlaybackSpeedMenuBuilder, {
           placement: Placement.TopRight,
           showInSubWindow: false,
-          backgroundBlurStyle: BlurStyle.COMPONENT_THIN
+          backgroundBlurStyle: BlurStyle.COMPONENT_THIN,
+          onAppear: () => this.isSpeedMenuOpen = true,
+          onDisappear: () => this.isSpeedMenuOpen = false
         })
 
         RepeatModeButtonComponent({
@@ -147,8 +175,10 @@ export struct ShortVideoPage {
         onSliderChange: (value: number) => this.manager.previewProgressSeek(value),
         onSliderTouch: (event: TouchEvent) => {
           if (event.type === TouchType.Down) {
+            this.isProgressSeeking = true
             this.manager.beginProgressSeek()
           } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+            this.isProgressSeeking = false
             this.manager.endProgressSeek()
           }
         }
@@ -189,6 +219,7 @@ export struct ShortVideoPage {
               .key((item: VideoMetadata) => item.date)
               .virtualScroll()
           }
+          .id(SHORT_VIDEO_SMART_SWIPER_ID)
           .index(this.currentIndex)
           .vertical(true)
           .loop(this.shouldLoopSwiper())
@@ -196,6 +227,8 @@ export struct ShortVideoPage {
           .cachedCount(3)
           .duration(300)
           .curve(Curve.Ease)
+          .onAnimationStart(() => this.isSwiperAnimating = true)
+          .onAnimationEnd(() => this.isSwiperAnimating = false)
           .onChange((index: number) => {
             this.manager.activate(index)
             this.currentIndex = index
@@ -272,12 +305,18 @@ export struct ShortVideoPage {
       this.showControls()
     })
     .onHidden(() => {
+      this.smartGestures.hide()
+      this.isSwiperAnimating = false
+      this.isProgressSeeking = false
       this.manager.saveCurrentHistory()
       if (!Setting.allowBackgroundPlay && !PiPWindowUtil.pipOpenState) {
         this.manager.pauseAll()
       }
     })
     .onShown(async () => {
+      if (!this.disposed) {
+        this.smartGestures.show(this.getUIContext())
+      }
       if (PiPWindowUtil.pipOpenState) {
         await PiPWindowUtil.stopPip()
       }
@@ -286,11 +325,40 @@ export struct ShortVideoPage {
       }
     })
     .onWillDisappear(() => {
+      this.smartGestures.hide()
       this.manager.saveCurrentHistory()
       if (!Setting.allowBackgroundPlay && !PiPWindowUtil.pipOpenState) {
         this.manager.pauseAll()
       }
     })
+  }
+
+  private async togglePlaybackFromSmartGesture(): Promise<void> {
+    const player = this.manager.currentPlayer
+    if (!player || (player.state !== 'playing' && player.state !== 'paused' &&
+      player.state !== 'prepared' && player.state !== 'completed')) {
+      return
+    }
+    this.smartTapPending = true
+    try {
+      await this.manager.toggle(this.currentIndex)
+    } catch (error) {
+      salmonLogger.addLog('ShortVideoPage', `智慧手势切换播放状态失败: ${error}`, true)
+    } finally {
+      this.smartTapPending = false
+    }
+  }
+
+  @SuppressWarnings({ rules: [SuppressWarningsType.COMPATIBILITY] })
+  private createSmartSwipeProposal(): BaseGestureHandlingProposal | undefined {
+    if (!MediaSmartGestureSession.isSupported() || this.items.length < 2 ||
+      (!this.shouldLoopSwiper() && this.currentIndex >= this.items.length - 1)) {
+      return undefined
+    }
+    const node = this.getUIContext().getFrameNodeById(SHORT_VIDEO_SMART_SWIPER_ID)
+    // Let Swiper.onChange activate the new player exactly once. Do not also call
+    // showNext()/manager.activate(), which would duplicate the system action.
+    return node ? new PageSwitchActionProposal(node, 1) : undefined
   }
 
   private shouldLoopSwiper(): boolean {

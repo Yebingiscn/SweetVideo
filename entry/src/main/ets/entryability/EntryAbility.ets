@@ -12,11 +12,15 @@ import ToolsUtil from '../utils/ToolsUtil'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
 import WantProcessUtil from '../utils/WantProcessUtil'
 import { WindowUtil } from '../utils/WindowUtil'
+import KnockShareUtil from '../utils/KnockShareUtil'
+import { MediaSmartGestureSession } from '../utils/MediaSmartGestureUtil'
+import { MpvLogBridge } from '../utils/MpvLogBridge'
 
 const TAG = 'EntryAbility'
 
 export default class EntryAbility extends UIAbility {
   watcher: hiAppEvent.Watcher | undefined = undefined
+  private mainWindow: window.Window | undefined = undefined
 
   async onCreate(want: Want, launchParam: AbilityConstant.LaunchParam) {
     const backgroundColorMode = Preferences.getBackgroundColorMode(this.context)
@@ -25,6 +29,8 @@ export default class EntryAbility extends UIAbility {
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onCreate')
     AppStorage.setOrCreate('context', this.context)
     PathUtils.init(this.context)
+    // Process-wide, not per video: keep teardown diagnostics across core resets.
+    MpvLogBridge.start()
     WantProcessUtil.want = want
     this.crashWatcher()
     if (launchParam.launchReason === AbilityConstant.LaunchReason.CONTINUATION) {
@@ -93,6 +99,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onDestroy(): void {
+    KnockShareUtil.stop()
     this.savePlayData()
     try {
       if (this.watcher) {
@@ -108,6 +115,7 @@ export default class EntryAbility extends UIAbility {
     // Main window is created, set main page for this ability
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onWindowStageCreate')
     try {
+      this.mainWindow = windowStage.getMainWindowSync()
       if (canIUse('SystemCapability.Window.SessionManager')) {
         const defaultDensityEnabled = Preferences.getDefaultDensityEnabled(this.context)
         windowStage.setDefaultDensityEnabled(defaultDensityEnabled)
@@ -133,6 +141,9 @@ export default class EntryAbility extends UIAbility {
         return
       }
       VideoOperateUtil.windowStage = windowStage
+      if (this.mainWindow) {
+        KnockShareUtil.start(this.context, this.mainWindow)
+      }
       hilog.info(0x0000, 'testTag', 'Succeeded in loading the content.')
       // 是否进入后台
       try {
@@ -165,6 +176,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onWindowStageWillDestroy(): void {
+    KnockShareUtil.stop()
     this.savePlayData()
     try {
       if (VideoOperateUtil.windowStage) {
@@ -190,17 +202,24 @@ export default class EntryAbility extends UIAbility {
 
 
   onWindowStageDestroy(): void {
+    MediaSmartGestureSession.setAppForeground(false)
     // Main window is destroyed, release UI related resources
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onWindowStageDestroy')
   }
 
   onForeground(): void {
+    MediaSmartGestureSession.setAppForeground(true)
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onForeground')
     ToolsUtil.setVibrationEnabled(true)
+    if (this.mainWindow) {
+      KnockShareUtil.start(this.context, this.mainWindow)
+    }
   }
 
   onBackground(): void {
+    MediaSmartGestureSession.setAppForeground(false)
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onBackground')
+    KnockShareUtil.stop()
     ToolsUtil.setVibrationEnabled(false)
   }
 

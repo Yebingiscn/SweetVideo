@@ -31,7 +31,7 @@ export default class WantProcess {
     WantProcess.receiveWant = value
   }
 
-  static async getSystemShareWant(want: Want) {
+  static async getSystemShareWant(want: Want): Promise<void> {
     if (canIUse("SystemCapability.Collaboration.SystemShare")) {
       try {
         const data = await systemShare.getSharedData(want)
@@ -53,7 +53,7 @@ export default class WantProcess {
     }
   }
 
-  static async checkWant(pathStack: NavPathStack) {
+  static async checkWant(pathStack: NavPathStack): Promise<void> {
     if (WantProcess.isContinue) {
       await WantProcess.checkContinue(pathStack)
       return
@@ -92,7 +92,7 @@ export default class WantProcess {
     WantProcess.isContinue = true
   }
 
-  static async checkContinue(pathStack: NavPathStack) {
+  static async checkContinue(pathStack: NavPathStack): Promise<void> {
     if (!WantProcess.isContinue) {
       return
     }
@@ -110,7 +110,7 @@ export default class WantProcess {
   }
 
   // 处理拉起链接
-  static async hasWant(pathStack: NavPathStack) {
+  static async hasWant(pathStack: NavPathStack): Promise<void> {
     try {
       const uri = WantProcess.receiveWantUri
       const probeResult = await FFmpegThumbnailUtil.probeUri(uri)
@@ -163,7 +163,7 @@ export default class WantProcess {
     }
   }
 
-  static async linkToVideoSource(uri: string | undefined) {
+  static async linkToVideoSource(uri: string | undefined): Promise<void> {
     if (!uri) {
       ToolsUtil.showToast('文件地址异常')
       salmonLogger.addLog(TAG, "file address failed", false)
@@ -185,7 +185,7 @@ export default class WantProcess {
     ToolsUtil.showToast('不支持打开文件位置')
   }
 
-  static async linkToGallery(uri: string) {
+  static async linkToGallery(uri: string): Promise<void> {
     try {
       let context = WindowUtil.windowClass?.getUIContext().getHostContext() as common.UIAbilityContext;
       let bundleInfo: bundleManager.BundleInfo =

@@ -113,7 +113,8 @@ export default class FFmpegThumbnailUtil {
   }
 
   static async getMediaInfo(extractorId: number): Promise<FFmpegMediaProbe> {
-    const info: FFmpegMediaInfo = await getNativeMediaInfo(extractorId)
+    const infoTask: Promise<FFmpegMediaInfo> = getNativeMediaInfo(extractorId)
+    const info = await infoTask
     return {
       sourceWidth: info.sourceWidth,
       sourceHeight: info.sourceHeight,
@@ -158,13 +159,14 @@ export default class FFmpegThumbnailUtil {
   static async extractFrame(extractorId: number, timeUs: number, maxWidth: number,
     maxHeight: number, preferEmbeddedCover: boolean = false): Promise<FFmpegThumbnailResult> {
     try {
-      const frame: FFmpegThumbnailFrame = await extractThumbnailFrame(
+      const frameTask: Promise<FFmpegThumbnailFrame> = extractThumbnailFrame(
         extractorId,
         Math.max(0, timeUs),
         Math.max(1, maxWidth),
         Math.max(1, maxHeight),
         preferEmbeddedCover
       )
+      const frame = await frameTask
       const options: image.InitializationOptions = {
         size: { width: frame.width, height: frame.height },
         srcPixelFormat: image.PixelMapFormat.RGBA_8888,

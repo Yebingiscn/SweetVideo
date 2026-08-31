@@ -1,5 +1,7 @@
 import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
+import { MediaSmartGestureModifier } from '../../utils/MediaSmartGestureUtil'
+import { Setting } from '../../utils/ObservedUtil'
 
 
 @ComponentV2
@@ -53,6 +55,8 @@ export struct GestureComponent {
 
   build() {
     Column()
+      .id('video_player_smart_gesture_surface')
+      .attributeModifier(new MediaSmartGestureModifier(Setting.smartGestureEnabled && !this.player.isLock))
       .width('100%')
       .height(this.player.showControl ? '50%' : '80%')//触控区域
       .gesture(

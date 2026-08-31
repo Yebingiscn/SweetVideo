@@ -2,6 +2,7 @@ import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import { CoverLayoutMode, ListDisplayMode } from '../common/enum/DisplayMode'
 import { MpvDecodingMethod, MpvGpuApi } from '../controller/MpvController/MpvTypes'
 import { UIUtils } from '@kit.ArkUI'
+import { SubtitlePreferredLanguage } from '../common/enum/SubtitleLanguage'
 
 class SettingUtil {
   public backgroundImageSrc: string = ''
@@ -15,12 +16,14 @@ class SettingUtil {
   public autoResumeOnReturn: boolean = false
   public allowPlayBackExist: boolean = false
   public fastForwardSeconds: string = '15'
+  public smartGestureEnabled: boolean = false
   public recentPlay: boolean = true
   public showToast: boolean = true
   public defaultPlayerEngine: string = '系统播放器'
   public shortVideoMode: boolean = false
   public subtitleSize: string = '22'
   public subtitlePosition: number = 90
+  public subtitlePreferredLanguage: SubtitlePreferredLanguage = SubtitlePreferredLanguage.SIMPLIFIED_CHINESE
   public subtitleColor: string = '#F0F0F0'
   public subtitleBold: boolean = false
   public subtitleItalic: boolean = false
@@ -57,8 +60,9 @@ class SafeHeightUtil {
   public bottomSafeHeight: number = 0
 }
 
-class PrivacySecureUtil {
+export class PrivacySecureUtil {
   public isPrivacyBackground: boolean = false
+  public receivedFilesVersion: number = 0
 }
 
 class PcUtil {

@@ -10,6 +10,7 @@ import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit
 import { salmonLogger } from 'salmonlogger'
 import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
 import { SearchComponent } from '../../component/VideoItemComponent/SearchComponent'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
 const ALL_CHANNELS = '全部频道'
 const TAG = 'IPTVChannelPage'
@@ -39,6 +40,7 @@ export struct IPTVChannelPage {
     this.refreshEpgIfNeeded()
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   build() {
     HdsNavDestination() {
       Column() {

@@ -220,7 +220,7 @@ export default class ToolsUtil {
 
   // 点击视频跳转到播放器
   static async routerWhere(pathStack: NavPathStack, item: VideoMetadata, list: VideoMetadata[],
-    reverse: boolean = false, skipHistory: boolean = false) {
+    reverse: boolean = false, skipHistory: boolean = false): Promise<void> {
     const uri = VideoOperateUtil.resolvePlayerType(item, reverse)
     DataSyncUtil.lastPlayVideoIndex = list.findIndex(i => i.date === item?.date)
     WindowUtil.setBarColor('#FFFFFF')
@@ -252,7 +252,7 @@ export default class ToolsUtil {
   }
 
   // 获取版本号
-  static async getVersionName() {
+  static async getVersionName(): Promise<string> {
     try {
       if (canIUse("SystemCapability.BundleManager.BundleFramework.Core")) {
         const bundleInfo =

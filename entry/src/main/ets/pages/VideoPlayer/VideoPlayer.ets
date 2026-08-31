@@ -1,5 +1,5 @@
 import PermissionUtil from '../../utils/PermissionUtil'
-import { window } from '@kit.ArkUI'
+import { window, UIUtils, BaseGestureHandlingProposal } from '@kit.ArkUI'
 import { KeyCode, pointer } from '@kit.InputKit'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
@@ -61,6 +61,12 @@ import Preferences from '../../database/Preferences'
 import { salmonLogger } from 'salmonlogger'
 import { AISubtitleComponent } from '../../component/PlayerComponent/AIAsrComponent'
 import AVSessionUtil from '../../utils/AVSessionUtil'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { MediaSmartGestureSession } from '../../utils/MediaSmartGestureUtil'
+import KnockShareUtil, {
+  KNOCK_SHARE_VIDEO_PLAYER_OWNER,
+  KnockCoordinate
+} from '../../utils/KnockShareUtil'
 
 const TAG = 'VideoPlayer'
 
@@ -92,7 +98,6 @@ export struct VideoPlayer {
   })
   @Local isPlayerConfigured: boolean = false
   @Local subtitlePreferenceRestored: boolean = false
-  @Local lockRotation: boolean = false
   xComponentController: XComponentController = new XComponentController()
   osdXController: XComponentController = new XComponentController()
   windowClass: Promise<window.Window | undefined> = WindowUtil.getWindow()
@@ -157,9 +162,22 @@ export struct VideoPlayer {
   })
   private scrollAxisTimeout: number = 0
   private orientationRequestVersion: number = 0
+  private smartGestures: MediaSmartGestureSession = new MediaSmartGestureSession({
+    canHandle: (): boolean => this.isPlayerConfigured && !this.isPageDisappearing &&
+      !this.isPlaybackSessionDisposed && !this.engineSwitchTask && !this.player.isLock &&
+      !PiPWindowUtil.pipOpenState && !this.sideBarStatus && !this.isAdjustingSubtitleOffset &&
+      !this.player.onSwiping && !this.player.isSliderPlayTimeChange && !this.player.longPress &&
+      !this.player.isGesturing && !this.player.onSwipingVoice && !this.player.onSwipingBrightness,
+    onTap: (): void => {
+      this.player.togglePlayback()
+    },
+    onSlide: (): BaseGestureHandlingProposal | undefined => {
+      this.player.fastForward()
+      return undefined
+    }
+  })
 
-  @Monitor('player.showControl')
-  onShowControlMonitor() {
+  onShowControlMonitor(_mon: IMonitor) {
     if (!Pc.pcMode) {
       return
     }
@@ -170,8 +188,27 @@ export struct VideoPlayer {
     }
   }
 
+  onSubtitleSelectedMonitor(_mon: IMonitor) {
+    this.subtitleManager.syncFromPlayer()
+  }
+
+  private registerPlayerMonitors(p: PlayerControllerInterface): void {
+    UIUtils.addMonitor(p, 'showControl', this.onShowControlMonitor)
+    UIUtils.addMonitor(p, 'subtitleSelected', this.onSubtitleSelectedMonitor)
+  }
+
+  private unregisterPlayerMonitors(p: PlayerControllerInterface): void {
+    UIUtils.clearMonitor(p, 'showControl')
+    UIUtils.clearMonitor(p, 'subtitleSelected')
+  }
+
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   aboutToAppear(): void {
     this.isPageDisappearing = false
+    KnockShareUtil.setShareProvider(KNOCK_SHARE_VIDEO_PLAYER_OWNER,
+      (_coordinate: KnockCoordinate | undefined): VideoMetadata[] => {
+        return this.player.nowPlaying ? [this.player.nowPlaying] : []
+      })
     const requestVersion = ++this.orientationRequestVersion
     salmonLogger.addLog(TAG, "开始执行aboutToAppear方法", false)
     PermissionUtil.applyContinuousTask()
@@ -191,6 +228,8 @@ export struct VideoPlayer {
 
   async aboutToDisappear(): Promise<void> {
     this.isPageDisappearing = true
+    this.smartGestures.hide()
+    KnockShareUtil.clearShareProvider(KNOCK_SHARE_VIDEO_PLAYER_OWNER)
     this.orientationRequestVersion++
     this.player.onWillDisappearCleanup()
     VideoOperateUtil.cancelControlAutoHide()
@@ -205,13 +244,14 @@ export struct VideoPlayer {
         })
       }
     }
-    this.player.savePlayerSpeed(PathUtils.appContext!)
+
     Preferences.saveRepeatModeState(PathUtils.appContext!, this.player.repeatMode)
     this.player.onDisappearSaveSubtitlePreference(this.subtitleManager.subtitleVisibility,
       this.subtitleManager.isAIAsrShown, this.subtitleManager.subtitle3DMode)
     this.player.onDisappearCleanup()
     clearTimeout(this.exitVideoTime)
     clearTimeout(this.scrollAxisTimeout)
+    this.unregisterPlayerMonitors(this.player)
     await this.disposePlaybackSession()
     salmonLogger.addLog(TAG, "释放播放器资源完成", false)
     salmonLogger.addLog(TAG, "aboutToDisappear方法执行完成", false)
@@ -224,6 +264,7 @@ export struct VideoPlayer {
     }, 400) : this.sideBarStatus = false
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   build() {
     NavDestination() {
       SideBarContainer(SideBarContainerType.Overlay) {
@@ -342,30 +383,6 @@ export struct VideoPlayer {
               onLockClick: () => {
                 this.player.isLock = !this.player.isLock
                 this.player.showControl = true
-              },
-              lockRotation: this.lockRotation,
-              onLockRotationClick: async () => {
-                this.lockRotation = !this.lockRotation
-                salmonLogger.addLog(TAG, `锁定旋转状态切换为：${this.lockRotation}`,
-                  false)
-                const orientation = this.lockRotation ?
-                  (this.player.screenWidth > this.player.screenHeight ?
-                    window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED
-                    : window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
-                  : window.Orientation.AUTO_ROTATION_RESTRICTED
-                try {
-                  XAnimation.runWithAnimation(async () => {
-                    await (await this.getWindowClass())?.setPreferredOrientation(orientation)
-                    salmonLogger.addLog(TAG, "窗口方向设置成功", false)
-                  })
-                } catch (error) {
-                  salmonLogger.addLog(TAG,
-                    `屏幕旋转异常: ${error.code}:${error.message}`, true)
-                }
-                const toastMessage = this.lockRotation
-                  ? ToolsUtil.getStringResource($r('app.string.open_rotation_lock').id)
-                  : ToolsUtil.getStringResource($r('app.string.close_rotation_lock').id)
-                ToolsUtil.showToast(toastMessage)
               }
             })
           }
@@ -481,6 +498,8 @@ export struct VideoPlayer {
                 // Late callbacks from the parallel Pan recognizers are ignored
                 // because the active session was invalidated above.
                 this.player.restoreSpeedAfterLongPress(this.longPressBaseSpeed)
+              } else {
+                this.player.savePlayerSpeed(PathUtils.appContext!)
               }
               this.player.speedLocked = false
             },
@@ -643,9 +662,11 @@ export struct VideoPlayer {
       }
       try {
         this.playerType = playerParams.playerType ?? PlayerEngine.AV_PLAYER
+        this.unregisterPlayerMonitors(this.player)
         this.player = PlayerControllerFactory.createController(this.playerType) as PlayerType
 
         this.bindEngineSwitchHandler(this.player)
+        this.registerPlayerMonitors(this.player)
         this.subtitleManager = new SubtitleManager(this.player)
         const metadata = playerParams.metadata as VideoMetadata
         this.player.nowPlaying = metadata
@@ -690,6 +711,9 @@ export struct VideoPlayer {
       }
     })
     .onShown(() => {
+      if (!this.isPageDisappearing) {
+        this.smartGestures.show(this.getUIContext())
+      }
       this.player.onSwiping = false
       this.player.isSliderPlayTimeChange = false
       this.player.onSwipingVoice = false
@@ -710,6 +734,7 @@ export struct VideoPlayer {
       }
     })
     .onHidden(() => {
+      this.smartGestures.hide()
       salmonLogger.addLog(TAG, "开始执行onHidden生命周期", false)
       this.player.onSwiping = false
       this.player.isSliderPlayTimeChange = false
@@ -726,6 +751,7 @@ export struct VideoPlayer {
     })
     .onWillDisappear(async () => {
       this.isPageDisappearing = true
+      this.smartGestures.hide()
       this.orientationRequestVersion++
       this.player.onWillDisappearCleanup()
       const orientationRestore = this.restoreAutomaticOrientation()
@@ -998,6 +1024,7 @@ export struct VideoPlayer {
     PlaybackSpeedMenuComponent({
       onSpeedChange: (speed: number) => {
         this.player.updatePlaybackSpeed(speed)
+        this.player.savePlayerSpeed(PathUtils.appContext!)
       }
     })
   }
@@ -1034,6 +1061,7 @@ export struct VideoPlayer {
     AVCastPickerBuilder()
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   private async restoreAutomaticOrientation(): Promise<void> {
     try {
       await (await this.getWindowClass())?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
@@ -1125,6 +1153,8 @@ export struct VideoPlayer {
       this.playerType = targetEngine
       this.player = nextPlayer
       this.bindEngineSwitchHandler(nextPlayer)
+      this.unregisterPlayerMonitors(oldPlayer)
+      this.registerPlayerMonitors(nextPlayer)
 
       const nextSubtitleManager = new SubtitleManager(nextPlayer)
       nextSubtitleManager.subtitleMode = subtitleMode

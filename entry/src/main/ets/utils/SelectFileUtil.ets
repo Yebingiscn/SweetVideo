@@ -19,7 +19,7 @@ import PrivacySpaceUtil from './PrivacySpaceUtil'
 import RecentPlayUtil from './RecentPlayUtil'
 import SubtitleUtil from './SubtitleUtil'
 import { extractVideoFileInfoInTaskPool } from './TaskpoolUtil'
-import { systemDateTime } from '@kit.BasicServicesKit'
+import { SuppressWarnings, SuppressWarningsType, systemDateTime } from '@kit.BasicServicesKit'
 import { effectKit } from '@kit.ArkGraphics2D'
 import { JSON } from '@kit.ArkTS'
 import FFmpegThumbnailUtil, { FFmpegMediaProbe } from './FFmpegThumbnailUtil'
@@ -43,6 +43,7 @@ export default class SelectFileUtil {
   ])
   private static queryCache = new WeakMap<VideoMetadata[], Map<string, VideoMetadata>>()
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   static async selectFromFileManager(uri?: string, mode: 'video' | 'audio' | 'album' = 'video'): Promise<string[]> {
     const documentSelectOptions = new picker.DocumentSelectOptions()
     if (uri) {
@@ -573,7 +574,7 @@ export default class SelectFileUtil {
     return Preferences.findVideoByDate(PathUtils.appContext!, videoDate)
   }
 
-  // 根据方向获取相邻视频
+  // 按播放列表顺序取相邻项；音频、视频和探测信息不完整的文件都不能被隐式跳过。
   static getAdjacentItem(list: VideoMetadata[], date: string,
     direction: 'previous' | 'next', wrap: boolean): VideoMetadata | undefined {
     if (list.length === 0) {
@@ -584,22 +585,11 @@ export default class SelectFileUtil {
       return list[0]
     }
     const step = direction === 'next' ? 1 : -1
-    let adjacentIndex = currentIndex + step
-    const directAdjacentIndex = wrap
-      ? (adjacentIndex + list.length) % list.length
-      : adjacentIndex
-    for (let i = 0; i < list.length; i++) {
-      if (wrap) {
-        adjacentIndex = (adjacentIndex + list.length) % list.length
-      } else if (adjacentIndex < 0 || adjacentIndex >= list.length) {
-        return undefined
-      }
-      if (VideoInfoUtil.hasVideoTrack(list[adjacentIndex])) {
-        return list[adjacentIndex]
-      }
-      adjacentIndex += step
+    const adjacentIndex = currentIndex + step
+    if (!wrap && (adjacentIndex < 0 || adjacentIndex >= list.length)) {
+      return undefined
     }
-    return list[directAdjacentIndex]
+    return list[wrap ? (adjacentIndex + list.length) % list.length : adjacentIndex]
   }
 
   static getItemFromSearch(list: VideoMetadata[], value: string): VideoMetadata[] {
@@ -659,7 +649,9 @@ export default class SelectFileUtil {
   }
 
   static async addFile(context: Context, sandbox_video: string, sandbox_path: string, uri: string,
-    video_meta_data: VideoMetadata[], file_folder?: FileFolder): Promise<boolean> {
+    video_meta_data: VideoMetadata[], file_folder?: FileFolder,
+    privateMode: boolean = PrivacySpaceUtil.getPrivacyMode() === true,
+    allowDuplicateTitle: boolean = false): Promise<boolean> {
     // 权限持久化必须留在主线程；媒体内容随后全部交给 FFmpeg。
     await PermissionUtil.persistPermission(uri)
 
@@ -697,7 +689,7 @@ export default class SelectFileUtil {
         let coverDurationMs = 0
         let coverPixelMap: image.PixelMap | undefined
         try {
-          if (!file_folder) {
+          if (!privateMode && !file_folder) {
             const folderPathParts = FileFolderUtil.extractFolderPathFromUri(uri, fileName)
             if (folderPathParts && folderPathParts.length > 0) {
               const folderLock = ConcurrencyManagerUtil.getLock(`folder_${folderPathParts.join('/')}`)
@@ -709,18 +701,27 @@ export default class SelectFileUtil {
               }
             }
           }
-          const isDuplicate = FileFolderUtil.existsVideoInFolders(context, uri, fileName)
+          // 不同设备接收的同名文件不一定内容相同，隐私接收保留两份。
+          const isDuplicate = privateMode && allowDuplicateTitle ? false :
+            FileFolderUtil.existsVideoInFolders(context, uri, fileName, privateMode)
           if (!isDuplicate) {
-            if (PrivacySpaceUtil.getPrivacyMode()!) {
-              await SelectFileUtil.copyFileToPrivacySpace(context, video_meta_data, uri, sandbox_video,
+            if (privateMode) {
+              // 持锁后读取最新隐私列表，避免异步接收覆盖期间新导入的条目。
+              const privateVideos = Preferences.getVideoMetaDataEncryption(context)
+              const imported = await SelectFileUtil.copyFileToPrivacySpace(context, privateVideos, uri, sandbox_video,
                 sandbox_path, systemDateTime.getTime(true).toString(), fileName, fileSize, pixelMap, mediaProbe)
+              if (video_meta_data !== privateVideos) {
+                video_meta_data.push(imported)
+              }
             } else {
               const date = systemDateTime.getTime(true).toString()
               const videoInfo = VideoInfoUtil.buildVideoMetadata(
                 date, uri, fileName, sandbox_video, fileSize, mediaProbe)
+              // 接收模式已固定，不能受此刻前台是否打开隐私空间影响。
+              videoInfo.uri = uri
               if (file_folder) {
                 file_folder.video_list.push(videoInfo)
-                await FileFolderUtil.updateFileFolder(context, file_folder, file_folder.video_list)
+                FileFolderUtil.updateFileFolder(context, file_folder, file_folder.video_list)
               } else {
                 const folders = Preferences.getFileFolder(context)
                 folders[0].video_list.push(videoInfo)
@@ -772,7 +773,7 @@ export default class SelectFileUtil {
   }
 
   // 删除封面
-  static async deleteCover(date: string) {
+  static async deleteCover(date: string): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       fs.access(PathUtils.coverPath + date, (err) => {
         if (!err) {
@@ -826,7 +827,7 @@ export default class SelectFileUtil {
         }
       }
 
-      async drain() {
+      async drain(): Promise<void> {
         if (this.active === 0 && this.pending.length === 0) {
           return
         }

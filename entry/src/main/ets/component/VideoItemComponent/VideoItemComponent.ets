@@ -35,6 +35,7 @@ import VideoCardItem from './VideoCardItemComponent'
 import { VideoItemPreviewBuilder } from './VideoItemPreviewBuilder'
 import VideoListItem from './VideoListItemComponent'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
+import KnockShareUtil from '../../utils/KnockShareUtil'
 
 @ObservedV2
 export class VideoListController {
@@ -299,6 +300,12 @@ export struct VideoList {
               .backgroundColor(Setting.listItemBackgroundBlur ? undefined :
                 (Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
                   $r('app.color.start_window_background')))
+              .onAreaChange((_oldValue: Area, newValue: Area) => {
+                KnockShareUtil.updateVideoRegion(repeatItem.item, newValue)
+              })
+              .onVisibleAreaChange([0], (visible: boolean) => {
+                KnockShareUtil.setVideoRegionVisible(repeatItem.item.date, visible)
+              })
 
               .margin({ bottom: 20 })
               .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
@@ -446,6 +453,12 @@ export struct VideoList {
 
                   .borderRadius(12)
                   .width('100%')
+                  .onAreaChange((_oldValue: Area, newValue: Area) => {
+                    KnockShareUtil.updateVideoRegion(repeatItem.item, newValue)
+                  })
+                  .onVisibleAreaChange([0], (visible: boolean) => {
+                    KnockShareUtil.setVideoRegionVisible(repeatItem.item.date, visible)
+                  })
                   .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
                   .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress,
                     {

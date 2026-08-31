@@ -24,7 +24,7 @@ import VideoCardItem from '../../component/VideoItemComponent/VideoCardItemCompo
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import { SortField } from '../../common/enum/SortField'
 import ShareUtil from '../../utils/ShareUtil'
-import { Privacy, Setting } from '../../utils/ObservedUtil'
+import { Privacy, PrivacySecureUtil, Setting } from '../../utils/ObservedUtil'
 import {
   DELAY_JUMP_TO_PLAYER,
   FULL_ALPHABET,
@@ -52,6 +52,7 @@ import SubtitleUtil from '../../utils/SubtitleUtil'
 
 @ComponentV2
 export struct PrivacySpace { // 隐私空间页
+  @Local privacyState: PrivacySecureUtil = Privacy
   @Local videoDataSource: VideoDataSource = new VideoDataSource([])
   @Local video_meta_data_encryption: VideoMetadata[] = []
   @Local allVideos: VideoMetadata[] = [] // 保存完整数据用于搜索
@@ -492,6 +493,14 @@ export struct PrivacySpace { // 隐私空间页
   @Monitor('multipleChooseState')
   onMultipleChooseStateChanged() {
     this.privacyVideoListController.multipleChooseState = this.multipleChooseState
+  }
+
+  @Monitor('privacyState.receivedFilesVersion')
+  onKnockFilesReceived(): void {
+    this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+    this.video_meta_data_encryption = this.searchValue.trim()
+      ? SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue) : this.allVideos
+    this.videoDataSource.updateData(this.video_meta_data_encryption)
   }
 
   async aboutToAppear(): Promise<void> {

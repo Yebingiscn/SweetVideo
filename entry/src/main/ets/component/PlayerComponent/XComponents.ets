@@ -9,6 +9,7 @@ import { WindowUtil } from '../../utils/WindowUtil'
 import { KeyCode } from '@kit.InputKit'
 
 const TAG = 'XComponents'
+const PLAYER_SURFACE_ID = 'player_surface_focus'
 
 @ComponentV2
 export struct XComponents {
@@ -45,6 +46,7 @@ export struct XComponents {
         AVPlayerXComponent({
           xComponentController: this.xComponentController,
           onAVPlayerComponentLoad: () => {
+            focusControl.requestFocus(PLAYER_SURFACE_ID)
             this.onXComponentLoad(this.xComponentController, PlayerEngine.AV_PLAYER)
           },
         })
@@ -56,6 +58,7 @@ export struct XComponents {
           osdXController: this.osdXController,
           osdVisibility: this.osdVisibility,
           onMpvXComponent: () => {
+            focusControl.requestFocus(PLAYER_SURFACE_ID)
             this.onXComponentLoad(this.xComponentController, PlayerEngine.MPV_PLAYER)
           },
           onOsdSurfaceLoad: (surfaceId: string, surfaceWidth: number, surfaceHeight: number) => {
@@ -67,6 +70,8 @@ export struct XComponents {
         })
       }
     }
+    .id(PLAYER_SURFACE_ID)
+    .focusable(true)
     .onKeyEvent((event?: KeyEvent) => {
       if (!event || event.type !== KeyType.Down) {
         return
@@ -109,27 +114,12 @@ export struct MpvXComponent {
   @Param libraryName: string | undefined = undefined
   @Param osdXController: XComponentController | undefined = undefined
   @Param osdVisibility: boolean = false
+  private activeOsdSurfaceId: string = ''
   @Event onMpvXComponent: () => void = () => {
   }
   @Event onOsdSurfaceLoad: (_surfaceId: string, _surfaceWidth: number, _surfaceHeight: number) => void = () => {
   }
   @Event onOsdSurfaceDestroy: (_surfaceId: string) => void = () => {
-  }
-
-  private activeOsdSurfaceId: string = ''
-
-  private notifyOsdSurface(surfaceId: string): void {
-    try {
-      const surfaceRect = this.osdXController?.getXComponentSurfaceRect()
-      const surfaceWidth = Math.round(surfaceRect?.surfaceWidth ?? 0)
-      const surfaceHeight = Math.round(surfaceRect?.surfaceHeight ?? 0)
-      if (surfaceWidth > 0 && surfaceHeight > 0) {
-        this.activeOsdSurfaceId = surfaceId
-        this.onOsdSurfaceLoad(surfaceId, surfaceWidth, surfaceHeight)
-      }
-    } catch (error) {
-      salmonLogger.addLog(TAG, '[OSD] Failed to query OSD Surface geometry: ' + error, true)
-    }
   }
 
   build() {
@@ -182,6 +172,20 @@ export struct MpvXComponent {
             }
           })
       }
+    }
+  }
+
+  private notifyOsdSurface(surfaceId: string): void {
+    try {
+      const surfaceRect = this.osdXController?.getXComponentSurfaceRect()
+      const surfaceWidth = Math.round(surfaceRect?.surfaceWidth ?? 0)
+      const surfaceHeight = Math.round(surfaceRect?.surfaceHeight ?? 0)
+      if (surfaceWidth > 0 && surfaceHeight > 0) {
+        this.activeOsdSurfaceId = surfaceId
+        this.onOsdSurfaceLoad(surfaceId, surfaceWidth, surfaceHeight)
+      }
+    } catch (error) {
+      salmonLogger.addLog(TAG, '[OSD] Failed to query OSD Surface geometry: ' + error, true)
     }
   }
 }

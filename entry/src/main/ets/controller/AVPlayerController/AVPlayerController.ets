@@ -33,6 +33,7 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { WindowUtil } from '../../utils/WindowUtil'
 import { fileIo } from '@kit.CoreFileKit'
 import { AVPlayerEngineAdapter } from '../engine/AVPlayerEngineAdapter'
+import SubtitleLanguageUtil from '../../utils/SubtitleLanguageUtil'
 
 const TAG = 'AVPlayerController'
 
@@ -104,6 +105,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   private videoSwitchVersion: number = 0
   private isSwitchingVideo: boolean = false
   private playbackDetailsInitialized: boolean = false
+  private externalSubtitleAvailable: boolean = false
   // 视频帧预览节流控制
   private lastFrameFetchTime: number = 0
   private readonly FRAME_FETCH_INTERVAL: number = 200 // 200ms 获取一次预览帧
@@ -218,9 +220,11 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   setExternalSubtitle(nowPlaying: VideoMetadata) {
+    this.externalSubtitleAvailable = false
     SubtitleUtil.offsetMillis = nowPlaying.subtitle_offset_millis ?? 0
     SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, nowPlaying.date!).then(exists => {
       if (!exists) {
+        this.externalSubtitleAvailable = false
         this.applySubtitlePreference(nowPlaying, false)
         return
       }
@@ -232,9 +236,11 @@ export class AVPlayerController implements PlayerControllerInterface {
           } catch (_e) {
           }
           if (success) {
+            this.externalSubtitleAvailable = true
             this.subtitle = SubtitleUtil.getSubtitlesAtTime(this.playTime)
             this.applySubtitlePreference(nowPlaying, true)
           } else {
+            this.externalSubtitleAvailable = false
             this.applySubtitlePreference(nowPlaying, false)
           }
         }).catch(() => {
@@ -242,9 +248,11 @@ export class AVPlayerController implements PlayerControllerInterface {
             fileIo.closeSync(subtitle)
           } catch (_e) {
           }
+          this.externalSubtitleAvailable = false
           this.applySubtitlePreference(nowPlaying, false)
         })
       } catch (_error) {
+        this.externalSubtitleAvailable = false
         this.applySubtitlePreference(nowPlaying, false)
       }
     })
@@ -271,6 +279,7 @@ export class AVPlayerController implements PlayerControllerInterface {
 
   updatePlaybackSpeed(speed: number): void {
     try {
+      this.speed = speed
       this.avPlayer?.setPlaybackRate(speed)
     } catch (error) {
       salmonLogger.addLog(TAG, 'updatePlaybackSpeed error:' + error, true)
@@ -286,7 +295,11 @@ export class AVPlayerController implements PlayerControllerInterface {
 
   async getSubtitleTrackList() {
     this.subtitleTrack = await VideoOperateUtil.getInnerSubtitles(this.avPlayer!)
-    this.subtitleTrackSelected = this.subtitleTrack.length > 0 ? this.subtitleTrack[0].id : -1
+    this.subtitleTrackSelected = SubtitleLanguageUtil.selectPreferredTrack(
+      this.subtitleTrack, Setting.subtitlePreferredLanguage)?.id ?? -1
+    if (this.nowPlaying) {
+      this.applySubtitlePreference(this.nowPlaying, this.externalSubtitleAvailable)
+    }
   }
 
   selectSubtitleTrack(index: number): void {
@@ -454,7 +467,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   async playNextVideoProcess(pathStack: NavPathStack, windowClass?: Promise<window.Window | undefined>,
-    xComponentController?: XComponentController, overrideRepeatMode?: SweetRepeatMode) {
+    xComponentController?: XComponentController, overrideRepeatMode?: SweetRepeatMode): Promise<void> {
     salmonLogger.addLog(TAG, "开始播放下一个视频前置流程", false)
     const effectiveRepeatMode = overrideRepeatMode ?? this.repeatMode
     const nextItem = this.playAdjacentVideo(effectiveRepeatMode, 'next')
@@ -471,7 +484,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   async playChooseVideo(item: VideoMetadata, pathStack: NavPathStack,
-    windowClass?: Promise<window.Window | undefined>, xComponentController?: XComponentController) {
+    windowClass?: Promise<window.Window | undefined>, xComponentController?: XComponentController): Promise<void> {
     salmonLogger.addLog(TAG, "开始播放选择的视频", false)
     const switchVersion = ++this.videoSwitchVersion
     this.isSwitchingVideo = true
@@ -577,7 +590,7 @@ export class AVPlayerController implements PlayerControllerInterface {
             WindowUtil.enableLandscapeMultiWindow(windowClass) :
             WindowUtil.disableLandscapeMultiWindow(windowClass)
         }
-        if (Setting.smartRotation && this.playAreaWidth > this.playAreaHeight &&
+        if (windowClass && Setting.smartRotation && this.playAreaWidth > this.playAreaHeight &&
           this.screenHeight > this.screenWidth) {
           salmonLogger.addLog(TAG, "智能旋转条件满足，开始设置方向", false)
           const proportion =
@@ -585,7 +598,8 @@ export class AVPlayerController implements PlayerControllerInterface {
               Math.min(this.screenWidth, this.screenHeight)
           const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
             : window.Orientation.AUTO_ROTATION_RESTRICTED;
-          (await windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
+          const windowReady: Promise<window.Window | undefined> = windowClass;
+          (await windowReady)?.setPreferredOrientation(orientation)?.catch(() => {
             salmonLogger.addLog(TAG, "设置窗口方向失败", true)
           })
           salmonLogger.addLog(TAG, "设置窗口方向完成", false)
@@ -625,7 +639,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     salmonLogger.addLog(TAG, "setRotation方法执行完成", false)
   }
 
-  async init() {
+  async init(): Promise<void> {
     await this.create()
   }
 
@@ -1200,7 +1214,7 @@ export class AVPlayerController implements PlayerControllerInterface {
       salmonLogger.addLog(TAG, `Ignore engine switch without handler: ${reason}`, true)
       return
     }
-    await this.engineSwitchHandler(targetEngine, reason, resumePlayback)
+    return this.engineSwitchHandler(targetEngine, reason, resumePlayback)
   }
 
   private schedulePendingFrameFetch(): void {
@@ -1322,7 +1336,14 @@ export class AVPlayerController implements PlayerControllerInterface {
         this.subtitleSelected = SubtitleMode.NONE
       }
     } else {
-      this.subtitleSelected = externalSubtitleLoaded ? SubtitleMode.EXTERNAL_SUBTITLE : SubtitleMode.NONE
+      if (externalSubtitleLoaded) {
+        this.subtitleSelected = SubtitleMode.EXTERNAL_SUBTITLE
+      } else if (this.subtitleTrackSelected >= 0) {
+        this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
+        this.selectSubtitleTrack(this.subtitleTrackSelected)
+      } else {
+        this.subtitleSelected = SubtitleMode.NONE
+      }
     }
   }
 
@@ -1360,8 +1381,12 @@ export class AVPlayerController implements PlayerControllerInterface {
       return
     }
     if (nowPlaying.subtitle_track_id !== undefined && nowPlaying.subtitle_track_id >= 0) {
-      this.subtitleTrackSelected = nowPlaying.subtitle_track_id
+      const savedTrackExists = this.subtitleTrack.some((track: SubtitleTrack) => track.id === nowPlaying.subtitle_track_id)
+      if (savedTrackExists) {
+        this.subtitleTrackSelected = nowPlaying.subtitle_track_id
+      }
     }
+    this.selectSubtitleTrack(this.subtitleTrackSelected)
   }
 
   private transitionTo(newState: PlayerState): void {
@@ -1448,7 +1473,7 @@ export class AVPlayerController implements PlayerControllerInterface {
         WindowUtil.enableLandscapeMultiWindow(windowClass) :
         WindowUtil.disableLandscapeMultiWindow(windowClass)
     }
-    if (Setting.smartRotation && this.playAreaWidth > this.playAreaHeight &&
+    if (windowClass && Setting.smartRotation && this.playAreaWidth > this.playAreaHeight &&
       this.screenHeight > this.screenWidth) {
       salmonLogger.addLog(TAG, "智能旋转条件满足，开始设置方向", false)
       const proportion =
@@ -1456,7 +1481,8 @@ export class AVPlayerController implements PlayerControllerInterface {
           Math.min(this.screenWidth, this.screenHeight)
       const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
         : window.Orientation.AUTO_ROTATION_RESTRICTED;
-      (await windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
+      const windowReady: Promise<window.Window | undefined> = windowClass;
+      (await windowReady)?.setPreferredOrientation(orientation)?.catch(() => {
         salmonLogger.addLog(TAG, "设置窗口方向失败", true)
       })
       salmonLogger.addLog(TAG, "设置窗口方向完成", false)

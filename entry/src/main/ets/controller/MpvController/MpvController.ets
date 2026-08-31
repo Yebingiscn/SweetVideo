@@ -34,6 +34,7 @@ import {
   pause as mpvPause,
   play as mpvPlay,
   registerBufferingStateCallback as mpvRegisterBufferingStateCallback,
+  registerMediaLoadCallback as mpvRegisterMediaLoadCallback,
   registerNetworkStateCallback as mpvRegisterNetworkStateCallback,
   registerPauseStateCallback as mpvRegisterPauseStateCallback,
   registerPlaybackCompleteCallback as mpvRegisterPlaybackCompleteCallback,
@@ -60,6 +61,7 @@ import {
   setSubtitleRenderVisibility as mpvSetSubtitleRenderVisibility,
   setSubtitleStyle as mpvSetSubtitleStyle,
   unregisterBufferingStateCallback as mpvUnregisterBufferingStateCallback,
+  unregisterMediaLoadCallback as mpvUnregisterMediaLoadCallback,
   unregisterNetworkStateCallback as mpvUnregisterNetworkStateCallback,
   unregisterPauseStateCallback as mpvUnregisterPauseStateCallback,
   unregisterPlaybackCompleteCallback as mpvUnregisterPlaybackCompleteCallback,
@@ -92,6 +94,7 @@ import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import VideoOperateUtil from '../../utils/VideoOperateUtil';
 import { fileIo, fileUri } from '@kit.CoreFileKit';
 import { MpvPlayerEngineAdapter } from '../engine/MpvPlayerEngineAdapter';
+import SubtitleLanguageUtil from '../../utils/SubtitleLanguageUtil';
 
 const TAG = 'MpvController'
 const LOCAL_DECODING_MODE_TIMEOUT_MS = 500
@@ -226,6 +229,7 @@ export class MpvController implements PlayerControllerInterface {
   private videoSizeCallbackRegistered: boolean = false
   private surfaceModeErrorCallbackRegistered: boolean = false
   private bufferingStateCallbackRegistered: boolean = false
+  private mediaLoadCallbackRegistered: boolean = false
   private networkStateCallbackRegistered: boolean = false
   private pauseStateCallbackRegistered: boolean = false
   private audioInterruptRegistered: boolean = false
@@ -237,6 +241,9 @@ export class MpvController implements PlayerControllerInterface {
   private smartRotationTimer: number = 0
   private postLoadMetadataTimer: number = 0
   private postLoadTaskGeneration: number = 0
+  private shaderTimer: number = 0
+  private playRequestGeneration: number = 0
+  private pendingCompletionRequestId: number = 0
   private currentPathStack: NavPathStack | null = null
   private activeHwdecMode: MpvDecodingMethod = MpvDecodingMethod.HARDWARE_SURFACE
   private lastFrameFetchTime: number = 0
@@ -289,6 +296,10 @@ export class MpvController implements PlayerControllerInterface {
     // 完整 reset 会停止事件线程、销毁并重建 MPV，导致 Surface 在新首帧前长时间黑屏。
     // 解码模式确实发生变化时，init() 仍会按原逻辑重建实例。
     this.cancelSmartRotationTimer()
+    const requestGeneration = ++this.playRequestGeneration
+    this.engineAdapter.invalidateLoad()
+    this.pendingCompletionRequestId = 0
+    this.transitionTo(MpvPlayerState.LOADING)
     this.playTime = 0
     this.pixelMap = null
     this.isSkippingEnding = false
@@ -310,12 +321,26 @@ export class MpvController implements PlayerControllerInterface {
     }
     salmonLogger.addLog(TAG, "设置当前播放视频完成", false)
 
-    await PermissionUtil.activatePermission(item.uri)
-    await this.prepareInitialSmartRotation()
-    await this.init(item.uri, pathStack)
-    salmonLogger.addLog(TAG, "获取播放数据完成", false)
-    await this.initAVSession()
-    salmonLogger.addLog(TAG, "播放选择视频流程完成", false)
+    try {
+      await PermissionUtil.activatePermission(item.uri)
+      if (requestGeneration !== this.playRequestGeneration) {
+        return
+      }
+      await this.prepareInitialSmartRotation()
+      if (requestGeneration !== this.playRequestGeneration) {
+        return
+      }
+      await this.init(item.uri, pathStack)
+      if (requestGeneration !== this.playRequestGeneration || this.isInState(MpvPlayerState.ERROR)) {
+        return
+      }
+      await this.initAVSession()
+      salmonLogger.addLog(TAG, "播放选择视频流程完成", false)
+    } catch (error) {
+      if (requestGeneration === this.playRequestGeneration) {
+        this.handleLoadFailure(`播放准备失败: ${error}`)
+      }
+    }
   }
 
   async playNextVideoProcess(pathStack: NavPathStack, _windowClass?: Promise<window.Window | undefined>,
@@ -384,9 +409,17 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   async init(url?: string, pathStack?: NavPathStack): Promise<void> {
+    const requestGeneration = this.playRequestGeneration
+    this.cancelSmartRotationTimer()
+    this.engineAdapter.invalidateLoad()
+    this.pendingCompletionRequestId = 0
     this.applyDebugInfoVisibility()
     this.cancelDecodingModeVerification()
     const requiredMode = this.computeDecodeType()
+    if (this.mpvHandle && !this.engineAdapter.isAlive()) {
+      salmonLogger.addLog(TAG, '[MpvController] 核心已关闭，重建后再加载；正常 EOF 继续复用实例', true)
+      this.cleanupMpvInstance()
+    }
     if (this.mpvHandle && requiredMode !== this.activeHwdecMode) {
       salmonLogger.addLog(TAG,
         `[MpvController] Decode mode mismatch: active=${this.activeHwdecMode}, required=${requiredMode}, recreating instance`,
@@ -415,31 +448,42 @@ export class MpvController implements PlayerControllerInterface {
       initialStartPositionMs / 1000 : undefined
     const initialSubtitleTrackId = this.getInitialSubtitleTrackId()
     // Surface decode failures can happen immediately after load. Register first so
-    // native fallback notifications cannot be lost during decoder startup.
+    // native load/fallback notifications cannot be lost during decoder startup.
+    this.setPlayerCallback(pathStack!)
     this.registerPlaybackCompleteListener(pathStack!)
-    this.registerSurfaceModeErrorCallback()
-    this.engineAdapter.load(playUrl, startPositionSeconds, initialSubtitleTrackId,
-      this.nowPlaying?.network_user_agent)
+    await this.getData()
+    if (requestGeneration !== this.playRequestGeneration) {
+      return
+    }
+    try {
+      this.engineAdapter.load(playUrl, startPositionSeconds, initialSubtitleTrackId,
+        this.nowPlaying?.network_user_agent)
+    } catch (error) {
+      this.handleLoadFailure(`loadfile 失败: ${error}`)
+      return
+    }
     this.applySubtitleStyle()
 
     if (!ToolsUtil.isNetworkUrl(url!)) {
       VideoOperateUtil.getFrameTimePreprocess(url!)
     }
 
-    // 延迟应用 shader，避免编译期间阻塞主线程（shader 编译持有 mpv 核心锁）
+    // Metadata and shaders start only after this file's FILE_LOADED event.
+  }
+
+  private scheduleShader(generation: number): void {
     const shaderMode = Setting.mpvShaderMode
-    salmonLogger.addLog(TAG, `[MpvController] shader mode=${shaderMode}, will apply=${shaderMode > 0}`, false)
     if (shaderMode > 0) {
-      setTimeout(() => {
+      this.shaderTimer = setTimeout(() => {
+        this.shaderTimer = 0
+        if (generation !== this.postLoadTaskGeneration || !this.engineAdapter.isMediaLoaded() ||
+          !this.engineAdapter.isAlive()) {
+          return
+        }
         salmonLogger.addLog(TAG, `[MpvController] applying shader mode=${shaderMode}`, false)
         this.applyShaderMode(shaderMode)
-      }, 3000)
+      }, 3000) as number
     }
-
-    this.setPlayerCallback(pathStack!)
-    await this.getData()
-
-    this.schedulePostLoadTasks()
   }
 
   setOsdSurface(surfaceId: string, surfaceWidth: number, surfaceHeight: number): void {
@@ -530,7 +574,7 @@ export class MpvController implements PlayerControllerInterface {
   // OSD 始终按 XComponent 的实际 Surface 像素尺寸渲染，避免 4K/8K
 
   async getData(): Promise<void> {
-    this.transitionTo(MpvPlayerState.PLAYING)
+    this.registerMediaLoadCallback()
     this.registerTimeUpdateCallback()
     this.registerVideoSizeChangedCallback()
     this.registerSurfaceModeErrorCallback()
@@ -560,7 +604,13 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   play(): void {
-    if (!this.mpvHandle) {
+    if (!this.mpvHandle || !this.engineAdapter.isAlive()) {
+      return
+    }
+    if (!this.engineAdapter.isMediaLoaded()) {
+      if (this.isInState(MpvPlayerState.LOADING)) {
+        this.initialPlaying = true
+      }
       return
     }
     PiPWindowUtil.enableAutoStart()
@@ -571,7 +621,13 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   pause(): void {
-    if (!this.mpvHandle) {
+    if (!this.mpvHandle || !this.engineAdapter.isAlive()) {
+      return
+    }
+    if (!this.engineAdapter.isMediaLoaded()) {
+      if (this.isInState(MpvPlayerState.LOADING)) {
+        this.initialPlaying = false
+      }
       return
     }
     PiPWindowUtil.disableAutoStart()
@@ -586,6 +642,9 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   async release(): Promise<void> {
+    this.playRequestGeneration++
+    this.engineAdapter.invalidateLoad()
+    this.pendingCompletionRequestId = 0
     this.transitionTo(MpvPlayerState.RELEASING)
     this.cancelDecodingModeTimers()
     this.cancelSubscribe()
@@ -841,8 +900,11 @@ export class MpvController implements PlayerControllerInterface {
     const currentTrackId = mpvGetCurrentSubtitleTrack(this.mpvHandle)
     const hasCurrentTrack = this.subtitleTrack.some((track) => track.id === currentTrackId)
     const hasPreviousTrack = this.subtitleTrack.some((track) => track.id === previousTrackId)
-    this.subtitleTrackSelected = hasCurrentTrack ? currentTrackId :
-      (hasPreviousTrack ? previousTrackId : this.subtitleTrack[0].id)
+    const preferredTrackId = SubtitleLanguageUtil.selectPreferredTrack(
+      this.subtitleTrack, Setting.subtitlePreferredLanguage)?.id ?? this.subtitleTrack[0].id
+    const hasSavedPreference = this.nowPlaying ? SubtitleUtil.hasSubtitlePreferenceMetadata(this.nowPlaying) : false
+    this.subtitleTrackSelected = hasSavedPreference && hasCurrentTrack ? currentTrackId :
+      (hasSavedPreference && hasPreviousTrack ? previousTrackId : preferredTrackId)
     const currentSecondaryTrackId = mpvGetCurrentSecondarySubtitleTrack(this.mpvHandle)
     const hasCurrentSecondaryTrack = this.subtitleTrack.some((track) =>
     track.id === currentSecondaryTrackId && track.id !== this.subtitleTrackSelected)
@@ -1006,9 +1068,12 @@ export class MpvController implements PlayerControllerInterface {
 
   async setExternalSubtitle(nowPlaying: VideoMetadata) {
     SubtitleUtil.offsetMillis = nowPlaying.subtitle_offset_millis ?? 0
-    let externalSubtitleLoaded = false
-    this.externalSubtitleTrackSelected = -1
-    this.externalSubtitleCodec = ''
+    const existingExternalTracks = (mpvGetSubtitleTracks(this.mpvHandle) as MpvSubtitleTrack[])
+      .filter((track: MpvSubtitleTrack) => track.external)
+    let externalSubtitleLoaded = existingExternalTracks.length > 0
+    const existingExternalTrack = existingExternalTracks[existingExternalTracks.length - 1]
+    this.externalSubtitleTrackSelected = existingExternalTrack?.id ?? -1
+    this.externalSubtitleCodec = existingExternalTrack?.codec ?? ''
     this.subtitle = ''
     this.lastSubtitle = ''
     if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, nowPlaying.date!)) {
@@ -1068,7 +1133,13 @@ export class MpvController implements PlayerControllerInterface {
         this.subtitleSelected = SubtitleMode.NONE
       }
     } else {
-      this.subtitleSelected = externalSubtitleLoaded ? SubtitleMode.EXTERNAL_SUBTITLE : SubtitleMode.NONE
+      if (externalSubtitleLoaded && this.externalSubtitleTrackSelected >= 0) {
+        this.subtitleSelected = SubtitleMode.EXTERNAL_SUBTITLE
+      } else if (this.subtitleTrackSelected >= 0) {
+        this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
+      } else {
+        this.subtitleSelected = SubtitleMode.NONE
+      }
     }
     if (this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
       this.selectExternalSubtitleTrack()
@@ -1151,6 +1222,10 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   cancelSmartRotationTimer() {
+    if (this.shaderTimer) {
+      clearTimeout(this.shaderTimer)
+      this.shaderTimer = 0
+    }
     if (this.smartRotationTimer) {
       clearTimeout(this.smartRotationTimer)
       this.smartRotationTimer = 0
@@ -1160,6 +1235,8 @@ export class MpvController implements PlayerControllerInterface {
       this.postLoadMetadataTimer = 0
     }
     this.postLoadTaskGeneration++
+    this.postLoadTasksExecuted = false
+    this.userListener?.off('videoSizeReady')
   }
 
   isMpvPlayer(): boolean {
@@ -1441,6 +1518,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   private async prepareInitialSmartRotation(): Promise<void> {
+    const requestGeneration = this.playRequestGeneration
     this.initialSmartRotationRequested = false
     const videoWidth = this.nowPlaying?.size[0] || 0
     const videoHeight = this.nowPlaying?.size[1] || 0
@@ -1454,10 +1532,13 @@ export class MpvController implements PlayerControllerInterface {
       : window.Orientation.AUTO_ROTATION_RESTRICTED
     try {
       const targetWindow = await this.windowClass
-      if (!targetWindow || !this.smartRotationAllowed) {
+      if (!targetWindow || !this.smartRotationAllowed || requestGeneration !== this.playRequestGeneration) {
         return
       }
       await targetWindow.setPreferredOrientation(orientation)
+      if (requestGeneration !== this.playRequestGeneration) {
+        return
+      }
       this.initialSmartRotationRequested = true
       salmonLogger.addLog(TAG, '已在 loadfile 前请求智能横屏', false)
     } catch (error) {
@@ -1482,11 +1563,13 @@ export class MpvController implements PlayerControllerInterface {
       if (!this.postLoadTasksExecuted) {
         this.executePostLoadTasks(generation)
       }
-    }, 1500) as number
+    }, 0) as number
+    this.scheduleShader(generation)
   }
 
   private async executePostLoadTasks(generation: number) {
-    if (generation !== this.postLoadTaskGeneration || this.postLoadTasksExecuted || !this.smartRotationAllowed) {
+    if (generation !== this.postLoadTaskGeneration || this.postLoadTasksExecuted || !this.smartRotationAllowed ||
+      !this.engineAdapter.isMediaLoaded()) {
       return
     }
     this.postLoadTasksExecuted = true
@@ -1521,9 +1604,16 @@ export class MpvController implements PlayerControllerInterface {
         Math.max(this.screenWidth, this.screenHeight) / Math.min(this.screenWidth, this.screenHeight)
       const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
         : window.Orientation.AUTO_ROTATION_RESTRICTED;
-      (await this.windowClass)?.setPreferredOrientation(orientation)?.catch(() => {
+      const targetWindow = await this.windowClass
+      if (generation !== this.postLoadTaskGeneration || !this.smartRotationAllowed) {
+        return
+      }
+      targetWindow?.setPreferredOrientation(orientation)?.catch(() => {
         salmonLogger.addLog(TAG, "设置窗口方向失败", true)
       })
+    }
+    if (generation !== this.postLoadTaskGeneration || !this.engineAdapter.isMediaLoaded()) {
+      return
     }
     this.onSwiping = false
     this.isSliderPlayTimeChange = false
@@ -1544,10 +1634,14 @@ export class MpvController implements PlayerControllerInterface {
 
   private async executeDeferredPostLoadMetadata(generation: number): Promise<void> {
     if (generation !== this.postLoadTaskGeneration || !this.smartRotationAllowed || !this.mpvHandle ||
+      !this.engineAdapter.isMediaLoaded() ||
       this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
       return
     }
     this.checkDolbyVisionAndSwitch()
+    if (generation !== this.postLoadTaskGeneration || !this.engineAdapter.isMediaLoaded()) {
+      return
+    }
     this.detectAndUpdateHdrType()
     await Promise.all([
       this.getAudioTrackList(),
@@ -1642,16 +1736,24 @@ export class MpvController implements PlayerControllerInterface {
     }
     try {
       mpvRegisterTimeUpdateCallback((timeMs: number) => {
+        if (!this.engineAdapter.isMediaLoaded()) {
+          return
+        }
+        const generation = this.postLoadTaskGeneration
         if (!this.onSwiping) {
           ThrottleUtil.throttle('playTime', () => {
-            this.playTime = timeMs
+            if (generation === this.postLoadTaskGeneration && this.engineAdapter.isMediaLoaded()) {
+              this.playTime = timeMs
+            }
           }, 100)
         }
         this.userListener?.emit('timeUpdate', this.playTime)
         if (this.mpvSubtitle3DMode !== Subtitle3DMode.DISABLED &&
           this.subtitleSelected === SubtitleMode.INNER_SUBTITLE) {
           ThrottleUtil.throttle('mpv3DSubtitleText', () => {
-            this.refreshMpv3DSubtitleText()
+            if (generation === this.postLoadTaskGeneration && this.engineAdapter.isMediaLoaded()) {
+              this.refreshMpv3DSubtitleText()
+            }
           }, 100)
         }
       })
@@ -1668,6 +1770,9 @@ export class MpvController implements PlayerControllerInterface {
     }
     try {
       mpvRegisterVideoSizeChangedCallback(() => {
+        if (!this.engineAdapter.isMediaLoaded()) {
+          return
+        }
         this.completeDecodingModeVerificationOnVideoSize()
         if (!this.smartRotationAllowed) {
           return
@@ -1683,8 +1788,12 @@ export class MpvController implements PlayerControllerInterface {
               Math.max(this.screenWidth, this.screenHeight) / Math.min(this.screenWidth, this.screenHeight)
             const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
               : window.Orientation.AUTO_ROTATION_RESTRICTED
-            this.windowClass?.then(w => w?.setPreferredOrientation(orientation)?.catch(() => {
-            }))
+            const generation = this.postLoadTaskGeneration
+            this.windowClass?.then(w => {
+              if (generation === this.postLoadTaskGeneration && this.smartRotationAllowed) {
+                w?.setPreferredOrientation(orientation)?.catch(() => {})
+              }
+            })
           }
         }
       })
@@ -1704,48 +1813,47 @@ export class MpvController implements PlayerControllerInterface {
     }
 
     try {
-      mpvRegisterPlaybackCompleteCallback(() => {
-        if (this.isInState(MpvPlayerState.SWITCHING_MODE) || this.isInState(MpvPlayerState.RELEASING)) {
-          salmonLogger.addLog(TAG,
-            `[MpvController] Ignoring playback complete: state=${this.playerState}, mode switch in progress`,
-            true)
-          return
-        }
-        const duration = this.getDuration()
-        const minPlayTime = Math.min(duration * 0.5, 5000)
-        if (this.playTime < minPlayTime && duration > 0) {
-          salmonLogger.addLog(TAG,
-            `[MpvController] Ignoring playback complete: playTime=${this.playTime}ms < minPlayTime=${minPlayTime}ms, likely decode error`,
-            true)
-          return
-        }
-        if (duration > 0 && this.playTime < duration * 0.95) {
-          salmonLogger.addLog(TAG,
-            `[MpvController] Ignoring playback complete: playTime=${this.playTime}ms < 95% of duration=${duration}ms, likely premature EOF`,
-            true)
-          ToolsUtil.showToast('视频文件可能未下载完整或已损坏，请检查文件完整性')
-          return
-        }
-        salmonLogger.addLog(TAG, "收到播放完成事件，准备播放下一个视频", false)
-        this.transitionTo(MpvPlayerState.COMPLETED)
-        this.playTime = this.nowPlaying?.time || this.playTime
-        if (!this.skipHistory) {
-          const completedPlayTime = this.nowPlaying!.time || this.playTime
-          salmonLogger.addLog(TAG,
-            `播放完成，保存进度: playTime=${this.playTime}, totalTime=${this.nowPlaying!.time}, savedTime=${completedPlayTime}`,
-            false)
-          VideoOperateUtil.saveVideoTime(completedPlayTime, this.nowPlaying!, PathUtils.appContext!)
-        }
-        this.playNextVideoProcess(pathStack).catch((error: Error) => {
-          salmonLogger.addLog(TAG, `play next video failed: ${error.message}`, true)
-        })
-        this.playbackCallbackRegistered = false
-        this.registerPlaybackCompleteListener(pathStack)
+      mpvRegisterPlaybackCompleteCallback((requestId: number) => {
+        this.handlePlaybackComplete(requestId)
       })
       this.playbackCallbackRegistered = true
       salmonLogger.addLog(TAG, "播放完成监听器注册成功", false)
     } catch (error) {
       salmonLogger.addLog(TAG, "播放完成监听器注册失败: " + JSON.stringify(error), true)
+    }
+  }
+
+  private handlePlaybackComplete(requestId: number): void {
+    if (!this.engineAdapter.acceptsEvent(requestId) || this.isInState(MpvPlayerState.RELEASING) ||
+      this.isInState(MpvPlayerState.IDLE) || this.isInState(MpvPlayerState.ERROR) ||
+      this.isInState(MpvPlayerState.COMPLETED)) {
+      return
+    }
+    if (!this.engineAdapter.isMediaLoaded()) {
+      // Different N-API callback queues need not dispatch FILE_LOADED before
+      // EOF for very short clips. Consume it once the matching load arrives.
+      this.pendingCompletionRequestId = requestId
+      return
+    }
+    this.pendingCompletionRequestId = 0
+    const duration = this.getDuration()
+    if (duration > 0 && this.playTime < duration * 0.95) {
+      salmonLogger.addLog(TAG, `[MpvController] EOF position differs from duration: request=${requestId}, ` +
+        `position=${this.playTime}, duration=${duration}; trusting native EOF`, true)
+    }
+    // Native END_FILE reason=ERROR/STOP never reaches this callback. Throttled
+    // progress or imprecise duration must not strand a genuine EOF on screen.
+    salmonLogger.addLog(TAG, `收到播放完成事件 request=${requestId}，准备播放下一个视频`, false)
+    this.transitionTo(MpvPlayerState.COMPLETED)
+    this.playTime = duration || this.nowPlaying?.time || this.playTime
+    if (!this.skipHistory && this.nowPlaying) {
+      VideoOperateUtil.saveVideoTime(this.playTime, this.nowPlaying, PathUtils.appContext!)
+    }
+    const pathStack = this.currentPathStack
+    if (pathStack) {
+      this.playNextVideoProcess(pathStack).catch((error: Error) => {
+        salmonLogger.addLog(TAG, `play next video failed: ${error.message}`, true)
+      })
     }
   }
 
@@ -1779,7 +1887,8 @@ export class MpvController implements PlayerControllerInterface {
     }
     try {
       mpvRegisterBufferingStateCallback((buffering: boolean) => {
-        if (this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
+        if (!this.engineAdapter.isMediaLoaded() ||
+          this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
           return
         }
         if (buffering) {
@@ -1805,7 +1914,8 @@ export class MpvController implements PlayerControllerInterface {
     }
     try {
       mpvRegisterPauseStateCallback((paused: boolean) => {
-        if (this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
+        if (!this.engineAdapter.isMediaLoaded() ||
+          this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
           return
         }
         let stateChanged = false
@@ -1825,6 +1935,60 @@ export class MpvController implements PlayerControllerInterface {
       this.pauseStateCallbackRegistered = true
     } catch (error) {
       salmonLogger.addLog(TAG, 'Failed to register pause state callback', error)
+    }
+  }
+
+  private handleLoadFailure(message: string): void {
+    this.cancelDecodingModeTimers()
+    this.engineAdapter.invalidateLoad()
+    this.pendingCompletionRequestId = 0
+    salmonLogger.addLog(TAG, `[MpvController] ${message}`, true)
+    this.transitionTo(MpvPlayerState.ERROR)
+    AVSessionUtil.updatePlaybackSessionState(false, this.playTime, this.repeatMode, this.speed)
+    ToolsUtil.showToast('视频加载失败，可重新选择视频；详细原因已写入日志')
+  }
+
+  private registerMediaLoadCallback(): void {
+    if (this.mediaLoadCallbackRegistered) {
+      return
+    }
+    try {
+      mpvRegisterMediaLoadCallback((loaded: boolean, errorCode: number, requestId: number) => {
+        if (!this.engineAdapter.acceptsEvent(requestId) ||
+          this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
+          return
+        }
+        if (!loaded || !this.engineAdapter.isAlive()) {
+          this.handleLoadFailure(`MPV 加载/播放失败 request=${requestId}, errorCode=${errorCode}, ` +
+            `coreAlive=${this.engineAdapter.isAlive()}`)
+          return
+        }
+
+        this.engineAdapter.markLoaded(requestId)
+        salmonLogger.addLog(TAG, `[MpvController] MPV file loaded request=${requestId}`, false)
+        // loadfile replace 后再明确同步一次播放状态，避免 EOF 状态残留。
+        if (this.isInState(MpvPlayerState.LOADING)) {
+          if (this.initialPlaying === false) {
+            mpvPause(this.mpvHandle)
+            this.transitionTo(MpvPlayerState.PAUSED)
+          } else {
+            mpvPlay(this.mpvHandle)
+            this.transitionTo(MpvPlayerState.PLAYING)
+          }
+          AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode, this.speed)
+          this.schedulePostLoadTasks()
+        } else if (this.isInState(MpvPlayerState.SWITCHING_MODE)) {
+          // 解码模式切换仍由验证流程决定最终状态，但新文件必须先开始解码。
+          mpvPlay(this.mpvHandle)
+          this.completeDecodingModeVerificationOnVideoSize()
+        }
+        if (this.pendingCompletionRequestId === requestId) {
+          this.handlePlaybackComplete(requestId)
+        }
+      })
+      this.mediaLoadCallbackRegistered = true
+    } catch (error) {
+      salmonLogger.addLog(TAG, `Failed to register media load callback: ${error}`, true)
     }
   }
 
@@ -1970,16 +2134,20 @@ export class MpvController implements PlayerControllerInterface {
       }
       this.registerVideoSizeChangedCallback()
       this.startDecodingModeVerification(targetMode, savedTime, savedPlaying, savedVideo, modeName)
-      this.engineAdapter.load(reloadUrl, reloadStartSeconds, this.getInitialSubtitleTrackId(),
-        savedVideo.network_user_agent)
-      this.applySubtitleStyle()
       this.getData().catch(() => {
         salmonLogger.addLog(TAG, 'reload callbacks failed', true)
       })
-
       if (this.currentPathStack) {
         this.registerPlaybackCompleteListener(this.currentPathStack)
       }
+      try {
+        this.engineAdapter.load(reloadUrl, reloadStartSeconds, this.getInitialSubtitleTrackId(),
+          savedVideo.network_user_agent)
+      } catch (error) {
+        this.handleLoadFailure(`${modeName}重新加载失败: ${error}`)
+        return
+      }
+      this.applySubtitleStyle()
 
     } else {
       this.transitionTo(MpvPlayerState.IDLE)
@@ -2114,6 +2282,8 @@ export class MpvController implements PlayerControllerInterface {
 
   // 清理MPV实例
   private cleanupMpvInstance() {
+    this.cancelSmartRotationTimer()
+    this.pendingCompletionRequestId = 0
     // 先发布空 generation，让 VO 放弃旧 EGLSurface，再销毁 mpv/ArkUI Surface。
     this.clearOsdSurfaceBinding()
     if (this.mpvHandle) {
@@ -2135,6 +2305,7 @@ export class MpvController implements PlayerControllerInterface {
     this.videoSizeCallbackRegistered = false
     this.surfaceModeErrorCallbackRegistered = false
     this.bufferingStateCallbackRegistered = false
+    this.mediaLoadCallbackRegistered = false
     this.networkStateCallbackRegistered = false
     this.networkPlaybackActive = false
     this.networkSpeedText = '0 KB/s'
@@ -2150,6 +2321,7 @@ export class MpvController implements PlayerControllerInterface {
     this.unregisterNativeCallback(() => mpvUnregisterVideoSizeChangedCallback(), 'videoSizeChanged')
     this.unregisterNativeCallback(() => mpvUnregisterSurfaceModeErrorCallback(), 'surfaceModeError')
     this.unregisterNativeCallback(() => mpvUnregisterBufferingStateCallback(), 'bufferingState')
+    this.unregisterNativeCallback(() => mpvUnregisterMediaLoadCallback(), 'mediaLoad')
     this.unregisterNativeCallback(() => mpvUnregisterNetworkStateCallback(), 'networkState')
     this.unregisterNativeCallback(() => mpvUnregisterPauseStateCallback(), 'pauseState')
     this.playbackCallbackRegistered = false
@@ -2157,6 +2329,7 @@ export class MpvController implements PlayerControllerInterface {
     this.videoSizeCallbackRegistered = false
     this.surfaceModeErrorCallbackRegistered = false
     this.bufferingStateCallbackRegistered = false
+    this.mediaLoadCallbackRegistered = false
     this.networkStateCallbackRegistered = false
   }
 
@@ -2247,6 +2420,11 @@ export class MpvController implements PlayerControllerInterface {
         `[MpvController] ${verification.modeName} network stream made no progress; ` +
           'keeping software playback active and deferring final failure detection to MPV', false)
       this.cancelDecodingModeVerification()
+      if (!this.engineAdapter.isMediaLoaded()) {
+        this.initialPlaying = verification.savedPlaying
+        this.transitionTo(MpvPlayerState.LOADING)
+        return
+      }
       if (verification.savedPlaying) {
         this.play()
       } else {
@@ -2265,7 +2443,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   private finishDecodingModeVerification(verification: DecodingModeVerification): void {
-    if (verification.token !== this.decodingModeVerifyToken) {
+    if (verification.token !== this.decodingModeVerifyToken || !this.engineAdapter.isMediaLoaded()) {
       return
     }
     this.cancelDecodingModeVerification()
