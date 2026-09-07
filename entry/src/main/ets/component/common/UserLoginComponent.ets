@@ -11,6 +11,7 @@ import { SafeHeight } from '../../utils/ObservedUtil';
 import SelectFileUtil from '../../utils/SelectFileUtil';
 import { FunctionalButton, functionalButtonComponentManager } from '@kit.ScenarioFusionKit';
 import { curves } from '@kit.ArkUI';
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit';
 
 @Builder
 export function userLoginBuilder(onNavigateToVip: () => void) {
@@ -34,8 +35,11 @@ export let userData: UserInfoData = new UserInfoData()
 @ComponentV2
 struct userLoginComponent {
   userData: UserInfoData = userData
-  @Local button_gradient_state: hdsEffect.PressShadowType = hdsEffect.PressShadowType.NONE
-  @Local button_Light_state: hdsEffect.PointLightSourceType = HdsGL.sourceTypes[0]
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] }) @Local button_gradient_state: hdsEffect.PressShadowType =
+    hdsEffect.PressShadowType.NONE
+  @SuppressWarnings(
+    { rules: [SuppressWarningsType.SYSCAP] }) @Local button_Light_state: hdsEffect.PointLightSourceType =
+    HdsGL.sourceTypes[0]
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   controller: loginComponentManager.LoginWithHuaweiIDButtonController =
     new loginComponentManager.LoginWithHuaweiIDButtonController()
@@ -66,6 +70,7 @@ struct userLoginComponent {
   @Event onNavigateToVip: () => void = () => {
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   build() {
     if (this.userData.isLogin) {
       Column({ space: 15 }) {

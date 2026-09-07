@@ -221,21 +221,21 @@ export default class ToolsUtil {
   // 点击视频跳转到播放器
   static async routerWhere(pathStack: NavPathStack, item: VideoMetadata, list: VideoMetadata[],
     reverse: boolean = false, skipHistory: boolean = false): Promise<void> {
-    const uri = VideoOperateUtil.resolvePlayerType(item, reverse)
     DataSyncUtil.lastPlayVideoIndex = list.findIndex(i => i.date === item?.date)
     WindowUtil.setBarColor('#FFFFFF')
     const findResult = Preferences.findVideoByDate(PathUtils.appContext!, item.date)
     const latestItem = findResult[0] ?? item
     const folder_date = findResult[2]
+    const playerType = VideoOperateUtil.resolvePlayerType(latestItem, reverse)
     if (Setting.shortVideoMode && !reverse) {
       const latestList = list.map(video => video.date === latestItem.date ? latestItem : video)
       const initialIndex = Math.max(0, latestList.findIndex(video => video.date === latestItem.date))
-      pathStack.pushPathByName(NavigationAddress.SHORT_VIDEO,
-        new ShortVideoParams(latestList, initialIndex, skipHistory), true)
+      const shortVideoParams = new ShortVideoParams(latestList, initialIndex, skipHistory)
+      pathStack.pushPathByName(NavigationAddress.SHORT_VIDEO, shortVideoParams, true)
       return
     }
     const metadata_list = folder_date ? undefined : list
-    const playerParams = new PlayerParams(latestItem, metadata_list, undefined, skipHistory, uri, folder_date)
+    const playerParams = new PlayerParams(latestItem, metadata_list, undefined, skipHistory, playerType, folder_date)
     pathStack.pushPathByName(NavigationAddress.VIDEO_PLAYER, playerParams, true)
   }
 
@@ -247,8 +247,8 @@ export default class ToolsUtil {
     const latestList = list.map(video => video.date === latestItem.date ? latestItem : video)
     const initialIndex = Math.max(0, latestList.findIndex(video => video.date === latestItem.date))
     WindowUtil.setBarColor('#FFFFFF')
-    pathStack.pushPathByName(NavigationAddress.SHORT_VIDEO,
-      new ShortVideoParams(latestList, initialIndex, skipHistory), true)
+    const shortVideoParams = new ShortVideoParams(latestList, initialIndex, skipHistory)
+    pathStack.pushPathByName(NavigationAddress.SHORT_VIDEO, shortVideoParams, true)
   }
 
   // 获取版本号

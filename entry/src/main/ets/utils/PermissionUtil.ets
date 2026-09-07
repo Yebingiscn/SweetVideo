@@ -63,10 +63,23 @@ export default class PermissionUtil {
   }
 
   static applyStopContinuousTask() {
-    if (Setting.allowBackgroundPlay) { //若发生错误跳转兜底播放器，确保提前关闭申请防止两个播放器重复申请导致失败
-      AVSessionUtil.destroySession()
-      PermissionUtil.stopContinuousTask()
+    AVSessionUtil.destroySession()
+    // 停止时不能再读取当前开关值：播放期间关闭开关后，旧的连续任务仍然需要释放。
+    PermissionUtil.stopContinuousTask()
+  }
+
+  static handleBackgroundPlaySettingChanged(enabled: boolean): void {
+    AVSessionUtil.updateBackgroundPlayMode(enabled).catch((error: Error) => {
+      salmonLogger.addLog(TAG, `update background play mode failed: ${error.message}`, true)
+    })
+    if (enabled) {
+      // 仅在已有播放会话时补申请，避免单纯在设置页打开开关就创建后台任务。
+      if (AVSessionUtil.avSession) {
+        PermissionUtil.startContinuousTask()
+      }
+      return
     }
+    PermissionUtil.stopContinuousTask()
   }
 
   static async startContinuousTask() {

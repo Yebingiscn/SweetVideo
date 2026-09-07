@@ -32,12 +32,15 @@ export struct AudioTrackComponent {
     PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
   @Event onSelect: (_index: number) => void = () => {
   }
+  @Event onAudioEffects: () => void = () => {
+  }
 
   isCurrentTrackStereo(): boolean {
     if (this.player instanceof MpvController) {
       const selectedIdx = this.player.audioTrackSelected
-      if (selectedIdx >= 0 && selectedIdx < this.player.audioTrack.length) {
-        return this.player.audioTrack[selectedIdx].channels === 2
+      const audioTracks = this.player.audioTrack
+      if (selectedIdx >= 0 && selectedIdx < audioTracks.length) {
+        return audioTracks[selectedIdx].channels === 2
       }
     }
     return false
@@ -152,12 +155,6 @@ export struct AudioTrackComponent {
     return AUDIO_TYPE.NONE
   }
 
-  private isDolbyAudioCodec(codec: string): boolean {
-    return codec.includes('truehd') || codec.includes('mlp') ||
-      codec.includes('eac3') || codec.includes('e-ac-3') || codec.includes('ec-3') ||
-      codec === 'ac3' || codec.includes('ac3_') || codec.includes('ac-3')
-  }
-
   // 获取唯一键
   getKey(item: TrackType): string {
     if (this.isAudioTrack(item)) {
@@ -185,11 +182,37 @@ export struct AudioTrackComponent {
                 $r('app.color.text_color'))
 
             if (this.getTrackAudioType(repeatItem.item) === AUDIO_TYPE.AUDIO_VIVID) {
-              GradientTagBuilder({ symbol: $r('sys.symbol.hdr'), label: 'AUDIO Vivid', height: 22, paddingH: 5, marginLeft: 0, marginRight: 0, marginBottom: 0 })
+              GradientTagBuilder({
+                symbol: $r('sys.symbol.hdr'),
+                label: 'AUDIO Vivid',
+                height: 22,
+                paddingH: 5,
+                marginLeft: 0,
+                marginRight: 0,
+                marginBottom: 0
+              })
             } else if (this.getTrackAudioType(repeatItem.item) === AUDIO_TYPE.DOLBY_AUDIO) {
-              SolidColorTagBuilder({ symbol: $r('sys.symbol.dolby_fill'), label: 'DOLBY AUDIO', symbolSize: 16, height: 22, paddingH: 5, marginLeft: 0, marginRight: 0, marginBottom: 0 })
+              SolidColorTagBuilder({
+                symbol: $r('sys.symbol.dolby_fill'),
+                label: 'DOLBY AUDIO',
+                symbolSize: 16,
+                height: 22,
+                paddingH: 5,
+                marginLeft: 0,
+                marginRight: 0,
+                marginBottom: 0
+              })
             } else if (this.getTrackAudioType(repeatItem.item) === AUDIO_TYPE.DTS) {
-              SolidColorTagBuilder({ symbol: $r('sys.symbol.dts_circle'), label: 'DTS', bgColor: '#dd403d', height: 22, paddingH: 5, marginLeft: 0, marginRight: 0, marginBottom: 0 })
+              SolidColorTagBuilder({
+                symbol: $r('sys.symbol.dts_circle'),
+                label: 'DTS',
+                bgColor: '#dd403d',
+                height: 22,
+                paddingH: 5,
+                marginLeft: 0,
+                marginRight: 0,
+                marginBottom: 0
+              })
             }
           }
           .padding({
@@ -217,6 +240,7 @@ export struct AudioTrackComponent {
           }
         }).padding({ top: 8 })
       }
+
       Row() {
         Text('响度')
           .fontSize(16)
@@ -259,9 +283,42 @@ export struct AudioTrackComponent {
         bottom: 4
       })
       .width('100%')
+
+      Button({ type: ButtonType.Normal, stateEffect: true }) {
+        Row({ space: 8 }) {
+          SymbolGlyph($r('sys.symbol.rays'))
+            .fontSize(18)
+            .fontColor([$r('app.color.text_color')])
+          Text('声音效果')
+            .fontSize(16)
+            .fontColor($r('app.color.text_color'))
+          Text('试用')
+            .fontSize(12)
+            .fontColor(Color.White)
+            .backgroundColor($r('app.color.main_color'))
+            .borderRadius(6)
+            .padding({
+              left: 4,
+              right: 4,
+              top: 1,
+              bottom: 1
+            })
+        }
+        .width('100%')
+      }
+      .attributeModifier(new ButtonFancyModifier('100%', 40))
+      .padding({ left: 20, right: 10 })
+      .onClick(() => this.onAudioEffects())
+      .backgroundColor(Color.Transparent)
     }
     .width(235)
     .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
+  }
+
+  private isDolbyAudioCodec(codec: string): boolean {
+    return codec.includes('truehd') || codec.includes('mlp') ||
+      codec.includes('eac3') || codec.includes('e-ac-3') || codec.includes('ec-3') ||
+      codec === 'ac3' || codec.includes('ac3_') || codec.includes('ac-3')
   }
 }

@@ -1,3 +1,5 @@
+import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
+
 @CustomDialog
 export struct NumberInputDialog {
   confirm?: (name: number) => void
@@ -40,11 +42,8 @@ export struct NumberInputDialog {
               .fontSize(16)
               .fontColor([$r('app.color.text_color')])
           }
-          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          .borderRadius(16)
-          .width(36)
-          .height(36)
+          .attributeModifier(new ButtonFancyModifier('', 36))
           .onClick(() => this.controller?.close())
 
           Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -52,11 +51,8 @@ export struct NumberInputDialog {
               .fontSize(16)
               .fontColor([$r('app.color.text_color')])
           }
-          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+          .attributeModifier(new ButtonFancyModifier('', 36))
           .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          .borderRadius(16)
-          .width(36)
-          .height(36)
           .onClick(() => {
             this.controller?.close()
             if (this.confirm) {

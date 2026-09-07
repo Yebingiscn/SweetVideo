@@ -8,6 +8,7 @@ export struct AISubtitleComponent {
   @Prop isAIAsrShown: boolean
   @Prop showControl: boolean = false
   @Prop screenHeight: number = 0
+  @Prop screenWidth: number = 0
   private captionOption?: AICaptionOptions
   private controller: AICaptionController = new AICaptionController()
 
@@ -29,8 +30,7 @@ export struct AISubtitleComponent {
     if (this.isAIAsrShown) {
       if (canIUse('SystemCapability.AI.AICaption')) {
         Column() {
-          // TODO: AICaptionComponent 内部使用 @Link，V2 组件暂无法直接调用。
-          // 等待 HarmonyOS SDK 更新支持后恢复以下代码：
+          // AICaptionComponent 内部使用 @Link，V2 组件暂无法直接调用。
           AICaptionComponent({
             isShown: this.isAIAsrShown,
             controller: this.controller,
@@ -44,7 +44,8 @@ export struct AISubtitleComponent {
         .height(80)
         .offset({
           x: 0,
-          y: this.showControl ? this.screenHeight / 2 - 150 :
+          y: this.showControl ?
+            (this.screenWidth > this.screenHeight ? this.screenHeight / 2 - 180 : this.screenHeight / 2 - 220) :
             this.screenHeight / 2 - 40
         })
       }

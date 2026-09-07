@@ -40,7 +40,14 @@ export function VideoInfoBuilder(params: VideoInfoBuilderParams) {
         SolidColorTagBuilder({ symbol: $r('sys.symbol.dts_circle'), label: 'DTS', bgColor: '#dd403d' })
       }
 
-      if (!params.item?.hdr_type && !params.item?.audio_type) {
+      if (!VideoInfoUtil.hasVideoTrack(params.item)) {
+        SolidColorTagBuilder({
+          label: VideoInfoUtil.getAudioQualityLabel(params.item),
+          textColor: $r('sys.color.black'),
+          bgColor: '#de9e44',
+          opacity: 0.9
+        })
+      } else if (!params.item?.hdr_type && !params.item?.audio_type) {
         if (VideoInfoUtil.videoWidthAndHeightFormat(
           VideoInfoUtil.getDisplayResolution(params.item).toString()).includes('HD')) {
           SolidColorTagBuilder({

@@ -35,6 +35,8 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import VideoUtils from '../../utils/VideoUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { CapsuleSegmentButtonV2, ColorMetrics, SegmentButtonV2ItemOptions, SegmentButtonV2Items } from '@kit.ArkUI'
+import { IMenuItem } from '../../interfaces/IMenuItemInterface'
+import { deviceInfo } from '@kit.BasicServicesKit'
 
 @ComponentV2
 export struct SideBarContentComponent {
@@ -265,47 +267,11 @@ export struct SideBarContentComponent {
 
   @Builder
   SelectFileMenuBuilder() {
-    FolderSelectMenuBuilder([
-      {
-        icon: $r("sys.symbol.resolution_video"),
-        content: $r('app.string.import_from_videos'),
-        onAction: async () => {
-          this.sideBarController.closeIfOverlay(false)
-          await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "video"),
-            this.videoListController.folder)
-        },
-      },
-      {
-        icon: $r('sys.symbol.folder_badge_eye'),
-        content: `从下载文件夹导入（路径：Download/${ToolsUtil.getStringResource($r('app.string.EntryAbility_label')
-          .id)}）`,
-        onAction: async () => {
-          this.sideBarController.closeIfOverlay(false)
-          await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), undefined)
-        },
-      },
-      {
-        icon: $r('sys.symbol.picture_2'),
-        content: $r('app.string.import_from_album'),
-        onAction: async () => {
-          this.sideBarController.closeIfOverlay(false)
-          await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "album"),
-            this.videoListController.folder)
-        },
-      },
-      {
-        icon: $r('sys.symbol.music'),
-        content: $r('app.string.import_from_music'),
-        onAction: async () => {
-          this.sideBarController.closeIfOverlay(false)
-          await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "audio"),
-            this.videoListController.folder)
-        },
-      },
-    ])
+    FolderSelectMenuBuilder(this.getSelectFileMenus())
   }
 
-  async toMetaData(fileList: string[], fileFolder?: FileFolder) {
+  async toMetaData(fileList: string[], fileFolder?: FileFolder,
+    importRootUri?: string, importRootFolderName?: string) {
     await importAndProcessFiles(
       fileList,
       this.videoListController.videoDataSource?.getAllData() ?? [],
@@ -333,7 +299,9 @@ export struct SideBarContentComponent {
         }
         const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, targetFolder)
         this.fileFolderListChange(updatedFolders)
-      }
+      },
+      importRootUri,
+      importRootFolderName
     )
   }
 
@@ -705,6 +673,26 @@ export struct SideBarContentComponent {
               this.pathStack.pushPathByName(NavigationAddress.IPTV_SOURCE_PAGE, null)
             })
 
+            Button({ type: ButtonType.Normal, stateEffect: true }) {
+              Row() {
+                SymbolGlyph($r('sys.symbol.cloud'))
+                  .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                Text('华为云盘')
+                  .fontSize(15)
+                  .margin({ left: 10, right: 12 })
+                  .textOverflow({ overflow: TextOverflow.MARQUEE })
+              }
+            }
+            .align(Alignment.Start)
+            .padding({ left: 16, right: 16 })
+            .attributeModifier(new ButtonFancyModifier('100%', 60))
+            .backgroundColor(Color.Transparent)
+            .animation({ duration: 300, curve: Curve.Ease })
+            .onClick(() => {
+              this.sideBarController.closeIfOverlay(false)
+              this.pathStack.pushPathByName(NavigationAddress.HUAWEI_DRIVE_PAGE, null)
+            })
+
           }
           .backgroundColor($r('app.color.list_item_background'))
           .width('100%')
@@ -740,6 +728,87 @@ export struct SideBarContentComponent {
       .animation(XAnimation.getAnimationCurve()))
     .visibility(this.sideBarController.visibility)
     .borderRadius(this.sideBarController.mode === SideBarContainerType.Overlay ? 16 : 0)
+  }
+
+  private getSelectFileMenus(): IMenuItem[] {
+    const menus: IMenuItem[] = [
+      {
+        icon: $r("sys.symbol.resolution_video"),
+        content: $r('app.string.import_from_videos'),
+        onAction: async () => {
+          this.sideBarController.closeIfOverlay(false)
+          await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "video"),
+            this.videoListController.folder)
+        },
+      },
+      {
+        icon: $r('sys.symbol.folder_badge_eye'),
+        content: `从下载文件夹导入（路径：Download/${ToolsUtil.getStringResource($r('app.string.EntryAbility_label')
+          .id)}）`,
+        onAction: async () => {
+          this.sideBarController.closeIfOverlay(false)
+          await this.toMetaData(await SelectFileUtil.getDownloadFilesUri(), undefined)
+        },
+      },
+      {
+        icon: $r('sys.symbol.picture_2'),
+        content: $r('app.string.import_from_album'),
+        onAction: async () => {
+          this.sideBarController.closeIfOverlay(false)
+          await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "album"),
+            this.videoListController.folder)
+        },
+      },
+      {
+        icon: $r('sys.symbol.music'),
+        content: $r('app.string.import_from_music'),
+        onAction: async () => {
+          this.sideBarController.closeIfOverlay(false)
+          await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "audio"),
+            this.videoListController.folder)
+        },
+      },
+    ]
+    if (deviceInfo.apiAvailable('26.0.0')) {
+      menus.push({
+        icon: $r('sys.symbol.folder'),
+        content: '从文件夹导入',
+        onAction: async () => {
+          this.sideBarController.closeIfOverlay(false)
+          await this.importMediaFolders()
+        },
+      })
+    }
+    return menus
+  }
+
+  private async importMediaFolders(): Promise<void> {
+    if (deviceInfo.apiAvailable('26.0.0')) {
+      const imports = await SelectFileUtil.selectMediaFolders()
+      if (imports.length === 0) {
+        return
+      }
+      let emptyFolderCount = 0
+      for (const folderImport of imports) {
+        if (folderImport.files.length === 0) {
+          emptyFolderCount++
+          continue
+        }
+        const folderName = folderImport.name === '首页' ? '首页（导入）' : folderImport.name
+        await this.toMetaData(folderImport.files, undefined, folderImport.uri, folderName)
+      }
+      const currentFolderDate = this.videoListController.folder?.date
+      const latestFolders = Preferences.getFileFolder(PathUtils.appContext!)
+      const currentFolder =
+        latestFolders.find((folder: FileFolder) => folder.date === currentFolderDate) ?? latestFolders[0]
+      const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, currentFolder)
+      this.fileFolderListChange(updatedFolders)
+      if (emptyFolderCount === imports.length) {
+        ToolsUtil.showToast('所选文件夹中没有可导入的视频或音频')
+      }
+    } else {
+      ToolsUtil.showToast('设备不支持')
+    }
   }
 
   private recomputeExpandedFolderDates() {

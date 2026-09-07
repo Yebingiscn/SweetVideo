@@ -35,22 +35,26 @@ import VideoOperateUtil from '../utils/VideoOperateUtil'
 import VideoUtils from '../utils/VideoUtil'
 import WantProcessUtil from '../utils/WantProcessUtil'
 import { WindowUtil } from '../utils/WindowUtil'
-import { PrivacySpace } from './PrivacySpace/PrivacySpace'
-import { PrivacySpaceErrorList } from './PrivacySpace/PrivacySpaceErrorList'
-import { RecentPlay } from './RecentPlay'
-import { AboutApp } from './SettingPage/AboutApp'
-import { GetVipPage } from './SettingPage/GetVipPage'
-import { CrashPage } from './SettingPage/CrashPage'
-import { MoreSettingPage } from './SettingPage/MoreSettingPage'
-import { PersonalizePage } from './SettingPage/PersonalizePage'
-import { PlayerSettingPage } from './SettingPage/PlayerSettingPage'
-import { SubtitleSettingPage } from './SettingPage/SubtitleSettingPage'
-import { SettingsPage } from './SettingPage/Setting'
-import { VideoPlayer } from './VideoPlayer/VideoPlayer'
-import { ShortVideoPage } from './ShortVideo/ShortVideoPage'
-import { StreamPage } from './StreamPage/StreamPage'
-import { IPTVSourcePage } from './IPTV/IPTVSourcePage'
-import { IPTVChannelPage } from './IPTV/IPTVChannelPage'
+import lazy { PrivacySpace } from './PrivacySpace/PrivacySpace'
+import lazy { PrivacySpaceErrorList } from './PrivacySpace/PrivacySpaceErrorList'
+import lazy { RecentPlay } from './RecentPlay'
+import lazy { AboutApp } from './SettingPage/AboutApp'
+import lazy { GetVipPage } from './SettingPage/GetVipPage'
+import lazy { CrashPage } from './SettingPage/CrashPage'
+import lazy { MoreSettingPage } from './SettingPage/MoreSettingPage'
+import lazy { PersonalizePage } from './SettingPage/PersonalizePage'
+import lazy { PlayerSettingPage } from './SettingPage/PlayerSettingPage'
+import lazy { SubtitleSettingPage } from './SettingPage/SubtitleSettingPage'
+import lazy { SettingsPage } from './SettingPage/Setting'
+import lazy { VideoPlayer } from './VideoPlayer/VideoPlayer'
+import lazy { ShortVideoPage } from './ShortVideo/ShortVideoPage'
+import lazy { StreamPage } from './StreamPage/StreamPage'
+import lazy { IPTVSourcePage } from './IPTV/IPTVSourcePage'
+import lazy { IPTVChannelPage } from './IPTV/IPTVChannelPage'
+import lazy { HuaweiDrivePage } from './HuaweiDrive/HuaweiDrivePage'
+import lazy { HarmonyFeaturePage } from './SettingPage/HarmonyFeaturePage'
+import lazy { PersonalizeSettingPage } from './SettingPage/PersonalizeSettingPage'
+import lazy { EngineSettingPage } from './SettingPage/EngineSettingPage'
 import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData'
 import { LengthMetrics } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavigation, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
@@ -60,6 +64,7 @@ import KnockShareUtil, {
   KnockReceivePayload
 } from '../utils/KnockShareUtil'
 import KnockReceiveStorage from '../utils/KnockReceiveStorage'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
 const TAG = 'Index'
 
@@ -190,6 +195,7 @@ struct Index {
   }
 
   private activateKnockShareProvider(): void {
+
     KnockShareUtil.setShareProvider(KNOCK_SHARE_INDEX_OWNER,
       (_coordinate: KnockCoordinate | undefined): VideoMetadata[] => {
         return DataSyncUtil.delMultipleList.length > 0 ? [...DataSyncUtil.delMultipleList] : []
@@ -280,6 +286,7 @@ struct Index {
     this.file_folder_list = VideoUtils.refresh(this.videoListController, this.fileFolderSource, latestTarget)
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   build() {
     HdsNavigation(this.pathStack) {
       SideBarContainer(this.sideBarController.mode) {
@@ -586,6 +593,14 @@ struct Index {
       IPTVSourcePage()
     } else if (name == NavigationAddress.IPTV_CHANNEL_PAGE) {
       IPTVChannelPage()
+    } else if (name == NavigationAddress.HUAWEI_DRIVE_PAGE) {
+      HuaweiDrivePage()
+    } else if (name == NavigationAddress.HARMONY_FEATURE_PAGE) {
+      HarmonyFeaturePage()
+    } else if (name == NavigationAddress.PERSONALIZE_SETTING_PAGE) {
+      PersonalizeSettingPage()
+    } else if (name == NavigationAddress.ENGINE_SETTING_PAGE) {
+      EngineSettingPage()
     }
   }
 

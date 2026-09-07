@@ -2,6 +2,7 @@ import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import { DeletedVideosDataSource } from '../../utils/DataUtil'
 import { DIALOG_TITLE_FONT_SIZE } from '../../common/Constants'
+import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 
 @CustomDialog
 export struct DeletedVideosDialog {
@@ -53,11 +54,8 @@ export struct DeletedVideosDialog {
           .fontSize(18)
           .fontColor($r('app.color.text_color'))
       }
-      .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+      .attributeModifier(new ButtonFancyModifier(120, 50))
       .backgroundColor($r('sys.color.button_background_color_transparent'))
-      .borderRadius(16)
-      .height(50)
-      .width(120)
       .onClick(() => {
         this.controller?.close()
       })

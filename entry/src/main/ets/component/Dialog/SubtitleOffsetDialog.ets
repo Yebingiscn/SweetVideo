@@ -1,3 +1,5 @@
+import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
+
 @CustomDialog
 export struct SubtitleOffsetDialog {
   confirm?: (value: number) => void
@@ -63,11 +65,8 @@ export struct SubtitleOffsetDialog {
               .fontSize(16)
               .fontColor([$r('app.color.text_color')])
           }
-          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+          .attributeModifier(new ButtonFancyModifier(36, 36))
           .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          .borderRadius(16)
-          .width(36)
-          .height(36)
           .onClick(() => {
             if (this.onCloseButton) {
               this.onCloseButton()
@@ -81,11 +80,8 @@ export struct SubtitleOffsetDialog {
               .fontSize(16)
               .fontColor([$r('app.color.text_color')])
           }
-          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+          .attributeModifier(new ButtonFancyModifier(36, 36))
           .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          .borderRadius(16)
-          .width(36)
-          .height(36)
           .onClick(() => {
             this.confirm?.(this.getParsedValue())
           })
@@ -97,12 +93,11 @@ export struct SubtitleOffsetDialog {
 
       Row({ space: 4 }) {
         Button('-1000')
+          .attributeModifier(new ButtonFancyModifier('', 36))
           .fontSize(this.quickBtnFontSize)
           .fontColor($r('app.color.text_color'))
-          .height(32)
           .layoutWeight(1)
           .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          .borderRadius(12)
           .padding({ left: 2, right: 2 })
           .onClick(() => {
             this.stepBy(-1000)
@@ -110,11 +105,10 @@ export struct SubtitleOffsetDialog {
 
         Button('-100')
           .fontSize(this.quickBtnFontSize)
+          .attributeModifier(new ButtonFancyModifier('', 36))
           .fontColor($r('app.color.text_color'))
-          .height(32)
           .layoutWeight(1)
           .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          .borderRadius(12)
           .padding({ left: 2, right: 2 })
           .onClick(() => {
             this.stepBy(-100)
@@ -123,10 +117,9 @@ export struct SubtitleOffsetDialog {
         Button('重置')
           .fontSize(this.quickBtnFontSize)
           .fontColor($r('app.color.text_color'))
-          .height(32)
+          .attributeModifier(new ButtonFancyModifier('', 36))
           .layoutWeight(1)
           .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          .borderRadius(12)
           .padding({ left: 2, right: 2 })
           .onClick(() => {
             this.resetValue()
@@ -135,10 +128,9 @@ export struct SubtitleOffsetDialog {
         Button('+100')
           .fontSize(this.quickBtnFontSize)
           .fontColor($r('app.color.text_color'))
-          .height(32)
           .layoutWeight(1)
           .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          .borderRadius(12)
+          .attributeModifier(new ButtonFancyModifier('', 36))
           .padding({ left: 2, right: 2 })
           .onClick(() => {
             this.stepBy(100)
@@ -147,10 +139,9 @@ export struct SubtitleOffsetDialog {
         Button('+1000')
           .fontSize(this.quickBtnFontSize)
           .fontColor($r('app.color.text_color'))
-          .height(32)
           .layoutWeight(1)
           .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-          .borderRadius(12)
+          .attributeModifier(new ButtonFancyModifier('', 36))
           .padding({ left: 2, right: 2 })
           .onClick(() => {
             this.stepBy(1000)
@@ -163,10 +154,9 @@ export struct SubtitleOffsetDialog {
           Button('上一条字幕')
             .fontSize(this.quickBtnFontSize)
             .fontColor($r('app.color.text_color'))
-            .height(32)
             .layoutWeight(1)
             .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-            .borderRadius(12)
+            .attributeModifier(new ButtonFancyModifier('', 36))
             .padding({ left: 2, right: 2 })
             .onClick(() => {
               this.moveToPrevSubtitle()
@@ -175,10 +165,9 @@ export struct SubtitleOffsetDialog {
           Button('下一条字幕')
             .fontSize(this.quickBtnFontSize)
             .fontColor($r('app.color.text_color'))
-            .height(32)
+            .attributeModifier(new ButtonFancyModifier('', 36))
             .layoutWeight(1)
             .backgroundColor($r('sys.color.titlebar_icon_background_color'))
-            .borderRadius(12)
             .padding({ left: 2, right: 2 })
             .onClick(() => {
               this.moveToNextSubtitle()

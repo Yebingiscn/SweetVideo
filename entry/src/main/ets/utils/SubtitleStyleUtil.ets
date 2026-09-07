@@ -5,6 +5,7 @@ import { PathUtils } from './PathUtils'
 import {
   isInitialized as mpvIsInitialized, setSubtitleStyle as mpvSetSubtitleStyle
 } from 'libmpvnative.so'
+import { WindowUtil } from './WindowUtil'
 
 export default class SubtitleStyleUtil {
   static getSubtitleBottomMargin(areaHeight: number, position: number): number {
@@ -52,12 +53,22 @@ export default class SubtitleStyleUtil {
   static getMpvFontSize(arkUiFontSize: number, playAreaHeight?: number): number {
     const fallbackHeight = AppStorage.get<number>('screen_height') ?? 360
     const areaHeight = playAreaHeight && playAreaHeight > 0 ? playAreaHeight : fallbackHeight
-    const areaHeightPx = vp2px(areaHeight)
-    if (areaHeightPx <= 0) {
+    try {
+      const uiContext = WindowUtil.windowClass?.getUIContext()
+      if (uiContext) {
+        const areaHeightPx = uiContext.vp2px(areaHeight)
+        if (areaHeightPx > 0) {
+          const arkUiFontSizePx = uiContext.fp2px(arkUiFontSize)
+          return Math.max(10, Math.min(200, Math.round(arkUiFontSizePx * 720 / areaHeightPx * 1.2)))
+        }
+      }
+    } catch (_error) {
+      // 窗口销毁或尚未初始化时使用与旧逻辑接近的安全字号。
+    }
+    if (areaHeight <= 0) {
       return Math.max(10, Math.min(200, Math.round(arkUiFontSize * 2)))
     }
-    const arkUiFontSizePx = fp2px(arkUiFontSize)
-    return Math.max(10, Math.min(200, Math.round(arkUiFontSizePx * 720 / areaHeightPx * 1.2)))
+    return Math.max(10, Math.min(200, Math.round(arkUiFontSize * 720 / areaHeight * 1.2)))
   }
 
   static reset(): void {

@@ -25,6 +25,8 @@ export default class AVSessionUtil {
   static pixelMap: image.PixelMap | undefined
   static imageSource: image.ImageSource | undefined
   static isOutputDeviceListenerRegistered: boolean = false
+  private static sessionCreationTask: Promise<avSessionManager.AVSession | undefined> | undefined = undefined
+  private static sessionVersion: number = 0
   static playbackSpeed: number = 1
   static repeatModeMapping: Map<SweetRepeatMode, avSession.LoopMode> = new Map([
     [SweetRepeatMode.LIST, avSession.LoopMode.LOOP_MODE_LIST],
@@ -48,9 +50,16 @@ export default class AVSessionUtil {
     return SweetRepeatMode.LIST
   }
 
-  static async getAVSession() {
+  static async getAVSession(): Promise<avSessionManager.AVSession | undefined> {
     if (!AVSessionUtil.avSession) {
-      await AVSessionUtil.createSession()
+      if (!AVSessionUtil.sessionCreationTask) {
+        AVSessionUtil.sessionCreationTask = AVSessionUtil.createSession()
+      }
+      try {
+        await AVSessionUtil.sessionCreationTask
+      } finally {
+        AVSessionUtil.sessionCreationTask = undefined
+      }
     }
     return AVSessionUtil.avSession
   }
@@ -82,17 +91,18 @@ export default class AVSessionUtil {
   // 更新播控中心状态
   static updatePlaybackSessionState(playing: boolean, playTime: number,
     repeatMode?: SweetRepeatMode, speed?: number) {
-    if (Setting.allowBackgroundPlay) {
-      if (speed !== undefined && speed > 0) {
-        AVSessionUtil.playbackSpeed = speed
-      }
-      let data: AvSessionState = {
-        playing: playing,
-        duration: Math.max(0, playTime),
-        speed: AVSessionUtil.playbackSpeed,
-      }
-      AVSessionUtil.updateSession(data, repeatMode)
+    if (!AVSessionUtil.avSession) {
+      return
     }
+    if (speed !== undefined && speed > 0) {
+      AVSessionUtil.playbackSpeed = speed
+    }
+    let data: AvSessionState = {
+      playing: playing,
+      duration: Math.max(0, playTime),
+      speed: AVSessionUtil.playbackSpeed,
+    }
+    AVSessionUtil.updateSession(data, repeatMode)
   }
 
   static castOnStateChange(state: AVCastPickerState) {
@@ -103,19 +113,53 @@ export default class AVSessionUtil {
     }
   }
 
-  static async createSession() {
-    let type: avSessionManager.AVSessionType = 'video'
+  static async updateBackgroundPlayMode(enabled: boolean): Promise<void> {
+    const session = AVSessionUtil.avSession
+    if (!session) {
+      return
+    }
+    const backgroundMode = enabled ?
+      avSession.BackgroundPlayMode.ENABLE_BACKGROUND_PLAY :
+      avSession.BackgroundPlayMode.DISABLE_BACKGROUND_PLAY
     try {
-      AVSessionUtil.avSession = await avSessionManager.createAVSession(PathUtils.appContext!, 'sweet_video', type)
-      AVSessionUtil.avSession?.setBackgroundPlayMode(avSession.BackgroundPlayMode.ENABLE_BACKGROUND_PLAY).catch(
-        () => {
-          salmonLogger.addLog(TAG, 'setBackgroundPlayMode error', true)
-        })
-      AVSessionUtil.avSession.activate()?.catch(() => {
-        salmonLogger.addLog(TAG, 'activate avSession error', true)
-      })
+      await session.setBackgroundPlayMode(backgroundMode)
+      salmonLogger.addLog(TAG, `AVSession background mode updated: ${backgroundMode}`, false)
+    } catch (error) {
+      salmonLogger.addLog(TAG, `update AVSession background mode error: ${error}`, true)
+    }
+  }
+
+  private static async createSession(): Promise<avSessionManager.AVSession | undefined> {
+    let type: avSessionManager.AVSessionType = 'video'
+    const sessionVersion = AVSessionUtil.sessionVersion
+    let session: avSessionManager.AVSession | undefined = undefined
+    try {
+      session = await avSessionManager.createAVSession(PathUtils.appContext!, 'sweet_video', type)
+      const backgroundMode = Setting.allowBackgroundPlay ?
+        avSession.BackgroundPlayMode.ENABLE_BACKGROUND_PLAY :
+        avSession.BackgroundPlayMode.DISABLE_BACKGROUND_PLAY
+      try {
+        await session.setBackgroundPlayMode(backgroundMode)
+      } catch (error) {
+        salmonLogger.addLog(TAG, `setBackgroundPlayMode error: ${error}`, true)
+      }
+      await session.activate()
+      if (sessionVersion !== AVSessionUtil.sessionVersion) {
+        await session.destroy()
+        return undefined
+      }
+      AVSessionUtil.avSession = session
+      salmonLogger.addLog(TAG, `AVSession created and activated, backgroundMode=${backgroundMode}`, false)
+      return session
     } catch (error) {
       salmonLogger.addLog(TAG, 'create session error:' + error, true)
+      if (session) {
+        try {
+          await session.destroy()
+        } catch (_destroyError) {
+        }
+      }
+      return undefined
     }
   }
 
@@ -142,6 +186,11 @@ export default class AVSessionUtil {
   }
 
   static async setSessionInfo(metadata: VideoMetadata) {
+    const session = await AVSessionUtil.getAVSession()
+    if (!session) {
+      salmonLogger.addLog(TAG, 'setSessionInfo skipped: AVSession is unavailable', true)
+      return
+    }
     AVSessionUtil.currentNowPlaying = metadata
     try {
       AVSessionUtil.imageSource = image.createImageSource(PathUtils.coverPath + metadata.date)
@@ -166,10 +215,24 @@ export default class AVSessionUtil {
       duration: metadata.time,
       filter: avSession.ProtocolType.TYPE_CAST_PLUS_STREAM | avSession.ProtocolType.TYPE_DLNA,
     }
-    AVSessionUtil.avSession?.setAVMetadata(session_metadata)?.catch(() => {
-      salmonLogger.addLog(TAG, 'setAVMetadata error', true)
-    })
-    await AVSessionUtil.getAVCastController()
+    const artist = metadata.artist?.trim()
+    if (artist) {
+      session_metadata.artist = artist
+    }
+    const album = metadata.album?.trim()
+    if (album) {
+      session_metadata.album = album
+    }
+    try {
+      await session.setAVMetadata(session_metadata)
+      salmonLogger.addLog(TAG,
+        `AVSession metadata updated: assetId=${session_metadata.assetId}, uriAvailable=${metadata.uri.length > 0}`,
+        false)
+    } catch (error) {
+      salmonLogger.addLog(TAG, `setAVMetadata error: ${error}`, true)
+      return
+    }
+    await AVSessionUtil.registerCastOutputListener(session)
   }
 
   static updateSession(avSessionState: AvSessionState, repeatMode?: SweetRepeatMode) {
@@ -191,6 +254,7 @@ export default class AVSessionUtil {
   }
 
   static destroySession() {
+    AVSessionUtil.sessionVersion++
     if (!AVSessionUtil.avSession) {
       return
     }
@@ -218,56 +282,74 @@ export default class AVSessionUtil {
     AVSessionUtil.imageSource?.release()
   }
 
-  static async getAVCastController() {
+  private static async registerCastOutputListener(session: avSessionManager.AVSession): Promise<void> {
     try {
-      await AVSessionUtil.avSession?.setExtras({
+      await session.setExtras({
         requireAbilityList: ['url-cast']
       })
       if (AVSessionUtil.isOutputDeviceListenerRegistered) {
         try {
-          AVSessionUtil.avSession?.off('outputDeviceChange')
+          session.off('outputDeviceChange')
         } catch (e) {
           salmonLogger.addLog(TAG, 'off outputDeviceChange error: ' + e, true)
         }
         AVSessionUtil.isOutputDeviceListenerRegistered = false
       }
-      AVSessionUtil.avSession?.on('outputDeviceChange', async (connectState: avSession.ConnectionState,
+      session.on('outputDeviceChange', (connectState: avSession.ConnectionState,
         device: avSession.OutputDeviceInfo) => {
-        let currentDevice: avSession.DeviceInfo = device?.devices?.[0]
-        if (currentDevice.castCategory === avSession.AVCastCategory.CATEGORY_REMOTE &&
-          connectState === avSession.ConnectionState.STATE_CONNECTED) {
-          salmonLogger.addLog(TAG, `Device connected: ${device}`)
-          salmonLogger.addLog(TAG, 'Succeeded in getting a cast controller')
-          AVSessionUtil.castController = await AVSessionUtil.avSession?.getAVCastController()
-          let avPlaybackState = await AVSessionUtil.castController?.getAVPlaybackState()
-          salmonLogger.addLog(TAG, `Succeeded in AVPlaybackState resource obtained: ${avPlaybackState}`)
-          try {
-            AVSessionUtil.castController?.off('playbackStateChange')
-          } catch (e) {
-            salmonLogger.addLog(TAG, 'off playbackStateChange error: ' + e, true)
-          }
-          AVSessionUtil.castController?.on('playbackStateChange', 'all', (state: avSession.AVPlaybackState) => {
-            salmonLogger.addLog(TAG, `Succeeded in Playback state changed: ${state}`)
-          })
-          const nowPlaying = AVSessionUtil.currentNowPlaying
-          if (!nowPlaying) {
-            salmonLogger.addLog(TAG, 'No current nowPlaying data, skip playItem', true)
-            return
-          }
-          const supportedProtocols = currentDevice.supportedProtocols ?? 0
-          if ((supportedProtocols & avSession.ProtocolType.TYPE_CAST_PLUS_STREAM) !== 0 ||
-            (supportedProtocols & avSession.ProtocolType.TYPE_DLNA) !== 0) {
-            await AVSessionUtil.playItem(nowPlaying)
-          } else {
-            salmonLogger.addLog(TAG, `Unsupported protocol: ${supportedProtocols}`, true)
-            ToolsUtil.showToast('当前设备不支持投播协议')
-          }
-        }
+        AVSessionUtil.handleOutputDeviceChange(session, connectState, device).catch((error: Error) => {
+          salmonLogger.addLog(TAG, `handle outputDeviceChange error: ${error.message}`, true)
+        })
       })
       AVSessionUtil.isOutputDeviceListenerRegistered = true
+      salmonLogger.addLog(TAG, 'Cast output device listener registered', false)
     } catch (error) {
-      salmonLogger.addLog(TAG, 'getAVCastController error' + error, true)
+      salmonLogger.addLog(TAG, 'registerCastOutputListener error: ' + error, true)
     }
+  }
+
+  private static async handleOutputDeviceChange(session: avSessionManager.AVSession,
+    connectState: avSession.ConnectionState, outputDevice: avSession.OutputDeviceInfo): Promise<void> {
+    const devices = outputDevice?.devices ?? []
+    salmonLogger.addLog(TAG, `outputDeviceChange: state=${connectState}, deviceCount=${devices.length}`, false)
+    const currentDevice = devices[0]
+    if (!currentDevice) {
+      salmonLogger.addLog(TAG, 'outputDeviceChange ignored: device list is empty', true)
+      return
+    }
+    if (connectState !== avSession.ConnectionState.STATE_CONNECTED) {
+      return
+    }
+    if (currentDevice.castCategory !== avSession.AVCastCategory.CATEGORY_REMOTE) {
+      salmonLogger.addLog(TAG,
+        `outputDeviceChange ignored: castCategory=${currentDevice.castCategory} is not remote`, false)
+      return
+    }
+    AVSessionUtil.castController = await session.getAVCastController()
+    salmonLogger.addLog(TAG, `Cast controller obtained: deviceId=${currentDevice.deviceId}`, false)
+    const avPlaybackState = await AVSessionUtil.castController.getAVPlaybackState()
+    salmonLogger.addLog(TAG, `Cast playback state obtained: state=${avPlaybackState.state}`, false)
+    try {
+      AVSessionUtil.castController.off('playbackStateChange')
+    } catch (error) {
+      salmonLogger.addLog(TAG, 'off playbackStateChange error: ' + error, true)
+    }
+    AVSessionUtil.castController.on('playbackStateChange', 'all', (state: avSession.AVPlaybackState) => {
+      salmonLogger.addLog(TAG, `Cast playback state changed: state=${state.state}`, false)
+    })
+    const nowPlaying = AVSessionUtil.currentNowPlaying
+    if (!nowPlaying) {
+      salmonLogger.addLog(TAG, 'No current nowPlaying data, skip playItem', true)
+      return
+    }
+    const supportedProtocols = currentDevice.supportedProtocols ?? 0
+    if ((supportedProtocols & avSession.ProtocolType.TYPE_CAST_PLUS_STREAM) !== 0 ||
+      (supportedProtocols & avSession.ProtocolType.TYPE_DLNA) !== 0) {
+      await AVSessionUtil.playItem(nowPlaying)
+      return
+    }
+    salmonLogger.addLog(TAG, `Unsupported protocol: ${supportedProtocols}`, true)
+    ToolsUtil.showToast('当前设备不支持投播协议')
   }
 
   static async playItem(now_playing: VideoMetadata) {
@@ -289,13 +371,13 @@ export default class AVSessionUtil {
             assetId: 'VIDEO-' + now_playing.title,
             title: now_playing.title.lastIndexOf('.') !== -1 ?
               now_playing.title.slice(0, now_playing.title.lastIndexOf('.')) : now_playing.title,
-            artist: '',
+            artist: now_playing.artist || '',
             mediaType: 'VIDEO',
             mediaSize: 0,
             startPosition: now_playing.last_play,
             duration: now_playing.time,
             albumCoverUri: PathUtils.coverPath + now_playing.date,
-            albumTitle: '',
+            albumTitle: now_playing.album || '',
             mediaUri: uri,
             appName: ToolsUtil.getStringResource(($r('app.string.EntryAbility_label').id))
           }
@@ -312,13 +394,13 @@ export default class AVSessionUtil {
             assetId: 'VIDEO-' + now_playing.title,
             title: now_playing.title.lastIndexOf('.') !== -1 ?
               now_playing.title.slice(0, now_playing.title.lastIndexOf('.')) : now_playing.title,
-            artist: '',
+            artist: now_playing.artist || '',
             mediaType: 'VIDEO',
             mediaSize: videoSize,
             startPosition: now_playing.last_play,
             duration: now_playing.time,
             albumCoverUri: PathUtils.coverPath + now_playing.date,
-            albumTitle: '',
+            albumTitle: now_playing.album || '',
             fdSrc: avFileDescriptor,
             appName: ToolsUtil.getStringResource(($r('app.string.EntryAbility_label').id))
           }

@@ -12,8 +12,6 @@ export struct VideoTopComponent {
   @BuilderParam audioTrackMenuBuilder: () => void
   @BuilderParam subtitlePanelComponent: () => void
   @BuilderParam chapterMenuBuilder: () => void
-  @Event onCaptureScreen: () => void = () => {
-  }
 
   private get displayTitle(): string {
     const title = this.player.nowPlaying?.title ?? ''
@@ -21,33 +19,26 @@ export struct VideoTopComponent {
     return dotIndex > 0 ? title.slice(0, dotIndex) : title
   }
 
+  @Event onCaptureScreen: () => void = () => {
+  }
   @Event onExitVideoClick: () => void = () => {
   }
-
   @Event onOriginalRatio: () => void = () => {
   }
-
   @Event onStretchedToFullScreen: () => void = () => {
   }
-
   @Event onFullScreenByWidth: () => void = () => {
   }
-
   @Event onFullScreenByHeight: () => void = () => {
   }
-
   @Event onUniformScale: (_scale: number) => void = () => {
   }
-
   @Event onSpecificVideoProportions: (_playAreaSize: number[]) => void = () => {
   }
-
   @Event onSelectedTextChange: (_text: string) => void = () => {
   }
-
   @Event pipStateChange: () => void = () => {
   }
-
   @Event onOpenPersonalScreenExtend: () => void = () => {
   }
 
@@ -103,20 +94,17 @@ export struct VideoTopComponent {
       .backgroundColor('#50000000')
       .bindMenu(this.subtitlePanelComponent, { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
 
-      // 4. 音轨按钮 (仅在横屏显示)
-      if (this.player.screenWidth > this.player.screenHeight) {
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph($r('sys.symbol.opticaldisc'))
-            .fontSize(27)
-            .fontColor(['#f0f0f0'])
-            .opacity(0.8)
-        }
-        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
-        .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundColor('#50000000')
-        .bindMenu(this.audioTrackMenuBuilder,
-          { backgroundBlurStyle: BlurStyle.COMPONENT_THIN })
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph($r('sys.symbol.opticaldisc'))
+          .fontSize(27)
+          .fontColor(['#f0f0f0'])
+          .opacity(0.8)
       }
+      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .attributeModifier(new ButtonFancyModifier(40, 40))
+      .backgroundColor('#50000000')
+      .bindMenu(this.audioTrackMenuBuilder,
+        { backgroundBlurStyle: BlurStyle.COMPONENT_THIN })
 
       if (this.player.hasChapterSupport() && this.player.chapterList.length > 0) {
         Button({ type: ButtonType.Circle, stateEffect: true }) {

@@ -250,7 +250,6 @@ export struct SubtitlePanelComponent {
           .fontSize(16)
           .fontColor([$r('app.color.text_color')])
       }
-      .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
       .attributeModifier(new ButtonFancyModifier(28, 28))
       .backgroundColor(Color.Transparent)
       .onClick(() => {

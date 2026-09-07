@@ -5,6 +5,8 @@ import IPTVUtil from '../../utils/IPTVUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import PermissionUtil from '../../utils/PermissionUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
+import { salmonLogger } from 'salmonlogger'
+import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 
 @CustomDialog
 export struct IPTVSourceDialog {
@@ -62,8 +64,12 @@ export struct IPTVSourceDialog {
     this.testSuccess = false
     this.preparedSource = undefined
     this.preparedSignature = ''
-    this.itemSelectedBackgroundColor = ColorMetrics.resourceColor($r('app.color.main_color'))
-    this.itemSelectedFontColor = ColorMetrics.resourceColor($r('sys.color.white'))
+    try {
+      this.itemSelectedBackgroundColor = ColorMetrics.resourceColor($r('app.color.main_color'))
+      this.itemSelectedFontColor = ColorMetrics.resourceColor($r('sys.color.white'))
+    } catch (error) {
+      salmonLogger.addLog('ColorMetrics ERROR')
+    }
   }
 
   build() {
@@ -121,9 +127,7 @@ export struct IPTVSourceDialog {
                 .margin({ left: 10 })
             }.width('100%')
           }
-          .height(50)
-          .width('100%')
-          .borderRadius(16)
+          .attributeModifier(new ButtonFancyModifier('100%', 40))
           .backgroundColor($r('sys.color.button_background_color_transparent'))
           .onClick(async () => await this.selectFile())
         }
@@ -159,22 +163,19 @@ export struct IPTVSourceDialog {
         Row({ space: 10 }) {
           Button('取消')
             .layoutWeight(1)
-            .height(44)
-            .borderRadius(16)
+            .attributeModifier(new ButtonFancyModifier('', 44))
             .backgroundColor($r('sys.color.button_background_color_transparent'))
             .fontColor($r('app.color.text_color'))
             .onClick(() => this.closeDialog())
           Button(this.testing ? '测试中…' : '测试')
             .layoutWeight(1)
-            .height(44)
-            .borderRadius(16)
+            .attributeModifier(new ButtonFancyModifier('', 44))
             .backgroundColor($r('app.color.sweet_music_color'))
             .enabled(!this.testing && !this.saving)
             .onClick(async () => await this.test())
           Button(this.saving ? '保存中…' : '保存')
             .layoutWeight(1)
-            .height(44)
-            .borderRadius(16)
+            .attributeModifier(new ButtonFancyModifier('', 44))
             .backgroundColor($r('app.color.main_color'))
             .fontColor(Color.White)
             .enabled(!this.testing && !this.saving)
@@ -187,7 +188,6 @@ export struct IPTVSourceDialog {
     .scrollBar(BarState.Off)
     .constraintSize({ maxHeight: '90%' })
   }
-
 
   private switchType(type: IPTVSourceType): void {
     if (this.sourceType === type) {

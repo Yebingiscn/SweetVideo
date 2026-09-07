@@ -17,6 +17,9 @@ interface AspectRatioSize {
 
 
 const TAG = 'VideoInfoUtil'
+const AUDIO_HR_MIN_BIT_RATE = 1_500_000
+const AUDIO_SQ_MIN_BIT_RATE = 500_000
+const AUDIO_HQ_MIN_BIT_RATE = 192_000
 
 
 export default class VideoInfoUtil {
@@ -41,6 +44,8 @@ export default class VideoInfoUtil {
     return {
       uri: PrivacySpaceUtil.getPrivacyMode()! ? sandbox_video + date : uri,
       title: VideoInfoUtil.resolveImportedTitle(file_name, probe),
+      artist: probe?.artist.trim() || undefined,
+      album: probe?.album.trim() || undefined,
       date: date,
       size: videoDimensions,
       cover_size: [probe?.coverWidth || 0, probe?.coverHeight || 0],
@@ -49,6 +54,7 @@ export default class VideoInfoUtil {
       last_play: 0,
       format: VideoInfoUtil.getVideoFormat(file_name),
       video_size: video_size,
+      bit_rate: Math.round(probe?.bitRate || 0),
       frame_rate: Math.round(probe?.frameRate || 0),
       hdr_type: probe?.hdrType || 0,
       audio_type: probe?.audioType || 0,
@@ -61,12 +67,11 @@ export default class VideoInfoUtil {
   }
 
   static resolveImportedTitle(fileName: string, probe?: FFmpegMediaProbe): string {
-    const embeddedTitle = probe ? probe.title.trim() : ''
-    if (!TextEncodingUtil.isUsable(embeddedTitle)) {
+    if (VideoInfoUtil.probeHasVideoTrack(probe)) {
       return fileName
     }
-    if (VideoInfoUtil.probeHasVideoTrack(probe) &&
-      VideoInfoUtil.isAudioTrackLabel(embeddedTitle)) {
+    const embeddedTitle = probe ? probe.title.trim() : ''
+    if (!TextEncodingUtil.isUsable(embeddedTitle)) {
       return fileName
     }
     return embeddedTitle
@@ -116,6 +121,30 @@ export default class VideoInfoUtil {
       return metadata.cover_size
     }
     return [0, 0]
+  }
+
+  static getAudioBitRate(metadata: VideoMetadata | undefined): number {
+    return metadata?.bit_rate && metadata.bit_rate > 0 ? metadata.bit_rate : 0
+  }
+
+  static getAudioQualityLabel(metadata: VideoMetadata | undefined): string {
+    const bitRate = VideoInfoUtil.getAudioBitRate(metadata)
+    if (bitRate >= AUDIO_HR_MIN_BIT_RATE) {
+      return 'HR'
+    }
+    if (bitRate >= AUDIO_SQ_MIN_BIT_RATE) {
+      return 'SQ'
+    }
+    if (bitRate >= AUDIO_HQ_MIN_BIT_RATE) {
+      return 'HQ'
+    }
+    return 'LQ'
+  }
+
+  static getAudioQualityDetail(metadata: VideoMetadata | undefined): string {
+    const quality = VideoInfoUtil.getAudioQualityLabel(metadata)
+    const bitRate = VideoInfoUtil.getAudioBitRate(metadata)
+    return bitRate > 0 ? `${quality} · ${Math.round(bitRate / 1000)} kbps` : quality
   }
 
   static async saveCoverDeferred(uri: string, sandbox_path: string, date: string, durationMs: number,
@@ -259,18 +288,4 @@ export default class VideoInfoUtil {
     return result
   }
 
-  private static isAudioTrackLabel(value: string): boolean {
-    const compact = value.toLowerCase().replace(/\s/g, '')
-    const exactLabels: string[] = [
-      '中文普通话', '普通话', '国语', '中文', '粤语', '英语', '日语', '韩语',
-      'mandarin', 'chinese', 'english', 'japanese', 'korean',
-      'audiotrack', 'audio', 'stereo', '立体声'
-    ]
-    if (exactLabels.includes(compact)) {
-      return true
-    }
-    return compact.length <= 32 &&
-      (compact.startsWith('中文普通话') || compact.startsWith('mandarin') ||
-        compact.startsWith('chineseaudio'))
-  }
 }

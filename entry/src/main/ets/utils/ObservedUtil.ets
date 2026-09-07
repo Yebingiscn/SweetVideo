@@ -17,6 +17,8 @@ class SettingUtil {
   public allowPlayBackExist: boolean = false
   public fastForwardSeconds: string = '15'
   public smartGestureEnabled: boolean = false
+  public knockShareEnabled: boolean = false
+  public gripPostureEnabled: boolean = true
   public recentPlay: boolean = true
   public showToast: boolean = true
   public defaultPlayerEngine: string = '系统播放器'
@@ -40,6 +42,7 @@ class SettingUtil {
   public coverLayout: CoverLayoutMode = CoverLayoutMode.VERTICAL_PLATE
   public mpvDecodingMethod: MpvDecodingMethod = MpvDecodingMethod.HARDWARE_SURFACE
   public mpvGpuApi: MpvGpuApi = MpvGpuApi.OPENGL
+  public mpvSdrToHdr: boolean = false
   public mpvShaderMode: number = 0
   public superResolutionState: boolean = false
   public smartRotation: boolean = true
@@ -53,6 +56,7 @@ class SettingUtil {
   public listItemBackgroundBlur: boolean = false
   public maxListLine: number = 5
   public defaultDensityEnabled: boolean = true
+  public seekSensitivity: number = 0
 }
 
 class SafeHeightUtil {

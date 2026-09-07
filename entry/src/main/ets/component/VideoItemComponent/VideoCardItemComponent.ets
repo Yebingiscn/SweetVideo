@@ -19,22 +19,28 @@ export default struct VideoCardItem {
     this.choose = this.delMultipleList.some(item => item.date === this.item.date)
   }
 
+  @Builder
+  CoverImage() {
+    Image(PathUtils.coverUri(this.item.date))
+      .attributeModifier(new ImageFancyModifier(Setting.backgroundImageSrc.length > 0 ? {
+        topLeft: 12,
+        topRight: 12,
+        bottomLeft: 0,
+        bottomRight: 0
+      } : 12, '', ''))
+      .width('100%')
+      .height('auto')
+      .constraintSize({
+        maxHeight: Setting.listDisplayMode === ListDisplayMode.GRID_DISPLAY ? 100 : 300,
+        minHeight: Setting.listDisplayMode === ListDisplayMode.GRID_DISPLAY ? 100 : undefined
+      })
+      .objectFit(ImageFit.Auto)
+      .id(`video_cover_${this.item.date}`)
+  }
+
   build() {
     Column() {
-      Image(PathUtils.coverUri(this.item.date))
-        .attributeModifier(new ImageFancyModifier(Setting.backgroundImageSrc.length > 0 ? {
-          topLeft: 12,
-          topRight: 12,
-          bottomLeft: 0,
-          bottomRight: 0
-        } : 12, '', ''))
-        .width('100%')
-        .height('auto')
-        .constraintSize({
-          maxHeight: Setting.listDisplayMode === ListDisplayMode.GRID_DISPLAY ? 100 : 300,
-          minHeight: Setting.listDisplayMode === ListDisplayMode.GRID_DISPLAY ? 100 : undefined
-        })
-        .objectFit(ImageFit.Auto)
+      this.CoverImage()
       Row() {
         Text(VideoInfoUtil.getVideoTitle(this.item))
           .fontSize(15)

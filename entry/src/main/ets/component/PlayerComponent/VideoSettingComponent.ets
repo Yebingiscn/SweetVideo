@@ -97,16 +97,12 @@ export struct VideoSettingComponent {
           this.toggleListenVideo()
         })
       }
-      if (this.player instanceof AVPlayerController) {
-        MenuItem({
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.camera_master_ai')),
-          content: this.player.superResolutionState ? '关闭视频超分辨率' : '开启视频超分辨率',
-        }).onClick(() => {
-          if (this.player instanceof AVPlayerController) {
-            this.player.setSuperResolutionState(!this.player.superResolutionState)
-          }
-        })
-      }
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.camera_master_ai')),
+        content: this.player.superResolutionState ? '关闭视频超分辨率' : '开启视频超分辨率',
+      }).onClick(() => {
+        this.player.setSuperResolutionState(!this.player.superResolutionState)
+      })
       if (this.player instanceof MpvController) {
         MenuItem({
           symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.doc_plaintext')),

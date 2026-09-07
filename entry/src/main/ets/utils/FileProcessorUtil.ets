@@ -31,7 +31,9 @@ export class FileProcessorUtil {
     sandbox_path: string,
     video_meta_data: VideoMetadata[],
     progressCallback: (info: ProgressInfo) => void,
-    fileFolder?: FileFolder
+    fileFolder?: FileFolder,
+    importRootUri?: string,
+    importRootFolderName?: string
   ): Promise<void> {
     if (fileList.length === 0) {
       ToolsUtil.showToast('没有任何文件被导入哦~')
@@ -70,13 +72,11 @@ export class FileProcessorUtil {
           })
 
           try {
-            const handled = await SelectFileUtil.addFile(
-              context,
-              sandbox_video,
-              sandbox_path,
-              uri,
-              video_meta_data,
-              fileFolder
+            const handled = importRootUri ? await SelectFileUtil.addFile(
+              context, sandbox_video, sandbox_path, uri, video_meta_data, fileFolder,
+              false, false, importRootUri, importRootFolderName
+            ) : await SelectFileUtil.addFile(
+              context, sandbox_video, sandbox_path, uri, video_meta_data, fileFolder
             )
             if (!handled) {
               FileProcessorUtil.failedFiles.push(uri)
@@ -235,7 +235,9 @@ export async function importAndProcessFiles(
   onLoadingChange: (loading: boolean) => void,
   onTotalItemsChange: (totalItems: number) => void,
   fileFolder?: FileFolder,
-  onFinally?: () => void
+  onFinally?: () => void,
+  importRootUri?: string,
+  importRootFolderName?: string
 ): Promise<void> {
   if (fileList.length === 0) {
     ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.no_files_imported').id))
@@ -257,7 +259,9 @@ export async function importAndProcessFiles(
       (info: ProgressInfo) => {
         onProgressUpdate(info)
       },
-      fileFolder
+      fileFolder,
+      importRootUri,
+      importRootFolderName
     )
     salmonLogger.addLog(TAG,
       `导入完成: total=${totalItems}, imported=${totalItems - FileFolderUtil.duplicateVideo -

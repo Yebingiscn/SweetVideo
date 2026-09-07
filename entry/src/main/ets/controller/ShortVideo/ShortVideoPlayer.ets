@@ -98,6 +98,11 @@ export class ShortVideoPlayer {
       return
     }
     this.hasBeenActive = true
+    // The page can become active before Swiper has created its XComponent surface.
+    // Do not leave behind a completed play task in that case; bindSurface() will retry.
+    if (!this.surfaceId) {
+      return
+    }
     if (this.playTask) {
       return this.playTask
     }
@@ -223,7 +228,6 @@ export class ShortVideoPlayer {
         return
       }
       this.player = player
-      player.audioInterruptMode = AVSessionUtil.getInterruptMode()
       this.registerCallbacks(player)
       const prepared = new Promise<void>((resolve, reject) => {
         this.preparedResolver = resolve
@@ -263,6 +267,11 @@ export class ShortVideoPlayer {
           break
         case 'prepared':
           this.state = 'prepared'
+          try {
+            player.audioInterruptMode = AVSessionUtil.getInterruptMode()
+          } catch (error) {
+            salmonLogger.addLog(TAG, `set audio interrupt mode failed: ${error}`, true)
+          }
           this.duration = player.duration || this.item.time
           this.videoWidth = player.width || this.item.size[0] || 0
           this.videoHeight = player.height || this.item.size[1] || 0
@@ -277,7 +286,12 @@ export class ShortVideoPlayer {
           this.state = 'playing'
           this.onPlaybackStateChanged(true, this.currentTime)
           if (this.playbackRate !== 1) {
-            player.setPlaybackRate(this.playbackRate)
+            try {
+              player.setPlaybackRate(this.playbackRate)
+            } catch (error) {
+              ToolsUtil.showToast('系统异常')
+              salmonLogger.addLog(TAG, 'setPlaybackRate error', true)
+            }
           }
           if (!this.active) {
             player.pause().catch(() => {

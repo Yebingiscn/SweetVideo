@@ -11,7 +11,11 @@ export default class PreferencesUtil {
 
   static getPreferencesInstance(context: Context, name: string): preferences.Preferences {
     if (!PreferencesUtil.prefInstance) {
-      PreferencesUtil.prefInstance = preferences.getPreferencesSync(context, { name: name })
+      try {
+        PreferencesUtil.prefInstance = preferences.getPreferencesSync(context, { name: name })
+      } catch (error) {
+        salmonLogger.addLog(TAG, 'getPreferencesInstance error' + name, true)
+      }
     }
     return PreferencesUtil.prefInstance!
   }

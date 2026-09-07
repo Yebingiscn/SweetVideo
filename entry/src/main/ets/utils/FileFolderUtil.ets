@@ -388,21 +388,22 @@ export default class FileFolderUtil {
     return parts ? parts[0] : undefined
   }
 
-  static extractFolderPathFromUri(uri: string, fileName: string): string[] | undefined {
-    const prefix = SelectFileUtil.fileFolderUri + "/"
-    if (!uri.startsWith(SelectFileUtil.fileFolderUri) || !uri.startsWith(prefix)) {
+  static extractFolderPathFromUri(uri: string, _fileName: string,
+    rootUri: string = SelectFileUtil.fileFolderUri, rootFolderName?: string): string[] | undefined {
+    const normalizedRootUri = rootUri.replace(/\/+$/, '')
+    const prefix = normalizedRootUri + "/"
+    if (!uri.startsWith(prefix)) {
       return undefined
     }
     const relativePath = uri.substring(prefix.length)
-    if (!relativePath.endsWith(fileName)) {
-      return undefined
+    const lastSlashIndex = relativePath.lastIndexOf('/')
+    const cleanDir = lastSlashIndex >= 0 ? relativePath.substring(0, lastSlashIndex) : ''
+    const parts = cleanDir.length > 0
+      ? cleanDir.split("/").map((part: string) => ToolsUtil.safeDecodeURIComponent(part))
+      : []
+    if (rootFolderName && rootFolderName.length > 0) {
+      parts.unshift(rootFolderName)
     }
-    const dirPath = relativePath.substring(0, relativePath.length - fileName.length)
-    const cleanDir = dirPath.replace(/\/+$/, "")
-    if (!cleanDir) {
-      return undefined
-    }
-    const parts = cleanDir.split("/")
     return parts.length > 0 ? parts : undefined
   }
 

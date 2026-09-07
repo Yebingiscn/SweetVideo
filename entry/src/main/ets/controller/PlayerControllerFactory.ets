@@ -136,6 +136,9 @@ export interface PlayerControllerInterface {
   playNextVideoProcess(pathStack: NavPathStack, windowClass?: Promise<window.Window | undefined>,
     xComponentController?: XComponentController, overrideRepeatMode?: SweetRepeatMode): Promise<void>
 
+  playPreviousVideoProcess(pathStack: NavPathStack, windowClass?: Promise<window.Window | undefined>,
+    xComponentController?: XComponentController, overrideRepeatMode?: SweetRepeatMode): Promise<void>
+
   playChooseVideo(item: VideoMetadata, pathStack: NavPathStack,
     windowClass?: Promise<window.Window | undefined>, xComponentController?: XComponentController): Promise<void>
 
@@ -226,6 +229,10 @@ export interface PlayerControllerInterface {
   setEngineSwitchHandler(handler: PlayerEngineSwitchHandler | undefined): void
 
   requestEngineSwitch(targetEngine: string, reason: string, resumePlayback?: boolean): Promise<void>
+
+  superResolutionState: boolean
+
+  setSuperResolutionState(enable: boolean): void
 }
 
 // 真正的工厂 controller

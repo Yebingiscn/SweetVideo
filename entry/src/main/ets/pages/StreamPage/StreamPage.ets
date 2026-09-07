@@ -30,6 +30,7 @@ import VideoListItem from '../../component/VideoItemComponent/VideoListItemCompo
 import { VideoListController } from '../../component/VideoItemComponent/VideoItemComponent'
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import RecentPlayUtil from '../../utils/RecentPlayUtil'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
 @ComponentV2
 export struct StreamPage {
@@ -104,23 +105,7 @@ export struct StreamPage {
   }
 
   @Builder
-  NavigationMenus() {
-    Row() {
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph($r('sys.symbol.plus'))
-          .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-      }
-      .backdropBlur(150)
-      .attributeModifier(new ButtonFancyModifier(35, 35))
-      .animation({ duration: 300, curve: Curve.Ease })
-      .onClick(() => {
-        this.addNetworkStreamDialogController.open()
-      })
-      .margin({ right: 10 })
-    }.justifyContent(FlexAlign.End).width('100%').height('auto')
-  }
 
-  @Builder
   SearchBuilder() {
     Row({ space: 10 }) {
       SearchComponent({
@@ -229,6 +214,7 @@ export struct StreamPage {
     .attributeModifier(new MenuFancyModifier())
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   build() {
     HdsNavDestination() {
       Column() {
@@ -447,7 +433,18 @@ export struct StreamPage {
         title: {
           mainTitle: '网络串流',
         },
-        stackBuilder: (): void => this.NavigationMenus(),
+        menu: {
+          value: [{
+            content: {
+              label: '',
+              icon: $r('sys.symbol.plus'),
+              isEnabled: true,
+              action: () => {
+                this.addNetworkStreamDialogController.open()
+              }
+            }
+          }]
+        },
         bottomBuilder: { builder: (): void => this.SearchBuilder() },
       },
     })

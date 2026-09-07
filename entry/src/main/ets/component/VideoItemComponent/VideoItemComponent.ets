@@ -5,7 +5,7 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import { SortField } from '../../common/enum/SortField'
 import DataSyncUtil from '../../utils/DataSyncUtil'
-import { VideoDetailDialog } from '../../component/Dialog//VideoDetailDialog'
+import { VideoDetailSheetBuilder } from '../../component/Dialog/VideoDetailDialog'
 import { DefaultDialogShadow, MenuFancyModifier } from '../../common/AttributeModifierConfig'
 import { RenameDialog } from '../../component/Dialog/RenameDialog'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
@@ -182,14 +182,18 @@ export struct VideoList {
         const updatedVideo: VideoMetadata = {
           uri: original.uri,
           title: title as string,
+          artist: original.artist,
+          album: original.album,
           date: original.date,
           size: original.size,
           cover_size: original.cover_size,
           has_video_track: original.has_video_track,
           time: original.time,
           last_play: original.last_play,
+          last_played_at: original.last_played_at,
           format: original.format,
           video_size: original.video_size,
+          bit_rate: original.bit_rate,
           hdr_type: original.hdr_type,
           audio_type: original.audio_type,
           frame_rate: original.frame_rate,
@@ -236,10 +240,8 @@ export struct VideoList {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  VideoDetailDialog: CustomDialogController = new CustomDialogController({
-    builder: VideoDetailDialog(), cornerRadius: 20,
-    shadow: DefaultDialogShadow
-  })
+  @Local showDetailSheet: boolean = false
+  @Local detailMetadata: VideoMetadata | undefined = undefined
   private outerScroller: Scroller = new Scroller()
   private _invalidItem: VideoMetadata | null = null
   invalidFileDialog: CustomDialogController = new CustomDialogController({
@@ -426,6 +428,15 @@ export struct VideoList {
       .width('100%')
       .height('100%')
       .animation({ duration: 300, curve: Curve.Ease })
+      .bindSheet(this.showDetailSheet, this.DetailSheetBuilder, {
+        detents: [SheetSize.LARGE],
+        backgroundColor: $r('app.color.start_window_background'),
+        blurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+        showClose: true,
+        onWillDismiss: () => {
+          this.showDetailSheet = false
+        }
+      })
     } else {
       Stack({
         alignContent: IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand) ? Alignment.TopStart :
@@ -582,6 +593,15 @@ export struct VideoList {
       .width('100%')
       .height('100%')
       .animation({ duration: 300, curve: Curve.Ease })
+      .bindSheet(this.showDetailSheet, this.DetailSheetBuilder, {
+        detents: [SheetSize.LARGE],
+        backgroundColor: $r('app.color.start_window_background'),
+        blurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+        showClose: true,
+        onWillDismiss: () => {
+          this.showDetailSheet = false
+        }
+      })
     }
   }
 
@@ -607,8 +627,8 @@ export struct VideoList {
       }, 500)
     }
     if (ToolsUtil.isNetworkUrl(item.uri) || await SelectFileUtil.isFileExist(item.uri, true)) {
-      ToolsUtil.routerWhere(this.pathStack, item,
-        this.videoListController.videoDataSource.getAllData(), reverse)
+      await ToolsUtil.routerWhere(this.pathStack, item,
+        this.videoListController.videoDataSource.getAllData(), reverse, false)
     } else {
       this._invalidItem = item
       this.invalidFileDialog.open()
@@ -683,15 +703,15 @@ export struct VideoList {
             const videoItem = SelectFileUtil.getItem(this.videoListController.videoMetaDataList, item?.date!)
             if (videoItem) {
               await ToolsUtil.routerToShortVideo(this.pathStack, videoItem,
-                this.videoListController.videoDataSource.getAllData())
+                this.videoListController.videoDataSource.getAllData(), false)
             }
           }, DELAY_JUMP_TO_PLAYER)
         })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
         .onClick(() => {
           setTimeout(() => {
-            DataSyncUtil.editingVideo = item
-            this.VideoDetailDialog.open()
+            this.detailMetadata = item
+            this.showDetailSheet = true
           }, DELAY_JUMP_TO_PLAYER)
         })
       MenuItem({
@@ -724,6 +744,11 @@ export struct VideoList {
           await ShareUtil.shareVideo(item!.uri, item!.title)
         })
     }.attributeModifier(new MenuFancyModifier())
+  }
+
+  @Builder
+  DetailSheetBuilder() {
+    VideoDetailSheetBuilder(this.detailMetadata)
   }
 
   @Builder

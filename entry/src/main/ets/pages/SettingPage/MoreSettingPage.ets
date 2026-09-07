@@ -2,7 +2,6 @@ import { salmonLogger } from 'salmonlogger'
 import { Markdown, MarkdownController } from '@luvi/lv-markdown-in'
 import NavigationAddress from '../../common/NavigationCommon'
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
-import { SettingsSectionHeaderBuilder } from '../../component/SettingComponent/SettingsSectionHeader'
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
 import Preferences from '../../database/Preferences'
 import PreferencesUtil from '../../database/PreferencesUtil'
@@ -14,14 +13,15 @@ import WantProcess from '../../utils/WantProcessUtil'
 import { LengthMetrics } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { commentManager } from '@kit.AppGalleryKit'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
 const TAG = 'MoreSettingPage'
 
 @ComponentV2
 export struct MoreSettingPage {
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
-  private listScroller: Scroller = new Scroller()
   controller: MarkdownController = new MarkdownController()
+  private listScroller: Scroller = new Scroller()
 
   aboutToAppear(): void {
     this.controller.setTitleColor($r('app.color.text_color'))
@@ -30,12 +30,10 @@ export struct MoreSettingPage {
     this.controller.setLazyRender(true)
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   build() {
     HdsNavDestination() {
       List({ scroller: this.listScroller }) {
-        ListItem() {
-          SettingsSectionHeaderBuilder('应用信息', '关于、版本更新与应用评价')
-        }
 
         ListItem() {
           SettingsClickItem({
@@ -80,10 +78,6 @@ export struct MoreSettingPage {
         }
 
         ListItem() {
-          SettingsSectionHeaderBuilder('维护与诊断', '运行日志、文件清理与界面兼容')
-        }
-
-        ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.doc_plaintext'),
             message: '流心运行日志',
@@ -123,10 +117,6 @@ export struct MoreSettingPage {
               }
             })
           }
-        }
-
-        ListItem() {
-          SettingsSectionHeaderBuilder('使用技巧', '快速了解手势与常用功能')
         }
 
         ListItem() {
@@ -229,7 +219,7 @@ export struct MoreSettingPage {
       },
       content: {
         title: {
-          mainTitle: '应用与支持',
+          mainTitle: '更多设置',
         }
       },
     })

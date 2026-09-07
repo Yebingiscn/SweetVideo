@@ -1,5 +1,5 @@
-import { window, BaseGestureHandlingProposal, PageSwitchActionProposal } from '@kit.ArkUI'
-import { BusinessError, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { BaseGestureHandlingProposal, PageSwitchActionProposal, window } from '@kit.ArkUI'
+import { Available, BusinessError, deviceInfo, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { ShortVideoItem } from '../../component/ShortVideo/ShortVideoItem'
 import NavigationAddress, { ShortVideoParams } from '../../common/NavigationCommon'
 import { ShortVideoPlayerManager } from '../../controller/ShortVideo/ShortVideoPlayerManager'
@@ -25,10 +25,7 @@ import { XAnimation } from '../../utils/AnimationUtil'
 import { AUTO_HIDE_SHOW_CONTROL_TIME } from '../../common/Constants'
 import { MediaSmartGestureSession, SHORT_VIDEO_SMART_SWIPER_ID } from '../../utils/MediaSmartGestureUtil'
 import { salmonLogger } from 'salmonlogger'
-import KnockShareUtil, {
-  KNOCK_SHARE_VIDEO_PLAYER_OWNER,
-  KnockCoordinate
-} from '../../utils/KnockShareUtil'
+import KnockShareUtil, { KNOCK_SHARE_VIDEO_PLAYER_OWNER, KnockCoordinate } from '../../utils/KnockShareUtil'
 
 @ComponentV2
 export struct ShortVideoPage {
@@ -44,21 +41,25 @@ export struct ShortVideoPage {
   private swiperController: SwiperController = new SwiperController()
   private showControlTimer: number = 0
   private isSwiperAnimating: boolean = false
+  @Available({ minApiVersion: 'HarmonyOS 26.0.0' }) private smartGestures: MediaSmartGestureSession =
+    new MediaSmartGestureSession({
+      canHandle: (): boolean => this.ready && !this.disposed && this.items.length > 0 &&
+        !PiPWindowUtil.pipOpenState && !this.isSwiperAnimating && !this.isSpeedMenuOpen &&
+        !this.isProgressSeeking && !this.manager.onSwiping && !this.smartTapPending,
+      onTap: (): void => {
+        void this.togglePlaybackFromSmartGesture()
+      },
+      onSlide: (): BaseGestureHandlingProposal | undefined => this.createSmartSwipeProposal()
+    })
   private isSpeedMenuOpen: boolean = false
   private isProgressSeeking: boolean = false
   private smartTapPending: boolean = false
-  private smartGestures: MediaSmartGestureSession = new MediaSmartGestureSession({
-    canHandle: (): boolean => this.ready && !this.disposed && this.items.length > 0 &&
-      !PiPWindowUtil.pipOpenState && !this.isSwiperAnimating && !this.isSpeedMenuOpen &&
-      !this.isProgressSeeking && !this.manager.onSwiping && !this.smartTapPending,
-    onTap: (): void => {
-      void this.togglePlaybackFromSmartGesture()
-    },
-    onSlide: (): BaseGestureHandlingProposal | undefined => this.createSmartSwipeProposal()
-  })
+  private pageParams: ShortVideoParams | undefined = undefined
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   aboutToAppear(): void {
     this.disposed = false
+    this.pageParams = this.readShortVideoParams()
     KnockShareUtil.setShareProvider(KNOCK_SHARE_VIDEO_PLAYER_OWNER,
       (_coordinate: KnockCoordinate | undefined): VideoMetadata[] => {
         const currentVideo = this.items[this.currentIndex]
@@ -75,8 +76,11 @@ export struct ShortVideoPage {
     })
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   async aboutToDisappear(): Promise<void> {
-    this.smartGestures.hide()
+    if (deviceInfo.apiAvailable('26.0.0')) {
+      this.smartGestures.hide()
+    }
     KnockShareUtil.clearShareProvider(KNOCK_SHARE_VIDEO_PLAYER_OWNER)
     await this.dispose()
     PermissionUtil.applyStopContinuousTask()
@@ -274,8 +278,9 @@ export struct ShortVideoPage {
           .backgroundColor('#50000000')
           .position({ x: 14, y: 14 + SafeHeight.topSafeHeight })
           .transition(XAnimation.getAnimation('up', 0, false))
-          .onClick(() => this.pathStack.pop())
+          .onClick(() => this.closePage())
         }
+
       }
       .width('100%')
       .height('100%')
@@ -286,9 +291,12 @@ export struct ShortVideoPage {
       })
     }
     .hideTitleBar(true)
+    .onBackPressed(() => {
+      this.closePage()
+      return true
+    })
     .onReady(() => {
-      const paramsList = this.pathStack.getParamByName(NavigationAddress.SHORT_VIDEO) as ShortVideoParams[]
-      const params = paramsList[0]
+      const params = this.pageParams ?? this.readShortVideoParams()
       if (!params) {
         this.ready = true
         this.showControls()
@@ -305,7 +313,9 @@ export struct ShortVideoPage {
       this.showControls()
     })
     .onHidden(() => {
-      this.smartGestures.hide()
+      if (deviceInfo.apiAvailable('26.0.0')) {
+        this.smartGestures.hide()
+      }
       this.isSwiperAnimating = false
       this.isProgressSeeking = false
       this.manager.saveCurrentHistory()
@@ -315,7 +325,9 @@ export struct ShortVideoPage {
     })
     .onShown(async () => {
       if (!this.disposed) {
-        this.smartGestures.show(this.getUIContext())
+        if (deviceInfo.apiAvailable('26.0.0')) {
+          this.smartGestures.show(this.getUIContext())
+        }
       }
       if (PiPWindowUtil.pipOpenState) {
         await PiPWindowUtil.stopPip()
@@ -325,7 +337,9 @@ export struct ShortVideoPage {
       }
     })
     .onWillDisappear(() => {
-      this.smartGestures.hide()
+      if (deviceInfo.apiAvailable('26.0.0')) {
+        this.smartGestures.hide()
+      }
       this.manager.saveCurrentHistory()
       if (!Setting.allowBackgroundPlay && !PiPWindowUtil.pipOpenState) {
         this.manager.pauseAll()
@@ -417,4 +431,16 @@ export struct ShortVideoPage {
     this.clearShowControlTimer()
     await this.manager.releaseAll()
   }
+
+  private readShortVideoParams(): ShortVideoParams | undefined {
+    const paramsList = this.pathStack.getParamByName(NavigationAddress.SHORT_VIDEO) as ShortVideoParams[]
+    return paramsList.length > 0 ? paramsList[paramsList.length - 1] : undefined
+  }
+
+  private closePage(): void {
+    VideoOperateUtil.saveLastPlayVideoIndex(this.items, this.items[this.currentIndex]?.date)
+    this.pathStack.pop()
+  }
+
+
 }

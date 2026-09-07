@@ -61,6 +61,11 @@ export default class VideoOperateUtil {
   public static panStartX: number = 0
   public static panStartY: number = 0
   public static autoHideTimerId: number = -1
+  public static leftSideSwipe: boolean = true
+  public static frameExtractorId: number | undefined = undefined
+  public static updatePix: boolean = true
+  private static frameExtractorLifecycleTask: Promise<void> = Promise.resolve()
+  private static mainWin: window.Window | undefined = undefined
 
   static scheduleControlAutoHide(onHide: () => void): void {
     if (VideoOperateUtil.autoHideTimerId !== -1) {
@@ -78,11 +83,6 @@ export default class VideoOperateUtil {
       VideoOperateUtil.autoHideTimerId = -1
     }
   }
-  public static leftSideSwipe: boolean = true
-  public static frameExtractorId: number | undefined = undefined
-  public static updatePix: boolean = true
-  private static frameExtractorLifecycleTask: Promise<void> = Promise.resolve()
-  private static mainWin: window.Window | undefined = undefined
 
   // 设置亮度
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
@@ -342,6 +342,8 @@ export default class VideoOperateUtil {
       'allowPlayBackExist': false,
       'fastForwardSeconds': '15',
       'smartGestureEnabled': false,
+      'knockShareEnabled': false,
+      'gripPostureEnabled': true,
       'recentPlay': true,
       'showToast': true,
       'defaultPlayerEngine': '系统播放器',
@@ -375,12 +377,14 @@ export default class VideoOperateUtil {
       'autoResumeOnReturn': false,
       'mpv_decoding_method': MpvDecodingMethod.HARDWARE_SURFACE,
       'mpv_gpu_api': MpvGpuApi.OPENGL,
+      'mpv_sdr_to_hdr': false,
       'enableBackgroundDarkImage': false,
       'enableAiPrivacyAntiPeep': false,
       'defaultBrightness': 0,
       'defaultDensityEnabled': true,
       'maxListLine': 5,
-      'listItemBackgroundBlur': false
+      'listItemBackgroundBlur': false,
+      'seekSensitivity': 0
     }
     const keys = Object.keys(settingDefaults)
     const defaults = Object.values(settingDefaults)
@@ -399,6 +403,8 @@ export default class VideoOperateUtil {
     Setting.allowPlayBackExist = valueMap['allowPlayBackExist'] as boolean
     Setting.fastForwardSeconds = valueMap['fastForwardSeconds'] as string
     Setting.smartGestureEnabled = valueMap['smartGestureEnabled'] as boolean
+    Setting.knockShareEnabled = valueMap['knockShareEnabled'] as boolean
+    Setting.gripPostureEnabled = valueMap['gripPostureEnabled'] as boolean
     Setting.recentPlay = valueMap['recentPlay'] as boolean
     Setting.showToast = valueMap['showToast'] as boolean
     Setting.defaultPlayerEngine = valueMap['defaultPlayerEngine'] as string
@@ -433,12 +439,14 @@ export default class VideoOperateUtil {
     Setting.autoResumeOnReturn = valueMap['autoResumeOnReturn'] as boolean
     Setting.mpvDecodingMethod = valueMap['mpv_decoding_method'] as MpvDecodingMethod
     Setting.mpvGpuApi = valueMap['mpv_gpu_api'] as MpvGpuApi
+    Setting.mpvSdrToHdr = valueMap['mpv_sdr_to_hdr'] as boolean
     Setting.enableBackgroundDarkImage = valueMap['enableBackgroundDarkImage'] as boolean
     Setting.enableAiPrivacyAntiPeep = valueMap['enableAiPrivacyAntiPeep'] as boolean
     Setting.defaultBrightness = valueMap['defaultBrightness'] as number
     Setting.defaultDensityEnabled = valueMap['defaultDensityEnabled'] as boolean
     Setting.maxListLine = valueMap['maxListLine'] as number
     Setting.listItemBackgroundBlur = valueMap['listItemBackgroundBlur'] as boolean
+    Setting.seekSensitivity = valueMap['seekSensitivity'] as number
   }
 
   // 封装获取屏幕亮度的方法
@@ -572,7 +580,9 @@ export default class VideoOperateUtil {
   }
 
   static getTimePixel(screenWidth: number, videoTime: number) {
-    return videoTime > 600000 ? 600000 / screenWidth : videoTime / screenWidth
+    const baseTimePerPixel = videoTime > 600000 ? 600000 / screenWidth : videoTime / screenWidth
+    const sensitivityFactor = Setting.seekSensitivity === 2 ? 0.1 : Setting.seekSensitivity === 1 ? 0.5 : 1.0
+    return baseTimePerPixel * sensitivityFactor
   }
 
   static saveCaptureScreenToAlbum(surfaceID: string) {
@@ -630,13 +640,6 @@ export default class VideoOperateUtil {
     }
   }
 
-  private static containsDolbyAudioCodec(value: string): boolean {
-    return value.includes('truehd') || value.includes('mlp') ||
-      value.includes('eac3') || value.includes('e-ac-3') || value.includes('ec-3') ||
-      value.includes('ddp') || value.includes('dolby') ||
-      value.includes('ac3') || value.includes('ac-3')
-  }
-
   static resolvePlayerType(metadata: VideoMetadata, reverse: boolean = false) {
     const defaultPlayer = Preferences.getDefaultPlayerEngine(PathUtils.appContext!)
     const isAv3a = metadata.title?.toLowerCase().includes('av3a') || metadata.format?.toLowerCase().includes('av3a')
@@ -644,12 +647,12 @@ export default class VideoOperateUtil {
     const formatLower = metadata.format?.toLowerCase() ?? ''
     const isDolbyAudio = VideoOperateUtil.containsDolbyAudioCodec(titleLower) ||
       VideoOperateUtil.containsDolbyAudioCodec(formatLower) || titleLower.includes('atmos')
-    const hasSize = VideoInfoUtil.videoWidthAndHeightFormat(String(metadata.size)) !== '0 x 0'
-    if (isAv3a && hasSize) {
-      return PlayerEngine.AV_PLAYER
-    }
-    if (!hasSize) {
+    const hasVideoTrack = VideoInfoUtil.hasVideoTrack(metadata)
+    if (!hasVideoTrack) {
       return PlayerEngine.MPV_PLAYER
+    }
+    if (isAv3a) {
+      return PlayerEngine.AV_PLAYER
     }
     if (isDolbyAudio) {
       return PlayerEngine.MPV_PLAYER
@@ -663,6 +666,11 @@ export default class VideoOperateUtil {
     return (reverse ? !isFirstPlayer : isFirstPlayer)
       ? $r('app.string.AV_PLAYER')
       : $r('app.string.MPV_Player');
+  }
+
+  static getManualNavigationRepeatMode(repeatMode: SweetRepeatMode): SweetRepeatMode {
+    // 单曲循环只影响自动播完；用户主动切换时仍按列表循环处理。
+    return repeatMode === SweetRepeatMode.SINGLE ? SweetRepeatMode.LIST : repeatMode
   }
 
   static computeAdjacentVideo(
@@ -840,6 +848,13 @@ export default class VideoOperateUtil {
         }
       }
     }
+  }
+
+  private static containsDolbyAudioCodec(value: string): boolean {
+    return value.includes('truehd') || value.includes('mlp') ||
+      value.includes('eac3') || value.includes('e-ac-3') || value.includes('ec-3') ||
+      value.includes('ddp') || value.includes('dolby') ||
+      value.includes('ac3') || value.includes('ac-3')
   }
 
   private static async releaseFrameExtractorNow(): Promise<void> {

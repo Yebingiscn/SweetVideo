@@ -10,6 +10,7 @@ import ToolsUtil from '../../utils/ToolsUtil'
 import { LengthMetrics } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { SubtitlePreferredLanguage } from '../../common/enum/SubtitleLanguage'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
 const SUBTITLE_PREVIEW_HEIGHT: number = 220
 
@@ -38,15 +39,12 @@ export struct SubtitleSettingPage {
     { name: '深红', value: '#44151B' }
   ]
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   build() {
     HdsNavDestination() {
       List({ scroller: this.listScroller, space: 6 }) {
         ListItem() {
           this.PreviewCard()
-        }
-
-        ListItem() {
-          this.SectionTitle('自动选择', '仅在视频未保存字幕选择时生效，外挂字幕优先')
         }
 
         ListItem() {
@@ -63,12 +61,8 @@ export struct SubtitleSettingPage {
         }
 
         ListItem() {
-          this.SectionTitle('排版', '位置数值越大，字幕越靠近画面底部')
-        }
-
-        ListItem() {
           SettingsSliderItem({
-            symbol: $r('sys.symbol.textformat_size_square'),
+            symbol: $r('sys.symbol.title_size'),
             message: '字体大小',
             selected: Number(Setting.subtitleSize),
             min: 14,
@@ -87,7 +81,7 @@ export struct SubtitleSettingPage {
 
         ListItem() {
           SettingsSliderItem({
-            symbol: $r('sys.symbol.arrow_up_circle'),
+            symbol: $r('sys.symbol.celiakeyboard_menu_icon_size'),
             message: '垂直位置',
             selected: Setting.subtitlePosition,
             min: 5,
@@ -131,15 +125,7 @@ export struct SubtitleSettingPage {
         }
 
         ListItem() {
-          this.SectionTitle('文字颜色', '统一应用到外挂字幕与 MPV 内嵌字幕')
-        }
-
-        ListItem() {
           this.ColorPalette(this.textColors, 0)
-        }
-
-        ListItem() {
-          this.SectionTitle('描边', '提高字幕在明亮画面上的可读性')
         }
 
         ListItem() {
@@ -163,10 +149,6 @@ export struct SubtitleSettingPage {
 
         ListItem() {
           this.ColorPalette(this.effectColors, 1)
-        }
-
-        ListItem() {
-          this.SectionTitle('阴影与背景', '阴影增强层次，背景提升复杂画面中的辨识度')
         }
 
         ListItem() {
@@ -307,7 +289,6 @@ export struct SubtitleSettingPage {
       content: {
         title: {
           mainTitle: '字幕样式',
-          subTitle: '外挂字幕与 MPV 字幕统一设置'
         }
       }
     })
@@ -367,27 +348,6 @@ export struct SubtitleSettingPage {
     .clip(true)
     .backgroundColor('#202530')
     .margin({ top: 8, bottom: 10 })
-  }
-
-  @Builder
-  private SectionTitle(title: string, description: string) {
-    Column({ space: 3 }) {
-      Text(title)
-        .fontSize(18)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('sys.color.font_primary'))
-      Text(description)
-        .fontSize(13)
-        .fontColor($r('sys.color.font_secondary'))
-    }
-    .alignItems(HorizontalAlign.Start)
-    .width('100%')
-    .padding({
-      left: 6,
-      right: 6,
-      top: 14,
-      bottom: 6
-    })
   }
 
   @Builder

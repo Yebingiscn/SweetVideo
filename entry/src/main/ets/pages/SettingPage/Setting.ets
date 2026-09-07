@@ -4,7 +4,6 @@ import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { DefaultDialogShadow, ImageFancyModifier } from '../../common/AttributeModifierConfig'
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
-import { SettingsSectionHeaderBuilder } from '../../component/SettingComponent/SettingsSectionHeader'
 import Preferences from '../../database/Preferences'
 import BiometricAccessUtil from '../../utils/BiometricAccessUtil'
 import { Setting } from '../../utils/ObservedUtil'
@@ -12,10 +11,13 @@ import { LengthMetrics } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { IapVerifyUtil } from '../../utils/IapVerifyUtil'
 import { userData } from '../../component/common/UserLoginComponent'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
 @ComponentV2
 export struct SettingsPage { //设置页
   @Local passwd: string = 'passwd'
+  @Local showVipPage: boolean = true
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   editPasswdDialogController: CustomDialogController = new CustomDialogController({
     builder: EditPasswordDialog({
       confirm: (passwd: string | undefined) => {
@@ -29,14 +31,13 @@ export struct SettingsPage { //设置页
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @Local showVipPage: boolean = true
-  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   private listScroller: Scroller = new Scroller()
 
   async aboutToAppear(): Promise<void> {
     this.showVipPage = await IapVerifyUtil.queryEnvironmentStatus()
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   build() {
     HdsNavDestination() {
       List({ scroller: this.listScroller }) {
@@ -90,55 +91,7 @@ export struct SettingsPage { //设置页
           }
         }
 
-        ListItem() {
-          SettingsSectionHeaderBuilder('常用设置', '按功能进入对应设置')
-        }
-
-        ListItem() {
-          SettingsClickItem({
-            symbol: $r('sys.symbol.paintpalette'),
-            message: '外观与首页',
-            onPress: () => {
-              this.pathStack.pushPathByName(NavigationAddress.PERSONALIZE_PAGE, true)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsClickItem({
-            symbol: $r('sys.symbol.play_round_rectangle'),
-            message: '播放设置',
-            onPress: () => {
-              this.pathStack.pushPathByName(NavigationAddress.PLAYER_SETTING_PAGE, true)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsClickItem({
-            symbol: $r('sys.symbol.textformat_size_square'),
-            message: '字幕样式',
-            onPress: () => {
-              this.pathStack.pushPathByName(NavigationAddress.SUBTITLE_SETTING_PAGE, true)
-            }
-          })
-        }
-
-        ListItem() {
-          SettingsClickItem({
-            symbol: $r('sys.symbol.square_grid_2x2'),
-            message: '应用与支持',
-            onPress: () => {
-              this.pathStack.pushPathByName(NavigationAddress.MORE_SETTING_PAGE, true)
-            }
-          })
-        }
-
         if (Setting.showSettingPageEntry) {
-          ListItem() {
-            SettingsSectionHeaderBuilder('隐私与安全', '保护私密内容与访问权限')
-          }
-
           ListItem() {
             SettingsClickItem({
               symbol: $r('sys.symbol.lock'),
@@ -165,6 +118,75 @@ export struct SettingsPage { //设置页
           }
         }
 
+        ListItem() {
+          SettingsClickItem({
+            symbol: $r('sys.symbol.square_and_pencil'),
+            message: '界面设置',
+            onPress: () => {
+              this.pathStack.pushPathByName(NavigationAddress.PERSONALIZE_PAGE, true)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsClickItem({
+            symbol: $r('sys.symbol.paintpalette'),
+            message: '个性界面',
+            onPress: () => {
+              this.pathStack.pushPathByName(NavigationAddress.PERSONALIZE_SETTING_PAGE, true)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsClickItem({
+            symbol: $r('sys.symbol.play_round_rectangle'),
+            message: '播放设置',
+            onPress: () => {
+              this.pathStack.pushPathByName(NavigationAddress.PLAYER_SETTING_PAGE, true)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsClickItem({
+            symbol: $r('sys.symbol.engine_combustion'),
+            message: '引擎设置',
+            onPress: () => {
+              this.pathStack.pushPathByName(NavigationAddress.ENGINE_SETTING_PAGE, true)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsClickItem({
+            symbol: $r('sys.symbol.textformat_size_square'),
+            message: '字幕样式',
+            onPress: () => {
+              this.pathStack.pushPathByName(NavigationAddress.SUBTITLE_SETTING_PAGE, true)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsClickItem({
+            symbol: $r('sys.symbol.HarmonyOS'),
+            message: '鸿蒙特性',
+            onPress: () => {
+              this.pathStack.pushPathByName(NavigationAddress.HARMONY_FEATURE_PAGE, true)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsClickItem({
+            symbol: $r('sys.symbol.square_grid_2x2'),
+            message: '更多设置',
+            onPress: () => {
+              this.pathStack.pushPathByName(NavigationAddress.MORE_SETTING_PAGE, true)
+            }
+          })
+        }
       }
       .clip(false)
       .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
@@ -251,5 +273,4 @@ export struct SettingsPage { //设置页
     .hideBackButton(false)
     .bindToScrollable([this.listScroller]) // 绑定导航组件和可滚动容器组件
   }
-
 }

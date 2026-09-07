@@ -2,13 +2,13 @@ import { VideoDataSource } from '../utils/DataUtil'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { PathUtils } from '../utils/PathUtils'
 import { DefaultDialogShadow } from '../common/AttributeModifierConfig'
-import { VideoDetailDialog } from '../component/Dialog/VideoDetailDialog'
+import { VideoDetailSheetBuilder } from '../component/Dialog/VideoDetailDialog'
 import { InfoConfirmDialog } from '../component/Dialog/InfoConfirmDialog'
 import { Context } from '@kit.AbilityKit'
 import { DELAY_JUMP_TO_PLAYER } from '../common/Constants'
 import { VideoItemBuilder } from '../component/PlayerComponent/PlayerSideBarComponent'
 import { VideoItemPreviewBuilder } from '../component/VideoItemComponent/VideoItemPreviewBuilder'
-import DataSyncUtil from '../utils/DataSyncUtil'
+
 import { Setting } from '../utils/ObservedUtil'
 import RecentPlayUtil from '../utils/RecentPlayUtil'
 import SelectFileUtil from '../utils/SelectFileUtil'
@@ -17,6 +17,7 @@ import ToolsUtil from '../utils/ToolsUtil'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
 @ComponentV2
 export struct RecentPlay { // 最近播放页
@@ -33,10 +34,8 @@ export struct RecentPlay { // 最近播放页
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
-  VideoDetailDialog: CustomDialogController = new CustomDialogController({
-    builder: VideoDetailDialog(), cornerRadius: 20,
-    shadow: DefaultDialogShadow
-  })
+  @Local showDetailSheet: boolean = false
+  @Local detailMetadata: VideoMetadata | undefined = undefined
   private pendingDeleteItem: VideoMetadata | null = null
   deleteConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog({
@@ -90,8 +89,8 @@ export struct RecentPlay { // 最近播放页
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
         .onClick(() => {
           setTimeout(() => {
-            DataSyncUtil.editingVideo = item
-            this.VideoDetailDialog.open()
+            this.detailMetadata = item
+            this.showDetailSheet = true
           }, 300)
         })
     }
@@ -126,6 +125,7 @@ export struct RecentPlay { // 最近播放页
     this.videoDataSource.deleteData(this.videoDataSource.getAllData().indexOf(item))
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   build() {
     HdsNavDestination() {
       Column() {
@@ -304,5 +304,19 @@ export struct RecentPlay { // 最近播放页
       hideStatusBar: false,
       mode: HideMode.SCROLL_UP
     })
+    .bindSheet(this.showDetailSheet, this.DetailSheetBuilder, {
+      detents: [SheetSize.LARGE],
+      backgroundColor: $r('app.color.start_window_background'),
+      blurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+      showClose: true,
+      onWillDismiss: () => {
+        this.showDetailSheet = false
+      }
+    })
+  }
+
+  @Builder
+  DetailSheetBuilder() {
+    VideoDetailSheetBuilder(this.detailMetadata)
   }
 }

@@ -10,6 +10,7 @@ import { PrivacyPolicyComponent } from '../../component/VideoItemComponent/Priva
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { LengthMetrics } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
 const TAG = 'AboutApp'
 
@@ -98,6 +99,7 @@ export struct AboutApp {
     })
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   build() {
     HdsNavDestination() {
       Scroll(this.listScroller) {

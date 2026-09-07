@@ -122,6 +122,8 @@ export default class WantProcess {
       const targetVideo: VideoMetadata = {
         uri: uri,
         title: VideoInfoUtil.resolveImportedTitle(fileName, probe),
+        artist: probe.artist.trim() || undefined,
+        album: probe.album.trim() || undefined,
         date: systemDateTime.getTime(false).toString(),
         size: VideoInfoUtil.getPlayableResolution(probe),
         cover_size: [probe.coverWidth, probe.coverHeight],
@@ -130,6 +132,7 @@ export default class WantProcess {
         last_play: 0,
         format: VideoInfoUtil.getVideoFormat(uri),
         video_size: await VideoInfoUtil.getVideoSize(uri, true) as string,
+        bit_rate: Math.round(probe.bitRate),
         frame_rate: Math.round(probe.frameRate),
         hdr_type: probe.hdrType,
         audio_type: probe.audioType,

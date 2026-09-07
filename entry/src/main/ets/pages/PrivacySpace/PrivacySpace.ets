@@ -3,8 +3,8 @@ import SelectFileUtil from '../../utils/SelectFileUtil'
 import { VideoDataSource } from '../../utils/DataUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import DataSyncUtil from '../../utils/DataSyncUtil'
-import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
-import { VideoDetailDialog } from '../../component/Dialog/VideoDetailDialog'
+import { LengthMetrics, SymbolGlyphModifier, UIUtils } from '@kit.ArkUI'
+import { VideoDetailSheetBuilder } from '../../component/Dialog/VideoDetailDialog'
 import Preferences from '../../database/Preferences'
 import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
@@ -19,6 +19,7 @@ import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog'
 import NavigationAddress, { PrivacySpaceParams } from '../../common/NavigationCommon'
 import { RenameDialog } from '../../component/Dialog/RenameDialog'
 import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
+import { ImportSelectDialog } from '../../component/Dialog/ImportSelectDialog'
 import { ImportProgressBuilder } from '../../component/VideoItemComponent/ImportProgressBuilder'
 import VideoCardItem from '../../component/VideoItemComponent/VideoCardItemComponent'
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
@@ -42,13 +43,17 @@ import { VideoListController } from '../../component/VideoItemComponent/VideoIte
 import { pinyin4js } from '@ohos/pinyin4js'
 import { DeleteType } from '../../common/enum/DeleteType'
 import { SortMenuComponent } from '../../component/common/SortMenuComponent'
-import { FolderSelectMenuBuilder } from '../../component/FileFolderComponent/FileFolderSelectBuilder'
+
 import { PrivacySpaceSettingComponent } from '../../component/PrivacySpaceComponent/PrivacySpaceSettingComponent'
 import { SearchComponent } from '../../component/VideoItemComponent/SearchComponent'
 import { XAnimation } from '../../utils/AnimationUtil'
 import DlpAntiPeepUtil from '../../utils/DlpAntiPeepUtil'
 import { importAndProcessFiles, ProgressInfo } from '../../utils/FileProcessorUtil'
 import SubtitleUtil from '../../utils/SubtitleUtil'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { salmonLogger } from 'salmonlogger'
+
+const TAG = 'PrivacySpace'
 
 @ComponentV2
 export struct PrivacySpace { // 隐私空间页
@@ -65,6 +70,7 @@ export struct PrivacySpace { // 隐私空间页
   @Local failedCount: number = 0 // 失败文件数
   @Local currentStage: 'extracting' | 'cover' | 'saving' = 'extracting' // 当前处理阶段
   @Local searchValue: string = ''
+  private knockFilesMonitorRegistered: boolean = false
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: RenameDialog({
       title: $r('app.string.rename'),
@@ -84,14 +90,18 @@ export struct PrivacySpace { // 隐私空间页
         const updatedVideo: VideoMetadata = {
           uri: original.uri,
           title: title as string,
+          artist: original.artist,
+          album: original.album,
           date: original.date,
           size: original.size,
           cover_size: original.cover_size,
           has_video_track: original.has_video_track,
           time: original.time,
           last_play: original.last_play,
+          last_played_at: original.last_played_at,
           format: original.format,
           video_size: original.video_size,
+          bit_rate: original.bit_rate,
           hdr_type: original.hdr_type,
           audio_type: original.audio_type,
           frame_rate: original.frame_rate,
@@ -141,10 +151,8 @@ export struct PrivacySpace { // 隐私空间页
     new VideoListController()
   @Local isPresent: boolean = false
   searchController: SearchController = new SearchController()
-  VideoDetailDialog: CustomDialogController = new CustomDialogController({
-    builder: VideoDetailDialog(), cornerRadius: 20,
-    shadow: DefaultDialogShadow
-  })
+  @Local showDetailSheet: boolean = false
+  @Local detailMetadata: VideoMetadata | undefined = undefined
   @Local HoldingHand: motion.HoldingHandStatus | null = null
   batchDeleteConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog({
@@ -166,6 +174,22 @@ export struct PrivacySpace { // 隐私空间页
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  importSelectDialog: CustomDialogController = new CustomDialogController({
+    builder: ImportSelectDialog({
+      onImportVideo: async () => {
+        this.isPresent = false
+        await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "video"))
+      },
+      onImportAlbum: async () => {
+        this.isPresent = false
+        await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "album"))
+      },
+      onImportMusic: async () => {
+        this.isPresent = false
+        await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "audio"))
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
   private listScroller: ListScroller = new ListScroller()
   private waterFlowScroller: ListScroller = new ListScroller()
 
@@ -184,75 +208,7 @@ export struct PrivacySpace { // 隐私空间页
   }
 
   @Builder
-  NavigationMenus() {
-    Row() {
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph($r('sys.symbol.plus'))
-          .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-      }
-      .backdropBlur(150)
-      .attributeModifier(new ButtonFancyModifier(35, 35))
-      .animation({ duration: 300, curve: Curve.Ease })
-      .bindMenu(this.SelectFileMenuBuilder, { showInSubWindow: false })
-      .margin({ right: 10 })
 
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph($r('sys.symbol.gearshape'))
-          .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-      }
-      .backdropBlur(150)
-      .attributeModifier(new ButtonFancyModifier(35, 35))
-      .animation({ duration: 300, curve: Curve.Ease })
-      .bindSheet(this.isPresent, this.PrivacySpaceSettingBuilder, {
-        detents: [SheetSize.FIT_CONTENT],
-        height: SheetSize.MEDIUM,
-        preferType: SheetType.CENTER,
-        enableOutsideInteractive: false,
-        dragBar: true,
-        showClose: true,
-        title: { title: '隐私空间设置' },
-        onWillDismiss: () => {
-          this.isPresent = false
-        }
-      })
-      .onClick(() => {
-        this.isPresent = !this.isPresent
-      })
-      .margin({ right: 10 })
-    }.justifyContent(FlexAlign.End).width('100%').height('auto')
-  }
-
-  @Builder
-  SelectFileMenuBuilder() {
-    FolderSelectMenuBuilder([
-      {
-        icon: $r('sys.symbol.resolution_video'),
-        content: $r('app.string.import_from_videos'),
-        onAction: async () => {
-          this.isPresent = false
-          await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "video"))
-        }
-      },
-      {
-        icon: $r('sys.symbol.picture_2'),
-        content: $r('app.string.import_from_album'),
-        onAction: async () => {
-          this.isPresent = false
-          await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "album"))
-        }
-      },
-      {
-        icon: $r('sys.symbol.music'),
-        content: $r('app.string.import_from_music'),
-        onAction: async () => {
-          this.isPresent = false
-          await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "audio"))
-        }
-      }
-    ])
-  }
-
-  @Builder
   SearchBuilder() {
     Row({ space: 10 }) {
       SearchComponent({
@@ -386,8 +342,8 @@ export struct PrivacySpace { // 隐私空间页
         })
       MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
         .onClick(() => {
-          DataSyncUtil.editingVideo = item
-          this.VideoDetailDialog.open()
+          this.detailMetadata = item
+          this.showDetailSheet = true
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
@@ -495,15 +451,41 @@ export struct PrivacySpace { // 隐私空间页
     this.privacyVideoListController.multipleChooseState = this.multipleChooseState
   }
 
-  @Monitor('privacyState.receivedFilesVersion')
-  onKnockFilesReceived(): void {
+  onKnockFilesReceived(_mon: IMonitor): void {
     this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
     this.video_meta_data_encryption = this.searchValue.trim()
       ? SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue) : this.allVideos
     this.videoDataSource.updateData(this.video_meta_data_encryption)
   }
 
+  private registerKnockFilesMonitor(): void {
+    if (this.knockFilesMonitorRegistered) {
+      return
+    }
+    try {
+      UIUtils.addMonitor(this.privacyState, 'receivedFilesVersion', (mon: IMonitor): void => {
+        this.onKnockFilesReceived(mon)
+      })
+      this.knockFilesMonitorRegistered = true
+    } catch (error) {
+      salmonLogger.addLog(TAG, `注册碰一碰文件监听失败: ${error}`, true)
+    }
+  }
+
+  private unregisterKnockFilesMonitor(): void {
+    if (!this.knockFilesMonitorRegistered) {
+      return
+    }
+    this.knockFilesMonitorRegistered = false
+    try {
+      UIUtils.clearMonitor(this.privacyState, 'receivedFilesVersion')
+    } catch (error) {
+      salmonLogger.addLog(TAG, `注销碰一碰文件监听失败: ${error}`, true)
+    }
+  }
+
   async aboutToAppear(): Promise<void> {
+    this.registerKnockFilesMonitor()
     this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
     this.video_meta_data_encryption = this.allVideos
     this.videoDataSource = new VideoDataSource(this.video_meta_data_encryption)
@@ -518,6 +500,10 @@ export struct PrivacySpace { // 隐私空间页
     }
     this.currentSortAsc = Preferences.getSortAsc(PathUtils.appContext!)
     this.pinyinSort = Preferences.getPinyinSort(PathUtils.appContext!)
+  }
+
+  aboutToDisappear(): void {
+    this.unregisterKnockFilesMonitor()
   }
 
   async clickItem(item: VideoMetadata | undefined, reverse: boolean = false) {
@@ -544,10 +530,12 @@ export struct PrivacySpace { // 隐私空间页
     await SelectFileUtil.deletePrivacyVideo(date, title, this.allVideos)
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   build() {
     HdsNavDestination() {
       Column() {
         if (this.loading) {
+
           ImportProgressBuilder({
             processedItems: this.processedItems,
             totalItems: this.totalItems,
@@ -800,6 +788,17 @@ export struct PrivacySpace { // 隐私空间页
           ? base + 1
           : base + 2
       })
+      .bindSheet(this.isPresent, this.PrivacySpaceSettingBuilder, {
+        detents: [SheetSize.FIT_CONTENT],
+        preferType: SheetType.CENTER,
+        enableOutsideInteractive: false,
+        dragBar: true,
+        showClose: true,
+        title: { title: '隐私空间设置' },
+        onWillDismiss: () => {
+          this.isPresent = false
+        }
+      })
     }
     .onWillDisappear(() => {
       IntellectualGripPostureUtil.destroyHoldingHandStatus()
@@ -887,7 +886,27 @@ export struct PrivacySpace { // 隐私空间页
         title: {
           mainTitle: $r('app.string.privacy_space'),
         },
-        stackBuilder: (): void => this.NavigationMenus(),
+        menu: {
+          value: [{
+            content: {
+              label: '',
+              icon: $r('sys.symbol.plus'),
+              isEnabled: true,
+              action: () => {
+                this.importSelectDialog.open()
+              }
+            }
+          }, {
+            content: {
+              label: '',
+              icon: $r('sys.symbol.gearshape'),
+              isEnabled: true,
+              action: () => {
+                this.isPresent = true
+              }
+            }
+          }]
+        },
         bottomBuilder: { builder: (): void => this.SearchBuilder() },
       },
     })
@@ -930,6 +949,21 @@ export struct PrivacySpace { // 隐私空间页
       mode: HideMode.SCROLL_UP
     })
     .hideBackButton(false)
+
+    .bindSheet(this.showDetailSheet, this.DetailSheetBuilder, {
+      detents: [SheetSize.LARGE],
+      backgroundColor: $r('app.color.start_window_background'),
+      blurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+      showClose: true,
+      onWillDismiss: () => {
+        this.showDetailSheet = false
+      }
+    })
+  }
+
+  @Builder
+  DetailSheetBuilder() {
+    VideoDetailSheetBuilder(this.detailMetadata)
   }
 
   @Builder

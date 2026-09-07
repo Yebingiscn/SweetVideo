@@ -32,7 +32,8 @@ export struct SettingsToggleItem {
           .symbolEffect(new ReplaceSymbolEffect(EffectScope.WHOLE), Number(this._enable))
         Text(this.message)
           .attributeModifier(new SettingsTitleModifier())
-          .constraintSize({ maxWidth: this.tag ? '65%' : '100%' })
+          .textOverflow({ overflow: TextOverflow.MARQUEE })
+          .constraintSize({ maxWidth: this.tag ? '70%' : '100%' })
         if (this.tag) {
           Text(this.tag)
             .fontSize(12)

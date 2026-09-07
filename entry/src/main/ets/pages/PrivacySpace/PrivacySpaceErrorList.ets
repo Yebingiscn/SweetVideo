@@ -2,7 +2,7 @@ import { salmonLogger } from 'salmonlogger'
 import { ImageFancyModifier, MenuFancyModifier } from '../../common/AttributeModifierConfig'
 import Preferences from '../../database/Preferences'
 import { PrivacySpaceErrorListDataSource } from '../../utils/DataUtil'
-import { Privacy, SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { Privacy, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
@@ -10,6 +10,7 @@ import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
 import { fileIo } from '@kit.CoreFileKit'
 import { CoverLayoutMode } from '../../common/enum/DisplayMode'
 import ShareUtil from '../../utils/ShareUtil'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
 const TAG = 'PrivacySpaceErrorList'
 
@@ -93,6 +94,7 @@ export struct PrivacySpaceErrorList {
     .width('100%')
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   build() {
     HdsNavDestination() {
       Column() {
@@ -218,7 +220,6 @@ export struct PrivacySpaceErrorList {
         }
       },
     })
-    .padding({ top: SafeHeight.topSafeHeight })
     .backgroundColor($r('app.color.start_window_background'))
     .backgroundImage(
       Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ? Setting.backgroundBlurImageSrc :

@@ -19,6 +19,13 @@ declare module 'libmpvnative.so' {
 
   export const getGpuApi: () => number;
 
+  // 0 = off, 1 = adaptive HDR10/PQ, 2 = adaptive HLG. Buffer/soft decode only.
+  export const setSdrToHdr: (mode: number) => void;
+  /** Enable system video detail enhancement at fixed high quality in every MPV mode. */
+  export const setSuperResolution: (enabled: boolean) => void;
+
+  export const getSdrToHdr: () => number;
+
   // ==================== 核心函数 ====================
   export const create: () => number | null;
 
@@ -36,7 +43,7 @@ declare module 'libmpvnative.so' {
 
   // ==================== 视频加载 ====================
   export const loadVideo: (mpvHandle: number, url: string, startPosition?: number,
-    subtitleTrackId?: number, userAgent?: string) => number;
+    subtitleTrackId?: number, userAgent?: string, httpHeaderFields?: string) => number;
 
   // ==================== 光盘设备配置（ISO文件播放）====================
   export const setBlurayDevice: (mpvHandle: number, isoPath: string) => boolean;

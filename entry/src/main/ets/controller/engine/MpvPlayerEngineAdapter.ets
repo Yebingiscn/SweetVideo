@@ -61,16 +61,33 @@ export class MpvPlayerEngineAdapter implements PlayerEngineAdapter {
     }
   }
 
-  load(url: string, startPosition?: number, subtitleTrackId?: number, userAgent?: string): void {
+  load(url: string, startPosition?: number, subtitleTrackId?: number, userAgent?: string,
+    httpHeaders?: Record<string, string>): void {
     this.invalidateLoad()
     if (!this.nativeHandle || !this.isAlive()) {
       throw new Error('MPV core is not alive')
     }
-    const requestId = mpvLoadVideo(this.nativeHandle, url, startPosition, subtitleTrackId, userAgent)
+    const requestId = mpvLoadVideo(this.nativeHandle, url, startPosition, subtitleTrackId, userAgent,
+      this.serializeHttpHeaders(httpHeaders))
     if (!Number.isSafeInteger(requestId) || requestId <= 0) {
       throw new Error('MPV loadfile did not return a valid request ID')
     }
     this.loadRequestId = requestId
+  }
+
+  private serializeHttpHeaders(headers?: Record<string, string>): string | undefined {
+    if (!headers) {
+      return undefined
+    }
+    const fields: string[] = []
+    Object.keys(headers).forEach((name: string) => {
+      const safeName = name.replace(/[\r\n:,]/g, '').trim()
+      const safeValue = headers[name].replace(/[\r\n]/g, '').trim()
+      if (safeName && safeValue) {
+        fields.push(`${safeName}: ${safeValue}`)
+      }
+    })
+    return fields.length > 0 ? fields.join(',') : undefined
   }
 
   destroy(beforeNativeRelease?: EngineReleaseHook): void {

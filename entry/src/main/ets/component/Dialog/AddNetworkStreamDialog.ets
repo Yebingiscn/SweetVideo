@@ -5,6 +5,10 @@ import { PathUtils } from '../../utils/PathUtils'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import { salmonLogger } from 'salmonlogger'
 import FFmpegThumbnailUtil from '../../utils/FFmpegThumbnailUtil'
+import { picker } from '@kit.CoreFileKit'
+import StrmUtil from '../../utils/StrmUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 
 const TAG = 'AddNetworkStreamDialog'
 
@@ -22,7 +26,7 @@ export struct AddNetworkStreamDialog {
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)
 
-      Text('输入流媒体地址，支持HTTP/HTTPS/RTMP等协议')
+      Text('输入流媒体地址，支持HTTP/HTTPS/RTMP等协议，也可以导入 .strm 文件')
         .fontSize(12)
         .fontColor($r('app.color.text_color'))
         .opacity(0.6)
@@ -41,6 +45,14 @@ export struct AddNetworkStreamDialog {
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .borderRadius(16)
         .onChange((input: string) => this.streamUrl = input)
+
+      Button('导入 .strm 文件')
+        .fontColor($r('app.color.text_color'))
+        .attributeModifier(new ButtonFancyModifier('100%', 40))
+        .backgroundColor($r('sys.color.button_background_color_transparent'))
+        .onClick(async () => {
+          await this.selectStrmFile()
+        })
 
       DialogButtonBar(
         () => {
@@ -83,6 +95,32 @@ export struct AddNetworkStreamDialog {
         }
       )
     }.padding(20)
+  }
+
+  private async selectStrmFile(): Promise<void> {
+    const options = new picker.DocumentSelectOptions()
+    options.maxSelectNumber = 1
+    options.fileSuffixFilters = ['STRM 串流快捷方式|.strm', 'strm']
+    let uris: string[] = []
+    try {
+      uris = await new picker.DocumentViewPicker(PathUtils.appContext!).select(options)
+    } catch (_error) {
+      return
+    }
+    if (uris.length === 0) {
+      return
+    }
+    try {
+      const result = await StrmUtil.read(uris[0])
+      this.streamUrl = result.url
+      if (!this.streamName.trim()) {
+        this.streamName = result.name
+      }
+      ToolsUtil.showToast('已读取 .strm 文件')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      ToolsUtil.showToast(message)
+    }
   }
 
   private async fetchThumbnailAndSave(url: string, date: string): Promise<void> {

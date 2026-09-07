@@ -23,6 +23,10 @@ export default class NavigationAddress {
   static STREAM_PAGE = 'StreamPage'
   static IPTV_SOURCE_PAGE = 'IPTVSourcePage'
   static IPTV_CHANNEL_PAGE = 'IPTVChannelPage'
+  static HUAWEI_DRIVE_PAGE = 'HuaweiDrivePage'
+  static HARMONY_FEATURE_PAGE = 'HarmonyFeaturePage'
+  static PERSONALIZE_SETTING_PAGE = 'PersonalizeSettingPage'
+  static ENGINE_SETTING_PAGE = 'EngineSettingPage'
 }
 
 export class PrivacySpaceParams {

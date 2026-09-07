@@ -1,5 +1,6 @@
 import { DeleteType } from '../../common/enum/DeleteType'
 import { DANGER_COLOR, DANGER_COLOR_ALPHA_15, WARNING_COLOR, WARNING_COLOR_ALPHA_15 } from '../../common/Constants'
+import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 
 @ComponentV2
 export struct DeleteOptionsGroup {
@@ -116,10 +117,8 @@ export struct DeleteOptionsGroup {
               .fontWeight(FontWeight.Medium)
           }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
         }
-        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+        .attributeModifier(new ButtonFancyModifier('', 36))
         .backgroundColor($r('sys.color.button_background_color_transparent'))
-        .borderRadius(12)
-        .height(36)
         .onClick(() => this.onCancel())
 
         Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -133,10 +132,8 @@ export struct DeleteOptionsGroup {
               .fontWeight(FontWeight.Medium)
           }.alignItems(VerticalAlign.Center).padding({ left: 12, right: 12 })
         }
-        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+        .attributeModifier(new ButtonFancyModifier('', 36))
         .backgroundColor(this.getActionBgColor())
-        .borderRadius(12)
-        .height(36)
         .onClick(() => {
           let deleteType = DeleteType.SOFT
           if (this.deleteOption === 'hard') {

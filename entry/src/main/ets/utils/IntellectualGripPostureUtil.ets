@@ -1,10 +1,14 @@
 import { motion } from '@kit.MultimodalAwarenessKit';
 import { salmonLogger } from 'salmonlogger';
+import { Setting } from './ObservedUtil';
 
 const TAG = 'IntellectualGripPostureUtil'
 
 export default class IntellectualGripPostureUtil {
   static isLeftOperateHand(status: motion.OperatingHandStatus | null): boolean {
+    if (!Setting.gripPostureEnabled) {
+      return false
+    }
     if (canIUse("SystemCapability.MultimodalAwareness.Motion")) {
       return IntellectualGripPostureUtil.isLeftHand(status, motion.OperatingHandStatus.LEFT_HAND_OPERATED)
     } else {
@@ -13,6 +17,9 @@ export default class IntellectualGripPostureUtil {
   }
 
   static isLeftHoldHand(status: motion.HoldingHandStatus | null): boolean {
+    if (!Setting.gripPostureEnabled) {
+      return false
+    }
     if (canIUse("SystemCapability.MultimodalAwareness.Motion")) {
       return IntellectualGripPostureUtil.isLeftHand(status, motion.HoldingHandStatus.LEFT_HAND_HELD)
     } else {
@@ -21,6 +28,9 @@ export default class IntellectualGripPostureUtil {
   }
 
   static createOperatingHandStatus(callback?: Callback<motion.OperatingHandStatus>) {
+    if (!Setting.gripPostureEnabled) {
+      return
+    }
     IntellectualGripPostureUtil.createHandStatus(callback, 'operatingHandChanged',
       () => {
       },
@@ -30,6 +40,9 @@ export default class IntellectualGripPostureUtil {
   }
 
   static createHoldingHandStatus(callback?: Callback<motion.HoldingHandStatus>) {
+    if (!Setting.gripPostureEnabled) {
+      return
+    }
     IntellectualGripPostureUtil.createHandStatus(callback, 'holdingHandChanged',
       () => {
       },
@@ -57,6 +70,9 @@ export default class IntellectualGripPostureUtil {
   }
 
   static getOperatingHandStatus(): motion.OperatingHandStatus | null {
+    if (!Setting.gripPostureEnabled) {
+      return null
+    }
     if (canIUse('SystemCapability.MultimodalAwareness.Motion')) {
       try {
         let data: motion.OperatingHandStatus = motion.getRecentOperatingHandStatus()

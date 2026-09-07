@@ -1,3 +1,5 @@
+import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
+
 @Builder
 export function DialogButtonBar(onCancel: () => void, onConfirm: () => void) {
   Row({ space: 12 }) {
@@ -7,10 +9,8 @@ export function DialogButtonBar(onCancel: () => void, onConfirm: () => void) {
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Medium)
     }
+    .attributeModifier(new ButtonFancyModifier('', 44))
     .backgroundColor($r('sys.color.button_background_color_transparent'))
-    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-    .borderRadius(16)
-    .height(44)
     .layoutWeight(1)
     .onClick(() => onCancel())
 
@@ -20,10 +20,8 @@ export function DialogButtonBar(onCancel: () => void, onConfirm: () => void) {
         .fontColor(Color.White)
         .fontWeight(FontWeight.Medium)
     }
-    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+    .attributeModifier(new ButtonFancyModifier('', 44))
     .backgroundColor($r('app.color.main_color'))
-    .borderRadius(16)
-    .height(44)
     .layoutWeight(1)
     .onClick(() => onConfirm())
   }

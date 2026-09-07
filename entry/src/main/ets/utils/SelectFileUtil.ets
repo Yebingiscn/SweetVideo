@@ -19,7 +19,7 @@ import PrivacySpaceUtil from './PrivacySpaceUtil'
 import RecentPlayUtil from './RecentPlayUtil'
 import SubtitleUtil from './SubtitleUtil'
 import { extractVideoFileInfoInTaskPool } from './TaskpoolUtil'
-import { SuppressWarnings, SuppressWarningsType, systemDateTime } from '@kit.BasicServicesKit'
+import { Available, SuppressWarnings, SuppressWarningsType, systemDateTime } from '@kit.BasicServicesKit'
 import { effectKit } from '@kit.ArkGraphics2D'
 import { JSON } from '@kit.ArkTS'
 import FFmpegThumbnailUtil, { FFmpegMediaProbe } from './FFmpegThumbnailUtil'
@@ -32,6 +32,22 @@ export interface SavePixelMapOptions {
   format?: string
 }
 
+export interface MediaFolderImport {
+  name: string
+  uri: string
+  files: string[]
+}
+
+interface DirectoryScanResult {
+  files: string[]
+  directories: DirectoryScanTarget[]
+}
+
+interface DirectoryScanTarget {
+  fileSystemPath: string
+  importUri: string
+}
+
 export default class SelectFileUtil {
   public static fileFolderUri = ''
   public static videoSourcePath = new Map<number, string>([
@@ -41,10 +57,12 @@ export default class SelectFileUtil {
     [VideoSource.PRIVACY_SPACE, '/data/storage/el2'],
     [VideoSource.EXTERNAL_DEVICE, 'file://docs/storage/External']
   ])
+  private static downloadUriPromise: Promise<string> | undefined = undefined
   private static queryCache = new WeakMap<VideoMetadata[], Map<string, VideoMetadata>>()
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
-  static async selectFromFileManager(uri?: string, mode: 'video' | 'audio' | 'album' = 'video'): Promise<string[]> {
+  static async selectFromFileManager(uri?: string,
+    mode: 'video' | 'audio' | 'album' = 'video'): Promise<string[]> {
     const documentSelectOptions = new picker.DocumentSelectOptions()
     if (uri) {
       documentSelectOptions.defaultFilePathUri = uri
@@ -57,7 +75,6 @@ export default class SelectFileUtil {
       case 'audio':
         documentSelectOptions.fileSuffixFilters = SUPPORT_AUDIO_FORMAT
         break
-      case 'album':
       default:
         documentSelectOptions.fileSuffixFilters = SUPPORT_VIDEO_FORMAT
         break
@@ -81,6 +98,34 @@ export default class SelectFileUtil {
       return documentSelectResult.length > 0 ? documentSelectResult : []
     } catch (error) {
       salmonLogger.addLog(TAG, "Error selecting files: " + error, true)
+      return []
+    }
+  }
+
+  @Available({ minApiVersion: 'HarmonyOS 26.0.0' })
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
+  static async selectMediaFolders(): Promise<MediaFolderImport[]> {
+    const documentSelectOptions = new picker.DocumentSelectOptions()
+    documentSelectOptions.selectMode = picker.DocumentSelectMode.FOLDER
+    documentSelectOptions.allowsMulFolderSelection = true
+    const documentViewPicker = new picker.DocumentViewPicker(PathUtils.appContext!)
+    try {
+      const selectedFolders = await documentViewPicker.select(documentSelectOptions)
+      if (selectedFolders.length === 0) {
+        return []
+      }
+      await Promise.allSettled(selectedFolders.map((folderUri: string) => PermissionUtil.persistPermission(folderUri)))
+      const imports: MediaFolderImport[] = []
+      for (const folderUri of selectedFolders) {
+        imports.push({
+          name: SelectFileUtil.getDirectoryName(folderUri),
+          uri: folderUri,
+          files: await SelectFileUtil.collectMediaFilesFromDirectories([folderUri])
+        })
+      }
+      return imports
+    } catch (error) {
+      salmonLogger.addLog(TAG, `从文件夹导入失败: ${error}`, true)
       return []
     }
   }
@@ -125,11 +170,19 @@ export default class SelectFileUtil {
   }
 
   // 获取下载文件夹路径
-  static async getDownloadUri() {
-    const documentViewPicker = new picker.DocumentViewPicker()
-    let documentSaveResult = await documentViewPicker.save({ pickerMode: picker.DocumentPickerMode.DOWNLOAD })
-    const uri = new fileUri.FileUri(documentSaveResult[0])
-    SelectFileUtil.fileFolderUri = uri.path
+  static async getDownloadUri(): Promise<string> {
+    if (SelectFileUtil.fileFolderUri) {
+      return SelectFileUtil.fileFolderUri
+    }
+    if (SelectFileUtil.downloadUriPromise) {
+      return SelectFileUtil.downloadUriPromise
+    }
+    SelectFileUtil.downloadUriPromise = SelectFileUtil.resolveDownloadUri()
+    try {
+      return await SelectFileUtil.downloadUriPromise
+    } finally {
+      SelectFileUtil.downloadUriPromise = undefined
+    }
   }
 
   // 导出视频文件
@@ -152,12 +205,8 @@ export default class SelectFileUtil {
     } catch (error) {
       ToolsUtil.showToast(`导出失败，原因是：${error}`)
     } finally {
-      if (sourceFile) {
-        fs.closeSync(sourceFile.fd)
-      }
-      if (targetFile) {
-        fs.closeSync(targetFile.fd)
-      }
+      SelectFileUtil.closeFileSafely(sourceFile, '导出源文件')
+      SelectFileUtil.closeFileSafely(targetFile, '导出目标文件')
     }
   }
 
@@ -355,7 +404,7 @@ export default class SelectFileUtil {
     }
   }
 
-  //复制视频进入隐私空间（优化版：减少文件打开次数）
+  //复制视频进入隐私空间
   static async copyFileToPrivacySpace(context: Context, video_meta_data_encryption: VideoMetadata[], uri: string,
     sandbox_video: string, sandbox_path: string, date: string, fileName: string, fileSize: number,
     pixelMap: image.PixelMap | undefined,
@@ -381,12 +430,8 @@ export default class SelectFileUtil {
       salmonLogger.addLog(TAG, `文件复制失败: ${uri}: error ${error}`, true)
       throw new Error(`隐私空间复制失败: ${error.message}`)
     } finally {
-      if (sourceFile) {
-        fs.closeSync(sourceFile)
-      }
-      if (targetFile) {
-        fs.closeSync(targetFile)
-      }
+      SelectFileUtil.closeFileSafely(sourceFile, '隐私空间源文件')
+      SelectFileUtil.closeFileSafely(targetFile, '隐私空间目标文件')
     }
   }
 
@@ -420,9 +465,18 @@ export default class SelectFileUtil {
       }
       save_time = shouldMarkAsWatched ? totalDuration : options.playTime
     }
+    let lastPlayedAt: number | undefined = undefined
+    if (options.playTime !== undefined && options.playTime > 0) {
+      lastPlayedAt = systemDateTime.getTime(false)
+      // 网络流等临时播放项可能不在本地文件夹数据库中，也要让最近播放记录拿到时间戳。
+      target_data.last_played_at = lastPlayedAt
+    }
     const updateVideo = (video: VideoMetadata) => {
       if (options.playTime) {
         video.last_play = save_time
+      }
+      if (lastPlayedAt !== undefined) {
+        video.last_played_at = lastPlayedAt
       }
       if (options.startTime) {
         video.start_time = options.startTime
@@ -601,7 +655,10 @@ export default class SelectFileUtil {
     return list.filter(item => {
       const uriFileName = ToolsUtil.safeDecodeURIComponent(
         item.uri.substring(item.uri.lastIndexOf('/') + 1)).toLowerCase()
-      return item.title.toLowerCase().includes(lowerValue) || uriFileName.includes(lowerValue)
+      const artist = item.artist?.toLowerCase() || ''
+      const album = item.album?.toLowerCase() || ''
+      return item.title.toLowerCase().includes(lowerValue) || artist.includes(lowerValue) ||
+        album.includes(lowerValue) || uriFileName.includes(lowerValue)
     })
   }
 
@@ -651,7 +708,8 @@ export default class SelectFileUtil {
   static async addFile(context: Context, sandbox_video: string, sandbox_path: string, uri: string,
     video_meta_data: VideoMetadata[], file_folder?: FileFolder,
     privateMode: boolean = PrivacySpaceUtil.getPrivacyMode() === true,
-    allowDuplicateTitle: boolean = false): Promise<boolean> {
+    allowDuplicateTitle: boolean = false, importRootUri?: string,
+    importRootFolderName?: string): Promise<boolean> {
     // 权限持久化必须留在主线程；媒体内容随后全部交给 FFmpeg。
     await PermissionUtil.persistPermission(uri)
 
@@ -689,22 +747,23 @@ export default class SelectFileUtil {
         let coverDurationMs = 0
         let coverPixelMap: image.PixelMap | undefined
         try {
-          if (!privateMode && !file_folder) {
-            const folderPathParts = FileFolderUtil.extractFolderPathFromUri(uri, fileName)
-            if (folderPathParts && folderPathParts.length > 0) {
-              const folderLock = ConcurrencyManagerUtil.getLock(`folder_${folderPathParts.join('/')}`)
-              await folderLock.acquire()
-              try {
-                file_folder = await FileFolderUtil.createFolderPath(context, folderPathParts)
-              } finally {
-                folderLock.release()
-              }
-            }
-          }
           // 不同设备接收的同名文件不一定内容相同，隐私接收保留两份。
           const isDuplicate = privateMode && allowDuplicateTitle ? false :
             FileFolderUtil.existsVideoInFolders(context, uri, fileName, privateMode)
           if (!isDuplicate) {
+            if (!privateMode && !file_folder) {
+              const folderPathParts = FileFolderUtil.extractFolderPathFromUri(
+                uri, fileName, importRootUri, importRootFolderName)
+              if (folderPathParts && folderPathParts.length > 0) {
+                const folderLock = ConcurrencyManagerUtil.getLock(`folder_${folderPathParts.join('/')}`)
+                await folderLock.acquire()
+                try {
+                  file_folder = await FileFolderUtil.createFolderPath(context, folderPathParts)
+                } finally {
+                  folderLock.release()
+                }
+              }
+            }
             if (privateMode) {
               // 持锁后读取最新隐私列表，避免异步接收覆盖期间新导入的条目。
               const privateVideos = Preferences.getVideoMetaDataEncryption(context)
@@ -796,109 +855,149 @@ export default class SelectFileUtil {
   }
 
   static async getDownloadFilesUri(): Promise<string[]> {
-    const VIDEO_EXTENSIONS = new Set([
+    return SelectFileUtil.collectMediaFilesFromDirectories([SelectFileUtil.fileFolderUri])
+  }
+
+  private static async collectMediaFilesFromDirectories(rootDirectories: string[]): Promise<string[]> {
+    const MEDIA_EXTENSIONS = new Set([
       ...SUPPORT_VIDEO_FORMAT,
       ...SUPPORT_AUDIO_FORMAT
     ].map(ext => ext.toLowerCase()))
-
-    class ConcurrencyPool {
-      private active = 0
-      private pending: Array<() => void> = []
-      private concurrency: number
-      private drainResolvers: Array<() => void> = []
-
-      constructor(concurrency: number) {
-        this.concurrency = concurrency
-      }
-
-      async run<T>(task: () => Promise<T>): Promise<T> {
-        if (this.active >= this.concurrency) {
-          await new Promise<void>(resolve => {
-            this.pending.push(resolve)
-          })
-        }
-        this.active++
-        try {
-          return await task()
-        } finally {
-          this.active--
-          this.pending.shift()?.()
-          this.notifyDrain()
-        }
-      }
-
-      async drain(): Promise<void> {
-        if (this.active === 0 && this.pending.length === 0) {
-          return
-        }
-        await new Promise<void>(resolve => {
-          this.drainResolvers.push(() => resolve())
-        })
-      }
-
-      private notifyDrain() {
-        if (this.active === 0 && this.pending.length === 0) {
-          this.drainResolvers.forEach(r => r())
-          this.drainResolvers = []
-        }
-      }
-    }
-
-    // 更高效的扩展名提取函数
-    const isVideoFile = (filePath: string): boolean => {
+    const isMediaFile = (filePath: string): boolean => {
       const lastDotIndex = filePath.lastIndexOf('.')
       if (lastDotIndex === -1) {
         return false
       }
       const ext = filePath.slice(lastDotIndex + 1).toLowerCase()
-      return VIDEO_EXTENSIONS.has(ext)
+      return MEDIA_EXTENSIONS.has(ext)
     }
-    const dirPool = new ConcurrencyPool(48) // 目录遍历并发控制
-    const filePaths: string[] = []
-    const processedPaths = new Set<string>() // 避免重复处理
 
-    const collectFiles = async (directory: string): Promise<void> => {
-      if (processedPaths.has(directory)) {
-        return
-      }
-      processedPaths.add(directory)
+    const joinDirectoryPath = (directory: string, entry: string): string => {
+      return `${directory.replace(/\/+$/, '')}/${entry.replace(/^\/+/, '')}`
+    }
+
+    const DIRECTORY_BATCH_SIZE = 8
+    const ENTRY_BATCH_SIZE = 50
+    const filePaths: string[] = []
+    const processedDirectories = new Set<string>()
+    const directoryQueue: DirectoryScanTarget[] = rootDirectories
+      .filter((directory: string) => directory.length > 0)
+      .map((directory: string) => SelectFileUtil.createDirectoryScanTarget(directory))
+
+    const scanDirectory = async (directory: DirectoryScanTarget): Promise<DirectoryScanResult> => {
+      const result: DirectoryScanResult = { files: [], directories: [] }
       try {
-        const entries: string[] = await fs.listFile(directory)
-        // 批量处理条目，提高效率
-        const batchSize = 50
-        for (let i = 0; i < entries.length; i += batchSize) {
-          const batch = entries.slice(i, i + batchSize)
+        const entries: string[] = await fs.listFile(directory.fileSystemPath)
+        for (let i = 0; i < entries.length; i += ENTRY_BATCH_SIZE) {
+          const batch = entries.slice(i, i + ENTRY_BATCH_SIZE)
           const batchPromises = batch.map(async (entry: string) => {
-            const fullPath: string = `${directory}/${entry}`.replace(/\/+/g, '/') // 规范化路径
+            const fullFileSystemPath = joinDirectoryPath(directory.fileSystemPath, entry)
+            const fullImportUri = joinDirectoryPath(directory.importUri, entry)
             try {
-              const stat = await fs.stat(fullPath)
+              const stat = await fs.stat(fullFileSystemPath)
               if (stat.isFile()) {
-                // 同步判断文件类型，避免不必要的异步开销
-                if (isVideoFile(fullPath)) {
-                  filePaths.push(fullPath)
+                if (isMediaFile(fullFileSystemPath)) {
+                  result.files.push(fullImportUri)
                 }
               } else if (stat.isDirectory()) {
-                // 目录遍历使用线程池控制并发
-                await dirPool.run(() => collectFiles(fullPath))
+                result.directories.push({
+                  fileSystemPath: fullFileSystemPath,
+                  importUri: fullImportUri
+                })
               }
             } catch (error) {
-              salmonLogger.addLog(TAG, `Failed to process ${fullPath}: ${error}`, true)
+              salmonLogger.addLog(TAG, `Failed to process ${fullFileSystemPath}: ${error}`, true)
             }
           })
-          // 等待当前批次完成，避免内存溢出
           await Promise.allSettled(batchPromises)
         }
       } catch (error) {
-        salmonLogger.addLog(TAG, `Failed to list directory ${directory}: ${error}`, true)
+        salmonLogger.addLog(TAG, `Failed to list directory ${directory.fileSystemPath}: ${error}`, true)
       }
+      return result
     }
+
     try {
-      await collectFiles(SelectFileUtil.fileFolderUri)
-      await dirPool.drain() // 等待所有目录遍历任务完成
-      return Array.from(new Set(filePaths))
+      let queueIndex = 0
+      while (queueIndex < directoryQueue.length) {
+        const directories: DirectoryScanTarget[] = []
+        while (queueIndex < directoryQueue.length && directories.length < DIRECTORY_BATCH_SIZE) {
+          const directory = directoryQueue[queueIndex++]
+          if (!processedDirectories.has(directory.fileSystemPath)) {
+            processedDirectories.add(directory.fileSystemPath)
+            directories.push(directory)
+          }
+        }
+        const scanResults = await Promise.allSettled(
+          directories.map((directory: DirectoryScanTarget) => scanDirectory(directory)))
+        scanResults.forEach(result => {
+          if (result.status === 'fulfilled') {
+            filePaths.push(...result.value.files)
+            directoryQueue.push(...result.value.directories)
+          }
+        })
+      }
+      return Array.from(new Set(filePaths)).sort()
     } catch (error) {
       salmonLogger.addLog(TAG, `Root directory processing failed: ${error}`, true)
       return []
+    }
+  }
+
+  private static createDirectoryScanTarget(directory: string): DirectoryScanTarget {
+    if (!directory.startsWith('file://')) {
+      return { fileSystemPath: directory, importUri: directory }
+    }
+    try {
+      return {
+        fileSystemPath: new fileUri.FileUri(directory).path,
+        importUri: directory
+      }
+    } catch (error) {
+      salmonLogger.addLog(TAG, `Failed to resolve directory URI ${directory}: ${error}`, true)
+      return { fileSystemPath: directory, importUri: directory }
+    }
+  }
+
+  private static getDirectoryName(directory: string): string {
+    try {
+      const name = new fileUri.FileUri(directory).name.trim()
+      if (name.length > 0) {
+        return name
+      }
+    } catch (error) {
+      salmonLogger.addLog(TAG, `Failed to resolve directory name ${directory}: ${error}`, true)
+    }
+    const normalizedDirectory = directory.replace(/\/+$/, '')
+    const name = normalizedDirectory.substring(normalizedDirectory.lastIndexOf('/') + 1).trim()
+    return name.length > 0 ? name : '导入文件夹'
+  }
+
+  private static closeFileSafely(file: fs.File | null | undefined, scene: string): void {
+    if (!file) {
+      return
+    }
+    try {
+      fs.closeSync(file.fd)
+    } catch (error) {
+      salmonLogger.addLog(TAG, `${scene}关闭文件失败: ${error}`, true)
+    }
+  }
+
+  private static async resolveDownloadUri(): Promise<string> {
+    try {
+      const documentViewPicker = new picker.DocumentViewPicker(PathUtils.appContext!)
+      const documentSaveResult = await documentViewPicker.save({
+        pickerMode: picker.DocumentPickerMode.DOWNLOAD
+      })
+      if (documentSaveResult.length === 0) {
+        return ''
+      }
+      SelectFileUtil.fileFolderUri = new fileUri.FileUri(documentSaveResult[0]).path.replace(/\/+$/, '')
+      return SelectFileUtil.fileFolderUri
+    } catch (error) {
+      salmonLogger.addLog(TAG, `获取公共下载目录失败: ${error}`, true)
+      return ''
     }
   }
 

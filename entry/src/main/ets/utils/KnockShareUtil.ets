@@ -1,8 +1,9 @@
 import { uniformTypeDescriptor } from '@kit.ArkData'
-import { deviceInfo, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { deviceInfo } from '@kit.BasicServicesKit'
 import { fileIo, fileUri } from '@kit.CoreFileKit'
 import { window } from '@kit.ArkUI'
 import { harmonyShare, systemShare } from '@kit.ShareKit'
+import { Setting } from './ObservedUtil'
 import { salmonLogger } from 'salmonlogger'
 import { SUPPORT_AUDIO_FORMAT } from '../common/Constants'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
@@ -11,6 +12,7 @@ import { PathUtils } from './PathUtils'
 import ToolsUtil from './ToolsUtil'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
 import KnockReceiveStorage from './KnockReceiveStorage'
+import SelectFileUtil from './SelectFileUtil'
 
 const TAG = 'KnockShareUtil'
 
@@ -91,96 +93,97 @@ export default class KnockShareUtil {
   private static receiveQueue: Promise<void> = Promise.resolve()
   private static videoRegions: Map<string, KnockVideoRegion> = new Map()
 
-  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   static isSupported(): boolean {
-    return canIUse('SystemCapability.Collaboration.HarmonyShare')
+    return canIUse('SystemCapability.Collaboration.HarmonyShare') &&
+      canIUse('SystemCapability.Collaboration.SystemShare')
   }
 
   static isPc(): boolean {
     return deviceInfo.deviceType === deviceInfo.DeviceTypes.TYPE_2IN1
   }
 
-  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   static isPreciseSupported(): boolean {
     return KnockShareUtil.isPc() && deviceInfo.apiAvailable('26.0.0')
   }
 
-  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   static start(context: Context, mainWindow: window.Window): void {
-    if (!KnockShareUtil.isSupported()) {
+    if (!Setting.knockShareEnabled) {
       return
     }
-    let windowId = 0
-    try {
-      windowId = mainWindow.getWindowProperties().id
-      if (KnockShareUtil.sendRegistered && KnockShareUtil.mainWindow?.getWindowProperties().id === windowId) {
+    if (canIUse('SystemCapability.Collaboration.HarmonyShare')) {
+      let windowId = 0
+      try {
+        windowId = mainWindow.getWindowProperties().id
+        if (KnockShareUtil.sendRegistered && KnockShareUtil.mainWindow?.getWindowProperties().id === windowId) {
+          return
+        }
+        KnockShareUtil.stop()
+        KnockShareUtil.context = context
+        KnockShareUtil.mainWindow = mainWindow
+        if (KnockShareUtil.isPc()) {
+          KnockShareUtil.sendCapability = { windowId: windowId, sendOnly: false }
+          harmonyShare.on('knockShare', KnockShareUtil.sendCapability, KnockShareUtil.knockCallback)
+        } else {
+          harmonyShare.on('knockShare', KnockShareUtil.knockCallback)
+        }
+        KnockShareUtil.sendRegistered = true
+        salmonLogger.addLog(TAG, '碰一碰发送监听已注册', false)
+      } catch (error) {
+        salmonLogger.addLog(TAG, `注册碰一碰发送监听失败: ${error}`, true)
+      }
+
+      if (!KnockShareUtil.isPc()) {
         return
       }
-      KnockShareUtil.stop()
-      KnockShareUtil.context = context
-      KnockShareUtil.mainWindow = mainWindow
-      if (KnockShareUtil.isPc()) {
-        KnockShareUtil.sendCapability = { windowId: windowId, sendOnly: false }
-        harmonyShare.on('knockShare', KnockShareUtil.sendCapability, KnockShareUtil.knockCallback)
-      } else {
-        harmonyShare.on('knockShare', KnockShareUtil.knockCallback)
+      try {
+        KnockShareUtil.receiveCapability = {
+          windowId: windowId,
+          capabilities: [
+            { utd: uniformTypeDescriptor.UniformDataType.VIDEO, maxSupportedCount: MAX_RECEIVE_COUNT },
+            { utd: uniformTypeDescriptor.UniformDataType.AUDIO, maxSupportedCount: MAX_RECEIVE_COUNT }
+          ]
+        }
+        harmonyShare.on('dataReceive', KnockShareUtil.receiveCapability, KnockShareUtil.receiveCallback)
+        KnockShareUtil.receiveRegistered = true
+        salmonLogger.addLog(TAG, '碰一碰沙箱接收监听已注册', false)
+      } catch (error) {
+        salmonLogger.addLog(TAG, `注册碰一碰接收监听失败: ${error}`, true)
       }
-      KnockShareUtil.sendRegistered = true
-      salmonLogger.addLog(TAG, '碰一碰发送监听已注册', false)
-    } catch (error) {
-      salmonLogger.addLog(TAG, `注册碰一碰发送监听失败: ${error}`, true)
-    }
-
-    if (!KnockShareUtil.isPc()) {
-      return
-    }
-    try {
-      KnockShareUtil.receiveCapability = {
-        windowId: windowId,
-        capabilities: [
-          { utd: uniformTypeDescriptor.UniformDataType.VIDEO, maxSupportedCount: MAX_RECEIVE_COUNT },
-          { utd: uniformTypeDescriptor.UniformDataType.AUDIO, maxSupportedCount: MAX_RECEIVE_COUNT }
-        ]
-      }
-      harmonyShare.on('dataReceive', KnockShareUtil.receiveCapability, KnockShareUtil.receiveCallback)
-      KnockShareUtil.receiveRegistered = true
-      salmonLogger.addLog(TAG, '碰一碰沙箱接收监听已注册', false)
-    } catch (error) {
-      salmonLogger.addLog(TAG, `注册碰一碰接收监听失败: ${error}`, true)
     }
   }
 
-  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   static stop(): void {
-    if (!KnockShareUtil.isSupported()) {
-      return
-    }
-    if (KnockShareUtil.sendRegistered) {
-      try {
-        if (KnockShareUtil.sendCapability) {
-          harmonyShare.off('knockShare', KnockShareUtil.sendCapability, KnockShareUtil.knockCallback)
-        } else {
-          harmonyShare.off('knockShare', KnockShareUtil.knockCallback)
+    if (canIUse('SystemCapability.Collaboration.HarmonyShare')) {
+      if (KnockShareUtil.sendRegistered) {
+        try {
+          if (KnockShareUtil.sendCapability) {
+            harmonyShare.off('knockShare', KnockShareUtil.sendCapability, KnockShareUtil.knockCallback)
+          } else {
+            harmonyShare.off('knockShare', KnockShareUtil.knockCallback)
+          }
+        } catch (error) {
+          salmonLogger.addLog(TAG, `取消碰一碰发送监听失败: ${error}`, true)
         }
-      } catch (error) {
-        salmonLogger.addLog(TAG, `取消碰一碰发送监听失败: ${error}`, true)
       }
-    }
-    if (KnockShareUtil.receiveRegistered && KnockShareUtil.receiveCapability) {
-      try {
-        harmonyShare.off('dataReceive', KnockShareUtil.receiveCapability, KnockShareUtil.receiveCallback)
-      } catch (error) {
-        salmonLogger.addLog(TAG, `取消碰一碰接收监听失败: ${error}`, true)
+      if (KnockShareUtil.receiveRegistered && KnockShareUtil.receiveCapability) {
+        try {
+          harmonyShare.off('dataReceive', KnockShareUtil.receiveCapability, KnockShareUtil.receiveCallback)
+        } catch (error) {
+          salmonLogger.addLog(TAG, `取消碰一碰接收监听失败: ${error}`, true)
+        }
       }
+      KnockShareUtil.sendRegistered = false
+      KnockShareUtil.receiveRegistered = false
+      KnockShareUtil.sendCapability = undefined
+      KnockShareUtil.receiveCapability = undefined
     }
-    KnockShareUtil.sendRegistered = false
-    KnockShareUtil.receiveRegistered = false
-    KnockShareUtil.sendCapability = undefined
-    KnockShareUtil.receiveCapability = undefined
   }
 
   static setShareProvider(owner: string, provider: KnockShareProvider,
     activeResolver?: KnockProviderActiveResolver): void {
+    if (!Setting.knockShareEnabled) {
+      return
+    }
     KnockShareUtil.providerOwner = owner
     KnockShareUtil.shareProvider = provider
     KnockShareUtil.providerActiveResolver = activeResolver
@@ -196,6 +199,9 @@ export default class KnockShareUtil {
   }
 
   static setReceiveHandler(handler: KnockReceiveHandler): void {
+    if (!Setting.knockShareEnabled) {
+      return
+    }
     KnockShareUtil.receiveHandler = handler
     const pendingPayloads = [...KnockShareUtil.pendingReceivePayloads]
     KnockShareUtil.pendingReceivePayloads = []
@@ -217,10 +223,19 @@ export default class KnockShareUtil {
       KnockShareUtil.videoRegions.delete(video.date)
       return
     }
-    const left = vp2px(x)
-    const top = vp2px(y)
-    KnockShareUtil.videoRegions.set(video.date,
-      new KnockVideoRegion(video, left, top, left + vp2px(width), top + vp2px(height)))
+    try {
+      const uiContext = KnockShareUtil.mainWindow?.getUIContext()
+      if (!uiContext) {
+        return
+      }
+      const left = uiContext.vp2px(x)
+      const top = uiContext.vp2px(y)
+      KnockShareUtil.videoRegions.set(video.date,
+        new KnockVideoRegion(video, left, top, left + uiContext.vp2px(width), top + uiContext.vp2px(height)))
+    } catch (error) {
+      KnockShareUtil.videoRegions.delete(video.date)
+      salmonLogger.addLog(TAG, `转换碰一碰视频区域坐标失败: ${error}`, true)
+    }
   }
 
   static setVideoRegionVisible(videoDate: string, visible: boolean): void {
@@ -247,7 +262,10 @@ export default class KnockShareUtil {
       if (!payload.privateMode) {
         let directory = ''
         try {
-          directory = await KnockReceiveStorage.getDownloadDirectory()
+          directory = await SelectFileUtil.getDownloadUri()
+          if (!directory) {
+            throw new Error('系统未返回可用的公共下载目录')
+          }
         } catch (error) {
           salmonLogger.addLog(TAG, `获取碰一碰下载目录失败: ${error}`, true)
         }
@@ -301,24 +319,26 @@ export default class KnockShareUtil {
     return nowPlayingData && nowPlayingData[1] ? nowPlayingData[1] as VideoMetadata : undefined
   }
 
-  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   private static getWindowCoordinate(target: harmonyShare.SharableTarget | harmonyShare.ReceivableTarget):
   KnockCoordinate | undefined {
     if (!KnockShareUtil.isPreciseSupported()) {
       return undefined
     }
-    try {
-      const coordinate = target.getInfo().coordinate
-      if (!coordinate) {
+    if (canIUse('SystemCapability.Collaboration.HarmonyShare')) {
+      try {
+        const coordinate = target.getInfo().coordinate
+        if (!coordinate) {
+          return undefined
+        }
+        const windowRect = KnockShareUtil.mainWindow?.getWindowProperties().windowRect
+        return new KnockCoordinate(coordinate.screenX - (windowRect?.left ?? 0),
+          coordinate.screenY - (windowRect?.top ?? 0))
+      } catch (error) {
+        salmonLogger.addLog(TAG, `获取精准碰一碰坐标失败: ${error}`, true)
         return undefined
       }
-      const windowRect = KnockShareUtil.mainWindow?.getWindowProperties().windowRect
-      return new KnockCoordinate(coordinate.screenX - (windowRect?.left ?? 0),
-        coordinate.screenY - (windowRect?.top ?? 0))
-    } catch (error) {
-      salmonLogger.addLog(TAG, `获取精准碰一碰坐标失败: ${error}`, true)
-      return undefined
     }
+    return undefined
   }
 
   private static getShareVideos(coordinate: KnockCoordinate | undefined): VideoMetadata[] {
@@ -383,47 +403,54 @@ export default class KnockShareUtil {
     return record
   }
 
-  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   private static async rejectNoContent(target: harmonyShare.SharableTarget): Promise<void> {
+    if (!canIUse('SystemCapability.Collaboration.HarmonyShare')) {
+      return
+    }
     try {
-      await target.reject(harmonyShare.SharableErrorCode.NO_CONTENT_ERROR)
+      if (canIUse("SystemCapability.Collaboration.HarmonyShare")) {
+        await target.reject(harmonyShare.SharableErrorCode.NO_CONTENT_ERROR)
+      }
     } catch (error) {
       salmonLogger.addLog(TAG, `拒绝空内容分享失败: ${error}`, true)
     }
   }
 
-  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   private static async handleKnockShare(target: harmonyShare.SharableTarget): Promise<void> {
-    const coordinate = KnockShareUtil.getWindowCoordinate(target)
-    let videos = KnockShareUtil.getShareVideos(coordinate)
-    videos = videos.filter((video: VideoMetadata, index: number, items: VideoMetadata[]) =>
-    !ToolsUtil.isNetworkUrl(video.uri) && items.findIndex((item: VideoMetadata) => item.uri === video.uri) === index)
-    if (videos.length === 0) {
-      await KnockShareUtil.rejectNoContent(target)
-      return
-    }
+    if (canIUse('SystemCapability.Collaboration.HarmonyShare')) {
+      if (canIUse('SystemCapability.Collaboration.SystemShare')) {
+        const coordinate = KnockShareUtil.getWindowCoordinate(target)
+        let videos = KnockShareUtil.getShareVideos(coordinate)
+        videos = videos.filter((video: VideoMetadata, index: number, items: VideoMetadata[]) =>
+        !ToolsUtil.isNetworkUrl(video.uri) &&
+          items.findIndex((item: VideoMetadata) => item.uri === video.uri) === index)
+        if (videos.length === 0) {
+          await KnockShareUtil.rejectNoContent(target)
+          return
+        }
 
-    const records: systemShare.SharedRecord[] = []
-    for (const video of videos) {
-      if (await PermissionUtil.activatePermission(video.uri)) {
-        records.push(KnockShareUtil.createSharedRecord(video))
+        const records: systemShare.SharedRecord[] = []
+        for (const video of videos) {
+          if (await PermissionUtil.activatePermission(video.uri)) {
+            records.push(KnockShareUtil.createSharedRecord(video))
+          }
+        }
+        if (records.length === 0) {
+          await KnockShareUtil.rejectNoContent(target)
+          return
+        }
+        const sharedData = new systemShare.SharedData(records[0])
+        try {
+          for (let index = 1; index < records.length; index++) {
+            sharedData.addRecord(records[index])
+          }
+          await target.share(sharedData)
+          salmonLogger.addLog(TAG, `碰一碰分享已发起，文件数=${records.length}`, false)
+        } catch (error) {
+          salmonLogger.addLog(TAG, `碰一碰分享失败: ${error}`, true)
+          ToolsUtil.showToast('碰一碰分享失败')
+        }
       }
-    }
-    if (records.length === 0) {
-      await KnockShareUtil.rejectNoContent(target)
-      return
-    }
-
-    const sharedData = new systemShare.SharedData(records[0])
-    try {
-      for (let index = 1; index < records.length; index++) {
-        sharedData.addRecord(records[index])
-      }
-      await target.share(sharedData)
-      salmonLogger.addLog(TAG, `碰一碰分享已发起，文件数=${records.length}`, false)
-    } catch (error) {
-      salmonLogger.addLog(TAG, `碰一碰分享失败: ${error}`, true)
-      ToolsUtil.showToast('碰一碰分享失败')
     }
   }
 
@@ -443,50 +470,56 @@ export default class KnockShareUtil {
     return undefined
   }
 
-  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   private static handleDataReceive(target: harmonyShare.ReceivableTarget): void {
-    const context = KnockShareUtil.context
-    if (!context) {
-      void target.reject(harmonyShare.ReceivableErrorCode.NO_RECEIVABLE_ERROR)
-      return
-    }
-    const anchorVideoDate = KnockShareUtil.resolveReceiveAnchor(KnockShareUtil.getWindowCoordinate(target))
-    // 在传输开始时固定目的地，退出隐私空间也不能把本次私密文件公开。
-    const privateMode = PrivacySpaceUtil.getPrivacyMode() === true
-    let receivePath = ''
-    try {
-      const receiveRoot = `${context.filesDir}/knock_share`
-      fileIo.mkdirSync(receiveRoot, true)
-      receivePath = fileIo.mkdtempSync(`${receiveRoot}/receive-XXXXXX`)
-    } catch (error) {
-      salmonLogger.addLog(TAG, `创建碰一碰接收目录失败: ${error}`, true)
-      void target.reject(harmonyShare.ReceivableErrorCode.NO_RECEIVABLE_ERROR)
-      return
-    }
-
-    void target.receive(fileUri.getUriFromPath(receivePath), {
-      onDataReceived: (sharedData: systemShare.SharedData): void => {
-        const uris: string[] = []
-        sharedData.getRecords().forEach((record: systemShare.SharedRecord) => {
-          if (record.uri) {
-            uris.push(record.uri)
-          }
-        })
-        if (uris.length === 0) {
+    if (canIUse('SystemCapability.Collaboration.HarmonyShare')) {
+      if (canIUse('SystemCapability.Collaboration.SystemShare')) {
+        const context = KnockShareUtil.context
+        if (!context) {
+          void target.reject(harmonyShare.ReceivableErrorCode.NO_RECEIVABLE_ERROR)
           return
         }
-        KnockShareUtil.enqueueReceive(new KnockReceivePayload(uris, anchorVideoDate, privateMode, receivePath))
-      },
-      onResult: (resultCode: harmonyShare.ShareResultCode): void => {
-        if (resultCode === harmonyShare.ShareResultCode.SHARE_SUCCESS) {
-          salmonLogger.addLog(TAG, '碰一碰文件接收成功', false)
-        } else {
-          salmonLogger.addLog(TAG, `碰一碰文件接收失败，resultCode=${resultCode}`, true)
+        const anchorVideoDate = KnockShareUtil.resolveReceiveAnchor(KnockShareUtil.getWindowCoordinate(target))
+        // 在传输开始时固定目的地，退出隐私空间也不能把本次私密文件公开。
+        const privateMode = PrivacySpaceUtil.getPrivacyMode() === true
+        let receivePath = ''
+        try {
+          const receiveRoot = `${context.filesDir}/knock_share`
+          fileIo.mkdirSync(receiveRoot, true)
+          receivePath = fileIo.mkdtempSync(`${receiveRoot}/receive-XXXXXX`)
+        } catch (error) {
+          salmonLogger.addLog(TAG, `创建碰一碰接收目录失败: ${error}`, true)
+          void target.reject(harmonyShare.ReceivableErrorCode.NO_RECEIVABLE_ERROR)
+          return
         }
+
+        void target.receive(fileUri.getUriFromPath(receivePath), {
+          onDataReceived: (sharedData: systemShare.SharedData): void => {
+            const uris: string[] = []
+            sharedData.getRecords().forEach((record: systemShare.SharedRecord) => {
+              if (record.uri) {
+                uris.push(record.uri)
+              }
+            })
+            if (uris.length === 0) {
+              return
+            }
+            KnockShareUtil.enqueueReceive(new KnockReceivePayload(uris, anchorVideoDate, privateMode, receivePath))
+          },
+          onResult: (resultCode: harmonyShare.ShareResultCode): void => {
+            if (!canIUse('SystemCapability.Collaboration.HarmonyShare')) {
+              return
+            }
+            if (resultCode === harmonyShare.ShareResultCode.SHARE_SUCCESS) {
+              salmonLogger.addLog(TAG, '碰一碰文件接收成功', false)
+            } else {
+              salmonLogger.addLog(TAG, `碰一碰文件接收失败，resultCode=${resultCode}`, true)
+            }
+          }
+        }).catch((error: BusinessError) => {
+          salmonLogger.addLog(TAG, `启动碰一碰文件接收失败: ${error.code}, ${error.message}`, true)
+          ToolsUtil.showToast('碰一碰文件接收失败')
+        })
       }
-    }).catch((error: BusinessError) => {
-      salmonLogger.addLog(TAG, `启动碰一碰文件接收失败: ${error.code}, ${error.message}`, true)
-      ToolsUtil.showToast('碰一碰文件接收失败')
-    })
+    }
   }
 }

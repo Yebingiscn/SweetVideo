@@ -2,6 +2,10 @@
 export interface VideoMetadata {
   uri: string
   title: string
+  /** 内嵌歌手信息；普通视频可能没有该字段。 */
+  artist?: string
+  /** 内嵌专辑信息；普通视频可能没有该字段。 */
+  album?: string
   date: string
   size: number[]
   /** 内嵌封面的原始分辨率；纯音频的 size 同样使用此值。 */
@@ -9,9 +13,14 @@ export interface VideoMetadata {
   /** 是否存在真正的视频轨；内嵌封面不计为视频轨。 */
   has_video_track?: boolean
   time: number
+  /** 上次保存的播放进度，单位为毫秒。 */
   last_play: number
+  /** 最近一次实际播放的时间戳，单位为毫秒。 */
+  last_played_at?: number
   format: string
   video_size: string
+  /** 媒体平均码率，单位为 bit/s；纯音频用于品质分级。 */
+  bit_rate?: number
   hdr_type: number
   audio_type: number
   frame_rate: number
@@ -28,6 +37,8 @@ export interface VideoMetadata {
   subtitle_track_id?: number
   audio_track_id?: number
   network_user_agent?: string
+  /** 仅用于当前网络播放请求，不写入播放历史等持久化数据。 */
+  network_http_headers?: Record<string, string>
 }
 
 // 保存数据

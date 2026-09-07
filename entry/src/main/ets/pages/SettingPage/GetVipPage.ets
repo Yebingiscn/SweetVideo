@@ -10,6 +10,7 @@ import { IapVerifyUtil } from '../../utils/IapVerifyUtil'
 import { salmonLogger } from 'salmonlogger'
 import { common } from '@kit.AbilityKit'
 import Preferences from '../../database/Preferences'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
 const TAG = 'GetVipPage'
 
@@ -28,6 +29,7 @@ export struct GetVipPage {
     this.purchaseSuccess = Preferences.getUserIsVip(PathUtils.appContext!)
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   build() {
     HdsNavDestination() {
       if (this.purchaseSuccess) {
@@ -272,7 +274,7 @@ export struct GetVipPage {
             this.showAgreementSheet = true
           })
 
-        Text('订阅详情')
+        Text('订阅详情（仅月订用户显示）')
           .fontSize(12)
           .fontColor($r('sys.color.font_tertiary'))
           .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.9 })
@@ -448,7 +450,7 @@ export struct GetVipPage {
           this.pathStack.pop()
         })
 
-      Text('订阅详情')
+      Text('订阅详情（仅月订用户显示）')
         .fontSize(12)
         .fontColor($r('sys.color.font_tertiary'))
         .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.9 })

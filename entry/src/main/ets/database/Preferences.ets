@@ -61,6 +61,10 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpv_gpu_api', gpuApi)
   }
 
+  static saveMpvSdrToHdr(context: Context, enabled: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpv_sdr_to_hdr', enabled)
+  }
+
   // 首页视频数据
   static getVideoMetaData(context: Context) {
     return Preferences.getFileFolder(context)[0]?.video_list ?? [] as VideoMetadata[]
@@ -233,6 +237,14 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'smartGestureEnabled', enabled)
   }
 
+  static saveKnockShareEnabled(context: Context, enabled: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'knockShareEnabled', enabled)
+  }
+
+  static saveGripPostureEnabled(context: Context, enabled: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'gripPostureEnabled', enabled)
+  }
+
   static saveAllowDoubleFastForwardState(context: Context, isEnabled: boolean) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, "allowDoubleFastForward", isEnabled)
   }
@@ -315,6 +327,10 @@ export default class Preferences {
 
   static saveListItemBackgroundBlur(context: Context, listItemBackgroundBlur: boolean) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'listItemBackgroundBlur', listItemBackgroundBlur)
+  }
+
+  static saveSeekSensitivity(context: Context, seekSensitivity: number) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'seekSensitivity', seekSensitivity)
   }
 
   static saveListDisplayMode(context: Context, listDisplayMode: ListDisplayMode) {
@@ -582,14 +598,18 @@ export default class Preferences {
         const copiedVideo: VideoMetadata = {
           uri: v.uri,
           title: v.title,
+          artist: v.artist,
+          album: v.album,
           date: v.date,
           size: Preferences.resolvePlayableResolution(v),
           cover_size: v.cover_size ? v.cover_size.slice() : undefined,
           has_video_track: v.has_video_track,
           time: v.time,
           last_play: v.last_play,
+          last_played_at: v.last_played_at,
           format: v.format,
           video_size: v.video_size,
+          bit_rate: v.bit_rate,
           hdr_type: v.hdr_type,
           audio_type: v.audio_type,
           frame_rate: v.frame_rate,

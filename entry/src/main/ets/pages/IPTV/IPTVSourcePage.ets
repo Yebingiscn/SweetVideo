@@ -1,10 +1,8 @@
 import NavigationAddress, { IPTVChannelParams } from '../../common/NavigationCommon'
 import {
-  ButtonFancyModifier,
   DefaultDialogShadow,
   ImageFancyModifier,
-  MenuFancyModifier,
-  SymbolGlyphFancyModifier
+  MenuFancyModifier
 } from '../../common/AttributeModifierConfig'
 import { IPTVSource } from '../../interfaces/IPTVInterface'
 import { IPTVSourceDialog } from '../../component/Dialog/IPTVSourceDialog'
@@ -54,23 +52,7 @@ export struct IPTVSourcePage {
   }
 
   @Builder
-  NavigationMenus() {
-    Row() {
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph($r('sys.symbol.plus'))
-          .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-      }
-      .backdropBlur(150)
-      .attributeModifier(new ButtonFancyModifier(35, 35))
-      .onClick(() => {
-        IPTVUtil.editingSource = undefined
-        this.addDialogController.open()
-      })
-      .margin({ right: 10 })
-    }.justifyContent(FlexAlign.End).width('100%')
-  }
 
-  @Builder
   SourceMenu(source: IPTVSource) {
     Menu() {
       MenuItem({
@@ -251,7 +233,22 @@ export struct IPTVSourcePage {
           }
         }
       },
-      content: { title: { mainTitle: 'IPTV' }, stackBuilder: (): void => this.NavigationMenus() }
+      content: {
+        title: { mainTitle: 'IPTV' },
+        menu: {
+          value: [{
+            content: {
+              label: '',
+              icon: $r('sys.symbol.plus'),
+              isEnabled: true,
+              action: () => {
+                IPTVUtil.editingSource = undefined
+                this.addDialogController.open()
+              }
+            }
+          }]
+        }
+      }
     })
     .backgroundColor($r('app.color.start_window_background'))
     .backgroundImage(Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ?
