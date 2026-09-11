@@ -110,6 +110,8 @@ export default class AccountUtil {
 
   static initAccount() {
     userData.isLogin = Preferences.getUserIsLogin(PathUtils.appContext!)
+    userData.isVip = Preferences.getUserIsVip(PathUtils.appContext!)
+    IapVerifyUtil.verifyPurchaseStatus(PathUtils.appContext!)
     if (userData.isLogin) {
       userData.userAvatar = AccountUtil.ISHasAvatar(Preferences.getUserAvatar(PathUtils.appContext!))
       userData.nickName = Preferences.getUserNickName(PathUtils.appContext!)
@@ -117,8 +119,6 @@ export default class AccountUtil {
       userData.idToken = Preferences.getUserIdToken(PathUtils.appContext!)
       userData.authorizationCode = Preferences.getUserAuthorizationCode(PathUtils.appContext!)
       userData.openID = Preferences.getUserOpenID(PathUtils.appContext!)
-      userData.isVip = Preferences.getUserIsVip(PathUtils.appContext!)
-      IapVerifyUtil.verifyPurchaseStatus(PathUtils.appContext!)
     }
   }
 

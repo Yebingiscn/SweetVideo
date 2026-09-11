@@ -1,5 +1,6 @@
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
+import { VideoFormData } from '../forms/VideoFormData'
 
 import PreferencesUtil from './PreferencesUtil'
 import { Context } from '@kit.AbilityKit'
@@ -319,6 +320,7 @@ export default class Preferences {
 
   static saveRecentPlay(context: Context, recent_play_deque: VideoMetadata[]) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'recent_play', recent_play_deque)
+    VideoFormData.save(context, recent_play_deque)
   }
 
   static saveEnableBackgroundDarkImage(context: Context, enableBackgroundDarkImage: boolean) {

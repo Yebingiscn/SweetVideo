@@ -5,16 +5,19 @@ import {
   SmartGestureController,
   UIContext
 } from '@kit.ArkUI'
-import { deviceInfo, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { Available, deviceInfo, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { salmonLogger } from 'salmonlogger'
 import { Setting } from './ObservedUtil'
+import ToolsUtil from './ToolsUtil'
 
 const TAG = 'MediaSmartGesture'
+
 export const SHORT_VIDEO_SMART_SWIPER_ID = 'short_video_smart_swiper'
 
 export interface MediaSmartGestureHandlers {
   canHandle: () => boolean
   onTap: () => void
+  @Available({ minApiVersion: 'HarmonyOS 26.0.0' })
   onSlide: () => BaseGestureHandlingProposal | undefined
 }
 
@@ -45,7 +48,7 @@ export class MediaSmartGestureSession {
   private static activeSession: MediaSmartGestureSession | undefined = undefined
   private static appForeground: boolean = false
   private uiContext: UIContext | undefined = undefined
-  private controller: SmartGestureController | undefined = undefined
+  @Available({ minApiVersion: 'HarmonyOS 26.0.0' }) private controller: SmartGestureController | undefined = undefined
   private monitorRegistered: boolean = false
   private handlers: MediaSmartGestureHandlers
 
@@ -59,32 +62,45 @@ export class MediaSmartGestureSession {
   }
 
   static setAppForeground(foreground: boolean): void {
-    MediaSmartGestureSession.appForeground = foreground
-    const session = MediaSmartGestureSession.activeSession
-    if (foreground) {
-      session?.startMonitoring()
+    if (deviceInfo.apiAvailable('26.0.0')) {
+      MediaSmartGestureSession.appForeground = foreground
+      const session = MediaSmartGestureSession.activeSession
+      if (foreground) {
+        session?.startMonitoring()
+      } else {
+        session?.stopMonitoring()
+      }
     } else {
-      session?.stopMonitoring()
+      ToolsUtil.showToast('设备不支持')
     }
   }
 
   show(uiContext: UIContext): void {
-    if (MediaSmartGestureSession.activeSession !== this) {
-      MediaSmartGestureSession.activeSession?.hide()
-      MediaSmartGestureSession.activeSession = this
+    if (deviceInfo.apiAvailable('26.0.0')) {
+      if (MediaSmartGestureSession.activeSession !== this) {
+        MediaSmartGestureSession.activeSession?.hide()
+        MediaSmartGestureSession.activeSession = this
+      }
+      this.uiContext = uiContext
+      this.startMonitoring()
+    } else {
+      ToolsUtil.showToast('设备不支持')
     }
-    this.uiContext = uiContext
-    this.startMonitoring()
   }
 
   hide(): void {
-    this.stopMonitoring()
-    if (MediaSmartGestureSession.activeSession === this) {
-      MediaSmartGestureSession.activeSession = undefined
+    if (deviceInfo.apiAvailable('26.0.0')) {
+      this.stopMonitoring()
+      if (MediaSmartGestureSession.activeSession === this) {
+        MediaSmartGestureSession.activeSession = undefined
+      }
+      this.uiContext = undefined
+    } else {
+      ToolsUtil.showToast('设备不支持')
     }
-    this.uiContext = undefined
   }
 
+  @Available({ minApiVersion: 'HarmonyOS 26.0.0' })
   private startMonitoring(): void {
     if (!MediaSmartGestureSession.appForeground || !Setting.smartGestureEnabled ||
       !MediaSmartGestureSession.isSupported() || !this.uiContext) {
@@ -106,6 +122,7 @@ export class MediaSmartGestureSession {
     }
   }
 
+  @Available({ minApiVersion: 'HarmonyOS 26.0.0' })
   private stopMonitoring(): void {
     const controller = this.controller
     this.controller = undefined

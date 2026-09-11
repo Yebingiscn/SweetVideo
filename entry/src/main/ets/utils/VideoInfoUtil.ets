@@ -49,7 +49,8 @@ export default class VideoInfoUtil {
       date: date,
       size: videoDimensions,
       cover_size: [probe?.coverWidth || 0, probe?.coverHeight || 0],
-      has_video_track: VideoInfoUtil.probeHasVideoTrack(probe),
+      // 探测失败代表轨道未知，不能把失败结果保存成纯音频。
+      has_video_track: probe ? VideoInfoUtil.probeHasVideoTrack(probe) : undefined,
       time: Math.round(probe?.durationMs || 0),
       last_play: 0,
       format: VideoInfoUtil.getVideoFormat(file_name),
@@ -109,7 +110,7 @@ export default class VideoInfoUtil {
     if (metadata.has_video_track !== undefined) {
       return metadata.has_video_track
     }
-    // 兼容升级前没有该字段的记录。
+    // 探测失败或旧记录没有轨道信息时，按扩展名兜底。
     return !SUPPORT_AUDIO_FORMAT.includes(metadata.format.toLowerCase())
   }
 
@@ -211,12 +212,12 @@ export default class VideoInfoUtil {
     return speed ? speed.toFixed(2).replace(/\.?0+$/, '') + 'x' : '1x'
   }
 
-  static getVideoTitle(item: VideoMetadata | undefined) {
-    if (!item) {
+  static getVideoTitle(title: string | undefined) {
+    if (!title) {
       return ''
     }
-    const dotIndex = item.title.lastIndexOf('.')
-    return dotIndex > 0 ? item.title.slice(0, dotIndex) : item.title
+    const dotIndex = title.lastIndexOf('.')
+    return dotIndex > 0 ? title.slice(0, dotIndex) : title
   }
 
   static getVideoSpeedTextList() {

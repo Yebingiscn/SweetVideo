@@ -39,7 +39,7 @@ export interface PlayerControllerInterface {
   playing: boolean
   subtitle: string
   showControl: boolean
-  lockVisibility: boolean
+
   isLock: boolean
   longPress: boolean
   speedLocked: boolean

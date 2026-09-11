@@ -12,6 +12,7 @@ export default class NavigationAddress {
   static SETTING_PAGE = 'SettingsPage'
   static ABOUT_PAGE = 'AboutPage'
   static RECENT_PLAY = 'RecentPlay'
+  static GLOBAL_SEARCH = 'GlobalSearch'
   static PRIVACY_SPACE = 'PrivacySpace'
   static CRASH_PAGE = 'CrashPage'
   static PERSONALIZE_PAGE = 'PersonalizePage'
@@ -35,6 +36,7 @@ export class PrivacySpaceParams {
 
 // Navigation 传参设置
 export class PlayerParams {
+  public resumeFromCard: boolean = false
   public metadata: VideoMetadata | undefined
   public metadata_list: VideoMetadata [] | undefined
   public folder_date: string | undefined

@@ -61,7 +61,7 @@ export class FileProcessorUtil {
     const workers = chunks.map((chunk): Promise<void> => {
       return (async () => {
         for (const uri of chunk) {
-          const fileName = uri.split('/')[uri.split('/').length - 1]
+          const fileName = ToolsUtil.fileNameFromUri(uri)
 
           throttledProgressCallback({
             current: processedCount + 1,

@@ -8,6 +8,8 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { AudioChannelComponent } from './AudioChannelComponent'
 import { AUDIO_TYPE } from '../../common/enum/HDR_TYPE'
 import { PathUtils } from '../../utils/PathUtils'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { userData } from '../common/UserLoginComponent'
 import { GradientTagBuilder, SolidColorTagBuilder } from '../common/MediaTagBuilder'
 
 // 定义联合类型
@@ -284,32 +286,41 @@ export struct AudioTrackComponent {
       })
       .width('100%')
 
-      Button({ type: ButtonType.Normal, stateEffect: true }) {
-        Row({ space: 8 }) {
-          SymbolGlyph($r('sys.symbol.rays'))
-            .fontSize(18)
-            .fontColor([$r('app.color.text_color')])
-          Text('声音效果')
-            .fontSize(16)
-            .fontColor($r('app.color.text_color'))
-          Text('试用')
-            .fontSize(12)
-            .fontColor(Color.White)
-            .backgroundColor($r('app.color.main_color'))
-            .borderRadius(6)
-            .padding({
-              left: 4,
-              right: 4,
-              top: 1,
-              bottom: 1
-            })
+      Row() {
+        Button({ type: ButtonType.Normal, stateEffect: true }) {
+          Row({ space: 8 }) {
+            SymbolGlyph($r('sys.symbol.rays'))
+              .fontSize(18)
+              .fontColor([$r('app.color.text_color')])
+            Text('流心音效')
+              .fontSize(16)
+              .fontColor($r('app.color.text_color'))
+            Text('VIP')
+              .fontSize(12)
+              .fontColor(Color.White)
+              .backgroundColor($r('app.color.main_color'))
+              .borderRadius(6)
+              .padding({
+                left: 4,
+                right: 4,
+                top: 1,
+                bottom: 1
+              })
+          }
+          .width('100%')
         }
-        .width('100%')
+        .attributeModifier(new ButtonFancyModifier('100%', 40))
+        .padding({ left: 20, right: 10 })
+        .enabled(userData.isVip)
+        .onClick(() => this.onAudioEffects())
+        .backgroundColor(Color.Transparent)
       }
-      .attributeModifier(new ButtonFancyModifier('100%', 40))
-      .padding({ left: 20, right: 10 })
-      .onClick(() => this.onAudioEffects())
-      .backgroundColor(Color.Transparent)
+      .width('100%')
+      .onClick(() => {
+        if (!userData.isVip) {
+          ToolsUtil.showToast('这个是vip功能')
+        }
+      })
     }
     .width(235)
     .justifyContent(FlexAlign.Center)

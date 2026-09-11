@@ -213,7 +213,7 @@ export class MpvController implements PlayerControllerInterface {
   @Trace audioChannelMode: MpvAudioChannelMode = MpvAudioChannelMode.STEREO
   audioEffectConfig: AudioEffectConfig = new AudioEffectConfig()
   @Trace chapterList: MpvChapter[] = []
-  @Trace lockVisibility: boolean = false
+
   @Trace longPress: boolean = false
   @Trace speedLocked: boolean = false
   @Trace isLock: boolean = false
@@ -544,7 +544,7 @@ export class MpvController implements PlayerControllerInterface {
       if (this.showControl) {
         if (VideoOperateUtil.autoHideTimerId === -1) {
           VideoOperateUtil.scheduleControlAutoHide(() => {
-            this.lockVisibility = false
+
             this.showControl = false
           })
         }
@@ -666,6 +666,8 @@ export class MpvController implements PlayerControllerInterface {
     PiPWindowUtil.disableAutoStart()
     this.transitionTo(MpvPlayerState.PAUSED)
     mpvPause(this.mpvHandle)
+    VideoOperateUtil.saveVideoPlayTimeIfNeed(this.playTime, this.nowPlaying,
+      this.skipHistory, PathUtils.appContext!)
     AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode, this.speed)
   }
 
@@ -979,8 +981,17 @@ export class MpvController implements PlayerControllerInterface {
 
   setRotation() {
     // 这里需要有个默认值，否则会视频宽高为0，导致视频无法播放
-    let VideoWidth = this.getPlayAreaWidth() === 0 ? 1999 : this.getPlayAreaWidth()
-    let VideoHeight = this.getPlayAreaHeight() === 0 ? 1999 : this.getPlayAreaHeight()
+    const decodedWidth = this.getPlayAreaWidth()
+    const decodedHeight = this.getPlayAreaHeight()
+    const metadataWidth = this.nowPlaying?.size[0] ?? 0
+    const metadataHeight = this.nowPlaying?.size[1] ?? 0
+    const hasDecodedSize = decodedWidth > 0 && decodedHeight > 0
+    const hasMetadataSize = metadataWidth > 1 && metadataHeight > 1
+    const VideoWidth = hasDecodedSize ? decodedWidth : (hasMetadataSize ? metadataWidth : this.screenWidth)
+    const VideoHeight = hasDecodedSize ? decodedHeight : (hasMetadataSize ? metadataHeight : this.screenHeight)
+    if (VideoWidth <= 0 || VideoHeight <= 0 || this.screenWidth <= 0 || this.screenHeight <= 0) {
+      return
+    }
     const aspectRatioNow = VideoWidth / VideoHeight
     const screenAspectRatio = this.screenWidth / this.screenHeight
     if (aspectRatioNow > screenAspectRatio) {
@@ -996,7 +1007,7 @@ export class MpvController implements PlayerControllerInterface {
       VideoInfoUtil.saveOriginalVideoWidthAndHeight(this.playAreaWidth, this.playAreaHeight)
     }
     if (this.nowPlaying && VideoInfoUtil.hasVideoTrack(this.nowPlaying) &&
-      this.nowPlaying.size[0] <= 1 && VideoWidth !== 0 && VideoHeight !== 1999) {
+      this.nowPlaying.size[0] <= 1 && hasDecodedSize) {
       this.nowPlaying!.size[0] = VideoWidth
       this.nowPlaying!.size[1] = VideoHeight
       VideoOperateUtil.saveVideoWeightAndHeight(PathUtils.appContext!, this.nowPlaying)
@@ -1197,6 +1208,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   async setExternalSubtitle(nowPlaying: VideoMetadata) {
+    const generation = this.postLoadTaskGeneration
     SubtitleUtil.offsetMillis = nowPlaying.subtitle_offset_millis ?? 0
     const existingExternalTracks = (mpvGetSubtitleTracks(this.mpvHandle) as MpvSubtitleTrack[])
       .filter((track: MpvSubtitleTrack) => track.external)
@@ -1206,7 +1218,11 @@ export class MpvController implements PlayerControllerInterface {
     this.externalSubtitleCodec = existingExternalTrack?.codec ?? ''
     this.subtitle = ''
     this.lastSubtitle = ''
-    if (await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, nowPlaying.date!)) {
+    const subtitleExists = await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, nowPlaying.date!)
+    if (generation !== this.postLoadTaskGeneration || !this.engineAdapter.isMediaLoaded()) {
+      return
+    }
+    if (subtitleExists) {
       try {
         const existingExternalTrackIds = (mpvGetSubtitleTracks(this.mpvHandle) as MpvSubtitleTrack[])
           .filter((track: MpvSubtitleTrack) => track.external)
@@ -1231,9 +1247,13 @@ export class MpvController implements PlayerControllerInterface {
           }
           await this.getSubtitleTrackList()
         }
-      } catch (_error) {
+      } catch (error) {
+        salmonLogger.addLog(TAG, `[Subtitle] External subtitle load failed: ${error}`, true)
       }
     }
+    salmonLogger.addLog(TAG,
+      `[Subtitle] exists=${subtitleExists}, loaded=${externalSubtitleLoaded}, track=${this.externalSubtitleTrackSelected}`,
+      subtitleExists && !externalSubtitleLoaded)
 
     const hasPreference = SubtitleUtil.hasSubtitlePreferenceMetadata(nowPlaying)
     if (hasPreference) {
@@ -1285,6 +1305,7 @@ export class MpvController implements PlayerControllerInterface {
     this.setSubtitle3DMode(saved3DMode !== undefined &&
       [Subtitle3DMode.DISABLED, Subtitle3DMode.SIDE_BY_SIDE, Subtitle3DMode.TOP_AND_BOTTOM].includes(saved3DMode) ?
       saved3DMode as Subtitle3DMode : Subtitle3DMode.DISABLED)
+    salmonLogger.addLog(TAG, `[Subtitle] mode=${this.subtitleSelected}, externalTrack=${this.externalSubtitleTrackSelected}`)
   }
 
   refreshExternalSubtitlePreview(_offset: number): void {
@@ -1991,7 +2012,7 @@ export class MpvController implements PlayerControllerInterface {
 
   setSuperResolutionState(enable: boolean): void {
     try {
-      mpvSetSuperResolution(enable)
+      mpvSetSuperResolution(enable && !Setting.mpvSdrToHdr)
       this.superResolutionState = enable
       Setting.superResolutionState = enable
       Preferences.saveSuperResolutionState(PathUtils.appContext!, enable)
@@ -2004,7 +2025,7 @@ export class MpvController implements PlayerControllerInterface {
   private applySuperResolution(): void {
     this.superResolutionState = Setting.superResolutionState
     try {
-      mpvSetSuperResolution(this.superResolutionState)
+      mpvSetSuperResolution(this.superResolutionState && !Setting.mpvSdrToHdr)
     } catch (error) {
       this.superResolutionState = false
       salmonLogger.addLog(TAG, `[SuperResolution] Unavailable: ${error}`, true)
@@ -2151,12 +2172,13 @@ export class MpvController implements PlayerControllerInterface {
             this.transitionTo(MpvPlayerState.PLAYING)
           }
           AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode, this.speed)
-          this.schedulePostLoadTasks()
         } else if (this.isInState(MpvPlayerState.SWITCHING_MODE)) {
           // 解码模式切换仍由验证流程决定最终状态，但新文件必须先开始解码。
           mpvPlay(this.mpvHandle)
           this.completeDecodingModeVerificationOnVideoSize()
         }
+        // Both initial load and decoder recreation need geometry, subtitles and HDR setup.
+        this.schedulePostLoadTasks()
         if (this.pendingCompletionRequestId === requestId) {
           this.handlePlaybackComplete(requestId)
         }
@@ -2309,9 +2331,8 @@ export class MpvController implements PlayerControllerInterface {
       const reloadUrl = this.preparePlayUrl(savedVideo.uri)
       this.registerSurfaceModeErrorCallback()
       const reloadStartSeconds = savedTime > 0 ? savedTime / 1000 : undefined
-      if (reloadStartSeconds !== undefined) {
-        this.initialStartHandledByLoad = true
-      }
+      // Zero is also an intentional resume position; do not restore last_play again.
+      this.initialStartHandledByLoad = true
       this.registerVideoSizeChangedCallback()
       this.startDecodingModeVerification(targetMode, savedTime, savedPlaying, savedVideo, modeName)
       this.getData().catch(() => {
@@ -2636,10 +2657,13 @@ export class MpvController implements PlayerControllerInterface {
     if (verification.targetMode === 'buffer_hw' && hardwareDecoder === 'no') {
       ToolsUtil.showToast('当前视频不支持硬件解码，已自动回退到软件解码')
       salmonLogger.addLog(TAG, '[MpvController] Hardware decoding unavailable, fell back to software decoding', true)
+    } else if (verification.targetMode === 'buffer_hw' &&
+      (!hardwareDecoder || hardwareDecoder === 'unknown')) {
+      ToolsUtil.showToast('已切换到 Buffer 模式')
     } else {
       ToolsUtil.showToast(`已成功切换到${verification.modeName}模式`)
     }
-    salmonLogger.addLog(TAG, `[MpvController] Successfully switched to ${verification.modeName} mode`)
+    salmonLogger.addLog(TAG, `[MpvController] Mode switch completed: target=${verification.modeName}, actualDecoder=${hardwareDecoder}`)
   }
 
   private cancelDecodingModeTimers() {

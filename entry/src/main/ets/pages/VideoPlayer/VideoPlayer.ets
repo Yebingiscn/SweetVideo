@@ -10,6 +10,7 @@ import { PlayerSideBarComponent } from '../../component/PlayerComponent/PlayerSi
 import { LockVideoBarComponent } from '../../component/PlayerComponent/LockVideoBarComponent'
 import { GestureComponent } from '../../component/PlayerComponent/GestureComponent'
 import NavigationAddress, { PlayerEngine, PlayerParams } from '../../common/NavigationCommon'
+import WantProcessUtil from '../../utils/WantProcessUtil'
 import { WindowUtil } from '../../utils/WindowUtil'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
@@ -81,26 +82,20 @@ export struct VideoPlayer {
   subtitleManager: SubtitleManager = new SubtitleManager(this.player)
   audioEffectDialog: CustomDialogController = new CustomDialogController({
     builder: AudioEffectDialog({
+      isSystemPlayer: (): boolean => this.player instanceof AVPlayerController,
       getCurrentConfig: (): AudioEffectConfig => {
-        if (this.player instanceof MpvController) {
+        if (this.player instanceof MpvController || this.player instanceof AVPlayerController) {
           return AudioEffectConfig.copy(this.player.audioEffectConfig)
         }
         return new AudioEffectConfig()
       },
-      onApply: (config: AudioEffectConfig, silent?: boolean): boolean => {
-        if (!(this.player instanceof MpvController)) {
-          if (!silent) {
-            ToolsUtil.showToast('声音效果仅支持 MPV 播放器')
-          }
-          return false
-        }
+      onApply: async (config: AudioEffectConfig, silent?: boolean): Promise<boolean> => {
+        const player = this.player
+        if (!(player instanceof MpvController) && !(player instanceof AVPlayerController)) return false
         if (config.effect === 'hoa-space-render' && !deviceInfo.apiAvailable('26.0.0')) {
-          if (!silent) {
-            ToolsUtil.showToast('HOA 空间渲染需要鸿蒙 7及以上')
-          }
-          return false
+          throw new Error('HOA 空间渲染需要鸿蒙 7及以上')
         }
-        const applied = this.player.applyAudioEffect(config)
+        const applied = await player.applyAudioEffect(config)
         if (!silent) {
           ToolsUtil.showToast(applied ? '声音效果已应用' : '应用失败，请确认已更新 libmpv.so')
         }
@@ -137,6 +132,7 @@ export struct VideoPlayer {
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   @Local exitVideoTime: number = 0
   @Local isAdjustingSubtitleOffset: boolean = false
+  @Local lockRotation: boolean = false
   private containerWidth: number = 0
   private containerHeight: number = 0
   private longPressSpeedSession: number = 0
@@ -163,6 +159,17 @@ export struct VideoPlayer {
       }
     })
   private pageParams: PlayerParams | undefined = undefined
+  private cardPlaybackHandler = (video: VideoMetadata): boolean => {
+    if (this.isPageDisappearing || !this.isPlayerConfigured) {
+      return false
+    }
+    if (this.player.nowPlaying?.uri === video.uri && !this.player.skipHistory) {
+      this.player.play()
+      return true
+    }
+    this.player.pause()
+    return false
+  }
   private subtitleOffsetPreviewBase: number = 0
   private subtitleOffsetShouldResumePlayback: boolean = false
   private isAdjustingMpvSubtitleOffset: boolean = false
@@ -414,11 +421,16 @@ export struct VideoPlayer {
             screenBrightness: this.player.screenBrightness,
             playAreaHeight: VideoInfoUtil.playAreaHeight
           })
-          if (this.player.lockVisibility) {
+          if (this.player.showControl) {
             LockVideoBarComponent({
               onLockClick: () => {
                 this.player.isLock = !this.player.isLock
                 this.player.showControl = true
+              },
+              onCaptureScreen: () => {
+                if (this.player.surfaceId) {
+                  VideoOperateUtil.saveCaptureScreenToAlbum(this.player.surfaceId)
+                }
               }
             })
           }
@@ -431,12 +443,7 @@ export struct VideoPlayer {
                 this.closeSideBar(true)
               } else {
                 XAnimation.runWithAnimation(() => {
-                  this.player.lockVisibility = !this.player.lockVisibility
-                  if (this.player.isLock) {
-                    this.player.showControl = false
-                  } else {
-                    this.player.showControl = !this.player.showControl
-                  }
+                  this.player.showControl = !this.player.showControl
                 })
               }
             },
@@ -671,7 +678,7 @@ export struct VideoPlayer {
             this.player.showControl = true
           }
           VideoOperateUtil.scheduleControlAutoHide(() => {
-            this.player.lockVisibility = false
+
             this.player.showControl = false
           })
         })
@@ -705,6 +712,10 @@ export struct VideoPlayer {
         this.registerPlayerMonitors(this.player)
         const metadata = playerParams.metadata as VideoMetadata
         this.player.nowPlaying = metadata
+        if (playerParams.resumeFromCard) {
+          const position = Number.isFinite(metadata.last_play) ? Math.max(0, metadata.last_play) : 0
+          this.player.initialPlayTime = metadata.time > 0 && position >= metadata.time * 0.95 ? 0 : position
+        }
         if (playerParams.metadata_list) {
           this.player.videoMetaDataList = playerParams.metadata_list as VideoMetadata[]
         } else if (playerParams!.folder_date) {
@@ -728,6 +739,7 @@ export struct VideoPlayer {
         }
         this.player.onPlayerReady()
         this.isPlayerConfigured = true
+        WantProcessUtil.setCardPlaybackHandler(this.cardPlaybackHandler)
       } catch (e) {
         salmonLogger.addLog(TAG, e, true)
       }
@@ -739,12 +751,13 @@ export struct VideoPlayer {
       }
       if (this.player.showControl && !Setting.allowPlayBackExist) {
         this.player.showControl = false
-        this.player.lockVisibility = false
+
         return true
       }
       return false
     })
     .onShown(() => {
+      WantProcessUtil.setCardPlaybackHandler(this.cardPlaybackHandler)
       if (!this.isPageDisappearing) {
         if (deviceInfo.apiAvailable('26.0.0')) {
           this.smartGestures.show(this.getUIContext())
@@ -805,6 +818,7 @@ export struct VideoPlayer {
       }
     })
     .onWillDisappear(async () => {
+      WantProcessUtil.clearCardPlaybackHandler(this.cardPlaybackHandler)
       this.isPageDisappearing = true
       this.stopAutoListenVideoRestoreObservation()
       if (deviceInfo.apiAvailable('26.0.0')) {
@@ -844,6 +858,7 @@ export struct VideoPlayer {
   VideoTop() {
     VideoTopComponent({
       isAnySubtitleActive: this.subtitleManager.isAnySubtitleActive,
+      lockRotation: this.lockRotation,
       audioTrackMenuBuilder: () => {
         this.AudioTrackMenuBuilder()
       },
@@ -858,10 +873,27 @@ export struct VideoPlayer {
         salmonLogger.addLog(TAG, "点击退出视频按钮", false)
         this.exitVideo(0)
       },
-      onCaptureScreen: () => {
-        if (this.player.surfaceId) {
-          VideoOperateUtil.saveCaptureScreenToAlbum(this.player.surfaceId)
+      onLockRotationClick: async () => {
+        this.lockRotation = !this.lockRotation
+        salmonLogger.addLog(TAG, `锁定旋转状态切换为：${this.lockRotation}`,
+          false)
+        const orientation = this.lockRotation ?
+          (this.player.screenWidth > this.player.screenHeight ? window.Orientation.AUTO_ROTATION_LANDSCAPE_RESTRICTED
+            : window.Orientation.AUTO_ROTATION_PORTRAIT_RESTRICTED)
+          : window.Orientation.AUTO_ROTATION_RESTRICTED
+        try {
+          XAnimation.runWithAnimation(async () => {
+            await (await this.getWindowClass())?.setPreferredOrientation(orientation)
+            salmonLogger.addLog(TAG, "窗口方向设置成功", false)
+          })
+        } catch (error) {
+          salmonLogger.addLog(TAG,
+            `屏幕旋转异常: ${error.code}:${error.message}`, true)
         }
+        const toastMessage = this.lockRotation
+          ? ToolsUtil.getStringResource($r('app.string.open_rotation_lock').id)
+          : ToolsUtil.getStringResource($r('app.string.close_rotation_lock').id)
+        ToolsUtil.showToast(toastMessage)
       },
       onSpecificVideoProportions: (playAreaSize: number[]) => {
         this.player.playAreaWidth = playAreaSize[0]
@@ -1005,8 +1037,8 @@ export struct VideoPlayer {
         VideoOperateUtil.saveAudioTrackPreference(this.player.nowPlaying, index, this.player.getAudioTrackCount())
       },
       onAudioEffects: () => {
-        if (!(this.player instanceof MpvController)) {
-          ToolsUtil.showToast('声音效果仅支持 MPV 播放器，请等待后续支持')
+        if (this.player instanceof AVPlayerController && !this.player.supportsAudioEffects) {
+          ToolsUtil.showToast('系统播放器音效需要 API 26 及设备 PCM 后处理支持')
           return
         }
         this.audioEffectDialog.open()

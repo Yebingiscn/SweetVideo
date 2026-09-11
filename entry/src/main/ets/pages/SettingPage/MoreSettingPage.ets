@@ -9,6 +9,7 @@ import FileFolderUtil from '../../utils/FileFolderUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
+import { userData } from '../../component/common/UserLoginComponent'
 import WantProcess from '../../utils/WantProcessUtil'
 import { LengthMetrics } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
@@ -106,8 +107,9 @@ export struct MoreSettingPage {
             SettingsToggleItem({
               symbol: $r('sys.symbol.display'),
               message: '固定缩放（关闭可能导致UI异常）',
-              tag: '试用',
+              tag: 'VIP',
               enable: Setting.defaultDensityEnabled,
+              itemEnabled: userData.isVip,
               onChange: (checked: boolean) => {
                 if (!checked) {
                   ToolsUtil.showToast('重启生效，关闭可能导致UI异常')

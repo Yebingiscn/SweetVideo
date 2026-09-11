@@ -1,16 +1,16 @@
-import { media } from '@kit.MediaKit'
+import { NativeAVPlayer } from './NativeAVPlayer'
 import { salmonLogger } from 'salmonlogger'
 import { EngineReleaseHook, PlayerEngineAdapter } from './PlayerEngineAdapter'
 
 const TAG = 'AVPlayerEngineAdapter'
 
 export class AVPlayerEngineAdapter implements PlayerEngineAdapter {
-  private nativePlayer: media.AVPlayer | undefined = undefined
+  private nativePlayer: NativeAVPlayer | undefined = undefined
   private releaseTask: Promise<void> | undefined = undefined
   private resetTask: Promise<void> | undefined = undefined
-  private resetTarget: media.AVPlayer | undefined = undefined
+  private resetTarget: NativeAVPlayer | undefined = undefined
 
-  get player(): media.AVPlayer | undefined {
+  get player(): NativeAVPlayer | undefined {
     return this.nativePlayer
   }
 
@@ -22,18 +22,18 @@ export class AVPlayerEngineAdapter implements PlayerEngineAdapter {
     return this.releaseTask !== undefined
   }
 
-  isCurrent(player: media.AVPlayer): boolean {
+  isCurrent(player: NativeAVPlayer): boolean {
     return this.nativePlayer === player
   }
 
-  async create(): Promise<media.AVPlayer | undefined> {
+  async create(): Promise<NativeAVPlayer | undefined> {
     if (this.releaseTask) {
       const releaseTask: Promise<void> = this.releaseTask
       await releaseTask
     }
     if (!this.nativePlayer) {
       try {
-        this.nativePlayer = await media.createAVPlayer()
+        this.nativePlayer = await NativeAVPlayer.create()
       } catch (error) {
         salmonLogger.addLog(TAG, `create error: ${error}`, true)
         throw new Error(`AVPlayer create failed: ${error}`)
@@ -42,7 +42,7 @@ export class AVPlayerEngineAdapter implements PlayerEngineAdapter {
     return this.nativePlayer
   }
 
-  waitForReset(player: media.AVPlayer): Promise<void> {
+  waitForReset(player: NativeAVPlayer): Promise<void> {
     if (this.resetTask && this.resetTarget === player) {
       return this.resetTask
     }
@@ -80,7 +80,7 @@ export class AVPlayerEngineAdapter implements PlayerEngineAdapter {
     }
   }
 
-  private async resetPlayer(player: media.AVPlayer, errorMessage: string): Promise<void> {
+  private async resetPlayer(player: NativeAVPlayer, errorMessage: string): Promise<void> {
     if (this.resetTask && this.resetTarget === player) {
       return this.resetTask
     }
@@ -103,7 +103,7 @@ export class AVPlayerEngineAdapter implements PlayerEngineAdapter {
     }
   }
 
-  private async releasePlayer(player: media.AVPlayer, beforeNativeRelease?: EngineReleaseHook): Promise<void> {
+  private async releasePlayer(player: NativeAVPlayer, beforeNativeRelease?: EngineReleaseHook): Promise<void> {
     // Let release() publish releaseTask before any reset or release hook runs.
     await Promise.resolve()
     if (this.resetTask && this.resetTarget === player) {

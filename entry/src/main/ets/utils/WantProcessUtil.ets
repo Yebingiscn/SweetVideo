@@ -12,6 +12,12 @@ import { systemDateTime } from '@kit.BasicServicesKit'
 import { fileUri } from '@kit.CoreFileKit'
 import { systemShare } from '@kit.ShareKit'
 
+import Preferences from '../database/Preferences'
+import { VideoFormData } from '../forms/VideoFormData'
+import NavigationAddress, { PlayerParams } from '../common/NavigationCommon'
+import VideoOperateUtil from './VideoOperateUtil'
+import { fileIo } from '@kit.CoreFileKit'
+
 const TAG = 'WantProcessUtil'
 
 export default class WantProcess {
@@ -22,6 +28,42 @@ export default class WantProcess {
   private static continueData: VideoMetadata | undefined = undefined
   private static continueTime: number = 0
   private static continueSkipHistory: boolean = false
+  private static navigation: NavPathStack | undefined = undefined
+  private static cardNavigationReady: boolean = false
+
+  private static cardPlaybackHandler: ((video: VideoMetadata) => boolean) | undefined = undefined
+
+  static setCardPlaybackHandler(handler: (video: VideoMetadata) => boolean): void {
+    WantProcess.cardPlaybackHandler = handler
+  }
+
+  static clearCardPlaybackHandler(handler: (video: VideoMetadata) => boolean): void {
+    if (WantProcess.cardPlaybackHandler === handler) {
+      WantProcess.cardPlaybackHandler = undefined
+    }
+  }
+
+  static resetCardNavigation(): void {
+    WantProcess.cardPlaybackHandler = undefined
+    WantProcess.navigation = undefined
+    WantProcess.cardNavigationReady = false
+  }
+
+  static hasPendingCardWant(): boolean {
+    return !!WantProcess.receiveWant?.parameters?.videoFormAction
+  }
+
+  static async setCardNavigationReady(pathStack: NavPathStack): Promise<void> {
+    WantProcess.navigation = pathStack
+    WantProcess.cardNavigationReady = true
+    await WantProcess.processCardWant()
+  }
+
+  static async processCardWant(): Promise<void> {
+    if (WantProcess.cardNavigationReady && WantProcess.navigation && WantProcess.hasPendingCardWant()) {
+      await WantProcess.checkWant(WantProcess.navigation)
+    }
+  }
 
   public static set wantUri(value: string) {
     WantProcess.receiveWantUri = value
@@ -54,6 +96,13 @@ export default class WantProcess {
   }
 
   static async checkWant(pathStack: NavPathStack): Promise<void> {
+    WantProcess.navigation = pathStack
+    if (WantProcess.receiveWant?.parameters?.videoFormAction) {
+      if (WantProcess.cardNavigationReady) {
+        await WantProcess.openCard(pathStack)
+      }
+      return
+    }
     if (WantProcess.isContinue) {
       await WantProcess.checkContinue(pathStack)
       return
@@ -118,7 +167,7 @@ export default class WantProcess {
         throw new Error(probeResult.error || 'FFmpeg media probing failed')
       }
       const probe = probeResult.probe
-      const fileName = ToolsUtil.safeDecodeURI(uri.split('/')[uri.split('/').length - 1])
+      const fileName = ToolsUtil.fileNameFromUri(uri)
       const targetVideo: VideoMetadata = {
         uri: uri,
         title: VideoInfoUtil.resolveImportedTitle(fileName, probe),
@@ -153,6 +202,48 @@ export default class WantProcess {
     }
   }
 
+  private static async openCard(pathStack: NavPathStack): Promise<void> {
+    const action = WantProcess.receiveWant?.parameters?.videoFormAction
+    const mediaId = WantProcess.receiveWant?.parameters?.videoFormMediaId
+    WantProcess.clearWantState()
+    WantProcess.receiveWantUri = ''
+    if (action === 'home') {
+      pathStack.clear()
+      return
+    }
+    if ((action !== 'play' && action !== 'resume') || typeof mediaId !== 'string') {
+      return
+    }
+    const context = PathUtils.appContext
+    if (!context) {
+      return
+    }
+    const recent = Preferences.getRecentPlay(context)
+    const video = recent.find(item => item.date === mediaId && VideoFormData.isPublicMedia(item))
+    if (!video) {
+      ToolsUtil.showToast('播放记录已失效，请重新选择')
+      pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, null)
+      return
+    }
+    try {
+      if (video.uri.startsWith('file://') || video.uri.startsWith('/')) {
+        const file = await fileIo.open(video.uri, fileIo.OpenMode.READ_ONLY)
+        await fileIo.close(file)
+      }
+      const paths = pathStack.getAllPathName()
+      if (paths[paths.length - 1] === NavigationAddress.VIDEO_PLAYER &&
+        WantProcess.cardPlaybackHandler?.(video)) {
+        return
+      }
+      const params = new PlayerParams(video, [video], undefined, false,
+        VideoOperateUtil.resolvePlayerType(video, false))
+      params.resumeFromCard = true
+      pathStack.pushPathByName(NavigationAddress.VIDEO_PLAYER, params)
+    } catch (_) {
+      ToolsUtil.showToast('文件无法访问，请重新授权或选择其他记录')
+      pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, null)
+    }
+  }
 
   // 跳转外部网页
   static linkToWeb(context: common.UIAbilityContext, link: string) {

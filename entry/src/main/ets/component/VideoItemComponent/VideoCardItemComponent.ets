@@ -42,7 +42,7 @@ export default struct VideoCardItem {
     Column() {
       this.CoverImage()
       Row() {
-        Text(VideoInfoUtil.getVideoTitle(this.item))
+        Text(VideoInfoUtil.getVideoTitle(this.item?.title))
           .fontSize(15)
           .fontWeight(FontWeight.Bold)
           .maxLines(Setting.listDisplayMode === ListDisplayMode.GRID_DISPLAY ? 1 : 5)

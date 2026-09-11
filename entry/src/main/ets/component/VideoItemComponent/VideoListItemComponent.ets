@@ -33,7 +33,7 @@ export default struct VideoListItem {
       this.CoverImage()
       Column() {
         Row() {
-          Text(VideoInfoUtil.getVideoTitle(this.item))
+          Text(VideoInfoUtil.getVideoTitle(this.item?.title))
             .fontSize(16)
             .fontWeight(FontWeight.Bold)
             .maxLines(2)

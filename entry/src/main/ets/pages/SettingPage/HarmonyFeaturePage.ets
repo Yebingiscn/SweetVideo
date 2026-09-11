@@ -1,4 +1,10 @@
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
+import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
+import { formProvider } from '@kit.FormKit'
+import { deviceInfo, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { VIDEO_FORM_ABILITY, VIDEO_FORM_NAME, VideoFormData } from '../../forms/VideoFormData'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { userData } from '../../component/common/UserLoginComponent'
 import Preferences from '../../database/Preferences'
 import { MediaSmartGestureSession } from '../../utils/MediaSmartGestureUtil'
 import KnockShareUtil from '../../utils/KnockShareUtil'
@@ -6,7 +12,6 @@ import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import { LengthMetrics } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
-import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
 @ComponentV2
 export struct HarmonyFeaturePage {
@@ -17,6 +22,16 @@ export struct HarmonyFeaturePage {
   build() {
     HdsNavDestination() {
       List({ scroller: this.listScroller }) {
+
+        if (canIUse('SystemCapability.Ability.Form') &&
+          ['phone', 'tablet', '2in1'].includes(deviceInfo.deviceType)) {
+          ListItem() {
+            SettingsClickItem({
+              message: $r('app.string.video_form_setting'),
+              onPress: () => this.openDesktopCards()
+            })
+          }
+        }
 
         if (KnockShareUtil.isSupported()) {
           ListItem() {
@@ -66,15 +81,16 @@ export struct HarmonyFeaturePage {
               SettingsToggleItem({
                 symbol: $r('sys.symbol.hand_point_up_tap'),
                 message: '智慧手势',
-                tag: '试用',
+                tag: 'VIP',
                 enable: Setting.smartGestureEnabled,
+                itemEnabled: userData.isVip,
                 onChange: (checked: boolean) => {
                   Setting.smartGestureEnabled = checked
                   Preferences.saveSmartGestureEnabled(PathUtils.appContext!, checked)
                 }
               })
               Text(
-                '敲一敲播放/暂停；划一划在普通播放中快进，在短视频中切换下一条。需设备支持并开启系统智慧手势，翻腕返回不受此开关影响。')
+                '敲一敲播放/暂停；划一划在普通播放中快进，在短视频中切换下一条；翻腕返回退出播放。需设备支持并开启系统智慧手势。')
                 .fontSize(12)
                 .fontColor($r('sys.color.font_secondary'))
                 .width('100%')
@@ -163,5 +179,26 @@ export struct HarmonyFeaturePage {
     .backgroundImagePosition(Alignment.Center)
     .hideBackButton(false)
     .bindToScrollable([this.listScroller])
+  }
+
+  private openDesktopCards(): void {
+    const context = PathUtils.appContext
+    if (!context) {
+      return
+    }
+    try {
+      VideoFormData.save(context, Preferences.getRecentPlay(context), true)
+      formProvider.openFormManager({
+        bundleName: context.applicationInfo.name,
+        abilityName: VIDEO_FORM_ABILITY,
+        parameters: {
+          'ohos.extra.param.key.form_dimension': 2,
+          'ohos.extra.param.key.form_name': VIDEO_FORM_NAME,
+          'ohos.extra.param.key.module_name': 'entry'
+        }
+      })
+    } catch (_) {
+      ToolsUtil.showToast('暂时无法打开桌面卡片，请稍后重试')
+    }
   }
 }

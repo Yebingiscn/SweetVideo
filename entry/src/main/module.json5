@@ -96,6 +96,18 @@
     ],
     "extensionAbilities": [
       {
+        "name": "VideoFormAbility",
+        "srcEntry": "./ets/forms/VideoFormAbility.ets",
+        "type": "form",
+        "exported": true,
+        "metadata": [
+          {
+            "name": "ohos.extension.form",
+            "resource": "$profile:form_config"
+          }
+        ]
+      },
+      {
         "name": "EntryBackupAbility",
         "srcEntry": "./ets/entrybackupability/EntryBackupAbility.ets",
         "type": "backup",

@@ -20,7 +20,7 @@ export function VideoItemPreviewBuilder(item: VideoMetadata) {
       .objectFit(ImageFit.Cover)
       .clip(true)
     // 标题区域
-    Text(VideoInfoUtil.getVideoTitle(item))
+    Text(VideoInfoUtil.getVideoTitle(item?.title))
       .fontSize(15)
       .fontWeight(FontWeight.Bold)
       .maxLines(5)

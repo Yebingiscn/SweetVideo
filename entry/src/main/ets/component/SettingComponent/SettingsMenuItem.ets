@@ -3,6 +3,7 @@ import {
   SettingsTitleModifier,
   SymbolGlyphFancyModifier
 } from '../../common/AttributeModifierConfig'
+import ToolsUtil from '../../utils/ToolsUtil'
 
 @ComponentV2
 export struct SettingsMenuItem {
@@ -10,9 +11,11 @@ export struct SettingsMenuItem {
   @Param message: ResourceStr = ''
   @Param tag: ResourceStr | undefined = undefined
   @Param selected: number = 0
+  @Param itemEnabled: boolean = true
   @Local _selected: number = 0
   @Param list: ResourceStr[] = []
   @Local private select: SelectOption[] = []
+
   @Event onChange: (_index: number) => void = () => {
   }
 
@@ -60,6 +63,7 @@ export struct SettingsMenuItem {
         .selectedOptionBgColor($r('app.color.main_color'))
         .selectedOptionFontColor($r('sys.color.white'))
         .menuBackgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
+        .enabled(this.itemEnabled)
         .onSelect((index: number) => {
           this._selected = index
           this.onChange(index)
@@ -69,5 +73,12 @@ export struct SettingsMenuItem {
     .align(Alignment.Center)
     .attributeModifier(new SettingsItemModifier())
     .height(65)
+    .onClick(() => {
+      if (!this.itemEnabled) {
+        ToolsUtil.showToast('这个是vip功能')
+      }
+    })
   }
 }
+
+

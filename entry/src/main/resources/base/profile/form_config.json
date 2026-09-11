@@ -1,0 +1,18 @@
+{
+  "forms": [
+    {
+      "name": "ContinueWatching",
+      "displayName": "$string:video_form_name",
+      "description": "$string:video_form_description",
+      "src": "./ets/forms/ContinueWatchingCard.ets",
+      "uiSyntax": "arkts",
+      "isDefault": true,
+      "isDynamic": true,
+      "updateEnabled": false,
+      "defaultDimension": "2*2",
+      "supportDimensions": ["2*2", "2*4"],
+      "supportDeviceTypes": ["phone", "tablet", "2in1"],
+      "resizable": true
+    }
+  ]
+}

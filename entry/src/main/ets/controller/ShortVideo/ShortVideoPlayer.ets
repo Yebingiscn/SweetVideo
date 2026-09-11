@@ -1,4 +1,5 @@
 import { media } from '@kit.MediaKit'
+import { NativeAVPlayer } from '../engine/NativeAVPlayer'
 import { fileIo } from '@kit.CoreFileKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { salmonLogger } from 'salmonlogger'
@@ -26,7 +27,7 @@ export class ShortVideoPlayer {
   @Trace playbackRate: number = 1
   @Trace videoWidth: number = 0
   @Trace videoHeight: number = 0
-  private player: media.AVPlayer | undefined = undefined
+  private player: NativeAVPlayer | undefined = undefined
   private surfaceId: string = ''
   private prepareTask: Promise<void> | undefined = undefined
   private playTask: Promise<void> | undefined = undefined
@@ -222,7 +223,7 @@ export class ShortVideoPlayer {
   private async prepareInternal(): Promise<void> {
     this.state = 'preparing'
     try {
-      const player = await media.createAVPlayer()
+      const player = await NativeAVPlayer.create()
       if (this.disposed) {
         await player.release()
         return
@@ -238,9 +239,14 @@ export class ShortVideoPlayer {
         throw new Error('无法读取视频文件')
       }
       if (ToolsUtil.isNetworkUrl(this.item.uri)) {
-        player.url = this.item.uri
+        await player.setUrlSource(this.item.uri, this.item.network_http_headers)
       } else {
-        player.fdSrc = fileIo.openSync(this.item.uri, fileIo.OpenMode.READ_ONLY)
+        const file = fileIo.openSync(this.item.uri, fileIo.OpenMode.READ_ONLY)
+        try {
+          await player.setFdSource(file.fd)
+        } finally {
+          fileIo.closeSync(file)
+        }
       }
       await prepared
     } catch (error) {
@@ -249,7 +255,7 @@ export class ShortVideoPlayer {
     }
   }
 
-  private registerCallbacks(player: media.AVPlayer): void {
+  private registerCallbacks(player: NativeAVPlayer): void {
     player.on('stateChange', async (state: string) => {
       if (this.disposed || this.player !== player) {
         return
@@ -328,7 +334,7 @@ export class ShortVideoPlayer {
     })
   }
 
-  private unregisterCallbacks(player: media.AVPlayer): void {
+  private unregisterCallbacks(player: NativeAVPlayer): void {
     try {
       player.off('stateChange')
       player.off('timeUpdate')
@@ -337,7 +343,7 @@ export class ShortVideoPlayer {
     }
   }
 
-  private seekToRememberedPosition(player: media.AVPlayer): void {
+  private seekToRememberedPosition(player: NativeAVPlayer): void {
     const mode = VideoOperateUtil.getVideoStartPlayTimeMode(this.item, false)
     let position = 0
     switch (mode) {

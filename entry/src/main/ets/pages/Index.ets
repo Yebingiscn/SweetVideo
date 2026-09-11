@@ -20,6 +20,7 @@ import AccountUtil from '../utils/AccountUtil'
 import { XAnimation } from '../utils/AnimationUtil'
 import BiometricAccessUtil from '../utils/BiometricAccessUtil'
 import DataSyncUtil from '../utils/DataSyncUtil'
+import HomeSidebarLayout from '../utils/HomeSidebarLayout'
 import FileFolderUtil from '../utils/FileFolderUtil'
 import { importAndProcessFiles, ProgressInfo } from '../utils/FileProcessorUtil'
 import IntellectualGripPostureUtil from '../utils/IntellectualGripPostureUtil'
@@ -38,6 +39,7 @@ import { WindowUtil } from '../utils/WindowUtil'
 import lazy { PrivacySpace } from './PrivacySpace/PrivacySpace'
 import lazy { PrivacySpaceErrorList } from './PrivacySpace/PrivacySpaceErrorList'
 import lazy { RecentPlay } from './RecentPlay'
+import lazy { GlobalSearch } from './GlobalSearch'
 import lazy { AboutApp } from './SettingPage/AboutApp'
 import lazy { GetVipPage } from './SettingPage/GetVipPage'
 import lazy { CrashPage } from './SettingPage/CrashPage'
@@ -79,6 +81,7 @@ struct Index {
   @Local failedCount: number = 0 // 失败文件数
   @Local currentStage: 'extracting' | 'cover' | 'saving' = 'extracting'
   @Local isSizeInitialized: boolean = false
+  @Local homeSidebarWidth: number = HomeSidebarLayout.minWidth
   @Provider() file_folder_list: FileFolder[] = []
   @Local searchValue: string = ''
   @Local contentWidth: number = 0
@@ -128,17 +131,18 @@ struct Index {
       ? this.file_folder_list.find(f => f.date === defaultStartupFolderDate) ?? this.file_folder_list[0]
       : this.file_folder_list[0]
     this.videoListController?.updateData(undefined, defaultFolder)
-    if (isStreamStartup) {
+    const hasCardWant = WantProcessUtil.hasPendingCardWant()
+    if (isStreamStartup && !hasCardWant) {
       setTimeout(() => {
         this.pathStack.pushPathByName(NavigationAddress.STREAM_PAGE, null)
       }, 0)
     }
-    if (isIptvStartup) {
+    if (isIptvStartup && !hasCardWant) {
       setTimeout(() => {
         this.pathStack.pushPathByName(NavigationAddress.IPTV_SOURCE_PAGE, null)
       }, 0)
     }
-    if (isIptvSourceStartup) {
+    if (isIptvSourceStartup && !hasCardWant) {
       const iptvSourceId = defaultStartupFolderDate.substring('__iptv_src__'.length)
       setTimeout(() => {
         this.pathStack.pushPathByName(NavigationAddress.IPTV_CHANNEL_PAGE,
@@ -157,6 +161,7 @@ struct Index {
       IntellectualGripPostureUtil.createOperatingHandStatus()
     }, 0)
     void this.checkInvalidVideos(this.file_folder_list)
+    await WantProcessUtil.setCardNavigationReady(this.pathStack)
   }
 
   async toMetaData(fileList: string[], fileFolder?: FileFolder) {
@@ -240,7 +245,7 @@ struct Index {
     this.failedCount = 0
     try {
       for (const uri of payload.uris) {
-        this.currentFileName = ToolsUtil.safeDecodeURIComponent(uri.substring(uri.lastIndexOf('/') + 1))
+        this.currentFileName = ToolsUtil.fileNameFromUri(uri)
         this.currentStage = 'extracting'
         const handled = await SelectFileUtil.addFile(PathUtils.appContext!, PathUtils.videoPath,
           PathUtils.coverPath, uri, targetFolder.video_list, targetFolder, false)
@@ -385,11 +390,21 @@ struct Index {
             })
         )
       }
-      .minSideBarWidth(DataSyncUtil.minSideBarWidth) // 设置侧边栏最小宽度
-      .minContentWidth(DataSyncUtil.minContentWidth) // 设置内容区最小宽度
+      .sideBarWidth(this.homeSidebarWidth)
+      .minSideBarWidth(Math.min(HomeSidebarLayout.minWidth, this.homeSidebarWidth))
+      .maxSideBarWidth(HomeSidebarLayout.maxWidth)
+      // 480 vp 只用于嵌入布局；覆盖模式不能把窄窗口的内容撑宽。
+      .minContentWidth(this.isSizeInitialized && this.sideBarController.mode === SideBarContainerType.Embed ?
+        HomeSidebarLayout.minContentWidth : 0)
+      .width('100%')
       .allowDrop([uniformTypeDescriptor.UniformDataType.PLAIN_TEXT, uniformTypeDescriptor.UniformDataType.VIDEO])
       .onSizeChange((_oldValue: SizeResult, newValue: SizeResult) => {
-        if (newValue.width >= DataSyncUtil.minSideBarWidth + DataSyncUtil.minContentWidth) {
+        const windowWidth = Number(newValue.width)
+        if (!Number.isFinite(windowWidth) || windowWidth <= 0) {
+          return
+        }
+        this.homeSidebarWidth = HomeSidebarLayout.getWidth(windowWidth)
+        if (HomeSidebarLayout.isEmbedded(windowWidth)) {
           if (!this.isSizeInitialized || this.sideBarController.mode !== SideBarContainerType.Embed) {
             this.sideBarController.mode = SideBarContainerType.Embed
             const visible = Preferences.getEmbedSidebarVisible(PathUtils.appContext!)
@@ -567,6 +582,8 @@ struct Index {
       AboutApp()
     } else if (name == NavigationAddress.RECENT_PLAY) {
       RecentPlay()
+    } else if (name == NavigationAddress.GLOBAL_SEARCH) {
+      GlobalSearch()
     } else if (name == NavigationAddress.PRIVACY_SPACE) {
       PrivacySpace()
     } else if (name == NavigationAddress.CRASH_PAGE) {

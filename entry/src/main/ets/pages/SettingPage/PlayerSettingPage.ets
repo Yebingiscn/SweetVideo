@@ -8,6 +8,8 @@ import { FastForwardSecondInterface } from '../../interfaces/FastForwardSecondIn
 import AVSessionUtil from '../../utils/AVSessionUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { userData } from '../../component/common/UserLoginComponent'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 
@@ -49,8 +51,9 @@ export struct PlayerSettingPage {
           SettingsToggleItem({
             symbol: $r('sys.symbol.play_gobackward'),
             message: '与其他应用同时播放',
-            tag: '试用',
+            tag: 'VIP',
             enable: Setting.allowConcurrentPlay,
+            itemEnabled: userData.isVip,
             onChange: (checked: boolean) => {
               Setting.allowConcurrentPlay = checked
               Preferences.saveAllowConcurrentPlayState(PathUtils.appContext!, Setting.allowConcurrentPlay)

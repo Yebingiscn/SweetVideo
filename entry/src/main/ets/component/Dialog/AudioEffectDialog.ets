@@ -1,4 +1,6 @@
 import { AudioEffectConfig } from '../../interfaces/AudioEffectInterface'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { salmonLogger } from 'salmonlogger'
 
 const EFFECT_VALUES: string[] = [
   'off', 'preset', 'equalizer', 'noise-reduction', 'sound-field', 'audio-separation',
@@ -222,7 +224,15 @@ struct ValueSliderComponent {
 export struct AudioEffectDialog {
   controller?: CustomDialogController
   getCurrentConfig?: () => AudioEffectConfig
-  onApply?: (config: AudioEffectConfig, silent?: boolean) => boolean
+  isSystemPlayer?: () => boolean
+  onApply?: (config: AudioEffectConfig, silent?: boolean) => Promise<boolean>
+  @State systemPlayer: boolean = false
+  @State applyStatus: string = ''
+  @State effectValues: string[] = EFFECT_VALUES
+  @State effectLabels: string[] = EFFECT_LABELS
+  private pendingConfig: AudioEffectConfig | undefined = undefined
+  private applyTimer: number = -1
+  private applyVersion: number = 0
   @State effect: string = 'off'
   @State eqPreset: string = 'default'
   @State eqGains: number[] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -248,20 +258,32 @@ export struct AudioEffectDialog {
   @State currentPreset: string = ''
 
   aboutToAppear(): void {
+    this.systemPlayer = this.isSystemPlayer?.() === true
+    this.effectValues = EFFECT_VALUES.filter((value: string) =>
+      !this.systemPlayer || (value !== 'hoa-space-render' && value !== 'audio-mixer'))
+    this.effectLabels = this.effectValues.map((value: string) => {
+      if (this.systemPlayer && value === 'tempo-pitch') return '变调'
+      return EFFECT_LABELS[EFFECT_VALUES.indexOf(value)]
+    })
+    this.applyStatus = ''
     this.loadConfig(this.getCurrentConfig?.() ?? new AudioEffectConfig())
+  }
+
+  aboutToDisappear(): void {
+    this.flushPending()
   }
 
   build() {
     Column({ space: 12 }) {
-      Text('声音效果')
+      Text('流心音效')
         .fontSize(20)
         .fontWeight(FontWeight.Bold)
         .fontColor($r('app.color.text_color'))
         .width('100%')
 
       TabSelector({
-        labels: EFFECT_LABELS,
-        values: EFFECT_VALUES,
+        labels: this.effectLabels,
+        values: this.effectValues,
         current: this.effect,
         onSelect: (value: string): void => {
           this.effect = value
@@ -495,6 +517,7 @@ export struct AudioEffectDialog {
             }
           } else if (this.effect === 'tempo-pitch') {
             ParamCardComponent() {
+              if (!this.systemPlayer) {
               ValueSliderComponent({
                 title: '速度',
                 value: this.tempo,
@@ -507,6 +530,7 @@ export struct AudioEffectDialog {
                   this.applyCurrentConfig()
                 }
               })
+              }
               ValueSliderComponent({
                 title: '音高',
                 value: this.pitch,
@@ -519,7 +543,8 @@ export struct AudioEffectDialog {
                   this.applyCurrentConfig()
                 }
               })
-              this.HintText('改变速度会改变音频时长，不建议用于需要保持音画同步的视频。')
+              this.HintText(this.systemPlayer ? '变调仅支持单声道音轨；视频变速请使用播放器倍速。' :
+                '改变速度会改变音频时长，不建议用于需要保持音画同步的视频。')
             }
           } else if (this.effect === 'hoa-space-render') {
             ParamCardComponent() {
@@ -536,7 +561,8 @@ export struct AudioEffectDialog {
             }
           } else if (this.effect === 'noise-reduction') {
             ParamCardComponent() {
-              this.HintText('降噪会将处理格式调整为 16kHz 单声道。')
+              this.HintText(this.systemPlayer ? '仅支持单声道音轨；处理后恢复原采样率，不会把立体声降为单声道。' :
+                '降噪会将处理格式调整为 16kHz 单声道。')
             }
           } else if (this.effect === 'audio-mixer') {
             ParamCardComponent() {
@@ -544,7 +570,8 @@ export struct AudioEffectDialog {
             }
           } else if (this.effect === 'off') {
             ParamCardComponent() {
-              this.HintText('使用普通 OHAudio 输出，不进行 AudioSuite 处理。')
+              this.HintText(this.systemPlayer ? '使用系统播放器原声，不进行 AudioSuite 处理。' :
+                '使用普通 OHAudio 输出，不进行 AudioSuite 处理。')
             }
           } else if (this.effect === 'preset') {
             ParamCardComponent() {
@@ -556,7 +583,7 @@ export struct AudioEffectDialog {
                   this.currentPreset = value
                   const presetConfig = createPresetConfig(value)
                   this.loadPresetParams(presetConfig)
-                  this.onApply?.(presetConfig, true)
+                  this.scheduleApply(presetConfig)
                 }
               })
               this.HintText('选择预设即可快速应用，切换到对应效果可进一步微调参数。')
@@ -568,6 +595,22 @@ export struct AudioEffectDialog {
       }
       .constraintSize({ maxHeight: 400 })
       .scrollBar(BarState.Auto)
+
+      if (this.systemPlayer) {
+        this.HintText('系统音效保持原音频格式。传统变声、降噪和变调仅支持单声道；不提供 HOA 和单路混音。')
+      }
+      if (this.applyStatus.length > 0) {
+        // Bind the text directly: a primitive @Builder argument can retain its
+        // initial value while the non-empty conditional branch stays mounted.
+        Row({ space: 6 }) {
+          Text(this.applyStatus)
+            .fontSize(13)
+            .fontColor('#909399')
+            .layoutWeight(1)
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+      }
 
       Row({ space: 10 }) {
         Button('重置')
@@ -622,7 +665,50 @@ export struct AudioEffectDialog {
   }
 
   private applyCurrentConfig(): void {
-    this.onApply?.(this.createConfig(), true)
+    if (this.effect === 'preset') return
+    const config = this.createConfig()
+    if (this.systemPlayer) config.tempo = 1
+    this.scheduleApply(config)
+  }
+
+  private scheduleApply(config: AudioEffectConfig): void {
+    // Invalidate older completions immediately, including during debounce.
+    ++this.applyVersion
+    this.pendingConfig = config
+    this.applyStatus = ''
+    if (this.applyTimer !== -1) clearTimeout(this.applyTimer)
+    this.applyTimer = setTimeout(() => this.flushPending(), 180)
+  }
+
+  private flushPending(): void {
+    if (this.applyTimer !== -1) clearTimeout(this.applyTimer)
+    this.applyTimer = -1
+    const config = this.pendingConfig
+    this.pendingConfig = undefined
+    if (!config) return
+    const version = ++this.applyVersion
+    this.applyStatus = ''
+    this.applyConfig(config, version)
+  }
+
+  private async applyConfig(config: AudioEffectConfig, version: number): Promise<void> {
+    try {
+      const applied = await this.onApply?.(config, true)
+      if (version === this.applyVersion) {
+        this.applyStatus = applied ? '' : '应用失败，保留原设置'
+        if (!applied) this.reportApplyFailure(config.effect, this.applyStatus)
+      }
+    } catch (error) {
+      if (version === this.applyVersion) {
+        this.applyStatus = (error as Error).message || '音效应用失败，保留原设置'
+        this.reportApplyFailure(config.effect, this.applyStatus)
+      }
+    }
+  }
+
+  private reportApplyFailure(effect: string, message: string): void {
+    salmonLogger.addLog('AudioEffectDialog', `音效 ${effect} 应用失败：${message}`, true)
+    ToolsUtil.showToast(message)
   }
 
   private loadConfig(config: AudioEffectConfig): void {

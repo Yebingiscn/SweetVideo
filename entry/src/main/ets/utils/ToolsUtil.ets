@@ -42,6 +42,14 @@ export default class ToolsUtil {
   // 震动设置
   private static vibrationEnabled: boolean = true
 
+  static checkVipFeature(): boolean {
+    const isVip = Preferences.getUserIsVip(PathUtils.appContext!)
+    if (!isVip) {
+      ToolsUtil.showToast('这个是vip功能')
+    }
+    return isVip
+  }
+
   static showToast(text: string, duration: number = 3500) {
     try {
       if (ToolsUtil.cachedPromptAction) {
@@ -388,6 +396,14 @@ export default class ToolsUtil {
       return false
     }
     return /^(https?|rtmps?|rtsp|rtp|udp|srt|hls):\/\//i.test(uri.trim())
+  }
+
+  static fileNameFromUri(uri: string | undefined): string {
+    if (!uri) {
+      return ''
+    }
+    const raw = uri.includes('/') ? uri.substring(uri.lastIndexOf('/') + 1) : uri
+    return ToolsUtil.safeDecodeURIComponent(raw)
   }
 
   static safeDecodeURI(uri: string | undefined): string {

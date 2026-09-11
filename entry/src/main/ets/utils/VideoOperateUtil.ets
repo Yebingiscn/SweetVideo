@@ -2,6 +2,7 @@ import { window } from '@kit.ArkUI'
 import { audio } from '@kit.AudioKit'
 import { BusinessError, settings, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { media } from '@kit.MediaKit'
+import { NativeAVPlayer } from '../controller/engine/NativeAVPlayer'
 import { SaveOptions, VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
 import { common } from '@kit.AbilityKit'
@@ -140,7 +141,7 @@ export default class VideoOperateUtil {
     return Math.sqrt(dx * dx + dy * dy)
   }
 
-  static async getAudioTracks(avPlayer: media.AVPlayer): Promise<AudioTrack[]> {
+  static async getAudioTracks(avPlayer: NativeAVPlayer): Promise<AudioTrack[]> {
     try {
       return await VideoOperateUtil.getTracksByType<AudioTrack>(avPlayer, media.MediaType.MEDIA_TYPE_AUD,
         (desc): AudioTrack => ({
@@ -157,7 +158,7 @@ export default class VideoOperateUtil {
     }
   }
 
-  static async getInnerSubtitles(avPlayer: media.AVPlayer | undefined | null): Promise<SubtitleTrack[]> {
+  static async getInnerSubtitles(avPlayer: NativeAVPlayer | undefined | null): Promise<SubtitleTrack[]> {
     if (!avPlayer) {
       return []
     }
@@ -868,10 +869,10 @@ export default class VideoOperateUtil {
     }
   }
 
-  private static async getTracksByType<T>(avPlayer: media.AVPlayer, trackType: media.MediaType,
+  private static async getTracksByType<T>(avPlayer: NativeAVPlayer, trackType: media.MediaType,
     mapper: (desc: media.MediaDescription) => T, errorLabel: string): Promise<T[]> {
     return new Promise((resolve, reject) => {
-      avPlayer.getTrackDescription((error: BusinessError, arrList: Array<media.MediaDescription>) => {
+      avPlayer.getTrackDescription((error: BusinessError | undefined, arrList: Array<media.MediaDescription>) => {
         if (error || !arrList || arrList.length === 0) {
           salmonLogger.addLog(TAG, `Failed to get TrackDescription, error: ${error}`, true)
           return reject(error || new Error(`No ${errorLabel} available`))

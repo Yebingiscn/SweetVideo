@@ -1,4 +1,4 @@
-import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
+import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import { SCALE_FACTORS, SCREEN_EXTEND_LIST } from '../../common/Constants'
 import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
@@ -9,6 +9,7 @@ export struct VideoTopComponent {
   @Consumer('player') player: PlayerControllerInterface =
     PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
   @Param isAnySubtitleActive: boolean = false
+  @Param lockRotation: boolean = false
   @BuilderParam audioTrackMenuBuilder: () => void
   @BuilderParam subtitlePanelComponent: () => void
   @BuilderParam chapterMenuBuilder: () => void
@@ -19,7 +20,7 @@ export struct VideoTopComponent {
     return dotIndex > 0 ? title.slice(0, dotIndex) : title
   }
 
-  @Event onCaptureScreen: () => void = () => {
+  @Event onLockRotationClick: () => Promise<void> = async () => {
   }
   @Event onExitVideoClick: () => void = () => {
   }
@@ -137,18 +138,18 @@ export struct VideoTopComponent {
           .menuBackgroundBlurStyle(BlurStyle.COMPONENT_THIN)
       }
 
-      // 6. 截屏按钮
+      // 6. 旋转锁定按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph($r('sys.symbol.camera'))
-          .fontSize(27)
+        SymbolGlyph(this.lockRotation ? $r('sys.symbol.lock_fill') : $r('sys.symbol.rotate_left'))
+          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
       .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
-      .attributeModifier(new ButtonFancyModifier(40, 40))
+      .attributeModifier(new ButtonFancyModifier(35, 40))
       .backgroundColor('#50000000')
-      .onClick(() => {
-        this.onCaptureScreen()
+      .onClick(async () => {
+        await this.onLockRotationClick()
       })
     }
     .padding({ left: 8, right: 8 })

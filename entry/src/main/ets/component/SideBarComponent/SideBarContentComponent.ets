@@ -480,6 +480,23 @@ export struct SideBarContentComponent {
 
               Button({ type: ButtonType.Normal, stateEffect: true }) {
                 Row() {
+                  SymbolGlyph($r('sys.symbol.magnifyingglass'))
+                    .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                  Text('全局搜索')
+                    .fontSize(15)
+                    .margin({ left: 10, right: 12 })
+                }
+              }
+              .align(Alignment.Start)
+              .padding({ left: 16, right: 16 })
+              .attributeModifier(new ButtonFancyModifier('100%', 60))
+              .backgroundColor(Color.Transparent)
+              .onClick(() => {
+                this.pathStack.pushPathByName(NavigationAddress.GLOBAL_SEARCH, null)
+              })
+
+              Button({ type: ButtonType.Normal, stateEffect: true }) {
+                Row() {
                   SymbolGlyph($r('sys.symbol.folder_badge_plus'))
                     .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
                   Text('添加文件夹')
@@ -572,9 +589,8 @@ export struct SideBarContentComponent {
                     if (this.videoListController.folder?.date === repeatItem.item.date) {
                       return
                     }
-                    const currentFolders = Preferences.getFileFolder(PathUtils.appContext!)
-                    this.fileFolderListChange(currentFolders)
-                    const currentFolder = currentFolders.find(f => f.date === repeatItem.item.date)
+                    const latestFolders = Preferences.getFileFolder(PathUtils.appContext!)
+                    const currentFolder = latestFolders.find(f => f.date === repeatItem.item.date)
                     if (!currentFolder) {
                       return
                     }

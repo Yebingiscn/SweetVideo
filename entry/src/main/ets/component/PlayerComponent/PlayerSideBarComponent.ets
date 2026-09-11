@@ -151,7 +151,7 @@ export function VideoItemBuilder(videoItemValue: VideoItemValue) {
       .attributeModifier(new ImageFancyModifier(12, Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 85 : 110,
         Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 110 : 85))
     Column() {
-      Text(VideoInfoUtil.getVideoTitle(videoItemValue.item!))
+      Text(VideoInfoUtil.getVideoTitle(videoItemValue.item?.title))
         .fontSize(16)
         .fontWeight(FontWeight.Bold)
         .maxLines(2)

@@ -6,6 +6,7 @@ import { MpvDecodingMethod, MpvGpuApi } from '../../controller/MpvController/Mpv
 import Preferences from '../../database/Preferences'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
+import { userData } from '../../component/common/UserLoginComponent'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { LengthMetrics } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
@@ -49,9 +50,10 @@ export struct EngineSettingPage {
           SettingsSegmentButtonItem({
             symbol: $r('sys.symbol.rays'),
             message: 'MPV GPU 后端（仅 Buffer，不推荐改）',
-            tag: '试用',
+            tag: 'VIP',
             tips: ['OpenGL', 'Vulkan'],
             tabSelectedIndex: Setting.mpvGpuApi,
+            itemEnabled: userData.isVip,
             onButtonClick: (tabSelectedIndex: number) => {
               Setting.mpvGpuApi = tabSelectedIndex as MpvGpuApi
               Preferences.saveMpvGpuApi(PathUtils.appContext!, Setting.mpvGpuApi)
@@ -63,9 +65,10 @@ export struct EngineSettingPage {
           SettingsSegmentButtonItem({
             symbol: $r('sys.symbol.wand_and_stars'),
             message: 'MPV 画质增强（仅 Buffer/软解）',
-            tag: '试用',
+            tag: 'VIP',
             tips: MpvController.getShaderModeNames(),
             tabSelectedIndex: Setting.mpvShaderMode,
+            itemEnabled: userData.isVip,
             onButtonClick: (tabSelectedIndex: number) => {
               Setting.mpvShaderMode = tabSelectedIndex
               Preferences.saveMpvShaderMode(PathUtils.appContext!, tabSelectedIndex)
@@ -77,8 +80,9 @@ export struct EngineSettingPage {
           SettingsToggleItem({
             symbol: $r('sys.symbol.hdr'),
             message: 'SDR 转 HDR（仅 Buffer/软解）',
-            tag: '试用',
+            tag: 'VIP',
             enable: Setting.mpvSdrToHdr,
+            itemEnabled: userData.isVip,
             onChange: (checked: boolean) => {
               Setting.mpvSdrToHdr = checked
               Preferences.saveMpvSdrToHdr(PathUtils.appContext!, checked)
@@ -90,8 +94,9 @@ export struct EngineSettingPage {
           SettingsToggleItem({
             symbol: $r('sys.symbol.camera_master_ai'),
             message: '视频超分辨率',
-            tag: '试用',
+            tag: 'VIP',
             enable: Setting.superResolutionState,
+            itemEnabled: userData.isVip,
             onChange: (checked: boolean) => {
               Setting.superResolutionState = checked
               Preferences.saveSuperResolutionState(PathUtils.appContext!, Setting.superResolutionState)

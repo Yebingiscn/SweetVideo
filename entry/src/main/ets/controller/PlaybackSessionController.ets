@@ -25,7 +25,7 @@ class PlaybackSessionSnapshot {
   translateX: number = 0
   translateY: number = 0
   showControl: boolean = false
-  lockVisibility: boolean = false
+
   isLock: boolean = false
   volume: number = 0
   volumeActually: number = 0
@@ -51,7 +51,7 @@ class PlaybackSessionSnapshot {
     snapshot.translateX = player.translateX
     snapshot.translateY = player.translateY
     snapshot.showControl = player.showControl
-    snapshot.lockVisibility = player.lockVisibility
+
     snapshot.isLock = player.isLock
     snapshot.volume = player.volume
     snapshot.volumeActually = player.volumeActually
@@ -79,7 +79,7 @@ class PlaybackSessionSnapshot {
     player.translateX = this.translateX
     player.translateY = this.translateY
     player.showControl = this.showControl
-    player.lockVisibility = this.lockVisibility
+
     player.isLock = this.isLock
     player.volume = this.volume
     player.volumeActually = this.volumeActually

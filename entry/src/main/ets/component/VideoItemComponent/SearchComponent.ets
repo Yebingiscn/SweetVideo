@@ -3,6 +3,7 @@ import { SearchShadowModifier } from '../../common/AttributeModifierConfig'
 @ComponentV2
 export struct SearchComponent {
   @Param searchValue: string = ''
+  @Param placeholder: ResourceStr = $r('app.string.search_placeholder')
   @Local localSearchValue: string = ''
   @Param controller: SearchController | undefined = undefined
   @Event onSearchValueChange: (value: string) => void = () => {
@@ -28,7 +29,7 @@ export struct SearchComponent {
   build() {
     Search({
       controller: this.controller,
-      placeholder: $r('app.string.search_placeholder'),
+      placeholder: this.placeholder,
       value: this.localSearchValue
     })
       .layoutWeight(1)

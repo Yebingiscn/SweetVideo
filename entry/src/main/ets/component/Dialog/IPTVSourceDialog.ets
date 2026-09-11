@@ -38,8 +38,7 @@ export struct IPTVSourceDialog {
       fs.closeSync(file)
       return name
     } catch (_error) {
-      const parts = uri.split('/')
-      return ToolsUtil.safeDecodeURIComponent(parts[parts.length - 1] || uri)
+      return ToolsUtil.fileNameFromUri(uri)
     }
   }
 

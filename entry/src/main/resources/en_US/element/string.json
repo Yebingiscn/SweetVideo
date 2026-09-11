@@ -259,6 +259,22 @@
     {
       "name": "share",
       "value": "Share"
+    },
+    {
+      "name": "video_form_name",
+      "value": "Recent Play"
+    },
+    {
+      "name": "video_form_description",
+      "value": "Recently played audio and video, tap to open Sweet Video."
+    },
+    {
+      "name": "video_form_setting",
+      "value": "Desktop Widget"
+    },
+    {
+      "name": "video_form_empty",
+      "value": "Open Sweet Video to start playing"
     }
   ]
 }

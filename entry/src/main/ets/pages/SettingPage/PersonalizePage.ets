@@ -8,6 +8,8 @@ import { CoverLayoutMode, ListDisplayMode } from '../../common/enum/DisplayMode'
 import Preferences from '../../database/Preferences'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { userData } from '../../component/common/UserLoginComponent'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { LengthMetrics } from '@kit.ArkUI'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
@@ -67,9 +69,10 @@ export struct PersonalizePage {
           SettingsMenuItem({
             symbol: $r('sys.symbol.list_number'),
             message: '最大列表数',
-            tag: '试用',
+            tag: 'VIP',
             selected: Setting.maxListLine - 1,
             list: ['1', '2', '3', '4', '5', '6', '7', '8'],
+            itemEnabled: userData.isVip,
             onChange: (index: number) => {
               Setting.maxListLine = index + 1
               Preferences.saveMaxListLine(PathUtils.appContext!, Setting.maxListLine)

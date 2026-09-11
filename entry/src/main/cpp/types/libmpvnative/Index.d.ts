@@ -1,5 +1,45 @@
 // Type declarations for libmpvnative native module
 declare module 'libmpvnative.so' {
+  export interface NativePlayerEvent {
+    type: string;
+    generation: number;
+    state?: string;
+    reason?: number;
+    value?: number;
+    code?: number;
+    message?: string;
+    width?: number;
+    height?: number;
+    duration?: number;
+    startTime?: number;
+    text?: string;
+    eventType?: number;
+    forceType?: number;
+    hintType?: number;
+    bufferType?: number;
+    effectVersion?: number;
+  }
+  export interface NativePlayerTrack {
+    track_index: number;
+    track_type: number;
+    channel_count: number;
+    sample_rate: number;
+    language: string;
+    codec_mime: string;
+    track_name: string;
+  }
+  export interface NativePlayerHandle {
+    id: number;
+    pcmSupported: number;
+  }
+  export interface NativePlayerResult {
+    pcmSupported: number;
+    tracks: NativePlayerTrack[];
+  }
+  export const avPlayerCreate: (callback: (event: NativePlayerEvent) => void) => NativePlayerHandle;
+  export const avPlayerCommand: (id: number, operation: string,
+    options: Object) => Promise<NativePlayerResult>;
+
   // ==================== 硬件解码模式 ====================
   // 0 = HWDEC_MODE_BUFFER (gpu-next + OpenGL ES/Vulkan + OHCodec Surface-to-GPU，支持后处理)
   // 1 = HWDEC_MODE_SURFACE (ohcodec-osd + ohcodec，零拷贝，性能最优)

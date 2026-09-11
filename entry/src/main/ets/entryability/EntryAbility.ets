@@ -15,6 +15,7 @@ import { WindowUtil } from '../utils/WindowUtil'
 import KnockShareUtil from '../utils/KnockShareUtil'
 import { MediaSmartGestureSession } from '../utils/MediaSmartGestureUtil'
 import { MpvLogBridge } from '../utils/MpvLogBridge'
+import { VideoFormData } from '../forms/VideoFormData'
 
 const TAG = 'EntryAbility'
 
@@ -29,6 +30,7 @@ export default class EntryAbility extends UIAbility {
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onCreate')
     AppStorage.setOrCreate('context', this.context)
     PathUtils.init(this.context)
+    VideoFormData.save(this.context, Preferences.getRecentPlay(this.context), true)
     // Process-wide, not per video: keep teardown diagnostics across core resets.
     MpvLogBridge.start()
     WantProcessUtil.want = want
@@ -89,6 +91,7 @@ export default class EntryAbility extends UIAbility {
   // 应用在后台，接收外部应用拉起或者华为分享拉起
   async onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam) {
     WantProcessUtil.want = want
+    await WantProcessUtil.processCardWant()
     salmonLogger.addLog(TAG, `onNewWant, want: ${want.abilityName}`)
     if (launchParam.launchReason === AbilityConstant.LaunchReason.CONTINUATION) {
       if (want.parameters) {
@@ -99,6 +102,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onDestroy(): void {
+    WantProcessUtil.resetCardNavigation()
     KnockShareUtil.stop()
     this.savePlayData()
     try {

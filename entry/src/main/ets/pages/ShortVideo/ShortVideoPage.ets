@@ -107,7 +107,7 @@ export struct ShortVideoPage {
   BottomControls() {
     Column() {
       Row({ space: 8 }) {
-        Text(VideoInfoUtil.getVideoTitle(this.items[this.currentIndex]))
+        Text(VideoInfoUtil.getVideoTitle(this.items[this.currentIndex]?.title))
           .fontSize(18)
           .fontWeight(FontWeight.Medium)
           .fontColor(Color.White)

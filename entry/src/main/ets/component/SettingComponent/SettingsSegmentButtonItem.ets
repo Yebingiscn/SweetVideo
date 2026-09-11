@@ -5,6 +5,7 @@ import {
   SettingsTitleModifier,
   SymbolGlyphFancyModifier
 } from '../../common/AttributeModifierConfig'
+import ToolsUtil from '../../utils/ToolsUtil'
 
 const TAG = 'SettingsSegmentButtonItem'
 
@@ -15,6 +16,7 @@ export struct SettingsSegmentButtonItem {
   @Param tag: ResourceStr | undefined = undefined
   @Param tips: ResourceStr[] = []
   @Param @Once tabSelectedIndex: number = 0
+  @Param itemEnabled: boolean = true
   @Local _tabSelectedIndex: number = 0
   @Local textItems: SegmentButtonV2Items = this.createTabOptions()
   private itemSelectedBackgroundColor: ColorMetrics | undefined = undefined
@@ -69,12 +71,18 @@ export struct SettingsSegmentButtonItem {
         itemSelectedFontColor: this.itemSelectedFontColor,
         itemSelectedBackgroundColor: this.itemSelectedBackgroundColor
       })
+      .enabled(this.itemEnabled)
     }
     .width('100%')
     .height(100)
     .alignItems(HorizontalAlign.Center)
     .justifyContent(FlexAlign.Center)
     .attributeModifier(new SettingsItemModifier())
+    .onClick(() => {
+      if (!this.itemEnabled) {
+        ToolsUtil.showToast('这个是vip功能')
+      }
+    })
   }
 
   private getColor() {

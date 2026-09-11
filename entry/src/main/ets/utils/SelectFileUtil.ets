@@ -83,7 +83,7 @@ export default class SelectFileUtil {
     if (!uri) {
       switch (mode) {
         case 'video':
-          documentSelectOptions.mergeMode = picker.MergeTypeMode.VIDEO
+          //   documentSelectOptions.mergeMode = picker.MergeTypeMode.VIDEO
           break
         case 'audio':
           documentSelectOptions.mergeMode = picker.MergeTypeMode.AUDIO
@@ -275,6 +275,7 @@ export default class SelectFileUtil {
       try {
         if (fs.accessSync(blurPath)) {
           const blurUri = PathUtils.pathToUri(blurPath)
+          Setting.backgroundBlurImageSrc = ''
           Setting.backgroundBlurImageSrc = blurUri
           return blurUri
         }
@@ -282,6 +283,7 @@ export default class SelectFileUtil {
         salmonLogger.addLog(TAG, `Failed to access blur image: ${blurPath} ` + e, true)
       }
     }
+    Setting.backgroundBlurImageSrc = ''
     const blurUri = await SelectFileUtil.generateBlurredBackground(imageName, blurRadius)
     Setting.backgroundBlurImageSrc = blurUri
     return blurUri
@@ -551,6 +553,9 @@ export default class SelectFileUtil {
       updateVideo(targetVideoMetaData)
       const folders = Preferences.getFileFolder(context)
       Preferences.saveFileFolder(context, folders)
+    } else {
+      // External and network playback also need an up-to-date recent-play position.
+      updateVideo(target_data)
     }
     salmonLogger.addLog(TAG, '文件夹数据更新完成', false)
   }
@@ -653,8 +658,7 @@ export default class SelectFileUtil {
     }
     const lowerValue = trimmedValue.toLowerCase()
     return list.filter(item => {
-      const uriFileName = ToolsUtil.safeDecodeURIComponent(
-        item.uri.substring(item.uri.lastIndexOf('/') + 1)).toLowerCase()
+      const uriFileName = ToolsUtil.fileNameFromUri(item.uri).toLowerCase()
       const artist = item.artist?.toLowerCase() || ''
       const album = item.album?.toLowerCase() || ''
       return item.title.toLowerCase().includes(lowerValue) || artist.includes(lowerValue) ||

@@ -7,6 +7,7 @@ import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
+import { userData } from '../../component/common/UserLoginComponent'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { LengthMetrics } from '@kit.ArkUI'
 import { ConfigurationConstant } from '@kit.AbilityKit'
@@ -79,7 +80,8 @@ export struct PersonalizeSettingPage {
             symbol: $r('sys.symbol.doc_text_badge_clock'),
             message: '深浅色壁纸切换',
             enable: Setting.enableBackgroundDarkImage,
-            tag: '试用',
+            tag: 'VIP',
+            itemEnabled: userData.isVip,
             onChange: async (checked: boolean) => {
               Setting.enableBackgroundDarkImage = checked
               Setting.backgroundImageSrc = ''
@@ -99,8 +101,9 @@ export struct PersonalizeSettingPage {
             SettingsToggleItem({
               symbol: $r('sys.symbol.blur_bar'),
               message: '列表项背景模糊',
-              tag: '试用',
+              tag: 'VIP',
               enable: Setting.listItemBackgroundBlur,
+              itemEnabled: userData.isVip,
               onChange: (checked: boolean) => {
                 Setting.listItemBackgroundBlur = checked
                 Preferences.saveListItemBackgroundBlur(PathUtils.appContext!, Setting.listItemBackgroundBlur)

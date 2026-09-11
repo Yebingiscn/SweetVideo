@@ -3,6 +3,7 @@ import {
   SettingsTitleModifier,
   SymbolGlyphFancyModifier
 } from '../../common/AttributeModifierConfig'
+import ToolsUtil from '../../utils/ToolsUtil'
 
 @ComponentV2
 export struct SettingsToggleItem {
@@ -11,6 +12,7 @@ export struct SettingsToggleItem {
   @Param message: ResourceStr = ''
   @Param tag: ResourceStr | undefined = undefined
   @Param enable: boolean = false
+  @Param itemEnabled: boolean = true
   @Local _enable: boolean = false
   @Event onChange: (_checked: boolean) => void = () => {
   }
@@ -54,6 +56,7 @@ export struct SettingsToggleItem {
           this._enable = checked
           this.onChange(checked)
         })
+        .enabled(this.itemEnabled)
         .selectedColor($r('app.color.main_color'))
         .width(45)
         .height(27)
@@ -61,5 +64,10 @@ export struct SettingsToggleItem {
     .align(Alignment.Center)
     .attributeModifier(new SettingsItemModifier())
     .height(55)
+    .onClick(() => {
+      if (!this.itemEnabled) {
+        ToolsUtil.showToast('这个是vip功能')
+      }
+    })
   }
 }

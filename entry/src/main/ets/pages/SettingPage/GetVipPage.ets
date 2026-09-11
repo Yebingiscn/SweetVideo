@@ -161,7 +161,7 @@ export struct GetVipPage {
             .fontSize(28)
             .fontWeight(FontWeight.Bold)
             .fontColor($r('app.color.text_color'))
-          Text('升级 Pro 解锁全部功能')
+          Text('获取 VIP 解锁全部功能')
             .fontSize(28)
             .fontWeight(FontWeight.Bolder)
             .fontColor($r('app.color.text_color'))
@@ -174,13 +174,14 @@ export struct GetVipPage {
               .fontSize(24)
               .fontColor([$r('sys.color.icon_primary')])
             Column() {
-              Text('早鸟优惠')
+              Text('专属功能')
                 .fontSize(16)
                 .fontWeight(FontWeight.Medium)
                 .fontColor($r('app.color.text_color'))
-              Text('暂时不限制功能，当前属于早鸟优惠')
+              Text('流心音效、深浅色壁纸、智慧手势，视频超分......更多功能正在开发中')
                 .fontSize(13)
                 .fontColor($r('sys.color.font_secondary'))
+                .fontWeight(FontWeight.Bold)
             }
             .alignItems(HorizontalAlign.Start)
             .layoutWeight(1)
@@ -213,7 +214,7 @@ export struct GetVipPage {
         }
 
         Column({ space: 12 }) {
-          Button('¥19.9 / 永久')
+          Button('¥29.9 / 永久')
             .width('100%')
             .height(50)
             .fontSize(18)
