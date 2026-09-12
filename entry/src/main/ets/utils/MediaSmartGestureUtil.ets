@@ -70,8 +70,6 @@ export class MediaSmartGestureSession {
       } else {
         session?.stopMonitoring()
       }
-    } else {
-      ToolsUtil.showToast('设备不支持')
     }
   }
 
@@ -83,8 +81,6 @@ export class MediaSmartGestureSession {
       }
       this.uiContext = uiContext
       this.startMonitoring()
-    } else {
-      ToolsUtil.showToast('设备不支持')
     }
   }
 
@@ -95,8 +91,6 @@ export class MediaSmartGestureSession {
         MediaSmartGestureSession.activeSession = undefined
       }
       this.uiContext = undefined
-    } else {
-      ToolsUtil.showToast('设备不支持')
     }
   }
 

@@ -822,8 +822,6 @@ export struct SideBarContentComponent {
       if (emptyFolderCount === imports.length) {
         ToolsUtil.showToast('所选文件夹中没有可导入的视频或音频')
       }
-    } else {
-      ToolsUtil.showToast('设备不支持')
     }
   }
 
