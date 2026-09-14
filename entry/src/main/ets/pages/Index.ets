@@ -728,19 +728,43 @@ struct Index {
     }, 100)
   }
 
+  @Monitor('file_folder_list')
+  onFolderListSortChanged(): void {
+    void this.applySavedFolderSort()
+  }
+
   private async applySavedFolderSort(): Promise<void> {
-    const field = Preferences.getFolderSortField(PathUtils.appContext!) as SortField
-    if (field !== SortField.FOLDER_NAME) {
+    const context = PathUtils.appContext!
+    const field = Preferences.getFolderSortField(context) as SortField
+    if (field !== SortField.FOLDER_NAME && field !== SortField.FOLDER_DATETIME &&
+      field !== SortField.FOLDER_COUNT) {
       return
     }
+    const ascending = Preferences.getFolderSortAsc(context)
+    const pinyinSort = Preferences.getPinyinSort(context)
     const source = this.file_folder_list
     const homeFolder = source.find(f => f.name === '首页' && f.parent_date === null)
     const others = source.filter(f => f.date !== homeFolder?.date)
-    const sorted = await ToolsUtil.sortFoldersByNameInTaskPool(
-      others, Preferences.getFolderSortAsc(PathUtils.appContext!), Preferences.getPinyinSort(PathUtils.appContext!)
-    )
-    if (source === this.file_folder_list) {
-      this.file_folder_list = homeFolder ? [homeFolder, ...sorted] : sorted
+    let sorted: FileFolder[]
+    if (field === SortField.FOLDER_NAME) {
+      sorted = await ToolsUtil.sortFoldersByNameInTaskPool(others, ascending, pinyinSort)
+    } else {
+      sorted = others.sort((a, b) => {
+        const comparison = field === SortField.FOLDER_DATETIME ? Number(a.date) - Number(b.date) :
+          a.video_list.length - b.video_list.length
+        return ascending ? comparison : -comparison
+      })
+    }
+    // 刷新或排序设置改变后，旧任务不能覆盖新列表。
+    if (source !== this.file_folder_list || field !== Preferences.getFolderSortField(context) ||
+      ascending !== Preferences.getFolderSortAsc(context) || pinyinSort !== Preferences.getPinyinSort(context)) {
+      return
+    }
+    const ordered = homeFolder ? [homeFolder, ...sorted] : sorted
+    // 已有序时不重新赋值，避免 Monitor 循环刷新。
+    if (ordered.some((folder, index) => folder.date !== source[index]?.date)) {
+      this.file_folder_list = ordered
+      this.fileFolderSource.updateData(ordered)
     }
   }
 

@@ -182,7 +182,7 @@ export struct VideoView {
           .animation({ duration: 300, curve: Curve.Ease })
           .onClick(() => {
             if (this.sideBarController.isShow) {
-              this.sideBarController.close(false)
+              this.sideBarController.close(true)
             } else {
               this.sideBarController.open()
             }

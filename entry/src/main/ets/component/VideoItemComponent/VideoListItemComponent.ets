@@ -19,18 +19,13 @@ export default struct VideoListItem {
     this.choose = this.delMultipleList.some(item => item.date === this.item.date)
   }
 
-  @Builder
-  CoverImage() {
-    Image(PathUtils.coverUri(this.item.date))
-      .attributeModifier(new ImageFancyModifier(12,
-        Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 85 : 110,
-        Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 110 : 85))
-      .id(`video_cover_${this.item.date}`)
-  }
-
   build() {
     Row() {
-      this.CoverImage()
+      Image(PathUtils.coverUri(this.item.date))
+        .attributeModifier(new ImageFancyModifier(12,
+          Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 85 : 110,
+          Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ? 110 : 110))
+        .id(`video_cover_${this.item.date}`)
       Column() {
         Row() {
           Text(VideoInfoUtil.getVideoTitle(this.item?.title))

@@ -80,6 +80,8 @@ declare module 'libmpvnative.so' {
   export const registerMpvLogCallback: (callback: (prefix: string, level: number, text: string,
     timestampMs: number) => void) => boolean;
   export const unregisterMpvLogCallback: () => void;
+  /** Process-wide runtime performance logging; applies to current and future cores. */
+  export const setMpvDiagnostics: (enabled: boolean) => void;
 
   // ==================== 视频加载 ====================
   export const loadVideo: (mpvHandle: number, url: string, startPosition?: number,

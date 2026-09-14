@@ -33,6 +33,7 @@ export default class EntryAbility extends UIAbility {
     VideoFormData.save(this.context, Preferences.getRecentPlay(this.context), true)
     // Process-wide, not per video: keep teardown diagnostics across core resets.
     MpvLogBridge.start()
+    MpvLogBridge.applyDiagnosticsWant(want)
     WantProcessUtil.want = want
     this.crashWatcher()
     if (launchParam.launchReason === AbilityConstant.LaunchReason.CONTINUATION) {
@@ -90,6 +91,7 @@ export default class EntryAbility extends UIAbility {
 
   // 应用在后台，接收外部应用拉起或者华为分享拉起
   async onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam) {
+    MpvLogBridge.applyDiagnosticsWant(want)
     WantProcessUtil.want = want
     await WantProcessUtil.processCardWant()
     salmonLogger.addLog(TAG, `onNewWant, want: ${want.abilityName}`)

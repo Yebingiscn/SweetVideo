@@ -40,6 +40,8 @@ import {
   SCROLL_BRIGHTNESS_SENSITIVITY,
   SCROLL_VOLUME_SENSITIVITY,
   SWIPE_THRESHOLD,
+  TWO_FINGER_PAN_BASE_VP,
+  TWO_FINGER_ZOOM_BASE_VP,
   VERTICAL_PAN_SENSITIVITY,
   VOLUME_PAN_MULTIPLIER,
   VOLUME_STEP
@@ -68,6 +70,7 @@ import { Available, deviceInfo, SuppressWarnings, SuppressWarningsType } from '@
 import { MediaSmartGestureSession } from '../../utils/MediaSmartGestureUtil'
 import KnockShareUtil, { KNOCK_SHARE_VIDEO_PLAYER_OWNER, KnockCoordinate } from '../../utils/KnockShareUtil'
 import { AudioEffectConfig } from '../../interfaces/AudioEffectInterface'
+import { TwoFingerMode } from '../../common/enum/TwoFingerMode'
 
 const TAG = 'VideoPlayer'
 const AUTO_LISTEN_VIDEO_FOREGROUND_FALLBACK_MS = 150
@@ -80,29 +83,6 @@ export struct VideoPlayer {
   @Local autoListenVideoEnabled: boolean = false
   @Provider('player') player: PlayerType = PlayerControllerFactory.createAVPlayerController() as PlayerType
   subtitleManager: SubtitleManager = new SubtitleManager(this.player)
-  audioEffectDialog: CustomDialogController = new CustomDialogController({
-    builder: AudioEffectDialog({
-      isSystemPlayer: (): boolean => this.player instanceof AVPlayerController,
-      getCurrentConfig: (): AudioEffectConfig => {
-        if (this.player instanceof MpvController || this.player instanceof AVPlayerController) {
-          return AudioEffectConfig.copy(this.player.audioEffectConfig)
-        }
-        return new AudioEffectConfig()
-      },
-      onApply: async (config: AudioEffectConfig, silent?: boolean): Promise<boolean> => {
-        const player = this.player
-        if (!(player instanceof MpvController) && !(player instanceof AVPlayerController)) return false
-        if (config.effect === 'hoa-space-render' && !deviceInfo.apiAvailable('26.0.0')) {
-          throw new Error('HOA 空间渲染需要鸿蒙 7及以上')
-        }
-        const applied = await player.applyAudioEffect(config)
-        if (!silent) {
-          ToolsUtil.showToast(applied ? '声音效果已应用' : '应用失败，请确认已更新 libmpv.so')
-        }
-        return applied
-      }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
   personalScreenExtendDialog: CustomDialogController = new CustomDialogController({
     builder: NumberInputDialog({
       title: '自定义屏幕拓展比例',
@@ -119,6 +99,31 @@ export struct VideoPlayer {
           ToolsUtil.showToast('输入错误，输入范围在50-150之间')
         }
       },
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  audioEffectDialog: CustomDialogController = new CustomDialogController({
+    builder: AudioEffectDialog({
+      isSystemPlayer: (): boolean => this.player instanceof AVPlayerController,
+      getCurrentConfig: (): AudioEffectConfig => {
+        if (this.player instanceof MpvController || this.player instanceof AVPlayerController) {
+          return AudioEffectConfig.copy(this.player.audioEffectConfig)
+        }
+        return new AudioEffectConfig()
+      },
+      onApply: async (config: AudioEffectConfig, silent?: boolean): Promise<boolean> => {
+        const player = this.player
+        if (!(player instanceof MpvController) && !(player instanceof AVPlayerController)) {
+          return false
+        }
+        if (config.effect === 'hoa-space-render' && !deviceInfo.apiAvailable('26.0.0')) {
+          throw new Error('HOA 空间渲染需要鸿蒙 7及以上')
+        }
+        const applied = await player.applyAudioEffect(config)
+        if (!silent) {
+          ToolsUtil.showToast(applied ? '声音效果已应用' : '应用失败，请确认已更新 libmpv.so')
+        }
+        return applied
+      }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   @Local isPlayerConfigured: boolean = false
@@ -138,6 +143,10 @@ export struct VideoPlayer {
   private longPressSpeedSession: number = 0
   private activeLongPressSpeedSession: number = 0
   private longPressBaseSpeed: number = 1
+  private twoFingerMode: TwoFingerMode = TwoFingerMode.NONE
+  private twoFingerDistStart: number = 0
+  private twoFingerMidStartX: number = 0
+  private twoFingerMidStartY: number = 0
   private playbackSession: PlaybackSessionController = new PlaybackSessionController()
   private engineSwitchTask: Promise<void> | undefined = undefined
   private playerDisposeTask: Promise<void> | undefined = undefined
@@ -159,17 +168,6 @@ export struct VideoPlayer {
       }
     })
   private pageParams: PlayerParams | undefined = undefined
-  private cardPlaybackHandler = (video: VideoMetadata): boolean => {
-    if (this.isPageDisappearing || !this.isPlayerConfigured) {
-      return false
-    }
-    if (this.player.nowPlaying?.uri === video.uri && !this.player.skipHistory) {
-      this.player.play()
-      return true
-    }
-    this.player.pause()
-    return false
-  }
   private subtitleOffsetPreviewBase: number = 0
   private subtitleOffsetShouldResumePlayback: boolean = false
   private isAdjustingMpvSubtitleOffset: boolean = false
@@ -474,6 +472,17 @@ export struct VideoPlayer {
               this.player.onSwipingVoice = false
               this.player.onSwipingBrightness = false
             },
+            onVerticalPanCancel: () => {
+              if (VideoOperateUtil.leftSideSwipe) {
+                this.player.screenBrightness = VideoOperateUtil.screenBrightnessTmp
+                VideoOperateUtil.setBrightness(this.player.screenBrightness)
+              } else {
+                this.player.volume = VideoOperateUtil.lastVolume
+              }
+              this.player.onSwiping = false
+              this.player.onSwipingVoice = false
+              this.player.onSwipingBrightness = false
+            },
             onHorizonPanStart: () => {
               VideoOperateUtil.lastPlayTime = this.player.playTime
               this.player.onSwiping = true
@@ -489,14 +498,61 @@ export struct VideoPlayer {
               this.player.seekTime(this.player.playTime)
               this.player.onSwiping = false
             },
-            onPinchStart: (fingerDistance: number) => {
+            onHorizonPanCancel: () => {
+              this.player.playTime = VideoOperateUtil.lastPlayTime
+              this.player.seekTime(this.player.playTime)
+              this.player.onSwiping = false
+            },
+            onPinchStart: (event: GestureEvent) => {
+              if (this.player.isLock) {
+                return
+              }
+              const finger1 = event.fingerList[0]
+              const finger2 = event.fingerList[1]
+              const fingerDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2)
+              if (fingerDistance < 0) {
+                return
+              }
               VideoOperateUtil.initPinchDistance = fingerDistance
               VideoOperateUtil.initScaleFactor = this.player.scaleFactor
-              this.player.translateX = 0
-              this.player.translateY = 0
               this.player.isGesturing = true
+
+              this.twoFingerDistStart = fingerDistance
+              this.twoFingerMidStartX = ((finger1?.localX ?? 0) + (finger2?.localX ?? 0)) / 2
+              this.twoFingerMidStartY = ((finger1?.localY ?? 0) + (finger2?.localY ?? 0)) / 2
             },
-            onPinchUpdate: (fingerDistance: number) => {
+            onPinchUpdate: (event: GestureEvent) => {
+              if (this.player.isLock) {
+                return
+              }
+              const finger1 = event.fingerList[0]
+              const finger2 = event.fingerList[1]
+              if (!finger1 || !finger2) { // 双指检测失败直接返回
+                return
+              }
+              const fingerDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2)
+              if (fingerDistance < 0) {
+                return
+              }
+              // 双指会话主导仲裁：平移已锁定时忽略缩放，避免拖动画面被误回正
+              if (this.twoFingerMode === TwoFingerMode.PAN) {
+                return
+              }
+              if (this.twoFingerMode !== TwoFingerMode.PINCH) {
+                const midX = (finger1.localX + finger2.localX) / 2
+                const midY = (finger1.localY + finger2.localY) / 2
+                const distDelta = Number.isNaN(this.twoFingerDistStart)
+                  ? 0 : Math.abs(fingerDistance - this.twoFingerDistStart)
+                const midDelta = Math.hypot(midX - this.twoFingerMidStartX, midY - this.twoFingerMidStartY)
+                if (!(distDelta > TWO_FINGER_ZOOM_BASE_VP && distDelta > midDelta)) {
+                  return
+                }
+                this.twoFingerMode = TwoFingerMode.PINCH
+                // 缩放主导确立，重置中点滚动基准，此后平移跟随双指中点（放大到某个点）
+                this.twoFingerMidStartX = midX
+                this.twoFingerMidStartY = midY
+              }
+
               const rawScale = fingerDistance / VideoOperateUtil.initPinchDistance
               const adjustedScale = 1 + (rawScale - 1) * PINCH_SCALE_SENSITIVITY
               const newScaleFactor = VideoOperateUtil.initScaleFactor * adjustedScale
@@ -513,6 +569,7 @@ export struct VideoPlayer {
             onPinchEnd: () => {
               this.player.isZoomed = this.player.scaleFactor !== 1
               this.player.isGesturing = false
+              this.twoFingerMode = TwoFingerMode.NONE
             },
             onLongPressAction: () => {
               if (!this.player.playing || this.activeLongPressSpeedSession !== 0) {
@@ -577,13 +634,46 @@ export struct VideoPlayer {
               }
             },
             onPanMoveStart: (event: GestureEvent) => {
-              VideoOperateUtil.panStartX = event.fingerList[0]?.localX || 0
-              VideoOperateUtil.panStartY = event.fingerList[0]?.localY || 0
+              const finger1 = event.fingerList[0]
+              const finger2 = event.fingerList[1]
+              VideoOperateUtil.panStartX = finger1?.localX || 0
+              VideoOperateUtil.panStartY = finger1?.localY || 0
               this.player.isGesturing = true
+              const dist = VideoOperateUtil.calcFingerDistance(finger1, finger2)
+              this.twoFingerDistStart = dist < 0 ? NaN : dist
+              this.twoFingerMidStartX = ((finger1?.localX ?? 0) + (finger2?.localX ?? 0)) / 2
+              this.twoFingerMidStartY = ((finger1?.localY ?? 0) + (finger2?.localY ?? 0)) / 2
             },
             onPanMoveUpdate: (event: GestureEvent) => {
-              const currentX = event.fingerList[0]?.localX || 0
-              const currentY = event.fingerList[0]?.localY || 0
+              const finger1 = event.fingerList[0]
+              const finger2 = event.fingerList[1]
+              const currentX = finger1?.localX || 0
+              const currentY = finger1?.localY || 0
+              // 缩放主导期间平移跟随双指中点：纯捏合中点不动不漂移，边捏边移可放大到指定点
+              if (this.twoFingerMode === TwoFingerMode.PINCH) {
+                if (!finger1 || !finger2) {
+                  return
+                }
+                const midX = (finger1.localX + finger2.localX) / 2
+                const midY = (finger1.localY + finger2.localY) / 2
+                this.player.translateX += midX - this.twoFingerMidStartX
+                this.player.translateY += midY - this.twoFingerMidStartY
+                this.twoFingerMidStartX = midX
+                this.twoFingerMidStartY = midY
+                return
+              }
+              if (this.twoFingerMode !== TwoFingerMode.PAN) {
+                const midX = ((finger1?.localX ?? 0) + (finger2?.localX ?? 0)) / 2
+                const midY = ((finger1?.localY ?? 0) + (finger2?.localY ?? 0)) / 2
+                const dist = VideoOperateUtil.calcFingerDistance(finger1, finger2)
+                const distDelta =
+                  (dist < 0 || Number.isNaN(this.twoFingerDistStart)) ? 0 : Math.abs(dist - this.twoFingerDistStart)
+                const midDelta = Math.hypot(midX - this.twoFingerMidStartX, midY - this.twoFingerMidStartY)
+                if (!(midDelta > TWO_FINGER_PAN_BASE_VP && midDelta > distDelta)) {
+                  return
+                }
+                this.twoFingerMode = TwoFingerMode.PAN
+              }
               const deltaX = currentX - VideoOperateUtil.panStartX
               const deltaY = currentY - VideoOperateUtil.panStartY
               this.player.translateX += deltaX
@@ -593,6 +683,7 @@ export struct VideoPlayer {
             },
             onPanMoveEnd: () => {
               this.player.isGesturing = false
+              this.twoFingerMode = TwoFingerMode.NONE
             },
             onScrollAxisBegin: (isLeftSide: boolean) => {
               clearTimeout(this.scrollAxisTimeout)
@@ -854,6 +945,7 @@ export struct VideoPlayer {
     .blur(Privacy.isPrivacyBackground ? PRIVACY_BACKGROUND_BLUR_AMOUNT : NO_BLUR_AMOUNT)
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   @Builder
   VideoTop() {
     VideoTopComponent({
@@ -1148,6 +1240,18 @@ export struct VideoPlayer {
   @Builder
   AVCastPickerBuilderBridge() {
     AVCastPickerBuilder()
+  }
+
+  private cardPlaybackHandler = (video: VideoMetadata): boolean => {
+    if (this.isPageDisappearing || !this.isPlayerConfigured) {
+      return false
+    }
+    if (this.player.nowPlaying?.uri === video.uri && !this.player.skipHistory) {
+      this.player.play()
+      return true
+    }
+    this.player.pause()
+    return false
   }
 
   private registerWindowStageEvent(): boolean {

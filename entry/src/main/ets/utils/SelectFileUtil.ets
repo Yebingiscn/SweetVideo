@@ -83,7 +83,7 @@ export default class SelectFileUtil {
     if (!uri) {
       switch (mode) {
         case 'video':
-          //   documentSelectOptions.mergeMode = picker.MergeTypeMode.VIDEO
+          documentSelectOptions.mergeMode = picker.MergeTypeMode.VIDEO
           break
         case 'audio':
           documentSelectOptions.mergeMode = picker.MergeTypeMode.AUDIO

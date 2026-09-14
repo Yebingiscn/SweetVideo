@@ -59,22 +59,26 @@ export class IapVerifyUtil {
   }
 
   static queryPurchases(context: common.UIAbilityContext, callback: QueryPurchasesCallback) {
-    const parameter: iap.QueryPurchasesParameter = {
-      productType: iap.ProductType.NONCONSUMABLE,
-      queryType: iap.PurchaseQueryType.CURRENT_ENTITLEMENT
+    try {
+      const parameter: iap.QueryPurchasesParameter = {
+        productType: iap.ProductType.NONCONSUMABLE,
+        queryType: iap.PurchaseQueryType.CURRENT_ENTITLEMENT
+      }
+      iap.queryPurchases(context, parameter)
+        .then((data: iap.QueryPurchaseResult) => {
+          if (data.purchaseDataList && data.purchaseDataList.length > 0) {
+            callback.onHasPurchase()
+          } else {
+            IapVerifyUtil.queryAutoRenewable(context, callback)
+          }
+        })
+        .catch((err: BusinessError) => {
+          salmonLogger.addLog(TAG, `Failed to query purchases. Code is ${err.code}, message is ${err.message}`, true)
+          callback.onError()
+        })
+    } catch (e) {
+      salmonLogger.addLog(TAG, 'queryPurchases failed', true)
     }
-    iap.queryPurchases(context, parameter)
-      .then((data: iap.QueryPurchaseResult) => {
-        if (data.purchaseDataList && data.purchaseDataList.length > 0) {
-          callback.onHasPurchase()
-        } else {
-          IapVerifyUtil.queryAutoRenewable(context, callback)
-        }
-      })
-      .catch((err: BusinessError) => {
-        salmonLogger.addLog(TAG, `Failed to query purchases. Code is ${err.code}, message is ${err.message}`, true)
-        callback.onError()
-      })
   }
 
   static dealSubscriptionPurchaseResult(purchaseData: string): SubscriptionCheckResult {

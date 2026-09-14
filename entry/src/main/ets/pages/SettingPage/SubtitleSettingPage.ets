@@ -221,6 +221,10 @@ export struct SubtitleSettingPage {
           })
         }
       }
+      .clip(false)
+      .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
+      .chainAnimation(true)
+      .borderRadius(16)
       .align(Alignment.Top)
       .margin({ left: 16, right: 16 })
       .scrollBar(BarState.Off)

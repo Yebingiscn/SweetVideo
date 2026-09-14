@@ -28,6 +28,10 @@ export const SCROLL_BRIGHTNESS_SENSITIVITY: number = 0.003 // 滚轮亮度灵敏
 
 export const PINCH_SCALE_SENSITIVITY = 0.5 // 捏合缩放的敏感度
 
+export const TWO_FINGER_PAN_BASE_VP = 5 // 双指平移主导判定的基础中点位移阈值(vp)
+
+export const TWO_FINGER_ZOOM_BASE_VP = 5 // 双指缩放主导判定的基础指距变化阈值(vp)
+
 export const MIN_SCALE_FACTOR = 0.5 // 最小缩放比例
 
 export const MAX_SCALE_FACTOR = 2.0 // 最大缩放比例
