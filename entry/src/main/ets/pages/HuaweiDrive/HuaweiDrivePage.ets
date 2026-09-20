@@ -12,6 +12,7 @@ import { salmonLogger } from 'salmonlogger'
 import { webview } from '@kit.ArkWeb'
 import { url } from '@kit.ArkTS'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import VideoInfoUtil from '../../utils/VideoInfoUtil'
 
 const TAG = 'HuaweiDrivePage'
 
@@ -71,7 +72,7 @@ export struct HuaweiDrivePage {
         } else {
           this.DriveContent()
         }
-      }
+      }.clip(false)
       .width('100%')
       .height('100%')
       .padding({ bottom: SafeHeight.bottomSafeHeight })
@@ -506,25 +507,9 @@ export struct HuaweiDrivePage {
   }
 
   private toVideoMetadata(file: HuaweiDriveFile, uri: string): VideoMetadata {
-    const dotIndex = file.fileName.lastIndexOf('.')
-    return {
-      uri: uri,
-      title: dotIndex > 0 ? file.fileName.substring(0, dotIndex) : file.fileName,
-      date: `huawei_drive_${file.id}`,
-      size: [file.videoMetadata?.width ?? 1, file.videoMetadata?.height ?? 1],
-      time: 0,
-      last_play: 0,
-      format: dotIndex >= 0 ? file.fileName.substring(dotIndex + 1).toLowerCase() : '',
-      video_size: file.size ? ToolsUtil.formatFileSize(file.size) : '',
-      hdr_type: 0,
-      audio_type: 0,
-      frame_rate: 0,
-      start_time: 0,
-      end_time: 0,
-      external_subtitle_format: '',
-      pointA: 0,
-      pointB: 0
-    }
+    return VideoInfoUtil.buildNetworkVideoMetadata(uri, `huawei_drive_${file.id}`, file.fileName,
+      file.size ? ToolsUtil.formatFileSize(file.size) : '',
+      [file.videoMetadata?.width ?? 1, file.videoMetadata?.height ?? 1])
   }
 
   private quotaText(): string {

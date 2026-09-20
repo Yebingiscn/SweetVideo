@@ -50,9 +50,9 @@ export struct SweetAgentComponent {
   }
 
   build() {
-    Column() {
-      if (canIUse('SystemCapability.AI.Agent.AgentKit')) {
-        if (this.isAgentSupport) {
+    if (canIUse('SystemCapability.AI.Agent.AgentKit')) {
+      if (this.isAgentSupport) {
+        Column() {
           FunctionComponent({
             agentId: this.agentId,
             onError: (err: BusinessError) => {
@@ -67,5 +67,6 @@ export struct SweetAgentComponent {
         }
       }
     }
+
   }
 }

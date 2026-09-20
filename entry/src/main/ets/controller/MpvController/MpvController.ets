@@ -1,3 +1,4 @@
+import SmbUtil, { SmbPlayback } from '../../utils/SmbUtil'
 import { media } from '@kit.MediaKit';
 import { PlayerControllerInterface, PlayerEngineSwitchHandler } from '../PlayerControllerFactory';
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
@@ -19,6 +20,7 @@ import { BaseListener } from '../../utils/BaseEventUtil';
 import {
   command as mpvCommand,
   getAudioTracks as mpvGetAudioTracks,
+  getCurrentAudioTrack as mpvGetCurrentAudioTrack,
   getAudioType as mpvGetAudioType,
   getChapterList as mpvGetChapterList,
   getCurrentSecondarySubtitleTrack as mpvGetCurrentSecondarySubtitleTrack,
@@ -154,6 +156,7 @@ class DecodingModeVerification {
 
 @ObservedV2
 export class MpvController implements PlayerControllerInterface {
+  private smbPlayback: SmbPlayback = new SmbPlayback()
   private static readonly SHADER_MODE_NAMES: string[] = ['关闭', 'Anime4K (动漫)', 'ArtCNN (通用)']
   private static readonly SHADER_CONFIGS: Map<number, ShaderConfig> = new Map<number, ShaderConfig>([
     [1, new ShaderConfig(
@@ -472,6 +475,8 @@ export class MpvController implements PlayerControllerInterface {
     }
     this.activeHwdecMode = requiredMode
     this.transitionTo(MpvPlayerState.LOADING)
+    await this.smbPlayback.resolve(url!)
+    if (requestGeneration !== this.playRequestGeneration) return
     const playUrl = this.preparePlayUrl(url!)
     this.configureNetworkStateSubscription(url!)
     const initialStartPositionMs = this.consumeInitialStartPositionMs()
@@ -552,7 +557,7 @@ export class MpvController implements PlayerControllerInterface {
       // 片尾跳过逻辑保留
       const totalTime = this.nowPlaying?.time ?? 0
       const startTime = this.nowPlaying?.start_time
-      const endTime = this.nowPlaying?.end_time
+      const endTime = VideoInfoUtil.getEndingPosition(this.nowPlaying)
       const skipIntroMs = Number(Setting.skipIntroTime) * 1000
       const skipOutroSeconds = Number(Setting.skipOutroTime)
       const skipOutroMs = skipOutroSeconds * 1000
@@ -677,6 +682,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   async release(): Promise<void> {
+    this.smbPlayback.close()
     this.clearSessionNavigationListeners()
     this.currentPathStack = null
     this.playRequestGeneration++
@@ -736,9 +742,22 @@ export class MpvController implements PlayerControllerInterface {
     this.playing ? this.pause() : this.play()
   }
 
+  private isAudioVividTrack(): boolean {
+    if (!this.mpvHandle || !this.engineAdapter.isAlive()) return false
+    const selected = mpvGetCurrentAudioTrack(this.mpvHandle)
+    const tracks = mpvGetAudioTracks(this.mpvHandle) as MpvAudioTrack[]
+    return tracks?.some((track: MpvAudioTrack) =>
+      track.id === selected && track.codec?.toLowerCase() === 'av3a') ?? false
+  }
+
   updatePlaybackSpeed(speed: number) {
-    mpvSetSpeed(this.mpvHandle, speed)
-    this.speed = speed
+    const result = mpvSetSpeed(this.mpvHandle, speed)
+    if (!result) {
+      ToolsUtil.showToast('播放速度更新失败')
+      return
+    }
+    this.speed = result.speed
+    if (!result.success) ToolsUtil.showToast(result.error || '系统未接受该播放速度，已保持原速度')
     AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode, this.speed)
   }
 
@@ -1059,6 +1078,9 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   applyAudioEffect(config: AudioEffectConfig): boolean {
+    if (config.effect !== 'off' && this.isAudioVividTrack()) {
+      throw new Error('Audio Vivid 优先：当前音轨暂不支持叠加声音效果')
+    }
     if (!this.mpvHandle || !this.engineAdapter.isAlive()) {
       return false
     }
@@ -1209,6 +1231,10 @@ export class MpvController implements PlayerControllerInterface {
 
   async setExternalSubtitle(nowPlaying: VideoMetadata) {
     const generation = this.postLoadTaskGeneration
+    try { await SmbUtil.cacheSubtitle(nowPlaying) } catch (_error) {
+      ToolsUtil.showToast('共享字幕读取失败，可稍后手动导入')
+    }
+    if (this.nowPlaying?.uri !== nowPlaying.uri || generation !== this.postLoadTaskGeneration) return
     SubtitleUtil.offsetMillis = nowPlaying.subtitle_offset_millis ?? 0
     const existingExternalTracks = (mpvGetSubtitleTracks(this.mpvHandle) as MpvSubtitleTrack[])
       .filter((track: MpvSubtitleTrack) => track.external)
@@ -1609,7 +1635,7 @@ export class MpvController implements PlayerControllerInterface {
 
   private preparePlayUrl(url: string): string {
     if (ToolsUtil.isNetworkUrl(url)) {
-      return url
+      return this.smbPlayback.current(url)
     }
 
     const localPath = new fileUri.FileUri(url).path

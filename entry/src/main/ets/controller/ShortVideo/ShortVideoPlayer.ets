@@ -1,4 +1,5 @@
 import { media } from '@kit.MediaKit'
+import { SmbPlayback } from '../../utils/SmbUtil'
 import { NativeAVPlayer } from '../engine/NativeAVPlayer'
 import { fileIo } from '@kit.CoreFileKit'
 import { BusinessError } from '@kit.BasicServicesKit'
@@ -19,6 +20,7 @@ export type ShortVideoState = 'idle' | 'preparing' | 'prepared' | 'playing' | 'p
 
 @ObservedV2
 export class ShortVideoPlayer {
+  private smbPlayback: SmbPlayback = new SmbPlayback()
   readonly item: VideoMetadata
   @Trace state: ShortVideoState = 'idle'
   @Trace currentTime: number = 0
@@ -203,6 +205,9 @@ export class ShortVideoPlayer {
       return
     }
     this.disposed = true
+    this.smbPlayback.close()
+    this.preparedResolver?.()
+    this.clearPrepareCallbacks()
     this.active = false
     this.saveHistory(skipHistory)
     const player = this.player
@@ -230,6 +235,8 @@ export class ShortVideoPlayer {
       }
       this.player = player
       this.registerCallbacks(player)
+      const url = await this.smbPlayback.resolve(this.item.uri)
+      if (this.disposed) return
       const prepared = new Promise<void>((resolve, reject) => {
         this.preparedResolver = resolve
         this.preparedRejecter = reject
@@ -239,7 +246,7 @@ export class ShortVideoPlayer {
         throw new Error('无法读取视频文件')
       }
       if (ToolsUtil.isNetworkUrl(this.item.uri)) {
-        await player.setUrlSource(this.item.uri, this.item.network_http_headers)
+        await player.setUrlSource(url, this.item.network_http_headers)
       } else {
         const file = fileIo.openSync(this.item.uri, fileIo.OpenMode.READ_ONLY)
         try {
@@ -250,6 +257,7 @@ export class ShortVideoPlayer {
       }
       await prepared
     } catch (error) {
+      if (this.disposed) return
       this.fail(error)
       throw new Error(this.errorMessage)
     }

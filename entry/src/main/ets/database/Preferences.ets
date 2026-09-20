@@ -617,6 +617,7 @@ export default class Preferences {
           frame_rate: v.frame_rate,
           start_time: v.start_time,
           end_time: v.end_time,
+          end_time_is_duration: v.end_time_is_duration,
           external_subtitle_format: v.external_subtitle_format,
           pointA: v.pointA,
           pointB: v.pointB,

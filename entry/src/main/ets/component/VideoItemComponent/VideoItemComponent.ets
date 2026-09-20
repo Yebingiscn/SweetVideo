@@ -199,6 +199,7 @@ export struct VideoList {
           frame_rate: original.frame_rate,
           start_time: original.start_time,
           end_time: original.end_time,
+          end_time_is_duration: original.end_time_is_duration,
           external_subtitle_format: original.external_subtitle_format,
           pointA: original.pointA,
           pointB: original.pointB,

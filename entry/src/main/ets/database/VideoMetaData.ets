@@ -58,6 +58,7 @@ export class FolderOperator {
     targetFolder.video_list.forEach(video => {
       video.start_time = startTime
       video.end_time = endTime
+      video.end_time_is_duration = true
     })
     Preferences.saveFileFolder(PathUtils.appContext!, folders)
     return Preferences.getFileFolder(PathUtils.appContext!)

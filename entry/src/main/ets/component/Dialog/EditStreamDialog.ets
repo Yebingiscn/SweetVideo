@@ -2,22 +2,28 @@ import { DIALOG_TITLE_FONT_SIZE } from '../../common/Constants'
 import { DialogButtonBar } from './DialogButtonBar'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import DataSyncUtil from '../../utils/DataSyncUtil'
+import SmbUtil from '../../utils/SmbUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
 
 @CustomDialog
 export struct EditStreamDialog {
   controller?: CustomDialogController
   @State streamName: string = ''
   @State streamUrl: string = ''
+  @State saving: boolean = false
+  onConfirm?: (name: string, url: string) => void
+  private originalUri: string = ''
+  private displayedUri: string = ''
 
   aboutToAppear(): void {
     const stream = DataSyncUtil.editingVideo as VideoMetadata
     if (stream) {
       this.streamName = stream.title ?? ''
-      this.streamUrl = stream.uri ?? ''
+      this.originalUri = stream.uri ?? ''
+      this.displayedUri = SmbUtil.displayUri(this.originalUri)
+      this.streamUrl = this.displayedUri
     }
   }
-
-  onConfirm?: (name: string, url: string) => void
 
   build() {
     Column({ space: 20 }) {
@@ -42,19 +48,29 @@ export struct EditStreamDialog {
         .onChange((input: string) => this.streamUrl = input)
 
       DialogButtonBar(
-        () => {
+        async () => {
+          if (this.saving) {
+            return
+          }
           this.controller?.close()
         },
-        () => {
+        async () => {
           if (!this.streamName.trim() || !this.streamUrl.trim()) {
             return
           }
-          if (this.onConfirm) {
-            this.onConfirm(this.streamName.trim(), this.streamUrl.trim())
+          this.saving = true
+          try {
+            const value = this.streamUrl.trim()
+            const url = value === this.displayedUri ? this.originalUri : await SmbUtil.prepareUri(value)
+            this.onConfirm?.(this.streamName.trim(), url)
+            this.controller?.close()
+          } catch (error) {
+            ToolsUtil.showToast(error instanceof Error ? error.message : 'SMB 地址无效')
+          } finally {
+            this.saving = false
           }
-          this.controller?.close()
         }
       )
-    }.padding(20)
+    }.padding(20).enabled(!this.saving)
   }
 }

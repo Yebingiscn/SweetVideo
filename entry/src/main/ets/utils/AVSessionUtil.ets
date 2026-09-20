@@ -209,8 +209,7 @@ export default class AVSessionUtil {
     }
     let session_metadata: avSessionManager.AVMetadata = {
       assetId: metadata.date,
-      title: metadata.title.lastIndexOf('.') !== -1 ?
-        metadata.title.slice(0, metadata.title.lastIndexOf('.')) : metadata.title,
+      title: VideoInfoUtil.getVideoTitle(metadata.title),
       mediaImage: AVSessionUtil.pixelMap,
       duration: metadata.time,
       filter: avSession.ProtocolType.TYPE_CAST_PLUS_STREAM | avSession.ProtocolType.TYPE_DLNA,
@@ -361,7 +360,7 @@ export default class AVSessionUtil {
         ToolsUtil.showToast('投播失败：视频地址为空')
         return
       }
-      const isNetworkUri = uri.startsWith('http://') || uri.startsWith('https://')
+      const isNetworkUri = ToolsUtil.isNetworkUrl(uri)
       let playItem: avSession.AVQueueItem
       let fd: number | undefined = undefined
       if (isNetworkUri) {
@@ -369,8 +368,7 @@ export default class AVSessionUtil {
           itemId: 0,
           description: {
             assetId: 'VIDEO-' + now_playing.title,
-            title: now_playing.title.lastIndexOf('.') !== -1 ?
-              now_playing.title.slice(0, now_playing.title.lastIndexOf('.')) : now_playing.title,
+            title: VideoInfoUtil.getVideoTitle(now_playing.title),
             artist: now_playing.artist || '',
             mediaType: 'VIDEO',
             mediaSize: 0,
@@ -392,8 +390,7 @@ export default class AVSessionUtil {
           itemId: 0,
           description: {
             assetId: 'VIDEO-' + now_playing.title,
-            title: now_playing.title.lastIndexOf('.') !== -1 ?
-              now_playing.title.slice(0, now_playing.title.lastIndexOf('.')) : now_playing.title,
+            title: VideoInfoUtil.getVideoTitle(now_playing.title),
             artist: now_playing.artist || '',
             mediaType: 'VIDEO',
             mediaSize: videoSize,

@@ -9,6 +9,11 @@ import TextEncodingUtil from './TextEncodingUtil'
 import ToolsUtil from './ToolsUtil'
 import { fileIo } from '@kit.CoreFileKit'
 
+export interface FileNameParts {
+  stem: string
+  ext: string
+}
+
 
 interface AspectRatioSize {
   width: number
@@ -101,6 +106,22 @@ export default class VideoInfoUtil {
       return false
     }
     return probe.sourceWidth > 0 || probe.sourceHeight > 0 || probe.videoCodec.trim().length > 0
+  }
+
+  static getEndingPosition(metadata: VideoMetadata | undefined): number {
+    if (!metadata) {
+      return 0
+    }
+    const ending = metadata.end_time || 0
+    if (!metadata.end_time_is_duration || ending <= 0) {
+      return ending
+    }
+    // 未知时长或片头片尾超过整集时不跳过，也不落回全局片尾规则。
+    if (!Number.isFinite(metadata.time) || metadata.time <= 0 ||
+      ending + Math.max(0, metadata.start_time || 0) >= metadata.time) {
+      return -1
+    }
+    return metadata.time - ending
   }
 
   static hasVideoTrack(metadata: VideoMetadata | undefined): boolean {
@@ -206,6 +227,43 @@ export default class VideoInfoUtil {
 
   public static getVideoFormat(videoName: string) {
     return videoName.split('.')[videoName.split('.').length - 1]
+  }
+
+  public static getExtension(fileName: string): string {
+    const index = fileName.lastIndexOf('.')
+    return index >= 0 ? fileName.substring(index + 1).toLowerCase() : ''
+  }
+
+  public static splitFileName(fileName: string): FileNameParts {
+    const index = fileName.lastIndexOf('.')
+    if (index > 0) {
+      const parts: FileNameParts = { stem: fileName.substring(0, index), ext: fileName.substring(index) }
+      return parts
+    }
+    const parts: FileNameParts = { stem: fileName, ext: '' }
+    return parts
+  }
+
+  static buildNetworkVideoMetadata(uri: string, date: string, fileName: string, video_size: string,
+    size: number[]): VideoMetadata {
+    return {
+      uri: uri,
+      title: VideoInfoUtil.getVideoTitle(fileName),
+      date: date,
+      size: size,
+      time: 0,
+      last_play: 0,
+      format: VideoInfoUtil.getExtension(fileName),
+      video_size: video_size,
+      hdr_type: 0,
+      audio_type: 0,
+      frame_rate: 0,
+      start_time: 0,
+      end_time: 0,
+      external_subtitle_format: '',
+      pointA: 0,
+      pointB: 0
+    }
   }
 
   public static optimizedFormat(speed: number): string {

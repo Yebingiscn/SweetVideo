@@ -1,3 +1,4 @@
+import SmbUtil, { SmbPlayback } from '../../utils/SmbUtil'
 import { media } from '@kit.MediaKit'
 import { avSession, avSession as avSessionManager } from '@kit.AVSessionKit'
 import { AudioTrack, SubtitleTrack } from '../../interfaces/AudioTrackInterface'
@@ -86,20 +87,6 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Trace superResolutionState: boolean = false
   @Trace audioTrackSelected: number = 0
   @Trace audioEffectConfig: AudioEffectConfig = new AudioEffectConfig()
-
-  get supportsAudioEffects(): boolean {
-    return this.avPlayer?.pcmSupported === true
-  }
-
-  async applyAudioEffect(config: AudioEffectConfig): Promise<boolean> {
-    const player = this.avPlayer
-    if (!player) throw new Error('请先播放视频')
-    await player.applyAudioEffect(config)
-    if (!this.engineAdapter.isCurrent(player)) return false
-    this.audioEffectConfig = AudioEffectConfig.copy(config)
-    return true
-  }
-
   @Trace longPress: boolean = false
   @Trace speedLocked: boolean = false
   @Trace isLock: boolean = false
@@ -112,6 +99,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Trace translateY: number = 0
   @Trace showControl: boolean = false
   skipHistory: boolean = false
+  private smbPlayback: SmbPlayback = new SmbPlayback()
   private engineAdapter: AVPlayerEngineAdapter = new AVPlayerEngineAdapter()
   private isSkippingEnding: boolean = false
   private lastSubtitle: string = ''
@@ -142,6 +130,10 @@ export class AVPlayerController implements PlayerControllerInterface {
   private currentWindowClass: Promise<window.Window | undefined> | undefined = undefined
   private currentXComponentController: XComponentController | undefined = undefined
 
+  get supportsAudioEffects(): boolean {
+    return this.avPlayer?.pcmSupported === true
+  }
+
   get surfaceId(): string | null {
     return this.surfaceID
   }
@@ -156,11 +148,26 @@ export class AVPlayerController implements PlayerControllerInterface {
     return this.engineAdapter.player
   }
 
+  async applyAudioEffect(config: AudioEffectConfig): Promise<boolean> {
+    const player = this.avPlayer
+    if (!player) {
+      throw new Error('请先播放视频')
+    }
+    await player.applyAudioEffect(config)
+    if (!this.engineAdapter.isCurrent(player)) {
+      return false
+    }
+    this.audioEffectConfig = AudioEffectConfig.copy(config)
+    return true
+  }
+
   async create(): Promise<void> {
     try {
       const alreadyCreated = this.engineAdapter.isCreated()
       const player = await this.engineAdapter.create()
-      if (!alreadyCreated) player?.restoreAudioEffect(this.audioEffectConfig)
+      if (!alreadyCreated) {
+        player?.restoreAudioEffect(this.audioEffectConfig)
+      }
     } catch (error) {
       ToolsUtil.showToast('播放异常')
       salmonLogger.addLog('avplayer', `create avplayer error: ${error}`, true)
@@ -248,10 +255,22 @@ export class AVPlayerController implements PlayerControllerInterface {
     })
   }
 
-  setExternalSubtitle(nowPlaying: VideoMetadata) {
+  async setExternalSubtitle(nowPlaying: VideoMetadata): Promise<void> {
+    const version = this.videoSwitchVersion
+    try {
+      await SmbUtil.cacheSubtitle(nowPlaying)
+    } catch (_error) {
+      ToolsUtil.showToast('共享字幕读取失败，可稍后手动导入')
+    }
+    if (this.nowPlaying?.uri !== nowPlaying.uri || version !== this.videoSwitchVersion) {
+      return
+    }
     this.externalSubtitleAvailable = false
     SubtitleUtil.offsetMillis = nowPlaying.subtitle_offset_millis ?? 0
     SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, nowPlaying.date!).then(exists => {
+      if (this.nowPlaying?.uri !== nowPlaying.uri || version !== this.videoSwitchVersion) {
+        return
+      }
       if (!exists) {
         this.externalSubtitleAvailable = false
         this.applySubtitlePreference(nowPlaying, false)
@@ -263,6 +282,9 @@ export class AVPlayerController implements PlayerControllerInterface {
           try {
             fileIo.closeSync(subtitle)
           } catch (_e) {
+          }
+          if (this.nowPlaying?.uri !== nowPlaying.uri || version !== this.videoSwitchVersion) {
+            return
           }
           if (success) {
             this.externalSubtitleAvailable = true
@@ -368,6 +390,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   async release(): Promise<void> {
+    this.smbPlayback.close()
     this.clearSessionNavigationListeners()
     this.currentPathStack = undefined
     this.currentWindowClass = undefined
@@ -399,7 +422,8 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   prepare() {
-    this.avPlayer?.prepare()?.catch(() => {
+    const audioOnly = this.nowPlaying !== undefined && !VideoInfoUtil.hasVideoTrack(this.nowPlaying)
+    this.avPlayer?.prepare(audioOnly)?.catch(() => {
       salmonLogger.addLog(TAG, 'prepare error', true)
     })
   }
@@ -872,8 +896,8 @@ export class AVPlayerController implements PlayerControllerInterface {
       salmonLogger.addLog(TAG, "设置超分至目标分辨率失败", true)
     })
     this.avPlayer?.on('superResolutionChanged', (enabled: boolean) => {
-      ToolsUtil.showToast(enabled ? '视频超分辨率已开启' : '视频超分辨率已关闭')
       this.superResolutionState = enabled
+      ToolsUtil.showToast(enabled ? '视频超分辨率已开启' : '视频超分辨率已被关闭')
     })
   }
 
@@ -959,7 +983,7 @@ export class AVPlayerController implements PlayerControllerInterface {
       }
       const totalTime = this.nowPlaying?.time ?? 0
       const startTime = this.nowPlaying?.start_time
-      const endTime = this.nowPlaying?.end_time
+      const endTime = VideoInfoUtil.getEndingPosition(this.nowPlaying)
       const skipIntroMs = Number(Setting.skipIntroTime) * 1000
       const skipOutroSeconds = Number(Setting.skipOutroTime)
       const skipOutroMs = skipOutroSeconds * 1000
@@ -1036,16 +1060,28 @@ export class AVPlayerController implements PlayerControllerInterface {
     })
 
     player.on('effectError', (error) => {
-      if (!this.engineAdapter.isCurrent(player)) return
+      if (!this.engineAdapter.isCurrent(player)) {
+        return
+      }
       this.audioEffectConfig = new AudioEffectConfig()
       ToolsUtil.showToast(error.message)
     })
     player.on('bufferingUpdate', (info: NativeBufferingInfo) => {
-      if (!this.engineAdapter.isCurrent(player)) return
-      if (info.type === 1) this.networkBuffering = true
-      if (info.type === 2) this.networkBuffering = false
-      if (info.type === 3) this.networkBufferPercent = info.value
-      if (info.type === 4) this.networkCacheDuration = info.value / 1000
+      if (!this.engineAdapter.isCurrent(player)) {
+        return
+      }
+      if (info.type === 1) {
+        this.networkBuffering = true
+      }
+      if (info.type === 2) {
+        this.networkBuffering = false
+      }
+      if (info.type === 3) {
+        this.networkBufferPercent = info.value
+      }
+      if (info.type === 4) {
+        this.networkCacheDuration = info.value / 1000
+      }
     })
 
     player.on('stateChange', async (state) => {
@@ -1769,7 +1805,11 @@ export class AVPlayerController implements PlayerControllerInterface {
 
   private async setPlayerSource(player: NativeAVPlayer): Promise<void> {
     try {
-      const uri = this.nowPlaying?.uri
+      const source = this.nowPlaying?.uri
+      const uri = source ? await this.smbPlayback.resolve(source) : undefined
+      if (!this.engineAdapter.isCurrent(player) || source !== this.nowPlaying?.uri) {
+        return
+      }
       if (!uri) {
         throw new Error('视频地址为空')
       }

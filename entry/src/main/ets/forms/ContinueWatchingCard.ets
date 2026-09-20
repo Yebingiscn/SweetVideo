@@ -20,7 +20,7 @@ struct ContinueWatchingCard {
     Stack() {
       if (this.items.length === 0) {
         Column({ space: 8 }) {
-          Image($r('app.media.sweet_video_alt'))
+          Image($r('app.media.sweet_video'))
             .width(64)
             .height(64)
             .objectFit(ImageFit.Contain)
@@ -33,26 +33,28 @@ struct ContinueWatchingCard {
           .onClick(() => this.openApp())
       } else if (this.dimension === 3) {
         Row({ space: 6 }) {
-          ForEach(this.items, (item: VideoFormItem) => {
-            Column() {
-              Image(item.cover ? `memory://${item.cover}` : $r('app.media.sweet_video_alt'))
-                .width('100%')
-                .layoutWeight(1)
-                .objectFit(item.cover ? ImageFit.Cover : ImageFit.Contain)
-                .backgroundColor($r('sys.color.comp_background_secondary'))
-                .borderRadius(8).clip(true)
-              Text(item.title)
-                .fontSize(11)
-                .fontColor($r('sys.color.font_primary'))
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-                .textAlign(TextAlign.Center)
-                .width('100%')
-                .margin({ top: 4 })
-            }
-            .width('32%')
-            .onClick(() => this.openApp(item.mediaId))
-          }, (item: VideoFormItem) => `${item.mediaId}:${item.cover}:${item.title}`)
+          Repeat(this.items)
+            .each((ri: RepeatItem<VideoFormItem>) => {
+              Column() {
+                Image(ri.item.cover ? `memory://${ri.item.cover}` : $r('app.media.sweet_video_alt'))
+                  .width('100%')
+                  .layoutWeight(1)
+                  .objectFit(ri.item.cover ? ImageFit.Cover : ImageFit.Contain)
+                  .backgroundColor($r('sys.color.comp_background_secondary'))
+                  .borderRadius(8).clip(true)
+                Text(ri.item.title)
+                  .fontSize(11)
+                  .fontColor($r('sys.color.font_primary'))
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+                  .textAlign(TextAlign.Center)
+                  .width('100%')
+                  .margin({ top: 4 })
+              }
+              .width('32%')
+              .onClick(() => this.openApp(ri.item.mediaId))
+            })
+            .key((item: VideoFormItem) => `${item.mediaId}:${item.cover}:${item.title}`)
         }
         .width('100%').height('100%')
         .padding(10)

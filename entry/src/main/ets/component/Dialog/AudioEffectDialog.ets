@@ -230,9 +230,6 @@ export struct AudioEffectDialog {
   @State applyStatus: string = ''
   @State effectValues: string[] = EFFECT_VALUES
   @State effectLabels: string[] = EFFECT_LABELS
-  private pendingConfig: AudioEffectConfig | undefined = undefined
-  private applyTimer: number = -1
-  private applyVersion: number = 0
   @State effect: string = 'off'
   @State eqPreset: string = 'default'
   @State eqGains: number[] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -256,13 +253,18 @@ export struct AudioEffectDialog {
   @State separationOutput: string = 'vocals'
   @State hoaLayout: string = 'order1-acn-n3d'
   @State currentPreset: string = ''
+  private pendingConfig: AudioEffectConfig | undefined = undefined
+  private applyTimer: number = -1
+  private applyVersion: number = 0
 
   aboutToAppear(): void {
     this.systemPlayer = this.isSystemPlayer?.() === true
     this.effectValues = EFFECT_VALUES.filter((value: string) =>
-      !this.systemPlayer || (value !== 'hoa-space-render' && value !== 'audio-mixer'))
+    !this.systemPlayer || (value !== 'hoa-space-render' && value !== 'audio-mixer'))
     this.effectLabels = this.effectValues.map((value: string) => {
-      if (this.systemPlayer && value === 'tempo-pitch') return '变调'
+      if (this.systemPlayer && value === 'tempo-pitch') {
+        return '变调'
+      }
       return EFFECT_LABELS[EFFECT_VALUES.indexOf(value)]
     })
     this.applyStatus = ''
@@ -518,18 +520,18 @@ export struct AudioEffectDialog {
           } else if (this.effect === 'tempo-pitch') {
             ParamCardComponent() {
               if (!this.systemPlayer) {
-              ValueSliderComponent({
-                title: '速度',
-                value: this.tempo,
-                min: 0.5,
-                max: 10,
-                step: 0.1,
-                decimals: 1,
-                onChange: (nextValue: number): void => {
-                  this.tempo = nextValue;
-                  this.applyCurrentConfig()
-                }
-              })
+                ValueSliderComponent({
+                  title: '速度',
+                  value: this.tempo,
+                  min: 0.5,
+                  max: 10,
+                  step: 0.1,
+                  decimals: 1,
+                  onChange: (nextValue: number): void => {
+                    this.tempo = nextValue;
+                    this.applyCurrentConfig()
+                  }
+                })
               }
               ValueSliderComponent({
                 title: '音高',
@@ -665,9 +667,13 @@ export struct AudioEffectDialog {
   }
 
   private applyCurrentConfig(): void {
-    if (this.effect === 'preset') return
+    if (this.effect === 'preset') {
+      return
+    }
     const config = this.createConfig()
-    if (this.systemPlayer) config.tempo = 1
+    if (this.systemPlayer) {
+      config.tempo = 1
+    }
     this.scheduleApply(config)
   }
 
@@ -676,16 +682,22 @@ export struct AudioEffectDialog {
     ++this.applyVersion
     this.pendingConfig = config
     this.applyStatus = ''
-    if (this.applyTimer !== -1) clearTimeout(this.applyTimer)
+    if (this.applyTimer !== -1) {
+      clearTimeout(this.applyTimer)
+    }
     this.applyTimer = setTimeout(() => this.flushPending(), 180)
   }
 
   private flushPending(): void {
-    if (this.applyTimer !== -1) clearTimeout(this.applyTimer)
+    if (this.applyTimer !== -1) {
+      clearTimeout(this.applyTimer)
+    }
     this.applyTimer = -1
     const config = this.pendingConfig
     this.pendingConfig = undefined
-    if (!config) return
+    if (!config) {
+      return
+    }
     const version = ++this.applyVersion
     this.applyStatus = ''
     this.applyConfig(config, version)
@@ -696,7 +708,9 @@ export struct AudioEffectDialog {
       const applied = await this.onApply?.(config, true)
       if (version === this.applyVersion) {
         this.applyStatus = applied ? '' : '应用失败，保留原设置'
-        if (!applied) this.reportApplyFailure(config.effect, this.applyStatus)
+        if (!applied) {
+          this.reportApplyFailure(config.effect, this.applyStatus)
+        }
       }
     } catch (error) {
       if (version === this.applyVersion) {

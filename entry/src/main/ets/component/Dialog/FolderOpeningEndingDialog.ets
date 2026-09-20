@@ -2,7 +2,6 @@ import { DialogButtonBar } from './DialogButtonBar'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import TimeUtil from '../../utils/TimeUtil'
-import ToolsUtil from '../../utils/ToolsUtil'
 
 @CustomDialog
 export struct FolderOpeningEndingDialog {
@@ -131,17 +130,14 @@ export struct FolderOpeningEndingDialog {
     if (folder.video_list.length === 0) {
       return 0
     }
-    const firstTime = (isStartTime ? folder.video_list[0].start_time : folder.video_list[0].end_time) ?? 0
+    const firstTime = (isStartTime ? folder.video_list[0].start_time :
+      (folder.video_list[0].end_time_is_duration ? folder.video_list[0].end_time : 0)) ?? 0
     const allSame = folder.video_list.every(video =>
-    ((isStartTime ? video.start_time : video.end_time) ?? 0) === firstTime)
+    ((isStartTime ? video.start_time : (video.end_time_is_duration ? video.end_time : 0)) ?? 0) === firstTime)
     return allSame ? Math.round(firstTime / 1000) : 0
   }
 
   private confirmInput(): void {
-    if (this.endTime > 0 && this.endTime <= this.startTime) {
-      ToolsUtil.showToast('片尾时间需晚于片头时间')
-      return
-    }
     this.onConfirm?.(this.folderDate, this.startTime * 1000, this.endTime * 1000)
     this.controller?.close()
   }

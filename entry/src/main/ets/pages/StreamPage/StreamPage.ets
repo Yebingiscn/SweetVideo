@@ -12,7 +12,7 @@ import {
   SymbolGlyphFancyModifier
 } from '../../common/AttributeModifierConfig'
 import { SortField } from '../../common/enum/SortField'
-import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { Setting } from '../../utils/ObservedUtil'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { SortMenuComponent } from '../../component/common/SortMenuComponent'
 
@@ -29,6 +29,7 @@ import VideoCardItem from '../../component/VideoItemComponent/VideoCardItemCompo
 import VideoListItem from '../../component/VideoItemComponent/VideoListItemComponent'
 import { VideoListController } from '../../component/VideoItemComponent/VideoItemComponent'
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
+import { DeleteType } from '../../common/enum/DeleteType'
 import RecentPlayUtil from '../../utils/RecentPlayUtil'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
@@ -105,7 +106,6 @@ export struct StreamPage {
   }
 
   @Builder
-
   SearchBuilder() {
     Row({ space: 10 }) {
       SearchComponent({
@@ -362,9 +362,8 @@ export struct StreamPage {
             .height('100%')
           }
         }
-      }.padding({ bottom: SafeHeight.bottomSafeHeight })
+      }.clip(false)
       .width('100%')
-
       .onAreaChange(async (_oldValue: Area, newValue: Area) => {
         const width = Number(newValue.width)
         const base = Math.floor(width / 500)
@@ -495,9 +494,11 @@ export struct StreamPage {
       Preferences.saveNetworkStreams(PathUtils.appContext!, streams)
       this.allStreams = [...streams]
       this.applySearch()
-      RecentPlayUtil.delData(PathUtils.appContext!, stream.uri)
-      await SelectFileUtil.deleteCover(stream.date as string).catch(() => {
-      })
+      try {
+        await VideoOperateUtil.deleteVideoResource(stream, DeleteType.SOFT)
+      } catch (error) {
+        // 附属资源清理失败不影响串流删除流程
+      }
     }
   }
 
@@ -516,21 +517,17 @@ export struct StreamPage {
     }
     Preferences.saveSortField(PathUtils.appContext!, this.currentSortField)
     Preferences.saveSortAsc(PathUtils.appContext!, this.currentSortAsc)
-    this.allStreams.sort((a, b) => {
-      let cmp = 0
-      switch (field) {
-        case SortField.NAME:
-          cmp = (a.title ?? '').localeCompare(b.title ?? '')
-          break
-        case SortField.DATETIME:
-          cmp = Number(a.date) - Number(b.date)
-          break
-        case SortField.TIME:
-          cmp = (a.time ?? 0) - (b.time ?? 0)
-          break
-      }
-      return this.currentSortAsc ? cmp : -cmp
-    })
+    switch (field) {
+      case SortField.NAME:
+        this.allStreams = ToolsUtil.sortByNameProcess(this.allStreams, this.currentSortAsc, this.pinyinSort)
+        break
+      case SortField.DATETIME:
+        this.allStreams = ToolsUtil.sortByDatetimeProcess(this.allStreams, this.currentSortAsc)
+        break
+      case SortField.TIME:
+        this.allStreams = ToolsUtil.sortByTimeProcess(this.allStreams, this.currentSortAsc)
+        break
+    }
     this.applySearch()
   }
 
@@ -538,8 +535,7 @@ export struct StreamPage {
     this.pinyinSort = value
     Preferences.savePinyinSort(PathUtils.appContext!, this.pinyinSort)
     if (this.currentSortField === SortField.NAME) {
-      this.allStreams = ToolsUtil.sortBy(PathUtils.appContext!, this.allStreams, undefined,
-        SortField.NAME, this.currentSortAsc, this.pinyinSort)
+      this.allStreams = ToolsUtil.sortByNameProcess(this.allStreams, this.currentSortAsc, this.pinyinSort)
       this.applySearch()
     }
   }

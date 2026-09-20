@@ -1177,6 +1177,7 @@ export struct VideoPlayer {
       },
       updateEndTime: (time: number) => {
         this.player.nowPlaying!.end_time = time
+        this.player.nowPlaying!.end_time_is_duration = false
       },
       updatePointATime: (time: number) => {
         this.player.nowPlaying!.pointA = time

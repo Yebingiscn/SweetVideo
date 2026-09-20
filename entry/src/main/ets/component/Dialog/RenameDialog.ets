@@ -3,6 +3,7 @@ import { DialogButtonBar } from './DialogButtonBar'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
 import DataSyncUtil from '../../utils/DataSyncUtil'
+import VideoInfoUtil from '../../utils/VideoInfoUtil'
 
 @CustomDialog
 export struct RenameDialog {
@@ -22,14 +23,9 @@ export struct RenameDialog {
       this.initialName = (DataSyncUtil.editingVideo as VideoMetadata)?.title ?? ''
     }
     if (this.preserveExtension) {
-      const lastDotIndex = this.initialName.lastIndexOf('.')
-      if (lastDotIndex > 0) {
-        this.name = this.initialName.slice(0, lastDotIndex)
-        this.extension = this.initialName.slice(lastDotIndex)
-      } else {
-        this.name = this.initialName
-        this.extension = ''
-      }
+      const parts = VideoInfoUtil.splitFileName(this.initialName)
+      this.name = parts.stem
+      this.extension = parts.ext
     } else {
       this.name = this.initialName
     }

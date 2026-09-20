@@ -37,6 +37,7 @@ interface NativePlayerOptions {
   type?: number
   muted?: boolean
   enabled?: boolean
+  audioOnly?: boolean
   width?: number
   height?: number
   preferredBufferDurationForPlaying?: number
@@ -138,7 +139,10 @@ export class NativeAVPlayer {
     await this.send('source', { fd: fd, generation: this.generation })
   }
 
-  async prepare(): Promise<void> { await this.send('prepare') }
+  async prepare(audioOnly: boolean = false): Promise<void> {
+    await this.send('prepare', { audioOnly: audioOnly })
+    salmonLogger.addLog('NativeAVPlayer', `音频流场景：${audioOnly ? '音乐（系统决定低功耗通路）' : '视频'}`)
+  }
   async play(): Promise<void> { await this.send('play') }
   async pause(): Promise<void> { await this.send('pause') }
   async reset(): Promise<void> {

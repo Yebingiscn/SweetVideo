@@ -25,6 +25,8 @@ export interface VideoMetadata {
   audio_type: number
   frame_rate: number
   start_time: number
+  /** true 时 end_time 为距结尾的跳过时长（毫秒）；否则为绝对时间点。 */
+  end_time_is_duration?: boolean
   end_time: number
   external_subtitle_format: string
   pointA: number
@@ -37,6 +39,8 @@ export interface VideoMetadata {
   subtitle_track_id?: number
   audio_track_id?: number
   network_user_agent?: string
+  /** Stable SMB reference for an optional matching sidecar subtitle. */
+  smb_subtitle_uri?: string
   /** 仅用于当前网络播放请求，不写入播放历史等持久化数据。 */
   network_http_headers?: Record<string, string>
 }

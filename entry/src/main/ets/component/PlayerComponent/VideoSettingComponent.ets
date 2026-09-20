@@ -1,3 +1,4 @@
+import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
@@ -48,7 +49,7 @@ export struct VideoSettingComponent {
 
   aboutToAppear(): void {
     this.startTime = TimeUtil.convertMSToHHMMSS(this.player.nowPlaying?.start_time)
-    this.endTime = TimeUtil.convertMSToHHMMSS(this.player.nowPlaying?.end_time)
+    this.endTime = TimeUtil.convertMSToHHMMSS(Math.max(0, VideoInfoUtil.getEndingPosition(this.player.nowPlaying)))
     this.pointA = TimeUtil.convertMSToHHMMSS(this.player.nowPlaying?.pointA)
     this.pointB = TimeUtil.convertMSToHHMMSS(this.player.nowPlaying?.pointB)
   }

@@ -5,17 +5,14 @@ import { VideoListController } from '../component/VideoItemComponent/VideoItemCo
 import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
 import { DeleteType } from '../common/enum/DeleteType'
 import { MpvAudioTrack, MpvSubtitleTrack } from '../controller/MpvController/MpvTypes'
-import { salmonLogger, SalmonLogLine } from 'salmonlogger'
+import { SalmonLogLine } from 'salmonlogger'
 import Preferences from '../database/Preferences'
 import { FolderOperator, VideoMetaDataOperator } from '../database/VideoMetaData'
 import { PathUtils } from './PathUtils'
-import RecentPlayUtil from './RecentPlayUtil'
 import SelectFileUtil from './SelectFileUtil'
-import SubtitleUtil from './SubtitleUtil'
 import ToolsUtil from './ToolsUtil'
+import VideoOperateUtil from './VideoOperateUtil'
 import VideoUtils from './VideoUtil'
-import { fileManagerService } from '@kit.FileManagerServiceKit'
-import { fileIo } from '@kit.CoreFileKit'
 
 const TAG = 'DataUtil'
 
@@ -132,31 +129,10 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
   }
 
   async deleteItem(deleteType: DeleteType, item: VideoMetadata): Promise<void> {
-    await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date!)
     this.deleteData(this.data.findIndex(i => i.date === item.date))
-    RecentPlayUtil.delData(PathUtils.appContext!, item.uri)
-    await SelectFileUtil.deleteCover(item.date)
-
-    if (deleteType == DeleteType.HARD) {
-      fileIo.unlink(item.uri, (err: BusinessError) => {
-        if (err) {
-          salmonLogger.addLog(TAG,
-            "remove file failed with error message: " + err.message + ", error code: " + err.code, true)
-        } else {
-          salmonLogger.addLog(TAG, "remove file succeed")
-        }
-      })
-    } else if (deleteType == DeleteType.RECENT) {
-      try {
-        if (canIUse('SystemCapability.FileManagement.FileManagerService.Core')) {
-          await fileManagerService.deleteToTrash(PathUtils.pathToUri(item.uri))
-        }
-        ToolsUtil.showToast(item.title + ' 已经移动到回收站')
-      } catch (error) {
-        salmonLogger.addLog(TAG, "test delete failed, errCode:" + error.code + ", errMessage:" + error.message, true)
-        ToolsUtil.showToast('视频快捷方式已删除，但移动到最近回收失败，原因是：errCode:' + error.code + ", errMessage:" +
-          error.message)
-      }
+    await VideoOperateUtil.deleteVideoResource(item, deleteType)
+    if (deleteType == DeleteType.RECENT) {
+      ToolsUtil.showToast(item.title + ' 已经移动到回收站')
     }
   }
 }
@@ -164,10 +140,10 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
 @ObservedV2
 export class FileFolderDataSource extends BaseDataSource<FileFolder> {
   getFileFolder(fileFolderName: string): FileFolder {
-    return Preferences.getFileFolder(PathUtils.appContext!).find(item => item.name === fileFolderName)!
+    return FolderOperator.getFolderByName(fileFolderName)
   }
 
   getFileFolderByDate(folderDate: string): FileFolder | undefined {
-    return Preferences.getFileFolder(PathUtils.appContext!).find(item => item.date === folderDate)
+    return FolderOperator.getFolderByDate(folderDate)
   }
 }

@@ -8,6 +8,8 @@ import FFmpegThumbnailUtil from '../../utils/FFmpegThumbnailUtil'
 import { picker } from '@kit.CoreFileKit'
 import StrmUtil from '../../utils/StrmUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
+import VideoInfoUtil from '../../utils/VideoInfoUtil'
+import SmbUtil, { SmbPlayback } from '../../utils/SmbUtil'
 import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 
 const TAG = 'AddNetworkStreamDialog'
@@ -17,6 +19,7 @@ export struct AddNetworkStreamDialog {
   controller?: CustomDialogController = undefined
   @State streamName: string = ''
   @State streamUrl: string = ''
+  @State saving: boolean = false
   onStreamAdded?: () => void
 
   build() {
@@ -26,7 +29,7 @@ export struct AddNetworkStreamDialog {
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)
 
-      Text('输入流媒体地址，支持HTTP/HTTPS/RTMP等协议，也可以导入 .strm 文件')
+      Text('支持 HTTP/HTTPS/RTMP 和 SMB 视频地址，也可以导入 .strm 文件。SMB 可使用已保存的账号。')
         .fontSize(12)
         .fontColor($r('app.color.text_color'))
         .opacity(0.6)
@@ -40,7 +43,7 @@ export struct AddNetworkStreamDialog {
         .onChange((input: string) => this.streamName = input)
         .id('input_stream_name')
 
-      TextArea({ placeholder: '流媒体地址，如：https://sweetvideo.com/test.mp4', text: this.streamUrl })
+      TextArea({ placeholder: '例如 https://服务器/video.mp4 或 smb://服务器/共享/video.mkv', text: this.streamUrl })
         .keyboardAppearance(KeyboardAppearance.IMMERSIVE)
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .borderRadius(16)
@@ -58,43 +61,53 @@ export struct AddNetworkStreamDialog {
         () => {
           this.controller?.close()
         },
-        () => {
-          if (!this.streamName.trim() || !this.streamUrl.trim()) {
-            return
-          }
-          const name = this.streamName.trim()
-          const url = this.streamUrl.trim()
-          const date = `stream_${Date.now()}`
-          const streams = Preferences.getNetworkStreams(PathUtils.appContext!)
-          streams.push({
-            uri: url,
-            title: name,
-            date: date,
-            size: [0, 0],
-            time: 0,
-            last_play: 0,
-            format: '',
-            video_size: '',
-            hdr_type: 0,
-            audio_type: 0,
-            frame_rate: 0,
-            start_time: 0,
-            end_time: 0,
-            external_subtitle_format: '',
-            pointA: 0,
-            pointB: 0
-          } as VideoMetadata)
-          Preferences.saveNetworkStreams(PathUtils.appContext!, streams)
-          this.streamName = ''
-          this.streamUrl = ''
-          if (this.onStreamAdded) {
-            this.onStreamAdded()
-          }
-          this.controller?.close()
-          this.fetchThumbnailAndSave(url, date)
-        }
+        () => this.saveStream()
       )
-    }.padding(20)
+    }.padding(20).enabled(!this.saving)
+  }
+
+  private async saveStream(): Promise<void> {
+    if (this.saving || !this.streamUrl.trim()) {
+      return
+    }
+    if (!this.streamName.trim() && !SmbUtil.isSmb(this.streamUrl)) {
+      return
+    }
+    this.saving = true
+    try {
+      const url = await SmbUtil.prepareUri(this.streamUrl)
+      const name = this.streamName.trim() || ToolsUtil.fileNameFromUri(url)
+      const date = `stream_${Date.now()}`
+      const streams = Preferences.getNetworkStreams(PathUtils.appContext!)
+      streams.push({
+        uri: url,
+        title: name,
+        date: date,
+        size: [0, 0],
+        time: 0,
+        last_play: 0,
+        format: SmbUtil.isSmb(url) ? VideoInfoUtil.getExtension(ToolsUtil.fileNameFromUri(url)) : '',
+        video_size: '',
+        hdr_type: 0,
+        audio_type: 0,
+        frame_rate: 0,
+        start_time: 0,
+        end_time: 0,
+        external_subtitle_format: '',
+        pointA: 0,
+        pointB: 0
+      } as VideoMetadata)
+      Preferences.saveNetworkStreams(PathUtils.appContext!, streams)
+      this.streamName = ''
+      this.streamUrl = ''
+      this.onStreamAdded?.()
+      this.controller?.close()
+      this.fetchThumbnailAndSave(url, date)
+    } catch (error) {
+      ToolsUtil.showToast(error instanceof Error ? error.message : '保存串流失败，请重试')
+    } finally {
+      this.saving = false
+    }
   }
 
   private async selectStrmFile(): Promise<void> {
@@ -124,8 +137,9 @@ export struct AddNetworkStreamDialog {
   }
 
   private async fetchThumbnailAndSave(url: string, date: string): Promise<void> {
+    const smb = new SmbPlayback()
     try {
-      const result = await FFmpegThumbnailUtil.extractNetworkCover(url, 300)
+      const result = await FFmpegThumbnailUtil.extractNetworkCover(await smb.resolve(url), 300)
       if (result.success && result.pixelMap) {
         await SelectFileUtil.savePixelMapToFile(PathUtils.coverPath, date, result.pixelMap,
           { releasePixelMap: true })
@@ -134,6 +148,8 @@ export struct AddNetworkStreamDialog {
       }
     } catch (e) {
       salmonLogger.addLog(TAG, `fetchThumbnail failed: ${e}`, false)
+    } finally {
+      smb.close()
     }
   }
 }

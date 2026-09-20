@@ -691,6 +691,26 @@ export struct SideBarContentComponent {
 
             Button({ type: ButtonType.Normal, stateEffect: true }) {
               Row() {
+                SymbolGlyph($r('sys.symbol.folder_badge_ellipsis'))
+                  .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                Text('SMB')
+                  .fontSize(15)
+                  .margin({ left: 10, right: 12 })
+                  .textOverflow({ overflow: TextOverflow.MARQUEE })
+              }
+            }
+            .align(Alignment.Start)
+            .padding({ left: 16, right: 16 })
+            .attributeModifier(new ButtonFancyModifier('100%', 60))
+            .backgroundColor(Color.Transparent)
+            .animation({ duration: 300, curve: Curve.Ease })
+            .onClick(() => {
+              this.sideBarController.closeIfOverlay(false)
+              this.pathStack.pushPathByName(NavigationAddress.SMB_PAGE, null)
+            })
+
+            Button({ type: ButtonType.Normal, stateEffect: true }) {
+              Row() {
                 SymbolGlyph($r('sys.symbol.cloud'))
                   .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
                 Text('华为云盘')

@@ -40,7 +40,6 @@ import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil
 import { ScrollBarBuilder } from '../../component/VideoItemComponent/ScrollBarBuilder'
 import VideoListItem from '../../component/VideoItemComponent/VideoListItemComponent'
 import { VideoListController } from '../../component/VideoItemComponent/VideoItemComponent'
-import { pinyin4js } from '@ohos/pinyin4js'
 import { DeleteType } from '../../common/enum/DeleteType'
 import { SortMenuComponent } from '../../component/common/SortMenuComponent'
 
@@ -70,7 +69,6 @@ export struct PrivacySpace { // 隐私空间页
   @Local failedCount: number = 0 // 失败文件数
   @Local currentStage: 'extracting' | 'cover' | 'saving' = 'extracting' // 当前处理阶段
   @Local searchValue: string = ''
-  private knockFilesMonitorRegistered: boolean = false
   editMetadataDialogController: CustomDialogController = new CustomDialogController({
     builder: RenameDialog({
       title: $r('app.string.rename'),
@@ -107,6 +105,7 @@ export struct PrivacySpace { // 隐私空间页
           frame_rate: original.frame_rate,
           start_time: original.start_time,
           end_time: original.end_time,
+          end_time_is_duration: original.end_time_is_duration,
           external_subtitle_format: original.external_subtitle_format,
           pointA: original.pointA,
           pointB: original.pointB,
@@ -163,17 +162,6 @@ export struct PrivacySpace { // 隐私空间页
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  private pendingDeleteItem: VideoMetadata | null = null
-  deleteConfirmDialog: CustomDialogController = new CustomDialogController({
-    builder: InfoConfirmDialog({
-      textInfo: '确定删除该视频吗？',
-      confirm: () => {
-        if (this.pendingDeleteItem) {
-          this.deleteItem(this.pendingDeleteItem.date, this.pendingDeleteItem.title)
-        }
-      }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
   importSelectDialog: CustomDialogController = new CustomDialogController({
     builder: ImportSelectDialog({
       onImportVideo: async () => {
@@ -187,6 +175,18 @@ export struct PrivacySpace { // 隐私空间页
       onImportMusic: async () => {
         this.isPresent = false
         await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "audio"))
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  private knockFilesMonitorRegistered: boolean = false
+  private pendingDeleteItem: VideoMetadata | null = null
+  deleteConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: InfoConfirmDialog({
+      textInfo: '确定删除该视频吗？',
+      confirm: () => {
+        if (this.pendingDeleteItem) {
+          this.deleteItem(this.pendingDeleteItem.date, this.pendingDeleteItem.title)
+        }
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -208,7 +208,6 @@ export struct PrivacySpace { // 隐私空间页
   }
 
   @Builder
-
   SearchBuilder() {
     Row({ space: 10 }) {
       SearchComponent({
@@ -456,32 +455,6 @@ export struct PrivacySpace { // 隐私空间页
     this.video_meta_data_encryption = this.searchValue.trim()
       ? SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue) : this.allVideos
     this.videoDataSource.updateData(this.video_meta_data_encryption)
-  }
-
-  private registerKnockFilesMonitor(): void {
-    if (this.knockFilesMonitorRegistered) {
-      return
-    }
-    try {
-      UIUtils.addMonitor(this.privacyState, 'receivedFilesVersion', (mon: IMonitor): void => {
-        this.onKnockFilesReceived(mon)
-      })
-      this.knockFilesMonitorRegistered = true
-    } catch (error) {
-      salmonLogger.addLog(TAG, `注册碰一碰文件监听失败: ${error}`, true)
-    }
-  }
-
-  private unregisterKnockFilesMonitor(): void {
-    if (!this.knockFilesMonitorRegistered) {
-      return
-    }
-    this.knockFilesMonitorRegistered = false
-    try {
-      UIUtils.clearMonitor(this.privacyState, 'receivedFilesVersion')
-    } catch (error) {
-      salmonLogger.addLog(TAG, `注销碰一碰文件监听失败: ${error}`, true)
-    }
   }
 
   async aboutToAppear(): Promise<void> {
@@ -987,6 +960,32 @@ export struct PrivacySpace { // 隐私空间页
     }
   }
 
+  private registerKnockFilesMonitor(): void {
+    if (this.knockFilesMonitorRegistered) {
+      return
+    }
+    try {
+      UIUtils.addMonitor(this.privacyState, 'receivedFilesVersion', (mon: IMonitor): void => {
+        this.onKnockFilesReceived(mon)
+      })
+      this.knockFilesMonitorRegistered = true
+    } catch (error) {
+      salmonLogger.addLog(TAG, `注册碰一碰文件监听失败: ${error}`, true)
+    }
+  }
+
+  private unregisterKnockFilesMonitor(): void {
+    if (!this.knockFilesMonitorRegistered) {
+      return
+    }
+    this.knockFilesMonitorRegistered = false
+    try {
+      UIUtils.clearMonitor(this.privacyState, 'receivedFilesVersion')
+    } catch (error) {
+      salmonLogger.addLog(TAG, `注销碰一碰文件监听失败: ${error}`, true)
+    }
+  }
+
   private closeMultipleChoose() {
     XAnimation.runWithAnimation(() => {
       this.multipleChooseState = Visibility.None
@@ -1010,26 +1009,11 @@ export struct PrivacySpace { // 隐私空间页
     ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_success').id))
   }
 
-  private getFirstLetter(title: string): string {
-    if (!title || title.length === 0) {
-      return '#'
-    }
-    const pinyin = pinyin4js.getShortPinyin(title) as string
-    if (pinyin.length === 0) {
-      return '#'
-    }
-    const first = pinyin[0].toUpperCase()
-    if (first >= 'A' && first <= 'Z') {
-      return first
-    }
-    return '#'
-  }
-
   private updateActiveAlphabet(): void {
     const list = this.videoDataSource.getAllData()
     const letterSet = new Set<string>()
     for (const item of list) {
-      letterSet.add(this.getFirstLetter(item.title || ''))
+      letterSet.add(ToolsUtil.getFirstLetter(item.title || ''))
     }
     let alphabet = FULL_ALPHABET.filter(letter => letterSet.has(letter))
     if (!this.currentSortAsc) {
@@ -1041,7 +1025,7 @@ export struct PrivacySpace { // 隐私空间页
   private scrollToLetter(letter: string): void {
     const list = this.videoDataSource.getAllData()
     for (let i = 0; i < list.length; i++) {
-      if (this.getFirstLetter(list[i].title || '') === letter) {
+      if (ToolsUtil.getFirstLetter(list[i].title || '') === letter) {
         const activeScroller = Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY
           ? this.listScroller : this.waterFlowScroller
         activeScroller.scrollToIndex(i)
@@ -1055,7 +1039,7 @@ export struct PrivacySpace { // 隐私空间页
     if (index < 0 || index >= list.length) {
       return
     }
-    const letter = this.getFirstLetter(list[index].title || '')
+    const letter = ToolsUtil.getFirstLetter(list[index].title || '')
     const targetIndex = this.activeAlphabet.indexOf(letter)
     if (targetIndex !== -1 && targetIndex !== this.indexerSelected) {
       this.indexerSelected = targetIndex

@@ -1,5 +1,21 @@
 // Type declarations for libmpvnative native module
 declare module 'libmpvnative.so' {
+  export interface SmbOptions {
+    host: string;
+    share: string;
+    user: string;
+    password: string;
+    domain: string;
+    seal: boolean;
+  }
+  export interface SmbEntry {
+    name: string;
+    size: number;
+    directory: boolean;
+  }
+  export function smbList(options: SmbOptions, path: string): Promise<SmbEntry[]>;
+  export function smbOpen(options: SmbOptions, path: string, token: string): Promise<string>;
+  export function smbClose(url: string): void;
   export interface NativePlayerEvent {
     type: string;
     generation: number;
@@ -98,7 +114,12 @@ declare module 'libmpvnative.so' {
 
   export const play: (playerId: number) => boolean;
 
-  export const setSpeed: (mpvHandle: number, speed: number) => void;
+  export interface PlaybackSpeedResult {
+    success: boolean;
+    speed: number;
+    error: string;
+  }
+  export const setSpeed: (mpvHandle: number, speed: number) => PlaybackSpeedResult;
 
   export const getCurrentPosition: (mpvHandle: number) => number;
 

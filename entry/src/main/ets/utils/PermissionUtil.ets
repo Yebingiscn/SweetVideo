@@ -7,6 +7,7 @@ import json from '@ohos.util.json'
 import fileIo from '@ohos.file.fs'
 import { fileShare } from '@kit.CoreFileKit'
 import { backgroundTaskManager } from '@kit.BackgroundTasksKit'
+import ToolsUtil from './ToolsUtil'
 
 const TAG = 'PermissionUtil'
 
@@ -19,6 +20,11 @@ export default class PermissionUtil {
   static async activatePermission(uri: string | undefined): Promise<boolean> {
     if (!uri) {
       return false
+    }
+    // Network resources are authorized by their own protocol/session. They are
+    // not HarmonyOS local file URIs and must not enter fileIo/fileShare handling.
+    if (ToolsUtil.isNetworkUrl(uri)) {
+      return true
     }
     if (PermissionUtil.permissionCache.has(uri)) {
       return true

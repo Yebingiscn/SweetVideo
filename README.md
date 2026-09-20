@@ -8,8 +8,8 @@
         <a href="https://img.shields.io/badge/OS-HarmonyOS Next-103fb6" style="text-decoration:none" >
             <img src="https://img.shields.io/badge/HarmonyOS-Next-103fb6" alt="HarmonyOS Version"/>
         </a>
-        <a href="https://img.shields.io/badge/API-21-lightgreen" style="text-decoration:none" >
-            <img src="https://img.shields.io/badge/API-21-lightgreen" alt="API Version"/>
+        <a href="https://img.shields.io/badge/API-23-lightgreen" style="text-decoration:none" >
+            <img src="https://img.shields.io/badge/API-23-lightgreen" alt="API Version"/>
         </a>
         <a href="https://img.shields.io/github/stars/Yebingiscn/SweetVideo?style=flat" style="text-decoration:none" >
             <img src="https://img.shields.io/github/stars/Yebingiscn/SweetVideo?style=flat" alt="GitHub all stars"/>
@@ -47,7 +47,6 @@ QQ群：973792610
 - [ ] 播放器移植
 - [ ] WebDAV 支持
 - [ ] Emby 支持
-- [ ] SMB 支持
 - [ ] FTP 支持
 
 ## 简介
@@ -72,17 +71,17 @@ QQ群：973792610
 
 ## 支持的视频 / 音乐格式
 
-| 类型         | 格式列表                                                                                                  |
-|------------|-------------------------------------------------------------------------------------------------------|
-| 视频容器       | `mp4`, `flv`, `mkv`, `ts`, `mov`, `rmvb`, `wmv`, `avi`, `m4v`                                         |
-| 音频编码（音乐格式） | `wav`, `mp3`, `flac`, `m4a`, `ape`, `aac`, `ogg`, `amr`, `aif`, `aiff` , `dts`, `wma`,  `dff`, `av3a` |
+| 类型         | 格式列表                                                                                                      |
+|------------|-----------------------------------------------------------------------------------------------------------|
+| 视频容器       | `mp4`, `flv`, `mkv`, `ts`, `mov`, `rmvb`, `wmv`, `avi`, `m4v`,`iso`,`webm`,`flv`,`ts`,`vob`,`m2ts`,`pmp`' |
+| 音频编码（音乐格式） | `wav`, `mp3`, `flac`, `m4a`, `ape`, `aac`, `ogg`, `amr`, `aif`, `aiff` , `dts`, `wma`,  `dff`, `av3a`     |
 
 ## 支持的字幕格式
 
 | 类型         | 格式列表                 |
 |------------|----------------------|
 | 外挂字幕（标准格式） | `srt`, `vtt`,  `ass` |
-| 内嵌字幕       | mpv 下支持              |  
+| 内嵌字幕       | mpv 下支持或鸿蒙 7 以上      |  
 | AI 字幕      | 需鸿蒙 6 及以上            |
 
 ## 特别鸣谢 && 欢迎参与共建及须知

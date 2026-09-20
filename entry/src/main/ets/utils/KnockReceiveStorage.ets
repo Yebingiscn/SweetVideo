@@ -1,5 +1,6 @@
 import { fileIo, fileUri } from '@kit.CoreFileKit'
 import { salmonLogger } from 'salmonlogger'
+import VideoInfoUtil from './VideoInfoUtil'
 
 const TAG = 'KnockReceiveStorage'
 
@@ -13,9 +14,9 @@ export default class KnockReceiveStorage {
         throw new Error('接收内容不是普通文件')
       }
       const name = sourcePath.substring(sourcePath.lastIndexOf('/') + 1)
-      const dot = name.lastIndexOf('.')
-      const stem = dot > 0 ? name.substring(0, dot) : name
-      const suffix = dot > 0 ? name.substring(dot) : ''
+      const parts = VideoInfoUtil.splitFileName(name)
+      const stem = parts.stem
+      const suffix = parts.ext
       // 独占的临时目录防止并发覆盖；最终移动使用不覆盖模式处理同名竞争。
       const temporaryDirectory = await fileIo.mkdtemp(`${directory}/.knock-XXXXXX`)
       const temporaryPath = `${temporaryDirectory}/received`

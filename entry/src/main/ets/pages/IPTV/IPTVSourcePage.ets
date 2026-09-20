@@ -1,8 +1,6 @@
 import NavigationAddress, { IPTVChannelParams } from '../../common/NavigationCommon'
 import {
-  DefaultDialogShadow,
-  ImageFancyModifier,
-  MenuFancyModifier
+  DefaultDialogShadow, ImageFancyModifier, MenuFancyModifier
 } from '../../common/AttributeModifierConfig'
 import { IPTVSource } from '../../interfaces/IPTVInterface'
 import { IPTVSourceDialog } from '../../component/Dialog/IPTVSourceDialog'
@@ -52,7 +50,6 @@ export struct IPTVSourcePage {
   }
 
   @Builder
-
   SourceMenu(source: IPTVSource) {
     Menu() {
       MenuItem({
@@ -166,7 +163,7 @@ export struct IPTVSourcePage {
               .bindContextMenu(this.SourceMenu(item.item), ResponseType.RightClick,
                 { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
             })
-            .key((item: IPTVSource) => `${item.id}_${item.updatedTime}_${item.lastRefreshStatus}`)
+            .key((item: IPTVSource) => `${item.id}_${item.updatedTime}_${item.lastRefreshStatus}`).virtualScroll()
         }
         .padding({ left: 16, right: 16 })
         .contentEndOffset(SafeHeight.bottomSafeHeight)

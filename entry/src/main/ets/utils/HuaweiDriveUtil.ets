@@ -6,6 +6,7 @@ import {
   HuaweiDriveTokenResponse
 } from '../interfaces/HuaweiDriveInterface'
 import HuaweiDriveSessionStore from './HuaweiDriveSessionStore'
+import VideoInfoUtil from './VideoInfoUtil'
 import { http } from '@kit.NetworkKit'
 
 export class HuaweiDriveError extends Error {
@@ -109,7 +110,7 @@ export default class HuaweiDriveUtil {
     if (file.mimeType.startsWith('video/') || file.mimeType.startsWith('audio/')) {
       return true
     }
-    const extension = HuaweiDriveUtil.getExtension(file.fileName)
+    const extension = VideoInfoUtil.getExtension(file.fileName)
     return ['mp4', 'mkv', 'avi', 'mov', 'webm', 'flv', 'ts', 'm2ts', 'mpg', 'mpeg', 'wmv', 'm4v',
       'mp3', 'flac', 'aac', 'm4a', 'wav', 'ogg', 'opus'].includes(extension)
   }
@@ -270,8 +271,4 @@ export default class HuaweiDriveUtil {
     return value.replace(/'/g, "\\'")
   }
 
-  private static getExtension(fileName: string): string {
-    const index = fileName.lastIndexOf('.')
-    return index >= 0 ? fileName.substring(index + 1).toLowerCase() : ''
-  }
 }

@@ -15,9 +15,7 @@ export struct VideoTopComponent {
   @BuilderParam chapterMenuBuilder: () => void
 
   private get displayTitle(): string {
-    const title = this.player.nowPlaying?.title ?? ''
-    const dotIndex = title.lastIndexOf('.')
-    return dotIndex > 0 ? title.slice(0, dotIndex) : title
+    return VideoInfoUtil.getVideoTitle(this.player.nowPlaying?.title)
   }
 
   @Event onLockRotationClick: () => Promise<void> = async () => {

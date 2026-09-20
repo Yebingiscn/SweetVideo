@@ -7,6 +7,7 @@ import { FileFolder } from '../interfaces/FileFolderInterface'
 import ToolsUtil from './ToolsUtil'
 import { image } from '@kit.ImageKit'
 import PermissionUtil from './PermissionUtil'
+import { DeleteType } from '../common/enum/DeleteType'
 import { VideoSource } from '../common/enum/VideoSource'
 import { salmonLogger } from 'salmonlogger'
 import { SUPPORT_AUDIO_FORMAT, SUPPORT_VIDEO_FORMAT } from '../common/Constants'
@@ -17,8 +18,9 @@ import { Setting } from './ObservedUtil'
 import { PathUtils } from './PathUtils'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
 import RecentPlayUtil from './RecentPlayUtil'
-import SubtitleUtil from './SubtitleUtil'
+
 import { extractVideoFileInfoInTaskPool } from './TaskpoolUtil'
+import VideoOperateUtil from './VideoOperateUtil'
 import { Available, SuppressWarnings, SuppressWarningsType, systemDateTime } from '@kit.BasicServicesKit'
 import { effectKit } from '@kit.ArkGraphics2D'
 import { JSON } from '@kit.ArkTS'
@@ -452,7 +454,7 @@ export default class SelectFileUtil {
     }
     if (options.playTime) {
       const totalDuration = target_data?.time
-      const endTime = target_data?.end_time
+      const endTime = VideoInfoUtil.getEndingPosition(target_data)
       const skipOutroMs = Number(Setting.skipOutroTime) * 1000
       let shouldMarkAsWatched = false
       if (totalDuration && options.playTime > totalDuration * 0.95) {
@@ -485,6 +487,7 @@ export default class SelectFileUtil {
       }
       if (options.endTime) {
         video.end_time = options.endTime
+        video.end_time_is_duration = false
       }
       const hasFallbackVideoSize = VideoInfoUtil.hasVideoTrack(video) &&
         video.size[0] <= 1 && video.size[1] <= 1
@@ -818,8 +821,8 @@ export default class SelectFileUtil {
   }
 
   static async deletePrivacyVideo(date: string, title: string, video_meta_data_encryption: VideoMetadata[]) {
-    await SelectFileUtil.deleteCover(date)
-    await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, date)
+    const item = { uri: PathUtils.videoPath + date, date } as VideoMetadata
+    await VideoOperateUtil.deleteVideoResource(item, DeleteType.SOFT)
     Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, video_meta_data_encryption)
     try {
       await fs.unlink(PathUtils.videoPath + date)
@@ -868,12 +871,8 @@ export default class SelectFileUtil {
       ...SUPPORT_AUDIO_FORMAT
     ].map(ext => ext.toLowerCase()))
     const isMediaFile = (filePath: string): boolean => {
-      const lastDotIndex = filePath.lastIndexOf('.')
-      if (lastDotIndex === -1) {
-        return false
-      }
-      const ext = filePath.slice(lastDotIndex + 1).toLowerCase()
-      return MEDIA_EXTENSIONS.has(ext)
+      const ext = VideoInfoUtil.getExtension(filePath)
+      return ext !== '' && MEDIA_EXTENSIONS.has(ext)
     }
 
     const joinDirectoryPath = (directory: string, entry: string): string => {

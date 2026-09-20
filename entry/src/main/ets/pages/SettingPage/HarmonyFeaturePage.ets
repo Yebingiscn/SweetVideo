@@ -98,7 +98,6 @@ export struct HarmonyFeaturePage {
             }
           }
         }
-
       }
       .align(Alignment.Top)
       .borderRadius(16)

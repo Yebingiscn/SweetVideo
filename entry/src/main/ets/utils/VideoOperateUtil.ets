@@ -10,7 +10,7 @@ import { PathUtils } from './PathUtils'
 import ToolsUtil from './ToolsUtil'
 import { PlayerEngine } from '../common/NavigationCommon'
 import { Setting } from './ObservedUtil'
-import { fileIo } from '@kit.CoreFileKit'
+import { fileIo, fileUri } from '@kit.CoreFileKit'
 import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import { CoverLayoutMode, ListDisplayMode } from '../common/enum/DisplayMode'
@@ -643,7 +643,6 @@ export default class VideoOperateUtil {
 
   static resolvePlayerType(metadata: VideoMetadata, reverse: boolean = false) {
     const defaultPlayer = Preferences.getDefaultPlayerEngine(PathUtils.appContext!)
-    const isAv3a = metadata.title?.toLowerCase().includes('av3a') || metadata.format?.toLowerCase().includes('av3a')
     const titleLower = metadata.title?.toLowerCase() ?? ''
     const formatLower = metadata.format?.toLowerCase() ?? ''
     const isDolbyAudio = VideoOperateUtil.containsDolbyAudioCodec(titleLower) ||
@@ -651,9 +650,6 @@ export default class VideoOperateUtil {
     const hasVideoTrack = VideoInfoUtil.hasVideoTrack(metadata)
     if (!hasVideoTrack) {
       return PlayerEngine.MPV_PLAYER
-    }
-    if (isAv3a) {
-      return PlayerEngine.AV_PLAYER
     }
     if (isDolbyAudio) {
       return PlayerEngine.MPV_PLAYER
@@ -824,29 +820,39 @@ export default class VideoOperateUtil {
     return Math.round(targetOffset)
   }
 
+  static async deleteVideoResource(item: VideoMetadata, deleteType: DeleteType): Promise<void> {
+    if (!item.date) {
+      return
+    }
+    RecentPlayUtil.delData(PathUtils.appContext!, item.uri)
+    await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date)
+    await SelectFileUtil.deleteCover(item.date)
+    if (deleteType === DeleteType.HARD) {
+      try {
+        await fileIo.unlink(item.uri)
+        salmonLogger.addLog(TAG, 'remove file succeed: ' + item.uri)
+      } catch (err) {
+        salmonLogger.addLog(TAG, 'remove file failed: ' + (err as Error).message, true)
+      }
+    } else if (deleteType === DeleteType.RECENT) {
+      if (canIUse('SystemCapability.FileManagement.FileManagerService.Core')) {
+        try {
+          await fileManagerService.deleteToTrash(fileUri.getUriFromPath(item.uri))
+        } catch (error) {
+          salmonLogger.addLog(TAG, "test delete failed, errCode:" + error.code + ", errMessage:" + error.message, true)
+          ToolsUtil.showToast('视频快捷方式已删除，但移动到最近回收失败，原因是：errCode:' + error.code + ", errMessage:" +
+            error.message)
+        }
+      }
+    }
+  }
+
   static async deleteVideoFiles(items: VideoMetadata[], deleteType: DeleteType): Promise<void> {
     for (const item of items) {
-      if (!item.date) {
-        continue
-      }
-      RecentPlayUtil.delData(PathUtils.appContext!, item.uri)
-      await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date)
-      await SelectFileUtil.deleteCover(item.date)
-      if (deleteType === DeleteType.HARD) {
-        try {
-          await fileIo.unlink(item.uri)
-          salmonLogger.addLog('BatchDelete', 'remove file succeed: ' + item.uri)
-        } catch (err) {
-          salmonLogger.addLog('BatchDelete', 'remove file failed: ' + (err as Error).message, true)
-        }
-      } else if (deleteType === DeleteType.RECENT) {
-        try {
-          if (canIUse('SystemCapability.FileManagement.FileManagerService.Core')) {
-            await fileManagerService.deleteToTrash(PathUtils.pathToUri(item.uri))
-          }
-        } catch (error) {
-          salmonLogger.addLog('BatchDelete', 'move to trash failed: ' + (error as Error).message, true)
-        }
+      try {
+        await VideoOperateUtil.deleteVideoResource(item, deleteType)
+      } catch (error) {
+        salmonLogger.addLog('BatchDelete', 'delete video failed: ' + (error as Error).message, true)
       }
     }
   }

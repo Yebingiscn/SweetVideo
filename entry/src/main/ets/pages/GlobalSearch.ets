@@ -79,7 +79,12 @@ export struct GlobalSearch {
             .key((entry: SearchVideoEntry) => entry.video.uri || entry.video.date)
             .virtualScroll()
         }.layoutWeight(1).width('100%').height('100%')
-      }.padding({ left: 16, right: 16, top: 8 }).width('100%').height('100%').alignItems(HorizontalAlign.Start)
+      }
+      .padding({ left: 16, right: 16, top: 8 })
+      .width('100%')
+      .height('100%')
+      .alignItems(HorizontalAlign.Start)
+      .clip(false)
     }
     .titleBar({
       avoidLayoutSafeArea: true,
@@ -150,7 +155,7 @@ export struct GlobalSearch {
     .backgroundImagePosition(Alignment.Center)
     .bindToScrollable([this.listScroller])
     .dynamicHideTitleBar({
-      hideTitleArea: true,
+      hideTitleArea: false,
       hideBottomBuilder: true,
       hideStatusBar: false,
       mode: HideMode.SCROLL_UP

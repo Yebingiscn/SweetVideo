@@ -395,7 +395,9 @@ export default class ToolsUtil {
     if (!uri) {
       return false
     }
-    return /^(https?|rtmps?|rtsp|rtp|udp|srt|hls):\/\//i.test(uri.trim())
+    const trimmed = uri.trim()
+    return /^(https?|rtmps?|rtsp|rtp|udp|srt|hls|smb):\/\//i.test(trimmed) ||
+      /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(trimmed)
   }
 
   static fileNameFromUri(uri: string | undefined): string {

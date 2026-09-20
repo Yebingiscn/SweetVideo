@@ -6,6 +6,7 @@ import { SideBarController } from '../component/SideBarComponent/SideBar'
 import { DeletedVideosDialog } from '../component/Dialog/DeletedVideosDialog'
 import { motion } from '@kit.MultimodalAwarenessKit'
 import { salmonLogger } from 'salmonlogger'
+import { DeleteType } from '../common/enum/DeleteType'
 import { ListDisplayMode } from '../common/enum/DisplayMode'
 import { SortField } from '../common/enum/SortField'
 import { VideoSource } from '../common/enum/VideoSource'
@@ -26,10 +27,7 @@ import { importAndProcessFiles, ProgressInfo } from '../utils/FileProcessorUtil'
 import IntellectualGripPostureUtil from '../utils/IntellectualGripPostureUtil'
 import { Privacy, Setting } from '../utils/ObservedUtil'
 import { PathUtils } from '../utils/PathUtils'
-import PermissionUtil from '../utils/PermissionUtil'
-import RecentPlayUtil from '../utils/RecentPlayUtil'
 import SelectFileUtil from '../utils/SelectFileUtil'
-import SubtitleUtil from '../utils/SubtitleUtil'
 import { checkUriProcess } from '../utils/TaskpoolUtil'
 import ToolsUtil from '../utils/ToolsUtil'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
@@ -54,6 +52,7 @@ import lazy { StreamPage } from './StreamPage/StreamPage'
 import lazy { IPTVSourcePage } from './IPTV/IPTVSourcePage'
 import lazy { IPTVChannelPage } from './IPTV/IPTVChannelPage'
 import lazy { HuaweiDrivePage } from './HuaweiDrive/HuaweiDrivePage'
+import lazy { SmbPage } from './SMB/SmbPage'
 import lazy { HarmonyFeaturePage } from './SettingPage/HarmonyFeaturePage'
 import lazy { PersonalizeSettingPage } from './SettingPage/PersonalizeSettingPage'
 import lazy { EngineSettingPage } from './SettingPage/EngineSettingPage'
@@ -67,6 +66,7 @@ import KnockShareUtil, {
 } from '../utils/KnockShareUtil'
 import KnockReceiveStorage from '../utils/KnockReceiveStorage'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import PermissionUtil from '../utils/PermissionUtil'
 
 const TAG = 'Index'
 
@@ -608,6 +608,8 @@ struct Index {
       StreamPage()
     } else if (name == NavigationAddress.IPTV_SOURCE_PAGE) {
       IPTVSourcePage()
+    } else if (name == NavigationAddress.SMB_PAGE) {
+      SmbPage()
     } else if (name == NavigationAddress.IPTV_CHANNEL_PAGE) {
       IPTVChannelPage()
     } else if (name == NavigationAddress.HUAWEI_DRIVE_PAGE) {
@@ -666,8 +668,7 @@ struct Index {
       folder.video_list.forEach(video => {
         const isExternalDevice = SelectFileUtil.isPathFromSource(video.uri, VideoSource.EXTERNAL_DEVICE)
         const normalizedUri = video.uri.toLowerCase()
-        const isNetworkVideo = ToolsUtil.isNetworkUrl(normalizedUri) ||
-          /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(normalizedUri)
+        const isNetworkVideo = ToolsUtil.isNetworkUrl(normalizedUri)
         if (!isExternalDevice && !isNetworkVideo) {
           videosToCheck.push(video)
         }
@@ -709,11 +710,7 @@ struct Index {
 
     await Promise.all(result.map(async (item: VideoMetadata) => {
       try {
-        await Promise.all([
-          SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date),
-          SelectFileUtil.deleteCover(item.date)
-        ])
-        RecentPlayUtil.delData(PathUtils.appContext!, item.uri)
+        await VideoOperateUtil.deleteVideoResource(item, DeleteType.SOFT)
       } catch (error) {
         salmonLogger.addLog(TAG, `清理视频资源失败: ${item.uri} ` + error, true)
       }
