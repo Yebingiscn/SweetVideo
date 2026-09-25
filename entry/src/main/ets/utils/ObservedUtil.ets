@@ -43,6 +43,9 @@ class SettingUtil {
   public mpvDecodingMethod: MpvDecodingMethod = MpvDecodingMethod.HARDWARE_SURFACE
   public mpvGpuApi: MpvGpuApi = MpvGpuApi.OPENGL
   public mpvSdrToHdr: boolean = false
+  public mpvUsbExclusive: boolean = false
+  public mpvUsbDsdMode: number = 0
+  public mpvUsbDevice: string = ''
   public mpvShaderMode: number = 0
   public superResolutionState: boolean = false
   public smartRotation: boolean = true

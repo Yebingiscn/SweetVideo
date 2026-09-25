@@ -86,8 +86,8 @@ export const SUPPORT_VIDEO_FORMAT: string[] =
   ]
 
 export const SUPPORT_AUDIO_FORMAT: string[] =
-  ['音频|.mp3,.wav,.flac,.dsf,.dsd,.dff,.m4a,.ape,.aac,.ogg,.amr,.aif,.aiff,.dts,.wma,.av3a',
-    'wav', 'mp3', 'flac', 'dsf', 'dsd', 'dff', 'm4a', 'ape', 'aac', 'ogg', 'amr', 'aif', 'aiff', 'dts', 'wma', 'av3a'
+  ['音频|.mp3,.wav,.flac,.dsf,.dsd,.dff,.wv,.m4a,.ape,.aac,.ogg,.amr,.aif,.aiff,.dts,.wma,.av3a',
+    'wav', 'mp3', 'flac', 'dsf', 'dsd', 'dff', 'wv', 'm4a', 'ape', 'aac', 'ogg', 'amr', 'aif', 'aiff', 'dts', 'wma', 'av3a'
   ]
 
 export const SUPPORT_SUBTITLE_FORMAT: string[] = ['字幕|.ass,.srt,.vtt', 'srt', 'vtt', 'ass']

@@ -218,7 +218,7 @@ export default class SmbUtil {
   }
 
   static playable(name: string): boolean {
-    return /\.(mp4|mkv|avi|mov|wmv|flv|ts|m2ts|mts|m4v|webm|mpg|mpeg|rm|rmvb|vob|mp3|flac|wav|aac|m4a|ogg|opus|ape|aiff|aif|wma|dff|dsf|dts|ac3|eac3|av3a)$/i.test(
+    return /\.(mp4|mkv|avi|mov|wmv|flv|ts|m2ts|mts|m4v|webm|mpg|mpeg|rm|rmvb|vob|mp3|flac|wav|aac|m4a|ogg|opus|ape|aiff|aif|wma|dff|dsf|wv|dts|ac3|eac3|av3a)$/i.test(
       name)
   }
 

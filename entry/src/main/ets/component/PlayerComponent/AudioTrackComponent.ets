@@ -233,6 +233,17 @@ export struct AudioTrackComponent {
           })
         })
         .key((item: TrackType, _index: number) => this.getKey(item))
+      if (this.player instanceof MpvController && this.player.usbExclusiveActive) {
+        Row({ space: 12 }) {
+          Text('USB 设备音量').fontColor($r('app.color.text_color'))
+          Button('−').onClick(() => {
+            if (this.player instanceof MpvController) this.player.changeUsbVolume(-5)
+          })
+          Button('+').onClick(() => {
+            if (this.player instanceof MpvController) this.player.changeUsbVolume(5)
+          })
+        }.padding({ top: 12, bottom: 12 })
+      }
       if (this.isCurrentTrackStereo()) {
         AudioChannelComponent({
           onSelect: (mode: number) => {

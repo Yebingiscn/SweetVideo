@@ -1,3 +1,5 @@
+import { UsbAudioSession } from '../../utils/UsbAudioSession'
+import ToolsUtil from '../../utils/ToolsUtil'
 import { SettingsMenuItem } from '../../component/SettingComponent/SettingsMenuItem'
 import { SettingsSegmentButtonItem } from '../../component/SettingComponent/SettingsSegmentButtonItem'
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
@@ -15,6 +17,20 @@ import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 @ComponentV2
 export struct EngineSettingPage {
   private listScroller: Scroller = new Scroller()
+  @Local private usbNames: string[] = ['自动选择唯一设备']
+  private usbIds: string[] = ['']
+
+  aboutToAppear(): void {
+    try {
+      const devices = UsbAudioSession.devices()
+      this.usbIds = [''].concat(devices.map(device => UsbAudioSession.deviceKey(device)))
+      this.usbNames = ['自动选择唯一设备'].concat(devices.map(device => device.productName || device.name))
+    } catch (error) { ToolsUtil.showToast('当前设备不支持 USB 设备查询') }
+  }
+
+  private saveUsb(): void {
+    Preferences.saveMpvUsb(PathUtils.appContext!, Setting.mpvUsbExclusive, Setting.mpvUsbDsdMode, Setting.mpvUsbDevice)
+  }
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   build() {
@@ -44,6 +60,43 @@ export struct EngineSettingPage {
               Preferences.saveMpvDecodingMethod(PathUtils.appContext!, tabSelectedIndex)
             }
           })
+        }
+
+        ListItem() {
+          Column({ space: 4 }) {
+            SettingsToggleItem({
+              symbol: $r('sys.symbol.hardware'), message: 'MPV USB 独占（实验性）',
+              enable: Setting.mpvUsbExclusive,
+              onChange: (checked: boolean) => { Setting.mpvUsbExclusive = checked; this.saveUsb() }
+            })
+            Text('按音源采样率输出，保持整数 PCM / DSD 数据原样。仅支持兼容的单声道或立体声 DAC；不支持时停止音频。关闭变速、音效和响度调整，下次打开媒体生效。')
+              .fontSize(12).fontColor($r('sys.color.font_secondary'))
+              .padding({ left: 16, right: 16, bottom: 12 })
+            SettingsMenuItem({
+              symbol: $r('sys.symbol.hardware'), message: 'USB 音频设备', list: this.usbNames,
+              selected: Math.max(0, this.usbIds.indexOf(Setting.mpvUsbDevice)),
+              onChange: (index: number) => {
+                Setting.mpvUsbDevice = this.usbIds[index]
+                Setting.mpvUsbDsdMode = 0
+                this.saveUsb()
+              }
+            })
+            SettingsMenuItem({
+              symbol: $r('sys.symbol.hardware'), message: 'DSD 输出模式',
+              list: ['关闭', 'DoP', 'Native DSD（实验性）'], selected: Setting.mpvUsbDsdMode,
+              onChange: (index: number) => {
+                if (index > 0 && !Setting.mpvUsbDevice) {
+                  ToolsUtil.showToast('请先选择支持所选 DSD 模式的 USB 设备')
+                  return
+                }
+                Setting.mpvUsbDsdMode = index
+                this.saveUsb()
+              }
+            })
+            Text('支持原始 DSD、DST 和 DSD WavPack 解压后直出。DoP 需 DAC 明确支持；Native 仅限兼容列表中的设备及固件，暂不支持所有 DAC。USB 音量在播放页的音轨面板调节，不改变系统音量；不支持硬件音量的 DAC 请使用设备旋钮。')
+              .fontSize(12).fontColor($r('sys.color.font_secondary'))
+              .padding({ left: 16, right: 16, bottom: 12 })
+          }
         }
 
         ListItem() {

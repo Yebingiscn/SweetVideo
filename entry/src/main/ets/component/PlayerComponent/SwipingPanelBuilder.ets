@@ -1,3 +1,4 @@
+import { UsbAudioSession } from '../../utils/UsbAudioSession'
 import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { AVVolumePanel } from '@kit.AudioKit'
@@ -13,6 +14,7 @@ class SwipingPanelValue {
 
 @Builder
 export function SwipingPanelBuilder(value: SwipingPanelValue) {
+  if (!UsbAudioSession.volumeControl) {
   AVVolumePanel({
     volumeLevel: value.videoVolume,
     volumeParameter: {
@@ -22,6 +24,7 @@ export function SwipingPanelBuilder(value: SwipingPanelValue) {
       }
     }
   }).visibility(Visibility.None)
+  }
 
   if (value.onSwipingVoice || value.onSwipingBrightness) {
     Row() {
@@ -36,6 +39,9 @@ export function SwipingPanelBuilder(value: SwipingPanelValue) {
           .rotate({ angle: value.screenBrightness * 360 })
           .animation({ duration: 300, curve: Curve.Smooth })
       }
+      if (value.onSwipingVoice && UsbAudioSession.volumeControl) {
+        Text('请在音轨面板调节 USB 音量').fontColor('#f0f0f0').fontSize(14)
+      } else {
       Slider({
         value: value.onSwipingVoice ? value.videoVolumeShow : value.screenBrightness,
         min: value.onSwipingVoice ? VideoOperateUtil.minVolume : 0,
@@ -53,6 +59,7 @@ export function SwipingPanelBuilder(value: SwipingPanelValue) {
         .trackThickness(40)
         .selectedBorderRadius(16)
         .padding({ left: 5 })
+      }
     }
     .animation({ duration: 300, curve: Curve.Friction })
     .offset({

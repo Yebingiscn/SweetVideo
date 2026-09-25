@@ -1,3 +1,4 @@
+import { UsbAudioSession } from '../../utils/UsbAudioSession'
 import SmbUtil, { SmbPlayback } from '../../utils/SmbUtil'
 import { media } from '@kit.MediaKit';
 import { PlayerControllerInterface, PlayerEngineSwitchHandler } from '../PlayerControllerFactory';
@@ -268,6 +269,10 @@ export class MpvController implements PlayerControllerInterface {
   private pendingCompletionRequestId: number = 0
   private currentPathStack: NavPathStack | null = null
   private activeHwdecMode: MpvDecodingMethod = MpvDecodingMethod.HARDWARE_SURFACE
+  @Trace usbExclusiveActive: boolean = false
+  private usbDsdMode: number = 0
+  private usbDevice: string = ''
+  private usbSession: UsbAudioSession = new UsbAudioSession()
   private lastFrameFetchTime: number = 0
   private readonly FRAME_FETCH_INTERVAL: number = 200
   private lastFrameFetchPlayTime: number = -1
@@ -451,6 +456,15 @@ export class MpvController implements PlayerControllerInterface {
     this.applyDebugInfoVisibility()
     this.cancelDecodingModeVerification()
     const requiredMode = this.computeDecodeType()
+    if (this.usbExclusiveActive !== Setting.mpvUsbExclusive || this.usbDsdMode !== Setting.mpvUsbDsdMode ||
+      this.usbDevice !== Setting.mpvUsbDevice) {
+      if (this.mpvHandle) this.cleanupMpvInstance()
+      this.usbSession.close()
+      UsbAudioSession.volumeControl = undefined
+    }
+    this.usbExclusiveActive = Setting.mpvUsbExclusive
+    this.usbDsdMode = Setting.mpvUsbDsdMode
+    this.usbDevice = Setting.mpvUsbDevice
     if (this.mpvHandle && !this.engineAdapter.isAlive()) {
       salmonLogger.addLog(TAG, '[MpvController] 核心已关闭，重建后再加载；正常 EOF 继续复用实例', true)
       this.cleanupMpvInstance()
@@ -493,6 +507,8 @@ export class MpvController implements PlayerControllerInterface {
       return
     }
     try {
+      await this.prepareUsbOutput()
+      if (requestGeneration !== this.playRequestGeneration) return
       this.engineAdapter.load(playUrl, startPositionSeconds, initialSubtitleTrackId,
         this.nowPlaying?.network_user_agent, this.nowPlaying?.network_http_headers)
     } catch (error) {
@@ -693,6 +709,9 @@ export class MpvController implements PlayerControllerInterface {
     this.cancelSubscribe()
     if (!this.engineAdapter.isCreated()) {
       await this.engineAdapter.release()
+      this.usbSession.close()
+      UsbAudioSession.volumeControl = undefined
+      this.usbExclusiveActive = false
       this.transitionTo(MpvPlayerState.IDLE)
       return
     }
@@ -700,6 +719,9 @@ export class MpvController implements PlayerControllerInterface {
       this.unregisterNativeCallbacks()
       this.userListener?.off('timeUpdate')
     })
+    this.usbSession.close()
+    UsbAudioSession.volumeControl = undefined
+    this.usbExclusiveActive = false
     this.transitionTo(MpvPlayerState.IDLE)
   }
 
@@ -751,6 +773,10 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   updatePlaybackSpeed(speed: number) {
+    if (this.usbExclusiveActive && speed !== 1) {
+      this.speed = 1
+      ToolsUtil.showToast('USB 原样输出不支持变速'); return
+    }
     const result = mpvSetSpeed(this.mpvHandle, speed)
     if (!result) {
       ToolsUtil.showToast('播放速度更新失败')
@@ -841,6 +867,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   setLoudnessGain(loudnessGain: number) {
+    if (this.usbExclusiveActive) { ToolsUtil.showToast('请调节 USB 设备音量'); return }
     this.volumeLoudnessGain = loudnessGain
     if (this.mpvHandle) {
       mpvSetLoudnessGain(this.mpvHandle, loudnessGain)
@@ -848,6 +875,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   setAudioChannelMode(mode: MpvAudioChannelMode) {
+    if (this.usbExclusiveActive) { ToolsUtil.showToast('USB 原样输出不支持声道处理'); return }
     this.audioChannelMode = mode
     if (this.mpvHandle) {
       mpvSetAudioChannel(this.mpvHandle, mode)
@@ -856,6 +884,7 @@ export class MpvController implements PlayerControllerInterface {
 
   resetAudioChannelMode() {
     this.audioChannelMode = MpvAudioChannelMode.STEREO
+    if (this.usbExclusiveActive) return
     if (this.mpvHandle) {
       mpvSetAudioChannel(this.mpvHandle, MpvAudioChannelMode.STEREO)
     }
@@ -1078,6 +1107,13 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   applyAudioEffect(config: AudioEffectConfig): boolean {
+    if (this.usbExclusiveActive) {
+      if (config.effect !== 'off') {
+        ToolsUtil.showToast('USB 原样输出不支持音效'); return false
+      }
+      this.audioEffectConfig = AudioEffectConfig.copy(config)
+      return true
+    }
     if (config.effect !== 'off' && this.isAudioVividTrack()) {
       throw new Error('Audio Vivid 优先：当前音轨暂不支持叠加声音效果')
     }
@@ -1880,6 +1916,49 @@ export class MpvController implements PlayerControllerInterface {
     return decodeType
   }
 
+  private async prepareUsbOutput(): Promise<void> {
+    if (!this.usbExclusiveActive) return
+    if (this.usbDsdMode > 0 && !this.usbDevice) throw new Error('DSD 直出需要明确选择支持所选模式的 DAC')
+    const probe = mpvCommand(this.mpvHandle, ['set', 'options/usb-exclusive-dsd-mode', this.usbDsdMode === 2 ? 'native' : this.usbDsdMode === 1 ? 'dop' : 'no']) as MpvCommandResult
+    if (!probe?.success) throw new Error('当前 MPV 内核未包含新版 USB / DSD 输出，请更新底层库')
+    const stopped = mpvCommand(this.mpvHandle, ['stop']) as MpvCommandResult
+    if (!stopped?.success) throw new Error('无法停止上一条音频输出')
+    this.usbSession.close()
+    const fd = await this.usbSession.open(this.usbDevice)
+    this.configureUsbOutput(fd)
+  }
+
+  private configureUsbOutput(fd: number): void {
+    if (!this.usbExclusiveActive) return
+    if (fd < 0) throw new Error('USB 设备连接已关闭')
+    const stopResult = mpvCommand(this.mpvHandle, ['stop']) as MpvCommandResult
+    if (!stopResult?.success) throw new Error('无法停止上一条音频输出')
+    const settings: string[][] = [
+      ['usb-exclusive-dop', 'no'],
+      ['usb-exclusive-dsd-mode', this.usbDsdMode === 2 ? 'native' : this.usbDsdMode === 1 ? 'dop' : 'no'],
+      ['usb-exclusive-fd', fd.toString()], ['ao', 'usb-exclusive'], ['audio-spdif', this.usbDsdMode === 2 ? 'native-dsd' : 'dop'],
+      ['speed', '1'], ['pitch', '1'], ['audio-pitch-correction', 'no'], ['audio-samplerate', '0'],
+      ['audio-channels', 'auto'], ['af', ''], ['replaygain', 'no'],
+      ['volume', '100'], ['mute', 'no'], ['audio-normalize-downmix', 'no'],
+      ['video-sync', 'audio'], ['gapless-audio', 'no']
+    ]
+    for (const item of settings) {
+      const result = mpvCommand(this.mpvHandle, ['set', 'options/' + item[0], item[1]]) as MpvCommandResult
+      if (!result?.success) throw new Error('USB 输出设置失败：' + item[0])
+    }
+    this.speed = 1
+    this.volumeLoudnessGain = 0
+    this.audioEffectConfig = new AudioEffectConfig()
+    UsbAudioSession.volumeControl = (delta: number): boolean => this.changeUsbVolume(delta)
+  }
+
+  changeUsbVolume(delta: number): boolean {
+    if (!this.usbExclusiveActive || !this.mpvHandle) return false
+    const result = mpvCommand(this.mpvHandle, ['add', 'ao-volume', delta.toString()]) as MpvCommandResult
+    if (!result?.success) ToolsUtil.showToast('USB 设备未提供可用的硬件音量控制，请使用设备旋钮')
+    return result?.success === true
+  }
+
   private applyDecodeType(): void {
     const decodeType = this.computeDecodeType()
     this.applySuperResolution()
@@ -2368,6 +2447,7 @@ export class MpvController implements PlayerControllerInterface {
         this.registerPlaybackCompleteListener(this.currentPathStack)
       }
       try {
+        this.configureUsbOutput(this.usbSession.descriptor)
         this.engineAdapter.load(reloadUrl, reloadStartSeconds, this.getInitialSubtitleTrackId(),
           savedVideo.network_user_agent, savedVideo.network_http_headers)
       } catch (error) {

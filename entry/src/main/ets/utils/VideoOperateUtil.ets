@@ -379,6 +379,10 @@ export default class VideoOperateUtil {
       'mpv_decoding_method': MpvDecodingMethod.HARDWARE_SURFACE,
       'mpv_gpu_api': MpvGpuApi.OPENGL,
       'mpv_sdr_to_hdr': false,
+      'mpv_usb_exclusive': false,
+      'mpv_usb_dop': false,
+      'mpv_usb_dsd_mode': -1,
+      'mpv_usb_device': '',
       'enableBackgroundDarkImage': false,
       'enableAiPrivacyAntiPeep': false,
       'defaultBrightness': 0,
@@ -441,6 +445,11 @@ export default class VideoOperateUtil {
     Setting.mpvDecodingMethod = valueMap['mpv_decoding_method'] as MpvDecodingMethod
     Setting.mpvGpuApi = valueMap['mpv_gpu_api'] as MpvGpuApi
     Setting.mpvSdrToHdr = valueMap['mpv_sdr_to_hdr'] as boolean
+    Setting.mpvUsbExclusive = valueMap['mpv_usb_exclusive'] as boolean
+    const dsdMode = valueMap['mpv_usb_dsd_mode'] as number
+    Setting.mpvUsbDsdMode = dsdMode === -1 ? (valueMap['mpv_usb_dop'] === true ? 1 : 0) :
+      (dsdMode === 1 || dsdMode === 2 ? dsdMode : 0)
+    Setting.mpvUsbDevice = valueMap['mpv_usb_device'] as string
     Setting.enableBackgroundDarkImage = valueMap['enableBackgroundDarkImage'] as boolean
     Setting.enableAiPrivacyAntiPeep = valueMap['enableAiPrivacyAntiPeep'] as boolean
     Setting.defaultBrightness = valueMap['defaultBrightness'] as number
