@@ -1,3 +1,8 @@
+export interface SmbLogin {
+  user: string
+  domain: string
+}
+
 export interface ParsedSmbAddress {
   host: string
   port: number
@@ -13,6 +18,22 @@ export interface ParsedSmbAddress {
 
 /** Parse SMB addresses without URL's dot-segment or percent-encoding normalization. */
 export default class SmbAddress {
+  static login(user: string, domain: string = ''): SmbLogin {
+    user = user.trim()
+    domain = domain.trim()
+    const separator = user.includes(';') ? user.indexOf(';') : user.indexOf('\\')
+    if (separator >= 0) {
+      const embedded = user.substring(0, separator).trim()
+      user = user.substring(separator + 1).trim()
+      if (!embedded || !user || /[;\\]/.test(user)) throw new Error('域账号格式应为 域\\用户名')
+      if (domain && domain.toLowerCase() !== embedded.toLowerCase()) throw new Error('用户名中的域与域输入框不一致')
+      domain = embedded
+    }
+    if (/[\u0000-\u001f\u007f]/.test(user + domain)) throw new Error('SMB 账号包含控制字符')
+    if (!user && domain) throw new Error('填写域时也需要填写用户名')
+    return { user: user, domain: domain }
+  }
+
   static isSmb(value: string): boolean { return /^smb:\/\//i.test(value.trim()) }
 
   private static decode(value: string): string {
@@ -60,9 +81,9 @@ export default class SmbAddress {
       hasPassword = colon >= 0
       const login = SmbAddress.decode(colon < 0 ? credentials : credentials.substring(0, colon))
       password = colon < 0 ? '' : SmbAddress.decode(credentials.substring(colon + 1))
-      const separator = login.includes(';') ? login.indexOf(';') : login.indexOf('\\')
-      domain = separator < 0 ? '' : login.substring(0, separator)
-      user = separator < 0 ? login : login.substring(separator + 1)
+      const account = SmbAddress.login(login)
+      domain = account.domain
+      user = account.user
     }
     let host = '', portText = ''
     if (authority.startsWith('[')) {

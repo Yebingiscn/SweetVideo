@@ -259,6 +259,22 @@
     {
       "name": "share",
       "value": "Share"
+    },
+    {
+      "name": "privacy_auth_mode_title",
+      "value": "Entry Method"
+    },
+    {
+      "name": "privacy_auth_mode_face",
+      "value": "Face"
+    },
+    {
+      "name": "privacy_auth_mode_fingerprint",
+      "value": "Fingerprint"
+    },
+    {
+      "name": "privacy_auth_mode_password",
+      "value": "Password"
     }
   ]
 }

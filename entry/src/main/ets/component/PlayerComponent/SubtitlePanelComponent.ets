@@ -14,6 +14,8 @@ import { Setting } from '../../utils/ObservedUtil'
 
 @ComponentV2
 export struct SubtitlePanelComponent {
+  @Param importingSubtitle: boolean = false
+  @Event onImportSubtitle: () => void = () => {}
   @Param subtitleManager: SubtitleManager = new SubtitleManager(new AVPlayerController())
   @Local _subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
   @Local innerSubtitleMenu: InnerSubtitleDataSource = new InnerSubtitleDataSource([])
@@ -37,6 +39,10 @@ export struct SubtitlePanelComponent {
 
   build() {
     Menu() {
+      MenuItem({ content: this.importingSubtitle ? '正在导入字幕…' : '导入／替换外挂字幕' })
+        .enabled(!this.importingSubtitle)
+        .onClick(() => this.onImportSubtitle())
+        .menuItemExtend()
       MenuItem({
         content: '关闭字幕'
       })

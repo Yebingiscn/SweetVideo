@@ -261,6 +261,22 @@
       "value": "分享"
     },
     {
+      "name": "privacy_auth_mode_title",
+      "value": "进入方式"
+    },
+    {
+      "name": "privacy_auth_mode_face",
+      "value": "人脸"
+    },
+    {
+      "name": "privacy_auth_mode_fingerprint",
+      "value": "指纹"
+    },
+    {
+      "name": "privacy_auth_mode_password",
+      "value": "密码"
+    },
+    {
       "name": "video_form_name",
       "value": "最近播放"
     },

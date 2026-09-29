@@ -65,6 +65,44 @@ export struct EngineSettingPage {
         ListItem() {
           Column({ space: 4 }) {
             SettingsToggleItem({
+              symbol: $r('sys.symbol.hardware'),
+              message: 'MPV 自动去交错',
+              enable: Setting.mpvAutoDeinterlace,
+              onChange: (checked: boolean) => {
+                Setting.mpvAutoDeinterlace = checked
+                Preferences.saveMpvAutoDeinterlace(PathUtils.appContext!, checked)
+              }
+            })
+            Text('自动处理隔行视频；开启后使用软件解码，功耗可能增加。下次打开视频生效。')
+              .fontSize(12)
+              .fontColor($r('sys.color.font_secondary'))
+              .width('100%')
+              .padding({ left: 16, right: 16, bottom: 12 })
+          }
+        }
+
+        ListItem() {
+          Column({ space: 4 }) {
+            SettingsToggleItem({
+              symbol: $r('sys.symbol.hardware'),
+              message: 'MPV 音频直通（实验性）',
+              enable: Setting.mpvAudioPassthrough,
+              onChange: (checked: boolean) => {
+                Setting.mpvAudioPassthrough = checked
+                Preferences.saveMpvAudioPassthrough(PathUtils.appContext!, checked)
+              }
+            })
+            Text('尝试 E-AC3（48 kHz）直通；不支持、变速或使用音效时采用普通输出。下次打开视频生效。')
+              .fontSize(12)
+              .fontColor($r('sys.color.font_secondary'))
+              .width('100%')
+              .padding({ left: 16, right: 16, bottom: 12 })
+          }
+        }
+
+        ListItem() {
+          Column({ space: 4 }) {
+            SettingsToggleItem({
               symbol: $r('sys.symbol.hardware'), message: 'MPV USB 独占（实验性）',
               enable: Setting.mpvUsbExclusive,
               onChange: (checked: boolean) => { Setting.mpvUsbExclusive = checked; this.saveUsb() }

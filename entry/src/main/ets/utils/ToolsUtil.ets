@@ -41,6 +41,7 @@ export default class ToolsUtil {
   private static cachedPromptAction: PromptAction | null = null
   // 震动设置
   private static vibrationEnabled: boolean = true
+  private static vibrationEffectSupported: boolean | undefined = undefined
 
   static checkVipFeature(): boolean {
     const isVip = Preferences.getUserIsVip(PathUtils.appContext!)
@@ -84,7 +85,7 @@ export default class ToolsUtil {
   }
 
   static startVibration() {
-    if (!ToolsUtil.vibrationEnabled) {
+    if (!ToolsUtil.vibrationEnabled || ToolsUtil.vibrationEffectSupported == false) {
       return
     }
     if (canIUse("SystemCapability.Sensors.MiscDevice")) {
@@ -99,8 +100,11 @@ export default class ToolsUtil {
         if (error) {
           salmonLogger.addLog(TAG, `Failed to start vibration. Code: ${error.code}, message: ${error.message}` + error,
             true)
+          ToolsUtil.vibrationEffectSupported = false
         }
       })
+    } else {
+      ToolsUtil.vibrationEffectSupported = false
     }
   }
 
@@ -130,16 +134,12 @@ export default class ToolsUtil {
     new FolderNameSortItem(folder.date, folder.name || '', index)
     )
     try {
-      const dates = await sortFolderNamesInTaskPool(items, ascending, pinyinSort)
-      const foldersByDate = new Map<string, FileFolder>()
-      list.forEach(folder => foldersByDate.set(folder.date, folder))
-      const sortedFolders: FileFolder[] = []
-      dates.forEach(date => {
-        const folder = foldersByDate.get(date)
-        if (folder) {
-          sortedFolders.push(folder)
-        }
-      })
+      const indices = await sortFolderNamesInTaskPool(items, ascending, pinyinSort)
+      if (indices.length !== list.length || new Set(indices).size !== list.length ||
+        indices.some(index => !Number.isInteger(index) || index < 0 || index >= list.length)) {
+        throw new Error('文件夹排序结果不完整')
+      }
+      const sortedFolders = indices.map(index => list[index])
       return sortedFolders
     } catch (error) {
       salmonLogger.addLog(TAG, `folder name sort task failed: ${error}`, true)

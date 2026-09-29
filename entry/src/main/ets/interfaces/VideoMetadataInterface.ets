@@ -47,6 +47,7 @@ export interface VideoMetadata {
 
 // 保存数据
 export interface SaveOptions {
+  externalSubtitleFormat?: string
   playTime?: number
   size?: number[]
   startTime?: number

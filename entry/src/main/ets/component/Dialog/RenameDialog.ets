@@ -43,6 +43,7 @@ export struct RenameDialog {
         .keyboardAppearance(KeyboardAppearance.IMMERSIVE)
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .borderRadius(16)
+        .height(96)
         .onChange((input: string) => {
           this.name = input
         })

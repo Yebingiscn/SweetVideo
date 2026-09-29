@@ -179,6 +179,7 @@ export class MpvController implements PlayerControllerInterface {
   surfaceId: string | null = null
   osdSurfaceId: string | null = null
   @Trace playTime: number = 0
+  @Trace playbackPositionMs: number = 0
   @Trace playing: boolean = false
   @Trace networkPlaybackActive: boolean = false
   @Trace networkSpeedText: string = '0 KB/s'
@@ -233,6 +234,7 @@ export class MpvController implements PlayerControllerInterface {
   @Trace showControl: boolean = false
   skipHistory: boolean = false
   @Trace pixelMap: PixelMap | null = null
+  @Trace audioCoverUri: string = ''
   avSession: avSessionManager.AVSession | undefined = undefined
   audioVolumeManager: audio.AudioVolumeManager | null = null
   @Trace playerState: MpvPlayerState = MpvPlayerState.IDLE
@@ -269,10 +271,12 @@ export class MpvController implements PlayerControllerInterface {
   private pendingCompletionRequestId: number = 0
   private currentPathStack: NavPathStack | null = null
   private activeHwdecMode: MpvDecodingMethod = MpvDecodingMethod.HARDWARE_SURFACE
+  private activeAutoDeinterlace: boolean = false
   @Trace usbExclusiveActive: boolean = false
   private usbDsdMode: number = 0
   private usbDevice: string = ''
   private usbSession: UsbAudioSession = new UsbAudioSession()
+  private activeAudioPassthrough: boolean = false
   private lastFrameFetchTime: number = 0
   private readonly FRAME_FETCH_INTERVAL: number = 200
   private lastFrameFetchPlayTime: number = -1
@@ -329,6 +333,7 @@ export class MpvController implements PlayerControllerInterface {
     this.transitionTo(MpvPlayerState.LOADING)
     this.playTime = 0
     this.pixelMap = null
+    this.audioCoverUri = ''
     this.isSkippingEnding = false
     this.audioChannelMode = MpvAudioChannelMode.STEREO
     // 更新播放列表数据，确保使用最新的数据
@@ -456,6 +461,7 @@ export class MpvController implements PlayerControllerInterface {
     this.applyDebugInfoVisibility()
     this.cancelDecodingModeVerification()
     const requiredMode = this.computeDecodeType()
+    this.activeAutoDeinterlace = Setting.mpvAutoDeinterlace
     if (this.usbExclusiveActive !== Setting.mpvUsbExclusive || this.usbDsdMode !== Setting.mpvUsbDsdMode ||
       this.usbDevice !== Setting.mpvUsbDevice) {
       if (this.mpvHandle) this.cleanupMpvInstance()
@@ -465,6 +471,7 @@ export class MpvController implements PlayerControllerInterface {
     this.usbExclusiveActive = Setting.mpvUsbExclusive
     this.usbDsdMode = Setting.mpvUsbDsdMode
     this.usbDevice = Setting.mpvUsbDevice
+    this.activeAudioPassthrough = Setting.mpvAudioPassthrough
     if (this.mpvHandle && !this.engineAdapter.isAlive()) {
       salmonLogger.addLog(TAG, '[MpvController] 核心已关闭，重建后再加载；正常 EOF 继续复用实例', true)
       this.cleanupMpvInstance()
@@ -509,6 +516,11 @@ export class MpvController implements PlayerControllerInterface {
     try {
       await this.prepareUsbOutput()
       if (requestGeneration !== this.playRequestGeneration) return
+      this.applyAutoDeinterlace()
+      if (!this.applyAudioPassthrough(this.speed, this.audioEffectConfig.effect)) {
+        throw new Error('设置音频输出模式失败')
+      }
+      this.applyAudioCoverMode()
       this.engineAdapter.load(playUrl, startPositionSeconds, initialSubtitleTrackId,
         this.nowPlaying?.network_user_agent, this.nowPlaying?.network_http_headers)
     } catch (error) {
@@ -777,12 +789,18 @@ export class MpvController implements PlayerControllerInterface {
       this.speed = 1
       ToolsUtil.showToast('USB 原样输出不支持变速'); return
     }
+    if (!this.applyAudioPassthrough(speed === 1 ? this.speed : speed, this.audioEffectConfig.effect)) {
+      ToolsUtil.showToast('音频输出切换失败，已保持原速度')
+      return
+    }
     const result = mpvSetSpeed(this.mpvHandle, speed)
     if (!result) {
+      this.applyAudioPassthrough(this.speed, this.audioEffectConfig.effect)
       ToolsUtil.showToast('播放速度更新失败')
       return
     }
     this.speed = result.speed
+    this.applyAudioPassthrough(this.speed, this.audioEffectConfig.effect)
     if (!result.success) ToolsUtil.showToast(result.error || '系统未接受该播放速度，已保持原速度')
     AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode, this.speed)
   }
@@ -1121,6 +1139,12 @@ export class MpvController implements PlayerControllerInterface {
       return false
     }
 
+    // Disable compressed output before installing PCM effects. If effect setup
+    // fails, remaining on PCM is preferable to processing compressed samples.
+    if (!this.applyAudioPassthrough(this.speed, config.effect === 'off' ? this.audioEffectConfig.effect : config.effect)) {
+      return false
+    }
+
     const options: AudioEffectOption[] = [
       new AudioEffectOption('ohaudio-suite-eq-preset', config.eqPreset),
       new AudioEffectOption('ohaudio-suite-eq-31', config.eqGains[0].toFixed(0)),
@@ -1173,6 +1197,7 @@ export class MpvController implements PlayerControllerInterface {
     }
 
     this.audioEffectConfig = AudioEffectConfig.copy(config)
+    this.applyAudioPassthrough(this.speed, config.effect)
     salmonLogger.addLog(TAG, `已应用 AudioSuite 声音效果: ${config.effect}`, false)
     return true
   }
@@ -1800,7 +1825,7 @@ export class MpvController implements PlayerControllerInterface {
     // Create the transparent OSD Surface before synchronous native metadata
     // queries. On 4K files getAudioTracks alone can occupy the ArkUI thread
     // for hundreds of milliseconds and used to delay both rotation and OSD.
-    if (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE && !this.osdVisibility) {
+    if (this.activeHwdecMode === MpvDecodingMethod.HARDWARE_SURFACE && !this.osdVisibility) {
       this.osdVisibility = true
     }
     if (!this.initialStartHandledByLoad) {
@@ -1910,10 +1935,40 @@ export class MpvController implements PlayerControllerInterface {
 
   private computeDecodeType(): MpvDecodingMethod {
     let decodeType = Setting.mpvDecodingMethod
-    if (this.nowPlaying && !VideoInfoUtil.hasVideoTrack(this.nowPlaying)) {
-      decodeType = MpvDecodingMethod.HARDWARE_BUFFER
+    if (this.nowPlaying && VideoInfoUtil.hasVideoTrack(this.nowPlaying) && Setting.mpvAutoDeinterlace) {
+      // OHCodec Surface/GPU frames cannot reliably reach the software bwdif filter.
+      // Keep the user's decoder preference intact for when this option is disabled.
+      decodeType = MpvDecodingMethod.SOFTWARE
     }
     return decodeType
+  }
+
+  private applyAutoDeinterlace(): void {
+    if (!this.mpvHandle) {
+      throw new Error('MPV core is not created')
+    }
+    // Apply on every load, including reused instances and fallback recreation.
+    const mode = this.activeAutoDeinterlace ? 'auto' : 'no'
+    const result = mpvCommand(this.mpvHandle, ['set', 'options/deinterlace', mode]) as MpvCommandResult
+    if (!result || !result.success) {
+      throw new Error(`设置自动去交错失败: ${result?.error ?? 'unknown error'}`)
+    }
+  }
+
+  private applyAudioCoverMode(): void {
+    if (!this.mpvHandle) {
+      throw new Error('MPV core is not created')
+    }
+    const coverUri = VideoInfoUtil.getCachedAudioCoverUri(this.nowPlaying)
+    const result = mpvCommand(this.mpvHandle,
+      ['set', 'options/audio-display', coverUri ? 'no' : 'embedded-first']) as MpvCommandResult
+    if (!result?.success) {
+      salmonLogger.addLog(TAG, `设置音频封面显示模式失败: ${result?.error ?? result?.code ?? 'unknown'}`, true)
+    }
+    this.audioCoverUri = coverUri
+    if (coverUri) {
+      salmonLogger.addLog(TAG, '音频使用本地缩略图封面，已关闭 MPV 内嵌封面渲染', false)
+    }
   }
 
   private async prepareUsbOutput(): Promise<void> {
@@ -1959,15 +2014,33 @@ export class MpvController implements PlayerControllerInterface {
     return result?.success === true
   }
 
+  private applyAudioPassthrough(speed: number, effect: string): boolean {
+    if (!this.mpvHandle || !this.engineAdapter.isAlive()) return false
+    if (this.usbExclusiveActive) return true
+    let enabled = this.activeAudioPassthrough && speed === 1 && effect === 'off'
+    if (enabled) {
+      // Older bundled cores do not have the dedicated compressed AO. Never
+      // enable audio-spdif unless the backend's explicit opt-in is accepted.
+      const probe = mpvCommand(this.mpvHandle,
+        ['set', 'options/ohaudio-eac3-enabled', 'yes']) as MpvCommandResult
+      if (!probe?.success) {
+        enabled = false
+        salmonLogger.addLog(TAG, '当前 MPV 内核未提供 E-AC3 直通后端，使用普通音频输出', false)
+      }
+    }
+    const result = mpvCommand(this.mpvHandle,
+      ['set', 'options/audio-spdif', enabled ? 'eac3' : '']) as MpvCommandResult
+    if (!result?.success) {
+      salmonLogger.addLog(TAG, '设置音频直通失败，错误码：' + result?.code, true)
+    }
+    return result?.success === true
+  }
+
   private applyDecodeType(): void {
     const decodeType = this.computeDecodeType()
     this.applySuperResolution()
     mpvSetGpuApi(Setting.mpvGpuApi)
     this.applySdrToHdr(decodeType)
-    if (decodeType === MpvDecodingMethod.HARDWARE_BUFFER &&
-      this.nowPlaying && !VideoInfoUtil.hasVideoTrack(this.nowPlaying)) {
-      salmonLogger.addLog(TAG, '[MpvPlayer] Audio-only media detected, using Buffer hardware decode mode')
-    }
     switch (decodeType) {
       case MpvDecodingMethod.HARDWARE_SURFACE:
         mpvSetDecodeType(0)
@@ -1996,6 +2069,7 @@ export class MpvController implements PlayerControllerInterface {
         if (!this.engineAdapter.isMediaLoaded()) {
           return
         }
+        this.playbackPositionMs = timeMs
         const generation = this.postLoadTaskGeneration
         if (!this.onSwiping) {
           ThrottleUtil.throttle('playTime', () => {
@@ -2377,6 +2451,9 @@ export class MpvController implements PlayerControllerInterface {
     wasPlaying?: boolean,
     currentVideo?: VideoMetadata
   ) {
+    if (this.activeAutoDeinterlace) {
+      targetMode = 'buffer_sw'
+    }
     if (this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
       salmonLogger.addLog(TAG, '[MpvController] Instance released, aborting decoding mode switch', true)
       return
@@ -2448,6 +2525,11 @@ export class MpvController implements PlayerControllerInterface {
       }
       try {
         this.configureUsbOutput(this.usbSession.descriptor)
+        this.applyAutoDeinterlace()
+        if (!this.applyAudioPassthrough(this.speed, this.audioEffectConfig.effect)) {
+          throw new Error('设置音频输出模式失败')
+        }
+        this.applyAudioCoverMode()
         this.engineAdapter.load(reloadUrl, reloadStartSeconds, this.getInitialSubtitleTrackId(),
           savedVideo.network_user_agent, savedVideo.network_http_headers)
       } catch (error) {
@@ -2797,7 +2879,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   private checkDolbyVisionAndSwitch() {
-    if (!this.mpvHandle) {
+    if (!this.mpvHandle || this.activeAutoDeinterlace) {
       return
     }
     try {

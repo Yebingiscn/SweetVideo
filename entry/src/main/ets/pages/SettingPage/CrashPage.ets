@@ -15,7 +15,7 @@ import {
   SegmentButtonV2ItemOptions,
   SegmentButtonV2Items
 } from '@kit.ArkUI'
-import { deviceInfo } from '@kit.BasicServicesKit'
+import { deviceInfo, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
 const TAG = 'CrashPage'
 
@@ -45,6 +45,7 @@ export struct CrashPage {
     AppStorage.setOrCreate('crashLog', [])
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   build() {
     HdsNavDestination() {
       Column() {
@@ -230,7 +231,7 @@ export struct CrashPage {
           .onClick(async () => {
             let logText = ''
             if (this.appEventGroups.length > 0) {
-              logText += '=== 崩溃日志 ===\n' + JSON.stringify(this.appEventGroups) + '\n\n'
+              logText += '=== 系统事件（含崩溃、卡死及进程回收） ===\n' + JSON.stringify(this.appEventGroups) + '\n\n'
             }
             logText += '=== 运行日志 ===\n' + JSON.stringify(salmonLogger.logs)
             await this.shareText(logText)
@@ -351,7 +352,7 @@ export struct CrashPage {
         const context = PathUtils.appContext
         const tempDir = PathUtils.tempPath
         const timestamp = new Date().getTime()
-        const fileName = `crash_log_${timestamp}.txt`
+        const fileName = `sweet_video_log_${timestamp}.txt`
         const filePath = `${tempDir}/${fileName}`
         salmonLogger.addLog(this.pathStack.getAllPathName()[0], '开始写入日志文件: ' + filePath, false)
         const file =
@@ -387,7 +388,7 @@ export struct CrashPage {
 
   private initSegmentItems() {
     const tips: ResourceStr[] = this.appEventGroups.length > 0
-      ? ['运行日志', '崩溃日志']
+      ? ['运行日志', '系统事件']
       : ['运行日志']
     const buttonItems: SegmentButtonV2ItemOptions[] = tips.map((tip: ResourceStr) =>
     ({ text: tip } as SegmentButtonV2ItemOptions)

@@ -15,6 +15,10 @@ import ToolsUtil from './ToolsUtil'
 
 const TAG = 'SmbUtil'
 
+interface SmbNativeError extends Error {
+  smbDiagnostic?: string
+}
+
 export default class SmbUtil {
   static editingServer: SmbServer | undefined = undefined
   private static subtitleTasks: Map<string, Promise<void>> = new Map()
@@ -35,7 +39,7 @@ export default class SmbUtil {
     try {
       const values = await asset.query(query)
       if (values.length === 0) {
-        return ''
+        throw new Error('SMB 凭据不存在')
       }
       const bytes = values[0].get(asset.Tag.SECRET) as Uint8Array
       // JSON wrapping also represents an intentionally empty guest password.
@@ -46,6 +50,8 @@ export default class SmbUtil {
   }
 
   static async save(server: SmbServer, password: string): Promise<void> {
+    // Validate before updating stored credentials, including imported addresses.
+    SmbUtil.options(server, password)
     const attributes: asset.AssetMap = new Map()
     attributes.set(asset.Tag.ALIAS, SmbUtil.alias(server.id))
     attributes.set(asset.Tag.SECRET, new util.TextEncoder().encodeInto(JSON.stringify(password)))
@@ -55,6 +61,7 @@ export default class SmbUtil {
       await asset.add(attributes)
     } catch (error) {
       salmonLogger.addLog(TAG, 'save error', true)
+      throw new Error('无法保存 SMB 密码，请重试；连接配置未保存')
     }
     const servers = SmbUtil.servers().filter((item: SmbServer) => item.id !== server.id)
     servers.push(server)
@@ -73,13 +80,15 @@ export default class SmbUtil {
   }
 
   static options(server: SmbServer, password: string): SmbOptions {
+    const login = SmbAddress.login(server.user, server.domain)
+    if (!login.user && password) throw new Error('填写密码时也需要填写用户名')
     const host = server.host.includes(':') && !server.host.startsWith('[') ? `[${server.host}]` : server.host
     return {
-      host: `${host}:${server.port}`,
+      host: server.port === 445 ? host : `${host}:${server.port}`,
       share: server.share,
-      user: server.user,
+      user: login.user,
       password: password,
-      domain: server.domain,
+      domain: login.domain,
       seal: server.seal
     }
   }
@@ -98,6 +107,7 @@ export default class SmbUtil {
       })
     } catch (error) {
       salmonLogger.addLog(TAG, `[SMB] 列目录失败 path=${path}: ${error}`, true)
+      SmbUtil.logDiagnostic(error as SmbNativeError)
       throw error instanceof Error ? error : new Error(String(error))
     }
   }
@@ -213,6 +223,7 @@ export default class SmbUtil {
       return url
     } catch (error) {
       salmonLogger.addLog(TAG, `[SMB] 文件打开失败 path=${path}: ${error}`, true)
+      SmbUtil.logDiagnostic(error as SmbNativeError)
       throw error instanceof Error ? error : new Error(String(error))
     }
   }
@@ -220,6 +231,12 @@ export default class SmbUtil {
   static playable(name: string): boolean {
     return /\.(mp4|mkv|avi|mov|wmv|flv|ts|m2ts|mts|m4v|webm|mpg|mpeg|rm|rmvb|vob|mp3|flac|wav|aac|m4a|ogg|opus|ape|aiff|aif|wma|dff|dsf|wv|dts|ac3|eac3|av3a)$/i.test(
       name)
+  }
+
+  private static logDiagnostic(error: SmbNativeError): void {
+    if (error?.smbDiagnostic) {
+      salmonLogger.addLog(TAG, `[SMB] ${error.smbDiagnostic}`, true)
+    }
   }
 
   static async cacheSubtitle(item: VideoMetadata): Promise<void> {
@@ -246,6 +263,7 @@ export default class SmbUtil {
       await store.flush()
     } catch (error) {
       salmonLogger.addLog(TAG, 'writeServers erro', true)
+      throw new Error('无法保存 SMB 连接配置，请重试')
     }
 
   }
@@ -390,12 +408,12 @@ export class SmbPlayback {
       return source
     }
     const version = this.version
-    salmonLogger.addLog(TAG, `[SMB] 准备播放 source=${source}`)
+    salmonLogger.addLog(TAG, '[SMB] 准备播放')
     let url: string
     try {
       url = await SmbUtil.open(source)
     } catch (error) {
-      salmonLogger.addLog(TAG, `[SMB] 播放打开失败 source=${source}: ${error}`, true)
+      salmonLogger.addLog(TAG, `[SMB] 播放打开失败: ${error}`, true)
       throw error instanceof Error ? error : new Error(String(error))
     }
     if (version !== this.version) {

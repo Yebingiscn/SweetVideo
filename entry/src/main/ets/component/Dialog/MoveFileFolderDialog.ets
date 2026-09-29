@@ -1,3 +1,4 @@
+import FolderHierarchy from '../../utils/FolderHierarchy'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
 import FileFolderUtil from '../../utils/FileFolderUtil'
 import { PathUtils } from '../../utils/PathUtils'
@@ -109,15 +110,6 @@ export struct MoveFileFolderDialog {
   }
 
   private isDescendant(folderDate: string, checkDate: string, folders: FileFolder[]): boolean {
-    const children = folders.filter(f => f.parent_date === folderDate)
-    for (const child of children) {
-      if (child.date === checkDate) {
-        return true
-      }
-      if (this.isDescendant(child.date, checkDate, folders)) {
-        return true
-      }
-    }
-    return false
+    return FolderHierarchy.descendants(folders, folderDate).has(checkDate)
   }
 }

@@ -8,7 +8,7 @@ const EFFECT_VALUES: string[] = [
   'pure-voice-change', 'general-voice-change', 'tempo-pitch', 'hoa-space-render'
 ]
 const EFFECT_LABELS: string[] = [
-  '关闭', '音效预设', '均衡器', '降噪', '声场', '音源分离',
+  '关闭', '音效预设', '均衡器', '降噪', '声场', '伴唱',
   '声音美化', '环境音效', '混音', '空间渲染',
   '传统变声', '通用变声', '变速变调', 'HOA 空间渲染'
 ]
@@ -140,50 +140,32 @@ struct TabSelector {
   }
 
   build() {
-    Scroll() {
-      Row({ space: 6 }) {
-        Repeat<string>(this.labels)
-          .each((repeatItem: RepeatItem<string>) => {
-            Row() {
-              Text(repeatItem.item)
-                .fontSize(13)
-                .fontWeight(this.values[repeatItem.index] === this.current ? FontWeight.Bold : FontWeight.Medium)
-                .fontColor(this.values[repeatItem.index] === this.current ? Color.White : $r('app.color.text_color'))
-                .maxLines(1)
-            }
-            .padding(5)
-            .backgroundColor(this.values[repeatItem.index] === this.current ? $r('app.color.main_color') :
-              $r('app.color.search_component_blur'))
-            .height(28)
-            .constraintSize({ minWidth: 55, maxWidth: 120 })
-            .borderRadius(16)
-            .justifyContent(FlexAlign.Center)
-            .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-            .onClick(() => {
-              this.onSelect(this.values[repeatItem.index])
-            })
+    Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start, alignContent: FlexAlign.Start }) {
+      Repeat<string>(this.labels)
+        .each((repeatItem: RepeatItem<string>) => {
+          Row() {
+            Text(repeatItem.item)
+              .fontSize(13)
+              .fontWeight(this.values[repeatItem.index] === this.current ? FontWeight.Bold : FontWeight.Medium)
+              .fontColor(this.values[repeatItem.index] === this.current ? Color.White : $r('app.color.text_color'))
+              .maxLines(1)
+          }
+          .padding(5)
+          .margin({ right: 6, bottom: 6 })
+          .backgroundColor(this.values[repeatItem.index] === this.current ? $r('app.color.main_color') :
+            $r('app.color.search_component_blur'))
+          .height(28)
+          .constraintSize({ minWidth: 55, maxWidth: 120 })
+          .borderRadius(16)
+          .justifyContent(FlexAlign.Center)
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+          .onClick(() => {
+            this.onSelect(this.values[repeatItem.index])
           })
-          .key((item: string, index: number) => `${index}_${item}`)
-      }
-    }
-    .scrollBar(BarState.Off)
-    .scrollable(ScrollDirection.Horizontal)
-    .edgeEffect(EdgeEffect.Spring)
-  }
-}
-
-@Component
-struct ParamCardComponent {
-  @BuilderParam content: () => void
-
-  build() {
-    Column({ space: 8 }) {
-      this.content()
+        })
+        .key((item: string, index: number) => `${index}_${item}`)
     }
     .width('100%')
-    .padding(12)
-    .borderRadius(16)
-    .backgroundColor($r('sys.color.titlebar_icon_background_color'))
   }
 }
 
@@ -296,7 +278,7 @@ export struct AudioEffectDialog {
       Scroll() {
         Column({ space: 10 }) {
           if (this.effect === 'equalizer') {
-            ParamCardComponent() {
+            Column({ space: 8 }) {
               TabSelector({
                 labels: EQ_LABELS,
                 values: EQ_VALUES,
@@ -307,26 +289,50 @@ export struct AudioEffectDialog {
                 }
               })
               if (this.eqPreset === 'custom') {
-                Repeat<string>(EQ_FREQ_LABELS)
-                  .each((repeatItem: RepeatItem<string>) => {
-                    ValueSliderComponent({
-                      title: repeatItem.item,
-                      value: this.eqGains[repeatItem.index],
-                      min: -10,
-                      max: 10,
-                      step: 1,
-                      decimals: 0,
-                      onChange: (nextValue: number): void => {
-                        this.updateEqGain(repeatItem.index, nextValue)
-                        this.applyCurrentConfig()
+                Row({ space: 4 }) {
+                  Repeat<string>(EQ_FREQ_LABELS)
+                    .each((repeatItem: RepeatItem<string>) => {
+                      Column({ space: 4 }) {
+                        Text(`${this.eqGains[repeatItem.index]}`)
+                          .fontSize(11)
+                          .fontColor('#909399')
+                          .height(16)
+                        Slider({
+                          value: this.eqGains[repeatItem.index],
+                          min: -10,
+                          max: 10,
+                          step: 1,
+                          style: SliderStyle.OutSet,
+                          direction: Axis.Vertical
+                        })
+                          .selectedColor($r('app.color.main_color'))
+                          .height(120)
+                          .width(24)
+                          .enableHapticFeedback(true)
+                          .onChange((nextValue: number) => {
+                            this.updateEqGain(repeatItem.index, nextValue)
+                            this.applyCurrentConfig()
+                          })
+                        Text(repeatItem.item)
+                          .fontSize(10)
+                          .fontColor($r('app.color.text_color'))
+                          .height(16)
                       }
+                      .justifyContent(FlexAlign.Center)
+                      .alignItems(HorizontalAlign.Center)
                     })
-                  })
-                  .key((item: string, index: number) => `${index}_${item}`)
+                    .key((item: string, index: number) => `${index}_${item}`)
+                }
+                .width('100%')
+                .justifyContent(FlexAlign.SpaceAround)
               }
             }
+            .width('100%')
+            .padding(12)
+            .borderRadius(16)
+            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           } else if (this.effect === 'sound-field') {
-            ParamCardComponent() {
+            Column({ space: 8 }) {
               TabSelector({
                 labels: SOUND_FIELD_LABELS,
                 values: SOUND_FIELD_VALUES,
@@ -337,8 +343,12 @@ export struct AudioEffectDialog {
                 }
               })
             }
+            .width('100%')
+            .padding(12)
+            .borderRadius(16)
+            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           } else if (this.effect === 'audio-separation') {
-            ParamCardComponent() {
+            Column({ space: 8 }) {
               TabSelector({
                 labels: SEPARATION_LABELS,
                 values: SEPARATION_VALUES,
@@ -350,8 +360,12 @@ export struct AudioEffectDialog {
               })
               this.HintText('音源分离依赖设备 NPU 能力；不支持时会自动关闭效果。')
             }
+            .width('100%')
+            .padding(12)
+            .borderRadius(16)
+            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           } else if (this.effect === 'voice-beautifier') {
-            ParamCardComponent() {
+            Column({ space: 8 }) {
               TabSelector({
                 labels: BEAUTIFIER_LABELS,
                 values: BEAUTIFIER_VALUES,
@@ -362,8 +376,12 @@ export struct AudioEffectDialog {
                 }
               })
             }
+            .width('100%')
+            .padding(12)
+            .borderRadius(16)
+            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           } else if (this.effect === 'environment') {
-            ParamCardComponent() {
+            Column({ space: 8 }) {
               TabSelector({
                 labels: ENVIRONMENT_LABELS,
                 values: ENVIRONMENT_VALUES,
@@ -374,8 +392,12 @@ export struct AudioEffectDialog {
                 }
               })
             }
+            .width('100%')
+            .padding(12)
+            .borderRadius(16)
+            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           } else if (this.effect === 'space-render') {
-            ParamCardComponent() {
+            Column({ space: 8 }) {
               TabSelector({
                 labels: SPACE_MODE_LABELS,
                 values: SPACE_MODE_VALUES,
@@ -472,8 +494,12 @@ export struct AudioEffectDialog {
                 })
               }
             }
+            .width('100%')
+            .padding(12)
+            .borderRadius(16)
+            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           } else if (this.effect === 'pure-voice-change') {
-            ParamCardComponent() {
+            Column({ space: 8 }) {
               TabSelector({
                 labels: PURE_GENDER_LABELS,
                 values: PURE_GENDER_VALUES,
@@ -505,8 +531,12 @@ export struct AudioEffectDialog {
                 }
               })
             }
+            .width('100%')
+            .padding(12)
+            .borderRadius(16)
+            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           } else if (this.effect === 'general-voice-change') {
-            ParamCardComponent() {
+            Column({ space: 8 }) {
               TabSelector({
                 labels: GENERAL_LABELS,
                 values: GENERAL_VALUES,
@@ -517,8 +547,12 @@ export struct AudioEffectDialog {
                 }
               })
             }
+            .width('100%')
+            .padding(12)
+            .borderRadius(16)
+            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           } else if (this.effect === 'tempo-pitch') {
-            ParamCardComponent() {
+            Column({ space: 8 }) {
               if (!this.systemPlayer) {
                 ValueSliderComponent({
                   title: '速度',
@@ -548,8 +582,12 @@ export struct AudioEffectDialog {
               this.HintText(this.systemPlayer ? '变调仅支持单声道音轨；视频变速请使用播放器倍速。' :
                 '改变速度会改变音频时长，不建议用于需要保持音画同步的视频。')
             }
+            .width('100%')
+            .padding(12)
+            .borderRadius(16)
+            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           } else if (this.effect === 'hoa-space-render') {
-            ParamCardComponent() {
+            Column({ space: 8 }) {
               TabSelector({
                 labels: HOA_LABELS,
                 values: HOA_VALUES,
@@ -561,22 +599,38 @@ export struct AudioEffectDialog {
               })
               this.HintText('要求鸿蒙 7及以上，且音频通道顺序必须与所选 HOA 布局一致。')
             }
+            .width('100%')
+            .padding(12)
+            .borderRadius(16)
+            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           } else if (this.effect === 'noise-reduction') {
-            ParamCardComponent() {
+            Column({ space: 8 }) {
               this.HintText(this.systemPlayer ? '仅支持单声道音轨；处理后恢复原采样率，不会把立体声降为单声道。' :
                 '降噪会将处理格式调整为 16kHz 单声道。')
             }
+            .width('100%')
+            .padding(12)
+            .borderRadius(16)
+            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           } else if (this.effect === 'audio-mixer') {
-            ParamCardComponent() {
+            Column({ space: 8 }) {
               this.HintText('mpv 当前提供单路解码音频，此模式作为 AudioSuite 混音管线直通。')
             }
+            .width('100%')
+            .padding(12)
+            .borderRadius(16)
+            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           } else if (this.effect === 'off') {
-            ParamCardComponent() {
+            Column({ space: 8 }) {
               this.HintText(this.systemPlayer ? '使用系统播放器原声，不进行 AudioSuite 处理。' :
                 '使用普通 OHAudio 输出，不进行 AudioSuite 处理。')
             }
+            .width('100%')
+            .padding(12)
+            .borderRadius(16)
+            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           } else if (this.effect === 'preset') {
-            ParamCardComponent() {
+            Column({ space: 8 }) {
               TabSelector({
                 labels: PRESET_LABELS,
                 values: PRESET_VALUES,
@@ -590,6 +644,10 @@ export struct AudioEffectDialog {
               })
               this.HintText('选择预设即可快速应用，切换到对应效果可进一步微调参数。')
             }
+            .width('100%')
+            .padding(12)
+            .borderRadius(16)
+            .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           }
         }
         .width('100%')
@@ -705,7 +763,7 @@ export struct AudioEffectDialog {
 
   private async applyConfig(config: AudioEffectConfig, version: number): Promise<void> {
     try {
-      const applied = await this.onApply?.(config, true)
+      const applied = this.onApply ? await this.onApply(config, true) : false
       if (version === this.applyVersion) {
         this.applyStatus = applied ? '' : '应用失败，保留原设置'
         if (!applied) {

@@ -20,6 +20,8 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import AccountUtil from '../utils/AccountUtil'
 import { XAnimation } from '../utils/AnimationUtil'
 import BiometricAccessUtil from '../utils/BiometricAccessUtil'
+import { PrivacyAuthMode } from '../common/enum/PrivacyAuthMode'
+import { userAuth } from '@kit.UserAuthenticationKit'
 import DataSyncUtil from '../utils/DataSyncUtil'
 import HomeSidebarLayout from '../utils/HomeSidebarLayout'
 import FileFolderUtil from '../utils/FileFolderUtil'
@@ -373,19 +375,22 @@ struct Index {
                 return
               }
               if (scaleValue > 1.5) {
-                if (BiometricAccessUtil.checkUserAuthSupport()) { // 支持生物认证时进行认证
-                  BiometricAccessUtil.startUserAuth().then(isSuccess => {
-                    if (isSuccess) { // 认证成功进入隐私空间
-                      this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null)
-                    } else {
-                      ToolsUtil.showToast(
-                        ToolsUtil.getStringResource($r('app.string.privacy_auth_failed').id)) // 认证失败显示提示
-                    }
-                  })
+                const authMode = Setting.privacyAuthMode
+                if (authMode === PrivacyAuthMode.PASSWORD) {
+                  ToolsUtil.showToast(
+                    ToolsUtil.getStringResource($r('app.string.privacy_enter_via_password').id))
                   return
                 }
-                ToolsUtil.showToast(
-                  ToolsUtil.getStringResource($r('app.string.privacy_enter_via_password').id)) // 设备不支持生物认证的提示
+                const preferredAuthType = authMode === PrivacyAuthMode.FACE ?
+                  userAuth.UserAuthType.FACE : userAuth.UserAuthType.FINGERPRINT
+                BiometricAccessUtil.startUserAuthWithFallback(preferredAuthType).then(isSuccess => {
+                  if (isSuccess) {
+                    this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null)
+                  } else {
+                    ToolsUtil.showToast(
+                      ToolsUtil.getStringResource($r('app.string.privacy_enter_via_password').id))
+                  }
+                })
               }
             })
         )
@@ -840,7 +845,8 @@ struct Index {
     const currentIndex = this.getCurrentFolderIndex()
     // 检查当前文件夹索引是否有效
     if (currentIndex === -1) {
-      salmonLogger.addLog(TAG, `[Index] handleFolderSwipe: current folder not found in list`, true)
+      // 删除或刷新使旧选择失效时，恢复到首页。
+      this.switchToFolder(0)
       return
     }
     const isFirstFolder = currentIndex === 0

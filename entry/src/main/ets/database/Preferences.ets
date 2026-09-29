@@ -1,3 +1,4 @@
+import FolderHierarchy from '../utils/FolderHierarchy'
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { VideoFormData } from '../forms/VideoFormData'
@@ -14,6 +15,7 @@ import { PathUtils } from '../utils/PathUtils'
 import { salmonLogger } from 'salmonlogger'
 import { util } from '@kit.ArkTS'
 import { SubtitlePreferredLanguage } from '../common/enum/SubtitleLanguage'
+import { PrivacyAuthMode } from '../common/enum/PrivacyAuthMode'
 
 const DATA_BASE_NAME = 'sweet_video'
 const MAX_PREFERENCES_STRING_BYTES = 16 * 1024 * 1024
@@ -66,6 +68,14 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpv_sdr_to_hdr', enabled)
   }
 
+  static saveMpvAutoDeinterlace(context: Context, enabled: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpv_auto_deinterlace', enabled)
+  }
+
+  static saveMpvAudioPassthrough(context: Context, enabled: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpv_audio_passthrough', enabled)
+  }
+
   static saveMpvUsb(context: Context, enabled: boolean, dsdMode: number, device: string) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpv_usb_exclusive', enabled)
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpv_usb_dsd_mode', dsdMode)
@@ -98,23 +108,26 @@ export default class Preferences {
       }
       f.video_list.forEach(video => Preferences.normalizePlayableResolution(video))
     })
-    const allDates = new Set(folders.map(f => f.date))
-    const orphanIndices: number[] = []
-    folders.forEach((f, index) => {
-      if (f.parent_date != null && !allDates.has(f.parent_date)) {
-        orphanIndices.push(index)
+    const repaired = FolderHierarchy.repair(folders)
+    if (repaired.some((folder, index) => folder.date !== folders[index].date ||
+      folder.parent_date !== folders[index].parent_date)) {
+      // 首次修复前保留原始数据，避免覆盖历史备份。
+      try {
+        const pref = PreferencesUtil.getPreferencesInstance(context, DATA_BASE_NAME)
+        if (!pref.hasSync('file_folder_before_hierarchy_repair')) {
+          pref.putSync('file_folder_before_hierarchy_repair', folders)
+        }
+        PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'file_folder', repaired)
+      } catch (error) {
+        // 备份失败时不覆盖持久数据；本次仍使用修复后的内存视图。
+        salmonLogger.addLog('Preferences', '文件夹修复备份失败，code=' + error.code, true)
       }
-    })
-    if (orphanIndices.length > 0) {
-      for (let i = orphanIndices.length - 1; i >= 0; i--) {
-        folders.splice(orphanIndices[i], 1)
-      }
-      PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'file_folder', folders)
+      salmonLogger.addLog('Preferences', '已修复文件夹标识或层级，全部条目保留')
     }
     // 读取持久化数据必须保持轻量：排序属于展示层，不能阻塞启动首帧。
     // 仍保持首页在首位，兼容依赖 folders[0] 的既有调用方。
-    const homeFolder = folders.find(f => f.name === '首页' && f.parent_date === null)
-    const result = homeFolder ? [homeFolder, ...folders.filter(f => f.date !== homeFolder.date)] : folders
+    const homeFolder = repaired.find(f => f.name === '首页' && f.parent_date === null)
+    const result = homeFolder ? [homeFolder, ...repaired.filter(f => f.date !== homeFolder.date)] : repaired
     Preferences.fileFolderCache = result
     return result
   }
@@ -292,6 +305,15 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'passwd', password)
   }
 
+  static getPrivacyAuthMode(context: Context) {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'privacyAuthMode',
+      PrivacyAuthMode.FACE) as PrivacyAuthMode
+  }
+
+  static savePrivacyAuthMode(context: Context, privacyAuthMode: PrivacyAuthMode) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'privacyAuthMode', privacyAuthMode)
+  }
+
   static saveOOBEVersion(context: Context, OOBEVersion: number) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, "OOBEVersion", OOBEVersion)
   }
@@ -317,7 +339,7 @@ export default class Preferences {
 
   // 保存所有文件夹视频数据
   static saveFileFolder(context: Context, file_folder: FileFolder[]) {
-    const copied = Preferences.deepCopyFileFolders(file_folder)
+    const copied = FolderHierarchy.repair(Preferences.deepCopyFileFolders(file_folder))
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'file_folder', copied)
     Preferences.fileFolderCache = copied
     Preferences.buildVideoDateIndex(copied)

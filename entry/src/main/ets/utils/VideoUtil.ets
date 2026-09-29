@@ -21,7 +21,7 @@ export default class VideoUtils {
     fileFolderDataSource.updateData([...folders])
     let currentFolder: FileFolder | undefined
     if (folder) {
-      currentFolder = folders.find(item => item.date === folder.date)
+      currentFolder = folders.find(item => item.date === folder.date) ?? folders[0]
     } else {
       currentFolder = folders[0]
     }
@@ -29,7 +29,7 @@ export default class VideoUtils {
       ToolsUtil.showToast('出异常了：数据刷新失败')
       return folders
     }
-    if (videoListController?.folder?.video_list) {
+    if (videoListController) {
       let videos: VideoMetadata[] = currentFolder.video_list || []
       const sortField = Preferences.getSortField(PathUtils.appContext!) as SortField
       if (sortField) {

@@ -1,3 +1,5 @@
+import { util } from '@kit.ArkTS'
+import { LocalSidecarFile } from './LocalSidecarFile'
 import ToolsUtil from './ToolsUtil'
 import TextEncodingUtil from './TextEncodingUtil'
 import { fileIo as fs, picker } from '@kit.CoreFileKit'
@@ -63,49 +65,40 @@ export default class SubtitleUtil {
   }
 
   // 获取外挂字幕
-  static async selectExternalSubtitles(sandbox_subtitle: string, date: string): Promise<string> {
-    const documentSelectOptions = new picker.DocumentSelectOptions()
-    documentSelectOptions.fileSuffixFilters = SUPPORT_SUBTITLE_FORMAT
-    documentSelectOptions.maxSelectNumber = 1
-    const documentViewPicker = new picker.DocumentViewPicker(PathUtils.appContext!)
+  static async selectExternalSubtitles(sandbox_subtitle: string, date: string,
+    cancelled: () => boolean = (): boolean => false): Promise<string> {
+    const options = new picker.DocumentSelectOptions()
+    options.fileSuffixFilters = SUPPORT_SUBTITLE_FORMAT
+    options.maxSelectNumber = 1
     try {
-      const uris = await documentViewPicker.select(documentSelectOptions)
-      if (uris.length === 0) {
+      const uris = await new picker.DocumentViewPicker(PathUtils.appContext!).select(options)
+      if (uris.length === 0 || cancelled()) {
         return ''
       }
-      let sourceFile: fs.File | null = null
-      let targetFile: fs.File | null = null
-      try {
-        sourceFile = fs.openSync(uris[0], fs.OpenMode.READ_ONLY)
-        targetFile = fs.openSync(`${sandbox_subtitle}${date}`, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
-        await fs.copyFile(sourceFile.fd, targetFile.fd)?.catch(() => {
-          salmonLogger.addLog(TAG, 'copy 失败', true)
-        })
-        const encode = await TextEncodingUtil.detectFileEncoding(targetFile.path)
-        if (encode.length > 0 && encode.toLowerCase() !== 'utf-8') {
-          ToolsUtil.transFileDecodeAsUTF8(targetFile.path, encode)
-        }
-        ToolsUtil.showToast(`导入字幕成功: ${sourceFile.name}`)
-        return sourceFile.name
-      } catch (error) {
-        salmonLogger.addLog(TAG, 'import failed: ' + error, true)
+      const name = decodeURIComponent(uris[0].split('/').pop() || '')
+      const format = name.split('.').pop()?.toLowerCase() || ''
+      if (![SubtitleFormat.SRT, SubtitleFormat.ASS, SubtitleFormat.VTT].includes(format)) {
+        ToolsUtil.showToast('请选择 SRT、ASS 或 VTT 字幕文件')
         return ''
-      } finally {
-        // 确保文件描述符总是被关闭
-        if (sourceFile) {
-          fs.closeSync(sourceFile.fd)
-        }
-        if (targetFile) {
-          fs.closeSync(targetFile.fd)
-        }
       }
+      const bytes = await LocalSidecarFile.read(uris[0], 32 * 1024 * 1024, cancelled)
+      const encoding = TextEncodingUtil.detectBufferEncoding(bytes.buffer as ArrayBuffer) || 'utf-8'
+      const text = util.TextDecoder.create(encoding).decodeToString(bytes)
+      const utf8 = new util.TextEncoder().encodeInto(text)
+      await LocalSidecarFile.save(`${sandbox_subtitle}${date}`, utf8, cancelled)
+      if (cancelled()) {
+        return ''
+      }
+      ToolsUtil.showToast(`导入字幕成功: ${name}`)
+      return name
     } catch (error) {
-      salmonLogger.addLog(TAG, 'import failed: ' + error, true)
-      salmonLogger.addLog('subtitle', 'import failed: ' + error.code + ':' + error.message, true)
+      if (!cancelled()) {
+        salmonLogger.addLog(TAG, '字幕导入或保存失败', true)
+        ToolsUtil.showToast('字幕导入失败，请检查文件后重试（最大 32 MB）')
+      }
       return ''
     }
   }
-
   // 检查字幕是否存在
   static async isSubtitleExist(sandbox_subtitle: string, date: string): Promise<boolean> {
     return new Promise((resolve) => {
@@ -132,9 +125,8 @@ export default class SubtitleUtil {
       }
     } catch (error) {
       if (error.code === 13900002) {
-        if (!silent) {
-          salmonLogger.addLog(TAG, '文件不存在')
-        }
+        // 清理是幂等操作，字幕不存在已满足删除目标。
+        return
       } else {
         if (!silent) {
           ToolsUtil.showToast('删除失败')
@@ -168,18 +160,19 @@ export default class SubtitleUtil {
     }
   }
 
-  static async parseSubtitleProcess(path: string, format: string | undefined) {
+  static async parseSubtitleProcess(path: string, format: string | undefined,
+    cancelled: () => boolean = (): boolean => false) {
     if (!format) {
       SubtitleUtil.offsetMillis = 0
       const ext = path.split('.').pop()?.toLowerCase()
       switch (ext) {
         case 'srt':
-          return await SubtitleUtil.parseSrtFile(path)
+          return await SubtitleUtil.parseSrtFile(path, cancelled)
         case 'ass':
         case 'ssa':
-          return await SubtitleUtil.parseAssFile(path)
+          return await SubtitleUtil.parseAssFile(path, cancelled)
         case 'vtt':
-          return await SubtitleUtil.parseVttFile(path)
+          return await SubtitleUtil.parseVttFile(path, cancelled)
         default:
           break
       }
@@ -188,13 +181,13 @@ export default class SubtitleUtil {
         let result = false
         switch (fmt) {
           case SubtitleFormat.SRT:
-            result = await SubtitleUtil.parseSrtFile(path)
+            result = await SubtitleUtil.parseSrtFile(path, cancelled)
             break
           case SubtitleFormat.ASS:
-            result = await SubtitleUtil.parseAssFile(path)
+            result = await SubtitleUtil.parseAssFile(path, cancelled)
             break
           case SubtitleFormat.VTT:
-            result = await SubtitleUtil.parseVttFile(path)
+            result = await SubtitleUtil.parseVttFile(path, cancelled)
             break
           default:
             continue
@@ -203,24 +196,24 @@ export default class SubtitleUtil {
           return result
         }
       }
-      SubtitleUtil.subtitles = [];
+      if (!cancelled()) { SubtitleUtil.setSubtitles([]) }
       return false
     }
     switch (format) {
       case SubtitleFormat.SRT:
-        return await SubtitleUtil.parseSrtFile(path)
+        return await SubtitleUtil.parseSrtFile(path, cancelled)
       case SubtitleFormat.ASS:
-        return await SubtitleUtil.parseAssFile(path)
+        return await SubtitleUtil.parseAssFile(path, cancelled)
       case SubtitleFormat.VTT:
-        return await SubtitleUtil.parseVttFile(path)
+        return await SubtitleUtil.parseVttFile(path, cancelled)
       default:
-        SubtitleUtil.subtitles = []
+        if (!cancelled()) { SubtitleUtil.setSubtitles([]) }
         return false
     }
   }
 
   // 解析SRT文件
-  static async parseSrtFile(filePath: string): Promise<boolean> {
+  static async parseSrtFile(filePath: string, cancelled: () => boolean = (): boolean => false): Promise<boolean> {
     try {
       const parser = new ParseSrt(filePath)
       const items = await SubtitleUtil.parseSubtitleFile<SrtLine>(
@@ -231,6 +224,9 @@ export default class SubtitleUtil {
           text: line.text
         })
       )
+      if (cancelled()) {
+        return false
+      }
       SubtitleUtil.setSubtitles(items)
       return true
     } catch (e) {
@@ -241,7 +237,7 @@ export default class SubtitleUtil {
   }
 
   // 解析ASS文件
-  static async parseAssFile(filePath: string): Promise<boolean> {
+  static async parseAssFile(filePath: string, cancelled: () => boolean = (): boolean => false): Promise<boolean> {
     try {
       const parser = new ParseAss(filePath)
       const parserAdapter = new ParserAdapter<AssEvent>(
@@ -255,6 +251,9 @@ export default class SubtitleUtil {
           endTimestampMillis: line.endTimestampMillis,
           text: line.text
         }))
+      if (cancelled()) {
+        return false
+      }
       SubtitleUtil.setSubtitles(items)
       return true
     } catch (e) {
@@ -265,7 +264,7 @@ export default class SubtitleUtil {
   }
 
   // 解析VTT文件
-  static async parseVttFile(filePath: string): Promise<boolean> {
+  static async parseVttFile(filePath: string, cancelled: () => boolean = (): boolean => false): Promise<boolean> {
     try {
       const parser = new ParseVtt(filePath)
       const items = await SubtitleUtil.parseSubtitleFile<VttLine>(
@@ -276,6 +275,9 @@ export default class SubtitleUtil {
           text: line.text
         })
       )
+      if (cancelled()) {
+        return false
+      }
       SubtitleUtil.setSubtitles(items)
       return true
     } catch (e) {

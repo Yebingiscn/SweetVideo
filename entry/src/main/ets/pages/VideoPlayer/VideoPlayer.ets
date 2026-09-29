@@ -1,3 +1,7 @@
+import { DanmakuSession } from '../../utils/DanmakuSession'
+import SelectFileUtil from '../../utils/SelectFileUtil'
+import { DanmakuOverlay } from '../../component/PlayerComponent/DanmakuOverlay'
+import { DanmakuMenuComponent } from '../../component/PlayerComponent/DanmakuMenuBuilder'
 import PermissionUtil from '../../utils/PermissionUtil'
 import { BaseGestureHandlingProposal, UIUtils, window } from '@kit.ArkUI'
 import { KeyCode, pointer } from '@kit.InputKit'
@@ -79,6 +83,9 @@ type PlayerType = PlayerControllerInterface
 
 @ComponentV2
 export struct VideoPlayer {
+  private danmaku: DanmakuSession = new DanmakuSession()
+  @Local danmakuPageVisible: boolean = false
+  @Local importingSubtitle: boolean = false
   @Local playerType: string = PlayerEngine.AV_PLAYER
   @Local autoListenVideoEnabled: boolean = false
   @Provider('player') player: PlayerType = PlayerControllerFactory.createAVPlayerController() as PlayerType
@@ -222,6 +229,7 @@ export struct VideoPlayer {
   private monitoredPlayer: PlayerControllerInterface | undefined = undefined
   private playerMonitorVersion: number = 0
   private subtitleSelectedMonitorCallback: ((mon: IMonitor) => void) | undefined = undefined
+  private danmakuMediaMonitorCallback: ((mon: IMonitor) => void) | undefined = undefined
 
   @Monitor('player.showControl')
   onShowControlMonitor(_mon: IMonitor) {
@@ -265,6 +273,8 @@ export struct VideoPlayer {
   }
 
   async aboutToDisappear(): Promise<void> {
+    this.danmakuPageVisible = false
+    this.danmaku.dispose()
     this.isPageDisappearing = true
     this.stopAutoListenVideoRestoreObservation()
     if (deviceInfo.apiAvailable('26.0.0')) {
@@ -296,6 +306,11 @@ export struct VideoPlayer {
     await this.disposePlaybackSession()
     salmonLogger.addLog(TAG, "释放播放器资源完成", false)
     salmonLogger.addLog(TAG, "aboutToDisappear方法执行完成", false)
+  }
+
+  private danmakuMediaKey(): string {
+    const media = this.player.nowPlaying
+    return media?.date || ''
   }
 
   closeSideBar(isPlayAnimation: boolean) {
@@ -378,6 +393,19 @@ export struct VideoPlayer {
               onOsdSurfaceDestroy: (surfaceId: string) => {
                 this.player.onOsdSurfaceDestroy(surfaceId)
               },
+            })
+          }
+
+          if (this.isPlayerConfigured && this.danmaku.enabled && this.danmaku.items.length > 0) {
+            DanmakuOverlay({
+              session: this.danmaku,
+              mediaKey: this.danmakuMediaKey(),
+              playbackTime: this.player.playbackPositionMs,
+              playing: this.player.playing,
+              buffering: this.player.networkBuffering,
+              seeking: this.player.onSwiping || this.player.isSliderPlayTimeChange,
+              speed: this.player.speed,
+              visible: this.danmakuPageVisible && !PiPWindowUtil.pipOpenState
             })
           }
 
@@ -848,6 +876,7 @@ export struct VideoPlayer {
       return false
     })
     .onShown(() => {
+      this.danmakuPageVisible = true
       WantProcessUtil.setCardPlaybackHandler(this.cardPlaybackHandler)
       if (!this.isPageDisappearing) {
         if (deviceInfo.apiAvailable('26.0.0')) {
@@ -873,6 +902,7 @@ export struct VideoPlayer {
       }
     })
     .onHidden(() => {
+      this.danmakuPageVisible = false
       if (deviceInfo.apiAvailable('26.0.0')) {
         this.smartGestures.hide()
       }
@@ -909,6 +939,8 @@ export struct VideoPlayer {
       }
     })
     .onWillDisappear(async () => {
+      this.danmakuPageVisible = false
+      this.danmaku.dispose()
       WantProcessUtil.clearCardPlaybackHandler(this.cardPlaybackHandler)
       this.isPageDisappearing = true
       this.stopAutoListenVideoRestoreObservation()
@@ -950,6 +982,9 @@ export struct VideoPlayer {
   VideoTop() {
     VideoTopComponent({
       isAnySubtitleActive: this.subtitleManager.isAnySubtitleActive,
+      danmakuMenuBuilder: () => {
+        this.DanmakuMenu()
+      },
       lockRotation: this.lockRotation,
       audioTrackMenuBuilder: () => {
         this.AudioTrackMenuBuilder()
@@ -1202,6 +1237,16 @@ export struct VideoPlayer {
   }
 
   @Builder
+  DanmakuMenu() {
+    DanmakuMenuComponent({
+      session: this.danmaku,
+      onImport: () => {
+        this.danmaku.importFile((): string => this.danmakuMediaKey())
+      }
+    })
+  }
+
+  @Builder
   PlaybackSpeedMenuBuilder() {
     PlaybackSpeedMenuComponent({
       onSpeedChange: (speed: number) => {
@@ -1214,6 +1259,8 @@ export struct VideoPlayer {
   @Builder
   SubtitleMenuBuilder() {
     SubtitlePanelComponent({
+      importingSubtitle: this.importingSubtitle,
+      onImportSubtitle: () => { this.importPlaybackSubtitle() },
       subtitleManager: this.subtitleManager,
       onSubtitleOffsetTime: (useMpvSubtitle: boolean) => {
         if (useMpvSubtitle) {
@@ -1241,6 +1288,37 @@ export struct VideoPlayer {
   @Builder
   AVCastPickerBuilderBridge() {
     AVCastPickerBuilder()
+  }
+
+  private async importPlaybackSubtitle(): Promise<void> {
+    const player = this.player
+    const media = player.nowPlaying
+    if (!media || this.importingSubtitle || this.isPageDisappearing) {
+      return
+    }
+    this.importingSubtitle = true
+    const cancelled = (): boolean => this.isPageDisappearing || this.isPlaybackSessionDisposed ||
+      this.player !== player || this.player.nowPlaying?.date !== media.date
+    try {
+      const name = await SubtitleUtil.selectExternalSubtitles(PathUtils.subtitlePath, media.date, cancelled)
+      if (!name || cancelled()) {
+        return
+      }
+      const format = name.split('.').pop()?.toLowerCase() || ''
+      media.external_subtitle_format = format
+      SelectFileUtil.saveData(PathUtils.appContext!, media, { externalSubtitleFormat: format })
+      await player.setExternalSubtitle(media)
+      if (!cancelled()) {
+        this.subtitleManager.switchToExternal()
+      }
+    } catch (error) {
+      if (!cancelled()) {
+        ToolsUtil.showToast('字幕已保存，但加载失败，请重新选择外挂字幕')
+        salmonLogger.addLog(TAG, '播放中加载外挂字幕失败', true)
+      }
+    } finally {
+      this.importingSubtitle = false
+    }
   }
 
   private cardPlaybackHandler = (video: VideoMetadata): boolean => {
@@ -1365,10 +1443,19 @@ export struct VideoPlayer {
       }
       this.onSubtitleSelectedMonitor(mon)
     }
+    const mediaCallback = (_mon: IMonitor): void => {
+      if (version === this.playerMonitorVersion && this.player === p &&
+        !this.isPageDisappearing && !this.isPlaybackSessionDisposed) {
+        this.danmaku.setMedia(this.danmakuMediaKey())
+      }
+    }
     try {
       UIUtils.addMonitor(p, 'subtitleSelected', subtitleCallback)
       this.subtitleSelectedMonitorCallback = subtitleCallback
       this.monitoredPlayer = p
+      this.danmakuMediaMonitorCallback = mediaCallback
+      UIUtils.addMonitor(p, 'nowPlaying', mediaCallback)
+      this.danmaku.setMedia(this.danmakuMediaKey())
     } catch (error) {
       this.playerMonitorVersion++
       salmonLogger.addLog(TAG, `register subtitleSelected monitor error: ${error}`, true)
@@ -1381,9 +1468,14 @@ export struct VideoPlayer {
     }
     this.playerMonitorVersion++
     const subtitleCallback = this.subtitleSelectedMonitorCallback
+    const mediaCallback = this.danmakuMediaMonitorCallback
     this.monitoredPlayer = undefined
     this.subtitleSelectedMonitorCallback = undefined
+    this.danmakuMediaMonitorCallback = undefined
     try {
+      if (mediaCallback) {
+        UIUtils.clearMonitor(p, 'nowPlaying', mediaCallback)
+      }
       if (subtitleCallback) {
         UIUtils.clearMonitor(p, 'subtitleSelected', subtitleCallback)
       }

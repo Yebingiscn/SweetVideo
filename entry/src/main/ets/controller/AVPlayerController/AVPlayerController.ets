@@ -46,6 +46,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   avSession: avSessionManager.AVSession | undefined = undefined
   surfaceID: string = ''
   @Trace nowPlaying: VideoMetadata | undefined = undefined
+  @Trace audioCoverUri: string = ''
   initialPlayTime: number | undefined = undefined
   initialPlaying: boolean | undefined = undefined
   @Trace playing: boolean = false
@@ -56,6 +57,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Trace networkBuffering: boolean = false
   @Trace speed: number = 1.0
   @Trace playTime: number = 0
+  @Trace playbackPositionMs: number = 0
   @Trace audioTrack: AudioTrack[] = []
   @Trace subtitleTrack: SubtitleTrack[] = []
   @Trace subtitleTrackSelected: number = -1
@@ -267,7 +269,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     }
     this.externalSubtitleAvailable = false
     SubtitleUtil.offsetMillis = nowPlaying.subtitle_offset_millis ?? 0
-    SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, nowPlaying.date!).then(exists => {
+    await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, nowPlaying.date!).then(async (exists): Promise<void> => {
       if (this.nowPlaying?.uri !== nowPlaying.uri || version !== this.videoSwitchVersion) {
         return
       }
@@ -278,7 +280,8 @@ export class AVPlayerController implements PlayerControllerInterface {
       }
       try {
         let subtitle = fileIo.openSync(PathUtils.subtitlePath! + nowPlaying.date, fileIo.OpenMode.READ_ONLY)
-        SubtitleUtil.parseSubtitleProcess(subtitle.path, nowPlaying.external_subtitle_format).then(success => {
+        await SubtitleUtil.parseSubtitleProcess(subtitle.path, nowPlaying.external_subtitle_format,
+          (): boolean => this.nowPlaying?.uri !== nowPlaying.uri || version !== this.videoSwitchVersion).then(success => {
           try {
             fileIo.closeSync(subtitle)
           } catch (_e) {
@@ -390,6 +393,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   async release(): Promise<void> {
+    this.audioCoverUri = ''
     this.smbPlayback.close()
     this.clearSessionNavigationListeners()
     this.currentPathStack = undefined
@@ -660,6 +664,7 @@ export class AVPlayerController implements PlayerControllerInterface {
       }
 
       this.pixelMap = null
+      this.audioCoverUri = ''
       const player = this.avPlayer
       if (player) {
         await this.engineAdapter.waitForReset(player)
@@ -962,6 +967,10 @@ export class AVPlayerController implements PlayerControllerInterface {
       this.handleStartRenderFrame(player)
     })
     player.on('timeUpdate', async (duration) => {
+      if (!this.engineAdapter.isCurrent(player)) {
+        return
+      }
+      this.playbackPositionMs = duration
       if (!this.onSwiping) {
         ThrottleUtil.throttle('playTime', () => {
           this.playTime = duration
@@ -1034,6 +1043,10 @@ export class AVPlayerController implements PlayerControllerInterface {
     })
 
     player.on('seekDone', (percent) => {
+      if (!this.engineAdapter.isCurrent(player)) {
+        return
+      }
+      this.playbackPositionMs = percent
       salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "播放器跳转完成", false)
       this.playTime = percent
       AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode, this.speed)
@@ -1810,6 +1823,7 @@ export class AVPlayerController implements PlayerControllerInterface {
       if (!this.engineAdapter.isCurrent(player) || source !== this.nowPlaying?.uri) {
         return
       }
+      this.audioCoverUri = VideoInfoUtil.getCachedAudioCoverUri(this.nowPlaying)
       if (!uri) {
         throw new Error('视频地址为空')
       }

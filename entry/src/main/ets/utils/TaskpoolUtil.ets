@@ -17,7 +17,7 @@ export class FolderNameSortItem {
 }
 @Concurrent
 async function sortFolderNamesTask(items: FolderNameSortItem[], ascending: boolean,
-  pinyinSort: boolean): Promise<string[]> {
+  pinyinSort: boolean): Promise<number[]> {
   const collator = new Intl.Collator('zh-CN', {
     sensitivity: 'variant',
     numeric: true,
@@ -55,19 +55,19 @@ async function sortFolderNamesTask(items: FolderNameSortItem[], ascending: boole
     // 明确稳定排序，避免同名文件夹在每次刷新时无意义跳动。
     return left.index - right.index
   })
-  return items.map(item => item.date)
+  return items.map(item => item.index)
 }
 
 export async function sortFolderNamesInTaskPool(items: FolderNameSortItem[], ascending: boolean = true,
-  pinyinSort: boolean = true): Promise<string[]> {
+  pinyinSort: boolean = true): Promise<number[]> {
   try {
     const result = await taskpool.execute(
       new taskpool.Task(sortFolderNamesTask, items, ascending, pinyinSort),
       taskpool.Priority.HIGH
     )
-    return result as string[]
+    return result as number[]
   } catch (error) {
-    return []
+    throw new Error('文件夹名称排序任务失败')
   }
 }
 
@@ -118,6 +118,9 @@ async function extractVideoFileInfoTask(uri: string): Promise<VideoFileInfoResul
   try {
     file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
     const stat = fs.statSync(file.fd)
+    if (!stat.isFile()) {
+      return { fileSize: 0, fileName: file.name, success: false, error: '所选条目不是普通文件，请使用文件夹导入' }
+    }
     return {
       fileSize: stat.size,
       fileName: file.name,

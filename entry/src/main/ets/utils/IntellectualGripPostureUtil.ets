@@ -5,6 +5,8 @@ import { Setting } from './ObservedUtil';
 const TAG = 'IntellectualGripPostureUtil'
 
 export default class IntellectualGripPostureUtil {
+  private static unsupportedEvents: Set<string> = new Set()
+  private static registeredEvents: Set<string> = new Set()
   static isLeftOperateHand(status: motion.OperatingHandStatus | null): boolean {
     if (!Setting.gripPostureEnabled) {
       return false
@@ -98,11 +100,20 @@ export default class IntellectualGripPostureUtil {
   }
 
   private static registerMotionEvent<T>(eventName: string, cb: Callback<T>) {
+    if (IntellectualGripPostureUtil.unsupportedEvents.has(eventName)) {
+      return
+    }
     if (canIUse("SystemCapability.MultimodalAwareness.Motion")) {
       try {
         motion.on(eventName as 'operatingHandChanged', cb as Callback<motion.OperatingHandStatus>)
+        IntellectualGripPostureUtil.registeredEvents.add(eventName)
       } catch (error) {
-        salmonLogger.addLog(TAG, `${eventName} error` + error, true)
+        if (error.code === 801) {
+          IntellectualGripPostureUtil.unsupportedEvents.add(eventName)
+          salmonLogger.addLog(TAG, eventName + ': 设备不支持，已跳过')
+        } else {
+          salmonLogger.addLog(TAG, eventName + ' 注册失败，code=' + error.code, true)
+        }
       }
     } else {
       salmonLogger.addLog(TAG, 'unsupported SystemCapability', true)
@@ -110,9 +121,13 @@ export default class IntellectualGripPostureUtil {
   }
 
   private static unregisterMotionEvent(eventName: string) {
+    if (!IntellectualGripPostureUtil.registeredEvents.has(eventName)) {
+      return
+    }
     if (canIUse("SystemCapability.MultimodalAwareness.Motion")) {
       try {
         motion.off(eventName as 'operatingHandChanged')
+        IntellectualGripPostureUtil.registeredEvents.delete(eventName)
       } catch (error) {
         salmonLogger.addLog(TAG, `${eventName} error` + error, true)
       }

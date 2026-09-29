@@ -23,6 +23,7 @@ import { salmonLogger } from 'salmonlogger'
 import { FrameSize } from '../interfaces/FrameSizeInterface'
 import { Subtitle3DMode } from '../common/enum/SubtitleMode'
 import { DeleteType } from '../common/enum/DeleteType'
+import { DanmakuStorage } from './DanmakuStorage'
 import { AUTO_HIDE_SHOW_CONTROL_TIME, SCALE_FACTORS, SUPPORT_AUDIO_FORMAT } from '../common/Constants'
 import { VideoSource } from '../common/enum/VideoSource'
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode'
@@ -41,6 +42,7 @@ import { fileManagerService } from '@kit.FileManagerServiceKit'
 import FFmpegThumbnailUtil from './FFmpegThumbnailUtil'
 import { SubtitlePreferredLanguage } from '../common/enum/SubtitleLanguage'
 import SubtitleLanguageUtil from './SubtitleLanguageUtil'
+import { VIDEO_HDR_TYPE } from '../common/enum/HDR_TYPE'
 
 const TAG = 'VideoOperateUtil'
 
@@ -379,6 +381,8 @@ export default class VideoOperateUtil {
       'mpv_decoding_method': MpvDecodingMethod.HARDWARE_SURFACE,
       'mpv_gpu_api': MpvGpuApi.OPENGL,
       'mpv_sdr_to_hdr': false,
+      'mpv_auto_deinterlace': false,
+      'mpv_audio_passthrough': false,
       'mpv_usb_exclusive': false,
       'mpv_usb_dop': false,
       'mpv_usb_dsd_mode': -1,
@@ -445,6 +449,8 @@ export default class VideoOperateUtil {
     Setting.mpvDecodingMethod = valueMap['mpv_decoding_method'] as MpvDecodingMethod
     Setting.mpvGpuApi = valueMap['mpv_gpu_api'] as MpvGpuApi
     Setting.mpvSdrToHdr = valueMap['mpv_sdr_to_hdr'] as boolean
+    Setting.mpvAutoDeinterlace = valueMap['mpv_auto_deinterlace'] as boolean
+    Setting.mpvAudioPassthrough = valueMap['mpv_audio_passthrough'] as boolean
     Setting.mpvUsbExclusive = valueMap['mpv_usb_exclusive'] as boolean
     const dsdMode = valueMap['mpv_usb_dsd_mode'] as number
     Setting.mpvUsbDsdMode = dsdMode === -1 ? (valueMap['mpv_usb_dop'] === true ? 1 : 0) :
@@ -657,10 +663,11 @@ export default class VideoOperateUtil {
     const isDolbyAudio = VideoOperateUtil.containsDolbyAudioCodec(titleLower) ||
       VideoOperateUtil.containsDolbyAudioCodec(formatLower) || titleLower.includes('atmos')
     const hasVideoTrack = VideoInfoUtil.hasVideoTrack(metadata)
-    if (!hasVideoTrack) {
+    if (hasVideoTrack && isDolbyAudio) {
       return PlayerEngine.MPV_PLAYER
     }
-    if (isDolbyAudio) {
+    if (hasVideoTrack && metadata.hdr_type === VIDEO_HDR_TYPE.DOLBY_VISION) {
+      salmonLogger.addLog(TAG, '检测到杜比视界，强制使用MPV播放器', false)
       return PlayerEngine.MPV_PLAYER
     }
     const isFirstPlayer = defaultPlayer === VideoInfoUtil.playerEngineList[0]
@@ -834,8 +841,17 @@ export default class VideoOperateUtil {
       return
     }
     RecentPlayUtil.delData(PathUtils.appContext!, item.uri)
-    await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date)
-    await SelectFileUtil.deleteCover(item.date)
+    await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date, true).catch((error: Error) => {
+      salmonLogger.addLog(TAG, `删除视频字幕失败: ${error.message}`, true)
+    })
+    try {
+      DanmakuStorage.remove(item.date)
+    } catch (error) {
+      salmonLogger.addLog(TAG, `删除视频弹幕失败: ${error}`, true)
+    }
+    await SelectFileUtil.deleteCover(item.date).catch((error: Error) => {
+      salmonLogger.addLog(TAG, `删除视频封面失败: ${error.message}`, true)
+    })
     if (deleteType === DeleteType.HARD) {
       try {
         await fileIo.unlink(item.uri)

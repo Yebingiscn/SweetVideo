@@ -8,6 +8,7 @@ import SelectFileUtil, { SavePixelMapOptions } from './SelectFileUtil'
 import TextEncodingUtil from './TextEncodingUtil'
 import ToolsUtil from './ToolsUtil'
 import { fileIo } from '@kit.CoreFileKit'
+import { PathUtils } from './PathUtils'
 
 export interface FileNameParts {
   stem: string
@@ -135,6 +136,17 @@ export default class VideoInfoUtil {
     return !SUPPORT_AUDIO_FORMAT.includes(metadata.format.toLowerCase())
   }
 
+  static getCachedAudioCoverUri(metadata: VideoMetadata | undefined): string {
+    if (!metadata || VideoInfoUtil.hasVideoTrack(metadata) || !metadata.date || !PathUtils.appContext) {
+      return ''
+    }
+    try {
+      return fileIo.accessSync(`${PathUtils.coverPath}${metadata.date}`) ? PathUtils.coverUri(metadata.date) : ''
+    } catch {
+      return ''
+    }
+  }
+
   static getDisplayResolution(metadata: VideoMetadata | undefined): number[] {
     if (metadata?.size && metadata.size[0] > 0 && metadata.size[1] > 0) {
       return metadata.size
@@ -170,7 +182,7 @@ export default class VideoInfoUtil {
   }
 
   static async saveCoverDeferred(uri: string, sandbox_path: string, date: string, durationMs: number,
-    pixelMap: image.PixelMap | undefined) {
+    pixelMap: image.PixelMap | undefined): Promise<void> {
     const saveCoverOptions: SavePixelMapOptions = { releasePixelMap: true, deleteOnFail: true }
     let saved = false
     if (pixelMap) {

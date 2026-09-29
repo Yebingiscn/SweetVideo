@@ -12,14 +12,15 @@ export struct VideoTopComponent {
   @Param lockRotation: boolean = false
   @BuilderParam audioTrackMenuBuilder: () => void
   @BuilderParam subtitlePanelComponent: () => void
+  @BuilderParam danmakuMenuBuilder: () => void
   @BuilderParam chapterMenuBuilder: () => void
+  @Event onLockRotationClick: () => Promise<void> = async () => {
+  }
 
   private get displayTitle(): string {
     return VideoInfoUtil.getVideoTitle(this.player.nowPlaying?.title)
   }
 
-  @Event onLockRotationClick: () => Promise<void> = async () => {
-  }
   @Event onExitVideoClick: () => void = () => {
   }
   @Event onOriginalRatio: () => void = () => {
@@ -46,7 +47,7 @@ export struct VideoTopComponent {
       // 1. 返回按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
         SymbolGlyph($r('sys.symbol.chevron_left'))
-          .fontSize(27)
+          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
@@ -59,7 +60,7 @@ export struct VideoTopComponent {
 
       Button({ type: ButtonType.Circle, stateEffect: true }) {
         SymbolGlyph($r('sys.symbol.rectangle_portrait_filled_on_rectangle_portrait'))
-          .fontSize(27)
+          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
@@ -80,11 +81,23 @@ export struct VideoTopComponent {
         .opacity(0.8)
         .layoutWeight(1)
 
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph($r('sys.symbol.barrage_setting'))
+          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+          .fontColor(['#f0f0f0'])
+          .opacity(0.8)
+      }
+      .accessibilityText('本地弹幕')
+      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .attributeModifier(new ButtonFancyModifier(40, 40))
+      .backgroundColor('#50000000')
+      .bindMenu(this.danmakuMenuBuilder, { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
+
       // 3. 字幕按钮
       Button({ type: ButtonType.Circle, stateEffect: true }) {
         SymbolGlyph(this.isAnySubtitleActive ?
           $r('sys.symbol.textformat_size_square_fill') : $r('sys.symbol.textformat_size_square'))
-          .fontSize(27)
+          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
@@ -95,7 +108,7 @@ export struct VideoTopComponent {
 
       Button({ type: ButtonType.Circle, stateEffect: true }) {
         SymbolGlyph($r('sys.symbol.opticaldisc'))
-          .fontSize(27)
+          .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
@@ -108,7 +121,7 @@ export struct VideoTopComponent {
       if (this.player.hasChapterSupport() && this.player.chapterList.length > 0) {
         Button({ type: ButtonType.Circle, stateEffect: true }) {
           SymbolGlyph($r('sys.symbol.list_bullet'))
-            .fontSize(27)
+            .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
             .fontColor(['#f0f0f0'])
             .opacity(0.8)
         }

@@ -1,6 +1,6 @@
 import WantProcessUtil from '../../utils/WantProcessUtil'
 import { PathUtils } from '../../utils/PathUtils'
-import { DefaultDialogShadow, ImageFancyModifier } from '../../common/AttributeModifierConfig'
+import { DefaultDialogShadow, ImageFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
 import { Markdown, MarkdownController } from '@luvi/lv-markdown-in'
 import ToolsUtil from '../../utils/ToolsUtil'
@@ -73,7 +73,7 @@ export struct AboutApp {
   LinkButton(item: LinkItem) {
     Button({ type: ButtonType.Normal }) {
       Row() {
-        SymbolGlyph(item.icon).fontSize(25).fontColor([$r('app.color.text_color')])
+        SymbolGlyph(item.icon).attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
         Text(item.text)
           .fontSize(15)
           .fontColor($r('app.color.text_color'))

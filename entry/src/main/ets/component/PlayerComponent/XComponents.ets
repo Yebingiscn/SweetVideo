@@ -69,6 +69,13 @@ export struct XComponents {
           }
         })
       }
+      if (this.player.audioCoverUri) {
+        Image(this.player.audioCoverUri ?? '')
+          .width('100%')
+          .height('100%')
+          .objectFit(ImageFit.Contain)
+          .hitTestBehavior(HitTestMode.Transparent)
+      }
     }
     .id(PLAYER_SURFACE_ID)
     .focusable(true)

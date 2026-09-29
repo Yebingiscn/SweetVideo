@@ -16,6 +16,7 @@ export default class PermissionUtil {
   public static permissions: Permissions[] = ['ohos.permission.FILE_ACCESS_PERSIST', 'ohos.permission.VIBRATE']
   // 权限缓存：避免重复持久化同一个URI的权限
   private static permissionCache: Set<string> = new Set()
+  private static persistedPermissionCache: Set<string> = new Set()
 
   static async activatePermission(uri: string | undefined): Promise<boolean> {
     if (!uri) {
@@ -39,7 +40,7 @@ export default class PermissionUtil {
         try {
           const policyInfo: fileShare.PolicyInfo = {
             uri: uri,
-            operationMode: fileShare.OperationMode.READ_MODE | fileShare.OperationMode.WRITE_MODE,
+            operationMode: fileShare.OperationMode.READ_MODE,
           }
           const policies: fileShare.PolicyInfo[] = [policyInfo]
           const results = await fileShare.checkPersistentPermission(policies)
@@ -123,32 +124,32 @@ export default class PermissionUtil {
     })
   }
 
+  // 返回 true 表示失败，沿用现有调用约定。可读缓存与持久授权缓存不能混用。
   static async persistPermission(uri: string): Promise<boolean> {
-    if (PermissionUtil.permissionCache.has(uri)) {
+    if (ToolsUtil.isNetworkUrl(uri) || PermissionUtil.persistedPermissionCache.has(uri)) {
       return false
     }
-
+    if (!canIUse('SystemCapability.FileManagement.AppFileService.FolderAuthorization')) {
+      return false
+    }
     try {
-      if (canIUse('SystemCapability.FileManagement.AppFileService.FolderAuthorization')) {
-        let policyInfo: fileShare.PolicyInfo = {
-          uri: uri,
-          operationMode: fileShare.OperationMode.READ_MODE | fileShare.OperationMode.WRITE_MODE,
-        }
-        let policies: Array<fileShare.PolicyInfo> = [policyInfo]
-        fileShare.persistPermission(policies)?.catch(() => {
-          salmonLogger.addLog(TAG, 'persistPermission error', true)
-        })
-        PermissionUtil.permissionCache.add(uri)
-      }
+      const policies: fileShare.PolicyInfo[] = [{
+        uri: uri,
+        operationMode: fileShare.OperationMode.READ_MODE
+      }]
+      await fileShare.persistPermission(policies)
+      PermissionUtil.persistedPermissionCache.add(uri)
+      return false
     } catch (error) {
+      salmonLogger.addLog(TAG, '持久授权失败，当前授权到期后可能需要重新选择文件，code=' + error.code, true)
       return true
     }
-    return false
   }
 
   // 清空权限缓存（在应用退出或需要刷新时调用）
   static clearPermissionCache() {
     PermissionUtil.permissionCache.clear()
+    PermissionUtil.persistedPermissionCache.clear()
   }
 
   // 重新申请权限

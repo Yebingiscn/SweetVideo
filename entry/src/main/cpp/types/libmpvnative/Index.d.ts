@@ -1,5 +1,10 @@
 // Type declarations for libmpvnative native module
 declare module 'libmpvnative.so' {
+  export function danmakuCreate(surfaceId: string): number;
+  export function danmakuStatus(handle: number): number;
+  export function danmakuTexture(handle: number, id: number, width: number, height: number, rgba: ArrayBuffer): boolean;
+  export function danmakuFrame(handle: number, sprites: Float32Array, width: number, height: number, opacity: number): boolean;
+  export function danmakuDestroy(handle: number): number;
   export interface SmbOptions {
     host: string;
     share: string;

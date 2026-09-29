@@ -7,6 +7,8 @@ import { SettingsClickItem } from '../../component/SettingComponent/SettingsClic
 import Preferences from '../../database/Preferences'
 import BiometricAccessUtil from '../../utils/BiometricAccessUtil'
 import { Setting } from '../../utils/ObservedUtil'
+import { PrivacyAuthMode } from '../../common/enum/PrivacyAuthMode'
+import { userAuth } from '@kit.UserAuthenticationKit'
 import { LengthMetrics } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { IapVerifyUtil } from '../../utils/IapVerifyUtil'
@@ -108,21 +110,25 @@ export struct SettingsPage { //设置页
               message: $r('app.string.privacy_space'),
               onPress: async () => {
                 this.passwd = Preferences.getPassword(PathUtils.appContext!)
-                if (this.passwd.length === 0) { // 未设置密码时直接打开设置弹窗
+                if (this.passwd.length === 0) {
                   this.editPasswdDialogController.open()
                   return
                 }
-                if (BiometricAccessUtil.checkUserAuthSupport()) { // 支持生物认证时进行认证
-                  const isSuccess = await BiometricAccessUtil.startUserAuth()
-                  if (isSuccess) { // 认证成功进入隐私空间
-                    this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null)
-                    return
-                  }
-                  ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.privacy_auth_failed').id)) // 认证失败显示提示
+                const authMode = Setting.privacyAuthMode
+                if (authMode === PrivacyAuthMode.PASSWORD) {
+                  ToolsUtil.showToast(
+                    ToolsUtil.getStringResource($r('app.string.privacy_enter_via_password').id))
+                  return
+                }
+                const preferredAuthType = authMode === PrivacyAuthMode.FACE ?
+                  userAuth.UserAuthType.FACE : userAuth.UserAuthType.FINGERPRINT
+                const isSuccess = await BiometricAccessUtil.startUserAuthWithFallback(preferredAuthType)
+                if (isSuccess) {
+                  this.pathStack.replacePathByName(NavigationAddress.PRIVACY_SPACE, null)
                   return
                 }
                 ToolsUtil.showToast(
-                  ToolsUtil.getStringResource($r('app.string.privacy_enter_via_password').id)) // 设备不支持生物认证的提示
+                  ToolsUtil.getStringResource($r('app.string.privacy_enter_via_password').id))
               }
             })
           }

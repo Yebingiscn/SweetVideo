@@ -1,6 +1,6 @@
 import { DeleteType } from '../../common/enum/DeleteType'
 import { DANGER_COLOR, DANGER_COLOR_ALPHA_15, WARNING_COLOR, WARNING_COLOR_ALPHA_15 } from '../../common/Constants'
-import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
+import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 
 @ComponentV2
 export struct DeleteOptionsGroup {
@@ -110,7 +110,7 @@ export struct DeleteOptionsGroup {
       Row({ space: 20 }) {
         Button({ type: ButtonType.Normal, stateEffect: true }) {
           Row({ space: 5 }) {
-            SymbolGlyph($r('sys.symbol.xmark')).fontSize(16).fontColor([$r('app.color.text_color')])
+            SymbolGlyph($r('sys.symbol.xmark')).attributeModifier(new SymbolGlyphFancyModifier(16, '', ''))
             Text($r('app.string.cancel'))
               .fontSize(15)
               .fontColor($r('app.color.text_color'))

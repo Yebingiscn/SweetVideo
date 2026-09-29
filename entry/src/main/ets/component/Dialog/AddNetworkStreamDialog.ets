@@ -23,47 +23,50 @@ export struct AddNetworkStreamDialog {
   onStreamAdded?: () => void
 
   build() {
-    Column({ space: 20 }) {
-      Text('添加网络串流')
-        .fontSize(20)
-        .fontColor($r('app.color.text_color'))
-        .fontWeight(FontWeight.Bold)
+    Scroll() {
+      Column({ space: 20 }) {
+        Text('添加网络串流')
+          .fontSize(20)
+          .fontColor($r('app.color.text_color'))
+          .fontWeight(FontWeight.Bold)
 
-      Text('支持 HTTP/HTTPS/RTMP 和 SMB 视频地址，也可以导入 .strm 文件。SMB 可使用已保存的账号。')
-        .fontSize(12)
-        .fontColor($r('app.color.text_color'))
-        .opacity(0.6)
-        .width('100%')
+        Text('支持 HTTP/HTTPS/RTMP 和 SMB 视频地址，也可以导入 .strm 文件。SMB 可使用已保存的账号。')
+          .fontSize(12)
+          .fontColor($r('app.color.text_color'))
+          .opacity(0.6)
+          .width('100%')
 
-      TextInput({ placeholder: '名称：方便区分的地址名称', text: this.streamName })
-        .keyboardAppearance(KeyboardAppearance.IMMERSIVE)
-        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .borderRadius(16)
-        .height(44)
-        .onChange((input: string) => this.streamName = input)
-        .id('input_stream_name')
+        TextInput({ placeholder: '名称：方便区分的地址名称', text: this.streamName })
+          .keyboardAppearance(KeyboardAppearance.IMMERSIVE)
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+          .borderRadius(16)
+          .height(44)
+          .onChange((input: string) => this.streamName = input)
+          .id('input_stream_name')
 
-      TextArea({ placeholder: '例如 https://服务器/video.mp4 或 smb://服务器/共享/video.mkv', text: this.streamUrl })
-        .keyboardAppearance(KeyboardAppearance.IMMERSIVE)
-        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        .borderRadius(16)
-        .onChange((input: string) => this.streamUrl = input)
+        TextArea({ placeholder: '例如 https://服务器/video.mp4 或 smb://服务器/共享/video.mkv', text: this.streamUrl })
+          .keyboardAppearance(KeyboardAppearance.IMMERSIVE)
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+          .borderRadius(16)
+          .height(96)
+          .onChange((input: string) => this.streamUrl = input)
 
-      Button('导入 .strm 文件')
-        .fontColor($r('app.color.text_color'))
-        .attributeModifier(new ButtonFancyModifier('100%', 40))
-        .backgroundColor($r('sys.color.button_background_color_transparent'))
-        .onClick(async () => {
-          await this.selectStrmFile()
-        })
+        Button('导入 .strm 文件')
+          .fontColor($r('app.color.text_color'))
+          .attributeModifier(new ButtonFancyModifier('100%', 40))
+          .backgroundColor($r('sys.color.button_background_color_transparent'))
+          .onClick(async () => {
+            await this.selectStrmFile()
+          })
 
-      DialogButtonBar(
-        () => {
-          this.controller?.close()
-        },
-        () => this.saveStream()
-      )
-    }.padding(20).enabled(!this.saving)
+        DialogButtonBar(
+          () => {
+            this.controller?.close()
+          },
+          () => this.saveStream()
+        )
+      }.padding(20).enabled(!this.saving)
+    }.scrollBar(BarState.Auto)
   }
 
   private async saveStream(): Promise<void> {

@@ -1,3 +1,4 @@
+import FolderHierarchy from '../../utils/FolderHierarchy'
 import { FileFolderDataSource } from '../../utils/DataUtil'
 import { AddFileFolderNameDialog } from '../Dialog/AddFileFolderNameDialog'
 import { RenameDialog } from '../Dialog/RenameDialog'
@@ -16,14 +17,13 @@ import { PathUtils } from '../../utils/PathUtils'
 import { VideoListController } from '../VideoItemComponent/VideoItemComponent'
 import { SideBarController } from './SideBar'
 import Preferences from '../../database/Preferences'
-import { DeleteType } from '../../common/enum/DeleteType'
 import { SortField } from '../../common/enum/SortField'
 import NavigationAddress from '../../common/NavigationCommon'
 import { userData, userLoginBuilder } from '../common/UserLoginComponent'
 import { FileFolderListBuilder } from '../FileFolderComponent/FileFolderListComponent'
 import { FolderSelectMenuBuilder } from '../FileFolderComponent/FileFolderSelectBuilder'
 import { SortMenuComponent } from '../common/SortMenuComponent'
-import { FolderOperator, VideoMetaDataOperator } from '../../database/VideoMetaData'
+import { FolderOperator } from '../../database/VideoMetaData'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import FileFolderUtil from '../../utils/FileFolderUtil'
@@ -155,38 +155,11 @@ export struct SideBarContentComponent {
           icon: $r("sys.symbol.trash_fill"),
           content: $r('app.string.delete'),
           onAction: async () => {
-            const allFolders = Preferences.getFileFolder(PathUtils.appContext!)
-            const collectAllVideos = (rootDate: string): VideoMetadata[] => {
-              const videos: VideoMetadata[] = []
-              const visited = new Set<string>()
-              const stack: string[] = [rootDate]
-              while (stack.length > 0) {
-                const current = stack.pop()!
-                if (visited.has(current)) {
-                  continue
-                }
-                visited.add(current)
-                const targetFolder = allFolders.find(f => f.date === current) ?? folder
-                videos.push(...(targetFolder.video_list ?? []))
-                const childFolders = allFolders.filter(f => f.parent_date === current)
-                for (const child of childFolders) {
-                  stack.push(child.date)
-                }
-              }
-              return videos
-            }
-            DataSyncUtil.delMultipleList = collectAllVideos(folder.date)
-            await Promise.all(
-              DataSyncUtil.delMultipleList.map(async item => {
-                await VideoMetaDataOperator.deleteItem(this.videoListController, this.fileFolderSource, DeleteType.SOFT,
-                  item)
-              })
-            )
+            const newFolders = await FileFolderUtil.deleteFileFolderRecursive(PathUtils.appContext!, folder)
             this.videoListController.closeMultipleChoose()
-            const newFolders = FileFolderUtil.deleteFileFolderRecursive(PathUtils.appContext!, folder)
             this.fileFolderListChange(newFolders)
             let newFolder: FileFolder | undefined
-            if (this.videoListController.folder?.date === folder.date) {
+            if (!newFolders.some(item => item.date === this.videoListController.folder?.date)) {
               newFolder = newFolders[0]
             } else {
               newFolder = this.videoListController.folder
@@ -563,9 +536,10 @@ export struct SideBarContentComponent {
                       videoListController: this.videoListController,
                       fileFolderSource: this.fileFolderSource,
                       expandedFolderDates: this.expandedFolderDates,
-                      depth: FileFolderUtil.getFolderDepth(PathUtils.appContext!, repeatItem.item.date),
-                      hasChildren: FileFolderUtil.getChildFolders(PathUtils.appContext!, repeatItem.item.date)
-                        .length > 0,
+                      depth: FileFolderUtil.getFolderDepth(PathUtils.appContext!, repeatItem.item.date,
+                        this.fileFolderSource.data),
+                      hasChildren: this.fileFolderSource.data.some(
+                        folder => folder.parent_date === repeatItem.item.date),
                       isExpanded: this.expandedFolderDates.has(repeatItem.item.date),
                       onToggleExpand: (folderDate: string) => {
                         const newExpandedSet = new Set(this.expandedFolderDates)
@@ -639,7 +613,7 @@ export struct SideBarContentComponent {
           .width('100%')
         }
         .fadingEdge(true)
-        .padding({ left: 16, right: 16 })
+        .padding({ left: 16, right: 16, bottom: SafeHeight.bottomSafeHeight })
         .align(Alignment.Top)
         .edgeEffect(EdgeEffect.Spring)
         .scrollBar(BarState.Off)
@@ -857,26 +831,7 @@ export struct SideBarContentComponent {
   }
 
   private getFlattenedTreeFolders(): FileFolder[] {
-    const folders = this.fileFolderSource.data
-    const result: FileFolder[] = []
-    const visited = new Set<string>()
-
-    const dfs = (parentDate: string | null) => {
-      const children = folders.filter(f => f.parent_date === parentDate)
-      for (const child of children) {
-        if (visited.has(child.date)) {
-          continue
-        }
-        visited.add(child.date)
-        result.push(child)
-        if (this.expandedFolderDates.has(child.date)) {
-          dfs(child.date)
-        }
-      }
-    }
-
-    dfs(null)
-    return result
+    return FolderHierarchy.flatten(this.fileFolderSource.data, this.expandedFolderDates)
   }
 
   private openFolderOpeningEndingDialog(folder: FileFolder): void {

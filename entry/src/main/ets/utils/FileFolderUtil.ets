@@ -1,3 +1,4 @@
+import FolderHierarchy from './FolderHierarchy'
 import Preferences from '../database/Preferences'
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
@@ -16,6 +17,7 @@ import fileIo from '@ohos.file.fs'
 import { DeleteType } from '../common/enum/DeleteType'
 import { SortField } from '../common/enum/SortField'
 import SubtitleUtil from './SubtitleUtil'
+import { DanmakuStorage } from './DanmakuStorage'
 
 const TAG = 'FileFolderUtil'
 
@@ -29,13 +31,13 @@ export default class FileFolderUtil {
 
   //新建文件夹
   static createNewFolder(context: Context, folder_name: string, parent_date: string | null = null): FileFolder[] {
+    const file_folder_list = Preferences.getFileFolder(context) as FileFolder[]
     const new_folder: FileFolder = {
       name: folder_name,
-      date: systemDateTime.getTime(false).toString(),
+      date: FolderHierarchy.createId(file_folder_list),
       video_list: [],
       parent_date: parent_date,
     }
-    const file_folder_list = Preferences.getFileFolder(context) as FileFolder[]
     if (!file_folder_list.some(i => i.name === new_folder.name && i.parent_date === new_folder.parent_date)) {
       file_folder_list.push(new_folder)
       Preferences.saveFileFolder(context, file_folder_list)
@@ -73,31 +75,7 @@ export default class FileFolderUtil {
 
   // 树形扁平化：父→子→子→下一个父，返回按树形顺序排列的文件夹列表
   static flattenTree(folders: FileFolder[]): FileFolder[] {
-    const result: FileFolder[] = []
-    const visited = new Set<string>()
-    const childrenMap = new Map<string | null, FileFolder[]>()
-    for (const f of folders) {
-      const key = f.parent_date
-      if (!childrenMap.has(key)) {
-        childrenMap.set(key, [])
-      }
-      childrenMap.get(key)!.push(f)
-    }
-
-    const dfs = (parentDate: string | null) => {
-      const children = childrenMap.get(parentDate) ?? []
-      for (const child of children) {
-        if (visited.has(child.date)) {
-          continue
-        }
-        visited.add(child.date)
-        result.push(child)
-        dfs(child.date)
-      }
-    }
-
-    dfs(null)
-    return result
+    return FolderHierarchy.flatten(folders)
   }
 
   // 获取某文件夹的同级文件夹（含自身，同一 parent_date 下）
@@ -115,7 +93,9 @@ export default class FileFolderUtil {
     const folders = Preferences.getFileFolder(context) as FileFolder[]
     const chain: FileFolder[] = []
     let current = folders.find(f => f.date === folderDate)
-    while (current) {
+    const visited = new Set<string>()
+    while (current && !visited.has(current.date)) {
+      visited.add(current.date)
       chain.unshift(current)
       if (current.parent_date) {
         current = folders.find(f => f.date === current!.parent_date)
@@ -127,11 +107,13 @@ export default class FileFolderUtil {
   }
 
   // 获取某文件夹的层级深度
-  static getFolderDepth(context: Context, folderDate: string): number {
-    const folders = Preferences.getFileFolder(context) as FileFolder[]
+  static getFolderDepth(context: Context, folderDate: string,
+    folders: FileFolder[] = Preferences.getFileFolder(context)): number {
     let depth = 0
     let current = folders.find(f => f.date === folderDate)
-    while (current?.parent_date) {
+    const visited = new Set<string>()
+    while (current?.parent_date && !visited.has(current.date)) {
+      visited.add(current.date)
       depth++
       current = folders.find(f => f.date === current!.parent_date)
     }
@@ -139,22 +121,22 @@ export default class FileFolderUtil {
   }
 
   // 删除文件夹及其所有子文件夹
-  static deleteFileFolderRecursive(context: Context, file_folder: FileFolder, fileDataSource?: FileFolderDataSource) {
+  static async deleteFileFolderRecursive(context: Context, file_folder: FileFolder,
+    fileDataSource?: FileFolderDataSource): Promise<FileFolder[]> {
     let folders = Preferences.getFileFolder(context)
-    const datesToDelete = new Set<string>()
-    const stack: string[] = [file_folder.date]
-    while (stack.length > 0) {
-      const current = stack.pop()!
-      if (datesToDelete.has(current)) {
-        continue
-      }
-      datesToDelete.add(current)
-      const children = folders.filter(f => f.parent_date === current)
-      for (const child of children) {
-        stack.push(child.date)
+    const datesToDelete = FolderHierarchy.descendants(folders, file_folder.date)
+    const videos = new Map<string, VideoMetadata>()
+    for (const folder of folders) {
+      if (datesToDelete.has(folder.date)) {
+        for (const video of folder.video_list ?? []) {
+          if (video.date) {
+            videos.set(video.date, video)
+          }
+        }
       }
     }
-    folders = folders.filter(i => !datesToDelete.has(i.date))
+    await VideoOperateUtil.deleteVideoFiles(Array.from(videos.values()), DeleteType.SOFT)
+    folders = Preferences.getFileFolder(context).filter(i => !datesToDelete.has(i.date))
     Preferences.saveFileFolder(context, folders)
     if (fileDataSource) {
       fileDataSource.updateData(folders)
@@ -273,42 +255,33 @@ export default class FileFolderUtil {
 
   // 删除文件夹（含子文件夹）
   static deleteFileFolder(context: Context, file_folder: FileFolder,
-    fileDataSource?: FileFolderDataSource): FileFolder[] {
+    fileDataSource?: FileFolderDataSource): Promise<FileFolder[]> {
     return FileFolderUtil.deleteFileFolderRecursive(context, file_folder, fileDataSource)
   }
 
   static moveFileFolder(context: Context, folderDate: string, targetParentDate: string | null,
     fileFolderDataSource?: FileFolderDataSource): FileFolder[] {
-    let folders = Preferences.getFileFolder(context) as FileFolder[]
+    // 不修改界面正在持有的对象；Repeat 必须收到新对象才能更新层级和缩进。
+    const folders: FileFolder[] = Preferences.getFileFolder(context).map((folder): FileFolder => ({
+      name: folder.name, date: folder.date, parent_date: folder.parent_date, video_list: folder.video_list
+    }))
     if (folderDate === targetParentDate) {
       return folders
     }
     if (targetParentDate !== null) {
-      const isDescendant = (parentDate: string, checkDate: string): boolean => {
-        const visited = new Set<string>()
-        const stack: string[] = [parentDate]
-        while (stack.length > 0) {
-          const current = stack.pop()!
-          if (visited.has(current)) {
-            continue
-          }
-          visited.add(current)
-          const children = folders.filter(f => f.parent_date === current)
-          for (const child of children) {
-            if (child.date === checkDate) {
-              return true
-            }
-            stack.push(child.date)
-          }
-        }
-        return false
+      if (!folders.some(folder => folder.date === targetParentDate)) {
+        ToolsUtil.showToast('目标文件夹已不存在，请重新选择')
+        return folders
       }
-      if (isDescendant(folderDate, targetParentDate)) {
+      if (FolderHierarchy.descendants(folders, folderDate).has(targetParentDate)) {
         ToolsUtil.showToast('不能移动到自身子文件夹下')
         return folders
       }
     }
     const targetFolder = folders.find(i => i.date === folderDate)
+    if (targetFolder?.name === '首页' && targetFolder.parent_date === null) {
+      return folders
+    }
     if (targetFolder) {
       const duplicate = folders.find(i => i.name === targetFolder.name &&
         i.parent_date === targetParentDate && i.date !== targetFolder.date)
@@ -319,10 +292,11 @@ export default class FileFolderUtil {
       targetFolder.parent_date = targetParentDate
     }
     Preferences.saveFileFolder(context, folders)
+    const savedFolders = Preferences.getFileFolder(context)
     if (fileFolderDataSource) {
-      fileFolderDataSource.updateData(folders)
+      fileFolderDataSource.updateData(savedFolders)
     }
-    return folders
+    return savedFolders
   }
 
   //改变文件夹名称
@@ -414,16 +388,26 @@ export default class FileFolderUtil {
     const subtitleResult = await fileIo.listFile(PathUtils.subtitlePath)?.catch(() => {
       salmonLogger.addLog(TAG, 'get subtitle fail', true)
     })
-    const validFileRegex = /^(\d|stream_)/
+    const danmakuResult = await fileIo.listFile(DanmakuStorage.directory).catch(() => {
+      // 尚未导入弹幕时目录不存在。
+      return [] as string[]
+    })
+    const validFileRegex = /^(\d|stream_|smb_)/
     const coverFromSandboxArray: string[] = Array.isArray(coverResult)
-      ? coverResult.filter(file => validFileRegex.test(file)) : []
+      ? coverResult.filter(file => validFileRegex.test(file) && !file.endsWith('.tmp')) : []
     const subtitleFromSandboxArray: string[] = Array.isArray(subtitleResult)
-      ? subtitleResult.filter(file => validFileRegex.test(file)) : []
+      ? subtitleResult.filter(file => validFileRegex.test(file) && !file.endsWith('.tmp')) : []
     const videoMetaData = Preferences.getVideoMetaData(context)
     const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(context)
     const fileFolder = Preferences.getFileFolder(context)
     const networkStreams = Preferences.getNetworkStreams(context)
     const existingItemsSet = new Set<string>()
+    // SMB 和从外部打开的视频可能只保存在播放历史中。
+    for (const item of Preferences.getRecentPlay(context)) {
+      if (item.date) {
+        existingItemsSet.add(item.date)
+      }
+    }
     for (const v of videoMetaData) {
       existingItemsSet.add(v.date as string)
     }
@@ -450,23 +434,48 @@ export default class FileFolderUtil {
       `检测到失效封面文件数：${missingCoverFiles.length}，内容：${missingCoverFiles.toString()}`, false)
     salmonLogger.addLog(TAG,
       `检测到失效字幕文件数：${missingSubtitleFiles.length}，内容：${missingSubtitleFiles.toString()}`, false)
-    const totalMissing = missingCoverFiles.length + missingSubtitleFiles.length
+    const missingDanmakuFiles: string[] = []
+    for (const file of danmakuResult) {
+      if (!file.endsWith('.xml')) {
+        continue
+      }
+      try {
+        const media = decodeURIComponent(file.slice(0, -4))
+        if (media && media.length <= 200 && `${encodeURIComponent(media)}.xml` === file &&
+          !existingItemsSet.has(media)) {
+          missingDanmakuFiles.push(media)
+        }
+      } catch (_) {
+        // 跳过不符合存储格式的文件。
+      }
+    }
+    const totalMissing = missingCoverFiles.length + missingSubtitleFiles.length + missingDanmakuFiles.length
     if (totalMissing === 0) {
       return 0
     }
+    let deletedCount = 0
     const deleteTasks: Promise<void>[] = []
     for (const file of missingCoverFiles) {
-      deleteTasks.push(SelectFileUtil.deleteCover(file).catch((err: BusinessError) => {
+      deleteTasks.push(SelectFileUtil.deleteCover(file).then(() => { deletedCount++ }).catch((err: BusinessError) => {
         salmonLogger.addLog(TAG, `删除封面失败: ${file}, ${err}`, true)
       }))
     }
     for (const file of missingSubtitleFiles) {
-      deleteTasks.push(SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, file, true).catch((err: BusinessError) => {
-        salmonLogger.addLog(TAG, `删除字幕失败: ${file}, ${err}`, true)
-      }))
+      deleteTasks.push(SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, file, true)
+        .then(() => { deletedCount++ }).catch((err: BusinessError) => {
+          salmonLogger.addLog(TAG, `删除字幕失败: ${file}, ${err}`, true)
+        }))
+    }
+    for (const media of missingDanmakuFiles) {
+      try {
+        DanmakuStorage.remove(media)
+        deletedCount++
+      } catch (error) {
+        salmonLogger.addLog(TAG, `删除失效弹幕失败: ${error}`, true)
+      }
     }
     await Promise.all(deleteTasks)
-    return totalMissing
+    return deletedCount
   }
 
   // 检查文件夹是否存在

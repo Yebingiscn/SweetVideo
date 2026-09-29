@@ -333,7 +333,7 @@ export struct AudioTrackComponent {
         }
       })
     }
-    .width(235)
+    .width(270)
     .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
   }

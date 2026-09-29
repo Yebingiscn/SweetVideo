@@ -512,6 +512,9 @@ export default class SelectFileUtil {
       if (options.subtitleAIAsrShown !== undefined) {
         video.subtitle_ai_asr_shown = options.subtitleAIAsrShown
       }
+      if (options.externalSubtitleFormat !== undefined) {
+        video.external_subtitle_format = options.externalSubtitleFormat
+      }
       if (options.subtitle3DMode !== undefined) {
         video.subtitle_3d_mode = options.subtitle3DMode
       }
@@ -717,9 +720,6 @@ export default class SelectFileUtil {
     privateMode: boolean = PrivacySpaceUtil.getPrivacyMode() === true,
     allowDuplicateTitle: boolean = false, importRootUri?: string,
     importRootFolderName?: string): Promise<boolean> {
-    // 权限持久化必须留在主线程；媒体内容随后全部交给 FFmpeg。
-    await PermissionUtil.persistPermission(uri)
-
     try {
       const fileInfoResult = await extractVideoFileInfoInTaskPool(uri)
       if (!fileInfoResult.success) {
@@ -727,6 +727,8 @@ export default class SelectFileUtil {
         return false
       }
 
+      // 文件存在且不是目录后再持久化；失败不能伪造成功缓存。
+      await PermissionUtil.persistPermission(uri)
       const fileSize = fileInfoResult.fileSize
       const fileName = fileInfoResult.fileName
       // 同一 FFmpeg 会话先读取文字元数据，再解一张封面。
@@ -895,7 +897,8 @@ export default class SelectFileUtil {
           const batch = entries.slice(i, i + ENTRY_BATCH_SIZE)
           const batchPromises = batch.map(async (entry: string) => {
             const fullFileSystemPath = joinDirectoryPath(directory.fileSystemPath, entry)
-            const fullImportUri = joinDirectoryPath(directory.importUri, entry)
+            const fullImportUri = joinDirectoryPath(directory.importUri,
+              directory.importUri.startsWith('file://') ? encodeURIComponent(entry) : entry)
             try {
               const stat = await fs.stat(fullFileSystemPath)
               if (stat.isFile()) {

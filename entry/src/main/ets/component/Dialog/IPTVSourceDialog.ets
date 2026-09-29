@@ -105,7 +105,7 @@ export struct IPTVSourceDialog {
         if (this.sourceType === 'url') {
           TextArea({ placeholder: 'M3U/M3U8/TXT 节目源地址', text: this.location })
             .borderRadius(16)
-            .height(80)
+            .height(96)
             .onChange((value: string) => {
               this.location = value
               this.invalidatePreparedSource()

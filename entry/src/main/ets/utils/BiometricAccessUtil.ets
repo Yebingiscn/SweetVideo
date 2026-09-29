@@ -24,7 +24,6 @@ export default class BiometricAccessUtil {
       BiometricAccessUtil.authTrustLevel = userAuth.AuthTrustLevel.ATL3
       const authTypeRes = BiometricAccessUtil.authType.map((item) => {
         try {
-          // 查询认证能力是否支持,注意这里需要用 try catch
           userAuth.getAvailableStatus(item, BiometricAccessUtil.authTrustLevel)
           return true
         } catch (error) {
@@ -32,63 +31,83 @@ export default class BiometricAccessUtil {
           return false
         }
       })
-      // 有一项支持即可
       return authTypeRes.some(v => v === true)
     }
     return false
   }
 
+  // 查询指定认证类型是否支持
+  static checkAuthTypeSupported(authType: userAuth.UserAuthType): boolean {
+    if (canIUse('SystemCapability.UserIAM.UserAuth.Core')) {
+      try {
+        userAuth.getAvailableStatus(authType, userAuth.AuthTrustLevel.ATL3)
+        return true
+      } catch (error) {
+        salmonLogger.addLog(TAG, `BiometricAccessUtil: Auth type ${authType} not supported: ` + error)
+        return false
+      }
+    }
+    return false
+  }
+
+  // 发起认证，优先使用 preferredAuthType，不支持则回退到另一种生物认证，都不支持返回 false
+  static startUserAuthWithFallback(preferredAuthType: userAuth.UserAuthType): Promise<boolean> {
+    if (canIUse('SystemCapability.UserIAM.UserAuth.Core')) {
+      const fallbackType = preferredAuthType === userAuth.UserAuthType.FACE ?
+        userAuth.UserAuthType.FINGERPRINT : userAuth.UserAuthType.FACE
+      if (BiometricAccessUtil.checkAuthTypeSupported(preferredAuthType)) {
+        return BiometricAccessUtil.startUserAuth([preferredAuthType])
+      }
+      if (BiometricAccessUtil.checkAuthTypeSupported(fallbackType)) {
+        return BiometricAccessUtil.startUserAuth([fallbackType])
+      }
+      return Promise.resolve(false)
+    }
+    return Promise.resolve(false)
+  }
+
   // 6.发起原生用户生物认证检测
-  static startUserAuth(): Promise<boolean> {
+  static startUserAuth(authTypes?: userAuth.UserAuthType[]): Promise<boolean> {
     return new Promise((resolve) => {
       if (canIUse('SystemCapability.UserIAM.UserAuth.Core')) {
         let userAuthInstance: userAuth.UserAuthInstance | null = null
         try {
-          // 生成随机挑战值，增强安全性
           const challenge = new Uint8Array(16)
           for (let i = 0; i < 16; i++) {
             challenge[i] = Math.floor(Math.random() * 256)
           }
 
-          // 1. 获取认证对象
+          const useAuthType = authTypes ?? BiometricAccessUtil.authType
           userAuthInstance =
             userAuth.getUserAuthInstance({
-              challenge: challenge, // 挑战值，用来防重放攻击。
-              authType: BiometricAccessUtil.authType, // 认证类型列表
-              authTrustLevel: userAuth.AuthTrustLevel.ATL3, // 认证信任等级
+              challenge: challenge,
+              authType: useAuthType,
+              authTrustLevel: userAuth.AuthTrustLevel.ATL3,
             }, BiometricAccessUtil.widgetParam)
-          // 2. 订阅用户身份认证结果
           userAuthInstance.on('result', {
-            // 返回认证结果
             onResult(result) {
               try {
-                // 如果验证成功/失败
                 if (result.result === userAuth.UserAuthResultCode.SUCCESS) {
                   resolve(true)
                 } else {
                   resolve(false)
                 }
               } finally {
-                // 认证结束，取消订阅认证结果（释放资源）
                 if (userAuthInstance) {
                   try {
                     userAuthInstance.off('result')
                   } catch {
-                    // 忽略取消订阅时的错误
                   }
                 }
               }
             }
           })
-          // 3. 执行用户生物认证检测
           userAuthInstance.start()
         } catch (error) {
-          // 发生错误时确保释放资源
           if (userAuthInstance) {
             try {
               userAuthInstance.off('result')
             } catch {
-              // 忽略取消订阅时的错误
             }
           }
           salmonLogger.addLog(TAG, 'BiometricAccessUtil.startUserAuth error:' + error, true)

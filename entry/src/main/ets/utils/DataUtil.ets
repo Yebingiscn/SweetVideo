@@ -122,9 +122,8 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
     if (!item) {
       return
     }
-    await this.deleteItem(DeleteType.SOFT, item)
-    SelectFileUtil.deleteVideo(item)
     await VideoMetaDataOperator.deleteItem(videoListController, fileFolderSource, DeleteType.SOFT, item)
+    SelectFileUtil.deleteVideo(item)
     VideoUtils.refresh(videoListController, fileFolderSource, videoListController.folder)
   }
 

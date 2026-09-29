@@ -3,6 +3,7 @@ import { CoverLayoutMode, ListDisplayMode } from '../common/enum/DisplayMode'
 import { MpvDecodingMethod, MpvGpuApi } from '../controller/MpvController/MpvTypes'
 import { UIUtils } from '@kit.ArkUI'
 import { SubtitlePreferredLanguage } from '../common/enum/SubtitleLanguage'
+import { PrivacyAuthMode } from '../common/enum/PrivacyAuthMode'
 
 class SettingUtil {
   public backgroundImageSrc: string = ''
@@ -43,6 +44,8 @@ class SettingUtil {
   public mpvDecodingMethod: MpvDecodingMethod = MpvDecodingMethod.HARDWARE_SURFACE
   public mpvGpuApi: MpvGpuApi = MpvGpuApi.OPENGL
   public mpvSdrToHdr: boolean = false
+  public mpvAutoDeinterlace: boolean = false
+  public mpvAudioPassthrough: boolean = false
   public mpvUsbExclusive: boolean = false
   public mpvUsbDsdMode: number = 0
   public mpvUsbDevice: string = ''
@@ -60,6 +63,7 @@ class SettingUtil {
   public maxListLine: number = 5
   public defaultDensityEnabled: boolean = true
   public seekSensitivity: number = 0
+  public privacyAuthMode: PrivacyAuthMode = PrivacyAuthMode.FACE
 }
 
 class SafeHeightUtil {
@@ -67,9 +71,10 @@ class SafeHeightUtil {
   public bottomSafeHeight: number = 0
 }
 
+@ObservedV2
 export class PrivacySecureUtil {
-  public isPrivacyBackground: boolean = false
-  public receivedFilesVersion: number = 0
+  @Trace public isPrivacyBackground: boolean = false
+  @Trace public receivedFilesVersion: number = 0
 }
 
 class PcUtil {
@@ -80,6 +85,6 @@ export const SafeHeight = UIUtils.makeObserved(new SafeHeightUtil())
 
 export const Setting = UIUtils.makeObserved(new SettingUtil())
 
-export const Privacy = UIUtils.makeObserved(new PrivacySecureUtil())
+export const Privacy = new PrivacySecureUtil()
 
 export const Pc = UIUtils.makeObserved(new PcUtil())

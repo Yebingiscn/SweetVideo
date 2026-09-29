@@ -17,6 +17,7 @@ export interface PlayerControllerInterface {
   surfaceId: string | null
   avSession: avSessionManager.AVSession | undefined
   nowPlaying: VideoMetadata | undefined
+  audioCoverUri?: string
   videoMetaDataList: VideoMetadata[]
   initialPlayTime: number | undefined
   initialPlaying: boolean | undefined
@@ -36,6 +37,8 @@ export interface PlayerControllerInterface {
   onSwiping: boolean
   isSliderPlayTimeChange: boolean
   playTime: number
+  // Actual engine position, independent of the draggable progress preview.
+  playbackPositionMs: number
   playing: boolean
   subtitle: string
   showControl: boolean
@@ -131,7 +134,7 @@ export interface PlayerControllerInterface {
   playAdjacentVideo(repeatMode: SweetRepeatMode,
     direction: 'previous' | 'next'): VideoMetadata | undefined
 
-  setExternalSubtitle(nowPlaying: VideoMetadata): void
+  setExternalSubtitle(nowPlaying: VideoMetadata): Promise<void>
 
   playNextVideoProcess(pathStack: NavPathStack, windowClass?: Promise<window.Window | undefined>,
     xComponentController?: XComponentController, overrideRepeatMode?: SweetRepeatMode): Promise<void>

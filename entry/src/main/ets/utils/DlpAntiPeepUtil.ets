@@ -10,18 +10,23 @@ import { common } from '@kit.AbilityKit'
 const TAG = 'DlpAntiPeepUtil'
 
 export default class DlpAntiPeepUtil {
+  private static unsupported: boolean = false
+  private static subscribed: boolean = false
+  private static generation: number = 0
   // 标识当前是否激活 AI 防窥
   private static isDlpAntiPeepStatus: boolean = false
   // 防窥状态变化回调
   private static onStatusChange = async (status: dlpAntiPeep.DlpAntiPeepStatus): Promise<void> => {
-    if (canIUse('SystemCapability.Security.DlpAntiPeep')) {
-      if (status === dlpAntiPeep.DlpAntiPeepStatus.PASS) { // 表示当前状态为无人窥视
-        // 重置状态,允许下次窥屏时设置蒙层
-        DlpAntiPeepUtil.isDlpAntiPeepStatus = false
-      } else if (status === dlpAntiPeep.DlpAntiPeepStatus.HIDE) { // 表示有人在窥屏，应用可以进行隐私保护操作。
-        // 只在未设置蒙层时调用一次,避免频繁调用影响用户体验
-        if (!DlpAntiPeepUtil.isDlpAntiPeepStatus) {
-          await this.setMaskLayer() // 拉起系统蒙层
+    if (DlpAntiPeepUtil.subscribed) {
+      if (canIUse('SystemCapability.Security.DlpAntiPeep')) {
+        if (status === dlpAntiPeep.DlpAntiPeepStatus.PASS) { // 表示当前状态为无人窥视
+          // 重置状态,允许下次窥屏时设置蒙层
+          DlpAntiPeepUtil.isDlpAntiPeepStatus = false
+        } else if (status === dlpAntiPeep.DlpAntiPeepStatus.HIDE) { // 表示有人在窥屏，应用可以进行隐私保护操作。
+          // 只在未设置蒙层时调用一次,避免频繁调用影响用户体验
+          if (!DlpAntiPeepUtil.isDlpAntiPeepStatus) {
+            await DlpAntiPeepUtil.setMaskLayer() // 拉起系统蒙层
+          }
         }
       }
     }
@@ -29,18 +34,19 @@ export default class DlpAntiPeepUtil {
 
   // 检查防窥保护开关并订阅通知
   static async checkDlpAntiPeepStatus() {
+    if (DlpAntiPeepUtil.unsupported || DlpAntiPeepUtil.subscribed) {
+      return
+    }
+    const generation = ++DlpAntiPeepUtil.generation
     if (canIUse('SystemCapability.Security.DlpAntiPeep')) {
       try {
-        // 先取消之前的订阅,避免重复订阅
-        try {
-          dlpAntiPeep.off('dlpAntiPeep', DlpAntiPeepUtil.onStatusChange)
-        } catch {
-          // 忽略取消订阅时的错误
-        }
-
         const isOpen = await dlpAntiPeep.isDlpAntiPeepSwitchOn()
+        if (generation !== DlpAntiPeepUtil.generation) {
+          return
+        }
         if (isOpen) {
           dlpAntiPeep.on('dlpAntiPeep', DlpAntiPeepUtil.onStatusChange)
+          DlpAntiPeepUtil.subscribed = true
         } else {
           // 开关未开启，引导用户设置
           if (!WindowUtil.windowClass) {
@@ -53,9 +59,13 @@ export default class DlpAntiPeepUtil {
             return
           }
           const result = await dlpAntiPeep.requestAntiPeepOptions(context)
+          if (generation !== DlpAntiPeepUtil.generation) {
+            return
+          }
           if (result === dlpAntiPeep.AntiPeepOptionsResult.SUCCESS ||
             result === dlpAntiPeep.AntiPeepOptionsResult.ALREADY_ON) { // 表示防窥保护开关开启成功或已开启
             dlpAntiPeep.on('dlpAntiPeep', DlpAntiPeepUtil.onStatusChange)
+            DlpAntiPeepUtil.subscribed = true
           } else {
             // 引导用户设置失败
             Setting.enableAiPrivacyAntiPeep = false
@@ -64,6 +74,11 @@ export default class DlpAntiPeepUtil {
           }
         }
       } catch (error) {
+        if (error.code === 801) {
+          DlpAntiPeepUtil.unsupported = true
+          salmonLogger.addLog(TAG, '设备不支持 AI 防窥，已跳过')
+          return
+        }
         salmonLogger.addLog(TAG, `Failed to init DlpAntiPeep. Code: ${error.code}, message: ${error.message}`, true)
       }
     }
@@ -71,9 +86,15 @@ export default class DlpAntiPeepUtil {
 
   // 取消订阅防窥保护通知
   static closeDlpAntiPeepStatus() {
+    ++DlpAntiPeepUtil.generation
+    DlpAntiPeepUtil.isDlpAntiPeepStatus = false
+    if (!DlpAntiPeepUtil.subscribed) {
+      return
+    }
     if (canIUse('SystemCapability.Security.DlpAntiPeep')) {
       try {
         dlpAntiPeep.off('dlpAntiPeep', DlpAntiPeepUtil.onStatusChange)
+        DlpAntiPeepUtil.subscribed = false
         DlpAntiPeepUtil.isDlpAntiPeepStatus = false
       } catch (error) {
         salmonLogger.addLog(TAG, `Failed to off DlpAntiPeep. Code: ${error.code}, message: ${error.message}`, true)
@@ -82,6 +103,10 @@ export default class DlpAntiPeepUtil {
   }
 
   private static async setMaskLayer(): Promise<void> {
+    const generation = DlpAntiPeepUtil.generation
+    if (!DlpAntiPeepUtil.subscribed) {
+      return
+    }
     if (canIUse("SystemCapability.Security.DlpAntiPeep")) {
       try {
         if (!WindowUtil.windowClass) {
@@ -94,6 +119,9 @@ export default class DlpAntiPeepUtil {
           return
         }
         const windowClass = await window.getLastWindow(context)
+        if (generation !== DlpAntiPeepUtil.generation || !DlpAntiPeepUtil.subscribed) {
+          return
+        }
         const windowId = windowClass.getWindowProperties().id
         await dlpAntiPeep.setAntiPeepMaskLayer(windowId)
         DlpAntiPeepUtil.isDlpAntiPeepStatus = true

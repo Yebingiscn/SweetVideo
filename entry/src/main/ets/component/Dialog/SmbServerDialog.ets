@@ -64,7 +64,7 @@ export struct SmbServerDialog {
           .fontSize(20).fontWeight(FontWeight.Bold).fontColor($r('app.color.text_color')).width('100%')
         TextInput({ placeholder: '名称（可选）', text: this.name }).height(44).borderRadius(16)
           .onChange((value: string) => this.name = value).clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        TextArea({ placeholder: 'IP、主机名或 smb://服务器/共享/目录', text: this.host }).height(72).borderRadius(16)
+        TextArea({ placeholder: 'IP、主机名或 smb://服务器/共享/目录', text: this.host }).height(96).borderRadius(16)
           .onChange((value: string) => this.host = value).onBlur(() => this.parseAddress())
         Row({ space: 10 }) {
           TextInput({ placeholder: '端口', text: this.port })
@@ -79,7 +79,7 @@ export struct SmbServerDialog {
 
         TextInput({ placeholder: '起始目录（可选）', text: this.initialPath }).height(44).borderRadius(16)
           .onChange((value: string) => this.initialPath = value)
-        TextInput({ placeholder: '用户名（访客访问可留空）', text: this.user }).height(44).borderRadius(16)
+        TextInput({ placeholder: '用户名或域\\用户名（匿名访问留空）', text: this.user }).height(44).borderRadius(16)
           .onChange((value: string) => this.user = value)
         TextInput({ placeholder: '密码', text: this.password }).height(44).borderRadius(16)
           .type(InputType.Password)
@@ -136,7 +136,7 @@ export struct SmbServerDialog {
     if (address.hasUser) {
       this.user = address.user
       this.domain = address.domain
-      this.password = address.password
+      if (address.hasPassword) this.password = address.password
     }
     this.message = '已解析 SMB 地址，可继续填写或修改连接信息'
   }
@@ -154,6 +154,7 @@ export struct SmbServerDialog {
     const host = this.host.trim()
     const share = this.share.trim()
     const port = Number(this.port)
+    const login = SmbAddress.login(this.user, this.domain)
     if (!host || /[\s/\\?#@]/.test(host)) {
       throw new Error('请输入有效的 IP、主机名或 smb:// 地址')
     }
@@ -170,8 +171,8 @@ export struct SmbServerDialog {
       host: host,
       port: port,
       share: share,
-      user: this.user.trim(),
-      domain: this.domain.trim(),
+      user: login.user,
+      domain: login.domain,
       seal: this.seal,
       initialPath: SmbAddress.path(this.initialPath.trim())
     }

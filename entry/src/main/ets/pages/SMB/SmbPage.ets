@@ -1,4 +1,10 @@
-import { SmbEntry } from 'libmpvnative.so'
+import { smbClose, SmbEntry } from 'libmpvnative.so'
+import { fileIo as fs } from '@kit.CoreFileKit'
+import { ListDisplayMode } from '../../common/enum/DisplayMode'
+import { PathUtils } from '../../utils/PathUtils'
+import SelectFileUtil from '../../utils/SelectFileUtil'
+import FFmpegThumbnailUtil from '../../utils/FFmpegThumbnailUtil'
+import { salmonLogger } from 'salmonlogger'
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
 import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
 import { SmbServerDialog } from '../../component/Dialog/SmbServerDialog'
@@ -22,6 +28,17 @@ export struct SmbPage {
   @Local folder: string = ''
   @Local loading: boolean = false
   @Local error: string = ''
+  @Local contentWidth: number = 360
+  @Local directoryVersion: number = 0
+  @Local covers: Record<string, string> = {}
+  @Local coverRatios: Record<string, number> = {}
+  private thumbnailVersion: number = 0
+  private thumbnailRunning: boolean = false
+  private thumbnailQueue: SmbEntry[] = []
+  private thumbnailVisible: Set<string> = new Set()
+  private thumbnailAttempted: Set<string> = new Set()
+  private thumbnailUrl: string = ''
+  private thumbnailActive: boolean = true
   private allEntries: SmbEntry[] = []
   private recentItems: Map<string, VideoMetadata> = new Map()
   private requestVersion: number = 0
@@ -45,6 +62,65 @@ export struct SmbPage {
 
   aboutToDisappear(): void {
     this.requestVersion++
+    this.stopThumbnails()
+  }
+
+  private columns(): number {
+    return Math.max(1, Math.floor(this.contentWidth / 500) +
+      (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY ? 1 : 2))
+  }
+
+  @Builder
+  EntryCover(entry: SmbEntry, list: boolean) {
+    Stack() {
+      SymbolGlyph(entry.directory ? $r('sys.symbol.folder') : $r('sys.symbol.play_round_triangle'))
+        .fontSize(32).fontColor([$r('app.color.main_color')])
+      if (!entry.directory && this.covers[entry.name]) {
+        Image(this.covers[entry.name]).width('100%').height('100%').objectFit(ImageFit.Cover)
+          .onComplete((event) => {
+            if (event && event.width > 0 && event.height > 0) {
+              const ratio = Math.max(0.6, Math.min(2.4, event.width / event.height))
+              if (this.coverRatios[entry.name] !== ratio) {
+                const ratios: Record<string, number> = {}
+                Object.keys(this.coverRatios).forEach((key: string) => { ratios[key] = this.coverRatios[key] })
+                ratios[entry.name] = ratio
+                this.coverRatios = ratios
+              }
+            }
+          })
+      }
+    }
+    .width(list ? 112 : '100%')
+    .aspectRatio(list || Setting.listDisplayMode === ListDisplayMode.GRID_DISPLAY ? 16 / 9 :
+      (this.coverRatios[entry.name] ?? 16 / 9))
+    .backgroundColor($r('app.color.list_item_background')).borderRadius(12).clip(true)
+  }
+
+  @Builder
+  EntryText(entry: SmbEntry) {
+    Column({ space: 6 }) {
+      Text(entry.name).fontSize(16).fontColor($r('app.color.text_color'))
+        .maxLines(Setting.listDisplayMode === ListDisplayMode.GRID_DISPLAY ? 1 : 3)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      Text(entry.directory ? '文件夹' : ToolsUtil.formatFileSize(entry.size))
+        .fontSize(13).fontColor($r('app.color.text_color')).opacity(0.6)
+    }.alignItems(HorizontalAlign.Start).width('100%')
+  }
+
+  @Builder
+  EntryItem(entry: SmbEntry, list: boolean) {
+    if (list) {
+      Row({ space: 12 }) {
+        this.EntryCover(entry, true)
+        Column() { this.EntryText(entry) }.layoutWeight(1)
+      }.width('100%').padding(10).borderRadius(12)
+      .backgroundColor($r('app.color.list_item_background'))
+    } else {
+      Column({ space: 8 }) {
+        this.EntryCover(entry, false)
+        Column() { this.EntryText(entry) }.padding({ left: 8, right: 8, bottom: 10 })
+      }.width('100%').borderRadius(12).backgroundColor($r('app.color.list_item_background'))
+    }
   }
 
   @Builder
@@ -86,6 +162,20 @@ export struct SmbPage {
             Text('添加 SMB 服务器，浏览并播放共享中的视频和音乐')
               .fontSize(14).fontColor($r('app.color.text_color')).opacity(0.6).textAlign(TextAlign.Center)
           }.layoutWeight(1).width('100%').justifyContent(FlexAlign.Center).padding(24)
+        } else if (this.server && Setting.listDisplayMode !== ListDisplayMode.LIST_DISPLAY) {
+          WaterFlow({ scroller: this.scroller, layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW }) {
+            Repeat<SmbEntry>(this.entries).each((item: RepeatItem<SmbEntry>) => {
+              FlowItem() { this.EntryItem(item.item, false) }
+                .onClick(() => this.select(item.item)).enabled(!this.loading)
+                .onVisibleAreaChange([0], (visible: boolean) => this.thumbnailVisibility(item.item, visible))
+            }).key((item: SmbEntry) => `${this.directoryVersion}/${this.server?.id}/${this.folder}/${item.name}`).virtualScroll()
+          }
+          .columnsTemplate('1fr '.repeat(this.columns()).trim()).columnsGap(16).rowsGap(16)
+          .width('100%').layoutWeight(1).padding({ left: 16, right: 16, bottom: SafeHeight.bottomSafeHeight })
+          .scrollBar(BarState.Off)
+          if (!this.loading && this.entries.length === 0) {
+            Text('此目录没有可播放的文件').fontColor($r('app.color.text_color')).padding(24)
+          }
         } else {
           List({ scroller: this.scroller, space: 10 }) {
             if (!this.server) {
@@ -113,22 +203,11 @@ export struct SmbPage {
             } else {
               Repeat<SmbEntry>(this.entries)
                 .each((item: RepeatItem<SmbEntry>) => {
-                  ListItem() {
-                    Row({ space: 14 }) {
-                      SymbolGlyph(item.item.directory ? $r('sys.symbol.folder') : $r('sys.symbol.play_round_triangle'))
-                        .fontSize(28).fontColor([$r('app.color.main_color')])
-                      Column({ space: 6 }) {
-                        Text(item.item.name).fontSize(16).fontColor($r('app.color.text_color'))
-                          .maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis })
-                        Text(item.item.directory ? '文件夹' : ToolsUtil.formatFileSize(item.item.size))
-                          .fontSize(13).fontColor($r('app.color.text_color')).opacity(0.6)
-                      }.layoutWeight(1).alignItems(HorizontalAlign.Start)
-
-                      SymbolGlyph($r('sys.symbol.chevron_right')).fontSize(16)
-                    }.padding(16).width('100%').backgroundColor($r('app.color.list_item_background')).borderRadius(16)
-                  }.onClick(() => this.select(item.item)).enabled(!this.loading)
+                  ListItem() { this.EntryItem(item.item, true) }
+                    .onClick(() => this.select(item.item)).enabled(!this.loading)
+                    .onVisibleAreaChange([0], (visible: boolean) => this.thumbnailVisibility(item.item, visible))
                 })
-                .key((item: SmbEntry) => `${this.folder}/${item.name}`).virtualScroll()
+                .key((item: SmbEntry) => `${this.directoryVersion}/${this.server?.id}/${this.folder}/${item.name}`).virtualScroll()
               if (!this.loading && this.entries.length === 0) {
                 ListItem() {
                   Text('此目录没有可播放的文件').fontColor($r('app.color.text_color')).padding(24)
@@ -137,6 +216,7 @@ export struct SmbPage {
             }
           }
           .clip(false)
+          .lanes(this.server ? this.columns() : Math.max(1, Math.floor(this.contentWidth / 500) + 1))
           .layoutWeight(1)
           .height('100%')
           .width('100%')
@@ -145,6 +225,7 @@ export struct SmbPage {
           .scrollBar(BarState.Off)
         }
       }.width('100%').height('100%').clip(false)
+      .onAreaChange((_old: Area, area: Area) => { this.contentWidth = Number(area.width) })
     }
     .titleBar({
       avoidLayoutSafeArea: true,
@@ -238,6 +319,14 @@ export struct SmbPage {
       }
       return false
     })
+    .onHidden(() => this.stopThumbnails())
+    .onShown(() => {
+      this.thumbnailActive = true
+      this.entries.forEach((entry: SmbEntry) => {
+        if (!this.covers[entry.name]) this.thumbnailAttempted.delete(entry.name)
+        if (this.thumbnailVisible.has(entry.name)) this.thumbnailVisibility(entry, true)
+      })
+    })
   }
 
   private reloadServers(): void {
@@ -277,6 +366,13 @@ export struct SmbPage {
         return
       }
       this.server = server
+      this.stopThumbnails()
+      this.thumbnailActive = true
+      this.thumbnailVisible.clear()
+      this.thumbnailAttempted.clear()
+      this.covers = {}
+      this.coverRatios = {}
+      this.directoryVersion++
       this.folder = folder
       this.allEntries = entries
       this.entries = entries.filter((entry: SmbEntry) => entry.directory || SmbUtil.playable(entry.name))
@@ -298,6 +394,7 @@ export struct SmbPage {
       this.browse(this.server, slash < 0 ? '' : this.folder.substring(0, slash))
     } else {
       this.requestVersion++
+      this.stopThumbnails()
       this.server = undefined
       this.entries = []
       this.error = ''
@@ -362,6 +459,82 @@ export struct SmbPage {
       if (version === this.requestVersion) {
         this.loading = false
       }
+    }
+  }
+
+  private stopThumbnails(): void {
+    this.thumbnailVersion++
+    this.thumbnailActive = false
+    this.thumbnailQueue = []
+    if (this.thumbnailUrl) {
+      smbClose(this.thumbnailUrl)
+      this.thumbnailUrl = ''
+    }
+  }
+
+  private thumbnailVisibility(entry: SmbEntry, visible: boolean): void {
+    if (entry.directory) return
+    if (!visible) {
+      this.thumbnailVisible.delete(entry.name)
+      this.thumbnailQueue = this.thumbnailQueue.filter((file: SmbEntry) => file.name !== entry.name)
+      return
+    }
+    this.thumbnailVisible.add(entry.name)
+    if (!this.thumbnailActive || this.covers[entry.name] || this.thumbnailAttempted.has(entry.name) ||
+      this.thumbnailQueue.some((file: SmbEntry) => file.name === entry.name)) return
+    this.thumbnailQueue.push(entry)
+    this.loadThumbnails()
+  }
+
+  private async loadThumbnails(): Promise<void> {
+    if (this.thumbnailRunning) return
+    this.thumbnailRunning = true
+    try {
+      while (this.thumbnailActive && this.server && this.thumbnailQueue.length > 0) {
+        const entry = this.thumbnailQueue.shift()!
+        if (!this.thumbnailVisible.has(entry.name)) continue
+        const version = this.thumbnailVersion
+        const path = this.folder ? `${this.folder}/${entry.name}` : entry.name
+        const uri = SmbUtil.uri(this.server, path)
+        this.thumbnailAttempted.add(entry.name)
+        let url = ''
+        try {
+          const id = await SmbUtil.fileId(`${uri}:${entry.size}`)
+          if (!id || version !== this.thumbnailVersion) continue
+          const root = PathUtils.appContext!.cacheDir + '/'
+          const filename = 'smb_cover_' + id + '.webp'
+          let cached = false
+          try { cached = await fs.access(root + filename) } catch (_) {}
+          if (!cached) {
+            url = await SmbUtil.open(uri)
+            if (version !== this.thumbnailVersion) continue
+            this.thumbnailUrl = url
+            const result = await FFmpegThumbnailUtil.extractNetworkCover(url, 360)
+            if (result.pixelMap) {
+              if (version !== this.thumbnailVersion) {
+                result.pixelMap.release()
+                continue
+              }
+              cached = (await SelectFileUtil.savePixelMapToFile(root, filename, result.pixelMap,
+                { releasePixelMap: true, deleteOnFail: true })).length > 0
+            }
+          }
+          if (cached && version === this.thumbnailVersion) {
+            const covers: Record<string, string> = {}
+            Object.keys(this.covers).forEach((key: string) => { covers[key] = this.covers[key] })
+            covers[entry.name] = PathUtils.pathToUri(root + filename)
+            this.covers = covers
+          }
+        } catch (_) {
+          // Keep the placeholder; retry only on an explicit directory refresh.
+          if (version === this.thumbnailVersion) salmonLogger.addLog('SmbPage', 'SMB 缩略图读取失败', true)
+        } finally {
+          if (url) smbClose(url)
+          if (this.thumbnailUrl === url) this.thumbnailUrl = ''
+        }
+      }
+    } finally {
+      this.thumbnailRunning = false
     }
   }
 }
