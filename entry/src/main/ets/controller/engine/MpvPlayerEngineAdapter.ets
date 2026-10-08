@@ -1,15 +1,17 @@
 import {
   create as mpvCreate,
   destroy as mpvDestroy,
-  loadVideo as mpvLoadVideo,
   isCoreAlive as mpvIsCoreAlive,
+  loadVideo as mpvLoadVideo,
   reset as mpvReset
 } from 'libmpvnative.so'
 import { EngineReleaseHook, PlayerEngineAdapter } from './PlayerEngineAdapter'
+import { PathUtils } from '../../utils/PathUtils'
 
 export class MpvPlayerEngineAdapter implements PlayerEngineAdapter {
   private nativeHandle: number | null = null
   private loadRequestId: number = 0
+  getLoadRequestId(): number { return this.loadRequestId }
   private mediaLoaded: boolean = false
 
   get handle(): number | null {
@@ -45,7 +47,7 @@ export class MpvPlayerEngineAdapter implements PlayerEngineAdapter {
 
   create(): number | null {
     if (!this.nativeHandle) {
-      this.nativeHandle = mpvCreate()
+      this.nativeHandle = mpvCreate(PathUtils.appContext?.cacheDir)
     }
     return this.nativeHandle
   }

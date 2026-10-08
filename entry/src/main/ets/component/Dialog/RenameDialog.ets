@@ -8,7 +8,7 @@ import VideoInfoUtil from '../../utils/VideoInfoUtil'
 @CustomDialog
 export struct RenameDialog {
   controller?: CustomDialogController
-  @Prop title: ResourceStr = '重命名'
+  @Prop title: ResourceStr = $r('app.string.rename')
   @Prop preserveExtension: boolean = false
   @Prop renameTarget: 'video' | 'folder' = 'video'
   @State name: string = ''

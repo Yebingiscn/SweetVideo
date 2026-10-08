@@ -83,31 +83,12 @@ type PlayerType = PlayerControllerInterface
 
 @ComponentV2
 export struct VideoPlayer {
-  private danmaku: DanmakuSession = new DanmakuSession()
   @Local danmakuPageVisible: boolean = false
   @Local importingSubtitle: boolean = false
   @Local playerType: string = PlayerEngine.AV_PLAYER
   @Local autoListenVideoEnabled: boolean = false
   @Provider('player') player: PlayerType = PlayerControllerFactory.createAVPlayerController() as PlayerType
   subtitleManager: SubtitleManager = new SubtitleManager(this.player)
-  personalScreenExtendDialog: CustomDialogController = new CustomDialogController({
-    builder: NumberInputDialog({
-      title: '自定义屏幕拓展比例',
-      placeholderColor: '输入范围：50-150',
-      confirm: (input: number): void => {
-        if (input && input <= 150 && input >= 50) {
-          this.player.selectedText = `自定义比例:${input}`
-          Preferences.saveScreenExtend(PathUtils.appContext!, this.player.selectedText)
-          this.player.playAreaHeight = input / 100 * VideoInfoUtil.playAreaHeight
-          this.player.playAreaWidth = input / 100 * VideoInfoUtil.playAreaWidth
-          this.player.scaleFactor = 1
-
-        } else {
-          ToolsUtil.showToast('输入错误，输入范围在50-150之间')
-        }
-      },
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
   audioEffectDialog: CustomDialogController = new CustomDialogController({
     builder: AudioEffectDialog({
       isSystemPlayer: (): boolean => this.player instanceof AVPlayerController,
@@ -123,14 +104,32 @@ export struct VideoPlayer {
           return false
         }
         if (config.effect === 'hoa-space-render' && !deviceInfo.apiAvailable('26.0.0')) {
-          throw new Error('HOA 空间渲染需要鸿蒙 7及以上')
+          throw new Error(ToolsUtil.getStringResource($r('app.string.hoa_needs_harmony7').id))
         }
         const applied = await player.applyAudioEffect(config)
         if (!silent) {
-          ToolsUtil.showToast(applied ? '声音效果已应用' : '应用失败，请确认已更新 libmpv.so')
+          ToolsUtil.showToast(applied ? ToolsUtil.getStringResource($r('app.string.audio_effect_applied').id) : ToolsUtil.getStringResource($r('app.string.audio_effect_apply_failed_mpv').id))
         }
         return applied
       }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  personalScreenExtendDialog: CustomDialogController = new CustomDialogController({
+    builder: NumberInputDialog({
+      title: ToolsUtil.getStringResource($r('app.string.custom_screen_ratio').id),
+      placeholderColor: ToolsUtil.getStringResource($r('app.string.custom_ratio_range').id),
+      confirm: (input: number): void => {
+        if (input && input <= 150 && input >= 50) {
+          this.player.selectedText = `自定义比例:${input}`
+          Preferences.saveScreenExtend(PathUtils.appContext!, this.player.selectedText)
+          this.player.playAreaHeight = input / 100 * VideoInfoUtil.playAreaHeight
+          this.player.playAreaWidth = input / 100 * VideoInfoUtil.playAreaWidth
+          this.player.scaleFactor = 1
+
+        } else {
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.custom_ratio_invalid').id))
+        }
+      },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   @Local isPlayerConfigured: boolean = false
@@ -145,6 +144,7 @@ export struct VideoPlayer {
   @Local exitVideoTime: number = 0
   @Local isAdjustingSubtitleOffset: boolean = false
   @Local lockRotation: boolean = false
+  private danmaku: DanmakuSession = new DanmakuSession()
   private containerWidth: number = 0
   private containerHeight: number = 0
   private longPressSpeedSession: number = 0
@@ -159,6 +159,9 @@ export struct VideoPlayer {
   private playerDisposeTask: Promise<void> | undefined = undefined
   private isPlaybackSessionDisposed: boolean = false
   private isPageDisappearing: boolean = false
+  private playerDestinationShown: boolean = false
+  private playerReadyToStart: boolean = false
+  @Local playerExitTransitionEnabled: boolean = false
   @Available({ minApiVersion: 'HarmonyOS 26.0.0' }) private smartGestures: MediaSmartGestureSession =
     new MediaSmartGestureSession({
       canHandle: (): boolean => this.isPlayerConfigured && !this.isPageDisappearing &&
@@ -182,7 +185,7 @@ export struct VideoPlayer {
     builder: SubtitleOffsetDialog({
       getCurrentValue: (): number => SubtitleUtil.offsetMillis,
       onOffsetPreview: (offset: number): void => {
-        this.player.setSubtitleOffset(offset)
+        this.player.subtitleController.setSubtitleOffset(offset)
       },
       onCloseButton: (): void => {
         this.cancelSubtitleOffsetSession()
@@ -197,17 +200,17 @@ export struct VideoPlayer {
       showSubtitleNavigation: (): boolean => !this.isAdjustingMpvSubtitleOffset,
       confirm: (input: number): void => {
         if (Number.isNaN(input)) {
-          ToolsUtil.showToast('未输入偏移')
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.subtitle_offset_empty').id))
           this.cancelSubtitleOffsetSession()
           this.subtitleTimestampInputDialog.close()
         } else if (Math.abs(input) <= 50000) {
           SubtitleUtil.offsetMillis = input
-          this.player.setSubtitleOffset(input)
+          this.player.subtitleController.setSubtitleOffset(input)
           this.finishSubtitleOffsetSession()
           this.subtitleManager.savePreference()
           this.subtitleTimestampInputDialog.close()
         } else {
-          ToolsUtil.showToast('输入错误：请输入 -50000 到 50000 的整数')
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.subtitle_offset_range').id))
         }
       },
     }),
@@ -219,7 +222,6 @@ export struct VideoPlayer {
     }
   })
   private scrollAxisTimeout: number = 0
-  private orientationRequestVersion: number = 0
   private autoListenVideoSession: number = 0
   private autoListenVideoWindowResumedSession: number = 0
   private autoListenVideoRestoreTimer: number = 0
@@ -250,29 +252,24 @@ export struct VideoPlayer {
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   aboutToAppear(): void {
     this.isPageDisappearing = false
+    this.playerDestinationShown = false
+    this.playerReadyToStart = false
+    this.playerExitTransitionEnabled = false
     this.pageParams = this.readPlayerParams()
     KnockShareUtil.setShareProvider(KNOCK_SHARE_VIDEO_PLAYER_OWNER,
       (_coordinate: KnockCoordinate | undefined): VideoMetadata[] => {
         return this.player.nowPlaying ? [this.player.nowPlaying] : []
       })
-    const requestVersion = ++this.orientationRequestVersion
     salmonLogger.addLog(TAG, "开始执行aboutToAppear方法", false)
     PermissionUtil.applyContinuousTask()
-    this.getWindowClass()?.then(w => {
-      if (!this.isPageDisappearing && requestVersion === this.orientationRequestVersion) {
-        w?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)?.catch(() => {
-        })
-      }
-    })
+    // 退出时已恢复自动方向；入场不再异步重置，避免覆盖引擎的智能横屏请求。
     WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
-    WindowUtil.setBarState(PathUtils.appContext!, false, false)
-    if (Setting.defaultBrightness > 0) {
-      VideoOperateUtil.setBrightness(Setting.defaultBrightness / 100)
-    }
     salmonLogger.addLog(TAG, "aboutToAppear方法执行完成", false)
   }
 
   async aboutToDisappear(): Promise<void> {
+    this.playerDestinationShown = false
+    this.playerReadyToStart = false
     this.danmakuPageVisible = false
     this.danmaku.dispose()
     this.isPageDisappearing = true
@@ -281,7 +278,6 @@ export struct VideoPlayer {
       this.smartGestures.hide()
     }
     KnockShareUtil.clearShareProvider(KNOCK_SHARE_VIDEO_PLAYER_OWNER)
-    this.orientationRequestVersion++
     this.player.onWillDisappearCleanup()
     VideoOperateUtil.cancelControlAutoHide()
     this.restoreAutomaticOrientation()
@@ -306,11 +302,6 @@ export struct VideoPlayer {
     await this.disposePlaybackSession()
     salmonLogger.addLog(TAG, "释放播放器资源完成", false)
     salmonLogger.addLog(TAG, "aboutToDisappear方法执行完成", false)
-  }
-
-  private danmakuMediaKey(): string {
-    const media = this.player.nowPlaying
-    return media?.date || ''
   }
 
   closeSideBar(isPlayAnimation: boolean) {
@@ -474,7 +465,9 @@ export struct VideoPlayer {
               }
             },
             onVerticalPanStart: (tapX: number) => {
+              clearTimeout(this.scrollAxisTimeout)
               VideoOperateUtil.leftSideSwipe = tapX < this.player.screenWidth / SCREEN_HALF_DIVIDER
+              this.player.volumeGestureActive = !VideoOperateUtil.leftSideSwipe
               VideoOperateUtil.screenBrightnessTmp = this.player.screenBrightness
               this.player.volume = this.player.volumeActually
               VideoOperateUtil.lastVolume = this.player.volume
@@ -496,11 +489,13 @@ export struct VideoPlayer {
               }
             },
             onVerticalPanEnd: () => {
+              this.player.volumeGestureActive = false
               this.player.onSwiping = false
               this.player.onSwipingVoice = false
               this.player.onSwipingBrightness = false
             },
             onVerticalPanCancel: () => {
+              this.player.volumeGestureActive = false
               if (VideoOperateUtil.leftSideSwipe) {
                 this.player.screenBrightness = VideoOperateUtil.screenBrightnessTmp
                 VideoOperateUtil.setBrightness(this.player.screenBrightness)
@@ -622,9 +617,6 @@ export struct VideoPlayer {
                 this.player.longPress = false
               })
               if (!this.player.speedLocked) {
-                // Restore the media clock before running any UI animation.
-                // Late callbacks from the parallel Pan recognizers are ignored
-                // because the active session was invalidated above.
                 this.player.restoreSpeedAfterLongPress(this.longPressBaseSpeed)
               } else {
                 this.player.savePlayerSpeed(PathUtils.appContext!)
@@ -715,6 +707,7 @@ export struct VideoPlayer {
             },
             onScrollAxisBegin: (isLeftSide: boolean) => {
               clearTimeout(this.scrollAxisTimeout)
+              this.player.volumeGestureActive = !isLeftSide
               if (isLeftSide) {
                 this.player.onSwipingVoice = false
                 VideoOperateUtil.screenBrightnessTmp = this.player.screenBrightness
@@ -725,6 +718,7 @@ export struct VideoPlayer {
                 VideoOperateUtil.lastVolume = this.player.volume
                 this.player.onSwipingVoice = true
               }
+              this.scheduleScrollPanelHide()
             },
             onScrollAxisUpdate: (axisValue: number, isLeftSide: boolean) => {
               const delta = -axisValue
@@ -741,12 +735,11 @@ export struct VideoPlayer {
                 this.player.volumeActually = this.player.volume
                 VideoOperateUtil.lastVolume = this.player.volume
               }
+              // 每次滚动都刷新兜底，避免设备没有发送 END 时面板残留。
+              this.scheduleScrollPanelHide()
             },
             onScrollAxisEnd: () => {
-              this.scrollAxisTimeout = setTimeout(() => {
-                this.player.onSwipingVoice = false
-                this.player.onSwipingBrightness = false
-              }, 1500)
+              this.scheduleScrollPanelHide()
             }
           })
             .hitTestBehavior(HitTestMode.Transparent)
@@ -811,6 +804,9 @@ export struct VideoPlayer {
       .sideBarPosition(SideBarPosition.End)
       .divider({ strokeWidth: 0 })
     }
+    // 首次入场关闭侧滑；显示后恢复默认转场，让返回继续使用退场动画。
+    .systemTransition(this.playerExitTransitionEnabled ? NavigationSystemTransitionType.DEFAULT :
+      NavigationSystemTransitionType.NONE)
     .onReady(() => {
       if (this.isPageDisappearing) {
         return
@@ -856,9 +852,8 @@ export struct VideoPlayer {
           this.player.onWillDisappearCleanup()
           return
         }
-        this.player.onPlayerReady()
-        this.isPlayerConfigured = true
-        WantProcessUtil.setCardPlaybackHandler(this.cardPlaybackHandler)
+        this.playerReadyToStart = true
+        this.startPlayerAfterDestinationShown()
       } catch (e) {
         salmonLogger.addLog(TAG, e, true)
       }
@@ -876,6 +871,11 @@ export struct VideoPlayer {
       return false
     })
     .onShown(() => {
+      this.playerExitTransitionEnabled = true
+      this.playerDestinationShown = true
+      this.startPlayerAfterDestinationShown()
+      clearTimeout(this.scrollAxisTimeout)
+      this.player.volumeGestureActive = false
       this.danmakuPageVisible = true
       WantProcessUtil.setCardPlaybackHandler(this.cardPlaybackHandler)
       if (!this.isPageDisappearing) {
@@ -902,6 +902,9 @@ export struct VideoPlayer {
       }
     })
     .onHidden(() => {
+      this.playerDestinationShown = false
+      clearTimeout(this.scrollAxisTimeout)
+      this.player.volumeGestureActive = false
       this.danmakuPageVisible = false
       if (deviceInfo.apiAvailable('26.0.0')) {
         this.smartGestures.hide()
@@ -939,6 +942,8 @@ export struct VideoPlayer {
       }
     })
     .onWillDisappear(async () => {
+      this.playerDestinationShown = false
+      this.playerReadyToStart = false
       this.danmakuPageVisible = false
       this.danmaku.dispose()
       WantProcessUtil.clearCardPlaybackHandler(this.cardPlaybackHandler)
@@ -947,9 +952,8 @@ export struct VideoPlayer {
       if (deviceInfo.apiAvailable('26.0.0')) {
         this.smartGestures.hide()
       }
-      this.orientationRequestVersion++
       this.player.onWillDisappearCleanup()
-      const orientationRestore = this.restoreAutomaticOrientation()
+      // 自动方向在 aboutToDisappear 中恢复，避免窗口旋转打断尚未完成的退场动画。
       salmonLogger.addLog(TAG, "开始执行onWillDisappear生命周期", false)
       try {
         this.player.saveSubtitlePreferenceForCurrentVideo(this.subtitleManager.subtitleVisibility,
@@ -964,7 +968,6 @@ export struct VideoPlayer {
         WindowUtil.disableLandscapeMultiWindow(this.getWindowClass())
         WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
         await this.player.restoreSystemBars(this.windowClass)
-        await orientationRestore
       } catch (error) {
         salmonLogger.addLog(TAG, `onWillDisappear中发生错误：${error}`, true)
       } finally {
@@ -973,6 +976,10 @@ export struct VideoPlayer {
       salmonLogger.addLog(TAG, "onWillDisappear生命周期执行完成", false)
     })
     .hideTitleBar(true)
+    // 旋转期间内层播放区可能尚未铺满新尺寸，由页面底色覆盖空隙。
+    .backgroundColor(Color.Black)
+    .expandSafeArea([SafeAreaType.SYSTEM],
+      [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM, SafeAreaEdge.START, SafeAreaEdge.END])
 
     .blur(Privacy.isPrivacyBackground ? PRIVACY_BACKGROUND_BLUR_AMOUNT : NO_BLUR_AMOUNT)
   }
@@ -1161,11 +1168,13 @@ export struct VideoPlayer {
       onSelect: (index: number) => {
         this.player.selectAudioTrackByIndex(index)
         this.player.audioTrackSelected = index
-        VideoOperateUtil.saveAudioTrackPreference(this.player.nowPlaying, index, this.player.getAudioTrackCount())
+        if (!(this.player instanceof MpvController) || !this.player.audioTrack[index]?.external) {
+          VideoOperateUtil.saveAudioTrackPreference(this.player.nowPlaying, index, this.player.getAudioTrackCount())
+        }
       },
       onAudioEffects: () => {
         if (this.player instanceof AVPlayerController && !this.player.supportsAudioEffects) {
-          ToolsUtil.showToast('系统播放器音效需要 API 26 及设备 PCM 后处理支持')
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.system_effect_api26_required').id))
           return
         }
         this.audioEffectDialog.open()
@@ -1260,7 +1269,9 @@ export struct VideoPlayer {
   SubtitleMenuBuilder() {
     SubtitlePanelComponent({
       importingSubtitle: this.importingSubtitle,
-      onImportSubtitle: () => { this.importPlaybackSubtitle() },
+      onImportSubtitle: () => {
+        this.importPlaybackSubtitle()
+      },
       subtitleManager: this.subtitleManager,
       onSubtitleOffsetTime: (useMpvSubtitle: boolean) => {
         if (useMpvSubtitle) {
@@ -1275,7 +1286,7 @@ export struct VideoPlayer {
         }
         this.subtitleOffsetPreviewBase = SubtitleUtil.offsetMillis
         this.isAdjustingSubtitleOffset = true
-        this.player.setSubtitleOffset(this.subtitleOffsetPreviewBase)
+        this.player.subtitleController.setSubtitleOffset(this.subtitleOffsetPreviewBase)
         this.subtitleTimestampInputDialog.open()
       },
       onSwitchPlayerEngine: (targetEngine: string) => {
@@ -1288,6 +1299,22 @@ export struct VideoPlayer {
   @Builder
   AVCastPickerBuilderBridge() {
     AVCastPickerBuilder()
+  }
+
+  private scheduleScrollPanelHide(): void {
+    clearTimeout(this.scrollAxisTimeout)
+    const player = this.player
+    this.scrollAxisTimeout = setTimeout(() => {
+      this.scrollAxisTimeout = 0
+      player.volumeGestureActive = false
+      player.onSwipingVoice = false
+      player.onSwipingBrightness = false
+    }, 1500)
+  }
+
+  private danmakuMediaKey(): string {
+    const media = this.player.nowPlaying
+    return media?.date || ''
   }
 
   private async importPlaybackSubtitle(): Promise<void> {
@@ -1307,13 +1334,13 @@ export struct VideoPlayer {
       const format = name.split('.').pop()?.toLowerCase() || ''
       media.external_subtitle_format = format
       SelectFileUtil.saveData(PathUtils.appContext!, media, { externalSubtitleFormat: format })
-      await player.setExternalSubtitle(media)
+      await player.subtitleController.setExternalSubtitle(media)
       if (!cancelled()) {
         this.subtitleManager.switchToExternal()
       }
     } catch (error) {
       if (!cancelled()) {
-        ToolsUtil.showToast('字幕已保存，但加载失败，请重新选择外挂字幕')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.subtitle_saved_load_failed').id))
         salmonLogger.addLog(TAG, '播放中加载外挂字幕失败', true)
       }
     } finally {
@@ -1485,6 +1512,26 @@ export struct VideoPlayer {
   }
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
+  private startPlayerAfterDestinationShown(): void {
+    if (!this.playerDestinationShown || !this.playerReadyToStart || this.isPlayerConfigured ||
+      this.isPageDisappearing || this.isPlaybackSessionDisposed) {
+      return
+    }
+    try {
+      // 页面显示后再创建播放 Surface、隐藏系统栏及触发智能横屏，先建立完整的黑色播放背景。
+      WindowUtil.setBarState(PathUtils.appContext!, false, false)
+      if (Setting.defaultBrightness > 0) {
+        VideoOperateUtil.setBrightness(Setting.defaultBrightness / 100)
+      }
+      this.player.onPlayerReady()
+      this.isPlayerConfigured = true
+      WantProcessUtil.setCardPlaybackHandler(this.cardPlaybackHandler)
+    } catch (error) {
+      salmonLogger.addLog(TAG, `播放页入场后启动失败：${error}`, true)
+    }
+  }
+
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   private async restoreAutomaticOrientation(): Promise<void> {
     try {
       await (await this.getWindowClass())?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
@@ -1597,8 +1644,8 @@ export struct VideoPlayer {
         false)
     } catch (error) {
       salmonLogger.addLog(TAG, `切换播放引擎失败: ${error}`, true)
-      ToolsUtil.showToast('切换播放引擎失败')
-      throw new Error(`切换播放引擎失败: ${error}`)
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.switch_player_engine_failed').id))
+      throw new Error(ToolsUtil.getStringResourceArgs($r('app.string.switch_player_engine_failed_detail').id, String(error)))
     }
   }
 
@@ -1657,7 +1704,7 @@ export struct VideoPlayer {
     if (!this.isAdjustingSubtitleOffset) {
       return
     }
-    this.player.setSubtitleOffset(this.subtitleOffsetPreviewBase)
+    this.player.subtitleController.setSubtitleOffset(this.subtitleOffsetPreviewBase)
     this.finishSubtitleOffsetSession()
   }
 }

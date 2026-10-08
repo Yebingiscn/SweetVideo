@@ -40,7 +40,7 @@ export struct ChapterListComponent {
           })
           .key((item: MpvChapter) => item.index.toString() + item.title)
       } else {
-        Text('无章节信息')
+        Text($r('app.string.no_chapters'))
           .fontSize(14)
           .fontColor($r('app.color.text_color'))
           .opacity(0.5)

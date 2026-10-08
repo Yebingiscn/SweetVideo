@@ -1,9 +1,9 @@
+import ImageFileUtil from './ImageFileUtil'
 import { LoginWithHWErrorCode } from '../common/Constants'
 import { userData } from '../component/common/UserLoginComponent'
 import Preferences from '../database/Preferences'
 import { IapVerifyUtil } from './IapVerifyUtil'
 import { PathUtils } from './PathUtils'
-import SelectFileUtil from './SelectFileUtil'
 import ToolsUtil from './ToolsUtil'
 import { fileIo } from '@kit.CoreFileKit'
 import { image } from '@kit.ImageKit'
@@ -17,26 +17,26 @@ export default class AccountUtil {
     // 在应用登录涉及UI交互场景下，建议按照如下错误码指导提示用户
     if (error.code === LoginWithHWErrorCode.ERROR_CODE_LOGIN_OUT) {
       // 用户未登录华为账号，请登录华为账号并重试
-      ToolsUtil.showToast('用户未登录华为账号，请登录华为账号并重试')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.huawei_account_login_required').id))
     } else if (error.code === LoginWithHWErrorCode.ERROR_CODE_NETWORK_ERROR) {
       // 网络异常，请检查当前网络状态并重试或者尝试使用其他方式登录
-      ToolsUtil.showToast('网络异常，请检查当前网络状态并重试')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.network_error_retry').id))
     } else if (error.code === LoginWithHWErrorCode.ERROR_CODE_INTERNAL_ERROR) {
       // 登录失败，请尝试使用其他方式登录
-      ToolsUtil.showToast('华为账号服务器错误或其他内部错误，登录失败，请重试')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.huawei_account_server_error').id))
     } else if (error.code === LoginWithHWErrorCode.ERROR_CODE_USER_CANCEL) {
       // 用户取消授权
-      ToolsUtil.showToast('用户取消授权')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.user_cancelled_authorization').id))
     } else if (error.code === LoginWithHWErrorCode.ERROR_CODE_SYSTEM_SERVICE) {
-      ToolsUtil.showToast('系统服务异常，请稍后重试')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.system_service_error').id))
     } else if (error.code === LoginWithHWErrorCode.ERROR_CODE_REQUEST_REFUSE) {
       // 重复请求，应用无需处理
     } else if (error.code === LoginWithHWErrorCode.ERROR_CODE_AGREEMENT_STATUS_NOT_ACCEPTED) {
       // 用户未同意协议
-      ToolsUtil.showToast('请阅读并同意华为账号协议')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.agree_huawei_agreement').id))
       // this.startAnimation()
     } else {
-      ToolsUtil.showToast('应用登录失败，请重试')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.app_login_failed').id))
     }
   }
 
@@ -60,7 +60,7 @@ export default class AccountUtil {
         const nickName = authorizationWithHuaweiIDCredential?.nickName
         const pixelMap = await AccountUtil.requestImage(avatarUri!)
         userData.nickName = nickName ?? ''
-        const localAvatarUri = await SelectFileUtil.savePixelMapToFile(PathUtils.photoPath!, 'avatar', pixelMap,
+        const localAvatarUri = await ImageFileUtil.savePixelMapToFile(PathUtils.photoPath!, 'avatar', pixelMap,
           { releasePixelMap: true })
         userData.userAvatar = AccountUtil.ISHasAvatar(localAvatarUri)
         Preferences.saveUserAvatar(PathUtils.appContext!, localAvatarUri)

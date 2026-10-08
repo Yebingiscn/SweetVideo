@@ -31,7 +31,7 @@ export struct IPTVSourcePage {
   private pendingDelete: IPTVSource | undefined = undefined
   deleteDialogController: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog({
-      textInfo: '确定删除该 IPTV 节目源及频道缓存吗？',
+      textInfo: $r('app.string.delete_iptv_source_confirm'),
       confirm: () => {
         if (this.pendingDelete) {
           this.sources = this.sources.filter(item => item.id !== this.pendingDelete!.id)
@@ -54,18 +54,18 @@ export struct IPTVSourcePage {
     Menu() {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
-        content: '编辑'
+        content: $r('app.string.edit')
       }).onClick(() => {
         IPTVUtil.editingSource = source
         this.addDialogController.open()
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_clockwise')),
-        content: '刷新'
+        content: $r('app.string.refresh')
       }).onClick(async () => await this.refresh(source))
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')),
-        content: '删除'
+        content: $r('app.string.delete')
       }).onClick(() => {
         this.pendingDelete = source
         this.deleteDialogController.open()
@@ -78,11 +78,11 @@ export struct IPTVSourcePage {
     HdsNavDestination() {
       if (this.sources.length === 0) {
         Column({ space: 10 }) {
-          Text('暂无 IPTV 节目源')
+          Text($r('app.string.no_iptv_source'))
             .fontSize(18)
             .fontColor($r('app.color.text_color'))
             .opacity(0.65)
-          Text('点击右上角 + 添加 M3U/M3U8 或 TXT 节目源')
+          Text($r('app.string.add_iptv_source_hint'))
             .fontSize(14)
             .fontColor($r('app.color.text_color'))
             .opacity(0.45)
@@ -109,7 +109,7 @@ export struct IPTVSourcePage {
                         .maxLines(1)
                         .textOverflow({ overflow: TextOverflow.Ellipsis })
                         .layoutWeight(1)
-                      Text(item.item.sourceType === 'url' ? 'URL' : '本地')
+                      Text(item.item.sourceType === 'url' ? 'URL' : $r('app.string.segment_local'))
                         .fontSize(11)
                         .fontColor($r('app.color.text_color'))
                         .padding({
@@ -122,7 +122,7 @@ export struct IPTVSourcePage {
                         .borderRadius(8)
                     }.width('100%')
 
-                    Text(`${item.item.channelCount} 个频道  ·  ${item.item.groupCount} 个分组`)
+                    Text($r('app.string.channels_and_groups', item.item.channelCount, item.item.groupCount))
                       .fontSize(13)
                       .fontColor($r('app.color.text_color'))
                       .opacity(0.65)
@@ -288,7 +288,7 @@ export struct IPTVSourcePage {
     try {
       const refreshed = await IPTVUtil.refreshSource(source)
       this.upsertSource(refreshed)
-      ToolsUtil.showToast(`刷新成功：${refreshed.channelCount} 个频道`)
+      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.refresh_success_channels').id, refreshed.channelCount))
     } catch (error) {
       const sources = Preferences.getIPTVSources(PathUtils.appContext!)
       const target = sources.find(item => item.id === source.id)
@@ -299,7 +299,7 @@ export struct IPTVSourcePage {
         Preferences.saveIPTVSources(PathUtils.appContext!, sources)
         this.sources = [...sources]
       }
-      ToolsUtil.showToast(`刷新失败：${error instanceof Error ? error.message : String(error)}`)
+      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.refresh_failed_reason').id, error instanceof Error ? error.message : String(error)))
     } finally {
       const latestIds = new Set(this.refreshingIds)
       latestIds.delete(source.id)
@@ -309,11 +309,11 @@ export struct IPTVSourcePage {
 
   private statusText(source: IPTVSource): string {
     if (source.lastRefreshStatus === 'failed') {
-      return source.lastError || '上次刷新失败'
+      return source.lastError || ToolsUtil.getStringResource($r('app.string.last_refresh_failed').id)
     }
     if (!source.lastRefreshTime) {
-      return '尚未刷新'
+      return ToolsUtil.getStringResource($r('app.string.not_refreshed_yet').id)
     }
-    return `更新于 ${TimeUtil.formatDateTime(source.lastRefreshTime)}`
+    return ToolsUtil.getStringResourceArgs($r('app.string.updated_at').id, TimeUtil.formatDateTime(source.lastRefreshTime))
   }
 }

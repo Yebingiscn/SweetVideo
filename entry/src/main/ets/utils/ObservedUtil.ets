@@ -40,6 +40,7 @@ class SettingUtil {
   public skipIntroTime: string = '0'
   public skipOutroTime: string = '0'
   public listDisplayMode: ListDisplayMode = ListDisplayMode.LIST_DISPLAY
+  public randomCover: boolean = false
   public coverLayout: CoverLayoutMode = CoverLayoutMode.VERTICAL_PLATE
   public mpvDecodingMethod: MpvDecodingMethod = MpvDecodingMethod.HARDWARE_SURFACE
   public mpvGpuApi: MpvGpuApi = MpvGpuApi.OPENGL

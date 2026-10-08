@@ -15,18 +15,12 @@ export struct SettingsSegmentButtonItem {
   @Param message: ResourceStr = ''
   @Param tag: ResourceStr | undefined = undefined
   @Param tips: ResourceStr[] = []
-  @Param @Once tabSelectedIndex: number = 0
+  @Param tabSelectedIndex: number = 0
   @Param itemEnabled: boolean = true
-  @Local _tabSelectedIndex: number = 0
   @Local textItems: SegmentButtonV2Items = this.createTabOptions()
   private itemSelectedBackgroundColor: ColorMetrics | undefined = undefined
   private itemSelectedFontColor: ColorMetrics | undefined = undefined
   @Event onButtonClick: (_tabSelectedIndex: number) => void = () => {
-  }
-
-  @Monitor('tabSelectedIndex')
-  onIndexChange() {
-    this.onButtonClick(this.tabSelectedIndex!!)
   }
 
   @Monitor('tips')
@@ -66,7 +60,10 @@ export struct SettingsSegmentButtonItem {
 
       CapsuleSegmentButtonV2({
         items: this.textItems,
-        selectedIndex: this.tabSelectedIndex!!,
+        selectedIndex: this.tabSelectedIndex,
+        $selectedIndex: (index: number) => {
+          this.onButtonClick(index)
+        },
         buttonBackgroundBlurStyle: BlurStyle.BACKGROUND_THICK,
         itemSelectedFontColor: this.itemSelectedFontColor,
         itemSelectedBackgroundColor: this.itemSelectedBackgroundColor
@@ -80,7 +77,7 @@ export struct SettingsSegmentButtonItem {
     .attributeModifier(new SettingsItemModifier())
     .onClick(() => {
       if (!this.itemEnabled) {
-        ToolsUtil.showToast('这个是vip功能')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.vip_feature_only').id))
       }
     })
   }

@@ -2,6 +2,7 @@ import { util } from '@kit.ArkTS'
 import { SmbServer } from '../../interfaces/SmbInterface'
 import SmbUtil from '../../utils/SmbUtil'
 import SmbAddress from '../../utils/SmbAddress'
+import ToolsUtil from '../../utils/ToolsUtil'
 import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 
 @CustomDialog
@@ -45,7 +46,7 @@ export struct SmbServerDialog {
         }
       } catch (error) {
         if (this.active) {
-          this.message = '请重新输入密码后保存'
+          this.message = ToolsUtil.getStringResource($r('app.string.reenter_password_save').id)
         }
       } finally {
         this.busy = false
@@ -60,34 +61,34 @@ export struct SmbServerDialog {
   build() {
     Scroll() {
       Column({ space: 12 }) {
-        Text(SmbUtil.editingServer ? '编辑 SMB 服务器' : '添加 SMB 服务器')
+        Text(SmbUtil.editingServer ? $r('app.string.edit_smb_server') : $r('app.string.add_smb_server'))
           .fontSize(20).fontWeight(FontWeight.Bold).fontColor($r('app.color.text_color')).width('100%')
-        TextInput({ placeholder: '名称（可选）', text: this.name }).height(44).borderRadius(16)
+        TextInput({ placeholder: $r('app.string.name_optional'), text: this.name }).height(44).borderRadius(16)
           .onChange((value: string) => this.name = value).clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
-        TextArea({ placeholder: 'IP、主机名或 smb://服务器/共享/目录', text: this.host }).height(96).borderRadius(16)
+        TextArea({ placeholder: $r('app.string.smb_host_placeholder'), text: this.host }).height(96).borderRadius(16)
           .onChange((value: string) => this.host = value).onBlur(() => this.parseAddress())
         Row({ space: 10 }) {
-          TextInput({ placeholder: '端口', text: this.port })
+          TextInput({ placeholder: $r('app.string.port'), text: this.port })
             .type(InputType.Number)
             .height(44)
             .borderRadius(16)
             .onChange((value: string) => this.port = value)
             .layoutWeight(1)
-          TextInput({ placeholder: '共享名，例如 Movies', text: this.share }).height(44).borderRadius(16)
+          TextInput({ placeholder: $r('app.string.smb_share_placeholder'), text: this.share }).height(44).borderRadius(16)
             .onChange((value: string) => this.share = value).layoutWeight(2)
         }.width('100%')
 
-        TextInput({ placeholder: '起始目录（可选）', text: this.initialPath }).height(44).borderRadius(16)
+        TextInput({ placeholder: $r('app.string.initial_path_optional'), text: this.initialPath }).height(44).borderRadius(16)
           .onChange((value: string) => this.initialPath = value)
-        TextInput({ placeholder: '用户名或域\\用户名（匿名访问留空）', text: this.user }).height(44).borderRadius(16)
+        TextInput({ placeholder: $r('app.string.smb_user_placeholder'), text: this.user }).height(44).borderRadius(16)
           .onChange((value: string) => this.user = value)
-        TextInput({ placeholder: '密码', text: this.password }).height(44).borderRadius(16)
+        TextInput({ placeholder: $r('app.string.password_label'), text: this.password }).height(44).borderRadius(16)
           .type(InputType.Password)
           .onChange((value: string) => this.password = value)
-        TextInput({ placeholder: '域 / 工作组（可选）', text: this.domain }).height(44).borderRadius(16)
+        TextInput({ placeholder: $r('app.string.smb_domain_placeholder'), text: this.domain }).height(44).borderRadius(16)
           .onChange((value: string) => this.domain = value)
         Row() {
-          Text('要求 SMB3 加密').fontColor($r('app.color.text_color')).layoutWeight(1)
+          Text($r('app.string.smb3_encryption')).fontColor($r('app.color.text_color')).layoutWeight(1)
           Toggle({ type: ToggleType.Switch, isOn: this.seal })
             .onChange((value: boolean) => this.seal = value)
             .selectedColor($r('app.color.main_color'))
@@ -100,19 +101,19 @@ export struct SmbServerDialog {
           LoadingProgress().width(24).height(24)
         }
         Row({ space: 10 }) {
-          Button('取消')
+          Button($r('app.string.cancel'))
             .layoutWeight(1)
             .attributeModifier(new ButtonFancyModifier('', 44))
             .backgroundColor($r('sys.color.button_background_color_transparent'))
             .fontColor($r('app.color.text_color'))
             .onClick(() => this.controller?.close())
-          Button(this.busy ? '测试中…' : '测试')
+          Button(this.busy ? $r('app.string.testing') : $r('app.string.test'))
             .layoutWeight(1)
             .attributeModifier(new ButtonFancyModifier('', 44))
             .backgroundColor($r('app.color.sweet_music_color'))
             .enabled(!this.busy)
             .onClick(() => this.run(false))
-          Button(this.busy ? '保存中…' : '保存')
+          Button(this.busy ? $r('app.string.saving') : $r('app.string.save'))
             .layoutWeight(1)
             .attributeModifier(new ButtonFancyModifier('', 44))
             .backgroundColor($r('app.color.main_color'))
@@ -138,14 +139,14 @@ export struct SmbServerDialog {
       this.domain = address.domain
       if (address.hasPassword) this.password = address.password
     }
-    this.message = '已解析 SMB 地址，可继续填写或修改连接信息'
+    this.message = ToolsUtil.getStringResource($r('app.string.smb_address_parsed').id)
   }
 
   private parseAddress(): void {
     try {
       this.applyAddress()
     } catch (error) {
-      this.message = error instanceof Error ? error.message : 'SMB 地址无效'
+      this.message = error instanceof Error ? error.message : ToolsUtil.getStringResource($r('app.string.invalid_smb_address').id)
     }
   }
 
@@ -156,14 +157,14 @@ export struct SmbServerDialog {
     const port = Number(this.port)
     const login = SmbAddress.login(this.user, this.domain)
     if (!host || /[\s/\\?#@]/.test(host)) {
-      throw new Error('请输入有效的 IP、主机名或 smb:// 地址')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.smb_address_required').id))
     }
     if (!share || /[/\\]/.test(share) || share === '.' || share === '..') {
       throw new Error(
-        '请输入共享名，例如 Movies；子目录可在连接后浏览')
+        ToolsUtil.getStringResource($r('app.string.smb_share_required').id))
     }
     if (!Number.isInteger(port) || port < 1 || port > 65535) {
-      throw new Error('端口应为 1–65535，默认 445')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.smb_port_invalid').id))
     }
     return {
       id: this.serverId,
@@ -196,12 +197,12 @@ export struct SmbServerDialog {
       } else {
         await SmbUtil.list(server, server.initialPath ?? '', this.password)
         if (this.active) {
-          this.message = '连接成功，可以访问共享目录'
+          this.message = ToolsUtil.getStringResource($r('app.string.smb_connect_success').id)
         }
       }
     } catch (error) {
       if (this.active) {
-        this.message = error instanceof Error ? error.message : '操作失败，请检查连接或安全存储设置'
+        this.message = error instanceof Error ? error.message : ToolsUtil.getStringResource($r('app.string.smb_operation_failed').id)
       }
     } finally {
       this.busy = false

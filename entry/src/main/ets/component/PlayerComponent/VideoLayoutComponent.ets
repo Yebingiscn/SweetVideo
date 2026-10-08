@@ -55,7 +55,7 @@ export struct VideoLayoutComponent {
     .width('100%')
     .height(this.isPortrait() ? 180 : 'auto')
     .linearGradient(this.getBottomGradient())
-    .padding({ bottom: SafeHeight.bottomSafeHeight === 0 ? 25 : SafeHeight.bottomSafeHeight })
+    .padding({ bottom: SafeHeight.bottomSafeHeight == 0 ? 20 : SafeHeight.bottomSafeHeight })
     .transition(XAnimation.getAnimation('bottom', 0, false))
   }
 

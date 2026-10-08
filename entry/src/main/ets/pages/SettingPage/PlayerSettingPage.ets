@@ -3,12 +3,12 @@ import { SettingsSegmentButtonItem } from '../../component/SettingComponent/Sett
 import { SettingsSliderItem } from '../../component/SettingComponent/SettingsSliderItem'
 import { SettingsToggleItem } from '../../component/SettingComponent/SettingsToggleItem'
 
+import ToolsUtil from '../../utils/ToolsUtil'
 import Preferences from '../../database/Preferences'
 import { FastForwardSecondInterface } from '../../interfaces/FastForwardSecondInterface'
 import AVSessionUtil from '../../utils/AVSessionUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
-import ToolsUtil from '../../utils/ToolsUtil'
 import { userData } from '../../component/common/UserLoginComponent'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
@@ -21,12 +21,12 @@ import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 @ComponentV2
 export struct PlayerSettingPage {
   private fastForwardSecond: FastForwardSecondInterface[] = [
-    { label: '5秒', value: '5' },
-    { label: '10秒', value: '10' },
-    { label: '15秒', value: '15' },
-    { label: '30秒', value: '30' },
-    { label: '60秒', value: '60' },
-    { label: '120秒', value: '120' }
+    { label: ToolsUtil.getStringResourceArgs($r('app.string.seconds_n').id, 5), value: '5' },
+    { label: ToolsUtil.getStringResourceArgs($r('app.string.seconds_n').id, 10), value: '10' },
+    { label: ToolsUtil.getStringResourceArgs($r('app.string.seconds_n').id, 15), value: '15' },
+    { label: ToolsUtil.getStringResourceArgs($r('app.string.seconds_n').id, 30), value: '30' },
+    { label: ToolsUtil.getStringResourceArgs($r('app.string.seconds_n').id, 60), value: '60' },
+    { label: ToolsUtil.getStringResourceArgs($r('app.string.seconds_n').id, 120), value: '120' }
   ]
   private listScroller: Scroller = new Scroller()
 
@@ -37,7 +37,7 @@ export struct PlayerSettingPage {
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.play'),
-            message: '后台播放',
+            message: ToolsUtil.getStringResource($r('app.string.background_playback').id),
             enable: Setting.allowBackgroundPlay,
             onChange: (checked: boolean) => {
               Setting.allowBackgroundPlay = checked
@@ -50,7 +50,7 @@ export struct PlayerSettingPage {
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.play_gobackward'),
-            message: '与其他应用同时播放',
+            message: ToolsUtil.getStringResource($r('app.string.play_with_others').id),
             tag: 'VIP',
             enable: Setting.allowConcurrentPlay,
             itemEnabled: userData.isVip,
@@ -65,7 +65,7 @@ export struct PlayerSettingPage {
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.rectangle_portrait_filled_on_rectangle_portrait'),
-            message: '回到后台自动启用小窗',
+            message: ToolsUtil.getStringResource($r('app.string.auto_pip_on_background').id),
             enable: Setting.autoActivePip,
             onChange: (checked: boolean) => {
               Setting.autoActivePip = checked
@@ -77,7 +77,7 @@ export struct PlayerSettingPage {
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.play_circle'),
-            message: '从后台返回自动播放',
+            message: ToolsUtil.getStringResource($r('app.string.resume_on_foreground').id),
             enable: Setting.autoResumeOnReturn,
             onChange: (checked: boolean) => {
               Setting.autoResumeOnReturn = checked
@@ -89,7 +89,7 @@ export struct PlayerSettingPage {
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.arrow_left'),
-            message: '播放时返回隐藏状态栏',
+            message: ToolsUtil.getStringResource($r('app.string.hide_status_bar_on_back').id),
             enable: !Setting.allowPlayBackExist,
             onChange: (checked: boolean) => {
               Setting.allowPlayBackExist = !checked
@@ -102,7 +102,7 @@ export struct PlayerSettingPage {
 
           SettingsToggleItem({
             symbol: $r('sys.symbol.music_note_phone'),
-            message: '短视频模式',
+            message: ToolsUtil.getStringResource($r('app.string.short_video_mode').id),
             enable: Setting.shortVideoMode,
             onChange: (checked: boolean) => {
               Setting.shortVideoMode = checked
@@ -115,7 +115,7 @@ export struct PlayerSettingPage {
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.screen_rotation'),
-            message: '智能横屏',
+            message: ToolsUtil.getStringResource($r('app.string.smart_landscape').id),
             enable: Setting.smartRotation,
             onChange: (checked: boolean) => {
               Setting.smartRotation = checked
@@ -127,7 +127,7 @@ export struct PlayerSettingPage {
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.resolution_video'),
-            message: '展示进度条预览图',
+            message: ToolsUtil.getStringResource($r('app.string.show_progress_preview').id),
             enable: Setting.showFrameImgStatus,
             onChange: (checked: boolean) => {
               Setting.showFrameImgStatus = checked
@@ -140,7 +140,7 @@ export struct PlayerSettingPage {
           SettingsToggleItem({
 
             symbol: $r('sys.symbol.pin'),
-            message: '记住播放进度',
+            message: ToolsUtil.getStringResource($r('app.string.remember_playback_position').id),
             enable: Setting.jumpToHistoryTimeStatus,
             onChange: (checked: boolean) => {
               Setting.jumpToHistoryTimeStatus = checked
@@ -153,7 +153,7 @@ export struct PlayerSettingPage {
           Column() {
             SettingsToggleItem({
               symbol: $r('sys.symbol.hand_draw'),
-              message: '启用双击屏幕两边快进快退',
+              message: ToolsUtil.getStringResource($r('app.string.enable_double_tap_seek').id),
               enable: Setting.allowDoubleFastForward,
               onChange: (checked: boolean) => {
                 Setting.allowDoubleFastForward = checked
@@ -167,7 +167,7 @@ export struct PlayerSettingPage {
           ListItem() {
             SettingsMenuItem({
               symbol: $r('sys.symbol.hand_point_up_tap'),
-              message: '快进快退时长',
+              message: ToolsUtil.getStringResource($r('app.string.seek_duration').id),
               list: this.fastForwardSecond.map(opt => opt.label),
               selected: this.fastForwardSecond.findIndex(opt => opt.value === Setting.fastForwardSeconds),
               onChange: (index: number) => {
@@ -181,7 +181,7 @@ export struct PlayerSettingPage {
         ListItem() {
           SettingsMenuItem({
             symbol: $r('sys.symbol.fast_forward'),
-            message: '长按快进倍速',
+            message: ToolsUtil.getStringResource($r('app.string.long_press_speed').id),
             list: VideoInfoUtil.getVideoSpeedTextList(),
             selected: VideoInfoUtil.videoSpeedListAll.findIndex(opt => opt === Setting.longPressSpeed),
             onChange: (index: number) => {
@@ -194,8 +194,8 @@ export struct PlayerSettingPage {
         ListItem() {
           SettingsSegmentButtonItem({
             symbol: $r('sys.symbol.hand_draw'),
-            message: '横向滑动调节进度灵敏度',
-            tips: ['正常', '中灵敏度', '低灵敏度'],
+            message: ToolsUtil.getStringResource($r('app.string.horizontal_seek_sensitivity').id),
+            tips: [$r('app.string.sensitivity_normal'), $r('app.string.sensitivity_medium'), $r('app.string.sensitivity_low')],
             tabSelectedIndex: Setting.seekSensitivity,
             onButtonClick: (tabSelectedIndex: number) => {
               Setting.seekSensitivity = tabSelectedIndex
@@ -207,7 +207,7 @@ export struct PlayerSettingPage {
         ListItem() {
           SettingsSliderItem({
             symbol: $r('sys.symbol.forward_end_fill'),
-            message: '跳过片头',
+            message: ToolsUtil.getStringResource($r('app.string.skip_intro').id),
             selected: Number(Setting.skipIntroTime),
             textSliderMode: true,
             onChangeComplete: (value: number) => {
@@ -220,7 +220,7 @@ export struct PlayerSettingPage {
         ListItem() {
           SettingsSliderItem({
             symbol: $r('sys.symbol.backward_end_fill'),
-            message: '跳过片尾',
+            message: ToolsUtil.getStringResource($r('app.string.skip_outro').id),
             selected: Number(Setting.skipOutroTime),
             textSliderMode: true,
             onChangeComplete: (value: number) => {
@@ -233,11 +233,11 @@ export struct PlayerSettingPage {
         ListItem() {
           SettingsSliderItem({
             symbol: $r('sys.symbol.sun_max'),
-            message: '默认亮度',
+            message: ToolsUtil.getStringResource($r('app.string.default_brightness').id),
             selected: Setting.defaultBrightness,
             min: 0,
             max: 100,
-            zeroText: '自动',
+            zeroText: ToolsUtil.getStringResource($r('app.string.display_mode_auto').id),
             valueSuffix: '%',
             onChange: (value: number) => {
               if (value > 0) {
@@ -326,7 +326,7 @@ export struct PlayerSettingPage {
       },
       content: {
         title: {
-          mainTitle: '播放设置',
+          mainTitle: $r('app.string.settings_playback'),
         }
       },
     })

@@ -25,7 +25,7 @@ export struct RecentPlay { // 最近播放页
   @Local recent_video_meta_data: VideoMetadata[] = []
   deleteAllConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog({
-      textInfo: '确定清空所有播放记录吗？',
+      textInfo: $r('app.string.clear_play_history_confirm'),
       confirm: () => {
         for (const element of this.recent_video_meta_data ?? []) {
           this.delData(PathUtils.appContext!, element)
@@ -39,7 +39,7 @@ export struct RecentPlay { // 最近播放页
   private pendingDeleteItem: VideoMetadata | null = null
   deleteConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog({
-      textInfo: '确定删除该播放记录吗？',
+      textInfo: $r('app.string.delete_play_record_confirm'),
       confirm: () => {
         if (this.pendingDeleteItem) {
           this.delData(PathUtils.appContext!, this.pendingDeleteItem)
@@ -70,7 +70,7 @@ export struct RecentPlay { // 最近播放页
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.play_round_rectangle')),
-        content: '短视频模式播放'
+        content: $r('app.string.short_video_mode')
       })
         .onClick(() => {
           setTimeout(async () => {
@@ -86,7 +86,7 @@ export struct RecentPlay { // 最近播放页
         this.pendingDeleteItem = item!
         this.deleteConfirmDialog.open()
       })
-      MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
+      MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: $r('app.string.menu_detail') })
         .onClick(() => {
           setTimeout(() => {
             this.detailMetadata = item
@@ -110,7 +110,7 @@ export struct RecentPlay { // 最近播放页
         if (originalList[1].length > 0 && originalList[0]) {
           await ToolsUtil.routerWhere(this.pathStack, originalList[0], originalList[1], reverse)
         } else {
-          ToolsUtil.showToast('数据异常，已移除该数据')
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.data_invalid_removed').id))
           this.delData(PathUtils.appContext!, item)
         }
       }

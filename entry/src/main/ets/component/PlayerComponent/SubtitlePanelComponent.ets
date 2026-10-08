@@ -39,12 +39,8 @@ export struct SubtitlePanelComponent {
 
   build() {
     Menu() {
-      MenuItem({ content: this.importingSubtitle ? '正在导入字幕…' : '导入／替换外挂字幕' })
-        .enabled(!this.importingSubtitle)
-        .onClick(() => this.onImportSubtitle())
-        .menuItemExtend()
       MenuItem({
-        content: '关闭字幕'
+        content: $r('app.string.close_subtitle')
       })
         .contentFontColor(this.subtitleManager.isSubtitleOff ? $r('sys.color.white') :
           $r('app.color.text_color'))
@@ -59,7 +55,7 @@ export struct SubtitlePanelComponent {
 
       if (this.player.subtitleTrack.length > 0) {
         MenuItem({
-          content: '内嵌字幕',
+          content: $r('app.string.embedded_subtitle'),
           builder: this.InnerSubtitleMenu,
         })
           .contentFontColor(this.subtitleManager.isInnerSubtitleActive ? $r('sys.color.white') :
@@ -71,11 +67,11 @@ export struct SubtitlePanelComponent {
           .width('100%')
       } else {
         MenuItem({
-          content: '无内嵌字幕'
+          content: $r('app.string.no_embedded_subtitle')
         })
           .contentFontColor($r('app.color.text_color'))
           .onClick(() => {
-            ToolsUtil.showToast('当前视频没有内嵌字幕')
+            ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.no_embedded_subtitle_toast').id))
           })
           .height(40)
           .borderRadius(16)
@@ -84,7 +80,7 @@ export struct SubtitlePanelComponent {
 
       if (this.player instanceof MpvController && this.player.subtitleTrack.length > 1) {
         MenuItem({
-          content: '副字幕',
+          content: $r('app.string.secondary_subtitle'),
           builder: this.SecondarySubtitleMenu,
         })
           .contentFontColor(this.player.secondarySubtitleTrackSelected >= 0 ? $r('sys.color.white') :
@@ -98,7 +94,7 @@ export struct SubtitlePanelComponent {
 
       if (this.hasExternalSubtitle()) {
         MenuItem({
-          content: '外挂字幕',
+          content: $r('app.string.external_subtitle'),
         })
           .contentFontColor(this.subtitleManager.isExternalSubtitleActive ? $r('sys.color.white') :
             $r('app.color.text_color'))
@@ -112,11 +108,11 @@ export struct SubtitlePanelComponent {
           .width('100%')
       } else {
         MenuItem({
-          content: '无外挂字幕'
+          content: $r('app.string.no_external_subtitle')
         })
           .contentFontColor($r('app.color.text_color'))
           .onClick(() => {
-            ToolsUtil.showToast('当前视频没有外挂字幕')
+            ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.no_external_subtitle_toast').id))
           })
           .height(40)
           .borderRadius(16)
@@ -125,7 +121,7 @@ export struct SubtitlePanelComponent {
 
       if (canIUse('SystemCapability.AI.AICaption')) {
         MenuItem({
-          content: 'AI 字幕'
+          content: $r('app.string.ai_subtitle')
         })
           .contentFontColor(this.subtitleManager.isAIAsrShown ? $r('sys.color.white') :
             $r('app.color.text_color'))
@@ -137,6 +133,11 @@ export struct SubtitlePanelComponent {
           .borderRadius(16)
           .width('100%')
       }
+
+      MenuItem({ content: this.importingSubtitle ? $r('app.string.importing_subtitle') : $r('app.string.import_replace_subtitle') })
+        .enabled(!this.importingSubtitle)
+        .onClick(() => this.onImportSubtitle())
+        .menuItemExtend()
 
       if (this.canShow3DSubtitleMenu()) {
         MenuItem({
@@ -153,7 +154,7 @@ export struct SubtitlePanelComponent {
       if (this.hasExternalSubtitle() ||
         (this.player instanceof MpvController && this.player.subtitleTrack.length > 0)) {
         MenuItem({
-          content: '字幕偏移'
+          content: $r('app.string.subtitle_offset')
         })
           .menuItemExtend()
           .contentFontColor($r('app.color.text_color'))
@@ -164,7 +165,7 @@ export struct SubtitlePanelComponent {
 
       if (this.player instanceof AVPlayerController) {
         MenuItem({
-          content: '内嵌字幕未显示？切换至 MPV 核心'
+          content: $r('app.string.embedded_subtitle_switch_mpv')
         })
           .menuItemExtend()
           .contentFontColor($r('app.color.text_color'))
@@ -320,7 +321,7 @@ export struct SubtitlePanelComponent {
   InnerSubtitleMenu() {
     Menu() {
       MenuItem({
-        content: '关闭'
+        content: $r('app.string.off')
       })
         .menuItemExtend()
         .contentFontColor(!this.subtitleManager.isInnerSubtitleActive ? $r('sys.color.white') :
@@ -342,9 +343,9 @@ export struct SubtitlePanelComponent {
             .backgroundColor(this.subtitleManager.isInnerSubtitleActive &&
               this.player.subtitleTrackSelected === repeatItem.item.id ? $r('app.color.main_color') : Color.Transparent)
             .onClick(() => {
-              this.player.selectSubtitleTrack(repeatItem.item.id)
+              this.player.subtitleController.selectSubtitleTrack(repeatItem.item.id)
               this.subtitleManager.switchToInner()
-              if (!this.player.supportsSubtitle3D()) {
+              if (!this.player.subtitleController.supportsSubtitle3D()) {
                 this.subtitleManager.set3DMode(Subtitle3DMode.DISABLED)
               }
             })
@@ -357,7 +358,7 @@ export struct SubtitlePanelComponent {
   SecondarySubtitleMenu() {
     Menu() {
       MenuItem({
-        content: '关闭'
+        content: $r('app.string.off')
       })
         .menuItemExtend()
         .contentFontColor(this.player.secondarySubtitleTrackSelected < 0 ? $r('sys.color.white') :
@@ -365,7 +366,7 @@ export struct SubtitlePanelComponent {
         .backgroundColor(this.player.secondarySubtitleTrackSelected < 0 ?
           $r('app.color.main_color') : Color.Transparent)
         .onClick(() => {
-          this.player.selectSecondarySubtitleTrack(-1)
+          this.player.subtitleController.selectSecondarySubtitleTrack(-1)
         })
 
       Repeat<MpvSubtitleTrack | SubtitleTrack>(this.innerSubtitleMenu.data)
@@ -381,8 +382,8 @@ export struct SubtitlePanelComponent {
                 $r('app.color.main_color') : Color.Transparent)
               .onClick(() => {
                 this.subtitleManager.switchToInner()
-                this.player.selectSecondarySubtitleTrack(repeatItem.item.id)
-                if (!this.player.supportsSubtitle3D()) {
+                this.player.subtitleController.selectSecondarySubtitleTrack(repeatItem.item.id)
+                if (!this.player.subtitleController.supportsSubtitle3D()) {
                   this.subtitleManager.set3DMode(Subtitle3DMode.DISABLED)
                 }
               })
@@ -418,7 +419,7 @@ export struct SubtitlePanelComponent {
 
   private canShow3DSubtitleMenu(): boolean {
     if (this.player instanceof MpvController && this.subtitleManager.isInnerSubtitleActive) {
-      return this.player.supportsSubtitle3D()
+      return this.player.subtitleController.supportsSubtitle3D()
     }
     return this.subtitleManager.subtitleVisibility === Visibility.Visible
   }

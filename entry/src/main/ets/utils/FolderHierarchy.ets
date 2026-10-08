@@ -1,7 +1,62 @@
 import { FileFolder } from '../interfaces/FileFolderInterface'
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 
-// 纯数据操作：不删除条目或媒体，不依赖界面和数据库。
+export interface InvalidVideoCleanupPlan {
+  folders: FileFolder[]
+  videos: VideoMetadata[]
+  resources: VideoMetadata[]
+  removedFolderCount: number
+}
+
+// 纯数据操作：不访问文件系统、界面和数据库。
 export default class FolderHierarchy {
+  static pruneInvalidVideos(source: FileFolder[], invalid: VideoMetadata[]): InvalidVideoCleanupPlan {
+    const invalidUris = new Map<string, Set<string>>()
+    for (const video of invalid) {
+      if (!invalidUris.has(video.date)) invalidUris.set(video.date, new Set<string>())
+      invalidUris.get(video.date)!.add(video.uri)
+    }
+    const removedVideos = new Map<string, VideoMetadata>()
+    const retainedDates = new Set<string>()
+    const children = new Map<string, number>()
+    for (const folder of source) {
+      if (folder.parent_date) children.set(folder.parent_date, (children.get(folder.parent_date) ?? 0) + 1)
+    }
+    const candidates = new Set<string>()
+    const parents = new Map<string, string | null>()
+    const folders = source.map((folder: FileFolder): FileFolder => {
+      const videos = folder.video_list.filter((video: VideoMetadata): boolean => {
+        if (invalidUris.get(video.date)?.has(video.uri)) {
+          removedVideos.set(video.date, video)
+          return false
+        }
+        retainedDates.add(video.date)
+        return true
+      })
+      parents.set(folder.date, folder.parent_date)
+      // 保留首页和原本为空的叶子目录；子目录尚有内容时保留父目录。
+      if (folder.name !== '首页' && videos.length === 0 &&
+        (folder.video_list.length > 0 || (children.get(folder.date) ?? 0) > 0)) candidates.add(folder.date)
+      return { name: folder.name, date: folder.date, parent_date: folder.parent_date, video_list: videos }
+    })
+    const pending = Array.from(candidates).filter(date => (children.get(date) ?? 0) === 0)
+    const removedFolders = new Set<string>()
+    while (pending.length > 0) {
+      const date = pending.pop()!
+      if (removedFolders.has(date)) continue
+      removedFolders.add(date)
+      const parent = parents.get(date)
+      if (parent) {
+        const count = (children.get(parent) ?? 0) - 1
+        children.set(parent, count)
+        if (count === 0 && candidates.has(parent)) pending.push(parent)
+      }
+    }
+    const videos = Array.from(removedVideos.values())
+    return { folders: folders.filter(folder => !removedFolders.has(folder.date)), videos,
+      resources: videos.filter(video => !retainedDates.has(video.date)), removedFolderCount: removedFolders.size }
+  }
+
   static createId(folders: FileFolder[]): string {
     const used = new Set(folders.map(folder => folder.date))
     let candidate = Date.now()

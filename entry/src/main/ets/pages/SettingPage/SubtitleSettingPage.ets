@@ -22,21 +22,21 @@ interface SubtitleColorOption {
 @ComponentV2
 export struct SubtitleSettingPage {
   private listScroller: Scroller = new Scroller()
-  private subtitleLanguages: ResourceStr[] = ['简体中文', '繁体中文', '英语']
+  private subtitleLanguages: ResourceStr[] = [$r('app.string.lang_simplified_chinese'), $r('app.string.lang_traditional_chinese'), $r('app.string.lang_english')]
   private textColors: SubtitleColorOption[] = [
-    { name: '柔白', value: '#F0F0F0' },
-    { name: '纯白', value: '#FFFFFF' },
-    { name: '暖黄', value: '#FFD966' },
-    { name: '青色', value: '#66E0FF' },
-    { name: '浅绿', value: '#8FE388' },
-    { name: '粉红', value: '#FF9EC4' }
+    { name: ToolsUtil.getStringResource($r('app.string.color_warm_white').id), value: '#F0F0F0' },
+    { name: ToolsUtil.getStringResource($r('app.string.color_pure_white').id), value: '#FFFFFF' },
+    { name: ToolsUtil.getStringResource($r('app.string.color_warm_yellow').id), value: '#FFD966' },
+    { name: ToolsUtil.getStringResource($r('app.string.color_cyan').id), value: '#66E0FF' },
+    { name: ToolsUtil.getStringResource($r('app.string.color_light_green').id), value: '#8FE388' },
+    { name: ToolsUtil.getStringResource($r('app.string.color_pink').id), value: '#FF9EC4' }
   ]
   private effectColors: SubtitleColorOption[] = [
-    { name: '黑色', value: '#000000' },
-    { name: '深灰', value: '#303030' },
-    { name: '白色', value: '#FFFFFF' },
-    { name: '深蓝', value: '#10243D' },
-    { name: '深红', value: '#44151B' }
+    { name: ToolsUtil.getStringResource($r('app.string.color_black').id), value: '#000000' },
+    { name: ToolsUtil.getStringResource($r('app.string.color_dark_gray').id), value: '#303030' },
+    { name: ToolsUtil.getStringResource($r('app.string.color_white').id), value: '#FFFFFF' },
+    { name: ToolsUtil.getStringResource($r('app.string.color_dark_blue').id), value: '#10243D' },
+    { name: ToolsUtil.getStringResource($r('app.string.color_dark_red').id), value: '#44151B' }
   ]
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
@@ -50,7 +50,7 @@ export struct SubtitleSettingPage {
         ListItem() {
           SettingsMenuItem({
             symbol: $r('sys.symbol.textformat_size_square'),
-            message: '自动选择字幕语言',
+            message: ToolsUtil.getStringResource($r('app.string.auto_select_subtitle_language').id),
             list: this.subtitleLanguages,
             selected: Setting.subtitlePreferredLanguage,
             onChange: (index: number) => {
@@ -63,11 +63,11 @@ export struct SubtitleSettingPage {
         ListItem() {
           SettingsSliderItem({
             symbol: $r('sys.symbol.title_size'),
-            message: '字体大小',
+            message: ToolsUtil.getStringResource($r('app.string.font_size').id),
             selected: Number(Setting.subtitleSize),
             min: 14,
             max: 48,
-            valueSuffix: '号',
+            valueSuffix: ToolsUtil.getStringResource($r('app.string.unit_point').id),
             onChange: (value: number) => {
               Setting.subtitleSize = Math.round(value).toString()
             },
@@ -82,7 +82,7 @@ export struct SubtitleSettingPage {
         ListItem() {
           SettingsSliderItem({
             symbol: $r('sys.symbol.celiakeyboard_menu_icon_size'),
-            message: '垂直位置',
+            message: ToolsUtil.getStringResource($r('app.string.vertical_position').id),
             selected: Setting.subtitlePosition,
             min: 5,
             max: 100,
@@ -101,7 +101,7 @@ export struct SubtitleSettingPage {
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.bold'),
-            message: '粗体',
+            message: ToolsUtil.getStringResource($r('app.string.bold').id),
             enable: Setting.subtitleBold,
             onChange: (checked: boolean) => {
               Setting.subtitleBold = checked
@@ -114,7 +114,7 @@ export struct SubtitleSettingPage {
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.italic'),
-            message: '斜体',
+            message: ToolsUtil.getStringResource($r('app.string.italic').id),
             enable: Setting.subtitleItalic,
             onChange: (checked: boolean) => {
               Setting.subtitleItalic = checked
@@ -131,7 +131,7 @@ export struct SubtitleSettingPage {
         ListItem() {
           SettingsSliderItem({
             symbol: $r('sys.symbol.rectangle_portrait_filled_on_rectangle_portrait'),
-            message: '描边宽度',
+            message: ToolsUtil.getStringResource($r('app.string.outline_width').id),
             selected: Setting.subtitleBorderSize,
             min: 0,
             max: 6,
@@ -154,7 +154,7 @@ export struct SubtitleSettingPage {
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.wand_and_stars'),
-            message: '字幕阴影',
+            message: ToolsUtil.getStringResource($r('app.string.subtitle_shadow').id),
             enable: Setting.subtitleShadowEnabled,
             onChange: (checked: boolean) => {
               Setting.subtitleShadowEnabled = checked
@@ -168,7 +168,7 @@ export struct SubtitleSettingPage {
           ListItem() {
             SettingsSliderItem({
               symbol: $r('sys.symbol.shadow'),
-              message: '阴影强度',
+              message: ToolsUtil.getStringResource($r('app.string.shadow_strength').id),
               selected: Setting.subtitleShadowSize,
               min: 1,
               max: 12,
@@ -192,12 +192,12 @@ export struct SubtitleSettingPage {
         ListItem() {
           SettingsSliderItem({
             symbol: $r('sys.symbol.rectangle_lefthalf_inset_filled'),
-            message: '背景透明度',
+            message: ToolsUtil.getStringResource($r('app.string.background_opacity').id),
             selected: Setting.subtitleBackgroundOpacity,
             min: 0,
             max: 80,
             valueSuffix: '%',
-            zeroText: '关闭',
+            zeroText: ToolsUtil.getStringResource($r('app.string.off').id),
             onChange: (value: number) => {
               Setting.subtitleBackgroundOpacity = Math.round(value)
             },
@@ -212,11 +212,11 @@ export struct SubtitleSettingPage {
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.arrow_counterclockwise'),
-            message: '恢复默认字幕样式',
+            message: ToolsUtil.getStringResource($r('app.string.reset_subtitle_style').id),
             showArrow: false,
             onPress: () => {
               SubtitleStyleUtil.reset()
-              ToolsUtil.showToast('已恢复默认字幕样式')
+              ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.subtitle_style_reset').id))
             }
           })
         }
@@ -292,7 +292,7 @@ export struct SubtitleSettingPage {
       },
       content: {
         title: {
-          mainTitle: '字幕样式',
+          mainTitle: $r('app.string.settings_subtitle_style'),
         }
       }
     })
@@ -313,7 +313,7 @@ export struct SubtitleSettingPage {
         SymbolGlyph($r('sys.symbol.play_fill'))
           .fontSize(42)
           .fontColor(['#55FFFFFF'])
-        Text('字幕效果实时预览')
+        Text($r('app.string.subtitle_preview'))
           .fontSize(13)
           .fontColor($r('sys.color.node_graph_toolbar_background_color'))
       }
@@ -322,7 +322,7 @@ export struct SubtitleSettingPage {
       .margin({ top: 45 })
 
       Stack({ alignContent: Alignment.Bottom }) {
-        Text('做最优质的播放器\nSweet Video')
+        Text($r('app.string.subtitle_slogan'))
           .fontSize(Number(Setting.subtitleSize))
           .fontColor(Setting.subtitleColor)
           .fontWeight(Setting.subtitleBold ? FontWeight.Bold : FontWeight.Normal)
@@ -358,7 +358,7 @@ export struct SubtitleSettingPage {
   private ColorPalette(colors: SubtitleColorOption[], target: number) {
     Column({ space: 10 }) {
       Row() {
-        Text(target === 0 ? '选择文字颜色' : (target === 1 ? '选择描边颜色' : '选择阴影颜色'))
+        Text(target === 0 ? $r('app.string.pick_text_color') : (target === 1 ? $r('app.string.pick_outline_color') : $r('app.string.pick_shadow_color')))
           .fontSize(15)
           .fontColor($r('sys.color.font_primary'))
           .layoutWeight(1)

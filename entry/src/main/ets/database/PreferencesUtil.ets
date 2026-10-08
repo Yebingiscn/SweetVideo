@@ -20,12 +20,14 @@ export default class PreferencesUtil {
     return PreferencesUtil.prefInstance!
   }
 
-  static putPreferencesValue(context: Context, name: string, key: string, value: preferences.ValueType) {
+  static putPreferencesValue(context: Context, name: string, key: string, value: preferences.ValueType,
+    requireSuccess: boolean = false) {
     try {
       const pref = PreferencesUtil.getPreferencesInstance(context, name)
       pref.putSync(key, value)
       PreferencesUtil.debouncedFlush(pref)
     } catch (e) {
+      if (requireSuccess) throw new Error('Metadata could not be saved')
       ToolsUtil.showToast(`数据库异常，保存失败，原因是:${e}，ValueType: ${value}，获取参数为 ${name}}: ${key}`)
     }
   }

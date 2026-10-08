@@ -96,10 +96,10 @@ export struct ShortVideoItem {
             .fontSize(40)
             .fontWeight(FontWeight.Bold)
             .fontColor(Color.White)
-          Text('AVPlayer 无法播放该视频')
+          Text($r('app.string.avplayer_cannot_play'))
             .fontSize(16)
             .fontColor(Color.White)
-          Text('可继续上滑切换视频')
+          Text($r('app.string.swipe_up_to_switch'))
             .fontSize(13)
             .fontColor('#B3FFFFFF')
         }

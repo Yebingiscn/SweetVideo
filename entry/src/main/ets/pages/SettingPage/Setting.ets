@@ -50,7 +50,7 @@ export struct SettingsPage { //设置页
                 Row({ space: 12 }) {
                   Image(userData.userAvatar || $r('app.media.Foreground'))
                     .attributeModifier(new ImageFancyModifier(22, 42, 42))
-                  Text(userData.isLogin ? (userData.nickName || '已登录') : '未登录')
+                  Text(userData.isLogin ? (userData.nickName || ToolsUtil.getStringResource($r('app.string.logged_in').id)) : ToolsUtil.getStringResource($r('app.string.not_logged_in').id))
                     .fontSize(16)
                     .fontWeight(FontWeight.Bold)
                     .fontColor(Color.White)
@@ -94,7 +94,7 @@ export struct SettingsPage { //设置页
             } else {
               SettingsClickItem({
                 symbol: $r('sys.symbol.crown_fill'),
-                message: '获取VIP',
+                message: $r('app.string.get_vip'),
                 onPress: () => {
                   this.pathStack.pushPathByName(NavigationAddress.VIP_PAGE, true)
                 }
@@ -137,7 +137,7 @@ export struct SettingsPage { //设置页
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.square_and_pencil'),
-            message: '界面设置',
+            message: $r('app.string.settings_appearance'),
             onPress: () => {
               this.pathStack.pushPathByName(NavigationAddress.PERSONALIZE_PAGE, true)
             }
@@ -147,7 +147,7 @@ export struct SettingsPage { //设置页
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.paintpalette'),
-            message: '个性界面',
+            message: $r('app.string.settings_personalize'),
             onPress: () => {
               this.pathStack.pushPathByName(NavigationAddress.PERSONALIZE_SETTING_PAGE, true)
             }
@@ -157,7 +157,7 @@ export struct SettingsPage { //设置页
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.play_round_rectangle'),
-            message: '播放设置',
+            message: $r('app.string.settings_playback'),
             onPress: () => {
               this.pathStack.pushPathByName(NavigationAddress.PLAYER_SETTING_PAGE, true)
             }
@@ -167,7 +167,7 @@ export struct SettingsPage { //设置页
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.engine_combustion'),
-            message: '引擎设置',
+            message: $r('app.string.settings_engine'),
             onPress: () => {
               this.pathStack.pushPathByName(NavigationAddress.ENGINE_SETTING_PAGE, true)
             }
@@ -177,7 +177,7 @@ export struct SettingsPage { //设置页
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.textformat_size_square'),
-            message: '字幕样式',
+            message: $r('app.string.settings_subtitle_style'),
             onPress: () => {
               this.pathStack.pushPathByName(NavigationAddress.SUBTITLE_SETTING_PAGE, true)
             }
@@ -187,7 +187,7 @@ export struct SettingsPage { //设置页
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.HarmonyOS'),
-            message: '鸿蒙特性',
+            message: $r('app.string.settings_harmony'),
             onPress: () => {
               this.pathStack.pushPathByName(NavigationAddress.HARMONY_FEATURE_PAGE, true)
             }
@@ -197,7 +197,7 @@ export struct SettingsPage { //设置页
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.square_grid_2x2'),
-            message: '更多设置',
+            message: $r('app.string.settings_more'),
             onPress: () => {
               this.pathStack.pushPathByName(NavigationAddress.MORE_SETTING_PAGE, true)
             }
@@ -276,7 +276,7 @@ export struct SettingsPage { //设置页
       },
       content: {
         title: {
-          mainTitle: '设置',
+          mainTitle: $r('app.string.setting'),
         }
       },
     })

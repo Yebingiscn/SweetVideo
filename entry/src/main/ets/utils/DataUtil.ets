@@ -6,9 +6,7 @@ import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
 import { DeleteType } from '../common/enum/DeleteType'
 import { MpvAudioTrack, MpvSubtitleTrack } from '../controller/MpvController/MpvTypes'
 import { SalmonLogLine } from 'salmonlogger'
-import Preferences from '../database/Preferences'
 import { FolderOperator, VideoMetaDataOperator } from '../database/VideoMetaData'
-import { PathUtils } from './PathUtils'
 import SelectFileUtil from './SelectFileUtil'
 import ToolsUtil from './ToolsUtil'
 import VideoOperateUtil from './VideoOperateUtil'
@@ -131,7 +129,7 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
     this.deleteData(this.data.findIndex(i => i.date === item.date))
     await VideoOperateUtil.deleteVideoResource(item, deleteType)
     if (deleteType == DeleteType.RECENT) {
-      ToolsUtil.showToast(item.title + ' 已经移动到回收站')
+      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.moved_to_recycle').id, item.title))
     }
   }
 }

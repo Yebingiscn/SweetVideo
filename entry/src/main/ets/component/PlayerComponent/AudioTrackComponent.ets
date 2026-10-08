@@ -1,5 +1,4 @@
 import { AudioTrack } from '../../interfaces/AudioTrackInterface'
-import { AudioTrackSource } from '../../utils/DataUtil'
 import { MpvAudioTrack } from '../../controller/MpvController/MpvTypes'
 import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { MpvController } from '../../controller/MpvController/MpvController'
@@ -29,7 +28,6 @@ export struct AudioTrackComponent {
     10: '5.1.4',
     12: '7.1.4'
   }
-  @Local audioTrackDataSource: AudioTrackSource = new AudioTrackSource([])
   @Consumer('player') player: PlayerControllerInterface =
     PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
   @Event onSelect: (_index: number) => void = () => {
@@ -46,10 +44,6 @@ export struct AudioTrackComponent {
       }
     }
     return false
-  }
-
-  aboutToAppear(): void {
-    this.audioTrackDataSource = new AudioTrackSource(this.player.audioTrack)
   }
 
   // 检查是否是 AudioTrack
@@ -79,6 +73,7 @@ export struct AudioTrackComponent {
     if (this.isMpvAudioTrack(item)) {
       const track = item as MpvAudioTrack
       const parts: string[] = []
+      if (track.external) parts.push(ToolsUtil.getStringResource($r('app.string.audio_external_label').id))
       if (track.title) {
         parts.push(track.title)
       }
@@ -171,7 +166,7 @@ export struct AudioTrackComponent {
 
   build() {
     Column() {
-      Repeat<TrackType>(this.audioTrackDataSource.data)
+      Repeat<TrackType>(this.player.audioTrack)
         .each((repeatItem: RepeatItem<TrackType>) => {
           Row() {
             Text(`${this.getTrackIndex(repeatItem.item)} : ${this.getFormattedTrackName(repeatItem.item)}`)
@@ -235,7 +230,7 @@ export struct AudioTrackComponent {
         .key((item: TrackType, _index: number) => this.getKey(item))
       if (this.player instanceof MpvController && this.player.usbExclusiveActive) {
         Row({ space: 12 }) {
-          Text('USB 设备音量').fontColor($r('app.color.text_color'))
+          Text($r('app.string.usb_device_volume')).fontColor($r('app.color.text_color'))
           Button('−').onClick(() => {
             if (this.player instanceof MpvController) this.player.changeUsbVolume(-5)
           })
@@ -255,7 +250,7 @@ export struct AudioTrackComponent {
       }
 
       Row() {
-        Text('响度')
+        Text($r('app.string.loudness'))
           .fontSize(16)
           .fontColor($r('app.color.text_color'))
           .width(35)
@@ -303,7 +298,7 @@ export struct AudioTrackComponent {
             SymbolGlyph($r('sys.symbol.rays'))
               .fontSize(18)
               .fontColor([$r('app.color.text_color')])
-            Text('流心音效')
+            Text($r('app.string.sweet_audio_effect'))
               .fontSize(16)
               .fontColor($r('app.color.text_color'))
             Text('VIP')
@@ -329,9 +324,46 @@ export struct AudioTrackComponent {
       .width('100%')
       .onClick(() => {
         if (!userData.isVip) {
-          ToolsUtil.showToast('这个是vip功能')
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.vip_feature_only').id))
         }
       })
+      if (this.player instanceof MpvController) {
+        Button({ type: ButtonType.Normal, stateEffect: true }) {
+          Text(this.player.externalAudioImporting ? $r('app.string.audio_external_importing') :
+            (this.player.nowPlaying?.external_audio_file ? $r('app.string.audio_external_replace') : $r('app.string.audio_external_import')))
+            .fontSize(16)
+            .fontColor($r('app.color.text_color'))
+            .width('100%')
+            .textAlign(TextAlign.Start)
+        }
+          .attributeModifier(new ButtonFancyModifier('100%', 40))
+          .padding({ left: 20, right: 10 })
+          .backgroundColor(Color.Transparent)
+          .enabled(!this.player.externalAudioImporting)
+          .onClick(() => {
+            if (this.player instanceof MpvController) this.player.importExternalAudio()
+          })
+        if (this.player.nowPlaying?.external_audio_file) {
+          Row({ space: 8 }) {
+            Text(`${ToolsUtil.getStringResource($r('app.string.audio_external_sync').id)} ${this.player.externalAudioOffsetMs} ms`)
+              .fontSize(14).fontColor($r('app.color.text_color'))
+            Button({ type: ButtonType.Circle }) {
+              SymbolGlyph($r('sys.symbol.undo')).fontSize(16).fontColor([$r('app.color.text_color')])
+            }.attributeModifier(new ButtonFancyModifier(28, 28)).backgroundColor(Color.Transparent)
+            .onClick(() => {
+              if (this.player instanceof MpvController) this.player.setExternalAudioOffset(0)
+            })
+          }
+          Slider({ value: this.player.externalAudioOffsetMs, min: -5000, max: 5000, step: 100 })
+            .selectedColor($r('app.color.main_color')).width('100%')
+            .onChange((value: number, mode: SliderChangeMode) => {
+              if (this.player instanceof MpvController) {
+                this.player.setExternalAudioOffset(value, mode === SliderChangeMode.End || mode === SliderChangeMode.Click)
+              }
+            })
+          Text($r('app.string.audio_external_sync_help')).fontSize(12).fontColor($r('app.color.text_color'))
+        }
+      }
     }
     .width(270)
     .justifyContent(FlexAlign.Center)

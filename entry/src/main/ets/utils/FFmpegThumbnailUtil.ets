@@ -1,3 +1,4 @@
+import { Setting } from './ObservedUtil'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { image } from '@kit.ImageKit'
 import { media } from '@kit.MediaKit'
@@ -83,6 +84,17 @@ function buildFailureResult(error: string): FFmpegThumbnailResult {
 }
 
 export default class FFmpegThumbnailUtil {
+  static coverTimeUs(durationMs: number, randomCover: boolean): number {
+    if (!randomCover) {
+      return durationMs >= 3600000 ? 180000000 : 0
+    }
+    // 未知时长不盲目 seek；短视频取样上限严格小于结尾。
+    if (!Number.isFinite(durationMs) || durationMs <= 0) {
+      return 0
+    }
+    return Math.floor(Math.random() * Math.min(durationMs, 300000) * 1000)
+  }
+
   static createLocalExtractor(uri: string): number {
     let file: fs.File | undefined
     try {
@@ -157,14 +169,15 @@ export default class FFmpegThumbnailUtil {
   }
 
   static async extractFrame(extractorId: number, timeUs: number, maxWidth: number,
-    maxHeight: number, preferEmbeddedCover: boolean = false): Promise<FFmpegThumbnailResult> {
+    maxHeight: number, preferEmbeddedCover: boolean = false, keyframeCover: boolean = false): Promise<FFmpegThumbnailResult> {
     try {
       const frameTask: Promise<FFmpegThumbnailFrame> = extractThumbnailFrame(
         extractorId,
         Math.max(0, timeUs),
         Math.max(1, maxWidth),
         Math.max(1, maxHeight),
-        preferEmbeddedCover
+        preferEmbeddedCover,
+        keyframeCover
       )
       const frame = await frameTask
       const options: image.InitializationOptions = {
@@ -195,12 +208,12 @@ export default class FFmpegThumbnailUtil {
   }
 
   static async extractFrameFromUri(uri: string, timeUs: number, maxWidth: number,
-    maxHeight: number, preferEmbeddedCover: boolean = false): Promise<FFmpegThumbnailResult> {
+    maxHeight: number, preferEmbeddedCover: boolean = false, keyframeCover: boolean = false): Promise<FFmpegThumbnailResult> {
     let extractorId: number | undefined
     try {
       extractorId = FFmpegThumbnailUtil.createLocalExtractor(uri)
       return await FFmpegThumbnailUtil.extractFrame(
-        extractorId, timeUs, maxWidth, maxHeight, preferEmbeddedCover)
+        extractorId, timeUs, maxWidth, maxHeight, preferEmbeddedCover, keyframeCover)
     } catch (error) {
       return buildFailureResult(String(error))
     } finally {
@@ -210,9 +223,10 @@ export default class FFmpegThumbnailUtil {
 
   static async extractCover(uri: string, durationMs: number, maxEdge: number = 480):
     Promise<FFmpegThumbnailResult> {
-    const oneHourMs = 3600000
-    const timeUs = durationMs >= oneHourMs ? 180000000 : 0
-    const result = await FFmpegThumbnailUtil.extractFrameFromUri(uri, timeUs, maxEdge, maxEdge, true)
+    const randomCover = Setting.randomCover
+    const timeUs = FFmpegThumbnailUtil.coverTimeUs(durationMs, randomCover)
+    const result = await FFmpegThumbnailUtil.extractFrameFromUri(uri, timeUs, maxEdge, maxEdge,
+      !randomCover, randomCover)
     result.hdrType = await FFmpegThumbnailUtil.correctHdrVivid(uri, result.hdrType)
     return result
   }
@@ -224,9 +238,10 @@ export default class FFmpegThumbnailUtil {
     try {
       extractorId = FFmpegThumbnailUtil.createLocalExtractor(uri)
       probe = await FFmpegThumbnailUtil.getMediaInfo(extractorId)
-      const oneHourMs = 3600000
-      const timeUs = probe.durationMs >= oneHourMs ? 180000000 : 0
-      const thumbnail = await FFmpegThumbnailUtil.extractFrame(extractorId, timeUs, maxEdge, maxEdge, true)
+      const randomCover = Setting.randomCover
+      const timeUs = FFmpegThumbnailUtil.coverTimeUs(probe.durationMs, randomCover)
+      const thumbnail = await FFmpegThumbnailUtil.extractFrame(extractorId, timeUs, maxEdge, maxEdge,
+        !randomCover, randomCover)
       if (thumbnail.success) {
         if (thumbnail.sourceWidth > 0 && thumbnail.sourceHeight > 0) {
           probe.sourceWidth = thumbnail.sourceWidth
@@ -262,7 +277,10 @@ export default class FFmpegThumbnailUtil {
     let extractorId: number | undefined
     try {
       extractorId = FFmpegThumbnailUtil.createNetworkExtractor(url)
-      return await FFmpegThumbnailUtil.extractFrame(extractorId, 0, maxEdge, maxEdge, true)
+      const randomCover = Setting.randomCover
+      const durationMs = randomCover ? (await FFmpegThumbnailUtil.getMediaInfo(extractorId)).durationMs : 0
+      return await FFmpegThumbnailUtil.extractFrame(extractorId,
+        FFmpegThumbnailUtil.coverTimeUs(durationMs, randomCover), maxEdge, maxEdge, !randomCover, randomCover)
     } catch (error) {
       return buildFailureResult(String(error))
     } finally {

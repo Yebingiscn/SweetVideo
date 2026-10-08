@@ -13,7 +13,19 @@ import { PlayerEngine } from '../common/NavigationCommon'
 export type PlayerEngineSwitchHandler =
   (targetEngine: string, reason: string, resumePlayback?: boolean) => Promise<void>
 
+export interface SubtitleControllerInterface {
+  getSubtitleTrackList(): Promise<void>
+  selectSubtitleTrack(trackId: number): void
+  selectExternalSubtitleTrack(): void
+  selectSecondarySubtitleTrack(trackId: number): void
+  setExternalSubtitle(nowPlaying: VideoMetadata): Promise<void>
+  setSubtitleOffset(offsetMillis: number): void
+  setSubtitle3DMode(mode: Subtitle3DMode): void
+  supportsSubtitle3D(): boolean
+}
+
 export interface PlayerControllerInterface {
+  readonly subtitleController: SubtitleControllerInterface
   surfaceId: string | null
   avSession: avSessionManager.AVSession | undefined
   nowPlaying: VideoMetadata | undefined
@@ -33,6 +45,7 @@ export interface PlayerControllerInterface {
   volumeActually: number
   screenBrightness: number
   onSwipingVoice: boolean
+  volumeGestureActive: boolean
   onSwipingBrightness: boolean
   onSwiping: boolean
   isSliderPlayTimeChange: boolean
@@ -113,16 +126,7 @@ export interface PlayerControllerInterface {
 
   onScreenDoubleClick(tapX: number): void
 
-  getSubtitleTrackList(): Promise<void>
-
-  selectSubtitleTrack(trackId: number): void
-
-  selectExternalSubtitleTrack(): void
-
-  selectSecondarySubtitleTrack(trackId: number): void
-
   initVolumeAndBrightness(): Promise<void>
-
 
   getData(): Promise<void>
 
@@ -134,8 +138,6 @@ export interface PlayerControllerInterface {
   playAdjacentVideo(repeatMode: SweetRepeatMode,
     direction: 'previous' | 'next'): VideoMetadata | undefined
 
-  setExternalSubtitle(nowPlaying: VideoMetadata): Promise<void>
-
   playNextVideoProcess(pathStack: NavPathStack, windowClass?: Promise<window.Window | undefined>,
     xComponentController?: XComponentController, overrideRepeatMode?: SweetRepeatMode): Promise<void>
 
@@ -146,12 +148,6 @@ export interface PlayerControllerInterface {
     windowClass?: Promise<window.Window | undefined>, xComponentController?: XComponentController): Promise<void>
 
   refreshExternalSubtitlePreview(offset: number): void
-
-  setSubtitleOffset(offsetMillis: number): void
-
-  setSubtitle3DMode(mode: Subtitle3DMode): void
-
-  supportsSubtitle3D(): boolean
 
   refreshExternalSubtitleByPlaybackTime(isAdjustingSubtitleOffset: boolean, subtitleVisibility: Visibility): void
 
@@ -207,7 +203,6 @@ export interface PlayerControllerInterface {
   onWillDisappearRelease(windowClass?: Promise<window.Window | undefined>): Promise<void>
 
   hasChapterSupport(): boolean
-
 
   onMetricsEvent(callback: (info: Array<media.AVMetricsEvent>) => void): void
 

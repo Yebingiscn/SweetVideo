@@ -43,10 +43,10 @@ export struct GlobalSearch {
     HdsNavDestination() {
       Column({ space: 8 }) {
         if (!this.pictureSupported) {
-          Text('当前设备不支持按封面搜索').fontSize(12).fontColor($r('sys.color.font_secondary'))
+          Text($r('app.string.visual_search_device_unsupported')).fontSize(12).fontColor($r('sys.color.font_secondary'))
         }
         if (this.byPicture) {
-          Text('使用现有视频封面搜索封面内容').fontSize(12).fontColor($r('sys.color.font_secondary'))
+          Text($r('app.string.visual_search_cover_desc')).fontSize(12).fontColor($r('sys.color.font_secondary'))
         }
         Row({ space: 8 }) {
           if (this.busy) {
@@ -142,7 +142,7 @@ export struct GlobalSearch {
       },
       content: {
         title: {
-          mainTitle: '全局搜索',
+          mainTitle: $r('app.string.global_search'),
         },
         bottomBuilder: { builder: (): void => this.SearchBarBuilder() },
       },
@@ -191,7 +191,7 @@ export struct GlobalSearch {
       SearchComponent({
         controller: this.controller,
         searchValue: this.query,
-        placeholder: this.byPicture ? '描述封面，如小草' : '搜索所有文件夹的音视频',
+        placeholder: this.byPicture ? $r('app.string.describe_cover_example') : $r('app.string.search_all_media'),
         onSearchValueChange: (value: string) => {
           this.query = value
           this.updateResults()
@@ -227,18 +227,18 @@ export struct GlobalSearch {
   SearchModeMenuBuilder() {
     Menu() {
       MenuItem({
-        content: '按名称',
+        content: $r('app.string.search_by_name'),
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat')),
-        labelInfo: !this.byPicture ? '当前' : ''
+        labelInfo: !this.byPicture ? $r('app.string.current_label') : ''
       })
         .onClick(() => {
           this.byPicture = false
           this.updateResults()
         })
       MenuItem({
-        content: '按封面',
+        content: $r('app.string.search_by_cover'),
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.AI_livephoto')),
-        labelInfo: this.byPicture ? '当前' : ''
+        labelInfo: this.byPicture ? $r('app.string.current_label') : ''
       })
         .onClick(() => {
           if (this.pictureSupported) {
@@ -263,13 +263,13 @@ export struct GlobalSearch {
     this.busy = false
     if (this.byPicture) {
       this.results = []
-      this.message = '描述封面中的画面，然后点击键盘上的搜索'
+      this.message = ToolsUtil.getStringResource($r('app.string.describe_cover_hint').id)
       return
     }
     const matches = new Set(SelectFileUtil.getItemFromSearch(
       this.entries.map(entry => entry.video), this.query).map(video => video.uri))
     this.results = this.query.trim() ? this.entries.filter(entry => matches.has(entry.video.uri)) : this.entries
-    this.message = `所有文件夹 · ${this.results.length} 个视频`
+    this.message = ToolsUtil.getStringResourceArgs($r('app.string.all_folders_video_count').id, this.results.length)
   }
 
   private async submit(): Promise<void> {
@@ -281,26 +281,26 @@ export struct GlobalSearch {
     if (this.running) {
       this.pendingSearch = true
       this.busy = true
-      this.message = '正在准备封面搜索，将搜索最新输入…'
+      this.message = ToolsUtil.getStringResource($r('app.string.preparing_cover_search_latest').id)
       return
     }
     const query = this.query.trim()
     if (!query || query.length > 100 || !/[\u3400-\u9fff]/.test(query)) {
-      this.message = '请输入 1–100 字的中文封面描述，例如“海边的落日”'
+      this.message = ToolsUtil.getStringResource($r('app.string.cover_desc_range_hint').id)
       return
     }
     const generation = ++this.generation
     this.running = true
     this.busy = true
     this.results = []
-    this.message = '正在准备封面搜索…'
+    this.message = ToolsUtil.getStringResource($r('app.string.preparing_cover_search').id)
     this.controller.stopEditing()
     try {
       const paths = this.entries.map(entry => PathUtils.coverPath + entry.video.date)
       const result = await VisualSearchService.search(paths, PathUtils.sandboxPath + '/visual-search-index.json', query,
         (completed: number, total: number) => {
           if (this.active && generation === this.generation) {
-            this.message = completed === total ? '正在搜索封面…' : `正在准备封面搜索 ${completed}/${total}`
+            this.message = completed === total ? ToolsUtil.getStringResource($r('app.string.searching_cover').id) : ToolsUtil.getStringResourceArgs2($r('app.string.preparing_cover_search_progress').id, completed, total)
           }
         })
       if (!this.active || generation !== this.generation) {
@@ -316,14 +316,14 @@ export struct GlobalSearch {
         }
       })
       this.results = matches
-      this.message = result.indexed === 0 ? '没有可用于封面搜索的封面，请先导入带封面的视频' :
-        `找到 ${matches.length} 个视频 · 按封面相关度排序（最多 100 个）`
+      this.message = result.indexed === 0 ? ToolsUtil.getStringResource($r('app.string.no_cover_for_search').id) :
+        ToolsUtil.getStringResourceArgs($r('app.string.cover_search_result').id, matches.length)
       if (result.skipped > 0) {
-        this.message += ` · ${result.skipped} 个封面暂不可搜索`
+        this.message += ToolsUtil.getStringResourceArgs($r('app.string.cover_search_skipped').id, result.skipped)
       }
     } catch {
       if (this.active && generation === this.generation) {
-        this.message = '封面搜索暂不可用，请重试或切换到按名称搜索'
+        this.message = ToolsUtil.getStringResource($r('app.string.cover_search_unavailable').id)
       }
     } finally {
       this.running = false

@@ -18,7 +18,9 @@ import ToolsUtil from './ToolsUtil'
 import TextEncodingUtil from './TextEncodingUtil'
 
 const TAG = 'IPTVUtil'
-const DEFAULT_GROUP = '未分组'
+function defaultGroupName(): string {
+  return ToolsUtil.getStringResource($r('app.string.iptv_default_group').id)
+}
 const MAX_SOURCE_SIZE = 20 * 1024 * 1024
 const MAX_EPG_SIZE = 40 * 1024 * 1024
 
@@ -36,7 +38,7 @@ export default class IPTVUtil {
       return {
         success: result.channels.length > 0,
         message: result.channels.length > 0 ?
-          `测试成功：${result.channels.length} 个频道，${result.groupCount} 个分组` : '未解析到可用频道',
+          ToolsUtil.getStringResourceArgs2($r('app.string.test_success_channels').id, result.channels.length, result.groupCount) : ToolsUtil.getStringResource($r('app.string.iptv_no_channels').id),
         channelCount: result.channels.length,
         groupCount: result.groupCount,
         invalidCount: result.invalidCount,
@@ -60,7 +62,7 @@ export default class IPTVUtil {
     try {
       const result = await IPTVUtil.loadAndParse(refreshing)
       if (result.channels.length === 0) {
-        throw new Error('未解析到可用频道')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.iptv_no_channels').id))
       }
       return IPTVUtil.applyParseResult(refreshing, result)
     } catch (error) {
@@ -104,7 +106,7 @@ export default class IPTVUtil {
         id: `${source.id}_0_${IPTVUtil.hash(source.location)}`,
         name: source.name,
         url: source.location,
-        groupName: DEFAULT_GROUP,
+        groupName: defaultGroupName(),
         userAgent: line.userAgent,
         lines: [line],
         selectedLineIndex: 0
@@ -200,7 +202,7 @@ export default class IPTVUtil {
       }
       seenUrls.add(url)
       const finalName = name || pendingTvgName || `${source.name} ${channels.length + 1}`
-      const groupName = pendingGroup || currentTxtGroup || DEFAULT_GROUP
+      const groupName = pendingGroup || currentTxtGroup || defaultGroupName()
       const channelKey = IPTVUtil.channelIdentity(finalName, pendingTvgId, url)
       const iptvLine: IPTVLine = {
         url: url,
@@ -438,7 +440,7 @@ export default class IPTVUtil {
         const titleMatch = match[2].match(/<title(?:\s[^>]*)?>([\s\S]*?)<\/title>/i)
         const program: XMLTVProgram = {
           channelKey: channelKey,
-          title: IPTVUtil.decodeXml(IPTVUtil.unwrapCdata(titleMatch ? titleMatch[1].trim() : '未知节目')),
+          title: IPTVUtil.decodeXml(IPTVUtil.unwrapCdata(titleMatch ? titleMatch[1].trim() : ToolsUtil.getStringResource($r('app.string.unknown_program').id))),
           startTime: startTime,
           endTime: endTime
         }
@@ -572,7 +574,7 @@ export default class IPTVUtil {
 
   private static async requestText(url: string, userAgent: string | undefined, maxSize: number): Promise<string> {
     if (!/^https?:\/\//i.test(url.trim())) {
-      throw new Error('仅支持 HTTP/HTTPS/远程TXT 节目源和 EPG 地址')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.iptv_source_type_unsupported').id))
     }
     return new Promise((resolve, reject) => {
       const request = http.createHttp()
@@ -589,7 +591,7 @@ export default class IPTVUtil {
       }, (error: BusinessError, response: http.HttpResponse) => {
         if (error) {
           request.destroy()
-          reject(new Error(`请求失败：${error.message || error.code}`))
+          reject(new Error(ToolsUtil.getStringResourceArgs($r('app.string.request_failed').id, error.message || error.code)))
           return
         }
         const code = response.responseCode
@@ -601,7 +603,7 @@ export default class IPTVUtil {
         const buffer = response.result as ArrayBuffer
         if (buffer.byteLength > maxSize) {
           request.destroy()
-          reject(new Error('文件过大，已停止读取'))
+          reject(new Error(ToolsUtil.getStringResource($r('app.string.file_too_large_stop').id)))
           return
         }
         IPTVUtil.decodeBuffer(buffer, maxSize).then((text: string) => {
@@ -623,7 +625,7 @@ export default class IPTVUtil {
       const stat = await fs.stat(file.fd)
       const size = stat.size
       if (size > maxSize) {
-        throw new Error('文件过大，已停止读取')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.file_too_large_stop').id))
       }
       const buffer = new ArrayBuffer(size)
       await fs.read(file.fd, buffer)
@@ -645,7 +647,7 @@ export default class IPTVUtil {
   private static async decodeBuffer(buffer: ArrayBuffer, maxSize: number): Promise<string> {
     const decodedBuffer = IPTVUtil.isGzipBuffer(buffer) ? await IPTVUtil.gunzipBuffer(buffer, maxSize) : buffer
     if (decodedBuffer.byteLength > maxSize) {
-      throw new Error('解压后文件过大，已停止读取')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.unzipped_too_large_stop').id))
     }
     const bytes = new Uint8Array(decodedBuffer)
     const detectedEncoding = TextEncodingUtil.detectBufferEncoding(decodedBuffer)
@@ -667,7 +669,7 @@ export default class IPTVUtil {
 
   private static async gunzipBuffer(buffer: ArrayBuffer, maxSize: number): Promise<ArrayBuffer> {
     if (!PathUtils.tempPath) {
-      throw new Error('无法创建 EPG 解压缓存')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.epg_cache_create_failed').id))
     }
     const tempPath = `${PathUtils.tempPath}/iptv_epg_${Date.now()}_${Math.floor(Math.random() * 1000000)}.gz`
     let gzip: zlib.GZip | undefined = undefined
@@ -696,7 +698,7 @@ export default class IPTVUtil {
         if (readSize > 0) {
           totalSize += readSize
           if (totalSize > maxSize) {
-            throw new Error('解压后文件过大，已停止读取')
+            throw new Error(ToolsUtil.getStringResource($r('app.string.unzipped_too_large_stop').id))
           }
           chunks.push(chunk.slice(0, readSize))
         }
@@ -705,7 +707,7 @@ export default class IPTVUtil {
             break
           }
           const gzipError = await gzip.gzerror()
-          throw new Error(`Gzip 解压失败：${gzipError.statusMsg || gzipError.status}`)
+          throw new Error(ToolsUtil.getStringResourceArgs($r('app.string.iptv_gzip_failed').id, gzipError.statusMsg || gzipError.status))
         }
       }
 

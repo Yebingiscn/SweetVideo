@@ -25,6 +25,8 @@ export default class NavigationAddress {
   static IPTV_SOURCE_PAGE = 'IPTVSourcePage'
   static IPTV_CHANNEL_PAGE = 'IPTVChannelPage'
   static SMB_PAGE = 'SmbPage'
+  static WEBDAV_PAGE = 'WebDavPage'
+  static FTP_PAGE = 'FtpPage'
   static HUAWEI_DRIVE_PAGE = 'HuaweiDrivePage'
   static HARMONY_FEATURE_PAGE = 'HarmonyFeaturePage'
   static PERSONALIZE_SETTING_PAGE = 'PersonalizeSettingPage'

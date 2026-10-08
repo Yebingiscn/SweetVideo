@@ -1,5 +1,6 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { PathUtils } from './PathUtils'
+import ToolsUtil from './ToolsUtil.ets'
 
 export class DanmakuStorage {
   static get directory(): string {
@@ -8,7 +9,7 @@ export class DanmakuStorage {
 
   static path(media: string): string {
     if (!PathUtils.sandboxPath || !media || media.length > 200) {
-      throw new Error('无效的视频标识')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.danmaku_invalid_video_id').id))
     }
     return `${DanmakuStorage.directory}/${encodeURIComponent(media)}.xml`
   }

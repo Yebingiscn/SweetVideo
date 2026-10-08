@@ -1,5 +1,6 @@
 import { userAuth } from '@kit.UserAuthenticationKit'
 import { salmonLogger } from 'salmonlogger'
+import ToolsUtil from './ToolsUtil.ets'
 
 const TAG = 'BiometricAccessUtil'
 
@@ -11,7 +12,7 @@ export default class BiometricAccessUtil {
   static authTrustLevel: userAuth.AuthTrustLevel | undefined = undefined
   // 4.配置认证界面
   static widgetParam: userAuth.WidgetParam = {
-    title: '进入隐私空间前请进行身份认证', // 用户认证界面的标题, 仅在 PIN/指纹 密码时展示
+    title: ToolsUtil.getStringResource($r('app.string.biometric_auth_title').id), // 用户认证界面的标题, 仅在 PIN/指纹 密码时展示
   }
 
   // 5.查询认证能力是否支持

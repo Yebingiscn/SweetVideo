@@ -264,7 +264,7 @@ export default class KnockShareUtil {
         try {
           directory = await SelectFileUtil.getDownloadUri()
           if (!directory) {
-            throw new Error('系统未返回可用的公共下载目录')
+            throw new Error(ToolsUtil.getStringResource($r('app.string.public_download_dir_unavailable').id))
           }
         } catch (error) {
           salmonLogger.addLog(TAG, `获取碰一碰下载目录失败: ${error}`, true)
@@ -273,7 +273,7 @@ export default class KnockShareUtil {
         for (const uri of payload.uris) {
           try {
             if (!directory) {
-              throw new Error('下载目录不可用或未授权')
+              throw new Error(ToolsUtil.getStringResource($r('app.string.download_dir_unusable').id))
             }
             savedUris.push(await KnockReceiveStorage.saveToDownloads(uri, payload.receivePath, directory))
           } catch (error) {
@@ -291,12 +291,12 @@ export default class KnockShareUtil {
       } finally {
         await KnockReceiveStorage.removeEmptyReceiveDirectory(payload.receivePath)
         if (saveFailed > 0) {
-          ToolsUtil.showToast(`${saveFailed} 个文件未能转存到下载目录，暂留应用内，可从列表导出`)
+          ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.knock_save_partial').id, saveFailed))
         }
       }
     }).catch((error: Error) => {
       salmonLogger.addLog(TAG, `导入碰一碰接收文件失败: ${error.message}`, true)
-      ToolsUtil.showToast('文件已接收，但导入媒体库失败')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.received_import_failed').id))
     })
   }
 
@@ -389,7 +389,7 @@ export default class KnockShareUtil {
       utd: utd,
       uri: video.uri,
       title: video.title,
-      description: '流心播放器碰一碰分享'
+      description: ToolsUtil.getStringResource($r('app.string.knock_share_description').id)
     }
     if (canIUse('SystemCapability.Collaboration.SystemShare')) {
       try {
@@ -448,7 +448,7 @@ export default class KnockShareUtil {
           salmonLogger.addLog(TAG, `碰一碰分享已发起，文件数=${records.length}`, false)
         } catch (error) {
           salmonLogger.addLog(TAG, `碰一碰分享失败: ${error}`, true)
-          ToolsUtil.showToast('碰一碰分享失败')
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.knock_share_failed').id))
         }
       }
     }
@@ -517,7 +517,7 @@ export default class KnockShareUtil {
           }
         }).catch((error: BusinessError) => {
           salmonLogger.addLog(TAG, `启动碰一碰文件接收失败: ${error.code}, ${error.message}`, true)
-          ToolsUtil.showToast('碰一碰文件接收失败')
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.knock_receive_failed').id))
         })
       }
     }

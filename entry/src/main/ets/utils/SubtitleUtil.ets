@@ -68,7 +68,7 @@ export default class SubtitleUtil {
   static async selectExternalSubtitles(sandbox_subtitle: string, date: string,
     cancelled: () => boolean = (): boolean => false): Promise<string> {
     const options = new picker.DocumentSelectOptions()
-    options.fileSuffixFilters = SUPPORT_SUBTITLE_FORMAT
+    options.fileSuffixFilters = ToolsUtil.localizeSuffixFilter(SUPPORT_SUBTITLE_FORMAT, $r('app.string.filter_subtitle'))
     options.maxSelectNumber = 1
     try {
       const uris = await new picker.DocumentViewPicker(PathUtils.appContext!).select(options)
@@ -78,7 +78,7 @@ export default class SubtitleUtil {
       const name = decodeURIComponent(uris[0].split('/').pop() || '')
       const format = name.split('.').pop()?.toLowerCase() || ''
       if (![SubtitleFormat.SRT, SubtitleFormat.ASS, SubtitleFormat.VTT].includes(format)) {
-        ToolsUtil.showToast('请选择 SRT、ASS 或 VTT 字幕文件')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.select_subtitle_file').id))
         return ''
       }
       const bytes = await LocalSidecarFile.read(uris[0], 32 * 1024 * 1024, cancelled)
@@ -89,12 +89,12 @@ export default class SubtitleUtil {
       if (cancelled()) {
         return ''
       }
-      ToolsUtil.showToast(`导入字幕成功: ${name}`)
+      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.subtitle_import_success').id, name))
       return name
     } catch (error) {
       if (!cancelled()) {
         salmonLogger.addLog(TAG, '字幕导入或保存失败', true)
-        ToolsUtil.showToast('字幕导入失败，请检查文件后重试（最大 32 MB）')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.subtitle_import_failed').id))
       }
       return ''
     }
@@ -121,7 +121,7 @@ export default class SubtitleUtil {
     try {
       await fs.unlink(sandboxDir + fileName)
       if (!silent) {
-        ToolsUtil.showToast('删除成功')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_success').id))
       }
     } catch (error) {
       if (error.code === 13900002) {
@@ -129,7 +129,7 @@ export default class SubtitleUtil {
         return
       } else {
         if (!silent) {
-          ToolsUtil.showToast('删除失败')
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_failed').id))
         }
         salmonLogger.addLog(TAG, 'delete failed: ' + error.code + ':' + error.message, true)
         throw new Error('delete failed: ' + error.code + ':' + error.message)

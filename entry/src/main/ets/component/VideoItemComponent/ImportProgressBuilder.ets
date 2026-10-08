@@ -1,3 +1,5 @@
+import ToolsUtil from '../../utils/ToolsUtil'
+
 @ObservedV2
 export class ImportProgressBuilderParams {
   @Trace processedItems: number = 0
@@ -46,7 +48,7 @@ export function ImportProgressBuilder(params: ImportProgressBuilderParams) {
     }
 
     if (params.failedCount > 0) {
-      Text(`失败: ${params.failedCount} 个`)
+      Text($r('app.string.import_failed_count', params.failedCount))
         .fontSize(12)
         .fontColor($r('app.color.text_color'))
     }
@@ -62,12 +64,12 @@ export function ImportProgressBuilder(params: ImportProgressBuilderParams) {
 function getStageText(stage: 'extracting' | 'cover' | 'saving'): string {
   switch (stage) {
     case 'extracting':
-      return '正在提取: '
+      return ToolsUtil.getStringResource($r('app.string.import_stage_extracting').id)
     case 'cover':
-      return '正在生成封面: '
+      return ToolsUtil.getStringResource($r('app.string.import_stage_cover').id)
     case 'saving':
-      return '正在保存: '
+      return ToolsUtil.getStringResource($r('app.string.import_stage_saving').id)
     default:
-      return '正在处理: '
+      return ToolsUtil.getStringResource($r('app.string.import_stage_processing').id)
   }
 }

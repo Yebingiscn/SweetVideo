@@ -4,6 +4,7 @@ import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import SmbUtil from '../../utils/SmbUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
+import FtpUtil from '../../utils/FtpUtil'
 
 @CustomDialog
 export struct EditStreamDialog {
@@ -20,7 +21,7 @@ export struct EditStreamDialog {
     if (stream) {
       this.streamName = stream.title ?? ''
       this.originalUri = stream.uri ?? ''
-      this.displayedUri = SmbUtil.displayUri(this.originalUri)
+      this.displayedUri = FtpUtil.displayUri(SmbUtil.displayUri(this.originalUri))
       this.streamUrl = this.displayedUri
     }
   }
@@ -28,13 +29,13 @@ export struct EditStreamDialog {
   build() {
     Scroll() {
       Column({ space: 20 }) {
-        Text('编辑串流')
+        Text($r('app.string.edit_stream'))
           .fontSize(DIALOG_TITLE_FONT_SIZE)
           .fontColor($r('app.color.text_color'))
           .fontWeight(FontWeight.Bold)
           .margin({ top: 10 })
 
-        TextInput({ placeholder: '名称', text: this.streamName })
+        TextInput({ placeholder: $r('app.string.name_label'), text: this.streamName })
           .keyboardAppearance(KeyboardAppearance.IMMERSIVE)
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .borderRadius(16)
@@ -42,7 +43,7 @@ export struct EditStreamDialog {
           .onChange((input: string) => this.streamName = input)
           .id('edit_stream_name')
 
-        TextArea({ placeholder: '流媒体地址', text: this.streamUrl })
+        TextArea({ placeholder: $r('app.string.stream_url'), text: this.streamUrl })
           .keyboardAppearance(KeyboardAppearance.IMMERSIVE)
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .borderRadius(16)
@@ -63,11 +64,11 @@ export struct EditStreamDialog {
             this.saving = true
             try {
               const value = this.streamUrl.trim()
-              const url = value === this.displayedUri ? this.originalUri : await SmbUtil.prepareUri(value)
+              const url = value === this.displayedUri ? this.originalUri : await FtpUtil.prepareUri(await SmbUtil.prepareUri(value))
               this.onConfirm?.(this.streamName.trim(), url)
               this.controller?.close()
             } catch (error) {
-              ToolsUtil.showToast(error instanceof Error ? error.message : 'SMB 地址无效')
+              ToolsUtil.showToast(error instanceof Error ? error.message : ToolsUtil.getStringResource($r('app.string.invalid_smb_address').id))
             } finally {
               this.saving = false
             }

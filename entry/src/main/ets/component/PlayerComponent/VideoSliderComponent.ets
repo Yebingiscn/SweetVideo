@@ -1,6 +1,7 @@
 import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { VIDEO_HDR_TYPE } from '../../common/enum/HDR_TYPE'
 import { GradientTagBuilder, SolidColorTagBuilder } from '../common/MediaTagBuilder'
+import ToolsUtil from '../../utils/ToolsUtil'
 import { AnimatedPlaybackTimeBuilder, PlaybackProgressSliderComponent } from './PlaybackProgressComponent'
 
 @ComponentV2
@@ -10,8 +11,8 @@ export struct VideoSliderComponent {
 
   private get networkStatusText(): string {
     const cache = this.player.networkCacheDuration.toFixed(1)
-    const prefix = this.player.networkBuffering ? '缓冲中 · ' : ''
-    return `${prefix}${this.player.networkSpeedText} · 缓冲 ${this.player.networkBufferPercent}% · ${cache}s`
+    const prefix = this.player.networkBuffering ? ToolsUtil.getStringResource($r('app.string.buffering_prefix').id) : ''
+    return `${prefix}${this.player.networkSpeedText}${ToolsUtil.getStringResource($r('app.string.network_buffer_mid').id)}${this.player.networkBufferPercent}% · ${cache}s`
   }
 
   @Event onSliderChange: (_value: number) => void = () => {

@@ -1,5 +1,6 @@
+import { NetworkPlayback } from '../../utils/NetworkPlayback'
 import { media } from '@kit.MediaKit'
-import { SmbPlayback } from '../../utils/SmbUtil'
+
 import { NativeAVPlayer } from '../engine/NativeAVPlayer'
 import { fileIo } from '@kit.CoreFileKit'
 import { BusinessError } from '@kit.BasicServicesKit'
@@ -20,7 +21,7 @@ export type ShortVideoState = 'idle' | 'preparing' | 'prepared' | 'playing' | 'p
 
 @ObservedV2
 export class ShortVideoPlayer {
-  private smbPlayback: SmbPlayback = new SmbPlayback()
+  private smbPlayback: NetworkPlayback = new NetworkPlayback()
   readonly item: VideoMetadata
   @Trace state: ShortVideoState = 'idle'
   @Trace currentTime: number = 0
@@ -243,10 +244,10 @@ export class ShortVideoPlayer {
       })
       const permissionGranted = await PermissionUtil.activatePermission(this.item.uri)
       if (!permissionGranted) {
-        throw new Error('无法读取视频文件')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.cannot_read_video_file').id))
       }
       if (ToolsUtil.isNetworkUrl(this.item.uri)) {
-        await player.setUrlSource(url, this.item.network_http_headers)
+        await player.setUrlSource(url, this.smbPlayback.headers(this.item.network_http_headers))
       } else {
         const file = fileIo.openSync(this.item.uri, fileIo.OpenMode.READ_ONLY)
         try {
@@ -303,7 +304,7 @@ export class ShortVideoPlayer {
             try {
               player.setPlaybackRate(this.playbackRate)
             } catch (error) {
-              ToolsUtil.showToast('系统异常')
+              ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.system_exception').id))
               salmonLogger.addLog(TAG, 'setPlaybackRate error', true)
             }
           }

@@ -1,6 +1,66 @@
 {
   "string": [
     {
+      "name": "home_style",
+      "value": "首页样式"
+    },
+    {
+      "name": "home_style_list",
+      "value": "列表"
+    },
+    {
+      "name": "home_style_directory",
+      "value": "目录"
+    },
+    {
+      "name": "folder_selection_count",
+      "value": "已选 %d 个文件夹"
+    },
+    {
+      "name": "folder_batch_delete_confirm",
+      "value": "确认删除 %d 个文件夹（含子文件夹）及其中的 %d 条媒体记录？原始视频文件会保留。"
+    },
+    {
+      "name": "folder_batch_delete_failed",
+      "value": "文件夹删除失败，请重试。"
+    },
+    {
+      "name": "directory_all_folders",
+      "value": "全部文件夹"
+    },
+    {
+      "name": "directory_root_count",
+      "value": "%d 个文件夹"
+    },
+    {
+      "name": "directory_item_count",
+      "value": "%d 部视频 · %d 个子文件夹"
+    },
+    {
+      "name": "directory_folder_accessibility",
+      "value": "文件夹 %s，%d 部视频，%d 个子文件夹"
+    },
+    {
+      "name": "directory_enable",
+      "value": "开启目录视图"
+    },
+    {
+      "name": "directory_disable",
+      "value": "关闭目录视图"
+    },
+    {
+      "name": "directory_back",
+      "value": "返回上一级"
+    },
+    {
+      "name": "directory_empty",
+      "value": "这个文件夹还没有内容"
+    },
+    {
+      "name": "directory_search_empty",
+      "value": "没有找到匹配的视频或文件夹"
+    },
+    {
       "name": "module_desc",
       "value": "模块描述"
     },
@@ -25,20 +85,12 @@
       "value": "重命名"
     },
     {
-      "name": "search",
-      "value": "搜索"
-    },
-    {
       "name": "setting",
       "value": "设置"
     },
     {
       "name": "set_passwd",
       "value": "设置隐私空间密码 (/▽＼)"
-    },
-    {
-      "name": "enter_privacy_space",
-      "value": "已进入隐私空间"
     },
     {
       "name": "set_passwd_tip",
@@ -61,10 +113,6 @@
       "value": "旋转锁定已开启"
     },
     {
-      "name": "no_search_result",
-      "value": "无搜索结果 ╯︿╰"
-    },
-    {
       "name": "unknown_size",
       "value": "未知大小"
     },
@@ -78,7 +126,7 @@
     },
     {
       "name": "recent_del_confirm",
-      "value": "视频将移至系统最近删除，30天内可恢复"
+      "value": "视频将移至文件管理的最近删除，30天内可恢复"
     },
     {
       "name": "edit",
@@ -133,6 +181,14 @@
       "value": "按视频时长"
     },
     {
+      "name": "change_cover",
+      "value": "修改封面"
+    },
+    {
+      "name": "sort_by_recent_play",
+      "value": "按最近播放"
+    },
+    {
       "name": "multiple_choice",
       "value": "多选"
     },
@@ -147,14 +203,6 @@
     {
       "name": "MPV_Player",
       "value": "MPV 播放器"
-    },
-    {
-      "name": "re_import_info",
-      "value": "个视频已失效（源视频可能已经被移动或者改名），请重新导入"
-    },
-    {
-      "name": "exit_privacy_space",
-      "value": "退出隐私空间"
     },
     {
       "name": "privacy_space_info",
@@ -183,10 +231,6 @@
     {
       "name": "move_folder",
       "value": "移动文件夹"
-    },
-    {
-      "name": "READ_WRITE_DOWNLOAD_DIRECTORY_REASON",
-      "value": "读取下载文件夹中的视频"
     },
     {
       "name": "sort_by_datetime",
@@ -227,10 +271,6 @@
     {
       "name": "no_files_imported",
       "value": "没有任何文件被导入哦~"
-    },
-    {
-      "name": "privacy_auth_failed",
-      "value": "验证失败，请从首页搜索框输入密码进入隐私空间"
     },
     {
       "name": "privacy_enter_via_password",
@@ -277,6 +317,450 @@
       "value": "密码"
     },
     {
+      "name": "search_no_match_title",
+      "value": "没有匹配结果"
+    },
+    {
+      "name": "search_no_match_in_folder",
+      "value": "当前文件夹没有匹配\"%s\"的视频"
+    },
+    {
+      "name": "deselect_all",
+      "value": "取消全选"
+    },
+    {
+      "name": "no_play_record_in_folder",
+      "value": "当前文件夹还没有播放记录"
+    },
+    {
+      "name": "invalid_file_reimport",
+      "value": "该视频文件已失效，请重新导入"
+    },
+    {
+      "name": "invalid_file_clear_confirm",
+      "value": "该视频文件已失效，是否清除？"
+    },
+    {
+      "name": "data_loading_retry",
+      "value": "数据正在加载中，请重试"
+    },
+    {
+      "name": "exit_multiple_choice",
+      "value": "取消多选"
+    },
+    {
+      "name": "menu_short_video_play",
+      "value": "短视频模式播放"
+    },
+    {
+      "name": "menu_detail",
+      "value": "详情"
+    },
+    {
+      "name": "menu_import_subtitle",
+      "value": "导入或删除字幕"
+    },
+    {
+      "name": "menu_open_file_location",
+      "value": "打开文件所在位置"
+    },
+    {
+      "name": "cover_update_failed",
+      "value": "封面替换失败"
+    },
+    {
+      "name": "cover_updated",
+      "value": "封面已更新"
+    },
+    {
+      "name": "import_stage_extracting",
+      "value": "正在提取: "
+    },
+    {
+      "name": "import_stage_cover",
+      "value": "正在生成封面: "
+    },
+    {
+      "name": "import_stage_saving",
+      "value": "正在保存: "
+    },
+    {
+      "name": "import_stage_processing",
+      "value": "正在处理: "
+    },
+    {
+      "name": "import_failed_count",
+      "value": "失败: %d 个"
+    },
+    {
+      "name": "segment_local",
+      "value": "本地"
+    },
+    {
+      "name": "segment_network",
+      "value": "网络"
+    },
+    {
+      "name": "rename_new_folder",
+      "value": "修改新文件夹名"
+    },
+    {
+      "name": "menu_intro_outro",
+      "value": "设置片头片尾"
+    },
+    {
+      "name": "toast_easter_egg",
+      "value": "不管多么难熬，人生都要眉开眼笑 ( •̀ ω •́ )✧"
+    },
+    {
+      "name": "logged_in",
+      "value": "已登录"
+    },
+    {
+      "name": "tap_to_login",
+      "value": "点击登录"
+    },
+    {
+      "name": "vip_label",
+      "value": "VIP"
+    },
+    {
+      "name": "non_vip",
+      "value": "非VIP"
+    },
+    {
+      "name": "account_info",
+      "value": "账号信息"
+    },
+    {
+      "name": "global_search",
+      "value": "全局搜索"
+    },
+    {
+      "name": "add_folder",
+      "value": "添加文件夹"
+    },
+    {
+      "name": "folder",
+      "value": "文件夹"
+    },
+    {
+      "name": "stream",
+      "value": "串流"
+    },
+    {
+      "name": "huawei_drive",
+      "value": "华为云盘"
+    },
+    {
+      "name": "import_from_folder",
+      "value": "从文件夹导入"
+    },
+    {
+      "name": "home_folder_import",
+      "value": "首页（导入）"
+    },
+    {
+      "name": "folder_no_importable_media",
+      "value": "所选文件夹中没有可导入的视频或音频"
+    },
+    {
+      "name": "folder_no_video",
+      "value": "该文件夹内没有视频"
+    },
+    {
+      "name": "folder_not_exist_set_failed",
+      "value": "文件夹不存在，设置失败"
+    },
+    {
+      "name": "not_logged_in",
+      "value": "未登录"
+    },
+    {
+      "name": "get_vip",
+      "value": "获取VIP"
+    },
+    {
+      "name": "settings_appearance",
+      "value": "界面设置"
+    },
+    {
+      "name": "settings_personalize",
+      "value": "个性界面"
+    },
+    {
+      "name": "settings_playback",
+      "value": "播放设置"
+    },
+    {
+      "name": "settings_engine",
+      "value": "引擎设置"
+    },
+    {
+      "name": "settings_subtitle_style",
+      "value": "字幕样式"
+    },
+    {
+      "name": "settings_harmony",
+      "value": "鸿蒙特性"
+    },
+    {
+      "name": "settings_more",
+      "value": "更多设置"
+    },
+    {
+      "name": "list_layout",
+      "value": "列表布局"
+    },
+    {
+      "name": "list_layout_card",
+      "value": "卡片"
+    },
+    {
+      "name": "list_layout_list",
+      "value": "列表"
+    },
+    {
+      "name": "list_layout_grid",
+      "value": "网格"
+    },
+    {
+      "name": "cover_layout",
+      "value": "封面版式"
+    },
+    {
+      "name": "cover_layout_vertical",
+      "value": "竖版"
+    },
+    {
+      "name": "cover_layout_horizontal",
+      "value": "横版"
+    },
+    {
+      "name": "random_cover",
+      "value": "随机封面图"
+    },
+    {
+      "name": "random_cover_tip",
+      "value": "无内嵌封面时生效，前五分钟随机取帧"
+    },
+    {
+      "name": "max_list_count",
+      "value": "最大列表数"
+    },
+    {
+      "name": "enable_recent_play",
+      "value": "开启最近播放"
+    },
+    {
+      "name": "home_show_folder_tabs",
+      "value": "首页显示顶部文件夹列表"
+    },
+    {
+      "name": "default_startup_page",
+      "value": "默认启动页面：%s"
+    },
+    {
+      "name": "default_start_page_default",
+      "value": "默认（首页）"
+    },
+    {
+      "name": "default_start_page_stream",
+      "value": "串流页"
+    },
+    {
+      "name": "default_start_page_iptv",
+      "value": "IPTV源列表"
+    },
+    {
+      "name": "appearance_title",
+      "value": "界面"
+    },
+    {
+      "name": "display_mode",
+      "value": "显示模式"
+    },
+    {
+      "name": "display_mode_auto",
+      "value": "自动"
+    },
+    {
+      "name": "display_mode_light",
+      "value": "浅色"
+    },
+    {
+      "name": "display_mode_dark",
+      "value": "深色"
+    },
+    {
+      "name": "switch_app_icon",
+      "value": "切换应用图标"
+    },
+    {
+      "name": "wallpaper_switch",
+      "value": "深浅色壁纸切换"
+    },
+    {
+      "name": "list_item_bg_blur",
+      "value": "列表项背景模糊"
+    },
+    {
+      "name": "custom_wallpaper_light",
+      "value": "自定义浅色壁纸"
+    },
+    {
+      "name": "custom_wallpaper",
+      "value": "自定义壁纸"
+    },
+    {
+      "name": "custom_wallpaper_dark",
+      "value": "自定义深色壁纸"
+    },
+    {
+      "name": "delete_wallpaper_light",
+      "value": "删除浅色自定义壁纸"
+    },
+    {
+      "name": "delete_wallpaper",
+      "value": "删除自定义壁纸"
+    },
+    {
+      "name": "delete_wallpaper_dark",
+      "value": "删除深色自定义壁纸"
+    },
+    {
+      "name": "wallpaper_blur",
+      "value": "壁纸模糊"
+    },
+    {
+      "name": "personalize_title",
+      "value": "个性化"
+    },
+    {
+      "name": "app_icon",
+      "value": "应用图标"
+    },
+    {
+      "name": "device_not_supported",
+      "value": "设备能力不支持"
+    },
+    {
+      "name": "icon_switched",
+      "value": "图标切换成功"
+    },
+    {
+      "name": "icon_switch_failed",
+      "value": "图标切换失败"
+    },
+    {
+      "name": "icon_restored",
+      "value": "已恢复默认图标"
+    },
+    {
+      "name": "icon_restore_failed",
+      "value": "恢复默认图标失败"
+    },
+    {
+      "name": "no_photo_selected",
+      "value": "没有照片被选择"
+    },
+    {
+      "name": "set_success",
+      "value": "设置成功"
+    },
+    {
+      "name": "about_app",
+      "value": "关于此应用"
+    },
+    {
+      "name": "check_update",
+      "value": "检查更新"
+    },
+    {
+      "name": "rate_app",
+      "value": "从夯到拉锐评下流心"
+    },
+    {
+      "name": "runtime_log",
+      "value": "流心运行日志"
+    },
+    {
+      "name": "clean_invalid_files",
+      "value": "清理失效文件"
+    },
+    {
+      "name": "deleted_files_count",
+      "value": "删除了 %d 项文件"
+    },
+    {
+      "name": "no_invalid_files",
+      "value": "没有找到失效文件"
+    },
+    {
+      "name": "fixed_scaling",
+      "value": "固定缩放（关闭可能导致UI异常）"
+    },
+    {
+      "name": "restart_to_apply_ui",
+      "value": "重启生效，关闭可能导致UI异常"
+    },
+    {
+      "name": "feature_tap_share",
+      "value": "碰一碰"
+    },
+    {
+      "name": "feature_tap_share_desc",
+      "value": "两台设备碰一碰即可快速分享或接收视频文件。需设备支持碰一碰分享功能。"
+    },
+    {
+      "name": "feature_grip_posture",
+      "value": "智感握姿"
+    },
+    {
+      "name": "feature_grip_posture_desc",
+      "value": "识别左右手握持状态，自动调整界面布局以适配单手操作。需设备支持智感握姿功能。"
+    },
+    {
+      "name": "feature_smart_gesture",
+      "value": "智慧手势"
+    },
+    {
+      "name": "feature_smart_gesture_desc",
+      "value": "敲一敲播放/暂停；划一划在普通播放中快进，在短视频中切换下一条；翻腕返回退出播放。需设备支持并开启系统智慧手势。"
+    },
+    {
+      "name": "card_open_failed",
+      "value": "暂时无法打开桌面卡片，请稍后重试"
+    },
+    {
+      "name": "open_source_star",
+      "value": "代码已开源，欢迎 ⭐"
+    },
+    {
+      "name": "terms_suffix",
+      "value": "的使用条款与隐私声明"
+    },
+    {
+      "name": "qq_group",
+      "value": "QQ 交流群：973792610"
+    },
+    {
+      "name": "support_author",
+      "value": "赞赏作者"
+    },
+    {
+      "name": "external_link_confirm",
+      "value": "即将跳转至外部网页，是否跳转？"
+    },
+    {
+      "name": "copyright_notice",
+      "value": "郴州液态科技有限公司 版权所有 © 2025"
+    },
+    {
+      "name": "vip_feature_only",
+      "value": "这个是vip功能"
+    },
+    {
       "name": "video_form_name",
       "value": "最近播放"
     },
@@ -291,6 +775,3342 @@
     {
       "name": "video_form_empty",
       "value": "还没有记录"
+    },
+    {
+      "name": "seconds_n",
+      "value": "%d秒"
+    },
+    {
+      "name": "background_playback",
+      "value": "后台播放"
+    },
+    {
+      "name": "play_with_others",
+      "value": "与其他应用同时播放"
+    },
+    {
+      "name": "auto_pip_on_background",
+      "value": "回到后台自动启用小窗"
+    },
+    {
+      "name": "resume_on_foreground",
+      "value": "从后台返回自动播放"
+    },
+    {
+      "name": "hide_status_bar_on_back",
+      "value": "播放时返回隐藏状态栏"
+    },
+    {
+      "name": "short_video_mode",
+      "value": "短视频模式"
+    },
+    {
+      "name": "smart_landscape",
+      "value": "智能横屏"
+    },
+    {
+      "name": "show_progress_preview",
+      "value": "展示进度条预览图"
+    },
+    {
+      "name": "remember_playback_position",
+      "value": "记住播放进度"
+    },
+    {
+      "name": "enable_double_tap_seek",
+      "value": "启用双击屏幕两边快进快退"
+    },
+    {
+      "name": "seek_duration",
+      "value": "快进快退时长"
+    },
+    {
+      "name": "long_press_speed",
+      "value": "长按快进倍速"
+    },
+    {
+      "name": "horizontal_seek_sensitivity",
+      "value": "横向滑动调节进度灵敏度"
+    },
+    {
+      "name": "sensitivity_normal",
+      "value": "正常"
+    },
+    {
+      "name": "sensitivity_medium",
+      "value": "中灵敏度"
+    },
+    {
+      "name": "sensitivity_low",
+      "value": "低灵敏度"
+    },
+    {
+      "name": "skip_intro",
+      "value": "跳过片头"
+    },
+    {
+      "name": "skip_outro",
+      "value": "跳过片尾"
+    },
+    {
+      "name": "default_brightness",
+      "value": "默认亮度"
+    },
+    {
+      "name": "usb_auto_select",
+      "value": "自动选择唯一设备"
+    },
+    {
+      "name": "usb_device_disconnected",
+      "value": "已选设备未连接（可重新选择）"
+    },
+    {
+      "name": "usb_query_unsupported",
+      "value": "当前设备不支持 USB 设备查询"
+    },
+    {
+      "name": "default_player_engine",
+      "value": "默认播放引擎"
+    },
+    {
+      "name": "mpv_decoding_prefix",
+      "value": "MPV 解码："
+    },
+    {
+      "name": "hw_surface",
+      "value": "硬解（Surface）"
+    },
+    {
+      "name": "sw_decode",
+      "value": "软解"
+    },
+    {
+      "name": "hw_buffer",
+      "value": "硬解（Buffer）"
+    },
+    {
+      "name": "mpv_deinterlace",
+      "value": "MPV 自动去交错"
+    },
+    {
+      "name": "mpv_deinterlace_desc",
+      "value": "自动处理隔行视频；开启后使用软件解码，功耗可能增加。下次打开视频生效。"
+    },
+    {
+      "name": "mpv_passthrough",
+      "value": "MPV 音频直通（实验性）"
+    },
+    {
+      "name": "mpv_passthrough_desc",
+      "value": "尝试 E-AC3（48 kHz）直通；不支持、变速或使用音效时采用普通输出。下次打开视频生效。"
+    },
+    {
+      "name": "mpv_usb_exclusive",
+      "value": "MPV USB 独占（实验性）"
+    },
+    {
+      "name": "mpv_usb_exclusive_desc",
+      "value": "按音源采样率输出，保持整数 PCM / DSD 数据原样。仅支持兼容的单声道或立体声 DAC；USB 连接或设置失败时改用普通音频输出。独占输出时关闭变速、音效和响度调整，下次打开媒体生效。"
+    },
+    {
+      "name": "usb_audio_device",
+      "value": "USB 音频设备"
+    },
+    {
+      "name": "dsd_output_mode",
+      "value": "DSD 输出模式"
+    },
+    {
+      "name": "off",
+      "value": "关闭"
+    },
+    {
+      "name": "native_dsd",
+      "value": "Native DSD（实验性）"
+    },
+    {
+      "name": "dsd_select_device",
+      "value": "请先选择支持所选 DSD 模式的 USB 设备"
+    },
+    {
+      "name": "dsd_desc",
+      "value": "支持原始 DSD、DST 和 DSD WavPack 解压后直出。DoP 需 DAC 明确支持；Native 仅限兼容列表中的设备及固件，暂不支持所有 DAC。USB 音量在播放页的音轨面板调节，不改变系统音量；不支持硬件音量的 DAC 请使用设备旋钮。"
+    },
+    {
+      "name": "mpv_gpu_backend",
+      "value": "MPV GPU 后端（仅 Buffer，不推荐改）"
+    },
+    {
+      "name": "mpv_quality_boost",
+      "value": "MPV 画质增强（仅 Buffer/软解）"
+    },
+    {
+      "name": "sdr_to_hdr",
+      "value": "SDR 转 HDR（仅 Buffer/软解）"
+    },
+    {
+      "name": "super_resolution",
+      "value": "视频超分辨率"
+    },
+    {
+      "name": "decode_support_dv_p5",
+      "value": "支持杜比P5，性能稍差"
+    },
+    {
+      "name": "decode_compat_best",
+      "value": "画面兼容最佳，功耗高"
+    },
+    {
+      "name": "decode_performance_best",
+      "value": "性能最佳，不支持杜比P5"
+    },
+    {
+      "name": "lang_simplified_chinese",
+      "value": "简体中文"
+    },
+    {
+      "name": "lang_traditional_chinese",
+      "value": "繁体中文"
+    },
+    {
+      "name": "lang_english",
+      "value": "英语"
+    },
+    {
+      "name": "color_warm_white",
+      "value": "柔白"
+    },
+    {
+      "name": "color_pure_white",
+      "value": "纯白"
+    },
+    {
+      "name": "color_warm_yellow",
+      "value": "暖黄"
+    },
+    {
+      "name": "color_cyan",
+      "value": "青色"
+    },
+    {
+      "name": "color_light_green",
+      "value": "浅绿"
+    },
+    {
+      "name": "color_pink",
+      "value": "粉红"
+    },
+    {
+      "name": "color_black",
+      "value": "黑色"
+    },
+    {
+      "name": "color_dark_gray",
+      "value": "深灰"
+    },
+    {
+      "name": "color_white",
+      "value": "白色"
+    },
+    {
+      "name": "color_dark_blue",
+      "value": "深蓝"
+    },
+    {
+      "name": "color_dark_red",
+      "value": "深红"
+    },
+    {
+      "name": "auto_select_subtitle_language",
+      "value": "自动选择字幕语言"
+    },
+    {
+      "name": "font_size",
+      "value": "字体大小"
+    },
+    {
+      "name": "unit_point",
+      "value": "号"
+    },
+    {
+      "name": "vertical_position",
+      "value": "垂直位置"
+    },
+    {
+      "name": "bold",
+      "value": "粗体"
+    },
+    {
+      "name": "italic",
+      "value": "斜体"
+    },
+    {
+      "name": "outline_width",
+      "value": "描边宽度"
+    },
+    {
+      "name": "subtitle_shadow",
+      "value": "字幕阴影"
+    },
+    {
+      "name": "shadow_strength",
+      "value": "阴影强度"
+    },
+    {
+      "name": "background_opacity",
+      "value": "背景透明度"
+    },
+    {
+      "name": "reset_subtitle_style",
+      "value": "恢复默认字幕样式"
+    },
+    {
+      "name": "subtitle_style_reset",
+      "value": "已恢复默认字幕样式"
+    },
+    {
+      "name": "subtitle_preview",
+      "value": "字幕效果实时预览"
+    },
+    {
+      "name": "subtitle_slogan",
+      "value": "做最优质的播放器\nSweet Video"
+    },
+    {
+      "name": "pick_text_color",
+      "value": "选择文字颜色"
+    },
+    {
+      "name": "pick_outline_color",
+      "value": "选择描边颜色"
+    },
+    {
+      "name": "pick_shadow_color",
+      "value": "选择阴影颜色"
+    },
+    {
+      "name": "event_name_prefix",
+      "value": "事件名：%s"
+    },
+    {
+      "name": "share_to_developer",
+      "value": "分享给开发者"
+    },
+    {
+      "name": "log_share_description",
+      "value": "流心播放器日志"
+    },
+    {
+      "name": "log_share_success",
+      "value": "日志分享成功"
+    },
+    {
+      "name": "share_failed_prefix",
+      "value": "分享失败: %s"
+    },
+    {
+      "name": "feature_not_supported",
+      "value": "系统不支持该功能"
+    },
+    {
+      "name": "runtime_log_segment",
+      "value": "运行日志"
+    },
+    {
+      "name": "system_events",
+      "value": "系统事件"
+    },
+    {
+      "name": "reset_password",
+      "value": "重设密码"
+    },
+    {
+      "name": "show_entry_in_settings",
+      "value": "设置中显示入口"
+    },
+    {
+      "name": "entry_gesture_hint",
+      "value": "首页双指捏合往外划开进入"
+    },
+    {
+      "name": "ai_privacy_antipeep",
+      "value": "AI隐私防窥"
+    },
+    {
+      "name": "missing_videos_here",
+      "value": "有视频不见了？点这里"
+    },
+    {
+      "name": "cleanup_tip_title",
+      "value": "清理提示"
+    },
+    {
+      "name": "cleanup_tip_desc",
+      "value": "删除隐私空间的视频后，系统存储中的占用情况可能不会立即刷新。若需要查看准确的空间释放情况，建议重启手机。"
+    },
+    {
+      "name": "show_danmaku",
+      "value": "显示弹幕"
+    },
+    {
+      "name": "importing",
+      "value": "正在导入…"
+    },
+    {
+      "name": "import_local_danmaku",
+      "value": "导入本地弹幕（XML）"
+    },
+    {
+      "name": "display_area",
+      "value": "显示区域"
+    },
+    {
+      "name": "area_fullscreen",
+      "value": "全屏（默认）"
+    },
+    {
+      "name": "area_top_quarter",
+      "value": "上方 1/4"
+    },
+    {
+      "name": "area_top_half",
+      "value": "上半屏"
+    },
+    {
+      "name": "area_top_three_quarter",
+      "value": "上方 3/4"
+    },
+    {
+      "name": "danmaku_earlier",
+      "value": "提前 0.5 秒"
+    },
+    {
+      "name": "danmaku_later",
+      "value": "延后 0.5 秒"
+    },
+    {
+      "name": "danmaku_reset_offset",
+      "value": "重置偏移"
+    },
+    {
+      "name": "no_chapters",
+      "value": "无章节信息"
+    },
+    {
+      "name": "channel_stereo",
+      "value": "立体声"
+    },
+    {
+      "name": "channel_left_only",
+      "value": "仅左"
+    },
+    {
+      "name": "channel_right_only",
+      "value": "仅右"
+    },
+    {
+      "name": "repeat_single",
+      "value": "单曲循环"
+    },
+    {
+      "name": "repeat_shuffle",
+      "value": "随机播放"
+    },
+    {
+      "name": "repeat_list",
+      "value": "列表循环"
+    },
+    {
+      "name": "repeat_order",
+      "value": "顺序播放"
+    },
+    {
+      "name": "usb_volume_hint",
+      "value": "请在音轨面板调节 USB 音量"
+    },
+    {
+      "name": "usb_device_volume",
+      "value": "USB 设备音量"
+    },
+    {
+      "name": "loudness",
+      "value": "响度"
+    },
+    {
+      "name": "sweet_audio_effect",
+      "value": "流心音效"
+    },
+    {
+      "name": "timer",
+      "value": "定时器"
+    },
+    {
+      "name": "op_ed_time",
+      "value": "片头片尾时间"
+    },
+    {
+      "name": "ab_loop",
+      "value": "AB循环"
+    },
+    {
+      "name": "forward_80s",
+      "value": "前进 80s"
+    },
+    {
+      "name": "screen_mirror",
+      "value": "屏幕镜像"
+    },
+    {
+      "name": "switch_to_system_player",
+      "value": "切换到系统播放器"
+    },
+    {
+      "name": "switch_to_mpv_player",
+      "value": "切换到 MPV 播放器"
+    },
+    {
+      "name": "listen_video",
+      "value": "听视频"
+    },
+    {
+      "name": "disable_super_resolution",
+      "value": "关闭视频超分辨率"
+    },
+    {
+      "name": "enable_super_resolution",
+      "value": "开启视频超分辨率"
+    },
+    {
+      "name": "hide_debug_info",
+      "value": "关闭调试信息"
+    },
+    {
+      "name": "show_debug_info",
+      "value": "显示调试信息"
+    },
+    {
+      "name": "timer_set_minutes",
+      "value": "设置成功，%d分钟后自动关闭"
+    },
+    {
+      "name": "play_episode_end",
+      "value": "播完本集"
+    },
+    {
+      "name": "timer_set_episode_end",
+      "value": "设置成功，播完本集后自动关闭"
+    },
+    {
+      "name": "not_enabled",
+      "value": "不启用"
+    },
+    {
+      "name": "timer_cleared",
+      "value": "设置成功，已清除定时器"
+    },
+    {
+      "name": "set_intro_time",
+      "value": "设置片头时间：%s"
+    },
+    {
+      "name": "success_set_intro_time",
+      "value": "成功设置片头时间为:"
+    },
+    {
+      "name": "set_outro_time",
+      "value": "设置片尾时间：%s"
+    },
+    {
+      "name": "success_set_outro_time",
+      "value": "成功设置片尾时间为:"
+    },
+    {
+      "name": "cancel_op_ed_time",
+      "value": "取消片头片尾时间"
+    },
+    {
+      "name": "cancel_op_ed_time_success",
+      "value": "取消片头片尾时间成功"
+    },
+    {
+      "name": "stop_ab_loop",
+      "value": "停止 AB 循环"
+    },
+    {
+      "name": "start_ab_loop",
+      "value": "启动 AB 循环"
+    },
+    {
+      "name": "set_point_a_time",
+      "value": "设置A点时间：%s"
+    },
+    {
+      "name": "success_set_point_a_time",
+      "value": "成功设置A点时间为:"
+    },
+    {
+      "name": "set_point_b_time",
+      "value": "设置B点时间：%s"
+    },
+    {
+      "name": "success_set_point_b_time",
+      "value": "成功设置B点时间为:"
+    },
+    {
+      "name": "cancel_ab_time",
+      "value": "取消AB点时间"
+    },
+    {
+      "name": "cancel_ab_time_success",
+      "value": "取消AB点时间成功"
+    },
+    {
+      "name": "importing_subtitle",
+      "value": "正在导入字幕…"
+    },
+    {
+      "name": "import_replace_subtitle",
+      "value": "导入／替换外挂字幕"
+    },
+    {
+      "name": "close_subtitle",
+      "value": "关闭字幕"
+    },
+    {
+      "name": "embedded_subtitle",
+      "value": "内嵌字幕"
+    },
+    {
+      "name": "no_embedded_subtitle",
+      "value": "无内嵌字幕"
+    },
+    {
+      "name": "no_embedded_subtitle_toast",
+      "value": "当前视频没有内嵌字幕"
+    },
+    {
+      "name": "secondary_subtitle",
+      "value": "副字幕"
+    },
+    {
+      "name": "external_subtitle",
+      "value": "外挂字幕"
+    },
+    {
+      "name": "no_external_subtitle",
+      "value": "无外挂字幕"
+    },
+    {
+      "name": "no_external_subtitle_toast",
+      "value": "当前视频没有外挂字幕"
+    },
+    {
+      "name": "ai_subtitle",
+      "value": "AI 字幕"
+    },
+    {
+      "name": "subtitle_offset",
+      "value": "字幕偏移"
+    },
+    {
+      "name": "embedded_subtitle_switch_mpv",
+      "value": "内嵌字幕未显示？切换至 MPV 核心"
+    },
+    {
+      "name": "buffering_prefix",
+      "value": "缓冲中 · "
+    },
+    {
+      "name": "local_danmaku",
+      "value": "本地弹幕"
+    },
+    {
+      "name": "network_buffer_mid",
+      "value": " · 缓冲 "
+    },
+    {
+      "name": "effect_preset",
+      "value": "音效预设"
+    },
+    {
+      "name": "effect_equalizer",
+      "value": "均衡器"
+    },
+    {
+      "name": "effect_noise_reduction",
+      "value": "降噪"
+    },
+    {
+      "name": "effect_sound_field",
+      "value": "声场"
+    },
+    {
+      "name": "effect_accompaniment",
+      "value": "伴唱"
+    },
+    {
+      "name": "effect_voice_beautifier",
+      "value": "声音美化"
+    },
+    {
+      "name": "effect_environment",
+      "value": "环境音效"
+    },
+    {
+      "name": "effect_audio_mixer",
+      "value": "混音"
+    },
+    {
+      "name": "effect_space_render",
+      "value": "空间渲染"
+    },
+    {
+      "name": "effect_pure_voice_change",
+      "value": "传统变声"
+    },
+    {
+      "name": "effect_general_voice_change",
+      "value": "通用变声"
+    },
+    {
+      "name": "effect_tempo_pitch",
+      "value": "变速变调"
+    },
+    {
+      "name": "effect_hoa_space_render",
+      "value": "HOA 空间渲染"
+    },
+    {
+      "name": "effect_pitch_shift",
+      "value": "变调"
+    },
+    {
+      "name": "preset_hifi",
+      "value": "高保真"
+    },
+    {
+      "name": "preset_surround",
+      "value": "环绕立体声"
+    },
+    {
+      "name": "preset_cinema",
+      "value": "影院模式"
+    },
+    {
+      "name": "preset_concert",
+      "value": "音乐厅"
+    },
+    {
+      "name": "preset_vocal",
+      "value": "人声增强"
+    },
+    {
+      "name": "preset_bass_boost",
+      "value": "低音增强"
+    },
+    {
+      "name": "preset_gaming",
+      "value": "3D环绕"
+    },
+    {
+      "name": "preset_retro",
+      "value": "怀旧复古"
+    },
+    {
+      "name": "preset_space_extension",
+      "value": "空间拓展"
+    },
+    {
+      "name": "preset_broadcast_studio",
+      "value": "广播质感"
+    },
+    {
+      "name": "eq_custom",
+      "value": "自定义"
+    },
+    {
+      "name": "eq_default",
+      "value": "默认"
+    },
+    {
+      "name": "eq_ballads",
+      "value": "抒情"
+    },
+    {
+      "name": "eq_chinese_style",
+      "value": "国风"
+    },
+    {
+      "name": "eq_classical",
+      "value": "古典"
+    },
+    {
+      "name": "eq_dance",
+      "value": "舞曲"
+    },
+    {
+      "name": "eq_jazz",
+      "value": "爵士"
+    },
+    {
+      "name": "eq_pop",
+      "value": "流行"
+    },
+    {
+      "name": "eq_randb",
+      "value": "R&B"
+    },
+    {
+      "name": "eq_rock",
+      "value": "摇滚"
+    },
+    {
+      "name": "sf_front",
+      "value": "正面"
+    },
+    {
+      "name": "sf_grand",
+      "value": "宏大"
+    },
+    {
+      "name": "sf_near",
+      "value": "近场"
+    },
+    {
+      "name": "sf_wide",
+      "value": "宽广"
+    },
+    {
+      "name": "env_broadcast",
+      "value": "广播"
+    },
+    {
+      "name": "env_earpiece",
+      "value": "听筒"
+    },
+    {
+      "name": "env_underwater",
+      "value": "水下"
+    },
+    {
+      "name": "env_gramophone",
+      "value": "留声机"
+    },
+    {
+      "name": "bf_clear",
+      "value": "清晰"
+    },
+    {
+      "name": "bf_theatre",
+      "value": "剧院"
+    },
+    {
+      "name": "bf_studio",
+      "value": "录音棚"
+    },
+    {
+      "name": "space_position",
+      "value": "固定位置"
+    },
+    {
+      "name": "space_rotation",
+      "value": "环绕旋转"
+    },
+    {
+      "name": "space_extension",
+      "value": "空间扩展"
+    },
+    {
+      "name": "dir_counterclockwise",
+      "value": "逆时针"
+    },
+    {
+      "name": "dir_clockwise",
+      "value": "顺时针"
+    },
+    {
+      "name": "gender_female",
+      "value": "女声源"
+    },
+    {
+      "name": "gender_male",
+      "value": "男声源"
+    },
+    {
+      "name": "voice_cartoon",
+      "value": "卡通"
+    },
+    {
+      "name": "voice_cute",
+      "value": "萝莉"
+    },
+    {
+      "name": "voice_female",
+      "value": "女声"
+    },
+    {
+      "name": "voice_male",
+      "value": "男声"
+    },
+    {
+      "name": "voice_monster",
+      "value": "怪物"
+    },
+    {
+      "name": "voice_robot",
+      "value": "机器人"
+    },
+    {
+      "name": "voice_seasoned",
+      "value": "大叔"
+    },
+    {
+      "name": "gen_cyberpunk",
+      "value": "赛博朋克"
+    },
+    {
+      "name": "gen_mix",
+      "value": "混合"
+    },
+    {
+      "name": "gen_synth",
+      "value": "合成器"
+    },
+    {
+      "name": "gen_trill",
+      "value": "颤音"
+    },
+    {
+      "name": "gen_war",
+      "value": "战争"
+    },
+    {
+      "name": "sep_vocals",
+      "value": "人声"
+    },
+    {
+      "name": "sep_accompaniment",
+      "value": "伴奏"
+    },
+    {
+      "name": "sep_mix",
+      "value": "合成"
+    },
+    {
+      "name": "hoa_1_acn_n3d",
+      "value": "一阶 ACN/N3D"
+    },
+    {
+      "name": "hoa_1_acn_sn3d",
+      "value": "一阶 ACN/SN3D"
+    },
+    {
+      "name": "hoa_1_fuma",
+      "value": "一阶 FuMa"
+    },
+    {
+      "name": "hoa_2_acn_n3d",
+      "value": "二阶 ACN/N3D"
+    },
+    {
+      "name": "hoa_2_acn_sn3d",
+      "value": "二阶 ACN/SN3D"
+    },
+    {
+      "name": "hoa_2_fuma",
+      "value": "二阶 FuMa"
+    },
+    {
+      "name": "hoa_3_acn_n3d",
+      "value": "三阶 ACN/N3D"
+    },
+    {
+      "name": "hoa_3_acn_sn3d",
+      "value": "三阶 ACN/SN3D"
+    },
+    {
+      "name": "hoa_3_fuma",
+      "value": "三阶 FuMa"
+    },
+    {
+      "name": "npu_hint",
+      "value": "音源分离依赖设备 NPU 能力；不支持时会自动关闭效果。"
+    },
+    {
+      "name": "axis_x_m",
+      "value": "X（米）"
+    },
+    {
+      "name": "axis_y_m",
+      "value": "Y（米）"
+    },
+    {
+      "name": "axis_z_m",
+      "value": "Z（米）"
+    },
+    {
+      "name": "surround_period_s",
+      "value": "环绕周期（秒）"
+    },
+    {
+      "name": "extension_radius_m",
+      "value": "扩展半径（米）"
+    },
+    {
+      "name": "extension_angle",
+      "value": "扩展角度"
+    },
+    {
+      "name": "pitch_auto",
+      "value": "音高（0=自动）"
+    },
+    {
+      "name": "speed",
+      "value": "速度"
+    },
+    {
+      "name": "pitch",
+      "value": "音高"
+    },
+    {
+      "name": "tempo_pitch_hint",
+      "value": "变调仅支持单声道音轨；视频变速请使用播放器倍速。"
+    },
+    {
+      "name": "speed_change_hint",
+      "value": "改变速度会改变音频时长，不建议用于需要保持音画同步的视频。"
+    },
+    {
+      "name": "hoa_hint",
+      "value": "要求鸿蒙 7及以上，且音频通道顺序必须与所选 HOA 布局一致。"
+    },
+    {
+      "name": "nr_hint_system",
+      "value": "仅支持单声道音轨；处理后恢复原采样率，不会把立体声降为单声道。"
+    },
+    {
+      "name": "nr_hint_mpv",
+      "value": "降噪会将处理格式调整为 16kHz 单声道。"
+    },
+    {
+      "name": "mixer_hint",
+      "value": "mpv 当前提供单路解码音频，此模式作为 AudioSuite 混音管线直通。"
+    },
+    {
+      "name": "space_hint_system",
+      "value": "使用系统播放器原声，不进行 AudioSuite 处理。"
+    },
+    {
+      "name": "space_hint_mpv",
+      "value": "使用普通 OHAudio 输出，不进行 AudioSuite 处理。"
+    },
+    {
+      "name": "preset_hint",
+      "value": "选择预设即可快速应用，切换到对应效果可进一步微调参数。"
+    },
+    {
+      "name": "system_effect_hint",
+      "value": "系统音效保持原音频格式。传统变声、降噪和变调仅支持单声道；不提供 HOA 和单路混音。"
+    },
+    {
+      "name": "reset",
+      "value": "重置"
+    },
+    {
+      "name": "apply_failed_keep",
+      "value": "应用失败，保留原设置"
+    },
+    {
+      "name": "effect_apply_failed_keep",
+      "value": "音效应用失败，保留原设置"
+    },
+    {
+      "name": "import_label",
+      "value": "导入"
+    },
+    {
+      "name": "change_password",
+      "value": "修改密码 (/▽＼)"
+    },
+    {
+      "name": "root_folder",
+      "value": "根目录"
+    },
+    {
+      "name": "select_default_start_page",
+      "value": "选择默认启动页面"
+    },
+    {
+      "name": "edit_stream",
+      "value": "编辑串流"
+    },
+    {
+      "name": "name_label",
+      "value": "名称"
+    },
+    {
+      "name": "stream_url",
+      "value": "流媒体地址"
+    },
+    {
+      "name": "invalid_smb_address",
+      "value": "SMB 地址无效"
+    },
+    {
+      "name": "remove_from_list",
+      "value": "仅从列表移除"
+    },
+    {
+      "name": "remove_from_list_desc",
+      "value": "文件保留在设备中，仅从应用列表移除"
+    },
+    {
+      "name": "delete_file",
+      "value": "彻底删除文件"
+    },
+    {
+      "name": "delete_file_desc",
+      "value": "文件将从设备中永久删除，不可恢复"
+    },
+    {
+      "name": "move_to_recent_deleted",
+      "value": "移至最近删除"
+    },
+    {
+      "name": "move_to_recent_deleted_desc",
+      "value": "文件可在30天内从系统最近删除中恢复"
+    },
+    {
+      "name": "delete_confirm",
+      "value": "删除确认"
+    },
+    {
+      "name": "delete_selected_videos_count",
+      "value": "确定要删除选中的 %d 个视频吗？"
+    },
+    {
+      "name": "new_folder",
+      "value": "新建文件夹"
+    },
+    {
+      "name": "folder_name_placeholder",
+      "value": "请输入文件夹名称"
+    },
+    {
+      "name": "invalid_videos",
+      "value": "已失效视频"
+    },
+    {
+      "name": "invalid_videos_count",
+      "value": "视频已失效，请重新导入，共 %d 项"
+    },
+    {
+      "name": "op_ed_overwrite_confirm",
+      "value": "将覆盖\"%s\"中 %d 个视频的片头片尾时间"
+    },
+    {
+      "name": "subtitle_offset_time",
+      "value": "字幕偏移时间"
+    },
+    {
+      "name": "prev_subtitle",
+      "value": "上一条字幕"
+    },
+    {
+      "name": "next_subtitle",
+      "value": "下一条字幕"
+    },
+    {
+      "name": "reenter_password_save",
+      "value": "请重新输入密码后保存"
+    },
+    {
+      "name": "edit_smb_server",
+      "value": "编辑 SMB 服务器"
+    },
+    {
+      "name": "add_smb_server",
+      "value": "添加 SMB 服务器"
+    },
+    {
+      "name": "name_optional",
+      "value": "名称（可选）"
+    },
+    {
+      "name": "smb_host_placeholder",
+      "value": "IP、主机名或 smb://服务器/共享/目录"
+    },
+    {
+      "name": "port",
+      "value": "端口"
+    },
+    {
+      "name": "smb_share_placeholder",
+      "value": "共享名，例如 Movies"
+    },
+    {
+      "name": "initial_path_optional",
+      "value": "起始目录（可选）"
+    },
+    {
+      "name": "smb_user_placeholder",
+      "value": "用户名或域\\用户名（匿名访问留空）"
+    },
+    {
+      "name": "password_label",
+      "value": "密码"
+    },
+    {
+      "name": "smb_domain_placeholder",
+      "value": "域 / 工作组（可选）"
+    },
+    {
+      "name": "smb3_encryption",
+      "value": "要求 SMB3 加密"
+    },
+    {
+      "name": "testing",
+      "value": "测试中…"
+    },
+    {
+      "name": "test",
+      "value": "测试"
+    },
+    {
+      "name": "saving",
+      "value": "保存中…"
+    },
+    {
+      "name": "save",
+      "value": "保存"
+    },
+    {
+      "name": "smb_address_parsed",
+      "value": "已解析 SMB 地址，可继续填写或修改连接信息"
+    },
+    {
+      "name": "smb_address_required",
+      "value": "请输入有效的 IP、主机名或 smb:// 地址"
+    },
+    {
+      "name": "smb_share_required",
+      "value": "请输入共享名，例如 Movies；子目录可在连接后浏览"
+    },
+    {
+      "name": "smb_port_invalid",
+      "value": "端口应为 1–65535，默认 445"
+    },
+    {
+      "name": "smb_connect_success",
+      "value": "连接成功，可以访问共享目录"
+    },
+    {
+      "name": "smb_operation_failed",
+      "value": "操作失败，请检查连接或安全存储设置"
+    },
+    {
+      "name": "edit_webdav_server",
+      "value": "编辑 WebDAV 服务器"
+    },
+    {
+      "name": "add_webdav_server",
+      "value": "添加 WebDAV 服务器"
+    },
+    {
+      "name": "webdav_address_placeholder",
+      "value": "目录地址，例如 https://nas.example.com/dav/"
+    },
+    {
+      "name": "webdav_user_placeholder",
+      "value": "用户名（匿名访问留空）"
+    },
+    {
+      "name": "webdav_hint",
+      "value": "支持匿名和 Basic 认证。推荐 HTTPS；HTTP 会以未加密连接传输账号和文件。请填写最终目录地址，首版不支持重定向目录和自签名证书配置。"
+    },
+    {
+      "name": "webdav_connect_success",
+      "value": "连接成功，可以浏览目录"
+    },
+    {
+      "name": "webdav_operation_failed",
+      "value": "WebDAV 操作失败"
+    },
+    {
+      "name": "local_file",
+      "value": "本地文件"
+    },
+    {
+      "name": "edit_iptv_source",
+      "value": "编辑 IPTV 节目源"
+    },
+    {
+      "name": "add_iptv_source",
+      "value": "添加 IPTV 节目源"
+    },
+    {
+      "name": "iptv_source_name",
+      "value": "节目源名称"
+    },
+    {
+      "name": "iptv_source_url",
+      "value": "M3U/M3U8/TXT 节目源地址"
+    },
+    {
+      "name": "select_iptv_file",
+      "value": "选择 M3U/M3U8/TXT 文件"
+    },
+    {
+      "name": "user_agent_optional",
+      "value": "User-Agent（可选）"
+    },
+    {
+      "name": "epg_url_optional",
+      "value": "XMLTV EPG URL（可选）"
+    },
+    {
+      "name": "iptv_source_filter",
+      "value": "IPTV节目源"
+    },
+    {
+      "name": "iptv_fill_required",
+      "value": "请填写名称并选择或输入节目源"
+    },
+    {
+      "name": "iptv_parsing_source",
+      "value": "正在读取并解析节目源…"
+    },
+    {
+      "name": "iptv_invalid_count",
+      "value": "，%d 条无效"
+    },
+    {
+      "name": "iptv_epg_matched",
+      "value": "，EPG 匹配 %d 个频道"
+    },
+    {
+      "name": "iptv_saving_channels",
+      "value": "正在读取并保存频道…"
+    },
+    {
+      "name": "iptv_added_channels",
+      "value": "已添加 %d 个频道"
+    },
+    {
+      "name": "add_network_stream",
+      "value": "添加网络串流"
+    },
+    {
+      "name": "add_stream_hint",
+      "value": "支持 HTTP/HTTPS/RTMP 和 SMB 视频地址，也可以导入 .strm 文件。SMB 可使用已保存的账号。"
+    },
+    {
+      "name": "stream_name_placeholder",
+      "value": "名称：方便区分的地址名称"
+    },
+    {
+      "name": "stream_url_placeholder",
+      "value": "例如 https://服务器/video.mp4 或 smb://服务器/共享/video.mkv"
+    },
+    {
+      "name": "import_strm_file",
+      "value": "导入 .strm 文件"
+    },
+    {
+      "name": "save_stream_failed",
+      "value": "保存串流失败，请重试"
+    },
+    {
+      "name": "strm_filter",
+      "value": "STRM 串流快捷方式"
+    },
+    {
+      "name": "strm_read",
+      "value": "已读取 .strm 文件"
+    },
+    {
+      "name": "ai_query_video",
+      "value": "介绍下视频：%s，格式：%s"
+    },
+    {
+      "name": "ai_query_audio",
+      "value": "介绍下音频：%s，格式：%s"
+    },
+    {
+      "name": "ask_xiaoyi",
+      "value": "问问小艺了解更多"
+    },
+    {
+      "name": "detail_video_name",
+      "value": "视频名称："
+    },
+    {
+      "name": "detail_audio_name",
+      "value": "音频名称："
+    },
+    {
+      "name": "detail_artist",
+      "value": "歌手："
+    },
+    {
+      "name": "detail_album",
+      "value": "专辑："
+    },
+    {
+      "name": "detail_format",
+      "value": "格式："
+    },
+    {
+      "name": "detail_resolution",
+      "value": "分辨率："
+    },
+    {
+      "name": "detail_audio_quality",
+      "value": "音频品质："
+    },
+    {
+      "name": "detail_frame_rate",
+      "value": "帧数："
+    },
+    {
+      "name": "unknown",
+      "value": "未知"
+    },
+    {
+      "name": "detail_duration",
+      "value": "时长："
+    },
+    {
+      "name": "detail_size",
+      "value": "大小："
+    },
+    {
+      "name": "detail_last_position",
+      "value": "上次播放进度："
+    },
+    {
+      "name": "detail_intro_time",
+      "value": "片头时间："
+    },
+    {
+      "name": "detail_outro_time",
+      "value": "片尾时间："
+    },
+    {
+      "name": "detail_path",
+      "value": "路径："
+    },
+    {
+      "name": "detail_external_subtitle",
+      "value": "外挂字幕："
+    },
+    {
+      "name": "no_subtitle",
+      "value": "无字幕"
+    },
+    {
+      "name": "detail_loop_a",
+      "value": "循环A点"
+    },
+    {
+      "name": "detail_loop_b",
+      "value": "循环B点"
+    },
+    {
+      "name": "delete_smb_connection",
+      "value": "删除此 SMB 连接？服务器上的文件不会被删除。"
+    },
+    {
+      "name": "delete_webdav_connection",
+      "value": "删除此 WebDAV 连接？服务器上的文件不会被删除。"
+    },
+    {
+      "name": "delete_connection",
+      "value": "删除连接"
+    },
+    {
+      "name": "go_up",
+      "value": "上一级"
+    },
+    {
+      "name": "server",
+      "value": "服务器"
+    },
+    {
+      "name": "refresh",
+      "value": "刷新"
+    },
+    {
+      "name": "smb_empty_title",
+      "value": "连接你的 NAS 或电脑共享"
+    },
+    {
+      "name": "smb_empty_desc",
+      "value": "添加 SMB 服务器，浏览并播放共享中的视频和音乐"
+    },
+    {
+      "name": "webdav_empty_title",
+      "value": "连接你的 WebDAV 服务器"
+    },
+    {
+      "name": "webdav_empty_desc",
+      "value": "添加 WebDAV 服务器，浏览并播放目录中的视频和音乐"
+    },
+    {
+      "name": "no_playable_files",
+      "value": "此目录没有可播放的文件"
+    },
+    {
+      "name": "add_server",
+      "value": "添加服务器"
+    },
+    {
+      "name": "read_servers_failed",
+      "value": "无法读取已保存的服务器"
+    },
+    {
+      "name": "delete_failed_retry",
+      "value": "删除失败，请重试"
+    },
+    {
+      "name": "read_share_failed",
+      "value": "无法读取共享目录"
+    },
+    {
+      "name": "read_webdav_failed",
+      "value": "无法读取 WebDAV 目录"
+    },
+    {
+      "name": "open_video_failed",
+      "value": "无法打开视频"
+    },
+    {
+      "name": "exit",
+      "value": "退出"
+    },
+    {
+      "name": "restoring_huawei_login",
+      "value": "正在恢复华为云盘登录…"
+    },
+    {
+      "name": "access_huawei_drive",
+      "value": "访问华为云盘"
+    },
+    {
+      "name": "huawei_permission_desc",
+      "value": "仅申请读取文件所需权限，用于浏览并播放云盘中的音视频。"
+    },
+    {
+      "name": "authorizing",
+      "value": "正在授权…"
+    },
+    {
+      "name": "authorize_access",
+      "value": "授权访问"
+    },
+    {
+      "name": "feature_in_development",
+      "value": "功能正在开发中..."
+    },
+    {
+      "name": "huawei_cloud_space",
+      "value": "华为云空间"
+    },
+    {
+      "name": "reading_cloud_drive",
+      "value": "正在读取云盘…"
+    },
+    {
+      "name": "retry",
+      "value": "重试"
+    },
+    {
+      "name": "no_playable_media_here",
+      "value": "这里没有可播放的音视频"
+    },
+    {
+      "name": "other_files_hidden",
+      "value": "其他文件类型会被自动隐藏"
+    },
+    {
+      "name": "huawei_auth_missing_params",
+      "value": "华为帐号授权回调缺少参数"
+    },
+    {
+      "name": "huawei_auth_failed",
+      "value": "授权失败：%s"
+    },
+    {
+      "name": "huawei_auth_state_failed",
+      "value": "华为帐号授权状态校验失败，请重试"
+    },
+    {
+      "name": "huawei_auth_missing_code",
+      "value": "华为帐号授权回调缺少 Authorization Code"
+    },
+    {
+      "name": "cloud_capacity_unavailable",
+      "value": "云空间容量信息暂不可用"
+    },
+    {
+      "name": "cloud_used_of_total",
+      "value": "已使用 %s / %s"
+    },
+    {
+      "name": "huawei_drive_failed",
+      "value": "华为云盘访问失败，请稍后重试"
+    },
+    {
+      "name": "delete_iptv_source_confirm",
+      "value": "确定删除该 IPTV 节目源及频道缓存吗？"
+    },
+    {
+      "name": "no_iptv_source",
+      "value": "暂无 IPTV 节目源"
+    },
+    {
+      "name": "add_iptv_source_hint",
+      "value": "点击右上角 + 添加 M3U/M3U8 或 TXT 节目源"
+    },
+    {
+      "name": "channels_and_groups",
+      "value": "%d 个频道  ·  %d 个分组"
+    },
+    {
+      "name": "refresh_success_channels",
+      "value": "刷新成功：%d 个频道"
+    },
+    {
+      "name": "refresh_failed_reason",
+      "value": "刷新失败：%s"
+    },
+    {
+      "name": "last_refresh_failed",
+      "value": "上次刷新失败"
+    },
+    {
+      "name": "not_refreshed_yet",
+      "value": "尚未刷新"
+    },
+    {
+      "name": "updated_at",
+      "value": "更新于 %s"
+    },
+    {
+      "name": "all_channels",
+      "value": "全部频道"
+    },
+    {
+      "name": "no_playable_channels",
+      "value": "没有可播放的频道"
+    },
+    {
+      "name": "refresh_source_hint",
+      "value": "请返回刷新节目源"
+    },
+    {
+      "name": "now_playing_prefix",
+      "value": "正在播放：%s"
+    },
+    {
+      "name": "next_program_prefix",
+      "value": "下一节目：%s"
+    },
+    {
+      "name": "no_epg_info",
+      "value": "暂无节目单信息"
+    },
+    {
+      "name": "line_number",
+      "value": "线路 %d/%d"
+    },
+    {
+      "name": "line_n",
+      "value": "线路 %d"
+    },
+    {
+      "name": "current_label",
+      "value": "当前"
+    },
+    {
+      "name": "zero_channels",
+      "value": "0 个频道"
+    },
+    {
+      "name": "channels_with_multiline",
+      "value": "%d 个频道 · %d 个支持多线路"
+    },
+    {
+      "name": "channels_count",
+      "value": "%d 个频道"
+    },
+    {
+      "name": "smb_domain_format",
+      "value": "域账号格式应为 域\\用户名"
+    },
+    {
+      "name": "smb_domain_mismatch",
+      "value": "用户名中的域与域输入框不一致"
+    },
+    {
+      "name": "smb_user_control_chars",
+      "value": "SMB 账号包含控制字符"
+    },
+    {
+      "name": "smb_domain_needs_user",
+      "value": "填写域时也需要填写用户名"
+    },
+    {
+      "name": "smb_address_encoding_invalid",
+      "value": "SMB 地址编码无效，请将特殊字符进行 URL 编码"
+    },
+    {
+      "name": "smb_path_invalid",
+      "value": "SMB 路径不能包含 ..、反斜杠或控制字符"
+    },
+    {
+      "name": "smb_path_slash",
+      "value": "SMB 路径段不能包含编码后的斜杠"
+    },
+    {
+      "name": "smb_scheme_required",
+      "value": "请输入 smb:// 开头的地址"
+    },
+    {
+      "name": "smb_address_control_chars",
+      "value": "SMB 地址包含控制字符"
+    },
+    {
+      "name": "smb_filename_escape",
+      "value": "SMB 文件名中的 # 和 ? 请分别写为 %23 和 %3F；暂不支持 URL 查询参数"
+    },
+    {
+      "name": "smb_ipv6_brackets",
+      "value": "IPv6 地址需要使用方括号，例如 smb://[::1]/Movies"
+    },
+    {
+      "name": "smb_port_invalid_short",
+      "value": "SMB 端口无效"
+    },
+    {
+      "name": "smb_ipv6_invalid",
+      "value": "IPv6 地址无效"
+    },
+    {
+      "name": "smb_ipv6_in_brackets",
+      "value": "IPv6 地址请放在方括号内"
+    },
+    {
+      "name": "smb_port_required",
+      "value": "SMB 端口不能为空"
+    },
+    {
+      "name": "smb_host_invalid",
+      "value": "SMB 主机地址无效"
+    },
+    {
+      "name": "webdav_address_required",
+      "value": "请输入 HTTP/HTTPS 目录地址；账号密码请单独填写"
+    },
+    {
+      "name": "webdav_host_invalid",
+      "value": "WebDAV 主机或端口无效"
+    },
+    {
+      "name": "webdav_path_invalid",
+      "value": "WebDAV 路径无效"
+    },
+    {
+      "name": "webdav_path_dots",
+      "value": "WebDAV 路径不能包含 . 或 .."
+    },
+    {
+      "name": "webdav_path_slash",
+      "value": "路径段包含斜杠"
+    },
+    {
+      "name": "webdav_path_encoding",
+      "value": "WebDAV 路径编码无效"
+    },
+    {
+      "name": "webdav_request_failed",
+      "value": "WebDAV 请求失败（HTTP %d）"
+    },
+    {
+      "name": "iptv_default_group",
+      "value": "未分组"
+    },
+    {
+      "name": "iptv_gzip_failed",
+      "value": "Gzip 解压失败：%s"
+    },
+    {
+      "name": "huawei_account_login_required",
+      "value": "用户未登录华为账号，请登录华为账号并重试"
+    },
+    {
+      "name": "network_error_retry",
+      "value": "网络异常，请检查当前网络状态并重试"
+    },
+    {
+      "name": "huawei_account_server_error",
+      "value": "华为账号服务器错误或其他内部错误，登录失败，请重试"
+    },
+    {
+      "name": "user_cancelled_authorization",
+      "value": "用户取消授权"
+    },
+    {
+      "name": "system_service_error",
+      "value": "系统服务异常，请稍后重试"
+    },
+    {
+      "name": "agree_huawei_agreement",
+      "value": "请阅读并同意华为账号协议"
+    },
+    {
+      "name": "app_login_failed",
+      "value": "应用登录失败，请重试"
+    },
+    {
+      "name": "cast_protocol_unsupported",
+      "value": "当前设备不支持投播协议"
+    },
+    {
+      "name": "cast_failed_empty_url",
+      "value": "投播失败：视频地址为空"
+    },
+    {
+      "name": "cast_failed",
+      "value": "投播失败"
+    },
+    {
+      "name": "saved_danmaku_read_failed",
+      "value": "已保存的弹幕读取失败，请重新导入"
+    },
+    {
+      "name": "danmaku_import_failed_format",
+      "value": "导入失败，请选择 UTF-8 的 B 站 XML 弹幕（最多 50000 条）"
+    },
+    {
+      "name": "folder_exists",
+      "value": "添加失败，已存在相同文件夹"
+    },
+    {
+      "name": "target_folder_missing",
+      "value": "目标文件夹已不存在，请重新选择"
+    },
+    {
+      "name": "cannot_move_into_self",
+      "value": "不能移动到自身子文件夹下"
+    },
+    {
+      "name": "target_folder_name_exists",
+      "value": "目标目录下已存在同名文件夹"
+    },
+    {
+      "name": "same_folder_name_exists",
+      "value": "同一目录下已存在同名文件夹"
+    },
+    {
+      "name": "no_files_imported_toast",
+      "value": "没有任何文件被导入哦~"
+    },
+    {
+      "name": "share_failed_permission",
+      "value": "分享失败: 无法获取文件权限"
+    },
+    {
+      "name": "select_subtitle_file",
+      "value": "请选择 SRT、ASS 或 VTT 字幕文件"
+    },
+    {
+      "name": "subtitle_import_failed",
+      "value": "字幕导入失败，请检查文件后重试（最大 32 MB）"
+    },
+    {
+      "name": "delete_failed",
+      "value": "删除失败"
+    },
+    {
+      "name": "public_download_dir_unavailable",
+      "value": "系统未返回可用的公共下载目录"
+    },
+    {
+      "name": "download_dir_unusable",
+      "value": "下载目录不可用或未授权"
+    },
+    {
+      "name": "received_import_failed",
+      "value": "文件已接收，但导入媒体库失败"
+    },
+    {
+      "name": "knock_share_failed",
+      "value": "碰一碰分享失败"
+    },
+    {
+      "name": "knock_receive_failed",
+      "value": "碰一碰文件接收失败"
+    },
+    {
+      "name": "knock_save_partial",
+      "value": "%d 个文件未能转存到下载目录，暂留应用内，可从列表导出"
+    },
+    {
+      "name": "data_refresh_failed",
+      "value": "出异常了：数据刷新失败"
+    },
+    {
+      "name": "folder_sort_incomplete",
+      "value": "文件夹排序结果不完整"
+    },
+    {
+      "name": "unknown_version",
+      "value": "未知版本"
+    },
+    {
+      "name": "update_dialog_failed",
+      "value": "更新弹窗生成失败，原因是：%s"
+    },
+    {
+      "name": "no_new_version",
+      "value": "还没有新版本~"
+    },
+    {
+      "name": "check_update_failed",
+      "value": "检查更新失败，原因是：%s"
+    },
+    {
+      "name": "feature_not_supported_short",
+      "value": "不支持该功能"
+    },
+    {
+      "name": "play_record_invalid",
+      "value": "播放记录已失效，请重新选择"
+    },
+    {
+      "name": "file_access_denied",
+      "value": "文件无法访问，请重新授权或选择其他记录"
+    },
+    {
+      "name": "invalid_file_path",
+      "value": "文件地址异常"
+    },
+    {
+      "name": "open_file_location_unsupported",
+      "value": "不支持打开文件位置"
+    },
+    {
+      "name": "open_app_market_failed",
+      "value": "打开应用市场失败，原因是：%s"
+    },
+    {
+      "name": "smb_credentials_missing",
+      "value": "SMB 凭据不存在"
+    },
+    {
+      "name": "smb_password_read_failed",
+      "value": "无法读取 SMB 密码，请编辑服务器并重新保存"
+    },
+    {
+      "name": "smb_password_save_failed",
+      "value": "无法保存 SMB 密码，请重试；连接配置未保存"
+    },
+    {
+      "name": "password_needs_user",
+      "value": "填写密码时也需要填写用户名"
+    },
+    {
+      "name": "smb_server_deleted",
+      "value": "SMB 服务器已删除，请重新添加"
+    },
+    {
+      "name": "smb_file_path_required",
+      "value": "请输入具体文件地址；目录请在 SMB 页面打开"
+    },
+    {
+      "name": "smb_multiple_accounts",
+      "value": "此共享有多个已保存账号，请在地址中指定用户名，或从 SMB 页面选择连接"
+    },
+    {
+      "name": "smb_file_address_invalid",
+      "value": "SMB 文件地址无效"
+    },
+    {
+      "name": "smb_config_save_failed",
+      "value": "无法保存 SMB 连接配置，请重试"
+    },
+    {
+      "name": "smb_subtitle_cache_check_failed",
+      "value": "无法检查字幕缓存文件"
+    },
+    {
+      "name": "smb_shared_subtitle_open_failed",
+      "value": "无法打开共享字幕"
+    },
+    {
+      "name": "smb_subtitle_request_create_failed",
+      "value": "无法创建字幕请求"
+    },
+    {
+      "name": "smb_subtitle_request_failed",
+      "value": "共享字幕请求失败"
+    },
+    {
+      "name": "smb_subtitle_read_failed",
+      "value": "字幕读取失败"
+    },
+    {
+      "name": "smb_subtitle_temp_create_failed",
+      "value": "无法创建字幕临时文件"
+    },
+    {
+      "name": "smb_subtitle_temp_write_failed",
+      "value": "无法写入字幕临时文件"
+    },
+    {
+      "name": "smb_subtitle_temp_close_failed",
+      "value": "无法关闭字幕临时文件"
+    },
+    {
+      "name": "smb_subtitle_cache_save_failed",
+      "value": "无法保存字幕缓存"
+    },
+    {
+      "name": "smb_playback_cancelled",
+      "value": "SMB 播放请求已取消"
+    },
+    {
+      "name": "smb_playback_not_ready",
+      "value": "SMB 播放连接尚未就绪"
+    },
+    {
+      "name": "webdav_request_cancelled",
+      "value": "WebDAV 请求已取消"
+    },
+    {
+      "name": "webdav_config_read_failed",
+      "value": "无法读取 WebDAV 连接配置"
+    },
+    {
+      "name": "webdav_password_read_failed",
+      "value": "无法读取 WebDAV 密码，请编辑连接并重新保存"
+    },
+    {
+      "name": "webdav_password_save_failed",
+      "value": "无法安全保存 WebDAV 密码"
+    },
+    {
+      "name": "webdav_config_save_failed",
+      "value": "无法保存 WebDAV 连接配置"
+    },
+    {
+      "name": "webdav_credentials_invalid",
+      "value": "WebDAV 账号或密码格式无效"
+    },
+    {
+      "name": "webdav_auth_failed",
+      "value": "WebDAV 认证失败，请检查账号密码；首版支持 Basic 认证"
+    },
+    {
+      "name": "webdav_forbidden",
+      "value": "没有权限访问此 WebDAV 资源"
+    },
+    {
+      "name": "webdav_not_found",
+      "value": "WebDAV 目录或文件不存在"
+    },
+    {
+      "name": "webdav_browsing_unsupported",
+      "value": "此地址不支持 WebDAV 目录浏览"
+    },
+    {
+      "name": "webdav_unsupported_xml",
+      "value": "WebDAV 目录包含不支持的 XML 声明"
+    },
+    {
+      "name": "webdav_invalid_xml",
+      "value": "服务器返回的 WebDAV XML 目录无效"
+    },
+    {
+      "name": "webdav_invalid_file_ref",
+      "value": "WebDAV 文件引用无效"
+    },
+    {
+      "name": "webdav_connection_deleted",
+      "value": "WebDAV 连接已删除，请重新添加"
+    },
+    {
+      "name": "webdav_subtitle_download_failed",
+      "value": "无法下载 WebDAV 字幕，请检查网络和访问权限"
+    },
+    {
+      "name": "strm_empty",
+      "value": ".strm 文件为空"
+    },
+    {
+      "name": "strm_too_large",
+      "value": ".strm 文件过大，最大支持 64 KB"
+    },
+    {
+      "name": "strm_read_failed",
+      "value": "无法读取 .strm 文件内容"
+    },
+    {
+      "name": "strm_plugin_unsupported",
+      "value": "暂不支持 plugin:// 类型的 .strm 地址"
+    },
+    {
+      "name": "strm_no_playable_url",
+      "value": ".strm 中没有可播放的网络地址"
+    },
+    {
+      "name": "iptv_no_channels",
+      "value": "未解析到可用频道"
+    },
+    {
+      "name": "iptv_source_type_unsupported",
+      "value": "仅支持 HTTP/HTTPS/远程TXT 节目源和 EPG 地址"
+    },
+    {
+      "name": "file_too_large_stop",
+      "value": "文件过大，已停止读取"
+    },
+    {
+      "name": "unzipped_too_large_stop",
+      "value": "解压后文件过大，已停止读取"
+    },
+    {
+      "name": "epg_cache_create_failed",
+      "value": "无法创建 EPG 解压缓存"
+    },
+    {
+      "name": "duration_zero_seconds",
+      "value": "0秒"
+    },
+    {
+      "name": "duration_seconds",
+      "value": "%d秒"
+    },
+    {
+      "name": "duration_minutes_seconds",
+      "value": "%d分%d秒"
+    },
+    {
+      "name": "greeting_tea_time",
+      "value": "饮茶啦"
+    },
+    {
+      "name": "greeting_good_night",
+      "value": "晚安~"
+    },
+    {
+      "name": "greeting_morning",
+      "value": "早上好"
+    },
+    {
+      "name": "greeting_noon",
+      "value": "中午好"
+    },
+    {
+      "name": "greeting_afternoon",
+      "value": "下午好"
+    },
+    {
+      "name": "greeting_evening",
+      "value": "晚上好"
+    },
+    {
+      "name": "delete_video_failed_detail",
+      "value": "删除视频失败：%s，原因是：%s"
+    },
+    {
+      "name": "file_reauth_required",
+      "value": "文件需要重新授权才能继续播放，请点击确定予以授权"
+    },
+    {
+      "name": "delete_failed_reason",
+      "value": "删除失败，原因是：%s"
+    },
+    {
+      "name": "danmaku_invalid_video_id",
+      "value": "无效的视频标识"
+    },
+    {
+      "name": "danmaku_file_too_large_or_xml",
+      "value": "文件过大或包含不支持的 XML 声明"
+    },
+    {
+      "name": "danmaku_select_bilibili_xml",
+      "value": "请选择 B 站格式的 XML 弹幕文件"
+    },
+    {
+      "name": "danmaku_import_cancelled",
+      "value": "已取消导入"
+    },
+    {
+      "name": "danmaku_too_many",
+      "value": "弹幕过多，最多支持 50000 条"
+    },
+    {
+      "name": "danmaku_no_text_items",
+      "value": "文件中没有可显示的普通文本弹幕"
+    },
+    {
+      "name": "danmaku_texture_release_failed",
+      "value": "弹幕纹理释放失败"
+    },
+    {
+      "name": "danmaku_texture_limit",
+      "value": "弹幕纹理超出限制"
+    },
+    {
+      "name": "danmaku_texture_cache_full",
+      "value": "弹幕纹理缓存已满"
+    },
+    {
+      "name": "danmaku_texture_upload_failed",
+      "value": "弹幕纹理上传失败"
+    },
+    {
+      "name": "knock_content_not_file",
+      "value": "接收内容不是普通文件"
+    },
+    {
+      "name": "knock_size_check_failed",
+      "value": "转存文件大小校验失败"
+    },
+    {
+      "name": "knock_move_failed_detail",
+      "value": "移动转存文件失败: %s, %s"
+    },
+    {
+      "name": "knock_too_many_duplicates",
+      "value": "下载目录中的同名文件过多"
+    },
+    {
+      "name": "knock_save_failed",
+      "value": "转存碰一碰文件失败: %s"
+    },
+    {
+      "name": "knock_file_outside_temp",
+      "value": "接收文件不在本次中转目录内"
+    },
+    {
+      "name": "sidecar_file_empty_or_large",
+      "value": "文件为空或过大"
+    },
+    {
+      "name": "operation_cancelled",
+      "value": "操作已取消"
+    },
+    {
+      "name": "sidecar_read_incomplete",
+      "value": "文件读取不完整"
+    },
+    {
+      "name": "sidecar_write_incomplete",
+      "value": "文件写入不完整"
+    },
+    {
+      "name": "webdav_playback_cancelled",
+      "value": "WebDAV 播放请求已取消"
+    },
+    {
+      "name": "network_playback_cancelled",
+      "value": "网络播放请求已取消"
+    },
+    {
+      "name": "webdav_playback_not_ready",
+      "value": "WebDAV 播放连接尚未就绪"
+    },
+    {
+      "name": "usb_not_authorized",
+      "value": "未取得 USB 设备授权"
+    },
+    {
+      "name": "usb_connection_cancelled",
+      "value": "USB 连接已取消"
+    },
+    {
+      "name": "usb_connect_failed",
+      "value": "无法连接 USB 设备"
+    },
+    {
+      "name": "usb_no_native_transfer",
+      "value": "系统未提供 USB 原生传输句柄"
+    },
+    {
+      "name": "usb_native_permission_failed",
+      "value": "无法取得 USB 原生传输权限"
+    },
+    {
+      "name": "visual_search_unavailable",
+      "value": "画面搜索暂不可用，请稍后重试或使用按名称搜索"
+    },
+    {
+      "name": "visual_search_update_failed_retry",
+      "value": "画面搜索更新失败，请稍后重试"
+    },
+    {
+      "name": "visual_search_update_failed",
+      "value": "画面搜索更新失败"
+    },
+    {
+      "name": "visual_index_update_failed",
+      "value": "画面索引更新失败，请重试"
+    },
+    {
+      "name": "visual_search_unsupported",
+      "value": "当前设备不支持画面搜索"
+    },
+    {
+      "name": "folder_sort_task_failed",
+      "value": "文件夹名称排序任务失败"
+    },
+    {
+      "name": "webdav_invalid_directory_format",
+      "value": "服务器返回的 WebDAV 目录格式无效"
+    },
+    {
+      "name": "huawei_oauth_failed",
+      "value": "华为 OAuth 请求失败（HTTP %d）"
+    },
+    {
+      "name": "huawei_drive_request_failed",
+      "value": "华为云盘请求失败（HTTP %d）"
+    },
+    {
+      "name": "cannot_read_video_file",
+      "value": "无法读取视频文件"
+    },
+    {
+      "name": "system_exception",
+      "value": "系统异常"
+    },
+    {
+      "name": "no_previous_item",
+      "value": "没有上一首"
+    },
+    {
+      "name": "set_audio_output_mode_failed",
+      "value": "设置音频输出模式失败"
+    },
+    {
+      "name": "skipped_outro",
+      "value": "已跳过片尾"
+    },
+    {
+      "name": "usb_no_speed_change",
+      "value": "USB 原样输出不支持变速"
+    },
+    {
+      "name": "audio_output_switch_kept_speed",
+      "value": "音频输出切换失败，已保持原速度"
+    },
+    {
+      "name": "playback_speed_update_failed",
+      "value": "播放速度更新失败"
+    },
+    {
+      "name": "adjust_usb_volume",
+      "value": "请调节 USB 设备音量"
+    },
+    {
+      "name": "usb_no_channel_processing",
+      "value": "USB 原样输出不支持声道处理"
+    },
+    {
+      "name": "shader_load_failed_buffer_mode",
+      "value": "Shader 加载失败，请确认使用 Buffer 硬解模式"
+    },
+    {
+      "name": "shader_copy_failed",
+      "value": "Shader 文件拷贝失败"
+    },
+    {
+      "name": "usb_no_audio_effect",
+      "value": "USB 原样输出不支持音效"
+    },
+    {
+      "name": "audio_vivid_no_effect",
+      "value": "Audio Vivid 优先：当前音轨暂不支持叠加声音效果"
+    },
+    {
+      "name": "shared_subtitle_read_failed",
+      "value": "共享字幕读取失败，可稍后手动导入"
+    },
+    {
+      "name": "audio_core_create_failed",
+      "value": "普通音频播放核心创建失败"
+    },
+    {
+      "name": "dsd_needs_dac",
+      "value": "DSD 直出需要明确选择支持所选模式的 DAC"
+    },
+    {
+      "name": "mpv_usb_dsd_unsupported",
+      "value": "当前 MPV 内核未包含新版 USB / DSD 输出，请更新底层库"
+    },
+    {
+      "name": "stop_previous_audio_output_failed",
+      "value": "无法停止上一条音频输出"
+    },
+    {
+      "name": "usb_device_closed",
+      "value": "USB 设备连接已关闭"
+    },
+    {
+      "name": "usb_output_setup_failed",
+      "value": "USB 输出设置失败：%s"
+    },
+    {
+      "name": "usb_no_hardware_volume",
+      "value": "USB 设备未提供可用的硬件音量控制，请使用设备旋钮"
+    },
+    {
+      "name": "set_super_resolution_failed",
+      "value": "设置视频超分辨率失败"
+    },
+    {
+      "name": "video_load_failed_logged",
+      "value": "视频加载失败，可重新选择视频；详细原因已写入日志"
+    },
+    {
+      "name": "switch_mode_failed",
+      "value": "切换模式失败，请尝试其他视频"
+    },
+    {
+      "name": "playback_failed_try_other",
+      "value": "播放失败，请尝试其他视频"
+    },
+    {
+      "name": "hw_decode_fallback_sw",
+      "value": "当前视频不支持硬件解码，已自动回退到软件解码"
+    },
+    {
+      "name": "switched_to_buffer_mode",
+      "value": "已切换到 Buffer 模式"
+    },
+    {
+      "name": "play_video_first",
+      "value": "请先播放视频"
+    },
+    {
+      "name": "playback_exception",
+      "value": "播放异常"
+    },
+    {
+      "name": "video_open_failed_invalid",
+      "value": "视频打开失败，可能已失效：%s"
+    },
+    {
+      "name": "super_resolution_unsupported",
+      "value": "当前视频不支持超分辨率"
+    },
+    {
+      "name": "listen_video_on",
+      "value": "只听视频模式已开启"
+    },
+    {
+      "name": "listen_video_off",
+      "value": "只听视频模式已关闭"
+    },
+    {
+      "name": "open_video_file_failed",
+      "value": "打开视频文件失败：%s"
+    },
+    {
+      "name": "video_address_empty",
+      "value": "视频地址为空"
+    },
+    {
+      "name": "visual_search_device_unsupported",
+      "value": "当前设备不支持按封面搜索"
+    },
+    {
+      "name": "visual_search_cover_desc",
+      "value": "使用现有视频封面搜索封面内容"
+    },
+    {
+      "name": "search_by_name",
+      "value": "按名称"
+    },
+    {
+      "name": "search_by_cover",
+      "value": "按封面"
+    },
+    {
+      "name": "describe_cover_example",
+      "value": "描述封面，如小草"
+    },
+    {
+      "name": "search_all_media",
+      "value": "搜索所有文件夹的音视频"
+    },
+    {
+      "name": "describe_cover_hint",
+      "value": "描述封面中的画面，然后点击键盘上的搜索"
+    },
+    {
+      "name": "all_folders_video_count",
+      "value": "所有文件夹 · %d 个视频"
+    },
+    {
+      "name": "preparing_cover_search_latest",
+      "value": "正在准备封面搜索，将搜索最新输入…"
+    },
+    {
+      "name": "cover_desc_range_hint",
+      "value": "请输入 1–100 字的中文封面描述，例如“海边的落日”"
+    },
+    {
+      "name": "preparing_cover_search",
+      "value": "正在准备封面搜索…"
+    },
+    {
+      "name": "searching_cover",
+      "value": "正在搜索封面…"
+    },
+    {
+      "name": "preparing_cover_search_progress",
+      "value": "正在准备封面搜索 %d/%d"
+    },
+    {
+      "name": "no_cover_for_search",
+      "value": "没有可用于封面搜索的封面，请先导入带封面的视频"
+    },
+    {
+      "name": "cover_search_result",
+      "value": "找到 %d 个视频 · 按封面相关度排序（最多 100 个）"
+    },
+    {
+      "name": "cover_search_skipped",
+      "value": " · %d 个封面暂不可搜索"
+    },
+    {
+      "name": "cover_search_unavailable",
+      "value": "封面搜索暂不可用，请重试或切换到按名称搜索"
+    },
+    {
+      "name": "hoa_needs_harmony7",
+      "value": "HOA 空间渲染需要鸿蒙 7及以上"
+    },
+    {
+      "name": "audio_effect_applied",
+      "value": "声音效果已应用"
+    },
+    {
+      "name": "audio_effect_apply_failed_mpv",
+      "value": "应用失败，请确认已更新 libmpv.so"
+    },
+    {
+      "name": "custom_screen_ratio",
+      "value": "自定义屏幕拓展比例"
+    },
+    {
+      "name": "custom_ratio_range",
+      "value": "输入范围：50-150"
+    },
+    {
+      "name": "custom_ratio_invalid",
+      "value": "输入错误，输入范围在50-150之间"
+    },
+    {
+      "name": "subtitle_offset_empty",
+      "value": "未输入偏移"
+    },
+    {
+      "name": "subtitle_offset_range",
+      "value": "输入错误：请输入 -50000 到 50000 的整数"
+    },
+    {
+      "name": "system_effect_api26_required",
+      "value": "系统播放器音效需要 API 26 及设备 PCM 后处理支持"
+    },
+    {
+      "name": "subtitle_saved_load_failed",
+      "value": "字幕已保存，但加载失败，请重新选择外挂字幕"
+    },
+    {
+      "name": "switch_player_engine_failed",
+      "value": "切换播放引擎失败"
+    },
+    {
+      "name": "switch_player_engine_failed_detail",
+      "value": "切换播放引擎失败: %s"
+    },
+    {
+      "name": "delete_stream_confirm",
+      "value": "确定删除该串流吗？"
+    },
+    {
+      "name": "no_matching_stream",
+      "value": "未找到相关串流"
+    },
+    {
+      "name": "no_stream",
+      "value": "暂无串流"
+    },
+    {
+      "name": "add_stream_hint_top_right",
+      "value": "点击右上角 + 添加串流"
+    },
+    {
+      "name": "network_stream_title",
+      "value": "网络串流"
+    },
+    {
+      "name": "delete_selected_videos_permanent",
+      "value": "确定永久删除选中的视频吗？此操作不可恢复"
+    },
+    {
+      "name": "delete_video_confirm",
+      "value": "确定删除该视频吗？"
+    },
+    {
+      "name": "multi_select_off",
+      "value": "取消多选"
+    },
+    {
+      "name": "export",
+      "value": "导出"
+    },
+    {
+      "name": "import_or_delete_subtitle",
+      "value": "导入或删除字幕"
+    },
+    {
+      "name": "no_matching_video",
+      "value": "未找到相关视频"
+    },
+    {
+      "name": "privacy_space_settings",
+      "value": "隐私空间设置"
+    },
+    {
+      "name": "knock_files_saved_privacy",
+      "value": "碰一碰文件已存入隐私空间"
+    },
+    {
+      "name": "knock_files_partial_privacy",
+      "value": "%d 个文件未导入隐私空间，接收原文件已保留"
+    },
+    {
+      "name": "knock_target_folder_missing",
+      "value": "未找到碰一碰文件的目标文件夹"
+    },
+    {
+      "name": "files_saved_import_partial",
+      "value": "文件已保存，但有文件未能导入媒体库"
+    },
+    {
+      "name": "get_data_exception",
+      "value": "获取数据时异常：%s"
+    },
+    {
+      "name": "clear_play_history_confirm",
+      "value": "确定清空所有播放记录吗？"
+    },
+    {
+      "name": "delete_play_record_confirm",
+      "value": "确定删除该播放记录吗？"
+    },
+    {
+      "name": "data_invalid_removed",
+      "value": "数据异常，已移除该数据"
+    },
+    {
+      "name": "no_playable_video",
+      "value": "暂无可播放视频"
+    },
+    {
+      "name": "float_window_unavailable",
+      "value": "暂时无法进入小窗，请稍后重试"
+    },
+    {
+      "name": "no_error_data",
+      "value": "没有异常，看起来一点 bug 也没有捏 (^人^)"
+    },
+    {
+      "name": "privacy_space_error_data",
+      "value": "隐私空间异常数据"
+    },
+    {
+      "name": "get_audio_tracks_failed",
+      "value": "获取音轨失败"
+    },
+    {
+      "name": "skipped_intro",
+      "value": "已跳过片头"
+    },
+    {
+      "name": "jumped_to_last_position",
+      "value": "已跳到上次播放时间"
+    },
+    {
+      "name": "skipped_unified_intro",
+      "value": "已跳过统一的片头时间"
+    },
+    {
+      "name": "save_success",
+      "value": "保存成功"
+    },
+    {
+      "name": "no_prev_subtitle",
+      "value": "没有上一条字幕"
+    },
+    {
+      "name": "no_next_subtitle",
+      "value": "没有下一条字幕"
+    },
+    {
+      "name": "subtitle_offset_out_of_range",
+      "value": "目标字幕超出偏移范围：-50000 到 50000"
+    },
+    {
+      "name": "move_to_recycle_failed",
+      "value": "视频快捷方式已删除，但移动到最近回收失败，原因是：errCode:%s, errMessage:%s"
+    },
+    {
+      "name": "avplayer_cannot_play",
+      "value": "AVPlayer 无法播放该视频"
+    },
+    {
+      "name": "swipe_up_to_switch",
+      "value": "可继续上滑切换视频"
+    },
+    {
+      "name": "open_vip",
+      "value": "开通VIP"
+    },
+    {
+      "name": "logout",
+      "value": "退出登录"
+    },
+    {
+      "name": "i_have_read_and_agree",
+      "value": "我已阅读并同意"
+    },
+    {
+      "name": "decline_and_exit",
+      "value": "拒绝并退出"
+    },
+    {
+      "name": "close_dialog_failed",
+      "value": "关闭弹窗失败%s"
+    },
+    {
+      "name": "agree_and_continue",
+      "value": "同意并继续"
+    },
+    {
+      "name": "user_agreement_privacy_title",
+      "value": "用户协议和隐私政策"
+    },
+    {
+      "name": "terms_privacy_doc_title",
+      "value": "《%s的使用条款与隐私声明》"
+    },
+    {
+      "name": "please_login_first",
+      "value": "请先登录"
+    },
+    {
+      "name": "login_to_buy_vip",
+      "value": "登录华为账号后即可购买VIP"
+    },
+    {
+      "name": "go_to_login",
+      "value": "去登录"
+    },
+    {
+      "name": "account_login",
+      "value": "账号登录"
+    },
+    {
+      "name": "interested_hint",
+      "value": "有没有兴趣"
+    },
+    {
+      "name": "get_vip_unlock_all",
+      "value": "获取 VIP 解锁全部功能"
+    },
+    {
+      "name": "exclusive_features",
+      "value": "专属功能"
+    },
+    {
+      "name": "vip_features_desc",
+      "value": "流心音效、深浅色壁纸、智慧手势，视频超分......更多功能正在开发中"
+    },
+    {
+      "name": "continuous_updates",
+      "value": "持续更新"
+    },
+    {
+      "name": "lifetime_updates",
+      "value": "永久有效，享受未来所有更新"
+    },
+    {
+      "name": "price_lifetime",
+      "value": "¥29.9 / 永久"
+    },
+    {
+      "name": "price_monthly",
+      "value": "¥5.9 / 1月"
+    },
+    {
+      "name": "restore_purchase",
+      "value": "恢复购买"
+    },
+    {
+      "name": "purchase_bind_huawei_account",
+      "value": "购买后关联华为账号，支持恢复购买"
+    },
+    {
+      "name": "membership_agreement",
+      "value": "会员协议"
+    },
+    {
+      "name": "subscription_details_monthly",
+      "value": "订阅详情（仅月订用户显示）"
+    },
+    {
+      "name": "membership_service_agreement",
+      "value": "会员服务协议"
+    },
+    {
+      "name": "purchase_success",
+      "value": "购买成功"
+    },
+    {
+      "name": "purchase_thanks",
+      "value": "感谢您的支持，已解锁全部VIP功能"
+    },
+    {
+      "name": "back_label",
+      "value": "返回"
+    },
+    {
+      "name": "system_unsupported",
+      "value": "系统不支持"
+    },
+    {
+      "name": "no_restorable_purchase",
+      "value": "暂无可恢复的购买记录"
+    },
+    {
+      "name": "restore_purchase_failed",
+      "value": "恢复购买失败"
+    },
+    {
+      "name": "purchase_query_failed",
+      "value": "查询购买记录失败"
+    },
+    {
+      "name": "purchase_failed_detail",
+      "value": "购买失败，错误码：%s, 原因是：%s"
+    },
+    {
+      "name": "biometric_auth_title",
+      "value": "进入隐私空间前请进行身份认证"
+    },
+    {
+      "name": "huawei_drive_oauth_missing",
+      "value": "尚未配置华为云盘 OAuth 参数"
+    },
+    {
+      "name": "huawei_drive_login_expired",
+      "value": "华为云盘登录已失效"
+    },
+    {
+      "name": "huawei_drive_authorize_first",
+      "value": "请先授权访问华为云盘"
+    },
+    {
+      "name": "huawei_oauth_no_access_token",
+      "value": "华为 OAuth 未返回 Access Token"
+    },
+    {
+      "name": "huawei_drive_no_read_permission",
+      "value": "华为帐号授权缺少云盘只读权限"
+    },
+    {
+      "name": "huawei_drive_authorization_expired",
+      "value": "华为云盘授权已过期，请重新授权"
+    },
+    {
+      "name": "moved_to_recycle",
+      "value": "%s 已经移动到回收站"
+    },
+    {
+      "name": "subtitle_import_success",
+      "value": "导入字幕成功: %s"
+    },
+    {
+      "name": "export_success_detail",
+      "value": "导出成功: %s 路径为: %s"
+    },
+    {
+      "name": "export_failed_reason",
+      "value": "导出失败，原因是：%s"
+    },
+    {
+      "name": "file_invalid_reimport",
+      "value": "文件已经失效，请重新导入"
+    },
+    {
+      "name": "import_folder",
+      "value": "导入文件夹"
+    },
+    {
+      "name": "entry_not_regular_file",
+      "value": "所选条目不是普通文件，请使用文件夹导入"
+    },
+    {
+      "name": "usb_select_audio_device",
+      "value": "请先在引擎设置中选择 USB 音频设备"
+    },
+    {
+      "name": "usb_audio_device_not_found",
+      "value": "未找到所选 USB 音频设备"
+    },
+    {
+      "name": "webdav_request_failed_generic",
+      "value": "WebDAV 请求失败，请检查网络、地址、证书及重定向设置"
+    },
+    {
+      "name": "webdav_directory_parse_failed",
+      "value": "WebDAV 目录解析失败"
+    },
+    {
+      "name": "smb_share_file_required",
+      "value": "请输入包含共享名和文件名的 SMB 地址；目录请在 SMB 页面打开"
+    },
+    {
+      "name": "share_description",
+      "value": "流心播放器分享"
+    },
+    {
+      "name": "knock_share_description",
+      "value": "流心播放器碰一碰分享"
+    },
+    {
+      "name": "crash_buttons_hint",
+      "value": "红色按钮清空日志，绿色按钮导出日志"
+    },
+    {
+      "name": "test_success_channels",
+      "value": "测试成功：%d 个频道，%d 个分组"
+    },
+    {
+      "name": "unknown_program",
+      "value": "未知节目"
+    },
+    {
+      "name": "request_failed",
+      "value": "请求失败：%s"
+    },
+    {
+      "name": "saved_danmaku_file_name",
+      "value": "已保存的弹幕.xml"
+    },
+    {
+      "name": "danmaku_filter_xml",
+      "value": "XML 弹幕"
+    },
+    {
+      "name": "local_xml",
+      "value": "本地 XML"
+    },
+    {
+      "name": "danmaku_imported_count",
+      "value": "已导入 %d 条弹幕"
+    },
+    {
+      "name": "danmaku_skipped_count",
+      "value": "，跳过 %d 条不支持或无效弹幕"
+    },
+    {
+      "name": "filter_video",
+      "value": "视频"
+    },
+    {
+      "name": "filter_audio",
+      "value": "音频"
+    },
+    {
+      "name": "filter_subtitle",
+      "value": "字幕"
+    },
+    {
+      "name": "log_section_system_events",
+      "value": "=== 系统事件（含崩溃、卡死及进程回收） ==="
+    },
+    {
+      "name": "log_section_runtime",
+      "value": "=== 运行日志 ==="
+    },
+    {
+      "name": "feedback_qq_group",
+      "value": "反馈 QQ群 973792610，系统版本: %s，应用版本：%s，型号：%s，API版本：%s，热挡位：%s"
+    },
+    {
+      "name": "lang_unknown",
+      "value": "未知"
+    },
+    {
+      "name": "lang_und",
+      "value": "未知"
+    },
+    {
+      "name": "lang_chi",
+      "value": "中文"
+    },
+    {
+      "name": "lang_traditional",
+      "value": "繁体"
+    },
+    {
+      "name": "lang_cantonese",
+      "value": "粤语"
+    },
+    {
+      "name": "lang_simplified",
+      "value": "简体"
+    },
+    {
+      "name": "lang_jpn",
+      "value": "日语"
+    },
+    {
+      "name": "lang_eng",
+      "value": "英语"
+    },
+    {
+      "name": "lang_kor",
+      "value": "韩语"
+    },
+    {
+      "name": "lang_fre",
+      "value": "法语"
+    },
+    {
+      "name": "lang_fra",
+      "value": "法语"
+    },
+    {
+      "name": "lang_ger",
+      "value": "德语"
+    },
+    {
+      "name": "lang_deu",
+      "value": "德语"
+    },
+    {
+      "name": "lang_spa",
+      "value": "西班牙语"
+    },
+    {
+      "name": "lang_rus",
+      "value": "俄语"
+    },
+    {
+      "name": "lang_ara",
+      "value": "阿拉伯语"
+    },
+    {
+      "name": "lang_por",
+      "value": "葡萄牙语"
+    },
+    {
+      "name": "lang_ita",
+      "value": "意大利语"
+    },
+    {
+      "name": "lang_hin",
+      "value": "印地语"
+    },
+    {
+      "name": "lang_tha",
+      "value": "泰语"
+    },
+    {
+      "name": "lang_ukr",
+      "value": "乌克兰语"
+    },
+    {
+      "name": "lang_tur",
+      "value": "土耳其语"
+    },
+    {
+      "name": "lang_ind",
+      "value": "印尼语"
+    },
+    {
+      "name": "lang_dut",
+      "value": "荷兰语"
+    },
+    {
+      "name": "lang_nld",
+      "value": "荷兰语"
+    },
+    {
+      "name": "lang_swe",
+      "value": "瑞典语"
+    },
+    {
+      "name": "lang_slv",
+      "value": "斯洛文尼亚语"
+    },
+    {
+      "name": "lang_hrv",
+      "value": "克罗地亚语"
+    },
+    {
+      "name": "lang_bul",
+      "value": "保加利亚语"
+    },
+    {
+      "name": "lang_cze",
+      "value": "捷克语"
+    },
+    {
+      "name": "lang_dan",
+      "value": "丹麦语"
+    },
+    {
+      "name": "lang_fin",
+      "value": "芬兰语"
+    },
+    {
+      "name": "lang_gre",
+      "value": "希腊语"
+    },
+    {
+      "name": "lang_heb",
+      "value": "希伯来语"
+    },
+    {
+      "name": "lang_hun",
+      "value": "匈牙利语"
+    },
+    {
+      "name": "lang_nor",
+      "value": "挪威语"
+    },
+    {
+      "name": "lang_pol",
+      "value": "波兰语"
+    },
+    {
+      "name": "lang_rum",
+      "value": "罗马尼亚语"
+    },
+    {
+      "name": "lang_est",
+      "value": "爱沙尼亚语"
+    },
+    {
+      "name": "lang_lav",
+      "value": "拉脱维亚语"
+    },
+    {
+      "name": "lang_lit",
+      "value": "立陶宛语"
+    },
+    {
+      "name": "lang_ice",
+      "value": "冰岛语"
+    },
+    {
+      "name": "lang_sdh",
+      "value": "听障字幕"
+    },
+    {
+      "name": "ftp_invalid_address",
+      "value": "FTP 地址或路径无效，请使用 ftp://主机:端口/目录/，特殊字符需转义"
+    },
+    {
+      "name": "ftp_invalid_credentials",
+      "value": "用户名或密码无效，匿名登录请留空"
+    },
+    {
+      "name": "ftp_use_credentials_fields",
+      "value": "请在下方填写用户名和密码，不要放在服务器地址中"
+    },
+    {
+      "name": "ftp_cancelled",
+      "value": "FTP 请求已取消"
+    },
+    {
+      "name": "ftp_config_read_failed",
+      "value": "读取 FTP 连接配置失败"
+    },
+    {
+      "name": "ftp_password_read_failed",
+      "value": "读取 FTP 密码失败，请重新编辑连接"
+    },
+    {
+      "name": "ftp_password_save_failed",
+      "value": "安全保存 FTP 密码失败"
+    },
+    {
+      "name": "ftp_config_save_failed",
+      "value": "保存 FTP 连接配置失败"
+    },
+    {
+      "name": "ftp_request_failed",
+      "value": "FTP 请求失败，请检查网络、目录、账号和访问权限"
+    },
+    {
+      "name": "ftp_auth_failed",
+      "value": "FTP 登录失败，请检查用户名和密码"
+    },
+    {
+      "name": "ftp_timeout",
+      "value": "FTP 请求超时，请检查服务器和被动端口设置"
+    },
+    {
+      "name": "ftp_connection_refused",
+      "value": "FTP 服务器拒绝连接，请检查地址和端口"
+    },
+    {
+      "name": "ftp_unavailable",
+      "value": "当前播放库未启用 FTP，请更新应用"
+    },
+    {
+      "name": "ftp_listing_unsupported",
+      "value": "服务器目录格式不受支持，普通 FTP 首版需要 MLSD 目录列表"
+    },
+    {
+      "name": "ftp_invalid_listing",
+      "value": "FTP 目录包含无法识别的路径"
+    },
+    {
+      "name": "ftp_directory_too_large",
+      "value": "目录文件过多，请选择更小的目录"
+    },
+    {
+      "name": "ftp_seek_unsupported",
+      "value": "服务器无法提供文件大小或随机读取，暂不支持直接播放"
+    },
+    {
+      "name": "ftp_busy",
+      "value": "FTP 请求过多，请稍后重试"
+    },
+    {
+      "name": "ftp_connection_deleted",
+      "value": "FTP 连接已删除，请重新添加"
+    },
+    {
+      "name": "ftp_file_required",
+      "value": "请输入 FTP 文件地址，目录请通过 FTP 页面浏览"
+    },
+    {
+      "name": "ftp_multiple_accounts",
+      "value": "存在多个匹配的 FTP 连接，请从 FTP 页面选择"
+    },
+    {
+      "name": "ftp_subtitle_download_failed",
+      "value": "下载 FTP 字幕失败"
+    },
+    {
+      "name": "delete_ftp_connection",
+      "value": "删除此 FTP 连接？服务器上的文件不会被删除。"
+    },
+    {
+      "name": "ftp_empty_title",
+      "value": "连接你的 FTP 服务器"
+    },
+    {
+      "name": "ftp_empty_desc",
+      "value": "添加 FTP 服务器，浏览并播放目录中的视频和音乐"
+    },
+    {
+      "name": "read_ftp_failed",
+      "value": "无法读取 FTP 目录"
+    },
+    {
+      "name": "edit_ftp_server",
+      "value": "编辑 FTP 服务器"
+    },
+    {
+      "name": "add_ftp_server",
+      "value": "添加 FTP 服务器"
+    },
+    {
+      "name": "ftp_address_placeholder",
+      "value": "ftp://192.168.1.10:21/videos/"
+    },
+    {
+      "name": "ftp_user_placeholder",
+      "value": "用户名（匿名登录留空）"
+    },
+    {
+      "name": "ftp_hint",
+      "value": "普通 FTP 不加密账号和文件，建议在可信局域网使用。目录相对于登录目录；需要 MLSD 目录列表和 REST 随机读取。"
+    },
+    {
+      "name": "ftp_connect_success",
+      "value": "连接成功，可以浏览目录"
+    },
+    {
+      "name": "ftp_operation_failed",
+      "value": "FTP 操作失败"
+    },
+    {
+      "name": "ftp_plain_only",
+      "value": "当前仅支持普通 FTP，暂不支持 FTPS 或 SFTP"
+    },
+    {
+      "name": "audio_external_import",
+      "value": "导入外挂音频"
+    },
+    {
+      "name": "audio_external_replace",
+      "value": "替换外挂音频"
+    },
+    {
+      "name": "audio_external_importing",
+      "value": "正在导入音频…"
+    },
+    {
+      "name": "audio_external_label",
+      "value": "外挂"
+    },
+    {
+      "name": "audio_external_title",
+      "value": "外挂音频"
+    },
+    {
+      "name": "audio_external_failed",
+      "value": "外挂音频导入失败，请检查文件是否可播放"
+    },
+    {
+      "name": "audio_external_load_failed",
+      "value": "外挂音频加载失败"
+    },
+    {
+      "name": "audio_external_filter",
+      "value": "音频"
+    },
+    {
+      "name": "audio_external_sync",
+      "value": "同步"
+    },
+    {
+      "name": "audio_external_sync_help",
+      "value": "负值提前，正值延后"
+    },
+    {
+      "name": "audio_external_empty",
+      "value": "音频文件为空"
+    },
+    {
+      "name": "audio_external_save_failed",
+      "value": "外挂音频设置保存失败"
     }
   ]
 }

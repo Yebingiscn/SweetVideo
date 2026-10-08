@@ -33,14 +33,14 @@ export struct AboutApp {
   private GITHUB_HOME_LINK: string = "https://github.com/Yebingiscn/SweetVideo"
   // 链接项配置
   private linkItems: LinkItem[] = [
-    { icon: $r('sys.symbol.cat_fill'), text: '代码已开源，欢迎 ⭐', link: this.GITHUB_HOME_LINK },
+    { icon: $r('sys.symbol.cat_fill'), text: ToolsUtil.getStringResource($r('app.string.open_source_star').id), link: this.GITHUB_HOME_LINK },
     {
       icon: $r('sys.symbol.book_1'),
-      text: ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id) + '的使用条款与隐私声明',
+      text: ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id) + ToolsUtil.getStringResource($r('app.string.terms_suffix').id),
       isDialog: true
     },
-    { icon: $r('sys.symbol.person_2'), text: 'QQ 交流群：973792610', link: this.QQ_GROUP_LINK },
-    { icon: $r('sys.symbol.fish'), text: '赞赏作者', link: this.AI_FA_DIAN_LINK }
+    { icon: $r('sys.symbol.person_2'), text: ToolsUtil.getStringResource($r('app.string.qq_group').id), link: this.QQ_GROUP_LINK },
+    { icon: $r('sys.symbol.fish'), text: ToolsUtil.getStringResource($r('app.string.support_author').id), link: this.AI_FA_DIAN_LINK }
   ]
   private tempLink: string = ''
   linkConfirmDialog: CustomDialogController = new CustomDialogController({
@@ -49,7 +49,7 @@ export struct AboutApp {
         WantProcessUtil.linkToWeb(PathUtils.appContext!, this.tempLink)
         this.tempLink = ''
       },
-      textInfo: '即将跳转至外部网页，是否跳转？'
+      textInfo: $r('app.string.external_link_confirm')
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   private listScroller: Scroller = new Scroller()
@@ -157,7 +157,7 @@ export struct AboutApp {
           .backgroundColor($r('app.color.start_window_background_blur'))
 
           // 版权信息
-          Text('郴州液态科技有限公司 版权所有 © 2025')
+          Text($r('app.string.copyright_notice'))
             .fontSize(14)
             .width('100%')
             .textAlign(TextAlign.Center)
@@ -229,7 +229,7 @@ export struct AboutApp {
           }
         }
       },
-      content: { title: { mainTitle: '关于此应用' } }
+      content: { title: { mainTitle: $r('app.string.about_app') } }
     })
     .dynamicHideTitleBar({
       hideTitleArea: true,

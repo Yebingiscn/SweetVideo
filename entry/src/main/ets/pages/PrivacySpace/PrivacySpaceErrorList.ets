@@ -53,7 +53,7 @@ export struct PrivacySpaceErrorList {
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
-        content: '导出'
+        content: $r('app.string.export')
       })
         .onClick(async () => {
           await SelectFileUtil.exportFile(PathUtils.videoUri(item), item, '',
@@ -99,7 +99,7 @@ export struct PrivacySpaceErrorList {
     HdsNavDestination() {
       Column() {
         if (this.videoList.length === 0) {
-          Text('没有异常，看起来一点 bug 也没有捏 (^人^)').textAlign(TextAlign.Center)
+          Text($r('app.string.no_error_data')).textAlign(TextAlign.Center)
             .align(Alignment.Center)
             .width('90%').height('100%')
         } else {
@@ -216,7 +216,7 @@ export struct PrivacySpaceErrorList {
       },
       content: {
         title: {
-          mainTitle: '隐私空间异常数据',
+          mainTitle: $r('app.string.privacy_space_error_data'),
         }
       },
     })

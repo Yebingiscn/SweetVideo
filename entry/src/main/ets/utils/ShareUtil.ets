@@ -10,14 +10,14 @@ export default class ShareUtil {
       try {
         const activated = await PermissionUtil.activatePermission(uri)
         if (!activated) {
-          ToolsUtil.showToast('分享失败: 无法获取文件权限')
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.share_failed_permission').id))
           return
         }
         let shareData = new systemShare.SharedData({
           utd: uniformTypeDescriptor.UniformDataType.VIDEO,
           uri: uri,
           title: title,
-          description: '流心播放器分享'
+          description: ToolsUtil.getStringResource($r('app.string.share_description').id)
         })
         let controller = new systemShare.ShareController(shareData)
         await controller.show(PathUtils.appContext!, {
@@ -26,10 +26,10 @@ export default class ShareUtil {
         })
       } catch (error) {
         const err = error as BusinessError
-        ToolsUtil.showToast('分享失败: ' + err.message)
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.share_failed_prefix').id) + err.message)
       }
     } else {
-      ToolsUtil.showToast('设备不支持')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.device_not_supported').id))
     }
   }
 }

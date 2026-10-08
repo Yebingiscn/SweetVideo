@@ -18,13 +18,13 @@ export struct DeletedVideosDialog {
 
   build() {
     Column({ space: 10 }) {
-      Text('已失效视频')
+      Text($r('app.string.invalid_videos'))
         .fontSize(DIALOG_TITLE_FONT_SIZE)
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)
         .margin({ top: 5 })
 
-      Text(`视频已失效，请重新导入，共 ${this.deletedVideosDataSource.totalCount()} 项`)
+      Text($r('app.string.invalid_videos_count', this.deletedVideosDataSource.totalCount()))
         .fontSize(14)
         .fontColor($r('app.color.text_color'))
 

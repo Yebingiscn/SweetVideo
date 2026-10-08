@@ -39,7 +39,7 @@ export struct MoreSettingPage {
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.info_circle'),
-            message: '关于此应用',
+            message: $r('app.string.about_app'),
             onPress: () => {
               this.pathStack.pushPathByName(NavigationAddress.ABOUT_PAGE, true)
             }
@@ -49,7 +49,7 @@ export struct MoreSettingPage {
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.arrow_up_circle'),
-            message: '检查更新',
+            message: $r('app.string.check_update'),
             onPress: () => {
               ToolsUtil.checkUpdate()
             }
@@ -60,7 +60,7 @@ export struct MoreSettingPage {
           ListItem() {
             SettingsClickItem({
               symbol: $r('sys.symbol.hand_thumbsup'),
-              message: '从夯到拉锐评下流心',
+              message: $r('app.string.rate_app'),
               onPress: async () => {
                 try {
                   commentManager.showCommentDialog(PathUtils.appContext!).then(() => {
@@ -81,7 +81,7 @@ export struct MoreSettingPage {
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.doc_plaintext'),
-            message: '流心运行日志',
+            message: $r('app.string.runtime_log'),
             onPress: () => {
               this.pathStack.pushPathByName(NavigationAddress.CRASH_PAGE, true)
             }
@@ -91,13 +91,13 @@ export struct MoreSettingPage {
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.fast'),
-            message: '清理失效文件',
+            message: $r('app.string.clean_invalid_files'),
             onPress: async () => {
               PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'circle_play')
               PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'is_list_display')
               PreferencesUtil.delPreferencesValue(PathUtils.appContext!, 'sweet_video', 'defaultPlayer')
               const missingFileSum = await FileFolderUtil.cleanInvalidFiles(PathUtils.appContext!)
-              ToolsUtil.showToast(missingFileSum > 0 ? '删除了 ' + missingFileSum + ' 项文件' : '没有找到失效文件')
+              ToolsUtil.showToast(missingFileSum > 0 ? ToolsUtil.getStringResourceArgs($r('app.string.deleted_files_count').id, missingFileSum) : ToolsUtil.getStringResource($r('app.string.no_invalid_files').id))
             }
           })
         }
@@ -106,13 +106,13 @@ export struct MoreSettingPage {
           ListItem() {
             SettingsToggleItem({
               symbol: $r('sys.symbol.display'),
-              message: '固定缩放（关闭可能导致UI异常）',
+              message: $r('app.string.fixed_scaling'),
               tag: 'VIP',
               enable: Setting.defaultDensityEnabled,
               itemEnabled: userData.isVip,
               onChange: (checked: boolean) => {
                 if (!checked) {
-                  ToolsUtil.showToast('重启生效，关闭可能导致UI异常')
+                  ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.restart_to_apply_ui').id))
                 }
                 Setting.defaultDensityEnabled = checked
                 Preferences.saveDefaultDensityEnabled(PathUtils.appContext!, Setting.defaultDensityEnabled)
@@ -221,7 +221,7 @@ export struct MoreSettingPage {
       },
       content: {
         title: {
-          mainTitle: '更多设置',
+          mainTitle: $r('app.string.settings_more'),
         }
       },
     })

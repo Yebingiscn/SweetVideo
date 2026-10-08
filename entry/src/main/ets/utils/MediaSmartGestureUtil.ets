@@ -8,7 +8,6 @@ import {
 import { Available, deviceInfo, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { salmonLogger } from 'salmonlogger'
 import { Setting } from './ObservedUtil'
-import ToolsUtil from './ToolsUtil'
 
 const TAG = 'MediaSmartGesture'
 

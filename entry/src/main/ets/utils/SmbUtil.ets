@@ -39,13 +39,13 @@ export default class SmbUtil {
     try {
       const values = await asset.query(query)
       if (values.length === 0) {
-        throw new Error('SMB 凭据不存在')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.smb_credentials_missing').id))
       }
       const bytes = values[0].get(asset.Tag.SECRET) as Uint8Array
       // JSON wrapping also represents an intentionally empty guest password.
       return JSON.parse(util.TextDecoder.create('utf-8').decodeToString(bytes)) as string
     } catch (error) {
-      throw new Error('无法读取 SMB 密码，请编辑服务器并重新保存')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.smb_password_read_failed').id))
     }
   }
 
@@ -61,7 +61,7 @@ export default class SmbUtil {
       await asset.add(attributes)
     } catch (error) {
       salmonLogger.addLog(TAG, 'save error', true)
-      throw new Error('无法保存 SMB 密码，请重试；连接配置未保存')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.smb_password_save_failed').id))
     }
     const servers = SmbUtil.servers().filter((item: SmbServer) => item.id !== server.id)
     servers.push(server)
@@ -81,7 +81,7 @@ export default class SmbUtil {
 
   static options(server: SmbServer, password: string): SmbOptions {
     const login = SmbAddress.login(server.user, server.domain)
-    if (!login.user && password) throw new Error('填写密码时也需要填写用户名')
+    if (!login.user && password) throw new Error(ToolsUtil.getStringResource($r('app.string.password_needs_user').id))
     const host = server.host.includes(':') && !server.host.startsWith('[') ? `[${server.host}]` : server.host
     return {
       host: server.port === 445 ? host : `${host}:${server.port}`,
@@ -130,24 +130,24 @@ export default class SmbUtil {
     if (id) {
       const server = SmbUtil.servers().find((item: SmbServer) => item.id === id)
       if (!server) {
-        throw new Error('SMB 服务器已删除，请重新添加')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.smb_server_deleted').id))
       }
       const path = SmbAddress.decodePath(uri.substring(uri.indexOf('/', 6) + 1))
       if (!path || uri.endsWith('/')) {
-        throw new Error('请输入具体文件地址；目录请在 SMB 页面打开')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.smb_file_path_required').id))
       }
       return SmbUtil.uri(server, path)
     }
     const address = SmbAddress.parse(uri)
     if (!address.share || !address.path || address.directory) {
       throw new Error(
-        '请输入包含共享名和文件名的 SMB 地址；目录请在 SMB 页面打开')
+        ToolsUtil.getStringResource($r('app.string.smb_share_file_required').id))
     }
     const matches = SmbUtil.matchingServers(address)
     let server: SmbServer | undefined = undefined
     if (!address.hasPassword) {
       if (matches.length > 1) {
-        throw new Error('此共享有多个已保存账号，请在地址中指定用户名，或从 SMB 页面选择连接')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.smb_multiple_accounts').id))
       }
       server = matches[0]
     } else {
@@ -208,12 +208,12 @@ export default class SmbUtil {
     uri = await SmbUtil.prepareUri(uri)
     const slash = uri.indexOf('/', 6)
     if (slash < 0) {
-      throw new Error('SMB 文件地址无效')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.smb_file_address_invalid').id))
     }
     const id = uri.substring(6, slash)
     const server = SmbUtil.servers().find((item: SmbServer) => item.id === id)
     if (!server) {
-      throw new Error('SMB 服务器已删除，请重新添加')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.smb_server_deleted').id))
     }
     const path = uri.substring(slash + 1).split('/').map((part: string) => ToolsUtil.safeDecodeURIComponent(part)).join('/')
     salmonLogger.addLog(TAG, `[SMB] 开始打开文件 host=${server.host}:${server.port} share=${server.share} path=${path}`)
@@ -263,7 +263,7 @@ export default class SmbUtil {
       await store.flush()
     } catch (error) {
       salmonLogger.addLog(TAG, 'writeServers erro', true)
-      throw new Error('无法保存 SMB 连接配置，请重试')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.smb_config_save_failed').id))
     }
 
   }
@@ -299,7 +299,7 @@ export default class SmbUtil {
       const message = error instanceof Error ? error.message : String(error)
       if (!message.toLowerCase().includes('not exist') && !message.includes('13900002')) {
         salmonLogger.addLog(TAG, `检查字幕缓存失败: ${message}`, true)
-        throw new Error('无法检查字幕缓存文件')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.smb_subtitle_cache_check_failed').id))
       }
     }
     let url = ''
@@ -307,7 +307,7 @@ export default class SmbUtil {
       url = await SmbUtil.open(item.smb_subtitle_uri!)
     } catch (error) {
       salmonLogger.addLog(TAG, `打开共享字幕失败: ${error}`, true)
-      throw new Error('无法打开共享字幕')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.smb_shared_subtitle_open_failed').id))
     }
     let request: http.HttpRequest | undefined = undefined
     const temporary = `${path}.${util.generateRandomUUID(true)}.tmp`
@@ -316,7 +316,7 @@ export default class SmbUtil {
         request = http.createHttp()
       } catch (error) {
         salmonLogger.addLog(TAG, `创建字幕请求失败: ${error}`, true)
-        throw new Error('无法创建字幕请求')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.smb_subtitle_request_create_failed').id))
       }
       let response: http.HttpResponse
       try {
@@ -330,10 +330,10 @@ export default class SmbUtil {
         })
       } catch (error) {
         salmonLogger.addLog(TAG, `请求共享字幕失败: ${error}`, true)
-        throw new Error('共享字幕请求失败')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.smb_subtitle_request_failed').id))
       }
       if (response.responseCode !== 200) {
-        throw new Error('字幕读取失败')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.smb_subtitle_read_failed').id))
       }
       const bytes = response.result as ArrayBuffer
       const encoding = TextEncodingUtil.detectBufferEncoding(bytes) || 'UTF-8'
@@ -343,28 +343,28 @@ export default class SmbUtil {
         file = await fs.open(temporary, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE | fs.OpenMode.TRUNC)
       } catch (error) {
         salmonLogger.addLog(TAG, `创建字幕临时文件失败: ${error}`, true)
-        throw new Error('无法创建字幕临时文件')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.smb_subtitle_temp_create_failed').id))
       }
       try {
         try {
           await fs.write(file.fd, text)
         } catch (error) {
           salmonLogger.addLog(TAG, `写入字幕临时文件失败: ${error}`, true)
-          throw new Error('无法写入字幕临时文件')
+          throw new Error(ToolsUtil.getStringResource($r('app.string.smb_subtitle_temp_write_failed').id))
         }
       } finally {
         try {
           await fs.close(file)
         } catch (error) {
           salmonLogger.addLog(TAG, `关闭字幕临时文件失败: ${error}`, true)
-          throw new Error('无法关闭字幕临时文件')
+          throw new Error(ToolsUtil.getStringResource($r('app.string.smb_subtitle_temp_close_failed').id))
         }
       }
       try {
         await fs.rename(temporary, path)
       } catch (error) {
         salmonLogger.addLog(TAG, `提交字幕缓存失败: ${error}`, true)
-        throw new Error('无法保存字幕缓存')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.smb_subtitle_cache_save_failed').id))
       }
     } catch (error) {
       salmonLogger.addLog(TAG, `下载字幕失败: ${error}`, true)
@@ -419,7 +419,7 @@ export class SmbPlayback {
     if (version !== this.version) {
       smbClose(url)
       salmonLogger.addLog(TAG, '[SMB] 播放请求已取消，已关闭临时会话')
-      throw new Error('SMB 播放请求已取消')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.smb_playback_cancelled').id))
     }
     this.source = source
     this.url = url
@@ -430,7 +430,7 @@ export class SmbPlayback {
   current(source: string): string {
     if (SmbUtil.isSmb(source)) {
       if (source !== this.source || !this.url) {
-        throw new Error('SMB 播放连接尚未就绪')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.smb_playback_not_ready').id))
       }
       return this.url
     }

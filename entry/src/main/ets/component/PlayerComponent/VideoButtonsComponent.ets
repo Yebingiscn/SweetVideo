@@ -58,28 +58,27 @@ export struct VideoButtonsComponent {
   @Event onSideBaClose: () => void = () => {
   }
   @Styles
-  circleButton() {
+  iconButton() {
     .attributeModifier(new ButtonFancyModifier(40, 40))
-    .backgroundColor('#50000000')
-    .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+    .backgroundColor(Color.Transparent)
   }
 
   build() {
     Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceEvenly }) {
       // 上一首按钮
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
+      Button({ type: ButtonType.Circle, stateEffect: false }) {
         VideoControlIcon({ icon: $r('sys.symbol.backward_end_fill') })
       }
-      .circleButton()
+      .iconButton()
       .onClick(() => {
         this.onPlayPreviousVideoClick()
       })
 
       // 播放按钮
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
+      Button({ type: ButtonType.Circle, stateEffect: false }) {
         VideoControlIcon({ icon: this.player.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill') })
       }
-      .circleButton()
+      .iconButton()
       .onClick(() => {
         ToolsUtil.startVibration()
         this.onTogglePlaybackClick()
@@ -87,10 +86,10 @@ export struct VideoButtonsComponent {
       .defaultFocus(true)
 
       // 下一首按钮
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
+      Button({ type: ButtonType.Circle, stateEffect: false }) {
         VideoControlIcon({ icon: $r('sys.symbol.forward_end_fill') })
       }
-      .circleButton()
+      .iconButton()
       .onClick(() => {
         this.onPlayNextVideoClick()
       })
@@ -106,15 +105,15 @@ export struct VideoButtonsComponent {
         .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
 
       // 设置按钮
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
+      Button({ type: ButtonType.Circle, stateEffect: false }) {
         VideoControlIcon({ icon: $r('sys.symbol.gearshape') })
       }
-      .circleButton()
+      .iconButton()
       .bindMenu(this.videoSettingBuilder,
         { backgroundBlurStyle: BlurStyle.COMPONENT_THIN })
 
       // 倍速调整按钮
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
+      Button({ type: ButtonType.Circle, stateEffect: false }) {
         Text(`${this.player.speed}x`)
           .fontSize(15)
           .fontColor($r('sys.color.white'))
@@ -123,15 +122,15 @@ export struct VideoButtonsComponent {
           .opacity(0.9)
           .textShadow({ color: Color.Black, type: ShadowType.BLUR, radius: 3 })
       }
-      .circleButton()
+      .iconButton()
       .bindMenu(this.playbackSpeedMenu,
         { backgroundBlurStyle: BlurStyle.COMPONENT_THIN })
 
       // 选集按钮
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
+      Button({ type: ButtonType.Circle, stateEffect: false }) {
         VideoControlIcon({ icon: $r('sys.symbol.music_note_list') })
       }
-      .circleButton()
+      .iconButton()
       .onClick(() => {
         if (this._sideBarStatus) {
           this.onSideBaClose()
@@ -144,10 +143,10 @@ export struct VideoButtonsComponent {
       })
 
       // 屏幕旋转按钮
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
+      Button({ type: ButtonType.Circle, stateEffect: false }) {
         VideoControlIcon({ icon: $r('sys.symbol.fullscreen') })
       }
-      .circleButton()
+      .iconButton()
       .onClick(async () => {
         await this.onScreenRotationOrFullScreenClick()
       })

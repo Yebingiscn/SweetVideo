@@ -10,7 +10,7 @@ export struct ImportSelectDialog {
 
   build() {
     Column({ space: 16 }) {
-      Text('导入')
+      Text($r('app.string.import_label'))
         .fontSize(DIALOG_TITLE_FONT_SIZE)
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)

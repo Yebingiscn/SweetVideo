@@ -80,9 +80,9 @@ export class SubtitleManager {
 
   set3DMode(mode: Subtitle3DMode): void {
     this.subtitle3DMode = mode !== Subtitle3DMode.DISABLED && this.isMpv &&
-      this.subtitleMode === SubtitleMode.INNER_SUBTITLE && !this.player?.supportsSubtitle3D() ?
+      this.subtitleMode === SubtitleMode.INNER_SUBTITLE && !this.player?.subtitleController.supportsSubtitle3D() ?
       Subtitle3DMode.DISABLED : mode
-    this.player?.setSubtitle3DMode(this.subtitle3DMode)
+    this.player?.subtitleController.setSubtitle3DMode(this.subtitle3DMode)
     this.savePreference()
   }
 
@@ -136,7 +136,7 @@ export class SubtitleManager {
     }
 
     if (this.isMpv && this.subtitleMode === SubtitleMode.INNER_SUBTITLE &&
-      this.subtitle3DMode !== Subtitle3DMode.DISABLED && !this.player!.supportsSubtitle3D()) {
+      this.subtitle3DMode !== Subtitle3DMode.DISABLED && !this.player!.subtitleController.supportsSubtitle3D()) {
       this.subtitle3DMode = Subtitle3DMode.DISABLED
     }
 
@@ -155,15 +155,15 @@ export class SubtitleManager {
     }
     if (this.subtitleMode === SubtitleMode.INNER_SUBTITLE) {
       if (this.player.subtitleTrackSelected >= 0) {
-        this.player.selectSubtitleTrack(this.player.subtitleTrackSelected)
+        this.player.subtitleController.selectSubtitleTrack(this.player.subtitleTrackSelected)
       }
     } else if (this.subtitleMode === SubtitleMode.EXTERNAL_SUBTITLE) {
-      this.player.selectExternalSubtitleTrack()
+      this.player.subtitleController.selectExternalSubtitleTrack()
     } else {
-      this.player.selectSubtitleTrack(-1)
-      this.player.selectSecondarySubtitleTrack(-1)
+      this.player.subtitleController.selectSubtitleTrack(-1)
+      this.player.subtitleController.selectSecondarySubtitleTrack(-1)
     }
-    this.player.setSubtitle3DMode(this.subtitle3DMode)
+    this.player.subtitleController.setSubtitle3DMode(this.subtitle3DMode)
   }
 
   private resetSubtitleMetadata(nowPlaying: VideoMetadata): void {

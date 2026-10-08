@@ -10,7 +10,7 @@ export struct EditPasswordDialog {
 
   build() {
     Column({ space: 25 }) {
-      Text(PrivacySpaceUtil.getPrivacyMode() ? '修改密码 (/▽＼)' : $r('app.string.set_passwd'))
+      Text(PrivacySpaceUtil.getPrivacyMode() ? $r('app.string.change_password') : $r('app.string.set_passwd'))
         .fontSize(DIALOG_TITLE_FONT_SIZE)
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)

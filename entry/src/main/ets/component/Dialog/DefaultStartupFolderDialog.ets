@@ -4,8 +4,7 @@ import FileFolderUtil from '../../utils/FileFolderUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import Preferences from '../../database/Preferences'
 import { DialogButtonBar } from './DialogButtonBar'
-
-const IPTV_SOURCE_PREFIX = '__iptv_src__'
+import StartupPageUtil, { StartupPageOption } from '../../utils/StartupPageUtil'
 
 @CustomDialog
 export struct DefaultStartupFolderDialog {
@@ -15,9 +14,9 @@ export struct DefaultStartupFolderDialog {
 
   aboutToAppear(): void {
     const savedDate = Preferences.getDefaultStartupFolder(PathUtils.appContext!)
-    if (savedDate !== '' && savedDate !== '__stream__' && savedDate !== '__iptv__') {
-      if (savedDate.startsWith(IPTV_SOURCE_PREFIX)) {
-        const sourceId = savedDate.substring(IPTV_SOURCE_PREFIX.length)
+    if (savedDate !== '' && !StartupPageUtil.getPage(savedDate)) {
+      if (savedDate.startsWith(StartupPageUtil.IPTV_SOURCE_PREFIX)) {
+        const sourceId = savedDate.substring(StartupPageUtil.IPTV_SOURCE_PREFIX.length)
         const sources = Preferences.getIPTVSources(PathUtils.appContext!)
         if (!sources.some(s => s.id === sourceId)) {
           Preferences.saveDefaultStartupFolder(PathUtils.appContext!, '')
@@ -38,7 +37,7 @@ export struct DefaultStartupFolderDialog {
 
   build() {
     Column({ space: 20 }) {
-      Text('选择默认启动页面')
+      Text($r('app.string.select_default_start_page'))
         .fontSize(20)
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)
@@ -56,7 +55,7 @@ export struct DefaultStartupFolderDialog {
                   this.selectedFolderDate = ''
                 }
               })
-            Text('默认（首页）')
+            Text($r('app.string.default_start_page_default'))
               .fontSize(14)
               .fontColor($r('app.color.text_color'))
           }
@@ -73,77 +72,47 @@ export struct DefaultStartupFolderDialog {
           })
         }
 
-        ListItem() {
-          Row({ space: 10 }) {
-            Radio({ value: '__stream__', group: 'default_startup_folder' })
-              .radioStyle({
-                checkedBackgroundColor: $r('app.color.main_color')
+        Repeat<StartupPageOption>(StartupPageUtil.pages)
+          .each((repeatItem: RepeatItem<StartupPageOption>) => {
+            ListItem() {
+              Row({ space: 10 }) {
+                Radio({ value: repeatItem.item.value, group: 'default_startup_folder' })
+                  .radioStyle({
+                    checkedBackgroundColor: $r('app.color.main_color')
+                  })
+                  .checked(this.selectedFolderDate === repeatItem.item.value)
+                  .onChange((isChecked: boolean) => {
+                    if (isChecked) {
+                      this.selectedFolderDate = repeatItem.item.value
+                    }
+                  })
+                Text(repeatItem.item.label)
+                  .fontSize(14)
+                  .fontColor($r('app.color.text_color'))
+              }
+              .width('100%')
+              .padding({ left: 12, right: 12, top: 8, bottom: 8 })
+              .borderRadius(12)
+              .onClick(() => {
+                this.selectedFolderDate = repeatItem.item.value
               })
-              .checked(this.selectedFolderDate === '__stream__')
-              .onChange((isChecked: boolean) => {
-                if (isChecked) {
-                  this.selectedFolderDate = '__stream__'
-                }
-              })
-            Text('串流页')
-              .fontSize(14)
-              .fontColor($r('app.color.text_color'))
-          }
-          .width('100%')
-          .padding({
-            left: 12,
-            right: 12,
-            top: 8,
-            bottom: 8
+            }
           })
-          .borderRadius(12)
-          .onClick(() => {
-            this.selectedFolderDate = '__stream__'
-          })
-        }
-
-        ListItem() {
-          Row({ space: 10 }) {
-            Radio({ value: '__iptv__', group: 'default_startup_folder' })
-              .radioStyle({
-                checkedBackgroundColor: $r('app.color.main_color')
-              })
-              .checked(this.selectedFolderDate === '__iptv__')
-              .onChange((isChecked: boolean) => {
-                if (isChecked) {
-                  this.selectedFolderDate = '__iptv__'
-                }
-              })
-            Text('IPTV源列表')
-              .fontSize(14)
-              .fontColor($r('app.color.text_color'))
-          }
-          .width('100%')
-          .padding({
-            left: 12,
-            right: 12,
-            top: 8,
-            bottom: 8
-          })
-          .borderRadius(12)
-          .onClick(() => {
-            this.selectedFolderDate = '__iptv__'
-          })
-        }
+          .key((item: StartupPageOption) => item.value)
 
         Repeat<IPTVSource>(Preferences.getIPTVSources(PathUtils.appContext!))
           .each((repeatItem: RepeatItem<IPTVSource>) => {
             ListItem() {
               Row({ space: 10 }) {
                 Row().width(12)
-                Radio({ value: `${IPTV_SOURCE_PREFIX}${repeatItem.item.id}`, group: 'default_startup_folder' })
+                Radio({ value: `${StartupPageUtil.IPTV_SOURCE_PREFIX}${repeatItem.item.id}`, group: 'default_startup_folder' })
                   .radioStyle({
                     checkedBackgroundColor: $r('app.color.main_color')
                   })
-                  .checked(this.selectedFolderDate === `${IPTV_SOURCE_PREFIX}${repeatItem.item.id}`)
+                  .checked(this.selectedFolderDate === `${StartupPageUtil.IPTV_SOURCE_PREFIX}${repeatItem.item.id}`)
                   .onChange((isChecked: boolean) => {
                     if (isChecked) {
-                      this.selectedFolderDate = `${IPTV_SOURCE_PREFIX}${repeatItem.item.id}`
+                      this.selectedFolderDate = `${StartupPageUtil.IPTV_SOURCE_PREFIX}${repeatItem.item.id}`
                     }
                   })
                 Text(repeatItem.item.name)
@@ -162,11 +131,11 @@ export struct DefaultStartupFolderDialog {
               })
               .borderRadius(12)
               .onClick(() => {
-                this.selectedFolderDate = `${IPTV_SOURCE_PREFIX}${repeatItem.item.id}`
+                this.selectedFolderDate = `${StartupPageUtil.IPTV_SOURCE_PREFIX}${repeatItem.item.id}`
               })
             }
           })
-          .key((item: IPTVSource) => `${IPTV_SOURCE_PREFIX}${item.id}`)
+          .key((item: IPTVSource) => `${StartupPageUtil.IPTV_SOURCE_PREFIX}${item.id}`)
 
         Repeat<FileFolder>(FileFolderUtil.flattenTree(Preferences.getFileFolder(PathUtils.appContext!)))
           .each((repeatItem: RepeatItem<FileFolder>) => {

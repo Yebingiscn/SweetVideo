@@ -8,22 +8,22 @@ import { SweetAgentComponent } from '../common/SweetAgentComponent'
 @Builder
 export function VideoDetailSheetBuilder(metadata?: VideoMetadata) {
   Column({ space: 10 }) {
-    Text('详情')
+    Text($r('app.string.menu_detail'))
       .fontSize(DIALOG_TITLE_FONT_SIZE)
       .fontColor($r('app.color.text_color'))
       .fontWeight(FontWeight.Bold)
       .margin({ top: 5 })
     SweetAgentComponent(
       {
-        queryText: VideoInfoUtil.hasVideoTrack(metadata) ? `介绍下视频：${metadata?.title}，格式：${metadata?.format}` :
-          `介绍下音频：${metadata?.title}，格式：${metadata?.format}`,
-        title: '问问小艺了解更多'
+        queryText: VideoInfoUtil.hasVideoTrack(metadata) ? ToolsUtil.getStringResourceArgs2($r('app.string.ai_query_video').id, metadata?.title ?? '', metadata?.format ?? '') :
+          ToolsUtil.getStringResourceArgs2($r('app.string.ai_query_audio').id, metadata?.title ?? '', metadata?.format ?? ''),
+        title: ToolsUtil.getStringResource($r('app.string.ask_xiaoyi').id)
       })
 
     List() {
       ListItem() {
         Row() {
-          Text(VideoInfoUtil.hasVideoTrack(metadata) ? '视频名称：' : '音频名称：')
+          Text(VideoInfoUtil.hasVideoTrack(metadata) ? $r('app.string.detail_video_name') : $r('app.string.detail_audio_name'))
             .fontSize(15)
             .fontColor($r('app.color.text_color'))
             .flexShrink(0)
@@ -44,7 +44,7 @@ export function VideoDetailSheetBuilder(metadata?: VideoMetadata) {
       if (metadata?.artist) {
         ListItem() {
           Row() {
-            Text('歌手：')
+            Text($r('app.string.detail_artist'))
               .fontSize(15)
               .fontColor($r('app.color.text_color'))
               .flexShrink(0)
@@ -66,7 +66,7 @@ export function VideoDetailSheetBuilder(metadata?: VideoMetadata) {
       if (metadata?.album) {
         ListItem() {
           Row() {
-            Text('专辑：')
+            Text($r('app.string.detail_album'))
               .fontSize(15)
               .fontColor($r('app.color.text_color'))
               .flexShrink(0)
@@ -87,7 +87,7 @@ export function VideoDetailSheetBuilder(metadata?: VideoMetadata) {
 
       ListItem() {
         Row() {
-          Text('格式：')
+          Text($r('app.string.detail_format'))
             .fontSize(15)
             .fontColor($r('app.color.text_color'))
             .flexShrink(0)
@@ -108,7 +108,7 @@ export function VideoDetailSheetBuilder(metadata?: VideoMetadata) {
       if (VideoInfoUtil.hasVideoTrack(metadata)) {
         ListItem() {
           Row() {
-            Text('分辨率：')
+            Text($r('app.string.detail_resolution'))
               .fontSize(15)
               .fontColor($r('app.color.text_color'))
               .flexShrink(0)
@@ -132,7 +132,7 @@ export function VideoDetailSheetBuilder(metadata?: VideoMetadata) {
       } else {
         ListItem() {
           Row() {
-            Text('音频品质：')
+            Text($r('app.string.detail_audio_quality'))
               .fontSize(15)
               .fontColor($r('app.color.text_color'))
               .flexShrink(0)
@@ -153,13 +153,13 @@ export function VideoDetailSheetBuilder(metadata?: VideoMetadata) {
 
       ListItem() {
         Row() {
-          Text('帧数：')
+          Text($r('app.string.detail_frame_rate'))
             .fontSize(15)
             .fontColor($r('app.color.text_color'))
             .flexShrink(0)
             .width(105)
 
-          Text(`${metadata?.frame_rate ?? '未知'} fps`)
+          Text(`${metadata?.frame_rate ?? ToolsUtil.getStringResource($r('app.string.unknown').id)} fps`)
             .fontSize(15)
             .fontColor($r('app.color.text_color'))
             .maxLines(8)
@@ -173,7 +173,7 @@ export function VideoDetailSheetBuilder(metadata?: VideoMetadata) {
 
       ListItem() {
         Row() {
-          Text('时长：')
+          Text($r('app.string.detail_duration'))
             .fontSize(15)
             .fontColor($r('app.color.text_color'))
             .flexShrink(0)
@@ -193,7 +193,7 @@ export function VideoDetailSheetBuilder(metadata?: VideoMetadata) {
 
       ListItem() {
         Row() {
-          Text('大小：')
+          Text($r('app.string.detail_size'))
             .fontSize(15)
             .fontColor($r('app.color.text_color'))
             .flexShrink(0)
@@ -213,7 +213,7 @@ export function VideoDetailSheetBuilder(metadata?: VideoMetadata) {
 
       ListItem() {
         Row() {
-          Text('上次播放进度：')
+          Text($r('app.string.detail_last_position'))
             .fontSize(15)
             .fontColor($r('app.color.text_color'))
             .flexShrink(0)
@@ -234,7 +234,7 @@ export function VideoDetailSheetBuilder(metadata?: VideoMetadata) {
       if (metadata?.last_played_at && metadata.last_played_at > 0) {
         ListItem() {
           Row() {
-            Text('最近播放：')
+            Text($r('app.string.recent_play'))
               .fontSize(15)
               .fontColor($r('app.color.text_color'))
               .flexShrink(0)
@@ -255,7 +255,7 @@ export function VideoDetailSheetBuilder(metadata?: VideoMetadata) {
 
       ListItem() {
         Row() {
-          Text('片头时间：')
+          Text($r('app.string.detail_intro_time'))
             .fontSize(15)
             .fontColor($r('app.color.text_color'))
             .flexShrink(0)
@@ -275,7 +275,7 @@ export function VideoDetailSheetBuilder(metadata?: VideoMetadata) {
 
       ListItem() {
         Row() {
-          Text('片尾时间：')
+          Text($r('app.string.detail_outro_time'))
             .fontSize(15)
             .fontColor($r('app.color.text_color'))
             .flexShrink(0)
@@ -295,7 +295,7 @@ export function VideoDetailSheetBuilder(metadata?: VideoMetadata) {
 
       ListItem() {
         Row() {
-          Text('路径：')
+          Text($r('app.string.detail_path'))
             .fontSize(15)
             .fontColor($r('app.color.text_color'))
             .flexShrink(0)
@@ -315,13 +315,13 @@ export function VideoDetailSheetBuilder(metadata?: VideoMetadata) {
 
       ListItem() {
         Row() {
-          Text('外挂字幕：')
+          Text($r('app.string.detail_external_subtitle'))
             .fontSize(15)
             .fontColor($r('app.color.text_color'))
             .flexShrink(0)
             .width(105)
 
-          Text(metadata?.external_subtitle_format || '无字幕')
+          Text(metadata?.external_subtitle_format || $r('app.string.no_subtitle'))
             .fontSize(15)
             .fontColor($r('app.color.text_color'))
             .maxLines(8)
@@ -335,7 +335,7 @@ export function VideoDetailSheetBuilder(metadata?: VideoMetadata) {
 
       ListItem() {
         Row() {
-          Text('循环A点')
+          Text($r('app.string.detail_loop_a'))
             .fontSize(15)
             .fontColor($r('app.color.text_color'))
             .flexShrink(0)
@@ -355,7 +355,7 @@ export function VideoDetailSheetBuilder(metadata?: VideoMetadata) {
 
       ListItem() {
         Row() {
-          Text('循环B点')
+          Text($r('app.string.detail_loop_b'))
             .fontSize(15)
             .fontColor($r('app.color.text_color'))
             .flexShrink(0)

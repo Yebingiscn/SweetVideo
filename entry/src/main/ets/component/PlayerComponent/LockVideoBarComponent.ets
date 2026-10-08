@@ -13,29 +13,27 @@ export struct LockVideoBarComponent {
 
   build() {
     Column({ space: 12 }) {
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
+      Button({ type: ButtonType.Circle, stateEffect: false }) {
         SymbolGlyph($r('sys.symbol.camera'))
           .fontSize(27)
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
       .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
+      .backgroundColor(Color.Transparent)
       .onClick(() => {
         this.onCaptureScreen()
       })
 
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
+      Button({ type: ButtonType.Circle, stateEffect: false }) {
         SymbolGlyph(this.player.isLock ? $r('sys.symbol.lock_fill') : $r('sys.symbol.lock_open_fill'))
           .fontWeight(FontWeight.Bold)
           .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
       .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
+      .backgroundColor(Color.Transparent)
       .aspectRatio(1)
       .margin({ top: 20 })
       .onClick(() => {

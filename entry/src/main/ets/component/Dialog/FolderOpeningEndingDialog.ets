@@ -27,12 +27,12 @@ export struct FolderOpeningEndingDialog {
 
   build() {
     Column({ space: 16 }) {
-      Text('设置片头片尾')
+      Text($r('app.string.menu_intro_outro'))
         .fontSize(20)
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)
 
-      Text(`将覆盖"${this.folderName}"中 ${this.videoCount} 个视频的片头片尾时间`)
+      Text($r('app.string.op_ed_overwrite_confirm', this.folderName, this.videoCount))
         .fontSize(13)
         .fontColor($r('sys.color.font_secondary'))
         .width('100%')
@@ -58,12 +58,12 @@ export struct FolderOpeningEndingDialog {
   StartTimeSlider() {
     Column({ space: 6 }) {
       Row({ space: 12 }) {
-        Text('跳过片头')
+        Text($r('app.string.skip_intro'))
           .fontSize(14)
           .fontColor($r('app.color.text_color'))
           .fontWeight(FontWeight.Medium)
 
-        Text(this.startTime === 0 ? '关闭' : TimeUtil.convertSSToMMSS(this.startTime))
+        Text(this.startTime === 0 ? $r('app.string.off') : TimeUtil.convertSSToMMSS(this.startTime))
           .fontSize(14)
           .fontColor($r('app.color.text_color'))
           .fontWeight(FontWeight.Medium)
@@ -94,12 +94,12 @@ export struct FolderOpeningEndingDialog {
   EndTimeSlider() {
     Column({ space: 6 }) {
       Row({ space: 12 }) {
-        Text('跳过片尾')
+        Text($r('app.string.skip_outro'))
           .fontSize(14)
           .fontColor($r('app.color.text_color'))
           .fontWeight(FontWeight.Medium)
 
-        Text(this.endTime === 0 ? '关闭' : TimeUtil.convertSSToMMSS(this.endTime))
+        Text(this.endTime === 0 ? $r('app.string.off') : TimeUtil.convertSSToMMSS(this.endTime))
           .fontSize(14)
           .fontColor($r('app.color.text_color'))
           .fontWeight(FontWeight.Medium)

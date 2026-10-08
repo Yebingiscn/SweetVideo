@@ -9,14 +9,13 @@ import SelectFileUtil from './SelectFileUtil'
 import ToolsUtil from './ToolsUtil'
 import { WindowUtil } from './WindowUtil'
 import { systemDateTime } from '@kit.BasicServicesKit'
-import { fileUri } from '@kit.CoreFileKit'
+import { fileIo, fileUri } from '@kit.CoreFileKit'
 import { systemShare } from '@kit.ShareKit'
 
 import Preferences from '../database/Preferences'
 import { VideoFormData } from '../forms/VideoFormData'
 import NavigationAddress, { PlayerParams } from '../common/NavigationCommon'
 import VideoOperateUtil from './VideoOperateUtil'
-import { fileIo } from '@kit.CoreFileKit'
 
 const TAG = 'WantProcessUtil'
 
@@ -90,7 +89,7 @@ export default class WantProcess {
         salmonLogger.addLog(TAG, `Failed: Code ${businessError.code}, ${businessError.message}`, true)
       }
     } else {
-      ToolsUtil.showToast('系统不支持该功能')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.feature_not_supported').id))
       salmonLogger.addLog(TAG, '系统不支持处理 system share', true)
     }
   }
@@ -221,7 +220,7 @@ export default class WantProcess {
     const recent = Preferences.getRecentPlay(context)
     const video = recent.find(item => item.date === mediaId && VideoFormData.isPublicMedia(item))
     if (!video) {
-      ToolsUtil.showToast('播放记录已失效，请重新选择')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.play_record_invalid').id))
       pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, null)
       return
     }
@@ -240,7 +239,7 @@ export default class WantProcess {
       params.resumeFromCard = true
       pathStack.pushPathByName(NavigationAddress.VIDEO_PLAYER, params)
     } catch (_) {
-      ToolsUtil.showToast('文件无法访问，请重新授权或选择其他记录')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.file_access_denied').id))
       pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, null)
     }
   }
@@ -259,7 +258,7 @@ export default class WantProcess {
 
   static async linkToVideoSource(uri: string | undefined): Promise<void> {
     if (!uri) {
-      ToolsUtil.showToast('文件地址异常')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.invalid_file_path').id))
       salmonLogger.addLog(TAG, "file address failed", false)
       return
     }
@@ -276,7 +275,7 @@ export default class WantProcess {
       WantProcess.linkToFileManager(uri)
       return
     }
-    ToolsUtil.showToast('不支持打开文件位置')
+    ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.open_file_location_unsupported').id))
   }
 
   static async linkToGallery(uri: string): Promise<void> {
@@ -335,7 +334,7 @@ export default class WantProcess {
         salmonLogger.addLog(TAG, '成功打开应用市场评论页', false)
       })
       ?.catch((error: BusinessError) => {
-        ToolsUtil.showToast('打开应用市场失败，原因是：' + error)
+        ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.open_app_market_failed').id, String(error)))
         salmonLogger.addLog(TAG, '打开应用市场评论页失败，原因是：' + error, true)
       })
   }

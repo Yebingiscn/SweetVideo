@@ -45,28 +45,26 @@ export struct VideoTopComponent {
   build() {
     Row({ space: 8 }) {
       // 1. 返回按钮
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
+      Button({ type: ButtonType.Circle, stateEffect: false }) {
         SymbolGlyph($r('sys.symbol.chevron_left'))
           .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
       .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
+      .backgroundColor(Color.Transparent)
       .onClick(() => {
         this.onExitVideoClick()
       })
 
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
+      Button({ type: ButtonType.Circle, stateEffect: false }) {
         SymbolGlyph($r('sys.symbol.rectangle_portrait_filled_on_rectangle_portrait'))
           .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
       .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
+      .backgroundColor(Color.Transparent)
       .onClick(() => {
         this.pipStateChange()
       })
@@ -81,53 +79,49 @@ export struct VideoTopComponent {
         .opacity(0.8)
         .layoutWeight(1)
 
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
+      Button({ type: ButtonType.Circle, stateEffect: false }) {
         SymbolGlyph($r('sys.symbol.barrage_setting'))
           .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
-      .accessibilityText('本地弹幕')
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
+      .accessibilityText($r('app.string.local_danmaku'))
       .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
+      .backgroundColor(Color.Transparent)
       .bindMenu(this.danmakuMenuBuilder, { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
 
       // 3. 字幕按钮
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
+      Button({ type: ButtonType.Circle, stateEffect: false }) {
         SymbolGlyph(this.isAnySubtitleActive ?
           $r('sys.symbol.textformat_size_square_fill') : $r('sys.symbol.textformat_size_square'))
           .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
       .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
+      .backgroundColor(Color.Transparent)
       .bindMenu(this.subtitlePanelComponent, { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
 
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
+      Button({ type: ButtonType.Circle, stateEffect: false }) {
         SymbolGlyph($r('sys.symbol.opticaldisc'))
           .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
       .attributeModifier(new ButtonFancyModifier(40, 40))
-      .backgroundColor('#50000000')
+      .backgroundColor(Color.Transparent)
       .bindMenu(this.audioTrackMenuBuilder,
         { backgroundBlurStyle: BlurStyle.COMPONENT_THIN })
 
       if (this.player.hasChapterSupport() && this.player.chapterList.length > 0) {
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
+        Button({ type: ButtonType.Circle, stateEffect: false }) {
           SymbolGlyph($r('sys.symbol.list_bullet'))
             .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
             .fontColor(['#f0f0f0'])
             .opacity(0.8)
         }
-        .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
         .attributeModifier(new ButtonFancyModifier(40, 40))
-        .backgroundColor('#50000000')
+        .backgroundColor(Color.Transparent)
         .bindMenu(this.chapterMenuBuilder,
           { backgroundBlurStyle: BlurStyle.COMPONENT_THIN })
       }
@@ -150,15 +144,14 @@ export struct VideoTopComponent {
       }
 
       // 6. 旋转锁定按钮
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
+      Button({ type: ButtonType.Circle, stateEffect: false }) {
         SymbolGlyph(this.lockRotation ? $r('sys.symbol.lock_fill') : $r('sys.symbol.rotate_left'))
           .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
           .fontColor(['#f0f0f0'])
           .opacity(0.8)
       }
-      .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
       .attributeModifier(new ButtonFancyModifier(35, 40))
-      .backgroundColor('#50000000')
+      .backgroundColor(Color.Transparent)
       .onClick(async () => {
         await this.onLockRotationClick()
       })

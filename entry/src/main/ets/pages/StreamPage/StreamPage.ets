@@ -1,3 +1,4 @@
+import MediaSortUtil from '../../utils/MediaSortUtil'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import Preferences from '../../database/Preferences'
 import { PathUtils } from '../../utils/PathUtils'
@@ -78,7 +79,7 @@ export struct StreamPage {
   private pendingDeleteStream: VideoMetadata | null = null
   deleteConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog({
-      textInfo: '确定删除该串流吗？',
+      textInfo: $r('app.string.delete_stream_confirm'),
       confirm: async () => {
         if (this.pendingDeleteStream) {
           await this.deleteStream(this.pendingDeleteStream)
@@ -98,7 +99,8 @@ export struct StreamPage {
     this.allStreams = Preferences.getNetworkStreams(PathUtils.appContext!)
     this.networkStreams = this.allStreams
     const savedField = Preferences.getSortField(PathUtils.appContext!)
-    if (savedField === SortField.NAME || savedField === SortField.DATETIME || savedField === SortField.TIME) {
+    if (savedField === SortField.NAME || savedField === SortField.DATETIME || savedField === SortField.TIME ||
+      savedField === SortField.RECENT_PLAY) {
       this.currentSortField = savedField as SortField
     }
     this.currentSortAsc = Preferences.getSortAsc(PathUtils.appContext!)
@@ -153,6 +155,12 @@ export struct StreamPage {
       pinyinSortField: SortField.NAME,
       items: [
         {
+          field: SortField.RECENT_PLAY,
+          icon: $r('sys.symbol.play_circle'),
+          textResource: $r('app.string.sort_by_recent_play'),
+          onAction: (): void => this.handleSort(SortField.RECENT_PLAY, false)
+        },
+        {
           field: SortField.DATETIME,
           icon: $r('sys.symbol.calendar'),
           textResource: $r('app.string.sort_by_datetime'),
@@ -189,7 +197,7 @@ export struct StreamPage {
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
-        content: '编辑'
+        content: $r('app.string.edit')
       })
         .onClick(() => {
           DataSyncUtil.editingVideo = item
@@ -197,7 +205,7 @@ export struct StreamPage {
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')),
-        content: '删除'
+        content: $r('app.string.delete')
       })
         .onClick(() => {
           this.pendingDeleteStream = item!
@@ -221,16 +229,16 @@ export struct StreamPage {
         if (this.networkStreams.length === 0) {
           Column() {
             if (this.searchValue.trim() !== '') {
-              Text('未找到相关串流')
+              Text($r('app.string.no_matching_stream'))
                 .fontSize(18)
                 .fontColor($r('app.color.text_color'))
                 .opacity(0.6)
             } else {
-              Text('暂无串流')
+              Text($r('app.string.no_stream'))
                 .fontSize(18)
                 .fontColor($r('app.color.text_color'))
                 .opacity(0.6)
-              Text('点击右上角 + 添加串流')
+              Text($r('app.string.add_stream_hint_top_right'))
                 .fontSize(14)
                 .fontColor($r('app.color.text_color'))
                 .opacity(0.4)
@@ -430,7 +438,7 @@ export struct StreamPage {
       },
       content: {
         title: {
-          mainTitle: '网络串流',
+          mainTitle: $r('app.string.network_stream_title'),
         },
         menu: {
           value: [{
@@ -519,13 +527,16 @@ export struct StreamPage {
     Preferences.saveSortAsc(PathUtils.appContext!, this.currentSortAsc)
     switch (field) {
       case SortField.NAME:
-        this.allStreams = ToolsUtil.sortByNameProcess(this.allStreams, this.currentSortAsc, this.pinyinSort)
+        this.allStreams = MediaSortUtil.sortByNameProcess(this.allStreams, this.currentSortAsc, this.pinyinSort)
         break
       case SortField.DATETIME:
-        this.allStreams = ToolsUtil.sortByDatetimeProcess(this.allStreams, this.currentSortAsc)
+        this.allStreams = MediaSortUtil.sortByDatetimeProcess(this.allStreams, this.currentSortAsc)
         break
       case SortField.TIME:
-        this.allStreams = ToolsUtil.sortByTimeProcess(this.allStreams, this.currentSortAsc)
+        this.allStreams = MediaSortUtil.sortByTimeProcess(this.allStreams, this.currentSortAsc)
+        break
+      case SortField.RECENT_PLAY:
+        this.allStreams = MediaSortUtil.sortByRecentPlayProcess(this.allStreams, this.currentSortAsc)
         break
     }
     this.applySearch()
@@ -535,7 +546,7 @@ export struct StreamPage {
     this.pinyinSort = value
     Preferences.savePinyinSort(PathUtils.appContext!, this.pinyinSort)
     if (this.currentSortField === SortField.NAME) {
-      this.allStreams = ToolsUtil.sortByNameProcess(this.allStreams, this.currentSortAsc, this.pinyinSort)
+      this.allStreams = MediaSortUtil.sortByNameProcess(this.allStreams, this.currentSortAsc, this.pinyinSort)
       this.applySearch()
     }
   }

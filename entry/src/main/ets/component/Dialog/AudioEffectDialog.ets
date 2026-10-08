@@ -7,10 +7,10 @@ const EFFECT_VALUES: string[] = [
   'voice-beautifier', 'environment', 'audio-mixer', 'space-render',
   'pure-voice-change', 'general-voice-change', 'tempo-pitch', 'hoa-space-render'
 ]
-const EFFECT_LABELS: string[] = [
-  '关闭', '音效预设', '均衡器', '降噪', '声场', '伴唱',
-  '声音美化', '环境音效', '混音', '空间渲染',
-  '传统变声', '通用变声', '变速变调', 'HOA 空间渲染'
+const EFFECT_LABELS: ResourceStr[] = [
+  $r('app.string.off'), $r('app.string.effect_preset'), $r('app.string.effect_equalizer'), $r('app.string.effect_noise_reduction'), $r('app.string.effect_sound_field'), $r('app.string.effect_accompaniment'),
+  $r('app.string.effect_voice_beautifier'), $r('app.string.effect_environment'), $r('app.string.effect_audio_mixer'), $r('app.string.effect_space_render'),
+  $r('app.string.effect_pure_voice_change'), $r('app.string.effect_general_voice_change'), $r('app.string.effect_tempo_pitch'), $r('app.string.effect_hoa_space_render')
 ]
 
 const PRESET_VALUES: string[] = [
@@ -18,10 +18,10 @@ const PRESET_VALUES: string[] = [
   'vocal', 'bass-boost', 'gaming', 'retro',
   'space-extension', 'broadcast-studio'
 ]
-const PRESET_LABELS: string[] = [
-  '高保真', '环绕立体声', '影院模式', '音乐厅',
-  '人声增强', '低音增强', '3D环绕', '怀旧复古',
-  '空间拓展', '广播质感'
+const PRESET_LABELS: ResourceStr[] = [
+  $r('app.string.preset_hifi'), $r('app.string.preset_surround'), $r('app.string.preset_cinema'), $r('app.string.preset_concert'),
+  $r('app.string.preset_vocal'), $r('app.string.preset_bass_boost'), $r('app.string.preset_gaming'), $r('app.string.preset_retro'),
+  $r('app.string.preset_space_extension'), $r('app.string.preset_broadcast_studio')
 ]
 
 function createPresetConfig(preset: string): AudioEffectConfig {
@@ -86,54 +86,54 @@ const EQ_VALUES: string[] = [
   'custom', 'default', 'ballads', 'chinese-style', 'classical',
   'dance', 'jazz', 'pop', 'r-and-b', 'rock'
 ]
-const EQ_LABELS: string[] = [
-  '自定义', '默认', '抒情', '国风', '古典',
-  '舞曲', '爵士', '流行', 'R&B', '摇滚'
+const EQ_LABELS: ResourceStr[] = [
+  $r('app.string.eq_custom'), $r('app.string.eq_default'), $r('app.string.eq_ballads'), $r('app.string.eq_chinese_style'), $r('app.string.eq_classical'),
+  $r('app.string.eq_dance'), $r('app.string.eq_jazz'), $r('app.string.eq_pop'), $r('app.string.eq_randb'), $r('app.string.eq_rock')
 ]
 const EQ_FREQ_LABELS: string[] = ['31Hz', '62Hz', '125Hz', '250Hz', '500Hz', '1kHz', '2kHz', '4kHz', '8kHz', '16kHz']
 
 const SOUND_FIELD_VALUES: string[] = ['front-facing', 'grand', 'near', 'wide']
-const SOUND_FIELD_LABELS: string[] = ['正面', '宏大', '近场', '宽广']
+const SOUND_FIELD_LABELS: ResourceStr[] = [$r('app.string.sf_front'), $r('app.string.sf_grand'), $r('app.string.sf_near'), $r('app.string.sf_wide')]
 
 const ENVIRONMENT_VALUES: string[] = ['broadcast', 'earpiece', 'underwater', 'gramophone']
-const ENVIRONMENT_LABELS: string[] = ['广播', '听筒', '水下', '留声机']
+const ENVIRONMENT_LABELS: ResourceStr[] = [$r('app.string.env_broadcast'), $r('app.string.env_earpiece'), $r('app.string.env_underwater'), $r('app.string.env_gramophone')]
 
 const BEAUTIFIER_VALUES: string[] = ['clear', 'theatre', 'cd', 'studio']
-const BEAUTIFIER_LABELS: string[] = ['清晰', '剧院', 'CD', '录音棚']
+const BEAUTIFIER_LABELS: ResourceStr[] = [$r('app.string.bf_clear'), $r('app.string.bf_theatre'), 'CD', $r('app.string.bf_studio')]
 
 const SPACE_MODE_VALUES: string[] = ['position', 'rotation', 'extension']
-const SPACE_MODE_LABELS: string[] = ['固定位置', '环绕旋转', '空间扩展']
+const SPACE_MODE_LABELS: ResourceStr[] = [$r('app.string.space_position'), $r('app.string.space_rotation'), $r('app.string.space_extension')]
 
 const DIRECTION_VALUES: string[] = ['counterclockwise', 'clockwise']
-const DIRECTION_LABELS: string[] = ['逆时针', '顺时针']
+const DIRECTION_LABELS: ResourceStr[] = [$r('app.string.dir_counterclockwise'), $r('app.string.dir_clockwise')]
 
 const PURE_GENDER_VALUES: string[] = ['female', 'male']
-const PURE_GENDER_LABELS: string[] = ['女声源', '男声源']
+const PURE_GENDER_LABELS: ResourceStr[] = [$r('app.string.gender_female'), $r('app.string.gender_male')]
 
 const PURE_TYPE_VALUES: string[] = ['cartoon', 'cute', 'female', 'male', 'monster', 'robots', 'seasoned']
-const PURE_TYPE_LABELS: string[] = ['卡通', '萝莉', '女声', '男声', '怪物', '机器人', '大叔']
+const PURE_TYPE_LABELS: ResourceStr[] = [$r('app.string.voice_cartoon'), $r('app.string.voice_cute'), $r('app.string.voice_female'), $r('app.string.voice_male'), $r('app.string.voice_monster'), $r('app.string.voice_robot'), $r('app.string.voice_seasoned')]
 
 const GENERAL_VALUES: string[] =
   ['cute', 'cyberpunk', 'female', 'male', 'mix', 'monster', 'seasoned', 'synth', 'trill', 'war']
-const GENERAL_LABELS: string[] = ['萝莉', '赛博朋克', '女声', '男声', '混合', '怪物', '大叔', '合成器', '颤音', '战争']
+const GENERAL_LABELS: ResourceStr[] = [$r('app.string.voice_cute'), $r('app.string.gen_cyberpunk'), $r('app.string.voice_female'), $r('app.string.voice_male'), $r('app.string.gen_mix'), $r('app.string.voice_monster'), $r('app.string.voice_seasoned'), $r('app.string.gen_synth'), $r('app.string.gen_trill'), $r('app.string.gen_war')]
 
 const SEPARATION_VALUES: string[] = ['vocals', 'accompaniment', 'mix']
-const SEPARATION_LABELS: string[] = ['人声', '伴奏', '合成']
+const SEPARATION_LABELS: ResourceStr[] = [$r('app.string.sep_vocals'), $r('app.string.sep_accompaniment'), $r('app.string.sep_mix')]
 
 const HOA_VALUES: string[] = [
   'order1-acn-n3d', 'order1-acn-sn3d', 'order1-fuma',
   'order2-acn-n3d', 'order2-acn-sn3d', 'order2-fuma',
   'order3-acn-n3d', 'order3-acn-sn3d', 'order3-fuma'
 ]
-const HOA_LABELS: string[] = [
-  '一阶 ACN/N3D', '一阶 ACN/SN3D', '一阶 FuMa',
-  '二阶 ACN/N3D', '二阶 ACN/SN3D', '二阶 FuMa',
-  '三阶 ACN/N3D', '三阶 ACN/SN3D', '三阶 FuMa'
+const HOA_LABELS: ResourceStr[] = [
+  $r('app.string.hoa_1_acn_n3d'), $r('app.string.hoa_1_acn_sn3d'), $r('app.string.hoa_1_fuma'),
+  $r('app.string.hoa_2_acn_n3d'), $r('app.string.hoa_2_acn_sn3d'), $r('app.string.hoa_2_fuma'),
+  $r('app.string.hoa_3_acn_n3d'), $r('app.string.hoa_3_acn_sn3d'), $r('app.string.hoa_3_fuma')
 ]
 
 @Component
 struct TabSelector {
-  labels: string[] = []
+  labels: ResourceStr[] = []
   values: string[] = []
   @Prop current: string = ''
   onSelect: (value: string) => void = () => {
@@ -141,8 +141,8 @@ struct TabSelector {
 
   build() {
     Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start, alignContent: FlexAlign.Start }) {
-      Repeat<string>(this.labels)
-        .each((repeatItem: RepeatItem<string>) => {
+      Repeat<ResourceStr>(this.labels)
+        .each((repeatItem: RepeatItem<ResourceStr>) => {
           Row() {
             Text(repeatItem.item)
               .fontSize(13)
@@ -163,7 +163,7 @@ struct TabSelector {
             this.onSelect(this.values[repeatItem.index])
           })
         })
-        .key((item: string, index: number) => `${index}_${item}`)
+        .key((item: ResourceStr, index: number) => `${index}_${this.values[index]}`)
     }
     .width('100%')
   }
@@ -171,7 +171,7 @@ struct TabSelector {
 
 @Component
 struct ValueSliderComponent {
-  title: string = ''
+  title: ResourceStr = ''
   @Prop value: number = 0
   min: number = 0
   max: number = 1
@@ -211,7 +211,7 @@ export struct AudioEffectDialog {
   @State systemPlayer: boolean = false
   @State applyStatus: string = ''
   @State effectValues: string[] = EFFECT_VALUES
-  @State effectLabels: string[] = EFFECT_LABELS
+  @State effectLabels: ResourceStr[] = EFFECT_LABELS
   @State effect: string = 'off'
   @State eqPreset: string = 'default'
   @State eqGains: number[] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -243,9 +243,9 @@ export struct AudioEffectDialog {
     this.systemPlayer = this.isSystemPlayer?.() === true
     this.effectValues = EFFECT_VALUES.filter((value: string) =>
     !this.systemPlayer || (value !== 'hoa-space-render' && value !== 'audio-mixer'))
-    this.effectLabels = this.effectValues.map((value: string) => {
+    this.effectLabels = this.effectValues.map((value: string): ResourceStr => {
       if (this.systemPlayer && value === 'tempo-pitch') {
-        return '变调'
+        return $r('app.string.effect_pitch_shift')
       }
       return EFFECT_LABELS[EFFECT_VALUES.indexOf(value)]
     })
@@ -259,7 +259,7 @@ export struct AudioEffectDialog {
 
   build() {
     Column({ space: 12 }) {
-      Text('流心音效')
+      Text($r('app.string.sweet_audio_effect'))
         .fontSize(20)
         .fontWeight(FontWeight.Bold)
         .fontColor($r('app.color.text_color'))
@@ -358,7 +358,7 @@ export struct AudioEffectDialog {
                   this.applyCurrentConfig()
                 }
               })
-              this.HintText('音源分离依赖设备 NPU 能力；不支持时会自动关闭效果。')
+              this.HintText($r('app.string.npu_hint'))
             }
             .width('100%')
             .padding(12)
@@ -409,7 +409,7 @@ export struct AudioEffectDialog {
               })
               if (this.spaceMode === 'position' || this.spaceMode === 'rotation') {
                 ValueSliderComponent({
-                  title: 'X（米）',
+                  title: $r('app.string.axis_x_m'),
                   value: this.spaceX,
                   min: -5,
                   max: 5,
@@ -421,7 +421,7 @@ export struct AudioEffectDialog {
                   }
                 })
                 ValueSliderComponent({
-                  title: 'Y（米）',
+                  title: $r('app.string.axis_y_m'),
                   value: this.spaceY,
                   min: -5,
                   max: 5,
@@ -433,7 +433,7 @@ export struct AudioEffectDialog {
                   }
                 })
                 ValueSliderComponent({
-                  title: 'Z（米）',
+                  title: $r('app.string.axis_z_m'),
                   value: this.spaceZ,
                   min: -5,
                   max: 5,
@@ -447,7 +447,7 @@ export struct AudioEffectDialog {
               }
               if (this.spaceMode === 'rotation') {
                 ValueSliderComponent({
-                  title: '环绕周期（秒）',
+                  title: $r('app.string.surround_period_s'),
                   value: this.spaceTime,
                   min: 2,
                   max: 40,
@@ -469,7 +469,7 @@ export struct AudioEffectDialog {
                 })
               } else if (this.spaceMode === 'extension') {
                 ValueSliderComponent({
-                  title: '扩展半径（米）',
+                  title: $r('app.string.extension_radius_m'),
                   value: this.spaceRadius,
                   min: 1,
                   max: 5,
@@ -481,7 +481,7 @@ export struct AudioEffectDialog {
                   }
                 })
                 ValueSliderComponent({
-                  title: '扩展角度',
+                  title: $r('app.string.extension_angle'),
                   value: this.spaceAngle,
                   min: 1,
                   max: 359,
@@ -519,7 +519,7 @@ export struct AudioEffectDialog {
                 }
               })
               ValueSliderComponent({
-                title: '音高（0=自动）',
+                title: $r('app.string.pitch_auto'),
                 value: this.purePitch,
                 min: 0,
                 max: 3,
@@ -555,7 +555,7 @@ export struct AudioEffectDialog {
             Column({ space: 8 }) {
               if (!this.systemPlayer) {
                 ValueSliderComponent({
-                  title: '速度',
+                  title: $r('app.string.speed'),
                   value: this.tempo,
                   min: 0.5,
                   max: 10,
@@ -568,7 +568,7 @@ export struct AudioEffectDialog {
                 })
               }
               ValueSliderComponent({
-                title: '音高',
+                title: $r('app.string.pitch'),
                 value: this.pitch,
                 min: 0.1,
                 max: 5,
@@ -579,8 +579,8 @@ export struct AudioEffectDialog {
                   this.applyCurrentConfig()
                 }
               })
-              this.HintText(this.systemPlayer ? '变调仅支持单声道音轨；视频变速请使用播放器倍速。' :
-                '改变速度会改变音频时长，不建议用于需要保持音画同步的视频。')
+              this.HintText(this.systemPlayer ? $r('app.string.tempo_pitch_hint') :
+                $r('app.string.speed_change_hint'))
             }
             .width('100%')
             .padding(12)
@@ -597,7 +597,7 @@ export struct AudioEffectDialog {
                   this.applyCurrentConfig()
                 }
               })
-              this.HintText('要求鸿蒙 7及以上，且音频通道顺序必须与所选 HOA 布局一致。')
+              this.HintText($r('app.string.hoa_hint'))
             }
             .width('100%')
             .padding(12)
@@ -605,8 +605,8 @@ export struct AudioEffectDialog {
             .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           } else if (this.effect === 'noise-reduction') {
             Column({ space: 8 }) {
-              this.HintText(this.systemPlayer ? '仅支持单声道音轨；处理后恢复原采样率，不会把立体声降为单声道。' :
-                '降噪会将处理格式调整为 16kHz 单声道。')
+              this.HintText(this.systemPlayer ? $r('app.string.nr_hint_system') :
+                $r('app.string.nr_hint_mpv'))
             }
             .width('100%')
             .padding(12)
@@ -614,7 +614,7 @@ export struct AudioEffectDialog {
             .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           } else if (this.effect === 'audio-mixer') {
             Column({ space: 8 }) {
-              this.HintText('mpv 当前提供单路解码音频，此模式作为 AudioSuite 混音管线直通。')
+              this.HintText($r('app.string.mixer_hint'))
             }
             .width('100%')
             .padding(12)
@@ -622,8 +622,8 @@ export struct AudioEffectDialog {
             .backgroundColor($r('sys.color.titlebar_icon_background_color'))
           } else if (this.effect === 'off') {
             Column({ space: 8 }) {
-              this.HintText(this.systemPlayer ? '使用系统播放器原声，不进行 AudioSuite 处理。' :
-                '使用普通 OHAudio 输出，不进行 AudioSuite 处理。')
+              this.HintText(this.systemPlayer ? $r('app.string.space_hint_system') :
+                $r('app.string.space_hint_mpv'))
             }
             .width('100%')
             .padding(12)
@@ -642,7 +642,7 @@ export struct AudioEffectDialog {
                   this.scheduleApply(presetConfig)
                 }
               })
-              this.HintText('选择预设即可快速应用，切换到对应效果可进一步微调参数。')
+              this.HintText($r('app.string.preset_hint'))
             }
             .width('100%')
             .padding(12)
@@ -657,7 +657,7 @@ export struct AudioEffectDialog {
       .scrollBar(BarState.Auto)
 
       if (this.systemPlayer) {
-        this.HintText('系统音效保持原音频格式。传统变声、降噪和变调仅支持单声道；不提供 HOA 和单路混音。')
+        this.HintText($r('app.string.system_effect_hint'))
       }
       if (this.applyStatus.length > 0) {
         // Bind the text directly: a primitive @Builder argument can retain its
@@ -673,7 +673,7 @@ export struct AudioEffectDialog {
       }
 
       Row({ space: 10 }) {
-        Button('重置')
+        Button($r('app.string.reset'))
           .layoutWeight(1)
           .height(40)
           .fontSize(15)
@@ -685,7 +685,7 @@ export struct AudioEffectDialog {
             this.loadConfig(new AudioEffectConfig())
             this.applyCurrentConfig()
           })
-        Button('关闭')
+        Button($r('app.string.off'))
           .layoutWeight(1)
           .height(40)
           .fontSize(15)
@@ -707,7 +707,7 @@ export struct AudioEffectDialog {
   }
 
   @Builder
-  HintText(message: string) {
+  HintText(message: ResourceStr) {
     Row({ space: 6 }) {
       Text(message)
         .fontSize(13)
@@ -765,14 +765,14 @@ export struct AudioEffectDialog {
     try {
       const applied = this.onApply ? await this.onApply(config, true) : false
       if (version === this.applyVersion) {
-        this.applyStatus = applied ? '' : '应用失败，保留原设置'
+        this.applyStatus = applied ? '' : ToolsUtil.getStringResource($r('app.string.apply_failed_keep').id)
         if (!applied) {
           this.reportApplyFailure(config.effect, this.applyStatus)
         }
       }
     } catch (error) {
       if (version === this.applyVersion) {
-        this.applyStatus = (error as Error).message || '音效应用失败，保留原设置'
+        this.applyStatus = (error as Error).message || ToolsUtil.getStringResource($r('app.string.effect_apply_failed_keep').id)
         this.reportApplyFailure(config.effect, this.applyStatus)
       }
     }

@@ -1,5 +1,5 @@
 import { Want } from '@kit.AbilityKit'
-import { FormExtensionAbility, formBindingData, formInfo } from '@kit.FormKit'
+import { formBindingData, FormExtensionAbility, formInfo } from '@kit.FormKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { VideoFormBinding, VideoFormData } from './VideoFormData'
 

@@ -1,7 +1,7 @@
 import { displaySync } from '@kit.ArkGraphics2D'
 import { LengthMetricsUnit } from '@kit.ArkUI'
 import { systemDateTime } from '@kit.BasicServicesKit'
-import { DanmakuClock, DanmakuScheduler, DanmakuSprite } from '../../utils/DanmakuCore'
+import { DanmakuClock, DanmakuScheduler, DanmakuSprite, DanmakuTextMetrics } from '../../utils/DanmakuCore'
 import { DanmakuSession } from '../../utils/DanmakuSession'
 import { DanmakuGL } from '../../utils/DanmakuGL'
 import { salmonLogger } from 'salmonlogger'
@@ -26,21 +26,24 @@ export struct DanmakuOverlay {
   private viewHeight: number = 0
   private healthTimer: number = -1
   private mounted: boolean = false
+  private wasSeeking: boolean = false
   private context: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true))
   private sync: displaySync.DisplaySync | undefined = undefined
   private clock: DanmakuClock = new DanmakuClock()
   private scheduler: DanmakuScheduler = new DanmakuScheduler()
-  private widths: Map<string, number> = new Map()
+  private measurements: Map<string, DanmakuTextMetrics> = new Map()
   private ready: boolean = false
   private started: boolean = false
 
   aboutToAppear(): void {
     this.mounted = true
     this.scheduler.load(this.session.items)
-    this.clock.sample(this.playbackTime, this.now())
+    this.clock.sample(this.playbackTime, this.now(), true)
     this.sync = displaySync.create()
     this.sync.setExpectedFrameRateRange({ min: 30, max: 60, expected: 60 })
-    this.sync.on('frame', (): void => { this.draw() })
+    this.sync.on('frame', (): void => {
+      this.draw()
+    })
   }
 
   aboutToDisappear(): void {
@@ -51,22 +54,26 @@ export struct DanmakuOverlay {
     this.sync?.off('frame')
     this.sync = undefined
     this.started = false
-    this.widths.clear()
+    this.measurements.clear()
   }
 
   @Monitor('mediaKey')
   mediaChanged(): void {
     this.scheduler.reset()
-    this.clock.sample(this.playbackTime, this.now())
+    this.clock.sample(this.playbackTime, this.now(), true)
     this.refresh()
   }
 
   @Monitor('session.items')
   sourceChanged(): void {
     this.scheduler.load(this.session.items)
-    this.widths.clear()
+    this.measurements.clear()
     if (this.useGL && this.ready) {
-      try { this.gl.clear() } catch (_) { this.fallback() }
+      try {
+        this.gl.clear()
+      } catch (_) {
+        this.fallback()
+      }
     }
     this.refresh()
   }
@@ -85,16 +92,67 @@ export struct DanmakuOverlay {
     this.refresh()
   }
 
+  build() {
+    Stack() {
+      if (this.useGL) {
+        XComponent({ type: XComponentType.TEXTURE, controller: this.surface })
+          .width('100%')
+          .height('100%')
+          .backgroundColor(Color.Transparent)
+          .hitTestBehavior(HitTestMode.None)
+          .onLoad(() => {
+            this.openGL()
+          })
+          .onDestroy(() => {
+            if (this.useGL) {
+              this.ready = false
+              this.sync?.stop()
+              this.started = false
+              this.releaseGL()
+            }
+          })
+      } else {
+        Canvas(this.context)
+          .width('100%')
+          .height('100%')
+          .onReady(() => {
+            this.ready = true
+            this.refresh()
+          })
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .clip(true)
+    .hitTestBehavior(HitTestMode.None)
+    .onSizeChange((_old: SizeOptions, size: SizeOptions) => {
+      const width = Math.round(Number(size.width))
+      const height = Math.round(Number(size.height))
+      if (width === this.viewWidth && height === this.viewHeight) {
+        return
+      }
+      this.viewWidth = width
+      this.viewHeight = height
+      this.scheduler.reset()
+      this.draw()
+    })
+  }
+
   private now(): number {
     return systemDateTime.getUptime(systemDateTime.TimeType.STARTUP)
   }
 
   private refresh(): void {
+    const seekChanged = this.seeking !== this.wasSeeking
+    if (seekChanged) {
+      this.wasSeeking = this.seeking
+      this.scheduler.reset()
+    }
     const running = this.visible && this.session.enabled && this.session.items.length > 0 &&
       this.playing && !this.buffering && !this.seeking
     this.clock.setState(running, this.speed, this.now())
     // Re-anchor on lifecycle/state changes, not the seek preview position.
-    this.clock.sample(this.playbackTime, this.now())
+    this.clock.sample(this.playbackTime, this.now(), seekChanged)
     if (this.ready && running && !this.started) {
       this.sync?.start()
       this.started = true
@@ -109,8 +167,8 @@ export struct DanmakuOverlay {
     if (!this.ready) {
       return
     }
-    const width = this.useGL ? this.viewWidth : this.context.width
-    const height = this.useGL ? this.viewHeight : this.context.height
+    const width = Math.round(this.useGL ? this.viewWidth : this.context.width)
+    const height = Math.round(this.useGL ? this.viewHeight : this.context.height)
     if (width <= 0 || height <= 0) {
       return
     }
@@ -125,18 +183,27 @@ export struct DanmakuOverlay {
     }
     const sprites = this.scheduler.frame(this.clock.at(this.now()) - this.session.offsetMs,
       width, height, this.session.fontSize, this.session.area,
-      (text: string, font: number): number => {
+      (text: string, font: number): DanmakuTextMetrics => {
         const key = `${font}:${text}`
-        const cached = this.widths.get(key)
+        const cached = this.measurements.get(key)
         if (cached !== undefined) {
           return cached
         }
         this.measureContext.font = `${font}px sans-serif`
-        const measured = this.measureContext.measureText(text).width
-        if (this.widths.size >= 4096) {
-          this.widths.clear()
+        this.measureContext.textBaseline = 'alphabetic'
+        const bounds = this.measureContext.measureText(text)
+        const hasBounds = Number.isFinite(bounds.actualBoundingBoxAscent) &&
+          Number.isFinite(bounds.actualBoundingBoxDescent) &&
+          bounds.actualBoundingBoxAscent + bounds.actualBoundingBoxDescent > 0
+        const measured: DanmakuTextMetrics = {
+          width: bounds.width,
+          ascent: hasBounds ? Math.max(0, bounds.actualBoundingBoxAscent) : font,
+          descent: hasBounds ? Math.max(0, bounds.actualBoundingBoxDescent) : font * 0.3
         }
-        this.widths.set(key, measured)
+        if (this.measurements.size >= 4096) {
+          this.measurements.clear()
+        }
+        this.measurements.set(key, measured)
         return measured
       })
     if (this.useGL) {
@@ -144,14 +211,14 @@ export struct DanmakuOverlay {
       return
     }
     this.context.globalAlpha = this.session.opacity
-    this.context.textBaseline = 'top'
+    this.context.textBaseline = 'alphabetic'
     this.context.lineWidth = 2
     this.context.strokeStyle = '#000000'
     sprites.forEach((sprite: DanmakuSprite): void => {
       this.context.font = `${sprite.font}px sans-serif`
       this.context.fillStyle = sprite.item.color
-      this.context.strokeText(sprite.item.text, sprite.x, sprite.y)
-      this.context.fillText(sprite.item.text, sprite.x, sprite.y)
+      this.context.strokeText(sprite.item.text, sprite.x, sprite.y + sprite.ascent)
+      this.context.fillText(sprite.item.text, sprite.x, sprite.y + sprite.ascent)
     })
   }
 
@@ -210,44 +277,5 @@ export struct DanmakuOverlay {
     } catch (_) {
       this.fallback()
     }
-  }
-
-  build() {
-    Stack() {
-      if (this.useGL) {
-        XComponent({ type: XComponentType.TEXTURE, controller: this.surface })
-          .width('100%')
-          .height('100%')
-          .backgroundColor(Color.Transparent)
-          .hitTestBehavior(HitTestMode.None)
-          .onLoad(() => { this.openGL() })
-          .onDestroy(() => {
-            if (this.useGL) {
-              this.ready = false
-              this.sync?.stop()
-              this.started = false
-              this.releaseGL()
-            }
-          })
-      } else {
-        Canvas(this.context)
-          .width('100%')
-          .height('100%')
-          .onReady(() => {
-            this.ready = true
-            this.refresh()
-          })
-      }
-    }
-      .width('100%')
-      .height('100%')
-      .clip(true)
-      .hitTestBehavior(HitTestMode.None)
-      .onSizeChange((_old: SizeOptions, size: SizeOptions) => {
-        this.viewWidth = Number(size.width)
-        this.viewHeight = Number(size.height)
-        this.scheduler.reset()
-        this.draw()
-      })
   }
 }

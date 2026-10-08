@@ -38,14 +38,14 @@ export struct HarmonyFeaturePage {
             Column() {
               SettingsToggleItem({
                 symbol: $r('sys.symbol.cheers'),
-                message: '碰一碰',
+                message: $r('app.string.feature_tap_share'),
                 enable: Setting.knockShareEnabled,
                 onChange: (checked: boolean) => {
                   Setting.knockShareEnabled = checked
                   Preferences.saveKnockShareEnabled(PathUtils.appContext!, checked)
                 }
               })
-              Text('两台设备碰一碰即可快速分享或接收视频文件。需设备支持碰一碰分享功能。')
+              Text($r('app.string.feature_tap_share_desc'))
                 .fontSize(12)
                 .fontColor($r('sys.color.font_secondary'))
                 .width('100%')
@@ -59,14 +59,14 @@ export struct HarmonyFeaturePage {
             Column() {
               SettingsToggleItem({
                 symbol: $r('sys.symbol.hand_draw'),
-                message: '智感握姿',
+                message: $r('app.string.feature_grip_posture'),
                 enable: Setting.gripPostureEnabled,
                 onChange: (checked: boolean) => {
                   Setting.gripPostureEnabled = checked
                   Preferences.saveGripPostureEnabled(PathUtils.appContext!, checked)
                 }
               })
-              Text('识别左右手握持状态，自动调整界面布局以适配单手操作。需设备支持智感握姿功能。')
+              Text($r('app.string.feature_grip_posture_desc'))
                 .fontSize(12)
                 .fontColor($r('sys.color.font_secondary'))
                 .width('100%')
@@ -80,7 +80,7 @@ export struct HarmonyFeaturePage {
             Column() {
               SettingsToggleItem({
                 symbol: $r('sys.symbol.hand_point_up_tap'),
-                message: '智慧手势',
+                message: $r('app.string.feature_smart_gesture'),
                 tag: 'VIP',
                 enable: Setting.smartGestureEnabled,
                 itemEnabled: userData.isVip,
@@ -90,7 +90,7 @@ export struct HarmonyFeaturePage {
                 }
               })
               Text(
-                '敲一敲播放/暂停；划一划在普通播放中快进，在短视频中切换下一条；翻腕返回退出播放。需设备支持并开启系统智慧手势。')
+                $r('app.string.feature_smart_gesture_desc'))
                 .fontSize(12)
                 .fontColor($r('sys.color.font_secondary'))
                 .width('100%')
@@ -166,7 +166,7 @@ export struct HarmonyFeaturePage {
       },
       content: {
         title: {
-          mainTitle: '鸿蒙特性',
+          mainTitle: $r('app.string.settings_harmony'),
         }
       },
     })
@@ -197,7 +197,7 @@ export struct HarmonyFeaturePage {
         }
       })
     } catch (_) {
-      ToolsUtil.showToast('暂时无法打开桌面卡片，请稍后重试')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.card_open_failed').id))
     }
   }
 }

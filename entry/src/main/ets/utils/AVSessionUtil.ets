@@ -348,7 +348,7 @@ export default class AVSessionUtil {
       return
     }
     salmonLogger.addLog(TAG, `Unsupported protocol: ${supportedProtocols}`, true)
-    ToolsUtil.showToast('当前设备不支持投播协议')
+    ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.cast_protocol_unsupported').id))
   }
 
   static async playItem(now_playing: VideoMetadata) {
@@ -357,7 +357,7 @@ export default class AVSessionUtil {
       const uri = now_playing?.uri
       if (!uri) {
         salmonLogger.addLog(TAG, 'playItem: uri is empty', true)
-        ToolsUtil.showToast('投播失败：视频地址为空')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.cast_failed_empty_url').id))
         return
       }
       const isNetworkUri = ToolsUtil.isNetworkUrl(uri)
@@ -418,7 +418,7 @@ export default class AVSessionUtil {
       })
     } catch (error) {
       salmonLogger.addLog(TAG, 'play item error:' + error, true)
-      ToolsUtil.showToast('投播失败')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.cast_failed').id))
     }
   }
 }

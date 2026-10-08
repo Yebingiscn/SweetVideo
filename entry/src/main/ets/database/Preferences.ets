@@ -161,6 +161,10 @@ export default class Preferences {
       BackgroundColorMode.AUTO) as BackgroundColorMode
   }
 
+  static saveRandomCover(context: Context, enabled: boolean) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'randomCover', enabled)
+  }
+
   static saveCoverLayoutMode(context: Context, coverLayoutMode: CoverLayoutMode) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'coverLayoutMode', coverLayoutMode)
   }
@@ -332,22 +336,23 @@ export default class Preferences {
     }
   }
 
-  static saveVideoMetaDataEncryption(context: Context, video_meta_data_encryption: VideoMetadata[]) {
+  static saveVideoMetaDataEncryption(context: Context, video_meta_data_encryption: VideoMetadata[],
+    requireSuccess: boolean = false) {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'video_meta_data_encryption',
-      video_meta_data_encryption)
+      video_meta_data_encryption, requireSuccess)
   }
 
   // 保存所有文件夹视频数据
-  static saveFileFolder(context: Context, file_folder: FileFolder[]) {
+  static saveFileFolder(context: Context, file_folder: FileFolder[], requireSuccess: boolean = false) {
     const copied = FolderHierarchy.repair(Preferences.deepCopyFileFolders(file_folder))
-    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'file_folder', copied)
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'file_folder', copied, requireSuccess)
     Preferences.fileFolderCache = copied
     Preferences.buildVideoDateIndex(copied)
     Preferences.buildVideoUriSet(copied)
   }
 
-  static saveRecentPlay(context: Context, recent_play_deque: VideoMetadata[]) {
-    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'recent_play', recent_play_deque)
+  static saveRecentPlay(context: Context, recent_play_deque: VideoMetadata[], requireSuccess: boolean = false) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'recent_play', recent_play_deque, requireSuccess)
     VideoFormData.save(context, recent_play_deque)
   }
 
@@ -409,6 +414,14 @@ export default class Preferences {
 
   static getFolderSortField(context: Context): string {
     return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'folderSortField', '') as string
+  }
+
+  static getDirectoryView(context: Context): boolean {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'home_directory_view', false) as boolean
+  }
+
+  static saveDirectoryView(context: Context, enabled: boolean): void {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'home_directory_view', enabled)
   }
 
   static saveFolderSortField(context: Context, sortField: string) {
@@ -554,8 +567,8 @@ export default class Preferences {
     return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'network_streams', []) as VideoMetadata[]
   }
 
-  static saveNetworkStreams(context: Context, streams: VideoMetadata[]) {
-    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'network_streams', streams)
+  static saveNetworkStreams(context: Context, streams: VideoMetadata[], requireSuccess: boolean = false) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'network_streams', streams, requireSuccess)
   }
 
   static getIPTVSources(context: Context): IPTVSource[] {

@@ -15,6 +15,7 @@ import { SideBarContentComponent } from '../component/SideBarComponent/SideBarCo
 import { ImportProgressBuilder } from '../component/VideoItemComponent/ImportProgressBuilder'
 import { VideoView } from '../component/VideoItemComponent/VideoViewComponent'
 import Preferences from '../database/Preferences'
+import StartupPageUtil from '../utils/StartupPageUtil'
 import { VideoMetaDataOperator } from '../database/VideoMetaData'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import AccountUtil from '../utils/AccountUtil'
@@ -25,6 +26,7 @@ import { userAuth } from '@kit.UserAuthenticationKit'
 import DataSyncUtil from '../utils/DataSyncUtil'
 import HomeSidebarLayout from '../utils/HomeSidebarLayout'
 import FileFolderUtil from '../utils/FileFolderUtil'
+import FolderHierarchy from '../utils/FolderHierarchy'
 import { importAndProcessFiles, ProgressInfo } from '../utils/FileProcessorUtil'
 import IntellectualGripPostureUtil from '../utils/IntellectualGripPostureUtil'
 import { Privacy, Setting } from '../utils/ObservedUtil'
@@ -35,6 +37,7 @@ import ToolsUtil from '../utils/ToolsUtil'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
 import VideoUtils from '../utils/VideoUtil'
 import WantProcessUtil from '../utils/WantProcessUtil'
+import MediaDropUtil from '../utils/MediaDropUtil'
 import { WindowUtil } from '../utils/WindowUtil'
 import lazy { PrivacySpace } from './PrivacySpace/PrivacySpace'
 import lazy { PrivacySpaceErrorList } from './PrivacySpace/PrivacySpaceErrorList'
@@ -55,10 +58,11 @@ import lazy { IPTVSourcePage } from './IPTV/IPTVSourcePage'
 import lazy { IPTVChannelPage } from './IPTV/IPTVChannelPage'
 import lazy { HuaweiDrivePage } from './HuaweiDrive/HuaweiDrivePage'
 import lazy { SmbPage } from './SMB/SmbPage'
+import lazy { WebDavPage } from './WebDAV/WebDavPage'
+import lazy { FtpPage } from './FTP/FtpPage'
 import lazy { HarmonyFeaturePage } from './SettingPage/HarmonyFeaturePage'
 import lazy { PersonalizeSettingPage } from './SettingPage/PersonalizeSettingPage'
 import lazy { EngineSettingPage } from './SettingPage/EngineSettingPage'
-import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData'
 import { LengthMetrics } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavigation, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
 import KnockShareUtil, {
@@ -99,10 +103,23 @@ struct Index {
   sideBarScroller: Scroller = new Scroller()
   private passwd: string = 'passwd'
   private videoValidityCheckRunning: boolean = false
+  private pendingVideoCheck: (() => boolean) | undefined = undefined
+  private homeReady: boolean = false
+  private homeLifecycleVersion: number = 0
+  private homeInitialization: Promise<boolean> | undefined = undefined
+  private cancelHomeCheck: (() => void) | undefined = undefined
 
   async onPageShow(): Promise<void> {
+    this.cancelHomeCheck?.()
+    let active = true
+    this.cancelHomeCheck = () => { active = false }
+    const isActive = (): boolean => active && this.homeReady && this.pathStack.size() === 0
+    const skipStartupCheck = this.homeInitialization ? await this.homeInitialization : false
+    if (!active) return
+    this.homeInitialization = undefined
     this.activateKnockShareProvider()
     await WantProcessUtil.checkWant(this.pathStack)
+    if (!active) return
     const currentFolder = this.videoListController.folder
     if (currentFolder) {
       const updatedFolders = Preferences.getFileFolder(PathUtils.appContext!)
@@ -112,10 +129,23 @@ struct Index {
         this.videoListController.updateData(this.videoListController.videoDataSource, updatedFolder)
       }
     }
+    if (!skipStartupCheck && isActive()) await this.checkInvalidVideos(isActive)
+  }
+
+  onPageHide(): void {
+    this.cancelHomeCheck?.()
+    this.cancelHomeCheck = undefined
+    this.pendingVideoCheck = undefined
   }
 
   async aboutToAppear(): Promise<void> {
+    this.homeInitialization = this.initializeHome(++this.homeLifecycleVersion)
+    await this.homeInitialization
+  }
+
+  private async initializeHome(lifecycleVersion: number): Promise<boolean> {
     await WindowUtil.init(PathUtils.appContext!)
+    if (lifecycleVersion !== this.homeLifecycleVersion) return false
     this.activateKnockShareProvider()
     KnockShareUtil.setReceiveHandler(async (payload: KnockReceivePayload): Promise<void> => {
       await this.handleKnockReceive(payload)
@@ -126,26 +156,21 @@ struct Index {
       this.file_folder_list = FileFolderUtil.createNewFolder(PathUtils.appContext!, '首页')
     }
     const defaultStartupFolderDate = Preferences.getDefaultStartupFolder(PathUtils.appContext!)
-    const isStreamStartup = defaultStartupFolderDate === '__stream__'
-    const isIptvStartup = defaultStartupFolderDate === '__iptv__'
-    const isIptvSourceStartup = defaultStartupFolderDate.startsWith('__iptv_src__')
-    const defaultFolder = (defaultStartupFolderDate && !isStreamStartup && !isIptvStartup && !isIptvSourceStartup)
+    const startupPage = StartupPageUtil.getPage(defaultStartupFolderDate)
+    const isIptvSourceStartup = defaultStartupFolderDate.startsWith(StartupPageUtil.IPTV_SOURCE_PREFIX)
+    const defaultFolder = (defaultStartupFolderDate && !startupPage && !isIptvSourceStartup)
       ? this.file_folder_list.find(f => f.date === defaultStartupFolderDate) ?? this.file_folder_list[0]
       : this.file_folder_list[0]
     this.videoListController?.updateData(undefined, defaultFolder)
+    this.videoListController.directoryMode = Preferences.getDirectoryView(PathUtils.appContext!)
     const hasCardWant = WantProcessUtil.hasPendingCardWant()
-    if (isStreamStartup && !hasCardWant) {
+    if (startupPage && !hasCardWant) {
       setTimeout(() => {
-        this.pathStack.pushPathByName(NavigationAddress.STREAM_PAGE, null)
-      }, 0)
-    }
-    if (isIptvStartup && !hasCardWant) {
-      setTimeout(() => {
-        this.pathStack.pushPathByName(NavigationAddress.IPTV_SOURCE_PAGE, null)
+        this.pathStack.pushPathByName(startupPage.route, null)
       }, 0)
     }
     if (isIptvSourceStartup && !hasCardWant) {
-      const iptvSourceId = defaultStartupFolderDate.substring('__iptv_src__'.length)
+      const iptvSourceId = defaultStartupFolderDate.substring(StartupPageUtil.IPTV_SOURCE_PREFIX.length)
       setTimeout(() => {
         this.pathStack.pushPathByName(NavigationAddress.IPTV_CHANNEL_PAGE,
           new IPTVChannelParams(iptvSourceId), true)
@@ -162,8 +187,20 @@ struct Index {
       })
       IntellectualGripPostureUtil.createOperatingHandStatus()
     }, 0)
-    void this.checkInvalidVideos(this.file_folder_list)
     await WantProcessUtil.setCardNavigationReady(this.pathStack)
+    if (lifecycleVersion !== this.homeLifecycleVersion) return false
+    this.homeReady = true
+    this.videoListController.homeReady = true
+    // 默认启动页会跳转时，本次 onPageShow 直接跳过检测，无须等待页面入栈。
+    return !hasCardWant && (startupPage !== undefined || isIptvSourceStartup)
+  }
+
+  aboutToDisappear(): void {
+    this.onPageHide()
+    this.homeLifecycleVersion++
+    this.homeReady = false
+    this.videoListController.homeReady = false
+    this.homeInitialization = undefined
   }
 
   async toMetaData(fileList: string[], fileFolder?: FileFolder) {
@@ -228,8 +265,8 @@ struct Index {
         }
       }
       Privacy.receivedFilesVersion++
-      ToolsUtil.showToast(failedCount === 0 ? '碰一碰文件已存入隐私空间' :
-        `${failedCount} 个文件未导入隐私空间，接收原文件已保留`)
+      ToolsUtil.showToast(failedCount === 0 ? ToolsUtil.getStringResource($r('app.string.knock_files_saved_privacy').id) :
+        ToolsUtil.getStringResourceArgs($r('app.string.knock_files_partial_privacy').id, failedCount))
       return
     }
     const currentFolderDate = this.videoListController.folder?.date
@@ -237,7 +274,7 @@ struct Index {
     const targetFolder = currentFolderDate ?
       folders.find((folder: FileFolder) => folder.date === currentFolderDate) ?? folders[0] : folders[0]
     if (!targetFolder) {
-      throw new Error('未找到碰一碰文件的目标文件夹')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.knock_target_folder_missing').id))
     }
 
     const existingDates = new Set<string>(targetFolder.video_list.map((video: VideoMetadata) => video.date))
@@ -261,7 +298,7 @@ struct Index {
       this.loading = false
     }
     if (this.failedCount > 0) {
-      ToolsUtil.showToast('文件已保存，但有文件未能导入媒体库')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.files_saved_import_partial').id))
     }
 
     const latestFolders = Preferences.getFileFolder(PathUtils.appContext!)
@@ -402,7 +439,7 @@ struct Index {
       .minContentWidth(this.isSizeInitialized && this.sideBarController.mode === SideBarContainerType.Embed ?
         HomeSidebarLayout.minContentWidth : 0)
       .width('100%')
-      .allowDrop([uniformTypeDescriptor.UniformDataType.PLAIN_TEXT, uniformTypeDescriptor.UniformDataType.VIDEO])
+      .allowDrop(MediaDropUtil.allowedTypes)
       .onSizeChange((_oldValue: SizeResult, newValue: SizeResult) => {
         const windowWidth = Number(newValue.width)
         if (!Number.isFinite(windowWidth) || windowWidth <= 0) {
@@ -449,7 +486,9 @@ struct Index {
     .mode(NavigationMode.Stack)
     .navDestination(this.Pages)
     .bindToScrollable(
-      [this.videoListController.listScroller, this.videoListController.waterFlowScroller]) // 绑定导航组件和可滚动容器组件
+      [this.videoListController.listScroller, this.videoListController.waterFlowScroller,
+        this.videoListController.directoryScroller,
+        this.videoListController.directoryWaterFlowScroller]) // 绑定导航组件和可滚动容器组件
     .dynamicHideTitleBar({
       hideTitleArea: true,
       hideBottomBuilder: true,
@@ -517,18 +556,21 @@ struct Index {
         }
       },
     })
+    .allowDrop(MediaDropUtil.allowedTypes)
     .onDrop((dragEvent: DragEvent) => {
-      let records: Array<unifiedDataChannel.UnifiedRecord> = []
+      let uri: string | undefined
       try {
-        records = dragEvent.getData().getRecords()
+        uri = MediaDropUtil.firstMediaUri(dragEvent.getData().getRecords())
       } catch (error) {
-        ToolsUtil.showToast('获取数据时异常：' + error)
+        ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.get_data_exception').id, String(error)))
+        return
       }
-      let video: unifiedDataChannel.Video = records[0] as unifiedDataChannel.Video
-      WantProcessUtil.wantUri = video?.uri
-      WantProcessUtil.hasWant(this.pathStack)
+      if (!uri) { return }
+      WantProcessUtil.wantUri = uri
+      void WantProcessUtil.hasWant(this.pathStack)
     })
     .onNavBarStateChange((isVisible: boolean) => {
+      if (!isVisible) this.cancelHomeCheck?.()
       if (isVisible) {
         if (this.videoListController.folder?.video_list) {
           if (this.contentWidth > 0) {
@@ -557,7 +599,9 @@ struct Index {
           this.file_folder_list = updatedFolders
         }
         if (DataSyncUtil.lastPlayVideoIndex >= 0) {
-          this.videoListController.getActiveScroller().scrollToIndex(DataSyncUtil.lastPlayVideoIndex)
+          if (!this.videoListController.directoryMode) {
+            this.videoListController.getActiveScroller().scrollToIndex(DataSyncUtil.lastPlayVideoIndex)
+          }
           DataSyncUtil.lastPlayVideoIndex = -1
         }
         const value: string | undefined = AppStorage.get('searchValue')
@@ -615,6 +659,10 @@ struct Index {
       IPTVSourcePage()
     } else if (name == NavigationAddress.SMB_PAGE) {
       SmbPage()
+    } else if (name == NavigationAddress.WEBDAV_PAGE) {
+      WebDavPage()
+    } else if (name == NavigationAddress.FTP_PAGE) {
+      FtpPage()
     } else if (name == NavigationAddress.IPTV_CHANNEL_PAGE) {
       IPTVChannelPage()
     } else if (name == NavigationAddress.HUAWEI_DRIVE_PAGE) {
@@ -650,16 +698,29 @@ struct Index {
     if (this.clearSearchValue()) {
       return true
     }
+    if (this.pathStack.size() === 0 && this.videoListController.directoryMode &&
+      !this.videoListController.directoryOverview) {
+      this.videoListController.requestDirectoryBack()
+      return true
+    }
     return false
   }
 
-  private async checkInvalidVideos(folders: FileFolder[]): Promise<void> {
+  private async checkInvalidVideos(isActive: () => boolean): Promise<void> {
+    if (!isActive()) return
+    this.pendingVideoCheck = isActive
     if (this.videoValidityCheckRunning) {
       return
     }
     this.videoValidityCheckRunning = true
     try {
-      await this.doCheckInvalidVideos(folders)
+      while (this.pendingVideoCheck) {
+        const currentCheck = this.pendingVideoCheck
+        this.pendingVideoCheck = undefined
+        if (currentCheck()) {
+          await this.doCheckInvalidVideos(Preferences.getFileFolder(PathUtils.appContext!), currentCheck)
+        }
+      }
     } catch (error) {
       salmonLogger.addLog(TAG, '检查视频有效性失败: ' + error, true)
     } finally {
@@ -667,7 +728,7 @@ struct Index {
     }
   }
 
-  private async doCheckInvalidVideos(folders: FileFolder[]): Promise<void> {
+  private async doCheckInvalidVideos(folders: FileFolder[], isActive: () => boolean): Promise<void> {
     const videosToCheck: VideoMetadata[] = []
     folders.forEach(folder => {
       folder.video_list.forEach(video => {
@@ -683,6 +744,7 @@ struct Index {
     // 文档与媒体 URI 的持久化权限需要在 UI 线程激活；真正的文件探测仍放在 TaskPool 中。
     const batchSize = 8
     for (let start = 0; start < videosToCheck.length; start += batchSize) {
+      if (!isActive()) return
       const batch = videosToCheck.slice(start, start + batchSize)
       await Promise.all(batch.map(async (video: VideoMetadata) => {
         const needsPermissionActivation =
@@ -695,38 +757,24 @@ struct Index {
     }
 
     const invalidVideos = await checkUriProcess(videosToCheck)
-    const invalidDates = new Set<string>()
-    const result: VideoMetadata[] = []
-    invalidVideos.forEach(video => {
-      if (!invalidDates.has(video.date)) {
-        invalidDates.add(video.date)
-        result.push(video)
-      }
-    })
-    if (result.length === 0) {
-      return
-    }
+    if (!isActive() || invalidVideos.length === 0) return
+    // 检测期间可能导入、移动或改动 URI；以最新数据生成清理计划，不覆盖新内容。
+    const plan = FolderHierarchy.pruneInvalidVideos(Preferences.getFileFolder(PathUtils.appContext!), invalidVideos)
+    if (plan.videos.length === 0) return
+    Preferences.saveFileFolder(PathUtils.appContext!, plan.folders, true)
+    if (plan.folders.length === 0) FileFolderUtil.createNewFolder(PathUtils.appContext!, '首页')
+    await VideoOperateUtil.deleteVideoFiles(plan.resources, DeleteType.SOFT)
+    salmonLogger.addLog(TAG, `已清理失效视频 ${plan.videos.length} 个，文件夹 ${plan.removedFolderCount} 个`, false)
 
-    const updatedFolders = Preferences.getFileFolder(PathUtils.appContext!)
-    updatedFolders.forEach(folder => {
-      folder.video_list = folder.video_list.filter(item => !invalidDates.has(item.date))
-    })
-    Preferences.saveFileFolder(PathUtils.appContext!, updatedFolders)
-
-    await Promise.all(result.map(async (item: VideoMetadata) => {
-      try {
-        await VideoOperateUtil.deleteVideoResource(item, DeleteType.SOFT)
-      } catch (error) {
-        salmonLogger.addLog(TAG, `清理视频资源失败: ${item.uri} ` + error, true)
-      }
-    }))
-
-    const targetFolder = updatedFolders.find(folder => folder.date === this.videoListController.folder?.date) ??
-      updatedFolders[0]
+    const latestFolders = Preferences.getFileFolder(PathUtils.appContext!)
+    const targetFolder = latestFolders.find(folder => folder.date === this.videoListController.folder?.date) ??
+      latestFolders[0]
     this.file_folder_list = VideoUtils.refresh(this.videoListController, this.fileFolderSource, targetFolder)
-    DataSyncUtil.deletedVideos = result
+    DataSyncUtil.deletedVideos = plan.videos
     setTimeout(() => {
-      this.deletedVideosDialogController.open()
+      if (isActive()) {
+        this.deletedVideosDialogController.open()
+      }
     }, 100)
   }
 
@@ -827,6 +875,16 @@ struct Index {
     // 从右往左滑（左滑）：角度接近180/-180度
     const isSwipeRight = rotateAngle > -45 && rotateAngle < 45
     const isSwipeLeft = rotateAngle < -135 || rotateAngle > 135
+    if (this.videoListController.directoryMode) {
+      if (isSwipeRight) {
+        if (!this.videoListController.directoryOverview) {
+          this.videoListController.requestDirectoryBack()
+        } else if (this.sideBarController.mode === SideBarContainerType.Overlay) {
+          this.sideBarController.open()
+        }
+      }
+      return
+    }
     // 面包屑未开启时：只允许右滑打开侧边栏（仅 Overlay 模式）
     if (!Setting.showToast) {
       if (isSwipeRight && this.sideBarController.mode === SideBarContainerType.Overlay) {

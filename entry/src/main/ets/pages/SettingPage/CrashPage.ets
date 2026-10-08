@@ -76,7 +76,7 @@ export struct CrashPage {
                 .width(16)
                 .height(16)
                 .fill('#ffbd2e')
-                .onClick(() => ToolsUtil.showToast("红色按钮清空日志，绿色按钮导出日志"))
+                .onClick(() => ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.crash_buttons_hint').id)))
               Circle()
                 .width(16)
                 .height(16)
@@ -167,7 +167,7 @@ export struct CrashPage {
                   .each((repeatItem: RepeatItem<hiAppEvent.AppEventGroup>) => {
                     ListItem() {
                       Column() {
-                        Text('事件名：' + repeatItem.item.name)
+                        Text($r('app.string.event_name_prefix', repeatItem.item.name))
                           .fontColor($r('app.color.text_color'))
                           .fontSize(16)
                           .fontWeight(FontWeight.Medium)
@@ -227,13 +227,13 @@ export struct CrashPage {
           this.currentTabIndex = index
         })
 
-        Button('分享给开发者')
+        Button($r('app.string.share_to_developer'))
           .onClick(async () => {
             let logText = ''
             if (this.appEventGroups.length > 0) {
-              logText += '=== 系统事件（含崩溃、卡死及进程回收） ===\n' + JSON.stringify(this.appEventGroups) + '\n\n'
+              logText += ToolsUtil.getStringResource($r('app.string.log_section_system_events').id) + '\n' + JSON.stringify(this.appEventGroups) + '\n\n'
             }
-            logText += '=== 运行日志 ===\n' + JSON.stringify(salmonLogger.logs)
+            logText += ToolsUtil.getStringResource($r('app.string.log_section_runtime').id) + '\n' + JSON.stringify(salmonLogger.logs)
             await this.shareText(logText)
           })
           .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
@@ -310,7 +310,7 @@ export struct CrashPage {
       },
       content: {
         title: {
-          mainTitle: '流心运行日志',
+          mainTitle: $r('app.string.runtime_log'),
         }
       },
     })
@@ -346,7 +346,7 @@ export struct CrashPage {
     if (canIUse('SystemCapability.Collaboration.SystemShare')) {
       const appVersion = await ToolsUtil.getVersionName()
       const infoText =
-        `反馈 QQ群 973792610，系统版本: ${deviceInfo.osFullName}，应用版本：${appVersion}，型号：${deviceInfo.productModel}，API版本：${deviceInfo.sdkApiVersion}，热挡位：${ToolsUtil.getThermalLevel()}`
+        ToolsUtil.getStringResourceArgs5($r('app.string.feedback_qq_group').id, deviceInfo.osFullName, appVersion, deviceInfo.productModel, deviceInfo.sdkApiVersion, ToolsUtil.getThermalLevel())
       const fullText = infoText + '\n' + text
       try {
         const context = PathUtils.appContext
@@ -364,7 +364,7 @@ export struct CrashPage {
           utd: uniformTypeDescriptor.UniformDataType.PLAIN_TEXT,
           uri: PathUtils.pathToUri(filePath),
           title: fileName,
-          description: '流心播放器日志'
+          description: ToolsUtil.getStringResource($r('app.string.log_share_description').id)
         })
         let controller1 = new systemShare.ShareController(shareData)
         await controller1.show(context, {
@@ -373,23 +373,23 @@ export struct CrashPage {
         })
         fileIo.closeSync(file)
         salmonLogger.addLog(this.pathStack.getAllPathName()[0], '日志分享成功', false)
-        ToolsUtil.showToast('日志分享成功')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.log_share_success').id))
       } catch (error) {
         const err = error as BusinessError
         const errorMsg = `分享失败: code=${err.code}, message=${err.message}`
         salmonLogger.addLog(this.pathStack.getAllPathName()[0], errorMsg, true)
         salmonLogger.addLog(TAG, errorMsg, true)
-        ToolsUtil.showToast('分享失败: ' + err.message)
+        ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.share_failed_prefix').id, err.message))
       }
     } else {
-      ToolsUtil.showToast('系统不支持该功能')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.feature_not_supported').id))
     }
   }
 
   private initSegmentItems() {
     const tips: ResourceStr[] = this.appEventGroups.length > 0
-      ? ['运行日志', '系统事件']
-      : ['运行日志']
+      ? [$r('app.string.runtime_log_segment'), $r('app.string.system_events')]
+      : [$r('app.string.runtime_log_segment')]
     const buttonItems: SegmentButtonV2ItemOptions[] = tips.map((tip: ResourceStr) =>
     ({ text: tip } as SegmentButtonV2ItemOptions)
     )

@@ -1,6 +1,7 @@
 import { fileIo, fileUri } from '@kit.CoreFileKit'
 import { salmonLogger } from 'salmonlogger'
 import VideoInfoUtil from './VideoInfoUtil'
+import ToolsUtil from './ToolsUtil.ets'
 
 const TAG = 'KnockReceiveStorage'
 
@@ -11,7 +12,7 @@ export default class KnockReceiveStorage {
       const sourcePath = KnockReceiveStorage.getSourcePath(uri, receivePath)
       const sourceStat = await fileIo.lstat(sourcePath)
       if (!sourceStat.isFile()) {
-        throw new Error('接收内容不是普通文件')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.knock_content_not_file').id))
       }
       const name = sourcePath.substring(sourcePath.lastIndexOf('/') + 1)
       const parts = VideoInfoUtil.splitFileName(name)
@@ -23,7 +24,7 @@ export default class KnockReceiveStorage {
       try {
         await fileIo.copyFile(sourcePath, temporaryPath)
         if ((await fileIo.stat(temporaryPath)).size !== sourceStat.size) {
-          throw new Error('转存文件大小校验失败')
+          throw new Error(ToolsUtil.getStringResource($r('app.string.knock_size_check_failed').id))
         }
         for (let index = 0; index < 10000; index++) {
           const candidateName = index === 0 ? name : `${stem} (${index})${suffix}`
@@ -34,14 +35,14 @@ export default class KnockReceiveStorage {
             if ((error as BusinessError).code === 13900015) {
               continue
             }
-            throw new Error(`移动转存文件失败: ${(error as BusinessError).code}, ${(error as BusinessError).message}`)
+            throw new Error(ToolsUtil.getStringResourceArgs2($r('app.string.knock_move_failed_detail').id, (error as BusinessError).code, (error as BusinessError).message))
           }
           // 先生成有效 URI，再删除中转文件；转存后的条目始终引用公共文件。
           const destinationUri = fileUri.getUriFromPath(destination)
           await KnockReceiveStorage.removeReceivedSource(uri, receivePath)
           return destinationUri
         }
-        throw new Error('下载目录中的同名文件过多')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.knock_too_many_duplicates').id))
       } finally {
         // 此目录只属于本次复制，不触碰目录外已有文件；失败时源文件仍在沙箱。
         try {
@@ -51,7 +52,7 @@ export default class KnockReceiveStorage {
         }
       }
     } catch (error) {
-      throw new Error(`转存碰一碰文件失败: ${error}`)
+      throw new Error(ToolsUtil.getStringResourceArgs($r('app.string.knock_save_failed').id, String(error)))
     }
   }
 
@@ -79,7 +80,7 @@ export default class KnockReceiveStorage {
     const relativePath = path.substring(receivePath.length + 1)
     if (!path.startsWith(`${receivePath}/`) || relativePath.length === 0 ||
       relativePath.split('/').some((part: string) => part === '..' || part === '.')) {
-      throw new Error('接收文件不在本次中转目录内')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.knock_file_outside_temp').id))
     }
     return path
   }

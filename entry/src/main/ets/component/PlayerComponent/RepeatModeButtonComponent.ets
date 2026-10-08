@@ -21,15 +21,15 @@ export function getRepeatModeIcon(repeatMode: SweetRepeatMode): Resource {
 export function getRepeatModeText(repeatMode: SweetRepeatMode): string {
   switch (repeatMode) {
     case SweetRepeatMode.SINGLE:
-      return '单曲循环'
+      return ToolsUtil.getStringResource($r('app.string.repeat_single').id)
     case SweetRepeatMode.RANDOM:
-      return '随机播放'
+      return ToolsUtil.getStringResource($r('app.string.repeat_shuffle').id)
     case SweetRepeatMode.LIST:
-      return '列表循环'
+      return ToolsUtil.getStringResource($r('app.string.repeat_list').id)
     case SweetRepeatMode.SEQUENCE:
-      return '顺序播放'
+      return ToolsUtil.getStringResource($r('app.string.repeat_order').id)
     default:
-      return '列表循环'
+      return ToolsUtil.getStringResource($r('app.string.repeat_list').id)
   }
 }
 
@@ -44,14 +44,14 @@ export struct RepeatModeButtonComponent {
 
   build() {
     if (this.compact) {
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
+      Button({ type: ButtonType.Circle, stateEffect: false }) {
         SymbolGlyph(getRepeatModeIcon(this.repeatMode))
           .fontSize(21)
           .fontColor([Color.White])
       }
       .width(40)
       .height(40)
-      .backgroundColor('#55000000')
+      .backgroundColor(Color.Transparent)
       .onClick(() => this.switchRepeatMode())
     } else {
       Row({ space: 10 }) {

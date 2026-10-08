@@ -12,11 +12,22 @@ class FileFolderListBuilderValue {
   depth: number = 0
   hasChildren: boolean = false
   isExpanded: boolean = false
+  selectionMode: boolean = false
+  selected: boolean = false
+  selectable: boolean = true
 }
 
 @Builder
 export function FileFolderListBuilder(fileFolderListBuilderValue: FileFolderListBuilderValue) {
   Row() {
+    if (fileFolderListBuilderValue.selectionMode) {
+      Checkbox()
+        .select(fileFolderListBuilderValue.selected)
+        .enabled(fileFolderListBuilderValue.selectable)
+        .selectedColor($r('app.color.main_color'))
+        .width(18).height(18).margin({ right: 6 })
+        .hitTestBehavior(HitTestMode.None).focusable(false)
+    }
     if (fileFolderListBuilderValue.folder && fileFolderListBuilderValue.depth > 0) {
       Row().width(fileFolderListBuilderValue.depth * 12)
     }

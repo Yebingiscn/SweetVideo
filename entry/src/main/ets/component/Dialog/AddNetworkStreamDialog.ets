@@ -1,15 +1,17 @@
+import ImageFileUtil from '../../utils/ImageFileUtil'
 import { DialogButtonBar } from './DialogButtonBar'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import Preferences from '../../database/Preferences'
 import { PathUtils } from '../../utils/PathUtils'
-import SelectFileUtil from '../../utils/SelectFileUtil'
 import { salmonLogger } from 'salmonlogger'
 import FFmpegThumbnailUtil from '../../utils/FFmpegThumbnailUtil'
 import { picker } from '@kit.CoreFileKit'
 import StrmUtil from '../../utils/StrmUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
-import SmbUtil, { SmbPlayback } from '../../utils/SmbUtil'
+import SmbUtil from '../../utils/SmbUtil'
+import FtpUtil from '../../utils/FtpUtil'
+import { NetworkPlayback } from '../../utils/NetworkPlayback'
 import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 
 const TAG = 'AddNetworkStreamDialog'
@@ -25,18 +27,18 @@ export struct AddNetworkStreamDialog {
   build() {
     Scroll() {
       Column({ space: 20 }) {
-        Text('添加网络串流')
+        Text($r('app.string.add_network_stream'))
           .fontSize(20)
           .fontColor($r('app.color.text_color'))
           .fontWeight(FontWeight.Bold)
 
-        Text('支持 HTTP/HTTPS/RTMP 和 SMB 视频地址，也可以导入 .strm 文件。SMB 可使用已保存的账号。')
+        Text($r('app.string.add_stream_hint'))
           .fontSize(12)
           .fontColor($r('app.color.text_color'))
           .opacity(0.6)
           .width('100%')
 
-        TextInput({ placeholder: '名称：方便区分的地址名称', text: this.streamName })
+        TextInput({ placeholder: $r('app.string.stream_name_placeholder'), text: this.streamName })
           .keyboardAppearance(KeyboardAppearance.IMMERSIVE)
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .borderRadius(16)
@@ -44,14 +46,14 @@ export struct AddNetworkStreamDialog {
           .onChange((input: string) => this.streamName = input)
           .id('input_stream_name')
 
-        TextArea({ placeholder: '例如 https://服务器/video.mp4 或 smb://服务器/共享/video.mkv', text: this.streamUrl })
+        TextArea({ placeholder: $r('app.string.stream_url_placeholder'), text: this.streamUrl })
           .keyboardAppearance(KeyboardAppearance.IMMERSIVE)
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .borderRadius(16)
           .height(96)
           .onChange((input: string) => this.streamUrl = input)
 
-        Button('导入 .strm 文件')
+        Button($r('app.string.import_strm_file'))
           .fontColor($r('app.color.text_color'))
           .attributeModifier(new ButtonFancyModifier('100%', 40))
           .backgroundColor($r('sys.color.button_background_color_transparent'))
@@ -73,12 +75,12 @@ export struct AddNetworkStreamDialog {
     if (this.saving || !this.streamUrl.trim()) {
       return
     }
-    if (!this.streamName.trim() && !SmbUtil.isSmb(this.streamUrl)) {
+    if (!this.streamName.trim() && !SmbUtil.isSmb(this.streamUrl) && !FtpUtil.isFtp(this.streamUrl)) {
       return
     }
     this.saving = true
     try {
-      const url = await SmbUtil.prepareUri(this.streamUrl)
+      const url = await FtpUtil.prepareUri(await SmbUtil.prepareUri(this.streamUrl))
       const name = this.streamName.trim() || ToolsUtil.fileNameFromUri(url)
       const date = `stream_${Date.now()}`
       const streams = Preferences.getNetworkStreams(PathUtils.appContext!)
@@ -89,7 +91,7 @@ export struct AddNetworkStreamDialog {
         size: [0, 0],
         time: 0,
         last_play: 0,
-        format: SmbUtil.isSmb(url) ? VideoInfoUtil.getExtension(ToolsUtil.fileNameFromUri(url)) : '',
+        format: (SmbUtil.isSmb(url) || FtpUtil.isFtp(url)) ? VideoInfoUtil.getExtension(ToolsUtil.fileNameFromUri(url)) : '',
         video_size: '',
         hdr_type: 0,
         audio_type: 0,
@@ -107,7 +109,7 @@ export struct AddNetworkStreamDialog {
       this.controller?.close()
       this.fetchThumbnailAndSave(url, date)
     } catch (error) {
-      ToolsUtil.showToast(error instanceof Error ? error.message : '保存串流失败，请重试')
+      ToolsUtil.showToast(error instanceof Error ? error.message : ToolsUtil.getStringResource($r('app.string.save_stream_failed').id))
     } finally {
       this.saving = false
     }
@@ -116,7 +118,7 @@ export struct AddNetworkStreamDialog {
   private async selectStrmFile(): Promise<void> {
     const options = new picker.DocumentSelectOptions()
     options.maxSelectNumber = 1
-    options.fileSuffixFilters = ['STRM 串流快捷方式|.strm', 'strm']
+    options.fileSuffixFilters = [ToolsUtil.getStringResource($r('app.string.strm_filter').id) + '|.strm', 'strm']
     let uris: string[] = []
     try {
       uris = await new picker.DocumentViewPicker(PathUtils.appContext!).select(options)
@@ -132,7 +134,7 @@ export struct AddNetworkStreamDialog {
       if (!this.streamName.trim()) {
         this.streamName = result.name
       }
-      ToolsUtil.showToast('已读取 .strm 文件')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.strm_read').id))
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       ToolsUtil.showToast(message)
@@ -140,11 +142,11 @@ export struct AddNetworkStreamDialog {
   }
 
   private async fetchThumbnailAndSave(url: string, date: string): Promise<void> {
-    const smb = new SmbPlayback()
+    const smb = new NetworkPlayback()
     try {
       const result = await FFmpegThumbnailUtil.extractNetworkCover(await smb.resolve(url), 300)
       if (result.success && result.pixelMap) {
-        await SelectFileUtil.savePixelMapToFile(PathUtils.coverPath, date, result.pixelMap,
+        await ImageFileUtil.savePixelMapToFile(PathUtils.coverPath, date, result.pixelMap,
           { releasePixelMap: true })
       } else if (result.error) {
         salmonLogger.addLog(TAG, `FFmpeg fetchThumbnail failed: ${result.error}`, false)

@@ -2,6 +2,7 @@ import { taskpool } from '@kit.ArkTS'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { pinyin4js } from '@ohos/pinyin4js'
+import ToolsUtil from './ToolsUtil'
 
 export class FolderNameSortItem {
   date: string
@@ -15,6 +16,7 @@ export class FolderNameSortItem {
     this.index = index
   }
 }
+
 @Concurrent
 async function sortFolderNamesTask(items: FolderNameSortItem[], ascending: boolean,
   pinyinSort: boolean): Promise<number[]> {
@@ -67,27 +69,34 @@ export async function sortFolderNamesInTaskPool(items: FolderNameSortItem[], asc
     )
     return result as number[]
   } catch (error) {
-    throw new Error('文件夹名称排序任务失败')
+    throw new Error(ToolsUtil.getStringResource($r('app.string.folder_sort_task_failed').id))
   }
 }
 
 @Concurrent
 async function checkUriAvailable(videos: VideoMetadata[]): Promise<VideoMetadata[]> {
   const invalidVideos: VideoMetadata[] = []
-  await Promise.all(videos.map(async (video: VideoMetadata) => {
-    let file: fs.File | undefined
-    try {
-      file = await fs.open(video.uri, fs.OpenMode.READ_ONLY)
-    } catch {
-      invalidVideos.push(video)
-    } finally {
-      if (file) {
-        try {
-          fs.closeSync(file)
-        } catch {}
+  // 限制同时打开的文件数，避免大媒体库耗尽文件描述符。
+  for (let start = 0; start < videos.length; start += 16) {
+    await Promise.all(videos.slice(start, start + 16).map(async (video: VideoMetadata) => {
+      let file: fs.File | undefined
+      try {
+        file = await fs.open(video.uri, fs.OpenMode.READ_ONLY)
+      } catch (error) {
+        // 只有文件不存在才自动清理；权限、设备或临时 I/O 故障保留条目。
+        if ((error as BusinessError).code === 13900002) {
+          invalidVideos.push(video)
+        }
+      } finally {
+        if (file) {
+          try {
+            fs.closeSync(file)
+          } catch {
+          }
+        }
       }
-    }
-  }))
+    }))
+  }
   return invalidVideos
 }
 
@@ -119,7 +128,12 @@ async function extractVideoFileInfoTask(uri: string): Promise<VideoFileInfoResul
     file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
     const stat = fs.statSync(file.fd)
     if (!stat.isFile()) {
-      return { fileSize: 0, fileName: file.name, success: false, error: '所选条目不是普通文件，请使用文件夹导入' }
+      return {
+        fileSize: 0,
+        fileName: file.name,
+        success: false,
+        error: ToolsUtil.getStringResource($r('app.string.entry_not_regular_file').id)
+      }
     }
     return {
       fileSize: stat.size,

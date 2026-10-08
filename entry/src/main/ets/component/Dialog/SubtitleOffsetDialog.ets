@@ -10,7 +10,7 @@ export struct SubtitleOffsetDialog {
   showSubtitleNavigation?: () => boolean
   controller?: CustomDialogController
   getCurrentValue?: () => number
-  title: string = '字幕偏移时间'
+  title: ResourceStr = $r('app.string.subtitle_offset_time')
   @State inputText: string = ''
   inputController: TextInputController = new TextInputController()
   minOffset: number = -50000
@@ -114,7 +114,7 @@ export struct SubtitleOffsetDialog {
             this.stepBy(-100)
           })
 
-        Button('重置')
+        Button($r('app.string.reset'))
           .fontSize(this.quickBtnFontSize)
           .fontColor($r('app.color.text_color'))
           .attributeModifier(new ButtonFancyModifier('', 36))
@@ -151,7 +151,7 @@ export struct SubtitleOffsetDialog {
 
       if (this.showSubtitleNavigation?.() ?? true) {
         Row({ space: 6 }) {
-          Button('上一条字幕')
+          Button($r('app.string.prev_subtitle'))
             .fontSize(this.quickBtnFontSize)
             .fontColor($r('app.color.text_color'))
             .layoutWeight(1)
@@ -162,7 +162,7 @@ export struct SubtitleOffsetDialog {
               this.moveToPrevSubtitle()
             })
 
-          Button('下一条字幕')
+          Button($r('app.string.next_subtitle'))
             .fontSize(this.quickBtnFontSize)
             .fontColor($r('app.color.text_color'))
             .attributeModifier(new ButtonFancyModifier('', 36))

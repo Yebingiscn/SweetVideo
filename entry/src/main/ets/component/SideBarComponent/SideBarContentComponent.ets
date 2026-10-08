@@ -37,6 +37,9 @@ import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { CapsuleSegmentButtonV2, ColorMetrics, SegmentButtonV2ItemOptions, SegmentButtonV2Items } from '@kit.ArkUI'
 import { IMenuItem } from '../../interfaces/IMenuItemInterface'
 import { deviceInfo } from '@kit.BasicServicesKit'
+import FolderSelection from '../../utils/FolderSelection'
+import { InfoConfirmDialog } from '../Dialog/InfoConfirmDialog'
+import { salmonLogger } from 'salmonlogger'
 
 @ComponentV2
 export struct SideBarContentComponent {
@@ -49,14 +52,18 @@ export struct SideBarContentComponent {
   @Local isLogin: boolean = false
   @Local expandedFolderDates: Set<string> = new Set()
   @Local collapsedFolderDates: Set<string> = new Set()
+  @Local folderSelectionMode: boolean = false
+  @Local selectedFolderDates: Set<string> = new Set()
+  @Local folderDeleting: boolean = false
+  private folderDeleteDialogController: CustomDialogController | undefined = undefined
   @Local folderSortField: SortField | '' = ''
   @Local folderSortAsc: boolean = true
   @Local folderPinyinSort: boolean = true
   @Param sideBarScroller: Scroller = new Scroller()
   @Local currentSourceTab: number = 0
   @Local segmentItems: SegmentButtonV2Items = new SegmentButtonV2Items([
-    { text: '本地' } as SegmentButtonV2ItemOptions,
-    { text: '网络' } as SegmentButtonV2ItemOptions
+    { text: ToolsUtil.getStringResource($r('app.string.segment_local').id) } as SegmentButtonV2ItemOptions,
+    { text: ToolsUtil.getStringResource($r('app.string.segment_network').id) } as SegmentButtonV2ItemOptions
   ])
   @Local itemSelectedBackgroundColor: ColorMetrics | undefined = undefined
   @Local itemSelectedFontColor: ColorMetrics | undefined = undefined
@@ -85,7 +92,7 @@ export struct SideBarContentComponent {
   })
   editFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: RenameDialog({
-      title: '修改新文件夹名',
+      title: $r('app.string.rename_new_folder'),
       renameTarget: 'folder',
       onConfirm: async (newFolderName: string) => {
         await FileFolderUtil.changeFileFolderName(PathUtils.appContext!,
@@ -137,16 +144,127 @@ export struct SideBarContentComponent {
     this.fileFolderSource.updateData(this.file_folder_list)
     const allFolderDates = new Set(this.file_folder_list.map(f => f.date))
     this.collapsedFolderDates = new Set(Array.from(this.collapsedFolderDates).filter(d => allFolderDates.has(d)))
+    const selectable = new Set(FolderSelection.selectable(this.file_folder_list).map(folder => folder.date))
+    this.selectedFolderDates = new Set(Array.from(this.selectedFolderDates).filter(date => selectable.has(date)))
     this.recomputeExpandedFolderDates()
+  }
+
+  @Monitor('sideBarController.isShow', 'currentSourceTab')
+  onFolderSelectionContextChanged(): void {
+    if (!this.sideBarController.isShow || this.currentSourceTab !== 0) { this.closeFolderSelection() }
+  }
+
+  private closeFolderSelection(): void {
+    this.folderSelectionMode = false
+    this.selectedFolderDates = new Set()
+  }
+
+  private startFolderSelection(folder: FileFolder): void {
+    if (this.folderDeleting || this.videoListController.directoryTransitioning) { return }
+    this.videoListController.closeMultipleChoose()
+    this.folderSelectionMode = true
+    this.selectedFolderDates = new Set(folder.name === '首页' ? [] : [folder.date])
+  }
+
+  private toggleFolderSelection(folder: FileFolder): void {
+    if (this.folderDeleting || folder.name === '首页') { return }
+    const selected = new Set(this.selectedFolderDates)
+    if (selected.has(folder.date)) { selected.delete(folder.date) }
+    else { selected.add(folder.date) }
+    this.selectedFolderDates = selected
+  }
+
+  private allFoldersSelected(): boolean {
+    const folders = FolderSelection.selectable(this.file_folder_list)
+    return folders.length > 0 && folders.every(folder => this.selectedFolderDates.has(folder.date))
+  }
+
+  private toggleAllFolderSelection(): void {
+    if (this.folderDeleting) { return }
+    this.selectedFolderDates = this.allFoldersSelected() ? new Set() :
+      new Set(FolderSelection.selectable(this.file_folder_list).map(folder => folder.date))
+  }
+
+  private confirmFolderSelectionDelete(): void {
+    if (this.folderDeleting || this.selectedFolderDates.size === 0) { return }
+    const selected = Array.from(this.selectedFolderDates)
+    const plan = FolderSelection.deletionPlan(Preferences.getFileFolder(PathUtils.appContext!), selected)
+    if (plan.dates.size === 0) { return }
+    this.folderDeleteDialogController = new CustomDialogController({
+      builder: InfoConfirmDialog({
+        textInfo: $r('app.string.folder_batch_delete_confirm', plan.dates.size, plan.videoCount),
+        confirm: () => { void this.deleteSelectedFolders(selected) }
+      }), cornerRadius: 20, shadow: DefaultDialogShadow
+    })
+    this.folderDeleteDialogController.open()
+  }
+
+  private async deleteSelectedFolders(selected: string[]): Promise<void> {
+    if (this.folderDeleting) { return }
+    this.folderDeleting = true
+    try {
+      const folders = await FileFolderUtil.deleteFileFoldersRecursive(PathUtils.appContext!, selected,
+        this.fileFolderSource)
+      const current = folders.find(folder => folder.date === this.videoListController.folder?.date) ??
+        folders.find(folder => folder.name === '首页') ?? folders[0]
+      this.searchValueClear()
+      this.fileFolderListChange(folders)
+      if (current) {
+        const refreshed = VideoUtils.refresh(this.videoListController, this.fileFolderSource, current)
+        this.fileFolderListChange(refreshed)
+        this.scrollToFolderDateChange(current.date)
+      }
+      this.closeFolderSelection()
+    } catch (error) {
+      salmonLogger.addLog('FolderBatchDelete', 'delete folders failed: ' + (error as Error).message, true)
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.folder_batch_delete_failed').id))
+    } finally {
+      this.folderDeleting = false
+    }
+  }
+
+  @Builder
+  FolderSelectionToolbarBuilder() {
+    Column({ space: 6 }) {
+      Row() {
+        Text($r('app.string.folder_selection_count', this.selectedFolderDates.size))
+          .fontSize(13).fontColor($r('app.color.text_color')).layoutWeight(1)
+        Button($r('app.string.cancel'), { type: ButtonType.Normal })
+          .fontSize(13).height(28).backgroundColor(Color.Transparent)
+          .fontColor($r('app.color.main_color'))
+          .onClick(() => { this.closeFolderSelection() })
+      }.width('100%')
+      Row({ space: 8 }) {
+        Button(this.allFoldersSelected() ? $r('app.string.deselect_all') : $r('app.string.select_all'),
+          { type: ButtonType.Normal })
+          .fontSize(13).height(32).layoutWeight(1).borderRadius(10)
+          .fontColor($r('app.color.text_color')).backgroundColor($r('app.color.list_item_background'))
+          .onClick(() => { this.toggleAllFolderSelection() })
+        Button($r('app.string.delete_selected'), { type: ButtonType.Normal })
+          .fontSize(13).height(32).layoutWeight(1).borderRadius(10)
+          .fontColor($r('sys.color.white')).backgroundColor($r('app.color.main_color'))
+          .enabled(this.selectedFolderDates.size > 0)
+          .onClick(() => { this.confirmFolderSelectionDelete() })
+      }.width('100%')
+    }.width('100%').padding({ left: 16, right: 16, bottom: 8 })
   }
 
   @Builder
   FileFolderSelectMenu(folder: FileFolder) {
-    if (folder.name !== '首页') {
+    if (this.folderSelectionMode) {
+      FolderSelectMenuBuilder([{
+        icon: $r('sys.symbol.xmark'), content: $r('app.string.cancel'),
+        onAction: () => { if (!this.folderDeleting) { this.closeFolderSelection() } }
+      }])
+    } else if (folder.name !== '首页') {
       FolderSelectMenuBuilder([
         {
+          icon: $r('sys.symbol.checkmark_square'), content: $r('app.string.multiple_choice'),
+          onAction: () => { this.startFolderSelection(folder) }
+        },
+        {
           icon: $r('sys.symbol.time_lapse'),
-          content: '设置片头片尾',
+          content: $r('app.string.menu_intro_outro'),
           onAction: () => {
             this.openFolderOpeningEndingDialog(folder)
           },
@@ -191,8 +309,12 @@ export struct SideBarContentComponent {
     } else {
       FolderSelectMenuBuilder([
         {
+          icon: $r('sys.symbol.checkmark_square'), content: $r('app.string.multiple_choice'),
+          onAction: () => { this.startFolderSelection(folder) }
+        },
+        {
           icon: $r('sys.symbol.time_lapse'),
-          content: '设置片头片尾',
+          content: $r('app.string.menu_intro_outro'),
           onAction: () => {
             this.openFolderOpeningEndingDialog(folder)
           },
@@ -301,7 +423,7 @@ export struct SideBarContentComponent {
         .clickEffect({ level: ClickEffectLevel.HEAVY, scale: 0.9 })
         .onClick(() => {
           ToolsUtil.startVibration()
-          ToolsUtil.showToast('不管多么难熬，人生都要眉开眼笑 ( •̀ ω •́ )✧')
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.toast_easter_egg').id))
         })
 
         Row() {
@@ -309,12 +431,12 @@ export struct SideBarContentComponent {
             .attributeModifier(new ImageFancyModifier(20, 45, 45))
             .margin({ left: 10 })
           Column({ space: 2 }) {
-            Text(userData.isLogin ? (userData.nickName || '已登录') : '点击登录')
+            Text(userData.isLogin ? (userData.nickName || ToolsUtil.getStringResource($r('app.string.logged_in').id)) : ToolsUtil.getStringResource($r('app.string.tap_to_login').id))
               .fontColor($r('app.color.text_color'))
               .fontSize(15)
               .textOverflow({ overflow: TextOverflow.MARQUEE })
             if (userData.isLogin) {
-              Text(userData.isVip ? 'VIP' : '非VIP')
+              Text(userData.isVip ? $r('app.string.vip_label') : $r('app.string.non_vip'))
                 .fontSize(10)
                 .fontColor(userData.isVip ? $r('sys.color.white') : $r('sys.color.black'))
                 .backgroundColor(userData.isVip ? $r('app.color.main_color') : '#c1b2a3')
@@ -357,7 +479,7 @@ export struct SideBarContentComponent {
           enableOutsideInteractive: false,
           dragBar: true,
           showClose: true,
-          title: { title: '账号信息' },
+          title: { title: $r('app.string.account_info') },
           onWillDismiss: () => {
             this.isLogin = false
           }
@@ -426,6 +548,10 @@ export struct SideBarContentComponent {
       .width('100%')
       .padding({ left: 16, right: 16 })
 
+      if (this.folderSelectionMode && this.currentSourceTab === 0) {
+        this.FolderSelectionToolbarBuilder()
+      }
+
       // 内容区域：Swiper 切换本地/网络
       Swiper() {
         // Tab 0: 本地
@@ -455,7 +581,7 @@ export struct SideBarContentComponent {
                 Row() {
                   SymbolGlyph($r('sys.symbol.magnifyingglass'))
                     .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                  Text('全局搜索')
+                  Text($r('app.string.global_search'))
                     .fontSize(15)
                     .margin({ left: 10, right: 12 })
                 }
@@ -472,7 +598,7 @@ export struct SideBarContentComponent {
                 Row() {
                   SymbolGlyph($r('sys.symbol.folder_badge_plus'))
                     .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                  Text('添加文件夹')
+                  Text($r('app.string.add_folder'))
                     .fontSize(15)
                     .margin({ left: 10, right: 12 })
                     .textOverflow({ overflow: TextOverflow.MARQUEE })
@@ -499,7 +625,7 @@ export struct SideBarContentComponent {
 
             // 文件夹标题行 + 排序
             Row() {
-              Text('文件夹')
+              Text($r('app.string.folder'))
                 .fontSize(14)
                 .fontColor($r('sys.color.font_tertiary'))
                 .fontWeight(FontWeight.Medium)
@@ -541,6 +667,9 @@ export struct SideBarContentComponent {
                       hasChildren: this.fileFolderSource.data.some(
                         folder => folder.parent_date === repeatItem.item.date),
                       isExpanded: this.expandedFolderDates.has(repeatItem.item.date),
+                      selectionMode: this.folderSelectionMode,
+                      selected: this.selectedFolderDates.has(repeatItem.item.date),
+                      selectable: repeatItem.item.name !== '首页',
                       onToggleExpand: (folderDate: string) => {
                         const newExpandedSet = new Set(this.expandedFolderDates)
                         const newCollapsedSet = new Set(this.collapsedFolderDates)
@@ -559,8 +688,15 @@ export struct SideBarContentComponent {
                     })
                   }
                   .onClick(() => {
+                    if (this.folderDeleting) { return }
+                    if (this.folderSelectionMode) {
+                      this.toggleFolderSelection(repeatItem.item)
+                      return
+                    }
+                    if (this.videoListController.directoryTransitioning) { return }
                     this.searchValueClear()
-                    if (this.videoListController.folder?.date === repeatItem.item.date) {
+                    if (this.videoListController.folder?.date === repeatItem.item.date &&
+                      !this.videoListController.directoryOverview) {
                       return
                     }
                     const latestFolders = Preferences.getFileFolder(PathUtils.appContext!)
@@ -576,6 +712,7 @@ export struct SideBarContentComponent {
                         ToolsUtil.sortBy(PathUtils.appContext!, folderVideos, currentFolder, sortField, sortAsc)
                     }
                     this.videoListController.videoDataSource.updateData(folderVideos)
+                    this.videoListController.directoryOverview = false
                     this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder!)
                     this.scrollToFolderDateChange(repeatItem.item.date)
                     this.sideBarController.closeIfOverlay(true)
@@ -627,7 +764,7 @@ export struct SideBarContentComponent {
               Row() {
                 SymbolGlyph($r('sys.symbol.switch_TV'))
                   .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                Text('串流')
+                Text($r('app.string.stream'))
                   .fontSize(15)
                   .margin({ left: 10, right: 12 })
                   .textOverflow({ overflow: TextOverflow.MARQUEE })
@@ -685,9 +822,49 @@ export struct SideBarContentComponent {
 
             Button({ type: ButtonType.Normal, stateEffect: true }) {
               Row() {
+                SymbolGlyph($r('sys.symbol.folder_badge_ellipsis'))
+                  .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                Text('WebDAV')
+                  .fontSize(15)
+                  .margin({ left: 10, right: 12 })
+                  .textOverflow({ overflow: TextOverflow.MARQUEE })
+              }
+            }
+            .align(Alignment.Start)
+            .padding({ left: 16, right: 16 })
+            .attributeModifier(new ButtonFancyModifier('100%', 60))
+            .backgroundColor(Color.Transparent)
+            .animation({ duration: 300, curve: Curve.Ease })
+            .onClick(() => {
+              this.sideBarController.closeIfOverlay(false)
+              this.pathStack.pushPathByName(NavigationAddress.WEBDAV_PAGE, null)
+            })
+
+            Button({ type: ButtonType.Normal, stateEffect: true }) {
+              Row() {
+                SymbolGlyph($r('sys.symbol.folder_badge_ellipsis'))
+                  .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+                Text('FTP')
+                  .fontSize(15)
+                  .margin({ left: 10, right: 12 })
+                  .textOverflow({ overflow: TextOverflow.MARQUEE })
+              }
+            }
+            .align(Alignment.Start)
+            .padding({ left: 16, right: 16 })
+            .attributeModifier(new ButtonFancyModifier('100%', 60))
+            .backgroundColor(Color.Transparent)
+            .animation({ duration: 300, curve: Curve.Ease })
+            .onClick(() => {
+              this.sideBarController.closeIfOverlay(false)
+              this.pathStack.pushPathByName(NavigationAddress.FTP_PAGE, null)
+            })
+
+            Button({ type: ButtonType.Normal, stateEffect: true }) {
+              Row() {
                 SymbolGlyph($r('sys.symbol.cloud'))
                   .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
-                Text('华为云盘')
+                Text($r('app.string.huawei_drive'))
                   .fontSize(15)
                   .margin({ left: 10, right: 12 })
                   .textOverflow({ overflow: TextOverflow.MARQUEE })
@@ -732,6 +909,7 @@ export struct SideBarContentComponent {
     }
     .width('100%')
     .justifyContent(FlexAlign.Start)
+    .enabled(!this.folderDeleting)
     .backgroundColor(Setting.backgroundImageSrc.length > 0 ? '' : $r('app.color.sidebar_background_color'))
     .transition(TransitionEffect.translate({ x: -300 })
       .combine(TransitionEffect.OPACITY)
@@ -782,7 +960,7 @@ export struct SideBarContentComponent {
     if (deviceInfo.apiAvailable('26.0.0')) {
       menus.push({
         icon: $r('sys.symbol.folder'),
-        content: '从文件夹导入',
+        content: $r('app.string.import_from_folder'),
         onAction: async () => {
           this.sideBarController.closeIfOverlay(false)
           await this.importMediaFolders()
@@ -804,7 +982,7 @@ export struct SideBarContentComponent {
           emptyFolderCount++
           continue
         }
-        const folderName = folderImport.name === '首页' ? '首页（导入）' : folderImport.name
+        const folderName = folderImport.name === '首页' ? ToolsUtil.getStringResource($r('app.string.home_folder_import').id) : folderImport.name
         await this.toMetaData(folderImport.files, undefined, folderImport.uri, folderName)
       }
       const currentFolderDate = this.videoListController.folder?.date
@@ -814,7 +992,7 @@ export struct SideBarContentComponent {
       const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, currentFolder)
       this.fileFolderListChange(updatedFolders)
       if (emptyFolderCount === imports.length) {
-        ToolsUtil.showToast('所选文件夹中没有可导入的视频或音频')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.folder_no_importable_media').id))
       }
     }
   }
@@ -836,7 +1014,7 @@ export struct SideBarContentComponent {
 
   private openFolderOpeningEndingDialog(folder: FileFolder): void {
     if (folder.video_list.length === 0) {
-      ToolsUtil.showToast('该文件夹内没有视频')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.folder_no_video').id))
       return
     }
     DataSyncUtil.editingFolder = folder
@@ -847,7 +1025,7 @@ export struct SideBarContentComponent {
     const updatedFolders = FolderOperator.updateFolderOpeningEndingTimes(folderDate, startTime, endTime)
     const updatedFolder = updatedFolders.find(folder => folder.date === folderDate)
     if (!updatedFolder) {
-      ToolsUtil.showToast('文件夹不存在，设置失败')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.folder_not_exist_set_failed').id))
       return
     }
     this.fileFolderSource.updateData(updatedFolders)

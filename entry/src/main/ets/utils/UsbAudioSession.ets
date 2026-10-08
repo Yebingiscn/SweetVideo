@@ -1,6 +1,7 @@
 import { usbManager } from '@kit.BasicServicesKit'
 import { fileIo } from '@kit.CoreFileKit'
 import { salmonLogger } from 'salmonlogger'
+import ToolsUtil from './ToolsUtil.ets'
 
 // The file descriptor remains owned here until playback stops. The USB AO
 // duplicates it and drains its asynchronous transfers before releasing it.
@@ -29,29 +30,33 @@ export class UsbAudioSession {
     const devices = UsbAudioSession.devices()
     const device = deviceName ? devices.find((item: usbManager.USBDevice) => UsbAudioSession.deviceKey(item) === deviceName) :
       (devices.length === 1 ? devices[0] : undefined)
-    if (!device) throw new Error(devices.length > 1 ? '请先在引擎设置中选择 USB 音频设备' : '未找到所选 USB 音频设备')
+    if (!device) throw new Error(devices.length > 1 ? ToolsUtil.getStringResource($r('app.string.usb_select_audio_device').id) : ToolsUtil.getStringResource($r('app.string.usb_audio_device_not_found').id))
     if (!usbManager.hasRight(device.name) && !await usbManager.requestRight(device.name)) {
-      throw new Error('未取得 USB 设备授权')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.usb_not_authorized').id))
     }
-    if (generation !== this.generation) throw new Error('USB 连接已取消')
+    if (generation !== this.generation) throw new Error(ToolsUtil.getStringResource($r('app.string.usb_connection_cancelled').id))
     const pipe = usbManager.connectDevice(device)
-    if (!pipe) throw new Error('无法连接 USB 设备')
+    if (!pipe) throw new Error(ToolsUtil.getStringResource($r('app.string.usb_connect_failed').id))
     try {
       const fd = usbManager.getFileDescriptor(pipe)
       // SDK error codes are positive. Validate the returned number as an fd.
-      if (fd < 0) throw new Error('系统未提供 USB 原生传输句柄')
+      if (fd < 0) throw new Error(ToolsUtil.getStringResource($r('app.string.usb_no_native_transfer').id))
       fileIo.statSync(fd)
       this.fd = fd
       this.pipe = pipe
       return fd
     } catch (error) {
       usbManager.closePipe(pipe)
-      throw new Error('无法取得 USB 原生传输权限')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.usb_native_permission_failed').id))
     }
   }
 
-  close(): void {
+  cancelPendingOpen(): void {
     this.generation++
+  }
+
+  close(): void {
+    this.cancelPendingOpen()
     if (this.fd >= 0) {
       try { fileIo.closeSync(this.fd) } catch (error) {
         salmonLogger.addLog('UsbAudioSession', '关闭 USB 句柄失败', true)

@@ -40,7 +40,7 @@ export function SwipingPanelBuilder(value: SwipingPanelValue) {
           .animation({ duration: 300, curve: Curve.Smooth })
       }
       if (value.onSwipingVoice && UsbAudioSession.volumeControl) {
-        Text('请在音轨面板调节 USB 音量').fontColor('#f0f0f0').fontSize(14)
+        Text($r('app.string.usb_volume_hint')).fontColor('#f0f0f0').fontSize(14)
       } else {
       Slider({
         value: value.onSwipingVoice ? value.videoVolumeShow : value.screenBrightness,

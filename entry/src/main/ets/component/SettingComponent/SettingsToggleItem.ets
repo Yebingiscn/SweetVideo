@@ -66,7 +66,7 @@ export struct SettingsToggleItem {
     .height(55)
     .onClick(() => {
       if (!this.itemEnabled) {
-        ToolsUtil.showToast('这个是vip功能')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.vip_feature_only').id))
       }
     })
   }

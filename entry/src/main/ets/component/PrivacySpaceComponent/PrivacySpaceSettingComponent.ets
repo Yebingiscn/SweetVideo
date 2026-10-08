@@ -74,7 +74,7 @@ export struct PrivacySpaceSettingComponent {
     Column() {
       SettingsClickItem({
         symbol: $r('sys.symbol.lock'),
-        message: '重设密码',
+        message: ToolsUtil.getStringResource($r('app.string.reset_password').id),
         onPress: () => {
           this.onIsPresentChange(false)
           this.onEditPasswdDialogOpen()
@@ -89,7 +89,7 @@ export struct PrivacySpaceSettingComponent {
           .layoutWeight(1)
         Select(this.authModeOptions)
           .selected(this.authModeSelected)
-          .value(this.authModeOptions[this.authModeSelected]?.value ?? '密码')
+          .value(this.authModeOptions[this.authModeSelected]?.value ?? ToolsUtil.getStringResource($r('app.string.privacy_auth_mode_password').id))
           .font({ size: 16 })
           .selectedOptionFont({ size: 16, weight: FontWeight.Medium })
           .optionFont({ size: 16 })
@@ -109,7 +109,7 @@ export struct PrivacySpaceSettingComponent {
 
       SettingsToggleItem({
         symbol: $r('sys.symbol.checkmark_shield'),
-        message: '设置中显示入口',
+        message: ToolsUtil.getStringResource($r('app.string.show_entry_in_settings').id),
         enable: Setting.showSettingPageEntry,
         onChange: (checked: boolean) => {
           Setting.showSettingPageEntry = checked
@@ -119,7 +119,7 @@ export struct PrivacySpaceSettingComponent {
 
       SettingsToggleItem({
         symbol: $r('sys.symbol.arrow_up_left_and_arrow_down_right'),
-        message: '首页双指捏合往外划开进入',
+        message: ToolsUtil.getStringResource($r('app.string.entry_gesture_hint').id),
         enable: Setting.allowGestureEntry,
         onChange: (checked: boolean) => {
           Setting.allowGestureEntry = checked
@@ -129,7 +129,7 @@ export struct PrivacySpaceSettingComponent {
 
       SettingsToggleItem({
         symbol: $r('sys.symbol.private_browsing_mode'),
-        message: 'AI隐私防窥',
+        message: ToolsUtil.getStringResource($r('app.string.ai_privacy_antipeep').id),
         enable: Setting.enableAiPrivacyAntiPeep,
         onChange: (checked: boolean) => {
           Setting.enableAiPrivacyAntiPeep = checked
@@ -144,7 +144,7 @@ export struct PrivacySpaceSettingComponent {
 
       SettingsClickItem({
         symbol: $r('sys.symbol.staroflife_rectangle'),
-        message: '有视频不见了？点这里',
+        message: ToolsUtil.getStringResource($r('app.string.missing_videos_here').id),
         onPress: () => {
           this.onIsPresentChange(false)
           this.pathStack.pushPathByName(NavigationAddress.PRIVACY_ERROR_LIST, true)
@@ -152,9 +152,9 @@ export struct PrivacySpaceSettingComponent {
       })
 
       Column({ space: 8 }) {
-        Text('清理提示')
+        Text($r('app.string.cleanup_tip_title'))
           .fontSize(20).fontWeight(FontWeight.Medium)
-        Text('删除隐私空间的视频后，系统存储中的占用情况可能不会立即刷新。若需要查看准确的空间释放情况，建议重启手机。')
+        Text($r('app.string.cleanup_tip_desc'))
           .fontSize(15)
       }
       .padding(15)

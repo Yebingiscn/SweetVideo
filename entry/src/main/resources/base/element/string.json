@@ -1,6 +1,66 @@
 {
   "string": [
     {
+      "name": "home_style",
+      "value": "Home style"
+    },
+    {
+      "name": "home_style_list",
+      "value": "List"
+    },
+    {
+      "name": "home_style_directory",
+      "value": "Directory"
+    },
+    {
+      "name": "folder_selection_count",
+      "value": "%d folders selected"
+    },
+    {
+      "name": "folder_batch_delete_confirm",
+      "value": "Delete %d folders (including subfolders) and %d media entries? Original video files will be kept."
+    },
+    {
+      "name": "folder_batch_delete_failed",
+      "value": "Could not delete the folders. Please try again."
+    },
+    {
+      "name": "directory_all_folders",
+      "value": "All folders"
+    },
+    {
+      "name": "directory_root_count",
+      "value": "%d folders"
+    },
+    {
+      "name": "directory_item_count",
+      "value": "%d videos · %d subfolders"
+    },
+    {
+      "name": "directory_folder_accessibility",
+      "value": "Folder %s, %d videos, %d subfolders"
+    },
+    {
+      "name": "directory_enable",
+      "value": "Enable directory view"
+    },
+    {
+      "name": "directory_disable",
+      "value": "Disable directory view"
+    },
+    {
+      "name": "directory_back",
+      "value": "Go up one level"
+    },
+    {
+      "name": "directory_empty",
+      "value": "This folder is empty"
+    },
+    {
+      "name": "directory_search_empty",
+      "value": "No matching videos or folders"
+    },
+    {
       "name": "module_desc",
       "value": "module description"
     },
@@ -29,16 +89,8 @@
       "value": "Setting"
     },
     {
-      "name": "search",
-      "value": "Search"
-    },
-    {
       "name": "set_passwd",
       "value": "Set password"
-    },
-    {
-      "name": "enter_privacy_space",
-      "value": "Entered privacy space"
     },
     {
       "name": "set_passwd_tip",
@@ -59,10 +111,6 @@
     {
       "name": "close_rotation_lock",
       "value": "rotation lock closed"
-    },
-    {
-      "name": "no_search_result",
-      "value": "no search result"
     },
     {
       "name": "unknown_size",
@@ -133,6 +181,14 @@
       "value": "Sort by add time"
     },
     {
+      "name": "change_cover",
+      "value": "Change cover"
+    },
+    {
+      "name": "sort_by_recent_play",
+      "value": "Sort by recent play"
+    },
+    {
       "name": "multiple_choice",
       "value": "Multiple choice"
     },
@@ -147,14 +203,6 @@
     {
       "name": "MPV_Player",
       "value": "MPV Player"
-    },
-    {
-      "name": "re_import_info",
-      "value": "Please re-import if it has been invalidated"
-    },
-    {
-      "name": "exit_privacy_space",
-      "value": "Exit privacy space"
     },
     {
       "name": "privacy_space_info",
@@ -183,10 +231,6 @@
     {
       "name": "move_folder",
       "value": "Move folder"
-    },
-    {
-      "name": "READ_WRITE_DOWNLOAD_DIRECTORY_REASON",
-      "value": "read videos from download"
     },
     {
       "name": "sort_by_datetime",
@@ -227,10 +271,6 @@
     {
       "name": "no_files_imported",
       "value": "没有任何文件被导入哦~"
-    },
-    {
-      "name": "privacy_auth_failed",
-      "value": "验证失败，请从首页搜索框输入密码进入隐私空间"
     },
     {
       "name": "privacy_enter_via_password",
@@ -275,6 +315,3787 @@
     {
       "name": "privacy_auth_mode_password",
       "value": "Password"
+    },
+    {
+      "name": "search_no_match_title",
+      "value": "No matches"
+    },
+    {
+      "name": "search_no_match_in_folder",
+      "value": "No video matching \"%s\" in this folder"
+    },
+    {
+      "name": "deselect_all",
+      "value": "Deselect all"
+    },
+    {
+      "name": "no_play_record_in_folder",
+      "value": "No play record in this folder yet"
+    },
+    {
+      "name": "invalid_file_reimport",
+      "value": "This file is unavailable. Please import it again."
+    },
+    {
+      "name": "invalid_file_clear_confirm",
+      "value": "This file is unavailable. Remove it?"
+    },
+    {
+      "name": "data_loading_retry",
+      "value": "Still loading, please try again"
+    },
+    {
+      "name": "exit_multiple_choice",
+      "value": "Exit multi-select"
+    },
+    {
+      "name": "menu_short_video_play",
+      "value": "Play in short-video mode"
+    },
+    {
+      "name": "menu_detail",
+      "value": "Details"
+    },
+    {
+      "name": "menu_import_subtitle",
+      "value": "Import or delete subtitles"
+    },
+    {
+      "name": "menu_open_file_location",
+      "value": "Open file location"
+    },
+    {
+      "name": "cover_update_failed",
+      "value": "Failed to update the cover"
+    },
+    {
+      "name": "cover_updated",
+      "value": "Cover updated"
+    },
+    {
+      "name": "import_stage_extracting",
+      "value": "Extracting: "
+    },
+    {
+      "name": "import_stage_cover",
+      "value": "Generating cover: "
+    },
+    {
+      "name": "import_stage_saving",
+      "value": "Saving: "
+    },
+    {
+      "name": "import_stage_processing",
+      "value": "Processing: "
+    },
+    {
+      "name": "import_failed_count",
+      "value": "Failed: %d"
+    },
+    {
+      "name": "segment_local",
+      "value": "Local"
+    },
+    {
+      "name": "segment_network",
+      "value": "Network"
+    },
+    {
+      "name": "rename_new_folder",
+      "value": "Rename new folder"
+    },
+    {
+      "name": "menu_intro_outro",
+      "value": "Set intro / outro"
+    },
+    {
+      "name": "toast_easter_egg",
+      "value": "No matter how hard it gets, keep smiling ( •̀ ω •́ )✧"
+    },
+    {
+      "name": "logged_in",
+      "value": "Signed in"
+    },
+    {
+      "name": "tap_to_login",
+      "value": "Tap to sign in"
+    },
+    {
+      "name": "vip_label",
+      "value": "VIP"
+    },
+    {
+      "name": "non_vip",
+      "value": "Non-VIP"
+    },
+    {
+      "name": "account_info",
+      "value": "Account"
+    },
+    {
+      "name": "global_search",
+      "value": "Global search"
+    },
+    {
+      "name": "add_folder",
+      "value": "Add folder"
+    },
+    {
+      "name": "folder",
+      "value": "Folder"
+    },
+    {
+      "name": "stream",
+      "value": "Stream"
+    },
+    {
+      "name": "huawei_drive",
+      "value": "Huawei Drive"
+    },
+    {
+      "name": "import_from_folder",
+      "value": "Import from folder"
+    },
+    {
+      "name": "home_folder_import",
+      "value": "Home (imported)"
+    },
+    {
+      "name": "folder_no_importable_media",
+      "value": "No importable video or audio in the selected folder"
+    },
+    {
+      "name": "folder_no_video",
+      "value": "No video in this folder"
+    },
+    {
+      "name": "folder_not_exist_set_failed",
+      "value": "Folder does not exist. Failed to save."
+    }
+,
+    {
+      "name": "not_logged_in",
+      "value": "Not signed in"
+    },
+    {
+      "name": "get_vip",
+      "value": "Get VIP"
+    },
+    {
+      "name": "settings_appearance",
+      "value": "Appearance"
+    },
+    {
+      "name": "settings_personalize",
+      "value": "Personalization"
+    },
+    {
+      "name": "settings_playback",
+      "value": "Playback"
+    },
+    {
+      "name": "settings_engine",
+      "value": "Engine"
+    },
+    {
+      "name": "settings_subtitle_style",
+      "value": "Subtitle style"
+    },
+    {
+      "name": "settings_harmony",
+      "value": "HarmonyOS features"
+    },
+    {
+      "name": "settings_more",
+      "value": "More settings"
+    },
+    {
+      "name": "list_layout",
+      "value": "List layout"
+    },
+    {
+      "name": "list_layout_card",
+      "value": "Card"
+    },
+    {
+      "name": "list_layout_list",
+      "value": "List"
+    },
+    {
+      "name": "list_layout_grid",
+      "value": "Grid"
+    },
+    {
+      "name": "cover_layout",
+      "value": "Cover layout"
+    },
+    {
+      "name": "cover_layout_vertical",
+      "value": "Portrait"
+    },
+    {
+      "name": "cover_layout_horizontal",
+      "value": "Landscape"
+    },
+    {
+      "name": "random_cover",
+      "value": "Random cover"
+    },
+    {
+      "name": "random_cover_tip",
+      "value": "Used when there is no embedded cover; picks a random frame from the first five minutes"
+    },
+    {
+      "name": "max_list_count",
+      "value": "Max columns"
+    },
+    {
+      "name": "enable_recent_play",
+      "value": "Enable recent play"
+    },
+    {
+      "name": "home_show_folder_tabs",
+      "value": "Show folder tabs on the home page"
+    },
+    {
+      "name": "default_startup_page",
+      "value": "Default start page: %s"
+    },
+    {
+      "name": "default_start_page_default",
+      "value": "Default (Home)"
+    },
+    {
+      "name": "default_start_page_stream",
+      "value": "Streams"
+    },
+    {
+      "name": "default_start_page_iptv",
+      "value": "IPTV sources"
+    },
+    {
+      "name": "appearance_title",
+      "value": "Appearance"
+    },
+    {
+      "name": "display_mode",
+      "value": "Display mode"
+    },
+    {
+      "name": "display_mode_auto",
+      "value": "Auto"
+    },
+    {
+      "name": "display_mode_light",
+      "value": "Light"
+    },
+    {
+      "name": "display_mode_dark",
+      "value": "Dark"
+    },
+    {
+      "name": "switch_app_icon",
+      "value": "Change app icon"
+    },
+    {
+      "name": "wallpaper_switch",
+      "value": "Wallpaper per color mode"
+    },
+    {
+      "name": "list_item_bg_blur",
+      "value": "Blur list item background"
+    },
+    {
+      "name": "custom_wallpaper_light",
+      "value": "Custom light wallpaper"
+    },
+    {
+      "name": "custom_wallpaper",
+      "value": "Custom wallpaper"
+    },
+    {
+      "name": "custom_wallpaper_dark",
+      "value": "Custom dark wallpaper"
+    },
+    {
+      "name": "delete_wallpaper_light",
+      "value": "Delete custom light wallpaper"
+    },
+    {
+      "name": "delete_wallpaper",
+      "value": "Delete custom wallpaper"
+    },
+    {
+      "name": "delete_wallpaper_dark",
+      "value": "Delete custom dark wallpaper"
+    },
+    {
+      "name": "wallpaper_blur",
+      "value": "Wallpaper blur"
+    },
+    {
+      "name": "personalize_title",
+      "value": "Personalization"
+    },
+    {
+      "name": "app_icon",
+      "value": "App icon"
+    },
+    {
+      "name": "device_not_supported",
+      "value": "Not supported on this device"
+    },
+    {
+      "name": "icon_switched",
+      "value": "App icon changed"
+    },
+    {
+      "name": "icon_switch_failed",
+      "value": "Failed to change the app icon"
+    },
+    {
+      "name": "icon_restored",
+      "value": "Default icon restored"
+    },
+    {
+      "name": "icon_restore_failed",
+      "value": "Failed to restore the default icon"
+    },
+    {
+      "name": "no_photo_selected",
+      "value": "No photo selected"
+    },
+    {
+      "name": "set_success",
+      "value": "Saved"
+    },
+    {
+      "name": "about_app",
+      "value": "About"
+    },
+    {
+      "name": "check_update",
+      "value": "Check for updates"
+    },
+    {
+      "name": "rate_app",
+      "value": "Rate Sweet Video"
+    },
+    {
+      "name": "runtime_log",
+      "value": "Runtime log"
+    },
+    {
+      "name": "clean_invalid_files",
+      "value": "Clean up missing files"
+    },
+    {
+      "name": "deleted_files_count",
+      "value": "Deleted %d files"
+    },
+    {
+      "name": "no_invalid_files",
+      "value": "No missing files found"
+    },
+    {
+      "name": "fixed_scaling",
+      "value": "Fixed scaling (disabling may cause UI issues)"
+    },
+    {
+      "name": "restart_to_apply_ui",
+      "value": "Takes effect after restart; disabling may cause UI issues"
+    },
+    {
+      "name": "feature_tap_share",
+      "value": "Tap to share"
+    },
+    {
+      "name": "feature_tap_share_desc",
+      "value": "Tap two devices together to share or receive video files. The device must support Tap to Share."
+    },
+    {
+      "name": "feature_grip_posture",
+      "value": "Grip posture"
+    },
+    {
+      "name": "feature_grip_posture_desc",
+      "value": "Detects which hand is holding the device and adapts the layout for one-handed use. Requires device support."
+    },
+    {
+      "name": "feature_smart_gesture",
+      "value": "Smart gestures"
+    },
+    {
+      "name": "feature_smart_gesture_desc",
+      "value": "Tap to play or pause, swipe to seek or switch clips, flip your wrist to go back. Requires system smart gestures."
+    },
+    {
+      "name": "card_open_failed",
+      "value": "Cannot open the desktop widget right now, please try again later"
+    },
+    {
+      "name": "open_source_star",
+      "value": "Open source — stars welcome ⭐"
+    },
+    {
+      "name": "terms_suffix",
+      "value": " — Terms and Privacy Statement"
+    },
+    {
+      "name": "qq_group",
+      "value": "QQ group: 973792610"
+    },
+    {
+      "name": "support_author",
+      "value": "Support the developer"
+    },
+    {
+      "name": "external_link_confirm",
+      "value": "You are about to open an external web page. Continue?"
+    },
+    {
+      "name": "copyright_notice",
+      "value": "© 2025 Chenzhou Liquid Technology Co., Ltd. All rights reserved."
+    },
+    {
+      "name": "vip_feature_only",
+      "value": "This is a VIP feature"
+    },
+    {
+      "name": "seconds_n",
+      "value": "%ds"
+    },
+    {
+      "name": "background_playback",
+      "value": "Play in background"
+    },
+    {
+      "name": "play_with_others",
+      "value": "Play along with other apps"
+    },
+    {
+      "name": "auto_pip_on_background",
+      "value": "Enter PiP automatically in background"
+    },
+    {
+      "name": "resume_on_foreground",
+      "value": "Resume when returning to foreground"
+    },
+    {
+      "name": "hide_status_bar_on_back",
+      "value": "Hide status bar when returning"
+    },
+    {
+      "name": "short_video_mode",
+      "value": "Short-video mode"
+    },
+    {
+      "name": "smart_landscape",
+      "value": "Smart landscape"
+    },
+    {
+      "name": "show_progress_preview",
+      "value": "Progress preview thumbnails"
+    },
+    {
+      "name": "remember_playback_position",
+      "value": "Remember playback position"
+    },
+    {
+      "name": "enable_double_tap_seek",
+      "value": "Double-tap screen edges to seek"
+    },
+    {
+      "name": "seek_duration",
+      "value": "Seek duration"
+    },
+    {
+      "name": "long_press_speed",
+      "value": "Long-press speed"
+    },
+    {
+      "name": "horizontal_seek_sensitivity",
+      "value": "Horizontal swipe seek sensitivity"
+    },
+    {
+      "name": "sensitivity_normal",
+      "value": "Normal"
+    },
+    {
+      "name": "sensitivity_medium",
+      "value": "Medium"
+    },
+    {
+      "name": "sensitivity_low",
+      "value": "Low"
+    },
+    {
+      "name": "skip_intro",
+      "value": "Skip intro"
+    },
+    {
+      "name": "skip_outro",
+      "value": "Skip outro"
+    },
+    {
+      "name": "default_brightness",
+      "value": "Default brightness"
+    },
+    {
+      "name": "usb_auto_select",
+      "value": "Auto-select the only device"
+    },
+    {
+      "name": "usb_device_disconnected",
+      "value": "Selected device is not connected (you can pick again)"
+    },
+    {
+      "name": "usb_query_unsupported",
+      "value": "USB device query is not supported on this device"
+    },
+    {
+      "name": "default_player_engine",
+      "value": "Default player engine"
+    },
+    {
+      "name": "mpv_decoding_prefix",
+      "value": "MPV decoding: "
+    },
+    {
+      "name": "hw_surface",
+      "value": "HW (Surface)"
+    },
+    {
+      "name": "sw_decode",
+      "value": "SW"
+    },
+    {
+      "name": "hw_buffer",
+      "value": "HW (Buffer)"
+    },
+    {
+      "name": "mpv_deinterlace",
+      "value": "MPV auto deinterlace"
+    },
+    {
+      "name": "mpv_deinterlace_desc",
+      "value": "Handles interlaced video automatically; enables software decoding and may increase power use. Takes effect next time you open a video."
+    },
+    {
+      "name": "mpv_passthrough",
+      "value": "MPV audio passthrough (experimental)"
+    },
+    {
+      "name": "mpv_passthrough_desc",
+      "value": "Tries E-AC3 (48 kHz) passthrough; falls back to normal output when unsupported, speed-changed or used with audio effects. Takes effect next time you open a video."
+    },
+    {
+      "name": "mpv_usb_exclusive",
+      "value": "MPV USB exclusive (experimental)"
+    },
+    {
+      "name": "mpv_usb_exclusive_desc",
+      "value": "Outputs at the source sample rate, keeping integer PCM / DSD data intact. Only compatible mono or stereo DACs are supported; falls back to normal audio output when the USB connection or setup fails. Speed change, audio effects and loudness adjustment are disabled in exclusive mode; takes effect next time you open media."
+    },
+    {
+      "name": "usb_audio_device",
+      "value": "USB audio device"
+    },
+    {
+      "name": "dsd_output_mode",
+      "value": "DSD output mode"
+    },
+    {
+      "name": "off",
+      "value": "Off"
+    },
+    {
+      "name": "native_dsd",
+      "value": "Native DSD (experimental)"
+    },
+    {
+      "name": "dsd_select_device",
+      "value": "Select a USB device that supports the chosen DSD mode first"
+    },
+    {
+      "name": "dsd_desc",
+      "value": "Supports raw DSD, DST and unpacked DSD WavPack output. DoP requires explicit DAC support; Native is limited to devices and firmware on the compatibility list and does not cover every DAC. USB volume is adjusted in the audio track panel on the player page and does not change system volume; use the device knob for DACs without hardware volume."
+    },
+    {
+      "name": "mpv_gpu_backend",
+      "value": "MPV GPU backend (Buffer only, not recommended)"
+    },
+    {
+      "name": "mpv_quality_boost",
+      "value": "MPV image enhancement (Buffer/SW only)"
+    },
+    {
+      "name": "sdr_to_hdr",
+      "value": "SDR to HDR (Buffer/SW only)"
+    },
+    {
+      "name": "super_resolution",
+      "value": "Video super resolution"
+    },
+    {
+      "name": "decode_support_dv_p5",
+      "value": "Supports Dolby P5, slightly slower"
+    },
+    {
+      "name": "decode_compat_best",
+      "value": "Best compatibility, higher power use"
+    },
+    {
+      "name": "decode_performance_best",
+      "value": "Best performance, no Dolby P5"
+    },
+    {
+      "name": "lang_simplified_chinese",
+      "value": "Simplified Chinese"
+    },
+    {
+      "name": "lang_traditional_chinese",
+      "value": "Traditional Chinese"
+    },
+    {
+      "name": "lang_english",
+      "value": "English"
+    },
+    {
+      "name": "color_warm_white",
+      "value": "Soft white"
+    },
+    {
+      "name": "color_pure_white",
+      "value": "Pure white"
+    },
+    {
+      "name": "color_warm_yellow",
+      "value": "Warm yellow"
+    },
+    {
+      "name": "color_cyan",
+      "value": "Cyan"
+    },
+    {
+      "name": "color_light_green",
+      "value": "Light green"
+    },
+    {
+      "name": "color_pink",
+      "value": "Pink"
+    },
+    {
+      "name": "color_black",
+      "value": "Black"
+    },
+    {
+      "name": "color_dark_gray",
+      "value": "Dark gray"
+    },
+    {
+      "name": "color_white",
+      "value": "White"
+    },
+    {
+      "name": "color_dark_blue",
+      "value": "Dark blue"
+    },
+    {
+      "name": "color_dark_red",
+      "value": "Dark red"
+    },
+    {
+      "name": "auto_select_subtitle_language",
+      "value": "Auto-select subtitle language"
+    },
+    {
+      "name": "font_size",
+      "value": "Font size"
+    },
+    {
+      "name": "unit_point",
+      "value": "pt"
+    },
+    {
+      "name": "vertical_position",
+      "value": "Vertical position"
+    },
+    {
+      "name": "bold",
+      "value": "Bold"
+    },
+    {
+      "name": "italic",
+      "value": "Italic"
+    },
+    {
+      "name": "outline_width",
+      "value": "Outline width"
+    },
+    {
+      "name": "subtitle_shadow",
+      "value": "Subtitle shadow"
+    },
+    {
+      "name": "shadow_strength",
+      "value": "Shadow strength"
+    },
+    {
+      "name": "background_opacity",
+      "value": "Background opacity"
+    },
+    {
+      "name": "reset_subtitle_style",
+      "value": "Reset subtitle style"
+    },
+    {
+      "name": "subtitle_style_reset",
+      "value": "Subtitle style reset"
+    },
+    {
+      "name": "subtitle_preview",
+      "value": "Live subtitle preview"
+    },
+    {
+      "name": "subtitle_slogan",
+      "value": "The best player\nSweet Video"
+    },
+    {
+      "name": "pick_text_color",
+      "value": "Pick text color"
+    },
+    {
+      "name": "pick_outline_color",
+      "value": "Pick outline color"
+    },
+    {
+      "name": "pick_shadow_color",
+      "value": "Pick shadow color"
+    },
+    {
+      "name": "event_name_prefix",
+      "value": "Event: %s"
+    },
+    {
+      "name": "share_to_developer",
+      "value": "Share with the developer"
+    },
+    {
+      "name": "log_share_description",
+      "value": "Sweet Video logs"
+    },
+    {
+      "name": "log_share_success",
+      "value": "Logs shared"
+    },
+    {
+      "name": "share_failed_prefix",
+      "value": "Share failed: %s"
+    },
+    {
+      "name": "feature_not_supported",
+      "value": "This feature is not supported on this device"
+    },
+    {
+      "name": "runtime_log_segment",
+      "value": "Runtime log"
+    },
+    {
+      "name": "system_events",
+      "value": "System events"
+    },
+    {
+      "name": "reset_password",
+      "value": "Reset password"
+    },
+    {
+      "name": "show_entry_in_settings",
+      "value": "Show entry in Settings"
+    },
+    {
+      "name": "entry_gesture_hint",
+      "value": "Pinch out with two fingers on the home page to enter"
+    },
+    {
+      "name": "ai_privacy_antipeep",
+      "value": "AI privacy anti-peeping"
+    },
+    {
+      "name": "missing_videos_here",
+      "value": "Missing videos? Tap here"
+    },
+    {
+      "name": "cleanup_tip_title",
+      "value": "Cleanup tip"
+    },
+    {
+      "name": "cleanup_tip_desc",
+      "value": "After deleting videos from the privacy space, storage usage may not refresh immediately. Restart your phone to see the exact freed space."
+    },
+    {
+      "name": "show_danmaku",
+      "value": "Show danmaku"
+    },
+    {
+      "name": "importing",
+      "value": "Importing…"
+    },
+    {
+      "name": "import_local_danmaku",
+      "value": "Import local danmaku (XML)"
+    },
+    {
+      "name": "display_area",
+      "value": "Display area"
+    },
+    {
+      "name": "area_fullscreen",
+      "value": "Full screen (default)"
+    },
+    {
+      "name": "area_top_quarter",
+      "value": "Top 1/4"
+    },
+    {
+      "name": "area_top_half",
+      "value": "Top half"
+    },
+    {
+      "name": "area_top_three_quarter",
+      "value": "Top 3/4"
+    },
+    {
+      "name": "danmaku_earlier",
+      "value": "0.5s earlier"
+    },
+    {
+      "name": "danmaku_later",
+      "value": "0.5s later"
+    },
+    {
+      "name": "danmaku_reset_offset",
+      "value": "Reset offset"
+    },
+    {
+      "name": "no_chapters",
+      "value": "No chapters"
+    },
+    {
+      "name": "channel_stereo",
+      "value": "Stereo"
+    },
+    {
+      "name": "channel_left_only",
+      "value": "Left only"
+    },
+    {
+      "name": "channel_right_only",
+      "value": "Right only"
+    },
+    {
+      "name": "repeat_single",
+      "value": "Repeat one"
+    },
+    {
+      "name": "repeat_shuffle",
+      "value": "Shuffle"
+    },
+    {
+      "name": "repeat_list",
+      "value": "Repeat all"
+    },
+    {
+      "name": "repeat_order",
+      "value": "Play in order"
+    },
+    {
+      "name": "usb_volume_hint",
+      "value": "Adjust USB volume in the audio track panel"
+    },
+    {
+      "name": "usb_device_volume",
+      "value": "USB device volume"
+    },
+    {
+      "name": "loudness",
+      "value": "Loudness"
+    },
+    {
+      "name": "sweet_audio_effect",
+      "value": "Sweet audio effects"
+    },
+    {
+      "name": "timer",
+      "value": "Sleep timer"
+    },
+    {
+      "name": "op_ed_time",
+      "value": "Intro / outro time"
+    },
+    {
+      "name": "ab_loop",
+      "value": "AB repeat"
+    },
+    {
+      "name": "forward_80s",
+      "value": "Forward 80s"
+    },
+    {
+      "name": "screen_mirror",
+      "value": "Mirror screen"
+    },
+    {
+      "name": "switch_to_system_player",
+      "value": "Switch to system player"
+    },
+    {
+      "name": "switch_to_mpv_player",
+      "value": "Switch to MPV player"
+    },
+    {
+      "name": "listen_video",
+      "value": "Listen to video"
+    },
+    {
+      "name": "disable_super_resolution",
+      "value": "Turn off super resolution"
+    },
+    {
+      "name": "enable_super_resolution",
+      "value": "Turn on super resolution"
+    },
+    {
+      "name": "hide_debug_info",
+      "value": "Hide debug info"
+    },
+    {
+      "name": "show_debug_info",
+      "value": "Show debug info"
+    },
+    {
+      "name": "timer_set_minutes",
+      "value": "Timer set. Turns off in %d minutes"
+    },
+    {
+      "name": "play_episode_end",
+      "value": "After this episode"
+    },
+    {
+      "name": "timer_set_episode_end",
+      "value": "Timer set. Turns off after this episode"
+    },
+    {
+      "name": "not_enabled",
+      "value": "Off"
+    },
+    {
+      "name": "timer_cleared",
+      "value": "Timer cleared"
+    },
+    {
+      "name": "set_intro_time",
+      "value": "Set intro time: %s"
+    },
+    {
+      "name": "success_set_intro_time",
+      "value": "Intro time set to: "
+    },
+    {
+      "name": "set_outro_time",
+      "value": "Set outro time: %s"
+    },
+    {
+      "name": "success_set_outro_time",
+      "value": "Outro time set to: "
+    },
+    {
+      "name": "cancel_op_ed_time",
+      "value": "Clear intro / outro time"
+    },
+    {
+      "name": "cancel_op_ed_time_success",
+      "value": "Intro / outro time cleared"
+    },
+    {
+      "name": "stop_ab_loop",
+      "value": "Stop AB repeat"
+    },
+    {
+      "name": "start_ab_loop",
+      "value": "Start AB repeat"
+    },
+    {
+      "name": "set_point_a_time",
+      "value": "Set point A: %s"
+    },
+    {
+      "name": "success_set_point_a_time",
+      "value": "Point A set to: "
+    },
+    {
+      "name": "set_point_b_time",
+      "value": "Set point B: %s"
+    },
+    {
+      "name": "success_set_point_b_time",
+      "value": "Point B set to: "
+    },
+    {
+      "name": "cancel_ab_time",
+      "value": "Clear AB points"
+    },
+    {
+      "name": "cancel_ab_time_success",
+      "value": "AB points cleared"
+    },
+    {
+      "name": "importing_subtitle",
+      "value": "Importing subtitle…"
+    },
+    {
+      "name": "import_replace_subtitle",
+      "value": "Import / replace subtitle"
+    },
+    {
+      "name": "close_subtitle",
+      "value": "Turn off subtitles"
+    },
+    {
+      "name": "embedded_subtitle",
+      "value": "Embedded subtitle"
+    },
+    {
+      "name": "no_embedded_subtitle",
+      "value": "No embedded subtitle"
+    },
+    {
+      "name": "no_embedded_subtitle_toast",
+      "value": "This video has no embedded subtitle"
+    },
+    {
+      "name": "secondary_subtitle",
+      "value": "Secondary subtitle"
+    },
+    {
+      "name": "external_subtitle",
+      "value": "External subtitle"
+    },
+    {
+      "name": "no_external_subtitle",
+      "value": "No external subtitle"
+    },
+    {
+      "name": "no_external_subtitle_toast",
+      "value": "This video has no external subtitle"
+    },
+    {
+      "name": "ai_subtitle",
+      "value": "AI subtitles"
+    },
+    {
+      "name": "subtitle_offset",
+      "value": "Subtitle offset"
+    },
+    {
+      "name": "embedded_subtitle_switch_mpv",
+      "value": "Embedded subtitle not showing? Switch to the MPV core"
+    },
+    {
+      "name": "buffering_prefix",
+      "value": "Buffering · "
+    },
+    {
+      "name": "local_danmaku",
+      "value": "Local danmaku"
+    },
+    {
+      "name": "network_buffer_mid",
+      "value": " · Buffering "
+    },
+    {
+      "name": "effect_preset",
+      "value": "Presets"
+    },
+    {
+      "name": "effect_equalizer",
+      "value": "Equalizer"
+    },
+    {
+      "name": "effect_noise_reduction",
+      "value": "Noise reduction"
+    },
+    {
+      "name": "effect_sound_field",
+      "value": "Sound field"
+    },
+    {
+      "name": "effect_accompaniment",
+      "value": "Karaoke"
+    },
+    {
+      "name": "effect_voice_beautifier",
+      "value": "Voice beautifier"
+    },
+    {
+      "name": "effect_environment",
+      "value": "Environment"
+    },
+    {
+      "name": "effect_audio_mixer",
+      "value": "Audio mixer"
+    },
+    {
+      "name": "effect_space_render",
+      "value": "Space rendering"
+    },
+    {
+      "name": "effect_pure_voice_change",
+      "value": "Classic voice change"
+    },
+    {
+      "name": "effect_general_voice_change",
+      "value": "General voice change"
+    },
+    {
+      "name": "effect_tempo_pitch",
+      "value": "Tempo and pitch"
+    },
+    {
+      "name": "effect_hoa_space_render",
+      "value": "HOA space rendering"
+    },
+    {
+      "name": "effect_pitch_shift",
+      "value": "Pitch shift"
+    },
+    {
+      "name": "preset_hifi",
+      "value": "Hi-Fi"
+    },
+    {
+      "name": "preset_surround",
+      "value": "Surround"
+    },
+    {
+      "name": "preset_cinema",
+      "value": "Cinema"
+    },
+    {
+      "name": "preset_concert",
+      "value": "Concert hall"
+    },
+    {
+      "name": "preset_vocal",
+      "value": "Vocal boost"
+    },
+    {
+      "name": "preset_bass_boost",
+      "value": "Bass boost"
+    },
+    {
+      "name": "preset_gaming",
+      "value": "3D surround"
+    },
+    {
+      "name": "preset_retro",
+      "value": "Retro"
+    },
+    {
+      "name": "preset_space_extension",
+      "value": "Space extension"
+    },
+    {
+      "name": "preset_broadcast_studio",
+      "value": "Broadcast studio"
+    },
+    {
+      "name": "eq_custom",
+      "value": "Custom"
+    },
+    {
+      "name": "eq_default",
+      "value": "Default"
+    },
+    {
+      "name": "eq_ballads",
+      "value": "Ballads"
+    },
+    {
+      "name": "eq_chinese_style",
+      "value": "Chinese style"
+    },
+    {
+      "name": "eq_classical",
+      "value": "Classical"
+    },
+    {
+      "name": "eq_dance",
+      "value": "Dance"
+    },
+    {
+      "name": "eq_jazz",
+      "value": "Jazz"
+    },
+    {
+      "name": "eq_pop",
+      "value": "Pop"
+    },
+    {
+      "name": "eq_randb",
+      "value": "R&B"
+    },
+    {
+      "name": "eq_rock",
+      "value": "Rock"
+    },
+    {
+      "name": "sf_front",
+      "value": "Front"
+    },
+    {
+      "name": "sf_grand",
+      "value": "Grand"
+    },
+    {
+      "name": "sf_near",
+      "value": "Near"
+    },
+    {
+      "name": "sf_wide",
+      "value": "Wide"
+    },
+    {
+      "name": "env_broadcast",
+      "value": "Broadcast"
+    },
+    {
+      "name": "env_earpiece",
+      "value": "Earpiece"
+    },
+    {
+      "name": "env_underwater",
+      "value": "Underwater"
+    },
+    {
+      "name": "env_gramophone",
+      "value": "Gramophone"
+    },
+    {
+      "name": "bf_clear",
+      "value": "Clear"
+    },
+    {
+      "name": "bf_theatre",
+      "value": "Theatre"
+    },
+    {
+      "name": "bf_studio",
+      "value": "Studio"
+    },
+    {
+      "name": "space_position",
+      "value": "Fixed position"
+    },
+    {
+      "name": "space_rotation",
+      "value": "Rotation"
+    },
+    {
+      "name": "space_extension",
+      "value": "Space extension"
+    },
+    {
+      "name": "dir_counterclockwise",
+      "value": "Counter-clockwise"
+    },
+    {
+      "name": "dir_clockwise",
+      "value": "Clockwise"
+    },
+    {
+      "name": "gender_female",
+      "value": "Female source"
+    },
+    {
+      "name": "gender_male",
+      "value": "Male source"
+    },
+    {
+      "name": "voice_cartoon",
+      "value": "Cartoon"
+    },
+    {
+      "name": "voice_cute",
+      "value": "Cute"
+    },
+    {
+      "name": "voice_female",
+      "value": "Female"
+    },
+    {
+      "name": "voice_male",
+      "value": "Male"
+    },
+    {
+      "name": "voice_monster",
+      "value": "Monster"
+    },
+    {
+      "name": "voice_robot",
+      "value": "Robot"
+    },
+    {
+      "name": "voice_seasoned",
+      "value": "Uncle"
+    },
+    {
+      "name": "gen_cyberpunk",
+      "value": "Cyberpunk"
+    },
+    {
+      "name": "gen_mix",
+      "value": "Mixed"
+    },
+    {
+      "name": "gen_synth",
+      "value": "Synth"
+    },
+    {
+      "name": "gen_trill",
+      "value": "Trill"
+    },
+    {
+      "name": "gen_war",
+      "value": "War"
+    },
+    {
+      "name": "sep_vocals",
+      "value": "Vocals"
+    },
+    {
+      "name": "sep_accompaniment",
+      "value": "Accompaniment"
+    },
+    {
+      "name": "sep_mix",
+      "value": "Mix"
+    },
+    {
+      "name": "hoa_1_acn_n3d",
+      "value": "1st order ACN/N3D"
+    },
+    {
+      "name": "hoa_1_acn_sn3d",
+      "value": "1st order ACN/SN3D"
+    },
+    {
+      "name": "hoa_1_fuma",
+      "value": "1st order FuMa"
+    },
+    {
+      "name": "hoa_2_acn_n3d",
+      "value": "2nd order ACN/N3D"
+    },
+    {
+      "name": "hoa_2_acn_sn3d",
+      "value": "2nd order ACN/SN3D"
+    },
+    {
+      "name": "hoa_2_fuma",
+      "value": "2nd order FuMa"
+    },
+    {
+      "name": "hoa_3_acn_n3d",
+      "value": "3rd order ACN/N3D"
+    },
+    {
+      "name": "hoa_3_acn_sn3d",
+      "value": "3rd order ACN/SN3D"
+    },
+    {
+      "name": "hoa_3_fuma",
+      "value": "3rd order FuMa"
+    },
+    {
+      "name": "npu_hint",
+      "value": "Audio separation relies on the device NPU; the effect turns off automatically when unsupported."
+    },
+    {
+      "name": "axis_x_m",
+      "value": "X (m)"
+    },
+    {
+      "name": "axis_y_m",
+      "value": "Y (m)"
+    },
+    {
+      "name": "axis_z_m",
+      "value": "Z (m)"
+    },
+    {
+      "name": "surround_period_s",
+      "value": "Rotation period (s)"
+    },
+    {
+      "name": "extension_radius_m",
+      "value": "Extension radius (m)"
+    },
+    {
+      "name": "extension_angle",
+      "value": "Extension angle"
+    },
+    {
+      "name": "pitch_auto",
+      "value": "Pitch (0 = auto)"
+    },
+    {
+      "name": "speed",
+      "value": "Speed"
+    },
+    {
+      "name": "pitch",
+      "value": "Pitch"
+    },
+    {
+      "name": "tempo_pitch_hint",
+      "value": "Pitch shift only supports mono tracks; use the player speed control for videos."
+    },
+    {
+      "name": "speed_change_hint",
+      "value": "Changing speed also changes audio duration; not recommended for videos that must stay in sync."
+    },
+    {
+      "name": "hoa_hint",
+      "value": "Requires HarmonyOS 7 or later; the audio channel order must match the selected HOA layout."
+    },
+    {
+      "name": "nr_hint_system",
+      "value": "Mono tracks only; the original sample rate is restored afterwards and stereo is not downmixed."
+    },
+    {
+      "name": "nr_hint_mpv",
+      "value": "Noise reduction converts the audio to 16 kHz mono."
+    },
+    {
+      "name": "mixer_hint",
+      "value": "mpv provides a single decoded audio path; this mode passes it through the AudioSuite mixing pipeline."
+    },
+    {
+      "name": "space_hint_system",
+      "value": "Uses the system player's original audio without AudioSuite processing."
+    },
+    {
+      "name": "space_hint_mpv",
+      "value": "Uses plain OHAudio output without AudioSuite processing."
+    },
+    {
+      "name": "preset_hint",
+      "value": "Pick a preset to apply quickly, then fine-tune parameters in the matching effect tab."
+    },
+    {
+      "name": "system_effect_hint",
+      "value": "System audio effects keep the original format. Classic voice change, noise reduction and pitch shift support mono only; HOA and single-path mixing are not available."
+    },
+    {
+      "name": "reset",
+      "value": "Reset"
+    },
+    {
+      "name": "apply_failed_keep",
+      "value": "Failed to apply. Previous settings kept."
+    },
+    {
+      "name": "effect_apply_failed_keep",
+      "value": "Failed to apply audio effects. Previous settings kept."
+    },
+    {
+      "name": "import_label",
+      "value": "Import"
+    },
+    {
+      "name": "change_password",
+      "value": "Change password (/▽＼)"
+    },
+    {
+      "name": "root_folder",
+      "value": "Root"
+    },
+    {
+      "name": "select_default_start_page",
+      "value": "Choose the default start page"
+    },
+    {
+      "name": "edit_stream",
+      "value": "Edit stream"
+    },
+    {
+      "name": "name_label",
+      "value": "Name"
+    },
+    {
+      "name": "stream_url",
+      "value": "Stream URL"
+    },
+    {
+      "name": "invalid_smb_address",
+      "value": "Invalid SMB address"
+    },
+    {
+      "name": "remove_from_list",
+      "value": "Remove from list only"
+    },
+    {
+      "name": "remove_from_list_desc",
+      "value": "The file stays on the device and is only removed from the app list"
+    },
+    {
+      "name": "delete_file",
+      "value": "Delete the file permanently"
+    },
+    {
+      "name": "delete_file_desc",
+      "value": "The file will be permanently deleted from the device and cannot be recovered"
+    },
+    {
+      "name": "move_to_recent_deleted",
+      "value": "Move to Recently Deleted"
+    },
+    {
+      "name": "move_to_recent_deleted_desc",
+      "value": "The file can be recovered from Recently Deleted within 30 days"
+    },
+    {
+      "name": "delete_confirm",
+      "value": "Confirm deletion"
+    },
+    {
+      "name": "delete_selected_videos_count",
+      "value": "Delete the %d selected videos?"
+    },
+    {
+      "name": "new_folder",
+      "value": "New folder"
+    },
+    {
+      "name": "folder_name_placeholder",
+      "value": "Enter a folder name"
+    },
+    {
+      "name": "invalid_videos",
+      "value": "Missing videos"
+    },
+    {
+      "name": "invalid_videos_count",
+      "value": "%d videos are missing, please import them again"
+    },
+    {
+      "name": "op_ed_overwrite_confirm",
+      "value": "This will overwrite the intro / outro time of %d videos in \"%s\""
+    },
+    {
+      "name": "subtitle_offset_time",
+      "value": "Subtitle offset time"
+    },
+    {
+      "name": "prev_subtitle",
+      "value": "Previous subtitle"
+    },
+    {
+      "name": "next_subtitle",
+      "value": "Next subtitle"
+    },
+    {
+      "name": "reenter_password_save",
+      "value": "Re-enter the password and save"
+    },
+    {
+      "name": "edit_smb_server",
+      "value": "Edit SMB server"
+    },
+    {
+      "name": "add_smb_server",
+      "value": "Add SMB server"
+    },
+    {
+      "name": "name_optional",
+      "value": "Name (optional)"
+    },
+    {
+      "name": "smb_host_placeholder",
+      "value": "IP, host name or smb://server/share/path"
+    },
+    {
+      "name": "port",
+      "value": "Port"
+    },
+    {
+      "name": "smb_share_placeholder",
+      "value": "Share name, e.g. Movies"
+    },
+    {
+      "name": "initial_path_optional",
+      "value": "Start path (optional)"
+    },
+    {
+      "name": "smb_user_placeholder",
+      "value": "User or domain\\user (leave empty for anonymous)"
+    },
+    {
+      "name": "password_label",
+      "value": "Password"
+    },
+    {
+      "name": "smb_domain_placeholder",
+      "value": "Domain / workgroup (optional)"
+    },
+    {
+      "name": "smb3_encryption",
+      "value": "Require SMB3 encryption"
+    },
+    {
+      "name": "testing",
+      "value": "Testing…"
+    },
+    {
+      "name": "test",
+      "value": "Test"
+    },
+    {
+      "name": "saving",
+      "value": "Saving…"
+    },
+    {
+      "name": "save",
+      "value": "Save"
+    },
+    {
+      "name": "smb_address_parsed",
+      "value": "SMB address parsed. You can keep editing the connection."
+    },
+    {
+      "name": "smb_address_required",
+      "value": "Enter a valid IP, host name or smb:// address"
+    },
+    {
+      "name": "smb_share_required",
+      "value": "Enter a share name, e.g. Movies; subdirectories can be browsed after connecting"
+    },
+    {
+      "name": "smb_port_invalid",
+      "value": "Port must be 1–65535, default 445"
+    },
+    {
+      "name": "smb_connect_success",
+      "value": "Connected. You can browse the shared folder."
+    },
+    {
+      "name": "smb_operation_failed",
+      "value": "Operation failed. Check the connection or secure storage settings."
+    },
+    {
+      "name": "edit_webdav_server",
+      "value": "Edit WebDAV server"
+    },
+    {
+      "name": "add_webdav_server",
+      "value": "Add WebDAV server"
+    },
+    {
+      "name": "webdav_address_placeholder",
+      "value": "Directory URL, e.g. https://nas.example.com/dav/"
+    },
+    {
+      "name": "webdav_user_placeholder",
+      "value": "Username (leave empty for anonymous)"
+    },
+    {
+      "name": "webdav_hint",
+      "value": "Supports anonymous and Basic auth. HTTPS is recommended; HTTP sends accounts and files unencrypted. Enter the final directory URL; redirected directories and self-signed certificates are not supported yet."
+    },
+    {
+      "name": "webdav_connect_success",
+      "value": "Connected. You can browse the directory."
+    },
+    {
+      "name": "webdav_operation_failed",
+      "value": "WebDAV operation failed"
+    },
+    {
+      "name": "local_file",
+      "value": "Local file"
+    },
+    {
+      "name": "edit_iptv_source",
+      "value": "Edit IPTV source"
+    },
+    {
+      "name": "add_iptv_source",
+      "value": "Add IPTV source"
+    },
+    {
+      "name": "iptv_source_name",
+      "value": "Source name"
+    },
+    {
+      "name": "iptv_source_url",
+      "value": "M3U/M3U8/TXT source URL"
+    },
+    {
+      "name": "select_iptv_file",
+      "value": "Choose an M3U/M3U8/TXT file"
+    },
+    {
+      "name": "user_agent_optional",
+      "value": "User-Agent (optional)"
+    },
+    {
+      "name": "epg_url_optional",
+      "value": "XMLTV EPG URL (optional)"
+    },
+    {
+      "name": "iptv_source_filter",
+      "value": "IPTV source"
+    },
+    {
+      "name": "iptv_fill_required",
+      "value": "Enter a name and choose or enter a source"
+    },
+    {
+      "name": "iptv_parsing_source",
+      "value": "Reading and parsing the source…"
+    },
+    {
+      "name": "iptv_invalid_count",
+      "value": ", %d invalid"
+    },
+    {
+      "name": "iptv_epg_matched",
+      "value": ", EPG matched %d channels"
+    },
+    {
+      "name": "iptv_saving_channels",
+      "value": "Reading and saving channels…"
+    },
+    {
+      "name": "iptv_added_channels",
+      "value": "Added %d channels"
+    },
+    {
+      "name": "add_network_stream",
+      "value": "Add network stream"
+    },
+    {
+      "name": "add_stream_hint",
+      "value": "Supports HTTP/HTTPS/RTMP and SMB video addresses, and .strm files. SMB can use saved credentials."
+    },
+    {
+      "name": "stream_name_placeholder",
+      "value": "Name: a label to tell addresses apart"
+    },
+    {
+      "name": "stream_url_placeholder",
+      "value": "e.g. https://server/video.mp4 or smb://server/share/video.mkv"
+    },
+    {
+      "name": "import_strm_file",
+      "value": "Import .strm file"
+    },
+    {
+      "name": "save_stream_failed",
+      "value": "Failed to save the stream, please try again"
+    },
+    {
+      "name": "strm_filter",
+      "value": "STRM stream shortcut"
+    },
+    {
+      "name": "strm_read",
+      "value": ".strm file loaded"
+    },
+    {
+      "name": "ai_query_video",
+      "value": "Tell me about this video: %s, format: %s"
+    },
+    {
+      "name": "ai_query_audio",
+      "value": "Tell me about this audio: %s, format: %s"
+    },
+    {
+      "name": "ask_xiaoyi",
+      "value": "Ask Xiaoyi for more"
+    },
+    {
+      "name": "detail_video_name",
+      "value": "Video name: "
+    },
+    {
+      "name": "detail_audio_name",
+      "value": "Audio name: "
+    },
+    {
+      "name": "detail_artist",
+      "value": "Artist: "
+    },
+    {
+      "name": "detail_album",
+      "value": "Album: "
+    },
+    {
+      "name": "detail_format",
+      "value": "Format: "
+    },
+    {
+      "name": "detail_resolution",
+      "value": "Resolution: "
+    },
+    {
+      "name": "detail_audio_quality",
+      "value": "Audio quality: "
+    },
+    {
+      "name": "detail_frame_rate",
+      "value": "Frame rate: "
+    },
+    {
+      "name": "unknown",
+      "value": "Unknown"
+    },
+    {
+      "name": "detail_duration",
+      "value": "Duration: "
+    },
+    {
+      "name": "detail_size",
+      "value": "Size: "
+    },
+    {
+      "name": "detail_last_position",
+      "value": "Last position: "
+    },
+    {
+      "name": "detail_intro_time",
+      "value": "Intro time: "
+    },
+    {
+      "name": "detail_outro_time",
+      "value": "Outro time: "
+    },
+    {
+      "name": "detail_path",
+      "value": "Path: "
+    },
+    {
+      "name": "detail_external_subtitle",
+      "value": "External subtitle: "
+    },
+    {
+      "name": "no_subtitle",
+      "value": "No subtitle"
+    },
+    {
+      "name": "detail_loop_a",
+      "value": "Loop point A"
+    },
+    {
+      "name": "detail_loop_b",
+      "value": "Loop point B"
+    },
+    {
+      "name": "delete_smb_connection",
+      "value": "Delete this SMB connection? Files on the server are not deleted."
+    },
+    {
+      "name": "delete_webdav_connection",
+      "value": "Delete this WebDAV connection? Files on the server are not deleted."
+    },
+    {
+      "name": "delete_connection",
+      "value": "Delete connection"
+    },
+    {
+      "name": "go_up",
+      "value": "Up"
+    },
+    {
+      "name": "server",
+      "value": "Servers"
+    },
+    {
+      "name": "refresh",
+      "value": "Refresh"
+    },
+    {
+      "name": "smb_empty_title",
+      "value": "Connect your NAS or computer share"
+    },
+    {
+      "name": "smb_empty_desc",
+      "value": "Add an SMB server to browse and play videos and music from the share"
+    },
+    {
+      "name": "webdav_empty_title",
+      "value": "Connect your WebDAV server"
+    },
+    {
+      "name": "webdav_empty_desc",
+      "value": "Add a WebDAV server to browse and play videos and music from the directory"
+    },
+    {
+      "name": "no_playable_files",
+      "value": "No playable files in this directory"
+    },
+    {
+      "name": "add_server",
+      "value": "Add server"
+    },
+    {
+      "name": "read_servers_failed",
+      "value": "Cannot read saved servers"
+    },
+    {
+      "name": "delete_failed_retry",
+      "value": "Delete failed, please try again"
+    },
+    {
+      "name": "read_share_failed",
+      "value": "Cannot read the shared directory"
+    },
+    {
+      "name": "read_webdav_failed",
+      "value": "Cannot read the WebDAV directory"
+    },
+    {
+      "name": "open_video_failed",
+      "value": "Cannot open the video"
+    },
+    {
+      "name": "exit",
+      "value": "Exit"
+    },
+    {
+      "name": "restoring_huawei_login",
+      "value": "Restoring Huawei Drive sign-in…"
+    },
+    {
+      "name": "access_huawei_drive",
+      "value": "Access Huawei Drive"
+    },
+    {
+      "name": "huawei_permission_desc",
+      "value": "Only the permissions needed to read files are requested, so you can browse and play media from the drive."
+    },
+    {
+      "name": "authorizing",
+      "value": "Authorizing…"
+    },
+    {
+      "name": "authorize_access",
+      "value": "Authorize access"
+    },
+    {
+      "name": "feature_in_development",
+      "value": "This feature is under development..."
+    },
+    {
+      "name": "huawei_cloud_space",
+      "value": "Huawei Cloud"
+    },
+    {
+      "name": "reading_cloud_drive",
+      "value": "Reading the drive…"
+    },
+    {
+      "name": "retry",
+      "value": "Retry"
+    },
+    {
+      "name": "no_playable_media_here",
+      "value": "No playable media here"
+    },
+    {
+      "name": "other_files_hidden",
+      "value": "Other file types are hidden automatically"
+    },
+    {
+      "name": "huawei_auth_missing_params",
+      "value": "Huawei account authorization callback is missing parameters"
+    },
+    {
+      "name": "huawei_auth_failed",
+      "value": "Authorization failed: %s"
+    },
+    {
+      "name": "huawei_auth_state_failed",
+      "value": "Huawei account authorization state check failed, please try again"
+    },
+    {
+      "name": "huawei_auth_missing_code",
+      "value": "Huawei account authorization callback is missing the Authorization Code"
+    },
+    {
+      "name": "cloud_capacity_unavailable",
+      "value": "Cloud storage capacity is not available yet"
+    },
+    {
+      "name": "cloud_used_of_total",
+      "value": "%s of %s used"
+    },
+    {
+      "name": "huawei_drive_failed",
+      "value": "Failed to access Huawei Drive, please try again later"
+    },
+    {
+      "name": "delete_iptv_source_confirm",
+      "value": "Delete this IPTV source and its channel cache?"
+    },
+    {
+      "name": "no_iptv_source",
+      "value": "No IPTV source yet"
+    },
+    {
+      "name": "add_iptv_source_hint",
+      "value": "Tap + in the top right corner to add an M3U/M3U8 or TXT source"
+    },
+    {
+      "name": "channels_and_groups",
+      "value": "%d channels  ·  %d groups"
+    },
+    {
+      "name": "refresh_success_channels",
+      "value": "Refreshed: %d channels"
+    },
+    {
+      "name": "refresh_failed_reason",
+      "value": "Refresh failed: %s"
+    },
+    {
+      "name": "last_refresh_failed",
+      "value": "Last refresh failed"
+    },
+    {
+      "name": "not_refreshed_yet",
+      "value": "Not refreshed yet"
+    },
+    {
+      "name": "updated_at",
+      "value": "Updated %s"
+    },
+    {
+      "name": "all_channels",
+      "value": "All channels"
+    },
+    {
+      "name": "no_playable_channels",
+      "value": "No playable channels"
+    },
+    {
+      "name": "refresh_source_hint",
+      "value": "Go back and refresh the source"
+    },
+    {
+      "name": "now_playing_prefix",
+      "value": "Now playing: %s"
+    },
+    {
+      "name": "next_program_prefix",
+      "value": "Next: %s"
+    },
+    {
+      "name": "no_epg_info",
+      "value": "No program guide information"
+    },
+    {
+      "name": "line_number",
+      "value": "Line %d/%d"
+    },
+    {
+      "name": "line_n",
+      "value": "Line %d"
+    },
+    {
+      "name": "current_label",
+      "value": "Current"
+    },
+    {
+      "name": "zero_channels",
+      "value": "0 channels"
+    },
+    {
+      "name": "channels_with_multiline",
+      "value": "%d channels · %d with multiple lines"
+    },
+    {
+      "name": "channels_count",
+      "value": "%d channels"
+    },
+    {
+      "name": "smb_domain_format",
+      "value": "Domain accounts must use the form domain\\user"
+    },
+    {
+      "name": "smb_domain_mismatch",
+      "value": "The domain in the user name does not match the domain field"
+    },
+    {
+      "name": "smb_user_control_chars",
+      "value": "The SMB account contains control characters"
+    },
+    {
+      "name": "smb_domain_needs_user",
+      "value": "A user name is required when a domain is set"
+    },
+    {
+      "name": "smb_address_encoding_invalid",
+      "value": "Invalid SMB address encoding. URL-encode special characters."
+    },
+    {
+      "name": "smb_path_invalid",
+      "value": "The SMB path cannot contain .., backslashes or control characters"
+    },
+    {
+      "name": "smb_path_slash",
+      "value": "An SMB path segment cannot contain an encoded slash"
+    },
+    {
+      "name": "smb_scheme_required",
+      "value": "Enter an address starting with smb://"
+    },
+    {
+      "name": "smb_address_control_chars",
+      "value": "The SMB address contains control characters"
+    },
+    {
+      "name": "smb_filename_escape",
+      "value": "Write # and ? in SMB file names as %23 and %3F; URL query parameters are not supported"
+    },
+    {
+      "name": "smb_ipv6_brackets",
+      "value": "IPv6 addresses must be in brackets, e.g. smb://[::1]/Movies"
+    },
+    {
+      "name": "smb_port_invalid_short",
+      "value": "Invalid SMB port"
+    },
+    {
+      "name": "smb_ipv6_invalid",
+      "value": "Invalid IPv6 address"
+    },
+    {
+      "name": "smb_ipv6_in_brackets",
+      "value": "Put the IPv6 address in brackets"
+    },
+    {
+      "name": "smb_port_required",
+      "value": "The SMB port cannot be empty"
+    },
+    {
+      "name": "smb_host_invalid",
+      "value": "Invalid SMB host address"
+    },
+    {
+      "name": "webdav_address_required",
+      "value": "Enter an HTTP/HTTPS directory URL; enter the account and password separately"
+    },
+    {
+      "name": "webdav_host_invalid",
+      "value": "Invalid WebDAV host or port"
+    },
+    {
+      "name": "webdav_path_invalid",
+      "value": "Invalid WebDAV path"
+    },
+    {
+      "name": "webdav_path_dots",
+      "value": "The WebDAV path cannot contain . or .."
+    },
+    {
+      "name": "webdav_path_slash",
+      "value": "The path segment contains a slash"
+    },
+    {
+      "name": "webdav_path_encoding",
+      "value": "Invalid WebDAV path encoding"
+    },
+    {
+      "name": "webdav_request_failed",
+      "value": "WebDAV request failed (HTTP %d)"
+    },
+    {
+      "name": "iptv_default_group",
+      "value": "Ungrouped"
+    },
+    {
+      "name": "iptv_gzip_failed",
+      "value": "Gzip decompression failed: %s"
+    },
+    {
+      "name": "huawei_account_login_required",
+      "value": "Not signed in to a Huawei account. Sign in and try again."
+    },
+    {
+      "name": "network_error_retry",
+      "value": "Network error. Check your connection and try again."
+    },
+    {
+      "name": "huawei_account_server_error",
+      "value": "Huawei account server error or another internal error. Sign-in failed, please try again."
+    },
+    {
+      "name": "user_cancelled_authorization",
+      "value": "Authorization cancelled"
+    },
+    {
+      "name": "system_service_error",
+      "value": "System service error, please try again later"
+    },
+    {
+      "name": "agree_huawei_agreement",
+      "value": "Please read and accept the Huawei account agreement"
+    },
+    {
+      "name": "app_login_failed",
+      "value": "Sign-in failed, please try again"
+    },
+    {
+      "name": "cast_protocol_unsupported",
+      "value": "This device does not support the cast protocol"
+    },
+    {
+      "name": "cast_failed_empty_url",
+      "value": "Cast failed: the video address is empty"
+    },
+    {
+      "name": "cast_failed",
+      "value": "Cast failed"
+    },
+    {
+      "name": "saved_danmaku_read_failed",
+      "value": "Failed to read the saved danmaku, please import it again"
+    },
+    {
+      "name": "danmaku_import_failed_format",
+      "value": "Import failed. Choose a UTF-8 Bilibili XML danmaku file (up to 50000 items)."
+    },
+    {
+      "name": "folder_exists",
+      "value": "Cannot add: a folder with the same name already exists"
+    },
+    {
+      "name": "target_folder_missing",
+      "value": "The target folder no longer exists, please choose again"
+    },
+    {
+      "name": "cannot_move_into_self",
+      "value": "Cannot move a folder into its own subfolder"
+    },
+    {
+      "name": "target_folder_name_exists",
+      "value": "A folder with the same name already exists in the target directory"
+    },
+    {
+      "name": "same_folder_name_exists",
+      "value": "A folder with the same name already exists in this directory"
+    },
+    {
+      "name": "no_files_imported_toast",
+      "value": "No files were imported~"
+    },
+    {
+      "name": "share_failed_permission",
+      "value": "Share failed: cannot get file permission"
+    },
+    {
+      "name": "select_subtitle_file",
+      "value": "Choose an SRT, ASS or VTT subtitle file"
+    },
+    {
+      "name": "subtitle_import_failed",
+      "value": "Subtitle import failed. Check the file and try again (32 MB max)."
+    },
+    {
+      "name": "delete_failed",
+      "value": "Delete failed"
+    },
+    {
+      "name": "public_download_dir_unavailable",
+      "value": "The system did not return a usable public download directory"
+    },
+    {
+      "name": "download_dir_unusable",
+      "value": "The download directory is unavailable or not authorized"
+    },
+    {
+      "name": "received_import_failed",
+      "value": "The file was received but importing it into the media library failed"
+    },
+    {
+      "name": "knock_share_failed",
+      "value": "Tap-to-share failed"
+    },
+    {
+      "name": "knock_receive_failed",
+      "value": "Tap-to-receive failed"
+    },
+    {
+      "name": "knock_save_partial",
+      "value": "%d files could not be saved to the download directory and stay in the app; export them from the list"
+    },
+    {
+      "name": "data_refresh_failed",
+      "value": "Something went wrong: failed to refresh data"
+    },
+    {
+      "name": "folder_sort_incomplete",
+      "value": "The folder sort result is incomplete"
+    },
+    {
+      "name": "unknown_version",
+      "value": "Unknown version"
+    },
+    {
+      "name": "update_dialog_failed",
+      "value": "Failed to show the update dialog: %s"
+    },
+    {
+      "name": "no_new_version",
+      "value": "No new version yet~"
+    },
+    {
+      "name": "check_update_failed",
+      "value": "Failed to check for updates: %s"
+    },
+    {
+      "name": "feature_not_supported_short",
+      "value": "This feature is not supported"
+    },
+    {
+      "name": "play_record_invalid",
+      "value": "The play record is no longer valid, please choose again"
+    },
+    {
+      "name": "file_access_denied",
+      "value": "The file cannot be accessed. Re-authorize it or choose another record."
+    },
+    {
+      "name": "invalid_file_path",
+      "value": "Invalid file address"
+    },
+    {
+      "name": "open_file_location_unsupported",
+      "value": "Opening the file location is not supported"
+    },
+    {
+      "name": "open_app_market_failed",
+      "value": "Failed to open the app market: %s"
+    },
+    {
+      "name": "smb_credentials_missing",
+      "value": "SMB credentials are missing"
+    },
+    {
+      "name": "smb_password_read_failed",
+      "value": "Cannot read the SMB password. Edit the server and save again."
+    },
+    {
+      "name": "smb_password_save_failed",
+      "value": "Cannot save the SMB password, please retry; the connection was not saved"
+    },
+    {
+      "name": "password_needs_user",
+      "value": "A user name is required when a password is set"
+    },
+    {
+      "name": "smb_server_deleted",
+      "value": "The SMB server was deleted, please add it again"
+    },
+    {
+      "name": "smb_file_path_required",
+      "value": "Enter a specific file address; open directories from the SMB page"
+    },
+    {
+      "name": "smb_multiple_accounts",
+      "value": "This share has multiple saved accounts. Specify a user name in the address or pick a connection on the SMB page."
+    },
+    {
+      "name": "smb_file_address_invalid",
+      "value": "Invalid SMB file address"
+    },
+    {
+      "name": "smb_config_save_failed",
+      "value": "Cannot save the SMB connection, please retry"
+    },
+    {
+      "name": "smb_subtitle_cache_check_failed",
+      "value": "Cannot check the subtitle cache file"
+    },
+    {
+      "name": "smb_shared_subtitle_open_failed",
+      "value": "Cannot open the shared subtitle"
+    },
+    {
+      "name": "smb_subtitle_request_create_failed",
+      "value": "Cannot create the subtitle request"
+    },
+    {
+      "name": "smb_subtitle_request_failed",
+      "value": "Shared subtitle request failed"
+    },
+    {
+      "name": "smb_subtitle_read_failed",
+      "value": "Failed to read the subtitle"
+    },
+    {
+      "name": "smb_subtitle_temp_create_failed",
+      "value": "Cannot create the temporary subtitle file"
+    },
+    {
+      "name": "smb_subtitle_temp_write_failed",
+      "value": "Cannot write the temporary subtitle file"
+    },
+    {
+      "name": "smb_subtitle_temp_close_failed",
+      "value": "Cannot close the temporary subtitle file"
+    },
+    {
+      "name": "smb_subtitle_cache_save_failed",
+      "value": "Cannot save the subtitle cache"
+    },
+    {
+      "name": "smb_playback_cancelled",
+      "value": "SMB playback request cancelled"
+    },
+    {
+      "name": "smb_playback_not_ready",
+      "value": "SMB playback connection is not ready yet"
+    },
+    {
+      "name": "webdav_request_cancelled",
+      "value": "WebDAV request cancelled"
+    },
+    {
+      "name": "webdav_config_read_failed",
+      "value": "Cannot read the WebDAV connection"
+    },
+    {
+      "name": "webdav_password_read_failed",
+      "value": "Cannot read the WebDAV password. Edit the connection and save again."
+    },
+    {
+      "name": "webdav_password_save_failed",
+      "value": "Cannot securely save the WebDAV password"
+    },
+    {
+      "name": "webdav_config_save_failed",
+      "value": "Cannot save the WebDAV connection"
+    },
+    {
+      "name": "webdav_credentials_invalid",
+      "value": "Invalid WebDAV account or password format"
+    },
+    {
+      "name": "webdav_auth_failed",
+      "value": "WebDAV authentication failed. Check the account and password; only Basic auth is supported."
+    },
+    {
+      "name": "webdav_forbidden",
+      "value": "No permission to access this WebDAV resource"
+    },
+    {
+      "name": "webdav_not_found",
+      "value": "The WebDAV directory or file does not exist"
+    },
+    {
+      "name": "webdav_browsing_unsupported",
+      "value": "This address does not support WebDAV directory browsing"
+    },
+    {
+      "name": "webdav_unsupported_xml",
+      "value": "The WebDAV directory contains an unsupported XML declaration"
+    },
+    {
+      "name": "webdav_invalid_xml",
+      "value": "The WebDAV XML directory returned by the server is invalid"
+    },
+    {
+      "name": "webdav_invalid_file_ref",
+      "value": "Invalid WebDAV file reference"
+    },
+    {
+      "name": "webdav_connection_deleted",
+      "value": "The WebDAV connection was deleted, please add it again"
+    },
+    {
+      "name": "webdav_subtitle_download_failed",
+      "value": "Cannot download the WebDAV subtitle. Check the network and access permissions."
+    },
+    {
+      "name": "strm_empty",
+      "value": "The .strm file is empty"
+    },
+    {
+      "name": "strm_too_large",
+      "value": "The .strm file is too large; 64 KB max"
+    },
+    {
+      "name": "strm_read_failed",
+      "value": "Cannot read the .strm file content"
+    },
+    {
+      "name": "strm_plugin_unsupported",
+      "value": "plugin:// .strm addresses are not supported yet"
+    },
+    {
+      "name": "strm_no_playable_url",
+      "value": "There is no playable network address in the .strm file"
+    },
+    {
+      "name": "iptv_no_channels",
+      "value": "No usable channels were parsed"
+    },
+    {
+      "name": "iptv_source_type_unsupported",
+      "value": "Only HTTP/HTTPS/remote TXT sources and EPG addresses are supported"
+    },
+    {
+      "name": "file_too_large_stop",
+      "value": "The file is too large; reading stopped"
+    },
+    {
+      "name": "unzipped_too_large_stop",
+      "value": "The decompressed file is too large; reading stopped"
+    },
+    {
+      "name": "epg_cache_create_failed",
+      "value": "Cannot create the EPG decompression cache"
+    },
+    {
+      "name": "duration_zero_seconds",
+      "value": "0s"
+    },
+    {
+      "name": "duration_seconds",
+      "value": "%ds"
+    },
+    {
+      "name": "duration_minutes_seconds",
+      "value": "%dm %ds"
+    },
+    {
+      "name": "greeting_tea_time",
+      "value": "Tea time"
+    },
+    {
+      "name": "greeting_good_night",
+      "value": "Good night~"
+    },
+    {
+      "name": "greeting_morning",
+      "value": "Good morning"
+    },
+    {
+      "name": "greeting_noon",
+      "value": "Good afternoon"
+    },
+    {
+      "name": "greeting_afternoon",
+      "value": "Good afternoon"
+    },
+    {
+      "name": "greeting_evening",
+      "value": "Good evening"
+    },
+    {
+      "name": "delete_video_failed_detail",
+      "value": "Failed to delete the video: %s, reason: %s"
+    },
+    {
+      "name": "file_reauth_required",
+      "value": "The file needs to be re-authorized before playback can continue. Tap OK to authorize."
+    },
+    {
+      "name": "delete_failed_reason",
+      "value": "Delete failed: %s"
+    },
+    {
+      "name": "danmaku_invalid_video_id",
+      "value": "Invalid video identifier"
+    },
+    {
+      "name": "danmaku_file_too_large_or_xml",
+      "value": "The file is too large or contains an unsupported XML declaration"
+    },
+    {
+      "name": "danmaku_select_bilibili_xml",
+      "value": "Choose a Bilibili-format XML danmaku file"
+    },
+    {
+      "name": "danmaku_import_cancelled",
+      "value": "Import cancelled"
+    },
+    {
+      "name": "danmaku_too_many",
+      "value": "Too many danmaku items; 50000 max"
+    },
+    {
+      "name": "danmaku_no_text_items",
+      "value": "The file has no displayable plain-text danmaku"
+    },
+    {
+      "name": "danmaku_texture_release_failed",
+      "value": "Failed to release the danmaku texture"
+    },
+    {
+      "name": "danmaku_texture_limit",
+      "value": "Danmaku textures exceed the limit"
+    },
+    {
+      "name": "danmaku_texture_cache_full",
+      "value": "The danmaku texture cache is full"
+    },
+    {
+      "name": "danmaku_texture_upload_failed",
+      "value": "Failed to upload the danmaku texture"
+    },
+    {
+      "name": "knock_content_not_file",
+      "value": "The received content is not a regular file"
+    },
+    {
+      "name": "knock_size_check_failed",
+      "value": "File size verification failed while saving"
+    },
+    {
+      "name": "knock_move_failed_detail",
+      "value": "Failed to move the received file: %s, %s"
+    },
+    {
+      "name": "knock_too_many_duplicates",
+      "value": "Too many files with the same name in the download directory"
+    },
+    {
+      "name": "knock_save_failed",
+      "value": "Failed to save the shared file: %s"
+    },
+    {
+      "name": "knock_file_outside_temp",
+      "value": "The received file is not in this transfer directory"
+    },
+    {
+      "name": "sidecar_file_empty_or_large",
+      "value": "The file is empty or too large"
+    },
+    {
+      "name": "operation_cancelled",
+      "value": "Operation cancelled"
+    },
+    {
+      "name": "sidecar_read_incomplete",
+      "value": "The file was not read completely"
+    },
+    {
+      "name": "sidecar_write_incomplete",
+      "value": "The file was not written completely"
+    },
+    {
+      "name": "webdav_playback_cancelled",
+      "value": "WebDAV playback request cancelled"
+    },
+    {
+      "name": "network_playback_cancelled",
+      "value": "Network playback request cancelled"
+    },
+    {
+      "name": "webdav_playback_not_ready",
+      "value": "The WebDAV playback connection is not ready yet"
+    },
+    {
+      "name": "usb_not_authorized",
+      "value": "USB device authorization was not granted"
+    },
+    {
+      "name": "usb_connection_cancelled",
+      "value": "USB connection cancelled"
+    },
+    {
+      "name": "usb_connect_failed",
+      "value": "Cannot connect to the USB device"
+    },
+    {
+      "name": "usb_no_native_transfer",
+      "value": "The system did not provide a native USB transfer handle"
+    },
+    {
+      "name": "usb_native_permission_failed",
+      "value": "Cannot obtain native USB transfer permission"
+    },
+    {
+      "name": "visual_search_unavailable",
+      "value": "Visual search is unavailable. Try again later or search by name."
+    },
+    {
+      "name": "visual_search_update_failed_retry",
+      "value": "Failed to update visual search, please try again later"
+    },
+    {
+      "name": "visual_search_update_failed",
+      "value": "Failed to update visual search"
+    },
+    {
+      "name": "visual_index_update_failed",
+      "value": "Failed to update the visual index, please try again"
+    },
+    {
+      "name": "visual_search_unsupported",
+      "value": "Visual search is not supported on this device"
+    },
+    {
+      "name": "folder_sort_task_failed",
+      "value": "The folder name sort task failed"
+    },
+    {
+      "name": "webdav_invalid_directory_format",
+      "value": "The WebDAV directory format returned by the server is invalid"
+    },
+    {
+      "name": "huawei_oauth_failed",
+      "value": "Huawei OAuth request failed (HTTP %d)"
+    },
+    {
+      "name": "huawei_drive_request_failed",
+      "value": "Huawei Drive request failed (HTTP %d)"
+    },
+    {
+      "name": "cannot_read_video_file",
+      "value": "Cannot read the video file"
+    },
+    {
+      "name": "system_exception",
+      "value": "System error"
+    },
+    {
+      "name": "no_previous_item",
+      "value": "No previous item"
+    },
+    {
+      "name": "set_audio_output_mode_failed",
+      "value": "Failed to set the audio output mode"
+    },
+    {
+      "name": "skipped_outro",
+      "value": "Outro skipped"
+    },
+    {
+      "name": "usb_no_speed_change",
+      "value": "USB passthrough output does not support speed change"
+    },
+    {
+      "name": "audio_output_switch_kept_speed",
+      "value": "Failed to switch the audio output; the original speed was kept"
+    },
+    {
+      "name": "playback_speed_update_failed",
+      "value": "Failed to update the playback speed"
+    },
+    {
+      "name": "adjust_usb_volume",
+      "value": "Adjust the volume on the USB device"
+    },
+    {
+      "name": "usb_no_channel_processing",
+      "value": "USB passthrough output does not support channel processing"
+    },
+    {
+      "name": "shader_load_failed_buffer_mode",
+      "value": "Shader loading failed. Make sure Buffer hardware decoding is used."
+    },
+    {
+      "name": "shader_copy_failed",
+      "value": "Failed to copy the shader file"
+    },
+    {
+      "name": "usb_no_audio_effect",
+      "value": "USB passthrough output does not support audio effects"
+    },
+    {
+      "name": "audio_vivid_no_effect",
+      "value": "Audio Vivid takes priority: this track does not support layered audio effects yet"
+    },
+    {
+      "name": "shared_subtitle_read_failed",
+      "value": "Failed to read the shared subtitle; you can import it manually later"
+    },
+    {
+      "name": "audio_core_create_failed",
+      "value": "Failed to create the plain audio playback core"
+    },
+    {
+      "name": "dsd_needs_dac",
+      "value": "DSD output requires selecting a DAC that supports the chosen mode"
+    },
+    {
+      "name": "mpv_usb_dsd_unsupported",
+      "value": "The current MPV core lacks the new USB / DSD output; please update the underlying library"
+    },
+    {
+      "name": "stop_previous_audio_output_failed",
+      "value": "Cannot stop the previous audio output"
+    },
+    {
+      "name": "usb_device_closed",
+      "value": "The USB device connection is closed"
+    },
+    {
+      "name": "usb_output_setup_failed",
+      "value": "Failed to set up the USB output: %s"
+    },
+    {
+      "name": "usb_no_hardware_volume",
+      "value": "The USB device provides no hardware volume control; use the device knob"
+    },
+    {
+      "name": "set_super_resolution_failed",
+      "value": "Failed to set video super resolution"
+    },
+    {
+      "name": "video_load_failed_logged",
+      "value": "Video loading failed. Pick the video again; details were written to the log."
+    },
+    {
+      "name": "switch_mode_failed",
+      "value": "Failed to switch modes, please try another video"
+    },
+    {
+      "name": "playback_failed_try_other",
+      "value": "Playback failed, please try another video"
+    },
+    {
+      "name": "hw_decode_fallback_sw",
+      "value": "This video does not support hardware decoding; switched to software decoding"
+    },
+    {
+      "name": "switched_to_buffer_mode",
+      "value": "Switched to Buffer mode"
+    },
+    {
+      "name": "play_video_first",
+      "value": "Play a video first"
+    },
+    {
+      "name": "playback_exception",
+      "value": "Playback error"
+    },
+    {
+      "name": "video_open_failed_invalid",
+      "value": "Failed to open the video, it may be invalid: %s"
+    },
+    {
+      "name": "super_resolution_unsupported",
+      "value": "This video does not support super resolution"
+    },
+    {
+      "name": "listen_video_on",
+      "value": "Audio-only video mode is on"
+    },
+    {
+      "name": "listen_video_off",
+      "value": "Audio-only video mode is off"
+    },
+    {
+      "name": "open_video_file_failed",
+      "value": "Failed to open the video file: %s"
+    },
+    {
+      "name": "video_address_empty",
+      "value": "The video address is empty"
+    },
+    {
+      "name": "visual_search_device_unsupported",
+      "value": "This device does not support cover search"
+    },
+    {
+      "name": "visual_search_cover_desc",
+      "value": "Search cover content using existing video covers"
+    },
+    {
+      "name": "search_by_name",
+      "value": "By name"
+    },
+    {
+      "name": "search_by_cover",
+      "value": "By cover"
+    },
+    {
+      "name": "describe_cover_example",
+      "value": "Describe the cover, e.g. grass"
+    },
+    {
+      "name": "search_all_media",
+      "value": "Search media in all folders"
+    },
+    {
+      "name": "describe_cover_hint",
+      "value": "Describe the cover image, then tap search on the keyboard"
+    },
+    {
+      "name": "all_folders_video_count",
+      "value": "All folders · %d videos"
+    },
+    {
+      "name": "preparing_cover_search_latest",
+      "value": "Preparing cover search, the latest input will be searched…"
+    },
+    {
+      "name": "cover_desc_range_hint",
+      "value": "Enter a 1–100 character description of the cover, e.g. \"sunset by the sea\""
+    },
+    {
+      "name": "preparing_cover_search",
+      "value": "Preparing cover search…"
+    },
+    {
+      "name": "searching_cover",
+      "value": "Searching covers…"
+    },
+    {
+      "name": "preparing_cover_search_progress",
+      "value": "Preparing cover search %d/%d"
+    },
+    {
+      "name": "no_cover_for_search",
+      "value": "No covers available for cover search. Import videos with covers first."
+    },
+    {
+      "name": "cover_search_result",
+      "value": "Found %d videos · sorted by cover relevance (100 max)"
+    },
+    {
+      "name": "cover_search_skipped",
+      "value": " · %d covers are not searchable yet"
+    },
+    {
+      "name": "cover_search_unavailable",
+      "value": "Cover search is unavailable. Try again or switch to search by name."
+    },
+    {
+      "name": "hoa_needs_harmony7",
+      "value": "HOA space rendering requires HarmonyOS 7 or later"
+    },
+    {
+      "name": "audio_effect_applied",
+      "value": "Audio effects applied"
+    },
+    {
+      "name": "audio_effect_apply_failed_mpv",
+      "value": "Failed to apply. Make sure libmpv.so is up to date."
+    },
+    {
+      "name": "custom_screen_ratio",
+      "value": "Custom screen stretch ratio"
+    },
+    {
+      "name": "custom_ratio_range",
+      "value": "Range: 50-150"
+    },
+    {
+      "name": "custom_ratio_invalid",
+      "value": "Invalid input. Enter a value between 50 and 150."
+    },
+    {
+      "name": "subtitle_offset_empty",
+      "value": "No offset entered"
+    },
+    {
+      "name": "subtitle_offset_range",
+      "value": "Invalid input: enter an integer between -50000 and 50000"
+    },
+    {
+      "name": "system_effect_api26_required",
+      "value": "System player audio effects require API 26 and device PCM post-processing support"
+    },
+    {
+      "name": "subtitle_saved_load_failed",
+      "value": "The subtitle was saved but failed to load. Choose the external subtitle again."
+    },
+    {
+      "name": "switch_player_engine_failed",
+      "value": "Failed to switch the player engine"
+    },
+    {
+      "name": "switch_player_engine_failed_detail",
+      "value": "Failed to switch the player engine: %s"
+    },
+    {
+      "name": "delete_stream_confirm",
+      "value": "Delete this stream?"
+    },
+    {
+      "name": "no_matching_stream",
+      "value": "No matching streams"
+    },
+    {
+      "name": "no_stream",
+      "value": "No streams yet"
+    },
+    {
+      "name": "add_stream_hint_top_right",
+      "value": "Tap + in the top right corner to add a stream"
+    },
+    {
+      "name": "network_stream_title",
+      "value": "Network streams"
+    },
+    {
+      "name": "delete_selected_videos_permanent",
+      "value": "Permanently delete the selected videos? This cannot be undone."
+    },
+    {
+      "name": "delete_video_confirm",
+      "value": "Delete this video?"
+    },
+    {
+      "name": "multi_select_off",
+      "value": "Exit multi-select"
+    },
+    {
+      "name": "export",
+      "value": "Export"
+    },
+    {
+      "name": "import_or_delete_subtitle",
+      "value": "Import or delete subtitles"
+    },
+    {
+      "name": "no_matching_video",
+      "value": "No matching videos"
+    },
+    {
+      "name": "privacy_space_settings",
+      "value": "Privacy space settings"
+    },
+    {
+      "name": "knock_files_saved_privacy",
+      "value": "Shared files were saved to the privacy space"
+    },
+    {
+      "name": "knock_files_partial_privacy",
+      "value": "%d files were not imported into the privacy space; the received originals were kept"
+    },
+    {
+      "name": "knock_target_folder_missing",
+      "value": "The target folder for the shared files was not found"
+    },
+    {
+      "name": "files_saved_import_partial",
+      "value": "Files were saved, but some could not be imported into the media library"
+    },
+    {
+      "name": "get_data_exception",
+      "value": "Error while loading data: %s"
+    },
+    {
+      "name": "clear_play_history_confirm",
+      "value": "Clear all play records?"
+    },
+    {
+      "name": "delete_play_record_confirm",
+      "value": "Delete this play record?"
+    },
+    {
+      "name": "data_invalid_removed",
+      "value": "The data was invalid and has been removed"
+    },
+    {
+      "name": "no_playable_video",
+      "value": "No playable videos yet"
+    },
+    {
+      "name": "float_window_unavailable",
+      "value": "Cannot enter the floating window right now, please try again later"
+    },
+    {
+      "name": "no_error_data",
+      "value": "No errors at all — not a single bug in sight (^人^)"
+    },
+    {
+      "name": "privacy_space_error_data",
+      "value": "Privacy space error data"
+    },
+    {
+      "name": "get_audio_tracks_failed",
+      "value": "Failed to get audio tracks"
+    },
+    {
+      "name": "skipped_intro",
+      "value": "Intro skipped"
+    },
+    {
+      "name": "jumped_to_last_position",
+      "value": "Jumped to the last playback position"
+    },
+    {
+      "name": "skipped_unified_intro",
+      "value": "Skipped the shared intro time"
+    },
+    {
+      "name": "save_success",
+      "value": "Saved"
+    },
+    {
+      "name": "no_prev_subtitle",
+      "value": "No previous subtitle"
+    },
+    {
+      "name": "no_next_subtitle",
+      "value": "No next subtitle"
+    },
+    {
+      "name": "subtitle_offset_out_of_range",
+      "value": "The target subtitle exceeds the offset range: -50000 to 50000"
+    },
+    {
+      "name": "move_to_recycle_failed",
+      "value": "The video shortcut was deleted, but moving it to Recently Deleted failed: errCode:%s, errMessage:%s"
+    },
+    {
+      "name": "avplayer_cannot_play",
+      "value": "AVPlayer cannot play this video"
+    },
+    {
+      "name": "swipe_up_to_switch",
+      "value": "Keep swiping up to switch videos"
+    },
+    {
+      "name": "open_vip",
+      "value": "Get VIP"
+    },
+    {
+      "name": "logout",
+      "value": "Sign out"
+    },
+    {
+      "name": "i_have_read_and_agree",
+      "value": "I have read and agree to"
+    },
+    {
+      "name": "decline_and_exit",
+      "value": "Decline and exit"
+    },
+    {
+      "name": "close_dialog_failed",
+      "value": "Failed to close the dialog%s"
+    },
+    {
+      "name": "agree_and_continue",
+      "value": "Agree and continue"
+    },
+    {
+      "name": "user_agreement_privacy_title",
+      "value": "User agreement and privacy policy"
+    },
+    {
+      "name": "terms_privacy_doc_title",
+      "value": "Terms of Service and Privacy Statement of %s"
+    },
+    {
+      "name": "please_login_first",
+      "value": "Please sign in first"
+    },
+    {
+      "name": "login_to_buy_vip",
+      "value": "Sign in with a Huawei account to buy VIP"
+    },
+    {
+      "name": "go_to_login",
+      "value": "Sign in"
+    },
+    {
+      "name": "account_login",
+      "value": "Account sign-in"
+    },
+    {
+      "name": "interested_hint",
+      "value": "Interested?"
+    },
+    {
+      "name": "get_vip_unlock_all",
+      "value": "Get VIP to unlock every feature"
+    },
+    {
+      "name": "exclusive_features",
+      "value": "Exclusive features"
+    },
+    {
+      "name": "vip_features_desc",
+      "value": "Sweet audio effects, light and dark wallpapers, smart gestures, video super resolution... more features are on the way"
+    },
+    {
+      "name": "continuous_updates",
+      "value": "Continuously updated"
+    },
+    {
+      "name": "lifetime_updates",
+      "value": "Lifetime access to all future updates"
+    },
+    {
+      "name": "price_lifetime",
+      "value": "¥29.9 / Lifetime"
+    },
+    {
+      "name": "price_monthly",
+      "value": "¥5.9 / 1 month"
+    },
+    {
+      "name": "restore_purchase",
+      "value": "Restore purchase"
+    },
+    {
+      "name": "purchase_bind_huawei_account",
+      "value": "Purchases are linked to your Huawei account and can be restored"
+    },
+    {
+      "name": "membership_agreement",
+      "value": "Membership agreement"
+    },
+    {
+      "name": "subscription_details_monthly",
+      "value": "Subscription details (monthly subscribers only)"
+    },
+    {
+      "name": "membership_service_agreement",
+      "value": "Membership service agreement"
+    },
+    {
+      "name": "purchase_success",
+      "value": "Purchase successful"
+    },
+    {
+      "name": "purchase_thanks",
+      "value": "Thanks for your support. All VIP features are unlocked."
+    },
+    {
+      "name": "back_label",
+      "value": "Back"
+    },
+    {
+      "name": "system_unsupported",
+      "value": "Not supported by the system"
+    },
+    {
+      "name": "no_restorable_purchase",
+      "value": "No purchase records to restore"
+    },
+    {
+      "name": "restore_purchase_failed",
+      "value": "Failed to restore purchases"
+    },
+    {
+      "name": "purchase_query_failed",
+      "value": "Failed to query purchase records"
+    },
+    {
+      "name": "purchase_failed_detail",
+      "value": "Purchase failed, error code: %s, reason: %s"
+    },
+    {
+      "name": "biometric_auth_title",
+      "value": "Verify your identity before entering the privacy space"
+    },
+    {
+      "name": "huawei_drive_oauth_missing",
+      "value": "Huawei Drive OAuth parameters are not configured"
+    },
+    {
+      "name": "huawei_drive_login_expired",
+      "value": "Huawei Drive sign-in has expired"
+    },
+    {
+      "name": "huawei_drive_authorize_first",
+      "value": "Authorize access to Huawei Drive first"
+    },
+    {
+      "name": "huawei_oauth_no_access_token",
+      "value": "Huawei OAuth did not return an Access Token"
+    },
+    {
+      "name": "huawei_drive_no_read_permission",
+      "value": "The Huawei account authorization lacks read-only drive permission"
+    },
+    {
+      "name": "huawei_drive_authorization_expired",
+      "value": "Huawei Drive authorization has expired, please authorize again"
+    },
+    {
+      "name": "moved_to_recycle",
+      "value": "%s has been moved to the recycle bin"
+    },
+    {
+      "name": "subtitle_import_success",
+      "value": "Subtitle imported: %s"
+    },
+    {
+      "name": "export_success_detail",
+      "value": "Exported: %s to %s"
+    },
+    {
+      "name": "export_failed_reason",
+      "value": "Export failed: %s"
+    },
+    {
+      "name": "file_invalid_reimport",
+      "value": "The file is no longer valid, please import it again"
+    },
+    {
+      "name": "import_folder",
+      "value": "Imported folder"
+    },
+    {
+      "name": "entry_not_regular_file",
+      "value": "The selected entry is not a regular file; import a folder instead"
+    },
+    {
+      "name": "usb_select_audio_device",
+      "value": "Select a USB audio device in the engine settings first"
+    },
+    {
+      "name": "usb_audio_device_not_found",
+      "value": "The selected USB audio device was not found"
+    },
+    {
+      "name": "webdav_request_failed_generic",
+      "value": "WebDAV request failed. Check the network, address, certificate and redirect settings."
+    },
+    {
+      "name": "webdav_directory_parse_failed",
+      "value": "Failed to parse the WebDAV directory"
+    },
+    {
+      "name": "smb_share_file_required",
+      "value": "Enter an SMB address that includes the share and file name; open directories from the SMB page"
+    },
+    {
+      "name": "share_description",
+      "value": "Shared from SweetVideo"
+    },
+    {
+      "name": "knock_share_description",
+      "value": "Shared from SweetVideo via tap-to-share"
+    },
+    {
+      "name": "crash_buttons_hint",
+      "value": "Red button clears the log, green button exports it"
+    },
+    {
+      "name": "test_success_channels",
+      "value": "Test passed: %d channels, %d groups"
+    },
+    {
+      "name": "unknown_program",
+      "value": "Unknown program"
+    },
+    {
+      "name": "request_failed",
+      "value": "Request failed: %s"
+    },
+    {
+      "name": "saved_danmaku_file_name",
+      "value": "Saved danmaku.xml"
+    },
+    {
+      "name": "danmaku_filter_xml",
+      "value": "XML danmaku"
+    },
+    {
+      "name": "local_xml",
+      "value": "Local XML"
+    },
+    {
+      "name": "danmaku_imported_count",
+      "value": "Imported %d danmaku items"
+    },
+    {
+      "name": "danmaku_skipped_count",
+      "value": ", skipped %d unsupported or invalid items"
+    },
+    {
+      "name": "filter_video",
+      "value": "Video"
+    },
+    {
+      "name": "filter_audio",
+      "value": "Audio"
+    },
+    {
+      "name": "filter_subtitle",
+      "value": "Subtitle"
+    },
+    {
+      "name": "log_section_system_events",
+      "value": "=== System events (crashes, freezes and process reclaim) ==="
+    },
+    {
+      "name": "log_section_runtime",
+      "value": "=== Runtime log ==="
+    },
+    {
+      "name": "feedback_qq_group",
+      "value": "Feedback QQ group 973792610, OS version: %s, app version: %s, model: %s, API version: %s, thermal level: %s"
+    },
+    {
+      "name": "lang_unknown",
+      "value": "Unknown"
+    },
+    {
+      "name": "lang_und",
+      "value": "Unknown"
+    },
+    {
+      "name": "lang_chi",
+      "value": "Chinese"
+    },
+    {
+      "name": "lang_traditional",
+      "value": "Traditional Chinese"
+    },
+    {
+      "name": "lang_cantonese",
+      "value": "Cantonese"
+    },
+    {
+      "name": "lang_simplified",
+      "value": "Simplified Chinese"
+    },
+    {
+      "name": "lang_jpn",
+      "value": "Japanese"
+    },
+    {
+      "name": "lang_eng",
+      "value": "English"
+    },
+    {
+      "name": "lang_kor",
+      "value": "Korean"
+    },
+    {
+      "name": "lang_fre",
+      "value": "French"
+    },
+    {
+      "name": "lang_fra",
+      "value": "French"
+    },
+    {
+      "name": "lang_ger",
+      "value": "German"
+    },
+    {
+      "name": "lang_deu",
+      "value": "German"
+    },
+    {
+      "name": "lang_spa",
+      "value": "Spanish"
+    },
+    {
+      "name": "lang_rus",
+      "value": "Russian"
+    },
+    {
+      "name": "lang_ara",
+      "value": "Arabic"
+    },
+    {
+      "name": "lang_por",
+      "value": "Portuguese"
+    },
+    {
+      "name": "lang_ita",
+      "value": "Italian"
+    },
+    {
+      "name": "lang_hin",
+      "value": "Hindi"
+    },
+    {
+      "name": "lang_tha",
+      "value": "Thai"
+    },
+    {
+      "name": "lang_ukr",
+      "value": "Ukrainian"
+    },
+    {
+      "name": "lang_tur",
+      "value": "Turkish"
+    },
+    {
+      "name": "lang_ind",
+      "value": "Indonesian"
+    },
+    {
+      "name": "lang_dut",
+      "value": "Dutch"
+    },
+    {
+      "name": "lang_nld",
+      "value": "Dutch"
+    },
+    {
+      "name": "lang_swe",
+      "value": "Swedish"
+    },
+    {
+      "name": "lang_slv",
+      "value": "Slovenian"
+    },
+    {
+      "name": "lang_hrv",
+      "value": "Croatian"
+    },
+    {
+      "name": "lang_bul",
+      "value": "Bulgarian"
+    },
+    {
+      "name": "lang_cze",
+      "value": "Czech"
+    },
+    {
+      "name": "lang_dan",
+      "value": "Danish"
+    },
+    {
+      "name": "lang_fin",
+      "value": "Finnish"
+    },
+    {
+      "name": "lang_gre",
+      "value": "Greek"
+    },
+    {
+      "name": "lang_heb",
+      "value": "Hebrew"
+    },
+    {
+      "name": "lang_hun",
+      "value": "Hungarian"
+    },
+    {
+      "name": "lang_nor",
+      "value": "Norwegian"
+    },
+    {
+      "name": "lang_pol",
+      "value": "Polish"
+    },
+    {
+      "name": "lang_rum",
+      "value": "Romanian"
+    },
+    {
+      "name": "lang_est",
+      "value": "Estonian"
+    },
+    {
+      "name": "lang_lav",
+      "value": "Latvian"
+    },
+    {
+      "name": "lang_lit",
+      "value": "Lithuanian"
+    },
+    {
+      "name": "lang_ice",
+      "value": "Icelandic"
+    },
+    {
+      "name": "lang_sdh",
+      "value": "SDH"
+    },
+    {
+      "name": "ftp_invalid_address",
+      "value": "FTP 地址或路径无效，请使用 ftp://主机:端口/目录/，特殊字符需转义"
+    },
+    {
+      "name": "ftp_invalid_credentials",
+      "value": "用户名或密码无效，匿名登录请留空"
+    },
+    {
+      "name": "ftp_use_credentials_fields",
+      "value": "请在下方填写用户名和密码，不要放在服务器地址中"
+    },
+    {
+      "name": "ftp_cancelled",
+      "value": "FTP 请求已取消"
+    },
+    {
+      "name": "ftp_config_read_failed",
+      "value": "读取 FTP 连接配置失败"
+    },
+    {
+      "name": "ftp_password_read_failed",
+      "value": "读取 FTP 密码失败，请重新编辑连接"
+    },
+    {
+      "name": "ftp_password_save_failed",
+      "value": "安全保存 FTP 密码失败"
+    },
+    {
+      "name": "ftp_config_save_failed",
+      "value": "保存 FTP 连接配置失败"
+    },
+    {
+      "name": "ftp_request_failed",
+      "value": "FTP 请求失败，请检查网络、目录、账号和访问权限"
+    },
+    {
+      "name": "ftp_auth_failed",
+      "value": "FTP 登录失败，请检查用户名和密码"
+    },
+    {
+      "name": "ftp_timeout",
+      "value": "FTP 请求超时，请检查服务器和被动端口设置"
+    },
+    {
+      "name": "ftp_connection_refused",
+      "value": "FTP 服务器拒绝连接，请检查地址和端口"
+    },
+    {
+      "name": "ftp_unavailable",
+      "value": "当前播放库未启用 FTP，请更新应用"
+    },
+    {
+      "name": "ftp_listing_unsupported",
+      "value": "服务器目录格式不受支持，普通 FTP 首版需要 MLSD 目录列表"
+    },
+    {
+      "name": "ftp_invalid_listing",
+      "value": "FTP 目录包含无法识别的路径"
+    },
+    {
+      "name": "ftp_directory_too_large",
+      "value": "目录文件过多，请选择更小的目录"
+    },
+    {
+      "name": "ftp_seek_unsupported",
+      "value": "服务器无法提供文件大小或随机读取，暂不支持直接播放"
+    },
+    {
+      "name": "ftp_busy",
+      "value": "FTP 请求过多，请稍后重试"
+    },
+    {
+      "name": "ftp_connection_deleted",
+      "value": "FTP 连接已删除，请重新添加"
+    },
+    {
+      "name": "ftp_file_required",
+      "value": "请输入 FTP 文件地址，目录请通过 FTP 页面浏览"
+    },
+    {
+      "name": "ftp_multiple_accounts",
+      "value": "存在多个匹配的 FTP 连接，请从 FTP 页面选择"
+    },
+    {
+      "name": "ftp_subtitle_download_failed",
+      "value": "下载 FTP 字幕失败"
+    },
+    {
+      "name": "delete_ftp_connection",
+      "value": "Delete this FTP connection? Files on the server are not deleted."
+    },
+    {
+      "name": "ftp_empty_title",
+      "value": "Connect your FTP server"
+    },
+    {
+      "name": "ftp_empty_desc",
+      "value": "Add a FTP server to browse and play videos and music from the directory"
+    },
+    {
+      "name": "read_ftp_failed",
+      "value": "Cannot read the FTP directory"
+    },
+    {
+      "name": "edit_ftp_server",
+      "value": "Edit FTP server"
+    },
+    {
+      "name": "add_ftp_server",
+      "value": "Add FTP server"
+    },
+    {
+      "name": "ftp_address_placeholder",
+      "value": "ftp://192.168.1.10:21/videos/"
+    },
+    {
+      "name": "ftp_user_placeholder",
+      "value": "用户名（匿名登录留空）"
+    },
+    {
+      "name": "ftp_hint",
+      "value": "普通 FTP 不加密账号和文件，建议在可信局域网使用。目录相对于登录目录；需要 MLSD 目录列表和 REST 随机读取。"
+    },
+    {
+      "name": "ftp_connect_success",
+      "value": "Connected. You can browse the directory."
+    },
+    {
+      "name": "ftp_operation_failed",
+      "value": "FTP operation failed"
+    },
+    {
+      "name": "ftp_plain_only",
+      "value": "当前仅支持普通 FTP，暂不支持 FTPS 或 SFTP"
+    },
+    {
+      "name": "audio_external_import",
+      "value": "导入外挂音频"
+    },
+    {
+      "name": "audio_external_replace",
+      "value": "替换外挂音频"
+    },
+    {
+      "name": "audio_external_importing",
+      "value": "正在导入音频…"
+    },
+    {
+      "name": "audio_external_label",
+      "value": "外挂"
+    },
+    {
+      "name": "audio_external_title",
+      "value": "外挂音频"
+    },
+    {
+      "name": "audio_external_failed",
+      "value": "外挂音频导入失败，请检查文件是否可播放"
+    },
+    {
+      "name": "audio_external_load_failed",
+      "value": "外挂音频加载失败"
+    },
+    {
+      "name": "audio_external_filter",
+      "value": "音频"
+    },
+    {
+      "name": "audio_external_sync",
+      "value": "同步"
+    },
+    {
+      "name": "audio_external_sync_help",
+      "value": "负值提前，正值延后"
+    },
+    {
+      "name": "audio_external_empty",
+      "value": "音频文件为空"
+    },
+    {
+      "name": "audio_external_save_failed",
+      "value": "外挂音频设置保存失败"
     }
   ]
 }

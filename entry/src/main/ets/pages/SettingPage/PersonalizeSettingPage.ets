@@ -1,3 +1,4 @@
+import ImageFileUtil from '../../utils/ImageFileUtil'
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
 import { SettingsSegmentButtonItem } from '../../component/SettingComponent/SettingsSegmentButtonItem'
 import { SettingsSliderItem } from '../../component/SettingComponent/SettingsSliderItem'
@@ -37,8 +38,8 @@ export struct PersonalizeSettingPage {
         ListItem() {
           SettingsSegmentButtonItem({
             symbol: $r('sys.symbol.sun'),
-            message: '显示模式',
-            tips: ['自动', '浅色', '深色'],
+            message: $r('app.string.display_mode'),
+            tips: [$r('app.string.display_mode_auto'), $r('app.string.display_mode_light'), $r('app.string.display_mode_dark')],
             tabSelectedIndex: Setting.backgroundColorMode,
             onButtonClick: (tabSelectedIndex: number) => {
               Setting.backgroundColorMode = tabSelectedIndex
@@ -51,9 +52,9 @@ export struct PersonalizeSettingPage {
               }
               Setting.backgroundImageSrc = ''
               setTimeout(async () => {
-                Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
+                Setting.backgroundImageSrc = ImageFileUtil.getImageUri()
                 if (Setting.backgroundDropBlur > 0 && Setting.backgroundImageSrc.length > 0) {
-                  await SelectFileUtil.updateBlurBackground(Setting.backgroundDropBlur)
+                  await ImageFileUtil.updateBlurBackground(Setting.backgroundDropBlur)
                 }
               }, 100)
             }
@@ -64,7 +65,7 @@ export struct PersonalizeSettingPage {
           ListItem() {
             SettingsClickItem({
               symbol: $r('sys.symbol.brush'),
-              message: '切换应用图标',
+              message: $r('app.string.switch_app_icon'),
               onPress: () => {
                 this.dynamicIconDialogOpen = false
                 setTimeout(() => {
@@ -78,7 +79,7 @@ export struct PersonalizeSettingPage {
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.doc_text_badge_clock'),
-            message: '深浅色壁纸切换',
+            message: $r('app.string.wallpaper_switch'),
             enable: Setting.enableBackgroundDarkImage,
             tag: 'VIP',
             itemEnabled: userData.isVip,
@@ -86,9 +87,9 @@ export struct PersonalizeSettingPage {
               Setting.enableBackgroundDarkImage = checked
               Setting.backgroundImageSrc = ''
               setTimeout(async () => {
-                Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
+                Setting.backgroundImageSrc = ImageFileUtil.getImageUri()
                 if (Setting.backgroundDropBlur > 0 && Setting.backgroundImageSrc.length > 0) {
-                  await SelectFileUtil.updateBlurBackground(Setting.backgroundDropBlur, true)
+                  await ImageFileUtil.updateBlurBackground(Setting.backgroundDropBlur, true)
                 }
               }, 100)
               Preferences.saveEnableBackgroundDarkImage(PathUtils.appContext!, Setting.enableBackgroundDarkImage)
@@ -100,7 +101,7 @@ export struct PersonalizeSettingPage {
           ListItem() {
             SettingsToggleItem({
               symbol: $r('sys.symbol.blur_bar'),
-              message: '列表项背景模糊',
+              message: $r('app.string.list_item_bg_blur'),
               tag: 'VIP',
               enable: Setting.listItemBackgroundBlur,
               itemEnabled: userData.isVip,
@@ -115,7 +116,7 @@ export struct PersonalizeSettingPage {
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.picture'),
-            message: Setting.enableBackgroundDarkImage ? '自定义浅色壁纸' : '自定义壁纸',
+            message: Setting.enableBackgroundDarkImage ? $r('app.string.custom_wallpaper_light') : $r('app.string.custom_wallpaper'),
             onPress: async () => {
               const currentColorMode = AppStorage.get('currentColorMode') as number
               await this.selectAndSetBackgroundImage('BackgroundImage',
@@ -129,7 +130,7 @@ export struct PersonalizeSettingPage {
           ListItem() {
             SettingsClickItem({
               symbol: $r('sys.symbol.picture'),
-              message: '自定义深色壁纸',
+              message: $r('app.string.custom_wallpaper_dark'),
               onPress: async () => {
                 const currentColorMode = AppStorage.get('currentColorMode') as number
                 await this.selectAndSetBackgroundImage('BackgroundDarkImage',
@@ -143,14 +144,14 @@ export struct PersonalizeSettingPage {
           ListItem() {
             SettingsClickItem({
               symbol: $r('sys.symbol.picture_damage'),
-              message: Setting.enableBackgroundDarkImage ? '删除浅色自定义壁纸' : '删除自定义壁纸',
+              message: Setting.enableBackgroundDarkImage ? $r('app.string.delete_wallpaper_light') : $r('app.string.delete_wallpaper'),
               onPress: async () => {
-                await SelectFileUtil.deletePhoto('BackgroundImage')
+                await ImageFileUtil.deletePhoto('BackgroundImage')
                 Setting.backgroundImageSrc = ''
                 Setting.backgroundBlurImageSrc = ''
                 Setting.backgroundDropBlur = 0
                 Setting.listItemBackgroundBlur = false
-                ToolsUtil.showToast('删除成功')
+                ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_success').id))
                 Preferences.saveBackgroundDropBlur(PathUtils.appContext!, 0)
                 Preferences.saveListItemBackgroundBlur(PathUtils.appContext!, false)
               }
@@ -161,9 +162,9 @@ export struct PersonalizeSettingPage {
             ListItem() {
               SettingsClickItem({
                 symbol: $r('sys.symbol.picture_damage'),
-                message: '删除深色自定义壁纸',
+                message: $r('app.string.delete_wallpaper_dark'),
                 onPress: async () => {
-                  await SelectFileUtil.deletePhoto('BackgroundDarkImage')
+                  await ImageFileUtil.deletePhoto('BackgroundDarkImage')
                   const currentColorMode = AppStorage.get('currentColorMode') as number
                   if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK) {
                     Setting.backgroundImageSrc = ''
@@ -172,7 +173,7 @@ export struct PersonalizeSettingPage {
                     Setting.listItemBackgroundBlur = false
                     Preferences.saveListItemBackgroundBlur(PathUtils.appContext!, false)
                   }
-                  ToolsUtil.showToast('删除成功')
+                  ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_success').id))
                   Preferences.saveBackgroundDropBlur(PathUtils.appContext!, 0)
                 }
               })
@@ -184,7 +185,7 @@ export struct PersonalizeSettingPage {
           ListItem() {
             SettingsSliderItem({
               symbol: $r('sys.symbol.livephoto'),
-              message: '壁纸模糊',
+              message: $r('app.string.wallpaper_blur'),
               textSliderMode: false,
               selected: Setting.backgroundDropBlur,
               onChange: (value: number) => {
@@ -193,7 +194,7 @@ export struct PersonalizeSettingPage {
               onChangeComplete: async (value: number) => {
                 Setting.backgroundDropBlur = value
                 Preferences.saveBackgroundDropBlur(PathUtils.appContext!, Setting.backgroundDropBlur)
-                await SelectFileUtil.updateBlurBackground(value, true)
+                await ImageFileUtil.updateBlurBackground(value, true)
               }
             })
           }
@@ -267,7 +268,7 @@ export struct PersonalizeSettingPage {
       },
       content: {
         title: {
-          mainTitle: '个性化',
+          mainTitle: $r('app.string.personalize_title'),
         }
       },
     })
@@ -286,7 +287,7 @@ export struct PersonalizeSettingPage {
       showClose: true,
       dragBar: true,
       backgroundColor: $r('app.color.start_window_background'),
-      title: { title: '应用图标' },
+      title: { title: $r('app.string.app_icon') },
     })
   }
 
@@ -403,7 +404,7 @@ export struct PersonalizeSettingPage {
           salmonLogger.addLog(TAG, `查询动态图标失败, code: ${error.code}, message: ${error.message}`, true)
         })
       } else {
-        ToolsUtil.showToast('设备能力不支持')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.device_not_supported').id))
       }
     } catch (error) {
       this.dynamicIconSupported = false
@@ -417,17 +418,17 @@ export struct PersonalizeSettingPage {
       if (canIUse("SystemCapability.AppGalleryService.AppInfoManager")) {
         appInfoManager.selectDynamicIcon(iconId).then(() => {
           this.currentEnabledIconId = iconId
-          ToolsUtil.showToast('图标切换成功')
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.icon_switched').id))
           salmonLogger.addLog(TAG, `切换动态图标成功, iconId: ${iconId}`, false)
         }).catch((error: BusinessError) => {
-          ToolsUtil.showToast('图标切换失败')
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.icon_switch_failed').id))
           salmonLogger.addLog(TAG, `切换动态图标失败, code: ${error.code}, message: ${error.message}`, true)
         })
       } else {
-        ToolsUtil.showToast('设备能力不支持')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.device_not_supported').id))
       }
     } catch (error) {
-      ToolsUtil.showToast('图标切换失败')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.icon_switch_failed').id))
       salmonLogger.addLog(TAG, `切换动态图标异常, code: ${error.code}, message: ${error.message}`, true)
     }
   }
@@ -438,17 +439,17 @@ export struct PersonalizeSettingPage {
       if (canIUse("SystemCapability.AppGalleryService.AppInfoManager")) {
         appInfoManager.disableDynamicIcon().then(() => {
           this.currentEnabledIconId = ''
-          ToolsUtil.showToast('已恢复默认图标')
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.icon_restored').id))
           salmonLogger.addLog(TAG, '禁用动态图标成功', false)
         }).catch((error: BusinessError) => {
-          ToolsUtil.showToast('恢复默认图标失败')
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.icon_restore_failed').id))
           salmonLogger.addLog(TAG, `禁用动态图标失败, code: ${error.code}, message: ${error.message}`, true)
         })
       } else {
-        ToolsUtil.showToast('设备能力不支持')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.device_not_supported').id))
       }
     } catch (error) {
-      ToolsUtil.showToast('恢复默认图标失败')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.icon_restore_failed').id))
       salmonLogger.addLog(TAG, `禁用动态图标异常, code: ${error.code}, message: ${error.message}`, true)
     }
   }
@@ -456,18 +457,18 @@ export struct PersonalizeSettingPage {
   private async selectAndSetBackgroundImage(imageName: string, shouldApply: () => boolean) {
     const imageUris = await SelectFileUtil.selectPhoto()
     if (imageUris.length === 0) {
-      ToolsUtil.showToast('没有照片被选择')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.no_photo_selected').id))
       return
     }
     Setting.backgroundImageSrc = ''
-    SelectFileUtil.saveImageToSandBox(imageUris[0], imageName)
+    ImageFileUtil.saveImageToSandBox(imageUris[0], imageName)
     setTimeout(async () => {
       if (shouldApply()) {
-        Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
+        Setting.backgroundImageSrc = ImageFileUtil.getImageUri()
         if (Setting.backgroundDropBlur > 0) {
-          await SelectFileUtil.updateBlurBackground(Setting.backgroundDropBlur, true)
+          await ImageFileUtil.updateBlurBackground(Setting.backgroundDropBlur, true)
         }
-        ToolsUtil.showToast('设置成功')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.set_success').id))
       }
     }, 100)
   }

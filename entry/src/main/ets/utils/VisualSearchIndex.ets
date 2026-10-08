@@ -4,6 +4,7 @@ import { image } from '@kit.ImageKit'
 import { taskpool } from '@kit.ArkTS'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { VisualSearchHit, VisualSearchResult } from './GlobalSearchModel'
+import ToolsUtil from './ToolsUtil.ets'
 
 interface IndexedCover {
   path: string
@@ -69,7 +70,7 @@ export class VisualSearchIndex {
 
   static async run(paths: string[], manifestPath: string, query: string): Promise<VisualSearchResult> {
     if (!await textSearchImage.init()) {
-      throw new Error('画面搜索暂不可用，请稍后重试或使用按名称搜索')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.visual_search_unavailable').id))
     }
     try {
       // A model upgrade requires rebuilding features. Retry at most once.
@@ -81,12 +82,12 @@ export class VisualSearchIndex {
             throw new VisualSearchError(error as BusinessError)
           }
           if (!await textSearchImage.clearData()) {
-            throw new Error('画面搜索更新失败，请稍后重试')
+            throw new Error(ToolsUtil.getStringResource($r('app.string.visual_search_update_failed_retry').id))
           }
           VisualSearchIndex.saveManifest(manifestPath, [])
         }
       }
-      throw new Error('画面搜索更新失败')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.visual_search_update_failed').id))
     } finally {
       try {
         await textSearchImage.release()
@@ -105,7 +106,7 @@ export class VisualSearchIndex {
     for (const record of previous) {
       if (!wanted.has(record.path) || VisualSearchIndex.signature(record.path) !== record.signature) {
         if (!await textSearchImage.deleteImage(record.path, VisualSearchIndex.scope)) {
-          throw new Error('画面索引更新失败，请重试')
+          throw new Error(ToolsUtil.getStringResource($r('app.string.visual_index_update_failed').id))
         }
       } else {
         old.set(record.path, record.signature)

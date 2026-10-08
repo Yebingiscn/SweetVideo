@@ -58,34 +58,34 @@ export struct VideoSettingComponent {
     Menu() {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
-        content: '定时器',
+        content: $r('app.string.timer'),
         builder: (): void => this.TimerMenuExtend()
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
-        content: '片头片尾时间',
+        content: $r('app.string.op_ed_time'),
         builder: (): void => this.OPEDMenuExtend()
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
-        content: 'AB循环',
+        content: $r('app.string.ab_loop'),
         builder: (): void => this.ABMenuExtend()
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.fast_forward')),
-        content: '前进 80s'
+        content: $r('app.string.forward_80s')
       }).onClick(() => {
         this.forward_80_s(this.player.playTime + 80 * 1000)
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trapezoid_and_line_vertical')),
-        content: '屏幕镜像'
+        content: $r('app.string.screen_mirror')
       }).onClick(() => {
         this.onScreenMirror()
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_left_arrow_right')),
-        content: this.player.isMpvPlayer() ? '切换到系统播放器' : '切换到 MPV 播放器'
+        content: this.player.isMpvPlayer() ? $r('app.string.switch_to_system_player') : $r('app.string.switch_to_mpv_player')
       }).onClick(() => {
         this.onSwitchPlayerEngine(this.player.isMpvPlayer() ? PlayerEngine.AV_PLAYER : PlayerEngine.MPV_PLAYER)
       })
@@ -93,21 +93,21 @@ export struct VideoSettingComponent {
       if (this.player instanceof AVPlayerController) {
         MenuItem({
           symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.headphones')),
-          content: '听视频'
+          content: $r('app.string.listen_video')
         }).onClick(() => {
           this.toggleListenVideo()
         })
       }
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.camera_master_ai')),
-        content: this.player.superResolutionState ? '关闭视频超分辨率' : '开启视频超分辨率',
+        content: this.player.superResolutionState ? $r('app.string.disable_super_resolution') : $r('app.string.enable_super_resolution'),
       }).onClick(() => {
         this.player.setSuperResolutionState(!this.player.superResolutionState)
       })
       if (this.player instanceof MpvController) {
         MenuItem({
           symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.doc_plaintext')),
-          content: this.player.debugInfoVisible ? '关闭调试信息' : '显示调试信息',
+          content: this.player.debugInfoVisible ? $r('app.string.hide_debug_info') : $r('app.string.show_debug_info'),
         }).onClick(() => {
           if (this.player instanceof MpvController) {
             this.player.toggleDebugInfo()
@@ -125,7 +125,7 @@ export struct VideoSettingComponent {
         content: '15min'
       }).onClick(() => {
         clearTimeout(this.exitVideoTime)
-        ToolsUtil.showToast('设置成功，15分钟后自动关闭')
+        ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.timer_set_minutes').id, 15))
         this.closeAfter15min(15 * 60000)
       })
       MenuItem({
@@ -133,7 +133,7 @@ export struct VideoSettingComponent {
         content: '30min'
       }).onClick(() => {
         clearTimeout(this.exitVideoTime)
-        ToolsUtil.showToast('设置成功，30分钟后自动关闭')
+        ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.timer_set_minutes').id, 30))
         this.closeAfter30min(30 * 60000)
       })
       MenuItem({
@@ -141,23 +141,23 @@ export struct VideoSettingComponent {
         content: '60min'
       }).onClick(() => {
         clearTimeout(this.exitVideoTime)
-        ToolsUtil.showToast('设置成功，60分钟后自动关闭')
+        ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.timer_set_minutes').id, 60))
         this.closeAfter60min(60 * 60000)
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
-        content: '播完本集'
+        content: $r('app.string.play_episode_end')
       }).onClick(() => {
         clearTimeout(this.exitVideoTime)
-        ToolsUtil.showToast('设置成功，播完本集后自动关闭')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.timer_set_episode_end').id))
         this.setRepeatModeToOnce()
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.clock')),
-        content: '不启用'
+        content: $r('app.string.not_enabled')
       }).onClick(() => {
         clearTimeout(this.exitVideoTime)
-        ToolsUtil.showToast('设置成功，已清除定时器')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.timer_cleared').id))
       })
     }
   }
@@ -167,33 +167,33 @@ export struct VideoSettingComponent {
     Menu() {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
-        content: '设置片头时间：' + this.startTime,
+        content: $r('app.string.set_intro_time', this.startTime),
       }).onClick(() => {
         this.startTime = TimeUtil.convertMSToHHMMSS(this.player.playTime)
         VideoOperateUtil.saveVideoStartTime(this.player.playTime, this.player.nowPlaying!, PathUtils.appContext!)
-        ToolsUtil.showToast(this.player.nowPlaying?.title + '成功设置片头时间为:' +
+        ToolsUtil.showToast(this.player.nowPlaying?.title + ToolsUtil.getStringResource($r('app.string.success_set_intro_time').id) +
           TimeUtil.convertMSToHHMMSS(this.player.playTime))
         this.updateStarTime(this.player.playTime)
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
-        content: '设置片尾时间：' + this.endTime,
+        content: $r('app.string.set_outro_time', this.endTime),
       }).onClick(() => {
         this.endTime = TimeUtil.convertMSToHHMMSS(this.player.playTime)
         VideoOperateUtil.saveVideoEndTime(this.player.playTime, this.player.nowPlaying!, PathUtils.appContext!)
-        ToolsUtil.showToast(this.player?.nowPlaying?.title + '成功设置片尾时间为:' +
+        ToolsUtil.showToast(this.player?.nowPlaying?.title + ToolsUtil.getStringResource($r('app.string.success_set_outro_time').id) +
           TimeUtil.convertMSToHHMMSS(this.player.playTime))
         this.updateEndTime(this.player.playTime)
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
-        content: '取消片头片尾时间'
+        content: $r('app.string.cancel_op_ed_time')
       }).onClick(() => {
         this.startTime = TimeUtil.convertMSToHHMMSS(0)
         VideoOperateUtil.saveVideoStartTime(0, this.player.nowPlaying!, PathUtils.appContext!)
         this.endTime = TimeUtil.convertMSToHHMMSS(this.player.nowPlaying?.time)
         VideoOperateUtil.saveVideoEndTime(this.player!.nowPlaying!.time, this.player.nowPlaying!, PathUtils.appContext!)
-        ToolsUtil.showToast('取消片头片尾时间成功')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.cancel_op_ed_time_success').id))
         this.updateStarTime(0)
         this.updateEndTime(this.player.nowPlaying!.time)
       })
@@ -205,39 +205,39 @@ export struct VideoSettingComponent {
     Menu() {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
-        content: this.player.abCircleStatus ? '停止 AB 循环' : '启动 AB 循环'
+        content: this.player.abCircleStatus ? $r('app.string.stop_ab_loop') : $r('app.string.start_ab_loop')
       }).onClick(() => {
         this.onABCircleStatusClick()
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
-        content: '设置A点时间：' + this.pointA,
+        content: $r('app.string.set_point_a_time', this.pointA),
       }).onClick(() => {
         this.pointA = TimeUtil.convertMSToHHMMSS(this.player.playTime)
         VideoOperateUtil.saveVideoPointA(PathUtils.appContext!, this.player.nowPlaying!, this.player.playTime)
-        ToolsUtil.showToast(this.player.nowPlaying?.title + '成功设置A点时间为:' +
+        ToolsUtil.showToast(this.player.nowPlaying?.title + ToolsUtil.getStringResource($r('app.string.success_set_point_a_time').id) +
           TimeUtil.convertMSToHHMMSS(this.player.playTime))
         this.updatePointATime(this.player.playTime)
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
-        content: '设置B点时间：' + this.pointB,
+        content: $r('app.string.set_point_b_time', this.pointB),
       }).onClick(() => {
         this.pointB = TimeUtil.convertMSToHHMMSS(this.player.playTime)
         VideoOperateUtil.saveVideoPointB(PathUtils.appContext!, this.player.nowPlaying!, this.player.playTime)
-        ToolsUtil.showToast(this.player?.nowPlaying?.title + '成功设置B点时间为:' +
+        ToolsUtil.showToast(this.player?.nowPlaying?.title + ToolsUtil.getStringResource($r('app.string.success_set_point_b_time').id) +
           TimeUtil.convertMSToHHMMSS(this.player.playTime))
         this.updatePointBTime(this.player.playTime)
       })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.time_lapse')),
-        content: '取消AB点时间'
+        content: $r('app.string.cancel_ab_time')
       }).onClick(() => {
         this.pointA = TimeUtil.convertMSToHHMMSS(0)
         VideoOperateUtil.saveVideoPointA(PathUtils.appContext!, this.player.nowPlaying!, 0)
         this.pointB = TimeUtil.convertMSToHHMMSS(this.player.nowPlaying!.time)
         VideoOperateUtil.saveVideoPointB(PathUtils.appContext!, this.player.nowPlaying!, this.player.nowPlaying!.time)
-        ToolsUtil.showToast('取消AB点时间成功')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.cancel_ab_time_success').id))
         this.updatePointATime(0)
         this.updatePointBTime(this.player.nowPlaying!.time)
       })

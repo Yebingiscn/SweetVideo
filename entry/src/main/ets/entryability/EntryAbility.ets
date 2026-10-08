@@ -1,3 +1,4 @@
+import ImageFileUtil from '../utils/ImageFileUtil'
 import { AbilityConstant, Configuration, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit'
 import { hiAppEvent, hilog } from '@kit.PerformanceAnalysisKit'
 import { window } from '@kit.ArkUI'
@@ -7,7 +8,6 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { Pc, Privacy, Setting } from '../utils/ObservedUtil'
 import { PathUtils } from '../utils/PathUtils'
 import PrivacySpaceUtil from '../utils/PrivacySpaceUtil'
-import SelectFileUtil from '../utils/SelectFileUtil'
 import ToolsUtil from '../utils/ToolsUtil'
 import VideoOperateUtil from '../utils/VideoOperateUtil'
 import WantProcessUtil from '../utils/WantProcessUtil'
@@ -206,7 +206,6 @@ export default class EntryAbility extends UIAbility {
     return AbilityConstant.OnContinueResult.AGREE
   }
 
-
   onWindowStageDestroy(): void {
     MediaSmartGestureSession.setAppForeground(false)
     // Main window is destroyed, release UI related resources
@@ -236,9 +235,9 @@ export default class EntryAbility extends UIAbility {
       return
     }
     setTimeout(async () => {
-      Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
+      Setting.backgroundImageSrc = ImageFileUtil.getImageUri()
       if (Setting.backgroundDropBlur > 0 && Setting.backgroundImageSrc.length > 0) {
-        await SelectFileUtil.updateBlurBackground(Setting.backgroundDropBlur)
+        await ImageFileUtil.updateBlurBackground(Setting.backgroundDropBlur)
       }
     }, 100)
     // 更新缓存中的颜色模式

@@ -13,12 +13,12 @@ export struct AddFileFolderNameDialog {
 
   build() {
     Column({ space: 20 }) {
-      Text('新建文件夹')
+      Text($r('app.string.new_folder'))
         .fontSize(20)
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Bold)
 
-      TextInput({ placeholder: '请输入文件夹名称' })
+      TextInput({ placeholder: $r('app.string.folder_name_placeholder') })
         .keyboardAppearance(KeyboardAppearance.IMMERSIVE)
         .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
         .borderRadius(16)
@@ -42,7 +42,7 @@ export struct AddFileFolderNameDialog {
                   this.selected_parent_date = null
                 }
               })
-            Text('根目录')
+            Text($r('app.string.root_folder'))
               .fontSize(14)
               .fontColor($r('app.color.text_color'))
           }

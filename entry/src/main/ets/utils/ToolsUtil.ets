@@ -1,3 +1,5 @@
+import { FolderNameSortItem, sortFolderNamesInTaskPool } from './TaskpoolUtil'
+import MediaSortUtil from './MediaSortUtil'
 import { bundleManager, ConfigurationConstant } from '@kit.AbilityKit'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { FileFolder } from '../interfaces/FileFolderInterface'
@@ -6,16 +8,13 @@ import { SortField } from '../common/enum/SortField'
 import { salmonLogger } from 'salmonlogger'
 import { GB, KB, MB } from '../common/Constants'
 import { PromptAction, window } from '@kit.ArkUI'
-import { pinyin4js } from '@ohos/pinyin4js'
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import NavigationAddress, { PlayerParams, ShortVideoParams } from '../common/NavigationCommon'
 import Preferences from '../database/Preferences'
-import { ItemWithPinyin } from '../interfaces/VideoItemWithPinyinInterface'
 import DataSyncUtil from './DataSyncUtil'
 import FileFolderUtil from './FileFolderUtil'
 import { Setting } from './ObservedUtil'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
-import { FolderNameSortItem, sortFolderNamesInTaskPool } from './TaskpoolUtil'
 import VideoOperateUtil from './VideoOperateUtil'
 import { WindowUtil } from './WindowUtil'
 import { updateManager } from '@kit.AppGalleryKit'
@@ -24,20 +23,12 @@ import { fileIo } from '@kit.CoreFileKit'
 import { vibrator } from '@kit.SensorServiceKit'
 import { thermal } from '@kit.BasicServicesKit'
 
-
 const TAG = 'ToolsUtil'
 
 // 工具类
 export default class ToolsUtil {
   static BASE64_PADDING_MOD: number = 4;
   static BASE64_PADDING_INVALID: number = 1;
-  private static splitRegex = /(\d+)/g
-  private static readonly COLLATOR = new Intl.Collator("zh-CN", {
-    sensitivity: "variant",
-    numeric: true,
-    ignorePunctuation: false,
-    caseFirst: "upper"
-  })
   private static cachedPromptAction: PromptAction | null = null
   // 震动设置
   private static vibrationEnabled: boolean = true
@@ -46,7 +37,7 @@ export default class ToolsUtil {
   static checkVipFeature(): boolean {
     const isVip = Preferences.getUserIsVip(PathUtils.appContext!)
     if (!isVip) {
-      ToolsUtil.showToast('这个是vip功能')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.vip_feature_only').id))
     }
     return isVip
   }
@@ -108,21 +99,56 @@ export default class ToolsUtil {
     }
   }
 
-  static getStringResource(resource: number) {
+  static getStringResource(resource: number): string {
     try {
       return PathUtils.appContext!.resourceManager.getStringSync(resource)
     } catch (error) {
       salmonLogger.addLog(TAG, 'get String Resource error' + error, true)
-      return '未知'
+      return ''
     }
   }
 
-  static sortByNameProcess(list: VideoMetadata[], ascending: boolean = true, pinyinSort: boolean = true) {
-    return ToolsUtil.sortByName(list, item => item.title || '', ascending, pinyinSort)
+  // 带占位符的资源取值（Toast 等只能是 string 的场景）
+  static getStringResourceArgs(resource: number, arg: string | number): string {
+    try {
+      return PathUtils.appContext!.resourceManager.getStringSync(resource, arg)
+    } catch (error) {
+      salmonLogger.addLog(TAG, 'get String Resource Args error' + error, true)
+      return ''
+    }
   }
 
-  static sortFolderByNameProcess(list: FileFolder[], ascending: boolean = true, pinyinSort: boolean = true) {
-    return ToolsUtil.sortByName(list, item => item.name || '', ascending, pinyinSort)
+  // 双占位符版本（例如「介绍下视频：%s，格式：%s」这类需要 string 的场合）
+  static getStringResourceArgs2(resource: number, arg1: string | number, arg2: string | number): string {
+    try {
+      return PathUtils.appContext!.resourceManager.getStringSync(resource, arg1, arg2)
+    } catch (error) {
+      salmonLogger.addLog(TAG, 'get String Resource Args2 error' + error, true)
+      return ''
+    }
+  }
+
+  // 五占位符版本（崩溃反馈信息等长模板）
+  static getStringResourceArgs5(resource: number, arg1: string | number, arg2: string | number,
+    arg3: string | number, arg4: string | number, arg5: string | number): string {
+    try {
+      return PathUtils.appContext!.resourceManager.getStringSync(resource, arg1, arg2, arg3, arg4, arg5)
+    } catch (error) {
+      salmonLogger.addLog(TAG, 'get String Resource Args5 error' + error, true)
+      return ''
+    }
+  }
+
+  // 系统文件选择器的过滤项是「名称|扩展名」形式，名称需要本地化；扩展名部分保持不变。
+  static localizeSuffixFilter(filters: string[], labelRes: Resource): string[] {
+    if (filters.length === 0) {
+      return filters
+    }
+    const pipe = filters[0].indexOf('|')
+    if (pipe < 0) {
+      return filters
+    }
+    return [ToolsUtil.getStringResource(labelRes.id) + filters[0].substring(pipe), ...filters.slice(1)]
   }
 
   static async sortFoldersByNameInTaskPool(list: FileFolder[], ascending: boolean = true,
@@ -137,7 +163,7 @@ export default class ToolsUtil {
       const indices = await sortFolderNamesInTaskPool(items, ascending, pinyinSort)
       if (indices.length !== list.length || new Set(indices).size !== list.length ||
         indices.some(index => !Number.isInteger(index) || index < 0 || index >= list.length)) {
-        throw new Error('文件夹排序结果不完整')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.folder_sort_incomplete').id))
       }
       const sortedFolders = indices.map(index => list[index])
       return sortedFolders
@@ -148,45 +174,24 @@ export default class ToolsUtil {
     }
   }
 
-  static sortByNumericProperty(list: VideoMetadata[], key: 'date' | 'time', ascending: boolean = false) {
-    return [...list].sort((a, b) => {
-      let aVal: number
-      let bVal: number
-      if (key === 'date') {
-        aVal = Number(a.date)
-        bVal = Number(b.date)
-      } else {
-        aVal = Number(a.time)
-        bVal = Number(b.time)
-      }
-      const cmp = aVal - bVal
-      return ascending ? cmp : -cmp
-    })
-  }
-
-  static sortByDatetimeProcess(list: VideoMetadata[], ascending: boolean = false): VideoMetadata[] {
-    return ToolsUtil.sortByNumericProperty(list, 'date', ascending)
-  }
-
-  static sortByTimeProcess(list: VideoMetadata[], ascending: boolean = false): VideoMetadata[] {
-    return ToolsUtil.sortByNumericProperty(list, 'time', ascending)
-  }
-
   static sortBy(context: Context, list: VideoMetadata[], file_folder: FileFolder | undefined,
     sortType: SortField | '', ascending?: boolean, pinyinSort?: boolean): VideoMetadata[] {
     let sorted_list: VideoMetadata[]
     switch (sortType) {
       case SortField.NAME:
-        sorted_list = ToolsUtil.sortByNameProcess(list, ascending, pinyinSort)
+        sorted_list = MediaSortUtil.sortByNameProcess(list, ascending, pinyinSort)
         break
       case SortField.DATETIME:
-        sorted_list = ToolsUtil.sortByDatetimeProcess(list, ascending)
+        sorted_list = MediaSortUtil.sortByDatetimeProcess(list, ascending)
         break
       case SortField.TIME:
-        sorted_list = ToolsUtil.sortByTimeProcess(list, ascending)
+        sorted_list = MediaSortUtil.sortByTimeProcess(list, ascending)
+        break
+      case SortField.RECENT_PLAY:
+        sorted_list = MediaSortUtil.sortByRecentPlayProcess(list, ascending)
         break
       default:
-        sorted_list = ToolsUtil.sortByNameProcess(list, ascending)
+        sorted_list = MediaSortUtil.sortByNameProcess(list, ascending)
     }
     const isSameOrder = list.length === sorted_list.length &&
       list.every((item, i) => item.date === sorted_list[i].date)
@@ -203,21 +208,6 @@ export default class ToolsUtil {
       }
     }
     return sorted_list
-  }
-
-  static getFirstLetter(title: string): string {
-    if (!title || title.length === 0) {
-      return '#'
-    }
-    const pinyin = pinyin4js.getShortPinyin(title) as string
-    if (pinyin.length === 0) {
-      return '#'
-    }
-    const first = pinyin[0].toUpperCase()
-    if (first >= 'A' && first <= 'Z') {
-      return first
-    }
-    return '#'
   }
 
   // 保存密码
@@ -267,11 +257,11 @@ export default class ToolsUtil {
           await bundleManager.getBundleInfoForSelf(bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION)
         return bundleInfo.versionName + '(' + bundleInfo.versionCode + ')'
       } else {
-        return '未知版本'
+        return ToolsUtil.getStringResource($r('app.string.unknown_version').id)
       }
     } catch (error) {
       salmonLogger.addLog(TAG, 'get bundleInfo failed, error is ' + error, true)
-      return '未知版本'
+      return ToolsUtil.getStringResource($r('app.string.unknown_version').id)
     }
   }
 
@@ -285,18 +275,18 @@ export default class ToolsUtil {
                 salmonLogger.addLog(TAG, 'showUpdateDialog resultCode:' + resultCode)
               })
               .catch((error: BusinessError) => {
-                ToolsUtil.showToast('更新弹窗生成失败，原因是：' + error.message)
+                ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.update_dialog_failed').id, error.message))
                 salmonLogger.addLog(TAG, `showUpdateDialog onError.code is ${error.code}, message is ${error.message}`)
               })
           } else {
-            ToolsUtil.showToast('还没有新版本~')
+            ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.no_new_version').id))
           }
         }).catch((error: BusinessError) => {
-        ToolsUtil.showToast('检查更新失败，原因是：' + error.message)
+        ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.check_update_failed').id, error.message))
         salmonLogger.addLog(TAG, `checkAppUpdate onError.code is ${error.code}, message is ${error.message}`, true)
       })
     } else {
-      ToolsUtil.showToast('不支持该功能')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.feature_not_supported_short').id))
     }
   }
 
@@ -317,7 +307,6 @@ export default class ToolsUtil {
       salmonLogger.addLog(TAG, 'set color mode error: ' + error, true)
     }
   }
-
 
   static transFileDecodeAsUTF8(filePath: string, decode: string) {
     try {
@@ -396,7 +385,7 @@ export default class ToolsUtil {
       return false
     }
     const trimmed = uri.trim()
-    return /^(https?|rtmps?|rtsp|rtp|udp|srt|hls|smb):\/\//i.test(trimmed) ||
+    return /^(https?|rtmps?|rtsp|rtp|udp|srt|hls|smb|webdav|ftp|sweetftp):\/\//i.test(trimmed) ||
       /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(trimmed)
   }
 
@@ -430,55 +419,4 @@ export default class ToolsUtil {
     }
   }
 
-  private static sortByName<T>(list: T[], nameExtractor: (item: T) => string, ascending: boolean = true,
-    pinyinSort: boolean = true): T[] {
-    if (list.length <= 1) {
-      return [...list]
-    }
-    if (pinyinSort) {
-      const itemsWithPinyin: ItemWithPinyin<T>[] = list.map(item => {
-        const entry: ItemWithPinyin<T> = {
-          item: item,
-          pinyin: pinyin4js.getShortPinyin(nameExtractor(item))
-        }
-        return entry
-      })
-      const sortedItems = [...itemsWithPinyin].sort((a, b) => {
-        const cmp = ToolsUtil.naturalCompare(a.pinyin, b.pinyin)
-        return ascending ? cmp : -cmp
-      })
-      return sortedItems.map(entry => entry.item)
-    } else {
-      return [...list].sort((a, b) => {
-        const cmp = ToolsUtil.COLLATOR.compare(nameExtractor(a), nameExtractor(b))
-        return ascending ? cmp : -cmp
-      })
-    }
-  }
-
-  private static naturalCompare(a: string, b: string): number {
-    const aParts = a.split(ToolsUtil.splitRegex).filter(Boolean)
-    const bParts = b.split(ToolsUtil.splitRegex).filter(Boolean)
-
-    for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
-      const aVal = aParts[i]
-      const bVal = bParts[i]
-      const aIsNum = /^\d+$/.test(aVal)
-      const bIsNum = /^\d+$/.test(bVal)
-
-      if (aIsNum && bIsNum) {
-        const numA = parseInt(aVal, 10)
-        const numB = parseInt(bVal, 10)
-        if (numA !== numB) {
-          return numA - numB
-        }
-      } else {
-        const cmp = ToolsUtil.COLLATOR.compare(aVal, bVal)
-        if (cmp !== 0) {
-          return cmp
-        }
-      }
-    }
-    return aParts.length - bParts.length
-  }
 }

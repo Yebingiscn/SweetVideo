@@ -4,6 +4,7 @@ import { IPTVChannel, IPTVLine, IPTVSource } from '../../interfaces/IPTVInterfac
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import IPTVUtil from '../../utils/IPTVUtil'
 import { PathUtils } from '../../utils/PathUtils'
+import ToolsUtil from '../../utils/ToolsUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import { LengthMetrics } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
@@ -12,7 +13,9 @@ import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
 import { SearchComponent } from '../../component/VideoItemComponent/SearchComponent'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
-const ALL_CHANNELS = '全部频道'
+function allChannelsLabel(): string {
+  return ToolsUtil.getStringResource($r('app.string.all_channels').id)
+}
 const TAG = 'IPTVChannelPage'
 const EPG_REFRESH_INTERVAL = 30 * 60 * 1000
 
@@ -25,7 +28,7 @@ export struct IPTVChannelPage {
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   @Local source: IPTVSource | undefined = undefined
   @Local groups: string[] = []
-  @Local selectedGroup: string = ALL_CHANNELS
+  @Local selectedGroup: string = allChannelsLabel()
   @Local visibleChannels: IPTVChannel[] = []
   @Local searchValue: string = ''
   private channelScroller: Scroller = new Scroller()
@@ -46,8 +49,8 @@ export struct IPTVChannelPage {
       Column() {
         if (!this.source || this.source.channels.length === 0) {
           Column({ space: 8 }) {
-            Text('没有可播放的频道').fontSize(18).opacity(0.6)
-            Text('请返回刷新节目源').fontSize(14).opacity(0.4)
+            Text($r('app.string.no_playable_channels')).fontSize(18).opacity(0.6)
+            Text($r('app.string.refresh_source_hint')).fontSize(14).opacity(0.4)
           }.layoutWeight(1).width('100%').justifyContent(FlexAlign.Center)
         } else {
           Row() {
@@ -253,7 +256,7 @@ export struct IPTVChannelPage {
           .width('100%')
 
         if (params.channel!.currentProgram && params.channel!.currentProgram!.endTime > Date.now()) {
-          Text(`正在播放：${params.channel!.currentProgram!.title}`)
+          Text($r('app.string.now_playing_prefix', params.channel!.currentProgram!.title))
             .fontSize(13)
             .fontColor($r('app.color.text_color'))
             .maxLines(1)
@@ -261,15 +264,15 @@ export struct IPTVChannelPage {
           Progress({ value: this.programProgress(params.channel!), total: 100, type: ProgressType.Linear })
             .height(3).color($r('app.color.main_color')).width('100%')
         } else if (params.channel!.nextProgram && params.channel!.nextProgram!.startTime > Date.now()) {
-          Text(`下一节目：${params.channel!.nextProgram!.title}`)
+          Text($r('app.string.next_program_prefix', params.channel!.nextProgram!.title))
             .fontSize(12).opacity(0.45).maxLines(1).textOverflow({ overflow: TextOverflow.MARQUEE })
         } else {
-          Text('暂无节目单信息')
+          Text($r('app.string.no_epg_info'))
             .fontSize(12).opacity(0.45).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
         }
         if (this.lineCount(params.channel!) > 1) {
           Row() {
-            Button(`线路 ${this.selectedLineNumber(params.channel!)}/${this.lineCount(params.channel!)}`)
+            Button($r('app.string.line_number', this.selectedLineNumber(params.channel!), this.lineCount(params.channel!)))
               .height(28)
               .fontSize(11)
               .fontColor($r('app.color.text_color'))
@@ -298,8 +301,8 @@ export struct IPTVChannelPage {
       Repeat<IPTVLine>(IPTVUtil.channelLines(channel))
         .each((item: RepeatItem<IPTVLine>) => {
           MenuItem({
-            content: `线路 ${item.index + 1}`,
-            labelInfo: item.index === (channel.selectedLineIndex ?? 0) ? '当前' : this.lineHost(item.item)
+            content: $r('app.string.line_n', item.index + 1),
+            labelInfo: item.index === (channel.selectedLineIndex ?? 0) ? $r('app.string.current_label') : this.lineHost(item.item)
           }).onClick(() => this.selectLine(channel, item.index))
         })
         .key((line: IPTVLine, index: number) => `${line.url}_${index}`)
@@ -333,9 +336,9 @@ export struct IPTVChannelPage {
     }
     this.promoteCachedPrograms()
     const uniqueGroups = Array.from(new Set(this.source.channels.map(channel => channel.groupName)))
-    this.groups = [ALL_CHANNELS, ...uniqueGroups]
+    this.groups = [allChannelsLabel(), ...uniqueGroups]
     if (!this.groups.includes(this.selectedGroup)) {
-      this.selectedGroup = ALL_CHANNELS
+      this.selectedGroup = allChannelsLabel()
     }
     this.rebuildChannels()
   }
@@ -417,7 +420,7 @@ export struct IPTVChannelPage {
     const query = this.searchValue.trim().toLowerCase()
     const channels: IPTVChannel[] = []
     for (const group of this.groups) {
-      if (group === ALL_CHANNELS) {
+      if (group === allChannelsLabel()) {
         continue
       }
       this.source.channels.filter(channel => channel.groupName === group && (!query ||
@@ -429,7 +432,7 @@ export struct IPTVChannelPage {
 
   private scrollToGroup(group: string): void {
     this.selectedGroup = group
-    const targetGroup = group === ALL_CHANNELS ? this.firstVisibleGroup() : group
+    const targetGroup = group === allChannelsLabel() ? this.firstVisibleGroup() : group
     const index = this.visibleChannels.findIndex(channel => channel.groupName === targetGroup)
     if (index < 0) {
       return
@@ -474,15 +477,15 @@ export struct IPTVChannelPage {
 
   private pageSubTitle(): string {
     if (!this.source) {
-      return '0 个频道'
+      return ToolsUtil.getStringResource($r('app.string.zero_channels').id)
     }
     const multiLineCount = this.source.channels.filter(channel => this.lineCount(channel) > 1).length
-    return multiLineCount > 0 ? `${this.source.channelCount} 个频道 · ${multiLineCount} 个支持多线路` :
-      `${this.source.channelCount} 个频道`
+    return multiLineCount > 0 ? ToolsUtil.getStringResourceArgs2($r('app.string.channels_with_multiline').id, this.source.channelCount, multiLineCount) :
+      ToolsUtil.getStringResourceArgs($r('app.string.channels_count').id, this.source.channelCount)
   }
 
   private groupLabel(group: string): string {
-    if (group === ALL_CHANNELS && this.source) {
+    if (group === allChannelsLabel() && this.source) {
       return `${group}  ${this.source.channelCount}`
     }
     return group

@@ -59,6 +59,7 @@ export struct GestureComponent {
 
   private activePointerCount: number = 0
   private verticalPanCancelled: boolean = false
+  private verticalPanActive: boolean = false
   private horizonPanCancelled: boolean = false
 
   build() {
@@ -119,6 +120,7 @@ export struct GestureComponent {
                   return
                 }
                 this.onVerticalPanStart(tapX)
+                this.verticalPanActive = true
               })
               .onActionUpdate((event: GestureEvent) => {
                 if (this.player.isLock) {
@@ -129,6 +131,7 @@ export struct GestureComponent {
                 }
                 if (this.activePointerCount > 1) { // 第二指落下，取消本次调节并回滚
                   this.verticalPanCancelled = true
+                  this.verticalPanActive = false
                   this.onVerticalPanCancel()
                   return
                 }
@@ -138,14 +141,21 @@ export struct GestureComponent {
                 this.onVerticalPanUpdate(event?.offsetY)
               })
               .onActionEnd(() => {
-                if (this.player.isLock) {
-                  return
-                }
                 if (this.verticalPanCancelled) {
                   this.verticalPanCancelled = false
                   return
                 }
-                this.onVerticalPanEnd()
+                if (this.verticalPanActive) {
+                  this.verticalPanActive = false
+                  this.onVerticalPanEnd()
+                }
+              })
+              .onActionCancel(() => {
+                if (this.verticalPanActive) {
+                  this.verticalPanActive = false
+                  this.onVerticalPanCancel()
+                }
+                this.verticalPanCancelled = false
               }),
             PanGesture({ fingers: 1, direction: PanDirection.Horizontal })// 水平滑动事件滑动调整进度
               .tag('pan_single_horizontal')

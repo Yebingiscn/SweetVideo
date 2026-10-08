@@ -3,9 +3,9 @@ import { PlayerControllerFactory, PlayerControllerInterface } from '../../contro
 
 class ChannelOption {
   mode: number = 0
-  label: string = ''
+  label: ResourceStr = ''
 
-  constructor(mode: number, label: string) {
+  constructor(mode: number, label: ResourceStr) {
     this.mode = mode
     this.label = label
   }
@@ -14,9 +14,9 @@ class ChannelOption {
 @ComponentV2
 export struct AudioChannelComponent {
   private static readonly CHANNEL_OPTIONS: ChannelOption[] = [
-    new ChannelOption(MpvAudioChannelMode.STEREO, '立体声'),
-    new ChannelOption(MpvAudioChannelMode.LEFT_ONLY, '仅左'),
-    new ChannelOption(MpvAudioChannelMode.RIGHT_ONLY, '仅右')
+    new ChannelOption(MpvAudioChannelMode.STEREO, $r('app.string.channel_stereo')),
+    new ChannelOption(MpvAudioChannelMode.LEFT_ONLY, $r('app.string.channel_left_only')),
+    new ChannelOption(MpvAudioChannelMode.RIGHT_ONLY, $r('app.string.channel_right_only'))
   ]
   @Consumer('player') player: PlayerControllerInterface =
     PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
@@ -42,7 +42,7 @@ export struct AudioChannelComponent {
               this.onSelect(repeatItem.item.mode)
             })
         })
-        .key((item: ChannelOption) => item.label)
+        .key((item: ChannelOption) => item.mode.toString())
     }
     .width('100%')
     .justifyContent(FlexAlign.SpaceEvenly)

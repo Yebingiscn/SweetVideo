@@ -34,7 +34,7 @@ export struct FileFolderMenu {
     Menu() {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.folder_badge_plus')),
-        content: '添加文件夹'
+        content: $r('app.string.add_folder')
       }).onClick(() => {
         this.addFileFolderNameDialogController?.open()
       })

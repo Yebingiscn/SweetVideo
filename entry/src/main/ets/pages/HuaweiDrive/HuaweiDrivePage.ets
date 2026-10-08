@@ -21,7 +21,7 @@ export struct HuaweiDrivePage {
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   @Local files: HuaweiDriveFile[] = []
   @Local about: HuaweiDriveAbout | undefined = undefined
-  @Local folderPath: HuaweiDriveFolderPath[] = [{ id: 'root', name: '我的云盘' }]
+  @Local folderPath: HuaweiDriveFolderPath[] = [{ id: 'root', name: ToolsUtil.getStringResource($r('app.string.huawei_drive').id) }]
   @Local loading: boolean = false
   @Local authorizing: boolean = false
   @Local restoringSession: boolean = false
@@ -49,7 +49,7 @@ export struct HuaweiDrivePage {
         .backgroundColor($r('app.color.list_item_background'))
         .onClick(() => void this.loadCurrentFolder())
 
-        Button('退出')
+        Button($r('app.string.exit'))
           .height(36)
           .fontSize(13)
           .fontColor($r('app.color.text_color'))
@@ -128,7 +128,7 @@ export struct HuaweiDrivePage {
         }
       },
       content: {
-        title: { mainTitle: '华为云盘' },
+        title: { mainTitle: $r('app.string.huawei_drive') },
         stackBuilder: (): void => this.NavigationMenus()
       }
     })
@@ -159,7 +159,7 @@ export struct HuaweiDrivePage {
   RestoringView() {
     Column({ space: 12 }) {
       LoadingProgress().width(42).height(42).color($r('app.color.main_color'))
-      Text('正在恢复华为云盘登录…')
+      Text($r('app.string.restoring_huawei_login'))
         .fontSize(14)
         .fontColor($r('app.color.text_color'))
         .opacity(0.65)
@@ -179,7 +179,7 @@ export struct HuaweiDrivePage {
         .onLoadIntercept((event: OnLoadInterceptEvent) => this.handleLoadIntercept(event))
         .width('100%')
         .height('100%')
-      Button('取消')
+      Button($r('app.string.cancel'))
         .height(36)
         .margin({ top: 12, right: 12 })
         .backgroundColor($r('app.color.list_item_background'))
@@ -198,11 +198,11 @@ export struct HuaweiDrivePage {
       SymbolGlyph($r('sys.symbol.cloud'))
         .fontSize(52)
         .fontColor([$r('app.color.main_color')])
-      Text('访问华为云盘')
+      Text($r('app.string.access_huawei_drive'))
         .fontSize(20)
         .fontWeight(FontWeight.Bold)
         .fontColor($r('app.color.text_color'))
-      Text('仅申请读取文件所需权限，用于浏览并播放云盘中的音视频。')
+      Text($r('app.string.huawei_permission_desc'))
         .fontSize(14)
         .fontColor($r('app.color.text_color'))
         .opacity(0.65)
@@ -213,13 +213,13 @@ export struct HuaweiDrivePage {
           .fontColor('#E84040')
           .textAlign(TextAlign.Center)
       }
-      Button(this.authorizing ? '正在授权…' : '授权访问')
+      Button(this.authorizing ? $r('app.string.authorizing') : $r('app.string.authorize_access'))
         .enabled(!this.authorizing)
         .fontColor(Color.White)
         .backgroundColor($r('app.color.main_color'))
         .borderRadius(18)
         .onClick(() => {
-          ToolsUtil.showToast('功能正在开发中...')
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.feature_in_development').id))
           return
           // this.startAuthorization()
         })
@@ -236,7 +236,7 @@ export struct HuaweiDrivePage {
       if (this.about) {
         Row() {
           Column({ space: 3 }) {
-            Text(this.about.user?.displayName || '华为云空间')
+            Text(this.about.user?.displayName || $r('app.string.huawei_cloud_space'))
               .fontSize(16)
               .fontWeight(FontWeight.Medium)
               .fontColor($r('app.color.text_color'))
@@ -290,7 +290,7 @@ export struct HuaweiDrivePage {
       if (this.loading) {
         Column({ space: 10 }) {
           LoadingProgress().width(32).height(32).color($r('app.color.main_color'))
-          Text('正在读取云盘…')
+          Text($r('app.string.reading_cloud_drive'))
             .fontSize(14)
             .fontColor($r('app.color.text_color'))
             .opacity(0.6)
@@ -304,17 +304,17 @@ export struct HuaweiDrivePage {
             .fontColor($r('app.color.text_color'))
             .opacity(0.7)
             .textAlign(TextAlign.Center)
-          Button('重试').onClick(() => void this.loadCurrentFolder())
+          Button($r('app.string.retry')).onClick(() => void this.loadCurrentFolder())
         }
         .padding(24)
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
       } else if (this.files.length === 0) {
         Column({ space: 8 }) {
-          Text('这里没有可播放的音视频')
+          Text($r('app.string.no_playable_media_here'))
             .fontSize(17)
             .fontColor($r('app.color.text_color'))
-          Text('其他文件类型会被自动隐藏')
+          Text($r('app.string.other_files_hidden'))
             .fontSize(13)
             .fontColor($r('app.color.text_color'))
             .opacity(0.45)
@@ -432,22 +432,22 @@ export struct HuaweiDrivePage {
     const fragmentIndex = requestUrl.indexOf('#')
     const startIndex = queryIndex >= 0 ? queryIndex + 1 : fragmentIndex >= 0 ? fragmentIndex + 1 : -1
     if (startIndex < 0) {
-      this.errorMessage = '华为帐号授权回调缺少参数'
+      this.errorMessage = ToolsUtil.getStringResource($r('app.string.huawei_auth_missing_params').id)
       return
     }
     const params = new url.URLParams(requestUrl.substring(startIndex))
     const error = params.get('error')
     if (error) {
-      this.errorMessage = params.get('error_description') ?? `授权失败：${error}`
+      this.errorMessage = params.get('error_description') ?? ToolsUtil.getStringResourceArgs($r('app.string.huawei_auth_failed').id, error)
       return
     }
     if (params.get('state') !== this.oauthState) {
-      this.errorMessage = '华为帐号授权状态校验失败，请重试'
+      this.errorMessage = ToolsUtil.getStringResource($r('app.string.huawei_auth_state_failed').id)
       return
     }
     const code = params.get('code')
     if (!code) {
-      this.errorMessage = '华为帐号授权回调缺少 Authorization Code'
+      this.errorMessage = ToolsUtil.getStringResource($r('app.string.huawei_auth_missing_code').id)
       return
     }
     this.authorizing = true
@@ -466,7 +466,7 @@ export struct HuaweiDrivePage {
     await HuaweiDriveUtil.logout()
     this.files = []
     this.about = undefined
-    this.folderPath = [{ id: 'root', name: '我的云盘' }]
+    this.folderPath = [{ id: 'root', name: ToolsUtil.getStringResource($r('app.string.huawei_drive').id) }]
     this.errorMessage = ''
   }
 
@@ -516,13 +516,13 @@ export struct HuaweiDrivePage {
     const used = Number(this.about?.storageQuota?.usedSpace ?? 0)
     const total = Number(this.about?.storageQuota?.userCapacity ?? 0)
     if (total <= 0) {
-      return '云空间容量信息暂不可用'
+      return ToolsUtil.getStringResource($r('app.string.cloud_capacity_unavailable').id)
     }
-    return `已使用 ${ToolsUtil.formatFileSize(used)} / ${ToolsUtil.formatFileSize(total)}`
+    return ToolsUtil.getStringResourceArgs2($r('app.string.cloud_used_of_total').id, ToolsUtil.formatFileSize(used), ToolsUtil.formatFileSize(total))
   }
 
   private fileDescription(file: HuaweiDriveFile): string {
-    const sizeText = file.size ? ToolsUtil.formatFileSize(file.size) : '未知大小'
+    const sizeText = file.size ? ToolsUtil.formatFileSize(file.size) : ToolsUtil.getStringResource($r('app.string.unknown_size').id)
     const width = file.videoMetadata?.width ?? 0
     const height = file.videoMetadata?.height ?? 0
     const resolutionText = width > 0 && height > 0 ? ` · ${width}×${height}` : ''
@@ -538,6 +538,6 @@ export struct HuaweiDrivePage {
       HuaweiDriveUtil.clearAuthorization()
     }
     salmonLogger.addLog(TAG, `Huawei Drive error: ${message}`, true)
-    return message || '华为云盘访问失败，请稍后重试'
+    return message || ToolsUtil.getStringResource($r('app.string.huawei_drive_failed').id)
   }
 }

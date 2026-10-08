@@ -1,11 +1,12 @@
 import { fileIo as fs, picker } from '@kit.CoreFileKit'
 import { util } from '@kit.ArkTS'
 import { PathUtils } from './PathUtils'
-import { DanmakuItem, DanmakuParser, DANMAKU_MAX_BYTES } from './DanmakuCore'
+import { DANMAKU_MAX_BYTES, DanmakuItem, DanmakuParser } from './DanmakuCore'
 import ToolsUtil from './ToolsUtil'
 import { salmonLogger } from 'salmonlogger'
 import { LocalSidecarFile } from './LocalSidecarFile'
 import { DanmakuStorage } from './DanmakuStorage'
+import { Setting } from './ObservedUtil'
 
 /** Playback state backed by a sandbox XML file keyed by the video's stable ID. */
 @ObservedV2
@@ -14,9 +15,9 @@ export class DanmakuSession {
   @Trace enabled: boolean = true
   @Trace loading: boolean = false
   @Trace name: string = ''
-  @Trace fontSize: number = 22
+  @Trace fontSize: number = Math.max(14, Math.min(48, Number(Setting.subtitleSize) || 22))
   @Trace opacity: number = 0.8
-  @Trace area: number = 0.5
+  @Trace area: number = 1
   @Trace offsetMs: number = 0
   private media: string = ''
   private generation: number = 0
@@ -45,12 +46,12 @@ export class DanmakuSession {
       const result = await DanmakuParser.parse(text, cancelled)
       if (!cancelled()) {
         this.items = result.items
-        this.name = '已保存的弹幕.xml'
+        this.name = ToolsUtil.getStringResource($r('app.string.saved_danmaku_file_name').id)
       }
     } catch (error) {
       if (!cancelled()) {
         salmonLogger.addLog('Danmaku', '读取已保存的弹幕失败', true)
-        ToolsUtil.showToast('已保存的弹幕读取失败，请重新导入')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.saved_danmaku_read_failed').id))
       }
     } finally {
       if (!cancelled()) {
@@ -83,7 +84,7 @@ export class DanmakuSession {
     const cancelled = (): boolean => this.disposed || generation !== this.generation || currentMedia() !== media
     try {
       const options = new picker.DocumentSelectOptions()
-      options.fileSuffixFilters = ['XML 弹幕|.xml']
+      options.fileSuffixFilters = [ToolsUtil.getStringResource($r('app.string.danmaku_filter_xml').id) + '|.xml']
       options.maxSelectNumber = 1
       const uris = await new picker.DocumentViewPicker(PathUtils.appContext!).select(options)
       if (uris.length === 0 || cancelled()) {
@@ -100,16 +101,16 @@ export class DanmakuSession {
         return
       }
       this.items = result.items
-      this.name = decodeURIComponent(uris[0].split('/').pop() || '本地 XML')
+      this.name = decodeURIComponent(uris[0].split('/').pop() || ToolsUtil.getStringResource($r('app.string.local_xml').id))
       this.offsetMs = 0
       this.enabled = true
-      ToolsUtil.showToast(`已导入 ${result.items.length} 条弹幕` +
-        (result.skipped > 0 ? `，跳过 ${result.skipped} 条不支持或无效弹幕` : ''))
+      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.danmaku_imported_count').id, result.items.length) +
+        (result.skipped > 0 ? ToolsUtil.getStringResourceArgs($r('app.string.danmaku_skipped_count').id, result.skipped) : ''))
     } catch (error) {
       if (!cancelled()) {
         // Do not expose a picked file URI or raw platform errors in logs/toasts.
         salmonLogger.addLog('Danmaku', '本地弹幕导入失败', true)
-        ToolsUtil.showToast('导入失败，请选择 UTF-8 的 B 站 XML 弹幕（最多 50000 条）')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.danmaku_import_failed_format').id))
       }
     } finally {
       if (generation === this.generation) {

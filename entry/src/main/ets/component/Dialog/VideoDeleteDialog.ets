@@ -28,7 +28,7 @@ export struct VideoDeleteDialog {
 
   build() {
     Column({ space: 20 }) {
-      Text('删除确认')
+      Text($r('app.string.delete_confirm'))
         .fontSize(20)
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Medium)

@@ -8,6 +8,7 @@ import {
 import HuaweiDriveSessionStore from './HuaweiDriveSessionStore'
 import VideoInfoUtil from './VideoInfoUtil'
 import { http } from '@kit.NetworkKit'
+import ToolsUtil from './ToolsUtil.ets'
 
 export class HuaweiDriveError extends Error {
   statusCode: number = 0
@@ -56,7 +57,7 @@ export default class HuaweiDriveUtil {
 
   static async exchangeAuthorizationCode(authorizationCode: string): Promise<void> {
     if (!HuaweiDriveConfig.isOAuthConfigured()) {
-      throw new HuaweiDriveError('尚未配置华为云盘 OAuth 参数')
+      throw new HuaweiDriveError(ToolsUtil.getStringResource($r('app.string.huawei_drive_oauth_missing').id))
     }
     const token = await HuaweiDriveUtil.requestToken({
       'grant_type': 'authorization_code',
@@ -117,7 +118,7 @@ export default class HuaweiDriveUtil {
 
   static getStreamUrl(file: HuaweiDriveFile): string {
     if (!HuaweiDriveUtil.isAuthorized()) {
-      throw new HuaweiDriveError('华为云盘登录已失效', 401)
+      throw new HuaweiDriveError(ToolsUtil.getStringResource($r('app.string.huawei_drive_login_expired').id), 401)
     }
     return file.contentDownloadLink ||
       `${HuaweiDriveConfig.DRIVE_API_BASE_URL}/files/${encodeURIComponent(file.id)}?form=content`
@@ -142,7 +143,7 @@ export default class HuaweiDriveUtil {
       if (HuaweiDriveUtil.isAuthorized()) {
         return
       }
-      throw new HuaweiDriveError('请先授权访问华为云盘', 401)
+      throw new HuaweiDriveError(ToolsUtil.getStringResource($r('app.string.huawei_drive_authorize_first').id), 401)
     }
     if (HuaweiDriveUtil.refreshPromise) {
       await HuaweiDriveUtil.refreshPromise
@@ -180,10 +181,10 @@ export default class HuaweiDriveUtil {
     const expiresIn = Number(token.expiresIn ?? token.expires_in ?? 3600)
     const refreshToken = token.refreshToken ?? token.refresh_token ?? ''
     if (!accessToken) {
-      throw new HuaweiDriveError('华为 OAuth 未返回 Access Token')
+      throw new HuaweiDriveError(ToolsUtil.getStringResource($r('app.string.huawei_oauth_no_access_token').id))
     }
     if (token.scope && !token.scope.includes(HuaweiDriveConfig.DRIVE_SCOPE)) {
-      throw new HuaweiDriveError('华为帐号授权缺少云盘只读权限')
+      throw new HuaweiDriveError(ToolsUtil.getStringResource($r('app.string.huawei_drive_no_read_permission').id))
     }
     HuaweiDriveUtil.accessToken = accessToken
     HuaweiDriveUtil.tokenExpiresAt = Date.now() + Math.max(60, expiresIn) * 1000
@@ -210,7 +211,7 @@ export default class HuaweiDriveUtil {
         readTimeout: 30_000
       })
       if (response.responseCode < 200 || response.responseCode >= 300) {
-        throw new HuaweiDriveError(`华为 OAuth 请求失败（HTTP ${response.responseCode}）`, response.responseCode)
+        throw new HuaweiDriveError(ToolsUtil.getStringResourceArgs($r('app.string.huawei_oauth_failed').id, response.responseCode), response.responseCode)
       }
       return JSON.parse(response.result as string) as HuaweiDriveTokenResponse
     } finally {
@@ -241,10 +242,10 @@ export default class HuaweiDriveUtil {
       }
       if (response.responseCode === 401) {
         HuaweiDriveUtil.clearAuthorization()
-        throw new HuaweiDriveError('华为云盘授权已过期，请重新授权', 401)
+        throw new HuaweiDriveError(ToolsUtil.getStringResource($r('app.string.huawei_drive_authorization_expired').id), 401)
       }
       if (response.responseCode < 200 || response.responseCode >= 300) {
-        throw new HuaweiDriveError(`华为云盘请求失败（HTTP ${response.responseCode}）`, response.responseCode)
+        throw new HuaweiDriveError(ToolsUtil.getStringResourceArgs($r('app.string.huawei_drive_request_failed').id, response.responseCode), response.responseCode)
       }
       return JSON.parse(response.result as string) as T
     } finally {

@@ -1,4 +1,6 @@
-import SmbUtil, { SmbPlayback } from '../../utils/SmbUtil'
+import { NetworkPlayback } from '../../utils/NetworkPlayback'
+import { AudioPauseGuard } from '../../utils/AudioPauseGuard'
+import SmbUtil from '../../utils/SmbUtil'
 import { media } from '@kit.MediaKit'
 import { avSession, avSession as avSessionManager } from '@kit.AVSessionKit'
 import { AudioTrack, SubtitleTrack } from '../../interfaces/AudioTrackInterface'
@@ -7,7 +9,7 @@ import { audio } from '@kit.AudioKit'
 import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
-import { PlayerControllerInterface, PlayerEngineSwitchHandler } from '../PlayerControllerFactory'
+import { PlayerControllerInterface, PlayerEngineSwitchHandler, SubtitleControllerInterface } from '../PlayerControllerFactory'
 import { MpvChapter } from '../MpvController/MpvTypes'
 import { salmonLogger } from 'salmonlogger'
 import { window } from '@kit.ArkUI'
@@ -43,6 +45,8 @@ const TAG = 'AVPlayerController'
 
 @ObservedV2
 export class AVPlayerController implements PlayerControllerInterface {
+  readonly subtitleController: SubtitleControllerInterface = this
+  private audioPauseGuard: AudioPauseGuard = new AudioPauseGuard()
   avSession: avSessionManager.AVSession | undefined = undefined
   surfaceID: string = ''
   @Trace nowPlaying: VideoMetadata | undefined = undefined
@@ -66,6 +70,8 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Trace volumeActually: number = 0
   @Trace screenBrightness: number = 0
   @Trace onSwipingVoice: boolean = false
+  volumeGestureActive: boolean = false
+  private swipingVoiceTimer: number = 0
   @Trace subtitleSelected: SubtitleMode = SubtitleMode.NONE
   @Trace subtitle: string = ''
   @Trace videoMetaDataList: VideoMetadata[] = []
@@ -101,7 +107,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   @Trace translateY: number = 0
   @Trace showControl: boolean = false
   skipHistory: boolean = false
-  private smbPlayback: SmbPlayback = new SmbPlayback()
+  private smbPlayback: NetworkPlayback = new NetworkPlayback()
   private engineAdapter: AVPlayerEngineAdapter = new AVPlayerEngineAdapter()
   private isSkippingEnding: boolean = false
   private lastSubtitle: string = ''
@@ -153,7 +159,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   async applyAudioEffect(config: AudioEffectConfig): Promise<boolean> {
     const player = this.avPlayer
     if (!player) {
-      throw new Error('请先播放视频')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.play_video_first').id))
     }
     await player.applyAudioEffect(config)
     if (!this.engineAdapter.isCurrent(player)) {
@@ -171,7 +177,7 @@ export class AVPlayerController implements PlayerControllerInterface {
         player?.restoreAudioEffect(this.audioEffectConfig)
       }
     } catch (error) {
-      ToolsUtil.showToast('播放异常')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.playback_exception').id))
       salmonLogger.addLog('avplayer', `create avplayer error: ${error}`, true)
     }
   }
@@ -204,22 +210,18 @@ export class AVPlayerController implements PlayerControllerInterface {
       this.audioVolumeManager.off('streamVolumeChange')
     } catch (_error) {
     }
-    let swipingVoiceTimer: number | null = null
-    let changeVolumeByVolumeButton: boolean = false
+    clearTimeout(this.swipingVoiceTimer)
     try {
       this.audioVolumeManager.on('streamVolumeChange', audio.StreamUsage.STREAM_USAGE_MOVIE,
         (streamVolumeEvent: audio.StreamVolumeEvent) => {
-          clearTimeout(swipingVoiceTimer)
-          if (!this.onSwipingVoice) {
-            this.onSwipingVoice = !this.onSwipingVoice
-            changeVolumeByVolumeButton = true
-          }
+          clearTimeout(this.swipingVoiceTimer)
+          this.onSwipingVoice = true
           this.volumeActually = streamVolumeEvent.volume
           ToolsUtil.startVibration()
-          swipingVoiceTimer = setTimeout(() => {
-            if (changeVolumeByVolumeButton) {
-              this.onSwipingVoice = !this.onSwipingVoice
-              changeVolumeByVolumeButton = false
+          this.swipingVoiceTimer = setTimeout(() => {
+            this.swipingVoiceTimer = 0
+            if (!this.volumeGestureActive) {
+              this.onSwipingVoice = false
             }
           }, 800)
         })
@@ -260,9 +262,9 @@ export class AVPlayerController implements PlayerControllerInterface {
   async setExternalSubtitle(nowPlaying: VideoMetadata): Promise<void> {
     const version = this.videoSwitchVersion
     try {
-      await SmbUtil.cacheSubtitle(nowPlaying)
+      await NetworkPlayback.cacheSubtitle(nowPlaying)
     } catch (_error) {
-      ToolsUtil.showToast('共享字幕读取失败，可稍后手动导入')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.shared_subtitle_read_failed').id))
     }
     if (this.nowPlaying?.uri !== nowPlaying.uri || version !== this.videoSwitchVersion) {
       return
@@ -337,7 +339,7 @@ export class AVPlayerController implements PlayerControllerInterface {
       this.avPlayer?.setPlaybackRate(speed)
     } catch (error) {
       salmonLogger.addLog(TAG, 'updatePlaybackSpeed error:' + error, true)
-      ToolsUtil.showToast('播放速度更新失败')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.playback_speed_update_failed').id))
     }
   }
 
@@ -393,6 +395,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   async release(): Promise<void> {
+    this.audioPauseGuard.cancel()
     this.audioCoverUri = ''
     this.smbPlayback.close()
     this.clearSessionNavigationListeners()
@@ -418,6 +421,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   async reset(): Promise<void> {
+    this.audioPauseGuard.cancel()
     this.cancelVideoRecovery()
     if (!this.isSwitchingVideo) {
       this.transitionTo(PlayerState.IDLE)
@@ -433,6 +437,15 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   pause() {
+    this.audioPauseGuard.cancel()
+    this.pausePlayback()
+  }
+
+  private pausePlayback(): void {
+    if (this.isInState(PlayerState.LOADING) || this.isInState(PlayerState.PREPARING)) {
+      this.initialPlaying = false
+      return
+    }
     PiPWindowUtil.disableAutoStart()
     this.avPlayer?.pause()?.catch(() => {
       salmonLogger.addLog(TAG, `pause error`, true)
@@ -440,6 +453,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   pauseForBackground(): void {
+    this.audioPauseGuard.cancel()
     if (this.isInState(PlayerState.LOADING) || this.isInState(PlayerState.PREPARING)) {
       // AVPlayer 在 prepared 后会自动调用 play，记录该意图可防止退后台期间又开始播放。
       this.initialPlaying = false
@@ -451,6 +465,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   play() {
+    this.audioPauseGuard.cancel()
     PiPWindowUtil.enableAutoStart()
     this.avPlayer?.play()?.catch(() => {
       salmonLogger.addLog(TAG, `play error`, true)
@@ -604,8 +619,12 @@ export class AVPlayerController implements PlayerControllerInterface {
       this.avSession?.on('rewind', () => {
         this.backForward()
       })
-      this.avSession?.on('outputDeviceChange', () => {
-        this.pause()
+      this.avSession?.on('outputDeviceChange', (state: avSession.ConnectionState,
+        device: avSession.OutputDeviceInfo) => {
+        if (state === avSession.ConnectionState.STATE_CONNECTED &&
+          device.devices.some(item => item.castCategory === avSession.AVCastCategory.CATEGORY_REMOTE)) {
+          this.pause()
+        }
       })
       this.avSession?.on('setLoopMode', (mode: avSession.LoopMode) => {
         this.repeatMode = AVSessionUtil.getRepeatModeFromAvSession(mode)
@@ -648,7 +667,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     if (previousItem) {
       await this.playChooseVideo(previousItem, pathStack, windowClass, xComponentController)
     } else {
-      ToolsUtil.showToast('没有上一首')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.no_previous_item').id))
     }
     salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "播放上一个视频前置流程完成", false)
   }
@@ -656,6 +675,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   async playChooseVideo(item: VideoMetadata, pathStack: NavPathStack,
     windowClass?: Promise<window.Window | undefined>, xComponentController?: XComponentController): Promise<void> {
     salmonLogger.addLog(TAG, "开始播放选择的视频", false)
+    this.audioPauseGuard.cancel()
     const switchVersion = ++this.videoSwitchVersion
     this.isSwitchingVideo = true
     try {
@@ -743,7 +763,7 @@ export class AVPlayerController implements PlayerControllerInterface {
           await this.setPlayerSource(this.avPlayer)
         } catch (error) {
           salmonLogger.addLog(TAG, "打开视频文件失败：" + error, true)
-          ToolsUtil.showToast('视频打开失败，可能已失效：' + error)
+          ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.video_open_failed_invalid').id, String(error)))
           pathStack && pathStack.pop()
           return
         }
@@ -856,14 +876,24 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   registerAudioInterruptListener() {
-    this.avPlayer?.on('audioInterrupt', async (interruptEvent: audio.InterruptEvent) => {
-      if (interruptEvent.forceType === audio.InterruptForceType.INTERRUPT_FORCE) {
+    const player = this.avPlayer
+    if (!player) {
+      return
+    }
+    player.on('audioInterrupt', (interruptEvent: audio.InterruptEvent) => {
+      if (!this.engineAdapter.isCurrent(player) || this.isInState(PlayerState.RELEASING) ||
+        this.isInState(PlayerState.IDLE)) {
+        return
+      }
+      if (interruptEvent.hintType !== audio.InterruptHint.INTERRUPT_HINT_RESUME) {
         switch (interruptEvent.hintType) {
           case audio.InterruptHint.INTERRUPT_HINT_PAUSE:
-            this.pause()
+            this.audioPauseGuard.interrupt(this.playing, true)
+            this.pausePlayback()
             break
           case audio.InterruptHint.INTERRUPT_HINT_STOP:
-            this.pause()
+            this.audioPauseGuard.interrupt(this.playing, false)
+            this.pausePlayback()
             break
           case audio.InterruptHint.INTERRUPT_HINT_DUCK:
             salmonLogger.addLog(TAG, 'Audio interrupted: ducked', false)
@@ -877,7 +907,12 @@ export class AVPlayerController implements PlayerControllerInterface {
       } else if (interruptEvent.forceType === audio.InterruptForceType.INTERRUPT_SHARE) {
         switch (interruptEvent.hintType) {
           case audio.InterruptHint.INTERRUPT_HINT_RESUME:
-            this.play()
+            const token = this.audioPauseGuard.beginResume()
+            if (this.isInState(PlayerState.PAUSED) && this.audioPauseGuard.completeResume(token)) {
+              this.play()
+            } else {
+              this.audioPauseGuard.resumeFailed(token)
+            }
             break
           default:
             break
@@ -892,7 +927,7 @@ export class AVPlayerController implements PlayerControllerInterface {
         this.superResolutionState = enable
       })
       ?.catch(() => {
-        ToolsUtil.showToast('当前视频不支持超分辨率')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.super_resolution_unsupported').id))
         this.superResolutionState = false
         salmonLogger.addLog(TAG, "设置超分失败", true)
       })
@@ -1020,7 +1055,7 @@ export class AVPlayerController implements PlayerControllerInterface {
             false)
           await this.playNextVideoProcess(pathStack, windowClass, xComponentController)
           this.setPlayerCallback(pathStack, xComponentController, windowClass)
-          ToolsUtil.showToast('已跳过片尾')
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_outro').id))
         }
       }
       if (this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
@@ -1061,8 +1096,13 @@ export class AVPlayerController implements PlayerControllerInterface {
     })
 
     player.on('audioOutputDeviceChangeWithInfo', (data: audio.AudioStreamDeviceChangeInfo) => {
-      if (data.changeReason === audio.AudioStreamDeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) {
-        this.pause()
+      if (this.engineAdapter.isCurrent(player) &&
+        data.changeReason === audio.AudioStreamDeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) {
+        this.audioPauseGuard.cancel()
+        if (this.playing || this.isInState(PlayerState.LOADING) || this.isInState(PlayerState.PREPARING)) {
+          salmonLogger.addLog(TAG, 'Audio output device unavailable, pausing', false)
+          this.pause()
+        }
       }
     })
 
@@ -1335,7 +1375,7 @@ export class AVPlayerController implements PlayerControllerInterface {
       }
     } catch (error) {
       salmonLogger.addLog(TAG, "打开视频文件失败：" + error, true)
-      ToolsUtil.showToast('视频打开失败，可能已失效：' + error)
+      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.video_open_failed_invalid').id, String(error)))
       pathStack.pop()
       return
     }
@@ -1402,6 +1442,10 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   onWillDisappearCleanup(): void {
+    clearTimeout(this.swipingVoiceTimer)
+    this.swipingVoiceTimer = 0
+    this.volumeGestureActive = false
+    this.onSwipingVoice = false
   }
 
   async onWillDisappearRelease(_windowClass?: Promise<window.Window | undefined>): Promise<void> {
@@ -1436,8 +1480,8 @@ export class AVPlayerController implements PlayerControllerInterface {
 
   toggleListenVideo(): void {
     this.isListenVideo = !this.isListenVideo
-    this.isListenVideo ? ToolsUtil.showToast('只听视频模式已开启') :
-      ToolsUtil.showToast('只听视频模式已关闭')
+    this.isListenVideo ? ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.listen_video_on').id)) :
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.listen_video_off').id))
     this.setListenVideoStatus().catch((error: Error) => {
       salmonLogger.addLog(TAG, `切换只听视频模式失败：${error}`, true)
     })
@@ -1780,9 +1824,9 @@ export class AVPlayerController implements PlayerControllerInterface {
         return false
       }
       salmonLogger.addLog(TAG, "打开视频文件失败：" + error, true)
-      ToolsUtil.showToast('视频打开失败，可能已失效：' + error)
+      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.video_open_failed_invalid').id, String(error)))
       pathStack.pop()
-      throw new Error('打开视频文件失败：' + error)
+      throw new Error(ToolsUtil.getStringResourceArgs($r('app.string.open_video_file_failed').id, String(error)))
     }
     if (!ToolsUtil.isNetworkUrl(this.nowPlaying?.uri)) {
       VideoOperateUtil.getFrameTimePreprocess(this.nowPlaying!.uri)?.catch(() => {
@@ -1825,7 +1869,7 @@ export class AVPlayerController implements PlayerControllerInterface {
       }
       this.audioCoverUri = VideoInfoUtil.getCachedAudioCoverUri(this.nowPlaying)
       if (!uri) {
-        throw new Error('视频地址为空')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.video_address_empty').id))
       }
       if (!ToolsUtil.isNetworkUrl(uri)) {
         const file = fileIo.openSync(uri, fileIo.OpenMode.READ_ONLY)
@@ -1836,7 +1880,7 @@ export class AVPlayerController implements PlayerControllerInterface {
         }
         return
       }
-      const headers = this.nowPlaying?.network_http_headers
+      const headers = this.smbPlayback.headers(this.nowPlaying?.network_http_headers)
       await player.setUrlSource(uri, headers)
     } catch (e) {
       // Let loadAndPrepare handle failure; do not leave it waiting for a state that cannot arrive.

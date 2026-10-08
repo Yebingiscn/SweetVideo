@@ -115,17 +115,17 @@ export struct ShortVideoPage {
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .layoutWeight(1)
 
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
+        Button({ type: ButtonType.Circle, stateEffect: false }) {
           SymbolGlyph($r('sys.symbol.rectangle_portrait_filled_on_rectangle_portrait'))
             .fontSize(21)
             .fontColor([Color.White])
         }
         .width(40)
         .height(40)
-        .backgroundColor('#55000000')
+        .backgroundColor(Color.Transparent)
         .onClick(() => this.openPip())
 
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
+        Button({ type: ButtonType.Circle, stateEffect: false }) {
           Text(`${this.manager.selectedSpeed}x`)
             .fontSize(13)
             .fontColor(Color.White)
@@ -133,7 +133,7 @@ export struct ShortVideoPage {
         }
         .width(40)
         .height(40)
-        .backgroundColor('#55000000')
+        .backgroundColor(Color.Transparent)
         .bindMenu(this.PlaybackSpeedMenuBuilder, {
           placement: Placement.TopRight,
           showInSubWindow: false,
@@ -150,14 +150,14 @@ export struct ShortVideoPage {
           onRepeatModeChange: (repeatMode) => this.manager.selectRepeatMode(repeatMode)
         })
 
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
+        Button({ type: ButtonType.Circle, stateEffect: false }) {
           SymbolGlyph($r('sys.symbol.fullscreen'))
             .fontSize(21)
             .fontColor([Color.White])
         }
         .width(40)
         .height(40)
-        .backgroundColor('#55000000')
+        .backgroundColor(Color.Transparent)
         .onClick(() => this.toggleFullScreen())
       }
       .width('100%')
@@ -240,7 +240,7 @@ export struct ShortVideoPage {
           .width('100%')
           .height('100%')
         } else if (this.ready) {
-          Text('暂无可播放视频')
+          Text($r('app.string.no_playable_video'))
             .fontSize(17)
             .fontColor(Color.White)
             .alignSelf(ItemAlign.Center)
@@ -267,15 +267,14 @@ export struct ShortVideoPage {
         }
 
         if (this.manager.showControl) {
-          Button({ type: ButtonType.Circle, stateEffect: true }) {
+          Button({ type: ButtonType.Circle, stateEffect: false }) {
             SymbolGlyph($r('sys.symbol.xmark'))
               .fontSize(22)
               .fontColor(['#f0f0f0'])
               .opacity(0.8)
           }
-          .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
           .attributeModifier(new ButtonFancyModifier(40, 40))
-          .backgroundColor('#50000000')
+          .backgroundColor(Color.Transparent)
           .position({ x: 14, y: 14 + SafeHeight.topSafeHeight })
           .transition(XAnimation.getAnimation('up', 0, false))
           .onClick(() => this.closePage())
@@ -417,7 +416,7 @@ export struct ShortVideoPage {
 
   private async openPip(): Promise<void> {
     if (!await this.manager.startPip()) {
-      ToolsUtil.showToast('暂时无法进入小窗，请稍后重试')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.float_window_unavailable').id))
       return
     }
     WindowUtil.minimizeClick(PathUtils.appContext!)

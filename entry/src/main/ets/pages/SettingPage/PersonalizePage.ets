@@ -7,19 +7,19 @@ import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
 import { CoverLayoutMode, ListDisplayMode } from '../../common/enum/DisplayMode'
 import Preferences from '../../database/Preferences'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
-import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
+import { PathUtils } from '../../utils/PathUtils'
 import { userData } from '../../component/common/UserLoginComponent'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { LengthMetrics } from '@kit.ArkUI'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
-
-const TAG = 'PersonalizePage'
+import { VideoListController } from '../../component/VideoItemComponent/VideoItemComponent'
+import StartupPageUtil from '../../utils/StartupPageUtil'
 
 @ComponentV2
 export struct PersonalizePage {
+  @Consumer() videoListController: VideoListController = new VideoListController()
   @Local defaultStartupFolderName: string = ''
-  private listScroller: Scroller = new Scroller()
   defaultStartupFolderDialogController: CustomDialogController = new CustomDialogController({
     builder: DefaultStartupFolderDialog({
       onFolderSelected: (folderDate: string) => {
@@ -27,6 +27,7 @@ export struct PersonalizePage {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  private listScroller: Scroller = new Scroller()
 
   aboutToAppear(): void {
     const savedFolderDate = Preferences.getDefaultStartupFolder(PathUtils.appContext!)
@@ -39,10 +40,22 @@ export struct PersonalizePage {
       List({ scroller: this.listScroller }) {
         ListItem() {
           SettingsSegmentButtonItem({
+            symbol: $r('sys.symbol.doc_plaintext_and_folder'),
+            message: $r('app.string.home_style'),
+            tips: [$r('app.string.home_style_list'), $r('app.string.home_style_directory')],
+            tabSelectedIndex: this.videoListController.directoryMode ? 1 : 0,
+            onButtonClick: (tabSelectedIndex: number) => {
+              this.videoListController.setDirectoryView(tabSelectedIndex === 1)
+            }
+          })
+        }
+
+        ListItem() {
+          SettingsSegmentButtonItem({
             symbol: Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY ? $r('sys.symbol.list_bullet_square') :
               $r('sys.symbol.grid'),
-            message: '列表布局',
-            tips: ['卡片', '列表', '网格'],
+            message: $r('app.string.list_layout'),
+            tips: [$r('app.string.list_layout_card'), $r('app.string.list_layout_list'), $r('app.string.list_layout_grid')],
             tabSelectedIndex: Setting.listDisplayMode,
             onButtonClick: (tabSelectedIndex: number) => {
               Setting.listDisplayMode = tabSelectedIndex
@@ -55,8 +68,8 @@ export struct PersonalizePage {
           SettingsSegmentButtonItem({
             symbol: Setting.coverLayout === CoverLayoutMode.VERTICAL_PLATE ?
               $r('sys.symbol.rectangle_uphalf_inset_filled') : $r('sys.symbol.rectangle_lefthalf_inset_filled'),
-            message: '封面版式',
-            tips: ['竖版', '横版'],
+            message: $r('app.string.cover_layout'),
+            tips: [$r('app.string.cover_layout_vertical'), $r('app.string.cover_layout_horizontal')],
             tabSelectedIndex: Setting.coverLayout,
             onButtonClick: (tabSelectedIndex: number) => {
               Setting.coverLayout = tabSelectedIndex
@@ -66,9 +79,29 @@ export struct PersonalizePage {
         }
 
         ListItem() {
+          Column({ space: 4 }) {
+            SettingsToggleItem({
+              symbol: $r('sys.symbol.rectangle_uphalf_inset_filled'),
+              message: $r('app.string.random_cover'),
+              enable: Setting.randomCover,
+              onChange: (checked: boolean) => {
+                Setting.randomCover = checked
+                Preferences.saveRandomCover(PathUtils.appContext!, checked)
+              }
+            })
+
+            Text($r('app.string.random_cover_tip'))
+              .fontSize(12)
+              .fontColor($r('sys.color.font_secondary'))
+              .width('100%')
+              .padding({ left: 16, right: 16, bottom: 12 })
+          }
+        }
+
+        ListItem() {
           SettingsMenuItem({
             symbol: $r('sys.symbol.list_number'),
-            message: '最大列表数',
+            message: $r('app.string.max_list_count'),
             tag: 'VIP',
             selected: Setting.maxListLine - 1,
             list: ['1', '2', '3', '4', '5', '6', '7', '8'],
@@ -83,7 +116,7 @@ export struct PersonalizePage {
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.doc_text_badge_clock'),
-            message: '开启最近播放',
+            message: $r('app.string.enable_recent_play'),
             enable: Setting.recentPlay,
             onChange: (checked: boolean) => {
               Setting.recentPlay = checked
@@ -98,7 +131,7 @@ export struct PersonalizePage {
         ListItem() {
           SettingsToggleItem({
             symbol: $r('sys.symbol.folder'),
-            message: '首页显示顶部文件夹列表',
+            message: $r('app.string.home_show_folder_tabs'),
             enable: Setting.showToast,
             onChange: (checked: boolean) => {
               Setting.showToast = checked
@@ -110,7 +143,7 @@ export struct PersonalizePage {
         ListItem() {
           SettingsClickItem({
             symbol: $r('sys.symbol.folder_badge_plus'),
-            message: '默认启动页面：' + this.defaultStartupFolderName,
+            message: $r('app.string.default_startup_page', this.defaultStartupFolderName),
             showArrow: true,
             onPress: () => {
               this.defaultStartupFolderDialogController.open()
@@ -192,7 +225,7 @@ export struct PersonalizePage {
       },
       content: {
         title: {
-          mainTitle: '界面',
+          mainTitle: $r('app.string.appearance_title'),
         }
       },
     })
@@ -210,26 +243,24 @@ export struct PersonalizePage {
 
   private updateDefaultStartupFolderName(folderDate: string) {
     if (folderDate === '') {
-      this.defaultStartupFolderName = '默认（首页）'
+      this.defaultStartupFolderName = ToolsUtil.getStringResource($r('app.string.default_start_page_default').id)
       return
     }
-    if (folderDate === '__stream__') {
-      this.defaultStartupFolderName = '串流页'
+    const startupPage = StartupPageUtil.getPage(folderDate)
+    if (startupPage) {
+      this.defaultStartupFolderName = typeof startupPage.label === 'string' ? startupPage.label :
+        ToolsUtil.getStringResource(startupPage.label.id)
       return
     }
-    if (folderDate === '__iptv__') {
-      this.defaultStartupFolderName = 'IPTV源列表'
-      return
-    }
-    if (folderDate.startsWith('__iptv_src__')) {
-      const sourceId = folderDate.substring('__iptv_src__'.length)
+    if (folderDate.startsWith(StartupPageUtil.IPTV_SOURCE_PREFIX)) {
+      const sourceId = folderDate.substring(StartupPageUtil.IPTV_SOURCE_PREFIX.length)
       const sources = Preferences.getIPTVSources(PathUtils.appContext!)
       const source = sources.find(s => s.id === sourceId)
-      this.defaultStartupFolderName = source ? `IPTV - ${source.name}` : 'IPTV源列表'
+      this.defaultStartupFolderName = source ? `IPTV - ${source.name}` : ToolsUtil.getStringResource($r('app.string.default_start_page_iptv').id)
       return
     }
     const folders = Preferences.getFileFolder(PathUtils.appContext!)
     const folder = folders.find(f => f.date === folderDate)
-    this.defaultStartupFolderName = folder?.name ?? '默认（首页）'
+    this.defaultStartupFolderName = folder?.name ?? ToolsUtil.getStringResource($r('app.string.default_start_page_default').id)
   }
 }

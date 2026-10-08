@@ -32,7 +32,7 @@ export struct MoveFileFolderDialog {
                   this.selected_parent_date = null
                 }
               })
-            Text('根目录')
+            Text($r('app.string.root_folder'))
               .fontSize(14)
               .fontColor($r('app.color.text_color'))
           }

@@ -19,16 +19,16 @@ export default class StrmUtil {
       file = await fs.open(uri, fs.OpenMode.READ_ONLY)
       const stat = await fs.stat(file.fd)
       if (stat.size <= 0) {
-        throw new Error('.strm 文件为空')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.strm_empty').id))
       }
       if (stat.size > MAX_STRM_SIZE) {
-        throw new Error('.strm 文件过大，最大支持 64 KB')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.strm_too_large').id))
       }
       const buffer = new ArrayBuffer(stat.size)
       await fs.read(file.fd, buffer)
       const content = TextEncodingUtil.decodeMetadata(buffer)
       if (!content) {
-        throw new Error('无法读取 .strm 文件内容')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.strm_read_failed').id))
       }
       return {
         name: StrmUtil.getDisplayName(uri),
@@ -65,9 +65,9 @@ export default class StrmUtil {
       }
     }
     if (unsupportedAddress.toLowerCase().startsWith('plugin://')) {
-      throw new Error('暂不支持 plugin:// 类型的 .strm 地址')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.strm_plugin_unsupported').id))
     }
-    throw new Error('.strm 中没有可播放的网络地址')
+    throw new Error(ToolsUtil.getStringResource($r('app.string.strm_no_playable_url').id))
   }
 
   private static getDisplayName(uri: string): string {
@@ -75,7 +75,7 @@ export default class StrmUtil {
     const cleanUri = decodedUri.split('?')[0].split('#')[0]
     const fileName = cleanUri.slice(Math.max(cleanUri.lastIndexOf('/'), cleanUri.lastIndexOf('\\')) + 1)
     const displayName = fileName.replace(/\.strm$/i, '').trim()
-    return displayName || '网络串流'
+    return displayName || ToolsUtil.getStringResource($r('app.string.network_stream_title').id)
   }
 
   private static errorMessage(error: Object): string {

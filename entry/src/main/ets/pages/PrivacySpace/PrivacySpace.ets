@@ -1,3 +1,4 @@
+import MediaSortUtil from '../../utils/MediaSortUtil'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import { VideoDataSource } from '../../utils/DataUtil'
@@ -155,7 +156,7 @@ export struct PrivacySpace { // 隐私空间页
   @Local HoldingHand: motion.HoldingHandStatus | null = null
   batchDeleteConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog({
-      textInfo: '确定永久删除选中的视频吗？此操作不可恢复',
+      textInfo: $r('app.string.delete_selected_videos_permanent'),
       confirm: async () => {
         await this.batchDeleteItems()
         this.closeMultipleChoose()
@@ -182,7 +183,7 @@ export struct PrivacySpace { // 隐私空间页
   private pendingDeleteItem: VideoMetadata | null = null
   deleteConfirmDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog({
-      textInfo: '确定删除该视频吗？',
+      textInfo: $r('app.string.delete_video_confirm'),
       confirm: () => {
         if (this.pendingDeleteItem) {
           this.deleteItem(this.pendingDeleteItem.date, this.pendingDeleteItem.title)
@@ -268,6 +269,12 @@ export struct PrivacySpace { // 隐私空间页
       pinyinSortField: SortField.NAME,
       items: [
         {
+          field: SortField.RECENT_PLAY,
+          icon: $r('sys.symbol.play_circle'),
+          textResource: $r('app.string.sort_by_recent_play'),
+          onAction: (): void => this.handleSort(SortField.RECENT_PLAY, false)
+        },
+        {
           field: SortField.DATETIME,
           icon: $r('sys.symbol.calendar'),
           textResource: $r('app.string.sort_by_datetime'),
@@ -299,7 +306,7 @@ export struct PrivacySpace { // 隐私空间页
         })
       MenuItem({
         content: this.delMultipleList.length === this.video_meta_data_encryption.length &&
-          this.video_meta_data_encryption.length > 0 ? '取消全选' : $r('app.string.select_all')
+          this.video_meta_data_encryption.length > 0 ? $r('app.string.deselect_all') : $r('app.string.select_all')
       })
         .onClick(() => {
           if (this.delMultipleList.length === this.video_meta_data_encryption.length &&
@@ -330,7 +337,7 @@ export struct PrivacySpace { // 隐私空间页
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.play_round_rectangle')),
-        content: '短视频模式播放'
+        content: $r('app.string.short_video_mode')
       })
         .onClick(() => {
           setTimeout(async () => {
@@ -339,7 +346,7 @@ export struct PrivacySpace { // 隐私空间页
             }
           }, DELAY_JUMP_TO_PLAYER)
         })
-      MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: '详情' })
+      MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: $r('app.string.menu_detail') })
         .onClick(() => {
           this.detailMetadata = item
           this.showDetailSheet = true
@@ -361,7 +368,7 @@ export struct PrivacySpace { // 隐私空间页
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.checkmark_square_on_square')),
-        content: this.multipleChooseState === Visibility.Visible ? '取消多选' :
+        content: this.multipleChooseState === Visibility.Visible ? $r('app.string.multi_select_off') :
           $r('app.string.multiple_choice')
       })
         .onClick(() => {
@@ -381,13 +388,13 @@ export struct PrivacySpace { // 隐私空间页
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
-        content: '导出'
+        content: $r('app.string.export')
       })
         .onClick(async () => {
           await SelectFileUtil.exportFile(item!.uri, item!.title, item!.format, PathUtils.appContext!)
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat_size_square')), content: '导入或删除字幕'
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat_size_square')), content: $r('app.string.import_or_delete_subtitle')
       })
         .onClick(async () => {
           await SubtitleUtil.importOrDeleteSubtitleProcess(item!)
@@ -468,7 +475,8 @@ export struct PrivacySpace { // 隐私空间页
       DlpAntiPeepUtil.checkDlpAntiPeepStatus()
     }
     const savedField = Preferences.getSortField(PathUtils.appContext!)
-    if (savedField === SortField.NAME || savedField === SortField.DATETIME || savedField === SortField.TIME) {
+    if (savedField === SortField.NAME || savedField === SortField.DATETIME || savedField === SortField.TIME ||
+      savedField === SortField.RECENT_PLAY) {
       this.currentSortField = savedField as SortField
     }
     this.currentSortAsc = Preferences.getSortAsc(PathUtils.appContext!)
@@ -520,7 +528,7 @@ export struct PrivacySpace { // 隐私空间页
         if (this.video_meta_data_encryption.length == 0 && !this.loading) {
           Column() {
             if (this.searchValue.trim() !== '') {
-              Text('未找到相关视频').fontSize(25).fontWeight(FontWeight.Bold)
+              Text($r('app.string.no_matching_video')).fontSize(25).fontWeight(FontWeight.Bold)
             } else {
               Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
               Text($r('app.string.privacy_space_info'))
@@ -767,7 +775,7 @@ export struct PrivacySpace { // 隐私空间页
         enableOutsideInteractive: false,
         dragBar: true,
         showClose: true,
-        title: { title: '隐私空间设置' },
+        title: { title: $r('app.string.privacy_space_settings') },
         onWillDismiss: () => {
           this.isPresent = false
         }
@@ -1013,7 +1021,7 @@ export struct PrivacySpace { // 隐私空间页
     const list = this.videoDataSource.getAllData()
     const letterSet = new Set<string>()
     for (const item of list) {
-      letterSet.add(ToolsUtil.getFirstLetter(item.title || ''))
+      letterSet.add(MediaSortUtil.getFirstLetter(item.title || ''))
     }
     let alphabet = FULL_ALPHABET.filter(letter => letterSet.has(letter))
     if (!this.currentSortAsc) {
@@ -1025,7 +1033,7 @@ export struct PrivacySpace { // 隐私空间页
   private scrollToLetter(letter: string): void {
     const list = this.videoDataSource.getAllData()
     for (let i = 0; i < list.length; i++) {
-      if (ToolsUtil.getFirstLetter(list[i].title || '') === letter) {
+      if (MediaSortUtil.getFirstLetter(list[i].title || '') === letter) {
         const activeScroller = Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY
           ? this.listScroller : this.waterFlowScroller
         activeScroller.scrollToIndex(i)
@@ -1039,7 +1047,7 @@ export struct PrivacySpace { // 隐私空间页
     if (index < 0 || index >= list.length) {
       return
     }
-    const letter = ToolsUtil.getFirstLetter(list[index].title || '')
+    const letter = MediaSortUtil.getFirstLetter(list[index].title || '')
     const targetIndex = this.activeAlphabet.indexOf(letter)
     if (targetIndex !== -1 && targetIndex !== this.indexerSelected) {
       this.indexerSelected = targetIndex

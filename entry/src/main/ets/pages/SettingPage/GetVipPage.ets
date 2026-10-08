@@ -86,7 +86,7 @@ export struct GetVipPage {
           }
         }
       },
-      content: { title: { mainTitle: '获取VIP' } }
+      content: { title: { mainTitle: $r('app.string.get_vip') } }
     })
     .backgroundColor($r('app.color.start_window_background'))
     .backgroundImage(
@@ -105,17 +105,17 @@ export struct GetVipPage {
         SymbolGlyph($r('sys.symbol.mouse_right_click_move'))
           .fontSize(64)
           .fontColor([$r('sys.color.icon_secondary')])
-        Text('请先登录')
+        Text($r('app.string.please_login_first'))
           .fontSize(24)
           .fontWeight(FontWeight.Bold)
           .fontColor($r('app.color.text_color'))
-        Text('登录华为账号后即可购买VIP')
+        Text($r('app.string.login_to_buy_vip'))
           .fontSize(15)
           .fontColor($r('sys.color.font_secondary'))
       }
       .margin({ top: 80 })
 
-      Button('去登录')
+      Button($r('app.string.go_to_login'))
         .width('60%')
         .height(50)
         .fontSize(18)
@@ -141,7 +141,7 @@ export struct GetVipPage {
       enableOutsideInteractive: false,
       dragBar: true,
       showClose: true,
-      title: { title: '账号登录' },
+      title: { title: $r('app.string.account_login') },
       onWillDismiss: () => {
         this.isShowLoginSheet = false
       }
@@ -157,11 +157,11 @@ export struct GetVipPage {
             .fontSize(28)
             .fontWeight(FontWeight.Bold)
             .fontColor($r('app.color.text_color'))
-          Text('有没有兴趣')
+          Text($r('app.string.interested_hint'))
             .fontSize(28)
             .fontWeight(FontWeight.Bold)
             .fontColor($r('app.color.text_color'))
-          Text('获取 VIP 解锁全部功能')
+          Text($r('app.string.get_vip_unlock_all'))
             .fontSize(28)
             .fontWeight(FontWeight.Bolder)
             .fontColor($r('app.color.text_color'))
@@ -174,11 +174,11 @@ export struct GetVipPage {
               .fontSize(24)
               .fontColor([$r('sys.color.icon_primary')])
             Column() {
-              Text('专属功能')
+              Text($r('app.string.exclusive_features'))
                 .fontSize(16)
                 .fontWeight(FontWeight.Medium)
                 .fontColor($r('app.color.text_color'))
-              Text('流心音效、深浅色壁纸、智慧手势，视频超分......更多功能正在开发中')
+              Text($r('app.string.vip_features_desc'))
                 .fontSize(13)
                 .fontColor($r('sys.color.font_secondary'))
                 .fontWeight(FontWeight.Bold)
@@ -196,11 +196,11 @@ export struct GetVipPage {
               .fontSize(24)
               .fontColor([$r('sys.color.icon_primary')])
             Column() {
-              Text('持续更新')
+              Text($r('app.string.continuous_updates'))
                 .fontSize(16)
                 .fontWeight(FontWeight.Medium)
                 .fontColor($r('app.color.text_color'))
-              Text('永久有效，享受未来所有更新')
+              Text($r('app.string.lifetime_updates'))
                 .fontSize(13)
                 .fontColor($r('sys.color.font_secondary'))
             }
@@ -214,7 +214,7 @@ export struct GetVipPage {
         }
 
         Column({ space: 12 }) {
-          Button('¥29.9 / 永久')
+          Button($r('app.string.price_lifetime'))
             .width('100%')
             .height(50)
             .fontSize(18)
@@ -227,11 +227,11 @@ export struct GetVipPage {
               if (canIUse("SystemCapability.Payment.IAP")) {
                 this.createPurchase(iap.ProductType.NONCONSUMABLE, 'sweet_vip_forever')
               } else {
-                ToolsUtil.showToast('系统不支持')
+                ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.system_unsupported').id))
               }
             })
 
-          Button('¥5.9 / 1月')
+          Button($r('app.string.price_monthly'))
             .width('100%')
             .height(50)
             .fontSize(18)
@@ -244,11 +244,11 @@ export struct GetVipPage {
               if (canIUse("SystemCapability.Payment.IAP")) {
                 this.createPurchase(iap.ProductType.AUTORENEWABLE, 'sweet_vip_month')
               } else {
-                ToolsUtil.showToast('系统不支持')
+                ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.system_unsupported').id))
               }
             })
 
-          Button('恢复购买')
+          Button($r('app.string.restore_purchase'))
             .width('100%')
             .height(50)
             .fontSize(15)
@@ -263,11 +263,11 @@ export struct GetVipPage {
         }
         .margin({ top: 10 })
 
-        Text('购买后关联华为账号，支持恢复购买')
+        Text($r('app.string.purchase_bind_huawei_account'))
           .fontSize(14)
           .fontColor($r('sys.color.font_secondary'))
 
-        Text('会员协议')
+        Text($r('app.string.membership_agreement'))
           .fontSize(14)
           .fontColor($r('app.color.main_color'))
           .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.9 })
@@ -275,7 +275,7 @@ export struct GetVipPage {
             this.showAgreementSheet = true
           })
 
-        Text('订阅详情（仅月订用户显示）')
+        Text($r('app.string.subscription_details_monthly'))
           .fontSize(12)
           .fontColor($r('sys.color.font_tertiary'))
           .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.9 })
@@ -292,7 +292,7 @@ export struct GetVipPage {
                   'Failed to show subscription page. Code is ' + err.code + ', message is ' + err.message)
               })
             } else {
-              ToolsUtil.showToast('系统不支持')
+              ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.system_unsupported').id))
             }
           })
       }
@@ -314,7 +314,7 @@ export struct GetVipPage {
       preferType: SheetType.CENTER,
       dragBar: false,
       showClose: true,
-      title: { title: '会员服务协议' },
+      title: { title: $r('app.string.membership_service_agreement') },
       onWillDismiss: () => {
         this.showAgreementSheet = false
       }
@@ -381,7 +381,7 @@ export struct GetVipPage {
       .padding({ left: 16, right: 16 })
 
       Row({ space: 12 }) {
-        Button('取消')
+        Button($r('app.string.cancel'))
           .layoutWeight(1)
           .height(50)
           .fontSize(18)
@@ -393,7 +393,7 @@ export struct GetVipPage {
           .onClick(() => {
             this.showAgreementSheet = false
           })
-        Button('同意并继续')
+        Button($r('app.string.agree_and_continue'))
           .layoutWeight(1)
           .height(50)
           .fontSize(18)
@@ -428,17 +428,17 @@ export struct GetVipPage {
         SymbolGlyph($r('sys.symbol.crown'))
           .fontSize(72)
           .fontColor(['#FFE46D'])
-        Text('购买成功')
+        Text($r('app.string.purchase_success'))
           .fontSize(28)
           .fontWeight(FontWeight.Bold)
           .fontColor($r('app.color.text_color'))
-        Text('感谢您的支持，已解锁全部VIP功能')
+        Text($r('app.string.purchase_thanks'))
           .fontSize(15)
           .fontColor($r('sys.color.font_secondary'))
       }
       .margin({ top: 80 })
 
-      Button('返回')
+      Button($r('app.string.back_label'))
         .width('60%')
         .height(50)
         .fontSize(18)
@@ -451,7 +451,7 @@ export struct GetVipPage {
           this.pathStack.pop()
         })
 
-      Text('订阅详情（仅月订用户显示）')
+      Text($r('app.string.subscription_details_monthly'))
         .fontSize(12)
         .fontColor($r('sys.color.font_tertiary'))
         .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.9 })
@@ -468,7 +468,7 @@ export struct GetVipPage {
                 'Failed to show subscription page. Code is ' + err.code + ', message is ' + err.message)
             })
           } else {
-            ToolsUtil.showToast('系统不支持')
+            ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.system_unsupported').id))
           }
         })
     }
@@ -501,7 +501,7 @@ export struct GetVipPage {
         this.dealPurchaseError(err)
       })
     } else {
-      ToolsUtil.showToast('系统不支持')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.system_unsupported').id))
     }
   }
 
@@ -511,10 +511,10 @@ export struct GetVipPage {
         this.onPurchaseSuccess()
       },
       onNoPurchase: () => {
-        ToolsUtil.showToast('暂无可恢复的购买记录')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.no_restorable_purchase').id))
       },
       onError: () => {
-        ToolsUtil.showToast('恢复购买失败')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.restore_purchase_failed').id))
       }
     })
   }
@@ -532,7 +532,7 @@ export struct GetVipPage {
         this.finishPurchase(checkResult.purchaseOrderPayload)
       }
     } else {
-      ToolsUtil.showToast('系统不支持')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.system_unsupported').id))
     }
   }
 
@@ -550,18 +550,18 @@ export struct GetVipPage {
             this.onPurchaseSuccess()
           },
           onNoPurchase: () => {
-            ToolsUtil.showToast('查询购买记录失败')
+            ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.purchase_query_failed').id))
           },
           onError: () => {
-            ToolsUtil.showToast('查询购买记录失败')
+            ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.purchase_query_failed').id))
           }
         })
         return
       }
-      ToolsUtil.showToast('购买失败，错误码：' + err.code + ', 原因是：' + errorMessages.get(err.code))
+      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2($r('app.string.purchase_failed_detail').id, err.code, String(errorMessages.get(err.code))))
       salmonLogger.addLog(TAG, 'Purchase failed. Code is ' + err.code + ', message is ' + err.message, true)
     } else {
-      ToolsUtil.showToast('系统不支持')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.system_unsupported').id))
     }
   }
 }

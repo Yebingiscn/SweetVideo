@@ -13,6 +13,32 @@ export default struct VideoCardItem {
   @Consumer() videoListController: VideoListController = new VideoListController()
   @Local choose: boolean = false
   @Param delMultipleList: VideoMetadata[] = []
+  @Param coverRefreshDate: string = ''
+  @Param coverRefreshToken: number = 0
+  @Param compact: boolean = false
+  @Param coverTransition: boolean = false
+  @Local coverSrc: string = ''
+
+  aboutToAppear(): void {
+    this.coverSrc = PathUtils.coverUri(this.item.date)
+  }
+
+  @Monitor('item')
+  onItemChange() {
+    this.coverSrc = PathUtils.coverUri(this.item.date)
+  }
+
+  // 封面文件被覆盖后文件名不变，先清空再重设地址，强制 Image 重新读取文件
+  @Monitor('coverRefreshToken')
+  onCoverRefreshTokenChange() {
+    if (this.coverRefreshDate !== this.item.date) {
+      return
+    }
+    this.coverSrc = ''
+    setTimeout(() => {
+      this.coverSrc = PathUtils.coverUri(this.item.date)
+    }, 100)
+  }
 
   @Monitor('delMultipleList')
   checkChoose() {
@@ -21,7 +47,7 @@ export default struct VideoCardItem {
 
   @Builder
   CoverImage() {
-    Image(PathUtils.coverUri(this.item.date))
+    Image(this.coverSrc)
       .attributeModifier(new ImageFancyModifier(Setting.backgroundImageSrc.length > 0 ? {
         topLeft: 12,
         topRight: 12,
@@ -29,13 +55,14 @@ export default struct VideoCardItem {
         bottomRight: 0
       } : 12, '', ''))
       .width('100%')
-      .height('auto')
+      .height(this.compact ? 120 : 'auto')
       .constraintSize({
-        maxHeight: Setting.listDisplayMode === ListDisplayMode.GRID_DISPLAY ? 100 : 300,
-        minHeight: Setting.listDisplayMode === ListDisplayMode.GRID_DISPLAY ? 100 : undefined
+        maxHeight: this.compact ? 120 : Setting.listDisplayMode === ListDisplayMode.GRID_DISPLAY ? 100 : 300,
+        minHeight: this.compact ? 120 : Setting.listDisplayMode === ListDisplayMode.GRID_DISPLAY ? 100 : undefined
       })
-      .objectFit(ImageFit.Auto)
+      .objectFit(this.compact ? ImageFit.Cover : ImageFit.Auto)
       .id(`video_cover_${this.item.date}`)
+      .geometryTransition(this.coverTransition ? `home-video-cover:${this.item.date}` : '')
   }
 
   build() {
@@ -45,7 +72,7 @@ export default struct VideoCardItem {
         Text(VideoInfoUtil.getVideoTitle(this.item?.title))
           .fontSize(15)
           .fontWeight(FontWeight.Bold)
-          .maxLines(Setting.listDisplayMode === ListDisplayMode.GRID_DISPLAY ? 1 : 5)
+          .maxLines(this.compact || Setting.listDisplayMode === ListDisplayMode.GRID_DISPLAY ? 1 : 5)
           .textAlign(TextAlign.Start)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .layoutWeight(1)// 占据剩余空间

@@ -1,10 +1,28 @@
 // Type declarations for libmpvnative native module
 declare module 'libmpvnative.so' {
+  export function loadExternalAudio(path: string, title: string, requestId: number): Promise<number>;
+  export function removeExternalAudio(path: string, requestId: number): Promise<number>;
+  export function setExternalAudioDelay(seconds: number): boolean;
   export function danmakuCreate(surfaceId: string): number;
   export function danmakuStatus(handle: number): number;
   export function danmakuTexture(handle: number, id: number, width: number, height: number, rgba: ArrayBuffer): boolean;
   export function danmakuFrame(handle: number, sprites: Float32Array, width: number, height: number, opacity: number): boolean;
   export function danmakuDestroy(handle: number): number;
+  export interface FtpOptions {
+    host: string;
+    port: number;
+    user: string;
+    password: string;
+  }
+  export interface FtpEntry {
+    name: string;
+    size: number;
+    directory: boolean;
+  }
+  export function ftpList(options: FtpOptions, path: string, token: string): Promise<FtpEntry[]>;
+  export function ftpOpen(options: FtpOptions, path: string, token: string): Promise<string>;
+  export function ftpClose(url: string): void;
+  export function ftpCancel(token: string): void;
   export interface SmbOptions {
     host: string;
     share: string;
@@ -88,7 +106,7 @@ declare module 'libmpvnative.so' {
   export const getSdrToHdr: () => number;
 
   // ==================== 核心函数 ====================
-  export const create: () => number | null;
+  export const create: (gpuCacheDirectory?: string) => number | null;
 
   export const destroy: (mpvHandle: number) => void;
 
@@ -346,7 +364,8 @@ declare module 'libmpvnative.so' {
   export const getMediaInfo: (extractorId: number) => Promise<FFmpegMediaInfo>;
 
   export const extractThumbnailFrame: (extractorId: number, timeUs: number,
-    maxWidth: number, maxHeight: number, preferEmbeddedCover?: boolean) => Promise<FFmpegThumbnailFrame>;
+    maxWidth: number, maxHeight: number, preferEmbeddedCover?: boolean,
+    keyframeCover?: boolean) => Promise<FFmpegThumbnailFrame>;
 
   export const releaseThumbnailExtractor: (extractorId: number) => boolean;
 }

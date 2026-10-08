@@ -1,3 +1,5 @@
+import ImageFileUtil from './ImageFileUtil'
+import { ExternalAudioStorage } from './ExternalAudioStorage';
 import { window } from '@kit.ArkUI'
 import { audio } from '@kit.AudioKit'
 import { BusinessError, settings, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
@@ -155,7 +157,7 @@ export default class VideoOperateUtil {
         }), 'audioTracks')
     } catch (error) {
       salmonLogger.addLog(TAG, `获取 audioTracks 失败: ${error}`, true)
-      ToolsUtil.showToast('获取音轨失败')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.get_audio_tracks_failed').id))
       return []
     }
   }
@@ -336,7 +338,7 @@ export default class VideoOperateUtil {
   // 启动时初始化已保存的设置项
   static initSetting(context: common.UIAbilityContext) {
     PermissionUtil.reqPermissionsFromUser(PermissionUtil.permissions, context)
-    Setting.backgroundImageSrc = SelectFileUtil.getImageUri()
+    Setting.backgroundImageSrc = ImageFileUtil.getImageUri()
     const settingDefaults: Record<string, preferences.ValueType> = {
       'backgroundDropBlur': 0,
       'backgroundColorMode': BackgroundColorMode.AUTO,
@@ -373,6 +375,7 @@ export default class VideoOperateUtil {
       'allowGestureEntry': true,
       'showFrameTime': true,
       'jumpToHistoryTime': true,
+      'randomCover': false,
       'coverLayoutMode': CoverLayoutMode.VERTICAL_PLATE,
       'superResolutionState': false,
       'mpvShaderMode': 0,
@@ -404,7 +407,7 @@ export default class VideoOperateUtil {
     })
     Setting.backgroundDropBlur = valueMap['backgroundDropBlur'] as number
     if (Setting.backgroundDropBlur > 0 && Setting.backgroundImageSrc.length > 0) {
-      Setting.backgroundBlurImageSrc = SelectFileUtil.getExistingBlurImageUri()
+      Setting.backgroundBlurImageSrc = ImageFileUtil.getExistingBlurImageUri()
     }
     Setting.backgroundColorMode = valueMap['backgroundColorMode'] as BackgroundColorMode
     Setting.allowBackgroundPlay = valueMap['allowBackgroundPlay'] as boolean
@@ -441,6 +444,7 @@ export default class VideoOperateUtil {
     Setting.allowGestureEntry = valueMap['allowGestureEntry'] as boolean
     Setting.showFrameImgStatus = valueMap['showFrameTime'] as boolean
     Setting.jumpToHistoryTimeStatus = valueMap['jumpToHistoryTime'] as boolean
+    Setting.randomCover = valueMap['randomCover'] as boolean
     Setting.coverLayout = valueMap['coverLayoutMode'] as CoverLayoutMode
     Setting.superResolutionState = valueMap['superResolutionState'] as boolean
     Setting.mpvShaderMode = valueMap['mpvShaderMode'] as number
@@ -488,7 +492,8 @@ export default class VideoOperateUtil {
       return code
     }
     const lowerCode = code.toLowerCase()
-    return LanguageConfig.languageMap[lowerCode] || code
+    const res = LanguageConfig.languageResources[lowerCode]
+    return res !== undefined ? ToolsUtil.getStringResource(res.id) : code
   }
 
   static calcScreenExtendSize(text: string | undefined, screenWidth: number, screenHeight: number): number[] | null {
@@ -559,7 +564,7 @@ export default class VideoOperateUtil {
       const isBeyondEnd = end_time != null && end_time > 0 && last_play >= end_time
       if (isBeforeStart || isAlmostComplete || isBeyondEnd) {
         if (showToast) {
-          ToolsUtil.showToast('已跳过片头')
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_intro').id))
         }
         return VideoStartTimeMode.SEEK_TO_START_TIME
       }
@@ -567,7 +572,7 @@ export default class VideoOperateUtil {
     // 条件2：若有有效播放记录（且未接近结尾），则跳转到上次播放位置
     if (last_play !== 0 && last_play < time * 0.95 && Setting.jumpToHistoryTimeStatus) {
       if (showToast) {
-        ToolsUtil.showToast('已跳到上次播放时间')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.jumped_to_last_position').id))
       }
       return VideoStartTimeMode.SEEK_TO_LAST_PLAY_TIME
     }
@@ -581,7 +586,7 @@ export default class VideoOperateUtil {
         const fileExt = parts.length > 0 ? parts[parts.length - 1].toLowerCase() : ''
         if (fileExt !== '' && !SUPPORT_AUDIO_FORMAT.includes(fileExt)) {
           if (showToast) {
-            ToolsUtil.showToast('已跳过统一的片头时间')
+            ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_unified_intro').id))
           }
           return VideoStartTimeMode.SEEK_TO_INTRO_TIME
         }
@@ -630,7 +635,7 @@ export default class VideoOperateUtil {
             fileIo.copyFileSync(src.fd, dst.fd)
             fileIo.closeSync(src)
             fileIo.closeSync(dst)
-            ToolsUtil.showToast('保存成功')
+            ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.save_success').id))
           }
         })
         ?.catch((err: BusinessError) => {
@@ -826,11 +831,11 @@ export default class VideoOperateUtil {
     direction: 'prev' | 'next'): number | undefined {
     const targetOffset = SubtitleUtil.getAdjacentSubtitleOffset(playTime, currentOffset, direction)
     if (targetOffset == undefined) {
-      ToolsUtil.showToast(direction === 'prev' ? '没有上一条字幕' : '没有下一条字幕')
+      ToolsUtil.showToast(direction === 'prev' ? ToolsUtil.getStringResource($r('app.string.no_prev_subtitle').id) : ToolsUtil.getStringResource($r('app.string.no_next_subtitle').id))
       return undefined
     }
     if (Math.abs(targetOffset) > 50000) {
-      ToolsUtil.showToast('目标字幕超出偏移范围：-50000 到 50000')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.subtitle_offset_out_of_range').id))
       return undefined
     }
     return Math.round(targetOffset)
@@ -841,6 +846,9 @@ export default class VideoOperateUtil {
       return
     }
     RecentPlayUtil.delData(PathUtils.appContext!, item.uri)
+    await ExternalAudioStorage.remove(item.date).catch((_error: Error) => {
+      salmonLogger.addLog(TAG, '删除视频外挂音频失败', true)
+    })
     await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date, true).catch((error: Error) => {
       salmonLogger.addLog(TAG, `删除视频字幕失败: ${error.message}`, true)
     })
@@ -865,8 +873,7 @@ export default class VideoOperateUtil {
           await fileManagerService.deleteToTrash(fileUri.getUriFromPath(item.uri))
         } catch (error) {
           salmonLogger.addLog(TAG, "test delete failed, errCode:" + error.code + ", errMessage:" + error.message, true)
-          ToolsUtil.showToast('视频快捷方式已删除，但移动到最近回收失败，原因是：errCode:' + error.code + ", errMessage:" +
-            error.message)
+          ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2($r('app.string.move_to_recycle_failed').id, error.code, error.message))
         }
       }
     }

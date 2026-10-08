@@ -13,7 +13,7 @@ export struct BatchVideoDeleteDialog {
 
   build() {
     Column({ space: 20 }) {
-      Text('删除确认')
+      Text($r('app.string.delete_confirm'))
         .fontSize(20)
         .fontColor($r('app.color.text_color'))
         .fontWeight(FontWeight.Medium)
@@ -80,7 +80,7 @@ export struct BatchVideoDeleteDialog {
     return true
   }
 
-  private getDeleteCountText(): string {
-    return `确定要删除选中的 ${this.videoList.length} 个视频吗？`
+  private getDeleteCountText(): ResourceStr {
+    return $r('app.string.delete_selected_videos_count', this.videoList.length)
   }
 }

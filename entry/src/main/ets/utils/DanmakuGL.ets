@@ -1,6 +1,7 @@
 import { danmakuCreate, danmakuDestroy, danmakuFrame, danmakuStatus, danmakuTexture } from 'libmpvnative.so'
 import { DanmakuSprite } from './DanmakuCore'
 import { LengthMetricsUnit } from '@kit.ArkUI'
+import ToolsUtil from './ToolsUtil.ets'
 
 interface TextTexture {
   id: number
@@ -42,7 +43,7 @@ export class DanmakuGL {
   clear(): void {
     for (const texture of this.textures.values()) {
       if (!danmakuTexture(this.handle, texture.id, 0, 0, new ArrayBuffer(0))) {
-        throw new Error('弹幕纹理释放失败')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.danmaku_texture_release_failed').id))
       }
     }
     this.textures.clear()
@@ -62,10 +63,10 @@ export class DanmakuGL {
       return cached
     }
     const width = Math.ceil((sprite.width + 2 * this.padding) * this.scale)
-    const height = Math.ceil((sprite.font * 2 + 2 * this.padding) * this.scale)
+    const height = Math.ceil(sprite.height * this.scale)
     const bytes = width * height * 4
     if (width > 8192 || height > 2048 || bytes > 4 * 1024 * 1024 || this.nextId >= 16000000) {
-      throw new Error('弹幕纹理超出限制')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.danmaku_texture_limit').id))
     }
     for (const entry of this.textures.entries()) {
       if (this.bytes + bytes <= 24 * 1024 * 1024 && this.textures.size < 256) {
@@ -73,29 +74,30 @@ export class DanmakuGL {
       }
       if (!keep.has(entry[0])) {
         if (!danmakuTexture(this.handle, entry[1].id, 0, 0, new ArrayBuffer(0))) {
-          throw new Error('弹幕纹理释放失败')
+          throw new Error(ToolsUtil.getStringResource($r('app.string.danmaku_texture_release_failed').id))
         }
         this.bytes -= entry[1].bytes
         this.textures.delete(entry[0])
       }
     }
     if (this.bytes + bytes > 24 * 1024 * 1024) {
-      throw new Error('弹幕纹理缓存已满')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.danmaku_texture_cache_full').id))
     }
     const canvas = new OffscreenCanvasRenderingContext2D(width, height,
       new RenderingContextSettings(true), LengthMetricsUnit.PX)
     canvas.font = `${sprite.font * this.scale}px sans-serif`
-    canvas.textBaseline = 'top'
+    canvas.textBaseline = 'alphabetic'
     canvas.lineWidth = 2 * this.scale
     canvas.strokeStyle = '#000000'
     canvas.fillStyle = sprite.item.color
     const padding = this.padding * this.scale
-    canvas.strokeText(sprite.item.text, padding, padding)
-    canvas.fillText(sprite.item.text, padding, padding)
+    const baseline = padding + sprite.ascent * this.scale
+    canvas.strokeText(sprite.item.text, padding, baseline)
+    canvas.fillText(sprite.item.text, padding, baseline)
     const data = canvas.getImageData(0, 0, width, height)
     const id = ++this.nextId
     if (!danmakuTexture(this.handle, id, width, height, data.data.buffer as ArrayBuffer)) {
-      throw new Error('弹幕纹理上传失败')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.danmaku_texture_upload_failed').id))
     }
     const texture: TextTexture = { id: id, width: width / this.scale, height: height / this.scale, bytes: bytes }
     this.textures.set(key, texture)

@@ -36,7 +36,7 @@ export class FileProcessorUtil {
     importRootFolderName?: string
   ): Promise<void> {
     if (fileList.length === 0) {
-      ToolsUtil.showToast('没有任何文件被导入哦~')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.no_files_imported_toast').id))
       return
     }
     FileFolderUtil.duplicateVideo = 0

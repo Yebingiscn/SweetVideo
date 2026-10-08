@@ -26,7 +26,7 @@ export struct IPTVSourceDialog {
   private preparedSignature: string = ''
   private segmentItems: SegmentButtonV2Items = new SegmentButtonV2Items([
     { text: 'URL' } as SegmentButtonV2ItemOptions,
-    { text: '本地文件' } as SegmentButtonV2ItemOptions
+    { text: ToolsUtil.getStringResource($r('app.string.local_file').id) } as SegmentButtonV2ItemOptions
   ])
   private itemSelectedBackgroundColor: ColorMetrics | undefined = undefined
   private itemSelectedFontColor: ColorMetrics | undefined = undefined
@@ -74,7 +74,7 @@ export struct IPTVSourceDialog {
   build() {
     Scroll() {
       Column({ space: 16 }) {
-        Text(IPTVUtil.editingSource ? '编辑 IPTV 节目源' : '添加 IPTV 节目源')
+        Text(IPTVUtil.editingSource ? $r('app.string.edit_iptv_source') : $r('app.string.add_iptv_source'))
           .fontSize(20)
           .fontColor($r('app.color.text_color'))
           .fontWeight(FontWeight.Bold)
@@ -93,7 +93,7 @@ export struct IPTVSourceDialog {
           .width('100%')
 
 
-        TextInput({ placeholder: '节目源名称', text: this.sourceName })
+        TextInput({ placeholder: $r('app.string.iptv_source_name'), text: this.sourceName })
           .height(44)
           .borderRadius(16)
           .onChange((value: string) => {
@@ -103,7 +103,7 @@ export struct IPTVSourceDialog {
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
 
         if (this.sourceType === 'url') {
-          TextArea({ placeholder: 'M3U/M3U8/TXT 节目源地址', text: this.location })
+          TextArea({ placeholder: $r('app.string.iptv_source_url'), text: this.location })
             .borderRadius(16)
             .height(96)
             .onChange((value: string) => {
@@ -118,7 +118,7 @@ export struct IPTVSourceDialog {
                 .fontSize(22)
                 .margin({ left: 10 })
                 .fontColor([$r('app.color.text_color')])
-              Text(this.fileName || '选择 M3U/M3U8/TXT 文件')
+              Text(this.fileName || ToolsUtil.getStringResource($r('app.string.select_iptv_file').id))
                 .fontSize(15)
                 .fontColor($r('app.color.text_color'))
                 .maxLines(1)
@@ -131,7 +131,7 @@ export struct IPTVSourceDialog {
           .onClick(async () => await this.selectFile())
         }
 
-        TextInput({ placeholder: 'User-Agent（可选）', text: this.userAgent })
+        TextInput({ placeholder: $r('app.string.user_agent_optional'), text: this.userAgent })
           .height(44)
           .borderRadius(16)
           .onChange((value: string) => {
@@ -140,7 +140,7 @@ export struct IPTVSourceDialog {
           })
           .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
 
-        TextInput({ placeholder: 'XMLTV EPG URL（可选）', text: this.epgUrl })
+        TextInput({ placeholder: $r('app.string.epg_url_optional'), text: this.epgUrl })
           .height(44)
           .borderRadius(16)
           .onChange((value: string) => {
@@ -160,19 +160,19 @@ export struct IPTVSourceDialog {
         }
 
         Row({ space: 10 }) {
-          Button('取消')
+          Button($r('app.string.cancel'))
             .layoutWeight(1)
             .attributeModifier(new ButtonFancyModifier('', 44))
             .backgroundColor($r('sys.color.button_background_color_transparent'))
             .fontColor($r('app.color.text_color'))
             .onClick(() => this.closeDialog())
-          Button(this.testing ? '测试中…' : '测试')
+          Button(this.testing ? $r('app.string.testing') : $r('app.string.test'))
             .layoutWeight(1)
             .attributeModifier(new ButtonFancyModifier('', 44))
             .backgroundColor($r('app.color.sweet_music_color'))
             .enabled(!this.testing && !this.saving)
             .onClick(async () => await this.test())
-          Button(this.saving ? '保存中…' : '保存')
+          Button(this.saving ? $r('app.string.saving') : $r('app.string.save'))
             .layoutWeight(1)
             .attributeModifier(new ButtonFancyModifier('', 44))
             .backgroundColor($r('app.color.main_color'))
@@ -201,7 +201,7 @@ export struct IPTVSourceDialog {
   private async selectFile(): Promise<void> {
     const options = new picker.DocumentSelectOptions()
     options.maxSelectNumber = 1
-    options.fileSuffixFilters = ['IPTV节目源|.m3u,.m3u8,.txt', 'm3u', 'm3u8', 'txt']
+    options.fileSuffixFilters = [ToolsUtil.getStringResource($r('app.string.iptv_source_filter').id) + '|.m3u,.m3u8,.txt', 'm3u', 'm3u8', 'txt']
     try {
       const uris = await new picker.DocumentViewPicker(PathUtils.appContext!).select(options)
       if (uris.length > 0) {
@@ -218,7 +218,7 @@ export struct IPTVSourceDialog {
     const name = this.sourceName.trim()
     const location = this.location.trim()
     if (!name || !location) {
-      ToolsUtil.showToast('请填写名称并选择或输入节目源')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.iptv_fill_required').id))
       return undefined
     }
     const editing = IPTVUtil.editingSource
@@ -249,7 +249,7 @@ export struct IPTVSourceDialog {
       return
     }
     this.testing = true
-    this.testMessage = '正在读取并解析节目源…'
+    this.testMessage = ToolsUtil.getStringResource($r('app.string.iptv_parsing_source').id)
     const result = await IPTVUtil.testSource(source)
     this.testSuccess = result.success
     if (result.success && result.preparedSource) {
@@ -259,8 +259,8 @@ export struct IPTVSourceDialog {
       this.preparedSource = undefined
       this.preparedSignature = ''
     }
-    this.testMessage = result.message + (result.invalidCount > 0 ? `，${result.invalidCount} 条无效` : '') +
-      (source.epgUrl ? `，EPG 匹配 ${result.epgMatchedCount} 个频道` : '')
+    this.testMessage = result.message + (result.invalidCount > 0 ? ToolsUtil.getStringResourceArgs($r('app.string.iptv_invalid_count').id, result.invalidCount) : '') +
+      (source.epgUrl ? ToolsUtil.getStringResourceArgs($r('app.string.iptv_epg_matched').id, result.epgMatchedCount) : '')
     this.testing = false
   }
 
@@ -270,13 +270,13 @@ export struct IPTVSourceDialog {
       return
     }
     this.saving = true
-    this.testMessage = '正在读取并保存频道…'
+    this.testMessage = ToolsUtil.getStringResource($r('app.string.iptv_saving_channels').id)
     try {
       const signature = this.sourceSignature(source)
       const saved = this.preparedSource && this.preparedSignature === signature ?
         this.preparedSource : await IPTVUtil.refreshSource(source)
       this.onSaved?.(saved)
-      ToolsUtil.showToast(`已添加 ${saved.channelCount} 个频道`)
+      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.iptv_added_channels').id, saved.channelCount))
       this.closeDialog()
     } catch (error) {
       this.testSuccess = false

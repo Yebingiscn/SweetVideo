@@ -38,9 +38,17 @@ export interface VideoMetadata {
   subtitle_offset_millis?: number
   subtitle_track_id?: number
   audio_track_id?: number
+  external_audio_file?: string
+  external_audio_name?: string
+  external_audio_selected?: boolean
+  external_audio_offset_ms?: number
   network_user_agent?: string
   /** Stable SMB reference for an optional matching sidecar subtitle. */
   smb_subtitle_uri?: string
+  /** Stable credential-free WebDAV reference for a matching subtitle. */
+  webdav_subtitle_uri?: string
+  /** Stable credential-free FTP reference for a matching subtitle. */
+  ftp_subtitle_uri?: string
   /** 仅用于当前网络播放请求，不写入播放历史等持久化数据。 */
   network_http_headers?: Record<string, string>
 }
@@ -62,6 +70,10 @@ export interface SaveOptions {
   subtitleOffsetMillis?: number
   subtitleTrackId?: number
   audioTrackId?: number | null
+  externalAudioFile?: string
+  externalAudioName?: string
+  externalAudioSelected?: boolean
+  externalAudioOffsetMs?: number
   hdrType?: number
   audioType?: number
 }

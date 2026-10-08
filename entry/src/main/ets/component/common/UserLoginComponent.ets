@@ -1,3 +1,4 @@
+import ImageFileUtil from '../../utils/ImageFileUtil'
 import { loginComponentManager, LoginWithHuaweiIDButton } from '@kit.AccountKit';
 import { hdsEffect } from '@kit.UIDesignKit';
 import { HdsGL } from '../../common/AttributeModifierConfig';
@@ -8,7 +9,6 @@ import { IapVerifyUtil } from '../../utils/IapVerifyUtil';
 import { DANGER_COLOR } from '../../common/Constants';
 import { XAnimation } from '../../utils/AnimationUtil';
 import { SafeHeight } from '../../utils/ObservedUtil';
-import SelectFileUtil from '../../utils/SelectFileUtil';
 import { FunctionalButton, functionalButtonComponentManager } from '@kit.ScenarioFusionKit';
 import { curves } from '@kit.ArkUI';
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit';
@@ -100,7 +100,7 @@ struct userLoginComponent {
               }
               try {
                 const pixelMap = await AccountUtil.fileToPixelMap(data.avatarUri!)
-                const localAvatarUri = await SelectFileUtil.savePixelMapToFile(PathUtils.photoPath!, 'avatar', pixelMap,
+                const localAvatarUri = await ImageFileUtil.savePixelMapToFile(PathUtils.photoPath!, 'avatar', pixelMap,
                   { releasePixelMap: true })
                 this.userData.userAvatar = AccountUtil.ISHasAvatar(localAvatarUri)
                 Preferences.saveUserAvatar(PathUtils.appContext!, localAvatarUri)
@@ -152,7 +152,7 @@ struct userLoginComponent {
                 bottom: 2
               })
           } else {
-            Button('开通VIP')
+            Button($r('app.string.open_vip'))
               .fontColor(Color.White)
               .fontSize(15)
               .backgroundColor($r('app.color.main_color'))
@@ -163,7 +163,7 @@ struct userLoginComponent {
                 this.onNavigateToVip()
               })
           }
-          Button('退出登录')
+          Button($r('app.string.logout'))
             .fontColor(Color.White)
             .fontSize(15)
             .backgroundColor(DANGER_COLOR)
@@ -177,7 +177,7 @@ struct userLoginComponent {
               userData.openID = ''
               userData.nickName = undefined
               userData.idToken = ''
-              await SelectFileUtil.deletePhoto('avatar')
+              await ImageFileUtil.deletePhoto('avatar')
               Preferences.saveUserIsLogin(PathUtils.appContext!, false)
               Preferences.saveUserAvatar(PathUtils.appContext!, '')
               Preferences.saveUserAuthorizationCode(PathUtils.appContext!, '')
@@ -249,7 +249,7 @@ struct userLoginComponent {
                 this.controller.setAgreementStatus(loginComponentManager.AgreementStatus.NOT_ACCEPTED)
               }
             })
-          Text('我已阅读并同意')
+          Text($r('app.string.i_have_read_and_agree'))
         }.padding({ bottom: SafeHeight.bottomSafeHeight })
       }
     }

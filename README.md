@@ -40,15 +40,6 @@ QQ群：973792610
 
 - [安装链接](https://appgallery.huawei.com/app/detail?id=com.example.sweetvideo&channelId=SHARE&source=appshare)
 
-## 功能排期
-
-- [ ] 字幕速度、颜色，阴影调节
-- [ ] 视频标签（点击标签即可跳转该视频对应时间）
-- [ ] 播放器移植
-- [ ] WebDAV 支持
-- [ ] Emby 支持
-- [ ] FTP 支持
-
 ## 简介
 
 - 一款运行在 HarmonyOS Next 上精致、简约的视频（音乐）原生播放器，使用 ArkTS 语言开发，具有美观的设计和优雅的动画。

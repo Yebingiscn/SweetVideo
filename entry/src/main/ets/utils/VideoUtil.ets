@@ -26,7 +26,7 @@ export default class VideoUtils {
       currentFolder = folders[0]
     }
     if (!currentFolder) {
-      ToolsUtil.showToast('出异常了：数据刷新失败')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.data_refresh_failed').id))
       return folders
     }
     if (videoListController) {

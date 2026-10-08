@@ -1,4 +1,7 @@
+import MediaSortUtil from './MediaSortUtil'
+import { ExternalAudioStorage } from './ExternalAudioStorage';
 import FolderHierarchy from './FolderHierarchy'
+import FolderSelection from './FolderSelection'
 import Preferences from '../database/Preferences'
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
@@ -42,7 +45,7 @@ export default class FileFolderUtil {
       file_folder_list.push(new_folder)
       Preferences.saveFileFolder(context, file_folder_list)
     } else {
-      ToolsUtil.showToast('添加失败，已存在相同文件夹')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.folder_exists').id))
     }
     return file_folder_list
   }
@@ -121,6 +124,18 @@ export default class FileFolderUtil {
   }
 
   // 删除文件夹及其所有子文件夹
+  static async deleteFileFoldersRecursive(context: Context, folderDates: string[],
+    fileDataSource?: FileFolderDataSource): Promise<FileFolder[]> {
+    const plan = FolderSelection.deletionPlan(Preferences.getFileFolder(context), folderDates)
+    if (plan.dates.size === 0) { return Preferences.getFileFolder(context) }
+    await VideoOperateUtil.deleteVideoFiles(plan.videos, DeleteType.SOFT)
+    // 清理媒体期间可能有其他目录更新，保存前重新读取，避免覆盖无关改动。
+    const folders = Preferences.getFileFolder(context).filter(folder => !plan.dates.has(folder.date))
+    Preferences.saveFileFolder(context, folders)
+    fileDataSource?.updateData(folders)
+    return folders
+  }
+
   static async deleteFileFolderRecursive(context: Context, file_folder: FileFolder,
     fileDataSource?: FileFolderDataSource): Promise<FileFolder[]> {
     let folders = Preferences.getFileFolder(context)
@@ -182,13 +197,16 @@ export default class FileFolderUtil {
     const pinyinSort = Preferences.getPinyinSort(context)
     switch (sortField) {
       case SortField.NAME:
-        targetFolder.video_list = ToolsUtil.sortByNameProcess(targetFolder.video_list, sortAsc, pinyinSort)
+        targetFolder.video_list = MediaSortUtil.sortByNameProcess(targetFolder.video_list, sortAsc, pinyinSort)
         break
       case SortField.DATETIME:
-        targetFolder.video_list = ToolsUtil.sortByDatetimeProcess(targetFolder.video_list, sortAsc)
+        targetFolder.video_list = MediaSortUtil.sortByDatetimeProcess(targetFolder.video_list, sortAsc)
         break
       case SortField.TIME:
-        targetFolder.video_list = ToolsUtil.sortByTimeProcess(targetFolder.video_list, sortAsc)
+        targetFolder.video_list = MediaSortUtil.sortByTimeProcess(targetFolder.video_list, sortAsc)
+        break
+      case SortField.RECENT_PLAY:
+        targetFolder.video_list = MediaSortUtil.sortByRecentPlayProcess(targetFolder.video_list, sortAsc)
         break
     }
     // 保存并返回
@@ -270,11 +288,11 @@ export default class FileFolderUtil {
     }
     if (targetParentDate !== null) {
       if (!folders.some(folder => folder.date === targetParentDate)) {
-        ToolsUtil.showToast('目标文件夹已不存在，请重新选择')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.target_folder_missing').id))
         return folders
       }
       if (FolderHierarchy.descendants(folders, folderDate).has(targetParentDate)) {
-        ToolsUtil.showToast('不能移动到自身子文件夹下')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.cannot_move_into_self').id))
         return folders
       }
     }
@@ -286,7 +304,7 @@ export default class FileFolderUtil {
       const duplicate = folders.find(i => i.name === targetFolder.name &&
         i.parent_date === targetParentDate && i.date !== targetFolder.date)
       if (duplicate) {
-        ToolsUtil.showToast('目标目录下已存在同名文件夹')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.target_folder_name_exists').id))
         return folders
       }
       targetFolder.parent_date = targetParentDate
@@ -308,7 +326,7 @@ export default class FileFolderUtil {
       const duplicate = folders.find(i => i.name === newFolderName && i.parent_date === targetFolder.parent_date &&
         i.date !== targetFolder.date)
       if (duplicate) {
-        ToolsUtil.showToast('同一目录下已存在同名文件夹')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.same_folder_name_exists').id))
         return
       }
       targetFolder.name = newFolderName
@@ -402,6 +420,25 @@ export default class FileFolderUtil {
     const fileFolder = Preferences.getFileFolder(context)
     const networkStreams = Preferences.getNetworkStreams(context)
     const existingItemsSet = new Set<string>()
+    const audioReferences = new Set<string>()
+    const audioOwners = [...videoMetaData, ...videoMetaDataEncryption, ...networkStreams,
+      ...Preferences.getRecentPlay(context)]
+    for (const folder of fileFolder) {
+      for (const item of folder.video_list || []) audioOwners.push(item)
+    }
+    for (const item of audioOwners) {
+      if (item.external_audio_file) audioReferences.add(item.external_audio_file)
+    }
+    const audioFiles = await fileIo.listFile(ExternalAudioStorage.directory).catch(() => [] as string[])
+    let deletedAudioCount = 0
+    for (const file of audioFiles) {
+      const candidate = file.replace(/\.\d+-\d+\.tmp$/, '')
+      if (ExternalAudioStorage.owner(file) && !audioReferences.has(file) && !ExternalAudioStorage.pending.has(candidate)) {
+        try { ExternalAudioStorage.removeFile(file); deletedAudioCount++ } catch (_error) {
+          salmonLogger.addLog(TAG, '删除失效外挂音频失败', true)
+        }
+      }
+    }
     // SMB 和从外部打开的视频可能只保存在播放历史中。
     for (const item of Preferences.getRecentPlay(context)) {
       if (item.date) {
@@ -451,9 +488,9 @@ export default class FileFolderUtil {
     }
     const totalMissing = missingCoverFiles.length + missingSubtitleFiles.length + missingDanmakuFiles.length
     if (totalMissing === 0) {
-      return 0
+      return deletedAudioCount
     }
-    let deletedCount = 0
+    let deletedCount = deletedAudioCount
     const deleteTasks: Promise<void>[] = []
     for (const file of missingCoverFiles) {
       deleteTasks.push(SelectFileUtil.deleteCover(file).then(() => { deletedCount++ }).catch((err: BusinessError) => {

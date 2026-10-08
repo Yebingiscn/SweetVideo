@@ -1,8 +1,8 @@
+import ImageFileUtil from '../../utils/ImageFileUtil'
 import { smbClose, SmbEntry } from 'libmpvnative.so'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import { PathUtils } from '../../utils/PathUtils'
-import SelectFileUtil from '../../utils/SelectFileUtil'
 import FFmpegThumbnailUtil from '../../utils/FFmpegThumbnailUtil'
 import { salmonLogger } from 'salmonlogger'
 import { DefaultDialogShadow } from '../../common/AttributeModifierConfig'
@@ -52,7 +52,7 @@ export struct SmbPage {
   })
   private deleteDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog(
-      { textInfo: '删除此 SMB 连接？服务器上的文件不会被删除。', confirm: () => this.removeServer() }),
+      { textInfo: $r('app.string.delete_smb_connection'), confirm: () => this.removeServer() }),
     cornerRadius: 20, shadow: DefaultDialogShadow
   })
 
@@ -102,7 +102,7 @@ export struct SmbPage {
       Text(entry.name).fontSize(16).fontColor($r('app.color.text_color'))
         .maxLines(Setting.listDisplayMode === ListDisplayMode.GRID_DISPLAY ? 1 : 3)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
-      Text(entry.directory ? '文件夹' : ToolsUtil.formatFileSize(entry.size))
+      Text(entry.directory ? $r('app.string.folder') : ToolsUtil.formatFileSize(entry.size))
         .fontSize(13).fontColor($r('app.color.text_color')).opacity(0.6)
     }.alignItems(HorizontalAlign.Start).width('100%')
   }
@@ -126,8 +126,8 @@ export struct SmbPage {
   @Builder
   ServerMenu(server: SmbServer) {
     Menu() {
-      MenuItem({ content: '编辑' }).onClick(() => this.edit(server))
-      MenuItem({ content: '删除连接' }).onClick(() => {
+      MenuItem({ content: $r('app.string.edit') }).onClick(() => this.edit(server))
+      MenuItem({ content: $r('app.string.delete_connection') }).onClick(() => {
         this.pendingDelete = server
         this.deleteDialog.open()
       })
@@ -140,14 +140,14 @@ export struct SmbPage {
       Column({ space: 12 }) {
         if (this.server) {
           Row({ space: 12 }) {
-            Button(this.folder ? '上一级' : '服务器').onClick(() => this.back()).enabled(!this.loading)
+            Button(this.folder ? $r('app.string.go_up') : $r('app.string.server')).onClick(() => this.back()).enabled(!this.loading)
             Text(`${this.server.name} / ${this.server.share}${this.folder ? '/' + this.folder : ''}`)
               .fontSize(14)
               .fontColor($r('app.color.text_color'))
               .layoutWeight(1)
               .maxLines(2)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
-            Button('刷新').onClick(() => this.browse(this.server!, this.folder)).enabled(!this.loading)
+            Button($r('app.string.refresh')).onClick(() => this.browse(this.server!, this.folder)).enabled(!this.loading)
           }.width('100%').padding({ left: 16, right: 16 })
         }
         if (this.error) {
@@ -158,8 +158,8 @@ export struct SmbPage {
         }
         if (!this.server && this.servers.length === 0) {
           Column({ space: 12 }) {
-            Text('连接你的 NAS 或电脑共享').fontSize(18).fontColor($r('app.color.text_color'))
-            Text('添加 SMB 服务器，浏览并播放共享中的视频和音乐')
+            Text($r('app.string.smb_empty_title')).fontSize(18).fontColor($r('app.color.text_color'))
+            Text($r('app.string.smb_empty_desc'))
               .fontSize(14).fontColor($r('app.color.text_color')).opacity(0.6).textAlign(TextAlign.Center)
           }.layoutWeight(1).width('100%').justifyContent(FlexAlign.Center).padding(24)
         } else if (this.server && Setting.listDisplayMode !== ListDisplayMode.LIST_DISPLAY) {
@@ -174,7 +174,7 @@ export struct SmbPage {
           .width('100%').layoutWeight(1).padding({ left: 16, right: 16, bottom: SafeHeight.bottomSafeHeight })
           .scrollBar(BarState.Off)
           if (!this.loading && this.entries.length === 0) {
-            Text('此目录没有可播放的文件').fontColor($r('app.color.text_color')).padding(24)
+            Text($r('app.string.no_playable_files')).fontColor($r('app.color.text_color')).padding(24)
           }
         } else {
           List({ scroller: this.scroller, space: 10 }) {
@@ -192,7 +192,7 @@ export struct SmbPage {
                           .opacity(0.6)
                       }.layoutWeight(1).alignItems(HorizontalAlign.Start)
 
-                      Button('编辑').onClick(() => this.edit(item.item))
+                      Button($r('app.string.edit')).onClick(() => this.edit(item.item))
                       SymbolGlyph($r('sys.symbol.chevron_right')).fontSize(16)
                     }.padding(16).width('100%').backgroundColor($r('app.color.list_item_background')).borderRadius(16)
                   }.onClick(() => this.browse(item.item, item.item.initialPath ?? '')).enabled(!this.loading)
@@ -210,7 +210,7 @@ export struct SmbPage {
                 .key((item: SmbEntry) => `${this.directoryVersion}/${this.server?.id}/${this.folder}/${item.name}`).virtualScroll()
               if (!this.loading && this.entries.length === 0) {
                 ListItem() {
-                  Text('此目录没有可播放的文件').fontColor($r('app.color.text_color')).padding(24)
+                  Text($r('app.string.no_playable_files')).fontColor($r('app.color.text_color')).padding(24)
                 }
               }
             }
@@ -285,7 +285,7 @@ export struct SmbPage {
         title: { mainTitle: 'SMB' }, menu: {
           value: [{
             content: {
-              label: '添加服务器',
+              label: $r('app.string.add_server'),
               icon: $r('sys.symbol.plus'),
               isEnabled: !this.loading,
               action: () => this.edit()
@@ -333,7 +333,7 @@ export struct SmbPage {
     try {
       this.servers = SmbUtil.servers()
     } catch (error) {
-      this.error = '无法读取已保存的服务器'
+      this.error = ToolsUtil.getStringResource($r('app.string.read_servers_failed').id)
     }
   }
 
@@ -351,7 +351,7 @@ export struct SmbPage {
       await SmbUtil.remove(server.id)
       this.reloadServers()
     } catch (error) {
-      this.error = '删除失败，请重试'
+      this.error = ToolsUtil.getStringResource($r('app.string.delete_failed_retry').id)
     }
     this.pendingDelete = undefined
   }
@@ -379,7 +379,7 @@ export struct SmbPage {
       this.scroller.scrollTo({ xOffset: 0, yOffset: 0 })
     } catch (error) {
       if (version === this.requestVersion) {
-        this.error = error instanceof Error ? error.message : '无法读取共享目录'
+        this.error = error instanceof Error ? error.message : ToolsUtil.getStringResource($r('app.string.read_share_failed').id)
       }
     } finally {
       if (version === this.requestVersion) {
@@ -453,7 +453,7 @@ export struct SmbPage {
       await ToolsUtil.routerWhere(this.pathStack, item, list)
     } catch (error) {
       if (version === this.requestVersion) {
-        this.error = error instanceof Error ? error.message : '无法打开视频'
+        this.error = error instanceof Error ? error.message : ToolsUtil.getStringResource($r('app.string.open_video_failed').id)
       }
     } finally {
       if (version === this.requestVersion) {
@@ -515,7 +515,7 @@ export struct SmbPage {
                 result.pixelMap.release()
                 continue
               }
-              cached = (await SelectFileUtil.savePixelMapToFile(root, filename, result.pixelMap,
+              cached = (await ImageFileUtil.savePixelMapToFile(root, filename, result.pixelMap,
                 { releasePixelMap: true, deleteOnFail: true })).length > 0
             }
           }

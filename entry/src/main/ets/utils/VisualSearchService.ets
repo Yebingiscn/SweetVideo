@@ -2,6 +2,7 @@ import { taskpool } from '@kit.ArkTS'
 import { deviceInfo } from '@kit.BasicServicesKit'
 import lazy { visualSearchTask } from './VisualSearchTask'
 import { VisualSearchResult } from './GlobalSearchModel'
+import ToolsUtil from './ToolsUtil.ets'
 
 export class VisualSearchService {
   private static runner: taskpool.SequenceRunner = new taskpool.SequenceRunner(taskpool.Priority.LOW)
@@ -15,7 +16,7 @@ export class VisualSearchService {
   static async search(paths: string[], manifestPath: string, query: string,
     onProgress: (completed: number, total: number) => void): Promise<VisualSearchResult> {
     if (!VisualSearchService.isSupported()) {
-      throw new Error('当前设备不支持画面搜索')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.visual_search_unsupported').id))
     }
     const task = new taskpool.Task(visualSearchTask, paths, manifestPath, query)
     task.onReceiveData(onProgress)

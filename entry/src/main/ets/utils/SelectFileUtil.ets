@@ -1,4 +1,4 @@
-import { common, ConfigurationConstant, Context } from '@kit.AbilityKit'
+import { common, Context } from '@kit.AbilityKit'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { fileIo as fs, fileUri, picker } from '@kit.CoreFileKit'
 import VideoInfoUtil from './VideoInfoUtil'
@@ -22,17 +22,9 @@ import RecentPlayUtil from './RecentPlayUtil'
 import { extractVideoFileInfoInTaskPool } from './TaskpoolUtil'
 import VideoOperateUtil from './VideoOperateUtil'
 import { Available, SuppressWarnings, SuppressWarningsType, systemDateTime } from '@kit.BasicServicesKit'
-import { effectKit } from '@kit.ArkGraphics2D'
-import { JSON } from '@kit.ArkTS'
 import FFmpegThumbnailUtil, { FFmpegMediaProbe } from './FFmpegThumbnailUtil'
 
 const TAG = 'SelectFileUtil'
-
-export interface SavePixelMapOptions {
-  releasePixelMap?: boolean
-  deleteOnFail?: boolean
-  format?: string
-}
 
 export interface MediaFolderImport {
   name: string
@@ -72,13 +64,13 @@ export default class SelectFileUtil {
     // 根据模式设置文件过滤器
     switch (mode) {
       case 'video':
-        documentSelectOptions.fileSuffixFilters = SUPPORT_VIDEO_FORMAT
+        documentSelectOptions.fileSuffixFilters = ToolsUtil.localizeSuffixFilter(SUPPORT_VIDEO_FORMAT, $r('app.string.filter_video'))
         break
       case 'audio':
-        documentSelectOptions.fileSuffixFilters = SUPPORT_AUDIO_FORMAT
+        documentSelectOptions.fileSuffixFilters = ToolsUtil.localizeSuffixFilter(SUPPORT_AUDIO_FORMAT, $r('app.string.filter_audio'))
         break
       default:
-        documentSelectOptions.fileSuffixFilters = SUPPORT_VIDEO_FORMAT
+        documentSelectOptions.fileSuffixFilters = ToolsUtil.localizeSuffixFilter(SUPPORT_VIDEO_FORMAT, $r('app.string.filter_video'))
         break
     }
     // 如果没有指定uri，根据模式设置合并模式
@@ -140,37 +132,6 @@ export default class SelectFileUtil {
     return SelectFileUtil.selectFromAlbum(photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE, 1)
   }
 
-  static async deletePhoto(imageName: 'BackgroundImage' | 'BackgroundDarkImage' | 'avatar') {
-    try {
-      const res = await fs.access(PathUtils.photoPath! + imageName)
-      if (res) {
-        await new Promise<void>((resolve, reject) => {
-          fs.unlink(PathUtils.photoPath! + imageName, (unlinkErr) => {
-            if (unlinkErr) {
-              ToolsUtil.showToast('删除失败，原因是：' + unlinkErr.message)
-              reject(unlinkErr)
-            } else {
-              ToolsUtil.showToast('删除成功')
-              resolve()
-            }
-          })
-        })
-      } else {
-        salmonLogger.addLog(TAG, "照片不存在", true)
-      }
-    } catch (err) {
-      salmonLogger.addLog(TAG, "access failed with error message: " + err.message + ", error code: " + err.code, true)
-    }
-    try {
-      const blurPath = PathUtils.photoPath! + imageName + '_blur'
-      if (fs.accessSync(blurPath)) {
-        fs.unlinkSync(blurPath)
-      }
-    } catch (e) {
-      salmonLogger.addLog(TAG, `Failed to delete blur image: ${e}`, true)
-    }
-  }
-
   // 获取下载文件夹路径
   static async getDownloadUri(): Promise<string> {
     if (SelectFileUtil.fileFolderUri) {
@@ -203,208 +164,12 @@ export default class SelectFileUtil {
       })
       targetFile = fs.openSync(documentSaveResult[0], fs.OpenMode.READ_WRITE)
       await fs.copyFile(sourceFile.fd, targetFile.fd)
-      ToolsUtil.showToast(`导出成功: ${targetFile?.name} 路径为: ${targetFile?.path}`)
+      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2($r('app.string.export_success_detail').id, targetFile?.name ?? '', targetFile?.path ?? ''))
     } catch (error) {
-      ToolsUtil.showToast(`导出失败，原因是：${error}`)
+      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.export_failed_reason').id, String(error)))
     } finally {
       SelectFileUtil.closeFileSafely(sourceFile, '导出源文件')
       SelectFileUtil.closeFileSafely(targetFile, '导出目标文件')
-    }
-  }
-
-  static getImageUri(): string {
-    const currentColorMode = AppStorage.get('currentColorMode') as number
-    const basePhotoPath = PathUtils.photoPath!
-    const getSafeUri = (fileName: string): string => {
-      const fullPath = `${basePhotoPath}${fileName}`
-      try {
-        if (fs.accessSync(fullPath)) {
-          return PathUtils.pathToUri(fullPath)
-        }
-      } catch (e) {
-        salmonLogger.addLog(TAG, `Failed to access image: ${fullPath} ` + e)
-      }
-      return ''
-    }
-    try {
-      // 1. 处理亮色模式
-      if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT) {
-        return getSafeUri('BackgroundImage')
-      }
-      // 2. 处理暗色模式
-      if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK) {
-        // 检查深浅色图片切换开关，仅在开关开启时使用深色背景
-        if (Setting.enableBackgroundDarkImage) {
-          const darkUri = getSafeUri('BackgroundDarkImage')
-          if (darkUri) {
-            return darkUri
-          }
-        }
-        // 开关关闭或深色背景不存在，降级返回浅色背景
-        return getSafeUri('BackgroundImage')
-      }
-      // 3. 其他未定义的模式，默认返回空或根据需求返回亮色图
-      return ''
-    } catch (error) {
-      // 捕获顶层意外错误（如 AppStorage 读取失败等）
-      salmonLogger.addLog(TAG, 'Unexpected error in getImageUri' + error, true)
-      return ''
-    }
-  }
-
-  static getExistingBlurImageUri(): string {
-    const imageName = SelectFileUtil.getCurrentBackgroundImageName()
-    const blurPath = PathUtils.photoPath + imageName + '_blur'
-    try {
-      if (fs.accessSync(blurPath)) {
-        return PathUtils.pathToUri(blurPath)
-      }
-    } catch (e) {
-      salmonLogger.addLog(TAG, `Failed to access blur image: ${blurPath} ` + e, true)
-    }
-    return ''
-  }
-
-  static async updateBlurBackground(blurRadius: number, forceRegenerate: boolean = false): Promise<string> {
-    if (blurRadius <= 0) {
-      Setting.backgroundBlurImageSrc = ''
-      return ''
-    }
-    const imageName = SelectFileUtil.getCurrentBackgroundImageName()
-    const blurFileName = imageName + '_blur'
-    const blurPath = PathUtils.photoPath + blurFileName
-    if (!forceRegenerate) {
-      try {
-        if (fs.accessSync(blurPath)) {
-          const blurUri = PathUtils.pathToUri(blurPath)
-          Setting.backgroundBlurImageSrc = ''
-          Setting.backgroundBlurImageSrc = blurUri
-          return blurUri
-        }
-      } catch (e) {
-        salmonLogger.addLog(TAG, `Failed to access blur image: ${blurPath} ` + e, true)
-      }
-    }
-    Setting.backgroundBlurImageSrc = ''
-    const blurUri = await SelectFileUtil.generateBlurredBackground(imageName, blurRadius)
-    Setting.backgroundBlurImageSrc = blurUri
-    return blurUri
-  }
-
-  static getCurrentBackgroundImageName(): string {
-    const currentColorMode = AppStorage.get('currentColorMode') as number
-    if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT) {
-      return 'BackgroundImage'
-    }
-    if (currentColorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK) {
-      // 仅在深浅色图片切换开关开启时使用深色背景
-      if (Setting.enableBackgroundDarkImage) {
-        const darkPath = PathUtils.photoPath + 'BackgroundDarkImage'
-        try {
-          if (fs.accessSync(darkPath)) {
-            return 'BackgroundDarkImage'
-          }
-        } catch (e) {
-          salmonLogger.addLog(TAG, `Failed to access dark background image: ${darkPath} ` + e, true)
-        }
-      }
-      return 'BackgroundImage'
-    }
-    return 'BackgroundImage'
-  }
-
-  static saveImageToSandBox(sourceFileUri: string, imageName: string) {
-    const filePath = PathUtils.photoPath + imageName // 定义完整文件路径
-    try {
-      let sourceFile = fs.openSync(sourceFileUri, fs.OpenMode.READ_ONLY)
-      let targetFile = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
-
-      fs.copyFileSync(sourceFile.fd, targetFile.fd)
-
-      fs.closeSync(sourceFile)
-      fs.closeSync(targetFile)
-    } catch (error) {
-      salmonLogger.addLog(TAG, 'File operation error:' + error, true)
-    }
-  }
-
-  static async savePixelMapToFile(basePath: string, fileName: string, pixelMap: image.PixelMap,
-    options?: SavePixelMapOptions): Promise<string> {
-    const filePath = basePath + fileName
-    let packer: image.ImagePacker | undefined = undefined
-    let file: fs.File | undefined = undefined
-    try {
-      packer = image.createImagePacker()
-      file = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
-      await packer.packToFile(pixelMap, file.fd, { format: options?.format ?? 'image/webp', quality: 85 })
-      return filePath
-    } catch (err) {
-      salmonLogger.addLog(TAG, `Failed to save pixelMap to ${filePath}: ${JSON.stringify(err)} :${err.message}`, true)
-      if (options?.deleteOnFail) {
-        try {
-          fs.accessSync(filePath) && fs.unlinkSync(filePath)
-        } catch {
-        }
-      }
-      return ''
-    } finally {
-      if (file) {
-        try {
-          fs.closeSync(file)
-        } catch (e) {
-          salmonLogger.addLog(TAG, 'Failed to close file: ' + e, false)
-        }
-      }
-      if (packer) {
-        try {
-          packer.release()
-        } catch (e) {
-          salmonLogger.addLog(TAG, 'Failed to release packer: ' + e, false)
-        }
-      }
-      if (options?.releasePixelMap) {
-        try {
-          pixelMap.release()
-        } catch (e) {
-          salmonLogger.addLog(TAG, 'Failed to release pixelMap: ' + e, false)
-        }
-      }
-    }
-  }
-
-  static async generateBlurredBackground(imageName: string, blurRadius: number): Promise<string> {
-    if (blurRadius <= 0) {
-      return ''
-    }
-    const sourcePath = PathUtils.photoPath + imageName
-    const blurFileName = imageName + '_blur'
-    const blurPath = PathUtils.photoPath + blurFileName
-    let sourceFile: fs.File | undefined = undefined
-    let imageSource: image.ImageSource | undefined = undefined
-    let pixelMap: image.PixelMap | undefined = undefined
-    try {
-      sourceFile = fs.openSync(sourcePath, fs.OpenMode.READ_ONLY)
-      imageSource = image.createImageSource(sourceFile.fd)
-      pixelMap = await imageSource.createPixelMap()
-      const effect = effectKit.createEffect(pixelMap)
-      const blurredPixelMap = await effect.blur(blurRadius).getEffectPixelMap()
-      await SelectFileUtil.savePixelMapToFile(PathUtils.photoPath!, blurFileName, blurredPixelMap!, {
-        releasePixelMap: true, format: 'image/jpeg'
-      })
-      return PathUtils.pathToUri(blurPath)
-    } catch (error) {
-      salmonLogger.addLog(TAG, `Failed to generate blurred background: ${error}`, true)
-      return ''
-    } finally {
-      try {
-        pixelMap?.release()
-        imageSource?.release()
-        if (sourceFile) {
-          fs.closeSync(sourceFile)
-        }
-      } catch (e) {
-        salmonLogger.addLog(TAG, `Failed to release resources in generateBlurredBackground: ${e}`, true)
-      }
     }
   }
 
@@ -475,7 +240,16 @@ export default class SelectFileUtil {
       // 网络流等临时播放项可能不在本地文件夹数据库中，也要让最近播放记录拿到时间戳。
       target_data.last_played_at = lastPlayedAt
     }
+    const audioChange = options.externalAudioFile !== undefined || options.externalAudioName !== undefined ||
+      options.externalAudioSelected !== undefined || options.externalAudioOffsetMs !== undefined
+    const audioTargets: VideoMetadata[] = []
+    const audioSnapshots: SaveOptions[] = []
     const updateVideo = (video: VideoMetadata) => {
+      if (audioChange) {
+        audioTargets.push(video)
+        audioSnapshots.push({ externalAudioFile: video.external_audio_file, externalAudioName: video.external_audio_name,
+          externalAudioSelected: video.external_audio_selected, externalAudioOffsetMs: video.external_audio_offset_ms })
+      }
       if (options.playTime) {
         video.last_play = save_time
       }
@@ -531,6 +305,10 @@ export default class SelectFileUtil {
           video.audio_track_id = options.audioTrackId
         }
       }
+      if (options.externalAudioFile !== undefined) video.external_audio_file = options.externalAudioFile
+      if (options.externalAudioName !== undefined) video.external_audio_name = options.externalAudioName
+      if (options.externalAudioSelected !== undefined) video.external_audio_selected = options.externalAudioSelected
+      if (options.externalAudioOffsetMs !== undefined) video.external_audio_offset_ms = options.externalAudioOffsetMs
       if (options.hdrType !== undefined) {
         video.hdr_type = options.hdrType
       }
@@ -538,32 +316,82 @@ export default class SelectFileUtil {
         video.audio_type = options.audioType
       }
     }
-    if (PrivacySpaceUtil.getPrivacyMode()) {
-      salmonLogger.addLog(TAG, '当前处于隐私空间，更新隐私空间数据', false)
-      const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(context)
-      const targetVideoMetaDataEncryption = videoMetaDataEncryption.find(v => v.date === target_data.date)
-      if (targetVideoMetaDataEncryption) {
-        updateVideo(targetVideoMetaDataEncryption)
-        Preferences.saveVideoMetaDataEncryption(context, videoMetaDataEncryption)
-        salmonLogger.addLog(TAG, '隐私空间数据更新完成', false)
-      } else {
-        salmonLogger.addLog(TAG, '未在隐私空间中找到目标视频数据', true)
+    try {
+      if (PrivacySpaceUtil.getPrivacyMode()) {
+        salmonLogger.addLog(TAG, '当前处于隐私空间，更新隐私空间数据', false)
+        const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(context)
+        const targetVideoMetaDataEncryption = videoMetaDataEncryption.find(v => v.date === target_data.date)
+        if (targetVideoMetaDataEncryption) {
+          updateVideo(targetVideoMetaDataEncryption)
+          Preferences.saveVideoMetaDataEncryption(context, videoMetaDataEncryption, audioChange)
+          salmonLogger.addLog(TAG, '隐私空间数据更新完成', false)
+        } else {
+          if (audioChange) throw new Error('Video metadata no longer exists')
+          salmonLogger.addLog(TAG, '未在隐私空间中找到目标视频数据', true)
+        }
+        return
       }
+      salmonLogger.addLog(TAG, '更新文件夹中的视频数据', false)
+      const findResult = Preferences.findVideoByDate(context, target_data.date)
+      const targetVideoMetaData = findResult[0]
+
+      if (targetVideoMetaData) {
+        updateVideo(targetVideoMetaData)
+        const folders = Preferences.getFileFolder(context)
+        Preferences.saveFileFolder(context, folders, audioChange)
+      } else {
+        // External and network playback also need an up-to-date recent-play position.
+        updateVideo(target_data)
+        SelectFileUtil.saveExternalRecentPlay(context, target_data)
+      }
+      if (audioChange) {
+        const streams = Preferences.getNetworkStreams(context)
+        const stream = streams.find((item: VideoMetadata) => item.date === target_data.date)
+        if (stream) { updateVideo(stream); Preferences.saveNetworkStreams(context, streams, !targetVideoMetaData) }
+        const recent = Preferences.getRecentPlay(context)
+        const recentItem = recent.find((item: VideoMetadata) => item.date === target_data.date)
+        if (recentItem) {
+          try {
+            updateVideo(recentItem)
+            Preferences.saveRecentPlay(context, recent, !targetVideoMetaData && !stream)
+          } catch (_error) {
+            if (!targetVideoMetaData && !stream) throw new Error('Recent audio metadata could not be saved')
+            salmonLogger.addLog(TAG, '更新最近播放中的外挂音频关联失败', true)
+          }
+        }
+        if (!targetVideoMetaData && !stream && !recentItem) throw new Error('Video metadata no longer exists')
+      }
+      salmonLogger.addLog(TAG, '文件夹数据更新完成', false)
+    } catch (_error) {
+      for (let index = audioTargets.length - 1; index >= 0; index--) {
+        const target = audioTargets[index]
+        const previous = audioSnapshots[index]
+        target.external_audio_file = previous.externalAudioFile
+        target.external_audio_name = previous.externalAudioName
+        target.external_audio_selected = previous.externalAudioSelected
+        target.external_audio_offset_ms = previous.externalAudioOffsetMs
+      }
+      throw new Error('Video metadata could not be saved')
+    }
+  }
+
+  // 网络串流不在文件夹里，把最近播放时间写回串流列表，供“按最近播放”排序和详情使用。
+  private static saveExternalRecentPlay(context: Context, target_data: VideoMetadata) {
+    const playedAt = target_data.last_played_at
+    if (playedAt === undefined || playedAt <= 0) {
       return
     }
-    salmonLogger.addLog(TAG, '更新文件夹中的视频数据', false)
-    const findResult = Preferences.findVideoByDate(context, target_data.date)
-    const targetVideoMetaData = findResult[0]
-
-    if (targetVideoMetaData) {
-      updateVideo(targetVideoMetaData)
-      const folders = Preferences.getFileFolder(context)
-      Preferences.saveFileFolder(context, folders)
-    } else {
-      // External and network playback also need an up-to-date recent-play position.
-      updateVideo(target_data)
+    try {
+      const streams = Preferences.getNetworkStreams(context)
+      const targetStream = streams.find(stream => stream.date === target_data.date)
+      if (!targetStream || targetStream.last_played_at === playedAt) {
+        return
+      }
+      targetStream.last_played_at = playedAt
+      Preferences.saveNetworkStreams(context, streams)
+    } catch (error) {
+      salmonLogger.addLog(TAG, `保存串流最近播放时间失败: ${error}`, true)
     }
-    salmonLogger.addLog(TAG, '文件夹数据更新完成', false)
   }
 
   static deleteVideo(videoMetaData: VideoMetadata) {
@@ -596,7 +424,7 @@ export default class SelectFileUtil {
       if (res) {
         fs.unlink(PathUtils.videoPath + videoMetaData.date, async (unlinkErr) => {
           if (unlinkErr) {
-            ToolsUtil.showToast('删除视频失败：' + videoMetaData.title + '原因是：' + unlinkErr.message)
+            ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2($r('app.string.delete_video_failed_detail').id, videoMetaData.title, unlinkErr.message))
           }
           Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, videoMetaDataEncryption)
         })
@@ -691,7 +519,7 @@ export default class SelectFileUtil {
   static async isFileExist(uri: string, showToast: boolean) {
     await PermissionUtil.activatePermission(uri)
     if (SelectFileUtil.isPathFromSource(uri, VideoSource.EXTERNAL_DEVICE)) {
-      ToolsUtil.showToast('文件需要重新授权才能继续播放，请点击确定予以授权')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.file_reauth_required').id))
       await SelectFileUtil.selectFromFileManager(uri)
     }
     let file: fs.File | undefined
@@ -700,7 +528,7 @@ export default class SelectFileUtil {
       return true
     } catch (e) {
       if (showToast) {
-        ToolsUtil.showToast(uri + '文件已经失效，请重新导入')
+        ToolsUtil.showToast(uri + ' ' + ToolsUtil.getStringResource($r('app.string.file_invalid_reimport').id))
         salmonLogger.addLog('file error', 'file error: ' + e.code + ':' + e.message, true)
       }
       return false
@@ -828,7 +656,7 @@ export default class SelectFileUtil {
     Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, video_meta_data_encryption)
     try {
       await fs.unlink(PathUtils.videoPath + date)
-      ToolsUtil.showToast('删除成功')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_success').id))
     } catch (err) {
       const error = err as BusinessError
       if (error.code === 13900002) { // 文件或目录不存在错误码
@@ -836,7 +664,7 @@ export default class SelectFileUtil {
       } else {
         salmonLogger.addLog(TAG, 'delete failed: ' + error.code + ':' + error.message, true)
       }
-      ToolsUtil.showToast('删除视频失败：' + title + '原因是：' + err)
+      ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2($r('app.string.delete_video_failed_detail').id, title, String(err)))
     }
   }
 
@@ -869,8 +697,8 @@ export default class SelectFileUtil {
 
   private static async collectMediaFilesFromDirectories(rootDirectories: string[]): Promise<string[]> {
     const MEDIA_EXTENSIONS = new Set([
-      ...SUPPORT_VIDEO_FORMAT,
-      ...SUPPORT_AUDIO_FORMAT
+      ...ToolsUtil.localizeSuffixFilter(SUPPORT_VIDEO_FORMAT, $r('app.string.filter_video')),
+      ...ToolsUtil.localizeSuffixFilter(SUPPORT_AUDIO_FORMAT, $r('app.string.filter_audio'))
     ].map(ext => ext.toLowerCase()))
     const isMediaFile = (filePath: string): boolean => {
       const ext = VideoInfoUtil.getExtension(filePath)
@@ -976,7 +804,7 @@ export default class SelectFileUtil {
     }
     const normalizedDirectory = directory.replace(/\/+$/, '')
     const name = normalizedDirectory.substring(normalizedDirectory.lastIndexOf('/') + 1).trim()
-    return name.length > 0 ? name : '导入文件夹'
+    return name.length > 0 ? name : ToolsUtil.getStringResource($r('app.string.import_folder').id)
   }
 
   private static closeFileSafely(file: fs.File | null | undefined, scene: string): void {

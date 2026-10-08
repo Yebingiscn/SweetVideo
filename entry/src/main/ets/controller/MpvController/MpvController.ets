@@ -1,5 +1,12 @@
-import { UsbAudioSession } from '../../utils/UsbAudioSession'
-import SmbUtil, { SmbPlayback } from '../../utils/SmbUtil'
+import { MpvPlaybackEffects } from './MpvPlaybackEffects';
+import { MpvSubtitleController } from './MpvSubtitleController';
+import { NetworkPlayback } from '../../utils/NetworkPlayback';
+import { ExternalAudioStorage } from '../../utils/ExternalAudioStorage';
+import { LocalSidecarFile } from '../../utils/LocalSidecarFile';
+import { picker } from '@kit.CoreFileKit';
+import { loadExternalAudio, removeExternalAudio, setExternalAudioDelay } from 'libmpvnative.so';
+import { AudioPauseGuard } from '../../utils/AudioPauseGuard';
+import { UsbAudioSession } from '../../utils/UsbAudioSession';
 import { media } from '@kit.MediaKit';
 import { PlayerControllerInterface, PlayerEngineSwitchHandler } from '../PlayerControllerFactory';
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface';
@@ -9,7 +16,6 @@ import {
   MpvAudioTrack,
   MpvChapter,
   MpvDecodingMethod,
-  MpvSubtitleTexts,
   MpvSubtitleTrack
 } from './MpvTypes';
 import { MpvPlayerState } from './MpvPlayerState';
@@ -21,20 +27,15 @@ import { BaseListener } from '../../utils/BaseEventUtil';
 import {
   command as mpvCommand,
   getAudioTracks as mpvGetAudioTracks,
-  getCurrentAudioTrack as mpvGetCurrentAudioTrack,
   getAudioType as mpvGetAudioType,
   getChapterList as mpvGetChapterList,
-  getCurrentSecondarySubtitleTrack as mpvGetCurrentSecondarySubtitleTrack,
-  getCurrentSubtitleTrack as mpvGetCurrentSubtitleTrack,
+  getCurrentAudioTrack as mpvGetCurrentAudioTrack,
   getDolbyVisionProfile as mpvGetDolbyVisionProfile,
   getDuration as mpvGetDuration,
   getHardwareDecoder as mpvGetHardwareDecoder,
-  getSubtitleTexts as mpvGetSubtitleTexts,
-  getSubtitleTracks as mpvGetSubtitleTracks,
   getVideoHdrType as mpvGetVideoHdrType,
   getVideoHeight as mpvGetVideoHeight,
   getVideoWidth as mpvGetVideoWidth,
-  loadExternalSubtitle as mpvLoadExternalSubtitle,
   pause as mpvPause,
   play as mpvPlay,
   registerBufferingStateCallback as mpvRegisterBufferingStateCallback,
@@ -47,13 +48,10 @@ import {
   registerVideoSizeChangedCallback as mpvRegisterVideoSizeChangedCallback,
   seek as mpvSeek,
   selectAudio as mpvSelectAudio,
-  selectSecondarySubtitle as mpvSelectSecondarySubtitle,
-  selectSubtitle as mpvSelectSubtitle,
   setAudioChannel as mpvSetAudioChannel,
   setBlurayDevice as mpvSetBlurayDevice,
   setDecodeType as mpvSetDecodeType,
   setDvdDevice as mpvSetDvdDevice,
-  setGlslShaders as mpvSetGlslShaders,
   setGpuApi as mpvSetGpuApi,
   setHwdecMode as mpvSetHwdecMode,
   setKeepAspect as mpvSetKeepAspect,
@@ -62,9 +60,6 @@ import {
   setOsdSurface as mpvSetOsdSurface,
   setSdrToHdr as mpvSetSdrToHdr,
   setSpeed as mpvSetSpeed,
-  setSubtitleDelay as mpvSetSubtitleDelay,
-  setSubtitleRenderVisibility as mpvSetSubtitleRenderVisibility,
-  setSubtitleStyle as mpvSetSubtitleStyle,
   setSuperResolution as mpvSetSuperResolution,
   unregisterBufferingStateCallback as mpvUnregisterBufferingStateCallback,
   unregisterMediaLoadCallback as mpvUnregisterMediaLoadCallback,
@@ -90,14 +85,12 @@ import PiPWindowUtil from '../../utils/PiPWindowUtil';
 import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil';
 import SelectFileUtil from '../../utils/SelectFileUtil';
 import SubtitleUtil from '../../utils/SubtitleUtil';
-import SubtitleStyleUtil from '../../utils/SubtitleStyleUtil';
 import { ThrottleUtil } from '../../utils/DebounceUtil';
 import ToolsUtil from '../../utils/ToolsUtil';
 import VideoInfoUtil from '../../utils/VideoInfoUtil';
 import VideoOperateUtil from '../../utils/VideoOperateUtil';
 import { fileIo, fileUri } from '@kit.CoreFileKit';
 import { MpvPlayerEngineAdapter } from '../engine/MpvPlayerEngineAdapter';
-import SubtitleLanguageUtil from '../../utils/SubtitleLanguageUtil';
 import { AudioEffectConfig } from '../../interfaces/AudioEffectInterface';
 
 const TAG = 'MpvController'
@@ -108,26 +101,6 @@ interface MpvCommandResult {
   success: boolean
   code: number
   error?: string
-}
-
-class AudioEffectOption {
-  name: string
-  value: string
-
-  constructor(name: string, value: string) {
-    this.name = name
-    this.value = value
-  }
-}
-
-class ShaderConfig {
-  rawDir: string
-  files: string[]
-
-  constructor(rawDir: string, files: string[]) {
-    this.rawDir = rawDir
-    this.files = files
-  }
 }
 
 class DecodingModeVerification {
@@ -157,24 +130,11 @@ class DecodingModeVerification {
 
 @ObservedV2
 export class MpvController implements PlayerControllerInterface {
-  private smbPlayback: SmbPlayback = new SmbPlayback()
-  private static readonly SHADER_MODE_NAMES: string[] = ['关闭', 'Anime4K (动漫)', 'ArtCNN (通用)']
-  private static readonly SHADER_CONFIGS: Map<number, ShaderConfig> = new Map<number, ShaderConfig>([
-    [1, new ShaderConfig(
-      'shaders/Anime4K',
-      [
-        'Anime4K_Clamp_Highlights.glsl',
-        'Anime4K_Restore_CNN_M.glsl',
-        'Anime4K_Upscale_CNN_x2_M.glsl',
-        'Anime4K_AutoDownscalePre_x2.glsl',
-        'Anime4K_AutoDownscalePre_x4.glsl',
-      ]
-    )],
-    [2, new ShaderConfig(
-      'shaders/ArtCNN',
-      ['ArtCNN_C4F16.glsl']
-    )]
-  ])
+  readonly subtitleController: MpvSubtitleController = new MpvSubtitleController(this,
+    (): number | null => this.mpvHandle,
+    (): number => this.postLoadTaskGeneration,
+    (): boolean => this.engineAdapter.isMediaLoaded())
+  private smbPlayback: NetworkPlayback = new NetworkPlayback()
   windowClass = WindowUtil.getWindow()
   surfaceId: string | null = null
   osdSurfaceId: string | null = null
@@ -194,11 +154,18 @@ export class MpvController implements PlayerControllerInterface {
   @Trace volume: number = 0
   @Trace volumeActually: number = 0
   @Trace audioTrack: MpvAudioTrack[] = []
+  @Trace externalAudioImporting: boolean = false
+  @Trace externalAudioOffsetMs: number = 0
+  private externalAudioQueue: Promise<void> = Promise.resolve()
+  private externalAudioTrackId: number = -1
+  private externalAudioGeneration: number = -1
   @Trace subtitleTrack: MpvSubtitleTrack[] = []
   @Trace subtitleTrackSelected: number = -1
   @Trace secondarySubtitleTrackSelected: number = -1
   @Trace screenBrightness: number = 0
   @Trace onSwipingVoice: boolean = false
+  volumeGestureActive: boolean = false
+  private swipingVoiceTimer: number = 0
   @Trace subtitleSelected: SubtitleMode = SubtitleMode.NONE
   @Trace screenWidth: number = 0
   @Trace screenHeight: number = 0
@@ -240,14 +207,12 @@ export class MpvController implements PlayerControllerInterface {
   @Trace playerState: MpvPlayerState = MpvPlayerState.IDLE
   private osdSurfaceWidth: number = 0
   private osdSurfaceHeight: number = 0
-  private externalSubtitleTrackSelected: number = -1
-  private externalSubtitleCodec: string = ''
   private engineAdapter: MpvPlayerEngineAdapter = new MpvPlayerEngineAdapter()
-  private lastSubtitle: string = ''
-  private mpvSubtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
   private isSkippingEnding: boolean = false
   private lastAppStorageUpdateTime: number = 0
   private audioSessionManager: audio.AudioSessionManager | null = null
+  private audioPauseGuard: AudioPauseGuard = new AudioPauseGuard()
+  private outputDeviceListenerRegistered: boolean = false
   private userListener: BaseListener<number> | null = null
   private playbackCallbackRegistered: boolean = false
   private timeUpdateCallbackRegistered: boolean = false
@@ -260,6 +225,7 @@ export class MpvController implements PlayerControllerInterface {
   private audioInterruptRegistered: boolean = false
   private resumeAfterBuffering: boolean = false
   private stateChangeResolvers: Map<string, ((value: void) => void)> = new Map()
+  private playbackEffects: MpvPlaybackEffects = new MpvPlaybackEffects()
   private decodingModeVerifyTimer: number = 0
   private decodingModeVerifyToken: number = 0
   private pendingDecodingModeVerification: DecodingModeVerification | undefined = undefined
@@ -290,10 +256,6 @@ export class MpvController implements PlayerControllerInterface {
 
   private get mpvHandle(): number | null {
     return this.engineAdapter.handle
-  }
-
-  static getShaderModeNames(): string[] {
-    return MpvController.SHADER_MODE_NAMES
   }
 
   waitForState(targetState: MpvPlayerState, timeoutMs: number = 10000): Promise<void> {
@@ -328,6 +290,8 @@ export class MpvController implements PlayerControllerInterface {
     // 解码模式确实发生变化时，init() 仍会按原逻辑重建实例。
     this.cancelSmartRotationTimer()
     const requestGeneration = ++this.playRequestGeneration
+    this.audioPauseGuard.cancel()
+    this.usbSession.cancelPendingOpen()
     this.engineAdapter.invalidateLoad()
     this.pendingCompletionRequestId = 0
     this.transitionTo(MpvPlayerState.LOADING)
@@ -400,7 +364,7 @@ export class MpvController implements PlayerControllerInterface {
     if (previousItem) {
       await this.playChooseVideo(previousItem, pathStack)
     } else {
-      ToolsUtil.showToast('没有上一首')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.no_previous_item').id))
     }
     salmonLogger.addLog(pathStack?.getAllPathName()[0] ?? TAG, "播放上一个视频前置流程完成", false)
   }
@@ -514,20 +478,31 @@ export class MpvController implements PlayerControllerInterface {
       return
     }
     try {
-      await this.prepareUsbOutput()
+      try {
+        await this.prepareUsbOutput(requestGeneration)
+      } catch (error) {
+        if (requestGeneration !== this.playRequestGeneration) return
+        salmonLogger.addLog(TAG, `[MpvController] USB 不可用，改用普通音频输出: ${error}`, true)
+        this.restoreOrdinaryAudioOutput()
+        this.configureNetworkStateSubscription(url!)
+        this.setPlayerCallback(pathStack!)
+        this.registerPlaybackCompleteListener(pathStack!)
+        await this.getData()
+      }
       if (requestGeneration !== this.playRequestGeneration) return
       this.applyAutoDeinterlace()
       if (!this.applyAudioPassthrough(this.speed, this.audioEffectConfig.effect)) {
-        throw new Error('设置音频输出模式失败')
+        throw new Error(ToolsUtil.getStringResource($r('app.string.set_audio_output_mode_failed').id))
       }
       this.applyAudioCoverMode()
       this.engineAdapter.load(playUrl, startPositionSeconds, initialSubtitleTrackId,
-        this.nowPlaying?.network_user_agent, this.nowPlaying?.network_http_headers)
+        this.nowPlaying?.network_user_agent, this.smbPlayback.headers(this.nowPlaying?.network_http_headers))
     } catch (error) {
+      if (requestGeneration !== this.playRequestGeneration) return
       this.handleLoadFailure(`loadfile 失败: ${error}`)
       return
     }
-    this.applySubtitleStyle()
+    this.subtitleController.applySubtitleStyle()
 
     if (!ToolsUtil.isNetworkUrl(url!)) {
       VideoOperateUtil.getFrameTimePreprocess(url!)
@@ -546,7 +521,7 @@ export class MpvController implements PlayerControllerInterface {
           return
         }
         salmonLogger.addLog(TAG, `[MpvController] applying shader mode=${shaderMode}`, false)
-        this.applyShaderMode(shaderMode)
+        this.playbackEffects.applyShaderMode(shaderMode, this.mpvHandle)
       }, 3000) as number
     }
   }
@@ -621,7 +596,7 @@ export class MpvController implements PlayerControllerInterface {
           this.userListener?.clear()
           this.userListener = null
           this.setPlayerCallback(pathStack)
-          ToolsUtil.showToast('已跳过片尾')
+          ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.skipped_outro').id))
         }
       }
       if (this.abCircleStatus && this.playing) {
@@ -670,6 +645,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   play(): void {
+    this.audioPauseGuard.cancel()
     if (!this.mpvHandle || !this.engineAdapter.isAlive()) {
       return
     }
@@ -687,6 +663,12 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   pause(): void {
+    this.audioPauseGuard.cancel()
+    this.pausePlayback()
+  }
+
+  private pausePlayback(): void {
+    this.resumeAfterBuffering = false
     if (!this.mpvHandle || !this.engineAdapter.isAlive()) {
       return
     }
@@ -705,11 +687,13 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   async reset(): Promise<void> {
+    this.audioPauseGuard.cancel()
     this.engineAdapter.reset()
     await this.getData()
   }
 
   async release(): Promise<void> {
+    this.audioPauseGuard.cancel()
     this.smbPlayback.close()
     this.clearSessionNavigationListeners()
     this.currentPathStack = null
@@ -738,6 +722,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   cancelSubscribe(): void {
+    this.audioPauseGuard.cancel()
     AppStorage.delete('nowPlayingData')
     try {
       this.audioVolumeManager?.off('streamVolumeChange')
@@ -748,6 +733,10 @@ export class MpvController implements PlayerControllerInterface {
     try {
       this.audioSessionManager?.off('audioSessionDeactivated')
       this.audioSessionManager?.off('audioSessionStateChanged')
+      if (this.outputDeviceListenerRegistered) {
+        this.audioSessionManager?.off('currentOutputDeviceChanged')
+        this.outputDeviceListenerRegistered = false
+      }
       this.audioSessionManager = null
       this.audioInterruptRegistered = false
     } catch (error) {
@@ -787,16 +776,16 @@ export class MpvController implements PlayerControllerInterface {
   updatePlaybackSpeed(speed: number) {
     if (this.usbExclusiveActive && speed !== 1) {
       this.speed = 1
-      ToolsUtil.showToast('USB 原样输出不支持变速'); return
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.usb_no_speed_change').id)); return
     }
     if (!this.applyAudioPassthrough(speed === 1 ? this.speed : speed, this.audioEffectConfig.effect)) {
-      ToolsUtil.showToast('音频输出切换失败，已保持原速度')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.audio_output_switch_kept_speed').id))
       return
     }
     const result = mpvSetSpeed(this.mpvHandle, speed)
     if (!result) {
       this.applyAudioPassthrough(this.speed, this.audioEffectConfig.effect)
-      ToolsUtil.showToast('播放速度更新失败')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.playback_speed_update_failed').id))
       return
     }
     this.speed = result.speed
@@ -837,9 +826,11 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   async getAudioTrackList(): Promise<void> {
+    const generation = this.postLoadTaskGeneration
     const tracks = mpvGetAudioTracks(this.mpvHandle) as MpvAudioTrack[]
     if (!tracks || tracks.length === 0) {
       setTimeout(() => {
+        if (generation !== this.postLoadTaskGeneration || !this.engineAdapter.isMediaLoaded()) return
         const retryTracks = mpvGetAudioTracks(this.mpvHandle) as MpvAudioTrack[]
         if (retryTracks && retryTracks.length > 0) {
           this.audioTrack = retryTracks
@@ -859,6 +850,8 @@ export class MpvController implements PlayerControllerInterface {
 
   selectAudioTrack(trackId: number): void {
     mpvSelectAudio(this.mpvHandle, trackId)
+    setExternalAudioDelay(this.externalAudioGeneration === this.postLoadTaskGeneration &&
+      trackId === this.externalAudioTrackId ? this.externalAudioOffsetMs / 1000 : 0)
     this.resetAudioChannelMode()
     AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode, this.speed)
   }
@@ -866,6 +859,14 @@ export class MpvController implements PlayerControllerInterface {
   selectAudioTrackByIndex(index: number): void {
     if (index >= 0 && index < this.audioTrack.length) {
       this.selectAudioTrack(this.audioTrack[index].id)
+      if (this.nowPlaying?.external_audio_file) {
+        const selected = this.externalAudioGeneration === this.postLoadTaskGeneration &&
+          this.audioTrack[index].id === this.externalAudioTrackId
+        try {
+          SelectFileUtil.saveData(PathUtils.appContext!, this.nowPlaying, { externalAudioSelected: selected })
+          this.nowPlaying.external_audio_selected = selected
+        } catch (_error) { ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.audio_external_save_failed').id)) }
+      }
     }
   }
 
@@ -874,18 +875,140 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   restoreAudioTrackPreference(): void {
+    if (this.nowPlaying?.external_audio_selected) {
+      if (this.externalAudioGeneration === this.postLoadTaskGeneration) {
+        const index = this.audioTrack.findIndex((track: MpvAudioTrack) => track.id === this.externalAudioTrackId)
+        if (index >= 0) { this.selectAudioTrack(this.externalAudioTrackId); this.audioTrackSelected = index }
+      }
+      return
+    }
     if (!this.nowPlaying || this.audioTrack.length <= 1) {
       return
     }
     const audioTrackId = this.nowPlaying.audio_track_id
-    if (audioTrackId !== undefined && audioTrackId > 0 && audioTrackId < this.audioTrack.length) {
+    if (audioTrackId !== undefined && audioTrackId > 0 && audioTrackId < this.audioTrack.length &&
+      !this.audioTrack[audioTrackId].external) {
       this.selectAudioTrack(this.audioTrack[audioTrackId].id)
       this.audioTrackSelected = audioTrackId
     }
   }
 
+  private queueExternalAudio(task: () => Promise<void>): Promise<void> {
+    const result = this.externalAudioQueue.then(task)
+    this.externalAudioQueue = result.catch(() => {})
+    return result
+  }
+
+  async importExternalAudio(): Promise<void> {
+    if (this.externalAudioImporting || !this.nowPlaying?.date || !this.engineAdapter.isMediaLoaded()) return
+    const media = this.nowPlaying
+    const generation = this.postLoadTaskGeneration
+    const request = this.engineAdapter.getLoadRequestId()
+    const epoch = ExternalAudioStorage.epoch(media.date!)
+    const cancelled = (): boolean => generation !== this.postLoadTaskGeneration || this.nowPlaying !== media ||
+      !this.engineAdapter.isMediaLoaded() || ExternalAudioStorage.epoch(media.date!) !== epoch
+    this.externalAudioImporting = true
+    let candidate = ''
+    let committed = false
+    try {
+      const options = new picker.DocumentSelectOptions()
+      options.maxSelectNumber = 1
+      options.fileSuffixFilters = ToolsUtil.localizeSuffixFilter(['音频|.mp3,.aac,.m4a,.flac,.wav'], $r('app.string.audio_external_filter'))
+      const uris = await new picker.DocumentViewPicker(PathUtils.appContext!).select(options)
+      if (!uris.length || cancelled()) return
+      const name = decodeURIComponent(uris[0].split('/').pop() || '')
+      candidate = ExternalAudioStorage.create(media.date!, name.split('.').pop()?.toLowerCase() || '')
+      ExternalAudioStorage.pending.add(candidate)
+      await LocalSidecarFile.copy(uris[0], ExternalAudioStorage.path(candidate), cancelled)
+      await this.queueExternalAudio(async (): Promise<void> => {
+        if (cancelled()) return
+        const id = await loadExternalAudio(ExternalAudioStorage.path(candidate), name, request)
+        if (cancelled()) {
+          await removeExternalAudio(ExternalAudioStorage.path(candidate), request)
+          return
+        }
+        if (id < 0) throw new Error('audio load failed')
+        const oldFile = media.external_audio_file
+        try {
+          SelectFileUtil.saveData(PathUtils.appContext!, media, { externalAudioFile: candidate,
+            externalAudioName: name, externalAudioSelected: true, externalAudioOffsetMs: 0 })
+        } catch (error) {
+          await removeExternalAudio(ExternalAudioStorage.path(candidate), request)
+          throw new Error('audio association save failed')
+        }
+        media.external_audio_file = candidate
+        media.external_audio_name = name
+        media.external_audio_selected = true
+        media.external_audio_offset_ms = 0
+        committed = true
+        this.externalAudioTrackId = id
+        this.externalAudioGeneration = generation
+        this.externalAudioOffsetMs = 0
+        this.audioTrack = mpvGetAudioTracks(this.mpvHandle) as MpvAudioTrack[]
+        this.selectAudioTrack(id)
+        this.audioTrackSelected = this.audioTrack.findIndex((track: MpvAudioTrack) => track.id === id)
+        if (oldFile && oldFile !== candidate) {
+          await removeExternalAudio(ExternalAudioStorage.path(oldFile), request)
+          ExternalAudioStorage.removeFile(oldFile)
+        }
+        if (!cancelled()) this.audioTrack = mpvGetAudioTracks(this.mpvHandle) as MpvAudioTrack[]
+      })
+    } catch (_error) {
+      if (!cancelled() && !committed) ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.audio_external_failed').id))
+      salmonLogger.addLog(TAG, '外挂音频导入失败', true)
+    } finally {
+      if (candidate) {
+        ExternalAudioStorage.pending.delete(candidate)
+        if (!committed) {
+          try { ExternalAudioStorage.removeFile(candidate) } catch (_error) {}
+        }
+      }
+      this.externalAudioImporting = false
+    }
+  }
+
+  private async restoreExternalAudio(generation: number): Promise<void> {
+    const media = this.nowPlaying
+    const file = media?.external_audio_file
+    if (!file) return
+    const request = this.engineAdapter.getLoadRequestId()
+    const epoch = ExternalAudioStorage.epoch(media!.date!)
+    await this.queueExternalAudio(async (): Promise<void> => {
+      const current = (): boolean => generation === this.postLoadTaskGeneration && this.nowPlaying === media &&
+        this.engineAdapter.isMediaLoaded() && media!.external_audio_file === file &&
+        epoch === ExternalAudioStorage.epoch(media!.date!)
+      if (!current()) return
+      try {
+        const path = ExternalAudioStorage.path(file)
+        if (!fileIo.accessSync(path)) return
+        const id = await loadExternalAudio(path, media!.external_audio_name || ToolsUtil.getStringResource($r('app.string.audio_external_title').id), request)
+        if (!current()) { await removeExternalAudio(path, request); return }
+        if (id < 0) { ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.audio_external_load_failed').id)); return }
+        this.externalAudioTrackId = id
+        this.externalAudioGeneration = generation
+        this.externalAudioOffsetMs = media!.external_audio_offset_ms || 0
+        this.audioTrack = mpvGetAudioTracks(this.mpvHandle) as MpvAudioTrack[]
+        this.restoreAudioTrackPreference()
+      } catch (_error) { salmonLogger.addLog(TAG, '恢复外挂音频失败', true) }
+    })
+  }
+
+  setExternalAudioOffset(value: number, persist: boolean = true): void {
+    if (!this.nowPlaying?.external_audio_file || !Number.isFinite(value)) return
+    const offset = Math.max(-5000, Math.min(5000, Math.round(value / 100) * 100))
+    this.externalAudioOffsetMs = offset
+    if (this.externalAudioGeneration === this.postLoadTaskGeneration &&
+      this.audioTrack[this.audioTrackSelected]?.id === this.externalAudioTrackId) setExternalAudioDelay(offset / 1000)
+    if (persist) {
+      try {
+        SelectFileUtil.saveData(PathUtils.appContext!, this.nowPlaying, { externalAudioOffsetMs: offset })
+        this.nowPlaying.external_audio_offset_ms = offset
+      } catch (_error) { ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.audio_external_save_failed').id)) }
+    }
+  }
+
   setLoudnessGain(loudnessGain: number) {
-    if (this.usbExclusiveActive) { ToolsUtil.showToast('请调节 USB 设备音量'); return }
+    if (this.usbExclusiveActive) { ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.adjust_usb_volume').id)); return }
     this.volumeLoudnessGain = loudnessGain
     if (this.mpvHandle) {
       mpvSetLoudnessGain(this.mpvHandle, loudnessGain)
@@ -893,7 +1016,7 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   setAudioChannelMode(mode: MpvAudioChannelMode) {
-    if (this.usbExclusiveActive) { ToolsUtil.showToast('USB 原样输出不支持声道处理'); return }
+    if (this.usbExclusiveActive) { ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.usb_no_channel_processing').id)); return }
     this.audioChannelMode = mode
     if (this.mpvHandle) {
       mpvSetAudioChannel(this.mpvHandle, mode)
@@ -925,124 +1048,10 @@ export class MpvController implements PlayerControllerInterface {
     this.seekTime(timeSeconds * 1000)
   }
 
-  applyShaderMode(mode: number) {
-    if (!this.mpvHandle) {
-      return
-    }
-    if (mode > 0 && (Setting.mpvDecodingMethod === MpvDecodingMethod.HARDWARE_SURFACE ||
-      Setting.mpvDecodingMethod === MpvDecodingMethod.SOFTWARE)) {
-      Setting.mpvShaderMode = 0
-      mpvSetGlslShaders([])
-      return
-    }
-    if (mode === 0) {
-      mpvSetGlslShaders([])
-      return
-    }
-    const config = MpvController.SHADER_CONFIGS.get(mode)
-    if (!config) {
-      return
-    }
-    const sandboxDir = PathUtils.sandboxPath + '/shaders/'
-    try {
-      fileIo.mkdirSync(sandboxDir)
-    } catch (_) {
-    }
-    let shaderPaths: string[] = []
-    for (const file of config.files) {
-      const targetPath = sandboxDir + file
-      try {
-        const content = PathUtils.appContext!.resourceManager.getRawFileContentSync(config.rawDir + '/' + file)
-        const targetFd =
-          fileIo.openSync(targetPath, fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC | fileIo.OpenMode.READ_WRITE)
-        fileIo.writeSync(targetFd.fd, content.buffer)
-        fileIo.closeSync(targetFd)
-        shaderPaths.push(targetPath!)
-      } catch (e) {
-        salmonLogger.addLog(TAG, `Shader copy failed: ${file} ${e}`, true)
-      }
-    }
-    if (shaderPaths.length > 0) {
-      const result = mpvSetGlslShaders(shaderPaths)
-      if (!result) {
-        ToolsUtil.showToast('Shader 加载失败，请确认使用 Buffer 硬解模式')
-      }
-    } else {
-      ToolsUtil.showToast('Shader 文件拷贝失败')
-    }
-  }
-
   toggleDebugInfo() {
     this.debugInfoVisible = !this.debugInfoVisible
     // 0 才是完全关闭；等级 1 仍会显示时间/进度 OSD。
     this.applyDebugInfoVisibility()
-  }
-
-  async getSubtitleTrackList(): Promise<void> {
-    const allSubtitleTracks = mpvGetSubtitleTracks(this.mpvHandle) as MpvSubtitleTrack[]
-    const externalTracks = allSubtitleTracks.filter((track: MpvSubtitleTrack) => track.external)
-    if (externalTracks.length > 0) {
-      const selectedExternalTrack = externalTracks.find((track: MpvSubtitleTrack) =>
-      track.id === this.externalSubtitleTrackSelected) ?? externalTracks[externalTracks.length - 1]
-      this.externalSubtitleTrackSelected = selectedExternalTrack.id
-      this.externalSubtitleCodec = selectedExternalTrack.codec ?? ''
-    } else {
-      this.externalSubtitleTrackSelected = -1
-      this.externalSubtitleCodec = ''
-    }
-    this.subtitleTrack = allSubtitleTracks.filter((track: MpvSubtitleTrack) => !track.external)
-    if (this.subtitleTrack.length === 0) {
-      this.subtitleTrackSelected = -1
-      this.secondarySubtitleTrackSelected = -1
-      return
-    }
-
-    const previousTrackId = this.subtitleTrackSelected
-    const currentTrackId = mpvGetCurrentSubtitleTrack(this.mpvHandle)
-    const hasCurrentTrack = this.subtitleTrack.some((track) => track.id === currentTrackId)
-    const hasPreviousTrack = this.subtitleTrack.some((track) => track.id === previousTrackId)
-    const preferredTrackId = SubtitleLanguageUtil.selectPreferredTrack(
-      this.subtitleTrack, Setting.subtitlePreferredLanguage)?.id ?? this.subtitleTrack[0].id
-    const hasSavedPreference = this.nowPlaying ? SubtitleUtil.hasSubtitlePreferenceMetadata(this.nowPlaying) : false
-    this.subtitleTrackSelected = hasSavedPreference && hasCurrentTrack ? currentTrackId :
-      (hasSavedPreference && hasPreviousTrack ? previousTrackId : preferredTrackId)
-    const currentSecondaryTrackId = mpvGetCurrentSecondarySubtitleTrack(this.mpvHandle)
-    const hasCurrentSecondaryTrack = this.subtitleTrack.some((track) =>
-    track.id === currentSecondaryTrackId && track.id !== this.subtitleTrackSelected)
-    this.secondarySubtitleTrackSelected = hasCurrentSecondaryTrack ? currentSecondaryTrackId : -1
-    if (currentSecondaryTrackId >= 0 && !hasCurrentSecondaryTrack) {
-      mpvSelectSecondarySubtitle(this.mpvHandle, -1)
-    }
-  }
-
-  selectSubtitleTrack(trackId: number): void {
-    if (trackId >= 0 && trackId === this.secondarySubtitleTrackSelected) {
-      this.selectSecondarySubtitleTrack(-1)
-    }
-    this.subtitleTrackSelected = trackId
-    mpvSelectSubtitle(this.mpvHandle, trackId)
-    this.applySubtitleStyle()
-    this.updateMpvSubtitlePresentation()
-    AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode, this.speed)
-  }
-
-  selectExternalSubtitleTrack(): void {
-    this.selectSecondarySubtitleTrack(-1)
-    mpvSelectSubtitle(this.mpvHandle, this.externalSubtitleTrackSelected)
-    this.applySubtitleStyle()
-    this.updateMpvSubtitlePresentation()
-    AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode, this.speed)
-  }
-
-  selectSecondarySubtitleTrack(trackId: number): void {
-    if (trackId >= 0 && trackId === this.subtitleTrackSelected) {
-      return
-    }
-    this.secondarySubtitleTrackSelected = trackId
-    mpvSelectSecondarySubtitle(this.mpvHandle, trackId)
-    this.applySubtitleStyle()
-    this.updateMpvSubtitlePresentation()
-    AVSessionUtil.updatePlaybackSessionState(this.playing, this.playTime, this.repeatMode, this.speed)
   }
 
   setRotation() {
@@ -1079,7 +1088,7 @@ export class MpvController implements PlayerControllerInterface {
       VideoOperateUtil.saveVideoWeightAndHeight(PathUtils.appContext!, this.nowPlaying)
     }
     this.applyScreenExtend()
-    this.applySubtitleStyle()
+    this.subtitleController.applySubtitleStyle()
     PiPWindowUtil.updateContentSize()
   }
 
@@ -1105,8 +1114,12 @@ export class MpvController implements PlayerControllerInterface {
       this.avSession?.on('rewind', () => {
         this.backForward()
       })
-      this.avSession?.on('outputDeviceChange', () => {
-        this.pause()
+      this.avSession?.on('outputDeviceChange', (state: avSession.ConnectionState,
+        device: avSession.OutputDeviceInfo) => {
+        if (state === avSession.ConnectionState.STATE_CONNECTED &&
+          device.devices.some(item => item.castCategory === avSession.AVCastCategory.CATEGORY_REMOTE)) {
+          this.pause()
+        }
       })
       this.avSession?.on('setLoopMode', (mode: avSession.LoopMode) => {
         this.repeatMode = AVSessionUtil.getRepeatModeFromAvSession(mode)
@@ -1127,13 +1140,13 @@ export class MpvController implements PlayerControllerInterface {
   applyAudioEffect(config: AudioEffectConfig): boolean {
     if (this.usbExclusiveActive) {
       if (config.effect !== 'off') {
-        ToolsUtil.showToast('USB 原样输出不支持音效'); return false
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.usb_no_audio_effect').id)); return false
       }
       this.audioEffectConfig = AudioEffectConfig.copy(config)
       return true
     }
     if (config.effect !== 'off' && this.isAudioVividTrack()) {
-      throw new Error('Audio Vivid 优先：当前音轨暂不支持叠加声音效果')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.audio_vivid_no_effect').id))
     }
     if (!this.mpvHandle || !this.engineAdapter.isAlive()) {
       return false
@@ -1145,54 +1158,7 @@ export class MpvController implements PlayerControllerInterface {
       return false
     }
 
-    const options: AudioEffectOption[] = [
-      new AudioEffectOption('ohaudio-suite-eq-preset', config.eqPreset),
-      new AudioEffectOption('ohaudio-suite-eq-31', config.eqGains[0].toFixed(0)),
-      new AudioEffectOption('ohaudio-suite-eq-62', config.eqGains[1].toFixed(0)),
-      new AudioEffectOption('ohaudio-suite-eq-125', config.eqGains[2].toFixed(0)),
-      new AudioEffectOption('ohaudio-suite-eq-250', config.eqGains[3].toFixed(0)),
-      new AudioEffectOption('ohaudio-suite-eq-500', config.eqGains[4].toFixed(0)),
-      new AudioEffectOption('ohaudio-suite-eq-1k', config.eqGains[5].toFixed(0)),
-      new AudioEffectOption('ohaudio-suite-eq-2k', config.eqGains[6].toFixed(0)),
-      new AudioEffectOption('ohaudio-suite-eq-4k', config.eqGains[7].toFixed(0)),
-      new AudioEffectOption('ohaudio-suite-eq-8k', config.eqGains[8].toFixed(0)),
-      new AudioEffectOption('ohaudio-suite-eq-16k', config.eqGains[9].toFixed(0)),
-      new AudioEffectOption('ohaudio-suite-sound-field', config.soundField),
-      new AudioEffectOption('ohaudio-suite-environment', config.environment),
-      new AudioEffectOption('ohaudio-suite-beautifier', config.beautifier),
-      new AudioEffectOption('ohaudio-suite-space-mode', config.spaceMode),
-      new AudioEffectOption('ohaudio-suite-space-x', config.spaceX.toFixed(1)),
-      new AudioEffectOption('ohaudio-suite-space-y', config.spaceY.toFixed(1)),
-      new AudioEffectOption('ohaudio-suite-space-z', config.spaceZ.toFixed(1)),
-      new AudioEffectOption('ohaudio-suite-space-time', config.spaceTime.toFixed(0)),
-      new AudioEffectOption('ohaudio-suite-space-direction', config.spaceDirection),
-      new AudioEffectOption('ohaudio-suite-space-radius', config.spaceRadius.toFixed(1)),
-      new AudioEffectOption('ohaudio-suite-space-angle', config.spaceAngle.toFixed(0)),
-      new AudioEffectOption('ohaudio-suite-pure-gender', config.pureGender),
-      new AudioEffectOption('ohaudio-suite-pure-type', config.pureType),
-      new AudioEffectOption('ohaudio-suite-pure-pitch', config.purePitch.toFixed(1)),
-      new AudioEffectOption('ohaudio-suite-general-type', config.generalType),
-      new AudioEffectOption('ohaudio-suite-tempo', config.tempo.toFixed(1)),
-      new AudioEffectOption('ohaudio-suite-pitch', config.pitch.toFixed(1)),
-      new AudioEffectOption('ohaudio-suite-separation-output', config.separationOutput),
-      new AudioEffectOption('ohaudio-suite-hoa-layout', config.hoaLayout),
-      // Set the selected effect last so an older libmpv fails before the AO is reloaded.
-      new AudioEffectOption('ohaudio-suite-effect', config.effect)
-    ]
-
-    for (const option of options) {
-      const result = mpvCommand(this.mpvHandle,
-        ['set', `options/${option.name}`, option.value]) as MpvCommandResult
-      if (!result?.success) {
-        salmonLogger.addLog(TAG,
-          `设置声音效果失败: ${option.name}=${option.value}, ${result?.error ?? result?.code ?? 'unknown'}`, true)
-        return false
-      }
-    }
-
-    const reloadResult = mpvCommand(this.mpvHandle, ['ao-reload']) as MpvCommandResult
-    if (!reloadResult?.success) {
-      salmonLogger.addLog(TAG, `重新加载音频输出失败: ${reloadResult?.error ?? reloadResult?.code ?? 'unknown'}`, true)
+    if (!MpvPlaybackEffects.applyAudioEffect(this.mpvHandle, config)) {
       return false
     }
 
@@ -1256,22 +1222,18 @@ export class MpvController implements PlayerControllerInterface {
       this.audioVolumeManager.off('streamVolumeChange')
     } catch (_error) {
     }
-    let swipingVoiceTimer: number | null = null
-    let changeVolumeByVolumeButton: boolean = false
+    clearTimeout(this.swipingVoiceTimer)
     try {
       this.audioVolumeManager.on('streamVolumeChange', audio.StreamUsage.STREAM_USAGE_MOVIE,
         (streamVolumeEvent: audio.StreamVolumeEvent) => {
-          clearTimeout(swipingVoiceTimer)
-          if (!this.onSwipingVoice) {
-            this.onSwipingVoice = !this.onSwipingVoice
-            changeVolumeByVolumeButton = true
-          }
+          clearTimeout(this.swipingVoiceTimer)
+          this.onSwipingVoice = true
           this.volumeActually = streamVolumeEvent.volume
           ToolsUtil.startVibration()
-          swipingVoiceTimer = setTimeout(() => {
-            if (changeVolumeByVolumeButton) {
-              this.onSwipingVoice = !this.onSwipingVoice
-              changeVolumeByVolumeButton = false
+          this.swipingVoiceTimer = setTimeout(() => {
+            this.swipingVoiceTimer = 0
+            if (!this.volumeGestureActive) {
+              this.onSwipingVoice = false
             }
           }, 800)
         })
@@ -1290,145 +1252,8 @@ export class MpvController implements PlayerControllerInterface {
       (): void => this.fastForward())
   }
 
-  async setExternalSubtitle(nowPlaying: VideoMetadata) {
-    const generation = this.postLoadTaskGeneration
-    try { await SmbUtil.cacheSubtitle(nowPlaying) } catch (_error) {
-      ToolsUtil.showToast('共享字幕读取失败，可稍后手动导入')
-    }
-    if (this.nowPlaying?.uri !== nowPlaying.uri || generation !== this.postLoadTaskGeneration) return
-    SubtitleUtil.offsetMillis = nowPlaying.subtitle_offset_millis ?? 0
-    const existingExternalTracks = (mpvGetSubtitleTracks(this.mpvHandle) as MpvSubtitleTrack[])
-      .filter((track: MpvSubtitleTrack) => track.external)
-    let externalSubtitleLoaded = existingExternalTracks.length > 0
-    const existingExternalTrack = existingExternalTracks[existingExternalTracks.length - 1]
-    this.externalSubtitleTrackSelected = existingExternalTrack?.id ?? -1
-    this.externalSubtitleCodec = existingExternalTrack?.codec ?? ''
-    this.subtitle = ''
-    this.lastSubtitle = ''
-    const subtitleExists = await SubtitleUtil.isSubtitleExist(PathUtils.subtitlePath!, nowPlaying.date!)
-    if (generation !== this.postLoadTaskGeneration || !this.engineAdapter.isMediaLoaded()) {
-      return
-    }
-    if (subtitleExists) {
-      try {
-        const existingExternalTrackIds = (mpvGetSubtitleTracks(this.mpvHandle) as MpvSubtitleTrack[])
-          .filter((track: MpvSubtitleTrack) => track.external)
-          .map((track: MpvSubtitleTrack) => track.id)
-        let subtitle = fileIo.openSync(PathUtils.subtitlePath! + nowPlaying.date, fileIo.OpenMode.READ_ONLY)
-        externalSubtitleLoaded = mpvLoadExternalSubtitle(this.mpvHandle, {
-          path: subtitle.path,
-          lang: 'unknown',
-          select: false
-        })
-        try {
-          fileIo.closeSync(subtitle)
-        } catch (_e) {
-        }
-        if (externalSubtitleLoaded) {
-          const updatedTracks = mpvGetSubtitleTracks(this.mpvHandle) as MpvSubtitleTrack[]
-          const addedTrack = updatedTracks.filter((track: MpvSubtitleTrack) => track.external &&
-            !existingExternalTrackIds.includes(track.id)).pop()
-          if (addedTrack) {
-            this.externalSubtitleTrackSelected = addedTrack.id
-            this.externalSubtitleCodec = addedTrack.codec ?? ''
-          }
-          await this.getSubtitleTrackList()
-        }
-      } catch (error) {
-        salmonLogger.addLog(TAG, `[Subtitle] External subtitle load failed: ${error}`, true)
-      }
-    }
-    salmonLogger.addLog(TAG,
-      `[Subtitle] exists=${subtitleExists}, loaded=${externalSubtitleLoaded}, track=${this.externalSubtitleTrackSelected}`,
-      subtitleExists && !externalSubtitleLoaded)
-
-    const hasPreference = SubtitleUtil.hasSubtitlePreferenceMetadata(nowPlaying)
-    if (hasPreference) {
-      const preferredMode = nowPlaying.subtitle_mode as SubtitleMode | undefined
-      if (preferredMode === SubtitleMode.EXTERNAL_SUBTITLE && !externalSubtitleLoaded) {
-        this.subtitleSelected = SubtitleMode.NONE
-        this.resetSubtitlePreference(nowPlaying)
-        SubtitleUtil.offsetMillis = 0
-
-      } else if (preferredMode !== undefined && preferredMode >= SubtitleMode.NONE) {
-        if (preferredMode === SubtitleMode.INNER_SUBTITLE && this.subtitleTrack.length === 0) {
-          this.subtitleSelected = SubtitleMode.NONE
-        } else {
-          if (preferredMode === SubtitleMode.INNER_SUBTITLE && nowPlaying.subtitle_track_id !== undefined &&
-            this.subtitleTrack.some((track: MpvSubtitleTrack) => track.id === nowPlaying.subtitle_track_id)) {
-            this.subtitleTrackSelected = nowPlaying.subtitle_track_id
-            if (mpvGetCurrentSubtitleTrack(this.mpvHandle) !== nowPlaying.subtitle_track_id) {
-              mpvSelectSubtitle(this.mpvHandle, nowPlaying.subtitle_track_id)
-            }
-          }
-          if (nowPlaying.subtitle_offset_millis !== undefined) {
-            SubtitleUtil.offsetMillis = nowPlaying.subtitle_offset_millis
-          }
-          this.subtitleSelected = preferredMode
-        }
-      } else {
-        this.subtitleSelected = SubtitleMode.NONE
-      }
-    } else {
-      if (externalSubtitleLoaded && this.externalSubtitleTrackSelected >= 0) {
-        this.subtitleSelected = SubtitleMode.EXTERNAL_SUBTITLE
-      } else if (this.subtitleTrackSelected >= 0) {
-        this.subtitleSelected = SubtitleMode.INNER_SUBTITLE
-      } else {
-        this.subtitleSelected = SubtitleMode.NONE
-      }
-    }
-    if (this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
-      this.selectExternalSubtitleTrack()
-    } else if (this.subtitleSelected === SubtitleMode.INNER_SUBTITLE && this.subtitleTrackSelected >= 0) {
-      this.selectSubtitleTrack(this.subtitleTrackSelected)
-    } else {
-      mpvSelectSubtitle(this.mpvHandle, -1)
-      this.selectSecondarySubtitleTrack(-1)
-    }
-    this.setSubtitleOffset(SubtitleUtil.offsetMillis)
-    this.applySubtitleStyle()
-    const saved3DMode = nowPlaying.subtitle_3d_mode
-    this.setSubtitle3DMode(saved3DMode !== undefined &&
-      [Subtitle3DMode.DISABLED, Subtitle3DMode.SIDE_BY_SIDE, Subtitle3DMode.TOP_AND_BOTTOM].includes(saved3DMode) ?
-      saved3DMode as Subtitle3DMode : Subtitle3DMode.DISABLED)
-    salmonLogger.addLog(TAG, `[Subtitle] mode=${this.subtitleSelected}, externalTrack=${this.externalSubtitleTrackSelected}`)
-  }
-
   refreshExternalSubtitlePreview(_offset: number): void {
     // MPV applies the delay directly while rendering the external subtitle.
-  }
-
-  setSubtitleOffset(offsetMillis: number): void {
-    const clampedOffset = Math.max(-50000, Math.min(50000, Math.round(offsetMillis)))
-    if (this.mpvHandle) {
-      mpvSetSubtitleDelay(this.mpvHandle, clampedOffset)
-    }
-    this.refreshExternalSubtitlePreview(clampedOffset)
-  }
-
-  setSubtitle3DMode(mode: Subtitle3DMode): void {
-    const canUseMpv3D = mode !== Subtitle3DMode.DISABLED &&
-      this.subtitleSelected === SubtitleMode.INNER_SUBTITLE && this.supportsSubtitle3D()
-    this.mpvSubtitle3DMode = canUseMpv3D ? mode : Subtitle3DMode.DISABLED
-    this.updateMpvSubtitlePresentation()
-  }
-
-  supportsSubtitle3D(): boolean {
-    if (this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
-      return true
-    }
-    const primaryTrack = this.subtitleTrack.find((track: MpvSubtitleTrack) =>
-    track.id === this.subtitleTrackSelected)
-    if (!primaryTrack || this.isBitmapSubtitleTrack(primaryTrack)) {
-      return false
-    }
-    if (this.secondarySubtitleTrackSelected >= 0) {
-      const secondaryTrack = this.subtitleTrack.find((track: MpvSubtitleTrack) =>
-      track.id === this.secondarySubtitleTrackSelected)
-      return secondaryTrack !== undefined && !this.isBitmapSubtitleTrack(secondaryTrack)
-    }
-    return true
   }
 
   refreshExternalSubtitleByPlaybackTime(_isAdjustingSubtitleOffset: boolean,
@@ -1473,6 +1298,10 @@ export class MpvController implements PlayerControllerInterface {
       this.postLoadMetadataTimer = 0
     }
     this.postLoadTaskGeneration++
+    this.externalAudioTrackId = -1
+    this.externalAudioGeneration = -1
+    this.externalAudioOffsetMs = 0
+    setExternalAudioDelay(0)
     this.postLoadTasksExecuted = false
     this.userListener?.off('videoSizeReady')
   }
@@ -1519,6 +1348,10 @@ export class MpvController implements PlayerControllerInterface {
     try {
       this.audioSessionManager?.off('audioSessionDeactivated')
       this.audioSessionManager?.off('audioSessionStateChanged')
+      if (this.outputDeviceListenerRegistered) {
+        this.audioSessionManager?.off('currentOutputDeviceChanged')
+        this.outputDeviceListenerRegistered = false
+      }
       this.audioSessionManager = null
       this.audioInterruptRegistered = false
     } catch (error) {
@@ -1532,15 +1365,24 @@ export class MpvController implements PlayerControllerInterface {
 
   async onSurfaceLoad(xComponentController: XComponentController, pathStack: NavPathStack,
     _windowClass?: Promise<window.Window | undefined>): Promise<void> {
-    PermissionUtil.activatePermission(this.nowPlaying?.uri)
+    const requestGeneration = ++this.playRequestGeneration
+    this.usbSession.cancelPendingOpen()
+    const uri = this.nowPlaying?.uri
+    if (!uri) return
     try {
       this.surfaceId = xComponentController.getXComponentSurfaceId()
+      await PermissionUtil.activatePermission(uri)
+      if (requestGeneration !== this.playRequestGeneration) return
       await this.prepareInitialSmartRotation()
-      await this.init(this.nowPlaying!.uri, pathStack)
+      if (requestGeneration !== this.playRequestGeneration) return
+      await this.init(uri, pathStack)
+      if (requestGeneration !== this.playRequestGeneration || this.isInState(MpvPlayerState.ERROR)) return
       await this.initAVSession()
+      if (requestGeneration !== this.playRequestGeneration) return
       await PiPWindowUtil.createPipController(xComponentController, this)
     } catch (error) {
-      salmonLogger.addLog(TAG, 'uri error:' + error, true)
+      if (requestGeneration !== this.playRequestGeneration) return
+      this.handleLoadFailure(`播放准备失败: ${error}`)
     }
   }
 
@@ -1571,12 +1413,12 @@ export class MpvController implements PlayerControllerInterface {
 
   setSubtitlePosition(position: number): void {
     this.subtitlePosition = Math.max(5, Math.min(100, Math.round(position)))
-    this.applySubtitleStyle()
+    this.subtitleController.applySubtitleStyle()
   }
 
   setSubtitleSize(size: number): void {
     this.subtitleSize = Math.max(14, Math.min(48, Math.round(size)))
-    this.applySubtitleStyle()
+    this.subtitleController.applySubtitleStyle()
   }
 
   restoreSpeedAfterLongPress(lastSpeed: number): void {
@@ -1589,6 +1431,10 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   onWillDisappearCleanup(): void {
+    clearTimeout(this.swipingVoiceTimer)
+    this.swipingVoiceTimer = 0
+    this.volumeGestureActive = false
+    this.onSwipingVoice = false
     this.smartRotationAllowed = false
     this.cancelSmartRotationTimer()
     this.userListener?.off('videoSizeReady')
@@ -1601,7 +1447,6 @@ export class MpvController implements PlayerControllerInterface {
   hasChapterSupport(): boolean {
     return true
   }
-
 
   onMetricsEvent(_callback: (info: Array<media.AVMetricsEvent>) => void): void {
   }
@@ -1883,13 +1728,14 @@ export class MpvController implements PlayerControllerInterface {
     this.detectAndUpdateHdrType()
     await Promise.all([
       this.getAudioTrackList(),
-      this.getSubtitleTrackList()
+      this.subtitleController.getSubtitleTrackList()
     ])
     if (generation !== this.postLoadTaskGeneration || !this.mpvHandle) {
       return
     }
     this.getChapterListFromMpv()
-    await this.setExternalSubtitle(this.nowPlaying!)
+    await this.subtitleController.setExternalSubtitle(this.nowPlaying!)
+    if (generation === this.postLoadTaskGeneration) await this.restoreExternalAudio(generation)
   }
 
   private applyScreenExtend() {
@@ -1898,23 +1744,6 @@ export class MpvController implements PlayerControllerInterface {
       this.playAreaWidth = size[0]
       this.playAreaHeight = size[1]
     }
-  }
-
-  private resetSubtitlePreference(nowPlaying: VideoMetadata): void {
-    nowPlaying.subtitle_mode = SubtitleMode.NONE
-    nowPlaying.subtitle_visible = false
-    nowPlaying.subtitle_ai_asr_shown = false
-    nowPlaying.subtitle_3d_mode = Subtitle3DMode.DISABLED
-    nowPlaying.subtitle_offset_millis = 0
-    nowPlaying.subtitle_track_id = -1
-    SelectFileUtil.saveData(PathUtils.appContext!, nowPlaying, {
-      subtitleMode: SubtitleMode.NONE,
-      subtitleVisible: false,
-      subtitleAIAsrShown: false,
-      subtitle3DMode: Subtitle3DMode.DISABLED,
-      subtitleOffsetMillis: 0,
-      subtitleTrackId: -1
-    })
   }
 
   private transitionTo(newState: MpvPlayerState): void {
@@ -1971,23 +1800,38 @@ export class MpvController implements PlayerControllerInterface {
     }
   }
 
-  private async prepareUsbOutput(): Promise<void> {
+  private restoreOrdinaryAudioOutput(preserveDecodeMode: boolean = false): void {
+    // Destroy the old AO before releasing its USB descriptor. A fresh core also
+    // removes partially applied USB/opaque DSD options and restores PCM defaults.
+    this.cleanupMpvInstance()
+    this.usbSession.close()
+    UsbAudioSession.volumeControl = undefined
+    this.usbExclusiveActive = false
+    this.activeAudioPassthrough = false
+    if (!preserveDecodeMode) this.applyDecodeType()
+    this.engineAdapter.create()
+    if (!this.mpvHandle) throw new Error(ToolsUtil.getStringResource($r('app.string.audio_core_create_failed').id))
+    if (!preserveDecodeMode) this.activeHwdecMode = this.computeDecodeType()
+  }
+
+  private async prepareUsbOutput(requestGeneration: number): Promise<void> {
     if (!this.usbExclusiveActive) return
-    if (this.usbDsdMode > 0 && !this.usbDevice) throw new Error('DSD 直出需要明确选择支持所选模式的 DAC')
+    if (this.usbDsdMode > 0 && !this.usbDevice) throw new Error(ToolsUtil.getStringResource($r('app.string.dsd_needs_dac').id))
     const probe = mpvCommand(this.mpvHandle, ['set', 'options/usb-exclusive-dsd-mode', this.usbDsdMode === 2 ? 'native' : this.usbDsdMode === 1 ? 'dop' : 'no']) as MpvCommandResult
-    if (!probe?.success) throw new Error('当前 MPV 内核未包含新版 USB / DSD 输出，请更新底层库')
+    if (!probe?.success) throw new Error(ToolsUtil.getStringResource($r('app.string.mpv_usb_dsd_unsupported').id))
     const stopped = mpvCommand(this.mpvHandle, ['stop']) as MpvCommandResult
-    if (!stopped?.success) throw new Error('无法停止上一条音频输出')
+    if (!stopped?.success) throw new Error(ToolsUtil.getStringResource($r('app.string.stop_previous_audio_output_failed').id))
     this.usbSession.close()
     const fd = await this.usbSession.open(this.usbDevice)
+    if (requestGeneration !== this.playRequestGeneration) return
     this.configureUsbOutput(fd)
   }
 
   private configureUsbOutput(fd: number): void {
     if (!this.usbExclusiveActive) return
-    if (fd < 0) throw new Error('USB 设备连接已关闭')
+    if (fd < 0) throw new Error(ToolsUtil.getStringResource($r('app.string.usb_device_closed').id))
     const stopResult = mpvCommand(this.mpvHandle, ['stop']) as MpvCommandResult
-    if (!stopResult?.success) throw new Error('无法停止上一条音频输出')
+    if (!stopResult?.success) throw new Error(ToolsUtil.getStringResource($r('app.string.stop_previous_audio_output_failed').id))
     const settings: string[][] = [
       ['usb-exclusive-dop', 'no'],
       ['usb-exclusive-dsd-mode', this.usbDsdMode === 2 ? 'native' : this.usbDsdMode === 1 ? 'dop' : 'no'],
@@ -1999,7 +1843,7 @@ export class MpvController implements PlayerControllerInterface {
     ]
     for (const item of settings) {
       const result = mpvCommand(this.mpvHandle, ['set', 'options/' + item[0], item[1]]) as MpvCommandResult
-      if (!result?.success) throw new Error('USB 输出设置失败：' + item[0])
+      if (!result?.success) throw new Error(ToolsUtil.getStringResourceArgs($r('app.string.usb_output_setup_failed').id, item[0]))
     }
     this.speed = 1
     this.volumeLoudnessGain = 0
@@ -2010,7 +1854,7 @@ export class MpvController implements PlayerControllerInterface {
   changeUsbVolume(delta: number): boolean {
     if (!this.usbExclusiveActive || !this.mpvHandle) return false
     const result = mpvCommand(this.mpvHandle, ['add', 'ao-volume', delta.toString()]) as MpvCommandResult
-    if (!result?.success) ToolsUtil.showToast('USB 设备未提供可用的硬件音量控制，请使用设备旋钮')
+    if (!result?.success) ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.usb_no_hardware_volume').id))
     return result?.success === true
   }
 
@@ -2079,11 +1923,11 @@ export class MpvController implements PlayerControllerInterface {
           }, 100)
         }
         this.userListener?.emit('timeUpdate', this.playTime)
-        if (this.mpvSubtitle3DMode !== Subtitle3DMode.DISABLED &&
+        if (this.subtitleController.is3DActive() &&
           this.subtitleSelected === SubtitleMode.INNER_SUBTITLE) {
           ThrottleUtil.throttle('mpv3DSubtitleText', () => {
             if (generation === this.postLoadTaskGeneration && this.engineAdapter.isMediaLoaded()) {
-              this.refreshMpv3DSubtitleText()
+              this.subtitleController.refreshMpv3DSubtitleText()
             }
           }, 100)
         }
@@ -2197,7 +2041,7 @@ export class MpvController implements PlayerControllerInterface {
       Preferences.saveSuperResolutionState(PathUtils.appContext!, enable)
     } catch (error) {
       salmonLogger.addLog(TAG, `[SuperResolution] Failed to change setting: ${error}`, true)
-      ToolsUtil.showToast('设置视频超分辨率失败')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.set_super_resolution_failed').id))
     }
   }
 
@@ -2320,7 +2164,7 @@ export class MpvController implements PlayerControllerInterface {
     salmonLogger.addLog(TAG, `[MpvController] ${message}`, true)
     this.transitionTo(MpvPlayerState.ERROR)
     AVSessionUtil.updatePlaybackSessionState(false, this.playTime, this.repeatMode, this.speed)
-    ToolsUtil.showToast('视频加载失败，可重新选择视频；详细原因已写入日志')
+    ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_load_failed_logged').id))
   }
 
   private registerMediaLoadCallback(): void {
@@ -2376,20 +2220,27 @@ export class MpvController implements PlayerControllerInterface {
       const sessionManager = audio.getAudioManager().getSessionManager()
       this.audioSessionManager = sessionManager
       sessionManager.on('audioSessionDeactivated', (deactivatedEvent: audio.AudioSessionDeactivatedEvent) => {
-        if (this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
+        if (this.audioSessionManager !== sessionManager ||
+          this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
           return
         }
         salmonLogger.addLog(TAG,
           `[MpvController] AudioSession deactivated, reason: ${deactivatedEvent.reason}, pausing`, false)
+        // 会话被停用不代表可自动恢复；等待用户再次播放。
         this.pause()
       })
       sessionManager.on('audioSessionStateChanged', (stateChangedEvent: audio.AudioSessionStateChangedEvent) => {
-        if (this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
+        if (this.audioSessionManager !== sessionManager ||
+          this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
           return
         }
         switch (stateChangedEvent.stateChangeHint) {
           case audio.AudioSessionStateChangeHint.AUDIO_SESSION_STATE_CHANGE_HINT_RESUME:
             if (this.isInState(MpvPlayerState.PAUSED)) {
+              const token = this.audioPauseGuard.beginResume()
+              if (token < 0) {
+                break
+              }
               salmonLogger.addLog(TAG, '[MpvController] AudioSession focus restored, reactivating and resuming', false)
               const strategy: audio.AudioSessionStrategy = {
                 concurrencyMode: Setting.allowConcurrentPlay ?
@@ -2397,13 +2248,22 @@ export class MpvController implements PlayerControllerInterface {
                   audio.AudioConcurrencyMode.CONCURRENCY_DEFAULT
               }
               sessionManager.activateAudioSession(strategy).then(() => {
-                this.play()
+                if (this.audioSessionManager === sessionManager &&
+                  this.isInState(MpvPlayerState.PAUSED) && this.audioPauseGuard.completeResume(token)) {
+                  this.play()
+                } else {
+                  this.audioPauseGuard.resumeFailed(token)
+                }
               }).catch((err: BusinessError) => {
+                this.audioPauseGuard.resumeFailed(token)
                 salmonLogger.addLog(TAG, `reactivateAudioSession error: ${err.code} ${err.message}`, true)
               })
             }
             break
           case audio.AudioSessionStateChangeHint.AUDIO_SESSION_STATE_CHANGE_HINT_PAUSE:
+            this.audioPauseGuard.interrupt(this.getPlaybackIntentForModeSwitch(), true)
+            this.pausePlayback()
+            break
           case audio.AudioSessionStateChangeHint.AUDIO_SESSION_STATE_CHANGE_HINT_STOP:
           case audio.AudioSessionStateChangeHint.AUDIO_SESSION_STATE_CHANGE_HINT_TIME_OUT_STOP:
             salmonLogger.addLog(TAG,
@@ -2419,6 +2279,28 @@ export class MpvController implements PlayerControllerInterface {
             break
         }
       })
+      // 监听当前音频流路由，不能用全局设备连接事件或投播事件代替。
+      if (canIUse('SystemCapability.Multimedia.Audio.Core')) {
+        try {
+          sessionManager.on('currentOutputDeviceChanged', (event: audio.CurrentOutputDeviceChangedEvent) => {
+            if (this.audioSessionManager !== sessionManager ||
+              this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
+              return
+            }
+            if (event.changeReason === audio.AudioStreamDeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) {
+              this.audioPauseGuard.cancel()
+              if (this.playing || this.isInState(MpvPlayerState.LOADING) ||
+                this.isInState(MpvPlayerState.BUFFERING)) {
+                salmonLogger.addLog(TAG, '[MpvController] Audio output device unavailable, pausing', false)
+                this.pause()
+              }
+            }
+          })
+          this.outputDeviceListenerRegistered = true
+        } catch (error) {
+          salmonLogger.addLog(TAG, `Failed to register audio output device listener: ${error}`, true)
+        }
+      }
       this.audioInterruptRegistered = true
     } catch (error) {
       salmonLogger.addLog(TAG, 'Failed to register audio interrupt listener', error)
@@ -2500,7 +2382,7 @@ export class MpvController implements PlayerControllerInterface {
       if (targetMode === 'buffer_hw') {
         this.switchDecodingMode('buffer_sw', 'Buffer硬件解码创建失败', savedTime, savedPlaying, savedVideo)
       } else {
-        ToolsUtil.showToast('切换模式失败，请尝试其他视频')
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.switch_mode_failed').id))
         this.transitionTo(MpvPlayerState.ERROR)
       }
       return
@@ -2509,6 +2391,18 @@ export class MpvController implements PlayerControllerInterface {
     this.activeHwdecMode = targetMode === 'buffer_hw' ? MpvDecodingMethod.HARDWARE_BUFFER : MpvDecodingMethod.SOFTWARE
 
     if (savedVideo) {
+      try {
+        this.configureUsbOutput(this.usbSession.descriptor)
+      } catch (error) {
+        salmonLogger.addLog(TAG, `[MpvController] 解码切换时 USB 不可用，改用普通音频输出: ${error}`, true)
+        try {
+          // Retain the newly selected decoder, including Surface -> Buffer fallback.
+          this.restoreOrdinaryAudioOutput(true)
+        } catch (restoreError) {
+          this.handleLoadFailure(`普通音频核心重建失败: ${restoreError}`)
+          return
+        }
+      }
       this.configureNetworkStateSubscription(savedVideo.uri)
       const reloadUrl = this.preparePlayUrl(savedVideo.uri)
       this.registerSurfaceModeErrorCallback()
@@ -2524,19 +2418,18 @@ export class MpvController implements PlayerControllerInterface {
         this.registerPlaybackCompleteListener(this.currentPathStack)
       }
       try {
-        this.configureUsbOutput(this.usbSession.descriptor)
         this.applyAutoDeinterlace()
         if (!this.applyAudioPassthrough(this.speed, this.audioEffectConfig.effect)) {
-          throw new Error('设置音频输出模式失败')
+          throw new Error(ToolsUtil.getStringResource($r('app.string.set_audio_output_mode_failed').id))
         }
         this.applyAudioCoverMode()
         this.engineAdapter.load(reloadUrl, reloadStartSeconds, this.getInitialSubtitleTrackId(),
-          savedVideo.network_user_agent, savedVideo.network_http_headers)
+          savedVideo.network_user_agent, this.smbPlayback.headers(savedVideo.network_http_headers))
       } catch (error) {
         this.handleLoadFailure(`${modeName}重新加载失败: ${error}`)
         return
       }
-      this.applySubtitleStyle()
+      this.subtitleController.applySubtitleStyle()
 
     } else {
       this.transitionTo(MpvPlayerState.IDLE)
@@ -2578,97 +2471,6 @@ export class MpvController implements PlayerControllerInterface {
     }
   }
 
-  private applySubtitleStyle(): void {
-    if (!this.mpvHandle) {
-      return
-    }
-    mpvSetSubtitleStyle(this.mpvHandle,
-      SubtitleStyleUtil.getMpvStyle(this.subtitlePosition, this.subtitleSize, this.playAreaHeight,
-        this.shouldPreserveCurrentAssStyle(), this.shouldPreserveSecondaryAssStyle()))
-  }
-
-  private updateMpvSubtitlePresentation(): void {
-    if (!this.mpvHandle) {
-      return
-    }
-    const useArkUi3D = this.mpvSubtitle3DMode !== Subtitle3DMode.DISABLED &&
-      this.subtitleSelected === SubtitleMode.INNER_SUBTITLE && this.supportsSubtitle3D()
-    if (useArkUi3D) {
-      mpvSetSubtitleRenderVisibility(this.mpvHandle, false, false)
-      this.refreshMpv3DSubtitleText()
-      return
-    }
-
-    if (this.mpvSubtitle3DMode !== Subtitle3DMode.DISABLED && !this.supportsSubtitle3D()) {
-      this.mpvSubtitle3DMode = Subtitle3DMode.DISABLED
-    }
-    const showMpvSubtitle = (this.subtitleSelected === SubtitleMode.INNER_SUBTITLE &&
-      this.subtitleTrackSelected >= 0) || (this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE &&
-      this.externalSubtitleTrackSelected >= 0)
-    mpvSetSubtitleRenderVisibility(this.mpvHandle, showMpvSubtitle,
-      showMpvSubtitle && this.secondarySubtitleTrackSelected >= 0)
-    if (this.subtitleSelected === SubtitleMode.INNER_SUBTITLE ||
-      this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
-      this.subtitle = ''
-      this.lastSubtitle = ''
-    }
-  }
-
-  private shouldPreserveCurrentAssStyle(): boolean {
-    if (this.subtitleSelected === SubtitleMode.EXTERNAL_SUBTITLE) {
-      return this.isAssCodec(this.externalSubtitleCodec) ||
-        this.isAssCodec(this.nowPlaying?.external_subtitle_format ?? '')
-    }
-    if (this.subtitleSelected !== SubtitleMode.INNER_SUBTITLE) {
-      return false
-    }
-    const selectedTrack = this.subtitleTrack.find((track: MpvSubtitleTrack) =>
-    track.id === this.subtitleTrackSelected)
-    return this.isAssCodec(selectedTrack?.codec ?? '')
-  }
-
-  private isAssCodec(codec: string): boolean {
-    const normalizedCodec = codec.trim().toLowerCase().replace('.', '')
-    return normalizedCodec === 'ass' || normalizedCodec === 'ssa'
-  }
-
-  private shouldPreserveSecondaryAssStyle(): boolean {
-    if (this.subtitleSelected !== SubtitleMode.INNER_SUBTITLE ||
-      this.secondarySubtitleTrackSelected < 0) {
-      return false
-    }
-    const selectedTrack = this.subtitleTrack.find((track: MpvSubtitleTrack) =>
-    track.id === this.secondarySubtitleTrackSelected)
-    return this.isAssCodec(selectedTrack?.codec ?? '')
-  }
-
-  private refreshMpv3DSubtitleText(): void {
-    if (!this.mpvHandle || this.mpvSubtitle3DMode === Subtitle3DMode.DISABLED) {
-      return
-    }
-    const texts = mpvGetSubtitleTexts(this.mpvHandle) as MpvSubtitleTexts
-    const lines: string[] = []
-    const secondaryText = texts.secondary?.trim() ?? ''
-    const primaryText = texts.primary?.trim() ?? ''
-    if (secondaryText.length > 0) {
-      lines.push(secondaryText)
-    }
-    if (primaryText.length > 0) {
-      lines.push(primaryText)
-    }
-    const subtitleText = lines.join('\n')
-    if (subtitleText !== this.lastSubtitle) {
-      this.lastSubtitle = subtitleText
-      this.subtitle = subtitleText
-    }
-  }
-
-  private isBitmapSubtitleTrack(track: MpvSubtitleTrack): boolean {
-    const codec = (track.codec ?? '').toLowerCase()
-    return codec.includes('pgs') || codec.includes('dvd_subtitle') ||
-      codec.includes('dvb_subtitle') || codec.includes('xsub')
-  }
-
   // 清理MPV实例
   private cleanupMpvInstance() {
     this.cancelSmartRotationTimer()
@@ -2686,9 +2488,7 @@ export class MpvController implements PlayerControllerInterface {
     // 重置回调注册标志
     this.osdVisibility = false
     this.playTime = 0
-    this.mpvSubtitle3DMode = Subtitle3DMode.DISABLED
-    this.subtitle = ''
-    this.lastSubtitle = ''
+    this.subtitleController.reset()
     this.playbackCallbackRegistered = false
     this.timeUpdateCallbackRegistered = false
     this.videoSizeCallbackRegistered = false
@@ -2826,7 +2626,7 @@ export class MpvController implements PlayerControllerInterface {
         verification.savedPlaying, verification.savedVideo)
     } else {
       this.cancelDecodingModeVerification()
-      ToolsUtil.showToast('播放失败，请尝试其他视频')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.playback_failed_try_other').id))
       this.transitionTo(MpvPlayerState.ERROR)
     }
   }
@@ -2843,11 +2643,11 @@ export class MpvController implements PlayerControllerInterface {
     }
     const hardwareDecoder = verification.targetMode === 'buffer_hw' ? mpvGetHardwareDecoder(this.mpvHandle) : 'no'
     if (verification.targetMode === 'buffer_hw' && hardwareDecoder === 'no') {
-      ToolsUtil.showToast('当前视频不支持硬件解码，已自动回退到软件解码')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.hw_decode_fallback_sw').id))
       salmonLogger.addLog(TAG, '[MpvController] Hardware decoding unavailable, fell back to software decoding', true)
     } else if (verification.targetMode === 'buffer_hw' &&
       (!hardwareDecoder || hardwareDecoder === 'unknown')) {
-      ToolsUtil.showToast('已切换到 Buffer 模式')
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.switched_to_buffer_mode').id))
     } else {
       ToolsUtil.showToast(`已成功切换到${verification.modeName}模式`)
     }

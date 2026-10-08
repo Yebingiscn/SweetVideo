@@ -1,3 +1,5 @@
+import ToolsUtil from './ToolsUtil'
+
 export interface SmbLogin {
   user: string
   domain: string
@@ -25,12 +27,12 @@ export default class SmbAddress {
     if (separator >= 0) {
       const embedded = user.substring(0, separator).trim()
       user = user.substring(separator + 1).trim()
-      if (!embedded || !user || /[;\\]/.test(user)) throw new Error('域账号格式应为 域\\用户名')
-      if (domain && domain.toLowerCase() !== embedded.toLowerCase()) throw new Error('用户名中的域与域输入框不一致')
+      if (!embedded || !user || /[;\\]/.test(user)) throw new Error(ToolsUtil.getStringResource($r('app.string.smb_domain_format').id))
+      if (domain && domain.toLowerCase() !== embedded.toLowerCase()) throw new Error(ToolsUtil.getStringResource($r('app.string.smb_domain_mismatch').id))
       domain = embedded
     }
-    if (/[\u0000-\u001f\u007f]/.test(user + domain)) throw new Error('SMB 账号包含控制字符')
-    if (!user && domain) throw new Error('填写域时也需要填写用户名')
+    if (/[\u0000-\u001f\u007f]/.test(user + domain)) throw new Error(ToolsUtil.getStringResource($r('app.string.smb_user_control_chars').id))
+    if (!user && domain) throw new Error(ToolsUtil.getStringResource($r('app.string.smb_domain_needs_user').id))
     return { user: user, domain: domain }
   }
 
@@ -41,13 +43,13 @@ export default class SmbAddress {
       const decoded = decodeURIComponent(value)
       if (/[\u0000-\u001f\u007f]/.test(decoded)) throw new Error()
       return decoded
-    } catch (_error) { throw new Error('SMB 地址编码无效，请将特殊字符进行 URL 编码') }
+    } catch (_error) { throw new Error(ToolsUtil.getStringResource($r('app.string.smb_address_encoding_invalid').id)) }
   }
 
   static path(value: string): string {
     const parts = value.split('/').filter((part: string) => part.length > 0)
     if (parts.some((part: string) => part === '.' || part === '..' || /[\\\u0000-\u001f\u007f]/.test(part))) {
-      throw new Error('SMB 路径不能包含 ..、反斜杠或控制字符')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.smb_path_invalid').id))
     }
     return parts.join('/')
   }
@@ -55,7 +57,7 @@ export default class SmbAddress {
   static decodePath(value: string): string {
     const parts = value.split('/').filter((part: string) => part.length > 0).map((part: string) => {
       const decoded = SmbAddress.decode(part)
-      if (decoded.includes('/') || decoded.includes('\\')) throw new Error('SMB 路径段不能包含编码后的斜杠')
+      if (decoded.includes('/') || decoded.includes('\\')) throw new Error(ToolsUtil.getStringResource($r('app.string.smb_path_slash').id))
       return decoded
     })
     return SmbAddress.path(parts.join('/'))
@@ -63,13 +65,13 @@ export default class SmbAddress {
 
   static parse(value: string): ParsedSmbAddress {
     const raw = value.trim()
-    if (!SmbAddress.isSmb(raw)) throw new Error('请输入 smb:// 开头的地址')
-    if (/[\u0000-\u001f\u007f]/.test(raw)) throw new Error('SMB 地址包含控制字符')
+    if (!SmbAddress.isSmb(raw)) throw new Error(ToolsUtil.getStringResource($r('app.string.smb_scheme_required').id))
+    if (/[\u0000-\u001f\u007f]/.test(raw)) throw new Error(ToolsUtil.getStringResource($r('app.string.smb_address_control_chars').id))
     const body = raw.substring(6)
     const slash = body.indexOf('/')
     let authority = slash < 0 ? body : body.substring(0, slash)
     const rawPath = slash < 0 ? '' : body.substring(slash + 1)
-    if (/[?#]/.test(rawPath)) throw new Error('SMB 文件名中的 # 和 ? 请分别写为 %23 和 %3F；暂不支持 URL 查询参数')
+    if (/[?#]/.test(rawPath)) throw new Error(ToolsUtil.getStringResource($r('app.string.smb_filename_escape').id))
     let user = '', password = '', domain = ''
     let hasUser = false, hasPassword = false
     const at = authority.lastIndexOf('@')
@@ -88,23 +90,23 @@ export default class SmbAddress {
     let host = '', portText = ''
     if (authority.startsWith('[')) {
       const close = authority.indexOf(']')
-      if (close < 0) throw new Error('IPv6 地址需要使用方括号，例如 smb://[::1]/Movies')
+      if (close < 0) throw new Error(ToolsUtil.getStringResource($r('app.string.smb_ipv6_brackets').id))
       host = SmbAddress.decode(authority.substring(1, close))
       const suffix = authority.substring(close + 1)
-      if (suffix && !/^:[0-9]+$/.test(suffix)) throw new Error('SMB 端口无效')
+      if (suffix && !/^:[0-9]+$/.test(suffix)) throw new Error(ToolsUtil.getStringResource($r('app.string.smb_port_invalid_short').id))
       portText = suffix ? suffix.substring(1) : ''
-      if (!host.includes(':') || !/^[0-9a-f:.]+(?:%[a-z0-9_.-]+)?$/i.test(host)) throw new Error('IPv6 地址无效')
+      if (!host.includes(':') || !/^[0-9a-f:.]+(?:%[a-z0-9_.-]+)?$/i.test(host)) throw new Error(ToolsUtil.getStringResource($r('app.string.smb_ipv6_invalid').id))
     } else {
       const colon = authority.indexOf(':')
-      if (colon >= 0 && authority.indexOf(':', colon + 1) >= 0) throw new Error('IPv6 地址请放在方括号内')
+      if (colon >= 0 && authority.indexOf(':', colon + 1) >= 0) throw new Error(ToolsUtil.getStringResource($r('app.string.smb_ipv6_in_brackets').id))
       host = colon < 0 ? authority : authority.substring(0, colon)
       portText = colon < 0 ? '' : authority.substring(colon + 1)
-      if (colon >= 0 && !portText) throw new Error('SMB 端口不能为空')
-      if (!host || /[\s\\/?#@%\[\]]/.test(host)) throw new Error('SMB 主机地址无效')
+      if (colon >= 0 && !portText) throw new Error(ToolsUtil.getStringResource($r('app.string.smb_port_required').id))
+      if (!host || /[\s\\/?#@%\[\]]/.test(host)) throw new Error(ToolsUtil.getStringResource($r('app.string.smb_host_invalid').id))
     }
     const port = portText ? Number(portText) : 445
     if ((portText && !/^[0-9]+$/.test(portText)) || !Number.isInteger(port) || port < 1 || port > 65535) {
-      throw new Error('端口应为 1–65535，默认 445')
+      throw new Error(ToolsUtil.getStringResource($r('app.string.smb_port_invalid').id))
     }
     const path = SmbAddress.decodePath(rawPath)
     const pathSlash = path.indexOf('/')

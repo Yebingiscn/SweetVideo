@@ -1,3 +1,4 @@
+import MediaSortUtil from '../../utils/MediaSortUtil'
 import { VideoList, VideoListController } from './VideoItemComponent'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { SideBarController } from '../SideBarComponent/SideBar'
@@ -69,8 +70,9 @@ export struct VideoView {
   @Param scrollToFolderDate: string = ''
   private passwd: string = 'passwd'
   private breadcrumbScroller: Scroller = new Scroller()
+  private searchBarFolderKey: string = ''
   private readonly FOLDER_TAB_MIN_WIDTH: number = 64
-  private readonly FOLDER_TAB_HEIGHT: number = 28
+  private readonly FOLDER_TAB_HEIGHT: number = 32
   @Event onSearchValueChange: (v: string) => void = () => {
   }
 
@@ -84,6 +86,10 @@ export struct VideoView {
 
   @Monitor('scrollToFolderDate')
   onFolderChanged() {
+    if (this.videoListController.directoryMode) {
+      this.breadcrumbScroller.scrollEdge(Edge.End)
+      return
+    }
     const treeFolders = FileFolderUtil.flattenTree(this.file_folder_list)
     const newIndex = treeFolders.findIndex(f => f.date === this.scrollToFolderDate)
     if (newIndex !== -1) {
@@ -93,8 +99,10 @@ export struct VideoView {
 
   aboutToAppear(): void {
     this._searchValue = this.searchValue
+    this.onSearchBarContextChanged()
     const savedField = Preferences.getSortField(PathUtils.appContext!)
-    if (savedField === SortField.NAME || savedField === SortField.DATETIME || savedField === SortField.TIME) {
+    if (savedField === SortField.NAME || savedField === SortField.DATETIME || savedField === SortField.TIME ||
+      savedField === SortField.RECENT_PLAY) {
       this.currentSortField = savedField as SortField
     }
     this.currentSortAsc = Preferences.getSortAsc(PathUtils.appContext!)
@@ -106,6 +114,17 @@ export struct VideoView {
     this._searchValue = this.searchValue
   }
 
+  @Monitor('videoListController.folder', 'videoListController.directoryMode',
+    'videoListController.directoryOverview', 'videoListController.videoMetaDataList', '_searchValue')
+  onSearchBarContextChanged(): void {
+    const folderKey = `${this.videoListController.folder.date}:${this.videoListController.directoryMode}:${this.videoListController.directoryOverview}`
+    if (folderKey !== this.searchBarFolderKey ||
+      (!this.videoListController.directoryMode && this.videoListController.videoDataSource.totalCount() === 0)) {
+      this.searchBarHidden = false
+    }
+    this.searchBarFolderKey = folderKey
+  }
+
   build() {
     Stack({ alignContent: Alignment.Top }) {
       if (this.sideBarController.overlay &&
@@ -115,6 +134,9 @@ export struct VideoView {
       }
       VideoList({
         videoListController: this.videoListController,
+        directoryVideos: this.videoListController.videoDataSource.data,
+        directoryLayout: Setting.listDisplayMode,
+        directoryCoverLayout: Setting.coverLayout,
         holdingHand: this.holdingHand,
         delMultipleList: this.delMultipleList,
         onDelMultipleListChange: (v: VideoMetadata[]) => {
@@ -130,16 +152,20 @@ export struct VideoView {
         pinyinSort: this.pinyinSort,
         searchBarHidden: this.searchBarHidden,
         onScrollDirectionChange: (isUp: boolean) => {
-          if (this.is_edit) {
+          if (this.is_edit || this.searchBarHidden === isUp) {
             return
           }
           animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
             this.searchBarHidden = isUp
           })
+        },
+        onDirectoryFolderChange: (date: string) => {
+          this.onScrollToFolderDateChange(date)
         }
       })
 
-      if (!this.loading && this.videoListController.openSideBarTip(this._searchValue)) {
+      if (!this.videoListController.directoryMode && !this.loading &&
+        this.videoListController.openSideBarTip(this._searchValue)) {
         Column() {
           Text($r('app.string.nothing')).fontSize(25).fontWeight(FontWeight.Bold)
           Text($r('app.string.open_side_bar_tip'))
@@ -151,10 +177,11 @@ export struct VideoView {
         .height('100%')
         .justifyContent(FlexAlign.Center)
         .animation({ duration: 150, curve: Curve.Ease })
-      } else if (!this.loading && this.videoListController.isSearchEmpty(this._searchValue)) {
+      } else if (!this.videoListController.directoryMode && !this.loading &&
+        this.videoListController.isSearchEmpty(this._searchValue)) {
         Column() {
-          Text('没有匹配结果').fontSize(25).fontWeight(FontWeight.Bold)
-          Text('当前文件夹没有匹配"' + this._searchValue + '"的视频')
+          Text($r('app.string.search_no_match_title')).fontSize(25).fontWeight(FontWeight.Bold)
+          Text($r('app.string.search_no_match_in_folder', this._searchValue))
             .fontSize(15)
             .textAlign(TextAlign.Center)
             .fontWeight(FontWeight.Lighter)
@@ -163,6 +190,9 @@ export struct VideoView {
         .height('100%')
         .justifyContent(FlexAlign.Center)
         .animation({ duration: 150, curve: Curve.Ease })
+      }
+      if (this.canShowRecentPlayButton()) {
+        this.RecentPlayButtonBuilder()
       }
       this.TopToolBarBuilder()
     }.width('100%')
@@ -222,7 +252,7 @@ export struct VideoView {
           },
           onSubmit: (value: string) => {
             if (value == '') {
-              if (this.videoListController.videoMetaDataList.length == 0) {
+              if (!this.videoListController.directoryMode && this.videoListController.videoMetaDataList.length == 0) {
                 ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
                 return
               }
@@ -235,7 +265,7 @@ export struct VideoView {
               this.onSearchValueChange('')
               return
             }
-            if (this.videoListController.videoMetaDataList.length == 0) {
+            if (!this.videoListController.directoryMode && this.videoListController.videoMetaDataList.length == 0) {
               ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.add_video_first').id))
             }
           },
@@ -286,14 +316,81 @@ export struct VideoView {
       }
       .width('100%')
 
-      if (Setting.showToast && this.file_folder_list.length > 1) {
-        this.FolderTabsBuilder()
-      }
+      this.FolderNavigationBuilder()
     }
     .width('100%')
     .padding({ top: SafeHeight.topSafeHeight, left: 16, right: 16 })
     .translate({ y: this.searchBarHidden ? -(SafeHeight.topSafeHeight + 100) : 0 })
     .animation({ duration: 300, curve: Curve.Ease })
+  }
+
+  private toggleDirectoryView(): void {
+    if (this.loading || this.videoListController.directoryTransitioning ||
+      this.videoListController.multipleChooseState === Visibility.Visible) { return }
+    this.searchBarHidden = false
+    this.videoListController.setDirectoryView(!this.videoListController.directoryMode)
+  }
+
+  @Builder
+  DirectoryBreadcrumbBuilder() {
+    Scroll(this.breadcrumbScroller) {
+      Row({ space: 8 }) {
+        Button($r('app.string.directory_all_folders'), { type: ButtonType.Normal })
+          .fontSize(13).fontColor(this.videoListController.directoryOverview ?
+            $r('app.color.main_color') : $r('app.color.text_color'))
+          .backgroundColor(Color.Transparent).padding({ left: 4, right: 4 })
+          .onClick(() => { this.videoListController.requestDirectory(null) })
+        if (!this.videoListController.directoryOverview) {
+          Repeat<FileFolder>(FileFolderUtil.getFolderPathChain(PathUtils.appContext!,
+            this.videoListController.folder?.date ?? ''))
+            .each((folder: RepeatItem<FileFolder>) => {
+              Row({ space: 8 }) {
+                SymbolGlyph($r('sys.symbol.chevron_right'))
+                  .fontSize(10).fontColor([$r('sys.color.font_tertiary')])
+                Button(folder.item.name, { type: ButtonType.Normal })
+                  .fontSize(13).fontColor(this.videoListController.folder?.date === folder.item.date ?
+                    $r('app.color.main_color') : $r('app.color.text_color'))
+                  .backgroundColor(Color.Transparent).padding({ left: 4, right: 4 })
+                  .constraintSize({ maxWidth: 160 })
+                  .onClick(() => { this.videoListController.requestDirectory(folder.item.date) })
+              }.height(36)
+            })
+            .key((folder: FileFolder) => folder.date + folder.name)
+        }
+      }.height(36).justifyContent(FlexAlign.Start)
+    }.scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off).width('100%')
+    .align(Alignment.Start)
+  }
+
+  @Builder
+  FolderNavigationBuilder() {
+    Row({ space: 8 }) {
+      Button({ type: ButtonType.Circle }) {
+        SymbolGlyph($r('sys.symbol.doc_plaintext_and_folder'))
+          .fontSize(19).fontColor([this.videoListController.directoryMode ?
+            $r('sys.color.white') : $r('app.color.text_color')])
+      }
+      .width(32).height(32)
+      .backgroundColor(this.videoListController.directoryMode ? $r('app.color.main_color') :
+        $r('app.color.search_component_blur'))
+      .accessibilityText(this.videoListController.directoryMode ? $r('app.string.directory_disable') :
+        $r('app.string.directory_enable'))
+      .enabled(!this.loading && !this.videoListController.directoryTransitioning &&
+        this.videoListController.multipleChooseState !== Visibility.Visible)
+      .onClick(() => { this.toggleDirectoryView() })
+      Row() {
+        if (this.videoListController.directoryMode) {
+          this.DirectoryBreadcrumbBuilder()
+        } else if (Setting.showToast && this.file_folder_list.length > 1) {
+          this.FolderTabsBuilder()
+        } else {
+          Text(this.videoListController.folder?.name ?? '')
+            .fontSize(13).fontColor($r('app.color.text_color'))
+            .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+      }.layoutWeight(1).height(36).alignItems(VerticalAlign.Center)
+
+    }.width('100%').height(36).alignItems(VerticalAlign.Center).margin({ top: 4 })
   }
 
   @Builder
@@ -304,6 +401,12 @@ export struct VideoView {
       pinyinSort: this.pinyinSort,
       pinyinSortField: SortField.NAME,
       items: [
+        {
+          field: SortField.RECENT_PLAY,
+          icon: $r('sys.symbol.play_circle'),
+          textResource: $r('app.string.sort_by_recent_play'),
+          onAction: (): void => this.handleSort(SortField.RECENT_PLAY, false)
+        },
         {
           field: SortField.DATETIME,
           icon: $r('sys.symbol.calendar'),
@@ -340,7 +443,7 @@ export struct VideoView {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.checkmark_square_on_square')),
         content: this.delMultipleList.length === this.videoListController.videoMetaDataList.length &&
-          this.videoListController.videoMetaDataList.length > 0 ? '取消全选' : $r('app.string.select_all')
+          this.videoListController.videoMetaDataList.length > 0 ? $r('app.string.deselect_all') : $r('app.string.select_all')
       })
         .onClick(() => {
           if (this.delMultipleList.length === this.videoListController.videoMetaDataList.length &&
@@ -372,10 +475,10 @@ export struct VideoView {
 
   @Builder
   FolderTabsBuilder() {
-    Scroll(this.breadcrumbScroller) {
-      Row({ space: 8 }) {
-        Repeat<FileFolder>(FileFolderUtil.flattenTree(this.file_folder_list))
-          .each((repeatItem: RepeatItem<FileFolder>) => {
+    List({ scroller: this.breadcrumbScroller, space: 8 }) {
+      Repeat<FileFolder>(FileFolderUtil.flattenTree(this.file_folder_list))
+        .each((repeatItem: RepeatItem<FileFolder>) => {
+          ListItem() {
             Row() {
               Text(repeatItem.item.name)
                 .fontSize(13)
@@ -408,17 +511,17 @@ export struct VideoView {
                 }
               }
             })
-          })
-          .key((item: FileFolder) => item.date.toString() + item.name)
-      }
-      .padding({ left: 16, right: 16 })
-      .height(36)
-      .margin({ top: -8 })
+          }.height(this.FOLDER_TAB_HEIGHT)
+        })
+        .key((item: FileFolder) => item.date)
+        .virtualScroll()
     }
+    .padding({ right: 4 })
     .width('100%')
     .height(36)
+    .listDirection(Axis.Horizontal)
+    .alignListItem(ListItemAlign.Center)
     .scrollBar(BarState.Off)
-    .scrollable(ScrollDirection.Horizontal)
     .edgeEffect(EdgeEffect.Spring)
   }
 
@@ -487,6 +590,51 @@ export struct VideoView {
         yOffset: 0,
         animation: { duration: 200, curve: Curve.Ease }
       })
+    })
+  }
+
+  /**
+   * 右下角「最近播放」悬浮按钮的显示条件：非导入中、非搜索/多选状态、且当前文件夹有视频
+   */
+  private canShowRecentPlayButton(): boolean {
+    return !this.videoListController.directoryOverview && !this.loading && !this.is_edit && this._searchValue.length === 0 &&
+      this.videoListController.multipleChooseState !== Visibility.Visible &&
+      this.videoListController.videoMetaDataList.length > 0
+  }
+
+  /**
+   * 播放当前文件夹里最近一次实际播放时间最新的视频
+   */
+  private async playMostRecentlyPlayedVideo(): Promise<void> {
+    const currentFolder = this.videoListController.folder
+    const latestFolders = Preferences.getFileFolder(PathUtils.appContext!)
+    const folder = currentFolder
+      ? latestFolders.find(f => f.date === currentFolder.date) ?? latestFolders[0]
+      : latestFolders[0]
+    const videoList: VideoMetadata[] = folder?.video_list ?? []
+    const target = MediaSortUtil.getMostRecentlyPlayed(videoList)
+    if (!target) {
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.no_play_record_in_folder').id))
+      return
+    }
+    if (ToolsUtil.isNetworkUrl(target.uri) || await SelectFileUtil.isFileExist(target.uri, true)) {
+      await ToolsUtil.routerWhere(this.pathStack, target, videoList)
+      return
+    }
+    ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.invalid_file_reimport').id))
+  }
+
+  @Builder
+  RecentPlayButtonBuilder() {
+    Button({ type: ButtonType.Circle, stateEffect: true }) {
+      SymbolGlyph($r('sys.symbol.play_circle'))
+        .attributeModifier(new SymbolGlyphFancyModifier(26, '', ''))
+    }
+    .attributeModifier(new ButtonFancyModifier(52, 52))
+    .attributeModifier(new SearchShadowModifier())
+    .position({ right: 20, bottom: (SafeHeight.bottomSafeHeight + 16) * 2 })
+    .onClick(async () => {
+      await this.playMostRecentlyPlayedVideo()
     })
   }
 }

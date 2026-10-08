@@ -28,7 +28,7 @@ export struct PrivacyPolicyComponent {
     Column() {
       Scroll() {
         Text() {
-          Span(`《${ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id)}的使用条款与隐私声明》`)
+          Span(ToolsUtil.getStringResourceArgs($r('app.string.terms_privacy_doc_title').id, ToolsUtil.getStringResource($r('app.string.EntryAbility_label').id)))
             .fontColor($r('app.color.main_color'))
           Span('\n\n' +
             '流心播放器（以下简称“本软件”）是由 郴州液态科技有限公司 （以下简称“我们”）开发，供您（以下称“用户”）免费使用的本地音视频播放软件。\n' +
@@ -69,10 +69,10 @@ export struct PrivacyPolicyComponent {
       }.scrollBar(BarState.Off).width('100%').height('85%').padding({ left: 16, right: 16 })
 
       Row() {
-        Button('拒绝并退出')
+        Button($r('app.string.decline_and_exit'))
           .onClick(() => {
             PathUtils.appContext!.terminateSelf()?.catch((error: Error) => {
-              ToolsUtil.showToast('关闭弹窗失败' + error)
+              ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.close_dialog_failed').id, String(error)))
             })
           })
           .fontColor(Color.Red)
@@ -81,7 +81,7 @@ export struct PrivacyPolicyComponent {
           .align(Alignment.Center)
           .width('40%')
 
-        Button('同意并继续')
+        Button($r('app.string.agree_and_continue'))
           .onClick(() => {
             ToolsUtil.startVibration()
             Preferences.saveOOBEVersion(PathUtils.appContext!, OOBEVersion)
@@ -114,7 +114,7 @@ export struct PrivacyPolicyComponent {
       enableOutsideInteractive: false,
       showClose: false,
       dragBar: false,
-      title: { title: '用户协议和隐私政策' },
+      title: { title: $r('app.string.user_agreement_privacy_title') },
       onWillDismiss: ((DismissSheetAction: DismissSheetAction) => {
         if (DismissSheetAction.reason == DismissReason.SLIDE_DOWN ||
           DismissSheetAction.reason == DismissReason.PRESS_BACK ||

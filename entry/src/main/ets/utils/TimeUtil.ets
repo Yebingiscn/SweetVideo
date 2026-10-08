@@ -1,4 +1,6 @@
 // 时间类，格式化时间
+import ToolsUtil from './ToolsUtil'
+
 export default class TimeUtil {
   static formatDateTime(timestamp: number): string {
     const date = new Date(timestamp)
@@ -65,33 +67,33 @@ export default class TimeUtil {
 
   static convertMSToChinese(ms: number | undefined): string {
     if (ms == undefined || Number.isNaN(ms) || ms <= 0) {
-      return '0秒'
+      return ToolsUtil.getStringResource($r('app.string.duration_zero_seconds').id)
     }
     const seconds = Math.floor(ms / 1000)
     if (seconds < 60) {
-      return `${seconds}秒`
+      return ToolsUtil.getStringResourceArgs($r('app.string.duration_seconds').id, seconds)
     }
     const minutes = Math.floor(seconds / 60)
     const remainingSeconds = seconds % 60
-    return `${minutes}分${remainingSeconds}秒`
+    return ToolsUtil.getStringResourceArgs2($r('app.string.duration_minutes_seconds').id, minutes, remainingSeconds)
   }
 
   static getTextByTime() {
     const hours = new Date().getHours()
     if (hours === 15) {
-      return '饮茶啦'
+      return ToolsUtil.getStringResource($r('app.string.greeting_tea_time').id)
     }
     // 常规时间问候
     if (hours >= 0 && hours < 5) {
-      return '晚安~'
+      return ToolsUtil.getStringResource($r('app.string.greeting_good_night').id)
     } else if (hours >= 5 && hours < 12) {
-      return '早上好'
+      return ToolsUtil.getStringResource($r('app.string.greeting_morning').id)
     } else if (hours >= 12 && hours < 14) {
-      return '中午好'
+      return ToolsUtil.getStringResource($r('app.string.greeting_noon').id)
     } else if (hours >= 14 && hours < 18) {
-      return '下午好'
+      return ToolsUtil.getStringResource($r('app.string.greeting_afternoon').id)
     } else {
-      return '晚上好'
+      return ToolsUtil.getStringResource($r('app.string.greeting_evening').id)
     }
   }
 }
