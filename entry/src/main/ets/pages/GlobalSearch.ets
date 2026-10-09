@@ -1,3 +1,4 @@
+import MediaLibraryService from '../utils/MediaLibraryService'
 import { SearchComponent } from '../component/VideoItemComponent/SearchComponent'
 import VideoListItem from '../component/VideoItemComponent/VideoListItemComponent'
 import Preferences from '../database/Preferences'
@@ -266,7 +267,7 @@ export struct GlobalSearch {
       this.message = ToolsUtil.getStringResource($r('app.string.describe_cover_hint').id)
       return
     }
-    const matches = new Set(SelectFileUtil.getItemFromSearch(
+    const matches = new Set(MediaLibraryService.getItemFromSearch(
       this.entries.map(entry => entry.video), this.query).map(video => video.uri))
     this.results = this.query.trim() ? this.entries.filter(entry => matches.has(entry.video.uri)) : this.entries
     this.message = ToolsUtil.getStringResourceArgs($r('app.string.all_folders_video_count').id, this.results.length)

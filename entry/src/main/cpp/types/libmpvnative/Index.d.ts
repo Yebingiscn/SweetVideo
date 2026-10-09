@@ -3,7 +3,8 @@ declare module 'libmpvnative.so' {
   export function loadExternalAudio(path: string, title: string, requestId: number): Promise<number>;
   export function removeExternalAudio(path: string, requestId: number): Promise<number>;
   export function setExternalAudioDelay(seconds: number): boolean;
-  export function danmakuCreate(surfaceId: string): number;
+  export function danmakuCreate(surfaceId: string, onStatus: (status: number) => void): number;
+  export const danmakuCacheLimit: number;
   export function danmakuStatus(handle: number): number;
   export function danmakuTexture(handle: number, id: number, width: number, height: number, rgba: ArrayBuffer): boolean;
   export function danmakuFrame(handle: number, sprites: Float32Array, width: number, height: number, opacity: number): boolean;

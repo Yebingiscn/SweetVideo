@@ -1,3 +1,4 @@
+import MediaLibraryService from '../../utils/MediaLibraryService'
 import MediaSortUtil from '../../utils/MediaSortUtil'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import SelectFileUtil from '../../utils/SelectFileUtil'
@@ -9,12 +10,7 @@ import { VideoDetailSheetBuilder } from '../../component/Dialog/VideoDetailDialo
 import Preferences from '../../database/Preferences'
 import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
-import {
-  ButtonFancyModifier,
-  DefaultDialogShadow,
-  MenuFancyModifier,
-  SymbolGlyphFancyModifier
-} from '../../common/AttributeModifierConfig'
+import { ButtonFancyModifier, DefaultDialogShadow, MenuFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import { PathUtils } from '../../utils/PathUtils'
 import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog'
 import NavigationAddress, { PrivacySpaceParams } from '../../common/NavigationCommon'
@@ -27,12 +23,7 @@ import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import { SortField } from '../../common/enum/SortField'
 import ShareUtil from '../../utils/ShareUtil'
 import { Privacy, PrivacySecureUtil, Setting } from '../../utils/ObservedUtil'
-import {
-  DELAY_JUMP_TO_PLAYER,
-  FULL_ALPHABET,
-  NO_BLUR_AMOUNT,
-  PRIVACY_BACKGROUND_BLUR_AMOUNT
-} from '../../common/Constants'
+import { DELAY_JUMP_TO_PLAYER, FULL_ALPHABET, NO_BLUR_AMOUNT, PRIVACY_BACKGROUND_BLUR_AMOUNT } from '../../common/Constants'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { VideoItemPreviewBuilder } from '../../component/VideoItemComponent/VideoItemPreviewBuilder'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
@@ -40,7 +31,7 @@ import { motion } from '@kit.MultimodalAwarenessKit'
 import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil'
 import { ScrollBarBuilder } from '../../component/VideoItemComponent/ScrollBarBuilder'
 import VideoListItem from '../../component/VideoItemComponent/VideoListItemComponent'
-import { VideoListController } from '../../component/VideoItemComponent/VideoItemComponent'
+import { VideoListController } from '../../controller/VideoListController'
 import { DeleteType } from '../../common/enum/DeleteType'
 import { SortMenuComponent } from '../../component/common/SortMenuComponent'
 
@@ -77,7 +68,7 @@ export struct PrivacySpace { // 隐私空间页
       preserveExtension: true,
       onConfirm: (title: string) => {
         const editingVideo = DataSyncUtil.editingVideo!
-        const targetIndex = SelectFileUtil.getItemIndex(this.video_meta_data_encryption, editingVideo)
+        const targetIndex = MediaLibraryService.getItemIndex(this.video_meta_data_encryption, editingVideo)
         if (targetIndex === -1) {
           return
         }
@@ -221,7 +212,7 @@ export struct PrivacySpace { // 隐私空间页
           if (this.searchValue.trim() === '') {
             this.video_meta_data_encryption = this.allVideos
           } else {
-            this.video_meta_data_encryption = SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue)
+            this.video_meta_data_encryption = MediaLibraryService.getItemFromSearch(this.allVideos, this.searchValue)
           }
           this.videoDataSource.updateData(this.video_meta_data_encryption)
         },
@@ -270,7 +261,7 @@ export struct PrivacySpace { // 隐私空间页
       items: [
         {
           field: SortField.RECENT_PLAY,
-          icon: $r('sys.symbol.play_circle'),
+          icon: $r('sys.symbol.play_round_triangle_fill'),
           textResource: $r('app.string.sort_by_recent_play'),
           onAction: (): void => this.handleSort(SortField.RECENT_PLAY, false)
         },
@@ -398,10 +389,10 @@ export struct PrivacySpace { // 隐私空间页
       })
         .onClick(async () => {
           await SubtitleUtil.importOrDeleteSubtitleProcess(item!)
-          const targetIndex = SelectFileUtil.getItemIndex(this.allVideos, item!)
+          const targetIndex = MediaLibraryService.getItemIndex(this.allVideos, item!)
           if (targetIndex !== -1) {
             this.allVideos[targetIndex] = item!
-            const displayIndex = SelectFileUtil.getItemIndex(this.video_meta_data_encryption, item!)
+            const displayIndex = MediaLibraryService.getItemIndex(this.video_meta_data_encryption, item!)
             if (displayIndex !== -1) {
               this.video_meta_data_encryption[displayIndex] = item!
               this.videoDataSource.updateItem(displayIndex, item!)
@@ -439,7 +430,7 @@ export struct PrivacySpace { // 隐私空间页
       () => {
         this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
         this.video_meta_data_encryption = this.searchValue.trim()
-          ? SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue)
+          ? MediaLibraryService.getItemFromSearch(this.allVideos, this.searchValue)
           : this.allVideos
         const sortField = Preferences.getSortField(PathUtils.appContext!) as SortField
         if (sortField) {
@@ -460,7 +451,7 @@ export struct PrivacySpace { // 隐私空间页
   onKnockFilesReceived(_mon: IMonitor): void {
     this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
     this.video_meta_data_encryption = this.searchValue.trim()
-      ? SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue) : this.allVideos
+      ? MediaLibraryService.getItemFromSearch(this.allVideos, this.searchValue) : this.allVideos
     this.videoDataSource.updateData(this.video_meta_data_encryption)
   }
 
@@ -505,10 +496,10 @@ export struct PrivacySpace { // 隐私空间页
     this.videoDataSource.deleteData(this.allVideos.findIndex(i => i.date === date))
     this.allVideos = this.allVideos.filter(i => i.date !== date)
     this.video_meta_data_encryption = this.searchValue.trim()
-      ? SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue)
+      ? MediaLibraryService.getItemFromSearch(this.allVideos, this.searchValue)
       : this.allVideos
     this.videoDataSource.updateData(this.video_meta_data_encryption)
-    await SelectFileUtil.deletePrivacyVideo(date, title, this.allVideos)
+    await MediaLibraryService.deletePrivacyVideo(date, title, this.allVideos)
   }
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
@@ -788,7 +779,7 @@ export struct PrivacySpace { // 隐私空间页
     .onShown(() => {
       this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
       this.video_meta_data_encryption = this.searchValue.trim()
-        ? SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue)
+        ? MediaLibraryService.getItemFromSearch(this.allVideos, this.searchValue)
         : this.allVideos
       this.videoDataSource.updateData(this.video_meta_data_encryption)
       if (DataSyncUtil.lastPlayVideoIndex >= 0) {
@@ -1005,13 +996,13 @@ export struct PrivacySpace { // 隐私空间页
     if (this.delMultipleList.length === 0) {
       return
     }
-    await VideoOperateUtil.deleteVideoFiles(this.delMultipleList, DeleteType.HARD)
+    await MediaLibraryService.deleteVideoFiles(this.delMultipleList, DeleteType.HARD)
     const deleteDates = new Set(this.delMultipleList.map(v => v.date))
     this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
       .filter(v => !deleteDates.has(v.date))
     Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, this.allVideos)
     this.video_meta_data_encryption = this.searchValue.trim()
-      ? SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue)
+      ? MediaLibraryService.getItemFromSearch(this.allVideos, this.searchValue)
       : this.allVideos
     this.videoDataSource.updateData(this.video_meta_data_encryption)
     ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_success').id))
@@ -1083,7 +1074,7 @@ export struct PrivacySpace { // 隐私空间页
 
   private applySearch() {
     this.video_meta_data_encryption = this.searchValue.trim()
-      ? SelectFileUtil.getItemFromSearch(this.allVideos, this.searchValue)
+      ? MediaLibraryService.getItemFromSearch(this.allVideos, this.searchValue)
       : this.allVideos
     this.videoDataSource.updateData(this.video_meta_data_encryption)
   }

@@ -13,6 +13,7 @@ import { handleScreenDoubleClick } from '../../common/GestureUtil'
 
 @ObservedV2
 export class ShortVideoPlayerManager implements PiPPlayerController {
+  @Trace seekStartTime: number = 0
   @Trace selectedSpeed: number = 1
   @Trace onSwiping: boolean = false
   @Trace swipingTime: number = 0
@@ -21,9 +22,11 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   @Trace currentTime: number = 0
   @Trace duration: number = 0
   @Trace showControl: boolean = true
+  @Trace playbackItems: VideoMetadata[] = []
   private players: Map<number, ShortVideoPlayer> = new Map()
   private surfaceControllers: Map<number, XComponentController> = new Map()
   private items: VideoMetadata[] = []
+  private itemIndices: Map<string, number> = new Map()
   private generation: number = 0
   private skipHistory: boolean = false
   private avSession: avSession.AVSession | undefined = undefined
@@ -47,14 +50,31 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     return this.players.get(this.currentIndex)
   }
 
-  configure(items: VideoMetadata[], skipHistory: boolean, onCompleted: (index: number) => void): void {
-    this.items = items
+  configure(items: VideoMetadata[], skipHistory: boolean, onCompleted: (index: number) => void,
+    initialIndex: number = 0): void {
+    this.items = items.slice()
+    this.itemIndices.clear()
+    this.items.forEach((item: VideoMetadata, index: number) => this.itemIndices.set(item.date, index))
     this.skipHistory = skipHistory
     this.onCompleted = onCompleted
     const savedSpeed = parseFloat(Preferences.getVideoSpeed(PathUtils.appContext!).replace('x', ''))
     this.selectedSpeed = VideoInfoUtil.videoSpeedListAll.includes(savedSpeed) ? savedSpeed : 1
     this.repeatMode = Preferences.getRepeatModeState(PathUtils.appContext!)
+    this.rebuildPlaybackQueue(this.items[initialIndex])
     AVSessionUtil.applyAudioConcurrencyMode()
+  }
+
+  getItemIndex(item: VideoMetadata | undefined): number {
+    return item ? this.itemIndices.get(item.date) ?? -1 : -1
+  }
+
+  getSwiperIndex(index: number): number {
+    const item = this.items[index]
+    return item ? this.playbackItems.findIndex((entry: VideoMetadata) => entry.date === item.date) : -1
+  }
+
+  getPlaybackIndex(swiperIndex: number): number {
+    return this.getItemIndex(this.playbackItems[swiperIndex])
   }
 
   getOrCreate(index: number): ShortVideoPlayer | undefined {
@@ -67,6 +87,11 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
         (playing: boolean, currentTime: number) => this.handlePlaybackStateChanged(index, playing, currentTime))
       player.setPlaybackRate(this.selectedSpeed)
       this.players.set(index, player)
+      // Repeat 可以保留 Surface，而播放器已被缓存回收；重建时恢复现有绑定。
+      const surfaceId = this.surfaceControllers.get(index)?.getXComponentSurfaceId()
+      if (surfaceId) {
+        player.bindSurface(surfaceId)
+      }
     }
     return player
   }
@@ -76,6 +101,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     oldIndices.forEach((oldIndex: number) => {
       if (oldIndex !== index && this.surfaceControllers.get(oldIndex) === controller) {
         this.surfaceControllers.delete(oldIndex)
+        this.releasePlayer(oldIndex)
       }
     })
     this.surfaceControllers.set(index, controller)
@@ -83,10 +109,21 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     player?.bindSurface(surfaceId)
     if (index === this.currentIndex) {
       player?.setActive(true)
-    } else if (Math.abs(index - this.currentIndex) <= 1) {
+    } else if (this.currentIndex >= 0 && this.indexDistance(index, this.currentIndex) <= 1) {
       player?.prepare().catch(() => {
       })
     }
+  }
+
+  unbindSurface(controller: XComponentController): void {
+    // 以 Controller 身份清理，避免复用节点的旧销毁回调删除新节点的绑定。
+    const indices = Array.from(this.surfaceControllers.keys())
+    indices.forEach((index: number) => {
+      if (this.surfaceControllers.get(index) === controller) {
+        this.surfaceControllers.delete(index)
+        this.releasePlayer(index)
+      }
+    })
   }
 
   async activate(index: number): Promise<void> {
@@ -109,6 +146,9 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
       const deactivateTask: Promise<void> = oldPlayer.setActive(false)
       await deactivateTask
     }
+    if (generation !== this.generation) {
+      return
+    }
     if (oldIndex !== index || target?.state !== 'playing') {
       await target?.setActive(true)
     }
@@ -116,8 +156,11 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
       return
     }
     await this.updateBackgroundSession(index)
-    this.preload(index - 1)
-    this.preload(index + 1)
+    if (generation !== this.generation) {
+      return
+    }
+    this.preload(this.adjacentIndex(index, -1))
+    this.preload(this.adjacentIndex(index, 1))
     await this.trim(index)
   }
 
@@ -151,7 +194,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     if (!player || player.duration <= 0) {
       return
     }
-    VideoOperateUtil.lastPlayTime = player.currentTime
+    this.seekStartTime = player.currentTime
     this.swipingTime = player.currentTime
     this.currentTime = player.currentTime
     this.onSwiping = true
@@ -167,7 +210,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     }
     const timePerPixel = VideoOperateUtil.getTimePixel(screenWidth, player.duration)
     this.swipingTime = Math.max(0,
-      Math.min(VideoOperateUtil.lastPlayTime + offsetX * timePerPixel, player.duration))
+      Math.min(this.seekStartTime + offsetX * timePerPixel, player.duration))
     this.currentTime = this.swipingTime
   }
 
@@ -250,7 +293,14 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
   }
 
   selectRepeatMode(repeatMode: SweetRepeatMode): void {
+    if (repeatMode === this.repeatMode) {
+      return
+    }
+    const rebuildQueue = repeatMode === SweetRepeatMode.RANDOM || this.repeatMode === SweetRepeatMode.RANDOM
     this.repeatMode = repeatMode
+    if (rebuildQueue) {
+      this.rebuildPlaybackQueue(this.nowPlaying)
+    }
   }
 
   beginLongPress(index: number): void {
@@ -307,11 +357,13 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     if (index !== this.currentIndex) {
       return
     }
-    const nextItem = VideoOperateUtil.computeAdjacentVideo(this.items, this.items[index], this.repeatMode, 'next')
+    // 随机模式已打乱 Swiper 队列，自动切换与上滑必须沿同一条队列前进。
+    const nextItem = VideoOperateUtil.computeAdjacentVideo(this.playbackItems, this.items[index],
+      this.repeatMode === SweetRepeatMode.RANDOM ? SweetRepeatMode.LIST : this.repeatMode, 'next')
     if (!nextItem) {
       return
     }
-    const nextIndex = this.items.findIndex((item: VideoMetadata) => item.date === nextItem.date)
+    const nextIndex = this.getItemIndex(nextItem)
     if (nextIndex < 0) {
       return
     }
@@ -370,7 +422,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
       this.avSession?.on('rewind', () => this.backForward())
       this.avSession?.on('outputDeviceChange', () => this.pause())
       this.avSession?.on('setLoopMode', (mode: avSession.LoopMode) => {
-        this.repeatMode = AVSessionUtil.getRepeatModeFromAvSession(mode)
+        this.selectRepeatMode(AVSessionUtil.getRepeatModeFromAvSession(mode))
         Preferences.saveRepeatModeState(PathUtils.appContext!, this.repeatMode)
         AVSessionUtil.updatePlaybackSessionState(this.playing, this.currentPlayer?.currentTime || 0,
           this.repeatMode, this.selectedSpeed)
@@ -387,15 +439,66 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     })
   }
 
+  private isLoopingList(): boolean {
+    return this.repeatMode === SweetRepeatMode.LIST || this.repeatMode === SweetRepeatMode.RANDOM
+  }
+
+  private rebuildPlaybackQueue(anchor: VideoMetadata | undefined): void {
+    const anchorPosition = Math.max(0, this.getSwiperIndex(this.getItemIndex(anchor)))
+    const queue = this.items.slice()
+    if (this.repeatMode === SweetRepeatMode.RANDOM) {
+      for (let index = queue.length - 1; index > 0; index--) {
+        const randomIndex = Math.floor(Math.random() * (index + 1))
+        const item = queue[index]
+        queue[index] = queue[randomIndex]
+        queue[randomIndex] = item
+      }
+      // 切换随机模式时保留当前视频的位置和播放器，不跳播或重建正在播放的 Surface。
+      const shuffledAnchor = queue.findIndex((item: VideoMetadata) => item.date === anchor?.date)
+      if (shuffledAnchor >= 0) {
+        const item = queue[anchorPosition]
+        queue[anchorPosition] = queue[shuffledAnchor]
+        queue[shuffledAnchor] = item
+      }
+    }
+    this.playbackItems = queue
+  }
+
+  private adjacentIndex(index: number, direction: number): number {
+    const position = this.getSwiperIndex(index)
+    if (position < 0) {
+      return -1
+    }
+    const next = position + direction
+    const target = this.isLoopingList() && this.playbackItems.length > 0 ?
+      (next + this.playbackItems.length) % this.playbackItems.length : next
+    return this.getPlaybackIndex(target)
+  }
+
+  private indexDistance(index: number, center: number): number {
+    const position = this.getSwiperIndex(index)
+    const centerPosition = this.getSwiperIndex(center)
+    if (position < 0 || centerPosition < 0) {
+      return this.items.length
+    }
+    const distance = Math.abs(position - centerPosition)
+    return this.isLoopingList() ? Math.min(distance, this.playbackItems.length - distance) : distance
+  }
+
+  private releasePlayer(index: number): Promise<void> {
+    const player = this.players.get(index)
+    this.players.delete(index)
+    return player?.release(this.skipHistory) ?? Promise.resolve()
+  }
+
   private async trim(center: number): Promise<void> {
     const releaseTasks: Promise<void>[] = []
     const indices = Array.from(this.players.keys())
     for (const index of indices) {
       const player = this.players.get(index)
-      if (player && Math.abs(index - center) > 3) {
-        this.players.delete(index)
-        this.surfaceControllers.delete(index)
-        releaseTasks.push(player.release(this.skipHistory))
+      if (player && this.indexDistance(index, center) > 3) {
+        // Surface 由列表项的 onDestroy/复用管理，不能随播放器缓存一起清掉。
+        releaseTasks.push(this.releasePlayer(index))
       }
     }
     await Promise.all(releaseTasks)

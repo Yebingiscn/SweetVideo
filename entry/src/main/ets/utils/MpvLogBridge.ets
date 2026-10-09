@@ -11,6 +11,7 @@ export function sanitizeMpvLog(text: string): string {
 }
 
 export class MpvLogBridge {
+  //MPV DEBUG 日志开关
   private static started: boolean = false
   // Hidden developer switch. Runtime Want parameters can override this default.
   private static diagnosticsEnabled: boolean = false

@@ -6,7 +6,7 @@ import { IPTVSource } from '../../interfaces/IPTVInterface'
 import { IPTVSourceDialog } from '../../component/Dialog/IPTVSourceDialog'
 import { InfoConfirmDialog } from '../../component/Dialog/InfoConfirmDialog'
 import Preferences from '../../database/Preferences'
-import IPTVUtil from '../../utils/IPTVUtil'
+import IPTVSourceService from '../../utils/IPTVSourceService'
 import { PathUtils } from '../../utils/PathUtils'
 import TimeUtil from '../../utils/TimeUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
@@ -26,7 +26,7 @@ export struct IPTVSourcePage {
     }),
     cornerRadius: 20,
     shadow: DefaultDialogShadow,
-    cancel: () => IPTVUtil.editingSource = undefined
+    cancel: () => IPTVSourceService.editingSource = undefined
   })
   private pendingDelete: IPTVSource | undefined = undefined
   deleteDialogController: CustomDialogController = new CustomDialogController({
@@ -56,7 +56,7 @@ export struct IPTVSourcePage {
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
         content: $r('app.string.edit')
       }).onClick(() => {
-        IPTVUtil.editingSource = source
+        IPTVSourceService.editingSource = source
         this.addDialogController.open()
       })
       MenuItem({
@@ -239,7 +239,7 @@ export struct IPTVSourcePage {
               icon: $r('sys.symbol.plus'),
               isEnabled: true,
               action: () => {
-                IPTVUtil.editingSource = undefined
+                IPTVSourceService.editingSource = undefined
                 this.addDialogController.open()
               }
             }
@@ -286,7 +286,7 @@ export struct IPTVSourcePage {
     ids.add(source.id)
     this.refreshingIds = ids
     try {
-      const refreshed = await IPTVUtil.refreshSource(source)
+      const refreshed = await IPTVSourceService.refreshSource(source)
       this.upsertSource(refreshed)
       ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.refresh_success_channels').id, refreshed.channelCount))
     } catch (error) {

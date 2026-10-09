@@ -1,4 +1,4 @@
-import ImageFileUtil from '../../utils/ImageFileUtil'
+import ImageStorage from '../../utils/ImageStorage'
 import { smbClose, SmbEntry } from 'libmpvnative.so'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
@@ -515,7 +515,7 @@ export struct SmbPage {
                 result.pixelMap.release()
                 continue
               }
-              cached = (await ImageFileUtil.savePixelMapToFile(root, filename, result.pixelMap,
+              cached = (await ImageStorage.savePixelMapToFile(root, filename, result.pixelMap,
                 { releasePixelMap: true, deleteOnFail: true })).length > 0
             }
           }

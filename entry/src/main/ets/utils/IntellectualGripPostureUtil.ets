@@ -62,10 +62,10 @@ export default class IntellectualGripPostureUtil {
       })
   }
 
-  static destroyHoldingHandStatus() {
+  static destroyHoldingHandStatus(callback?: Callback<motion.HoldingHandStatus>) {
     IntellectualGripPostureUtil.destroyHandStatus('holdingHandChanged',
       () => {
-        IntellectualGripPostureUtil.unregisterMotionEvent('holdingHandChanged')
+        IntellectualGripPostureUtil.unregisterMotionEvent('holdingHandChanged', callback)
       },
       () => {
       })
@@ -105,7 +105,11 @@ export default class IntellectualGripPostureUtil {
     }
     if (canIUse("SystemCapability.MultimodalAwareness.Motion")) {
       try {
-        motion.on(eventName as 'operatingHandChanged', cb as Callback<motion.OperatingHandStatus>)
+        if (eventName === 'holdingHandChanged') {
+          motion.on('holdingHandChanged', cb as Callback<motion.HoldingHandStatus>)
+        } else {
+          motion.on('operatingHandChanged', cb as Callback<motion.OperatingHandStatus>)
+        }
         IntellectualGripPostureUtil.registeredEvents.add(eventName)
       } catch (error) {
         if (error.code === 801) {
@@ -120,14 +124,23 @@ export default class IntellectualGripPostureUtil {
     }
   }
 
-  private static unregisterMotionEvent(eventName: string) {
+  private static unregisterMotionEvent(eventName: string, callback?: Callback<motion.HoldingHandStatus>) {
     if (!IntellectualGripPostureUtil.registeredEvents.has(eventName)) {
       return
     }
     if (canIUse("SystemCapability.MultimodalAwareness.Motion")) {
       try {
-        motion.off(eventName as 'operatingHandChanged')
-        IntellectualGripPostureUtil.registeredEvents.delete(eventName)
+        if (eventName === 'holdingHandChanged' && callback) {
+          // 播放页只释放自己的订阅，其他页面可能仍在使用同一事件。
+          motion.off('holdingHandChanged', callback)
+        } else {
+          if (eventName === 'holdingHandChanged') {
+            motion.off('holdingHandChanged')
+          } else {
+            motion.off('operatingHandChanged')
+          }
+          IntellectualGripPostureUtil.registeredEvents.delete(eventName)
+        }
       } catch (error) {
         salmonLogger.addLog(TAG, `${eventName} error` + error, true)
       }

@@ -1,7 +1,7 @@
+import MediaLibraryService from '../../utils/MediaLibraryService'
 import { DeleteType } from '../../common/enum/DeleteType'
 import { VideoSource } from '../../common/enum/VideoSource'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
-import SelectFileUtil from '../../utils/SelectFileUtil'
 import { DeleteOptionsGroup } from './DeleteOptionsGroup'
 
 @CustomDialog
@@ -64,7 +64,7 @@ export struct BatchVideoDeleteDialog {
 
   private getPermanentDeleteVisibility(): boolean {
     for (let i = 0; i < this.videoList.length; i++) {
-      if (!SelectFileUtil.isPathFromSource(this.videoList[i].uri, VideoSource.SWEET_VIDEO_DOWNLOAD_FILE)) {
+      if (!MediaLibraryService.isPathFromSource(this.videoList[i].uri, VideoSource.SWEET_VIDEO_DOWNLOAD_FILE)) {
         return false
       }
     }
@@ -73,7 +73,7 @@ export struct BatchVideoDeleteDialog {
 
   private getMoveToRecentVisibility(): boolean {
     for (let i = 0; i < this.videoList.length; i++) {
-      if (SelectFileUtil.isPathFromSource(this.videoList[i].uri, VideoSource.PHOTO_SELECT_OPTION)) {
+      if (MediaLibraryService.isPathFromSource(this.videoList[i].uri, VideoSource.PHOTO_SELECT_OPTION)) {
         return false
       }
     }

@@ -1,7 +1,7 @@
 import { fileIo as fs, picker } from '@kit.CoreFileKit'
 import { CapsuleSegmentButtonV2, ColorMetrics, SegmentButtonV2ItemOptions, SegmentButtonV2Items } from '@kit.ArkUI'
 import { IPTVSource, IPTVSourceType } from '../../interfaces/IPTVInterface'
-import IPTVUtil from '../../utils/IPTVUtil'
+import IPTVSourceService from '../../utils/IPTVSourceService'
 import { PathUtils } from '../../utils/PathUtils'
 import PermissionUtil from '../../utils/PermissionUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
@@ -43,7 +43,7 @@ export struct IPTVSourceDialog {
   }
 
   aboutToAppear(): void {
-    const editing = IPTVUtil.editingSource
+    const editing = IPTVSourceService.editingSource
     if (editing) {
       this.sourceName = editing.name
       this.sourceType = editing.sourceType
@@ -74,7 +74,7 @@ export struct IPTVSourceDialog {
   build() {
     Scroll() {
       Column({ space: 16 }) {
-        Text(IPTVUtil.editingSource ? $r('app.string.edit_iptv_source') : $r('app.string.add_iptv_source'))
+        Text(IPTVSourceService.editingSource ? $r('app.string.edit_iptv_source') : $r('app.string.add_iptv_source'))
           .fontSize(20)
           .fontColor($r('app.color.text_color'))
           .fontWeight(FontWeight.Bold)
@@ -221,7 +221,7 @@ export struct IPTVSourceDialog {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.iptv_fill_required').id))
       return undefined
     }
-    const editing = IPTVUtil.editingSource
+    const editing = IPTVSourceService.editingSource
     const now = Date.now()
     return {
       id: editing?.id ?? `iptv_${now}`,
@@ -250,7 +250,7 @@ export struct IPTVSourceDialog {
     }
     this.testing = true
     this.testMessage = ToolsUtil.getStringResource($r('app.string.iptv_parsing_source').id)
-    const result = await IPTVUtil.testSource(source)
+    const result = await IPTVSourceService.testSource(source)
     this.testSuccess = result.success
     if (result.success && result.preparedSource) {
       this.preparedSource = result.preparedSource
@@ -274,7 +274,7 @@ export struct IPTVSourceDialog {
     try {
       const signature = this.sourceSignature(source)
       const saved = this.preparedSource && this.preparedSignature === signature ?
-        this.preparedSource : await IPTVUtil.refreshSource(source)
+        this.preparedSource : await IPTVSourceService.refreshSource(source)
       this.onSaved?.(saved)
       ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.iptv_added_channels').id, saved.channelCount))
       this.closeDialog()
@@ -289,7 +289,7 @@ export struct IPTVSourceDialog {
   private closeDialog(): void {
     this.preparedSource = undefined
     this.preparedSignature = ''
-    IPTVUtil.editingSource = undefined
+    IPTVSourceService.editingSource = undefined
     this.controller?.close()
   }
 

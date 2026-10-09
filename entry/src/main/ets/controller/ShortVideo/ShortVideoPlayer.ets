@@ -1,3 +1,4 @@
+import MediaLibraryService from '../../utils/MediaLibraryService'
 import { NetworkPlayback } from '../../utils/NetworkPlayback'
 import { media } from '@kit.MediaKit'
 
@@ -13,6 +14,7 @@ import { PathUtils } from '../../utils/PathUtils'
 import PermissionUtil from '../../utils/PermissionUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
+import VideoInfoUtil from '../../utils/VideoInfoUtil'
 
 const TAG = 'ShortVideoPlayer'
 
@@ -30,6 +32,7 @@ export class ShortVideoPlayer {
   @Trace playbackRate: number = 1
   @Trace videoWidth: number = 0
   @Trace videoHeight: number = 0
+  @Trace audioCoverUri: string = ''
   private player: NativeAVPlayer | undefined = undefined
   private surfaceId: string = ''
   private prepareTask: Promise<void> | undefined = undefined
@@ -59,6 +62,9 @@ export class ShortVideoPlayer {
   }
 
   bindSurface(surfaceId: string): void {
+    if (this.surfaceId === surfaceId) {
+      return
+    }
     this.surfaceId = surfaceId
     if (this.player) {
       try {
@@ -91,9 +97,15 @@ export class ShortVideoPlayer {
   }
 
   async setActive(active: boolean): Promise<void> {
+    if (this.disposed) {
+      return
+    }
     this.active = active
     if (!active) {
       await this.pause()
+      if (this.disposed || this.active) {
+        return
+      }
       const restartFromBeginning = this.hasReachedWatchedThreshold()
       this.saveHistory()
       if (restartFromBeginning) {
@@ -115,7 +127,9 @@ export class ShortVideoPlayer {
     try {
       await task
     } catch (error) {
-      this.fail(error)
+      if (this.active) {
+        this.fail(error)
+      }
     } finally {
       if (this.playTask === task) {
         this.playTask = undefined
@@ -131,28 +145,34 @@ export class ShortVideoPlayer {
     if (this.state === 'completed') {
       this.resetToBeginning()
     }
+    const player = this.player
     try {
-      await this.player.play()
+      await player.play()
     } catch (error) {
-      this.fail(error)
+      if (this.active) {
+        this.fail(error, player)
+      }
     }
   }
 
   async toggle(): Promise<void> {
-    if (!this.player || !this.active) {
+    if (!this.player || !this.active || this.disposed) {
       return
     }
+    const player = this.player
     try {
       if (this.state === 'playing') {
-        await this.player.pause()
+        await player.pause()
       } else {
         if (this.state === 'completed') {
           this.resetToBeginning()
         }
-        await this.player.play()
+        await player.play()
       }
     } catch (error) {
-      this.fail(error)
+      if (this.active) {
+        this.fail(error, player)
+      }
     }
   }
 
@@ -175,11 +195,12 @@ export class ShortVideoPlayer {
     if (!this.player || this.state !== 'playing') {
       return
     }
-    try {
-      this.player.setPlaybackRate(rate)
-    } catch (error) {
-      salmonLogger.addLog(TAG, `set playback rate failed: ${error}`, true)
-    }
+    const player = this.player
+    player.setPlaybackRate(rate).catch((error: BusinessError) => {
+      if (!this.disposed && this.player === player) {
+        salmonLogger.addLog(TAG, `set playback rate failed: ${error}`, true)
+      }
+    })
   }
 
   async pause(): Promise<void> {
@@ -197,7 +218,7 @@ export class ShortVideoPlayer {
     if (!this.hasBeenActive || skipHistory || this.currentTime <= 0 || this.currentTime === this.lastSavedTime) {
       return
     }
-    VideoOperateUtil.saveVideoPlayTimeIfNeed(this.currentTime, this.item, false, PathUtils.appContext!)
+    MediaLibraryService.saveVideoPlayTimeIfNeed(this.currentTime, this.item, false, PathUtils.appContext!)
     this.lastSavedTime = this.currentTime
   }
 
@@ -206,6 +227,8 @@ export class ShortVideoPlayer {
       return
     }
     this.disposed = true
+    this.state = 'released'
+    this.audioCoverUri = ''
     this.smbPlayback.close()
     this.preparedResolver?.()
     this.clearPrepareCallbacks()
@@ -228,6 +251,7 @@ export class ShortVideoPlayer {
 
   private async prepareInternal(): Promise<void> {
     this.state = 'preparing'
+    this.errorMessage = ''
     try {
       const player = await NativeAVPlayer.create()
       if (this.disposed) {
@@ -242,10 +266,17 @@ export class ShortVideoPlayer {
         this.preparedResolver = resolve
         this.preparedRejecter = reject
       })
+      // 源设置/权限检查还在等待时，也可能提前收到准备失败回调。
+      prepared.catch(() => {
+      })
       const permissionGranted = await PermissionUtil.activatePermission(this.item.uri)
       if (!permissionGranted) {
         throw new Error(ToolsUtil.getStringResource($r('app.string.cannot_read_video_file').id))
       }
+      if (this.disposed) {
+        return
+      }
+      this.audioCoverUri = VideoInfoUtil.getCachedAudioCoverUri(this.item)
       if (ToolsUtil.isNetworkUrl(this.item.uri)) {
         await player.setUrlSource(url, this.smbPlayback.headers(this.item.network_http_headers))
       } else {
@@ -278,7 +309,7 @@ export class ShortVideoPlayer {
             preferredHdr: true
           }).catch(() => {
           })
-          player.prepare().catch((error: BusinessError) => this.fail(error))
+          player.prepare().catch((error: BusinessError) => this.fail(error, player))
           break
         case 'prepared':
           this.state = 'prepared'
@@ -301,12 +332,7 @@ export class ShortVideoPlayer {
           this.state = 'playing'
           this.onPlaybackStateChanged(true, this.currentTime)
           if (this.playbackRate !== 1) {
-            try {
-              player.setPlaybackRate(this.playbackRate)
-            } catch (error) {
-              ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.system_exception').id))
-              salmonLogger.addLog(TAG, 'setPlaybackRate error', true)
-            }
+            this.setPlaybackRate(this.playbackRate)
           }
           if (!this.active) {
             player.pause().catch(() => {
@@ -335,10 +361,16 @@ export class ShortVideoPlayer {
       }
     })
     player.on('timeUpdate', (time: number) => {
+      if (this.disposed || this.player !== player) {
+        return
+      }
       this.currentTime = time
       this.onPlaybackStateChanged(this.state === 'playing', time)
     })
     player.on('error', (error: BusinessError) => {
+      if (this.disposed || this.player !== player) {
+        return
+      }
       this.fail(error)
     })
   }
@@ -390,13 +422,16 @@ export class ShortVideoPlayer {
     }
   }
 
-  private fail(error: Object): void {
+  private fail(error: Object, player?: NativeAVPlayer): void {
+    if (this.disposed || (player !== undefined && this.player !== player)) {
+      return
+    }
     this.state = 'error'
     this.onPlaybackStateChanged(false, this.currentTime)
     this.errorMessage = `${error}`
     this.preparedRejecter?.(new Error(this.errorMessage))
     this.clearPrepareCallbacks()
-    salmonLogger.addLog(TAG, `playback failed: ${this.item.uri}, ${this.errorMessage}`, true)
+    salmonLogger.addLog(TAG, `playback failed: item=${this.item.date}, ${this.errorMessage}`, true)
   }
 
   private clearPrepareCallbacks(): void {

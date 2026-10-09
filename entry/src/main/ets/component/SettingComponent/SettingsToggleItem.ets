@@ -27,7 +27,7 @@ export struct SettingsToggleItem {
   }
 
   build() {
-    Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
+    Row() {
       Row({ space: 10 }) {
         SymbolGlyph(this._enable && this.symbol1 ? this.symbol1 : this.symbol)
           .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
@@ -60,7 +60,11 @@ export struct SettingsToggleItem {
         .selectedColor($r('app.color.main_color'))
         .width(45)
         .height(27)
+        .flexShrink(0)
     }
+    .justifyContent(FlexAlign.SpaceBetween)
+    .alignItems(VerticalAlign.Center)
+    .width('100%')
     .align(Alignment.Center)
     .attributeModifier(new SettingsItemModifier())
     .height(55)

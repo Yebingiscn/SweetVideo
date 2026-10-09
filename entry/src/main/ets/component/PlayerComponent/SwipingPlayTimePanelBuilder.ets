@@ -1,13 +1,13 @@
 import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
 import { Setting } from '../../utils/ObservedUtil'
 import TimeUtil from '../../utils/TimeUtil'
-import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { DIALOG_TITLE_FONT_SIZE } from '../../common/Constants'
 import { salmonLogger } from 'salmonlogger'
 
 @ObservedV2
 class SwipingPlayTimeValue {
   @Trace isSliderPlayTimeChange: boolean = false
+  @Trace seekStartTime: number = 0
   @Trace playTime: number = 0
   @Trace totalTime: number = 0
   @Trace pixelMap: PixelMap | null = null
@@ -47,14 +47,14 @@ export function SwipingPlayTimePanelBuilder(swipingPlayTimeValue: SwipingPlayTim
 
 function timeDiffSign(v: SwipingPlayTimeValue): string {
   const playTime = v.playTime || 0
-  const lastPlayTime = typeof VideoOperateUtil?.lastPlayTime === 'number' ? VideoOperateUtil.lastPlayTime : 0
+  const lastPlayTime = v.seekStartTime || 0
   const diff = Math.floor((playTime - lastPlayTime) / 1000)
   return diff > 0 ? '+' : diff < 0 ? '-' : ''
 }
 
 function timeDiffSeconds(v: SwipingPlayTimeValue): number {
   const playTime = v.playTime || 0
-  const lastPlayTime = typeof VideoOperateUtil?.lastPlayTime === 'number' ? VideoOperateUtil.lastPlayTime : 0
+  const lastPlayTime = v.seekStartTime || 0
   return Math.abs(Math.floor((playTime - lastPlayTime) / 1000))
 }
 
@@ -102,7 +102,7 @@ export function getFormattedTimeText(swipingPlayTimeValue: SwipingPlayTimeValue)
     if (swipingPlayTimeValue.isSliderPlayTimeChange) {
       return `${currentTime}/${totalTimeStr}`
     } else {
-      const lastPlayTime = typeof VideoOperateUtil?.lastPlayTime === 'number' ? VideoOperateUtil.lastPlayTime : 0
+      const lastPlayTime = swipingPlayTimeValue.seekStartTime || 0
       const timeDiff = Math.floor((playTime - lastPlayTime) / 1000)
       const sign = timeDiff > 0 ? '+' : ''
       return `${sign}${timeDiff}s : ${currentTime}/${totalTimeStr}`

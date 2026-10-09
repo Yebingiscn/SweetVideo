@@ -32,7 +32,7 @@ export struct SettingsMenuItem {
   }
 
   build() {
-    Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
+    Row() {
       Row({ space: 10 }) {
         SymbolGlyph(this.symbol)
           .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
@@ -69,7 +69,11 @@ export struct SettingsMenuItem {
           this.onChange(index)
         })
         .divider(null)
+        .flexShrink(0)
     }
+    .justifyContent(FlexAlign.SpaceBetween)
+    .alignItems(VerticalAlign.Center)
+    .width('100%')
     .align(Alignment.Center)
     .attributeModifier(new SettingsItemModifier())
     .height(65)

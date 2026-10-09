@@ -1,3 +1,7 @@
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
+import VideoInfoUtil from './VideoInfoUtil'
+import { FrameSize } from '../interfaces/FrameSizeInterface'
+import { salmonLogger } from 'salmonlogger'
 import { Setting } from './ObservedUtil'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { image } from '@kit.ImageKit'
@@ -11,6 +15,8 @@ import {
   releaseThumbnailExtractor
 } from 'libmpvnative.so'
 import TextEncodingUtil from './TextEncodingUtil'
+
+const TAG = 'FramePreviewSession'
 
 export interface FFmpegMediaProbe {
   sourceWidth: number
@@ -327,3 +333,209 @@ export default class FFmpegThumbnailUtil {
     }
   }
 }
+
+/** 播放预览的句柄与串行创建、释放任务共用一个生命周期。 */
+export interface FramePreviewTarget {
+  nowPlaying: VideoMetadata | undefined
+  playTime: number
+  pixelMap: image.PixelMap | null
+}
+
+interface FramePreviewRequest {
+  target: FramePreviewTarget
+  media: VideoMetadata
+  time: number
+  generation: number
+  requestVersion: number
+}
+
+export class FramePreviewSession {
+  private requestOwner: FramePreviewTarget | undefined = undefined
+  private pendingRequest: FramePreviewRequest | undefined = undefined
+  private requestVersion: number = 0
+  private lastFrameFetchTime: number = 0
+  private lastFrameFetchPlayTime: number = -1
+  private frameFetchTimer: number = 0
+  private readonly FRAME_FETCH_INTERVAL: number = 200
+
+  async requestFrame(target: FramePreviewTarget, time: number, isFirstFrame: boolean): Promise<void> {
+    if (!Setting.showFrameImgStatus || !target.nowPlaying) { return }
+    if (this.requestOwner !== target) {
+      this.cancelRequests()
+      this.requestOwner = target
+    }
+    this.pendingRequest = {
+      target: target, media: target.nowPlaying, time: time,
+      generation: this.generation, requestVersion: this.requestVersion
+    }
+    if (isFirstFrame) {
+      clearTimeout(this.frameFetchTimer)
+      this.frameFetchTimer = 0
+      await this.fetchPendingFrame()
+    } else {
+      this.schedulePendingFrameFetch()
+    }
+  }
+
+  cancelRequests(target?: FramePreviewTarget): void {
+    if (target && this.requestOwner !== target) { return }
+    this.requestVersion++
+    clearTimeout(this.frameFetchTimer)
+    this.frameFetchTimer = 0
+    this.pendingRequest = undefined
+    this.requestOwner = undefined
+    this.lastFrameFetchTime = 0
+    this.lastFrameFetchPlayTime = -1
+  }
+
+  private schedulePendingFrameFetch(): void {
+    if (!this.pendingRequest || !this.updatePix || this.frameFetchTimer) { return }
+    const remaining = this.FRAME_FETCH_INTERVAL - (Date.now() - this.lastFrameFetchTime)
+    if (remaining <= 0) {
+      void this.fetchPendingFrame()
+      return
+    }
+    this.frameFetchTimer = setTimeout(() => {
+      this.frameFetchTimer = 0
+      void this.fetchPendingFrame()
+    }, remaining)
+  }
+
+  private async fetchPendingFrame(): Promise<void> {
+    if (!this.pendingRequest || !this.updatePix) { return }
+    const request = this.pendingRequest
+    this.pendingRequest = undefined
+    if (request.generation !== this.generation || request.requestVersion !== this.requestVersion ||
+      request.media !== request.target.nowPlaying) {
+      this.schedulePendingFrameFetch()
+      return
+    }
+    if (Math.floor(request.time) === Math.floor(this.lastFrameFetchPlayTime)) {
+      this.schedulePendingFrameFetch()
+      return
+    }
+    this.lastFrameFetchTime = Date.now()
+    this.lastFrameFetchPlayTime = request.time
+    try {
+      const img = await this.fetchFrame(request.time, request.media.size, VideoInfoUtil.hasVideoTrack(request.media))
+      if (img && request.generation === this.generation && request.requestVersion === this.requestVersion &&
+        request.media === request.target.nowPlaying && Math.abs(request.target.playTime - request.time) < 3000) {
+        request.target.pixelMap = img
+      } else {
+        await img?.release()
+      }
+    } catch (error) {
+      salmonLogger.addLog(TAG, '获取视频帧失败:' + error, true)
+    } finally {
+      this.schedulePendingFrameFetch()
+    }
+  }
+
+  private frameExtractorId: number | undefined = undefined
+  private generation: number = 0
+  private busy: boolean = false
+  private frameExtractorLifecycleTask: Promise<void> = Promise.resolve()
+
+  private get updatePix(): boolean {
+    return this.frameExtractorId !== undefined && !this.busy
+  }
+
+  async prepare(uri: string): Promise<void> {
+    this.cancelRequests()
+    if (!Setting.showFrameImgStatus) {
+      return
+    }
+    const generation = ++this.generation
+    const previousTask = this.frameExtractorLifecycleTask
+    const task = previousTask.catch(() => {
+    }).then(async () => {
+      await this.releaseFrameExtractorNow()
+      if (!Setting.showFrameImgStatus || generation !== this.generation) {
+        return
+      }
+      let extractorId: number | undefined
+      try {
+        extractorId = FFmpegThumbnailUtil.createLocalExtractor(uri)
+        this.frameExtractorId = extractorId
+      } catch (error) {
+        salmonLogger.addLog(TAG, 'prepare error' + error, true)
+        FFmpegThumbnailUtil.releaseExtractor(extractorId)
+      }
+    })
+    this.frameExtractorLifecycleTask = task
+    await task
+    this.schedulePendingFrameFetch()
+  }
+
+  async release(): Promise<void> {
+    this.cancelRequests()
+    this.generation++
+    const previousTask = this.frameExtractorLifecycleTask
+    const task = previousTask.catch(() => {
+    }).then(async () => {
+      await this.releaseFrameExtractorNow()
+    })
+    this.frameExtractorLifecycleTask = task
+    await task
+  }
+
+  private async fetchFrame(time: number, videoSize?: number[], hasVideoTrack: boolean = true):
+    Promise<image.PixelMap | undefined> {
+    const generation = this.generation
+    this.busy = true
+    // 抽帧也进入同一队列；释放不能抢在 native 异步抽帧结束之前关闭句柄。
+    const task = this.frameExtractorLifecycleTask.catch(() => {}).then(async (): Promise<image.PixelMap | undefined> => {
+      if (!Setting.showFrameImgStatus || generation !== this.generation) { return undefined }
+      try {
+        let size: FrameSize
+        if (!videoSize || !hasVideoTrack) {
+          return undefined
+        }
+        if (videoSize[0] <= 0 || videoSize[1] <= 0) {
+          return undefined
+        }
+        if (videoSize.length >= 2) {
+          const aspectSize = VideoInfoUtil.calculateAspectRatioSize(videoSize[0], videoSize[1], 200)
+          size = { width: aspectSize.width, height: aspectSize.height }
+        } else {
+          size = { width: 100, height: 100 }
+        }
+        const extractorId = this.frameExtractorId
+        if (extractorId === undefined) {
+          return undefined
+        }
+        const result = await FFmpegThumbnailUtil.extractFrame(extractorId, time * 1000, size.width, size.height)
+        if (generation !== this.generation) {
+          await result.pixelMap?.release()
+          return undefined
+        }
+        if (!result.success && result.error) {
+          salmonLogger.addLog(TAG, 'FFmpeg fetchFrame error: ' + result.error, true)
+        }
+        return result.pixelMap
+      } catch (e) {
+        salmonLogger.addLog(TAG, 'fetchFrame error', e)
+        return undefined
+      }
+    })
+    this.frameExtractorLifecycleTask = task.then(() => {}, () => {})
+    try {
+      return await task
+    } finally {
+      this.busy = false
+    }
+  }
+
+  private async releaseFrameExtractorNow(): Promise<void> {
+    const extractorId = this.frameExtractorId
+    this.frameExtractorId = undefined
+    try {
+      FFmpegThumbnailUtil.releaseExtractor(extractorId)
+    } catch (error) {
+      salmonLogger.addLog(TAG, `releaseFrameExtractor error: ${error}`, true)
+    }
+  }
+
+}
+
+export const framePreviewSession = new FramePreviewSession()

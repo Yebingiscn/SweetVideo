@@ -1,4 +1,4 @@
-import ImageFileUtil from '../../utils/ImageFileUtil'
+import ImageStorage from '../../utils/ImageStorage'
 import { DialogButtonBar } from './DialogButtonBar'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import Preferences from '../../database/Preferences'
@@ -146,7 +146,7 @@ export struct AddNetworkStreamDialog {
     try {
       const result = await FFmpegThumbnailUtil.extractNetworkCover(await smb.resolve(url), 300)
       if (result.success && result.pixelMap) {
-        await ImageFileUtil.savePixelMapToFile(PathUtils.coverPath, date, result.pixelMap,
+        await ImageStorage.savePixelMapToFile(PathUtils.coverPath, date, result.pixelMap,
           { releasePixelMap: true })
       } else if (result.error) {
         salmonLogger.addLog(TAG, `FFmpeg fetchThumbnail failed: ${result.error}`, false)

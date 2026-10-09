@@ -1,6 +1,6 @@
 import { FileFolder } from '../interfaces/FileFolderInterface';
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface';
-import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent';
+import { VideoListController } from '../controller/VideoListController'
 import { FileFolderDataSource } from '../utils/DataUtil';
 import { DeleteType } from '../common/enum/DeleteType';
 import FileFolderUtil from '../utils/FileFolderUtil';

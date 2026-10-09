@@ -4,7 +4,7 @@ import FFmpegThumbnailUtil, { FFmpegMediaProbe } from './FFmpegThumbnailUtil'
 import { image } from '@kit.ImageKit'
 import { salmonLogger } from 'salmonlogger'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
-import ImageFileUtil, { SavePixelMapOptions } from './ImageFileUtil'
+import ImageStorage, { SavePixelMapOptions } from './ImageStorage'
 import TextEncodingUtil from './TextEncodingUtil'
 import ToolsUtil from './ToolsUtil'
 import { fileIo } from '@kit.CoreFileKit'
@@ -183,13 +183,13 @@ export default class VideoInfoUtil {
     const saveCoverOptions: SavePixelMapOptions = { releasePixelMap: true, deleteOnFail: true }
     let saved = false
     if (pixelMap) {
-      const result = await ImageFileUtil.savePixelMapToFile(sandbox_path, date, pixelMap, saveCoverOptions)
+      const result = await ImageStorage.savePixelMapToFile(sandbox_path, date, pixelMap, saveCoverOptions)
       saved = result !== ''
     }
     if (!saved) {
       const frameResult = await FFmpegThumbnailUtil.extractCover(uri, durationMs)
       if (frameResult.success && frameResult.pixelMap) {
-        await ImageFileUtil.savePixelMapToFile(sandbox_path, date, frameResult.pixelMap, saveCoverOptions)
+        await ImageStorage.savePixelMapToFile(sandbox_path, date, frameResult.pixelMap, saveCoverOptions)
       } else if (frameResult.error) {
         salmonLogger.addLog(TAG, 'extract video frame as cover error: ' + frameResult.error, true)
       }
@@ -204,7 +204,7 @@ export default class VideoInfoUtil {
       date, uri, file_name, sandbox_video, fileSize, probe)
     const saveCoverOptions: SavePixelMapOptions = { releasePixelMap: true, deleteOnFail: true }
     if (pixelMap) {
-      await ImageFileUtil.savePixelMapToFile(sandbox_path, date, pixelMap, saveCoverOptions)
+      await ImageStorage.savePixelMapToFile(sandbox_path, date, pixelMap, saveCoverOptions)
     } else {
       const frameResult = await FFmpegThumbnailUtil.extractCover(uri, probe?.durationMs || 0)
       if (frameResult.success && frameResult.pixelMap) {
@@ -226,7 +226,7 @@ export default class VideoInfoUtil {
         if (targetVideo.frame_rate <= 0 && frameResult.frameRate > 0) {
           targetVideo.frame_rate = Math.round(frameResult.frameRate)
         }
-        await ImageFileUtil.savePixelMapToFile(sandbox_path, date, frameResult.pixelMap, saveCoverOptions)
+        await ImageStorage.savePixelMapToFile(sandbox_path, date, frameResult.pixelMap, saveCoverOptions)
       } else if (frameResult.error) {
         salmonLogger.addLog(TAG, 'extract video frame as cover error: ' + frameResult.error, true)
       }

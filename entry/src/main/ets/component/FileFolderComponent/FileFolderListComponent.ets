@@ -1,5 +1,5 @@
 import { FileFolder } from '../../interfaces/FileFolderInterface'
-import { VideoListController } from '../VideoItemComponent/VideoItemComponent'
+import { VideoListController } from '../../controller/VideoListController'
 import { FileFolderDataSource } from '../../utils/DataUtil'
 
 
@@ -28,13 +28,12 @@ export function FileFolderListBuilder(fileFolderListBuilderValue: FileFolderList
         .width(18).height(18).margin({ right: 6 })
         .hitTestBehavior(HitTestMode.None).focusable(false)
     }
-    if (fileFolderListBuilderValue.folder && fileFolderListBuilderValue.depth > 0) {
-      Row().width(fileFolderListBuilderValue.depth * 12)
-    }
     if (fileFolderListBuilderValue.hasChildren) {
       SymbolGlyph(fileFolderListBuilderValue.isExpanded ?
         $r('sys.symbol.chevron_down') : $r('sys.symbol.chevron_right'))
         .fontSize(10)
+        .width(10)
+        .margin({ left: fileFolderListBuilderValue.folder ? Math.max(0, fileFolderListBuilderValue.depth) * 12 : 0 })
         .fontColor([$r('sys.color.font_tertiary')])
         .animation({ duration: 200, curve: Curve.Ease })
         .onClick(() => {
@@ -42,24 +41,20 @@ export function FileFolderListBuilder(fileFolderListBuilderValue: FileFolderList
             fileFolderListBuilderValue.onToggleExpand!(fileFolderListBuilderValue.folder!.date)
           }
         })
-    } else {
-      Row().width(10)
     }
-    Row() {
-      SymbolGlyph(fileFolderListBuilderValue.videoListController?.folder?.date ===
+    SymbolGlyph(fileFolderListBuilderValue.videoListController?.folder?.date ===
+      fileFolderListBuilderValue.folder?.date ?
+      $r('sys.symbol.doc_plaintext_and_folder') : $r('sys.symbol.folder'))
+      .fontSize(22)
+      .fontColor(fileFolderListBuilderValue.videoListController?.folder?.date ===
         fileFolderListBuilderValue.folder?.date ?
-        $r('sys.symbol.doc_plaintext_and_folder') : $r('sys.symbol.folder'))
-        .fontSize(22)
-        .fontColor(fileFolderListBuilderValue.videoListController?.folder?.date ===
-          fileFolderListBuilderValue.folder?.date ?
-          [$r('app.color.main_color'), $r('app.color.text_color')] : [$r('sys.color.font_tertiary')])
-    }
-    .width(32)
-    .height(32)
-    .borderRadius(8)
-    .justifyContent(FlexAlign.Center)
-    .alignItems(VerticalAlign.Center)
-    .margin({ left: 4 })
+        [$r('app.color.main_color'), $r('app.color.text_color')] : [$r('sys.color.font_tertiary')])
+      .width(32)
+      .height(32)
+      .padding(5)
+      .borderRadius(8)
+      .margin({ left: 4 + (fileFolderListBuilderValue.hasChildren ? 0 : 10 +
+        (fileFolderListBuilderValue.folder ? Math.max(0, fileFolderListBuilderValue.depth) * 12 : 0)) })
 
     Column() {
       Text(fileFolderListBuilderValue.folder?.name)

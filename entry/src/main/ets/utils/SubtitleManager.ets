@@ -69,7 +69,7 @@ export class SubtitleManager {
 
   switchToExternal(): void {
     this.setMode(SubtitleMode.EXTERNAL_SUBTITLE)
-    this.player?.refreshExternalSubtitleByPlaybackTime(false, this.subtitleVisibility)
+    this.player?.subtitleController.refreshExternalSubtitleByPlaybackTime(false, this.subtitleVisibility)
     this.savePreference()
   }
 

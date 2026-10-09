@@ -1,3 +1,4 @@
+import { FramePreviewTarget } from '../utils/FFmpegThumbnailUtil'
 import { media } from '@kit.MediaKit'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { AVPlayerController } from './AVPlayerController/AVPlayerController'
@@ -22,13 +23,23 @@ export interface SubtitleControllerInterface {
   setSubtitleOffset(offsetMillis: number): void
   setSubtitle3DMode(mode: Subtitle3DMode): void
   supportsSubtitle3D(): boolean
+  refreshExternalSubtitleByPlaybackTime(isAdjustingSubtitleOffset: boolean, subtitleVisibility: Visibility): void
 }
 
-export interface PlayerControllerInterface {
+export interface AudioControllerInterface {
+  getAudioTrackList(): Promise<void>
+  selectAudioTrack(trackId: number): void
+  selectAudioTrackByIndex(index: number): void
+  getAudioTrackCount(): number
+  setLoudnessGain(loudnessGain: number): void
+  setAudioChannelMode(mode: number): void
+}
+
+export interface PlayerControllerInterface extends FramePreviewTarget {
+  readonly audioController: AudioControllerInterface
   readonly subtitleController: SubtitleControllerInterface
   surfaceId: string | null
   avSession: avSessionManager.AVSession | undefined
-  nowPlaying: VideoMetadata | undefined
   audioCoverUri?: string
   videoMetaDataList: VideoMetadata[]
   initialPlayTime: number | undefined
@@ -49,7 +60,6 @@ export interface PlayerControllerInterface {
   onSwipingBrightness: boolean
   onSwiping: boolean
   isSliderPlayTimeChange: boolean
-  playTime: number
   // Actual engine position, independent of the draggable progress preview.
   playbackPositionMs: number
   playing: boolean
@@ -65,7 +75,6 @@ export interface PlayerControllerInterface {
   translateX: number
   translateY: number
   angle: number
-  pixelMap: PixelMap | null
   audioTrackSelected: number
   abCircleStatus: boolean
   subtitleSelected: SubtitleMode
@@ -110,13 +119,9 @@ export interface PlayerControllerInterface {
 
   videoStartPlayTime(seekMode: number): void
 
-  getAudioTrackList(): Promise<void>
 
-  selectAudioTrack(trackId: number): void
 
-  selectAudioTrackByIndex(index: number): void
 
-  getAudioTrackCount(): number
 
   initAVSession(): Promise<void>
 
@@ -147,9 +152,6 @@ export interface PlayerControllerInterface {
   playChooseVideo(item: VideoMetadata, pathStack: NavPathStack,
     windowClass?: Promise<window.Window | undefined>, xComponentController?: XComponentController): Promise<void>
 
-  refreshExternalSubtitlePreview(offset: number): void
-
-  refreshExternalSubtitleByPlaybackTime(isAdjustingSubtitleOffset: boolean, subtitleVisibility: Visibility): void
 
   getAdjacentSubtitleOffset(direction: 'prev' | 'next', currentOffset: number): number | undefined
 
@@ -158,15 +160,12 @@ export interface PlayerControllerInterface {
 
   cancelSubscribe(): void
 
-  getFrameByTime(time: number, isFirstFrame: boolean): void
 
-  setLoudnessGain(loudnessGain: number): void
 
   setSubtitlePosition(position: number): void
 
   setSubtitleSize(size: number): void
 
-  setAudioChannelMode(mode: number): void
 
   isMpvPlayer(): boolean
 

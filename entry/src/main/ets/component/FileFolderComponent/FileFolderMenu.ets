@@ -1,5 +1,5 @@
 import { FileFolderDataSource } from '../../utils/DataUtil'
-import { VideoListController } from '../VideoItemComponent/VideoItemComponent'
+import { VideoListController } from '../../controller/VideoListController'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
 import { DefaultDialogShadow, MenuFancyModifier } from '../../common/AttributeModifierConfig'

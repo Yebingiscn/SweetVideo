@@ -37,19 +37,13 @@ export struct VideoLayoutComponent {
 
   @Builder
   buildBottomBar() {
-    Column() {
+    Column({ space: this.isLongScreen() ? 15 : 0 }) {
       if (this.isLongScreen()) {
-        // 长屏：垂直布局
-        Column({ space: 15 }) {
-          this.VideoButtons()
-          this.VideoSlider()
-        }
+        this.VideoButtons()
+        this.VideoSlider()
       } else {
-        // 普通屏幕：水平布局
-        Column() {
-          this.VideoSlider()
-          this.VideoButtons()
-        }
+        this.VideoSlider()
+        this.VideoButtons()
       }
     }
     .width('100%')

@@ -13,11 +13,11 @@ import { userData } from '../../component/common/UserLoginComponent'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { LengthMetrics } from '@kit.ArkUI'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
-import { VideoListController } from '../../component/VideoItemComponent/VideoItemComponent'
+import { VideoListController } from '../../controller/VideoListController'
 import StartupPageUtil from '../../utils/StartupPageUtil'
 
 @ComponentV2
-export struct PersonalizePage {
+export struct InterfaceSettingPage {
   @Consumer() videoListController: VideoListController = new VideoListController()
   @Local defaultStartupFolderName: string = ''
   defaultStartupFolderDialogController: CustomDialogController = new CustomDialogController({

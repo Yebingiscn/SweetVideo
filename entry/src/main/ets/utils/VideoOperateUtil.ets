@@ -1,18 +1,17 @@
 import ImageFileUtil from './ImageFileUtil'
-import { ExternalAudioStorage } from './ExternalAudioStorage';
 import { window } from '@kit.ArkUI'
 import { audio } from '@kit.AudioKit'
 import { BusinessError, settings, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { media } from '@kit.MediaKit'
 import { NativeAVPlayer } from '../controller/engine/NativeAVPlayer'
-import { SaveOptions, VideoMetadata } from '../interfaces/VideoMetadataInterface'
+import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
 import { common } from '@kit.AbilityKit'
 import { PathUtils } from './PathUtils'
 import ToolsUtil from './ToolsUtil'
 import { PlayerEngine } from '../common/NavigationCommon'
 import { Setting } from './ObservedUtil'
-import { fileIo, fileUri } from '@kit.CoreFileKit'
+import { fileIo } from '@kit.CoreFileKit'
 import { SweetRepeatMode } from '../common/enum/SweetRepeatMode'
 import { BackgroundColorMode } from '../common/enum/BackgroundColorMode'
 import { CoverLayoutMode, ListDisplayMode } from '../common/enum/DisplayMode'
@@ -22,29 +21,19 @@ import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { image } from '@kit.ImageKit'
 import VideoInfoUtil from './VideoInfoUtil'
 import { salmonLogger } from 'salmonlogger'
-import { FrameSize } from '../interfaces/FrameSizeInterface'
-import { Subtitle3DMode } from '../common/enum/SubtitleMode'
-import { DeleteType } from '../common/enum/DeleteType'
-import { DanmakuStorage } from './DanmakuStorage'
 import { AUTO_HIDE_SHOW_CONTROL_TIME, SCALE_FACTORS, SUPPORT_AUDIO_FORMAT } from '../common/Constants'
-import { VideoSource } from '../common/enum/VideoSource'
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode'
 import { LanguageConfig } from '../common/LanguageConfig'
 import Preferences from '../database/Preferences'
 import PreferencesUtil from '../database/PreferencesUtil'
 import { XAnimation } from './AnimationUtil'
-import DataSyncUtil from './DataSyncUtil'
 import PermissionUtil from './PermissionUtil'
-import PrivacySpaceUtil from './PrivacySpaceUtil'
-import RecentPlayUtil from './RecentPlayUtil'
-import SelectFileUtil from './SelectFileUtil'
 import SubtitleUtil from './SubtitleUtil'
 import { WindowUtil } from './WindowUtil'
-import { fileManagerService } from '@kit.FileManagerServiceKit'
-import FFmpegThumbnailUtil from './FFmpegThumbnailUtil'
 import { SubtitlePreferredLanguage } from '../common/enum/SubtitleLanguage'
 import SubtitleLanguageUtil from './SubtitleLanguageUtil'
 import { VIDEO_HDR_TYPE } from '../common/enum/HDR_TYPE'
+import MediaLibraryService from './MediaLibraryService'
 
 const TAG = 'VideoOperateUtil'
 
@@ -52,24 +41,8 @@ const TAG = 'VideoOperateUtil'
 export default class VideoOperateUtil {
   public static maxVolume: number = 0
   public static minVolume: number = 0
-  public static initPinchDistance: number = 0
-  public static initPinchWidth: number = 0
-  public static initPinchHeight: number = 0
-  public static initScaleFactor: number = 1
-  public static clearSubtitleTimer: number | null = null
-  public static screenBrightnessTmp: number = 0
-  public static lastSpeed: number = 1
-  public static lastPlayTime: number = 0
-  public static lastVolume: number = 0
   public static windowStage: window.WindowStage | undefined = undefined
-  public static longPressStartX: number = 0
-  public static panStartX: number = 0
-  public static panStartY: number = 0
   public static autoHideTimerId: number = -1
-  public static leftSideSwipe: boolean = true
-  public static frameExtractorId: number | undefined = undefined
-  public static updatePix: boolean = true
-  private static frameExtractorLifecycleTask: Promise<void> = Promise.resolve()
   private static mainWin: window.Window | undefined = undefined
 
   static scheduleControlAutoHide(onHide: () => void): void {
@@ -129,22 +102,6 @@ export default class VideoOperateUtil {
     return volume_list
   }
 
-  // 计算手指移动距离
-  static calcFingerDistance(f1: FingerInfo, f2: FingerInfo): number {
-    // 检查坐标是否存在
-    if (
-      typeof f1?.localX != 'number' ||
-        typeof f1?.localY != 'number' ||
-        typeof f2?.localX != 'number' ||
-        typeof f2?.localY != 'number'
-    ) {
-      return -1
-    }
-    const dx = f2.localX - f1.localX
-    const dy = f2.localY - f1.localY
-    return Math.sqrt(dx * dx + dy * dy)
-  }
-
   static async getAudioTracks(avPlayer: NativeAVPlayer): Promise<AudioTrack[]> {
     try {
       return await VideoOperateUtil.getTracksByType<AudioTrack>(avPlayer, media.MediaType.MEDIA_TYPE_AUD,
@@ -177,142 +134,6 @@ export default class VideoOperateUtil {
       salmonLogger.addLog(TAG, "获取 subtitleTracks 失败: " + error, true)
       return []
     }
-  }
-
-  // 保存视频播放进度
-  static saveVideoProperty(context: Context, nowPlaying: VideoMetadata, options: SaveOptions) {
-    SelectFileUtil.saveData(context, nowPlaying!, options)
-  }
-
-  static saveVideoTime(play_time: number, nowPlaying: VideoMetadata, context: Context) {
-    VideoOperateUtil.saveVideoProperty(context, nowPlaying, { playTime: play_time })
-    if (Setting.recentPlay && !PrivacySpaceUtil.getPrivacyMode() &&
-      !SelectFileUtil.isPathFromSource(nowPlaying.uri, VideoSource.PRIVACY_SPACE)) {
-      const result = Preferences.findVideoByDate(context, nowPlaying.date)
-      RecentPlayUtil.addPlayback(context, result[0] ?? nowPlaying!)
-    }
-  }
-
-  static saveVideoPlayTimeIfNeed(playTime: number, nowPlaying: VideoMetadata | undefined,
-    skipHistory: boolean, context: Context): void {
-    salmonLogger.addLog(TAG, `保存视频播放时间开始${playTime}, ${nowPlaying?.date}`, false)
-    if (!nowPlaying || playTime <= 0 || skipHistory) {
-      return
-    }
-    VideoOperateUtil.saveVideoTime(playTime, nowPlaying, context)
-    salmonLogger.addLog(TAG, `保存视频播放时间完成`, false)
-  }
-
-  static saveVideoStartTime(startTime: number, nowPlaying: VideoMetadata, context: Context) {
-    VideoOperateUtil.saveVideoProperty(context, nowPlaying, { startTime: startTime })
-  }
-
-  static saveVideoEndTime(endTime: number, nowPlaying: VideoMetadata, context: Context) {
-    VideoOperateUtil.saveVideoProperty(context, nowPlaying, { endTime: endTime })
-  }
-
-  static saveVideoWeightAndHeight(context: Context, nowPlaying: VideoMetadata) {
-    VideoOperateUtil.saveVideoProperty(context, nowPlaying, { size: nowPlaying.size })
-  }
-
-  static saveVideoTotalTime(context: Context, nowPlaying: VideoMetadata) {
-    VideoOperateUtil.saveVideoProperty(context, nowPlaying, { totalTime: nowPlaying.time })
-  }
-
-  static saveVideoPointA(context: Context, nowPlaying: VideoMetadata, pointA?: number) {
-    VideoOperateUtil.saveVideoProperty(context, nowPlaying, { pointA: pointA })
-  }
-
-  static saveVideoPointB(context: Context, nowPlaying: VideoMetadata, pointB?: number) {
-    VideoOperateUtil.saveVideoProperty(context, nowPlaying, { pointB: pointB })
-  }
-
-  static saveVideoHdrType(context: Context, nowPlaying: VideoMetadata, hdrType: number) {
-    VideoOperateUtil.saveVideoProperty(context, nowPlaying, { hdrType: hdrType })
-  }
-
-  static saveVideoAudioType(context: Context, nowPlaying: VideoMetadata, audioType: number) {
-    VideoOperateUtil.saveVideoProperty(context, nowPlaying, { audioType: audioType })
-  }
-
-  static saveLastPlayVideoIndex(list: VideoMetadata[], date: string | undefined) {
-    if (!date) {
-      return
-    }
-    const targetIndex = list.findIndex(i => i.date === date)
-    if (targetIndex === DataSyncUtil.lastPlayVideoIndex) {
-      DataSyncUtil.lastPlayVideoIndex = -1
-    } else {
-      DataSyncUtil.lastPlayVideoIndex = targetIndex
-    }
-  }
-
-  static async getFrameTimePreprocess(uri: string) {
-    if (!Setting.showFrameImgStatus) {
-      return
-    }
-    const previousTask = VideoOperateUtil.frameExtractorLifecycleTask
-    const task = previousTask.catch(() => {
-    }).then(async () => {
-      await VideoOperateUtil.releaseFrameExtractorNow()
-      if (!Setting.showFrameImgStatus) {
-        return
-      }
-      let extractorId: number | undefined
-      try {
-        extractorId = FFmpegThumbnailUtil.createLocalExtractor(uri)
-        VideoOperateUtil.frameExtractorId = extractorId
-        VideoOperateUtil.updatePix = true
-      } catch (error) {
-        salmonLogger.addLog(TAG, 'getFrameTimePreprocess error' + error, true)
-        FFmpegThumbnailUtil.releaseExtractor(extractorId)
-      }
-    })
-    VideoOperateUtil.frameExtractorLifecycleTask = task
-    await task
-  }
-
-  static async releaseFrameExtractor(): Promise<void> {
-    const previousTask = VideoOperateUtil.frameExtractorLifecycleTask
-    const task = previousTask.catch(() => {
-    }).then(async () => {
-      await VideoOperateUtil.releaseFrameExtractorNow()
-    })
-    VideoOperateUtil.frameExtractorLifecycleTask = task
-    await task
-  }
-
-  static async fetchFrameByTime(time: number, videoSize?: number[], hasVideoTrack: boolean = true) {
-    if (Setting.showFrameImgStatus) {
-      try {
-        await VideoOperateUtil.frameExtractorLifecycleTask
-        let size: FrameSize
-        if (!videoSize || !hasVideoTrack) {
-          return undefined
-        }
-        if (videoSize[0] <= 0 || videoSize[1] <= 0) {
-          return undefined
-        }
-        if (videoSize.length >= 2) {
-          size = VideoOperateUtil.calculateFrameSize(videoSize[0], videoSize[1])
-        } else {
-          size = { width: 100, height: 100 }
-        }
-        const extractorId = VideoOperateUtil.frameExtractorId
-        if (extractorId === undefined) {
-          return undefined
-        }
-        const result = await FFmpegThumbnailUtil.extractFrame(extractorId, time * 1000, size.width, size.height)
-        if (!result.success && result.error) {
-          salmonLogger.addLog(TAG, 'FFmpeg fetchFrameByTime error: ' + result.error, true)
-        }
-        return result.pixelMap
-      } catch (e) {
-        salmonLogger.addLog(TAG, 'fetchFrameByTime error', e)
-        return undefined
-      }
-    }
-    return undefined
   }
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
@@ -595,11 +416,6 @@ export default class VideoOperateUtil {
     return -1
   }
 
-  static calNewBrightness(deltaYScale: number) {
-    const newBrightness = VideoOperateUtil.screenBrightnessTmp - deltaYScale
-    return Math.min(Math.max(newBrightness, 0), 1)
-  }
-
   static getTimePixel(screenWidth: number, videoTime: number) {
     const baseTimePerPixel = videoTime > 600000 ? 600000 / screenWidth : videoTime / screenWidth
     const sensitivityFactor = Setting.seekSensitivity === 2 ? 0.1 : Setting.seekSensitivity === 1 ? 0.5 : 1.0
@@ -725,7 +541,7 @@ export default class VideoOperateUtil {
           reason = 'play-once'
           break
         case SweetRepeatMode.SEQUENCE:
-          nextItem = SelectFileUtil.getAdjacentItem(videoMetaDataList, item.date, direction, false)
+          nextItem = MediaLibraryService.getAdjacentItem(videoMetaDataList, item.date, direction, false)
           reason = nextItem ? 'adjacent' : 'list-boundary'
           break
         case SweetRepeatMode.SINGLE:
@@ -733,7 +549,7 @@ export default class VideoOperateUtil {
           reason = 'repeat-current'
           break
         case SweetRepeatMode.LIST:
-          nextItem = SelectFileUtil.getAdjacentItem(videoMetaDataList, item.date, direction, true)
+          nextItem = MediaLibraryService.getAdjacentItem(videoMetaDataList, item.date, direction, true)
           wrapped = direction === 'next' ? anchorIndex === total - 1 : anchorIndex === 0
           reason = wrapped ? (direction === 'next' ? 'wrap-to-start' : 'wrap-to-end') : 'adjacent'
           break
@@ -752,81 +568,6 @@ export default class VideoOperateUtil {
     return nextItem
   }
 
-  static saveSubtitlePreference(
-    nowPlaying: VideoMetadata | undefined,
-    subtitleSelected: number,
-    subtitleTrackSelected: number,
-    subtitleVisibility: Visibility,
-    isAIAsrShown: boolean,
-    subtitle3DMode: Subtitle3DMode
-  ): void {
-    const appContext = PathUtils.appContext
-    if (!nowPlaying || !appContext) {
-      return
-    }
-
-    const subtitleMode = SubtitleUtil.normalizeSubtitleMode(subtitleSelected)
-    const subtitleVisible = subtitleVisibility === Visibility.Visible
-    const subtitleAIAsrShown = isAIAsrShown
-    const subtitle3DModeValue = SubtitleUtil.normalizeSubtitle3DMode(subtitle3DMode)
-    const subtitleOffsetMillis = Math.max(-50000, Math.min(50000, Math.round(SubtitleUtil.offsetMillis)))
-    const subtitleTrackId = subtitleTrackSelected
-    const hasPreferenceChanged =
-      nowPlaying.subtitle_mode !== subtitleMode ||
-        nowPlaying.subtitle_visible !== subtitleVisible ||
-        nowPlaying.subtitle_ai_asr_shown !== subtitleAIAsrShown ||
-        nowPlaying.subtitle_3d_mode !== subtitle3DModeValue ||
-        nowPlaying.subtitle_offset_millis !== subtitleOffsetMillis ||
-        nowPlaying.subtitle_track_id !== subtitleTrackId
-
-    if (!hasPreferenceChanged) {
-      return
-    }
-
-    nowPlaying.subtitle_mode = subtitleMode
-    nowPlaying.subtitle_visible = subtitleVisible
-    nowPlaying.subtitle_ai_asr_shown = subtitleAIAsrShown
-    nowPlaying.subtitle_3d_mode = subtitle3DModeValue
-    nowPlaying.subtitle_offset_millis = subtitleOffsetMillis
-    nowPlaying.subtitle_track_id = subtitleTrackId
-
-    SelectFileUtil.saveData(appContext, nowPlaying, {
-      subtitleMode,
-      subtitleVisible,
-      subtitleAIAsrShown,
-      subtitle3DMode: subtitle3DModeValue,
-      subtitleOffsetMillis,
-      subtitleTrackId
-    })
-  }
-
-  static saveAudioTrackPreference(
-    nowPlaying: VideoMetadata | undefined,
-    audioTrackSelected: number,
-    audioTrackCount: number
-  ): void {
-    const appContext = PathUtils.appContext
-    if (!nowPlaying || !appContext) {
-      return
-    }
-    if (audioTrackCount <= 1) {
-      return
-    }
-    if (audioTrackSelected === 0) {
-      if (nowPlaying.audio_track_id !== undefined) {
-        nowPlaying.audio_track_id = undefined
-        SelectFileUtil.saveData(appContext, nowPlaying, { audioTrackId: null })
-      }
-      return
-    }
-    const audioTrackId = audioTrackSelected
-    if (nowPlaying.audio_track_id === audioTrackId) {
-      return
-    }
-    nowPlaying.audio_track_id = audioTrackId
-    SelectFileUtil.saveData(appContext, nowPlaying, { audioTrackId })
-  }
-
   static getAdjacentSubtitleOffset(playTime: number, currentOffset: number,
     direction: 'prev' | 'next'): number | undefined {
     const targetOffset = SubtitleUtil.getAdjacentSubtitleOffset(playTime, currentOffset, direction)
@@ -841,70 +582,11 @@ export default class VideoOperateUtil {
     return Math.round(targetOffset)
   }
 
-  static async deleteVideoResource(item: VideoMetadata, deleteType: DeleteType): Promise<void> {
-    if (!item.date) {
-      return
-    }
-    RecentPlayUtil.delData(PathUtils.appContext!, item.uri)
-    await ExternalAudioStorage.remove(item.date).catch((_error: Error) => {
-      salmonLogger.addLog(TAG, '删除视频外挂音频失败', true)
-    })
-    await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date, true).catch((error: Error) => {
-      salmonLogger.addLog(TAG, `删除视频字幕失败: ${error.message}`, true)
-    })
-    try {
-      DanmakuStorage.remove(item.date)
-    } catch (error) {
-      salmonLogger.addLog(TAG, `删除视频弹幕失败: ${error}`, true)
-    }
-    await SelectFileUtil.deleteCover(item.date).catch((error: Error) => {
-      salmonLogger.addLog(TAG, `删除视频封面失败: ${error.message}`, true)
-    })
-    if (deleteType === DeleteType.HARD) {
-      try {
-        await fileIo.unlink(item.uri)
-        salmonLogger.addLog(TAG, 'remove file succeed: ' + item.uri)
-      } catch (err) {
-        salmonLogger.addLog(TAG, 'remove file failed: ' + (err as Error).message, true)
-      }
-    } else if (deleteType === DeleteType.RECENT) {
-      if (canIUse('SystemCapability.FileManagement.FileManagerService.Core')) {
-        try {
-          await fileManagerService.deleteToTrash(fileUri.getUriFromPath(item.uri))
-        } catch (error) {
-          salmonLogger.addLog(TAG, "test delete failed, errCode:" + error.code + ", errMessage:" + error.message, true)
-          ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2($r('app.string.move_to_recycle_failed').id, error.code, error.message))
-        }
-      }
-    }
-  }
-
-  static async deleteVideoFiles(items: VideoMetadata[], deleteType: DeleteType): Promise<void> {
-    for (const item of items) {
-      try {
-        await VideoOperateUtil.deleteVideoResource(item, deleteType)
-      } catch (error) {
-        salmonLogger.addLog('BatchDelete', 'delete video failed: ' + (error as Error).message, true)
-      }
-    }
-  }
-
   private static containsDolbyAudioCodec(value: string): boolean {
     return value.includes('truehd') || value.includes('mlp') ||
       value.includes('eac3') || value.includes('e-ac-3') || value.includes('ec-3') ||
       value.includes('ddp') || value.includes('dolby') ||
       value.includes('ac3') || value.includes('ac-3')
-  }
-
-  private static async releaseFrameExtractorNow(): Promise<void> {
-    const extractorId = VideoOperateUtil.frameExtractorId
-    VideoOperateUtil.frameExtractorId = undefined
-    VideoOperateUtil.updatePix = false
-    try {
-      FFmpegThumbnailUtil.releaseExtractor(extractorId)
-    } catch (error) {
-      salmonLogger.addLog(TAG, `releaseFrameExtractor error: ${error}`, true)
-    }
   }
 
   private static async getTracksByType<T>(avPlayer: NativeAVPlayer, trackType: media.MediaType,
@@ -921,11 +603,5 @@ export default class VideoOperateUtil {
         resolve(tracks)
       })
     })
-  }
-
-  private static calculateFrameSize(videoWidth: number, videoHeight: number): FrameSize {
-    const size = VideoInfoUtil.calculateAspectRatioSize(videoWidth, videoHeight, 200)
-    const result: FrameSize = { width: size.width, height: size.height }
-    return result
   }
 }

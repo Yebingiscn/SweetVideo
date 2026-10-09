@@ -2,7 +2,8 @@ import NavigationAddress, { IPTVChannelParams, PlayerEngine, PlayerParams } from
 import Preferences from '../../database/Preferences'
 import { IPTVChannel, IPTVLine, IPTVSource } from '../../interfaces/IPTVInterface'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
-import IPTVUtil from '../../utils/IPTVUtil'
+import IPTVSourceService from '../../utils/IPTVSourceService'
+import IPTVParser from '../../utils/IPTVParser'
 import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
@@ -298,7 +299,7 @@ export struct IPTVChannelPage {
   @Builder
   LineMenu(channel: IPTVChannel) {
     Menu() {
-      Repeat<IPTVLine>(IPTVUtil.channelLines(channel))
+      Repeat<IPTVLine>(IPTVParser.channelLines(channel))
         .each((item: RepeatItem<IPTVLine>) => {
           MenuItem({
             content: $r('app.string.line_n', item.index + 1),
@@ -327,7 +328,7 @@ export struct IPTVChannelPage {
       sourceChannelIds.add(channel.id)
       return false
     })
-    const deduplicated = IPTVUtil.deduplicateChannels(this.source.channels)
+    const deduplicated = IPTVParser.deduplicateChannels(this.source.channels)
     if (deduplicated.length !== this.source.channels.length || hasDuplicateIds) {
       this.source.channels = deduplicated
       this.source.channelCount = deduplicated.length
@@ -370,7 +371,7 @@ export struct IPTVChannelPage {
       return
     }
     this.epgRefreshRunning = true
-    IPTVUtil.refreshEpg(source).then(refreshed => {
+    IPTVSourceService.refreshEpg(source).then(refreshed => {
       const sources = Preferences.getIPTVSources(PathUtils.appContext!)
       const savedSource = sources.find(item => item.id === refreshed.id)
       if (!savedSource || savedSource.epgUrl?.trim() !== refreshed.epgUrl?.trim()) {
@@ -509,19 +510,19 @@ export struct IPTVChannelPage {
     if (!this.source) {
       return
     }
-    IPTVUtil.selectLine(channel, index)
+    IPTVParser.selectLine(channel, index)
     const sources = Preferences.getIPTVSources(PathUtils.appContext!)
     const savedSource = sources.find(item => item.id === this.source!.id)
     const savedChannel = savedSource?.channels.find(item => item.id === channel.id)
     if (savedSource && savedChannel) {
-      IPTVUtil.selectLine(savedChannel, index)
+      IPTVParser.selectLine(savedChannel, index)
       Preferences.saveIPTVSources(PathUtils.appContext!, sources)
     }
     this.rebuildChannels()
   }
 
   private lineCount(channel: IPTVChannel): number {
-    return IPTVUtil.channelLines(channel).length
+    return IPTVParser.channelLines(channel).length
   }
 
   private selectedLineNumber(channel: IPTVChannel): number {
@@ -535,7 +536,7 @@ export struct IPTVChannelPage {
   }
 
   private toMetadata(channel: IPTVChannel): VideoMetadata {
-    const selectedLine = IPTVUtil.selectedLine(channel)
+    const selectedLine = IPTVParser.selectedLine(channel)
     return {
       uri: selectedLine.url,
       title: this.activeProgramTitle(channel),

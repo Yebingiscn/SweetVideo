@@ -139,7 +139,7 @@ export struct SettingsPage { //设置页
             symbol: $r('sys.symbol.square_and_pencil'),
             message: $r('app.string.settings_appearance'),
             onPress: () => {
-              this.pathStack.pushPathByName(NavigationAddress.PERSONALIZE_PAGE, true)
+              this.pathStack.pushPathByName(NavigationAddress.INTERFACE_SETTING_PAGE, true)
             }
           })
         }

@@ -1,12 +1,12 @@
+import MediaLibraryService from './MediaLibraryService'
 import { SortField } from '../common/enum/SortField'
-import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent'
+import { VideoListController } from '../controller/VideoListController'
 import Preferences from '../database/Preferences'
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { XAnimation } from './AnimationUtil'
 import { FileFolderDataSource } from './DataUtil'
 import { PathUtils } from './PathUtils'
-import SelectFileUtil from './SelectFileUtil'
 import ToolsUtil from './ToolsUtil'
 
 export interface SwitchFolderResult {
@@ -64,7 +64,7 @@ export default class VideoUtils {
     }
     let filteredVideos: VideoMetadata[] = currentFolder.video_list
     if (searchValue.length > 0) {
-      filteredVideos = SelectFileUtil.getItemFromSearch(currentFolder.video_list, searchValue)
+      filteredVideos = MediaLibraryService.getItemFromSearch(currentFolder.video_list, searchValue)
     }
     const sortField = Preferences.getSortField(PathUtils.appContext!) as SortField
     if (sortField) {

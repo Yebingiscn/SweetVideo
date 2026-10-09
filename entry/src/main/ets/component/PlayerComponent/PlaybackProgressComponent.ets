@@ -104,35 +104,29 @@ function showHours(params: AnimatedPlaybackTimeBuilderParams): boolean {
   return params.totalTime >= 3600000
 }
 
-@ComponentV2
-export struct PlaybackProgressSliderComponent {
-  @Param playTime: number = 0
-  @Param totalTime: number = 0
-  @Event onSliderChange: (_value: number) => void = () => {
-  }
-  @Event onSliderTouch: (_event: TouchEvent) => void = () => {
-  }
+export interface PlaybackProgressSliderParams {
+  playTime: number
+  totalTime: number
+  onSliderChange?: (value: number) => void
+  onSliderTouch?: (event: TouchEvent) => void
+}
 
-  build() {
-    Slider({
-      value: this.clampedPlayTime(),
-      min: 0,
-      max: Math.max(this.totalTime, 1),
-      style: SliderStyle.NONE
-    })
-      .trackThickness(12)
-      .selectedBorderRadius(16)
-      .onChange((value: number) => this.onSliderChange(value))
-      .onTouch((event: TouchEvent) => this.onSliderTouch(event))
-      .animation({ duration: 100, curve: Curve.Smooth })
-      .selectedColor('#e0e0e0')
-      .blockColor(Color.White)
-      .height(40)
-      .width('100%')
-      .opacity(0.9)
-  }
-
-  private clampedPlayTime(): number {
-    return Math.max(0, Math.min(this.playTime, Math.max(this.totalTime, 0)))
-  }
+@Builder
+export function PlaybackProgressSliderBuilder($$: PlaybackProgressSliderParams) {
+  Slider({
+    value: Math.max(0, Math.min($$.playTime, Math.max($$.totalTime, 0))),
+    min: 0,
+    max: Math.max($$.totalTime, 1),
+    style: SliderStyle.NONE
+  })
+    .trackThickness(12)
+    .selectedBorderRadius(16)
+    .onChange((value: number) => $$.onSliderChange?.(value))
+    .onTouch((event: TouchEvent) => $$.onSliderTouch?.(event))
+    .animation({ duration: 100, curve: Curve.Smooth })
+    .selectedColor('#e0e0e0')
+    .blockColor(Color.White)
+    .height(40)
+    .width('100%')
+    .opacity(0.9)
 }

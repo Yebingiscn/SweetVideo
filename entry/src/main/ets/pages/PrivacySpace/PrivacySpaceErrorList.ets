@@ -1,3 +1,4 @@
+import MediaLibraryService from '../../utils/MediaLibraryService'
 import { salmonLogger } from 'salmonlogger'
 import { ImageFancyModifier, MenuFancyModifier } from '../../common/AttributeModifierConfig'
 import Preferences from '../../database/Preferences'
@@ -39,7 +40,7 @@ export struct PrivacySpaceErrorList {
 
   async delItem(date: string) {
     this.errorListDataSource.deleteData(this.videoList.findIndex(i => i === date))
-    await SelectFileUtil.deletePrivacyVideo(date, date, Preferences.getVideoMetaDataEncryption(PathUtils.appContext!))
+    await MediaLibraryService.deletePrivacyVideo(date, date, Preferences.getVideoMetaDataEncryption(PathUtils.appContext!))
   }
 
   @Builder

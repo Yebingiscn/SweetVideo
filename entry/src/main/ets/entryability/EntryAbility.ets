@@ -1,3 +1,4 @@
+import MediaLibraryService from '../utils/MediaLibraryService'
 import ImageFileUtil from '../utils/ImageFileUtil'
 import { AbilityConstant, Configuration, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit'
 import { hiAppEvent, hilog } from '@kit.PerformanceAnalysisKit'
@@ -146,6 +147,7 @@ export default class EntryAbility extends UIAbility {
         hilog.error(0x0000, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err) ?? '')
         return
       }
+      this.updateWindowBackground()
       VideoOperateUtil.windowStage = windowStage
       if (this.mainWindow) {
         KnockShareUtil.start(this.context, this.mainWindow)
@@ -242,14 +244,25 @@ export default class EntryAbility extends UIAbility {
     }, 100)
     // 更新缓存中的颜色模式
     AppStorage.setOrCreate('currentColorMode', newConfig.colorMode)
+    this.updateWindowBackground()
     WindowUtil.recoveryBarColor()
+  }
+
+  private updateWindowBackground(): void {
+    try {
+      // 窗口旋转时新尺寸的内容可能尚未绘制，底色必须与应用主题一致。
+      const color = this.context.resourceManager.getColorSync($r('app.color.start_window_background').id)
+      this.mainWindow?.setWindowBackgroundColor(`#${(color >>> 0).toString(16).padStart(8, '0')}`)
+    } catch (error) {
+      salmonLogger.addLog(TAG, `更新窗口背景失败：${error}`, true)
+    }
   }
 
   private savePlayData() {
     const nowPlayingData =
       AppStorage.get('nowPlayingData') as (number | VideoMetadata | boolean)[]
     if (nowPlayingData && !nowPlayingData[2]) {
-      VideoOperateUtil.saveVideoTime(nowPlayingData[0] as number, nowPlayingData[1] as VideoMetadata,
+      MediaLibraryService.saveVideoTime(nowPlayingData[0] as number, nowPlayingData[1] as VideoMetadata,
         PathUtils.appContext!)
     }
   }

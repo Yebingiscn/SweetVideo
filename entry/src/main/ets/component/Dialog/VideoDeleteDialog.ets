@@ -1,7 +1,7 @@
+import MediaLibraryService from '../../utils/MediaLibraryService'
 import { DeleteType } from '../../common/enum/DeleteType'
 import { VideoSource } from '../../common/enum/VideoSource'
 import DataSyncUtil from '../../utils/DataSyncUtil'
-import SelectFileUtil from '../../utils/SelectFileUtil'
 import { DeleteOptionsGroup } from './DeleteOptionsGroup'
 
 function itemUri() {
@@ -71,10 +71,10 @@ export struct VideoDeleteDialog {
   }
 
   private getPermanentDeleteVisibility(): boolean {
-    return SelectFileUtil.isPathFromSource(this.uri, VideoSource.SWEET_VIDEO_DOWNLOAD_FILE)
+    return MediaLibraryService.isPathFromSource(this.uri, VideoSource.SWEET_VIDEO_DOWNLOAD_FILE)
   }
 
   private getMoveToRecentVisibility(): boolean {
-    return !SelectFileUtil.isPathFromSource(this.uri, VideoSource.PHOTO_SELECT_OPTION)
+    return !MediaLibraryService.isPathFromSource(this.uri, VideoSource.PHOTO_SELECT_OPTION)
   }
 }

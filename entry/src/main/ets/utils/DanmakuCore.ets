@@ -18,11 +18,50 @@ export const DANMAKU_MAX_BYTES: number = 8 * 1024 * 1024
 const MAX_ITEMS: number = 50000
 const SCROLL_DURATION: number = 8000
 const FIXED_DURATION: number = 4000
+const BASE_FONT_SIZE: number = 25
+const COLLISION_BAND_HEIGHT: number = 32
+const PREPARE_ITEMS: number = 16
+const FRAME_ITEMS: number = 128
+export const DANMAKU_MAX_ACTIVE: number = 120
 
 export interface DanmakuTextMetrics {
   width: number
   ascent: number
   descent: number
+}
+
+/** Bounded LRU: replacing one entry never invalidates all measured text. */
+export class DanmakuTextCache {
+  private entries: Map<string, DanmakuTextMetrics> = new Map()
+  private capacity: number
+
+  constructor(capacity: number = 4096) {
+    this.capacity = Math.max(1, Math.floor(capacity))
+  }
+
+  get(key: string): DanmakuTextMetrics | undefined {
+    const value = this.entries.get(key)
+    if (value) {
+      this.entries.delete(key)
+      this.entries.set(key, value)
+    }
+    return value
+  }
+
+  set(key: string, value: DanmakuTextMetrics): void {
+    this.entries.delete(key)
+    if (this.entries.size >= this.capacity) {
+      for (const oldest of this.entries.keys()) {
+        this.entries.delete(oldest)
+        break
+      }
+    }
+    this.entries.set(key, value)
+  }
+
+  clear(): void {
+    this.entries.clear()
+  }
 }
 
 export class DanmakuParser {
@@ -129,9 +168,10 @@ export class DanmakuClock {
     const error = target - current
     const smooth = this.initialized && this.running && !discontinuity && Math.abs(error) <= 1000
     this.position = smooth ? current : target
-    this.correction = smooth ? error : 0
-    // Limit clock correction to 20% of playback speed, so movement never reverses.
-    this.correctionDuration = Math.max(250, Math.abs(this.correction) / (this.rate * 0.2))
+    // Ignore ordinary callback jitter (about two frames). Do not modulate scrolling speed for it.
+    this.correction = smooth && Math.abs(error) > 32 * this.rate ? error : 0
+    // Larger drift converges gently; a seek still re-anchors immediately.
+    this.correctionDuration = Math.max(250, Math.abs(this.correction) / (this.rate * 0.05))
     this.stamp = stamp
     this.initialized = true
   }
@@ -145,8 +185,8 @@ export class DanmakuClock {
   }
 
   at(stamp: number): number {
-    // Bound extrapolation: an unreported stall must not run the entire timeline ahead.
-    const elapsed = Math.min(500, Math.max(0, stamp - this.stamp))
+    // Playback/buffering state freezes the clock. Sparse time callbacks must not stop animation.
+    const elapsed = Math.max(0, stamp - this.stamp)
     return this.position + (this.running ? elapsed * this.rate +
       this.correction * Math.min(1, elapsed / this.correctionDuration) : 0)
   }
@@ -173,6 +213,11 @@ export class DanmakuScheduler {
   private height: number = 0
   private font: number = 0
   private area: number = 0
+  private nextExpiry: number = Infinity
+  private collisionBands: DanmakuSprite[][] = []
+  private prepareCursor: number = 0
+  private invalid: Set<DanmakuItem> = new Set()
+  private prefetched: DanmakuSprite[] = []
 
   load(items: DanmakuItem[]): void {
     this.items = items
@@ -180,13 +225,50 @@ export class DanmakuScheduler {
   }
 
   reset(): void {
-    this.active = []
+    this.clearActive()
     this.lastTime = -1
     this.cursor = 0
+    this.prepareCursor = 0
+    this.invalid.clear()
+    this.prefetched.length = 0
   }
 
+  hasPendingPreparation(time: number, ahead: number): boolean {
+    const cursor = Math.max(this.prepareCursor, this.cursor)
+    return cursor < this.items.length && this.items[cursor].time <= time + ahead
+  }
+
+  /** Warm metrics in bounded tasks. Only future comments also prefetch their texture. */
+  prepare(time: number, font: number, ahead: number,
+    measure: (text: string, size: number) => DanmakuTextMetrics, now?: () => number): boolean {
+    this.prefetched.length = 0
+    this.prepareCursor = Math.max(this.prepareCursor, this.cursor)
+    let processed = 0
+    const start = now ? now() : 0
+    while (this.prepareCursor < this.items.length && this.items[this.prepareCursor].time <= time + ahead &&
+      processed < PREPARE_ITEMS && (processed === 0 || !now || now() - start < 3)) {
+      const item = this.items[this.prepareCursor++]
+      processed++
+      if (item.time + (item.mode === 1 ? SCROLL_DURATION : FIXED_DURATION) <= time) { continue }
+      const size = item.size * font / BASE_FONT_SIZE
+      try {
+        const metrics = measure(item.text, size)
+        if (!this.validMetrics(metrics)) {
+          this.invalid.add(item)
+        } else if (item.time > time) {
+          this.prefetched.push(this.sprite(item, size, metrics, -1, 0))
+        }
+      } catch (_) {
+        this.invalid.add(item)
+      }
+    }
+    return processed > 0
+  }
+
+  upcoming(): DanmakuSprite[] { return this.prefetched }
+
   frame(time: number, width: number, height: number, font: number, area: number,
-    measure: (text: string, size: number) => DanmakuTextMetrics): DanmakuSprite[] {
+    measure: (text: string, size: number) => DanmakuTextMetrics | undefined): DanmakuSprite[] {
     if (width <= 0 || height <= 0) {
       return []
     }
@@ -196,9 +278,12 @@ export class DanmakuScheduler {
     }
     const changed = width !== this.width || height !== this.height || font !== this.font || area !== this.area
     if (changed || this.lastTime < 0 || time < this.lastTime || time - this.lastTime > 1000) {
-      this.active = []
+      this.clearActive()
       // Reconstruct a bounded window after seek; discard excess density, never queue a burst.
       this.cursor = Math.max(this.lowerBound(time - SCROLL_DURATION), this.lowerBound(time + 0.001) - 2000)
+      this.prepareCursor = this.cursor
+      this.invalid.clear()
+      this.prefetched.length = 0
     }
     this.width = width
     this.height = height
@@ -207,22 +292,44 @@ export class DanmakuScheduler {
     const regionHeight = height * Math.max(0, Math.min(1, area))
     let processed = 0
     while (this.cursor < this.items.length && this.items[this.cursor].time <= time) {
-      const item = this.items[this.cursor++]
-      this.active = this.active.filter((sprite: DanmakuSprite): boolean => sprite.end > item.time)
-      if (++processed > 2000) {
-        this.cursor = this.lowerBound(time + 0.001)
+      if (++processed > FRAME_ITEMS) { break }
+      const item = this.items[this.cursor]
+      const duration = item.mode === 1 ? SCROLL_DURATION : FIXED_DURATION
+      if (item.time + duration <= time || this.invalid.has(item)) {
+        this.invalid.delete(item)
+        this.cursor++
+        continue
+      }
+      this.pruneExpired(item.time)
+      if (this.active.length >= DANMAKU_MAX_ACTIVE) {
+        this.cursor++
+        continue
+      }
+      // BiliBili's ordinary 25-size text uses the size selected in the UI.
+      const size = item.size * font / BASE_FONT_SIZE
+      let metrics: DanmakuTextMetrics | undefined
+      try {
+        metrics = measure(item.text, size)
+      } catch (_) {
+        this.cursor++
+        continue
+      }
+      // A cold glyph waits for the preparation task; never measure on the render callback.
+      if (!metrics) {
+        this.prepareCursor = Math.min(this.prepareCursor, this.cursor)
         break
       }
-      const size = item.size * font / 10
-      const metrics = measure(item.text, size)
+      this.cursor++
       const textWidth = metrics.width
+      if (!this.validMetrics(metrics)) {
+        continue
+      }
       // Tight glyph bounds plus outline padding; transparent raster space is not a lane.
       const textHeight = Math.ceil(metrics.ascent + metrics.descent) + 6
       const gap = Math.max(2, Math.round(8 - Math.max(0, size - 22) * 6 / 26))
       const line = textHeight + gap
       const lanes = Math.min(16, Math.max(0, Math.floor((regionHeight - 16 + gap) / line)))
-      const duration = item.mode === 1 ? SCROLL_DURATION : FIXED_DURATION
-      if (lanes === 0 || this.active.length >= 120 || (item.mode !== 1 && textWidth > width - 16)) {
+      if (lanes === 0 || (item.mode !== 1 && textWidth > width - 16)) {
         continue
       }
       for (let row = 0; row < lanes; row++) {
@@ -234,27 +341,65 @@ export class DanmakuScheduler {
         if (!this.available(y, textHeight, item, textWidth)) {
           continue
         }
-        this.active.push({
-          item: item,
-          width: textWidth,
-          font: size,
-          ascent: metrics.ascent,
-          height: textHeight,
-          lane: lane,
-          x: 0,
-          y: y,
-          end: item.time + duration
-        })
+        const sprite = this.sprite(item, size, metrics, lane, y)
+        this.active.push(sprite)
+        this.nextExpiry = Math.min(this.nextExpiry, sprite.end)
+        const firstBand = Math.floor(y / COLLISION_BAND_HEIGHT)
+        const lastBand = Math.floor((y + textHeight) / COLLISION_BAND_HEIGHT)
+        while (this.collisionBands.length <= lastBand) { this.collisionBands.push([]) }
+        for (let band = firstBand; band <= lastBand; band++) {
+          this.collisionBands[band].push(sprite)
+        }
         break
       }
     }
-    this.active = this.active.filter((sprite: DanmakuSprite): boolean => sprite.end > time)
-    this.active.forEach((sprite: DanmakuSprite): void => {
+    this.pruneExpired(time)
+    for (const sprite of this.active) {
       sprite.x = sprite.item.mode === 1 ? width - (width + sprite.width) *
         (time - sprite.item.time) / SCROLL_DURATION : (width - sprite.width) / 2
-    })
+    }
     this.lastTime = time
     return this.active
+  }
+
+  private validMetrics(metrics: DanmakuTextMetrics): boolean {
+    return Number.isFinite(metrics.width) && metrics.width > 0 && Number.isFinite(metrics.ascent) &&
+      Number.isFinite(metrics.descent) && metrics.ascent >= 0 && metrics.descent >= 0
+  }
+
+  private sprite(item: DanmakuItem, font: number, metrics: DanmakuTextMetrics, lane: number,
+    y: number): DanmakuSprite {
+    return {
+      item: item, width: metrics.width, font: font, ascent: metrics.ascent,
+      height: Math.ceil(metrics.ascent + metrics.descent) + 6, lane: lane, x: 0, y: y,
+      end: item.time + (item.mode === 1 ? SCROLL_DURATION : FIXED_DURATION)
+    }
+  }
+
+  private clearActive(): void {
+    this.active.length = 0
+    this.nextExpiry = Infinity
+    for (const band of this.collisionBands) { band.length = 0 }
+  }
+
+  private pruneExpired(time: number): void {
+    if (time < this.nextExpiry) { return }
+    let count = 0
+    this.nextExpiry = Infinity
+    for (const sprite of this.active) {
+      if (sprite.end > time) {
+        this.active[count++] = sprite
+        this.nextExpiry = Math.min(this.nextExpiry, sprite.end)
+      }
+    }
+    this.active.length = count
+    for (const band of this.collisionBands) {
+      let retained = 0
+      for (const sprite of band) {
+        if (sprite.end > time) { band[retained++] = sprite }
+      }
+      band.length = retained
+    }
   }
 
   private lowerBound(time: number): number {
@@ -272,20 +417,26 @@ export class DanmakuScheduler {
   }
 
   private available(y: number, height: number, item: DanmakuItem, textWidth: number): boolean {
-    for (const previous of this.active) {
-      if (y + height <= previous.y || previous.y + previous.height <= y) {
-        continue
-      }
-      if (item.mode !== 1 || previous.item.mode !== 1) {
-        return false
-      }
-      const oldSpeed = (this.width + previous.width) / SCROLL_DURATION
-      const newSpeed = (this.width + textWidth) / SCROLL_DURATION
-      const right = this.width + previous.width - oldSpeed * (item.time - previous.item.time)
-      const gap = this.width - right
-      if (gap < 12 || (newSpeed > oldSpeed && gap -
-        (newSpeed - oldSpeed) * (previous.end - item.time) < 12)) {
-        return false
+    const firstBand = Math.floor(y / COLLISION_BAND_HEIGHT)
+    const lastBand = Math.min(this.collisionBands.length - 1, Math.floor((y + height) / COLLISION_BAND_HEIGHT))
+    for (let band = firstBand; band <= lastBand; band++) {
+      for (const previous of this.collisionBands[band]) {
+        // A tall sprite can occur in several bands. Check it only in the first shared band.
+        if (band !== Math.max(firstBand, Math.floor(previous.y / COLLISION_BAND_HEIGHT))) { continue }
+        if (y + height <= previous.y || previous.y + previous.height <= y) {
+          continue
+        }
+        if (item.mode !== 1 || previous.item.mode !== 1) {
+          return false
+        }
+        const oldSpeed = (this.width + previous.width) / SCROLL_DURATION
+        const newSpeed = (this.width + textWidth) / SCROLL_DURATION
+        const right = this.width + previous.width - oldSpeed * (item.time - previous.item.time)
+        const gap = this.width - right
+        if (gap < 12 || (newSpeed > oldSpeed && gap -
+          (newSpeed - oldSpeed) * (previous.end - item.time) < 12)) {
+          return false
+        }
       }
     }
     return true

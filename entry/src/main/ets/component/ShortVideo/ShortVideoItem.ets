@@ -5,6 +5,7 @@ import { PathUtils } from '../../utils/PathUtils'
 import { Setting } from '../../utils/ObservedUtil'
 import { FastForwardPanelBuilder } from '../PlayerComponent/FastForwardPanelBuilder'
 import { MediaSmartGestureModifier } from '../../utils/MediaSmartGestureUtil'
+import { AudioCoverBuilder } from '../PlayerComponent/AudioCoverBuilder'
 
 
 @ComponentV2
@@ -12,6 +13,7 @@ export struct ShortVideoItem {
   @Param @Require item: VideoMetadata
   @Param index: number = 0
   @Param currentIndex: number = 0
+  @Param isSwitching: boolean = false
   @Param manager: ShortVideoPlayerManager = new ShortVideoPlayerManager()
   @Event onSingleTap: () => void = () => {
   }
@@ -30,6 +32,17 @@ export struct ShortVideoItem {
   @Monitor('index')
   onIndexChanged(): void {
     this.bindPlayer()
+  }
+
+  @Monitor('currentIndex')
+  onCurrentIndexChanged(): void {
+    if (this.index === this.currentIndex) {
+      // 同一个索引再次进入时，Repeat 未必重新触发 aboutToAppear/onLoad。
+      this.bindPlayer()
+    } else if (this.isLongPressing) {
+      this.isLongPressing = false
+      this.manager.endLongPress(this.index)
+    }
   }
 
   private bindPlayer(): void {
@@ -77,11 +90,14 @@ export struct ShortVideoItem {
         .width(this.videoAreaWidth())
         .height(this.videoAreaHeight())
         .onLoad(() => {
-          const surfaceId = this.xComponentController.getXComponentSurfaceId()
-          if (surfaceId) {
-            this.manager.bindSurface(this.index, surfaceId, this.xComponentController)
-          }
+          this.bindPlayer()
         })
+        .onDestroy(() => {
+          this.manager.unbindSurface(this.xComponentController)
+          this.player = undefined
+        })
+
+      AudioCoverBuilder({ coverUri: this.player?.audioCoverUri ?? '' })
 
       if (this.player?.state === 'preparing') {
         LoadingProgress()
@@ -90,7 +106,8 @@ export struct ShortVideoItem {
           .color(Color.White)
       }
 
-      if (this.player?.state === 'error') {
+      if (!this.isSwitching && this.index === this.currentIndex &&
+        this.player === this.manager.currentPlayer && this.player?.state === 'error') {
         Column({ space: 10 }) {
           Text('!')
             .fontSize(40)

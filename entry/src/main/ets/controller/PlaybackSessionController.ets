@@ -91,6 +91,61 @@ class PlaybackSessionSnapshot {
 
 export class PlaybackSessionController {
   private switchTask: Promise<PlayerControllerInterface> | undefined = undefined
+  private transitionTask: Promise<void> | undefined = undefined
+  private disposeTask: Promise<void> | undefined = undefined
+  private closing: boolean = false
+  private disposed: boolean = false
+
+  get isSwitching(): boolean {
+    return this.transitionTask !== undefined
+  }
+
+  get isDisposed(): boolean {
+    return this.disposed
+  }
+
+  async runTransition(operation: () => Promise<void>): Promise<void> {
+    if (this.closing || this.disposed) { return }
+    if (this.transitionTask) {
+      await this.transitionTask
+      return
+    }
+    const task = Promise.resolve().then(operation)
+    this.transitionTask = task
+    try {
+      await task
+    } finally {
+      if (this.transitionTask === task) { this.transitionTask = undefined }
+    }
+  }
+
+  async dispose(getCurrentPlayer: () => PlayerControllerInterface): Promise<void> {
+    if (this.disposed) { return }
+    if (this.disposeTask) {
+      await this.disposeTask
+      return
+    }
+    this.closing = true
+    const task = this.finishDispose(getCurrentPlayer)
+    this.disposeTask = task
+    try {
+      await task
+      this.disposed = true
+    } finally {
+      if (this.disposeTask === task) { this.disposeTask = undefined }
+    }
+  }
+
+  private async finishDispose(getCurrentPlayer: () => PlayerControllerInterface): Promise<void> {
+    try {
+      await this.transitionTask
+    } catch (_error) {
+      // 切换失败也必须继续释放当前会话。
+    }
+    const player = getCurrentPlayer()
+    player.setEngineSwitchHandler(undefined)
+    await player.dispose()
+  }
 
   async switchEngine(currentPlayer: PlayerControllerInterface, targetEngine: string,
     resumePlayback?: boolean): Promise<PlayerControllerInterface> {

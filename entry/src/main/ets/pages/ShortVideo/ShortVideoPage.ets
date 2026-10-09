@@ -1,3 +1,4 @@
+import MediaLibraryService from '../../utils/MediaLibraryService'
 import { BaseGestureHandlingProposal, PageSwitchActionProposal, window } from '@kit.ArkUI'
 import { Available, BusinessError, deviceInfo, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { ShortVideoItem } from '../../component/ShortVideo/ShortVideoItem'
@@ -16,10 +17,7 @@ import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/Swi
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { RepeatModeButtonComponent } from '../../component/PlayerComponent/RepeatModeButtonComponent'
 import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
-import {
-  AnimatedPlaybackTimeBuilder,
-  PlaybackProgressSliderComponent
-} from '../../component/PlayerComponent/PlaybackProgressComponent'
+import { AnimatedPlaybackTimeBuilder, PlaybackProgressSliderBuilder } from '../../component/PlayerComponent/PlaybackProgressComponent'
 import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { AUTO_HIDE_SHOW_CONTROL_TIME } from '../../common/Constants'
@@ -40,7 +38,7 @@ export struct ShortVideoPage {
   private disposed: boolean = false
   private swiperController: SwiperController = new SwiperController()
   private showControlTimer: number = 0
-  private isSwiperAnimating: boolean = false
+  @Local isSwiperAnimating: boolean = false
   @Available({ minApiVersion: 'HarmonyOS 26.0.0' }) private smartGestures: MediaSmartGestureSession =
     new MediaSmartGestureSession({
       canHandle: (): boolean => this.ready && !this.disposed && this.items.length > 0 &&
@@ -173,7 +171,7 @@ export struct ShortVideoPage {
       .margin({ top: 6, bottom: 8 })
       .width('100%')
 
-      PlaybackProgressSliderComponent({
+      PlaybackProgressSliderBuilder({
         playTime: this.manager.currentTime,
         totalTime: this.manager.duration,
         onSliderChange: (value: number) => this.manager.previewProgressSeek(value),
@@ -187,7 +185,6 @@ export struct ShortVideoPage {
           }
         }
       })
-        .width('100%')
     }
     .width('100%')
     .padding({
@@ -208,15 +205,17 @@ export struct ShortVideoPage {
       Stack({ alignContent: Alignment.Bottom }) {
         if (this.ready && this.items.length > 0) {
           Swiper(this.swiperController) {
-            Repeat<VideoMetadata>(this.items)
+            Repeat<VideoMetadata>(this.manager.playbackItems)
               .each((repeatItem: RepeatItem<VideoMetadata>) => {
                 ShortVideoItem({
                   item: repeatItem.item,
-                  index: repeatItem.index,
+                  index: this.manager.getItemIndex(repeatItem.item),
                   currentIndex: this.currentIndex,
+                  isSwitching: this.isSwiperAnimating,
                   manager: this.manager,
                   onSingleTap: () => this.toggleShowControl(),
-                  onDoubleTap: (tapX: number) => this.manager.onScreenDoubleClick(repeatItem.index, tapX,
+                  onDoubleTap: (tapX: number) => this.manager.onScreenDoubleClick(
+                    this.manager.getItemIndex(repeatItem.item), tapX,
                     this.containerWidth)
                 })
               })
@@ -224,7 +223,7 @@ export struct ShortVideoPage {
               .virtualScroll()
           }
           .id(SHORT_VIDEO_SMART_SWIPER_ID)
-          .index(this.currentIndex)
+          .index(Math.max(0, this.manager.getSwiperIndex(this.currentIndex)))
           .vertical(true)
           .loop(this.shouldLoopSwiper())
           .indicator(false)
@@ -234,8 +233,11 @@ export struct ShortVideoPage {
           .onAnimationStart(() => this.isSwiperAnimating = true)
           .onAnimationEnd(() => this.isSwiperAnimating = false)
           .onChange((index: number) => {
-            this.manager.activate(index)
-            this.currentIndex = index
+            const playbackIndex = this.manager.getPlaybackIndex(index)
+            if (playbackIndex >= 0) {
+              this.manager.activate(playbackIndex)
+              this.currentIndex = playbackIndex
+            }
           })
           .width('100%')
           .height('100%')
@@ -253,6 +255,7 @@ export struct ShortVideoPage {
         if (this.manager.onSwiping && this.manager.duration > 0) {
           Row() {
             SwipingPlayTimePanelBuilder({
+              seekStartTime: this.manager.seekStartTime,
               isSliderPlayTimeChange: false,
               playTime: this.manager.swipingTime,
               totalTime: this.manager.duration,
@@ -305,8 +308,8 @@ export struct ShortVideoPage {
       this.currentIndex = Math.max(0, Math.min(params.initialIndex, Math.max(this.items.length - 1, 0)))
       this.skipHistory = params.skipHistory
       this.manager.configure(this.items, this.skipHistory, (targetIndex: number) => {
-        this.swiperController.changeIndex(targetIndex, true)
-      })
+        this.swiperController.changeIndex(this.manager.getSwiperIndex(targetIndex), true)
+      }, this.currentIndex)
       this.ready = true
       this.manager.activate(this.currentIndex)
       this.showControls()
@@ -437,9 +440,8 @@ export struct ShortVideoPage {
   }
 
   private closePage(): void {
-    VideoOperateUtil.saveLastPlayVideoIndex(this.items, this.items[this.currentIndex]?.date)
+    MediaLibraryService.saveLastPlayVideoIndex(this.items, this.items[this.currentIndex]?.date)
     this.pathStack.pop()
   }
-
 
 }

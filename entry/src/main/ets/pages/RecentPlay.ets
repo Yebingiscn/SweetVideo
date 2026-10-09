@@ -106,7 +106,7 @@ export struct RecentPlay { // 最近播放页
         const streams = Preferences.getNetworkStreams(PathUtils.appContext!)
         await ToolsUtil.routerWhere(this.pathStack, item, streams, reverse, true)
       } else {
-        const originalList = SelectFileUtil.getVideoListByVideoDate(item.date)
+        const originalList = Preferences.findVideoByDate(PathUtils.appContext!, item.date)
         if (originalList[1].length > 0 && originalList[0]) {
           await ToolsUtil.routerWhere(this.pathStack, originalList[0], originalList[1], reverse)
         } else {

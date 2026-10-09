@@ -1,17 +1,12 @@
+import MediaLibraryService from '../../utils/MediaLibraryService'
 import MediaSortUtil from '../../utils/MediaSortUtil'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import Preferences from '../../database/Preferences'
 import { PathUtils } from '../../utils/PathUtils'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
-import SelectFileUtil from '../../utils/SelectFileUtil'
 import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
-import {
-  ButtonFancyModifier,
-  DefaultDialogShadow,
-  MenuFancyModifier,
-  SymbolGlyphFancyModifier
-} from '../../common/AttributeModifierConfig'
+import { ButtonFancyModifier, DefaultDialogShadow, MenuFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import { SortField } from '../../common/enum/SortField'
 import { Setting } from '../../utils/ObservedUtil'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
@@ -28,7 +23,7 @@ import { DELAY_JUMP_TO_PLAYER } from '../../common/Constants'
 import ShareUtil from '../../utils/ShareUtil'
 import VideoCardItem from '../../component/VideoItemComponent/VideoCardItemComponent'
 import VideoListItem from '../../component/VideoItemComponent/VideoListItemComponent'
-import { VideoListController } from '../../component/VideoItemComponent/VideoItemComponent'
+import { VideoListController } from '../../controller/VideoListController'
 import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import { DeleteType } from '../../common/enum/DeleteType'
 import RecentPlayUtil from '../../utils/RecentPlayUtil'
@@ -120,7 +115,7 @@ export struct StreamPage {
           if (this.searchValue.trim() === '') {
             this.networkStreams = this.allStreams
           } else {
-            this.networkStreams = SelectFileUtil.getItemFromSearch(this.allStreams, this.searchValue)
+            this.networkStreams = MediaLibraryService.getItemFromSearch(this.allStreams, this.searchValue)
           }
         },
         onEditChange: (isEditing: boolean) => {
@@ -156,7 +151,7 @@ export struct StreamPage {
       items: [
         {
           field: SortField.RECENT_PLAY,
-          icon: $r('sys.symbol.play_circle'),
+          icon: $r('sys.symbol.play_round_triangle_fill'),
           textResource: $r('app.string.sort_by_recent_play'),
           onAction: (): void => this.handleSort(SortField.RECENT_PLAY, false)
         },
@@ -503,7 +498,7 @@ export struct StreamPage {
       this.allStreams = [...streams]
       this.applySearch()
       try {
-        await VideoOperateUtil.deleteVideoResource(stream, DeleteType.SOFT)
+        await MediaLibraryService.deleteVideoResource(stream, DeleteType.SOFT)
       } catch (error) {
         // 附属资源清理失败不影响串流删除流程
       }
@@ -512,7 +507,7 @@ export struct StreamPage {
 
   private applySearch() {
     this.networkStreams = this.searchValue.trim()
-      ? SelectFileUtil.getItemFromSearch(this.allStreams, this.searchValue)
+      ? MediaLibraryService.getItemFromSearch(this.allStreams, this.searchValue)
       : this.allStreams
   }
 

@@ -1,3 +1,4 @@
+import ImageStorage from '../../utils/ImageStorage'
 import ImageFileUtil from '../../utils/ImageFileUtil'
 import { loginComponentManager, LoginWithHuaweiIDButton } from '@kit.AccountKit';
 import { hdsEffect } from '@kit.UIDesignKit';
@@ -100,7 +101,7 @@ struct userLoginComponent {
               }
               try {
                 const pixelMap = await AccountUtil.fileToPixelMap(data.avatarUri!)
-                const localAvatarUri = await ImageFileUtil.savePixelMapToFile(PathUtils.photoPath!, 'avatar', pixelMap,
+                const localAvatarUri = await ImageStorage.savePixelMapToFile(PathUtils.photoPath!, 'avatar', pixelMap,
                   { releasePixelMap: true })
                 this.userData.userAvatar = AccountUtil.ISHasAvatar(localAvatarUri)
                 Preferences.saveUserAvatar(PathUtils.appContext!, localAvatarUri)

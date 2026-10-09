@@ -1,4 +1,4 @@
-import ImageFileUtil from './ImageFileUtil'
+import ImageStorage from './ImageStorage'
 import { LoginWithHWErrorCode } from '../common/Constants'
 import { userData } from '../component/common/UserLoginComponent'
 import Preferences from '../database/Preferences'
@@ -60,7 +60,7 @@ export default class AccountUtil {
         const nickName = authorizationWithHuaweiIDCredential?.nickName
         const pixelMap = await AccountUtil.requestImage(avatarUri!)
         userData.nickName = nickName ?? ''
-        const localAvatarUri = await ImageFileUtil.savePixelMapToFile(PathUtils.photoPath!, 'avatar', pixelMap,
+        const localAvatarUri = await ImageStorage.savePixelMapToFile(PathUtils.photoPath!, 'avatar', pixelMap,
           { releasePixelMap: true })
         userData.userAvatar = AccountUtil.ISHasAvatar(localAvatarUri)
         Preferences.saveUserAvatar(PathUtils.appContext!, localAvatarUri)

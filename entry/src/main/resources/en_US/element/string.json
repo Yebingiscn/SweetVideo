@@ -353,6 +353,10 @@
       "value": "Failed to update the cover"
     },
     {
+      "name": "background_image_save_failed",
+      "value": "Failed to save the background image"
+    },
+    {
       "name": "cover_updated",
       "value": "Cover updated"
     },
@@ -2957,6 +2961,10 @@
     {
       "name": "danmaku_no_text_items",
       "value": "The file has no displayable plain-text danmaku"
+    },
+    {
+      "name": "danmaku_render_failed",
+      "value": "Danmaku rendering failed. Turn danmaku off and on to retry."
     },
     {
       "name": "danmaku_texture_release_failed",

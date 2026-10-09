@@ -7,6 +7,7 @@ import { Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import { WindowUtil } from '../../utils/WindowUtil'
 import { KeyCode } from '@kit.InputKit'
+import { AudioCoverBuilder } from './AudioCoverBuilder'
 
 const TAG = 'XComponents'
 const PLAYER_SURFACE_ID = 'player_surface_focus'
@@ -69,13 +70,7 @@ export struct XComponents {
           }
         })
       }
-      if (this.player.audioCoverUri) {
-        Image(this.player.audioCoverUri ?? '')
-          .width('100%')
-          .height('100%')
-          .objectFit(ImageFit.Contain)
-          .hitTestBehavior(HitTestMode.Transparent)
-      }
+      AudioCoverBuilder({ coverUri: this.player.audioCoverUri ?? '' })
     }
     .id(PLAYER_SURFACE_ID)
     .focusable(true)

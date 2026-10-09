@@ -1,5 +1,6 @@
+import MediaLibraryService from './MediaLibraryService'
 import MediaSortUtil from './MediaSortUtil'
-import { ExternalAudioStorage } from './ExternalAudioStorage';
+import { ExternalAudioStorage } from './ExternalAudioStorage'
 import FolderHierarchy from './FolderHierarchy'
 import FolderSelection from './FolderSelection'
 import Preferences from '../database/Preferences'
@@ -7,15 +8,14 @@ import { FileFolder } from '../interfaces/FileFolderInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import ToolsUtil from './ToolsUtil'
 import { Context } from '@kit.AbilityKit'
-import { BusinessError, systemDateTime } from '@kit.BasicServicesKit'
+import { BusinessError } from '@kit.BasicServicesKit'
 import DataSyncUtil from '../utils/DataSyncUtil'
 import { FileFolderDataSource } from './DataUtil'
-import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent'
+import { VideoListController } from '../controller/VideoListController'
 import SelectFileUtil from './SelectFileUtil'
 import { PathUtils } from './PathUtils'
 import { salmonLogger } from 'salmonlogger'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
-import VideoOperateUtil from './VideoOperateUtil'
 import fileIo from '@ohos.file.fs'
 import { DeleteType } from '../common/enum/DeleteType'
 import { SortField } from '../common/enum/SortField'
@@ -128,7 +128,7 @@ export default class FileFolderUtil {
     fileDataSource?: FileFolderDataSource): Promise<FileFolder[]> {
     const plan = FolderSelection.deletionPlan(Preferences.getFileFolder(context), folderDates)
     if (plan.dates.size === 0) { return Preferences.getFileFolder(context) }
-    await VideoOperateUtil.deleteVideoFiles(plan.videos, DeleteType.SOFT)
+    await MediaLibraryService.deleteVideoFiles(plan.videos, DeleteType.SOFT)
     // 清理媒体期间可能有其他目录更新，保存前重新读取，避免覆盖无关改动。
     const folders = Preferences.getFileFolder(context).filter(folder => !plan.dates.has(folder.date))
     Preferences.saveFileFolder(context, folders)
@@ -150,7 +150,7 @@ export default class FileFolderUtil {
         }
       }
     }
-    await VideoOperateUtil.deleteVideoFiles(Array.from(videos.values()), DeleteType.SOFT)
+    await MediaLibraryService.deleteVideoFiles(Array.from(videos.values()), DeleteType.SOFT)
     folders = Preferences.getFileFolder(context).filter(i => !datesToDelete.has(i.date))
     Preferences.saveFileFolder(context, folders)
     if (fileDataSource) {
@@ -223,7 +223,7 @@ export default class FileFolderUtil {
     for (const video of folder.video_list) {
       surviveVideo.set(video.uri, video)
     }
-    await VideoOperateUtil.deleteVideoFiles(DataSyncUtil.delMultipleList, deleteType)
+    await MediaLibraryService.deleteVideoFiles(DataSyncUtil.delMultipleList, deleteType)
     for (const item of DataSyncUtil.delMultipleList) {
       surviveVideo.delete(item.uri)
     }
@@ -493,7 +493,7 @@ export default class FileFolderUtil {
     let deletedCount = deletedAudioCount
     const deleteTasks: Promise<void>[] = []
     for (const file of missingCoverFiles) {
-      deleteTasks.push(SelectFileUtil.deleteCover(file).then(() => { deletedCount++ }).catch((err: BusinessError) => {
+      deleteTasks.push(MediaLibraryService.deleteCover(file).then(() => { deletedCount++ }).catch((err: BusinessError) => {
         salmonLogger.addLog(TAG, `删除封面失败: ${file}, ${err}`, true)
       }))
     }

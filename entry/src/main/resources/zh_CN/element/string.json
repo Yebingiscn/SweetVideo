@@ -369,6 +369,10 @@
       "value": "封面替换失败"
     },
     {
+      "name": "background_image_save_failed",
+      "value": "背景图片保存失败"
+    },
+    {
       "name": "cover_updated",
       "value": "封面已更新"
     },
@@ -2955,6 +2959,10 @@
     {
       "name": "danmaku_no_text_items",
       "value": "文件中没有可显示的普通文本弹幕"
+    },
+    {
+      "name": "danmaku_render_failed",
+      "value": "弹幕渲染失败，请关闭弹幕后重新开启以重试。"
     },
     {
       "name": "danmaku_texture_release_failed",

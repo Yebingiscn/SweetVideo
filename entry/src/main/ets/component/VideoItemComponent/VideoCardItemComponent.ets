@@ -5,7 +5,7 @@ import { Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { VideoInfoBuilder } from './VideoInfoBuilder'
-import { VideoListController } from './VideoItemComponent'
+import { VideoListController } from '../../controller/VideoListController'
 
 @ComponentV2
 export default struct VideoCardItem {

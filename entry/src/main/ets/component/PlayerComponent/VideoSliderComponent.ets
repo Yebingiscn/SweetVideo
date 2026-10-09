@@ -2,7 +2,7 @@ import { PlayerControllerFactory, PlayerControllerInterface } from '../../contro
 import { VIDEO_HDR_TYPE } from '../../common/enum/HDR_TYPE'
 import { GradientTagBuilder, SolidColorTagBuilder } from '../common/MediaTagBuilder'
 import ToolsUtil from '../../utils/ToolsUtil'
-import { AnimatedPlaybackTimeBuilder, PlaybackProgressSliderComponent } from './PlaybackProgressComponent'
+import { AnimatedPlaybackTimeBuilder, PlaybackProgressSliderBuilder } from './PlaybackProgressComponent'
 
 @ComponentV2
 export struct VideoSliderComponent {
@@ -119,7 +119,7 @@ export struct VideoSliderComponent {
       .width('100%')
       .height('auto')
 
-      PlaybackProgressSliderComponent({
+      PlaybackProgressSliderBuilder({
         playTime: this.player.playTime,
         totalTime: this.player.nowPlaying?.time || 0,
         onSliderChange: (value: number) => this.onSliderChange(value),

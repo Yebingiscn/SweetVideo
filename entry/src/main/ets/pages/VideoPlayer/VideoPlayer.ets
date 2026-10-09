@@ -1,5 +1,7 @@
+import { PlayerGestureController } from '../../controller/PlayerGestureController'
+import { framePreviewSession } from '../../utils/FFmpegThumbnailUtil'
+import MediaLibraryService from '../../utils/MediaLibraryService'
 import { DanmakuSession } from '../../utils/DanmakuSession'
-import SelectFileUtil from '../../utils/SelectFileUtil'
 import { DanmakuOverlay } from '../../component/PlayerComponent/DanmakuOverlay'
 import { DanmakuMenuComponent } from '../../component/PlayerComponent/DanmakuMenuBuilder'
 import PermissionUtil from '../../utils/PermissionUtil'
@@ -32,22 +34,9 @@ import { XComponents } from '../../component/PlayerComponent/XComponents'
 import { VideoLayoutComponent } from '../../component/PlayerComponent/VideoLayoutComponent'
 import {
   DEFAULT_ANGLE,
-  MAX_SCALE_FACTOR,
-  MAX_WIDTH_MULTIPLIER,
-  MIN_SCALE_FACTOR,
-  MIN_WIDTH_MULTIPLIER,
   MIRRORED_ANGLE,
   NO_BLUR_AMOUNT,
-  PINCH_SCALE_SENSITIVITY,
   PRIVACY_BACKGROUND_BLUR_AMOUNT,
-  SCREEN_HALF_DIVIDER,
-  SCROLL_BRIGHTNESS_SENSITIVITY,
-  SCROLL_VOLUME_SENSITIVITY,
-  SWIPE_THRESHOLD,
-  TWO_FINGER_PAN_BASE_VP,
-  TWO_FINGER_ZOOM_BASE_VP,
-  VERTICAL_PAN_SENSITIVITY,
-  VOLUME_PAN_MULTIPLIER,
   VOLUME_STEP
 } from '../../common/Constants'
 import PiPWindowUtil from '../../utils/PiPWindowUtil'
@@ -72,9 +61,10 @@ import { AISubtitleComponent } from '../../component/PlayerComponent/AIAsrCompon
 import AVSessionUtil from '../../utils/AVSessionUtil'
 import { Available, deviceInfo, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { MediaSmartGestureSession } from '../../utils/MediaSmartGestureUtil'
+import { motion } from '@kit.MultimodalAwarenessKit'
+import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil'
 import KnockShareUtil, { KNOCK_SHARE_VIDEO_PLAYER_OWNER, KnockCoordinate } from '../../utils/KnockShareUtil'
 import { AudioEffectConfig } from '../../interfaces/AudioEffectInterface'
-import { TwoFingerMode } from '../../common/enum/TwoFingerMode'
 
 const TAG = 'VideoPlayer'
 const AUTO_LISTEN_VIDEO_FOREGROUND_FALLBACK_MS = 150
@@ -106,9 +96,11 @@ export struct VideoPlayer {
         if (config.effect === 'hoa-space-render' && !deviceInfo.apiAvailable('26.0.0')) {
           throw new Error(ToolsUtil.getStringResource($r('app.string.hoa_needs_harmony7').id))
         }
-        const applied = await player.applyAudioEffect(config)
+        const applied = player instanceof MpvController ?
+          player.audioController.applyAudioEffect(config) : await player.applyAudioEffect(config)
         if (!silent) {
-          ToolsUtil.showToast(applied ? ToolsUtil.getStringResource($r('app.string.audio_effect_applied').id) : ToolsUtil.getStringResource($r('app.string.audio_effect_apply_failed_mpv').id))
+          ToolsUtil.showToast(applied ? ToolsUtil.getStringResource($r('app.string.audio_effect_applied').id) :
+            ToolsUtil.getStringResource($r('app.string.audio_effect_apply_failed_mpv').id))
         }
         return applied
       }
@@ -139,33 +131,34 @@ export struct VideoPlayer {
   windowClass: Promise<window.Window | undefined> = WindowUtil.getWindow()
   @Local sideBarStatusTmp: Visibility = Visibility.Hidden
   @Local sideBarStatus: boolean = false
-  @Local currentSpeedIndex: number = 0
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   @Local exitVideoTime: number = 0
   @Local isAdjustingSubtitleOffset: boolean = false
   @Local lockRotation: boolean = false
+  @Local playerExitTransitionEnabled: boolean = false
   private danmaku: DanmakuSession = new DanmakuSession()
   private containerWidth: number = 0
   private containerHeight: number = 0
-  private longPressSpeedSession: number = 0
-  private activeLongPressSpeedSession: number = 0
-  private longPressBaseSpeed: number = 1
-  private twoFingerMode: TwoFingerMode = TwoFingerMode.NONE
-  private twoFingerDistStart: number = 0
-  private twoFingerMidStartX: number = 0
-  private twoFingerMidStartY: number = 0
+  private gestures: PlayerGestureController = new PlayerGestureController(this.player)
   private playbackSession: PlaybackSessionController = new PlaybackSessionController()
-  private engineSwitchTask: Promise<void> | undefined = undefined
-  private playerDisposeTask: Promise<void> | undefined = undefined
-  private isPlaybackSessionDisposed: boolean = false
   private isPageDisappearing: boolean = false
   private playerDestinationShown: boolean = false
+  @Local holdingHand: motion.HoldingHandStatus | null = null
+  private holdingHandLandscape: boolean | undefined = undefined
+  private holdingHandCallback: Callback<motion.HoldingHandStatus> = (status: motion.HoldingHandStatus): void => {
+    if (!this.playerDestinationShown || this.isPageDisappearing || !Setting.gripPostureEnabled) {
+      return
+    }
+    if (status === motion.HoldingHandStatus.LEFT_HAND_HELD ||
+      status === motion.HoldingHandStatus.RIGHT_HAND_HELD) {
+      this.holdingHand = status
+    }
+  }
   private playerReadyToStart: boolean = false
-  @Local playerExitTransitionEnabled: boolean = false
   @Available({ minApiVersion: 'HarmonyOS 26.0.0' }) private smartGestures: MediaSmartGestureSession =
     new MediaSmartGestureSession({
       canHandle: (): boolean => this.isPlayerConfigured && !this.isPageDisappearing &&
-        !this.isPlaybackSessionDisposed && !this.engineSwitchTask && !this.player.isLock &&
+        !this.playbackSession.isDisposed && !this.playbackSession.isSwitching && !this.player.isLock &&
         !PiPWindowUtil.pipOpenState && !this.sideBarStatus && !this.isAdjustingSubtitleOffset &&
         !this.player.onSwiping && !this.player.isSliderPlayTimeChange && !this.player.longPress &&
         !this.player.isGesturing && !this.player.onSwipingVoice && !this.player.onSwipingBrightness,
@@ -221,7 +214,6 @@ export struct VideoPlayer {
       this.cancelSubtitleOffsetSession()
     }
   })
-  private scrollAxisTimeout: number = 0
   private autoListenVideoSession: number = 0
   private autoListenVideoWindowResumedSession: number = 0
   private autoListenVideoRestoreTimer: number = 0
@@ -235,7 +227,7 @@ export struct VideoPlayer {
 
   @Monitor('player.showControl')
   onShowControlMonitor(_mon: IMonitor) {
-    if (!Pc.pcMode || this.isPageDisappearing || this.isPlaybackSessionDisposed) {
+    if (!Pc.pcMode || this.isPageDisappearing || this.playbackSession.isDisposed) {
       return
     }
     if (canIUse("SystemCapability.MultimodalInput.Input.Pointer")) {
@@ -269,6 +261,7 @@ export struct VideoPlayer {
 
   async aboutToDisappear(): Promise<void> {
     this.playerDestinationShown = false
+    this.stopHoldingHandSubscription()
     this.playerReadyToStart = false
     this.danmakuPageVisible = false
     this.danmaku.dispose()
@@ -297,9 +290,9 @@ export struct VideoPlayer {
       this.subtitleManager.isAIAsrShown, this.subtitleManager.subtitle3DMode)
     this.player.onDisappearCleanup()
     clearTimeout(this.exitVideoTime)
-    clearTimeout(this.scrollAxisTimeout)
+    this.gestures.reset()
     this.unregisterPlayerMonitors(this.player)
-    await this.disposePlaybackSession()
+    await this.playbackSession.dispose(() => this.player)
     salmonLogger.addLog(TAG, "释放播放器资源完成", false)
     salmonLogger.addLog(TAG, "aboutToDisappear方法执行完成", false)
   }
@@ -309,6 +302,21 @@ export struct VideoPlayer {
     isPlayAnimation ? setTimeout(() => {
       this.sideBarStatus = false
     }, 400) : this.sideBarStatus = false
+  }
+
+  private stopHoldingHandSubscription(): void {
+    IntellectualGripPostureUtil.destroyHoldingHandStatus(this.holdingHandCallback)
+  }
+
+  private updateHoldingHandLayoutDirection(width: number, height: number): void {
+    if (width <= 0 || height <= 0 || width === height) {
+      return
+    }
+    const landscape = width > height
+    if (this.holdingHandLandscape === false && landscape) {
+      this.holdingHand = null
+    }
+    this.holdingHandLandscape = landscape
   }
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
@@ -376,7 +384,6 @@ export struct VideoPlayer {
                   event.keyCode === KeyCode.KEYCODE_DPAD_UP ? VOLUME_STEP : -VOLUME_STEP)
                 this.player.volume = newVolume
                 this.player.volumeActually = newVolume
-                VideoOperateUtil.lastVolume = newVolume
               },
               onOsdSurfaceLoad: (surfaceId: string, surfaceWidth: number, surfaceHeight: number) => {
                 this.player.onOsdSurfaceLoad(surfaceId, surfaceWidth, surfaceHeight)
@@ -423,6 +430,7 @@ export struct VideoPlayer {
           }
           if (this.player.onSwiping) {
             SwipingPlayTimePanelBuilder({
+              seekStartTime: this.gestures.seekStartTime,
               isSliderPlayTimeChange: this.player.isSliderPlayTimeChange,
               playTime: this.player.playTime,
               totalTime: this.player.nowPlaying!.time,
@@ -440,6 +448,7 @@ export struct VideoPlayer {
           })
           if (this.player.showControl) {
             LockVideoBarComponent({
+              buttonsOnLeft: IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand),
               onLockClick: () => {
                 this.player.isLock = !this.player.isLock
                 this.player.showControl = true
@@ -464,283 +473,29 @@ export struct VideoPlayer {
                 })
               }
             },
-            onVerticalPanStart: (tapX: number) => {
-              clearTimeout(this.scrollAxisTimeout)
-              VideoOperateUtil.leftSideSwipe = tapX < this.player.screenWidth / SCREEN_HALF_DIVIDER
-              this.player.volumeGestureActive = !VideoOperateUtil.leftSideSwipe
-              VideoOperateUtil.screenBrightnessTmp = this.player.screenBrightness
-              this.player.volume = this.player.volumeActually
-              VideoOperateUtil.lastVolume = this.player.volume
-              if (VideoOperateUtil.leftSideSwipe) {
-                this.player.onSwipingBrightness = true
-              } else {
-                this.player.onSwipingVoice = true
-              }
-            },
-            onVerticalPanUpdate: (offsetY: number) => {
-              const deltaYScale = offsetY / this.player.screenHeight * VERTICAL_PAN_SENSITIVITY
-              if (VideoOperateUtil.leftSideSwipe) {
-                this.player.screenBrightness = VideoOperateUtil.calNewBrightness(deltaYScale)
-                VideoOperateUtil.setBrightness(this.player.screenBrightness)
-              } else {
-                const newVolume = VideoOperateUtil.lastVolume - deltaYScale * VOLUME_PAN_MULTIPLIER
-                this.player.volume =
-                  Math.min(Math.max(newVolume, VideoOperateUtil.minVolume), VideoOperateUtil.maxVolume)
-              }
-            },
-            onVerticalPanEnd: () => {
-              this.player.volumeGestureActive = false
-              this.player.onSwiping = false
-              this.player.onSwipingVoice = false
-              this.player.onSwipingBrightness = false
-            },
-            onVerticalPanCancel: () => {
-              this.player.volumeGestureActive = false
-              if (VideoOperateUtil.leftSideSwipe) {
-                this.player.screenBrightness = VideoOperateUtil.screenBrightnessTmp
-                VideoOperateUtil.setBrightness(this.player.screenBrightness)
-              } else {
-                this.player.volume = VideoOperateUtil.lastVolume
-              }
-              this.player.onSwiping = false
-              this.player.onSwipingVoice = false
-              this.player.onSwipingBrightness = false
-            },
-            onHorizonPanStart: () => {
-              VideoOperateUtil.lastPlayTime = this.player.playTime
-              this.player.onSwiping = true
-              this.player.getFrameByTime(this.player.playTime, true)
-            },
-            onHorizonPanUpdate: (offsetX: number) => {
-              const timePerPixel = VideoOperateUtil.getTimePixel(this.player.screenWidth, this.player.nowPlaying?.time!)
-              this.player.playTime = Math.max(0,
-                Math.min(VideoOperateUtil.lastPlayTime + (offsetX * timePerPixel), this.player.nowPlaying?.time!))
-              this.player.getFrameByTime(this.player.playTime, false)
-            },
-            onHorizonPanEnd: () => {
-              this.player.seekTime(this.player.playTime)
-              this.player.onSwiping = false
-            },
-            onHorizonPanCancel: () => {
-              this.player.playTime = VideoOperateUtil.lastPlayTime
-              this.player.seekTime(this.player.playTime)
-              this.player.onSwiping = false
-            },
-            onPinchStart: (event: GestureEvent) => {
-              if (this.player.isLock) {
-                return
-              }
-              const finger1 = event.fingerList[0]
-              const finger2 = event.fingerList[1]
-              const fingerDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2)
-              if (fingerDistance < 0) {
-                return
-              }
-              VideoOperateUtil.initPinchDistance = fingerDistance
-              VideoOperateUtil.initScaleFactor = this.player.scaleFactor
-              this.player.isGesturing = true
-
-              this.twoFingerDistStart = fingerDistance
-              this.twoFingerMidStartX = ((finger1?.localX ?? 0) + (finger2?.localX ?? 0)) / 2
-              this.twoFingerMidStartY = ((finger1?.localY ?? 0) + (finger2?.localY ?? 0)) / 2
-            },
-            onPinchUpdate: (event: GestureEvent) => {
-              if (this.player.isLock) {
-                return
-              }
-              const finger1 = event.fingerList[0]
-              const finger2 = event.fingerList[1]
-              if (!finger1 || !finger2) { // 双指检测失败直接返回
-                return
-              }
-              const fingerDistance = VideoOperateUtil.calcFingerDistance(finger1, finger2)
-              if (fingerDistance < 0) {
-                return
-              }
-              // 双指会话主导仲裁：平移已锁定时忽略缩放，避免拖动画面被误回正
-              if (this.twoFingerMode === TwoFingerMode.PAN) {
-                return
-              }
-              if (this.twoFingerMode !== TwoFingerMode.PINCH) {
-                const midX = (finger1.localX + finger2.localX) / 2
-                const midY = (finger1.localY + finger2.localY) / 2
-                const distDelta = Number.isNaN(this.twoFingerDistStart)
-                  ? 0 : Math.abs(fingerDistance - this.twoFingerDistStart)
-                const midDelta = Math.hypot(midX - this.twoFingerMidStartX, midY - this.twoFingerMidStartY)
-                if (!(distDelta > TWO_FINGER_ZOOM_BASE_VP && distDelta > midDelta)) {
-                  return
-                }
-                this.twoFingerMode = TwoFingerMode.PINCH
-                // 缩放主导确立，重置中点滚动基准，此后平移跟随双指中点（放大到某个点）
-                this.twoFingerMidStartX = midX
-                this.twoFingerMidStartY = midY
-              }
-
-              const rawScale = fingerDistance / VideoOperateUtil.initPinchDistance
-              const adjustedScale = 1 + (rawScale - 1) * PINCH_SCALE_SENSITIVITY
-              const newScaleFactor = VideoOperateUtil.initScaleFactor * adjustedScale
-              const clampedScaleFactor = Math.min(Math.max(newScaleFactor, MIN_SCALE_FACTOR), MAX_SCALE_FACTOR)
-              const effectiveWidth = VideoInfoUtil.playAreaWidth * clampedScaleFactor
-              const maxAllowed = VideoInfoUtil.playAreaWidth * MAX_WIDTH_MULTIPLIER
-              const minAllowed = VideoInfoUtil.playAreaWidth * MIN_WIDTH_MULTIPLIER
-              if (effectiveWidth > maxAllowed || effectiveWidth < minAllowed) {
-                return
-              }
-              this.player.scaleFactor = clampedScaleFactor
-              this.player.isZoomed = clampedScaleFactor !== 1
-            },
-            onPinchEnd: () => {
-              this.player.isZoomed = this.player.scaleFactor !== 1
-              this.player.isGesturing = false
-              this.twoFingerMode = TwoFingerMode.NONE
-            },
-            onLongPressAction: () => {
-              if (!this.player.playing || this.activeLongPressSpeedSession !== 0) {
-                return
-              }
-              this.activeLongPressSpeedSession = ++this.longPressSpeedSession
-              this.longPressBaseSpeed = this.player.speed
-              this.player.speedLocked = false
-              this.player.updatePlaybackSpeed(Setting.longPressSpeed)
-              XAnimation.runWithAnimation(() => {
-                this.player.longPress = true
-              })
-              ToolsUtil.startVibration()
-              this.currentSpeedIndex = VideoInfoUtil.videoSpeedListAll.indexOf(Setting.longPressSpeed)
-            },
-            onLongPressEnd: () => {
-              if (this.activeLongPressSpeedSession === 0) {
-                return
-              }
-              this.activeLongPressSpeedSession = 0
-              XAnimation.runWithAnimation(() => {
-                this.player.longPress = false
-              })
-              if (!this.player.speedLocked) {
-                this.player.restoreSpeedAfterLongPress(this.longPressBaseSpeed)
-              } else {
-                this.player.savePlayerSpeed(PathUtils.appContext!)
-              }
-              this.player.speedLocked = false
-            },
-            onLongPressPanStart: (tapX: number) => {
-              VideoOperateUtil.longPressStartX = tapX
-              ToolsUtil.startVibration()
-            },
-            onLongPressPanUpdate: (tapX: number) => {
-              if (this.activeLongPressSpeedSession !== 0 && this.player.longPress) {
-                const deltaX = tapX - VideoOperateUtil.longPressStartX
-                if (Math.abs(deltaX) <= SWIPE_THRESHOLD) {
-                  return
-                }
-                const direction = Math.sign(deltaX)
-                const newIndex = this.currentSpeedIndex + direction
-                const clampedIndex = Math.max(0, Math.min(newIndex, VideoInfoUtil.videoSpeedListAll.length - 1))
-                if (clampedIndex === this.currentSpeedIndex) {
-                  return
-                }
-                this.currentSpeedIndex = clampedIndex
-                this.player.updatePlaybackSpeed(VideoInfoUtil.videoSpeedListAll[this.currentSpeedIndex])
-                this.player.speedLocked = false
-                VideoOperateUtil.longPressStartX = tapX
-                ToolsUtil.startVibration()
-              }
-            },
-            onLongPressVerticalPanUpdate: (offsetY: number) => {
-              if (this.activeLongPressSpeedSession !== 0 && this.player.longPress &&
-                !this.player.speedLocked && offsetY < -SWIPE_THRESHOLD) {
-                this.player.speedLocked = true
-                ToolsUtil.startVibration()
-              }
-            },
-            onPanMoveStart: (event: GestureEvent) => {
-              const finger1 = event.fingerList[0]
-              const finger2 = event.fingerList[1]
-              VideoOperateUtil.panStartX = finger1?.localX || 0
-              VideoOperateUtil.panStartY = finger1?.localY || 0
-              this.player.isGesturing = true
-              const dist = VideoOperateUtil.calcFingerDistance(finger1, finger2)
-              this.twoFingerDistStart = dist < 0 ? NaN : dist
-              this.twoFingerMidStartX = ((finger1?.localX ?? 0) + (finger2?.localX ?? 0)) / 2
-              this.twoFingerMidStartY = ((finger1?.localY ?? 0) + (finger2?.localY ?? 0)) / 2
-            },
-            onPanMoveUpdate: (event: GestureEvent) => {
-              const finger1 = event.fingerList[0]
-              const finger2 = event.fingerList[1]
-              const currentX = finger1?.localX || 0
-              const currentY = finger1?.localY || 0
-              // 缩放主导期间平移跟随双指中点：纯捏合中点不动不漂移，边捏边移可放大到指定点
-              if (this.twoFingerMode === TwoFingerMode.PINCH) {
-                if (!finger1 || !finger2) {
-                  return
-                }
-                const midX = (finger1.localX + finger2.localX) / 2
-                const midY = (finger1.localY + finger2.localY) / 2
-                this.player.translateX += midX - this.twoFingerMidStartX
-                this.player.translateY += midY - this.twoFingerMidStartY
-                this.twoFingerMidStartX = midX
-                this.twoFingerMidStartY = midY
-                return
-              }
-              if (this.twoFingerMode !== TwoFingerMode.PAN) {
-                const midX = ((finger1?.localX ?? 0) + (finger2?.localX ?? 0)) / 2
-                const midY = ((finger1?.localY ?? 0) + (finger2?.localY ?? 0)) / 2
-                const dist = VideoOperateUtil.calcFingerDistance(finger1, finger2)
-                const distDelta =
-                  (dist < 0 || Number.isNaN(this.twoFingerDistStart)) ? 0 : Math.abs(dist - this.twoFingerDistStart)
-                const midDelta = Math.hypot(midX - this.twoFingerMidStartX, midY - this.twoFingerMidStartY)
-                if (!(midDelta > TWO_FINGER_PAN_BASE_VP && midDelta > distDelta)) {
-                  return
-                }
-                this.twoFingerMode = TwoFingerMode.PAN
-              }
-              const deltaX = currentX - VideoOperateUtil.panStartX
-              const deltaY = currentY - VideoOperateUtil.panStartY
-              this.player.translateX += deltaX
-              this.player.translateY += deltaY
-              VideoOperateUtil.panStartX = currentX
-              VideoOperateUtil.panStartY = currentY
-            },
-            onPanMoveEnd: () => {
-              this.player.isGesturing = false
-              this.twoFingerMode = TwoFingerMode.NONE
-            },
-            onScrollAxisBegin: (isLeftSide: boolean) => {
-              clearTimeout(this.scrollAxisTimeout)
-              this.player.volumeGestureActive = !isLeftSide
-              if (isLeftSide) {
-                this.player.onSwipingVoice = false
-                VideoOperateUtil.screenBrightnessTmp = this.player.screenBrightness
-                this.player.onSwipingBrightness = true
-              } else {
-                this.player.onSwipingBrightness = false
-                this.player.volume = this.player.volumeActually
-                VideoOperateUtil.lastVolume = this.player.volume
-                this.player.onSwipingVoice = true
-              }
-              this.scheduleScrollPanelHide()
-            },
-            onScrollAxisUpdate: (axisValue: number, isLeftSide: boolean) => {
-              const delta = -axisValue
-              if (isLeftSide) {
-                const brightnessStep = delta * SCROLL_BRIGHTNESS_SENSITIVITY
-                const newBrightness = this.player.screenBrightness + brightnessStep
-                this.player.screenBrightness = Math.min(Math.max(newBrightness, 0), 1)
-                VideoOperateUtil.setBrightness(this.player.screenBrightness)
-              } else {
-                const volumeStep = delta * SCROLL_VOLUME_SENSITIVITY
-                const newVolume = this.player.volume + volumeStep
-                this.player.volume =
-                  Math.min(Math.max(newVolume, VideoOperateUtil.minVolume), VideoOperateUtil.maxVolume)
-                this.player.volumeActually = this.player.volume
-                VideoOperateUtil.lastVolume = this.player.volume
-              }
-              // 每次滚动都刷新兜底，避免设备没有发送 END 时面板残留。
-              this.scheduleScrollPanelHide()
-            },
-            onScrollAxisEnd: () => {
-              this.scheduleScrollPanelHide()
-            }
+            onVerticalPanStart: (tapX: number) => this.gestures.onVerticalPanStart(tapX),
+            onVerticalPanUpdate: (offsetY: number) => this.gestures.onVerticalPanUpdate(offsetY),
+            onVerticalPanEnd: () => this.gestures.onVerticalPanEnd(),
+            onVerticalPanCancel: () => this.gestures.onVerticalPanCancel(),
+            onHorizonPanStart: () => this.gestures.onHorizonPanStart(),
+            onHorizonPanUpdate: (offsetX: number) => this.gestures.onHorizonPanUpdate(offsetX),
+            onHorizonPanEnd: () => this.gestures.onHorizonPanEnd(),
+            onHorizonPanCancel: () => this.gestures.onHorizonPanCancel(),
+            onPinchStart: (event: GestureEvent) => this.gestures.onPinchStart(event),
+            onPinchUpdate: (event: GestureEvent) => this.gestures.onPinchUpdate(event),
+            onPinchEnd: () => this.gestures.onPinchEnd(),
+            onLongPressAction: () => this.gestures.onLongPressAction(),
+            onLongPressEnd: () => this.gestures.onLongPressEnd(),
+            onLongPressPanStart: (tapX: number) => this.gestures.onLongPressPanStart(tapX),
+            onLongPressPanUpdate: (tapX: number) => this.gestures.onLongPressPanUpdate(tapX),
+            onLongPressVerticalPanUpdate: (offsetY: number) => this.gestures.onLongPressVerticalPanUpdate(offsetY),
+            onPanMoveStart: (event: GestureEvent) => this.gestures.onPanMoveStart(event),
+            onPanMoveUpdate: (event: GestureEvent) => this.gestures.onPanMoveUpdate(event),
+            onPanMoveEnd: () => this.gestures.onPanMoveEnd(),
+            onScrollAxisBegin: (isLeftSide: boolean) => this.gestures.onScrollAxisBegin(isLeftSide),
+            onScrollAxisUpdate: (axisValue: number, isLeftSide: boolean) => this.gestures.onScrollAxisUpdate(axisValue,
+              isLeftSide),
+            onScrollAxisEnd: () => this.gestures.onScrollAxisEnd()
           })
             .hitTestBehavior(HitTestMode.Transparent)
 
@@ -773,6 +528,7 @@ export struct VideoPlayer {
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
           const width = Math.floor(new Number(newValue.width).valueOf())
           const height = Math.floor(new Number(newValue.height).valueOf())
+          this.updateHoldingHandLayoutDirection(width, height)
           this.containerWidth = width
           this.containerHeight = height
           this.player.screenWidth = this.containerWidth
@@ -804,14 +560,14 @@ export struct VideoPlayer {
       .sideBarPosition(SideBarPosition.End)
       .divider({ strokeWidth: 0 })
     }
-    // 首次入场关闭侧滑；显示后恢复默认转场，让返回继续使用退场动画。
+    // 进入播放页不使用入场动画；返回继续使用默认退场动画。
     .systemTransition(this.playerExitTransitionEnabled ? NavigationSystemTransitionType.DEFAULT :
       NavigationSystemTransitionType.NONE)
     .onReady(() => {
       if (this.isPageDisappearing) {
         return
       }
-      this.isPlaybackSessionDisposed = false
+      this.playbackSession = new PlaybackSessionController()
       this.isPlayerConfigured = false
       const playerParams = this.pageParams ?? this.readPlayerParams()
       if (!playerParams) {
@@ -821,6 +577,7 @@ export struct VideoPlayer {
         this.playerType = playerParams.playerType ?? PlayerEngine.AV_PLAYER
         this.unregisterPlayerMonitors(this.player)
         this.player = PlayerControllerFactory.createController(this.playerType) as PlayerType
+        this.gestures = new PlayerGestureController(this.player)
 
         this.bindEngineSwitchHandler(this.player)
         this.subtitleManager = new SubtitleManager(this.player)
@@ -859,6 +616,9 @@ export struct VideoPlayer {
       }
     })
     .onBackPressed(() => {
+      if (!this.isPlayerConfigured) {
+        return false
+      }
       if (this.sideBarStatus) {
         this.closeSideBar(true)
         return true
@@ -873,8 +633,9 @@ export struct VideoPlayer {
     .onShown(() => {
       this.playerExitTransitionEnabled = true
       this.playerDestinationShown = true
+      IntellectualGripPostureUtil.createHoldingHandStatus(this.holdingHandCallback)
       this.startPlayerAfterDestinationShown()
-      clearTimeout(this.scrollAxisTimeout)
+      this.gestures.reset()
       this.player.volumeGestureActive = false
       this.danmakuPageVisible = true
       WantProcessUtil.setCardPlaybackHandler(this.cardPlaybackHandler)
@@ -897,13 +658,14 @@ export struct VideoPlayer {
           AUTO_LISTEN_VIDEO_FOREGROUND_FALLBACK_MS
         this.scheduleAutoListenVideoRestore(restoreDelay)
       }
-      if (Setting.autoResumeOnReturn && !this.player.playing) {
+      if (this.isPlayerConfigured && Setting.autoResumeOnReturn && !this.player.playing) {
         this.player.play()
       }
     })
     .onHidden(() => {
       this.playerDestinationShown = false
-      clearTimeout(this.scrollAxisTimeout)
+      this.stopHoldingHandSubscription()
+      this.gestures.reset()
       this.player.volumeGestureActive = false
       this.danmakuPageVisible = false
       if (deviceInfo.apiAvailable('26.0.0')) {
@@ -914,7 +676,7 @@ export struct VideoPlayer {
       this.player.isSliderPlayTimeChange = false
       this.player.onSwipingVoice = false
       this.player.onSwipingBrightness = false
-      VideoOperateUtil.saveVideoPlayTimeIfNeed(this.player.playTime, this.player.nowPlaying,
+      MediaLibraryService.saveVideoPlayTimeIfNeed(this.player.playTime, this.player.nowPlaying,
         this.player.skipHistory, PathUtils.appContext!)
       if (!Setting.allowBackgroundPlay && !PiPWindowUtil.pipOpenState) {
         this.stopAutoListenVideoRestoreObservation()
@@ -943,6 +705,7 @@ export struct VideoPlayer {
     })
     .onWillDisappear(async () => {
       this.playerDestinationShown = false
+      this.stopHoldingHandSubscription()
       this.playerReadyToStart = false
       this.danmakuPageVisible = false
       this.danmaku.dispose()
@@ -958,8 +721,8 @@ export struct VideoPlayer {
       try {
         this.player.saveSubtitlePreferenceForCurrentVideo(this.subtitleManager.subtitleVisibility,
           this.subtitleManager.isAIAsrShown, this.subtitleManager.subtitle3DMode)
-        VideoOperateUtil.saveLastPlayVideoIndex(this.player.videoMetaDataList, this.player.nowPlaying?.date)
-        VideoOperateUtil.saveVideoPlayTimeIfNeed(this.player.playTime, this.player.nowPlaying,
+        MediaLibraryService.saveLastPlayVideoIndex(this.player.videoMetaDataList, this.player.nowPlaying?.date)
+        MediaLibraryService.saveVideoPlayTimeIfNeed(this.player.playTime, this.player.nowPlaying,
           this.player.skipHistory, PathUtils.appContext!)
         // stopCasting 必须发生在 applyStopContinuousTask 销毁 AVSession 之前。
         await AVSessionUtil.stopCastingIfActive()
@@ -971,7 +734,7 @@ export struct VideoPlayer {
       } catch (error) {
         salmonLogger.addLog(TAG, `onWillDisappear中发生错误：${error}`, true)
       } finally {
-        await this.disposePlaybackSession()
+        await this.playbackSession.dispose(() => this.player)
       }
       salmonLogger.addLog(TAG, "onWillDisappear生命周期执行完成", false)
     })
@@ -1101,12 +864,12 @@ export struct VideoPlayer {
       onSliderChange: (value: number) => {
         this.player.isSliderPlayTimeChange = true
         this.player.playTime = value
-        this.player.getFrameByTime(value, false)
+        framePreviewSession.requestFrame(this.player, value, false)
       },
       onSliderTouch: (event: TouchEvent) => {
         if (event.type == TouchType.Down) {
           this.player.onSwiping = true
-          this.player.getFrameByTime(this.player.playTime, true)
+          framePreviewSession.requestFrame(this.player, this.player.playTime, true)
         }
         if (event.type == TouchType.Up) {
           this.player.seekTime(this.player.playTime)
@@ -1166,10 +929,11 @@ export struct VideoPlayer {
   AudioTrackMenuBuilder() {
     AudioTrackComponent({
       onSelect: (index: number) => {
-        this.player.selectAudioTrackByIndex(index)
+        this.player.audioController.selectAudioTrackByIndex(index)
         this.player.audioTrackSelected = index
         if (!(this.player instanceof MpvController) || !this.player.audioTrack[index]?.external) {
-          VideoOperateUtil.saveAudioTrackPreference(this.player.nowPlaying, index, this.player.getAudioTrackCount())
+          MediaLibraryService.saveAudioTrackPreference(this.player.nowPlaying, index,
+            this.player.audioController.getAudioTrackCount())
         }
       },
       onAudioEffects: () => {
@@ -1301,17 +1065,6 @@ export struct VideoPlayer {
     AVCastPickerBuilder()
   }
 
-  private scheduleScrollPanelHide(): void {
-    clearTimeout(this.scrollAxisTimeout)
-    const player = this.player
-    this.scrollAxisTimeout = setTimeout(() => {
-      this.scrollAxisTimeout = 0
-      player.volumeGestureActive = false
-      player.onSwipingVoice = false
-      player.onSwipingBrightness = false
-    }, 1500)
-  }
-
   private danmakuMediaKey(): string {
     const media = this.player.nowPlaying
     return media?.date || ''
@@ -1324,7 +1077,7 @@ export struct VideoPlayer {
       return
     }
     this.importingSubtitle = true
-    const cancelled = (): boolean => this.isPageDisappearing || this.isPlaybackSessionDisposed ||
+    const cancelled = (): boolean => this.isPageDisappearing || this.playbackSession.isDisposed ||
       this.player !== player || this.player.nowPlaying?.date !== media.date
     try {
       const name = await SubtitleUtil.selectExternalSubtitles(PathUtils.subtitlePath, media.date, cancelled)
@@ -1333,7 +1086,7 @@ export struct VideoPlayer {
       }
       const format = name.split('.').pop()?.toLowerCase() || ''
       media.external_subtitle_format = format
-      SelectFileUtil.saveData(PathUtils.appContext!, media, { externalSubtitleFormat: format })
+      MediaLibraryService.saveData(PathUtils.appContext!, media, { externalSubtitleFormat: format })
       await player.subtitleController.setExternalSubtitle(media)
       if (!cancelled()) {
         this.subtitleManager.switchToExternal()
@@ -1465,14 +1218,14 @@ export struct VideoPlayer {
     // 捕获页面 this 和本次注册身份，旧播放器已排队的回调不能访问新会话。
     const subtitleCallback = (mon: IMonitor): void => {
       if (version !== this.playerMonitorVersion || this.player !== p ||
-        this.isPageDisappearing || this.isPlaybackSessionDisposed) {
+        this.isPageDisappearing || this.playbackSession.isDisposed) {
         return
       }
       this.onSubtitleSelectedMonitor(mon)
     }
     const mediaCallback = (_mon: IMonitor): void => {
       if (version === this.playerMonitorVersion && this.player === p &&
-        !this.isPageDisappearing && !this.isPlaybackSessionDisposed) {
+        !this.isPageDisappearing && !this.playbackSession.isDisposed) {
         this.danmaku.setMedia(this.danmakuMediaKey())
       }
     }
@@ -1514,11 +1267,11 @@ export struct VideoPlayer {
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   private startPlayerAfterDestinationShown(): void {
     if (!this.playerDestinationShown || !this.playerReadyToStart || this.isPlayerConfigured ||
-      this.isPageDisappearing || this.isPlaybackSessionDisposed) {
+      this.isPageDisappearing || this.playbackSession.isDisposed) {
       return
     }
     try {
-      // 页面显示后再创建播放 Surface、隐藏系统栏及触发智能横屏，先建立完整的黑色播放背景。
+      // 页面完整显示后直接创建 Surface、隐藏系统栏及触发智能横屏。
       WindowUtil.setBarState(PathUtils.appContext!, false, false)
       if (Setting.defaultBrightness > 0) {
         VideoOperateUtil.setBrightness(Setting.defaultBrightness / 100)
@@ -1550,56 +1303,13 @@ export struct VideoPlayer {
     })
   }
 
-  private async disposePlaybackSession(): Promise<void> {
-    if (this.isPlaybackSessionDisposed) {
-      return
-    }
-    if (this.playerDisposeTask) {
-      await this.playerDisposeTask
-      return
-    }
-    const task = this.performPlaybackSessionDispose()
-    this.playerDisposeTask = task
-    try {
-      await task
-      this.isPlaybackSessionDisposed = true
-    } finally {
-      if (this.playerDisposeTask === task) {
-        this.playerDisposeTask = undefined
-      }
-    }
-  }
-
-  private async performPlaybackSessionDispose(): Promise<void> {
-    if (this.engineSwitchTask) {
-      try {
-        await this.engineSwitchTask
-      } catch (_error) {
-      }
-    }
-    this.player.setEngineSwitchHandler(undefined)
-    await this.player.dispose()
-  }
-
   private async switchPlayerEngine(targetEngine: string, reason: string,
     resumePlayback?: boolean): Promise<void> {
     const currentEngine = this.player.isMpvPlayer() ? PlayerEngine.MPV_PLAYER : PlayerEngine.AV_PLAYER
     if (currentEngine === targetEngine || this.isPageDisappearing) {
       return
     }
-    if (this.engineSwitchTask) {
-      await this.engineSwitchTask
-      return
-    }
-    const task = this.performEngineSwitch(targetEngine, reason, resumePlayback)
-    this.engineSwitchTask = task
-    try {
-      await task
-    } finally {
-      if (this.engineSwitchTask === task) {
-        this.engineSwitchTask = undefined
-      }
-    }
+    await this.playbackSession.runTransition(() => this.performEngineSwitch(targetEngine, reason, resumePlayback))
   }
 
   private async performEngineSwitch(targetEngine: string, reason: string,
@@ -1610,8 +1320,9 @@ export struct VideoPlayer {
     oldPlayer.saveSubtitlePreferenceForCurrentVideo(this.subtitleManager.subtitleVisibility,
       this.subtitleManager.isAIAsrShown, subtitle3DMode)
     try {
+      this.gestures.reset()
       await PiPWindowUtil.destroyPipController()
-      await VideoOperateUtil.releaseFrameExtractor()
+      await framePreviewSession.release()
       const nextPlayer = await this.playbackSession.switchEngine(oldPlayer, targetEngine, resumePlayback)
       if (this.isPageDisappearing || this.player !== oldPlayer) {
         await nextPlayer.release()
@@ -1622,6 +1333,7 @@ export struct VideoPlayer {
       this.osdXController = new XComponentController()
       this.playerType = targetEngine
       this.player = nextPlayer
+      this.gestures = new PlayerGestureController(nextPlayer)
       this.bindEngineSwitchHandler(nextPlayer)
       this.unregisterPlayerMonitors(oldPlayer)
 
@@ -1645,7 +1357,8 @@ export struct VideoPlayer {
     } catch (error) {
       salmonLogger.addLog(TAG, `切换播放引擎失败: ${error}`, true)
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.switch_player_engine_failed').id))
-      throw new Error(ToolsUtil.getStringResourceArgs($r('app.string.switch_player_engine_failed_detail').id, String(error)))
+      throw new Error(
+        ToolsUtil.getStringResourceArgs($r('app.string.switch_player_engine_failed_detail').id, String(error)))
     }
   }
 

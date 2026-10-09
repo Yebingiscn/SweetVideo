@@ -1,18 +1,8 @@
+import MediaLibraryService from '../../utils/MediaLibraryService'
 import { SubtitleControllerInterface } from '../PlayerControllerFactory'
 import { fileIo } from '@kit.CoreFileKit'
 import { salmonLogger } from 'salmonlogger'
-import {
-  getSubtitleTracks as mpvGetSubtitleTracks,
-  getCurrentSubtitleTrack as mpvGetCurrentSubtitleTrack,
-  getCurrentSecondarySubtitleTrack as mpvGetCurrentSecondarySubtitleTrack,
-  getSubtitleTexts as mpvGetSubtitleTexts,
-  loadExternalSubtitle as mpvLoadExternalSubtitle,
-  selectSubtitle as mpvSelectSubtitle,
-  selectSecondarySubtitle as mpvSelectSecondarySubtitle,
-  setSubtitleDelay as mpvSetSubtitleDelay,
-  setSubtitleStyle as mpvSetSubtitleStyle,
-  setSubtitleRenderVisibility as mpvSetSubtitleRenderVisibility
-} from 'libmpvnative.so'
+import { getSubtitleTracks as mpvGetSubtitleTracks, getCurrentSubtitleTrack as mpvGetCurrentSubtitleTrack, getCurrentSecondarySubtitleTrack as mpvGetCurrentSecondarySubtitleTrack, getSubtitleTexts as mpvGetSubtitleTexts, loadExternalSubtitle as mpvLoadExternalSubtitle, selectSubtitle as mpvSelectSubtitle, selectSecondarySubtitle as mpvSelectSecondarySubtitle, setSubtitleDelay as mpvSetSubtitleDelay, setSubtitleStyle as mpvSetSubtitleStyle, setSubtitleRenderVisibility as mpvSetSubtitleRenderVisibility } from 'libmpvnative.so'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode'
 import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
@@ -21,7 +11,6 @@ import { NetworkPlayback } from '../../utils/NetworkPlayback'
 import { PathUtils } from '../../utils/PathUtils'
 import { Setting } from '../../utils/ObservedUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
-import SelectFileUtil from '../../utils/SelectFileUtil'
 import SubtitleUtil from '../../utils/SubtitleUtil'
 import SubtitleStyleUtil from '../../utils/SubtitleStyleUtil'
 import SubtitleLanguageUtil from '../../utils/SubtitleLanguageUtil'
@@ -44,7 +33,6 @@ export interface MpvSubtitleState {
   playTime: number
   repeatMode: SweetRepeatMode
   speed: number
-  refreshExternalSubtitlePreview(offset: number): void
 }
 
 export class MpvSubtitleController implements SubtitleControllerInterface {
@@ -253,7 +241,6 @@ export class MpvSubtitleController implements SubtitleControllerInterface {
     if (this.getHandle()) {
       mpvSetSubtitleDelay(this.getHandle(), clampedOffset)
     }
-    this.state.refreshExternalSubtitlePreview(clampedOffset)
   }
 
   setSubtitle3DMode(mode: Subtitle3DMode): void {
@@ -287,7 +274,7 @@ export class MpvSubtitleController implements SubtitleControllerInterface {
     nowPlaying.subtitle_3d_mode = Subtitle3DMode.DISABLED
     nowPlaying.subtitle_offset_millis = 0
     nowPlaying.subtitle_track_id = -1
-    SelectFileUtil.saveData(PathUtils.appContext!, nowPlaying, {
+    MediaLibraryService.saveData(PathUtils.appContext!, nowPlaying, {
       subtitleMode: SubtitleMode.NONE,
       subtitleVisible: false,
       subtitleAIAsrShown: false,
@@ -386,5 +373,11 @@ export class MpvSubtitleController implements SubtitleControllerInterface {
     const codec = (track.codec ?? '').toLowerCase()
     return codec.includes('pgs') || codec.includes('dvd_subtitle') ||
       codec.includes('dvb_subtitle') || codec.includes('xsub')
+  }
+
+
+  refreshExternalSubtitleByPlaybackTime(_isAdjustingSubtitleOffset: boolean,
+    _subtitleVisibility: Visibility): void {
+    // MPV owns cue timing and rendering for external subtitles.
   }
 }

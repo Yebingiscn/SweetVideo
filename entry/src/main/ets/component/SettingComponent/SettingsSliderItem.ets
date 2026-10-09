@@ -28,7 +28,7 @@ export struct SettingsSliderItem {
   }
 
   build() {
-    Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
+    Row() {
       Row({ space: 12 }) {
         SymbolGlyph(this.symbol)
           .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
@@ -69,6 +69,9 @@ export struct SettingsSliderItem {
         .layoutWeight(1)
         .enableHapticFeedback(true)
     }
+    .justifyContent(FlexAlign.SpaceBetween)
+    .alignItems(VerticalAlign.Center)
+    .width('100%')
     .align(Alignment.Center)
     .backgroundColor($r('app.color.start_window_background_blur'))
     .height(65)

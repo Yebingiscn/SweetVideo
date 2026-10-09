@@ -4,6 +4,7 @@ import { XAnimation } from '../../utils/AnimationUtil'
 
 @ComponentV2
 export struct LockVideoBarComponent {
+  @Param buttonsOnLeft: boolean = false
   @Consumer('player') player: PlayerControllerInterface =
     PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
   @Event onLockClick: () => void = () => {
@@ -40,8 +41,9 @@ export struct LockVideoBarComponent {
         this.onLockClick()
       })
     }
-    .position({ bottom: this.player.screenHeight / 2 - 40, left: this.player.screenWidth - 80 })
-    .transition(TransitionEffect.translate({ x: 80 })
+    .position({ bottom: this.player.screenHeight / 2 - 40,
+      left: this.buttonsOnLeft ? 40 : this.player.screenWidth - 80 })
+    .transition(TransitionEffect.translate({ x: this.buttonsOnLeft ? -80 : 80 })
       .combine(TransitionEffect.OPACITY)
       .animation(XAnimation.getAnimationCurve()))
     .zIndex(100)

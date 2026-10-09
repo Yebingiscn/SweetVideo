@@ -1,3 +1,4 @@
+import MediaLibraryService from './MediaLibraryService'
 import VideoInfoUtil from './VideoInfoUtil'
 import FFmpegThumbnailUtil from './FFmpegThumbnailUtil'
 import { bundleManager, common, OpenLinkOptions, Want } from '@kit.AbilityKit'
@@ -5,7 +6,6 @@ import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { salmonLogger } from 'salmonlogger'
 import { VideoSource } from '../common/enum/VideoSource'
 import { PathUtils } from './PathUtils'
-import SelectFileUtil from './SelectFileUtil'
 import ToolsUtil from './ToolsUtil'
 import { WindowUtil } from './WindowUtil'
 import { systemDateTime } from '@kit.BasicServicesKit'
@@ -262,16 +262,16 @@ export default class WantProcess {
       salmonLogger.addLog(TAG, "file address failed", false)
       return
     }
-    if (SelectFileUtil.isPathFromSource(uri, VideoSource.PHOTO_SELECT_OPTION)) {
+    if (MediaLibraryService.isPathFromSource(uri, VideoSource.PHOTO_SELECT_OPTION)) {
       await WantProcess.linkToGallery(uri)
       return
     }
-    if (SelectFileUtil.isPathFromSource(uri, VideoSource.DOCUMENT_SELECT_OPTION) ||
-      SelectFileUtil.isPathFromSource(uri, VideoSource.EXTERNAL_DEVICE)) {
+    if (MediaLibraryService.isPathFromSource(uri, VideoSource.DOCUMENT_SELECT_OPTION) ||
+      MediaLibraryService.isPathFromSource(uri, VideoSource.EXTERNAL_DEVICE)) {
       WantProcess.linkToFileManager(uri)
       return
     }
-    if (SelectFileUtil.isPathFromSource(uri, VideoSource.SWEET_VIDEO_DOWNLOAD_FILE)) {
+    if (MediaLibraryService.isPathFromSource(uri, VideoSource.SWEET_VIDEO_DOWNLOAD_FILE)) {
       WantProcess.linkToFileManager(uri)
       return
     }

@@ -15,7 +15,7 @@ export default class NavigationAddress {
   static GLOBAL_SEARCH = 'GlobalSearch'
   static PRIVACY_SPACE = 'PrivacySpace'
   static CRASH_PAGE = 'CrashPage'
-  static PERSONALIZE_PAGE = 'PersonalizePage'
+  static INTERFACE_SETTING_PAGE = 'InterfaceSettingPage'
   static PLAYER_SETTING_PAGE = 'PlayerSettingPage'
   static SUBTITLE_SETTING_PAGE = 'SubtitleSettingPage'
   static PRIVACY_ERROR_LIST = 'PrivacySpaceErrorList'

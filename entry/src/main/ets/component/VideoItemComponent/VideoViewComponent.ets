@@ -1,5 +1,6 @@
 import MediaSortUtil from '../../utils/MediaSortUtil'
-import { VideoList, VideoListController } from './VideoItemComponent'
+import { VideoList } from './VideoItemComponent'
+import { VideoListController } from '../../controller/VideoListController'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { SideBarController } from '../SideBarComponent/SideBar'
 import { motion } from '@kit.MultimodalAwarenessKit'
@@ -32,6 +33,7 @@ import { MaskComponent } from '../SideBarComponent/MaskComponent'
 import { SearchComponent } from './SearchComponent'
 import { SortMenuComponent } from '../common/SortMenuComponent'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
+import MediaLibraryService from '../../utils/MediaLibraryService'
 
 @ComponentV2
 export struct VideoView {
@@ -117,7 +119,14 @@ export struct VideoView {
   @Monitor('videoListController.folder', 'videoListController.directoryMode',
     'videoListController.directoryOverview', 'videoListController.videoMetaDataList', '_searchValue')
   onSearchBarContextChanged(): void {
-    const folderKey = `${this.videoListController.folder.date}:${this.videoListController.directoryMode}:${this.videoListController.directoryOverview}`
+    const folder = this.videoListController.folder
+    if (!folder) {
+      this.searchBarHidden = false
+      this.searchBarFolderKey = ''
+      return
+    }
+    const folderKey =
+      `${folder.date}:${this.videoListController.directoryMode}:${this.videoListController.directoryOverview}`
     if (folderKey !== this.searchBarFolderKey ||
       (!this.videoListController.directoryMode && this.videoListController.videoDataSource.totalCount() === 0)) {
       this.searchBarHidden = false
@@ -241,7 +250,7 @@ export struct VideoView {
                   this.videoListController.folder)
               } else {
                 const videoMetaDataList: VideoMetadata[] =
-                  SelectFileUtil.getItemFromSearch(
+                  MediaLibraryService.getItemFromSearch(
                     FolderOperator.getFolderByDate(this.videoListController.folder.date)!
                       .video_list, this._searchValue)
                 this.videoListController.videoDataSource.updateData(videoMetaDataList)
@@ -324,22 +333,20 @@ export struct VideoView {
     .animation({ duration: 300, curve: Curve.Ease })
   }
 
-  private toggleDirectoryView(): void {
-    if (this.loading || this.videoListController.directoryTransitioning ||
-      this.videoListController.multipleChooseState === Visibility.Visible) { return }
-    this.searchBarHidden = false
-    this.videoListController.setDirectoryView(!this.videoListController.directoryMode)
-  }
-
   @Builder
   DirectoryBreadcrumbBuilder() {
     Scroll(this.breadcrumbScroller) {
       Row({ space: 8 }) {
         Button($r('app.string.directory_all_folders'), { type: ButtonType.Normal })
-          .fontSize(13).fontColor(this.videoListController.directoryOverview ?
+          .attributeModifier(new ButtonFancyModifier('', ''))
+          .fontSize(13)
+          .fontColor(this.videoListController.directoryOverview ?
             $r('app.color.main_color') : $r('app.color.text_color'))
-          .backgroundColor(Color.Transparent).padding({ left: 4, right: 4 })
-          .onClick(() => { this.videoListController.requestDirectory(null) })
+          .backgroundColor(Color.Transparent)
+          .padding({ left: 4, right: 4 })
+          .onClick(() => {
+            this.videoListController.requestDirectory(null)
+          })
         if (!this.videoListController.directoryOverview) {
           Repeat<FileFolder>(FileFolderUtil.getFolderPathChain(PathUtils.appContext!,
             this.videoListController.folder?.date ?? ''))
@@ -348,11 +355,16 @@ export struct VideoView {
                 SymbolGlyph($r('sys.symbol.chevron_right'))
                   .fontSize(10).fontColor([$r('sys.color.font_tertiary')])
                 Button(folder.item.name, { type: ButtonType.Normal })
-                  .fontSize(13).fontColor(this.videoListController.folder?.date === folder.item.date ?
+                  .attributeModifier(new ButtonFancyModifier('', ''))
+                  .fontSize(13)
+                  .fontColor(this.videoListController.folder?.date === folder.item.date ?
                     $r('app.color.main_color') : $r('app.color.text_color'))
-                  .backgroundColor(Color.Transparent).padding({ left: 4, right: 4 })
+                  .backgroundColor(Color.Transparent)
+                  .padding({ left: 4, right: 4 })
                   .constraintSize({ maxWidth: 160 })
-                  .onClick(() => { this.videoListController.requestDirectory(folder.item.date) })
+                  .onClick(() => {
+                    this.videoListController.requestDirectory(folder.item.date)
+                  })
               }.height(36)
             })
             .key((folder: FileFolder) => folder.date + folder.name)
@@ -368,20 +380,24 @@ export struct VideoView {
       Button({ type: ButtonType.Circle }) {
         SymbolGlyph($r('sys.symbol.doc_plaintext_and_folder'))
           .fontSize(19).fontColor([this.videoListController.directoryMode ?
-            $r('sys.color.white') : $r('app.color.text_color')])
+          $r('sys.color.white') : $r('app.color.text_color')])
       }
-      .width(32).height(32)
+      .width(32)
+      .height(32)
       .backgroundColor(this.videoListController.directoryMode ? $r('app.color.main_color') :
         $r('app.color.search_component_blur'))
       .accessibilityText(this.videoListController.directoryMode ? $r('app.string.directory_disable') :
         $r('app.string.directory_enable'))
       .enabled(!this.loading && !this.videoListController.directoryTransitioning &&
         this.videoListController.multipleChooseState !== Visibility.Visible)
-      .onClick(() => { this.toggleDirectoryView() })
+      .onClick(() => {
+        this.toggleDirectoryView()
+      })
+
       Row() {
         if (this.videoListController.directoryMode) {
           this.DirectoryBreadcrumbBuilder()
-        } else if (Setting.showToast && this.file_folder_list.length > 1) {
+        } else if (Setting.showToast && this.file_folder_list.length > 0) {
           this.FolderTabsBuilder()
         } else {
           Text(this.videoListController.folder?.name ?? '')
@@ -403,7 +419,7 @@ export struct VideoView {
       items: [
         {
           field: SortField.RECENT_PLAY,
-          icon: $r('sys.symbol.play_circle'),
+          icon: $r('sys.symbol.play_round_triangle_fill'),
           textResource: $r('app.string.sort_by_recent_play'),
           onAction: (): void => this.handleSort(SortField.RECENT_PLAY, false)
         },
@@ -443,7 +459,8 @@ export struct VideoView {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.checkmark_square_on_square')),
         content: this.delMultipleList.length === this.videoListController.videoMetaDataList.length &&
-          this.videoListController.videoMetaDataList.length > 0 ? $r('app.string.deselect_all') : $r('app.string.select_all')
+          this.videoListController.videoMetaDataList.length > 0 ? $r('app.string.deselect_all') :
+          $r('app.string.select_all')
       })
         .onClick(() => {
           if (this.delMultipleList.length === this.videoListController.videoMetaDataList.length &&
@@ -525,6 +542,29 @@ export struct VideoView {
     .edgeEffect(EdgeEffect.Spring)
   }
 
+  @Builder
+  RecentPlayButtonBuilder() {
+    Button({ type: ButtonType.Circle, stateEffect: true }) {
+      SymbolGlyph($r('sys.symbol.play_round_triangle_fill'))
+        .attributeModifier(new SymbolGlyphFancyModifier(26, '', ''))
+    }
+    .attributeModifier(new ButtonFancyModifier(52, 52))
+    .attributeModifier(new SearchShadowModifier())
+    .position({ right: 20, bottom: (SafeHeight.bottomSafeHeight + 16) * 2 })
+    .onClick(async () => {
+      await this.playMostRecentlyPlayedVideo()
+    })
+  }
+
+  private toggleDirectoryView(): void {
+    if (this.loading || this.videoListController.directoryTransitioning ||
+      this.videoListController.multipleChooseState === Visibility.Visible) {
+      return
+    }
+    this.searchBarHidden = false
+    this.videoListController.setDirectoryView(!this.videoListController.directoryMode)
+  }
+
   private handleSort(field: SortField, defaultAsc: boolean) {
     if (this.currentSortField === field) {
       this.currentSortAsc = !this.currentSortAsc
@@ -597,7 +637,8 @@ export struct VideoView {
    * 右下角「最近播放」悬浮按钮的显示条件：非导入中、非搜索/多选状态、且当前文件夹有视频
    */
   private canShowRecentPlayButton(): boolean {
-    return !this.videoListController.directoryOverview && !this.loading && !this.is_edit && this._searchValue.length === 0 &&
+    return !this.videoListController.directoryOverview && !this.loading && !this.is_edit &&
+      this._searchValue.length === 0 &&
       this.videoListController.multipleChooseState !== Visibility.Visible &&
       this.videoListController.videoMetaDataList.length > 0
   }
@@ -622,19 +663,5 @@ export struct VideoView {
       return
     }
     ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.invalid_file_reimport').id))
-  }
-
-  @Builder
-  RecentPlayButtonBuilder() {
-    Button({ type: ButtonType.Circle, stateEffect: true }) {
-      SymbolGlyph($r('sys.symbol.play_circle'))
-        .attributeModifier(new SymbolGlyphFancyModifier(26, '', ''))
-    }
-    .attributeModifier(new ButtonFancyModifier(52, 52))
-    .attributeModifier(new SearchShadowModifier())
-    .position({ right: 20, bottom: (SafeHeight.bottomSafeHeight + 16) * 2 })
-    .onClick(async () => {
-      await this.playMostRecentlyPlayedVideo()
-    })
   }
 }

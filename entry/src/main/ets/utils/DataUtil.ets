@@ -1,15 +1,14 @@
+import MediaLibraryService from './MediaLibraryService'
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 
-import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent'
+import { VideoListController } from '../controller/VideoListController'
 import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
 import { DeleteType } from '../common/enum/DeleteType'
 import { MpvAudioTrack, MpvSubtitleTrack } from '../controller/MpvController/MpvTypes'
 import { SalmonLogLine } from 'salmonlogger'
 import { FolderOperator, VideoMetaDataOperator } from '../database/VideoMetaData'
-import SelectFileUtil from './SelectFileUtil'
 import ToolsUtil from './ToolsUtil'
-import VideoOperateUtil from './VideoOperateUtil'
 import VideoUtils from './VideoUtil'
 
 const TAG = 'DataUtil'
@@ -121,13 +120,13 @@ export class VideoDataSource extends BaseDataSource<VideoMetadata> {
       return
     }
     await VideoMetaDataOperator.deleteItem(videoListController, fileFolderSource, DeleteType.SOFT, item)
-    SelectFileUtil.deleteVideo(item)
+    MediaLibraryService.deleteVideo(item)
     VideoUtils.refresh(videoListController, fileFolderSource, videoListController.folder)
   }
 
   async deleteItem(deleteType: DeleteType, item: VideoMetadata): Promise<void> {
     this.deleteData(this.data.findIndex(i => i.date === item.date))
-    await VideoOperateUtil.deleteVideoResource(item, deleteType)
+    await MediaLibraryService.deleteVideoResource(item, deleteType)
     if (deleteType == DeleteType.RECENT) {
       ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.moved_to_recycle').id, item.title))
     }

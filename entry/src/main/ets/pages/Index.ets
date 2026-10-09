@@ -1,7 +1,8 @@
+import MediaLibraryService from '../utils/MediaLibraryService'
 import { FileFolderDataSource } from '../utils/DataUtil'
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { DefaultDialogShadow } from '../common/AttributeModifierConfig'
-import { VideoListController } from '../component/VideoItemComponent/VideoItemComponent'
+import { VideoListController } from '../controller/VideoListController'
 import { SideBarController } from '../component/SideBarComponent/SideBar'
 import { DeletedVideosDialog } from '../component/Dialog/DeletedVideosDialog'
 import { motion } from '@kit.MultimodalAwarenessKit'
@@ -47,7 +48,7 @@ import lazy { AboutApp } from './SettingPage/AboutApp'
 import lazy { GetVipPage } from './SettingPage/GetVipPage'
 import lazy { CrashPage } from './SettingPage/CrashPage'
 import lazy { MoreSettingPage } from './SettingPage/MoreSettingPage'
-import lazy { PersonalizePage } from './SettingPage/PersonalizePage'
+import lazy { InterfaceSettingPage } from './SettingPage/InterfaceSettingPage'
 import lazy { PlayerSettingPage } from './SettingPage/PlayerSettingPage'
 import lazy { SubtitleSettingPage } from './SettingPage/SubtitleSettingPage'
 import lazy { SettingsPage } from './SettingPage/Setting'
@@ -65,11 +66,7 @@ import lazy { PersonalizeSettingPage } from './SettingPage/PersonalizeSettingPag
 import lazy { EngineSettingPage } from './SettingPage/EngineSettingPage'
 import { LengthMetrics } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavigation, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
-import KnockShareUtil, {
-  KNOCK_SHARE_INDEX_OWNER,
-  KnockCoordinate,
-  KnockReceivePayload
-} from '../utils/KnockShareUtil'
+import KnockShareUtil, { KNOCK_SHARE_INDEX_OWNER, KnockCoordinate, KnockReceivePayload } from '../utils/KnockShareUtil'
 import KnockReceiveStorage from '../utils/KnockReceiveStorage'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import PermissionUtil from '../utils/PermissionUtil'
@@ -144,13 +141,7 @@ struct Index {
   }
 
   private async initializeHome(lifecycleVersion: number): Promise<boolean> {
-    await WindowUtil.init(PathUtils.appContext!)
-    if (lifecycleVersion !== this.homeLifecycleVersion) return false
-    this.activateKnockShareProvider()
-    KnockShareUtil.setReceiveHandler(async (payload: KnockReceivePayload): Promise<void> => {
-      await this.handleKnockReceive(payload)
-    })
-    VideoOperateUtil.initSetting(PathUtils.appContext!)
+    // 首次安装没有文件夹，必须在首次 await 前准备数据，避免子组件先进入 aboutToAppear。
     this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
     if (this.file_folder_list.length === 0) {
       this.file_folder_list = FileFolderUtil.createNewFolder(PathUtils.appContext!, '首页')
@@ -163,6 +154,14 @@ struct Index {
       : this.file_folder_list[0]
     this.videoListController?.updateData(undefined, defaultFolder)
     this.videoListController.directoryMode = Preferences.getDirectoryView(PathUtils.appContext!)
+
+    await WindowUtil.init(PathUtils.appContext!)
+    if (lifecycleVersion !== this.homeLifecycleVersion) return false
+    this.activateKnockShareProvider()
+    KnockShareUtil.setReceiveHandler(async (payload: KnockReceivePayload): Promise<void> => {
+      await this.handleKnockReceive(payload)
+    })
+    VideoOperateUtil.initSetting(PathUtils.appContext!)
     const hasCardWant = WantProcessUtil.hasPendingCardWant()
     if (startupPage && !hasCardWant) {
       setTimeout(() => {
@@ -477,6 +476,8 @@ struct Index {
         }
       }))
     }
+    // 导航背景铺满窗口，旋转重排时不会透出系统默认底色。
+    .backgroundColor($r('app.color.start_window_background'))
     .backgroundImage(
       Setting.backgroundDropBlur > 0 && Setting.backgroundBlurImageSrc.length > 0 ? Setting.backgroundBlurImageSrc :
         Setting.backgroundImageSrc, ImageRepeat.NoRepeat)
@@ -485,6 +486,19 @@ struct Index {
     .hideTitleBar(true)
     .mode(NavigationMode.Stack)
     .navDestination(this.Pages)
+    .customNavContentTransition((_from: NavContentInfo, to: NavContentInfo,
+      operation: NavigationOperation): NavigationAnimatedTransition | undefined => {
+      if (to.name === NavigationAddress.VIDEO_PLAYER &&
+        (operation === NavigationOperation.PUSH || operation === NavigationOperation.REPLACE)) {
+        // 进入播放页直接完成导航，避免系统入场动画与智能横屏叠加；返回仍使用默认退场。
+        return {
+          transition: (proxy: NavigationTransitionProxy): void => {
+            proxy.finishTransition()
+          }
+        }
+      }
+      return undefined
+    })
     .bindToScrollable(
       [this.videoListController.listScroller, this.videoListController.waterFlowScroller,
         this.videoListController.directoryScroller,
@@ -641,8 +655,8 @@ struct Index {
       PlayerSettingPage()
     } else if (name == NavigationAddress.SUBTITLE_SETTING_PAGE) {
       SubtitleSettingPage()
-    } else if (name == NavigationAddress.PERSONALIZE_PAGE) {
-      PersonalizePage()
+    } else if (name == NavigationAddress.INTERFACE_SETTING_PAGE) {
+      InterfaceSettingPage()
     } else if (name == NavigationAddress.PRIVACY_ERROR_LIST) {
       PrivacySpaceErrorList()
     } else if (name == NavigationAddress.MORE_SETTING_PAGE) {
@@ -732,7 +746,7 @@ struct Index {
     const videosToCheck: VideoMetadata[] = []
     folders.forEach(folder => {
       folder.video_list.forEach(video => {
-        const isExternalDevice = SelectFileUtil.isPathFromSource(video.uri, VideoSource.EXTERNAL_DEVICE)
+        const isExternalDevice = MediaLibraryService.isPathFromSource(video.uri, VideoSource.EXTERNAL_DEVICE)
         const normalizedUri = video.uri.toLowerCase()
         const isNetworkVideo = ToolsUtil.isNetworkUrl(normalizedUri)
         if (!isExternalDevice && !isNetworkVideo) {
@@ -748,8 +762,8 @@ struct Index {
       const batch = videosToCheck.slice(start, start + batchSize)
       await Promise.all(batch.map(async (video: VideoMetadata) => {
         const needsPermissionActivation =
-          SelectFileUtil.isPathFromSource(video.uri, VideoSource.DOCUMENT_SELECT_OPTION) ||
-            SelectFileUtil.isPathFromSource(video.uri, VideoSource.PHOTO_SELECT_OPTION)
+          MediaLibraryService.isPathFromSource(video.uri, VideoSource.DOCUMENT_SELECT_OPTION) ||
+            MediaLibraryService.isPathFromSource(video.uri, VideoSource.PHOTO_SELECT_OPTION)
         if (needsPermissionActivation) {
           await PermissionUtil.activatePermission(video.uri)
         }
@@ -763,7 +777,7 @@ struct Index {
     if (plan.videos.length === 0) return
     Preferences.saveFileFolder(PathUtils.appContext!, plan.folders, true)
     if (plan.folders.length === 0) FileFolderUtil.createNewFolder(PathUtils.appContext!, '首页')
-    await VideoOperateUtil.deleteVideoFiles(plan.resources, DeleteType.SOFT)
+    await MediaLibraryService.deleteVideoFiles(plan.resources, DeleteType.SOFT)
     salmonLogger.addLog(TAG, `已清理失效视频 ${plan.videos.length} 个，文件夹 ${plan.removedFolderCount} 个`, false)
 
     const latestFolders = Preferences.getFileFolder(PathUtils.appContext!)

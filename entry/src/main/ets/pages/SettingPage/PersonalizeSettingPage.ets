@@ -1,3 +1,4 @@
+import ImageStorage from '../../utils/ImageStorage'
 import ImageFileUtil from '../../utils/ImageFileUtil'
 import { SettingsClickItem } from '../../component/SettingComponent/SettingsClickItem'
 import { SettingsSegmentButtonItem } from '../../component/SettingComponent/SettingsSegmentButtonItem'
@@ -460,8 +461,11 @@ export struct PersonalizeSettingPage {
       ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.no_photo_selected').id))
       return
     }
+    if (!imageName || !ImageStorage.copyImageFile(imageUris[0], PathUtils.photoPath + imageName)) {
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.background_image_save_failed').id))
+      return
+    }
     Setting.backgroundImageSrc = ''
-    ImageFileUtil.saveImageToSandBox(imageUris[0], imageName)
     setTimeout(async () => {
       if (shouldApply()) {
         Setting.backgroundImageSrc = ImageFileUtil.getImageUri()
