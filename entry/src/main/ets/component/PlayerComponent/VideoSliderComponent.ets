@@ -16,7 +16,7 @@ export struct VideoSliderComponent {
     return `${prefix}${this.player.networkSpeedText}${ToolsUtil.getStringResource($r('app.string.network_buffer_mid').id)}${this.player.networkBufferPercent}% · ${cache}s`
   }
 
-  @Event onSliderChange: (_value: number) => void = () => {
+  @Event onSliderChange: (_value: number, _mode?: SliderChangeMode) => void = () => {
   }
   @Event onSliderTouch: (_event: TouchEvent) => void = () => {
   }
@@ -32,7 +32,7 @@ export struct VideoSliderComponent {
         Row() {
           PlaybackProgressSliderBuilder({
           playTime: this.player.playTime, totalTime: this.player.nowPlaying?.time || 0, height: 56,
-          onSliderChange: (value: number) => this.onSliderChange(value),
+          onSliderChange: (value: number, mode?: SliderChangeMode) => this.onSliderChange(value, mode),
           onSliderTouch: (event: TouchEvent) => this.onSliderTouch(event)
           })
         }.layoutWeight(1)
@@ -140,7 +140,7 @@ export struct VideoSliderComponent {
       PlaybackProgressSliderBuilder({
         playTime: this.player.playTime,
         totalTime: this.player.nowPlaying?.time || 0,
-        onSliderChange: (value: number) => this.onSliderChange(value),
+        onSliderChange: (value: number, mode?: SliderChangeMode) => this.onSliderChange(value, mode),
         onSliderTouch: (event: TouchEvent) => this.onSliderTouch(event)
       })
     }

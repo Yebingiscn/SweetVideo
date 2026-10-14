@@ -110,7 +110,7 @@ export interface PlaybackProgressSliderParams {
   height?: number
   playTime: number
   totalTime: number
-  onSliderChange?: (value: number) => void
+  onSliderChange?: (value: number, mode?: SliderChangeMode) => void
   onSliderTouch?: (event: TouchEvent) => void
 }
 
@@ -123,7 +123,7 @@ export function PlaybackProgressSliderBuilder($$: PlaybackProgressSliderParams) 
     style: SliderStyle.InSet
   })
     .selectedBorderRadius(16)
-    .onChange((value: number) => $$.onSliderChange?.(value))
+    .onChange((value: number, mode: SliderChangeMode) => $$.onSliderChange?.(value, mode))
     .onTouch((event: TouchEvent) => $$.onSliderTouch?.(event))
     .animation({ duration: 100, curve: Curve.Smooth })
     .selectedColor('#e0e0e0')

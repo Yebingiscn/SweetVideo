@@ -2,7 +2,7 @@ import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/Attr
 import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import AVSessionUtil from '../../utils/AVSessionUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
-import { AVCastPicker } from '@kit.AVSessionKit'
+import { AVCastPicker, AVCastPickerState } from '@kit.AVSessionKit'
 import { HiCar } from '../../utils/HiCarUtil'
 
 class VideoControlIconValue {
@@ -19,6 +19,7 @@ function VideoControlIcon(videoControlIconValue: VideoControlIconValue) {
 
 @ComponentV2
 export struct VideoButtonsComponent {
+  @Event onControlsOverlay: (name: string, visible: boolean) => void = () => {}
   @Param sideBarStatusTmp: Visibility = Visibility.Hidden
   @Local _sideBarStatusTmp: Visibility = Visibility.Hidden
   @Param sideBarStatus: boolean = false
@@ -109,7 +110,10 @@ export struct VideoButtonsComponent {
       if (!HiCar.enabled) {
       AVCastPicker({
         normalColor: Color.White,
-        onStateChange: AVSessionUtil.castOnStateChange,
+        onStateChange: (state: AVCastPickerState) => {
+          AVSessionUtil.castOnStateChange(state)
+          this.onControlsOverlay('cast-picker', state === AVCastPickerState.STATE_APPEARING)
+        },
         customPicker: () => this.AVCastPickerBuilderBridge()
       })
         .width(40)
@@ -122,7 +126,11 @@ export struct VideoButtonsComponent {
       }
       .iconButton()
       .bindMenu(this.videoSettingBuilder,
-        { backgroundBlurStyle: BlurStyle.COMPONENT_THIN })
+        {
+          backgroundBlurStyle: BlurStyle.COMPONENT_THIN,
+          onWillAppear: () => this.onControlsOverlay('settings-menu', true),
+          onDidDisappear: () => this.onControlsOverlay('settings-menu', false)
+        })
 
       // 倍速调整按钮
       Button({ type: ButtonType.Circle, stateEffect: false }) {
@@ -136,7 +144,11 @@ export struct VideoButtonsComponent {
       }
       .iconButton()
       .bindMenu(this.playbackSpeedMenu,
-        { backgroundBlurStyle: BlurStyle.COMPONENT_THIN })
+        {
+          backgroundBlurStyle: BlurStyle.COMPONENT_THIN,
+          onWillAppear: () => this.onControlsOverlay('speed-menu', true),
+          onDidDisappear: () => this.onControlsOverlay('speed-menu', false)
+        })
 
       // 选集按钮
       }

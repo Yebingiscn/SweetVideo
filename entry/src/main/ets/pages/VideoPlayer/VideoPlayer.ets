@@ -1,4 +1,5 @@
 import { PlayerGestureController } from '../../controller/PlayerGestureController'
+import { PlayerControlAutoHide } from '../../controller/PlayerControlAutoHide'
 import { HiCar } from '../../utils/HiCarUtil'
 import { framePreviewSession } from '../../utils/FFmpegThumbnailUtil'
 import MediaLibraryService from '../../utils/MediaLibraryService'
@@ -34,6 +35,7 @@ import { PlaybackSessionController } from '../../controller/PlaybackSessionContr
 import { XComponents } from '../../component/PlayerComponent/XComponents'
 import { VideoLayoutComponent } from '../../component/PlayerComponent/VideoLayoutComponent'
 import {
+  AUTO_HIDE_SHOW_CONTROL_TIME,
   DEFAULT_ANGLE,
   MIRRORED_ANGLE,
   NO_BLUR_AMOUNT,
@@ -106,7 +108,9 @@ export struct VideoPlayer {
         }
         return applied
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, shadow: DefaultDialogShadow,
+    onWillAppear: () => this.controlsIdle.setHeld('audio-dialog', true),
+    onDidDisappear: () => this.controlsIdle.setHeld('audio-dialog', false)
   })
   personalScreenExtendDialog: CustomDialogController = new CustomDialogController({
     builder: NumberInputDialog({
@@ -124,7 +128,9 @@ export struct VideoPlayer {
           ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.custom_ratio_invalid').id))
         }
       },
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, shadow: DefaultDialogShadow,
+    onWillAppear: () => this.controlsIdle.setHeld('aspect-dialog', true),
+    onDidDisappear: () => this.controlsIdle.setHeld('aspect-dialog', false)
   })
   @Local isPlayerConfigured: boolean = false
   @Local subtitlePreferenceRestored: boolean = false
@@ -148,6 +154,35 @@ export struct VideoPlayer {
   private waitingForPreviousExit: boolean = false
   private exitPlayTime: number = 0
   private playerDestinationShown: boolean = false
+  private controlTouches: Set<number> = new Set<number>()
+  private controlsIdle: PlayerControlAutoHide = new PlayerControlAutoHide(AUTO_HIDE_SHOW_CONTROL_TIME,
+    () => this.canAutoHideControls(), () => { this.player.showControl = false })
+
+  private canAutoHideControls(): boolean {
+    return this.playerDestinationShown && !this.isPageDisappearing && !this.playbackSession.isDisposed &&
+      this.player.showControl && !this.sideBarStatus && !this.importingSubtitle &&
+      !this.isAdjustingSubtitleOffset && !this.player.onSwiping && !this.player.isSliderPlayTimeChange &&
+      !this.player.isGesturing && !this.player.longPress && !this.player.onSwipingVoice &&
+      !this.player.onSwipingBrightness
+  }
+
+  @Monitor('sideBarStatus', 'importingSubtitle', 'isAdjustingSubtitleOffset',
+    'player.onSwiping', 'player.isSliderPlayTimeChange', 'player.isGesturing', 'player.longPress',
+    'player.onSwipingVoice', 'player.onSwipingBrightness')
+  onControlInteractionStateChanged(): void {
+    this.controlsIdle.refresh()
+  }
+
+  private onControlTouch(event: TouchEvent): void {
+    if (event.type === TouchType.Cancel) {
+      this.controlTouches.clear()
+    } else if (event.type === TouchType.Down) {
+      event.changedTouches.forEach(touch => this.controlTouches.add(touch.id))
+    } else if (event.type === TouchType.Up) {
+      event.changedTouches.forEach(touch => this.controlTouches.delete(touch.id))
+    }
+    this.controlsIdle.setHeld('touch', this.controlTouches.size > 0)
+  }
   @Local holdingHand: motion.HoldingHandStatus | null = null
   private holdingHandCallback: Callback<motion.HoldingHandStatus> = (status: motion.HoldingHandStatus): void => {
     if (!this.playerDestinationShown || this.isPageDisappearing || !Setting.gripPostureEnabled) {
@@ -213,6 +248,8 @@ export struct VideoPlayer {
     }),
     cornerRadius: 20,
     shadow: DefaultDialogShadow,
+    onWillAppear: () => this.controlsIdle.setHeld('subtitle-offset-dialog', true),
+    onDidDisappear: () => this.controlsIdle.setHeld('subtitle-offset-dialog', false),
     maskColor: '#00000000',
     cancel: (): void => {
       this.cancelSubtitleOffsetSession()
@@ -240,6 +277,7 @@ export struct VideoPlayer {
 
   @Monitor('player.showControl')
   onShowControlMonitor(_mon: IMonitor) {
+    this.controlsIdle.refresh()
     if (!Pc.pcMode || this.isPageDisappearing || this.playbackSession.isDisposed) {
       return
     }
@@ -286,7 +324,8 @@ export struct VideoPlayer {
     }
     KnockShareUtil.clearShareProvider(KNOCK_SHARE_VIDEO_PLAYER_OWNER)
     this.player.onWillDisappearCleanup()
-    VideoOperateUtil.cancelControlAutoHide()
+    this.controlsIdle.stop()
+    this.controlTouches.clear()
     try {
       await this.restoreAutomaticOrientation()
       salmonLogger.addLog(TAG, "开始执行aboutToDisappear方法", false)
@@ -572,16 +611,12 @@ export struct VideoPlayer {
         .width('100%')
         .backgroundColor($r('sys.color.black'))
         .onMouse((event: MouseEvent) => {
-          if (!Pc.pcMode || event.action !== MouseAction.Move) {
-            return
-          }
-          if (!this.player.showControl) {
+          if (Pc.pcMode && event.action === MouseAction.Move && !this.player.showControl) {
             this.player.showControl = true
           }
-          VideoOperateUtil.scheduleControlAutoHide(() => {
-
-            this.player.showControl = false
-          })
+          if (event.action === MouseAction.Press) this.controlsIdle.setHeld('mouse', true)
+          else if (event.action === MouseAction.Release) this.controlsIdle.setHeld('mouse', false)
+          else this.controlsIdle.activity()
         })
       }
       .showControlButton(false)
@@ -666,6 +701,7 @@ export struct VideoPlayer {
     .onShown(() => {
       this.playerExitTransitionEnabled = true
       this.playerDestinationShown = true
+      this.controlsIdle.start()
       IntellectualGripPostureUtil.createHoldingHandStatus(this.holdingHandCallback)
       this.startPlayerAfterDestinationShown()
       this.gestures.reset()
@@ -698,6 +734,8 @@ export struct VideoPlayer {
       }
     })
     .onHidden(() => {
+      this.controlsIdle.stop()
+      this.controlTouches.clear()
       this.playerDestinationShown = false
       this.stopHoldingHandSubscription()
       this.gestures.reset()
@@ -760,6 +798,15 @@ export struct VideoPlayer {
       salmonLogger.addLog(TAG, "onWillDisappear生命周期执行完成", false)
     })
     .hideTitleBar(true)
+    .onTouchIntercept((_event: TouchEvent) => {
+      this.controlsIdle.activity()
+      return HitTestMode.Default // Observe activity without consuming child input.
+    })
+    .onTouch((event: TouchEvent) => this.onControlTouch(event))
+    .onKeyEventDispatch((event: KeyEvent) => {
+      this.controlsIdle.setHeld('key-' + event.keyCode, event.type === KeyType.Down)
+      return false
+    })
     // 旋转期间内层播放区可能尚未铺满新尺寸，由页面底色覆盖空隙。
     .backgroundColor(Color.Black)
     .expandSafeArea([SafeAreaType.SYSTEM],
@@ -772,6 +819,7 @@ export struct VideoPlayer {
   @Builder
   VideoTop() {
     VideoTopComponent({
+      onControlsOverlay: (name: string, visible: boolean) => this.controlsIdle.setHeld(name, visible),
       isAnySubtitleActive: this.subtitleManager.isAnySubtitleActive,
       carSettingsMenu: (): void => this.VideoSettingBuilder(),
       carSpeedMenu: (): void => this.PlaybackSpeedMenuBuilder(),
@@ -885,18 +933,25 @@ export struct VideoPlayer {
   @Builder
   VideoSlider() {
     VideoSliderComponent({
-      onSliderChange: (value: number) => {
-        this.player.isSliderPlayTimeChange = true
+      onSliderChange: (value: number, mode?: SliderChangeMode) => {
+        this.controlsIdle.activity()
+        const finished = mode === SliderChangeMode.End || mode === SliderChangeMode.Click
+        this.player.isSliderPlayTimeChange = !finished
         this.player.playTime = value
-        framePreviewSession.requestFrame(this.player, value, false)
+        if (finished) {
+          this.player.seekTime(value)
+          this.player.onSwiping = false
+          this.controlsIdle.refresh()
+        } else {
+          framePreviewSession.requestFrame(this.player, value, false)
+        }
       },
       onSliderTouch: (event: TouchEvent) => {
         if (event.type == TouchType.Down) {
           this.player.onSwiping = true
           framePreviewSession.requestFrame(this.player, this.player.playTime, true)
         }
-        if (event.type == TouchType.Up) {
-          this.player.seekTime(this.player.playTime)
+        if (event.type == TouchType.Up || event.type == TouchType.Cancel) {
           this.player.isSliderPlayTimeChange = false
           this.player.onSwiping = false
         }
@@ -907,6 +962,7 @@ export struct VideoPlayer {
   @Builder
   VideoButtons() {
     VideoButtonsComponent({
+      onControlsOverlay: (name: string, visible: boolean) => this.controlsIdle.setHeld(name, visible),
       AVCastPickerBuilderBridge: this.AVCastPickerBuilderBridge,
       videoSettingBuilder: () => {
         this.VideoSettingBuilder()
@@ -1349,6 +1405,8 @@ export struct VideoPlayer {
   }
 
   private beginPlayerExit(): void {
+    this.controlsIdle.stop()
+    this.controlTouches.clear()
     if (this.playerExitToken !== undefined) return
     this.playerExitToken = PlaybackExitCoordinator.beginExit()
     this.exitPlayTime = this.player.playTime

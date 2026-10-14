@@ -894,14 +894,6 @@ export class AVPlayerController implements PlayerControllerInterface {
         AppStorage.setOrCreate('nowPlayingData',
           [this.playTime, this.nowPlaying!, this.skipHistory])
       }
-      if (this.showControl) {
-        if (VideoOperateUtil.autoHideTimerId === -1) {
-          VideoOperateUtil.scheduleControlAutoHide(() => {
-
-            this.showControl = false
-          })
-        }
-      }
       const totalTime = this.nowPlaying?.time ?? 0
       const startTime = this.nowPlaying?.start_time
       const endTime = VideoInfoUtil.getEndingPosition(this.nowPlaying)

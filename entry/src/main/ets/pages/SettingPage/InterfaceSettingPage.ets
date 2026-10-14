@@ -15,7 +15,6 @@ import { LengthMetrics } from '@kit.ArkUI'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { VideoListController } from '../../controller/VideoListController'
 import StartupPageUtil from '../../utils/StartupPageUtil'
-import HiCarUtil, { HiCar } from '../../utils/HiCarUtil'
 
 @ComponentV2
 export struct InterfaceSettingPage {
@@ -39,20 +38,20 @@ export struct InterfaceSettingPage {
   build() {
     HdsNavDestination() {
       List({ scroller: this.listScroller }) {
-        ListItem() {
-          Column({ space: 4 }) {
-            SettingsToggleItem({
-              symbol: $r('sys.symbol.car'),
-              message: $r('app.string.hicar_layout'),
-              enable: HiCar.manual,
-              onChange: (checked: boolean) => HiCarUtil.setManual(PathUtils.appContext!, checked)
-            })
-            Text($r('app.string.hicar_layout_tip'))
-              .fontSize(14)
-              .fontColor($r('sys.color.font_secondary'))
-              .padding({ left: 16, right: 16, bottom: 12 })
-          }
-        }
+        // ListItem() {
+        //   Column({ space: 4 }) {
+        //     SettingsToggleItem({
+        //       symbol: $r('sys.symbol.car'),
+        //       message: $r('app.string.hicar_layout'),
+        //       enable: HiCar.manual,
+        //       onChange: (checked: boolean) => HiCarUtil.setManual(PathUtils.appContext!, checked)
+        //     })
+        //     Text($r('app.string.hicar_layout_tip'))
+        //       .fontSize(14)
+        //       .fontColor($r('sys.color.font_secondary'))
+        //       .padding({ left: 16, right: 16, bottom: 12 })
+        //   }
+        // }
         ListItem() {
           SettingsSegmentButtonItem({
             symbol: $r('sys.symbol.doc_plaintext_and_folder'),
@@ -70,7 +69,8 @@ export struct InterfaceSettingPage {
             symbol: Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY ? $r('sys.symbol.list_bullet_square') :
               $r('sys.symbol.grid'),
             message: $r('app.string.list_layout'),
-            tips: [$r('app.string.list_layout_card'), $r('app.string.list_layout_list'), $r('app.string.list_layout_grid')],
+            tips: [$r('app.string.list_layout_card'), $r('app.string.list_layout_list'),
+              $r('app.string.list_layout_grid')],
             tabSelectedIndex: Setting.listDisplayMode,
             onButtonClick: (tabSelectedIndex: number) => {
               Setting.listDisplayMode = tabSelectedIndex
@@ -271,11 +271,13 @@ export struct InterfaceSettingPage {
       const sourceId = folderDate.substring(StartupPageUtil.IPTV_SOURCE_PREFIX.length)
       const sources = Preferences.getIPTVSources(PathUtils.appContext!)
       const source = sources.find(s => s.id === sourceId)
-      this.defaultStartupFolderName = source ? `IPTV - ${source.name}` : ToolsUtil.getStringResource($r('app.string.default_start_page_iptv').id)
+      this.defaultStartupFolderName =
+        source ? `IPTV - ${source.name}` : ToolsUtil.getStringResource($r('app.string.default_start_page_iptv').id)
       return
     }
     const folders = Preferences.getFileFolder(PathUtils.appContext!)
     const folder = folders.find(f => f.date === folderDate)
-    this.defaultStartupFolderName = folder?.name ?? ToolsUtil.getStringResource($r('app.string.default_start_page_default').id)
+    this.defaultStartupFolderName =
+      folder?.name ?? ToolsUtil.getStringResource($r('app.string.default_start_page_default').id)
   }
 }

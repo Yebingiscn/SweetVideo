@@ -21,7 +21,7 @@ import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { image } from '@kit.ImageKit'
 import VideoInfoUtil from './VideoInfoUtil'
 import { salmonLogger } from 'salmonlogger'
-import { AUTO_HIDE_SHOW_CONTROL_TIME, SCALE_FACTORS, SUPPORT_AUDIO_FORMAT } from '../common/Constants'
+import { SCALE_FACTORS, SUPPORT_AUDIO_FORMAT } from '../common/Constants'
 import { VideoStartTimeMode } from '../common/enum/VideoStartTimeMode'
 import { LanguageConfig } from '../common/LanguageConfig'
 import Preferences from '../database/Preferences'
@@ -42,25 +42,7 @@ export default class VideoOperateUtil {
   public static maxVolume: number = 0
   public static minVolume: number = 0
   public static windowStage: window.WindowStage | undefined = undefined
-  public static autoHideTimerId: number = -1
   private static mainWin: window.Window | undefined = undefined
-
-  static scheduleControlAutoHide(onHide: () => void): void {
-    if (VideoOperateUtil.autoHideTimerId !== -1) {
-      clearTimeout(VideoOperateUtil.autoHideTimerId)
-    }
-    VideoOperateUtil.autoHideTimerId = setTimeout(() => {
-      VideoOperateUtil.autoHideTimerId = -1
-      onHide()
-    }, AUTO_HIDE_SHOW_CONTROL_TIME)
-  }
-
-  static cancelControlAutoHide(): void {
-    if (VideoOperateUtil.autoHideTimerId !== -1) {
-      clearTimeout(VideoOperateUtil.autoHideTimerId)
-      VideoOperateUtil.autoHideTimerId = -1
-    }
-  }
 
   // 设置亮度
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })

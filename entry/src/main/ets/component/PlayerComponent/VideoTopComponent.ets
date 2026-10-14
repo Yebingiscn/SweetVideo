@@ -11,6 +11,7 @@ export struct VideoTopComponent {
     PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
   @Param isAnySubtitleActive: boolean = false
   @Param lockRotation: boolean = false
+  @Event onControlsOverlay: (name: string, visible: boolean) => void = () => {}
   @BuilderParam audioTrackMenuBuilder: () => void
   @BuilderParam subtitlePanelComponent: () => void
   @BuilderParam danmakuMenuBuilder: () => void
@@ -95,7 +96,11 @@ export struct VideoTopComponent {
       .accessibilityText($r('app.string.local_danmaku'))
       .attributeModifier(new ButtonFancyModifier(40, 40))
       .backgroundColor(Color.Transparent)
-      .bindMenu(this.danmakuMenuBuilder, { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
+      .bindMenu(this.danmakuMenuBuilder, {
+        backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+        onWillAppear: () => this.onControlsOverlay('danmaku-menu', true),
+        onDidDisappear: () => this.onControlsOverlay('danmaku-menu', false)
+      })
 
       // 3. 字幕按钮
       Button({ type: ButtonType.Circle, stateEffect: false }) {
@@ -107,7 +112,11 @@ export struct VideoTopComponent {
       }
       .attributeModifier(new ButtonFancyModifier(40, 40))
       .backgroundColor(Color.Transparent)
-      .bindMenu(this.subtitlePanelComponent, { backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN })
+      .bindMenu(this.subtitlePanelComponent, {
+        backgroundBlurStyle: BlurStyle.COMPONENT_ULTRA_THIN,
+        onWillAppear: () => this.onControlsOverlay('subtitle-menu', true),
+        onDidDisappear: () => this.onControlsOverlay('subtitle-menu', false)
+      })
 
       Button({ type: ButtonType.Circle, stateEffect: false }) {
         SymbolGlyph($r('sys.symbol.opticaldisc'))
@@ -118,7 +127,11 @@ export struct VideoTopComponent {
       .attributeModifier(new ButtonFancyModifier(40, 40))
       .backgroundColor(Color.Transparent)
       .bindMenu(this.audioTrackMenuBuilder,
-        { backgroundBlurStyle: BlurStyle.COMPONENT_THIN })
+        {
+          backgroundBlurStyle: BlurStyle.COMPONENT_THIN,
+          onWillAppear: () => this.onControlsOverlay('audio-menu', true),
+          onDidDisappear: () => this.onControlsOverlay('audio-menu', false)
+        })
 
       if (this.player.hasChapterSupport() && this.player.chapterList.length > 0) {
         Button({ type: ButtonType.Circle, stateEffect: false }) {
@@ -130,24 +143,30 @@ export struct VideoTopComponent {
         .attributeModifier(new ButtonFancyModifier(40, 40))
         .backgroundColor(Color.Transparent)
         .bindMenu(this.chapterMenuBuilder,
-          { backgroundBlurStyle: BlurStyle.COMPONENT_THIN })
+          {
+            backgroundBlurStyle: BlurStyle.COMPONENT_THIN,
+            onWillAppear: () => this.onControlsOverlay('chapter-menu', true),
+            onDidDisappear: () => this.onControlsOverlay('chapter-menu', false)
+          })
       }
 
       // 5. 屏幕扩展选择器 (仅在横屏显示)
       if (this.player.screenWidth > this.player.screenHeight) {
-        Select(SCREEN_EXTEND_LIST)
-          .font({ size: 18, weight: FontWeight.Medium })
-          .value(this.player.selectedText?.startsWith('自定义比例:') ? '自定义比例' : this.player.selectedText)
-          .selected(this.player.selectedText?.startsWith('自定义比例:') ? 4 :
-            VideoInfoUtil.screenExtendMap.indexOf(this.player.selectedText!))
-          .fontColor($r('sys.color.white'))
-          .onSelect((_index: number, text?: string | undefined) => {
-            const selectedText = text
-            this.screenExtend(text!)
-            this.onSelectedTextChange(selectedText!)
-          })
+        // Use the same menu lifecycle as other controls; Select has no popup lifecycle callbacks.
+        Button({ type: ButtonType.Normal, stateEffect: true }) {
+          Row({ space: 8 }) {
+            Text(this.player.selectedText?.startsWith('自定义比例:') ? '自定义比例' : this.player.selectedText)
+              .fontSize(18).fontWeight(FontWeight.Medium).fontColor($r('sys.color.white'))
+            SymbolGlyph($r('sys.symbol.chevron_down')).fontSize(14).fontColor([$r('sys.color.white')])
+          }
+        }
+          .backgroundColor(Color.Transparent).borderRadius(12).padding({ left: 12, right: 12 })
           .backgroundBlurStyle(BlurStyle.BACKGROUND_THIN)
-          .menuBackgroundBlurStyle(BlurStyle.COMPONENT_THIN)
+          .bindMenu(this.AspectMenu, {
+            backgroundBlurStyle: BlurStyle.COMPONENT_THIN,
+            onWillAppear: () => this.onControlsOverlay('aspect-menu', true),
+            onDidDisappear: () => this.onControlsOverlay('aspect-menu', false)
+          })
       }
 
       // 6. 旋转锁定按钮
@@ -183,12 +202,29 @@ export struct VideoTopComponent {
       }
       .width(56).height(56).backgroundColor(Color.Transparent)
       .accessibilityText($r('app.string.hicar_more_controls'))
-      .bindMenu(this.HiCarMoreMenu)
+      .bindMenu(this.HiCarMoreMenu, {
+        onWillAppear: () => this.onControlsOverlay('hicar-menu', true),
+        onDidDisappear: () => this.onControlsOverlay('hicar-menu', false)
+      })
       Text(this.displayTitle)
         .fontSize(22).fontColor(Color.White).maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis }).layoutWeight(1)
     }
     .width('100%')
+  }
+
+  @Builder
+  AspectMenu() {
+    Menu() {
+      ForEach(SCREEN_EXTEND_LIST, (option: SelectOption) => {
+        MenuItem({ content: option.value })
+          .onClick(() => {
+            const text = option.value as string
+            this.screenExtend(text)
+            this.onSelectedTextChange(text)
+          })
+      }, (option: SelectOption) => option.value as string)
+    }
   }
 
   @Builder

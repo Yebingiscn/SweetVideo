@@ -507,14 +507,6 @@ export class MpvController implements PlayerControllerInterface {
         AppStorage.setOrCreate('nowPlayingData',
           [this.playTime, this.nowPlaying!, this.skipHistory])
       }
-      if (this.showControl) {
-        if (VideoOperateUtil.autoHideTimerId === -1) {
-          VideoOperateUtil.scheduleControlAutoHide(() => {
-
-            this.showControl = false
-          })
-        }
-      }
       // 片尾跳过逻辑保留
       const totalTime = this.nowPlaying?.time ?? 0
       const startTime = this.nowPlaying?.start_time
