@@ -1,4 +1,5 @@
 <p align="center"><img src="./entry/src/main/resources/base/media/sweet_video.png" style="width: 128px; height: 128px;"  alt="logo"></p>
+
 <div align="center">
     <h1>流心播放器</h1>
     <p>

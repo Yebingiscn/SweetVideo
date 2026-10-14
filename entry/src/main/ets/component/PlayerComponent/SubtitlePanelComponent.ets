@@ -179,6 +179,15 @@ export struct SubtitlePanelComponent {
         footer: this.SubtitleSizeSlider
       }) {
       }
+      if (this.player instanceof MpvController && this.player.secondarySubtitleTrackSelected >= 0) {
+        if (this._subtitle3DMode === Subtitle3DMode.DISABLED) {
+          MenuItemGroup({
+            header: this.SecondaryPositionSlider,
+            footer: this.SecondarySizeSlider
+          }) {
+          }
+        }
+      }
     }
     .width(270)
     .height('auto')
@@ -186,21 +195,21 @@ export struct SubtitlePanelComponent {
   }
 
   @Builder
-  SubtitlePositionSlider() {
+  SubtitlePositionSlider(secondary: boolean = false) {
     Row() {
-      Text(`位置 ${Math.round(this.player.subtitlePosition)}%`)
+      Text(`${secondary ? '副位置' : '位置'} ${Math.round(this.getSubtitlePosition(secondary))}%`)
         .fontSize(14)
         .fontColor($r('app.color.text_color'))
         .width(68)
       Slider({
-        value: this.player.subtitlePosition,
+        value: this.getSubtitlePosition(secondary),
         min: 5,
         max: 100,
         step: 1,
         style: SliderStyle.NONE
       })
         .onChange((value: number) => {
-          this.player.setSubtitlePosition(value)
+          this.changeSubtitlePosition(value, secondary)
         })
         .selectedColor($r('app.color.main_color'))
         .enableHapticFeedback(true)
@@ -217,7 +226,7 @@ export struct SubtitlePanelComponent {
       .attributeModifier(new ButtonFancyModifier(28, 28))
       .backgroundColor(Color.Transparent)
       .onClick(() => {
-        this.player.setSubtitlePosition(Setting.subtitlePosition)
+        this.changeSubtitlePosition(secondary ? 10 : Setting.subtitlePosition, secondary)
       })
     }
     .padding({
@@ -230,21 +239,21 @@ export struct SubtitlePanelComponent {
   }
 
   @Builder
-  SubtitleSizeSlider() {
+  SubtitleSizeSlider(secondary: boolean = false) {
     Row() {
-      Text(`大小 ${Math.round(this.player.subtitleSize)}号`)
+      Text(`${secondary ? '副大小' : '大小'} ${Math.round(this.getSubtitleSize(secondary))}号`)
         .fontSize(14)
         .fontColor($r('app.color.text_color'))
         .width(68)
       Slider({
-        value: this.player.subtitleSize,
+        value: this.getSubtitleSize(secondary),
         min: 14,
         max: 48,
         step: 1,
         style: SliderStyle.NONE
       })
         .onChange((value: number) => {
-          this.player.setSubtitleSize(value)
+          this.changeSubtitleSize(value, secondary)
         })
         .selectedColor($r('app.color.main_color'))
         .enableHapticFeedback(true)
@@ -260,7 +269,7 @@ export struct SubtitlePanelComponent {
       .attributeModifier(new ButtonFancyModifier(28, 28))
       .backgroundColor(Color.Transparent)
       .onClick(() => {
-        this.player.setSubtitleSize(Number(Setting.subtitleSize))
+        this.changeSubtitleSize(Number(Setting.subtitleSize), secondary)
       })
     }
     .padding({
@@ -270,6 +279,42 @@ export struct SubtitlePanelComponent {
       bottom: 4
     })
     .width('100%')
+  }
+
+  @Builder
+  SecondaryPositionSlider() {
+    this.SubtitlePositionSlider(true)
+  }
+
+  @Builder
+  SecondarySizeSlider() {
+    this.SubtitleSizeSlider(true)
+  }
+
+  private getSubtitlePosition(secondary: boolean): number {
+    return secondary && this.player instanceof MpvController ?
+      this.player.secondarySubtitlePosition : this.player.subtitlePosition
+  }
+
+  private getSubtitleSize(secondary: boolean): number {
+    return secondary && this.player instanceof MpvController ?
+      this.player.secondarySubtitleSize : this.player.subtitleSize
+  }
+
+  private changeSubtitlePosition(value: number, secondary: boolean): void {
+    if (secondary && this.player instanceof MpvController) {
+      this.player.setSecondarySubtitlePosition(value)
+    } else {
+      this.player.setSubtitlePosition(value)
+    }
+  }
+
+  private changeSubtitleSize(value: number, secondary: boolean): void {
+    if (secondary && this.player instanceof MpvController) {
+      this.player.setSecondarySubtitleSize(value)
+    } else {
+      this.player.setSubtitleSize(value)
+    }
   }
 
   @Builder

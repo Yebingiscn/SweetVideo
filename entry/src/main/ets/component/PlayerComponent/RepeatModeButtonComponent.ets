@@ -2,6 +2,8 @@ import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
 import AVSessionUtil from '../../utils/AVSessionUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
+import { uiMaterial } from '@kit.ArkUI'
+import { LightMaterialModifier } from '../../common/AttributeModifierConfig'
 
 export function getRepeatModeIcon(repeatMode: SweetRepeatMode): Resource {
   switch (repeatMode) {
@@ -71,6 +73,7 @@ export struct RepeatModeButtonComponent {
       .margin({ top: 6, bottom: 6 })
       .onClick(() => this.switchRepeatMode())
       .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.96 })
+      .attributeModifier(new LightMaterialModifier())
     }
   }
 

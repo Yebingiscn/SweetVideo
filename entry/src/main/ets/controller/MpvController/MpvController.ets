@@ -1,3 +1,4 @@
+import { HiCar } from '../../utils/HiCarUtil'
 import { MpvPlaybackEffects } from './MpvPlaybackEffects'
 import { MpvSubtitleController } from './MpvSubtitleController'
 import { NetworkPlayback } from '../../utils/NetworkPlayback'
@@ -137,6 +138,8 @@ export class MpvController implements PlayerControllerInterface {
   @Trace subtitlePosition: number = Setting.subtitlePosition
   @Trace superResolutionState: boolean = Setting.superResolutionState
   @Trace subtitleSize: number = Number(Setting.subtitleSize)
+  @Trace secondarySubtitlePosition: number = 10
+  @Trace secondarySubtitleSize: number = Number(Setting.subtitleSize)
   @Trace audioChannelMode: MpvAudioChannelMode = MpvAudioChannelMode.STEREO
   audioEffectConfig: AudioEffectConfig = new AudioEffectConfig()
   @Trace chapterList: MpvChapter[] = []
@@ -158,6 +161,8 @@ export class MpvController implements PlayerControllerInterface {
   @Trace pixelMap: PixelMap | null = null
   @Trace audioCoverUri: string = ''
   avSession: avSessionManager.AVSession | undefined = undefined
+  private sessionOutputDeviceListener: ((state: avSession.ConnectionState,
+    device: avSession.OutputDeviceInfo) => void) | undefined = undefined
   audioVolumeManager: audio.AudioVolumeManager | null = null
   @Trace playerState: MpvPlayerState = MpvPlayerState.IDLE
   private osdSurfaceWidth: number = 0
@@ -204,7 +209,33 @@ export class MpvController implements PlayerControllerInterface {
   private initialStartHandledByLoad: boolean = false
   private initialSmartRotationRequested: boolean = false
   private smartRotationAllowed: boolean = true
+  private landscapeVideo: boolean = false
   private engineSwitchHandler: PlayerEngineSwitchHandler | undefined = undefined
+  private decoderVrrAllowed: boolean = true
+  private decoderVrrUnsupported: boolean = false
+
+  // Internal scene policy; no user-facing VRR setting or new N-API export.
+  setDanmakuVisible(visible: boolean): void {
+    const allowed = !visible
+    if (this.decoderVrrAllowed === allowed) return
+    this.decoderVrrAllowed = allowed
+    this.applyDecoderVrrPolicy()
+  }
+
+  private applyDecoderVrrPolicy(): void {
+    if (!this.mpvHandle || this.decoderVrrUnsupported) return
+    try {
+      const result = mpvCommand(this.mpvHandle,
+        ['set', 'options/ohos-vrr', this.decoderVrrAllowed ? 'yes' : 'no']) as MpvCommandResult
+      if (!result?.success) {
+        // An older libmpv has no hook. Keep playback usable until it is updated.
+        if (result?.code === -8) this.decoderVrrUnsupported = true
+        salmonLogger.addLog(TAG, `动态 VRR 策略不可用，继续正常播放：${result?.code ?? 0}`, false)
+      }
+    } catch (_) {
+      salmonLogger.addLog(TAG, '动态 VRR 策略下发失败，继续正常播放', false)
+    }
+  }
 
   private get mpvHandle(): number | null {
     return this.engineAdapter.handle
@@ -249,6 +280,7 @@ export class MpvController implements PlayerControllerInterface {
     this.pendingCompletionRequestId = 0
     this.transitionTo(MpvPlayerState.LOADING)
     this.playTime = 0
+    this.playbackPositionMs = 0
     this.pixelMap = null
     this.audioCoverUri = ''
     this.isSkippingEnding = false
@@ -271,11 +303,11 @@ export class MpvController implements PlayerControllerInterface {
     salmonLogger.addLog(TAG, "设置当前播放视频完成", false)
 
     try {
-      await PermissionUtil.activatePermission(item.uri)
-      if (requestGeneration !== this.playRequestGeneration) {
-        return
-      }
-      await this.prepareInitialSmartRotation()
+      await Promise.all([
+        PermissionUtil.activatePermission(item.uri),
+        this.smbPlayback.resolve(item.uri),
+        this.prepareInitialSmartRotation()
+      ])
       if (requestGeneration !== this.playRequestGeneration) {
         return
       }
@@ -420,6 +452,7 @@ export class MpvController implements PlayerControllerInterface {
       }
       if (requestGeneration !== this.playRequestGeneration) return
       this.applyAutoDeinterlace()
+      this.applyDecoderVrrPolicy()
       if (!this.audioController.applyAudioPassthrough(this.speed, this.audioEffectConfig.effect)) {
         throw new Error(ToolsUtil.getStringResource($r('app.string.set_audio_output_mode_failed').id))
       }
@@ -432,10 +465,6 @@ export class MpvController implements PlayerControllerInterface {
       return
     }
     this.subtitleController.applySubtitleStyle()
-
-    if (!ToolsUtil.isNetworkUrl(url!)) {
-      framePreviewSession.prepare(url!)
-    }
 
     // Metadata and shaders start only after this file's FILE_LOADED event.
   }
@@ -776,6 +805,8 @@ export class MpvController implements PlayerControllerInterface {
     const hasMetadataSize = metadataWidth > 1 && metadataHeight > 1
     const VideoWidth = hasDecodedSize ? decodedWidth : (hasMetadataSize ? metadataWidth : this.screenWidth)
     const VideoHeight = hasDecodedSize ? decodedHeight : (hasMetadataSize ? metadataHeight : this.screenHeight)
+    this.landscapeVideo = VideoOperateUtil.isLandscapeVideo(
+      hasDecodedSize ? decodedWidth : metadataWidth, hasDecodedSize ? decodedHeight : metadataHeight, this.selectedText)
     if (VideoWidth <= 0 || VideoHeight <= 0 || this.screenWidth <= 0 || this.screenHeight <= 0) {
       return
     }
@@ -789,7 +820,7 @@ export class MpvController implements PlayerControllerInterface {
       this.playAreaWidth = this.playAreaHeight * (VideoWidth / VideoHeight)
     }
     if (this.windowClass) {
-      this.playAreaWidth > this.playAreaHeight ? WindowUtil.enableLandscapeMultiWindow(this.windowClass) :
+      this.landscapeVideo ? WindowUtil.enableLandscapeMultiWindow(this.windowClass) :
         WindowUtil.disableLandscapeMultiWindow(this.windowClass)
       VideoInfoUtil.saveOriginalVideoWidthAndHeight(this.playAreaWidth, this.playAreaHeight)
     }
@@ -826,13 +857,14 @@ export class MpvController implements PlayerControllerInterface {
       this.avSession?.on('rewind', () => {
         this.backForward()
       })
-      this.avSession?.on('outputDeviceChange', (state: avSession.ConnectionState,
+      this.sessionOutputDeviceListener = (state: avSession.ConnectionState,
         device: avSession.OutputDeviceInfo) => {
         if (state === avSession.ConnectionState.STATE_CONNECTED &&
           device.devices.some(item => item.castCategory === avSession.AVCastCategory.CATEGORY_REMOTE)) {
           this.pause()
         }
-      })
+      }
+      this.avSession?.on('outputDeviceChange', this.sessionOutputDeviceListener)
       this.avSession?.on('setLoopMode', (mode: avSession.LoopMode) => {
         this.repeatMode = AVSessionUtil.getRepeatModeFromAvSession(mode)
         this.repeatMode = VideoOperateUtil.getRepeatMode(this.repeatMode)
@@ -850,6 +882,13 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   private clearSessionNavigationListeners(): void {
+    if (this.sessionOutputDeviceListener) {
+      try {
+        this.avSession?.off('outputDeviceChange', this.sessionOutputDeviceListener)
+      } catch (_error) {
+      }
+      this.sessionOutputDeviceListener = undefined
+    }
     try {
       this.avSession?.off('playNext')
     } catch (_error) {
@@ -885,7 +924,7 @@ export class MpvController implements PlayerControllerInterface {
       return
     }
     this.setSessionListener()
-    await AVSessionUtil.setSessionInfo(this.nowPlaying)
+    await AVSessionUtil.setSessionInfo(this.nowPlaying, () => this.playbackPositionMs)
     const initialPosition = this.playTime > 0 ? this.playTime :
       (this.nowPlaying.last_play || 0)
     AVSessionUtil.updatePlaybackSessionState(this.playing, initialPosition, this.repeatMode, this.speed)
@@ -948,11 +987,12 @@ export class MpvController implements PlayerControllerInterface {
   saveSubtitlePreferenceForCurrentVideo(
     subtitleVisibility: Visibility,
     isAIAsrShown: boolean,
-    subtitle3DMode: Subtitle3DMode
+    subtitle3DMode: Subtitle3DMode,
+    selectionChanged?: boolean
   ): void {
     MediaLibraryService.saveSubtitlePreference(
       this.nowPlaying, this.subtitleSelected, this.subtitleTrackSelected,
-      subtitleVisibility, isAIAsrShown, subtitle3DMode
+      subtitleVisibility, isAIAsrShown, subtitle3DMode, selectionChanged
     )
   }
 
@@ -1041,9 +1081,11 @@ export class MpvController implements PlayerControllerInterface {
     if (!uri) return
     try {
       this.surfaceId = xComponentController.getXComponentSurfaceId()
-      await PermissionUtil.activatePermission(uri)
-      if (requestGeneration !== this.playRequestGeneration) return
-      await this.prepareInitialSmartRotation()
+      await Promise.all([
+        PermissionUtil.activatePermission(uri),
+        this.smbPlayback.resolve(uri),
+        this.prepareInitialSmartRotation()
+      ])
       if (requestGeneration !== this.playRequestGeneration) return
       await this.init(uri, pathStack)
       if (requestGeneration !== this.playRequestGeneration || this.isInState(MpvPlayerState.ERROR)) return
@@ -1091,6 +1133,16 @@ export class MpvController implements PlayerControllerInterface {
     this.subtitleController.applySubtitleStyle()
   }
 
+  setSecondarySubtitlePosition(position: number): void {
+    this.secondarySubtitlePosition = Math.max(5, Math.min(100, Math.round(position)))
+    this.subtitleController.applySubtitleStyle()
+  }
+
+  setSecondarySubtitleSize(size: number): void {
+    this.secondarySubtitleSize = Math.max(14, Math.min(48, Math.round(size)))
+    this.subtitleController.applySubtitleStyle()
+  }
+
   restoreSpeedAfterLongPress(lastSpeed: number): void {
     this.speed = lastSpeed
     this.updatePlaybackSpeed(this.speed)
@@ -1101,6 +1153,14 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   onWillDisappearCleanup(): void {
+    this.playRequestGeneration++
+    if (!this.engineAdapter.isMediaLoaded()) {
+      this.smartRotationAllowed = false
+      this.cancelSmartRotationTimer()
+    } else {
+      if (this.playing && this.mpvHandle) mpvPause(this.mpvHandle)
+      this.engineAdapter.invalidateLoad()
+    }
     clearTimeout(this.swipingVoiceTimer)
     this.swipingVoiceTimer = 0
     this.volumeGestureActive = false
@@ -1220,13 +1280,16 @@ export class MpvController implements PlayerControllerInterface {
   }
 
   private getInitialSubtitleTrackId(): number | undefined {
-    if (!this.nowPlaying || !SubtitleUtil.hasSubtitlePreferenceMetadata(this.nowPlaying)) {
+    if (!this.nowPlaying) {
       return undefined
     }
-    if (this.nowPlaying.subtitle_mode === SubtitleMode.INNER_SUBTITLE &&
+    const mode = SubtitleUtil.getSubtitleSelectionMode(this.nowPlaying)
+    if (mode === undefined) return undefined
+    if (mode === SubtitleMode.INNER_SUBTITLE &&
       this.nowPlaying.subtitle_track_id !== undefined && this.nowPlaying.subtitle_track_id >= 0) {
       return this.nowPlaying.subtitle_track_id
     }
+    if (mode === SubtitleMode.INNER_SUBTITLE) return undefined
     return -1
   }
 
@@ -1235,7 +1298,8 @@ export class MpvController implements PlayerControllerInterface {
     this.initialSmartRotationRequested = false
     const videoWidth = this.nowPlaying?.size[0] || 0
     const videoHeight = this.nowPlaying?.size[1] || 0
-    if (!this.smartRotationAllowed || !Setting.smartRotation || videoWidth <= videoHeight ||
+    this.landscapeVideo = VideoOperateUtil.isLandscapeVideo(videoWidth, videoHeight, this.selectedText)
+    if (HiCar.enabled || !this.smartRotationAllowed || !Setting.smartRotation || !this.landscapeVideo ||
       this.screenWidth <= 0 || this.screenHeight <= this.screenWidth) {
       return
     }
@@ -1245,7 +1309,7 @@ export class MpvController implements PlayerControllerInterface {
       : window.Orientation.AUTO_ROTATION_RESTRICTED
     try {
       const targetWindow = await this.windowClass
-      if (!targetWindow || !this.smartRotationAllowed || requestGeneration !== this.playRequestGeneration) {
+      if (HiCar.enabled || !targetWindow || !this.smartRotationAllowed || requestGeneration !== this.playRequestGeneration) {
         return
       }
       await targetWindow.setPreferredOrientation(orientation)
@@ -1309,8 +1373,8 @@ export class MpvController implements PlayerControllerInterface {
     }
     this.initialStartHandledByLoad = false
     this.nowPlaying!.time = this.getDuration()
-    if (this.smartRotationAllowed && !this.initialSmartRotationRequested && Setting.smartRotation &&
-      this.playAreaWidth > this.playAreaHeight &&
+    if (!HiCar.enabled && this.smartRotationAllowed && !this.initialSmartRotationRequested && Setting.smartRotation &&
+      this.landscapeVideo &&
       this.screenHeight > this.screenWidth) {
       salmonLogger.addLog(TAG, "智能旋转条件满足，开始设置方向", false)
       const proportion =
@@ -1318,7 +1382,7 @@ export class MpvController implements PlayerControllerInterface {
       const orientation = proportion > (16 / 10) ? window.Orientation.AUTO_ROTATION_LANDSCAPE
         : window.Orientation.AUTO_ROTATION_RESTRICTED;
       const targetWindow = await this.windowClass
-      if (generation !== this.postLoadTaskGeneration || !this.smartRotationAllowed) {
+      if (HiCar.enabled || generation !== this.postLoadTaskGeneration || !this.smartRotationAllowed) {
         return
       }
       targetWindow?.setPreferredOrientation(orientation)?.catch(() => {
@@ -1354,6 +1418,12 @@ export class MpvController implements PlayerControllerInterface {
     this.decodingRecovery.checkDolbyVisionAndSwitch()
     if (generation !== this.postLoadTaskGeneration || !this.engineAdapter.isMediaLoaded()) {
       return
+    }
+    const uri = this.nowPlaying?.uri
+    if (uri && !ToolsUtil.isNetworkUrl(uri)) {
+      framePreviewSession.prepare(uri).catch((error: Error) => {
+        salmonLogger.addLog(TAG, `[MpvController] 初始化帧预览失败: ${error.message}`, true)
+      })
     }
     this.detectAndUpdateHdrType()
     await Promise.all([
@@ -1501,8 +1571,8 @@ export class MpvController implements PlayerControllerInterface {
         this.userListener?.emit('videoSizeReady', 0)
         if (this.postLoadTasksExecuted) {
           this.setRotation()
-          if (!this.initialSmartRotationRequested && Setting.smartRotation &&
-            this.playAreaWidth > this.playAreaHeight &&
+          if (!HiCar.enabled && !this.initialSmartRotationRequested && Setting.smartRotation &&
+            this.landscapeVideo &&
             this.screenHeight > this.screenWidth) {
             const proportion =
               Math.max(this.screenWidth, this.screenHeight) / Math.min(this.screenWidth, this.screenHeight)
@@ -1510,7 +1580,7 @@ export class MpvController implements PlayerControllerInterface {
               : window.Orientation.AUTO_ROTATION_RESTRICTED
             const generation = this.postLoadTaskGeneration
             this.windowClass?.then(w => {
-              if (generation === this.postLoadTaskGeneration && this.smartRotationAllowed) {
+              if (!HiCar.enabled && generation === this.postLoadTaskGeneration && this.smartRotationAllowed) {
                 w?.setPreferredOrientation(orientation)?.catch(() => {
                 })
               }
@@ -1964,6 +2034,7 @@ export class MpvController implements PlayerControllerInterface {
       }
       try {
         this.applyAutoDeinterlace()
+        this.applyDecoderVrrPolicy()
         if (!this.audioController.applyAudioPassthrough(this.speed, this.audioEffectConfig.effect)) {
           throw new Error(ToolsUtil.getStringResource($r('app.string.set_audio_output_mode_failed').id))
         }

@@ -1,8 +1,9 @@
-import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
+import { ImageFancyModifier, LightMaterialModifier } from '../../common/AttributeModifierConfig'
 import { Setting } from '../../utils/ObservedUtil'
 import TimeUtil from '../../utils/TimeUtil'
 import { DIALOG_TITLE_FONT_SIZE } from '../../common/Constants'
 import { salmonLogger } from 'salmonlogger'
+import { uiMaterial } from '@kit.ArkUI'
 
 @ObservedV2
 class SwipingPlayTimeValue {
@@ -39,9 +40,8 @@ export function SwipingPlayTimePanelBuilder(swipingPlayTimeValue: SwipingPlayTim
       bottom: 10
     })
     .borderRadius(16)
-    .backgroundColor('#30000000')
-    .backdropBlur(100)
     .animation({ duration: 300, curve: Curve.Friction })
+    .attributeModifier(new LightMaterialModifier())
   }
 }
 

@@ -6,7 +6,13 @@ import { PathUtils } from '../../utils/PathUtils'
 import DataSyncUtil from '../../utils/DataSyncUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
-import { ButtonFancyModifier, DefaultDialogShadow, MenuFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
+import {
+  ButtonFancyModifier,
+  DefaultDialogShadow,
+  LightMaterialModifier,
+  MenuFancyModifier,
+  SymbolGlyphFancyModifier
+} from '../../common/AttributeModifierConfig'
 import { SortField } from '../../common/enum/SortField'
 import { Setting } from '../../utils/ObservedUtil'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
@@ -134,6 +140,7 @@ export struct StreamPage {
         .attributeModifier(new ButtonFancyModifier(35, 35))
         .transition(XAnimation.getAnimation('right', 0, false))
         .bindMenu(this.SortMenuBuilder, { showInSubWindow: false })
+        .attributeModifier(new LightMaterialModifier())
       }
     }
     .width('95%')

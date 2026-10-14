@@ -5,6 +5,8 @@ import FileFolderUtil from './FileFolderUtil'
 import { PathUtils } from './PathUtils'
 import SelectFileUtil from './SelectFileUtil'
 import ToolsUtil from './ToolsUtil'
+import PrivacySpaceUtil from './PrivacySpaceUtil'
+import MediaImportBatch from './MediaImportBatch'
 
 const TAG = 'FileProcessorUtil'
 
@@ -58,6 +60,9 @@ export class FileProcessorUtil {
     }
 
     const chunks = FileProcessorUtil.splitListIntoChunks(fileList)
+    const privateMode = PrivacySpaceUtil.getPrivacyMode() === true && !importRootUri
+    const importBatch = privateMode ? undefined : new MediaImportBatch(context,
+      (count: number) => { FileFolderUtil.duplicateVideo += count })
     const workers = chunks.map((chunk): Promise<void> => {
       return (async () => {
         for (const uri of chunk) {
@@ -74,9 +79,10 @@ export class FileProcessorUtil {
           try {
             const handled = importRootUri ? await SelectFileUtil.addFile(
               context, sandbox_video, sandbox_path, uri, video_meta_data, fileFolder,
-              false, false, importRootUri, importRootFolderName
+              false, false, importRootUri, importRootFolderName, importBatch
             ) : await SelectFileUtil.addFile(
-              context, sandbox_video, sandbox_path, uri, video_meta_data, fileFolder
+              context, sandbox_video, sandbox_path, uri, video_meta_data, fileFolder,
+              privateMode, false, undefined, undefined, importBatch
             )
             if (!handled) {
               FileProcessorUtil.failedFiles.push(uri)
@@ -100,7 +106,12 @@ export class FileProcessorUtil {
         }
       })()
     })
-    await Promise.all(workers)
+    try {
+      const results = await Promise.allSettled(workers)
+      if (results.some(result => result.status === 'rejected')) throw new Error('Import worker failed')
+    } finally {
+      importBatch?.close()
+    }
     if (lastEmittedInfo !== null && (lastEmittedInfo as ProgressInfo).current !== fileList.length) {
       progressCallback({
         current: processedCount,

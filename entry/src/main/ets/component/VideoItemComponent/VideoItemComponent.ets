@@ -1,3 +1,4 @@
+import { HiCar } from '../../utils/HiCarUtil'
 import ImageFileUtil from '../../utils/ImageFileUtil'
 import MediaSortUtil from '../../utils/MediaSortUtil'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
@@ -43,6 +44,16 @@ import MediaLibraryService from '../../utils/MediaLibraryService'
 
 @ComponentV2
 export struct VideoList {
+  private alphabetFirstIndexes: Map<string, number> = new Map()
+  private alphabetLetters: string[] = []
+  private get displayMode(): ListDisplayMode {
+    return Setting.listDisplayMode
+  }
+
+  private get alphabetIndexerTop(): number {
+    return HiCar.enabled ? 80 : SafeHeight.topSafeHeight + (this.searchBarHidden ? 0 : 100)
+  }
+
   @Param searchValue: string = ''
   @Local _searchValue: string = ''
   @Param currentSortField: SortField | '' = ''
@@ -67,7 +78,7 @@ export struct VideoList {
   })
   // 显式接收结果数组，避免 @Monitor 依赖跨继承层的数据源路径。
   @Param directoryVideos: VideoMetadata[] = []
-  @Param directoryLayout: ListDisplayMode = Setting.listDisplayMode
+  @Param directoryLayout: ListDisplayMode = this.displayMode
   @Param directoryCoverLayout: CoverLayoutMode = Setting.coverLayout
   @Local activeAlphabet: string[] = []
   @Local indexerSelected: number = 0
@@ -183,6 +194,7 @@ export struct VideoList {
   aboutToAppear(): void {
     this._searchValue = this.searchValue
     this.directoryAlive = true
+    this.onVideoListChanged()
     this.playHomeEntrance()
   }
 
@@ -227,12 +239,15 @@ export struct VideoList {
     this._delMultipleList = [...this.delMultipleList]
   }
 
-  @Monitor('videoListController.videoMetaDataList', 'currentSortField', 'currentSortAsc', 'pinyinSort')
+  @Monitor('videoListController.videoMetaDataList', 'videoListController.videoDataSource.revision',
+    'currentSortField', 'currentSortAsc', 'pinyinSort', 'videoListController.directoryMode')
   onVideoListChanged() {
-    if (this.currentSortField === SortField.NAME && this.pinyinSort) {
+    if (!this.videoListController.directoryMode && this.currentSortField === SortField.NAME && this.pinyinSort) {
       this.updateActiveAlphabet()
     } else {
       this.activeAlphabet = []
+      this.alphabetFirstIndexes.clear()
+      this.alphabetLetters = []
     }
   }
 
@@ -256,7 +271,7 @@ export struct VideoList {
       })
       .opacity(this.homeEntranceProgress)
       .scale({ x: this.homeEntranceProgress, y: this.homeEntranceProgress,
-        centerX: 16, centerY: SafeHeight.topSafeHeight + 100 })
+        centerX: 16, centerY: (HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100) })
       .transition(TransitionEffect.IDENTITY)
       .bindSheet(this.showDetailSheet, this.DetailSheetBuilder, {
         detents: [SheetSize.LARGE],
@@ -265,7 +280,7 @@ export struct VideoList {
         showClose: true,
         onWillDismiss: () => { this.showDetailSheet = false }
       })
-    } else if (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY) {
+    } else if (this.displayMode === ListDisplayMode.LIST_DISPLAY) {
       Stack({
         alignContent: IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand) ? Alignment.TopStart :
           Alignment.TopEnd
@@ -317,7 +332,7 @@ export struct VideoList {
         .clip(false)
         .padding({ left: 16, right: 16 })
         .contentStartOffset(
-          SafeHeight.topSafeHeight + 100)
+          (HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100))
         .contentEndOffset(SafeHeight.bottomSafeHeight)
         .lanes(this.videoListController.listLine)
         .animation({ duration: 300, curve: Curve.Smooth })
@@ -337,25 +352,14 @@ export struct VideoList {
         })
         .onDidScroll((scrollOffset: number, scrollState: ScrollState) => {
           this.syncSearchBarVisible(scrollOffset, scrollState,
-            this.videoListController.listScroller.currentOffset()?.yOffset, SafeHeight.topSafeHeight + 100)
+            this.videoListController.listScroller.currentOffset()?.yOffset, (HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100))
         })
         .onReachStart(() => {
           this.onScrollDirectionChange(false)
         })
 
         if (this.currentSortField === 'name' && this.pinyinSort && this.activeAlphabet.length > 0) {
-          AlphabetIndexer({ arrayValue: this.activeAlphabet, selected: this.indexerSelected })
-            .onSelect((index: number) => {
-              this.scrollToLetter(this.activeAlphabet[index])
-            })
-            .color($r('app.color.text_color'))
-            .selectedColor($r('sys.color.white'))
-            .popupColor($r('app.color.main_color'))
-            .selectedBackgroundColor($r('app.color.main_color'))
-            .popupBackground($r('app.color.start_window_background'))
-            .itemSize(20)
-            .height('100%')
-            .margin(IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand) ? { left: 2 } : { right: 2 })
+          this.AlphabetIndexerBuilder()
         }
 
         if (this.currentSortField !== SortField.NAME || !this.pinyinSort) {
@@ -371,7 +375,7 @@ export struct VideoList {
       .opacity(this.homeEntranceProgress)
       .scale({
         x: this.homeEntranceProgress, y: this.homeEntranceProgress,
-        centerX: 16, centerY: SafeHeight.topSafeHeight + 100
+        centerX: 16, centerY: (HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100)
       })
       .transition(TransitionEffect.IDENTITY)
       .bindSheet(this.showDetailSheet, this.DetailSheetBuilder, {
@@ -390,7 +394,7 @@ export struct VideoList {
       }) {
         Scroll(this.outerScroller) {
           Column() {
-            Blank().height(SafeHeight.topSafeHeight + 100)
+            Blank().height((HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100))
             WaterFlow({
               scroller: this.videoListController.waterFlowScroller,
               layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW
@@ -482,18 +486,7 @@ export struct VideoList {
         })
 
         if (this.currentSortField === 'name' && this.pinyinSort && this.activeAlphabet.length > 0) {
-          AlphabetIndexer({ arrayValue: this.activeAlphabet, selected: this.indexerSelected })
-            .onSelect((index: number) => {
-              this.scrollToLetter(this.activeAlphabet[index])
-            })
-            .color($r('app.color.text_color'))
-            .selectedColor($r('sys.color.white'))
-            .popupColor($r('app.color.main_color'))
-            .selectedBackgroundColor($r('app.color.main_color'))
-            .popupBackground($r('app.color.start_window_background'))
-            .itemSize(20)
-            .height('100%')
-            .margin(IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand) ? { left: 2 } : { right: 2 })
+          this.AlphabetIndexerBuilder()
         }
 
         if (this.currentSortField !== SortField.NAME || !this.pinyinSort) {
@@ -509,7 +502,7 @@ export struct VideoList {
       .opacity(this.homeEntranceProgress)
       .scale({
         x: this.homeEntranceProgress, y: this.homeEntranceProgress,
-        centerX: 16, centerY: SafeHeight.topSafeHeight + 100
+        centerX: 16, centerY: (HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100)
       })
       .transition(TransitionEffect.IDENTITY)
       .bindSheet(this.showDetailSheet, this.DetailSheetBuilder, {
@@ -531,7 +524,7 @@ export struct VideoList {
       return
     }
     try {
-      if (!this.videoListController.directoryMode && Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY) {
+      if (!this.videoListController.directoryMode && this.displayMode === ListDisplayMode.LIST_DISPLAY) {
         this.videoListController.listScroller.closeAllSwipeActions()
       }
     } catch (error) {
@@ -552,6 +545,28 @@ export struct VideoList {
       this._invalidItem = item
       this.invalidFileDialog.open()
     }
+  }
+
+  @Builder
+  AlphabetIndexerBuilder() {
+    AlphabetIndexer({ arrayValue: this.activeAlphabet, selected: this.indexerSelected })
+      .onSelect((index: number) => {
+        this.scrollToLetter(this.activeAlphabet[index])
+      })
+      .color($r('app.color.text_color'))
+      .selectedColor($r('sys.color.white'))
+      .popupColor($r('app.color.main_color'))
+      .selectedBackgroundColor($r('app.color.main_color'))
+      .popupBackground($r('app.color.start_window_background'))
+      .itemSize(20)
+      .autoCollapse(true)
+      .height(`calc(100% - ${this.alphabetIndexerTop + SafeHeight.bottomSafeHeight}vp)`)
+      .margin({
+        top: this.alphabetIndexerTop,
+        bottom: SafeHeight.bottomSafeHeight,
+        left: IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand) ? 2 : 0,
+        right: IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand) ? 0 : 2
+      })
   }
 
   @Builder
@@ -704,7 +719,7 @@ export struct VideoList {
       previewAnimationOptions: { scale: [1.0, 0.95], hoverScale: [1.0, 1.2] },
       layoutRegionMargin: { left: 16, right: 16, top: 16, bottom: 4 },
       hapticFeedbackMode: response === ResponseType.LongPress ? HapticFeedbackMode.ENABLED : undefined,
-      mask: (Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY ? response === ResponseType.RightClick :
+      mask: (this.displayMode === ListDisplayMode.LIST_DISPLAY ? response === ResponseType.RightClick :
         response === ResponseType.LongPress) ? true : undefined
     }
   }
@@ -714,7 +729,7 @@ export struct VideoList {
       return
     }
     if (this.videoListController.multipleChooseState !== Visibility.Visible) {
-      const currentVideo = Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY ?
+      const currentVideo = this.displayMode === ListDisplayMode.LIST_DISPLAY ?
         MediaLibraryService.getItem(this.videoListController.videoMetaDataList, video.date) : video
       await this.clickItem(currentVideo)
       return
@@ -728,10 +743,15 @@ export struct VideoList {
   }
 
   private updateActiveAlphabet(): void {
-    const list = this.videoListController.videoDataSource.getAllData()
+    const list = this.videoListController.videoDataSource.data
+    this.alphabetFirstIndexes.clear()
+    this.alphabetLetters = []
     const letterSet = new Set<string>()
-    for (const item of list) {
-      letterSet.add(MediaSortUtil.getFirstLetter(item.title || ''))
+    for (let index = 0; index < list.length; index++) {
+      const letter = MediaSortUtil.getFirstLetterForVideo(list[index])
+      this.alphabetLetters.push(letter)
+      letterSet.add(letter)
+      if (!this.alphabetFirstIndexes.has(letter)) this.alphabetFirstIndexes.set(letter, index)
     }
     let alphabet = FULL_ALPHABET.filter(letter => letterSet.has(letter))
     if (!this.currentSortAsc) {
@@ -741,21 +761,15 @@ export struct VideoList {
   }
 
   private scrollToLetter(letter: string): void {
-    const list = this.videoListController.videoDataSource.getAllData()
-    for (let i = 0; i < list.length; i++) {
-      if (MediaSortUtil.getFirstLetter(list[i].title || '') === letter) {
-        this.videoListController.getActiveScroller().scrollToIndex(i)
-        return
-      }
-    }
+    const index = this.alphabetFirstIndexes.get(letter)
+    if (index !== undefined) this.videoListController.getActiveScroller().scrollToIndex(index)
   }
 
   private updateIndexerOnScroll(index: number): void {
-    const list = this.videoListController.videoDataSource.getAllData()
-    if (index < 0 || index >= list.length) {
+    if (index < 0 || index >= this.alphabetLetters.length) {
       return
     }
-    const letter = MediaSortUtil.getFirstLetter(list[index].title || '')
+    const letter = this.alphabetLetters[index]
     const targetIndex = this.activeAlphabet.indexOf(letter)
     if (targetIndex !== -1 && targetIndex !== this.indexerSelected) {
       this.indexerSelected = targetIndex

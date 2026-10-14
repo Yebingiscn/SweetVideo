@@ -3,6 +3,7 @@ import { PlayerControllerFactory, PlayerControllerInterface } from '../../contro
 import AVSessionUtil from '../../utils/AVSessionUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { AVCastPicker } from '@kit.AVSessionKit'
+import { HiCar } from '../../utils/HiCarUtil'
 
 class VideoControlIconValue {
   icon: Resource | undefined = undefined
@@ -11,7 +12,7 @@ class VideoControlIconValue {
 @Builder
 function VideoControlIcon(videoControlIconValue: VideoControlIconValue) {
   SymbolGlyph(videoControlIconValue?.icon)
-    .attributeModifier(new SymbolGlyphFancyModifier(23, '', ''))
+    .attributeModifier(new SymbolGlyphFancyModifier(HiCar.enabled ? 28 : 23, '', ''))
     .fontColor(['#f0f0f0'])
     .opacity(0.8)
 }
@@ -59,26 +60,32 @@ export struct VideoButtonsComponent {
   }
   @Styles
   iconButton() {
-    .attributeModifier(new ButtonFancyModifier(40, 40))
+    .attributeModifier(new ButtonFancyModifier(HiCar.enabled ? 56 : 40, HiCar.enabled ? 56 : 40))
     .backgroundColor(Color.Transparent)
   }
 
   build() {
-    Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceEvenly }) {
+    Flex({ wrap: FlexWrap.Wrap, justifyContent: HiCar.enabled ? FlexAlign.Start : FlexAlign.SpaceEvenly }) {
       // 上一首按钮
+      if (!HiCar.enabled || this.player.screenWidth - HiCar.leftInset - HiCar.rightInset >= 320) {
       Button({ type: ButtonType.Circle, stateEffect: false }) {
         VideoControlIcon({ icon: $r('sys.symbol.backward_end_fill') })
       }
       .iconButton()
+      .accessibilityText($r('app.string.hicar_previous'))
+      .margin({ right: HiCar.enabled ? 12 : 0 })
       .onClick(() => {
         this.onPlayPreviousVideoClick()
       })
+      }
 
       // 播放按钮
       Button({ type: ButtonType.Circle, stateEffect: false }) {
         VideoControlIcon({ icon: this.player.playing ? $r('sys.symbol.pause_fill') : $r('sys.symbol.play_fill') })
       }
       .iconButton()
+      .accessibilityText(this.player.playing ? $r('app.string.hicar_pause') : $r('app.string.hicar_play'))
+      .margin({ right: HiCar.enabled ? 12 : 0 })
       .onClick(() => {
         ToolsUtil.startVibration()
         this.onTogglePlaybackClick()
@@ -86,15 +93,20 @@ export struct VideoButtonsComponent {
       .defaultFocus(true)
 
       // 下一首按钮
+      if (!HiCar.enabled || this.player.screenWidth - HiCar.leftInset - HiCar.rightInset >= 320) {
       Button({ type: ButtonType.Circle, stateEffect: false }) {
         VideoControlIcon({ icon: $r('sys.symbol.forward_end_fill') })
       }
       .iconButton()
+      .accessibilityText($r('app.string.hicar_next'))
+      .margin({ right: HiCar.enabled ? 12 : 0 })
       .onClick(() => {
         this.onPlayNextVideoClick()
       })
+      }
 
       // 投播按钮
+      if (!HiCar.enabled) {
       AVCastPicker({
         normalColor: Color.White,
         onStateChange: AVSessionUtil.castOnStateChange,
@@ -127,10 +139,13 @@ export struct VideoButtonsComponent {
         { backgroundBlurStyle: BlurStyle.COMPONENT_THIN })
 
       // 选集按钮
+      }
+      if (!HiCar.enabled || this.player.screenWidth - HiCar.leftInset - HiCar.rightInset >= 240) {
       Button({ type: ButtonType.Circle, stateEffect: false }) {
         VideoControlIcon({ icon: $r('sys.symbol.music_note_list') })
       }
       .iconButton()
+      .accessibilityText($r('app.string.hicar_playlist'))
       .onClick(() => {
         if (this._sideBarStatus) {
           this.onSideBaClose()
@@ -141,8 +156,10 @@ export struct VideoButtonsComponent {
           this.onSideBarStatusChange(true)
         }
       })
+      }
 
       // 屏幕旋转按钮
+      if (!HiCar.enabled) {
       Button({ type: ButtonType.Circle, stateEffect: false }) {
         VideoControlIcon({ icon: $r('sys.symbol.fullscreen') })
       }
@@ -150,8 +167,9 @@ export struct VideoButtonsComponent {
       .onClick(async () => {
         await this.onScreenRotationOrFullScreenClick()
       })
+      }
     }
-    .width('95%')
+    .width(HiCar.enabled ? '100%' : '95%')
   }
 
 }

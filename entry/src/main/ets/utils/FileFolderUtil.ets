@@ -400,71 +400,51 @@ export default class FileFolderUtil {
   }
 
   static async cleanInvalidFiles(context: Context): Promise<number> {
-    const coverResult = await fileIo.listFile(PathUtils.coverPath)?.catch(() => {
-      salmonLogger.addLog(TAG, 'get cover fail', true)
-    })
-    const subtitleResult = await fileIo.listFile(PathUtils.subtitlePath)?.catch(() => {
-      salmonLogger.addLog(TAG, 'get subtitle fail', true)
-    })
-    const danmakuResult = await fileIo.listFile(DanmakuStorage.directory).catch(() => {
-      // 尚未导入弹幕时目录不存在。
-      return [] as string[]
-    })
+    const directories = await Promise.all([
+      fileIo.listFile(PathUtils.coverPath).catch(() => {
+        salmonLogger.addLog(TAG, 'get cover fail', true)
+        return [] as string[]
+      }),
+      fileIo.listFile(PathUtils.subtitlePath).catch(() => {
+        salmonLogger.addLog(TAG, 'get subtitle fail', true)
+        return [] as string[]
+      }),
+      fileIo.listFile(DanmakuStorage.directory).catch(() => {
+        // 尚未导入弹幕时目录不存在。
+        return [] as string[]
+      }),
+      fileIo.listFile(ExternalAudioStorage.directory).catch(() => [] as string[])
+    ])
+    const coverResult = directories[0]
+    const subtitleResult = directories[1]
+    const danmakuResult = directories[2]
     const validFileRegex = /^(\d|stream_|smb_)/
     const coverFromSandboxArray: string[] = Array.isArray(coverResult)
       ? coverResult.filter(file => validFileRegex.test(file) && !file.endsWith('.tmp')) : []
     const subtitleFromSandboxArray: string[] = Array.isArray(subtitleResult)
       ? subtitleResult.filter(file => validFileRegex.test(file) && !file.endsWith('.tmp')) : []
-    const videoMetaData = Preferences.getVideoMetaData(context)
     const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(context)
     const fileFolder = Preferences.getFileFolder(context)
     const networkStreams = Preferences.getNetworkStreams(context)
+    const recentPlay = Preferences.getRecentPlay(context)
     const existingItemsSet = new Set<string>()
     const audioReferences = new Set<string>()
-    const audioOwners = [...videoMetaData, ...videoMetaDataEncryption, ...networkStreams,
-      ...Preferences.getRecentPlay(context)]
-    for (const folder of fileFolder) {
-      for (const item of folder.video_list || []) audioOwners.push(item)
-    }
-    for (const item of audioOwners) {
+    const collectReferences = (item: VideoMetadata): void => {
+      if (item.date) existingItemsSet.add(item.date)
       if (item.external_audio_file) audioReferences.add(item.external_audio_file)
     }
-    const audioFiles = await fileIo.listFile(ExternalAudioStorage.directory).catch(() => [] as string[])
-    let deletedAudioCount = 0
-    for (const file of audioFiles) {
-      const candidate = file.replace(/\.\d+-\d+\.tmp$/, '')
-      if (ExternalAudioStorage.owner(file) && !audioReferences.has(file) && !ExternalAudioStorage.pending.has(candidate)) {
-        try { ExternalAudioStorage.removeFile(file); deletedAudioCount++ } catch (_error) {
-          salmonLogger.addLog(TAG, '删除失效外挂音频失败', true)
-        }
-      }
-    }
-    // SMB 和从外部打开的视频可能只保存在播放历史中。
-    for (const item of Preferences.getRecentPlay(context)) {
-      if (item.date) {
-        existingItemsSet.add(item.date)
-      }
-    }
-    for (const v of videoMetaData) {
-      existingItemsSet.add(v.date as string)
-    }
-    for (const v of videoMetaDataEncryption) {
-      existingItemsSet.add(v.date as string)
-    }
+    for (const item of videoMetaDataEncryption) collectReferences(item)
+    for (const item of networkStreams) collectReferences(item)
+    for (const item of recentPlay) collectReferences(item)
     for (const folder of fileFolder) {
-      if (folder.video_list) {
-        for (const item of folder.video_list) {
-          if (item?.date) {
-            existingItemsSet.add(item.date as string)
-          }
-        }
-      }
+      for (const item of folder.video_list || []) collectReferences(item)
     }
-    for (const s of networkStreams) {
-      if (s?.date) {
-        existingItemsSet.add(s.date as string)
-      }
-    }
+    const audioFiles = directories[3]
+    const missingAudioFiles = audioFiles.filter(file => {
+      const candidate = file.replace(/\.\d+-\d+\.tmp$/, '')
+      return !!ExternalAudioStorage.owner(file) && !audioReferences.has(file) &&
+        !ExternalAudioStorage.pending.has(candidate)
+    })
     const missingCoverFiles = coverFromSandboxArray.filter(file => !existingItemsSet.has(file))
     const missingSubtitleFiles = subtitleFromSandboxArray.filter(file => !existingItemsSet.has(file))
     salmonLogger.addLog(TAG,
@@ -486,11 +466,12 @@ export default class FileFolderUtil {
         // 跳过不符合存储格式的文件。
       }
     }
-    const totalMissing = missingCoverFiles.length + missingSubtitleFiles.length + missingDanmakuFiles.length
+    const totalMissing = missingCoverFiles.length + missingSubtitleFiles.length + missingDanmakuFiles.length +
+      missingAudioFiles.length
     if (totalMissing === 0) {
-      return deletedAudioCount
+      return 0
     }
-    let deletedCount = deletedAudioCount
+    let deletedCount = 0
     const deleteTasks: Promise<void>[] = []
     for (const file of missingCoverFiles) {
       deleteTasks.push(MediaLibraryService.deleteCover(file).then(() => { deletedCount++ }).catch((err: BusinessError) => {
@@ -504,12 +485,16 @@ export default class FileFolderUtil {
         }))
     }
     for (const media of missingDanmakuFiles) {
-      try {
-        DanmakuStorage.remove(media)
-        deletedCount++
-      } catch (error) {
+      deleteTasks.push(DanmakuStorage.remove(media).then(() => { deletedCount++ }).catch((error: Error) => {
         salmonLogger.addLog(TAG, `删除失效弹幕失败: ${error}`, true)
-      }
+      }))
+    }
+    for (const file of missingAudioFiles) {
+      const candidate = file.replace(/\.\d+-\d+\.tmp$/, '')
+      if (ExternalAudioStorage.pending.has(candidate)) { continue }
+      deleteTasks.push(ExternalAudioStorage.removeFile(file).then(() => { deletedCount++ }).catch((_error: Error) => {
+        salmonLogger.addLog(TAG, '删除失效外挂音频失败', true)
+      }))
     }
     await Promise.all(deleteTasks)
     return deletedCount

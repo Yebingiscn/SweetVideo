@@ -1,4 +1,10 @@
-import { CapsuleSegmentButtonV2, ColorMetrics, SegmentButtonV2ItemOptions, SegmentButtonV2Items } from '@kit.ArkUI'
+import {
+  CapsuleSegmentButtonV2,
+  ColorMetrics,
+  SegmentButtonV2ItemOptions,
+  SegmentButtonV2Items,
+  uiMaterial
+} from '@kit.ArkUI'
 import { salmonLogger } from 'salmonlogger'
 import {
   SettingsItemModifier,
@@ -6,6 +12,7 @@ import {
   SymbolGlyphFancyModifier
 } from '../../common/AttributeModifierConfig'
 import ToolsUtil from '../../utils/ToolsUtil'
+import { deviceInfo } from '@kit.BasicServicesKit'
 
 const TAG = 'SettingsSegmentButtonItem'
 
@@ -58,17 +65,35 @@ export struct SettingsSegmentButtonItem {
       }
       .width('100%')
 
-      CapsuleSegmentButtonV2({
-        items: this.textItems,
-        selectedIndex: this.tabSelectedIndex,
-        $selectedIndex: (index: number) => {
-          this.onButtonClick(index)
-        },
-        buttonBackgroundBlurStyle: BlurStyle.BACKGROUND_THICK,
-        itemSelectedFontColor: this.itemSelectedFontColor,
-        itemSelectedBackgroundColor: this.itemSelectedBackgroundColor
-      })
-      .enabled(this.itemEnabled)
+      if (deviceInfo.apiAvailable('26.0.0')) {
+        CapsuleSegmentButtonV2({
+          items: this.textItems,
+          selectedIndex: this.tabSelectedIndex,
+          $selectedIndex: (index: number) => {
+            this.onButtonClick(index)
+          },
+          itemSelectedFontColor: this.itemSelectedFontColor,
+          itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
+          backgroundSystemMaterial: new uiMaterial.ImmersiveMaterial({
+            style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
+            colorInvert: true,
+            interactive: true,
+            lightEffect: {}
+          })
+        })
+          .enabled(this.itemEnabled)
+      } else {
+        CapsuleSegmentButtonV2({
+          items: this.textItems,
+          selectedIndex: this.tabSelectedIndex,
+          $selectedIndex: (index: number) => {
+            this.onButtonClick(index)
+          },
+          itemSelectedFontColor: this.itemSelectedFontColor,
+          itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
+        })
+          .enabled(this.itemEnabled)
+      }
     }
     .width('100%')
     .height(100)

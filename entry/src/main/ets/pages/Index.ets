@@ -8,7 +8,6 @@ import { DeletedVideosDialog } from '../component/Dialog/DeletedVideosDialog'
 import { motion } from '@kit.MultimodalAwarenessKit'
 import { salmonLogger } from 'salmonlogger'
 import { DeleteType } from '../common/enum/DeleteType'
-import { ListDisplayMode } from '../common/enum/DisplayMode'
 import { SortField } from '../common/enum/SortField'
 import { VideoSource } from '../common/enum/VideoSource'
 import NavigationAddress, { IPTVChannelParams } from '../common/NavigationCommon'
@@ -26,6 +25,8 @@ import { PrivacyAuthMode } from '../common/enum/PrivacyAuthMode'
 import { userAuth } from '@kit.UserAuthenticationKit'
 import DataSyncUtil from '../utils/DataSyncUtil'
 import HomeSidebarLayout from '../utils/HomeSidebarLayout'
+import HiCarLayout from '../utils/HiCarLayout'
+import { HiCar, HiCarState } from '../utils/HiCarUtil'
 import FileFolderUtil from '../utils/FileFolderUtil'
 import FolderHierarchy from '../utils/FolderHierarchy'
 import { importAndProcessFiles, ProgressInfo } from '../utils/FileProcessorUtil'
@@ -70,6 +71,7 @@ import KnockShareUtil, { KNOCK_SHARE_INDEX_OWNER, KnockCoordinate, KnockReceiveP
 import KnockReceiveStorage from '../utils/KnockReceiveStorage'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import PermissionUtil from '../utils/PermissionUtil'
+import PlaybackExitCoordinator from '../utils/PlaybackExitCoordinator'
 
 const TAG = 'Index'
 
@@ -85,6 +87,13 @@ struct Index {
   @Local currentStage: 'extracting' | 'cover' | 'saving' = 'extracting'
   @Local isSizeInitialized: boolean = false
   @Local homeSidebarWidth: number = HomeSidebarLayout.minWidth
+  @Local carState: HiCarState = HiCar
+  @Local showHiCarSources: boolean = false
+  private homeWindowWidth: number = 0
+  private homeNavVisible: boolean = true
+  private homeResumeTimer: number | undefined = undefined
+  private homeRefreshPending: boolean = false
+  private waitingForPlayerExit: boolean = false
   @Provider() file_folder_list: FileFolder[] = []
   @Local searchValue: string = ''
   @Local contentWidth: number = 0
@@ -109,14 +118,20 @@ struct Index {
   async onPageShow(): Promise<void> {
     this.cancelHomeCheck?.()
     let active = true
-    this.cancelHomeCheck = () => { active = false }
+    this.cancelHomeCheck = () => {
+      active = false
+    }
     const isActive = (): boolean => active && this.homeReady && this.pathStack.size() === 0
     const skipStartupCheck = this.homeInitialization ? await this.homeInitialization : false
-    if (!active) return
+    if (!active) {
+      return
+    }
     this.homeInitialization = undefined
     this.activateKnockShareProvider()
     await WantProcessUtil.checkWant(this.pathStack)
-    if (!active) return
+    if (!active) {
+      return
+    }
     const currentFolder = this.videoListController.folder
     if (currentFolder) {
       const updatedFolders = Preferences.getFileFolder(PathUtils.appContext!)
@@ -126,7 +141,9 @@ struct Index {
         this.videoListController.updateData(this.videoListController.videoDataSource, updatedFolder)
       }
     }
-    if (!skipStartupCheck && isActive()) await this.checkInvalidVideos(isActive)
+    if (!skipStartupCheck && isActive()) {
+      await this.checkInvalidVideos(isActive)
+    }
   }
 
   onPageHide(): void {
@@ -140,61 +157,9 @@ struct Index {
     await this.homeInitialization
   }
 
-  private async initializeHome(lifecycleVersion: number): Promise<boolean> {
-    // 首次安装没有文件夹，必须在首次 await 前准备数据，避免子组件先进入 aboutToAppear。
-    this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
-    if (this.file_folder_list.length === 0) {
-      this.file_folder_list = FileFolderUtil.createNewFolder(PathUtils.appContext!, '首页')
-    }
-    const defaultStartupFolderDate = Preferences.getDefaultStartupFolder(PathUtils.appContext!)
-    const startupPage = StartupPageUtil.getPage(defaultStartupFolderDate)
-    const isIptvSourceStartup = defaultStartupFolderDate.startsWith(StartupPageUtil.IPTV_SOURCE_PREFIX)
-    const defaultFolder = (defaultStartupFolderDate && !startupPage && !isIptvSourceStartup)
-      ? this.file_folder_list.find(f => f.date === defaultStartupFolderDate) ?? this.file_folder_list[0]
-      : this.file_folder_list[0]
-    this.videoListController?.updateData(undefined, defaultFolder)
-    this.videoListController.directoryMode = Preferences.getDirectoryView(PathUtils.appContext!)
-
-    await WindowUtil.init(PathUtils.appContext!)
-    if (lifecycleVersion !== this.homeLifecycleVersion) return false
-    this.activateKnockShareProvider()
-    KnockShareUtil.setReceiveHandler(async (payload: KnockReceivePayload): Promise<void> => {
-      await this.handleKnockReceive(payload)
-    })
-    VideoOperateUtil.initSetting(PathUtils.appContext!)
-    const hasCardWant = WantProcessUtil.hasPendingCardWant()
-    if (startupPage && !hasCardWant) {
-      setTimeout(() => {
-        this.pathStack.pushPathByName(startupPage.route, null)
-      }, 0)
-    }
-    if (isIptvSourceStartup && !hasCardWant) {
-      const iptvSourceId = defaultStartupFolderDate.substring(StartupPageUtil.IPTV_SOURCE_PREFIX.length)
-      setTimeout(() => {
-        this.pathStack.pushPathByName(NavigationAddress.IPTV_CHANNEL_PAGE,
-          new IPTVChannelParams(iptvSourceId), true)
-      }, 0)
-    }
-    void this.applySavedFolderSort()
-    setTimeout(() => {
-      SelectFileUtil.getDownloadUri()
-      VideoMetaDataOperator.migrationRootVideoMetaToRootFolder()
-      FileFolderUtil.fileFolderExistCheck()
-      AccountUtil.initAccount()
-      IntellectualGripPostureUtil.createHoldingHandStatus((data: motion.HoldingHandStatus) => {
-        this.holdingHand = data
-      })
-      IntellectualGripPostureUtil.createOperatingHandStatus()
-    }, 0)
-    await WantProcessUtil.setCardNavigationReady(this.pathStack)
-    if (lifecycleVersion !== this.homeLifecycleVersion) return false
-    this.homeReady = true
-    this.videoListController.homeReady = true
-    // 默认启动页会跳转时，本次 onPageShow 直接跳过检测，无须等待页面入栈。
-    return !hasCardWant && (startupPage !== undefined || isIptvSourceStartup)
-  }
-
   aboutToDisappear(): void {
+    this.homeNavVisible = false
+    if (this.homeResumeTimer !== undefined) clearTimeout(this.homeResumeTimer)
     this.onPageHide()
     this.homeLifecycleVersion++
     this.homeReady = false
@@ -237,130 +202,16 @@ struct Index {
     )
   }
 
-  private activateKnockShareProvider(): void {
-
-    KnockShareUtil.setShareProvider(KNOCK_SHARE_INDEX_OWNER,
-      (_coordinate: KnockCoordinate | undefined): VideoMetadata[] => {
-        return DataSyncUtil.delMultipleList.length > 0 ? [...DataSyncUtil.delMultipleList] : []
-      }, (): boolean => this.pathStack.size() === 0)
-  }
-
-  private async handleKnockReceive(payload: KnockReceivePayload): Promise<void> {
-    if (payload.uris.length === 0) {
-      return
-    }
-    if (payload.privateMode) {
-      let failedCount = 0
-      for (const uri of payload.uris) {
-        const privateVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-        const oldDates = new Set<string>(privateVideos.map((video: VideoMetadata) => video.date))
-        const handled = await SelectFileUtil.addFile(PathUtils.appContext!, PathUtils.videoPath,
-          PathUtils.coverPath, uri, privateVideos, undefined, true, true)
-        if (handled && privateVideos.some((video: VideoMetadata) => !oldDates.has(video.date))) {
-          await KnockReceiveStorage.removeReceivedSource(uri, payload.receivePath)
-        } else {
-          // 不能删除尚未真正保存的接收文件。
-          failedCount++
-        }
-      }
-      Privacy.receivedFilesVersion++
-      ToolsUtil.showToast(failedCount === 0 ? ToolsUtil.getStringResource($r('app.string.knock_files_saved_privacy').id) :
-        ToolsUtil.getStringResourceArgs($r('app.string.knock_files_partial_privacy').id, failedCount))
-      return
-    }
-    const currentFolderDate = this.videoListController.folder?.date
-    const folders = Preferences.getFileFolder(PathUtils.appContext!)
-    const targetFolder = currentFolderDate ?
-      folders.find((folder: FileFolder) => folder.date === currentFolderDate) ?? folders[0] : folders[0]
-    if (!targetFolder) {
-      throw new Error(ToolsUtil.getStringResource($r('app.string.knock_target_folder_missing').id))
-    }
-
-    const existingDates = new Set<string>(targetFolder.video_list.map((video: VideoMetadata) => video.date))
-    this.loading = true
-    this.totalItems = payload.uris.length
-    this.processedItems = 0
-    this.failedCount = 0
-    try {
-      for (const uri of payload.uris) {
-        this.currentFileName = ToolsUtil.fileNameFromUri(uri)
-        this.currentStage = 'extracting'
-        const handled = await SelectFileUtil.addFile(PathUtils.appContext!, PathUtils.videoPath,
-          PathUtils.coverPath, uri, targetFolder.video_list, targetFolder, false)
-        if (!handled) {
-          this.failedCount++
-        }
-        this.currentStage = 'saving'
-        this.processedItems++
-      }
-    } finally {
-      this.loading = false
-    }
-    if (this.failedCount > 0) {
-      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.files_saved_import_partial').id))
-    }
-
-    const latestFolders = Preferences.getFileFolder(PathUtils.appContext!)
-    const latestTarget = latestFolders.find((folder: FileFolder) => folder.date === targetFolder.date)
-    if (!latestTarget) {
-      return
-    }
-    const receivedOrder = new Map<string, number>()
-    payload.uris.forEach((uri: string, index: number) => receivedOrder.set(uri, index))
-    const imported = latestTarget.video_list.filter((video: VideoMetadata) =>
-      !existingDates.has(video.date) && receivedOrder.has(video.uri))
-    imported.sort((left: VideoMetadata, right: VideoMetadata) =>
-      (receivedOrder.get(left.uri) ?? 0) - (receivedOrder.get(right.uri) ?? 0))
-    if (imported.length === 0) {
-      return
-    }
-
-    const importedDates = new Set<string>(imported.map((video: VideoMetadata) => video.date))
-    const orderedVideos = latestTarget.video_list.filter((video: VideoMetadata) => !importedDates.has(video.date))
-    const anchorIndex = payload.anchorVideoDate ?
-      orderedVideos.findIndex((video: VideoMetadata) => video.date === payload.anchorVideoDate) : -1
-    if (anchorIndex >= 0) {
-      orderedVideos.splice(anchorIndex + 1, 0, ...imported)
-    } else {
-      orderedVideos.push(...imported)
-    }
-    latestTarget.video_list = orderedVideos
-    FileFolderUtil.updateFileFolder(PathUtils.appContext!, latestTarget, orderedVideos)
-    this.file_folder_list = VideoUtils.refresh(this.videoListController, this.fileFolderSource, latestTarget)
-  }
-
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
-  build() {
+  @Builder
+  SweetContent() {
     HdsNavigation(this.pathStack) {
       SideBarContainer(this.sideBarController.mode) {
-        SideBarContentComponent({
-          sideBarController: this.sideBarController,
-          pathStack: this.pathStack,
-          videoListController: this.videoListController,
-          fileFolderSource: this.fileFolderSource,
-          file_folder_list: this.file_folder_list,
-          scrollToFolderDate: this.scrollToFolderDate,
-          sideBarScroller: this.sideBarScroller,
-          fileFolderListChange: (folders: FileFolder[]) => {
-            this.file_folder_list = folders
-          },
-          scrollToFolderDateChange: (date: string) => {
-            this.scrollToFolderDate = date
-          },
-          searchValueClear: (): boolean => this.clearSearchValue(),
-          onImportProgress: (info: ProgressInfo) => {
-            this.processedItems = info.current
-            this.currentFileName = info.fileName
-            this.currentStage = info.stage
-            this.failedCount = info.failedCount
-          },
-          onImportLoading: (loading: boolean) => {
-            this.loading = loading
-          },
-          onImportTotal: (totalItems: number) => {
-            this.totalItems = totalItems
-          }
-        })
+        if (HiCar.enabled) {
+          this.HiCarSidebar()
+        } else {
+          this.HomeSources()
+        }
 
         Stack() {
           VideoView({
@@ -376,8 +227,8 @@ struct Index {
               this.scrollToFolderDate = v
             }
           }).scale({
-            x: this.sideBarController.isShow === true ? 0.95 : 1,
-            y: this.sideBarController.isShow ? 0.95 : 1
+            x: !HiCar.enabled && this.sideBarController.isShow ? 0.95 : 1,
+            y: !HiCar.enabled && this.sideBarController.isShow ? 0.95 : 1
           }).animation({ duration: 300, curve: Curve.Ease })
           if (this.loading) {
             ImportProgressBuilder({
@@ -393,7 +244,7 @@ struct Index {
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
           const width = Number(newValue.width)
           this.contentWidth = width
-          this.videoListController.refresh(width, Setting.listDisplayMode)
+          this.scheduleHomeResume()
         })
         .priorityGesture(SwipeGesture({ direction: SwipeDirection.Horizontal }).onAction((event: GestureEvent) => {
           this.handleFolderSwipe(event)
@@ -436,7 +287,10 @@ struct Index {
       .maxSideBarWidth(HomeSidebarLayout.maxWidth)
       // 480 vp 只用于嵌入布局；覆盖模式不能把窄窗口的内容撑宽。
       .minContentWidth(this.isSizeInitialized && this.sideBarController.mode === SideBarContainerType.Embed ?
-        HomeSidebarLayout.minContentWidth : 0)
+        (HiCar.enabled ? 320 : HomeSidebarLayout.minContentWidth) : 0)
+      .padding(HiCar.enabled ? {
+        left: HiCar.leftInset, right: HiCar.rightInset, top: HiCar.topInset, bottom: HiCar.bottomInset
+      } : 0)
       .width('100%')
       .allowDrop(MediaDropUtil.allowedTypes)
       .onSizeChange((_oldValue: SizeResult, newValue: SizeResult) => {
@@ -444,22 +298,8 @@ struct Index {
         if (!Number.isFinite(windowWidth) || windowWidth <= 0) {
           return
         }
-        this.homeSidebarWidth = HomeSidebarLayout.getWidth(windowWidth)
-        if (HomeSidebarLayout.isEmbedded(windowWidth)) {
-          if (!this.isSizeInitialized || this.sideBarController.mode !== SideBarContainerType.Embed) {
-            this.sideBarController.mode = SideBarContainerType.Embed
-            const visible = Preferences.getEmbedSidebarVisible(PathUtils.appContext!)
-            this.sideBarController.visibility = visible ? Visibility.Visible : Visibility.Hidden
-            this.sideBarController.isShow = visible
-          }
-        } else {
-          if (!this.isSizeInitialized || this.sideBarController.mode !== SideBarContainerType.Overlay) {
-            this.sideBarController.mode = SideBarContainerType.Overlay
-            this.sideBarController.visibility = Visibility.Hidden
-            this.sideBarController.isShow = false
-          }
-        }
-        this.isSizeInitialized = true
+        this.homeWindowWidth = windowWidth
+        this.scheduleHomeResume()
       })
       .onChange((value: boolean) => {
         this.sideBarController.isShow = value
@@ -579,50 +419,23 @@ struct Index {
         ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.get_data_exception').id, String(error)))
         return
       }
-      if (!uri) { return }
+      if (!uri) {
+        return
+      }
       WantProcessUtil.wantUri = uri
       void WantProcessUtil.hasWant(this.pathStack)
     })
     .onNavBarStateChange((isVisible: boolean) => {
-      if (!isVisible) this.cancelHomeCheck?.()
+      this.homeNavVisible = isVisible
+      if (!isVisible) {
+        this.cancelHomeCheck?.()
+        if (this.homeResumeTimer !== undefined) {
+          clearTimeout(this.homeResumeTimer)
+          this.homeResumeTimer = undefined
+        }
+      }
       if (isVisible) {
-        if (this.videoListController.folder?.video_list) {
-          if (this.contentWidth > 0) {
-            const currentScreenWidth = AppStorage.get('screen_width') as number ?? 0
-            const currentScreenHeight = AppStorage.get('screen_height') as number ?? 0
-            const currentIsLandscape = currentScreenWidth > currentScreenHeight
-            const currentListDisplayMode = Setting.listDisplayMode
-            const savedIsLandscape = AppStorage.get('saved_is_landscape') as boolean | undefined
-            const savedListDisplayMode = AppStorage.get('saved_list_display_mode') as ListDisplayMode | undefined
-            const savedListLine = AppStorage.get('saved_list_line') as number | undefined
-            const savedMaxListLine = AppStorage.get('saved_max_list_line') as number | undefined
-            const needRefresh = savedIsLandscape == undefined ||
-              savedListDisplayMode == undefined ||
-              savedListLine == undefined ||
-              savedMaxListLine == undefined ||
-              currentIsLandscape != savedIsLandscape ||
-              currentListDisplayMode != savedListDisplayMode ||
-              this.videoListController.listLine != savedListLine ||
-              Setting.maxListLine != savedMaxListLine
-            if (needRefresh) {
-              this.videoListController.refresh(this.contentWidth, Setting.listDisplayMode)
-            }
-          }
-          const targetFolder = this.videoListController.folder ?? this.file_folder_list[0]
-          const updatedFolders = VideoUtils.refresh(this.videoListController, this.fileFolderSource, targetFolder)
-          this.file_folder_list = updatedFolders
-        }
-        if (DataSyncUtil.lastPlayVideoIndex >= 0) {
-          if (!this.videoListController.directoryMode) {
-            this.videoListController.getActiveScroller().scrollToIndex(DataSyncUtil.lastPlayVideoIndex)
-          }
-          DataSyncUtil.lastPlayVideoIndex = -1
-        }
-        const value: string | undefined = AppStorage.get('searchValue')
-        if (value) {
-          this.searchValue = value
-          AppStorage.set('searchValue', '')
-        }
+        this.scheduleHomeResume(true)
       } else {
         // 保存当前状态到 AppStorage
         const currentScreenWidth = AppStorage.get('screen_width') as number ?? 0
@@ -635,6 +448,17 @@ struct Index {
         AppStorage.setOrCreate('saved_max_list_line', Setting.maxListLine)
       }
     })
+  }
+
+  build() {
+    Tabs() {
+      TabContent().tabBar(this.SweetContent())
+    }
+    .barOverlap(true)
+    .barMode(BarMode.Fixed)
+    .barPosition(BarPosition.End)
+    .barHeight('100%')
+    .barWidth('100%')
   }
 
   @Builder
@@ -720,8 +544,167 @@ struct Index {
     return false
   }
 
+  @Monitor('file_folder_list')
+  onFolderListSortChanged(): void {
+    void this.applySavedFolderSort()
+  }
+
+  private async initializeHome(lifecycleVersion: number): Promise<boolean> {
+    // 首次安装没有文件夹，必须在首次 await 前准备数据，避免子组件先进入 aboutToAppear。
+    this.file_folder_list = Preferences.getFileFolder(PathUtils.appContext!)
+    if (this.file_folder_list.length === 0) {
+      this.file_folder_list = FileFolderUtil.createNewFolder(PathUtils.appContext!, '首页')
+    }
+    const defaultStartupFolderDate = Preferences.getDefaultStartupFolder(PathUtils.appContext!)
+    const startupPage = StartupPageUtil.getPage(defaultStartupFolderDate)
+    const isIptvSourceStartup = defaultStartupFolderDate.startsWith(StartupPageUtil.IPTV_SOURCE_PREFIX)
+    const defaultFolder = (defaultStartupFolderDate && !startupPage && !isIptvSourceStartup)
+      ? this.file_folder_list.find(f => f.date === defaultStartupFolderDate) ?? this.file_folder_list[0]
+      : this.file_folder_list[0]
+    this.videoListController?.updateData(undefined, defaultFolder)
+    this.videoListController.directoryMode = Preferences.getDirectoryView(PathUtils.appContext!)
+
+    await WindowUtil.init(PathUtils.appContext!)
+    if (lifecycleVersion !== this.homeLifecycleVersion) {
+      return false
+    }
+    this.activateKnockShareProvider()
+    KnockShareUtil.setReceiveHandler(async (payload: KnockReceivePayload): Promise<void> => {
+      await this.handleKnockReceive(payload)
+    })
+    VideoOperateUtil.initSetting(PathUtils.appContext!)
+    const hasCardWant = WantProcessUtil.hasPendingCardWant()
+    if (startupPage && !hasCardWant) {
+      setTimeout(() => {
+        this.pathStack.pushPathByName(startupPage.route, null)
+      }, 0)
+    }
+    if (isIptvSourceStartup && !hasCardWant) {
+      const iptvSourceId = defaultStartupFolderDate.substring(StartupPageUtil.IPTV_SOURCE_PREFIX.length)
+      setTimeout(() => {
+        this.pathStack.pushPathByName(NavigationAddress.IPTV_CHANNEL_PAGE,
+          new IPTVChannelParams(iptvSourceId), true)
+      }, 0)
+    }
+    void this.applySavedFolderSort()
+    setTimeout(() => {
+      SelectFileUtil.getDownloadUri()
+      VideoMetaDataOperator.migrationRootVideoMetaToRootFolder()
+      FileFolderUtil.fileFolderExistCheck()
+      AccountUtil.initAccount()
+      IntellectualGripPostureUtil.createHoldingHandStatus((data: motion.HoldingHandStatus) => {
+        this.holdingHand = data
+      })
+      IntellectualGripPostureUtil.createOperatingHandStatus()
+    }, 0)
+    await WantProcessUtil.setCardNavigationReady(this.pathStack)
+    if (lifecycleVersion !== this.homeLifecycleVersion) {
+      return false
+    }
+    this.homeReady = true
+    this.videoListController.homeReady = true
+    this.scheduleHomeResume()
+    // 默认启动页会跳转时，本次 onPageShow 直接跳过检测，无须等待页面入栈。
+    return !hasCardWant && (startupPage !== undefined || isIptvSourceStartup)
+  }
+
+  private activateKnockShareProvider(): void {
+
+    KnockShareUtil.setShareProvider(KNOCK_SHARE_INDEX_OWNER,
+      (_coordinate: KnockCoordinate | undefined): VideoMetadata[] => {
+        return DataSyncUtil.delMultipleList.length > 0 ? [...DataSyncUtil.delMultipleList] : []
+      }, (): boolean => this.pathStack.size() === 0)
+  }
+
+  private async handleKnockReceive(payload: KnockReceivePayload): Promise<void> {
+    if (payload.uris.length === 0) {
+      return
+    }
+    if (payload.privateMode) {
+      let failedCount = 0
+      for (const uri of payload.uris) {
+        const privateVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+        const oldDates = new Set<string>(privateVideos.map((video: VideoMetadata) => video.date))
+        const handled = await SelectFileUtil.addFile(PathUtils.appContext!, PathUtils.videoPath,
+          PathUtils.coverPath, uri, privateVideos, undefined, true, true)
+        if (handled && privateVideos.some((video: VideoMetadata) => !oldDates.has(video.date))) {
+          await KnockReceiveStorage.removeReceivedSource(uri, payload.receivePath)
+        } else {
+          // 不能删除尚未真正保存的接收文件。
+          failedCount++
+        }
+      }
+      Privacy.receivedFilesVersion++
+      ToolsUtil.showToast(
+        failedCount === 0 ? ToolsUtil.getStringResource($r('app.string.knock_files_saved_privacy').id) :
+          ToolsUtil.getStringResourceArgs($r('app.string.knock_files_partial_privacy').id, failedCount))
+      return
+    }
+    const currentFolderDate = this.videoListController.folder?.date
+    const folders = Preferences.getFileFolder(PathUtils.appContext!)
+    const targetFolder = currentFolderDate ?
+      folders.find((folder: FileFolder) => folder.date === currentFolderDate) ?? folders[0] : folders[0]
+    if (!targetFolder) {
+      throw new Error(ToolsUtil.getStringResource($r('app.string.knock_target_folder_missing').id))
+    }
+
+    const existingDates = new Set<string>(targetFolder.video_list.map((video: VideoMetadata) => video.date))
+    this.loading = true
+    this.totalItems = payload.uris.length
+    this.processedItems = 0
+    this.failedCount = 0
+    try {
+      for (const uri of payload.uris) {
+        this.currentFileName = ToolsUtil.fileNameFromUri(uri)
+        this.currentStage = 'extracting'
+        const handled = await SelectFileUtil.addFile(PathUtils.appContext!, PathUtils.videoPath,
+          PathUtils.coverPath, uri, targetFolder.video_list, targetFolder, false)
+        if (!handled) {
+          this.failedCount++
+        }
+        this.currentStage = 'saving'
+        this.processedItems++
+      }
+    } finally {
+      this.loading = false
+    }
+    if (this.failedCount > 0) {
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.files_saved_import_partial').id))
+    }
+
+    const latestFolders = Preferences.getFileFolder(PathUtils.appContext!)
+    const latestTarget = latestFolders.find((folder: FileFolder) => folder.date === targetFolder.date)
+    if (!latestTarget) {
+      return
+    }
+    const receivedOrder = new Map<string, number>()
+    payload.uris.forEach((uri: string, index: number) => receivedOrder.set(uri, index))
+    const imported = latestTarget.video_list.filter((video: VideoMetadata) =>
+    !existingDates.has(video.date) && receivedOrder.has(video.uri))
+    imported.sort((left: VideoMetadata, right: VideoMetadata) =>
+    (receivedOrder.get(left.uri) ?? 0) - (receivedOrder.get(right.uri) ?? 0))
+    if (imported.length === 0) {
+      return
+    }
+
+    const importedDates = new Set<string>(imported.map((video: VideoMetadata) => video.date))
+    const orderedVideos = latestTarget.video_list.filter((video: VideoMetadata) => !importedDates.has(video.date))
+    const anchorIndex = payload.anchorVideoDate ?
+      orderedVideos.findIndex((video: VideoMetadata) => video.date === payload.anchorVideoDate) : -1
+    if (anchorIndex >= 0) {
+      orderedVideos.splice(anchorIndex + 1, 0, ...imported)
+    } else {
+      orderedVideos.push(...imported)
+    }
+    latestTarget.video_list = orderedVideos
+    FileFolderUtil.updateFileFolder(PathUtils.appContext!, latestTarget, orderedVideos)
+    this.file_folder_list = VideoUtils.refresh(this.videoListController, this.fileFolderSource, latestTarget)
+  }
+
   private async checkInvalidVideos(isActive: () => boolean): Promise<void> {
-    if (!isActive()) return
+    if (!isActive()) {
+      return
+    }
     this.pendingVideoCheck = isActive
     if (this.videoValidityCheckRunning) {
       return
@@ -758,7 +741,9 @@ struct Index {
     // 文档与媒体 URI 的持久化权限需要在 UI 线程激活；真正的文件探测仍放在 TaskPool 中。
     const batchSize = 8
     for (let start = 0; start < videosToCheck.length; start += batchSize) {
-      if (!isActive()) return
+      if (!isActive()) {
+        return
+      }
       const batch = videosToCheck.slice(start, start + batchSize)
       await Promise.all(batch.map(async (video: VideoMetadata) => {
         const needsPermissionActivation =
@@ -771,12 +756,18 @@ struct Index {
     }
 
     const invalidVideos = await checkUriProcess(videosToCheck)
-    if (!isActive() || invalidVideos.length === 0) return
+    if (!isActive() || invalidVideos.length === 0) {
+      return
+    }
     // 检测期间可能导入、移动或改动 URI；以最新数据生成清理计划，不覆盖新内容。
     const plan = FolderHierarchy.pruneInvalidVideos(Preferences.getFileFolder(PathUtils.appContext!), invalidVideos)
-    if (plan.videos.length === 0) return
+    if (plan.videos.length === 0) {
+      return
+    }
     Preferences.saveFileFolder(PathUtils.appContext!, plan.folders, true)
-    if (plan.folders.length === 0) FileFolderUtil.createNewFolder(PathUtils.appContext!, '首页')
+    if (plan.folders.length === 0) {
+      FileFolderUtil.createNewFolder(PathUtils.appContext!, '首页')
+    }
     await MediaLibraryService.deleteVideoFiles(plan.resources, DeleteType.SOFT)
     salmonLogger.addLog(TAG, `已清理失效视频 ${plan.videos.length} 个，文件夹 ${plan.removedFolderCount} 个`, false)
 
@@ -790,11 +781,6 @@ struct Index {
         this.deletedVideosDialogController.open()
       }
     }, 100)
-  }
-
-  @Monitor('file_folder_list')
-  onFolderListSortChanged(): void {
-    void this.applySavedFolderSort()
   }
 
   private async applySavedFolderSort(): Promise<void> {
@@ -839,6 +825,174 @@ struct Index {
     return FileFolderUtil.flattenTree(this.file_folder_list).findIndex(
       folder => folder.date === this.videoListController?.folder?.date
     )
+  }
+
+  @Monitor('carState.enabled', 'carState.leftInset', 'carState.rightInset')
+  onHiCarLayoutChange(): void {
+    this.isSizeInitialized = false
+    this.updateHomeLayout()
+    this.videoListController.refresh(this.contentWidth, Setting.listDisplayMode)
+  }
+
+  private updateHomeLayout(): void {
+    if (!this.homeNavVisible || PlaybackExitCoordinator.isExiting) return
+    const width = HiCar.enabled ? this.homeWindowWidth - HiCar.leftInset - HiCar.rightInset : this.homeWindowWidth
+    if (width <= 0) { return }
+    this.homeSidebarWidth = HiCar.enabled ? HiCarLayout.sidebarWidth(width) : HomeSidebarLayout.getWidth(width)
+    const embedded = HiCar.enabled ? HiCarLayout.isEmbedded(width) : HomeSidebarLayout.isEmbedded(width)
+    const mode = embedded ? SideBarContainerType.Embed : SideBarContainerType.Overlay
+    if (!this.isSizeInitialized || this.sideBarController.mode !== mode) {
+      this.sideBarController.mode = mode
+      const visible = embedded && (HiCar.enabled || Preferences.getEmbedSidebarVisible(PathUtils.appContext!))
+      this.sideBarController.visibility = visible ? Visibility.Visible : Visibility.Hidden
+      this.sideBarController.isShow = visible
+      this.sideBarController.overlay = false
+    }
+    this.isSizeInitialized = true
+  }
+
+  private scheduleHomeResume(refreshData: boolean = false): void {
+    this.homeRefreshPending = this.homeRefreshPending || refreshData
+    if (!this.homeNavVisible) return
+    if (this.homeResumeTimer !== undefined) {
+      clearTimeout(this.homeResumeTimer)
+      this.homeResumeTimer = undefined
+    }
+    if (PlaybackExitCoordinator.isExiting) {
+      if (!this.waitingForPlayerExit) {
+        this.waitingForPlayerExit = true
+        const lifecycleVersion = this.homeLifecycleVersion
+        void PlaybackExitCoordinator.waitForExit().then(() => {
+          this.waitingForPlayerExit = false
+          if (lifecycleVersion === this.homeLifecycleVersion) this.scheduleHomeResume()
+        })
+      }
+      return
+    }
+    // 窗口尺寸连续变化时只处理最后一次，不逐帧重建侧栏和视频列表。
+    this.homeResumeTimer = setTimeout(() => {
+      this.homeResumeTimer = undefined
+      if (!this.homeNavVisible || this.pathStack.size() !== 0) return
+      if (PlaybackExitCoordinator.isExiting) {
+        this.scheduleHomeResume()
+        return
+      }
+      this.updateHomeLayout()
+      if (this.contentWidth > 0) this.videoListController.refresh(this.contentWidth, Setting.listDisplayMode)
+      if (!this.homeRefreshPending || !this.homeReady) return
+      this.homeRefreshPending = false
+      const targetFolder = this.videoListController.folder ?? this.file_folder_list[0]
+      if (targetFolder) {
+        this.file_folder_list = VideoUtils.refresh(this.videoListController, this.fileFolderSource, targetFolder)
+      }
+      if (DataSyncUtil.lastPlayVideoIndex >= 0) {
+        if (!this.videoListController.directoryMode) {
+          this.videoListController.getActiveScroller().scrollToIndex(DataSyncUtil.lastPlayVideoIndex)
+        }
+        DataSyncUtil.lastPlayVideoIndex = -1
+      }
+      const value = AppStorage.get<string>('searchValue')
+      if (value) {
+        this.searchValue = value
+        AppStorage.set('searchValue', '')
+      }
+    }, 64)
+  }
+
+  @Builder
+  HomeSources() {
+        SideBarContentComponent({
+          sideBarController: this.sideBarController,
+          pathStack: this.pathStack,
+          videoListController: this.videoListController,
+          fileFolderSource: this.fileFolderSource,
+          file_folder_list: this.file_folder_list,
+          scrollToFolderDate: this.scrollToFolderDate,
+          sideBarScroller: this.sideBarScroller,
+          fileFolderListChange: (folders: FileFolder[]) => {
+            this.file_folder_list = folders
+          },
+          scrollToFolderDateChange: (date: string) => {
+            this.scrollToFolderDate = date
+          },
+          searchValueClear: (): boolean => this.clearSearchValue(),
+          onImportProgress: (info: ProgressInfo) => {
+            this.processedItems = info.current
+            this.currentFileName = info.fileName
+            this.currentStage = info.stage
+            this.failedCount = info.failedCount
+          },
+          onImportLoading: (loading: boolean) => {
+            this.loading = loading
+          },
+          onImportTotal: (totalItems: number) => {
+            this.totalItems = totalItems
+          }
+        })
+  }
+
+  @Builder
+  HiCarSidebar() {
+    List({ space: 12 }) {
+      ListItem() {
+      Flex({ wrap: FlexWrap.Wrap }) {
+        Button({ type: ButtonType.Circle }) {
+          SymbolGlyph($r('sys.symbol.clock')).fontSize(28).fontColor([$r('app.color.text_color')])
+        }
+        .width(56).height(56)
+        .backgroundColor($r('app.color.list_item_background'))
+        .margin({ right: 8, bottom: 8 })
+        .accessibilityText($r('app.string.recent_play'))
+        .onClick(() => this.pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, null))
+        Button({ type: ButtonType.Circle }) {
+          SymbolGlyph($r('sys.symbol.gearshape')).fontSize(28).fontColor([$r('app.color.text_color')])
+        }
+        .width(56).height(56)
+        .backgroundColor($r('app.color.list_item_background'))
+        .accessibilityText($r('app.string.setting'))
+        .onClick(() => this.pathStack.pushPathByName(NavigationAddress.SETTING_PAGE, null))
+      }
+      }
+        Repeat(FileFolderUtil.flattenTree(this.file_folder_list))
+          .each((folder: RepeatItem<FileFolder>) => {
+            ListItem() {
+              Button(folder.item.name, { type: ButtonType.Normal })
+                .fontSize(22)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(folder.item.date === this.videoListController.folder?.date ?
+                  $r('sys.color.white') : $r('app.color.text_color'))
+                .backgroundColor(folder.item.date === this.videoListController.folder?.date ?
+                  $r('app.color.main_color') : $r('app.color.list_item_background'))
+                .borderRadius(16)
+                .height(64).width('100%')
+                .onClick(() => {
+                  this.switchToFolder(folder.index)
+                  if (this.videoListController.directoryMode) {
+                    this.videoListController.requestDirectory(folder.item.date)
+                  }
+                  this.sideBarController.closeIfOverlay(false)
+                })
+            }
+          })
+          .key((folder: FileFolder) => folder.date)
+          .virtualScroll()
+      // 导入、网络源等低频操作复用现有侧栏，避免功能入口丢失。
+      ListItem() {
+      Button($r('app.string.hicar_media_sources'))
+        .fontSize(20).height(56).width('100%')
+        .fontColor($r('app.color.text_color'))
+        .backgroundColor($r('app.color.list_item_background'))
+        .onClick(() => this.showHiCarSources = true)
+        .bindSheet(this.showHiCarSources, this.HomeSources, {
+          detents: [SheetSize.LARGE], showClose: true,
+          backgroundColor: $r('app.color.start_window_background'),
+          onWillDismiss: () => this.showHiCarSources = false
+        })
+      }
+    }
+    .padding(16).height('100%').width('100%')
+    .backgroundColor($r('app.color.start_window_background'))
+    .scrollBar(BarState.Off)
   }
 
   /**

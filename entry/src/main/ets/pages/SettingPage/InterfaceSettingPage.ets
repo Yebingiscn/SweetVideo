@@ -15,6 +15,7 @@ import { LengthMetrics } from '@kit.ArkUI'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { VideoListController } from '../../controller/VideoListController'
 import StartupPageUtil from '../../utils/StartupPageUtil'
+import HiCarUtil, { HiCar } from '../../utils/HiCarUtil'
 
 @ComponentV2
 export struct InterfaceSettingPage {
@@ -38,6 +39,20 @@ export struct InterfaceSettingPage {
   build() {
     HdsNavDestination() {
       List({ scroller: this.listScroller }) {
+        ListItem() {
+          Column({ space: 4 }) {
+            SettingsToggleItem({
+              symbol: $r('sys.symbol.car'),
+              message: $r('app.string.hicar_layout'),
+              enable: HiCar.manual,
+              onChange: (checked: boolean) => HiCarUtil.setManual(PathUtils.appContext!, checked)
+            })
+            Text($r('app.string.hicar_layout_tip'))
+              .fontSize(14)
+              .fontColor($r('sys.color.font_secondary'))
+              .padding({ left: 16, right: 16, bottom: 12 })
+          }
+        }
         ListItem() {
           SettingsSegmentButtonItem({
             symbol: $r('sys.symbol.doc_plaintext_and_folder'),

@@ -1,5 +1,7 @@
 // Type declarations for libmpvnative native module
 declare module 'libmpvnative.so' {
+  export function setMpvConfigPath(path: string): void;
+  export function validateMpvConfig(path: string): number;
   export function loadExternalAudio(path: string, title: string, requestId: number): Promise<number>;
   export function removeExternalAudio(path: string, requestId: number): Promise<number>;
   export function setExternalAudioDelay(seconds: number): boolean;
@@ -172,6 +174,11 @@ declare module 'libmpvnative.so' {
   }) => boolean;
 
   export const setSubtitleStyle: (mpvHandle: number, style: {
+    secondaryPosition?: number;
+    secondaryFontSize?: number;
+    secondaryScale?: number;
+    secondaryEnabled?: boolean;
+    secondaryIsBitmap?: boolean;
     fontSize?: number;
     color?: string;
     bold?: boolean;

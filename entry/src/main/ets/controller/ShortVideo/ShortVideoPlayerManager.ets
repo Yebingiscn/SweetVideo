@@ -406,7 +406,7 @@ export class ShortVideoPlayerManager implements PiPPlayerController {
     }
     if (this.sessionMetadataIndex !== index) {
       this.sessionMetadataIndex = index
-      await AVSessionUtil.setSessionInfo(this.items[index])
+      await AVSessionUtil.setSessionInfo(this.items[index], () => this.players.get(index)?.currentTime ?? 0)
     }
     const player = this.players.get(index)
     AVSessionUtil.updatePlaybackSessionState(player?.state === 'playing', player?.currentTime || 0,

@@ -1,11 +1,20 @@
 import { salmonLogger } from 'salmonlogger'
-import { IPTVChannel, IPTVLine, IPTVParseResult, IPTVProgram, IPTVSource, IPTVUrlOptions } from '../interfaces/IPTVInterface'
+import {
+  IPTVChannel,
+  IPTVLine,
+  IPTVParseResult,
+  IPTVProgram,
+  IPTVSource,
+  IPTVUrlOptions
+} from '../interfaces/IPTVInterface'
 import ToolsUtil from './ToolsUtil'
 
 const TAG = 'IPTVParser'
+
 interface XMLTVProgram extends IPTVProgram {
   channelKey: string
 }
+
 function defaultGroupName(): string {
   return ToolsUtil.getStringResource($r('app.string.iptv_default_group').id)
 }
@@ -215,7 +224,7 @@ export default class IPTVParser {
     for (const channel of newChannels) {
       const channelKey = IPTVParser.channelIdentity(channel.name, channel.tvgId, channel.url)
       const oldChannel = oldChannels.find(item =>
-        IPTVParser.channelIdentity(item.name, item.tvgId, item.url) === channelKey)
+      IPTVParser.channelIdentity(item.name, item.tvgId, item.url) === channelKey)
       if (!oldChannel) {
         continue
       }
@@ -225,6 +234,85 @@ export default class IPTVParser {
         IPTVParser.selectLine(channel, lineIndex)
       }
     }
+  }
+
+  static applyXmlTv(channels: IPTVChannel[], xml: string): number {
+    const programs: XMLTVProgram[] = []
+    const channelAliases = IPTVParser.readXmlTvChannelAliases(xml)
+    const programsByChannel = new Map<string, XMLTVProgram[]>()
+    const expression = /<programme\b([^>]*)>([\s\S]*?)<\/programme>/gi
+    let match: RegExpExecArray | null = expression.exec(xml)
+    const now = Date.now()
+    while (match) {
+      const attributes = match[1]
+      const channelKey = IPTVParser.readXmlAttribute(attributes, 'channel')
+      const startTime = IPTVParser.parseXmlTvTime(IPTVParser.readXmlAttribute(attributes, 'start'))
+      const endTime = IPTVParser.parseXmlTvTime(IPTVParser.readXmlAttribute(attributes, 'stop'))
+      if (channelKey && endTime >= now && startTime <= now + 24 * 60 * 60 * 1000) {
+        const titleMatch = match[2].match(/<title(?:\s[^>]*)?>([\s\S]*?)<\/title>/i)
+        const program: XMLTVProgram = {
+          channelKey: channelKey,
+          title: IPTVParser.decodeXml(IPTVParser.unwrapCdata(
+            titleMatch ? titleMatch[1].trim() : ToolsUtil.getStringResource($r('app.string.unknown_program').id))),
+          startTime: startTime,
+          endTime: endTime
+        }
+        programs.push(program)
+        const normalizedChannelKey = IPTVParser.normalizeEpgKey(channelKey)
+        const channelPrograms = programsByChannel.get(normalizedChannelKey) ?? []
+        channelPrograms.push(program)
+        programsByChannel.set(normalizedChannelKey, channelPrograms)
+      }
+      match = expression.exec(xml)
+    }
+    let matched = 0
+    const unmatchedChannels: string[] = []
+    channels.forEach(channel => {
+      channel.currentProgram = undefined
+      channel.nextProgram = undefined
+      const keys = [channel.tvgId, channel.tvgName, channel.name]
+        .filter(key => !!key)
+        .map(key => IPTVParser.normalizeEpgKey(key!))
+      const xmlChannelKeys = new Set<string>()
+      keys.forEach(key => {
+        xmlChannelKeys.add(key)
+        const aliases = channelAliases.get(key)
+        aliases?.forEach(alias => xmlChannelKeys.add(alias))
+      })
+      const channelPrograms: XMLTVProgram[] = []
+      xmlChannelKeys.forEach(key => {
+        programsByChannel.get(key)?.forEach(program => channelPrograms.push(program))
+      })
+      channelPrograms.sort((a, b) => a.startTime - b.startTime)
+      const current = channelPrograms.find(program => program.startTime <= now && program.endTime > now)
+      const next = channelPrograms.find(program => program.startTime > now)
+      if (current) {
+        channel.currentProgram = { title: current.title, startTime: current.startTime, endTime: current.endTime }
+      }
+      if (next) {
+        channel.nextProgram = { title: next.title, startTime: next.startTime, endTime: next.endTime }
+      }
+      if (current || next) {
+        matched++
+      } else if (unmatchedChannels.length < 5) {
+        unmatchedChannels.push(`${channel.name}[tvg-id=${channel.tvgId ?? ''}]`)
+      }
+    })
+    salmonLogger.addLog(TAG,
+      `EPG parsed: programmes=${programs.length}, aliases=${channelAliases.size}, matched=${matched}/${channels.length}`,
+      false)
+    if (unmatchedChannels.length > 0) {
+      salmonLogger.addLog(TAG, `EPG unmatched samples: ${unmatchedChannels.join(', ')}`, false)
+    }
+    return matched
+  }
+
+  static hash(value: string): string {
+    let hash = 0
+    for (let index = 0; index < value.length; index++) {
+      hash = ((hash << 5) - hash + value.charCodeAt(index)) | 0
+    }
+    return Math.abs(hash).toString(36)
   }
 
   private static channelIdentity(name: string, tvgId: string | undefined, url: string): string {
@@ -284,76 +372,6 @@ export default class IPTVParser {
 
   private static isSupportedChannelUrl(url: string): boolean {
     return /^(https?|rtmp|rtmps|rtsp|rtp|udp|srt|hls):\/\//i.test(url)
-  }
-
-  static applyXmlTv(channels: IPTVChannel[], xml: string): number {
-    const programs: XMLTVProgram[] = []
-    const channelAliases = IPTVParser.readXmlTvChannelAliases(xml)
-    const programsByChannel = new Map<string, XMLTVProgram[]>()
-    const expression = /<programme\b([^>]*)>([\s\S]*?)<\/programme>/gi
-    let match: RegExpExecArray | null = expression.exec(xml)
-    const now = Date.now()
-    while (match) {
-      const attributes = match[1]
-      const channelKey = IPTVParser.readXmlAttribute(attributes, 'channel')
-      const startTime = IPTVParser.parseXmlTvTime(IPTVParser.readXmlAttribute(attributes, 'start'))
-      const endTime = IPTVParser.parseXmlTvTime(IPTVParser.readXmlAttribute(attributes, 'stop'))
-      if (channelKey && endTime >= now && startTime <= now + 24 * 60 * 60 * 1000) {
-        const titleMatch = match[2].match(/<title(?:\s[^>]*)?>([\s\S]*?)<\/title>/i)
-        const program: XMLTVProgram = {
-          channelKey: channelKey,
-          title: IPTVParser.decodeXml(IPTVParser.unwrapCdata(titleMatch ? titleMatch[1].trim() : ToolsUtil.getStringResource($r('app.string.unknown_program').id))),
-          startTime: startTime,
-          endTime: endTime
-        }
-        programs.push(program)
-        const normalizedChannelKey = IPTVParser.normalizeEpgKey(channelKey)
-        const channelPrograms = programsByChannel.get(normalizedChannelKey) ?? []
-        channelPrograms.push(program)
-        programsByChannel.set(normalizedChannelKey, channelPrograms)
-      }
-      match = expression.exec(xml)
-    }
-    let matched = 0
-    const unmatchedChannels: string[] = []
-    channels.forEach(channel => {
-      channel.currentProgram = undefined
-      channel.nextProgram = undefined
-      const keys = [channel.tvgId, channel.tvgName, channel.name]
-        .filter(key => !!key)
-        .map(key => IPTVParser.normalizeEpgKey(key!))
-      const xmlChannelKeys = new Set<string>()
-      keys.forEach(key => {
-        xmlChannelKeys.add(key)
-        const aliases = channelAliases.get(key)
-        aliases?.forEach(alias => xmlChannelKeys.add(alias))
-      })
-      const channelPrograms: XMLTVProgram[] = []
-      xmlChannelKeys.forEach(key => {
-        programsByChannel.get(key)?.forEach(program => channelPrograms.push(program))
-      })
-      channelPrograms.sort((a, b) => a.startTime - b.startTime)
-      const current = channelPrograms.find(program => program.startTime <= now && program.endTime > now)
-      const next = channelPrograms.find(program => program.startTime > now)
-      if (current) {
-        channel.currentProgram = { title: current.title, startTime: current.startTime, endTime: current.endTime }
-      }
-      if (next) {
-        channel.nextProgram = { title: next.title, startTime: next.startTime, endTime: next.endTime }
-      }
-      if (current || next) {
-        matched++
-      } else if (unmatchedChannels.length < 5) {
-        unmatchedChannels.push(`${channel.name}[tvg-id=${channel.tvgId ?? ''}]`)
-      }
-    })
-    salmonLogger.addLog(TAG,
-      `EPG parsed: programmes=${programs.length}, aliases=${channelAliases.size}, matched=${matched}/${channels.length}`,
-      false)
-    if (unmatchedChannels.length > 0) {
-      salmonLogger.addLog(TAG, `EPG unmatched samples: ${unmatchedChannels.join(', ')}`, false)
-    }
-    return matched
   }
 
   private static readXmlTvChannelAliases(xml: string): Map<string, string[]> {
@@ -432,13 +450,5 @@ export default class IPTVParser {
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'")
-  }
-
-  static hash(value: string): string {
-    let hash = 0
-    for (let index = 0; index < value.length; index++) {
-      hash = ((hash << 5) - hash + value.charCodeAt(index)) | 0
-    }
-    return Math.abs(hash).toString(36)
   }
 }

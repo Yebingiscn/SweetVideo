@@ -13,7 +13,8 @@ import {
   ColorMetrics,
   LengthMetrics,
   SegmentButtonV2ItemOptions,
-  SegmentButtonV2Items
+  SegmentButtonV2Items,
+  uiMaterial
 } from '@kit.ArkUI'
 import { deviceInfo, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
@@ -49,17 +50,34 @@ export struct CrashPage {
   build() {
     HdsNavDestination() {
       Column() {
-        CapsuleSegmentButtonV2({
-          items: this.segmentItems,
-          selectedIndex: this.currentTabIndex,
-          buttonBackgroundBlurStyle: BlurStyle.BACKGROUND_THICK,
-          itemSelectedFontColor: this.itemSelectedFontColor,
-          itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
-          onItemClicked: (index: number) => {
-            this.currentTabIndex = index
-          }
-        })
-          .margin({ top: 8, bottom: 8 })
+        if (deviceInfo.apiAvailable('26.0.0')) {
+          CapsuleSegmentButtonV2({
+            items: this.segmentItems,
+            selectedIndex: this.currentTabIndex,
+            itemSelectedFontColor: this.itemSelectedFontColor,
+            itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
+            onItemClicked: (index: number) => {
+              this.currentTabIndex = index
+            },
+            backgroundSystemMaterial: new uiMaterial.ImmersiveMaterial({
+              style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
+              colorInvert: true,
+              interactive: true,
+              lightEffect: {}
+            })
+          })
+            .margin({ top: 8, bottom: 8 })
+        } else {
+          CapsuleSegmentButtonV2({
+            items: this.segmentItems,
+            selectedIndex: this.currentTabIndex,
+            itemSelectedFontColor: this.itemSelectedFontColor,
+            itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
+            onItemClicked: (index: number) => {
+              this.currentTabIndex = index
+            },
+          })
+        }
 
         Swiper() {
           Column() {
@@ -231,9 +249,11 @@ export struct CrashPage {
           .onClick(async () => {
             let logText = ''
             if (this.appEventGroups.length > 0) {
-              logText += ToolsUtil.getStringResource($r('app.string.log_section_system_events').id) + '\n' + JSON.stringify(this.appEventGroups) + '\n\n'
+              logText += ToolsUtil.getStringResource($r('app.string.log_section_system_events').id) + '\n' +
+                JSON.stringify(this.appEventGroups) + '\n\n'
             }
-            logText += ToolsUtil.getStringResource($r('app.string.log_section_runtime').id) + '\n' + JSON.stringify(salmonLogger.logs)
+            logText += ToolsUtil.getStringResource($r('app.string.log_section_runtime').id) + '\n' +
+              JSON.stringify(salmonLogger.logs)
             await this.shareText(logText)
           })
           .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
@@ -346,7 +366,8 @@ export struct CrashPage {
     if (canIUse('SystemCapability.Collaboration.SystemShare')) {
       const appVersion = await ToolsUtil.getVersionName()
       const infoText =
-        ToolsUtil.getStringResourceArgs5($r('app.string.feedback_qq_group').id, deviceInfo.osFullName, appVersion, deviceInfo.productModel, deviceInfo.sdkApiVersion, ToolsUtil.getThermalLevel())
+        ToolsUtil.getStringResourceArgs5($r('app.string.feedback_qq_group').id, deviceInfo.osFullName, appVersion,
+          deviceInfo.productModel, deviceInfo.sdkApiVersion, ToolsUtil.getThermalLevel())
       const fullText = infoText + '\n' + text
       try {
         const context = PathUtils.appContext

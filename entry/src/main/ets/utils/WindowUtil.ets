@@ -6,6 +6,7 @@ import { Pc, SafeHeight } from './ObservedUtil'
 import { deviceInfo, settings, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { ConfigurationConstant } from '@kit.AbilityKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { HiCar } from './HiCarUtil'
 
 const TAG = 'WindowUtil'
 
@@ -66,15 +67,24 @@ export class WindowUtil {
   }
 
   public static async enableLandscapeMultiWindow(windowClass: Promise<window.Window | undefined>) {
+    if (HiCar.enabled) {
+      return
+    }
     await WindowUtil.setLandscapeMultiWindow(windowClass, true)
   }
 
   public static async disableLandscapeMultiWindow(windowClass: Promise<window.Window | undefined>) {
+    if (HiCar.enabled) {
+      return
+    }
     await WindowUtil.setLandscapeMultiWindow(windowClass, false)
   }
 
   public static async fullScreenOperate(screen_height: number, screen_width: number,
     windowClass: Promise<window.Window | undefined>): Promise<window.Orientation.AUTO_ROTATION_RESTRICTED | window.Orientation.AUTO_ROTATION_LANDSCAPE | undefined> {
+    if (HiCar.enabled) {
+      return undefined
+    }
     if (canIUse('SystemCapability.Window.SessionManager')) {
       if (Pc.pcMode) {
         const timeSinceLastChange = Date.now() - WindowUtil.lastStatusChangeTime
@@ -262,6 +272,9 @@ export class WindowUtil {
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   public static setBarState(context: Context, status: boolean, navigationIndicator: boolean) {
+    if (HiCar.enabled) {
+      return
+    }
     if (canIUse('SystemCapability.Window.SessionManager')) {
       window.getLastWindow(context).then((windowClass) => {
         windowClass.setSpecificSystemBarEnabled('status', status, true)?.catch(() => {
@@ -310,6 +323,13 @@ export class WindowUtil {
       let system = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
       let nav = windowClass.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR)
       const uiContext = WindowUtil.windowClass?.getUIContext()
+      HiCar.leftInset =
+        uiContext?.px2vp(Math.max(cutOut.leftRect.width, system.leftRect.width, nav.leftRect.width)) || 0
+      HiCar.rightInset =
+        uiContext?.px2vp(Math.max(cutOut.rightRect.width, system.rightRect.width, nav.rightRect.width)) || 0
+      HiCar.topInset = uiContext?.px2vp(Math.max(cutOut.topRect.height, system.topRect.height, nav.topRect.height)) || 0
+      HiCar.bottomInset =
+        uiContext?.px2vp(Math.max(cutOut.bottomRect.height, system.bottomRect.height, nav.bottomRect.height)) || 0
       if (canIUse('SystemCapability.Window.SessionManager')) {
         SafeHeight.topSafeHeight = Math.max(uiContext?.px2vp(cutOut.topRect.height * 1.4)!,
           uiContext?.px2vp(system.topRect.height)!, Pc.pcMode ? 0 : windowClass.getWindowDecorHeight())

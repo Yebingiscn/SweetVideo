@@ -1,8 +1,8 @@
+import { HiCar } from '../../utils/HiCarUtil'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
-import { FileFolderDataSource } from '../../utils/DataUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
-import VideoUtils from '../../utils/VideoUtil'
+import Preferences from '../../database/Preferences'
 import { CoverLayoutMode, ListDisplayMode } from '../../common/enum/DisplayMode'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 import VideoCardItem from './VideoCardItemComponent'
@@ -32,7 +32,6 @@ export struct DirectoryView {
   @Param _delMultipleList: VideoMetadata[] = []
   @Param coverRefreshDate: string = ''
   @Param coverRefreshToken: number = 0
-  @Consumer() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   @Consumer() file_folder_list: FileFolder[] = []
   @BuilderParam menuBuilder: (item: VideoMetadata | undefined) => void
   @Event onVideoTap: (item: VideoMetadata) => Promise<void> = async () => {
@@ -41,6 +40,7 @@ export struct DirectoryView {
   @Local directoryHero: DirectoryHero | undefined = undefined
   @Local directorySharedFolderDate: string = ''
   private directoryIndex: FolderDirectory = new FolderDirectory([])
+  private directoryIndexDirty: boolean = true
   private directoryRestoreTimer: number | undefined = undefined
   private directoryNavigationTimer: number | undefined = undefined
   private directoryHeroTimer: number | undefined = undefined
@@ -79,7 +79,13 @@ export struct DirectoryView {
     this._searchValue = this.searchValue
   }
 
-  @Monitor('file_folder_list', 'videoListController.folder', 'directoryVideos',
+  @Monitor('file_folder_list')
+  onDirectoryLibraryChanged(): void {
+    this.directoryIndexDirty = true
+    this.rebuildDirectory()
+  }
+
+  @Monitor('videoListController.folder', 'directoryVideos', 'videoListController.videoDataSource.revision',
     'videoListController.directoryOverview', 'videoListController.directoryMode', '_searchValue')
   rebuildDirectory(): void {
     if (!this.videoListController.directoryMode) {
@@ -91,10 +97,15 @@ export struct DirectoryView {
       this.videoListController.directoryTransitioning = false
       return
     }
-    this.directoryIndex = new FolderDirectory(this.file_folder_list)
+    if (this.directoryIndexDirty) {
+      this.directoryIndex = FolderDirectory.forLibrary(this.file_folder_list)
+      this.directoryIndexDirty = false
+    }
     const folderDate = this.videoListController.directoryOverview ? null : this.videoListController.folder?.date ?? null
-    this.directoryEntries = this.directoryIndex.entries(folderDate,
-      this.videoListController.videoDataSource.data, this._searchValue)
+    const entries = this.directoryIndex.entries(folderDate,
+      this.videoListController.videoDataSource.data, this._searchValue, this.videoListController.videoDataSource.revision)
+    if (entries === this.directoryEntries) return
+    this.directoryEntries = entries
     if (this.directoryEntries.length > 0) {
       // Repeat 会复用目录滚动节点，切换后主动恢复位置，不依赖 onAppear 再次触发。
       this.restoreDirectoryScroll(this.directoryKey())
@@ -123,8 +134,7 @@ export struct DirectoryView {
   }
 
   @Builder
-  DirectoryCoverBuilder(folder: Binding<FileFolder>, placement: DirectoryCoverPlacement) {
-    Stack({ alignContent: Alignment.BottomEnd }) {
+  DirectoryCoverImagesBuilder(folder: Binding<FileFolder>) {
       Image($r('app.media.sweet_video_alt'))
         .attributeModifier(new ImageFancyModifier(16, '100%', '100%'))
       if (this.directoryIndex.coverDates(folder.value.date).length === 1) {
@@ -151,6 +161,28 @@ export struct DirectoryView {
           })
           .key((date: string) => date)
       }
+  }
+
+  @Builder
+  DirectoryCoverBuilder(folder: Binding<FileFolder>, placement: DirectoryCoverPlacement) {
+    Stack({ alignContent: Alignment.BottomEnd }) {
+      if (placement === DirectoryCoverPlacement.HERO) {
+        // 固定拼图画布，只变换绘制结果；外层维持裁剪和徽标尺寸，结束时不跳变。
+        Stack({ alignContent: Alignment.BottomEnd }) {
+          this.DirectoryCoverImagesBuilder(folder)
+        }
+        .width(this.directoryHero?.transformCover ? this.directoryHero.coverBaseWidth : '100%')
+        .height(this.directoryHero?.transformCover ? this.directoryHero.coverBaseHeight : '100%')
+        .position({ x: 0, y: 0 })
+        .scale({
+          x: this.directoryHero?.transformCover ? this.directoryHero.coverScaleX : 1,
+          y: this.directoryHero?.transformCover ? this.directoryHero.coverScaleY : 1,
+          centerX: 0, centerY: 0
+        })
+        .renderGroup(true)
+      } else {
+        this.DirectoryCoverImagesBuilder(folder)
+      }
       SymbolGlyph($r('sys.symbol.folder'))
         .fontSize(14)
         .fontColor([$r('app.color.main_color')])
@@ -167,8 +199,9 @@ export struct DirectoryView {
       placement === DirectoryCoverPlacement.HEADER ? 72 :
         placement === DirectoryCoverPlacement.HERO ? this.directoryHero?.coverHeight ?? 0 :
           this.directoryLayout === ListDisplayMode.GRID_DISPLAY ? 100 : 200)
-    .position(placement === DirectoryCoverPlacement.HERO ?
-      { x: this.directoryHero?.coverX ?? 0, y: this.directoryHero?.coverY ?? 0 } : undefined)
+    .position(placement === DirectoryCoverPlacement.HERO ? { x: 0, y: 0 } : undefined)
+    .translate(placement === DirectoryCoverPlacement.HERO ?
+      { x: this.directoryHero?.coverX ?? 0, y: this.directoryHero?.coverY ?? 0 } : { x: 0, y: 0 })
     .id(placement === DirectoryCoverPlacement.HEADER ? 'directory-header:cover' :
       placement === DirectoryCoverPlacement.HERO ? 'directory-hero:cover' : `directory-card:${folder.value.date}:cover`)
     .opacity(placement !== DirectoryCoverPlacement.HERO &&
@@ -521,7 +554,7 @@ export struct DirectoryView {
           .key((key: string) => key)
       }
     }
-    .padding({ top: SafeHeight.topSafeHeight + 100 })
+    .padding({ top: (HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100) })
     .width('100%').height('100%')
   }
 
@@ -553,15 +586,20 @@ export struct DirectoryView {
           centerX: 0,
           centerY: 0
         })
-        .position({ x: hero.titleX, y: hero.titleY })
+        .position({ x: 0, y: 0 })
+        .translate({ x: hero.titleX, y: hero.titleY })
+        .renderGroup(true)
 
       Text($r('app.string.directory_item_count', hero.folder.video_list.length, hero.childFolderCount))
         .fontSize(hero.infoFontSize)
         .fontColor($r('sys.color.font_secondary'))
-        .width(hero.infoWidth)
+        .width(hero.transformInfo ? hero.infoBaseWidth : hero.infoWidth)
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
-        .position({ x: hero.infoX, y: hero.infoY })
+        .scale({ x: hero.infoScale, y: hero.infoScale, centerX: 0, centerY: 0 })
+        .position({ x: 0, y: 0 })
+        .translate({ x: hero.infoX, y: hero.infoY })
+        .renderGroup(true)
         .id('directory-hero:info')
     }
     .width('100%')
@@ -600,7 +638,8 @@ export struct DirectoryView {
         !controller.directoryOverview && controller.folder?.date === date)) {
       return
     }
-    const target = date ? this.file_folder_list.find(folder => folder.date === date) : undefined
+    if (this.directoryIndexDirty) this.rebuildDirectory()
+    const target = date ? this.directoryIndex.folder(date) : undefined
     if (date && !target) {
       return
     }
@@ -612,7 +651,7 @@ export struct DirectoryView {
     this.directorySharedFolderDate = date === null || controller.folder?.parent_date === date ?
       controller.folder?.date ?? '' : target?.date ?? ''
     const returning = date === null || controller.folder?.parent_date === date
-    const sharedFolder = this.file_folder_list.find(folder => folder.date === this.directorySharedFolderDate)
+    const sharedFolder = this.directoryIndex.folder(this.directorySharedFolderDate)
     const sourcePrefix = returning ? 'directory-header' : `directory-card:${this.directorySharedFolderDate}`
     const sourceCover = this.readDirectoryRect(`${sourcePrefix}:cover`)
     const sourceTitle = this.readDirectoryRect(`${sourcePrefix}:title`)
@@ -631,7 +670,10 @@ export struct DirectoryView {
     this._searchValue = ''
     this.onSearchValueChange('')
     if (target) {
-      this.file_folder_list = VideoUtils.refresh(controller, this.fileFolderSource, target)
+      const context = PathUtils.appContext!
+      const videos = this.directoryIndex.sortedVideos(target, Preferences.getSortField(context),
+        Preferences.getSortAsc(context), Preferences.getPinyinSort(context))
+      controller.selectDirectoryFolder(target, videos)
       this.onDirectoryFolderChange(target.date)
     }
     controller.directoryOverview = date === null
@@ -653,6 +695,7 @@ export struct DirectoryView {
           controller.directoryTransitioning = false
           return
         }
+        hero.prepareMove(cover, info, returning ? 12 : 13)
         this.getUIContext().animateTo({
           curve: curves.springMotion(0.2, 0.9),
           onFinish: () => {

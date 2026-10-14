@@ -21,6 +21,14 @@ const DATA_BASE_NAME = 'sweet_video'
 const MAX_PREFERENCES_STRING_BYTES = 16 * 1024 * 1024
 
 export default class Preferences {
+  static getHiCarLayout(context: Context): boolean {
+    return PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'hicar_layout', false) as boolean
+  }
+
+  static saveHiCarLayout(context: Context, enabled: boolean): void {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'hicar_layout', enabled)
+  }
+
   private static fileFolderCache: FileFolder[] | null = null
   private static videoDateToFolderDate: Map<string, string> | null = null
   private static videoUriSet: Set<string> | null = null
@@ -88,9 +96,9 @@ export default class Preferences {
   }
 
   // 隐私空间视频数据
-  static getVideoMetaDataEncryption(context: Context) {
+  static getVideoMetaDataEncryption(context: Context, requireSuccess: boolean = false) {
     const videos = PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'video_meta_data_encryption',
-      []) as VideoMetadata[]
+      [], requireSuccess) as VideoMetadata[]
     videos.forEach(video => Preferences.normalizePlayableResolution(video))
     return videos
   }
@@ -349,6 +357,72 @@ export default class Preferences {
     Preferences.fileFolderCache = copied
     Preferences.buildVideoDateIndex(copied)
     Preferences.buildVideoUriSet(copied)
+  }
+
+  static appendImportedVideos(context: Context, additions: Map<string, VideoMetadata[]>): number {
+    const folders = Preferences.getFileFolder(context)
+    const uriSet = Preferences.getVideoUriSet(context)
+    if (!Preferences.videoDateToFolderDate) Preferences.buildVideoDateIndex(folders)
+    const byDate = new Map<string, FileFolder>()
+    folders.forEach(folder => byDate.set(folder.date, folder))
+    const replacements = new Map<string, FileFolder>()
+    const accepted: VideoMetadata[] = []
+    const acceptedFolders = new Map<string, string>()
+    const acceptedUris = new Set<string>()
+    for (const entry of additions) {
+      const folder = byDate.get(entry[0])
+      if (!folder) throw new Error('Import target folder no longer exists')
+      const videos = entry[1].filter(video => {
+        if (uriSet.has(video.uri) || acceptedUris.has(video.uri)) return false
+        acceptedUris.add(video.uri)
+        return true
+      })
+      if (videos.length === 0) continue
+      const newVideos = Preferences.deepCopyFileFolders([
+        { name: folder.name, date: folder.date, parent_date: folder.parent_date, video_list: videos }
+      ])[0].video_list
+      accepted.push(...newVideos)
+      newVideos.forEach(video => acceptedFolders.set(video.date, folder.date))
+      replacements.set(folder.date, {
+        name: folder.name, date: folder.date, parent_date: folder.parent_date,
+        video_list: [...folder.video_list, ...newVideos]
+      })
+    }
+    if (accepted.length === 0) return 0
+    const updated = folders.map(folder => replacements.get(folder.date) ?? folder)
+    // putSync 成功后才发布缓存和增量索引，失败时不让内存伪装成已保存。
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'file_folder', updated, true)
+    Preferences.fileFolderCache = updated
+    acceptedFolders.forEach((folderDate, videoDate) => Preferences.videoDateToFolderDate!.set(videoDate, folderDate))
+    accepted.forEach(video => uriSet.add(video.uri))
+    return accepted.length
+  }
+
+  static savePlaybackMetadata(context: Context, videoDate: string, requireSuccess: boolean = false): void {
+    const found = Preferences.findVideoByDate(context, videoDate)
+    if (!found[0] || !found[2]) throw new Error('Video metadata no longer exists')
+    const video = found[0]
+    const copied = Preferences.deepCopyFileFolders([
+      { name: '', date: found[2], parent_date: null, video_list: [video] }
+    ])[0].video_list[0]
+    copied.external_audio_file = video.external_audio_file
+    copied.external_audio_name = video.external_audio_name
+    copied.external_audio_selected = video.external_audio_selected
+    copied.external_audio_offset_ms = video.external_audio_offset_ms
+    copied.network_user_agent = video.network_user_agent
+    copied.smb_subtitle_uri = video.smb_subtitle_uri
+    copied.webdav_subtitle_uri = video.webdav_subtitle_uri
+    copied.ftp_subtitle_uri = video.ftp_subtitle_uri
+    const updated = Preferences.getFileFolder(context).map((folder: FileFolder): FileFolder => {
+      if (folder.date !== found[2]) return folder
+      return {
+        name: folder.name, date: folder.date, parent_date: folder.parent_date,
+        video_list: folder.video_list.map(item => item.date === videoDate ? copied : item)
+      }
+    })
+    // 播放设置不改变 URI、标识或层级，无需修复全库及重建检索索引。
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'file_folder', updated, requireSuccess)
+    Preferences.fileFolderCache = updated
   }
 
   static saveRecentPlay(context: Context, recent_play_deque: VideoMetadata[], requireSuccess: boolean = false) {

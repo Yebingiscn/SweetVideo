@@ -3,6 +3,7 @@ import { SCALE_FACTORS, SCREEN_EXTEND_LIST } from '../../common/Constants'
 import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
+import { HiCar } from '../../utils/HiCarUtil'
 
 @ComponentV2
 export struct VideoTopComponent {
@@ -14,6 +15,9 @@ export struct VideoTopComponent {
   @BuilderParam subtitlePanelComponent: () => void
   @BuilderParam danmakuMenuBuilder: () => void
   @BuilderParam chapterMenuBuilder: () => void
+  @BuilderParam carSettingsMenu: () => void
+  @BuilderParam carSpeedMenu: () => void
+  @BuilderParam carNavigationMenu: () => void
   @Event onLockRotationClick: () => Promise<void> = async () => {
   }
 
@@ -43,6 +47,9 @@ export struct VideoTopComponent {
   }
 
   build() {
+    if (HiCar.enabled) {
+      this.HiCarTop()
+    } else {
     Row({ space: 8 }) {
       // 1. 返回按钮
       Button({ type: ButtonType.Circle, stateEffect: false }) {
@@ -159,6 +166,61 @@ export struct VideoTopComponent {
     .padding({ left: 8, right: 8 })
     .width('100%')
     .alignItems(VerticalAlign.Center)
+    }
+  }
+
+  @Builder
+  HiCarTop() {
+    Row({ space: 12 }) {
+      Button({ type: ButtonType.Circle, stateEffect: false }) {
+        SymbolGlyph($r('sys.symbol.chevron_left')).fontSize(28).fontColor([Color.White])
+      }
+      .width(56).height(56).backgroundColor(Color.Transparent)
+      .accessibilityText($r('app.string.back_label'))
+      .onClick(() => this.onExitVideoClick())
+      Button({ type: ButtonType.Circle, stateEffect: false }) {
+        SymbolGlyph($r('sys.symbol.gearshape')).fontSize(28).fontColor([Color.White])
+      }
+      .width(56).height(56).backgroundColor(Color.Transparent)
+      .accessibilityText($r('app.string.hicar_more_controls'))
+      .bindMenu(this.HiCarMoreMenu)
+      Text(this.displayTitle)
+        .fontSize(22).fontColor(Color.White).maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis }).layoutWeight(1)
+    }
+    .width('100%')
+  }
+
+  @Builder
+  HiCarMoreMenu() {
+    Menu() {
+      MenuItem({ content: $r('app.string.hicar_playlist'), builder: this.carNavigationMenu }).height(56)
+      MenuItem({ content: $r('app.string.setting'), builder: this.carSettingsMenu }).height(56)
+      MenuItem({ content: $r('app.string.hicar_speed'), builder: this.carSpeedMenu }).height(56)
+      MenuItem({ content: $r('app.string.hicar_audio'), builder: this.audioTrackMenuBuilder }).height(56)
+      MenuItem({ content: $r('app.string.hicar_subtitles'), builder: this.subtitlePanelComponent }).height(56)
+      MenuItem({ content: $r('app.string.local_danmaku'), builder: this.danmakuMenuBuilder }).height(56)
+      if (this.player.hasChapterSupport() && this.player.chapterList.length > 0) {
+        MenuItem({ content: $r('app.string.hicar_chapters'), builder: this.chapterMenuBuilder }).height(56)
+      }
+      MenuItem({ content: $r('app.string.hicar_aspect'), builder: (): void => this.HiCarAspectMenu() }).height(56)
+    }
+    .fontSize(22)
+  }
+
+  @Builder
+  HiCarAspectMenu() {
+    Menu() {
+      ForEach(SCREEN_EXTEND_LIST, (option: SelectOption) => {
+        MenuItem({ content: option.value })
+          .height(56)
+          .onClick(() => {
+            const text = option.value as string
+            this.screenExtend(text)
+            this.onSelectedTextChange(text)
+          })
+      }, (option: SelectOption) => option.value as string)
+    }
   }
 
   private screenExtend(text: string) {

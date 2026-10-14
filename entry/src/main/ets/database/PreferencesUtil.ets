@@ -56,11 +56,13 @@ export default class PreferencesUtil {
     }, PreferencesUtil.FLUSH_DELAY)
   }
 
-  static getPreferencesValue(context: Context, name: string, key: string, defaultValue: preferences.ValueType) {
+  static getPreferencesValue(context: Context, name: string, key: string, defaultValue: preferences.ValueType,
+    requireSuccess: boolean = false) {
     try {
       const pref = PreferencesUtil.getPreferencesInstance(context, name)
       return pref.getSync(key, defaultValue)
     } catch (e) {
+      if (requireSuccess) throw new Error('Metadata could not be read')
       ToolsUtil.showToast(`数据库异常，读取失败，原因是: ${e}，初始化${defaultValue}时失败，获取参数为 ${name}}: ${key}`)
       return defaultValue
     }

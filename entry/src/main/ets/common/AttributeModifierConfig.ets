@@ -1,7 +1,7 @@
-import { CommonModifier } from '@kit.ArkUI';
+import { CommonModifier, uiMaterial } from '@kit.ArkUI';
 import { ShadowFancy } from '../interfaces/ShadowFancyInterface';
 import { hdsEffect } from '@kit.UIDesignKit';
-import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit';
+import { deviceInfo, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit';
 
 export class SettingsItemModifier extends CommonModifier {
   constructor() {
@@ -39,19 +39,6 @@ export class ShadowModifier extends CommonModifier {
     instance.shadow({ radius: 26, color: $r('app.color.shadow_color') })
       .backgroundColor($r('app.color.start_window_background_blur'))
       .backdropBlur(150)
-  }
-}
-
-export class SearchShadowModifier extends CommonModifier {
-  constructor() {
-    super()
-  }
-
-  applyNormalAttribute(instance: CommonAttribute): void {
-    instance.shadow({ radius: 32, color: $r('app.color.shadow_color') })
-      .backgroundColor($r('app.color.search_component_blur'))
-      .backgroundEffect({ radius: 100 })
-      .useEffect(true, EffectType.WINDOW_EFFECT)
   }
 }
 
@@ -152,4 +139,20 @@ export class HdsGL {
   @SuppressWarnings(
     { rules: [SuppressWarningsType.SYSCAP] }) @Trace static sourceTypes: hdsEffect.PointLightSourceType[] =
     [hdsEffect.PointLightSourceType.NONE, hdsEffect.PointLightSourceType.SOFT, hdsEffect.PointLightSourceType.BRIGHT]
+}
+
+export class LightMaterialModifier implements AttributeModifier<CommonAttribute> {
+  applyNormalAttribute(instance: CommonAttribute): void {
+    if (deviceInfo.apiAvailable('26.0.0')) {
+      instance.systemMaterial(new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.THIN,
+        applyShadow: true,
+        interactive: true,
+        lightEffect: {},
+      }))
+    } else {
+      // Fallback to an earlier version
+      instance.backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THIN)
+    }
+  }
 }

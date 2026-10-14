@@ -98,7 +98,10 @@ export default class SmbUtil {
     salmonLogger.addLog(TAG, `[SMB] 开始列目录 host=${server.host}:${server.port} share=${server.share} path=${path}`)
     try {
       const entries = await smbList(SmbUtil.options(server, secret), path)
-      salmonLogger.addLog(TAG, `[SMB] 列目录成功 path=${path} entries=${entries.length}`)
+      const directories = entries.filter((entry: SmbEntry) => entry.directory).length
+      const playable = entries.filter((entry: SmbEntry) => !entry.directory && SmbUtil.playable(entry.name)).length
+      salmonLogger.addLog(TAG, `[SMB] 列目录成功 server=${server.id} path=${path} entries=${entries.length} ` +
+        `directories=${directories} playable=${playable} filtered=${entries.length - directories - playable}`)
       return entries.sort((a: SmbEntry, b: SmbEntry) => {
         if (a.directory !== b.directory) {
           return a.directory ? -1 : 1

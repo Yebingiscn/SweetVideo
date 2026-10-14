@@ -3,8 +3,10 @@ import {
   destroy as mpvDestroy,
   isCoreAlive as mpvIsCoreAlive,
   loadVideo as mpvLoadVideo,
-  reset as mpvReset
+  reset as mpvReset,
+  setMpvConfigPath
 } from 'libmpvnative.so'
+import { MpvConfigStore } from '../../utils/MpvConfigStore'
 import { EngineReleaseHook, PlayerEngineAdapter } from './PlayerEngineAdapter'
 import { PathUtils } from '../../utils/PathUtils'
 
@@ -47,6 +49,7 @@ export class MpvPlayerEngineAdapter implements PlayerEngineAdapter {
 
   create(): number | null {
     if (!this.nativeHandle) {
+      setMpvConfigPath(MpvConfigStore.activePath())
       this.nativeHandle = mpvCreate(PathUtils.appContext?.cacheDir)
     }
     return this.nativeHandle
@@ -55,6 +58,7 @@ export class MpvPlayerEngineAdapter implements PlayerEngineAdapter {
   reset(): void {
     if (this.nativeHandle) {
       this.invalidateLoad()
+      setMpvConfigPath(MpvConfigStore.activePath())
       const newHandle = mpvReset(this.nativeHandle)
       if (typeof newHandle !== 'number' || newHandle <= 0) {
         throw new Error('MPV reset failed')

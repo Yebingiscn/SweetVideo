@@ -1,4 +1,6 @@
 export class AudioEffectConfig {
+  // UI identity; effect remains the concrete effect understood by the backend.
+  presetId: string = ''
   effect: string = 'off'
   eqPreset: string = 'default'
   eqGains: number[] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -24,6 +26,7 @@ export class AudioEffectConfig {
 
   static copy(source: AudioEffectConfig): AudioEffectConfig {
     const result = new AudioEffectConfig()
+    result.presetId = source.presetId ?? ''
     result.effect = source.effect
     result.eqPreset = source.eqPreset
     result.eqGains = source.eqGains.slice()

@@ -1,4 +1,5 @@
-import { SearchShadowModifier } from '../../common/AttributeModifierConfig'
+import { Available } from '@kit.BasicServicesKit'
+import { LightMaterialModifier } from '../../common/AttributeModifierConfig'
 
 @ComponentV2
 export struct SearchComponent {
@@ -36,7 +37,7 @@ export struct SearchComponent {
       .height(40)
       .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
       .animation({ duration: 300, curve: Curve.Ease })
-      .attributeModifier(new SearchShadowModifier())
+      .attributeModifier(new LightMaterialModifier())
       .keyboardAppearance(KeyboardAppearance.IMMERSIVE)// 设置搜索框沉浸模式
       .onChange((value: string) => {
         this.localSearchValue = value

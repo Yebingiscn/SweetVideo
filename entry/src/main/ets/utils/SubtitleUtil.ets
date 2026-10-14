@@ -64,6 +64,22 @@ export default class SubtitleUtil {
       nowPlaying.subtitle_track_id != undefined
   }
 
+  // Presentation metadata alone is not a selection. Keep explicit off, and
+  // support legacy positive track IDs / AI selections without inventing an off.
+  static getSubtitleSelectionMode(nowPlaying: VideoMetadata): SubtitleMode | undefined {
+    const mode = nowPlaying.subtitle_mode
+    if (mode !== undefined &&
+      [SubtitleMode.NONE, SubtitleMode.INNER_SUBTITLE, SubtitleMode.EXTERNAL_SUBTITLE, SubtitleMode.AI_SUBTITLE]
+        .includes(mode)) {
+      return mode as SubtitleMode
+    }
+    if (nowPlaying.subtitle_ai_asr_shown === true) return SubtitleMode.AI_SUBTITLE
+    if (nowPlaying.subtitle_track_id !== undefined && nowPlaying.subtitle_track_id >= 0) {
+      return SubtitleMode.INNER_SUBTITLE
+    }
+    return undefined
+  }
+
   // 获取外挂字幕
   static async selectExternalSubtitles(sandbox_subtitle: string, date: string,
     cancelled: () => boolean = (): boolean => false): Promise<string> {

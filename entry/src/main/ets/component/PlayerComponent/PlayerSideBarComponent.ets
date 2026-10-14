@@ -9,6 +9,7 @@ import { PathUtils } from '../../utils/PathUtils'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { VideoInfoBuilder } from '../VideoItemComponent/VideoInfoBuilder'
 import { RepeatModeButtonComponent } from './RepeatModeButtonComponent'
+import { HiCar } from '../../utils/HiCarUtil'
 
 @ComponentV2
 export struct PlayerSideBarComponent {
@@ -80,6 +81,7 @@ export struct PlayerSideBarComponent {
       }
       .layoutWeight(1)
       .width('100%')
+      .height('100%')
       .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true }) // 滚动边缘效果
       .chainAnimation(true)
       .scrollBar(BarState.Off)
@@ -104,8 +106,9 @@ export struct PlayerSideBarComponent {
     .backgroundColor(Setting.backgroundImageSrc.length > 0 ? '' : $r('app.color.sidebar_background_color'))
     .padding({
       left: 8,
-      right: 8,
-      top: SafeHeight.topSafeHeight,
+      right: HiCar.enabled ? HiCar.rightInset + 8 : 8,
+      top: HiCar.enabled ? HiCar.topInset : SafeHeight.topSafeHeight,
+      bottom: HiCar.enabled ? HiCar.bottomInset : 0,
     })
     .transition(TransitionEffect.translate({ x: 300 })
       .combine(TransitionEffect.OPACITY)

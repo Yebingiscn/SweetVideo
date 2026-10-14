@@ -156,7 +156,7 @@ export interface PlayerControllerInterface extends FramePreviewTarget {
   getAdjacentSubtitleOffset(direction: 'prev' | 'next', currentOffset: number): number | undefined
 
   saveSubtitlePreferenceForCurrentVideo(subtitleVisibility: Visibility, isAIAsrShown: boolean,
-    subtitle3DMode: Subtitle3DMode): void
+    subtitle3DMode: Subtitle3DMode, selectionChanged?: boolean): void
 
   cancelSubscribe(): void
 

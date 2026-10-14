@@ -1,4 +1,6 @@
 import MediaLibraryService from '../utils/MediaLibraryService'
+import FileFolderUtil from '../utils/FileFolderUtil'
+import MediaImportBatch from '../utils/MediaImportBatch'
 import ImageFileUtil from '../utils/ImageFileUtil'
 import { AbilityConstant, Configuration, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit'
 import { hiAppEvent, hilog } from '@kit.PerformanceAnalysisKit'
@@ -17,12 +19,15 @@ import KnockShareUtil from '../utils/KnockShareUtil'
 import { MediaSmartGestureSession } from '../utils/MediaSmartGestureUtil'
 import { MpvLogBridge } from '../utils/MpvLogBridge'
 import { VideoFormData } from '../forms/VideoFormData'
+import HiCarUtil from '../utils/HiCarUtil'
 
 const TAG = 'EntryAbility'
 
 export default class EntryAbility extends UIAbility {
   watcher: hiAppEvent.Watcher | undefined = undefined
   private mainWindow: window.Window | undefined = undefined
+  private startupFileCleanup: Promise<void> | undefined = undefined
+  private windowStageVersion: number = 0
 
   async onCreate(want: Want, launchParam: AbilityConstant.LaunchParam) {
     const backgroundColorMode = Preferences.getBackgroundColorMode(this.context)
@@ -30,7 +35,13 @@ export default class EntryAbility extends UIAbility {
     //  PreferencesUtil.localPreferences(this.context, 'sweet_video')
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onCreate')
     AppStorage.setOrCreate('context', this.context)
+    HiCarUtil.start(this.context)
     PathUtils.init(this.context)
+    this.startupFileCleanup = FileFolderUtil.cleanInvalidFiles(this.context).then((count: number) => {
+      salmonLogger.addLog(TAG, `启动清理失效文件完成，共 ${count} 个`, false)
+    }).catch((error: BusinessError) => {
+      salmonLogger.addLog(TAG, `启动清理失效文件失败: ${error.code}`, true)
+    })
     VideoFormData.save(this.context, Preferences.getRecentPlay(this.context), true)
     // Process-wide, not per video: keep teardown diagnostics across core resets.
     MpvLogBridge.start()
@@ -105,6 +116,9 @@ export default class EntryAbility extends UIAbility {
   }
 
   onDestroy(): void {
+    MediaImportBatch.flushActive()
+    HiCarUtil.stop()
+    this.windowStageVersion++
     WantProcessUtil.resetCardNavigation()
     KnockShareUtil.stop()
     this.savePlayData()
@@ -118,7 +132,8 @@ export default class EntryAbility extends UIAbility {
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onDestroy')
   }
 
-  onWindowStageCreate(windowStage: window.WindowStage): void {
+  async onWindowStageCreate(windowStage: window.WindowStage): Promise<void> {
+    const version = ++this.windowStageVersion
     // Main window is created, set main page for this ability
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onWindowStageCreate')
     try {
@@ -141,6 +156,9 @@ export default class EntryAbility extends UIAbility {
       salmonLogger.addLog(TAG,
         `Failed to set default density enabled. Cause code: ${exception.code}, message: ${exception.message}`, true)
     }
+    // 清理在首页可交互前完成，避免与导入或封面替换同时读写；失败也继续启动。
+    await this.startupFileCleanup
+    if (version !== this.windowStageVersion) { return }
     // 进入启动页
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
@@ -184,6 +202,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onWindowStageWillDestroy(): void {
+    this.windowStageVersion++
     KnockShareUtil.stop()
     this.savePlayData()
     try {
@@ -215,6 +234,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onForeground(): void {
+    HiCarUtil.refresh()
     MediaSmartGestureSession.setAppForeground(true)
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onForeground')
     ToolsUtil.setVibrationEnabled(true)
@@ -224,6 +244,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onBackground(): void {
+    MediaImportBatch.flushActive()
     MediaSmartGestureSession.setAppForeground(false)
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onBackground')
     KnockShareUtil.stop()

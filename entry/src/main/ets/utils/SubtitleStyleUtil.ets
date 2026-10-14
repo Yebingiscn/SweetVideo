@@ -8,6 +8,13 @@ import {
 import { WindowUtil } from './WindowUtil'
 
 export default class SubtitleStyleUtil {
+  // ArkUI/HDS 使用 AARRGGBB，MPV 使用 RRGGBBAA；六位 RGB 保持原样。
+  private static getMpvColor(color: string): string {
+    if (/^#[0-9a-fA-F]{8}$/.test(color)) {
+      return '#' + color.substring(3) + color.substring(1, 3)
+    }
+    return color
+  }
   static getSubtitleBottomMargin(areaHeight: number, position: number): number {
     const normalizedPosition = Math.max(0, Math.min(100, position))
     return Math.max(8, Math.round(areaHeight * (100 - normalizedPosition) / 100))
@@ -29,14 +36,14 @@ export default class SubtitleStyleUtil {
     const defaultFontSize = Math.max(1, Number(Setting.subtitleSize))
     return {
       fontSize: SubtitleStyleUtil.getMpvFontSize(arkUiFontSize, playAreaHeight),
-      color: Setting.subtitleColor,
+      color: SubtitleStyleUtil.getMpvColor(Setting.subtitleColor),
       bold: Setting.subtitleBold,
       italic: Setting.subtitleItalic,
       borderSize: Setting.subtitleBorderSize,
-      borderColor: Setting.subtitleBorderColor,
+      borderColor: SubtitleStyleUtil.getMpvColor(Setting.subtitleBorderColor),
       shadowEnabled: Setting.subtitleShadowEnabled,
       shadowOffset: Setting.subtitleShadowSize,
-      shadowColor: Setting.subtitleShadowColor,
+      shadowColor: SubtitleStyleUtil.getMpvColor(Setting.subtitleShadowColor),
       backgroundColor: '#000000',
       backgroundOpacity: Setting.subtitleBackgroundOpacity,
       position: positionOverride ?? Setting.subtitlePosition,

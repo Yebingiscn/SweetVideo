@@ -10,7 +10,13 @@ import { VideoDetailSheetBuilder } from '../../component/Dialog/VideoDetailDialo
 import Preferences from '../../database/Preferences'
 import PrivacySpaceUtil from '../../utils/PrivacySpaceUtil'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
-import { ButtonFancyModifier, DefaultDialogShadow, MenuFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
+import {
+  ButtonFancyModifier,
+  DefaultDialogShadow,
+  LightMaterialModifier,
+  MenuFancyModifier,
+  SymbolGlyphFancyModifier
+} from '../../common/AttributeModifierConfig'
 import { PathUtils } from '../../utils/PathUtils'
 import { EditPasswordDialog } from '../../component/Dialog/EditPasswordDialog'
 import NavigationAddress, { PrivacySpaceParams } from '../../common/NavigationCommon'
@@ -23,7 +29,12 @@ import { ListDisplayMode } from '../../common/enum/DisplayMode'
 import { SortField } from '../../common/enum/SortField'
 import ShareUtil from '../../utils/ShareUtil'
 import { Privacy, PrivacySecureUtil, Setting } from '../../utils/ObservedUtil'
-import { DELAY_JUMP_TO_PLAYER, FULL_ALPHABET, NO_BLUR_AMOUNT, PRIVACY_BACKGROUND_BLUR_AMOUNT } from '../../common/Constants'
+import {
+  DELAY_JUMP_TO_PLAYER,
+  FULL_ALPHABET,
+  NO_BLUR_AMOUNT,
+  PRIVACY_BACKGROUND_BLUR_AMOUNT
+} from '../../common/Constants'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { VideoItemPreviewBuilder } from '../../component/VideoItemComponent/VideoItemPreviewBuilder'
 import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit.UIDesignKit'
@@ -32,7 +43,6 @@ import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil
 import { ScrollBarBuilder } from '../../component/VideoItemComponent/ScrollBarBuilder'
 import VideoListItem from '../../component/VideoItemComponent/VideoListItemComponent'
 import { VideoListController } from '../../controller/VideoListController'
-import { DeleteType } from '../../common/enum/DeleteType'
 import { SortMenuComponent } from '../../component/common/SortMenuComponent'
 
 import { PrivacySpaceSettingComponent } from '../../component/PrivacySpaceComponent/PrivacySpaceSettingComponent'
@@ -43,6 +53,8 @@ import { importAndProcessFiles, ProgressInfo } from '../../utils/FileProcessorUt
 import SubtitleUtil from '../../utils/SubtitleUtil'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { salmonLogger } from 'salmonlogger'
+import PrivacyBatchDeleteUtil from '../../utils/PrivacyBatchDeleteUtil'
+import { MediaBatchProgress, MediaBatchResult } from '../../interfaces/MediaBatchInterface'
 
 const TAG = 'PrivacySpace'
 
@@ -67,53 +79,27 @@ export struct PrivacySpace { // 隐私空间页
       renameTarget: 'video',
       preserveExtension: true,
       onConfirm: (title: string) => {
-        const editingVideo = DataSyncUtil.editingVideo!
-        const targetIndex = MediaLibraryService.getItemIndex(this.video_meta_data_encryption, editingVideo)
+        const editingVideo = DataSyncUtil.editingVideo
+        if (!editingVideo) {
+          return
+        }
+        const latestVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
+        // 搜索结果下标不等于完整记录下标，使用稳定 ID 在最新完整列表中定位。
+        const targetIndex = MediaLibraryService.getItemIndex(latestVideos, editingVideo)
         if (targetIndex === -1) {
           return
         }
-        if (this.video_meta_data_encryption.some((v, index) => index !== targetIndex && v.title === title)) {
+        if (latestVideos.some((v, index) => index !== targetIndex && v.title === title)) {
           return
         }
-        this.video_meta_data_encryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-        const original = this.video_meta_data_encryption[targetIndex]
-        const updatedVideo: VideoMetadata = {
-          uri: original.uri,
-          title: title as string,
-          artist: original.artist,
-          album: original.album,
-          date: original.date,
-          size: original.size,
-          cover_size: original.cover_size,
-          has_video_track: original.has_video_track,
-          time: original.time,
-          last_play: original.last_play,
-          last_played_at: original.last_played_at,
-          format: original.format,
-          video_size: original.video_size,
-          bit_rate: original.bit_rate,
-          hdr_type: original.hdr_type,
-          audio_type: original.audio_type,
-          frame_rate: original.frame_rate,
-          start_time: original.start_time,
-          end_time: original.end_time,
-          end_time_is_duration: original.end_time_is_duration,
-          external_subtitle_format: original.external_subtitle_format,
-          pointA: original.pointA,
-          pointB: original.pointB,
-          subtitle_mode: original.subtitle_mode,
-          subtitle_visible: original.subtitle_visible,
-          subtitle_ai_asr_shown: original.subtitle_ai_asr_shown,
-          subtitle_3d_mode: original.subtitle_3d_mode,
-          subtitle_offset_millis: original.subtitle_offset_millis,
-          subtitle_track_id: original.subtitle_track_id
-        }
-        this.video_meta_data_encryption[targetIndex] = updatedVideo
+        // 只修改名称，保留播放记忆、字幕、外挂音频等全部已有字段。
+        const updatedVideo = latestVideos[targetIndex]
+        updatedVideo.title = title
         DataSyncUtil.editingVideo = updatedVideo
-        this.allVideos = [...this.video_meta_data_encryption]
-        this.videoDataSource.updateData(this.video_meta_data_encryption)
-        Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, this.video_meta_data_encryption)
+        Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, latestVideos)
+        this.allVideos = [...latestVideos]
         this.searchValue = ''
+        this.applySearch()
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
@@ -138,22 +124,11 @@ export struct PrivacySpace { // 隐私空间页
   })
   @Local delMultipleList: VideoMetadata[] = []
   @Local multipleChooseState: Visibility = Visibility.None
+  @Local batchWorking: boolean = false
+  @Local batchStopping: boolean = false
   @Provider('videoListController') privacyVideoListController: VideoListController =
     new VideoListController()
   @Local isPresent: boolean = false
-  searchController: SearchController = new SearchController()
-  @Local showDetailSheet: boolean = false
-  @Local detailMetadata: VideoMetadata | undefined = undefined
-  @Local HoldingHand: motion.HoldingHandStatus | null = null
-  batchDeleteConfirmDialog: CustomDialogController = new CustomDialogController({
-    builder: InfoConfirmDialog({
-      textInfo: $r('app.string.delete_selected_videos_permanent'),
-      confirm: async () => {
-        await this.batchDeleteItems()
-        this.closeMultipleChoose()
-      }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
-  })
   importSelectDialog: CustomDialogController = new CustomDialogController({
     builder: ImportSelectDialog({
       onImportVideo: async () => {
@@ -170,6 +145,21 @@ export struct PrivacySpace { // 隐私空间页
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
+  searchController: SearchController = new SearchController()
+  @Local showDetailSheet: boolean = false
+  @Local detailMetadata: VideoMetadata | undefined = undefined
+  @Local HoldingHand: motion.HoldingHandStatus | null = null
+  batchDeleteConfirmDialog: CustomDialogController = new CustomDialogController({
+    builder: InfoConfirmDialog({
+      textInfo: $r('app.string.delete_selected_videos_permanent'),
+      confirm: async () => {
+        await this.batchDeleteItems()
+      }
+    }), cornerRadius: 20, shadow: DefaultDialogShadow
+  })
+  private batchCancelled: boolean = false
+  private pageActive: boolean = false
+  private pendingBatchDeleteDates: string[] = []
   private knockFilesMonitorRegistered: boolean = false
   private pendingDeleteItem: VideoMetadata | null = null
   deleteConfirmDialog: CustomDialogController = new CustomDialogController({
@@ -228,20 +218,21 @@ export struct PrivacySpace { // 隐私空间页
           SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
             .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
         }
-        .backdropBlur(150)
-        .attributeModifier(new ButtonFancyModifier(35, 35))
+        .attributeModifier(new ButtonFancyModifier(40, 40))
+        .enabled(!this.batchWorking && !this.loading)
         .transition(XAnimation.getAnimation('right', 0, false))
         .bindMenu(this.SortMenuBuilder, { showInSubWindow: false })
+        .attributeModifier(new LightMaterialModifier())
 
         if (this.multipleChooseState === Visibility.Visible) {
           Button({ type: ButtonType.Circle, stateEffect: true }) {
             SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
               .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
           }
-          .backdropBlur(150)
-          .attributeModifier(new ButtonFancyModifier(35, 35))
+          .attributeModifier(new ButtonFancyModifier(40, 40))
           .transition(XAnimation.getAnimation('right', 0, false))
           .bindMenu(this.SelectItemMenuBuilder, { showInSubWindow: false })
+          .attributeModifier(new LightMaterialModifier())
         }
       }
     }
@@ -291,25 +282,32 @@ export struct PrivacySpace { // 隐私空间页
   @Builder
   SelectItemMenuBuilder() {
     Menu() {
+      MenuItem({ content: $r('app.string.privacy_selected_count', this.delMultipleList.length) })
+        .enabled(false)
       MenuItem({ content: $r('app.string.cancel') })
+        .enabled(!this.batchWorking)
         .onClick(() => {
           this.closeMultipleChoose()
         })
       MenuItem({
-        content: this.delMultipleList.length === this.video_meta_data_encryption.length &&
-          this.video_meta_data_encryption.length > 0 ? $r('app.string.deselect_all') : $r('app.string.select_all')
+        content: this.areAllVisibleSelected() ? $r('app.string.deselect_all') : $r('app.string.select_all')
       })
+        .enabled(!this.batchWorking && !this.loading)
         .onClick(() => {
-          if (this.delMultipleList.length === this.video_meta_data_encryption.length &&
-            this.video_meta_data_encryption.length > 0) {
-            this.delMultipleList = []
-          } else {
-            this.delMultipleList = [...this.video_meta_data_encryption]
-          }
+          this.toggleSelectAll()
         })
       MenuItem({ content: $r('app.string.delete_selected') })
+        .enabled(this.delMultipleList.length > 0 && !this.batchWorking && !this.loading)
         .onClick(() => {
-          this.batchDeleteConfirmDialog.open()
+          this.confirmBatchDelete()
+        })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_right_folder_circle')),
+        content: $r('app.string.privacy_export_selected')
+      })
+        .enabled(this.delMultipleList.length > 0 && !this.batchWorking && !this.loading)
+        .onClick(async () => {
+          await this.batchExportItems()
         })
     }.attributeModifier(new MenuFancyModifier())
   }
@@ -337,7 +335,10 @@ export struct PrivacySpace { // 隐私空间页
             }
           }, DELAY_JUMP_TO_PLAYER)
         })
-      MenuItem({ symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')), content: $r('app.string.menu_detail') })
+      MenuItem({
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.info_circle')),
+        content: $r('app.string.menu_detail')
+      })
         .onClick(() => {
           this.detailMetadata = item
           this.showDetailSheet = true
@@ -347,11 +348,11 @@ export struct PrivacySpace { // 隐私空间页
       })
         .onClick(() => {
           if (this.multipleChooseState === Visibility.Visible) {
-            const isSelected = this.delMultipleList.some(v => v.uri === item?.uri)
+            const isSelected = this.delMultipleList.some(v => v.date === item?.date)
             if (!isSelected) {
               this.delMultipleList = [...this.delMultipleList, item!]
             }
-            this.batchDeleteConfirmDialog.open()
+            this.confirmBatchDelete()
           } else {
             this.pendingDeleteItem = item!
             this.deleteConfirmDialog.open()
@@ -367,7 +368,7 @@ export struct PrivacySpace { // 隐私空间页
             this.multipleChooseState =
               this.multipleChooseState === Visibility.None ? Visibility.Visible : Visibility.None
           })
-          this.delMultipleList = item ? [item] : []
+          this.delMultipleList = this.multipleChooseState === Visibility.Visible && item ? [item] : []
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')),
@@ -385,7 +386,8 @@ export struct PrivacySpace { // 隐私空间页
           await SelectFileUtil.exportFile(item!.uri, item!.title, item!.format, PathUtils.appContext!)
         })
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat_size_square')), content: $r('app.string.import_or_delete_subtitle')
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.textformat_size_square')),
+        content: $r('app.string.import_or_delete_subtitle')
       })
         .onClick(async () => {
           await SubtitleUtil.importOrDeleteSubtitleProcess(item!)
@@ -408,12 +410,18 @@ export struct PrivacySpace { // 隐私空间页
           await ShareUtil.shareVideo(item!.uri, item!.title)
         })
     }.attributeModifier(new MenuFancyModifier())
+    .enabled(!this.batchWorking && !this.loading)
   }
 
   async toMetaData(fileList: string[], fileFolder?: FileFolder) {
+    if (this.batchWorking || this.loading) {
+      return
+    }
+    // 导入始终使用完整记录，不能把搜索视图作为可持久化的数据源。
+    const importVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
     await importAndProcessFiles(
       fileList,
-      this.video_meta_data_encryption,
+      importVideos,
       (info: ProgressInfo) => {
         this.processedItems = info.current
         this.currentFileName = info.fileName
@@ -429,16 +437,13 @@ export struct PrivacySpace { // 隐私空间页
       fileFolder,
       () => {
         this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-        this.video_meta_data_encryption = this.searchValue.trim()
-          ? MediaLibraryService.getItemFromSearch(this.allVideos, this.searchValue)
-          : this.allVideos
         const sortField = Preferences.getSortField(PathUtils.appContext!) as SortField
         if (sortField) {
           const sortAsc = Preferences.getSortAsc(PathUtils.appContext!)
-          this.video_meta_data_encryption =
-            ToolsUtil.sortBy(PathUtils.appContext!, this.video_meta_data_encryption, undefined, sortField, sortAsc)
+          this.allVideos =
+            ToolsUtil.sortBy(PathUtils.appContext!, this.allVideos, undefined, sortField, sortAsc)
         }
-        this.videoDataSource.updateData(this.video_meta_data_encryption)
+        this.applySearch()
       }
     )
   }
@@ -453,9 +458,11 @@ export struct PrivacySpace { // 隐私空间页
     this.video_meta_data_encryption = this.searchValue.trim()
       ? MediaLibraryService.getItemFromSearch(this.allVideos, this.searchValue) : this.allVideos
     this.videoDataSource.updateData(this.video_meta_data_encryption)
+    this.syncSelectedItems()
   }
 
   async aboutToAppear(): Promise<void> {
+    this.pageActive = true
     this.registerKnockFilesMonitor()
     this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
     this.video_meta_data_encryption = this.allVideos
@@ -475,10 +482,15 @@ export struct PrivacySpace { // 隐私空间页
   }
 
   aboutToDisappear(): void {
+    this.pageActive = false
+    this.batchCancelled = true
     this.unregisterKnockFilesMonitor()
   }
 
   async clickItem(item: VideoMetadata | undefined, reverse: boolean = false) {
+    if (this.batchWorking || this.loading) {
+      return
+    }
     if (this.searchValue) {
       setTimeout(() => {
         AppStorage.setOrCreate('searchValue', this.searchValue)
@@ -492,6 +504,9 @@ export struct PrivacySpace { // 隐私空间页
   }
 
   async deleteItem(date: string, title: string) {
+    if (this.batchWorking || this.loading) {
+      return
+    }
     this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
     this.videoDataSource.deleteData(this.allVideos.findIndex(i => i.date === date))
     this.allVideos = this.allVideos.filter(i => i.date !== date)
@@ -506,6 +521,22 @@ export struct PrivacySpace { // 隐私空间页
   build() {
     HdsNavDestination() {
       Column() {
+        if (this.batchWorking) {
+          ImportProgressBuilder({
+            processedItems: this.processedItems,
+            totalItems: this.totalItems,
+            currentFileName: this.currentFileName,
+            currentStage: 'saving',
+            failedCount: this.failedCount
+          })
+          Button($r('app.string.cancel'))
+            .enabled(!this.batchStopping)
+            .margin({ top: 8, bottom: 12 })
+            .onClick(() => {
+              this.batchStopping = true
+              this.batchCancelled = true
+            })
+        }
         if (this.loading) {
 
           ImportProgressBuilder({
@@ -553,6 +584,9 @@ export struct PrivacySpace { // 隐私空间页
                     .width('100%')
                     .height('auto')
                     .onClick(async () => {
+                      if (this.batchWorking) {
+                        return
+                      }
                       if (this.multipleChooseState === Visibility.Visible) {
                         if (this.delMultipleList.some(v => v.date === repeatItem.item.date)) {
                           this.delMultipleList = this.delMultipleList.filter(v => v.date !== repeatItem.item.date)
@@ -666,6 +700,9 @@ export struct PrivacySpace { // 隐私空间页
                     .width('100%')
                     .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
                     .onClick(async () => {
+                      if (this.batchWorking) {
+                        return
+                      }
                       if (this.multipleChooseState === Visibility.Visible) {
                         if (this.delMultipleList.some(v => v.date === repeatItem.item.date)) {
                           this.delMultipleList = this.delMultipleList.filter(v => v.date !== repeatItem.item.date)
@@ -777,11 +814,13 @@ export struct PrivacySpace { // 隐私空间页
       PrivacySpaceUtil.closePrivacyMode()
     })
     .onShown(() => {
+      this.pageActive = true
       this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
       this.video_meta_data_encryption = this.searchValue.trim()
         ? MediaLibraryService.getItemFromSearch(this.allVideos, this.searchValue)
         : this.allVideos
       this.videoDataSource.updateData(this.video_meta_data_encryption)
+      this.syncSelectedItems()
       if (DataSyncUtil.lastPlayVideoIndex >= 0) {
         const activeScroller = Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY
           ? this.listScroller : this.waterFlowScroller
@@ -863,7 +902,7 @@ export struct PrivacySpace { // 隐私空间页
             content: {
               label: '',
               icon: $r('sys.symbol.plus'),
-              isEnabled: true,
+              isEnabled: !this.batchWorking && !this.loading,
               action: () => {
                 this.importSelectDialog.open()
               }
@@ -889,6 +928,11 @@ export struct PrivacySpace { // 隐私空间页
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)
     .onBackPressed(() => {
+      if (this.batchWorking) {
+        this.batchStopping = true
+        this.batchCancelled = true
+        return true
+      }
       if (this.multipleChooseState === Visibility.Visible) {
         this.closeMultipleChoose()
         return true
@@ -945,6 +989,9 @@ export struct PrivacySpace { // 隐私空间页
       SymbolGlyph($r('sys.symbol.arrow_right_folder_circle'))
         .attributeModifier(new SymbolGlyphFancyModifier(28, 40, 40))
         .onClick(async () => {
+          if (this.batchWorking || this.loading) {
+            return
+          }
           await SelectFileUtil.exportFile(item!.uri, item!.title, item!.format, PathUtils.appContext!)
         })
     }.padding({ left: 16, right: 16 }).justifyContent(FlexAlign.SpaceEvenly)
@@ -986,26 +1033,115 @@ export struct PrivacySpace { // 隐私空间页
   }
 
   private closeMultipleChoose() {
+    if (this.batchWorking) {
+      return
+    }
     XAnimation.runWithAnimation(() => {
       this.multipleChooseState = Visibility.None
     })
     this.delMultipleList = []
   }
 
-  private async batchDeleteItems() {
-    if (this.delMultipleList.length === 0) {
+  private areAllVisibleSelected(): boolean {
+    const selected = new Set(this.delMultipleList.map(item => item.date))
+    return this.video_meta_data_encryption.length > 0 &&
+      this.video_meta_data_encryption.every(item => selected.has(item.date))
+  }
+
+  private toggleSelectAll(): void {
+    if (this.batchWorking || this.loading) {
       return
     }
-    await MediaLibraryService.deleteVideoFiles(this.delMultipleList, DeleteType.HARD)
-    const deleteDates = new Set(this.delMultipleList.map(v => v.date))
-    this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-      .filter(v => !deleteDates.has(v.date))
-    Preferences.saveVideoMetaDataEncryption(PathUtils.appContext!, this.allVideos)
-    this.video_meta_data_encryption = this.searchValue.trim()
-      ? MediaLibraryService.getItemFromSearch(this.allVideos, this.searchValue)
-      : this.allVideos
-    this.videoDataSource.updateData(this.video_meta_data_encryption)
-    ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_success').id))
+    const visible = new Set(this.video_meta_data_encryption.map(item => item.date))
+    const hiddenSelection = this.delMultipleList.filter(item => !visible.has(item.date))
+    this.delMultipleList = this.areAllVisibleSelected() ? hiddenSelection :
+      [...hiddenSelection, ...this.video_meta_data_encryption]
+  }
+
+  private syncSelectedItems(): void {
+    const selected = new Set((this.delMultipleList ?? []).map(item => item.date))
+    this.delMultipleList = this.allVideos.filter(item => selected.has(item.date))
+  }
+
+  private confirmBatchDelete(): void {
+    if (this.batchWorking || this.loading || this.delMultipleList.length === 0) {
+      return
+    }
+    this.pendingBatchDeleteDates = this.delMultipleList.map(item => item.date)
+    this.batchDeleteConfirmDialog.open()
+  }
+
+  private async batchDeleteItems(): Promise<void> {
+    const dates = this.pendingBatchDeleteDates.slice()
+    this.pendingBatchDeleteDates = []
+    await this.runBatchOperation('delete', dates)
+  }
+
+  private async batchExportItems(): Promise<void> {
+    await this.runBatchOperation('export', this.delMultipleList.map(item => item.date))
+  }
+
+  private async runBatchOperation(operation: 'delete' | 'export', dates: string[]): Promise<void> {
+    if (this.batchWorking || this.loading || !this.pageActive || dates.length === 0) {
+      return
+    }
+    this.batchWorking = true
+    this.batchStopping = false
+    this.batchCancelled = false
+    this.processedItems = 0
+    this.failedCount = 0
+    this.currentFileName = ''
+    this.totalItems = dates.length
+    const isCancelled = (): boolean => this.batchCancelled || !this.pageActive
+    const onProgress = (info: MediaBatchProgress): void => {
+      if (!this.pageActive) {
+        return
+      }
+      this.processedItems = info.processedItems
+      this.totalItems = info.totalItems
+      this.currentFileName = info.currentFileName
+      this.failedCount = info.failedCount
+    }
+    try {
+      // 固定用户确认的 ID，以最新完整记录定位，不使用搜索下标或过期的导入 URI。
+      const selected = new Set(dates)
+      const selectedItems = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!, true)
+        .filter(item => selected.has(item.date))
+      if (selectedItems.some(item => !item.date || item.date === '.' || item.date === '..' ||
+        /[\\/\u0000]/.test(item.date))) {
+        throw new Error('Invalid private media ID')
+      }
+      const items = selectedItems.map((item): VideoMetadata => {
+        const privateItem = JSON.parse(JSON.stringify(item)) as VideoMetadata
+        privateItem.uri = PathUtils.videoPath + item.date
+        return privateItem
+      })
+      this.totalItems = items.length
+      const result: MediaBatchResult = operation === 'delete' ?
+        await PrivacyBatchDeleteUtil.deleteItems(items, isCancelled, onProgress) :
+        await SelectFileUtil.exportFiles(items, PathUtils.appContext!, isCancelled, onProgress)
+      if (this.pageActive) {
+        this.allVideos = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!, true)
+        this.applySearch()
+        ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2(
+          (result.cancelled ? $r('app.string.privacy_batch_cancelled') : operation === 'delete' ?
+            $r('app.string.privacy_batch_delete_result') : $r('app.string.privacy_batch_export_result')).id,
+          result.successDates.length, result.failedCount))
+      }
+    } catch (_) {
+      salmonLogger.addLog(TAG, '隐私空间批量操作失败', true)
+      if (this.pageActive) {
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.privacy_batch_failed').id))
+      }
+    } finally {
+      this.batchWorking = false
+      if (this.pageActive) {
+        this.batchStopping = false
+        if (operation === 'delete' && this.delMultipleList.length === 0) {
+          this.closeMultipleChoose()
+        }
+      }
+    }
   }
 
   private updateActiveAlphabet(): void {
@@ -1046,6 +1182,9 @@ export struct PrivacySpace { // 隐私空间页
   }
 
   private handleSort(field: SortField, defaultAsc: boolean) {
+    if (this.batchWorking || this.loading) {
+      return
+    }
     if (this.currentSortField === field) {
       this.currentSortAsc = !this.currentSortAsc
     } else {
@@ -1061,6 +1200,9 @@ export struct PrivacySpace { // 隐私空间页
   }
 
   private handlePinyinSortChange(value: boolean) {
+    if (this.batchWorking || this.loading) {
+      return
+    }
     this.pinyinSort = value
     Preferences.savePinyinSort(PathUtils.appContext!, this.pinyinSort)
     if (this.currentSortField === SortField.NAME) {
@@ -1077,5 +1219,6 @@ export struct PrivacySpace { // 隐私空间页
       ? MediaLibraryService.getItemFromSearch(this.allVideos, this.searchValue)
       : this.allVideos
     this.videoDataSource.updateData(this.video_meta_data_encryption)
+    this.syncSelectedItems()
   }
 }

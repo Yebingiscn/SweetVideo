@@ -12,6 +12,9 @@ import { fileIo } from '@kit.CoreFileKit'
 import { CoverLayoutMode } from '../../common/enum/DisplayMode'
 import ShareUtil from '../../utils/ShareUtil'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import PrivacyRecoveryUtil from '../../utils/PrivacyRecoveryUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
+import { ImportProgressBuilder } from '../../component/VideoItemComponent/ImportProgressBuilder'
 
 const TAG = 'PrivacySpaceErrorList'
 
@@ -21,26 +24,121 @@ export struct PrivacySpaceErrorList {
   @Local videoList: string[] = []
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   private listScroller: Scroller = new Scroller()
+  @Local isScanning: boolean = false
+  @Local deletionInProgress: boolean = false
+  @Local isCancelling: boolean = false
+  @Local processedItems: number = 0
+  @Local totalItems: number = 0
+  @Local currentFileName: string = ''
+  @Local failedCount: number = 0
+  private pageActive: boolean = false
+  private scanBusy: boolean = false
+  private deleteBusy: boolean = false
+  private scanGeneration: number = 0
+  private refreshGeneration: number = 0
 
   async aboutToAppear(): Promise<void> {
-    const videoMetaDataEncryption = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!)
-    const videoFromSandbox = await fileIo.listFile(PathUtils.videoPath)?.catch(() => {
-      salmonLogger.addLog(TAG, 'get video fail', true)
-    })
-    // 确保 videoFromSandbox 是一个数组（如果出错则设为空数组）
-    const videoFromSandboxArray = Array.isArray(videoFromSandbox) ? videoFromSandbox : []
-    // 从 videoMetaDataEncryption 中提取所有 date 字段的值
-    const existingDatesSet: Set<string> = new Set(videoMetaDataEncryption.map(item => item.date))
-    // 找出在 videoFromSandboxArray 中存在，但在 existingDates 中不存在的元素
-    this.videoList = videoFromSandboxArray.filter((item: string) =>
-    !existingDatesSet.has(item)
-    )
-    this.errorListDataSource = new PrivacySpaceErrorListDataSource(this.videoList)
+    this.pageActive = true
+    await this.refreshErrorList()
+  }
+
+  aboutToDisappear(): void {
+    this.pageActive = false
+    this.scanGeneration++
+    this.refreshGeneration++
+  }
+
+  private async refreshErrorList(): Promise<boolean> {
+    const generation = ++this.refreshGeneration
+    let files: string[]
+    try {
+      files = await fileIo.listFile(PathUtils.videoPath)
+      if (!this.pageActive || generation !== this.refreshGeneration) return false
+      // 数据库读取失败不能当成空列表，否则会把所有正常文件误判成异常。
+      const records = Preferences.getVideoMetaDataEncryption(PathUtils.appContext!, true)
+      const existingDatesSet: Set<string> = new Set(records.map(item => item.date))
+      this.videoList = files.filter((item: string) => !existingDatesSet.has(item))
+      this.errorListDataSource = new PrivacySpaceErrorListDataSource(this.videoList)
+    } catch (_) {
+      salmonLogger.addLog(TAG, '读取异常媒体列表失败', true)
+      if (this.pageActive && generation === this.refreshGeneration) {
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.privacy_recovery_failed').id))
+      }
+      return false
+    }
+    return true
+  }
+
+  private async scanToPrivacySpace(): Promise<void> {
+    if (this.scanBusy || this.deleteBusy || !this.pageActive) return
+    this.scanBusy = true
+    this.isScanning = true
+    this.isCancelling = false
+    this.processedItems = 0
+    this.totalItems = 0
+    this.failedCount = 0
+    this.currentFileName = ''
+    const generation = ++this.scanGeneration
+    const isCancelled = (): boolean => !this.pageActive || generation !== this.scanGeneration
+    let recoveredCount = 0
+    let completed = false
+    try {
+      if (!await this.refreshErrorList() || isCancelled()) return
+      const candidates = this.videoList.slice()
+      this.totalItems = candidates.length
+      for (const date of candidates) {
+        if (isCancelled()) break
+        this.currentFileName = date
+        const result = await PrivacyRecoveryUtil.recover(date, isCancelled)
+        if (result === 'recovered') recoveredCount++
+        if (result === 'cancelled' || !this.pageActive) break
+        this.processedItems++
+        if (result === 'failed') this.failedCount++
+        if (result === 'recovered' || result === 'skipped') {
+          this.videoList = this.videoList.filter(item => item !== date)
+          this.errorListDataSource = new PrivacySpaceErrorListDataSource(this.videoList)
+        }
+      }
+      completed = true
+    } catch (_) {
+      salmonLogger.addLog(TAG, '扫描恢复异常，保留原文件', true)
+      if (this.pageActive) {
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.privacy_recovery_failed').id))
+      }
+    } finally {
+      if (this.pageActive) {
+        await this.refreshErrorList()
+        if (completed && this.pageActive) {
+          ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2(
+            (isCancelled() ? $r('app.string.privacy_recovery_cancelled') :
+              $r('app.string.privacy_recovery_result')).id, recoveredCount, this.failedCount))
+        }
+      }
+      this.scanBusy = false
+      if (this.pageActive) {
+        this.isScanning = false
+        this.isCancelling = false
+      }
+    }
   }
 
   async delItem(date: string) {
-    this.errorListDataSource.deleteData(this.videoList.findIndex(i => i === date))
-    await MediaLibraryService.deletePrivacyVideo(date, date, Preferences.getVideoMetaDataEncryption(PathUtils.appContext!))
+    if (this.scanBusy || this.deleteBusy) return
+    this.deleteBusy = true
+    this.deletionInProgress = true
+    try {
+      await MediaLibraryService.deletePrivacyVideo(date, date,
+        Preferences.getVideoMetaDataEncryption(PathUtils.appContext!, true))
+      await this.refreshErrorList()
+    } catch (_) {
+      salmonLogger.addLog(TAG, '异常媒体删除失败', true)
+      if (this.pageActive) {
+        ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.delete_failed').id))
+      }
+    } finally {
+      this.deleteBusy = false
+      if (this.pageActive) this.deletionInProgress = false
+    }
   }
 
   @Builder
@@ -49,6 +147,7 @@ export struct PrivacySpaceErrorList {
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')), content: $r('app.string.delete')
       })
+        .enabled(!this.isScanning && !this.deletionInProgress)
         .onClick(async () => {
           await this.delItem(item)
         })
@@ -69,6 +168,40 @@ export struct PrivacySpaceErrorList {
         })
     }
     .attributeModifier(new MenuFancyModifier())
+  }
+
+  @Builder
+  RecoveryBuilder() {
+    Column({ space: 12 }) {
+      Text($r('app.string.privacy_recovery_hint'))
+        .fontSize(12)
+        .fontColor($r('app.color.text_color'))
+        .width('100%')
+      if (this.isScanning) {
+        ImportProgressBuilder({
+          processedItems: this.processedItems,
+          totalItems: this.totalItems,
+          currentFileName: this.currentFileName,
+          currentStage: 'extracting',
+          failedCount: this.failedCount
+        })
+        Button($r('app.string.cancel'))
+          .enabled(!this.isCancelling)
+          .onClick(() => {
+            this.isCancelling = true
+            this.scanGeneration++
+          })
+      } else {
+        Button($r('app.string.privacy_recovery_scan'))
+          .enabled(this.videoList.length > 0 && !this.deletionInProgress)
+          .backgroundColor($r('app.color.main_color'))
+          .onClick(async () => {
+            await this.scanToPrivacySpace()
+          })
+      }
+    }
+    .padding(16)
+    .width('100%')
   }
 
   @Builder
@@ -99,10 +232,11 @@ export struct PrivacySpaceErrorList {
   build() {
     HdsNavDestination() {
       Column() {
+        this.RecoveryBuilder()
         if (this.videoList.length === 0) {
           Text($r('app.string.no_error_data')).textAlign(TextAlign.Center)
             .align(Alignment.Center)
-            .width('90%').height('100%')
+            .width('90%').layoutWeight(1)
         } else {
           List({ scroller: this.listScroller, space: 10 }) {
             Repeat<string>(this.errorListDataSource.data)
@@ -236,5 +370,17 @@ export struct PrivacySpaceErrorList {
     })
     .bindToScrollable([this.listScroller]) // 绑定导航组件和可滚动容器组件
     .hideBackButton(false)
+    .onHidden(() => {
+      this.pageActive = false
+      this.scanGeneration++
+      this.refreshGeneration++
+    })
+    .onShown(async () => {
+      this.pageActive = true
+      this.isScanning = this.scanBusy
+      this.isCancelling = this.scanBusy
+      this.deletionInProgress = this.deleteBusy
+      await this.refreshErrorList()
+    })
   }
 }

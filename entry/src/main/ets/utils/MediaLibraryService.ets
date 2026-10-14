@@ -1,5 +1,5 @@
 import { Context } from '@kit.AbilityKit'
-import { fileIo as fs, fileUri } from '@kit.CoreFileKit'
+import { fileIo, fileIo as fs, fileUri } from '@kit.CoreFileKit'
 import VideoInfoUtil from './VideoInfoUtil'
 import { SaveOptions, VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { FileFolder } from '../interfaces/FileFolderInterface'
@@ -12,11 +12,9 @@ import { Setting } from './ObservedUtil'
 import { PathUtils } from './PathUtils'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
 import RecentPlayUtil from './RecentPlayUtil'
-import { systemDateTime } from '@kit.BasicServicesKit'
+import { BusinessError, systemDateTime } from '@kit.BasicServicesKit'
 import { ExternalAudioStorage } from './ExternalAudioStorage'
-import { BusinessError } from '@kit.BasicServicesKit'
-import { fileIo } from '@kit.CoreFileKit'
-import { Subtitle3DMode } from '../common/enum/SubtitleMode'
+import { Subtitle3DMode, SubtitleMode } from '../common/enum/SubtitleMode'
 import { DanmakuStorage } from './DanmakuStorage'
 import DataSyncUtil from './DataSyncUtil'
 import SubtitleUtil from './SubtitleUtil'
@@ -165,8 +163,7 @@ export default class MediaLibraryService {
 
       if (targetVideoMetaData) {
         updateVideo(targetVideoMetaData)
-        const folders = Preferences.getFileFolder(context)
-        Preferences.saveFileFolder(context, folders, audioChange)
+        Preferences.savePlaybackMetadata(context, target_data.date, audioChange)
       } else {
         // External and network playback also need an up-to-date recent-play position.
         updateVideo(target_data)
@@ -405,19 +402,26 @@ export default class MediaLibraryService {
     subtitleTrackSelected: number,
     subtitleVisibility: Visibility,
     isAIAsrShown: boolean,
-    subtitle3DMode: Subtitle3DMode
+    subtitle3DMode: Subtitle3DMode,
+    selectionChanged?: boolean
   ): void {
     const appContext = PathUtils.appContext
-    if (!nowPlaying || !appContext) {
+    if (!nowPlaying || !appContext || selectionChanged === undefined) {
       return
     }
+    if (selectionChanged && subtitleSelected === SubtitleMode.INNER_SUBTITLE && subtitleTrackSelected < 0) {
+      return // An unavailable inner track is not a successful user selection.
+    }
 
-    const subtitleMode = SubtitleUtil.normalizeSubtitleMode(subtitleSelected)
-    const subtitleVisible = subtitleVisibility === Visibility.Visible
-    const subtitleAIAsrShown = isAIAsrShown
+    // Only explicit UI changes are persisted. Exit/switch and failed detection
+    // must not turn a temporary fallback into a remembered off / missing track.
+    // Style/offset edits also must not manufacture a selection from auto mode.
+    const subtitleMode = selectionChanged ? SubtitleUtil.normalizeSubtitleMode(subtitleSelected) : nowPlaying.subtitle_mode
+    const subtitleVisible = selectionChanged ? subtitleVisibility === Visibility.Visible : nowPlaying.subtitle_visible
+    const subtitleAIAsrShown = selectionChanged ? isAIAsrShown : nowPlaying.subtitle_ai_asr_shown
     const subtitle3DModeValue = SubtitleUtil.normalizeSubtitle3DMode(subtitle3DMode)
     const subtitleOffsetMillis = Math.max(-50000, Math.min(50000, Math.round(SubtitleUtil.offsetMillis)))
-    const subtitleTrackId = subtitleTrackSelected
+    const subtitleTrackId = selectionChanged ? subtitleTrackSelected : nowPlaying.subtitle_track_id
     const hasPreferenceChanged =
       nowPlaying.subtitle_mode !== subtitleMode ||
       nowPlaying.subtitle_visible !== subtitleVisible ||
@@ -486,7 +490,7 @@ export default class MediaLibraryService {
       salmonLogger.addLog(TAG, `删除视频字幕失败: ${error.message}`, true)
     })
     try {
-      DanmakuStorage.remove(item.date)
+      await DanmakuStorage.remove(item.date)
     } catch (error) {
       salmonLogger.addLog(TAG, `删除视频弹幕失败: ${error}`, true)
     }

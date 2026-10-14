@@ -18,6 +18,12 @@ export interface MpvSubtitleTexts {
  * 字幕样式配置
  */
 export interface MpvSubtitleStyle {
+  /** 副字幕独立位置、换算字号及 ASS 相对缩放 */
+  secondaryPosition?: number;
+  secondaryFontSize?: number;
+  secondaryScale?: number;
+  secondaryEnabled?: boolean;
+  secondaryIsBitmap?: boolean;
   /** 字体大小 (像素) */
   fontSize?: number;
 

@@ -1,3 +1,5 @@
+import { LightMaterialModifier } from '../../common/AttributeModifierConfig'
+
 export interface AnimatedPlaybackTimeBuilderParams {
   playTime: number
   totalTime: number
@@ -105,6 +107,7 @@ function showHours(params: AnimatedPlaybackTimeBuilderParams): boolean {
 }
 
 export interface PlaybackProgressSliderParams {
+  height?: number
   playTime: number
   totalTime: number
   onSliderChange?: (value: number) => void
@@ -117,16 +120,16 @@ export function PlaybackProgressSliderBuilder($$: PlaybackProgressSliderParams) 
     value: Math.max(0, Math.min($$.playTime, Math.max($$.totalTime, 0))),
     min: 0,
     max: Math.max($$.totalTime, 1),
-    style: SliderStyle.NONE
+    style: SliderStyle.InSet
   })
-    .trackThickness(12)
     .selectedBorderRadius(16)
     .onChange((value: number) => $$.onSliderChange?.(value))
     .onTouch((event: TouchEvent) => $$.onSliderTouch?.(event))
     .animation({ duration: 100, curve: Curve.Smooth })
     .selectedColor('#e0e0e0')
     .blockColor(Color.White)
-    .height(40)
+    .attributeModifier(new LightMaterialModifier())
+    .height($$.height ?? 40)
     .width('100%')
     .opacity(0.9)
 }

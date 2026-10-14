@@ -1,5 +1,12 @@
 import { salmonLogger } from 'salmonlogger'
-import { IPTVChannel, IPTVLine, IPTVParseResult, IPTVProgram, IPTVSource, IPTVTestResult } from '../interfaces/IPTVInterface'
+import {
+  IPTVChannel,
+  IPTVLine,
+  IPTVParseResult,
+  IPTVProgram,
+  IPTVSource,
+  IPTVTestResult
+} from '../interfaces/IPTVInterface'
 import ToolsUtil from './ToolsUtil'
 import IPTVParser from './IPTVParser'
 import IPTVSourceReader from './IPTVSourceReader'
@@ -7,6 +14,7 @@ import IPTVSourceReader from './IPTVSourceReader'
 const TAG = 'IPTVSourceService'
 const MAX_SOURCE_SIZE = 20 * 1024 * 1024
 const MAX_EPG_SIZE = 40 * 1024 * 1024
+
 function defaultGroupName(): string {
   return ToolsUtil.getStringResource($r('app.string.iptv_default_group').id)
 }
@@ -21,7 +29,8 @@ export default class IPTVSourceService {
       return {
         success: result.channels.length > 0,
         message: result.channels.length > 0 ?
-          ToolsUtil.getStringResourceArgs2($r('app.string.test_success_channels').id, result.channels.length, result.groupCount) : ToolsUtil.getStringResource($r('app.string.iptv_no_channels').id),
+          ToolsUtil.getStringResourceArgs2($r('app.string.test_success_channels').id, result.channels.length,
+            result.groupCount) : ToolsUtil.getStringResource($r('app.string.iptv_no_channels').id),
         channelCount: result.channels.length,
         groupCount: result.groupCount,
         invalidCount: result.invalidCount,

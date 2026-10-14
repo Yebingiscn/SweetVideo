@@ -1,6 +1,8 @@
 import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { SafeHeight } from '../../utils/ObservedUtil'
+import { HiCar } from '../../utils/HiCarUtil'
+import HiCarLayout from '../../utils/HiCarLayout'
 
 @ComponentV2
 export struct VideoLayoutComponent {
@@ -17,7 +19,7 @@ export struct VideoLayoutComponent {
         this.VideoTop()
       }
       .width('100%')
-      .height(this.isPortrait() ? 90 : 80)
+      .height(HiCar.enabled ? 64 : (this.isPortrait() ? 90 : 80))
       .linearGradient(this.getTopGradient())
       .padding(this.getTopPadding())
       .transition(XAnimation.getAnimation('up', 0, false))
@@ -30,26 +32,36 @@ export struct VideoLayoutComponent {
       // 底栏
       this.buildBottomBar()
     }
+    .padding(HiCar.enabled ? {
+      left: HiCar.leftInset, right: HiCar.rightInset, top: HiCar.topInset, bottom: HiCar.bottomInset
+    } : 0)
     .width('100%')
     .height('100%')
     .justifyContent(FlexAlign.Start)
+    .alignItems(HiCar.enabled ? HorizontalAlign.Start : HorizontalAlign.Center)
   }
 
   @Builder
   buildBottomBar() {
-    Column({ space: this.isLongScreen() ? 15 : 0 }) {
-      if (this.isLongScreen()) {
-        this.VideoButtons()
-        this.VideoSlider()
-      } else {
-        this.VideoSlider()
-        this.VideoButtons()
+    Column() {
+      Column({ space: HiCar.enabled ? 4 : (this.isLongScreen() ? 15 : 0) }) {
+        if (!HiCar.enabled && this.isLongScreen()) {
+          this.VideoButtons()
+          this.VideoSlider()
+        } else {
+          this.VideoSlider()
+          this.VideoButtons()
+        }
       }
+      .width(HiCar.enabled ? HiCarLayout.controlWidth(this.player.screenWidth - HiCar.leftInset - HiCar.rightInset) : '100%')
+      .alignItems(HiCar.enabled ? HorizontalAlign.Start : HorizontalAlign.Center)
     }
     .width('100%')
-    .height(this.isPortrait() ? 180 : 'auto')
+    .alignItems(HiCar.enabled ? HorizontalAlign.Start : HorizontalAlign.Center)
+    .height(HiCar.enabled ? 'auto' : (this.isPortrait() ? 180 : 'auto'))
     .linearGradient(this.getBottomGradient())
-    .padding({ bottom: SafeHeight.bottomSafeHeight == 0 ? 20 : SafeHeight.bottomSafeHeight })
+    .padding(HiCar.enabled ? { left: 8, bottom: 4 } :
+      { bottom: SafeHeight.bottomSafeHeight == 0 ? 20 : SafeHeight.bottomSafeHeight })
     .transition(XAnimation.getAnimation('bottom', 0, false))
   }
 
@@ -82,9 +94,9 @@ export struct VideoLayoutComponent {
   // 获取顶栏 padding
   private getTopPadding(): Padding {
     return {
-      left: this.isPortrait() ? 20 : 35,
-      right: 20,
-      top: SafeHeight.topSafeHeight,
+      left: HiCar.enabled ? 8 : (this.isPortrait() ? 20 : 35),
+      right: HiCar.enabled ? 8 : 20,
+      top: HiCar.enabled ? 0 : SafeHeight.topSafeHeight,
     }
   }
 }

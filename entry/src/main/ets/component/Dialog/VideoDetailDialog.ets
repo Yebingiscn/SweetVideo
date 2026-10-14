@@ -15,15 +15,19 @@ export function VideoDetailSheetBuilder(metadata?: VideoMetadata) {
       .margin({ top: 5 })
     SweetAgentComponent(
       {
-        queryText: VideoInfoUtil.hasVideoTrack(metadata) ? ToolsUtil.getStringResourceArgs2($r('app.string.ai_query_video').id, metadata?.title ?? '', metadata?.format ?? '') :
-          ToolsUtil.getStringResourceArgs2($r('app.string.ai_query_audio').id, metadata?.title ?? '', metadata?.format ?? ''),
+        queryText: VideoInfoUtil.hasVideoTrack(metadata) ?
+          ToolsUtil.getStringResourceArgs2($r('app.string.ai_query_video').id, metadata?.title ?? '',
+            metadata?.format ?? '') :
+          ToolsUtil.getStringResourceArgs2($r('app.string.ai_query_audio').id, metadata?.title ?? '',
+            metadata?.format ?? ''),
         title: ToolsUtil.getStringResource($r('app.string.ask_xiaoyi').id)
       })
 
     List() {
       ListItem() {
         Row() {
-          Text(VideoInfoUtil.hasVideoTrack(metadata) ? $r('app.string.detail_video_name') : $r('app.string.detail_audio_name'))
+          Text(VideoInfoUtil.hasVideoTrack(metadata) ? $r('app.string.detail_video_name') :
+            $r('app.string.detail_audio_name'))
             .fontSize(15)
             .fontColor($r('app.color.text_color'))
             .flexShrink(0)

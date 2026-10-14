@@ -2,7 +2,7 @@ import MediaLibraryService from '../../utils/MediaLibraryService'
 import { BaseGestureHandlingProposal, PageSwitchActionProposal, window } from '@kit.ArkUI'
 import { Available, BusinessError, deviceInfo, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { ShortVideoItem } from '../../component/ShortVideo/ShortVideoItem'
-import NavigationAddress, { ShortVideoParams } from '../../common/NavigationCommon'
+import NavigationAddress, { PlayerEngine, PlayerParams, ShortVideoParams } from '../../common/NavigationCommon'
 import { ShortVideoPlayerManager } from '../../controller/ShortVideo/ShortVideoPlayerManager'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { PathUtils } from '../../utils/PathUtils'
@@ -17,7 +17,10 @@ import { SwipingPlayTimePanelBuilder } from '../../component/PlayerComponent/Swi
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { RepeatModeButtonComponent } from '../../component/PlayerComponent/RepeatModeButtonComponent'
 import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
-import { AnimatedPlaybackTimeBuilder, PlaybackProgressSliderBuilder } from '../../component/PlayerComponent/PlaybackProgressComponent'
+import {
+  AnimatedPlaybackTimeBuilder,
+  PlaybackProgressSliderBuilder
+} from '../../component/PlayerComponent/PlaybackProgressComponent'
 import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { AUTO_HIDE_SHOW_CONTROL_TIME } from '../../common/Constants'
@@ -34,11 +37,9 @@ export struct ShortVideoPage {
   @Local manager: ShortVideoPlayerManager = new ShortVideoPlayerManager()
   @Local containerWidth: number = 0
   @Local containerHeight: number = 0
+  @Local isSwiperAnimating: boolean = false
   private skipHistory: boolean = false
   private disposed: boolean = false
-  private swiperController: SwiperController = new SwiperController()
-  private showControlTimer: number = 0
-  @Local isSwiperAnimating: boolean = false
   @Available({ minApiVersion: 'HarmonyOS 26.0.0' }) private smartGestures: MediaSmartGestureSession =
     new MediaSmartGestureSession({
       canHandle: (): boolean => this.ready && !this.disposed && this.items.length > 0 &&
@@ -49,6 +50,10 @@ export struct ShortVideoPage {
       },
       onSlide: (): BaseGestureHandlingProposal | undefined => this.createSmartSwipeProposal()
     })
+  private disposeTask: Promise<void> | undefined = undefined
+  private switchingToMpv: boolean = false
+  private swiperController: SwiperController = new SwiperController()
+  private showControlTimer: number = 0
   private isSpeedMenuOpen: boolean = false
   private isProgressSeeking: boolean = false
   private smartTapPending: boolean = false
@@ -76,21 +81,7 @@ export struct ShortVideoPage {
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   async aboutToDisappear(): Promise<void> {
-    if (deviceInfo.apiAvailable('26.0.0')) {
-      this.smartGestures.hide()
-    }
-    KnockShareUtil.clearShareProvider(KNOCK_SHARE_VIDEO_PLAYER_OWNER)
     await this.dispose()
-    PermissionUtil.applyStopContinuousTask()
-    WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
-    WindowUtil.setBarState(PathUtils.appContext!, true, true)
-    WindowUtil.recoveryBarColor()
-    WindowUtil.getWindow().then((windowClass: window.Window | undefined) => {
-      windowClass?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
-        .catch((_error: BusinessError) => {
-        })
-    }).catch((_error: BusinessError) => {
-    })
   }
 
   @Builder
@@ -213,6 +204,7 @@ export struct ShortVideoPage {
                   currentIndex: this.currentIndex,
                   isSwitching: this.isSwiperAnimating,
                   manager: this.manager,
+                  onPlayWithMpv: () => this.openFailedVideoWithMpv(repeatItem.item),
                   onSingleTap: () => this.toggleShowControl(),
                   onDoubleTap: (tapX: number) => this.manager.onScreenDoubleClick(
                     this.manager.getItemIndex(repeatItem.item), tapX,
@@ -233,6 +225,9 @@ export struct ShortVideoPage {
           .onAnimationStart(() => this.isSwiperAnimating = true)
           .onAnimationEnd(() => this.isSwiperAnimating = false)
           .onChange((index: number) => {
+            if (this.disposed || this.switchingToMpv) {
+              return
+            }
             const playbackIndex = this.manager.getPlaybackIndex(index)
             if (playbackIndex >= 0) {
               this.manager.activate(playbackIndex)
@@ -298,6 +293,9 @@ export struct ShortVideoPage {
       return true
     })
     .onReady(() => {
+      if (this.disposed) {
+        return
+      }
       const params = this.pageParams ?? this.readShortVideoParams()
       if (!params) {
         this.ready = true
@@ -308,7 +306,9 @@ export struct ShortVideoPage {
       this.currentIndex = Math.max(0, Math.min(params.initialIndex, Math.max(this.items.length - 1, 0)))
       this.skipHistory = params.skipHistory
       this.manager.configure(this.items, this.skipHistory, (targetIndex: number) => {
-        this.swiperController.changeIndex(this.manager.getSwiperIndex(targetIndex), true)
+        if (!this.disposed && !this.switchingToMpv) {
+          this.swiperController.changeIndex(this.manager.getSwiperIndex(targetIndex), true)
+        }
       }, this.currentIndex)
       this.ready = true
       this.manager.activate(this.currentIndex)
@@ -326,15 +326,16 @@ export struct ShortVideoPage {
       }
     })
     .onShown(async () => {
-      if (!this.disposed) {
-        if (deviceInfo.apiAvailable('26.0.0')) {
-          this.smartGestures.show(this.getUIContext())
-        }
+      if (this.disposed || this.switchingToMpv) {
+        return
+      }
+      if (deviceInfo.apiAvailable('26.0.0')) {
+        this.smartGestures.show(this.getUIContext())
       }
       if (PiPWindowUtil.pipOpenState) {
         await PiPWindowUtil.stopPip()
       }
-      if (this.ready) {
+      if (this.ready && !this.disposed && !this.switchingToMpv) {
         this.manager.activate(this.currentIndex)
       }
     })
@@ -425,13 +426,62 @@ export struct ShortVideoPage {
     WindowUtil.minimizeClick(PathUtils.appContext!)
   }
 
-  private async dispose(): Promise<void> {
-    if (this.disposed) {
+  private async openFailedVideoWithMpv(item: VideoMetadata): Promise<void> {
+    if (this.disposed || this.switchingToMpv || this.isSwiperAnimating ||
+      this.items[this.currentIndex]?.date !== item.date || this.manager.currentPlayer?.state !== 'error') {
       return
     }
-    this.disposed = true
-    this.clearShowControlTimer()
-    await this.manager.releaseAll()
+    this.switchingToMpv = true
+    const params = new PlayerParams(item, this.items.slice(), undefined, this.skipHistory, PlayerEngine.MPV_PLAYER)
+    const shortVideoParams = this.readShortVideoParams()
+    try {
+      MediaLibraryService.saveLastPlayVideoIndex(this.items, item.date)
+      this.ready = false
+      // 先完成旧页面清理，避免其延迟回调关闭新播放器的会话、屏幕常亮或系统栏。
+      await this.dispose()
+      const paths = this.pathStack.getAllPathName()
+      if (paths[paths.length - 1] !== NavigationAddress.SHORT_VIDEO ||
+        this.readShortVideoParams() !== shortVideoParams) {
+        return
+      }
+      WindowUtil.setBarColor('#FFFFFF')
+      this.pathStack.replacePathByName(NavigationAddress.VIDEO_PLAYER, params, false)
+    } catch (_) {
+      salmonLogger.addLog('ShortVideoPage', '切换到 MPV 播放器失败', true)
+      ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.switch_player_engine_failed').id))
+    } finally {
+      this.switchingToMpv = false
+    }
+  }
+
+  private dispose(): Promise<void> {
+    if (!this.disposeTask) {
+      this.disposed = true
+      this.clearShowControlTimer()
+      this.disposeTask = this.releasePage()
+    }
+    return this.disposeTask
+  }
+
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
+  private async releasePage(): Promise<void> {
+    if (deviceInfo.apiAvailable('26.0.0')) {
+      this.smartGestures.hide()
+    }
+    KnockShareUtil.clearShareProvider(KNOCK_SHARE_VIDEO_PLAYER_OWNER)
+    try {
+      await this.manager.releaseAll()
+    } finally {
+      PermissionUtil.applyStopContinuousTask()
+      WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
+      WindowUtil.setBarState(PathUtils.appContext!, true, true)
+      WindowUtil.recoveryBarColor()
+      try {
+        const windowClass = await WindowUtil.getWindow()
+        await windowClass?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
+      } catch (_error) {
+      }
+    }
   }
 
   private readShortVideoParams(): ShortVideoParams | undefined {
@@ -443,5 +493,4 @@ export struct ShortVideoPage {
     MediaLibraryService.saveLastPlayVideoIndex(this.items, this.items[this.currentIndex]?.date)
     this.pathStack.pop()
   }
-
 }

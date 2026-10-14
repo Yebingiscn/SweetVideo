@@ -1,4 +1,5 @@
 import { PlayerGestureController } from '../../controller/PlayerGestureController'
+import { HiCar } from '../../utils/HiCarUtil'
 import { framePreviewSession } from '../../utils/FFmpegThumbnailUtil'
 import MediaLibraryService from '../../utils/MediaLibraryService'
 import { DanmakuSession } from '../../utils/DanmakuSession'
@@ -56,6 +57,7 @@ import { VideoSettingComponent } from '../../component/PlayerComponent/VideoSett
 import { VideoSliderComponent } from '../../component/PlayerComponent/VideoSliderComponent'
 import { VideoTopComponent } from '../../component/PlayerComponent/VideoTopComponent'
 import Preferences from '../../database/Preferences'
+import PlaybackExitCoordinator from '../../utils/PlaybackExitCoordinator'
 import { salmonLogger } from 'salmonlogger'
 import { AISubtitleComponent } from '../../component/PlayerComponent/AIAsrComponent'
 import AVSessionUtil from '../../utils/AVSessionUtil'
@@ -136,15 +138,17 @@ export struct VideoPlayer {
   @Local isAdjustingSubtitleOffset: boolean = false
   @Local lockRotation: boolean = false
   @Local playerExitTransitionEnabled: boolean = false
-  private danmaku: DanmakuSession = new DanmakuSession()
+  @Local danmaku: DanmakuSession = new DanmakuSession()
   private containerWidth: number = 0
   private containerHeight: number = 0
   private gestures: PlayerGestureController = new PlayerGestureController(this.player)
   private playbackSession: PlaybackSessionController = new PlaybackSessionController()
   private isPageDisappearing: boolean = false
+  private playerExitToken: number | undefined = undefined
+  private waitingForPreviousExit: boolean = false
+  private exitPlayTime: number = 0
   private playerDestinationShown: boolean = false
   @Local holdingHand: motion.HoldingHandStatus | null = null
-  private holdingHandLandscape: boolean | undefined = undefined
   private holdingHandCallback: Callback<motion.HoldingHandStatus> = (status: motion.HoldingHandStatus): void => {
     if (!this.playerDestinationShown || this.isPageDisappearing || !Setting.gripPostureEnabled) {
       return
@@ -225,6 +229,15 @@ export struct VideoPlayer {
   private subtitleSelectedMonitorCallback: ((mon: IMonitor) => void) | undefined = undefined
   private danmakuMediaMonitorCallback: ((mon: IMonitor) => void) | undefined = undefined
 
+  @Monitor('danmaku.enabled', 'danmaku.items', 'danmakuPageVisible', 'isPlayerConfigured', 'player')
+  syncDanmakuVrrPolicy(): void {
+    if (this.player instanceof MpvController) {
+      // An enabled but empty/hidden overlay does not need to suppress VRR.
+      this.player.setDanmakuVisible(this.danmakuPageVisible &&
+        !PiPWindowUtil.pipOpenState && this.danmaku.enabled && this.danmaku.items.length > 0)
+    }
+  }
+
   @Monitor('player.showControl')
   onShowControlMonitor(_mon: IMonitor) {
     if (!Pc.pcMode || this.isPageDisappearing || this.playbackSession.isDisposed) {
@@ -260,6 +273,7 @@ export struct VideoPlayer {
   }
 
   async aboutToDisappear(): Promise<void> {
+    this.beginPlayerExit()
     this.playerDestinationShown = false
     this.stopHoldingHandSubscription()
     this.playerReadyToStart = false
@@ -273,27 +287,58 @@ export struct VideoPlayer {
     KnockShareUtil.clearShareProvider(KNOCK_SHARE_VIDEO_PLAYER_OWNER)
     this.player.onWillDisappearCleanup()
     VideoOperateUtil.cancelControlAutoHide()
-    this.restoreAutomaticOrientation()
-    salmonLogger.addLog(TAG, "开始执行aboutToDisappear方法", false)
-    VideoOperateUtil.setBrightness(-1)
-    WindowUtil.recoveryBarColor()
-    if (Pc.pcMode) {
-      if (canIUse("SystemCapability.MultimodalInput.Input.Pointer")) {
-        pointer.setPointerVisible(true).catch(() => {
-          salmonLogger.addLog(TAG, `restore pointer visible failed`, true)
-        })
+    try {
+      await this.restoreAutomaticOrientation()
+      salmonLogger.addLog(TAG, "开始执行aboutToDisappear方法", false)
+      try {
+        VideoOperateUtil.setBrightness(-1)
+        WindowUtil.recoveryBarColor()
+        if (Pc.pcMode && canIUse("SystemCapability.MultimodalInput.Input.Pointer")) {
+          pointer.setPointerVisible(true).catch(() => {
+            salmonLogger.addLog(TAG, 'restore pointer visible failed', true)
+          })
+        }
+      } catch (error) {
+        salmonLogger.addLog(TAG, `恢复播放页窗口状态失败: ${error}`, true)
+      }
+      try {
+        Preferences.saveRepeatModeState(PathUtils.appContext!, this.player.repeatMode)
+        this.player.onDisappearSaveSubtitlePreference(this.subtitleManager.subtitleVisibility,
+          this.subtitleManager.isAIAsrShown, this.subtitleManager.subtitle3DMode)
+        MediaLibraryService.saveLastPlayVideoIndex(this.player.videoMetaDataList, this.player.nowPlaying?.date)
+        MediaLibraryService.saveVideoPlayTimeIfNeed(this.exitPlayTime, this.player.nowPlaying,
+          this.player.skipHistory, PathUtils.appContext!)
+      } catch (error) {
+        salmonLogger.addLog(TAG, `保存退出播放记录失败: ${error}`, true)
+      }
+      this.player.onDisappearCleanup()
+      clearTimeout(this.exitVideoTime)
+      this.gestures.reset()
+      this.unregisterPlayerMonitors(this.player)
+      try {
+        await AVSessionUtil.stopCastingIfActive()
+      } catch (error) {
+        salmonLogger.addLog(TAG, `停止投屏失败: ${error}`, true)
+      } finally {
+        PermissionUtil.applyStopContinuousTask()
+      }
+      await PiPWindowUtil.destroyPipController()
+      WindowUtil.disableLandscapeMultiWindow(this.getWindowClass())
+      WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
+      await this.player.restoreSystemBars(this.windowClass)
+    } catch (error) {
+      salmonLogger.addLog(TAG, `播放页退出清理失败: ${error}`, true)
+    } finally {
+      try {
+        await this.playbackSession.dispose(() => this.player)
+      } catch (error) {
+        salmonLogger.addLog(TAG, `释放播放会话失败: ${error}`, true)
+      } finally {
+        if (this.playerExitToken !== undefined) PlaybackExitCoordinator.finishExit(this.playerExitToken)
+        this.playerExitToken = undefined
       }
     }
-
-    Preferences.saveRepeatModeState(PathUtils.appContext!, this.player.repeatMode)
-    this.player.onDisappearSaveSubtitlePreference(this.subtitleManager.subtitleVisibility,
-      this.subtitleManager.isAIAsrShown, this.subtitleManager.subtitle3DMode)
-    this.player.onDisappearCleanup()
-    clearTimeout(this.exitVideoTime)
-    this.gestures.reset()
-    this.unregisterPlayerMonitors(this.player)
-    await this.playbackSession.dispose(() => this.player)
-    salmonLogger.addLog(TAG, "释放播放器资源完成", false)
+    salmonLogger.addLog(TAG, "播放页退出清理结束", false)
     salmonLogger.addLog(TAG, "aboutToDisappear方法执行完成", false)
   }
 
@@ -306,17 +351,6 @@ export struct VideoPlayer {
 
   private stopHoldingHandSubscription(): void {
     IntellectualGripPostureUtil.destroyHoldingHandStatus(this.holdingHandCallback)
-  }
-
-  private updateHoldingHandLayoutDirection(width: number, height: number): void {
-    if (width <= 0 || height <= 0 || width === height) {
-      return
-    }
-    const landscape = width > height
-    if (this.holdingHandLandscape === false && landscape) {
-      this.holdingHand = null
-    }
-    this.holdingHandLandscape = landscape
   }
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
@@ -446,7 +480,7 @@ export struct VideoPlayer {
             screenBrightness: this.player.screenBrightness,
             playAreaHeight: VideoInfoUtil.playAreaHeight
           })
-          if (this.player.showControl) {
+          if (this.player.showControl && !HiCar.enabled) {
             LockVideoBarComponent({
               buttonsOnLeft: IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand),
               onLockClick: () => {
@@ -528,7 +562,6 @@ export struct VideoPlayer {
         .onAreaChange(async (_oldValue: Area, newValue: Area) => {
           const width = Math.floor(new Number(newValue.width).valueOf())
           const height = Math.floor(new Number(newValue.height).valueOf())
-          this.updateHoldingHandLayoutDirection(width, height)
           this.containerWidth = width
           this.containerHeight = height
           this.player.screenWidth = this.containerWidth
@@ -649,7 +682,9 @@ export struct VideoPlayer {
       this.player.onSwipingVoice = false
       this.player.onSwipingBrightness = false
       if (PiPWindowUtil.pipOpenState) {
-        PiPWindowUtil.stopPip()
+        PiPWindowUtil.stopPip().then(() => {
+          this.syncDanmakuVrrPolicy()
+        })
       }
       WindowUtil.setKeepScreenStatus(PathUtils.appContext!, true)
       if (this.autoListenVideoEnabled) {
@@ -676,6 +711,7 @@ export struct VideoPlayer {
       this.player.isSliderPlayTimeChange = false
       this.player.onSwipingVoice = false
       this.player.onSwipingBrightness = false
+      if (this.isPageDisappearing) return
       MediaLibraryService.saveVideoPlayTimeIfNeed(this.player.playTime, this.player.nowPlaying,
         this.player.skipHistory, PathUtils.appContext!)
       if (!Setting.allowBackgroundPlay && !PiPWindowUtil.pipOpenState) {
@@ -703,7 +739,8 @@ export struct VideoPlayer {
         }
       }
     })
-    .onWillDisappear(async () => {
+    .onWillDisappear(() => {
+      this.beginPlayerExit()
       this.playerDestinationShown = false
       this.stopHoldingHandSubscription()
       this.playerReadyToStart = false
@@ -718,24 +755,8 @@ export struct VideoPlayer {
       this.player.onWillDisappearCleanup()
       // 自动方向在 aboutToDisappear 中恢复，避免窗口旋转打断尚未完成的退场动画。
       salmonLogger.addLog(TAG, "开始执行onWillDisappear生命周期", false)
-      try {
-        this.player.saveSubtitlePreferenceForCurrentVideo(this.subtitleManager.subtitleVisibility,
-          this.subtitleManager.isAIAsrShown, this.subtitleManager.subtitle3DMode)
-        MediaLibraryService.saveLastPlayVideoIndex(this.player.videoMetaDataList, this.player.nowPlaying?.date)
-        MediaLibraryService.saveVideoPlayTimeIfNeed(this.player.playTime, this.player.nowPlaying,
-          this.player.skipHistory, PathUtils.appContext!)
-        // stopCasting 必须发生在 applyStopContinuousTask 销毁 AVSession 之前。
-        await AVSessionUtil.stopCastingIfActive()
-        PermissionUtil.applyStopContinuousTask()
-        await PiPWindowUtil.destroyPipController()
-        WindowUtil.disableLandscapeMultiWindow(this.getWindowClass())
-        WindowUtil.setKeepScreenStatus(PathUtils.appContext!, false)
-        await this.player.restoreSystemBars(this.windowClass)
-      } catch (error) {
-        salmonLogger.addLog(TAG, `onWillDisappear中发生错误：${error}`, true)
-      } finally {
-        await this.playbackSession.dispose(() => this.player)
-      }
+      // 转场前只停回调和记录位置；保存、会话释放在退场结束后执行。
+      PiPWindowUtil.disableAutoStart()
       salmonLogger.addLog(TAG, "onWillDisappear生命周期执行完成", false)
     })
     .hideTitleBar(true)
@@ -752,6 +773,9 @@ export struct VideoPlayer {
   VideoTop() {
     VideoTopComponent({
       isAnySubtitleActive: this.subtitleManager.isAnySubtitleActive,
+      carSettingsMenu: (): void => this.VideoSettingBuilder(),
+      carSpeedMenu: (): void => this.PlaybackSpeedMenuBuilder(),
+      carNavigationMenu: (): void => this.HiCarNavigationMenu(),
       danmakuMenuBuilder: () => {
         this.DanmakuMenu()
       },
@@ -905,24 +929,43 @@ export struct VideoPlayer {
       onTogglePlaybackClick: () => {
         this.player.togglePlayback()
       },
-      onPlayPreviousVideoClick: async () => {
+      onPlayPreviousVideoClick: async () => this.playPreviousFromControl(),
+      onPlayNextVideoClick: async () => this.playNextFromControl(),
+      onSideBaClose: () => {
+        this.closeSideBar(true)
+      }
+    })
+  }
+
+  private async playPreviousFromControl(): Promise<void> {
         const previousRepeatMode = VideoOperateUtil.getManualNavigationRepeatMode(this.player.repeatMode)
         await this.player.playPreviousVideoProcess(this.pathStack, this.windowClass,
           this.xComponentController, previousRepeatMode)
         salmonLogger.addLog(TAG, '播放上一首视频请求已发送', false)
-      },
-      onPlayNextVideoClick: async () => {
+  }
+
+  private async playNextFromControl(): Promise<void> {
         const nextRepeatMode = VideoOperateUtil.getManualNavigationRepeatMode(this.player.repeatMode)
         this.player.playNextVideoProcess(this.pathStack, this.windowClass, this.xComponentController, nextRepeatMode)
           .catch((error: Error) => {
             salmonLogger.addLog(TAG, `play next video failed: ${error.message}`, true)
           })
         salmonLogger.addLog(TAG, "播放下一个视频请求已发送", false)
-      },
-      onSideBaClose: () => {
-        this.closeSideBar(true)
-      }
-    })
+  }
+
+  @Builder
+  HiCarNavigationMenu() {
+    Menu() {
+      MenuItem({ content: $r('app.string.hicar_playlist') }).height(56)
+        .onClick(() => {
+          this.sideBarStatusTmp = Visibility.Visible
+          this.sideBarStatus = true
+        })
+      MenuItem({ content: $r('app.string.hicar_previous') }).height(56)
+        .onClick(async () => this.playPreviousFromControl())
+      MenuItem({ content: $r('app.string.hicar_next') }).height(56)
+        .onClick(async () => this.playNextFromControl())
+    }
   }
 
   @Builder
@@ -1233,6 +1276,7 @@ export struct VideoPlayer {
       UIUtils.addMonitor(p, 'subtitleSelected', subtitleCallback)
       this.subtitleSelectedMonitorCallback = subtitleCallback
       this.monitoredPlayer = p
+    this.syncDanmakuVrrPolicy()
       this.danmakuMediaMonitorCallback = mediaCallback
       UIUtils.addMonitor(p, 'nowPlaying', mediaCallback)
       this.danmaku.setMedia(this.danmakuMediaKey())
@@ -1270,6 +1314,16 @@ export struct VideoPlayer {
       this.isPageDisappearing || this.playbackSession.isDisposed) {
       return
     }
+    if (PlaybackExitCoordinator.isExiting) {
+      if (!this.waitingForPreviousExit) {
+        this.waitingForPreviousExit = true
+        void PlaybackExitCoordinator.waitForExit().then(() => {
+          this.waitingForPreviousExit = false
+          this.startPlayerAfterDestinationShown()
+        })
+      }
+      return
+    }
     try {
       // 页面完整显示后直接创建 Surface、隐藏系统栏及触发智能横屏。
       WindowUtil.setBarState(PathUtils.appContext!, false, false)
@@ -1286,11 +1340,20 @@ export struct VideoPlayer {
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   private async restoreAutomaticOrientation(): Promise<void> {
+    if (HiCar.enabled) { return }
     try {
       await (await this.getWindowClass())?.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
     } catch (error) {
       salmonLogger.addLog(TAG, `恢复自动旋转失败：${error}`, true)
     }
+  }
+
+  private beginPlayerExit(): void {
+    if (this.playerExitToken !== undefined) return
+    this.playerExitToken = PlaybackExitCoordinator.beginExit()
+    this.exitPlayTime = this.player.playTime
+    this.isPageDisappearing = true
+    this.playbackSession.beginClosing()
   }
 
   private bindEngineSwitchHandler(player: PlayerControllerInterface): void {

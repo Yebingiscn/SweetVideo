@@ -405,7 +405,8 @@ export class FramePreviewSession {
     if (!this.pendingRequest || !this.updatePix) { return }
     const request = this.pendingRequest
     this.pendingRequest = undefined
-    if (request.generation !== this.generation || request.requestVersion !== this.requestVersion ||
+    if (request.media.uri !== this.frameExtractorUri ||
+      request.generation !== this.generation || request.requestVersion !== this.requestVersion ||
       request.media !== request.target.nowPlaying) {
       this.schedulePendingFrameFetch()
       return
@@ -432,6 +433,7 @@ export class FramePreviewSession {
   }
 
   private frameExtractorId: number | undefined = undefined
+  private frameExtractorUri: string = ''
   private generation: number = 0
   private busy: boolean = false
   private frameExtractorLifecycleTask: Promise<void> = Promise.resolve()
@@ -441,6 +443,7 @@ export class FramePreviewSession {
   }
 
   async prepare(uri: string): Promise<void> {
+    this.frameExtractorUri = ''
     this.cancelRequests()
     if (!Setting.showFrameImgStatus) {
       return
@@ -457,6 +460,7 @@ export class FramePreviewSession {
       try {
         extractorId = FFmpegThumbnailUtil.createLocalExtractor(uri)
         this.frameExtractorId = extractorId
+        this.frameExtractorUri = uri
       } catch (error) {
         salmonLogger.addLog(TAG, 'prepare error' + error, true)
         FFmpegThumbnailUtil.releaseExtractor(extractorId)
@@ -468,6 +472,7 @@ export class FramePreviewSession {
   }
 
   async release(): Promise<void> {
+    this.frameExtractorUri = ''
     this.cancelRequests()
     this.generation++
     const previousTask = this.frameExtractorLifecycleTask

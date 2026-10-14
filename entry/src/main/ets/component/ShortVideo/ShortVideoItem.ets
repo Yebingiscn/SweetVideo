@@ -19,6 +19,8 @@ export struct ShortVideoItem {
   }
   @Event onDoubleTap: (_tapX: number) => void = () => {
   }
+  @Event onPlayWithMpv: () => void = () => {
+  }
   @Local player: ShortVideoPlayer | undefined = undefined
   @Local isLongPressing: boolean = false
   @Local containerWidth: number = 0
@@ -116,6 +118,12 @@ export struct ShortVideoItem {
           Text($r('app.string.avplayer_cannot_play'))
             .fontSize(16)
             .fontColor(Color.White)
+          Button($r('app.string.switch_to_mpv_player'), { type: ButtonType.Capsule })
+            .fontSize(14)
+            .fontColor(Color.Black)
+            .backgroundColor(Color.White)
+            .margin({ top: 6, bottom: 6 })
+            .onClick(() => this.onPlayWithMpv())
           Text($r('app.string.swipe_up_to_switch'))
             .fontSize(13)
             .fontColor('#B3FFFFFF')

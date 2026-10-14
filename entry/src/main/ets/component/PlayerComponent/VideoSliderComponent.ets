@@ -3,6 +3,7 @@ import { VIDEO_HDR_TYPE } from '../../common/enum/HDR_TYPE'
 import { GradientTagBuilder, SolidColorTagBuilder } from '../common/MediaTagBuilder'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { AnimatedPlaybackTimeBuilder, PlaybackProgressSliderBuilder } from './PlaybackProgressComponent'
+import { HiCar } from '../../utils/HiCarUtil'
 
 @ComponentV2
 export struct VideoSliderComponent {
@@ -21,6 +22,23 @@ export struct VideoSliderComponent {
   }
 
   build() {
+    if (HiCar.enabled) {
+      Row({ space: 12 }) {
+        if (this.player.screenWidth - HiCar.leftInset - HiCar.rightInset >= 640) {
+          AnimatedPlaybackTimeBuilder({
+            playTime: this.player.playTime, totalTime: this.player.nowPlaying?.time || 0, fontSize: 20
+          })
+        }
+        Row() {
+          PlaybackProgressSliderBuilder({
+          playTime: this.player.playTime, totalTime: this.player.nowPlaying?.time || 0, height: 56,
+          onSliderChange: (value: number) => this.onSliderChange(value),
+          onSliderTouch: (event: TouchEvent) => this.onSliderTouch(event)
+          })
+        }.layoutWeight(1)
+      }
+      .width('100%').height(56)
+    } else {
     Column() {
       Row() {
         AnimatedPlaybackTimeBuilder({
@@ -128,6 +146,7 @@ export struct VideoSliderComponent {
     }
     .height('auto')
     .width('90%')
+    }
   }
 
   private remainSec(): number {

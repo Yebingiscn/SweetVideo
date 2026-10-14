@@ -1,3 +1,4 @@
+import { HiCar } from './HiCarUtil'
 import { FolderNameSortItem, sortFolderNamesInTaskPool } from './TaskpoolUtil'
 import MediaSortUtil from './MediaSortUtil'
 import { bundleManager, ConfigurationConstant } from '@kit.AbilityKit'
@@ -44,25 +45,21 @@ export default class ToolsUtil {
 
   static showToast(text: string, duration: number = 3500) {
     try {
-      if (ToolsUtil.cachedPromptAction) {
-        ToolsUtil.cachedPromptAction.showToast({
+      const show = (action: PromptAction): void => {
+        action.showToast({
           message: text,
           duration: duration,
-          backgroundBlurStyle: BlurStyle.Regular,
           alignment: Alignment.Bottom,
           offset: { dx: 0, dy: -100 }
         })
+      }
+      if (ToolsUtil.cachedPromptAction) {
+        show(ToolsUtil.cachedPromptAction)
         return
       }
       window.getLastWindow(PathUtils.appContext!).then((windowClass: window.Window) => {
         ToolsUtil.cachedPromptAction = windowClass.getUIContext().getPromptAction()
-        ToolsUtil.cachedPromptAction.showToast({
-          message: text,
-          duration: duration,
-          backgroundBlurStyle: BlurStyle.Regular,
-          alignment: Alignment.Bottom,
-          offset: { dx: 0, dy: -100 }
-        })
+        show(ToolsUtil.cachedPromptAction)
       }).catch(() => {
         salmonLogger.addLog(TAG, 'getLastWindow error', true)
       })
@@ -225,7 +222,7 @@ export default class ToolsUtil {
     const latestItem = findResult[0] ?? item
     const folder_date = findResult[2]
     const playerType = VideoOperateUtil.resolvePlayerType(latestItem, reverse)
-    if (Setting.shortVideoMode && !reverse) {
+    if (!HiCar.enabled && Setting.shortVideoMode && !reverse) {
       const latestList = list.map(video => video.date === latestItem.date ? latestItem : video)
       const initialIndex = Math.max(0, latestList.findIndex(video => video.date === latestItem.date))
       const shortVideoParams = new ShortVideoParams(latestList, initialIndex, skipHistory)
@@ -275,7 +272,8 @@ export default class ToolsUtil {
                 salmonLogger.addLog(TAG, 'showUpdateDialog resultCode:' + resultCode)
               })
               .catch((error: BusinessError) => {
-                ToolsUtil.showToast(ToolsUtil.getStringResourceArgs($r('app.string.update_dialog_failed').id, error.message))
+                ToolsUtil.showToast(
+                  ToolsUtil.getStringResourceArgs($r('app.string.update_dialog_failed').id, error.message))
                 salmonLogger.addLog(TAG, `showUpdateDialog onError.code is ${error.code}, message is ${error.message}`)
               })
           } else {
@@ -418,5 +416,4 @@ export default class ToolsUtil {
       return uri
     }
   }
-
 }

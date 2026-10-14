@@ -1,17 +1,17 @@
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { FileFolder } from '../interfaces/FileFolderInterface'
 import { ItemWithPinyin } from '../interfaces/VideoItemWithPinyinInterface'
-import { pinyin4js } from '@ohos/pinyin4js'
+import NameSortUtil from './NameSortUtil'
+
+interface CachedPinyinKey {
+  name: string
+  key: string
+}
 
 // 不保存媒体数据；持久化仍由 ToolsUtil.sortBy 在排序完成后统一处理。
 export default class MediaSortUtil {
-  private static splitRegex = /(\d+)/g
-  private static readonly COLLATOR = new Intl.Collator("zh-CN", {
-    sensitivity: "variant",
-    numeric: true,
-    ignorePunctuation: false,
-    caseFirst: "upper"
-  })
+  private static readonly COLLATOR = NameSortUtil.createCollator()
+  private static pinyinKeys: WeakMap<VideoMetadata | FileFolder, CachedPinyinKey> = new WeakMap()
 
   static sortByNameProcess(list: VideoMetadata[], ascending: boolean = true, pinyinSort: boolean = true): VideoMetadata[] {
     return MediaSortUtil.sortByName(list, item => item.title || '', ascending, pinyinSort)
@@ -77,7 +77,7 @@ export default class MediaSortUtil {
     if (!title || title.length === 0) {
       return '#'
     }
-    const pinyin = pinyin4js.getShortPinyin(title) as string
+    const pinyin = NameSortUtil.getSortKey(title, true)
     if (pinyin.length === 0) {
       return '#'
     }
@@ -88,56 +88,37 @@ export default class MediaSortUtil {
     return '#'
   }
 
-  private static sortByName<T>(list: T[], nameExtractor: (item: T) => string, ascending: boolean = true,
+  static getFirstLetterForVideo(video: VideoMetadata): string {
+    const key = MediaSortUtil.getPinyinKey(video, video.title || '')
+    const first = key.length > 0 ? key[0].toUpperCase() : '#'
+    return first >= 'A' && first <= 'Z' ? first : '#'
+  }
+
+  private static getPinyinKey(item: VideoMetadata | FileFolder, name: string): string {
+    const cached = MediaSortUtil.pinyinKeys.get(item)
+    if (cached?.name === name) return cached.key
+    const key = NameSortUtil.getSortKey(name, true)
+    MediaSortUtil.pinyinKeys.set(item, { name: name, key: key })
+    return key
+  }
+
+  private static sortByName<T extends VideoMetadata | FileFolder>(list: T[], nameExtractor: (item: T) => string, ascending: boolean = true,
     pinyinSort: boolean = true): T[] {
     if (list.length <= 1) {
       return [...list]
     }
-    if (pinyinSort) {
-      const itemsWithPinyin: ItemWithPinyin<T>[] = list.map(item => {
-        const entry: ItemWithPinyin<T> = {
-          item: item,
-          pinyin: pinyin4js.getShortPinyin(nameExtractor(item))
-        }
-        return entry
-      })
-      const sortedItems = [...itemsWithPinyin].sort((a, b) => {
-        const cmp = MediaSortUtil.naturalCompare(a.pinyin, b.pinyin)
-        return ascending ? cmp : -cmp
-      })
-      return sortedItems.map(entry => entry.item)
-    } else {
-      return [...list].sort((a, b) => {
-        const cmp = MediaSortUtil.COLLATOR.compare(nameExtractor(a), nameExtractor(b))
-        return ascending ? cmp : -cmp
-      })
-    }
-  }
-
-  private static naturalCompare(a: string, b: string): number {
-    const aParts = a.split(MediaSortUtil.splitRegex).filter(Boolean)
-    const bParts = b.split(MediaSortUtil.splitRegex).filter(Boolean)
-
-    for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
-      const aVal = aParts[i]
-      const bVal = bParts[i]
-      const aIsNum = /^\d+$/.test(aVal)
-      const bIsNum = /^\d+$/.test(bVal)
-
-      if (aIsNum && bIsNum) {
-        const numA = parseInt(aVal, 10)
-        const numB = parseInt(bVal, 10)
-        if (numA !== numB) {
-          return numA - numB
-        }
-      } else {
-        const cmp = MediaSortUtil.COLLATOR.compare(aVal, bVal)
-        if (cmp !== 0) {
-          return cmp
-        }
+    const itemsWithPinyin: ItemWithPinyin<T>[] = list.map(item => {
+      const entry: ItemWithPinyin<T> = {
+        item: item,
+        pinyin: pinyinSort ? MediaSortUtil.getPinyinKey(item, nameExtractor(item)) : nameExtractor(item)
       }
-    }
-    return aParts.length - bParts.length
+      return entry
+    })
+    const sortedItems = itemsWithPinyin.sort((a, b) => {
+      const cmp = MediaSortUtil.COLLATOR.compare(a.pinyin, b.pinyin)
+      return ascending ? cmp : -cmp
+    })
+    return sortedItems.map(entry => entry.item)
   }
 
 }

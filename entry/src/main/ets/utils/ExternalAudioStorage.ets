@@ -29,16 +29,28 @@ export class ExternalAudioStorage {
   }
 
   static epoch(media: string): number { return ExternalAudioStorage.epochs.get(media) ?? 0 }
-  static removeFile(file: string): void {
+  static async removeFile(file: string): Promise<void> {
     const path = ExternalAudioStorage.path(file)
-    if (fs.accessSync(path)) fs.unlinkSync(path)
+    try {
+      await fs.unlink(path)
+    } catch (error) {
+      if (error.code !== 13900002) {
+        throw new Error(`删除外挂音频文件失败: ${error.code}`)
+      }
+    }
   }
 
   static async remove(media: string): Promise<void> {
     ExternalAudioStorage.epochs.set(media, ExternalAudioStorage.epoch(media) + 1)
-    if (!fs.accessSync(ExternalAudioStorage.directory)) return
-    for (const file of await fs.listFile(ExternalAudioStorage.directory)) {
-      if (ExternalAudioStorage.owner(file) === media) ExternalAudioStorage.removeFile(file)
+    let files: string[]
+    try {
+      files = await fs.listFile(ExternalAudioStorage.directory)
+    } catch (error) {
+      if (error.code === 13900002) { return }
+      throw new Error(`读取外挂音频目录失败: ${error.code}`)
+    }
+    for (const file of files) {
+      if (ExternalAudioStorage.owner(file) === media) await ExternalAudioStorage.removeFile(file)
     }
   }
 }

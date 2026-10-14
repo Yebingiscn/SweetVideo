@@ -14,7 +14,6 @@ import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { fileIo } from '@kit.CoreFileKit'
 import { NativeAVPlayer } from '../engine/NativeAVPlayer'
 import SubtitleLanguageUtil from '../../utils/SubtitleLanguageUtil'
-import MediaLibraryService from '../../utils/MediaLibraryService'
 
 const TAG = 'AVPlayerSubtitleController'
 
@@ -199,13 +198,11 @@ export class AVPlayerSubtitleController implements SubtitleControllerInterface {
   }
 
   private applySubtitlePreference(nowPlaying: VideoMetadata, externalSubtitleLoaded: boolean) {
-    const hasPreference = SubtitleUtil.hasSubtitlePreferenceMetadata(nowPlaying)
-    if (hasPreference) {
-      const preferredMode = nowPlaying.subtitle_mode as SubtitleMode | undefined
-      if (preferredMode === SubtitleMode.EXTERNAL_SUBTITLE && !externalSubtitleLoaded) {
+    const preferredMode = SubtitleUtil.getSubtitleSelectionMode(nowPlaying)
+    if (preferredMode !== undefined) {
+      if ((preferredMode === SubtitleMode.EXTERNAL_SUBTITLE && !externalSubtitleLoaded) ||
+        (preferredMode === SubtitleMode.INNER_SUBTITLE && this.state.subtitleTrack.length === 0)) {
         this.state.subtitleSelected = SubtitleMode.NONE
-        this.resetSubtitlePreference(nowPlaying)
-        SubtitleUtil.offsetMillis = 0
       } else if (preferredMode !== undefined && preferredMode >= SubtitleMode.NONE) {
         if (nowPlaying.subtitle_offset_millis !== undefined) {
           SubtitleUtil.offsetMillis = nowPlaying.subtitle_offset_millis
@@ -224,23 +221,6 @@ export class AVPlayerSubtitleController implements SubtitleControllerInterface {
         this.state.subtitleSelected = SubtitleMode.NONE
       }
     }
-  }
-
-  private resetSubtitlePreference(nowPlaying: VideoMetadata): void {
-    nowPlaying.subtitle_mode = SubtitleMode.NONE
-    nowPlaying.subtitle_visible = false
-    nowPlaying.subtitle_ai_asr_shown = false
-    nowPlaying.subtitle_3d_mode = Subtitle3DMode.DISABLED
-    nowPlaying.subtitle_offset_millis = 0
-    nowPlaying.subtitle_track_id = -1
-    MediaLibraryService.saveData(PathUtils.appContext!, nowPlaying, {
-      subtitleMode: SubtitleMode.NONE,
-      subtitleVisible: false,
-      subtitleAIAsrShown: false,
-      subtitle3DMode: Subtitle3DMode.DISABLED,
-      subtitleOffsetMillis: 0,
-      subtitleTrackId: -1
-    })
   }
 
   restoreInnerSubtitlePreference(nowPlaying: VideoMetadata): void {

@@ -8,36 +8,19 @@ import { PathUtils } from '../../utils/PathUtils'
 import SubtitleStyleUtil from '../../utils/SubtitleStyleUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { LengthMetrics } from '@kit.ArkUI'
-import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
+import { HdsColorPicker, hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { SubtitlePreferredLanguage } from '../../common/enum/SubtitleLanguage'
-import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
+import { deviceInfo, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
 const SUBTITLE_PREVIEW_HEIGHT: number = 220
 
-interface SubtitleColorOption {
-  name: string
-  value: string
-}
-
 @ComponentV2
 export struct SubtitleSettingPage {
+  @Local favoriteColors: string[] = ['#FFF0F0F0', '#FFFFFFFF', '#FFFFD966', '#FF66E0FF',
+    '#FF8FE388', '#FFFF9EC4', '#FF000000', '#FF303030']
   private listScroller: Scroller = new Scroller()
-  private subtitleLanguages: ResourceStr[] = [$r('app.string.lang_simplified_chinese'), $r('app.string.lang_traditional_chinese'), $r('app.string.lang_english')]
-  private textColors: SubtitleColorOption[] = [
-    { name: ToolsUtil.getStringResource($r('app.string.color_warm_white').id), value: '#F0F0F0' },
-    { name: ToolsUtil.getStringResource($r('app.string.color_pure_white').id), value: '#FFFFFF' },
-    { name: ToolsUtil.getStringResource($r('app.string.color_warm_yellow').id), value: '#FFD966' },
-    { name: ToolsUtil.getStringResource($r('app.string.color_cyan').id), value: '#66E0FF' },
-    { name: ToolsUtil.getStringResource($r('app.string.color_light_green').id), value: '#8FE388' },
-    { name: ToolsUtil.getStringResource($r('app.string.color_pink').id), value: '#FF9EC4' }
-  ]
-  private effectColors: SubtitleColorOption[] = [
-    { name: ToolsUtil.getStringResource($r('app.string.color_black').id), value: '#000000' },
-    { name: ToolsUtil.getStringResource($r('app.string.color_dark_gray').id), value: '#303030' },
-    { name: ToolsUtil.getStringResource($r('app.string.color_white').id), value: '#FFFFFF' },
-    { name: ToolsUtil.getStringResource($r('app.string.color_dark_blue').id), value: '#10243D' },
-    { name: ToolsUtil.getStringResource($r('app.string.color_dark_red').id), value: '#44151B' }
-  ]
+  private subtitleLanguages: ResourceStr[] =
+    [$r('app.string.lang_simplified_chinese'), $r('app.string.lang_traditional_chinese'), $r('app.string.lang_english')]
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   build() {
@@ -125,7 +108,7 @@ export struct SubtitleSettingPage {
         }
 
         ListItem() {
-          this.ColorPalette(this.textColors, 0)
+          this.ColorPalette(0)
         }
 
         ListItem() {
@@ -148,7 +131,7 @@ export struct SubtitleSettingPage {
         }
 
         ListItem() {
-          this.ColorPalette(this.effectColors, 1)
+          this.ColorPalette(1)
         }
 
         ListItem() {
@@ -185,7 +168,7 @@ export struct SubtitleSettingPage {
           }
 
           ListItem() {
-            this.ColorPalette(this.effectColors, 2)
+            this.ColorPalette(2)
           }
         }
 
@@ -355,47 +338,27 @@ export struct SubtitleSettingPage {
   }
 
   @Builder
-  private ColorPalette(colors: SubtitleColorOption[], target: number) {
-    Column({ space: 10 }) {
-      Row() {
-        Text(target === 0 ? $r('app.string.pick_text_color') : (target === 1 ? $r('app.string.pick_outline_color') : $r('app.string.pick_shadow_color')))
-          .fontSize(15)
-          .fontColor($r('sys.color.font_primary'))
-          .layoutWeight(1)
-        Text(this.getColorName(colors, this.getSelectedColor(target)))
-          .fontSize(13)
-          .fontColor($r('sys.color.font_secondary'))
-      }
-      .width('100%')
-
-      Row({ space: 14 }) {
-        ForEach(colors, (item: SubtitleColorOption) => {
-          Stack() {
-            Circle()
-              .width(42)
-              .height(42)
-              .fill(item.value)
-              .stroke($r('sys.color.comp_divider'))
-              .strokeWidth(1)
-            if (this.getSelectedColor(target) === item.value) {
-              Circle()
-                .width(48)
-                .height(48)
-                .fill(Color.Transparent)
-                .stroke($r('app.color.main_color'))
-                .strokeWidth(3)
-
-            }
+  private ColorPalette(target: number) {
+    Row({ space: 12 }) {
+      Text(this.getColorTitle(target))
+        .fontSize(15)
+        .fontColor($r('sys.color.font_primary'))
+        .layoutWeight(1)
+      Text(this.getSelectedColor(target))
+        .fontSize(13)
+        .fontColor($r('sys.color.font_secondary'))
+      if (deviceInfo.apiAvailable('26.0.0')) {
+        HdsColorPicker({
+          initialColor: this.getSelectedColor(target),
+          initialFavoriteColors: this.favoriteColors,
+          onColorSelected: (color: string) => {
+            this.selectColor(target, color)
+          },
+          onFavoriteColorsUpdate: (colors: string[]) => {
+            this.favoriteColors = colors
           }
-          .width(48)
-          .height(48)
-          .onClick(() => {
-            this.selectColor(target, item.value)
-          })
-        }, (item: SubtitleColorOption) => item.value)
+        })
       }
-      .width('100%')
-      .justifyContent(FlexAlign.SpaceBetween)
     }
     .width('100%')
     .padding(16)
@@ -403,8 +366,9 @@ export struct SubtitleSettingPage {
     .backgroundColor($r('app.color.start_window_background_blur'))
   }
 
-  private getColorName(colors: SubtitleColorOption[], selected: string): string {
-    return colors.find((item: SubtitleColorOption) => item.value === selected)?.name ?? selected
+  private getColorTitle(target: number): ResourceStr {
+    return target === 0 ? $r('app.string.pick_text_color') :
+      (target === 1 ? $r('app.string.pick_outline_color') : $r('app.string.pick_shadow_color'))
   }
 
   private getPreviewShadow(): ShadowOptions[] {

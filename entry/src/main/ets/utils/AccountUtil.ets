@@ -10,6 +10,9 @@ import { image } from '@kit.ImageKit'
 import { http } from '@kit.NetworkKit'
 import { authentication } from '@kit.AccountKit'
 import { util } from '@kit.ArkTS'
+import { salmonLogger } from 'salmonlogger'
+
+const TAG = 'AccountUtil'
 
 export default class AccountUtil {
   // 错误处理
@@ -40,63 +43,61 @@ export default class AccountUtil {
     }
   }
 
-  static getAvatarFromHuaweiAccount(onComplete?: () => void) {
-    const authRequest = new authentication.HuaweiIDProvider().createAuthorizationWithHuaweiIDRequest()
-    authRequest.scopes = ['profile']
-    authRequest.permissions = ['serviceauthcode']
-    authRequest.forceAuthorization = true
-    authRequest.state = util.generateRandomUUID()
-
+  static async getAvatarFromHuaweiAccount(): Promise<void> {
+    const context = PathUtils.appContext
+    if (!context || !userData.isLogin) { return }
+    const openID = userData.openID
+    let pixelMap: image.PixelMap | undefined = undefined
     try {
-      const controller = new authentication.AuthenticationController(PathUtils.appContext!)
-      controller.executeRequest(authRequest).then(async (data) => {
-        const authorizationWithHuaweiIDResponse = data as authentication.AuthorizationWithHuaweiIDResponse
-        const state = authorizationWithHuaweiIDResponse.state
-        if (state && authRequest.state !== state) {
-          return
-        }
-        const authorizationWithHuaweiIDCredential = authorizationWithHuaweiIDResponse?.data
-        const avatarUri = authorizationWithHuaweiIDCredential?.avatarUri
-        const nickName = authorizationWithHuaweiIDCredential?.nickName
-        const pixelMap = await AccountUtil.requestImage(avatarUri!)
-        userData.nickName = nickName ?? ''
-        const localAvatarUri = await ImageStorage.savePixelMapToFile(PathUtils.photoPath!, 'avatar', pixelMap,
-          { releasePixelMap: true })
-        userData.userAvatar = AccountUtil.ISHasAvatar(localAvatarUri)
-        Preferences.saveUserAvatar(PathUtils.appContext!, localAvatarUri)
-        Preferences.saveUserNickName(PathUtils.appContext!, nickName ?? '')
-        if (onComplete) {
-          onComplete()
-        }
-      }).catch((err: BusinessError) => {
-        AccountUtil.dealAllError(err)
-        if (onComplete) {
-          onComplete()
-        }
-      })
-    } catch (error) {
-      AccountUtil.dealAllError(error)
-      if (onComplete) {
-        onComplete()
+      const authRequest = new authentication.HuaweiIDProvider().createAuthorizationWithHuaweiIDRequest()
+      authRequest.scopes = ['profile']
+      authRequest.permissions = ['serviceauthcode']
+      authRequest.forceAuthorization = true
+      authRequest.state = util.generateRandomUUID()
+      const controller = new authentication.AuthenticationController(context)
+      const response = await controller.executeRequest(authRequest) as authentication.AuthorizationWithHuaweiIDResponse
+      if ((response?.state ?? '') !== authRequest.state) {
+        salmonLogger.addLog(TAG, '头像昵称授权响应 state 不匹配', true)
+        return
       }
+      if (!userData.isLogin || userData.openID !== openID) { return }
+      const credential = response.data
+      const nickName = credential?.nickName
+      if (nickName) {
+        userData.nickName = nickName
+        Preferences.saveUserNickName(context, nickName)
+      }
+      const avatarUri = credential?.avatarUri
+      if (!avatarUri) { return }
+      pixelMap = await AccountUtil.requestImage(avatarUri)
+      if (!userData.isLogin || userData.openID !== openID) { return }
+      const localAvatarUri = await ImageStorage.savePixelMapToFile(PathUtils.photoPath!, 'avatar', pixelMap)
+      if (!localAvatarUri) { throw new Error('Avatar save failed') }
+      if (!userData.isLogin || userData.openID !== openID) { return }
+      userData.userAvatar = AccountUtil.ISHasAvatar(localAvatarUri)
+      Preferences.saveUserAvatar(context, localAvatarUri)
+    } catch (error) {
+      // 登录凭据已经获取成功，资料授权、头像下载或保存失败不能报成登录失败。
+      salmonLogger.addLog(TAG, `加载华为账号头像昵称失败: ${error.code ?? 'unknown'}`, true)
+    } finally {
+      await ImageStorage.releaseImageSafely(pixelMap, '账号头像')
     }
   }
 
-  static async requestImage(url: string): Promise<PixelMap> {
-    return new Promise((resolve, reject) => {
-      const httpRequest = http.createHttp()
-      httpRequest.request(url, {
+  static async requestImage(url: string): Promise<image.PixelMap> {
+    const httpRequest = http.createHttp()
+    try {
+      const response = await httpRequest.request(url, {
         method: http.RequestMethod.GET,
         expectDataType: http.HttpDataType.ARRAY_BUFFER
-      }, (error: BusinessError, data: http.HttpResponse) => {
-        if (error) {
-          reject(error)
-        } else {
-          const imgData = data.result as ArrayBuffer
-          AccountUtil.bufferToPixelMap(imgData).then(resolve).catch(reject)
-        }
       })
-    })
+      if (response.responseCode < 200 || response.responseCode >= 300) {
+        throw new Error(`Avatar HTTP status: ${response.responseCode}`)
+      }
+      return await AccountUtil.bufferToPixelMap(response.result as ArrayBuffer)
+    } finally {
+      httpRequest.destroy()
+    }
   }
 
   static async bufferToPixelMap(imgData: ArrayBuffer): Promise<PixelMap> {
@@ -105,7 +106,11 @@ export default class AccountUtil {
       desiredSize: { width: 512, height: 512 },
       desiredPixelFormat: image.PixelMapFormat.RGBA_8888
     }
-    return await imageSource.createPixelMap(options)
+    try {
+      return await imageSource.createPixelMap(options)
+    } finally {
+      await ImageStorage.releaseImageSafely(imageSource, '账号头像图片源')
+    }
   }
 
   static initAccount() {

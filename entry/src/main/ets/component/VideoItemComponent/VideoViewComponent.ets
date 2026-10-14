@@ -7,8 +7,8 @@ import { motion } from '@kit.MultimodalAwarenessKit'
 import {
   ButtonFancyModifier,
   DefaultDialogShadow,
+  LightMaterialModifier,
   MenuFancyModifier,
-  SearchShadowModifier,
   SymbolGlyphFancyModifier
 } from '../../common/AttributeModifierConfig'
 import { PathUtils } from '../../utils/PathUtils'
@@ -16,6 +16,7 @@ import DataSyncUtil from '../../utils/DataSyncUtil'
 import { FileFolderDataSource } from '../../utils/DataUtil'
 import VideoUtils from '../../utils/VideoUtil'
 import FileFolderUtil from '../../utils/FileFolderUtil'
+import FolderDirectory from '../../utils/FolderDirectory'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
 import { BatchVideoDeleteDialog } from '../Dialog/BatchVideoDeleteDialog'
 import { DeleteType } from '../../common/enum/DeleteType'
@@ -34,6 +35,8 @@ import { SearchComponent } from './SearchComponent'
 import { SortMenuComponent } from '../common/SortMenuComponent'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import MediaLibraryService from '../../utils/MediaLibraryService'
+import { HiCar } from '../../utils/HiCarUtil'
+import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil'
 
 @ComponentV2
 export struct VideoView {
@@ -41,9 +44,11 @@ export struct VideoView {
   @Param loading: boolean = false
   @Param holdingHand: motion.HoldingHandStatus | null = null
   @Local is_edit: boolean = false
+  @Local availableWidth: number = 0
   @Local searchBarHidden: boolean = false
   @Param searchValue: string = ''
   @Local _searchValue: string = ''
+  @Local directoryPath: FileFolder[] = []
   @Param videoListController: VideoListController = new VideoListController()
   @Consumer() file_folder_list: FileFolder[] = []
   @Consumer() sideBarController: SideBarController = new SideBarController()
@@ -72,6 +77,9 @@ export struct VideoView {
   @Param scrollToFolderDate: string = ''
   private passwd: string = 'passwd'
   private breadcrumbScroller: Scroller = new Scroller()
+  private folderTabsScroller: ListScroller = new ListScroller()
+  private folderNavigationTimer: number | undefined = undefined
+  private viewAlive: boolean = false
   private searchBarFolderKey: string = ''
   private readonly FOLDER_TAB_MIN_WIDTH: number = 64
   private readonly FOLDER_TAB_HEIGHT: number = 32
@@ -86,20 +94,42 @@ export struct VideoView {
   @Event onScrollToFolderDateChange: (v: string) => void = () => {
   }
 
-  @Monitor('scrollToFolderDate')
+  @Monitor('scrollToFolderDate', 'videoListController.folder', 'videoListController.directoryMode',
+    'videoListController.directoryOverview', 'file_folder_list')
   onFolderChanged() {
-    if (this.videoListController.directoryMode) {
-      this.breadcrumbScroller.scrollEdge(Edge.End)
+    this.directoryPath = this.videoListController.directoryMode && !this.videoListController.directoryOverview ?
+      FolderDirectory.forLibrary(this.file_folder_list).path(this.videoListController.folder?.date ?? '') : []
+    if (this.folderNavigationTimer !== undefined) {
+      clearTimeout(this.folderNavigationTimer)
+      this.folderNavigationTimer = undefined
+    }
+    if (!this.viewAlive) {
       return
     }
-    const treeFolders = FileFolderUtil.flattenTree(this.file_folder_list)
-    const newIndex = treeFolders.findIndex(f => f.date === this.scrollToFolderDate)
-    if (newIndex !== -1) {
-      this.scrollToCurrentFolder(newIndex)
-    }
+    // 等标签列表完成布局再定位；连续切换只处理最新的当前文件夹。
+    this.folderNavigationTimer = setTimeout(() => {
+      this.folderNavigationTimer = undefined
+      if (!this.viewAlive) {
+        return
+      }
+      if (this.videoListController.directoryMode) {
+        this.breadcrumbScroller.scrollEdge(Edge.End)
+        return
+      }
+      if (!Setting.showToast) {
+        return
+      }
+      const date = this.videoListController.folder?.date ?? this.scrollToFolderDate
+      const treeFolders = FileFolderUtil.flattenTree(this.file_folder_list)
+      const newIndex = treeFolders.findIndex(folder => folder.date === date)
+      if (newIndex !== -1) {
+        this.scrollToCurrentFolder(newIndex)
+      }
+    }, 32)
   }
 
   aboutToAppear(): void {
+    this.viewAlive = true
     this._searchValue = this.searchValue
     this.onSearchBarContextChanged()
     const savedField = Preferences.getSortField(PathUtils.appContext!)
@@ -109,6 +139,15 @@ export struct VideoView {
     }
     this.currentSortAsc = Preferences.getSortAsc(PathUtils.appContext!)
     this.pinyinSort = Preferences.getPinyinSort(PathUtils.appContext!)
+    this.onFolderChanged()
+  }
+
+  aboutToDisappear(): void {
+    this.viewAlive = false
+    if (this.folderNavigationTimer !== undefined) {
+      clearTimeout(this.folderNavigationTimer)
+      this.folderNavigationTimer = undefined
+    }
   }
 
   @Monitor('searchValue')
@@ -161,7 +200,7 @@ export struct VideoView {
         pinyinSort: this.pinyinSort,
         searchBarHidden: this.searchBarHidden,
         onScrollDirectionChange: (isUp: boolean) => {
-          if (this.is_edit || this.searchBarHidden === isUp) {
+          if (HiCar.enabled || this.is_edit || this.searchBarHidden === isUp) {
             return
           }
           animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
@@ -205,19 +244,20 @@ export struct VideoView {
       }
       this.TopToolBarBuilder()
     }.width('100%')
+    .onSizeChange((_oldSize: SizeResult, size: SizeResult) => this.availableWidth = Number(size.width))
   }
 
   @Builder
   TopToolBarBuilder() {
     Column() {
-      Row({ space: 15 }) {
+      Row({ space: HiCar.enabled ? 8 : 15 }) {
         if (!this.is_edit) {
           Button({ type: ButtonType.Circle, stateEffect: true }) {
             SymbolGlyph(
               this.sideBarController.isShow ? $r('sys.symbol.indentation_left') : $r('sys.symbol.close_sidebar'))
               .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
           }
-          .attributeModifier(new ButtonFancyModifier(40, 40))
+          .attributeModifier(new ButtonFancyModifier(HiCar.enabled ? 56 : 40, HiCar.enabled ? 56 : 40))
           .animation({ duration: 300, curve: Curve.Ease })
           .onClick(() => {
             if (this.sideBarController.isShow) {
@@ -225,11 +265,11 @@ export struct VideoView {
             } else {
               this.sideBarController.open()
             }
-            if (this.sideBarController.mode === SideBarContainerType.Embed) {
+            if (!HiCar.enabled && this.sideBarController.mode === SideBarContainerType.Embed) {
               Preferences.saveEmbedSidebarVisible(PathUtils.appContext!, this.sideBarController.isShow)
             }
           })
-          .attributeModifier(new SearchShadowModifier())
+          .attributeModifier(new LightMaterialModifier())
           .transition(XAnimation.getAnimation('left', 0, false))
         }
 
@@ -293,18 +333,18 @@ export struct VideoView {
           }
         })
 
-        if (!this.is_edit) {
+        if (!this.is_edit && (!HiCar.enabled || this.availableWidth >= 400)) {
           Button({ type: ButtonType.Circle, stateEffect: true }) {
             SymbolGlyph($r('sys.symbol.text_and_arrow_down'))
               .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
           }
-          .attributeModifier(new ButtonFancyModifier(40, 40))
+          .attributeModifier(new ButtonFancyModifier(HiCar.enabled ? 56 : 40, HiCar.enabled ? 56 : 40))
           .bindMenu(this.SortMenuBuilder,
             {
               backgroundBlurStyle: BlurStyle.Regular,
               hapticFeedbackMode: HapticFeedbackMode.ENABLED
             })
-          .attributeModifier(new SearchShadowModifier())
+          .attributeModifier(new LightMaterialModifier())
           .transition(XAnimation.getAnimation('right', 0, false))
 
           if (this.videoListController.multipleChooseState === Visibility.Visible) {
@@ -312,24 +352,26 @@ export struct VideoView {
               SymbolGlyph($r('sys.symbol.checkmark_square_on_square'))
                 .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
             }
-            .attributeModifier(new ButtonFancyModifier(40, 40))
+            .attributeModifier(new ButtonFancyModifier(HiCar.enabled ? 56 : 40, HiCar.enabled ? 56 : 40))
             .bindMenu(this.SelectItemMenuBuilder,
               {
                 backgroundBlurStyle: BlurStyle.Regular,
                 hapticFeedbackMode: HapticFeedbackMode.ENABLED
               })
-            .attributeModifier(new SearchShadowModifier())
+            .attributeModifier(new LightMaterialModifier())
             .transition(XAnimation.getAnimation('right', 0, false))
           }
         }
       }
       .width('100%')
 
-      this.FolderNavigationBuilder()
+      if (!HiCar.enabled) {
+        this.FolderNavigationBuilder()
+      }
     }
     .width('100%')
-    .padding({ top: SafeHeight.topSafeHeight, left: 16, right: 16 })
-    .translate({ y: this.searchBarHidden ? -(SafeHeight.topSafeHeight + 100) : 0 })
+    .padding({ top: HiCar.enabled ? 8 : SafeHeight.topSafeHeight, left: 16, right: 16 })
+    .translate({ y: !HiCar.enabled && this.searchBarHidden ? -(SafeHeight.topSafeHeight + 100) : 0 })
     .animation({ duration: 300, curve: Curve.Ease })
   }
 
@@ -348,8 +390,7 @@ export struct VideoView {
             this.videoListController.requestDirectory(null)
           })
         if (!this.videoListController.directoryOverview) {
-          Repeat<FileFolder>(FileFolderUtil.getFolderPathChain(PathUtils.appContext!,
-            this.videoListController.folder?.date ?? ''))
+          Repeat<FileFolder>(this.directoryPath)
             .each((folder: RepeatItem<FileFolder>) => {
               Row({ space: 8 }) {
                 SymbolGlyph($r('sys.symbol.chevron_right'))
@@ -378,14 +419,14 @@ export struct VideoView {
   FolderNavigationBuilder() {
     Row({ space: 8 }) {
       Button({ type: ButtonType.Circle }) {
-        SymbolGlyph($r('sys.symbol.doc_plaintext_and_folder'))
-          .fontSize(19).fontColor([this.videoListController.directoryMode ?
-          $r('sys.color.white') : $r('app.color.text_color')])
+        SymbolGlyph(this.videoListController.directoryMode ? $r('sys.symbol.folder_badge_ellipsis') :
+          $r('sys.symbol.doc_plaintext_and_folder'))
+          .fontColor([$r('app.color.text_color')])
+          .fontSize(19)
       }
       .width(32)
       .height(32)
-      .backgroundColor(this.videoListController.directoryMode ? $r('app.color.main_color') :
-        $r('app.color.search_component_blur'))
+      .backgroundColor($r('app.color.search_component_blur'))
       .accessibilityText(this.videoListController.directoryMode ? $r('app.string.directory_disable') :
         $r('app.string.directory_enable'))
       .enabled(!this.loading && !this.videoListController.directoryTransitioning &&
@@ -393,6 +434,7 @@ export struct VideoView {
       .onClick(() => {
         this.toggleDirectoryView()
       })
+      .attributeModifier(new LightMaterialModifier())
 
       Row() {
         if (this.videoListController.directoryMode) {
@@ -405,8 +447,11 @@ export struct VideoView {
             .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
         }
       }.layoutWeight(1).height(36).alignItems(VerticalAlign.Center)
-
-    }.width('100%').height(36).alignItems(VerticalAlign.Center).margin({ top: 4 })
+    }
+    .width('100%')
+    .height(36)
+    .alignItems(VerticalAlign.Center)
+    .margin({ top: 4 })
   }
 
   @Builder
@@ -492,7 +537,7 @@ export struct VideoView {
 
   @Builder
   FolderTabsBuilder() {
-    List({ scroller: this.breadcrumbScroller, space: 8 }) {
+    List({ scroller: this.folderTabsScroller, space: 8 }) {
       Repeat<FileFolder>(FileFolderUtil.flattenTree(this.file_folder_list))
         .each((repeatItem: RepeatItem<FileFolder>) => {
           ListItem() {
@@ -507,10 +552,9 @@ export struct VideoView {
                 .maxLines(1)
                 .padding({ left: 16, right: 16 })
             }
-            .backgroundEffect({ radius: 100 })
-            .useEffect(true, EffectType.WINDOW_EFFECT)
+            .attributeModifier(new LightMaterialModifier())
             .backgroundColor(this.videoListController?.folder?.date === repeatItem.item.date ?
-              $r('app.color.main_color') : $r('app.color.search_component_blur'))
+              'rgba(21, 85, 154, 0.5)' : Color.Transparent)
             .height(this.FOLDER_TAB_HEIGHT)
             .constraintSize({ minWidth: this.FOLDER_TAB_MIN_WIDTH })
             .borderRadius(16)
@@ -533,6 +577,7 @@ export struct VideoView {
         .key((item: FileFolder) => item.date)
         .virtualScroll()
     }
+    .clip(false)
     .padding({ right: 4 })
     .width('100%')
     .height(36)
@@ -540,6 +585,7 @@ export struct VideoView {
     .alignListItem(ListItemAlign.Center)
     .scrollBar(BarState.Off)
     .edgeEffect(EdgeEffect.Spring)
+    .onAppear(() => this.onFolderChanged())
   }
 
   @Builder
@@ -548,9 +594,12 @@ export struct VideoView {
       SymbolGlyph($r('sys.symbol.play_round_triangle_fill'))
         .attributeModifier(new SymbolGlyphFancyModifier(26, '', ''))
     }
-    .attributeModifier(new ButtonFancyModifier(52, 52))
-    .attributeModifier(new SearchShadowModifier())
-    .position({ right: 20, bottom: (SafeHeight.bottomSafeHeight + 16) * 2 })
+    .attributeModifier(new ButtonFancyModifier(HiCar.enabled ? 56 : 52, HiCar.enabled ? 56 : 52))
+    .position(HiCar.enabled ? { left: 20, bottom: 20 } :
+      IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand) ?
+        { left: 20, bottom: (SafeHeight.bottomSafeHeight + 16) * 2 } :
+        { right: 20, bottom: (SafeHeight.bottomSafeHeight + 16) * 2 })
+    .attributeModifier(new LightMaterialModifier())
     .onClick(async () => {
       await this.playMostRecentlyPlayedVideo()
     })
@@ -611,7 +660,7 @@ export struct VideoView {
       return
     }
     this.file_folder_list = result.refreshedFolders
-    this.scrollToCurrentFolder(index)
+    this.onFolderChanged()
     this.sideBarController.closeIfOverlay(true)
     this.onScrollToFolderDateChange(result.currentFolder!.date)
   }
@@ -620,21 +669,11 @@ export struct VideoView {
    * 滚动面包屑使当前文件夹可见
    */
   private scrollToCurrentFolder(index: number): void {
-    // 计算目标位置，使当前文件夹居中显示
-    const estimatedItemWidth = 80
-    const spacing = 8
-    const targetOffset = Math.max(0, index * (estimatedItemWidth + spacing) - 100)
-    XAnimation.runWithAnimation(() => {
-      this.breadcrumbScroller.scrollTo({
-        xOffset: targetOffset,
-        yOffset: 0,
-        animation: { duration: 200, curve: Curve.Ease }
-      })
-    })
+    this.folderTabsScroller.scrollToIndex(index, true, ScrollAlign.CENTER)
   }
 
   /**
-   * 右下角「最近播放」悬浮按钮的显示条件：非导入中、非搜索/多选状态、且当前文件夹有视频
+   * 「最近播放」悬浮按钮的显示条件：非导入中、非搜索/多选状态、且当前文件夹有视频
    */
   private canShowRecentPlayButton(): boolean {
     return !this.videoListController.directoryOverview && !this.loading && !this.is_edit &&

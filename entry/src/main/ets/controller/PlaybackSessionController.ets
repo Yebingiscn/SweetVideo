@@ -104,6 +104,10 @@ export class PlaybackSessionController {
     return this.disposed
   }
 
+  beginClosing(): void {
+    this.closing = true
+  }
+
   async runTransition(operation: () => Promise<void>): Promise<void> {
     if (this.closing || this.disposed) { return }
     if (this.transitionTask) {

@@ -112,6 +112,13 @@ export class VideoListController {
     this.notifyDataReloaded()
   }
 
+  selectDirectoryFolder(folder: FileFolder, videos: VideoMetadata[]): void {
+    this.folder = folder
+    this.videoMetaDataList = folder.video_list
+    this.videoDataSource.updateData(videos)
+    this.notifyDataReloaded()
+  }
+
   public closeMultipleChoose() {
     XAnimation.runWithAnimation(() => {
       this.multipleChooseState = Visibility.None

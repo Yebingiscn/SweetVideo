@@ -14,7 +14,12 @@ import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { motion } from '@kit.MultimodalAwarenessKit'
 import IntellectualGripPostureUtil from '../utils/IntellectualGripPostureUtil'
 import { XAnimation } from '../utils/AnimationUtil'
-import { ButtonFancyModifier, MenuFancyModifier, SymbolGlyphFancyModifier } from '../common/AttributeModifierConfig'
+import {
+  ButtonFancyModifier,
+  LightMaterialModifier,
+  MenuFancyModifier,
+  SymbolGlyphFancyModifier
+} from '../common/AttributeModifierConfig'
 
 @ComponentV2
 export struct GlobalSearch {
@@ -212,10 +217,10 @@ export struct GlobalSearch {
           SymbolGlyph(this.byPicture ? $r('sys.symbol.AI_livephoto') : $r('sys.symbol.textformat'))
             .attributeModifier(new SymbolGlyphFancyModifier(22, '', ''))
         }
-        .backdropBlur(150)
-        .attributeModifier(new ButtonFancyModifier(35, 35))
+        .attributeModifier(new ButtonFancyModifier(40, 40))
         .transition(XAnimation.getAnimation('right', 0, false))
         .bindMenu(this.SearchModeMenuBuilder, { showInSubWindow: false })
+        .attributeModifier(new LightMaterialModifier())
       }
     }
     .width('95%')
@@ -301,7 +306,8 @@ export struct GlobalSearch {
       const result = await VisualSearchService.search(paths, PathUtils.sandboxPath + '/visual-search-index.json', query,
         (completed: number, total: number) => {
           if (this.active && generation === this.generation) {
-            this.message = completed === total ? ToolsUtil.getStringResource($r('app.string.searching_cover').id) : ToolsUtil.getStringResourceArgs2($r('app.string.preparing_cover_search_progress').id, completed, total)
+            this.message = completed === total ? ToolsUtil.getStringResource($r('app.string.searching_cover').id) :
+              ToolsUtil.getStringResourceArgs2($r('app.string.preparing_cover_search_progress').id, completed, total)
           }
         })
       if (!this.active || generation !== this.generation) {

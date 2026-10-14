@@ -26,6 +26,7 @@ const PRESET_LABELS: ResourceStr[] = [
 
 function createPresetConfig(preset: string): AudioEffectConfig {
   const config = new AudioEffectConfig()
+  config.presetId = preset
   switch (preset) {
     case 'hifi':
       config.effect = 'voice-beautifier'
@@ -163,7 +164,7 @@ struct TabSelector {
             this.onSelect(this.values[repeatItem.index])
           })
         })
-        .key((item: ResourceStr, index: number) => `${index}_${this.values[index]}`)
+        .key((_item: ResourceStr, index: number) => `${index}_${this.values[index]}`)
     }
     .width('100%')
   }
@@ -728,6 +729,7 @@ export struct AudioEffectDialog {
     if (this.effect === 'preset') {
       return
     }
+    this.currentPreset = ''
     const config = this.createConfig()
     if (this.systemPlayer) {
       config.tempo = 1
@@ -784,7 +786,8 @@ export struct AudioEffectDialog {
   }
 
   private loadConfig(config: AudioEffectConfig): void {
-    this.effect = config.effect
+    this.currentPreset = PRESET_VALUES.includes(config.presetId) ? config.presetId : ''
+    this.effect = this.currentPreset ? 'preset' : config.effect
     this.eqPreset = config.eqPreset
     this.eqGains = config.eqGains.slice()
     this.soundField = config.soundField

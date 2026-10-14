@@ -15,10 +15,14 @@ export class DanmakuStorage {
   }
 
   // Called by the same video-resource cleanup path as external subtitles.
-  static remove(media: string): void {
+  static async remove(media: string): Promise<void> {
     const path = DanmakuStorage.path(media)
-    if (fs.accessSync(path)) {
-      fs.unlinkSync(path)
+    try {
+      await fs.unlink(path)
+    } catch (error) {
+      if (error.code !== 13900002) {
+        throw new Error(`删除弹幕文件失败: ${error.code}`)
+      }
     }
   }
 }

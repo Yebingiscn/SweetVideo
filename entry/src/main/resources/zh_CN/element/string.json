@@ -1,6 +1,68 @@
 {
   "string": [
     {
+      "name": "mpv_conf_title",
+      "value": "MPV 自定义 conf"
+    },
+    {
+      "name": "mpv_conf_edit",
+      "value": "编辑 / 导入 mpv.conf"
+    },
+    {
+      "name": "mpv_conf_next_core",
+      "value": "仅对 MPV 生效；下次创建播放器核心时应用，可退出播放后重新进入。"
+    },
+    {
+      "name": "mpv_conf_desc",
+      "value": "使用标准 mpv.conf 语法（UTF-8，最多 64 KB），支持注释和配置档。仅导入单个 conf，不会复制 shader、脚本或 include 文件，请使用沙箱可访问的绝对路径。自定义值覆盖普通初始化默认值；输出、解码、窗口绑定和播放中的界面控制仍以应用为准。保存后请开启自定义 conf；关闭可恢复默认配置。"
+    },
+    {
+      "name": "mpv_conf_import",
+      "value": "导入文件"
+    },
+    {
+      "name": "mpv_conf_save",
+      "value": "检查并保存"
+    },
+    {
+      "name": "mpv_conf_saved",
+      "value": "配置已保存；开启后在下次创建播放器核心时生效"
+    },
+    {
+      "name": "mpv_conf_invalid",
+      "value": "配置缺失或语法/参数无效，请检查是否使用了当前 MPV 支持的选项；原配置未被修改。"
+    },
+    {
+      "name": "mpv_conf_limit",
+      "value": "配置最多 64 KB，且不能包含空字符"
+    },
+    {
+      "name": "mpv_conf_read_failed",
+      "value": "读取配置失败，请检查文件大小或存储空间"
+    },
+    {
+      "name": "mpv_conf_import_failed",
+      "value": "导入失败，请选择 64 KB 以内的 UTF-8 文本文件"
+    },
+    {
+      "name": "mpv_conf_save_failed",
+      "value": "配置保存失败，请重试"
+    },
+    {"value":"画面比例","name":"hicar_aspect"},
+    {"value":"音轨","name":"hicar_audio"},
+    {"value":"章节","name":"hicar_chapters"},
+    {"value":"HiCar 车载布局","name":"hicar_layout"},
+    {"value":"连接 HiCar 时自动启用，也可手动开启预览。放大触控区域，将常用操作集中在左侧。","name":"hicar_layout_tip"},
+    {"value":"媒体来源","name":"hicar_media_sources"},
+    {"value":"更多播放操作","name":"hicar_more_controls"},
+    {"value":"下一首","name":"hicar_next"},
+    {"value":"暂停","name":"hicar_pause"},
+    {"value":"播放","name":"hicar_play"},
+    {"value":"选集","name":"hicar_playlist"},
+    {"value":"上一首","name":"hicar_previous"},
+    {"value":"播放速度","name":"hicar_speed"},
+    {"value":"字幕","name":"hicar_subtitles"},
+    {
       "name": "home_style",
       "value": "首页样式"
     },
@@ -4119,6 +4181,54 @@
     {
       "name": "audio_external_save_failed",
       "value": "外挂音频设置保存失败"
+    },
+    {
+      "name": "privacy_recovery_scan",
+      "value": "扫描恢复到隐私空间"
+    },
+    {
+      "name": "privacy_recovery_hint",
+      "value": "重新扫描现存文件并重建记录，不复制或删除原文件。原文件名和播放历史可能无法恢复。"
+    },
+    {
+      "name": "privacy_recovery_result",
+      "value": "已恢复 %d 个文件，%d 个恢复失败并保留在异常列表"
+    },
+    {
+      "name": "privacy_recovery_failed",
+      "value": "扫描失败，未修改原文件"
+    },
+    {
+      "name": "privacy_recovery_cancelled",
+      "value": "扫描已停止，已恢复 %d 个文件，%d 个恢复失败。未处理文件仍保留。"
+    },
+    {
+      "name": "privacy_selected_count",
+      "value": "已选择 %d 个视频"
+    },
+    {
+      "name": "privacy_export_selected",
+      "value": "导出所选"
+    },
+    {
+      "name": "privacy_batch_delete_result",
+      "value": "已删除 %d 个文件，%d 个失败项已保留"
+    },
+    {
+      "name": "privacy_batch_export_result",
+      "value": "已导出 %d 个文件，%d 个导出失败；隐私空间原文件保留"
+    },
+    {
+      "name": "privacy_batch_cancelled",
+      "value": "操作已停止：%d 个成功，%d 个失败；未处理项目保留"
+    },
+    {
+      "name": "privacy_batch_failed",
+      "value": "批量操作失败，请刷新列表后重试"
+    },
+    {
+      "name": "avatar_update_failed",
+      "value": "头像更新失败，请重试"
     }
   ]
 }

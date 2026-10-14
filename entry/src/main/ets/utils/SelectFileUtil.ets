@@ -19,6 +19,10 @@ import { extractVideoFileInfoInTaskPool } from './TaskpoolUtil'
 import { Available, SuppressWarnings, SuppressWarningsType, systemDateTime } from '@kit.BasicServicesKit'
 import FFmpegThumbnailUtil, { FFmpegMediaProbe } from './FFmpegThumbnailUtil'
 import MediaLibraryService from './MediaLibraryService'
+import MediaExportUtil from './MediaExportUtil'
+import MediaImportBatch from './MediaImportBatch'
+import ImageStorage from './ImageStorage'
+import { MediaBatchProgress, MediaBatchResult } from '../interfaces/MediaBatchInterface'
 
 const TAG = 'SelectFileUtil'
 
@@ -65,7 +69,8 @@ export default class SelectFileUtil {
     if (!uri) {
       switch (mode) {
         case 'video':
-          documentSelectOptions.mergeMode = picker.MergeTypeMode.VIDEO
+          // 聚合视频视图会忽略后缀筛选；普通文件视图才能选择 M4S 等系统未归类的视频文件。
+          documentSelectOptions.mergeMode = picker.MergeTypeMode.DEFAULT
           break
         case 'audio':
           documentSelectOptions.mergeMode = picker.MergeTypeMode.AUDIO
@@ -143,13 +148,17 @@ export default class SelectFileUtil {
     try {
       sourceFile = fs.openSync(uri)
       const saverOption = new picker.DocumentSaveOptions()
-      saverOption.newFileNames = SelectFileUtil.copyFileReName(title, format)
+      const exportFormat = format.trim() || await MediaExportUtil.detectExtension(uri)
+      saverOption.newFileNames = SelectFileUtil.copyFileReName(title, exportFormat)
       const documentSaveResult = await new Promise<string[]>((resolve, reject) => {
         const saver = new picker.DocumentViewPicker(context)
         saver.save(saverOption, (err: BusinessError, uris: string[]) => {
           err ? reject(err) : resolve(uris)
         })
       })
+      if (documentSaveResult.length === 0) {
+        return
+      }
       targetFile = fs.openSync(documentSaveResult[0], fs.OpenMode.READ_WRITE)
       await fs.copyFile(sourceFile.fd, targetFile.fd)
       ToolsUtil.showToast(ToolsUtil.getStringResourceArgs2($r('app.string.export_success_detail').id, targetFile?.name ?? '', targetFile?.path ?? ''))
@@ -161,6 +170,77 @@ export default class SelectFileUtil {
     }
   }
 
+  // 一次选择保存位置，复用单文件导出的命名、文件复制及句柄释放逻辑。
+  static async exportFiles(items: VideoMetadata[], context: common.UIAbilityContext,
+    isCancelled: () => boolean, onProgress: (info: MediaBatchProgress) => void): Promise<MediaBatchResult> {
+    const result: MediaBatchResult = { successDates: [], failedCount: 0, cancelled: false }
+    const itemMap: Map<string, VideoMetadata> = new Map()
+    for (const item of items) itemMap.set(item.date, item)
+    const uniqueItems: VideoMetadata[] = Array.from(itemMap.values())
+    const names: string[] = []
+    const usedNames: Set<string> = new Set()
+    if (uniqueItems.length === 0) return result
+    try {
+      for (const item of uniqueItems) {
+        if (isCancelled()) {
+          result.cancelled = true
+          return result
+        }
+        const format = item.format?.trim() || await MediaExportUtil.detectExtension(item.uri)
+        const name = SelectFileUtil.copyFileReName(item.title, format)[0].replace(/[\\/\u0000-\u001f<>:"|?*]/g, '_')
+        const dot = name.lastIndexOf('.')
+        const stem = dot > 0 ? name.substring(0, dot) : name
+        const suffix = dot > 0 ? name.substring(dot) : ''
+        let candidate = name
+        let index = 2
+        while (usedNames.has(candidate.toLowerCase())) candidate = `${stem} (${index++})${suffix}`
+        usedNames.add(candidate.toLowerCase())
+        names.push(candidate)
+      }
+      if (isCancelled()) {
+        result.cancelled = true
+        return result
+      }
+      const options = new picker.DocumentSaveOptions()
+      options.newFileNames = names
+      const targets = await new picker.DocumentViewPicker(context).save(options)
+      if (targets.length === 0 || isCancelled()) {
+        result.cancelled = true
+        return result
+      }
+      // 返回数量不匹配时不猜测文件对应关系，避免将内容写入错误的目标文件。
+      if (targets.length !== uniqueItems.length || new Set(targets).size !== targets.length) {
+        throw new Error('Invalid export destinations')
+      }
+      for (let index = 0; index < uniqueItems.length; index++) {
+        if (isCancelled()) break
+        const item = uniqueItems[index]
+        let sourceFile: fs.File | null = null
+        let targetFile: fs.File | null = null
+        try {
+          if (item.uri === targets[index]) throw new Error('Export destination equals source')
+          sourceFile = fs.openSync(item.uri, fs.OpenMode.READ_ONLY)
+          targetFile = fs.openSync(targets[index], fs.OpenMode.READ_WRITE)
+          await fs.copyFile(sourceFile.fd, targetFile.fd)
+          result.successDates.push(item.date)
+        } catch (_) {
+          result.failedCount++
+          salmonLogger.addLog(TAG, '批量导出文件失败，保留隐私空间原文件', true)
+        } finally {
+          SelectFileUtil.closeFileSafely(sourceFile, '批量导出源文件')
+          SelectFileUtil.closeFileSafely(targetFile, '批量导出目标文件')
+        }
+        onProgress({ processedItems: index + 1, totalItems: uniqueItems.length,
+          currentFileName: item.title, failedCount: result.failedCount })
+      }
+    } catch (_) {
+      result.failedCount = uniqueItems.length - result.successDates.length
+      salmonLogger.addLog(TAG, '批量导出失败，保留隐私空间原文件', true)
+    }
+    result.cancelled = isCancelled() || result.cancelled
+    return result
+  }
+
   //复制视频进入隐私空间
   static async copyFileToPrivacySpace(context: Context, video_meta_data_encryption: VideoMetadata[], uri: string,
     sandbox_video: string, sandbox_path: string, date: string, fileName: string, fileSize: number,
@@ -168,6 +248,7 @@ export default class SelectFileUtil {
     probe?: FFmpegMediaProbe): Promise<VideoMetadata> {
     let sourceFile: fs.File | null = null
     let targetFile: fs.File | null = null
+    let coverTransferred = false
     try {
       sourceFile = fs.openSync(uri, fs.OpenMode.READ_ONLY)
       const targetPath = `${sandbox_video}${date}`
@@ -177,6 +258,7 @@ export default class SelectFileUtil {
           error ? reject(error) : resolve()
         })
       })
+      coverTransferred = true
       const videoInfo =
         await VideoInfoUtil.setVideoInfoOptimized(date, targetPath, fileName, sandbox_video, sandbox_path, fileSize,
           pixelMap, probe)
@@ -189,12 +271,12 @@ export default class SelectFileUtil {
     } finally {
       SelectFileUtil.closeFileSafely(sourceFile, '隐私空间源文件')
       SelectFileUtil.closeFileSafely(targetFile, '隐私空间目标文件')
+      if (!coverTransferred) await ImageStorage.releaseImageSafely(pixelMap, '未保存的隐私封面')
     }
   }
 
   static copyFileReName(title: string, format: string) {
-    return [title.split('.')[title.split('.').length - 1]
-      == format ? title : title + '.' + format]
+    return [MediaExportUtil.buildFileName(title, format)]
   }
 
   // 检查文件是否存在
@@ -229,7 +311,8 @@ export default class SelectFileUtil {
     video_meta_data: VideoMetadata[], file_folder?: FileFolder,
     privateMode: boolean = PrivacySpaceUtil.getPrivacyMode() === true,
     allowDuplicateTitle: boolean = false, importRootUri?: string,
-    importRootFolderName?: string): Promise<boolean> {
+    importRootFolderName?: string, importBatch?: MediaImportBatch): Promise<boolean> {
+    let unusedPixelMap: image.PixelMap | undefined
     try {
       const fileInfoResult = await extractVideoFileInfoInTaskPool(uri)
       if (!fileInfoResult.success) {
@@ -241,6 +324,13 @@ export default class SelectFileUtil {
       await PermissionUtil.persistPermission(uri)
       const fileSize = fileInfoResult.fileSize
       const fileName = fileInfoResult.fileName
+      if (!(privateMode && allowDuplicateTitle)) {
+        if (FileFolderUtil.existsVideoInFolders(context, uri, fileName, privateMode)) return true
+        if (importBatch?.hasUri(uri)) {
+          FileFolderUtil.duplicateVideo++
+          return true
+        }
+      }
       // 同一 FFmpeg 会话先读取文字元数据，再解一张封面。
       const mediaResult = await FFmpegThumbnailUtil.probeAndExtractCover(uri)
       const mediaProbe = mediaResult.probe
@@ -250,6 +340,7 @@ export default class SelectFileUtil {
           `FFmpeg 元数据提取失败，按文件信息导入 ${fileName}: ${mediaResult.thumbnail.error}`, true)
       }
       const pixelMap = mediaResult.thumbnail.success ? mediaResult.thumbnail.pixelMap : undefined
+      unusedPixelMap = pixelMap
       if (mediaProbe && !mediaResult.thumbnail.success && mediaResult.thumbnail.error) {
         salmonLogger.addLog(TAG, 'FFmpeg 封面提取失败: ' + mediaResult.thumbnail.error, true)
       }
@@ -267,8 +358,12 @@ export default class SelectFileUtil {
         let coverPixelMap: image.PixelMap | undefined
         try {
           // 不同设备接收的同名文件不一定内容相同，隐私接收保留两份。
-          const isDuplicate = privateMode && allowDuplicateTitle ? false :
+          let isDuplicate = privateMode && allowDuplicateTitle ? false :
             FileFolderUtil.existsVideoInFolders(context, uri, fileName, privateMode)
+          if (!isDuplicate && importBatch?.hasUri(uri)) {
+            FileFolderUtil.duplicateVideo++
+            isDuplicate = true
+          }
           if (!isDuplicate) {
             if (!privateMode && !file_folder) {
               const folderPathParts = FileFolderUtil.extractFolderPathFromUri(
@@ -286,6 +381,7 @@ export default class SelectFileUtil {
             if (privateMode) {
               // 持锁后读取最新隐私列表，避免异步接收覆盖期间新导入的条目。
               const privateVideos = Preferences.getVideoMetaDataEncryption(context)
+              unusedPixelMap = undefined
               const imported = await SelectFileUtil.copyFileToPrivacySpace(context, privateVideos, uri, sandbox_video,
                 sandbox_path, systemDateTime.getTime(true).toString(), fileName, fileSize, pixelMap, mediaProbe)
               if (video_meta_data !== privateVideos) {
@@ -297,7 +393,11 @@ export default class SelectFileUtil {
                 date, uri, fileName, sandbox_video, fileSize, mediaProbe)
               // 接收模式已固定，不能受此刻前台是否打开隐私空间影响。
               videoInfo.uri = uri
-              if (file_folder) {
+              if (importBatch) {
+                const targetDate = file_folder?.date ?? Preferences.getFileFolder(context)[0]?.date
+                if (!targetDate) throw new Error('Import target folder is unavailable')
+                importBatch.add(targetDate, videoInfo)
+              } else if (file_folder) {
                 file_folder.video_list.push(videoInfo)
                 FileFolderUtil.updateFileFolder(context, file_folder, file_folder.video_list)
               } else {
@@ -321,6 +421,7 @@ export default class SelectFileUtil {
           dataLock.release()
         }
         if (shouldSaveCover) {
+          unusedPixelMap = undefined
           await VideoInfoUtil.saveCoverDeferred(
             coverUri, coverSandboxPath, coverDate, coverDurationMs, coverPixelMap)
         }
@@ -329,6 +430,8 @@ export default class SelectFileUtil {
     } catch (error) {
       salmonLogger.addLog(TAG, '导入视频发生错误, 原因是：' + error, true)
       return false
+    } finally {
+      await ImageStorage.releaseImageSafely(unusedPixelMap, '未使用的导入封面')
     }
   }
 

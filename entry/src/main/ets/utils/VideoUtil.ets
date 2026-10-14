@@ -62,15 +62,16 @@ export default class VideoUtils {
     if (!currentFolder) {
       return undefined
     }
-    let filteredVideos: VideoMetadata[] = currentFolder.video_list
-    if (searchValue.length > 0) {
-      filteredVideos = MediaLibraryService.getItemFromSearch(currentFolder.video_list, searchValue)
-    }
+    // sortBy 会持久化顺序，必须始终传入完整列表；搜索仅影响显示。
     const sortField = Preferences.getSortField(PathUtils.appContext!) as SortField
     if (sortField) {
       const sortAsc = Preferences.getSortAsc(PathUtils.appContext!)
-      filteredVideos = ToolsUtil.sortBy(PathUtils.appContext!, filteredVideos, currentFolder, sortField, sortAsc)
+      currentFolder.video_list =
+        ToolsUtil.sortBy(PathUtils.appContext!, currentFolder.video_list, currentFolder, sortField, sortAsc)
     }
+    const filteredVideos = searchValue.trim()
+      ? MediaLibraryService.getItemFromSearch(currentFolder.video_list, searchValue)
+      : currentFolder.video_list
     XAnimation.runWithAnimation(() => {
       videoListController.videoDataSource.updateData(filteredVideos)
       videoListController.updateData(videoListController.videoDataSource, currentFolder)

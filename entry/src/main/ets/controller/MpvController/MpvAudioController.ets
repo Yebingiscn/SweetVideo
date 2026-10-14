@@ -1,27 +1,28 @@
 import { MpvPlaybackEffects } from './MpvPlaybackEffects'
 import { ExternalAudioStorage } from '../../utils/ExternalAudioStorage'
 import { LocalSidecarFile } from '../../utils/LocalSidecarFile'
-import { picker } from '@kit.CoreFileKit'
-import { loadExternalAudio, removeExternalAudio, setExternalAudioDelay } from 'libmpvnative.so'
-import { UsbAudioSession } from '../../utils/UsbAudioSession'
-import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
-import { MpvAudioChannelMode, MpvAudioTrack } from './MpvTypes'
-import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
+import { fileIo, picker } from '@kit.CoreFileKit'
 import {
   command as mpvCommand,
   getAudioTracks as mpvGetAudioTracks,
   getCurrentAudioTrack as mpvGetCurrentAudioTrack,
+  loadExternalAudio,
+  removeExternalAudio,
   selectAudio as mpvSelectAudio,
   setAudioChannel as mpvSetAudioChannel,
+  setExternalAudioDelay,
   setLoudnessGain as mpvSetLoudnessGain
 } from 'libmpvnative.so'
+import { UsbAudioSession } from '../../utils/UsbAudioSession'
+import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
+import { MpvAudioChannelMode, MpvAudioTrack } from './MpvTypes'
+import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
 import { salmonLogger } from 'salmonlogger'
 import AVSessionUtil from '../../utils/AVSessionUtil'
 import { Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
-import { fileIo } from '@kit.CoreFileKit'
 import { MpvPlayerEngineAdapter } from '../engine/MpvPlayerEngineAdapter'
 import { AudioEffectConfig } from '../../interfaces/AudioEffectInterface'
 import { AudioControllerInterface } from '../PlayerControllerFactory'
@@ -227,7 +228,7 @@ export class MpvAudioController implements AudioControllerInterface {
         this.state.audioTrackSelected = this.state.audioTrack.findIndex((track: MpvAudioTrack) => track.id === id)
         if (oldFile && oldFile !== candidate) {
           await removeExternalAudio(ExternalAudioStorage.path(oldFile), request)
-          ExternalAudioStorage.removeFile(oldFile)
+          await ExternalAudioStorage.removeFile(oldFile)
         }
         if (!cancelled()) this.state.audioTrack = mpvGetAudioTracks(this.engine.handle) as MpvAudioTrack[]
       })
@@ -238,7 +239,7 @@ export class MpvAudioController implements AudioControllerInterface {
       if (candidate) {
         ExternalAudioStorage.pending.delete(candidate)
         if (!committed) {
-          try { ExternalAudioStorage.removeFile(candidate) } catch (_error) { }
+          try { await ExternalAudioStorage.removeFile(candidate) } catch (_error) { }
         }
       }
       this.state.externalAudioImporting = false

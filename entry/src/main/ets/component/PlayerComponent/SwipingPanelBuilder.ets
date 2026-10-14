@@ -1,5 +1,5 @@
 import { UsbAudioSession } from '../../utils/UsbAudioSession'
-import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
+import { LightMaterialModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
 import { AVVolumePanel } from '@kit.AudioKit'
 
@@ -15,15 +15,15 @@ class SwipingPanelValue {
 @Builder
 export function SwipingPanelBuilder(value: SwipingPanelValue) {
   if (!UsbAudioSession.volumeControl) {
-  AVVolumePanel({
-    volumeLevel: value.videoVolume,
-    volumeParameter: {
-      position: {
-        x: -1,
-        y: -1
+    AVVolumePanel({
+      volumeLevel: value.videoVolume,
+      volumeParameter: {
+        position: {
+          x: -1,
+          y: -1
+        }
       }
-    }
-  }).visibility(Visibility.None)
+    }).visibility(Visibility.None)
   }
 
   if (value.onSwipingVoice || value.onSwipingBrightness) {
@@ -40,25 +40,25 @@ export function SwipingPanelBuilder(value: SwipingPanelValue) {
           .animation({ duration: 300, curve: Curve.Smooth })
       }
       if (value.onSwipingVoice && UsbAudioSession.volumeControl) {
-        Text($r('app.string.usb_volume_hint')).fontColor('#f0f0f0').fontSize(14)
+        Text($r('app.string.usb_volume_hint')).fontColor($r('sys.color.glass_material_outline_secondary')).fontSize(14)
       } else {
-      Slider({
-        value: value.onSwipingVoice ? value.videoVolumeShow : value.screenBrightness,
-        min: value.onSwipingVoice ? VideoOperateUtil.minVolume : 0,
-        max: value.onSwipingVoice ? VideoOperateUtil.maxVolume : 1,
-        step: 0.1,
-        style: SliderStyle.NONE,
-        direction: Axis.Horizontal,
-        reverse: false
-      })
-        .trackBorderRadius(16)
-        .selectedColor($r('app.color.main_color'))
-        .enableHapticFeedback(true)
-        .width(160)
-        .height(40)
-        .trackThickness(40)
-        .selectedBorderRadius(16)
-        .padding({ left: 5 })
+        Slider({
+          value: value.onSwipingVoice ? value.videoVolumeShow : value.screenBrightness,
+          min: value.onSwipingVoice ? VideoOperateUtil.minVolume : 0,
+          max: value.onSwipingVoice ? VideoOperateUtil.maxVolume : 1,
+          step: 0.1,
+          style: SliderStyle.NONE,
+          direction: Axis.Horizontal,
+          reverse: false
+        })
+          .trackBorderRadius(16)
+          .enableHapticFeedback(true)
+          .width(160)
+          .height(40)
+          .trackThickness(40)
+          .selectedBorderRadius(16)
+          .padding({ left: 5 })
+          .selectedColor($r('app.color.main_color'))
       }
     }
     .animation({ duration: 300, curve: Curve.Friction })
@@ -67,9 +67,8 @@ export function SwipingPanelBuilder(value: SwipingPanelValue) {
       y: -value.playAreaHeight / 2.5
     })
     .borderRadius(16)
-    .backgroundColor('#30000000')
-    .backdropBlur(100)
     .padding(5)
+    .attributeModifier(new LightMaterialModifier())
   }
 }
 

@@ -317,6 +317,15 @@ export default class VideoOperateUtil {
     return res !== undefined ? ToolsUtil.getStringResource(res.id) : code
   }
 
+  static isLandscapeVideo(width: number, height: number, screenExtend?: string): boolean {
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 1 || height <= 1) {
+      return false
+    }
+    // 固定比例按用户选择判断；拉伸、适配和等比缩放仍按视频自身方向判断。
+    const ratio = screenExtend ? VideoInfoUtil.ASPECT_RATIO_MAP.get(screenExtend) : undefined
+    return ratio !== undefined ? ratio > 1 : width > height
+  }
+
   static calcScreenExtendSize(text: string | undefined, screenWidth: number, screenHeight: number): number[] | null {
     if (!text || text === '原始比例') {
       return null

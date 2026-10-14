@@ -1,12 +1,22 @@
-import MediaLibraryService from '../../utils/MediaLibraryService'
 import { SubtitleControllerInterface } from '../PlayerControllerFactory'
 import { fileIo } from '@kit.CoreFileKit'
 import { salmonLogger } from 'salmonlogger'
-import { getSubtitleTracks as mpvGetSubtitleTracks, getCurrentSubtitleTrack as mpvGetCurrentSubtitleTrack, getCurrentSecondarySubtitleTrack as mpvGetCurrentSecondarySubtitleTrack, getSubtitleTexts as mpvGetSubtitleTexts, loadExternalSubtitle as mpvLoadExternalSubtitle, selectSubtitle as mpvSelectSubtitle, selectSecondarySubtitle as mpvSelectSecondarySubtitle, setSubtitleDelay as mpvSetSubtitleDelay, setSubtitleStyle as mpvSetSubtitleStyle, setSubtitleRenderVisibility as mpvSetSubtitleRenderVisibility } from 'libmpvnative.so'
+import {
+  getCurrentSecondarySubtitleTrack as mpvGetCurrentSecondarySubtitleTrack,
+  getCurrentSubtitleTrack as mpvGetCurrentSubtitleTrack,
+  getSubtitleTexts as mpvGetSubtitleTexts,
+  getSubtitleTracks as mpvGetSubtitleTracks,
+  loadExternalSubtitle as mpvLoadExternalSubtitle,
+  selectSecondarySubtitle as mpvSelectSecondarySubtitle,
+  selectSubtitle as mpvSelectSubtitle,
+  setSubtitleDelay as mpvSetSubtitleDelay,
+  setSubtitleRenderVisibility as mpvSetSubtitleRenderVisibility,
+  setSubtitleStyle as mpvSetSubtitleStyle
+} from 'libmpvnative.so'
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode'
 import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
-import { MpvSubtitleTrack, MpvSubtitleTexts } from './MpvTypes'
+import { MpvSubtitleTexts, MpvSubtitleTrack } from './MpvTypes'
 import { NetworkPlayback } from '../../utils/NetworkPlayback'
 import { PathUtils } from '../../utils/PathUtils'
 import { Setting } from '../../utils/ObservedUtil'
@@ -28,6 +38,8 @@ export interface MpvSubtitleState {
   subtitle: string
   subtitlePosition: number
   subtitleSize: number
+  secondarySubtitlePosition: number
+  secondarySubtitleSize: number
   playAreaHeight: number
   playing: boolean
   playTime: number
@@ -83,15 +95,13 @@ export class MpvSubtitleController implements SubtitleControllerInterface {
       return
     }
 
-    const previousTrackId = this.state.subtitleTrackSelected
-    const currentTrackId = mpvGetCurrentSubtitleTrack(this.getHandle())
-    const hasCurrentTrack = this.state.subtitleTrack.some((track) => track.id === currentTrackId)
-    const hasPreviousTrack = this.state.subtitleTrack.some((track) => track.id === previousTrackId)
     const preferredTrackId = SubtitleLanguageUtil.selectPreferredTrack(
       this.state.subtitleTrack, Setting.subtitlePreferredLanguage)?.id ?? this.state.subtitleTrack[0].id
-    const hasSavedPreference = this.state.nowPlaying ? SubtitleUtil.hasSubtitlePreferenceMetadata(this.state.nowPlaying) : false
-    this.state.subtitleTrackSelected = hasSavedPreference && hasCurrentTrack ? currentTrackId :
-      (hasSavedPreference && hasPreviousTrack ? previousTrackId : preferredTrackId)
+    const media = this.state.nowPlaying
+    const savedTrackId = media && SubtitleUtil.getSubtitleSelectionMode(media) === SubtitleMode.INNER_SUBTITLE ?
+      media.subtitle_track_id : undefined
+    this.state.subtitleTrackSelected = savedTrackId !== undefined &&
+      this.state.subtitleTrack.some(track => track.id === savedTrackId) ? savedTrackId : preferredTrackId
     const currentSecondaryTrackId = mpvGetCurrentSecondarySubtitleTrack(this.getHandle())
     const hasCurrentSecondaryTrack = this.state.subtitleTrack.some((track) =>
     track.id === currentSecondaryTrackId && track.id !== this.state.subtitleTrackSelected)
@@ -183,13 +193,10 @@ export class MpvSubtitleController implements SubtitleControllerInterface {
       `[Subtitle] exists=${subtitleExists}, loaded=${externalSubtitleLoaded}, track=${this.externalSubtitleTrackSelected}`,
       subtitleExists && !externalSubtitleLoaded)
 
-    const hasPreference = SubtitleUtil.hasSubtitlePreferenceMetadata(nowPlaying)
-    if (hasPreference) {
-      const preferredMode = nowPlaying.subtitle_mode as SubtitleMode | undefined
+    const preferredMode = SubtitleUtil.getSubtitleSelectionMode(nowPlaying)
+    if (preferredMode !== undefined) {
       if (preferredMode === SubtitleMode.EXTERNAL_SUBTITLE && !externalSubtitleLoaded) {
         this.state.subtitleSelected = SubtitleMode.NONE
-        this.resetSubtitlePreference(nowPlaying)
-        SubtitleUtil.offsetMillis = 0
 
       } else if (preferredMode !== undefined && preferredMode >= SubtitleMode.NONE) {
         if (preferredMode === SubtitleMode.INNER_SUBTITLE && this.state.subtitleTrack.length === 0) {
@@ -267,30 +274,22 @@ export class MpvSubtitleController implements SubtitleControllerInterface {
     return true
   }
 
-  private resetSubtitlePreference(nowPlaying: VideoMetadata): void {
-    nowPlaying.subtitle_mode = SubtitleMode.NONE
-    nowPlaying.subtitle_visible = false
-    nowPlaying.subtitle_ai_asr_shown = false
-    nowPlaying.subtitle_3d_mode = Subtitle3DMode.DISABLED
-    nowPlaying.subtitle_offset_millis = 0
-    nowPlaying.subtitle_track_id = -1
-    MediaLibraryService.saveData(PathUtils.appContext!, nowPlaying, {
-      subtitleMode: SubtitleMode.NONE,
-      subtitleVisible: false,
-      subtitleAIAsrShown: false,
-      subtitle3DMode: Subtitle3DMode.DISABLED,
-      subtitleOffsetMillis: 0,
-      subtitleTrackId: -1
-    })
-  }
-
   applySubtitleStyle(): void {
     if (!this.getHandle()) {
       return
     }
-    mpvSetSubtitleStyle(this.getHandle(),
-      SubtitleStyleUtil.getMpvStyle(this.state.subtitlePosition, this.state.subtitleSize, this.state.playAreaHeight,
-        this.shouldPreserveCurrentAssStyle(), this.shouldPreserveSecondaryAssStyle()))
+    const style = SubtitleStyleUtil.getMpvStyle(this.state.subtitlePosition, this.state.subtitleSize,
+      this.state.playAreaHeight, this.shouldPreserveCurrentAssStyle(), this.shouldPreserveSecondaryAssStyle())
+    style.secondaryPosition = this.state.secondarySubtitlePosition
+    style.secondaryEnabled = this.state.secondarySubtitleTrackSelected >= 0
+    const secondaryTrack = this.state.subtitleTrack.find((track: MpvSubtitleTrack) =>
+      track.id === this.state.secondarySubtitleTrackSelected)
+    style.secondaryIsBitmap = secondaryTrack !== undefined && this.isBitmapSubtitleTrack(secondaryTrack)
+    style.secondaryFontSize = SubtitleStyleUtil.getMpvFontSize(this.state.secondarySubtitleSize,
+      this.state.playAreaHeight)
+    style.secondaryScale = Math.max(0.25, Math.min(4,
+      this.state.secondarySubtitleSize / Math.max(1, Number(Setting.subtitleSize))))
+    mpvSetSubtitleStyle(this.getHandle(), style)
   }
 
   private updateMpvSubtitlePresentation(): void {

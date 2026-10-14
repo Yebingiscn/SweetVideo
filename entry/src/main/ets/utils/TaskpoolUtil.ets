@@ -1,14 +1,14 @@
 import { taskpool } from '@kit.ArkTS'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { fileIo as fs } from '@kit.CoreFileKit'
-import { pinyin4js } from '@ohos/pinyin4js'
+import NameSortUtil from './NameSortUtil'
 import ToolsUtil from './ToolsUtil'
 
 export class FolderNameSortItem {
   date: string
   name: string
   index: number
-  parts: string[] = []
+  sortKey: string = ''
 
   constructor(date: string, name: string, index: number) {
     this.date = date
@@ -20,37 +20,12 @@ export class FolderNameSortItem {
 @Concurrent
 async function sortFolderNamesTask(items: FolderNameSortItem[], ascending: boolean,
   pinyinSort: boolean): Promise<number[]> {
-  const collator = new Intl.Collator('zh-CN', {
-    sensitivity: 'variant',
-    numeric: true,
-    ignorePunctuation: false,
-    caseFirst: 'upper'
-  })
-  const splitRegex = /(\d+)/g
+  const collator = NameSortUtil.createCollator()
   items.forEach(item => {
-    // 拼音只生成一次；旧实现会在排序比较阶段重复拆分和比较字符串。
-    item.parts = (pinyinSort ? pinyin4js.getShortPinyin(item.name || '') as string : item.name || '')
-      .split(splitRegex).filter(Boolean)
+    item.sortKey = NameSortUtil.getSortKey(item.name || '', pinyinSort)
   })
   items.sort((left, right) => {
-    const leftParts = left.parts
-    const rightParts = right.parts
-    for (let i = 0; i < Math.min(leftParts.length, rightParts.length); i++) {
-      const a = leftParts[i]
-      const b = rightParts[i]
-      const aIsNumber = /^\d+$/.test(a)
-      const bIsNumber = /^\d+$/.test(b)
-      let compare = 0
-      if (aIsNumber && bIsNumber) {
-        compare = Number(a) - Number(b)
-      } else {
-        compare = collator.compare(a, b)
-      }
-      if (compare !== 0) {
-        return ascending ? compare : -compare
-      }
-    }
-    const compare = leftParts.length - rightParts.length
+    const compare = collator.compare(left.sortKey, right.sortKey)
     if (compare !== 0) {
       return ascending ? compare : -compare
     }

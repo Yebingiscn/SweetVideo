@@ -109,6 +109,23 @@ export class SweetLogDataSource extends BaseDataSource<SalmonLogLine> {
 // 具体实现类
 @ObservedV2
 export class VideoDataSource extends BaseDataSource<VideoMetadata> {
+  @Trace revision: number = 0
+
+  updateData(newData: VideoMetadata[]): void {
+    super.updateData(newData)
+    this.revision++
+  }
+
+  updateItem(index: number, newItem: VideoMetadata): void {
+    super.updateItem(index, newItem)
+    this.revision++
+  }
+
+  deleteData(index: number): void {
+    super.deleteData(index)
+    this.revision++
+  }
+
   public refreshData(folder: FileFolder) {
     const videoMetaData: VideoMetadata[] = FolderOperator.getFolderByDate(folder.date)!.video_list
     this.updateData(videoMetaData)

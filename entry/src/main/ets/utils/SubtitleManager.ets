@@ -1,6 +1,9 @@
 import { Subtitle3DMode, SubtitleMode } from '../common/enum/SubtitleMode'
 import { PlayerControllerInterface } from '../controller/PlayerControllerFactory'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
+import SubtitleUtil from './SubtitleUtil'
+import SubtitleLanguageUtil from './SubtitleLanguageUtil'
+import { Setting } from './ObservedUtil'
 
 @ObservedV2
 export class SubtitleManager {
@@ -59,23 +62,23 @@ export class SubtitleManager {
 
   switchToNone(): void {
     this.setMode(SubtitleMode.NONE)
-    this.savePreference()
+    this.savePreference(true)
   }
 
   switchToInner(): void {
     this.setMode(SubtitleMode.INNER_SUBTITLE)
-    this.savePreference()
+    this.savePreference(true)
   }
 
   switchToExternal(): void {
     this.setMode(SubtitleMode.EXTERNAL_SUBTITLE)
     this.player?.subtitleController.refreshExternalSubtitleByPlaybackTime(false, this.subtitleVisibility)
-    this.savePreference()
+    this.savePreference(true)
   }
 
   switchToAI(): void {
     this.setMode(SubtitleMode.AI_SUBTITLE)
-    this.savePreference()
+    this.savePreference(true)
   }
 
   set3DMode(mode: Subtitle3DMode): void {
@@ -86,11 +89,12 @@ export class SubtitleManager {
     this.savePreference()
   }
 
-  savePreference(): void {
+  savePreference(selectionChanged: boolean = false): void {
     this.player?.saveSubtitlePreferenceForCurrentVideo(
       this.subtitleVisibility,
       this.isAIAsrShown,
-      this.subtitle3DMode
+      this.subtitle3DMode,
+      selectionChanged
     )
   }
 
@@ -99,25 +103,19 @@ export class SubtitleManager {
     hasExternalSubtitle: boolean,
     hasInnerSubtitle: boolean
   ): void {
-    const subtitleMode = nowPlaying.subtitle_mode
-    const subtitleVisible = nowPlaying.subtitle_visible
-    const aiAsrShown = nowPlaying.subtitle_ai_asr_shown
+    const subtitleMode = SubtitleUtil.getSubtitleSelectionMode(nowPlaying)
     const subtitle3DMode = nowPlaying.subtitle_3d_mode
     const subtitleTrackId = nowPlaying.subtitle_track_id
 
-    if (aiAsrShown === true) {
-      this.subtitleMode = SubtitleMode.AI_SUBTITLE
-    } else if (subtitleVisible === false && subtitleMode === undefined) {
-      this.subtitleMode = SubtitleMode.NONE
-    } else if (subtitleMode !== undefined && subtitleMode >= SubtitleMode.NONE) {
-      this.subtitleMode = subtitleMode as SubtitleMode
+    if (subtitleMode !== undefined) {
+      this.subtitleMode = subtitleMode
     } else {
-      this.subtitleMode = SubtitleMode.NONE
+      this.subtitleMode = hasExternalSubtitle ? SubtitleMode.EXTERNAL_SUBTITLE :
+        (hasInnerSubtitle ? SubtitleMode.INNER_SUBTITLE : SubtitleMode.NONE)
     }
 
     if (this.subtitleMode === SubtitleMode.EXTERNAL_SUBTITLE && !hasExternalSubtitle) {
       this.subtitleMode = SubtitleMode.NONE
-      this.resetSubtitleMetadata(nowPlaying)
     } else if (this.subtitleMode === SubtitleMode.INNER_SUBTITLE && !hasInnerSubtitle) {
       this.subtitleMode = SubtitleMode.NONE
     }
@@ -131,8 +129,12 @@ export class SubtitleManager {
       this.subtitle3DMode = Subtitle3DMode.DISABLED
     }
 
-    if (subtitleTrackId !== undefined && subtitleTrackId >= 0) {
+    if (subtitleTrackId !== undefined && subtitleTrackId >= 0 &&
+      this.player!.subtitleTrack.some(track => track.id === subtitleTrackId)) {
       this.player!.subtitleTrackSelected = subtitleTrackId
+    } else if (this.subtitleMode === SubtitleMode.INNER_SUBTITLE) {
+      this.player!.subtitleTrackSelected = SubtitleLanguageUtil.selectPreferredTrack(
+        this.player!.subtitleTrack, Setting.subtitlePreferredLanguage)?.id ?? -1
     }
 
     if (this.isMpv && this.subtitleMode === SubtitleMode.INNER_SUBTITLE &&
@@ -164,15 +166,6 @@ export class SubtitleManager {
       this.player.subtitleController.selectSecondarySubtitleTrack(-1)
     }
     this.player.subtitleController.setSubtitle3DMode(this.subtitle3DMode)
-  }
-
-  private resetSubtitleMetadata(nowPlaying: VideoMetadata): void {
-    nowPlaying.subtitle_mode = SubtitleMode.NONE
-    nowPlaying.subtitle_visible = false
-    nowPlaying.subtitle_ai_asr_shown = false
-    nowPlaying.subtitle_3d_mode = Subtitle3DMode.DISABLED
-    nowPlaying.subtitle_offset_millis = 0
-    nowPlaying.subtitle_track_id = -1
   }
 
   private setMode(mode: SubtitleMode): void {

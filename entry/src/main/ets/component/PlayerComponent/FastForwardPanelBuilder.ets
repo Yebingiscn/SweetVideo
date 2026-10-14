@@ -1,6 +1,6 @@
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { SpeedNeighborInterface } from '../../interfaces/SpeedNeighborInterface'
-import { SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
+import { LightMaterialModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
 
 class FastForwardInfo {
   speed: number = 1
@@ -92,8 +92,7 @@ export function FastForwardPanelBuilder(fastForwardInfo: FastForwardInfo) {
     bottom: 12
   })
   .borderRadius(16)
-  .backgroundColor('#30000000')
-  .backdropBlur(100)
+  .attributeModifier(new LightMaterialModifier())
   .offset({
     x: 0,
     y: -fastForwardInfo.location / 2.5

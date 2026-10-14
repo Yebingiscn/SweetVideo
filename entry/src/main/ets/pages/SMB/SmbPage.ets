@@ -19,6 +19,11 @@ import { hdsMaterial, HdsNavDestination, HideMode, ScrollEffectType } from '@kit
 import { LengthMetrics } from '@kit.ArkUI'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
+interface SmbEntryView {
+  entry: SmbEntry
+  list: boolean
+}
+
 @ComponentV2
 export struct SmbPage {
   @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
@@ -71,54 +76,54 @@ export struct SmbPage {
   }
 
   @Builder
-  EntryCover(entry: SmbEntry, list: boolean) {
+  EntryCover($$: SmbEntryView) {
     Stack() {
-      SymbolGlyph(entry.directory ? $r('sys.symbol.folder') : $r('sys.symbol.play_round_triangle'))
+      SymbolGlyph($$.entry.directory ? $r('sys.symbol.folder') : $r('sys.symbol.play_round_triangle'))
         .fontSize(32).fontColor([$r('app.color.main_color')])
-      if (!entry.directory && this.covers[entry.name]) {
-        Image(this.covers[entry.name]).width('100%').height('100%').objectFit(ImageFit.Cover)
+      if (!$$.entry.directory && this.covers[$$.entry.name]) {
+        Image(this.covers[$$.entry.name]).width('100%').height('100%').objectFit(ImageFit.Cover)
           .onComplete((event) => {
             if (event && event.width > 0 && event.height > 0) {
               const ratio = Math.max(0.6, Math.min(2.4, event.width / event.height))
-              if (this.coverRatios[entry.name] !== ratio) {
+              if (this.coverRatios[$$.entry.name] !== ratio) {
                 const ratios: Record<string, number> = {}
                 Object.keys(this.coverRatios).forEach((key: string) => { ratios[key] = this.coverRatios[key] })
-                ratios[entry.name] = ratio
+                ratios[$$.entry.name] = ratio
                 this.coverRatios = ratios
               }
             }
           })
       }
     }
-    .width(list ? 112 : '100%')
-    .aspectRatio(list || Setting.listDisplayMode === ListDisplayMode.GRID_DISPLAY ? 16 / 9 :
-      (this.coverRatios[entry.name] ?? 16 / 9))
+    .width($$.list ? 112 : '100%')
+    .aspectRatio($$.list || Setting.listDisplayMode === ListDisplayMode.GRID_DISPLAY ? 16 / 9 :
+      (this.coverRatios[$$.entry.name] ?? 16 / 9))
     .backgroundColor($r('app.color.list_item_background')).borderRadius(12).clip(true)
   }
 
   @Builder
-  EntryText(entry: SmbEntry) {
+  EntryText($$: SmbEntryView) {
     Column({ space: 6 }) {
-      Text(entry.name).fontSize(16).fontColor($r('app.color.text_color'))
+      Text($$.entry.name).fontSize(16).fontColor($r('app.color.text_color'))
         .maxLines(Setting.listDisplayMode === ListDisplayMode.GRID_DISPLAY ? 1 : 3)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
-      Text(entry.directory ? $r('app.string.folder') : ToolsUtil.formatFileSize(entry.size))
+      Text($$.entry.directory ? $r('app.string.folder') : ToolsUtil.formatFileSize($$.entry.size))
         .fontSize(13).fontColor($r('app.color.text_color')).opacity(0.6)
     }.alignItems(HorizontalAlign.Start).width('100%')
   }
 
   @Builder
-  EntryItem(entry: SmbEntry, list: boolean) {
-    if (list) {
+  EntryItem($$: SmbEntryView) {
+    if ($$.list) {
       Row({ space: 12 }) {
-        this.EntryCover(entry, true)
-        Column() { this.EntryText(entry) }.layoutWeight(1)
+        this.EntryCover({ entry: $$.entry, list: true })
+        Column() { this.EntryText({ entry: $$.entry, list: $$.list }) }.layoutWeight(1)
       }.width('100%').padding(10).borderRadius(12)
       .backgroundColor($r('app.color.list_item_background'))
     } else {
       Column({ space: 8 }) {
-        this.EntryCover(entry, false)
-        Column() { this.EntryText(entry) }.padding({ left: 8, right: 8, bottom: 10 })
+        this.EntryCover({ entry: $$.entry, list: false })
+        Column() { this.EntryText({ entry: $$.entry, list: $$.list }) }.padding({ left: 8, right: 8, bottom: 10 })
       }.width('100%').borderRadius(12).backgroundColor($r('app.color.list_item_background'))
     }
   }
@@ -165,7 +170,7 @@ export struct SmbPage {
         } else if (this.server && Setting.listDisplayMode !== ListDisplayMode.LIST_DISPLAY) {
           WaterFlow({ scroller: this.scroller, layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW }) {
             Repeat<SmbEntry>(this.entries).each((item: RepeatItem<SmbEntry>) => {
-              FlowItem() { this.EntryItem(item.item, false) }
+              FlowItem() { this.EntryItem({ entry: item.item, list: false }) }
                 .onClick(() => this.select(item.item)).enabled(!this.loading)
                 .onVisibleAreaChange([0], (visible: boolean) => this.thumbnailVisibility(item.item, visible))
             }).key((item: SmbEntry) => `${this.directoryVersion}/${this.server?.id}/${this.folder}/${item.name}`).virtualScroll()
@@ -203,7 +208,7 @@ export struct SmbPage {
             } else {
               Repeat<SmbEntry>(this.entries)
                 .each((item: RepeatItem<SmbEntry>) => {
-                  ListItem() { this.EntryItem(item.item, true) }
+                  ListItem() { this.EntryItem({ entry: item.item, list: true }) }
                     .onClick(() => this.select(item.item)).enabled(!this.loading)
                     .onVisibleAreaChange([0], (visible: boolean) => this.thumbnailVisibility(item.item, visible))
                 })

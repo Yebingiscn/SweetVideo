@@ -1,7 +1,13 @@
 import { displaySync } from '@kit.ArkGraphics2D'
 import { LengthMetricsUnit } from '@kit.ArkUI'
 import { systemDateTime } from '@kit.BasicServicesKit'
-import { DanmakuClock, DanmakuScheduler, DanmakuSprite, DanmakuTextCache, DanmakuTextMetrics } from '../../utils/DanmakuCore'
+import {
+  DanmakuClock,
+  DanmakuScheduler,
+  DanmakuSprite,
+  DanmakuTextCache,
+  DanmakuTextMetrics
+} from '../../utils/DanmakuCore'
 import { DanmakuSession } from '../../utils/DanmakuSession'
 import { DanmakuGL } from '../../utils/DanmakuGL'
 import { salmonLogger } from 'salmonlogger'
@@ -33,11 +39,6 @@ export struct DanmakuOverlay {
   private clock: DanmakuClock = new DanmakuClock()
   private scheduler: DanmakuScheduler = new DanmakuScheduler()
   private measurements: DanmakuTextCache = new DanmakuTextCache()
-  private measure: (text: string, font: number) => DanmakuTextMetrics =
-    (text: string, font: number): DanmakuTextMetrics => this.measureText(text, font)
-  private cachedMeasure: (text: string, font: number) => DanmakuTextMetrics | undefined =
-    (text: string, font: number): DanmakuTextMetrics | undefined => this.measurements.get(`${font}:${text}`)
-  private preparationNow: () => number = (): number => this.now()
   private preparationTime: number = 0
   private preparationFont: number = 0
   private preparationOffset: number = 0
@@ -142,6 +143,14 @@ export struct DanmakuOverlay {
     })
   }
 
+  private measure: (text: string, font: number) => DanmakuTextMetrics =
+    (text: string, font: number): DanmakuTextMetrics => this.measureText(text, font)
+
+  private cachedMeasure: (text: string, font: number) => DanmakuTextMetrics | undefined =
+    (text: string, font: number): DanmakuTextMetrics | undefined => this.measurements.get(`${font}:${text}`)
+
+  private preparationNow: () => number = (): number => this.now()
+
   private now(): number {
     return systemDateTime.getUptime(systemDateTime.TimeType.STARTUP)
   }
@@ -196,7 +205,9 @@ export struct DanmakuOverlay {
   private measureText(text: string, font: number): DanmakuTextMetrics {
     const key = `${font}:${text}`
     const cached = this.measurements.get(key)
-    if (cached) { return cached }
+    if (cached) {
+      return cached
+    }
     this.measureContext.font = `${font}px sans-serif`
     this.measureContext.textBaseline = 'alphabetic'
     const bounds = this.measureContext.measureText(text)
@@ -237,7 +248,9 @@ export struct DanmakuOverlay {
     }
     this.preparationTimer = setTimeout(() => {
       this.preparationTimer = -1
-      if (!this.mounted || !this.ready || !this.visible || !this.session.enabled || this.seeking) { return }
+      if (!this.mounted || !this.ready || !this.visible || !this.session.enabled || this.seeking) {
+        return
+      }
       try {
         const measured = this.scheduler.prepare(this.preparationTime, this.session.fontSize,
           this.preparationAhead(), this.measure, this.preparationNow)
@@ -315,7 +328,9 @@ export struct DanmakuOverlay {
       // One watchdog for a stuck initialization; readiness/failure comes from native events.
       this.startupTimer = setTimeout(() => {
         this.startupTimer = -1
-        if (this.mounted && !this.renderFailed && !this.ready) { this.failGL('弹幕渲染器初始化超时') }
+        if (this.mounted && !this.renderFailed && !this.ready) {
+          this.failGL('弹幕渲染器初始化超时')
+        }
       }, 3000)
     } catch (_) {
       this.failGL('初始化弹幕渲染器异常')

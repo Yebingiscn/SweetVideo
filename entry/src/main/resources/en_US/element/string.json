@@ -1,6 +1,68 @@
 {
   "string": [
     {
+      "name": "mpv_conf_title",
+      "value": "MPV custom conf"
+    },
+    {
+      "name": "mpv_conf_edit",
+      "value": "Edit / import mpv.conf"
+    },
+    {
+      "name": "mpv_conf_next_core",
+      "value": "MPV only. Applied when a new player core is created; leave playback and reopen."
+    },
+    {
+      "name": "mpv_conf_desc",
+      "value": "Standard mpv.conf syntax (UTF-8, up to 64 KB), including comments and profiles. Only the conf file is imported; this does not copy shaders, scripts or include files; use sandbox-accessible absolute paths. Custom values override ordinary initialization defaults. Output, decoding, window binding and runtime UI controls remain app-managed. Enable after saving; disable to restore defaults."
+    },
+    {
+      "name": "mpv_conf_import",
+      "value": "Import file"
+    },
+    {
+      "name": "mpv_conf_save",
+      "value": "Validate and save"
+    },
+    {
+      "name": "mpv_conf_saved",
+      "value": "Saved. Enable to apply on the next player core creation."
+    },
+    {
+      "name": "mpv_conf_invalid",
+      "value": "Missing config or invalid syntax/options. Check options supported by this MPV build. The existing config was not changed."
+    },
+    {
+      "name": "mpv_conf_limit",
+      "value": "Up to 64 KB; NUL characters are not allowed."
+    },
+    {
+      "name": "mpv_conf_read_failed",
+      "value": "Could not read config. Check file size or available storage."
+    },
+    {
+      "name": "mpv_conf_import_failed",
+      "value": "Import failed. Choose a UTF-8 text file up to 64 KB."
+    },
+    {
+      "name": "mpv_conf_save_failed",
+      "value": "Could not save config. Please retry."
+    },
+    {"value":"Aspect ratio","name":"hicar_aspect"},
+    {"value":"Audio tracks","name":"hicar_audio"},
+    {"value":"Chapters","name":"hicar_chapters"},
+    {"value":"HiCar layout","name":"hicar_layout"},
+    {"value":"Automatically enabled when HiCar is connected. Turn on to preview larger controls on the left.","name":"hicar_layout_tip"},
+    {"value":"Media sources","name":"hicar_media_sources"},
+    {"value":"More controls","name":"hicar_more_controls"},
+    {"value":"Next","name":"hicar_next"},
+    {"value":"Pause","name":"hicar_pause"},
+    {"value":"Play","name":"hicar_play"},
+    {"value":"Playlist","name":"hicar_playlist"},
+    {"value":"Previous","name":"hicar_previous"},
+    {"value":"Playback speed","name":"hicar_speed"},
+    {"value":"Subtitles","name":"hicar_subtitles"},
+    {
       "name": "home_style",
       "value": "Home style"
     },
@@ -4121,6 +4183,54 @@
     {
       "name": "audio_external_save_failed",
       "value": "Could not save external audio settings"
+    },
+    {
+      "name": "privacy_recovery_scan",
+      "value": "Scan and restore to private space"
+    },
+    {
+      "name": "privacy_recovery_hint",
+      "value": "Rebuild records for existing files without copying or deleting them. Original filenames and playback history may not be recoverable."
+    },
+    {
+      "name": "privacy_recovery_result",
+      "value": "Restored %d files; %d failed and remain in the error list"
+    },
+    {
+      "name": "privacy_recovery_failed",
+      "value": "Scan failed. Original files are unchanged."
+    },
+    {
+      "name": "privacy_recovery_cancelled",
+      "value": "Scan stopped. Restored %d files; %d failed. Unprocessed files are retained."
+    },
+    {
+      "name": "privacy_selected_count",
+      "value": "%d videos selected"
+    },
+    {
+      "name": "privacy_export_selected",
+      "value": "Export selected"
+    },
+    {
+      "name": "privacy_batch_delete_result",
+      "value": "Deleted %d files; %d failed and were retained"
+    },
+    {
+      "name": "privacy_batch_export_result",
+      "value": "Exported %d files; %d failed. Private files are retained."
+    },
+    {
+      "name": "privacy_batch_cancelled",
+      "value": "Stopped: %d succeeded, %d failed. Unprocessed items are retained."
+    },
+    {
+      "name": "privacy_batch_failed",
+      "value": "Batch operation failed. Please refresh the list and retry."
+    },
+    {
+      "name": "avatar_update_failed",
+      "value": "Could not update the avatar. Please try again."
     }
   ]
 }

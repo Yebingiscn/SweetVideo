@@ -1,5 +1,5 @@
-import ImageStorage from '../../utils/ImageStorage'
-import ImageFileUtil from '../../utils/ImageFileUtil'
+import ImageStorage from '../../utils/ImageStorage';
+import ImageFileUtil from '../../utils/ImageFileUtil';
 import { loginComponentManager, LoginWithHuaweiIDButton } from '@kit.AccountKit';
 import { hdsEffect } from '@kit.UIDesignKit';
 import { HdsGL } from '../../common/AttributeModifierConfig';
@@ -13,6 +13,8 @@ import { SafeHeight } from '../../utils/ObservedUtil';
 import { FunctionalButton, functionalButtonComponentManager } from '@kit.ScenarioFusionKit';
 import { curves } from '@kit.ArkUI';
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit';
+import { salmonLogger } from 'salmonlogger';
+import ToolsUtil from '../../utils/ToolsUtil';
 
 @Builder
 export function userLoginBuilder(onNavigateToVip: () => void) {
@@ -60,11 +62,11 @@ struct userLoginComponent {
           userData.unionID = response.unionID
           userData.openID = response.openID
           userData.idToken = response.idToken!
-          AccountUtil.getAvatarFromHuaweiAccount(() => {
-            userData.isLogin = true
-            userData.isVip = Preferences.getUserIsVip(PathUtils.appContext!)
-            IapVerifyUtil.verifyPurchaseStatus(PathUtils.appContext!)
-          })
+          userData.isLogin = true
+          userData.isVip = Preferences.getUserIsVip(PathUtils.appContext!)
+          IapVerifyUtil.verifyPurchaseStatus(PathUtils.appContext!)
+          // 头像昵称属于登录后的资料加载，不能决定或覆盖登录结果。
+          void AccountUtil.getAvatarFromHuaweiAccount()
           return
         }
       })
@@ -103,10 +105,12 @@ struct userLoginComponent {
                 const pixelMap = await AccountUtil.fileToPixelMap(data.avatarUri!)
                 const localAvatarUri = await ImageStorage.savePixelMapToFile(PathUtils.photoPath!, 'avatar', pixelMap,
                   { releasePixelMap: true })
+                if (!localAvatarUri) { throw new Error('Avatar save failed') }
                 this.userData.userAvatar = AccountUtil.ISHasAvatar(localAvatarUri)
                 Preferences.saveUserAvatar(PathUtils.appContext!, localAvatarUri)
               } catch (err) {
-                AccountUtil.dealAllError(err)
+                salmonLogger.addLog('UserLoginComponent', `更新头像失败: ${err.code}`, true)
+                ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.avatar_update_failed').id))
               }
             })
           })

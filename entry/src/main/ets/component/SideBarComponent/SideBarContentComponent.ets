@@ -1,26 +1,34 @@
 import { FileFolderDataSource } from '../../utils/DataUtil'
 import { AddNetworkStreamDialog } from '../Dialog/AddNetworkStreamDialog'
 import { FileFolder } from '../../interfaces/FileFolderInterface'
-import { ButtonFancyModifier, DefaultDialogShadow, ImageFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
-import { PathUtils } from '../../utils/PathUtils'
+import {
+  ButtonFancyModifier,
+  DefaultDialogShadow,
+  ImageFancyModifier,
+  SymbolGlyphFancyModifier
+} from '../../common/AttributeModifierConfig'
 import { VideoListController } from '../../controller/VideoListController'
 import { SideBarController } from './SideBar'
-import Preferences from '../../database/Preferences'
+import { importAndProcessFiles, ProgressInfo } from '../../utils/FileProcessorUtil'
+import ToolsUtil from '../../utils/ToolsUtil'
+import {
+  CapsuleSegmentButtonV2, ColorMetrics, SegmentButtonV2ItemOptions, SegmentButtonV2Items,
+  uiMaterial
+} from '@kit.ArkUI'
+import { IMenuItem } from '../../interfaces/IMenuItemInterface'
 import { SortField } from '../../common/enum/SortField'
 import NavigationAddress from '../../common/NavigationCommon'
-import { userData, userLoginBuilder } from '../common/UserLoginComponent'
-import { FolderSelectMenuBuilder } from '../FileFolderComponent/FileFolderSelectBuilder'
-import { importAndProcessFiles, ProgressInfo } from '../../utils/FileProcessorUtil'
+import Preferences from '../../database/Preferences'
 import { XAnimation } from '../../utils/AnimationUtil'
+import { SafeHeight, Setting } from '../../utils/ObservedUtil'
+import { PathUtils } from '../../utils/PathUtils'
 import SelectFileUtil from '../../utils/SelectFileUtil'
 import TimeUtil from '../../utils/TimeUtil'
-import ToolsUtil from '../../utils/ToolsUtil'
 import VideoUtils from '../../utils/VideoUtil'
-import { SafeHeight, Setting } from '../../utils/ObservedUtil'
-import { CapsuleSegmentButtonV2, ColorMetrics, SegmentButtonV2ItemOptions, SegmentButtonV2Items } from '@kit.ArkUI'
-import { IMenuItem } from '../../interfaces/IMenuItemInterface'
-import { deviceInfo } from '@kit.BasicServicesKit'
+import { userData, userLoginBuilder } from '../common/UserLoginComponent'
+import { FolderSelectMenuBuilder } from '../FileFolderComponent/FileFolderSelectBuilder'
 import { SideBarFolderComponent } from './SideBarFolderComponent'
+import { deviceInfo } from '@kit.BasicServicesKit'
 
 @ComponentV2
 export struct SideBarContentComponent {
@@ -46,7 +54,8 @@ export struct SideBarContentComponent {
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
-  @Event fileFolderListChange: (folders: FileFolder[]) => void = () => {}
+  @Event fileFolderListChange: (folders: FileFolder[]) => void = () => {
+  }
   @Event scrollToFolderDateChange: (date: string) => void = () => {
   }
   @Event searchValueClear: () => boolean = () => false
@@ -174,7 +183,8 @@ export struct SideBarContentComponent {
             .attributeModifier(new ImageFancyModifier(20, 45, 45))
             .margin({ left: 10 })
           Column({ space: 2 }) {
-            Text(userData.isLogin ? (userData.nickName || ToolsUtil.getStringResource($r('app.string.logged_in').id)) : ToolsUtil.getStringResource($r('app.string.tap_to_login').id))
+            Text(userData.isLogin ? (userData.nickName || ToolsUtil.getStringResource($r('app.string.logged_in').id)) :
+              ToolsUtil.getStringResource($r('app.string.tap_to_login').id))
               .fontColor($r('app.color.text_color'))
               .fontSize(15)
               .textOverflow({ overflow: TextOverflow.MARQUEE })
@@ -276,17 +286,37 @@ export struct SideBarContentComponent {
         })
 
         // 本地/网络切换 - CapsuleSegmentButtonV2
-        CapsuleSegmentButtonV2({
-          items: this.segmentItems,
-          selectedIndex: this.currentSourceTab,
-          buttonBackgroundBlurStyle: BlurStyle.BACKGROUND_THICK,
-          itemSelectedFontColor: this.itemSelectedFontColor,
-          itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
-          onItemClicked: (index: number) => {
-            this.currentSourceTab = index
-          }
-        })
-          .margin({ top: 10, bottom: 6 })
+        if (deviceInfo.apiAvailable('26.0.0')) {
+          CapsuleSegmentButtonV2({
+            items: this.segmentItems,
+            selectedIndex: this.currentSourceTab,
+            itemSelectedFontColor: this.itemSelectedFontColor,
+            itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
+            enableStateAnimation: true,
+            onItemClicked: (index: number) => {
+              this.currentSourceTab = index
+            },
+            backgroundSystemMaterial: new uiMaterial.ImmersiveMaterial({
+              style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
+              colorInvert: true,
+              interactive: true,
+              lightEffect: {}
+            })
+          })
+            .margin({ top: 10, bottom: 6 })
+        } else {
+          CapsuleSegmentButtonV2({
+            items: this.segmentItems,
+            selectedIndex: this.currentSourceTab,
+            itemSelectedFontColor: this.itemSelectedFontColor,
+            itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
+            enableStateAnimation: true,
+            onItemClicked: (index: number) => {
+              this.currentSourceTab = index
+            },
+          })
+            .margin({ top: 10, bottom: 6 })
+        }
       }
       .width('100%')
       .padding({ left: 16, right: 16 })
@@ -301,11 +331,15 @@ export struct SideBarContentComponent {
           sideBarScroller: this.sideBarScroller,
           currentSourceTab: this.currentSourceTab,
           // 闭包保留父组件上下文，避免 BuilderParam 将 this 切换到文件夹子组件。
-          importActions: () => { this.ImportActions() },
+          importActions: () => {
+            this.ImportActions()
+          },
           fileFolderListChange: this.fileFolderListChange,
           scrollToFolderDateChange: this.scrollToFolderDateChange,
           searchValueClear: this.searchValueClear,
-          onDeletingChange: (deleting: boolean) => { this.folderDeleting = deleting }
+          onDeletingChange: (deleting: boolean) => {
+            this.folderDeleting = deleting
+          }
         })
 
         // Tab 1: 网络
@@ -533,7 +567,9 @@ export struct SideBarContentComponent {
           emptyFolderCount++
           continue
         }
-        const folderName = folderImport.name === '首页' ? ToolsUtil.getStringResource($r('app.string.home_folder_import').id) : folderImport.name
+        const folderName =
+          folderImport.name === '首页' ? ToolsUtil.getStringResource($r('app.string.home_folder_import').id) :
+            folderImport.name
         await this.toMetaData(folderImport.files, undefined, folderImport.uri, folderName)
       }
       const currentFolderDate = this.videoListController.folder?.date
@@ -547,5 +583,4 @@ export struct SideBarContentComponent {
       }
     }
   }
-
 }

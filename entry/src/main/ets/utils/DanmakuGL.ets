@@ -1,4 +1,11 @@
-import { danmakuCacheLimit, danmakuCreate, danmakuDestroy, danmakuFrame, danmakuStatus, danmakuTexture } from 'libmpvnative.so'
+import {
+  danmakuCacheLimit,
+  danmakuCreate,
+  danmakuDestroy,
+  danmakuFrame,
+  danmakuStatus,
+  danmakuTexture
+} from 'libmpvnative.so'
 import { DANMAKU_MAX_ACTIVE, DanmakuSprite } from './DanmakuCore'
 import { LengthMetricsUnit } from '@kit.ArkUI'
 import ToolsUtil from './ToolsUtil.ets'
@@ -47,7 +54,9 @@ export class DanmakuGL {
     this.scale = Number.isFinite(scale) && scale > 0 ? scale : 1
     const generation = this.generation
     this.handle = danmakuCreate(surfaceId, (status: number): void => {
-      if (this.handle > 0 && generation === this.generation) { onStatus(status) }
+      if (this.handle > 0 && generation === this.generation) {
+        onStatus(status)
+      }
     })
     return this.handle > 0
   }
@@ -94,15 +103,6 @@ export class DanmakuGL {
     this.bytes = 0
   }
 
-  private key(sprite: DanmakuSprite): string {
-    let key = this.spriteKeys.get(sprite)
-    if (key === undefined) {
-      key = `${sprite.font}:${sprite.item.color}:${sprite.item.text}`
-      this.spriteKeys.set(sprite, key)
-    }
-    return key
-  }
-
   hasPendingTextures(): boolean {
     return this.pendingSprites.length > 0 || this.upcomingSprites.length > 0
   }
@@ -117,7 +117,9 @@ export class DanmakuGL {
   prefetch(sprites: DanmakuSprite[]): void {
     for (const sprite of sprites) {
       const key = this.key(sprite)
-      if (this.upcomingSprites.length >= 64) { break }
+      if (this.upcomingSprites.length >= 64) {
+        break
+      }
       if (!this.textures.has(key) && !this.rejected.has(key) && !this.upcomingKeys.has(key)) {
         this.upcomingKeys.add(key)
         this.upcomingSprites.push(sprite)
@@ -131,12 +133,95 @@ export class DanmakuGL {
     while (this.hasPendingTextures()) {
       const sprite = this.pendingSprites.length > 0 ? this.pendingSprites.shift()! : this.upcomingSprites.shift()!
       this.upcomingKeys.delete(this.key(sprite))
-      if (this.texture(sprite)) { return true }
+      if (this.texture(sprite)) {
+        return true
+      }
       // Invalid/cache-blocked entries do not prevent a smaller comment being prepared.
-      if (this.generatedTextures > 0) { break }
+      if (this.generatedTextures > 0) {
+        break
+      }
     }
     // A failed raster may already have evicted textures. Flush those releases even while paused.
     return this.uploadsPending
+  }
+
+  draw(sprites: DanmakuSprite[], width: number, height: number, opacity: number, time: number = 0): boolean {
+    this.cacheTick++
+    let upcoming = 0
+    this.upcomingKeys.clear()
+    for (const sprite of this.upcomingSprites) {
+      const key = this.key(sprite)
+      if (sprite.item.time > time && !this.textures.has(key) && !this.rejected.has(key)) {
+        this.upcomingSprites[upcoming++] = sprite
+        this.upcomingKeys.add(key)
+      }
+    }
+    this.upcomingSprites.length = upcoming
+    this.nextKeep.clear()
+    this.pendingSprites.length = 0
+    this.pendingKeys.clear()
+    const limit = Math.min(sprites.length, DANMAKU_MAX_ACTIVE)
+    let keepChanged = false
+    for (let i = 0; i < limit; i++) {
+      const key = this.key(sprites[i])
+      this.nextKeep.add(key)
+      if (!this.keep.has(key)) {
+        keepChanged = true
+      }
+    }
+    if (keepChanged || this.nextKeep.size !== this.keep.size) {
+      this.budgetBlocked.clear()
+    }
+    const previousKeep = this.keep
+    this.keep = this.nextKeep
+    this.nextKeep = previousKeep
+    let count = 0
+    for (let i = 0; i < limit; i++) {
+      const sprite = sprites[i]
+      const key = this.key(sprite)
+      const texture = this.textures.get(key)
+      if (!texture) {
+        if (!this.rejected.has(key) && !this.pendingKeys.has(key)) {
+          this.pendingKeys.add(key)
+          this.pendingSprites.push(sprite)
+        }
+        continue
+      }
+      texture.used = this.cacheTick
+      this.positions[count * 5] = texture.id
+      this.positions[count * 5 + 1] = sprite.x - this.padding
+      this.positions[count * 5 + 2] = sprite.y - this.padding
+      this.positions[count * 5 + 3] = texture.width
+      this.positions[count * 5 + 4] = texture.height
+      count++
+    }
+    if (count === 0 && this.emptyPresented && width === this.lastWidth && height === this.lastHeight &&
+      !this.uploadsPending) {
+      return true
+    }
+    let positions = this.positionViews.get(count)
+    if (!positions) {
+      positions = this.positions.subarray(0, count * 5)
+      this.positionViews.set(count, positions)
+    }
+    // Native Submit copies this view synchronously; reusing it cannot mutate an in-flight frame.
+    const submitted = danmakuFrame(this.handle, positions, width, height, opacity)
+    if (submitted) {
+      this.emptyPresented = count === 0
+      this.lastWidth = width
+      this.lastHeight = height
+      this.uploadsPending = false
+    }
+    return submitted
+  }
+
+  private key(sprite: DanmakuSprite): string {
+    let key = this.spriteKeys.get(sprite)
+    if (key === undefined) {
+      key = `${sprite.font}:${sprite.item.color}:${sprite.item.text}`
+      this.spriteKeys.set(sprite, key)
+    }
+    return key
   }
 
   private reject(key: string): void {
@@ -156,7 +241,9 @@ export class DanmakuGL {
       cached.used = this.cacheTick
       return cached
     }
-    if (this.rejected.has(key) || this.budgetBlocked.has(key)) { return undefined }
+    if (this.rejected.has(key) || this.budgetBlocked.has(key)) {
+      return undefined
+    }
     const width = Math.ceil((sprite.width + 2 * this.padding) * this.scale)
     const height = Math.ceil(sprite.height * this.scale)
     const bytes = width * height * 4
@@ -217,75 +304,15 @@ export class DanmakuGL {
       return undefined
     }
     const texture: TextTexture = {
-      id: id, width: width / this.scale, height: height / this.scale, bytes: bytes, used: this.cacheTick
+      id: id,
+      width: width / this.scale,
+      height: height / this.scale,
+      bytes: bytes,
+      used: this.cacheTick
     }
     this.textures.set(key, texture)
     this.bytes += bytes
     this.uploadsPending = true
     return texture
-  }
-
-  draw(sprites: DanmakuSprite[], width: number, height: number, opacity: number, time: number = 0): boolean {
-    this.cacheTick++
-    let upcoming = 0
-    this.upcomingKeys.clear()
-    for (const sprite of this.upcomingSprites) {
-      const key = this.key(sprite)
-      if (sprite.item.time > time && !this.textures.has(key) && !this.rejected.has(key)) {
-        this.upcomingSprites[upcoming++] = sprite
-        this.upcomingKeys.add(key)
-      }
-    }
-    this.upcomingSprites.length = upcoming
-    this.nextKeep.clear()
-    this.pendingSprites.length = 0
-    this.pendingKeys.clear()
-    const limit = Math.min(sprites.length, DANMAKU_MAX_ACTIVE)
-    let keepChanged = false
-    for (let i = 0; i < limit; i++) {
-      const key = this.key(sprites[i])
-      this.nextKeep.add(key)
-      if (!this.keep.has(key)) { keepChanged = true }
-    }
-    if (keepChanged || this.nextKeep.size !== this.keep.size) { this.budgetBlocked.clear() }
-    const previousKeep = this.keep
-    this.keep = this.nextKeep
-    this.nextKeep = previousKeep
-    let count = 0
-    for (let i = 0; i < limit; i++) {
-      const sprite = sprites[i]
-      const key = this.key(sprite)
-      const texture = this.textures.get(key)
-      if (!texture) {
-        if (!this.rejected.has(key) && !this.pendingKeys.has(key)) {
-          this.pendingKeys.add(key)
-          this.pendingSprites.push(sprite)
-        }
-        continue
-      }
-      texture.used = this.cacheTick
-      this.positions[count * 5] = texture.id
-      this.positions[count * 5 + 1] = sprite.x - this.padding
-      this.positions[count * 5 + 2] = sprite.y - this.padding
-      this.positions[count * 5 + 3] = texture.width
-      this.positions[count * 5 + 4] = texture.height
-      count++
-    }
-    if (count === 0 && this.emptyPresented && width === this.lastWidth && height === this.lastHeight &&
-      !this.uploadsPending) { return true }
-    let positions = this.positionViews.get(count)
-    if (!positions) {
-      positions = this.positions.subarray(0, count * 5)
-      this.positionViews.set(count, positions)
-    }
-    // Native Submit copies this view synchronously; reusing it cannot mutate an in-flight frame.
-    const submitted = danmakuFrame(this.handle, positions, width, height, opacity)
-    if (submitted) {
-      this.emptyPresented = count === 0
-      this.lastWidth = width
-      this.lastHeight = height
-      this.uploadsPending = false
-    }
-    return submitted
   }
 }

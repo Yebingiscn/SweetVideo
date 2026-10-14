@@ -1,4 +1,8 @@
-import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
+import {
+  ButtonFancyModifier,
+  LightMaterialModifier,
+  SymbolGlyphFancyModifier
+} from '../../common/AttributeModifierConfig'
 import { SafeHeight, Setting } from '../../utils/ObservedUtil'
 
 export class ScrollBarBuilderValue {
@@ -19,8 +23,7 @@ export function ScrollBarBuilder(scrollBarBuilderValue: ScrollBarBuilderValue) {
     }
     .attributeModifier(new ButtonFancyModifier(30, 30))
     .borderRadius(8)
-    .backgroundEffect({ radius: 100 })
-    .useEffect(true, EffectType.WINDOW_EFFECT)
+    .attributeModifier(new LightMaterialModifier())
   }
   .margin({
     top: SafeHeight.topSafeHeight +

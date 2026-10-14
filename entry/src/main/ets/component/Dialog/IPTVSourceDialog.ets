@@ -1,5 +1,11 @@
 import { fileIo as fs, picker } from '@kit.CoreFileKit'
-import { CapsuleSegmentButtonV2, ColorMetrics, SegmentButtonV2ItemOptions, SegmentButtonV2Items } from '@kit.ArkUI'
+import {
+  CapsuleSegmentButtonV2,
+  ColorMetrics,
+  SegmentButtonV2ItemOptions,
+  SegmentButtonV2Items,
+  uiMaterial
+} from '@kit.ArkUI'
 import { IPTVSource, IPTVSourceType } from '../../interfaces/IPTVInterface'
 import IPTVSourceService from '../../utils/IPTVSourceService'
 import { PathUtils } from '../../utils/PathUtils'
@@ -7,6 +13,7 @@ import PermissionUtil from '../../utils/PermissionUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { salmonLogger } from 'salmonlogger'
 import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
+import { deviceInfo } from '@kit.BasicServicesKit'
 
 @CustomDialog
 export struct IPTVSourceDialog {
@@ -80,17 +87,35 @@ export struct IPTVSourceDialog {
           .fontWeight(FontWeight.Bold)
           .width('100%')
 
-        CapsuleSegmentButtonV2({
-          items: this.segmentItems,
-          selectedIndex: this.sourceType === 'url' ? 0 : 1,
-          buttonBackgroundBlurStyle: BlurStyle.BACKGROUND_THICK,
-          itemSelectedFontColor: this.itemSelectedFontColor,
-          itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
-          onItemClicked: (index: number) => {
-            this.switchType(index === 0 ? 'url' : 'file')
-          }
-        })
-          .width('100%')
+        if (deviceInfo.apiAvailable('26.0.0')) {
+          CapsuleSegmentButtonV2({
+            items: this.segmentItems,
+            selectedIndex: this.sourceType === 'url' ? 0 : 1,
+            itemSelectedFontColor: this.itemSelectedFontColor,
+            itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
+            onItemClicked: (index: number) => {
+              this.switchType(index === 0 ? 'url' : 'file')
+            },
+            backgroundSystemMaterial: new uiMaterial.ImmersiveMaterial({
+              style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
+              colorInvert: true,
+              interactive: true,
+              lightEffect: {}
+            })
+          })
+            .width('100%')
+        } else {
+          CapsuleSegmentButtonV2({
+            items: this.segmentItems,
+            selectedIndex: this.sourceType === 'url' ? 0 : 1,
+            itemSelectedFontColor: this.itemSelectedFontColor,
+            itemSelectedBackgroundColor: this.itemSelectedBackgroundColor,
+            onItemClicked: (index: number) => {
+              this.switchType(index === 0 ? 'url' : 'file')
+            },
+          })
+            .width('100%')
+        }
 
 
         TextInput({ placeholder: $r('app.string.iptv_source_name'), text: this.sourceName })
@@ -201,7 +226,8 @@ export struct IPTVSourceDialog {
   private async selectFile(): Promise<void> {
     const options = new picker.DocumentSelectOptions()
     options.maxSelectNumber = 1
-    options.fileSuffixFilters = [ToolsUtil.getStringResource($r('app.string.iptv_source_filter').id) + '|.m3u,.m3u8,.txt', 'm3u', 'm3u8', 'txt']
+    options.fileSuffixFilters =
+      [ToolsUtil.getStringResource($r('app.string.iptv_source_filter').id) + '|.m3u,.m3u8,.txt', 'm3u', 'm3u8', 'txt']
     try {
       const uris = await new picker.DocumentViewPicker(PathUtils.appContext!).select(options)
       if (uris.length > 0) {
@@ -259,8 +285,10 @@ export struct IPTVSourceDialog {
       this.preparedSource = undefined
       this.preparedSignature = ''
     }
-    this.testMessage = result.message + (result.invalidCount > 0 ? ToolsUtil.getStringResourceArgs($r('app.string.iptv_invalid_count').id, result.invalidCount) : '') +
-      (source.epgUrl ? ToolsUtil.getStringResourceArgs($r('app.string.iptv_epg_matched').id, result.epgMatchedCount) : '')
+    this.testMessage = result.message + (result.invalidCount > 0 ?
+      ToolsUtil.getStringResourceArgs($r('app.string.iptv_invalid_count').id, result.invalidCount) : '') +
+      (source.epgUrl ? ToolsUtil.getStringResourceArgs($r('app.string.iptv_epg_matched').id, result.epgMatchedCount) :
+        '')
     this.testing = false
   }
 
