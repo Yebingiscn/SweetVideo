@@ -231,15 +231,28 @@ export struct AudioTrackComponent {
         .key((item: TrackType, _index: number) => this.getKey(item))
       if (this.player instanceof MpvController && this.player.usbExclusiveActive) {
         Text(this.player.usbVolumeStatus).fontSize(12).fontColor($r('app.color.text_color'))
-        Row({ space: 12 }) {
-          Text($r('app.string.usb_device_volume')).fontColor($r('app.color.text_color'))
-          Button('−').onClick(() => {
-            if (this.player instanceof MpvController) this.player.audioController.changeUsbVolume(-5)
+        Row() {
+          Text('USB').fontSize(16).fontColor($r('app.color.text_color')).width(35)
+          Slider({ value: this.player.usbVolume, min: 0, max: 100, step: 1, style: SliderStyle.NONE })
+            .onChange((value) => {
+              if (this.player instanceof MpvController) this.player.audioController.setUsbVolume(value)
+            })
+            .selectedColor($r('app.color.main_color'))
+            .enableHapticFeedback(true)
+            .layoutWeight(1)
+            .trackBorderRadius(16)
+            .trackThickness(20)
+            .selectedBorderRadius(16)
+          Button({ type: ButtonType.Circle, stateEffect: true }) {
+            SymbolGlyph($r('sys.symbol.undo')).fontSize(16).fontColor([$r('app.color.text_color')])
+          }
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
+          .attributeModifier(new ButtonFancyModifier(28, 28))
+          .backgroundColor(Color.Transparent)
+          .onClick(() => {
+            if (this.player instanceof MpvController) this.player.audioController.setUsbVolume(50)
           })
-          Button('+').onClick(() => {
-            if (this.player instanceof MpvController) this.player.audioController.changeUsbVolume(5)
-          })
-        }.padding({ top: 12, bottom: 12 })
+        }.padding({ left: 8, right: 8, top: 4, bottom: 4 }).width('100%')
       }
       if (this.isCurrentTrackStereo()) {
         AudioChannelComponent({

@@ -206,6 +206,7 @@ export class MpvController implements PlayerControllerInterface {
   private activeAutoDeinterlace: boolean = false
   @Trace usbExclusiveActive: boolean = false
   @Trace usbVolumeStatus: string = ''
+  @Trace usbVolume: number = 50
   private postLoadTasksExecuted: boolean = false
   private initialStartHandledByLoad: boolean = false
   private initialSmartRotationRequested: boolean = false
@@ -1876,6 +1877,13 @@ export class MpvController implements PlayerControllerInterface {
           this.isInState(MpvPlayerState.RELEASING) || this.isInState(MpvPlayerState.IDLE)) {
           return
         }
+        if (this.usbExclusiveActive &&
+          deactivatedEvent.reason === audio.AudioSessionDeactivatedReason.DEACTIVATED_TIMEOUT) {
+          // USB bypasses AudioRenderer; its idle timeout says nothing about USB playback.
+          if (this.playing) this.reactivateAudioSessionIfNeeded()
+          salmonLogger.addLog(TAG, '[MpvController] USB playback continuing after AudioSession idle timeout', false)
+          return
+        }
         salmonLogger.addLog(TAG,
           `[MpvController] AudioSession deactivated, reason: ${deactivatedEvent.reason}, pausing`, false)
         // 会话被停用不代表可自动恢复；等待用户再次播放。
@@ -1916,8 +1924,14 @@ export class MpvController implements PlayerControllerInterface {
             this.audioPauseGuard.interrupt(this.decodingRecovery.getPlaybackIntentForModeSwitch(), true)
             this.pausePlayback()
             break
-          case audio.AudioSessionStateChangeHint.AUDIO_SESSION_STATE_CHANGE_HINT_STOP:
           case audio.AudioSessionStateChangeHint.AUDIO_SESSION_STATE_CHANGE_HINT_TIME_OUT_STOP:
+            if (this.usbExclusiveActive) {
+              if (this.playing) this.reactivateAudioSessionIfNeeded()
+              break
+            }
+            this.pause()
+            break
+          case audio.AudioSessionStateChangeHint.AUDIO_SESSION_STATE_CHANGE_HINT_STOP:
             salmonLogger.addLog(TAG,
               `[MpvController] AudioSession state changed: ${stateChangedEvent.stateChangeHint}, pausing`, false)
             this.pause()
