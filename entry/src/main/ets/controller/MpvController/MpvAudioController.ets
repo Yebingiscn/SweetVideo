@@ -43,6 +43,7 @@ interface MpvAudioState {
   externalAudioImporting: boolean
   externalAudioOffsetMs: number
   usbExclusiveActive: boolean
+  usbVolumeStatus: string
   audioChannelMode: MpvAudioChannelMode
   volumeLoudnessGain: number
   audioEffectConfig: AudioEffectConfig
@@ -59,6 +60,9 @@ export class MpvAudioController implements AudioControllerInterface {
   private externalAudioGeneration: number = -1
   private usbDsdMode: number = 0
   private usbDevice: string = ''
+  private usbVolumeMode: number = 0
+  private usbDigitalVolume: number = 50
+  private usbVolumeBackend: string = ''
   readonly usbSession: UsbAudioSession = new UsbAudioSession()
   private activeAudioPassthrough: boolean = false
   private state: MpvAudioState
@@ -76,7 +80,7 @@ export class MpvAudioController implements AudioControllerInterface {
 
   updatePreferences(destroyCore: () => void): void {
     if (this.state.usbExclusiveActive !== Setting.mpvUsbExclusive || this.usbDsdMode !== Setting.mpvUsbDsdMode ||
-      this.usbDevice !== Setting.mpvUsbDevice) {
+      this.usbDevice !== Setting.mpvUsbDevice || this.usbVolumeMode !== Setting.mpvUsbVolumeMode) {
       if (this.engine.handle) { destroyCore() }
       this.usbSession.close()
       UsbAudioSession.volumeControl = undefined
@@ -84,6 +88,7 @@ export class MpvAudioController implements AudioControllerInterface {
     this.state.usbExclusiveActive = Setting.mpvUsbExclusive
     this.usbDsdMode = Setting.mpvUsbDsdMode
     this.usbDevice = Setting.mpvUsbDevice
+    this.usbVolumeMode = Setting.mpvUsbVolumeMode
     this.activeAudioPassthrough = Setting.mpvAudioPassthrough
   }
 
@@ -92,6 +97,7 @@ export class MpvAudioController implements AudioControllerInterface {
     this.usbSession.close()
     UsbAudioSession.volumeControl = undefined
     this.state.usbExclusiveActive = false
+    this.state.usbVolumeStatus = ''
     this.activeAudioPassthrough = false
   }
 
@@ -384,12 +390,13 @@ export class MpvAudioController implements AudioControllerInterface {
     const stopResult = mpvCommand(this.engine.handle, ['stop']) as MpvCommandResult
     if (!stopResult?.success) throw new Error(ToolsUtil.getStringResource($r('app.string.stop_previous_audio_output_failed').id))
     const settings: string[][] = [
+      ['usb-exclusive-compatible', (this.usbVolumeMode === 0 || this.usbVolumeMode === 2) ? 'yes' : 'no'],
       ['usb-exclusive-dop', 'no'],
       ['usb-exclusive-dsd-mode', this.usbDsdMode === 2 ? 'native' : this.usbDsdMode === 1 ? 'dop' : 'no'],
       ['usb-exclusive-fd', fd.toString()], ['ao', 'usb-exclusive'], ['audio-spdif', this.usbDsdMode === 2 ? 'native-dsd' : 'dop'],
       ['speed', '1'], ['pitch', '1'], ['audio-pitch-correction', 'no'], ['audio-samplerate', '0'],
       ['audio-channels', 'auto'], ['af', ''], ['replaygain', 'no'],
-      ['volume', '100'], ['mute', 'no'], ['audio-normalize-downmix', 'no'],
+      ['volume', this.usbDsdMode === 0 && (this.usbVolumeMode === 0 || this.usbVolumeMode === 2) ? this.usbDigitalVolume.toString() : '100'], ['mute', 'no'], ['audio-normalize-downmix', 'no'],
       ['video-sync', 'audio'], ['gapless-audio', 'no']
     ]
     for (const item of settings) {
@@ -400,11 +407,40 @@ export class MpvAudioController implements AudioControllerInterface {
     this.state.volumeLoudnessGain = 0
     this.state.audioEffectConfig = new AudioEffectConfig()
     UsbAudioSession.volumeControl = (delta: number): boolean => this.changeUsbVolume(delta)
+    this.usbVolumeBackend = ''
+  }
+
+  initializeUsbVolume(): void {
+    if (!this.state.usbExclusiveActive) return
+    this.usbVolumeBackend = '原始电平'
+    if (this.usbVolumeMode !== 3) {
+      const hardware = this.usbVolumeMode !== 2 || this.usbDsdMode > 0
+      const result = hardware ? mpvCommand(this.engine.handle, ['set', 'ao-volume', this.usbDigitalVolume.toString()]) as MpvCommandResult : undefined
+      if (result?.success) {
+        this.usbVolumeBackend = '硬件音量'
+        mpvCommand(this.engine.handle, ['set', 'volume', '100'])
+      } else if (this.usbDsdMode === 0 && (this.usbVolumeMode === 0 || this.usbVolumeMode === 2)) {
+        this.usbVolumeBackend = '数字音量（非位完美）'
+      }
+    }
+    salmonLogger.addLog(TAG, `USB 音量控制: ${this.usbVolumeBackend}`, false)
+    this.state.usbVolumeStatus = this.usbVolumeBackend === '原始电平' ? this.usbVolumeBackend : `${this.usbVolumeBackend} ${this.usbDigitalVolume}%`
   }
 
   changeUsbVolume(delta: number): boolean {
     if (!this.state.usbExclusiveActive || !this.engine.handle) return false
-    const result = mpvCommand(this.engine.handle, ['add', 'ao-volume', delta.toString()]) as MpvCommandResult
+    if (!this.usbVolumeBackend) this.initializeUsbVolume()
+    if (this.usbVolumeBackend === '原始电平') {
+      ToolsUtil.showToast('当前使用原始电平；DSD 或硬件音量不可用时请使用设备音量控制')
+      return false
+    }
+    const digital = this.usbVolumeBackend.startsWith('数字')
+    const value = Math.max(0, Math.min(100, this.usbDigitalVolume + delta))
+    const result = mpvCommand(this.engine.handle, ['set', digital ? 'volume' : 'ao-volume', value.toString()]) as MpvCommandResult
+    if (result?.success) {
+      this.usbDigitalVolume = value
+      this.state.usbVolumeStatus = `${this.usbVolumeBackend} ${value}%`
+    }
     if (!result?.success) ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.usb_no_hardware_volume').id))
     return result?.success === true
   }

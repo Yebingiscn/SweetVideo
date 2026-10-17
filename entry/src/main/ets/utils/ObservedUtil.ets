@@ -50,6 +50,7 @@ class SettingUtil {
   public mpvUsbExclusive: boolean = false
   public mpvUsbDsdMode: number = 0
   public mpvUsbDevice: string = ''
+  public mpvUsbVolumeMode: number = 0
   public mpvShaderMode: number = 0
   public superResolutionState: boolean = false
   public smartRotation: boolean = true

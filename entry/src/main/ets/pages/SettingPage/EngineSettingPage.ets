@@ -165,6 +165,19 @@ export struct EngineSettingPage {
             })
             SettingsMenuItem({
               symbol: $r('sys.symbol.hardware'),
+              message: 'USB 音量控制方式',
+              list: ['自动', '硬件音量', '数字音量', '原始电平'],
+              selected: Setting.mpvUsbVolumeMode,
+              onChange: (index: number) => {
+                Setting.mpvUsbVolumeMode = index
+                this.saveUsb()
+              }
+            })
+            Text('自动优先硬件音量，不可用时使用数字音量。自动／数字音量允许 PCM 格式转换，不能保证位完美；原始电平不调节音量。DSD 直出仅支持硬件音量。下次打开媒体生效。')
+              .fontSize(12).fontColor($r('sys.color.font_secondary'))
+              .padding({ left: 16, right: 16, bottom: 12 })
+            SettingsMenuItem({
+              symbol: $r('sys.symbol.hardware'),
               message: ToolsUtil.getStringResource($r('app.string.dsd_output_mode').id),
               list: [$r('app.string.off'), 'DoP', $r('app.string.native_dsd')],
               selected: Setting.mpvUsbDsdMode,
@@ -332,7 +345,7 @@ export struct EngineSettingPage {
   }
 
   private saveUsb(): void {
-    Preferences.saveMpvUsb(PathUtils.appContext!, Setting.mpvUsbExclusive, Setting.mpvUsbDsdMode, Setting.mpvUsbDevice)
+    Preferences.saveMpvUsb(PathUtils.appContext!, Setting.mpvUsbExclusive, Setting.mpvUsbDsdMode, Setting.mpvUsbDevice, Setting.mpvUsbVolumeMode)
   }
 
   private openConf(): void {

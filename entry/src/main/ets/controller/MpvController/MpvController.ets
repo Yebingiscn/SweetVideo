@@ -205,6 +205,7 @@ export class MpvController implements PlayerControllerInterface {
   private activeHwdecMode: MpvDecodingMethod = MpvDecodingMethod.HARDWARE_SURFACE
   private activeAutoDeinterlace: boolean = false
   @Trace usbExclusiveActive: boolean = false
+  @Trace usbVolumeStatus: string = ''
   private postLoadTasksExecuted: boolean = false
   private initialStartHandledByLoad: boolean = false
   private initialSmartRotationRequested: boolean = false
@@ -1774,6 +1775,43 @@ export class MpvController implements PlayerControllerInterface {
     ToolsUtil.showToast(ToolsUtil.getStringResource($r('app.string.video_load_failed_logged').id))
   }
 
+  private async recoverUsbPlayback(): Promise<void> {
+    const generation = this.playRequestGeneration
+    const video = this.nowPlaying
+    if (!video || !this.usbExclusiveActive) return
+    const position = Math.max(0, this.playTime)
+    const resume = this.initialPlaying ?? !this.isInState(MpvPlayerState.PAUSED)
+    this.engineAdapter.invalidateLoad()
+    this.cancelDecodingModeTimers()
+    try {
+      salmonLogger.addLog(TAG, 'USB 输出失败，静默恢复普通音频播放', true)
+      // Disable USB before yielding: duplicate failure events cannot restart recovery.
+      this.restoreOrdinaryAudioOutput(true)
+      this.initialPlaying = resume
+      this.initialStartHandledByLoad = true
+      this.transitionTo(MpvPlayerState.LOADING)
+      this.configureNetworkStateSubscription(video.uri)
+      if (this.currentPathStack) {
+        this.setPlayerCallback(this.currentPathStack)
+        this.registerPlaybackCompleteListener(this.currentPathStack)
+      }
+      await this.getData()
+      if (generation !== this.playRequestGeneration) return
+      this.applyAutoDeinterlace()
+      this.applyDecoderVrrPolicy()
+      if (!this.audioController.applyAudioPassthrough(this.speed, this.audioEffectConfig.effect)) {
+        throw new Error('普通音频输出配置失败')
+      }
+      this.audioController.applyAudioCoverMode()
+      this.engineAdapter.load(this.preparePlayUrl(video.uri), position / 1000,
+        this.getInitialSubtitleTrackId(), video.network_user_agent,
+        this.smbPlayback.headers(video.network_http_headers))
+      this.subtitleController.applySubtitleStyle()
+    } catch (error) {
+      if (generation === this.playRequestGeneration) this.handleLoadFailure(`USB 回退失败: ${error}`)
+    }
+  }
+
   private registerMediaLoadCallback(): void {
     if (this.mediaLoadCallbackRegistered) {
       return
@@ -1785,12 +1823,19 @@ export class MpvController implements PlayerControllerInterface {
           return
         }
         if (!loaded || !this.engineAdapter.isAlive()) {
+          if (!loaded && errorCode === -14 && this.usbExclusiveActive && this.nowPlaying) {
+            this.recoverUsbPlayback().catch((error: Error) => {
+              salmonLogger.addLog(TAG, `USB 回退任务失败: ${error}`, true)
+            })
+            return
+          }
           this.handleLoadFailure(`MPV 加载/播放失败 request=${requestId}, errorCode=${errorCode}, ` +
             `coreAlive=${this.engineAdapter.isAlive()}`)
           return
         }
 
         this.engineAdapter.markLoaded(requestId)
+        this.audioController.initializeUsbVolume()
         salmonLogger.addLog(TAG, `[MpvController] MPV file loaded request=${requestId}`, false)
         // loadfile replace 后再明确同步一次播放状态，避免 EOF 状态残留。
         if (this.isInState(MpvPlayerState.LOADING)) {

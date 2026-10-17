@@ -1,5 +1,7 @@
 // Type declarations for libmpvnative native module
 declare module 'libmpvnative.so' {
+  /** Returns 0 for an open descriptor, otherwise errno; does not take ownership. */
+  export const checkUsbFileDescriptor: (fd: number) => number;
   export function setMpvConfigPath(path: string): void;
   export function validateMpvConfig(path: string): number;
   export function loadExternalAudio(path: string, title: string, requestId: number): Promise<number>;

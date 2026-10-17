@@ -193,6 +193,7 @@ export default class VideoOperateUtil {
       'mpv_usb_dop': false,
       'mpv_usb_dsd_mode': -1,
       'mpv_usb_device': '',
+      'mpv_usb_volume_mode': 0,
       'enableBackgroundDarkImage': false,
       'enableAiPrivacyAntiPeep': false,
       'defaultBrightness': 0,
@@ -263,6 +264,8 @@ export default class VideoOperateUtil {
     Setting.mpvUsbDsdMode = dsdMode === -1 ? (valueMap['mpv_usb_dop'] === true ? 1 : 0) :
       (dsdMode === 1 || dsdMode === 2 ? dsdMode : 0)
     Setting.mpvUsbDevice = valueMap['mpv_usb_device'] as string
+    const usbVolumeMode = valueMap['mpv_usb_volume_mode'] as number
+    Setting.mpvUsbVolumeMode = Number.isInteger(usbVolumeMode) && usbVolumeMode >= 0 && usbVolumeMode <= 3 ? usbVolumeMode : 0
     Setting.enableBackgroundDarkImage = valueMap['enableBackgroundDarkImage'] as boolean
     Setting.enableAiPrivacyAntiPeep = valueMap['enableAiPrivacyAntiPeep'] as boolean
     Setting.defaultBrightness = valueMap['defaultBrightness'] as number

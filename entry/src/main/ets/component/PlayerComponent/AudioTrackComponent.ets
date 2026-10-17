@@ -230,6 +230,7 @@ export struct AudioTrackComponent {
         })
         .key((item: TrackType, _index: number) => this.getKey(item))
       if (this.player instanceof MpvController && this.player.usbExclusiveActive) {
+        Text(this.player.usbVolumeStatus).fontSize(12).fontColor($r('app.color.text_color'))
         Row({ space: 12 }) {
           Text($r('app.string.usb_device_volume')).fontColor($r('app.color.text_color'))
           Button('−').onClick(() => {

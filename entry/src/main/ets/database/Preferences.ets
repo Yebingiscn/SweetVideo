@@ -84,7 +84,8 @@ export default class Preferences {
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpv_audio_passthrough', enabled)
   }
 
-  static saveMpvUsb(context: Context, enabled: boolean, dsdMode: number, device: string) {
+  static saveMpvUsb(context: Context, enabled: boolean, dsdMode: number, device: string, volumeMode: number = 0) {
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpv_usb_volume_mode', volumeMode)
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpv_usb_exclusive', enabled)
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpv_usb_dsd_mode', dsdMode)
     PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'mpv_usb_device', device)

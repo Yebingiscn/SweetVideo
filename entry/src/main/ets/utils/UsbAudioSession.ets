@@ -1,5 +1,6 @@
 import { usbManager } from '@kit.BasicServicesKit'
 import { fileIo } from '@kit.CoreFileKit'
+import { checkUsbFileDescriptor } from 'libmpvnative.so'
 import { salmonLogger } from 'salmonlogger'
 import ToolsUtil from './ToolsUtil.ets'
 
@@ -39,13 +40,19 @@ export class UsbAudioSession {
     if (!pipe) throw new Error(ToolsUtil.getStringResource($r('app.string.usb_connect_failed').id))
     try {
       const fd = usbManager.getFileDescriptor(pipe)
-      // SDK error codes are positive. Validate the returned number as an fd.
-      if (fd < 0) throw new Error(ToolsUtil.getStringResource($r('app.string.usb_no_native_transfer').id))
-      fileIo.statSync(fd)
+      // SDK error codes can be positive. Check the descriptor without querying
+      // device-node metadata, which may be forbidden even when USB I/O is allowed.
+      const fdError = checkUsbFileDescriptor(fd)
+      if (fdError !== 0) {
+        salmonLogger.addLog('UsbAudioSession', `USB 句柄校验失败: fd=${fd}, errno=${fdError}`, true)
+        throw new Error(ToolsUtil.getStringResource($r('app.string.usb_no_native_transfer').id))
+      }
+      salmonLogger.addLog('UsbAudioSession', 'USB 句柄校验通过，准备配置独占输出', false)
       this.fd = fd
       this.pipe = pipe
       return fd
     } catch (error) {
+      salmonLogger.addLog('UsbAudioSession', `USB 句柄准备失败: ${error}`, true)
       usbManager.closePipe(pipe)
       throw new Error(ToolsUtil.getStringResource($r('app.string.usb_native_permission_failed').id))
     }
