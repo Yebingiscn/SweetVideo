@@ -1,6 +1,26 @@
 {
   "string": [
     {
+      "name": "video_track",
+      "value": "Video track"
+    },
+    {
+      "name": "video_tracks_read_failed",
+      "value": "Could not read video tracks"
+    },
+    {
+      "name": "video_track_switch_failed",
+      "value": "Could not switch video track"
+    },
+    {
+      "name": "video_track_system_failed",
+      "value": "The system player could not switch this video track. Try the MPV engine."
+    },
+    {
+      "name": "video_track_switching",
+      "value": "Switching video track…"
+    },
+    {
       "name": "mpv_conf_title",
       "value": "MPV custom conf"
     },
@@ -4231,6 +4251,30 @@
     {
       "name": "avatar_update_failed",
       "value": "Could not update the avatar. Please try again."
+    },
+    {
+      "name": "privacy_all_videos",
+      "value": "All videos"
+    },
+    {
+      "name": "privacy_folder_delete_confirm",
+      "value": "Permanently delete this folder, all its subfolders and videos, including playback records, covers, subtitles, external audio and danmaku? This cannot be undone."
+    },
+    {
+      "name": "privacy_folder_delete_incomplete",
+      "value": "Deleted %d videos; %d items are incomplete. The folders and unfinished records are retained for retry."
+    },
+    {
+      "name": "privacy_folder_invalid_name",
+      "value": "Enter a folder name of 1–100 characters, without slashes or control characters. The names . and .. are not allowed."
+    },
+    {
+      "name": "privacy_folder_operation_failed",
+      "value": "Could not save the folder changes. Your videos and existing folders are retained."
+    },
+    {
+      "name": "privacy_folder_load_failed",
+      "value": "Could not read the private folders. All videos remain available; folder changes are temporarily disabled."
     }
   ]
 }

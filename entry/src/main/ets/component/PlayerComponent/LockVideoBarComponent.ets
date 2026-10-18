@@ -1,12 +1,11 @@
 import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
-import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
+import type { PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { XAnimation } from '../../utils/AnimationUtil'
 
 @ComponentV2
 export struct LockVideoBarComponent {
   @Param buttonsOnLeft: boolean = false
-  @Consumer('player') player: PlayerControllerInterface =
-    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
+  @Require @Param player: PlayerControllerInterface
   @Event onLockClick: () => void = () => {
   }
   @Event onCaptureScreen: () => void = () => {

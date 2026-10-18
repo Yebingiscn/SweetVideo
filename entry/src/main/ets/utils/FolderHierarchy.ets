@@ -66,7 +66,7 @@ export default class FolderHierarchy {
     return candidate.toString()
   }
 
-  static repair(source: FileFolder[]): FileFolder[] {
+  static repair(source: FileFolder[], protectHome: boolean = true): FileFolder[] {
     const folders: FileFolder[] = source.map((folder): FileFolder => ({
       name: folder.name, date: folder.date, parent_date: folder.parent_date ?? null,
       video_list: folder.video_list
@@ -107,7 +107,7 @@ export default class FolderHierarchy {
       }
       path.forEach(id => completed.add(id))
     }
-    const home = folders.find(folder => folder.name === '首页')
+    const home = protectHome ? folders.find(folder => folder.name === '首页') : undefined
     if (home) { home.parent_date = null }
     return folders
   }

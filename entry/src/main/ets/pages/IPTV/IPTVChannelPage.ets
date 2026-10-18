@@ -17,6 +17,7 @@ import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 function allChannelsLabel(): string {
   return ToolsUtil.getStringResource($r('app.string.all_channels').id)
 }
+
 const TAG = 'IPTVChannelPage'
 const EPG_REFRESH_INTERVAL = 30 * 60 * 1000
 
@@ -273,7 +274,8 @@ export struct IPTVChannelPage {
         }
         if (this.lineCount(params.channel!) > 1) {
           Row() {
-            Button($r('app.string.line_number', this.selectedLineNumber(params.channel!), this.lineCount(params.channel!)))
+            Button(
+              $r('app.string.line_number', this.selectedLineNumber(params.channel!), this.lineCount(params.channel!)))
               .height(28)
               .fontSize(11)
               .fontColor($r('app.color.text_color'))
@@ -282,7 +284,6 @@ export struct IPTVChannelPage {
               .bindMenu(this.LineMenu(params.channel!), {
                 placement: Placement.BottomRight,
                 showInSubWindow: false,
-                backgroundBlurStyle: BlurStyle.COMPONENT_THIN
               })
           }
           .width('100%')
@@ -303,7 +304,8 @@ export struct IPTVChannelPage {
         .each((item: RepeatItem<IPTVLine>) => {
           MenuItem({
             content: $r('app.string.line_n', item.index + 1),
-            labelInfo: item.index === (channel.selectedLineIndex ?? 0) ? $r('app.string.current_label') : this.lineHost(item.item)
+            labelInfo: item.index === (channel.selectedLineIndex ?? 0) ? $r('app.string.current_label') :
+              this.lineHost(item.item)
           }).onClick(() => this.selectLine(channel, item.index))
         })
         .key((line: IPTVLine, index: number) => `${line.url}_${index}`)
@@ -481,7 +483,9 @@ export struct IPTVChannelPage {
       return ToolsUtil.getStringResource($r('app.string.zero_channels').id)
     }
     const multiLineCount = this.source.channels.filter(channel => this.lineCount(channel) > 1).length
-    return multiLineCount > 0 ? ToolsUtil.getStringResourceArgs2($r('app.string.channels_with_multiline').id, this.source.channelCount, multiLineCount) :
+    return multiLineCount > 0 ?
+      ToolsUtil.getStringResourceArgs2($r('app.string.channels_with_multiline').id, this.source.channelCount,
+        multiLineCount) :
       ToolsUtil.getStringResourceArgs($r('app.string.channels_count').id, this.source.channelCount)
   }
 

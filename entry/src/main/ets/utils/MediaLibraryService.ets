@@ -22,8 +22,13 @@ import { fileManagerService } from '@kit.FileManagerServiceKit'
 
 const TAG = 'MediaLibraryService'
 
+interface MediaListIndex {
+  length: number
+  indices: Map<string, number>
+}
+
 export default class MediaLibraryService {
-  private static queryCache = new WeakMap<VideoMetadata[], Map<string, VideoMetadata>>()
+  private static queryCache: WeakMap<VideoMetadata[], MediaListIndex> = new WeakMap()
 
   public static videoSourcePath = new Map<number, string>([
     [VideoSource.SWEET_VIDEO_DOWNLOAD_FILE, '/storage/Users/currentUser/'],
@@ -263,28 +268,26 @@ export default class MediaLibraryService {
     if (!list || !item) {
       return undefined
     }
-    if (!MediaLibraryService.queryCache.has(list)) {
-      MediaLibraryService.queryCache.set(list, new Map())
+    let cached = MediaLibraryService.queryCache.get(list)
+    if (!cached || cached.length !== list.length || cached.indices.size > list.length) {
+      const indices = new Map<string, number>()
+      for (let i = 0; i < list.length; i++) indices.set(list[i].date, i)
+      cached = { length: list.length, indices: indices }
+      MediaLibraryService.queryCache.set(list, cached)
+      const index = indices.get(item)
+      return index === undefined ? undefined : list[index]
     }
-    const listCache = MediaLibraryService.queryCache.get(list)!
-    if (listCache.has(item)) {
-      return listCache.get(item)
-    }
-    const dateMap = new Map(list.map(i => [i.date, i]))
-    const foundItem = dateMap.get(item)
-    if (foundItem) {
-      const typedListCache: Map<string, VideoMetadata> = listCache
-      typedListCache.set(item, foundItem)
-      if (typedListCache.size > (list.length >= 100 ? 100 : list.length * 0.5)) {
-        const iterator: IterableIterator<string> = typedListCache.keys()
-        const oldestEntry: IteratorResult<string, undefined> = iterator.next()
-        if (!oldestEntry.done) {
-          const oldestKey: string = oldestEntry.value
-          typedListCache.delete(oldestKey)
-        }
+    const index = cached.indices.get(item)
+    if (index !== undefined && list[index]?.date === item) return list[index]
+    // 数组可能原地排序或替换条目；返回当前位置的对象，避免命中旧对象。
+    for (let i = list.length - 1; i >= 0; i--) {
+      if (list[i].date === item) {
+        cached.indices.set(item, i)
+        return list[i]
       }
     }
-    return foundItem
+    cached.indices.delete(item)
+    return undefined
   }
 
   // 按播放列表顺序取相邻项；音频、视频和探测信息不完整的文件都不能被隐式跳过。
@@ -312,11 +315,9 @@ export default class MediaLibraryService {
     }
     const lowerValue = trimmedValue.toLowerCase()
     return list.filter(item => {
-      const uriFileName = ToolsUtil.fileNameFromUri(item.uri).toLowerCase()
-      const artist = item.artist?.toLowerCase() || ''
-      const album = item.album?.toLowerCase() || ''
-      return item.title.toLowerCase().includes(lowerValue) || artist.includes(lowerValue) ||
-        album.includes(lowerValue) || uriFileName.includes(lowerValue)
+      if (item.title.toLowerCase().includes(lowerValue) || item.artist?.toLowerCase().includes(lowerValue) ||
+        item.album?.toLowerCase().includes(lowerValue)) return true
+      return ToolsUtil.fileNameFromUri(item.uri).toLowerCase().includes(lowerValue)
     })
   }
 
@@ -343,7 +344,7 @@ export default class MediaLibraryService {
   }
 
   // 删除封面
-  static async deleteCover(date: string): Promise<void> {
+  static async deleteCover(date: string, requireSuccess: boolean = false): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       fs.access(PathUtils.coverPath + date, (err) => {
         if (!err) {
@@ -358,8 +359,10 @@ export default class MediaLibraryService {
               resolve()
             }
           })
-        } else {
+        } else if (!requireSuccess || err.code === 13900002) {
           resolve() // 文件不存在也算删除成功
+        } else {
+          reject(new Error('Cover access failed'))
         }
       })
     })
@@ -478,25 +481,37 @@ export default class MediaLibraryService {
     MediaLibraryService.saveData(appContext, nowPlaying, { audioTrackId })
   }
 
-  static async deleteVideoResource(item: VideoMetadata, deleteType: DeleteType): Promise<void> {
+  static async deleteVideoResource(item: VideoMetadata, deleteType: DeleteType,
+    requireSuccess: boolean = false): Promise<void> {
     if (!item.date) {
       return
     }
-    RecentPlayUtil.delData(PathUtils.appContext!, item.uri)
+    let cleanupFailed = false
+    try {
+      RecentPlayUtil.delData(PathUtils.appContext!, item.uri, requireSuccess)
+    } catch (_) {
+      cleanupFailed = true
+      salmonLogger.addLog(TAG, '删除播放记录失败', true)
+    }
     await ExternalAudioStorage.remove(item.date).catch((_error: Error) => {
+      cleanupFailed = true
       salmonLogger.addLog(TAG, '删除视频外挂音频失败', true)
     })
     await SubtitleUtil.deleteSubtitle(PathUtils.subtitlePath, item.date, true).catch((error: Error) => {
+      cleanupFailed = true
       salmonLogger.addLog(TAG, `删除视频字幕失败: ${error.message}`, true)
     })
     try {
       await DanmakuStorage.remove(item.date)
     } catch (error) {
+      cleanupFailed = true
       salmonLogger.addLog(TAG, `删除视频弹幕失败: ${error}`, true)
     }
-    await MediaLibraryService.deleteCover(item.date).catch((error: Error) => {
+    await MediaLibraryService.deleteCover(item.date, requireSuccess).catch((error: Error) => {
+      cleanupFailed = true
       salmonLogger.addLog(TAG, `删除视频封面失败: ${error.message}`, true)
     })
+    if (requireSuccess && cleanupFailed) throw new Error('Video resource cleanup incomplete')
     if (deleteType === DeleteType.HARD) {
       try {
         await fileIo.unlink(item.uri)

@@ -10,6 +10,7 @@ import { window } from '@kit.ArkUI'
 import { AudioTrack, SubtitleTrack } from '../interfaces/AudioTrackInterface'
 import { MpvAudioTrack, MpvChapter, MpvSubtitleTrack } from './MpvController/MpvTypes'
 import { PlayerEngine } from '../common/NavigationCommon'
+import { PlayerVideoTracks } from './PlayerVideoTracks'
 
 export type PlayerEngineSwitchHandler =
   (targetEngine: string, reason: string, resumePlayback?: boolean) => Promise<void>
@@ -36,6 +37,7 @@ export interface AudioControllerInterface {
 }
 
 export interface PlayerControllerInterface extends FramePreviewTarget {
+  readonly videoTracks: PlayerVideoTracks
   readonly audioController: AudioControllerInterface
   readonly subtitleController: SubtitleControllerInterface
   surfaceId: string | null

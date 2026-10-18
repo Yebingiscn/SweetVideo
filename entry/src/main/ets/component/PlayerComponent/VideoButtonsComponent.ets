@@ -1,5 +1,5 @@
 import { ButtonFancyModifier, SymbolGlyphFancyModifier } from '../../common/AttributeModifierConfig'
-import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
+import type { PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import AVSessionUtil from '../../utils/AVSessionUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import { AVCastPicker, AVCastPickerState } from '@kit.AVSessionKit'
@@ -27,8 +27,7 @@ export struct VideoButtonsComponent {
   @BuilderParam AVCastPickerBuilderBridge: () => void
   @BuilderParam videoSettingBuilder: () => void
   @BuilderParam playbackSpeedMenu: () => void
-  @Consumer('player') player: PlayerControllerInterface =
-    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
+  @Require @Param player: PlayerControllerInterface
   @Event onScreenRotationOrFullScreenClick: () => Promise<void> = async () => {
   }
   @Event onSideBarStatusTmpChange: (v: Visibility) => void = () => {
@@ -127,7 +126,6 @@ export struct VideoButtonsComponent {
       .iconButton()
       .bindMenu(this.videoSettingBuilder,
         {
-          backgroundBlurStyle: BlurStyle.COMPONENT_THIN,
           onWillAppear: () => this.onControlsOverlay('settings-menu', true),
           onDidDisappear: () => this.onControlsOverlay('settings-menu', false)
         })
@@ -145,7 +143,6 @@ export struct VideoButtonsComponent {
       .iconButton()
       .bindMenu(this.playbackSpeedMenu,
         {
-          backgroundBlurStyle: BlurStyle.COMPONENT_THIN,
           onWillAppear: () => this.onControlsOverlay('speed-menu', true),
           onDidDisappear: () => this.onControlsOverlay('speed-menu', false)
         })

@@ -1,6 +1,6 @@
 import { HiCar } from './HiCarUtil'
-import { FolderNameSortItem, sortFolderNamesInTaskPool } from './TaskpoolUtil'
-import MediaSortUtil from './MediaSortUtil'
+import lazy { FolderNameSortItem, sortFolderNamesInTaskPool } from './TaskpoolUtil'
+import lazy MediaSortUtil from './MediaSortUtil'
 import { bundleManager, ConfigurationConstant } from '@kit.AbilityKit'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { FileFolder } from '../interfaces/FileFolderInterface'
@@ -16,7 +16,7 @@ import DataSyncUtil from './DataSyncUtil'
 import FileFolderUtil from './FileFolderUtil'
 import { Setting } from './ObservedUtil'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
-import VideoOperateUtil from './VideoOperateUtil'
+import lazy VideoOperateUtil from './VideoOperateUtil'
 import { WindowUtil } from './WindowUtil'
 import { updateManager } from '@kit.AppGalleryKit'
 import { util } from '@kit.ArkTS'
@@ -312,8 +312,8 @@ export default class ToolsUtil {
       const stat = fileIo.statSync(filePath)
       const buffer = new ArrayBuffer(stat.size)
       readStream.readSync(buffer)
-      let textDecoder = util.TextDecoder.create(decode, { ignoreBOM: true })
-      let text = textDecoder.decodeToString(new Uint8Array(buffer), { stream: false })
+      const textDecoder = util.TextDecoder.create(decode, { ignoreBOM: true })
+      const text = textDecoder.decodeToString(new Uint8Array(buffer), { stream: false })
       readStream.close()?.catch(() => {
         salmonLogger.addLog(TAG, `文件解码转换失败: ${'未知错误'}`, true)
       })

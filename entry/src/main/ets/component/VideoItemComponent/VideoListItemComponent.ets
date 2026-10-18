@@ -62,8 +62,15 @@ export default struct VideoListItem {
             .layoutWeight(1)
             .wordBreak(WordBreak.BREAK_ALL)
           if (this.videoListController.multipleChooseState === Visibility.Visible) {
-            SymbolGlyph(this.choose ? $r('sys.symbol.checkmark_circle') : $r('sys.symbol.circle'))
-              .attributeModifier(new SymbolGlyphFancyModifier(25, '', ''))
+            Stack({ alignContent: Alignment.Center }) {
+              SymbolGlyph(this.choose ? $r('sys.symbol.checkmark') : $r('sys.symbol.circle'))
+                .attributeModifier(new SymbolGlyphFancyModifier(this.choose ? 18 : 28, '', ''))
+                .fontColor([this.choose ? Color.White : $r('app.color.text_color')])
+            }
+              .width(28)
+              .height(28)
+              .backgroundColor(this.choose ? $r('app.color.main_color') : Color.Transparent)
+              .borderRadius(14)
               .onAppear(() => {
                 this.checkChoose()
               })

@@ -1,4 +1,6 @@
 import { HiCar } from '../../utils/HiCarUtil'
+import { PlayerVideoTracks } from '../PlayerVideoTracks'
+import { getVideoTracks, selectVideoTrack } from 'libmpvnative.so'
 import { MpvPlaybackEffects } from './MpvPlaybackEffects'
 import { MpvSubtitleController } from './MpvSubtitleController'
 import { NetworkPlayback } from '../../utils/NetworkPlayback'
@@ -89,6 +91,10 @@ interface MpvCommandResult {
 
 @ObservedV2
 export class MpvController implements PlayerControllerInterface {
+  readonly videoTracks: PlayerVideoTracks = new PlayerVideoTracks(
+    () => getVideoTracks(this.engineAdapter.getLoadRequestId()),
+    async (id: number): Promise<void> => { await selectVideoTrack(this.engineAdapter.getLoadRequestId(), id) },
+    () => this.engineAdapter.isMediaLoaded() ? this.engineAdapter.getLoadRequestId() : 0)
   readonly subtitleController: MpvSubtitleController = new MpvSubtitleController(this,
     (): number | null => this.mpvHandle,
     (): number => this.postLoadTaskGeneration,
@@ -1005,6 +1011,7 @@ export class MpvController implements PlayerControllerInterface {
       this.postLoadMetadataTimer = 0
     }
     this.postLoadTaskGeneration++
+    this.videoTracks.reset()
     this.audioController.resetMedia()
     this.postLoadTasksExecuted = false
     this.userListener?.off('videoSizeReady')
@@ -1421,6 +1428,7 @@ export class MpvController implements PlayerControllerInterface {
     }
     this.detectAndUpdateHdrType()
     await Promise.all([
+      this.videoTracks.refresh().catch(() => salmonLogger.addLog(TAG, '获取视频轨道失败', true)),
       this.audioController.getAudioTrackList(),
       this.subtitleController.getSubtitleTrackList()
     ])
@@ -1954,6 +1962,12 @@ export class MpvController implements PlayerControllerInterface {
               return
             }
             if (event.changeReason === audio.AudioStreamDeviceChangeReason.REASON_OLD_DEVICE_UNAVAILABLE) {
+              // Taking exclusive ownership can remove the DAC from the system
+              // route. Only USB transport errors describe our active output.
+              if (this.usbExclusiveActive) {
+                salmonLogger.addLog(TAG, '[MpvController] System audio route changed during USB exclusive playback; keeping USB output', false)
+                return
+              }
               this.audioPauseGuard.cancel()
               if (this.playing || this.isInState(MpvPlayerState.LOADING) ||
                 this.isInState(MpvPlayerState.BUFFERING)) {

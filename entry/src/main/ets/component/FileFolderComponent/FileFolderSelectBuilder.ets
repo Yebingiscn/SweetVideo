@@ -10,7 +10,8 @@ export function FolderSelectMenuBuilder(menus: IMenuItem[]) {
       .each((repeatItem: RepeatItem<IMenuItem>) => {
         MenuItem({
           symbolStartIcon: new SymbolGlyphModifier(repeatItem.item.icon),
-          content: repeatItem.item.content
+          content: repeatItem.item.content,
+          labelInfo: repeatItem.item.shortcut
         }).onClick(repeatItem.item.onAction)
       })
       .key((item: IMenuItem, _index: number) => item.content as string)

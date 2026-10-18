@@ -12,17 +12,19 @@ import { salmonLogger } from 'salmonlogger'
 import { SUPPORT_AUDIO_FORMAT, SUPPORT_VIDEO_FORMAT } from '../common/Constants'
 import Preferences from '../database/Preferences'
 import FileFolderUtil from './FileFolderUtil'
-import { ConcurrencyManagerUtil } from './FileProcessorUtil'
+import lazy { ConcurrencyManagerUtil } from './FileProcessorUtil'
 import { PathUtils } from './PathUtils'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
 import { extractVideoFileInfoInTaskPool } from './TaskpoolUtil'
 import { Available, SuppressWarnings, SuppressWarningsType, systemDateTime } from '@kit.BasicServicesKit'
-import FFmpegThumbnailUtil, { FFmpegMediaProbe } from './FFmpegThumbnailUtil'
+import lazy FFmpegThumbnailUtil from './FFmpegThumbnailUtil'
+import type { FFmpegMediaProbe } from './FFmpegThumbnailUtil'
 import MediaLibraryService from './MediaLibraryService'
-import MediaExportUtil from './MediaExportUtil'
+import lazy MediaExportUtil from './MediaExportUtil'
 import MediaImportBatch from './MediaImportBatch'
-import ImageStorage from './ImageStorage'
+import lazy ImageStorage from './ImageStorage'
 import { MediaBatchProgress, MediaBatchResult } from '../interfaces/MediaBatchInterface'
+import PrivacyFolderUtil from './PrivacyFolderUtil'
 
 const TAG = 'SelectFileUtil'
 
@@ -245,7 +247,7 @@ export default class SelectFileUtil {
   static async copyFileToPrivacySpace(context: Context, video_meta_data_encryption: VideoMetadata[], uri: string,
     sandbox_video: string, sandbox_path: string, date: string, fileName: string, fileSize: number,
     pixelMap: image.PixelMap | undefined,
-    probe?: FFmpegMediaProbe): Promise<VideoMetadata> {
+    probe?: FFmpegMediaProbe, privateFolderDate?: string): Promise<VideoMetadata> {
     let sourceFile: fs.File | null = null
     let targetFile: fs.File | null = null
     let coverTransferred = false
@@ -262,8 +264,15 @@ export default class SelectFileUtil {
       const videoInfo =
         await VideoInfoUtil.setVideoInfoOptimized(date, targetPath, fileName, sandbox_video, sandbox_path, fileSize,
           pixelMap, probe)
+      if (privateFolderDate) {
+        // 调用方持有 global_data 锁；目标在选文件期间被删除时，安全回退到隐私根目录。
+        const folders = Preferences.getPrivacyFolders(context)
+        if (folders.folders.some(folder => folder.date === privateFolderDate)) {
+          Preferences.savePrivacyFolders(context, PrivacyFolderUtil.moveVideos(folders, [date], privateFolderDate))
+        }
+      }
       video_meta_data_encryption.push(videoInfo)
-      Preferences.saveVideoMetaDataEncryption(context, video_meta_data_encryption)
+      Preferences.saveVideoMetaDataEncryption(context, video_meta_data_encryption, true)
       return videoInfo // 返回新创建的元数据对象
     } catch (error) {
       salmonLogger.addLog(TAG, `文件复制失败: ${uri}: error ${error}`, true)
@@ -383,7 +392,8 @@ export default class SelectFileUtil {
               const privateVideos = Preferences.getVideoMetaDataEncryption(context)
               unusedPixelMap = undefined
               const imported = await SelectFileUtil.copyFileToPrivacySpace(context, privateVideos, uri, sandbox_video,
-                sandbox_path, systemDateTime.getTime(true).toString(), fileName, fileSize, pixelMap, mediaProbe)
+                sandbox_path, systemDateTime.getTime(true).toString(), fileName, fileSize, pixelMap, mediaProbe,
+                file_folder?.date)
               if (video_meta_data !== privateVideos) {
                 video_meta_data.push(imported)
               }

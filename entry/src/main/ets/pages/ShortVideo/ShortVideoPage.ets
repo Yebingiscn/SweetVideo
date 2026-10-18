@@ -126,7 +126,6 @@ export struct ShortVideoPage {
         .bindMenu(this.PlaybackSpeedMenuBuilder, {
           placement: Placement.TopRight,
           showInSubWindow: false,
-          backgroundBlurStyle: BlurStyle.COMPONENT_THIN,
           onAppear: () => this.isSpeedMenuOpen = true,
           onDisappear: () => this.isSpeedMenuOpen = false
         })

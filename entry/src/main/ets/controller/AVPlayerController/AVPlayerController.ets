@@ -1,4 +1,5 @@
 import { HiCar } from '../../utils/HiCarUtil'
+import { PlayerVideoTracks } from '../PlayerVideoTracks'
 import { NetworkPlayback } from '../../utils/NetworkPlayback'
 import { AudioPauseGuard } from '../../utils/AudioPauseGuard'
 import { media } from '@kit.MediaKit'
@@ -46,6 +47,19 @@ const TAG = 'AVPlayerController'
 
 @ObservedV2
 export class AVPlayerController implements PlayerControllerInterface {
+  readonly videoTracks: PlayerVideoTracks = new PlayerVideoTracks(
+    async () => {
+      const player = this.avPlayer
+      if (!player) throw new Error('No active player')
+      return await player.getVideoTracks()
+    },
+    async (id: number): Promise<void> => {
+      const player = this.avPlayer
+      if (!player) throw new Error('No active player')
+      await player.selectVideoTrack(id)
+    },
+    () => !this.pageExitStarted && this.avPlayer &&
+      ['prepared', 'playing', 'paused', 'completed'].includes(this.avPlayer.state) ? this.videoSwitchVersion + 1 : 0)
   readonly audioController: AudioControllerInterface = this
   readonly subtitleController: AVPlayerSubtitleController = new AVPlayerSubtitleController(this,
     () => this.avPlayer, () => this.videoSwitchVersion)
@@ -290,6 +304,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   async release(): Promise<void> {
+    this.videoTracks.reset()
     this.cancelFramePreviewPreparation()
     framePreviewSession.cancelRequests(this)
     this.audioPauseGuard.cancel()
@@ -319,6 +334,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   }
 
   async reset(): Promise<void> {
+    this.videoTracks.reset()
     this.cancelFramePreviewPreparation()
     framePreviewSession.cancelRequests(this)
     this.audioPauseGuard.cancel()
@@ -695,8 +711,8 @@ export class AVPlayerController implements PlayerControllerInterface {
       return
     }
     salmonLogger.addLog(TAG, "开始计算播放区域尺寸", false)
-    const nowWidth = this.nowPlaying.size[0]
-    const nowHeight = this.nowPlaying.size[1]
+    const nowWidth = this.avPlayer && this.avPlayer.width > 0 ? this.avPlayer.width : this.nowPlaying.size[0]
+    const nowHeight = this.avPlayer && this.avPlayer.height > 0 ? this.avPlayer.height : this.nowPlaying.size[1]
     this.landscapeVideo = VideoOperateUtil.isLandscapeVideo(nowWidth, nowHeight, this.selectedText)
     const aspectRatioNow = nowWidth / nowHeight
     const screenAspectRatio = this.screenWidth / this.screenHeight
@@ -877,6 +893,11 @@ export class AVPlayerController implements PlayerControllerInterface {
     })
     player.on('startRenderFrame', () => {
       this.handleStartRenderFrame(player)
+    })
+    player.on('videoSizeChange', () => {
+      if (this.pageExitStarted || !this.engineAdapter.isCurrent(player)) return
+      this.setRotation()
+      PiPWindowUtil.updateContentSize()
     })
     player.on('timeUpdate', async (duration) => {
       if (this.pageExitStarted || !this.engineAdapter.isCurrent(player)) {
@@ -1266,6 +1287,7 @@ export class AVPlayerController implements PlayerControllerInterface {
   onWillDisappearCleanup(): void {
     if (this.pageExitStarted) return
     this.pageExitStarted = true
+    this.videoTracks.reset()
     this.cancelFramePreviewPreparation()
     this.videoSwitchVersion++
     this.listenVideoRequestVersion++
@@ -1476,6 +1498,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     this.clearPlayerSubscription(() => player.off('error'), 'error')
     this.clearPlayerSubscription(() => player.off('timeUpdate'), 'timeUpdate')
     this.clearPlayerSubscription(() => player.off('startRenderFrame'), 'startRenderFrame')
+    this.clearPlayerSubscription(() => player.off('videoSizeChange'), 'videoSizeChange')
     this.clearPlayerSubscription(() => player.off('seekDone'), 'seekDone')
     this.clearPlayerSubscription(() => player.off('playbackRateDone'), 'playbackRateDone')
     this.clearPlayerSubscription(() => player.off('audioOutputDeviceChangeWithInfo'),
@@ -1499,6 +1522,7 @@ export class AVPlayerController implements PlayerControllerInterface {
     }
     this.playbackDetailsInitialized = true
     Promise.all([
+      this.videoTracks.refresh().catch(() => salmonLogger.addLog(TAG, '获取视频轨道失败', true)),
       this.getAudioTrackList(),
       this.subtitleController.getSubtitleTrackList(),
       this.initVolumeAndBrightness()

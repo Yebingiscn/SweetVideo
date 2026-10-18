@@ -1,5 +1,5 @@
 import { MpvAudioChannelMode } from '../../controller/MpvController/MpvTypes'
-import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
+import type { PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 
 class ChannelOption {
   mode: number = 0
@@ -18,8 +18,7 @@ export struct AudioChannelComponent {
     new ChannelOption(MpvAudioChannelMode.LEFT_ONLY, $r('app.string.channel_left_only')),
     new ChannelOption(MpvAudioChannelMode.RIGHT_ONLY, $r('app.string.channel_right_only'))
   ]
-  @Consumer('player') player: PlayerControllerInterface =
-    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
+  @Require @Param player: PlayerControllerInterface
   @Event onSelect: (_mode: number) => void = () => {
   }
 

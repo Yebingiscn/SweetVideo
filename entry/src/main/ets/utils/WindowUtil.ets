@@ -126,6 +126,27 @@ export class WindowUtil {
       : window.Orientation.AUTO_ROTATION_RESTRICTED
   }
 
+  public static async exitFullScreen(windowClass: Promise<window.Window | undefined>,
+    screenWidth: number, screenHeight: number): Promise<void> {
+    if (HiCar.enabled || !canIUse('SystemCapability.Window.SessionManager')) return
+    const win = await windowClass
+    if (!win) return
+    try {
+      if (Pc.pcMode) {
+        const status = win.getWindowStatus()
+        if (status === window.WindowStatusType.MAXIMIZE || status === window.WindowStatusType.FULL_SCREEN) {
+          await win.recover()
+        }
+      } else if (AppStorage.get<boolean>('enableLandscapeMultiWindow')) {
+        await WindowUtil.disableLandscapeMultiWindow(windowClass)
+      } else if (screenWidth > screenHeight) {
+        await win.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
+      }
+    } catch (error) {
+      salmonLogger.addLog(TAG, '退出全屏失败: ' + (error as Error).message, true)
+    }
+  }
+
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   public static setBarColor(color: string) {
     WindowUtil.windowClass?.setWindowSystemBarProperties({

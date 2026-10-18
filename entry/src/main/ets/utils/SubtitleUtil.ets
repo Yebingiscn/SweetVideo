@@ -6,7 +6,12 @@ import { fileIo as fs, picker } from '@kit.CoreFileKit'
 import { PathUtils } from './PathUtils'
 import { Parser, SubtitleItem } from '../interfaces/SubtitleInterface'
 import SubtitleFormat from '../common/SubtitleFormatConfig'
-import { AssEvent, ParseAss, ParseSrt, ParseVtt, SrtLine, VttLine } from '../modules/subtitles'
+import lazy { ParseAss } from '../modules/subtitles/src/main/ets/ParseAss'
+import lazy { ParseSrt } from '../modules/subtitles/src/main/ets/ParseSrt'
+import lazy { ParseVtt } from '../modules/subtitles/src/main/ets/ParseVtt'
+import type { AssEvent } from '../modules/subtitles/src/main/ets/models/AssEvent'
+import type { SrtLine } from '../modules/subtitles/src/main/ets/models/SrtLine'
+import type { VttLine } from '../modules/subtitles/src/main/ets/models/VttLine'
 import { salmonLogger } from 'salmonlogger'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { SUPPORT_SUBTITLE_FORMAT } from '../common/Constants'
@@ -39,7 +44,10 @@ export class ParserAdapter<T> implements Parser<T> {
 export default class SubtitleUtil {
   public static offsetMillis: number = 0
   private static subtitles: SubtitleItem[] = []
-  private static subtitleCacheKey: number = -1
+  private static subtitleMaxEnds: Float64Array = new Float64Array(0)
+  private static subtitleTexts: string[] = []
+  private static subtitleCacheFrom: number = -1
+  private static subtitleCacheUntil: number = -1
   private static subtitleCacheValue: string = ''
 
   // 存储所有字幕项（已按开始时间排序）
@@ -304,63 +312,34 @@ export default class SubtitleUtil {
   }
 
   static getSubtitlesAtTime(timestamp: number, offsetOverride?: number): string {
-    if (SubtitleUtil.subtitles.length === 0) {
-      return ""
-    }
+    const subtitles = SubtitleUtil.subtitles
+    if (subtitles.length === 0) return ''
     const effectiveOffset = offsetOverride ?? SubtitleUtil.offsetMillis
-    const adjustedTimestamp = timestamp - effectiveOffset
-    const searchTimestamp = Math.max(adjustedTimestamp, 0)
-    const cacheKey = Math.floor(searchTimestamp / 1000)
-    if (cacheKey === SubtitleUtil.subtitleCacheKey) {
+    const searchTimestamp = Math.max(timestamp - effectiveOffset, 0)
+    if (searchTimestamp >= SubtitleUtil.subtitleCacheFrom && searchTimestamp < SubtitleUtil.subtitleCacheUntil) {
       return SubtitleUtil.subtitleCacheValue
     }
-    const result: SubtitleItem[] = []
-    let left = 0
-    let right = SubtitleUtil.subtitles.length - 1
-    let startIndex = -1
-    // 二分查找（使用调整后的时间戳）
-    while (left <= right) {
-      const mid = Math.floor((left + right) / 2)
-      const sub = SubtitleUtil.subtitles[mid]
-      if (sub.startTimestampMillis <= searchTimestamp &&
-        sub.endTimestampMillis > searchTimestamp) {
-        startIndex = mid
-        break;
-      } else if (sub.startTimestampMillis > searchTimestamp) {
-        right = mid - 1
-      } else {
-        left = mid + 1
+    const nextIndex = SubtitleUtil.findFirstStartGreaterThan(searchTimestamp)
+    let cacheUntil = nextIndex < subtitles.length ? subtitles[nextIndex].startTimestampMillis : Infinity
+    const result: string[] = []
+    const maxEnds = SubtitleUtil.subtitleMaxEnds
+    const texts = SubtitleUtil.subtitleTexts
+    // 按最大结束时间跳过整段已结束字幕；长字幕与多条短字幕重叠时也无需逐条回扫。
+    const collect = (node: number, start: number, end: number): void => {
+      if (start >= nextIndex || maxEnds[node] <= searchTimestamp) return
+      if (end - start === 1) {
+        result.push(texts[start])
+        cacheUntil = Math.min(cacheUntil, subtitles[start].endTimestampMillis)
+        return
       }
+      const middle = Math.floor((start + end) / 2)
+      collect(node * 2, start, middle)
+      collect(node * 2 + 1, middle, end)
     }
-    if (startIndex === -1) {
-      return ""
-    }
-    // 收集重叠字幕（逻辑保持不变）
-    result.push(SubtitleUtil.subtitles[startIndex])
-    // 向左查找
-    for (let i = startIndex - 1; i >= 0; i--) {
-      if (SubtitleUtil.subtitles[i].endTimestampMillis > searchTimestamp) {
-        result.unshift(SubtitleUtil.subtitles[i])
-      } else {
-        break
-      }
-    }
-    // 向右查找
-    for (let i = startIndex + 1; i < SubtitleUtil.subtitles.length; i++) {
-      if (SubtitleUtil.subtitles[i].startTimestampMillis <= searchTimestamp) {
-        result.push(SubtitleUtil.subtitles[i])
-      } else {
-        break
-      }
-    }
-
-    const value = result.map(sub =>
-    sub.text
-      .replace(/\\[Nn]/g, '\n')
-      .replace(/\{[^}]*\}/g, '')
-      .replace(/<[^>]*>/g, '')
-    ).join('\n')
-    SubtitleUtil.subtitleCacheKey = cacheKey
+    collect(1, 0, maxEnds.length / 2)
+    const value = result.join('\n')
+    SubtitleUtil.subtitleCacheFrom = searchTimestamp
+    SubtitleUtil.subtitleCacheUntil = cacheUntil
     SubtitleUtil.subtitleCacheValue = value
     return value
   }
@@ -425,8 +404,6 @@ export default class SubtitleUtil {
 
   // 设置字幕数据
   private static setSubtitles(items: SubtitleItem[]) {
-    SubtitleUtil.subtitleCacheKey = -1
-    SubtitleUtil.subtitleCacheValue = ''
     let needsSort = false
     for (let i = 1; i < items.length; i++) {
       if (items[i].startTimestampMillis < items[i - 1].startTimestampMillis) {
@@ -434,8 +411,25 @@ export default class SubtitleUtil {
         break
       }
     }
-    SubtitleUtil.subtitles = needsSort
+    const subtitles = needsSort
       ? items.sort((a, b) => a.startTimestampMillis - b.startTimestampMillis)
       : items
+    let leafCount = 1
+    while (leafCount < subtitles.length) leafCount *= 2
+    const maxEnds = new Float64Array(leafCount * 2)
+    maxEnds.fill(-Infinity)
+    const texts: string[] = []
+    for (let i = 0; i < subtitles.length; i++) {
+      const subtitle = subtitles[i]
+      maxEnds[leafCount + i] = Number.isNaN(subtitle.endTimestampMillis) ? -Infinity : subtitle.endTimestampMillis
+      texts.push(subtitle.text.replace(/\\[Nn]/g, '\n').replace(/\{[^}]*\}/g, '').replace(/<[^>]*>/g, ''))
+    }
+    for (let i = leafCount - 1; i > 0; i--) maxEnds[i] = Math.max(maxEnds[i * 2], maxEnds[i * 2 + 1])
+    SubtitleUtil.subtitles = subtitles
+    SubtitleUtil.subtitleMaxEnds = maxEnds
+    SubtitleUtil.subtitleTexts = texts
+    SubtitleUtil.subtitleCacheFrom = -1
+    SubtitleUtil.subtitleCacheUntil = -1
+    SubtitleUtil.subtitleCacheValue = ''
   }
 }

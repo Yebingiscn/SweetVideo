@@ -7,6 +7,7 @@ export struct SearchComponent {
   @Param placeholder: ResourceStr = $r('app.string.search_placeholder')
   @Local localSearchValue: string = ''
   @Param controller: SearchController | undefined = undefined
+  @Param focusId: string = ''
   @Event onSearchValueChange: (value: string) => void = () => {
   }
   @Event onChange: () => void = () => {
@@ -17,6 +18,7 @@ export struct SearchComponent {
   }
   @Event onSearchFocus: () => void = () => {
   }
+  @Event onSearchBlur: () => void = () => {}
 
   aboutToAppear(): void {
     this.localSearchValue = this.searchValue
@@ -33,6 +35,7 @@ export struct SearchComponent {
       placeholder: this.placeholder,
       value: this.localSearchValue
     })
+      .id(this.focusId)
       .layoutWeight(1)
       .height(40)
       .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
@@ -53,5 +56,6 @@ export struct SearchComponent {
       .onFocus(() => {
         this.onSearchFocus()
       })
+      .onBlur(() => this.onSearchBlur())
   }
 }

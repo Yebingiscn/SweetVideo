@@ -143,7 +143,9 @@ export struct FtpPage {
             }).key((item: FtpEntry) => `${this.directoryVersion}/${this.server?.id}/${this.folder}/${item.name}`).virtualScroll()
           }
           .columnsTemplate('1fr '.repeat(this.columns()).trim()).columnsGap(16).rowsGap(16)
-          .width('100%').layoutWeight(1).padding({ left: 16, right: 16, bottom: SafeHeight.bottomSafeHeight })
+          .padding({ left: 16, right: 16 })
+          .contentEndOffset(SafeHeight.bottomSafeHeight)
+          .width('100%').height('100%').layoutWeight(1)
           .scrollBar(BarState.Off)
           if (!this.loading && this.entries.length === 0) {
             Text($r('app.string.no_playable_files')).fontColor($r('app.color.text_color')).padding(24)

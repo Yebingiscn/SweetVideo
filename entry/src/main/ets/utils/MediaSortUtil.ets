@@ -10,7 +10,7 @@ interface CachedPinyinKey {
 
 // 不保存媒体数据；持久化仍由 ToolsUtil.sortBy 在排序完成后统一处理。
 export default class MediaSortUtil {
-  private static readonly COLLATOR = NameSortUtil.createCollator()
+  private static collator: Intl.Collator | undefined = undefined
   private static pinyinKeys: WeakMap<VideoMetadata | FileFolder, CachedPinyinKey> = new WeakMap()
 
   static sortByNameProcess(list: VideoMetadata[], ascending: boolean = true, pinyinSort: boolean = true): VideoMetadata[] {
@@ -114,8 +114,9 @@ export default class MediaSortUtil {
       }
       return entry
     })
+    const collator = MediaSortUtil.collator ?? (MediaSortUtil.collator = NameSortUtil.createCollator())
     const sortedItems = itemsWithPinyin.sort((a, b) => {
-      const cmp = MediaSortUtil.COLLATOR.compare(a.pinyin, b.pinyin)
+      const cmp = collator.compare(a.pinyin, b.pinyin)
       return ascending ? cmp : -cmp
     })
     return sortedItems.map(entry => entry.item)

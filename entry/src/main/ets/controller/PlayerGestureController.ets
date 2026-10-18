@@ -326,6 +326,15 @@ export class PlayerGestureController {
     this.twoFingerMode = TwoFingerMode.NONE
   }
 
+  adjustBrightness(step: number): void {
+    this.player.volumeGestureActive = false
+    this.player.onSwipingVoice = false
+    this.player.onSwipingBrightness = true
+    this.player.screenBrightness = Math.min(Math.max(this.player.screenBrightness + step, 0), 1)
+    VideoOperateUtil.setBrightness(this.player.screenBrightness)
+    this.scheduleScrollPanelHide()
+  }
+
   onScrollAxisBegin(isLeftSide: boolean): void {
     clearTimeout(this.scrollAxisTimeout)
     this.player.volumeGestureActive = !isLeftSide
@@ -345,10 +354,7 @@ export class PlayerGestureController {
   onScrollAxisUpdate(axisValue: number, isLeftSide: boolean): void {
     const delta = -axisValue
     if (isLeftSide) {
-      const brightnessStep = delta * SCROLL_BRIGHTNESS_SENSITIVITY
-      const newBrightness = this.player.screenBrightness + brightnessStep
-      this.player.screenBrightness = Math.min(Math.max(newBrightness, 0), 1)
-      VideoOperateUtil.setBrightness(this.player.screenBrightness)
+      this.adjustBrightness(delta * SCROLL_BRIGHTNESS_SENSITIVITY)
     } else {
       const volumeStep = delta * SCROLL_VOLUME_SENSITIVITY
       const newVolume = this.player.volume + volumeStep
@@ -356,9 +362,9 @@ export class PlayerGestureController {
         Math.min(Math.max(newVolume, VideoOperateUtil.minVolume), VideoOperateUtil.maxVolume)
       this.player.volumeActually = this.player.volume
       this.lastVolume = this.player.volume
+      // 每次滚动都刷新兜底，避免设备没有发送 END 时面板残留。
+      this.scheduleScrollPanelHide()
     }
-    // 每次滚动都刷新兜底，避免设备没有发送 END 时面板残留。
-    this.scheduleScrollPanelHide()
   }
 
   onScrollAxisEnd(): void {

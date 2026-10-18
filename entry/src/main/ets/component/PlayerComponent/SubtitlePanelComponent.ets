@@ -1,5 +1,5 @@
 import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
-import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
+import type { PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import { MpvSubtitleTrack } from '../../controller/MpvController/MpvTypes'
@@ -16,11 +16,10 @@ import { Setting } from '../../utils/ObservedUtil'
 export struct SubtitlePanelComponent {
   @Param importingSubtitle: boolean = false
   @Event onImportSubtitle: () => void = () => {}
-  @Param subtitleManager: SubtitleManager = new SubtitleManager(new AVPlayerController())
+  @Require @Param subtitleManager: SubtitleManager
   @Local _subtitle3DMode: Subtitle3DMode = Subtitle3DMode.DISABLED
   @Local innerSubtitleMenu: InnerSubtitleDataSource = new InnerSubtitleDataSource([])
-  @Consumer('player') player: PlayerControllerInterface =
-    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
+  @Require @Param player: PlayerControllerInterface
   @Event onSubtitleOffsetTime: (_useMpvSubtitle: boolean) => void = (_useMpvSubtitle: boolean) => {
   }
   @Event onSwitchPlayerEngine: (_targetEngine: string) => void = () => {

@@ -1,7 +1,7 @@
 import MediaLibraryService from '../../utils/MediaLibraryService'
 import { AudioTrack } from '../../interfaces/AudioTrackInterface'
 import { MpvAudioTrack } from '../../controller/MpvController/MpvTypes'
-import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
+import type { PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import { ButtonFancyModifier } from '../../common/AttributeModifierConfig'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
@@ -29,8 +29,7 @@ export struct AudioTrackComponent {
     10: '5.1.4',
     12: '7.1.4'
   }
-  @Consumer('player') player: PlayerControllerInterface =
-    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
+  @Require @Param player: PlayerControllerInterface
   @Event onSelect: (_index: number) => void = () => {
   }
   @Event onAudioEffects: () => void = () => {
@@ -256,6 +255,7 @@ export struct AudioTrackComponent {
       }
       if (this.isCurrentTrackStereo()) {
         AudioChannelComponent({
+          player: this.player,
           onSelect: (mode: number) => {
             if (this.player instanceof MpvController) {
               this.player.audioController.setAudioChannelMode(mode)

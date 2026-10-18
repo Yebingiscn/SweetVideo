@@ -10,7 +10,7 @@ import { salmonLogger } from 'salmonlogger'
 import { DeleteType } from '../common/enum/DeleteType'
 import { SortField } from '../common/enum/SortField'
 import { VideoSource } from '../common/enum/VideoSource'
-import NavigationAddress, { IPTVChannelParams } from '../common/NavigationCommon'
+import NavigationAddress, { IPTVChannelParams, PlayerEngine, PlayerParams } from '../common/NavigationCommon'
 import { SideBarContentComponent } from '../component/SideBarComponent/SideBarContentComponent'
 import { ImportProgressBuilder } from '../component/VideoItemComponent/ImportProgressBuilder'
 import { VideoView } from '../component/VideoItemComponent/VideoViewComponent'
@@ -29,7 +29,8 @@ import HiCarLayout from '../utils/HiCarLayout'
 import { HiCar, HiCarState } from '../utils/HiCarUtil'
 import FileFolderUtil from '../utils/FileFolderUtil'
 import FolderHierarchy from '../utils/FolderHierarchy'
-import { importAndProcessFiles, ProgressInfo } from '../utils/FileProcessorUtil'
+import type { ProgressInfo } from '../utils/FileProcessorUtil'
+import lazy { importAndProcessFiles } from '../utils/FileProcessorUtil'
 import IntellectualGripPostureUtil from '../utils/IntellectualGripPostureUtil'
 import { Privacy, Setting } from '../utils/ObservedUtil'
 import { PathUtils } from '../utils/PathUtils'
@@ -72,6 +73,8 @@ import KnockReceiveStorage from '../utils/KnockReceiveStorage'
 import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import PermissionUtil from '../utils/PermissionUtil'
 import PlaybackExitCoordinator from '../utils/PlaybackExitCoordinator'
+import { KeyboardShortcuts, LibraryKeyboard, ShortcutAction } from '../utils/KeyboardShortcuts'
+import { ListDisplayMode } from '../common/enum/DisplayMode'
 
 const TAG = 'Index'
 
@@ -89,11 +92,6 @@ struct Index {
   @Local homeSidebarWidth: number = HomeSidebarLayout.minWidth
   @Local carState: HiCarState = HiCar
   @Local showHiCarSources: boolean = false
-  private homeWindowWidth: number = 0
-  private homeNavVisible: boolean = true
-  private homeResumeTimer: number | undefined = undefined
-  private homeRefreshPending: boolean = false
-  private waitingForPlayerExit: boolean = false
   @Provider() file_folder_list: FileFolder[] = []
   @Local searchValue: string = ''
   @Local contentWidth: number = 0
@@ -102,11 +100,19 @@ struct Index {
   @Provider() fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
   @Provider() sideBarController: SideBarController = new SideBarController()
   @Provider('pathStack') pathStack: NavPathStack = new NavPathStack()
+  @Provider() libraryKeyboard: LibraryKeyboard = new LibraryKeyboard()
   @Local scrollToFolderDate: string = ''
   deletedVideosDialogController: CustomDialogController = new CustomDialogController({
     builder: DeletedVideosDialog(), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   sideBarScroller: Scroller = new Scroller()
+  private homeWindowWidth: number = 0
+  private homeNavVisible: boolean = true
+  private homeResumeTimer: number | undefined = undefined
+  private homeRefreshPending: boolean = false
+  private waitingForPlayerExit: boolean = false
+  private keyboardImporting: boolean = false
+  private keyboardFocusTimer: number = 0
   private passwd: string = 'passwd'
   private videoValidityCheckRunning: boolean = false
   private pendingVideoCheck: (() => boolean) | undefined = undefined
@@ -147,6 +153,8 @@ struct Index {
   }
 
   onPageHide(): void {
+    this.libraryKeyboard.reset()
+    clearTimeout(this.keyboardFocusTimer)
     this.cancelHomeCheck?.()
     this.cancelHomeCheck = undefined
     this.pendingVideoCheck = undefined
@@ -159,7 +167,9 @@ struct Index {
 
   aboutToDisappear(): void {
     this.homeNavVisible = false
-    if (this.homeResumeTimer !== undefined) clearTimeout(this.homeResumeTimer)
+    if (this.homeResumeTimer !== undefined) {
+      clearTimeout(this.homeResumeTimer)
+    }
     this.onPageHide()
     this.homeLifecycleVersion++
     this.homeReady = false
@@ -227,8 +237,8 @@ struct Index {
               this.scrollToFolderDate = v
             }
           }).scale({
-            x: !HiCar.enabled && this.sideBarController.isShow ? 0.95 : 1,
-            y: !HiCar.enabled && this.sideBarController.isShow ? 0.95 : 1
+            x: !HiCar.enabled && this.sideBarController.isShow ? HomeSidebarLayout.contentScaleWhenOpen : 1,
+            y: !HiCar.enabled && this.sideBarController.isShow ? HomeSidebarLayout.contentScaleWhenOpen : 1
           }).animation({ duration: 300, curve: Curve.Ease })
           if (this.loading) {
             ImportProgressBuilder({
@@ -289,7 +299,10 @@ struct Index {
       .minContentWidth(this.isSizeInitialized && this.sideBarController.mode === SideBarContainerType.Embed ?
         (HiCar.enabled ? 320 : HomeSidebarLayout.minContentWidth) : 0)
       .padding(HiCar.enabled ? {
-        left: HiCar.leftInset, right: HiCar.rightInset, top: HiCar.topInset, bottom: HiCar.bottomInset
+        left: HiCar.leftInset,
+        right: HiCar.rightInset,
+        top: HiCar.topInset,
+        bottom: HiCar.bottomInset
       } : 0)
       .width('100%')
       .allowDrop(MediaDropUtil.allowedTypes)
@@ -325,6 +338,14 @@ struct Index {
     .backgroundImagePosition(Alignment.Center)
     .hideTitleBar(true)
     .mode(NavigationMode.Stack)
+    .id('home-keyboard-root')
+    .focusable(true)
+    // 只在输入法处理前观察状态；dispatch 回调会截断向焦点子组件的分发。
+    .onKeyPreIme((event: KeyEvent): boolean => {
+      this.libraryKeyboard.observe(event)
+      return false
+    })
+    .onKeyEvent((event: KeyEvent): boolean => this.handleHomeShortcut(event))
     .navDestination(this.Pages)
     .customNavContentTransition((_from: NavContentInfo, to: NavContentInfo,
       operation: NavigationOperation): NavigationAnimatedTransition | undefined => {
@@ -436,6 +457,21 @@ struct Index {
       }
       if (isVisible) {
         this.scheduleHomeResume(true)
+        const lifecycleVersion = this.homeLifecycleVersion
+        void PlaybackExitCoordinator.waitForExit().then(() => {
+          if (!this.homeNavVisible || lifecycleVersion !== this.homeLifecycleVersion) {
+            return
+          }
+          clearTimeout(this.keyboardFocusTimer)
+          this.keyboardFocusTimer = setTimeout(() => {
+            if (this.homeNavVisible && this.pathStack.size() === 0 && this.libraryKeyboard.focusId) {
+              try {
+                this.getUIContext().getFocusController().requestFocus(this.libraryKeyboard.focusId)
+              } catch (error) {
+              }
+            }
+          }, 160)
+        })
       } else {
         // 保存当前状态到 AppStorage
         const currentScreenWidth = AppStorage.get('screen_width') as number ?? 0
@@ -451,6 +487,9 @@ struct Index {
   }
 
   build() {
+    // 全局沉浸光感容器：系统材质只在 tabBar 槽位合成渲染，
+    // 放普通容器里会整个不渲染（= 全透明）。内容整体挂在 tabBar builder 上，
+    // barOverlap + barHeight/barWidth 100% 让这个「假 tabBar」铺满全屏。
     Tabs() {
       TabContent().tabBar(this.SweetContent())
     }
@@ -462,7 +501,7 @@ struct Index {
   }
 
   @Builder
-  Pages(name: string) {
+  Pages(name: string, param: Object) {
     if (name == NavigationAddress.SETTING_PAGE) {
       SettingsPage()
     } else if (name == NavigationAddress.ABOUT_PAGE) {
@@ -486,7 +525,7 @@ struct Index {
     } else if (name == NavigationAddress.MORE_SETTING_PAGE) {
       MoreSettingPage()
     } else if (name == NavigationAddress.VIDEO_PLAYER) {
-      VideoPlayer()
+      VideoPlayer({ initialPlayerEngine: (param as PlayerParams)?.playerType ?? PlayerEngine.AV_PLAYER })
     } else if (name == NavigationAddress.SHORT_VIDEO) {
       ShortVideoPage()
     } else if (name == NavigationAddress.VIP_PAGE) {
@@ -547,6 +586,233 @@ struct Index {
   @Monitor('file_folder_list')
   onFolderListSortChanged(): void {
     void this.applySavedFolderSort()
+  }
+
+  @Monitor('carState.enabled', 'carState.leftInset', 'carState.rightInset')
+  onHiCarLayoutChange(): void {
+    this.isSizeInitialized = false
+    this.updateHomeLayout()
+    this.videoListController.refresh(this.contentWidth, Setting.listDisplayMode)
+  }
+
+  @Builder
+  HomeSources() {
+    SideBarContentComponent({
+      sideBarController: this.sideBarController,
+      pathStack: this.pathStack,
+      videoListController: this.videoListController,
+      fileFolderSource: this.fileFolderSource,
+      file_folder_list: this.file_folder_list,
+      scrollToFolderDate: this.scrollToFolderDate,
+      sideBarScroller: this.sideBarScroller,
+      fileFolderListChange: (folders: FileFolder[]) => {
+        this.file_folder_list = folders
+      },
+      scrollToFolderDateChange: (date: string) => {
+        this.scrollToFolderDate = date
+      },
+      searchValueClear: (): boolean => this.clearSearchValue(),
+      onImportProgress: (info: ProgressInfo) => {
+        this.processedItems = info.current
+        this.currentFileName = info.fileName
+        this.currentStage = info.stage
+        this.failedCount = info.failedCount
+      },
+      onImportLoading: (loading: boolean) => {
+        this.loading = loading
+      },
+      onImportTotal: (totalItems: number) => {
+        this.totalItems = totalItems
+      }
+    })
+  }
+
+  @Builder
+  HiCarSidebar() {
+    List({ space: 12 }) {
+      ListItem() {
+        Flex({ wrap: FlexWrap.Wrap }) {
+          Button({ type: ButtonType.Circle }) {
+            SymbolGlyph($r('sys.symbol.clock')).fontSize(28).fontColor([$r('app.color.text_color')])
+          }
+          .width(56)
+          .height(56)
+          .backgroundColor($r('app.color.list_item_background'))
+          .margin({ right: 8, bottom: 8 })
+          .accessibilityText($r('app.string.recent_play'))
+          .onClick(() => this.pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, null))
+
+          Button({ type: ButtonType.Circle }) {
+            SymbolGlyph($r('sys.symbol.gearshape')).fontSize(28).fontColor([$r('app.color.text_color')])
+          }
+          .width(56)
+          .height(56)
+          .backgroundColor($r('app.color.list_item_background'))
+          .accessibilityText($r('app.string.setting'))
+          .onClick(() => this.pathStack.pushPathByName(NavigationAddress.SETTING_PAGE, null))
+        }
+      }
+
+      Repeat(FileFolderUtil.flattenTree(this.file_folder_list))
+        .each((folder: RepeatItem<FileFolder>) => {
+          ListItem() {
+            Button(folder.item.name, { type: ButtonType.Normal })
+              .fontSize(22)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(folder.item.date === this.videoListController.folder?.date ?
+                $r('sys.color.white') : $r('app.color.text_color'))
+              .backgroundColor(folder.item.date === this.videoListController.folder?.date ?
+                $r('app.color.main_color') : $r('app.color.list_item_background'))
+              .borderRadius(16)
+              .height(64)
+              .width('100%')
+              .onClick(() => {
+                this.switchToFolder(folder.index)
+                if (this.videoListController.directoryMode) {
+                  this.videoListController.requestDirectory(folder.item.date)
+                }
+                this.sideBarController.closeIfOverlay(false)
+              })
+          }
+        })
+        .key((folder: FileFolder) => folder.date)
+        .virtualScroll()
+      // 导入、网络源等低频操作复用现有侧栏，避免功能入口丢失。
+      ListItem() {
+        Button($r('app.string.hicar_media_sources'))
+          .fontSize(20)
+          .height(56)
+          .width('100%')
+          .fontColor($r('app.color.text_color'))
+          .backgroundColor($r('app.color.list_item_background'))
+          .onClick(() => this.showHiCarSources = true)
+          .bindSheet(this.showHiCarSources, this.HomeSources, {
+            detents: [SheetSize.LARGE],
+            showClose: true,
+            backgroundColor: $r('app.color.start_window_background'),
+            onWillDismiss: () => this.showHiCarSources = false
+          })
+      }
+    }
+    .padding(16)
+    .height('100%')
+    .width('100%')
+    .backgroundColor($r('app.color.start_window_background'))
+    .scrollBar(BarState.Off)
+  }
+
+  private handleHomeShortcut(event: KeyEvent): boolean {
+    if (this.pathStack.size() > 0 && KeyboardShortcuts.home(event) === ShortcutAction.BACK &&
+      this.pathStack.getAllPathName()[this.pathStack.size() - 1] !== NavigationAddress.VIDEO_PLAYER) {
+      if (this.libraryKeyboard.accept(ShortcutAction.BACK)) {
+        this.pathStack.pop()
+      }
+      return true
+    }
+    if (!this.homeNavVisible || !this.homeReady || this.pathStack.size() !== 0 || this.loading ||
+      this.keyboardImporting || this.videoListController.directoryTransitioning) {
+      return false
+    }
+    const action = KeyboardShortcuts.home(event)
+    if (action === undefined || (this.libraryKeyboard.editing &&
+      (action === ShortcutAction.SELECT_ALL || action === ShortcutAction.DELETE ||
+        action === ShortcutAction.RENAME || action === ShortcutAction.ESCAPE))) {
+      return false
+    }
+    if (!this.libraryKeyboard.accept(action)) {
+      return true
+    }
+    switch (action) {
+      case ShortcutAction.SEARCH:
+        this.sideBarController.closeIfOverlay(false)
+        this.libraryKeyboard.onSearch?.()
+        break
+      case ShortcutAction.GLOBAL_SEARCH:
+        this.pathStack.pushPathByName(NavigationAddress.GLOBAL_SEARCH, null)
+        break
+      case ShortcutAction.IMPORT_FILES:
+      case ShortcutAction.IMPORT_FOLDERS:
+        this.keyboardImporting = true
+        this.libraryKeyboard.onImport?.(action === ShortcutAction.IMPORT_FOLDERS).catch((error: Error) => {
+          salmonLogger.addLog(TAG, '快捷键导入失败: ' + error.message, true)
+        }).finally(() => {
+          this.keyboardImporting = false
+          this.libraryKeyboard.reset()
+        })
+        if (!this.libraryKeyboard.onImport) {
+          this.keyboardImporting = false
+        }
+        break
+      case ShortcutAction.NEW_FOLDER:
+        this.libraryKeyboard.onFolderAction?.(action, this.videoListController.directoryOverview ? '' :
+          this.videoListController.folder?.date ?? '')
+        break
+      case ShortcutAction.SIDEBAR:
+        this.sideBarController.isShow ? this.sideBarController.close(true) : this.sideBarController.open()
+        break
+      case ShortcutAction.DIRECTORY:
+        this.videoListController.setDirectoryView(!this.videoListController.directoryMode)
+        break
+      case ShortcutAction.LIST:
+      case ShortcutAction.CARD:
+      case ShortcutAction.GRID:
+        Setting.listDisplayMode = action === ShortcutAction.LIST ? ListDisplayMode.LIST_DISPLAY :
+          action === ShortcutAction.CARD ? ListDisplayMode.CARD_DISPLAY : ListDisplayMode.GRID_DISPLAY
+        Preferences.saveListDisplayMode(PathUtils.appContext!, Setting.listDisplayMode)
+        this.videoListController.refresh(this.contentWidth, Setting.listDisplayMode)
+        break
+      case ShortcutAction.PARENT:
+        if (this.videoListController.directoryMode && !this.videoListController.directoryOverview) {
+          const previous = this.videoListController.directoryRequest
+          this.videoListController.requestDirectoryBack()
+          this.libraryKeyboard.directoryNavigation = previous !== this.videoListController.directoryRequest
+        }
+        break
+      case ShortcutAction.BACK:
+        const previousRequest = this.videoListController.directoryRequest
+        this.onBackPress()
+        this.libraryKeyboard.directoryNavigation = previousRequest !== this.videoListController.directoryRequest
+        break
+      case ShortcutAction.SELECT_ALL:
+        if (this.libraryKeyboard.focusKind === 'sidebar-folder') {
+          this.libraryKeyboard.onFolderAction?.(action, this.libraryKeyboard.focusDate)
+        } else {
+          this.libraryKeyboard.onSelectAll?.()
+        }
+        break
+      case ShortcutAction.RENAME:
+      case ShortcutAction.DELETE:
+        if (this.videoListController.multipleChooseState === Visibility.Visible) {
+          if (action ===
+            ShortcutAction.DELETE) {
+            this.libraryKeyboard.onDeleteVideos?.()
+          } else if (DataSyncUtil.delMultipleList.length ===
+            1) {
+            this.libraryKeyboard.onVideoAction?.(action, DataSyncUtil.delMultipleList[0].date)
+          }
+        } else if (this.libraryKeyboard.focusKind === 'sidebar-folder' ||
+          this.libraryKeyboard.focusKind === 'directory-folder') {
+          this.libraryKeyboard.onFolderAction?.(action, this.libraryKeyboard.focusDate)
+        } else if (this.libraryKeyboard.focusKind === 'video' || DataSyncUtil.delMultipleList.length === 1) {
+          this.libraryKeyboard.onVideoAction?.(action, this.libraryKeyboard.focusDate)
+        }
+        break
+      case ShortcutAction.ESCAPE:
+        if (this.videoListController.multipleChooseState ===
+          Visibility.Visible) {
+          this.videoListController.closeMultipleChoose()
+        } else if (this.sideBarController.mode ===
+          SideBarContainerType.Overlay && this.sideBarController.isShow) {
+          this.sideBarController.close(true)
+        } else {
+          this.clearSearchValue()
+        }
+        break
+      default:
+        return false
+    }
+    event.stopPropagation()
+    return true
   }
 
   private async initializeHome(lifecycleVersion: number): Promise<boolean> {
@@ -827,17 +1093,14 @@ struct Index {
     )
   }
 
-  @Monitor('carState.enabled', 'carState.leftInset', 'carState.rightInset')
-  onHiCarLayoutChange(): void {
-    this.isSizeInitialized = false
-    this.updateHomeLayout()
-    this.videoListController.refresh(this.contentWidth, Setting.listDisplayMode)
-  }
-
   private updateHomeLayout(): void {
-    if (!this.homeNavVisible || PlaybackExitCoordinator.isExiting) return
+    if (!this.homeNavVisible || PlaybackExitCoordinator.isExiting) {
+      return
+    }
     const width = HiCar.enabled ? this.homeWindowWidth - HiCar.leftInset - HiCar.rightInset : this.homeWindowWidth
-    if (width <= 0) { return }
+    if (width <= 0) {
+      return
+    }
     this.homeSidebarWidth = HiCar.enabled ? HiCarLayout.sidebarWidth(width) : HomeSidebarLayout.getWidth(width)
     const embedded = HiCar.enabled ? HiCarLayout.isEmbedded(width) : HomeSidebarLayout.isEmbedded(width)
     const mode = embedded ? SideBarContainerType.Embed : SideBarContainerType.Overlay
@@ -853,7 +1116,9 @@ struct Index {
 
   private scheduleHomeResume(refreshData: boolean = false): void {
     this.homeRefreshPending = this.homeRefreshPending || refreshData
-    if (!this.homeNavVisible) return
+    if (!this.homeNavVisible) {
+      return
+    }
     if (this.homeResumeTimer !== undefined) {
       clearTimeout(this.homeResumeTimer)
       this.homeResumeTimer = undefined
@@ -864,7 +1129,9 @@ struct Index {
         const lifecycleVersion = this.homeLifecycleVersion
         void PlaybackExitCoordinator.waitForExit().then(() => {
           this.waitingForPlayerExit = false
-          if (lifecycleVersion === this.homeLifecycleVersion) this.scheduleHomeResume()
+          if (lifecycleVersion === this.homeLifecycleVersion) {
+            this.scheduleHomeResume()
+          }
         })
       }
       return
@@ -872,14 +1139,20 @@ struct Index {
     // 窗口尺寸连续变化时只处理最后一次，不逐帧重建侧栏和视频列表。
     this.homeResumeTimer = setTimeout(() => {
       this.homeResumeTimer = undefined
-      if (!this.homeNavVisible || this.pathStack.size() !== 0) return
+      if (!this.homeNavVisible || this.pathStack.size() !== 0) {
+        return
+      }
       if (PlaybackExitCoordinator.isExiting) {
         this.scheduleHomeResume()
         return
       }
       this.updateHomeLayout()
-      if (this.contentWidth > 0) this.videoListController.refresh(this.contentWidth, Setting.listDisplayMode)
-      if (!this.homeRefreshPending || !this.homeReady) return
+      if (this.contentWidth > 0) {
+        this.videoListController.refresh(this.contentWidth, Setting.listDisplayMode)
+      }
+      if (!this.homeRefreshPending || !this.homeReady) {
+        return
+      }
       this.homeRefreshPending = false
       const targetFolder = this.videoListController.folder ?? this.file_folder_list[0]
       if (targetFolder) {
@@ -897,102 +1170,6 @@ struct Index {
         AppStorage.set('searchValue', '')
       }
     }, 64)
-  }
-
-  @Builder
-  HomeSources() {
-        SideBarContentComponent({
-          sideBarController: this.sideBarController,
-          pathStack: this.pathStack,
-          videoListController: this.videoListController,
-          fileFolderSource: this.fileFolderSource,
-          file_folder_list: this.file_folder_list,
-          scrollToFolderDate: this.scrollToFolderDate,
-          sideBarScroller: this.sideBarScroller,
-          fileFolderListChange: (folders: FileFolder[]) => {
-            this.file_folder_list = folders
-          },
-          scrollToFolderDateChange: (date: string) => {
-            this.scrollToFolderDate = date
-          },
-          searchValueClear: (): boolean => this.clearSearchValue(),
-          onImportProgress: (info: ProgressInfo) => {
-            this.processedItems = info.current
-            this.currentFileName = info.fileName
-            this.currentStage = info.stage
-            this.failedCount = info.failedCount
-          },
-          onImportLoading: (loading: boolean) => {
-            this.loading = loading
-          },
-          onImportTotal: (totalItems: number) => {
-            this.totalItems = totalItems
-          }
-        })
-  }
-
-  @Builder
-  HiCarSidebar() {
-    List({ space: 12 }) {
-      ListItem() {
-      Flex({ wrap: FlexWrap.Wrap }) {
-        Button({ type: ButtonType.Circle }) {
-          SymbolGlyph($r('sys.symbol.clock')).fontSize(28).fontColor([$r('app.color.text_color')])
-        }
-        .width(56).height(56)
-        .backgroundColor($r('app.color.list_item_background'))
-        .margin({ right: 8, bottom: 8 })
-        .accessibilityText($r('app.string.recent_play'))
-        .onClick(() => this.pathStack.pushPathByName(NavigationAddress.RECENT_PLAY, null))
-        Button({ type: ButtonType.Circle }) {
-          SymbolGlyph($r('sys.symbol.gearshape')).fontSize(28).fontColor([$r('app.color.text_color')])
-        }
-        .width(56).height(56)
-        .backgroundColor($r('app.color.list_item_background'))
-        .accessibilityText($r('app.string.setting'))
-        .onClick(() => this.pathStack.pushPathByName(NavigationAddress.SETTING_PAGE, null))
-      }
-      }
-        Repeat(FileFolderUtil.flattenTree(this.file_folder_list))
-          .each((folder: RepeatItem<FileFolder>) => {
-            ListItem() {
-              Button(folder.item.name, { type: ButtonType.Normal })
-                .fontSize(22)
-                .fontWeight(FontWeight.Medium)
-                .fontColor(folder.item.date === this.videoListController.folder?.date ?
-                  $r('sys.color.white') : $r('app.color.text_color'))
-                .backgroundColor(folder.item.date === this.videoListController.folder?.date ?
-                  $r('app.color.main_color') : $r('app.color.list_item_background'))
-                .borderRadius(16)
-                .height(64).width('100%')
-                .onClick(() => {
-                  this.switchToFolder(folder.index)
-                  if (this.videoListController.directoryMode) {
-                    this.videoListController.requestDirectory(folder.item.date)
-                  }
-                  this.sideBarController.closeIfOverlay(false)
-                })
-            }
-          })
-          .key((folder: FileFolder) => folder.date)
-          .virtualScroll()
-      // 导入、网络源等低频操作复用现有侧栏，避免功能入口丢失。
-      ListItem() {
-      Button($r('app.string.hicar_media_sources'))
-        .fontSize(20).height(56).width('100%')
-        .fontColor($r('app.color.text_color'))
-        .backgroundColor($r('app.color.list_item_background'))
-        .onClick(() => this.showHiCarSources = true)
-        .bindSheet(this.showHiCarSources, this.HomeSources, {
-          detents: [SheetSize.LARGE], showClose: true,
-          backgroundColor: $r('app.color.start_window_background'),
-          onWillDismiss: () => this.showHiCarSources = false
-        })
-      }
-    }
-    .padding(16).height('100%').width('100%')
-    .backgroundColor($r('app.color.start_window_background'))
-    .scrollBar(BarState.Off)
   }
 
   /**

@@ -1,4 +1,4 @@
-import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
+import type { PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { VIDEO_HDR_TYPE } from '../../common/enum/HDR_TYPE'
 import { GradientTagBuilder, SolidColorTagBuilder } from '../common/MediaTagBuilder'
 import ToolsUtil from '../../utils/ToolsUtil'
@@ -7,8 +7,7 @@ import { HiCar } from '../../utils/HiCarUtil'
 
 @ComponentV2
 export struct VideoSliderComponent {
-  @Consumer('player') player: PlayerControllerInterface =
-    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
+  @Require @Param player: PlayerControllerInterface
 
   private get networkStatusText(): string {
     const cache = this.player.networkCacheDuration.toFixed(1)

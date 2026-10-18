@@ -16,20 +16,38 @@ import { ConfigurationConstant } from '@kit.AbilityKit'
 import { appInfoManager } from '@kit.AppGalleryKit'
 import { BusinessError, SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { salmonLogger } from 'salmonlogger'
-import { BackgroundColorMode } from '../../common/enum/BackgroundColorMode'
 
 const TAG = 'PersonalizeSettingPage'
 
 @ComponentV2
 export struct PersonalizeSettingPage {
+  @Consumer('pathStack') pathStack: NavPathStack = new NavPathStack()
   @Local dynamicIconList: appInfoManager.DynamicIconInfo[] = []
   @Local currentEnabledIconId: string = ''
   @Local dynamicIconSupported: boolean = false
   @Local dynamicIconDialogOpen: boolean = false
   private listScroller: Scroller = new Scroller()
+  private pendingColorMode: number | undefined = undefined
 
   aboutToAppear(): void {
     this.queryDynamicIcons()
+  }
+
+  private requestColorModeChange(mode: number): void {
+    if (mode === Setting.backgroundColorMode || this.pendingColorMode !== undefined) return
+    this.pendingColorMode = mode
+    // Index 是 Navigation 的首页；清空子页面栈即可退回，保留沉浸光感 Tabs。
+    this.pathStack.clear()
+  }
+
+  private applyPendingColorMode(): void {
+    const mode = this.pendingColorMode
+    this.pendingColorMode = undefined
+    if (mode === undefined || this.pathStack.size() !== 0) return
+    Setting.backgroundColorMode = mode
+    Preferences.saveBackgroundColorMode(PathUtils.appContext!, mode)
+    // 实际颜色缓存、背景和窗口配色由 Ability 的配置回调统一更新。
+    ToolsUtil.setColorMode(PathUtils.appContext!, mode)
   }
 
   @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
@@ -43,21 +61,7 @@ export struct PersonalizeSettingPage {
             tips: [$r('app.string.display_mode_auto'), $r('app.string.display_mode_light'), $r('app.string.display_mode_dark')],
             tabSelectedIndex: Setting.backgroundColorMode,
             onButtonClick: (tabSelectedIndex: number) => {
-              Setting.backgroundColorMode = tabSelectedIndex
-              Preferences.saveBackgroundColorMode(PathUtils.appContext!, tabSelectedIndex)
-              ToolsUtil.setColorMode(PathUtils.appContext!, tabSelectedIndex)
-              if (tabSelectedIndex === BackgroundColorMode.LIGHT) {
-                AppStorage.setOrCreate('currentColorMode', ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT)
-              } else if (tabSelectedIndex === BackgroundColorMode.DARK) {
-                AppStorage.setOrCreate('currentColorMode', ConfigurationConstant.ColorMode.COLOR_MODE_DARK)
-              }
-              Setting.backgroundImageSrc = ''
-              setTimeout(async () => {
-                Setting.backgroundImageSrc = ImageFileUtil.getImageUri()
-                if (Setting.backgroundDropBlur > 0 && Setting.backgroundImageSrc.length > 0) {
-                  await ImageFileUtil.updateBlurBackground(Setting.backgroundDropBlur)
-                }
-              }, 100)
+              this.requestColorModeChange(tabSelectedIndex)
             }
           })
         }
@@ -283,6 +287,7 @@ export struct PersonalizeSettingPage {
     .backgroundImagePosition(Alignment.Center)
     .hideBackButton(false)
     .bindToScrollable([this.listScroller])
+    .onDisAppear(() => this.applyPendingColorMode())
     .bindSheet(this.dynamicIconDialogOpen, this.dynamicIconCoverBuilder(), {
       detents: [SheetSize.LARGE, SheetSize.MEDIUM],
       showClose: true,

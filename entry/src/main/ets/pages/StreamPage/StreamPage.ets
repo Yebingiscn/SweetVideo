@@ -90,6 +90,7 @@ export struct StreamPage {
     }), cornerRadius: 20, shadow: DefaultDialogShadow
   })
   private listScroller: ListScroller = new ListScroller()
+  private cardScroller: ListScroller = new ListScroller()
 
   @Monitor('multipleChooseState')
   onMultipleChooseStateChanged() {
@@ -309,10 +310,7 @@ export struct StreamPage {
             .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
             .chainAnimation(true)
           } else {
-            WaterFlow({
-              scroller: this.listScroller,
-              layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW
-            }) {
+            WaterFlow({ scroller: this.cardScroller, layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW }) {
               Repeat<VideoMetadata>(this.networkStreams)
                 .each((repeatItem: RepeatItem<VideoMetadata>) => {
                   FlowItem() {
@@ -360,12 +358,12 @@ export struct StreamPage {
                 .key((item: VideoMetadata) => item.date)
                 .virtualScroll()
             }
-            .clip(false)
             .columnsTemplate('1fr '.repeat(this.list_line).trim())
             .columnsGap(16)
             .rowsGap(16)
-            .layoutWeight(1)
             .padding({ left: 16, right: 16 })
+            .clip(false)
+            .layoutWeight(1)
             .scrollBar(BarState.Off)
             .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
             .width('100%')
@@ -463,7 +461,7 @@ export struct StreamPage {
     .backgroundImageSize(ImageSize.Cover)
     .backgroundImagePosition(Alignment.Center)
     .backgroundColor($r('app.color.start_window_background'))
-    .bindToScrollable([this.listScroller]) // 绑定导航组件和可滚动容器组件
+    .bindToScrollable([this.listScroller, this.cardScroller]) // 绑定导航组件和可滚动容器组件
     .onBackPressed(() => {
       if (this.searchValue.length > 0) {
         this.searchValue = ''
@@ -483,7 +481,8 @@ export struct StreamPage {
       this.allStreams = Preferences.getNetworkStreams(PathUtils.appContext!)
       this.applySearch()
       if (DataSyncUtil.lastPlayVideoIndex >= 0) {
-        this.listScroller.scrollToIndex(DataSyncUtil.lastPlayVideoIndex)
+        const scroller = Setting.listDisplayMode === ListDisplayMode.LIST_DISPLAY ? this.listScroller : this.cardScroller
+        scroller.scrollToIndex(DataSyncUtil.lastPlayVideoIndex)
         DataSyncUtil.lastPlayVideoIndex = -1
       }
     })

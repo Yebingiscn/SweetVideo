@@ -36,7 +36,15 @@ export default class RecentPlayUtil {
     return [...RecentPlayUtil.deque]
   }
 
-  public static delData(context: Context, uri: string) {
+  public static delData(context: Context, uri: string, requireSuccess: boolean = false) {
+    if (requireSuccess) {
+      const latest = Preferences.getRecentPlay(context, true)
+      const retained = latest.filter(item => item.uri !== uri)
+      Preferences.saveRecentPlay(context, retained, true)
+      RecentPlayUtil.deque = retained
+      RecentPlayUtil.updateMapIndices()
+      return
+    }
     if (RecentPlayUtil.videoIdMap.size === 0) { // 如果为空，则初始化一下
       RecentPlayUtil.init(context)
     }

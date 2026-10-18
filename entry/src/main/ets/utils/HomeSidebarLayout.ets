@@ -2,6 +2,7 @@ export default class HomeSidebarLayout {
   static readonly minWidth: number = 240
   static readonly maxWidth: number = 360
   static readonly minContentWidth: number = 480
+  static readonly contentScaleWhenOpen: number = 0.95
 
   static isEmbedded(windowWidth: number): boolean {
     return windowWidth >= HomeSidebarLayout.minWidth + HomeSidebarLayout.minContentWidth

@@ -13,6 +13,7 @@ import FolderDirectory, { DirectoryEntry } from '../../utils/FolderDirectory'
 import DirectoryHero, { DirectoryRect } from '../../utils/DirectoryHero'
 import { VideoListController } from '../../controller/VideoListController'
 import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
+import { LibraryItemFocus, LibraryKeyboard } from '../../utils/KeyboardShortcuts'
 
 enum DirectoryCoverPlacement {
   LIST,
@@ -23,6 +24,7 @@ enum DirectoryCoverPlacement {
 
 @ComponentV2
 export struct DirectoryView {
+  @Consumer() libraryKeyboard: LibraryKeyboard = new LibraryKeyboard()
   @Param videoListController: VideoListController = new VideoListController()
   @Param searchValue: string = ''
   @Local _searchValue: string = ''
@@ -45,6 +47,7 @@ export struct DirectoryView {
   private directoryNavigationTimer: number | undefined = undefined
   private directoryHeroTimer: number | undefined = undefined
   private directoryAlive: boolean = false
+  private directoryKeyboardTimer: number = 0
   @Event menuOptions: (item: VideoMetadata, response: ResponseType) => ContextMenuOptions = () => ({})
   @Event onSearchValueChange: (v: string) => void = () => {
   }
@@ -60,6 +63,7 @@ export struct DirectoryView {
   }
 
   aboutToDisappear(): void {
+    clearTimeout(this.directoryKeyboardTimer)
     this.directoryAlive = false
     if (this.directoryRestoreTimer !== undefined) {
       clearTimeout(this.directoryRestoreTimer)
@@ -238,6 +242,10 @@ export struct DirectoryView {
       }.layoutWeight(1).alignItems(HorizontalAlign.Start)
     }
     .clickEffect({ level: ClickEffectLevel.MIDDLE, scale: 0.8 })
+    .attributeModifier(new LibraryItemFocus(this.libraryKeyboard, 'directory-header', '', () => {
+      this.libraryKeyboard.directoryNavigation = true
+      this.videoListController.requestDirectoryBack()
+    }))
     .width('100%')
     .accessibilityText($r('app.string.directory_folder_accessibility', folder.value.name,
       folder.value.video_list.length, this.directoryIndex.childFolders(folder.value.date).length))
@@ -400,6 +408,8 @@ export struct DirectoryView {
       (Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
         $r('app.color.start_window_background')))
     .clickEffect(this.videoClickEffect(entry.item.video))
+    .attributeModifier(new LibraryItemFocus(this.libraryKeyboard, entry.item.folder ? 'directory-folder' : 'video',
+      entry.item.folder?.date ?? entry.item.video!.date, () => this.activateDirectoryEntry(entry.item)))
     .gesture(
       TapGesture({ count: 1, fingers: 1 }).onAction(async () => {
         if (entry.item.folder) {
@@ -432,6 +442,8 @@ export struct DirectoryView {
       (Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
         $r('app.color.start_window_background')))
     .clickEffect(this.videoClickEffect(entry.item.video))
+    .attributeModifier(new LibraryItemFocus(this.libraryKeyboard, entry.item.folder ? 'directory-folder' : 'video',
+      entry.item.folder?.date ?? entry.item.video!.date, () => this.activateDirectoryEntry(entry.item)))
     .gesture(
       TapGesture({ count: 1, fingers: 1 }).onAction(async () => {
         if (entry.item.folder) {
@@ -630,6 +642,30 @@ export struct DirectoryView {
     return `${folderKey}:${this.directoryLayout}:${this.directoryCoverLayout}:${this.videoListController.listLine}`
   }
 
+  private activateDirectoryEntry(entry: DirectoryEntry): void {
+    if (this.videoListController.directoryTransitioning) return
+    if (entry.folder) {
+      this.libraryKeyboard.directoryNavigation = true
+      this.videoListController.requestDirectory(entry.folder.date)
+    } else if (entry.video) {
+      this.onVideoTap(entry.video).catch(() => {})
+    }
+  }
+
+  private restoreKeyboardDirectoryFocus(): void {
+    if (!this.libraryKeyboard.directoryNavigation) return
+    this.libraryKeyboard.directoryNavigation = false
+    const key = this.directoryKey()
+    clearTimeout(this.directoryKeyboardTimer)
+    this.directoryKeyboardTimer = setTimeout(() => {
+      if (!this.directoryAlive || key !== this.directoryKey()) return
+      const first = this.directoryEntries[0]
+      const fallback = first ? first.folder ? `home-directory-folder:${first.folder.date}` : `home-video:${first.video!.date}` :
+        'home-directory-header:'
+      this.getUIContext().getFocusController().requestFocus(this.libraryKeyboard.directoryFocus.get(key) ?? fallback)
+    }, 32)
+  }
+
   private navigateDirectory(date: string | null): void {
     const controller = this.videoListController
     if (!controller.directoryMode || controller.directoryTransitioning ||
@@ -642,6 +678,9 @@ export struct DirectoryView {
     const target = date ? this.directoryIndex.folder(date) : undefined
     if (date && !target) {
       return
+    }
+    if (this.libraryKeyboard.directoryNavigation) {
+      this.libraryKeyboard.directoryFocus.set(this.directoryKey(), this.libraryKeyboard.focusId)
     }
     if (this.directoryEntries.length > 0) {
       this.videoListController.directoryOffsets.set(this.directoryKey(),
@@ -693,6 +732,7 @@ export struct DirectoryView {
         if (!hero || !cover || !title || !info) {
           this.directoryHero = undefined
           controller.directoryTransitioning = false
+          this.restoreKeyboardDirectoryFocus()
           return
         }
         hero.prepareMove(cover, info, returning ? 12 : 13)
@@ -709,6 +749,7 @@ export struct DirectoryView {
                 if (this.directoryAlive && this.directoryHero === hero) {
                   this.directoryHero = undefined
                   controller.directoryTransitioning = false
+                  this.restoreKeyboardDirectoryFocus()
                 }
               }, 32)
             }
@@ -720,6 +761,7 @@ export struct DirectoryView {
       }, 64)
     } else {
       controller.directoryTransitioning = false
+      this.restoreKeyboardDirectoryFocus()
     }
   }
 

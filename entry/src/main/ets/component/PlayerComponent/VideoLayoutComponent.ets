@@ -1,4 +1,4 @@
-import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
+import type { PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { XAnimation } from '../../utils/AnimationUtil'
 import { SafeHeight } from '../../utils/ObservedUtil'
 import { HiCar } from '../../utils/HiCarUtil'
@@ -6,8 +6,7 @@ import HiCarLayout from '../../utils/HiCarLayout'
 
 @ComponentV2
 export struct VideoLayoutComponent {
-  @Consumer('player') player: PlayerControllerInterface =
-    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
+  @Require @Param player: PlayerControllerInterface
   @BuilderParam VideoTop: () => void
   @BuilderParam VideoButtons: () => void
   @BuilderParam VideoSlider: () => void

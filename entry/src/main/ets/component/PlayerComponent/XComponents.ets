@@ -2,11 +2,10 @@ import { salmonLogger } from 'salmonlogger'
 import { OPTIONS } from '../../common/Constants'
 import { PlayerEngine } from '../../common/NavigationCommon'
 import { MpvDecodingMethod } from '../../controller/MpvController/MpvTypes'
-import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
+import type { PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { Setting } from '../../utils/ObservedUtil'
 import { PathUtils } from '../../utils/PathUtils'
 import { WindowUtil } from '../../utils/WindowUtil'
-import { KeyCode } from '@kit.InputKit'
 import { AudioCoverBuilder } from './AudioCoverBuilder'
 
 const TAG = 'XComponents'
@@ -14,8 +13,7 @@ const PLAYER_SURFACE_ID = 'player_surface_focus'
 
 @ComponentV2
 export struct XComponents {
-  @Consumer('player') player: PlayerControllerInterface =
-    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
+  @Require @Param player: PlayerControllerInterface
   @Param choosePlayer: string = ''
   @Param xComponentController: XComponentController | undefined = undefined
   @Param osdXController: XComponentController | undefined = undefined
@@ -26,16 +24,8 @@ export struct XComponents {
   @Event onXComponentLoad:
     (_controller: XComponentController | undefined, _engine: string) => void = () => {
   }
-  @Event onKeyCodeSpace: () => void = () => {
-  }
-  @Event onKeyCodeEscape: () => void = () => {
-  }
-  @Event onKeyCodeRight: () => void = () => {
-  }
-  @Event onKeyCodeLeft: () => void = () => {
-  }
-  @Event onKeyCodeUpAndDown: (_event: KeyEvent) => void = () => {
-  }
+  @Event onPlayerKey: (_event: KeyEvent) => boolean = () => false
+  @Event onPlayerFocus: () => void = () => {}
   @Event onOsdSurfaceLoad: (_surfaceId: string, _surfaceWidth: number, _surfaceHeight: number) => void = () => {
   }
   @Event onOsdSurfaceDestroy: (_surfaceId: string) => void = () => {
@@ -74,26 +64,9 @@ export struct XComponents {
     }
     .id(PLAYER_SURFACE_ID)
     .focusable(true)
-    .onKeyEvent((event?: KeyEvent) => {
-      if (!event || event.type !== KeyType.Down) {
-        return
-      }
-      if (event.keyCode === KeyCode.KEYCODE_SPACE) {
-        this.onKeyCodeSpace()
-      }
-      if (event.keyCode === KeyCode.KEYCODE_ESCAPE) {
-        this.onKeyCodeEscape()
-      }
-      if (event.keyCode === KeyCode.KEYCODE_DPAD_RIGHT) {
-        this.onKeyCodeRight()
-      }
-      if (event.keyCode === KeyCode.KEYCODE_DPAD_LEFT) {
-        this.onKeyCodeLeft()
-      }
-      if (event.keyCode === KeyCode.KEYCODE_DPAD_UP || event.keyCode === KeyCode.KEYCODE_DPAD_DOWN) {
-        this.onKeyCodeUpAndDown(event)
-      }
-    })
+    .defaultFocus(true)
+    .onFocus(() => this.onPlayerFocus())
+    .onKeyEvent((event: KeyEvent): boolean => this.onPlayerKey(event))
     .width(this.player?.playAreaWidth ?? '100%')
     .height(this.player?.playAreaHeight ?? '100%')
     // Surface 尺寸直接跟随窗口，避免与系统旋转动画叠加后露出背景。

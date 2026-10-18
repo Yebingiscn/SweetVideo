@@ -1,6 +1,26 @@
 {
   "string": [
     {
+      "name": "video_track",
+      "value": "视频轨道"
+    },
+    {
+      "name": "video_tracks_read_failed",
+      "value": "读取视频轨道失败"
+    },
+    {
+      "name": "video_track_switch_failed",
+      "value": "视频轨道切换失败"
+    },
+    {
+      "name": "video_track_system_failed",
+      "value": "系统播放器未能切换此视频轨道，请尝试 MPV 引擎"
+    },
+    {
+      "name": "video_track_switching",
+      "value": "正在切换视频轨道…"
+    },
+    {
       "name": "mpv_conf_title",
       "value": "MPV 自定义 conf"
     },
@@ -4229,6 +4249,30 @@
     {
       "name": "avatar_update_failed",
       "value": "头像更新失败，请重试"
+    },
+    {
+      "name": "privacy_all_videos",
+      "value": "全部视频"
+    },
+    {
+      "name": "privacy_folder_delete_confirm",
+      "value": "永久删除此文件夹、所有子文件夹及其中的视频，同时清理播放记录、封面、字幕、外挂音频和弹幕？此操作不可恢复。"
+    },
+    {
+      "name": "privacy_folder_delete_incomplete",
+      "value": "已删除 %d 个视频，%d 项未完成；文件夹及未完成记录已保留，可重试"
+    },
+    {
+      "name": "privacy_folder_invalid_name",
+      "value": "文件夹名称须为 1–100 个字符，不能包含斜杠、控制字符，也不能为 . 或 .."
+    },
+    {
+      "name": "privacy_folder_operation_failed",
+      "value": "文件夹操作保存失败，视频和已有文件夹均保留，请重试"
+    },
+    {
+      "name": "privacy_folder_load_failed",
+      "value": "隐私文件夹读取失败，仍可查看全部视频，暂时不能修改文件夹"
     }
   ]
 }

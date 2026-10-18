@@ -1,4 +1,4 @@
-import { pinyin4js } from '@ohos/pinyin4js'
+import lazy { pinyin4js } from '@ohos/pinyin4js'
 
 // 视频和文件夹共用自然排序规则，TaskPool 内创建自己的比较器。
 export default class NameSortUtil {

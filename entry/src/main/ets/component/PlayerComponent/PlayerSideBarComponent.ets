@@ -1,6 +1,6 @@
 import { VideoMetadata } from '../../interfaces/VideoMetadataInterface'
 import { PlayerSideBarSource } from '../../utils/DataUtil'
-import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
+import type { PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { ImageFancyModifier } from '../../common/AttributeModifierConfig'
 import { CoverLayoutMode } from '../../common/enum/DisplayMode'
 import { XAnimation } from '../../utils/AnimationUtil'
@@ -10,14 +10,14 @@ import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import { VideoInfoBuilder } from '../VideoItemComponent/VideoInfoBuilder'
 import { RepeatModeButtonComponent } from './RepeatModeButtonComponent'
 import { HiCar } from '../../utils/HiCarUtil'
+import { ColorMetrics, LengthMetrics } from '@kit.ArkUI'
 
 @ComponentV2
 export struct PlayerSideBarComponent {
   @Local playerSideBarSource: PlayerSideBarSource = new PlayerSideBarSource([])
   @Param sideBarStatusTmp: Visibility = Visibility.Hidden
   @Local _sideBarStatusTmp: Visibility = Visibility.Hidden
-  @Consumer('player') player: PlayerControllerInterface =
-    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
+  @Require @Param player: PlayerControllerInterface
   @Param sideBarStatus: boolean = false
   @Local _sideBarStatus: boolean = false
   private listScroller: Scroller = new Scroller()
@@ -65,6 +65,10 @@ export struct PlayerSideBarComponent {
               })
             }
             .borderRadius(16)
+            .focusable(true)
+            .focusOnTouch(true)
+            .focusBox({ strokeColor: ColorMetrics.resourceColor($r('app.color.main_color')),
+              strokeWidth: LengthMetrics.vp(2), margin: LengthMetrics.vp(2) })
             .onClick(() => {
               if (this._sideBarStatusTmp === Visibility.Hidden) {
                 return

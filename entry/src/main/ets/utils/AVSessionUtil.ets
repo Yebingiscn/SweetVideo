@@ -252,9 +252,12 @@ export default class AVSessionUtil {
     let session_metadata: avSessionManager.AVMetadata = {
       assetId: metadata.date,
       title: VideoInfoUtil.getVideoTitle(metadata.title),
-      mediaImage: pixelMap,
       duration: metadata.time,
       filter: avSession.ProtocolType.TYPE_CAST_PLUS_STREAM | avSession.ProtocolType.TYPE_DLNA,
+    }
+    // 封面未就绪时省略字段，显式 undefined 会被系统判为非法参数。
+    if (pixelMap) {
+      session_metadata.mediaImage = pixelMap
     }
     const artist = metadata.artist?.trim()
     if (artist) {

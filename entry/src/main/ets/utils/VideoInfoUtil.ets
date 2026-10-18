@@ -1,11 +1,13 @@
 import { SCREEN_EXTEND_LIST, SUPPORT_AUDIO_FORMAT, VIDEO_SIZE_MAP } from '../common/Constants'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
-import FFmpegThumbnailUtil, { FFmpegMediaProbe } from './FFmpegThumbnailUtil'
+import lazy FFmpegThumbnailUtil from './FFmpegThumbnailUtil'
+import type { FFmpegMediaProbe } from './FFmpegThumbnailUtil'
 import { image } from '@kit.ImageKit'
 import { salmonLogger } from 'salmonlogger'
 import PrivacySpaceUtil from './PrivacySpaceUtil'
-import ImageStorage, { SavePixelMapOptions } from './ImageStorage'
-import TextEncodingUtil from './TextEncodingUtil'
+import lazy ImageStorage from './ImageStorage'
+import type { SavePixelMapOptions } from './ImageStorage'
+import lazy TextEncodingUtil from './TextEncodingUtil'
 import ToolsUtil from './ToolsUtil'
 import { fileIo } from '@kit.CoreFileKit'
 import { PathUtils } from './PathUtils'
@@ -20,12 +22,20 @@ interface AspectRatioSize {
   height: number
 }
 
+interface ResolutionLabelCache {
+  width: number
+  height: number
+  label: string
+  raw: string
+}
+
 const TAG = 'VideoInfoUtil'
 const AUDIO_HR_MIN_BIT_RATE = 1_500_000
 const AUDIO_SQ_MIN_BIT_RATE = 500_000
 const AUDIO_HQ_MIN_BIT_RATE = 192_000
 
 export default class VideoInfoUtil {
+  private static resolutionLabels: WeakMap<VideoMetadata, ResolutionLabelCache> = new WeakMap()
   public static screenExtendMap: string[] = SCREEN_EXTEND_LIST.map(item => item.value as string)
   // 播放器视频宽度
   public static playAreaWidth: number = 0
@@ -235,7 +245,7 @@ export default class VideoInfoUtil {
   }
 
   public static getVideoFormat(videoName: string) {
-    return videoName.split('.')[videoName.split('.').length - 1]
+    return videoName.substring(videoName.lastIndexOf('.') + 1)
   }
 
   public static getExtension(fileName: string): string {
@@ -294,22 +304,22 @@ export default class VideoInfoUtil {
   }
 
   // 获取视频标签格式化
-  static videoWidthAndHeightFormat(size: string, forceDefault: boolean = false) {
-    const sizeArray = size.split(',')
-    const width = sizeArray[0]
-    const height = sizeArray[1]
-    const sizeKey = `${width}x${height}`
-
-    // 如果 forceDefault 为真，则直接返回默认格式
-    if (forceDefault) {
-      return `${width} x ${height}`
+  static getResolutionLabel(metadata: VideoMetadata | undefined, forceDefault: boolean = false): string {
+    const size = VideoInfoUtil.getDisplayResolution(metadata)
+    const width = size[0]
+    const height = size[1]
+    const cached = metadata ? VideoInfoUtil.resolutionLabels.get(metadata) : undefined
+    if (cached && cached.width === width && cached.height === height) {
+      return forceDefault ? cached.raw : cached.label
     }
-
-    // 匹配优先级
-    return VIDEO_SIZE_MAP[sizeKey] || // 1. 精确匹配宽高
+    const sizeKey = `${width}x${height}`
+    const raw = `${width} x ${height}`
+    const label = VIDEO_SIZE_MAP[sizeKey] || // 1. 精确匹配宽高
       VIDEO_SIZE_MAP[height] || // 2. 标准高度命名
       VIDEO_SIZE_MAP[width] || // 3. 特殊宽度标准
-      `${width} x ${height}` // 4. 默认格式
+      raw // 4. 默认格式
+    if (metadata) VideoInfoUtil.resolutionLabels.set(metadata, { width: width, height: height, label: label, raw: raw })
+    return forceDefault ? raw : label
   }
 
   // 获取视频大小

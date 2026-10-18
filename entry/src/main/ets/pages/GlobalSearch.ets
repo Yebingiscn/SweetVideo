@@ -14,6 +14,7 @@ import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { motion } from '@kit.MultimodalAwarenessKit'
 import IntellectualGripPostureUtil from '../utils/IntellectualGripPostureUtil'
 import { XAnimation } from '../utils/AnimationUtil'
+import { KeyboardShortcuts, ShortcutAction } from '../utils/KeyboardShortcuts'
 import {
   ButtonFancyModifier,
   LightMaterialModifier,
@@ -38,6 +39,7 @@ export struct GlobalSearch {
   private active: boolean = false
   private running: boolean = false
   private pendingSearch: boolean = false
+  private keyboardSearchReady: boolean = false
   private listScroller: Scroller = new Scroller()
 
   aboutToDisappear(): void {
@@ -177,6 +179,17 @@ export struct GlobalSearch {
     })
     .onShown(() => {
       this.refresh()
+      if (!this.keyboardSearchReady) {
+        this.keyboardSearchReady = true
+        this.getUIContext().getFocusController().requestFocus('global-search')
+      }
+    })
+    .onKeyEvent((event: KeyEvent): boolean => {
+      if (this.active && KeyboardShortcuts.home(event) === ShortcutAction.SEARCH) {
+        this.getUIContext().getFocusController().requestFocus('global-search')
+        return true
+      }
+      return false
     })
     .onHidden(() => {
       this.hide()
@@ -195,6 +208,7 @@ export struct GlobalSearch {
   SearchBarBuilder() {
     Row({ space: 10 }) {
       SearchComponent({
+        focusId: 'global-search',
         controller: this.controller,
         searchValue: this.query,
         placeholder: this.byPicture ? $r('app.string.describe_cover_example') : $r('app.string.search_all_media'),

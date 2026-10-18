@@ -39,11 +39,14 @@ import VideoListItem from './VideoListItemComponent'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import KnockShareUtil from '../../utils/KnockShareUtil'
 import { DirectoryView } from './DirectoryView'
+import { LibraryItemFocus, LibraryKeyboard, ShortcutAction } from '../../utils/KeyboardShortcuts'
 import { VideoListController } from '../../controller/VideoListController'
 import MediaLibraryService from '../../utils/MediaLibraryService'
+import HomeSidebarLayout from '../../utils/HomeSidebarLayout'
 
 @ComponentV2
 export struct VideoList {
+  @Consumer() libraryKeyboard: LibraryKeyboard = new LibraryKeyboard()
   private alphabetFirstIndexes: Map<string, number> = new Map()
   private alphabetLetters: string[] = []
   private get displayMode(): ListDisplayMode {
@@ -60,6 +63,7 @@ export struct VideoList {
   @Param currentSortAsc: boolean = true
   @Param pinyinSort: boolean = true
   @Param searchBarHidden: boolean = false
+  @Param contentWidth: number = 0
   @Param holdingHand: motion.HoldingHandStatus | null = null
   @Param videoListController: VideoListController = new VideoListController()
   delConfirmDialog: CustomDialogController = new CustomDialogController({
@@ -74,7 +78,8 @@ export struct VideoList {
           VideoUtils.refresh(this.videoListController, this.fileFolderSource, this.videoListController.folder)
         }
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, shadow: DefaultDialogShadow,
+    onDidDisappear: () => this.libraryKeyboard.reset()
   })
   // 显式接收结果数组，避免 @Monitor 依赖跨继承层的数据源路径。
   @Param directoryVideos: VideoMetadata[] = []
@@ -162,7 +167,8 @@ export struct VideoList {
           this.videoListController.closeMultipleChoose()
         }
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, shadow: DefaultDialogShadow,
+    onDidDisappear: () => this.libraryKeyboard.reset()
   })
   @Local showDetailSheet: boolean = false
   @Local detailMetadata: VideoMetadata | undefined = undefined
@@ -171,7 +177,6 @@ export struct VideoList {
   private homeEntranceStarted: boolean = false
   private directoryAlive: boolean = false
   private coverChangeRunning: boolean = false
-  private outerScroller: Scroller = new Scroller()
   private _invalidItem: VideoMetadata | null = null
   invalidFileDialog: CustomDialogController = new CustomDialogController({
     builder: InfoConfirmDialog({
@@ -192,6 +197,20 @@ export struct VideoList {
   }
 
   aboutToAppear(): void {
+    this.libraryKeyboard.onVideoAction = (action: ShortcutAction, date: string): void => {
+      const selected = DataSyncUtil.delMultipleList
+      if (this.videoListController.multipleChooseState === Visibility.Visible && selected.length !== 1) return
+      const item = this.videoListController.videoDataSource.data.find(video => video.date ===
+        (this.videoListController.multipleChooseState === Visibility.Visible ? selected[0]?.date : date))
+      if (!item) return
+      if (action === ShortcutAction.RENAME) {
+        DataSyncUtil.editingVideo = item
+        this.editMetadataDialogController.open()
+      } else if (action === ShortcutAction.DELETE) {
+        this.batchDelList = [item]
+        this.batchDelConfirmDialog.open()
+      }
+    }
     this._searchValue = this.searchValue
     this.directoryAlive = true
     this.onVideoListChanged()
@@ -282,8 +301,7 @@ export struct VideoList {
       })
     } else if (this.displayMode === ListDisplayMode.LIST_DISPLAY) {
       Stack({
-        alignContent: IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand) ? Alignment.TopStart :
-          Alignment.TopEnd
+        alignContent: this.scrollOverlayAlignment
       }) {
         List({ scroller: this.videoListController.listScroller }) {
           Repeat<VideoMetadata>(this.videoListController.videoDataSource.data)
@@ -310,6 +328,9 @@ export struct VideoList {
 
               .margin({ bottom: 20 })
               .clickEffect(this.videoClickEffect(repeatItem.item))
+              .attributeModifier(new LibraryItemFocus(this.libraryKeyboard, 'video', repeatItem.item.date, () => {
+                this.handleVideoItemTap(repeatItem.item).catch(() => {})
+              }))
               .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
               .width(this.videoListController.listLine === 1 ? '100%' : '95%')
               .height('auto')
@@ -371,6 +392,7 @@ export struct VideoList {
       }
       .width('100%')
       .height('100%')
+      .clip(false)
       .animation({ duration: 300, curve: Curve.Ease })
       .opacity(this.homeEntranceProgress)
       .scale({
@@ -389,100 +411,84 @@ export struct VideoList {
       })
     } else {
       Stack({
-        alignContent: IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand) ? Alignment.TopStart :
-          Alignment.TopEnd
+        alignContent: this.scrollOverlayAlignment
       }) {
-        Scroll(this.outerScroller) {
-          Column() {
-            Blank().height((HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100))
-            WaterFlow({
-              scroller: this.videoListController.waterFlowScroller,
-              layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW
-            }) {
-              Repeat<VideoMetadata>(this.videoListController.videoDataSource.data)
-                .each((repeatItem: RepeatItem<VideoMetadata>) => {
-                  FlowItem() {
-                    VideoCardItem({
-                      item: repeatItem.item,
-                      delMultipleList: this._delMultipleList,
-                      coverRefreshDate: this.coverRefreshDate,
-                      coverRefreshToken: this.coverRefreshToken,
-                      coverTransition: true
-                    })
-                  }
-                  .backgroundColor(
-                    Setting.listItemBackgroundBlur ? undefined :
-                      (Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
-                        $r('app.color.start_window_background')))
-
-                  .borderRadius(12)
-                  .width('100%')
-                  .onAreaChange((_oldValue: Area, newValue: Area) => {
-                    KnockShareUtil.updateVideoRegion(repeatItem.item, newValue)
-                  })
-                  .onVisibleAreaChange([0], (visible: boolean) => {
-                    KnockShareUtil.setVideoRegionVisible(repeatItem.item.date, visible)
-                  })
-                  .clickEffect(this.videoClickEffect(repeatItem.item))
-                  .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress,
-                    this.videoMenuOptions(repeatItem.item, ResponseType.LongPress))
-                  .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.RightClick,
-                    this.videoMenuOptions(repeatItem.item, ResponseType.RightClick))
-                  .gesture(
-                    TapGesture({ count: 1, fingers: 1 })
-                      .onAction(async () => {
-                        await this.handleVideoItemTap(repeatItem.item)
-                      })
-                  )
+        WaterFlow({
+          scroller: this.videoListController.waterFlowScroller,
+          layoutMode: WaterFlowLayoutMode.SLIDING_WINDOW
+        }) {
+          Repeat<VideoMetadata>(this.videoListController.videoDataSource.data)
+            .each((repeatItem: RepeatItem<VideoMetadata>) => {
+              FlowItem() {
+                VideoCardItem({
+                  item: repeatItem.item,
+                  delMultipleList: this._delMultipleList,
+                  coverRefreshDate: this.coverRefreshDate,
+                  coverRefreshToken: this.coverRefreshToken,
+                  coverTransition: true
                 })
-                .key((item: VideoMetadata, _index: number) => item.date + item.last_play + item.title +
-                  item.size.toString() +
-                  this.videoListController.folder.name + item.time)
-                .virtualScroll()
-            }
-            .fadingEdge(true)
-            .clip(false)
-            .columnsTemplate('1fr '.repeat(this.videoListController.listLine).trim())
-            .columnsGap(16) // 列间距
-            .rowsGap(16) // 行间距
-            .scrollBar(BarState.Off)
-            .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
-            .width('100%')
-            .height('100%')
-            .padding({ left: 16, right: 16 })
-            .onAppear(() => {
-              this.videoListController.waterFlowScroller.scrollEdge(Edge.Top)
-            })
-            .nestedScroll({
-              scrollForward: NestedScrollMode.PARENT_FIRST,
-              scrollBackward: NestedScrollMode.SELF_FIRST
-            })
-            .onScrollIndex((first: number) => {
-              if (this.currentSortField === SortField.NAME && this.pinyinSort) {
-                this.updateIndexerOnScroll(first)
               }
+              .backgroundColor(
+                Setting.listItemBackgroundBlur ? undefined :
+                  (Setting.backgroundImageSrc.length > 0 ? $r('app.color.start_window_background_blur') :
+                    $r('app.color.start_window_background')))
+
+              .borderRadius(12)
+              .width('100%')
+              .onAreaChange((_oldValue: Area, newValue: Area) => {
+                KnockShareUtil.updateVideoRegion(repeatItem.item, newValue)
+              })
+              .onVisibleAreaChange([0], (visible: boolean) => {
+                KnockShareUtil.setVideoRegionVisible(repeatItem.item.date, visible)
+              })
+              .clickEffect(this.videoClickEffect(repeatItem.item))
+              .attributeModifier(new LibraryItemFocus(this.libraryKeyboard, 'video', repeatItem.item.date, () => {
+                this.handleVideoItemTap(repeatItem.item).catch(() => {})
+              }))
+              .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.LongPress,
+                this.videoMenuOptions(repeatItem.item, ResponseType.LongPress))
+              .bindContextMenu(this.MenuBuilder(repeatItem.item), ResponseType.RightClick,
+                this.videoMenuOptions(repeatItem.item, ResponseType.RightClick))
+              .gesture(
+                TapGesture({ count: 1, fingers: 1 })
+                  .onAction(async () => {
+                    await this.handleVideoItemTap(repeatItem.item)
+                  })
+              )
             })
-            .onDidScroll((scrollOffset: number, scrollState: ScrollState) => {
-              this.syncSearchBarVisible(scrollOffset, scrollState,
-                (this.videoListController.waterFlowScroller.currentOffset()?.yOffset ?? 0) +
-                (this.outerScroller.currentOffset()?.yOffset ?? 0))
-            })
-          }
-          .clip(false)
+            .key((item: VideoMetadata, _index: number) => item.date + item.last_play + item.title +
+              item.size.toString() +
+              this.videoListController.folder.name + item.time)
+            .virtualScroll()
         }
+        .columnsTemplate('1fr '.repeat(this.videoListController.listLine).trim())
+        .columnsGap(16)
+        .rowsGap(16)
+        .padding({ left: 16, right: 16 })
+        // 原生 WaterFlow 自带顶部留白（API 22+），不再嵌套第二层滚动容器。
+        .contentStartOffset(HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100)
+        .contentEndOffset(SafeHeight.bottomSafeHeight)
+        .onScrollIndex((first: number) => {
+          if (this.currentSortField === SortField.NAME && this.pinyinSort) {
+            this.updateIndexerOnScroll(first)
+          }
+        })
         .clip(false)
+        .fadingEdge(true)
+        .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
         .scrollBar(BarState.Off)
         .width('100%')
         .height('100%')
-        .onDidScroll((_xOffset: number, yOffset: number, scrollState: ScrollState) => {
-          this.syncSearchBarVisible(yOffset, scrollState,
-            (this.outerScroller.currentOffset()?.yOffset ?? 0) +
-            (this.videoListController.waterFlowScroller.currentOffset()?.yOffset ?? 0))
+        .onAppear(() => {
+          this.videoListController.waterFlowScroller.scrollEdge(Edge.Top)
         })
-        .onScrollEdge((edge: Edge) => {
-          if (edge === Edge.Top) {
-            this.onScrollDirectionChange(false)
-          }
+        .onDidScroll((scrollOffset: number, scrollState: ScrollState) => {
+          this.syncSearchBarVisible(scrollOffset, scrollState,
+            this.videoListController.waterFlowScroller.currentOffset()?.yOffset,
+            HiCar.enabled ? 80 : SafeHeight.topSafeHeight + 100)
+        })
+        .onReachStart(() => {
+          this.onScrollDirectionChange(false)
         })
 
         if (this.currentSortField === 'name' && this.pinyinSort && this.activeAlphabet.length > 0) {
@@ -498,6 +504,7 @@ export struct VideoList {
       }
       .width('100%')
       .height('100%')
+      .clip(false)
       .animation({ duration: 300, curve: Curve.Ease })
       .opacity(this.homeEntranceProgress)
       .scale({
@@ -547,6 +554,31 @@ export struct VideoList {
     }
   }
 
+  private get indexerInSidebarGap(): boolean {
+    return !HiCar.enabled && this.sideBarController.mode === SideBarContainerType.Embed &&
+      this.sideBarController.isShow
+  }
+
+  private get indexerOnLeft(): boolean {
+    return this.indexerInSidebarGap || IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand)
+  }
+
+  private get scrollOverlayAlignment(): Alignment {
+    // 由外层负责靠边定位，保持字母条内部默认垂直居中。
+    const onLeft = this.currentSortField === SortField.NAME && this.pinyinSort ?
+      this.indexerOnLeft : IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand)
+    return onLeft ? Alignment.TopStart : Alignment.TopEnd
+  }
+
+  private get indexerOffsetX(): number {
+    if (!this.indexerInSidebarGap) return 0
+    const scale = HomeSidebarLayout.contentScaleWhenOpen
+    const scaleInset = this.contentWidth * (1 - scale) / 2
+    // 两侧内容各留 16vp；把缩放后的间隙中点换算回本地坐标，再减去索引条半宽。
+    // 再向视频侧内移 8vp，避免选中背景被侧栏边界遮住。
+    return (16 * scale - 16 - scaleInset) / (2 * scale) - 14 + 8 / scale
+  }
+
   @Builder
   AlphabetIndexerBuilder() {
     AlphabetIndexer({ arrayValue: this.activeAlphabet, selected: this.indexerSelected })
@@ -559,13 +591,15 @@ export struct VideoList {
       .selectedBackgroundColor($r('app.color.main_color'))
       .popupBackground($r('app.color.start_window_background'))
       .itemSize(20)
+      .width(28)
       .autoCollapse(true)
+      .offset({ x: this.indexerOffsetX })
       .height(`calc(100% - ${this.alphabetIndexerTop + SafeHeight.bottomSafeHeight}vp)`)
       .margin({
         top: this.alphabetIndexerTop,
         bottom: SafeHeight.bottomSafeHeight,
-        left: IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand) ? 2 : 0,
-        right: IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand) ? 0 : 2
+        left: !this.indexerInSidebarGap && this.indexerOnLeft ? 2 : 0,
+        right: this.indexerOnLeft ? 0 : 2
       })
   }
 
@@ -573,7 +607,7 @@ export struct VideoList {
   MenuBuilder(item: VideoMetadata | undefined) {
     Menu() {
       MenuItem({
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')), content: $r('app.string.edit')
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.rename')), content: $r('app.string.edit'), labelInfo: 'F2'
       })
         .onClick(() => {
           DataSyncUtil.editingVideo = item
@@ -808,7 +842,7 @@ export struct VideoList {
 
   /**
    * 空列表始终显示顶部栏；布局调整和非动画的程序滚动不改变显隐。
-   * List 顶部包含 contentStartOffset，卡片模式使用内外层的合计偏移。
+   * List 和 WaterFlow 都按 contentStartOffset 归一化顶部偏移。
    */
   private syncSearchBarVisible(scrollOffset: number, scrollState: ScrollState,
     yOffset: number | undefined, contentStartOffset: number = 0): void {
@@ -819,7 +853,8 @@ export struct VideoList {
     if (scrollState === ScrollState.Idle) {
       return
     }
-    if (yOffset === undefined || Math.abs(yOffset) <= 5 || Math.abs(yOffset + contentStartOffset) <= 5) {
+    // 归一化后小于零的是顶部越界区；回弹量为正也必须保持显示。
+    if (yOffset === undefined || yOffset + contentStartOffset <= 5) {
       this.onScrollDirectionChange(false)
       return
     }

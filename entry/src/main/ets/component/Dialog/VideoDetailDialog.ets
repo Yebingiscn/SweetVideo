@@ -118,11 +118,9 @@ export function VideoDetailSheetBuilder(metadata?: VideoMetadata) {
               .flexShrink(0)
               .width(105)
 
-            Text(VideoInfoUtil.videoWidthAndHeightFormat(
-              VideoInfoUtil.getDisplayResolution(metadata).toString()) === '0 x 0' ?
+            Text(VideoInfoUtil.getResolutionLabel(metadata) === '0 x 0' ?
               ToolsUtil.getStringResource($r('app.string.unknown_resolution').id) :
-              VideoInfoUtil.videoWidthAndHeightFormat(
-                VideoInfoUtil.getDisplayResolution(metadata).toString(), true))
+              VideoInfoUtil.getResolutionLabel(metadata, true))
               .fontSize(15)
               .fontColor($r('app.color.text_color'))
               .maxLines(8)

@@ -4,6 +4,7 @@ import { audio } from '@kit.AudioKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { salmonLogger } from 'salmonlogger'
 import { AudioEffectConfig } from '../../interfaces/AudioEffectInterface'
+import { VideoTrack } from '../PlayerVideoTracks'
 
 type StateCallback = (state: string) => void
 type NumberCallback = (value: number) => void
@@ -171,6 +172,16 @@ export class NativeAVPlayer {
   }
   async setPlaybackRate(rate: number): Promise<void> { await this.send('rate', { rate: rate }) }
   async selectTrack(index: number): Promise<void> { await this.send('selectTrack', { index: index }) }
+  async selectVideoTrack(index: number): Promise<void> {
+    await this.send('selectVideoTrack', { index: index, generation: this.generation })
+  }
+  async getVideoTracks(): Promise<VideoTrack[]> {
+    const result = await this.send('videoTracks', { generation: this.generation })
+    return result.tracks.map((track): VideoTrack => ({
+      id: track.track_index, title: track.track_name, codec: track.codec_mime,
+      width: track.width ?? 0, height: track.height ?? 0, fps: track.frame_rate ?? 0, selected: track.selected === 1
+    }))
+  }
   async deselectTrack(index: number): Promise<void> { await this.send('deselectTrack', { index: index }) }
   async setVolume(volume: number): Promise<void> { await this.send('volume', { volume: volume }) }
   async setLoudnessGain(gain: number): Promise<void> { await this.send('loudness', { gain: gain }) }
@@ -283,7 +294,7 @@ export class NativeAVPlayer {
 
   on(type: 'stateChange', callback: StateCallback): void
   on(type: 'timeUpdate' | 'seekDone' | 'playbackRateDone', callback: NumberCallback): void
-  on(type: 'startRenderFrame', callback: EmptyCallback): void
+  on(type: 'startRenderFrame' | 'videoSizeChange', callback: EmptyCallback): void
   on(type: 'error' | 'effectError', callback: ErrorCallback): void
   on(type: 'superResolutionChanged', callback: BooleanCallback): void
   on(type: 'subtitleUpdate', callback: SubtitleCallback): void
@@ -326,7 +337,10 @@ export class NativeAVPlayer {
           if (callback) (callback as NumberCallback)(event.value ?? 1)
           break
         case 'durationUpdate': this.duration = event.value ?? 0; break
-        case 'videoSizeChange': this.width = event.width ?? 0; this.height = event.height ?? 0; break
+        case 'videoSizeChange':
+          this.width = event.width ?? 0; this.height = event.height ?? 0
+          if (callback) (callback as EmptyCallback)()
+          break
         case 'startRenderFrame': if (callback) (callback as EmptyCallback)(); break
         case 'superResolutionChanged': if (callback) (callback as BooleanCallback)(event.value === 1); break
         case 'subtitleUpdate':

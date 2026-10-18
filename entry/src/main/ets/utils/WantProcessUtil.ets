@@ -1,6 +1,6 @@
 import MediaLibraryService from './MediaLibraryService'
 import VideoInfoUtil from './VideoInfoUtil'
-import FFmpegThumbnailUtil from './FFmpegThumbnailUtil'
+import lazy FFmpegThumbnailUtil from './FFmpegThumbnailUtil'
 import { bundleManager, common, OpenLinkOptions, Want } from '@kit.AbilityKit'
 import { VideoMetadata } from '../interfaces/VideoMetadataInterface'
 import { salmonLogger } from 'salmonlogger'

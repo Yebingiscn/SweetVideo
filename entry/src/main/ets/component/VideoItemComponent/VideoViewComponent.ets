@@ -37,14 +37,18 @@ import { SymbolGlyphModifier } from '@kit.ArkUI'
 import MediaLibraryService from '../../utils/MediaLibraryService'
 import { HiCar } from '../../utils/HiCarUtil'
 import IntellectualGripPostureUtil from '../../utils/IntellectualGripPostureUtil'
+import { KeyboardShortcuts, LibraryKeyboard } from '../../utils/KeyboardShortcuts'
+import HomeSidebarLayout from '../../utils/HomeSidebarLayout'
 
 @ComponentV2
 export struct VideoView {
+  @Consumer() libraryKeyboard: LibraryKeyboard = new LibraryKeyboard()
   searchController: SearchController = new SearchController()
   @Param loading: boolean = false
   @Param holdingHand: motion.HoldingHandStatus | null = null
   @Local is_edit: boolean = false
   @Local availableWidth: number = 0
+  @Local availableHeight: number = 0
   @Local searchBarHidden: boolean = false
   @Param searchValue: string = ''
   @Local _searchValue: string = ''
@@ -69,7 +73,8 @@ export struct VideoView {
           this.videoListController.closeMultipleChoose()
         }
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, shadow: DefaultDialogShadow,
+    onDidDisappear: () => this.libraryKeyboard.reset()
   })
   @Local currentSortField: SortField | '' = ''
   @Local currentSortAsc: boolean = true
@@ -129,6 +134,20 @@ export struct VideoView {
   }
 
   aboutToAppear(): void {
+    this.libraryKeyboard.onSearch = (): void => {
+      this.searchBarHidden = false
+      this.getUIContext().getFocusController().requestFocus('home-search')
+    }
+    this.libraryKeyboard.onSelectAll = (): void => {
+      const videos = this.videoListController.videoDataSource.data
+      if (videos.length === 0 || (this.videoListController.directoryMode && this.videoListController.directoryOverview)) return
+      this.videoListController.multipleChooseState = Visibility.Visible
+      this.delMultipleList = [...videos]
+      DataSyncUtil.delMultipleList = this.delMultipleList
+    }
+    this.libraryKeyboard.onDeleteVideos = (): void => {
+      if (this.delMultipleList.length > 0) this.batchDelConfirmDialog.open()
+    }
     this.viewAlive = true
     this._searchValue = this.searchValue
     this.onSearchBarContextChanged()
@@ -199,13 +218,13 @@ export struct VideoView {
         currentSortAsc: this.currentSortAsc,
         pinyinSort: this.pinyinSort,
         searchBarHidden: this.searchBarHidden,
+        contentWidth: this.availableWidth,
         onScrollDirectionChange: (isUp: boolean) => {
           if (HiCar.enabled || this.is_edit || this.searchBarHidden === isUp) {
             return
           }
-          animateToImmediately({ duration: 300, curve: Curve.Ease }, () => {
-            this.searchBarHidden = isUp
-          })
+          // 显隐动画由工具栏自身负责，滚动回调中不强制刷新布局。
+          this.searchBarHidden = isUp
         },
         onDirectoryFolderChange: (date: string) => {
           this.onScrollToFolderDateChange(date)
@@ -244,7 +263,18 @@ export struct VideoView {
       }
       this.TopToolBarBuilder()
     }.width('100%')
-    .onSizeChange((_oldSize: SizeResult, size: SizeResult) => this.availableWidth = Number(size.width))
+    .clip(false)
+    .onSizeChange((_oldSize: SizeResult, size: SizeResult) => {
+      this.availableWidth = Number(size.width)
+      this.availableHeight = Number(size.height)
+    })
+  }
+
+  private get toolbarHiddenTranslationY(): number {
+    const scale = !HiCar.enabled && this.sideBarController.isShow ? HomeSidebarLayout.contentScaleWhenOpen : 1
+    const scaleInset = this.availableHeight * (1 - scale) / 2
+    // 抵消父级居中缩放带来的顶部位移，保留原有 20vp 的底部阴影避让。
+    return -(SafeHeight.topSafeHeight + 100 + scaleInset / scale)
   }
 
   @Builder
@@ -274,6 +304,7 @@ export struct VideoView {
         }
 
         SearchComponent({
+          focusId: 'home-search',
           controller: this.searchController,
           searchValue: this._searchValue,
           onSearchValueChange: (v: string) => {
@@ -319,6 +350,7 @@ export struct VideoView {
             }
           },
           onEditChange: (isEditing: boolean) => {
+            this.libraryKeyboard.editing = isEditing
             XAnimation.runWithAnimation(() => {
               this.is_edit = isEditing
             })
@@ -329,8 +361,10 @@ export struct VideoView {
             }
           },
           onSearchFocus: () => {
+            this.libraryKeyboard.editing = true
             this.passwd = Preferences.getPassword(PathUtils.appContext!)
-          }
+          },
+          onSearchBlur: () => { this.libraryKeyboard.editing = false }
         })
 
         if (!this.is_edit && (!HiCar.enabled || this.availableWidth >= 400)) {
@@ -371,7 +405,7 @@ export struct VideoView {
     }
     .width('100%')
     .padding({ top: HiCar.enabled ? 8 : SafeHeight.topSafeHeight, left: 16, right: 16 })
-    .translate({ y: !HiCar.enabled && this.searchBarHidden ? -(SafeHeight.topSafeHeight + 100) : 0 })
+    .translate({ y: !HiCar.enabled && this.searchBarHidden ? this.toolbarHiddenTranslationY : 0 })
     .animation({ duration: 300, curve: Curve.Ease })
   }
 
@@ -386,6 +420,10 @@ export struct VideoView {
             $r('app.color.main_color') : $r('app.color.text_color'))
           .backgroundColor(Color.Transparent)
           .padding({ left: 4, right: 4 })
+          .onKeyEvent((event: KeyEvent): boolean => {
+            if (KeyboardShortcuts.activate(event)) this.libraryKeyboard.directoryNavigation = true
+            return false
+          })
           .onClick(() => {
             this.videoListController.requestDirectory(null)
           })
@@ -403,6 +441,10 @@ export struct VideoView {
                   .backgroundColor(Color.Transparent)
                   .padding({ left: 4, right: 4 })
                   .constraintSize({ maxWidth: 160 })
+                  .onKeyEvent((event: KeyEvent): boolean => {
+                    if (KeyboardShortcuts.activate(event)) this.libraryKeyboard.directoryNavigation = true
+                    return false
+                  })
                   .onClick(() => {
                     this.videoListController.requestDirectory(folder.item.date)
                   })
@@ -517,7 +559,8 @@ export struct VideoView {
         })
       MenuItem({
         symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash_fill')),
-        content: $r('app.string.delete_selected')
+        content: $r('app.string.delete_selected'),
+        labelInfo: 'Delete'
       })
         .onClick(() => {
           this.batchDelConfirmDialog.open()

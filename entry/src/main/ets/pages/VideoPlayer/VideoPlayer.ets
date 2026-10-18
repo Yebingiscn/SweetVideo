@@ -9,6 +9,7 @@ import { DanmakuMenuComponent } from '../../component/PlayerComponent/DanmakuMen
 import PermissionUtil from '../../utils/PermissionUtil'
 import { BaseGestureHandlingProposal, UIUtils, window } from '@kit.ArkUI'
 import { KeyCode, pointer } from '@kit.InputKit'
+import { KeyboardShortcuts, ShortcutAction } from '../../utils/KeyboardShortcuts'
 import ToolsUtil from '../../utils/ToolsUtil'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
 import VideoOperateUtil from '../../utils/VideoOperateUtil'
@@ -21,7 +22,7 @@ import NavigationAddress, { PlayerEngine, PlayerParams } from '../../common/Navi
 import WantProcessUtil from '../../utils/WantProcessUtil'
 import { WindowUtil } from '../../utils/WindowUtil'
 import { XAnimation } from '../../utils/AnimationUtil'
-import { Subtitle3DMode } from '../../common/enum/SubtitleMode'
+import { Subtitle3DMode, SubtitleMode } from '../../common/enum/SubtitleMode'
 import { SubtitleManager } from '../../utils/SubtitleManager'
 import { FastForwardPanelBuilder } from '../../component/PlayerComponent/FastForwardPanelBuilder'
 import { SwipingPanelBuilder } from '../../component/PlayerComponent/SwipingPanelBuilder'
@@ -50,6 +51,7 @@ import { SubtitleOffsetDialog } from '../../component/Dialog/SubtitleOffsetDialo
 import SubtitleUtil from '../../utils/SubtitleUtil'
 import { SweetRepeatMode } from '../../common/enum/SweetRepeatMode'
 import { AudioTrackComponent } from '../../component/PlayerComponent/AudioTrackComponent'
+import { VideoTrackComponent } from '../../component/PlayerComponent/VideoTrackComponent'
 import { AVCastPickerBuilder } from '../../component/PlayerComponent/AVCastPickerBuilder'
 import { ChapterListComponent } from '../../component/PlayerComponent/ChapterListComponent'
 import { PlaybackSpeedMenuComponent } from '../../component/PlayerComponent/PlaybackSpeedComponent'
@@ -77,11 +79,12 @@ type PlayerType = PlayerControllerInterface
 
 @ComponentV2
 export struct VideoPlayer {
+  @Param @Once initialPlayerEngine: string = PlayerEngine.AV_PLAYER
   @Local danmakuPageVisible: boolean = false
   @Local importingSubtitle: boolean = false
-  @Local playerType: string = PlayerEngine.AV_PLAYER
+  @Local playerType: string = this.initialPlayerEngine
   @Local autoListenVideoEnabled: boolean = false
-  @Provider('player') player: PlayerType = PlayerControllerFactory.createAVPlayerController() as PlayerType
+  @Local player: PlayerType = PlayerControllerFactory.createController(this.initialPlayerEngine)
   subtitleManager: SubtitleManager = new SubtitleManager(this.player)
   audioEffectDialog: CustomDialogController = new CustomDialogController({
     builder: AudioEffectDialog({
@@ -109,8 +112,8 @@ export struct VideoPlayer {
         return applied
       }
     }), cornerRadius: 20, shadow: DefaultDialogShadow,
-    onWillAppear: () => this.controlsIdle.setHeld('audio-dialog', true),
-    onDidDisappear: () => this.controlsIdle.setHeld('audio-dialog', false)
+    onWillAppear: () => this.onKeyboardOverlay('audio-dialog', true),
+    onDidDisappear: () => this.onKeyboardOverlay('audio-dialog', false)
   })
   personalScreenExtendDialog: CustomDialogController = new CustomDialogController({
     builder: NumberInputDialog({
@@ -129,8 +132,8 @@ export struct VideoPlayer {
         }
       },
     }), cornerRadius: 20, shadow: DefaultDialogShadow,
-    onWillAppear: () => this.controlsIdle.setHeld('aspect-dialog', true),
-    onDidDisappear: () => this.controlsIdle.setHeld('aspect-dialog', false)
+    onWillAppear: () => this.onKeyboardOverlay('aspect-dialog', true),
+    onDidDisappear: () => this.onKeyboardOverlay('aspect-dialog', false)
   })
   @Local isPlayerConfigured: boolean = false
   @Local subtitlePreferenceRestored: boolean = false
@@ -157,6 +160,16 @@ export struct VideoPlayer {
   private controlTouches: Set<number> = new Set<number>()
   private controlsIdle: PlayerControlAutoHide = new PlayerControlAutoHide(AUTO_HIDE_SHOW_CONTROL_TIME,
     () => this.canAutoHideControls(), () => { this.player.showControl = false })
+  private keyboard: KeyboardShortcuts = new KeyboardShortcuts()
+  private keyboardBusy: boolean = false
+  private keyboardSeekTime: number | undefined = undefined
+  private keyboardSeekAt: number = 0
+  private keyboardSeekDate: string = ''
+  private keyboardVolume: number = 1
+  private keyboardSubtitleMode: SubtitleMode = SubtitleMode.NONE
+  private keyboardSubtitleDate: string = ''
+  private keyboardOverlays: Set<string> = new Set()
+  @Local keyboardSubtitleMenuVisible: boolean = false
 
   private canAutoHideControls(): boolean {
     return this.playerDestinationShown && !this.isPageDisappearing && !this.playbackSession.isDisposed &&
@@ -248,8 +261,8 @@ export struct VideoPlayer {
     }),
     cornerRadius: 20,
     shadow: DefaultDialogShadow,
-    onWillAppear: () => this.controlsIdle.setHeld('subtitle-offset-dialog', true),
-    onDidDisappear: () => this.controlsIdle.setHeld('subtitle-offset-dialog', false),
+    onWillAppear: () => this.onKeyboardOverlay('subtitle-offset-dialog', true),
+    onDidDisappear: () => this.onKeyboardOverlay('subtitle-offset-dialog', false),
     maskColor: '#00000000',
     cancel: (): void => {
       this.cancelSubtitleOffsetSession()
@@ -388,6 +401,146 @@ export struct VideoPlayer {
     }, 400) : this.sideBarStatus = false
   }
 
+  private onKeyboardOverlay(name: string, visible: boolean): void {
+    this.controlsIdle.setHeld(name, visible)
+    if (visible) {
+      this.keyboardOverlays.add(name)
+      // 弹层可能消费抬键事件；由弹层自身接管暂停计时，避免关闭后控制栏一直不消失。
+      for (const code of this.keyboard.heldKeyCodes) this.controlsIdle.setHeld('key-' + code, false)
+    }
+    else {
+      this.keyboardOverlays.delete(name)
+      this.keyboard.reset()
+    }
+  }
+
+  private handlePlayerShortcut(event: KeyEvent, surfaceFocused: boolean): boolean {
+    if (!this.playerDestinationShown || !this.isPlayerConfigured || this.isPageDisappearing ||
+      this.playbackSession.isDisposed || this.playbackSession.isSwitching || this.importingSubtitle ||
+      this.isAdjustingSubtitleOffset || this.keyboardOverlays.size > 0) return false
+    const action = KeyboardShortcuts.player(event, surfaceFocused)
+    if (action === undefined || (this.player.isLock && action !== ShortcutAction.ESCAPE)) return false
+    if (this.keyboardBusy || !this.keyboard.accept(action)) return true
+    this.controlsIdle.activity()
+    this.keyboardBusy = true
+    this.executePlayerShortcut(action).catch((error: Error) => {
+      salmonLogger.addLog(TAG, '播放快捷键失败: ' + error.message, true)
+    }).finally(() => { this.keyboardBusy = false })
+    event.stopPropagation()
+    return true
+  }
+
+  private async executePlayerShortcut(action: ShortcutAction): Promise<void> {
+    switch (action) {
+      case ShortcutAction.PLAY_PAUSE:
+        this.player.togglePlayback()
+        break
+      case ShortcutAction.SEEK_BACK:
+      case ShortcutAction.SEEK_FORWARD:
+      case ShortcutAction.SEEK_BACK_SMALL:
+      case ShortcutAction.SEEK_FORWARD_SMALL:
+        this.seekFromKeyboard(action)
+        break
+      case ShortcutAction.VOLUME_UP:
+      case ShortcutAction.VOLUME_DOWN:
+        this.setKeyboardVolume(VideoOperateUtil.changeVolume(this.player.volumeActually,
+          action === ShortcutAction.VOLUME_UP ? VOLUME_STEP : -VOLUME_STEP))
+        break
+      case ShortcutAction.BRIGHTNESS_UP:
+      case ShortcutAction.BRIGHTNESS_DOWN:
+        this.gestures.adjustBrightness(action === ShortcutAction.BRIGHTNESS_UP ? 0.05 : -0.05)
+        break
+      case ShortcutAction.MUTE:
+        if (this.player.volumeActually > 0) {
+          this.keyboardVolume = this.player.volumeActually
+          this.setKeyboardVolume(0)
+        } else this.setKeyboardVolume(VideoOperateUtil.changeVolume(this.keyboardVolume, 0))
+        break
+      case ShortcutAction.FULLSCREEN:
+        await VideoOperateUtil.fullScreenOrRotateScreen(this.player.screenWidth, this.player.screenHeight, this.getWindowClass())
+        break
+      case ShortcutAction.ESCAPE:
+        if (this.sideBarStatus) {
+          this.closeSideBar(false)
+          this.getUIContext().getFocusController().requestFocus('player_surface_focus')
+        } else {
+          await WindowUtil.exitFullScreen(this.getWindowClass(), this.player.screenWidth, this.player.screenHeight)
+        }
+        break
+      case ShortcutAction.BACK:
+        if (this.sideBarStatus) this.closeSideBar(false)
+        else this.exitVideo(0)
+        break
+      case ShortcutAction.PREVIOUS:
+        await this.playPreviousFromControl()
+        break
+      case ShortcutAction.NEXT:
+        await this.playNextFromControl()
+        break
+      case ShortcutAction.SPEED_DOWN:
+      case ShortcutAction.SPEED_UP:
+        const speeds = VideoInfoUtil.videoSpeedListAll
+        const faster = speeds.find(speed => speed > this.player.speed + 0.001)
+        const slower = speeds.slice().reverse().find(speed => speed < this.player.speed - 0.001)
+        this.player.updatePlaybackSpeed((action === ShortcutAction.SPEED_UP ? faster : slower) ?? this.player.speed)
+        break
+      case ShortcutAction.SPEED_RESET:
+        this.player.updatePlaybackSpeed(1)
+        break
+      case ShortcutAction.SUBTITLE:
+        this.toggleKeyboardSubtitle()
+        break
+      case ShortcutAction.SUBTITLE_MENU:
+        this.player.showControl = true
+        this.keyboardSubtitleMenuVisible = true
+        break
+      case ShortcutAction.PLAYLIST:
+        if (this.sideBarStatus) this.closeSideBar(false)
+        else {
+          this.sideBarStatusTmp = Visibility.Visible
+          this.sideBarStatus = true
+        }
+        break
+    }
+  }
+
+  private setKeyboardVolume(volume: number): void {
+    this.player.volume = volume
+    this.player.volumeActually = volume
+  }
+
+  private seekFromKeyboard(action: ShortcutAction): void {
+    const now = Date.now()
+    const date = this.player.nowPlaying?.date ?? ''
+    if (this.keyboardSeekTime === undefined || now - this.keyboardSeekAt > 300 || this.keyboardSeekDate !== date) {
+      this.keyboardSeekTime = this.player.playbackPositionMs
+    }
+    this.keyboardSeekDate = date
+    this.keyboardSeekAt = now
+    const small = action === ShortcutAction.SEEK_BACK_SMALL || action === ShortcutAction.SEEK_FORWARD_SMALL
+    const backward = action === ShortcutAction.SEEK_BACK || action === ShortcutAction.SEEK_BACK_SMALL
+    const step = (small ? 1 : Number(Setting.fastForwardSeconds)) * 1000 * (backward ? -1 : 1)
+    const duration = this.player.nowPlaying?.time ?? 0
+    this.keyboardSeekTime = Math.max(0, Math.min(duration > 0 ? duration : Number.MAX_SAFE_INTEGER, this.keyboardSeekTime + step))
+    this.player.seekTime(this.keyboardSeekTime)
+  }
+
+  private toggleKeyboardSubtitle(): void {
+    const date = this.player.nowPlaying?.date ?? ''
+    if (this.keyboardSubtitleDate !== date) {
+      this.keyboardSubtitleDate = date
+      this.keyboardSubtitleMode = SubtitleMode.NONE
+    }
+    if (this.subtitleManager.isAnySubtitleActive) {
+      this.keyboardSubtitleMode = this.subtitleManager.subtitleMode
+      this.subtitleManager.switchToNone()
+    } else if (this.keyboardSubtitleMode === SubtitleMode.AI_SUBTITLE) this.subtitleManager.switchToAI()
+    else if (this.keyboardSubtitleMode === SubtitleMode.EXTERNAL_SUBTITLE ||
+      (this.keyboardSubtitleMode === SubtitleMode.NONE && this.player.nowPlaying?.external_subtitle_format)) {
+      this.subtitleManager.switchToExternal()
+    } else if (this.player.subtitleTrack.length > 0) this.subtitleManager.switchToInner()
+  }
+
   private stopHoldingHandSubscription(): void {
     IntellectualGripPostureUtil.destroyHoldingHandStatus(this.holdingHandCallback)
   }
@@ -397,6 +550,7 @@ export struct VideoPlayer {
     NavDestination() {
       SideBarContainer(SideBarContainerType.Overlay) {
         PlayerSideBarComponent({
+          player: this.player,
           sideBarStatusTmp: this.sideBarStatusTmp,
           onSideBarStatusTmpChange: (v: Visibility) => {
             this.sideBarStatusTmp = v
@@ -415,6 +569,7 @@ export struct VideoPlayer {
         Stack() {
           if (this.isPlayerConfigured) {
             XComponents({
+              player: this.player,
               xComponentController: this.xComponentController,
               xComponentId: this.player.getXComponentId(),
               libraryName: this.player.getLibraryName(),
@@ -438,26 +593,8 @@ export struct VideoPlayer {
                 }
                 await surfacePlayer.onSurfaceLoad(surfaceController, this.pathStack, this.windowClass)
               },
-              onKeyCodeSpace: () => {
-                this.player.togglePlayback()
-              },
-              onKeyCodeEscape: () => {
-                VideoOperateUtil.fullScreenOrRotateScreen(this.player.screenWidth, this.player.screenHeight,
-                  this.getWindowClass())
-              },
-              onKeyCodeLeft: () => {
-                this.player.backForward()
-              },
-              onKeyCodeRight: () => {
-                this.player.fastForward()
-              },
-              onKeyCodeUpAndDown: (event: KeyEvent) => {
-                this.player.volume = this.player.volumeActually
-                const newVolume = VideoOperateUtil.changeVolume(this.player.volume,
-                  event.keyCode === KeyCode.KEYCODE_DPAD_UP ? VOLUME_STEP : -VOLUME_STEP)
-                this.player.volume = newVolume
-                this.player.volumeActually = newVolume
-              },
+              onPlayerKey: (event: KeyEvent): boolean => this.handlePlayerShortcut(event, true),
+              onPlayerFocus: () => this.controlsIdle.setHeld('keyboard-navigation', false),
               onOsdSurfaceLoad: (surfaceId: string, surfaceWidth: number, surfaceHeight: number) => {
                 this.player.onOsdSurfaceLoad(surfaceId, surfaceWidth, surfaceHeight)
               },
@@ -482,6 +619,7 @@ export struct VideoPlayer {
 
           if (this.player.showControl && !this.player.isLock) {
             VideoLayoutComponent({
+              player: this.player,
               VideoTop: () => {
                 this.VideoTop()
               },
@@ -521,6 +659,7 @@ export struct VideoPlayer {
           })
           if (this.player.showControl && !HiCar.enabled) {
             LockVideoBarComponent({
+              player: this.player,
               buttonsOnLeft: IntellectualGripPostureUtil.isLeftHoldHand(this.holdingHand),
               onLockClick: () => {
                 this.player.isLock = !this.player.isLock
@@ -534,6 +673,7 @@ export struct VideoPlayer {
             })
           }
           GestureComponent({
+            player: this.player,
             onDoubleClickAction: (tapX: number) => {
               this.player.onScreenDoubleClick(tapX)
             },
@@ -614,6 +754,7 @@ export struct VideoPlayer {
           if (Pc.pcMode && event.action === MouseAction.Move && !this.player.showControl) {
             this.player.showControl = true
           }
+          if (event.action === MouseAction.Move) this.controlsIdle.setHeld('keyboard-navigation', false)
           if (event.action === MouseAction.Press) this.controlsIdle.setHeld('mouse', true)
           else if (event.action === MouseAction.Release) this.controlsIdle.setHeld('mouse', false)
           else this.controlsIdle.activity()
@@ -643,12 +784,14 @@ export struct VideoPlayer {
       }
       try {
         this.playerType = playerParams.playerType ?? PlayerEngine.AV_PLAYER
-        this.unregisterPlayerMonitors(this.player)
-        this.player = PlayerControllerFactory.createController(this.playerType) as PlayerType
-        this.gestures = new PlayerGestureController(this.player)
+        if (this.player.isMpvPlayer() !== (this.playerType === PlayerEngine.MPV_PLAYER)) {
+          this.unregisterPlayerMonitors(this.player)
+          this.player = PlayerControllerFactory.createController(this.playerType)
+          this.gestures = new PlayerGestureController(this.player)
+          this.subtitleManager = new SubtitleManager(this.player)
+        }
 
         this.bindEngineSwitchHandler(this.player)
-        this.subtitleManager = new SubtitleManager(this.player)
         this.registerPlayerMonitors(this.player)
         const metadata = playerParams.metadata as VideoMetadata
         this.player.nowPlaying = metadata
@@ -699,6 +842,7 @@ export struct VideoPlayer {
       return false
     })
     .onShown(() => {
+      this.keyboard.reset()
       this.playerExitTransitionEnabled = true
       this.playerDestinationShown = true
       this.controlsIdle.start()
@@ -734,6 +878,7 @@ export struct VideoPlayer {
       }
     })
     .onHidden(() => {
+      this.keyboard.reset()
       this.controlsIdle.stop()
       this.controlTouches.clear()
       this.playerDestinationShown = false
@@ -799,14 +944,22 @@ export struct VideoPlayer {
     })
     .hideTitleBar(true)
     .onTouchIntercept((_event: TouchEvent) => {
+      this.controlsIdle.setHeld('keyboard-navigation', false)
       this.controlsIdle.activity()
       return HitTestMode.Default // Observe activity without consuming child input.
     })
     .onTouch((event: TouchEvent) => this.onControlTouch(event))
-    .onKeyEventDispatch((event: KeyEvent) => {
+    // 观察按键但不接管派发，让画面、控制栏和输入框继续处理各自的按键。
+    .onKeyPreIme((event: KeyEvent): boolean => {
+      this.keyboard.observe(event)
+      if (event.type === KeyType.Down && event.keyCode === KeyCode.KEYCODE_TAB) {
+        this.player.showControl = true
+        this.controlsIdle.setHeld('keyboard-navigation', true)
+      }
       this.controlsIdle.setHeld('key-' + event.keyCode, event.type === KeyType.Down)
       return false
     })
+    .onKeyEvent((event: KeyEvent): boolean => this.handlePlayerShortcut(event, false))
     // 旋转期间内层播放区可能尚未铺满新尺寸，由页面底色覆盖空隙。
     .backgroundColor(Color.Black)
     .expandSafeArea([SafeAreaType.SYSTEM],
@@ -819,7 +972,10 @@ export struct VideoPlayer {
   @Builder
   VideoTop() {
     VideoTopComponent({
-      onControlsOverlay: (name: string, visible: boolean) => this.controlsIdle.setHeld(name, visible),
+      player: this.player,
+      onControlsOverlay: (name: string, visible: boolean) => this.onKeyboardOverlay(name, visible),
+      keyboardSubtitleMenuVisible: this.keyboardSubtitleMenuVisible,
+      onKeyboardSubtitleMenuChange: (visible: boolean) => { this.keyboardSubtitleMenuVisible = visible },
       isAnySubtitleActive: this.subtitleManager.isAnySubtitleActive,
       carSettingsMenu: (): void => this.VideoSettingBuilder(),
       carSpeedMenu: (): void => this.PlaybackSpeedMenuBuilder(),
@@ -830,6 +986,9 @@ export struct VideoPlayer {
       lockRotation: this.lockRotation,
       audioTrackMenuBuilder: () => {
         this.AudioTrackMenuBuilder()
+      },
+      videoTrackMenuBuilder: () => {
+        this.VideoTrackMenuBuilder()
       },
       subtitlePanelComponent: () => {
         this.SubtitleMenuBuilder()
@@ -933,6 +1092,7 @@ export struct VideoPlayer {
   @Builder
   VideoSlider() {
     VideoSliderComponent({
+      player: this.player,
       onSliderChange: (value: number, mode?: SliderChangeMode) => {
         this.controlsIdle.activity()
         const finished = mode === SliderChangeMode.End || mode === SliderChangeMode.Click
@@ -962,7 +1122,8 @@ export struct VideoPlayer {
   @Builder
   VideoButtons() {
     VideoButtonsComponent({
-      onControlsOverlay: (name: string, visible: boolean) => this.controlsIdle.setHeld(name, visible),
+      player: this.player,
+      onControlsOverlay: (name: string, visible: boolean) => this.onKeyboardOverlay(name, visible),
       AVCastPickerBuilderBridge: this.AVCastPickerBuilderBridge,
       videoSettingBuilder: () => {
         this.VideoSettingBuilder()
@@ -1002,7 +1163,7 @@ export struct VideoPlayer {
 
   private async playNextFromControl(): Promise<void> {
         const nextRepeatMode = VideoOperateUtil.getManualNavigationRepeatMode(this.player.repeatMode)
-        this.player.playNextVideoProcess(this.pathStack, this.windowClass, this.xComponentController, nextRepeatMode)
+        await this.player.playNextVideoProcess(this.pathStack, this.windowClass, this.xComponentController, nextRepeatMode)
           .catch((error: Error) => {
             salmonLogger.addLog(TAG, `play next video failed: ${error.message}`, true)
           })
@@ -1027,6 +1188,7 @@ export struct VideoPlayer {
   @Builder
   AudioTrackMenuBuilder() {
     AudioTrackComponent({
+      player: this.player,
       onSelect: (index: number) => {
         this.player.audioController.selectAudioTrackByIndex(index)
         this.player.audioTrackSelected = index
@@ -1046,8 +1208,14 @@ export struct VideoPlayer {
   }
 
   @Builder
+  VideoTrackMenuBuilder() {
+    VideoTrackComponent({ player: this.player })
+  }
+
+  @Builder
   ChapterMenuBuilder() {
     ChapterListComponent({
+      player: this.player,
       onSelect: (index: number) => {
         this.player.seekToChapter(index)
       }
@@ -1057,6 +1225,7 @@ export struct VideoPlayer {
   @Builder
   VideoSettingBuilder() {
     VideoSettingComponent({
+      player: this.player,
       exitVideoTime: this.exitVideoTime,
       forward_80_s: (time: number) => {
         salmonLogger.addLog(TAG, `执行快进80秒操作，目标时间：${time}`, false)
@@ -1121,6 +1290,7 @@ export struct VideoPlayer {
   @Builder
   PlaybackSpeedMenuBuilder() {
     PlaybackSpeedMenuComponent({
+      player: this.player,
       onSpeedChange: (speed: number) => {
         this.player.updatePlaybackSpeed(speed)
         this.player.savePlayerSpeed(PathUtils.appContext!)
@@ -1131,6 +1301,7 @@ export struct VideoPlayer {
   @Builder
   SubtitleMenuBuilder() {
     SubtitlePanelComponent({
+      player: this.player,
       importingSubtitle: this.importingSubtitle,
       onImportSubtitle: () => {
         this.importPlaybackSubtitle()
@@ -1384,7 +1555,8 @@ export struct VideoPlayer {
       // 页面完整显示后直接创建 Surface、隐藏系统栏及触发智能横屏。
       WindowUtil.setBarState(PathUtils.appContext!, false, false)
       if (Setting.defaultBrightness > 0) {
-        VideoOperateUtil.setBrightness(Setting.defaultBrightness / 100)
+        this.player.screenBrightness = Setting.defaultBrightness / 100
+        VideoOperateUtil.setBrightness(this.player.screenBrightness)
       }
       this.player.onPlayerReady()
       this.isPlayerConfigured = true

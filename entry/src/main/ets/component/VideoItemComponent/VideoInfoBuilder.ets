@@ -47,18 +47,15 @@ export function VideoInfoBuilder(params: VideoInfoBuilderParams) {
         opacity: 0.9
       })
     } else if (!params.item?.hdr_type && !params.item?.audio_type) {
-      if (VideoInfoUtil.videoWidthAndHeightFormat(
-        VideoInfoUtil.getDisplayResolution(params.item).toString()).includes('HD')) {
+      if (VideoInfoUtil.getResolutionLabel(params.item).includes('HD')) {
         SolidColorTagBuilder({
-          label: VideoInfoUtil.videoWidthAndHeightFormat(
-            VideoInfoUtil.getDisplayResolution(params.item).toString()) +
+          label: VideoInfoUtil.getResolutionLabel(params.item) +
             (params.item!.frame_rate >= 60 ? ` ${params.item!.frame_rate} fps` : ''),
           textColor: $r('sys.color.black'),
           bgColor: '#de9e44',
           opacity: 0.9
         })
-      } else if (VideoInfoUtil.videoWidthAndHeightFormat(
-        VideoInfoUtil.getDisplayResolution(params.item).toString()) === '0 x 0') {
+      } else if (VideoInfoUtil.getResolutionLabel(params.item) === '0 x 0') {
         SolidColorTagBuilder({
           label: $r('app.string.unknown_resolution'),
           textColor: $r('sys.color.black'),
@@ -66,8 +63,7 @@ export function VideoInfoBuilder(params: VideoInfoBuilderParams) {
           opacity: 0.9
         })
       } else {
-        Text(VideoInfoUtil.videoWidthAndHeightFormat(
-          VideoInfoUtil.getDisplayResolution(params.item).toString()))
+        Text(VideoInfoUtil.getResolutionLabel(params.item))
           .fontSize(15)
           .opacity(0.8)
           .fontColor(params.nowPlaying && params.nowPlaying?.date === params.item?.date ?

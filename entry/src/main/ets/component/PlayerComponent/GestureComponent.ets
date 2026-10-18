@@ -1,4 +1,4 @@
-import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
+import type { PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 
 import { MediaSmartGestureModifier } from '../../utils/MediaSmartGestureUtil'
 import { Setting } from '../../utils/ObservedUtil'
@@ -6,8 +6,7 @@ import { Setting } from '../../utils/ObservedUtil'
 
 @ComponentV2
 export struct GestureComponent {
-  @Consumer('player') player: PlayerControllerInterface =
-    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
+  @Require @Param player: PlayerControllerInterface
   @Event onDoubleClickAction: (_tapX: number) => void = () => {
   }
   @Event onSingleClickAction: () => void = () => {

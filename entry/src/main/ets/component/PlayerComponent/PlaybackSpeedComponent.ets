@@ -1,5 +1,5 @@
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
-import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
+import type { PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 
 @ComponentV2
 export struct PlaybackSpeedListComponent {
@@ -61,8 +61,7 @@ export struct PlaybackSpeedListComponent {
 
 @ComponentV2
 export struct PlaybackSpeedMenuComponent {
-  @Consumer('player') player: PlayerControllerInterface =
-    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
+  @Require @Param player: PlayerControllerInterface
   @Event onSpeedChange: (_speed: number) => void = () => {
   }
 

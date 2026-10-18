@@ -9,7 +9,8 @@ import {
 } from '../../common/AttributeModifierConfig'
 import { VideoListController } from '../../controller/VideoListController'
 import { SideBarController } from './SideBar'
-import { importAndProcessFiles, ProgressInfo } from '../../utils/FileProcessorUtil'
+import lazy { importAndProcessFiles } from '../../utils/FileProcessorUtil'
+import type { ProgressInfo } from '../../utils/FileProcessorUtil'
 import ToolsUtil from '../../utils/ToolsUtil'
 import {
   CapsuleSegmentButtonV2, ColorMetrics, SegmentButtonV2ItemOptions, SegmentButtonV2Items,
@@ -29,9 +30,11 @@ import { userData, userLoginBuilder } from '../common/UserLoginComponent'
 import { FolderSelectMenuBuilder } from '../FileFolderComponent/FileFolderSelectBuilder'
 import { SideBarFolderComponent } from './SideBarFolderComponent'
 import { deviceInfo } from '@kit.BasicServicesKit'
+import { LibraryKeyboard } from '../../utils/KeyboardShortcuts'
 
 @ComponentV2
 export struct SideBarContentComponent {
+  @Consumer() libraryKeyboard: LibraryKeyboard = new LibraryKeyboard()
   @Param sideBarController: SideBarController = new SideBarController()
   @Param pathStack: NavPathStack = new NavPathStack()
   @Param videoListController: VideoListController = new VideoListController()
@@ -67,6 +70,12 @@ export struct SideBarContentComponent {
   }
 
   aboutToAppear(): void {
+    this.libraryKeyboard.onImport = async (folders: boolean): Promise<void> => {
+      if (folders && !deviceInfo.apiAvailable('26.0.0')) return
+      this.sideBarController.closeIfOverlay(false)
+      if (folders) await this.importMediaFolders()
+      else await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, 'video'), this.videoListController.folder)
+    }
     try {
       this.itemSelectedBackgroundColor = ColorMetrics.resourceColor($r('app.color.main_color'))
       this.itemSelectedFontColor = ColorMetrics.resourceColor($r('sys.color.white'))
@@ -508,6 +517,7 @@ export struct SideBarContentComponent {
       {
         icon: $r("sys.symbol.resolution_video"),
         content: $r('app.string.import_from_videos'),
+        shortcut: 'Ctrl+O',
         onAction: async () => {
           this.sideBarController.closeIfOverlay(false)
           await this.toMetaData(await SelectFileUtil.selectFromFileManager(undefined, "video"),
@@ -546,6 +556,7 @@ export struct SideBarContentComponent {
       menus.push({
         icon: $r('sys.symbol.folder'),
         content: $r('app.string.import_from_folder'),
+        shortcut: 'Ctrl+Shift+O',
         onAction: async () => {
           this.sideBarController.closeIfOverlay(false)
           await this.importMediaFolders()

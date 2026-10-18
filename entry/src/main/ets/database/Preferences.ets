@@ -16,6 +16,7 @@ import { salmonLogger } from 'salmonlogger'
 import { util } from '@kit.ArkTS'
 import { SubtitlePreferredLanguage } from '../common/enum/SubtitleLanguage'
 import { PrivacyAuthMode } from '../common/enum/PrivacyAuthMode'
+import PrivacyFolderUtil, { PrivacyFolderState } from '../utils/PrivacyFolderUtil'
 
 const DATA_BASE_NAME = 'sweet_video'
 const MAX_PREFERENCES_STRING_BYTES = 16 * 1024 * 1024
@@ -104,6 +105,17 @@ export default class Preferences {
     return videos
   }
 
+  static getPrivacyFolders(context: Context): PrivacyFolderState {
+    const value = PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'privacy_folder_state', '', true) as string
+    return PrivacyFolderUtil.parse(value)
+  }
+
+  static savePrivacyFolders(context: Context, state: PrivacyFolderState): void {
+    // 一次写入目录和归属；写入异常必须上抛，不能用空目录覆盖已有数据。
+    PreferencesUtil.putPreferencesValue(context, DATA_BASE_NAME, 'privacy_folder_state',
+      JSON.stringify(PrivacyFolderUtil.copy(state)), true)
+  }
+
   // 所有文件夹视频数据
   static getFileFolder(context: Context) {
     if (Preferences.fileFolderCache !== null) {
@@ -142,8 +154,8 @@ export default class Preferences {
   }
 
   // 最近播放视频数据
-  static getRecentPlay(context: Context) {
-    const videos = PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'recent_play', []) as VideoMetadata[]
+  static getRecentPlay(context: Context, requireSuccess: boolean = false) {
+    const videos = PreferencesUtil.getPreferencesValue(context, DATA_BASE_NAME, 'recent_play', [], requireSuccess) as VideoMetadata[]
     videos.forEach(video => Preferences.normalizePlayableResolution(video))
     return videos
   }

@@ -1,6 +1,6 @@
 import MediaLibraryService from '../../utils/MediaLibraryService'
 import VideoInfoUtil from '../../utils/VideoInfoUtil'
-import { PlayerControllerFactory, PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
+import type { PlayerControllerInterface } from '../../controller/PlayerControllerFactory'
 import { AVPlayerController } from '../../controller/AVPlayerController/AVPlayerController'
 import { MpvController } from '../../controller/MpvController/MpvController'
 import { PathUtils } from '../../utils/PathUtils'
@@ -16,8 +16,7 @@ export struct VideoSettingComponent {
   @Local endTime: string = '00:00'
   @Local pointA: string = '00:00'
   @Local pointB: string = '00:00'
-  @Consumer('player') player: PlayerControllerInterface =
-    PlayerControllerFactory.createAVPlayerController() as PlayerControllerInterface
+  @Require @Param player: PlayerControllerInterface
   @Event forward_80_s: (_time: number) => void = () => {
   }
   @Event closeAfter15min: (_time: number) => void = () => {

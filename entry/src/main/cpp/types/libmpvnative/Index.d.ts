@@ -1,5 +1,16 @@
 // Type declarations for libmpvnative native module
 declare module 'libmpvnative.so' {
+  export interface VideoTrack {
+    id: number;
+    title: string;
+    codec: string;
+    width: number;
+    height: number;
+    fps: number;
+    selected: boolean;
+  }
+  export function getVideoTracks(requestId: number): Promise<VideoTrack[]>;
+  export function selectVideoTrack(requestId: number, id: number): Promise<VideoTrack[]>;
   /** Returns 0 for an open descriptor, otherwise errno; does not take ownership. */
   export const checkUsbFileDescriptor: (fd: number) => number;
   export function setMpvConfigPath(path: string): void;
@@ -64,6 +75,10 @@ declare module 'libmpvnative.so' {
     effectVersion?: number;
   }
   export interface NativePlayerTrack {
+    width?: number;
+    height?: number;
+    frame_rate?: number;
+    selected?: number;
     track_index: number;
     track_type: number;
     channel_count: number;

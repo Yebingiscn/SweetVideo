@@ -28,9 +28,11 @@ import { SafeHeight } from '../../utils/ObservedUtil'
 import FolderSelection from '../../utils/FolderSelection'
 import { InfoConfirmDialog } from '../Dialog/InfoConfirmDialog'
 import { salmonLogger } from 'salmonlogger'
+import { KeyboardShortcuts, LibraryItemFocus, LibraryKeyboard, ShortcutAction } from '../../utils/KeyboardShortcuts'
 
 @ComponentV2
 export struct SideBarFolderComponent {
+  @Consumer() libraryKeyboard: LibraryKeyboard = new LibraryKeyboard()
   @Param sideBarController: SideBarController = new SideBarController()
   @Param videoListController: VideoListController = new VideoListController()
   @Param fileFolderSource: FileFolderDataSource = new FileFolderDataSource([])
@@ -71,7 +73,8 @@ export struct SideBarFolderComponent {
       onFolderAdded: (folders: FileFolder[]) => {
         this.fileFolderListChange(folders)
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, shadow: DefaultDialogShadow,
+    onDidDisappear: () => this.libraryKeyboard.reset()
   })
   editFileFolderNameDialogController: CustomDialogController = new CustomDialogController({
     builder: RenameDialog({
@@ -84,7 +87,8 @@ export struct SideBarFolderComponent {
         this.fileFolderListChange(updatedFolders)
         this.fileFolderSource.updateData(updatedFolders)
       }
-    }), cornerRadius: 20, shadow: DefaultDialogShadow
+    }), cornerRadius: 20, shadow: DefaultDialogShadow,
+    onDidDisappear: () => this.libraryKeyboard.reset()
   })
   moveFileFolderDialogController: CustomDialogController = new CustomDialogController({
     builder: MoveFileFolderDialog({
@@ -96,6 +100,33 @@ export struct SideBarFolderComponent {
   })
 
   aboutToAppear(): void {
+    this.libraryKeyboard.onFolderAction = (action: ShortcutAction, date: string): void => {
+      if (this.folderDeleting || this.videoListController.directoryTransitioning) return
+      const folder = this.file_folder_list.find(item => item.date === date)
+      if (action === ShortcutAction.NEW_FOLDER) {
+        this.addFileFolderNameDialogController.open()
+      } else if (action === ShortcutAction.SELECT_ALL) {
+        this.videoListController.closeMultipleChoose()
+        this.folderSelectionMode = true
+        this.selectedFolderDates = new Set(FolderSelection.selectable(this.file_folder_list).map(item => item.date))
+      } else if (action === ShortcutAction.ESCAPE) {
+        this.closeFolderSelection()
+      } else if (action === ShortcutAction.RENAME) {
+        if (this.folderSelectionMode && this.selectedFolderDates.size !== 1) return
+        const target = this.folderSelectionMode ? this.file_folder_list.find(item => this.selectedFolderDates.has(item.date)) : folder
+        if (!target || target.name === '首页') return
+        DataSyncUtil.editingFolder = target
+        this.editFileFolderNameDialogController.open()
+      } else if (action === ShortcutAction.DELETE) {
+        if (this.folderSelectionMode) this.confirmFolderSelectionDelete()
+        else if (folder && folder.name !== '首页') {
+          const previous = this.selectedFolderDates
+          this.selectedFolderDates = new Set([folder.date])
+          this.confirmFolderSelectionDelete()
+          this.selectedFolderDates = previous
+        }
+      }
+    }
     const savedFolderField = Preferences.getFolderSortField(PathUtils.appContext!)
     if (savedFolderField === SortField.FOLDER_NAME || savedFolderField === SortField.FOLDER_DATETIME ||
       savedFolderField === SortField.FOLDER_COUNT) {
@@ -222,6 +253,7 @@ export struct SideBarFolderComponent {
         {
           icon: $r('sys.symbol.rename'),
           content: $r('app.string.edit'),
+          shortcut: 'F2',
           onAction: () => {
             DataSyncUtil.editingFolder = folder
             this.editFileFolderNameDialogController.open()
@@ -395,39 +427,10 @@ export struct SideBarFolderComponent {
                   })
                 }
                 .onClick(() => {
-                  if (this.folderDeleting) {
-                    return
-                  }
-                  if (this.folderSelectionMode) {
-                    this.toggleFolderSelection(repeatItem.item)
-                    return
-                  }
-                  if (this.videoListController.directoryTransitioning) {
-                    return
-                  }
-                  this.searchValueClear()
-                  if (this.videoListController.folder?.date === repeatItem.item.date &&
-                    !this.videoListController.directoryOverview) {
-                    return
-                  }
-                  const latestFolders = Preferences.getFileFolder(PathUtils.appContext!)
-                  const currentFolder = latestFolders.find(f => f.date === repeatItem.item.date)
-                  if (!currentFolder) {
-                    return
-                  }
-                  let folderVideos: VideoMetadata[] = currentFolder.video_list
-                  const sortField = Preferences.getSortField(PathUtils.appContext!) as SortField
-                  if (sortField) {
-                    const sortAsc = Preferences.getSortAsc(PathUtils.appContext!)
-                    folderVideos =
-                      ToolsUtil.sortBy(PathUtils.appContext!, folderVideos, currentFolder, sortField, sortAsc)
-                  }
-                  this.videoListController.videoDataSource.updateData(folderVideos)
-                  this.videoListController.directoryOverview = false
-                  this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder!)
-                  this.scrollToFolderDateChange(repeatItem.item.date)
-                  this.sideBarController.closeIfOverlay(true)
+                  this.activateFolder(repeatItem.item)
                 })
+                .attributeModifier(new LibraryItemFocus(this.libraryKeyboard, 'sidebar-folder', repeatItem.item.date,
+                  () => this.activateFolder(repeatItem.item)))
                 .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.LongPress)
                 .bindContextMenu(this.FileFolderSelectMenu(repeatItem.item), ResponseType.RightClick)
               })
@@ -470,11 +473,49 @@ export struct SideBarFolderComponent {
     }
     .width('100%')
     .height('100%')
+    .onKeyEvent((event: KeyEvent): boolean => {
+      if (!this.sideBarController.isShow || this.currentSourceTab !== 0 || this.folderDeleting) return false
+      const action = KeyboardShortcuts.home(event)
+      if (action === ShortcutAction.SELECT_ALL) {
+        if (this.libraryKeyboard.accept(action)) this.libraryKeyboard.onFolderAction?.(action, this.libraryKeyboard.focusDate)
+        return true
+      }
+      if (this.folderSelectionMode && action === ShortcutAction.DELETE) {
+        if (this.libraryKeyboard.accept(action)) this.confirmFolderSelectionDelete()
+        return true
+      }
+      if (this.folderSelectionMode && action === ShortcutAction.ESCAPE) {
+        if (this.libraryKeyboard.accept(action)) this.closeFolderSelection()
+        return true
+      }
+      return false
+    })
   }
 
   private closeFolderSelection(): void {
     this.folderSelectionMode = false
     this.selectedFolderDates = new Set()
+  }
+
+  private activateFolder(folder: FileFolder): void {
+    if (this.folderDeleting || this.videoListController.directoryTransitioning) return
+    if (this.folderSelectionMode) {
+      this.toggleFolderSelection(folder)
+      return
+    }
+    this.searchValueClear()
+    if (this.videoListController.folder?.date === folder.date && !this.videoListController.directoryOverview) return
+    const currentFolder = Preferences.getFileFolder(PathUtils.appContext!).find(item => item.date === folder.date)
+    if (!currentFolder) return
+    let videos = currentFolder.video_list
+    const field = Preferences.getSortField(PathUtils.appContext!) as SortField
+    if (field) videos = ToolsUtil.sortBy(PathUtils.appContext!, videos, currentFolder, field,
+      Preferences.getSortAsc(PathUtils.appContext!))
+    this.videoListController.videoDataSource.updateData(videos)
+    this.videoListController.directoryOverview = false
+    this.videoListController.updateData(this.videoListController.videoDataSource, currentFolder)
+    this.scrollToFolderDateChange(folder.date)
+    this.sideBarController.closeIfOverlay(true)
   }
 
   private startFolderSelection(folder: FileFolder): void {
@@ -527,7 +568,8 @@ export struct SideBarFolderComponent {
         confirm: () => {
           void this.deleteSelectedFolders(selected)
         }
-      }), cornerRadius: 20, shadow: DefaultDialogShadow
+      }), cornerRadius: 20, shadow: DefaultDialogShadow,
+      onDidDisappear: () => this.libraryKeyboard.reset()
     })
     this.folderDeleteDialogController.open()
   }
